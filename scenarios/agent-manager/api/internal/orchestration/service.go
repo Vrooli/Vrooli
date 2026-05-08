@@ -1754,6 +1754,7 @@ func cloneSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
 		return nil
 	}
 	clone := *cfg
+	clone.Lifecycle.CheckpointOn = append([]domain.SandboxLifecycleEvent(nil), cfg.Lifecycle.CheckpointOn...)
 	clone.Lifecycle.StopOn = append([]domain.SandboxLifecycleEvent(nil), cfg.Lifecycle.StopOn...)
 	clone.Lifecycle.DeleteOn = append([]domain.SandboxLifecycleEvent(nil), cfg.Lifecycle.DeleteOn...)
 	clone.Acceptance.Allow = cloneSandboxCriteria(cfg.Acceptance.Allow)
@@ -1799,8 +1800,13 @@ func normalizeSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
 	// operators can review; their TTL GC is owned by workspace-sandbox
 	// LifecycleReconciler (Phase 4).
 	if cfg.GetAutoApply() && !cfg.ManualReview &&
-		len(cfg.Lifecycle.DeleteOn) == 0 && len(cfg.Lifecycle.StopOn) == 0 {
-		cfg.Lifecycle.DeleteOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}
+		len(cfg.Lifecycle.CheckpointOn) == 0 && len(cfg.Lifecycle.DeleteOn) == 0 && len(cfg.Lifecycle.StopOn) == 0 {
+		cfg.Lifecycle.CheckpointOn = []domain.SandboxLifecycleEvent{
+			domain.SandboxLifecycleTurnCompleted,
+			domain.SandboxLifecycleTurnFailed,
+			domain.SandboxLifecycleTurnCancelled,
+		}
+		cfg.Lifecycle.DeleteOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleRunFinalized}
 	}
 
 	return cfg
@@ -2111,6 +2117,16 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, runner.ErrContinuationNotSupported
 	}
 
+	task, err := o.GetTask(ctx, run.TaskID)
+	if err != nil {
+		return nil, err
+	}
+
+	workDir, err := o.prepareContinuationSandbox(ctx, run, task)
+	if err != nil {
+		return nil, err
+	}
+
 	now := time.Now()
 	run, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 		Run:           run,
@@ -2154,23 +2170,6 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		}
 	}
 
-	// Get the task for working directory
-	task, err := o.GetTask(ctx, run.TaskID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Determine working directory
-	workDir := ""
-	if run.SandboxID != nil && o.sandbox != nil {
-		workDir, _ = o.sandbox.GetWorkspacePath(ctx, *run.SandboxID)
-	}
-	if workDir == "" && task != nil {
-		if task.ProjectRoot != "" {
-			workDir = task.ProjectRoot
-		}
-	}
-
 	eventSink := o.runEventSink(run.ID)
 
 	// Resolve attachments
@@ -2203,6 +2202,58 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir, attachments, transcriptCfg, cleanupTranscript)
 
 	return o.attachRunActions(ctx, run), nil
+}
+
+func (o *Orchestrator) prepareContinuationSandbox(ctx context.Context, run *domain.Run, task *domain.Task) (string, error) {
+	if run == nil {
+		return "", domain.NewValidationError("run", "run is required")
+	}
+	if run.SandboxID == nil {
+		if task != nil && task.ProjectRoot != "" {
+			return task.ProjectRoot, nil
+		}
+		return "", nil
+	}
+	if o.sandbox == nil {
+		return "", domain.NewConfigMissingError("sandbox", "provider not configured", nil)
+	}
+
+	sb, err := o.sandbox.Get(ctx, *run.SandboxID)
+	if err != nil {
+		return "", err
+	}
+	switch sb.Status {
+	case sandbox.SandboxStatusCheckpointed:
+		sb, err = o.sandbox.Resume(ctx, sb.ID)
+		if err != nil {
+			return "", err
+		}
+	case sandbox.SandboxStatusStopped:
+		if err := o.sandbox.Start(ctx, sb.ID); err != nil {
+			return "", err
+		}
+		sb, err = o.sandbox.Get(ctx, sb.ID)
+		if err != nil {
+			return "", err
+		}
+	case sandbox.SandboxStatusActive:
+	case sandbox.SandboxStatusDeleted, sandbox.SandboxStatusRejected, sandbox.SandboxStatusApproved, sandbox.SandboxStatusError:
+		return "", domain.NewStateError("Sandbox", string(sb.Status), "continue", "sandbox is not resumable")
+	default:
+		return "", domain.NewStateError("Sandbox", string(sb.Status), "continue", "sandbox is not active or checkpointed")
+	}
+
+	workDir := sb.WorkDir
+	if workDir == "" {
+		workDir, err = o.sandbox.GetWorkspacePath(ctx, sb.ID)
+		if err != nil {
+			return "", err
+		}
+	}
+	if workDir == "" {
+		return "", domain.NewStateError("Sandbox", string(sb.Status), "continue", "resumed sandbox did not provide a workspace path")
+	}
+	return workDir, nil
 }
 
 // DeleteRunMessage appends a message_deleted event for a message event.
@@ -2428,11 +2479,49 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		run.SessionID = result.SessionID
 	}
 
-	if _, err := o.applyRunStatusTransition(ctx, transition); err != nil {
+	updatedRun, err := o.applyRunStatusTransition(ctx, transition)
+	if err != nil {
 		obs.Component("continuation").Error("continuation status transition failed",
 			obs.KeyRunID, run.ID.String(),
 			obs.KeyError, err.Error(),
 		)
+		return
+	}
+	run = updatedRun
+	o.checkpointContinuationTurn(ctx, run, result, execCtx.Err() == context.DeadlineExceeded)
+}
+
+func (o *Orchestrator) checkpointContinuationTurn(ctx context.Context, run *domain.Run, result *runner.ExecuteResult, timedOut bool) {
+	if run == nil || run.RunMode != domain.RunModeSandboxed || run.SandboxID == nil || o.sandbox == nil {
+		return
+	}
+	outcome := domain.ContractRunOutcomeSuccess
+	switch {
+	case timedOut:
+		outcome = domain.ContractRunOutcomeTimeout
+	case run.Status == domain.RunStatusCancelled:
+		outcome = domain.ContractRunOutcomeCancelled
+	case run.Status == domain.RunStatusFailed:
+		outcome = domain.ContractRunOutcomeFailure
+	}
+	cost := 0.0
+	if result != nil {
+		cost = result.Metrics.CostEstimateUSD
+	}
+	if phases.ApplyAtRunEnd(ctx, phases.ApplyAtRunEndInput{
+		Deps:      phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers()},
+		Run:       run,
+		SandboxID: run.SandboxID,
+		Sandbox:   o.sandbox,
+		Outcome:   outcome,
+		Cost:      cost,
+	}) && o.runs != nil {
+		if err := o.runs.Update(ctx, run); err != nil {
+			obs.Component("continuation").Error("continuation checkpoint status update failed",
+				obs.KeyRunID, run.ID.String(),
+				obs.KeyError, err.Error(),
+			)
+		}
 	}
 }
 

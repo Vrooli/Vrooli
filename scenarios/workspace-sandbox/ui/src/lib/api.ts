@@ -4,7 +4,15 @@ const API_BASE = resolveApiBase({ appendSuffix: true });
 
 // --- Types matching the Go API ---
 
-export type Status = "creating" | "active" | "stopped" | "approved" | "rejected" | "deleted" | "error";
+export type Status =
+  | "creating"
+  | "active"
+  | "stopped"
+  | "checkpointed"
+  | "approved"
+  | "rejected"
+  | "deleted"
+  | "error";
 export type OwnerType = "agent" | "user" | "task" | "system";
 export type ChangeType = "added" | "modified" | "deleted";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
@@ -12,7 +20,7 @@ export type ViewMode = "diff" | "full_diff" | "source";
 export type LineChange = "" | "added" | "deleted";
 
 /** Active-tab statuses: operationally interesting, restartable, actionable. */
-export const ACTIVE_STATUSES: readonly Status[] = ["creating", "active", "stopped", "error"] as const;
+export const ACTIVE_STATUSES: readonly Status[] = ["creating", "active", "stopped", "checkpointed", "error"] as const;
 
 /** History-tab statuses: terminal, audit-only. */
 export const HISTORY_STATUSES: readonly Status[] = ["approved", "rejected", "deleted"] as const;
@@ -438,6 +446,11 @@ export async function startSandbox(id: string): Promise<Sandbox> {
   return apiRequest<Sandbox>(`/sandboxes/${id}/start`, { method: "POST" });
 }
 
+// Resume sandbox (remount a checkpointed sandbox for the next turn)
+export async function resumeSandbox(id: string): Promise<Sandbox> {
+  return apiRequest<Sandbox>(`/sandboxes/${id}/resume`, { method: "POST" });
+}
+
 // Get diff
 export async function getDiff(id: string, mode: ViewMode = "diff"): Promise<DiffResult> {
   const params = new URLSearchParams();
@@ -529,6 +542,7 @@ export interface SandboxStats {
   total: number;
   active: number;
   stopped: number;
+  checkpointed: number;
   approved: number;
   rejected: number;
   error: number;
@@ -552,6 +566,9 @@ export function computeStats(sandboxes: Sandbox[]): SandboxStats {
         case "stopped":
           acc.stopped++;
           break;
+        case "checkpointed":
+          acc.checkpointed++;
+          break;
         case "approved":
           acc.approved++;
           break;
@@ -568,6 +585,7 @@ export function computeStats(sandboxes: Sandbox[]): SandboxStats {
       total: 0,
       active: 0,
       stopped: 0,
+      checkpointed: 0,
       approved: 0,
       rejected: 0,
       error: 0,

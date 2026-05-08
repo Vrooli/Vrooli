@@ -492,11 +492,20 @@ The following decisions are now explicit and have dedicated locations:
 |----------|----------|-------------|
 | Can stop sandbox? | `CanStop(status)` | Only active sandboxes can be stopped |
 | Can approve? | `CanApprove(status)` | Only active/stopped sandboxes can be approved |
-| Can reject? | `CanReject(status)` | Only active/stopped sandboxes can be rejected |
+| Can checkpoint turn? | `CanCheckpointTurn(status)` | Only active sandboxes can be checkpointed after a turn |
+| Can resume work? | `CanResumeWork(status)` | Only checkpointed sandboxes can be resumed for a new turn |
+| Can run process? | `CanRunProcess(status)` | Only active sandboxes can launch processes |
+| Can reject? | `CanReject(status)` | Active/stopped/checkpointed sandboxes can be rejected |
 | Can delete? | `CanDelete(status)` | All sandboxes can be deleted (except already deleted) |
-| Can generate diff? | `CanGenerateDiff(status)` | Active/stopped sandboxes have diff data |
+| Can generate diff? | `CanGenerateDiff(status)` | Active/stopped sandboxes have live diff data; terminal archives serve historical diffs |
 | Can get workspace path? | `CanGetWorkspacePath(status)` | Only mounted sandboxes have workspace path |
 | Valid transition? | `CanTransitionTo(from, to)` | Consults `ValidTransitions` matrix |
+
+### Turn Checkpoint Lifecycle
+
+[CODE: `internal/sandbox/service_turn_checkpoint.go::Service.TurnCheckpoint`] applies accepted turn changes, records provenance, removes applied upper-layer entries, refreshes the base commit hash, unmounts the project/home overlays, and transitions the sandbox to `checkpointed`.
+
+[CODE: `internal/sandbox/service_turn_checkpoint.go::Service.Resume`] remounts a `checkpointed` sandbox and transitions it back to `active`. Process launch gates call [CODE: `internal/types/status.go::CanRunProcess`] so a checkpointed sandbox cannot start processes until it is explicitly resumed.
 
 ### Error Handling (types/errors.go)
 | Error Type | HTTP Status | Use Case |

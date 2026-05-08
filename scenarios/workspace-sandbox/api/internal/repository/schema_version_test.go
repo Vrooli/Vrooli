@@ -199,7 +199,7 @@ func TestEnsureSchema_AppliesLegacyMigrations(t *testing.T) {
             version             INTEGER NOT NULL DEFAULT 1,
             updated_at          TEXT NOT NULL DEFAULT '',
             base_commit_hash    TEXT,
-            CHECK (status IN ('creating', 'active', 'stopped', 'approved', 'rejected', 'deleted', 'error'))
+            CHECK (status IN ('creating', 'active', 'stopped', 'checkpointed', 'approved', 'rejected', 'deleted', 'error'))
         );
     `); err != nil {
 		t.Fatalf("seed pre-2026 sandboxes table: %v", err)

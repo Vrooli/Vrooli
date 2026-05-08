@@ -119,8 +119,15 @@ func (p *archiveAwareSandboxProvider) ApplyAtRunEnd(_ context.Context, _ sandbox
 	return &sandbox.ApplyAtRunEndResult{Success: true, AppliedAt: time.Now()}, nil
 }
 
+func (p *archiveAwareSandboxProvider) TurnCheckpoint(_ context.Context, req sandbox.TurnCheckpointRequest) (*sandbox.TurnCheckpointResult, error) {
+	return &sandbox.TurnCheckpointResult{SandboxID: req.SandboxID, Status: sandbox.SandboxStatusCheckpointed, Success: true, AppliedAt: time.Now()}, nil
+}
+
 func (p *archiveAwareSandboxProvider) Stop(_ context.Context, _ uuid.UUID) error  { return nil }
 func (p *archiveAwareSandboxProvider) Start(_ context.Context, _ uuid.UUID) error { return nil }
+func (p *archiveAwareSandboxProvider) Resume(_ context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+	return &sandbox.Sandbox{ID: id, Status: sandbox.SandboxStatusActive, WorkDir: p.workspace, CreatedAt: time.Now()}, nil
+}
 
 func (p *archiveAwareSandboxProvider) IsAvailable(_ context.Context) (bool, string) { return true, "" }
 

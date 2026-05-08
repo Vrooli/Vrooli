@@ -21,7 +21,7 @@ The primary purpose of `workspace-sandbox` when used as the default execution pa
 
 ## Apply-timing state machine
 
-- **`manualReview=false` (default)**: in-acceptance changes auto-apply at run end; out-of-acceptance changes persist as `state=pending-review` provenance and remain in the sandbox.
+- **`manualReview=false` (default)**: in-acceptance changes auto-apply at turn end through `/turn-checkpoint`; out-of-acceptance changes persist as `state=pending-review` provenance and remain in the sandbox. The sandbox is then unmounted and marked `checkpointed` so the same logical sandbox can be resumed for a follow-up turn.
 - **`manualReview=true` (opt-in)**: no apply at run end; all changes persist as `state=pending-review`. The sandbox persists beyond run end until the operator approves or denies. Approval can come from any of three surfaces (git-control-tower AI Changes, agent-manager run-detail diff, workspace-sandbox sandbox-detail diff); the originating surface is recorded on the resulting state transition for audit.
 - Apply behavior is identical regardless of run outcome. `runOutcome` ∈ {`success`, `failure`, `cancelled`, `timeout`} is captured on the provenance record but does not gate apply.
 

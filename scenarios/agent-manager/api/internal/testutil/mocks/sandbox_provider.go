@@ -26,22 +26,27 @@ type FakeSandboxProvider struct {
 	PartialApproveFunc func(context.Context, sandbox.PartialApproveRequest) (*sandbox.ApproveResult, error)
 	StopFunc           func(context.Context, uuid.UUID) error
 	StartFunc          func(context.Context, uuid.UUID) error
+	ResumeFunc         func(context.Context, uuid.UUID) (*sandbox.Sandbox, error)
 	IsAvailableFunc    func(context.Context) (bool, string)
 	ValidatePathFunc   func(context.Context, string, string) (*sandbox.PathValidationResult, error)
 	ExecProcessFunc    func(context.Context, sandbox.ExecProcessRequest) (*sandbox.ExecProcessResult, error)
 	ApplyAtRunEndFunc  func(context.Context, sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error)
+	TurnCheckpointFunc func(context.Context, sandbox.TurnCheckpointRequest) (*sandbox.TurnCheckpointResult, error)
 
-	DeleteErr           error
-	StopErr             error
-	ApplyAtRunEndErr    error
-	ApplyAtRunEndResult *sandbox.ApplyAtRunEndResult
+	DeleteErr            error
+	StopErr              error
+	ApplyAtRunEndErr     error
+	ApplyAtRunEndResult  *sandbox.ApplyAtRunEndResult
+	TurnCheckpointErr    error
+	TurnCheckpointResult *sandbox.TurnCheckpointResult
 
-	createRequests        []sandbox.CreateRequest
-	getWorkspacePathIDs   []uuid.UUID
-	deleteIDs             []uuid.UUID
-	deleteContextErrs     []error
-	stopIDs               []uuid.UUID
-	applyAtRunEndRequests []sandbox.ApplyAtRunEndRequest
+	createRequests         []sandbox.CreateRequest
+	getWorkspacePathIDs    []uuid.UUID
+	deleteIDs              []uuid.UUID
+	deleteContextErrs      []error
+	stopIDs                []uuid.UUID
+	applyAtRunEndRequests  []sandbox.ApplyAtRunEndRequest
+	turnCheckpointRequests []sandbox.TurnCheckpointRequest
 }
 
 func NewFakeSandboxProvider() *FakeSandboxProvider {
@@ -145,6 +150,28 @@ func (p *FakeSandboxProvider) ApplyAtRunEnd(ctx context.Context, req sandbox.App
 	return &sandbox.ApplyAtRunEndResult{Success: true, Applied: 1, AppliedAt: time.Now()}, nil
 }
 
+func (p *FakeSandboxProvider) TurnCheckpoint(ctx context.Context, req sandbox.TurnCheckpointRequest) (*sandbox.TurnCheckpointResult, error) {
+	p.mu.Lock()
+	p.turnCheckpointRequests = append(p.turnCheckpointRequests, req)
+	p.mu.Unlock()
+	if p.TurnCheckpointFunc != nil {
+		return p.TurnCheckpointFunc(ctx, req)
+	}
+	if p.TurnCheckpointErr != nil {
+		return nil, p.TurnCheckpointErr
+	}
+	if p.TurnCheckpointResult != nil {
+		return p.TurnCheckpointResult, nil
+	}
+	return &sandbox.TurnCheckpointResult{
+		SandboxID: req.SandboxID,
+		Status:    sandbox.SandboxStatusCheckpointed,
+		Success:   true,
+		Applied:   1,
+		AppliedAt: time.Now(),
+	}, nil
+}
+
 func (p *FakeSandboxProvider) Stop(ctx context.Context, id uuid.UUID) error {
 	p.mu.Lock()
 	p.stopIDs = append(p.stopIDs, id)
@@ -160,6 +187,18 @@ func (p *FakeSandboxProvider) Start(ctx context.Context, id uuid.UUID) error {
 		return p.StartFunc(ctx, id)
 	}
 	return nil
+}
+
+func (p *FakeSandboxProvider) Resume(ctx context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+	if p.ResumeFunc != nil {
+		return p.ResumeFunc(ctx, id)
+	}
+	return &sandbox.Sandbox{
+		ID:        id,
+		Status:    sandbox.SandboxStatusActive,
+		WorkDir:   "/tmp/sandbox/" + id.String() + "/merged",
+		CreatedAt: time.Now(),
+	}, nil
 }
 
 func (p *FakeSandboxProvider) IsAvailable(ctx context.Context) (bool, string) {

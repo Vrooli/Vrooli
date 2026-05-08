@@ -2,7 +2,7 @@
  * Type definitions for the workspace-sandbox sidebar.
  *
  * The sidebar is split into two top-level tabs:
- *   - Active:  operationally interesting (creating, active, stopped, error)
+ *   - Active:  operationally interesting (creating, active, stopped, checkpointed, error)
  *   - History: terminal-state audit (approved, rejected, deleted)
  *
  * Each tab carries its own search/filter/sort state; the reducer

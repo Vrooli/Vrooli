@@ -147,6 +147,14 @@ func NetworkAccessFromProto(n pb.NetworkAccess) domain.NetworkAccess {
 // SandboxLifecycleEventToProto converts domain SandboxLifecycleEvent to proto.
 func SandboxLifecycleEventToProto(event domain.SandboxLifecycleEvent) pb.SandboxLifecycleEvent {
 	switch event {
+	case domain.SandboxLifecycleTurnCompleted:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED
+	case domain.SandboxLifecycleTurnFailed:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_FAILED
+	case domain.SandboxLifecycleTurnCancelled:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED
+	case domain.SandboxLifecycleRunFinalized:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED
 	case domain.SandboxLifecycleRunCompleted:
 		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED
 	case domain.SandboxLifecycleRunFailed:
@@ -167,6 +175,14 @@ func SandboxLifecycleEventToProto(event domain.SandboxLifecycleEvent) pb.Sandbox
 // SandboxLifecycleEventFromProto converts proto SandboxLifecycleEvent to domain.
 func SandboxLifecycleEventFromProto(event pb.SandboxLifecycleEvent) domain.SandboxLifecycleEvent {
 	switch event {
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED:
+		return domain.SandboxLifecycleTurnCompleted
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_FAILED:
+		return domain.SandboxLifecycleTurnFailed
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED:
+		return domain.SandboxLifecycleTurnCancelled
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED:
+		return domain.SandboxLifecycleRunFinalized
 	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED:
 		return domain.SandboxLifecycleRunCompleted
 	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FAILED:
@@ -258,6 +274,10 @@ func SandboxAcceptanceConfigFromProto(cfg *pb.SandboxAcceptanceConfig) domain.Sa
 
 // SandboxLifecycleConfigToProto converts domain SandboxLifecycleConfig to proto.
 func SandboxLifecycleConfigToProto(cfg domain.SandboxLifecycleConfig) *pb.SandboxLifecycleConfig {
+	checkpointOn := make([]pb.SandboxLifecycleEvent, 0, len(cfg.CheckpointOn))
+	for _, event := range cfg.CheckpointOn {
+		checkpointOn = append(checkpointOn, SandboxLifecycleEventToProto(event))
+	}
 	stopOn := make([]pb.SandboxLifecycleEvent, 0, len(cfg.StopOn))
 	for _, event := range cfg.StopOn {
 		stopOn = append(stopOn, SandboxLifecycleEventToProto(event))
@@ -267,10 +287,11 @@ func SandboxLifecycleConfigToProto(cfg domain.SandboxLifecycleConfig) *pb.Sandbo
 		deleteOn = append(deleteOn, SandboxLifecycleEventToProto(event))
 	}
 	return &pb.SandboxLifecycleConfig{
-		StopOn:      stopOn,
-		DeleteOn:    deleteOn,
-		Ttl:         DurationToProto(cfg.TTL),
-		IdleTimeout: DurationToProto(cfg.IdleTimeout),
+		CheckpointOn: checkpointOn,
+		StopOn:       stopOn,
+		DeleteOn:     deleteOn,
+		Ttl:          DurationToProto(cfg.TTL),
+		IdleTimeout:  DurationToProto(cfg.IdleTimeout),
 	}
 }
 
@@ -279,25 +300,27 @@ func SandboxLifecycleConfigFromProto(cfg *pb.SandboxLifecycleConfig) domain.Sand
 	if cfg == nil {
 		return domain.SandboxLifecycleConfig{}
 	}
-	stopOn := make([]domain.SandboxLifecycleEvent, 0, len(cfg.StopOn))
-	for _, event := range cfg.StopOn {
-		if event == pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED {
-			continue
+	convertEvents := func(events []pb.SandboxLifecycleEvent) []domain.SandboxLifecycleEvent {
+		out := make([]domain.SandboxLifecycleEvent, 0, len(events))
+		for _, event := range events {
+			if event == pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED {
+				continue
+			}
+			if converted := SandboxLifecycleEventFromProto(event); converted != "" {
+				out = append(out, converted)
+			}
 		}
-		stopOn = append(stopOn, SandboxLifecycleEventFromProto(event))
+		return out
 	}
-	deleteOn := make([]domain.SandboxLifecycleEvent, 0, len(cfg.DeleteOn))
-	for _, event := range cfg.DeleteOn {
-		if event == pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED {
-			continue
-		}
-		deleteOn = append(deleteOn, SandboxLifecycleEventFromProto(event))
-	}
+	checkpointOn := convertEvents(cfg.CheckpointOn)
+	stopOn := convertEvents(cfg.StopOn)
+	deleteOn := convertEvents(cfg.DeleteOn)
 	return domain.SandboxLifecycleConfig{
-		StopOn:      stopOn,
-		DeleteOn:    deleteOn,
-		TTL:         DurationFromProto(cfg.Ttl),
-		IdleTimeout: DurationFromProto(cfg.IdleTimeout),
+		CheckpointOn: checkpointOn,
+		StopOn:       stopOn,
+		DeleteOn:     deleteOn,
+		TTL:          DurationFromProto(cfg.Ttl),
+		IdleTimeout:  DurationFromProto(cfg.IdleTimeout),
 	}
 }
 

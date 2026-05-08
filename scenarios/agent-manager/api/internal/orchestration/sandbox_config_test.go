@@ -10,20 +10,26 @@ import (
 	"agent-manager/internal/domain"
 )
 
-// TestNormalizeSandboxConfig_AutoApplyDefaultsDeleteOn pins the cleanup
-// behavior: AutoApply=true (the contract default) without an explicit
-// lifecycle config gets DeleteOn=[terminal] so the sandbox is reaped after
-// the run terminates and the apply has happened.
-func TestNormalizeSandboxConfig_AutoApplyDefaultsDeleteOn(t *testing.T) {
+// TestNormalizeSandboxConfig_AutoApplyDefaultsCheckpointOn pins the
+// resumable-turn behavior: AutoApply=true (the contract default) without an
+// explicit lifecycle config checkpoints each turn and reserves deletion for
+// explicit run finalization.
+func TestNormalizeSandboxConfig_AutoApplyDefaultsCheckpointOn(t *testing.T) {
 	cfg := domain.DefaultSandboxConfig() // AutoApply=true, ManualReview=false
 
 	result := normalizeSandboxConfig(cfg)
 
+	if len(result.Lifecycle.CheckpointOn) != 3 {
+		t.Fatalf("expected 3 checkpointOn events, got %d", len(result.Lifecycle.CheckpointOn))
+	}
+	if result.Lifecycle.CheckpointOn[0] != domain.SandboxLifecycleTurnCompleted {
+		t.Errorf("expected checkpointOn[0]=%q, got %q", domain.SandboxLifecycleTurnCompleted, result.Lifecycle.CheckpointOn[0])
+	}
 	if len(result.Lifecycle.DeleteOn) != 1 {
 		t.Fatalf("expected 1 deleteOn event, got %d", len(result.Lifecycle.DeleteOn))
 	}
-	if result.Lifecycle.DeleteOn[0] != domain.SandboxLifecycleTerminal {
-		t.Errorf("expected deleteOn[0]=%q, got %q", domain.SandboxLifecycleTerminal, result.Lifecycle.DeleteOn[0])
+	if result.Lifecycle.DeleteOn[0] != domain.SandboxLifecycleRunFinalized {
+		t.Errorf("expected deleteOn[0]=%q, got %q", domain.SandboxLifecycleRunFinalized, result.Lifecycle.DeleteOn[0])
 	}
 }
 

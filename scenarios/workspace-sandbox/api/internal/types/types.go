@@ -16,7 +16,7 @@
 //     Sandboxes cannot have overlapping scopes (see mutual exclusion below).
 //
 //   - Status: Sandboxes progress through a state machine (see status.go).
-//     Key states: creating → active → stopped → approved/rejected → deleted
+//     Key states: creating → active → checkpointed/stopped → approved/rejected → deleted
 //
 //   - Overlay Layers: The driver creates:
 //
@@ -802,6 +802,44 @@ type ApplyAtRunEndRequest struct {
 
 	// Force mirrors ApprovalRequest.Force; default off.
 	Force bool `json:"force,omitempty"`
+}
+
+// TurnCheckpointRequest carries the agent-manager turn context for the
+// resumable post-turn sandbox lifecycle. Unlike approval, a turn checkpoint
+// applies accepted changes, records provenance, releases mounts, and parks the
+// same logical sandbox in StatusCheckpointed for later resume.
+type TurnCheckpointRequest struct {
+	SandboxID uuid.UUID `json:"sandboxId"`
+
+	AgentManagerRunID string `json:"agentManagerRunId"`
+	ConversationID    string `json:"conversationId,omitempty"`
+	TurnID            string `json:"turnId,omitempty"`
+	TurnSequence      int    `json:"turnSequence,omitempty"`
+
+	Source     ApprovalSource `json:"source"`
+	Actor      string         `json:"actor,omitempty"`
+	RunOutcome string         `json:"runOutcome,omitempty"`
+	Cost       float64        `json:"cost,omitempty"`
+
+	CommitMsg    string `json:"commitMessage,omitempty"`
+	CreateCommit bool   `json:"createCommit,omitempty"`
+	Force        bool   `json:"force,omitempty"`
+}
+
+// TurnCheckpointResult reports the outcome of a turn checkpoint.
+type TurnCheckpointResult struct {
+	SandboxID      uuid.UUID `json:"sandboxId"`
+	Status         Status    `json:"status"`
+	Success        bool      `json:"success"`
+	Applied        int       `json:"applied"`
+	Failed         int       `json:"failed"`
+	Remaining      int       `json:"remaining"`
+	IsPartial      bool      `json:"isPartial"`
+	CommitHash     string    `json:"commitHash,omitempty"`
+	BaseCommitHash string    `json:"baseCommitHash,omitempty"`
+	CheckpointID   string    `json:"checkpointId,omitempty"`
+	ErrorMsg       string    `json:"error,omitempty"`
+	AppliedAt      time.Time `json:"appliedAt"`
 }
 
 // HunkRange specifies a range of lines to approve within a file.

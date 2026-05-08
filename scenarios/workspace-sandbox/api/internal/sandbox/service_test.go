@@ -394,6 +394,70 @@ func TestService_Start_Idempotent(t *testing.T) {
 	}
 }
 
+func TestService_TurnCheckpoint_NoChangesTransitionsCheckpointed(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	drv.Mounted = true
+	svc := newTestService(repo, drv)
+	ctx := context.Background()
+
+	id := uuid.New()
+	existing := createTestSandbox(id, types.StatusActive)
+	repo.Sandboxes[id] = existing
+
+	result, err := svc.TurnCheckpoint(ctx, &types.TurnCheckpointRequest{
+		SandboxID:         id,
+		AgentManagerRunID: "run-1",
+		Source:            types.SourceAgentManagerAutoApply,
+		Actor:             "agent-manager",
+		RunOutcome:        "success",
+	})
+	if err != nil {
+		t.Fatalf("TurnCheckpoint() error = %v", err)
+	}
+	if !result.Success {
+		t.Fatalf("TurnCheckpoint() Success = false: %s", result.ErrorMsg)
+	}
+	if result.Status != types.StatusCheckpointed {
+		t.Errorf("result status = %s, want checkpointed", result.Status)
+	}
+	if drv.Mounted {
+		t.Error("TurnCheckpoint() should unmount the sandbox")
+	}
+	stored := repo.Sandboxes[id]
+	if stored.Status != types.StatusCheckpointed {
+		t.Errorf("stored status = %s, want checkpointed", stored.Status)
+	}
+	if stored.BaseCommitHash != "abc123" {
+		t.Errorf("BaseCommitHash = %q, want abc123", stored.BaseCommitHash)
+	}
+}
+
+func TestService_Resume_CheckpointedTransitionsActive(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	svc := newTestService(repo, drv)
+	ctx := context.Background()
+
+	id := uuid.New()
+	existing := createTestSandbox(id, types.StatusCheckpointed)
+	repo.Sandboxes[id] = existing
+
+	sb, err := svc.Resume(ctx, id)
+	if err != nil {
+		t.Fatalf("Resume() error = %v", err)
+	}
+	if sb.Status != types.StatusActive {
+		t.Errorf("Resume() status = %s, want active", sb.Status)
+	}
+	if !drv.Mounted {
+		t.Error("Resume() should mount the sandbox")
+	}
+	if sb.MergedDir == "" {
+		t.Error("Resume() should return a workspace path")
+	}
+}
+
 // --- Delete Tests ---
 
 // [REQ:P0-001] Test delete removes sandbox.

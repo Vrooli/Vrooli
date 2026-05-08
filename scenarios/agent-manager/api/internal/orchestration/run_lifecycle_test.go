@@ -8,9 +8,11 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/testutil"
+	"agent-manager/internal/testutil/mocks"
 
 	"github.com/google/uuid"
 )
@@ -286,12 +288,31 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 	registry := runner.NewRegistry()
 	mustRegisterRunner(t, registry, mockRunner)
 
+	sandboxID := uuid.New()
 	svc := orchestration.New(
 		repos.Profiles,
 		repos.Tasks,
 		repos.Runs,
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
+		orchestration.WithSandbox(&mocks.FakeSandboxProvider{
+			GetFunc: func(context.Context, uuid.UUID) (*sandbox.Sandbox, error) {
+				return &sandbox.Sandbox{
+					ID:        sandboxID,
+					Status:    sandbox.SandboxStatusCheckpointed,
+					WorkDir:   "",
+					CreatedAt: time.Now(),
+				}, nil
+			},
+			ResumeFunc: func(context.Context, uuid.UUID) (*sandbox.Sandbox, error) {
+				return &sandbox.Sandbox{
+					ID:        sandboxID,
+					Status:    sandbox.SandboxStatusActive,
+					WorkDir:   "/tmp/sandbox/" + sandboxID.String() + "/merged",
+					CreatedAt: time.Now(),
+				}, nil
+			},
+		}),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
@@ -308,7 +329,6 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 
 	now := time.Now()
 	runID := uuid.New()
-	sandboxID := uuid.New()
 	run := &domain.Run{
 		ID:             runID,
 		TaskID:         task.ID,

@@ -7,6 +7,7 @@
 //	service.go             ServiceAPI interface, Service struct, options, NewService
 //	service_create.go      Create + idempotency + validation + mount
 //	service_lifecycle.go   Get/List/Start/Stop/Delete + lifecycle policy
+//	service_turn_checkpoint.go TurnCheckpoint + Resume post-turn lifecycle
 //	service_review.go      Diff/Approve/ApplyAtRunEnd/Reject/Discard/Conflicts/Rebase
 //	service_pending.go     Pending changes, commit preview, mark-committed, provenance
 //	service_acceptance.go  Per-file acceptance evaluation + glob matching
@@ -56,6 +57,10 @@ type ServiceAPI interface {
 	// Returns StateError if sandbox cannot be started.
 	Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
 
+	// Resume remounts a checkpointed sandbox for the next turn.
+	// Returns StateError if sandbox cannot be resumed.
+	Resume(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+
 	// Delete removes a sandbox and all its data.
 	Delete(ctx context.Context, id uuid.UUID) error
 
@@ -75,6 +80,10 @@ type ServiceAPI interface {
 	// The Source field must be SourceAgentManagerAutoApply; other inbound
 	// values are rejected.
 	ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error)
+
+	// TurnCheckpoint applies accepted turn changes, records provenance, and
+	// parks the sandbox in a resumable checkpointed state.
+	TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointRequest) (*types.TurnCheckpointResult, error)
 
 	// Reject marks sandbox changes as rejected.
 	// Returns StateError if sandbox cannot be rejected.

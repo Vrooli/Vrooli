@@ -283,8 +283,18 @@ sequenceDiagram
     API->>FS: Compare upper/ vs lower/
     API-->>AM: {unifiedDiff: "...", files: [...]}
 
-    Note over AM,FS: Phase 4: Approve or Reject
-    alt Approve Changes
+    Note over AM,FS: Phase 4: Turn Checkpoint or Final Review
+    alt Agent turn checkpoint
+        AM->>API: POST /sandboxes/abc-123/turn-checkpoint
+        API->>FS: Apply accepted files to repo
+        API->>FS: Unmount project/home overlays
+        API->>DB: Mark sandbox as checkpointed
+        API-->>AM: {status: "checkpointed"}
+        AM->>API: POST /sandboxes/abc-123/resume
+        API->>FS: Remount overlays
+        API->>DB: Mark sandbox as active
+        API-->>AM: {mergedDir: "..."}
+    else Final approve
         AM->>API: POST /sandboxes/abc-123/approve<br/>{files: ["file1.go", "file2.go"]}
         API->>FS: Copy approved files from upper/ to repo
         API->>DB: Mark sandbox as approved
@@ -303,6 +313,8 @@ sequenceDiagram
 |-------|----------|---------|
 | Create | `POST /sandboxes` | Create new sandbox |
 | Execute | `POST /sandboxes/:id/exec` | Run command in sandbox |
+| Turn checkpoint | `POST /sandboxes/:id/turn-checkpoint` | Apply accepted turn changes and park the sandbox as resumable |
+| Resume | `POST /sandboxes/:id/resume` | Remount a checkpointed sandbox for the next turn |
 | Review | `GET /sandboxes/:id/diff` | Get unified diff of changes |
 | Approve | `POST /sandboxes/:id/approve` | Apply changes to repo |
 | Reject | `POST /sandboxes/:id/reject` | Discard changes |

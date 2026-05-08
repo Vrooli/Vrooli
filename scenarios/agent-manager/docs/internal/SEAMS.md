@@ -241,8 +241,11 @@ type Provider interface {
     Approve(ctx context.Context, req ApproveRequest) (*ApproveResult, error)
     Reject(ctx context.Context, id uuid.UUID, actor string) error
     PartialApprove(ctx context.Context, req PartialApproveRequest) (*ApproveResult, error)
+    ApplyAtRunEnd(ctx context.Context, req ApplyAtRunEndRequest) (*ApplyAtRunEndResult, error)
+    TurnCheckpoint(ctx context.Context, req TurnCheckpointRequest) (*TurnCheckpointResult, error)
     Stop(ctx context.Context, id uuid.UUID) error
     Start(ctx context.Context, id uuid.UUID) error
+    Resume(ctx context.Context, id uuid.UUID) (*Sandbox, error)
     IsAvailable(ctx context.Context) (bool, string)
 }
 ```
@@ -256,6 +259,8 @@ type Provider interface {
 - `WorkspaceSandboxProvider` - HTTP client for workspace-sandbox API (implemented ✅)
   - Creates sandboxes with overlayfs isolation
   - Retrieves diffs and applies changes
+  - Maps agent-manager apply-at-run-end to workspace-sandbox `/turn-checkpoint`
+  - Resumes checkpointed sandboxes before continuation process launch
   - Supports full/partial approval workflows
   - Health checks for availability monitoring
 

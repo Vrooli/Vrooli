@@ -220,3 +220,19 @@ func (h *Handlers) StartSandbox(w http.ResponseWriter, r *http.Request) {
 
 	h.JSONSuccess(w, sb)
 }
+
+// ResumeSandbox handles resuming a checkpointed sandbox for a new turn.
+func (h *Handlers) ResumeSandbox(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	sb, err := h.Service.Resume(r.Context(), id)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, sb)
+}

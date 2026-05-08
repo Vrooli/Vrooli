@@ -26,6 +26,7 @@ import {
   useDeleteSandbox,
   useStopSandbox,
   useStartSandbox,
+  useResumeSandbox,
   useApproveSandbox,
   useRejectSandbox,
   useDiscardFiles,
@@ -193,6 +194,7 @@ export default function App() {
   const deleteMutation = useDeleteSandbox();
   const stopMutation = useStopSandbox();
   const startMutation = useStartSandbox();
+  const resumeMutation = useResumeSandbox();
   const approveMutation = useApproveSandbox();
   const rejectMutation = useRejectSandbox();
   const discardMutation = useDiscardFiles();
@@ -256,12 +258,13 @@ export default function App() {
 
   const handleStart = useCallback(() => {
     if (!selectedSandbox) return;
-    startMutation.mutate(selectedSandbox.id, {
+    const mutation = selectedSandbox.status === "checkpointed" ? resumeMutation : startMutation;
+    mutation.mutate(selectedSandbox.id, {
       onSuccess: (updated) => {
         setSelectedSandbox(updated);
       },
     });
-  }, [selectedSandbox, startMutation]);
+  }, [selectedSandbox, startMutation, resumeMutation]);
 
   // Track which sandbox IDs are currently being restarted (stop then start)
   const [restartingIds, setRestartingIds] = useState<Set<string>>(new Set());
@@ -615,7 +618,13 @@ export default function App() {
   const existingReservedPaths = useMemo(() => {
     const paths = new Set<string>();
     sandboxes
-      .filter((sb) => sb.status === "active" || sb.status === "creating" || sb.status === "stopped")
+      .filter(
+        (sb) =>
+          sb.status === "active" ||
+          sb.status === "creating" ||
+          sb.status === "stopped" ||
+          sb.status === "checkpointed",
+      )
       .forEach((sb) => {
         const reserved = sb.reservedPaths?.length ? sb.reservedPaths : [sb.reservedPath || sb.scopePath];
         reserved.forEach((p) => p && paths.add(p));
@@ -662,7 +671,7 @@ export default function App() {
     isApproving: approveMutation.isPending,
     isRejecting: rejectMutation.isPending,
     isStopping: stopMutation.isPending,
-    isStarting: startMutation.isPending,
+    isStarting: startMutation.isPending || resumeMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isDiscarding: discardMutation.isPending,
     isReviewMode,
@@ -732,6 +741,7 @@ export default function App() {
         deleteMutation.error ||
         stopMutation.error ||
         startMutation.error ||
+        resumeMutation.error ||
         approveMutation.error ||
         rejectMutation.error ||
         discardMutation.error ||
@@ -748,6 +758,7 @@ export default function App() {
               deleteMutation.error ||
               stopMutation.error ||
               startMutation.error ||
+              resumeMutation.error ||
               approveMutation.error ||
               rejectMutation.error ||
               discardMutation.error ||

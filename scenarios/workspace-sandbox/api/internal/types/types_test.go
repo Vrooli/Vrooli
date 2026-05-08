@@ -235,6 +235,9 @@ func TestStatusConstants(t *testing.T) {
 	if StatusStopped != "stopped" {
 		t.Errorf("StatusStopped = %q, want 'stopped'", StatusStopped)
 	}
+	if StatusCheckpointed != "checkpointed" {
+		t.Errorf("StatusCheckpointed = %q, want 'checkpointed'", StatusCheckpointed)
+	}
 	if StatusApproved != "approved" {
 		t.Errorf("StatusApproved = %q, want 'approved'", StatusApproved)
 	}
@@ -257,6 +260,7 @@ func TestStatus_IsActive(t *testing.T) {
 		{StatusCreating, true},
 		{StatusActive, true},
 		{StatusStopped, false},
+		{StatusCheckpointed, false},
 		{StatusApproved, false},
 		{StatusRejected, false},
 		{StatusDeleted, false},
@@ -280,6 +284,7 @@ func TestStatus_IsTerminal(t *testing.T) {
 		{StatusCreating, false},
 		{StatusActive, false},
 		{StatusStopped, false},
+		{StatusCheckpointed, false},
 		{StatusApproved, true},
 		{StatusRejected, true},
 		{StatusDeleted, true},
@@ -303,6 +308,7 @@ func TestStatus_IsMounted(t *testing.T) {
 		{StatusCreating, false},
 		{StatusActive, true},
 		{StatusStopped, false},
+		{StatusCheckpointed, false},
 		{StatusApproved, false},
 		{StatusRejected, false},
 		{StatusDeleted, false},
@@ -326,6 +332,7 @@ func TestStatus_RequiresCleanup(t *testing.T) {
 		{StatusCreating, true},
 		{StatusActive, true},
 		{StatusStopped, true},
+		{StatusCheckpointed, true},
 		{StatusApproved, false},
 		{StatusRejected, false},
 		{StatusDeleted, false},
@@ -378,6 +385,7 @@ func TestCanApprove(t *testing.T) {
 	}{
 		{StatusActive, false},
 		{StatusStopped, false},
+		{StatusCheckpointed, true},
 		{StatusCreating, true},
 		{StatusApproved, true},
 		{StatusRejected, true},
@@ -402,6 +410,7 @@ func TestCanReject(t *testing.T) {
 	}{
 		{StatusActive, false},
 		{StatusStopped, false},
+		{StatusCheckpointed, false},
 		{StatusCreating, true},
 		{StatusApproved, true},
 		{StatusRejected, true},
@@ -427,6 +436,7 @@ func TestCanDelete(t *testing.T) {
 		{StatusCreating, false},
 		{StatusActive, false},
 		{StatusStopped, false},
+		{StatusCheckpointed, false},
 		{StatusApproved, false},
 		{StatusRejected, false},
 		{StatusError, false},
@@ -450,6 +460,7 @@ func TestCanGenerateDiff(t *testing.T) {
 	}{
 		{StatusActive, false},
 		{StatusStopped, false},
+		{StatusCheckpointed, true},
 		{StatusApproved, false}, // Allow historical view
 		{StatusRejected, false}, // Allow historical view
 		{StatusCreating, true},
@@ -475,6 +486,7 @@ func TestCanGetWorkspacePath(t *testing.T) {
 		{StatusActive, false},
 		{StatusCreating, true},
 		{StatusStopped, true},
+		{StatusCheckpointed, true},
 		{StatusApproved, true},
 		{StatusRejected, true},
 		{StatusDeleted, true},
@@ -506,6 +518,7 @@ func TestCanTransitionTo(t *testing.T) {
 
 		// From Active
 		{StatusActive, StatusStopped, true},
+		{StatusActive, StatusCheckpointed, true},
 		{StatusActive, StatusApproved, true},
 		{StatusActive, StatusRejected, true},
 		{StatusActive, StatusError, true},
@@ -519,6 +532,13 @@ func TestCanTransitionTo(t *testing.T) {
 		{StatusStopped, StatusDeleted, true},
 		{StatusStopped, StatusCreating, false},
 		{StatusStopped, StatusError, false},
+
+		// From Checkpointed
+		{StatusCheckpointed, StatusActive, true},
+		{StatusCheckpointed, StatusRejected, true},
+		{StatusCheckpointed, StatusDeleted, true},
+		{StatusCheckpointed, StatusApproved, false},
+		{StatusCheckpointed, StatusStopped, false},
 
 		// From Approved (terminal)
 		{StatusApproved, StatusDeleted, true},
@@ -551,7 +571,7 @@ func TestCanTransitionTo(t *testing.T) {
 
 func TestValidTransitionsCompleteness(t *testing.T) {
 	// Ensure all statuses have entries in ValidTransitions
-	allStatuses := []Status{StatusCreating, StatusActive, StatusStopped, StatusApproved, StatusRejected, StatusDeleted, StatusError}
+	allStatuses := []Status{StatusCreating, StatusActive, StatusStopped, StatusCheckpointed, StatusApproved, StatusRejected, StatusDeleted, StatusError}
 
 	for _, status := range allStatuses {
 		if _, exists := ValidTransitions[status]; !exists {

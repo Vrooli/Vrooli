@@ -11,6 +11,7 @@ import {
   deleteSandbox,
   stopSandbox,
   startSandbox,
+  resumeSandbox,
   getDiff,
   approveSandbox,
   rejectSandbox,
@@ -218,6 +219,19 @@ export function useStartSandbox() {
 
   return useMutation({
     mutationFn: (id: string) => startSandbox(id),
+    onSuccess: (sandbox) => {
+      queryClient.setQueryData(queryKeys.sandbox(sandbox.id), sandbox);
+      queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
+    },
+  });
+}
+
+// Resume sandbox mutation (remount a checkpointed sandbox)
+export function useResumeSandbox() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => resumeSandbox(id),
     onSuccess: (sandbox) => {
       queryClient.setQueryData(queryKeys.sandbox(sandbox.id), sandbox);
       queryClient.invalidateQueries({ queryKey: ["sandboxes"] });

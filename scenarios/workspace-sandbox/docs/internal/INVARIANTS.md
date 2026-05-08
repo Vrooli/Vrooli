@@ -59,6 +59,11 @@ be defended by the test suite the next time someone refactors.
 - **Enforced by:** `internal/driver/contract_test.go` per-driver matrix
 - **Tested by:** `internal/driver/invariants_test.go::TestInvariants/I-MOUNT-2`
 
+### I-MOUNT-3 — checkpointed sandboxes are unmounted but resumable
+
+- **Enforced by:** `internal/sandbox/service_turn_checkpoint.go::Service.TurnCheckpoint` and `internal/sandbox/service_turn_checkpoint.go::Service.Resume`
+- **Tested by:** `internal/sandbox/service_test.go::TestService_TurnCheckpoint_NoChangesTransitionsCheckpointed` and `internal/sandbox/service_test.go::TestService_Resume_CheckpointedTransitionsActive`
+
 ## Change detection
 
 ### I-CHANGE-1 — `ChangeTracker.GetChangedFiles` is deterministic for a given filesystem state

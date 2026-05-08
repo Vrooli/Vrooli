@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 
 	"workspace-sandbox/internal/diff"
-	"workspace-sandbox/internal/policy"
 	"workspace-sandbox/internal/types"
 )
 
@@ -144,140 +143,24 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}
 
-	allChanges, err := s.driver.GetChangedFiles(ctx, sandbox)
+	applyResult, err := s.applyAcceptedChanges(ctx, sandbox, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get changes: %w", err)
-	}
-
-	allChanges = filterDiffChanges(allChanges)
-
-	if err := s.preflightConflicts(ctx, sandbox, allChanges, req.Force); err != nil {
 		return nil, err
 	}
-
-	totalChanges := len(allChanges)
-	changes := allChanges
-
-	if req.Mode == "hunks" && len(req.HunkRanges) > 0 {
-		fileIDs := make([]uuid.UUID, 0, len(req.HunkRanges))
-		seen := make(map[uuid.UUID]bool)
-		for _, hr := range req.HunkRanges {
-			if !seen[hr.FileID] {
-				seen[hr.FileID] = true
-				fileIDs = append(fileIDs, hr.FileID)
-			}
-		}
-		changes = diff.FilterChanges(allChanges, fileIDs)
-	}
-
-	if req.Mode == "files" && len(req.FileIDs) > 0 {
-		changes = diff.FilterChanges(allChanges, req.FileIDs)
-	}
-
-	accepted, rejected := filterChangesByAcceptance(sandbox, changes, req.OverrideAcceptance)
-	if !req.OverrideAcceptance && req.Mode != "all" && len(rejected) > 0 {
-		// Build diagnostic message showing which files were rejected and why.
-		// Without file-level detail, callers can't tell a bad glob from an
-		// empty deny rule from an intentional restriction.
-		rejectedDetails := make([]string, 0, len(rejected))
-		for _, r := range rejected {
-			reason := "unknown"
-			if r.Acceptance != nil {
-				reason = r.Acceptance.Reason
-			}
-			rejectedDetails = append(rejectedDetails, fmt.Sprintf("%s (%s)", r.FilePath, reason))
-		}
-		msg := fmt.Sprintf(
-			"%d file(s) rejected by acceptance rules: %s",
-			len(rejected),
-			strings.Join(rejectedDetails, ", "),
-		)
-		return nil, types.NewValidationErrorWithHint(
-			"acceptance",
-			msg,
-			"Use overrideAcceptance=true to apply files outside acceptance rules",
-		)
-	}
-	changes = accepted
-
-	if len(changes) == 0 {
+	if applyResult.Empty {
 		return &types.ApprovalResult{
 			Success:   true,
 			Applied:   0,
-			Remaining: totalChanges,
+			Remaining: applyResult.TotalChanges,
 			AppliedAt: s.clock.Now(),
 		}, nil
 	}
-
-	if s.validationPolicy != nil {
-		if err := s.validationPolicy.ValidateBeforeApply(ctx, sandbox, changes); err != nil {
-			return nil, fmt.Errorf("pre-apply validation failed: %w", err)
-		}
-	}
-
-	gen := diff.NewGenerator(s.starter)
-	diffOpts := &diff.GenerateOptions{
-		PathPrefix: scopePathPrefix(sandbox),
-	}
-	diffResult, err := gen.GenerateDiff(ctx, sandbox, changes, diffOpts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate diff: %w", err)
-	}
-
-	// [OT-P1-001] Hunk-Level Approval
-	if req.Mode == "hunks" && len(req.HunkRanges) > 0 {
-		diffResult.UnifiedDiff = diff.FilterHunks(diffResult.UnifiedDiff, req.HunkRanges, changes)
-		if diffResult.UnifiedDiff == "" {
-			return &types.ApprovalResult{
-				Success:   true,
-				Applied:   0,
-				AppliedAt: s.clock.Now(),
-			}, nil
-		}
-	}
-
-	commitMsg := req.CommitMsg
-	author := req.Actor
-	if s.attributionPolicy != nil {
-		if commitMsg == "" {
-			commitMsg = s.attributionPolicy.GetCommitMessage(ctx, sandbox, changes, req.CommitMsg)
-		}
-		author = s.attributionPolicy.GetCommitAuthor(ctx, sandbox, req.Actor)
-
-		coAuthors := s.attributionPolicy.GetCoAuthors(ctx, sandbox, req.Actor)
-		if len(coAuthors) > 0 {
-			commitMsg = policy.FormatCommitMessage(commitMsg, coAuthors)
-		}
-	}
-
-	filePaths := make([]string, len(changes))
-	for i, change := range changes {
-		filePaths[i] = change.FilePath
-	}
-
-	patcher := diff.NewPatcher(s.starter)
-	applyResult, err := patcher.ApplyDiff(ctx, sandbox.ProjectRoot, diffResult.UnifiedDiff, diff.ApplyOptions{
-		CommitMsg:    commitMsg,
-		Author:       author,
-		CreateCommit: req.CreateCommit,
-		FilePaths:    filePaths,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to apply diff: %w", err)
-	}
-
 	if !applyResult.Success {
-		return &types.ApprovalResult{
-			Success:   false,
-			Failed:    len(changes),
-			Remaining: totalChanges,
-			ErrorMsg:  fmt.Sprintf("patch application failed: %v", applyResult.Errors),
-			AppliedAt: s.clock.Now(),
-		}, nil
+		return applyResult.ApprovalResult(), nil
 	}
 
-	s.recordApprovalProvenance(ctx, sandbox, changes, req, applyResult.CommitHash, commitMsg)
-	return s.finalizeApproval(ctx, sandbox, req, applyResult.CommitHash, changes, totalChanges), nil
+	s.recordApprovalProvenance(ctx, sandbox, applyResult.Changes, req, applyResult.CommitHash, applyResult.CommitMsg)
+	return s.finalizeApproval(ctx, sandbox, req, applyResult.CommitHash, applyResult.Changes, applyResult.TotalChanges), nil
 }
 
 // ApplyAtRunEnd is the agent-manager run-end apply path. It validates
@@ -294,11 +177,8 @@ func (s *Service) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndReq
 		return nil, err
 	}
 
-	// apply-at-run-end is always a full-sandbox apply ("all"); per-file
-	// partitioning is owned by the acceptance filter inside Approve.
-	approvalReq := &types.ApprovalRequest{
+	result, err := s.TurnCheckpoint(ctx, &types.TurnCheckpointRequest{
 		SandboxID:         req.SandboxID,
-		Mode:              "all",
 		Actor:             req.Actor,
 		CommitMsg:         req.CommitMsg,
 		Source:            req.Source,
@@ -308,9 +188,7 @@ func (s *Service) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndReq
 		ConversationID:    req.ConversationID,
 		Cost:              req.Cost,
 		RunOutcome:        req.RunOutcome,
-	}
-
-	result, err := s.Approve(ctx, approvalReq)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +209,16 @@ func (s *Service) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndReq
 		})
 	}
 
-	return result, nil
+	return &types.ApprovalResult{
+		Success:    result.Success,
+		Applied:    result.Applied,
+		Failed:     result.Failed,
+		Remaining:  result.Remaining,
+		IsPartial:  result.IsPartial,
+		CommitHash: result.CommitHash,
+		ErrorMsg:   result.ErrorMsg,
+		AppliedAt:  result.AppliedAt,
+	}, nil
 }
 
 // validateApplyAtRunEndRequest rejects malformed apply-at-run-end

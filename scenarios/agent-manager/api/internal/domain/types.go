@@ -160,20 +160,25 @@ func (n NetworkAccess) Effective() NetworkAccess {
 type SandboxLifecycleEvent string
 
 const (
-	SandboxLifecycleRunCompleted SandboxLifecycleEvent = "run_completed"
-	SandboxLifecycleRunFailed    SandboxLifecycleEvent = "run_failed"
-	SandboxLifecycleRunCancelled SandboxLifecycleEvent = "run_cancelled"
-	SandboxLifecycleApproved     SandboxLifecycleEvent = "approved"
-	SandboxLifecycleRejected     SandboxLifecycleEvent = "rejected"
-	SandboxLifecycleTerminal     SandboxLifecycleEvent = "terminal"
+	SandboxLifecycleTurnCompleted SandboxLifecycleEvent = "turn_completed"
+	SandboxLifecycleTurnFailed    SandboxLifecycleEvent = "turn_failed"
+	SandboxLifecycleTurnCancelled SandboxLifecycleEvent = "turn_cancelled"
+	SandboxLifecycleRunFinalized  SandboxLifecycleEvent = "run_finalized"
+	SandboxLifecycleRunCompleted  SandboxLifecycleEvent = "run_completed"
+	SandboxLifecycleRunFailed     SandboxLifecycleEvent = "run_failed"
+	SandboxLifecycleRunCancelled  SandboxLifecycleEvent = "run_cancelled"
+	SandboxLifecycleApproved      SandboxLifecycleEvent = "approved"
+	SandboxLifecycleRejected      SandboxLifecycleEvent = "rejected"
+	SandboxLifecycleTerminal      SandboxLifecycleEvent = "terminal"
 )
 
 // SandboxLifecycleConfig controls sandbox stop/delete behavior.
 type SandboxLifecycleConfig struct {
-	StopOn      []SandboxLifecycleEvent `json:"stopOn,omitempty"`
-	DeleteOn    []SandboxLifecycleEvent `json:"deleteOn,omitempty"`
-	TTL         time.Duration           `json:"ttl,omitempty"`
-	IdleTimeout time.Duration           `json:"idleTimeout,omitempty"`
+	CheckpointOn []SandboxLifecycleEvent `json:"checkpointOn,omitempty"`
+	StopOn       []SandboxLifecycleEvent `json:"stopOn,omitempty"`
+	DeleteOn     []SandboxLifecycleEvent `json:"deleteOn,omitempty"`
+	TTL          time.Duration           `json:"ttl,omitempty"`
+	IdleTimeout  time.Duration           `json:"idleTimeout,omitempty"`
 }
 
 // SandboxFileCriteria defines allow/deny matchers for acceptance filtering.

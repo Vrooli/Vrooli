@@ -319,6 +319,33 @@ func (p *WorkspaceSandboxProvider) PartialApprove(ctx context.Context, req Parti
 // path. The wire field name "agentManagerRunId" is locked by
 // types.ApplyAtRunEndRequest in workspace-sandbox.
 func (p *WorkspaceSandboxProvider) ApplyAtRunEnd(ctx context.Context, req ApplyAtRunEndRequest) (*ApplyAtRunEndResult, error) {
+	result, err := p.TurnCheckpoint(ctx, TurnCheckpointRequest{
+		SandboxID:      req.SandboxID,
+		RunID:          req.RunID,
+		ConversationID: req.ConversationID,
+		Cost:           req.Cost,
+		RunOutcome:     req.RunOutcome,
+		Actor:          req.Actor,
+		CommitMsg:      req.CommitMsg,
+		CreateCommit:   req.CreateCommit,
+		Force:          req.Force,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ApplyAtRunEndResult{
+		Success:    result.Success,
+		Applied:    result.Applied,
+		Failed:     result.Failed,
+		Remaining:  result.Remaining,
+		IsPartial:  result.IsPartial,
+		CommitHash: result.CommitHash,
+		AppliedAt:  result.AppliedAt,
+		ErrorMsg:   result.ErrorMsg,
+	}, nil
+}
+
+func (p *WorkspaceSandboxProvider) TurnCheckpoint(ctx context.Context, req TurnCheckpointRequest) (*TurnCheckpointResult, error) {
 	actor := req.Actor
 	if actor == "" {
 		actor = "applyAtRunEnd"
@@ -331,6 +358,12 @@ func (p *WorkspaceSandboxProvider) ApplyAtRunEnd(ctx context.Context, req ApplyA
 		"actor":             actor,
 		"createCommit":      req.CreateCommit,
 		"force":             req.Force,
+	}
+	if req.TurnID != "" {
+		body["turnId"] = req.TurnID
+	}
+	if req.TurnSequence != 0 {
+		body["turnSequence"] = req.TurnSequence
 	}
 	if req.ConversationID != "" {
 		body["conversationId"] = req.ConversationID
@@ -345,11 +378,11 @@ func (p *WorkspaceSandboxProvider) ApplyAtRunEnd(ctx context.Context, req ApplyA
 		body["commitMessage"] = req.CommitMsg
 	}
 
-	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/apply-at-run-end", req.SandboxID), body)
+	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/turn-checkpoint", req.SandboxID), body)
 	if err != nil {
 		return nil, &domain.SandboxError{
 			SandboxID:   &req.SandboxID,
-			Operation:   "apply_at_run_end",
+			Operation:   "turn_checkpoint",
 			Cause:       err,
 			IsTransient: true,
 			CanRetry:    true,
@@ -361,19 +394,19 @@ func (p *WorkspaceSandboxProvider) ApplyAtRunEnd(ctx context.Context, req ApplyA
 		return nil, domain.NewNotFoundErrorWithID("Sandbox", req.SandboxID.String())
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, p.parseError("apply_at_run_end", &req.SandboxID, resp)
+		return nil, p.parseError("turn_checkpoint", &req.SandboxID, resp)
 	}
 
-	var result wsApplyAtRunEndResponse
+	var result wsTurnCheckpointResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, &domain.SandboxError{
 			SandboxID: &req.SandboxID,
-			Operation: "apply_at_run_end",
+			Operation: "turn_checkpoint",
 			Cause:     err,
 		}
 	}
 
-	return result.toApplyAtRunEndResult(), nil
+	return result.toTurnCheckpointResult(), nil
 }
 
 // Stop suspends a sandbox (keeps data but releases mount).
@@ -416,6 +449,35 @@ func (p *WorkspaceSandboxProvider) Start(ctx context.Context, id uuid.UUID) erro
 	}
 
 	return nil
+}
+
+// Resume remounts a checkpointed sandbox for the next turn.
+func (p *WorkspaceSandboxProvider) Resume(ctx context.Context, id uuid.UUID) (*Sandbox, error) {
+	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/resume", id), nil)
+	if err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID:   &id,
+			Operation:   "resume",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError("resume", &id, resp)
+	}
+
+	var result wsSandboxResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID: &id,
+			Operation: "resume",
+			Cause:     err,
+		}
+	}
+	return result.toSandbox(), nil
 }
 
 // IsAvailable checks if the sandbox provider is operational.
@@ -770,27 +832,36 @@ type wsApproveResponse struct {
 	ErrorMsg   string    `json:"errorMsg"`
 }
 
-type wsApplyAtRunEndResponse struct {
-	Success    bool      `json:"success"`
-	Applied    int       `json:"applied"`
-	Failed     int       `json:"failed"`
-	Remaining  int       `json:"remaining"`
-	IsPartial  bool      `json:"isPartial"`
-	CommitHash string    `json:"commitHash"`
-	AppliedAt  time.Time `json:"appliedAt"`
-	ErrorMsg   string    `json:"error"`
+type wsTurnCheckpointResponse struct {
+	SandboxID      string    `json:"sandboxId"`
+	Status         string    `json:"status"`
+	Success        bool      `json:"success"`
+	Applied        int       `json:"applied"`
+	Failed         int       `json:"failed"`
+	Remaining      int       `json:"remaining"`
+	IsPartial      bool      `json:"isPartial"`
+	CommitHash     string    `json:"commitHash"`
+	BaseCommitHash string    `json:"baseCommitHash"`
+	CheckpointID   string    `json:"checkpointId"`
+	AppliedAt      time.Time `json:"appliedAt"`
+	ErrorMsg       string    `json:"error"`
 }
 
-func (r *wsApplyAtRunEndResponse) toApplyAtRunEndResult() *ApplyAtRunEndResult {
-	return &ApplyAtRunEndResult{
-		Success:    r.Success,
-		Applied:    r.Applied,
-		Failed:     r.Failed,
-		Remaining:  r.Remaining,
-		IsPartial:  r.IsPartial,
-		CommitHash: r.CommitHash,
-		AppliedAt:  r.AppliedAt,
-		ErrorMsg:   r.ErrorMsg,
+func (r *wsTurnCheckpointResponse) toTurnCheckpointResult() *TurnCheckpointResult {
+	id, _ := uuid.Parse(r.SandboxID)
+	return &TurnCheckpointResult{
+		SandboxID:      id,
+		Status:         SandboxStatus(r.Status),
+		Success:        r.Success,
+		Applied:        r.Applied,
+		Failed:         r.Failed,
+		Remaining:      r.Remaining,
+		IsPartial:      r.IsPartial,
+		CommitHash:     r.CommitHash,
+		BaseCommitHash: r.BaseCommitHash,
+		CheckpointID:   r.CheckpointID,
+		AppliedAt:      r.AppliedAt,
+		ErrorMsg:       r.ErrorMsg,
 	}
 }
 

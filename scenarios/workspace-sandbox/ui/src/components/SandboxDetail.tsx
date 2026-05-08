@@ -11,6 +11,7 @@ import {
   XCircle,
   Square,
   Play,
+  PauseCircle,
   Loader2,
   Copy,
   Check,
@@ -83,6 +84,11 @@ const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string; vari
     icon: <Square className="h-4 w-4" />,
     label: "Stopped",
     variant: "stopped",
+  },
+  checkpointed: {
+    icon: <PauseCircle className="h-4 w-4" />,
+    label: "Checkpointed",
+    variant: "checkpointed",
   },
   approved: {
     icon: <CheckCircle className="h-4 w-4" />,
@@ -351,7 +357,7 @@ function SandboxDetailImpl({
 
   const statusConfig = STATUS_CONFIG[sandbox.status];
   const canStop = sandbox.status === "active";
-  const canStart = sandbox.status === "stopped";
+  const canStart = sandbox.status === "stopped" || sandbox.status === "checkpointed";
   const canApproveReject = sandbox.status === "active" || sandbox.status === "stopped";
   // When noLock is true, acceptance rules don't apply - show simplified "Approve All" button
   const isNoLock = sandbox.noLock === true;
@@ -570,7 +576,7 @@ function SandboxDetailImpl({
                   ) : (
                     <Play className="h-3.5 w-3.5 mr-1.5" />
                   )}
-                  Start
+                  {sandbox.status === "checkpointed" ? "Resume" : "Start"}
                 </Button>
               )}
 

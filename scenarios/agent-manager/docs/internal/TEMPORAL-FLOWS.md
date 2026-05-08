@@ -104,13 +104,17 @@ goroutine starts → SendHeartbeat (immediate)
 
 `ContinueRun` is a separate temporal flow from initial execution because it resumes an existing runner session instead of recreating the workspace and acquiring a fresh sandbox. It is aligned with `RunExecutor` through shared primitives:
 
-1. `applyRunStatusTransition` moves the run from terminal status to `running`, persists the run, appends a durable status event, and broadcasts hydrated actions.
-2. `runEventSink` creates the same durable event-sink shape used by dispatcher lifecycle events: append-and-broadcast when both store and broadcaster exist, append-only when only the store exists, and no-op when event storage is absent.
-3. `executeContinuation` derives `Execution.DefaultTimeout` and `Heartbeat.RunHeartbeatInterval` from the same lever set as `RunExecutor`.
-4. `phases.RunHeartbeatLoop` sends continuation heartbeats until the runner returns, then the terminal `applyRunStatusTransition` records the completed or failed status.
+1. `ContinueRun` prepares the existing sandbox before mutating run status: `checkpointed` sandboxes are resumed through `sandbox.Provider.Resume`, `active` sandboxes proceed, and terminal/error sandboxes fail without falling back to host execution.
+2. `applyRunStatusTransition` moves the run from terminal status to `running`, persists the run, appends a durable status event, and broadcasts hydrated actions.
+3. `runEventSink` creates the same durable event-sink shape used by dispatcher lifecycle events: append-and-broadcast when both store and broadcaster exist, append-only when only the store exists, and no-op when event storage is absent.
+4. `executeContinuation` derives `Execution.DefaultTimeout` and `Heartbeat.RunHeartbeatInterval` from the same lever set as `RunExecutor`.
+5. `phases.RunHeartbeatLoop` sends continuation heartbeats until the runner returns, then the terminal `applyRunStatusTransition` records the completed or failed status.
+6. Sandboxed continuation turns call the apply-at-run-end orchestration seam, whose workspace-sandbox adapter maps to `/turn-checkpoint`; the sandbox returns to `checkpointed` instead of being deleted.
 
 ```
 ContinueRun
+   ↓
+sandbox prepare: checkpointed → active via Resume
    ↓
 status transition: terminal → running
    ↓
@@ -122,6 +126,8 @@ runner.Continue(ctx with Execution.DefaultTimeout)
    └─ ContinueRequest carries ResolvedConfig + SandboxID
    ↓
 status transition: running → complete|failed
+   ↓
+turn checkpoint: active → checkpointed
 ```
 
 **Levers:** `Execution.DefaultTimeout` caps each continuation turn. `Heartbeat.RunHeartbeatInterval` controls continuation heartbeats.

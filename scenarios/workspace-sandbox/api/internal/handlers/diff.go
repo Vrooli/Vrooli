@@ -225,6 +225,29 @@ func (h *Handlers) ApplyAtRunEnd(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, result)
 }
 
+// TurnCheckpoint handles the agent-manager post-turn checkpoint call.
+func (h *Handlers) TurnCheckpoint(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	var req types.TurnCheckpointRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	req.SandboxID = id
+
+	result, err := h.Service.TurnCheckpoint(r.Context(), &req)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, result)
+}
+
 // Reject handles rejecting sandbox changes.
 func (h *Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(mux.Vars(r)["id"])

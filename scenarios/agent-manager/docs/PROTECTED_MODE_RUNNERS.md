@@ -86,7 +86,7 @@
 | `/processes` background launches (the runner-fork path) | Git verb allowlist enforced server-side. Surfaces as a typed `*sandbox.LaunchBlocked` on `Launcher.Launch`. |
 | Bwrap network isolation | `NetworkMode` translated by the adapter: `none`/empty → full isolation, `localhost` → vrooli-aware (loopback only), `full` → unrestricted. |
 | Resource limits | Forwarded via `/processes` body, clamped by workspace-sandbox `ExecutionConfig`. |
-| Apply-at-run-end | Identical between protected and tracking modes — provenance write, acceptance filter, manual-review TTL all unchanged. |
+| Apply-at-run-end | Identical between protected and tracking modes — the agent-manager seam maps to workspace-sandbox `/turn-checkpoint`, records provenance, applies acceptance filtering, and parks the sandbox as `checkpointed` for follow-up resume. |
 | Exit code propagation | Both host and sandbox launches surface the exit code through `Wait()`'s error; `runner.extractExitCode` reads either via the `ExitCode() int` interface. |
 
 ## Per-runner / per-path matrix

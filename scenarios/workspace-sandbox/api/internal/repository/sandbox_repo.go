@@ -617,7 +617,7 @@ func checkScopeOverlap(ctx context.Context, exec dbExec, scopePath, projectRoot 
 		SELECT id, scope_path, COALESCE(reserved_path, ''), reserved_paths, no_lock, status
 		FROM sandboxes
 		WHERE project_root = ?
-		  AND status IN ('creating', 'active', 'stopped')
+		  AND status IN ('creating', 'active', 'stopped', 'checkpointed')
 		  AND no_lock = 0
 		  AND (? = '' OR id != ?)`
 

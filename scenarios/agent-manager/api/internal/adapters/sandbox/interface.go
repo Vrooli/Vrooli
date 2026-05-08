@@ -61,11 +61,18 @@ type Provider interface {
 	// See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
 	ApplyAtRunEnd(ctx context.Context, req ApplyAtRunEndRequest) (*ApplyAtRunEndResult, error)
 
+	// TurnCheckpoint applies accepted turn changes and parks the sandbox in a
+	// resumable non-terminal state.
+	TurnCheckpoint(ctx context.Context, req TurnCheckpointRequest) (*TurnCheckpointResult, error)
+
 	// Stop suspends a sandbox (keeps data but releases mount).
 	Stop(ctx context.Context, id uuid.UUID) error
 
 	// Start resumes a stopped sandbox.
 	Start(ctx context.Context, id uuid.UUID) error
+
+	// Resume remounts a checkpointed sandbox for the next turn.
+	Resume(ctx context.Context, id uuid.UUID) (*Sandbox, error)
 
 	// IsAvailable checks if the sandbox provider is operational.
 	IsAvailable(ctx context.Context) (bool, string)
@@ -162,13 +169,14 @@ func IsHomeOverlayPresent(state HomeOverlayState) bool {
 type SandboxStatus string
 
 const (
-	SandboxStatusCreating SandboxStatus = "creating"
-	SandboxStatusActive   SandboxStatus = "active"
-	SandboxStatusStopped  SandboxStatus = "stopped"
-	SandboxStatusApproved SandboxStatus = "approved"
-	SandboxStatusRejected SandboxStatus = "rejected"
-	SandboxStatusDeleted  SandboxStatus = "deleted"
-	SandboxStatusError    SandboxStatus = "error"
+	SandboxStatusCreating     SandboxStatus = "creating"
+	SandboxStatusActive       SandboxStatus = "active"
+	SandboxStatusStopped      SandboxStatus = "stopped"
+	SandboxStatusCheckpointed SandboxStatus = "checkpointed"
+	SandboxStatusApproved     SandboxStatus = "approved"
+	SandboxStatusRejected     SandboxStatus = "rejected"
+	SandboxStatusDeleted      SandboxStatus = "deleted"
+	SandboxStatusError        SandboxStatus = "error"
 )
 
 // DiffResult contains the generated diff for a sandbox.
@@ -306,6 +314,35 @@ type ApplyAtRunEndResult struct {
 	CommitHash string
 	AppliedAt  time.Time
 	ErrorMsg   string
+}
+
+type TurnCheckpointRequest struct {
+	SandboxID      uuid.UUID
+	RunID          string
+	ConversationID string
+	TurnID         string
+	TurnSequence   int
+	Cost           float64
+	RunOutcome     string
+	Actor          string
+	CommitMsg      string
+	CreateCommit   bool
+	Force          bool
+}
+
+type TurnCheckpointResult struct {
+	SandboxID      uuid.UUID
+	Status         SandboxStatus
+	Success        bool
+	Applied        int
+	Failed         int
+	Remaining      int
+	IsPartial      bool
+	CommitHash     string
+	BaseCommitHash string
+	CheckpointID   string
+	AppliedAt      time.Time
+	ErrorMsg       string
 }
 
 // PathValidationResult contains the result of a path validation check.

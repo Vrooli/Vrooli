@@ -74,7 +74,7 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if sb.Status != types.StatusActive {
+	if !types.CanRunProcess(sb.Status) {
 		h.JSONError(w, "sandbox must be active to start processes", http.StatusConflict)
 		return
 	}

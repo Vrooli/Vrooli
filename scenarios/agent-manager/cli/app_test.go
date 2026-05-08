@@ -119,7 +119,19 @@ func TestApp_RegisterCommands_Groups(t *testing.T) {
 	groups := app.commandGroups()
 
 	// Verify expected command groups exist
-	expectedGroups := []string{"Health", "Configuration", "Profiles", "Tasks", "Runs", "Runners", "Settings", "Maintenance"}
+	expectedGroups := []string{
+		"Health",
+		"Configuration",
+		"Profiles",
+		"Tasks",
+		"Runs",
+		"Runners",
+		"Settings",
+		"Maintenance",
+		"Operational Stats",
+		"Health",
+		"Events",
+	}
 	if len(groups) != len(expectedGroups) {
 		t.Errorf("expected %d command groups, got %d", len(expectedGroups), len(groups))
 	}

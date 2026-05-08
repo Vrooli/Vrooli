@@ -25,10 +25,12 @@ type FakeService struct {
 	ListFn               func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
 	StopFn               func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
 	StartFn              func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	ResumeFn             func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
 	DeleteFn             func(ctx context.Context, id uuid.UUID) error
 	GetDiffFn            func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
 	ApproveFn            func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
 	ApplyAtRunEndFn      func(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error)
+	TurnCheckpointFn     func(ctx context.Context, req *types.TurnCheckpointRequest) (*types.TurnCheckpointResult, error)
 	RejectFn             func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
 	DiscardFn            func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
 	GetWorkspacePathFn   func(ctx context.Context, id uuid.UUID) (string, error)
@@ -91,6 +93,13 @@ func (m *FakeService) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, 
 	return nil, notImpl("Start")
 }
 
+func (m *FakeService) Resume(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	if m.ResumeFn != nil {
+		return m.ResumeFn(ctx, id)
+	}
+	return nil, notImpl("Resume")
+}
+
 func (m *FakeService) Delete(ctx context.Context, id uuid.UUID) error {
 	if m.DeleteFn != nil {
 		return m.DeleteFn(ctx, id)
@@ -117,6 +126,13 @@ func (m *FakeService) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEn
 		return m.ApplyAtRunEndFn(ctx, req)
 	}
 	return nil, notImpl("ApplyAtRunEnd")
+}
+
+func (m *FakeService) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointRequest) (*types.TurnCheckpointResult, error) {
+	if m.TurnCheckpointFn != nil {
+		return m.TurnCheckpointFn(ctx, req)
+	}
+	return nil, notImpl("TurnCheckpoint")
 }
 
 func (m *FakeService) Reject(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error) {
