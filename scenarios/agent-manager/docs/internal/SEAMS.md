@@ -316,6 +316,198 @@ type Collector interface {
 
 ---
 
+### 3a. Typed-Operational Event Log (`internal/eventlog`)
+
+**Purpose:** Carry structured operational signals (runner/model fallback,
+sandbox lifecycle outcomes, heartbeat misses, checkpoint failures,
+model/runner health transitions) as typed payloads on the existing
+`run_events` table — so consumers can query patterns instead of grepping
+log strings.
+
+**Interfaces:**
+
+```go
+// eventlog package
+type Payload interface { /* closed set; markers in types.go */ }
+
+func BuildEvent(runID uuid.UUID, payload Payload) (*domain.RunEvent, error)
+func Register(eventType domain.RunEventType, schemaVersion int, factory PayloadFactory)
+func Decode(eventType domain.RunEventType, schemaVersion int, body json.RawMessage) (Payload, error)
+
+type Repository interface {
+    SinceForRun(ctx context.Context, runID uuid.UUID, afterSeq int64, limit int) ([]Record, error)
+    SinceID(ctx context.Context, afterID int64, limit int) ([]Record, error)
+    ByEventType(ctx context.Context, eventType domain.RunEventType, since time.Time, limit int) ([]Record, error)
+}
+```
+
+**Why it's a seam:**
+
+- Typed payloads round-trip JSON through `domain.TypedEventData` so the
+  emit + persist path is the same one legacy `LogEventData` events use.
+  No parallel write path. Single emission choke point at `emit.Gate`
+  remains the gate.
+- `(event_type, schema_version)` dispatch decouples payload evolution
+  from consumer code: adding a field is non-breaking; renaming bumps the
+  version and registers a new entry; old rows decode through the old
+  entry forever.
+- Stats engine (Phase 3) and health audit (Phase 2) read through
+  `eventlog.Repository`, never through the legacy `event.Store.Get`
+  default branch — the Repository's contract is "typed events, decoded".
+
+**Implementations:**
+
+- Phase 1: `SQLiteRepository` over the existing `run_events` table
+  (extended with a `schema_version` column).
+- Phase 2 added the persisted health audit consumer.
+- Phase 3 added the stats engine consumer (next seam below).
+
+**Authoritative references:**
+
+- `internal/eventlog/types.go` — payload struct definitions.
+- `internal/eventlog/dispatch.go` — registry init().
+- `docs/internal/EVENT_TAXONOMY.md` — full event list, JSON shapes, and
+  versioning rules.
+
+---
+
+### 3b. Operational Stats Engine (`internal/stats`)
+
+**Purpose:** Incrementally aggregate typed-operational events into the
+metrics surfaced by `/api/v1/stats/operational`, `/api/v1/stats/fallback`,
+and the `agent-manager ops` CLI. Watermark + checkpoint pattern so the
+engine resumes after a process restart instead of replaying the entire
+event log from zero.
+
+**Interfaces:**
+
+```go
+// stats package
+type Engine struct { /* opaque; see engine.go */ }
+func NewEngine(repo eventlog.Repository, checkpoint CheckpointStore, name string) *Engine
+
+func (e *Engine) Rebuild(ctx context.Context) error  // resume from saved checkpoint
+func (e *Engine) Refresh(ctx context.Context) error  // advance watermark only
+func (e *Engine) GetSummary() Summary                 // bundled view
+func (e *Engine) GetFallback() FallbackInsights       // standalone fallback view
+// + GetHealth, GetSandbox, GetHeartbeat, GetCheckpoint, GetRetry
+
+type CheckpointStore interface {
+    Load(ctx context.Context, name string) (int64, error)
+    Save(ctx context.Context, name string, rowid int64) error
+}
+
+type Processor func(state *aggregateState, rec eventlog.Record)
+func RegisterProcessor(eventType domain.RunEventType, schemaVersion int, p Processor)
+```
+
+**Why it's a seam:**
+
+- **Schema-version dispatch table** (not switch). Processors are keyed
+  by `(event_type, schema_version)`. Adding a new event without wiring
+  a processor is caught by `TestAllEmittedEventsAreProcessed`; bumping
+  a schema version requires registering the new pair, the old pair keeps
+  decoding through its registered processor.
+- **Resumable replay.** Rebuild resumes from `stats_checkpoint.last_rowid`,
+  not zero. `TestRebuildResumesFromCheckpoint` pins this contract: a
+  fresh engine sharing the same checkpoint store processes only the
+  events appended since the saved watermark.
+- **Typed Category enum at the HTTP edge.** `OperationalStatsHandler`
+  parses `?category=…` against a closed set; unknown values return HTTP
+  400 with the known-categories list, never an empty-but-200 response.
+  `TestOperationalHandler_BadCategory400` pins this.
+- **Honesty contract.** Every response carries `history.{has_history,
+  history_days, min_sample_meaningful}` so consumers can refuse to
+  draw conclusions from thin samples.
+
+**Implementations:**
+
+- `Engine` plus `SQLiteCheckpointStore` over `stats_checkpoint`.
+- Processors live in `internal/stats/processors.go`, one per typed
+  event. Adding a new event is: register the payload in `eventlog`,
+  register a processor here.
+
+**Authoritative references:**
+
+- `internal/stats/engine.go` — engine, watermark, checkpoint plumbing.
+- `internal/stats/registry.go` — processor map, RegisteredProcessorKeys.
+- `internal/stats/processors.go` — per-event aggregation logic.
+- `internal/handlers/operational_stats.go` — Category enum + 400 path.
+- `internal/database/schema.sql` — `stats_checkpoint` table.
+
+**Tests pinning the contract:**
+
+- `internal/stats/engine_test.go::TestAllEmittedEventsAreProcessed`
+- `internal/stats/engine_test.go::TestRebuildResumesFromCheckpoint`
+- `internal/stats/engine_test.go::TestEngine_AggregatesFallbackInsights`
+- `internal/handlers/operational_stats_test.go::TestOperationalHandler_BadCategory400`
+
+---
+
+### 3c. Fallback Classifier (`internal/fallback`)
+
+**Purpose:** Single source of truth for "why did the runner or model reject this attempt?" Replaces the regex `runner.ClassifyModelError` and 3-value `ModelErrorKind` (deleted 2026-05-07, Phase 2).
+
+**Interface:** `fallback.Classifier`
+```go
+type Classifier interface {
+    Classify(in ClassifyInput) *ClassifiedError
+}
+```
+
+Implementations: `fallback.TextClassifier` (residual safety net) plus per-codec `Classify` methods on `claude.Claude`/`codec.Codex`/`codec.OpenCode`. Codecs consult their own structured signals (HTTP status, exit code, JSON event fields) before delegating to the text classifier.
+
+**Wired in:**
+- `runner.Runner.Classify(stderr, exitCode)` — exposed by `core.Runner` via codec delegation; consumed by `phases/execute.go::classifyExecutionOutcome` and the health probe.
+- `health.NewProbe(..., classifier, ...)` — defaults to `TextClassifier`; injectable for tests.
+
+**Why a seam:**
+- Decouples codec native-signal classification from the executor's "what to do next" logic.
+- The closed `Reason` enum (14 values) replaces freeform error strings as the wire-form on `runner.fallback.attempted`/`model.fallback.attempted` events.
+- `Recovery(reason)` is exhaustively tested against `AllReasons()` so adding a Reason without updating the action map is a CI failure (`TestReasonRecoveryActionExhaustive`).
+
+**Tests:**
+- `internal/fallback/fallback_test.go::TestTextClassifier_DispatchTable`, `TestReasonRecoveryActionExhaustive`.
+- `internal/adapters/runner/codecs/classify_test.go::Test{Claude,Codex,OpenCode}_Classify` per-codec assertions.
+
+DOC: `internal/fallback/reason.go`, `docs/internal/ERROR_SEMANTICS.md` (Reason taxonomy + recovery actions).
+
+---
+
+### 3d. Health Audit Store (`internal/health`)
+
+**Purpose:** Persisted SQLite-backed audit log of model + runner health observations. Replaces the in-memory `modelregistry.HealthStore` (deleted 2026-05-07, Phase 2). Health snapshots survive API restart.
+
+**Interface:** `*health.Store`
+```go
+RecordModel(ctx, runner, modelID, status, reason, message, triggeredBy) error
+RecordRunner(ctx, runner, status, reason, message, triggeredBy) error
+LatestModelStatus(ctx, runner, modelID) (ModelEntry, error)
+Snapshot(ctx) (Snapshot, error)
+QueryModelAudit(ctx, AuditQuery) ([]AuditRow, error)
+QueryRunnerAudit(ctx, AuditQuery) ([]AuditRow, error)
+EvictByRetention(ctx, retention) (int, error)
+```
+
+Two append-only tables (`model_health_audit`, `runner_health_audit`) are the source of truth; current-status queries derive from `MAX(id) GROUP BY (runner, model)`.
+
+**Wired in:**
+- `orchestration.WithHealthStore(*health.Store)` — orchestration option; the per-run `healthMarkerAdapter` writes audit rows on every `MarkModel{Healthy,Unavailable}` from the executor.
+- `health.NewProbe(store, registrySnapshot, resolveProber, classifier, config)` — periodic probe loop replaces `modelregistry.HealthProbe`; writes audit rows on every probe outcome with classified `fallback.Reason`.
+- `Orchestrator.GetModelRegistryHealth` reads from the store via `Snapshot`.
+
+**Why a seam:**
+- Snapshots survive process restart (no more in-memory flapping).
+- Triggered-by attribution distinguishes runtime classifications (carry the `runID`) from probe sweeps (`"probe"`).
+- Eviction is a separate concern (`EvictByRetention`) — the store itself never silently drops rows.
+
+**Tests:**
+- `internal/health/health_test.go` — append, snapshot derivation, eviction.
+
+DOC: `internal/health/types.go`, `internal/database/schema.sql` (audit tables + indexes).
+
+---
+
 ### 3b. Run Lifecycle Transitions (`orchestration/run_lifecycle.go`)
 
 **Purpose:** Keep status mutation, durable status events, run-status broadcasts, and action hydration consistent across stop, continue, and continuation terminal paths.

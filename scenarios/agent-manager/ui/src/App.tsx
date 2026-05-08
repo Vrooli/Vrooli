@@ -17,6 +17,7 @@ const ProfilesPage = lazy(async () => ({ default: (await import("./pages/Profile
 const TasksPage = lazy(async () => ({ default: (await import("./pages/TasksPage")).TasksPage }));
 const RunsPage = lazy(async () => ({ default: (await import("./pages/RunsPage")).RunsPage }));
 const StatsPage = lazy(async () => ({ default: (await import("./features/stats")).StatsPage }));
+const HealthPage = lazy(async () => ({ default: (await import("./features/health")).HealthPage }));
 const StatusDialog = lazy(async () => ({ default: (await import("./components/dialogs/StatusDialog")).StatusDialog }));
 const SettingsDialog = lazy(async () => ({ default: (await import("./components/dialogs/SettingsDialog")).SettingsDialog }));
 const QuickRunDialog = lazy(async () => ({ default: (await import("./components/QuickRunDialog")).QuickRunDialog }));
@@ -74,6 +75,7 @@ export default function App() {
     if (path.startsWith("/tasks")) return "tasks";
     if (path.startsWith("/runs")) return "runs";
     if (path.startsWith("/stats")) return "stats";
+    if (path.startsWith("/observability")) return "health";
     return "dashboard";
   }, [location.pathname]);
 
@@ -164,7 +166,19 @@ export default function App() {
 
   const handleSectionChange = useCallback(
     (section: NavSection) => {
-      navigate(`/${section === "dashboard" ? "" : section}`);
+      if (section === "dashboard") {
+        navigate("/");
+        return;
+      }
+      // The api-base UI server reserves `/health` for its own status JSON
+      // (see packages/api-base/src/server/health.ts), so the user-facing
+      // health page lives at `/observability`. The "health" NavSection
+      // label stays — the route name is the only thing that differs.
+      if (section === "health") {
+        navigate("/observability");
+        return;
+      }
+      navigate(`/${section}`);
     },
     [navigate]
   );
@@ -373,6 +387,18 @@ export default function App() {
                   <ErrorBoundary section="Stats">
                     <ProfiledPage id="StatsPage">
                       <StatsPage />
+                    </ProfiledPage>
+                  </ErrorBoundary>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/observability"
+              element={
+                <Suspense fallback={pageFallback}>
+                  <ErrorBoundary section="Health">
+                    <ProfiledPage id="HealthPage">
+                      <HealthPage />
                     </ProfiledPage>
                   </ErrorBoundary>
                 </Suspense>

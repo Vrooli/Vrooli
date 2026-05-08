@@ -27,6 +27,7 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
 
@@ -426,6 +427,31 @@ func (c *OpenCode) ClassifyTerminalError(stderr string, exitCode int) *domain.Ru
 		return nil
 	}
 	return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(strings.TrimSpace(stderr)))
+}
+
+// Classify satisfies [Codec]. OpenCode classification order:
+//
+//  1. Session expiry stderr — ReasonSessionExpired (mirrors
+//     [ClassifyTerminalError]; OpenCode does not currently surface a
+//     state-lost shape distinct from expiry).
+//  2. Residual TextClassifier — covers model, auth, network, etc.
+//
+// Returns nil only when stderr is empty and exitCode == 0.
+func (c *OpenCode) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
+	if stderr == "" && exitCode == 0 {
+		return nil
+	}
+	if strings.Contains(stderr, "session") &&
+		(strings.Contains(stderr, "not found") ||
+			strings.Contains(stderr, "expired") ||
+			strings.Contains(stderr, "invalid")) {
+		return fallback.New(fallback.ReasonSessionExpired, strings.TrimSpace(stderr), nil)
+	}
+	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
+		RunnerType: string(c.Type()),
+		Stderr:     stderr,
+		ExitCode:   exitCode,
+	})
 }
 
 // UpdateMetrics satisfies [Codec].

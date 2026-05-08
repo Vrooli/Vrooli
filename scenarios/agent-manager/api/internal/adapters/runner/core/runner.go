@@ -45,6 +45,7 @@ import (
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
 	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
@@ -135,6 +136,12 @@ func (r *Runner) IsAvailable(ctx context.Context) (bool, string) {
 // ProbeModel satisfies [runner.Runner] by consulting the codec.
 func (r *Runner) ProbeModel(ctx context.Context, modelID string) error {
 	return r.codec.ProbeModel(ctx, modelID)
+}
+
+// Classify satisfies [runner.Runner] by consulting the codec's
+// structured-signal classifier.
+func (r *Runner) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
+	return r.codec.Classify(stderr, exitCode)
 }
 
 // ParseTranscriptLine satisfies [runner.TranscriptParser] for single-line

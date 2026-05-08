@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/eventlog"
 
 	"github.com/google/uuid"
 )
@@ -62,8 +63,11 @@ func AdvancePhase(ctx context.Context, in AdvancePhaseInput) {
 
 	if in.Deps.Runs != nil && in.Run != nil {
 		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
-			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
-				"failed to persist phase update: "+err.Error())
+			EmitCheckpointFailure(ctx, in.Deps, in.Run.ID, eventlog.CheckpointFailurePayload{
+				Phase:   string(in.Phase),
+				Step:    eventlog.CheckpointFailureSavePhase,
+				Message: err.Error(),
+			})
 		}
 	}
 
@@ -95,7 +99,10 @@ func SaveCheckpoint(ctx context.Context, in SaveCheckpointInput) {
 		in.Mu.Unlock()
 	}
 	if err := in.Deps.Checkpoints.Save(ctx, &cp); err != nil {
-		EmitSystemEvent(ctx, in.Deps, in.RunID, "warn",
-			"failed to save checkpoint: "+err.Error())
+		EmitCheckpointFailure(ctx, in.Deps, in.RunID, eventlog.CheckpointFailurePayload{
+			Phase:   string(cp.Phase),
+			Step:    eventlog.CheckpointFailureSaveStep,
+			Message: err.Error(),
+		})
 	}
 }

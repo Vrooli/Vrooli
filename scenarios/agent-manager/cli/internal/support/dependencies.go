@@ -11,6 +11,9 @@ type Dependencies struct {
 	Runner      CommandFunc
 	Settings    CommandFunc
 	Maintenance CommandFunc
+	Ops         CommandFunc
+	Health      CommandFunc
+	Events      CommandFunc
 }
 
 func Command(name, description string, run CommandFunc) cliapp.Command {

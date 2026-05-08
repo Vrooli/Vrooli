@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
 )
@@ -297,6 +298,17 @@ func (c *fakeCodec) ClassifyTerminalError(stderr string, exitCode int) *domain.R
 		return nil
 	}
 	return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(stderr))
+}
+
+func (c *fakeCodec) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
+	if stderr == "" && exitCode == 0 {
+		return nil
+	}
+	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
+		RunnerType: string(c.Type()),
+		Stderr:     stderr,
+		ExitCode:   exitCode,
+	})
 }
 
 func (c *fakeCodec) Labels() codecs.Labels {

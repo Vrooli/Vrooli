@@ -25,6 +25,9 @@ type Services struct {
 	Runners     *RunnerService
 	Settings    *SettingsService
 	Maintenance *MaintenanceService
+	Operational *OperationalService
+	HealthAudit *HealthAuditService
+	Events      *EventsService
 }
 
 // NewServices creates a new Services instance with all domain services.
@@ -36,6 +39,9 @@ func NewServices(api *cliutil.APIClient) *Services {
 		Runners:     &RunnerService{api: api},
 		Settings:    &SettingsService{api: api},
 		Maintenance: &MaintenanceService{api: api},
+		Operational: &OperationalService{api: api},
+		HealthAudit: &HealthAuditService{api: api},
+		Events:      &EventsService{api: api},
 	}
 }
 

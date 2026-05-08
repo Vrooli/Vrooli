@@ -771,15 +771,16 @@ layer). `Mount` populates `s.HomeMergedDir` for both drivers; the
 profile's `HOME=$HOME` env entry degrades gracefully (no bind, no
 overlay — the agent CLI runs without host-config visibility).
 
-## Userns deployment contract (Phase 5)
+## Portable launch contract
 
 The default driver is **kernel overlayfs in an unprivileged user
-namespace** (`overlayfs-userns`). The deployment wrapper at
-`.vrooli/service.json:start-api` runs the API binary inside `unshare -U
--m -r`, which is part of the contract:
+namespace** (`overlayfs-userns`). The deployment entrypoint at
+`.vrooli/service.json:start-api` runs the portable launcher, which reads
+the file-backed driver preference before API startup and chooses the
+host-specific launch shape:
 
 ```
-"run": "cd api && exec unshare -U -m -r ./workspace-sandbox-api"
+"run": "cd api && exec ./workspace-sandbox-launcher ./workspace-sandbox-api"
 ```
 
 The boot self-check in `main.go::NewServer` verifies the wrapper is
@@ -817,7 +818,7 @@ returns `nil` rather than panicking).
 
 `driver.SwitchDriver(ctx, slot, cfg, optionID)` is the only path that
 mutates the slot in production. Sequence: `NewDriverFor` →
-`IsAvailable` → `Store` → `SaveDriverPreference`. In-flight ops
+`IsAvailable` → `Store` → `driverpref.Save`. In-flight ops
 captured the prior driver and continue with it; only new ops see the
 post-switch driver.
 
@@ -1806,10 +1807,10 @@ level without making process tests uncompilable).
   PTY allocation requires a real `*os/exec.Cmd`; abstracting it
   through Starter would either lose typing or require parallel APIs.
   PTYStart is its own seam in `internal/process/pty.go`.
-- **Migrate `syscall.Exec` in `namespace.EnterUserNamespace`.** That
-  call replaces the running process (no fork), which is a different
-  semantic from anything Starter exposes. Stays in namespace with a
-  comment.
+- **Hide the portable launcher behind Starter.** The launcher replaces
+  the running process, which is a different semantic from spawned
+  sandbox child processes. It owns its own process replacement seam in
+  `api/cmd/workspace-sandbox-launcher`.
 
 ### DOD invariants
 

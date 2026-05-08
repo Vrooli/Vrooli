@@ -43,6 +43,11 @@ func NewGate(sink runner.EventSink) *Gate {
 // Emit forwards the event to the wrapped sink. The wrapped sink's
 // persist-before-broadcast contract is preserved as-is in Phase 1; future
 // invariants (dedupe by event ID, ordering guarantees) attach here.
+//
+// Typed-operational events (the eventlog package's payloads) flow through
+// this same method — the Gate is event-shape-agnostic. The eventlog
+// package is the source of truth for "what the event_type/schema_version
+// pair means"; the Gate's job is purely transport.
 func (g *Gate) Emit(event *domain.RunEvent) error {
 	if g == nil || g.sink == nil {
 		return nil

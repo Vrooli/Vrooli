@@ -9,34 +9,20 @@
 //
 // # How It Works
 //
-// 1. At startup, we check if user namespaces are available
-// 2. If available, we re-exec the process via `unshare --user --mount --map-root-user`
-// 3. Inside the user namespace, we appear as UID 0 and can mount overlayfs
-// 4. The mount persists for the lifetime of the process
-// 5. Network, IPC, etc. are NOT namespaced - only user and mount namespaces
-//
-// # Fallback Chain
-//
-// If user namespaces aren't available (older kernel, container restrictions),
-// we fall back to:
-// 1. fuse-overlayfs (if installed)
-// 2. Copy driver (always works, but slower)
+// The portable workspace-sandbox launcher decides whether the API process
+// must start through `unshare -U -m -r` before main runs. This package only
+// reports namespace diagnostics for driver option reporting.
 //
 // # Round 4 Phase 7
 //
 // Every external command invocation routes through process.Starter and
 // every overlayfs probe routes through fsmount.Mounter so the syscall
-// surface is confined to the canonical seams. The legacy syscall.Exec
-// in EnterUserNamespace stays here because it does process replacement
-// (no fork) — Starter is for spawning subprocesses, not replacing self.
+// surface is confined to the canonical seams.
 package namespace
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -44,12 +30,6 @@ import (
 	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/process"
 )
-
-// Environment variable set when we're running inside the user namespace
-const InUserNamespaceEnv = "WORKSPACE_SANDBOX_IN_USERNS"
-
-// Environment variable to disable user namespace (for debugging/fallback)
-const DisableUserNamespaceEnv = "WORKSPACE_SANDBOX_DISABLE_USERNS"
 
 // Status represents the current namespace status
 type Status struct {
@@ -75,14 +55,8 @@ type Status struct {
 // down so tests can stub them.
 func Check(starter process.Starter) Status {
 	status := Status{
-		InUserNamespace: os.Getenv(InUserNamespaceEnv) == "1",
+		InUserNamespace: inUserNamespace(),
 		KernelVersion:   getKernelVersion(),
-	}
-
-	// If explicitly disabled, don't check further
-	if os.Getenv(DisableUserNamespaceEnv) == "1" {
-		status.Reason = "user namespace disabled via " + DisableUserNamespaceEnv
-		return status
 	}
 
 	// Check if we can create user namespaces
@@ -104,79 +78,6 @@ func Check(starter process.Starter) Status {
 	// We can create namespaces but haven't entered one yet
 	status.Reason = "not yet in user namespace"
 	return status
-}
-
-// EnterUserNamespace re-execs the current process inside a user namespace.
-// This function only returns if re-exec fails; on success, it replaces the process.
-//
-// Returns nil if we're already in a user namespace or if namespaces are disabled.
-// Returns an error if re-exec fails.
-//
-// starter is used only to probe `unshare`/`true` availability before
-// committing to the re-exec; the re-exec itself uses syscall.Exec
-// directly because process replacement (not subprocess spawn) is the
-// required semantic — Starter cannot replace the calling process.
-func EnterUserNamespace(starter process.Starter) error {
-	// Already in user namespace?
-	if os.Getenv(InUserNamespaceEnv) == "1" {
-		return nil
-	}
-
-	// Explicitly disabled?
-	if os.Getenv(DisableUserNamespaceEnv) == "1" {
-		return nil
-	}
-
-	// Check if we can create user namespaces
-	if !canCreateUserNamespace(starter) {
-		return errors.New("user namespaces not available")
-	}
-
-	// Find unshare binary via the starter so test injection can stub it.
-	unsharePath, err := starter.LookPath("unshare")
-	if err != nil {
-		return fmt.Errorf("unshare command not found: %w", err)
-	}
-
-	// Get current executable path
-	exePath, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("cannot determine executable path: %w", err)
-	}
-	exePath, err = filepath.EvalSymlinks(exePath)
-	if err != nil {
-		return fmt.Errorf("cannot resolve executable symlinks: %w", err)
-	}
-
-	// Build argument list for unshare
-	args := []string{
-		"unshare",
-		"--user",
-		"--mount",
-		"--map-root-user",
-		"--propagation", "private",
-		exePath,
-	}
-	args = append(args, os.Args[1:]...)
-
-	// Set environment to indicate we're in a user namespace
-	env := os.Environ()
-	env = append(env, InUserNamespaceEnv+"=1")
-
-	// Re-exec via unshare. Use syscall.Exec for true process replacement
-	// (no child process). This stays out of process.Starter because
-	// Starter spawns children; replacement-of-self is a different
-	// semantic that the seam intentionally does not expose.
-	return syscall.Exec(unsharePath, args, env)
-}
-
-// MustEnterUserNamespace is like EnterUserNamespace but logs and continues
-// on failure instead of returning an error. Use this when fallback is acceptable.
-func MustEnterUserNamespace(starter process.Starter, logger func(format string, args ...interface{})) {
-	err := EnterUserNamespace(starter)
-	if err != nil {
-		logger("user namespace not available, will use fallback driver: %v", err)
-	}
 }
 
 // canCreateUserNamespace checks if the current process can create user
@@ -215,6 +116,18 @@ func canCreateUserNamespace(starter process.Starter) bool {
 func testOverlayfsMount(starter process.Starter) bool {
 	mounter := fsmount.NewSystemMounter(starter)
 	return fsmount.ProbeKernelOverlayMount(context.Background(), mounter) == nil
+}
+
+func inUserNamespace() bool {
+	data, err := os.ReadFile("/proc/self/uid_map")
+	if err != nil {
+		return false
+	}
+	fields := strings.Fields(string(data))
+	if len(fields) < 3 {
+		return false
+	}
+	return !(fields[0] == "0" && fields[1] == "0" && fields[2] == "4294967295")
 }
 
 // getKernelVersion returns the kernel version string

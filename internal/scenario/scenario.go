@@ -62,6 +62,7 @@ type ServiceManifest struct {
 	Schema         string                    `json:"$schema,omitempty"`
 	Version        string                    `json:"version,omitempty"`
 	Service        ServiceMetadata           `json:"service"`
+	Generation     *GenerationMetadata       `json:"generation,omitempty"`
 	CLI            *CLIConfig                `json:"cli,omitempty"`
 	Ports          map[string]Port           `json:"ports,omitempty"`
 	Lifecycle      Lifecycle                 `json:"lifecycle,omitempty"`
@@ -70,6 +71,23 @@ type ServiceManifest struct {
 	Environment    map[string]string         `json:"environment,omitempty"`
 	HostTools      []hostreqspec.Declaration `json:"hostTools,omitempty"`
 	HostSafeguards []hostreqspec.Declaration `json:"hostSafeguards,omitempty"`
+}
+
+type GenerationMetadata struct {
+	Template    GenerationTemplate `json:"template,omitempty"`
+	GeneratedAt string             `json:"generated_at,omitempty"`
+	Design      GenerationDesign   `json:"design,omitempty"`
+}
+
+type GenerationTemplate struct {
+	ID      string `json:"id,omitempty"`
+	Version string `json:"version,omitempty"`
+}
+
+type GenerationDesign struct {
+	ID      string `json:"id,omitempty"`
+	Version string `json:"version,omitempty"`
+	Adapter string `json:"adapter,omitempty"`
 }
 
 type ServiceMetadata struct {

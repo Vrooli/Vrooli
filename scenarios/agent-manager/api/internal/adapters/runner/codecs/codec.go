@@ -19,6 +19,7 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
 )
@@ -156,6 +157,26 @@ type Codec interface {
 	// DOC: scenarios/agent-manager/docs/internal/SEAMS.md (Codec
 	// Terminal-Error Classification).
 	ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError
+
+	// Classify converts a non-success Execute outcome into a typed
+	// [*fallback.ClassifiedError]. Codecs should consult their own
+	// structured signals first (HTTP status from streamed events, codec
+	// error codes, captured rate-limit state surfaced via PostClassify
+	// into the supplied stderr/ErrorMessage) and delegate to the
+	// residual [fallback.TextClassifier] for the rest.
+	//
+	// Contract:
+	//   - Returns nil ONLY when stderr is empty AND exitCode == 0 — i.e.
+	//     the run succeeded and there is no signal to classify.
+	//   - Returns a non-nil *ClassifiedError otherwise; ReasonUnknown is
+	//     the explicit "I saw a failure but could not classify it"
+	//     signal (raw text preserved on Message/Cause).
+	//   - Implementations MUST be deterministic for the same (stderr,
+	//     exitCode) pair.
+	//
+	// DOC: scenarios/agent-manager/docs/internal/EVENT_TAXONOMY.md
+	// (model.fallback.attempted reason field).
+	Classify(stderr string, exitCode int) *fallback.ClassifiedError
 
 	// Labels supplies the human-readable status messages the runner
 	// emits on Execute/Continue start and completion.

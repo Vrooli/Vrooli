@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/driverpref"
 	"workspace-sandbox/internal/sandbox"
 )
 
@@ -101,8 +103,9 @@ type SelectDriverResponse struct {
 
 // SelectDriver handles setting the preferred driver.
 // This endpoint allows users to select which driver to use.
-// The driver is hot-swapped immediately without requiring an API restart.
-// In-flight operations continue with the old driver; new operations use the new driver.
+// Drivers that are available in the current process are hot-swapped immediately.
+// Drivers that require a different outer launch mode persist the preference and
+// return requiresRestart=true so the launcher can activate them on next boot.
 func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 	var req SelectDriverRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -159,15 +162,30 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	requestedID := driver.DriverID(req.DriverID)
+	if requiresOuterLaunchRestart(requestedID, h.InUserNamespace) {
+		if err := driverpref.Save(h.Config.Driver.BaseDir, requestedID); err != nil {
+			h.JSONError(w, "failed to save driver preference: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		h.JSONSuccess(w, SelectDriverResponse{
+			Success:         true,
+			SelectedDriver:  req.DriverID,
+			RequiresRestart: true,
+			Message:         "Driver preference saved for " + req.DriverID + ". Restart workspace-sandbox so the launcher can activate it.",
+		})
+		return
+	}
+
 	// Hot-swap the driver via the slot. SwitchDriver does the
 	// validate → store → persist sequence atomically.
 	driverCfg := driver.Config{
-		BaseDir:          h.Config.Driver.BaseDir,
-		MaxSandboxes:     h.Config.Limits.MaxSandboxes,
-		MaxSizeMB:        h.Config.Limits.MaxSandboxSizeMB,
-		UseFuseOverlayfs: h.Config.Driver.UseFuseOverlayfs,
+		BaseDir:            h.Config.Driver.BaseDir,
+		HomeOverlayBaseDir: h.Config.Driver.HomeOverlayBaseDir,
+		MaxSandboxes:       h.Config.Limits.MaxSandboxes,
+		MaxSizeMB:          h.Config.Limits.MaxSandboxSizeMB,
 	}
-	if err := driver.SwitchDriver(r.Context(), h.DriverSlot, driverCfg, driver.Deps{Clock: h.Clock, Mounter: h.Mounter, Starter: h.Starter}, driver.DriverID(req.DriverID)); err != nil {
+	if err := driver.SwitchDriver(r.Context(), h.DriverSlot, driverCfg, driver.Deps{Clock: h.Clock, Mounter: h.Mounter, Starter: h.Starter}, requestedID); err != nil {
 		h.JSONError(w, "failed to switch driver: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -180,12 +198,20 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func requiresOuterLaunchRestart(id driver.DriverID, inUserNamespace bool) bool {
+	return id == driver.DriverOverlayfsUserNS && !inUserNamespace
+}
+
 // GetDriverPreference handles getting the current driver preference.
 func (h *Handlers) GetDriverPreference(w http.ResponseWriter, r *http.Request) {
-	pref, err := driver.LoadDriverPreference(h.Config.Driver.BaseDir)
-	if err != nil {
+	prefID, err := driverpref.Load(h.Config.Driver.BaseDir)
+	pref := string(prefID)
+	if errors.Is(err, driverpref.ErrNotFound) {
 		// No preference set - return current driver
 		pref = string(h.Driver().ID())
+	} else if err != nil {
+		h.JSONError(w, "failed to read driver preference: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	options := driver.GetDriverOptions(r.Context(), h.Starter, h.Driver().ID(), h.InUserNamespace)

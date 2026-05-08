@@ -27,6 +27,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/health"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelregistry"
@@ -105,7 +106,7 @@ type Service interface {
 	// --- Model Registry Operations ---
 	GetModelRegistry(ctx context.Context) (*modelregistry.Registry, error)
 	UpdateModelRegistry(ctx context.Context, registry *modelregistry.Registry) (*modelregistry.Registry, error)
-	GetModelRegistryHealth(ctx context.Context) (modelregistry.HealthSnapshot, error)
+	GetModelRegistryHealth(ctx context.Context) (health.Snapshot, error)
 
 	// --- Status Operations ---
 	GetHealth(ctx context.Context) (*HealthStatus, error)
@@ -526,8 +527,12 @@ type Orchestrator struct {
 	// Model registry for runner model catalogs and presets.
 	modelRegistry *modelregistry.Store
 
-	// Model health map (in-memory, populated by runtime classification + startup probe).
-	modelHealth *modelregistry.HealthStore
+	// Model + runner health audit (SQLite-persisted, populated by runtime
+	// classification + the periodic probe). Snapshots derive from
+	// MAX(timestamp) over the audit tables; nil store means health
+	// observability is disabled (writes are silent no-ops, snapshots
+	// return empty).
+	healthStore *health.Store
 
 	// Recommendation extractor for investigation outputs.
 	recommendationExtractor recommendation.Extractor
@@ -665,11 +670,14 @@ func WithModelRegistry(store *modelregistry.Store) Option {
 	}
 }
 
-// WithModelHealth sets the model health store used by the executor to flag runtime
-// model-unavailable errors. The same store is exposed via GetModelRegistryHealth.
-func WithModelHealth(store *modelregistry.HealthStore) Option {
+// WithHealthStore wires the persisted health audit store. The executor
+// records every model-availability classification (ok or failed) here
+// via the ModelHealthReporter seam, and GetModelRegistryHealth reads
+// the current snapshot from the same store. Pass nil to disable health
+// observability (writes become no-ops).
+func WithHealthStore(store *health.Store) Option {
 	return func(o *Orchestrator) {
-		o.modelHealth = store
+		o.healthStore = store
 	}
 }
 
@@ -2459,8 +2467,8 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	if o.modelRegistry != nil {
 		executor.WithModelChainResolver(o.modelRegistry)
 	}
-	if o.modelHealth != nil {
-		executor.WithModelHealthReporter(newHealthMarkerAdapter(o.modelHealth))
+	if o.healthStore != nil {
+		executor.WithModelHealthReporter(newHealthMarkerAdapter(o.healthStore, run.ID.String()))
 	}
 	if run.SandboxID != nil {
 		workDir := existingSandboxWorkDir
@@ -2752,13 +2760,14 @@ func (o *Orchestrator) UpdateModelRegistry(ctx context.Context, registry *modelr
 	return o.modelRegistry.Update(registry)
 }
 
-func (o *Orchestrator) GetModelRegistryHealth(ctx context.Context) (modelregistry.HealthSnapshot, error) {
-	if o.modelHealth == nil {
-		// No health store wired: return an empty snapshot rather than erroring so
-		// consumers can render the UI before probes have run.
-		return modelregistry.HealthSnapshot{Runners: map[string]map[string]modelregistry.ModelHealth{}}, nil
+func (o *Orchestrator) GetModelRegistryHealth(ctx context.Context) (health.Snapshot, error) {
+	if o.healthStore == nil {
+		return health.Snapshot{
+			Models:  map[string]map[string]health.ModelEntry{},
+			Runners: map[string]health.RunnerEntry{},
+		}, nil
 	}
-	return o.modelHealth.Snapshot(), nil
+	return o.healthStore.Snapshot(ctx)
 }
 
 // -----------------------------------------------------------------------------

@@ -22,6 +22,11 @@
           "path": "reference/configuration.md",
           "title": "Configuration (Levers)",
           "description": "Every adjustable threshold in agent-manager — timeouts, intervals, buffers — organized by lever section."
+        },
+        {
+          "path": "reference/operational-stats.md",
+          "title": "Operational Stats (API + CLI)",
+          "description": "HTTP endpoints, CLI commands, and the honesty contract for the typed-event-derived stats and health surfaces."
         }
       ]
     },
@@ -100,6 +105,11 @@
           "path": "internal/UTILS_UNIFICATION_NOTES.md",
           "title": "Utils Unification Notes",
           "description": "Notes on consolidating utility functions across packages."
+        },
+        {
+          "path": "internal/EVENT_TAXONOMY.md",
+          "title": "Event Taxonomy",
+          "description": "Typed-operational run events, payload schemas, schema versioning, and the dispatch table contract."
         },
         {
           "path": "FAILURE_TOPOGRAPHY.md",

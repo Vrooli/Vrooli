@@ -91,21 +91,32 @@ func NewSQLiteStore(db *sqlx.DB, log *logrus.Logger) *SQLiteStore {
 
 // eventRow is the database row representation for run_events.
 type eventRow struct {
-	ID        uuid.UUID  `db:"id"`
-	RunID     uuid.UUID  `db:"run_id"`
-	Sequence  int64      `db:"sequence"`
-	EventType string     `db:"event_type"`
-	Timestamp sqliteTime `db:"timestamp"`
-	Data      []byte     `db:"data"`
+	ID            uuid.UUID  `db:"id"`
+	RunID         uuid.UUID  `db:"run_id"`
+	Sequence      int64      `db:"sequence"`
+	EventType     string     `db:"event_type"`
+	Timestamp     sqliteTime `db:"timestamp"`
+	SchemaVersion int        `db:"schema_version"`
+	Data          []byte     `db:"data"`
 }
 
 func (e *eventRow) toDomain() *domain.RunEvent {
 	evt := &domain.RunEvent{
-		ID:        e.ID,
-		RunID:     e.RunID,
-		Sequence:  e.Sequence,
-		EventType: domain.RunEventType(e.EventType),
-		Timestamp: e.Timestamp.Time(),
+		ID:            e.ID,
+		RunID:         e.RunID,
+		Sequence:      e.Sequence,
+		EventType:     domain.RunEventType(e.EventType),
+		Timestamp:     e.Timestamp.Time(),
+		SchemaVersion: e.SchemaVersion,
+	}
+
+	// Typed-operational events round-trip through TypedEventData carrying
+	// raw JSON; the eventlog package owns the (event_type, schema_version)
+	// → Go-type dispatch and the read-side decoder.
+	if evt.EventType.IsTypedOperationalEvent() {
+		body := append(json.RawMessage(nil), e.Data...)
+		evt.Data = &domain.TypedEventData{Type: evt.EventType, Body: body}
+		return evt
 	}
 
 	// Unmarshal based on event type
@@ -177,7 +188,7 @@ func (e *eventRow) toDomain() *domain.RunEvent {
 	return evt
 }
 
-const eventColumns = `id, run_id, sequence, event_type, timestamp, data`
+const eventColumns = `id, run_id, sequence, event_type, timestamp, schema_version, data`
 
 // Append adds events to a run's event stream.
 // Events are assigned sequence numbers automatically and persisted to SQLite.
@@ -229,11 +240,17 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 			return dbError("marshal_event", err)
 		}
 
-		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, data)
-			VALUES (?, ?, ?, ?, ?, ?)`
+		schemaVersion := evt.SchemaVersion
+		if schemaVersion == 0 {
+			schemaVersion = 1
+		}
+		evt.SchemaVersion = schemaVersion
+
+		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, schema_version, data)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 		if _, err := conn.ExecContext(ctx, insertQuery,
-			evt.ID, evt.RunID, evt.Sequence, string(evt.EventType), sqliteTime(evt.Timestamp), data); err != nil {
+			evt.ID, evt.RunID, evt.Sequence, string(evt.EventType), sqliteTime(evt.Timestamp), schemaVersion, data); err != nil {
 			return dbError("insert_event", err)
 		}
 

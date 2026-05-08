@@ -2,11 +2,11 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
+
+	"workspace-sandbox/internal/driverpref"
 )
 
 // CandidateReport is one driver's evaluation in SelectionReport.
@@ -154,60 +154,21 @@ func DriverInfo(ctx context.Context, cfg Config, deps Deps) []Info {
 	}
 }
 
-// --- Driver Preference Storage ---
-
-const preferenceFileName = "driver-preference.json"
-
-// DriverPreference stores the user's saved driver preference.
-type DriverPreference struct {
-	DriverID string `json:"driverId"`
-}
-
-// SaveDriverPreference saves the driver preference to a file under baseDir.
-func SaveDriverPreference(baseDir, driverID string) error {
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
-		return err
-	}
-	pref := DriverPreference{DriverID: driverID}
-	data, err := json.MarshalIndent(pref, "", "  ")
-	if err != nil {
-		return err
-	}
-	prefPath := filepath.Join(baseDir, preferenceFileName)
-	return os.WriteFile(prefPath, data, 0o644)
-}
-
-// LoadDriverPreference loads the driver preference from a file.
-// Returns empty string and error if no preference is set.
-func LoadDriverPreference(baseDir string) (string, error) {
-	prefPath := filepath.Join(baseDir, preferenceFileName)
-	data, err := os.ReadFile(prefPath)
-	if err != nil {
-		return "", err
-	}
-	var pref DriverPreference
-	if err := json.Unmarshal(data, &pref); err != nil {
-		return "", err
-	}
-	return pref.DriverID, nil
-}
-
 // SelectDriverWithPreference returns the best available driver, respecting
-// any saved preference. A saved preference for an unavailable driver
-// falls through to SelectDriver's normal priority. The SelectionReport
-// describes both the preference attempt (PreferenceFile/PreferenceValue/
-// PreferenceUsed) and every candidate's evaluation.
+// any saved preference. Missing preference falls through to SelectDriver's
+// normal priority. Malformed or unknown preferences fail startup because the
+// launcher and API share the same durable configuration contract.
 func SelectDriverWithPreference(ctx context.Context, cfg Config, deps Deps) (Driver, *SelectionReport, error) {
 	deps.Validate("driver.SelectDriverWithPreference")
-	prefPath := filepath.Join(cfg.BaseDir, preferenceFileName)
-	pref, err := LoadDriverPreference(cfg.BaseDir)
-	if err == nil && pref != "" {
-		if d, ok := tryPreferredDriver(ctx, cfg, deps, DriverID(pref)); ok {
+	prefPath := driverpref.Path(cfg.BaseDir)
+	pref, err := driverpref.Load(cfg.BaseDir)
+	if err == nil {
+		if d, ok := tryPreferredDriver(ctx, cfg, deps, pref); ok {
 			report := &SelectionReport{
 				Selected:        d.ID(),
 				InUserNamespace: InUserNamespace(),
 				PreferenceFile:  prefPath,
-				PreferenceValue: pref,
+				PreferenceValue: string(pref),
 				PreferenceUsed:  true,
 				Candidates: []CandidateReport{{
 					ID:         d.ID(),
@@ -219,12 +180,14 @@ func SelectDriverWithPreference(ctx context.Context, cfg Config, deps Deps) (Dri
 			}
 			return d, report, nil
 		}
-		log.Printf("driver: saved preference %q not available; falling through to auto-select", pref)
+		return nil, nil, fmt.Errorf("saved driver preference %q is not available on this system", pref)
+	} else if err != nil && !errors.Is(err, driverpref.ErrNotFound) {
+		return nil, nil, err
 	}
 	d, report, err := SelectDriver(ctx, cfg, deps)
 	if report != nil {
 		report.PreferenceFile = prefPath
-		report.PreferenceValue = pref
+		report.PreferenceValue = string(pref)
 		report.PreferenceUsed = false
 	}
 	return d, report, err

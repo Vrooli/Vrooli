@@ -28,6 +28,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
 )
@@ -419,6 +420,34 @@ func (c *Codex) ClassifyTerminalError(stderr string, exitCode int) *domain.Runne
 		return domain.NewRunnerSessionStateLostError(c.Type(), errors.New(cause))
 	}
 	return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(cause))
+}
+
+// Classify satisfies [Codec]. Codex classification order:
+//
+//  1. Thread-not-found stderr — distinguishes ReasonSessionStateLost
+//     (rollout-recorder dropped the thread mid-stream; mirrors
+//     [ClassifyTerminalError]) from ReasonSessionExpired (session id
+//     no longer maps to a live thread).
+//  2. Residual TextClassifier — covers unknown/deprecated model,
+//     auth, quota, network, etc.
+//
+// Returns nil only when stderr is empty and exitCode == 0.
+func (c *Codex) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
+	if stderr == "" && exitCode == 0 {
+		return nil
+	}
+	if strings.Contains(stderr, "thread") && strings.Contains(stderr, "not found") {
+		cause := strings.TrimSpace(stderr)
+		if strings.Contains(stderr, "record_rollout_items") || strings.Contains(stderr, "record rollout items") {
+			return fallback.New(fallback.ReasonSessionStateLost, cause, nil)
+		}
+		return fallback.New(fallback.ReasonSessionExpired, cause, nil)
+	}
+	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
+		RunnerType: string(c.Type()),
+		Stderr:     stderr,
+		ExitCode:   exitCode,
+	})
 }
 
 // UpdateMetrics satisfies [Codec].

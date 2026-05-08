@@ -29,6 +29,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
 )
@@ -521,6 +522,35 @@ func (c *Claude) ClassifyTerminalError(stderr string, exitCode int) *domain.Runn
 		return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(strings.TrimSpace(stderr)))
 	}
 	return nil
+}
+
+// Classify satisfies [Codec]. Claude classification order:
+//
+//  1. Captured rate-limit signal — PostClassify rewrites ErrorMessage
+//     when the result event carried `is_error: true` and the body
+//     parsed via detectClaudeRateLimit. Detect the rewritten message
+//     here so we always return ReasonRateLimit on rate-limited runs.
+//  2. Session-not-found stderr — ReasonSessionExpired (matches the
+//     [ClassifyTerminalError] mapping).
+//  3. Residual TextClassifier — covers unknown/deprecated model,
+//     auth, quota, network, context-length, etc.
+//
+// Returns nil only when stderr is empty and exitCode == 0.
+func (c *Claude) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
+	if stderr == "" && exitCode == 0 {
+		return nil
+	}
+	if rl := detectClaudeRateLimit(stderr); rl.Detected {
+		return fallback.New(fallback.ReasonRateLimit, strings.TrimSpace(stderr), nil)
+	}
+	if strings.Contains(stderr, "session") && strings.Contains(stderr, "not found") {
+		return fallback.New(fallback.ReasonSessionExpired, strings.TrimSpace(stderr), nil)
+	}
+	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
+		RunnerType: string(c.Type()),
+		Stderr:     stderr,
+		ExitCode:   exitCode,
+	})
 }
 
 // UpdateMetrics satisfies [Codec]. RateLimitEventData is captured into

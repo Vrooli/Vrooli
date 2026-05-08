@@ -23,6 +23,7 @@ import (
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
@@ -239,6 +240,19 @@ func validateTemplateShallowGeneratedCopy[C any](deps HandlerDeps[C], ctx C, inf
 		return []TemplateValidationIssue{{
 			Template: info.Name,
 			Message:  fmt.Sprintf("copy default design: %v", err),
+		}}
+	}
+	provenance := buildGenerationProvenance(info, design, time.Now().UTC())
+	if err := injectScenarioProvenance(destination, provenance); err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("write provenance: %v", err),
+		}}
+	}
+	if err := renderOrientationManifest(destination, info.Manifest, values); err != nil {
+		return []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("write orientation manifest: %v", err),
 		}}
 	}
 	if err := verifyTemplate(destination); err != nil {
@@ -685,6 +699,19 @@ func generateDeepValidationScenario[C any](deps HandlerDeps[C], ctx C, info Temp
 			Message:  fmt.Sprintf("copy default design: %v", err),
 		}}
 	}
+	provenance := buildGenerationProvenance(info, design, time.Now().UTC())
+	if err := injectScenarioProvenance(destination, provenance); err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("write provenance: %v", err),
+		}}
+	}
+	if err := renderOrientationManifest(destination, info.Manifest, values); err != nil {
+		return nil, []TemplateValidationIssue{{
+			Template: info.Name,
+			Message:  fmt.Sprintf("write orientation manifest: %v", err),
+		}}
+	}
 	if err := verifyTemplate(destination); err != nil {
 		return nil, []TemplateValidationIssue{{
 			Template: info.Name,
@@ -757,6 +784,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 	if err != nil {
 		return "", GenerateResult{}, err
 	}
+	provenance := buildGenerationProvenance(info, design, time.Now().UTC())
 	if opts.DryRun {
 		return cliout.FormatHuman, GenerateResult{
 			TemplateName: info.Name,
@@ -766,6 +794,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 			Manifest:     info.Manifest,
 			Design:       design,
 			Relocations:  resolved,
+			Provenance:   provenance,
 			DryRun:       true,
 		}, nil
 	}
@@ -802,6 +831,12 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 	if err := copyDesignAssets(design, values); err != nil {
 		return "", GenerateResult{}, err
 	}
+	if err := injectScenarioProvenance(destination, provenance); err != nil {
+		return "", GenerateResult{}, err
+	}
+	if err := renderOrientationManifest(destination, info.Manifest, values); err != nil {
+		return "", GenerateResult{}, err
+	}
 	if err := verifyTemplate(destination); err != nil {
 		return "", GenerateResult{}, err
 	}
@@ -824,6 +859,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 		Manifest:     info.Manifest,
 		Design:       design,
 		Relocations:  resolved,
+		Provenance:   provenance,
 		RunHooks:     opts.RunHooks,
 	}
 	if opts.RunHooks {
@@ -1209,6 +1245,79 @@ func copyTemplate(templateDir, destination string, values map[string]string, man
 	})
 }
 
+func buildGenerationProvenance(info TemplateInfo, design ResolvedDesign, now time.Time) GenerationProvenance {
+	return GenerationProvenance{
+		Template: GenerationTemplate{
+			ID:      info.Name,
+			Version: strings.TrimSpace(info.Manifest.Version),
+		},
+		GeneratedAt: now.UTC().Format(time.RFC3339),
+		Design: GenerationDesign{
+			ID:      strings.TrimSpace(design.KitID),
+			Version: strings.TrimSpace(design.Version),
+			Adapter: strings.TrimSpace(design.AdapterID),
+		},
+	}
+}
+
+func injectScenarioProvenance(destination string, provenance GenerationProvenance) error {
+	servicePath := filepath.Join(destination, ".vrooli", "service.json")
+	data, err := os.ReadFile(servicePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read service manifest: %w", err)
+	}
+	var manifest scenariomodel.ServiceManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return fmt.Errorf("parse service manifest: %w", err)
+	}
+	manifest.Generation = &scenariomodel.GenerationMetadata{
+		Template: scenariomodel.GenerationTemplate{
+			ID:      provenance.Template.ID,
+			Version: provenance.Template.Version,
+		},
+		GeneratedAt: provenance.GeneratedAt,
+		Design: scenariomodel.GenerationDesign{
+			ID:      provenance.Design.ID,
+			Version: provenance.Design.Version,
+			Adapter: provenance.Design.Adapter,
+		},
+	}
+	rendered, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return fmt.Errorf("render service manifest: %w", err)
+	}
+	rendered = append(rendered, '\n')
+	return os.WriteFile(servicePath, rendered, 0o644)
+}
+
+func renderOrientationManifest(destination string, manifest TemplateManifest, values map[string]string) error {
+	if manifest.Orientation == nil {
+		return nil
+	}
+	copyTo := strings.TrimSpace(manifest.Orientation.CopyTo)
+	if copyTo == "" {
+		return fmt.Errorf("orientation.copyTo is required")
+	}
+	cleanPath, err := cleanScenarioRelativePath(copyTo)
+	if err != nil {
+		return fmt.Errorf("orientation.copyTo: %w", err)
+	}
+	data, err := json.MarshalIndent(manifest.Orientation, "", "  ")
+	if err != nil {
+		return fmt.Errorf("render orientation manifest: %w", err)
+	}
+	data = []byte(renderTemplateString(string(data), values))
+	target := filepath.Join(destination, cleanPath)
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	return os.WriteFile(target, data, 0o644)
+}
+
 func verifyTemplate(destination string) error {
 	var unresolved []string
 	err := filepath.WalkDir(destination, func(path string, entry fs.DirEntry, err error) error {
@@ -1317,6 +1426,7 @@ func validateTemplateSource(info TemplateInfo) []TemplateValidationIssue {
 		return nil
 	}
 	var issues []TemplateValidationIssue
+	issues = append(issues, validateOrientationSource(info)...)
 	_ = filepath.WalkDir(info.Path, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() || filepath.Base(path) != "go.mod" {
 			return err
@@ -1347,6 +1457,137 @@ func validateTemplateSource(info TemplateInfo) []TemplateValidationIssue {
 		return nil
 	})
 	return issues
+}
+
+func validateOrientationSource(info TemplateInfo) []TemplateValidationIssue {
+	if info.Manifest.Orientation == nil {
+		return nil
+	}
+	orientation := info.Manifest.Orientation
+	var issues []TemplateValidationIssue
+	add := func(path, message string) {
+		issues = append(issues, TemplateValidationIssue{Template: info.Name, Path: path, Message: message})
+	}
+	if strings.TrimSpace(info.Manifest.Version) == "" {
+		add("template.json", "version is required when orientation is declared")
+	}
+	if _, err := cleanScenarioRelativePath(orientation.CopyTo); err != nil {
+		add("orientation.copyTo", err.Error())
+	}
+	startDocument := strings.TrimSpace(orientation.StartDocument)
+	if startDocument == "" {
+		startDocument = strings.TrimSpace(info.Manifest.StartDocument)
+	}
+	if startDocument != "" {
+		if _, err := cleanScenarioRelativePath(startDocument); err != nil {
+			add("orientation.startDocument", err.Error())
+		}
+	}
+	seen := map[string]struct{}{}
+	for index, step := range orientation.Steps {
+		stepPath := fmt.Sprintf("orientation.steps[%d]", index)
+		id := strings.TrimSpace(step.ID)
+		if id == "" {
+			add(stepPath, "step id is required")
+		} else if _, ok := seen[id]; ok {
+			add(stepPath, fmt.Sprintf("duplicate step id %q", id))
+		}
+		seen[id] = struct{}{}
+		required := orientationStepRequired(step)
+		if required && len(step.Checks) == 0 {
+			add(stepPath, "required step must declare at least one check")
+		}
+		for checkIndex, check := range step.Checks {
+			checkPath := fmt.Sprintf("%s.checks[%d]", stepPath, checkIndex)
+			if !validOrientationCheckKind(check.Kind) {
+				add(checkPath, fmt.Sprintf("unknown check kind %q", check.Kind))
+			}
+			switch check.Kind {
+			case "file_exists", "file_absent", "directory_exists":
+				if _, err := cleanScenarioRelativePath(check.Path); err != nil {
+					add(checkPath+".path", err.Error())
+				}
+			case "glob_present", "glob_absent":
+				if strings.TrimSpace(check.Pattern) == "" {
+					add(checkPath+".pattern", "pattern is required")
+				} else if _, err := cleanScenarioRelativePath(check.Pattern); err != nil {
+					add(checkPath+".pattern", err.Error())
+				}
+			case "json_path_exists":
+				if _, err := cleanScenarioRelativePath(check.Path); err != nil {
+					add(checkPath+".path", err.Error())
+				}
+				if strings.TrimSpace(check.Query) == "" {
+					add(checkPath+".query", "query is required")
+				}
+			case "text_contains", "text_absent":
+				if _, err := cleanScenarioRelativePath(check.Path); err != nil {
+					add(checkPath+".path", err.Error())
+				}
+				if strings.TrimSpace(check.Text) == "" {
+					add(checkPath+".text", "text is required")
+				}
+			case "command":
+				if strings.TrimSpace(check.Run) == "" {
+					add(checkPath+".run", "run is required")
+				}
+				if strings.TrimSpace(check.Timeout) == "" {
+					add(checkPath+".timeout", "timeout is required")
+				} else if _, err := time.ParseDuration(check.Timeout); err != nil {
+					add(checkPath+".timeout", fmt.Sprintf("invalid timeout: %v", err))
+				}
+			}
+		}
+	}
+	for _, cleanup := range orientation.Finalize.Cleanup {
+		clean, err := cleanScenarioRelativePath(cleanup)
+		if err != nil {
+			add("orientation.finalize.cleanup", err.Error())
+			continue
+		}
+		if isDurableOrientationCleanupTarget(clean) {
+			add("orientation.finalize.cleanup", fmt.Sprintf("cleanup path %q targets durable scenario content", cleanup))
+		}
+	}
+	return issues
+}
+
+func orientationStepRequired(step TemplateOrientationStep) bool {
+	return step.Required == nil || *step.Required
+}
+
+func validOrientationCheckKind(kind string) bool {
+	switch strings.TrimSpace(kind) {
+	case "file_exists", "file_absent", "directory_exists", "glob_present", "glob_absent", "json_path_exists", "text_contains", "text_absent", "command":
+		return true
+	default:
+		return false
+	}
+}
+
+func cleanScenarioRelativePath(value string) (string, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "", fmt.Errorf("path is required")
+	}
+	clean := filepath.Clean(filepath.FromSlash(trimmed))
+	if clean == "." || clean == ".." || filepath.IsAbs(clean) || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%q must be a scenario-relative path", value)
+	}
+	return clean, nil
+}
+
+func isDurableOrientationCleanupTarget(path string) bool {
+	slash := filepath.ToSlash(path)
+	if slash == "docs" || strings.HasPrefix(slash, "docs/") || slash == "DESIGN.md" || slash == "requirements" || strings.HasPrefix(slash, "requirements/") {
+		return true
+	}
+	for _, prefix := range []string{"api/", "cli/", "ui/", "proto/", "runtime/"} {
+		if strings.HasPrefix(slash, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // validateRelocationProtoSources runs `buf lint` against template-side

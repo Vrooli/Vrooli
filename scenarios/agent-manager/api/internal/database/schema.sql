@@ -133,6 +133,11 @@ CREATE TABLE IF NOT EXISTS run_events (
     sequence INTEGER NOT NULL,
     event_type TEXT NOT NULL,
     timestamp TEXT DEFAULT (datetime('now')),
+    -- schema_version identifies the on-wire shape of `data` so the eventlog
+    -- dispatch table can route old payloads to old payload types
+    -- indefinitely. Defaults to 1; the eventlog package is the source of
+    -- truth for which versions are registered for which event types.
+    schema_version INTEGER NOT NULL DEFAULT 1,
     data TEXT NOT NULL,
     UNIQUE(run_id, sequence)
 );
@@ -319,6 +324,51 @@ CREATE TABLE IF NOT EXISTS investigation_settings (
     investigation_tag_allowlist TEXT NOT NULL DEFAULT '[]',
 
     updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- ============================================================================
+-- Health audit (Phase 2)
+-- ============================================================================
+-- model_health_audit and runner_health_audit are append-only audit logs of
+-- every observed health transition. Eviction by background job (default 90d).
+-- triggered_by is free-text run_id or "probe"; no FK because probes have no
+-- run.
+CREATE TABLE IF NOT EXISTS model_health_audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    runner_type TEXT NOT NULL,
+    model_id TEXT NOT NULL,
+    status TEXT NOT NULL,        -- ok | unknown | failed
+    reason TEXT,                 -- nullable; populated on failed (fallback.Reason)
+    message TEXT,                -- nullable; short operator-readable summary
+    triggered_by TEXT NOT NULL   -- run_id or "probe"
+);
+CREATE INDEX IF NOT EXISTS idx_mha_runner_model ON model_health_audit(runner_type, model_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_mha_timestamp ON model_health_audit(timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS runner_health_audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    runner_type TEXT NOT NULL,
+    status TEXT NOT NULL,        -- ok | unknown | failed
+    reason TEXT,                 -- nullable; populated on failed (fallback.Reason)
+    message TEXT,                -- nullable
+    triggered_by TEXT NOT NULL   -- run_id or "probe"
+);
+CREATE INDEX IF NOT EXISTS idx_rha_runner ON runner_health_audit(runner_type, timestamp DESC);
+
+-- ============================================================================
+-- Stats engine checkpoint (Phase 3)
+-- ============================================================================
+-- stats_checkpoint persists the in-memory engine's last-processed
+-- run_events.rowid so a crash or process restart resumes from the saved
+-- watermark instead of replaying every event from zero. The "name"
+-- column allows multiple engines (e.g., a future per-tenant view) to
+-- share the table without colliding.
+CREATE TABLE IF NOT EXISTS stats_checkpoint (
+    name TEXT PRIMARY KEY,
+    last_rowid INTEGER NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- ============================================================================

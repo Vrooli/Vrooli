@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -50,17 +51,52 @@ type TemplateDesign struct {
 
 type TemplateManifest struct {
 	Name          string                 `json:"name,omitempty"`
+	Version       string                 `json:"version,omitempty"`
 	DisplayName   string                 `json:"displayName,omitempty"`
 	Description   string                 `json:"description,omitempty"`
 	Stack         []string               `json:"stack,omitempty"`
 	StartDocument string                 `json:"startDocument,omitempty"`
 	Design        TemplateDesign         `json:"design,omitempty"`
+	Orientation   *TemplateOrientation   `json:"orientation,omitempty"`
 	RequiredVars  map[string]TemplateVar `json:"requiredVars,omitempty"`
 	OptionalVars  map[string]TemplateVar `json:"optionalVars,omitempty"`
 	Docs          map[string]string      `json:"docs,omitempty"`
 	CopyExcludes  []string               `json:"copyExcludes,omitempty"`
 	PostHooks     []TemplateHook         `json:"postHooks,omitempty"`
 	Relocations   []TemplateRelocation   `json:"relocations,omitempty"`
+}
+
+type TemplateOrientation struct {
+	Version       string                      `json:"version,omitempty"`
+	CopyTo        string                      `json:"copyTo,omitempty"`
+	StartDocument string                      `json:"startDocument,omitempty"`
+	Finalize      TemplateOrientationFinalize `json:"finalize,omitempty"`
+	Steps         []TemplateOrientationStep   `json:"steps,omitempty"`
+}
+
+type TemplateOrientationFinalize struct {
+	Cleanup []string `json:"cleanup,omitempty"`
+	Message string   `json:"message,omitempty"`
+}
+
+type TemplateOrientationStep struct {
+	ID          string                     `json:"id"`
+	Title       string                     `json:"title,omitempty"`
+	Description string                     `json:"description,omitempty"`
+	Docs        []string                   `json:"docs,omitempty"`
+	Required    *bool                      `json:"required,omitempty"`
+	Checks      []TemplateOrientationCheck `json:"checks,omitempty"`
+}
+
+type TemplateOrientationCheck struct {
+	Kind     string `json:"kind"`
+	Path     string `json:"path,omitempty"`
+	Pattern  string `json:"pattern,omitempty"`
+	Query    string `json:"query,omitempty"`
+	Text     string `json:"text,omitempty"`
+	Run      string `json:"run,omitempty"`
+	Timeout  string `json:"timeout,omitempty"`
+	Optional bool   `json:"optional,omitempty"`
 }
 
 type TemplateInfo struct {
@@ -151,8 +187,67 @@ type GenerateResult struct {
 	Manifest     TemplateManifest
 	Design       ResolvedDesign
 	Relocations  []ResolvedRelocation
+	Provenance   GenerationProvenance
 	DryRun       bool
 	RunHooks     bool
+}
+
+type GenerationProvenance struct {
+	Template    GenerationTemplate `json:"template,omitempty"`
+	GeneratedAt string             `json:"generated_at,omitempty"`
+	Design      GenerationDesign   `json:"design,omitempty"`
+}
+
+type GenerationTemplate struct {
+	ID      string `json:"id,omitempty"`
+	Version string `json:"version,omitempty"`
+}
+
+type GenerationDesign struct {
+	ID      string `json:"id,omitempty"`
+	Version string `json:"version,omitempty"`
+	Adapter string `json:"adapter,omitempty"`
+}
+
+type OrientationRequest struct {
+	Name     string
+	JSON     bool
+	Finalize bool
+}
+
+type OrientationReport struct {
+	Scenario         string                  `json:"scenario"`
+	ScenarioPath     string                  `json:"scenarioPath,omitempty"`
+	OrientationPath  string                  `json:"orientationPath,omitempty"`
+	Finalized        bool                    `json:"finalized,omitempty"`
+	Template         GenerationTemplate      `json:"template,omitempty"`
+	Design           GenerationDesign        `json:"design,omitempty"`
+	StartDocument    string                  `json:"startDocument,omitempty"`
+	Completed        int                     `json:"completed"`
+	Required         int                     `json:"required"`
+	Steps            []OrientationStepReport `json:"steps,omitempty"`
+	NextStep         *OrientationStepReport  `json:"nextStep,omitempty"`
+	Message          string                  `json:"message,omitempty"`
+	FinalizeRequired bool                    `json:"finalizeRequired,omitempty"`
+}
+
+type OrientationStepReport struct {
+	ID          string                   `json:"id"`
+	Title       string                   `json:"title,omitempty"`
+	Description string                   `json:"description,omitempty"`
+	Docs        []string                 `json:"docs,omitempty"`
+	Required    bool                     `json:"required"`
+	Complete    bool                     `json:"complete"`
+	Checks      []OrientationCheckReport `json:"checks,omitempty"`
+}
+
+type OrientationCheckReport struct {
+	Kind     string `json:"kind"`
+	Label    string `json:"label,omitempty"`
+	Passed   bool   `json:"passed"`
+	Skipped  bool   `json:"skipped,omitempty"`
+	Message  string `json:"message,omitempty"`
+	Optional bool   `json:"optional,omitempty"`
 }
 
 type TemplateValidationIssue struct {
@@ -220,9 +315,9 @@ func RenderTemplateListResponse(w io.Writer, format cliout.Format, templates []T
 		if display == "" {
 			display = "(template.json missing)"
 		}
-		rows = append(rows, []string{item.Name, display, required})
+		rows = append(rows, []string{item.Name, display, item.Manifest.Version, required})
 	}
-	_ = cliout.RenderTable(w, []string{"Name", "Display Name", "Required Vars"}, rows)
+	_ = cliout.RenderTable(w, []string{"Name", "Display Name", "Version", "Required Vars"}, rows)
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "Tip: vrooli scenario template show <name>")
 	return nil
@@ -241,6 +336,9 @@ func RenderTemplateShowResponse(w io.Writer, format cliout.Format, info Template
 	}
 	if len(manifest.Stack) > 0 {
 		_, _ = fmt.Fprintf(w, "Stack: %s\n", strings.Join(manifest.Stack, ", "))
+	}
+	if strings.TrimSpace(manifest.Version) != "" {
+		_, _ = fmt.Fprintf(w, "Version: %s\n", manifest.Version)
 	}
 	if strings.TrimSpace(manifest.StartDocument) != "" {
 		_, _ = fmt.Fprintf(w, "Start document: %s\n", manifest.StartDocument)
@@ -291,6 +389,19 @@ func RenderTemplateShowResponse(w io.Writer, format cliout.Format, info Template
 			}
 		}
 	}
+	if manifest.Orientation != nil {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Orientation:")
+		if manifest.Orientation.CopyTo != "" {
+			_, _ = fmt.Fprintf(w, "  copy to: %s\n", manifest.Orientation.CopyTo)
+		}
+		if manifest.Orientation.StartDocument != "" {
+			_, _ = fmt.Fprintf(w, "  start document: %s\n", manifest.Orientation.StartDocument)
+		}
+		if len(manifest.Orientation.Steps) > 0 {
+			_, _ = fmt.Fprintf(w, "  steps: %d\n", len(manifest.Orientation.Steps))
+		}
+	}
 	if len(manifest.Docs) > 0 {
 		docKeys := make([]string, 0, len(manifest.Docs))
 		for key := range manifest.Docs {
@@ -326,18 +437,48 @@ func RenderGenerateResponse(w io.Writer, format cliout.Format, result GenerateRe
 		_, _ = fmt.Fprintf(w, "[DRY-RUN] Would generate template %s at %s\n", result.TemplateName, result.Destination)
 		WriteTemplateValues(w, result.Values)
 		WriteTemplateDesign(w, result.Design)
+		WriteTemplateProvenance(w, result.Provenance)
 		WriteTemplateRelocations(w, result.Relocations)
 		return nil
 	}
 	_, _ = fmt.Fprintf(w, "Created %s at %s\n", result.DisplayName, result.Destination)
 	WriteTemplateValues(w, result.Values)
 	WriteTemplateDesign(w, result.Design)
+	WriteTemplateProvenance(w, result.Provenance)
 	WriteTemplateRelocations(w, result.Relocations)
 	WriteTemplateNextSteps(w, result.Destination, result.Manifest)
 	if !result.RunHooks {
 		WriteTemplateHooks(w, result.Manifest)
 	}
 	return nil
+}
+
+func WriteTemplateProvenance(w io.Writer, provenance GenerationProvenance) {
+	if provenance.Template.ID == "" && provenance.Design.ID == "" {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Generation:")
+	if provenance.Template.ID != "" {
+		_, _ = fmt.Fprintf(w, "  template: %s", provenance.Template.ID)
+		if provenance.Template.Version != "" {
+			_, _ = fmt.Fprintf(w, " (%s)", provenance.Template.Version)
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+	if provenance.GeneratedAt != "" {
+		_, _ = fmt.Fprintf(w, "  generated_at: %s\n", provenance.GeneratedAt)
+	}
+	if provenance.Design.ID != "" {
+		_, _ = fmt.Fprintf(w, "  design: %s", provenance.Design.ID)
+		if provenance.Design.Version != "" {
+			_, _ = fmt.Fprintf(w, " (%s)", provenance.Design.Version)
+		}
+		if provenance.Design.Adapter != "" {
+			_, _ = fmt.Fprintf(w, " adapter=%s", provenance.Design.Adapter)
+		}
+		_, _ = fmt.Fprintln(w)
+	}
 }
 
 func WriteTemplateDesign(w io.Writer, design ResolvedDesign) {
@@ -524,13 +665,22 @@ func WriteTemplateValues(w io.Writer, values map[string]string) {
 
 func WriteTemplateNextSteps(w io.Writer, destination string, manifest TemplateManifest) {
 	_, _ = fmt.Fprintln(w)
-	if startDocument := strings.TrimSpace(manifest.StartDocument); startDocument != "" {
+	startDocument := strings.TrimSpace(manifest.StartDocument)
+	if manifest.Orientation != nil && strings.TrimSpace(manifest.Orientation.StartDocument) != "" {
+		startDocument = strings.TrimSpace(manifest.Orientation.StartDocument)
+	}
+	if startDocument != "" {
 		_, _ = fmt.Fprintln(w, "Start here:")
 		_, _ = fmt.Fprintf(w, "  %s\n", startDocument)
 		_, _ = fmt.Fprintln(w)
 	}
 	_, _ = fmt.Fprintln(w, "Next steps:")
-	if strings.TrimSpace(manifest.StartDocument) != "" {
+	if manifest.Orientation != nil {
+		scenarioName := filepath.Base(filepath.Clean(destination))
+		_, _ = fmt.Fprintln(w, "  1. Read the start document")
+		_, _ = fmt.Fprintf(w, "  2. Track initialization with: vrooli scenario orient %s\n", scenarioName)
+		_, _ = fmt.Fprintf(w, "  3. Finalize orientation with: vrooli scenario orient %s --finalize\n", scenarioName)
+	} else if startDocument != "" {
 		_, _ = fmt.Fprintln(w, "  1. Read the start document")
 		_, _ = fmt.Fprintln(w, "  2. Run scenario setup and tests")
 	} else {

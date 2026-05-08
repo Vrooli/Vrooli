@@ -42,6 +42,7 @@ func setupTestDB(t *testing.T) (*sqlx.DB, func()) {
 			sequence INTEGER NOT NULL,
 			event_type TEXT NOT NULL,
 			timestamp DATETIME NOT NULL,
+			schema_version INTEGER NOT NULL DEFAULT 1,
 			data TEXT,
 			UNIQUE(run_id, sequence)
 		);

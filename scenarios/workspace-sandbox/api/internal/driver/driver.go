@@ -8,7 +8,7 @@
 // File map:
 //
 //	driver.go         interfaces + types (this file)
-//	select.go         SelectDriver + preference IO + NewDriverFor
+//	select.go         SelectDriver + NewDriverFor
 //	slot.go           atomic.Pointer wrapper + SwitchDriver
 //	options.go        DriverOption capability matrix
 //	probe.go          host capability probes
@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/driverid"
 	"workspace-sandbox/internal/types"
 )
 
@@ -36,14 +37,14 @@ func StableFileID(sandboxID uuid.UUID, filePath string) uuid.UUID {
 }
 
 // DriverID is the canonical identifier across DB, wire, preference file,
-// and Go code. The four values are fixed.
-type DriverID string
+// launcher decisions, and Go code. The four values are fixed.
+type DriverID = driverid.ID
 
 const (
-	DriverOverlayfsUserNS DriverID = "overlayfs-userns"
-	DriverOverlayfsRoot   DriverID = "overlayfs-root"
-	DriverFuseOverlayfs   DriverID = "fuse-overlayfs"
-	DriverCopy            DriverID = "copy"
+	DriverOverlayfsUserNS DriverID = driverid.OverlayfsUserNS
+	DriverOverlayfsRoot   DriverID = driverid.OverlayfsRoot
+	DriverFuseOverlayfs   DriverID = driverid.FuseOverlayfs
+	DriverCopy            DriverID = driverid.Copy
 )
 
 // IsolationMode is the single decision boundary for "how isolated should
@@ -210,12 +211,6 @@ type Config struct {
 
 	// MaxSizeMB limits the size of a single sandbox.
 	MaxSizeMB int64
-
-	// UseFuseOverlayfs is the legacy preference flag; SelectDriver
-	// preserves it but the post-Phase-5 default is kernel overlayfs in a
-	// user namespace. Operators can still flip drivers via the
-	// /api/v1/driver/select endpoint (see SwitchDriver in slot.go).
-	UseFuseOverlayfs bool
 }
 
 // defaultBaseDir returns the default sandbox base directory.
@@ -230,10 +225,9 @@ func defaultBaseDir() string {
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
 	return Config{
-		BaseDir:          defaultBaseDir(),
-		MaxSandboxes:     1000,
-		MaxSizeMB:        10240, // 10 GB
-		UseFuseOverlayfs: false,
+		BaseDir:      defaultBaseDir(),
+		MaxSandboxes: 1000,
+		MaxSizeMB:    10240, // 10 GB
 	}
 }
 

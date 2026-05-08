@@ -27,6 +27,7 @@ import (
 	remotesessionprotection "github.com/vrooli/vrooli/internal/safeguards/remote-session-protection"
 	tcptuning "github.com/vrooli/vrooli/internal/safeguards/tcp-tuning"
 	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
+	workspacesandboxuserns "github.com/vrooli/vrooli/internal/safeguards/workspace-sandbox-userns"
 	"github.com/vrooli/vrooli/internal/tools"
 	"github.com/vrooli/vrooli/internal/tools/buf"
 	"github.com/vrooli/vrooli/internal/tools/cloudflared"
@@ -79,6 +80,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"remote_session_protection": remotesessionprotection.NewHandler,
 	"tcp_tuning":                tcptuning.NewHandler,
 	"vrooli_launcher":           vroolilauncher.NewHandler,
+	"workspace_sandbox_userns":  workspacesandboxuserns.NewHandler,
 }
 
 type registry struct {

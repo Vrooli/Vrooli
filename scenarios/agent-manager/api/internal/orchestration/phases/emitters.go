@@ -15,8 +15,10 @@ package phases
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/eventlog"
 
 	"github.com/google/uuid"
 )
@@ -71,6 +73,69 @@ func publishEvent(ctx context.Context, deps Deps, runID uuid.UUID, evt *domain.R
 	if deps.Broadcaster != nil {
 		deps.Broadcaster.BroadcastEvent(evt)
 	}
+}
+
+// =============================================================================
+// TYPED-OPERATIONAL EVENT HELPERS
+// =============================================================================
+//
+// One helper per event category. Each builds the typed *domain.RunEvent
+// via the eventlog package and routes it through publishEvent so it
+// shares the persist-before-broadcast path with every other event the
+// run emits. Helpers are fire-and-forget: build/marshal failures (which
+// indicate programmer errors — an unregistered payload type) are logged
+// via slog and dropped, mirroring publishEvent's contract.
+
+// emitTyped is the internal funnel for every typed helper below. Phases
+// never call BuildEvent directly so the construction → publishEvent flow
+// stays in one place.
+func emitTyped(ctx context.Context, deps Deps, runID uuid.UUID, payload eventlog.Payload) {
+	evt, err := eventlog.BuildEvent(runID, payload)
+	if err != nil {
+		slog.Error("phases: build typed event", "run_id", runID, "error", err)
+		return
+	}
+	publishEvent(ctx, deps, runID, evt)
+}
+
+// EmitRunnerFallbackAttempted records a single step of the runner
+// fallback chain walk.
+func EmitRunnerFallbackAttempted(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.RunnerFallbackAttemptedPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitRunnerFallbackExhausted records that the runner fallback chain
+// completed without finding an available candidate.
+func EmitRunnerFallbackExhausted(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.RunnerFallbackExhaustedPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitModelFallbackAttempted records a single step of the preset chain
+// walk inside ExecuteWithModelFallback.
+func EmitModelFallbackAttempted(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.ModelFallbackAttemptedPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitModelFallbackExhausted records that the preset chain has been
+// exhausted without finding an acceptable model.
+func EmitModelFallbackExhausted(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.ModelFallbackExhaustedPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitSandboxOperation records the outcome of a sandbox lifecycle action
+// (delete or stop) issued from finalize.
+func EmitSandboxOperation(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.SandboxOperationPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitHeartbeatMiss records a heartbeat write that failed.
+func EmitHeartbeatMiss(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.HeartbeatMissPayload) {
+	emitTyped(ctx, deps, runID, p)
+}
+
+// EmitCheckpointFailure records a checkpoint write that failed.
+func EmitCheckpointFailure(ctx context.Context, deps Deps, runID uuid.UUID, p eventlog.CheckpointFailurePayload) {
+	emitTyped(ctx, deps, runID, p)
 }
 
 // errorCode extracts a stable string error code from err if any error in

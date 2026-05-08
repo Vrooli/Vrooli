@@ -64,6 +64,7 @@ const modelPresetLabel = (preset?: ModelPreset) => {
 import { MarkdownRenderer } from "./markdown";
 import { ModelCostComparison } from "./ModelCostComparison";
 import { RunTimeline } from "./RunTimeline";
+import { FallbackTimeline } from "./runs/FallbackTimeline";
 import { ContextAttachmentModal } from "./ContextAttachmentModal";
 import { DiffViewer } from "./DiffViewer";
 import { ReviewModal } from "./ReviewModal";
@@ -349,6 +350,7 @@ export function RunDetail({
             <RunModelBadge
               requested={run.requestedModel ?? ""}
               actual={run.actualModel ?? ""}
+              fallbackChain={(run.resolvedConfig?.fallbackRunnerTypes ?? []).map(String)}
             />
             <button
               type="button"
@@ -624,13 +626,16 @@ export function RunDetail({
               </div>
             )
           ) : activeTab === "timeline" ? (
-            <RunTimeline
-              run={run}
-              events={events}
-              eventsLoading={eventsLoading}
-              onContinue={onContinue}
-              onDeleteMessage={onDeleteMessage}
-            />
+            <div className="space-y-3">
+              <FallbackTimeline runId={run.id} />
+              <RunTimeline
+                run={run}
+                events={events}
+                eventsLoading={eventsLoading}
+                onContinue={onContinue}
+                onDeleteMessage={onDeleteMessage}
+              />
+            </div>
           ) : activeTab === "diff" ? (
             diffLoading ? (
               <div className="py-8 text-center text-muted-foreground">
@@ -938,7 +943,15 @@ export function RunDetail({
 // model differs from the originally requested one, a warning variant is shown to
 // flag that the run degraded through the preset fallback chain. Both fields are
 // optional — older runs persisted before provenance tracking appear unlabelled.
-function RunModelBadge({ requested, actual }: { requested: string; actual: string }) {
+function RunModelBadge({
+  requested,
+  actual,
+  fallbackChain,
+}: {
+  requested: string;
+  actual: string;
+  fallbackChain?: string[];
+}) {
   if (!requested && !actual) {
     return null;
   }
@@ -946,10 +959,14 @@ function RunModelBadge({ requested, actual }: { requested: string; actual: strin
   const degraded = Boolean(requested && actual && requested !== actual);
   const label = display === "" ? "runner default" : display;
   if (degraded) {
+    const chainLine =
+      fallbackChain && fallbackChain.length > 0
+        ? ` Fallback chain: ${fallbackChain.join(" → ")}.`
+        : "";
     return (
       <Badge
         variant="destructive"
-        title={`Ran on fallback model "${actual || "runner default"}" after the requested "${requested}" failed. Review the registry to pick a fresh primary entry.`}
+        title={`Ran on fallback model "${actual || "runner default"}" after the requested "${requested}" failed.${chainLine} See the run's Fallback Timeline for the per-attempt reason.`}
       >
         model: {label} (fallback)
       </Badge>

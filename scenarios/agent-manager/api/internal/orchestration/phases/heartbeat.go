@@ -19,6 +19,7 @@ import (
 
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/eventlog"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
 )
@@ -69,11 +70,18 @@ func RunHeartbeatLoop(ctx context.Context, in HeartbeatLoopInput) {
 
 // SendHeartbeat performs one heartbeat update: writes Run.LastHeartbeat,
 // persists to the run repo, and pings the checkpoint store.
+//
+// Heartbeat misses on either target emit a heartbeat.miss event so the
+// stats engine can track miss rates per target without parsing log
+// strings. The previous freeform "heartbeat update failed: ..." emissions
+// are deleted; lastSuccess (Run.LastHeartbeat at the moment of the miss)
+// is included in the typed payload for operator triage.
 func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) {
 	if in.Mu != nil {
 		in.Mu.Lock()
 	}
 	now := time.Now()
+	previousHeartbeat := in.Run.LastHeartbeat
 	in.Run.LastHeartbeat = &now
 	if in.Checkpoint != nil {
 		in.Checkpoint.LastHeartbeat = now
@@ -92,7 +100,12 @@ func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) {
 	if in.Deps.Runs != nil {
 		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
 			hbLog.Error("heartbeat update failed", obs.KeyError, err.Error())
-			EmitSystemEvent(ctx, in.Deps, runID, "warn", "heartbeat update failed: "+err.Error())
+			EmitHeartbeatMiss(ctx, in.Deps, runID, eventlog.HeartbeatMissPayload{
+				Target:        eventlog.HeartbeatTargetRun,
+				AttemptNo:     1,
+				LastSuccessAt: previousHeartbeat,
+				Message:       err.Error(),
+			})
 		} else {
 			hbLog.Debug("heartbeat updated", "at", now.Format(time.RFC3339))
 		}
@@ -100,7 +113,12 @@ func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) {
 
 	if in.Checkpoints != nil {
 		if err := in.Checkpoints.Heartbeat(ctx, runID); err != nil {
-			EmitSystemEvent(ctx, in.Deps, runID, "warn", "heartbeat checkpoint failed: "+err.Error())
+			EmitHeartbeatMiss(ctx, in.Deps, runID, eventlog.HeartbeatMissPayload{
+				Target:        eventlog.HeartbeatTargetCheckpoint,
+				AttemptNo:     1,
+				LastSuccessAt: previousHeartbeat,
+				Message:       err.Error(),
+			})
 		}
 	}
 }

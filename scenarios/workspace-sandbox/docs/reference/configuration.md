@@ -39,31 +39,33 @@ WORKSPACE_SANDBOX_HOME_OVERLAY_BASE=/var/cache/wsbox-home make start
 [CODE: `api/internal/config/config.go::ResolveHomeOverlayBaseDir`] •
 [CODE: `api/internal/driver/helpers.go::mountHomeOverlay`]
 
-## User-namespace wrapper (REQUIRED)
+## Portable launcher (REQUIRED)
 
 The default driver is **kernel overlayfs in an unprivileged user
 namespace** (`overlayfs-userns`). For the kernel to allow unprivileged
 overlayfs mounts (5.11+), the API process must already be inside a user
 namespace before it tries to mount.
 
-The lifecycle wrapper does this:
+The lifecycle starts the portable launcher, which reads the saved driver
+preference and chooses the correct process launch shape for the host:
 
 ```jsonc
 // .vrooli/service.json — develop.start-api
-"run": "cd api && exec unshare -U -m -r ./workspace-sandbox-api"
+"run": "cd api && exec ./workspace-sandbox-launcher ./workspace-sandbox-api"
 ```
 
 The boot self-check in `main.go::NewServer` reads `/proc/self/uid_map`
 via `driver.InUserNamespace`. If the selected driver is
 `overlayfs-userns` and we're not inside a user namespace, the API
-exits fatally with a message pointing at this file.
+exits fatally with a message pointing at the launcher/safeguard
+contract.
 
 **Do not** invoke `./workspace-sandbox-api` directly outside the
-lifecycle. If you need to run the binary by hand for debugging, wrap it
-yourself:
+lifecycle. If you need to run the binary by hand for debugging, invoke
+the launcher:
 
 ```bash
-unshare -U -m -r ./workspace-sandbox-api
+./workspace-sandbox-launcher ./workspace-sandbox-api
 ```
 
 ### Why a fatal self-check, not a silent fallback?
@@ -79,8 +81,8 @@ deployment shape drifted:
   dropping process isolation, with no clear log signal that anything was
   off.
 
-Failing fatally at boot makes the contract explicit: either the wrapper
-runs the binary inside `unshare -U -m -r`, or you switch to the
+Failing fatally at boot makes the contract explicit: either the launcher
+can run the binary inside `unshare -U -m -r`, or you switch to the
 `fuse-overlayfs` or `copy` drivers via `/api/v1/driver/select` (which
 saves the preference for next boot).
 
@@ -97,8 +99,12 @@ curl -X POST http://localhost:$API_PORT/api/v1/driver/select \
 `POST /api/v1/driver/select` invokes `driver.SwitchDriver`, which
 validates `IsAvailable`, swaps the atomic pointer, and persists the
 preference under `~/.local/share/workspace-sandbox/driver-preference.json`.
-The change applies to new operations immediately; in-flight ops finish
-with the prior driver.
+The change applies to new operations immediately when the requested
+driver is available in the current process; in-flight ops finish with
+the prior driver. If the selected driver requires a different outer
+launch shape, such as `overlayfs-userns` from a host-namespace API
+process, the endpoint saves the preference and returns
+`requiresRestart: true` so the launcher can activate it on next boot.
 
 ## Database column
 
@@ -353,13 +359,6 @@ Root directory for sandbox upper/work/merged dirs. Must be writable
 by the API user.
 
 - Audience: operators
-
-### `WORKSPACE_SANDBOX_USE_FUSE` (bool, default `false`)
-Force `fuse-overlayfs` selection over kernel overlayfs. Useful when
-the kernel doesn't allow unprivileged overlay mounts.
-
-- Audience: operators
-- Related: `/api/v1/driver/select` (runtime swap)
 
 ### `WORKSPACE_SANDBOX_HOME_OVERLAY_BASE` (path, default `$XDG_RUNTIME_DIR/workspace-sandbox` or per-user system temporary directory)
 Where per-sandbox host-`$HOME` overlay dirs live. **Must be outside

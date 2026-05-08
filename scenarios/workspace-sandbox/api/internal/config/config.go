@@ -283,11 +283,6 @@ type DriverConfig struct {
 	// Default: ~/.local/share/workspace-sandbox (XDG-compliant, user-writable)
 	BaseDir string
 
-	// UseFuseOverlayfs enables fuse-overlayfs instead of kernel overlayfs.
-	// Enables unprivileged operation but may be slower.
-	// Default: false
-	UseFuseOverlayfs bool
-
 	// HomeOverlayBaseDir is the directory that holds per-sandbox
 	// home-{upper,work,merged} dirs for the host-$HOME overlay. MUST be
 	// outside $HOME — placing the upper layer inside $HOME (the lower
@@ -534,8 +529,7 @@ func Default() Config {
 			TeardownTimeout: 90 * time.Second,
 		},
 		Driver: DriverConfig{
-			BaseDir:          DefaultBaseDir(),
-			UseFuseOverlayfs: false,
+			BaseDir: DefaultBaseDir(),
 			// HomeOverlayBaseDir is resolved at LoadFromEnv() time so the
 			// validation error surfaces during startup rather than as a
 			// silent default difference between Default() and the running
@@ -660,7 +654,6 @@ func LoadFromEnv() (Config, error) {
 	if baseDir := os.Getenv("SANDBOX_BASE_DIR"); baseDir != "" {
 		cfg.Driver.BaseDir = baseDir
 	}
-	cfg.Driver.UseFuseOverlayfs = envBool("WORKSPACE_SANDBOX_USE_FUSE", cfg.Driver.UseFuseOverlayfs)
 	homeOverlayBase, err := ResolveHomeOverlayBaseDir()
 	if err != nil {
 		return cfg, err

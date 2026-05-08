@@ -430,8 +430,8 @@ func mergeUUIDLists(a []uuid.UUID, errA error, b []uuid.UUID, errB error) ([]uui
 // listSandboxDirsInBase returns the IDs of all UUID-named subdirectories
 // directly under baseDir. Non-UUID directories and stray files are
 // silently skipped — callers must NOT treat them as sandboxes (they may
-// belong to the driver's own bookkeeping, e.g., LoadDriverPreference's
-// preference file). A missing baseDir is not an error and returns an
+// belong to the driver's own bookkeeping, e.g., the driver preference
+// file). A missing baseDir is not an error and returns an
 // empty slice, since "no dirs to enumerate" is the same as "no orphans".
 //
 // This helper is shared across drivers because the layout convention

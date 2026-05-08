@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
 )
@@ -71,8 +72,18 @@ type Runner interface {
 	//
 	// Returns nil when the model appears usable (or when the runner cannot
 	// cheaply tell). Authoritative "this model is dead" signal comes from
-	// runtime classification via ClassifyModelError.
+	// runtime classification via Classify (see fallback.ClassifiedError).
 	ProbeModel(ctx context.Context, modelID string) error
+
+	// Classify converts a non-success Execute outcome (stderr +
+	// exitCode) into a typed *fallback.ClassifiedError. Delegates to
+	// the codec's structured-signal classifier with TextClassifier as
+	// the residual safety net. Returns nil when stderr is empty AND
+	// exitCode == 0.
+	//
+	// DOC: scenarios/agent-manager/docs/internal/EVENT_TAXONOMY.md
+	// (model.fallback.attempted reason field).
+	Classify(stderr string, exitCode int) *fallback.ClassifiedError
 }
 
 // Capabilities describes what features a runner supports.

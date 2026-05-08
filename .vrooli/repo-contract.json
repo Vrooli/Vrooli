@@ -37,6 +37,7 @@
     ],
     "well_known_paths": {
       "service": ".vrooli/service.json",
+      "orientation": ".vrooli/orientation.json",
       "docs": "docs",
       "requirements": "requirements",
       "api": "api",

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/driverpref"
 	"workspace-sandbox/internal/types"
 )
 
@@ -63,7 +64,7 @@ func (s *Slot) Store(d Driver) {
 }
 
 // SwitchDriver atomically switches to a new driver based on the canonical ID.
-// Sequence: NewDriverFor → IsAvailable → Store → SaveDriverPreference.
+// Sequence: NewDriverFor → IsAvailable → Store → driverpref.Save.
 // A failure at any step before Store leaves the slot untouched. deps
 // carries the time source, mounter, and starter the new driver
 // receives; every field is required.
@@ -91,7 +92,7 @@ func SwitchDriver(ctx context.Context, slot *Slot, cfg Config, deps Deps, id Dri
 		log.Printf("driver: set to %s", newDriver.ID())
 	}
 
-	if err := SaveDriverPreference(cfg.BaseDir, string(id)); err != nil {
+	if err := driverpref.Save(cfg.BaseDir, id); err != nil {
 		log.Printf("driver: warning: failed to save preference: %v", err)
 	}
 	return nil

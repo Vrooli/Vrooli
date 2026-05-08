@@ -753,23 +753,30 @@ func (r *eventRepository) Append(ctx context.Context, runID uuid.UUID, events ..
 			return wrapDBError("marshal_event", "RunEvent", runID.String(), err)
 		}
 
-		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, data)
-			VALUES (:id, :run_id, :sequence, :event_type, :timestamp, :data)`
+		schemaVersion := evt.SchemaVersion
+		if schemaVersion == 0 {
+			schemaVersion = 1
+		}
+
+		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, schema_version, data)
+			VALUES (:id, :run_id, :sequence, :event_type, :timestamp, :schema_version, :data)`
 
 		row := struct {
-			ID        uuid.UUID  `db:"id"`
-			RunID     uuid.UUID  `db:"run_id"`
-			Sequence  int64      `db:"sequence"`
-			EventType string     `db:"event_type"`
-			Timestamp SQLiteTime `db:"timestamp"`
-			Data      []byte     `db:"data"`
+			ID            uuid.UUID  `db:"id"`
+			RunID         uuid.UUID  `db:"run_id"`
+			Sequence      int64      `db:"sequence"`
+			EventType     string     `db:"event_type"`
+			Timestamp     SQLiteTime `db:"timestamp"`
+			SchemaVersion int        `db:"schema_version"`
+			Data          []byte     `db:"data"`
 		}{
-			ID:        evt.ID,
-			RunID:     evt.RunID,
-			Sequence:  evt.Sequence,
-			EventType: string(evt.EventType),
-			Timestamp: SQLiteTime(evt.Timestamp),
-			Data:      data,
+			ID:            evt.ID,
+			RunID:         evt.RunID,
+			Sequence:      evt.Sequence,
+			EventType:     string(evt.EventType),
+			Timestamp:     SQLiteTime(evt.Timestamp),
+			SchemaVersion: schemaVersion,
+			Data:          data,
 		}
 
 		if _, err := r.db.NamedExecContext(ctx, insertQuery, row); err != nil {

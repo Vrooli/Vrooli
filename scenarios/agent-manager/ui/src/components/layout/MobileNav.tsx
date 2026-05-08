@@ -2,6 +2,7 @@ import {
   Activity,
   BarChart3,
   ClipboardList,
+  HeartPulse,
   Play,
   Settings2,
 } from "lucide-react";
@@ -11,7 +12,8 @@ export type NavSection =
   | "profiles"
   | "tasks"
   | "runs"
-  | "stats";
+  | "stats"
+  | "health";
 
 interface MobileNavProps {
   activeSection: NavSection;
@@ -28,6 +30,7 @@ const navItems: Array<{
   { id: "tasks", label: "Tasks", icon: ClipboardList },
   { id: "runs", label: "Runs", icon: Play },
   { id: "stats", label: "Stats", icon: BarChart3 },
+  { id: "health", label: "Health", icon: HeartPulse },
 ];
 
 export function MobileNav({ activeSection, onSectionChange }: MobileNavProps) {

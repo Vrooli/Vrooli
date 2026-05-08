@@ -14,12 +14,13 @@ package phases
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/eventlog"
+	"agent-manager/internal/fallback"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/runstate"
 
@@ -158,30 +159,66 @@ func ExecuteWithModelFallback(ctx context.Context, in ExecuteWithModelFallbackIn
 		applyModelForAttempt(ctx, in.Deps, in.Run, model, attempt, chain)
 		out = ExecuteAgent(ctx, in.ExecuteAgentInput)
 
-		kind := classifyExecutionOutcome(in.Run, out.Result, out.ExecErr)
-		reportHealth(in.ModelHealth, in.Run, out.Result, model, kind)
-		if kind != runner.ModelErrorUnavailable {
+		ce := classifyExecutionOutcome(in.Runner, out.Result, out.ExecErr)
+		reportHealth(in.ModelHealth, in.Run, out.Result, model, ce)
+		if ce == nil || !ce.IsModelUnavailable() {
 			recordActualModel(in.Run, model)
 			return out
 		}
 
+		reason := modelFallbackReason(ce)
 		if attempt == len(chain)-1 {
 			recordActualModel(in.Run, model)
-			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
-				"model fallback exhausted — all entries in preset chain were rejected")
+			EmitModelFallbackExhausted(ctx, in.Deps, in.Run.ID, eventlog.ModelFallbackExhaustedPayload{
+				Preset:     string(in.Run.ResolvedConfig.ModelPreset),
+				Chain:      modelChainDescriptions(chain),
+				LastReason: reason,
+			})
 			return out
 		}
 
 		next := chain[attempt+1]
-		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn", fmt.Sprintf(
-			"model fallback: %s -> %s (runner rejected model)",
-			describeModel(model), describeModel(next),
-		))
+		EmitModelFallbackAttempted(ctx, in.Deps, in.Run.ID, eventlog.ModelFallbackAttemptedPayload{
+			From:          describeModel(model),
+			To:            describeModel(next),
+			Reason:        reason,
+			AttemptNo:     attempt + 1,
+			ChainPosition: attempt + 1,
+			ChainLength:   len(chain),
+		})
 	}
 	return out
 }
 
-func reportHealth(reporter ModelHealthReporter, run *domain.Run, result *runner.ExecuteResult, modelID string, kind runner.ModelErrorKind) {
+// modelFallbackReason renders the typed reason recorded on the
+// classified error as the wire-form Reason on the fallback event. The
+// ClassifiedError's stable Reason string (rate_limit, model_unknown,
+// …) is the source of truth; we pass it through unmodified so stats /
+// dashboards can group on it. Returns "" when there is no classified
+// error (treated downstream as "no signal").
+func modelFallbackReason(ce *fallback.ClassifiedError) string {
+	if ce == nil {
+		return ""
+	}
+	return string(ce.Reason)
+}
+
+// modelChainDescriptions mirrors describeModel over a chain so the
+// emitted event records human-readable entries (including the
+// "<runner default>" sentinel) for empty-string chain slots.
+func modelChainDescriptions(chain modelregistry.PresetChain) []string {
+	out := make([]string, 0, len(chain))
+	for _, m := range chain {
+		out = append(out, describeModel(m))
+	}
+	return out
+}
+
+// reportHealth maps the classified outcome to ModelHealthReporter
+// updates. ce==nil means "no failure observed" — the run succeeded
+// (or there was no signal at all, in which case we leave health
+// unchanged rather than risk false-positive transitions).
+func reportHealth(reporter ModelHealthReporter, run *domain.Run, result *runner.ExecuteResult, modelID string, ce *fallback.ClassifiedError) {
 	if reporter == nil || modelID == "" {
 		return
 	}
@@ -192,17 +229,17 @@ func reportHealth(reporter ModelHealthReporter, run *domain.Run, result *runner.
 	if runnerType == "" {
 		return
 	}
-	switch kind {
-	case runner.ModelErrorUnavailable:
-		message := "runtime classification: model unavailable"
-		if result != nil && result.ErrorMessage != "" {
-			message = result.ErrorMessage
-		}
-		reporter.MarkModelUnavailable(runnerType, modelID, message)
-	case runner.ModelErrorNone:
+	switch {
+	case ce == nil:
 		if result != nil && result.Success {
 			reporter.MarkModelHealthy(runnerType, modelID)
 		}
+	case ce.IsModelUnavailable():
+		message := ce.Message
+		if message == "" {
+			message = "runtime classification: model unavailable"
+		}
+		reporter.MarkModelUnavailable(runnerType, modelID, message)
 	}
 }
 
@@ -221,7 +258,11 @@ func resolveModelFallbackChain(resolver ModelChainResolver, run *domain.Run) mod
 	return chain
 }
 
-func applyModelForAttempt(ctx context.Context, deps Deps, run *domain.Run, model string, attempt int, chain modelregistry.PresetChain) {
+// applyModelForAttempt mutates the run's resolved model for the next
+// chain position. Observability is emitted by the caller via
+// model.fallback.attempted (To field == this model) — applyModelForAttempt
+// is purely the state mutation.
+func applyModelForAttempt(_ context.Context, _ Deps, run *domain.Run, model string, _ int, _ modelregistry.PresetChain) {
 	if run == nil || run.ResolvedConfig == nil {
 		return
 	}
@@ -229,17 +270,14 @@ func applyModelForAttempt(ctx context.Context, deps Deps, run *domain.Run, model
 		return
 	}
 	run.ResolvedConfig.Model = model
-	if attempt > 0 {
-		EmitSystemEvent(ctx, deps, run.ID, "info", fmt.Sprintf(
-			"model attempt %d/%d: %s",
-			attempt+1, len(chain), describeModel(model),
-		))
-	}
 }
 
-func classifyExecutionOutcome(run *domain.Run, result *runner.ExecuteResult, execErr error) runner.ModelErrorKind {
+// classifyExecutionOutcome converts an Execute outcome into a typed
+// *fallback.ClassifiedError. Returns nil only on success; otherwise
+// delegates to the runner's codec-aware classifier.
+func classifyExecutionOutcome(r runner.Runner, result *runner.ExecuteResult, execErr error) *fallback.ClassifiedError {
 	if result != nil && result.Success {
-		return runner.ModelErrorNone
+		return nil
 	}
 	stderr := ""
 	exitCode := 0
@@ -250,11 +288,14 @@ func classifyExecutionOutcome(run *domain.Run, result *runner.ExecuteResult, exe
 	if stderr == "" && execErr != nil {
 		stderr = execErr.Error()
 	}
-	runnerType := domain.RunnerTypeClaudeCode
-	if run != nil && run.ResolvedConfig != nil {
-		runnerType = run.ResolvedConfig.RunnerType
+	if r == nil {
+		return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
+			Stderr:   stderr,
+			ExitCode: exitCode,
+			Cause:    execErr,
+		})
 	}
-	return runner.ClassifyModelError(runnerType, stderr, exitCode)
+	return r.Classify(stderr, exitCode)
 }
 
 func recordActualModel(run *domain.Run, model string) {

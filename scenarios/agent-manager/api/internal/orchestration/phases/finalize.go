@@ -26,6 +26,7 @@ import (
 
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/eventlog"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/orchestration/obs"
 
@@ -167,19 +168,43 @@ func ApplySandboxLifecycle(ctx context.Context, in ApplySandboxLifecycleInput) s
 	defer cancel()
 
 	if HasLifecycleEvent(cfg.Lifecycle.DeleteOn, events) {
+		started := time.Now()
 		if err := in.Sandbox.Delete(teardownCtx, *in.SandboxID); err != nil {
-			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn", "failed to delete sandbox: "+err.Error())
+			EmitSandboxOperation(ctx, in.Deps, in.Run.ID, eventlog.SandboxOperationPayload{
+				Operation:  eventlog.SandboxOpDelete,
+				Success:    false,
+				DurationMS: time.Since(started).Milliseconds(),
+				Reason:     in.Reason,
+				Message:    err.Error(),
+			})
 		} else {
-			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info", "sandbox deleted ("+in.Reason+")")
+			EmitSandboxOperation(ctx, in.Deps, in.Run.ID, eventlog.SandboxOperationPayload{
+				Operation:  eventlog.SandboxOpDelete,
+				Success:    true,
+				DurationMS: time.Since(started).Milliseconds(),
+				Reason:     in.Reason,
+			})
 		}
 		return "delete"
 	}
 
 	if HasLifecycleEvent(cfg.Lifecycle.StopOn, events) {
+		started := time.Now()
 		if err := in.Sandbox.Stop(teardownCtx, *in.SandboxID); err != nil {
-			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn", "failed to stop sandbox: "+err.Error())
+			EmitSandboxOperation(ctx, in.Deps, in.Run.ID, eventlog.SandboxOperationPayload{
+				Operation:  eventlog.SandboxOpStop,
+				Success:    false,
+				DurationMS: time.Since(started).Milliseconds(),
+				Reason:     in.Reason,
+				Message:    err.Error(),
+			})
 		} else {
-			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info", "sandbox stopped ("+in.Reason+")")
+			EmitSandboxOperation(ctx, in.Deps, in.Run.ID, eventlog.SandboxOperationPayload{
+				Operation:  eventlog.SandboxOpStop,
+				Success:    true,
+				DurationMS: time.Since(started).Milliseconds(),
+				Reason:     in.Reason,
+			})
 		}
 		return "stop"
 	}

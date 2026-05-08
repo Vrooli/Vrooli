@@ -183,15 +183,15 @@ A user namespace is a Linux feature that creates an isolated view of user/group 
 ```mermaid
 sequenceDiagram
     participant User as Your Shell<br/>(UID 1000)
-    participant API1 as API Process<br/>(starts as UID 1000)
+    participant Launcher as Launcher<br/>(starts as UID 1000)
     participant NS as User Namespace
     participant API2 as API Process<br/>(appears as UID 0)
     participant FS as Filesystem
 
-    User->>API1: vrooli scenario start workspace-sandbox
-    API1->>API1: Check: Can we create user namespace?
-    API1->>NS: unshare --user --mount --map-root-user
-    NS->>API2: Re-exec same binary inside namespace
+    User->>Launcher: vrooli scenario start workspace-sandbox
+    Launcher->>Launcher: Read driver-preference.json
+    Launcher->>NS: aa-exec/unshare -U -m -r
+    NS->>API2: Exec API binary inside namespace
     Note over API2: Now appears as UID 0<br/>Can mount overlayfs!
     API2->>FS: mount -t overlay ...
     FS-->>API2: Mount successful
@@ -199,27 +199,23 @@ sequenceDiagram
     Note over User,API2: All API requests go to process in namespace
 ```
 
-### The Re-exec Pattern
+### The Launcher Pattern
 
-The API uses a clever pattern:
+The lifecycle uses a small Go launcher:
 
-1. **First run**: Process starts as normal user, detects it's not in a namespace
-2. **Re-exec**: Calls `unshare` to create namespace and re-run itself
-3. **Second run**: Now inside namespace, detects this, continues normally
+1. **Launcher starts**: Reads the file-backed driver preference before the API exists.
+2. **Launch decision**: Uses direct exec for `copy`/`fuse-overlayfs`, or `aa-exec` + `unshare -U -m -r` for the default `overlayfs-userns` path on Linux.
+3. **API starts**: The API verifies it is inside a user namespace when `overlayfs-userns` is selected, then starts normally.
 
 ```go
-// Simplified version of what happens in main.go
+// Simplified version of the launcher decision
 func main() {
-    status := namespace.Check()
-
-    if !status.InUserNamespace && status.CanCreateUserNamespace {
-        // Re-exec ourselves inside a user namespace
-        namespace.EnterUserNamespace()
-        // This never returns - we've been replaced
+    pref := driverpref.Load(baseDir)
+    if pref == "" || pref == "overlayfs-userns" {
+        exec("aa-exec", "-p", "vrooli-workspace-sandbox", "--",
+             "unshare", "-U", "-m", "-r", "./workspace-sandbox-api")
     }
-
-    // If we get here, we're in the namespace (or fallback mode)
-    startServer()
+    exec("./workspace-sandbox-api")
 }
 ```
 

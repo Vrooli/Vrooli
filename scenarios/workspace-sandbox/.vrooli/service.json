@@ -41,6 +41,21 @@
     "kind": "long_running",
     "auto_restart_default": false
   },
+  "hostSafeguards": [
+    {
+      "name": "workspace_sandbox_userns",
+      "required": true,
+      "reason": "Allow the default overlayfs-userns driver to restart through the portable launcher after host reboots on Linux AppArmor systems",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Installs/loads the dedicated vrooli-workspace-sandbox AppArmor profile; does not disable AppArmor or kernel.apparmor_restrict_unprivileged_userns globally."
+    }
+  ],
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -93,7 +108,8 @@
           {
             "type": "binaries",
             "targets": [
-              "api/workspace-sandbox-api"
+              "api/workspace-sandbox-api",
+              "api/workspace-sandbox-launcher"
             ]
           },
           {
@@ -112,6 +128,11 @@
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o workspace-sandbox-api .",
           "description": "Build Go API server"
+        },
+        {
+          "name": "build-launcher",
+          "run": "cd api && GOWORK=off go build -o workspace-sandbox-launcher ./cmd/workspace-sandbox-launcher",
+          "description": "Build portable API launcher"
         },
         {
           "name": "install-ui-deps",
@@ -133,11 +154,11 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && exec unshare -U -m -r ./workspace-sandbox-api",
+          "run": "cd api && exec ./workspace-sandbox-launcher ./workspace-sandbox-api",
           "background": true,
-          "description": "Start Go API server inside an unprivileged user namespace (required for the kernel-overlayfs driver). Boot self-check fails fatally if the wrapper is missing.",
+          "description": "Start Go API server through the portable launcher, which applies the selected driver launch policy before API boot.",
           "condition": {
-            "file_exists": "api/workspace-sandbox-api"
+            "file_exists": "api/workspace-sandbox-launcher"
           }
         },
         {

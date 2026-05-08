@@ -109,6 +109,26 @@ func (s *FakeEventStore) FindLogMessage(substr string) (CapturedLogEvent, bool) 
 	return CapturedLogEvent{}, false
 }
 
+// TypedEvents returns every typed-operational event captured for runID,
+// in arrival order. Tests use this to assert that phases emit the right
+// typed payload after a fallback / sandbox op / heartbeat miss.
+func (s *FakeEventStore) TypedEvents(runID uuid.UUID, eventType domain.RunEventType) []*domain.RunEvent {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ensure()
+	var out []*domain.RunEvent
+	for _, evt := range s.EventsByRun[runID] {
+		if evt == nil {
+			continue
+		}
+		if evt.EventType != eventType {
+			continue
+		}
+		out = append(out, evt)
+	}
+	return out
+}
+
 func (s *FakeEventStore) ensure() {
 	if s.EventsByRun == nil {
 		s.EventsByRun = map[uuid.UUID][]*domain.RunEvent{}

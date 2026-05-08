@@ -9,6 +9,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -859,13 +860,21 @@ func DefaultRunConfig() *RunConfig {
 //   if log, ok := event.Data.(*LogEventData); ok { ... }
 
 // RunEvent represents a single event in a run's event stream.
+//
+// SchemaVersion identifies the on-wire shape of Data for typed events. It is
+// recorded as a column on run_events (not embedded in the JSON body) so the
+// event-log dispatch table can route old payloads to old payload types
+// indefinitely while new payloads use the current types. The default is 1;
+// the eventlog package is the source of truth for which versions are
+// registered for which event types.
 type RunEvent struct {
-	ID        uuid.UUID    `json:"id" db:"id"`
-	RunID     uuid.UUID    `json:"runId" db:"run_id"`
-	Sequence  int64        `json:"sequence" db:"sequence"`
-	EventType RunEventType `json:"eventType" db:"event_type"`
-	Timestamp time.Time    `json:"timestamp" db:"timestamp"`
-	Data      EventPayload `json:"data" db:"data"`
+	ID            uuid.UUID    `json:"id" db:"id"`
+	RunID         uuid.UUID    `json:"runId" db:"run_id"`
+	Sequence      int64        `json:"sequence" db:"sequence"`
+	EventType     RunEventType `json:"eventType" db:"event_type"`
+	Timestamp     time.Time    `json:"timestamp" db:"timestamp"`
+	SchemaVersion int          `json:"schemaVersion,omitempty" db:"schema_version"`
+	Data          EventPayload `json:"data" db:"data"`
 }
 
 // RunEventType categorizes the event.
@@ -883,7 +892,48 @@ const (
 	EventTypeError          RunEventType = "error"
 	EventTypeCompaction     RunEventType = "compaction"
 	EventTypeLifecycle      RunEventType = "lifecycle"
+
+	// Typed operational events.
+	//
+	// These replace freeform LogEventData strings for operationally-significant
+	// signals (fallback walks, sandbox ops, heartbeat misses, checkpoint
+	// failures, model/runner health transitions). Payload structs and emit
+	// helpers live in the eventlog package; the dispatch table there is the
+	// authoritative (event_type, schema_version) → payload-type registry.
+	EventTypeRunnerFallbackAttempted RunEventType = "runner.fallback.attempted"
+	EventTypeRunnerFallbackExhausted RunEventType = "runner.fallback.exhausted"
+	EventTypeModelFallbackAttempted  RunEventType = "model.fallback.attempted"
+	EventTypeModelFallbackExhausted  RunEventType = "model.fallback.exhausted"
+	EventTypeModelHealthTransition   RunEventType = "model.health.transition"
+	EventTypeRunnerHealthTransition  RunEventType = "runner.health.transition"
+	EventTypeSandboxOperation        RunEventType = "sandbox.operation"
+	EventTypeHeartbeatMiss           RunEventType = "heartbeat.miss"
+	EventTypeCheckpointFailure       RunEventType = "checkpoint.failure"
+	EventTypeRetryAttempt            RunEventType = "retry.attempt"
 )
+
+// IsTypedOperationalEvent reports whether t is one of the typed-operational
+// event categories whose payload shape is owned by the eventlog package.
+//
+// The SQLite event store consults this so it can deserialize the payload
+// through the eventlog dispatch table instead of trying to decode it as a
+// legacy tagged-union shape.
+func (t RunEventType) IsTypedOperationalEvent() bool {
+	switch t {
+	case EventTypeRunnerFallbackAttempted,
+		EventTypeRunnerFallbackExhausted,
+		EventTypeModelFallbackAttempted,
+		EventTypeModelFallbackExhausted,
+		EventTypeModelHealthTransition,
+		EventTypeRunnerHealthTransition,
+		EventTypeSandboxOperation,
+		EventTypeHeartbeatMiss,
+		EventTypeCheckpointFailure,
+		EventTypeRetryAttempt:
+		return true
+	}
+	return false
+}
 
 // LifecyclePhase identifies a stable transition in the spawn-to-finalize
 // pipeline. The set is closed; new entries require a contract decision in
@@ -911,6 +961,53 @@ type EventPayload interface {
 
 	// isEventPayload is a marker method to prevent external implementations.
 	isEventPayload()
+}
+
+// =============================================================================
+// TYPED OPERATIONAL EVENT
+// =============================================================================
+
+// TypedEventData carries a typed-operational payload as raw JSON bytes that
+// already match the on-wire shape. It satisfies EventPayload so typed events
+// can ride the existing run-event seam (Append, Stream, Get) without the
+// store having to know each payload Go type.
+//
+// The eventlog package owns the payload struct definitions and the
+// (event_type, schema_version) → Go-type dispatch; this struct is the
+// transport between that package and the run-event plumbing.
+type TypedEventData struct {
+	// Type is the run-event type this payload belongs to. It must be one of
+	// the typed-operational event categories (see RunEventType.IsTypedOperationalEvent).
+	Type RunEventType `json:"-"`
+	// Body is the already-marshaled JSON payload. MarshalJSON returns it
+	// verbatim, and UnmarshalJSON stores the raw bytes back into it, so the
+	// JSON round-trip preserves the eventlog-package payload shape exactly.
+	Body json.RawMessage `json:"-"`
+}
+
+func (d *TypedEventData) EventType() RunEventType {
+	if d == nil {
+		return ""
+	}
+	return d.Type
+}
+
+func (d *TypedEventData) isEventPayload() {}
+
+// MarshalJSON returns Body verbatim so the on-wire shape is the
+// eventlog-package payload, not a wrapper.
+func (d *TypedEventData) MarshalJSON() ([]byte, error) {
+	if d == nil || len(d.Body) == 0 {
+		return []byte("{}"), nil
+	}
+	return d.Body, nil
+}
+
+// UnmarshalJSON captures the raw bytes into Body for later typed decoding
+// through the eventlog dispatch table.
+func (d *TypedEventData) UnmarshalJSON(b []byte) error {
+	d.Body = append(d.Body[:0], b...)
+	return nil
 }
 
 // =============================================================================

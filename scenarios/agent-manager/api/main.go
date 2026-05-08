@@ -21,6 +21,7 @@ import (
 	"agent-manager/internal/handlers"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
+	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
@@ -28,7 +29,9 @@ import (
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/pricing/providers"
 	"agent-manager/internal/promptmanager"
+	"agent-manager/internal/eventlog"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/toolexecution"
 	"agent-manager/internal/toolregistry"
@@ -62,9 +65,12 @@ type Server struct {
 	wsHub                *handlers.WebSocketHub
 	reconciler           *orchestration.Reconciler
 	recommendationWorker *orchestration.RecommendationWorker
-	modelHealthProbe     *modelregistry.HealthProbe
+	modelHealthProbe     *healthstore.Probe
 	toolRegistry         *toolregistry.Registry
 	storage              storage.Service
+	statsEngine          *stats.Engine
+	healthStore          *healthstore.Store
+	eventRepo            eventlog.Repository
 }
 
 // NewServer initializes configuration, database, and routes
@@ -138,6 +144,9 @@ func NewServer() (*Server, error) {
 		recommendationWorker: deps.recommendationWorker,
 		toolRegistry:         toolReg,
 		storage:              uploadStorage,
+		statsEngine:          deps.statsEngine,
+		healthStore:          deps.healthStore,
+		eventRepo:            deps.eventRepo,
 	}
 
 	// Start the reconciler for orphan detection and stale run recovery
@@ -162,6 +171,16 @@ func NewServer() (*Server, error) {
 		srv.modelHealthProbe.Start(context.Background())
 	}
 
+	// Boot the operational stats engine: replay (or resume from
+	// checkpoint) so the engine reflects all historical events before
+	// the first request lands. Failure is logged but not fatal — the
+	// engine recovers on first Refresh.
+	if srv.statsEngine != nil {
+		if err := srv.statsEngine.Rebuild(context.Background()); err != nil {
+			obs.Logger().Warn("stats engine rebuild failed", obs.KeyError, err.Error())
+		}
+	}
+
 	srv.setupRoutes()
 	return srv, nil
 }
@@ -174,7 +193,10 @@ type orchestratorDeps struct {
 	pricingService       pricing.Service
 	reconciler           *orchestration.Reconciler
 	recommendationWorker *orchestration.RecommendationWorker
-	modelHealthProbe     *modelregistry.HealthProbe
+	modelHealthProbe     *healthstore.Probe
+	statsEngine          *stats.Engine
+	healthStore          *healthstore.Store
+	eventRepo            eventlog.Repository
 }
 
 // createOrchestrator creates the orchestration service with all dependencies.
@@ -334,14 +356,14 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		bootLog.Warn("model registry load failed", "path", modelRegistryPath, obs.KeyError, err.Error())
 	}
 
-	modelHealth := modelregistry.NewHealthStore()
+	healthStore := healthstore.NewStore(db.DB)
 	if modelRegistryStore != nil {
 		if reg := modelRegistryStore.Get(); reg != nil {
 			runners := make([]string, 0, len(reg.Runners))
 			for key := range reg.Runners {
 				runners = append(runners, key)
 			}
-			modelHealth.RegisterRunners(runners)
+			healthStore.RegisterRunners(runners)
 		}
 	}
 
@@ -422,7 +444,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithTerminator(terminator),
 		orchestration.WithStorageLabel(storageLabel),
 		orchestration.WithModelRegistry(modelRegistryStore),
-		orchestration.WithModelHealth(modelHealth),
+		orchestration.WithHealthStore(healthStore),
 		orchestration.WithRecommendationExtractor(recommendationExtractor),
 		orchestration.WithInvestigationSettings(investigationSettingsRepo),
 		orchestration.WithPromptClient(promptClient),
@@ -491,7 +513,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	// intentionally cheap (no live inference) — the authoritative signal comes from
 	// runtime classification in the executor. The probe ensures a fresh snapshot
 	// after restart and surfaces hard binary-missing states.
-	modelResolver := func(runnerType string) modelregistry.ModelProber {
+	modelResolver := func(runnerType string) healthstore.ModelProber {
 		if runnerRegistry == nil {
 			return nil
 		}
@@ -501,7 +523,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		}
 		return r
 	}
-	probeCfg := modelregistry.DefaultProbeConfig()
+	probeCfg := healthstore.DefaultProbeConfig()
 	if raw := strings.TrimSpace(envOrEmpty("AGENT_MANAGER_MODEL_HEALTH_INTERVAL")); raw != "" {
 		if parsed, err := time.ParseDuration(raw); err == nil {
 			probeCfg.Interval = parsed
@@ -509,7 +531,17 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			bootLog.Warn("invalid AGENT_MANAGER_MODEL_HEALTH_INTERVAL", "raw", raw, obs.KeyError, err.Error())
 		}
 	}
-	modelHealthProbe := modelregistry.NewHealthProbe(modelRegistryStore, modelHealth, modelResolver, probeCfg)
+	modelHealthProbe := healthstore.NewProbe(healthStore, registrySnapshotAdapter{store: modelRegistryStore}, modelResolver, nil, probeCfg)
+
+	// Operational stats engine: incrementally aggregates typed-operational
+	// events (fallbacks, health transitions, sandbox ops, heartbeat misses,
+	// checkpoint failures, retries) into the metrics surface consumed by
+	// /api/v1/stats/operational and the stats CLI commands. Distinct from
+	// statsSvc above (which derives from run rows). Watermark persists in
+	// stats_checkpoint so a crash resumes mid-replay instead of from zero.
+	eventRepo := eventlog.NewSQLiteRepository(db.DB)
+	checkpointStore := stats.NewSQLiteCheckpointStore(db.DB)
+	statsEngine := stats.NewEngine(eventRepo, checkpointStore, "operational")
 
 	bootLog.Info("orchestrator initialized", "storage", storageLabel, "sandbox", sandboxURL)
 	return orchestratorDeps{
@@ -520,6 +552,35 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		reconciler:           reconciler,
 		recommendationWorker: recommendationWorker,
 		modelHealthProbe:     modelHealthProbe,
+		statsEngine:          statsEngine,
+		healthStore:          healthStore,
+		eventRepo:            eventRepo,
+	}
+}
+
+// registrySnapshotAdapter bridges a *modelregistry.Store to the
+// health.RegistrySnapshot interface. The adapter reads the registry
+// each iteration so probe sweeps see hot reloads without restart.
+type registrySnapshotAdapter struct {
+	store *modelregistry.Store
+}
+
+func (a registrySnapshotAdapter) IterModels(yield func(runnerType string, modelIDs []string) bool) {
+	if a.store == nil {
+		return
+	}
+	reg := a.store.Get()
+	if reg == nil {
+		return
+	}
+	for runnerKey, runnerCfg := range reg.Runners {
+		ids := make([]string, 0, len(runnerCfg.Models))
+		for _, m := range runnerCfg.Models {
+			ids = append(ids, m.ID)
+		}
+		if !yield(runnerKey, ids) {
+			return
+		}
 	}
 }
 
@@ -559,6 +620,27 @@ func (s *Server) setupRoutes() {
 		statsHandler := handlers.NewStatsHandler(s.statsService)
 		statsHandler.RegisterRoutes(s.router)
 		routesLog.Info("stats endpoints registered", "path", "/api/v1/stats/*")
+	}
+
+	// Register operational-event stats endpoints (typed event log).
+	if s.statsEngine != nil {
+		opStatsHandler := handlers.NewOperationalStatsHandler(s.statsEngine)
+		opStatsHandler.RegisterRoutes(s.router)
+		routesLog.Info("operational stats endpoints registered", "path", "/api/v1/stats/operational, /api/v1/stats/fallback")
+	}
+
+	// Register persisted health audit endpoints.
+	if s.healthStore != nil {
+		healthAuditHandler := handlers.NewHealthAuditHandler(s.healthStore)
+		healthAuditHandler.RegisterRoutes(s.router)
+		routesLog.Info("health audit endpoints registered", "path", "/api/v1/health/{models,runners,audit}")
+	}
+
+	// Register typed-event read endpoint.
+	if s.eventRepo != nil {
+		eventsHandler := handlers.NewEventsHandler(s.eventRepo)
+		eventsHandler.RegisterRoutes(s.router)
+		routesLog.Info("events endpoint registered", "path", "/api/v1/events")
 	}
 
 	// Register pricing routes

@@ -125,19 +125,18 @@ func NewServer() (*Server, error) {
 		HomeOverlayBaseDir: cfg.Driver.HomeOverlayBaseDir,
 		MaxSandboxes:       cfg.Limits.MaxSandboxes,
 		MaxSizeMB:          cfg.Limits.MaxSandboxSizeMB,
-		UseFuseOverlayfs:   cfg.Driver.UseFuseOverlayfs,
 	}
 	initialDriver, selectionReport, err := driver.SelectDriverWithPreference(context.Background(), driverCfg, driverDeps)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize driver: %w", err)
 	}
 	driver.LogSelectionReport(selectionReport)
-	// Boot-time self-check: kernel overlayfs requires the API to be wrapped
-	// in `unshare -U -m -r` (see .vrooli/service.json:start-api). Without
-	// the wrapper, Mount() would fail at runtime; failing fatally at boot
-	// makes the deployment-shape contract explicit.
+	// Boot-time self-check: kernel overlayfs requires the launcher to place
+	// the API inside a user namespace before main runs. Without that launch
+	// shape, Mount() would fail at runtime; failing fatally at boot makes the
+	// deployment-shape contract explicit.
 	if initialDriver.ID() == driver.DriverOverlayfsUserNS && !driver.InUserNamespace() {
-		log.Fatalf("driver overlayfs-userns selected but API is not running inside a user namespace; the start-api lifecycle step must wrap the binary with `unshare -U -m -r` (see .vrooli/service.json)")
+		log.Fatalf("driver overlayfs-userns selected but API is not running inside a user namespace; start through workspace-sandbox-launcher and ensure the workspace_sandbox_userns safeguard is satisfied")
 	}
 	// Hold the driver in an atomic.Pointer-backed slot so /api/v1/driver/select
 	// can hot-swap without locking every Driver() call.
@@ -502,11 +501,10 @@ func main() {
 	}
 
 	// User namespace + driver selection are decoupled from main's process
-	// model. Phase 5 makes overlayfs-userns the default, and the deployment
-	// wrapper (`unshare -U -m -r` in .vrooli/service.json:start-api) is
-	// responsible for placing the API inside a user namespace before main
-	// runs. NewServer's boot self-check fails fatally if the wrapper is
-	// misconfigured, so we don't try to re-exec ourselves here.
+	// model. The portable launcher is responsible for placing the API inside
+	// a user namespace when the saved/default driver requires it. NewServer's
+	// boot self-check fails fatally if that launch shape is misconfigured, so
+	// main never tries to re-exec itself.
 	bootStarter := process.NewOSExecStarter()
 	if driver.InUserNamespace() {
 		log.Printf("running in user namespace | kernel=%s", namespace.Check(bootStarter).KernelVersion)

@@ -80,6 +80,9 @@ func (a *App) dependencies() support.Dependencies {
 		Runner:      a.cmdRunner,
 		Settings:    a.cmdSettings,
 		Maintenance: a.cmdMaintenance,
+		Ops:         a.cmdOps,
+		Health:      a.cmdHealth,
+		Events:      a.cmdEvents,
 	}
 }
 

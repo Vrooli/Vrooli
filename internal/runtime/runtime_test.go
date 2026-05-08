@@ -495,7 +495,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 		"edac_modules", "host_hardening", "kernel_config", "nat_protection", "netconsole",
 		"ollama_resource_controls",
 		"pstore_native", "pstore_ramoops", "remote_session_protection", "tcp_tuning",
-		"vrooli_launcher",
+		"vrooli_launcher", "workspace_sandbox_userns",
 	}
 	if len(safeguardNames) != len(expectedSafeguards) {
 		t.Fatalf("safeguard count = %d, want %d; got %v", len(safeguardNames), len(expectedSafeguards), safeguardNames)

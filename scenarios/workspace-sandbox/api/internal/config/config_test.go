@@ -88,9 +88,6 @@ func TestDefault(t *testing.T) {
 		if cfg.Driver.BaseDir != expectedBaseDir {
 			t.Errorf("expected BaseDir %s, got %s", expectedBaseDir, cfg.Driver.BaseDir)
 		}
-		if cfg.Driver.UseFuseOverlayfs {
-			t.Error("expected UseFuseOverlayfs false")
-		}
 	})
 
 	t.Run("Database defaults", func(t *testing.T) {
@@ -106,7 +103,7 @@ func TestLoadFromEnv(t *testing.T) {
 	envVars := []string{
 		"API_PORT", "WORKSPACE_SANDBOX_READ_TIMEOUT", "WORKSPACE_SANDBOX_WRITE_TIMEOUT",
 		"WORKSPACE_SANDBOX_MAX_SANDBOXES", "WORKSPACE_SANDBOX_CORS_ORIGINS",
-		"WORKSPACE_SANDBOX_USE_FUSE", "WORKSPACE_SANDBOX_DEFAULT_TTL",
+		"WORKSPACE_SANDBOX_DEFAULT_TTL",
 		"WORKSPACE_SANDBOX_COMMIT_TEMPLATE", "WORKSPACE_SANDBOX_COMMIT_AUTHOR_MODE",
 		"PROJECT_ROOT", "SANDBOX_BASE_DIR", "SQLITE_PATH",
 	}
@@ -187,7 +184,6 @@ func TestLoadFromEnv(t *testing.T) {
 	t.Run("loads driver config", func(t *testing.T) {
 		os.Setenv("API_PORT", "8080")
 		os.Setenv("SANDBOX_BASE_DIR", "/custom/path")
-		os.Setenv("WORKSPACE_SANDBOX_USE_FUSE", "true")
 		os.Setenv("PROJECT_ROOT", "/my/project")
 
 		cfg, err := LoadFromEnv()
@@ -196,9 +192,6 @@ func TestLoadFromEnv(t *testing.T) {
 		}
 		if cfg.Driver.BaseDir != "/custom/path" {
 			t.Errorf("expected BaseDir /custom/path, got %s", cfg.Driver.BaseDir)
-		}
-		if !cfg.Driver.UseFuseOverlayfs {
-			t.Error("expected UseFuseOverlayfs true")
 		}
 		if cfg.Driver.ProjectRoot != "/my/project" {
 			t.Errorf("expected ProjectRoot /my/project, got %s", cfg.Driver.ProjectRoot)

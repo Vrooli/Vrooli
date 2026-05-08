@@ -202,6 +202,11 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
+	if err := db.ensureRunEventsSchemaVersion(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to add schema_version column to run_events")
+		return err
+	}
+
 	if err := db.dropInvestigationPromptColumns(ctx); err != nil {
 		db.log.WithError(err).Error("Failed to drop investigation prompt columns")
 		return err
@@ -612,6 +617,46 @@ func (db *DB) dropProfileRequiresApprovalColumn(ctx context.Context) error {
 		return &domain.DatabaseError{
 			Operation: "migration", EntityType: "Schema",
 			Cause: fmt.Errorf("drop column requires_approval: %w", err),
+		}
+	}
+	return nil
+}
+
+// ensureRunEventsSchemaVersion adds the schema_version column to run_events
+// for existing databases. New databases pick it up via schema.sql.
+//
+// schema_version identifies the on-wire shape of `data`; the eventlog package
+// owns the (event_type, schema_version) → payload-type registry.
+func (db *DB) ensureRunEventsSchemaVersion(ctx context.Context) error {
+	var tableCount int
+	if err := db.GetContext(ctx, &tableCount, `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type = 'table' AND name = 'run_events'
+	`); err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	}
+	if tableCount == 0 {
+		return nil
+	}
+
+	type tableColumn struct {
+		Name string `db:"name"`
+	}
+	var columns []tableColumn
+	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('run_events')"); err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	}
+	for _, col := range columns {
+		if col.Name == "schema_version" {
+			return nil
+		}
+	}
+
+	if _, err := db.ExecContext(ctx, "ALTER TABLE run_events ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1"); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "migration",
+			EntityType: "Schema",
+			Cause:      fmt.Errorf("add column schema_version: %w", err),
 		}
 	}
 	return nil

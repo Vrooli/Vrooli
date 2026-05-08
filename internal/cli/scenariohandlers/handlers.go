@@ -354,6 +354,7 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 		CommandDesign:       DesignCommandHandler(deps),
 		CommandTemplate:     TemplateCommandHandler(deps),
 		CommandGenerate:     GenerateHandler(deps),
+		CommandOrient:       OrientationHandler(deps),
 		CommandCompleteness: CompletenessHandler(deps),
 		CommandHealFromSandbox: bindGlobal(deps.Stdout,
 			func(ctx C, args []string) (HealFromSandboxRequest, error) {

@@ -252,8 +252,10 @@ func TestModelFallback_TransientErrorDoesNotAdvanceChain(t *testing.T) {
 
 // Sanity: the classifier is the source of truth for model errors.
 func TestModelFallback_UsesClassifier(t *testing.T) {
-	if got := runner.ClassifyModelError(domain.RunnerTypeCodex, "unknown model", 1); got != runner.ModelErrorUnavailable {
-		t.Fatalf("classifier drift: expected ModelErrorUnavailable, got %v", got)
+	mr := runner.NewMockRunner(domain.RunnerTypeCodex)
+	got := mr.Classify("unknown model", 1)
+	if got == nil || !got.IsModelUnavailable() {
+		t.Fatalf("classifier drift: expected model-unavailable classification, got %+v", got)
 	}
 	var _ error = errors.New("classifier test placeholder")
 }

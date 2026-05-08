@@ -110,6 +110,7 @@
           "required": ["service", "docs", "requirements", "api", "ui", "cli", "initialization"],
           "properties": {
             "service": { "$ref": "#/definitions/slashPath" },
+            "orientation": { "$ref": "#/definitions/slashPath" },
             "docs": { "$ref": "#/definitions/slashPath" },
             "requirements": { "$ref": "#/definitions/slashPath" },
             "api": { "$ref": "#/definitions/slashPath" },

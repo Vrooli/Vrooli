@@ -10,8 +10,9 @@ The practical current path is:
 
 1. choose a real template
 2. scaffold a scenario with the CLI
-3. refine manifests, requirements, and implementation
-4. validate with scenario-aware testing and requirement-aware workflows
+3. complete the template's orientation gates when present
+4. refine manifests, requirements, and implementation
+5. validate with scenario-aware testing and requirement-aware workflows
 
 ## Canonical Commands
 
@@ -27,6 +28,13 @@ For generation planning without writing files:
 vrooli scenario generate <template> --id <slug> --display-name <name> --description <text> --dry-run
 ```
 
+For first-session orientation after generation:
+
+```bash
+vrooli scenario orient <slug>
+vrooli scenario orient <slug> --finalize
+```
+
 For requirement-aware work:
 
 ```bash
@@ -39,6 +47,8 @@ vrooli scenario requirements report
 
 - start from a maintained template
 - keep the scenario description specific
+- complete orientation before expanding product features when the
+  template provides an orientation manifest
 - declare required resources honestly
 - document the scenario's intended behavior through requirements and tests
 - avoid claiming production readiness before validation and deployment checks exist

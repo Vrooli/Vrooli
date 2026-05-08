@@ -72,3 +72,36 @@ warn-level log event even on the success path
 (`emitStderrAsWarnOnSuccess` in `claude_code.go`), so operators no
 longer need to ssh into the workspace-sandbox host to find launch
 diagnostics.
+
+## Fallback Reason taxonomy (2026-05-07, Phase 2)
+
+Runner and model rejection signals are classified into a typed
+`fallback.Reason` (see `internal/fallback/reason.go`) before they reach
+the executor. Each Reason carries a deterministic `RecoveryAction` from
+`fallback.Recovery(reason)`; the dispatch is exhaustively tested by
+`TestReasonRecoveryActionExhaustive`.
+
+| Reason | Trigger | RecoveryAction |
+|---|---|---|
+| `rate_limit` | HTTP 429, "rate limit exceeded", claude rate-limit envelope | `retry_backoff` |
+| `auth_failure` | HTTP 401/403, "invalid api key", "unauthorized" | `escalate_operator` |
+| `quota_exhausted` | "quota exceeded", "billing", HTTP 402 | `escalate_operator` |
+| `model_deprecated` | "deprecated", "retired", "no longer available", "sunset" | `fallback_to_next` |
+| `model_unknown` | "unknown model", "model not found", "invalid model" | `fallback_to_next` |
+| `model_unavailable` | Generic runner-rejected-model with no stronger signal | `fallback_to_next` |
+| `network_transient` | "connection reset/refused", "timed out", HTTP 502/503/504 | `retry_backoff` |
+| `context_length_exceeded` | "context length", "max tokens" | `fallback_to_next` |
+| `binary_missing` | "command not found", "no such file" | `fallback_to_next` |
+| `probe_timeout` | Health-probe timeout (distinct from runtime timeout) | `retry_backoff` |
+| `invalid_flag` | "unknown flag", "unrecognized option" | `escalate_operator` |
+| `session_expired` | Codec-recognised "session/thread not found" without state-loss markers | `escalate_operator` |
+| `session_state_lost` | Codex `record_rollout_items` / "failed to record rollout items" | `abort` |
+| `unknown` | Classifier saw a failure but matched no specific pattern | `abort` |
+
+Per-codec classification lives in `internal/adapters/runner/codecs/{claude,codex,opencode}.go`'s `Classify` method
+(structured signals first), with `fallback.TextClassifier` as the
+residual safety net. The legacy regex `runner.ClassifyModelError` and
+`ModelErrorKind` 3-value enum were deleted in this phase; all callsites
+now consume `*fallback.ClassifiedError`.
+
+DOC: `internal/fallback/reason.go` (Reason constants), `internal/fallback/recovery.go` (action map).

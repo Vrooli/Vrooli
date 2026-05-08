@@ -35,6 +35,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/eventlog"
 	"agent-manager/internal/testutil/assertx"
 	"agent-manager/internal/testutil/fixtures"
 	"agent-manager/internal/testutil/mocks"
@@ -195,8 +196,26 @@ func TestFinalize_DeleteFailureDoesNotBlockPhaseAdvance(t *testing.T) {
 	})
 
 	assertx.RunPhase(t, fx.run, domain.RunPhaseCompleted)
-	if _, ok := fx.events.FindLogMessage("failed to delete sandbox"); !ok {
-		t.Error("expected warn event recording the Delete error")
+	ops := fx.events.TypedEvents(fx.run.ID, domain.EventTypeSandboxOperation)
+	if len(ops) != 1 {
+		t.Fatalf("expected exactly one sandbox.operation event, got %d", len(ops))
+	}
+	payload, err := eventlog.Decode(domain.EventTypeSandboxOperation, ops[0].SchemaVersion, ops[0].Data.(*domain.TypedEventData).Body)
+	if err != nil {
+		t.Fatalf("decode sandbox.operation payload: %v", err)
+	}
+	op, ok := payload.(*eventlog.SandboxOperationPayload)
+	if !ok {
+		t.Fatalf("decoded payload is %T, want *SandboxOperationPayload", payload)
+	}
+	if op.Operation != eventlog.SandboxOpDelete {
+		t.Errorf("Operation = %q, want %q", op.Operation, eventlog.SandboxOpDelete)
+	}
+	if op.Success {
+		t.Error("expected Success=false on Delete failure")
+	}
+	if op.Message == "" {
+		t.Error("expected Message to carry the underlying error")
 	}
 }
 

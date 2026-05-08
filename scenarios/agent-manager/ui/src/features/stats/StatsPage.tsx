@@ -12,6 +12,8 @@ import { ProfileActivityTable } from "./components/tables/ProfileActivityTable";
 import { ModelUsageBreakdown } from "./components/breakdown/ModelUsageBreakdown";
 import { ToolUsageAnalytics } from "./components/breakdown/ToolUsageAnalytics";
 import { ErrorAnalysisSection } from "./components/errors/ErrorAnalysisSection";
+import { FallbackInsightsCard } from "./components/operational/FallbackInsightsCard";
+import { ModelFailureAlertBanner } from "./components/operational/ModelFailureAlertBanner";
 import { onProfilerRender } from "../../lib/profiler";
 
 function ProfiledStatsSection({ id, children }: { id: string; children: ReactNode }) {
@@ -35,9 +37,16 @@ export function StatsPage() {
           </div>
         </div>
 
+        <ModelFailureAlertBanner />
+
         {/* KPI Summary Row */}
         <ProfiledStatsSection id="Stats:KPISummary">
           <KPISummary />
+        </ProfiledStatsSection>
+
+        {/* Fallback insights (typed event-derived) */}
+        <ProfiledStatsSection id="Stats:FallbackInsightsCard">
+          <FallbackInsightsCard />
         </ProfiledStatsSection>
 
         {/* Charts Row */}

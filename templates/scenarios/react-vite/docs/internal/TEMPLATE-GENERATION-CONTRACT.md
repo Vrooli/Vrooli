@@ -15,9 +15,16 @@ The template's `template.json` controls generation:
 
 - `requiredVars` and `optionalVars` define supported generator flags and
   placeholder values.
+- `version` identifies the template version recorded in generated
+  scenario provenance.
 - `startDocument` declares the generated scenario's first-read document.
   The generator prints it after creation, and template validation fails
   if the declared file is not present in the generated scenario.
+- `orientation` declares the generated scenario's temporary
+  initialization checklist. The generator renders it to
+  `.vrooli/orientation.json`; `vrooli scenario orient <scenario>` reads
+  that file, evaluates generic checks, and removes only declared cleanup
+  paths when explicitly finalized.
 - `docs` advertises reference documents in `vrooli scenario template
   show`.
 - `copyExcludes` keeps template-only files out of generated scenarios.
@@ -32,6 +39,12 @@ The template's `template.json` controls generation:
 Unsupported manifest fields are ignored by the current Go decoder.
 Add a field to `internal/cli/scenariocli.TemplateManifest` before
 depending on it.
+
+Generated scenarios also receive durable provenance in
+`.vrooli/service.json::generation`. That metadata records the template
+id/version, generation timestamp, and selected design kit/adapter. Do
+not remove it during orientation finalization; it is the durable link
+between a scenario and the template contract that created it.
 
 ## Placeholder Contract
 

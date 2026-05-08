@@ -28,6 +28,7 @@ vrooli scenario generate --help
 
 ```bash
 cd scenarios/<scenario-name>
+make orient
 make start
 make test
 make logs
@@ -38,9 +39,25 @@ You can also inspect the scenario via the root CLI:
 
 ```bash
 vrooli scenario info <name>
+vrooli scenario orient <name>
 vrooli scenario status <name>
 vrooli scenario test <name>
 ```
+
+Orientation-enabled templates render temporary startup metadata to the
+generated scenario. `vrooli scenario orient <name>` reports which
+template-owned initialization gates are complete, including early work
+such as charter, requirements, domain map, dependency decisions, design
+language, and replacement of reference domains. When all required gates
+pass, finalize explicitly:
+
+```bash
+vrooli scenario orient <name> --finalize
+```
+
+Finalization removes only the template-declared temporary orientation
+metadata. It does not remove scenario provenance, docs, requirements, or
+implementation files.
 
 ## Requirements
 
@@ -58,6 +75,7 @@ When shaping a scenario, focus on:
 
 - clear purpose
 - honest resource dependencies
+- early completion of the template's orientation gates when present
 - lifecycle correctness
 - requirement coverage where appropriate
 - validation that matches intended behavior

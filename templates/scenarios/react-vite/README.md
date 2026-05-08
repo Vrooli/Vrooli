@@ -22,6 +22,11 @@ cd scenarios/<your-scenario>/
 
 After generation, work from `scenarios/<your-scenario>/` and let the
 scenario lifecycle own setup, ports, start/stop, logs, and tests.
+Use `make orient` or `vrooli scenario orient <your-scenario>` during
+the first implementation session to see which initialization gates are
+complete. When the required gates pass, run `vrooli scenario orient
+<your-scenario> --finalize`; this removes only temporary orientation
+metadata and leaves provenance, docs, requirements, and code intact.
 
 > **The `notes` domain is a worked example, not a starting feature.**
 > It demonstrates the canonical vertical slice: proto contract →
@@ -75,11 +80,12 @@ Run tests with `make test` (which runs `vrooli scenario test`) or invoke `test-g
 
 ## Customize Safely
 1. **Read `docs/START-HERE.md` first.** It owns the first implementation workflow.
-2. **Update PRD.md + requirements/** before feature work. Operational targets drive code + tests.
-3. **Read root `DESIGN.md` before UI work.** Keep global styles, Tailwind theme, and primitives aligned with it.
-4. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-5. **Add resources** in `.vrooli/service.json` only when needed; the template ships with no resource dependencies (SQLite is in-process).
-6. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
+2. **Run `make orient` as a progress check.** It reports template-owned initialization gates from `.vrooli/orientation.json`.
+3. **Update PRD.md + requirements/** before feature work. Operational targets drive code + tests.
+4. **Read root `DESIGN.md` before UI work.** Keep global styles, Tailwind theme, and primitives aligned with it.
+5. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
+6. **Add resources** in `.vrooli/service.json` only when needed; the template ships with no resource dependencies (SQLite is in-process).
+7. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
 
 ## pnpm Everywhere
 The template assumes pnpm. If you run another package manager, convert lockfiles yourself before committing. Scripts use `pnpm` directly (no `npm` fallbacks) to reduce drift.

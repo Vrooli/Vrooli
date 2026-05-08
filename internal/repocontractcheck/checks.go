@@ -168,6 +168,7 @@ func checkCanonicalMarkersAndPaths(contract *repocontract.Contract, root string,
 
 	expectedScenarioPaths := map[string]string{
 		"service":        ".vrooli/service.json",
+		"orientation":    ".vrooli/orientation.json",
 		"docs":           "docs",
 		"requirements":   "requirements",
 		"api":            "api",

@@ -36,6 +36,7 @@ const (
 	CommandDesign          CommandID = "design"
 	CommandTemplate        CommandID = "template"
 	CommandGenerate        CommandID = "generate"
+	CommandOrient          CommandID = "orient"
 	CommandCompleteness    CommandID = "completeness"
 	CommandHealFromSandbox CommandID = "heal-from-sandbox"
 )
@@ -110,6 +111,13 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandDesign), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario design kits", Handler: CommandDesign, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandTemplate), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario templates", Handler: CommandTemplate, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandGenerate), Group: "Lifecycle and Utility Commands", Summary: "Scaffold a scenario from a template", Handler: CommandGenerate, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
+		{
+			Name: string(CommandOrient), Group: "Lifecycle and Utility Commands", Summary: "Show or finalize generated scenario orientation progress", Handler: CommandOrient, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--finalize", Description: "Remove temporary orientation metadata after required checks pass"}},
+			},
+		},
 		{Name: string(CommandCompleteness), Group: "Lifecycle and Utility Commands", Summary: "Calculate a completeness score", Handler: CommandCompleteness, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{
 			Name: string(CommandHealFromSandbox), Group: "Lifecycle and Utility Commands", Summary: "Relaunch sandbox-rooted scenario processes", Handler: CommandHealFromSandbox, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
@@ -540,6 +548,102 @@ func ParseOpenRequest(globalsJSON bool, args []string) (OpenRequest, error) {
 		req.PortName = value
 	}
 	return req, nil
+}
+
+func ParseOrientationRequest(globalsJSON bool, args []string) (OrientationRequest, error) {
+	spec := commandSpec(CommandOrient)
+	parsed, err := commandtree.ParseArgs("scenario orient", commandHelpText(CommandOrient), spec.Args, args)
+	if err != nil {
+		return OrientationRequest{}, err
+	}
+	return OrientationRequest{
+		Name:     parsed.Positionals[0],
+		JSON:     globalsJSON || parsed.HasFlag("--json"),
+		Finalize: parsed.HasFlag("--finalize"),
+	}, nil
+}
+
+func RenderOrientationResponse(w io.Writer, format cliout.Format, report OrientationReport) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteFieldsWithSuccess(w, true, map[string]any{"orientation": report})
+	}
+	if report.Finalized {
+		_, _ = fmt.Fprintf(w, "Orientation finalized for %s\n", report.Scenario)
+		if strings.TrimSpace(report.Message) != "" {
+			_, _ = fmt.Fprintln(w, report.Message)
+		}
+		return nil
+	}
+	if strings.TrimSpace(report.Message) != "" && len(report.Steps) == 0 {
+		_, _ = fmt.Fprintln(w, report.Message)
+		return nil
+	}
+	_, _ = fmt.Fprintf(w, "Orientation for %s\n", report.Scenario)
+	if report.Template.ID != "" {
+		_, _ = fmt.Fprintf(w, "Template: %s", report.Template.ID)
+		if report.Template.Version != "" {
+			_, _ = fmt.Fprintf(w, " (%s)", report.Template.Version)
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+	if report.Design.ID != "" {
+		_, _ = fmt.Fprintf(w, "Design: %s", report.Design.ID)
+		if report.Design.Version != "" {
+			_, _ = fmt.Fprintf(w, " (%s)", report.Design.Version)
+		}
+		if report.Design.Adapter != "" {
+			_, _ = fmt.Fprintf(w, " adapter=%s", report.Design.Adapter)
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+	if report.StartDocument != "" {
+		_, _ = fmt.Fprintf(w, "Start document: %s\n", report.StartDocument)
+	}
+	_, _ = fmt.Fprintf(w, "Progress: %d/%d required steps complete\n", report.Completed, report.Required)
+	for _, step := range report.Steps {
+		marker := "[ ]"
+		if step.Complete {
+			marker = "[x]"
+		}
+		_, _ = fmt.Fprintf(w, "  %s %s", marker, step.ID)
+		if step.Title != "" {
+			_, _ = fmt.Fprintf(w, " - %s", step.Title)
+		}
+		if !step.Required {
+			_, _ = fmt.Fprint(w, " (optional)")
+		}
+		_, _ = fmt.Fprintln(w)
+		for _, check := range step.Checks {
+			checkMarker := "fail"
+			if check.Skipped {
+				checkMarker = "skip"
+			} else if check.Passed {
+				checkMarker = "pass"
+			}
+			label := check.Label
+			if label == "" {
+				label = check.Kind
+			}
+			_, _ = fmt.Fprintf(w, "      %s  %s", checkMarker, label)
+			if check.Message != "" {
+				_, _ = fmt.Fprintf(w, " - %s", check.Message)
+			}
+			_, _ = fmt.Fprintln(w)
+		}
+	}
+	if report.NextStep != nil {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintf(w, "Next step: %s", report.NextStep.ID)
+		if report.NextStep.Title != "" {
+			_, _ = fmt.Fprintf(w, " - %s", report.NextStep.Title)
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+	if report.FinalizeRequired {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Run with --finalize after required steps pass.")
+	}
+	return nil
 }
 
 func RenderRequirementsResponse(w io.Writer, format cliout.Format, _ struct{}) error { return nil }
