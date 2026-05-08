@@ -9,11 +9,11 @@ import type {
   DefaultsResponse,
   HealthResult,
   HistoryEntry,
-  Incident,
-  IncidentsResponse,
   StatusResponse,
   TimelineEvent,
   TimelineResponse,
+  Transition,
+  TransitionsResponse,
   UptimeHistoryResponse,
   UptimeStatsResponse,
   WatchdogStatus,
@@ -119,7 +119,7 @@ export function createCheckTrendsResponse(
   };
 }
 
-export function createIncident(overrides: Partial<Incident> = {}): Incident {
+export function createIncident(overrides: Partial<Transition> = {}): Transition {
   return {
     timestamp: DEFAULT_TIMESTAMP,
     checkId: "test-check",
@@ -131,13 +131,13 @@ export function createIncident(overrides: Partial<Incident> = {}): Incident {
 }
 
 export function createIncidentsResponse(
-  overrides: Partial<IncidentsResponse> = {}
-): IncidentsResponse {
-  const incidents = overrides.incidents ?? [];
+  overrides: Partial<TransitionsResponse> = {}
+): TransitionsResponse {
+  const transitions = overrides.transitions ?? [];
   return {
-    incidents,
+    transitions,
     windowHours: 24,
-    total: incidents.length,
+    total: transitions.length,
     ...overrides,
   };
 }

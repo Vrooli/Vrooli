@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/hostinventory"
+	"vrooli-autoheal/internal/incidents"
 
 	_ "modernc.org/sqlite"
 )
@@ -91,6 +92,75 @@ func TestSQLiteStore_ActionLogRoundTrip(t *testing.T) {
 	}
 	if logs.Logs[0].CheckID != "infra-network" {
 		t.Fatalf("check id = %q, want infra-network", logs.Logs[0].CheckID)
+	}
+}
+
+func TestSQLiteStore_HostInventorySnapshotRoundTrip(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+
+	_, _, err := store.SaveHostInventorySnapshot(ctx, hostinventory.HostInventory{
+		CollectedAt: time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		Platform:    "linux",
+		OS:          "linux",
+		Arch:        "amd64",
+		BootID:      "boot-a",
+		Kernel: hostinventory.KernelInfo{
+			Release:           "1.2.3-test",
+			ModuleTreePresent: true,
+		},
+		ProbeStatus: map[string]hostinventory.ProbeState{"kernel": hostinventory.ProbeOK},
+	})
+	if err != nil {
+		t.Fatalf("SaveHostInventorySnapshot() error = %v", err)
+	}
+	latest, err := store.GetLatestHostInventorySnapshot(ctx)
+	if err != nil {
+		t.Fatalf("GetLatestHostInventorySnapshot() error = %v", err)
+	}
+	if latest == nil {
+		t.Fatal("expected latest snapshot")
+	}
+	if latest.KernelRelease != "1.2.3-test" {
+		t.Fatalf("kernel release = %q, want 1.2.3-test", latest.KernelRelease)
+	}
+}
+
+func TestSQLiteStore_IncidentLifecycle(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+
+	incident, err := store.UpsertIncident(ctx, incidents.UpsertInput{
+		Fingerprint:   incidents.Fingerprint("host_integrity", "host-runtime-integrity"),
+		Type:          incidents.TypeHostIntegrity,
+		Severity:      incidents.SeverityCritical,
+		Title:         "Host integrity issue detected",
+		Summary:       "Runtime failed",
+		ObservedAt:    time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		SourceCheckID: "host-runtime-integrity",
+	})
+	if err != nil {
+		t.Fatalf("UpsertIncident() error = %v", err)
+	}
+	if incident.Status != incidents.StatusOpen {
+		t.Fatalf("status = %s, want open", incident.Status)
+	}
+
+	updated, err := store.UpdateIncidentStatus(ctx, incident.ID, incidents.StatusAcknowledged, "reviewing")
+	if err != nil {
+		t.Fatalf("UpdateIncidentStatus() error = %v", err)
+	}
+	if updated.Status != incidents.StatusAcknowledged {
+		t.Fatalf("status = %s, want acknowledged", updated.Status)
+	}
+	list, err := store.ListIncidents(ctx, incidents.ListFilters{Status: incidents.StatusAcknowledged, Limit: 10})
+	if err != nil {
+		t.Fatalf("ListIncidents() error = %v", err)
+	}
+	if list.Total != 1 {
+		t.Fatalf("incident count = %d, want 1", list.Total)
 	}
 }
 

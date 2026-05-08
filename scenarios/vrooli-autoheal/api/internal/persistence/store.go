@@ -7,6 +7,8 @@ import (
 	"database/sql"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/hostinventory"
+	"vrooli-autoheal/internal/incidents"
 )
 
 // Store handles database operations for health check data.
@@ -125,8 +127,8 @@ func (s *Store) GetCheckTrends(ctx context.Context, windowHours int) (*CheckTren
 	return s.getCheckTrendsSQLite(ctx, windowHours)
 }
 
-// Incident represents a status transition event.
-type Incident struct {
+// Transition represents a status transition event.
+type Transition struct {
 	Timestamp  string `json:"timestamp"`
 	CheckID    string `json:"checkId"`
 	FromStatus string `json:"fromStatus"`
@@ -134,16 +136,48 @@ type Incident struct {
 	Message    string `json:"message"`
 }
 
-// IncidentsResponse contains all incidents.
-type IncidentsResponse struct {
-	Incidents   []Incident `json:"incidents"`
-	WindowHours int        `json:"windowHours"`
-	Total       int        `json:"total"`
+// TransitionsResponse contains status transitions.
+type TransitionsResponse struct {
+	Transitions []Transition `json:"transitions"`
+	WindowHours int          `json:"windowHours"`
+	Total       int          `json:"total"`
 }
 
-// GetIncidents returns status transition events over the time window.
-func (s *Store) GetIncidents(ctx context.Context, windowHours, limit int) (*IncidentsResponse, error) {
-	return s.getIncidentsSQLite(ctx, windowHours, limit)
+// GetTransitions returns status transition events over the time window.
+func (s *Store) GetTransitions(ctx context.Context, windowHours, limit int) (*TransitionsResponse, error) {
+	return s.getTransitionsSQLite(ctx, windowHours, limit)
+}
+
+func (s *Store) SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error) {
+	return s.saveHostInventorySnapshotSQLite(ctx, inv)
+}
+
+func (s *Store) GetLatestHostInventorySnapshot(ctx context.Context) (*hostinventory.SnapshotRecord, error) {
+	return s.getLatestHostInventorySnapshotSQLite(ctx)
+}
+
+func (s *Store) GetRecentHostInventoryChanges(ctx context.Context, limit int) ([]hostinventory.Change, error) {
+	return s.getRecentHostInventoryChangesSQLite(ctx, limit)
+}
+
+func (s *Store) UpsertIncident(ctx context.Context, input incidents.UpsertInput) (*incidents.Incident, error) {
+	return s.upsertIncidentSQLite(ctx, input)
+}
+
+func (s *Store) ListIncidents(ctx context.Context, filters incidents.ListFilters) (*incidents.ListResponse, error) {
+	return s.listIncidentsSQLite(ctx, filters)
+}
+
+func (s *Store) GetIncident(ctx context.Context, id string) (*incidents.Incident, error) {
+	return s.getIncidentSQLite(ctx, id)
+}
+
+func (s *Store) ListIncidentObservations(ctx context.Context, incidentID string, limit int) ([]incidents.Observation, error) {
+	return s.listIncidentObservationsSQLite(ctx, incidentID, limit)
+}
+
+func (s *Store) UpdateIncidentStatus(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error) {
+	return s.updateIncidentStatusSQLite(ctx, incidentID, status, note)
 }
 
 // ActionLog represents a logged recovery action execution.

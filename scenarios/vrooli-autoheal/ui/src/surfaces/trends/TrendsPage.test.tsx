@@ -30,7 +30,7 @@ vi.mock("../../lib/api", async () => {
     ...actual,
     fetchUptimeStats: vi.fn(),
     fetchCheckTrends: vi.fn(),
-    fetchIncidents: vi.fn(),
+    fetchTransitions: vi.fn(),
     fetchTimeline: vi.fn(),
     fetchUptimeHistory: vi.fn(),
   };
@@ -47,7 +47,7 @@ describe("[REQ:UI-EVENTS-001] TrendsPage", () => {
     // Default mocks
     vi.mocked(api.fetchUptimeStats).mockResolvedValue(createUptimeStatsResponse());
     vi.mocked(api.fetchCheckTrends).mockResolvedValue(createCheckTrendsResponse());
-    vi.mocked(api.fetchIncidents).mockResolvedValue(createIncidentsResponse());
+    vi.mocked(api.fetchTransitions).mockResolvedValue(createIncidentsResponse());
     vi.mocked(api.fetchTimeline).mockResolvedValue(createTimelineResponse());
     vi.mocked(api.fetchUptimeHistory).mockResolvedValue(createUptimeHistoryResponse());
   });
@@ -114,7 +114,7 @@ describe("[REQ:UI-EVENTS-001] TrendsPage", () => {
   });
 
   it("shows loading state for incidents", async () => {
-    vi.mocked(api.fetchIncidents).mockImplementation(
+    vi.mocked(api.fetchTransitions).mockImplementation(
       () => new Promise(() => {})
     );
 
@@ -132,9 +132,9 @@ describe("[REQ:UI-EVENTS-001] TrendsPage", () => {
   });
 
   it("displays incidents when available", async () => {
-    vi.mocked(api.fetchIncidents).mockResolvedValue(
+    vi.mocked(api.fetchTransitions).mockResolvedValue(
       createIncidentsResponse({
-        incidents: [
+        transitions: [
           createIncident({
             checkId: "test-check",
             message: "Test incident",

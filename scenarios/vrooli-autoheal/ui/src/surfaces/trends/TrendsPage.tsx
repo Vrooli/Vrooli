@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { memo, Profiler, useState, useCallback, useMemo } from "react";
 import { TrendingUp, Activity, AlertTriangle, Clock, Download } from "lucide-react";
-import { fetchTimeline, fetchUptimeStats, fetchIncidents, fetchCheckTrends, TimelineEvent, type CheckTrend, type Incident } from "../../lib/api";
+import { fetchTimeline, fetchUptimeStats, fetchTransitions, fetchCheckTrends, TimelineEvent, type CheckTrend, type Transition } from "../../lib/api";
 import { CheckDetailModal, ErrorDisplay, StatusIcon } from "../../shared/components";
 import { Button, Card } from "../../shared/ui/primitives";
 import { UptimeTrendChart, CheckTrendGrid } from "./components";
@@ -81,7 +81,7 @@ const EMPTY_TIMELINE_EVENTS: TimelineEvent[] = [];
 const INCIDENT_RENDER_LIMIT = 50;
 
 interface IncidentRowProps {
-  incident: Incident;
+  incident: Transition;
   title: string;
   onCheckClick: (checkId: string) => void;
 }
@@ -127,7 +127,7 @@ const IncidentRow = memo(function IncidentRow({
 });
 
 interface IncidentsListProps {
-  incidents: Incident[];
+  incidents: Transition[];
   getTitle: (checkId: string) => string;
   onCheckClick: (checkId: string) => void;
 }
@@ -180,10 +180,10 @@ function TrendsPageImpl() {
     refetchIntervalInBackground: false,
   });
 
-  // Incidents from dedicated endpoint
+  // Status transitions from dedicated endpoint
   const { data: incidentsData, isLoading: incidentsLoading, error: incidentsError, refetch: refetchIncidents } = useQuery({
-    queryKey: ["incidents", selectedWindow.hours],
-    queryFn: () => fetchIncidents(selectedWindow.hours, 50),
+    queryKey: ["transitions", selectedWindow.hours],
+    queryFn: () => fetchTransitions(selectedWindow.hours, 50),
     refetchInterval: 60000,
     refetchIntervalInBackground: false,
   });
@@ -199,8 +199,8 @@ function TrendsPageImpl() {
 
   // Use backend incidents if available, otherwise fallback to client-side detection
   const incidents = useMemo(
-    () => incidentsData?.incidents ?? (timelineData?.events ? detectIncidents(timelineData.events) : []),
-    [incidentsData?.incidents, timelineData?.events]
+    () => incidentsData?.transitions ?? (timelineData?.events ? detectIncidents(timelineData.events) : []),
+    [incidentsData?.transitions, timelineData?.events]
   );
   const checkTrends = checkTrendsData?.trends ?? EMPTY_CHECK_TRENDS;
   const timelineEvents = timelineData?.events ?? EMPTY_TIMELINE_EVENTS;

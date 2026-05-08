@@ -3,12 +3,16 @@
 package bootstrap
 
 import (
+	"time"
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/checks/infra"
 	"vrooli-autoheal/internal/checks/system"
 	"vrooli-autoheal/internal/checks/vrooli"
+	"vrooli-autoheal/internal/hostinventory"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/userconfig"
+
+	hostchecks "vrooli-autoheal/internal/checks/host"
 )
 
 // CheckFactory defines the interface for creating health checks.
@@ -137,7 +141,7 @@ func (f *DefaultCheckFactory) CreateInfrastructureChecks(caps *platform.Capabili
 
 // CreateSystemChecks creates all system checks
 func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
-	return []checks.Check{
+	systemChecks := []checks.Check{
 		system.NewDiskCheck(),
 		system.NewInodeCheck(),
 		system.NewSwapCheck(),
@@ -145,13 +149,16 @@ func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 		system.NewZombieCheck(),
 		system.NewPortCheck(),
 		system.NewClaudeCacheCheck(),
-		system.NewGPUCheck(),  // GPU health for AI/ML workloads
+		system.NewGPUCheck(),            // GPU health for AI/ML workloads
 		system.NewLoadCheck(),           // System load average monitoring
 		system.NewPstoreEvidenceCheck(), // Kernel crash dumps in /sys/fs/pstore
 		system.NewBootHistoryCheck(),    // Unclean shutdown detection
 		system.NewMCERecentCheck(),      // Recent hardware errors via rasdaemon
 		system.NewPMRuntimeHogCheck(),   // Kernel pm_runtime CPU hogs
 	}
+	collector := hostinventory.NewCachedCollector(hostinventory.NewCollector(hostinventory.CollectorOptions{}), 30*time.Second)
+	systemChecks = append(systemChecks, hostchecks.NewChecks(collector)...)
+	return systemChecks
 }
 
 // CreateVrooliChecks creates all Vrooli-specific checks

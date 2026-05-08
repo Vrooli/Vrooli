@@ -21,7 +21,7 @@ export function normalizeHealthStatus(value: unknown, fallback: HealthStatus = "
 }
 
 // Category groups related health checks for UI organization
-export type CheckCategory = "infrastructure" | "resource" | "scenario";
+export type CheckCategory = "infrastructure" | "resource" | "scenario" | "system";
 
 // SubCheck represents a single sub-check within a compound health check
 export interface SubCheck {
@@ -395,10 +395,10 @@ export async function fetchCheckTrends(hours = 24): Promise<CheckTrendsResponse>
 }
 
 // ============================================================================
-// Incidents API - Status transitions
+// Transitions API - Status transitions
 // ============================================================================
 
-export interface Incident {
+export interface Transition {
   timestamp: string;
   checkId: string;
   fromStatus: string;
@@ -406,14 +406,98 @@ export interface Incident {
   message: string;
 }
 
-export interface IncidentsResponse {
-  incidents: Incident[];
+export interface TransitionsResponse {
+  transitions: Transition[];
   windowHours: number;
   total: number;
 }
 
-export async function fetchIncidents(hours = 24, limit = 50): Promise<IncidentsResponse> {
-  return apiRequest<IncidentsResponse>(`/incidents?hours=${hours}&limit=${limit}`);
+export async function fetchTransitions(hours = 24, limit = 50): Promise<TransitionsResponse> {
+  return apiRequest<TransitionsResponse>(`/transitions?hours=${hours}&limit=${limit}`);
+}
+
+// ============================================================================
+// Incidents API - Durable incident workflow
+// ============================================================================
+
+export type IncidentSeverity = "info" | "warning" | "critical";
+export type IncidentStatus = "open" | "acknowledged" | "resolved" | "ignored";
+export type IncidentType =
+  | "host_integrity"
+  | "unclean_boot"
+  | "resource_failure"
+  | "scenario_failure"
+  | "autoheal_failure"
+  | "manual";
+
+export interface Incident {
+  id: string;
+  fingerprint: string;
+  type: IncidentType;
+  severity: IncidentSeverity;
+  status: IncidentStatus;
+  title: string;
+  summary: string;
+  detectedAt: string;
+  lastSeenAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+  acknowledgedAt?: string;
+  ignoredAt?: string;
+  bootId?: string;
+  previousBootId?: string;
+  sourceCheckIds?: string[];
+  sourceResultIds?: string[];
+  evidence?: Record<string, unknown>;
+  recommendations?: string[];
+  occurrenceCount: number;
+  operatorNotes?: string;
+}
+
+export interface IncidentObservation {
+  id: number;
+  incidentId: string;
+  observedAt: string;
+  sourceCheckId?: string;
+  severity: IncidentSeverity;
+  status?: string;
+  message: string;
+  evidence?: Record<string, unknown>;
+}
+
+export interface IncidentsResponse {
+  incidents: Incident[];
+  total: number;
+  filters: Record<string, unknown>;
+}
+
+export async function fetchIncidents(params: {
+  status?: IncidentStatus | "";
+  severity?: IncidentSeverity | "";
+  type?: IncidentType | "";
+  limit?: number;
+} = {}): Promise<IncidentsResponse> {
+  const query = new URLSearchParams();
+  if (params.status) query.set("status", params.status);
+  if (params.severity) query.set("severity", params.severity);
+  if (params.type) query.set("type", params.type);
+  query.set("limit", String(params.limit ?? 50));
+  return apiRequest<IncidentsResponse>(`/incidents?${query.toString()}`);
+}
+
+export async function fetchIncident(id: string): Promise<Incident> {
+  return apiRequest<Incident>(`/incidents/${encodeURIComponent(id)}`);
+}
+
+export async function fetchIncidentObservations(id: string): Promise<{ observations: IncidentObservation[]; total: number }> {
+  return apiRequest<{ observations: IncidentObservation[]; total: number }>(`/incidents/${encodeURIComponent(id)}/observations`);
+}
+
+export async function updateIncidentStatus(id: string, action: "acknowledge" | "resolve" | "ignore", note = ""): Promise<Incident> {
+  return apiRequest<Incident>(`/incidents/${encodeURIComponent(id)}/${action}`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
 }
 
 // ============================================================================

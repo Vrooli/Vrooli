@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
 	"vrooli-autoheal/internal/bootstrap"
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/persistence"
@@ -147,8 +148,16 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers, db *sq
 	router.HandleFunc("/api/v1/uptime", h.UptimeStats).Methods("GET")
 	router.HandleFunc("/api/v1/uptime/history", h.UptimeHistory).Methods("GET")
 
-	// Incidents endpoint [REQ:PERSIST-HISTORY-001]
+	// Host inventory and incident endpoints.
+	router.HandleFunc("/api/v1/host/inventory", h.HostInventory).Methods("GET")
+	router.HandleFunc("/api/v1/host/inventory/collect", h.CollectHostInventory).Methods("POST")
+	router.HandleFunc("/api/v1/host/inventory/changes", h.HostInventoryChanges).Methods("GET")
 	router.HandleFunc("/api/v1/incidents", h.Incidents).Methods("GET")
+	router.HandleFunc("/api/v1/incidents/latest", h.LatestIncidents).Methods("GET")
+	router.HandleFunc("/api/v1/incidents/{incidentId}", h.IncidentDetail).Methods("GET")
+	router.HandleFunc("/api/v1/incidents/{incidentId}/observations", h.IncidentObservations).Methods("GET")
+	router.HandleFunc("/api/v1/incidents/{incidentId}/{action:acknowledge|resolve|ignore}", h.MutateIncidentStatus).Methods("POST")
+	router.HandleFunc("/api/v1/transitions", h.Transitions).Methods("GET")
 
 	// Watchdog endpoints [REQ:WATCH-DETECT-001] [REQ:WATCH-INSTALL-001]
 	router.HandleFunc("/api/v1/watchdog", h.Watchdog).Methods("GET")

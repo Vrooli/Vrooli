@@ -17,6 +17,98 @@ CREATE INDEX IF NOT EXISTS idx_health_results_check_id_created
 CREATE INDEX IF NOT EXISTS idx_health_results_created_at
     ON health_results (created_at DESC);
 
+CREATE TABLE IF NOT EXISTS host_inventory_snapshots (
+    id TEXT PRIMARY KEY,
+    collected_at TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    os TEXT NOT NULL,
+    arch TEXT NOT NULL,
+    boot_id TEXT,
+    kernel_release TEXT,
+    fingerprint TEXT NOT NULL,
+    inventory_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_host_inventory_snapshots_collected
+    ON host_inventory_snapshots (collected_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_host_inventory_snapshots_fingerprint
+    ON host_inventory_snapshots (fingerprint);
+
+CREATE TABLE IF NOT EXISTS host_inventory_changes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_snapshot_id TEXT,
+    to_snapshot_id TEXT,
+    change_type TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+    summary TEXT NOT NULL,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY (from_snapshot_id) REFERENCES host_inventory_snapshots(id),
+    FOREIGN KEY (to_snapshot_id) REFERENCES host_inventory_snapshots(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_host_inventory_changes_created
+    ON host_inventory_changes (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS incidents (
+    id TEXT PRIMARY KEY,
+    fingerprint TEXT NOT NULL UNIQUE,
+    type TEXT NOT NULL CHECK (type IN ('host_integrity', 'unclean_boot', 'resource_failure', 'scenario_failure', 'autoheal_failure', 'manual')),
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+    status TEXT NOT NULL CHECK (status IN ('open', 'acknowledged', 'resolved', 'ignored')),
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    detected_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    resolved_at TEXT,
+    acknowledged_at TEXT,
+    ignored_at TEXT,
+    boot_id TEXT,
+    previous_boot_id TEXT,
+    source_check_ids_json TEXT NOT NULL DEFAULT '[]',
+    source_result_ids_json TEXT NOT NULL DEFAULT '[]',
+    evidence_json TEXT NOT NULL DEFAULT '{}',
+    recommendations_json TEXT NOT NULL DEFAULT '[]',
+    occurrence_count INTEGER NOT NULL DEFAULT 1,
+    operator_notes TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_incidents_status_updated
+    ON incidents (status, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_incidents_type_severity
+    ON incidents (type, severity, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS incident_observations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    incident_id TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    source_check_id TEXT,
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+    status TEXT,
+    message TEXT NOT NULL,
+    evidence_json TEXT NOT NULL DEFAULT '{}',
+    FOREIGN KEY (incident_id) REFERENCES incidents(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_incident_observations_incident
+    ON incident_observations (incident_id, observed_at DESC);
+
+CREATE TABLE IF NOT EXISTS incident_status_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    incident_id TEXT NOT NULL,
+    from_status TEXT,
+    to_status TEXT NOT NULL CHECK (to_status IN ('open', 'acknowledged', 'resolved', 'ignored')),
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY (incident_id) REFERENCES incidents(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_incident_status_history_incident
+    ON incident_status_history (incident_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS autoheal_actions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     check_id TEXT NOT NULL,

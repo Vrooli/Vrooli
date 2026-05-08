@@ -166,17 +166,64 @@ type TimelineResponse struct {
 }
 
 type Incident struct {
-	Timestamp  string `json:"timestamp"`
-	CheckID    string `json:"checkId"`
-	FromStatus string `json:"fromStatus"`
-	ToStatus   string `json:"toStatus"`
-	Message    string `json:"message"`
+	ID              string                 `json:"id"`
+	Fingerprint     string                 `json:"fingerprint"`
+	Type            string                 `json:"type"`
+	Severity        string                 `json:"severity"`
+	Status          string                 `json:"status"`
+	Title           string                 `json:"title"`
+	Summary         string                 `json:"summary"`
+	DetectedAt      string                 `json:"detectedAt"`
+	LastSeenAt      string                 `json:"lastSeenAt"`
+	UpdatedAt       string                 `json:"updatedAt"`
+	BootID          string                 `json:"bootId,omitempty"`
+	PreviousBootID  string                 `json:"previousBootId,omitempty"`
+	SourceCheckIDs  []string               `json:"sourceCheckIds,omitempty"`
+	Evidence        map[string]interface{} `json:"evidence,omitempty"`
+	Recommendations []string               `json:"recommendations,omitempty"`
+	OccurrenceCount int                    `json:"occurrenceCount"`
+	OperatorNotes   string                 `json:"operatorNotes,omitempty"`
 }
 
 type IncidentsResponse struct {
-	Incidents   []Incident `json:"incidents"`
-	WindowHours int        `json:"windowHours"`
-	Total       int        `json:"total"`
+	Incidents []Incident             `json:"incidents"`
+	Total     int                    `json:"total"`
+	Filters   map[string]interface{} `json:"filters"`
+}
+
+type HostInventoryResponse struct {
+	Snapshot    *HostInventorySnapshot `json:"snapshot"`
+	Fresh       bool                   `json:"fresh"`
+	AgeSeconds  int64                  `json:"ageSeconds"`
+	ProbeStatus map[string]string      `json:"probeStatus"`
+}
+
+type HostInventorySnapshot struct {
+	ID            string                 `json:"id"`
+	CollectedAt   string                 `json:"collectedAt"`
+	Platform      string                 `json:"platform"`
+	OS            string                 `json:"os"`
+	Arch          string                 `json:"arch"`
+	BootID        string                 `json:"bootId"`
+	KernelRelease string                 `json:"kernelRelease"`
+	Fingerprint   string                 `json:"fingerprint"`
+	Inventory     map[string]interface{} `json:"inventory"`
+}
+
+type HostInventoryChange struct {
+	ID             int64                  `json:"id"`
+	FromSnapshotID string                 `json:"fromSnapshotId"`
+	ToSnapshotID   string                 `json:"toSnapshotId"`
+	ChangeType     string                 `json:"changeType"`
+	Severity       string                 `json:"severity"`
+	Summary        string                 `json:"summary"`
+	Details        map[string]interface{} `json:"details,omitempty"`
+	CreatedAt      string                 `json:"createdAt"`
+}
+
+type HostInventoryChangesResponse struct {
+	Changes []HostInventoryChange `json:"changes"`
+	Total   int                   `json:"total"`
 }
 
 type UptimeStats struct {

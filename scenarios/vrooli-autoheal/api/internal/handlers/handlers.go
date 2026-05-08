@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/hostinventory"
+	"vrooli-autoheal/internal/incidents"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/watchdog"
@@ -34,7 +36,15 @@ type StoreInterface interface {
 	GetUptimeStats(ctx context.Context, windowHours int) (*persistence.UptimeStats, error)
 	GetUptimeHistory(ctx context.Context, windowHours, bucketCount int) (*persistence.UptimeHistory, error)
 	GetCheckTrends(ctx context.Context, windowHours int) (*persistence.CheckTrendsResponse, error)
-	GetIncidents(ctx context.Context, windowHours, limit int) (*persistence.IncidentsResponse, error)
+	GetTransitions(ctx context.Context, windowHours, limit int) (*persistence.TransitionsResponse, error)
+	SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error)
+	GetLatestHostInventorySnapshot(ctx context.Context) (*hostinventory.SnapshotRecord, error)
+	GetRecentHostInventoryChanges(ctx context.Context, limit int) ([]hostinventory.Change, error)
+	UpsertIncident(ctx context.Context, input incidents.UpsertInput) (*incidents.Incident, error)
+	ListIncidents(ctx context.Context, filters incidents.ListFilters) (*incidents.ListResponse, error)
+	GetIncident(ctx context.Context, id string) (*incidents.Incident, error)
+	ListIncidentObservations(ctx context.Context, incidentID string, limit int) ([]incidents.Observation, error)
+	UpdateIncidentStatus(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error)
 	// Action log operations [REQ:HEAL-ACTION-001]
 	SaveActionLog(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error
 	GetActionLogs(ctx context.Context, limit int) (*persistence.ActionLogsResponse, error)
@@ -47,6 +57,8 @@ type Handlers struct {
 	store            StoreInterface
 	platform         *platform.Capabilities
 	watchdogDetector *watchdog.Detector
+	hostCollector    hostinventory.Collector
+	incidentService  *incidents.Service
 
 	// tickLock prevents concurrent tick executions
 	tickLock    sync.Mutex
@@ -85,21 +97,27 @@ func (h *Handlers) getLastCompletedTick() *time.Time {
 
 // New creates a new Handlers instance
 func New(registry *checks.Registry, store *persistence.Store, plat *platform.Capabilities) *Handlers {
+	hostCollector := hostinventory.NewCachedCollector(hostinventory.NewCollector(hostinventory.CollectorOptions{Platform: plat}), 30*time.Second)
 	return &Handlers{
 		registry:         registry,
 		store:            store,
 		platform:         plat,
 		watchdogDetector: watchdog.NewDetector(plat),
+		hostCollector:    hostCollector,
+		incidentService:  incidents.NewService(store),
 	}
 }
 
 // NewWithInterface creates a new Handlers instance with an interface-based store (for testing)
 func NewWithInterface(registry *checks.Registry, store StoreInterface, plat *platform.Capabilities) *Handlers {
+	hostCollector := hostinventory.NewCachedCollector(hostinventory.NewCollector(hostinventory.CollectorOptions{Platform: plat}), 30*time.Second)
 	return &Handlers{
 		registry:         registry,
 		store:            store,
 		platform:         plat,
 		watchdogDetector: watchdog.NewDetector(plat),
+		hostCollector:    hostCollector,
+		incidentService:  incidents.NewService(store),
 	}
 }
 
@@ -233,6 +251,8 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 
 	results := h.registry.RunAll(ctx, forceAll)
 
+	inventoryChanges := h.collectAndPersistHostInventory(ctx)
+
 	// Store results in database - log failures but don't block the response
 	// [REQ:FAIL-SAFE-001] Tick completes even if persistence fails
 	var persistenceErrors int
@@ -242,6 +262,12 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 			apierrors.LogError("tick", "save_result:"+result.CheckID, err)
 		}
 	}
+	if h.incidentService != nil {
+		if _, err := h.incidentService.UpsertFromCheckResults(ctx, results); err != nil {
+			apierrors.LogError("tick", "upsert_incidents", err)
+		}
+	}
+	h.upsertIncidentsFromInventoryChanges(ctx, inventoryChanges)
 
 	// Run auto-heal for critical checks with auto-heal enabled
 	// [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]
@@ -289,6 +315,11 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 			if err := h.store.SaveResult(ctx, result); err != nil {
 				apierrors.LogError("tick", "save_recheck_result:"+result.CheckID, err)
 			}
+			if h.incidentService != nil {
+				if _, _, err := h.incidentService.UpsertFromCheckResult(ctx, result); err != nil {
+					apierrors.LogError("tick", "upsert_recheck_incident:"+result.CheckID, err)
+				}
+			}
 		}
 	}
 
@@ -306,6 +337,9 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 		},
 		"timestamp": time.Now().UTC(),
 	}
+	if len(inventoryChanges) > 0 {
+		response["hostInventoryChanges"] = inventoryChanges
+	}
 	if !compactResponse {
 		response["results"] = results
 		response["autoHeal"] = autoHealResults
@@ -322,6 +356,60 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		apierrors.LogError("tick", "encode_response", err)
+	}
+}
+
+func (h *Handlers) collectAndPersistHostInventory(ctx context.Context) []hostinventory.Change {
+	if h.hostCollector == nil || h.store == nil {
+		return nil
+	}
+	inv, err := h.hostCollector.Collect(ctx)
+	if err != nil {
+		apierrors.LogError("tick", "collect_host_inventory", err)
+		return nil
+	}
+	_, changes, err := h.store.SaveHostInventorySnapshot(ctx, inv)
+	if err != nil {
+		apierrors.LogError("tick", "save_host_inventory", err)
+		return nil
+	}
+	return changes
+}
+
+func (h *Handlers) upsertIncidentsFromInventoryChanges(ctx context.Context, changes []hostinventory.Change) {
+	if len(changes) == 0 || h.store == nil {
+		return
+	}
+	for _, change := range changes {
+		if change.Severity != "warning" && change.Severity != "critical" {
+			continue
+		}
+		severity := incidents.SeverityWarning
+		if change.Severity == "critical" {
+			severity = incidents.SeverityCritical
+		}
+		_, err := h.store.UpsertIncident(ctx, incidents.UpsertInput{
+			Fingerprint:   incidents.Fingerprint(string(incidents.TypeHostIntegrity), "host-inventory-change", change.ChangeType, change.ToSnapshotID),
+			Type:          incidents.TypeHostIntegrity,
+			Severity:      severity,
+			Title:         "Host inventory changed",
+			Summary:       change.Summary,
+			ObservedAt:    change.CreatedAt,
+			SourceCheckID: "host-capability-drift",
+			Evidence: map[string]any{
+				"changeType":     change.ChangeType,
+				"fromSnapshotId": change.FromSnapshotID,
+				"toSnapshotId":   change.ToSnapshotID,
+				"details":        change.Details,
+			},
+			Recommendations: []string{
+				"Compare the previous and current host inventory snapshots before assuming workload-level causes.",
+				"Review kernel, module, runtime, and device binding changes around the incident time.",
+			},
+		})
+		if err != nil {
+			apierrors.LogError("tick", "upsert_inventory_change_incident", err)
+		}
 	}
 }
 
@@ -527,10 +615,9 @@ func (h *Handlers) CheckTrends(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Incidents returns status transition events
+// Transitions returns status transition events.
 // [REQ:PERSIST-HISTORY-001]
-func (h *Handlers) Incidents(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters with defaults
+func (h *Handlers) Transitions(w http.ResponseWriter, r *http.Request) {
 	windowHours := 24
 	limit := 50
 
@@ -549,16 +636,216 @@ func (h *Handlers) Incidents(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	incidents, err := h.store.GetIncidents(ctx, windowHours, limit)
+	transitions, err := h.store.GetTransitions(ctx, windowHours, limit)
 	if err != nil {
-		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "retrieve incidents", err))
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("transitions", "retrieve transitions", err))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(incidents); err != nil {
+	if err := json.NewEncoder(w).Encode(transitions); err != nil {
+		apierrors.LogError("transitions", "encode_response", err)
+	}
+}
+
+func (h *Handlers) HostInventory(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	record, err := h.store.GetLatestHostInventorySnapshot(ctx)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("host_inventory", "retrieve host inventory", err))
+		return
+	}
+	resp := hostinventory.InventoryResponse{Snapshot: record, Fresh: false, ProbeStatus: map[string]hostinventory.ProbeState{}}
+	if record != nil {
+		resp.AgeSeconds = int64(time.Since(record.CollectedAt) / time.Second)
+		resp.Fresh = resp.AgeSeconds <= 300
+		resp.ProbeStatus = record.Inventory.ProbeStatus
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		apierrors.LogError("host_inventory", "encode_response", err)
+	}
+}
+
+func (h *Handlers) CollectHostInventory(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	defer cancel()
+	inv, err := h.hostCollector.Collect(ctx)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("host_inventory", "collect host inventory", err))
+		return
+	}
+	record, changes, err := h.store.SaveHostInventorySnapshot(ctx, inv)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("host_inventory", "save host inventory", err))
+		return
+	}
+	if changes == nil {
+		changes = []hostinventory.Change{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]any{"snapshot": record, "changes": changes}); err != nil {
+		apierrors.LogError("host_inventory", "encode_collect_response", err)
+	}
+}
+
+func (h *Handlers) HostInventoryChanges(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsed, err := parsePositiveInt(limitStr); err == nil && parsed > 0 && parsed <= 200 {
+			limit = parsed
+		}
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	changes, err := h.store.GetRecentHostInventoryChanges(ctx, limit)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("host_inventory", "retrieve host inventory changes", err))
+		return
+	}
+	if changes == nil {
+		changes = []hostinventory.Change{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]any{"changes": changes, "total": len(changes)}); err != nil {
+		apierrors.LogError("host_inventory", "encode_changes_response", err)
+	}
+}
+
+func (h *Handlers) Incidents(w http.ResponseWriter, r *http.Request) {
+	filters, ok := parseIncidentFilters(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	resp, err := h.store.ListIncidents(ctx, filters)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "retrieve incidents", err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		apierrors.LogError("incidents", "encode_response", err)
 	}
+}
+
+func (h *Handlers) LatestIncidents(w http.ResponseWriter, r *http.Request) {
+	r.URL.RawQuery = mergeDefaultQuery(r.URL.RawQuery, "status=open")
+	h.Incidents(w, r)
+}
+
+func (h *Handlers) IncidentDetail(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["incidentId"]
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	incident, err := h.store.GetIncident(ctx, id)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "retrieve incident", err))
+		return
+	}
+	if incident == nil {
+		apierrors.LogAndRespond(w, apierrors.NewNotFoundError("incidents", "incident", id))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(incident); err != nil {
+		apierrors.LogError("incidents", "encode_detail_response", err)
+	}
+}
+
+func (h *Handlers) IncidentObservations(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["incidentId"]
+	limit := 50
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	observations, err := h.store.ListIncidentObservations(ctx, id, limit)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "retrieve incident observations", err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]any{"observations": observations, "total": len(observations)}); err != nil {
+		apierrors.LogError("incidents", "encode_observations_response", err)
+	}
+}
+
+func (h *Handlers) MutateIncidentStatus(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["incidentId"]
+	action := mux.Vars(r)["action"]
+	var status incidents.Status
+	switch action {
+	case "acknowledge":
+		status = incidents.StatusAcknowledged
+	case "resolve":
+		status = incidents.StatusResolved
+	case "ignore":
+		status = incidents.StatusIgnored
+	default:
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("incidents", "invalid incident status action", fmt.Errorf("unsupported action %q", action)))
+		return
+	}
+	var body struct {
+		Note string `json:"note"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	incident, err := h.store.UpdateIncidentStatus(ctx, id, status, body.Note)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "update incident status", err))
+		return
+	}
+	if incident == nil {
+		apierrors.LogAndRespond(w, apierrors.NewNotFoundError("incidents", "incident", id))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(incident); err != nil {
+		apierrors.LogError("incidents", "encode_mutation_response", err)
+	}
+}
+
+func parseIncidentFilters(w http.ResponseWriter, r *http.Request) (incidents.ListFilters, bool) {
+	query := r.URL.Query()
+	filters := incidents.ListFilters{Limit: 50}
+	if status := query.Get("status"); status != "" {
+		if !incidents.ValidStatus(status) {
+			apierrors.LogAndRespond(w, apierrors.NewValidationError("incidents", "invalid status filter", fmt.Errorf("invalid status %q", status)))
+			return filters, false
+		}
+		filters.Status = incidents.Status(status)
+	}
+	if severity := query.Get("severity"); severity != "" {
+		if !incidents.ValidSeverity(severity) {
+			apierrors.LogAndRespond(w, apierrors.NewValidationError("incidents", "invalid severity filter", fmt.Errorf("invalid severity %q", severity)))
+			return filters, false
+		}
+		filters.Severity = incidents.Severity(severity)
+	}
+	if typ := query.Get("type"); typ != "" {
+		if !incidents.ValidType(typ) {
+			apierrors.LogAndRespond(w, apierrors.NewValidationError("incidents", "invalid type filter", fmt.Errorf("invalid type %q", typ)))
+			return filters, false
+		}
+		filters.Type = incidents.Type(typ)
+	}
+	if limitStr := query.Get("limit"); limitStr != "" {
+		if parsed, err := parsePositiveInt(limitStr); err == nil && parsed > 0 && parsed <= 200 {
+			filters.Limit = parsed
+		}
+	}
+	return filters, true
+}
+
+func mergeDefaultQuery(rawQuery, defaults string) string {
+	if rawQuery == "" {
+		return defaults
+	}
+	return rawQuery + "&" + defaults
 }
 
 // Watchdog returns the OS-level watchdog/service status

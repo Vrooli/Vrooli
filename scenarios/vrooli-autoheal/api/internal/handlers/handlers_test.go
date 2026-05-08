@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/incidents"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/testutil"
@@ -235,6 +236,9 @@ func TestTick(t *testing.T) {
 
 	if len(results) == 0 {
 		t.Error("results should not be empty")
+	}
+	if store.savedInventories != 1 {
+		t.Fatalf("saved host inventories = %d, want 1", store.savedInventories)
 	}
 }
 
@@ -975,13 +979,13 @@ func TestIncidents(t *testing.T) {
 		t.Errorf("Incidents() status = %d, want %d", w.Code, http.StatusOK)
 	}
 
-	var resp persistence.IncidentsResponse
+	var resp incidents.ListResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	if resp.WindowHours != 24 {
-		t.Errorf("WindowHours = %d, want 24", resp.WindowHours)
+	if resp.Filters.Limit != 50 {
+		t.Errorf("Limit = %d, want 50", resp.Filters.Limit)
 	}
 }
 
@@ -989,7 +993,7 @@ func TestIncidents_WithQueryParams(t *testing.T) {
 	store := &mockStore{}
 	h := setupTestHandlers(store)
 
-	req := httptest.NewRequest("GET", "/api/v1/incidents?hours=48&limit=100", nil)
+	req := httptest.NewRequest("GET", "/api/v1/incidents?status=open&severity=critical&limit=100", nil)
 	w := httptest.NewRecorder()
 
 	h.Incidents(w, req)
@@ -998,13 +1002,19 @@ func TestIncidents_WithQueryParams(t *testing.T) {
 		t.Errorf("Incidents() status = %d, want %d", w.Code, http.StatusOK)
 	}
 
-	var resp persistence.IncidentsResponse
+	var resp incidents.ListResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	if resp.WindowHours != 48 {
-		t.Errorf("WindowHours = %d, want 48", resp.WindowHours)
+	if resp.Filters.Status != incidents.StatusOpen {
+		t.Errorf("Status = %q, want open", resp.Filters.Status)
+	}
+	if resp.Filters.Severity != incidents.SeverityCritical {
+		t.Errorf("Severity = %q, want critical", resp.Filters.Severity)
+	}
+	if resp.Filters.Limit != 100 {
+		t.Errorf("Limit = %d, want 100", resp.Filters.Limit)
 	}
 }
 

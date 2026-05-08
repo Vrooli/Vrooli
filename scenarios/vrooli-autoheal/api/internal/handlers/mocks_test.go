@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/hostinventory"
+	"vrooli-autoheal/internal/incidents"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
 )
@@ -22,8 +24,10 @@ type mockStore struct {
 	uptimeHistoryErr error
 	checkTrends      *persistence.CheckTrendsResponse
 	checkTrendsErr   error
-	incidents        *persistence.IncidentsResponse
+	transitions      *persistence.TransitionsResponse
+	transitionsErr   error
 	incidentsErr     error
+	savedInventories int
 }
 
 func (m *mockStore) Ping(ctx context.Context) error {
@@ -91,18 +95,54 @@ func (m *mockStore) GetCheckTrends(ctx context.Context, windowHours int) (*persi
 	}, nil
 }
 
-func (m *mockStore) GetIncidents(ctx context.Context, windowHours, limit int) (*persistence.IncidentsResponse, error) {
-	if m.incidentsErr != nil {
-		return nil, m.incidentsErr
+func (m *mockStore) GetTransitions(ctx context.Context, windowHours, limit int) (*persistence.TransitionsResponse, error) {
+	if m.transitionsErr != nil {
+		return nil, m.transitionsErr
 	}
-	if m.incidents != nil {
-		return m.incidents, nil
+	if m.transitions != nil {
+		return m.transitions, nil
 	}
-	return &persistence.IncidentsResponse{
-		Incidents:   []persistence.Incident{},
+	return &persistence.TransitionsResponse{
+		Transitions: []persistence.Transition{},
 		WindowHours: windowHours,
 		Total:       0,
 	}, nil
+}
+
+func (m *mockStore) SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error) {
+	m.savedInventories++
+	return &hostinventory.SnapshotRecord{ID: "test", Inventory: inv}, nil, nil
+}
+
+func (m *mockStore) GetLatestHostInventorySnapshot(ctx context.Context) (*hostinventory.SnapshotRecord, error) {
+	return nil, nil
+}
+
+func (m *mockStore) GetRecentHostInventoryChanges(ctx context.Context, limit int) ([]hostinventory.Change, error) {
+	return []hostinventory.Change{}, nil
+}
+
+func (m *mockStore) UpsertIncident(ctx context.Context, input incidents.UpsertInput) (*incidents.Incident, error) {
+	return &incidents.Incident{ID: "inc_test", Fingerprint: input.Fingerprint, Type: input.Type, Severity: input.Severity, Status: incidents.StatusOpen}, nil
+}
+
+func (m *mockStore) ListIncidents(ctx context.Context, filters incidents.ListFilters) (*incidents.ListResponse, error) {
+	if m.incidentsErr != nil {
+		return nil, m.incidentsErr
+	}
+	return &incidents.ListResponse{Incidents: []incidents.Incident{}, Filters: filters}, nil
+}
+
+func (m *mockStore) GetIncident(ctx context.Context, id string) (*incidents.Incident, error) {
+	return nil, nil
+}
+
+func (m *mockStore) ListIncidentObservations(ctx context.Context, incidentID string, limit int) ([]incidents.Observation, error) {
+	return []incidents.Observation{}, nil
+}
+
+func (m *mockStore) UpdateIncidentStatus(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error) {
+	return &incidents.Incident{ID: incidentID, Status: status}, nil
 }
 
 // Action log mock methods [REQ:HEAL-ACTION-001].
@@ -167,7 +207,9 @@ func setupTestHandlers(store StoreInterface) *Handlers {
 		message: "Test OK",
 	})
 
-	return NewWithInterface(registry, store, caps)
+	h := NewWithInterface(registry, store, caps)
+	h.hostCollector = fakeHostCollector{}
+	return h
 }
 
 // mockHealableCheck implements checks.HealableCheck for testing actions.
@@ -217,7 +259,27 @@ func setupTestHandlersWithHealable(store StoreInterface) *Handlers {
 		},
 	})
 
-	return NewWithInterface(registry, store, caps)
+	h := NewWithInterface(registry, store, caps)
+	h.hostCollector = fakeHostCollector{}
+	return h
+}
+
+type fakeHostCollector struct{}
+
+func (fakeHostCollector) Collect(ctx context.Context) (hostinventory.HostInventory, error) {
+	return hostinventory.HostInventory{
+		CollectedAt: time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		Platform:    "linux",
+		OS:          "linux",
+		Arch:        "amd64",
+		BootID:      "boot-test",
+		Kernel: hostinventory.KernelInfo{
+			Release:           "test-kernel",
+			ModuleTreePresent: true,
+		},
+		ProbeStatus: map[string]hostinventory.ProbeState{"test": hostinventory.ProbeOK},
+		Fingerprint: "test-fingerprint",
+	}, nil
 }
 
 // mockHealableCheckCritical implements a critical healable check for auto-heal testing.

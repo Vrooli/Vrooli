@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/hostinventory"
+	"vrooli-autoheal/internal/incidents"
 )
 
 // rfc3339NanoCutoff returns now-windowHours as an RFC3339Nano UTC string,
@@ -453,7 +455,7 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 	}, nil
 }
 
-func (s *Store) getIncidentsSQLite(ctx context.Context, windowHours, limit int) (*IncidentsResponse, error) {
+func (s *Store) getTransitionsSQLite(ctx context.Context, windowHours, limit int) (*TransitionsResponse, error) {
 	if windowHours <= 0 {
 		windowHours = 24
 	}
@@ -485,9 +487,9 @@ func (s *Store) getIncidentsSQLite(ctx context.Context, windowHours, limit int) 
 	}
 	defer rows.Close()
 
-	var incidents []Incident
+	var transitions []Transition
 	for rows.Next() {
-		var i Incident
+		var i Transition
 		var createdRaw any
 		if err := rows.Scan(&i.CheckID, &createdRaw, &i.FromStatus, &i.ToStatus, &i.Message); err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
@@ -498,17 +500,442 @@ func (s *Store) getIncidentsSQLite(ctx context.Context, windowHours, limit int) 
 			return nil, fmt.Errorf("parse timestamp failed: %w", err)
 		}
 		i.Timestamp = ts.UTC().Format(time.RFC3339)
-		incidents = append(incidents, i)
+		transitions = append(transitions, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows error: %w", err)
 	}
 
-	return &IncidentsResponse{
-		Incidents:   incidents,
+	return &TransitionsResponse{
+		Transitions: transitions,
 		WindowHours: windowHours,
-		Total:       len(incidents),
+		Total:       len(transitions),
 	}, nil
+}
+
+func (s *Store) saveHostInventorySnapshotSQLite(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error) {
+	if inv.CollectedAt.IsZero() {
+		inv.CollectedAt = time.Now().UTC()
+	}
+	if inv.Fingerprint == "" {
+		inv.Fingerprint = hostinventory.Fingerprint(inv)
+	}
+	id := fmt.Sprintf("hostinv_%s_%d", inv.Fingerprint, time.Now().UTC().UnixNano())
+	inv.ID = id
+	inventoryJSON, err := json.Marshal(inv)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal host inventory: %w", err)
+	}
+	previous, _ := s.getLatestHostInventorySnapshotSQLite(ctx)
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO host_inventory_snapshots (id, collected_at, platform, os, arch, boot_id, kernel_release, fingerprint, inventory_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, id, inv.CollectedAt.UTC().Format(time.RFC3339Nano), inv.Platform, inv.OS, inv.Arch, inv.BootID, inv.Kernel.Release, inv.Fingerprint, inventoryJSON)
+	if err != nil {
+		return nil, nil, fmt.Errorf("insert host inventory snapshot: %w", err)
+	}
+	record := &hostinventory.SnapshotRecord{
+		ID:            id,
+		CollectedAt:   inv.CollectedAt.UTC(),
+		Platform:      inv.Platform,
+		OS:            inv.OS,
+		Arch:          inv.Arch,
+		BootID:        inv.BootID,
+		KernelRelease: inv.Kernel.Release,
+		Fingerprint:   inv.Fingerprint,
+		Inventory:     inv,
+	}
+	changes := deriveHostInventoryChanges(previous, record)
+	for _, change := range changes {
+		detailsJSON, _ := json.Marshal(change.Details)
+		_, err := s.db.ExecContext(ctx, `
+			INSERT INTO host_inventory_changes (from_snapshot_id, to_snapshot_id, change_type, severity, summary, details_json, created_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		`, nullableString(change.FromSnapshotID), nullableString(change.ToSnapshotID), change.ChangeType, change.Severity, change.Summary, detailsJSON, change.CreatedAt.UTC().Format(time.RFC3339Nano))
+		if err != nil {
+			return record, changes, fmt.Errorf("insert host inventory change: %w", err)
+		}
+	}
+	return record, changes, nil
+}
+
+func (s *Store) getLatestHostInventorySnapshotSQLite(ctx context.Context) (*hostinventory.SnapshotRecord, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, collected_at, platform, os, arch, COALESCE(boot_id, ''), COALESCE(kernel_release, ''), fingerprint, inventory_json
+		FROM host_inventory_snapshots
+		ORDER BY collected_at DESC
+		LIMIT 1
+	`)
+	return scanHostInventorySnapshot(row)
+}
+
+func (s *Store) getRecentHostInventoryChangesSQLite(ctx context.Context, limit int) ([]hostinventory.Change, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, COALESCE(from_snapshot_id, ''), COALESCE(to_snapshot_id, ''), change_type, severity, summary, details_json, created_at
+		FROM host_inventory_changes
+		ORDER BY created_at DESC
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query host inventory changes: %w", err)
+	}
+	defer rows.Close()
+	var changes []hostinventory.Change
+	for rows.Next() {
+		var change hostinventory.Change
+		var detailsJSON []byte
+		var createdRaw any
+		if err := rows.Scan(&change.ID, &change.FromSnapshotID, &change.ToSnapshotID, &change.ChangeType, &change.Severity, &change.Summary, &detailsJSON, &createdRaw); err != nil {
+			return nil, fmt.Errorf("scan host inventory change: %w", err)
+		}
+		change.CreatedAt, err = parseDBTime(createdRaw)
+		if err != nil {
+			return nil, fmt.Errorf("parse host inventory change time: %w", err)
+		}
+		if len(detailsJSON) > 0 {
+			_ = json.Unmarshal(detailsJSON, &change.Details)
+		}
+		changes = append(changes, change)
+	}
+	return changes, rows.Err()
+}
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanHostInventorySnapshot(row rowScanner) (*hostinventory.SnapshotRecord, error) {
+	var record hostinventory.SnapshotRecord
+	var collectedRaw any
+	var inventoryJSON []byte
+	if err := row.Scan(&record.ID, &collectedRaw, &record.Platform, &record.OS, &record.Arch, &record.BootID, &record.KernelRelease, &record.Fingerprint, &inventoryJSON); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan host inventory snapshot: %w", err)
+	}
+	collectedAt, err := parseDBTime(collectedRaw)
+	if err != nil {
+		return nil, fmt.Errorf("parse host inventory snapshot time: %w", err)
+	}
+	record.CollectedAt = collectedAt.UTC()
+	if err := json.Unmarshal(inventoryJSON, &record.Inventory); err != nil {
+		return nil, fmt.Errorf("unmarshal host inventory snapshot: %w", err)
+	}
+	return &record, nil
+}
+
+func deriveHostInventoryChanges(previous, current *hostinventory.SnapshotRecord) []hostinventory.Change {
+	if current == nil || previous == nil || previous.Fingerprint == current.Fingerprint {
+		return nil
+	}
+	now := current.CollectedAt
+	changes := []hostinventory.Change{{
+		FromSnapshotID: previous.ID,
+		ToSnapshotID:   current.ID,
+		ChangeType:     "inventory_fingerprint_changed",
+		Severity:       "info",
+		Summary:        "Host inventory fingerprint changed",
+		Details:        map[string]any{"fromFingerprint": previous.Fingerprint, "toFingerprint": current.Fingerprint},
+		CreatedAt:      now,
+	}}
+	if previous.KernelRelease != current.KernelRelease {
+		changes = append(changes, hostinventory.Change{
+			FromSnapshotID: previous.ID,
+			ToSnapshotID:   current.ID,
+			ChangeType:     "kernel_release_changed",
+			Severity:       "warning",
+			Summary:        "Running kernel release changed",
+			Details:        map[string]any{"from": previous.KernelRelease, "to": current.KernelRelease},
+			CreatedAt:      now,
+		})
+	}
+	return changes
+}
+
+func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.UpsertInput) (*incidents.Incident, error) {
+	if input.ObservedAt.IsZero() {
+		input.ObservedAt = time.Now().UTC()
+	}
+	if input.Fingerprint == "" {
+		input.Fingerprint = incidents.Fingerprint(string(input.Type), input.SourceCheckID, input.Title)
+	}
+	id := "inc_" + strings.TrimPrefix(input.Fingerprint, "incfp_")
+	sourceCheckIDs, _ := json.Marshal(nonEmptyUnique([]string{input.SourceCheckID}))
+	sourceResultIDs, _ := json.Marshal([]string{})
+	evidenceJSON, _ := json.Marshal(input.Evidence)
+	recommendationsJSON, _ := json.Marshal(input.Recommendations)
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO incidents (
+			id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
+			boot_id, previous_boot_id, source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, occurrence_count
+		) VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+		ON CONFLICT(fingerprint) DO UPDATE SET
+			severity = CASE
+				WHEN incidents.severity = 'critical' OR excluded.severity = 'critical' THEN 'critical'
+				WHEN incidents.severity = 'warning' OR excluded.severity = 'warning' THEN 'warning'
+				ELSE excluded.severity
+			END,
+			status = CASE WHEN incidents.status IN ('resolved', 'ignored') THEN 'open' ELSE incidents.status END,
+			title = excluded.title,
+			summary = excluded.summary,
+			last_seen_at = excluded.last_seen_at,
+			updated_at = excluded.updated_at,
+			boot_id = excluded.boot_id,
+			previous_boot_id = excluded.previous_boot_id,
+			source_check_ids_json = excluded.source_check_ids_json,
+			evidence_json = excluded.evidence_json,
+			recommendations_json = excluded.recommendations_json,
+			occurrence_count = incidents.occurrence_count + 1
+	`, id, input.Fingerprint, input.Type, input.Severity, input.Title, input.Summary,
+		input.ObservedAt.UTC().Format(time.RFC3339Nano),
+		input.ObservedAt.UTC().Format(time.RFC3339Nano),
+		input.ObservedAt.UTC().Format(time.RFC3339Nano),
+		nullableString(input.BootID),
+		nullableString(input.PreviousBootID),
+		sourceCheckIDs,
+		sourceResultIDs,
+		evidenceJSON,
+		recommendationsJSON,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("upsert incident: %w", err)
+	}
+	incident, err := s.getIncidentByFingerprintSQLite(ctx, input.Fingerprint)
+	if err != nil {
+		return nil, err
+	}
+	if incident == nil {
+		return nil, sql.ErrNoRows
+	}
+	obsEvidenceJSON, _ := json.Marshal(input.Evidence)
+	if _, err := s.db.ExecContext(ctx, `
+		INSERT INTO incident_observations (incident_id, observed_at, source_check_id, severity, status, message, evidence_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, incident.ID, input.ObservedAt.UTC().Format(time.RFC3339Nano), input.SourceCheckID, input.Severity, string(incident.Status), input.Summary, obsEvidenceJSON); err != nil {
+		return nil, fmt.Errorf("insert incident observation: %w", err)
+	}
+	return incident, nil
+}
+
+func (s *Store) listIncidentsSQLite(ctx context.Context, filters incidents.ListFilters) (*incidents.ListResponse, error) {
+	if filters.Limit <= 0 || filters.Limit > 200 {
+		filters.Limit = 50
+	}
+	where := []string{"1=1"}
+	args := []any{}
+	if filters.Status != "" {
+		where = append(where, "status = ?")
+		args = append(args, filters.Status)
+	}
+	if filters.Severity != "" {
+		where = append(where, "severity = ?")
+		args = append(args, filters.Severity)
+	}
+	if filters.Type != "" {
+		where = append(where, "type = ?")
+		args = append(args, filters.Type)
+	}
+	if filters.Since != nil {
+		where = append(where, "updated_at >= ?")
+		args = append(args, filters.Since.UTC().Format(time.RFC3339Nano))
+	}
+	if filters.Until != nil {
+		where = append(where, "updated_at <= ?")
+		args = append(args, filters.Until.UTC().Format(time.RFC3339Nano))
+	}
+	args = append(args, filters.Limit)
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
+			resolved_at, acknowledged_at, ignored_at, COALESCE(boot_id, ''), COALESCE(previous_boot_id, ''),
+			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, occurrence_count, operator_notes
+		FROM incidents
+		WHERE `+strings.Join(where, " AND ")+`
+		ORDER BY updated_at DESC
+		LIMIT ?
+	`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query incidents: %w", err)
+	}
+	defer rows.Close()
+	var list []incidents.Incident
+	for rows.Next() {
+		incident, err := scanIncident(rows)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, *incident)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return &incidents.ListResponse{Incidents: list, Total: len(list), Filters: filters}, nil
+}
+
+func (s *Store) getIncidentSQLite(ctx context.Context, id string) (*incidents.Incident, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
+			resolved_at, acknowledged_at, ignored_at, COALESCE(boot_id, ''), COALESCE(previous_boot_id, ''),
+			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, occurrence_count, operator_notes
+		FROM incidents
+		WHERE id = ?
+	`, id)
+	return scanIncident(row)
+}
+
+func (s *Store) getIncidentByFingerprintSQLite(ctx context.Context, fingerprint string) (*incidents.Incident, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
+			resolved_at, acknowledged_at, ignored_at, COALESCE(boot_id, ''), COALESCE(previous_boot_id, ''),
+			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, occurrence_count, operator_notes
+		FROM incidents
+		WHERE fingerprint = ?
+	`, fingerprint)
+	return scanIncident(row)
+}
+
+func (s *Store) listIncidentObservationsSQLite(ctx context.Context, incidentID string, limit int) ([]incidents.Observation, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, incident_id, observed_at, COALESCE(source_check_id, ''), severity, COALESCE(status, ''), message, evidence_json
+		FROM incident_observations
+		WHERE incident_id = ?
+		ORDER BY observed_at DESC
+		LIMIT ?
+	`, incidentID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var observations []incidents.Observation
+	for rows.Next() {
+		var obs incidents.Observation
+		var observedRaw any
+		var evidenceJSON []byte
+		if err := rows.Scan(&obs.ID, &obs.IncidentID, &observedRaw, &obs.SourceCheckID, &obs.Severity, &obs.Status, &obs.Message, &evidenceJSON); err != nil {
+			return nil, err
+		}
+		observedAt, err := parseDBTime(observedRaw)
+		if err != nil {
+			return nil, err
+		}
+		obs.ObservedAt = observedAt.UTC()
+		_ = json.Unmarshal(evidenceJSON, &obs.Evidence)
+		observations = append(observations, obs)
+	}
+	return observations, rows.Err()
+}
+
+func (s *Store) updateIncidentStatusSQLite(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error) {
+	current, err := s.getIncidentSQLite(ctx, incidentID)
+	if err != nil {
+		return nil, err
+	}
+	if current == nil {
+		return nil, sql.ErrNoRows
+	}
+	now := time.Now().UTC()
+	var acknowledgedAt any
+	var resolvedAt any
+	var ignoredAt any
+	if status == incidents.StatusAcknowledged {
+		acknowledgedAt = now.Format(time.RFC3339Nano)
+	}
+	if status == incidents.StatusResolved {
+		resolvedAt = now.Format(time.RFC3339Nano)
+	}
+	if status == incidents.StatusIgnored {
+		ignoredAt = now.Format(time.RFC3339Nano)
+	}
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE incidents
+		SET status = ?, updated_at = ?, acknowledged_at = COALESCE(?, acknowledged_at),
+			resolved_at = COALESCE(?, resolved_at), ignored_at = COALESCE(?, ignored_at),
+			operator_notes = CASE WHEN ? = '' THEN operator_notes ELSE trim(operator_notes || char(10) || ?) END
+		WHERE id = ?
+	`, status, now.Format(time.RFC3339Nano), acknowledgedAt, resolvedAt, ignoredAt, note, note, incidentID)
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO incident_status_history (incident_id, from_status, to_status, note, created_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, incidentID, current.Status, status, note, now.Format(time.RFC3339Nano))
+	if err != nil {
+		return nil, err
+	}
+	return s.getIncidentSQLite(ctx, incidentID)
+}
+
+func scanIncident(row rowScanner) (*incidents.Incident, error) {
+	var incident incidents.Incident
+	var detectedRaw, lastSeenRaw, updatedRaw any
+	var resolvedRaw, acknowledgedRaw, ignoredRaw any
+	var sourceChecksJSON, sourceResultsJSON, evidenceJSON, recommendationsJSON []byte
+	if err := row.Scan(
+		&incident.ID, &incident.Fingerprint, &incident.Type, &incident.Severity, &incident.Status,
+		&incident.Title, &incident.Summary, &detectedRaw, &lastSeenRaw, &updatedRaw,
+		&resolvedRaw, &acknowledgedRaw, &ignoredRaw, &incident.BootID, &incident.PreviousBootID,
+		&sourceChecksJSON, &sourceResultsJSON, &evidenceJSON, &recommendationsJSON, &incident.OccurrenceCount, &incident.OperatorNotes,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var err error
+	if incident.DetectedAt, err = parseDBTime(detectedRaw); err != nil {
+		return nil, err
+	}
+	if incident.LastSeenAt, err = parseDBTime(lastSeenRaw); err != nil {
+		return nil, err
+	}
+	if incident.UpdatedAt, err = parseDBTime(updatedRaw); err != nil {
+		return nil, err
+	}
+	incident.ResolvedAt = parseOptionalTimePtr(resolvedRaw)
+	incident.AcknowledgedAt = parseOptionalTimePtr(acknowledgedRaw)
+	incident.IgnoredAt = parseOptionalTimePtr(ignoredRaw)
+	_ = json.Unmarshal(sourceChecksJSON, &incident.SourceCheckIDs)
+	_ = json.Unmarshal(sourceResultsJSON, &incident.SourceResultIDs)
+	_ = json.Unmarshal(evidenceJSON, &incident.Evidence)
+	_ = json.Unmarshal(recommendationsJSON, &incident.Recommendations)
+	return &incident, nil
+}
+
+func parseOptionalTimePtr(raw any) *time.Time {
+	ts, ok := parseNullableDBTime(raw)
+	if !ok {
+		return nil
+	}
+	ts = ts.UTC()
+	return &ts
+}
+
+func nullableString(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+func nonEmptyUnique(values []string) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
 }
 
 func (s *Store) saveActionLogSQLite(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error {
