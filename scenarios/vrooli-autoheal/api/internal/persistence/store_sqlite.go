@@ -671,25 +671,26 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO incidents (
 			id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
-			boot_id, previous_boot_id, source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, occurrence_count
-		) VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+			boot_id, previous_boot_id, source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, event_count, observation_count
+		) VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
 		ON CONFLICT(fingerprint) DO UPDATE SET
 			severity = CASE
 				WHEN incidents.severity = 'critical' OR excluded.severity = 'critical' THEN 'critical'
 				WHEN incidents.severity = 'warning' OR excluded.severity = 'warning' THEN 'warning'
 				ELSE excluded.severity
 			END,
-			status = CASE WHEN incidents.status IN ('resolved', 'ignored') THEN 'open' ELSE incidents.status END,
+			status = CASE WHEN incidents.status = 'resolved' THEN 'open' ELSE incidents.status END,
 			title = excluded.title,
 			summary = excluded.summary,
 			last_seen_at = excluded.last_seen_at,
 			updated_at = excluded.updated_at,
+			resolved_at = CASE WHEN incidents.status = 'resolved' THEN NULL ELSE incidents.resolved_at END,
 			boot_id = excluded.boot_id,
 			previous_boot_id = excluded.previous_boot_id,
 			source_check_ids_json = excluded.source_check_ids_json,
 			evidence_json = excluded.evidence_json,
 			recommendations_json = excluded.recommendations_json,
-			occurrence_count = incidents.occurrence_count + 1
+			event_count = CASE WHEN incidents.status = 'resolved' THEN incidents.event_count + 1 ELSE incidents.event_count END
 	`, id, input.Fingerprint, input.Type, input.Severity, input.Title, input.Summary,
 		input.ObservedAt.UTC().Format(time.RFC3339Nano),
 		input.ObservedAt.UTC().Format(time.RFC3339Nano),
@@ -712,13 +713,62 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 		return nil, sql.ErrNoRows
 	}
 	obsEvidenceJSON, _ := json.Marshal(input.Evidence)
-	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO incident_observations (incident_id, observed_at, source_check_id, severity, status, message, evidence_json)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, incident.ID, input.ObservedAt.UTC().Format(time.RFC3339Nano), input.SourceCheckID, input.Severity, string(incident.Status), input.Summary, obsEvidenceJSON); err != nil {
-		return nil, fmt.Errorf("insert incident observation: %w", err)
+	shouldRecord, err := s.shouldRecordIncidentObservationSQLite(ctx, incident.ID, input, obsEvidenceJSON)
+	if err != nil {
+		return nil, err
+	}
+	if shouldRecord {
+		if _, err := s.db.ExecContext(ctx, `
+			INSERT INTO incident_observations (incident_id, observed_at, source_check_id, severity, status, message, evidence_json)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		`, incident.ID, input.ObservedAt.UTC().Format(time.RFC3339Nano), input.SourceCheckID, input.Severity, string(incident.Status), input.Summary, obsEvidenceJSON); err != nil {
+			return nil, fmt.Errorf("insert incident observation: %w", err)
+		}
+		if _, err := s.db.ExecContext(ctx, `
+			UPDATE incidents
+			SET observation_count = observation_count + 1
+			WHERE id = ?
+		`, incident.ID); err != nil {
+			return nil, fmt.Errorf("update incident observation count: %w", err)
+		}
+		incident, err = s.getIncidentSQLite(ctx, incident.ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return incident, nil
+}
+
+func (s *Store) shouldRecordIncidentObservationSQLite(ctx context.Context, incidentID string, input incidents.UpsertInput, evidenceJSON []byte) (bool, error) {
+	const observationQuietWindow = 30 * time.Minute
+	row := s.db.QueryRowContext(ctx, `
+		SELECT observed_at, severity, COALESCE(status, ''), message, evidence_json
+		FROM incident_observations
+		WHERE incident_id = ? AND COALESCE(source_check_id, '') = COALESCE(?, '')
+		ORDER BY observed_at DESC
+		LIMIT 1
+	`, incidentID, nullableString(input.SourceCheckID))
+	var observedRaw any
+	var severity incidents.Severity
+	var status string
+	var message string
+	var previousEvidenceJSON []byte
+	if err := row.Scan(&observedRaw, &severity, &status, &message, &previousEvidenceJSON); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return true, nil
+		}
+		return false, fmt.Errorf("query latest incident observation: %w", err)
+	}
+	observedAt, err := parseDBTime(observedRaw)
+	if err != nil {
+		return false, fmt.Errorf("parse latest incident observation time: %w", err)
+	}
+	sameEvidence := string(previousEvidenceJSON) == string(evidenceJSON)
+	sameObservation := severity == input.Severity && message == input.Summary && sameEvidence
+	if sameObservation && input.ObservedAt.Sub(observedAt) < observationQuietWindow {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (s *Store) listIncidentsSQLite(ctx context.Context, filters incidents.ListFilters) (*incidents.ListResponse, error) {
@@ -751,7 +801,7 @@ func (s *Store) listIncidentsSQLite(ctx context.Context, filters incidents.ListF
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
 			resolved_at, acknowledged_at, ignored_at, COALESCE(boot_id, ''), COALESCE(previous_boot_id, ''),
-			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, occurrence_count, operator_notes
+			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, event_count, observation_count, operator_notes
 		FROM incidents
 		WHERE `+strings.Join(where, " AND ")+`
 		ORDER BY updated_at DESC
@@ -779,7 +829,7 @@ func (s *Store) getIncidentSQLite(ctx context.Context, id string) (*incidents.In
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
 			resolved_at, acknowledged_at, ignored_at, COALESCE(boot_id, ''), COALESCE(previous_boot_id, ''),
-			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, occurrence_count, operator_notes
+			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, event_count, observation_count, operator_notes
 		FROM incidents
 		WHERE id = ?
 	`, id)
@@ -790,7 +840,7 @@ func (s *Store) getIncidentByFingerprintSQLite(ctx context.Context, fingerprint 
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
 			resolved_at, acknowledged_at, ignored_at, COALESCE(boot_id, ''), COALESCE(previous_boot_id, ''),
-			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, occurrence_count, operator_notes
+			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, event_count, observation_count, operator_notes
 		FROM incidents
 		WHERE fingerprint = ?
 	`, fingerprint)
@@ -881,7 +931,7 @@ func scanIncident(row rowScanner) (*incidents.Incident, error) {
 		&incident.ID, &incident.Fingerprint, &incident.Type, &incident.Severity, &incident.Status,
 		&incident.Title, &incident.Summary, &detectedRaw, &lastSeenRaw, &updatedRaw,
 		&resolvedRaw, &acknowledgedRaw, &ignoredRaw, &incident.BootID, &incident.PreviousBootID,
-		&sourceChecksJSON, &sourceResultsJSON, &evidenceJSON, &recommendationsJSON, &incident.OccurrenceCount, &incident.OperatorNotes,
+		&sourceChecksJSON, &sourceResultsJSON, &evidenceJSON, &recommendationsJSON, &incident.EventCount, &incident.ObservationCount, &incident.OperatorNotes,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil

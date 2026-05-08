@@ -6,7 +6,7 @@
     {
       "id": "runtime-health-scanner",
       "name": "Runtime Health Scanner",
-      "description": "Reads vrooli-autoheal history, system-monitor investigations, and lifecycle process records each heartbeat. Triages signals through a strict ladder (repeat-failure → heal-loop → slow-restart → investigation-cluster → quiet-day-shortcut) and picks one to investigate deeply. Produces durable runtime-health findings."
+      "description": "Reads durable vrooli-autoheal incidents first, then autoheal history, system-monitor investigations, and lifecycle process records each heartbeat. Triages signals through a strict ladder (repeat-failure → heal-loop → slow-restart → investigation-cluster → quiet-day-shortcut) and picks one to investigate deeply. Produces durable runtime-health findings."
     },
     {
       "id": "platform-code-auditor",

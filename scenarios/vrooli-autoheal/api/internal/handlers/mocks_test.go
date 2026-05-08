@@ -123,7 +123,7 @@ func (m *mockStore) GetRecentHostInventoryChanges(ctx context.Context, limit int
 }
 
 func (m *mockStore) UpsertIncident(ctx context.Context, input incidents.UpsertInput) (*incidents.Incident, error) {
-	return &incidents.Incident{ID: "inc_test", Fingerprint: input.Fingerprint, Type: input.Type, Severity: input.Severity, Status: incidents.StatusOpen}, nil
+	return &incidents.Incident{ID: "inc_test", Fingerprint: input.Fingerprint, Type: input.Type, Severity: input.Severity, Status: incidents.StatusOpen, EventCount: 1, ObservationCount: 1}, nil
 }
 
 func (m *mockStore) ListIncidents(ctx context.Context, filters incidents.ListFilters) (*incidents.ListResponse, error) {

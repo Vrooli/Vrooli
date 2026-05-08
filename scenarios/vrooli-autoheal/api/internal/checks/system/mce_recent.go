@@ -13,7 +13,6 @@ import (
 	"runtime"
 	"strconv"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )
@@ -57,6 +56,7 @@ func (c *MCERecentCheck) Title() string { return "Recent Machine Check Exception
 func (c *MCERecentCheck) Description() string {
 	return "Surfaces hardware errors reported via rasdaemon's MCE summary"
 }
+
 func (c *MCERecentCheck) Importance() string {
 	return "Uncorrected MCEs strongly correlate with unexplained resets and impending hardware failure"
 }

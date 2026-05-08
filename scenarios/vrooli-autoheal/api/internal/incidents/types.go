@@ -32,27 +32,28 @@ const (
 )
 
 type Incident struct {
-	ID              string         `json:"id"`
-	Fingerprint     string         `json:"fingerprint"`
-	Type            Type           `json:"type"`
-	Severity        Severity       `json:"severity"`
-	Status          Status         `json:"status"`
-	Title           string         `json:"title"`
-	Summary         string         `json:"summary"`
-	DetectedAt      time.Time      `json:"detectedAt"`
-	LastSeenAt      time.Time      `json:"lastSeenAt"`
-	UpdatedAt       time.Time      `json:"updatedAt"`
-	ResolvedAt      *time.Time     `json:"resolvedAt,omitempty"`
-	AcknowledgedAt  *time.Time     `json:"acknowledgedAt,omitempty"`
-	IgnoredAt       *time.Time     `json:"ignoredAt,omitempty"`
-	BootID          string         `json:"bootId,omitempty"`
-	PreviousBootID  string         `json:"previousBootId,omitempty"`
-	SourceCheckIDs  []string       `json:"sourceCheckIds,omitempty"`
-	SourceResultIDs []string       `json:"sourceResultIds,omitempty"`
-	Evidence        map[string]any `json:"evidence,omitempty"`
-	Recommendations []string       `json:"recommendations,omitempty"`
-	OccurrenceCount int            `json:"occurrenceCount"`
-	OperatorNotes   string         `json:"operatorNotes,omitempty"`
+	ID               string         `json:"id"`
+	Fingerprint      string         `json:"fingerprint"`
+	Type             Type           `json:"type"`
+	Severity         Severity       `json:"severity"`
+	Status           Status         `json:"status"`
+	Title            string         `json:"title"`
+	Summary          string         `json:"summary"`
+	DetectedAt       time.Time      `json:"detectedAt"`
+	LastSeenAt       time.Time      `json:"lastSeenAt"`
+	UpdatedAt        time.Time      `json:"updatedAt"`
+	ResolvedAt       *time.Time     `json:"resolvedAt,omitempty"`
+	AcknowledgedAt   *time.Time     `json:"acknowledgedAt,omitempty"`
+	IgnoredAt        *time.Time     `json:"ignoredAt,omitempty"`
+	BootID           string         `json:"bootId,omitempty"`
+	PreviousBootID   string         `json:"previousBootId,omitempty"`
+	SourceCheckIDs   []string       `json:"sourceCheckIds,omitempty"`
+	SourceResultIDs  []string       `json:"sourceResultIds,omitempty"`
+	Evidence         map[string]any `json:"evidence,omitempty"`
+	Recommendations  []string       `json:"recommendations,omitempty"`
+	EventCount       int            `json:"eventCount"`
+	ObservationCount int            `json:"observationCount"`
+	OperatorNotes    string         `json:"operatorNotes,omitempty"`
 }
 
 type Observation struct {

@@ -166,23 +166,24 @@ type TimelineResponse struct {
 }
 
 type Incident struct {
-	ID              string                 `json:"id"`
-	Fingerprint     string                 `json:"fingerprint"`
-	Type            string                 `json:"type"`
-	Severity        string                 `json:"severity"`
-	Status          string                 `json:"status"`
-	Title           string                 `json:"title"`
-	Summary         string                 `json:"summary"`
-	DetectedAt      string                 `json:"detectedAt"`
-	LastSeenAt      string                 `json:"lastSeenAt"`
-	UpdatedAt       string                 `json:"updatedAt"`
-	BootID          string                 `json:"bootId,omitempty"`
-	PreviousBootID  string                 `json:"previousBootId,omitempty"`
-	SourceCheckIDs  []string               `json:"sourceCheckIds,omitempty"`
-	Evidence        map[string]interface{} `json:"evidence,omitempty"`
-	Recommendations []string               `json:"recommendations,omitempty"`
-	OccurrenceCount int                    `json:"occurrenceCount"`
-	OperatorNotes   string                 `json:"operatorNotes,omitempty"`
+	ID               string                 `json:"id"`
+	Fingerprint      string                 `json:"fingerprint"`
+	Type             string                 `json:"type"`
+	Severity         string                 `json:"severity"`
+	Status           string                 `json:"status"`
+	Title            string                 `json:"title"`
+	Summary          string                 `json:"summary"`
+	DetectedAt       string                 `json:"detectedAt"`
+	LastSeenAt       string                 `json:"lastSeenAt"`
+	UpdatedAt        string                 `json:"updatedAt"`
+	BootID           string                 `json:"bootId,omitempty"`
+	PreviousBootID   string                 `json:"previousBootId,omitempty"`
+	SourceCheckIDs   []string               `json:"sourceCheckIds,omitempty"`
+	Evidence         map[string]interface{} `json:"evidence,omitempty"`
+	Recommendations  []string               `json:"recommendations,omitempty"`
+	EventCount       int                    `json:"eventCount"`
+	ObservationCount int                    `json:"observationCount"`
+	OperatorNotes    string                 `json:"operatorNotes,omitempty"`
 }
 
 type IncidentsResponse struct {

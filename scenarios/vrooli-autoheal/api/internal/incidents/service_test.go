@@ -77,3 +77,27 @@ func TestUpsertFromCheckResultIgnoresOKResult(t *testing.T) {
 		t.Fatal("did not expect incident for OK result")
 	}
 }
+
+func TestUpsertFromCheckResultUsesLatestUncleanBootForFingerprint(t *testing.T) {
+	store := &memoryStore{}
+	service := NewService(store)
+
+	_, created, err := service.UpsertFromCheckResult(context.Background(), checks.Result{
+		CheckID: "system-boot-history",
+		Status:  checks.StatusCritical,
+		Message: "unclean boot",
+		Details: map[string]any{
+			"latestUncleanBootId": "boot-a",
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpsertFromCheckResult() error = %v", err)
+	}
+	if !created {
+		t.Fatal("expected incident to be created")
+	}
+	want := Fingerprint(string(TypeUncleanBoot), "system-boot-history", "boot-a")
+	if store.inputs[0].Fingerprint != want {
+		t.Fatalf("fingerprint = %s, want %s", store.inputs[0].Fingerprint, want)
+	}
+}

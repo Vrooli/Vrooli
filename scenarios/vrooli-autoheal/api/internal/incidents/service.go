@@ -92,7 +92,12 @@ func classifyResult(result checks.Result) (incidentRule, bool) {
 	}
 	switch result.CheckID {
 	case "system-boot-history":
-		return incidentRule{incidentType: TypeUncleanBoot, severity: severity, title: "Unclean boot history detected", fingerprint: Fingerprint(string(TypeUncleanBoot), result.CheckID)}, true
+		return incidentRule{
+			incidentType: TypeUncleanBoot,
+			severity:     severity,
+			title:        "Unclean boot history detected",
+			fingerprint:  Fingerprint(string(TypeUncleanBoot), result.CheckID, stringDetail(result.Details, "latestUncleanBootId")),
+		}, true
 	case "system-pstore-evidence":
 		return incidentRule{incidentType: TypeUncleanBoot, severity: severity, title: "Kernel crash evidence detected", fingerprint: Fingerprint(string(TypeUncleanBoot), result.CheckID)}, true
 	case "system-mce-recent":

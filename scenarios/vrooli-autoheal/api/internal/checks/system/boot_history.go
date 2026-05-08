@@ -67,6 +67,7 @@ func (c *BootHistoryCheck) Title() string { return "Boot History" }
 func (c *BootHistoryCheck) Description() string {
 	return "Detects unclean shutdowns by inspecting journalctl boot list and shutdown markers"
 }
+
 func (c *BootHistoryCheck) Importance() string {
 	return "Repeated unclean shutdowns indicate hardware, firmware, or thermal issues — never just \"the OS rebooted\""
 }
@@ -107,6 +108,9 @@ func (c *BootHistoryCheck) Run(ctx context.Context) checks.Result {
 	// Count how many recent previous boots ended uncleanly.
 	uncleanRecent := 0
 	uncleanTotal := 0
+	uncleanBootIDs := []string{}
+	recentUncleanBootIDs := []string{}
+	var latestUnclean journal.BootRecord
 	cutoff := c.now().Add(-c.uncleanWin)
 	for _, b := range boots {
 		if b.Index >= 0 {
@@ -122,13 +126,24 @@ func (c *BootHistoryCheck) Run(ctx context.Context) checks.Result {
 		}
 		if !hasShutdownMarker(entries) {
 			uncleanTotal++
+			uncleanBootIDs = append(uncleanBootIDs, b.BootID)
+			if latestUnclean.BootID == "" || b.LastEntry.After(latestUnclean.LastEntry) {
+				latestUnclean = b
+			}
 			if !b.LastEntry.IsZero() && b.LastEntry.After(cutoff) {
 				uncleanRecent++
+				recentUncleanBootIDs = append(recentUncleanBootIDs, b.BootID)
 			}
 		}
 	}
 	r.Details["uncleanBootsTotal"] = uncleanTotal
 	r.Details["uncleanBootsRecent24h"] = uncleanRecent
+	r.Details["uncleanBootIds"] = uncleanBootIDs
+	r.Details["recentUncleanBootIds"] = recentUncleanBootIDs
+	if latestUnclean.BootID != "" {
+		r.Details["latestUncleanBootId"] = latestUnclean.BootID
+		r.Details["latestUncleanBootLastEntry"] = latestUnclean.LastEntry.UTC().Format(time.RFC3339Nano)
+	}
 
 	switch {
 	case uncleanRecent >= 2:

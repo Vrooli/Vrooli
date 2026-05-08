@@ -379,12 +379,14 @@ Get time-bucketed uptime data for charting.
 
 #### GET /api/v1/incidents
 
-Get status transition events (incidents).
+Get durable operator-facing incidents.
 
 **Query Parameters:**
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| hours | int | 24 | Time window in hours (max 168) |
+| status | string |  | Filter by `open`, `acknowledged`, `resolved`, or `ignored` |
+| severity | string |  | Filter by `info`, `warning`, or `critical` |
+| type | string |  | Filter by incident type |
 | limit | int | 50 | Maximum incidents (max 200) |
 
 **Response:**
@@ -392,18 +394,32 @@ Get status transition events (incidents).
 {
   "incidents": [
     {
-      "id": "inc-456",
-      "checkId": "infra-docker",
-      "status": "resolved",
-      "startedAt": "2024-01-15T10:25:00Z",
-      "resolvedAt": "2024-01-15T10:26:00Z",
-      "duration": 60,
-      "autoHealed": true
+      "id": "inc_3be099c9313dee0b819991a7",
+      "fingerprint": "incfp_3be099c9313dee0b819991a7",
+      "type": "host_integrity",
+      "severity": "critical",
+      "status": "open",
+      "title": "Host integrity issue detected",
+      "summary": "Runtime/device stack mismatch",
+      "detectedAt": "2026-05-08T15:45:57Z",
+      "lastSeenAt": "2026-05-08T16:03:13Z",
+      "eventCount": 1,
+      "observationCount": 2
     },
     ...
   ]
 }
 ```
+
+#### GET /api/v1/transitions
+
+Get derived health-check status transitions for timeline and trends views.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| hours | int | 24 | Time window in hours (max 168) |
+| limit | int | 50 | Maximum transitions (max 200) |
 
 ---
 

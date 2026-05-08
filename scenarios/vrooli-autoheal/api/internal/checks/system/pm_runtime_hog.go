@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"runtime"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/journal"
 	"vrooli-autoheal/internal/platform"
@@ -67,6 +66,7 @@ func (c *PMRuntimeHogCheck) Title() string { return "Runtime PM CPU Hogs" }
 func (c *PMRuntimeHogCheck) Description() string {
 	return "Counts \"pm_runtime_work hogged CPU\" kernel warnings in the last hour"
 }
+
 func (c *PMRuntimeHogCheck) Importance() string {
 	return "Bursts of pm_runtime hog warnings precede unexplained hard resets on consumer Ryzen platforms"
 }

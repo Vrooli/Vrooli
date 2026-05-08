@@ -164,6 +164,103 @@ func TestSQLiteStore_IncidentLifecycle(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_IncidentUpsertCoalescesRepeatedTickObservations(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	fp := incidents.Fingerprint("host_integrity", "host-runtime-integrity", "boot-a")
+	firstSeen := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
+	input := incidents.UpsertInput{
+		Fingerprint:   fp,
+		Type:          incidents.TypeHostIntegrity,
+		Severity:      incidents.SeverityCritical,
+		Title:         "Host integrity issue detected",
+		Summary:       "Runtime failed",
+		ObservedAt:    firstSeen,
+		SourceCheckID: "host-runtime-integrity",
+		Evidence:      map[string]any{"runtime": "nvidia-smi"},
+	}
+
+	incident, err := store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("first UpsertIncident() error = %v", err)
+	}
+	if incident.EventCount != 1 || incident.ObservationCount != 1 {
+		t.Fatalf("counts after first upsert = events %d observations %d, want 1/1", incident.EventCount, incident.ObservationCount)
+	}
+
+	input.ObservedAt = firstSeen.Add(5 * time.Minute)
+	incident, err = store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("second UpsertIncident() error = %v", err)
+	}
+	if incident.EventCount != 1 || incident.ObservationCount != 1 {
+		t.Fatalf("counts after coalesced upsert = events %d observations %d, want 1/1", incident.EventCount, incident.ObservationCount)
+	}
+
+	input.ObservedAt = firstSeen.Add(31 * time.Minute)
+	incident, err = store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("quiet-window UpsertIncident() error = %v", err)
+	}
+	if incident.EventCount != 1 || incident.ObservationCount != 2 {
+		t.Fatalf("counts after quiet-window upsert = events %d observations %d, want 1/2", incident.EventCount, incident.ObservationCount)
+	}
+
+	observations, err := store.ListIncidentObservations(ctx, incident.ID, 10)
+	if err != nil {
+		t.Fatalf("ListIncidentObservations() error = %v", err)
+	}
+	if len(observations) != 2 {
+		t.Fatalf("observation rows = %d, want 2", len(observations))
+	}
+}
+
+func TestSQLiteStore_IncidentReopenRules(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	input := incidents.UpsertInput{
+		Fingerprint:   incidents.Fingerprint("host_integrity", "host-runtime-integrity", "boot-a"),
+		Type:          incidents.TypeHostIntegrity,
+		Severity:      incidents.SeverityCritical,
+		Title:         "Host integrity issue detected",
+		Summary:       "Runtime failed",
+		ObservedAt:    time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		SourceCheckID: "host-runtime-integrity",
+	}
+
+	incident, err := store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("UpsertIncident() error = %v", err)
+	}
+	_, err = store.UpdateIncidentStatus(ctx, incident.ID, incidents.StatusResolved, "fixed")
+	if err != nil {
+		t.Fatalf("UpdateIncidentStatus(resolved) error = %v", err)
+	}
+	input.ObservedAt = input.ObservedAt.Add(time.Hour)
+	incident, err = store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("UpsertIncident(after resolved) error = %v", err)
+	}
+	if incident.Status != incidents.StatusOpen || incident.EventCount != 2 {
+		t.Fatalf("after resolved recurrence status/events = %s/%d, want open/2", incident.Status, incident.EventCount)
+	}
+
+	_, err = store.UpdateIncidentStatus(ctx, incident.ID, incidents.StatusIgnored, "intentional")
+	if err != nil {
+		t.Fatalf("UpdateIncidentStatus(ignored) error = %v", err)
+	}
+	input.ObservedAt = input.ObservedAt.Add(time.Hour)
+	incident, err = store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("UpsertIncident(after ignored) error = %v", err)
+	}
+	if incident.Status != incidents.StatusIgnored || incident.EventCount != 2 {
+		t.Fatalf("after ignored recurrence status/events = %s/%d, want ignored/2", incident.Status, incident.EventCount)
+	}
+}
+
 func TestSQLiteStore_HealTrackerRoundTrip_WithTextTimestamps(t *testing.T) {
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)

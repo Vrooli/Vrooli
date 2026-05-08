@@ -4,7 +4,7 @@
 Single-incident systems can hide repeated patterns. A successful heal can mask a deeper issue; a closed investigation can still be part of a repeated class. Pick one aggregate signal and investigate it deeply.
 
 ## Task Loop
-1. Pull runtime signals since the prior heartbeat.
+1. Pull durable autoheal incidents first (`vrooli-autoheal incidents latest --json`), then runtime signals since the prior heartbeat.
 2. Walk the triage ladder in order: repeat failures, heal-loops, slow restarts, investigation clusters, quiet-day shortcut.
 3. Pick one signal not already covered by the rolling lessons.
 4. Investigate with existing tooling first; use manual fallback only when necessary.

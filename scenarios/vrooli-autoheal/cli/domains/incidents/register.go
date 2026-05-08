@@ -99,7 +99,7 @@ func show(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
 		Status: []string{
 			fmt.Sprintf("%s %s (%s/%s)", incident.ID, incident.Title, incident.Type, incident.Severity),
-			fmt.Sprintf("Status: %s | occurrences: %d", incident.Status, incident.OccurrenceCount),
+			fmt.Sprintf("Status: %s | events: %d | observations: %d", incident.Status, incident.EventCount, incident.ObservationCount),
 			incident.Summary,
 		},
 		Triage: []cliapp.TriageGroup{
@@ -145,7 +145,7 @@ func mutate(core *cliapp.ScenarioApp, action string, args []string) error {
 func incidentLines(incidents []support.Incident) []string {
 	lines := make([]string, 0, len(incidents))
 	for _, incident := range incidents {
-		lines = append(lines, fmt.Sprintf("%s %s %s/%s count=%d: %s", incident.ID, incident.Status, incident.Type, incident.Severity, incident.OccurrenceCount, incident.Summary))
+		lines = append(lines, fmt.Sprintf("%s %s %s/%s events=%d observations=%d: %s", incident.ID, incident.Status, incident.Type, incident.Severity, incident.EventCount, incident.ObservationCount, incident.Summary))
 	}
 	if len(lines) == 0 {
 		return []string{"No incidents match the selected filters."}

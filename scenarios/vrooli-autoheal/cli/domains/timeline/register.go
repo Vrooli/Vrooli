@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-
 	"vrooli-autoheal/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -15,12 +14,12 @@ import (
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
 		Name:        "actions",
-		Description: "Inspect timeline, incidents, uptime, and action history",
+		Description: "Inspect timeline, status transitions, uptime, and action history",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
 			{Name: "history", Description: "Show recent recovery action history", Run: func(args []string) error { return actionHistory(core, args) }},
 			{Name: "timeline", Description: "Show recent timeline events", Run: func(args []string) error { return timeline(core, args) }},
-			{Name: "incidents", Description: "Show recent incidents", Run: func(args []string) error { return incidents(core, args) }},
+			{Name: "transitions", Description: "Show recent status transitions", Run: func(args []string) error { return transitions(core, args) }},
 			{Name: "uptime", Description: "Show uptime summary", Run: func(args []string) error { return uptime(core, args) }},
 			{Name: "trends", Description: "Show check trends", Run: func(args []string) error { return trends(core, args) }},
 		},
@@ -66,10 +65,10 @@ func timeline(core *cliapp.ScenarioApp, args []string) error {
 	return renderJSONOnlyGet(core, "/timeline", args)
 }
 
-func incidents(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("actions incidents")
-	hours := fs.Int("hours", 24, "Incident window in hours")
-	limit := fs.Int("limit", 50, "Maximum incidents")
+func transitions(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("actions transitions")
+	hours := fs.Int("hours", 24, "Transition window in hours")
+	limit := fs.Int("limit", 50, "Maximum transitions")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
@@ -78,7 +77,7 @@ func incidents(core *cliapp.ScenarioApp, args []string) error {
 		"hours": []string{strconv.Itoa(*hours)},
 		"limit": []string{strconv.Itoa(*limit)},
 	}
-	body, err := core.Get("/incidents", query)
+	body, err := core.Get("/transitions", query)
 	if err != nil {
 		return err
 	}

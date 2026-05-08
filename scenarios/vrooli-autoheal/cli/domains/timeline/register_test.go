@@ -4,7 +4,7 @@ import "testing"
 
 func TestRegisterProvidesTimelineSubcommands(t *testing.T) {
 	group := Register(nil)
-	want := []string{"history", "timeline", "incidents", "uptime", "trends"}
+	want := []string{"history", "timeline", "transitions", "uptime", "trends"}
 	if group.Name != "actions" {
 		t.Fatalf("Register().Name = %q, want actions", group.Name)
 	}

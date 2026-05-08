@@ -71,7 +71,8 @@ CREATE TABLE IF NOT EXISTS incidents (
     source_result_ids_json TEXT NOT NULL DEFAULT '[]',
     evidence_json TEXT NOT NULL DEFAULT '{}',
     recommendations_json TEXT NOT NULL DEFAULT '[]',
-    occurrence_count INTEGER NOT NULL DEFAULT 1,
+    event_count INTEGER NOT NULL DEFAULT 1,
+    observation_count INTEGER NOT NULL DEFAULT 0,
     operator_notes TEXT NOT NULL DEFAULT ''
 );
 

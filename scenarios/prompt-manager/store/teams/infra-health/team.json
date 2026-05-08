@@ -247,7 +247,7 @@
     },
     "members": {
       "runtime-health-scanner": {
-        "lane": "Find aggregate runtime-health patterns across autoheal, system-monitor, and lifecycle history; produce one concrete finding at a time.",
+        "lane": "Find aggregate runtime-health patterns across durable autoheal incidents, autoheal history, system-monitor, and lifecycle history; produce one concrete finding at a time.",
         "ownedDecisionContexts": [
           "runtime-health-finding",
           "instrumentation-gap",

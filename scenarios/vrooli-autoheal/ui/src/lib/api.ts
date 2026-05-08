@@ -450,7 +450,8 @@ export interface Incident {
   sourceResultIds?: string[];
   evidence?: Record<string, unknown>;
   recommendations?: string[];
-  occurrenceCount: number;
+  eventCount: number;
+  observationCount: number;
   operatorNotes?: string;
 }
 

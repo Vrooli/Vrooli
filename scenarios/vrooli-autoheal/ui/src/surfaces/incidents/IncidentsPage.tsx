@@ -96,7 +96,8 @@ export function IncidentsPage() {
                   <span>{incident.status}</span>
                   <span>{incident.type}</span>
                   <span>{formatRelativeTime(incident.lastSeenAt)}</span>
-                  <span>count {incident.occurrenceCount}</span>
+                  <span>events {incident.eventCount}</span>
+                  <span>observations {incident.observationCount}</span>
                 </div>
               </button>
             ))}
@@ -140,7 +141,8 @@ function IncidentDetail({ incident, busy, onAction }: { incident: Incident; busy
         <DetailLine label="Detected" value={formatRelativeTime(incident.detectedAt)} />
         <DetailLine label="Last Seen" value={formatRelativeTime(incident.lastSeenAt)} />
         <DetailLine label="Type" value={incident.type} />
-        <DetailLine label="Occurrences" value={String(incident.occurrenceCount)} />
+        <DetailLine label="Events" value={String(incident.eventCount)} />
+        <DetailLine label="Observations" value={String(incident.observationCount)} />
       </div>
       <div className="flex flex-wrap gap-2">
         {incident.status === "open" ? (

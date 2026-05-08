@@ -18,7 +18,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )
@@ -76,6 +75,7 @@ func (c *PstoreEvidenceCheck) Title() string { return "Crash Dump Evidence (psto
 func (c *PstoreEvidenceCheck) Description() string {
 	return "Surfaces kernel panic / oops artifacts persisted in /sys/fs/pstore"
 }
+
 func (c *PstoreEvidenceCheck) Importance() string {
 	return "Crash dumps are the only diagnostic record after an unclean reset; missing them means future hard resets will be opaque"
 }

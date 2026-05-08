@@ -10,14 +10,6 @@ import (
 	"vrooli-autoheal/internal/journal"
 )
 
-// fakeJournalExecutor lets us craft argv-keyed responses for journal.Reader.
-type fakeJournalExecutor struct {
-	avail   bool
-	boots   []journal.BootRecord
-	bootErr error
-	logs    map[string][]journal.LogEntry // keyed by boot id
-}
-
 // We cheat: instead of reimplementing journal arg parsing, we use the
 // MockExecutor and craft the JSON output journal.Reader expects.
 func newBootHistoryWithMock(avail bool, boots []journal.BootRecord, bootErr error, logsByBoot map[string]string) *BootHistoryCheck {
@@ -68,7 +60,7 @@ func encodeBootsJSON(boots []journal.BootRecord) []byte {
 	return b
 }
 
-func itoa(n int) string  { return time.Unix(int64(n), 0).Format("") + intStr(int64(n)) }
+func itoa(n int) string     { return time.Unix(int64(n), 0).Format("") + intStr(int64(n)) }
 func itoa64(n int64) string { return intStr(n) }
 func intStr(n int64) string {
 	if n == 0 {
@@ -151,6 +143,9 @@ func TestBootHistorySingleUnclean(t *testing.T) {
 	if got := r.Details["uncleanBootsRecent24h"]; got != 1 {
 		t.Errorf("uncleanBootsRecent24h = %v, want 1", got)
 	}
+	if got := r.Details["latestUncleanBootId"]; got != "previous" {
+		t.Errorf("latestUncleanBootId = %v, want previous", got)
+	}
 }
 
 func TestBootHistoryMultipleUncleanCritical(t *testing.T) {
@@ -167,6 +162,9 @@ func TestBootHistoryMultipleUncleanCritical(t *testing.T) {
 	r := c.Run(context.Background())
 	if r.Status != checks.StatusCritical {
 		t.Errorf("Status = %s, want CRITICAL for >=2 unclean in 24h", r.Status)
+	}
+	if got := r.Details["latestUncleanBootId"]; got != "previous" {
+		t.Errorf("latestUncleanBootId = %v, want previous", got)
 	}
 }
 

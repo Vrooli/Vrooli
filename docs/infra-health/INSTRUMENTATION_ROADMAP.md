@@ -92,6 +92,17 @@ Each gap lists: stats unblocked, most likely host scenario, shape proposed, down
 - **Downstream effect:** Heal success rate moves to `measured`.
 - **Priority signal:** activates with Gap 1.
 
+### Gap 8: Host update-risk forecasting
+
+- **Unblocks:** Early warning before kernel, driver, package-manager, or reboot-required updates create host capability drift.
+- **Most likely host:** Extend `vrooli-autoheal` after host inventory and durable incidents have operated long enough to prove the base signal quality.
+- **Shape required:**
+  - `vrooli-autoheal host updates --json` — safe read-only view of pending host updates, reboot-required signals, kernel/module package pairings, held/broken packages, and known compatibility advisories when available.
+  - `vrooli-autoheal host update-risk --json` — policy-oriented assessment: `safe`, `caution`, or `defer`, with evidence and recommendations.
+- **Downstream effect:** runtime-health-scanner and infra-health can flag risky host-update windows before an incident rather than only after a crash.
+- **Priority signal:** activates after at least one approved infra-health decision names a real incident that would have been easier to prevent with update-risk forecasting.
+- **Implementation note:** This is future work only. Do not implement package mutation, driver installation, kernel pinning, or automatic update decisions as part of the host-integrity/incident workflow.
+
 ## Update protocol
 
 Entries change when:
