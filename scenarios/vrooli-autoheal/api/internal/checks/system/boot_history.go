@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/journal"
 	"vrooli-autoheal/internal/platform"

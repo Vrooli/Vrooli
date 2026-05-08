@@ -154,6 +154,22 @@ Last Update: 2024-01-15 10:30:00
 
 ---
 
+### incidents
+
+Inspect durable incidents and manage operator-approved remediation artifacts.
+
+```bash
+vrooli-autoheal incidents latest [--json]
+vrooli-autoheal incidents show <incident-id> [--json]
+vrooli-autoheal incidents remediations <incident-id> [--json]
+vrooli-autoheal incidents remediation generate <incident-id> <remediation-id> [--json]
+vrooli-autoheal incidents remediation outcome <incident-id> <remediation-id> --status <status> [--note "..."] [--json]
+```
+
+Generated remediation artifacts are written under the `api-core/storage` state directory for `vrooli-autoheal`, beneath `incidents/<incident-id>/remediation/<remediation-id>/`, and are not executed by autoheal. The exact root can vary by OS, profile, and environment overrides; use the `artifactPath` printed by `generate`. They are one-off operator artifacts for the current machine and should not be checked into the scenario source tree. Use `outcome` after the operator reports what happened so the incident retains the result alongside the generated artifact reference.
+
+---
+
 ### checks
 
 List registered health checks.

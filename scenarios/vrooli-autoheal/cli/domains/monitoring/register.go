@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-
 	"vrooli-autoheal/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"

@@ -15,6 +15,7 @@ import (
 	"vrooli-autoheal/internal/incidents"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/remediation"
 	"vrooli-autoheal/internal/watchdog"
 
 	"github.com/gorilla/mux"
@@ -45,6 +46,8 @@ type StoreInterface interface {
 	GetIncident(ctx context.Context, id string) (*incidents.Incident, error)
 	ListIncidentObservations(ctx context.Context, incidentID string, limit int) ([]incidents.Observation, error)
 	UpdateIncidentStatus(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error)
+	RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error)
+	RecordIncidentRemediationOutcome(ctx context.Context, incidentID string, outcome incidents.Outcome) (*incidents.Incident, error)
 	// Action log operations [REQ:HEAL-ACTION-001]
 	SaveActionLog(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error
 	GetActionLogs(ctx context.Context, limit int) (*persistence.ActionLogsResponse, error)
@@ -53,12 +56,13 @@ type StoreInterface interface {
 
 // Handlers wraps the dependencies needed by HTTP handlers
 type Handlers struct {
-	registry         *checks.Registry
-	store            StoreInterface
-	platform         *platform.Capabilities
-	watchdogDetector *watchdog.Detector
-	hostCollector    hostinventory.Collector
-	incidentService  *incidents.Service
+	registry           *checks.Registry
+	store              StoreInterface
+	platform           *platform.Capabilities
+	watchdogDetector   *watchdog.Detector
+	hostCollector      hostinventory.Collector
+	incidentService    *incidents.Service
+	remediationService *remediation.Service
 
 	// tickLock prevents concurrent tick executions
 	tickLock    sync.Mutex
@@ -98,26 +102,30 @@ func (h *Handlers) getLastCompletedTick() *time.Time {
 // New creates a new Handlers instance
 func New(registry *checks.Registry, store *persistence.Store, plat *platform.Capabilities) *Handlers {
 	hostCollector := hostinventory.NewCachedCollector(hostinventory.NewCollector(hostinventory.CollectorOptions{Platform: plat}), 30*time.Second)
+	remediationService, _ := remediation.NewService()
 	return &Handlers{
-		registry:         registry,
-		store:            store,
-		platform:         plat,
-		watchdogDetector: watchdog.NewDetector(plat),
-		hostCollector:    hostCollector,
-		incidentService:  incidents.NewService(store),
+		registry:           registry,
+		store:              store,
+		platform:           plat,
+		watchdogDetector:   watchdog.NewDetector(plat),
+		hostCollector:      hostCollector,
+		incidentService:    incidents.NewService(store),
+		remediationService: remediationService,
 	}
 }
 
 // NewWithInterface creates a new Handlers instance with an interface-based store (for testing)
 func NewWithInterface(registry *checks.Registry, store StoreInterface, plat *platform.Capabilities) *Handlers {
 	hostCollector := hostinventory.NewCachedCollector(hostinventory.NewCollector(hostinventory.CollectorOptions{Platform: plat}), 30*time.Second)
+	remediationService, _ := remediation.NewService()
 	return &Handlers{
-		registry:         registry,
-		store:            store,
-		platform:         plat,
-		watchdogDetector: watchdog.NewDetector(plat),
-		hostCollector:    hostCollector,
-		incidentService:  incidents.NewService(store),
+		registry:           registry,
+		store:              store,
+		platform:           plat,
+		watchdogDetector:   watchdog.NewDetector(plat),
+		hostCollector:      hostCollector,
+		incidentService:    incidents.NewService(store),
+		remediationService: remediationService,
 	}
 }
 
@@ -768,6 +776,103 @@ func (h *Handlers) IncidentObservations(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]any{"observations": observations, "total": len(observations)}); err != nil {
 		apierrors.LogError("incidents", "encode_observations_response", err)
+	}
+}
+
+func (h *Handlers) IncidentRemediations(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["incidentId"]
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	incident, err := h.store.GetIncident(ctx, id)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "retrieve incident", err))
+		return
+	}
+	if incident == nil {
+		apierrors.LogAndRespond(w, apierrors.NewNotFoundError("incidents", "incident", id))
+		return
+	}
+	candidates := incident.RemediationCandidates
+	if h.remediationService != nil {
+		candidates = h.remediationService.Candidates(*incident)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]any{"incidentId": id, "remediations": candidates, "total": len(candidates)}); err != nil {
+		apierrors.LogError("incidents", "encode_remediations_response", err)
+	}
+}
+
+func (h *Handlers) GenerateIncidentRemediation(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["incidentId"]
+	remediationID := mux.Vars(r)["remediationId"]
+	if h.remediationService == nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("incidents", "remediation service unavailable", fmt.Errorf("remediation service unavailable")))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	incident, err := h.store.GetIncident(ctx, id)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "retrieve incident", err))
+		return
+	}
+	if incident == nil {
+		apierrors.LogAndRespond(w, apierrors.NewNotFoundError("incidents", "incident", id))
+		return
+	}
+	resp, err := h.remediationService.Generate(*incident, remediationID)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("incidents", "generate remediation", err))
+		return
+	}
+	if _, err := h.store.RecordIncidentRemediationArtifact(ctx, id, resp.Artifact); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "record remediation artifact", err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		apierrors.LogError("incidents", "encode_remediation_generation_response", err)
+	}
+}
+
+func (h *Handlers) RecordIncidentRemediationOutcome(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["incidentId"]
+	remediationID := mux.Vars(r)["remediationId"]
+	var req remediation.OutcomeRequest
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			apierrors.LogAndRespond(w, apierrors.NewValidationError("incidents", "decode remediation outcome", err))
+			return
+		}
+	}
+	if h.remediationService == nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("incidents", "remediation service unavailable", fmt.Errorf("remediation service unavailable")))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	incident, err := h.store.GetIncident(ctx, id)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "retrieve incident", err))
+		return
+	}
+	if incident == nil {
+		apierrors.LogAndRespond(w, apierrors.NewNotFoundError("incidents", "incident", id))
+		return
+	}
+	outcome, err := h.remediationService.Outcome(*incident, remediationID, req)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("incidents", "record remediation outcome", err))
+		return
+	}
+	updated, err := h.store.RecordIncidentRemediationOutcome(ctx, id, outcome)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("incidents", "record remediation outcome", err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(updated); err != nil {
+		apierrors.LogError("incidents", "encode_remediation_outcome_response", err)
 	}
 }
 

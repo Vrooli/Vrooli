@@ -166,24 +166,68 @@ type TimelineResponse struct {
 }
 
 type Incident struct {
-	ID               string                 `json:"id"`
-	Fingerprint      string                 `json:"fingerprint"`
-	Type             string                 `json:"type"`
-	Severity         string                 `json:"severity"`
-	Status           string                 `json:"status"`
-	Title            string                 `json:"title"`
-	Summary          string                 `json:"summary"`
-	DetectedAt       string                 `json:"detectedAt"`
-	LastSeenAt       string                 `json:"lastSeenAt"`
-	UpdatedAt        string                 `json:"updatedAt"`
-	BootID           string                 `json:"bootId,omitempty"`
-	PreviousBootID   string                 `json:"previousBootId,omitempty"`
-	SourceCheckIDs   []string               `json:"sourceCheckIds,omitempty"`
-	Evidence         map[string]interface{} `json:"evidence,omitempty"`
-	Recommendations  []string               `json:"recommendations,omitempty"`
-	EventCount       int                    `json:"eventCount"`
-	ObservationCount int                    `json:"observationCount"`
-	OperatorNotes    string                 `json:"operatorNotes,omitempty"`
+	ID                    string                   `json:"id"`
+	Fingerprint           string                   `json:"fingerprint"`
+	Type                  string                   `json:"type"`
+	Severity              string                   `json:"severity"`
+	Status                string                   `json:"status"`
+	Title                 string                   `json:"title"`
+	Summary               string                   `json:"summary"`
+	DetectedAt            string                   `json:"detectedAt"`
+	LastSeenAt            string                   `json:"lastSeenAt"`
+	UpdatedAt             string                   `json:"updatedAt"`
+	BootID                string                   `json:"bootId,omitempty"`
+	PreviousBootID        string                   `json:"previousBootId,omitempty"`
+	SourceCheckIDs        []string                 `json:"sourceCheckIds,omitempty"`
+	Evidence              map[string]interface{}   `json:"evidence,omitempty"`
+	Recommendations       []string                 `json:"recommendations,omitempty"`
+	Diagnosis             string                   `json:"diagnosis,omitempty"`
+	Confidence            string                   `json:"confidence,omitempty"`
+	EvidenceItems         []map[string]interface{} `json:"evidenceItems,omitempty"`
+	RemediationCandidates []RemediationCandidate   `json:"remediationCandidates,omitempty"`
+	RemediationArtifacts  []map[string]interface{} `json:"remediationArtifacts,omitempty"`
+	Outcome               *RemediationOutcome      `json:"outcome,omitempty"`
+	EventCount            int                      `json:"eventCount"`
+	ObservationCount      int                      `json:"observationCount"`
+	OperatorNotes         string                   `json:"operatorNotes,omitempty"`
+}
+
+type RemediationCandidate struct {
+	ID                 string   `json:"id"`
+	Title              string   `json:"title"`
+	Applicability      string   `json:"applicability"`
+	Platforms          []string `json:"platforms,omitempty"`
+	RequiresOperator   bool     `json:"requiresOperator"`
+	RequiresPrivilege  bool     `json:"requiresPrivilege"`
+	RiskLevel          string   `json:"riskLevel,omitempty"`
+	TemplateID         string   `json:"templateId,omitempty"`
+	PreflightChecks    []string `json:"preflightChecks,omitempty"`
+	Simulation         string   `json:"simulation,omitempty"`
+	ArtifactPolicy     string   `json:"artifactPolicy,omitempty"`
+	RollbackOrFallback []string `json:"rollbackOrFallback,omitempty"`
+	PostChecks         []string `json:"postChecks,omitempty"`
+	DecisionPrompt     string   `json:"decisionPrompt,omitempty"`
+}
+
+type RemediationsResponse struct {
+	IncidentID   string                 `json:"incidentId"`
+	Remediations []RemediationCandidate `json:"remediations"`
+	Total        int                    `json:"total"`
+}
+
+type RemediationGenerateResponse struct {
+	IncidentID string                 `json:"incidentId"`
+	Candidate  RemediationCandidate   `json:"candidate"`
+	Artifact   map[string]interface{} `json:"artifact"`
+	Files      map[string]string      `json:"files"`
+	PostChecks []string               `json:"postChecks"`
+}
+
+type RemediationOutcome struct {
+	RemediationID string `json:"remediationId,omitempty"`
+	Status        string `json:"status"`
+	Note          string `json:"note,omitempty"`
+	ReportedAt    string `json:"reportedAt"`
 }
 
 type IncidentsResponse struct {

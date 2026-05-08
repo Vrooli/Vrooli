@@ -7,7 +7,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )
@@ -24,6 +23,14 @@ func displayTestCaps() *platform.Capabilities {
 		SupportsSystemd:  true,
 		IsHeadlessServer: false,
 	}
+}
+
+func newDisplayManagerCheckForTest(mockExec *checks.MockExecutor) *DisplayManagerCheck {
+	return NewDisplayManagerCheck(
+		displayTestCaps(),
+		WithDisplayExecutor(mockExec),
+		WithDisplayAutoLoginUserProvider(func() string { return "" }),
+	)
 }
 
 // TestDisplayManagerCheckInterface verifies DisplayManagerCheck implements Check and HealableCheck
@@ -105,7 +112,7 @@ func TestDisplayManagerCheckRunNoDisplayManager(t *testing.T) {
 		setMockResponse(mockExec, "systemctl is-enabled "+dm, []byte("disabled\n"), errors.New("not enabled"))
 	}
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
 
 	if result.Status != checks.StatusOK {
@@ -139,7 +146,7 @@ func TestDisplayManagerCheckRunGDMActive(t *testing.T) {
 	// Also mock for potential auto-login user on test machine
 	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
 
 	if result.Status != checks.StatusOK {
@@ -173,7 +180,7 @@ func TestDisplayManagerCheckRunDMNotActive(t *testing.T) {
 	// X11 not available
 	setMockResponse(mockExec, "printenv DISPLAY", []byte(""), errors.New("not set"))
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
 
 	if result.Status != checks.StatusCritical {
@@ -202,7 +209,7 @@ func TestDisplayManagerCheckRunWithX11(t *testing.T) {
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
 	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
 
 	if result.Status != checks.StatusOK {
@@ -241,7 +248,7 @@ func TestDisplayManagerCheckRunWithX11Unresponsive(t *testing.T) {
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
 	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
 
 	if result.Status != checks.StatusWarning {
@@ -308,7 +315,7 @@ func TestDisplayManagerCheckExecuteActionStatus(t *testing.T) {
 	// Status command
 	setMockResponse(mockExec, "systemctl status gdm", []byte("gdm.service - GNOME Display Manager\n   Active: active (running)\n"), nil)
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.ExecuteAction(context.Background(), "status")
 
 	if !result.Success {
@@ -340,7 +347,7 @@ func TestDisplayManagerCheckExecuteActionLogs(t *testing.T) {
 	// Logs command
 	setMockResponse(mockExec, "journalctl --no-pager -o short-iso -u gdm -n 100", []byte("-- Logs begin at ...\nJan 01 12:00:00 gdm[1234]: Starting...\n"), nil)
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.ExecuteAction(context.Background(), "logs")
 
 	if !result.Success {
@@ -372,7 +379,7 @@ func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
 	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.ExecuteAction(context.Background(), "restart")
 
 	if !result.Success {
@@ -398,7 +405,7 @@ func TestDisplayManagerCheckExecuteActionRestartFails(t *testing.T) {
 	// Restart command fails
 	setMockResponse(mockExec, "sudo systemctl restart gdm", []byte("Failed to restart gdm.service: Access denied\n"), errors.New("exit status 1"))
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.ExecuteAction(context.Background(), "restart")
 
 	if result.Success {
@@ -421,7 +428,7 @@ func TestDisplayManagerCheckExecuteActionUnknown(t *testing.T) {
 		}
 	}
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.ExecuteAction(context.Background(), "unknown-action")
 
 	if result.Success {
@@ -464,7 +471,7 @@ func TestDisplayManagerCheckWithLightDM(t *testing.T) {
 	// No GNOME RDP configured
 	setMockResponse(mockExec, "grdctl status", []byte(""), errors.New("not found"))
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
 
 	if result.Details["displayManager"] != "lightdm" {
@@ -493,7 +500,7 @@ func TestDisplayManagerCheckGnomeRDPConfiguredNoSession(t *testing.T) {
 	// Port 3389 is NOT listening
 	setMockResponse(mockExec, "ss -tln", []byte("State    Recv-Q   Send-Q     Local Address:Port      Peer Address:Port  Process\nLISTEN   0        128              0.0.0.0:22             0.0.0.0:*\n"), nil)
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
 
 	// Should be critical because RDP is configured but no session is available
@@ -530,7 +537,7 @@ func TestDisplayManagerCheckGnomeRDPHealthy(t *testing.T) {
 	// Port 3389 IS listening
 	setMockResponse(mockExec, "ss -tln", []byte("State    Recv-Q   Send-Q     Local Address:Port      Peer Address:Port  Process\nLISTEN   0        128              0.0.0.0:3389           0.0.0.0:*\n"), nil)
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
 
 	// Should be OK with RDP available message
@@ -573,7 +580,7 @@ func TestDisplayManagerCheckRDPPortNotListening(t *testing.T) {
 	// But port 3389 is NOT listening (yet)
 	setMockResponse(mockExec, "ss -tln", []byte("State    Recv-Q   Send-Q     Local Address:Port      Peer Address:Port  Process\nLISTEN   0        128              0.0.0.0:22             0.0.0.0:*\n"), nil)
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
 
 	// Should be warning because gnome-shell is running but port not listening
@@ -600,7 +607,7 @@ func TestDisplayManagerCheckDiagnoseAction(t *testing.T) {
 	setMockResponse(mockExec, "grdctl status", []byte("RDP:\n\tStatus: enabled\n"), nil)
 	setMockResponse(mockExec, "ss -tln", []byte("LISTEN 0 128 0.0.0.0:3389 0.0.0.0:*\n"), nil)
 
-	check := NewDisplayManagerCheck(displayTestCaps(), WithDisplayExecutor(mockExec))
+	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.ExecuteAction(context.Background(), "diagnose")
 
 	if !result.Success {

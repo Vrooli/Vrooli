@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
 	"vrooli-autoheal/internal/bootstrap"
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/persistence"
@@ -156,6 +155,9 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers, db *sq
 	router.HandleFunc("/api/v1/incidents/latest", h.LatestIncidents).Methods("GET")
 	router.HandleFunc("/api/v1/incidents/{incidentId}", h.IncidentDetail).Methods("GET")
 	router.HandleFunc("/api/v1/incidents/{incidentId}/observations", h.IncidentObservations).Methods("GET")
+	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations", h.IncidentRemediations).Methods("GET")
+	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations/{remediationId}/generate", h.GenerateIncidentRemediation).Methods("POST")
+	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations/{remediationId}/outcome", h.RecordIncidentRemediationOutcome).Methods("POST")
 	router.HandleFunc("/api/v1/incidents/{incidentId}/{action:acknowledge|resolve|ignore}", h.MutateIncidentStatus).Methods("POST")
 	router.HandleFunc("/api/v1/transitions", h.Transitions).Methods("GET")
 

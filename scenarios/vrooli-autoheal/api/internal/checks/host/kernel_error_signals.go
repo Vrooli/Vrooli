@@ -21,12 +21,16 @@ func runKernelErrorSignals(inv hostinventory.HostInventory) checks.Result {
 	critical := 0
 	warning := 0
 	for _, signal := range inv.Signals {
+		kind := "kernel_signal"
+		if signal.Category == "data_fabric_sync_flood" {
+			kind = "data_fabric_sync_flood"
+		}
 		if signal.Severity == "critical" {
 			critical++
 		} else {
 			warning++
 		}
-		evidence = append(evidence, map[string]any{"kind": "kernel_signal", "signal": signal})
+		evidence = append(evidence, map[string]any{"kind": kind, "severity": signal.Severity, "signal": signal})
 	}
 	if len(evidence) == 0 {
 		return okResult("No recent high-signal kernel errors detected", inv)

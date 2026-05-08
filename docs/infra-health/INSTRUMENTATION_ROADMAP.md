@@ -103,6 +103,19 @@ Each gap lists: stats unblocked, most likely host scenario, shape proposed, down
 - **Priority signal:** activates after at least one approved infra-health decision names a real incident that would have been easier to prevent with update-risk forecasting.
 - **Implementation note:** This is future work only. Do not implement package mutation, driver installation, kernel pinning, or automatic update decisions as part of the host-integrity/incident workflow.
 
+### Gap 9: Remediation artifact provenance and outcome reporting
+
+- **Status:** Partially shipped on 2026-05-08 via the autoheal incident remediation workflow.
+- **Unblocks:** Operator-approved recovery for serious incidents without requiring infra-health agents to invent privileged shell commands from raw logs.
+- **Most likely host:** `vrooli-autoheal` durable incidents and remediation API/CLI.
+- **Shape shipped:**
+  - `vrooli-autoheal incidents remediations <incident-id> --json` — list structured remediation candidates with applicability, risk, preflight, simulation, fallback, post-checks, and decision prompt.
+  - `vrooli-autoheal incidents remediation generate <incident-id> <remediation-id> --json` — generate a user-state artifact only when the candidate is applicable.
+  - `vrooli-autoheal incidents remediation outcome <incident-id> <remediation-id> --status <status> --note ...` — record operator-reported outcome.
+- **Artifact location rule:** Generated one-off scripts are incident artifacts under the `api-core/storage` state class for `vrooli-autoheal`, beneath `incidents/<incident-id>/remediation/<remediation-id>/`. The exact root is profile- and environment-dependent; agents should use the path returned by autoheal. Artifacts are host-specific and must not be checked into git. Reusable remediation templates, if extracted from generator code later, may live in scenario source only as machine-agnostic tested templates.
+- **Downstream effect:** runtime-health-scanner can generate a visible operator decision from incident evidence instead of scraping logs or package-manager output.
+- **Remaining gap:** Outcome quality is operator-reported today. Future work can correlate reported outcomes with post-check evidence and incident resolution automatically.
+
 ## Update protocol
 
 Entries change when:

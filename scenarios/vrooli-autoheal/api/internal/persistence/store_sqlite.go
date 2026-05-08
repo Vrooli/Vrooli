@@ -668,11 +668,27 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 	sourceResultIDs, _ := json.Marshal([]string{})
 	evidenceJSON, _ := json.Marshal(input.Evidence)
 	recommendationsJSON, _ := json.Marshal(input.Recommendations)
+	evidenceItemsJSON, _ := json.Marshal(input.EvidenceItems)
+	corroborationNeededJSON, _ := json.Marshal(input.CorroborationNeeded)
+	safeActionsJSON, _ := json.Marshal(input.SafeActions)
+	operatorActionsJSON, _ := json.Marshal(input.OperatorActions)
+	rollbackOrFallbackJSON, _ := json.Marshal(input.RollbackOrFallback)
+	postChecksJSON, _ := json.Marshal(input.PostChecks)
+	remediationCandidatesJSON, _ := json.Marshal(input.RemediationCandidates)
+	remediationArtifactsJSON, _ := json.Marshal(input.RemediationArtifacts)
+	outcomeJSON, _ := json.Marshal(input.Outcome)
+	var outcomeValue any
+	if input.Outcome != nil {
+		outcomeValue = outcomeJSON
+	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO incidents (
 			id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
-			boot_id, previous_boot_id, source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, event_count, observation_count
-		) VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+			boot_id, previous_boot_id, source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json,
+			diagnosis, confidence, evidence_items_json, corroboration_needed_json, safe_actions_json, operator_actions_json,
+			rollback_or_fallback_json, post_checks_json, remediation_candidates_json, remediation_artifacts_json, outcome_json,
+			event_count, observation_count
+		) VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
 		ON CONFLICT(fingerprint) DO UPDATE SET
 			severity = CASE
 				WHEN incidents.severity = 'critical' OR excluded.severity = 'critical' THEN 'critical'
@@ -690,6 +706,20 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 			source_check_ids_json = excluded.source_check_ids_json,
 			evidence_json = excluded.evidence_json,
 			recommendations_json = excluded.recommendations_json,
+			diagnosis = excluded.diagnosis,
+			confidence = excluded.confidence,
+			evidence_items_json = excluded.evidence_items_json,
+			corroboration_needed_json = excluded.corroboration_needed_json,
+			safe_actions_json = excluded.safe_actions_json,
+			operator_actions_json = excluded.operator_actions_json,
+			rollback_or_fallback_json = excluded.rollback_or_fallback_json,
+			post_checks_json = excluded.post_checks_json,
+			remediation_candidates_json = excluded.remediation_candidates_json,
+			remediation_artifacts_json = CASE
+				WHEN excluded.remediation_artifacts_json IS NULL OR CAST(excluded.remediation_artifacts_json AS TEXT) IN ('null', '[]') THEN incidents.remediation_artifacts_json
+				ELSE excluded.remediation_artifacts_json
+			END,
+			outcome_json = COALESCE(excluded.outcome_json, incidents.outcome_json),
 			event_count = CASE WHEN incidents.status = 'resolved' THEN incidents.event_count + 1 ELSE incidents.event_count END
 	`, id, input.Fingerprint, input.Type, input.Severity, input.Title, input.Summary,
 		input.ObservedAt.UTC().Format(time.RFC3339Nano),
@@ -701,6 +731,17 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 		sourceResultIDs,
 		evidenceJSON,
 		recommendationsJSON,
+		input.Diagnosis,
+		input.Confidence,
+		evidenceItemsJSON,
+		corroborationNeededJSON,
+		safeActionsJSON,
+		operatorActionsJSON,
+		rollbackOrFallbackJSON,
+		postChecksJSON,
+		remediationCandidatesJSON,
+		remediationArtifactsJSON,
+		outcomeValue,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("upsert incident: %w", err)
@@ -737,6 +778,35 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 		}
 	}
 	return incident, nil
+}
+
+func (s *Store) ensureIncidentContractColumns(ctx context.Context) error {
+	columns := []struct {
+		name string
+		def  string
+	}{
+		{"diagnosis", "TEXT NOT NULL DEFAULT ''"},
+		{"confidence", "TEXT NOT NULL DEFAULT ''"},
+		{"evidence_items_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"corroboration_needed_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"safe_actions_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"operator_actions_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"rollback_or_fallback_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"post_checks_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"remediation_candidates_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"remediation_artifacts_json", "TEXT NOT NULL DEFAULT '[]'"},
+		{"outcome_json", "TEXT"},
+	}
+	for _, column := range columns {
+		if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE incidents ADD COLUMN %s %s", column.name, column.def)); err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "duplicate column name") ||
+				strings.Contains(strings.ToLower(err.Error()), "no such table") {
+				continue
+			}
+			return fmt.Errorf("add incidents.%s column: %w", column.name, err)
+		}
+	}
+	return nil
 }
 
 func (s *Store) shouldRecordIncidentObservationSQLite(ctx context.Context, incidentID string, input incidents.UpsertInput, evidenceJSON []byte) (bool, error) {
@@ -801,7 +871,10 @@ func (s *Store) listIncidentsSQLite(ctx context.Context, filters incidents.ListF
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
 			resolved_at, acknowledged_at, ignored_at, COALESCE(boot_id, ''), COALESCE(previous_boot_id, ''),
-			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, event_count, observation_count, operator_notes
+			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json,
+			diagnosis, confidence, evidence_items_json, corroboration_needed_json, safe_actions_json, operator_actions_json,
+			rollback_or_fallback_json, post_checks_json, remediation_candidates_json, remediation_artifacts_json, outcome_json,
+			event_count, observation_count, operator_notes
 		FROM incidents
 		WHERE `+strings.Join(where, " AND ")+`
 		ORDER BY updated_at DESC
@@ -829,7 +902,10 @@ func (s *Store) getIncidentSQLite(ctx context.Context, id string) (*incidents.In
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
 			resolved_at, acknowledged_at, ignored_at, COALESCE(boot_id, ''), COALESCE(previous_boot_id, ''),
-			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, event_count, observation_count, operator_notes
+			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json,
+			diagnosis, confidence, evidence_items_json, corroboration_needed_json, safe_actions_json, operator_actions_json,
+			rollback_or_fallback_json, post_checks_json, remediation_candidates_json, remediation_artifacts_json, outcome_json,
+			event_count, observation_count, operator_notes
 		FROM incidents
 		WHERE id = ?
 	`, id)
@@ -840,7 +916,10 @@ func (s *Store) getIncidentByFingerprintSQLite(ctx context.Context, fingerprint 
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
 			resolved_at, acknowledged_at, ignored_at, COALESCE(boot_id, ''), COALESCE(previous_boot_id, ''),
-			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json, event_count, observation_count, operator_notes
+			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json,
+			diagnosis, confidence, evidence_items_json, corroboration_needed_json, safe_actions_json, operator_actions_json,
+			rollback_or_fallback_json, post_checks_json, remediation_candidates_json, remediation_artifacts_json, outcome_json,
+			event_count, observation_count, operator_notes
 		FROM incidents
 		WHERE fingerprint = ?
 	`, fingerprint)
@@ -922,16 +1001,83 @@ func (s *Store) updateIncidentStatusSQLite(ctx context.Context, incidentID strin
 	return s.getIncidentSQLite(ctx, incidentID)
 }
 
+func (s *Store) recordIncidentRemediationArtifactSQLite(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error) {
+	current, err := s.getIncidentSQLite(ctx, incidentID)
+	if err != nil {
+		return nil, err
+	}
+	if current == nil {
+		return nil, sql.ErrNoRows
+	}
+	artifacts := upsertRemediationArtifact(current.RemediationArtifacts, artifact)
+	payload, err := json.Marshal(artifacts)
+	if err != nil {
+		return nil, fmt.Errorf("marshal remediation artifacts: %w", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err := s.db.ExecContext(ctx, `
+		UPDATE incidents
+		SET remediation_artifacts_json = ?, updated_at = ?
+		WHERE id = ?
+	`, payload, now, incidentID); err != nil {
+		return nil, fmt.Errorf("record remediation artifact: %w", err)
+	}
+	return s.getIncidentSQLite(ctx, incidentID)
+}
+
+func (s *Store) recordIncidentRemediationOutcomeSQLite(ctx context.Context, incidentID string, outcome incidents.Outcome) (*incidents.Incident, error) {
+	current, err := s.getIncidentSQLite(ctx, incidentID)
+	if err != nil {
+		return nil, err
+	}
+	if current == nil {
+		return nil, sql.ErrNoRows
+	}
+	if outcome.ReportedAt.IsZero() {
+		outcome.ReportedAt = time.Now().UTC()
+	}
+	payload, err := json.Marshal(outcome)
+	if err != nil {
+		return nil, fmt.Errorf("marshal remediation outcome: %w", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err := s.db.ExecContext(ctx, `
+		UPDATE incidents
+		SET outcome_json = ?, updated_at = ?,
+			operator_notes = CASE WHEN ? = '' THEN operator_notes ELSE trim(operator_notes || char(10) || ?) END
+		WHERE id = ?
+	`, payload, now, outcome.Note, outcome.Note, incidentID); err != nil {
+		return nil, fmt.Errorf("record remediation outcome: %w", err)
+	}
+	return s.getIncidentSQLite(ctx, incidentID)
+}
+
+func upsertRemediationArtifact(existing []incidents.RemediationArtifact, artifact incidents.RemediationArtifact) []incidents.RemediationArtifact {
+	for i := range existing {
+		if existing[i].ID == artifact.ID || existing[i].RemediationID == artifact.RemediationID {
+			existing[i] = artifact
+			return existing
+		}
+	}
+	return append(existing, artifact)
+}
+
 func scanIncident(row rowScanner) (*incidents.Incident, error) {
 	var incident incidents.Incident
 	var detectedRaw, lastSeenRaw, updatedRaw any
 	var resolvedRaw, acknowledgedRaw, ignoredRaw any
 	var sourceChecksJSON, sourceResultsJSON, evidenceJSON, recommendationsJSON []byte
+	var evidenceItemsJSON, corroborationNeededJSON, safeActionsJSON, operatorActionsJSON []byte
+	var rollbackOrFallbackJSON, postChecksJSON, remediationCandidatesJSON, remediationArtifactsJSON []byte
+	var outcomeJSON []byte
 	if err := row.Scan(
 		&incident.ID, &incident.Fingerprint, &incident.Type, &incident.Severity, &incident.Status,
 		&incident.Title, &incident.Summary, &detectedRaw, &lastSeenRaw, &updatedRaw,
 		&resolvedRaw, &acknowledgedRaw, &ignoredRaw, &incident.BootID, &incident.PreviousBootID,
-		&sourceChecksJSON, &sourceResultsJSON, &evidenceJSON, &recommendationsJSON, &incident.EventCount, &incident.ObservationCount, &incident.OperatorNotes,
+		&sourceChecksJSON, &sourceResultsJSON, &evidenceJSON, &recommendationsJSON,
+		&incident.Diagnosis, &incident.Confidence, &evidenceItemsJSON, &corroborationNeededJSON, &safeActionsJSON, &operatorActionsJSON,
+		&rollbackOrFallbackJSON, &postChecksJSON, &remediationCandidatesJSON, &remediationArtifactsJSON, &outcomeJSON,
+		&incident.EventCount, &incident.ObservationCount, &incident.OperatorNotes,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -955,6 +1101,20 @@ func scanIncident(row rowScanner) (*incidents.Incident, error) {
 	_ = json.Unmarshal(sourceResultsJSON, &incident.SourceResultIDs)
 	_ = json.Unmarshal(evidenceJSON, &incident.Evidence)
 	_ = json.Unmarshal(recommendationsJSON, &incident.Recommendations)
+	_ = json.Unmarshal(evidenceItemsJSON, &incident.EvidenceItems)
+	_ = json.Unmarshal(corroborationNeededJSON, &incident.CorroborationNeeded)
+	_ = json.Unmarshal(safeActionsJSON, &incident.SafeActions)
+	_ = json.Unmarshal(operatorActionsJSON, &incident.OperatorActions)
+	_ = json.Unmarshal(rollbackOrFallbackJSON, &incident.RollbackOrFallback)
+	_ = json.Unmarshal(postChecksJSON, &incident.PostChecks)
+	_ = json.Unmarshal(remediationCandidatesJSON, &incident.RemediationCandidates)
+	_ = json.Unmarshal(remediationArtifactsJSON, &incident.RemediationArtifacts)
+	if len(outcomeJSON) > 0 && string(outcomeJSON) != "null" {
+		var outcome incidents.Outcome
+		if err := json.Unmarshal(outcomeJSON, &outcome); err == nil {
+			incident.Outcome = &outcome
+		}
+	}
 	return &incident, nil
 }
 

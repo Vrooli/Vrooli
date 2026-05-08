@@ -18,8 +18,9 @@ import (
 // DisplayManagerCheck monitors the display manager (GDM, LightDM, SDDM, etc.)
 // and X11/Wayland responsiveness on Linux systems.
 type DisplayManagerCheck struct {
-	caps     *platform.Capabilities
-	executor checks.CommandExecutor
+	caps                  *platform.Capabilities
+	executor              checks.CommandExecutor
+	autoLoginUserProvider func() string
 }
 
 // DisplayManagerOption configures a DisplayManagerCheck.
@@ -33,11 +34,20 @@ func WithDisplayExecutor(exec checks.CommandExecutor) DisplayManagerOption {
 	}
 }
 
+// WithDisplayAutoLoginUserProvider sets the auto-login discovery seam for tests.
+// [REQ:TEST-SEAM-001]
+func WithDisplayAutoLoginUserProvider(provider func() string) DisplayManagerOption {
+	return func(c *DisplayManagerCheck) {
+		c.autoLoginUserProvider = provider
+	}
+}
+
 // NewDisplayManagerCheck creates a display manager health check.
 func NewDisplayManagerCheck(caps *platform.Capabilities, opts ...DisplayManagerOption) *DisplayManagerCheck {
 	c := &DisplayManagerCheck{
-		caps:     caps,
-		executor: checks.DefaultExecutor,
+		caps:                  caps,
+		executor:              checks.DefaultExecutor,
+		autoLoginUserProvider: readGDMConfiguredAutoLoginUser,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -255,6 +265,13 @@ func (c *DisplayManagerCheck) Run(ctx context.Context) checks.Result {
 // getAutoLoginUser reads the GDM auto-login configuration from /etc/gdm3/custom.conf
 // Returns the configured auto-login user, or empty string if not configured
 func (c *DisplayManagerCheck) getAutoLoginUser() string {
+	if c.autoLoginUserProvider != nil {
+		return c.autoLoginUserProvider()
+	}
+	return readGDMConfiguredAutoLoginUser()
+}
+
+func readGDMConfiguredAutoLoginUser() string {
 	// Try both gdm3 (Debian/Ubuntu) and gdm (RHEL/Fedora) config paths
 	configPaths := []string{
 		"/etc/gdm3/custom.conf",

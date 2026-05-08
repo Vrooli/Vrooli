@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 )
 
@@ -226,14 +225,14 @@ func buildArgs(opts QueryOpts, jsonFormat bool) []string {
 // rawJournalEntry mirrors the journald JSON shape we care about. All fields
 // arrive as strings (journald serializes everything that way).
 type rawJournalEntry struct {
-	Realtime    string `json:"__REALTIME_TIMESTAMP"`
-	BootID      string `json:"_BOOT_ID"`
-	Hostname    string `json:"_HOSTNAME"`
-	Unit        string `json:"_SYSTEMD_UNIT"`
-	UserUnit    string `json:"_SYSTEMD_USER_UNIT"`
-	Identifier  string `json:"SYSLOG_IDENTIFIER"`
-	PID         string `json:"_PID"`
-	Priority    string `json:"PRIORITY"`
+	Realtime    string          `json:"__REALTIME_TIMESTAMP"`
+	BootID      string          `json:"_BOOT_ID"`
+	Hostname    string          `json:"_HOSTNAME"`
+	Unit        string          `json:"_SYSTEMD_UNIT"`
+	UserUnit    string          `json:"_SYSTEMD_USER_UNIT"`
+	Identifier  string          `json:"SYSLOG_IDENTIFIER"`
+	PID         string          `json:"_PID"`
+	Priority    string          `json:"PRIORITY"`
 	MessageJSON json.RawMessage `json:"MESSAGE"`
 }
 
@@ -374,12 +373,12 @@ func parseTextLine(line string) LogEntry {
 // rawBootJSON is the shape of a single entry under `journalctl --list-boots -o json`.
 // systemd >= 254 uses these names; we only depend on a small subset.
 type rawBootJSON struct {
-	Index           int    `json:"index"`
-	BootID          string `json:"boot_id"`
-	FirstEntry      int64  `json:"first_entry"`      // microseconds
-	LastEntry       int64  `json:"last_entry"`       // microseconds
-	FirstEntryStr   string `json:"first_entry_str"`  // some versions
-	LastEntryStr    string `json:"last_entry_str"`
+	Index         int    `json:"index"`
+	BootID        string `json:"boot_id"`
+	FirstEntry    int64  `json:"first_entry"`     // microseconds
+	LastEntry     int64  `json:"last_entry"`      // microseconds
+	FirstEntryStr string `json:"first_entry_str"` // some versions
+	LastEntryStr  string `json:"last_entry_str"`
 }
 
 func parseBootsJSON(out []byte) ([]BootRecord, error) {

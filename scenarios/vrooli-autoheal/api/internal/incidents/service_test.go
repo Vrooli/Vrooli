@@ -101,3 +101,78 @@ func TestUpsertFromCheckResultUsesLatestUncleanBootForFingerprint(t *testing.T) 
 		t.Fatalf("fingerprint = %s, want %s", store.inputs[0].Fingerprint, want)
 	}
 }
+
+func TestUpsertFromCheckResultAddsTypedRemediationCandidate(t *testing.T) {
+	store := &memoryStore{}
+	service := NewService(store)
+
+	_, created, err := service.UpsertFromCheckResult(context.Background(), checks.Result{
+		CheckID: "host-kernel-module-drift",
+		Status:  checks.StatusCritical,
+		Message: "missing module package",
+		Details: map[string]any{
+			"bootId": "boot-a",
+			"evidence": []map[string]any{{
+				"kind":            "missing_nvidia_module_package",
+				"expectedPackage": "linux-modules-nvidia-580-open-6.17.0-23-generic",
+				"runningKernel":   "6.17.0-23-generic",
+				"candidate":       map[string]any{"available": true},
+				"severity":        "critical",
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpsertFromCheckResult() error = %v", err)
+	}
+	if !created {
+		t.Fatal("expected incident to be created")
+	}
+	input := store.inputs[0]
+	if input.Diagnosis != "NVIDIA driver stack unavailable for the running kernel" {
+		t.Fatalf("diagnosis = %q", input.Diagnosis)
+	}
+	if len(input.EvidenceItems) != 1 || input.EvidenceItems[0].Kind != "missing_nvidia_module_package" {
+		t.Fatalf("evidence items = %#v", input.EvidenceItems)
+	}
+	if len(input.RemediationCandidates) != 1 {
+		t.Fatalf("remediation candidates = %#v, want one", input.RemediationCandidates)
+	}
+	if input.RemediationCandidates[0].ID != "ubuntu-nvidia-kernel-module-mismatch" {
+		t.Fatalf("remediation candidate id = %q", input.RemediationCandidates[0].ID)
+	}
+	if input.RemediationCandidates[0].Applicability != "applicable" {
+		t.Fatalf("remediation candidate applicability = %q", input.RemediationCandidates[0].Applicability)
+	}
+}
+
+func TestUpsertFromCheckResultBlocksNVIDIARemediationWithoutPackageCandidate(t *testing.T) {
+	store := &memoryStore{}
+	service := NewService(store)
+
+	_, created, err := service.UpsertFromCheckResult(context.Background(), checks.Result{
+		CheckID: "host-kernel-module-drift",
+		Status:  checks.StatusWarning,
+		Message: "missing module package without candidate",
+		Details: map[string]any{
+			"evidence": []map[string]any{{
+				"kind":            "missing_nvidia_module_package",
+				"expectedPackage": "linux-modules-nvidia-580-open-6.17.0-23-generic",
+				"runningKernel":   "6.17.0-23-generic",
+				"candidate":       map[string]any{"available": false},
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpsertFromCheckResult() error = %v", err)
+	}
+	if !created {
+		t.Fatal("expected incident to be created")
+	}
+	input := store.inputs[0]
+	if len(input.RemediationCandidates) != 1 {
+		t.Fatalf("remediation candidates = %#v, want one blocked candidate", input.RemediationCandidates)
+	}
+	if input.RemediationCandidates[0].Applicability != "blocked" {
+		t.Fatalf("remediation candidate applicability = %q, want blocked", input.RemediationCandidates[0].Applicability)
+	}
+}

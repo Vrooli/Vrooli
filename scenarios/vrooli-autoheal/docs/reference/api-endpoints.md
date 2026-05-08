@@ -411,6 +411,73 @@ Get durable operator-facing incidents.
 }
 ```
 
+#### GET /api/v1/incidents/{incidentId}/remediations
+
+List structured remediation candidates for one incident. Candidates are descriptive only; autoheal does not execute privileged mutations.
+
+**Response:**
+```json
+{
+  "incidentId": "inc_3be099c9313dee0b819991a7",
+  "remediations": [
+    {
+      "id": "ubuntu-nvidia-kernel-module-mismatch",
+      "title": "Install matching NVIDIA kernel module package for the running kernel",
+      "applicability": "applicable",
+      "requiresOperator": true,
+      "requiresPrivilege": true,
+      "riskLevel": "moderate",
+      "templateId": "ubuntu-nvidia-kernel-module-mismatch",
+      "simulation": "apt-get -s install <expected-package>",
+      "artifactPolicy": "generate_only_under_user_state",
+      "postChecks": ["nvidia-smi", "vrooli-autoheal incidents latest --json"]
+    }
+  ],
+  "total": 1
+}
+```
+
+`applicability` may be `applicable`, `not_applicable`, `unsupported`, `blocked`, or `needs_corroboration`. Artifact generation is refused unless the candidate is `applicable`.
+
+#### POST /api/v1/incidents/{incidentId}/remediations/{remediationId}/generate
+
+Generate an operator-reviewable remediation artifact under resolver-backed user state using `api-core/storage`. The endpoint writes files such as `remediation.sh`, `metadata.json`, `README.md`, and `post-checks.json`; it never runs the generated script.
+
+Generated artifacts are incident-specific and host-specific. They belong under the storage-resolved state directory for `vrooli-autoheal`, not under the checked-in `scenarios/vrooli-autoheal` source tree. Source code may contain reusable remediation generator/template logic, but the operator-run script produced from that logic is stored only as a state artifact. The exact root can vary by OS, profile, and `VROOLI_STATE_ROOT`; consumers should use the returned `artifact.path`.
+
+**Response:**
+```json
+{
+  "incidentId": "inc_3be099c9313dee0b819991a7",
+  "artifact": {
+    "id": "ubuntu-nvidia-kernel-module-mismatch-artifact",
+    "remediationId": "ubuntu-nvidia-kernel-module-mismatch",
+    "path": "/home/user/.local/state/vrooli/vrooli-autoheal/incidents/inc_3be099c9313dee0b819991a7/remediation/ubuntu-nvidia-kernel-module-mismatch",
+    "generatedAt": "2026-05-08T16:10:00Z"
+  },
+  "files": {
+    "remediation.sh": ".../remediation.sh",
+    "metadata.json": ".../metadata.json",
+    "README.md": ".../README.md",
+    "post-checks.json": ".../post-checks.json"
+  }
+}
+```
+
+#### POST /api/v1/incidents/{incidentId}/remediations/{remediationId}/outcome
+
+Record an operator-reported remediation outcome on the incident.
+
+**Request:**
+```json
+{
+  "status": "verified",
+  "note": "post-checks are healthy"
+}
+```
+
+Supported statuses are `generated`, `operator_ran`, `verified`, `failed`, and `abandoned`.
+
 #### GET /api/v1/transitions
 
 Get derived health-check status transitions for timeline and trends views.

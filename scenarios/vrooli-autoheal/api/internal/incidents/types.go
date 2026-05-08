@@ -32,28 +32,83 @@ const (
 )
 
 type Incident struct {
-	ID               string         `json:"id"`
-	Fingerprint      string         `json:"fingerprint"`
-	Type             Type           `json:"type"`
-	Severity         Severity       `json:"severity"`
-	Status           Status         `json:"status"`
-	Title            string         `json:"title"`
-	Summary          string         `json:"summary"`
-	DetectedAt       time.Time      `json:"detectedAt"`
-	LastSeenAt       time.Time      `json:"lastSeenAt"`
-	UpdatedAt        time.Time      `json:"updatedAt"`
-	ResolvedAt       *time.Time     `json:"resolvedAt,omitempty"`
-	AcknowledgedAt   *time.Time     `json:"acknowledgedAt,omitempty"`
-	IgnoredAt        *time.Time     `json:"ignoredAt,omitempty"`
-	BootID           string         `json:"bootId,omitempty"`
-	PreviousBootID   string         `json:"previousBootId,omitempty"`
-	SourceCheckIDs   []string       `json:"sourceCheckIds,omitempty"`
-	SourceResultIDs  []string       `json:"sourceResultIds,omitempty"`
-	Evidence         map[string]any `json:"evidence,omitempty"`
-	Recommendations  []string       `json:"recommendations,omitempty"`
-	EventCount       int            `json:"eventCount"`
-	ObservationCount int            `json:"observationCount"`
-	OperatorNotes    string         `json:"operatorNotes,omitempty"`
+	ID                    string                 `json:"id"`
+	Fingerprint           string                 `json:"fingerprint"`
+	Type                  Type                   `json:"type"`
+	Severity              Severity               `json:"severity"`
+	Status                Status                 `json:"status"`
+	Title                 string                 `json:"title"`
+	Summary               string                 `json:"summary"`
+	DetectedAt            time.Time              `json:"detectedAt"`
+	LastSeenAt            time.Time              `json:"lastSeenAt"`
+	UpdatedAt             time.Time              `json:"updatedAt"`
+	ResolvedAt            *time.Time             `json:"resolvedAt,omitempty"`
+	AcknowledgedAt        *time.Time             `json:"acknowledgedAt,omitempty"`
+	IgnoredAt             *time.Time             `json:"ignoredAt,omitempty"`
+	BootID                string                 `json:"bootId,omitempty"`
+	PreviousBootID        string                 `json:"previousBootId,omitempty"`
+	SourceCheckIDs        []string               `json:"sourceCheckIds,omitempty"`
+	SourceResultIDs       []string               `json:"sourceResultIds,omitempty"`
+	Evidence              map[string]any         `json:"evidence,omitempty"`
+	Recommendations       []string               `json:"recommendations,omitempty"`
+	Diagnosis             string                 `json:"diagnosis,omitempty"`
+	Confidence            string                 `json:"confidence,omitempty"`
+	EvidenceItems         []EvidenceItem         `json:"evidenceItems,omitempty"`
+	CorroborationNeeded   []string               `json:"corroborationNeeded,omitempty"`
+	SafeActions           []string               `json:"safeActions,omitempty"`
+	OperatorActions       []string               `json:"operatorActions,omitempty"`
+	RollbackOrFallback    []string               `json:"rollbackOrFallback,omitempty"`
+	PostChecks            []string               `json:"postChecks,omitempty"`
+	RemediationCandidates []RemediationCandidate `json:"remediationCandidates,omitempty"`
+	RemediationArtifacts  []RemediationArtifact  `json:"remediationArtifacts,omitempty"`
+	Outcome               *Outcome               `json:"outcome,omitempty"`
+	EventCount            int                    `json:"eventCount"`
+	ObservationCount      int                    `json:"observationCount"`
+	OperatorNotes         string                 `json:"operatorNotes,omitempty"`
+}
+
+type EvidenceItem struct {
+	ID                    string         `json:"id"`
+	Kind                  string         `json:"kind"`
+	Severity              Severity       `json:"severity"`
+	Summary               string         `json:"summary"`
+	Source                string         `json:"source"`
+	BootID                string         `json:"bootId,omitempty"`
+	Timestamp             *time.Time     `json:"timestamp,omitempty"`
+	Data                  map[string]any `json:"data,omitempty"`
+	PlatformApplicability string         `json:"platformApplicability,omitempty"`
+}
+
+type RemediationCandidate struct {
+	ID                 string   `json:"id"`
+	Title              string   `json:"title"`
+	Applicability      string   `json:"applicability"`
+	Platforms          []string `json:"platforms,omitempty"`
+	RequiresOperator   bool     `json:"requiresOperator"`
+	RequiresPrivilege  bool     `json:"requiresPrivilege"`
+	RiskLevel          string   `json:"riskLevel,omitempty"`
+	TemplateID         string   `json:"templateId,omitempty"`
+	PreflightChecks    []string `json:"preflightChecks,omitempty"`
+	Simulation         string   `json:"simulation,omitempty"`
+	ArtifactPolicy     string   `json:"artifactPolicy,omitempty"`
+	RollbackOrFallback []string `json:"rollbackOrFallback,omitempty"`
+	PostChecks         []string `json:"postChecks,omitempty"`
+	DecisionPrompt     string   `json:"decisionPrompt,omitempty"`
+}
+
+type RemediationArtifact struct {
+	ID            string         `json:"id"`
+	RemediationID string         `json:"remediationId"`
+	Path          string         `json:"path"`
+	GeneratedAt   time.Time      `json:"generatedAt"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+}
+
+type Outcome struct {
+	RemediationID string    `json:"remediationId,omitempty"`
+	Status        string    `json:"status"`
+	Note          string    `json:"note,omitempty"`
+	ReportedAt    time.Time `json:"reportedAt"`
 }
 
 type Observation struct {
@@ -92,17 +147,28 @@ type ListResponse struct {
 }
 
 type UpsertInput struct {
-	Fingerprint     string
-	Type            Type
-	Severity        Severity
-	Title           string
-	Summary         string
-	ObservedAt      time.Time
-	BootID          string
-	PreviousBootID  string
-	SourceCheckID   string
-	Evidence        map[string]any
-	Recommendations []string
+	Fingerprint           string
+	Type                  Type
+	Severity              Severity
+	Title                 string
+	Summary               string
+	ObservedAt            time.Time
+	BootID                string
+	PreviousBootID        string
+	SourceCheckID         string
+	Evidence              map[string]any
+	Recommendations       []string
+	Diagnosis             string
+	Confidence            string
+	EvidenceItems         []EvidenceItem
+	CorroborationNeeded   []string
+	SafeActions           []string
+	OperatorActions       []string
+	RollbackOrFallback    []string
+	PostChecks            []string
+	RemediationCandidates []RemediationCandidate
+	RemediationArtifacts  []RemediationArtifact
+	Outcome               *Outcome
 }
 
 func ValidStatus(value string) bool {

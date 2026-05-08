@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open endpoints
+.PHONY: help setup start stop restart status logs test open orient run dev endpoints clean build fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
 
@@ -30,6 +30,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
 	@printf "  make open                       Open the scenario in a browser\n"
+	@printf "  make orient                     Show generated-scenario orientation progress\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
@@ -60,8 +61,15 @@ test: ## Run scenario tests
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"
 
+orient: ## Show generated-scenario orientation progress
+	@vrooli scenario orient "$(SCENARIO_NAME)"
+
 endpoints: ## Regenerate .vrooli/endpoints.json from API modules
 	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json --seed cmd/gen-endpoints/cli_commands_seed.json
+
+run: start
+
+dev: start
 
 clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true
@@ -104,7 +112,3 @@ lint-ui: ## Lint UI code
 	@true
 
 check: fmt lint test ## Run full quality gates
-
-# Development shortcuts
-run: start
-dev: start

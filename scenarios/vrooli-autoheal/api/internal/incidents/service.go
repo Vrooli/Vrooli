@@ -3,6 +3,7 @@ package incidents
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 	"vrooli-autoheal/internal/checks"
@@ -46,6 +47,7 @@ func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Resul
 		Evidence:        boundedEvidence(result.Details),
 		Recommendations: stringSliceDetail(result.Details, "recommendations"),
 	}
+	enrichInputFromResult(&input, result)
 	incident, err := s.store.UpsertIncident(ctx, input)
 	if err != nil {
 		return nil, true, err
@@ -166,4 +168,226 @@ func evidenceDimension(details map[string]any) string {
 		return fmt.Sprintf("%v", kernel)
 	}
 	return ""
+}
+
+func enrichInputFromResult(input *UpsertInput, result checks.Result) {
+	if input == nil {
+		return
+	}
+	input.Diagnosis = diagnosisForResult(result)
+	input.Confidence = confidenceForResult(result)
+	input.EvidenceItems = evidenceItemsForResult(result, input.Severity)
+	input.CorroborationNeeded = stringSliceDetail(result.Details, "corroborationNeeded")
+	input.SafeActions = stringSliceDetail(result.Details, "safeActions")
+	input.OperatorActions = stringSliceDetail(result.Details, "operatorActions")
+	input.RollbackOrFallback = stringSliceDetail(result.Details, "rollbackOrFallback")
+	input.PostChecks = stringSliceDetail(result.Details, "postChecks")
+	input.RemediationCandidates = remediationCandidatesForResult(result)
+}
+
+func diagnosisForResult(result checks.Result) string {
+	switch result.CheckID {
+	case "host-runtime-integrity":
+		return "Host runtime exists but cannot communicate with its backing driver or daemon"
+	case "host-device-driver-binding":
+		return "Important host device is present without an active kernel driver binding"
+	case "host-kernel-module-drift":
+		if hasEvidenceKind(result.Details, "missing_nvidia_module_package") {
+			return "NVIDIA driver stack unavailable for the running kernel"
+		}
+		return "Running kernel and installed module/package inventory do not fully agree"
+	case "host-kernel-error-signals":
+		if hasEvidenceKind(result.Details, "data_fabric_sync_flood") {
+			return "Kernel reported a data fabric sync flood reset event"
+		}
+		return "Kernel logged recent host or device error signals"
+	case "system-boot-history":
+		return "Recent boot history indicates unclean shutdown or reset"
+	case "system-pstore-evidence":
+		return "Persistent kernel crash evidence was found or could not be inspected"
+	case "system-mce-recent":
+		return "Recent machine-check evidence was found or could not be inspected"
+	default:
+		return ""
+	}
+}
+
+func confidenceForResult(result checks.Result) string {
+	if result.Status == checks.StatusCritical {
+		return "high"
+	}
+	if result.Status == checks.StatusWarning {
+		return "medium"
+	}
+	return ""
+}
+
+func evidenceItemsForResult(result checks.Result, severity Severity) []EvidenceItem {
+	details := result.Details
+	raw, ok := details["evidence"].([]map[string]any)
+	if !ok {
+		if values, ok := details["evidence"].([]any); ok {
+			for _, value := range values {
+				if item, ok := value.(map[string]any); ok {
+					raw = append(raw, item)
+				}
+			}
+		}
+	}
+	if len(raw) == 0 {
+		return nil
+	}
+	items := make([]EvidenceItem, 0, len(raw))
+	for i, value := range raw {
+		kind := fmt.Sprintf("%v", value["kind"])
+		if kind == "<nil>" || strings.TrimSpace(kind) == "" {
+			kind = "check_evidence"
+		}
+		itemSeverity := severity
+		if s, ok := value["severity"].(string); ok && ValidSeverity(s) && s != "" {
+			itemSeverity = Severity(s)
+		}
+		items = append(items, EvidenceItem{
+			ID:                    fmt.Sprintf("%s-%d", result.CheckID, i+1),
+			Kind:                  kind,
+			Severity:              itemSeverity,
+			Summary:               evidenceSummary(kind, value),
+			Source:                result.CheckID,
+			BootID:                stringDetail(details, "bootId"),
+			Data:                  value,
+			PlatformApplicability: platformApplicability(details),
+		})
+	}
+	return items
+}
+
+func evidenceSummary(kind string, data map[string]any) string {
+	switch kind {
+	case "missing_nvidia_module_package":
+		return fmt.Sprintf("Expected NVIDIA module package is missing for running kernel: %v", data["expectedPackage"])
+	case "nvidia_kernel_package_state":
+		return "NVIDIA package state was collected for the running kernel"
+	case "data_fabric_sync_flood":
+		return "Kernel reported an uncorrected data fabric sync flood event"
+	case "runtime_not_callable":
+		return "Runtime command exists but is not callable"
+	case "unbound_capability_device":
+		return "Capability device has no active kernel driver binding"
+	default:
+		return strings.ReplaceAll(kind, "_", " ")
+	}
+}
+
+func platformApplicability(details map[string]any) string {
+	if details == nil {
+		return ""
+	}
+	if unsupported, ok := details["unsupportedCapabilities"]; ok && fmt.Sprintf("%v", unsupported) != "[]" {
+		return "unsupported"
+	}
+	return "applicable"
+}
+
+func hasEvidenceKind(details map[string]any, kind string) bool {
+	for _, item := range evidenceItemsForResult(checks.Result{Details: details}, SeverityWarning) {
+		if item.Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func remediationCandidatesForResult(result checks.Result) []RemediationCandidate {
+	if result.CheckID != "host-kernel-module-drift" {
+		return nil
+	}
+	evidence, ok := firstEvidenceKind(result.Details, "missing_nvidia_module_package")
+	if !ok {
+		return nil
+	}
+	applicability := "applicable"
+	if platformApplicability(result.Details) == "unsupported" {
+		applicability = "unsupported"
+	} else if strings.TrimSpace(fmt.Sprintf("%v", evidence["expectedPackage"])) == "" ||
+		strings.TrimSpace(fmt.Sprintf("%v", evidence["runningKernel"])) == "" {
+		applicability = "needs_corroboration"
+	} else if !candidateAvailable(evidence["candidate"]) {
+		applicability = "blocked"
+	}
+	return []RemediationCandidate{{
+		ID:                "ubuntu-nvidia-kernel-module-mismatch",
+		Title:             "Install matching NVIDIA kernel module package for the running kernel",
+		Applicability:     applicability,
+		Platforms:         []string{"linux", "ubuntu", "debian"},
+		RequiresOperator:  true,
+		RequiresPrivilege: true,
+		RiskLevel:         "moderate",
+		TemplateID:        "ubuntu-nvidia-kernel-module-mismatch",
+		PreflightChecks: []string{
+			"confirm running kernel and expected linux-modules-nvidia package",
+			"confirm apt candidate exists",
+			"run apt install simulation before mutation",
+		},
+		Simulation:     "apt-get -s install <expected-package>",
+		ArtifactPolicy: "generate_only_under_user_state",
+		RollbackOrFallback: []string{
+			"boot a kernel with an already-installed matching NVIDIA module package if the install fails",
+			"do not remove kernels or driver packages as part of this remediation",
+		},
+		PostChecks: []string{
+			"nvidia-smi",
+			"lsmod | grep '^nvidia'",
+			"lspci -nnk | grep -A3 -i nvidia",
+			"vrooli-autoheal incidents latest --json",
+		},
+		DecisionPrompt: "Should the operator run the generated NVIDIA kernel-module repair script?",
+	}}
+}
+
+func firstEvidenceKind(details map[string]any, kind string) (map[string]any, bool) {
+	if details == nil {
+		return nil, false
+	}
+	switch values := details["evidence"].(type) {
+	case []map[string]any:
+		for _, item := range values {
+			if fmt.Sprintf("%v", item["kind"]) == kind {
+				return item, true
+			}
+		}
+	case []any:
+		for _, value := range values {
+			item, ok := value.(map[string]any)
+			if ok && fmt.Sprintf("%v", item["kind"]) == kind {
+				return item, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func candidateAvailable(candidate any) bool {
+	if candidate == nil {
+		return false
+	}
+	if values, ok := candidate.(map[string]any); ok {
+		if available, ok := values["available"].(bool); ok {
+			return available
+		}
+		if available, ok := values["Available"].(bool); ok {
+			return available
+		}
+	}
+	value := reflect.ValueOf(candidate)
+	if value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return false
+		}
+		value = value.Elem()
+	}
+	if value.Kind() == reflect.Struct {
+		field := value.FieldByName("Available")
+		return field.IsValid() && field.Kind() == reflect.Bool && field.Bool()
+	}
+	return false
 }

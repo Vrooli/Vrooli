@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/journal"
 )

@@ -18,7 +18,9 @@ type Store struct {
 
 // NewStore creates a new SQLite-backed persistence store.
 func NewStore(db *sql.DB) *Store {
-	return &Store{db: db}
+	store := &Store{db: db}
+	_ = store.ensureIncidentContractColumns(context.Background())
+	return store
 }
 
 // Ping checks database connectivity.
@@ -178,6 +180,14 @@ func (s *Store) ListIncidentObservations(ctx context.Context, incidentID string,
 
 func (s *Store) UpdateIncidentStatus(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error) {
 	return s.updateIncidentStatusSQLite(ctx, incidentID, status, note)
+}
+
+func (s *Store) RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error) {
+	return s.recordIncidentRemediationArtifactSQLite(ctx, incidentID, artifact)
+}
+
+func (s *Store) RecordIncidentRemediationOutcome(ctx context.Context, incidentID string, outcome incidents.Outcome) (*incidents.Incident, error) {
+	return s.recordIncidentRemediationOutcomeSQLite(ctx, incidentID, outcome)
 }
 
 // ActionLog represents a logged recovery action execution.

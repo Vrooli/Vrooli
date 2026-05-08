@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 	"vrooli-autoheal/internal/checks"
@@ -161,6 +162,84 @@ func TestSQLiteStore_IncidentLifecycle(t *testing.T) {
 	}
 	if list.Total != 1 {
 		t.Fatalf("incident count = %d, want 1", list.Total)
+	}
+}
+
+func TestSQLiteStore_RecordsRemediationArtifactAndPreservesAcrossUpsert(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+
+	input := incidents.UpsertInput{
+		Fingerprint:           incidents.Fingerprint("host_integrity", "host-kernel-module-drift", "boot-a"),
+		Type:                  incidents.TypeHostIntegrity,
+		Severity:              incidents.SeverityCritical,
+		Title:                 "NVIDIA module package missing",
+		Summary:               "Missing matching module package",
+		ObservedAt:            time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		SourceCheckID:         "host-kernel-module-drift",
+		RemediationCandidates: []incidents.RemediationCandidate{{ID: "ubuntu-nvidia-kernel-module-mismatch", Applicability: "applicable"}},
+	}
+	incident, err := store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("UpsertIncident() error = %v", err)
+	}
+	artifact := incidents.RemediationArtifact{
+		ID:            "ubuntu-nvidia-kernel-module-mismatch-artifact",
+		RemediationID: "ubuntu-nvidia-kernel-module-mismatch",
+		Path:          "/tmp/remediation",
+		GeneratedAt:   time.Date(2026, 5, 8, 12, 5, 0, 0, time.UTC),
+		Metadata:      map[string]any{"templateId": "ubuntu-nvidia-kernel-module-mismatch"},
+	}
+	incident, err = store.RecordIncidentRemediationArtifact(ctx, incident.ID, artifact)
+	if err != nil {
+		t.Fatalf("RecordIncidentRemediationArtifact() error = %v", err)
+	}
+	if len(incident.RemediationArtifacts) != 1 {
+		t.Fatalf("artifacts = %d, want 1", len(incident.RemediationArtifacts))
+	}
+
+	input.ObservedAt = input.ObservedAt.Add(time.Minute)
+	incident, err = store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("second UpsertIncident() error = %v", err)
+	}
+	if len(incident.RemediationArtifacts) != 1 || incident.RemediationArtifacts[0].Path != artifact.Path {
+		t.Fatalf("artifact not preserved across upsert: %#v", incident.RemediationArtifacts)
+	}
+}
+
+func TestSQLiteStore_RecordsRemediationOutcome(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+
+	incident, err := store.UpsertIncident(ctx, incidents.UpsertInput{
+		Fingerprint:   incidents.Fingerprint("host_integrity", "host-kernel-module-drift", "boot-a"),
+		Type:          incidents.TypeHostIntegrity,
+		Severity:      incidents.SeverityCritical,
+		Title:         "NVIDIA module package missing",
+		Summary:       "Missing matching module package",
+		ObservedAt:    time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		SourceCheckID: "host-kernel-module-drift",
+	})
+	if err != nil {
+		t.Fatalf("UpsertIncident() error = %v", err)
+	}
+	updated, err := store.RecordIncidentRemediationOutcome(ctx, incident.ID, incidents.Outcome{
+		RemediationID: "ubuntu-nvidia-kernel-module-mismatch",
+		Status:        "verified",
+		Note:          "post-checks are healthy",
+		ReportedAt:    time.Date(2026, 5, 8, 12, 10, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RecordIncidentRemediationOutcome() error = %v", err)
+	}
+	if updated.Outcome == nil || updated.Outcome.Status != "verified" {
+		t.Fatalf("outcome = %#v, want verified", updated.Outcome)
+	}
+	if !strings.Contains(updated.OperatorNotes, "post-checks are healthy") {
+		t.Fatalf("operator notes = %q, want outcome note", updated.OperatorNotes)
 	}
 }
 

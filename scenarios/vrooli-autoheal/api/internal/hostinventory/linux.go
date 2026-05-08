@@ -63,12 +63,21 @@ func collectLinux(parent context.Context, c *DefaultCollector, inv *HostInventor
 	inv.Runtimes = collectRuntimeTools(ctx, c)
 	setProbe(inv, "runtimes", ProbeOK, nil)
 	inv.Packages = collectPackageState(ctx, c, inv.Kernel.Release)
+	enrichDriverPackageState(ctx, c, inv)
 	if inv.Packages.Manager == "" {
 		setProbe(inv, "packageManager", ProbeUnsupported, nil)
 	} else {
 		setProbe(inv, "packageManager", ProbeOK, nil)
 	}
+	inv.SecureBoot = collectSecureBootState(ctx, c)
+	if inv.SecureBoot.Supported {
+		setProbe(inv, "secureBoot", ProbeOK, nil)
+	} else {
+		setProbe(inv, "secureBoot", ProbeUnsupported, nil)
+	}
+	inv.CrashEvidence = collectCrashEvidenceProbeState(ctx, c)
 	inv.Signals = collectKernelSignals(ctx, c)
+	inv.ResetReasons = resetReasonsFromSignals(inv.Signals)
 	if c.journal == nil {
 		setProbe(inv, "journal", ProbeUnsupported, nil)
 	} else {
@@ -155,6 +164,62 @@ func collectKernelSignals(ctx context.Context, c *DefaultCollector) []HostSignal
 	return signals
 }
 
+func collectSecureBootState(ctx context.Context, c *DefaultCollector) SecureBootState {
+	state := SecureBootState{Source: "mokutil --sb-state"}
+	if _, err := exec.LookPath("mokutil"); err != nil {
+		state.Error = err.Error()
+		return state
+	}
+	out, err := c.exec.CombinedOutput(ctx, "mokutil", "--sb-state")
+	state.Supported = true
+	if err != nil {
+		state.Error = truncateEvidence(string(out)+" "+err.Error(), 300)
+		return state
+	}
+	state.Enabled = strings.Contains(strings.ToLower(string(out)), "secureboot enabled")
+	return state
+}
+
+func collectCrashEvidenceProbeState(ctx context.Context, c *DefaultCollector) CrashEvidenceProbeState {
+	var state CrashEvidenceProbeState
+	if entries, err := c.fs.ReadDir("/sys/fs/pstore"); err == nil {
+		state.PstoreSupported = true
+		state.PstoreReadable = true
+		_ = entries
+	} else {
+		state.PstoreError = err.Error()
+	}
+	if _, err := exec.LookPath("ras-mc-ctl"); err == nil {
+		state.RasdaemonPresent = true
+	} else {
+		state.RasdaemonError = err.Error()
+	}
+	_ = ctx
+	return state
+}
+
+func resetReasonsFromSignals(signals []HostSignal) []ResetReason {
+	var reasons []ResetReason
+	for _, signal := range signals {
+		if signal.Category != "data_fabric_sync_flood" && signal.Category != "device_reset" {
+			continue
+		}
+		criticality := "warning"
+		if signal.Category == "data_fabric_sync_flood" || signal.Severity == "critical" {
+			criticality = "critical"
+		}
+		reasons = append(reasons, ResetReason{
+			BootID:      signal.BootID,
+			Timestamp:   signal.Timestamp,
+			Source:      signal.Source,
+			RawMessage:  signal.Message,
+			Category:    signal.Category,
+			Criticality: criticality,
+		})
+	}
+	return reasons
+}
+
 func severityFromPriority(priority int) string {
 	if priority >= 0 && priority <= 2 {
 		return "critical"
@@ -165,6 +230,8 @@ func severityFromPriority(priority int) string {
 func categorizeSignal(message string) string {
 	lower := strings.ToLower(message)
 	for _, pair := range []struct{ needle, category string }{
+		{"data fabric sync flood", "data_fabric_sync_flood"},
+		{"uncorrected error caused a data fabric", "data_fabric_sync_flood"},
 		{"machine check", "machine_check"},
 		{"mce", "machine_check"},
 		{"reset", "device_reset"},

@@ -3,10 +3,12 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 	"vrooli-autoheal/internal/checks"
@@ -1434,6 +1436,93 @@ func TestTick_AutoHealSkipsNonCritical(t *testing.T) {
 	// Warning check should NOT trigger auto-heal
 	if warningCheck.executeCalled {
 		t.Error("Auto-heal should NOT execute for non-critical checks")
+	}
+}
+
+func TestIncidentRemediationsListsCandidates(t *testing.T) {
+	store := &mockStore{incident: testRemediationIncident()}
+	h := setupTestHandlers(store)
+
+	req := httptest.NewRequest("GET", "/api/v1/incidents/inc_test/remediations", nil)
+	w := httptest.NewRecorder()
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations", h.IncidentRemediations)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("IncidentRemediations() status = %d, want %d: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	if total, ok := resp["total"].(float64); !ok || total != 1 {
+		t.Fatalf("total = %v, want 1", resp["total"])
+	}
+}
+
+func TestGenerateIncidentRemediationPersistsArtifactReference(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	store := &mockStore{incident: testRemediationIncident()}
+	h := setupTestHandlers(store)
+
+	req := httptest.NewRequest("POST", "/api/v1/incidents/inc_test/remediations/ubuntu-nvidia-kernel-module-mismatch/generate", nil)
+	w := httptest.NewRecorder()
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations/{remediationId}/generate", h.GenerateIncidentRemediation)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("GenerateIncidentRemediation() status = %d, want %d: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+	if store.recordedArtifact == nil {
+		t.Fatal("expected generated artifact to be recorded on the incident")
+	}
+	if store.recordedArtifact.RemediationID != "ubuntu-nvidia-kernel-module-mismatch" {
+		t.Fatalf("recorded remediation id = %q", store.recordedArtifact.RemediationID)
+	}
+}
+
+func TestRecordIncidentRemediationOutcome(t *testing.T) {
+	store := &mockStore{incident: testRemediationIncident()}
+	h := setupTestHandlers(store)
+
+	body := bytes.NewBufferString(`{"status":"verified","note":"nvidia-smi is healthy"}`)
+	req := httptest.NewRequest("POST", "/api/v1/incidents/inc_test/remediations/ubuntu-nvidia-kernel-module-mismatch/outcome", body)
+	w := httptest.NewRecorder()
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/incidents/{incidentId}/remediations/{remediationId}/outcome", h.RecordIncidentRemediationOutcome)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("RecordIncidentRemediationOutcome() status = %d, want %d: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+	if store.recordedOutcome == nil {
+		t.Fatal("expected outcome to be recorded")
+	}
+	if store.recordedOutcome.Status != "verified" || !strings.Contains(store.recordedOutcome.Note, "nvidia-smi") {
+		t.Fatalf("recorded outcome = %#v", store.recordedOutcome)
+	}
+}
+
+func testRemediationIncident() *incidents.Incident {
+	return &incidents.Incident{
+		ID:          "inc_test",
+		Fingerprint: "incfp_test",
+		EvidenceItems: []incidents.EvidenceItem{{
+			Kind: "missing_nvidia_module_package",
+			Data: map[string]any{
+				"expectedPackage": "linux-modules-nvidia-580-open-6.17.0-23-generic",
+				"runningKernel":   "6.17.0-23-generic",
+			},
+		}},
+		RemediationCandidates: []incidents.RemediationCandidate{{
+			ID:                "ubuntu-nvidia-kernel-module-mismatch",
+			Title:             "Install matching NVIDIA kernel module package",
+			Applicability:     "applicable",
+			RequiresOperator:  true,
+			RequiresPrivilege: true,
+			RiskLevel:         "moderate",
+			TemplateID:        "ubuntu-nvidia-kernel-module-mismatch",
+			PostChecks:        []string{"nvidia-smi"},
+		}},
 	}
 }
 

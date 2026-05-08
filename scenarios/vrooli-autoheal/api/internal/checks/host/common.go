@@ -77,6 +77,12 @@ func baseDetails(inv hostinventory.HostInventory, evidence []map[string]any, rec
 		"unsupportedCapabilities": inv.Unsupported,
 		"kernel":                  inv.Kernel,
 		"bootId":                  inv.BootID,
+		"devices":                 inv.Devices,
+		"runtimes":                inv.Runtimes,
+		"packages":                inv.Packages,
+		"secureBoot":              inv.SecureBoot,
+		"resetReasons":            inv.ResetReasons,
+		"crashEvidence":           inv.CrashEvidence,
 	}
 }
 

@@ -23,6 +23,9 @@ type HostInventory struct {
 	Devices        []DeviceInfo              `json:"devices"`
 	Runtimes       []RuntimeToolInfo         `json:"runtimes"`
 	Packages       PackageState              `json:"packages"`
+	SecureBoot     SecureBootState           `json:"secureBoot,omitempty"`
+	ResetReasons   []ResetReason             `json:"resetReasons,omitempty"`
+	CrashEvidence  CrashEvidenceProbeState   `json:"crashEvidence,omitempty"`
 	Signals        []HostSignal              `json:"signals"`
 	ProbeStatus    map[string]ProbeState     `json:"probeStatus"`
 	ProbeErrors    map[string]string         `json:"probeErrors,omitempty"`
@@ -60,11 +63,73 @@ type RuntimeToolInfo struct {
 }
 
 type PackageState struct {
-	Manager           string   `json:"manager,omitempty"`
-	Installed         []string `json:"installedRelevantPackages,omitempty"`
-	PendingUpgrades   []string `json:"pendingUpgrades,omitempty"`
-	BrokenOrHeld      []string `json:"brokenOrHeldPackages,omitempty"`
-	KernelModuleDrift []string `json:"kernelModuleDrift,omitempty"`
+	Manager           string               `json:"manager,omitempty"`
+	Installed         []string             `json:"installedRelevantPackages,omitempty"`
+	InstalledPackages []PackageInfo        `json:"installedPackages,omitempty"`
+	PendingUpgrades   []string             `json:"pendingUpgrades,omitempty"`
+	BrokenOrHeld      []string             `json:"brokenOrHeldPackages,omitempty"`
+	KernelModuleDrift []string             `json:"kernelModuleDrift,omitempty"`
+	Kernel            KernelPackageState   `json:"kernel,omitempty"`
+	Drivers           []DriverPackageState `json:"drivers,omitempty"`
+}
+
+type PackageInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version,omitempty"`
+	Status  string `json:"status,omitempty"`
+}
+
+type KernelPackageState struct {
+	RunningKernel        string   `json:"runningKernel,omitempty"`
+	InstalledMatching    []string `json:"installedMatchingPackages,omitempty"`
+	MissingMatching      []string `json:"missingMatchingPackages,omitempty"`
+	HeldOrBlocked        []string `json:"heldOrBlockedPackages,omitempty"`
+	InstalledOtherKernel []string `json:"installedOtherKernelPackages,omitempty"`
+}
+
+type DriverPackageState struct {
+	Vendor                   string            `json:"vendor"`
+	Series                   string            `json:"series,omitempty"`
+	Flavor                   string            `json:"flavor,omitempty"`
+	InstalledPackages        []PackageInfo     `json:"installedPackages,omitempty"`
+	LoadedModules            []string          `json:"loadedModules,omitempty"`
+	ExpectedModulePackage    string            `json:"expectedModulePackage,omitempty"`
+	ExpectedPackageInstalled bool              `json:"expectedPackageInstalled"`
+	MissingModulePackage     string            `json:"missingModulePackage,omitempty"`
+	Candidate                *PackageCandidate `json:"candidate,omitempty"`
+	Applicability            string            `json:"applicability"`
+}
+
+type PackageCandidate struct {
+	Name      string `json:"name"`
+	Version   string `json:"version,omitempty"`
+	Available bool   `json:"available"`
+	Source    string `json:"source,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+type SecureBootState struct {
+	Supported bool   `json:"supported"`
+	Enabled   bool   `json:"enabled"`
+	Source    string `json:"source,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+type ResetReason struct {
+	BootID      string    `json:"bootId,omitempty"`
+	Timestamp   time.Time `json:"timestamp,omitempty"`
+	Source      string    `json:"source"`
+	RawMessage  string    `json:"rawMessage"`
+	Category    string    `json:"category"`
+	Criticality string    `json:"criticality"`
+}
+
+type CrashEvidenceProbeState struct {
+	PstoreSupported  bool   `json:"pstoreSupported"`
+	PstoreReadable   bool   `json:"pstoreReadable"`
+	PstoreError      string `json:"pstoreError,omitempty"`
+	RasdaemonPresent bool   `json:"rasdaemonPresent"`
+	RasdaemonError   string `json:"rasdaemonError,omitempty"`
 }
 
 type HostSignal struct {

@@ -27,6 +27,9 @@ type mockStore struct {
 	transitions      *persistence.TransitionsResponse
 	transitionsErr   error
 	incidentsErr     error
+	incident         *incidents.Incident
+	recordedArtifact *incidents.RemediationArtifact
+	recordedOutcome  *incidents.Outcome
 	savedInventories int
 }
 
@@ -134,6 +137,10 @@ func (m *mockStore) ListIncidents(ctx context.Context, filters incidents.ListFil
 }
 
 func (m *mockStore) GetIncident(ctx context.Context, id string) (*incidents.Incident, error) {
+	if m.incident != nil {
+		incident := *m.incident
+		return &incident, nil
+	}
 	return nil, nil
 }
 
@@ -143,6 +150,26 @@ func (m *mockStore) ListIncidentObservations(ctx context.Context, incidentID str
 
 func (m *mockStore) UpdateIncidentStatus(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error) {
 	return &incidents.Incident{ID: incidentID, Status: status}, nil
+}
+
+func (m *mockStore) RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error) {
+	m.recordedArtifact = &artifact
+	if m.incident == nil {
+		return &incidents.Incident{ID: incidentID, RemediationArtifacts: []incidents.RemediationArtifact{artifact}}, nil
+	}
+	incident := *m.incident
+	incident.RemediationArtifacts = append(incident.RemediationArtifacts, artifact)
+	return &incident, nil
+}
+
+func (m *mockStore) RecordIncidentRemediationOutcome(ctx context.Context, incidentID string, outcome incidents.Outcome) (*incidents.Incident, error) {
+	m.recordedOutcome = &outcome
+	if m.incident == nil {
+		return &incidents.Incident{ID: incidentID, Outcome: &outcome}, nil
+	}
+	incident := *m.incident
+	incident.Outcome = &outcome
+	return &incident, nil
 }
 
 // Action log mock methods [REQ:HEAL-ACTION-001].
