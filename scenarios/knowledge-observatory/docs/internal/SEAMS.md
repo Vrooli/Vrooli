@@ -55,5 +55,13 @@
 - API wiring is centralized in `api/server.go`.
 - Domain services are isolated under `api/internal/services`.
 
+## Architecture Alignment Notes
+
+| Area | Drift | Decision | Follow-up |
+|---|---|---|---|
+| API bootstrap | `api/main.go` previously mixed lifecycle boot, server wiring, handlers, and integration config access. | Keep `api/main.go` minimal and keep runtime wiring/config defaults in `api/server.go`. | Preserve split as new handlers/services are added. |
+| Integration config | Qdrant/Ollama/resource CLI defaults were implicit at call sites. | Centralize integration defaults and wrappers in server/runtime wiring, then expose concrete dependencies through ports/adapters. | Keep new external integrations behind ports or narrow clients. |
+| Resource-qdrant execution | Calls could block indefinitely without request deadlines. | Use the centralized default-timeout wrapper for resource CLI calls. | Move timeout policy into a dedicated integration adapter if more resource CLI calls appear. |
+
 ## Exploration Log
-- 2025-12-16: Split API bootstrap from server wiring; documented in audit. [DOC: docs/internal/SCREAMING_ARCHITECTURE_AUDIT.md]
+- 2025-12-16: Split API bootstrap from server wiring; durable notes now live in `docs/concepts/ARCHITECTURE.md`, this file, and `docs/internal/PROBLEMS.md`.

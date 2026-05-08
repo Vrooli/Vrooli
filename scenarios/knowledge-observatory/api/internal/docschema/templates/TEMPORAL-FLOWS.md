@@ -1,24 +1,31 @@
-# Temporal Flows & Async Patterns
+# Temporal Flows
+
+This file is an index for time-dependent behavior. Keep detailed
+transition rules in domain workflow/spec files and link to them here so
+this document stays useful without becoming a second source of truth.
 
 ## Last Updated
+
 [Date]
 
-## Async Flows Identified
+## Flow Index
 
-| Flow | Entry Point | Async Operations | Completion Signal |
-|------|-------------|------------------|-------------------|
-| [name] | [where it starts] | [what's async] | [how we know it's done] |
+| Flow ID | Domain | Risk | Model Status | Source of Truth | Tests | Remaining Gaps |
+|---|---|---|---|---|---|---|
+| [flow-id] | [domain] | [low/medium/high] | [inventory/workflow/matrix+traces/spec/formal] | [path:...] | [path:...] | [gap or none] |
 
-## Race Conditions
-[Identified race conditions and their status]
-- **Location**: description, mitigation status
+## Unmodeled Candidates
 
-## Timing Assumptions
-[Implicit ordering or delay assumptions]
+| Candidate | Why It May Be Temporal | Current Risk | Recommended Next Step |
+|---|---|---|---|
+| [name] | [named states, illegal transitions, retry/cancel/race risk] | [low/medium/high] | [inventory/model/test/spec/defer] |
 
-## Checkpoint Flows
-[From progress-continuity-interruption-resilience]
-- **Flow**: checkpoints, resume entrypoints, interruption handling
+## Declarative & Formal Spec Status
 
-## Concurrency Concerns
-[Shared state, locking, coordination patterns]
+| Flow ID | Spec Type | Generated Artifacts | Drift Check | Status |
+|---|---|---|---|---|
+| [flow-id] | [none/json/quint/tla+/other] | [none/path:...] | [none/manual/test/codegen] | [not_adopted/candidate/adopted] |
+
+## Audit Notes
+
+- [Date] [Agent/author]: [Short note with evidence and links. Prefer updating the tables above over adding long prose.]

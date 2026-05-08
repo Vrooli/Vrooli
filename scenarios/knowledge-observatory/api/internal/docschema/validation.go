@@ -18,14 +18,23 @@ type MisplacedDoc struct {
 	Severity     string  `json:"severity"` // "error", "warning", "info"
 }
 
+// DocContentIssue represents a recognized document with missing required structure.
+type DocContentIssue struct {
+	Path     string  `json:"path"`
+	DocType  DocType `json:"doc_type"`
+	Severity string  `json:"severity"` // "error", "warning", "info"
+	Message  string  `json:"message"`
+}
+
 // ValidationResult contains the results of validating a scenario's docs.
 type ValidationResult struct {
-	ScenarioName  string         `json:"scenario_name"`
-	MisplacedDocs []MisplacedDoc `json:"misplaced_docs"`
-	MissingDocs   []DocType      `json:"missing_docs"`
-	ExtraDocs     []string       `json:"extra_docs"` // docs not matching any known pattern
-	TemporaryDocs []string       `json:"temporary_docs"`
-	HealthScore   float64        `json:"health_score"` // 0-1 score based on compliance
+	ScenarioName  string            `json:"scenario_name"`
+	MisplacedDocs []MisplacedDoc    `json:"misplaced_docs"`
+	MissingDocs   []DocType         `json:"missing_docs"`
+	ExtraDocs     []string          `json:"extra_docs"` // docs not matching any known pattern
+	TemporaryDocs []string          `json:"temporary_docs"`
+	ContentIssues []DocContentIssue `json:"content_issues"`
+	HealthScore   float64           `json:"health_score"` // 0-1 score based on compliance
 }
 
 // ValidateScenarioDocumentation checks if docs are in the right places.
@@ -87,6 +96,7 @@ func ValidateScenarioDocumentation(scenarioPath string) (*ValidationResult, erro
 
 	result.ExtraDocs = findExtraDocs(scenarioPath, knownNames)
 	result.TemporaryDocs = findTemporaryDocs(scenarioPath)
+	result.ContentIssues = findDocContentIssues(scenarioPath, found)
 	result.HealthScore = computeHealthScore(structure, result.MissingDocs, result.MisplacedDocs, result.TemporaryDocs)
 
 	sort.Slice(result.MisplacedDocs, func(i, j int) bool {
@@ -100,6 +110,12 @@ func ValidateScenarioDocumentation(scenarioPath string) (*ValidationResult, erro
 	})
 	sort.Strings(result.ExtraDocs)
 	sort.Strings(result.TemporaryDocs)
+	sort.Slice(result.ContentIssues, func(i, j int) bool {
+		if result.ContentIssues[i].Path != result.ContentIssues[j].Path {
+			return result.ContentIssues[i].Path < result.ContentIssues[j].Path
+		}
+		return result.ContentIssues[i].Message < result.ContentIssues[j].Message
+	})
 
 	return result, nil
 }
@@ -263,6 +279,137 @@ func findExtraDocs(scenarioPath string, knownNames map[string]DocType) []string 
 	}
 
 	return extras
+}
+
+func findDocContentIssues(scenarioPath string, found map[DocType][]string) []DocContentIssue {
+	var issues []DocContentIssue
+	issues = append(issues, findHeadingIssues(
+		scenarioPath,
+		found,
+		DocTypeArchitecture,
+		requiredArchitectureHeadings(),
+	)...)
+	issues = append(issues, findHeadingIssues(
+		scenarioPath,
+		found,
+		DocTypeSeams,
+		requiredSeamsHeadings(),
+	)...)
+	issues = append(issues, findHeadingIssues(
+		scenarioPath,
+		found,
+		DocTypeProblems,
+		requiredProblemsHeadings(),
+	)...)
+	for _, rel := range found[DocTypeTemporalFlows] {
+		if rel != DocTypeTemporalFlows.ExpectedPath() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(scenarioPath, filepath.FromSlash(rel)))
+		if err != nil {
+			issues = append(issues, DocContentIssue{
+				Path:     rel,
+				DocType:  DocTypeTemporalFlows,
+				Severity: "warning",
+				Message:  "could not read temporal flows doc for content validation",
+			})
+			continue
+		}
+		for _, heading := range requiredTemporalFlowsHeadings() {
+			if !hasMarkdownHeading(string(data), heading) {
+				issues = append(issues, DocContentIssue{
+					Path:     rel,
+					DocType:  DocTypeTemporalFlows,
+					Severity: "warning",
+					Message:  "missing heading: " + heading,
+				})
+			}
+		}
+	}
+	return issues
+}
+
+func findHeadingIssues(
+	scenarioPath string,
+	found map[DocType][]string,
+	docType DocType,
+	headings []string,
+) []DocContentIssue {
+	var issues []DocContentIssue
+	for _, rel := range found[docType] {
+		if rel != docType.ExpectedPath() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(scenarioPath, filepath.FromSlash(rel)))
+		if err != nil {
+			issues = append(issues, DocContentIssue{
+				Path:     rel,
+				DocType:  docType,
+				Severity: "warning",
+				Message:  "could not read doc for content validation",
+			})
+			continue
+		}
+		for _, heading := range headings {
+			if !hasMarkdownHeading(string(data), heading) {
+				issues = append(issues, DocContentIssue{
+					Path:     rel,
+					DocType:  docType,
+					Severity: "warning",
+					Message:  "missing heading: " + heading,
+				})
+			}
+		}
+	}
+	return issues
+}
+
+func requiredArchitectureHeadings() []string {
+	return []string{
+		"Surfaces",
+		"Domain Map",
+		"Shared Infrastructure",
+		"Architecture Maturity",
+	}
+}
+
+func requiredSeamsHeadings() []string {
+	return []string{
+		"Integration Seams",
+		"Responsibility Zones",
+		"Architecture Alignment Notes",
+	}
+}
+
+func requiredProblemsHeadings() []string {
+	return []string{
+		"Code Quality Debt",
+		"Architecture Drift",
+		"Test Gaps",
+	}
+}
+
+func requiredTemporalFlowsHeadings() []string {
+	return []string{
+		"Flow Index",
+		"Unmodeled Candidates",
+		"Declarative & Formal Spec Status",
+		"Audit Notes",
+	}
+}
+
+func hasMarkdownHeading(content string, heading string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimLeft(line, "#")
+		if strings.TrimSpace(line) == heading {
+			return true
+		}
+	}
+	return false
 }
 
 func isRecognizedDocPath(rel string, knownNames map[string]DocType) bool {

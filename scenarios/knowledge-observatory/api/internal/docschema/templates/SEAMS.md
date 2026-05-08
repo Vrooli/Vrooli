@@ -32,5 +32,11 @@
 ## Architecture Clarity Notes
 [Simplifications made, complexity hot spots remaining]
 
+## Architecture Alignment Notes
+
+| Area | Drift | Decision | Follow-up |
+|---|---|---|---|
+| [area] | [current mismatch] | [accepted boundary/ownership choice] | [next step or none] |
+
 ## Exploration Log
 [Architectural variations attempted and outcomes]

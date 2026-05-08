@@ -1,5 +1,21 @@
 # Problems and Solutions Log
 
+## Architecture Drift
+
+### 2026-05-08: Retired Standalone Screaming Architecture Audit Report
+
+### Problem
+`docs/internal/SCREAMING_ARCHITECTURE_AUDIT.md` duplicated architecture memory that belongs in stable docs. Standalone audit reports are easy to orphan because future agents read `ARCHITECTURE.md`, `SEAMS.md`, and `PROBLEMS.md` first.
+
+### Resolution
+Durable findings from the report were folded into:
+- `docs/concepts/ARCHITECTURE.md` for domain map, shared infrastructure, and maturity.
+- `docs/internal/SEAMS.md` for boundary decisions and alignment notes.
+- this file for the retirement record.
+
+### Follow-up
+Do not create new standalone screaming-architecture reports by default. Record future architecture drift here, and update `ARCHITECTURE.md` / `SEAMS.md` when the model or boundary registry changes.
+
 ## 2026-02-05: Quality Score Formula Mismatch Between Schema and Code
 
 ### Problem

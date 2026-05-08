@@ -86,6 +86,91 @@ func TestValidateScenarioDocumentation_ExtraDocsDoNotAffectHealth(t *testing.T) 
 	}
 }
 
+func TestValidateScenarioDocumentation_TemporalFlowsContentHeadings(t *testing.T) {
+	scenario := t.TempDir()
+	writeFile(t, filepath.Join(scenario, "README.md"), "# Scenario")
+	writeFile(t, filepath.Join(scenario, "PRD.md"), "# PRD")
+	writeFile(t, filepath.Join(scenario, "docs", "manifest.json"), "{}")
+	writeFile(t, filepath.Join(scenario, "docs", "internal", "PROBLEMS.md"), "# Problems")
+	writeFile(t, filepath.Join(scenario, "docs", "internal", "PROGRESS.md"), "# Progress")
+	writeFile(t, filepath.Join(scenario, "docs", "internal", "SEAMS.md"), "# Seams")
+	writeFile(t, filepath.Join(scenario, "docs", "internal", "TEMPORAL-FLOWS.md"), `# Temporal Flows
+
+## Flow Index
+
+## Unmodeled Candidates
+`)
+
+	result, err := ValidateScenarioDocumentation(scenario)
+	if err != nil {
+		t.Fatalf("ValidateScenarioDocumentation returned error: %v", err)
+	}
+
+	if !hasContentIssue(result.ContentIssues, DocTypeTemporalFlows, "missing heading: Declarative & Formal Spec Status") {
+		t.Fatalf("expected missing spec-status heading issue, got: %#v", result.ContentIssues)
+	}
+	if !hasContentIssue(result.ContentIssues, DocTypeTemporalFlows, "missing heading: Audit Notes") {
+		t.Fatalf("expected missing audit-notes heading issue, got: %#v", result.ContentIssues)
+	}
+}
+
+func TestValidateScenarioDocumentation_TemporalFlowsTemplateHasRequiredHeadings(t *testing.T) {
+	template, err := TemplateForDocType(DocTypeTemporalFlows)
+	if err != nil {
+		t.Fatalf("TemplateForDocType returned error: %v", err)
+	}
+	for _, heading := range requiredTemporalFlowsHeadings() {
+		if !hasMarkdownHeading(template, heading) {
+			t.Fatalf("temporal-flows template missing heading %q", heading)
+		}
+	}
+}
+
+func TestValidateScenarioDocumentation_ArchitectureContentHeadings(t *testing.T) {
+	scenario := t.TempDir()
+	writeFile(t, filepath.Join(scenario, "README.md"), "# Scenario")
+	writeFile(t, filepath.Join(scenario, "docs", "concepts", "ARCHITECTURE.md"), `# Architecture
+
+## Surfaces
+
+## Domain Map
+`)
+
+	result, err := ValidateScenarioDocumentation(scenario)
+	if err != nil {
+		t.Fatalf("ValidateScenarioDocumentation returned error: %v", err)
+	}
+
+	if !hasContentIssue(result.ContentIssues, DocTypeArchitecture, "missing heading: Shared Infrastructure") {
+		t.Fatalf("expected missing shared-infrastructure heading issue, got: %#v", result.ContentIssues)
+	}
+	if !hasContentIssue(result.ContentIssues, DocTypeArchitecture, "missing heading: Architecture Maturity") {
+		t.Fatalf("expected missing maturity heading issue, got: %#v", result.ContentIssues)
+	}
+}
+
+func TestValidateScenarioDocumentation_ArchitectureTemplatesHaveRequiredHeadings(t *testing.T) {
+	tests := []struct {
+		docType  DocType
+		headings []string
+	}{
+		{DocTypeArchitecture, requiredArchitectureHeadings()},
+		{DocTypeSeams, requiredSeamsHeadings()},
+		{DocTypeProblems, requiredProblemsHeadings()},
+	}
+	for _, tc := range tests {
+		template, err := TemplateForDocType(tc.docType)
+		if err != nil {
+			t.Fatalf("TemplateForDocType(%s) returned error: %v", tc.docType, err)
+		}
+		for _, heading := range tc.headings {
+			if !hasMarkdownHeading(template, heading) {
+				t.Fatalf("%s template missing heading %q", tc.docType, heading)
+			}
+		}
+	}
+}
+
 func writeFile(t *testing.T, path string, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -117,6 +202,15 @@ func containsString(values []string, target string) bool {
 func hasMisplacedDoc(docs []MisplacedDoc, docType DocType, actual string, expected string) bool {
 	for _, doc := range docs {
 		if doc.DocType == docType && doc.ActualPath == actual && doc.ExpectedPath == expected {
+			return true
+		}
+	}
+	return false
+}
+
+func hasContentIssue(issues []DocContentIssue, docType DocType, message string) bool {
+	for _, issue := range issues {
+		if issue.DocType == docType && issue.Message == message {
 			return true
 		}
 	}

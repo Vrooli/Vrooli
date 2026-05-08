@@ -7,6 +7,10 @@
 [From refactor, code-cleanup]
 - **Area**: issue description, severity, recommended fix
 
+## Architecture Drift
+[From screaming-architecture-audit]
+- **Area**: drift description, maturity impact, recommended fix
+
 ## Test Gaps
 [From test skill]
 - Coverage gaps:

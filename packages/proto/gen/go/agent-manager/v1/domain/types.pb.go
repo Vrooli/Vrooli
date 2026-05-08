@@ -206,38 +206,50 @@ func (NetworkAccess) EnumDescriptor() ([]byte, []int) {
 
 // SandboxLifecycleEvent describes lifecycle triggers for sandbox cleanup.
 //
-// @usage SandboxLifecycleConfig.stop_on, SandboxLifecycleConfig.delete_on
+// @usage SandboxLifecycleConfig.checkpoint_on, SandboxLifecycleConfig.stop_on, SandboxLifecycleConfig.delete_on
 type SandboxLifecycleEvent int32
 
 const (
-	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED   SandboxLifecycleEvent = 0
-	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED SandboxLifecycleEvent = 1
-	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FAILED    SandboxLifecycleEvent = 2
-	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED SandboxLifecycleEvent = 3
-	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_APPROVED      SandboxLifecycleEvent = 4
-	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_REJECTED      SandboxLifecycleEvent = 5
-	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TERMINAL      SandboxLifecycleEvent = 6
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED    SandboxLifecycleEvent = 0
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED  SandboxLifecycleEvent = 1
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FAILED     SandboxLifecycleEvent = 2
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED  SandboxLifecycleEvent = 3
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_APPROVED       SandboxLifecycleEvent = 4
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_REJECTED       SandboxLifecycleEvent = 5
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TERMINAL       SandboxLifecycleEvent = 6
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED SandboxLifecycleEvent = 7
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_FAILED    SandboxLifecycleEvent = 8
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED SandboxLifecycleEvent = 9
+	SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED  SandboxLifecycleEvent = 10
 )
 
 // Enum value maps for SandboxLifecycleEvent.
 var (
 	SandboxLifecycleEvent_name = map[int32]string{
-		0: "SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED",
-		1: "SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED",
-		2: "SANDBOX_LIFECYCLE_EVENT_RUN_FAILED",
-		3: "SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED",
-		4: "SANDBOX_LIFECYCLE_EVENT_APPROVED",
-		5: "SANDBOX_LIFECYCLE_EVENT_REJECTED",
-		6: "SANDBOX_LIFECYCLE_EVENT_TERMINAL",
+		0:  "SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED",
+		1:  "SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED",
+		2:  "SANDBOX_LIFECYCLE_EVENT_RUN_FAILED",
+		3:  "SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED",
+		4:  "SANDBOX_LIFECYCLE_EVENT_APPROVED",
+		5:  "SANDBOX_LIFECYCLE_EVENT_REJECTED",
+		6:  "SANDBOX_LIFECYCLE_EVENT_TERMINAL",
+		7:  "SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED",
+		8:  "SANDBOX_LIFECYCLE_EVENT_TURN_FAILED",
+		9:  "SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED",
+		10: "SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED",
 	}
 	SandboxLifecycleEvent_value = map[string]int32{
-		"SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED":   0,
-		"SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED": 1,
-		"SANDBOX_LIFECYCLE_EVENT_RUN_FAILED":    2,
-		"SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED": 3,
-		"SANDBOX_LIFECYCLE_EVENT_APPROVED":      4,
-		"SANDBOX_LIFECYCLE_EVENT_REJECTED":      5,
-		"SANDBOX_LIFECYCLE_EVENT_TERMINAL":      6,
+		"SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED":    0,
+		"SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED":  1,
+		"SANDBOX_LIFECYCLE_EVENT_RUN_FAILED":     2,
+		"SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED":  3,
+		"SANDBOX_LIFECYCLE_EVENT_APPROVED":       4,
+		"SANDBOX_LIFECYCLE_EVENT_REJECTED":       5,
+		"SANDBOX_LIFECYCLE_EVENT_TERMINAL":       6,
+		"SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED": 7,
+		"SANDBOX_LIFECYCLE_EVENT_TURN_FAILED":    8,
+		"SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED": 9,
+		"SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED":  10,
 	}
 )
 
@@ -1272,6 +1284,7 @@ type SandboxLifecycleConfig struct {
 	DeleteOn      []SandboxLifecycleEvent `protobuf:"varint,2,rep,packed,name=delete_on,json=deleteOn,proto3,enum=agent_manager.v1.SandboxLifecycleEvent" json:"delete_on,omitempty"`
 	Ttl           *durationpb.Duration    `protobuf:"bytes,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
 	IdleTimeout   *durationpb.Duration    `protobuf:"bytes,4,opt,name=idle_timeout,json=idleTimeout,proto3" json:"idle_timeout,omitempty"`
+	CheckpointOn  []SandboxLifecycleEvent `protobuf:"varint,5,rep,packed,name=checkpoint_on,json=checkpointOn,proto3,enum=agent_manager.v1.SandboxLifecycleEvent" json:"checkpoint_on,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1330,6 +1343,13 @@ func (x *SandboxLifecycleConfig) GetTtl() *durationpb.Duration {
 func (x *SandboxLifecycleConfig) GetIdleTimeout() *durationpb.Duration {
 	if x != nil {
 		return x.IdleTimeout
+	}
+	return nil
+}
+
+func (x *SandboxLifecycleConfig) GetCheckpointOn() []SandboxLifecycleEvent {
+	if x != nil {
+		return x.CheckpointOn
 	}
 	return nil
 }
@@ -1567,12 +1587,13 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x04mode\x18\x01 \x01(\x0e2'.agent_manager.v1.SandboxAcceptanceModeR\x04mode\x12;\n" +
 	"\x05allow\x18\x02 \x01(\v2%.agent_manager.v1.SandboxFileCriteriaR\x05allow\x129\n" +
 	"\x04deny\x18\x03 \x01(\v2%.agent_manager.v1.SandboxFileCriteriaR\x04deny\x12#\n" +
-	"\rignore_binary\x18\x04 \x01(\bR\fignoreBinaryJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\fauto_approveR\vauto_rejectR\x1ddisable_auto_approve_if_empty\"\x8b\x02\n" +
+	"\rignore_binary\x18\x04 \x01(\bR\fignoreBinaryJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\fauto_approveR\vauto_rejectR\x1ddisable_auto_approve_if_empty\"\xd9\x02\n" +
 	"\x16SandboxLifecycleConfig\x12@\n" +
 	"\astop_on\x18\x01 \x03(\x0e2'.agent_manager.v1.SandboxLifecycleEventR\x06stopOn\x12D\n" +
 	"\tdelete_on\x18\x02 \x03(\x0e2'.agent_manager.v1.SandboxLifecycleEventR\bdeleteOn\x12+\n" +
 	"\x03ttl\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\x12<\n" +
-	"\fidle_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\vidleTimeout\"\xce\x03\n" +
+	"\fidle_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\vidleTimeout\x12L\n" +
+	"\rcheckpoint_on\x18\x05 \x03(\x0e2'.agent_manager.v1.SandboxLifecycleEventR\fcheckpointOn\"\xce\x03\n" +
 	"\rSandboxConfig\x12F\n" +
 	"\tlifecycle\x18\x01 \x01(\v2(.agent_manager.v1.SandboxLifecycleConfigR\tlifecycle\x12I\n" +
 	"\n" +
@@ -1606,7 +1627,7 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x1aNETWORK_ACCESS_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13NETWORK_ACCESS_NONE\x10\x01\x12\x1c\n" +
 	"\x18NETWORK_ACCESS_LOCALHOST\x10\x02\x12\x17\n" +
-	"\x13NETWORK_ACCESS_FULL\x10\x03*\xb0\x02\n" +
+	"\x13NETWORK_ACCESS_FULL\x10\x03*\xdc\x03\n" +
 	"\x15SandboxLifecycleEvent\x12'\n" +
 	"#SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED\x10\x00\x12)\n" +
 	"%SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED\x10\x01\x12&\n" +
@@ -1614,7 +1635,12 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"%SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED\x10\x03\x12$\n" +
 	" SANDBOX_LIFECYCLE_EVENT_APPROVED\x10\x04\x12$\n" +
 	" SANDBOX_LIFECYCLE_EVENT_REJECTED\x10\x05\x12$\n" +
-	" SANDBOX_LIFECYCLE_EVENT_TERMINAL\x10\x06*g\n" +
+	" SANDBOX_LIFECYCLE_EVENT_TERMINAL\x10\x06\x12*\n" +
+	"&SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED\x10\a\x12'\n" +
+	"#SANDBOX_LIFECYCLE_EVENT_TURN_FAILED\x10\b\x12*\n" +
+	"&SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED\x10\t\x12)\n" +
+	"%SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED\x10\n" +
+	"*g\n" +
 	"\x15SandboxAcceptanceMode\x12'\n" +
 	"#SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED\x10\x00\x12%\n" +
 	"!SANDBOX_ACCEPTANCE_MODE_ALLOWLIST\x10\x01*x\n" +
@@ -1757,15 +1783,16 @@ var file_agent_manager_v1_domain_types_proto_depIdxs = []int32{
 	3,  // 4: agent_manager.v1.SandboxLifecycleConfig.delete_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
 	22, // 5: agent_manager.v1.SandboxLifecycleConfig.ttl:type_name -> google.protobuf.Duration
 	22, // 6: agent_manager.v1.SandboxLifecycleConfig.idle_timeout:type_name -> google.protobuf.Duration
-	18, // 7: agent_manager.v1.SandboxConfig.lifecycle:type_name -> agent_manager.v1.SandboxLifecycleConfig
-	17, // 8: agent_manager.v1.SandboxConfig.acceptance:type_name -> agent_manager.v1.SandboxAcceptanceConfig
-	5,  // 9: agent_manager.v1.SandboxConfig.mode:type_name -> agent_manager.v1.SandboxMode
-	2,  // 10: agent_manager.v1.SandboxConfig.network_mode:type_name -> agent_manager.v1.NetworkAccess
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	3,  // 7: agent_manager.v1.SandboxLifecycleConfig.checkpoint_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
+	18, // 8: agent_manager.v1.SandboxConfig.lifecycle:type_name -> agent_manager.v1.SandboxLifecycleConfig
+	17, // 9: agent_manager.v1.SandboxConfig.acceptance:type_name -> agent_manager.v1.SandboxAcceptanceConfig
+	5,  // 10: agent_manager.v1.SandboxConfig.mode:type_name -> agent_manager.v1.SandboxMode
+	2,  // 11: agent_manager.v1.SandboxConfig.network_mode:type_name -> agent_manager.v1.NetworkAccess
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_types_proto_init() }

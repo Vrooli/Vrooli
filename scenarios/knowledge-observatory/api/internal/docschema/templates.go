@@ -18,6 +18,7 @@ type TemplateInfo struct {
 
 // templateDocTypes maps doc types that have templates to their metadata.
 var templateDocTypes = map[DocType]TemplateInfo{
+	DocTypeArchitecture:    {"ARCHITECTURE.md", "Scenario mental model, surfaces, domain map, infrastructure, and maturity"},
 	DocTypeSeams:           {"SEAMS.md", "Integration boundaries, responsibility zones, decision points, testability"},
 	DocTypeProblems:        {"PROBLEMS.md", "Known issues, tech debt, test gaps, UX issues, cleanup history"},
 	DocTypeProgress:        {"PROGRESS.md", "Development history, completed milestones"},
@@ -25,7 +26,7 @@ var templateDocTypes = map[DocType]TemplateInfo{
 	DocTypeAssumptions:     {"ASSUMPTIONS.md", "Implicit beliefs not yet validated"},
 	DocTypeErrorSemantics:  {"ERROR-SEMANTICS.md", "Error categories, recovery paths, user messaging"},
 	DocTypeSecurityPosture: {"SECURITY-POSTURE.md", "Security hardening status by category"},
-	DocTypeTemporalFlows:   {"TEMPORAL-FLOWS.md", "Async patterns, race conditions, checkpoint flows"},
+	DocTypeTemporalFlows:   {"TEMPORAL-FLOWS.md", "Temporal flow index, model maturity, spec status, and audit continuity"},
 	DocTypeCoherenceNotes:  {"COHERENCE-NOTES.md", "React state patterns, duplication, styling audit"},
 	DocTypeExperienceAudit: {"EXPERIENCE-AUDIT.md", "Persona mapping, friction analysis, navigation"},
 	DocTypePerfAudit:       {"PERF-AUDIT.md", "Headless perf-audit findings: frontmatter + per-component table; one file per audit at docs/perf/<date>-<slug>.md"},

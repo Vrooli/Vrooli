@@ -7,8 +7,8 @@ import (
 
 func TestListTemplateDocTypes(t *testing.T) {
 	types := ListTemplateDocTypes()
-	if len(types) != 11 {
-		t.Fatalf("expected 11 template doc types, got %d: %v", len(types), types)
+	if len(types) != 12 {
+		t.Fatalf("expected 12 template doc types, got %d: %v", len(types), types)
 	}
 
 	// Verify sorted order.
@@ -95,6 +95,12 @@ func TestExpectedDocTypes(t *testing.T) {
 	for _, dt := range ListTemplateDocTypes() {
 		ep := dt.ExpectedPath()
 		if ep != "" {
+			if dt == DocTypeArchitecture {
+				if ep != "docs/concepts/ARCHITECTURE.md" {
+					t.Fatalf("architecture template expected path = %q, want docs/concepts/ARCHITECTURE.md", ep)
+				}
+				continue
+			}
 			if !strings.Contains(ep, "internal/") {
 				t.Fatalf("fixed-path template doc type %s expected path %q should be in docs/internal/", dt, ep)
 			}

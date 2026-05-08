@@ -94,7 +94,7 @@ enum NetworkAccess {
 
 // SandboxLifecycleEvent describes lifecycle triggers for sandbox cleanup.
 //
-// @usage SandboxLifecycleConfig.stop_on, SandboxLifecycleConfig.delete_on
+// @usage SandboxLifecycleConfig.checkpoint_on, SandboxLifecycleConfig.stop_on, SandboxLifecycleConfig.delete_on
 enum SandboxLifecycleEvent {
   SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED = 0;
   SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED = 1;
@@ -103,6 +103,10 @@ enum SandboxLifecycleEvent {
   SANDBOX_LIFECYCLE_EVENT_APPROVED = 4;
   SANDBOX_LIFECYCLE_EVENT_REJECTED = 5;
   SANDBOX_LIFECYCLE_EVENT_TERMINAL = 6;
+  SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED = 7;
+  SANDBOX_LIFECYCLE_EVENT_TURN_FAILED = 8;
+  SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED = 9;
+  SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED = 10;
 }
 
 // SandboxAcceptanceMode controls how files are accepted for approval.
@@ -140,6 +144,7 @@ message SandboxLifecycleConfig {
   repeated SandboxLifecycleEvent delete_on = 2;
   google.protobuf.Duration ttl = 3;
   google.protobuf.Duration idle_timeout = 4;
+  repeated SandboxLifecycleEvent checkpoint_on = 5;
 }
 
 // SandboxMode names the per-run sandbox execution mode from the

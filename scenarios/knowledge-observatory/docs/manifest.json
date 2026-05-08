@@ -91,11 +91,6 @@
           "internal": true
         },
         {
-          "path": "internal/SCREAMING_ARCHITECTURE_AUDIT.md",
-          "title": "Screaming Architecture Audit",
-          "internal": true
-        },
-        {
           "path": "internal/EXPERIENCE-AUDIT.md",
           "title": "Experience Audit",
           "internal": true

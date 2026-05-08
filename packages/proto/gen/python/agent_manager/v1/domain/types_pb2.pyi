@@ -40,6 +40,10 @@ class SandboxLifecycleEvent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SANDBOX_LIFECYCLE_EVENT_APPROVED: _ClassVar[SandboxLifecycleEvent]
     SANDBOX_LIFECYCLE_EVENT_REJECTED: _ClassVar[SandboxLifecycleEvent]
     SANDBOX_LIFECYCLE_EVENT_TERMINAL: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_TURN_FAILED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED: _ClassVar[SandboxLifecycleEvent]
 
 class SandboxAcceptanceMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -173,6 +177,10 @@ SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_APPROVED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_REJECTED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_TERMINAL: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_TURN_FAILED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_RUN_FINALIZED: SandboxLifecycleEvent
 SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED: SandboxAcceptanceMode
 SANDBOX_ACCEPTANCE_MODE_ALLOWLIST: SandboxAcceptanceMode
 SANDBOX_MODE_UNSPECIFIED: SandboxMode
@@ -273,16 +281,18 @@ class SandboxAcceptanceConfig(_message.Message):
     def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ...) -> None: ...
 
 class SandboxLifecycleConfig(_message.Message):
-    __slots__ = ("stop_on", "delete_on", "ttl", "idle_timeout")
+    __slots__ = ("stop_on", "delete_on", "ttl", "idle_timeout", "checkpoint_on")
     STOP_ON_FIELD_NUMBER: _ClassVar[int]
     DELETE_ON_FIELD_NUMBER: _ClassVar[int]
     TTL_FIELD_NUMBER: _ClassVar[int]
     IDLE_TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_ON_FIELD_NUMBER: _ClassVar[int]
     stop_on: _containers.RepeatedScalarFieldContainer[SandboxLifecycleEvent]
     delete_on: _containers.RepeatedScalarFieldContainer[SandboxLifecycleEvent]
     ttl: _duration_pb2.Duration
     idle_timeout: _duration_pb2.Duration
-    def __init__(self, stop_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., delete_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., idle_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ...) -> None: ...
+    checkpoint_on: _containers.RepeatedScalarFieldContainer[SandboxLifecycleEvent]
+    def __init__(self, stop_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., delete_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., idle_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., checkpoint_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ...) -> None: ...
 
 class SandboxConfig(_message.Message):
     __slots__ = ("lifecycle", "acceptance", "mode", "manual_review", "auto_apply", "apply_on_failure", "network_mode", "no_lock")
