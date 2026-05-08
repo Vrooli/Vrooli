@@ -1053,6 +1053,9 @@ func TestOrchestrator_Run_ConsoleErrorsCounted(t *testing.T) {
 	if result.ConsoleErrorCount != 2 {
 		t.Errorf("ConsoleErrorCount = %d, want 2", result.ConsoleErrorCount)
 	}
+	if result.ConsoleWarningCount != 1 {
+		t.Errorf("ConsoleWarningCount = %d, want 1", result.ConsoleWarningCount)
+	}
 }
 
 func TestOrchestrator_Run_ArtifactWriteError(t *testing.T) {

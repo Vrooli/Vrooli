@@ -333,11 +333,15 @@ func (o *Orchestrator) buildResult(
 		message = fmt.Sprintf("UI exception: %s", response.PageErrors[0].Message)
 	}
 
-	// Count console.error() calls
+	// Count console error and warning calls.
 	consoleErrorCount := 0
+	consoleWarningCount := 0
 	for _, entry := range response.Console {
-		if entry.Level == "error" {
+		switch entry.Level {
+		case "error":
 			consoleErrorCount++
+		case "warn", "warning":
+			consoleWarningCount++
 		}
 	}
 
@@ -352,6 +356,7 @@ func (o *Orchestrator) buildResult(
 		NetworkFailureCount: len(response.Network),
 		PageErrorCount:      len(response.PageErrors),
 		ConsoleErrorCount:   consoleErrorCount,
+		ConsoleWarningCount: consoleWarningCount,
 		Bundle:              bundle,
 		IframeBridge:        bridge,
 		StorageShim:         response.StorageShim,

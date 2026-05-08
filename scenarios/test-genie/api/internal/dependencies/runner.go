@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+
 	"test-genie/internal/dependencies/commands"
 	"test-genie/internal/dependencies/packages"
 	"test-genie/internal/dependencies/resources"
@@ -25,6 +26,10 @@ type Config struct {
 	// CommandLookup is an optional custom command lookup function.
 	// If nil, exec.LookPath is used.
 	CommandLookup commands.LookupFunc
+
+	// SkipResourceHealthWhenNoRequired avoids runtime status telemetry when the
+	// manifest declares no required resources.
+	SkipResourceHealthWhenNoRequired bool
 }
 
 // Runner orchestrates dependency validation across commands, runtime, packages, and resources.
@@ -232,7 +237,9 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	}
 
 	// Section: Resource Health (if checker is configured)
-	if r.resourceChecker != nil {
+	if r.resourceChecker != nil && r.config.SkipResourceHealthWhenNoRequired && len(requiredResources) == 0 {
+		observations = append(observations, NewInfoObservation("resource health telemetry not applicable without required resources"))
+	} else if r.resourceChecker != nil {
 		observations = append(observations, NewSectionObservation("💚", "Checking resource health..."))
 		shared.LogInfo(r.logWriter, "Checking resource health...")
 

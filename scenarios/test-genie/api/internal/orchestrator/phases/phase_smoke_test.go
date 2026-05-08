@@ -61,3 +61,41 @@ func TestRunSmokePhasePassesExplicitUIURL(t *testing.T) {
 		t.Fatalf("expected 1 observation, got %d", len(report.Observations))
 	}
 }
+
+func TestRunSmokePhaseSurfacesConsoleWarnings(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"), []byte(`{"structure":{"ui_smoke":{"enabled":true}}}`), 0o644); err != nil {
+		t.Fatalf("failed to enable ui smoke testing: %v", err)
+	}
+
+	stubSmokeRunForPhase(t, func(ctx context.Context, scenarioName, scenarioDir, uiURL string, logWriter io.Writer) (*smoke.PhaseResult, error) {
+		return &smoke.PhaseResult{
+			Success: true,
+			Message: "ui smoke passed",
+			Result: &smoke.Result{
+				Status:              smoke.StatusPassed,
+				Message:             "ui smoke passed",
+				ConsoleWarningCount: 1,
+				Artifacts: smoke.ArtifactPaths{
+					Console: "coverage/ui-smoke/demo/console.json",
+				},
+			},
+		}, nil
+	})
+
+	report := runSmokePhase(context.Background(), workspace.Environment{
+		ScenarioName: "demo",
+		ScenarioDir:  scenarioDir,
+		TestDir:      filepath.Join(scenarioDir, "coverage"),
+	}, io.Discard)
+	if report.Err != nil {
+		t.Fatalf("expected smoke phase to succeed, got %v", report.Err)
+	}
+	for _, observation := range report.Observations {
+		if observation.Prefix == "WARNING" && observation.Text == "UI smoke captured 1 browser console warning(s); see coverage/ui-smoke/demo/console.json" {
+			return
+		}
+	}
+	t.Fatalf("expected console warning observation, got %#v", report.Observations)
+}

@@ -97,6 +97,13 @@ func runSmokePhase(ctx context.Context, env workspace.Environment, logWriter io.
 			logPhaseStep(logWriter, "UI smoke artifacts: screenshot=%s console=%s network=%s html=%s raw=%s readme=%s",
 				res.Artifacts.Screenshot, res.Artifacts.Console, res.Artifacts.Network, res.Artifacts.HTML, res.Artifacts.Raw, res.Artifacts.Readme)
 		}
+		if res.ConsoleWarningCount > 0 {
+			message := fmt.Sprintf("UI smoke captured %d browser console warning(s)", res.ConsoleWarningCount)
+			if res.Artifacts.Console != "" {
+				message += fmt.Sprintf("; see %s", res.Artifacts.Console)
+			}
+			observations = append(observations, NewWarningObservation(message))
+		}
 	}
 	logPhaseSuccess(logWriter, "UI smoke test passed")
 

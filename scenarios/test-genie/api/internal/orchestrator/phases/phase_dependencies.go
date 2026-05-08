@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+
 	"test-genie/internal/dependencies"
 	"test-genie/internal/dependencies/resources"
 	"test-genie/internal/orchestrator/workspace"
@@ -18,10 +19,11 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 	report := RunPhase(ctx, logWriter, "dependencies",
 		func() (*dependencies.RunResult, error) {
 			config := dependencies.Config{
-				ScenarioDir:   env.ScenarioDir,
-				ScenarioName:  env.ScenarioName,
-				AppRoot:       env.AppRoot,
-				CommandLookup: commandLookup,
+				ScenarioDir:                      env.ScenarioDir,
+				ScenarioName:                     env.ScenarioName,
+				AppRoot:                          env.AppRoot,
+				CommandLookup:                    commandLookup,
+				SkipResourceHealthWhenNoRequired: env.Mapping.HasLogicalPlacement(),
 			}
 
 			opts := []dependencies.Option{

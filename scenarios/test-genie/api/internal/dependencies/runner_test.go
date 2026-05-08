@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"testing"
+
 	"test-genie/internal/dependencies/commands"
 	"test-genie/internal/dependencies/packages"
 	"test-genie/internal/dependencies/resources"
 	"test-genie/internal/dependencies/runtime"
 	"test-genie/internal/structure/types"
-	"testing"
 )
 
 // mockCommandChecker implements commands.Checker for testing.
@@ -72,9 +73,11 @@ func (m *mockResourceLoader) Load() ([]string, error) {
 // mockResourceChecker implements resources.HealthChecker for testing.
 type mockResourceChecker struct {
 	result resources.HealthResult
+	calls  int
 }
 
 func (m *mockResourceChecker) Check(ctx context.Context) resources.HealthResult {
+	m.calls++
 	return m.result
 }
 
@@ -204,6 +207,46 @@ func TestRunnerRunFailsOnUnhealthyResource(t *testing.T) {
 
 	if result.Success {
 		t.Fatalf("expected failure for unhealthy resource")
+	}
+}
+
+func TestRunnerRunSkipsResourceHealthWhenNoRequiredResources(t *testing.T) {
+	checker := &mockResourceChecker{
+		result: resources.HealthResult{
+			Success: false,
+			Error:   fmt.Errorf("status should not be fetched"),
+		},
+	}
+	runner := New(Config{
+		ScenarioDir:                      "/scenarios/demo",
+		ScenarioName:                     "demo",
+		SkipResourceHealthWhenNoRequired: true,
+	},
+		WithLogger(io.Discard),
+		WithCommandChecker(&mockCommandChecker{}),
+		WithRuntimeDetector(&mockRuntimeDetector{}),
+		WithPackageDetector(&mockPackageDetector{}),
+		WithResourceLoader(&mockResourceLoader{}),
+		WithResourceChecker(checker),
+	)
+
+	result := runner.Run(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success, got %v", result.Error)
+	}
+	if checker.calls != 0 {
+		t.Fatalf("expected resource checker to be skipped, got %d calls", checker.calls)
+	}
+	found := false
+	for _, observation := range result.Observations {
+		if observation.Type == ObservationInfo && observation.Message == "resource health telemetry not applicable without required resources" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected not-applicable resource telemetry observation, got %#v", result.Observations)
 	}
 }
 

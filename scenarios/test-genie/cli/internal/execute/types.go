@@ -62,20 +62,20 @@ type PlanPreview struct {
 
 // Response represents the execution response.
 type Response struct {
-	Success       bool           `json:"success"`
-	ExecutionID   string         `json:"executionId"`
-	SuiteRequest  string         `json:"suiteRequestId"`
-	PresetUsed    string         `json:"presetUsed"`
-	StartedAt     string         `json:"startedAt"`
-	CompletedAt   string         `json:"completedAt"`
-	PhaseSummary  PhaseSummary   `json:"phaseSummary"`
-	Phases        []Phase        `json:"phases"`
-	Warnings      []string       `json:"warnings"`
+	Success        bool           `json:"success"`
+	ExecutionID    string         `json:"executionId"`
+	SuiteRequest   string         `json:"suiteRequestId"`
+	PresetUsed     string         `json:"presetUsed"`
+	StartedAt      string         `json:"startedAt"`
+	CompletedAt    string         `json:"completedAt"`
+	PhaseSummary   PhaseSummary   `json:"phaseSummary"`
+	Phases         []Phase        `json:"phases"`
+	Warnings       []string       `json:"warnings"`
 	WarningSummary WarningSummary `json:"warningSummary"`
-	Error         string         `json:"error"`
-	ErrorMessages []string       `json:"errors"`
-	Links         map[string]any `json:"links"`
-	Metadata      map[string]any `json:"metadata"`
+	Error          string         `json:"error"`
+	ErrorMessages  []string       `json:"errors"`
+	Links          map[string]any `json:"links"`
+	Metadata       map[string]any `json:"metadata"`
 }
 
 // WarningDetail captures a non-fatal warning emitted by a phase.

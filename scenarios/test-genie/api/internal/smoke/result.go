@@ -93,6 +93,9 @@ type Result struct {
 	// ConsoleErrorCount is the number of console.error() calls captured.
 	ConsoleErrorCount int `json:"console_error_count"`
 
+	// ConsoleWarningCount is the number of console.warn() calls captured.
+	ConsoleWarningCount int `json:"console_warning_count"`
+
 	// Artifacts contains paths to generated artifacts.
 	Artifacts ArtifactPaths `json:"artifacts,omitempty"`
 

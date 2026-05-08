@@ -5,13 +5,14 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
+
 	"test-genie/internal/smoke/artifacts"
 	"test-genie/internal/smoke/browser"
 	"test-genie/internal/smoke/handshake"
 	"test-genie/internal/smoke/orchestrator"
 	"test-genie/internal/smoke/preflight"
 	"test-genie/internal/smoke/smokeconfig"
-	"time"
 )
 
 // Runner provides a high-level API for running UI smoke tests.
@@ -190,6 +191,7 @@ func convertResult(or *orchestrator.Result) *Result {
 		NetworkFailureCount: or.NetworkFailureCount,
 		PageErrorCount:      or.PageErrorCount,
 		ConsoleErrorCount:   or.ConsoleErrorCount,
+		ConsoleWarningCount: or.ConsoleWarningCount,
 		Artifacts: ArtifactPaths{
 			Screenshot: or.Artifacts.Screenshot,
 			Console:    or.Artifacts.Console,
