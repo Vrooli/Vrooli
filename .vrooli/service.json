@@ -282,6 +282,19 @@
       "notes": "Manages /etc/sysctl.d/99-vrooli.conf with inotify and other kernel parameters"
     },
     {
+      "name": "workspace_sandbox_userns",
+      "required": true,
+      "reason": "Allow workspace-sandbox to restart through its portable launcher with the default overlayfs-userns driver after Linux host reboots",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Installs/loads a dedicated vrooli-workspace-sandbox AppArmor profile when plain unshare is blocked; does not disable AppArmor or kernel.apparmor_restrict_unprivileged_userns globally."
+    },
+    {
       "name": "nat_protection",
       "required": false,
       "reason": "Detect and remove dead NAT iptables REDIRECT rules that hijack web traffic",

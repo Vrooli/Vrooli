@@ -121,6 +121,9 @@
       },
       "additionalProperties": false
     },
+    "generation": {
+      "$ref": "#/definitions/generationMetadata"
+    },
     "cli": {
       "$ref": "#/definitions/cliConfig"
     },
@@ -321,6 +324,51 @@
     }
   ],
   "definitions": {
+    "generationMetadata": {
+      "type": "object",
+      "description": "Durable provenance for scenarios generated from a template.",
+      "properties": {
+        "template": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "design": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "adapter": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "template",
+        "generated_at"
+      ],
+      "additionalProperties": false
+    },
     "cliConfig": {
       "type": "object",
       "description": "Installed artifact contract for a scenario or resource CLI. Go-module installs produce a binary plus sibling manifest and build metadata files.",

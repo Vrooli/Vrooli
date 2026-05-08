@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "workspace_sandbox_userns",
+  "description": "Allow workspace-sandbox to enter the AppArmor profile needed for unprivileged user and mount namespace startup",
+  "handler": "workspace_sandbox_userns",
+  "platforms": ["linux"],
+  "risk": "medium",
+  "verificationCheck": {
+    "files": ["/etc/apparmor.d/vrooli-workspace-sandbox"]
+  }
+}
