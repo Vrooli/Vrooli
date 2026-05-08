@@ -6,11 +6,11 @@ Promoted from `drafts/topics-schema.md` after the inbox-flow refactor stabilized
 
 ## Purpose
 
-A `topics.json` file declares, **structurally**, how a single team member produces and consumes work via topic-prefixed channels. It is the machine-readable substrate the heartbeat builder uses to render the universal `# Inbox Flow` section, and the validator uses to detect orphan flows and drift.
+A `topics.json` file declares, **structurally**, how a single team member produces and consumes work via topic-prefixed channels. Team-level `team.json::topicCatalog` declares shared topic-family status and purpose. Together, those structured declarations are the machine-readable substrate the heartbeat builder uses to render generated prompt sections, and the validator uses to detect orphan flows and drift.
 
 Once this layer ships, prose claims like "the researcher drains `research-inbox/*`" become declarations the system can validate, visualize, and lint against. Orphan output prefixes, dangling intake claims, conflicting drain duty, and stalled inboxes become detectable.
 
-`topics.json` is **per-member**, not per-team or per-skill. The topic declarations live at the same granularity as `RESPONSIBILITIES.md` and `HEARTBEAT.md`.
+`topics.json` is **per-member**, not per-team or per-skill. The topic declarations live at the same granularity as `RESPONSIBILITIES.md` and `HEARTBEAT.md`. Shared topic-family metadata belongs on the team, not duplicated in every member file.
 
 ## File location
 
@@ -19,6 +19,12 @@ scenarios/prompt-manager/store/teams/<team>/members/<member>/topics.json
 ```
 
 Sibling to `HEARTBEAT.md`, `RESPONSIBILITIES.md`, `last-handoff.md`. One file per member.
+
+Team-level topic-family metadata lives in:
+
+```
+scenarios/prompt-manager/store/teams/<team>/team.json::topicCatalog
+```
 
 ## Schema (canonical)
 
@@ -63,6 +69,37 @@ Top-level keys, all optional (omit when not applicable):
 | `decisions_consumed` | array of decision-context strings | Decision contexts whose acceptance changes this member's behavior. |
 | `raises_capability_gaps` | boolean | True if the member's role includes filing `capability-gap` decisions. |
 | `external_producers` | array of stable identifiers | Non-team-member producers that feed intake (e.g., `vision-walk`, `operator`, `bookmark-intelligence-hub`). |
+
+## Team topic catalog
+
+`team.json::topicCatalog` is the structured source of truth for topic-family status and purpose. It does not declare readers or writers; per-member `topics.json` files remain the source of runtime member relationships.
+
+```jsonc
+{
+  "topicCatalog": [
+    {
+      "prefix": "audience-scan/*",
+      "status": "live",
+      "purpose": "Audience pain, vocabulary, buyer triggers, objections, and persona evidence."
+    },
+    {
+      "prefix": "publish-performance/*",
+      "qualifier": "future",
+      "status": "target",
+      "purpose": "Telemetry and qualitative performance."
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `prefix` | string with optional `/*` suffix | yes | Topic family prefix. Uses the same shape rules as member topic prefixes. |
+| `qualifier` | string | optional | Empty for current/live topics, `future` for target-state topics, `old` for historical topics, `external` for outside surfaces. When omitted, the validator derives the expected qualifier from `status`. |
+| `status` | enum | yes | One of `live`, `live transitional`, `live system`, `live but under-consumed`, `target`, `old`, or `external`. |
+| `purpose` | string | required for current/live statuses | Canonical team-level description rendered into generated `# Topic Contract` prompt sections and validated against operating-model Topic Catalog tables. |
+
+The operating-model Topic Catalog table is a human-readable projection of this structured metadata plus the graph/runtime relationships. Purpose text in docs must match `team.json::topicCatalog`; owner/reader cells must match graph and member `topics.json` relationships.
 
 ### Intake entry
 
@@ -241,6 +278,6 @@ When loaded, `prompt-manager graph topics --team marketing-crew` should:
 
 This schema is canon as of the inbox-flow refactor (Phase I cleanup landed; five adopters in production: `team:marketing-crew/researcher`, `team:marketing-crew/brand-manager`, `team:meta-optimization/debt-curator`, `team:monetization/opportunity-scout`, `team:monetization/market-validator`).
 
-Backwards-incompatible changes from here require a `meta-optimization` decision and a migration plan covering: (a) every `topics.json` file in `path:scenarios/prompt-manager/store/teams/*/members/*/`, (b) the Go schema at `path:scenarios/prompt-manager/api/memberflow/schema.go`, (c) the heartbeat builder section template at `path:scenarios/prompt-manager/api/heartbeat/inbox_flow.go`, and (d) the validation rules.
+Backwards-incompatible changes from here require a `meta-optimization` decision and a migration plan covering: (a) every `topics.json` file in `path:scenarios/prompt-manager/store/teams/*/members/*/`, (b) every `team.json::topicCatalog` that describes those topic families, (c) the Go schemas at `path:scenarios/prompt-manager/api/memberflow/schema.go` and `path:scenarios/prompt-manager/api/memberflow/team_contracts.go`, (d) the heartbeat builder section templates, and (e) the validation rules.
 
 Backwards-compatible additions (new optional fields, new `destination_kind` enum values, new validation rules at `warning` severity) may land via PR without a decision.

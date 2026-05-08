@@ -267,9 +267,12 @@ func TestCmdOperatingModelCoveragePassesFiltersAndRendersHumanOutput(t *testing.
 				TopicContractContentParity: "not_implemented",
 			},
 			Docs: operatingDocsCoverage{
-				MermaidGraph:      "enforced",
-				TopicCatalogTable: "reference_only",
-				DecisionsTable:    "reference_only",
+				MermaidGraph:                      "enforced",
+				TopicCatalogTable:                 "reference_only",
+				TopicCatalogPurposeMatched:        2,
+				TopicCatalogPurposeMismatch:       1,
+				TopicCatalogPurposeMissingRuntime: 3,
+				DecisionsTable:                    "reference_only",
 			},
 			Exclusions: []operatingCoverageExclusion{{
 				Kind:   "process_nodes",
@@ -300,6 +303,7 @@ func TestCmdOperatingModelCoveragePassesFiltersAndRendersHumanOutput(t *testing.
 		"content parity: not_implemented",
 		"Docs Coverage",
 		"Topic Catalog table: reference_only",
+		"Topic Catalog purpose parity: matched 2, mismatch 1, missing-runtime 3",
 		"Excluded",
 		"process_nodes: 4",
 	} {
@@ -336,9 +340,10 @@ func TestCmdOperatingModelCoverageJSONPreservesAPIShape(t *testing.T) {
 				TopicContractContentParity: "not_implemented",
 			},
 			Docs: operatingDocsCoverage{
-				MermaidGraph:      "enforced",
-				TopicCatalogTable: "reference_only",
-				DecisionsTable:    "reference_only",
+				MermaidGraph:                "enforced",
+				TopicCatalogTable:           "reference_only",
+				TopicCatalogPurposeMismatch: 1,
+				DecisionsTable:              "reference_only",
 			},
 		}},
 	})
@@ -357,6 +362,7 @@ func TestCmdOperatingModelCoverageJSONPreservesAPIShape(t *testing.T) {
 		`"validation_rule": "graph_declared_output_missing"`,
 		`"topic_contract_content_parity": "not_implemented"`,
 		`"topic_catalog_table": "reference_only"`,
+		`"topic_catalog_purpose_mismatch": 1`,
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)

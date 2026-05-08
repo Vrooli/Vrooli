@@ -46,19 +46,22 @@ type OperatingPromptCoverage struct {
 }
 
 type OperatingDocsCoverage struct {
-	MermaidGraph          OperatingCoverageStatus `json:"mermaid_graph"`
-	TopicCatalogTable     OperatingCoverageStatus `json:"topic_catalog_table"`
-	TopicCatalogRows      int                     `json:"topic_catalog_rows"`
-	TopicCatalogMatched   int                     `json:"topic_catalog_matched"`
-	TopicCatalogGraphOnly int                     `json:"topic_catalog_graph_only"`
-	TopicCatalogDocsOnly  int                     `json:"topic_catalog_docs_only"`
-	TopicCatalogInvalid   int                     `json:"topic_catalog_invalid"`
-	DecisionsTable        OperatingCoverageStatus `json:"decisions_table"`
-	DecisionsRows         int                     `json:"decisions_rows"`
-	DecisionsMatched      int                     `json:"decisions_matched"`
-	DecisionsGraphOnly    int                     `json:"decisions_graph_only"`
-	DecisionsDocsOnly     int                     `json:"decisions_docs_only"`
-	DecisionsInvalid      int                     `json:"decisions_invalid"`
+	MermaidGraph                      OperatingCoverageStatus `json:"mermaid_graph"`
+	TopicCatalogTable                 OperatingCoverageStatus `json:"topic_catalog_table"`
+	TopicCatalogRows                  int                     `json:"topic_catalog_rows"`
+	TopicCatalogMatched               int                     `json:"topic_catalog_matched"`
+	TopicCatalogGraphOnly             int                     `json:"topic_catalog_graph_only"`
+	TopicCatalogDocsOnly              int                     `json:"topic_catalog_docs_only"`
+	TopicCatalogInvalid               int                     `json:"topic_catalog_invalid"`
+	TopicCatalogPurposeMatched        int                     `json:"topic_catalog_purpose_matched"`
+	TopicCatalogPurposeMismatch       int                     `json:"topic_catalog_purpose_mismatch"`
+	TopicCatalogPurposeMissingRuntime int                     `json:"topic_catalog_purpose_missing_runtime"`
+	DecisionsTable                    OperatingCoverageStatus `json:"decisions_table"`
+	DecisionsRows                     int                     `json:"decisions_rows"`
+	DecisionsMatched                  int                     `json:"decisions_matched"`
+	DecisionsGraphOnly                int                     `json:"decisions_graph_only"`
+	DecisionsDocsOnly                 int                     `json:"decisions_docs_only"`
+	DecisionsInvalid                  int                     `json:"decisions_invalid"`
 }
 
 type OperatingCoverageExclusion struct {
@@ -80,7 +83,7 @@ func BuildOperatingGraphCoverage(blocks []OperatingGraphBlock, runtime Operating
 			Source:        block.Source,
 			Relationships: buildOperatingRelationshipCoverage(ctx),
 			Prompts:       buildOperatingPromptCoverage(ctx),
-			Docs:          buildOperatingDocsCoverage(block),
+			Docs:          buildOperatingDocsCoverage(ctx),
 			Exclusions:    buildOperatingCoverageExclusions(block),
 		})
 	}
@@ -243,7 +246,8 @@ func buildOperatingPromptCoverage(ctx OperatingGraphContractContext) OperatingPr
 	return coverage
 }
 
-func buildOperatingDocsCoverage(block OperatingGraphBlock) OperatingDocsCoverage {
+func buildOperatingDocsCoverage(ctx OperatingGraphContractContext) OperatingDocsCoverage {
+	block := ctx.Block
 	docs := OperatingDocsCoverage{
 		MermaidGraph:      OperatingCoverageStatusReferenceOnly,
 		TopicCatalogTable: OperatingCoverageStatusNotImplemented,
@@ -255,6 +259,7 @@ func buildOperatingDocsCoverage(block OperatingGraphBlock) OperatingDocsCoverage
 	docs.TopicCatalogTable = docsTableStatus(block.Docs.TopicCatalog.Present)
 	docs.DecisionsTable = docsTableStatus(block.Docs.Decisions.Present)
 	docs.TopicCatalogRows, docs.TopicCatalogMatched, docs.TopicCatalogGraphOnly, docs.TopicCatalogDocsOnly, docs.TopicCatalogInvalid = topicCatalogCoverageCounts(block)
+	docs.TopicCatalogPurposeMatched, docs.TopicCatalogPurposeMismatch, docs.TopicCatalogPurposeMissingRuntime = topicCatalogPurposeCoverageCounts(block, ctx.Runtime.Contracts[block.Metadata.Team])
 	docs.DecisionsRows, docs.DecisionsMatched, docs.DecisionsGraphOnly, docs.DecisionsDocsOnly, docs.DecisionsInvalid = decisionTableCoverageCounts(block)
 	return docs
 }
@@ -293,6 +298,28 @@ func topicCatalogCoverageCounts(block OperatingGraphBlock) (rows, matched, graph
 	for key := range docTopics {
 		if !graphTopics[key] {
 			docsOnly++
+		}
+	}
+	return
+}
+
+func topicCatalogPurposeCoverageCounts(block OperatingGraphBlock, contract *LoadedTeamContract) (matched, mismatch, missingRuntime int) {
+	catalog := topicCatalogByQualifiedTopic(contract)
+	for _, row := range block.Docs.TopicCatalog.Rows {
+		if row.Topic == "" {
+			continue
+		}
+		entry, ok := catalog[qualifiedTopicKey(row.Qualifier, row.Topic)]
+		if !ok {
+			if operatingTopicCatalogStatusIsCurrent(row.StatusKind) {
+				missingRuntime++
+			}
+			continue
+		}
+		if normalizeCatalogPurpose(row.Purpose) == normalizeCatalogPurpose(entry.Purpose) {
+			matched++
+		} else {
+			mismatch++
 		}
 	}
 	return

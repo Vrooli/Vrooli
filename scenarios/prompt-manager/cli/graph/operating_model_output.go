@@ -123,6 +123,11 @@ func printOperatingModelCoverage(resp operatingGraphCoverageResponse) {
 			cov.Docs.TopicCatalogDocsOnly,
 			cov.Docs.TopicCatalogInvalid,
 		)
+		fmt.Printf("- Topic Catalog purpose parity: matched %d, mismatch %d, missing-runtime %d\n",
+			cov.Docs.TopicCatalogPurposeMatched,
+			cov.Docs.TopicCatalogPurposeMismatch,
+			cov.Docs.TopicCatalogPurposeMissingRuntime,
+		)
 		fmt.Printf("- Decisions table: %s (rows %d, matched %d, graph-only %d, docs-only %d, invalid %d)\n",
 			cov.Docs.DecisionsTable,
 			cov.Docs.DecisionsRows,

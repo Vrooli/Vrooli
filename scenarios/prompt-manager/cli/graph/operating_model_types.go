@@ -187,19 +187,22 @@ type operatingPromptCoverage struct {
 }
 
 type operatingDocsCoverage struct {
-	MermaidGraph          string `json:"mermaid_graph"`
-	TopicCatalogTable     string `json:"topic_catalog_table"`
-	TopicCatalogRows      int    `json:"topic_catalog_rows"`
-	TopicCatalogMatched   int    `json:"topic_catalog_matched"`
-	TopicCatalogGraphOnly int    `json:"topic_catalog_graph_only"`
-	TopicCatalogDocsOnly  int    `json:"topic_catalog_docs_only"`
-	TopicCatalogInvalid   int    `json:"topic_catalog_invalid"`
-	DecisionsTable        string `json:"decisions_table"`
-	DecisionsRows         int    `json:"decisions_rows"`
-	DecisionsMatched      int    `json:"decisions_matched"`
-	DecisionsGraphOnly    int    `json:"decisions_graph_only"`
-	DecisionsDocsOnly     int    `json:"decisions_docs_only"`
-	DecisionsInvalid      int    `json:"decisions_invalid"`
+	MermaidGraph                      string `json:"mermaid_graph"`
+	TopicCatalogTable                 string `json:"topic_catalog_table"`
+	TopicCatalogRows                  int    `json:"topic_catalog_rows"`
+	TopicCatalogMatched               int    `json:"topic_catalog_matched"`
+	TopicCatalogGraphOnly             int    `json:"topic_catalog_graph_only"`
+	TopicCatalogDocsOnly              int    `json:"topic_catalog_docs_only"`
+	TopicCatalogInvalid               int    `json:"topic_catalog_invalid"`
+	TopicCatalogPurposeMatched        int    `json:"topic_catalog_purpose_matched"`
+	TopicCatalogPurposeMismatch       int    `json:"topic_catalog_purpose_mismatch"`
+	TopicCatalogPurposeMissingRuntime int    `json:"topic_catalog_purpose_missing_runtime"`
+	DecisionsTable                    string `json:"decisions_table"`
+	DecisionsRows                     int    `json:"decisions_rows"`
+	DecisionsMatched                  int    `json:"decisions_matched"`
+	DecisionsGraphOnly                int    `json:"decisions_graph_only"`
+	DecisionsDocsOnly                 int    `json:"decisions_docs_only"`
+	DecisionsInvalid                  int    `json:"decisions_invalid"`
 }
 
 type operatingCoverageExclusion struct {

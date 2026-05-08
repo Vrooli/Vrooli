@@ -45,11 +45,15 @@ func BuildOperatingGraphRuntime(repoRoot, storeDir string) (OperatingGraphRuntim
 		StoreDir:       storeDir,
 		Members:        members,
 		Contracts:      contracts,
-		PromptSections: derivedTopicContractPromptSections(members),
+		PromptSections: derivedTopicContractPromptSections(members, contracts),
 	}, nil
 }
 
-func derivedTopicContractPromptSections(members []MemberTopics) map[MemberRef][]OperatingGraphPromptSection {
+func derivedTopicContractPromptSections(members []MemberTopics, registries ...TeamContractRegistry) map[MemberRef][]OperatingGraphPromptSection {
+	var contracts TeamContractRegistry
+	if len(registries) > 0 {
+		contracts = registries[0]
+	}
 	sections := make(map[MemberRef][]OperatingGraphPromptSection, len(members))
 	for _, m := range members {
 		ref := m.Ref
@@ -58,6 +62,7 @@ func derivedTopicContractPromptSections(members []MemberTopics) map[MemberRef][]
 			Member:     ref.Member,
 			Kind:       operatingGraphPromptSectionKindTopicContract,
 			SourcePath: expectedTopicContractSourcePath(ref.Team, ref.Member),
+			Content:    RenderTopicContract(ref.Team, ref.Member, m, contracts.TopicCatalog(ref.Team)...),
 			SourceKind: OperatingGraphPromptSectionSourceDerived,
 		}}
 	}
@@ -67,7 +72,7 @@ func derivedTopicContractPromptSections(members []MemberTopics) map[MemberRef][]
 func expectedTopicContractContent(runtime OperatingGraphRuntime, team, member string) (string, bool) {
 	for _, m := range runtime.Members {
 		if m.Ref.Team == team && m.Ref.Member == member {
-			return RenderTopicContract(team, member, m), true
+			return RenderTopicContract(team, member, m, runtime.Contracts.TopicCatalog(team)...), true
 		}
 	}
 	return "", false

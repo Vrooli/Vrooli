@@ -35,6 +35,7 @@ const (
 	OperatingActorKindMember   OperatingActorKind = "member"
 	OperatingActorKindTeam     OperatingActorKind = "team"
 	OperatingActorKindExternal OperatingActorKind = "external"
+	OperatingActorKindProcess  OperatingActorKind = "process"
 	OperatingActorKindGroup    OperatingActorKind = "group"
 	OperatingActorKindUnknown  OperatingActorKind = "unknown"
 )

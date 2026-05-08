@@ -50,6 +50,7 @@ func DefaultOperatingGraphRules() []OperatingGraphRule {
 		graphTopicCatalogStatusQualifierDriftRule{},
 		graphTopicCatalogLiveStatusUnbackedRule{},
 		graphTopicCatalogTransitionalWithoutTargetRule{},
+		graphTopicCatalogPurposeDriftRule{},
 		graphDocsUnknownActorRule{},
 		graphTopicCatalogWriterDriftRule{},
 		graphTopicCatalogReaderDriftRule{},

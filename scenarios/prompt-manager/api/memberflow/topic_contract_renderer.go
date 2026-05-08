@@ -8,28 +8,29 @@ import (
 
 const TopicContractHeading = "# Topic Contract"
 
-func RenderTopicContract(teamID, agentID string, memberFlow MemberTopics) string {
+func RenderTopicContract(teamID, agentID string, memberFlow MemberTopics, catalog ...TopicCatalogEntry) string {
 	topics := memberFlow.Topics
+	purposes := topicCatalogPurposeByPrefix(catalog)
 
 	var b strings.Builder
 	b.WriteString(TopicContractHeading + "\n\n")
-	b.WriteString("This section is generated from `topics.json`. It is the source of truth for topic reads, writes, decisions, and capability-gap routing.\n")
+	b.WriteString("This section is generated from `topics.json` and team `topicCatalog`. It is the source of truth for topic reads, writes, decisions, and capability-gap routing.\n")
 	if topics.IsEmpty() {
 		b.WriteString("\nNo topic flow is declared for this member.")
 		return b.String()
 	}
 
-	renderTopicContractIntakes(&b, topics.Intake)
-	renderTopicContractRequiredReads(&b, topics.RequiredRead)
-	renderTopicContractEvidence(&b, topics.EvidenceConsumed)
-	renderTopicContractOutputs(&b, topics.Output)
+	renderTopicContractIntakes(&b, topics.Intake, purposes)
+	renderTopicContractRequiredReads(&b, topics.RequiredRead, purposes)
+	renderTopicContractEvidence(&b, topics.EvidenceConsumed, purposes)
+	renderTopicContractOutputs(&b, topics.Output, purposes)
 	renderTopicContractDecisions(&b, topics)
 	renderTopicContractExternalProducers(&b, topics.ExternalProducers)
 
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func renderTopicContractIntakes(b *strings.Builder, entries []IntakeEntry) {
+func renderTopicContractIntakes(b *strings.Builder, entries []IntakeEntry, purposes map[string]string) {
 	if len(entries) == 0 {
 		return
 	}
@@ -45,11 +46,11 @@ func renderTopicContractIntakes(b *strings.Builder, entries []IntakeEntry) {
 		if e.SourceTeam != nil && strings.TrimSpace(*e.SourceTeam) != "" {
 			parts = append(parts, "source team `"+*e.SourceTeam+"`")
 		}
-		b.WriteString(fmt.Sprintf("- `%s` - %s\n", e.Prefix, strings.Join(parts, ", ")))
+		b.WriteString(fmt.Sprintf("- `%s` - %s\n", e.Prefix, topicContractLineDetail(e.Prefix, purposes, strings.Join(parts, ", "))))
 	}
 }
 
-func renderTopicContractRequiredReads(b *strings.Builder, entries []RequiredReadEntry) {
+func renderTopicContractRequiredReads(b *strings.Builder, entries []RequiredReadEntry, purposes map[string]string) {
 	if len(entries) == 0 {
 		return
 	}
@@ -58,18 +59,18 @@ func renderTopicContractRequiredReads(b *strings.Builder, entries []RequiredRead
 
 	b.WriteString("\n## Required Reads\n\n")
 	for _, e := range entries {
-		line := "- `" + e.Prefix + "`"
+		var parts []string
 		if e.SourceTeam != nil && strings.TrimSpace(*e.SourceTeam) != "" {
-			line += " - source team `" + *e.SourceTeam + "`"
+			parts = append(parts, "source team `"+*e.SourceTeam+"`")
 		}
 		if strings.TrimSpace(e.Comment) != "" {
-			line += " - " + strings.TrimSpace(e.Comment)
+			parts = append(parts, strings.TrimSpace(e.Comment))
 		}
-		b.WriteString(line + "\n")
+		b.WriteString(fmt.Sprintf("- `%s` - %s\n", e.Prefix, topicContractLineDetail(e.Prefix, purposes, strings.Join(parts, "; "))))
 	}
 }
 
-func renderTopicContractEvidence(b *strings.Builder, entries []EvidenceConsumedEntry) {
+func renderTopicContractEvidence(b *strings.Builder, entries []EvidenceConsumedEntry, purposes map[string]string) {
 	if len(entries) == 0 {
 		return
 	}
@@ -80,18 +81,18 @@ func renderTopicContractEvidence(b *strings.Builder, entries []EvidenceConsumedE
 	for _, e := range entries {
 		decisions := append([]string(nil), e.ForDecisions...)
 		sort.Strings(decisions)
-		line := fmt.Sprintf("- `%s` - general evidence", e.Prefix)
+		detail := "general evidence"
 		if len(decisions) > 0 {
-			line = fmt.Sprintf("- `%s` - for `%s`", e.Prefix, strings.Join(decisions, "`, `"))
+			detail = fmt.Sprintf("for `%s`", strings.Join(decisions, "`, `"))
 		}
 		if e.SourceTeam != nil && strings.TrimSpace(*e.SourceTeam) != "" {
-			line += "; source team `" + *e.SourceTeam + "`"
+			detail += "; source team `" + *e.SourceTeam + "`"
 		}
-		b.WriteString(line + "\n")
+		b.WriteString(fmt.Sprintf("- `%s` - %s\n", e.Prefix, topicContractLineDetail(e.Prefix, purposes, detail)))
 	}
 }
 
-func renderTopicContractOutputs(b *strings.Builder, entries []OutputEntry) {
+func renderTopicContractOutputs(b *strings.Builder, entries []OutputEntry, purposes map[string]string) {
 	if len(entries) == 0 {
 		return
 	}
@@ -115,7 +116,7 @@ func renderTopicContractOutputs(b *strings.Builder, entries []OutputEntry) {
 		if e.DestinationPath != nil && strings.TrimSpace(*e.DestinationPath) != "" {
 			parts = append(parts, "path `"+*e.DestinationPath+"`")
 		}
-		b.WriteString(fmt.Sprintf("- `%s` - %s\n", e.Prefix, strings.Join(parts, ", ")))
+		b.WriteString(fmt.Sprintf("- `%s` - %s\n", e.Prefix, topicContractLineDetail(e.Prefix, purposes, strings.Join(parts, ", "))))
 	}
 }
 
@@ -155,6 +156,34 @@ func emptyAs(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func topicContractLineDetail(prefix string, purposes map[string]string, operational string) string {
+	purpose := strings.TrimSpace(purposes[prefix])
+	operational = strings.TrimSpace(operational)
+	switch {
+	case purpose != "" && operational != "":
+		return purpose + " (" + operational + ")"
+	case purpose != "":
+		return purpose
+	case operational != "":
+		return operational
+	default:
+		return "declared"
+	}
+}
+
+func topicCatalogPurposeByPrefix(catalog []TopicCatalogEntry) map[string]string {
+	out := map[string]string{}
+	for _, entry := range catalog {
+		prefix := strings.TrimSpace(entry.Prefix)
+		purpose := strings.TrimSpace(entry.Purpose)
+		if prefix == "" || purpose == "" {
+			continue
+		}
+		out[prefix] = purpose
+	}
+	return out
 }
 
 func sortedUniqueStrings(values []string) []string {

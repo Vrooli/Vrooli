@@ -856,6 +856,7 @@ func TestDefaultOperatingGraphRulesRegistersBaselineContractRules(t *testing.T) 
 		"graph_topic_catalog_status_qualifier_drift",
 		"graph_topic_catalog_live_status_unbacked",
 		"graph_topic_catalog_transitional_without_target",
+		"graph_topic_catalog_purpose_drift",
 		"graph_docs_unknown_actor",
 		"graph_topic_catalog_writer_drift",
 		"graph_topic_catalog_reader_drift",
@@ -907,6 +908,187 @@ func TestValidateOperatingGraphsDecisionNodesAreTeamScoped(t *testing.T) {
 
 	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
 	assertOperatingFindingDetail(t, result, "graph_unknown_decision", "team-scoped graph")
+}
+
+func TestValidateOperatingGraphsTopicCatalogPurposeDrift(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "contract"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  M["member:member-a"]`,
+			`  T["topic:audience-scan/*"]`,
+			"  M --> T",
+			"  T --> M",
+		}),
+		Docs: OperatingGraphDocs{TopicCatalog: OperatingTopicCatalogTable{
+			Present: true,
+			Rows: []OperatingTopicCatalogRow{{
+				Topic:      "audience-scan/*",
+				Status:     "live",
+				StatusKind: OperatingTopicStatusLive,
+				Writers:    []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "member-a", Raw: "member:a"}},
+				Readers:    []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "member-a", Raw: "member:a"}},
+				Purpose:    "Documented purpose.",
+				SourceLine: 12,
+				RawTopic:   "`topic:audience-scan/*`",
+			}},
+		}, Decisions: OperatingDecisionTable{Present: true}},
+		Source: OperatingGraphSource{Path: "docs/team/OPERATING_MODEL.md", FenceLine: 1},
+	}
+	runtime := OperatingGraphRuntime{
+		Members: []MemberTopics{{
+			Ref: MemberRef{Team: "team-a", Member: "member-a"},
+			Topics: Topics{
+				RequiredRead: []RequiredReadEntry{{Prefix: "audience-scan/*"}},
+				Output:       []OutputEntry{{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge}},
+			},
+		}},
+		Contracts: TeamContractRegistry{
+			"team-a": {
+				TeamID: "team-a",
+				Contract: &teamcontract.OperatingContract{
+					Members:         map[string]teamcontract.MemberContract{"member-a": {}},
+					DecisionContext: map[string]teamcontract.DecisionContext{},
+				},
+				TopicCatalog: []TopicCatalogEntry{{
+					Prefix:  "audience-scan/*",
+					Status:  "live",
+					Purpose: "Structured purpose.",
+				}},
+			},
+		},
+		PromptSections: derivedTopicContractPromptSections([]MemberTopics{{
+			Ref: MemberRef{Team: "team-a", Member: "member-a"},
+			Topics: Topics{
+				RequiredRead: []RequiredReadEntry{{Prefix: "audience-scan/*"}},
+				Output:       []OutputEntry{{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge}},
+			},
+		}}),
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFinding(t, result, "graph_topic_catalog_purpose_drift")
+
+	coverage := BuildOperatingGraphCoverage([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	if len(coverage) != 1 {
+		t.Fatalf("coverage length=%d, want 1", len(coverage))
+	}
+	if coverage[0].Docs.TopicCatalogPurposeMismatch != 1 || coverage[0].Docs.TopicCatalogPurposeMatched != 0 {
+		t.Fatalf("unexpected purpose coverage: %+v", coverage[0].Docs)
+	}
+}
+
+func TestValidateOperatingGraphsTopicCatalogPurposeParityClean(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "contract"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  M["member:member-a"]`,
+			`  T["topic:audience-scan/*"]`,
+			"  M --> T",
+			"  T --> M",
+		}),
+		Docs: OperatingGraphDocs{TopicCatalog: OperatingTopicCatalogTable{
+			Present: true,
+			Rows: []OperatingTopicCatalogRow{{
+				Topic:      "audience-scan/*",
+				Status:     "live",
+				StatusKind: OperatingTopicStatusLive,
+				Writers:    []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "member-a", Raw: "member:a"}},
+				Readers:    []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "member-a", Raw: "member:a"}},
+				Purpose:    "Structured purpose.",
+				SourceLine: 12,
+				RawTopic:   "`topic:audience-scan/*`",
+			}},
+		}, Decisions: OperatingDecisionTable{Present: true}},
+		Source: OperatingGraphSource{Path: "docs/team/OPERATING_MODEL.md", FenceLine: 1},
+	}
+	member := MemberTopics{
+		Ref: MemberRef{Team: "team-a", Member: "member-a"},
+		Topics: Topics{
+			RequiredRead: []RequiredReadEntry{{Prefix: "audience-scan/*"}},
+			Output:       []OutputEntry{{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge}},
+		},
+	}
+	runtime := OperatingGraphRuntime{
+		Members: []MemberTopics{member},
+		Contracts: TeamContractRegistry{
+			"team-a": {
+				TeamID: "team-a",
+				Contract: &teamcontract.OperatingContract{
+					Members:         map[string]teamcontract.MemberContract{"member-a": {}},
+					DecisionContext: map[string]teamcontract.DecisionContext{},
+				},
+				TopicCatalog: []TopicCatalogEntry{{
+					Prefix:  "audience-scan/*",
+					Status:  "live",
+					Purpose: "Structured purpose.",
+				}},
+			},
+		},
+		PromptSections: derivedTopicContractPromptSections([]MemberTopics{member}),
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFindingAbsent(t, result, "graph_topic_catalog_purpose_drift")
+	coverage := BuildOperatingGraphCoverage([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	if coverage[0].Docs.TopicCatalogPurposeMatched != 1 || coverage[0].Docs.TopicCatalogPurposeMismatch != 0 {
+		t.Fatalf("unexpected purpose coverage: %+v", coverage[0].Docs)
+	}
+}
+
+func TestValidateOperatingGraphsTreatsLiveSystemTopicWriterAsStagedBoundary(t *testing.T) {
+	block := OperatingGraphBlock{
+		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "contract"},
+		Graph: mustParseGraph(t, []string{
+			"flowchart LR",
+			`  P["member:publisher"]`,
+			`  T["topic:decision-application/<decision-id>"]`,
+			"  T --> P",
+		}),
+		Docs: OperatingGraphDocs{TopicCatalog: OperatingTopicCatalogTable{
+			Present: true,
+			Rows: []OperatingTopicCatalogRow{{
+				Topic:      "decision-application/<decision-id>",
+				Status:     "live system",
+				StatusKind: OperatingTopicStatusLiveSystem,
+				Writers:    []OperatingActorReference{{Kind: OperatingActorKindExternal, Value: "decision-workflow", Raw: "decision workflow"}},
+				Readers:    []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "publisher", Raw: "publisher"}},
+				Purpose:    "Structured purpose.",
+				SourceLine: 12,
+				RawTopic:   "`topic:decision-application/<decision-id>`",
+			}},
+		}, Decisions: OperatingDecisionTable{Present: true}},
+		Source: OperatingGraphSource{Path: "docs/team/OPERATING_MODEL.md", FenceLine: 1},
+	}
+	member := MemberTopics{
+		Ref: MemberRef{Team: "team-a", Member: "publisher"},
+		Topics: Topics{
+			RequiredRead: []RequiredReadEntry{{Prefix: "decision-application/<decision-id>"}},
+		},
+	}
+	runtime := OperatingGraphRuntime{
+		Members: []MemberTopics{member},
+		Contracts: TeamContractRegistry{
+			"team-a": {
+				TeamID: "team-a",
+				Contract: &teamcontract.OperatingContract{
+					Members:         map[string]teamcontract.MemberContract{"publisher": {}},
+					DecisionContext: map[string]teamcontract.DecisionContext{},
+				},
+				TopicCatalog: []TopicCatalogEntry{{
+					Prefix:  "decision-application/<decision-id>",
+					Status:  "live system",
+					Purpose: "Structured purpose.",
+				}},
+			},
+		},
+		PromptSections: derivedTopicContractPromptSections([]MemberTopics{member}),
+	}
+
+	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
+	assertOperatingFindingAbsent(t, result, "graph_topic_catalog_writer_drift")
+	assertOperatingFinding(t, result, "graph_topic_catalog_actor_unsupported")
 }
 
 func TestOperatingRelationshipSetDedupesAndQueries(t *testing.T) {
@@ -1326,14 +1508,16 @@ func TestBundledMarketingOperatingModelIsReconciled(t *testing.T) {
 	}
 
 	result := ValidateOperatingGraphs(blocks, runtime, "marketing-crew", "marketing-operating-model")
-	allowedStagedCatalogRules := map[string]bool{
-		"graph_topic_catalog_writer_drift":      true,
+	allowedStagedWarningRules := map[string]bool{
 		"graph_topic_catalog_reader_drift":      true,
 		"graph_topic_catalog_actor_unsupported": true,
 	}
 	for _, finding := range result.Findings {
-		if !allowedStagedCatalogRules[finding.Rule] {
-			t.Fatalf("unexpected marketing validation finding after strict catalog rules: %+v", result.Findings)
+		if finding.Severity == string(SeverityError) {
+			t.Fatalf("unexpected marketing validation error after strict catalog rules: %+v", result.Findings)
+		}
+		if !allowedStagedWarningRules[finding.Rule] {
+			t.Fatalf("unexpected marketing validation warning after strict catalog rules: %+v", result.Findings)
 		}
 	}
 

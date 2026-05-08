@@ -108,6 +108,83 @@ func TestLoadAllTeamContracts_LoadsAndIndexesByID(t *testing.T) {
 	}
 }
 
+func TestLoadAllTeamContracts_LoadsTopicCatalog(t *testing.T) {
+	root := t.TempDir()
+	writeTeamFile(t, root, "alpha", `{
+		"id": "alpha",
+		"topicCatalog": [
+			{
+				"prefix": "audience-scan/*",
+				"status": "live",
+				"purpose": "Audience evidence."
+			},
+			{
+				"prefix": "publish-performance/*",
+				"qualifier": "future",
+				"status": "target",
+				"purpose": "Performance evidence."
+			}
+		],
+		"operatingContract": {"schemaVersion": 1, "decisionContexts": {}}
+	}`)
+
+	reg, err := LoadAllTeamContracts(root)
+	if err != nil {
+		t.Fatalf("LoadAllTeamContracts: %v", err)
+	}
+	got := reg["alpha"].TopicCatalog
+	if len(got) != 2 {
+		t.Fatalf("TopicCatalog length = %d, want 2", len(got))
+	}
+	if got[0].Prefix != "audience-scan/*" || got[0].Purpose != "Audience evidence." {
+		t.Fatalf("unexpected first topic catalog entry: %+v", got[0])
+	}
+	if got[1].Qualifier != "future" {
+		t.Fatalf("future qualifier not preserved: %+v", got[1])
+	}
+}
+
+func TestLoadAllTeamContracts_RejectsInvalidTopicCatalog(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "missing prefix",
+			body: `{"id":"alpha","topicCatalog":[{"status":"live","purpose":"x"}]}`,
+		},
+		{
+			name: "malformed prefix",
+			body: `{"id":"alpha","topicCatalog":[{"prefix":"bad * prefix","status":"live","purpose":"x"}]}`,
+		},
+		{
+			name: "unknown status",
+			body: `{"id":"alpha","topicCatalog":[{"prefix":"x/*","status":"maybe","purpose":"x"}]}`,
+		},
+		{
+			name: "missing current purpose",
+			body: `{"id":"alpha","topicCatalog":[{"prefix":"x/*","status":"live"}]}`,
+		},
+		{
+			name: "duplicate",
+			body: `{"id":"alpha","topicCatalog":[{"prefix":"x/*","status":"live","purpose":"x"},{"prefix":"x/*","status":"live","purpose":"y"}]}`,
+		},
+		{
+			name: "wrong qualifier",
+			body: `{"id":"alpha","topicCatalog":[{"prefix":"x/*","qualifier":"future","status":"live","purpose":"x"}]}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeTeamFile(t, root, "alpha", tt.body)
+			if _, err := LoadAllTeamContracts(root); err == nil {
+				t.Fatalf("expected invalid topicCatalog to fail")
+			}
+		})
+	}
+}
+
 func TestLoadAllTeamContracts_PrefersFileIDOverDirName(t *testing.T) {
 	// The file's own id field is authoritative, not the directory name.
 	// This matches the convention elsewhere in prompt-manager (taxonomy

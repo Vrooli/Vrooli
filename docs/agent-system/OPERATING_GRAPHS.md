@@ -2,7 +2,7 @@
 
 **Status:** canon. Operating graphs are the plan-of-record diagram layer for prompt-manager team workflow contracts. They connect human-readable Mermaid diagrams to the runtime declarations in `topics.json`, `team.json`, and generated heartbeat prompts.
 
-This document extends `TOPICS_SCHEMA.md`. `topics.json` remains the runtime source for member topic flow. Operating graphs make the team-level shape visible and checkable.
+This document extends `TOPICS_SCHEMA.md`. Member `topics.json` remains the runtime source for per-member topic flow, while `team.json::topicCatalog` is the structured source for shared topic-family status and purpose. Operating graphs make the team-level shape visible and checkable.
 
 ## Purpose
 
@@ -13,7 +13,7 @@ The intended flow is:
 ```text
 PoR Mermaid diagram
   -> normalized operating graph
-  -> validation against team.json and topics.json
+  -> validation against team.json topicCatalog and member topics.json
   -> generated member prompt contracts
   -> prompt preview checks
 ```
@@ -45,22 +45,25 @@ Coverage is read-only and does not change validation exit codes. For each matchi
 
 - relationship counts for the same normalized families used by diff;
 - graph-only and runtime-only counts using the same relationship matcher as validation and diff;
+- runtime subtype counts for broad relationship families such as `topic_read`;
 - prompt coverage for generated `topic-contract` heartbeat sections;
-- docs-surface status and row parity for the Mermaid graph, Topic Catalog table, and Decisions table;
+- docs-surface status, purpose parity, and row parity for the Mermaid graph, Topic Catalog table, and Decisions table;
 - non-actionable exclusions such as `process:`, `future:`, `topic[future]:`, `topic[old]:`, `topic[external]:`, and edges touching those nodes.
 
-Prompt coverage checks section presence, source-path matching, and content parity when real structured prompt sections are available. Content parity is `enforced` when every graph member's actual `topic-contract` prompt section matches the renderer output from `topics.json`, `mismatch` when any actual section differs, and `unavailable` when only derived/offline prompt-section metadata is available.
+Prompt coverage checks section presence, source-path matching, and content parity when real structured prompt sections are available. Content parity is `enforced` when every graph member's actual `topic-contract` prompt section matches the renderer output from member `topics.json` plus team `topicCatalog`, `mismatch` when any actual section differs, and `unavailable` when only derived/offline prompt-section metadata is available.
 
 Prompt sections carry provenance:
 
 | Source kind | Meaning | Validation use |
 |---|---|---|
 | `live` | Section came from the structured heartbeat prompt builder. | Counts as real prompt proof and can enforce source/content parity. |
-| `derived` | Section was rendered offline from `topics.json` so coverage can explain expected shape without a heartbeat provider. | Does not count as live prompt proof and leaves content parity `unavailable`. |
+| `derived` | Section was rendered offline from `topics.json` and `team.json::topicCatalog` so coverage can explain expected shape without a heartbeat provider. | Does not count as live prompt proof and leaves content parity `unavailable`. |
 
 When the API is wired to heartbeat prompt previews, operating-graph validation expects live sections. When tooling runs with only derived sections, validators avoid claiming that the live prompt is enforced.
 
 Runtime-only `external_producer_intake` relationships are not counted as coverage gaps because they are inferred provenance joins from `external_producers[]` plus `intake[]`. The enforceable edge is graph-to-runtime: if a graph declares `external -> topic`, runtime must back it.
+
+Relationship coverage may include `runtime_subtypes` when one graph relationship covers multiple runtime fields. For example, `topic_read` reports subtype rows for `topic_intake`, `topic_required_read`, and `topic_evidence_consumed`, so humans can see why the graph may show fewer broad read edges than the number of concrete runtime declarations.
 
 ## Metadata Block
 
@@ -267,6 +270,33 @@ Contract graph source files must include two checked Markdown tables in the grap
 
 `checkable` graphs may omit these tables. `contract` graphs report validation errors when either table is missing. When present, table drift is validation-enforced.
 
+Topic Catalog statuses are structured even though the table stays human-readable:
+
+| Status | Canonical status | Required topic token | Meaning |
+|---|---|---|---|
+| `live` | `live` | `topic:` | Current runtime-backed topic. |
+| `live transitional` | `live_transitional` | `topic:` | Current runtime-backed topic planned for replacement; purpose text should reference the future replacement. |
+| `live system` | `live_system` | `topic:` | Current workflow/system-generated topic; external/system producer semantics may need explicit graph/runtime modeling. |
+| `live but under-consumed` | `live_under_consumed` | `topic:` | Current runtime-backed topic whose reader coverage is intentionally weak while being reconciled. |
+| `target` | `target` | `topic[future]:` | Target-state topic that is not required in runtime yet. |
+| `old` | `old` | `topic[old]:` | Historical topic, not treated as live. |
+| `external` | `external` | `topic[external]:` | Outside this team or repo. |
+
+For `contract` graphs, the Topic Catalog owner and reader cells are also part of the checked contract:
+
+| Catalog claim | Expected graph/runtime relationship |
+|---|---|
+| Member writer | `member -> topic`, backed by `output[]`. |
+| External writer | `external -> topic`, backed by a member `intake[]` plus matching `external_producers[]`. |
+| Team writer or team reader | `topic -> team`, backed by `output[].destination_team`. |
+| Member reader | `topic -> member`, backed by `intake[]`, `required_read[]`, or `evidence_consumed[]`. |
+| Group actor | Expands through graph metadata, then each concrete actor is checked. |
+| `actor_group.<name>: none` | Descriptive only; it does not satisfy or fail actor parity. |
+
+External readers are currently warning-only because `topics.json` does not model external topic consumption. If an operator or outside team should consume a topic, either route that through a modeled member/team relationship or leave the external reader as an explicit design gap until cross-boundary consumption exists.
+
+The `Purpose` cell is checked against `team.json::topicCatalog`. This keeps the Markdown table as a readable projection while preserving the team JSON config as the machine source of truth used for generated heartbeat prompt sections. A current/live row without a matching structured catalog entry is a validation error.
+
 Actor cells may use typed references, graph actor labels, graph actor values, or supported aliases:
 
 | Reference | Meaning |
@@ -309,7 +339,15 @@ Current rules:
 | `graph_topic_catalog_missing` | error | Contract graph source does not include a scoped `## Topic Catalog` table. |
 | `graph_topic_catalog_invalid_topic` | error | Topic Catalog row does not use a parseable `topic:` token. |
 | `graph_topic_catalog_drift` | error | Topic Catalog rows and graph topic nodes differ. |
+| `graph_topic_catalog_unknown_status` | error | Topic Catalog row uses a status outside the canonical status set. |
+| `graph_topic_catalog_status_qualifier_drift` | error | Topic Catalog status and topic qualifier disagree, such as `live` with `topic[future]:`. |
+| `graph_topic_catalog_live_status_unbacked` | error | Topic Catalog row is marked current/live but has no matching live graph topic node. |
+| `graph_topic_catalog_transitional_without_target` | warning | `live transitional` row does not reference a future replacement topic. |
+| `graph_topic_catalog_purpose_drift` | error | Topic Catalog purpose is missing from or differs from `team.json::topicCatalog`. |
 | `graph_docs_unknown_actor` | error | Topic Catalog or Decisions table actor reference is not recognized. |
+| `graph_topic_catalog_writer_drift` | error | Topic Catalog writer claim is not backed by the corresponding graph/runtime relationship. |
+| `graph_topic_catalog_reader_drift` | error, warning for `live but under-consumed` reader gaps | Topic Catalog reader claim is not backed by the corresponding graph/runtime relationship. |
+| `graph_topic_catalog_actor_unsupported` | warning | Topic Catalog actor is recognized but not enforceable by the current graph/runtime relationship model. |
 | `graph_decisions_table_missing` | error | Contract graph source does not include a scoped `## Decisions` table. |
 | `graph_decisions_table_drift` | error | Decisions table rows and graph decision nodes differ. |
 | `graph_decisions_table_owner_drift` | error | Decisions table member owner is not shown as a graph decision owner. |
@@ -321,7 +359,27 @@ The completeness rules use the same normalized relationship matcher as diff. A b
 
 External-producer edges are intentionally strict. `external -> member` means that member declares the external producer in `topics.json`; `external -> topic` only documents provenance for an intake topic. An `external -> topic` edge does not replace member-specific `external_producers[]` visibility.
 
-Generated heartbeat prompt checks are part of this layer: every contract graph member must receive a live generated `# Topic Contract` section from `topics.json`, the structured prompt section must name `teams/<team>/members/<member>/topics.json` as its source, and real prompt previews must match the shared topic-contract renderer. Derived/offline topic-contract sections are useful for coverage but are not treated as runtime prompt proof.
+Generated heartbeat prompt checks are part of this layer: every contract graph member must receive a live generated `# Topic Contract` section from member `topics.json` plus team `topicCatalog`, the structured prompt section must name `teams/<team>/members/<member>/topics.json` as its source, and real prompt previews must match the shared topic-contract renderer. Derived/offline topic-contract sections are useful for coverage but are not treated as runtime prompt proof.
+
+## Completeness vs. Coherence
+
+Current operating-graph validation primarily enforces completeness: the declared contract surfaces agree. Completeness checks prove that graph edges, Topic Catalog rows, Decisions rows, runtime config, and generated prompt sections say the same thing.
+
+Coherence is a separate future rule family. Coherence checks will ask whether the agreed graph is operationally plausible: live topics have producers and consumers, queues drain somewhere, terminal topics are explicit, decisions have ownership and review paths, and process nodes do not hide required runtime relationships.
+
+Do not mix these concerns. Completeness rules belong with entity, edge, relationship, docs-table, and prompt-section validation. Coherence rules should be introduced as a distinct `coherence` rule group after the status and actor-parity contract is stable.
+
+### Future Coherence Rules
+
+Candidate coherence checks include:
+
+- live topic has no producer;
+- live topic has no consumer and is not explicitly terminal;
+- intake queue has no modeled drainer;
+- decision has no owner or no reviewer/consumer path;
+- process node is the only bridge between two live runtime surfaces;
+- learning/canon loop writes into a notebook or backlog that no member drains;
+- external reader/writer semantics should become an explicit cross-boundary relationship instead of a warning-only docs claim.
 
 ## Adding Relationship Families
 
@@ -344,9 +402,12 @@ CLI `--json` output for operating-graph list, validate, diff, and coverage prese
 3. Type every contract node.
 4. Keep conceptual joins as `process:` nodes.
 5. Mark target-state-only topics with `topic[future]:`.
-6. Run `prompt-manager graph operating-model validate --team <team>`.
-7. Run `prompt-manager graph operating-model diff --team <team>`.
-8. Reconcile findings by updating docs or runtime config after design review.
+6. Add a Topic Catalog with canonical statuses and actor cells that map to graph/runtime relationships.
+7. Add a Decisions table with owners that map to graph/runtime decision ownership.
+8. Run `prompt-manager graph operating-model validate --team <team>`.
+9. Run `prompt-manager graph operating-model diff --team <team>`.
+10. Run `prompt-manager graph operating-model coverage --team <team>` and review broad relationship subtypes.
+11. Reconcile findings by updating docs or runtime config after design review.
 
 ## Non-Goals
 

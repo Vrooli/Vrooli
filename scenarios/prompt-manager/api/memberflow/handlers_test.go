@@ -449,6 +449,18 @@ flowchart LR
 	}
 	teamJSON := `{
   "id": "team-a",
+  "topicCatalog": [
+    {
+      "prefix": "research-inbox/*",
+      "status": "live",
+      "purpose": "Intake."
+    },
+    {
+      "prefix": "marketing/notebook/*",
+      "status": "live",
+      "purpose": "Notebook."
+    }
+  ],
   "operatingContract": {
     "schemaVersion": 1,
     "decisionContexts": {},
@@ -512,6 +524,13 @@ flowchart LR
 	}
 	teamJSON := `{
   "id": "team-a",
+  "topicCatalog": [
+    {
+      "prefix": "research-inbox/*",
+      "status": "live",
+      "purpose": "Intake."
+    }
+  ],
   "operatingContract": {
     "schemaVersion": 1,
     "decisionContexts": {},

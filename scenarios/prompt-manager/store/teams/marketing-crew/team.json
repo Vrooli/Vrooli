@@ -34,6 +34,136 @@
   "revision": 7,
   "createdAt": "2026-02-09T12:00:00Z",
   "updatedAt": "2026-05-01T00:00:00Z",
+  "topicCatalog": [
+    {
+      "prefix": "research-inbox/*",
+      "status": "live",
+      "purpose": "Raw unrouted research signal. The researcher drains this queue, then retags, deletes, or routes each item."
+    },
+    {
+      "prefix": "audience-scan/*",
+      "status": "live",
+      "purpose": "Audience pain, vocabulary, buyer triggers, objections, and persona evidence."
+    },
+    {
+      "prefix": "competitor-record/*",
+      "status": "live but under-consumed",
+      "purpose": "Competitor pricing, packaging, positioning, changelog, or claim evidence. Should feed positioning and campaign decisions."
+    },
+    {
+      "prefix": "hook-record/*",
+      "status": "live but under-consumed",
+      "purpose": "Reusable hook and framing observations. Should feed draft generation and hook-library promotion."
+    },
+    {
+      "prefix": "workflow-scan/*",
+      "status": "live",
+      "purpose": "External workflows, playbooks, agent setups, or business processes worth deconstructing."
+    },
+    {
+      "prefix": "skill-scan/*",
+      "status": "live",
+      "purpose": "External skills, prompts, reusable processes, or capability ideas. Raise `capability-gap` when blocked."
+    },
+    {
+      "prefix": "channel-scan/*",
+      "status": "live",
+      "purpose": "Evidence that a channel is worth activating, deprioritizing, or handling differently."
+    },
+    {
+      "prefix": "format-scan/*",
+      "status": "live",
+      "purpose": "Evidence that a post format or channel-native format is worth using or codifying."
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent-record/*",
+      "status": "live",
+      "purpose": "Pricing, packaging, or market facts discovered by marketing but owned strategically by monetization."
+    },
+    {
+      "prefix": "artifact-request/oss/*",
+      "status": "live",
+      "purpose": "Work queue for requested OSS-lane draft artifacts. It should carry campaign, audience, channel, format, source decision, and acceptance criteria."
+    },
+    {
+      "prefix": "artifact-request/subscription/*",
+      "status": "live",
+      "purpose": "Work queue for requested subscription-lane draft artifacts. It should carry campaign, SKU/bundle, audience, channel, format, source decision, and acceptance criteria."
+    },
+    {
+      "prefix": "campaign-draft/*",
+      "status": "live",
+      "purpose": "Draft artifacts ready to support a `content-publish-proposal`. Lane is metadata, not a separate pipeline."
+    },
+    {
+      "prefix": "ad-run/<lane>/*",
+      "qualifier": "future",
+      "status": "target",
+      "purpose": "Normalized advertiser run summaries. This should eventually replace separate `oss-ad-run/*` and `subscription-ad-run/*` surfaces."
+    },
+    {
+      "prefix": "oss-ad-run/*",
+      "status": "live transitional",
+      "purpose": "Current OSS-lane run log. Transitional until `topic[future]:ad-run/<lane>/*` exists."
+    },
+    {
+      "prefix": "subscription-ad-run/*",
+      "status": "live transitional",
+      "purpose": "Current subscription-lane run log. Transitional until `topic[future]:ad-run/<lane>/*` exists."
+    },
+    {
+      "prefix": "publish-log/*",
+      "status": "live",
+      "purpose": "Record of what actually shipped: draft, channel, URL, post id, series, previous URL, and release notes."
+    },
+    {
+      "prefix": "coverage-snapshot/*",
+      "status": "live",
+      "purpose": "Current marketing coverage by SKU, lane, channel, or campaign."
+    },
+    {
+      "prefix": "published-scenario-mentions/*",
+      "qualifier": "future",
+      "status": "target",
+      "purpose": "Familiarity tracking for named scenarios, agents, and concepts, so drafts introduce subjects correctly for each audience. Current storage is JSONL."
+    },
+    {
+      "prefix": "publish-performance/*",
+      "qualifier": "future",
+      "status": "target",
+      "purpose": "Telemetry and qualitative performance: impressions, clicks, replies, saves, conversion, comments, channel-specific notes."
+    },
+    {
+      "prefix": "marketing/notebook/*",
+      "status": "live",
+      "purpose": "Working debt: repeated lessons, workarounds, craft observations, campaign lessons. Any member may append unresolved debt, but brand-manager is the only runtime drainer and must promote or retire entries."
+    },
+    {
+      "prefix": "brand-snapshot/*",
+      "status": "live",
+      "purpose": "Snapshot of canon drift, notebook state, campaign signals, and promotion/retirement candidates."
+    },
+    {
+      "prefix": "challenge-report/*",
+      "status": "live",
+      "purpose": "Append-only challenge evidence for pending marketing decisions."
+    },
+    {
+      "prefix": "challenge-resolution-record/*",
+      "status": "live",
+      "purpose": "Latest challenge state: open, author-responded, resolved, escalated, overridden, or stale."
+    },
+    {
+      "prefix": "aging-scan-note/*",
+      "status": "live",
+      "purpose": "Stale-decision hygiene notes."
+    },
+    {
+      "prefix": "decision-application/<decision-id>",
+      "status": "live system",
+      "purpose": "Accepted-decision application markers used to avoid duplicate execution and track publish-decision follow-through."
+    }
+  ],
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {

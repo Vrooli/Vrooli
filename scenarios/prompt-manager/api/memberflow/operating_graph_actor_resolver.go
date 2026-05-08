@@ -72,6 +72,8 @@ func graphNodeActorReference(node OperatingGraphNode) OperatingActorReference {
 		return OperatingActorReference{Kind: OperatingActorKindTeam, Value: node.Value}
 	case OperatingGraphNodeKindExternal:
 		return OperatingActorReference{Kind: OperatingActorKindExternal, Value: node.Value}
+	case OperatingGraphNodeKindProcess:
+		return OperatingActorReference{Kind: OperatingActorKindProcess, Value: node.Value}
 	default:
 		return OperatingActorReference{}
 	}

@@ -96,6 +96,7 @@ actor_alias.advertisers: group:advertisers
 actor_alias.any marketing member: group:marketing-members
 actor_alias.decision owner: group:decision-owners
 actor_alias.decision owners: group:decision-owners
+actor_alias.learning synthesis: process:learning-synthesis
 actor_alias.meta-optimization: external:meta-optimization
 actor_alias.director-swarm: external:director-swarm
 actor_alias.future growth analyst: external:future-growth-analyst
@@ -376,30 +377,30 @@ These are the knowledge-topic families the target operating model uses. Current 
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
-| `topic:research-inbox/*` | live | operator, vision-walk, bookmark-intelligence-hub, researcher | researcher | Raw unrouted research signal. The researcher drains this queue, then retags, deletes, or routes each item. |
+| `topic:research-inbox/*` | live | operator, vision-walk, bookmark-intelligence-hub | researcher | Raw unrouted research signal. The researcher drains this queue, then retags, deletes, or routes each item. |
 | `topic:audience-scan/*` | live | researcher | brand-manager, advertisers, researcher | Audience pain, vocabulary, buyer triggers, objections, and persona evidence. |
 | `topic:competitor-record/*` | live but under-consumed | researcher | researcher, brand-manager, advertisers | Competitor pricing, packaging, positioning, changelog, or claim evidence. Should feed positioning and campaign decisions. |
 | `topic:hook-record/*` | live but under-consumed | researcher | advertisers, researcher, brand-manager | Reusable hook and framing observations. Should feed draft generation and hook-library promotion. |
-| `topic:workflow-scan/*` | live | researcher | researcher, brand-manager, advertisers, meta-optimization or director-swarm when relevant | External workflows, playbooks, agent setups, or business processes worth deconstructing. |
-| `topic:skill-scan/*` | live | researcher | researcher, brand-manager, advertisers, meta-optimization | External skills, prompts, reusable processes, or capability ideas. Raise `capability-gap` when blocked. |
-| `topic:channel-scan/*` | live | researcher | publisher, brand-manager, advertisers | Evidence that a channel is worth activating, deprioritizing, or handling differently. |
-| `topic:format-scan/*` | live | researcher | advertisers, publisher, brand-manager | Evidence that a post format or channel-native format is worth using or codifying. |
+| `topic:workflow-scan/*` | live | researcher | advertisers | External workflows, playbooks, agent setups, or business processes worth deconstructing. |
+| `topic:skill-scan/*` | live | researcher | advertisers | External skills, prompts, reusable processes, or capability ideas. Raise `capability-gap` when blocked. |
+| `topic:channel-scan/*` | live | researcher | brand-manager, advertisers | Evidence that a channel is worth activating, deprioritizing, or handling differently. |
+| `topic:format-scan/*` | live | researcher | advertisers, brand-manager | Evidence that a post format or channel-native format is worth using or codifying. |
 | `topic:monetization-benchmark-adjacent-record/*` | live | researcher | monetization team | Pricing, packaging, or market facts discovered by marketing but owned strategically by monetization. |
 | `topic:artifact-request/oss/*` | live | brand-manager | oss-advertiser, publisher | Work queue for requested OSS-lane draft artifacts. It should carry campaign, audience, channel, format, source decision, and acceptance criteria. |
 | `topic:artifact-request/subscription/*` | live | brand-manager | subscription-advertiser, publisher | Work queue for requested subscription-lane draft artifacts. It should carry campaign, SKU/bundle, audience, channel, format, source decision, and acceptance criteria. |
-| `topic:campaign-draft/*` | live | advertisers | publisher, marketing-contrarian, brand-manager | Draft artifacts ready to support a `content-publish-proposal`. Lane is metadata, not a separate pipeline. |
+| `topic:campaign-draft/*` | live | advertisers | publisher | Draft artifacts ready to support a `content-publish-proposal`. Lane is metadata, not a separate pipeline. |
 | `topic[future]:ad-run/<lane>/*` | target | advertisers | brand-manager, publisher, researcher | Normalized advertiser run summaries. This should eventually replace separate `oss-ad-run/*` and `subscription-ad-run/*` surfaces. |
-| `topic:oss-ad-run/*` | live transitional | oss-advertiser | brand-manager, publisher, researcher | Current OSS-lane run log. Transitional until `topic[future]:ad-run/<lane>/*` exists. |
-| `topic:subscription-ad-run/*` | live transitional | subscription-advertiser | brand-manager, publisher, researcher | Current subscription-lane run log. Transitional until `topic[future]:ad-run/<lane>/*` exists. |
-| `topic:publish-log/*` | live | publisher | advertisers, brand-manager, researcher, publisher | Record of what actually shipped: draft, channel, URL, post id, series, previous URL, and release notes. |
+| `topic:oss-ad-run/*` | live transitional | oss-advertiser | oss-advertiser | Current OSS-lane run log. Transitional until `topic[future]:ad-run/<lane>/*` exists. |
+| `topic:subscription-ad-run/*` | live transitional | subscription-advertiser | subscription-advertiser | Current subscription-lane run log. Transitional until `topic[future]:ad-run/<lane>/*` exists. |
+| `topic:publish-log/*` | live | publisher | advertisers, brand-manager | Record of what actually shipped: draft, channel, URL, post id, series, previous URL, and release notes. |
 | `topic:coverage-snapshot/*` | live | publisher | advertisers, brand-manager, publisher | Current marketing coverage by SKU, lane, channel, or campaign. |
 | `topic[future]:published-scenario-mentions/*` | target | publisher | advertisers, marketing-contrarian | Familiarity tracking for named scenarios, agents, and concepts, so drafts introduce subjects correctly for each audience. Current storage is JSONL. |
 | `topic[future]:publish-performance/*` | target | publisher or future growth analyst | researcher, brand-manager, publisher, advertisers | Telemetry and qualitative performance: impressions, clicks, replies, saves, conversion, comments, channel-specific notes. |
-| `topic:marketing/notebook/*` | live | any marketing member | brand-manager | Working debt: repeated lessons, workarounds, craft observations, campaign lessons. Any member may append unresolved debt, but brand-manager is the only runtime drainer and must promote or retire entries. |
-| `topic:brand-snapshot/*` | live | brand-manager | brand-manager, researcher, advertisers | Snapshot of canon drift, notebook state, campaign signals, and promotion/retirement candidates. |
-| `topic:challenge-report/*` | live | marketing-contrarian | decision owners, operator | Append-only challenge evidence for pending marketing decisions. |
-| `topic:challenge-resolution-record/*` | live | marketing-contrarian | decision owners, operator | Latest challenge state: open, author-responded, resolved, escalated, overridden, or stale. |
-| `topic:aging-scan-note/*` | live | marketing-contrarian | marketing-contrarian, operator | Stale-decision hygiene notes. |
+| `topic:marketing/notebook/*` | live | learning synthesis | brand-manager | Working debt: repeated lessons, workarounds, craft observations, campaign lessons. Any member may append unresolved debt, but brand-manager is the only runtime drainer and must promote or retire entries. |
+| `topic:brand-snapshot/*` | live | brand-manager | brand-manager | Snapshot of canon drift, notebook state, campaign signals, and promotion/retirement candidates. |
+| `topic:challenge-report/*` | live | marketing-contrarian | decision owners | Append-only challenge evidence for pending marketing decisions. |
+| `topic:challenge-resolution-record/*` | live | marketing-contrarian | decision owners | Latest challenge state: open, author-responded, resolved, escalated, overridden, or stale. |
+| `topic:aging-scan-note/*` | live | marketing-contrarian | marketing-contrarian | Stale-decision hygiene notes. |
 | `topic:decision-application/<decision-id>` | live system | decision workflow | publisher | Accepted-decision application markers used to avoid duplicate execution and track publish-decision follow-through. |
 
 ## Decisions

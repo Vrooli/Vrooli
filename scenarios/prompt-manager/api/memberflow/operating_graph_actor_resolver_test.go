@@ -35,11 +35,12 @@ func TestOperatingActorResolverInfersAliasesFromGraphActorLabels(t *testing.T) {
 		{Kind: OperatingGraphNodeKindMember, Value: "brand-manager", Display: "Brand Manager"},
 		{Kind: OperatingGraphNodeKindExternal, Value: "vision-walk", Display: "Vision walk"},
 		{Kind: OperatingGraphNodeKindTeam, Value: "monetization", Display: "Monetization team"},
+		{Kind: OperatingGraphNodeKindProcess, Value: "learning-synthesis", Display: "Learning synthesis"},
 		{Kind: OperatingGraphNodeKindTopic, Value: "research-inbox/*", Display: "research-inbox/*"},
 	}}
 	resolver := NewOperatingActorResolver(OperatingGraphMetadata{}, graph)
 
-	refs := resolver.Resolve("marketing-crew", OperatingGraphRuntime{}, "Brand Manager, brand-manager, Vision walk, monetization team")
+	refs := resolver.Resolve("marketing-crew", OperatingGraphRuntime{}, "Brand Manager, brand-manager, Vision walk, monetization team, Learning synthesis")
 	if findOperatingActorReference(refs, OperatingActorKindMember, "brand-manager") == nil {
 		t.Fatalf("brand manager label/value aliases not resolved: %+v", refs)
 	}
@@ -48,6 +49,9 @@ func TestOperatingActorResolverInfersAliasesFromGraphActorLabels(t *testing.T) {
 	}
 	if findOperatingActorReference(refs, OperatingActorKindTeam, "monetization") == nil {
 		t.Fatalf("monetization team label alias not resolved: %+v", refs)
+	}
+	if findOperatingActorReference(refs, OperatingActorKindProcess, "learning-synthesis") == nil {
+		t.Fatalf("process label alias not resolved: %+v", refs)
 	}
 	if findOperatingActorReference(refs, OperatingActorKindUnknown, "research-inbox/*") != nil {
 		t.Fatalf("topic node should not become an actor alias: %+v", refs)

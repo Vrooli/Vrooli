@@ -40,6 +40,11 @@ type LoadedTeamContract struct {
 	TeamID     string
 	Contract   *teamcontract.OperatingContract
 	SourcePath string
+	// TopicCatalog is team-level metadata for topic families: status and
+	// purpose text shared by every member relationship that touches a prefix.
+	// Member topics.json files remain the source of per-member read/write
+	// relationships; this catalog supplies the common family description.
+	TopicCatalog []TopicCatalogEntry
 	// AttributionValidFrom is the ISO-8601 (YYYY-MM-DD) cutoff for
 	// Pillar 3 attribution checks. Empty when the team has not adopted
 	// the runtime contract; ruleActualWriterUndeclared skips such teams
@@ -73,8 +78,19 @@ type TeamContractRegistry map[string]*LoadedTeamContract
 type teamFile struct {
 	ID                   string                          `json:"id"`
 	OperatingContract    *teamcontract.OperatingContract `json:"operatingContract"`
+	TopicCatalog         []TopicCatalogEntry             `json:"topicCatalog,omitempty"`
 	AttributionValidFrom string                          `json:"attributionValidFrom,omitempty"`
 	Policy               *teamFilePolicy                 `json:"policy,omitempty"`
+}
+
+// TopicCatalogEntry is the structured source of truth for a team-level topic
+// family's status and purpose. It deliberately omits readers/writers; those
+// live in member topics.json files and in the operating graph contract.
+type TopicCatalogEntry struct {
+	Prefix    string `json:"prefix"`
+	Qualifier string `json:"qualifier,omitempty"`
+	Status    string `json:"status"`
+	Purpose   string `json:"purpose"`
 }
 
 // teamFilePolicy mirrors store.TeamPolicy under memberflow's narrower
@@ -149,6 +165,9 @@ func parseTeamFile(path string) (*LoadedTeamContract, error) {
 	if strings.TrimSpace(tf.ID) == "" {
 		return nil, fmt.Errorf("team %q is missing required id field", path)
 	}
+	if err := ValidateTopicCatalog(tf.TopicCatalog); err != nil {
+		return nil, fmt.Errorf("team %q has invalid topicCatalog: %w", path, err)
+	}
 	// operatingContract may legitimately be nil while a team is being
 	// scaffolded; the validator treats that as "no decision contexts to
 	// match," which is preferable to crashing. The dangling-evidence rule
@@ -161,9 +180,51 @@ func parseTeamFile(path string) (*LoadedTeamContract, error) {
 		TeamID:                    tf.ID,
 		Contract:                  tf.OperatingContract,
 		SourcePath:                path,
+		TopicCatalog:              tf.TopicCatalog,
 		AttributionValidFrom:      strings.TrimSpace(tf.AttributionValidFrom),
 		FlagExternalWritesPerWeek: flag,
 	}, nil
+}
+
+// ValidateTopicCatalog checks topic-family metadata shape without consulting
+// member runtime relationships. Relationship parity belongs to operating graph
+// rules; this function only protects the team-level data model.
+func ValidateTopicCatalog(entries []TopicCatalogEntry) error {
+	seen := map[string]struct{}{}
+	for i, entry := range entries {
+		prefix := strings.TrimSpace(entry.Prefix)
+		if prefix == "" {
+			return fmt.Errorf("entry[%d].prefix is required", i)
+		}
+		if !validPrefix(prefix) {
+			return fmt.Errorf("entry[%d].prefix %q is malformed", i, entry.Prefix)
+		}
+		status := ParseOperatingTopicCatalogStatus(entry.Status)
+		if status == OperatingTopicStatusUnknown {
+			return fmt.Errorf("entry[%d].status %q is unknown", i, entry.Status)
+		}
+		qualifier := strings.TrimSpace(entry.Qualifier)
+		expectedQualifier, hasExpectedQualifier := expectedTopicCatalogQualifier(status)
+		if qualifier != "" {
+			if !hasExpectedQualifier {
+				return fmt.Errorf("entry[%d].qualifier %q cannot be validated for status %q", i, qualifier, entry.Status)
+			}
+			if qualifier != expectedQualifier {
+				return fmt.Errorf("entry[%d].status %q expects qualifier %q, got %q", i, entry.Status, expectedQualifier, qualifier)
+			}
+		} else {
+			qualifier = expectedQualifier
+		}
+		if operatingTopicCatalogStatusIsCurrent(status) && strings.TrimSpace(entry.Purpose) == "" {
+			return fmt.Errorf("entry[%d].purpose is required for current status %q", i, entry.Status)
+		}
+		key := qualifiedTopicKey(qualifier, prefix)
+		if _, ok := seen[key]; ok {
+			return fmt.Errorf("entry[%d] duplicates topic catalog prefix %q", i, displayQualifiedTopic(qualifier, prefix))
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
 }
 
 // HasDecisionContext reports whether any team in the registry declares the
@@ -229,4 +290,15 @@ func (r TeamContractRegistry) IDs() []string {
 	}
 	sort.Strings(ids)
 	return ids
+}
+
+// TopicCatalog returns the team-level topic catalog for a team. The returned
+// slice is copied so callers can sort or filter without mutating the registry.
+func (r TeamContractRegistry) TopicCatalog(teamID string) []TopicCatalogEntry {
+	lt := r[strings.TrimSpace(teamID)]
+	if lt == nil || len(lt.TopicCatalog) == 0 {
+		return nil
+	}
+	out := append([]TopicCatalogEntry(nil), lt.TopicCatalog...)
+	return out
 }
