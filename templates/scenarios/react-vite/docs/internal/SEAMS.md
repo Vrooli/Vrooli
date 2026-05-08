@@ -39,6 +39,35 @@ the network without going through one of the entries below, that's a
 new seam that hasn't been declared yet. Declaring it is the work — the
 test ergonomics fall out for free.
 
+## Workflow transitions are not seams
+
+Temporal workflow logic is domain policy. A workflow file such as
+`internal/<domain>/workflow.go` or
+`ui/src/features/<domain>/<domain>Workflow.ts` defines allowed
+state/event transitions and invariants; production and tests call the
+same transition function directly.
+
+The seams are the side-effect boundaries around that workflow:
+
+- repositories that persist the state,
+- BlobStore or filesystem clients that store opaque bytes,
+- clocks, timers, schedulers, and retry drivers,
+- outbound HTTP clients and other scenario clients,
+- UI API modules that issue network requests.
+
+Keep the rule split explicit:
+
+```
+handler/component/job
+  -> call pure workflow transition
+  -> perform side effects through seams
+  -> persist/render the resulting state
+```
+
+If a test needs to substitute a dependency, add or reuse a seam. If a
+test only needs to prove the state machine, call the workflow directly
+and use matrix/trace helpers from the relevant testutil package.
+
 ## How to read this file
 
 | Column | Meaning |
@@ -206,6 +235,19 @@ test ergonomics fall out for free.
 The right time to add a seam is the moment you find yourself reaching
 past `*sql.DB`, `http.Get`, or `os.OpenFile` from a handler/service. The
 process is mechanical.
+
+## Architecture Alignment Notes
+
+Use this section for durable boundary decisions discovered during
+screaming-architecture work. Keep the full mental model in
+[`ARCHITECTURE.md`](../concepts/ARCHITECTURE.md); this table records
+why a boundary lives where it does and what still needs follow-up.
+
+| Area | Drift | Decision | Follow-up |
+|---|---|---|---|
+| Domain-specific fakes | Earlier templates often put every fake under shared testutil. | One-domain fakes live under `api/internal/<domain>/mocks/`; cross-domain fakes stay under `api/internal/testutil/mocks/`. | Preserve this split when adding new domains. |
+| Temporal workflow side effects | Async flows can bury transition rules inside handlers/components. | Pure workflow transitions are domain policy; side effects remain behind seams. | See `WORKFLOWS.md` and `TEMPORAL-FLOWS.md` for modeled flows. |
+| Domain schemas | Central schema files make domain deletion and ownership harder. | Domain tables live beside domain code; `internal/database/system.sql` is only for genuinely cross-cutting DB infrastructure. | If a table is added to system schema, document why it is not domain-owned. |
 
 ### Domain-scoped packages, not generic `services/`
 

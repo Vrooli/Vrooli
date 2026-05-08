@@ -1,0 +1,64 @@
+{
+  "id": "notes.attachment-upload.api",
+  "domain": "notes",
+  "description": "API-side lifecycle for multipart attachment upload orchestration. Side effects store bytes and record metadata outside the transition model.",
+  "states": [
+    "received",
+    "bytes_stored",
+    "metadata_recorded",
+    "failed"
+  ],
+  "events": [
+    "store_bytes",
+    "record_metadata",
+    "fail"
+  ],
+  "initialState": "received",
+  "terminalStates": [
+    "metadata_recorded",
+    "failed"
+  ],
+  "transitions": [
+    { "from": "received", "event": "store_bytes", "to": "bytes_stored" },
+    { "from": "received", "event": "record_metadata", "to": "received", "wantError": true },
+    { "from": "received", "event": "fail", "to": "failed" },
+    { "from": "bytes_stored", "event": "store_bytes", "to": "bytes_stored", "wantError": true },
+    { "from": "bytes_stored", "event": "record_metadata", "to": "metadata_recorded" },
+    { "from": "bytes_stored", "event": "fail", "to": "failed" },
+    { "from": "metadata_recorded", "event": "store_bytes", "to": "metadata_recorded", "wantError": true },
+    { "from": "metadata_recorded", "event": "record_metadata", "to": "metadata_recorded", "wantError": true },
+    { "from": "metadata_recorded", "event": "fail", "to": "metadata_recorded", "wantError": true },
+    { "from": "failed", "event": "store_bytes", "to": "failed", "wantError": true },
+    { "from": "failed", "event": "record_metadata", "to": "failed", "wantError": true },
+    { "from": "failed", "event": "fail", "to": "failed", "wantError": true }
+  ],
+  "invariants": [
+    "status is one of the declared states",
+    "metadata_recorded and failed are terminal states",
+    "metadata cannot be recorded before bytes are stored"
+  ],
+  "traces": [
+    {
+      "name": "successful_upload",
+      "initial": "received",
+      "steps": [
+        { "event": "store_bytes", "want": "bytes_stored" },
+        { "event": "record_metadata", "want": "metadata_recorded" }
+      ]
+    },
+    {
+      "name": "store_failure",
+      "initial": "received",
+      "steps": [
+        { "event": "fail", "want": "failed" },
+        { "event": "record_metadata", "want": "failed", "wantError": true }
+      ]
+    }
+  ],
+  "formalModel": {
+    "status": "not_adopted",
+    "tool": "Quint/TLA+ candidate",
+    "generatedArtifacts": "none",
+    "driftCheck": "JSON spec is checked against hand-authored matrix and trace tests; it does not yet generate test artifacts."
+  }
+}

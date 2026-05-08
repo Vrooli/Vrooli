@@ -152,6 +152,124 @@ See [`SEAMS.md`](../internal/SEAMS.md) for the authoritative seam
 registry and [`TESTING.md`](../internal/TESTING.md) for how each layer
 is tested.
 
+## Domain archetypes — choose the shape by behavior
+
+A domain is a product capability boundary, not a rigid folder template.
+`notes` is the canonical CRUD reference, but future domains can and
+should have different internal files when their behavior demands it.
+
+Use this rule first:
+
+- If deleting the capability should delete the code, the code belongs
+  inside that domain.
+- If unrelated domains need the code and it has no product vocabulary,
+  it belongs in shared infrastructure.
+- If a helper exists only to test one domain, keep it with that domain.
+  Move it to `internal/testutil/` or `ui/src/test-utils/` only when
+  unrelated domains need the same testing primitive.
+
+Pick one primary archetype and add secondary traits as needed:
+
+| Archetype | Use when | Typical traits |
+|---|---|---|
+| CRUD / entity | Create/read/update/delete around one concept | repository, schema, service, handler, UI card/list |
+| Temporal workflow | Correctness depends on allowed state changes over time | workflow, matrix tests, trace tests, invariants |
+| Binary / blob | Opaque files, streams, imports, exports, attachments | blob store seam, multipart/stream edge, metadata persistence |
+| Integration / client | External service or another scenario is wrapped | client seam, retry/idempotency, webhook handler |
+| Orchestration | Multiple domains/resources must be coordinated | planner/orchestrator, policy seams, checkpointed workflow |
+| Reporting / query | Read-heavy aggregation, dashboards, exports | query repository, views, report DTOs |
+| Policy / rules | Decision logic is the core capability | pure rules/policy functions, decision tables |
+| Configuration / settings | User/operator-configurable behavior | defaults, validation, versioned shape |
+
+Archetypes are not mutually exclusive. The notes attachment path is
+mostly a binary/blob trait inside the CRUD `notes` domain. A future
+import domain might be primarily temporal workflow with binary/blob
+and orchestration traits.
+
+## Domain Map
+
+Use this table as the stable index of product capabilities. Keep
+details in the owning domain files; this table is for orientation and
+drift detection.
+
+| Domain | Surface(s) | Primary Archetype | Secondary Traits | Source Paths | Notes |
+|---|---|---|---|---|---|
+| health | API, UI | Reporting / query | Infrastructure readiness | `api/handlers/health/`, `ui/src/features/health/`, `proto/v1/health/` | System-status reference that ships with every scenario. |
+| notes | API, UI, CLI | CRUD / entity | Binary/blob attachments, temporal upload workflow | `api/internal/notes/`, `api/handlers/notes/`, `ui/src/features/notes/`, `cli/domains/notes/`, `proto/v1/notes/` | Replaceable product-domain reference. |
+
+When generating a real scenario, replace this table with the scenario's
+actual domains. If a domain appears in code but not here, the mental
+model is stale. If a domain appears here but not in code, the docs are
+promising a capability the scenario does not expose.
+
+## Shared Infrastructure
+
+Shared infrastructure is allowed only when the code is business-
+vocabulary-free and used by unrelated domains or surfaces.
+
+| Package/Folder | Purpose | Why Not Domain-Owned | Consumers |
+|---|---|---|---|
+| `api/internal/server/` | Compose modules and cross-cutting middleware into one HTTP server. | Server lifecycle is not a product capability. | API entrypoint and handler modules. |
+| `api/internal/module/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, server, endpoint codegen. |
+| `api/internal/modules/` | Thin registry for schemas and endpoints. | Central registration is needed for boot/codegen, but logic stays domain-owned. | `main.go`, `gen-endpoints`. |
+| `api/internal/database/` | System schema and DB reachability seam. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
+| `api/internal/clock/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Middleware, notes repositories. |
+| `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain-specific fakes stay domain-local. | API tests. |
+| `ui/src/test-utils/` | Cross-feature render helpers, accessibility helpers, and generic model tests. | Used by unrelated UI features. | UI tests. |
+
+If shared infrastructure starts using product vocabulary, move that
+piece back into the domain or split a new domain first.
+
+## Architecture Maturity
+
+This template starts with a mature reference shape, but generated
+scenarios should update the table as they replace starter domains.
+
+| Surface | Level | Evidence | Remaining Drift |
+|---|---|---|---|
+| API | 4 | Domain-owned notes stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
+| UI | 4 | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
+| CLI | 3 | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
+| Docs | 4 | Architecture, seams, testing, workflows, and manifest docs are registered. | Generated scenarios must replace reference-domain descriptions. |
+
+### Temporal workflow files
+
+Add explicit workflow files when correctness depends on lifecycle
+ordering, retries, cancellation, stale async completion, locks, leases,
+or impossible UI modes.
+
+API domains use this shape when the product has durable lifecycle
+state:
+
+```
+api/internal/<domain>/
+  workflow.go              # State, Event, Transition, CheckInvariants
+  workflow_test.go         # domain-specific transition rules
+  model_conformance_test.go # matrix completeness and trace replay
+```
+
+UI features use the same concept with TypeScript discriminated unions:
+
+```
+ui/src/features/<domain>/
+  <domain>Workflow.ts
+  <domain>Workflow.test.ts
+```
+
+The transition function should be pure or nearly pure. Keep database
+writes, BlobStore calls, network requests, clocks, timers, and React
+effects outside it. Services and components call the workflow, then
+perform side effects around the resulting state.
+
+Do not add workflow files for plain CRUD, generated adapters, static
+config, formatting helpers, or presentational components with no
+meaningful ordering constraints. The workflow pattern is load-bearing
+only when there are illegal transitions to prevent.
+
+See [`WORKFLOWS.md`](../internal/WORKFLOWS.md) and
+[`TESTING.md`](../internal/TESTING.md#temporal-workflow-tests) for the
+matrix and trace testing contract.
+
 ## Domain modules — adding and removing features
 
 The horizontal axis: each domain self-describes via a `Module()`

@@ -8,6 +8,12 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
+import {
+  canStartAttachmentUpload,
+  initialAttachmentUploadState,
+  transitionAttachmentUpload,
+  type AttachmentUploadState,
+} from "./AttachmentUploadWorkflow";
 
 const NOTES_QUERY_KEY = ["notes"] as const;
 
@@ -18,26 +24,39 @@ interface AttachmentUploadProps {
 export function AttachmentUpload({ noteId }: AttachmentUploadProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [file, setFile] = useState<File | null>(null);
-  const [lastUploadedName, setLastUploadedName] = useState<string | null>(null);
+  const [uploadState, setUploadState] = useState<AttachmentUploadState>(initialAttachmentUploadState);
 
   const uploadMutation = useMutation({
-    mutationFn: () => {
-      if (!file) {
-        throw new Error(t(strings.notes.noFileSelected));
-      }
+    mutationFn: (file: File) => {
       return uploadAttachment(noteId, file);
     },
-    onSuccess: () => {
-      setLastUploadedName(file?.name ?? null);
-      setFile(null);
+    onSuccess: (_attachment, file) => {
+      setUploadState((state) =>
+        transitionAttachmentUpload(state, { type: "succeed", fileName: file.name }),
+      );
       void queryClient.invalidateQueries({ queryKey: NOTES_QUERY_KEY });
+    },
+    onError: (error) => {
+      setUploadState((state) =>
+        transitionAttachmentUpload(state, { type: "fail", message: errorMessage(error, t) }),
+      );
     },
   });
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setFile(event.target.files?.[0] ?? null);
-    setLastUploadedName(null);
+    const nextFile = event.target.files?.[0] ?? null;
+    setUploadState(nextFile
+      ? transitionAttachmentUpload(uploadState, { type: "select", file: nextFile })
+      : transitionAttachmentUpload(uploadState, { type: "reset" }));
+  };
+
+  const handleUpload = () => {
+    if (!canStartAttachmentUpload(uploadState)) {
+      return;
+    }
+    const file = uploadState.file;
+    setUploadState((state) => transitionAttachmentUpload(state, { type: "start" }));
+    uploadMutation.mutate(file);
   };
 
   return (
@@ -53,17 +72,18 @@ export function AttachmentUpload({ noteId }: AttachmentUploadProps) {
         data-testid={selectors.notes.attachmentButton}
         type="button"
         className="w-fit"
-        disabled={!file || uploadMutation.isPending}
-        onClick={() => uploadMutation.mutate()}
+        title={canStartAttachmentUpload(uploadState) ? undefined : t(strings.notes.noFileSelected)}
+        disabled={!canStartAttachmentUpload(uploadState)}
+        onClick={handleUpload}
       >
         <Upload aria-hidden="true" className="me-2 h-4 w-4" />
         {t(strings.notes.uploadAttachment)}
       </Button>
-      {(uploadMutation.error || lastUploadedName) && (
+      {(uploadState.status === "failed" || uploadState.status === "succeeded") && (
         <p data-testid={selectors.notes.attachmentStatus} className="text-xs text-slate-300">
-          {uploadMutation.error
-            ? errorMessage(uploadMutation.error, t)
-            : t(strings.notes.uploadSuccess, { name: lastUploadedName })}
+          {uploadState.status === "failed"
+            ? uploadState.message
+            : t(strings.notes.uploadSuccess, { name: uploadState.fileName })}
         </p>
       )}
     </div>

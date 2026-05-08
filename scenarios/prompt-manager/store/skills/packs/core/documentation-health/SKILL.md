@@ -30,7 +30,7 @@ This skill provides concrete patterns that ensure agents across multiple session
 Documentation should align with the mental model hierarchy used in screaming-architecture-audit:
 
 Required reading:
-- `prompt-manager skills read screaming-architecture-audit`
+- `prompt-manager skill read screaming-architecture-audit`
 
 ```
                       PRD.md
@@ -93,7 +93,7 @@ docs/
 │   ├── ASSUMPTIONS.md     # Implicit beliefs not yet validated (optional)
 │   ├── ERROR-SEMANTICS.md # Error categories, recovery paths (optional)
 │   ├── SECURITY-POSTURE.md # Security hardening status (optional)
-│   ├── TEMPORAL-FLOWS.md  # Async patterns, race conditions (optional)
+│   ├── TEMPORAL-FLOWS.md  # Async patterns, race conditions, workflow maturity (optional)
 │   ├── COHERENCE-NOTES.md # React coherence audit (React UIs only)
 │   └── EXPERIENCE-AUDIT.md # UX friction analysis (user-facing only)
 └── plans/                 # Architecture decisions, proposals
@@ -359,6 +359,6 @@ error-semantics, security-posture, temporal-flows, coherence-notes, experience-a
 | ASSUMPTIONS.md | Code makes implicit assumptions | Well-typed, explicit code |
 | ERROR-SEMANTICS.md | User-facing errors matter | Internal tooling only |
 | SECURITY-POSTURE.md | Security is a concern | Internal-only, no auth |
-| TEMPORAL-FLOWS.md | Async/concurrent operations | Purely synchronous code |
+| TEMPORAL-FLOWS.md | Async/concurrent operations, lifecycle flows, workflow maturity/spec status | Purely synchronous code |
 | COHERENCE-NOTES.md | React UI exists | No React UI |
 | EXPERIENCE-AUDIT.md | User-facing scenario | Backend-only service |

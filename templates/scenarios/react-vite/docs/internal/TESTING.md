@@ -251,6 +251,83 @@ Connect handler tests then substitute `mocks.FakeService` — they don't seed
 sqlite-shaped state to assert on routing. Two-mock split keeps each
 layer's tests focused on what that layer owns.
 
+### Temporal workflow tests
+
+Use temporal workflow tests when a domain has lifecycle states where
+some events are allowed and others are forbidden. Do not use coverage
+percentages as proof that the state space is complete; a suite can
+touch every line while never testing "retry after success" or
+"complete after cancel."
+
+The canonical API shape is:
+
+```
+api/internal/<domain>/
+  <flow>_workflow.go
+  <flow>_workflow.spec.json
+  <flow>_workflow_test.go
+```
+
+`workflow.go` defines:
+
+- enumerable statuses, via `AllStatuses()` or an equivalent constant
+  list,
+- enumerable events, via `AllEvents()` or an equivalent constant list,
+- a pure `Transition(state, event)` function,
+- `CheckInvariants(state)` for rules that must hold after every
+  transition.
+
+`model_conformance_test.go` uses
+`api/internal/testutil/modeltest` to prove:
+
+- every production status is represented,
+- every production event is represented,
+- every status/event pair has exactly one expected row,
+- duplicate, missing, and unknown rows fail loudly,
+- traces replay step-by-step against the production transition
+  function.
+- the declarative `*.spec.json` agrees with the matrix and trace tests.
+
+The canonical UI shape is:
+
+```
+ui/src/features/<domain>/
+  <domain>Workflow.ts
+  <domain>Workflow.spec.json
+  <domain>Workflow.test.ts
+```
+
+Use TypeScript discriminated unions so impossible UI states are not
+representable. For example, an upload should not be able to hold both
+`{ status: "uploading" }` and a success payload through parallel
+booleans. Components dispatch events to the workflow and render the
+returned state; they do not duplicate transition rules in event
+handlers.
+
+Workflow maturity is incremental:
+
+| Level | Name | Validation expectation |
+|---|---|---|
+| 1 | Inventory | Flow listed in `docs/internal/TEMPORAL-FLOWS.md`. |
+| 2 | Workflow model | Pure transition and invariant checks exist. |
+| 3 | Matrix + traces | Every state/event pair and representative trace is executable. |
+| 4 | Declarative spec | `*.spec.json` exists beside the workflow and conformance tests compare it to matrix/traces. |
+| 5 | Checked formal model | Quint/TLA+ or equivalent generates deterministic artifacts replayed by production tests. |
+
+The notes attachment upload workflow is the reference Level 4 pattern:
+
+- `api/internal/notes/attachment_upload_workflow.go`
+- `api/internal/notes/attachment_upload_workflow.spec.json`
+- `api/internal/notes/attachment_workflow_test.go`
+- `ui/src/features/notes/AttachmentUploadWorkflow.ts`
+- `ui/src/features/notes/AttachmentUploadWorkflow.spec.json`
+- `ui/src/features/notes/AttachmentUploadWorkflow.test.ts`
+
+A Quint/TLA+ model is only accepted when generated traces or transition
+matrices are replayed against the production Go/TypeScript transition
+functions and validation fails on stale artifacts. Documentation-only
+formal specs are drift-prone and should not be added.
+
 ### Buffer-backed logger pattern
 
 The production `*log.Logger` shouldn't write to stderr during tests —

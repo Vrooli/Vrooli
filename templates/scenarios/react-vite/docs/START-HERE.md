@@ -158,7 +158,7 @@ implementation agents clear `[REQ:ID]` targets for tests.
 
 ### Gate 3 — Domain Map
 
-This gate is intentionally lightweight until Vrooli has a canonical
+Use `docs/concepts/ARCHITECTURE.md#domain-map` as the durable
 domain-map artifact. Do the thinking before coding.
 
 - [ ] Name the real bounded contexts for this scenario.
@@ -167,6 +167,9 @@ domain-map artifact. Do the thinking before coding.
       evidence.
 - [ ] Confirm each domain maps back to at least one operational target
       or requirement.
+- [ ] Update `docs/concepts/ARCHITECTURE.md` so the Domain Map,
+      Shared Infrastructure, and Architecture Maturity tables describe
+      this scenario rather than only the starter reference domains.
 
 **Exit criteria:** you can explain what the first real domain is, why
 it exists, and which files it will touch before writing code.

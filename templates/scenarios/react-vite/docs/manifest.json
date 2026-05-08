@@ -110,6 +110,12 @@
           "audience": ["developers"]
         },
         {
+          "path": "internal/WORKFLOWS.md",
+          "title": "Workflows",
+          "description": "Temporal workflow modeling, matrix tests, trace tests, and formal-spec roadmap",
+          "audience": ["developers"]
+        },
+        {
           "path": "internal/PROBLEMS.md",
           "title": "Problems",
           "description": "Known issues, tech debt, and deferred work specific to this scenario",

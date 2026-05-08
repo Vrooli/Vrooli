@@ -12,6 +12,8 @@ they appear.
 - **Known bugs** that are real but not yet worth fixing
 - **Tech debt** — workarounds that need a real fix later
 - **Deferred work** — features descoped from a phase, with the reason
+- **Architecture drift** — code/docs/tests that no longer line up with
+  the intended capability map or boundary model
 - **Constraints discovered the hard way** that aren't visible from
   the code (e.g., "this resource needs warm-up before the first call;
   see commit X")
@@ -48,6 +50,17 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ## Entries
 
 _None yet._
+
+## Architecture Drift
+
+Use this section for deferred findings from `screaming-architecture-audit`.
+Do not create a standalone architecture-audit report unless the work is
+a migration handoff with a planned retirement path back into
+`ARCHITECTURE.md`, `SEAMS.md`, or this file.
+
+| Area | Drift | Maturity Impact | Real Fix |
+|---|---|---|---|
+| _None yet._ |  |  |  |
 
 ## Cross-references
 
