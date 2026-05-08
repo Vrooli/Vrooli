@@ -313,30 +313,67 @@ func (p *WorkspaceSandboxProvider) PartialApprove(ctx context.Context, req Parti
 	return result.toApproveResult(), nil
 }
 
-// ApplyAtRunEnd invokes the workspace-sandbox run-end apply path. It
-// posts the typed request to /api/v1/sandboxes/{id}/apply-at-run-end and
-// surfaces conflict / not-found errors via the standard SandboxAPIError
-// path. The wire field name "agentManagerRunId" is locked by
-// types.ApplyAtRunEndRequest in workspace-sandbox.
+// ApplyAtRunEnd invokes the workspace-sandbox final run-end apply path. The
+// continuable-turn path is TurnCheckpoint; callers choose explicitly from
+// lifecycle policy instead of this adapter hiding the transition.
 func (p *WorkspaceSandboxProvider) ApplyAtRunEnd(ctx context.Context, req ApplyAtRunEndRequest) (*ApplyAtRunEndResult, error) {
-	result, err := p.TurnCheckpoint(ctx, TurnCheckpointRequest{
-		SandboxID:      req.SandboxID,
-		RunID:          req.RunID,
-		ConversationID: req.ConversationID,
-		Cost:           req.Cost,
-		RunOutcome:     req.RunOutcome,
-		Actor:          req.Actor,
-		CommitMsg:      req.CommitMsg,
-		CreateCommit:   req.CreateCommit,
-		Force:          req.Force,
-	})
-	if err != nil {
-		return nil, err
+	actor := req.Actor
+	if actor == "" {
+		actor = "applyAtRunEnd"
 	}
+
+	body := map[string]interface{}{
+		"sandboxId":         req.SandboxID.String(),
+		"agentManagerRunId": req.RunID,
+		"source":            "agent-manager-auto-apply",
+		"actor":             actor,
+		"createCommit":      req.CreateCommit,
+		"force":             req.Force,
+	}
+	if req.ConversationID != "" {
+		body["conversationId"] = req.ConversationID
+	}
+	if req.Cost != 0 {
+		body["cost"] = req.Cost
+	}
+	if req.RunOutcome != "" {
+		body["runOutcome"] = req.RunOutcome
+	}
+	if req.CommitMsg != "" {
+		body["commitMessage"] = req.CommitMsg
+	}
+
+	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/apply-at-run-end", req.SandboxID), body)
+	if err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID:   &req.SandboxID,
+			Operation:   "apply_at_run_end",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, domain.NewNotFoundErrorWithID("Sandbox", req.SandboxID.String())
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError("apply_at_run_end", &req.SandboxID, resp)
+	}
+
+	var result wsApproveResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID: &req.SandboxID,
+			Operation: "apply_at_run_end",
+			Cause:     err,
+		}
+	}
+
 	return &ApplyAtRunEndResult{
 		Success:    result.Success,
 		Applied:    result.Applied,
-		Failed:     result.Failed,
 		Remaining:  result.Remaining,
 		IsPartial:  result.IsPartial,
 		CommitHash: result.CommitHash,

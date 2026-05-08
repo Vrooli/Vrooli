@@ -300,6 +300,43 @@ func TestStatus_IsTerminal(t *testing.T) {
 	}
 }
 
+func TestCanRunProcessOnlyActive(t *testing.T) {
+	tests := []struct {
+		status Status
+		want   bool
+	}{
+		{StatusCreating, false},
+		{StatusActive, true},
+		{StatusStopped, false},
+		{StatusCheckpointed, false},
+		{StatusApproved, false},
+		{StatusRejected, false},
+		{StatusDeleted, false},
+		{StatusError, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.status), func(t *testing.T) {
+			if got := CanRunProcess(tt.status); got != tt.want {
+				t.Errorf("CanRunProcess(%s) = %v, want %v", tt.status, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCanResumeWorkOnlyCheckpointed(t *testing.T) {
+	for _, status := range []Status{StatusCreating, StatusActive, StatusStopped, StatusApproved, StatusRejected, StatusDeleted, StatusError} {
+		t.Run(string(status), func(t *testing.T) {
+			if err := CanResumeWork(status); err == nil {
+				t.Fatalf("CanResumeWork(%s) error = nil, want error", status)
+			}
+		})
+	}
+	if err := CanResumeWork(StatusCheckpointed); err != nil {
+		t.Fatalf("CanResumeWork(checkpointed) error = %v, want nil", err)
+	}
+}
+
 func TestStatus_IsMounted(t *testing.T) {
 	tests := []struct {
 		status Status

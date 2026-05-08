@@ -109,7 +109,7 @@ goroutine starts → SendHeartbeat (immediate)
 3. `runEventSink` creates the same durable event-sink shape used by dispatcher lifecycle events: append-and-broadcast when both store and broadcaster exist, append-only when only the store exists, and no-op when event storage is absent.
 4. `executeContinuation` derives `Execution.DefaultTimeout` and `Heartbeat.RunHeartbeatInterval` from the same lever set as `RunExecutor`.
 5. `phases.RunHeartbeatLoop` sends continuation heartbeats until the runner returns, then the terminal `applyRunStatusTransition` records the completed or failed status.
-6. Sandboxed continuation turns call the apply-at-run-end orchestration seam, whose workspace-sandbox adapter maps to `/turn-checkpoint`; the sandbox returns to `checkpointed` instead of being deleted.
+6. Sandboxed continuation turns call the apply-at-run-end orchestration seam, whose lifecycle policy explicitly selects workspace-sandbox `/turn-checkpoint`; the sandbox returns to `checkpointed` instead of being deleted. Final disposal paths remain separate from turn checkpointing.
 
 ```
 ContinueRun

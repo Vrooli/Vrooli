@@ -160,13 +160,24 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 	}
 
 	s.recordApprovalProvenance(ctx, sandbox, applyResult.Changes, req, applyResult.CommitHash, applyResult.CommitMsg)
+	if len(applyResult.Rejected) > 0 {
+		pendingChanges, err := s.newPendingReviewChanges(ctx, sandbox, applyResult.Rejected)
+		if err != nil {
+			s.logAuditEvent(ctx, sandbox, "provenance.warning", "system", "system", map[string]interface{}{
+				"message": "failed to inspect pending-review provenance: " + err.Error(),
+			})
+		} else if _, err := s.recordFileProvenance(ctx, sandbox, pendingChanges, req, types.ProvenanceFileStatePendingReview, "", ""); err != nil {
+			s.logAuditEvent(ctx, sandbox, "provenance.warning", "system", "system", map[string]interface{}{
+				"message": "failed to record pending-review provenance: " + err.Error(),
+			})
+		}
+	}
 	return s.finalizeApproval(ctx, sandbox, req, applyResult.CommitHash, applyResult.Changes, applyResult.TotalChanges), nil
 }
 
-// ApplyAtRunEnd is the agent-manager run-end apply path. It validates
-// the run-context metadata, translates the request into an internal
-// ApprovalRequest, and routes through Approve so the per-file state
-// machine cannot drift between operator approval and auto-apply.
+// ApplyAtRunEnd is the final agent-manager run-end apply path. Continuable
+// turns use TurnCheckpoint; this endpoint applies accepted changes and then
+// follows approval/final-disposal semantics.
 //
 // Source MUST be SourceAgentManagerAutoApply; other values are rejected.
 func (s *Service) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error) {
@@ -177,8 +188,9 @@ func (s *Service) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndReq
 		return nil, err
 	}
 
-	result, err := s.TurnCheckpoint(ctx, &types.TurnCheckpointRequest{
+	result, err := s.Approve(ctx, &types.ApprovalRequest{
 		SandboxID:         req.SandboxID,
+		Mode:              "all",
 		Actor:             req.Actor,
 		CommitMsg:         req.CommitMsg,
 		Source:            req.Source,
@@ -424,14 +436,29 @@ func (s *Service) finalizeApproval(ctx context.Context, sandbox *types.Sandbox, 
 // but never surface to the caller, since the apply itself already
 // succeeded.
 func (s *Service) recordApprovalProvenance(ctx context.Context, sandbox *types.Sandbox, changes []*types.FileChange, req *types.ApprovalRequest, commitHash, commitMsg string) {
+	if _, err := s.recordFileProvenance(ctx, sandbox, changes, req, types.ProvenanceFileStateApplied, commitHash, commitMsg); err != nil {
+		s.logAuditEvent(ctx, sandbox, "provenance.warning", "system", "system", map[string]interface{}{
+			"message": "failed to record provenance: " + err.Error(),
+		})
+	}
+}
+
+func (s *Service) recordFileProvenance(ctx context.Context, sandbox *types.Sandbox, changes []*types.FileChange, req *types.ApprovalRequest, state types.ProvenanceFileState, commitHash, commitMsg string) ([]uuid.UUID, error) {
+	if len(changes) == 0 {
+		return nil, nil
+	}
+
 	runID := req.AgentManagerRunID
 	if runID == "" {
 		runID = metadataString(sandbox.Metadata, metadataAgentManagerRunID)
 	}
 	appliedChanges := make([]*types.AppliedChange, len(changes))
+	ids := make([]uuid.UUID, len(changes))
 	for i, c := range changes {
+		id := uuid.New()
+		ids[i] = id
 		appliedChanges[i] = &types.AppliedChange{
-			ID:                uuid.New(),
+			ID:                id,
 			SandboxID:         sandbox.ID,
 			SandboxOwner:      sandbox.Owner,
 			SandboxOwnerType:  string(sandbox.OwnerType),
@@ -443,26 +470,18 @@ func (s *Service) recordApprovalProvenance(ctx context.Context, sandbox *types.S
 			ConversationID:    req.ConversationID,
 			CostUSD:           req.Cost,
 			RunOutcome:        req.RunOutcome,
-			ProvenanceState:   string(types.ProvenanceFileStateApplied),
+			ProvenanceState:   string(state),
 		}
 	}
 
 	if err := s.repo.RecordAppliedChanges(ctx, appliedChanges); err != nil {
-		s.logAuditEvent(ctx, sandbox, "provenance.warning", "system", "system", map[string]interface{}{
-			"message": "failed to record provenance: " + err.Error(),
-		})
+		return nil, err
 	}
-
 	if commitHash == "" {
-		return
-	}
-	ids := make([]uuid.UUID, len(appliedChanges))
-	for i, c := range appliedChanges {
-		ids[i] = c.ID
+		return ids, nil
 	}
 	if err := s.repo.MarkChangesCommitted(ctx, ids, commitHash, commitMsg); err != nil {
-		s.logAuditEvent(ctx, sandbox, "provenance.warning", "system", "system", map[string]interface{}{
-			"message": "failed to mark changes committed: " + err.Error(),
-		})
+		return ids, err
 	}
+	return ids, nil
 }

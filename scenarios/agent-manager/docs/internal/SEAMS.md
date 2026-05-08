@@ -259,7 +259,7 @@ type Provider interface {
 - `WorkspaceSandboxProvider` - HTTP client for workspace-sandbox API (implemented ✅)
   - Creates sandboxes with overlayfs isolation
   - Retrieves diffs and applies changes
-  - Maps agent-manager apply-at-run-end to workspace-sandbox `/turn-checkpoint`
+  - Exposes distinct final apply-at-run-end and continuable `/turn-checkpoint` calls
   - Resumes checkpointed sandboxes before continuation process launch
   - Supports full/partial approval workflows
   - Health checks for availability monitoring

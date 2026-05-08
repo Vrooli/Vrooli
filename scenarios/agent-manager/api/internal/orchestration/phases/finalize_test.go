@@ -552,6 +552,37 @@ func TestApplyAtRunEnd_ConversationIDForwarded(t *testing.T) {
 	}
 }
 
+func TestApplyAtRunEnd_CheckpointOnUsesTurnCheckpoint(t *testing.T) {
+	stub := mocks.NewFakeSandboxProvider()
+	cfg := domain.DefaultSandboxConfig()
+	cfg.Lifecycle.CheckpointOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTurnCompleted}
+	run := &domain.Run{ConversationID: "conv-thread-123"}
+	fx := newFinalizeFixtureWithRun(t, cfg, run, stub)
+
+	if !ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
+		Deps:      fx.deps,
+		Run:       fx.run,
+		SandboxID: &fx.sandboxID,
+		Sandbox:   fx.sandbox,
+		Outcome:   domain.ContractRunOutcomeSuccess,
+	}) {
+		t.Fatal("expected turn checkpoint to succeed")
+	}
+	if stub.TurnCheckpointCallCount() != 1 {
+		t.Fatalf("expected 1 TurnCheckpoint call, got %d", stub.TurnCheckpointCallCount())
+	}
+	if stub.ApplyAtRunEndCallCount() != 0 {
+		t.Fatalf("expected 0 final ApplyAtRunEnd calls, got %d", stub.ApplyAtRunEndCallCount())
+	}
+	reqs := stub.TurnCheckpointRequests()
+	if reqs[0].ConversationID != "conv-thread-123" {
+		t.Errorf("expected ConversationID forwarded to TurnCheckpoint, got %q", reqs[0].ConversationID)
+	}
+	if reqs[0].RunOutcome != "success" {
+		t.Errorf("expected runOutcome=success on checkpoint request, got %q", reqs[0].RunOutcome)
+	}
+}
+
 func TestApplyAtRunEnd_FailurePreservesSandbox(t *testing.T) {
 	stub := mocks.NewFakeSandboxProvider()
 	stub.ApplyAtRunEndErr = errors.New("workspace-sandbox unreachable")

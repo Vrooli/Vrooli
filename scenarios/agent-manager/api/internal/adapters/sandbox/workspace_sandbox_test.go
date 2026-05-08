@@ -457,7 +457,7 @@ func TestWorkspaceSandboxProvider_IsAvailable(t *testing.T) {
 }
 
 // TestWorkspaceSandboxProvider_ApplyAtRunEnd is a shape-parity contract test
-// for the workspace-sandbox /turn-checkpoint endpoint. The fake server
+// for the workspace-sandbox /apply-at-run-end endpoint. The fake server
 // asserts the exact wire shape locked by
 // scenarios/workspace-sandbox/api/internal/types.ApplyAtRunEndRequest. If
 // workspace-sandbox renames any field, this test must change in the same
@@ -466,7 +466,7 @@ func TestWorkspaceSandboxProvider_ApplyAtRunEnd(t *testing.T) {
 	sandboxID := uuid.New()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/turn-checkpoint"
+		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/apply-at-run-end"
 		if r.Method != "POST" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -495,8 +495,6 @@ func TestWorkspaceSandboxProvider_ApplyAtRunEnd(t *testing.T) {
 		}
 
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"sandboxId":  sandboxID.String(),
-			"status":     "checkpointed",
 			"success":    true,
 			"applied":    3,
 			"remaining":  0,
@@ -644,7 +642,6 @@ func TestWorkspaceSandboxProvider_ApplyAtRunEnd_BadRequestRejectsBogusSource(t *
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"sandboxId": sandboxID.String(), "status": "checkpointed",
 			"success": true, "appliedAt": time.Now().Format(time.RFC3339),
 		})
 	}))

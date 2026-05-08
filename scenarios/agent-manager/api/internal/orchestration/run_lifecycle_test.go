@@ -398,6 +398,107 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 	}
 }
 
+func TestContinueRun_ResumeFailureDoesNotMarkRunRunning(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{
+		SupportsContinuation: true,
+		SupportedModels:      []string{"mock-model"},
+	})
+	mockRunner.ContinueFunc = func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		t.Fatal("runner continuation must not start when sandbox resume fails")
+		return nil, nil
+	}
+	registry := runner.NewRegistry()
+	mustRegisterRunner(t, registry, mockRunner)
+
+	sandboxID := uuid.New()
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithSandbox(&mocks.FakeSandboxProvider{
+			GetFunc: func(context.Context, uuid.UUID) (*sandbox.Sandbox, error) {
+				return &sandbox.Sandbox{
+					ID:     sandboxID,
+					Status: sandbox.SandboxStatusCheckpointed,
+				}, nil
+			},
+			ResumeFunc: func(context.Context, uuid.UUID) (*sandbox.Sandbox, error) {
+				return nil, errors.New("resume failed")
+			},
+		}),
+	)
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:          "resume-fail-profile",
+		ProfileKey:    "resume-fail-" + uuid.New().String()[:8],
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		Title:     "resume fail task",
+		ScopePath: "src/",
+	})
+
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID:             runID,
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Tag:            runID.String(),
+		RunMode:        domain.RunModeSandboxed,
+		SandboxID:      &sandboxID,
+		Status:         domain.RunStatusComplete,
+		Phase:          domain.RunPhaseCompleted,
+		SessionID:      "sess-before-continue",
+		StartedAt:      &now,
+		EndedAt:        &now,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType:    domain.RunnerTypeClaudeCode,
+			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		},
+		ApprovalState: domain.ApprovalStateNone,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
+		RunID:   runID,
+		Message: "please continue",
+	}); err == nil {
+		t.Fatal("ContinueRun error = nil, want resume failure")
+	}
+
+	updated, err := repos.Runs.Get(ctx, runID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updated.Status != domain.RunStatusComplete {
+		t.Fatalf("run status = %s, want complete", updated.Status)
+	}
+	events, err := eventStore.Get(ctx, runID, event.GetOptions{
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeStatus},
+	})
+	if err != nil {
+		t.Fatalf("get status events: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("expected no status events, got %d", len(events))
+	}
+}
+
 func waitForStatusEvents(t *testing.T, ctx context.Context, store event.Store, runID uuid.UUID, count int) []*domain.RunEvent {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)

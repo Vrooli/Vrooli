@@ -216,6 +216,9 @@ func EffectiveSandboxConfig(run *domain.Run) *domain.SandboxConfig {
 	if run != nil && run.SandboxConfig != nil {
 		return run.SandboxConfig
 	}
+	if run != nil && run.ResolvedConfig != nil && run.ResolvedConfig.SandboxConfig != nil {
+		return run.ResolvedConfig.SandboxConfig
+	}
 	return nil
 }
 
@@ -257,11 +260,14 @@ type ApplyAtRunEndInput struct {
 	Cost      float64
 }
 
-// ApplyAtRunEnd is the single shared apply-at-run-end seam called from
-// every terminal handler (success, failure, cancel, timeout). It encodes
-// the auditability contract: in-acceptance changes apply at run end,
-// regardless of run outcome, and out-of-acceptance changes are retained as
-// state=pending-review on the resulting provenance record.
+// ApplyAtRunEnd is the single shared post-turn apply seam called from every
+// terminal handler (success, failure, cancel, timeout). It encodes the
+// auditability contract: in-acceptance changes apply at turn end, regardless
+// of run outcome, and out-of-acceptance changes are retained as
+// state=pending-review on the resulting provenance record. When the sandbox
+// lifecycle declares a continuable turn checkpoint, this seam calls
+// TurnCheckpoint explicitly; otherwise it calls the final apply-at-run-end
+// provider method.
 //
 // Returns true iff the run's terminal status should be RunStatusComplete
 // with ApprovalState=Approved (i.e., apply succeeded). Returns false in
@@ -310,14 +316,7 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 		return false
 	}
 
-	result, err := in.Sandbox.ApplyAtRunEnd(ctx, sandbox.ApplyAtRunEndRequest{
-		SandboxID:      *in.SandboxID,
-		RunID:          in.Run.ID.String(),
-		ConversationID: in.Run.ConversationID,
-		Cost:           in.Cost,
-		RunOutcome:     string(in.Outcome),
-		Actor:          "applyAtRunEnd",
-	})
+	result, err := applyOrCheckpointTurn(ctx, cfg, in)
 	if err != nil {
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn", "apply-at-run-end failed: "+err.Error())
 		metrics.Get().RecordProvenanceSkipped()
@@ -353,4 +352,72 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 	in.Run.ApprovalState = domain.ApprovalStateApproved
 	in.Run.Status = domain.RunStatusComplete
 	return true
+}
+
+type postTurnApplyResult struct {
+	Applied    int
+	Remaining  int
+	IsPartial  bool
+	CommitHash string
+	AppliedAt  time.Time
+}
+
+func applyOrCheckpointTurn(ctx context.Context, cfg *domain.SandboxConfig, in ApplyAtRunEndInput) (*postTurnApplyResult, error) {
+	turnEvent := turnLifecycleEventForOutcome(in.Outcome)
+	if HasLifecycleEvent(cfg.Lifecycle.CheckpointOn, []domain.SandboxLifecycleEvent{turnEvent}) {
+		result, err := in.Sandbox.TurnCheckpoint(ctx, sandbox.TurnCheckpointRequest{
+			SandboxID:      *in.SandboxID,
+			RunID:          in.Run.ID.String(),
+			ConversationID: in.Run.ConversationID,
+			Cost:           in.Cost,
+			RunOutcome:     string(in.Outcome),
+			Actor:          "applyAtRunEnd",
+		})
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			return nil, nil
+		}
+		return &postTurnApplyResult{
+			Applied:    result.Applied,
+			Remaining:  result.Remaining,
+			IsPartial:  result.IsPartial,
+			CommitHash: result.CommitHash,
+			AppliedAt:  result.AppliedAt,
+		}, nil
+	}
+
+	result, err := in.Sandbox.ApplyAtRunEnd(ctx, sandbox.ApplyAtRunEndRequest{
+		SandboxID:      *in.SandboxID,
+		RunID:          in.Run.ID.String(),
+		ConversationID: in.Run.ConversationID,
+		Cost:           in.Cost,
+		RunOutcome:     string(in.Outcome),
+		Actor:          "applyAtRunEnd",
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, nil
+	}
+	return &postTurnApplyResult{
+		Applied:    result.Applied,
+		Remaining:  result.Remaining,
+		IsPartial:  result.IsPartial,
+		CommitHash: result.CommitHash,
+		AppliedAt:  result.AppliedAt,
+	}, nil
+}
+
+func turnLifecycleEventForOutcome(outcome domain.ContractRunOutcome) domain.SandboxLifecycleEvent {
+	switch outcome {
+	case domain.ContractRunOutcomeFailure, domain.ContractRunOutcomeTimeout:
+		return domain.SandboxLifecycleTurnFailed
+	case domain.ContractRunOutcomeCancelled:
+		return domain.SandboxLifecycleTurnCancelled
+	default:
+		return domain.SandboxLifecycleTurnCompleted
+	}
 }

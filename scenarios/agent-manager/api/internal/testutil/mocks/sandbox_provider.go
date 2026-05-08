@@ -269,3 +269,15 @@ func (p *FakeSandboxProvider) ApplyAtRunEndRequests() []sandbox.ApplyAtRunEndReq
 	defer p.mu.Unlock()
 	return append([]sandbox.ApplyAtRunEndRequest(nil), p.applyAtRunEndRequests...)
 }
+
+func (p *FakeSandboxProvider) TurnCheckpointCallCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.turnCheckpointRequests)
+}
+
+func (p *FakeSandboxProvider) TurnCheckpointRequests() []sandbox.TurnCheckpointRequest {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]sandbox.TurnCheckpointRequest(nil), p.turnCheckpointRequests...)
+}

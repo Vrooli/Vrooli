@@ -17,6 +17,8 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -433,6 +435,143 @@ func TestService_TurnCheckpoint_NoChangesTransitionsCheckpointed(t *testing.T) {
 	}
 }
 
+func TestService_TurnCheckpoint_RecordsPendingReviewForRejectedChanges(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	drv.Mounted = true
+	svc := newTestService(repo, drv)
+	ctx := context.Background()
+
+	id := uuid.New()
+	existing := createTestSandbox(id, types.StatusActive)
+	existing.Behavior.Acceptance.Allow.PathGlobs = []string{"allowed.txt"}
+	repo.Sandboxes[id] = existing
+	drv.ChangedFiles = []*types.FileChange{{
+		ID:         uuid.New(),
+		SandboxID:  id,
+		FilePath:   "secret.txt",
+		ChangeType: types.ChangeTypeAdded,
+		FileSize:   12,
+	}}
+
+	result, err := svc.TurnCheckpoint(ctx, &types.TurnCheckpointRequest{
+		SandboxID:         id,
+		AgentManagerRunID: "run-1",
+		ConversationID:    "conv-1",
+		Source:            types.SourceAgentManagerAutoApply,
+		Actor:             "agent-manager",
+		RunOutcome:        "success",
+	})
+	if err != nil {
+		t.Fatalf("TurnCheckpoint() error = %v", err)
+	}
+	if result.Applied != 0 || result.Remaining != 1 || !result.IsPartial {
+		t.Fatalf("result applied/remaining/isPartial = %d/%d/%v, want 0/1/true", result.Applied, result.Remaining, result.IsPartial)
+	}
+	if len(repo.AppliedChanges) != 1 {
+		t.Fatalf("expected 1 provenance row, got %d", len(repo.AppliedChanges))
+	}
+	row := repo.AppliedChanges[0]
+	if row.ProvenanceState != string(types.ProvenanceFileStatePendingReview) {
+		t.Errorf("ProvenanceState = %q, want pending-review", row.ProvenanceState)
+	}
+	if row.AgentManagerRunID != "run-1" || row.ConversationID != "conv-1" {
+		t.Errorf("run/conversation provenance = %q/%q", row.AgentManagerRunID, row.ConversationID)
+	}
+}
+
+func TestService_TurnCheckpoint_DoesNotDuplicateExistingPendingReview(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	drv.Mounted = true
+	svc := newTestService(repo, drv)
+	ctx := context.Background()
+
+	id := uuid.New()
+	existing := createTestSandbox(id, types.StatusActive)
+	existing.Behavior.Acceptance.Allow.PathGlobs = []string{"allowed.txt"}
+	repo.Sandboxes[id] = existing
+	repo.AppliedChanges = []*types.AppliedChange{{
+		ID:                uuid.New(),
+		SandboxID:         id,
+		FilePath:          filepath.Join(existing.ProjectRoot, "secret.txt"),
+		ProjectRoot:       existing.ProjectRoot,
+		ProvenanceState:   string(types.ProvenanceFileStatePendingReview),
+		AgentManagerRunID: "run-previous",
+	}}
+	drv.ChangedFiles = []*types.FileChange{{
+		ID:         uuid.New(),
+		SandboxID:  id,
+		FilePath:   "secret.txt",
+		ChangeType: types.ChangeTypeAdded,
+		FileSize:   12,
+	}}
+
+	result, err := svc.TurnCheckpoint(ctx, &types.TurnCheckpointRequest{
+		SandboxID:         id,
+		AgentManagerRunID: "run-2",
+		Source:            types.SourceAgentManagerAutoApply,
+		Actor:             "agent-manager",
+		RunOutcome:        "success",
+	})
+	if err != nil {
+		t.Fatalf("TurnCheckpoint() error = %v", err)
+	}
+	if result.Remaining != 1 || !result.IsPartial {
+		t.Fatalf("result remaining/isPartial = %d/%v, want 1/true", result.Remaining, result.IsPartial)
+	}
+	if len(repo.AppliedChanges) != 1 {
+		t.Fatalf("expected existing pending provenance only, got %d rows", len(repo.AppliedChanges))
+	}
+}
+
+func TestService_TurnCheckpoint_CleanupFailureDoesNotCheckpoint(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	drv := mocks.NewFakeDriver()
+	drv.Mounted = true
+	drv.RemoveFromUpperErr = errors.New("upper cleanup failed")
+	svc := newTestService(repo, drv)
+	ctx := context.Background()
+
+	projectRoot := t.TempDir()
+	upperDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(upperDir, "new.txt"), []byte("new content\n"), 0o644); err != nil {
+		t.Fatalf("write upper file: %v", err)
+	}
+
+	id := uuid.New()
+	existing := createTestSandbox(id, types.StatusActive)
+	existing.ProjectRoot = projectRoot
+	existing.ScopePath = projectRoot
+	existing.LowerDir = projectRoot
+	existing.UpperDir = upperDir
+	repo.Sandboxes[id] = existing
+	drv.ChangedFiles = []*types.FileChange{{
+		ID:         uuid.New(),
+		SandboxID:  id,
+		FilePath:   "new.txt",
+		ChangeType: types.ChangeTypeAdded,
+		FileSize:   12,
+	}}
+
+	_, err := svc.TurnCheckpoint(ctx, &types.TurnCheckpointRequest{
+		SandboxID:         id,
+		AgentManagerRunID: "run-1",
+		Source:            types.SourceAgentManagerAutoApply,
+		Actor:             "agent-manager",
+		RunOutcome:        "success",
+	})
+	if err == nil || !strings.Contains(err.Error(), "failed to checkpoint applied file new.txt") {
+		t.Fatalf("TurnCheckpoint() error = %v, want cleanup failure", err)
+	}
+	if repo.Sandboxes[id].Status != types.StatusActive {
+		t.Errorf("stored status = %s, want active", repo.Sandboxes[id].Status)
+	}
+	if !drv.Mounted {
+		t.Error("sandbox should remain mounted when checkpoint cleanup fails")
+	}
+}
+
 func TestService_Resume_CheckpointedTransitionsActive(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()
@@ -455,6 +594,32 @@ func TestService_Resume_CheckpointedTransitionsActive(t *testing.T) {
 	}
 	if sb.MergedDir == "" {
 		t.Error("Resume() should return a workspace path")
+	}
+}
+
+func TestService_Resume_TerminalStatusFails(t *testing.T) {
+	terminalStatuses := []types.Status{
+		types.StatusApproved,
+		types.StatusRejected,
+		types.StatusDeleted,
+	}
+	for _, status := range terminalStatuses {
+		t.Run(string(status), func(t *testing.T) {
+			repo := mocks.NewFakeRepository()
+			drv := mocks.NewFakeDriver()
+			svc := newTestService(repo, drv)
+			ctx := context.Background()
+
+			id := uuid.New()
+			repo.Sandboxes[id] = createTestSandbox(id, status)
+
+			if _, err := svc.Resume(ctx, id); err == nil {
+				t.Fatal("Resume() error = nil, want terminal-state failure")
+			}
+			if drv.Mounted {
+				t.Error("Resume() should not mount terminal sandboxes")
+			}
+		})
 	}
 }
 

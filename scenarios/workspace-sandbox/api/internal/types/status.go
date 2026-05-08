@@ -5,41 +5,20 @@
 //
 // The following diagram shows all valid status transitions:
 //
-//	                         ┌─────────┐
-//	                         │ CREATING │
-//	                         └────┬────┘
-//	                   success │    │ error
-//	               ┌───────────┘    └──────────┐
-//	               ▼                           ▼
-//	          ┌────────┐                  ┌───────┐
-//	┌────────►│ ACTIVE │◄────┐            │ ERROR │
-//	│ resume  └───┬────┘     │ resume     └───┬───┘
-//	│             │          │                │
-//	│       stop  │          │                │ delete
-//	│             ▼          │                │
-//	│        ┌─────────┐     │                │
-//	└────────│ STOPPED │─────┘                │
-//	         └────┬────┘                      │
-//	  approve │      │ reject                 │
-//	          ▼      ▼                        │
-//	     ┌──────────┐ ┌──────────┐            │
-//	     │ APPROVED │ │ REJECTED │            │
-//	     └────┬─────┘ └────┬─────┘            │
-//	          │            │                  │
+//	CREATING ──success──► ACTIVE ──stop────► STOPPED ──start──► ACTIVE
+//	    │                   │                  │
+//	    │ error             │ checkpoint       │ approve/reject/delete
+//	    ▼                   ▼                  ▼
+//	  ERROR             CHECKPOINTED       APPROVED/REJECTED/DELETED
+//	    │                   │
+//	    │ delete            │ resume/reject/delete
+//	    ▼                   ▼
+//	  DELETED             ACTIVE/REJECTED/DELETED
 //
-// checkpoint │            │                  │
-//
-//	       ▼            │                  │
-//	┌──────────────┐     │                  │
-//	│ CHECKPOINTED │─────┘                  │
-//	└──────┬───────┘                        │
-//	       │ resume                         │
-//	       └──────────────► ACTIVE          │
-//	       │ delete                         │
-//	       ▼                                ▼
-//	  ┌────────────────────────────────────────┐
-//	  │               DELETED                  │
-//	  └────────────────────────────────────────┘
+// Active and stopped sandboxes may be approved or rejected. Checkpointed
+// sandboxes are resumable or rejectable, but never approvable; a checkpoint is
+// already the post-turn apply boundary. Approved, rejected, and deleted are
+// terminal except that approved/rejected may be garbage-collected to deleted.
 //
 // # Status Categories
 //

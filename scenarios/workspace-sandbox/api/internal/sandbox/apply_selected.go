@@ -17,6 +17,7 @@ type selectedApplyResult struct {
 	Success      bool
 	Empty        bool
 	Changes      []*types.FileChange
+	Rejected     []*types.FileChange
 	TotalChanges int
 	Failed       int
 	Remaining    int
@@ -96,6 +97,7 @@ func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandb
 		return &selectedApplyResult{
 			Success:      true,
 			Empty:        true,
+			Rejected:     rejected,
 			TotalChanges: totalChanges,
 			Remaining:    totalChanges,
 			AppliedAt:    s.clock.Now(),
@@ -123,6 +125,7 @@ func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandb
 			return &selectedApplyResult{
 				Success:      true,
 				Empty:        true,
+				Rejected:     rejected,
 				TotalChanges: totalChanges,
 				AppliedAt:    s.clock.Now(),
 			}, nil
@@ -163,6 +166,7 @@ func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandb
 		return &selectedApplyResult{
 			Success:      false,
 			Changes:      changes,
+			Rejected:     rejected,
 			TotalChanges: totalChanges,
 			Failed:       len(changes),
 			Remaining:    totalChanges,
@@ -174,6 +178,7 @@ func (s *Service) applyAcceptedChanges(ctx context.Context, sandbox *types.Sandb
 	return &selectedApplyResult{
 		Success:      true,
 		Changes:      changes,
+		Rejected:     rejected,
 		TotalChanges: totalChanges,
 		Remaining:    totalChanges - len(changes),
 		CommitHash:   patchResult.CommitHash,

@@ -3,6 +3,7 @@ package sandbox
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/google/uuid"
 
@@ -58,14 +59,26 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 	}
 
 	if !applyResult.Empty {
-		s.recordApprovalProvenance(ctx, sandbox, applyResult.Changes, approvalReq, applyResult.CommitHash, applyResult.CommitMsg)
+		if _, err := s.recordFileProvenance(ctx, sandbox, applyResult.Changes, approvalReq, types.ProvenanceFileStateApplied, applyResult.CommitHash, applyResult.CommitMsg); err != nil {
+			return nil, fmt.Errorf("failed to record applied turn provenance: %w", err)
+		}
 		for _, change := range applyResult.Changes {
 			if err := s.driver.RemoveFromUpper(ctx, sandbox, change.FilePath); err != nil {
 				s.logAuditEvent(ctx, sandbox, "turn_checkpoint_cleanup_warning", req.Actor, "", map[string]interface{}{
 					"file":  change.FilePath,
 					"error": err.Error(),
 				})
+				return nil, fmt.Errorf("failed to checkpoint applied file %s: %w", change.FilePath, err)
 			}
+		}
+	}
+	if len(applyResult.Rejected) > 0 {
+		pendingChanges, err := s.newPendingReviewChanges(ctx, sandbox, applyResult.Rejected)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := s.recordFileProvenance(ctx, sandbox, pendingChanges, approvalReq, types.ProvenanceFileStatePendingReview, "", ""); err != nil {
+			return nil, fmt.Errorf("failed to record pending-review turn provenance: %w", err)
 		}
 	}
 
@@ -158,6 +171,37 @@ func (s *Service) Resume(ctx context.Context, id uuid.UUID) (*types.Sandbox, err
 
 	s.logAuditEvent(ctx, sandbox, "resumed", "", "", nil)
 	return sandbox, nil
+}
+
+func (s *Service) newPendingReviewChanges(ctx context.Context, sandbox *types.Sandbox, changes []*types.FileChange) ([]*types.FileChange, error) {
+	existing, err := s.repo.GetPendingChangeFiles(ctx, sandbox.ProjectRoot, []uuid.UUID{sandbox.ID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect existing pending-review provenance: %w", err)
+	}
+	seen := make(map[string]bool, len(existing))
+	for _, change := range existing {
+		if change == nil || change.SandboxID != sandbox.ID || change.ProvenanceState != string(types.ProvenanceFileStatePendingReview) {
+			continue
+		}
+		seen[filepath.Clean(change.FilePath)] = true
+		if rel, err := filepath.Rel(sandbox.ProjectRoot, change.FilePath); err == nil {
+			seen[filepath.ToSlash(filepath.Clean(rel))] = true
+		}
+	}
+
+	out := make([]*types.FileChange, 0, len(changes))
+	for _, change := range changes {
+		if change == nil {
+			continue
+		}
+		absPath := filepath.Clean(filepath.Join(sandbox.ProjectRoot, change.FilePath))
+		relPath := filepath.ToSlash(filepath.Clean(change.FilePath))
+		if seen[absPath] || seen[relPath] {
+			continue
+		}
+		out = append(out, change)
+	}
+	return out, nil
 }
 
 func validateTurnCheckpointRequest(req *types.TurnCheckpointRequest) error {
