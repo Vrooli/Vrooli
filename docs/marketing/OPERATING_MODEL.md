@@ -10,6 +10,19 @@ Marketing turns evidence into public-facing artifacts without losing Vrooli's bu
 
 Marketing does not own monetization strategy, product roadmap, or operator approval. It proposes; the operator accepts, rejects, or edits.
 
+## Scope
+
+Marketing owns the operating path from marketing signal to public-facing artifact or marketing-canon change:
+
+- research signal intake and durable evidence;
+- audience, channel, format, campaign, and brand-canon proposals;
+- draft artifact production for OSS and subscription lanes;
+- publishing execution state and coverage snapshots;
+- challenge reports for weak marketing decisions;
+- learning-loop promotion from notebook debt into skills, plan-of-record docs, scenarios, or retirements.
+
+Marketing does not own product prioritization, monetization strategy, legal approval, social-account credential operations, scheduler infrastructure, or the final decision to publish. Those surfaces route through decisions, cross-team output, or explicit capability gaps.
+
 ## Operating Loops
 
 Marketing has five loops:
@@ -22,7 +35,7 @@ Marketing has five loops:
 
 The loops are sequential when a full campaign flows through the system, but members may also operate independently when their trigger fires. For example, the researcher can add evidence without a campaign; the publisher can update coverage without a new draft; the brand-manager can retire stale notebook debt without changing a campaign.
 
-## System Diagrams
+## Operating Graph
 
 The first diagram is the compact operating-loop view. It is useful when checking role boundaries, approval gates, and whether evidence flows through planning, drafting, publishing, and learning.
 
@@ -383,8 +396,8 @@ These are the knowledge-topic families the target operating model uses. Current 
 |---|---|---|---|---|
 | `topic:research-inbox/*` | live | operator, vision-walk, bookmark-intelligence-hub | researcher | Raw unrouted research signal. The researcher drains this queue, then retags, deletes, or routes each item. |
 | `topic:audience-scan/*` | live | researcher | brand-manager, advertisers, researcher | Audience pain, vocabulary, buyer triggers, objections, and persona evidence. |
-| `topic:competitor-record/*` | live but under-consumed | researcher | researcher, brand-manager, advertisers | Competitor pricing, packaging, positioning, changelog, or claim evidence. Should feed positioning and campaign decisions. |
-| `topic:hook-record/*` | live but under-consumed | researcher | advertisers, researcher, brand-manager | Reusable hook and framing observations. Should feed draft generation and hook-library promotion. |
+| `topic:competitor-record/*` | live but under-consumed | researcher | brand-manager, advertisers | Competitor pricing, packaging, positioning, changelog, or claim evidence. Should feed positioning and campaign decisions. |
+| `topic:hook-record/*` | live but under-consumed | researcher | advertisers, brand-manager | Reusable hook and framing observations. Should feed draft generation and hook-library promotion. |
 | `topic:workflow-scan/*` | live | researcher | advertisers | External workflows, playbooks, agent setups, or business processes worth deconstructing. |
 | `topic:skill-scan/*` | live | researcher | advertisers | External skills, prompts, reusable processes, or capability ideas. Raise `capability-gap` when blocked. |
 | `topic:channel-scan/*` | live | researcher | brand-manager, advertisers | Evidence that a channel is worth activating, deprioritizing, or handling differently. |
@@ -409,24 +422,61 @@ These are the knowledge-topic families the target operating model uses. Current 
 
 ## Decisions
 
-Decision contexts are the operator-reviewed gates that move work between loops.
+Decision contexts are the operator-reviewed gates that move work between loops. This section is the team's decision catalog; validation enforces graph/table parity, owner edges, expected evidence, and accepted downstream effects.
 
-| Decision context | Owner | Purpose |
-|---|---|---|
-| `audience-update` | researcher | Change persona or audience canon after converging evidence. |
-| `channel-strategy-update` | researcher | Activate, deprioritize, or strategically reposition a channel. |
-| `post-type-proposal` | researcher | Add or materially change a post type. |
-| `hook-candidate-promotion` | researcher | Promote a stable hook into `path:docs/marketing/strategies/hook-library.md`. |
-| `campaign-launch-proposal` | brand-manager | Create, change, or close a campaign. |
-| `brand-guideline-update` | brand-manager | Change marketing, brand, strategy, research, rich-media, or narrative canon. |
-| `notebook-promotion` | brand-manager | Promote notebook debt into a skill, plan-of-record file, scenario, or config. |
-| `notebook-retirement` | brand-manager | Delete notebook debt that is obsolete or transient. |
-| `content-publish-proposal` | advertiser or publisher | Ask operator to approve a draft or release package. |
-| `channel-update` | publisher | Change per-platform rules based on publish friction or platform drift. |
-| `coverage-gap` | advertiser or publisher | Surface missing or stale coverage for a SKU, lane, channel, or campaign. |
-| `capability-gap` | researcher, advertiser, publisher | Surface missing source access, tooling, scenario, skill, scheduler, media, telemetry, or account capability. |
-| `decision-rejection-proposed` | marketing-contrarian | Recommend rejecting or revising a flawed pending decision. |
-| `framework-update` | marketing-contrarian | Add or revise review failure modes after repeated evidence. |
+| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
+|---|---|---|---|---|
+| `audience-update` | researcher | Change persona or audience canon after converging evidence. | Audience scans, competitor records, channel evidence, or repeated publish feedback. | Operator applies or rejects audience-canon changes. |
+| `channel-strategy-update` | researcher | Activate, deprioritize, or strategically reposition a channel. | Channel scans, publish friction, platform drift, or audience-channel mismatch. | Channel strategy and downstream artifact requests change. |
+| `post-type-proposal` | researcher | Add or materially change a post type. | Format scans, hook records, channel scans, or repeated draft/publish lessons. | Post-type canon changes after operator approval. |
+| `hook-candidate-promotion` | researcher | Promote a stable hook into `path:docs/marketing/strategies/hook-library.md`. | Hook records with repeated applicability and source context. | Hook-library canon gains a reusable pattern. |
+| `campaign-launch-proposal` | brand-manager | Create, change, or close a campaign. | Research evidence, coverage state, campaign lessons, or operator direction. | Campaign state changes and may create artifact requests. |
+| `brand-guideline-update` | brand-manager | Change marketing, brand, strategy, research, rich-media, or narrative canon. | Brand snapshot, notebook debt, challenge reports, or repeated artifact issues. | Plan-of-record docs change through operator-curated edits. |
+| `notebook-promotion` | brand-manager | Promote notebook debt into a skill, plan-of-record file, scenario, or config. | Notebook entries recurring across heartbeats or blocking production. | Debt leaves notebook and becomes skill, scenario, config, backlog, or plan-of-record canon. |
+| `notebook-retirement` | brand-manager | Delete notebook debt that is obsolete or transient. | Notebook entry is duplicated, superseded, or no longer useful. | Debt is retired without becoming permanent canon. |
+| `content-publish-proposal` | advertiser or publisher | Ask operator to approve a draft or release package. | Campaign draft, artifact request, source refs, honesty flags, channel/format fit. | Publisher may release or record manual release steps. |
+| `channel-update` | publisher | Change per-platform rules based on publish friction or platform drift. | Publish-log friction, platform behavior changes, or repeated release workarounds. | Channel rules change after operator approval. |
+| `coverage-gap` | advertiser or publisher | Surface missing or stale coverage for a SKU, lane, channel, or campaign. | Coverage snapshot, stale publish-log state, or campaign plan with no artifact. | Gap is accepted, deferred, or converted into artifact requests/backlog. |
+| `capability-gap` | researcher, advertiser, publisher | Surface missing source access, tooling, scenario, skill, scheduler, media, telemetry, or account capability. | Work is blocked by missing capability rather than weak judgment. | Gap routes to director-swarm, meta-optimization, or a downstream backlog. |
+| `decision-rejection-proposed` | marketing-contrarian | Recommend rejecting or revising a flawed pending decision. | Challenge report with concrete failure-mode evidence. | Operator rejects, revises, or overrides the challenged decision. |
+| `framework-update` | marketing-contrarian | Add or revise review failure modes after repeated evidence. | Repeated challenge evidence not covered by current framework. | Review framework changes through operator-approved canon edits. |
+
+Current validation enforces table presence, graph/table parity, owner edges, expected evidence, and accepted downstream effects.
+
+## External Inputs / Triggers
+
+| Producer / trigger | Entry surface | Drainer | Routing rule |
+|---|---|---|---|
+| Operator | `topic:research-inbox/*`, direct member context, or decision review | researcher, brand-manager, advertisers, publisher | Raw signal goes to research unless it is already a concrete decision review or artifact request. |
+| Vision walk | `topic:research-inbox/*` and direct member context | researcher, brand-manager, advertisers | Signals become evidence, campaign proposals, artifact requests, or capability gaps. |
+| Bookmark intelligence hub | `topic:research-inbox/*` | researcher | Researcher classifies into audience, competitor, hook, workflow, skill, channel, format, or benchmark-adjacent evidence. |
+| Future telemetry | `topic[future]:publish-performance/*` | future growth analyst / publisher / researcher | Target-state only until scheduler, accounts, and measurement sources exist. |
+| Monetization-adjacent market facts found by marketing | `topic:monetization-benchmark-adjacent-record/*` | monetization team | Researcher writes the record and routes strategic ownership to monetization. |
+| Accepted publish decisions | `topic:decision-application/<decision-id>` | publisher | Publisher uses accepted-decision markers to avoid duplicate execution and track follow-through. |
+
+## Outputs / Downstream Consumers
+
+| Output | Surface | Consumer | Purpose |
+|---|---|---|---|
+| Research evidence | `audience-scan/*`, `competitor-record/*`, `hook-record/*`, `workflow-scan/*`, `skill-scan/*`, `channel-scan/*`, `format-scan/*` | brand-manager, advertisers, researcher | Durable evidence for planning and drafting. |
+| Monetization-adjacent facts | `monetization-benchmark-adjacent-record/*` | monetization team | Route pricing, packaging, or market facts to the team that owns strategy. |
+| Artifact requests | `artifact-request/oss/*`, `artifact-request/subscription/*` | advertisers and publisher | Queue draft production and release preparation. |
+| Draft artifacts and run logs | `campaign-draft/*`, `oss-ad-run/*`, `subscription-ad-run/*` | publisher, advertisers | Support content-publish decisions and future draft improvement. |
+| Publishing state | `publish-log/*`, `coverage-snapshot/*`, `published-scenario-mentions/*` | advertisers, brand-manager, publisher | Keep release history, coverage, and subject familiarity queryable. |
+| Canon and campaign changes | `docs/marketing/*`, `docs/narrative/*`, campaign decisions | all marketing members and cross-team consumers | Keep public-facing voice and narrative coherent. |
+| Challenge evidence | `challenge-report/*`, `challenge-resolution-record/*` | decision owners and operator | Keep weak marketing decisions from silently passing. |
+| Capability and coverage gaps | `capability-gap`, `coverage-gap` decisions | director-swarm, meta-optimization, swarm-manager, or marketing members | Route blocked work to the right improvement path. |
+
+## Feedback / Capability Improvement Loop
+
+Marketing improves itself through four explicit exits:
+
+1. **Notebook debt** — repeated lessons and workarounds enter `topic:marketing/notebook/*`; the brand-manager drains and promotes or retires them.
+2. **Decision challenge** — marketing-contrarian writes `challenge-report/*` and `challenge-resolution-record/*` when a decision has concrete failure-mode evidence.
+3. **Capability gaps** — members raise `capability-gap` when missing access, tooling, scheduler support, media generation, telemetry, account state, or scenario capability blocks the work.
+4. **Coverage gaps** — advertisers and publisher raise `coverage-gap` when a SKU, lane, channel, or campaign lacks sufficient marketing coverage.
+
+General code/scenario defects should use scenario-qa's `report-bug` flow. System-level friction that is not a defect should use meta-optimization's `report-friction` flow. Marketing should not turn every local frustration into marketing notebook debt when a universal observation flow is the correct destination.
 
 ## Roles
 
@@ -530,7 +580,7 @@ The live marketing team is aligned with the first adoption pass, but it is not f
 5. `oss-advertiser` and `subscription-advertiser` still exist as separate members. That is acceptable while their lane expertise differs, but their mechanics should remain identical. Merge them only if the separate-member split starts creating duplicate work or coordination drift.
 6. Hot operational state is split between knowledge topics and JSONL files. This is acceptable during migration, but each surface should declare whether it is authoritative knowledge, append-only operational log, or transition artifact.
 
-## Adoption Sequence
+## Adoption / Validation
 
 Adopt this model in order:
 
@@ -538,6 +588,9 @@ Adopt this model in order:
 2. Keep `path:scenarios/prompt-manager/store/teams/marketing-crew/team.json` registered against this model.
 3. Keep member `RESPONSIBILITIES.md` and `HEARTBEAT.md` files aligned with the five loops.
 4. Keep member `topics.json` files aligned with the research outputs, lane-specific artifact requests, publish-log reads, and notebook reads.
-5. Rerun `prompt-manager graph topics --json` and decide which remaining warnings are accepted operator-only logs versus real gaps.
+5. Run `prompt-manager graph operating-model validate --team marketing-crew --id marketing-operating-model`.
+6. Run `prompt-manager graph operating-model diff --team marketing-crew --id marketing-operating-model`.
+7. Run `prompt-manager graph operating-model coverage --team marketing-crew --id marketing-operating-model`.
+8. Rerun `prompt-manager graph topics --json` and decide which remaining warnings are accepted operator-only logs versus real gaps.
 
 Do not make the validator quiet before the operating model is coherent. The topic graph is a check on the model, not a substitute for it.

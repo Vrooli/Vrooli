@@ -16,6 +16,7 @@ Use this README first, then choose the file or sub-hub that matches the work:
 | Which investigation method applies to this bug? | [`investigation-techniques/README.md`](investigation-techniques/README.md) |
 | Which audit lens applies to this scenario? | [`audit-techniques/README.md`](audit-techniques/README.md) |
 | Which programmatic readiness check applies? | [`readiness-checks/README.md`](readiness-checks/README.md) |
+| What is the team's whole operating contract? | [`OPERATING_MODEL.md`](OPERATING_MODEL.md) |
 | What is the team's mission and member roster? | this README §"Team shape" + `shared/TEAM.md` |
 | How does a bug enter scenario-qa? | this README §"Cross-team flow" |
 
@@ -42,6 +43,7 @@ Decision contexts owned by the team:
 
 | File / folder | Purpose |
 |---|---|
+| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Team-level operating contract: loops, operating graph, topic catalog, decisions, inputs, outputs, feedback loop, and validation path. |
 | [`BUG_REPORT_TAXONOMY.md`](BUG_REPORT_TAXONOMY.md) | Human-readable view of `bug-report-taxonomy.json`. Signal types, schemas, action-selection rules, evidence rules. |
 | [`bug-report-taxonomy.json`](bug-report-taxonomy.json) | Machine-readable taxonomy sidecar (loaded by the heartbeat builder; cited by `bug-investigator/topics.json`). |
 | [`investigation-techniques/`](investigation-techniques/) | Strategic canon for techniques the bug-investigator applies. One paired doc + skill per technique (mirrors `path:docs/marketing/post-techniques/`). |

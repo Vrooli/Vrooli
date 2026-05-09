@@ -13,6 +13,7 @@ Use this README first, then choose the file that matches the work:
 | Question | Start with |
 |---|---|
 | How do I report friction I just hit? | [`FRICTION_REPORT_TAXONOMY.md`](FRICTION_REPORT_TAXONOMY.md) — invoke `prompt-manager skill read report-friction` |
+| How does the meta-optimization team work end to end? | [`OPERATING_MODEL.md`](OPERATING_MODEL.md) |
 | Why is friction reporting cross-team rather than per-team? | this README §"Why cross-team" |
 | What is the cross-team flow? | this README §"Cross-team flow" |
 | What is the team's mission? | [`docs/agent-system/REFERENCE_SCENARIOS.md`](../agent-system/REFERENCE_SCENARIOS.md) and the `meta-optimization/team.json` mission field |
@@ -53,6 +54,7 @@ The curator is a **router, not an analyst**. Synthesis stays with debt-curator. 
 
 | File | Purpose |
 |---|---|
+| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Team-level operating graph, topic catalog, decision catalog, external inputs, outputs, and validation target for `meta-optimization`. |
 | [`FRICTION_REPORT_TAXONOMY.md`](FRICTION_REPORT_TAXONOMY.md) | Human-readable view of `friction-report-taxonomy.json`. Scopes, severities, schemas, action-selection rules, evidence rules, "what is NOT friction" guard. |
 | [`friction-report-taxonomy.json`](friction-report-taxonomy.json) | Machine-readable taxonomy sidecar (loaded by the heartbeat builder; cited by `friction-curator/topics.json`). |
 

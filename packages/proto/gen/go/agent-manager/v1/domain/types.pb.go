@@ -558,6 +558,75 @@ func (RunStatus) EnumDescriptor() ([]byte, []int) {
 	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{7}
 }
 
+// RunFinalizationStatus represents post-run sandbox apply/checkpoint state.
+type RunFinalizationStatus int32
+
+const (
+	// Default/unspecified.
+	RunFinalizationStatus_RUN_FINALIZATION_STATUS_UNSPECIFIED RunFinalizationStatus = 0
+	// No finalization has been requested or is needed.
+	RunFinalizationStatus_RUN_FINALIZATION_STATUS_NONE RunFinalizationStatus = 1
+	// Finalization is queued but not yet running.
+	RunFinalizationStatus_RUN_FINALIZATION_STATUS_PENDING RunFinalizationStatus = 2
+	// Finalization is currently applying/checkpointing sandbox effects.
+	RunFinalizationStatus_RUN_FINALIZATION_STATUS_RUNNING RunFinalizationStatus = 3
+	// Finalization completed successfully.
+	RunFinalizationStatus_RUN_FINALIZATION_STATUS_SUCCEEDED RunFinalizationStatus = 4
+	// Finalization failed after the runner turn completed.
+	RunFinalizationStatus_RUN_FINALIZATION_STATUS_FAILED RunFinalizationStatus = 5
+	// Finalization was intentionally skipped by policy.
+	RunFinalizationStatus_RUN_FINALIZATION_STATUS_SKIPPED RunFinalizationStatus = 6
+)
+
+// Enum value maps for RunFinalizationStatus.
+var (
+	RunFinalizationStatus_name = map[int32]string{
+		0: "RUN_FINALIZATION_STATUS_UNSPECIFIED",
+		1: "RUN_FINALIZATION_STATUS_NONE",
+		2: "RUN_FINALIZATION_STATUS_PENDING",
+		3: "RUN_FINALIZATION_STATUS_RUNNING",
+		4: "RUN_FINALIZATION_STATUS_SUCCEEDED",
+		5: "RUN_FINALIZATION_STATUS_FAILED",
+		6: "RUN_FINALIZATION_STATUS_SKIPPED",
+	}
+	RunFinalizationStatus_value = map[string]int32{
+		"RUN_FINALIZATION_STATUS_UNSPECIFIED": 0,
+		"RUN_FINALIZATION_STATUS_NONE":        1,
+		"RUN_FINALIZATION_STATUS_PENDING":     2,
+		"RUN_FINALIZATION_STATUS_RUNNING":     3,
+		"RUN_FINALIZATION_STATUS_SUCCEEDED":   4,
+		"RUN_FINALIZATION_STATUS_FAILED":      5,
+		"RUN_FINALIZATION_STATUS_SKIPPED":     6,
+	}
+)
+
+func (x RunFinalizationStatus) Enum() *RunFinalizationStatus {
+	p := new(RunFinalizationStatus)
+	*p = x
+	return p
+}
+
+func (x RunFinalizationStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RunFinalizationStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_agent_manager_v1_domain_types_proto_enumTypes[8].Descriptor()
+}
+
+func (RunFinalizationStatus) Type() protoreflect.EnumType {
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[8]
+}
+
+func (x RunFinalizationStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RunFinalizationStatus.Descriptor instead.
+func (RunFinalizationStatus) EnumDescriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{8}
+}
+
 // RunPhase represents the detailed execution phase within a run.
 //
 // Phases provide fine-grained progress tracking and enable resumption
@@ -632,11 +701,11 @@ func (x RunPhase) String() string {
 }
 
 func (RunPhase) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[8].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[9].Descriptor()
 }
 
 func (RunPhase) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[8]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[9]
 }
 
 func (x RunPhase) Number() protoreflect.EnumNumber {
@@ -645,7 +714,7 @@ func (x RunPhase) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunPhase.Descriptor instead.
 func (RunPhase) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{8}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{9}
 }
 
 // RunMode indicates whether the run uses sandbox isolation.
@@ -692,11 +761,11 @@ func (x RunMode) String() string {
 }
 
 func (RunMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[9].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[10].Descriptor()
 }
 
 func (RunMode) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[9]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[10]
 }
 
 func (x RunMode) Number() protoreflect.EnumNumber {
@@ -705,7 +774,7 @@ func (x RunMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunMode.Descriptor instead.
 func (RunMode) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{9}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{10}
 }
 
 // ApprovalState represents the approval workflow state for a run.
@@ -762,11 +831,11 @@ func (x ApprovalState) String() string {
 }
 
 func (ApprovalState) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[10].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[11].Descriptor()
 }
 
 func (ApprovalState) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[10]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[11]
 }
 
 func (x ApprovalState) Number() protoreflect.EnumNumber {
@@ -775,7 +844,7 @@ func (x ApprovalState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ApprovalState.Descriptor instead.
 func (ApprovalState) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{10}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{11}
 }
 
 // RunEventType categorizes events in the run's event stream.
@@ -858,11 +927,11 @@ func (x RunEventType) String() string {
 }
 
 func (RunEventType) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[11].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[12].Descriptor()
 }
 
 func (RunEventType) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[11]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[12]
 }
 
 func (x RunEventType) Number() protoreflect.EnumNumber {
@@ -871,7 +940,7 @@ func (x RunEventType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunEventType.Descriptor instead.
 func (RunEventType) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{11}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{12}
 }
 
 // RecoveryAction indicates the recommended action after an error.
@@ -931,11 +1000,11 @@ func (x RecoveryAction) String() string {
 }
 
 func (RecoveryAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[12].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[13].Descriptor()
 }
 
 func (RecoveryAction) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[12]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[13]
 }
 
 func (x RecoveryAction) Number() protoreflect.EnumNumber {
@@ -944,7 +1013,7 @@ func (x RecoveryAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RecoveryAction.Descriptor instead.
 func (RecoveryAction) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{12}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{13}
 }
 
 // IdempotencyStatus indicates the state of an idempotent operation.
@@ -992,11 +1061,11 @@ func (x IdempotencyStatus) String() string {
 }
 
 func (IdempotencyStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[13].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[14].Descriptor()
 }
 
 func (IdempotencyStatus) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[13]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[14]
 }
 
 func (x IdempotencyStatus) Number() protoreflect.EnumNumber {
@@ -1005,7 +1074,7 @@ func (x IdempotencyStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use IdempotencyStatus.Descriptor instead.
 func (IdempotencyStatus) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{13}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{14}
 }
 
 // RunOutcome classifies how a run completed.
@@ -1069,11 +1138,11 @@ func (x RunOutcome) String() string {
 }
 
 func (RunOutcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[14].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[15].Descriptor()
 }
 
 func (RunOutcome) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[14]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[15]
 }
 
 func (x RunOutcome) Number() protoreflect.EnumNumber {
@@ -1082,7 +1151,7 @@ func (x RunOutcome) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunOutcome.Descriptor instead.
 func (RunOutcome) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{14}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{15}
 }
 
 // StaleRunAction indicates what action to take for a stale run.
@@ -1134,11 +1203,11 @@ func (x StaleRunAction) String() string {
 }
 
 func (StaleRunAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[15].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[16].Descriptor()
 }
 
 func (StaleRunAction) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[15]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[16]
 }
 
 func (x StaleRunAction) Number() protoreflect.EnumNumber {
@@ -1147,7 +1216,7 @@ func (x StaleRunAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StaleRunAction.Descriptor instead.
 func (StaleRunAction) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{15}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{16}
 }
 
 // SandboxFileCriteria defines allow/deny matchers for acceptance.
@@ -1667,7 +1736,15 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x17RUN_STATUS_NEEDS_REVIEW\x10\x04\x12\x17\n" +
 	"\x13RUN_STATUS_COMPLETE\x10\x05\x12\x15\n" +
 	"\x11RUN_STATUS_FAILED\x10\x06\x12\x18\n" +
-	"\x14RUN_STATUS_CANCELLED\x10\a*\xbd\x02\n" +
+	"\x14RUN_STATUS_CANCELLED\x10\a*\x9c\x02\n" +
+	"\x15RunFinalizationStatus\x12'\n" +
+	"#RUN_FINALIZATION_STATUS_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cRUN_FINALIZATION_STATUS_NONE\x10\x01\x12#\n" +
+	"\x1fRUN_FINALIZATION_STATUS_PENDING\x10\x02\x12#\n" +
+	"\x1fRUN_FINALIZATION_STATUS_RUNNING\x10\x03\x12%\n" +
+	"!RUN_FINALIZATION_STATUS_SUCCEEDED\x10\x04\x12\"\n" +
+	"\x1eRUN_FINALIZATION_STATUS_FAILED\x10\x05\x12#\n" +
+	"\x1fRUN_FINALIZATION_STATUS_SKIPPED\x10\x06*\xbd\x02\n" +
 	"\bRunPhase\x12\x19\n" +
 	"\x15RUN_PHASE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10RUN_PHASE_QUEUED\x10\x01\x12\x1a\n" +
@@ -1748,7 +1825,7 @@ func file_agent_manager_v1_domain_types_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_domain_types_proto_rawDescData
 }
 
-var file_agent_manager_v1_domain_types_proto_enumTypes = make([]protoimpl.EnumInfo, 16)
+var file_agent_manager_v1_domain_types_proto_enumTypes = make([]protoimpl.EnumInfo, 17)
 var file_agent_manager_v1_domain_types_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_agent_manager_v1_domain_types_proto_goTypes = []any{
 	(RunnerType)(0),                 // 0: agent_manager.v1.RunnerType
@@ -1759,33 +1836,34 @@ var file_agent_manager_v1_domain_types_proto_goTypes = []any{
 	(SandboxMode)(0),                // 5: agent_manager.v1.SandboxMode
 	(TaskStatus)(0),                 // 6: agent_manager.v1.TaskStatus
 	(RunStatus)(0),                  // 7: agent_manager.v1.RunStatus
-	(RunPhase)(0),                   // 8: agent_manager.v1.RunPhase
-	(RunMode)(0),                    // 9: agent_manager.v1.RunMode
-	(ApprovalState)(0),              // 10: agent_manager.v1.ApprovalState
-	(RunEventType)(0),               // 11: agent_manager.v1.RunEventType
-	(RecoveryAction)(0),             // 12: agent_manager.v1.RecoveryAction
-	(IdempotencyStatus)(0),          // 13: agent_manager.v1.IdempotencyStatus
-	(RunOutcome)(0),                 // 14: agent_manager.v1.RunOutcome
-	(StaleRunAction)(0),             // 15: agent_manager.v1.StaleRunAction
-	(*SandboxFileCriteria)(nil),     // 16: agent_manager.v1.SandboxFileCriteria
-	(*SandboxAcceptanceConfig)(nil), // 17: agent_manager.v1.SandboxAcceptanceConfig
-	(*SandboxLifecycleConfig)(nil),  // 18: agent_manager.v1.SandboxLifecycleConfig
-	(*SandboxConfig)(nil),           // 19: agent_manager.v1.SandboxConfig
-	(*FeatureFlags)(nil),            // 20: agent_manager.v1.FeatureFlags
-	(*ExtraFlagList)(nil),           // 21: agent_manager.v1.ExtraFlagList
-	(*durationpb.Duration)(nil),     // 22: google.protobuf.Duration
+	(RunFinalizationStatus)(0),      // 8: agent_manager.v1.RunFinalizationStatus
+	(RunPhase)(0),                   // 9: agent_manager.v1.RunPhase
+	(RunMode)(0),                    // 10: agent_manager.v1.RunMode
+	(ApprovalState)(0),              // 11: agent_manager.v1.ApprovalState
+	(RunEventType)(0),               // 12: agent_manager.v1.RunEventType
+	(RecoveryAction)(0),             // 13: agent_manager.v1.RecoveryAction
+	(IdempotencyStatus)(0),          // 14: agent_manager.v1.IdempotencyStatus
+	(RunOutcome)(0),                 // 15: agent_manager.v1.RunOutcome
+	(StaleRunAction)(0),             // 16: agent_manager.v1.StaleRunAction
+	(*SandboxFileCriteria)(nil),     // 17: agent_manager.v1.SandboxFileCriteria
+	(*SandboxAcceptanceConfig)(nil), // 18: agent_manager.v1.SandboxAcceptanceConfig
+	(*SandboxLifecycleConfig)(nil),  // 19: agent_manager.v1.SandboxLifecycleConfig
+	(*SandboxConfig)(nil),           // 20: agent_manager.v1.SandboxConfig
+	(*FeatureFlags)(nil),            // 21: agent_manager.v1.FeatureFlags
+	(*ExtraFlagList)(nil),           // 22: agent_manager.v1.ExtraFlagList
+	(*durationpb.Duration)(nil),     // 23: google.protobuf.Duration
 }
 var file_agent_manager_v1_domain_types_proto_depIdxs = []int32{
 	4,  // 0: agent_manager.v1.SandboxAcceptanceConfig.mode:type_name -> agent_manager.v1.SandboxAcceptanceMode
-	16, // 1: agent_manager.v1.SandboxAcceptanceConfig.allow:type_name -> agent_manager.v1.SandboxFileCriteria
-	16, // 2: agent_manager.v1.SandboxAcceptanceConfig.deny:type_name -> agent_manager.v1.SandboxFileCriteria
+	17, // 1: agent_manager.v1.SandboxAcceptanceConfig.allow:type_name -> agent_manager.v1.SandboxFileCriteria
+	17, // 2: agent_manager.v1.SandboxAcceptanceConfig.deny:type_name -> agent_manager.v1.SandboxFileCriteria
 	3,  // 3: agent_manager.v1.SandboxLifecycleConfig.stop_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
 	3,  // 4: agent_manager.v1.SandboxLifecycleConfig.delete_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
-	22, // 5: agent_manager.v1.SandboxLifecycleConfig.ttl:type_name -> google.protobuf.Duration
-	22, // 6: agent_manager.v1.SandboxLifecycleConfig.idle_timeout:type_name -> google.protobuf.Duration
+	23, // 5: agent_manager.v1.SandboxLifecycleConfig.ttl:type_name -> google.protobuf.Duration
+	23, // 6: agent_manager.v1.SandboxLifecycleConfig.idle_timeout:type_name -> google.protobuf.Duration
 	3,  // 7: agent_manager.v1.SandboxLifecycleConfig.checkpoint_on:type_name -> agent_manager.v1.SandboxLifecycleEvent
-	18, // 8: agent_manager.v1.SandboxConfig.lifecycle:type_name -> agent_manager.v1.SandboxLifecycleConfig
-	17, // 9: agent_manager.v1.SandboxConfig.acceptance:type_name -> agent_manager.v1.SandboxAcceptanceConfig
+	19, // 8: agent_manager.v1.SandboxConfig.lifecycle:type_name -> agent_manager.v1.SandboxLifecycleConfig
+	18, // 9: agent_manager.v1.SandboxConfig.acceptance:type_name -> agent_manager.v1.SandboxAcceptanceConfig
 	5,  // 10: agent_manager.v1.SandboxConfig.mode:type_name -> agent_manager.v1.SandboxMode
 	2,  // 11: agent_manager.v1.SandboxConfig.network_mode:type_name -> agent_manager.v1.NetworkAccess
 	12, // [12:12] is the sub-list for method output_type
@@ -1806,7 +1884,7 @@ func file_agent_manager_v1_domain_types_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_types_proto_rawDesc), len(file_agent_manager_v1_domain_types_proto_rawDesc)),
-			NumEnums:      16,
+			NumEnums:      17,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,

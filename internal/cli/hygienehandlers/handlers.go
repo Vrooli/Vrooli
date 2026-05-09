@@ -34,14 +34,16 @@ func Handler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 			return err
 		}
 		report, err := hygieneapp.Service{Root: deps.Root(ctx), Home: home}.Run(hygieneapp.Request{
-			FixSafe: req.FixSafe,
-			Plans:   req.Plans,
-			FailOn:  req.FailOn,
+			FixSafe:         req.FixSafe,
+			Plans:           req.Plans,
+			FailOn:          req.FailOn,
+			IncludePlans:    !req.ContractOnly,
+			IncludeContract: !req.PlansOnly,
 		})
 		if err != nil {
 			return err
 		}
-		if err := hygienecli.Render(deps.Stdout(ctx), format, report); err != nil {
+		if err := hygienecli.Render(deps.Stdout(ctx), format, report, req.OutputMode); err != nil {
 			return err
 		}
 		if !report.Success {

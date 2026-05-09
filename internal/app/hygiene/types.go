@@ -13,6 +13,15 @@ const (
 	SeverityError   Severity = "error"
 )
 
+type Fixability string
+
+const (
+	FixabilityAutomatic Fixability = "automatic"
+	FixabilityGuided    Fixability = "guided"
+	FixabilityManual    Fixability = "manual"
+	FixabilityUnsafe    Fixability = "unsafe"
+)
+
 type Check struct {
 	Name     string   `json:"name"`
 	Passed   bool     `json:"passed"`
@@ -21,16 +30,21 @@ type Check struct {
 }
 
 type Finding struct {
-	Severity Severity `json:"severity"`
-	Code     string   `json:"code"`
-	Path     string   `json:"path,omitempty"`
-	Message  string   `json:"message"`
+	Severity    Severity   `json:"severity"`
+	Code        string     `json:"code"`
+	Path        string     `json:"path,omitempty"`
+	Locations   []string   `json:"locations,omitempty"`
+	Message     string     `json:"message"`
+	Why         string     `json:"why,omitempty"`
+	Fixability  Fixability `json:"fixability,omitempty"`
+	NextActions []Action   `json:"next_actions,omitempty"`
 }
 
 type Action struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	Command string `json:"command,omitempty"`
+	Code       string     `json:"code"`
+	Message    string     `json:"message"`
+	Command    string     `json:"command,omitempty"`
+	Fixability Fixability `json:"fixability,omitempty"`
 }
 
 type PlanCandidate struct {
@@ -58,7 +72,9 @@ type Report struct {
 }
 
 type Request struct {
-	FixSafe bool
-	Plans   bool
-	FailOn  Severity
+	FixSafe         bool
+	Plans           bool
+	FailOn          Severity
+	IncludePlans    bool
+	IncludeContract bool
 }

@@ -304,6 +304,30 @@ enum RunStatus {
   RUN_STATUS_CANCELLED = 7;
 }
 
+// RunFinalizationStatus represents post-run sandbox apply/checkpoint state.
+enum RunFinalizationStatus {
+  // Default/unspecified.
+  RUN_FINALIZATION_STATUS_UNSPECIFIED = 0;
+
+  // No finalization has been requested or is needed.
+  RUN_FINALIZATION_STATUS_NONE = 1;
+
+  // Finalization is queued but not yet running.
+  RUN_FINALIZATION_STATUS_PENDING = 2;
+
+  // Finalization is currently applying/checkpointing sandbox effects.
+  RUN_FINALIZATION_STATUS_RUNNING = 3;
+
+  // Finalization completed successfully.
+  RUN_FINALIZATION_STATUS_SUCCEEDED = 4;
+
+  // Finalization failed after the runner turn completed.
+  RUN_FINALIZATION_STATUS_FAILED = 5;
+
+  // Finalization was intentionally skipped by policy.
+  RUN_FINALIZATION_STATUS_SKIPPED = 6;
+}
+
 // =============================================================================
 // RUN PHASE
 // =============================================================================

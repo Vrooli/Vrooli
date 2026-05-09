@@ -79,6 +79,16 @@ class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_STATUS_FAILED: _ClassVar[RunStatus]
     RUN_STATUS_CANCELLED: _ClassVar[RunStatus]
 
+class RunFinalizationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RUN_FINALIZATION_STATUS_UNSPECIFIED: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_NONE: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_PENDING: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_RUNNING: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_SUCCEEDED: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_FAILED: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_SKIPPED: _ClassVar[RunFinalizationStatus]
+
 class RunPhase(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RUN_PHASE_UNSPECIFIED: _ClassVar[RunPhase]
@@ -203,6 +213,13 @@ RUN_STATUS_NEEDS_REVIEW: RunStatus
 RUN_STATUS_COMPLETE: RunStatus
 RUN_STATUS_FAILED: RunStatus
 RUN_STATUS_CANCELLED: RunStatus
+RUN_FINALIZATION_STATUS_UNSPECIFIED: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_NONE: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_PENDING: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_RUNNING: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_SUCCEEDED: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_FAILED: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_SKIPPED: RunFinalizationStatus
 RUN_PHASE_UNSPECIFIED: RunPhase
 RUN_PHASE_QUEUED: RunPhase
 RUN_PHASE_INITIALIZING: RunPhase

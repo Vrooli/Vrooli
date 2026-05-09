@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
@@ -24,57 +25,120 @@ func (s Service) Run(req Request) (Report, error) {
 	if req.FailOn == "" {
 		req.FailOn = SeverityError
 	}
+	if !req.IncludeContract && !req.IncludePlans {
+		req.IncludeContract = true
+		req.IncludePlans = true
+	}
 	report := Report{Root: root, Success: true}
 
-	contract, err := contractapp.Validate(root)
-	if err != nil {
-		report.addFinding(SeverityError, "contract_validation_error", "", err.Error())
-		report.addCheck("repo_contract", false, SeverityError, err.Error())
-	} else {
-		report.Contract = contract
-		severity := SeverityInfo
-		message := "passed"
-		if !contract.Success {
-			severity = SeverityError
-			message = "repo contract validation failed"
-		}
-		report.addCheck("repo_contract", contract.Success, severity, message)
-		for _, check := range contract.Report.Checks {
-			if check.Passed {
-				continue
+	if req.IncludeContract {
+		contract, err := contractapp.Validate(root)
+		if err != nil {
+			report.addFinding(Finding{
+				Severity:   SeverityError,
+				Code:       "contract_validation_error",
+				Message:    err.Error(),
+				Fixability: FixabilityManual,
+				NextActions: []Action{{
+					Code:    "inspect_contract_validation_error",
+					Message: "Inspect the contract validation error and rerun hygiene after correcting it.",
+					Command: "vrooli contract validate --json",
+				}},
+			})
+			report.addCheck("repo_contract", false, SeverityError, err.Error())
+		} else {
+			report.Contract = contract
+			severity := SeverityInfo
+			message := "passed"
+			if !contract.Success {
+				severity = SeverityError
+				message = "repo contract validation failed"
 			}
-			report.addFinding(SeverityError, "repo_contract_"+check.Name, "", check.Message)
-		}
-		if !contract.Schema.Passed {
-			report.addFinding(SeverityError, "repo_contract_schema", "", contract.Schema.Message)
+			report.addCheck("repo_contract", contract.Success, severity, message)
+			for _, check := range contract.Report.Checks {
+				if check.Passed {
+					continue
+				}
+				report.addFinding(contractFinding(check.Name, check.Message))
+			}
+			if !contract.Schema.Passed {
+				report.addFinding(Finding{
+					Severity:   SeverityError,
+					Code:       "repo_contract_schema",
+					Message:    contract.Schema.Message,
+					Why:        "The repository contract schema is the machine-readable source for expected repository boundaries.",
+					Fixability: FixabilityManual,
+					NextActions: []Action{{
+						Code:    "inspect_repo_contract_schema",
+						Message: "Inspect .vrooli/repo-contract.json and correct the schema violation.",
+						Command: "vrooli contract validate --json",
+					}},
+				})
+			}
 		}
 	}
 
-	candidates, err := DetectPlanCandidates(root)
-	if err != nil {
-		report.addCheck("plan_candidates", false, SeverityError, err.Error())
-		report.addFinding(SeverityError, "plan_candidate_scan", "", err.Error())
-	} else {
-		report.PlanCandidates = candidates
-		message := "no likely scratch plans found"
-		severity := SeverityInfo
-		if len(candidates) > 0 {
-			message = fmt.Sprintf("%d likely scratch plan candidates found", len(candidates))
-			severity = SeverityWarning
-			report.addFinding(SeverityWarning, "plan_candidates", "", message)
-			report.Actions = append(report.Actions, Action{
-				Code:    "import_plan_candidates",
-				Message: "Import likely scratch plans into user-scoped plan storage.",
-				Command: "vrooli hygiene --fix-safe --plans",
+	if req.IncludePlans {
+		candidates, err := DetectPlanCandidates(root)
+		if err != nil {
+			report.addCheck("plan_candidates", false, SeverityError, err.Error())
+			report.addFinding(Finding{
+				Severity:   SeverityError,
+				Code:       "plan_candidate_scan",
+				Message:    err.Error(),
+				Fixability: FixabilityManual,
+				NextActions: []Action{{
+					Code:    "inspect_plan_candidate_scan",
+					Message: "Inspect the plan-candidate scan error and rerun hygiene.",
+				}},
 			})
+		} else {
+			report.PlanCandidates = candidates
+			message := "no likely scratch plans found"
+			severity := SeverityInfo
+			if len(candidates) > 0 {
+				message = fmt.Sprintf("%d likely scratch plan candidates found", len(candidates))
+				severity = SeverityWarning
+				action := Action{
+					Code:       "import_plan_candidates",
+					Message:    "Import untracked scratch plan candidates into user-scoped plan storage.",
+					Command:    "vrooli hygiene --fix-safe --plans",
+					Fixability: FixabilityAutomatic,
+				}
+				report.addFinding(Finding{
+					Severity:   SeverityWarning,
+					Code:       "plan_candidates",
+					Message:    message,
+					Why:        "Scratch implementation plans should live in user-scoped plan storage until intentionally promoted into the repository.",
+					Fixability: FixabilityAutomatic,
+					NextActions: []Action{
+						action,
+						{
+							Code:       "review_modified_plan_candidates",
+							Message:    "Review modified plan files manually before deciding whether to promote, revert, or archive them.",
+							Fixability: FixabilityManual,
+						},
+					},
+				})
+				report.Actions = append(report.Actions, action)
+			}
+			report.addCheck("plan_candidates", true, severity, message)
 		}
-		report.addCheck("plan_candidates", true, severity, message)
 	}
 
 	if req.FixSafe && req.Plans && len(report.PlanCandidates) > 0 {
 		fixes, err := s.importPlanCandidates(report.PlanCandidates)
 		if err != nil {
-			report.addFinding(SeverityError, "plan_candidate_import", "", err.Error())
+			report.addFinding(Finding{
+				Severity:   SeverityError,
+				Code:       "plan_candidate_import",
+				Message:    err.Error(),
+				Fixability: FixabilityManual,
+				NextActions: []Action{{
+					Code:    "inspect_plan_candidate_import",
+					Message: "Inspect the plan import error and retry after correcting it.",
+				}},
+			})
 			report.addCheck("plan_candidate_import", false, SeverityError, err.Error())
 		} else {
 			report.FixesApplied = fixes
@@ -100,6 +164,88 @@ func (s Service) importPlanCandidates(candidates []PlanCandidate) ([]PlanFix, er
 		fixes = append(fixes, PlanFix{Source: candidate.Path, Plan: out.Plan})
 	}
 	return fixes, nil
+}
+
+func contractFinding(name, message string) Finding {
+	finding := Finding{
+		Severity:   SeverityError,
+		Code:       "repo_contract_" + name,
+		Message:    message,
+		Locations:  extractLocations(message),
+		Fixability: FixabilityManual,
+		NextActions: []Action{{
+			Code:    "inspect_repo_contract_check",
+			Message: "Inspect the failing repository contract check and rerun hygiene after correcting it.",
+			Command: "vrooli contract validate --json",
+		}},
+	}
+	switch name {
+	case "project_config_surface":
+		finding.Why = "The .vrooli/ directory is reserved for approved repo metadata and local build output so generated runtime state does not drift into commits."
+		finding.Fixability = FixabilityGuided
+		finding.NextActions = []Action{
+			{
+				Code:       "inspect_project_config_surface",
+				Message:    "Inspect the unapproved .vrooli/ entry and remove it if it is generated local state.",
+				Command:    "ls -la .vrooli",
+				Fixability: FixabilityGuided,
+			},
+			{
+				Code:       "remove_vrooli_logs",
+				Message:    "If .vrooli/logs is generated local state, remove it.",
+				Command:    "rm -rf .vrooli/logs",
+				Fixability: FixabilityGuided,
+			},
+		}
+	case "personal_absolute_paths":
+		finding.Why = "Committed personal home paths make tests machine-specific and can leak local environment details."
+		finding.NextActions = []Action{{
+			Code:       "remove_personal_absolute_paths",
+			Message:    "Replace personal absolute paths with temp dirs, fixture-relative paths, or home-independent examples.",
+			Fixability: FixabilityManual,
+		}}
+	case "ollama_gateway_only":
+		finding.Path = firstPathBefore(message, " contains ")
+		finding.Why = "Ollama access should go through the resource-ollama gateway so local resources remain centrally managed and portable."
+		finding.NextActions = []Action{{
+			Code:       "use_ollama_gateway",
+			Message:    "Route Ollama calls through the resource-ollama gateway instead of direct /api/generate calls.",
+			Fixability: FixabilityManual,
+		}}
+	}
+	return finding
+}
+
+var locationPattern = regexp.MustCompile(`[A-Za-z0-9_./-]+:\d+`)
+
+func extractLocations(message string) []string {
+	matches := locationPattern.FindAllString(message, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(matches))
+	locations := make([]string, 0, len(matches))
+	for _, match := range matches {
+		if seen[match] {
+			continue
+		}
+		seen[match] = true
+		locations = append(locations, match)
+	}
+	return locations
+}
+
+func firstPathBefore(message, marker string) string {
+	index := strings.Index(message, marker)
+	if index < 0 {
+		return ""
+	}
+	prefix := strings.TrimSpace(message[:index])
+	fields := strings.Fields(prefix)
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[len(fields)-1]
 }
 
 func DetectPlanCandidates(root string) ([]PlanCandidate, error) {
@@ -189,8 +335,8 @@ func (r *Report) addCheck(name string, passed bool, severity Severity, message s
 	r.Checks = append(r.Checks, Check{Name: name, Passed: passed, Severity: severity, Message: message})
 }
 
-func (r *Report) addFinding(severity Severity, code, path, message string) {
-	r.Findings = append(r.Findings, Finding{Severity: severity, Code: code, Path: path, Message: message})
+func (r *Report) addFinding(finding Finding) {
+	r.Findings = append(r.Findings, finding)
 }
 
 func (r *Report) finish(failOn Severity) {

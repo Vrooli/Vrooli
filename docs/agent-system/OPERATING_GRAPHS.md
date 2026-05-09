@@ -20,15 +20,44 @@ PoR Mermaid diagram
 
 Mermaid is not executed at runtime. Runtime prompts are generated from structured declarations.
 
+## Team Operating Model Document Shape
+
+A team operating model is the team-level design contract. It should be specific enough for an agent to reason about the whole team, but not so detailed that it duplicates member prompts, skills, or runtime logs.
+
+Use this shape for canonical team operating models:
+
+| Section | Purpose | Validation maturity |
+|---|---|---|
+| `Status / Scope / Mission` | Names the team, the document state, what the team owns, and what it explicitly does not own. | Human-reviewed today. |
+| `Operating Loops` | Describes the team's lifecycle in plain language: how signal enters, moves through members, becomes decisions or outputs, and feeds learning. | Human-reviewed today; future coherence checks may verify loop endpoints. |
+| `Operating Graph` | Typed Mermaid contract showing members, topics, decisions, external producers, cross-team outputs, POR outputs, and process/future placeholders. | Enforced for `contract` graphs. |
+| `Topic Catalog` | Human-readable projection of topic families, status, owner/writer, readers, and purpose. | Enforced against graph nodes, graph/runtime relationships, and `team.json::topicCatalog`. |
+| `Decision Catalog` | Human-readable projection of decision contexts, owners, purpose, expected evidence, and accepted effect. | Enforced for canonical operating models: table shape, graph/table parity, owner edges, required evidence/effect fields, and concrete accepted-effect surfaces. |
+| `External Inputs / Triggers` | Lists external producers, entry surfaces, expected drainer, and trigger conditions. | Enforced for canonical operating models: table shape and non-empty rows. Relationship checks cover `external -> topic` and `external -> member`. |
+| `Outputs / Downstream Consumers` | Lists the team's deliverables, destination surfaces, and downstream consumers. | Enforced for canonical operating models: table shape and non-empty rows. Relationship checks cover topic, POR, and cross-team outputs. |
+| `Feedback / Capability Improvement Loop` | Explains how bugs, friction, missing capabilities, stale docs, and repeated workarounds get routed. | Human-reviewed today; future coherence checks should verify the loop has concrete topic or decision exits. |
+| `Current Gaps / Target State` | Names target-state topics, transitional surfaces, unmodeled boundaries, and known validation blind spots. | Human-reviewed today; future checks may require future/transitional topics to be declared consistently. |
+| `Adoption / Validation` | Gives the graph id, expected validation commands, and reconciliation rules. | Enforced for canonical operating models: validate, diff, and coverage commands must name the model's team/id. |
+
+Keep the operating model at the **team contract** layer. It should define the shape of work, authority, and flow. It should not teach every member how to do its job.
+
+Belongs elsewhere:
+
+- member procedures, long prompts, and task-specific instructions: member `HEARTBEAT.md`, `RESPONSIBILITIES.md`, and skills;
+- exact runtime source of truth: `team.json`, member `topics.json`, schemas, and generated prompt sections;
+- current queue contents, decision instances, handoff history, and audit logs: shared runtime state;
+- detailed technique procedure: paired skills and domain PoR spokes;
+- one-off implementation tasks: swarm-manager backlog, plans, or decisions.
+
 ## Validate, Diff, and Coverage
 
 Operating graph tooling has three related jobs:
 
 | Command | Purpose | Output |
 |---|---|---|
-| `prompt-manager graph operating-model validate` | Gate whether the graph is structurally valid and complete for active contract rule families. | Severity-bearing findings: errors and warnings. |
+| `prompt-manager graph operating-model validate` | Gate whether the operating-model document is structurally valid and complete for active contract rule families. | Severity-bearing findings: errors and warnings. |
 | `prompt-manager graph operating-model diff` | Reconcile graph and runtime declarations. | Repair map grouped by drift direction. |
-| `prompt-manager graph operating-model coverage` | Explain what the contract machinery checked for matching graph(s). | Counts by relationship family, prompt-section coverage, docs-surface status, and excluded non-actionable nodes/edges. |
+| `prompt-manager graph operating-model coverage` | Explain what the contract machinery checked for matching model(s). | Counts by relationship family, prompt-section coverage, section/docs-surface status, decision metadata completeness, and excluded non-actionable nodes/edges. |
 
 Keep these separate. Validation answers "can this be trusted as a contract?" Diff answers "what needs to change so the plan-of-record graph and runtime config say the same thing?" Coverage answers "what did those assurances actually cover?" A mature team contract should normally be clean in validate and diff, with coverage used as a self-description and audit aid. During staged adoption, diff may expose relationship families that are not yet promoted to validation, but those are temporary reconciliation states.
 
@@ -47,7 +76,7 @@ Coverage is read-only and does not change validation exit codes. For each matchi
 - graph-only and runtime-only counts using the same relationship matcher as validation and diff;
 - runtime subtype counts for broad relationship families such as `topic_read`;
 - prompt coverage for generated `topic-contract` heartbeat sections;
-- docs-surface status, purpose parity, and row parity for the Mermaid graph, Topic Catalog table, and Decisions table;
+- docs-surface status, purpose parity, row parity, decision metadata completeness, and accepted-effect quality for the Mermaid graph, Topic Catalog table, and Decisions table;
 - non-actionable exclusions such as `process:`, `future:`, `topic[future]:`, `topic[old]:`, `topic[external]:`, and edges touching those nodes.
 
 Prompt coverage checks section presence, source-path matching, and content parity when real structured prompt sections are available. Content parity is `enforced` when every graph member's actual `topic-contract` prompt section matches the renderer output from member `topics.json` plus team `topicCatalog`, `mismatch` when any actual section differs, and `unavailable` when only derived/offline prompt-section metadata is available.
@@ -294,7 +323,7 @@ Contract graph source files must include two checked Markdown tables in the grap
 | Section | Required headers | Validation |
 |---|---|---|
 | `## Topic Catalog` | `Topic family`, `Status`, `Owner / primary writer`, `Primary readers`, `Purpose` | Required for `contract` graphs. Live and future `topic:` rows must match the contract graph topic nodes, excluding `topic[old]:` and `topic[external]:` graph notes. |
-| `## Decisions` | `Decision context`, `Owner`, `Purpose` | Required for `contract` graphs. Decision rows must match graph `decision:` nodes, and member owners must be shown as `member -> decision` graph edges. `capability-gap` owners may be backed by `raises_capability_gaps`. |
+| `## Decisions` | `Decision context`, `Owner`, `Purpose`, `Expected evidence / trigger`, `Accepted effect` | Required for `contract` graphs. Decision rows must match graph `decision:` nodes, member owners must be shown as `member -> decision` graph edges, and each row must name expected evidence plus an accepted effect that points to a concrete downstream surface. `capability-gap` owners may be backed by `raises_capability_gaps`. |
 
 `checkable` graphs may omit these tables. `contract` graphs report validation errors when either table is missing. When present, table drift is validation-enforced.
 
@@ -391,7 +420,7 @@ Generated heartbeat prompt checks are part of this layer: every contract graph m
 
 ## Completeness vs. Coherence
 
-Current operating-graph validation primarily enforces completeness: the declared contract surfaces agree. Completeness checks prove that graph edges, Topic Catalog rows, Decisions rows, runtime config, and generated prompt sections say the same thing.
+Current operating-model validation primarily enforces completeness: the declared contract surfaces agree. Completeness checks prove that graph edges, Topic Catalog rows, Decisions rows, runtime config, generated prompt sections, section tables, adoption commands, PoR registration, and README discoverability say the same thing.
 
 Coherence is a separate future rule family. Coherence checks will ask whether the agreed graph is operationally plausible: live topics have producers and consumers, queues drain somewhere, terminal topics are explicit, decisions have ownership and review paths, and process nodes do not hide required runtime relationships.
 

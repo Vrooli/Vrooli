@@ -152,6 +152,16 @@ message Run {
 
   // Model actually used for execution (populated at dispatch).
   string actual_model = 32;
+
+  // Post-run sandbox finalization status.
+  // Tracks apply/checkpoint effects separately from runner turn status.
+  RunFinalizationStatus finalization_status = 33;
+
+  // Error from post-run sandbox finalization, when finalization failed.
+  string finalization_error = 34;
+
+  // When post-run sandbox finalization reached a terminal state.
+  optional google.protobuf.Timestamp finalized_at = 35;
 }
 
 // RunActions captures which operations are currently allowed for a run.
@@ -180,6 +190,12 @@ message RunActions {
   // Human-readable reason why resume-from-failure is unavailable.
   // Empty when can_resume_from_failure is true.
   string can_resume_from_failure_reason = 14;
+
+  // Human-readable warning when post-run sandbox finalization failed.
+  string finalization_warning = 15;
+
+  // Whether the run has failed finalization that can be retried or repaired.
+  bool can_retry_finalization = 16;
 }
 
 // =============================================================================

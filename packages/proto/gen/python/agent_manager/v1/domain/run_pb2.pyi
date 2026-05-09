@@ -14,7 +14,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Run(_message.Message):
-    __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "session_id", "created_at", "updated_at", "actions", "prompt_preview", "requested_model", "actual_model")
+    __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "session_id", "created_at", "updated_at", "actions", "prompt_preview", "requested_model", "actual_model", "finalization_status", "finalization_error", "finalized_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -47,6 +47,9 @@ class Run(_message.Message):
     PROMPT_PREVIEW_FIELD_NUMBER: _ClassVar[int]
     REQUESTED_MODEL_FIELD_NUMBER: _ClassVar[int]
     ACTUAL_MODEL_FIELD_NUMBER: _ClassVar[int]
+    FINALIZATION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    FINALIZATION_ERROR_FIELD_NUMBER: _ClassVar[int]
+    FINALIZED_AT_FIELD_NUMBER: _ClassVar[int]
     id: str
     task_id: str
     agent_profile_id: str
@@ -79,10 +82,13 @@ class Run(_message.Message):
     prompt_preview: str
     requested_model: str
     actual_model: str
-    def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actions: _Optional[_Union[RunActions, _Mapping]] = ..., prompt_preview: _Optional[str] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ...) -> None: ...
+    finalization_status: _types_pb2.RunFinalizationStatus
+    finalization_error: str
+    finalized_at: _timestamp_pb2.Timestamp
+    def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actions: _Optional[_Union[RunActions, _Mapping]] = ..., prompt_preview: _Optional[str] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., finalization_status: _Optional[_Union[_types_pb2.RunFinalizationStatus, str]] = ..., finalization_error: _Optional[str] = ..., finalized_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class RunActions(_message.Message):
-    __slots__ = ("can_investigate", "can_apply_investigation", "can_delete", "can_stop", "can_retry", "can_continue", "can_approve", "can_reject", "can_review", "can_extract_recommendations", "can_regenerate_recommendations", "can_continue_reason", "can_resume_from_failure", "can_resume_from_failure_reason")
+    __slots__ = ("can_investigate", "can_apply_investigation", "can_delete", "can_stop", "can_retry", "can_continue", "can_approve", "can_reject", "can_review", "can_extract_recommendations", "can_regenerate_recommendations", "can_continue_reason", "can_resume_from_failure", "can_resume_from_failure_reason", "finalization_warning", "can_retry_finalization")
     CAN_INVESTIGATE_FIELD_NUMBER: _ClassVar[int]
     CAN_APPLY_INVESTIGATION_FIELD_NUMBER: _ClassVar[int]
     CAN_DELETE_FIELD_NUMBER: _ClassVar[int]
@@ -97,6 +103,8 @@ class RunActions(_message.Message):
     CAN_CONTINUE_REASON_FIELD_NUMBER: _ClassVar[int]
     CAN_RESUME_FROM_FAILURE_FIELD_NUMBER: _ClassVar[int]
     CAN_RESUME_FROM_FAILURE_REASON_FIELD_NUMBER: _ClassVar[int]
+    FINALIZATION_WARNING_FIELD_NUMBER: _ClassVar[int]
+    CAN_RETRY_FINALIZATION_FIELD_NUMBER: _ClassVar[int]
     can_investigate: bool
     can_apply_investigation: bool
     can_delete: bool
@@ -111,7 +119,9 @@ class RunActions(_message.Message):
     can_continue_reason: str
     can_resume_from_failure: bool
     can_resume_from_failure_reason: str
-    def __init__(self, can_investigate: _Optional[bool] = ..., can_apply_investigation: _Optional[bool] = ..., can_delete: _Optional[bool] = ..., can_stop: _Optional[bool] = ..., can_retry: _Optional[bool] = ..., can_continue: _Optional[bool] = ..., can_approve: _Optional[bool] = ..., can_reject: _Optional[bool] = ..., can_review: _Optional[bool] = ..., can_extract_recommendations: _Optional[bool] = ..., can_regenerate_recommendations: _Optional[bool] = ..., can_continue_reason: _Optional[str] = ..., can_resume_from_failure: _Optional[bool] = ..., can_resume_from_failure_reason: _Optional[str] = ...) -> None: ...
+    finalization_warning: str
+    can_retry_finalization: bool
+    def __init__(self, can_investigate: _Optional[bool] = ..., can_apply_investigation: _Optional[bool] = ..., can_delete: _Optional[bool] = ..., can_stop: _Optional[bool] = ..., can_retry: _Optional[bool] = ..., can_continue: _Optional[bool] = ..., can_approve: _Optional[bool] = ..., can_reject: _Optional[bool] = ..., can_review: _Optional[bool] = ..., can_extract_recommendations: _Optional[bool] = ..., can_regenerate_recommendations: _Optional[bool] = ..., can_continue_reason: _Optional[str] = ..., can_resume_from_failure: _Optional[bool] = ..., can_resume_from_failure_reason: _Optional[str] = ..., finalization_warning: _Optional[str] = ..., can_retry_finalization: _Optional[bool] = ...) -> None: ...
 
 class RunSummary(_message.Message):
     __slots__ = ("description", "files_modified", "files_created", "files_deleted", "tokens_used", "turns_used", "cost_estimate", "context_tokens")

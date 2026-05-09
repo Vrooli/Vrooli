@@ -113,7 +113,14 @@ type Run struct {
 	// Model requested when the run was created (may differ from actual).
 	RequestedModel string `protobuf:"bytes,31,opt,name=requested_model,json=requestedModel,proto3" json:"requested_model,omitempty"`
 	// Model actually used for execution (populated at dispatch).
-	ActualModel   string `protobuf:"bytes,32,opt,name=actual_model,json=actualModel,proto3" json:"actual_model,omitempty"`
+	ActualModel string `protobuf:"bytes,32,opt,name=actual_model,json=actualModel,proto3" json:"actual_model,omitempty"`
+	// Post-run sandbox finalization status.
+	// Tracks apply/checkpoint effects separately from runner turn status.
+	FinalizationStatus RunFinalizationStatus `protobuf:"varint,33,opt,name=finalization_status,json=finalizationStatus,proto3,enum=agent_manager.v1.RunFinalizationStatus" json:"finalization_status,omitempty"`
+	// Error from post-run sandbox finalization, when finalization failed.
+	FinalizationError string `protobuf:"bytes,34,opt,name=finalization_error,json=finalizationError,proto3" json:"finalization_error,omitempty"`
+	// When post-run sandbox finalization reached a terminal state.
+	FinalizedAt   *timestamppb.Timestamp `protobuf:"bytes,35,opt,name=finalized_at,json=finalizedAt,proto3,oneof" json:"finalized_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -372,6 +379,27 @@ func (x *Run) GetActualModel() string {
 	return ""
 }
 
+func (x *Run) GetFinalizationStatus() RunFinalizationStatus {
+	if x != nil {
+		return x.FinalizationStatus
+	}
+	return RunFinalizationStatus_RUN_FINALIZATION_STATUS_UNSPECIFIED
+}
+
+func (x *Run) GetFinalizationError() string {
+	if x != nil {
+		return x.FinalizationError
+	}
+	return ""
+}
+
+func (x *Run) GetFinalizedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FinalizedAt
+	}
+	return nil
+}
+
 // RunActions captures which operations are currently allowed for a run.
 //
 // @usage Run.actions
@@ -396,8 +424,12 @@ type RunActions struct {
 	// Human-readable reason why resume-from-failure is unavailable.
 	// Empty when can_resume_from_failure is true.
 	CanResumeFromFailureReason string `protobuf:"bytes,14,opt,name=can_resume_from_failure_reason,json=canResumeFromFailureReason,proto3" json:"can_resume_from_failure_reason,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// Human-readable warning when post-run sandbox finalization failed.
+	FinalizationWarning string `protobuf:"bytes,15,opt,name=finalization_warning,json=finalizationWarning,proto3" json:"finalization_warning,omitempty"`
+	// Whether the run has failed finalization that can be retried or repaired.
+	CanRetryFinalization bool `protobuf:"varint,16,opt,name=can_retry_finalization,json=canRetryFinalization,proto3" json:"can_retry_finalization,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *RunActions) Reset() {
@@ -526,6 +558,20 @@ func (x *RunActions) GetCanResumeFromFailureReason() string {
 		return x.CanResumeFromFailureReason
 	}
 	return ""
+}
+
+func (x *RunActions) GetFinalizationWarning() string {
+	if x != nil {
+		return x.FinalizationWarning
+	}
+	return ""
+}
+
+func (x *RunActions) GetCanRetryFinalization() bool {
+	if x != nil {
+		return x.CanRetryFinalization
+	}
+	return false
 }
 
 // RunSummary contains the structured summary from an agent run.
@@ -2023,7 +2069,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\f\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcf\x0e\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -2064,7 +2110,11 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\aactions\x18\x1d \x01(\v2\x1c.agent_manager.v1.RunActionsR\aactions\x12%\n" +
 	"\x0eprompt_preview\x18\x1e \x01(\tR\rpromptPreview\x12'\n" +
 	"\x0frequested_model\x18\x1f \x01(\tR\x0erequestedModel\x12!\n" +
-	"\factual_model\x18  \x01(\tR\vactualModelB\x13\n" +
+	"\factual_model\x18  \x01(\tR\vactualModel\x12X\n" +
+	"\x13finalization_status\x18! \x01(\x0e2'.agent_manager.v1.RunFinalizationStatusR\x12finalizationStatus\x12-\n" +
+	"\x12finalization_error\x18\" \x01(\tR\x11finalizationError\x12B\n" +
+	"\ffinalized_at\x18# \x01(\v2\x1a.google.protobuf.TimestampH\n" +
+	"R\vfinalizedAt\x88\x01\x01B\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +
@@ -2076,7 +2126,8 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
 	"_exit_codeB\x0e\n" +
 	"\f_approved_atB\x12\n" +
-	"\x10_resolved_config\"\xf7\x04\n" +
+	"\x10_resolved_configB\x0f\n" +
+	"\r_finalized_at\"\xe0\x05\n" +
 	"\n" +
 	"RunActions\x12'\n" +
 	"\x0fcan_investigate\x18\x01 \x01(\bR\x0ecanInvestigate\x126\n" +
@@ -2097,7 +2148,9 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x1ecan_regenerate_recommendations\x18\v \x01(\bR\x1ccanRegenerateRecommendations\x12.\n" +
 	"\x13can_continue_reason\x18\f \x01(\tR\x11canContinueReason\x125\n" +
 	"\x17can_resume_from_failure\x18\r \x01(\bR\x14canResumeFromFailure\x12B\n" +
-	"\x1ecan_resume_from_failure_reason\x18\x0e \x01(\tR\x1acanResumeFromFailureReason\"\xab\x02\n" +
+	"\x1ecan_resume_from_failure_reason\x18\x0e \x01(\tR\x1acanResumeFromFailureReason\x121\n" +
+	"\x14finalization_warning\x18\x0f \x01(\tR\x13finalizationWarning\x124\n" +
+	"\x16can_retry_finalization\x18\x10 \x01(\bR\x14canRetryFinalization\"\xab\x02\n" +
 	"\n" +
 	"RunSummary\x12 \n" +
 	"\vdescription\x18\x01 \x01(\tR\vdescription\x12%\n" +
@@ -2275,9 +2328,10 @@ var file_agent_manager_v1_domain_run_proto_goTypes = []any{
 	(RunPhase)(0),                    // 24: agent_manager.v1.RunPhase
 	(ApprovalState)(0),               // 25: agent_manager.v1.ApprovalState
 	(*RunConfig)(nil),                // 26: agent_manager.v1.RunConfig
-	(*durationpb.Duration)(nil),      // 27: google.protobuf.Duration
-	(IdempotencyStatus)(0),           // 28: agent_manager.v1.IdempotencyStatus
-	(RunnerType)(0),                  // 29: agent_manager.v1.RunnerType
+	(RunFinalizationStatus)(0),       // 27: agent_manager.v1.RunFinalizationStatus
+	(*durationpb.Duration)(nil),      // 28: google.protobuf.Duration
+	(IdempotencyStatus)(0),           // 29: agent_manager.v1.IdempotencyStatus
+	(RunnerType)(0),                  // 30: agent_manager.v1.RunnerType
 }
 var file_agent_manager_v1_domain_run_proto_depIdxs = []int32{
 	21, // 0: agent_manager.v1.Run.run_mode:type_name -> agent_manager.v1.RunMode
@@ -2293,29 +2347,31 @@ var file_agent_manager_v1_domain_run_proto_depIdxs = []int32{
 	23, // 10: agent_manager.v1.Run.created_at:type_name -> google.protobuf.Timestamp
 	23, // 11: agent_manager.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 12: agent_manager.v1.Run.actions:type_name -> agent_manager.v1.RunActions
-	24, // 13: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
-	23, // 14: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
-	23, // 15: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
-	19, // 16: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
-	24, // 17: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
-	27, // 18: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
-	27, // 19: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
-	23, // 20: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
-	28, // 21: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
-	23, // 22: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
-	23, // 23: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
-	29, // 24: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
-	7,  // 25: agent_manager.v1.RunnerStatus.capabilities:type_name -> agent_manager.v1.RunnerCapabilities
-	20, // 26: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
-	10, // 27: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
-	13, // 28: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
-	23, // 29: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
-	0,  // 30: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
-	31, // [31:31] is the sub-list for method output_type
-	31, // [31:31] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	27, // 13: agent_manager.v1.Run.finalization_status:type_name -> agent_manager.v1.RunFinalizationStatus
+	23, // 14: agent_manager.v1.Run.finalized_at:type_name -> google.protobuf.Timestamp
+	24, // 15: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
+	23, // 16: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
+	23, // 17: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
+	19, // 18: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
+	24, // 19: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
+	28, // 20: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
+	28, // 21: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
+	23, // 22: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
+	29, // 23: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
+	23, // 24: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
+	23, // 25: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
+	30, // 26: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
+	7,  // 27: agent_manager.v1.RunnerStatus.capabilities:type_name -> agent_manager.v1.RunnerCapabilities
+	20, // 28: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
+	10, // 29: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
+	13, // 30: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
+	23, // 31: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
+	0,  // 32: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
+	33, // [33:33] is the sub-list for method output_type
+	33, // [33:33] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_run_proto_init() }
