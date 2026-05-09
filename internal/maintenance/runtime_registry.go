@@ -9,7 +9,6 @@ import (
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/hostsession"
-	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -99,6 +98,12 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 			item.Reconciliation = reconciled.Classification
 			item.ReconcileReason = reconciled.Reason
 			item.Authoritative = &reconciled.Authoritative
+			if len(reconciled.Claims) > 0 {
+				claimResult := reconciled.Claims[0]
+				item.Reconciliation = claimResult.Classification
+				item.ReconcileReason = claimResult.Reason
+				item.Authoritative = &claimResult.Authoritative
+			}
 		} else if !errors.Is(err, scenarioruntime.ErrNotFound) {
 			return nil, err
 		}
@@ -145,7 +150,19 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 			Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, processIsRunning),
 			Listeners:     runtimeListenerEvidence(claims, refs),
 		})
-		if reconciled.Authoritative || reconciled.Classification == scenarioruntime.ReconcileUnverified {
+		if reconciled.Classification == scenarioruntime.ReconcileUnverified {
+			continue
+		}
+		if reconciled.Authoritative {
+			for _, claim := range reconciled.Claims {
+				if claim.Authoritative || claim.Claim.Status != scenarioruntime.ClaimStatusBound {
+					continue
+				}
+				if _, err := store.ExpirePortClaim(ctx, claim.Claim.ClaimID); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+					return nil, err
+				}
+				stopped = append(stopped, control.Stopped(strconv.Itoa(claim.Claim.Port), "Expired non-authoritative registry claim "+claim.Claim.ClaimID))
+			}
 			continue
 		}
 		if _, err := store.ExpireInstance(ctx, instance.InstanceID, reconciled.Reason); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
@@ -164,7 +181,7 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 
 func runtimeListenerEvidence(claims []scenarioruntime.PortClaim, refs []scenarioruntime.ProcessRef) map[int]scenarioruntime.ListenerEvidence {
 	return scenarioruntime.ListenerEvidenceFromClaims(claims, refs, func(port int) scenarioruntime.ListenerEvidence {
-		inspection, err := network.InspectPortListeners(port)
+		inspection, err := inspectPortListenersFn(port)
 		if err != nil || !inspection.Inspection.Available {
 			return scenarioruntime.ListenerEvidence{Known: false}
 		}
