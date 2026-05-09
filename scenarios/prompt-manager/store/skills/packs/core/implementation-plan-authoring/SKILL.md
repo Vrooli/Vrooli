@@ -1,6 +1,6 @@
 ## Practice focus: Implementation Plan Authoring
 
-Create a durable implementation plan file that preserves full execution context when conversation history is about to compact. This skill standardizes how to capture the problem, constraints, execution approach, and acceptance criteria so any future agent can continue without prior chat context.
+Create a durable implementation plan through `vrooli plans add --stdin` by default, preserving full execution context when conversation history is about to compact. This skill standardizes how to capture the problem, constraints, execution approach, and acceptance criteria so any future agent can continue without prior chat context.
 
 Required reading:
 - `prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement`
@@ -25,7 +25,7 @@ Optional reading:
 ### 2. Scope Boundaries
 
 **In scope:**
-- Create/update a single implementation plan file in-repo
+- Create/update a single implementation plan through `vrooli plans add --stdin` unless an in-repo durable artifact is explicitly requested
 - Preserve problem statement, root causes, constraints, and action plan
 - Include explicit required reading commands for future agents
 - Include Action commands as evidence or validation steps when relevant, while keeping required-reading discovery focused on skills and methodologies
@@ -86,13 +86,16 @@ prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-a
 
 Then gather implementation evidence (commands, files, observed failures) before writing.
 
-#### Step B: Choose plan location
+#### Step B: Create the scratch plan through the CLI
 
-Default location:
-- `docs/plans/<topic>-implementation-plan.md`
+Default behavior:
+- Use `vrooli plans add --title "<topic>" --stdin` and write the plan content to stdin.
+- Report the saved path and plan id printed by the command.
+- Do not hard-code the plan storage directory; the CLI owns the location.
 
-Scenario-local location:
-- Use `path:scenarios/<scenario>/docs/plans/` only when plan is tightly scoped to one scenario.
+In-repo exceptions:
+- Use an in-repo plan only when the user explicitly asks for it, the plan is being promoted to durable documentation, or a scenario-specific workflow requires it.
+- Swarm Manager backlog items keep using their item-local `plan.md` / `conclusion.md` artifacts.
 
 #### Step C: Write the plan with mandatory sections
 

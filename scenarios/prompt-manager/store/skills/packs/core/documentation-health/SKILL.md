@@ -109,7 +109,8 @@ docs/
 | CLI usage | docs/reference/cli-commands.md | --help output |
 | Config options | docs/reference/configuration.md | Schema files |
 | Known issues | docs/internal/PROBLEMS.md | GitHub Issues |
-| Architecture decisions | docs/plans/ | ADR format |
+| Architecture decisions | docs/strategy/ or promoted docs/plans/ | ADR format |
+| Scratch implementation plans | `vrooli plans add --stdin` | User-scoped plan storage |
 | Code behavior | Inline comments | docs/reference/ |
 
 ---

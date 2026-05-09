@@ -127,7 +127,7 @@ Requirements: [work request details]
 Constraints discovered: [from exploration findings]
 Hard rules: [if any, e.g., greenfield only]
 
-Deliver: Implementation plan file at docs/plans/[topic]-implementation-plan.md
+Deliver: Create the implementation plan with `vrooli plans add --title "[topic]" --stdin`, then return the generated plan id and saved path.
 Read the skill first: prompt-manager skill read implementation-plan-authoring
 ```
 

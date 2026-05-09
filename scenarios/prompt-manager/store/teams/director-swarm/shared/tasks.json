@@ -99,23 +99,6 @@
       "createdBy": "director",
       "createdAt": "2026-04-08T22:20:46Z",
       "updatedAt": "2026-04-08T22:20:46Z"
-    },
-    {
-      "id": "task-1775341208374821859",
-      "title": "Human: Accept/reject failed items triage (dec-1775341196165964273) — 3 options, A recommended",
-      "status": "done",
-      "assignee": "director",
-      "priority": "P1",
-      "createdBy": "director",
-      "createdAt": "2026-04-04T22:20:08Z",
-      "updatedAt": "2026-04-08T22:20:38Z",
-      "notes": [
-        {
-          "at": "2026-04-08T22:20:38Z",
-          "by": "",
-          "text": "Superseded by dec-1775600387541383847 (identity-adoption fix resolution)"
-        }
-      ]
     }
   ]
 }

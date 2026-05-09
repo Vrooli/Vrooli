@@ -29,6 +29,6 @@ When an open autoheal incident exposes a remediation candidate, treat it as the 
 
 - Confirm the incident applies to the current platform and hardware before proposing action. For example, NVIDIA/Linux package remedies are invalid unless the incident evidence shows an NVIDIA device or runtime on a Linux host with a compatible package manager.
 - Prefer autoheal-provided remediation plans, templates, expected post-checks, rollback/fallback notes, and confidence metadata over ad hoc shell commands.
-- If the remedy requires privileged host mutation, never run it automatically. Generate a readable one-off script artifact under `~/.vrooli/state/scenarios/vrooli-autoheal/incidents/<incident-id>/remediation/<remediation-id>/` and route a decision asking whether the operator should run that exact artifact.
+- If the remedy requires privileged host mutation, never run it automatically. Generate a readable one-off script artifact through autoheal, store it under the `api-core/storage` state path returned by autoheal, and route a decision asking whether the operator should run that exact artifact.
 - The decision must include the incident ID, artifact path, expected effect, safety guards, rollback or fallback path, and the autoheal command or status surface to use after the operator runs it.
 - If autoheal lacks the remediation candidate or evidence needed to generate the artifact safely, raise an instrumentation or incident-contract gap instead of inventing the missing contract from raw logs.
