@@ -8,11 +8,12 @@ import { SettingsTabHealth } from "./SettingsTabHealth";
 import { SettingsTabIntegrations } from "./SettingsTabIntegrations";
 import { SettingsTabStorage } from "./SettingsTabStorage";
 import { SettingsTabGrouping } from "./SettingsTabGrouping";
+import { SettingsTabPrecommit } from "./SettingsTabPrecommit";
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
 import type { SyncStatusResponse } from "../lib/api";
 import type { GroupingRule } from "./FileList";
 
-export type SettingsTab = "layout" | "grouping" | "credentials" | "integrations" | "health" | "storage";
+export type SettingsTab = "layout" | "grouping" | "credentials" | "integrations" | "precommit" | "health" | "storage";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ const tabLabels: Record<SettingsTab, string> = {
   grouping: "Grouping",
   credentials: "Credentials",
   integrations: "Integrations",
+  precommit: "Precommit",
   health: "Health",
   storage: "Storage",
 };
@@ -150,6 +152,13 @@ export function SettingsModal({
 
           {activeTab === "integrations" && (
             <SettingsTabIntegrations
+              isMobile={true}
+              repoId={repoId}
+            />
+          )}
+
+          {activeTab === "precommit" && (
+            <SettingsTabPrecommit
               isMobile={true}
               repoId={repoId}
             />
@@ -267,6 +276,13 @@ export function SettingsModal({
 
           {activeTab === "integrations" && (
             <SettingsTabIntegrations
+              isMobile={false}
+              repoId={repoId}
+            />
+          )}
+
+          {activeTab === "precommit" && (
+            <SettingsTabPrecommit
               isMobile={false}
               repoId={repoId}
             />

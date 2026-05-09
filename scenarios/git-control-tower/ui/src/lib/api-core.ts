@@ -14,6 +14,9 @@ import {
   type UnstageResponse,
   type CommitRequest,
   type CommitResponse,
+  type PrecommitConfig,
+  type PrecommitRunRequest,
+  type PrecommitRunResponse,
   type DiscardRequest,
   type DiscardResponse,
   type IgnoreRequest,
@@ -130,7 +133,51 @@ export async function createCommit(request: CommitRequest, repoId?: string): Pro
     headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null) as CommitResponse | null;
+    if (payload?.precommit) {
+      return payload;
+    }
+    if (payload) {
+      return payload;
+    }
+  }
   return handleResponse<CommitResponse>(res);
+}
+
+export async function fetchPrecommitConfig(repoId?: string): Promise<PrecommitConfig> {
+  const url = buildApiUrl("/repo/precommit", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store"
+  });
+  return handleResponse<PrecommitConfig>(res);
+}
+
+export async function savePrecommitConfig(config: PrecommitConfig, repoId?: string): Promise<PrecommitConfig> {
+  const url = buildApiUrl("/repo/precommit", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(config)
+  });
+  return handleResponse<PrecommitConfig>(res);
+}
+
+export async function runPrecommit(request: PrecommitRunRequest = {}, repoId?: string): Promise<PrecommitRunResponse> {
+  const url = buildApiUrl("/repo/precommit/run", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(request)
+  });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null) as PrecommitRunResponse | null;
+    if (payload?.result) {
+      return payload;
+    }
+  }
+  return handleResponse<PrecommitRunResponse>(res);
 }
 
 export async function discardFiles(request: DiscardRequest, repoId?: string): Promise<DiscardResponse> {

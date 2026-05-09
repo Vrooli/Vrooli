@@ -52,6 +52,24 @@ CREATE TABLE IF NOT EXISTS git_repo_state (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS git_repo_precommit (
+    repo_path TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 0,
+    command TEXT NOT NULL DEFAULT '',
+    working_directory TEXT NOT NULL DEFAULT '',
+    timeout_seconds INTEGER NOT NULL DEFAULT 300,
+    run_before_commit INTEGER NOT NULL DEFAULT 1,
+    allow_override INTEGER NOT NULL DEFAULT 1,
+    last_status TEXT,
+    last_exit_code INTEGER,
+    last_summary TEXT,
+    last_stdout TEXT,
+    last_stderr TEXT,
+    last_duration_ms INTEGER,
+    last_timestamp TEXT,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
 `
 
 func ensureAuditSchema(db *sql.DB) error {

@@ -71,6 +71,18 @@ export interface CommitRequest {
   amend?: boolean;
   author_name?: string;
   author_email?: string;
+  skip_precommit_once?: boolean;
+}
+
+export interface PrecommitRunResult {
+  status: string;
+  exit_code: number;
+  summary: string;
+  stdout?: string;
+  stderr?: string;
+  duration_ms: number;
+  override_allowed: boolean;
+  timestamp: string;
 }
 
 export interface CommitResponse {
@@ -79,7 +91,29 @@ export interface CommitResponse {
   amended?: boolean;
   error?: string;
   validation_errors?: string[];
+  precommit?: PrecommitRunResult;
   timestamp: string;
+}
+
+export interface PrecommitConfig {
+  enabled: boolean;
+  command: string;
+  working_directory: string;
+  timeout_seconds: number;
+  run_before_commit: boolean;
+  allow_override: boolean;
+  last_result?: PrecommitRunResult;
+}
+
+export interface PrecommitRunRequest {
+  command?: string;
+  working_directory?: string;
+  timeout_seconds?: number;
+}
+
+export interface PrecommitRunResponse {
+  success: boolean;
+  result: PrecommitRunResult;
 }
 
 export interface DiscardRequest {

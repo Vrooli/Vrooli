@@ -24,8 +24,9 @@ func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
 	stagedFiles, _ := hctx.Git.ListStagedFiles(hctx.Ctx, hctx.RepoDir)
 
 	result, err := CreateCommit(hctx.Ctx, CommitDeps{
-		Git:     hctx.Git,
-		RepoDir: hctx.RepoDir,
+		Git:       hctx.Git,
+		RepoDir:   hctx.RepoDir,
+		Precommit: s.precommit,
 	}, req)
 
 	// [REQ:GCT-OT-P0-007] Audit logging for commit operation

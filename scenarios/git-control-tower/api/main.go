@@ -38,6 +38,7 @@ type Server struct {
 	capabilities         *CapabilityRegistry
 	sshDeps              ssh.SSHDeps
 	repos                *RepoService
+	precommit            *PrecommitService
 	credStore            *CredentialsStore
 	storageResolver      *storage.Resolver
 	basClient            *BrowserAutomationClient
@@ -76,6 +77,7 @@ func NewServer() (*Server, error) {
 		sshDeps:      ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
 	srv.repos = NewRepoService(NewSQLiteRepoStore(db), srv.git)
+	srv.precommit = NewPrecommitService(db)
 	srv.configCache = NewGitConfigCache(60 * time.Second)
 
 	if err := srv.initClients(); err != nil {

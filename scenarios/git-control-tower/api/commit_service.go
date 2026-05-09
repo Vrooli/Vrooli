@@ -10,8 +10,9 @@ import (
 
 // CommitDeps contains dependencies for commit operations.
 type CommitDeps struct {
-	Git     GitRunner
-	RepoDir string
+	Git       GitRunner
+	RepoDir   string
+	Precommit *PrecommitService
 }
 
 func commitValidationFailure(errors []string) *CommitResponse {
@@ -84,6 +85,20 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 	message := strings.TrimSpace(req.Message)
 	if resp := validateCommitRequest(ctx, deps, repoDir, req, message); resp != nil {
 		return resp, nil
+	}
+	if deps.Precommit != nil && !req.SkipPrecommitOnce {
+		result, ran, err := deps.Precommit.RunBeforeCommit(ctx, repoDir)
+		if err != nil {
+			return nil, err
+		}
+		if ran && result.Status != "passed" {
+			return &CommitResponse{
+				Success:   false,
+				Error:     "precommit failed",
+				Precommit: &result,
+				Timestamp: time.Now().UTC(),
+			}, nil
+		}
 	}
 
 	noEdit := req.Amend && message == ""

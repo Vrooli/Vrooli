@@ -22,6 +22,9 @@ type CommitRequest struct {
 	// ValidateConventional enables conventional commit message validation.
 	// When true, the message must match the format: type(scope): description
 	ValidateConventional bool `json:"validate_conventional,omitempty"`
+
+	// SkipPrecommitOnce bypasses configured precommit checks for this commit.
+	SkipPrecommitOnce bool `json:"skip_precommit_once,omitempty"`
 }
 
 // CommitResponse contains the result of a commit operation.
@@ -43,6 +46,9 @@ type CommitResponse struct {
 
 	// Error contains the error message if Success is false.
 	Error string `json:"error,omitempty"`
+
+	// Precommit contains structured precommit failure details.
+	Precommit *PrecommitRunResult `json:"precommit,omitempty"`
 
 	// Timestamp is when the operation completed.
 	Timestamp time.Time `json:"timestamp"`

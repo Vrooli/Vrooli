@@ -163,6 +163,51 @@ describe("SettingsModal", () => {
     });
   });
 
+  it("renders the precommit tab and saves repo-scoped settings", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = requestUrl(input);
+      if (url.endsWith("/repo/precommit") && init?.method === "PUT") {
+        return jsonResponse({
+          enabled: true,
+          command: "make hygiene",
+          working_directory: "/work/git-control-tower",
+          timeout_seconds: 300,
+          run_before_commit: true,
+          allow_override: true,
+        });
+      }
+      return jsonResponse({
+        enabled: false,
+        command: "",
+        working_directory: "/work/git-control-tower",
+        timeout_seconds: 300,
+        run_before_commit: true,
+        allow_override: true,
+      });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    renderWithQueryClient(
+      <SettingsModal {...settingsProps({ initialTab: "precommit" as SettingsTab })} />,
+    );
+
+    expect(await screen.findByLabelText("Command")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Enabled"));
+    fireEvent.change(screen.getByLabelText("Command"), { target: { value: "make hygiene" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://git-control-tower.test/api/v1/repo/precommit",
+        expect.objectContaining({
+          method: "PUT",
+          headers: expect.objectContaining({ "X-Repo-Id": "repo-1" }),
+          body: expect.stringContaining("make hygiene"),
+        }),
+      );
+    });
+  });
+
   it("uses the full-screen mobile modal controls below the mobile breakpoint", () => {
     const props = settingsProps();
     setViewport(375, 740);

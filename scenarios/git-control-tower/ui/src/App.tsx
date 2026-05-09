@@ -24,11 +24,12 @@ import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { ScenarioReviewPanel } from "./components/ScenarioReviewPanel";
+import { Button } from "./components/ui/button";
 import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
-import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig } from "./lib/api";
+import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
 import { computeNextSelection, layoutOrder, type SelectionEntry } from "./AppSelection";
@@ -43,6 +44,9 @@ import {
   useStageFiles,
   useUnstageFiles,
   useCommit,
+  usePrecommitConfig,
+  useSavePrecommitConfig,
+  useRunPrecommit,
   useDiscardFiles,
   useIgnoreFile,
   usePush,
@@ -227,6 +231,8 @@ export default function App() {
   const [confirmingIgnore, setConfirmingIgnore] = useState<string | null>(null);
   const [_lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
+  const [precommitFailure, setPrecommitFailure] = useState<PrecommitRunResult | null>(null);
+  const [pendingPrecommitCommit, setPendingPrecommitCommit] = useState<CommitRequest | null>(null);
   const [commitMessage, setCommitMessage] = useState(
     () => localStorage.getItem("gct.commitMessage") ?? ""
   );
@@ -430,6 +436,9 @@ export default function App() {
   const stageMutation = useStageFiles(repoId);
   const unstageMutation = useUnstageFiles(repoId);
   const commitMutation = useCommit(repoId);
+  const precommitConfigQuery = usePrecommitConfig(repoId);
+  const savePrecommitConfigMutation = useSavePrecommitConfig(repoId);
+  const runPrecommitMutation = useRunPrecommit(repoId);
   const discardMutation = useDiscardFiles(repoId);
   const ignoreMutation = useIgnoreFile(repoId);
   const pushMutation = usePush(repoId);
@@ -1077,24 +1086,31 @@ export default function App() {
     ) => {
       setCommitError(undefined);
       setLastCommitHash(undefined);
+      const request: CommitRequest = {
+        message,
+        validate_conventional: options.conventional,
+        amend: options.amend,
+        author_name: options.authorName,
+        author_email: options.authorEmail
+      };
 
       commitMutation.mutate(
-        {
-          message,
-          validate_conventional: options.conventional,
-          amend: options.amend,
-          author_name: options.authorName,
-          author_email: options.authorEmail
-        },
+        request,
         {
           onSuccess: (result) => {
             if (result.success && result.hash) {
               setLastCommitHash(result.hash);
               setCommitMessage("");
+              setPrecommitFailure(null);
+              setPendingPrecommitCommit(null);
               // Clear selection if viewing staged diff
               if (selectedIsStaged) {
                 setSelectedFile(undefined);
               }
+            } else if (result.precommit) {
+              setPrecommitFailure(result.precommit);
+              setPendingPrecommitCommit(request);
+              setCommitError(undefined);
             } else {
               setCommitError(
                 result.error ||
@@ -1111,6 +1127,61 @@ export default function App() {
     },
     [commitMutation, selectedIsStaged]
   );
+
+  const handleRunPrecommitAgain = useCallback(() => {
+    runPrecommitMutation.mutate(
+      {},
+      {
+        onSuccess: (result) => {
+          if (result.success) {
+            setPrecommitFailure(null);
+            return;
+          }
+          setPrecommitFailure(result.result);
+        },
+        onError: (error) => setCommitError(error.message),
+      },
+    );
+  }, [runPrecommitMutation]);
+
+  const handleCommitSkipPrecommit = useCallback(() => {
+    const request = pendingPrecommitCommit ?? { message: commitMessage.trim() };
+    setPrecommitFailure(null);
+    commitMutation.mutate(
+      {
+        ...request,
+        skip_precommit_once: true,
+      },
+      {
+        onSuccess: (result) => {
+          if (result.success && result.hash) {
+            setLastCommitHash(result.hash);
+            setCommitMessage("");
+            setPendingPrecommitCommit(null);
+            if (selectedIsStaged) {
+              setSelectedFile(undefined);
+            }
+          } else {
+            setCommitError(result.error || result.validation_errors?.join("; ") || "Commit failed");
+          }
+        },
+        onError: (error) => setCommitError(error.message),
+      },
+    );
+  }, [commitMessage, commitMutation, pendingPrecommitCommit, selectedIsStaged]);
+
+  const handleDisablePrecommit = useCallback(() => {
+    const config = precommitConfigQuery.data;
+    if (!config) return;
+    savePrecommitConfigMutation.mutate(
+      { ...config, enabled: false },
+      {
+        onSuccess: () => {
+          setPrecommitFailure(null);
+        },
+      },
+    );
+  }, [precommitConfigQuery.data, savePrecommitConfigMutation]);
 
   const handleUseApprovedMessage = useCallback(() => {
     if (!canUseApprovedMessage) return;
@@ -2776,6 +2847,55 @@ export default function App() {
         onChangeGroupingRules={setGroupingRules}
         onClose={() => setIsSettingsOpen(false)}
       />
+      {precommitFailure && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4" role="dialog" aria-modal="true" aria-label="Precommit failed">
+          <div className="w-full max-w-lg rounded-lg border border-slate-800 bg-slate-950 p-4 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-100">Repository checks did not pass</h2>
+                <p className="mt-2 text-sm text-slate-300">
+                  This repository runs checks before committing. The commit was not created, so you can fix the issue and try again.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60"
+                onClick={() => setPrecommitFailure(null)}
+                aria-label="Close precommit failure"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-3 rounded-md border border-slate-800 bg-slate-900 p-3 text-xs text-slate-300">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-slate-100">{precommitFailure.summary}</span>
+                <span>exit {precommitFailure.exit_code}</span>
+              </div>
+              {(precommitFailure.stdout || precommitFailure.stderr) && (
+                <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-2 text-[11px]">
+                  {[precommitFailure.stdout, precommitFailure.stderr].filter(Boolean).join("\n")}
+                </pre>
+              )}
+            </div>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setPrecommitFailure(null)}>
+                Cancel
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleRunPrecommitAgain} disabled={runPrecommitMutation.isPending}>
+                Run Again
+              </Button>
+              {precommitFailure.override_allowed && (
+                <Button variant="outline" size="sm" onClick={handleCommitSkipPrecommit} disabled={commitMutation.isPending}>
+                  Commit Anyway
+                </Button>
+              )}
+              <Button variant="destructive" size="sm" onClick={handleDisablePrecommit} disabled={savePrecommitConfigMutation.isPending}>
+                Disable Checks
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       <UpstreamInfoModal
         isOpen={isUpstreamInfoOpen}
         localBranch={pushSourceBranch}

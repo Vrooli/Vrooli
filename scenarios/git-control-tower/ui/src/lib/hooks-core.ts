@@ -16,6 +16,9 @@ import {
   stageFiles,
   unstageFiles,
   createCommit,
+  fetchPrecommitConfig,
+  savePrecommitConfig,
+  runPrecommit,
   discardFiles,
   ignoreFile,
   pushToRemote,
@@ -54,6 +57,8 @@ import type {
   SaveFileContentResponse,
   ContentSearchRequest,
   ContentSearchResponse,
+  PrecommitConfig,
+  PrecommitRunRequest,
 } from "./api";
 
 export function useHealth() {
@@ -155,6 +160,34 @@ export function useCommit(repoId?: string | null) {
       queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(repoId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.provenance(repoId) });
     }
+  });
+}
+
+export function usePrecommitConfig(repoId?: string | null) {
+  return useQuery({
+    queryKey: ["repo", "precommit", repoId ?? "default"],
+    queryFn: () => fetchPrecommitConfig(repoId ?? undefined),
+    staleTime: 10_000,
+  });
+}
+
+export function useSavePrecommitConfig(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (config: PrecommitConfig) => savePrecommitConfig(config, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["repo", "precommit", repoId ?? "default"] });
+    },
+  });
+}
+
+export function useRunPrecommit(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: PrecommitRunRequest = {}) => runPrecommit(request, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["repo", "precommit", repoId ?? "default"] });
+    },
   });
 }
 
