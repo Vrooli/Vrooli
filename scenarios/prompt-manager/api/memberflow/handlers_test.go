@@ -19,10 +19,10 @@ func newRouter(h *Handlers) *mux.Router {
 	r.HandleFunc("/teams/{id}/members/{agentId}/topics", h.PutMember).Methods("PUT")
 	r.HandleFunc("/teams/{id}/topics", h.GetTeam).Methods("GET")
 	r.HandleFunc("/topics/graph", h.GetGraph).Methods("GET")
-	r.HandleFunc("/operating-graphs", h.GetOperatingGraphs).Methods("GET")
-	r.HandleFunc("/operating-graphs/validate", h.ValidateOperatingGraphsHandler).Methods("GET")
-	r.HandleFunc("/operating-graphs/diff", h.DiffOperatingGraphsHandler).Methods("GET")
-	r.HandleFunc("/operating-graphs/coverage", h.CoverageOperatingGraphsHandler).Methods("GET")
+	r.HandleFunc("/operating-models", h.GetOperatingModels).Methods("GET")
+	r.HandleFunc("/operating-models/validate", h.ValidateOperatingModelsHandler).Methods("GET")
+	r.HandleFunc("/operating-models/diff", h.DiffOperatingModelsHandler).Methods("GET")
+	r.HandleFunc("/operating-models/coverage", h.CoverageOperatingModelsHandler).Methods("GET")
 	r.HandleFunc("/topics/drain-status", h.GetDrainStatus).Methods("GET")
 	return r
 }
@@ -242,33 +242,33 @@ func TestGetDrainStatus(t *testing.T) {
 	}
 }
 
-func TestOperatingGraphHandlersValidateAndDiffAgainstRuntime(t *testing.T) {
+func TestOperatingModelHandlersValidateAndDiffAgainstRuntime(t *testing.T) {
 	repoRoot, storeDir := newRepoStore(t)
 	writeOperatingGraphHandlerFixture(t, repoRoot, storeDir)
 
 	r := newRouter(NewHandlers(storeDir))
 
-	listReq := httptest.NewRequest("GET", "/operating-graphs?team=team-a&id=g", nil)
+	listReq := httptest.NewRequest("GET", "/operating-models?team=team-a&id=g", nil)
 	listW := httptest.NewRecorder()
 	r.ServeHTTP(listW, listReq)
 	if listW.Code != http.StatusOK {
 		t.Fatalf("list status=%d body=%s", listW.Code, listW.Body.String())
 	}
-	var listResp OperatingGraphListResponse
+	var listResp OperatingModelListResponse
 	if err := json.NewDecoder(listW.Body).Decode(&listResp); err != nil {
 		t.Fatalf("decode list: %v", err)
 	}
-	if len(listResp.Graphs) != 1 || listResp.Graphs[0].Metadata.ID != "g" {
+	if len(listResp.Models) != 1 || listResp.Models[0].ID != "g" {
 		t.Fatalf("unexpected list response: %+v", listResp)
 	}
 
-	validateReq := httptest.NewRequest("GET", "/operating-graphs/validate?team=team-a&id=g", nil)
+	validateReq := httptest.NewRequest("GET", "/operating-models/validate?team=team-a&id=g", nil)
 	validateW := httptest.NewRecorder()
 	r.ServeHTTP(validateW, validateReq)
 	if validateW.Code != http.StatusOK {
 		t.Fatalf("validate status=%d body=%s", validateW.Code, validateW.Body.String())
 	}
-	var validateResp OperatingGraphValidationResponse
+	var validateResp OperatingModelValidationResponse
 	if err := json.NewDecoder(validateW.Body).Decode(&validateResp); err != nil {
 		t.Fatalf("decode validate: %v", err)
 	}
@@ -278,13 +278,13 @@ func TestOperatingGraphHandlersValidateAndDiffAgainstRuntime(t *testing.T) {
 	assertOperatingFinding(t, validateResp.Validation, "graph_topic_unresolved")
 	assertOperatingFinding(t, validateResp.Validation, "graph_edge_unbacked")
 
-	diffReq := httptest.NewRequest("GET", "/operating-graphs/diff?team=team-a&id=g", nil)
+	diffReq := httptest.NewRequest("GET", "/operating-models/diff?team=team-a&id=g", nil)
 	diffW := httptest.NewRecorder()
 	r.ServeHTTP(diffW, diffReq)
 	if diffW.Code != http.StatusOK {
 		t.Fatalf("diff status=%d body=%s", diffW.Code, diffW.Body.String())
 	}
-	var diffResp OperatingGraphDiffResponse
+	var diffResp OperatingModelDiffResponse
 	if err := json.NewDecoder(diffW.Body).Decode(&diffResp); err != nil {
 		t.Fatalf("decode diff: %v", err)
 	}
@@ -292,13 +292,13 @@ func TestOperatingGraphHandlersValidateAndDiffAgainstRuntime(t *testing.T) {
 		t.Fatalf("graph-to-runtime diff count=%d, want 1: %+v", got, diffResp.Diff)
 	}
 
-	coverageReq := httptest.NewRequest("GET", "/operating-graphs/coverage?team=team-a&id=g", nil)
+	coverageReq := httptest.NewRequest("GET", "/operating-models/coverage?team=team-a&id=g", nil)
 	coverageW := httptest.NewRecorder()
 	r.ServeHTTP(coverageW, coverageReq)
 	if coverageW.Code != http.StatusOK {
 		t.Fatalf("coverage status=%d body=%s", coverageW.Code, coverageW.Body.String())
 	}
-	var coverageResp OperatingGraphCoverageResponse
+	var coverageResp OperatingModelCoverageResponse
 	if err := json.NewDecoder(coverageW.Body).Decode(&coverageResp); err != nil {
 		t.Fatalf("decode coverage: %v", err)
 	}
@@ -311,13 +311,13 @@ func TestOperatingGraphHandlersValidateAndDiffAgainstRuntime(t *testing.T) {
 	}
 }
 
-func TestOperatingGraphHandlersReturnEmptyArraysForCleanResults(t *testing.T) {
+func TestOperatingModelHandlersReturnEmptyArraysForCleanResults(t *testing.T) {
 	repoRoot, storeDir := newRepoStore(t)
 	writeCleanOperatingGraphHandlerFixture(t, repoRoot, storeDir)
 
 	r := newRouter(NewHandlers(storeDir))
 
-	validateReq := httptest.NewRequest("GET", "/operating-graphs/validate?team=team-a&id=g", nil)
+	validateReq := httptest.NewRequest("GET", "/operating-models/validate?team=team-a&id=g", nil)
 	validateW := httptest.NewRecorder()
 	r.ServeHTTP(validateW, validateReq)
 	if validateW.Code != http.StatusOK {
@@ -327,7 +327,7 @@ func TestOperatingGraphHandlersReturnEmptyArraysForCleanResults(t *testing.T) {
 		t.Fatalf("validate response should render empty findings as []:\n%s", validateW.Body.String())
 	}
 
-	diffReq := httptest.NewRequest("GET", "/operating-graphs/diff?team=team-a&id=g", nil)
+	diffReq := httptest.NewRequest("GET", "/operating-models/diff?team=team-a&id=g", nil)
 	diffW := httptest.NewRecorder()
 	r.ServeHTTP(diffW, diffReq)
 	if diffW.Code != http.StatusOK {
@@ -337,7 +337,7 @@ func TestOperatingGraphHandlersReturnEmptyArraysForCleanResults(t *testing.T) {
 		t.Fatalf("diff response should render empty diff as []:\n%s", diffW.Body.String())
 	}
 
-	coverageReq := httptest.NewRequest("GET", "/operating-graphs/coverage?team=team-a&id=g", nil)
+	coverageReq := httptest.NewRequest("GET", "/operating-models/coverage?team=team-a&id=g", nil)
 	coverageW := httptest.NewRecorder()
 	r.ServeHTTP(coverageW, coverageReq)
 	if coverageW.Code != http.StatusOK {
@@ -348,7 +348,7 @@ func TestOperatingGraphHandlersReturnEmptyArraysForCleanResults(t *testing.T) {
 	}
 }
 
-func TestOperatingGraphHandlersValidatePromptSectionsFromProvider(t *testing.T) {
+func TestOperatingModelHandlersValidatePromptSectionsFromProvider(t *testing.T) {
 	repoRoot, storeDir := newRepoStore(t)
 	writeCleanOperatingGraphHandlerFixture(t, repoRoot, storeDir)
 
@@ -358,25 +358,25 @@ func TestOperatingGraphHandlersValidatePromptSectionsFromProvider(t *testing.T) 
 	})
 	r := newRouter(h)
 
-	validateReq := httptest.NewRequest("GET", "/operating-graphs/validate?team=team-a&id=g", nil)
+	validateReq := httptest.NewRequest("GET", "/operating-models/validate?team=team-a&id=g", nil)
 	validateW := httptest.NewRecorder()
 	r.ServeHTTP(validateW, validateReq)
 	if validateW.Code != http.StatusOK {
 		t.Fatalf("validate status=%d body=%s", validateW.Code, validateW.Body.String())
 	}
-	var validateResp OperatingGraphValidationResponse
+	var validateResp OperatingModelValidationResponse
 	if err := json.NewDecoder(validateW.Body).Decode(&validateResp); err != nil {
 		t.Fatalf("decode validate: %v", err)
 	}
 	assertOperatingFinding(t, validateResp.Validation, "graph_prompt_topic_contract_missing")
 
-	coverageReq := httptest.NewRequest("GET", "/operating-graphs/coverage?team=team-a&id=g", nil)
+	coverageReq := httptest.NewRequest("GET", "/operating-models/coverage?team=team-a&id=g", nil)
 	coverageW := httptest.NewRecorder()
 	r.ServeHTTP(coverageW, coverageReq)
 	if coverageW.Code != http.StatusOK {
 		t.Fatalf("coverage status=%d body=%s", coverageW.Code, coverageW.Body.String())
 	}
-	var coverageResp OperatingGraphCoverageResponse
+	var coverageResp OperatingModelCoverageResponse
 	if err := json.NewDecoder(coverageW.Body).Decode(&coverageResp); err != nil {
 		t.Fatalf("decode coverage: %v", err)
 	}
@@ -408,7 +408,21 @@ func writeOperatingGraphHandlerFixture(t *testing.T, repoRoot, storeDir string) 
 	if err := os.MkdirAll(docsDir, 0o755); err != nil {
 		t.Fatalf("mkdir docs: %v", err)
 	}
-	graphDoc := `<!-- prompt-manager-graph:
+	graphDoc := `## Mission
+
+Fixture mission.
+
+## Scope
+
+Fixture scope.
+
+## Operating Loops
+
+1. Drain fixture input.
+
+## Operating Graph
+
+<!-- prompt-manager-graph:
 id: g
 scope: team
 team: team-a
@@ -424,10 +438,13 @@ flowchart LR
   IN[(research-inbox/*)]
   %% @node NOTE topic:marketing/notebook/*
   NOTE[(marketing/notebook/*)]
+  %% @node D decision:model-update
+  D{model-update}
   OP --> IN
   OP --> M
   IN --> M
   NOTE --> M
+  M --> D
 ` + "```" + `
 ## Topic Catalog
 
@@ -438,11 +455,41 @@ flowchart LR
 
 ## Decisions
 
-| Decision context | Owner | Purpose |
-|---|---|---|
+| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
+|---|---|---|---|---|
+| ` + "`model-update`" + ` | member-a | Update fixture operating model. | ` + "`topic:research-inbox/*`" + ` evidence. | Team operating-model document changes. |
+
+## External Inputs / Triggers
+
+| Producer / trigger | Entry surface | Drainer | Routing rule |
+|---|---|---|---|
+| Operator | ` + "`topic:research-inbox/*`" + ` | member-a | Member drains operator input. |
+
+## Outputs / Downstream Consumers
+
+| Output | Surface | Consumer | Purpose |
+|---|---|---|---|
+| Fixture intake | ` + "`research-inbox/*`" + ` | member-a | Keep fixture intake queryable. |
+
+## Feedback / Capability Improvement Loop
+
+1. Review ` + "`topic:research-inbox/*`" + `.
+
+## Current Implementation Gaps
+
+None.
+
+## Adoption / Validation
+
+- ` + "`prompt-manager graph operating-model validate --team team-a --id g`" + `
+- ` + "`prompt-manager graph operating-model diff --team team-a --id g`" + `
+- ` + "`prompt-manager graph operating-model coverage --team team-a --id g`" + `
 `
 	if err := os.WriteFile(filepath.Join(docsDir, "OPERATING_MODEL.md"), []byte(graphDoc), 0o644); err != nil {
 		t.Fatalf("write graph doc: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(docsDir, "README.md"), []byte("[`OPERATING_MODEL.md`](OPERATING_MODEL.md)\n"), 0o644); err != nil {
+		t.Fatalf("write README: %v", err)
 	}
 	if err := os.MkdirAll(filepath.Join(storeDir, "teams", "team-a"), 0o755); err != nil {
 		t.Fatalf("mkdir team: %v", err)
@@ -463,7 +510,27 @@ flowchart LR
   ],
   "operatingContract": {
     "schemaVersion": 1,
-    "decisionContexts": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "g",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/test/OPERATING_MODEL.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions"
+        }
+      ],
+      "notebooks": [],
+      "sharedState": []
+    },
+    "decisionContexts": {
+      "model-update": {
+        "description": "Update fixture operating model."
+      }
+    },
     "knowledgeTopics": {},
     "members": {
       "member-a": {}
@@ -476,6 +543,7 @@ flowchart LR
 	if err := WriteMember(storeDir, "team-a", "member-a", Topics{
 		Intake:            []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
 		ExternalProducers: []string{"operator"},
+		DecisionsOwned:    []string{"model-update"},
 	}); err != nil {
 		t.Fatalf("WriteMember: %v", err)
 	}
@@ -487,7 +555,21 @@ func writeCleanOperatingGraphHandlerFixture(t *testing.T, repoRoot, storeDir str
 	if err := os.MkdirAll(docsDir, 0o755); err != nil {
 		t.Fatalf("mkdir docs: %v", err)
 	}
-	graphDoc := `<!-- prompt-manager-graph:
+	graphDoc := `## Mission
+
+Fixture mission.
+
+## Scope
+
+Fixture scope.
+
+## Operating Loops
+
+1. Drain fixture input.
+
+## Operating Graph
+
+<!-- prompt-manager-graph:
 id: g
 scope: team
 team: team-a
@@ -501,9 +583,12 @@ flowchart LR
   OP([Operator])
   %% @node IN topic:research-inbox/*
   IN[(research-inbox/*)]
+  %% @node D decision:model-update
+  D{model-update}
   OP --> IN
   OP --> M
   IN --> M
+  M --> D
 ` + "```" + `
 ## Topic Catalog
 
@@ -513,11 +598,41 @@ flowchart LR
 
 ## Decisions
 
-| Decision context | Owner | Purpose |
-|---|---|---|
+| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
+|---|---|---|---|---|
+| ` + "`model-update`" + ` | member-a | Update fixture operating model. | ` + "`topic:research-inbox/*`" + ` evidence. | Team operating-model document changes. |
+
+## External Inputs / Triggers
+
+| Producer / trigger | Entry surface | Drainer | Routing rule |
+|---|---|---|---|
+| Operator | ` + "`topic:research-inbox/*`" + ` | member-a | Member drains operator input. |
+
+## Outputs / Downstream Consumers
+
+| Output | Surface | Consumer | Purpose |
+|---|---|---|---|
+| Fixture intake | ` + "`research-inbox/*`" + ` | member-a | Keep fixture intake queryable. |
+
+## Feedback / Capability Improvement Loop
+
+1. Review ` + "`topic:research-inbox/*`" + `.
+
+## Current Implementation Gaps
+
+None.
+
+## Adoption / Validation
+
+- ` + "`prompt-manager graph operating-model validate --team team-a --id g`" + `
+- ` + "`prompt-manager graph operating-model diff --team team-a --id g`" + `
+- ` + "`prompt-manager graph operating-model coverage --team team-a --id g`" + `
 `
 	if err := os.WriteFile(filepath.Join(docsDir, "OPERATING_MODEL.md"), []byte(graphDoc), 0o644); err != nil {
 		t.Fatalf("write graph doc: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(docsDir, "README.md"), []byte("[`OPERATING_MODEL.md`](OPERATING_MODEL.md)\n"), 0o644); err != nil {
+		t.Fatalf("write README: %v", err)
 	}
 	if err := os.MkdirAll(filepath.Join(storeDir, "teams", "team-a"), 0o755); err != nil {
 		t.Fatalf("mkdir team: %v", err)
@@ -533,7 +648,27 @@ flowchart LR
   ],
   "operatingContract": {
     "schemaVersion": 1,
-    "decisionContexts": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "g",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/test/OPERATING_MODEL.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-decisions"
+        }
+      ],
+      "notebooks": [],
+      "sharedState": []
+    },
+    "decisionContexts": {
+      "model-update": {
+        "description": "Update fixture operating model."
+      }
+    },
     "knowledgeTopics": {},
     "members": {
       "member-a": {}
@@ -546,6 +681,7 @@ flowchart LR
 	if err := WriteMember(storeDir, "team-a", "member-a", Topics{
 		Intake:            []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
 		ExternalProducers: []string{"operator"},
+		DecisionsOwned:    []string{"model-update"},
 	}); err != nil {
 		t.Fatalf("WriteMember: %v", err)
 	}

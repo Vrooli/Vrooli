@@ -10,8 +10,8 @@ import (
 
 func TestCmdOperatingModelValidatePassesFiltersAndFailsOnErrors(t *testing.T) {
 	ctx := clitest.NewContext(t)
-	ctx.Respond("GET", "/operating-graphs/validate", operatingGraphValidationResponse{
-		Graphs: []operatingGraphBlock{{}},
+	ctx.Respond("GET", "/operating-models/validate", operatingModelValidationResponse{
+		Models: []operatingModelDocument{{}},
 		Validation: operatingGraphValidation{
 			Findings: []operatingGraphFinding{{
 				Rule:       "graph_edge_unbacked",
@@ -31,7 +31,7 @@ func TestCmdOperatingModelValidatePassesFiltersAndFailsOnErrors(t *testing.T) {
 		t.Fatal("expected validation errors to return a non-nil error")
 	}
 	req := ctx.LastRequest()
-	if req.Path != "/operating-graphs/validate" || req.Query.Get("team") != "marketing-crew" || req.Query.Get("id") != "marketing-operating-model" {
+	if req.Path != "/operating-models/validate" || req.Query.Get("team") != "marketing-crew" || req.Query.Get("id") != "marketing-operating-model" {
 		t.Fatalf("unexpected request: %+v", req)
 	}
 	for _, want := range []string{
@@ -49,40 +49,48 @@ func TestCmdOperatingModelValidatePassesFiltersAndFailsOnErrors(t *testing.T) {
 
 func TestCmdOperatingModelListJSONPreservesAPIShape(t *testing.T) {
 	ctx := clitest.NewContext(t)
-	ctx.Respond("GET", "/operating-graphs", operatingGraphListResponse{
-		Graphs: []operatingGraphBlock{{
-			Metadata: operatingGraphMetadata{
-				ID:     "g",
-				Scope:  "team",
-				Team:   "team-a",
-				Mode:   "contract",
-				Status: "draft",
-				Extra:  map[string]string{"owner": "ops"},
+	ctx.Respond("GET", "/operating-models", operatingModelListResponse{
+		Models: []operatingModelDocument{{
+			ID:   "g",
+			Team: "team-a",
+			Source: operatingModelSource{
+				Path: "docs/test.md",
+				Line: 10,
 			},
-			Graph: operatingGraph{
-				ID:        "flowchart",
-				Direction: "LR",
-				Nodes: []operatingGraphNode{{
-					ID:         "M",
-					Kind:       "member",
-					Value:      "member-a",
-					Display:    "Member A",
-					RawLabel:   "Member A",
-					SourceLine: 12,
-					Implicit:   true,
-				}},
-				Edges: []operatingGraphEdge{{
-					From:       "M",
-					To:         "T",
-					Label:      "sends",
-					SourceLine: 13,
-				}},
-			},
-			Source: operatingGraphSource{
-				Path:      "docs/test.md",
-				Line:      10,
-				FenceLine: 11,
-			},
+			Graphs: []operatingGraphBlock{{
+				Metadata: operatingGraphMetadata{
+					ID:     "g",
+					Scope:  "team",
+					Team:   "team-a",
+					Mode:   "contract",
+					Status: "draft",
+					Extra:  map[string]string{"owner": "ops"},
+				},
+				Graph: operatingGraph{
+					ID:        "flowchart",
+					Direction: "LR",
+					Nodes: []operatingGraphNode{{
+						ID:         "M",
+						Kind:       "member",
+						Value:      "member-a",
+						Display:    "Member A",
+						RawLabel:   "Member A",
+						SourceLine: 12,
+						Implicit:   true,
+					}},
+					Edges: []operatingGraphEdge{{
+						From:       "M",
+						To:         "T",
+						Label:      "sends",
+						SourceLine: 13,
+					}},
+				},
+				Source: operatingGraphSource{
+					Path:      "docs/test.md",
+					Line:      10,
+					FenceLine: 11,
+				},
+			}},
 		}},
 	})
 
@@ -96,7 +104,8 @@ func TestCmdOperatingModelListJSONPreservesAPIShape(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode stdout: %v\n%s", err, stdout)
 	}
-	graph := got["graphs"].([]any)[0].(map[string]any)
+	model := got["models"].([]any)[0].(map[string]any)
+	graph := model["graphs"].([]any)[0].(map[string]any)
 	metadata := graph["metadata"].(map[string]any)
 	source := graph["source"].(map[string]any)
 	if metadata["status"] != "draft" || metadata["extra"].(map[string]any)["owner"] != "ops" || source["fence_line"].(float64) != 11 {
@@ -106,7 +115,7 @@ func TestCmdOperatingModelListJSONPreservesAPIShape(t *testing.T) {
 
 func TestCmdOperatingModelValidateJSONPreservesFindingShape(t *testing.T) {
 	ctx := clitest.NewContext(t)
-	ctx.Respond("GET", "/operating-graphs/validate", operatingGraphValidationResponse{
+	ctx.Respond("GET", "/operating-models/validate", operatingModelValidationResponse{
 		Validation: operatingGraphValidation{
 			Findings: []operatingGraphFinding{{
 				Rule:       "graph_prompt_topic_contract_missing",
@@ -143,7 +152,7 @@ func TestCmdOperatingModelValidateJSONPreservesFindingShape(t *testing.T) {
 
 func TestCmdOperatingModelDiffJSONPreservesFullDiffShape(t *testing.T) {
 	ctx := clitest.NewContext(t)
-	ctx.Respond("GET", "/operating-graphs/diff", operatingGraphDiffResponse{
+	ctx.Respond("GET", "/operating-models/diff", operatingModelDiffResponse{
 		Diff: []operatingGraphDiff{{
 			Kind:             "runtime_relationship_missing_in_graph",
 			Relationship:     "external_producer",
@@ -176,7 +185,7 @@ func TestCmdOperatingModelDiffJSONPreservesFullDiffShape(t *testing.T) {
 
 func TestCmdOperatingModelDiffRendersHumanOutput(t *testing.T) {
 	ctx := clitest.NewContext(t)
-	ctx.Respond("GET", "/operating-graphs/diff", operatingGraphDiffResponse{
+	ctx.Respond("GET", "/operating-models/diff", operatingModelDiffResponse{
 		Diff: []operatingGraphDiff{{
 			Kind:             "graph_relationship_missing_in_runtime",
 			Relationship:     "topic_read",
@@ -199,7 +208,7 @@ func TestCmdOperatingModelDiffRendersHumanOutput(t *testing.T) {
 		t.Fatalf("cmdOperatingModelDiff: %v", err)
 	}
 	req := ctx.LastRequest()
-	if req.Path != "/operating-graphs/diff" || req.Query.Get("team") != "marketing-crew" {
+	if req.Path != "/operating-models/diff" || req.Query.Get("team") != "marketing-crew" {
 		t.Fatalf("unexpected request: %+v", req)
 	}
 	for _, want := range []string{
@@ -219,7 +228,7 @@ func TestCmdOperatingModelDiffRendersHumanOutput(t *testing.T) {
 
 func TestCmdOperatingModelDiffRendersCleanNextStep(t *testing.T) {
 	ctx := clitest.NewContext(t)
-	ctx.Respond("GET", "/operating-graphs/diff", operatingGraphDiffResponse{
+	ctx.Respond("GET", "/operating-models/diff", operatingModelDiffResponse{
 		Diff: []operatingGraphDiff{},
 	})
 
@@ -243,7 +252,7 @@ func TestCmdOperatingModelDiffRendersCleanNextStep(t *testing.T) {
 
 func TestCmdOperatingModelCoveragePassesFiltersAndRendersHumanOutput(t *testing.T) {
 	ctx := clitest.NewContext(t)
-	ctx.Respond("GET", "/operating-graphs/coverage", operatingGraphCoverageResponse{
+	ctx.Respond("GET", "/operating-models/coverage", operatingModelCoverageResponse{
 		Coverage: []operatingGraphCoverage{{
 			GraphID: "marketing-operating-model",
 			Team:    "marketing-crew",
@@ -273,6 +282,12 @@ func TestCmdOperatingModelCoveragePassesFiltersAndRendersHumanOutput(t *testing.
 				TopicCatalogPurposeMismatch:       1,
 				TopicCatalogPurposeMissingRuntime: 3,
 				DecisionsTable:                    "reference_only",
+				DecisionsRows:                     2,
+				DecisionsMetadataComplete:         1,
+				DecisionsMetadataIncomplete:       1,
+				DecisionsAcceptedEffectWeak:       1,
+				FeedbackSteps:                     4,
+				FeedbackAnchoredSteps:             4,
 			},
 			Exclusions: []operatingCoverageExclusion{{
 				Kind:   "process_nodes",
@@ -289,12 +304,12 @@ func TestCmdOperatingModelCoveragePassesFiltersAndRendersHumanOutput(t *testing.
 		t.Fatalf("cmdOperatingModelCoverage: %v", err)
 	}
 	req := ctx.LastRequest()
-	if req.Path != "/operating-graphs/coverage" || req.Query.Get("team") != "marketing-crew" || req.Query.Get("id") != "marketing-operating-model" {
+	if req.Path != "/operating-models/coverage" || req.Query.Get("team") != "marketing-crew" || req.Query.Get("id") != "marketing-operating-model" {
 		t.Fatalf("unexpected request: %+v", req)
 	}
 	for _, want := range []string{
-		"Analyzed 1 operating graph(s).",
-		"Graph: marketing-operating-model team=marketing-crew source=docs/marketing/OPERATING_MODEL.md:42",
+		"Analyzed 1 operating model(s).",
+		"Model: marketing-operating-model team=marketing-crew source=docs/marketing/OPERATING_MODEL.md:42",
 		"Relationship Coverage",
 		"- topic_read: runtime declared 45, graph shown 45, matched 45, graph-only 0, runtime-only 0 (error)",
 		"  - topic_required_read: runtime declared 45, covered 45, runtime-only 0",
@@ -304,6 +319,8 @@ func TestCmdOperatingModelCoveragePassesFiltersAndRendersHumanOutput(t *testing.
 		"Docs Coverage",
 		"Topic Catalog table: reference_only",
 		"Topic Catalog purpose parity: matched 2, mismatch 1, missing-runtime 3",
+		"Decisions metadata: complete 1, incomplete 1, weak accepted effects 1",
+		"Feedback loop: anchored steps 4/4, unbacked references 0",
 		"Excluded",
 		"process_nodes: 4",
 	} {
@@ -315,7 +332,7 @@ func TestCmdOperatingModelCoveragePassesFiltersAndRendersHumanOutput(t *testing.
 
 func TestCmdOperatingModelCoverageJSONPreservesAPIShape(t *testing.T) {
 	ctx := clitest.NewContext(t)
-	ctx.Respond("GET", "/operating-graphs/coverage", operatingGraphCoverageResponse{
+	ctx.Respond("GET", "/operating-models/coverage", operatingModelCoverageResponse{
 		Coverage: []operatingGraphCoverage{{
 			GraphID: "g",
 			Team:    "team-a",

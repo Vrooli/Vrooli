@@ -55,13 +55,16 @@ func extractOperatingDecisionTable(lines []string, resolver OperatingActorResolv
 	table.HeaderLine = headerLine
 	table.Present = true
 	header := normalizeMarkdownTableHeader(rows[0])
+	table.Headers = header
 	index := markdownHeaderIndex(header)
 	for _, rowLine := range rows[2:] {
 		cells := splitMarkdownTableRow(rowLine.text)
 		row := OperatingDecisionRow{
-			RawDecision: cellByHeader(cells, index, "decision context"),
-			Purpose:     cellByHeader(cells, index, "purpose"),
-			SourceLine:  rowLine.line,
+			RawDecision:             cellByHeader(cells, index, "decision context"),
+			Purpose:                 cellByHeader(cells, index, "purpose"),
+			ExpectedEvidenceTrigger: cellByHeader(cells, index, "expected evidence / trigger"),
+			AcceptedEffect:          cellByHeader(cells, index, "accepted effect"),
+			SourceLine:              rowLine.line,
 		}
 		row.Decision = parseInlineCodeToken(row.RawDecision)
 		row.Owners = parseOperatingActorReferences(resolver, cellByHeader(cells, index, "owner"))

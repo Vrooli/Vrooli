@@ -203,9 +203,9 @@ Prose before the table is allowed.
 
 ## Decisions
 
-| Decision context | Owner | Purpose |
-|---|---|---|
-| `+"`content-publish-proposal`"+` | advertiser or publisher | Publish gate. |
+| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
+|---|---|---|---|---|
+| `+"`content-publish-proposal`"+` | advertiser or publisher | Publish gate. | Draft and release evidence. | Publisher updates `+"`topic:publish-log/*`"+`. |
 `, "\n"), OperatingGraphMetadata{Extra: map[string]string{
 		"actor_alias.advertisers": "group:advertisers",
 		"actor_alias.advertiser":  "group:advertisers",
@@ -227,7 +227,7 @@ Prose before the table is allowed.
 	if !docs.Decisions.Present || len(docs.Decisions.Rows) != 1 {
 		t.Fatalf("bad decisions parse: %+v", docs.Decisions)
 	}
-	if row := docs.Decisions.Rows[0]; row.Decision != "content-publish-proposal" || len(row.Owners) != 2 {
+	if row := docs.Decisions.Rows[0]; row.Decision != "content-publish-proposal" || len(row.Owners) != 2 || row.ExpectedEvidenceTrigger == "" || row.AcceptedEffect == "" {
 		t.Fatalf("bad decision row: %+v", row)
 	}
 }
@@ -361,7 +361,7 @@ func TestValidateOperatingGraphsDocsCatalogActorParity(t *testing.T) {
 
 	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
 	assertOperatingFinding(t, result, "graph_topic_catalog_reader_drift")
-	assertOperatingFinding(t, result, "graph_topic_catalog_actor_unsupported")
+	assertOperatingFindingAbsent(t, result, "graph_topic_catalog_actor_unsupported")
 	assertOperatingFindingAbsent(t, result, "graph_topic_catalog_writer_drift")
 }
 
@@ -1190,7 +1190,7 @@ func TestValidateOperatingGraphsTreatsLiveSystemTopicWriterAsStagedBoundary(t *t
 
 	result := ValidateOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
 	assertOperatingFindingAbsent(t, result, "graph_topic_catalog_writer_drift")
-	assertOperatingFinding(t, result, "graph_topic_catalog_actor_unsupported")
+	assertOperatingFindingAbsent(t, result, "graph_topic_catalog_actor_unsupported")
 }
 
 func TestOperatingRelationshipSetDedupesAndQueries(t *testing.T) {
@@ -1524,6 +1524,182 @@ flowchart LR
 	}
 }
 
+func TestExtractOperatingModelDocumentsParsesFullSections(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "OPERATING_MODEL.md")
+	if err := os.WriteFile(path, []byte(`# Team Operating Model
+
+## Mission
+
+Keep the contract understandable.
+
+## Scope
+
+One team operating model.
+
+## Operating Loops
+
+1. Read the input.
+2. Drain the output.
+
+## Operating Graph
+
+<!-- prompt-manager-graph:
+id: g
+scope: team
+team: team-a
+mode: contract
+status: draft
+-->
+`+"```mermaid"+`
+flowchart LR
+  A["member:a"]
+  T["topic:first/*"]
+  T --> A
+`+"```"+`
+
+## Topic Catalog
+
+| Topic family | Status | Owner / primary writer | Primary readers | Purpose |
+|---|---|---|---|---|
+| `+"`topic:first/*`"+` | live | member:a | member:a | First. |
+
+## Decisions
+
+| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
+|---|---|---|---|---|
+
+## External Inputs / Triggers
+
+| Producer / trigger | Entry surface | Drainer | Routing rule |
+|---|---|---|---|
+
+## Outputs / Downstream Consumers
+
+| Output | Surface | Consumer | Purpose |
+|---|---|---|---|
+
+## Feedback / Capability Improvement Loop
+
+1. Review `+"`topic:first/*`"+`.
+
+## Current Implementation Gaps
+
+None.
+
+## Adoption / Validation
+
+- `+"`prompt-manager graph operating-model validate --team team-a --id g`"+`
+`), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	models, err := ExtractOperatingModelDocuments(path, "docs/team/OPERATING_MODEL.md")
+	if err != nil {
+		t.Fatalf("ExtractOperatingModelDocuments: %v", err)
+	}
+	if len(models) != 1 {
+		t.Fatalf("models=%d, want 1", len(models))
+	}
+	model := models[0]
+	if model.ID != "g" || model.Team != "team-a" || model.Status != "draft" {
+		t.Fatalf("unexpected model identity: %+v", model)
+	}
+	if !model.Sections.Mission.Present || !model.Sections.Graph.Present || model.Sections.Graph.Heading != "Operating Graph" {
+		t.Fatalf("expected mission and graph sections: %+v", model.Sections)
+	}
+	if !model.Sections.TopicCatalog.Present || len(model.Sections.TopicCatalog.Rows) != 1 || model.Sections.TopicCatalog.Rows[0].Topic != "first/*" {
+		t.Fatalf("unexpected topic catalog: %+v", model.Sections.TopicCatalog)
+	}
+	if !model.Sections.ExternalInputs.Present || !model.Sections.Outputs.Present || !model.Sections.FeedbackLoop.Present || !model.Sections.Gaps.Present || !model.Sections.Adoption.Present {
+		t.Fatalf("expected full document sections: %+v", model.Sections)
+	}
+	if !model.Sections.ExternalInputs.Table || model.Sections.ExternalInputs.HeaderLine == 0 {
+		t.Fatalf("expected external inputs table: %+v", model.Sections.ExternalInputs)
+	}
+	if !model.Sections.Outputs.Table || model.Sections.Outputs.HeaderLine == 0 {
+		t.Fatalf("expected outputs table: %+v", model.Sections.Outputs)
+	}
+	if len(model.Sections.Adoption.Commands) != 1 {
+		t.Fatalf("expected adoption command: %+v", model.Sections.Adoption)
+	}
+	if len(model.Sections.FeedbackLoop.Steps) != 1 || strings.Join(model.Sections.FeedbackLoop.Steps[0].References, ",") != "topic:first/*" {
+		t.Fatalf("expected feedback step reference: %+v", model.Sections.FeedbackLoop)
+	}
+}
+
+func TestValidateOperatingModelsRejectsMissingRequiredSection(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.ExternalInputs = OperatingExternalInputsTable{}
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_required_section_missing")
+	assertOperatingFindingDetail(t, result, "operating_model_required_section_missing", "External Inputs / Triggers")
+}
+
+func TestValidateOperatingModelsRejectsDuplicateRequiredSections(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.Mission.Duplicates = []int{3}
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_duplicate_section")
+	assertOperatingFindingDetail(t, result, "operating_model_duplicate_section", "Mission")
+}
+
+func TestValidateOperatingModelsRejectsNonCanonicalSectionTables(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.Decisions.Headers = []string{"decision context", "owner", "purpose"}
+	models[0].Sections.ExternalInputs.Headers = []string{"input", "enters through", "first handler", "notes"}
+	models[0].Sections.Outputs.Headers = []string{"output", "downstream consumer", "path"}
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_decisions_header_drift")
+	assertOperatingFinding(t, result, "operating_model_external_inputs_header_drift")
+	assertOperatingFinding(t, result, "operating_model_outputs_header_drift")
+}
+
+func TestValidateOperatingModelsRejectsIncompleteDecisionMetadata(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.Decisions.Rows[0].ExpectedEvidenceTrigger = ""
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_decisions_row_incomplete")
+	assertOperatingFindingDetail(t, result, "operating_model_decisions_row_incomplete", "expected evidence / trigger")
+}
+
+func TestValidateOperatingModelsRejectsWeakDecisionAcceptedEffect(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.Decisions.Rows[0].AcceptedEffect = "Operator approves it."
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_decisions_effect_weak")
+}
+
+func TestValidateOperatingModelsRejectsUnanchoredFeedbackStep(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.FeedbackLoop.Steps[0].References = nil
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_feedback_step_unanchored")
+}
+
+func TestValidateOperatingModelsRejectsUnbackedFeedbackReference(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.FeedbackLoop.Steps[0].References = []string{"ghost-surface/*"}
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_feedback_reference_unbacked")
+}
+
+func TestValidateOperatingModelsRejectsMissingAdoptionCommands(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.Adoption.Commands = models[0].Sections.Adoption.Commands[:1]
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_adoption_command_missing")
+	assertOperatingFindingDetail(t, result, "operating_model_adoption_command_missing", "diff")
+}
+
 func TestExtractOperatingGraphBlocksRejectsUnsupportedAllowMetadata(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "OPERATING_MODEL.md")
@@ -1591,7 +1767,7 @@ func TestMarketingOperatingModelCentralizesNotebookDrainage(t *testing.T) {
 	}
 }
 
-func TestBundledMarketingOperatingModelIsReconciled(t *testing.T) {
+func TestValidateOperatingModelsKeepsMarketingScenarioQAMetaGreen(t *testing.T) {
 	repoRoot, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
 	if err != nil {
 		t.Fatalf("repo root: %v", err)
@@ -1604,31 +1780,70 @@ func TestBundledMarketingOperatingModelIsReconciled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadOperatingGraphBlocks: %v", err)
 	}
+	models, err := LoadOperatingModelDocuments(repoRoot)
+	if err != nil {
+		t.Fatalf("LoadOperatingModelDocuments: %v", err)
+	}
 	runtime, err := BuildOperatingGraphRuntime(repoRoot, storeDir)
 	if err != nil {
 		t.Fatalf("BuildOperatingGraphRuntime: %v", err)
 	}
 
-	result := ValidateOperatingGraphs(blocks, runtime, "marketing-crew", "marketing-operating-model")
-	allowedStagedWarningRules := map[string]bool{
-		"graph_topic_catalog_reader_drift":      true,
-		"graph_topic_catalog_actor_unsupported": true,
+	cases := []struct {
+		team string
+		id   string
+	}{
+		{team: "marketing-crew", id: "marketing-operating-model"},
+		{team: "scenario-qa", id: "scenario-qa-operating-model"},
+		{team: "meta-optimization", id: "meta-optimization-operating-model"},
 	}
-	for _, finding := range result.Findings {
-		if finding.Severity == string(SeverityError) {
-			t.Fatalf("unexpected marketing validation error after strict catalog rules: %+v", result.Findings)
-		}
-		if !allowedStagedWarningRules[finding.Rule] {
-			t.Fatalf("unexpected marketing validation warning after strict catalog rules: %+v", result.Findings)
-		}
-	}
+	for _, tc := range cases {
+		t.Run(tc.team, func(t *testing.T) {
+			result := ValidateOperatingModels(models, runtime, tc.team, tc.id)
+			if result.Errors != 0 || result.Warnings != 0 {
+				t.Fatalf("unexpected validation findings for %s/%s: %+v", tc.team, tc.id, result.Findings)
+			}
 
-	diffs := DiffOperatingGraphs(blocks, runtime, "marketing-crew", "marketing-operating-model")
-	if got := countOperatingDiffs(diffs, "graph_relationship_missing_in_runtime"); got != 0 {
-		t.Fatalf("graph-to-runtime diff count=%d, want 0: %+v", got, diffs)
-	}
-	if got := countOperatingDiffs(diffs, "runtime_relationship_missing_in_graph"); got != 0 {
-		t.Fatalf("runtime-to-graph diff count=%d, want 0: %+v", got, diffs)
+			diffs := DiffOperatingGraphs(blocks, runtime, tc.team, tc.id)
+			if len(diffs) != 0 {
+				t.Fatalf("unexpected diff for %s/%s: %+v", tc.team, tc.id, diffs)
+			}
+
+			coverage := BuildOperatingModelCoverage(models, runtime, tc.team, tc.id)
+			if len(coverage) != 1 {
+				t.Fatalf("coverage length=%d, want 1: %+v", len(coverage), coverage)
+			}
+			docCoverage := coverage[0].Docs
+			if docCoverage.TopicCatalogRows != docCoverage.TopicCatalogMatched || docCoverage.TopicCatalogGraphOnly != 0 || docCoverage.TopicCatalogDocsOnly != 0 {
+				t.Fatalf("unexpected topic catalog coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
+			}
+			if docCoverage.DecisionsRows != docCoverage.DecisionsMatched || docCoverage.DecisionsGraphOnly != 0 || docCoverage.DecisionsDocsOnly != 0 {
+				t.Fatalf("unexpected decision coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
+			}
+			if docCoverage.DecisionsMetadataComplete != docCoverage.DecisionsRows || docCoverage.DecisionsMetadataIncomplete != 0 || docCoverage.DecisionsAcceptedEffectWeak != 0 {
+				t.Fatalf("unexpected decision metadata coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
+			}
+			if docCoverage.RequiredSectionsPresent != docCoverage.RequiredSectionsTotal || docCoverage.RequiredSectionsTotal == 0 {
+				t.Fatalf("unexpected required-section coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
+			}
+			if docCoverage.ExternalInputsTable != OperatingCoverageStatusEnforced || docCoverage.ExternalInputsRows == 0 {
+				t.Fatalf("unexpected external-input coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
+			}
+			if docCoverage.OutputsTable != OperatingCoverageStatusEnforced || docCoverage.OutputsRows == 0 {
+				t.Fatalf("unexpected outputs coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
+			}
+			if docCoverage.FeedbackSteps == 0 || docCoverage.FeedbackAnchoredSteps != docCoverage.FeedbackSteps || docCoverage.FeedbackUnbackedReferences != 0 {
+				t.Fatalf("unexpected feedback coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
+			}
+			if docCoverage.AdoptionValidationCommands != 3 || docCoverage.PlanOfRecordRegistration != OperatingCoverageStatusEnforced || docCoverage.ReadmeDiscoverability != OperatingCoverageStatusEnforced {
+				t.Fatalf("unexpected adoption/discoverability coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
+			}
+			for _, rel := range coverage[0].Relationships {
+				if rel.GraphOnly != 0 || rel.RuntimeOnly != 0 {
+					t.Fatalf("unexpected relationship coverage drift for %s/%s relationship %s: %+v", tc.team, tc.id, rel.Relationship, rel)
+				}
+			}
+		})
 	}
 }
 
@@ -1718,7 +1933,7 @@ func operatingSubtypeCoverageByRelationship(rels []OperatingRelationshipSubtypeC
 	return OperatingRelationshipSubtypeCoverage{}
 }
 
-func TestExtractOperatingGraphBlocksScopesDocsTablesPerGraph(t *testing.T) {
+func TestExtractOperatingModelDocumentsRejectsDuplicateContractGraphs(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "OPERATING_MODEL.md")
 	if err := os.WriteFile(path, []byte(`<!-- prompt-manager-graph:
@@ -1741,8 +1956,8 @@ flowchart LR
 
 ## Decisions
 
-| Decision context | Owner | Purpose |
-|---|---|---|
+| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
+|---|---|---|---|---|
 
 <!-- prompt-manager-graph:
 id: g2
@@ -1764,24 +1979,15 @@ flowchart LR
 
 ## Decisions
 
-| Decision context | Owner | Purpose |
-|---|---|---|
+| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
+|---|---|---|---|---|
 `), 0o644); err != nil {
 		t.Fatalf("write fixture: %v", err)
 	}
 
-	blocks, err := ExtractOperatingGraphBlocks(path, "docs/x.md")
-	if err != nil {
-		t.Fatalf("ExtractOperatingGraphBlocks: %v", err)
-	}
-	if len(blocks) != 2 {
-		t.Fatalf("blocks=%d, want 2", len(blocks))
-	}
-	if blocks[0].Docs.TopicCatalog.Rows[0].Topic != "first/*" {
-		t.Fatalf("g1 docs leaked: %+v", blocks[0].Docs.TopicCatalog.Rows)
-	}
-	if blocks[1].Docs.TopicCatalog.Rows[0].Topic != "second/*" {
-		t.Fatalf("g2 docs leaked: %+v", blocks[1].Docs.TopicCatalog.Rows)
+	_, err := ExtractOperatingModelDocuments(path, "docs/x/OPERATING_MODEL.md")
+	if err == nil || !strings.Contains(err.Error(), "one contract graph") {
+		t.Fatalf("expected duplicate contract graph rejection, got %v", err)
 	}
 }
 
@@ -1791,6 +1997,85 @@ func operatingDiffBlock(t *testing.T, lines []string) OperatingGraphBlock {
 		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "contract"},
 		Graph:    mustParseGraph(t, lines),
 		Source:   OperatingGraphSource{Path: "docs/test/OPERATING_MODEL.md", Line: 1, FenceLine: 2},
+	}
+}
+
+func operatingModelDocumentFixture(t *testing.T) OperatingModelDocument {
+	t.Helper()
+	block := operatingDiffBlock(t, []string{"flowchart LR"})
+	block.Docs = OperatingGraphDocs{
+		TopicCatalog: OperatingTopicCatalogTable{Present: true, HeaderLine: 10},
+		Decisions: OperatingDecisionTable{
+			Present:    true,
+			HeaderLine: 14,
+			Headers:    []string{"decision context", "owner", "purpose", "expected evidence / trigger", "accepted effect"},
+			Rows: []OperatingDecisionRow{{
+				Decision:                "model-update",
+				Owners:                  []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "a", Raw: "member:a"}},
+				Purpose:                 "Update the model contract.",
+				ExpectedEvidenceTrigger: "Evidence from `topic:first/*`.",
+				AcceptedEffect:          "Operator-approved operating-model document update.",
+				SourceLine:              16,
+				RawDecision:             "`model-update`",
+			}},
+		},
+	}
+	return OperatingModelDocument{
+		ID:     "g",
+		Team:   "team-a",
+		Source: OperatingModelSource{Path: "docs/test/OPERATING_MODEL.md", Line: 1},
+		Sections: OperatingModelSections{
+			Mission:        OperatingMarkdownSection{Heading: "Mission", Present: true, Line: 1},
+			Scope:          OperatingMarkdownSection{Heading: "Scope", Present: true, Line: 2},
+			OperatingLoops: OperatingMarkdownSection{Heading: "Operating Loops", Present: true, Line: 3},
+			Graph:          OperatingGraphSection{OperatingGraphBlock: block, Heading: "Operating Graph", Present: true},
+			TopicCatalog:   block.Docs.TopicCatalog,
+			Decisions:      block.Docs.Decisions,
+			ExternalInputs: OperatingExternalInputsTable{
+				OperatingMarkdownSection: OperatingMarkdownSection{Heading: "External Inputs / Triggers", Present: true, Line: 16},
+				HeaderLine:               17,
+				Headers:                  []string{"producer / trigger", "entry surface", "drainer", "routing rule"},
+				Table:                    true,
+				Rows: []OperatingExternalInputRow{{
+					ProducerTrigger: "Operator",
+					EntrySurface:    "direct member context",
+					Drainer:         "member:a",
+					RoutingRule:     "Route directly.",
+					SourceLine:      19,
+				}},
+			},
+			Outputs: OperatingOutputsTable{
+				OperatingMarkdownSection: OperatingMarkdownSection{Heading: "Outputs / Downstream Consumers", Present: true, Line: 20},
+				HeaderLine:               21,
+				Headers:                  []string{"output", "surface", "consumer", "purpose"},
+				Table:                    true,
+				Rows: []OperatingOutputRow{{
+					Output:     "Output",
+					Surface:    "topic:first/*",
+					Consumer:   "member:a",
+					Purpose:    "Read it.",
+					SourceLine: 23,
+				}},
+			},
+			FeedbackLoop: OperatingFeedbackSection{
+				OperatingMarkdownSection: OperatingMarkdownSection{Heading: "Feedback / Capability Improvement Loop", Present: true, Line: 18},
+				Steps: []OperatingFeedbackStep{{
+					Text:       "Review `topic:first/*`.",
+					References: []string{"topic:first/*"},
+					SourceLine: 19,
+				}},
+			},
+			Gaps: OperatingMarkdownSection{Heading: "Current Implementation Gaps", Present: true, Line: 19},
+			Adoption: OperatingAdoptionSection{
+				OperatingMarkdownSection: OperatingMarkdownSection{Heading: "Adoption / Validation", Present: true, Line: 24},
+				Commands: []OperatingAdoptionCommand{
+					{Command: "prompt-manager graph operating-model validate --team team-a --id g", SourceLine: 25},
+					{Command: "prompt-manager graph operating-model diff --team team-a --id g", SourceLine: 26},
+					{Command: "prompt-manager graph operating-model coverage --team team-a --id g", SourceLine: 27},
+				},
+			},
+		},
+		Graphs: []OperatingGraphBlock{block},
 	}
 }
 

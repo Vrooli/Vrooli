@@ -30,8 +30,7 @@
     }
   ],
   "decisions_owned": [
-    "toolchain-violation",
-    "capability-gap"
+    "toolchain-violation"
   ],
   "raises_capability_gaps": true,
   "external_producers": [

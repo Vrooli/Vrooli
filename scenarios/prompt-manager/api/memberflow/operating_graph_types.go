@@ -156,16 +156,19 @@ type OperatingTopicCatalogRow struct {
 
 type OperatingDecisionTable struct {
 	HeaderLine int                    `json:"header_line,omitempty"`
+	Headers    []string               `json:"headers,omitempty"`
 	Rows       []OperatingDecisionRow `json:"rows,omitempty"`
 	Present    bool                   `json:"present,omitempty"`
 }
 
 type OperatingDecisionRow struct {
-	Decision    string                    `json:"decision"`
-	Owners      []OperatingActorReference `json:"owners,omitempty"`
-	Purpose     string                    `json:"purpose"`
-	SourceLine  int                       `json:"source_line"`
-	RawDecision string                    `json:"raw_decision"`
+	Decision                string                    `json:"decision"`
+	Owners                  []OperatingActorReference `json:"owners,omitempty"`
+	Purpose                 string                    `json:"purpose"`
+	ExpectedEvidenceTrigger string                    `json:"expected_evidence_trigger"`
+	AcceptedEffect          string                    `json:"accepted_effect"`
+	SourceLine              int                       `json:"source_line"`
+	RawDecision             string                    `json:"raw_decision"`
 }
 
 type OperatingActorReference struct {
@@ -194,20 +197,6 @@ type OperatingGraphValidationResult struct {
 	Findings []OperatingGraphFinding `json:"findings"`
 	Errors   int                     `json:"errors"`
 	Warnings int                     `json:"warnings"`
-}
-
-type OperatingGraphListResponse struct {
-	Graphs []OperatingGraphBlock `json:"graphs"`
-}
-
-type OperatingGraphValidationResponse struct {
-	Graphs     []OperatingGraphBlock          `json:"graphs"`
-	Validation OperatingGraphValidationResult `json:"validation"`
-}
-
-type OperatingGraphDiffResponse struct {
-	Graphs []OperatingGraphBlock        `json:"graphs"`
-	Diff   []OperatingGraphContractDiff `json:"diff"`
 }
 
 type OperatingGraphContractDiff struct {

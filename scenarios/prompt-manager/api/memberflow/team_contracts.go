@@ -45,6 +45,9 @@ type LoadedTeamContract struct {
 	// Member topics.json files remain the source of per-member read/write
 	// relationships; this catalog supplies the common family description.
 	TopicCatalog []TopicCatalogEntry
+	// PlanOfRecordDocuments is the team's plan-of-record registry projected
+	// from team.json::operatingContract.documents.planOfRecord.
+	PlanOfRecordDocuments []teamcontract.PlanOfRecordDocument
 	// AttributionValidFrom is the ISO-8601 (YYYY-MM-DD) cutoff for
 	// Pillar 3 attribution checks. Empty when the team has not adopted
 	// the runtime contract; ruleActualWriterUndeclared skips such teams
@@ -181,9 +184,17 @@ func parseTeamFile(path string) (*LoadedTeamContract, error) {
 		Contract:                  tf.OperatingContract,
 		SourcePath:                path,
 		TopicCatalog:              tf.TopicCatalog,
+		PlanOfRecordDocuments:     operatingContractPlanOfRecord(tf.OperatingContract),
 		AttributionValidFrom:      strings.TrimSpace(tf.AttributionValidFrom),
 		FlagExternalWritesPerWeek: flag,
 	}, nil
+}
+
+func operatingContractPlanOfRecord(contract *teamcontract.OperatingContract) []teamcontract.PlanOfRecordDocument {
+	if contract == nil {
+		return nil
+	}
+	return append([]teamcontract.PlanOfRecordDocument(nil), contract.Documents.PlanOfRecord...)
 }
 
 // ValidateTopicCatalog checks topic-family metadata shape without consulting
@@ -301,4 +312,31 @@ func (r TeamContractRegistry) TopicCatalog(teamID string) []TopicCatalogEntry {
 	}
 	out := append([]TopicCatalogEntry(nil), lt.TopicCatalog...)
 	return out
+}
+
+func (r TeamContractRegistry) HasPlanOfRecordPath(teamID, path string) bool {
+	lt := r[strings.TrimSpace(teamID)]
+	if lt == nil {
+		return false
+	}
+	path = filepath.ToSlash(strings.TrimSpace(path))
+	for _, doc := range lt.PlanOfRecordDocuments {
+		if documentRefPathMatches(doc.Hub, path) {
+			return true
+		}
+		for _, ref := range doc.Paths {
+			ref := ref
+			if documentRefPathMatches(&ref, path) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func documentRefPathMatches(ref *teamcontract.PathRef, path string) bool {
+	if ref == nil {
+		return false
+	}
+	return ref.Base == "repo-root" && filepath.ToSlash(strings.TrimSpace(ref.Path)) == path
 }

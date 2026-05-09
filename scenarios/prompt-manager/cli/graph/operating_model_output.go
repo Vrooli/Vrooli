@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-func printOperatingModelValidation(resp operatingGraphValidationResponse) {
+func printOperatingModelValidation(resp operatingModelValidationResponse) {
 	fmt.Println("Status")
-	fmt.Printf("Validated %d operating graph(s): %d error(s), %d warning(s).\n\n", len(resp.Graphs), resp.Validation.Errors, resp.Validation.Warnings)
+	fmt.Printf("Validated %d operating model(s): %d error(s), %d warning(s).\n\n", len(resp.Models), resp.Validation.Errors, resp.Validation.Warnings)
 	fmt.Println("Triage")
 	if len(resp.Validation.Findings) == 0 {
 		fmt.Println("- clean")
@@ -34,7 +34,7 @@ func printOperatingModelValidation(resp operatingGraphValidationResponse) {
 	}
 	fmt.Println("\nNext Steps")
 	if resp.Validation.Errors > 0 {
-		fmt.Println("Fix error findings before treating the graph as an enforceable contract.")
+		fmt.Println("Fix error findings before treating the operating model as an enforceable contract.")
 	} else if resp.Validation.Warnings > 0 {
 		fmt.Println("Review warning findings and decide whether they are accepted target-state gaps.")
 	} else {
@@ -74,11 +74,11 @@ func printOperatingModelDiffGroup(title string, diffs []operatingGraphDiff, kind
 	}
 }
 
-func printOperatingModelCoverage(resp operatingGraphCoverageResponse) {
+func printOperatingModelCoverage(resp operatingModelCoverageResponse) {
 	fmt.Println("Status")
-	fmt.Printf("Analyzed %d operating graph(s).\n\n", len(resp.Coverage))
+	fmt.Printf("Analyzed %d operating model(s).\n\n", len(resp.Coverage))
 	for _, cov := range resp.Coverage {
-		fmt.Printf("Graph: %s", cov.GraphID)
+		fmt.Printf("Model: %s", cov.GraphID)
 		if cov.Team != "" {
 			fmt.Printf(" team=%s", cov.Team)
 		}
@@ -115,6 +115,9 @@ func printOperatingModelCoverage(resp operatingGraphCoverageResponse) {
 
 		fmt.Println("\nDocs Coverage")
 		fmt.Printf("- Mermaid graph: %s\n", cov.Docs.MermaidGraph)
+		if cov.Docs.RequiredSectionsTotal > 0 {
+			fmt.Printf("- required sections: %d/%d present\n", cov.Docs.RequiredSectionsPresent, cov.Docs.RequiredSectionsTotal)
+		}
 		fmt.Printf("- Topic Catalog table: %s (rows %d, matched %d, graph-only %d, docs-only %d, invalid %d)\n",
 			cov.Docs.TopicCatalogTable,
 			cov.Docs.TopicCatalogRows,
@@ -136,6 +139,35 @@ func printOperatingModelCoverage(resp operatingGraphCoverageResponse) {
 			cov.Docs.DecisionsDocsOnly,
 			cov.Docs.DecisionsInvalid,
 		)
+		if cov.Docs.DecisionsRows > 0 {
+			fmt.Printf("- Decisions metadata: complete %d, incomplete %d, weak accepted effects %d\n",
+				cov.Docs.DecisionsMetadataComplete,
+				cov.Docs.DecisionsMetadataIncomplete,
+				cov.Docs.DecisionsAcceptedEffectWeak,
+			)
+		}
+		if cov.Docs.ExternalInputsTable != "" {
+			fmt.Printf("- External Inputs / Triggers table: %s (rows %d)\n", cov.Docs.ExternalInputsTable, cov.Docs.ExternalInputsRows)
+		}
+		if cov.Docs.OutputsTable != "" {
+			fmt.Printf("- Outputs / Downstream Consumers table: %s (rows %d)\n", cov.Docs.OutputsTable, cov.Docs.OutputsRows)
+		}
+		if cov.Docs.FeedbackSteps > 0 {
+			fmt.Printf("- Feedback loop: anchored steps %d/%d, unbacked references %d\n",
+				cov.Docs.FeedbackAnchoredSteps,
+				cov.Docs.FeedbackSteps,
+				cov.Docs.FeedbackUnbackedReferences,
+			)
+		}
+		if cov.Docs.AdoptionValidationCommands > 0 {
+			fmt.Printf("- Adoption / Validation commands: %d/3 present\n", cov.Docs.AdoptionValidationCommands)
+		}
+		if cov.Docs.PlanOfRecordRegistration != "" {
+			fmt.Printf("- plan-of-record registration: %s\n", cov.Docs.PlanOfRecordRegistration)
+		}
+		if cov.Docs.ReadmeDiscoverability != "" {
+			fmt.Printf("- README discoverability: %s\n", cov.Docs.ReadmeDiscoverability)
+		}
 
 		fmt.Println("\nExcluded")
 		if len(cov.Exclusions) == 0 {
@@ -152,6 +184,13 @@ func printOperatingModelCoverage(resp operatingGraphCoverageResponse) {
 		fmt.Println()
 	}
 	if len(resp.Coverage) == 0 {
-		fmt.Println("No checkable operating graph matched the filters.")
+		fmt.Println("No checkable operating model matched the filters.")
 	}
+}
+
+func operatingModelPrimaryGraph(model operatingModelDocument) operatingGraphBlock {
+	if len(model.Graphs) > 0 {
+		return model.Graphs[0]
+	}
+	return model.Sections.Graph.operatingGraphBlock
 }

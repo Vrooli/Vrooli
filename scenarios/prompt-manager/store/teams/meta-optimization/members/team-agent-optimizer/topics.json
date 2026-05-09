@@ -60,8 +60,7 @@
     "agent-improvement",
     "agent-deprecation",
     "team-structure-change",
-    "team-deprecation",
-    "capability-gap"
+    "team-deprecation"
   ],
   "raises_capability_gaps": true,
   "external_producers": [

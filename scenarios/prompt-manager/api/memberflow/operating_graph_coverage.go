@@ -2,11 +2,6 @@ package memberflow
 
 import "sort"
 
-type OperatingGraphCoverageResponse struct {
-	Graphs   []OperatingGraphBlock    `json:"graphs"`
-	Coverage []OperatingGraphCoverage `json:"coverage"`
-}
-
 type OperatingGraphCoverage struct {
 	GraphID       string                          `json:"graph_id"`
 	Team          string                          `json:"team"`
@@ -47,6 +42,8 @@ type OperatingPromptCoverage struct {
 
 type OperatingDocsCoverage struct {
 	MermaidGraph                      OperatingCoverageStatus `json:"mermaid_graph"`
+	RequiredSectionsPresent           int                     `json:"required_sections_present"`
+	RequiredSectionsTotal             int                     `json:"required_sections_total"`
 	TopicCatalogTable                 OperatingCoverageStatus `json:"topic_catalog_table"`
 	TopicCatalogRows                  int                     `json:"topic_catalog_rows"`
 	TopicCatalogMatched               int                     `json:"topic_catalog_matched"`
@@ -62,6 +59,19 @@ type OperatingDocsCoverage struct {
 	DecisionsGraphOnly                int                     `json:"decisions_graph_only"`
 	DecisionsDocsOnly                 int                     `json:"decisions_docs_only"`
 	DecisionsInvalid                  int                     `json:"decisions_invalid"`
+	DecisionsMetadataComplete         int                     `json:"decisions_metadata_complete"`
+	DecisionsMetadataIncomplete       int                     `json:"decisions_metadata_incomplete"`
+	DecisionsAcceptedEffectWeak       int                     `json:"decisions_accepted_effect_weak"`
+	ExternalInputsTable               OperatingCoverageStatus `json:"external_inputs_table"`
+	ExternalInputsRows                int                     `json:"external_inputs_rows"`
+	OutputsTable                      OperatingCoverageStatus `json:"outputs_table"`
+	OutputsRows                       int                     `json:"outputs_rows"`
+	FeedbackSteps                     int                     `json:"feedback_steps"`
+	FeedbackAnchoredSteps             int                     `json:"feedback_anchored_steps"`
+	FeedbackUnbackedReferences        int                     `json:"feedback_unbacked_references"`
+	AdoptionValidationCommands        int                     `json:"adoption_validation_commands"`
+	PlanOfRecordRegistration          OperatingCoverageStatus `json:"plan_of_record_registration"`
+	ReadmeDiscoverability             OperatingCoverageStatus `json:"readme_discoverability"`
 }
 
 type OperatingCoverageExclusion struct {
@@ -86,6 +96,23 @@ func BuildOperatingGraphCoverage(blocks []OperatingGraphBlock, runtime Operating
 			Docs:          buildOperatingDocsCoverage(ctx),
 			Exclusions:    buildOperatingCoverageExclusions(block),
 		})
+	}
+	return coverage
+}
+
+func BuildOperatingModelCoverage(models []OperatingModelDocument, runtime OperatingGraphRuntime, teamFilter, idFilter string) []OperatingGraphCoverage {
+	filtered := filterOperatingModelDocuments(models, teamFilter, idFilter)
+	coverage := BuildOperatingGraphCoverage(operatingGraphBlocksFromModels(filtered), runtime, "", "")
+	modelsByKey := map[string]OperatingModelDocument{}
+	for _, model := range filtered {
+		modelsByKey[operatingModelCoverageKey(model.Team, model.ID)] = model
+	}
+	for i := range coverage {
+		model, ok := modelsByKey[operatingModelCoverageKey(coverage[i].Team, coverage[i].GraphID)]
+		if !ok {
+			continue
+		}
+		addOperatingModelDocsCoverage(&coverage[i].Docs, model, runtime)
 	}
 	return coverage
 }
@@ -261,7 +288,70 @@ func buildOperatingDocsCoverage(ctx OperatingGraphContractContext) OperatingDocs
 	docs.TopicCatalogRows, docs.TopicCatalogMatched, docs.TopicCatalogGraphOnly, docs.TopicCatalogDocsOnly, docs.TopicCatalogInvalid = topicCatalogCoverageCounts(block)
 	docs.TopicCatalogPurposeMatched, docs.TopicCatalogPurposeMismatch, docs.TopicCatalogPurposeMissingRuntime = topicCatalogPurposeCoverageCounts(block, ctx.Runtime.Contracts[block.Metadata.Team])
 	docs.DecisionsRows, docs.DecisionsMatched, docs.DecisionsGraphOnly, docs.DecisionsDocsOnly, docs.DecisionsInvalid = decisionTableCoverageCounts(block)
+	docs.DecisionsMetadataComplete, docs.DecisionsMetadataIncomplete, docs.DecisionsAcceptedEffectWeak = decisionMetadataCoverageCounts(block)
 	return docs
+}
+
+func addOperatingModelDocsCoverage(docs *OperatingDocsCoverage, model OperatingModelDocument, runtime OperatingGraphRuntime) {
+	required := requiredOperatingModelSections(model)
+	docs.RequiredSectionsTotal = len(required)
+	for _, section := range required {
+		if section.section.Present {
+			docs.RequiredSectionsPresent++
+		}
+	}
+	docs.ExternalInputsTable = docsTableStatus(model.Sections.ExternalInputs.Table)
+	docs.ExternalInputsRows = len(model.Sections.ExternalInputs.Rows)
+	docs.OutputsTable = docsTableStatus(model.Sections.Outputs.Table)
+	docs.OutputsRows = len(model.Sections.Outputs.Rows)
+	docs.FeedbackSteps, docs.FeedbackAnchoredSteps, docs.FeedbackUnbackedReferences = feedbackLoopCoverageCounts(model)
+	docs.AdoptionValidationCommands = countOperatingModelValidationCommands(model)
+	if runtime.Contracts.HasPlanOfRecordPath(model.Team, model.Source.Path) {
+		docs.PlanOfRecordRegistration = OperatingCoverageStatusEnforced
+	} else {
+		docs.PlanOfRecordRegistration = OperatingCoverageStatusMissing
+	}
+	readmePath := operatingModelTeamReadmePath(model.Source.Path)
+	if readmePath == "" {
+		docs.ReadmeDiscoverability = OperatingCoverageStatusUnavailable
+	} else if operatingModelReadmeLinksModel(runtime.RepoRoot, readmePath, model.Source.Path) {
+		docs.ReadmeDiscoverability = OperatingCoverageStatusEnforced
+	} else {
+		docs.ReadmeDiscoverability = OperatingCoverageStatusMissing
+	}
+}
+
+func operatingModelCoverageKey(team, id string) string {
+	return team + "\x00" + id
+}
+
+func countOperatingModelValidationCommands(model OperatingModelDocument) int {
+	seen := map[string]bool{}
+	for _, command := range model.Sections.Adoption.Commands {
+		verb, ok := operatingModelValidationCommandVerb(command.Command, model.Team, model.ID)
+		if ok {
+			seen[verb] = true
+		}
+	}
+	return len(seen)
+}
+
+func feedbackLoopCoverageCounts(model OperatingModelDocument) (steps, anchored, unbacked int) {
+	for _, step := range model.Sections.FeedbackLoop.Steps {
+		steps++
+		var stepAnchored bool
+		for _, ref := range step.References {
+			if operatingFeedbackReferenceBacked(model, ref) {
+				stepAnchored = true
+			} else {
+				unbacked++
+			}
+		}
+		if stepAnchored {
+			anchored++
+		}
+	}
+	return
 }
 
 func docsTableStatus(present bool) OperatingCoverageStatus {
@@ -351,6 +441,20 @@ func decisionTableCoverageCounts(block OperatingGraphBlock) (rows, matched, grap
 	for decision := range docDecisions {
 		if !graphDecisions[decision] {
 			docsOnly++
+		}
+	}
+	return
+}
+
+func decisionMetadataCoverageCounts(block OperatingGraphBlock) (complete, incomplete, effectWeak int) {
+	for _, row := range block.Docs.Decisions.Rows {
+		if len(missingDecisionFields(row)) > 0 {
+			incomplete++
+			continue
+		}
+		complete++
+		if !acceptedEffectNamesDownstreamSurface(row.AcceptedEffect) {
+			effectWeak++
 		}
 	}
 	return

@@ -34,6 +34,48 @@
   "revision": 3,
   "createdAt": "2026-02-09T12:00:00Z",
   "updatedAt": "2026-05-03T00:00:00Z",
+  "topicCatalog": [
+    {
+      "prefix": "reviewed-scenario/<scenario-id>",
+      "status": "live",
+      "purpose": "Append-only record that a scenario has been reviewed by programmatic QA, used to avoid duplicate readiness churn."
+    },
+    {
+      "prefix": "dependency-wiring",
+      "status": "live",
+      "purpose": "Append-only observations about cross-scenario or resource wiring issues discovered during readiness review."
+    },
+    {
+      "prefix": "qa-run/<scenario-id>",
+      "status": "live",
+      "purpose": "Programmatic readiness-review result for a scenario, including evidence for downstream backlog work."
+    },
+    {
+      "prefix": "quality-audit/<scenario-id>/<skill-id>",
+      "status": "live",
+      "purpose": "Judgment-based structural audit finding produced with a registered audit technique."
+    },
+    {
+      "prefix": "bug-inbox/<signal-type>/<slug>",
+      "status": "live",
+      "purpose": "Universal-source bug intake written by any team through the report-bug skill and drained by bug-investigator."
+    },
+    {
+      "prefix": "bug-investigation-report/<slug>",
+      "status": "live",
+      "purpose": "Closed bug-investigation audit log with root cause, evidence, action taken, and remaining gaps."
+    },
+    {
+      "prefix": "challenge-report/<slug>",
+      "status": "live",
+      "purpose": "Append-only contrarian challenge evidence for scenario-qa findings, investigations, and backlog decisions."
+    },
+    {
+      "prefix": "challenge-resolution-record/<slug>",
+      "status": "live",
+      "purpose": "Latest-state record for a scenario-qa challenge: open, author-responded, resolved, escalated, overridden, or stale."
+    }
+  ],
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {
@@ -64,6 +106,10 @@
             },
             {
               "base": "repo-root",
+              "path": "docs/scenario-qa/OPERATING_MODEL.md"
+            },
+            {
+              "base": "repo-root",
               "path": "docs/scenario-qa/BUG_REPORT_TAXONOMY.md"
             },
             {
@@ -85,7 +131,7 @@
             "swarm-manager",
             "meta-optimization"
           ],
-          "rationale": "Strategic canon for scenario-qa: team plan-of-record overview, bug-report taxonomy, and three paired-doc-and-skill technique registries (investigation, audit, readiness).",
+          "rationale": "Strategic canon for scenario-qa: team plan-of-record overview, operating model, bug-report taxonomy, and three paired-doc-and-skill technique registries (investigation, audit, readiness).",
           "useFor": "QA mission, member roster, decision contexts, bug-report schemas, audit-technique applicability, investigation-technique applicability, future technique graduation"
         }
       ],
@@ -147,6 +193,12 @@
           "bug-investigator"
         ],
         "description": "Cross-cutting fixes that require operator approval — for example, renaming a CLI verb because three bugs trace to its ambiguous name; refactoring a skill section that recurs as prompt-confusion; canonicalizing a data-shape that has drifted across producers."
+      },
+      "capability-gap": {
+        "ownerMemberIds": [
+          "bug-investigator"
+        ],
+        "description": "Missing source access, tooling, scenario capability, investigation support, or QA infrastructure that blocks a scenario-quality investigation or remediation path."
       }
     },
     "knowledgeTopics": {
@@ -292,7 +344,8 @@
       "bug-investigator": {
         "lane": "Drain bug-inbox/* (universal-source — any team may write via the report-bug skill). Apply a registered investigation technique, identify root cause, take the smallest useful action, write a bug-investigation-report/<slug> audit-log entry on close.",
         "ownedDecisionContexts": [
-          "bug-resolution-proposal"
+          "bug-resolution-proposal",
+          "capability-gap"
         ],
         "pendingOwnedDecisionCap": 4,
         "allowedWrites": [

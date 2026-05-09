@@ -511,10 +511,10 @@ func main() {
 	// "drain-status" as topic IDs.
 	v1.HandleFunc("/topics/graph", memberFlowHandlers.GetGraph).Methods("GET")
 	v1.HandleFunc("/topics/drain-status", memberFlowHandlers.GetDrainStatus).Methods("GET")
-	v1.HandleFunc("/operating-graphs", memberFlowHandlers.GetOperatingGraphs).Methods("GET")
-	v1.HandleFunc("/operating-graphs/validate", memberFlowHandlers.ValidateOperatingGraphsHandler).Methods("GET")
-	v1.HandleFunc("/operating-graphs/diff", memberFlowHandlers.DiffOperatingGraphsHandler).Methods("GET")
-	v1.HandleFunc("/operating-graphs/coverage", memberFlowHandlers.CoverageOperatingGraphsHandler).Methods("GET")
+	v1.HandleFunc("/operating-models", memberFlowHandlers.GetOperatingModels).Methods("GET")
+	v1.HandleFunc("/operating-models/validate", memberFlowHandlers.ValidateOperatingModelsHandler).Methods("GET")
+	v1.HandleFunc("/operating-models/diff", memberFlowHandlers.DiffOperatingModelsHandler).Methods("GET")
+	v1.HandleFunc("/operating-models/coverage", memberFlowHandlers.CoverageOperatingModelsHandler).Methods("GET")
 
 	// Topic routes
 	topicHandlers := topics.NewHandlers(fileStore.Topics(), fileStore.Indexes())

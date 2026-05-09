@@ -30,8 +30,7 @@
     }
   ],
   "decisions_owned": [
-    "run-lesson",
-    "capability-gap"
+    "run-lesson"
   ],
   "raises_capability_gaps": true,
   "external_producers": [

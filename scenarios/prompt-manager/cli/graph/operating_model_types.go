@@ -1,5 +1,31 @@
 package graph
 
+type operatingModelDocument struct {
+	ID       string                 `json:"id"`
+	Team     string                 `json:"team"`
+	Status   string                 `json:"status,omitempty"`
+	Source   operatingModelSource   `json:"source"`
+	Sections operatingModelSections `json:"sections"`
+	Graphs   []operatingGraphBlock  `json:"graphs,omitempty"`
+}
+
+type operatingModelSource struct {
+	Path string `json:"path"`
+	Line int    `json:"line"`
+}
+
+type operatingModelSections struct {
+	Graph        operatingGraphSection      `json:"graph,omitempty"`
+	TopicCatalog operatingTopicCatalogTable `json:"topic_catalog,omitempty"`
+	Decisions    operatingDecisionTable     `json:"decisions,omitempty"`
+}
+
+type operatingGraphSection struct {
+	operatingGraphBlock
+	Heading string `json:"heading,omitempty"`
+	Present bool   `json:"present,omitempty"`
+}
+
 type operatingGraphBlock struct {
 	Metadata operatingGraphMetadata `json:"metadata"`
 	Graph    operatingGraph         `json:"graph"`
@@ -85,11 +111,13 @@ type operatingDecisionTable struct {
 }
 
 type operatingDecisionRow struct {
-	Decision    string                    `json:"decision"`
-	Owners      []operatingActorReference `json:"owners,omitempty"`
-	Purpose     string                    `json:"purpose"`
-	SourceLine  int                       `json:"source_line"`
-	RawDecision string                    `json:"raw_decision"`
+	Decision                string                    `json:"decision"`
+	Owners                  []operatingActorReference `json:"owners,omitempty"`
+	Purpose                 string                    `json:"purpose"`
+	ExpectedEvidenceTrigger string                    `json:"expected_evidence_trigger"`
+	AcceptedEffect          string                    `json:"accepted_effect"`
+	SourceLine              int                       `json:"source_line"`
+	RawDecision             string                    `json:"raw_decision"`
 }
 
 type operatingActorReference struct {
@@ -120,12 +148,12 @@ type operatingGraphValidation struct {
 	Warnings int                     `json:"warnings"`
 }
 
-type operatingGraphListResponse struct {
-	Graphs []operatingGraphBlock `json:"graphs"`
+type operatingModelListResponse struct {
+	Models []operatingModelDocument `json:"models"`
 }
 
-type operatingGraphValidationResponse struct {
-	Graphs     []operatingGraphBlock    `json:"graphs"`
+type operatingModelValidationResponse struct {
+	Models     []operatingModelDocument `json:"models"`
 	Validation operatingGraphValidation `json:"validation"`
 }
 
@@ -147,13 +175,13 @@ type operatingGraphDiff struct {
 	Detail           string   `json:"detail"`
 }
 
-type operatingGraphDiffResponse struct {
-	Graphs []operatingGraphBlock `json:"graphs"`
-	Diff   []operatingGraphDiff  `json:"diff"`
+type operatingModelDiffResponse struct {
+	Models []operatingModelDocument `json:"models"`
+	Diff   []operatingGraphDiff     `json:"diff"`
 }
 
-type operatingGraphCoverageResponse struct {
-	Graphs   []operatingGraphBlock    `json:"graphs"`
+type operatingModelCoverageResponse struct {
+	Models   []operatingModelDocument `json:"models"`
 	Coverage []operatingGraphCoverage `json:"coverage"`
 }
 
@@ -197,6 +225,8 @@ type operatingPromptCoverage struct {
 
 type operatingDocsCoverage struct {
 	MermaidGraph                      string `json:"mermaid_graph"`
+	RequiredSectionsPresent           int    `json:"required_sections_present"`
+	RequiredSectionsTotal             int    `json:"required_sections_total"`
 	TopicCatalogTable                 string `json:"topic_catalog_table"`
 	TopicCatalogRows                  int    `json:"topic_catalog_rows"`
 	TopicCatalogMatched               int    `json:"topic_catalog_matched"`
@@ -212,6 +242,19 @@ type operatingDocsCoverage struct {
 	DecisionsGraphOnly                int    `json:"decisions_graph_only"`
 	DecisionsDocsOnly                 int    `json:"decisions_docs_only"`
 	DecisionsInvalid                  int    `json:"decisions_invalid"`
+	DecisionsMetadataComplete         int    `json:"decisions_metadata_complete"`
+	DecisionsMetadataIncomplete       int    `json:"decisions_metadata_incomplete"`
+	DecisionsAcceptedEffectWeak       int    `json:"decisions_accepted_effect_weak"`
+	ExternalInputsTable               string `json:"external_inputs_table"`
+	ExternalInputsRows                int    `json:"external_inputs_rows"`
+	OutputsTable                      string `json:"outputs_table"`
+	OutputsRows                       int    `json:"outputs_rows"`
+	FeedbackSteps                     int    `json:"feedback_steps"`
+	FeedbackAnchoredSteps             int    `json:"feedback_anchored_steps"`
+	FeedbackUnbackedReferences        int    `json:"feedback_unbacked_references"`
+	AdoptionValidationCommands        int    `json:"adoption_validation_commands"`
+	PlanOfRecordRegistration          string `json:"plan_of_record_registration"`
+	ReadmeDiscoverability             string `json:"readme_discoverability"`
 }
 
 type operatingCoverageExclusion struct {

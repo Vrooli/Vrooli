@@ -46,8 +46,8 @@ func (h *Handlers) SetPromptSectionProvider(provider OperatingGraphPromptSection
 	h.promptSectionProvider = provider
 }
 
-func (h *Handlers) operatingGraphService() OperatingGraphService {
-	return OperatingGraphService{
+func (h *Handlers) operatingModelService() OperatingModelService {
+	return OperatingModelService{
 		RepoRoot:       h.repoRoot(),
 		StoreDir:       h.storeDir,
 		PromptSections: h.promptSectionProvider,
@@ -370,9 +370,9 @@ type DrainStatusResponse struct {
 	Note    string             `json:"note,omitempty"`
 }
 
-// GetOperatingGraphs handles GET /operating-graphs.
-func (h *Handlers) GetOperatingGraphs(w http.ResponseWriter, r *http.Request) {
-	resp, err := h.operatingGraphService().List(r.Context(), operatingGraphFilterFromRequest(r))
+// GetOperatingModels handles GET /operating-models.
+func (h *Handlers) GetOperatingModels(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.operatingModelService().List(r.Context(), operatingModelFilterFromRequest(r))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -380,9 +380,9 @@ func (h *Handlers) GetOperatingGraphs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// ValidateOperatingGraphsHandler handles GET /operating-graphs/validate.
-func (h *Handlers) ValidateOperatingGraphsHandler(w http.ResponseWriter, r *http.Request) {
-	resp, err := h.operatingGraphService().Validate(r.Context(), operatingGraphFilterFromRequest(r))
+// ValidateOperatingModelsHandler handles GET /operating-models/validate.
+func (h *Handlers) ValidateOperatingModelsHandler(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.operatingModelService().Validate(r.Context(), operatingModelFilterFromRequest(r))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -390,16 +390,16 @@ func (h *Handlers) ValidateOperatingGraphsHandler(w http.ResponseWriter, r *http
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func operatingGraphFilterFromRequest(r *http.Request) OperatingGraphFilter {
-	return OperatingGraphFilter{
+func operatingModelFilterFromRequest(r *http.Request) OperatingModelFilter {
+	return OperatingModelFilter{
 		Team: r.URL.Query().Get("team"),
 		ID:   r.URL.Query().Get("id"),
 	}
 }
 
-// DiffOperatingGraphsHandler handles GET /operating-graphs/diff.
-func (h *Handlers) DiffOperatingGraphsHandler(w http.ResponseWriter, r *http.Request) {
-	resp, err := h.operatingGraphService().Diff(r.Context(), operatingGraphFilterFromRequest(r))
+// DiffOperatingModelsHandler handles GET /operating-models/diff.
+func (h *Handlers) DiffOperatingModelsHandler(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.operatingModelService().Diff(r.Context(), operatingModelFilterFromRequest(r))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -407,9 +407,9 @@ func (h *Handlers) DiffOperatingGraphsHandler(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// CoverageOperatingGraphsHandler handles GET /operating-graphs/coverage.
-func (h *Handlers) CoverageOperatingGraphsHandler(w http.ResponseWriter, r *http.Request) {
-	resp, err := h.operatingGraphService().Coverage(r.Context(), operatingGraphFilterFromRequest(r))
+// CoverageOperatingModelsHandler handles GET /operating-models/coverage.
+func (h *Handlers) CoverageOperatingModelsHandler(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.operatingModelService().Coverage(r.Context(), operatingModelFilterFromRequest(r))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return

@@ -3,9 +3,7 @@ package memberflow
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -15,36 +13,11 @@ var (
 )
 
 func LoadOperatingGraphBlocks(repoRoot string) ([]OperatingGraphBlock, error) {
-	docsDir := filepath.Join(repoRoot, "docs")
-	var blocks []OperatingGraphBlock
-	err := filepath.WalkDir(docsDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(strings.ToLower(path), ".md") {
-			return nil
-		}
-		rel, _ := filepath.Rel(repoRoot, path)
-		found, err := ExtractOperatingGraphBlocks(path, rel)
-		if err != nil {
-			return err
-		}
-		blocks = append(blocks, found...)
-		return nil
-	})
+	models, err := LoadOperatingModelDocuments(repoRoot)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
-	sort.Slice(blocks, func(i, j int) bool {
-		if blocks[i].Metadata.ID != blocks[j].Metadata.ID {
-			return blocks[i].Metadata.ID < blocks[j].Metadata.ID
-		}
-		return blocks[i].Source.Path < blocks[j].Source.Path
-	})
-	return blocks, nil
+	return operatingGraphBlocksFromModels(models), nil
 }
 
 func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock, error) {
@@ -53,6 +26,11 @@ func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock
 		return nil, err
 	}
 	lines := strings.Split(string(data), "\n")
+	sections := parseOperatingModelMarkdownSections(lines)
+	return extractOperatingGraphBlocksFromLines(lines, sourcePath, sections)
+}
+
+func extractOperatingGraphBlocksFromLines(lines []string, sourcePath string, sections map[string][]OperatingMarkdownSection) ([]OperatingGraphBlock, error) {
 	var blocks []OperatingGraphBlock
 	inFence := false
 	for i := 0; i < len(lines); i++ {
@@ -98,7 +76,7 @@ func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock
 		if err != nil {
 			return nil, fmt.Errorf("%s:%d: %w", sourcePath, fenceLine, err)
 		}
-		docs := ExtractOperatingGraphDocsForGraph(scopedOperatingGraphDocLines(lines, i+1), meta, graph)
+		docs := ExtractOperatingGraphDocsForGraph(operatingModelDocLines(lines, sections), meta, graph)
 		blocks = append(blocks, OperatingGraphBlock{
 			Metadata: meta,
 			Graph:    graph,
@@ -113,29 +91,9 @@ func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock
 	return blocks, nil
 }
 
-func scopedOperatingGraphDocLines(lines []string, start int) []string {
-	end := len(lines)
-	inFence := false
-	for i := start; i < len(lines); i++ {
-		trimmed := strings.TrimSpace(lines[i])
-		if strings.HasPrefix(trimmed, "```") {
-			inFence = !inFence
-			continue
-		}
-		if inFence {
-			continue
-		}
-		if i > start && metadataStartRE.MatchString(lines[i]) {
-			end = i
-			break
-		}
-		if strings.HasPrefix(trimmed, "# ") {
-			end = i
-			break
-		}
-	}
-	scoped := make([]string, end)
-	copy(scoped[start:end], lines[start:end])
+func operatingModelDocLines(lines []string, _ map[string][]OperatingMarkdownSection) []string {
+	scoped := make([]string, len(lines))
+	copy(scoped, lines)
 	return scoped
 }
 

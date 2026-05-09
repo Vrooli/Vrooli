@@ -2,60 +2,56 @@ package memberflow
 
 import "context"
 
-type OperatingGraphFilter struct {
-	Team string
-	ID   string
-}
-
-type OperatingGraphService struct {
+type OperatingModelService struct {
 	RepoRoot       string
 	StoreDir       string
 	PromptSections OperatingGraphPromptSectionProvider
 }
 
-func (s OperatingGraphService) List(_ context.Context, filter OperatingGraphFilter) (OperatingGraphListResponse, error) {
-	blocks, err := LoadOperatingGraphBlocks(s.RepoRoot)
+func (s OperatingModelService) List(_ context.Context, filter OperatingModelFilter) (OperatingModelListResponse, error) {
+	models, err := LoadOperatingModelDocuments(s.RepoRoot)
 	if err != nil {
-		return OperatingGraphListResponse{}, err
+		return OperatingModelListResponse{}, err
 	}
-	return OperatingGraphListResponse{Graphs: filterOperatingGraphBlocks(blocks, filter.Team, filter.ID)}, nil
+	return OperatingModelListResponse{Models: filterOperatingModelDocuments(models, filter.Team, filter.ID)}, nil
 }
 
-func (s OperatingGraphService) Validate(ctx context.Context, filter OperatingGraphFilter) (OperatingGraphValidationResponse, error) {
-	blocks, runtime, err := s.loadContractInputs(ctx, filter, true)
+func (s OperatingModelService) Validate(ctx context.Context, filter OperatingModelFilter) (OperatingModelValidationResponse, error) {
+	models, runtime, err := s.loadContractInputs(ctx, filter, true)
 	if err != nil {
-		return OperatingGraphValidationResponse{}, err
+		return OperatingModelValidationResponse{}, err
 	}
-	return OperatingGraphValidationResponse{
-		Graphs:     blocks,
-		Validation: ValidateOperatingGraphs(blocks, runtime, "", ""),
+	return OperatingModelValidationResponse{
+		Models:     models,
+		Validation: ValidateOperatingModels(models, runtime, "", ""),
 	}, nil
 }
 
-func (s OperatingGraphService) Diff(ctx context.Context, filter OperatingGraphFilter) (OperatingGraphDiffResponse, error) {
-	blocks, runtime, err := s.loadContractInputs(ctx, filter, false)
+func (s OperatingModelService) Diff(ctx context.Context, filter OperatingModelFilter) (OperatingModelDiffResponse, error) {
+	models, runtime, err := s.loadContractInputs(ctx, filter, false)
 	if err != nil {
-		return OperatingGraphDiffResponse{}, err
+		return OperatingModelDiffResponse{}, err
 	}
-	return OperatingGraphDiffResponse{
-		Graphs: blocks,
+	blocks := operatingGraphBlocksFromModels(models)
+	return OperatingModelDiffResponse{
+		Models: models,
 		Diff:   DiffOperatingGraphs(blocks, runtime, "", ""),
 	}, nil
 }
 
-func (s OperatingGraphService) Coverage(ctx context.Context, filter OperatingGraphFilter) (OperatingGraphCoverageResponse, error) {
-	blocks, runtime, err := s.loadContractInputs(ctx, filter, true)
+func (s OperatingModelService) Coverage(ctx context.Context, filter OperatingModelFilter) (OperatingModelCoverageResponse, error) {
+	models, runtime, err := s.loadContractInputs(ctx, filter, true)
 	if err != nil {
-		return OperatingGraphCoverageResponse{}, err
+		return OperatingModelCoverageResponse{}, err
 	}
-	return OperatingGraphCoverageResponse{
-		Graphs:   blocks,
-		Coverage: BuildOperatingGraphCoverage(blocks, runtime, "", ""),
+	return OperatingModelCoverageResponse{
+		Models:   models,
+		Coverage: BuildOperatingModelCoverage(models, runtime, "", ""),
 	}, nil
 }
 
-func (s OperatingGraphService) loadContractInputs(ctx context.Context, filter OperatingGraphFilter, includePromptSections bool) ([]OperatingGraphBlock, OperatingGraphRuntime, error) {
-	blocks, err := LoadOperatingGraphBlocks(s.RepoRoot)
+func (s OperatingModelService) loadContractInputs(ctx context.Context, filter OperatingModelFilter, includePromptSections bool) ([]OperatingModelDocument, OperatingGraphRuntime, error) {
+	models, err := LoadOperatingModelDocuments(s.RepoRoot)
 	if err != nil {
 		return nil, OperatingGraphRuntime{}, err
 	}
@@ -66,10 +62,10 @@ func (s OperatingGraphService) loadContractInputs(ctx context.Context, filter Op
 	if includePromptSections {
 		runtime = s.withPromptSections(ctx, runtime)
 	}
-	return filterOperatingGraphBlocks(blocks, filter.Team, filter.ID), runtime, nil
+	return filterOperatingModelDocuments(models, filter.Team, filter.ID), runtime, nil
 }
 
-func (s OperatingGraphService) withPromptSections(ctx context.Context, runtime OperatingGraphRuntime) OperatingGraphRuntime {
+func (s OperatingModelService) withPromptSections(ctx context.Context, runtime OperatingGraphRuntime) OperatingGraphRuntime {
 	if s.PromptSections == nil {
 		return runtime
 	}

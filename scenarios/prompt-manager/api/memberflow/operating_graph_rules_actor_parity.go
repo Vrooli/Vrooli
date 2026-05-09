@@ -202,7 +202,6 @@ func topicCatalogConcreteActorExpectation(ctx OperatingGraphRuleContext, row Ope
 	expectation := catalogActorParityExpectation{Actor: actor, Enforceable: true}
 	if writer && actor.Kind == OperatingActorKindExternal && row.StatusKind == OperatingTopicStatusLiveSystem {
 		expectation.Enforceable = false
-		expectation.Reason = fmt.Sprintf("Topic Catalog writer %q for %q is a system boundary; system topic writers are not yet modeled by the operating graph runtime contract", actor.Raw, row.Topic)
 		return expectation
 	}
 	rel := OperatingRelationship{Team: ctx.Block.Metadata.Team, Topic: row.Topic}
@@ -219,7 +218,6 @@ func topicCatalogConcreteActorExpectation(ctx OperatingGraphRuleContext, row Ope
 			rel.TargetTeam = actor.Value
 		case OperatingActorKindProcess:
 			expectation.Enforceable = false
-			expectation.Reason = fmt.Sprintf("Topic Catalog writer %q for %q is a process boundary; process topic writers are not yet modeled by the operating graph runtime contract", actor.Raw, row.Topic)
 		default:
 			expectation.Enforceable = false
 			expectation.Reason = fmt.Sprintf("Topic Catalog writer %q for %q is not enforceable as a graph/runtime relationship", actor.Raw, row.Topic)
@@ -234,10 +232,8 @@ func topicCatalogConcreteActorExpectation(ctx OperatingGraphRuleContext, row Ope
 			rel.TargetTeam = actor.Value
 		case OperatingActorKindExternal:
 			expectation.Enforceable = false
-			expectation.Reason = fmt.Sprintf("Topic Catalog reader %q for %q is external; external topic readers are not modeled by the operating graph runtime contract", actor.Raw, row.Topic)
 		case OperatingActorKindProcess:
 			expectation.Enforceable = false
-			expectation.Reason = fmt.Sprintf("Topic Catalog reader %q for %q is a process boundary; process topic readers are not yet modeled by the operating graph runtime contract", actor.Raw, row.Topic)
 		default:
 			expectation.Enforceable = false
 			expectation.Reason = fmt.Sprintf("Topic Catalog reader %q for %q is not enforceable as a graph/runtime relationship", actor.Raw, row.Topic)

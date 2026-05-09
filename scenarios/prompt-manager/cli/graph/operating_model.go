@@ -38,17 +38,18 @@ func cmdOperatingModelList(ctx appctx.Context, args []string) error {
 		return err
 	}
 	if *jsonOut {
-		return printRawOperatingModelJSON(ctx, "/operating-graphs", operatingModelQuery(*team, *id))
+		return printRawOperatingModelJSON(ctx, "/operating-models", operatingModelQuery(*team, *id))
 	}
-	var resp operatingGraphListResponse
-	if err := ctx.GetWithQuery("/operating-graphs", operatingModelQuery(*team, *id), &resp); err != nil {
-		return fmt.Errorf("failed to fetch operating graphs: %w", err)
+	var resp operatingModelListResponse
+	if err := ctx.GetWithQuery("/operating-models", operatingModelQuery(*team, *id), &resp); err != nil {
+		return fmt.Errorf("failed to fetch operating models: %w", err)
 	}
 	fmt.Println("Status")
-	fmt.Printf("Found %d operating graph(s).\n\n", len(resp.Graphs))
+	fmt.Printf("Found %d operating model(s).\n\n", len(resp.Models))
 	fmt.Println("Triage")
-	for _, g := range resp.Graphs {
-		fmt.Printf("- %s team=%s mode=%s source=%s:%d nodes=%d edges=%d\n", g.Metadata.ID, g.Metadata.Team, g.Metadata.Mode, g.Source.Path, g.Source.Line, len(g.Graph.Nodes), len(g.Graph.Edges))
+	for _, model := range resp.Models {
+		graph := operatingModelPrimaryGraph(model)
+		fmt.Printf("- %s team=%s mode=%s source=%s:%d nodes=%d edges=%d\n", model.ID, model.Team, graph.Metadata.Mode, model.Source.Path, model.Source.Line, len(graph.Graph.Nodes), len(graph.Graph.Edges))
 	}
 	fmt.Println("\nNext Steps")
 	fmt.Println("Run `prompt-manager graph operating-model validate --team <team>` to check contract drift.")
@@ -63,22 +64,22 @@ func cmdOperatingModelValidate(ctx appctx.Context, args []string) error {
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	var resp operatingGraphValidationResponse
+	var resp operatingModelValidationResponse
 	if *jsonOut {
-		raw, err := rawOperatingModelJSON(ctx, "/operating-graphs/validate", operatingModelQuery(*team, *id))
+		raw, err := rawOperatingModelJSON(ctx, "/operating-models/validate", operatingModelQuery(*team, *id))
 		if err != nil {
-			return fmt.Errorf("failed to validate operating graph: %w", err)
+			return fmt.Errorf("failed to validate operating model: %w", err)
 		}
 		if err := json.Unmarshal(raw, &resp); err != nil {
-			return fmt.Errorf("decode operating graph validation response: %w", err)
+			return fmt.Errorf("decode operating model validation response: %w", err)
 		}
 		raw = formatRawOperatingModelJSON(raw)
 		os.Stdout.Write(raw)
 		if len(raw) == 0 || raw[len(raw)-1] != '\n' {
 			fmt.Println()
 		}
-	} else if err := ctx.GetWithQuery("/operating-graphs/validate", operatingModelQuery(*team, *id), &resp); err != nil {
-		return fmt.Errorf("failed to validate operating graph: %w", err)
+	} else if err := ctx.GetWithQuery("/operating-models/validate", operatingModelQuery(*team, *id), &resp); err != nil {
+		return fmt.Errorf("failed to validate operating model: %w", err)
 	} else {
 		printOperatingModelValidation(resp)
 	}
@@ -97,11 +98,11 @@ func cmdOperatingModelDiff(ctx appctx.Context, args []string) error {
 		return err
 	}
 	if *jsonOut {
-		return printRawOperatingModelJSON(ctx, "/operating-graphs/diff", operatingModelQuery(*team, *id))
+		return printRawOperatingModelJSON(ctx, "/operating-models/diff", operatingModelQuery(*team, *id))
 	}
-	var resp operatingGraphDiffResponse
-	if err := ctx.GetWithQuery("/operating-graphs/diff", operatingModelQuery(*team, *id), &resp); err != nil {
-		return fmt.Errorf("failed to diff operating graph: %w", err)
+	var resp operatingModelDiffResponse
+	if err := ctx.GetWithQuery("/operating-models/diff", operatingModelQuery(*team, *id), &resp); err != nil {
+		return fmt.Errorf("failed to diff operating model: %w", err)
 	}
 	fmt.Println("Status")
 	fmt.Printf("Found %d diff item(s).\n\n", len(resp.Diff))
@@ -126,11 +127,11 @@ func cmdOperatingModelCoverage(ctx appctx.Context, args []string) error {
 		return err
 	}
 	if *jsonOut {
-		return printRawOperatingModelJSON(ctx, "/operating-graphs/coverage", operatingModelQuery(*team, *id))
+		return printRawOperatingModelJSON(ctx, "/operating-models/coverage", operatingModelQuery(*team, *id))
 	}
-	var resp operatingGraphCoverageResponse
-	if err := ctx.GetWithQuery("/operating-graphs/coverage", operatingModelQuery(*team, *id), &resp); err != nil {
-		return fmt.Errorf("failed to fetch operating graph coverage: %w", err)
+	var resp operatingModelCoverageResponse
+	if err := ctx.GetWithQuery("/operating-models/coverage", operatingModelQuery(*team, *id), &resp); err != nil {
+		return fmt.Errorf("failed to fetch operating model coverage: %w", err)
 	}
 	printOperatingModelCoverage(resp)
 	return nil
