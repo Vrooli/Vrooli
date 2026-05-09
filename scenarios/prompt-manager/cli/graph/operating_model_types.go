@@ -247,8 +247,12 @@ type operatingDocsCoverage struct {
 	DecisionsAcceptedEffectWeak       int    `json:"decisions_accepted_effect_weak"`
 	ExternalInputsTable               string `json:"external_inputs_table"`
 	ExternalInputsRows                int    `json:"external_inputs_rows"`
+	ExternalInputsBackedRows          int    `json:"external_inputs_backed_rows"`
+	ExternalInputsUnbackedRows        int    `json:"external_inputs_unbacked_rows"`
 	OutputsTable                      string `json:"outputs_table"`
 	OutputsRows                       int    `json:"outputs_rows"`
+	OutputsBackedRows                 int    `json:"outputs_backed_rows"`
+	OutputsUnbackedRows               int    `json:"outputs_unbacked_rows"`
 	FeedbackSteps                     int    `json:"feedback_steps"`
 	FeedbackAnchoredSteps             int    `json:"feedback_anchored_steps"`
 	FeedbackUnbackedReferences        int    `json:"feedback_unbacked_references"`

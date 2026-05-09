@@ -64,8 +64,12 @@ type OperatingDocsCoverage struct {
 	DecisionsAcceptedEffectWeak       int                     `json:"decisions_accepted_effect_weak"`
 	ExternalInputsTable               OperatingCoverageStatus `json:"external_inputs_table"`
 	ExternalInputsRows                int                     `json:"external_inputs_rows"`
+	ExternalInputsBackedRows          int                     `json:"external_inputs_backed_rows"`
+	ExternalInputsUnbackedRows        int                     `json:"external_inputs_unbacked_rows"`
 	OutputsTable                      OperatingCoverageStatus `json:"outputs_table"`
 	OutputsRows                       int                     `json:"outputs_rows"`
+	OutputsBackedRows                 int                     `json:"outputs_backed_rows"`
+	OutputsUnbackedRows               int                     `json:"outputs_unbacked_rows"`
 	FeedbackSteps                     int                     `json:"feedback_steps"`
 	FeedbackAnchoredSteps             int                     `json:"feedback_anchored_steps"`
 	FeedbackUnbackedReferences        int                     `json:"feedback_unbacked_references"`
@@ -305,8 +309,10 @@ func addOperatingModelDocsCoverage(docs *OperatingDocsCoverage, model OperatingM
 	}
 	docs.ExternalInputsTable = docsTableStatus(model.Sections.ExternalInputs.Table)
 	docs.ExternalInputsRows = len(model.Sections.ExternalInputs.Rows)
+	docs.ExternalInputsBackedRows, docs.ExternalInputsUnbackedRows = externalInputsCoverageCounts(model)
 	docs.OutputsTable = docsTableStatus(model.Sections.Outputs.Table)
 	docs.OutputsRows = len(model.Sections.Outputs.Rows)
+	docs.OutputsBackedRows, docs.OutputsUnbackedRows = outputsCoverageCounts(model)
 	docs.FeedbackSteps, docs.FeedbackAnchoredSteps, docs.FeedbackUnbackedReferences = feedbackLoopCoverageCounts(model)
 	docs.GapsItems, docs.GapsAnchoredItems, docs.GapsTargetStateItems = gapsCoverageCounts(model)
 	docs.AdoptionValidationCommands = countOperatingModelValidationCommands(model)
@@ -353,6 +359,30 @@ func feedbackLoopCoverageCounts(model OperatingModelDocument) (steps, anchored, 
 		}
 		if stepAnchored {
 			anchored++
+		}
+	}
+	return
+}
+
+func externalInputsCoverageCounts(model OperatingModelDocument) (backed, unbacked int) {
+	for _, row := range model.Sections.ExternalInputs.Rows {
+		check := operatingExternalInputBacking(model, row)
+		if check.Producer && check.Entry && check.Drainer {
+			backed++
+		} else {
+			unbacked++
+		}
+	}
+	return
+}
+
+func outputsCoverageCounts(model OperatingModelDocument) (backed, unbacked int) {
+	for _, row := range model.Sections.Outputs.Rows {
+		check := operatingOutputBacking(model, row)
+		if check.Surface && check.Consumer {
+			backed++
+		} else {
+			unbacked++
 		}
 	}
 	return

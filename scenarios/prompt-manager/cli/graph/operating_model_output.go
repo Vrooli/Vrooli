@@ -147,10 +147,20 @@ func printOperatingModelCoverage(resp operatingModelCoverageResponse) {
 			)
 		}
 		if cov.Docs.ExternalInputsTable != "" {
-			fmt.Printf("- External Inputs / Triggers table: %s (rows %d)\n", cov.Docs.ExternalInputsTable, cov.Docs.ExternalInputsRows)
+			fmt.Printf("- External Inputs / Triggers table: %s (rows %d, backed %d, unbacked %d)\n",
+				cov.Docs.ExternalInputsTable,
+				cov.Docs.ExternalInputsRows,
+				cov.Docs.ExternalInputsBackedRows,
+				cov.Docs.ExternalInputsUnbackedRows,
+			)
 		}
 		if cov.Docs.OutputsTable != "" {
-			fmt.Printf("- Outputs / Downstream Consumers table: %s (rows %d)\n", cov.Docs.OutputsTable, cov.Docs.OutputsRows)
+			fmt.Printf("- Outputs / Downstream Consumers table: %s (rows %d, backed %d, unbacked %d)\n",
+				cov.Docs.OutputsTable,
+				cov.Docs.OutputsRows,
+				cov.Docs.OutputsBackedRows,
+				cov.Docs.OutputsUnbackedRows,
+			)
 		}
 		if cov.Docs.FeedbackSteps > 0 {
 			fmt.Printf("- Feedback loop: anchored steps %d/%d, unbacked references %d\n",

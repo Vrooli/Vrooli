@@ -146,6 +146,17 @@ func validateExternalInputsTable(model OperatingModelDocument) []OperatingGraphF
 		missing := missingExternalInputFields(row)
 		if len(missing) > 0 {
 			findings = append(findings, operatingModelFinding(model, "operating_model_external_inputs_row_incomplete", row.SourceLine, fmt.Sprintf("External Inputs / Triggers row is missing %s", strings.Join(missing, ", "))))
+			continue
+		}
+		check := operatingExternalInputBacking(model, row)
+		if !check.Producer {
+			findings = append(findings, operatingModelFinding(model, "operating_model_external_inputs_producer_unbacked", row.SourceLine, fmt.Sprintf("External Inputs / Triggers row %q names a producer that is not backed by graph/runtime external producer relationships", row.ProducerTrigger)))
+		}
+		if !check.Entry {
+			findings = append(findings, operatingModelFinding(model, "operating_model_external_inputs_entry_unbacked", row.SourceLine, fmt.Sprintf("External Inputs / Triggers row %q names an entry surface that is not backed by the graph, Topic Catalog, or Decisions table", row.EntrySurface)))
+		}
+		if !check.Drainer {
+			findings = append(findings, operatingModelFinding(model, "operating_model_external_inputs_drainer_unbacked", row.SourceLine, fmt.Sprintf("External Inputs / Triggers row %q names a drainer that is not backed by topic/member, external/member, or cross-team relationships", row.Drainer)))
 		}
 	}
 	return findings
@@ -171,6 +182,14 @@ func validateOutputsTable(model OperatingModelDocument) []OperatingGraphFinding 
 		missing := missingOutputFields(row)
 		if len(missing) > 0 {
 			findings = append(findings, operatingModelFinding(model, "operating_model_outputs_row_incomplete", row.SourceLine, fmt.Sprintf("Outputs / Downstream Consumers row is missing %s", strings.Join(missing, ", "))))
+			continue
+		}
+		check := operatingOutputBacking(model, row)
+		if !check.Surface {
+			findings = append(findings, operatingModelFinding(model, "operating_model_outputs_surface_unbacked", row.SourceLine, fmt.Sprintf("Outputs / Downstream Consumers row %q names a surface that is not backed by the graph, Topic Catalog, Decisions table, runtime output, or PoR path", row.Output)))
+		}
+		if !check.Consumer {
+			findings = append(findings, operatingModelFinding(model, "operating_model_outputs_consumer_unbacked", row.SourceLine, fmt.Sprintf("Outputs / Downstream Consumers row %q names a consumer that is not backed by topic/member, decision/member, or cross-team output relationships", row.Output)))
 		}
 	}
 	return findings
@@ -497,6 +516,462 @@ func operatingFeedbackTextMentions(text, raw, normalized string) bool {
 	raw = strings.ToLower(raw)
 	normalized = strings.ToLower(normalized)
 	return strings.Contains(text, raw) || strings.Contains(text, normalized)
+}
+
+type operatingExternalInputBackingResult struct {
+	Producer bool
+	Entry    bool
+	Drainer  bool
+}
+
+type operatingOutputBackingResult struct {
+	Surface  bool
+	Consumer bool
+}
+
+type operatingSurfaceReference struct {
+	Kind      OperatingGraphNodeKind
+	Qualifier OperatingGraphQualifier
+	Value     string
+}
+
+func operatingExternalInputBacking(model OperatingModelDocument, row OperatingExternalInputRow) operatingExternalInputBackingResult {
+	if operatingModelRowIsTargetState(row.ProducerTrigger, row.EntrySurface, row.Drainer, row.RoutingRule) {
+		return operatingExternalInputBackingResult{Producer: true, Entry: true, Drainer: true}
+	}
+	producers := operatingModelActorRefs(model, row.ProducerTrigger)
+	surfaces := operatingSurfaceReferences(row.EntrySurface)
+	return operatingExternalInputBackingResult{
+		Producer: operatingExternalInputProducerBacked(model, producers),
+		Entry:    operatingEntrySurfaceBacked(model, row.EntrySurface, surfaces),
+		Drainer:  operatingExternalInputDrainerBacked(model, producers, surfaces, operatingModelActorRefs(model, row.Drainer), row.Drainer),
+	}
+}
+
+func operatingOutputBacking(model OperatingModelDocument, row OperatingOutputRow) operatingOutputBackingResult {
+	if operatingModelRowIsTargetState(row.Output, row.Surface, row.Consumer, row.Purpose) {
+		return operatingOutputBackingResult{Surface: true, Consumer: true}
+	}
+	surfaces := operatingSurfaceReferences(row.Output + " " + row.Surface)
+	surfaceBacked := operatingOutputSurfaceBacked(model, row.Surface, surfaces)
+	return operatingOutputBackingResult{
+		Surface:  surfaceBacked,
+		Consumer: operatingOutputConsumerBacked(model, surfaces, operatingModelActorRefs(model, row.Consumer), row.Consumer) || surfaceBacked && operatingOutputConsumerTextIsDownstream(row.Consumer),
+	}
+}
+
+func operatingModelActorRefs(model OperatingModelDocument, raw string) []OperatingActorReference {
+	if len(model.Graphs) == 0 {
+		return nil
+	}
+	resolver := NewOperatingActorResolver(model.Graphs[0].Metadata, model.Graphs[0].Graph)
+	var refs []OperatingActorReference
+	for _, token := range extractInlineCodeTokens(raw) {
+		refs = append(refs, resolver.Resolve(model.Team, OperatingGraphRuntime{}, token)...)
+	}
+	refs = append(refs, resolver.Resolve(model.Team, OperatingGraphRuntime{}, raw)...)
+	if strings.Contains(strings.ToLower(raw), "operator") {
+		refs = append(refs, resolver.Resolve(model.Team, OperatingGraphRuntime{}, "operator")...)
+	}
+	return dedupeOperatingActorRefs(refs)
+}
+
+func dedupeOperatingActorRefs(refs []OperatingActorReference) []OperatingActorReference {
+	seen := map[string]bool{}
+	var out []OperatingActorReference
+	for _, ref := range refs {
+		if ref.Kind == "" || ref.Value == "" {
+			continue
+		}
+		key := string(ref.Kind) + "\x00" + ref.Value
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, ref)
+	}
+	return out
+}
+
+func operatingExternalInputProducerBacked(model OperatingModelDocument, producers []OperatingActorReference) bool {
+	var externalSeen bool
+	for _, producer := range producers {
+		if producer.Kind != OperatingActorKindExternal {
+			continue
+		}
+		externalSeen = true
+		if operatingGraphHasNode(model, OperatingGraphNodeKindExternal, producer.Value) ||
+			operatingGraphHasRelationship(model, func(rel OperatingRelationship) bool {
+				return (rel.Kind == operatingRelExternalProducer || rel.Kind == operatingRelExternalProducerIntake) && rel.External == producer.Value
+			}) {
+			return true
+		}
+	}
+	return !externalSeen
+}
+
+func operatingEntrySurfaceBacked(model OperatingModelDocument, raw string, surfaces []operatingSurfaceReference) bool {
+	if len(surfaces) == 0 {
+		normalized := strings.ToLower(raw)
+		return strings.Contains(normalized, "direct member context") || strings.Contains(normalized, "heartbeat trigger")
+	}
+	for _, surface := range surfaces {
+		if operatingSurfaceReferenceIsTargetState(surface) {
+			continue
+		}
+		if operatingSurfaceReferenceBacked(model, surface) {
+			return true
+		}
+	}
+	return false
+}
+
+func operatingOutputSurfaceBacked(model OperatingModelDocument, raw string, surfaces []operatingSurfaceReference) bool {
+	if len(surfaces) == 0 {
+		return operatingSurfaceTextMentionsBackedDecision(model, raw) || operatingSurfaceTextMentionsBackedPath(model, raw)
+	}
+	for _, surface := range surfaces {
+		if operatingSurfaceReferenceIsTargetState(surface) {
+			continue
+		}
+		if operatingSurfaceReferenceBacked(model, surface) {
+			return true
+		}
+	}
+	return false
+}
+
+func operatingExternalInputDrainerBacked(model OperatingModelDocument, producers []OperatingActorReference, surfaces []operatingSurfaceReference, drainers []OperatingActorReference, raw string) bool {
+	if len(drainers) == 0 {
+		return false
+	}
+	if strings.Contains(strings.ToLower(raw), "decision owner") && operatingSurfacesContainBackedTopicOrDecision(model, surfaces) {
+		return true
+	}
+	for _, drainer := range drainers {
+		if operatingActorExistsInGraph(model, drainer) {
+			if len(surfaces) == 0 && strings.Contains(strings.ToLower(raw), "direct member context") {
+				return true
+			}
+		}
+		switch drainer.Kind {
+		case OperatingActorKindMember:
+			if operatingMemberDrainerBacked(model, producers, surfaces, drainer.Value) {
+				return true
+			}
+		case OperatingActorKindTeam:
+			if operatingTeamConsumerBacked(model, surfaces, drainer.Value) {
+				return true
+			}
+		case OperatingActorKindExternal:
+			if operatingGraphHasNode(model, OperatingGraphNodeKindExternal, drainer.Value) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func operatingOutputConsumerBacked(model OperatingModelDocument, surfaces []operatingSurfaceReference, consumers []OperatingActorReference, raw string) bool {
+	if len(consumers) == 0 {
+		return false
+	}
+	for _, consumer := range consumers {
+		if operatingActorExistsInGraph(model, consumer) {
+			return true
+		}
+		switch consumer.Kind {
+		case OperatingActorKindMember:
+			if operatingMemberSurfaceConsumerBacked(model, surfaces, consumer.Value) {
+				return true
+			}
+		case OperatingActorKindTeam:
+			if operatingTeamConsumerBacked(model, surfaces, consumer.Value) {
+				return true
+			}
+		case OperatingActorKindExternal:
+			if operatingGraphHasNode(model, OperatingGraphNodeKindExternal, consumer.Value) {
+				return true
+			}
+		}
+	}
+	return strings.Contains(strings.ToLower(raw), "decision owner") && operatingSurfacesContainBackedDecision(model, surfaces)
+}
+
+func operatingMemberDrainerBacked(model OperatingModelDocument, producers []OperatingActorReference, surfaces []operatingSurfaceReference, member string) bool {
+	for _, producer := range producers {
+		if producer.Kind == OperatingActorKindExternal && operatingGraphHasRelationship(model, func(rel OperatingRelationship) bool {
+			return rel.Kind == operatingRelExternalProducer && rel.External == producer.Value && rel.Member == member
+		}) {
+			return true
+		}
+	}
+	return operatingMemberSurfaceConsumerBacked(model, surfaces, member)
+}
+
+func operatingMemberSurfaceConsumerBacked(model OperatingModelDocument, surfaces []operatingSurfaceReference, member string) bool {
+	for _, surface := range surfaces {
+		switch surface.Kind {
+		case OperatingGraphNodeKindTopic:
+			if operatingGraphHasRelationship(model, func(rel OperatingRelationship) bool {
+				return rel.Kind == operatingRelTopicRead && rel.Member == member && topicsOverlap(rel.Topic, surface.Value)
+			}) {
+				return true
+			}
+		case OperatingGraphNodeKindDecision:
+			if operatingGraphHasRelationship(model, func(rel OperatingRelationship) bool {
+				return (rel.Kind == operatingRelDecisionConsumed || rel.Kind == operatingRelDecisionOwned || rel.Kind == operatingRelCapabilityGapRaised) && rel.Member == member && operatingDecisionRefsOverlap(rel.Decision, surface.Value)
+			}) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func operatingTeamConsumerBacked(model OperatingModelDocument, surfaces []operatingSurfaceReference, team string) bool {
+	if operatingGraphHasNode(model, OperatingGraphNodeKindTeam, team) {
+		return true
+	}
+	for _, surface := range surfaces {
+		if surface.Kind != OperatingGraphNodeKindTopic {
+			continue
+		}
+		if operatingGraphHasRelationship(model, func(rel OperatingRelationship) bool {
+			return rel.Kind == operatingRelCrossTeamOutput && rel.TargetTeam == team && topicsOverlap(rel.Topic, surface.Value)
+		}) {
+			return true
+		}
+	}
+	return false
+}
+
+func operatingSurfaceReferenceBacked(model OperatingModelDocument, ref operatingSurfaceReference) bool {
+	switch ref.Kind {
+	case OperatingGraphNodeKindTopic:
+		return operatingGraphHasNode(model, OperatingGraphNodeKindTopic, ref.Value) &&
+			operatingTopicCatalogHasTopic(model, ref.Value)
+	case OperatingGraphNodeKindDecision:
+		return operatingGraphHasNode(model, OperatingGraphNodeKindDecision, ref.Value) &&
+			operatingDecisionCatalogHasDecision(model, ref.Value)
+	case OperatingGraphNodeKindPOR:
+		return operatingGraphHasNode(model, OperatingGraphNodeKindPOR, ref.Value)
+	case OperatingGraphNodeKindMember, OperatingGraphNodeKindTeam, OperatingGraphNodeKindExternal:
+		return operatingGraphHasNode(model, ref.Kind, ref.Value)
+	default:
+		return false
+	}
+}
+
+func operatingSurfaceTextMentionsBackedDecision(model OperatingModelDocument, raw string) bool {
+	normalized := strings.ToLower(raw)
+	if !strings.Contains(normalized, "decision") {
+		return false
+	}
+	for _, row := range model.Sections.Decisions.Rows {
+		if row.Decision != "" && strings.Contains(normalized, strings.ToLower(row.Decision)) {
+			return true
+		}
+	}
+	return false
+}
+
+func operatingSurfaceTextMentionsBackedPath(model OperatingModelDocument, raw string) bool {
+	for _, token := range extractInlineCodeTokens(raw) {
+		if strings.HasPrefix(token, "path:") || strings.HasPrefix(token, "docs/") {
+			if operatingGraphHasNode(model, OperatingGraphNodeKindPOR, strings.TrimPrefix(token, "path:")) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func operatingSurfacesContainBackedDecision(model OperatingModelDocument, surfaces []operatingSurfaceReference) bool {
+	for _, surface := range surfaces {
+		if surface.Kind == OperatingGraphNodeKindDecision && operatingSurfaceReferenceBacked(model, surface) {
+			return true
+		}
+	}
+	return false
+}
+
+func operatingSurfacesContainBackedTopicOrDecision(model OperatingModelDocument, surfaces []operatingSurfaceReference) bool {
+	for _, surface := range surfaces {
+		switch surface.Kind {
+		case OperatingGraphNodeKindTopic, OperatingGraphNodeKindDecision:
+			if operatingSurfaceReferenceBacked(model, surface) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func operatingActorExistsInGraph(model OperatingModelDocument, actor OperatingActorReference) bool {
+	switch actor.Kind {
+	case OperatingActorKindMember:
+		return operatingGraphHasNode(model, OperatingGraphNodeKindMember, actor.Value)
+	case OperatingActorKindTeam:
+		return operatingGraphHasNode(model, OperatingGraphNodeKindTeam, actor.Value)
+	case OperatingActorKindExternal:
+		return operatingGraphHasNode(model, OperatingGraphNodeKindExternal, actor.Value)
+	case OperatingActorKindProcess:
+		return operatingGraphHasNode(model, OperatingGraphNodeKindProcess, actor.Value)
+	default:
+		return false
+	}
+}
+
+func operatingGraphHasNode(model OperatingModelDocument, kind OperatingGraphNodeKind, value string) bool {
+	for _, block := range model.Graphs {
+		for _, node := range block.Graph.Nodes {
+			if node.Kind == kind && operatingModelSurfaceValuesOverlap(node.Value, value) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func operatingGraphHasRelationship(model OperatingModelDocument, match func(OperatingRelationship) bool) bool {
+	for _, block := range model.Graphs {
+		for _, rel := range BuildGraphOperatingRelationships(block) {
+			if match(rel) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func operatingTopicCatalogHasTopic(model OperatingModelDocument, topic string) bool {
+	for _, row := range model.Sections.TopicCatalog.Rows {
+		if operatingModelSurfaceValuesOverlap(row.Topic, topic) {
+			return true
+		}
+	}
+	return false
+}
+
+func operatingDecisionCatalogHasDecision(model OperatingModelDocument, decision string) bool {
+	for _, row := range model.Sections.Decisions.Rows {
+		if operatingDecisionRefsOverlap(row.Decision, decision) {
+			return true
+		}
+	}
+	return false
+}
+
+func operatingSurfaceReferences(raw string) []operatingSurfaceReference {
+	var refs []operatingSurfaceReference
+	seen := map[string]bool{}
+	add := func(ref operatingSurfaceReference) {
+		if ref.Kind == "" || ref.Value == "" {
+			return
+		}
+		key := string(ref.Kind) + "\x00" + string(ref.Qualifier) + "\x00" + ref.Value
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		refs = append(refs, ref)
+	}
+	for _, token := range extractInlineCodeTokens(raw) {
+		add(operatingSurfaceReferenceFromToken(token, raw))
+	}
+	if len(refs) == 0 {
+		for _, token := range operatingSurfaceLooseTokens(raw) {
+			add(operatingSurfaceReferenceFromToken(token, raw))
+		}
+	}
+	return refs
+}
+
+func operatingSurfaceLooseTokens(raw string) []string {
+	raw = strings.ReplaceAll(raw, " and ", ",")
+	raw = strings.ReplaceAll(raw, " or ", ",")
+	parts := strings.Split(raw, ",")
+	var out []string
+	for _, part := range parts {
+		token := strings.TrimSpace(part)
+		token = strings.TrimSuffix(token, " topics")
+		token = strings.TrimSuffix(token, " topic")
+		token = strings.TrimSuffix(token, " decisions")
+		token = strings.TrimSuffix(token, " decision")
+		if token != "" {
+			out = append(out, token)
+		}
+	}
+	return out
+}
+
+func operatingSurfaceReferenceFromToken(token, context string) operatingSurfaceReference {
+	token = parseInlineCodeToken(token)
+	if kind, qualifier, value, ok := parseOperatingGraphTypedToken(token); ok {
+		return operatingSurfaceReference{Kind: kind, Qualifier: qualifier, Value: value}
+	}
+	switch {
+	case strings.HasPrefix(token, "docs/"):
+		return operatingSurfaceReference{Kind: OperatingGraphNodeKindPOR, Value: token}
+	case strings.Contains(strings.ToLower(context), "decision") && !strings.Contains(token, "/"):
+		return operatingSurfaceReference{Kind: OperatingGraphNodeKindDecision, Value: token}
+	case strings.Contains(token, "/") || strings.Contains(token, "*"):
+		return operatingSurfaceReference{Kind: OperatingGraphNodeKindTopic, Value: strings.TrimPrefix(token, "topic:")}
+	default:
+		return operatingSurfaceReference{}
+	}
+}
+
+func operatingSurfaceReferenceIsTargetState(ref operatingSurfaceReference) bool {
+	return ref.Qualifier == OperatingGraphQualifierFuture || ref.Kind == OperatingGraphNodeKindFuture
+}
+
+func operatingModelRowIsTargetState(parts ...string) bool {
+	normalized := strings.ToLower(strings.Join(parts, " "))
+	return strings.Contains(normalized, "target-state") ||
+		strings.Contains(normalized, "target state") ||
+		strings.Contains(normalized, "future") ||
+		strings.Contains(normalized, "not yet") ||
+		strings.Contains(normalized, "until ")
+}
+
+func operatingDecisionRefsOverlap(a, b string) bool {
+	a = strings.TrimSpace(a)
+	b = strings.TrimSpace(b)
+	if a == "" || b == "" {
+		return false
+	}
+	if a == b {
+		return true
+	}
+	if strings.HasSuffix(a, "*") && strings.HasPrefix(b, strings.TrimSuffix(a, "*")) {
+		return true
+	}
+	if strings.HasSuffix(b, "*") && strings.HasPrefix(a, strings.TrimSuffix(b, "*")) {
+		return true
+	}
+	return false
+}
+
+func operatingModelSurfaceValuesOverlap(a, b string) bool {
+	if a == b {
+		return true
+	}
+	if strings.Contains(a, "/") || strings.Contains(b, "/") {
+		return topicsOverlap(a, b)
+	}
+	return operatingDecisionRefsOverlap(a, b)
+}
+
+func operatingOutputConsumerTextIsDownstream(raw string) bool {
+	normalized := strings.ToLower(raw)
+	for _, token := range []string{"operator", "downstream", "cross-team", "implementation", "owner", "team", "member", "validator", "consumer"} {
+		if strings.Contains(normalized, token) {
+			return true
+		}
+	}
+	return false
 }
 
 func sameStringSlice(got, want []string) bool {

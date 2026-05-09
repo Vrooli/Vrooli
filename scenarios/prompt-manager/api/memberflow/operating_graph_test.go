@@ -1853,10 +1853,16 @@ func TestValidateOperatingModelsKeepsMarketingScenarioQAMetaGreen(t *testing.T) 
 			if docCoverage.RequiredSectionsPresent != docCoverage.RequiredSectionsTotal || docCoverage.RequiredSectionsTotal == 0 {
 				t.Fatalf("unexpected required-section coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
 			}
-			if docCoverage.ExternalInputsTable != OperatingCoverageStatusEnforced || docCoverage.ExternalInputsRows == 0 {
+			if docCoverage.ExternalInputsTable != OperatingCoverageStatusEnforced ||
+				docCoverage.ExternalInputsRows == 0 ||
+				docCoverage.ExternalInputsBackedRows != docCoverage.ExternalInputsRows ||
+				docCoverage.ExternalInputsUnbackedRows != 0 {
 				t.Fatalf("unexpected external-input coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
 			}
-			if docCoverage.OutputsTable != OperatingCoverageStatusEnforced || docCoverage.OutputsRows == 0 {
+			if docCoverage.OutputsTable != OperatingCoverageStatusEnforced ||
+				docCoverage.OutputsRows == 0 ||
+				docCoverage.OutputsBackedRows != docCoverage.OutputsRows ||
+				docCoverage.OutputsUnbackedRows != 0 {
 				t.Fatalf("unexpected outputs coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
 			}
 			if docCoverage.FeedbackSteps == 0 || docCoverage.FeedbackAnchoredSteps != docCoverage.FeedbackSteps || docCoverage.FeedbackUnbackedReferences != 0 {
@@ -2032,9 +2038,33 @@ func operatingDiffBlock(t *testing.T, lines []string) OperatingGraphBlock {
 
 func operatingModelDocumentFixture(t *testing.T) OperatingModelDocument {
 	t.Helper()
-	block := operatingDiffBlock(t, []string{"flowchart LR"})
+	block := operatingDiffBlock(t, []string{
+		"flowchart LR",
+		`  OP["external:operator"]`,
+		`  A["member:a"]`,
+		`  T["topic:first/*"]`,
+		`  D{"decision:model-update"}`,
+		"  OP --> A",
+		"  A --> T",
+		"  T --> A",
+		"  A --> D",
+		"  D --> A",
+	})
 	block.Docs = OperatingGraphDocs{
-		TopicCatalog: OperatingTopicCatalogTable{Present: true, HeaderLine: 10},
+		TopicCatalog: OperatingTopicCatalogTable{
+			Present:    true,
+			HeaderLine: 10,
+			Rows: []OperatingTopicCatalogRow{{
+				Topic:      "first/*",
+				Status:     "live",
+				StatusKind: OperatingTopicStatusLive,
+				Writers:    []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "a", Raw: "member:a"}},
+				Readers:    []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "a", Raw: "member:a"}},
+				Purpose:    "First.",
+				SourceLine: 12,
+				RawTopic:   "`topic:first/*`",
+			}},
+		},
 		Decisions: OperatingDecisionTable{
 			Present:    true,
 			HeaderLine: 14,
@@ -2115,6 +2145,28 @@ func operatingModelDocumentFixture(t *testing.T) OperatingModelDocument {
 		},
 		Graphs: []OperatingGraphBlock{block},
 	}
+}
+
+func TestValidateOperatingModelsRejectsUnbackedExternalInputs(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.ExternalInputs.Rows[0].ProducerTrigger = "`external:ghost-system`"
+	models[0].Sections.ExternalInputs.Rows[0].EntrySurface = "`topic:ghost-inbox/*`"
+	models[0].Sections.ExternalInputs.Rows[0].Drainer = "member:ghost"
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_external_inputs_producer_unbacked")
+	assertOperatingFinding(t, result, "operating_model_external_inputs_entry_unbacked")
+	assertOperatingFinding(t, result, "operating_model_external_inputs_drainer_unbacked")
+}
+
+func TestValidateOperatingModelsRejectsUnbackedOutputs(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.Outputs.Rows[0].Surface = "`topic:ghost-output/*`"
+	models[0].Sections.Outputs.Rows[0].Consumer = "member:ghost"
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_outputs_surface_unbacked")
+	assertOperatingFinding(t, result, "operating_model_outputs_consumer_unbacked")
 }
 
 func operatingDiffRuntime(t *testing.T, members []MemberTopics) OperatingGraphRuntime {
