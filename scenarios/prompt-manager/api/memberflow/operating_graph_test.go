@@ -1585,7 +1585,7 @@ flowchart LR
 
 ## Current Implementation Gaps
 
-None.
+1. `+"`topic[future]:second/*`"+` remains target-state until a producer exists.
 
 ## Adoption / Validation
 
@@ -1625,6 +1625,9 @@ None.
 	}
 	if len(model.Sections.FeedbackLoop.Steps) != 1 || strings.Join(model.Sections.FeedbackLoop.Steps[0].References, ",") != "topic:first/*" {
 		t.Fatalf("expected feedback step reference: %+v", model.Sections.FeedbackLoop)
+	}
+	if len(model.Sections.Gaps.Items) != 1 || strings.Join(model.Sections.Gaps.Items[0].References, ",") != "topic[future]:second/*" || !model.Sections.Gaps.Items[0].TargetState {
+		t.Fatalf("expected structured gap item: %+v", model.Sections.Gaps)
 	}
 }
 
@@ -1689,6 +1692,30 @@ func TestValidateOperatingModelsRejectsUnbackedFeedbackReference(t *testing.T) {
 
 	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
 	assertOperatingFinding(t, result, "operating_model_feedback_reference_unbacked")
+}
+
+func TestValidateOperatingModelsRejectsUnstructuredGapItems(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.Gaps.Items = nil
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_gaps_items_missing")
+}
+
+func TestValidateOperatingModelsRejectsUnanchoredGapItem(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.Gaps.Items[0].References = nil
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_gap_item_unanchored")
+}
+
+func TestValidateOperatingModelsRejectsGapItemWithoutTargetState(t *testing.T) {
+	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
+	models[0].Sections.Gaps.Items[0].TargetState = false
+
+	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
+	assertOperatingFinding(t, result, "operating_model_gap_item_target_state_missing")
 }
 
 func TestValidateOperatingModelsRejectsMissingAdoptionCommands(t *testing.T) {
@@ -1834,6 +1861,9 @@ func TestValidateOperatingModelsKeepsMarketingScenarioQAMetaGreen(t *testing.T) 
 			}
 			if docCoverage.FeedbackSteps == 0 || docCoverage.FeedbackAnchoredSteps != docCoverage.FeedbackSteps || docCoverage.FeedbackUnbackedReferences != 0 {
 				t.Fatalf("unexpected feedback coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
+			}
+			if docCoverage.GapsItems == 0 || docCoverage.GapsAnchoredItems != docCoverage.GapsItems || docCoverage.GapsTargetStateItems != docCoverage.GapsItems {
+				t.Fatalf("unexpected gaps coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
 			}
 			if docCoverage.AdoptionValidationCommands != 3 || docCoverage.PlanOfRecordRegistration != OperatingCoverageStatusEnforced || docCoverage.ReadmeDiscoverability != OperatingCoverageStatusEnforced {
 				t.Fatalf("unexpected adoption/discoverability coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
@@ -2065,7 +2095,15 @@ func operatingModelDocumentFixture(t *testing.T) OperatingModelDocument {
 					SourceLine: 19,
 				}},
 			},
-			Gaps: OperatingMarkdownSection{Heading: "Current Implementation Gaps", Present: true, Line: 19},
+			Gaps: OperatingGapsSection{
+				OperatingMarkdownSection: OperatingMarkdownSection{Heading: "Current Implementation Gaps", Present: true, Line: 19},
+				Items: []OperatingGapItem{{
+					Text:        "`topic[future]:second/*` remains target-state until a producer exists.",
+					References:  []string{"topic[future]:second/*"},
+					TargetState: true,
+					SourceLine:  20,
+				}},
+			},
 			Adoption: OperatingAdoptionSection{
 				OperatingMarkdownSection: OperatingMarkdownSection{Heading: "Adoption / Validation", Present: true, Line: 24},
 				Commands: []OperatingAdoptionCommand{

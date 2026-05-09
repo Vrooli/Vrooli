@@ -477,7 +477,7 @@ flowchart LR
 
 ## Current Implementation Gaps
 
-None.
+1. ` + "`topic[future]:fixture-target/*`" + ` remains target-state until a fixture producer exists.
 
 ## Adoption / Validation
 
@@ -620,7 +620,7 @@ flowchart LR
 
 ## Current Implementation Gaps
 
-None.
+1. ` + "`topic[future]:fixture-target/*`" + ` remains target-state until a fixture producer exists.
 
 ## Adoption / Validation
 

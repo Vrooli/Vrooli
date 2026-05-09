@@ -69,6 +69,9 @@ type OperatingDocsCoverage struct {
 	FeedbackSteps                     int                     `json:"feedback_steps"`
 	FeedbackAnchoredSteps             int                     `json:"feedback_anchored_steps"`
 	FeedbackUnbackedReferences        int                     `json:"feedback_unbacked_references"`
+	GapsItems                         int                     `json:"gaps_items"`
+	GapsAnchoredItems                 int                     `json:"gaps_anchored_items"`
+	GapsTargetStateItems              int                     `json:"gaps_target_state_items"`
 	AdoptionValidationCommands        int                     `json:"adoption_validation_commands"`
 	PlanOfRecordRegistration          OperatingCoverageStatus `json:"plan_of_record_registration"`
 	ReadmeDiscoverability             OperatingCoverageStatus `json:"readme_discoverability"`
@@ -305,6 +308,7 @@ func addOperatingModelDocsCoverage(docs *OperatingDocsCoverage, model OperatingM
 	docs.OutputsTable = docsTableStatus(model.Sections.Outputs.Table)
 	docs.OutputsRows = len(model.Sections.Outputs.Rows)
 	docs.FeedbackSteps, docs.FeedbackAnchoredSteps, docs.FeedbackUnbackedReferences = feedbackLoopCoverageCounts(model)
+	docs.GapsItems, docs.GapsAnchoredItems, docs.GapsTargetStateItems = gapsCoverageCounts(model)
 	docs.AdoptionValidationCommands = countOperatingModelValidationCommands(model)
 	if runtime.Contracts.HasPlanOfRecordPath(model.Team, model.Source.Path) {
 		docs.PlanOfRecordRegistration = OperatingCoverageStatusEnforced
@@ -349,6 +353,19 @@ func feedbackLoopCoverageCounts(model OperatingModelDocument) (steps, anchored, 
 		}
 		if stepAnchored {
 			anchored++
+		}
+	}
+	return
+}
+
+func gapsCoverageCounts(model OperatingModelDocument) (items, anchored, targetState int) {
+	for _, item := range model.Sections.Gaps.Items {
+		items++
+		if len(item.References) > 0 {
+			anchored++
+		}
+		if item.TargetState {
+			targetState++
 		}
 	}
 	return

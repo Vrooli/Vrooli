@@ -252,6 +252,9 @@ type operatingDocsCoverage struct {
 	FeedbackSteps                     int    `json:"feedback_steps"`
 	FeedbackAnchoredSteps             int    `json:"feedback_anchored_steps"`
 	FeedbackUnbackedReferences        int    `json:"feedback_unbacked_references"`
+	GapsItems                         int    `json:"gaps_items"`
+	GapsAnchoredItems                 int    `json:"gaps_anchored_items"`
+	GapsTargetStateItems              int    `json:"gaps_target_state_items"`
 	AdoptionValidationCommands        int    `json:"adoption_validation_commands"`
 	PlanOfRecordRegistration          string `json:"plan_of_record_registration"`
 	ReadmeDiscoverability             string `json:"readme_discoverability"`

@@ -2,6 +2,8 @@
 
 **Status:** target-state canon. This document defines how the marketing-crew should work as a coherent system: loops, roles, topic surfaces, decision handoffs, and known gaps. It is the bridge between the strategic plan-of-record in `path:docs/marketing/` and the live team implementation under `path:scenarios/prompt-manager/store/teams/marketing-crew/`.
 
+The current document adopts the generic team operating-model shape from `path:docs/agent-system/OPERATING_GRAPHS.md`.
+
 The current implementation mostly matches this model after the first adoption pass. Topic families marked with `future` are target-state surfaces that should not be treated as live declarations until the marketing team config and member `topics.json` files are updated.
 
 ## Mission

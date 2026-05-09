@@ -159,6 +159,14 @@ func printOperatingModelCoverage(resp operatingModelCoverageResponse) {
 				cov.Docs.FeedbackUnbackedReferences,
 			)
 		}
+		if cov.Docs.GapsItems > 0 {
+			fmt.Printf("- Current Implementation Gaps: anchored items %d/%d, target-state dispositions %d/%d\n",
+				cov.Docs.GapsAnchoredItems,
+				cov.Docs.GapsItems,
+				cov.Docs.GapsTargetStateItems,
+				cov.Docs.GapsItems,
+			)
+		}
 		if cov.Docs.AdoptionValidationCommands > 0 {
 			fmt.Printf("- Adoption / Validation commands: %d/3 present\n", cov.Docs.AdoptionValidationCommands)
 		}

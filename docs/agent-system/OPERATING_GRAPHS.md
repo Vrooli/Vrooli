@@ -1,21 +1,22 @@
-# Operating Graph Contracts
+# Operating Model Contracts
 
-**Status:** canon. Operating graphs are the plan-of-record diagram layer for prompt-manager team workflow contracts. They connect human-readable Mermaid diagrams to the runtime declarations in `topics.json`, `team.json`, and generated heartbeat prompts.
+**Status:** canon. Operating models are the plan-of-record document layer for prompt-manager team workflow contracts. The Mermaid operating graph is one required section of that document; the full contract also includes section structure, topic and decision catalogs, external input/output tables, feedback routing, current gaps, adoption commands, plan-of-record registration, README discoverability, and generated heartbeat prompt checks.
 
-This document extends `TOPICS_SCHEMA.md`. Member `topics.json` remains the runtime source for per-member topic flow, while `team.json::topicCatalog` is the structured source for shared topic-family status and purpose. Operating graphs make the team-level shape visible and checkable.
+This document extends `TOPICS_SCHEMA.md`. Member `topics.json` remains the runtime source for per-member topic flow, while `team.json::topicCatalog` is the structured source for shared topic-family status and purpose. Operating models make the team-level shape visible and checkable without making Markdown the runtime source of truth.
 
 ## Purpose
 
-Operating graphs let humans and agents design a team in Mermaid while validators prove the diagram still matches the machine-readable contract.
+Operating models let humans and agents design a team contract in Markdown while validators prove the document still matches the machine-readable contract.
 
 The intended flow is:
 
 ```text
-PoR Mermaid diagram
-  -> normalized operating graph
-  -> validation against team.json topicCatalog and member topics.json
+PoR OPERATING_MODEL.md
+  -> parsed operating model document
+  -> normalized operating graph section
+  -> validation against team.json, member topics.json, README links, and docs surfaces
   -> generated member prompt contracts
-  -> prompt preview checks
+  -> prompt preview and coverage checks
 ```
 
 Mermaid is not executed at runtime. Runtime prompts are generated from structured declarations.
@@ -28,15 +29,16 @@ Use this shape for canonical team operating models:
 
 | Section | Purpose | Validation maturity |
 |---|---|---|
-| `Status / Scope / Mission` | Names the team, the document state, what the team owns, and what it explicitly does not own. | Human-reviewed today. |
-| `Operating Loops` | Describes the team's lifecycle in plain language: how signal enters, moves through members, becomes decisions or outputs, and feeds learning. | Human-reviewed today; future coherence checks may verify loop endpoints. |
+| `Mission` | Names the team mission and what the team exists to make possible. | Required for canonical contract operating models. |
+| `Scope` | Names what the team owns and what it explicitly does not own. | Required for canonical contract operating models. |
+| `Operating Loops` | Describes the team's lifecycle in plain language: how signal enters, moves through members, becomes decisions or outputs, and feeds learning. | Required for canonical contract operating models. |
 | `Operating Graph` | Typed Mermaid contract showing members, topics, decisions, external producers, cross-team outputs, POR outputs, and process/future placeholders. | Enforced for `contract` graphs. |
 | `Topic Catalog` | Human-readable projection of topic families, status, owner/writer, readers, and purpose. | Enforced against graph nodes, graph/runtime relationships, and `team.json::topicCatalog`. |
-| `Decision Catalog` | Human-readable projection of decision contexts, owners, purpose, expected evidence, and accepted effect. | Enforced for canonical operating models: table shape, graph/table parity, owner edges, required evidence/effect fields, and concrete accepted-effect surfaces. |
+| `Decisions` | Human-readable projection of decision contexts, owners, purpose, expected evidence, and accepted effect. | Enforced for canonical operating models: table shape, graph/table parity, owner edges, required evidence/effect fields, and concrete accepted-effect surfaces. |
 | `External Inputs / Triggers` | Lists external producers, entry surfaces, expected drainer, and trigger conditions. | Enforced for canonical operating models: table shape and non-empty rows. Relationship checks cover `external -> topic` and `external -> member`. |
 | `Outputs / Downstream Consumers` | Lists the team's deliverables, destination surfaces, and downstream consumers. | Enforced for canonical operating models: table shape and non-empty rows. Relationship checks cover topic, POR, and cross-team outputs. |
-| `Feedback / Capability Improvement Loop` | Explains how bugs, friction, missing capabilities, stale docs, and repeated workarounds get routed. | Human-reviewed today; future coherence checks should verify the loop has concrete topic or decision exits. |
-| `Current Gaps / Target State` | Names target-state topics, transitional surfaces, unmodeled boundaries, and known validation blind spots. | Human-reviewed today; future checks may require future/transitional topics to be declared consistently. |
+| `Feedback / Capability Improvement Loop` | Explains how bugs, friction, missing capabilities, stale docs, and repeated workarounds get routed. | Enforced for canonical operating models: ordered steps must name concrete inline-code surfaces backed by the graph, topic catalog, decision catalog, external inputs, outputs, or team members. |
+| `Current Implementation Gaps` | Names target-state topics, transitional surfaces, unmodeled boundaries, and known validation blind spots. | Enforced for canonical operating models: explicit list items must include inline-code surfaces and a target-state disposition. |
 | `Adoption / Validation` | Gives the graph id, expected validation commands, and reconciliation rules. | Enforced for canonical operating models: validate, diff, and coverage commands must name the model's team/id. |
 
 Keep the operating model at the **team contract** layer. It should define the shape of work, authority, and flow. It should not teach every member how to do its job.
@@ -51,13 +53,13 @@ Belongs elsewhere:
 
 ## Validate, Diff, and Coverage
 
-Operating graph tooling has three related jobs:
+Operating model tooling has three related jobs:
 
 | Command | Purpose | Output |
 |---|---|---|
 | `prompt-manager graph operating-model validate` | Gate whether the operating-model document is structurally valid and complete for active contract rule families. | Severity-bearing findings: errors and warnings. |
 | `prompt-manager graph operating-model diff` | Reconcile graph and runtime declarations. | Repair map grouped by drift direction. |
-| `prompt-manager graph operating-model coverage` | Explain what the contract machinery checked for matching model(s). | Counts by relationship family, prompt-section coverage, section/docs-surface status, decision metadata completeness, and excluded non-actionable nodes/edges. |
+| `prompt-manager graph operating-model coverage` | Explain what the contract machinery checked for matching model(s). | Counts by relationship family, prompt-section coverage, section/docs-surface status, decision metadata completeness, feedback and gaps anchoring, adoption/discoverability proof, and excluded non-actionable nodes/edges. |
 
 Keep these separate. Validation answers "can this be trusted as a contract?" Diff answers "what needs to change so the plan-of-record graph and runtime config say the same thing?" Coverage answers "what did those assurances actually cover?" A mature team contract should normally be clean in validate and diff, with coverage used as a self-description and audit aid. During staged adoption, diff may expose relationship families that are not yet promoted to validation, but those are temporary reconciliation states.
 
@@ -70,13 +72,14 @@ Diff compares both directions:
 
 For human output, diff groups these as "Graph Declares, Runtime Missing" and "Runtime Declares, Graph Missing." JSON output includes machine fields such as `relationship`, `source_path`, `line`, `runtime_path`, `acceptable_fields`, and `suggestions`.
 
-Coverage is read-only and does not change validation exit codes. For each matching checkable or contract graph, it reports:
+Coverage is read-only and does not change validation exit codes. For each matching checkable or contract operating model, it reports:
 
 - relationship counts for the same normalized families used by diff;
 - graph-only and runtime-only counts using the same relationship matcher as validation and diff;
 - runtime subtype counts for broad relationship families such as `topic_read`;
 - prompt coverage for generated `topic-contract` heartbeat sections;
 - docs-surface status, purpose parity, row parity, decision metadata completeness, and accepted-effect quality for the Mermaid graph, Topic Catalog table, and Decisions table;
+- required-section presence, canonical external-input/output tables, feedback-step anchoring, current-gap anchoring and target-state disposition, adoption command count, plan-of-record registration, and README discoverability;
 - non-actionable exclusions such as `process:`, `future:`, `topic[future]:`, `topic[old]:`, `topic[external]:`, and edges touching those nodes.
 
 Prompt coverage checks section presence, source-path matching, and content parity when real structured prompt sections are available. Content parity is `enforced` when every graph member's actual `topic-contract` prompt section matches the renderer output from member `topics.json` plus team `topicCatalog`, `mismatch` when any actual section differs, and `unavailable` when only derived/offline prompt-section metadata is available.
@@ -316,16 +319,50 @@ Suggested fixes:
 - or remove the runtime output declaration if it is obsolete
 ```
 
+## Required Document Sections
+
+Canonical `OPERATING_MODEL.md` files with a `mode: contract` graph must include exactly one of each required `##` section listed in the document-shape table above. Duplicate required sections are validation errors because they make the contract ambiguous. Missing required sections are validation errors because canonical contract documents are validated as whole operating models, not graph-only diagrams.
+
+The validator extracts sections by exact level-two heading text. Use these exact headings:
+
+- `## Mission`
+- `## Scope`
+- `## Operating Loops`
+- `## Operating Graph`
+- `## Topic Catalog`
+- `## Decisions`
+- `## External Inputs / Triggers`
+- `## Outputs / Downstream Consumers`
+- `## Feedback / Capability Improvement Loop`
+- `## Current Implementation Gaps`
+- `## Adoption / Validation`
+
+The Operating Graph section must contain the marked `prompt-manager-graph` metadata and Mermaid fence. Canonical operating-model files support one `mode: contract` graph.
+
 ## Docs Tables
 
-Contract graph source files must include two checked Markdown tables in the graph's docs surface. By default, the docs surface starts after the Mermaid fence and ends at the next marked operating graph or next top-level `#` heading.
+Contract operating models must include four checked Markdown tables. Table headings and headers are exact contract text; do not introduce alternate header names.
 
 | Section | Required headers | Validation |
 |---|---|---|
 | `## Topic Catalog` | `Topic family`, `Status`, `Owner / primary writer`, `Primary readers`, `Purpose` | Required for `contract` graphs. Live and future `topic:` rows must match the contract graph topic nodes, excluding `topic[old]:` and `topic[external]:` graph notes. |
 | `## Decisions` | `Decision context`, `Owner`, `Purpose`, `Expected evidence / trigger`, `Accepted effect` | Required for `contract` graphs. Decision rows must match graph `decision:` nodes, member owners must be shown as `member -> decision` graph edges, and each row must name expected evidence plus an accepted effect that points to a concrete downstream surface. `capability-gap` owners may be backed by `raises_capability_gaps`. |
+| `## External Inputs / Triggers` | `Producer / trigger`, `Entry surface`, `Drainer`, `Routing rule` | Required for canonical operating models. The section must contain a Markdown table with at least one row, and every row must fill all cells. |
+| `## Outputs / Downstream Consumers` | `Output`, `Surface`, `Consumer`, `Purpose` | Required for canonical operating models. The section must contain a Markdown table with at least one row, and every row must fill all cells. |
 
-`checkable` graphs may omit these tables. `contract` graphs report validation errors when either table is missing. When present, table drift is validation-enforced.
+`checkable` graphs may omit these tables. Canonical contract operating models report validation errors when any required table is missing. When present, table drift is validation-enforced.
+
+## Feedback, Gaps, and Adoption
+
+Feedback, gaps, and adoption sections are parsed as structured contract surfaces:
+
+| Section | Required shape | Validation |
+|---|---|---|
+| `## Feedback / Capability Improvement Loop` | Ordered list. Each step must use inline code for concrete surfaces such as `topic:*`, decision ids, member ids, paths, outputs, or downstream surfaces. | Each step must have at least one inline-code reference. At least one reference per step must be backed by the graph, Topic Catalog, Decisions, External Inputs / Triggers, Outputs / Downstream Consumers, or team members. Unbacked references are validation errors. |
+| `## Current Implementation Gaps` | Bullet or numbered list. Each item must name at least one concrete surface in inline code and state a target-state disposition. | Items without inline-code surfaces are validation errors. Items without target-state, future, deferred, transitional, accepted, or similar disposition language are validation errors. |
+| `## Adoption / Validation` | Inline-code commands for `validate`, `diff`, and `coverage`. | The section must include `prompt-manager graph operating-model <verb> --team <team> --id <id>` for all three verbs. The team and id must match the graph metadata. |
+
+The current-gap section is not a backlog. It records contract-relevant gaps that explain why a surface is future, transitional, explicitly terminal, or intentionally not modeled yet.
 
 Topic Catalog statuses are structured even though the table stays human-readable:
 
@@ -408,6 +445,29 @@ Current rules:
 | `graph_decisions_table_missing` | error | Contract graph source does not include a scoped `## Decisions` table. |
 | `graph_decisions_table_drift` | error | Decisions table rows and graph decision nodes differ. |
 | `graph_decisions_table_owner_drift` | error | Decisions table member owner is not shown as a graph decision owner. |
+| `operating_model_required_section_missing` | error | Canonical contract operating model is missing one of the required `##` sections. |
+| `operating_model_duplicate_section` | error | A required operating-model section appears more than once. |
+| `operating_model_decisions_header_drift` | error | Decisions table headers differ from the canonical five-column shape. |
+| `operating_model_decisions_empty` | error | Decisions table contains no decision rows. |
+| `operating_model_decisions_row_incomplete` | error | Decisions row is missing decision context, owner, purpose, expected evidence/trigger, or accepted effect. |
+| `operating_model_decisions_effect_weak` | error | Decision accepted effect does not name a concrete downstream surface. |
+| `operating_model_external_inputs_table_missing` | error | External Inputs / Triggers section does not contain a Markdown table. |
+| `operating_model_external_inputs_header_drift` | error | External Inputs / Triggers table headers differ from the canonical four-column shape. |
+| `operating_model_external_inputs_empty` | error | External Inputs / Triggers table contains no rows. |
+| `operating_model_external_inputs_row_incomplete` | error | External Inputs / Triggers row has an empty producer/trigger, entry surface, drainer, or routing rule cell. |
+| `operating_model_outputs_table_missing` | error | Outputs / Downstream Consumers section does not contain a Markdown table. |
+| `operating_model_outputs_header_drift` | error | Outputs / Downstream Consumers table headers differ from the canonical four-column shape. |
+| `operating_model_outputs_empty` | error | Outputs / Downstream Consumers table contains no rows. |
+| `operating_model_outputs_row_incomplete` | error | Outputs / Downstream Consumers row has an empty output, surface, consumer, or purpose cell. |
+| `operating_model_feedback_steps_missing` | error | Feedback / Capability Improvement Loop section has no ordered steps. |
+| `operating_model_feedback_step_unanchored` | error | Feedback step does not name a backed operating-model surface. |
+| `operating_model_feedback_reference_unbacked` | error | Feedback step names an inline-code reference not represented by the operating model. |
+| `operating_model_gaps_items_missing` | error | Current Implementation Gaps section has no explicit list items. |
+| `operating_model_gap_item_unanchored` | error | Current Implementation Gaps item does not name a concrete inline-code surface. |
+| `operating_model_gap_item_target_state_missing` | error | Current Implementation Gaps item does not state a target-state disposition. |
+| `operating_model_adoption_command_missing` | error | Adoption / Validation is missing a required validate, diff, or coverage command for the model's team/id. |
+| `operating_model_plan_of_record_missing` | error | `team.json::operatingContract.documents.planOfRecord` does not register the operating-model path. |
+| `operating_model_readme_link_missing` | error | The team README does not link to the operating-model document. |
 | `graph_prompt_topic_contract_missing` | error | Contract graph member does not receive a generated `topic-contract` prompt section. |
 | `graph_prompt_topic_contract_source_mismatch` | error | Generated `topic-contract` prompt section does not point at that member's `topics.json`. |
 | `graph_prompt_topic_contract_content_mismatch` | error | Actual generated `topic-contract` prompt content differs from the renderer output for that member's `topics.json`. |
@@ -420,9 +480,9 @@ Generated heartbeat prompt checks are part of this layer: every contract graph m
 
 ## Completeness vs. Coherence
 
-Current operating-model validation primarily enforces completeness: the declared contract surfaces agree. Completeness checks prove that graph edges, Topic Catalog rows, Decisions rows, runtime config, generated prompt sections, section tables, adoption commands, PoR registration, and README discoverability say the same thing.
+Current operating-model validation primarily enforces completeness: the declared contract surfaces agree. Completeness checks prove that graph edges, Topic Catalog rows, Decisions rows, runtime config, generated prompt sections, section tables, feedback references, current-gap surfaces, adoption commands, PoR registration, and README discoverability say the same thing.
 
-Coherence is a separate future rule family. Coherence checks will ask whether the agreed graph is operationally plausible: live topics have producers and consumers, queues drain somewhere, terminal topics are explicit, decisions have ownership and review paths, and process nodes do not hide required runtime relationships.
+Coherence is a separate rule family for operational plausibility beyond surface agreement. The current feedback-loop checks are deliberately shallow coherence checks: they prove named feedback exits point at modeled surfaces. Future coherence checks should go deeper: live topics have producers and consumers, queues drain somewhere, terminal topics are explicit, decisions have ownership and review paths, and process nodes do not hide required runtime relationships.
 
 Do not mix these concerns. Completeness rules belong with entity, edge, relationship, docs-table, and prompt-section validation. Coherence rules should be introduced as a distinct `coherence` rule group after the status and actor-parity contract is stable.
 
@@ -436,6 +496,8 @@ Candidate coherence checks include:
 - decision has no owner or no reviewer/consumer path;
 - process node is the only bridge between two live runtime surfaces;
 - learning/canon loop writes into a notebook or backlog that no member drains;
+- feedback-loop exit mentions a valid surface but that surface cannot actually drain the named failure mode;
+- current-gap item is accepted indefinitely without a modeled decision, future topic, or backlog route;
 - external reader/writer semantics should become an explicit cross-boundary relationship instead of a warning-only docs claim.
 
 ## Adding Relationship Families
@@ -450,26 +512,33 @@ Add new graph/runtime relationship semantics through the relationship registry f
 
 Do not add one-off switches in validation, diff, or coverage for a relationship family. Those layers ask the registry what the relationship means.
 
-CLI `--json` output for operating-graph list, validate, diff, and coverage preserves the API response fields, including graph metadata status/extra fields, parsed docs tables, and source fence lines.
+CLI `--json` output for operating-model list, validate, diff, and coverage preserves the API response fields, including model fields, graph metadata status/extra fields, parsed docs tables, and source fence lines.
 
 ## Adoption Checklist
 
-1. Add a full topic-level contract diagram to the team plan-of-record.
-2. Add `prompt-manager-graph` metadata with `mode: contract`.
-3. Type every contract node.
-4. Keep conceptual joins as `process:` nodes.
-5. Mark target-state-only topics with `topic[future]:`.
-6. Add a Topic Catalog with canonical statuses and actor cells that map to graph/runtime relationships.
-7. Add a Decisions table with owners that map to graph/runtime decision ownership.
-8. Run `prompt-manager graph operating-model validate --team <team>`.
-9. Run `prompt-manager graph operating-model diff --team <team>`.
-10. Run `prompt-manager graph operating-model coverage --team <team>` and review broad relationship subtypes.
-11. Reconcile findings by updating docs or runtime config after design review.
+1. Create `docs/<team-domain>/OPERATING_MODEL.md` with the exact required section headings.
+2. Add a full topic-level contract diagram under `## Operating Graph`.
+3. Add `prompt-manager-graph` metadata with `mode: contract`, stable `id`, `scope: team`, and the team id.
+4. Type every contract node.
+5. Keep conceptual joins as `process:` nodes.
+6. Mark target-state-only topics with `topic[future]:`.
+7. Add a Topic Catalog with canonical statuses and actor cells that map to graph/runtime relationships.
+8. Add a Decisions table with owners, expected evidence/triggers, and accepted effects that map to concrete downstream surfaces.
+9. Add External Inputs / Triggers and Outputs / Downstream Consumers tables using the canonical headers.
+10. Add ordered feedback steps that name backed inline-code surfaces.
+11. Add current-gap list items that name inline-code surfaces and target-state dispositions.
+12. Register the document in `team.json::operatingContract.documents.planOfRecord`.
+13. Link the document from the team README.
+14. Include adoption commands for validate, diff, and coverage using `--team <team> --id <id>`.
+15. Run `prompt-manager graph operating-model validate --team <team> --id <id>`.
+16. Run `prompt-manager graph operating-model diff --team <team> --id <id>`.
+17. Run `prompt-manager graph operating-model coverage --team <team> --id <id>` and review relationship subtypes plus section coverage.
+18. Reconcile findings by updating docs or runtime config after design review.
 
 ## Non-Goals
 
 - Do not make Mermaid the runtime source of truth.
 - Do not support arbitrary Mermaid syntax.
-- Do not use operating graphs to bypass `topics.json`.
+- Do not use operating models or graph sections to bypass `topics.json`.
 - Do not hide untyped contract nodes behind display labels.
 - Do not auto-apply sync changes until validation has proven stable.

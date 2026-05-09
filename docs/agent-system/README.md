@@ -100,7 +100,7 @@ For a first read, use this order:
 | `TEAM_MEMBER_ARCHITECTURE.md` | canon | The 9-layer member capability model |
 | `INTAKE_PIPELINE.md` | canon | Intake → Collection → Analysis → Promotion pipeline; inbox-router-drain pattern; two routing modes (classifier-required vs deterministic-prefix); cross-team schema ownership; topic-prefix conventions |
 | `TOPICS_SCHEMA.md` | canon | `topics.json` schema reference — paired with `path:scenarios/prompt-manager/api/memberflow/schema.go`. Pillar 1 of topic validation (declared graph). |
-| `OPERATING_GRAPHS.md` | canon | Typed Mermaid operating-graph contracts for validating plan-of-record diagrams against `team.json`, `topics.json`, and generated prompt sections. |
+| `OPERATING_GRAPHS.md` | canon | Operating-model document contracts, including required sections, the typed Mermaid graph section, docs tables, feedback/gaps/adoption validation, and runtime parity against `team.json`, `topics.json`, README links, and generated prompt sections. |
 | `TOPICS.md` | canon | Human registry of every topic prefix in active use — definition, conventions, per-team registry, adoption checklist |
 | `RUNTIME_ATTRIBUTION.md` | canon | Pillar 3 of topic validation: structured-attribution contract, `X-Vrooli-Attribution` HTTP header, `VROOLI_PROMPT_MANAGER_ATTRIBUTION` env-var bridge, per-team `attributionValidFrom` cutoff, threat model |
 | `DECISIONS.md` | canon | Decision contexts, lifecycle, direct-write vs swarm-manager routing, capability-gap criteria, action graduation gate, stale-decision policy, cross-team output ownership, inbox backpressure |
