@@ -165,6 +165,54 @@ type TimelineResponse struct {
 	Summary map[string]int  `json:"summary"`
 }
 
+type SystemEvent struct {
+	ID          int64                  `json:"id"`
+	Fingerprint string                 `json:"fingerprint"`
+	OccurredAt  time.Time              `json:"occurredAt"`
+	IngestedAt  time.Time              `json:"ingestedAt"`
+	Source      string                 `json:"source"`
+	Platform    string                 `json:"platform"`
+	Category    string                 `json:"category"`
+	Severity    string                 `json:"severity"`
+	Title       string                 `json:"title"`
+	Summary     string                 `json:"summary"`
+	BootID      string                 `json:"bootId,omitempty"`
+	Details     map[string]interface{} `json:"details,omitempty"`
+}
+
+type SystemEventSource struct {
+	Source         string                 `json:"source"`
+	Platform       string                 `json:"platform"`
+	Status         string                 `json:"status"`
+	LastIngestedAt time.Time              `json:"lastIngestedAt,omitempty"`
+	LastError      string                 `json:"lastError,omitempty"`
+	Capabilities   map[string]interface{} `json:"capabilities,omitempty"`
+}
+
+type SystemEventCorrelation struct {
+	Title        string   `json:"title"`
+	Summary      string   `json:"summary"`
+	Rationale    string   `json:"rationale"`
+	EventIDs     []int64  `json:"eventIds"`
+	EventSources []string `json:"eventSources"`
+	TimeDelta    string   `json:"timeDelta,omitempty"`
+	Confidence   string   `json:"confidence"`
+}
+
+type SystemEventsResponse struct {
+	Events       []SystemEvent            `json:"events"`
+	Count        int                      `json:"count"`
+	Sources      []SystemEventSource      `json:"sources"`
+	Correlations []SystemEventCorrelation `json:"correlations,omitempty"`
+}
+
+type SystemEventsRefreshResponse struct {
+	Ingested   int                 `json:"ingested"`
+	Deduped    int                 `json:"deduped"`
+	Sources    []SystemEventSource `json:"sources"`
+	DurationMs int64               `json:"durationMs"`
+}
+
 type Incident struct {
 	ID                    string                   `json:"id"`
 	Fingerprint           string                   `json:"fingerprint"`

@@ -11,6 +11,7 @@ import (
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/hostinventory"
 	"vrooli-autoheal/internal/incidents"
+	"vrooli-autoheal/internal/systemevents"
 
 	_ "modernc.org/sqlite"
 )
@@ -93,6 +94,48 @@ func TestSQLiteStore_ActionLogRoundTrip(t *testing.T) {
 	}
 	if logs.Logs[0].CheckID != "infra-network" {
 		t.Fatalf("check id = %q, want infra-network", logs.Logs[0].CheckID)
+	}
+}
+
+func TestSQLiteStore_SystemEventsDedupFilterAndCorrelate(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	base := time.Date(2026, 5, 6, 6, 10, 0, 0, time.UTC)
+	events := []systemevents.Event{
+		{Fingerprint: "kernel-1", OccurredAt: base, IngestedAt: base, Source: "dpkg-log", Platform: "linux", Category: "kernel", Severity: systemevents.SeverityInfo, Title: "Kernel installed", Summary: "linux-image installed"},
+		{Fingerprint: "crash-1", OccurredAt: base.Add(2 * time.Hour), IngestedAt: base.Add(2 * time.Hour), Source: "journalctl", Platform: "linux", Category: "crash", Severity: systemevents.SeverityCritical, Title: "Hardware/reset signal", Summary: "unclean reset"},
+	}
+
+	inserted, deduped, err := store.UpsertSystemEvents(ctx, events)
+	if err != nil {
+		t.Fatalf("UpsertSystemEvents() error = %v", err)
+	}
+	if inserted != 2 || deduped != 0 {
+		t.Fatalf("first upsert inserted/deduped = %d/%d, want 2/0", inserted, deduped)
+	}
+	inserted, deduped, err = store.UpsertSystemEvents(ctx, events)
+	if err != nil {
+		t.Fatalf("second UpsertSystemEvents() error = %v", err)
+	}
+	if inserted != 0 || deduped != 2 {
+		t.Fatalf("second upsert inserted/deduped = %d/%d, want 0/2", inserted, deduped)
+	}
+
+	resp, err := store.ListSystemEvents(ctx, systemevents.Filters{Category: []string{"kernel"}, Limit: 10, Correlate: true})
+	if err != nil {
+		t.Fatalf("ListSystemEvents() error = %v", err)
+	}
+	if len(resp.Events) != 1 || resp.Events[0].Category != "kernel" {
+		t.Fatalf("filtered events = %#v, want one kernel event", resp.Events)
+	}
+
+	resp, err = store.ListSystemEvents(ctx, systemevents.Filters{Limit: 10, Correlate: true})
+	if err != nil {
+		t.Fatalf("ListSystemEvents(correlate) error = %v", err)
+	}
+	if len(resp.Correlations) == 0 {
+		t.Fatal("expected correlation hints")
 	}
 }
 

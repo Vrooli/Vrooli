@@ -188,6 +188,23 @@ reintroduces the loop class.
 Reference: `docs/reference/staleness-and-rebuild.md` documents the full
 fingerprint / lock / sidecar contract on the buildinfo side.
 
+### System Event Timeline Collection Seam
+
+`api/internal/systemevents/` owns host-event normalization for the forensic
+Timeline surface. It is the only place that should parse OS package logs,
+kernel journal lines, boot history, or platform-specific event sources for the
+system-event timeline.
+
+Production collection goes through injected `checks.CommandExecutor`,
+`journal.Reader`, and file/glob functions. Tests should exercise parser and
+collector behavior with injected content rather than reading host log paths,
+`journalctl`, or platform event logs directly.
+
+The `/api/v1/timeline` endpoint remains the health-check-result timeline. New
+host-level event work belongs behind `/api/v1/system-events` and the
+`system_events` SQLite table so it can dedupe repeated ingestion and survive
+process restarts.
+
 ### Watchdog Detection System Probe Seam
 
 `api/internal/watchdog/watchdog.go` now routes environment/runtime interactions through a dedicated `detectorProbe` boundary. This seam isolates:

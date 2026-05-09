@@ -36,12 +36,22 @@ type ScenarioCLI interface {
 	GetStatus(ctx context.Context, scenarioName string) (string, error)
 }
 
+type scenarioPortResolver interface {
+	ResolveScenarioPort(ctx context.Context, scenarioName, portName string) (int, error)
+}
+
 // DefaultScenarioCLI implements ScenarioCLI using api-core discovery.
-type DefaultScenarioCLI struct{}
+type DefaultScenarioCLI struct {
+	PortResolver scenarioPortResolver
+}
 
 // LookupPort uses api-core discovery to get the port number.
 func (c *DefaultScenarioCLI) LookupPort(ctx context.Context, scenarioName, portName string) (int, error) {
-	return discovery.ResolveScenarioPort(ctx, scenarioName, portName)
+	resolver := c.PortResolver
+	if resolver == nil {
+		resolver = discovery.NewResolver(discovery.ResolverConfig{})
+	}
+	return resolver.ResolveScenarioPort(ctx, scenarioName, portName)
 }
 
 // ListScenarios shells out to 'vrooli scenario list --json' to get all scenarios.
@@ -157,24 +167,10 @@ func SetScenarioCLIForTests(cli ScenarioCLI) func() {
 	}
 }
 
-// Legacy compatibility - portLookupFunc now delegates to scenarioCLI
-var portLookupFunc = func(ctx context.Context, scenarioName, portName string) (int, error) {
-	return scenarioCLI.LookupPort(ctx, scenarioName, portName)
-}
-
 const (
 	portLookupRetryWindow = 6 * time.Second
 	portLookupRetryDelay  = 250 * time.Millisecond
 )
-
-// SetPortLookupFuncForTests provides backward compatibility for existing tests.
-func SetPortLookupFuncForTests(fn func(context.Context, string, string) (int, error)) func() {
-	previous := portLookupFunc
-	portLookupFunc = fn
-	return func() {
-		portLookupFunc = previous
-	}
-}
 
 func ResolvePort(ctx context.Context, scenarioName string, portNames ...string) (*PortInfo, error) {
 	if ctx == nil {
@@ -189,18 +185,12 @@ func ResolvePort(ctx context.Context, scenarioName string, portNames ...string) 
 	combined = append(combined, "UI_PORT", "API_PORT")
 	candidateNames := uniqueNormalizedNames(combined)
 
-	if entry := lookupRegistryEntry(trimmedScenario); entry != nil {
-		if portName, port := entry.portFor(candidateNames); port > 0 {
-			return &PortInfo{Name: portName, Port: port}, nil
-		}
-	}
-
 	deadline := time.Now().Add(portLookupRetryWindow)
 	var lastErr error
 
 	for {
 		for _, name := range candidateNames {
-			port, err := portLookupFunc(ctx, trimmedScenario, name)
+			port, err := scenarioCLI.LookupPort(ctx, trimmedScenario, name)
 			if err == nil && port > 0 {
 				return &PortInfo{Name: name, Port: port}, nil
 			}
@@ -261,16 +251,6 @@ func ResolveURL(ctx context.Context, scenarioName, path string, portNames ...str
 	trimmedScenario := strings.TrimSpace(scenarioName)
 	if trimmedScenario == "" {
 		return "", nil, fmt.Errorf("scenario name is required")
-	}
-
-	combined := append([]string{}, portNames...)
-	combined = append(combined, "UI_PORT", "API_PORT")
-	candidateNames := uniqueNormalizedNames(combined)
-
-	if entry := lookupRegistryEntry(trimmedScenario); entry != nil {
-		if resolved, info, ok := entry.resolveURL(path, candidateNames); ok {
-			return resolved, info, nil
-		}
 	}
 
 	portInfo, err := ResolvePort(ctx, trimmedScenario, portNames...)

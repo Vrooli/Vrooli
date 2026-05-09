@@ -15,6 +15,7 @@ import (
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/systemevents"
 	"vrooli-autoheal/internal/userconfig"
 
 	"github.com/gorilla/handlers"
@@ -75,6 +76,7 @@ func run() error {
 	// Initialize components
 	store := persistence.NewStore(db)
 	plat := platform.Detect()
+	systemEventService := systemevents.NewService(store, plat)
 	registry := checks.NewRegistry(plat)
 
 	// Wire config manager into registry for enable/autoHeal checks
@@ -102,6 +104,9 @@ func run() error {
 	if err := bootstrap.PopulateRecentResults(ctx, registry, store); err != nil {
 		log.Printf("warning: could not pre-populate results: %v", err)
 	}
+	if _, err := systemEventService.Ingest(ctx); err != nil {
+		log.Printf("warning: system event ingestion failed: %v", err)
+	}
 	cancel()
 
 	// Schedule initial tick 5 seconds after startup to get fresh results
@@ -109,6 +114,7 @@ func run() error {
 
 	// Setup HTTP server
 	h := apiHandlers.New(registry, store, plat)
+	h.SetSystemEventService(systemEventService)
 	configHandlers := apiHandlers.NewConfigHandlers(configMgr, registry)
 	router := setupRouter(h, configHandlers, db)
 
@@ -144,6 +150,8 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers, db *sq
 
 	// History and timeline endpoints [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 	router.HandleFunc("/api/v1/timeline", h.Timeline).Methods("GET")
+	router.HandleFunc("/api/v1/system-events", h.SystemEvents).Methods("GET")
+	router.HandleFunc("/api/v1/system-events/refresh", h.RefreshSystemEvents).Methods("POST")
 	router.HandleFunc("/api/v1/uptime", h.UptimeStats).Methods("GET")
 	router.HandleFunc("/api/v1/uptime/history", h.UptimeHistory).Methods("GET")
 

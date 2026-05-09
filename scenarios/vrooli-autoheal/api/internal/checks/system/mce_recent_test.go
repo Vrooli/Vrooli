@@ -9,9 +9,17 @@ import (
 
 func newMCEWithMock(installed bool) (*MCERecentCheck, *checks.MockExecutor) {
 	mock := checks.NewMockExecutor()
-	probe := func(ctx context.Context, _ checks.CommandExecutor) bool { return installed }
+	probe := func(ctx context.Context, _ checks.CommandExecutor) (string, bool) {
+		if !installed {
+			return "", false
+		}
+		return "ras-mc-ctl", true
+	}
 	c := NewMCERecentCheck(WithMCEExecutor(mock))
-	c.rasdaemonProbe = probe
+	c.rasCommandProbe = probe
+	c.serviceStateProbe = func(ctx context.Context, exec checks.CommandExecutor) (string, bool) {
+		return "active", true
+	}
 	return c, mock
 }
 

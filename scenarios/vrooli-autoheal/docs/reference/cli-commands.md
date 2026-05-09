@@ -170,6 +170,21 @@ Generated remediation artifacts are written under the `api-core/storage` state d
 
 ---
 
+### timeline
+
+Show the persisted system-event timeline for host forensics.
+
+```bash
+vrooli-autoheal timeline [--since 72h] [--category kernel,driver] [--severity critical,warning] [--source journalctl,dpkg-log] [--limit 100] [--json]
+vrooli-autoheal timeline refresh [--json]
+```
+
+The top-level timeline reports host events such as boots, kernel/package changes, driver/module events, firmware updates, and crash/reset signals. `vrooli-autoheal actions timeline` remains the health-check result timeline.
+
+Correlation hints are deterministic temporal hints only. They identify ordering such as "kernel change before first crash" without claiming root cause.
+
+---
+
 ### checks
 
 List registered health checks.

@@ -30,6 +30,8 @@ The dashboard is organized into several sections:
 
 - **Dashboard**: Main health overview (default)
 - **Trends**: Historical data and charts
+- **Timeline**: Host-level system events and temporal correlation hints
+- **Incidents**: Durable incident records and remediation workflow
 - **Docs**: This documentation
 
 ### Summary Cards
@@ -72,6 +74,18 @@ Chronological list of recent events:
 - Status changes (e.g., OK → Critical)
 - Auto-heal actions taken
 
+The dashboard event timeline is health-check focused. For host-level forensics, use the **Timeline** tab.
+
+### System Timeline Tab
+
+The Timeline tab shows persisted host events collected from available platform sources:
+- Linux package logs for kernel, driver, firmware, display, and microcode changes
+- Linux journal boot windows and kernel crash/reset/driver signals
+- Source health for collectors that are available, degraded, or unsupported
+- Deterministic correlation hints based on event ordering
+
+Correlation hints are intentionally conservative. They help answer "what changed near this incident?" but do not claim root cause without corroborating evidence.
+
 ## Common Tasks
 
 ### Running a Manual Health Check
@@ -87,7 +101,8 @@ Click the **Run Tick** button in the header. This:
 2. Read the status message for details
 3. Click the check card to expand details
 4. Check the Events Timeline for recent history
-5. Go to Trends tab for historical patterns
+5. Open the Timeline tab to compare package/kernel/driver changes against crash or reset events
+6. Go to Trends tab for historical patterns
 
 ### Checking Historical Data
 

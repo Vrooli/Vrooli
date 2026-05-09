@@ -331,6 +331,83 @@ export async function fetchTimeline(): Promise<TimelineResponse> {
   return apiRequest<TimelineResponse>("/timeline");
 }
 
+export type SystemEventSeverity = "info" | "warning" | "critical";
+
+export interface SystemEvent {
+  id: number;
+  fingerprint: string;
+  occurredAt: string;
+  ingestedAt?: string;
+  source: string;
+  platform: string;
+  category: string;
+  severity: SystemEventSeverity;
+  title: string;
+  summary: string;
+  bootId?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface SystemEventSourceStatus {
+  source: string;
+  platform: string;
+  status: "ok" | "unsupported" | "degraded" | "failed";
+  lastIngestedAt?: string;
+  lastError?: string;
+  capabilities?: Record<string, unknown>;
+}
+
+export interface SystemEventCorrelation {
+  title: string;
+  summary: string;
+  rationale: string;
+  eventIds: number[];
+  eventSources: string[];
+  timeDelta?: string;
+  confidence: string;
+}
+
+export interface SystemEventsResponse {
+  events: SystemEvent[];
+  count: number;
+  sources: SystemEventSourceStatus[];
+  correlations?: SystemEventCorrelation[];
+}
+
+export interface SystemEventsRefreshResponse {
+  ingested: number;
+  deduped: number;
+  sources: SystemEventSourceStatus[];
+  durationMs: number;
+}
+
+export interface SystemEventsParams {
+  since?: string;
+  until?: string;
+  category?: string;
+  severity?: string;
+  source?: string;
+  limit?: number;
+  correlate?: boolean;
+}
+
+export async function fetchSystemEvents(params: SystemEventsParams = {}): Promise<SystemEventsResponse> {
+  const query = new URLSearchParams();
+  if (params.since) query.set("since", params.since);
+  if (params.until) query.set("until", params.until);
+  if (params.category) query.set("category", params.category);
+  if (params.severity) query.set("severity", params.severity);
+  if (params.source) query.set("source", params.source);
+  if (params.limit) query.set("limit", String(params.limit));
+  if (params.correlate) query.set("correlate", "true");
+  const suffix = query.toString();
+  return apiRequest<SystemEventsResponse>(`/system-events${suffix ? `?${suffix}` : ""}`);
+}
+
+export async function refreshSystemEvents(): Promise<SystemEventsRefreshResponse> {
+  return apiRequest<SystemEventsRefreshResponse>("/system-events/refresh", { method: "POST" });
+}
+
 // Uptime stats API types
 export interface UptimeStatsResponse {
   totalEvents: number;

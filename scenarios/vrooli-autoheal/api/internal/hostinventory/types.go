@@ -125,11 +125,16 @@ type ResetReason struct {
 }
 
 type CrashEvidenceProbeState struct {
-	PstoreSupported  bool   `json:"pstoreSupported"`
-	PstoreReadable   bool   `json:"pstoreReadable"`
-	PstoreError      string `json:"pstoreError,omitempty"`
-	RasdaemonPresent bool   `json:"rasdaemonPresent"`
-	RasdaemonError   string `json:"rasdaemonError,omitempty"`
+	PstoreSupported       bool   `json:"pstoreSupported"`
+	PstoreReadable        bool   `json:"pstoreReadable"`
+	PstoreError           string `json:"pstoreError,omitempty"`
+	PstoreExportReadable  bool   `json:"pstoreExportReadable"`
+	PstoreExportError     string `json:"pstoreExportError,omitempty"`
+	PstoreCoverageGap     bool   `json:"pstoreCoverageGap"`
+	RasdaemonPresent      bool   `json:"rasdaemonPresent"`
+	RasdaemonPath         string `json:"rasdaemonPath,omitempty"`
+	RasdaemonServiceState string `json:"rasdaemonServiceState,omitempty"`
+	RasdaemonError        string `json:"rasdaemonError,omitempty"`
 }
 
 type HostSignal struct {

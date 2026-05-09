@@ -2,11 +2,15 @@ package hostinventory
 
 import (
 	"context"
+	"errors"
+	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+	"vrooli-autoheal/internal/hostobservability"
 	"vrooli-autoheal/internal/journal"
 )
 
@@ -182,20 +186,50 @@ func collectSecureBootState(ctx context.Context, c *DefaultCollector) SecureBoot
 
 func collectCrashEvidenceProbeState(ctx context.Context, c *DefaultCollector) CrashEvidenceProbeState {
 	var state CrashEvidenceProbeState
-	if entries, err := c.fs.ReadDir("/sys/fs/pstore"); err == nil {
+	if entries, err := c.fs.ReadDir(hostobservability.PstoreSourceDir); err == nil {
 		state.PstoreSupported = true
 		state.PstoreReadable = true
 		_ = entries
 	} else {
 		state.PstoreError = err.Error()
+		state.PstoreSupported = !errors.Is(err, fs.ErrNotExist)
 	}
-	if _, err := exec.LookPath("ras-mc-ctl"); err == nil {
-		state.RasdaemonPresent = true
+	if entries, err := c.fs.ReadDir(hostobservability.PstoreExportDir); err == nil {
+		state.PstoreExportReadable = true
+		_ = entries
 	} else {
-		state.RasdaemonError = err.Error()
+		state.PstoreExportError = err.Error()
 	}
-	_ = ctx
+	state.PstoreCoverageGap = state.PstoreSupported && !state.PstoreReadable && !state.PstoreExportReadable
+
+	if path, ok := resolveRasMCCtlPath(); ok {
+		state.RasdaemonPresent = true
+		state.RasdaemonPath = path
+		if out, err := c.exec.CombinedOutput(ctx, "systemctl", "is-active", "rasdaemon"); err == nil {
+			state.RasdaemonServiceState = strings.TrimSpace(string(out))
+		} else {
+			state.RasdaemonError = truncateEvidence(string(out)+" "+err.Error(), 300)
+		}
+	} else {
+		state.RasdaemonError = "ras-mc-ctl not found in PATH or common sbin locations"
+	}
 	return state
+}
+
+func resolveRasMCCtlPath() (string, bool) {
+	if path, err := exec.LookPath("ras-mc-ctl"); err == nil {
+		return path, true
+	}
+	for _, path := range []string{"/usr/sbin/ras-mc-ctl", "/sbin/ras-mc-ctl", "/usr/local/sbin/ras-mc-ctl"} {
+		if _, err := cStat(path); err == nil {
+			return path, true
+		}
+	}
+	return "", false
+}
+
+var cStat = func(path string) (fs.FileInfo, error) {
+	return os.Stat(path)
 }
 
 func resetReasonsFromSignals(signals []HostSignal) []ResetReason {

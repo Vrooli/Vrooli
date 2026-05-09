@@ -17,6 +17,7 @@ func CommandGroups(core *cliapp.ScenarioApp, deps support.Dependencies) []cliapp
 	return []cliapp.CommandGroup{
 		health.Register(core, deps),
 		checks.LegacyRegister(core, deps),
+		timeline.Commands(core),
 	}
 }
 

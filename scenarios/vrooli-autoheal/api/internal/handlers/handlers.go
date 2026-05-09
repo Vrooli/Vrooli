@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 	"vrooli-autoheal/internal/checks"
@@ -16,6 +17,7 @@ import (
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/remediation"
+	"vrooli-autoheal/internal/systemevents"
 	"vrooli-autoheal/internal/watchdog"
 
 	"github.com/gorilla/mux"
@@ -38,6 +40,11 @@ type StoreInterface interface {
 	GetUptimeHistory(ctx context.Context, windowHours, bucketCount int) (*persistence.UptimeHistory, error)
 	GetCheckTrends(ctx context.Context, windowHours int) (*persistence.CheckTrendsResponse, error)
 	GetTransitions(ctx context.Context, windowHours, limit int) (*persistence.TransitionsResponse, error)
+	UpsertSystemEvents(ctx context.Context, events []systemevents.Event) (int, int, error)
+	UpsertSystemEventSource(ctx context.Context, source systemevents.SourceStatus) error
+	ListSystemEvents(ctx context.Context, filters systemevents.Filters) (*systemevents.Response, error)
+	GetSystemEventSources(ctx context.Context) ([]systemevents.SourceStatus, error)
+	CleanupOldSystemEvents(ctx context.Context, before time.Time) (int64, error)
 	SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error)
 	GetLatestHostInventorySnapshot(ctx context.Context) (*hostinventory.SnapshotRecord, error)
 	GetRecentHostInventoryChanges(ctx context.Context, limit int) ([]hostinventory.Change, error)
@@ -63,6 +70,7 @@ type Handlers struct {
 	hostCollector      hostinventory.Collector
 	incidentService    *incidents.Service
 	remediationService *remediation.Service
+	systemEventService *systemevents.Service
 
 	// tickLock prevents concurrent tick executions
 	tickLock    sync.Mutex
@@ -127,6 +135,10 @@ func NewWithInterface(registry *checks.Registry, store StoreInterface, plat *pla
 		incidentService:    incidents.NewService(store),
 		remediationService: remediationService,
 	}
+}
+
+func (h *Handlers) SetSystemEventService(service *systemevents.Service) {
+	h.systemEventService = service
 }
 
 // Health returns basic service health for lifecycle checks
@@ -276,6 +288,7 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.upsertIncidentsFromInventoryChanges(ctx, inventoryChanges)
+	h.refreshSystemEvents(ctx)
 
 	// Run auto-heal for critical checks with auto-heal enabled
 	// [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]
@@ -364,6 +377,15 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		apierrors.LogError("tick", "encode_response", err)
+	}
+}
+
+func (h *Handlers) refreshSystemEvents(ctx context.Context) {
+	if h.systemEventService == nil {
+		return
+	}
+	if _, err := h.systemEventService.Ingest(ctx); err != nil {
+		apierrors.LogError("system-events", "ingest", err)
 	}
 }
 
@@ -532,6 +554,140 @@ func (h *Handlers) Timeline(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		apierrors.LogError("timeline", "encode_response", err)
 	}
+}
+
+func (h *Handlers) SystemEvents(w http.ResponseWriter, r *http.Request) {
+	filters, ok := parseSystemEventFilters(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	response, err := h.store.ListSystemEvents(ctx, filters)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewDatabaseError("system-events", "retrieve system events", err))
+		return
+	}
+	if response == nil {
+		response = &systemevents.Response{Events: []systemevents.Event{}, Sources: []systemevents.SourceStatus{}}
+	}
+	if response.Events == nil {
+		response.Events = []systemevents.Event{}
+	}
+	if response.Sources == nil {
+		response.Sources = []systemevents.SourceStatus{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		apierrors.LogError("system-events", "encode_response", err)
+	}
+}
+
+func (h *Handlers) RefreshSystemEvents(w http.ResponseWriter, r *http.Request) {
+	if h.systemEventService == nil {
+		apierrors.LogAndRespond(w, apierrors.NewServiceUnavailableError("system-events", "system event service", fmt.Errorf("service unavailable")))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	defer cancel()
+	summary, err := h.systemEventService.Ingest(ctx)
+	if err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewServiceUnavailableError("system-events", "system event service", err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(summary); err != nil {
+		apierrors.LogError("system-events", "encode_refresh_response", err)
+	}
+}
+
+func parseSystemEventFilters(w http.ResponseWriter, r *http.Request) (systemevents.Filters, bool) {
+	q := r.URL.Query()
+	filters := systemevents.Filters{Limit: 100, Correlate: q.Get("correlate") == "true"}
+	if raw := q.Get("limit"); raw != "" {
+		limit, err := parsePositiveInt(raw)
+		if err != nil {
+			apierrors.LogAndRespond(w, apierrors.NewValidationError("system-events", "invalid limit", err))
+			return filters, false
+		}
+		filters.Limit = limit
+	}
+	if filters.Limit <= 0 {
+		filters.Limit = 100
+	}
+	if filters.Limit > 500 {
+		filters.Limit = 500
+	}
+	if since, err := parseTimeParam(q.Get("since")); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("system-events", "invalid since", err))
+		return filters, false
+	} else if since != nil {
+		filters.Since = since
+	}
+	if until, err := parseTimeParam(q.Get("until")); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("system-events", "invalid until", err))
+		return filters, false
+	} else if until != nil {
+		filters.Until = until
+	}
+	filters.Category = splitCSV(q.Get("category"))
+	filters.Source = splitCSV(q.Get("source"))
+	filters.Platform = splitCSV(q.Get("platform"))
+	for _, raw := range splitCSV(q.Get("severity")) {
+		switch raw {
+		case "info":
+			filters.Severity = append(filters.Severity, systemevents.SeverityInfo)
+		case "warning":
+			filters.Severity = append(filters.Severity, systemevents.SeverityWarning)
+		case "critical":
+			filters.Severity = append(filters.Severity, systemevents.SeverityCritical)
+		default:
+			apierrors.LogAndRespond(w, apierrors.NewValidationError("system-events", "invalid severity", fmt.Errorf("invalid severity %q", raw)))
+			return filters, false
+		}
+	}
+	filters.BootID = q.Get("bootId")
+	return filters, true
+}
+
+func parseTimeParam(raw string) (*time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	if duration, err := time.ParseDuration(raw); err == nil {
+		ts := time.Now().UTC().Add(-duration)
+		return &ts, nil
+	}
+	if strings.HasSuffix(raw, "d") {
+		days, err := parsePositiveInt(strings.TrimSuffix(raw, "d"))
+		if err == nil {
+			ts := time.Now().UTC().Add(-time.Duration(days) * 24 * time.Hour)
+			return &ts, nil
+		}
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05", "2006-01-02"} {
+		if ts, err := time.Parse(layout, raw); err == nil {
+			utc := ts.UTC()
+			return &utc, nil
+		}
+	}
+	return nil, fmt.Errorf("expected RFC3339 timestamp or Go duration")
+}
+
+func splitCSV(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 // UptimeStats returns uptime statistics over a time window

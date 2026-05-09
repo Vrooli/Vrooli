@@ -9,6 +9,7 @@ import (
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/hostinventory"
 	"vrooli-autoheal/internal/incidents"
+	"vrooli-autoheal/internal/systemevents"
 )
 
 // Store handles database operations for health check data.
@@ -148,6 +149,26 @@ type TransitionsResponse struct {
 // GetTransitions returns status transition events over the time window.
 func (s *Store) GetTransitions(ctx context.Context, windowHours, limit int) (*TransitionsResponse, error) {
 	return s.getTransitionsSQLite(ctx, windowHours, limit)
+}
+
+func (s *Store) UpsertSystemEvents(ctx context.Context, events []systemevents.Event) (int, int, error) {
+	return s.upsertSystemEventsSQLite(ctx, events)
+}
+
+func (s *Store) UpsertSystemEventSource(ctx context.Context, source systemevents.SourceStatus) error {
+	return s.upsertSystemEventSourceSQLite(ctx, source)
+}
+
+func (s *Store) ListSystemEvents(ctx context.Context, filters systemevents.Filters) (*systemevents.Response, error) {
+	return s.listSystemEventsSQLite(ctx, filters)
+}
+
+func (s *Store) GetSystemEventSources(ctx context.Context) ([]systemevents.SourceStatus, error) {
+	return s.getSystemEventSourcesSQLite(ctx)
+}
+
+func (s *Store) CleanupOldSystemEvents(ctx context.Context, before time.Time) (int64, error) {
+	return s.cleanupOldSystemEventsSQLite(ctx, before)
 }
 
 func (s *Store) SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error) {

@@ -32,24 +32,26 @@ func collectPackageState(ctx context.Context, c *DefaultCollector, runningKernel
 func collectDPKG(ctx context.Context, c *DefaultCollector, runningKernel string) PackageState {
 	state := PackageState{Manager: "dpkg"}
 	out, err := c.exec.CombinedOutput(ctx, "dpkg-query", "-W", "-f=${db:Status-Abbrev} ${Package} ${Version}\n", "linux-image*", "linux-modules*", "nvidia-*", "amdgpu*", "mesa-*")
-	if err == nil {
-		for _, line := range strings.Split(string(out), "\n") {
-			fields := strings.Fields(line)
-			if len(fields) < 2 {
-				continue
-			}
-			pkg := fields[1]
-			version := ""
-			if len(fields) >= 3 {
-				version = fields[2]
-			}
-			if strings.HasPrefix(fields[0], "ii") {
-				state.Installed = append(state.Installed, pkg)
-				state.InstalledPackages = append(state.InstalledPackages, PackageInfo{Name: pkg, Version: version, Status: fields[0]})
-			} else if strings.TrimSpace(fields[0]) != "" {
-				state.BrokenOrHeld = append(state.BrokenOrHeld, strings.TrimSpace(line))
-			}
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
 		}
+		status := fields[0]
+		pkg := fields[1]
+		version := ""
+		if len(fields) >= 3 {
+			version = fields[2]
+		}
+		if strings.HasPrefix(status, "ii") {
+			state.Installed = append(state.Installed, pkg)
+			state.InstalledPackages = append(state.InstalledPackages, PackageInfo{Name: pkg, Version: version, Status: status})
+		} else if strings.TrimSpace(status) != "" && !strings.HasPrefix(status, "rc") {
+			state.BrokenOrHeld = append(state.BrokenOrHeld, strings.TrimSpace(line))
+		}
+	}
+	if err != nil && strings.TrimSpace(string(out)) == "" {
+		state.BrokenOrHeld = append(state.BrokenOrHeld, "dpkg-query failed: "+err.Error())
 	}
 	if out, err := c.exec.CombinedOutput(ctx, "apt-mark", "showhold"); err == nil {
 		for _, line := range strings.Split(string(out), "\n") {

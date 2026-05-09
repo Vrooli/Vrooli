@@ -2,6 +2,7 @@ package hostinventory
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"vrooli-autoheal/internal/checks"
@@ -78,5 +79,33 @@ func TestBuildNVIDIADriverStateMarksCandidateUnavailableWhenAptMissing(t *testin
 	}
 	if driver.Candidate != nil && !strings.Contains(driver.Candidate.Error, "apt-cache") {
 		t.Fatalf("candidate error = %q, want apt-cache lookup error", driver.Candidate.Error)
+	}
+}
+
+func TestCollectDPKGParsesPartialOutputOnUnmatchedGlobError(t *testing.T) {
+	mock := checks.NewMockExecutor()
+	mock.Responses["dpkg-query -W -f=${db:Status-Abbrev} ${Package} ${Version}\n linux-image* linux-modules* nvidia-* amdgpu* mesa-*"] = checks.MockResponse{
+		Output: []byte(strings.Join([]string{
+			"ii  linux-image-6.17.0-23-generic 6.17.0-23.23",
+			"ii  linux-modules-6.17.0-23-generic 6.17.0-23.23",
+			"ii  linux-modules-nvidia-580-open-6.17.0-23-generic 6.17.0-23.23",
+			"ii  nvidia-driver-580-open 580.142",
+			"rc  linux-image-6.16.0-old 6.16.0",
+		}, "\n")),
+		Error: errors.New("dpkg-query: no packages found matching amdgpu*"),
+	}
+	mock.Responses["apt-mark showhold"] = checks.MockResponse{}
+	collector := &DefaultCollector{exec: mock}
+
+	state := collectDPKG(context.Background(), collector, "6.17.0-23-generic")
+
+	if len(state.Kernel.MissingMatching) != 0 {
+		t.Fatalf("missing matching packages = %#v, want none", state.Kernel.MissingMatching)
+	}
+	if containsString(state.Installed, "linux-image-6.16.0-old") {
+		t.Fatal("removed rc package should not be treated as installed")
+	}
+	if !containsString(state.Installed, "linux-modules-nvidia-580-open-6.17.0-23-generic") {
+		t.Fatalf("installed packages = %#v, want NVIDIA module package parsed", state.Installed)
 	}
 }

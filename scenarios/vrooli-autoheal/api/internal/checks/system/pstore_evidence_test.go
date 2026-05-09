@@ -29,6 +29,18 @@ func (m mockPstoreReader) ReadDir(string) ([]fs.DirEntry, error) {
 	return m.entries, m.err
 }
 
+type pathPstoreReader struct {
+	entries map[string][]fs.DirEntry
+	errs    map[string]error
+}
+
+func (m pathPstoreReader) ReadDir(path string) ([]fs.DirEntry, error) {
+	if err, ok := m.errs[path]; ok {
+		return nil, err
+	}
+	return m.entries[path], nil
+}
+
 func runPstore(entries []fs.DirEntry, err error) checks.Result {
 	c := NewPstoreEvidenceCheck(WithPstoreReader(mockPstoreReader{entries: entries, err: err}))
 	return c.Run(context.Background())
@@ -64,6 +76,30 @@ func TestPstoreWarning_EACCES(t *testing.T) {
 	r := runPstore(nil, fs.ErrPermission)
 	if r.Status != checks.StatusWarning {
 		t.Errorf("Status = %s, want WARNING on EACCES", r.Status)
+	}
+	if r.Details["coverageGap"] != true {
+		t.Errorf("coverageGap = %v, want true", r.Details["coverageGap"])
+	}
+}
+
+func TestPstoreUsesExportWhenDirectUnreadable(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("linux-only check")
+	}
+	c := NewPstoreEvidenceCheck(
+		WithPstorePath("/direct/pstore"),
+		WithPstoreExportPath("/export/pstore"),
+		WithPstoreReader(pathPstoreReader{
+			entries: map[string][]fs.DirEntry{"/export/pstore": {mockDirEntry{name: "manifest.json"}}},
+			errs:    map[string]error{"/direct/pstore": fs.ErrPermission},
+		}),
+	)
+	r := c.Run(context.Background())
+	if r.Status != checks.StatusOK {
+		t.Fatalf("Status = %s, want OK with readable export", r.Status)
+	}
+	if r.Details["sourceKind"] != "export" {
+		t.Fatalf("sourceKind = %v, want export", r.Details["sourceKind"])
 	}
 }
 

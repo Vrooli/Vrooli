@@ -8,6 +8,7 @@ import (
 	"vrooli-autoheal/internal/incidents"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/systemevents"
 )
 
 // mockStore implements StoreInterface for testing.
@@ -26,6 +27,8 @@ type mockStore struct {
 	checkTrendsErr   error
 	transitions      *persistence.TransitionsResponse
 	transitionsErr   error
+	systemEvents     *systemevents.Response
+	systemEventsErr  error
 	incidentsErr     error
 	incident         *incidents.Incident
 	recordedArtifact *incidents.RemediationArtifact
@@ -110,6 +113,32 @@ func (m *mockStore) GetTransitions(ctx context.Context, windowHours, limit int) 
 		WindowHours: windowHours,
 		Total:       0,
 	}, nil
+}
+
+func (m *mockStore) UpsertSystemEvents(ctx context.Context, events []systemevents.Event) (int, int, error) {
+	return len(events), 0, nil
+}
+
+func (m *mockStore) UpsertSystemEventSource(ctx context.Context, source systemevents.SourceStatus) error {
+	return nil
+}
+
+func (m *mockStore) ListSystemEvents(ctx context.Context, filters systemevents.Filters) (*systemevents.Response, error) {
+	if m.systemEventsErr != nil {
+		return nil, m.systemEventsErr
+	}
+	if m.systemEvents != nil {
+		return m.systemEvents, nil
+	}
+	return &systemevents.Response{Events: []systemevents.Event{}, Sources: []systemevents.SourceStatus{}, Filters: systemevents.FiltersEcho{Limit: filters.Limit}}, nil
+}
+
+func (m *mockStore) GetSystemEventSources(ctx context.Context) ([]systemevents.SourceStatus, error) {
+	return []systemevents.SourceStatus{}, nil
+}
+
+func (m *mockStore) CleanupOldSystemEvents(ctx context.Context, before time.Time) (int64, error) {
+	return 0, nil
 }
 
 func (m *mockStore) SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error) {

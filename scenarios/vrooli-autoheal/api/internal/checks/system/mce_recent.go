@@ -8,10 +8,13 @@ package system
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os/exec"
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
@@ -19,9 +22,10 @@ import (
 
 // MCERecentCheck reports MCE activity from the last hour.
 type MCERecentCheck struct {
-	executor       checks.CommandExecutor
-	correctedWarn  int
-	rasdaemonProbe func(ctx context.Context, exec checks.CommandExecutor) bool
+	executor          checks.CommandExecutor
+	correctedWarn     int
+	rasCommandProbe   func(ctx context.Context, exec checks.CommandExecutor) (string, bool)
+	serviceStateProbe func(ctx context.Context, exec checks.CommandExecutor) (string, bool)
 }
 
 // MCERecentCheckOption configures an MCERecentCheck.
@@ -41,9 +45,10 @@ func WithMCECorrectedWarnThreshold(n int) MCERecentCheckOption {
 // NewMCERecentCheck builds the check.
 func NewMCERecentCheck(opts ...MCERecentCheckOption) *MCERecentCheck {
 	c := &MCERecentCheck{
-		executor:       checks.DefaultExecutor,
-		correctedWarn:  5,
-		rasdaemonProbe: probeRasMCCtl,
+		executor:          checks.DefaultExecutor,
+		correctedWarn:     5,
+		rasCommandProbe:   probeRasMCCtl,
+		serviceStateProbe: probeRasdaemonService,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -64,9 +69,47 @@ func (c *MCERecentCheck) Category() checks.Category  { return checks.CategorySys
 func (c *MCERecentCheck) IntervalSeconds() int       { return 300 }
 func (c *MCERecentCheck) Platforms() []platform.Type { return []platform.Type{platform.Linux} }
 
-func probeRasMCCtl(ctx context.Context, exec checks.CommandExecutor) bool {
-	_, err := exec.CombinedOutput(ctx, "ras-mc-ctl", "--help")
-	return err == nil
+func probeRasMCCtl(ctx context.Context, exec checks.CommandExecutor) (string, bool) {
+	for _, candidate := range rasMCCtlCandidates() {
+		_, err := exec.CombinedOutput(ctx, candidate, "--help")
+		if err == nil {
+			return candidate, true
+		}
+	}
+	return "", false
+}
+
+func rasMCCtlCandidates() []string {
+	seen := map[string]struct{}{}
+	var out []string
+	add := func(path string) {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			return
+		}
+		if _, ok := seen[path]; ok {
+			return
+		}
+		seen[path] = struct{}{}
+		out = append(out, path)
+	}
+	if path, err := exec.LookPath("ras-mc-ctl"); err == nil {
+		add(path)
+	}
+	add("ras-mc-ctl")
+	add("/usr/sbin/ras-mc-ctl")
+	add("/sbin/ras-mc-ctl")
+	add("/usr/local/sbin/ras-mc-ctl")
+	return out
+}
+
+func probeRasdaemonService(ctx context.Context, exec checks.CommandExecutor) (string, bool) {
+	out, err := exec.CombinedOutput(ctx, "systemctl", "is-active", "rasdaemon")
+	state := strings.TrimSpace(string(out))
+	if state == "" && err != nil {
+		return "unknown", false
+	}
+	return state, state == "active"
 }
 
 var (
@@ -82,20 +125,39 @@ func (c *MCERecentCheck) Run(ctx context.Context) checks.Result {
 		return r
 	}
 
-	if !c.rasdaemonProbe(ctx, c.executor) {
+	rasCmd, available := c.rasCommandProbe(ctx, c.executor)
+	r.Details["rasMcCtlPath"] = rasCmd
+	if !available {
 		r.Status = checks.StatusWarning
-		r.Message = "rasdaemon not installed; MCE reporting unavailable"
+		r.Message = "ras-mc-ctl not found; MCE reporting unavailable"
 		r.Details["rasdaemonAvailable"] = false
+		r.Details["coverageGap"] = true
+		r.Details["coverageGapReason"] = "ras_mc_ctl_missing"
+		r.Details["recommendations"] = []string{"run project setup with sudo so the rasdaemon host tool can be installed and enabled"}
 		return r
 	}
 	r.Details["rasdaemonAvailable"] = true
 
-	out, err := c.executor.CombinedOutput(ctx, "ras-mc-ctl", "--summary", "--since=1 hour ago")
+	serviceState, serviceActive := c.serviceStateProbe(ctx, c.executor)
+	r.Details["rasdaemonServiceState"] = serviceState
+	r.Details["rasdaemonServiceActive"] = serviceActive
+	if !serviceActive {
+		r.Status = checks.StatusWarning
+		r.Message = "rasdaemon service is not active; MCE reporting coverage is incomplete"
+		r.Details["coverageGap"] = true
+		r.Details["coverageGapReason"] = "rasdaemon_service_inactive"
+		r.Details["recommendations"] = []string{"run project setup with sudo so the rasdaemon host tool can enable rasdaemon.service"}
+		return r
+	}
+
+	out, err := c.executor.CombinedOutput(ctx, rasCmd, "--summary", "--since=1 hour ago")
 	if err != nil {
 		r.Status = checks.StatusWarning
 		r.Message = "ras-mc-ctl --summary failed: " + err.Error()
 		r.Details["error"] = err.Error()
 		r.Details["output"] = string(out)
+		r.Details["coverageGap"] = true
+		r.Details["coverageGapReason"] = "ras_mc_ctl_summary_failed"
 		return r
 	}
 	corrected := extractCount(correctedRE, out)
@@ -133,7 +195,7 @@ func (c *MCERecentCheck) RecoveryActions(*checks.Result) []checks.RecoveryAction
 	return []checks.RecoveryAction{
 		{ID: "show-summary", Name: "Show MCE summary", Description: "Run ras-mc-ctl --summary", Available: true},
 		{ID: "show-recent-errors", Name: "Show recent error detail", Description: "Run ras-mc-ctl --errors --since='1 hour ago'", Available: true},
-		{ID: "enable-rasdaemon-service", Name: "Enable rasdaemon", Description: "systemctl enable --now rasdaemon", Available: true},
+		{ID: "rasdaemon-host-tool", Name: "Enable rasdaemon through setup", Description: "Run `sudo vrooli setup` so the rasdaemon host tool can install and enable rasdaemon.service", Available: true},
 		{ID: "dump-edac-counters", Name: "Dump EDAC counters", Description: "Cat /sys/devices/system/edac/mc/mc*/ce_count", Available: true},
 	}
 }
@@ -145,11 +207,21 @@ func (c *MCERecentCheck) ExecuteAction(ctx context.Context, actionID string) che
 	var err error
 	switch actionID {
 	case "show-summary":
-		out, err = c.executor.CombinedOutput(ctx, "ras-mc-ctl", "--summary")
+		cmd, ok := c.rasCommandProbe(ctx, c.executor)
+		if !ok {
+			err = errors.New("ras-mc-ctl not found")
+			break
+		}
+		out, err = c.executor.CombinedOutput(ctx, cmd, "--summary")
 	case "show-recent-errors":
-		out, err = c.executor.CombinedOutput(ctx, "ras-mc-ctl", "--errors", "--since=1 hour ago")
-	case "enable-rasdaemon-service":
-		out, err = c.executor.CombinedOutput(ctx, "sudo", "systemctl", "enable", "--now", "rasdaemon")
+		cmd, ok := c.rasCommandProbe(ctx, c.executor)
+		if !ok {
+			err = errors.New("ras-mc-ctl not found")
+			break
+		}
+		out, err = c.executor.CombinedOutput(ctx, cmd, "--errors", "--since=1 hour ago")
+	case "rasdaemon-host-tool":
+		out = []byte("Run `sudo vrooli setup` from an operator shell; autoheal does not execute sudo actions.")
 	case "dump-edac-counters":
 		out, err = c.executor.CombinedOutput(ctx, "sh", "-c", "cat /sys/devices/system/edac/mc/mc*/ce_count 2>/dev/null || echo 'no MCs registered'")
 	default:

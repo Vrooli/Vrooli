@@ -51,6 +51,39 @@ CREATE TABLE IF NOT EXISTS host_inventory_changes (
 CREATE INDEX IF NOT EXISTS idx_host_inventory_changes_created
     ON host_inventory_changes (created_at DESC);
 
+CREATE TABLE IF NOT EXISTS system_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fingerprint TEXT NOT NULL UNIQUE,
+    occurred_at TEXT NOT NULL,
+    ingested_at TEXT NOT NULL,
+    source TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    category TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    boot_id TEXT,
+    details_json TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_system_events_occurred
+    ON system_events (occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_system_events_category_occurred
+    ON system_events (category, occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_system_events_source_occurred
+    ON system_events (source, occurred_at DESC);
+
+CREATE TABLE IF NOT EXISTS system_event_sources (
+    source TEXT PRIMARY KEY,
+    platform TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('ok', 'unsupported', 'degraded', 'failed')),
+    last_ingested_at TEXT NOT NULL,
+    last_error TEXT NOT NULL DEFAULT '',
+    capabilities_json TEXT NOT NULL DEFAULT '{}'
+);
+
 CREATE TABLE IF NOT EXISTS incidents (
     id TEXT PRIMARY KEY,
     fingerprint TEXT NOT NULL UNIQUE,

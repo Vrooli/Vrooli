@@ -10,6 +10,8 @@ import type {
   HealthResult,
   HistoryEntry,
   StatusResponse,
+  SystemEvent,
+  SystemEventsResponse,
   TimelineEvent,
   TimelineResponse,
   Transition,
@@ -62,6 +64,35 @@ export function createTimelineResponse(
     events,
     count: events.length,
     summary: { ok: 0, warning: 0, critical: 0 },
+    ...overrides,
+  };
+}
+
+export function createSystemEvent(overrides: Partial<SystemEvent> = {}): SystemEvent {
+  return {
+    id: 1,
+    fingerprint: "event-1",
+    occurredAt: DEFAULT_TIMESTAMP,
+    ingestedAt: DEFAULT_TIMESTAMP,
+    source: "dpkg-log",
+    platform: "linux",
+    category: "kernel",
+    severity: "info",
+    title: "Package install: linux-image",
+    summary: "install linux-image-6.17.0-23-generic",
+    ...overrides,
+  };
+}
+
+export function createSystemEventsResponse(
+  overrides: Partial<SystemEventsResponse> = {}
+): SystemEventsResponse {
+  const events = overrides.events ?? [];
+  return {
+    events,
+    count: events.length,
+    sources: [{ source: "dpkg-log", platform: "linux", status: "ok" }],
+    correlations: [],
     ...overrides,
   };
 }

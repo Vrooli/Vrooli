@@ -8,7 +8,10 @@ import (
 )
 
 type memoryStore struct {
-	inputs []UpsertInput
+	inputs    []UpsertInput
+	list      []Incident
+	updates   []Status
+	updateIDs []string
 }
 
 func (m *memoryStore) UpsertIncident(ctx context.Context, input UpsertInput) (*Incident, error) {
@@ -17,7 +20,14 @@ func (m *memoryStore) UpsertIncident(ctx context.Context, input UpsertInput) (*I
 }
 
 func (m *memoryStore) ListIncidents(ctx context.Context, filters ListFilters) (*ListResponse, error) {
-	return nil, nil
+	var out []Incident
+	for _, incident := range m.list {
+		if filters.Status != "" && incident.Status != filters.Status {
+			continue
+		}
+		out = append(out, incident)
+	}
+	return &ListResponse{Incidents: out, Total: len(out), Filters: filters}, nil
 }
 
 func (m *memoryStore) GetIncident(ctx context.Context, id string) (*Incident, error) {
@@ -29,7 +39,9 @@ func (m *memoryStore) ListIncidentObservations(ctx context.Context, incidentID s
 }
 
 func (m *memoryStore) UpdateIncidentStatus(ctx context.Context, incidentID string, status Status, note string) (*Incident, error) {
-	return nil, nil
+	m.updateIDs = append(m.updateIDs, incidentID)
+	m.updates = append(m.updates, status)
+	return &Incident{ID: incidentID, Status: status}, nil
 }
 
 func TestUpsertFromCheckResultCreatesHostIntegrityIncident(t *testing.T) {
@@ -75,6 +87,82 @@ func TestUpsertFromCheckResultIgnoresOKResult(t *testing.T) {
 	}
 	if created {
 		t.Fatal("did not expect incident for OK result")
+	}
+}
+
+func TestUpsertFromCheckResultClassifiesPstoreCoverageGapSeparately(t *testing.T) {
+	store := &memoryStore{}
+	service := NewService(store)
+
+	_, created, err := service.UpsertFromCheckResult(context.Background(), checks.Result{
+		CheckID: "system-pstore-evidence",
+		Status:  checks.StatusWarning,
+		Message: "coverage gap",
+		Details: map[string]any{
+			"coverageGap":       true,
+			"coverageGapReason": "direct_pstore_permission_denied_export_missing",
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpsertFromCheckResult() error = %v", err)
+	}
+	if !created {
+		t.Fatal("expected incident to be created")
+	}
+	input := store.inputs[0]
+	if input.Type != TypeAutohealFailure {
+		t.Fatalf("type = %s, want autoheal_failure", input.Type)
+	}
+	if input.Title != "Crash artifact coverage gap detected" {
+		t.Fatalf("title = %q", input.Title)
+	}
+	if input.Diagnosis == "Persistent kernel crash evidence was found or could not be inspected" {
+		t.Fatalf("diagnosis still conflates evidence and coverage: %q", input.Diagnosis)
+	}
+}
+
+func TestUpsertFromCheckResultAutoResolvesRecoveredHostIntegrityIncident(t *testing.T) {
+	store := &memoryStore{list: []Incident{{
+		ID:             "inc_1",
+		Type:           TypeHostIntegrity,
+		Status:         StatusOpen,
+		SourceCheckIDs: []string{"host-kernel-module-drift"},
+	}}}
+	service := NewService(store)
+
+	_, created, err := service.UpsertFromCheckResult(context.Background(), checks.Result{
+		CheckID: "host-kernel-module-drift",
+		Status:  checks.StatusOK,
+	})
+	if err != nil {
+		t.Fatalf("UpsertFromCheckResult() error = %v", err)
+	}
+	if created {
+		t.Fatal("OK result should not create an incident")
+	}
+	if len(store.updates) != 1 || store.updates[0] != StatusResolved {
+		t.Fatalf("updates = %#v, want one resolved update", store.updates)
+	}
+}
+
+func TestUpsertFromCheckResultDoesNotAutoResolveCrashArtifactIncident(t *testing.T) {
+	store := &memoryStore{list: []Incident{{
+		ID:             "inc_1",
+		Type:           TypeUncleanBoot,
+		Status:         StatusOpen,
+		SourceCheckIDs: []string{"system-pstore-evidence"},
+	}}}
+	service := NewService(store)
+
+	_, _, err := service.UpsertFromCheckResult(context.Background(), checks.Result{
+		CheckID: "system-pstore-evidence",
+		Status:  checks.StatusOK,
+	})
+	if err != nil {
+		t.Fatalf("UpsertFromCheckResult() error = %v", err)
+	}
+	if len(store.updates) != 0 {
+		t.Fatalf("updates = %#v, want no auto-resolve for crash artifact incident", store.updates)
 	}
 }
 

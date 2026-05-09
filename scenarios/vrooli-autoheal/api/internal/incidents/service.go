@@ -27,6 +27,9 @@ func NewService(store Store) *Service {
 }
 
 func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Result) (*Incident, bool, error) {
+	if result.Status == checks.StatusOK {
+		return nil, false, s.resolveRecoveredForCheck(ctx, result)
+	}
 	rule, ok := classifyResult(result)
 	if !ok {
 		return nil, false, nil
@@ -69,6 +72,27 @@ func (s *Service) UpsertFromCheckResults(ctx context.Context, results []checks.R
 	return count, nil
 }
 
+func (s *Service) resolveRecoveredForCheck(ctx context.Context, result checks.Result) error {
+	if result.CheckID == "" {
+		return nil
+	}
+	resp, err := s.store.ListIncidents(ctx, ListFilters{Status: StatusOpen, Limit: 200})
+	if err != nil || resp == nil {
+		return err
+	}
+	for _, incident := range resp.Incidents {
+		if !incidentFromCheck(incident, result.CheckID) || !autoResolvableIncident(incident) {
+			continue
+		}
+		_, err := s.store.UpdateIncidentStatus(ctx, incident.ID, StatusResolved,
+			fmt.Sprintf("auto-resolved: %s reported OK", result.CheckID))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type incidentRule struct {
 	incidentType Type
 	severity     Severity
@@ -101,11 +125,51 @@ func classifyResult(result checks.Result) (incidentRule, bool) {
 			fingerprint:  Fingerprint(string(TypeUncleanBoot), result.CheckID, stringDetail(result.Details, "latestUncleanBootId")),
 		}, true
 	case "system-pstore-evidence":
-		return incidentRule{incidentType: TypeUncleanBoot, severity: severity, title: "Kernel crash evidence detected", fingerprint: Fingerprint(string(TypeUncleanBoot), result.CheckID)}, true
+		if boolDetail(result.Details, "coverageGap") {
+			return incidentRule{
+				incidentType: TypeAutohealFailure,
+				severity:     SeverityWarning,
+				title:        "Crash artifact coverage gap detected",
+				fingerprint:  Fingerprint(string(TypeAutohealFailure), result.CheckID, stringDetail(result.Details, "coverageGapReason")),
+			}, true
+		}
+		if intDetail(result.Details, "pmsgCount") > 0 && intDetail(result.Details, "dmesgCount") == 0 && intDetail(result.Details, "consoleCount") == 0 {
+			return incidentRule{incidentType: TypeHostIntegrity, severity: SeverityWarning, title: "Userspace pstore artifacts detected", fingerprint: Fingerprint(string(TypeHostIntegrity), result.CheckID, "pmsg")}, true
+		}
+		return incidentRule{incidentType: TypeUncleanBoot, severity: severity, title: "Kernel crash artifacts detected", fingerprint: Fingerprint(string(TypeUncleanBoot), result.CheckID)}, true
 	case "system-mce-recent":
+		if boolDetail(result.Details, "coverageGap") {
+			return incidentRule{
+				incidentType: TypeAutohealFailure,
+				severity:     SeverityWarning,
+				title:        "MCE telemetry coverage gap detected",
+				fingerprint:  Fingerprint(string(TypeAutohealFailure), result.CheckID, stringDetail(result.Details, "coverageGapReason")),
+			}, true
+		}
 		return incidentRule{incidentType: TypeHostIntegrity, severity: severity, title: "Recent machine-check evidence detected", fingerprint: Fingerprint(string(TypeHostIntegrity), result.CheckID)}, true
 	default:
 		return incidentRule{}, false
+	}
+}
+
+func incidentFromCheck(incident Incident, checkID string) bool {
+	for _, existing := range incident.SourceCheckIDs {
+		if existing == checkID {
+			return true
+		}
+	}
+	return false
+}
+
+func autoResolvableIncident(incident Incident) bool {
+	if incident.Status != StatusOpen {
+		return false
+	}
+	switch incident.Type {
+	case TypeHostIntegrity, TypeAutohealFailure:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -157,6 +221,30 @@ func stringSliceDetail(details map[string]any, key string) []string {
 	}
 }
 
+func boolDetail(details map[string]any, key string) bool {
+	if details == nil {
+		return false
+	}
+	value, _ := details[key].(bool)
+	return value
+}
+
+func intDetail(details map[string]any, key string) int {
+	if details == nil {
+		return 0
+	}
+	switch value := details[key].(type) {
+	case int:
+		return value
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	default:
+		return 0
+	}
+}
+
 func evidenceDimension(details map[string]any) string {
 	if details == nil {
 		return ""
@@ -204,9 +292,18 @@ func diagnosisForResult(result checks.Result) string {
 	case "system-boot-history":
 		return "Recent boot history indicates unclean shutdown or reset"
 	case "system-pstore-evidence":
-		return "Persistent kernel crash evidence was found or could not be inspected"
+		if boolDetail(result.Details, "coverageGap") {
+			return "Persistent crash artifact coverage is incomplete because no readable pstore source is available"
+		}
+		if intDetail(result.Details, "pmsgCount") > 0 && intDetail(result.Details, "dmesgCount") == 0 && intDetail(result.Details, "consoleCount") == 0 {
+			return "Userspace pstore messages were found without kernel crash dumps"
+		}
+		return "Persistent kernel crash artifacts were found"
 	case "system-mce-recent":
-		return "Recent machine-check evidence was found or could not be inspected"
+		if boolDetail(result.Details, "coverageGap") {
+			return "Machine-check telemetry coverage is incomplete"
+		}
+		return "Recent machine-check evidence was found"
 	default:
 		return ""
 	}

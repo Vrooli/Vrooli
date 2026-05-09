@@ -3,13 +3,18 @@
 package checks
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
+
+var errCLITrackedProcessesUnavailable = errors.New("vrooli cli state reader does not expose tracked process records")
 
 // TrackedProcess represents a process tracked by Vrooli's lifecycle system.
 // Data comes from ~/.vrooli/processes/scenarios/[scenario]/[step].json
@@ -30,11 +35,16 @@ type TrackedProcess struct {
 // Format: ~/.vrooli/state/scenarios/.port_[port].lock
 // Content: scenario_name:pid:timestamp
 type PortLock struct {
-	Port      int
-	Scenario  string
-	PID       int
-	Timestamp int64
-	FilePath  string
+	Port           int
+	Scenario       string
+	PID            int
+	Timestamp      int64
+	FilePath       string
+	Source         string
+	ClaimID        string
+	InstanceID     string
+	ClaimStatus    string
+	InstanceStatus string
 }
 
 // VrooliStateReader abstracts access to Vrooli's state directories for testability.
@@ -49,15 +59,46 @@ type VrooliStateReader interface {
 	RemovePortLock(lock PortLock) error
 }
 
+type CommandRunner interface {
+	CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error)
+}
+
 // RealVrooliStateReader is the production implementation of VrooliStateReader.
 type RealVrooliStateReader struct {
 	homeDir string // Allow override for testing; empty means use os.UserHomeDir()
 }
 
+type VrooliCLIStateReader struct {
+	runner CommandRunner
+}
+
+type FallbackVrooliStateReader struct {
+	primary  VrooliStateReader
+	fallback VrooliStateReader
+}
+
+type execCommandRunner struct{}
+
 // NewRealVrooliStateReader creates a new state reader.
 // If homeDir is empty, it uses the current user's home directory.
 func NewRealVrooliStateReader(homeDir string) *RealVrooliStateReader {
 	return &RealVrooliStateReader{homeDir: homeDir}
+}
+
+func NewVrooliCLIStateReader(runner CommandRunner) *VrooliCLIStateReader {
+	if runner == nil {
+		runner = execCommandRunner{}
+	}
+	return &VrooliCLIStateReader{runner: runner}
+}
+
+func NewFallbackVrooliStateReader(primary, fallback VrooliStateReader) *FallbackVrooliStateReader {
+	return &FallbackVrooliStateReader{primary: primary, fallback: fallback}
+}
+
+func (execCommandRunner) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	return cmd.CombinedOutput()
 }
 
 func (r *RealVrooliStateReader) getHomeDir() (string, error) {
@@ -182,6 +223,7 @@ func (r *RealVrooliStateReader) ListPortLocks() ([]PortLock, error) {
 			locks = append(locks, PortLock{
 				Port:     port,
 				FilePath: filePath,
+				Source:   "legacy_lock",
 			})
 			continue
 		}
@@ -199,6 +241,7 @@ func (r *RealVrooliStateReader) ListPortLocks() ([]PortLock, error) {
 			PID:       pid,
 			Timestamp: timestamp,
 			FilePath:  filePath,
+			Source:    "legacy_lock",
 		})
 	}
 
@@ -213,8 +256,106 @@ func (r *RealVrooliStateReader) RemovePortLock(lock PortLock) error {
 	return os.Remove(lock.FilePath)
 }
 
+type cliLocksEnvelope struct {
+	Success        bool               `json:"success"`
+	Locks          []cliLegacyLock    `json:"locks"`
+	RegistryClaims []cliRegistryClaim `json:"registry_claims"`
+}
+
+type cliLegacyLock struct {
+	Port      int       `json:"port"`
+	Scenario  string    `json:"scenario"`
+	PID       int       `json:"pid"`
+	Timestamp time.Time `json:"timestamp"`
+	Path      string    `json:"path"`
+}
+
+type cliRegistryClaim struct {
+	ClaimID        string `json:"claim_id"`
+	InstanceID     string `json:"instance_id"`
+	Scenario       string `json:"scenario"`
+	Port           int    `json:"port"`
+	ClaimStatus    string `json:"claim_status"`
+	InstanceStatus string `json:"instance_status"`
+}
+
+func (r *VrooliCLIStateReader) ListTrackedProcesses() ([]TrackedProcess, error) {
+	return nil, errCLITrackedProcessesUnavailable
+}
+
+func (r *VrooliCLIStateReader) ListPortLocks() ([]PortLock, error) {
+	output, err := r.runner.CombinedOutput(context.Background(), "vrooli", "locks", "--json")
+	if err != nil {
+		return nil, err
+	}
+	var envelope cliLocksEnvelope
+	if err := json.Unmarshal(output, &envelope); err != nil {
+		return nil, err
+	}
+	locks := make([]PortLock, 0, len(envelope.RegistryClaims)+len(envelope.Locks))
+	for _, claim := range envelope.RegistryClaims {
+		locks = append(locks, PortLock{
+			Port:           claim.Port,
+			Scenario:       claim.Scenario,
+			Source:         "registry_claim",
+			ClaimID:        claim.ClaimID,
+			InstanceID:     claim.InstanceID,
+			ClaimStatus:    claim.ClaimStatus,
+			InstanceStatus: claim.InstanceStatus,
+		})
+	}
+	for _, lock := range envelope.Locks {
+		locks = append(locks, PortLock{
+			Port:      lock.Port,
+			Scenario:  lock.Scenario,
+			PID:       lock.PID,
+			Timestamp: lock.Timestamp.Unix(),
+			FilePath:  lock.Path,
+			Source:    "legacy_lock",
+		})
+	}
+	return locks, nil
+}
+
+func (r *VrooliCLIStateReader) RemovePortLock(lock PortLock) error {
+	if lock.Source == "registry_claim" {
+		_, err := r.runner.CombinedOutput(context.Background(), "vrooli", "cleanup", "locks")
+		return err
+	}
+	return nil
+}
+
+func (r *FallbackVrooliStateReader) ListTrackedProcesses() ([]TrackedProcess, error) {
+	processes, err := r.primary.ListTrackedProcesses()
+	if err == nil {
+		return processes, nil
+	}
+	return r.fallback.ListTrackedProcesses()
+}
+
+func (r *FallbackVrooliStateReader) ListPortLocks() ([]PortLock, error) {
+	locks, err := r.primary.ListPortLocks()
+	if err == nil {
+		return locks, nil
+	}
+	return r.fallback.ListPortLocks()
+}
+
+func (r *FallbackVrooliStateReader) RemovePortLock(lock PortLock) error {
+	if lock.Source == "registry_claim" {
+		return r.primary.RemovePortLock(lock)
+	}
+	return r.fallback.RemovePortLock(lock)
+}
+
 // DefaultVrooliStateReader is the global state reader used when none is injected.
-var DefaultVrooliStateReader VrooliStateReader = NewRealVrooliStateReader("")
+// It prefers the core `vrooli locks --json` contract so registry claims and
+// legacy lock files are interpreted the same way autoheal would see them from
+// the host CLI, with a filesystem fallback for older local installs.
+var DefaultVrooliStateReader VrooliStateReader = NewFallbackVrooliStateReader(
+	NewVrooliCLIStateReader(nil),
+	NewRealVrooliStateReader(""),
+)
 
 // ProcessExists checks if a process with the given PID is running.
 // This is a helper that uses the ProcReader interface.

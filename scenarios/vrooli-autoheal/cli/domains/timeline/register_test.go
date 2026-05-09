@@ -17,3 +17,19 @@ func TestRegisterProvidesTimelineSubcommands(t *testing.T) {
 		}
 	}
 }
+
+func TestCommandsProvidesTopLevelTimeline(t *testing.T) {
+	group := Commands(nil)
+	if group.Title != "Forensics" {
+		t.Fatalf("Commands().Title = %q, want Forensics", group.Title)
+	}
+	if len(group.Commands) != 1 {
+		t.Fatalf("Commands() command count = %d, want 1", len(group.Commands))
+	}
+	if group.Commands[0].Name != "timeline" {
+		t.Fatalf("Commands()[0].Name = %q, want timeline", group.Commands[0].Name)
+	}
+	if !group.Commands[0].NeedsAPI {
+		t.Fatal("timeline command should require API")
+	}
+}

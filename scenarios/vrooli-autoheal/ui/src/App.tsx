@@ -2,7 +2,7 @@
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:UI-REFRESH-001] [REQ:UI-RESPONSIVE-001]
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, BookOpen, LayoutDashboard, Loader2, Play, RefreshCw, Settings, Shield, ShieldAlert, TrendingUp } from "lucide-react";
+import { AlertCircle, CheckCircle2, BookOpen, Clock, LayoutDashboard, Loader2, Play, RefreshCw, Settings, Shield, ShieldAlert, TrendingUp } from "lucide-react";
 import { Badge, Button, Card } from "./shared/ui/primitives";
 import { TabTrigger } from "./shared/ui/composites";
 import { APIError, fetchStatus, groupChecksByStatus, runTick, sortChecksForDisplay, statusToEmoji } from "./lib/api";
@@ -13,12 +13,13 @@ import { DashboardSurface, type CollapsedGroups, type EnrichedCheck } from "./su
 
 const TrendsSurface = lazy(async () => import("./surfaces/trends").then((module) => ({ default: module.TrendsSurface })));
 const IncidentsSurface = lazy(async () => import("./surfaces/incidents").then((module) => ({ default: module.IncidentsSurface })));
+const TimelineSurface = lazy(async () => import("./surfaces/timeline").then((module) => ({ default: module.TimelineSurface })));
 const DocsSurface = lazy(async () => import("./surfaces/docs").then((module) => ({ default: module.DocsSurface })));
 
 const AUTO_REFRESH_INTERVAL = 30000;
 const EMPTY_METADATA_MAP = new Map<string, never>();
 
-type TabType = "dashboard" | "trends" | "incidents" | "docs";
+type TabType = "dashboard" | "trends" | "timeline" | "incidents" | "docs";
 type TickNoticeTone = "info" | "success" | "warning" | "danger";
 
 interface TickNotice {
@@ -30,6 +31,7 @@ interface TickNotice {
 function getTabFromHash(): TabType {
   const hash = window.location.hash.slice(1);
   if (hash === "trends") return "trends";
+  if (hash === "timeline") return "timeline";
   if (hash === "incidents") return "incidents";
   if (hash === "docs" || hash.startsWith("docs?")) return "docs";
   return "dashboard";
@@ -299,6 +301,14 @@ export default function App() {
               Trends
             </TabTrigger>
             <TabTrigger
+              onClick={() => handleTabChange("timeline")}
+              active={activeTab === "timeline"}
+              className="shrink-0"
+            >
+              <Clock size={16} />
+              Timeline
+            </TabTrigger>
+            <TabTrigger
               onClick={() => handleTabChange("incidents")}
               active={activeTab === "incidents"}
               className="shrink-0"
@@ -383,6 +393,12 @@ export default function App() {
           <ReactErrorBoundary sectionName="Trends">
             <Suspense fallback={tabLoadingFallback}>
               <TrendsSurface />
+            </Suspense>
+          </ReactErrorBoundary>
+        ) : activeTab === "timeline" ? (
+          <ReactErrorBoundary sectionName="Timeline">
+            <Suspense fallback={tabLoadingFallback}>
+              <TimelineSurface />
             </Suspense>
           </ReactErrorBoundary>
         ) : activeTab === "incidents" ? (

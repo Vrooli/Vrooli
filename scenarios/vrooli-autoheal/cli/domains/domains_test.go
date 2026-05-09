@@ -7,14 +7,17 @@ import (
 
 func TestCommandGroupsExposeLegacyEntrypoints(t *testing.T) {
 	groups := CommandGroups(nil, support.Dependencies{})
-	if len(groups) != 2 {
-		t.Fatalf("CommandGroups() count = %d, want 2", len(groups))
+	if len(groups) != 3 {
+		t.Fatalf("CommandGroups() count = %d, want 3", len(groups))
 	}
 	if groups[0].Title != "Operations" {
 		t.Fatalf("first command group title = %q, want Operations", groups[0].Title)
 	}
 	if groups[1].Title != "Recovery" {
 		t.Fatalf("second command group title = %q, want Recovery", groups[1].Title)
+	}
+	if groups[2].Title != "Forensics" {
+		t.Fatalf("third command group title = %q, want Forensics", groups[2].Title)
 	}
 }
 

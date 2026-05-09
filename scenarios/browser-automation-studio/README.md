@@ -210,15 +210,11 @@ Notes:
 
 The end-to-end regression `TestVariableFlowEndToEnd` in `api/automation/executor/integration_test.go` mirrors this flow to ensure variables are interpolated, aliased, and snapshotted correctly.
 
-### Scenario Registry Overrides
+### Scenario Discovery
 
-Set the `SCENARIO_REGISTRY` environment variable to pin scenario names to explicit URLs/ports during testing or when orchestrating multiple scenarios locally. The value can be inline JSON or `@/path/to/registry.json`. Example inline payload:
+Vrooli Ascension resolves `destinationType: "scenario"` navigations and scenario-port API calls through the shared `api-core/discovery` path. That path shells out to `vrooli scenario port`, so browser automation uses the same lifecycle-managed runtime discovery as other scenarios instead of a scenario-specific environment override.
 
-```bash
-export SCENARIO_REGISTRY='{"browser-automation-studio":{"url":"http://127.0.0.1:4173","ports":{"UI_PORT":4173,"API_PORT":4174}}}'
-```
-
-When present, Vrooli Ascension resolves `destinationType: "scenario"` navigations and scenario-port API calls using this registry instead of shelling out to `vrooli`, which keeps CI and isolated test runs deterministic.
+For deterministic tests, inject the `scenarioport.ScenarioCLI` seam or use the testing helpers in `api-core/discovery`. Do not bypass lifecycle discovery with per-scenario runtime registry environment variables.
 
 ## 🤖 AI Integration
 

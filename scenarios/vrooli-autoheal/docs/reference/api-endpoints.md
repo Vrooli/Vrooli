@@ -769,6 +769,67 @@ curl "http://localhost:PORT/api/v1/docs/content?path=QUICKSTART.md"
 | 400 | Invalid path |
 | 404 | Document not found |
 
+---
+
+### System Event Timeline
+
+#### GET /api/v1/system-events
+
+Returns normalized host-level events used for forensics and change correlation. This is separate from `/api/v1/timeline`, which remains the health-check result timeline.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| since | string | none | RFC3339 time or duration such as `72h`, `7d`, `30d` |
+| until | string | none | RFC3339 end time |
+| limit | int | 100 | Maximum events, capped at 500 |
+| category | string | none | Comma-separated categories such as `kernel,driver,crash` |
+| severity | string | none | Comma-separated `info`, `warning`, `critical` |
+| source | string | none | Comma-separated sources such as `dpkg-log,journalctl` |
+| platform | string | none | Platform filter |
+| bootId | string | none | Boot ID filter |
+| correlate | boolean | false | Include deterministic temporal correlation hints |
+
+**Response:**
+```json
+{
+  "events": [
+    {
+      "id": 1,
+      "fingerprint": "abc123",
+      "occurredAt": "2026-05-08T12:57:16Z",
+      "source": "dpkg-log",
+      "platform": "linux",
+      "category": "driver",
+      "severity": "info",
+      "title": "Package upgrade: nvidia-driver-580-open",
+      "summary": "upgrade nvidia-driver-580-open 580.126 -> 580.142"
+    }
+  ],
+  "count": 1,
+  "sources": [
+    { "source": "dpkg-log", "platform": "linux", "status": "ok" }
+  ],
+  "correlations": []
+}
+```
+
+#### POST /api/v1/system-events/refresh
+
+Runs bounded system-event ingestion immediately.
+
+**Response:**
+```json
+{
+  "ingested": 12,
+  "deduped": 40,
+  "durationMs": 238,
+  "sources": [
+    { "source": "journalctl", "platform": "linux", "status": "ok" }
+  ]
+}
+```
+
 ## Error Responses
 
 All errors follow this format:
