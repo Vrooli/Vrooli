@@ -261,6 +261,7 @@ type Provider interface {
   - Retrieves diffs and applies changes
   - Exposes distinct final apply-at-run-end and continuable `/turn-checkpoint` calls
   - Resumes checkpointed sandboxes before continuation process launch
+  - Reports post-run apply/checkpoint outcome through `Run.FinalizationStatus` so sandbox infrastructure failures do not masquerade as active runner execution
   - Supports full/partial approval workflows
   - Health checks for availability monitoring
 

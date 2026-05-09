@@ -9,8 +9,10 @@
 - [x] `notes.storage_strategy` documents the embedded SQLite choice.
 - [x] No legacy schema name field (SQLite has no schemas).
 - [x] No initialization references to a shared resource. The canonical
-  schema lives at `initialization/sqlite/schema.sql` and is also embedded
-  in the API binary via `//go:embed` (see `api/internal/repository/schema.go`).
+  runtime schema is embedded from `api/internal/repository/schema.sql`
+  via `//go:embed` (see `api/internal/repository/schema.go`). The stale
+  `initialization/sqlite/schema.sql` duplicate was removed so there is
+  no second schema source to drift.
 
 ## Connection Pattern Status
 - [x] Driver name is `database.DriverSQLite` (`modernc.org/sqlite`).
@@ -29,7 +31,7 @@
   same `*sql.DB` handle.
 
 ## Schema Status
-- [x] One canonical schema file (`initialization/sqlite/schema.sql`); no
+- [x] One canonical runtime schema file (`api/internal/repository/schema.sql`); no
   `migrations/` directory and no migration-numbering scheme.
 - [x] All `CREATE TABLE` and `CREATE INDEX` statements use `IF NOT
   EXISTS` (idempotent on every startup).

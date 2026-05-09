@@ -13,7 +13,6 @@ package eventlog
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -234,22 +233,3 @@ func parseTimestamp(s string) (time.Time, error) {
 
 // ensure SQLiteRepository satisfies Repository.
 var _ Repository = (*SQLiteRepository)(nil)
-
-// ErrNoSuchEvent is returned when a caller asks for an event id that does
-// not exist in run_events. Provided here so consumers can sentinel-check
-// without importing database/sql.
-var ErrNoSuchEvent = fmt.Errorf("eventlog: no such event")
-
-// rowidFromSQL is exported for the rare test that needs to inspect the
-// hidden rowid pinned by SinceID. Production code does not consume this.
-func rowidFromSQL(db *sqlx.DB, ctx context.Context, eventID uuid.UUID) (int64, error) {
-	var id int64
-	err := db.GetContext(ctx, &id, `SELECT rowid FROM run_events WHERE id = ?`, eventID)
-	if err == sql.ErrNoRows {
-		return 0, ErrNoSuchEvent
-	}
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
-}

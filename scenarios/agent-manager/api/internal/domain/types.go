@@ -560,6 +560,13 @@ type Run struct {
 	ApprovedBy    string        `json:"approvedBy,omitempty" db:"approved_by"`
 	ApprovedAt    *time.Time    `json:"approvedAt,omitempty" db:"approved_at"`
 
+	// Post-run sandbox finalization. This tracks apply/checkpoint effects
+	// separately from the runner turn status so infrastructure cleanup cannot
+	// make a completed turn appear to still be running.
+	FinalizationStatus RunFinalizationStatus `json:"finalizationStatus" db:"finalization_status"`
+	FinalizationError  string                `json:"finalizationError,omitempty" db:"finalization_error"`
+	FinalizedAt        *time.Time            `json:"finalizedAt,omitempty" db:"finalized_at"`
+
 	// Inline config (used when no profile provided, or to store resolved config)
 	ResolvedConfig *RunConfig `json:"resolvedConfig,omitempty" db:"resolved_config"`
 
@@ -709,6 +716,18 @@ const (
 	RunStatusComplete    RunStatus = "complete"
 	RunStatusFailed      RunStatus = "failed"
 	RunStatusCancelled   RunStatus = "cancelled"
+)
+
+// RunFinalizationStatus represents post-run sandbox apply/checkpoint state.
+type RunFinalizationStatus string
+
+const (
+	RunFinalizationStatusNone      RunFinalizationStatus = "none"
+	RunFinalizationStatusPending   RunFinalizationStatus = "pending"
+	RunFinalizationStatusRunning   RunFinalizationStatus = "running"
+	RunFinalizationStatusSucceeded RunFinalizationStatus = "succeeded"
+	RunFinalizationStatusFailed    RunFinalizationStatus = "failed"
+	RunFinalizationStatusSkipped   RunFinalizationStatus = "skipped"
 )
 
 // ApprovalState represents the approval workflow state.

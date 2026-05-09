@@ -34,6 +34,7 @@ vi.mock('./lib/api', async (importOriginal) => {
       total: 0,
       active: 0,
       stopped: 0,
+      checkpointing: 0,
       checkpointed: 0,
       approved: 0,
       rejected: 0,

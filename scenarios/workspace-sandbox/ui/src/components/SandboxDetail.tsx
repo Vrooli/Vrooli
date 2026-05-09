@@ -85,6 +85,11 @@ const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string; vari
     label: "Stopped",
     variant: "stopped",
   },
+  checkpointing: {
+    icon: <PauseCircle className="h-4 w-4" />,
+    label: "Checkpointing",
+    variant: "checkpointed",
+  },
   checkpointed: {
     icon: <PauseCircle className="h-4 w-4" />,
     label: "Checkpointed",

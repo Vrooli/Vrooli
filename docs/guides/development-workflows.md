@@ -51,7 +51,7 @@ Project-level:
 
 ```bash
 make test
-make validate-repo-contract
+make hygiene
 make validate-package-governance
 ```
 

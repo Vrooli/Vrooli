@@ -23,6 +23,8 @@ type RunActions struct {
 	CanRegenerateRecommendations bool   `json:"canRegenerateRecommendations"`
 	CanResumeFromFailure         bool   `json:"canResumeFromFailure"`
 	CanResumeFromFailureReason   string `json:"canResumeFromFailureReason,omitempty"`
+	FinalizationWarning          string `json:"finalizationWarning,omitempty"`
+	CanRetryFinalization         bool   `json:"canRetryFinalization"`
 }
 
 // RunActionsFor computes the action flags for a run using the provided context.
@@ -45,6 +47,7 @@ func RunActionsFor(run *Run, ctx RunActionContext) RunActions {
 	canExtract, _ := CanExtractRecommendations(run, allowlist)
 	canRegenerate, _ := CanRegenerateRecommendations(run, allowlist)
 	canResume, canResumeReason := CanResumeFromFailureRun(run)
+	finalizationWarning := FinalizationWarning(run)
 
 	return RunActions{
 		CanInvestigate:               canInvestigate,
@@ -61,7 +64,23 @@ func RunActionsFor(run *Run, ctx RunActionContext) RunActions {
 		CanRegenerateRecommendations: canRegenerate,
 		CanResumeFromFailure:         canResume,
 		CanResumeFromFailureReason:   canResumeReason,
+		FinalizationWarning:          finalizationWarning,
+		CanRetryFinalization:         finalizationWarning != "",
 	}
+}
+
+// FinalizationWarning returns user-facing warning copy for post-run sandbox
+// finalization failures. Runner turn activity is modeled by Run.Status; this
+// warning is intentionally separate so follow-up eligibility can remain tied to
+// the runner turn instead of checkpoint infrastructure.
+func FinalizationWarning(run *Run) string {
+	if run == nil || run.FinalizationStatus != RunFinalizationStatusFailed {
+		return ""
+	}
+	if strings.TrimSpace(run.FinalizationError) != "" {
+		return "Sandbox finalization failed: " + strings.TrimSpace(run.FinalizationError)
+	}
+	return "Sandbox finalization failed. Changes may require repair before provenance is complete."
 }
 
 // CanInvestigateRun returns whether a run can be investigated.

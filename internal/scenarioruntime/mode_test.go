@@ -124,3 +124,48 @@ func TestActiveInstanceStatusesAreCentralizedAndImmutable(t *testing.T) {
 		}
 	}
 }
+
+func TestStopCandidateInstanceStatusesAreCentralizedAndImmutable(t *testing.T) {
+	statuses := StopCandidateInstanceStatuses()
+	want := []string{StatusStarting, StatusRunning, StatusFailed, StatusExpired}
+	if len(statuses) != len(want) {
+		t.Fatalf("StopCandidateInstanceStatuses() = %#v, want %#v", statuses, want)
+	}
+	for i := range want {
+		if statuses[i] != want[i] {
+			t.Fatalf("StopCandidateInstanceStatuses() = %#v, want %#v", statuses, want)
+		}
+	}
+	statuses[0] = StatusStopped
+	if StopCandidateInstanceStatuses()[0] != StatusStarting {
+		t.Fatal("mutating returned statuses should not change stop-candidate policy")
+	}
+}
+
+func TestActivePortClaimStatusesAreCentralizedAndImmutable(t *testing.T) {
+	statuses := ActivePortClaimStatuses()
+	if len(statuses) != 2 || statuses[0] != ClaimStatusReserved || statuses[1] != ClaimStatusBound {
+		t.Fatalf("ActivePortClaimStatuses() = %#v, want reserved/bound", statuses)
+	}
+	statuses[0] = ClaimStatusExpired
+	if IsActivePortClaimStatus(ClaimStatusReserved) != true {
+		t.Fatal("mutating returned statuses should not change active-claim policy")
+	}
+	for _, tc := range []struct {
+		status       string
+		active       bool
+		discoverable bool
+	}{
+		{status: ClaimStatusReserved, active: true},
+		{status: ClaimStatusBound, active: true, discoverable: true},
+		{status: ClaimStatusReleased},
+		{status: ClaimStatusExpired},
+	} {
+		if got := IsActivePortClaimStatus(tc.status); got != tc.active {
+			t.Fatalf("IsActivePortClaimStatus(%q) = %v, want %v", tc.status, got, tc.active)
+		}
+		if got := IsDiscoverablePortClaimStatus(tc.status); got != tc.discoverable {
+			t.Fatalf("IsDiscoverablePortClaimStatus(%q) = %v, want %v", tc.status, got, tc.discoverable)
+		}
+	}
+}

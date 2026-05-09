@@ -210,6 +210,7 @@ export function RunTimeline({
   const canContinue = useMemo(() => {
     return run.actions?.canContinue ?? false;
   }, [run.actions?.canContinue]);
+  const finalizationWarning = run.actions?.finalizationWarning ?? "";
 
   // Show the input area when we can continue OR when the run is still in progress
   // (so users can type their follow-up while waiting). Send is disabled until the run completes.
@@ -405,6 +406,13 @@ export function RunTimeline({
 
         {showInputArea ? (
           <div className="border-t border-border px-3 py-4 sm:px-4">
+            {finalizationWarning ? (
+              <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                <p>{finalizationWarning}</p>
+              </div>
+            ) : null}
+
             {attachments.length > 0 ? (
               <AttachmentPreview
                 attachments={attachments}
@@ -451,6 +459,7 @@ export function RunTimeline({
                 onClick={() => void handleSend()}
                 disabled={(!inputMessage.trim() && attachments.length === 0) || sending || isUploading || isGenerating}
                 className="self-end"
+                aria-label="Send message"
                 title={isGenerating ? "Send is available after the run completes" : undefined}
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

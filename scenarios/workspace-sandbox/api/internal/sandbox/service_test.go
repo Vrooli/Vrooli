@@ -435,6 +435,36 @@ func TestService_TurnCheckpoint_NoChangesTransitionsCheckpointed(t *testing.T) {
 	}
 }
 
+func TestService_TurnCheckpoint_CheckpointingPersistFailureDoesNotUnmount(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	repo.UpdateErr = errors.New("db unavailable")
+	drv := mocks.NewFakeDriver()
+	drv.Mounted = true
+	svc := newTestService(repo, drv)
+	ctx := context.Background()
+
+	id := uuid.New()
+	existing := createTestSandbox(id, types.StatusActive)
+	repo.Sandboxes[id] = existing
+
+	_, err := svc.TurnCheckpoint(ctx, &types.TurnCheckpointRequest{
+		SandboxID:         id,
+		AgentManagerRunID: "run-1",
+		Source:            types.SourceAgentManagerAutoApply,
+		Actor:             "agent-manager",
+		RunOutcome:        "success",
+	})
+	if err == nil || !strings.Contains(err.Error(), "failed to mark sandbox checkpointing") {
+		t.Fatalf("TurnCheckpoint() error = %v, want checkpointing persist failure", err)
+	}
+	if !drv.Mounted {
+		t.Fatal("sandbox must remain mounted when checkpointing state cannot be persisted")
+	}
+	if repo.Sandboxes[id].Status != types.StatusCheckpointing {
+		t.Errorf("in-memory status = %s, want checkpointing mutation visible for diagnostics", repo.Sandboxes[id].Status)
+	}
+}
+
 func TestService_TurnCheckpoint_RecordsPendingReviewForRejectedChanges(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	drv := mocks.NewFakeDriver()

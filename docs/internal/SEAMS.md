@@ -43,4 +43,6 @@ Individual resource docs should explain the specific resource.
 
 ## Plans
 
-`path:docs/plans/` are not current truth by default. They are design and migration artifacts unless a canonical doc explicitly points to them as active.
+Scratch implementation plans should be created with `vrooli plans add --stdin`, which stores them outside the git worktree by default.
+
+`path:docs/plans/` are not current truth by default. They are promoted design and migration artifacts unless a canonical doc explicitly points to them as active.

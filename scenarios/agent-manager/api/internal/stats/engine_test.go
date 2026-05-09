@@ -254,4 +254,3 @@ func TestEngine_HealthSummary_TracksLatestStatus(t *testing.T) {
 		t.Errorf("TransitionsObserved = %d, want 2", got.TransitionsObserved)
 	}
 }
-

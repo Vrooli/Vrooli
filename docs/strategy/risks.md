@@ -127,7 +127,7 @@ As the ecosystem grows, package governance, repo contract rules, testing expecta
 
 ### Mitigation
 
-- keep `make validate-repo-contract` and package-governance validation visible
+- keep `make hygiene` and package-governance validation visible
 - keep canonical docs small, clear, and current
 - update policy docs when operational reality changes
 

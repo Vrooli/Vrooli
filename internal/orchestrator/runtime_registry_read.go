@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostsession"
@@ -119,10 +118,7 @@ func (s *Service) openRuntimeRegistry(ctx context.Context) (runtimeRegistryQuery
 func (s *Service) detailFromRegistryInstance(ctx context.Context, store runtimeRegistryQueryStore, item scenario.Scenario, instance scenarioruntime.Instance) (Detail, bool, error) {
 	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
 		InstanceID: instance.InstanceID,
-		Statuses: []string{
-			scenarioruntime.ClaimStatusReserved,
-			scenarioruntime.ClaimStatusBound,
-		},
+		Statuses:   scenarioruntime.ActivePortClaimStatuses(),
 	})
 	if err != nil {
 		return Detail{}, false, err
@@ -179,40 +175,15 @@ func (s *Service) reconcileRegistryRuntime(ctx context.Context, instance scenari
 		Instance:      instance,
 		Claims:        claims,
 		ProcessRefs:   refs,
-		Processes:     processEvidence(refs),
-		Listeners:     listenerEvidence(claims, refs),
+		Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, process.IsPIDRunning),
+		Listeners: scenarioruntime.ListenerEvidenceFromClaims(claims, refs, func(port int) scenarioruntime.ListenerEvidence {
+			inspection, err := network.InspectPortListeners(port)
+			if err != nil || !inspection.Inspection.Available {
+				return scenarioruntime.ListenerEvidence{Known: false}
+			}
+			return scenarioruntime.ListenerEvidence{Known: true, Listening: len(inspection.Listeners) > 0}
+		}),
 	}), nil
-}
-
-func processEvidence(refs []scenarioruntime.ProcessRef) map[string]scenarioruntime.ProcessEvidence {
-	out := make(map[string]scenarioruntime.ProcessEvidence)
-	for _, ref := range refs {
-		if ref.PID == nil {
-			continue
-		}
-		pid := *ref.PID
-		out[strconv.Itoa(pid)] = scenarioruntime.ProcessEvidence{Known: true, Running: process.IsPIDRunning(pid)}
-	}
-	return out
-}
-
-func listenerEvidence(claims []scenarioruntime.PortClaim, refs []scenarioruntime.ProcessRef) map[int]scenarioruntime.ListenerEvidence {
-	if len(refs) == 0 {
-		return nil
-	}
-	out := make(map[int]scenarioruntime.ListenerEvidence)
-	for _, claim := range claims {
-		if claim.Status != scenarioruntime.ClaimStatusBound || claim.Port <= 0 {
-			continue
-		}
-		inspection, err := network.InspectPortListeners(claim.Port)
-		if err != nil || !inspection.Inspection.Available {
-			out[claim.Port] = scenarioruntime.ListenerEvidence{Known: false}
-			continue
-		}
-		out[claim.Port] = scenarioruntime.ListenerEvidence{Known: true, Listening: len(inspection.Listeners) > 0}
-	}
-	return out
 }
 
 func authoritativeClaims(claims []scenarioruntime.ReconciledClaim) []scenarioruntime.PortClaim {

@@ -64,6 +64,11 @@ be defended by the test suite the next time someone refactors.
 - **Enforced by:** `internal/sandbox/service_turn_checkpoint.go::Service.TurnCheckpoint` and `internal/sandbox/service_turn_checkpoint.go::Service.Resume`
 - **Tested by:** `internal/sandbox/service_test.go::TestService_TurnCheckpoint_NoChangesTransitionsCheckpointed` and `internal/sandbox/service_test.go::TestService_Resume_CheckpointedTransitionsActive`
 
+### I-MOUNT-4 — checkpoint teardown never starts before `checkpointing` is durable
+
+- **Enforced by:** `internal/sandbox/service_turn_checkpoint.go::Service.TurnCheckpoint`
+- **Tested by:** `internal/sandbox/service_test.go::TestService_TurnCheckpoint_CheckpointingPersistFailureDoesNotUnmount`
+
 ## Change detection
 
 ### I-CHANGE-1 — `ChangeTracker.GetChangedFiles` is deterministic for a given filesystem state

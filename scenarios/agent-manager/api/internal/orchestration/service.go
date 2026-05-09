@@ -2508,14 +2508,15 @@ func (o *Orchestrator) checkpointContinuationTurn(ctx context.Context, run *doma
 	if result != nil {
 		cost = result.Metrics.CostEstimateUSD
 	}
-	if phases.ApplyAtRunEnd(ctx, phases.ApplyAtRunEndInput{
+	phases.ApplyAtRunEnd(ctx, phases.ApplyAtRunEndInput{
 		Deps:      phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers()},
 		Run:       run,
 		SandboxID: run.SandboxID,
 		Sandbox:   o.sandbox,
 		Outcome:   outcome,
 		Cost:      cost,
-	}) && o.runs != nil {
+	})
+	if o.runs != nil {
 		if err := o.runs.Update(ctx, run); err != nil {
 			obs.Component("continuation").Error("continuation checkpoint status update failed",
 				obs.KeyRunID, run.ID.String(),

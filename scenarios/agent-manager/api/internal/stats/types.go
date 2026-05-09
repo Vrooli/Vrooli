@@ -48,18 +48,18 @@ type FallbackInsights struct {
 	History     HistoryWindow `json:"history"`
 	EventCount  int64         `json:"event_count"`
 
-	RunnerAttempts   int                  `json:"runner_attempts"`
-	RunnerExhausted  int                  `json:"runner_exhausted"`
-	RunnerByReason   map[string]int       `json:"runner_by_reason"`
-	RunnerByPair     []FallbackPair       `json:"runner_by_pair"`
-	RunnerChainDepth map[int]int          `json:"runner_chain_depth"`
+	RunnerAttempts   int            `json:"runner_attempts"`
+	RunnerExhausted  int            `json:"runner_exhausted"`
+	RunnerByReason   map[string]int `json:"runner_by_reason"`
+	RunnerByPair     []FallbackPair `json:"runner_by_pair"`
+	RunnerChainDepth map[int]int    `json:"runner_chain_depth"`
 
-	ModelAttempts    int                  `json:"model_attempts"`
-	ModelExhausted   int                  `json:"model_exhausted"`
-	ModelByReason    map[string]int       `json:"model_by_reason"`
-	ModelByPair      []FallbackPair       `json:"model_by_pair"`
-	ModelChainDepth  map[int]int          `json:"model_chain_depth"`
-	ModelByPreset    map[string]int       `json:"model_by_preset"`
+	ModelAttempts   int            `json:"model_attempts"`
+	ModelExhausted  int            `json:"model_exhausted"`
+	ModelByReason   map[string]int `json:"model_by_reason"`
+	ModelByPair     []FallbackPair `json:"model_by_pair"`
+	ModelChainDepth map[int]int    `json:"model_chain_depth"`
+	ModelByPreset   map[string]int `json:"model_by_preset"`
 }
 
 // FallbackPair pairs a (from → to) fallback transition with how often it
@@ -75,23 +75,23 @@ type FallbackPair struct {
 // HealthSummary is the per-(runner, model) and per-runner current
 // snapshot computed from health.transition events.
 type HealthSummary struct {
-	GeneratedAt   time.Time            `json:"generated_at"`
-	History       HistoryWindow        `json:"history"`
-	Models        []ModelHealthEntry   `json:"models"`
-	Runners       []RunnerHealthEntry  `json:"runners"`
-	FailingLastHour []ModelHealthEntry `json:"failing_last_hour"`
+	GeneratedAt     time.Time           `json:"generated_at"`
+	History         HistoryWindow       `json:"history"`
+	Models          []ModelHealthEntry  `json:"models"`
+	Runners         []RunnerHealthEntry `json:"runners"`
+	FailingLastHour []ModelHealthEntry  `json:"failing_last_hour"`
 }
 
 // ModelHealthEntry pairs a (runner, model) with its most-recent observed
 // status and the timestamp of that observation.
 type ModelHealthEntry struct {
-	Runner       string    `json:"runner"`
-	Model        string    `json:"model"`
-	Status       string    `json:"status"`
-	Reason       string    `json:"reason,omitempty"`
-	Message      string    `json:"message,omitempty"`
-	ObservedAt   time.Time `json:"observed_at"`
-	TransitionsObserved int  `json:"transitions_observed"`
+	Runner              string    `json:"runner"`
+	Model               string    `json:"model"`
+	Status              string    `json:"status"`
+	Reason              string    `json:"reason,omitempty"`
+	Message             string    `json:"message,omitempty"`
+	ObservedAt          time.Time `json:"observed_at"`
+	TransitionsObserved int       `json:"transitions_observed"`
 }
 
 // RunnerHealthEntry mirrors ModelHealthEntry at the runner level.
@@ -106,14 +106,14 @@ type RunnerHealthEntry struct {
 
 // SandboxSummary aggregates sandbox.operation outcomes.
 type SandboxSummary struct {
-	GeneratedAt    time.Time      `json:"generated_at"`
-	History        HistoryWindow  `json:"history"`
-	TotalOps       int            `json:"total_ops"`
-	SuccessRate    float64        `json:"success_rate"`
-	SampleSize     int            `json:"sample_size"`
-	ByOperation    map[string]OperationCount `json:"by_operation"`
-	AvgDurationMs  float64        `json:"avg_duration_ms"`
-	DurationSamples int           `json:"duration_samples"`
+	GeneratedAt     time.Time                 `json:"generated_at"`
+	History         HistoryWindow             `json:"history"`
+	TotalOps        int                       `json:"total_ops"`
+	SuccessRate     float64                   `json:"success_rate"`
+	SampleSize      int                       `json:"sample_size"`
+	ByOperation     map[string]OperationCount `json:"by_operation"`
+	AvgDurationMs   float64                   `json:"avg_duration_ms"`
+	DurationSamples int                       `json:"duration_samples"`
 }
 
 // OperationCount pairs an operation name with success/fail counts.
@@ -125,19 +125,19 @@ type OperationCount struct {
 
 // HeartbeatSummary aggregates heartbeat.miss events.
 type HeartbeatSummary struct {
-	GeneratedAt time.Time     `json:"generated_at"`
-	History     HistoryWindow `json:"history"`
-	TotalMisses int           `json:"total_misses"`
+	GeneratedAt time.Time      `json:"generated_at"`
+	History     HistoryWindow  `json:"history"`
+	TotalMisses int            `json:"total_misses"`
 	ByTarget    map[string]int `json:"by_target"`
 }
 
 // CheckpointSummary aggregates checkpoint.failure events.
 type CheckpointSummary struct {
-	GeneratedAt    time.Time      `json:"generated_at"`
-	History        HistoryWindow  `json:"history"`
-	TotalFailures  int            `json:"total_failures"`
-	ByStep         map[string]int `json:"by_step"`
-	ByPhase        map[string]int `json:"by_phase"`
+	GeneratedAt   time.Time      `json:"generated_at"`
+	History       HistoryWindow  `json:"history"`
+	TotalFailures int            `json:"total_failures"`
+	ByStep        map[string]int `json:"by_step"`
+	ByPhase       map[string]int `json:"by_phase"`
 }
 
 // RetrySummary aggregates retry.attempt events.

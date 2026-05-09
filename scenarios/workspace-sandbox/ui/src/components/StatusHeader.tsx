@@ -121,6 +121,14 @@ export function StatusHeader({
             </div>
           )}
 
+          {stats.checkpointing > 0 && (
+            <div className="flex items-center gap-1.5 text-cyan-400">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span className="font-medium">{stats.checkpointing}</span>
+              <span className="text-cyan-500">checkpointing</span>
+            </div>
+          )}
+
           {stats.checkpointed > 0 && (
             <div className="flex items-center gap-1.5 text-cyan-400">
               <PauseCircle className="h-3.5 w-3.5" />

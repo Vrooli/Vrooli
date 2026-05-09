@@ -329,38 +329,16 @@ func TestResumeTag_AppendsSuffixOnce(t *testing.T) {
 	ctx := context.Background()
 
 	_, _, failedRun := seedFailedRun(t, svc, repos, "x", nil)
+	failedRun.Tag += "-resume"
+	if err := repos.Runs.Update(ctx, failedRun); err != nil {
+		t.Fatalf("mark failed run tag as already resumed: %v", err)
+	}
 
-	first, err := svc.ResumeFromFailedRun(ctx, orchestration.ResumeFromFailedRunRequest{RunID: failedRun.ID})
+	resumed, err := svc.ResumeFromFailedRun(ctx, orchestration.ResumeFromFailedRunRequest{RunID: failedRun.ID})
 	if err != nil {
-		t.Fatalf("first resume: %v", err)
+		t.Fatalf("resume: %v", err)
 	}
-	if !strings.HasSuffix(first.Tag, "-resume") {
-		t.Fatalf("first resume tag = %q, want -resume suffix", first.Tag)
-	}
-
-	// Wait for the first resumed run to reach a terminal state so our
-	// subsequent Update(Failed) does not race with the orchestrator
-	// finalising the run in the background.
-	if _, err := waitForRunCompletion(t, ctx, svc, first.ID, 5*time.Second); err != nil {
-		t.Fatalf("wait for first resume terminal: %v", err)
-	}
-
-	// Re-fetch and mark the resumed run as failed so we can resume it again.
-	firstFetched, err := svc.GetRun(ctx, first.ID)
-	if err != nil {
-		t.Fatalf("get first: %v", err)
-	}
-	firstFetched.Status = domain.RunStatusFailed
-	if err := repos.Runs.Update(ctx, firstFetched); err != nil {
-		t.Fatalf("update first to failed: %v", err)
-	}
-	first = firstFetched
-
-	second, err := svc.ResumeFromFailedRun(ctx, orchestration.ResumeFromFailedRunRequest{RunID: first.ID})
-	if err != nil {
-		t.Fatalf("second resume: %v", err)
-	}
-	if strings.Count(second.Tag, "-resume") != 1 {
-		t.Errorf("second resume tag = %q, want exactly one -resume suffix (no double-append)", second.Tag)
+	if strings.Count(resumed.Tag, "-resume") != 1 {
+		t.Errorf("resumed tag = %q, want exactly one -resume suffix (no double-append)", resumed.Tag)
 	}
 }

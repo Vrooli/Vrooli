@@ -55,8 +55,8 @@ Phase 1 should be considered complete only when all of the following remain true
 
 - `.vrooli/repo-contract.json` stays aligned with the future-state repo shape
 - `.vrooli/schemas/repo-contract.schema.json` enforces the current contract shape
-- `vrooli contract validate` remains the canonical operator-facing validation entrypoint
-- `make validate-repo-contract` remains the CI/automation wrapper
+- `vrooli contract validate` remains the canonical low-level contract validation entrypoint
+- `make hygiene` remains the CI/automation wrapper for precommit readiness
 - `internal/repocontract` catches schema drift, semantic drift, and legacy-path regressions
 - remaining non-migrated consumers are clearly documented as migration targets rather than contract authority
 
@@ -147,11 +147,12 @@ Use the direct CLI for local validation or the Make target for CI/automation:
 
 ```bash
 vrooli contract validate
-make validate-repo-contract
+make hygiene
 ```
 
 The `vrooli contract ...` commands are the operator/developer-facing inspection
-surface. `make validate-repo-contract` remains the CI/automation entrypoint.
+surface. `make hygiene` remains the CI/automation entrypoint and includes
+contract validation plus repository hygiene checks.
 
 Validation currently covers:
 

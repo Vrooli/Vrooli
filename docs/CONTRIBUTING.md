@@ -70,7 +70,7 @@ Run the validations that match your change:
 ```bash
 vrooli scenario test <name>
 go test ./cmd/vrooli/... ./internal/...
-make validate-repo-contract
+make hygiene
 make validate-package-governance
 ```
 

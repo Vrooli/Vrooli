@@ -626,15 +626,19 @@ export function RunDetail({
               </div>
             )
           ) : activeTab === "timeline" ? (
-            <div className="space-y-3">
-              <FallbackTimeline runId={run.id} />
-              <RunTimeline
-                run={run}
-                events={events}
-                eventsLoading={eventsLoading}
-                onContinue={onContinue}
-                onDeleteMessage={onDeleteMessage}
-              />
+            <div data-testid="run-detail-timeline-layout" className="flex h-full min-h-0 flex-col gap-3">
+              <div className="shrink-0">
+                <FallbackTimeline runId={run.id} />
+              </div>
+              <div className="min-h-0 flex-1">
+                <RunTimeline
+                  run={run}
+                  events={events}
+                  eventsLoading={eventsLoading}
+                  onContinue={onContinue}
+                  onDeleteMessage={onDeleteMessage}
+                />
+              </div>
             </div>
           ) : activeTab === "diff" ? (
             diffLoading ? (

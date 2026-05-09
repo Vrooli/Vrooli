@@ -84,6 +84,22 @@ func (s RunStatus) IsActive() bool {
 	}
 }
 
+// IsValid returns whether this is a valid RunFinalizationStatus.
+func (s RunFinalizationStatus) IsValid() bool {
+	switch s {
+	case RunFinalizationStatusNone, RunFinalizationStatusPending, RunFinalizationStatusRunning,
+		RunFinalizationStatusSucceeded, RunFinalizationStatusFailed, RunFinalizationStatusSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsFailed returns whether post-run sandbox finalization failed.
+func (s RunFinalizationStatus) IsFailed() bool {
+	return s == RunFinalizationStatusFailed
+}
+
 // IsValid returns whether this is a valid ApprovalState.
 func (s ApprovalState) IsValid() bool {
 	switch s {

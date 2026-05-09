@@ -221,27 +221,29 @@ func RunToProto(r *domain.Run) *pb.Run {
 	}
 
 	run := &pb.Run{
-		Id:              UUIDToString(r.ID),
-		TaskId:          UUIDToString(r.TaskID),
-		Tag:             r.Tag,
-		SessionId:       r.SessionID,
-		RunMode:         RunModeToProto(r.RunMode),
-		Status:          RunStatusToProto(r.Status),
-		Phase:           RunPhaseToProto(r.Phase),
-		ProgressPercent: int32(r.ProgressPercent),
-		IdempotencyKey:  r.IdempotencyKey,
-		ErrorMsg:        r.ErrorMsg,
-		ApprovalState:   ApprovalStateToProto(r.ApprovalState),
-		ApprovedBy:      r.ApprovedBy,
-		DiffPath:        r.DiffPath,
-		LogPath:         r.LogPath,
-		ChangedFiles:    int32(r.ChangedFiles),
-		TotalSizeBytes:  r.TotalSizeBytes,
-		PromptPreview:   r.PromptPreview,
-		RequestedModel:  r.RequestedModel,
-		ActualModel:     r.ActualModel,
-		CreatedAt:       TimestampToProto(r.CreatedAt),
-		UpdatedAt:       TimestampToProto(r.UpdatedAt),
+		Id:                 UUIDToString(r.ID),
+		TaskId:             UUIDToString(r.TaskID),
+		Tag:                r.Tag,
+		SessionId:          r.SessionID,
+		RunMode:            RunModeToProto(r.RunMode),
+		Status:             RunStatusToProto(r.Status),
+		Phase:              RunPhaseToProto(r.Phase),
+		ProgressPercent:    int32(r.ProgressPercent),
+		IdempotencyKey:     r.IdempotencyKey,
+		ErrorMsg:           r.ErrorMsg,
+		ApprovalState:      ApprovalStateToProto(r.ApprovalState),
+		ApprovedBy:         r.ApprovedBy,
+		DiffPath:           r.DiffPath,
+		LogPath:            r.LogPath,
+		ChangedFiles:       int32(r.ChangedFiles),
+		TotalSizeBytes:     r.TotalSizeBytes,
+		PromptPreview:      r.PromptPreview,
+		RequestedModel:     r.RequestedModel,
+		ActualModel:        r.ActualModel,
+		FinalizationStatus: RunFinalizationStatusToProto(r.FinalizationStatus),
+		FinalizationError:  r.FinalizationError,
+		CreatedAt:          TimestampToProto(r.CreatedAt),
+		UpdatedAt:          TimestampToProto(r.UpdatedAt),
 	}
 
 	if r.AgentProfileID != nil {
@@ -272,6 +274,9 @@ func RunToProto(r *domain.Run) *pb.Run {
 	}
 	if r.ApprovedAt != nil {
 		run.ApprovedAt = TimestampToProto(*r.ApprovedAt)
+	}
+	if r.FinalizedAt != nil {
+		run.FinalizedAt = TimestampToProto(*r.FinalizedAt)
 	}
 
 	if r.Summary != nil {
@@ -306,6 +311,8 @@ func RunToProto(r *domain.Run) *pb.Run {
 			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
 			CanResumeFromFailure:         r.Actions.CanResumeFromFailure,
 			CanResumeFromFailureReason:   r.Actions.CanResumeFromFailureReason,
+			FinalizationWarning:          r.Actions.FinalizationWarning,
+			CanRetryFinalization:         r.Actions.CanRetryFinalization,
 		}
 	}
 
@@ -319,24 +326,26 @@ func RunFromProto(r *pb.Run) *domain.Run {
 	}
 
 	run := &domain.Run{
-		ID:              UUIDFromString(r.Id),
-		TaskID:          UUIDFromString(r.TaskId),
-		Tag:             r.Tag,
-		SessionID:       r.SessionId,
-		RunMode:         RunModeFromProto(r.RunMode),
-		Status:          RunStatusFromProto(r.Status),
-		Phase:           RunPhaseFromProto(r.Phase),
-		ProgressPercent: int(r.ProgressPercent),
-		IdempotencyKey:  r.IdempotencyKey,
-		ErrorMsg:        r.ErrorMsg,
-		ApprovalState:   ApprovalStateFromProto(r.ApprovalState),
-		ApprovedBy:      r.ApprovedBy,
-		DiffPath:        r.DiffPath,
-		LogPath:         r.LogPath,
-		ChangedFiles:    int(r.ChangedFiles),
-		TotalSizeBytes:  r.TotalSizeBytes,
-		CreatedAt:       TimestampFromProto(r.CreatedAt),
-		UpdatedAt:       TimestampFromProto(r.UpdatedAt),
+		ID:                 UUIDFromString(r.Id),
+		TaskID:             UUIDFromString(r.TaskId),
+		Tag:                r.Tag,
+		SessionID:          r.SessionId,
+		RunMode:            RunModeFromProto(r.RunMode),
+		Status:             RunStatusFromProto(r.Status),
+		Phase:              RunPhaseFromProto(r.Phase),
+		ProgressPercent:    int(r.ProgressPercent),
+		IdempotencyKey:     r.IdempotencyKey,
+		ErrorMsg:           r.ErrorMsg,
+		ApprovalState:      ApprovalStateFromProto(r.ApprovalState),
+		ApprovedBy:         r.ApprovedBy,
+		FinalizationStatus: RunFinalizationStatusFromProto(r.FinalizationStatus),
+		FinalizationError:  r.FinalizationError,
+		DiffPath:           r.DiffPath,
+		LogPath:            r.LogPath,
+		ChangedFiles:       int(r.ChangedFiles),
+		TotalSizeBytes:     r.TotalSizeBytes,
+		CreatedAt:          TimestampFromProto(r.CreatedAt),
+		UpdatedAt:          TimestampFromProto(r.UpdatedAt),
 	}
 
 	// Handle optional timestamps (pointer fields)
@@ -355,6 +364,10 @@ func RunFromProto(r *pb.Run) *domain.Run {
 	if r.ApprovedAt != nil {
 		t := TimestampFromProto(r.ApprovedAt)
 		run.ApprovedAt = &t
+	}
+	if r.FinalizedAt != nil {
+		t := TimestampFromProto(r.FinalizedAt)
+		run.FinalizedAt = &t
 	}
 
 	run.AgentProfileID = OptionalStringToUUID(r.AgentProfileId)
@@ -398,6 +411,8 @@ func RunFromProto(r *pb.Run) *domain.Run {
 			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
 			CanResumeFromFailure:         r.Actions.CanResumeFromFailure,
 			CanResumeFromFailureReason:   r.Actions.CanResumeFromFailureReason,
+			FinalizationWarning:          r.Actions.FinalizationWarning,
+			CanRetryFinalization:         r.Actions.CanRetryFinalization,
 		}
 	}
 

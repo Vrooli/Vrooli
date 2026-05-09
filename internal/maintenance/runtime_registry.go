@@ -46,11 +46,7 @@ func openRuntimeRegistryIfPresent(home string) (runtimeMaintenanceStore, func(),
 func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port int, scenarioName string) ([]RuntimeClaimInfo, error) {
 	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
 		Scenario: scenarioName,
-		Statuses: []string{
-			scenarioruntime.ClaimStatusReserved,
-			scenarioruntime.ClaimStatusBound,
-			scenarioruntime.ClaimStatusExpired,
-		},
+		Statuses: append(scenarioruntime.ActivePortClaimStatuses(), scenarioruntime.ClaimStatusExpired),
 	})
 	if err != nil {
 		return nil, err
@@ -97,7 +93,7 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 				Instance:      instance,
 				Claims:        []scenarioruntime.PortClaim{claim},
 				ProcessRefs:   refs,
-				Processes:     runtimeProcessEvidence(refs),
+				Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, processIsRunning),
 				Listeners:     runtimeListenerEvidence([]scenarioruntime.PortClaim{claim}, refs),
 			})
 			item.Reconciliation = reconciled.Classification
@@ -131,7 +127,7 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 	for _, instance := range instances {
 		claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
 			InstanceID: instance.InstanceID,
-			Statuses:   []string{scenarioruntime.ClaimStatusReserved, scenarioruntime.ClaimStatusBound},
+			Statuses:   scenarioruntime.ActivePortClaimStatuses(),
 		})
 		if err != nil {
 			return nil, err
@@ -146,7 +142,7 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 			Instance:      instance,
 			Claims:        claims,
 			ProcessRefs:   refs,
-			Processes:     runtimeProcessEvidence(refs),
+			Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, processIsRunning),
 			Listeners:     runtimeListenerEvidence(claims, refs),
 		})
 		if reconciled.Authoritative || reconciled.Classification == scenarioruntime.ReconcileUnverified {
@@ -166,34 +162,14 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 	return stopped, nil
 }
 
-func runtimeProcessEvidence(refs []scenarioruntime.ProcessRef) map[string]scenarioruntime.ProcessEvidence {
-	out := make(map[string]scenarioruntime.ProcessEvidence)
-	for _, ref := range refs {
-		if ref.PID == nil {
-			continue
-		}
-		out[strconv.Itoa(*ref.PID)] = scenarioruntime.ProcessEvidence{Known: true, Running: processIsRunning(*ref.PID)}
-	}
-	return out
-}
-
 func runtimeListenerEvidence(claims []scenarioruntime.PortClaim, refs []scenarioruntime.ProcessRef) map[int]scenarioruntime.ListenerEvidence {
-	if len(refs) == 0 {
-		return nil
-	}
-	out := make(map[int]scenarioruntime.ListenerEvidence)
-	for _, claim := range claims {
-		if claim.Status != scenarioruntime.ClaimStatusBound || claim.Port <= 0 {
-			continue
-		}
-		inspection, err := network.InspectPortListeners(claim.Port)
+	return scenarioruntime.ListenerEvidenceFromClaims(claims, refs, func(port int) scenarioruntime.ListenerEvidence {
+		inspection, err := network.InspectPortListeners(port)
 		if err != nil || !inspection.Inspection.Available {
-			out[claim.Port] = scenarioruntime.ListenerEvidence{Known: false}
-			continue
+			return scenarioruntime.ListenerEvidence{Known: false}
 		}
-		out[claim.Port] = scenarioruntime.ListenerEvidence{Known: true, Listening: len(inspection.Listeners) > 0}
-	}
-	return out
+		return scenarioruntime.ListenerEvidence{Known: true, Listening: len(inspection.Listeners) > 0}
+	})
 }
 
 func listRuntimeProcessRefs(ctx context.Context, store runtimeMaintenanceStore, claims []RuntimeClaimInfo) ([]RuntimeProcessRefInfo, error) {

@@ -2,17 +2,20 @@ package scenarioruntime
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 )
 
 const (
-	ReconcileVerifiedRunning   = "verified_running"
-	ReconcileStaleInstance     = "stale_instance"
-	ReconcileStaleClaim        = "stale_claim"
-	ReconcileOrphanListener    = "orphan_listener"
-	ReconcileAdoptionCandidate = "adoption_candidate"
-	ReconcileUnverified        = "unverified"
+	ReconcileVerifiedRunning   ReconcileClassification = "verified_running"
+	ReconcileStaleInstance     ReconcileClassification = "stale_instance"
+	ReconcileStaleClaim        ReconcileClassification = "stale_claim"
+	ReconcileOrphanListener    ReconcileClassification = "orphan_listener"
+	ReconcileAdoptionCandidate ReconcileClassification = "adoption_candidate"
+	ReconcileUnverified        ReconcileClassification = "unverified"
 )
+
+type ReconcileClassification string
 
 type ProcessEvidence struct {
 	Known   bool
@@ -23,6 +26,10 @@ type ListenerEvidence struct {
 	Known     bool
 	Listening bool
 }
+
+type PIDRunningFunc func(pid int) bool
+
+type PortListenerFunc func(port int) ListenerEvidence
 
 type ReconcileInput struct {
 	Now           time.Time
@@ -36,14 +43,14 @@ type ReconcileInput struct {
 
 type ReconciledClaim struct {
 	Claim          PortClaim
-	Classification string
+	Classification ReconcileClassification
 	Reason         string
 	Authoritative  bool
 }
 
 type ReconcileResult struct {
 	Instance       Instance
-	Classification string
+	Classification ReconcileClassification
 	Reason         string
 	Authoritative  bool
 	Claims         []ReconciledClaim
@@ -98,7 +105,36 @@ func ReconcileRuntime(in ReconcileInput) ReconcileResult {
 	return result
 }
 
-func (r ReconcileResult) fail(classification, reason string) ReconcileResult {
+func ProcessEvidenceFromRefs(refs []ProcessRef, isRunning PIDRunningFunc) map[string]ProcessEvidence {
+	out := make(map[string]ProcessEvidence)
+	if isRunning == nil {
+		return out
+	}
+	for _, ref := range refs {
+		if ref.PID == nil {
+			continue
+		}
+		pid := *ref.PID
+		out[strconv.Itoa(pid)] = ProcessEvidence{Known: true, Running: isRunning(pid)}
+	}
+	return out
+}
+
+func ListenerEvidenceFromClaims(claims []PortClaim, refs []ProcessRef, inspect PortListenerFunc) map[int]ListenerEvidence {
+	if len(refs) == 0 || inspect == nil {
+		return nil
+	}
+	out := make(map[int]ListenerEvidence)
+	for _, claim := range claims {
+		if !IsDiscoverablePortClaimStatus(claim.Status) || claim.Port <= 0 {
+			continue
+		}
+		out[claim.Port] = inspect(claim.Port)
+	}
+	return out
+}
+
+func (r ReconcileResult) fail(classification ReconcileClassification, reason string) ReconcileResult {
 	r.Classification = classification
 	r.Reason = reason
 	r.Authoritative = false
@@ -117,15 +153,20 @@ func (r ReconcileResult) claims() []PortClaim {
 func reconcileClaims(claims []PortClaim, authoritative bool, reason string) []ReconciledClaim {
 	out := make([]ReconciledClaim, 0, len(claims))
 	for _, claim := range claims {
+		claimAuthoritative := authoritative && IsDiscoverablePortClaimStatus(claim.Status)
+		claimReason := reason
 		classification := ReconcileVerifiedRunning
-		if !authoritative {
+		if !claimAuthoritative {
 			classification = ReconcileStaleClaim
+			if claimReason == "" {
+				claimReason = fmt.Sprintf("claim status is %q", claim.Status)
+			}
 		}
 		out = append(out, ReconciledClaim{
 			Claim:          claim,
 			Classification: classification,
-			Reason:         reason,
-			Authoritative:  authoritative,
+			Reason:         claimReason,
+			Authoritative:  claimAuthoritative,
 		})
 	}
 	return out
@@ -152,7 +193,7 @@ func processRefEvidence(in ReconcileInput) (deadKnown int, liveKnown int) {
 
 func listenerSummary(in ReconcileInput) (listening bool, unknown bool) {
 	for _, claim := range in.Claims {
-		if claim.Status != ClaimStatusBound {
+		if !IsDiscoverablePortClaimStatus(claim.Status) {
 			continue
 		}
 		evidence, ok := in.Listeners[claim.Port]

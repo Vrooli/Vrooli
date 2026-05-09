@@ -109,7 +109,7 @@ goroutine starts → SendHeartbeat (immediate)
 3. `runEventSink` creates the same durable event-sink shape used by dispatcher lifecycle events: append-and-broadcast when both store and broadcaster exist, append-only when only the store exists, and no-op when event storage is absent.
 4. `executeContinuation` derives `Execution.DefaultTimeout` and `Heartbeat.RunHeartbeatInterval` from the same lever set as `RunExecutor`.
 5. `phases.RunHeartbeatLoop` sends continuation heartbeats until the runner returns, then the terminal `applyRunStatusTransition` records the completed or failed status.
-6. Sandboxed continuation turns call the apply-at-run-end orchestration seam, whose lifecycle policy explicitly selects workspace-sandbox `/turn-checkpoint`; the sandbox returns to `checkpointed` instead of being deleted. Final disposal paths remain separate from turn checkpointing.
+6. Sandboxed continuation turns call the apply-at-run-end orchestration seam, whose lifecycle policy explicitly selects workspace-sandbox `/turn-checkpoint`; the sandbox returns to `checkpointed` instead of being deleted. Final disposal paths remain separate from turn checkpointing. Checkpoint/apply outcome is recorded in `Run.FinalizationStatus`, not by keeping the runner turn in `running`.
 
 ```
 ContinueRun
@@ -127,7 +127,7 @@ runner.Continue(ctx with Execution.DefaultTimeout)
    ↓
 status transition: running → complete|failed
    ↓
-turn checkpoint: active → checkpointed
+turn checkpoint/finalization: finalization_status=succeeded|failed|skipped
 ```
 
 **Levers:** `Execution.DefaultTimeout` caps each continuation turn. `Heartbeat.RunHeartbeatInterval` controls continuation heartbeats.
@@ -136,6 +136,19 @@ turn checkpoint: active → checkpointed
 - `internal/orchestration/continuation_timeout_test.go::TestContinuation_HasPerTurnTimeout`
 - `internal/orchestration/run_lifecycle_test.go::TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents`
 - `internal/orchestration/run_lifecycle_test.go::TestContinueRun_EmitsRunningAndTerminalStatusTransitions`
+- `internal/domain/run_actions_test.go::TestRunActionsFor_ContinueReason` pins that failed finalization does not block continuation after the runner turn completed.
+- `internal/orchestration/phases/finalize_test.go::TestApplyAtRunEnd_FailurePreservesSandbox` pins that finalization failure is recorded without changing completed runner status back to an active state.
+
+## Post-run sandbox finalization
+
+Runner turn status and sandbox finalization are separate temporal flows. A runner can finish and emit several assistant messages before process exit; assistant messages are not terminal. The terminal signal is the runner result/process completion path. After that, sandbox apply/checkpoint runs as post-turn finalization and records one of:
+
+- `none` / `skipped`: no sandbox finalization was needed or policy deferred it.
+- `running`: finalization is currently applying/checkpointing.
+- `succeeded`: apply/checkpoint finished.
+- `failed`: apply/checkpoint failed after the runner turn completed.
+
+`CanContinueRun` gates on runner turn activity and session availability, not on finalization success. A run with `status=complete`, a session id, and `finalization_status=failed` can be continued while the UI shows the structured finalization warning.
 
 ## WebSocket reconnect and gap-fill
 

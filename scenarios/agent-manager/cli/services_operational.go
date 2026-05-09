@@ -52,13 +52,13 @@ func (s *HealthAuditService) GetRunners() ([]byte, error) {
 // AuditQuery filters audit history. All fields optional. Scope must be
 // "model" (default) or "runner".
 type AuditQuery struct {
-	Scope   string
-	Runner  string
-	Model   string
-	Status  string
-	Since   string
-	Until   string
-	Limit   int
+	Scope  string
+	Runner string
+	Model  string
+	Status string
+	Since  string
+	Until  string
+	Limit  int
 }
 
 // QueryAudit pages through the audit history.

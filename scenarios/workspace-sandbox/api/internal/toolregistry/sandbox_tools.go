@@ -166,7 +166,7 @@ func (p *SandboxToolProvider) listSandboxesTool() *toolspb.ToolDefinition {
 			Properties: map[string]*toolspb.ParameterSchema{
 				"status": {
 					Type:        "string",
-					Enum:        []string{"creating", "active", "stopped", "checkpointed", "approved", "rejected", "deleted"},
+					Enum:        []string{"creating", "active", "stopped", "checkpointing", "checkpointed", "approved", "rejected", "deleted"},
 					Description: "Filter by sandbox status.",
 				},
 				"owner": {

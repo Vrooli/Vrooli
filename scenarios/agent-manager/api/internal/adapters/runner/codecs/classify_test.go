@@ -24,8 +24,10 @@ func TestClaude_Classify(t *testing.T) {
 	}{
 		{name: "empty success", wantNil: true},
 		{name: "empty failure exit code", exitCode: 1, want: fallback.ReasonUnknown},
-		{name: "claude rate-limit body",
-			stderr: `Claude AI usage limit reached|1700000000`, want: fallback.ReasonRateLimit},
+		{
+			name:   "claude rate-limit body",
+			stderr: `Claude AI usage limit reached|1700000000`, want: fallback.ReasonRateLimit,
+		},
 		{name: "session-expired", stderr: "session abc not found", want: fallback.ReasonSessionExpired},
 		{name: "model unknown delegated", stderr: "Unknown model 'sonnet-99'", want: fallback.ReasonModelUnknown},
 		{name: "auth-failure delegated", stderr: "401 unauthorized", want: fallback.ReasonAuthFailure},
@@ -62,14 +64,22 @@ func TestCodex_Classify(t *testing.T) {
 	}{
 		{name: "empty success", wantNil: true},
 		{name: "thread not found expired", stderr: "thread abc not found", want: fallback.ReasonSessionExpired},
-		{name: "rollout writer state-lost",
-			stderr: "thread xyz not found: failed to record rollout items", want: fallback.ReasonSessionStateLost},
-		{name: "rollout writer state-lost fn-name",
-			stderr: "thread abc not found in record_rollout_items", want: fallback.ReasonSessionStateLost},
-		{name: "model deprecated delegated",
-			stderr: "model gpt-5-codex is deprecated", want: fallback.ReasonModelDeprecated},
-		{name: "model unknown delegated",
-			stderr: "unknown model 'gpt-5-codex'", want: fallback.ReasonModelUnknown},
+		{
+			name:   "rollout writer state-lost",
+			stderr: "thread xyz not found: failed to record rollout items", want: fallback.ReasonSessionStateLost,
+		},
+		{
+			name:   "rollout writer state-lost fn-name",
+			stderr: "thread abc not found in record_rollout_items", want: fallback.ReasonSessionStateLost,
+		},
+		{
+			name:   "model deprecated delegated",
+			stderr: "model gpt-5-codex is deprecated", want: fallback.ReasonModelDeprecated,
+		},
+		{
+			name:   "model unknown delegated",
+			stderr: "unknown model 'gpt-5-codex'", want: fallback.ReasonModelUnknown,
+		},
 		{name: "rate limit delegated", stderr: "rate limit exceeded", want: fallback.ReasonRateLimit},
 		{name: "unclassified", stderr: "the agent exited unexpectedly", want: fallback.ReasonUnknown},
 	}

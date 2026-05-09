@@ -93,3 +93,39 @@ test("RunTimeline restores persisted conversation filters before rendering event
     /Conversation mode/,
   );
 });
+
+test("RunTimeline allows follow-up while showing a sandbox finalization warning", () => {
+  renderWithProviders(
+    createElement(RunTimeline, {
+      run: makeRun({
+        sessionId: "session-1",
+        actions: {
+          canInvestigate: false,
+          canApplyInvestigation: false,
+          canDelete: true,
+          canStop: false,
+          canRetry: true,
+          canContinue: true,
+          canApprove: false,
+          canReject: false,
+          canReview: false,
+          canExtractRecommendations: false,
+          canRegenerateRecommendations: false,
+          canContinueReason: "",
+          canResumeFromFailure: false,
+          canResumeFromFailureReason: "",
+          finalizationWarning: "Sandbox finalization failed: checkpoint rejected",
+          canRetryFinalization: true,
+        },
+      }),
+      events: [makeMessageEvent("msg-1", 1n, "Ready for follow-up")],
+      eventsLoading: false,
+      onContinue: vi.fn(async () => undefined),
+      onDeleteMessage: vi.fn(async () => undefined),
+    }),
+  );
+
+  assert.ok(screen.getByText("Sandbox finalization failed: checkpoint rejected"));
+  assert.ok(screen.getByPlaceholderText("Type your follow-up message..."));
+  assert.equal(screen.getByRole("button", { name: "Send message" }).hasAttribute("disabled"), true);
+});

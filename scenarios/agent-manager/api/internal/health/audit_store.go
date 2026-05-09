@@ -22,8 +22,8 @@ import (
 type Store struct {
 	db *sqlx.DB
 
-	mu       sync.RWMutex
-	runners  []string // ordered runner registry; seeded via RegisterRunners
+	mu         sync.RWMutex
+	runners    []string // ordered runner registry; seeded via RegisterRunners
 	seenRunner map[string]struct{}
 }
 
@@ -121,9 +121,7 @@ func (s *Store) LatestModelStatus(ctx context.Context, runnerType, modelID strin
 		ORDER BY timestamp DESC
 		LIMIT 1
 	`, runnerType, modelID)
-	var (
-		status, reason, message, ts string
-	)
+	var status, reason, message, ts string
 	if err := row.Scan(&status, nullableScan{&reason}, nullableScan{&message}, &ts); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ModelEntry{Status: StatusUnknown}, nil
@@ -173,9 +171,7 @@ func (s *Store) Snapshot(ctx context.Context) (Snapshot, error) {
 	}
 	defer modelRows.Close()
 	for modelRows.Next() {
-		var (
-			runnerType, modelID, status, reason, message, ts string
-		)
+		var runnerType, modelID, status, reason, message, ts string
 		if err := modelRows.Scan(&runnerType, &modelID, &status, nullableScan{&reason}, nullableScan{&message}, &ts); err != nil {
 			return out, fmt.Errorf("health: scan model row: %w", err)
 		}
@@ -209,9 +205,7 @@ func (s *Store) Snapshot(ctx context.Context) (Snapshot, error) {
 	}
 	defer runnerRows.Close()
 	for runnerRows.Next() {
-		var (
-			runnerType, status, reason, message, ts string
-		)
+		var runnerType, status, reason, message, ts string
 		if err := runnerRows.Scan(&runnerType, &status, nullableScan{&reason}, nullableScan{&message}, &ts); err != nil {
 			return out, fmt.Errorf("health: scan runner row: %w", err)
 		}

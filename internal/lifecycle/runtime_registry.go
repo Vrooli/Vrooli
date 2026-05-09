@@ -111,12 +111,7 @@ func (r *Runner) beginRuntimeRegistryStop(ctx context.Context, scenarioName stri
 	}
 	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
 		Scenario: scenarioName,
-		Statuses: []string{
-			scenarioruntime.StatusStarting,
-			scenarioruntime.StatusRunning,
-			scenarioruntime.StatusFailed,
-			scenarioruntime.StatusExpired,
-		},
+		Statuses: scenarioruntime.StopCandidateInstanceStatuses(),
 	})
 	if err != nil {
 		_ = store.Close()

@@ -2,6 +2,7 @@ package sandbox
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -26,6 +27,26 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}
 
+	now := s.clock.Now()
+	sandbox.Status = types.StatusCheckpointing
+	sandbox.LastUsedAt = now
+	sandbox.UpdatedAt = now
+	sandbox.ErrorMsg = ""
+	if err := s.repo.Update(ctx, sandbox); err != nil {
+		return nil, fmt.Errorf("failed to mark sandbox checkpointing: %w", err)
+	}
+
+	restoreActive := func(stage string, cause error) error {
+		sandbox.Status = types.StatusActive
+		sandbox.ErrorMsg = ""
+		sandbox.LastUsedAt = s.clock.Now()
+		sandbox.UpdatedAt = sandbox.LastUsedAt
+		if err := s.repo.Update(ctx, sandbox); err != nil {
+			return fmt.Errorf("%s: %w; additionally failed to restore active checkpoint state: %v", stage, cause, err)
+		}
+		return cause
+	}
+
 	approvalReq := &types.ApprovalRequest{
 		SandboxID:         req.SandboxID,
 		Mode:              "all",
@@ -42,9 +63,16 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 
 	applyResult, err := s.applyAcceptedChanges(ctx, sandbox, approvalReq)
 	if err != nil {
-		return nil, err
+		return nil, restoreActive("failed to apply accepted turn changes", err)
 	}
 	if !applyResult.Empty && !applyResult.Success {
+		message := applyResult.ErrorMsg
+		if message == "" {
+			message = "turn apply failed"
+		}
+		if err := restoreActive("failed turn apply", errors.New(message)); err != nil {
+			return nil, err
+		}
 		return &types.TurnCheckpointResult{
 			SandboxID:  sandbox.ID,
 			Status:     sandbox.Status,
@@ -60,7 +88,7 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 
 	if !applyResult.Empty {
 		if _, err := s.recordFileProvenance(ctx, sandbox, applyResult.Changes, approvalReq, types.ProvenanceFileStateApplied, applyResult.CommitHash, applyResult.CommitMsg); err != nil {
-			return nil, fmt.Errorf("failed to record applied turn provenance: %w", err)
+			return nil, restoreActive("failed to record applied turn provenance", err)
 		}
 		for _, change := range applyResult.Changes {
 			if err := s.driver.RemoveFromUpper(ctx, sandbox, change.FilePath); err != nil {
@@ -68,17 +96,17 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 					"file":  change.FilePath,
 					"error": err.Error(),
 				})
-				return nil, fmt.Errorf("failed to checkpoint applied file %s: %w", change.FilePath, err)
+				return nil, restoreActive("failed to checkpoint applied file", fmt.Errorf("failed to checkpoint applied file %s: %w", change.FilePath, err))
 			}
 		}
 	}
 	if len(applyResult.Rejected) > 0 {
 		pendingChanges, err := s.newPendingReviewChanges(ctx, sandbox, applyResult.Rejected)
 		if err != nil {
-			return nil, err
+			return nil, restoreActive("failed to prepare pending-review turn provenance", err)
 		}
 		if _, err := s.recordFileProvenance(ctx, sandbox, pendingChanges, approvalReq, types.ProvenanceFileStatePendingReview, "", ""); err != nil {
-			return nil, fmt.Errorf("failed to record pending-review turn provenance: %w", err)
+			return nil, restoreActive("failed to record pending-review turn provenance", err)
 		}
 	}
 
@@ -93,10 +121,11 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 
 	s.runPreTeardownHooks(ctx, sandbox, "turn_checkpoint")
 	if err := s.driver.Unmount(ctx, sandbox); err != nil {
+		_ = restoreActive("failed to unmount checkpointed sandbox", err)
 		return nil, fmt.Errorf("failed to unmount checkpointed sandbox: %w", err)
 	}
 
-	now := s.clock.Now()
+	now = s.clock.Now()
 	sandbox.Status = types.StatusCheckpointed
 	sandbox.LastUsedAt = now
 	sandbox.UpdatedAt = now

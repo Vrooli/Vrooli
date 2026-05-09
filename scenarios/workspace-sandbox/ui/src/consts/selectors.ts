@@ -352,7 +352,7 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     params: {
       status: {
         type: "enum",
-        values: ["creating", "active", "stopped", "checkpointed", "approved", "rejected", "deleted", "error"],
+        values: ["creating", "active", "stopped", "checkpointing", "checkpointed", "approved", "rejected", "deleted", "error"],
       },
     },
   }),

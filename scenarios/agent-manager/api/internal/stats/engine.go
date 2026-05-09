@@ -257,4 +257,3 @@ func newAggregateState() *aggregateState {
 		retryByReason:     make(map[string]int),
 	}
 }
-

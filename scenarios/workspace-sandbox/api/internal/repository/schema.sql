@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS sandboxes (
     home_overlay_state  TEXT NOT NULL DEFAULT 'absent',
     CHECK (scope_path != '' AND substr(scope_path, 1, 1) = '/'),
     CHECK (project_root != '' AND substr(project_root, 1, 1) = '/'),
-    CHECK (status IN ('creating', 'active', 'stopped', 'checkpointed', 'approved', 'rejected', 'deleted', 'error')),
+    CHECK (status IN ('creating', 'active', 'stopped', 'checkpointing', 'checkpointed', 'approved', 'rejected', 'deleted', 'error')),
     CHECK (home_overlay_state IN ('present', 'absent', 'not_requested', 'unsupported'))
 );
 

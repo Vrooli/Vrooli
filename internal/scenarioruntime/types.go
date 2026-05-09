@@ -36,7 +36,11 @@ const (
 	DefaultMaxHealthResponseBytes = 64 * 1024
 )
 
-var activeInstanceStatuses = []string{StatusStarting, StatusRunning}
+var (
+	activeInstanceStatuses        = []string{StatusStarting, StatusRunning}
+	stopCandidateInstanceStatuses = []string{StatusStarting, StatusRunning, StatusFailed, StatusExpired}
+	activePortClaimStatuses       = []string{ClaimStatusReserved, ClaimStatusBound}
+)
 
 var (
 	ErrNotFound            = errors.New("scenario runtime record not found")
@@ -55,6 +59,27 @@ func IsActiveInstanceStatus(status string) bool {
 		}
 	}
 	return false
+}
+
+func StopCandidateInstanceStatuses() []string {
+	return append([]string(nil), stopCandidateInstanceStatuses...)
+}
+
+func ActivePortClaimStatuses() []string {
+	return append([]string(nil), activePortClaimStatuses...)
+}
+
+func IsActivePortClaimStatus(status string) bool {
+	for _, active := range activePortClaimStatuses {
+		if status == active {
+			return true
+		}
+	}
+	return false
+}
+
+func IsDiscoverablePortClaimStatus(status string) bool {
+	return status == ClaimStatusBound
 }
 
 // Clock is the time seam for repository operations. Production uses the real

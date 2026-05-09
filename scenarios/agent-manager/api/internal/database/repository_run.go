@@ -49,6 +49,9 @@ type runRow struct {
 	ApprovalState            string                `db:"approval_state"`
 	ApprovedBy               string                `db:"approved_by"`
 	ApprovedAt               NullableTime          `db:"approved_at"`
+	FinalizationStatus       string                `db:"finalization_status"`
+	FinalizationError        string                `db:"finalization_error"`
+	FinalizedAt              NullableTime          `db:"finalized_at"`
 	ResolvedConfig           NullableRunConfig     `db:"resolved_config"`
 	DiffPath                 string                `db:"diff_path"`
 	LogPath                  string                `db:"log_path"`
@@ -103,6 +106,9 @@ func (row *runRow) toDomain() *domain.Run {
 		ApprovalState:            domain.ApprovalState(row.ApprovalState),
 		ApprovedBy:               row.ApprovedBy,
 		ApprovedAt:               row.ApprovedAt.ToPtr(),
+		FinalizationStatus:       domain.RunFinalizationStatus(row.FinalizationStatus),
+		FinalizationError:        row.FinalizationError,
+		FinalizedAt:              row.FinalizedAt.ToPtr(),
 		ResolvedConfig:           row.ResolvedConfig.V,
 		DiffPath:                 row.DiffPath,
 		LogPath:                  row.LogPath,
@@ -142,6 +148,10 @@ func (row *runRow) toDomain() *domain.Run {
 }
 
 func runFromDomain(r *domain.Run) *runRow {
+	finalizationStatus := r.FinalizationStatus
+	if finalizationStatus == "" {
+		finalizationStatus = domain.RunFinalizationStatusNone
+	}
 	sourceRunIDs := marshalUUIDSliceJSON(r.SourceRunIDs)
 	row := &runRow{
 		ID:                       r.ID,
@@ -163,6 +173,9 @@ func runFromDomain(r *domain.Run) *runRow {
 		ApprovalState:            string(r.ApprovalState),
 		ApprovedBy:               r.ApprovedBy,
 		ApprovedAt:               NewNullableTime(r.ApprovedAt),
+		FinalizationStatus:       string(finalizationStatus),
+		FinalizationError:        r.FinalizationError,
+		FinalizedAt:              NewNullableTime(r.FinalizedAt),
 		ResolvedConfig:           NullableRunConfig{V: r.ResolvedConfig},
 		DiffPath:                 r.DiffPath,
 		LogPath:                  r.LogPath,
@@ -237,6 +250,7 @@ func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, status,
 	started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
+	finalization_status, finalization_error, finalized_at,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
@@ -254,7 +268,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, st
 // to detect stale runs. Without it, every run appears stale after creation.
 const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode, status,
 	started_at, ended_at, phase, last_heartbeat, progress_percent,
-	error_msg, exit_code, approval_state,
+	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
 	changed_files, total_size_bytes, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
@@ -278,6 +292,9 @@ type listRunLiteRow struct {
 	ErrorMsg                 string         `db:"error_msg"`
 	ExitCode                 sql.NullInt32  `db:"exit_code"`
 	ApprovalState            string         `db:"approval_state"`
+	FinalizationStatus       string         `db:"finalization_status"`
+	FinalizationError        string         `db:"finalization_error"`
+	FinalizedAt              NullableTime   `db:"finalized_at"`
 	ChangedFiles             int            `db:"changed_files"`
 	TotalSizeBytes           int64          `db:"total_size_bytes"`
 	SessionID                sql.NullString `db:"session_id"`
@@ -316,6 +333,9 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		ProgressPercent:          row.ProgressPercent,
 		ErrorMsg:                 row.ErrorMsg,
 		ApprovalState:            domain.ApprovalState(row.ApprovalState),
+		FinalizationStatus:       domain.RunFinalizationStatus(row.FinalizationStatus),
+		FinalizationError:        row.FinalizationError,
+		FinalizedAt:              row.FinalizedAt.ToPtr(),
 		ChangedFiles:             row.ChangedFiles,
 		TotalSizeBytes:           row.TotalSizeBytes,
 		SessionID:                row.SessionID.String,
@@ -355,6 +375,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, sandbox_id, run_mode, status,
 			started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
+			finalization_status, finalization_error, finalized_at,
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
 			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 			source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
@@ -365,6 +386,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode, :status,
 			:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
+			:finalization_status, :finalization_error, :finalized_at,
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id,
 			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq,
 			:source_run_ids, :source_investigation_run_id, :parent_run_id, :conversation_id,
@@ -478,6 +500,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		progress_percent = :progress_percent, idempotency_key = :idempotency_key,
 		summary = :summary, error_msg = :error_msg, exit_code = :exit_code,
 		approval_state = :approval_state, approved_by = :approved_by, approved_at = :approved_at,
+		finalization_status = :finalization_status, finalization_error = :finalization_error, finalized_at = :finalized_at,
 		resolved_config = :resolved_config, diff_path = :diff_path, log_path = :log_path,
 			changed_files = :changed_files, total_size_bytes = :total_size_bytes, sandbox_config = :sandbox_config,
 			session_id = :session_id, runner_pid = :runner_pid, runner_pgid = :runner_pgid,

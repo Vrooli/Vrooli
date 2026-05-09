@@ -679,7 +679,7 @@ func runtimeClaimContext(options RuntimeClaimOptions) context.Context {
 func findExistingRuntimeClaim(ctx context.Context, store RuntimeClaimStore, instanceID string, portName string, port int) (scenarioruntime.PortClaim, bool, error) {
 	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
 		InstanceID: instanceID,
-		Statuses:   []string{scenarioruntime.ClaimStatusReserved, scenarioruntime.ClaimStatusBound},
+		Statuses:   scenarioruntime.ActivePortClaimStatuses(),
 	})
 	if err != nil {
 		return scenarioruntime.PortClaim{}, false, err

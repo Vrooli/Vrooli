@@ -22,6 +22,7 @@ export {
   SandboxMode,
   TaskStatus,
   RunStatus,
+  RunFinalizationStatus,
   ApprovalState,
   RunMode,
   RunPhase,

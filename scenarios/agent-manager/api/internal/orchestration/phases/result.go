@@ -103,9 +103,12 @@ func HandleSuccessfulCompletion(ctx context.Context, in HandleResultInput) {
 	if in.Run.RunMode == domain.RunModeInPlace {
 		in.Run.Status = domain.RunStatusComplete
 		in.Run.ApprovalState = domain.ApprovalStateNone
+		domain.MarkFinalizationSkipped(in.Run, "in-place run has no sandbox to finalize", time.Now())
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info",
 			"in-place run completed — skipping apply (no sandbox to diff)")
 	} else {
+		in.Run.Status = domain.RunStatusComplete
+		in.Run.ApprovalState = domain.ApprovalStateNone
 		cost := 0.0
 		if in.Result != nil {
 			cost = in.Result.Metrics.CostEstimateUSD
@@ -169,6 +172,8 @@ func HandleFailure(ctx context.Context, in HandleResultInput) {
 			Outcome:   outcome,
 			Cost:      cost,
 		})
+	} else {
+		domain.MarkFinalizationSkipped(in.Run, "in-place run has no sandbox to finalize", time.Now())
 	}
 
 	RevokeIdentityToken(in.Run)
@@ -190,6 +195,8 @@ func HandleCancellation(ctx context.Context, in HandleResultInput) {
 			Outcome:   domain.ContractRunOutcomeCancelled,
 			Cost:      cost,
 		})
+	} else {
+		domain.MarkFinalizationSkipped(in.Run, "in-place run has no sandbox to finalize", time.Now())
 	}
 	RevokeIdentityToken(in.Run)
 }

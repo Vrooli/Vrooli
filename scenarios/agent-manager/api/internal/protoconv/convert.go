@@ -485,6 +485,46 @@ func RunStatusFromProto(s pb.RunStatus) domain.RunStatus {
 	}
 }
 
+// RunFinalizationStatusToProto converts domain RunFinalizationStatus to proto.
+func RunFinalizationStatusToProto(s domain.RunFinalizationStatus) pb.RunFinalizationStatus {
+	switch s {
+	case domain.RunFinalizationStatusNone:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_NONE
+	case domain.RunFinalizationStatusPending:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_PENDING
+	case domain.RunFinalizationStatusRunning:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_RUNNING
+	case domain.RunFinalizationStatusSucceeded:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_SUCCEEDED
+	case domain.RunFinalizationStatusFailed:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_FAILED
+	case domain.RunFinalizationStatusSkipped:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_SKIPPED
+	default:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_UNSPECIFIED
+	}
+}
+
+// RunFinalizationStatusFromProto converts proto RunFinalizationStatus to domain.
+func RunFinalizationStatusFromProto(s pb.RunFinalizationStatus) domain.RunFinalizationStatus {
+	switch s {
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_NONE:
+		return domain.RunFinalizationStatusNone
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_PENDING:
+		return domain.RunFinalizationStatusPending
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_RUNNING:
+		return domain.RunFinalizationStatusRunning
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_SUCCEEDED:
+		return domain.RunFinalizationStatusSucceeded
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_FAILED:
+		return domain.RunFinalizationStatusFailed
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_SKIPPED:
+		return domain.RunFinalizationStatusSkipped
+	default:
+		return domain.RunFinalizationStatusNone
+	}
+}
+
 // =============================================================================
 // RUN PHASE
 // =============================================================================

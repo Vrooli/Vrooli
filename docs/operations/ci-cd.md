@@ -32,7 +32,7 @@ make test
 Useful focused targets:
 
 ```bash
-make validate-repo-contract
+make hygiene
 make validate-package-governance
 ```
 

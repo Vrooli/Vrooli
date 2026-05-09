@@ -180,6 +180,33 @@ func TestStrictRegistryModeResolvesPortWithoutPIDVisibility(t *testing.T) {
 	}
 }
 
+func TestStrictRegistryModeDoesNotExposeReservedRegistryClaimsAsPorts(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModeStrict)
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("registry"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
+	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusReserved, "api", "API_PORT", 18081)
+
+	service := New(root, home, io.Discard, io.Discard)
+	status, exists, err := service.Status("alpha")
+	if err != nil {
+		t.Fatalf("Status(alpha): %v", err)
+	}
+	if !exists {
+		t.Fatal("expected alpha to exist")
+	}
+	if status.Status != "running" {
+		t.Fatalf("status.Status = %q, want running instance without exposed ports", status.Status)
+	}
+	if len(status.Ports) != 0 {
+		t.Fatalf("status.Ports = %#v, want no ports from reserved claim", status.Ports)
+	}
+	_, err = service.ResolvePort("alpha", "API_PORT")
+	if got := vroolierr.Code(err, ""); got != "scenario_port_not_found" {
+		t.Fatalf("ResolvePort error code = %q, want scenario_port_not_found; err=%v", got, err)
+	}
+}
+
 func TestPreferRegistryModeFallsBackToLegacyWhenRegistryMissing(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

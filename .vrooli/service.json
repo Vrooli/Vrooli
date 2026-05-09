@@ -382,6 +382,18 @@
       "notes": "Loads efi_pstore (UEFI hosts) and/or erst (ACPI ERST hosts) and persists at-boot via /etc/modules-load.d. Reports SupportNotApplicable when neither backend is available; configure pstore_ramoops as a RAM-backed fallback in that case."
     },
     {
+      "name": "pstore_observability",
+      "required": false,
+      "reason": "Export root-readable pstore crash artifacts into /var/lib/vrooli/host-observability/pstore so unprivileged scenarios can inspect crash evidence without sudo",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Creates the vrooli-observability group, adds the invoking project user, installs a root-owned pstore collector service/timer, and exports artifacts read-only. Does not delete /sys/fs/pstore artifacts. A logout/login or reboot may be needed before the current shell observes new group membership."
+    },
+    {
       "name": "pstore_ramoops",
       "required": false,
       "reason": "RAM-backed pstore fallback for hosts without native pstore — opt-in only, requires explicit memory-region configuration",

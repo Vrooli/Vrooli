@@ -17,7 +17,7 @@ Project-level testing guidance is intentionally thin. The canonical rule is:
 ```bash
 vrooli scenario test <name>
 go test ./cmd/vrooli/... ./internal/...
-make validate-repo-contract
+make hygiene
 make validate-package-governance
 ```
 

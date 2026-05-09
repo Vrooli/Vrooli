@@ -1,4 +1,4 @@
-import { ApprovalState, RunMode, RunPhase, RunStatus, type Run } from "../../src/types.js";
+import { ApprovalState, RunFinalizationStatus, RunMode, RunPhase, RunStatus, type Run } from "../../src/types.js";
 
 export type RunOverrides = Partial<Run>;
 
@@ -13,6 +13,8 @@ export function makeRun(overrides: RunOverrides = {}): Run {
     progressPercent: overrides.progressPercent ?? 100,
     idempotencyKey: overrides.idempotencyKey ?? "idem-1",
     errorMsg: overrides.errorMsg ?? "",
+    finalizationStatus: overrides.finalizationStatus ?? RunFinalizationStatus.NONE,
+    finalizationError: overrides.finalizationError ?? "",
     approvalState: overrides.approvalState ?? ApprovalState.APPROVAL_STATE_UNSPECIFIED,
     approvedBy: overrides.approvedBy ?? "",
     diffPath: overrides.diffPath ?? "",
@@ -38,6 +40,8 @@ export function makeRun(overrides: RunOverrides = {}): Run {
       canContinueReason: "Run is complete",
       canResumeFromFailure: false,
       canResumeFromFailureReason: "",
+      finalizationWarning: "",
+      canRetryFinalization: false,
     } as Run["actions"],
     ...overrides,
   } as Run;

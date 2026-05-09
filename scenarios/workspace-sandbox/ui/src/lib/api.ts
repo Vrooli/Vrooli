@@ -8,6 +8,7 @@ export type Status =
   | "creating"
   | "active"
   | "stopped"
+  | "checkpointing"
   | "checkpointed"
   | "approved"
   | "rejected"
@@ -20,7 +21,7 @@ export type ViewMode = "diff" | "full_diff" | "source";
 export type LineChange = "" | "added" | "deleted";
 
 /** Active-tab statuses: operationally interesting, restartable, actionable. */
-export const ACTIVE_STATUSES: readonly Status[] = ["creating", "active", "stopped", "checkpointed", "error"] as const;
+export const ACTIVE_STATUSES: readonly Status[] = ["creating", "active", "stopped", "checkpointing", "checkpointed", "error"] as const;
 
 /** History-tab statuses: terminal, audit-only. */
 export const HISTORY_STATUSES: readonly Status[] = ["approved", "rejected", "deleted"] as const;
@@ -542,6 +543,7 @@ export interface SandboxStats {
   total: number;
   active: number;
   stopped: number;
+  checkpointing: number;
   checkpointed: number;
   approved: number;
   rejected: number;
@@ -566,6 +568,9 @@ export function computeStats(sandboxes: Sandbox[]): SandboxStats {
         case "stopped":
           acc.stopped++;
           break;
+        case "checkpointing":
+          acc.checkpointing++;
+          break;
         case "checkpointed":
           acc.checkpointed++;
           break;
@@ -585,6 +590,7 @@ export function computeStats(sandboxes: Sandbox[]): SandboxStats {
       total: 0,
       active: 0,
       stopped: 0,
+      checkpointing: 0,
       checkpointed: 0,
       approved: 0,
       rejected: 0,

@@ -284,11 +284,13 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 		// constructed a run without going through resolveSandboxConfig — a bug.
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
 			"apply-at-run-end skipped: run has no sandbox config (resolve bug — please report)")
+		domain.MarkFinalizationFailed(in.Run, fmt.Errorf("run has no sandbox config"), time.Now())
 		return false
 	}
 	if in.Sandbox == nil || in.SandboxID == nil {
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
 			"apply-at-run-end skipped: no sandbox available")
+		domain.MarkFinalizationFailed(in.Run, fmt.Errorf("no sandbox available"), time.Now())
 		return false
 	}
 
@@ -300,6 +302,7 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 		in.Run.ApprovalState = domain.ApprovalStatePending
 		in.Run.ApprovedAt = &now
 		in.Run.Status = domain.RunStatusNeedsReview
+		domain.MarkFinalizationSkipped(in.Run, "manualReview=true", now)
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info",
 			"apply deferred: manualReview=true (operator approval required)")
 		return false
@@ -307,19 +310,23 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 
 	if !cfg.GetAutoApply() {
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info", "apply skipped: autoApply=false")
+		domain.MarkFinalizationSkipped(in.Run, "autoApply=false", time.Now())
 		return false
 	}
 
 	if in.Outcome != domain.ContractRunOutcomeSuccess && !cfg.GetApplyOnFailure() {
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info",
 			fmt.Sprintf("apply skipped: applyOnFailure=false (outcome=%s)", in.Outcome))
+		domain.MarkFinalizationSkipped(in.Run, fmt.Sprintf("applyOnFailure=false (outcome=%s)", in.Outcome), time.Now())
 		return false
 	}
 
+	domain.MarkFinalizationRunning(in.Run, time.Now())
 	result, err := applyOrCheckpointTurn(ctx, cfg, in)
 	if err != nil {
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn", "apply-at-run-end failed: "+err.Error())
 		metrics.Get().RecordProvenanceSkipped()
+		domain.MarkFinalizationFailed(in.Run, err, time.Now())
 		return false
 	}
 
@@ -332,7 +339,10 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 	if result != nil && result.IsPartial {
 		// Out-of-acceptance files retained as state=pending-review.
 		in.Run.ApprovalState = domain.ApprovalStateApproved
-		in.Run.Status = domain.RunStatusComplete
+		if in.Outcome == domain.ContractRunOutcomeSuccess {
+			in.Run.Status = domain.RunStatusComplete
+		}
+		domain.MarkFinalizationSucceeded(in.Run, now)
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info",
 			fmt.Sprintf("partial apply: %d applied, %d pending review", result.Applied, result.Remaining))
 		return true
@@ -346,11 +356,15 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 			// so the "change is the audit unit" contract does NOT promote
 			// the failed run to Complete.
 			// Regression of the 2026-04-28 silent-COMPLETE-despite-error bug.
+			domain.MarkFinalizationSucceeded(in.Run, now)
 			return false
 		}
 	}
 	in.Run.ApprovalState = domain.ApprovalStateApproved
-	in.Run.Status = domain.RunStatusComplete
+	if in.Outcome == domain.ContractRunOutcomeSuccess {
+		in.Run.Status = domain.RunStatusComplete
+	}
+	domain.MarkFinalizationSucceeded(in.Run, now)
 	return true
 }
 

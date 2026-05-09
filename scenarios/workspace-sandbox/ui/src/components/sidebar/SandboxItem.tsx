@@ -41,6 +41,7 @@ const STATUS_ICON: Record<Status, React.ReactNode> = {
   creating: <Loader2 className="h-3.5 w-3.5 text-blue-400 animate-spin" />,
   active: <Play className="h-3.5 w-3.5 text-emerald-400" />,
   stopped: <Square className="h-3.5 w-3.5 text-amber-400" />,
+  checkpointing: <Loader2 className="h-3.5 w-3.5 text-cyan-400 animate-spin" />,
   checkpointed: <PauseCircle className="h-3.5 w-3.5 text-cyan-400" />,
   approved: <CheckCircle className="h-3.5 w-3.5 text-green-400" />,
   rejected: <XCircle className="h-3.5 w-3.5 text-red-400" />,

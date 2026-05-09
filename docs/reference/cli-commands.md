@@ -197,7 +197,7 @@ make setup
 make build
 make install
 make test
-make validate-repo-contract
+make hygiene
 make validate-package-governance
 ```
 

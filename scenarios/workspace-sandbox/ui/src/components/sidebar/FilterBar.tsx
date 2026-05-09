@@ -41,6 +41,7 @@ const STATUS_LABELS: Partial<Record<Status, string>> = {
   creating: "Creating",
   active: "Active",
   stopped: "Stopped",
+  checkpointing: "Checkpointing",
   checkpointed: "Checkpointed",
   error: "Error",
   approved: "Approved",

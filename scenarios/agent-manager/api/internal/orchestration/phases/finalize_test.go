@@ -508,7 +508,7 @@ func TestApplyAtRunEnd_FailureWithEmptyProvenanceStaysFailed(t *testing.T) {
 	}
 }
 
-func TestApplyAtRunEnd_FailureWithPartialProvenanceMarksComplete(t *testing.T) {
+func TestApplyAtRunEnd_FailureWithPartialProvenancePreservesRunnerFailure(t *testing.T) {
 	stub := mocks.NewFakeSandboxProvider()
 	stub.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{Success: true, Applied: 2}
 	cfg := domain.DefaultSandboxConfig()
@@ -524,8 +524,11 @@ func TestApplyAtRunEnd_FailureWithPartialProvenanceMarksComplete(t *testing.T) {
 	}) {
 		t.Fatal("expected apply to succeed when failed run produced changes")
 	}
-	if fx.run.Status != domain.RunStatusComplete {
-		t.Errorf("failed run with applied changes must flip to Complete (audit-of-change contract); got %q", fx.run.Status)
+	if fx.run.Status != domain.RunStatusFailed {
+		t.Errorf("failed run must preserve runner failure status after finalization; got %q", fx.run.Status)
+	}
+	if fx.run.FinalizationStatus != domain.RunFinalizationStatusSucceeded {
+		t.Errorf("finalization status = %q, want succeeded", fx.run.FinalizationStatus)
 	}
 }
 
@@ -588,6 +591,7 @@ func TestApplyAtRunEnd_FailurePreservesSandbox(t *testing.T) {
 	stub.ApplyAtRunEndErr = errors.New("workspace-sandbox unreachable")
 	cfg := domain.DefaultSandboxConfig()
 	fx := newFinalizeFixture(t, cfg, stub)
+	fx.run.Status = domain.RunStatusComplete
 
 	if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
 		Deps:      fx.deps,
@@ -600,6 +604,15 @@ func TestApplyAtRunEnd_FailurePreservesSandbox(t *testing.T) {
 	}
 	if fx.run.ApprovalState == domain.ApprovalStateApproved {
 		t.Errorf("ApprovalState must not be Approved when apply errored, got %q", fx.run.ApprovalState)
+	}
+	if fx.run.Status != domain.RunStatusComplete {
+		t.Errorf("runner status = %q, want complete despite finalization failure", fx.run.Status)
+	}
+	if fx.run.FinalizationStatus != domain.RunFinalizationStatusFailed {
+		t.Errorf("finalization status = %q, want failed", fx.run.FinalizationStatus)
+	}
+	if fx.run.FinalizationError == "" {
+		t.Fatal("expected finalization error to be recorded")
 	}
 	if _, ok := fx.events.FindLogMessage("apply-at-run-end failed"); !ok {
 		t.Error("expected warn event describing the apply failure")

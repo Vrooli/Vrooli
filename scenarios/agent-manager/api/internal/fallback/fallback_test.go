@@ -42,9 +42,9 @@ func TestRecoveryUnknownReasonSafelyAborts(t *testing.T) {
 
 func TestReasonHelpers(t *testing.T) {
 	tests := []struct {
-		reason            fallback.Reason
-		modelUnavailable  bool
-		transient         bool
+		reason           fallback.Reason
+		modelUnavailable bool
+		transient        bool
 	}{
 		{fallback.ReasonModelDeprecated, true, false},
 		{fallback.ReasonModelUnknown, true, false},
@@ -136,9 +136,9 @@ func TestTextClassifier_EmptyReturnsNil(t *testing.T) {
 
 func TestTextClassifier_DispatchTable(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  string
-		want   fallback.Reason
+		name  string
+		input string
+		want  fallback.Reason
 	}{
 		{"rate_limit phrasing", "rate limit exceeded", fallback.ReasonRateLimit},
 		{"429 status", "HTTP 429 too many requests", fallback.ReasonRateLimit},
@@ -191,4 +191,3 @@ func TestTextClassifier_FallbackToCause(t *testing.T) {
 		t.Errorf("expected ReasonRateLimit from Cause, got %+v", got)
 	}
 }
-

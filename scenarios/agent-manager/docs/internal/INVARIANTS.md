@@ -95,7 +95,17 @@ There is **no empty-diff branch** anywhere — code or docs.
 **Tests:**
 - `internal/orchestration/phases/finalize_test.go` covers each gate path.
 
-## I7. Greenfield rule
+## I7. Runner status is separate from sandbox finalization
+
+**Statement.** `Run.Status` represents runner/turn lifecycle. Post-run sandbox apply/checkpoint outcome is recorded in `Run.FinalizationStatus`, `Run.FinalizationError`, and `Run.FinalizedAt`. A failed checkpoint after runner completion must not leave the run in `RunStatusRunning`.
+
+**Why.** Agents can emit multiple assistant messages before a turn ends, so messages are not terminal. Conversely, once the runner process returns a terminal result, sandbox checkpoint failure is infrastructure finalization, not active runner execution. Mixing those concerns blocks valid follow-up messages and creates impossible states such as `status=running`, `phase=completed`, `ended_at != nil`.
+
+**Tests:**
+- `internal/domain/run_actions_test.go::TestRunActionsFor_ContinueReason`
+- `internal/orchestration/phases/finalize_test.go::TestApplyAtRunEnd_FailurePreservesSandbox`
+
+## I8. Greenfield rule
 
 **Statement.** When a function, field, or file is replaced, it is deleted in the same commit that introduces the replacement. No `// DEPRECATED:`, `// LEGACY:`, `// TODO: remove`, `// formerly:`, or `// removed:` comments. No re-exports from old locations. No "fallback" code paths kept "for callers that haven't migrated."
 
