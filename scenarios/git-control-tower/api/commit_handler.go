@@ -27,6 +27,7 @@ func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
 		Git:       hctx.Git,
 		RepoDir:   hctx.RepoDir,
 		Precommit: s.precommit,
+		Checks:    s.commitChecks,
 	}, req)
 
 	// [REQ:GCT-OT-P0-007] Audit logging for commit operation

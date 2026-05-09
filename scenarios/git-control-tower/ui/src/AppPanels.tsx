@@ -319,6 +319,7 @@ export function renderPanel(
           pushTarget={deps.pushTargetRef}
           sourceBranch={deps.pushSourceBranch}
           isHistoryMode={isHistoryMode}
+          historyCommit={deps.viewingCommit}
         />
       );
 
@@ -372,4 +373,3 @@ export function renderPanel(
       );
   }
 }
-

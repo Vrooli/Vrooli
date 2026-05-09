@@ -578,7 +578,7 @@ The live marketing team is aligned with the first adoption pass, but it is not f
 3. Publish telemetry is not modeled yet. `topic[future]:publish-performance/*` should remain future until social accounts, scheduler integration, and measurement sources exist.
 4. Account operations are not yet a topic model: account activation, warming, posting cadence, persona accounts, credentials, and scheduler state are deferred to `social-media-scheduler` and channel decisions.
 5. `oss-advertiser` and `subscription-advertiser` still exist as separate members. That is acceptable while their lane expertise differs, but their mechanics should remain identical. Merge them only if the separate-member split starts creating duplicate work or coordination drift.
-6. Hot operational state is split between knowledge topics and JSONL files. This is acceptable during migration, but each surface should declare whether it is authoritative knowledge, append-only operational log, or transition artifact.
+6. Hot operational state is split between `topic:*` knowledge topics and `*.jsonl` files. This is acceptable during migration, but each surface should declare whether it is authoritative knowledge, append-only operational log, or transition artifact.
 
 ## Adoption / Validation
 

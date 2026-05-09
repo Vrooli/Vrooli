@@ -78,10 +78,10 @@ export function useRepoStatus(repoId?: string | null) {
   });
 }
 
-export function useRepoHistory(limit = 30, includeFiles = false, repoId?: string | null, grep?: string) {
+export function useRepoHistory(limit = 30, includeFiles = false, repoId?: string | null, grep?: string, includeChecks = false) {
   return useQuery<RepoHistoryResponse, Error>({
-    queryKey: queryKeys.repoHistory(limit, includeFiles, repoId, grep),
-    queryFn: () => fetchRepoHistory(limit, includeFiles, repoId ?? undefined, grep),
+    queryKey: queryKeys.repoHistory(limit, includeFiles, repoId, grep, includeChecks),
+    queryFn: () => fetchRepoHistory(limit, includeFiles, repoId ?? undefined, grep, includeChecks),
     refetchInterval: grep ? false : 30000,
   });
 }

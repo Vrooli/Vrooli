@@ -10,11 +10,13 @@ type RepoStatusDeps struct {
 }
 
 type RepoHistoryDeps struct {
-	Git          GitRunner
-	RepoDir      string
-	Limit        int
-	IncludeFiles bool
-	GrepPattern  string // optional --grep filter for git log
+	Git           GitRunner
+	RepoDir       string
+	Limit         int
+	IncludeFiles  bool
+	IncludeChecks bool
+	CommitChecks  CommitCheckReader
+	GrepPattern   string // optional --grep filter for git log
 }
 
 type RepoStatus struct {
@@ -40,11 +42,12 @@ type RepoHistory struct {
 }
 
 type RepoHistoryEntry struct {
-	Hash    string   `json:"hash"`
-	Author  string   `json:"author,omitempty"`
-	Date    string   `json:"date,omitempty"`
-	Subject string   `json:"subject"`
-	Files   []string `json:"files"`
+	Hash    string           `json:"hash"`
+	Author  string           `json:"author,omitempty"`
+	Date    string           `json:"date,omitempty"`
+	Subject string           `json:"subject"`
+	Files   []string         `json:"files"`
+	Checks  []CommitCheckRun `json:"checks,omitempty"`
 }
 
 type RepoAuthorStatus struct {

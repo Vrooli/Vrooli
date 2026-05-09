@@ -70,6 +70,25 @@ CREATE TABLE IF NOT EXISTS git_repo_precommit (
     last_timestamp TEXT,
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
+
+CREATE TABLE IF NOT EXISTS git_commit_check_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    repo_path TEXT NOT NULL,
+    commit_hash TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    status TEXT NOT NULL,
+    command TEXT NOT NULL DEFAULT '',
+    exit_code INTEGER NOT NULL DEFAULT 0,
+    summary TEXT NOT NULL DEFAULT '',
+    stdout TEXT,
+    stderr TEXT,
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    timestamp TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_commit_check_runs_repo_hash ON git_commit_check_runs(repo_path, commit_hash);
+CREATE INDEX IF NOT EXISTS idx_commit_check_runs_repo_created ON git_commit_check_runs(repo_path, created_at DESC);
 `
 
 func ensureAuditSchema(db *sql.DB) error {

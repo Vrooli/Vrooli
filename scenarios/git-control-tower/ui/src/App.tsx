@@ -406,7 +406,7 @@ export default function App() {
   const historyNeedsDetails = true;
   const historyGrepPattern = historyGrepPrefix ? `${historyGrepPrefix} p` : undefined;
   const historyEffectiveLimit = historyGrepPrefix ? 1000 : historyLimit;
-  const historyQuery = useRepoHistory(historyEffectiveLimit, historyNeedsDetails, repoId, historyGrepPattern);
+  const historyQuery = useRepoHistory(historyEffectiveLimit, historyNeedsDetails, repoId, historyGrepPattern, historyNeedsDetails);
   const syncStatusQuery = useSyncStatus(repoId);
   const approvedChangesQuery = useApprovedChanges(repoId);
   const diffQuery = useDiff(
@@ -1300,7 +1300,8 @@ export default function App() {
         subject: entry.subject,
         files: entry.files,
         author: entry.author,
-        date: entry.date
+        date: entry.date,
+        checks: entry.checks
       });
 
       // Clear current file selection - user will select from commit files
@@ -2138,6 +2139,7 @@ export default function App() {
             pushTarget={pushTargetRef}
             sourceBranch={pushSourceBranch}
             isHistoryMode={isHistoryMode}
+            historyCommit={viewingCommit}
           />
         );
       case "review":
@@ -2398,6 +2400,7 @@ export default function App() {
             pushTarget={pushTargetRef}
             sourceBranch={pushSourceBranch}
             isHistoryMode={isHistoryMode}
+            historyCommit={viewingCommit}
           />
         );
       case "history":

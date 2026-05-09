@@ -12,6 +12,28 @@ import { HistoryFiltersModal } from "./HistoryFiltersModal";
 import { parseCommitGroup, buildContinueMessage } from "../lib/commitGroup";
 import { useIsMobile } from "../hooks";
 
+function commitCheckBadgeClass(status: string) {
+  switch (status) {
+    case "passed":
+      return "border-emerald-500/35 bg-emerald-500/10 text-emerald-200";
+    case "failed":
+      return "border-red-500/35 bg-red-500/10 text-red-200";
+    case "timeout":
+      return "border-amber-500/35 bg-amber-500/10 text-amber-200";
+    default:
+      return "border-slate-600/60 bg-slate-800/40 text-slate-300";
+  }
+}
+
+function formatCheckTitle(check: NonNullable<RepoHistoryEntry["checks"]>[number]) {
+  const parts = [
+    check.command,
+    `${check.duration_ms}ms`,
+    `exit ${check.exit_code}`,
+    check.timestamp ? new Date(check.timestamp).toLocaleString() : ""
+  ].filter(Boolean);
+  return parts.join(" | ");
+}
 
 interface GitHistoryProps {
   lines?: string[];
@@ -573,6 +595,8 @@ function GitHistoryImpl({
                     );
                     const showRemoteBadge = entry.isFirstRemote && entry.remoteBranches.length > 0;
                     const canSelect = Boolean(onSelectCommit && entry.hash && entries.length > 0);
+                    const details = resolveDetails(entry.hash);
+                    const precommitCheck = details?.checks?.find((check) => check.kind === "precommit");
 
                     return (
                       <div
@@ -641,6 +665,15 @@ function GitHistoryImpl({
                                   className={`rounded border px-1.5 py-0.5 text-[10px] ${chipTone}`}
                                 >
                                   {entry.remoteBranches[0]}
+                                </span>
+                              )}
+                              {precommitCheck && (
+                                <span
+                                  className={`rounded border px-1.5 py-0.5 text-[10px] ${commitCheckBadgeClass(precommitCheck.status)}`}
+                                  title={formatCheckTitle(precommitCheck)}
+                                  data-testid="history-precommit-badge"
+                                >
+                                  precommit {precommitCheck.status}
                                 </span>
                               )}
                             </div>

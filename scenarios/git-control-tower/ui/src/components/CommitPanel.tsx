@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
+import type { CommitCheckRun, RepoHistoryEntry } from "../lib/api";
 
 interface CommitPanelProps {
   stagedCount: number;
@@ -42,6 +43,7 @@ interface CommitPanelProps {
   sourceBranch?: string;
   // History mode - disables the panel
   isHistoryMode?: boolean;
+  historyCommit?: Pick<RepoHistoryEntry, "hash" | "subject" | "checks"> | null;
 }
 
 function CommitErrorDisplay({ error }: { error: string }) {
@@ -62,6 +64,89 @@ function CommitErrorDisplay({ error }: { error: string }) {
       <button type="button" onClick={handleCopy} className="hover:text-red-300 shrink-0" aria-label="Copy error" title="Copy error">
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       </button>
+    </div>
+  );
+}
+
+function checkTone(status: CommitCheckRun["status"]) {
+  switch (status) {
+    case "passed":
+      return "border-emerald-800/60 bg-emerald-950/30 text-emerald-200";
+    case "failed":
+      return "border-red-800/60 bg-red-950/30 text-red-200";
+    case "timeout":
+      return "border-amber-800/60 bg-amber-950/30 text-amber-200";
+    default:
+      return "border-slate-800 bg-slate-900/50 text-slate-300";
+  }
+}
+
+function formatDuration(ms: number) {
+  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${ms}ms`;
+}
+
+function CommitChecksContent({ commit }: { commit?: CommitPanelProps["historyCommit"] }) {
+  const checks = commit?.checks ?? [];
+  if (!commit) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <History className="h-8 w-8 text-amber-400/60 mb-3" />
+        <p className="text-sm text-amber-200/80">Select a historical commit</p>
+      </div>
+    );
+  }
+  if (checks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <History className="h-8 w-8 text-slate-500 mb-3" />
+        <p className="text-sm text-slate-300">No commit checks recorded</p>
+        <p className="text-xs text-slate-500 mt-1">This commit has no captured local check runs.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="min-w-0">
+        <p className="font-mono text-xs text-slate-500 truncate">{commit.hash}</p>
+        <p className="text-xs text-slate-300 truncate" title={commit.subject}>{commit.subject}</p>
+      </div>
+      {checks.map((check, index) => (
+        <div
+          key={`${check.kind}-${check.timestamp}-${index}`}
+          className={`rounded-md border p-3 space-y-2 ${checkTone(check.status)}`}
+          data-testid="commit-check-run"
+        >
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span className="text-xs font-medium uppercase tracking-normal">{check.kind}</span>
+            <span className="rounded border border-current/30 px-1.5 py-0.5 text-[10px]">
+              {check.status}
+            </span>
+          </div>
+          <div className="rounded bg-slate-950/40 px-2 py-1 font-mono text-xs text-slate-200 break-words">
+            {check.command}
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+            <span>Exit {check.exit_code}</span>
+            <span>{formatDuration(check.duration_ms)}</span>
+            <span className="col-span-2 truncate" title={check.timestamp}>
+              {check.timestamp ? new Date(check.timestamp).toLocaleString() : ""}
+            </span>
+          </div>
+          {check.summary && <p className="text-xs text-slate-300">{check.summary}</p>}
+          {(check.stdout || check.stderr) && (
+            <div className="space-y-2">
+              {check.stdout && (
+                <pre className="max-h-24 overflow-auto rounded bg-slate-950/50 p-2 text-[11px] text-slate-300 whitespace-pre-wrap">{check.stdout}</pre>
+              )}
+              {check.stderr && (
+                <pre className="max-h-24 overflow-auto rounded bg-slate-950/50 p-2 text-[11px] text-red-200 whitespace-pre-wrap">{check.stderr}</pre>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -89,7 +174,8 @@ export function CommitPanel({
   aheadCount = 0,
   pushTarget,
   sourceBranch,
-  isHistoryMode = false
+  isHistoryMode = false,
+  historyCommit
 }: CommitPanelProps) {
   const [useConventional, setUseConventional] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -158,20 +244,14 @@ export function CommitPanel({
             )}
           </button>
           <GitCommit className="h-4 w-4 text-slate-500" />
-          <span className="truncate">Commit</span>
+          <span className="truncate">{isHistoryMode ? "Commit Checks" : "Commit"}</span>
         </CardTitle>
       </CardHeader>
 
       {!collapsed && (
         <CardContent className="flex-1 min-h-0 min-w-0 pt-2 pb-3 overflow-y-auto overflow-x-hidden">
         {isHistoryMode ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <History className="h-8 w-8 text-amber-400/60 mb-3" />
-            <p className="text-sm text-amber-200/80">Viewing Historical Commit</p>
-            <p className="text-xs text-slate-500 mt-1">
-              Exit history mode to make new commits
-            </p>
-          </div>
+          <CommitChecksContent commit={historyCommit} />
         ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>

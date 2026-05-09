@@ -210,8 +210,8 @@ Decision contexts gate downstream work or missing-capability escalation. This se
 Scenario QA improves itself through four exits:
 
 1. **Bug reporting** — any team reports broken behavior through `report-bug`; bug-investigator drains and closes each entry with a report.
-2. **Contrarian review** — qa-contrarian challenges findings only when a registered failure mode applies.
-3. **Technique promotion** — repeated investigation or audit lessons become technique-registry changes through meta-optimization decisions.
+2. **Contrarian review** — qa-contrarian writes `challenge-report/*` and `challenge-resolution-record/*` only when a registered failure mode applies.
+3. **Technique promotion** — repeated investigation or audit lessons become `preemptive-qa-backlog`, `quality-audit-backlog`, `bug-resolution-proposal`, or meta-optimization decisions.
 4. **Capability gaps** — missing source access, scenario affordances, tooling, or QA infrastructure become `capability-gap` decisions instead of hidden blockers.
 
 System-level friction that is not broken behavior should use meta-optimization's `report-friction` flow. Scenario QA should not absorb general process friction into bug reports.
@@ -236,11 +236,11 @@ Owns challenge discipline. It reads QA outputs and decisions, writes challenge r
 
 ## Current Implementation Gaps
 
-1. `qa-run/*` and `quality-audit/*` are currently terminal evidence outputs in the graph. Their downstream execution path is through decisions, not direct topic consumption.
+1. `qa-run/*` and `quality-audit/*` should remain terminal evidence outputs in the graph. Their downstream execution path is through decisions, not direct topic consumption.
 2. `capability-gap` is now declared in the scenario-qa team contract so the operating graph can model missing QA capability explicitly. Other teams using `capability-gap` should follow the same explicit-contract pattern.
-3. The readiness-checks registry is still a stub. Programmatic readiness dimensions should graduate into paired docs and skills as GCT dimensions stabilize.
+3. The `readiness-checks` registry is still a stub. Programmatic readiness dimensions should graduate into paired docs and skills as GCT dimensions stabilize.
 4. Future operator-fed `qa-inbox/*` and `audit-inbox/*` topics remain out of the contract until a producer exists.
-5. Rich decision-catalog validation is not implemented yet; expected evidence and accepted effect remain human-reviewed contract fields.
+5. `bug-resolution-proposal` and `quality-backlog-proposal` accepted effects should eventually resolve against concrete downstream backlog implementation contracts, not only prose surfaces.
 
 ## Adoption / Validation
 

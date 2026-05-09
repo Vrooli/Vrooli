@@ -66,11 +66,15 @@ export async function fetchRepoHistory(
   limit = 30,
   includeFiles = false,
   repoId?: string,
-  grep?: string
+  grep?: string,
+  includeChecks = false
 ): Promise<RepoHistoryResponse> {
   const params = new URLSearchParams();
   if (limit > 0) params.set("limit", String(limit));
-  if (includeFiles) params.set("include", "files");
+  const includes = [];
+  if (includeFiles) includes.push("files");
+  if (includeChecks) includes.push("checks");
+  if (includes.length > 0) params.set("include", includes.join(","));
   if (grep) params.set("grep", grep);
 
   const url = buildApiUrl(`/repo/history?${params.toString()}`, { baseUrl: API_BASE });

@@ -87,4 +87,4 @@ updates).
 - CLI command reference: [docs/reference/cli-commands.md](../reference/cli-commands.md)
 - Configuration: [docs/reference/configuration.md](../reference/configuration.md)
 - Integration boundaries: [docs/internal/SEAMS.md](../internal/SEAMS.md)
-- Performance audits: [docs/perf/](../perf/)
+- Performance audits: [docs/perf/2026-05-03-after-fixes.md](../perf/2026-05-03-after-fixes.md)

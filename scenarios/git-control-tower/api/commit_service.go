@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ type CommitDeps struct {
 	Git       GitRunner
 	RepoDir   string
 	Precommit *PrecommitService
+	Checks    CommitCheckRecorder
 }
 
 func commitValidationFailure(errors []string) *CommitResponse {
@@ -86,6 +88,7 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 	if resp := validateCommitRequest(ctx, deps, repoDir, req, message); resp != nil {
 		return resp, nil
 	}
+	var passedPrecommit *PrecommitRunResult
 	if deps.Precommit != nil && !req.SkipPrecommitOnce {
 		result, ran, err := deps.Precommit.RunBeforeCommit(ctx, repoDir)
 		if err != nil {
@@ -98,6 +101,9 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 				Precommit: &result,
 				Timestamp: time.Now().UTC(),
 			}, nil
+		}
+		if ran {
+			passedPrecommit = &result
 		}
 	}
 
@@ -114,6 +120,11 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 			Error:     err.Error(),
 			Timestamp: time.Now().UTC(),
 		}, nil
+	}
+	if deps.Checks != nil && passedPrecommit != nil {
+		if err := deps.Checks.Save(context.Background(), repoDir, hash, commitCheckFromPrecommit(*passedPrecommit)); err != nil {
+			log.Printf("save commit check run failed: %v", err)
+		}
 	}
 
 	return &CommitResponse{

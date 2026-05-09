@@ -58,6 +58,37 @@ audited via [CODE: api/audit_logger.go].
 | GET  | `/api/v1/repo/gitignore/health`  | .gitignore lint status. |
 | POST | `/api/v1/repo/gitignore/move`    | Move gitignore entries. |
 
+### Repo history includes
+
+`GET /api/v1/repo/history` accepts:
+- `limit=<n>`: cap returned commits.
+- `grep=<text>`: filter commits by message text.
+- `include=files`: return detailed `entries` with changed files.
+- `include=checks`: return detailed `entries` with captured commit-check runs.
+- `include=files,checks`: return files and checks together.
+
+Commit-check runs are commit-scoped evidence captured by git-control-tower during commit creation. They are repo-agnostic and expose the configured command as opaque text:
+
+```json
+{
+  "hash": "abc1234",
+  "subject": "fix: example",
+  "files": ["src/example.ts"],
+  "checks": [
+    {
+      "kind": "precommit",
+      "status": "passed",
+      "command": "custom check command",
+      "exit_code": 0,
+      "summary": "Precommit checks passed",
+      "stdout": "ok",
+      "duration_ms": 42,
+      "timestamp": "2026-05-09T12:00:00Z"
+    }
+  ]
+}
+```
+
 ## Push / pull / upstream
 
 | Method | Path | Notes |

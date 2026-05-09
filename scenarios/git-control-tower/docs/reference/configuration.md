@@ -9,11 +9,11 @@ the Vrooli lifecycle's per-scenario service configuration.
 | --- | --- | --- |
 | `API_PORT` | Vrooli lifecycle | API HTTP listen port (auto-assigned). |
 | `UI_PORT`  | Vrooli lifecycle | UI HTTP listen port (auto-assigned). |
-| `VROOLI_BUILD_MODE` | User shell when invoking `vrooli scenario restart` | Set to `profile` to produce the perf-build channel; see [docs/perf/](../perf/). |
+| `VROOLI_BUILD_MODE` | User shell when invoking `vrooli scenario restart` | Set to `profile` to produce the perf-build channel; see [docs/perf/2026-05-03-after-fixes.md](../perf/2026-05-03-after-fixes.md). |
 
 ## Scenario-specific environment
 
-The Go API reads (search [CODE: api/]):
+The Go API reads (search [CODE: api/main.go]):
 
 - Standard `*_PORT` resolution from cli-core conventions.
 - Optional database / cache configuration through `db.go` (SQLite path

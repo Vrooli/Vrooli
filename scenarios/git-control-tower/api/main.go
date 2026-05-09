@@ -39,6 +39,7 @@ type Server struct {
 	sshDeps              ssh.SSHDeps
 	repos                *RepoService
 	precommit            *PrecommitService
+	commitChecks         *CommitCheckStore
 	credStore            *CredentialsStore
 	storageResolver      *storage.Resolver
 	basClient            *BrowserAutomationClient
@@ -78,6 +79,7 @@ func NewServer() (*Server, error) {
 	}
 	srv.repos = NewRepoService(NewSQLiteRepoStore(db), srv.git)
 	srv.precommit = NewPrecommitService(db)
+	srv.commitChecks = NewCommitCheckStore(db)
 	srv.configCache = NewGitConfigCache(60 * time.Second)
 
 	if err := srv.initClients(); err != nil {

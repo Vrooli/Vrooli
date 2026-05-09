@@ -17,11 +17,45 @@ const (
 )
 
 type PrecommitService struct {
-	db *sql.DB
+	db     *sql.DB
+	runner CommandRunner
+}
+
+type CommandRunner interface {
+	Run(ctx context.Context, req CommandRunRequest) (CommandRunResult, error)
+}
+
+type CommandRunRequest struct {
+	Command          string
+	WorkingDirectory string
+}
+
+type CommandRunResult struct {
+	Stdout string
+	Stderr string
+}
+
+type ShellCommandRunner struct{}
+
+func (ShellCommandRunner) Run(ctx context.Context, req CommandRunRequest) (CommandRunResult, error) {
+	cmd := exec.CommandContext(ctx, "bash", "-lc", req.Command)
+	cmd.Dir = req.WorkingDirectory
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	return CommandRunResult{Stdout: stdout.String(), Stderr: stderr.String()}, err
 }
 
 func NewPrecommitService(db *sql.DB) *PrecommitService {
-	return &PrecommitService{db: db}
+	return NewPrecommitServiceWithRunner(db, ShellCommandRunner{})
+}
+
+func NewPrecommitServiceWithRunner(db *sql.DB, runner CommandRunner) *PrecommitService {
+	if runner == nil {
+		runner = ShellCommandRunner{}
+	}
+	return &PrecommitService{db: db, runner: runner}
 }
 
 func (s *PrecommitService) Get(ctx context.Context, repoDir string) (PrecommitConfig, error) {
@@ -56,6 +90,7 @@ func (s *PrecommitService) Get(ctx context.Context, repoDir string) (PrecommitCo
 	if lastStatus.Valid {
 		result := PrecommitRunResult{
 			Status:          lastStatus.String,
+			Command:         cfg.Command,
 			ExitCode:        int(lastExitCode.Int64),
 			Summary:         lastSummary.String,
 			Stdout:          lastStdout.String,
@@ -135,18 +170,21 @@ func (s *PrecommitService) runConfig(ctx context.Context, repoDir string, cfg Pr
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	started := time.Now()
-	cmd := exec.CommandContext(runCtx, "bash", "-lc", cfg.Command)
-	cmd.Dir = cfg.WorkingDirectory
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
+	runner := s.runner
+	if runner == nil {
+		runner = ShellCommandRunner{}
+	}
+	runResult, err := runner.Run(runCtx, CommandRunRequest{
+		Command:          cfg.Command,
+		WorkingDirectory: cfg.WorkingDirectory,
+	})
 	result := PrecommitRunResult{
 		Status:          "passed",
+		Command:         cfg.Command,
 		ExitCode:        0,
 		Summary:         "Precommit checks passed",
-		Stdout:          capOutput(stdout.String()),
-		Stderr:          capOutput(stderr.String()),
+		Stdout:          capOutput(runResult.Stdout),
+		Stderr:          capOutput(runResult.Stderr),
 		DurationMs:      time.Since(started).Milliseconds(),
 		OverrideAllowed: cfg.AllowOverride,
 		Timestamp:       time.Now().UTC(),
@@ -155,7 +193,7 @@ func (s *PrecommitService) runConfig(ctx context.Context, repoDir string, cfg Pr
 		result.Status = "failed"
 		result.Summary = "Precommit checks failed"
 		result.ExitCode = 1
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		if exitErr, ok := err.(interface{ ExitCode() int }); ok {
 			result.ExitCode = exitErr.ExitCode()
 		}
 		if runCtx.Err() == context.DeadlineExceeded {

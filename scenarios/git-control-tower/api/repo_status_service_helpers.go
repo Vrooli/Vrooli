@@ -49,12 +49,25 @@ func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, er
 		Timestamp:   time.Now().UTC(),
 	}
 
-	if deps.IncludeFiles {
+	if deps.IncludeFiles || deps.IncludeChecks {
 		detailsRaw, err := deps.Git.LogDetails(ctx, repoDir, limit, deps.GrepPattern)
 		if err != nil {
 			return nil, err
 		}
 		entries := parseHistoryDetails(detailsRaw)
+		if deps.IncludeChecks && deps.CommitChecks != nil && len(entries) > 0 {
+			hashes := make([]string, 0, len(entries))
+			for _, entry := range entries {
+				hashes = append(hashes, entry.Hash)
+			}
+			checksByHash, err := deps.CommitChecks.ListForCommits(ctx, repoDir, hashes)
+			if err != nil {
+				return nil, err
+			}
+			for index := range entries {
+				entries[index].Checks = checksByHash[entries[index].Hash]
+			}
+		}
 		history.Entries = entries
 	}
 

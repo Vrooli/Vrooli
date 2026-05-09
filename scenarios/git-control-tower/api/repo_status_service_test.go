@@ -4,7 +4,22 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 )
+
+type fakeCommitCheckReader struct {
+	runs map[string][]CommitCheckRun
+}
+
+func (r fakeCommitCheckReader) ListForCommits(ctx context.Context, repoPath string, hashes []string) (map[string][]CommitCheckRun, error) {
+	out := map[string][]CommitCheckRun{}
+	for _, hash := range hashes {
+		if runs := r.runs[hash]; len(runs) > 0 {
+			out[hash] = runs
+		}
+	}
+	return out, nil
+}
 
 func TestGetRepoHistoryFiltersGraphOnlyLines(t *testing.T) {
 	t.Parallel()
@@ -34,6 +49,43 @@ func TestGetRepoHistoryFiltersGraphOnlyLines(t *testing.T) {
 	}
 	if !reflect.DeepEqual(history.Lines, expected) {
 		t.Fatalf("unexpected history lines: got %v want %v", history.Lines, expected)
+	}
+}
+
+func TestGetRepoHistoryAttachesCommitChecks(t *testing.T) {
+	t.Parallel()
+
+	fake := NewFakeGitRunner()
+	fake.HistoryLines = []string{"* abc1234 first commit"}
+	fake.HistoryDetails = []RepoHistoryEntry{
+		{Hash: "abc1234", Author: "Dev", Date: "2026-05-09", Subject: "first commit", Files: []string{"file.go"}},
+	}
+	run := CommitCheckRun{
+		Kind:      CommitCheckKindPrecommit,
+		Status:    CommitCheckStatusPassed,
+		Command:   "custom check",
+		Summary:   "checks passed",
+		Timestamp: time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC),
+	}
+
+	history, err := GetRepoHistory(context.Background(), RepoHistoryDeps{
+		Git:           fake,
+		RepoDir:       "/fake/repo",
+		Limit:         10,
+		IncludeChecks: true,
+		CommitChecks:  fakeCommitCheckReader{runs: map[string][]CommitCheckRun{"abc1234": {run}}},
+	})
+	if err != nil {
+		t.Fatalf("GetRepoHistory returned error: %v", err)
+	}
+	if len(history.Entries) != 1 {
+		t.Fatalf("entries = %#v", history.Entries)
+	}
+	if len(history.Entries[0].Checks) != 1 || history.Entries[0].Checks[0].Command != "custom check" {
+		t.Fatalf("checks = %#v", history.Entries[0].Checks)
+	}
+	if !fake.AssertCalled("LogDetails") {
+		t.Fatalf("expected LogDetails when checks are requested")
 	}
 }
 

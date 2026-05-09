@@ -33,6 +33,9 @@ export type {
   RepoStatus,
   RepoHistoryResponse,
   RepoHistoryEntry,
+  CommitCheckRun,
+  CommitCheckKind,
+  CommitCheckStatus,
   DiffHunk,
   DiffStats,
 } from "./api-types-repo";

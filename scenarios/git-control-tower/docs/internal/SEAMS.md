@@ -52,8 +52,28 @@ Service functions accept explicit `Deps` structs to keep domain logic testable. 
 - `BranchDeps`
 - `FileDeps`
 - `CredentialsDeps`
+- `CommitDeps` (git + optional precommit/check recorders)
+- `RepoHistoryDeps` (git + optional commit-check reader)
 
 This pattern makes it straightforward to swap `GitRunner` or supply custom repo dirs in tests.
+
+## Precommit Command and Commit Check Seams
+
+**Locations**:
+- `api/precommit_service.go`
+- `api/commit_check_store.go`
+- `api/commit_service.go`
+- `api/repo_status_service_helpers.go`
+
+`CommandRunner` is the seam for arbitrary configured precommit commands. Production uses `ShellCommandRunner`; tests should provide a fake runner and must not execute shell commands just to simulate pass/fail/timeout behavior.
+
+`CommitCheckRecorder` and `CommitCheckReader` isolate commit-scoped check persistence from commit creation and history rendering. Production uses `CommitCheckStore` backed by SQLite. Tests can use `api/internal/testutil/db` plus `ensureRepoSchema`, or a small fake reader/recorder when persistence is not under test.
+
+Guardrails:
+- Treat configured precommit commands as opaque repo-agnostic user data.
+- Do not infer historical check status from repo-level `git_repo_precommit.last_*` fields.
+- Do not run real git or real precommit commands in unit tests; use `FakeGitRunner` and fake `CommandRunner`.
+- Only persist commit-scoped check runs after a git commit succeeds and a commit hash exists.
 
 ## Audit Logging Seam
 
@@ -200,6 +220,8 @@ Guardrails:
 
 When adding new behavior, verify:
 - Git operations go through `GitRunner`.
+- Precommit command execution goes through `CommandRunner`.
+- Commit-check history goes through `CommitCheckRecorder` / `CommitCheckReader`.
 - Workspace-sandbox operations go through `WorkspaceSandboxAPI`.
 - Repo-resolving handlers use `RepoOperation`.
 - Repo registry updates go through `RepoService`/`RepoStore`.

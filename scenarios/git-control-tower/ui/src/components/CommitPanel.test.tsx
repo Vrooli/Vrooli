@@ -39,4 +39,36 @@ describe("CommitPanel", () => {
     expect(amendCheckbox).toBeDisabled();
     expect(screen.getByText(/set upstream before amending/i)).toBeInTheDocument();
   });
+
+  it("shows commit checks in history mode", () => {
+    render(
+      <CommitPanel
+        stagedCount={0}
+        commitMessage=""
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        isHistoryMode
+        historyCommit={{
+          hash: "abc1234",
+          subject: "fix: adjust",
+          checks: [{
+            kind: "precommit",
+            status: "failed",
+            command: "custom check",
+            exit_code: 7,
+            summary: "checks failed",
+            stderr: "nope",
+            duration_ms: 25,
+            timestamp: "2026-05-09T12:00:00Z"
+          }]
+        }}
+      />
+    );
+
+    expect(screen.getByText("Commit Checks")).toBeInTheDocument();
+    expect(screen.getByText("custom check")).toBeInTheDocument();
+    expect(screen.getByText("failed")).toBeInTheDocument();
+    expect(screen.getByText("nope")).toBeInTheDocument();
+  });
 });

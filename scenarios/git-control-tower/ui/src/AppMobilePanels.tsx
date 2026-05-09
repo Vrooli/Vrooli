@@ -164,6 +164,7 @@ export function renderMobilePanel(
           pushTarget={deps.pushTargetRef}
           sourceBranch={deps.pushSourceBranch}
           isHistoryMode={isHistoryMode}
+          historyCommit={deps.viewingCommit}
         />
       );
 

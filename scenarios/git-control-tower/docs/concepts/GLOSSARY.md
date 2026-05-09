@@ -48,7 +48,7 @@ Domain vocabulary used across the API, CLI, UI, and docs.
 - **Profiler boundary** — a `<React.Profiler>` wrapper emitting
   user-timing entries when the perf-build is active. See
   [CODE: ui/src/lib/profiler.ts]; pattern documented in
-  [docs/perf/](../perf/).
+  [docs/perf/2026-05-03-history-markdown-resize.md](../perf/2026-05-03-history-markdown-resize.md).
 - **Imperative resize** — panel-resize implementation that writes to
   DOM `style` directly during drag, committing to React state only on
   mouseup. Avoids per-mousemove tree re-renders.

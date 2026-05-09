@@ -20,6 +20,7 @@ type PrecommitRunRequest struct {
 
 type PrecommitRunResult struct {
 	Status          string    `json:"status"`
+	Command         string    `json:"command,omitempty"`
 	ExitCode        int       `json:"exit_code"`
 	Summary         string    `json:"summary"`
 	Stdout          string    `json:"stdout,omitempty"`
