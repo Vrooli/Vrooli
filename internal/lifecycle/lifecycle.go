@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqrun"
+	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/ports"
@@ -29,6 +31,7 @@ import (
 	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 type Runner struct {
@@ -139,6 +142,8 @@ type lifecycleDeps struct {
 	inspectPort             func(int) (network.PortInspection, error)
 	readProcessEnv          func(int) (map[string]string, error)
 	enforceHostRequirements func(hostreqrun.Options) (vrooliruntime.Report, error)
+	runtimeRegistry         func(context.Context, string) (scenarioRuntimeStore, error)
+	hostSession             func(context.Context, string) (hostsession.Snapshot, error)
 }
 
 type hostProbeDeps struct {
@@ -288,6 +293,14 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 	if deps.enforceHostRequirements == nil {
 		deps.enforceHostRequirements = hostreqrun.Enforce
 	}
+	if deps.runtimeRegistry == nil {
+		deps.runtimeRegistry = func(ctx context.Context, home string) (scenarioRuntimeStore, error) {
+			return scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+		}
+	}
+	if deps.hostSession == nil {
+		deps.hostSession = hostsession.DefaultProvider{}.Current
+	}
 	return deps
 }
 
@@ -331,15 +344,26 @@ func (r *Runner) startWithState(name string, opts StartOptions, ready map[string
 func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) (result Result, err error) {
 	deps := r.runtimeDeps()
 	cleanupOnError := false
+	runtimeSession := disabledRuntimeRegistrySession()
 	defer func() {
-		if err == nil || !cleanupOnError {
+		if err == nil {
+			if closeErr := runtimeSession.close(); closeErr != nil {
+				err = closeErr
+			}
+			return
+		}
+		if runtimeErr := runtimeSession.fail(context.Background(), err); runtimeErr != nil {
+			err = errors.Join(err, runtimeErr)
+		}
+		_ = runtimeSession.close()
+		if !cleanupOnError {
 			return
 		}
 		// Rollback is intentionally scoped to the scenario currently being started.
 		// Dependencies and resources that were started earlier in the recursive chain
 		// are shared runtime infrastructure and may already be needed by other live
 		// scenarios, so this rollback must not unwind them opportunistically.
-		if cleanupErr := r.cleanupScenarioRuntime(item.Slug, opts.CustomPath, false); cleanupErr != nil {
+		if cleanupErr := r.cleanupScenarioRuntimeWithRegistry(item.Slug, opts.CustomPath, false, false); cleanupErr != nil {
 			r.logError("Failed to roll back failed scenario start", cleanupErr, logx.AttrScenario, item.Slug)
 			err = errors.Join(err, fmt.Errorf("rollback failed: %w", cleanupErr))
 		}
@@ -392,15 +416,24 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		deps.sleep(1 * time.Second)
 	}
 
+	runtimeSession, err = r.beginRuntimeRegistryStart(context.Background(), item)
+	if err != nil {
+		return Result{}, err
+	}
+
 	if err := r.enforceScenarioHostRequirements(item); err != nil {
 		return Result{}, err
 	}
 
-	env, err := r.prepareScenarioEnvironment(item, records)
+	env, err := r.prepareScenarioEnvironment(item, records, runtimeSession)
 	cleanupOnError = true
 	if err != nil {
 		return Result{}, err
 	}
+	if err := runtimeSession.adoptOrReservePorts(context.Background(), item, env); err != nil {
+		return Result{}, err
+	}
+	runtimeSession.injectEnv(env.EnvVars)
 
 	setupNeeded, _, err := r.SetupNeeded(item, forceSetup)
 	if err != nil {
@@ -410,26 +443,41 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	if setupNeeded {
 		r.progressf("running setup phase for %s...", item.Slug)
 		r.logInfo("Executing setup phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "setup")
+		if err := runtimeSession.setPhase(context.Background(), "setup"); err != nil {
+			return Result{}, err
+		}
 		if err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
 			_, err := r.ExecutePhaseDetailed(item, "setup", env.EnvVars, nil, logWriter, childWriter)
 			return err
 		}); err != nil {
 			return Result{}, err
 		}
+		if err := runtimeSession.heartbeat(context.Background()); err != nil {
+			return Result{}, err
+		}
 	}
 
 	r.progressf("running develop phase for %s...", item.Slug)
 	r.logInfo("Executing develop phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "develop")
+	if err := runtimeSession.setPhase(context.Background(), "develop"); err != nil {
+		return Result{}, err
+	}
 	if err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
 		_, err := r.ExecutePhaseDetailed(item, "develop", env.EnvVars, nil, logWriter, childWriter)
 		return err
 	}); err != nil {
 		return Result{}, err
 	}
+	if err := runtimeSession.heartbeat(context.Background()); err != nil {
+		return Result{}, err
+	}
 
 	r.progressf("waiting for %s to become healthy...", item.Slug)
 	healthStatus, err := r.WaitForHealth(item, env.EnvVars)
 	if err != nil {
+		return Result{}, err
+	}
+	if err := runtimeSession.recordHealth(context.Background(), item, env, healthStatus); err != nil {
 		return Result{}, err
 	}
 
@@ -439,6 +487,12 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	// next ensurePortClaimed call would incorrectly trust the runner's PID
 	// as proof the listener is alive.
 	r.confirmFixedPortLocks(item)
+	if err := runtimeSession.bindPorts(context.Background()); err != nil {
+		return Result{}, err
+	}
+	if err := runtimeSession.markRunning(context.Background()); err != nil {
+		return Result{}, err
+	}
 
 	if len(failedDeps) > 0 {
 		r.logWarn("Scenario started in degraded mode",
@@ -478,12 +532,12 @@ func (r *Runner) bootstrapScenarioDependencies(item scenario.Scenario, opts Star
 	return failedDeps, failedResources, nil
 }
 
-func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, records []process.Record) (ports.Environment, error) {
+func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, records []process.Record, runtimeSession runtimeRegistrySession) (ports.Environment, error) {
 	if err := r.cleanupFixedPortOrphans(item, records); err != nil {
 		return ports.Environment{}, err
 	}
 
-	env, err := r.Ports.BuildEnvironment(item, nil)
+	env, err := r.Ports.BuildEnvironmentWithRuntimeClaims(item, nil, runtimeSession.portClaimOptions(context.Background()))
 	if err != nil {
 		return ports.Environment{}, err
 	}
@@ -509,7 +563,22 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 }
 
 func (r *Runner) cleanupScenarioRuntime(name, customPath string, includeManifestFixedPorts bool) error {
+	return r.cleanupScenarioRuntimeWithRegistry(name, customPath, includeManifestFixedPorts, true)
+}
+
+func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, customPath string, includeManifestFixedPorts bool, writeRegistry bool) error {
 	deps := r.runtimeDeps()
+	ctx := context.Background()
+	runtimeStop := runtimeRegistryStopSession{}
+	if writeRegistry {
+		var err error
+		runtimeStop, err = r.beginRuntimeRegistryStop(ctx, name)
+		if err != nil {
+			return err
+		}
+	}
+	defer runtimeStop.close()
+
 	records, err := deps.readScenarioRecords(r.Home, name)
 	if err != nil {
 		return err
@@ -578,6 +647,9 @@ func (r *Runner) cleanupScenarioRuntime(name, customPath string, includeManifest
 	}
 
 	if err := r.Ports.RemoveScenarioLocks(name); err != nil {
+		return err
+	}
+	if err := runtimeStop.finish(ctx); err != nil {
 		return err
 	}
 	return nil

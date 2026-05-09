@@ -289,6 +289,14 @@ func BuildInfoData(item scenariomodel.Scenario) InfoScenarioData {
 
 func BuildRuntimeData(manifest scenariomodel.ServiceManifest, runtime process.ScenarioRuntime) InfoRuntimeData {
 	details := scenariomodel.DescribeRuntime(manifest, runtime)
+	return BuildRuntimeDataFromDetails(details)
+}
+
+func BuildRuntimeDataFromDetail(detail orchestrator.Detail) InfoRuntimeData {
+	return BuildRuntimeDataFromDetails(detail.Details)
+}
+
+func BuildRuntimeDataFromDetails(details scenariomodel.RuntimeDetails) InfoRuntimeData {
 	return InfoRuntimeData{
 		Status:      details.Status,
 		Processes:   details.Processes,

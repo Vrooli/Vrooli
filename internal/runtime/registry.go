@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/vrooli/internal/safeguards/netconsole"
 	ollamaresourcecontrols "github.com/vrooli/vrooli/internal/safeguards/ollama-resource-controls"
 	pstorenative "github.com/vrooli/vrooli/internal/safeguards/pstore-native"
+	pstoreobservability "github.com/vrooli/vrooli/internal/safeguards/pstore-observability"
 	pstoreramoops "github.com/vrooli/vrooli/internal/safeguards/pstore-ramoops"
 	remotesessionprotection "github.com/vrooli/vrooli/internal/safeguards/remote-session-protection"
 	tcptuning "github.com/vrooli/vrooli/internal/safeguards/tcp-tuning"
@@ -75,6 +76,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"nat_protection":            natprotection.NewHandler,
 	"netconsole":                netconsole.NewHandler,
 	"ollama_resource_controls":  ollamaresourcecontrols.NewHandler,
+	"pstore_observability":      pstoreobservability.NewHandler,
 	"pstore_native":             pstorenative.NewHandler,
 	"pstore_ramoops":            pstoreramoops.NewHandler,
 	"remote_session_protection": remotesessionprotection.NewHandler,

@@ -29,8 +29,9 @@ type OrphansResponse struct {
 }
 
 type LocksResponse struct {
-	CleanReport *control.StopReport
-	List        []maintenance.LockInfo
+	CleanReport   *control.StopReport
+	List          []maintenance.LockInfo
+	RuntimeClaims []maintenance.RuntimeClaimInfo
 }
 
 type TemplateValidationCleanupResponse struct {
@@ -197,21 +198,41 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 		return nil
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "locks", resp.List)
+		return cliout.WriteSuccessFields(w, map[string]any{
+			"locks":           resp.List,
+			"registry_claims": resp.RuntimeClaims,
+		})
 	}
-	if len(resp.List) == 0 {
+	if len(resp.List) == 0 && len(resp.RuntimeClaims) == 0 {
 		_, _ = fmt.Fprintln(w, "No port locks found.")
 		return nil
 	}
-	rows := make([][]string, 0, len(resp.List))
-	for _, item := range resp.List {
-		status := "active"
-		if item.Stale {
-			status = "stale"
+	if len(resp.RuntimeClaims) > 0 {
+		_, _ = fmt.Fprintln(w, "Registry claims")
+		rows := make([][]string, 0, len(resp.RuntimeClaims))
+		for _, item := range resp.RuntimeClaims {
+			rows = append(rows, []string{strconv.Itoa(item.Port), item.Scenario, item.InstanceStatus, item.ClaimStatus})
 		}
-		rows = append(rows, []string{strconv.Itoa(item.Port), item.Scenario, strconv.Itoa(item.PID), status})
+		if err := cliout.RenderTable(w, []string{"Port", "Scenario", "Lease", "Claim"}, rows); err != nil {
+			return err
+		}
+		if len(resp.List) > 0 {
+			_, _ = fmt.Fprintln(w)
+		}
 	}
-	return cliout.RenderTable(w, []string{"Port", "Scenario", "PID", "Status"}, rows)
+	if len(resp.List) > 0 {
+		_, _ = fmt.Fprintln(w, "Legacy lock files")
+		rows := make([][]string, 0, len(resp.List))
+		for _, item := range resp.List {
+			status := "active"
+			if item.Stale {
+				status = "stale"
+			}
+			rows = append(rows, []string{strconv.Itoa(item.Port), item.Scenario, strconv.Itoa(item.PID), status})
+		}
+		return cliout.RenderTable(w, []string{"Port", "Scenario", "PID", "Status"}, rows)
+	}
+	return nil
 }
 
 func RenderTemplateValidationCleanupResponse(w io.Writer, format cliout.Format, resp TemplateValidationCleanupResponse) error {
@@ -301,6 +322,24 @@ func RenderPortDiagnostic(w io.Writer, format cliout.Format, diagnostic maintena
 		_, _ = fmt.Fprintf(w, "Lock: %s (scenario=%s pid=%d stale=%t)\n", diagnostic.Lock.Path, diagnostic.Lock.Scenario, diagnostic.Lock.PID, diagnostic.Lock.Stale)
 	} else {
 		_, _ = fmt.Fprintln(w, "Lock: none")
+	}
+	if len(diagnostic.RegistryClaims) > 0 {
+		_, _ = fmt.Fprintln(w, "Registry claims:")
+		for _, claim := range diagnostic.RegistryClaims {
+			_, _ = fmt.Fprintf(w, "  %s  scenario=%s instance=%s lease=%s claim=%s\n", claim.ClaimID, claim.Scenario, claim.InstanceID, claim.InstanceStatus, claim.ClaimStatus)
+		}
+	} else {
+		_, _ = fmt.Fprintln(w, "Registry claims: none")
+	}
+	if len(diagnostic.RegistryProcesses) > 0 {
+		_, _ = fmt.Fprintln(w, "Registry process refs:")
+		for _, ref := range diagnostic.RegistryProcesses {
+			pid := ""
+			if ref.PID != nil {
+				pid = strconv.Itoa(*ref.PID)
+			}
+			_, _ = fmt.Fprintf(w, "  %s  pid=%s status=%s step=%s\n", ref.RefID, pid, ref.Status, ref.Step)
+		}
 	}
 	if diagnostic.PortPolicy.EphemeralMin > 0 {
 		band := diagnostic.PortPolicy.CanonicalBand

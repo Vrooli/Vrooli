@@ -1,15 +1,16 @@
 package orchestrator
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
@@ -56,27 +57,68 @@ func (s *Service) InventoryReport() (InventoryReport, error) {
 		valid[item.Slug] = struct{}{}
 	}
 
-	running, err := process.DiscoverRunningScenarios(s.Home, func(name string) bool {
-		_, ok := valid[name]
-		return ok
-	})
+	ctx := context.Background()
+	mode, err := s.registryReadMode()
 	if err != nil {
 		return InventoryReport{}, err
 	}
-
-	runtimes := make(map[string]process.ScenarioRuntime, len(running))
-	for _, runtime := range running {
-		runtimes[runtime.Name] = runtime
+	registryDetails := map[string]Detail{}
+	if scenarioruntime.ReadEnabled(mode) {
+		registryDetails, err = s.registryDetailsByScenario(ctx, discoveryReport.Items)
+		if err != nil {
+			return InventoryReport{}, err
+		}
 	}
 
 	details := make([]Detail, 0, len(discoveryReport.Items))
-	for _, item := range discoveryReport.Items {
-		runtime := runtimes[item.Slug]
-		details = append(details, Detail{
-			Scenario: item,
-			Runtime:  runtime,
-			Details:  scenario.DescribeRuntime(item.Manifest, runtime),
+	if !scenarioruntime.StrictReads(mode) || scenarioruntime.HasAllowlistByEnv() {
+		running, err := process.DiscoverRunningScenarios(s.Home, func(name string) bool {
+			_, ok := valid[name]
+			return ok
 		})
+		if err != nil {
+			return InventoryReport{}, err
+		}
+
+		runtimes := make(map[string]process.ScenarioRuntime, len(running))
+		for _, runtime := range running {
+			runtimes[runtime.Name] = runtime
+		}
+
+		for _, item := range discoveryReport.Items {
+			if detail, ok := registryDetails[item.Slug]; ok {
+				details = append(details, detail)
+				continue
+			}
+			if scenarioruntime.StrictReadsForScenario(mode, item.Slug) {
+				runtime := process.ScenarioRuntime{Name: item.Slug, Runtime: "N/A"}
+				details = append(details, Detail{
+					Scenario: item,
+					Runtime:  runtime,
+					Details:  scenario.DescribeRuntime(item.Manifest, runtime),
+				})
+				continue
+			}
+			runtime := runtimes[item.Slug]
+			details = append(details, Detail{
+				Scenario: item,
+				Runtime:  runtime,
+				Details:  scenario.DescribeRuntime(item.Manifest, runtime),
+			})
+		}
+	} else {
+		for _, item := range discoveryReport.Items {
+			if detail, ok := registryDetails[item.Slug]; ok {
+				details = append(details, detail)
+				continue
+			}
+			runtime := process.ScenarioRuntime{Name: item.Slug, Runtime: "N/A"}
+			details = append(details, Detail{
+				Scenario: item,
+				Runtime:  runtime,
+				Details:  scenario.DescribeRuntime(item.Manifest, runtime),
+			})
+		}
 	}
 	sort.Slice(details, func(i, j int) bool { return details[i].Scenario.Slug < details[j].Scenario.Slug })
 	return InventoryReport{
@@ -92,6 +134,29 @@ func (s *Service) Lookup(name string) (Detail, bool, error) {
 			return Detail{}, false, nil
 		}
 		return Detail{}, false, err
+	}
+
+	ctx := context.Background()
+	registryEnabled, strictRegistry, err := s.registryReadsEnabled(item.Slug)
+	if err != nil {
+		return Detail{}, true, err
+	}
+	if registryEnabled {
+		detail, ok, err := s.registryDetail(ctx, item)
+		if err != nil {
+			return Detail{}, true, err
+		}
+		if ok {
+			return detail, true, nil
+		}
+	}
+	if strictRegistry {
+		runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
+		return Detail{
+			Scenario: item,
+			Runtime:  runtime,
+			Details:  scenario.DescribeRuntime(item.Manifest, runtime),
+		}, true, nil
 	}
 
 	records, err := process.ReadScenarioRecords(s.Home, name)
@@ -171,6 +236,29 @@ func (s *Service) RestartDetailed(name string, opts lifecycle.StartOptions) (Sta
 }
 
 func (s *Service) detailFor(item scenario.Scenario, name string) (Detail, error) {
+	ctx := context.Background()
+	registryEnabled, strictRegistry, err := s.registryReadsEnabled(item.Slug)
+	if err != nil {
+		return Detail{}, err
+	}
+	if registryEnabled {
+		detail, ok, err := s.registryDetail(ctx, item)
+		if err != nil {
+			return Detail{}, err
+		}
+		if ok {
+			return detail, nil
+		}
+	}
+	if strictRegistry {
+		runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
+		return Detail{
+			Scenario: item,
+			Runtime:  runtime,
+			Details:  scenario.DescribeRuntime(item.Manifest, runtime),
+		}, nil
+	}
+
 	records, err := process.ReadScenarioRecords(s.Home, name)
 	if err != nil {
 		return Detail{}, err
@@ -188,7 +276,7 @@ func (s *Service) ResolvePort(name, requested string) (ResolvedPort, error) {
 	if err != nil {
 		return ResolvedPort{}, err
 	}
-	if detail.Runtime.ProcessCount == 0 {
+	if detail.Details.Status != "running" {
 		return ResolvedPort{}, &vroolierr.Error{
 			Code:       "scenario_not_running",
 			Category:   "Runtime",
@@ -199,13 +287,14 @@ func (s *Service) ResolvePort(name, requested string) (ResolvedPort, error) {
 
 	bindings := detail.Details.PortBindings
 	ports := detail.Details.Ports
-	key, portValue, stepName, ok := resolveRequestedPort(detail.Scenario.Manifest, bindings, ports, requested)
+	resolved, ok := scenario.ResolveRuntimePort(detail.Scenario.Manifest, bindings, ports, requested)
 	if !ok && requested == "UI_PORT" {
-		key, portValue, stepName, ok = resolveRequestedPort(detail.Scenario.Manifest, bindings, ports, "API_PORT")
+		resolved, ok = scenario.ResolveRuntimePort(detail.Scenario.Manifest, bindings, ports, "API_PORT")
 	}
 	if !ok && len(ports) == 1 {
 		for onlyKey, onlyPort := range ports {
-			key, portValue, ok = onlyKey, onlyPort, true
+			resolved = scenario.RuntimePortResolution{Key: onlyKey, Port: onlyPort}
+			ok = true
 		}
 	}
 	if !ok {
@@ -219,44 +308,11 @@ func (s *Service) ResolvePort(name, requested string) (ResolvedPort, error) {
 
 	return ResolvedPort{
 		Detail: detail,
-		Name:   key,
-		Step:   stepName,
-		Port:   portValue,
-		URL:    "http://localhost:" + strconv.Itoa(portValue),
+		Name:   resolved.Key,
+		Step:   resolved.Step,
+		Port:   resolved.Port,
+		URL:    "http://localhost:" + strconv.Itoa(resolved.Port),
 	}, nil
-}
-
-func resolveRequestedPort(manifest scenario.ServiceManifest, bindings []scenario.RuntimePortBinding, ports map[string]int, requested string) (string, int, string, bool) {
-	candidates := []string{requested}
-	if envVar := manifest.PortEnvVar(strings.ToLower(strings.TrimSuffix(requested, "_PORT"))); envVar != "" {
-		candidates = append(candidates, envVar)
-	}
-	normalized := strings.ToUpper(strings.TrimSpace(requested))
-	if normalized != "" && normalized != requested {
-		candidates = append(candidates, normalized)
-		if !strings.HasSuffix(normalized, "_PORT") {
-			candidates = append(candidates, normalized+"_PORT")
-		}
-	}
-
-	seen := map[string]struct{}{}
-	for _, key := range candidates {
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		if portValue, ok := ports[key]; ok {
-			stepName := ""
-			for _, binding := range bindings {
-				if binding.Key == key && binding.Port == portValue {
-					stepName = binding.Step
-					break
-				}
-			}
-			return key, portValue, stepName, true
-		}
-	}
-	return "", 0, "", false
 }
 
 func (s *Service) viewForDetail(detail Detail) ScenarioView {

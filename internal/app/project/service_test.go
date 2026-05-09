@@ -42,6 +42,10 @@ func (fakeMaintenanceOps) ListLocks() ([]maintenance.LockInfo, error) {
 	return []maintenance.LockInfo{{Port: 8080}}, nil
 }
 
+func (fakeMaintenanceOps) ListRuntimeClaims() ([]maintenance.RuntimeClaimInfo, error) {
+	return []maintenance.RuntimeClaimInfo{{Port: 8080, Scenario: "demo", ClaimStatus: "bound"}}, nil
+}
+
 func (fakeMaintenanceOps) CleanStaleLocks() (control.StopReport, error) {
 	return control.StopReport{Message: "cleaned"}, nil
 }

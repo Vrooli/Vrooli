@@ -420,7 +420,7 @@ func checkDocsAlignment(contract *repocontract.Contract, root string, raw string
 		"`vrooli contract show`",
 		"`vrooli contract resolve scenario <name> --file service`",
 		"`vrooli contract match-glob <pattern> <path>`",
-		"`make validate-repo-contract` remains the CI/automation entrypoint",
+		"`make hygiene` remains the CI/automation entrypoint",
 		"## Allowed `.vrooli/` Surface",
 		"`~/.vrooli/secrets.json`",
 		"## Landed Consumer Migrations",
@@ -516,7 +516,7 @@ func checkAdoptionRulesAlignment(contract *repocontract.Contract, root string, r
 
 func checkNoPersonalAbsolutePaths(contract *repocontract.Contract, root string, raw string) error {
 	var violations []string
-	for _, topLevel := range []string{"cmd", "internal", "packages", "resources", "scenarios", "templates", ".vrooli"} {
+	for _, topLevel := range []string{"cmd", "internal", "packages", "resources", "scenarios", "templates", "docs", ".vrooli"} {
 		base := filepath.Join(root, filepath.FromSlash(topLevel))
 		if _, err := os.Stat(base); err != nil {
 			if os.IsNotExist(err) {
@@ -631,7 +631,7 @@ func shouldSkipPersonalPathScan(rel string, isDir bool) bool {
 			return false
 		}
 		switch base {
-		case ".git", "node_modules", ".venv", "vendor", "dist", "build", "coverage", ".cache", ".gocache", ".nyc_output", ".claude", "tmp", "temp", "logs", "data", "docs", "investigations", "report", ".swarm", "review", "evidence", "captures", "handoff":
+		case ".git", "node_modules", ".venv", "vendor", "dist", "build", "coverage", ".cache", ".gocache", ".nyc_output", ".claude", "tmp", "temp", "logs", "data", "investigations", "report", ".swarm", "review", "evidence", "captures", "handoff":
 			return true
 		}
 		if strings.HasSuffix(rel, "/test/artifacts") {

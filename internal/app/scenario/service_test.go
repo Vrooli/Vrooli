@@ -12,6 +12,7 @@ import (
 
 type fakeScenarioOps struct {
 	started []string
+	detail  orchestrator.Detail
 }
 
 func (f *fakeScenarioOps) StartDetailed(name string, opts lifecycle.StartOptions) (orchestrator.StartResult, error) {
@@ -38,6 +39,9 @@ func (f *fakeScenarioOps) InventoryReport() (orchestrator.InventoryReport, error
 }
 
 func (f *fakeScenarioOps) Detail(name string) (orchestrator.Detail, error) {
+	if f.detail.Scenario.Slug != "" || f.detail.Details.Status != "" {
+		return f.detail, nil
+	}
 	return orchestrator.Detail{Runtime: process.ScenarioRuntime{}}, nil
 }
 
@@ -80,5 +84,57 @@ func TestStartUsesScenarioOperationsInterface(t *testing.T) {
 	}
 	if len(ops.started) != 1 || ops.started[0] != "demo" {
 		t.Fatalf("started = %#v", ops.started)
+	}
+}
+
+func TestPortRejectsSpecificPortWhenRuntimeIsNotRunning(t *testing.T) {
+	ops := &fakeScenarioOps{detail: portDetail("starting", 18080)}
+	svc := Service{Scenarios: ops, Runner: fakeRunner{}}
+
+	_, err := svc.Port(PortRequest{ScenarioName: "demo", PortName: "API_PORT"})
+	if err == nil {
+		t.Fatal("Port(API_PORT) error = nil, want non-running runtime error")
+	}
+
+	resp, err := svc.Port(PortRequest{ScenarioName: "demo", PortName: "API_PORT", JSON: true})
+	if err != nil {
+		t.Fatalf("Port(API_PORT,json) error = %v", err)
+	}
+	if resp.Single == nil || resp.Single.Success {
+		t.Fatalf("response = %#v, want unsuccessful single-port response", resp)
+	}
+}
+
+func TestPortResolvesSpecificPortFromRuntimeDetails(t *testing.T) {
+	ops := &fakeScenarioOps{detail: portDetail("running", 18080)}
+	svc := Service{Scenarios: ops, Runner: fakeRunner{}}
+
+	resp, err := svc.Port(PortRequest{ScenarioName: "demo", PortName: "api"})
+	if err != nil {
+		t.Fatalf("Port(api) error = %v", err)
+	}
+	if resp.Single == nil || !resp.Single.Success {
+		t.Fatalf("response = %#v, want successful single-port response", resp)
+	}
+	if resp.Single.PortName != "API_PORT" || resp.Single.Step != "api" || resp.Single.Port != 18080 {
+		t.Fatalf("single = %#v, want API_PORT/api/18080", resp.Single)
+	}
+}
+
+func portDetail(status string, port int) orchestrator.Detail {
+	manifest := scenariomodel.ServiceManifest{
+		Ports: map[string]scenariomodel.Port{
+			"api": {EnvVar: "API_PORT", Description: "Backend"},
+		},
+	}
+	return orchestrator.Detail{
+		Scenario: scenariomodel.Scenario{Slug: "demo", Manifest: manifest},
+		Details: scenariomodel.RuntimeDetails{
+			Status: status,
+			Ports:  map[string]int{"API_PORT": port},
+			PortBindings: []scenariomodel.RuntimePortBinding{
+				{Key: "API_PORT", Step: "api", Port: port},
+			},
+		},
 	}
 }

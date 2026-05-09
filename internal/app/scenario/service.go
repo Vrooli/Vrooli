@@ -155,7 +155,7 @@ func (s Service) Info(req InfoRequest) (InfoOutput, error) {
 	return InfoOutput{
 		Success:  true,
 		Scenario: BuildInfoData(detail.Scenario),
-		Runtime:  BuildRuntimeData(detail.Scenario.Manifest, detail.Runtime),
+		Runtime:  BuildRuntimeDataFromDetail(detail),
 	}, nil
 }
 
@@ -183,7 +183,7 @@ func (s Service) Status(req StatusRequest) (StatusResponse, error) {
 		Success:  true,
 		Scenario: BuildStatusDetail(detail),
 		Info:     BuildInfoData(detail.Scenario),
-		Runtime:  BuildRuntimeData(detail.Scenario.Manifest, detail.Runtime),
+		Runtime:  BuildRuntimeDataFromDetail(detail),
 	}
 	return StatusResponse{Single: &output}, nil
 }
@@ -225,19 +225,20 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 	if err != nil {
 		return PortResponse{}, err
 	}
-	listPorts, portsMap := BuildListPorts(detail.Scenario.Manifest, detail.Runtime.Records)
+	listPorts := RuntimePortOutputs(detail.Details.PortBindings)
+	portsMap := CopyIntMap(detail.Details.Ports)
 
 	if req.PortName == "" {
-		if detail.Runtime.ProcessCount == 0 || len(portsMap) == 0 {
+		if detail.Details.Status != "running" || len(portsMap) == 0 {
 			if req.JSON {
 				return PortResponse{List: &PortListOutput{
 					Success:  false,
 					Scenario: req.ScenarioName,
 					Ports:    []ListPortOutput{},
-					Error:    "No running processes found for scenario",
+					Error:    "No running runtime ports found for scenario",
 				}}, nil
 			}
-			return PortResponse{}, fmt.Errorf("no running processes found for scenario %q", req.ScenarioName)
+			return PortResponse{}, fmt.Errorf("no running runtime ports found for scenario %q", req.ScenarioName)
 		}
 		list := &PortListOutput{
 			Success:  true,
@@ -250,7 +251,19 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 		return PortResponse{List: list}, nil
 	}
 
-	key, port, step, ok := resolveRequestedPort(detail.Scenario.Manifest, listPorts, portsMap, req.PortName)
+	if detail.Details.Status != "running" {
+		if req.JSON {
+			return PortResponse{Single: &PortSingleOutput{
+				Success:  false,
+				Scenario: req.ScenarioName,
+				PortName: req.PortName,
+				Error:    "No running runtime ports found for scenario",
+			}}, nil
+		}
+		return PortResponse{}, fmt.Errorf("no running runtime ports found for scenario %q", req.ScenarioName)
+	}
+
+	resolved, ok := scenariomodel.ResolveRuntimePort(detail.Scenario.Manifest, detail.Details.PortBindings, portsMap, req.PortName)
 	if !ok {
 		if req.JSON {
 			return PortResponse{Single: &PortSingleOutput{
@@ -266,9 +279,9 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 	return PortResponse{Single: &PortSingleOutput{
 		Success:  true,
 		Scenario: req.ScenarioName,
-		PortName: key,
-		Step:     step,
-		Port:     port,
+		PortName: resolved.Key,
+		Step:     resolved.Step,
+		Port:     resolved.Port,
 	}}, nil
 }
 
@@ -302,39 +315,6 @@ func envPortMap(manifest scenariomodel.ServiceManifest, ports map[string]int) ma
 		out[envVar] = port
 	}
 	return out
-}
-
-func resolveRequestedPort(manifest scenariomodel.ServiceManifest, listPorts []ListPortOutput, portsMap map[string]int, requested string) (string, int, string, bool) {
-	candidates := []string{requested}
-	if envVar := manifest.PortEnvVar(strings.ToLower(strings.TrimSuffix(requested, "_PORT"))); envVar != "" {
-		candidates = append(candidates, envVar)
-	}
-	normalized := strings.ToUpper(strings.TrimSpace(requested))
-	if normalized != "" && normalized != requested {
-		candidates = append(candidates, normalized)
-		if !strings.HasSuffix(normalized, "_PORT") {
-			candidates = append(candidates, normalized+"_PORT")
-		}
-	}
-
-	seen := map[string]struct{}{}
-	for _, key := range candidates {
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		if portValue, ok := portsMap[key]; ok {
-			stepName := ""
-			for _, entry := range listPorts {
-				if entry.Key == key && entry.Port == portValue {
-					stepName = entry.Step
-					break
-				}
-			}
-			return key, portValue, stepName, true
-		}
-	}
-	return "", 0, "", false
 }
 
 func endpointOutputs(manifest scenariomodel.ServiceManifest, ports map[string]int) []EndpointOutput {

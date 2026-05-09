@@ -112,7 +112,7 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 			return PhaseResult{}, err
 		}
 	} else {
-		envResult, err = r.prepareScenarioEnvironment(item, nil)
+		envResult, err = r.prepareScenarioEnvironment(item, nil, disabledRuntimeRegistrySession())
 		if err != nil {
 			return PhaseResult{}, err
 		}
@@ -372,6 +372,14 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 			_ = process.RemoveScenarioRecord(r.Home, item.Slug, step.Name)
 			return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 		}
+	}
+	if err := recordRuntimeProcessRef(context.Background(), r.runtimeDeps(), r.Home, env, record); err != nil {
+		_ = cmd.Process.Kill()
+		_ = process.RemoveScenarioRecord(r.Home, item.Slug, step.Name)
+		if port > 0 {
+			_ = r.Ports.AbandonLock(port, item.Slug)
+		}
+		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
 
 	r.runtimeDeps().sleep(200 * time.Millisecond)

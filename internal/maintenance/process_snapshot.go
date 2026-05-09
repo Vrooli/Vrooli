@@ -51,6 +51,7 @@ type HealthSnapshot struct {
 var (
 	listProcessTableFn           = listProcessTable
 	processReadScenarioRecordsFn = process.ReadScenarioRecords
+	runtimeProcessRefsFn         = runtimeTrackedProcessRefs
 )
 
 // Snapshot gathers the current tracked-process and orphan-process state from the
@@ -154,31 +155,47 @@ func trackedProcessStats(home string, processTable map[int]processTableEntry) (m
 	processRoot := filepath.Join(home, ".vrooli", "processes", "scenarios")
 	entries, err := os.ReadDir(processRoot)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return tracked, trackedSIDs, trackedCount, runningTracked, nil
-		}
-		return nil, nil, 0, 0, err
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		records, err := processReadScenarioRecordsFn(home, entry.Name())
-		if err != nil {
+		if !os.IsNotExist(err) {
 			return nil, nil, 0, 0, err
 		}
-		for _, record := range records {
-			if record.PID > 0 {
-				tracked[record.PID] = struct{}{}
-				trackedCount++
-				if _, running := processTable[record.PID]; running {
-					runningTracked++
+	} else {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			records, err := processReadScenarioRecordsFn(home, entry.Name())
+			if err != nil {
+				return nil, nil, 0, 0, err
+			}
+			for _, record := range records {
+				if record.PID > 0 {
+					tracked[record.PID] = struct{}{}
+					trackedCount++
+					if _, running := processTable[record.PID]; running {
+						runningTracked++
+					}
+				}
+				if record.PGID > 0 {
+					tracked[record.PGID] = struct{}{}
 				}
 			}
-			if record.PGID > 0 {
-				tracked[record.PGID] = struct{}{}
+		}
+	}
+
+	refs, err := runtimeProcessRefsFn(home)
+	if err != nil {
+		return nil, nil, 0, 0, err
+	}
+	for _, ref := range refs {
+		if ref.PID > 0 {
+			tracked[ref.PID] = struct{}{}
+			trackedCount++
+			if _, running := processTable[ref.PID]; running {
+				runningTracked++
 			}
+		}
+		if ref.PGID > 0 {
+			tracked[ref.PGID] = struct{}{}
 		}
 	}
 

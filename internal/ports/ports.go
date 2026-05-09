@@ -1,6 +1,7 @@
 package ports
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -16,6 +17,7 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 const (
@@ -23,6 +25,7 @@ const (
 	mutationLockTimeout     = 2 * time.Second
 	mutationLockRetry       = 10 * time.Millisecond
 	mutationLockStaleWindow = 30 * time.Second
+	defaultClaimTTL         = 5 * time.Minute
 )
 
 var (
@@ -49,8 +52,22 @@ type Lock struct {
 type Environment struct {
 	AllocatedPorts map[string]int
 	EnvVars        map[string]string
+	RuntimeClaims  map[string]scenarioruntime.PortClaim
 	IsRunning      bool
 	Message        string
+}
+
+type RuntimeClaimStore interface {
+	scenarioruntime.PortClaimRepository
+	scenarioruntime.CleanupRepository
+}
+
+type RuntimeClaimOptions struct {
+	Enabled    bool
+	Context    context.Context
+	Store      RuntimeClaimStore
+	InstanceID string
+	TTL        time.Duration
 }
 
 func NewManager(root, home string) (*Manager, error) {
@@ -404,9 +421,13 @@ func (m *Manager) CleanStaleLocks() error {
 }
 
 func (m *Manager) BuildEnvironment(item scenario.Scenario, records []process.Record) (Environment, error) {
+	return m.BuildEnvironmentWithRuntimeClaims(item, records, RuntimeClaimOptions{})
+}
+
+func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, records []process.Record, claimOptions RuntimeClaimOptions) (Environment, error) {
 	live := process.LiveRecords(records)
 
-	allocated, envVars, err := m.allocateScenario(item.Slug, item.Manifest, live)
+	allocated, envVars, runtimeClaims, err := m.allocateScenario(item.Slug, item.Manifest, live, claimOptions)
 	if err != nil {
 		return Environment{}, err
 	}
@@ -442,6 +463,7 @@ func (m *Manager) BuildEnvironment(item scenario.Scenario, records []process.Rec
 	return Environment{
 		AllocatedPorts: allocated,
 		EnvVars:        envVars,
+		RuntimeClaims:  runtimeClaims,
 		IsRunning:      len(live) > 0,
 		Message:        "allocated ports for scenario",
 	}, nil
@@ -491,65 +513,215 @@ func (m *Manager) BuildProjectEnvironment(item scenario.Scenario) (Environment, 
 	}, nil
 }
 
-func (m *Manager) allocateScenario(scenarioName string, manifest scenario.ServiceManifest, records []process.Record) (map[string]int, map[string]string, error) {
+func (m *Manager) allocateScenario(scenarioName string, manifest scenario.ServiceManifest, records []process.Record, claimOptions RuntimeClaimOptions) (map[string]int, map[string]string, map[string]scenarioruntime.PortClaim, error) {
 	allocated := make(map[string]int)
 	envVars := make(map[string]string)
+	runtimeClaims := make(map[string]scenarioruntime.PortClaim)
+	newRuntimeClaims := make(map[string]scenarioruntime.PortClaim)
 
 	for _, portSummary := range manifest.SortedPorts() {
-		port, err := m.allocatePortDefinition(scenarioName, records, portSummary)
+		allocation, err := m.allocatePortDefinition(scenarioName, records, portSummary, claimOptions)
 		if err != nil {
-			return nil, nil, err
+			m.releaseNewRuntimeClaims(runtimeClaimContext(claimOptions), claimOptions.Store, scenarioName, newRuntimeClaims)
+			return nil, nil, nil, err
 		}
+		port := allocation.port
 		if port <= 0 {
 			continue
 		}
 		allocated[portSummary.Name] = port
 		envVars[portSummary.EnvVar] = strconv.Itoa(port)
+		if allocation.runtimeClaim.ClaimID != "" {
+			runtimeClaims[portSummary.Name] = allocation.runtimeClaim
+			if allocation.newClaim {
+				newRuntimeClaims[portSummary.Name] = allocation.runtimeClaim
+			}
+		}
 	}
 
-	return allocated, envVars, nil
+	return allocated, envVars, runtimeClaims, nil
 }
 
-func (m *Manager) allocatePortDefinition(scenarioName string, records []process.Record, portSummary scenario.PortSummary) (int, error) {
+type portAllocation struct {
+	port         int
+	runtimeClaim scenarioruntime.PortClaim
+	newClaim     bool
+}
+
+func (m *Manager) allocatePortDefinition(scenarioName string, records []process.Record, portSummary scenario.PortSummary, claimOptions RuntimeClaimOptions) (portAllocation, error) {
 	if portSummary.FixedPort != nil {
 		port := *portSummary.FixedPort
+		claim, claimed, err := m.acquireRuntimePortClaim(scenarioName, portSummary, port, claimOptions)
+		if err != nil {
+			return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
+		}
 		ownerPID, err := m.ensurePortClaimed(port, scenarioName, records)
 		if err != nil {
-			return 0, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
+			if claimed {
+				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
+			}
+			return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
 		}
 		if err := m.claimLock(port, scenarioName, ownerPID); err != nil {
-			return 0, err
+			if claimed {
+				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
+			}
+			return portAllocation{}, err
 		}
-		return port, nil
+		return portAllocation{port: port, runtimeClaim: claim, newClaim: claimed}, nil
 	}
 
 	if portSummary.Range == "" {
-		return 0, nil
+		return portAllocation{}, nil
 	}
 
 	start, end, err := parseRange(portSummary.Range)
 	if err != nil {
-		return 0, fmt.Errorf("parse range for %s: %w", portSummary.Name, err)
+		return portAllocation{}, fmt.Errorf("parse range for %s: %w", portSummary.Name, err)
 	}
 	if end < start {
-		return 0, fmt.Errorf("invalid range %q", portSummary.Range)
+		return portAllocation{}, fmt.Errorf("invalid range %q", portSummary.Range)
 	}
 
 	size := end - start + 1
 	offset := int(crc32.ChecksumIEEE([]byte(scenarioName+"_"+portSummary.Name)) % uint32(size))
 	for attempt := 0; attempt < size; attempt++ {
 		port := start + ((offset + attempt) % size)
-		ownerPID, err := m.ensurePortClaimed(port, scenarioName, records)
+		claim, claimed, err := m.acquireRuntimePortClaim(scenarioName, portSummary, port, claimOptions)
 		if err != nil {
 			continue
 		}
-		if err := m.claimLock(port, scenarioName, ownerPID); err != nil {
+		ownerPID, err := m.ensurePortClaimed(port, scenarioName, records)
+		if err != nil {
+			if claimed {
+				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
+			}
 			continue
 		}
-		return port, nil
+		if err := m.claimLock(port, scenarioName, ownerPID); err != nil {
+			if claimed {
+				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
+			}
+			continue
+		}
+		return portAllocation{port: port, runtimeClaim: claim, newClaim: claimed}, nil
 	}
 
-	return 0, fmt.Errorf("no available ports in range %s for %s", portSummary.Range, portSummary.Name)
+	return portAllocation{}, fmt.Errorf("no available ports in range %s for %s", portSummary.Range, portSummary.Name)
+}
+
+func (m *Manager) acquireRuntimePortClaim(scenarioName string, portSummary scenario.PortSummary, port int, options RuntimeClaimOptions) (scenarioruntime.PortClaim, bool, error) {
+	if !runtimeClaimsEnabled(options) {
+		return scenarioruntime.PortClaim{}, false, nil
+	}
+	ctx := runtimeClaimContext(options)
+	if err := expireReservedRuntimeClaims(ctx, options.Store, m.Now().UTC()); err != nil {
+		return scenarioruntime.PortClaim{}, false, err
+	}
+	existing, ok, err := findExistingRuntimeClaim(ctx, options.Store, options.InstanceID, portSummary.Name, port)
+	if err != nil {
+		return scenarioruntime.PortClaim{}, false, err
+	}
+	if ok {
+		return existing, false, nil
+	}
+	ttl := options.TTL
+	if ttl <= 0 {
+		ttl = defaultClaimTTL
+	}
+	expiresAt := m.Now().UTC().Add(ttl)
+	claim, err := options.Store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		InstanceID: options.InstanceID,
+		Scenario:   scenarioName,
+		PortName:   portSummary.Name,
+		EnvVar:     portSummary.EnvVar,
+		Port:       port,
+		BindHost:   "127.0.0.1",
+		URL:        runtimePortURL(portSummary.Name, port),
+		Status:     scenarioruntime.ClaimStatusReserved,
+		ExpiresAt:  &expiresAt,
+	})
+	if err != nil {
+		if errors.Is(err, scenarioruntime.ErrActiveClaimConflict) {
+			return scenarioruntime.PortClaim{}, false, fmt.Errorf("active registry claim already owns port %d", port)
+		}
+		return scenarioruntime.PortClaim{}, false, err
+	}
+	return claim, true, nil
+}
+
+func runtimeClaimsEnabled(options RuntimeClaimOptions) bool {
+	return options.Enabled && options.Store != nil && strings.TrimSpace(options.InstanceID) != ""
+}
+
+func (m *Manager) releaseNewRuntimeClaims(ctx context.Context, store RuntimeClaimStore, scenarioName string, claims map[string]scenarioruntime.PortClaim) {
+	if store == nil || len(claims) == 0 {
+		return
+	}
+	for _, claim := range claims {
+		if claim.ClaimID == "" {
+			continue
+		}
+		_, _ = store.ReleasePortClaim(ctx, claim.ClaimID)
+		if claim.Port > 0 {
+			_ = m.AbandonLock(claim.Port, scenarioName)
+		}
+	}
+}
+
+func runtimeClaimContext(options RuntimeClaimOptions) context.Context {
+	if options.Context != nil {
+		return options.Context
+	}
+	return context.Background()
+}
+
+func findExistingRuntimeClaim(ctx context.Context, store RuntimeClaimStore, instanceID string, portName string, port int) (scenarioruntime.PortClaim, bool, error) {
+	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
+		InstanceID: instanceID,
+		Statuses:   []string{scenarioruntime.ClaimStatusReserved, scenarioruntime.ClaimStatusBound},
+	})
+	if err != nil {
+		return scenarioruntime.PortClaim{}, false, err
+	}
+	for _, claim := range claims {
+		if claim.PortName == portName && claim.Port == port {
+			return claim, true, nil
+		}
+	}
+	return scenarioruntime.PortClaim{}, false, nil
+}
+
+func expireReservedRuntimeClaims(ctx context.Context, store RuntimeClaimStore, at time.Time) error {
+	claims, err := expiredReservedRuntimeClaims(ctx, store, at)
+	if err != nil {
+		return err
+	}
+	for _, claim := range claims {
+		if _, err := store.ExpirePortClaim(ctx, claim.ClaimID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func expiredReservedRuntimeClaims(ctx context.Context, store RuntimeClaimStore, at time.Time) ([]scenarioruntime.PortClaim, error) {
+	claims, err := store.ListExpiredActivePortClaims(ctx, at)
+	if err != nil {
+		return nil, err
+	}
+	reserved := make([]scenarioruntime.PortClaim, 0, len(claims))
+	for _, claim := range claims {
+		if claim.Status != scenarioruntime.ClaimStatusReserved {
+			continue
+		}
+		reserved = append(reserved, claim)
+	}
+	return reserved, nil
+}
+
+func runtimePortURL(portName string, port int) string {
+	return scenarioruntime.LocalPortURL(portName, port)
 }
 
 func parseRange(value string) (int, int, error) {

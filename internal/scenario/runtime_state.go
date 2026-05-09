@@ -23,6 +23,12 @@ type RuntimeEndpoint struct {
 	URL         string `json:"url"`
 }
 
+type RuntimePortResolution struct {
+	Key  string
+	Step string
+	Port int
+}
+
 type RuntimeDetails struct {
 	Status       string               `json:"status"`
 	Processes    int                  `json:"processes"`
@@ -106,6 +112,24 @@ func RuntimeEndpoints(manifest ServiceManifest, ports map[string]int) []RuntimeE
 	return endpoints
 }
 
+func ResolveRuntimePort(manifest ServiceManifest, bindings []RuntimePortBinding, ports map[string]int, requested string) (RuntimePortResolution, bool) {
+	for _, key := range runtimePortCandidates(manifest, requested) {
+		port, ok := ports[key]
+		if !ok {
+			continue
+		}
+		step := ""
+		for _, binding := range bindings {
+			if binding.Key == key && binding.Port == port {
+				step = binding.Step
+				break
+			}
+		}
+		return RuntimePortResolution{Key: key, Step: step, Port: port}, true
+	}
+	return RuntimePortResolution{}, false
+}
+
 func RuntimePortBindings(manifest ServiceManifest, records []process.Record) ([]RuntimePortBinding, map[string]int) {
 	ports := make(map[string]int)
 	bindings := make([]RuntimePortBinding, 0, len(records))
@@ -150,6 +174,31 @@ func RuntimePortBindings(manifest ServiceManifest, records []process.Record) ([]
 	})
 
 	return bindings, ports
+}
+
+func runtimePortCandidates(manifest ServiceManifest, requested string) []string {
+	candidates := []string{requested}
+	if envVar := manifest.PortEnvVar(strings.ToLower(strings.TrimSuffix(requested, "_PORT"))); envVar != "" {
+		candidates = append(candidates, envVar)
+	}
+	normalized := strings.ToUpper(strings.TrimSpace(requested))
+	if normalized != "" && normalized != requested {
+		candidates = append(candidates, normalized)
+		if !strings.HasSuffix(normalized, "_PORT") {
+			candidates = append(candidates, normalized+"_PORT")
+		}
+	}
+
+	out := make([]string, 0, len(candidates))
+	seen := map[string]struct{}{}
+	for _, key := range candidates {
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, key)
+	}
+	return out
 }
 
 // InferPortEnvVar maps lifecycle step names like "start-api" or "launch-ui"

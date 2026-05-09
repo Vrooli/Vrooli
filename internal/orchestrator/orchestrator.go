@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -10,9 +11,11 @@ import (
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 type Service struct {
@@ -28,7 +31,9 @@ type Service struct {
 	Logger *slog.Logger
 	base   *slog.Logger
 
-	newRunner lifecycleRunnerFactory
+	newRunner       lifecycleRunnerFactory
+	runtimeRegistry runtimeRegistryFactory
+	hostSession     func(context.Context, string) (hostsession.Snapshot, error)
 }
 
 type lifecycleRunner interface {
@@ -38,6 +43,14 @@ type lifecycleRunner interface {
 }
 
 type lifecycleRunnerFactory func(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (lifecycleRunner, error)
+
+type runtimeRegistryQueryStore interface {
+	scenarioruntime.QueryRepository
+	scenarioruntime.ProcessRefRepository
+	Close() error
+}
+
+type runtimeRegistryFactory func(ctx context.Context, home string) (runtimeRegistryQueryStore, error)
 
 type ScenarioView struct {
 	Name        string         `json:"name"`
@@ -77,6 +90,10 @@ func New(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) *S
 		newRunner: func(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (lifecycleRunner, error) {
 			return lifecycle.NewRunner(root, home, stdout, stderr, logger...)
 		},
+		runtimeRegistry: func(ctx context.Context, home string) (runtimeRegistryQueryStore, error) {
+			return scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+		},
+		hostSession: hostsession.DefaultProvider{}.Current,
 	}
 }
 
@@ -110,7 +127,7 @@ func (s *Service) Running() ([]ScenarioView, error) {
 
 	running := make([]ScenarioView, 0, len(items))
 	for _, item := range items {
-		if item.Processes > 0 {
+		if item.Status == "running" {
 			running = append(running, item)
 		}
 	}

@@ -1,16 +1,35 @@
 package maintenance
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
+
+type maintenanceTestClock struct {
+	mu  sync.Mutex
+	now time.Time
+}
+
+func newMaintenanceTestClock(now time.Time) *maintenanceTestClock {
+	return &maintenanceTestClock{now: now.UTC()}
+}
+
+func (c *maintenanceTestClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
 
 func TestLooksLikeVrooliProcessSkipsSystemDaemons(t *testing.T) {
 	root := "/home/alice/Vrooli"
@@ -224,6 +243,55 @@ func TestListOrphansFiltersTrackedAncestors(t *testing.T) {
 	}
 	if len(orphans) != 1 || orphans[0].PID != 5200 {
 		t.Fatalf("orphans = %#v", orphans)
+	}
+}
+
+func TestSnapshotHonorsRegistryProcessRefs(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{InstanceID: "inst-alpha", Scenario: "alpha", Status: scenarioruntime.StatusRunning}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease: %v", err)
+	}
+	pid := 4100
+	pgid := 4100
+	if _, err := store.AddProcessRef(ctx, scenarioruntime.ProcessRef{
+		RefID:      "proc-alpha-api",
+		InstanceID: instance.InstanceID,
+		PID:        &pid,
+		PGID:       &pgid,
+		Step:       "start-api",
+		Status:     "running",
+	}); err != nil {
+		t.Fatalf("AddProcessRef: %v", err)
+	}
+
+	originalListProcessTable := listProcessTableFn
+	t.Cleanup(func() { listProcessTableFn = originalListProcessTable })
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{
+			4100: {PID: 4100, PPID: 1, PGID: 4100, SID: 4100, Executable: filepath.Join(root, "scenarios", "alpha", "api", "server")},
+			4101: {PID: 4101, PPID: 4100, PGID: 4100, SID: 4100, Executable: filepath.Join(root, "scenarios", "alpha", "api", "worker")},
+			5200: {PID: 5200, PPID: 1, PGID: 5200, SID: 5200, Executable: filepath.Join(root, "scenarios", "beta", "api", "server")},
+		}, nil
+	}
+
+	snapshot, err := NewController(root, home).Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	if snapshot.TrackedProcesses != 1 || snapshot.RunningTracked != 1 {
+		t.Fatalf("tracked counts = %+v", snapshot)
+	}
+	if len(snapshot.Orphans) != 1 || snapshot.Orphans[0].PID != 5200 {
+		t.Fatalf("orphans = %#v", snapshot.Orphans)
 	}
 }
 
@@ -535,6 +603,213 @@ func TestCleanStaleRecordsIsBestEffort(t *testing.T) {
 	}
 	if len(report.Stopped) != 0 {
 		t.Fatalf("second pass should be a no-op, got %#v", report.Stopped)
+	}
+}
+
+func TestDiagnosePortShowsRegistryClaimHealthAndProcessRefs(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{InstanceID: "inst-alpha", Scenario: "alpha", Status: scenarioruntime.StatusRunning}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease: %v", err)
+	}
+	claim, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-alpha-api",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "api",
+		EnvVar:     "ALPHA_API_PORT",
+		Port:       15080,
+		Status:     scenarioruntime.ClaimStatusBound,
+	})
+	if err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+	ready := true
+	if _, err := store.UpsertHealthSnapshot(ctx, scenarioruntime.HealthSnapshot{
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		Status:     scenarioruntime.HealthStatusHealthy,
+		Readiness:  &ready,
+	}); err != nil {
+		t.Fatalf("UpsertHealthSnapshot: %v", err)
+	}
+	pid := 4100
+	if _, err := store.AddProcessRef(ctx, scenarioruntime.ProcessRef{RefID: "proc-alpha-api", InstanceID: instance.InstanceID, PID: &pid, Step: "start-api"}); err != nil {
+		t.Fatalf("AddProcessRef: %v", err)
+	}
+
+	originalInspect := inspectPortListenersFn
+	originalListProcessTable := listProcessTableFn
+	originalReadEntry := readProcessEntryFn
+	t.Cleanup(func() {
+		inspectPortListenersFn = originalInspect
+		listProcessTableFn = originalListProcessTable
+		readProcessEntryFn = originalReadEntry
+	})
+	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+		return network.PortInspection{Inspection: network.ListenerInspection{Available: true}}, nil
+	}
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{}, nil
+	}
+	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
+		if pid == 4100 {
+			return processTableEntry{PID: 4100}, true
+		}
+		return processTableEntry{}, false
+	}
+
+	diagnostic, err := NewController(root, home).DiagnosePort(claim.Port, "alpha")
+	if err != nil {
+		t.Fatalf("DiagnosePort: %v", err)
+	}
+	if len(diagnostic.RegistryClaims) != 1 || diagnostic.RegistryClaims[0].ClaimID != claim.ClaimID {
+		t.Fatalf("registry claims = %#v", diagnostic.RegistryClaims)
+	}
+	if diagnostic.RegistryClaims[0].HealthStatus != scenarioruntime.HealthStatusHealthy {
+		t.Fatalf("health status = %q", diagnostic.RegistryClaims[0].HealthStatus)
+	}
+	if len(diagnostic.RegistryProcesses) != 1 || diagnostic.RegistryProcesses[0].PIDRunning == nil || !*diagnostic.RegistryProcesses[0].PIDRunning {
+		t.Fatalf("registry processes = %#v", diagnostic.RegistryProcesses)
+	}
+}
+
+func TestCleanStaleLocksExpiresAbandonedRegistryReservationsAndLegacyLocks(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+	clk := newMaintenanceTestClock(time.Now().UTC().Add(-2 * time.Hour))
+
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home, Clock: clk})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	starting, err := store.CreateLease(ctx, scenarioruntime.Instance{InstanceID: "inst-starting", Scenario: "alpha"}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease(starting): %v", err)
+	}
+	running, err := store.CreateLease(ctx, scenarioruntime.Instance{InstanceID: "inst-running", Scenario: "beta", Status: scenarioruntime.StatusRunning}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease(running): %v", err)
+	}
+	expiresAt := clk.Now().Add(-time.Minute)
+	claim, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-alpha-api",
+		InstanceID: starting.InstanceID,
+		Scenario:   starting.Scenario,
+		PortName:   "api",
+		Port:       15080,
+		Status:     scenarioruntime.ClaimStatusReserved,
+		ExpiresAt:  &expiresAt,
+	})
+	if err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-beta-api",
+		InstanceID: running.InstanceID,
+		Scenario:   running.Scenario,
+		PortName:   "api",
+		Port:       15081,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim(bound): %v", err)
+	}
+
+	originalPrune := pruneStaleLocksFn
+	t.Cleanup(func() { pruneStaleLocksFn = originalPrune })
+	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) {
+		return []network.LockInfo{{Port: 15080, Scenario: "alpha", Stale: true}}, nil
+	}
+
+	report, err := NewController(root, home).CleanStaleLocks()
+	if err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+	if len(report.Stopped) != 3 {
+		t.Fatalf("stopped = %#v, want stale starting lease, reserved claim, legacy lock", report.Stopped)
+	}
+	afterClaim, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: starting.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(afterClaim) != 1 || afterClaim[0].ClaimID != claim.ClaimID || afterClaim[0].Status != scenarioruntime.ClaimStatusExpired {
+		t.Fatalf("after claim = %#v", afterClaim)
+	}
+	afterRunning, err := store.GetInstance(ctx, running.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance(running): %v", err)
+	}
+	if afterRunning.Status != scenarioruntime.StatusRunning {
+		t.Fatalf("running lease was expired: %#v", afterRunning)
+	}
+}
+
+func TestCleanStaleLocksExpiresPreviousBootRegistryInstanceAndClaims(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+		InstanceID: "inst-alpha",
+		Scenario:   "alpha",
+		Status:     scenarioruntime.StatusRunning,
+		HostBootID: "previous-boot",
+		WorkingDir: filepath.Join(root, "scenarios", "alpha"),
+	}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease: %v", err)
+	}
+	claim, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-alpha-api",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "api",
+		Port:       15082,
+		Status:     scenarioruntime.ClaimStatusBound,
+	})
+	if err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	originalPrune := pruneStaleLocksFn
+	t.Cleanup(func() { pruneStaleLocksFn = originalPrune })
+	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
+
+	report, err := NewController(root, home).CleanStaleLocks()
+	if err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+	if len(report.Stopped) != 2 {
+		t.Fatalf("stopped = %#v, want expired instance and claim", report.Stopped)
+	}
+	afterInstance, err := store.GetInstance(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if afterInstance.Status != scenarioruntime.StatusExpired {
+		t.Fatalf("instance status = %q, want expired", afterInstance.Status)
+	}
+	afterClaims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(afterClaims) != 1 || afterClaims[0].ClaimID != claim.ClaimID || afterClaims[0].Status != scenarioruntime.ClaimStatusExpired {
+		t.Fatalf("after claims = %#v", afterClaims)
 	}
 }
 

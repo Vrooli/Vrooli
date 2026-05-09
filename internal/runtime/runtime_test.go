@@ -494,7 +494,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 		"clock", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
 		"edac_modules", "host_hardening", "kernel_config", "nat_protection", "netconsole",
 		"ollama_resource_controls",
-		"pstore_native", "pstore_ramoops", "remote_session_protection", "tcp_tuning",
+		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_session_protection", "tcp_tuning",
 		"vrooli_launcher", "workspace_sandbox_userns",
 	}
 	if len(safeguardNames) != len(expectedSafeguards) {

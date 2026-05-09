@@ -321,7 +321,7 @@ func newValidationFixtureRepo(t *testing.T) testkitgo.RepoFixture {
 - `+"`vrooli contract show`"+`
 - `+"`vrooli contract resolve scenario <name> --file service`"+`
 - `+"`vrooli contract match-glob <pattern> <path>`"+`
-- `+"`make validate-repo-contract` remains the CI/automation entrypoint"+`
+- `+"`make hygiene` remains the CI/automation entrypoint"+`
 
 ## Allowed `+".vrooli/"+` Surface
 

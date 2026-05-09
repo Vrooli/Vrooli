@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -29,6 +30,7 @@ import (
 	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testpackage "github.com/vrooli/vrooli/packages/testkit-go/packagefixture"
 	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
@@ -988,6 +990,193 @@ func TestRunnerStartRollsBackLocksOnSetupFailure(t *testing.T) {
 	}
 	if len(locks) != 0 {
 		t.Fatalf("locks after failed setup = %#v, want none", locks)
+	}
+}
+
+func TestRunnerStartDualWritesScenarioRuntimeRegistry(t *testing.T) {
+	t.Setenv(runtimeRegistryModeEnv, runtimeRegistryModeDual)
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	result, err := runner.Start("alpha", StartOptions{})
+	if err != nil {
+		t.Fatalf("Start(alpha): %v", err)
+	}
+	defer func() {
+		if err := runner.Stop("alpha", StopOptions{}); err != nil {
+			t.Fatalf("Stop(alpha): %v", err)
+		}
+	}()
+	if result.AlreadyRunning {
+		t.Fatal("result.AlreadyRunning = true, want fresh start")
+	}
+
+	store, err := scenarioruntime.NewSQLiteStore(context.Background(), scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	defer store.Close()
+
+	instances, err := store.ListInstances(context.Background(), scenarioruntime.InstanceFilter{
+		Scenario: "alpha",
+		Statuses: []string{scenarioruntime.StatusRunning},
+	})
+	if err != nil {
+		t.Fatalf("ListInstances(running): %v", err)
+	}
+	if len(instances) != 1 {
+		t.Fatalf("running instances = %#v, want one", instances)
+	}
+	instance := instances[0]
+	if instance.WorkingDir == "" || instance.ScopePath == "" || instance.OwnerPID == nil || instance.HostBootID == "" || instance.HostSessionID == "" {
+		t.Fatalf("instance missing lifecycle metadata: %#v", instance)
+	}
+
+	claims, err := store.ListPortClaims(context.Background(), scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(claims) != 1 {
+		t.Fatalf("claims = %#v, want one", claims)
+	}
+	if claims[0].Status != scenarioruntime.ClaimStatusBound || claims[0].PortName != "api" || claims[0].EnvVar != "API_PORT" {
+		t.Fatalf("claim = %#v, want bound api/API_PORT claim", claims[0])
+	}
+	if result.AllocatedPorts["api"] != claims[0].Port {
+		t.Fatalf("claim port = %d, result api port = %d", claims[0].Port, result.AllocatedPorts["api"])
+	}
+
+	refs, err := store.ListProcessRefs(context.Background(), instance.InstanceID)
+	if err != nil {
+		t.Fatalf("ListProcessRefs: %v", err)
+	}
+	if len(refs) != 1 || refs[0].Step != "start-api" || refs[0].PID == nil || refs[0].HostBootID == "" {
+		t.Fatalf("process refs = %#v, want start-api with pid", refs)
+	}
+
+	health, err := store.GetHealthSnapshot(context.Background(), instance.InstanceID)
+	if err != nil {
+		t.Fatalf("GetHealthSnapshot: %v", err)
+	}
+	if health.Status != scenarioruntime.HealthStatusHealthy || health.Readiness == nil || !*health.Readiness {
+		t.Fatalf("health = %#v, want healthy and ready", health)
+	}
+}
+
+func TestRunnerStartHonorsRuntimeRegistryAllowlist(t *testing.T) {
+	t.Setenv(runtimeRegistryModeEnv, runtimeRegistryModeDual)
+	t.Setenv(scenarioruntime.AllowlistEnv, "beta")
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
+		t.Fatalf("Start(alpha): %v", err)
+	}
+	defer func() {
+		if err := runner.Stop("alpha", StopOptions{}); err != nil {
+			t.Fatalf("Stop(alpha): %v", err)
+		}
+	}()
+
+	dbPath, err := scenarioruntime.DefaultDBPath(home)
+	if err != nil {
+		t.Fatalf("DefaultDBPath: %v", err)
+	}
+	if _, err := os.Stat(dbPath); !os.IsNotExist(err) {
+		t.Fatalf("runtime registry db stat err = %v, want not exist for non-allowlisted start", err)
+	}
+}
+
+func TestRunnerStopDualWritesStoppedRuntimeRegistry(t *testing.T) {
+	t.Setenv(runtimeRegistryModeEnv, runtimeRegistryModeDual)
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
+		t.Fatalf("Start(alpha): %v", err)
+	}
+	if err := runner.Stop("alpha", StopOptions{}); err != nil {
+		t.Fatalf("Stop(alpha): %v", err)
+	}
+
+	store, err := scenarioruntime.NewSQLiteStore(context.Background(), scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	defer store.Close()
+
+	instances, err := store.ListInstances(context.Background(), scenarioruntime.InstanceFilter{Scenario: "alpha"})
+	if err != nil {
+		t.Fatalf("ListInstances: %v", err)
+	}
+	if len(instances) != 1 {
+		t.Fatalf("instances = %#v, want one", instances)
+	}
+	if instances[0].Status != scenarioruntime.StatusStopped || instances[0].StoppedAt == nil {
+		t.Fatalf("instance = %#v, want stopped with stopped_at", instances[0])
+	}
+
+	claims, err := store.ListPortClaims(context.Background(), scenarioruntime.PortClaimFilter{InstanceID: instances[0].InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(claims) != 1 || claims[0].Status != scenarioruntime.ClaimStatusReleased {
+		t.Fatalf("claims = %#v, want released claim", claims)
+	}
+}
+
+func TestRunnerStartHealthFailureDualWritesFailedRuntimeRegistry(t *testing.T) {
+	t.Setenv(runtimeRegistryModeEnv, runtimeRegistryModeDual)
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	item.Manifest.Lifecycle.Health = &scenario.HealthConfig{
+		Checks: []scenario.HealthCheck{{
+			Name:     "api",
+			Type:     "unsupported",
+			Critical: true,
+		}},
+		Timeout:  25,
+		Interval: 1,
+	}
+	writeLifecycleFixtureManifest(t, root, item.Manifest)
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	_, err = runner.Start("alpha", StartOptions{})
+	if err == nil {
+		t.Fatal("expected health failure")
+	}
+
+	store, openErr := scenarioruntime.NewSQLiteStore(context.Background(), scenarioruntime.Config{HomeDir: home})
+	if openErr != nil {
+		t.Fatalf("NewSQLiteStore: %v", openErr)
+	}
+	defer store.Close()
+
+	instances, listErr := store.ListInstances(context.Background(), scenarioruntime.InstanceFilter{Scenario: "alpha"})
+	if listErr != nil {
+		t.Fatalf("ListInstances: %v", listErr)
+	}
+	if len(instances) != 1 || instances[0].Status != scenarioruntime.StatusFailed {
+		t.Fatalf("instances = %#v, want one failed instance", instances)
+	}
+	claims, claimErr := store.ListPortClaims(context.Background(), scenarioruntime.PortClaimFilter{InstanceID: instances[0].InstanceID})
+	if claimErr != nil {
+		t.Fatalf("ListPortClaims: %v", claimErr)
+	}
+	if len(claims) != 1 || claims[0].Status != scenarioruntime.ClaimStatusReleased {
+		t.Fatalf("claims = %#v, want released claim after failed start", claims)
 	}
 }
 

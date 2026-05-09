@@ -1,4 +1,4 @@
-.PHONY: help setup dev develop build install status stop fmt lint type test check validate-repo-contract fmt-packages lint-packages type-packages test-packages check-packages clean
+.PHONY: help setup dev develop build install status stop fmt lint type test check hygiene fmt-packages lint-packages type-packages test-packages check-packages clean
 
 .DEFAULT_GOAL := help
 
@@ -22,7 +22,7 @@ help: ## Show the supported repo-level entrypoints
 	@printf "  make type                       Compile-check project-level Go packages\n"
 	@printf "  make test                       Run project-level Go tests\n"
 	@printf "  make check                      Run lint, type, and test quality gates (core + packages)\n"
-	@printf "  make validate-repo-contract    Validate repo contract configuration and live drift\n"
+	@printf "  make hygiene                    Run repository hygiene checks\n"
 	@printf "  make fmt-packages               Format Go code in packages/*\n"
 	@printf "  make lint-packages              Lint Go code in packages/*\n"
 	@printf "  make type-packages              Compile-check Go packages in packages/*\n"
@@ -112,8 +112,8 @@ test: ## Run project-level Go tests
 
 check: lint type test check-packages ## Run lint, type, and test quality gates (core + packages)
 
-validate-repo-contract: ## Validate repo contract configuration and live drift
-	@$(VROOLI) contract validate
+hygiene: ## Run repository hygiene checks
+	@$(VROOLI) hygiene
 
 fmt-packages: ## Format Go code in packages/*
 	@for dir in $(PACKAGE_DIRS); do \

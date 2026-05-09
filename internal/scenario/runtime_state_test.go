@@ -112,3 +112,35 @@ func TestRuntimeEndpointsPreferManifestOrderAndDescriptions(t *testing.T) {
 		t.Fatalf("endpoints[2] = %#v", endpoints[2])
 	}
 }
+
+func TestResolveRuntimePortNormalizesRequestAndPreservesBindingStep(t *testing.T) {
+	manifest := ServiceManifest{
+		Ports: map[string]Port{
+			"api": {EnvVar: "ALPHA_API_PORT"},
+		},
+	}
+	bindings := []RuntimePortBinding{
+		{Key: "ALPHA_API_PORT", Step: "start-api", Port: 18080},
+	}
+	ports := map[string]int{"ALPHA_API_PORT": 18080}
+
+	resolved, ok := ResolveRuntimePort(manifest, bindings, ports, "api")
+	if !ok {
+		t.Fatal("ResolveRuntimePort(api) ok = false, want true")
+	}
+	if resolved.Key != "ALPHA_API_PORT" || resolved.Step != "start-api" || resolved.Port != 18080 {
+		t.Fatalf("resolved = %#v, want ALPHA_API_PORT/start-api/18080", resolved)
+	}
+}
+
+func TestResolveRuntimePortRejectsMissingPort(t *testing.T) {
+	manifest := ServiceManifest{
+		Ports: map[string]Port{
+			"api": {EnvVar: "API_PORT"},
+		},
+	}
+
+	if resolved, ok := ResolveRuntimePort(manifest, nil, map[string]int{"UI_PORT": 38080}, "api"); ok {
+		t.Fatalf("ResolveRuntimePort(api) = %#v, true; want false", resolved)
+	}
+}

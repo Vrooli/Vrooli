@@ -21,8 +21,10 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/authhandlers"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/contracthandlers"
+	"github.com/vrooli/vrooli/internal/cli/hygienehandlers"
 	"github.com/vrooli/vrooli/internal/cli/metrics"
 	"github.com/vrooli/vrooli/internal/cli/packagehandlers"
+	"github.com/vrooli/vrooli/internal/cli/planshandlers"
 	"github.com/vrooli/vrooli/internal/cli/projectcli"
 	"github.com/vrooli/vrooli/internal/cli/resourcehandlers"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
@@ -697,7 +699,7 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			if err != nil {
 				return projectcli.LocksResponse{}, err
 			}
-			return projectcli.LocksResponse{List: resp.List, CleanReport: resp.CleanReport}, nil
+			return projectcli.LocksResponse{List: resp.List, RuntimeClaims: resp.RuntimeClaims, CleanReport: resp.CleanReport}, nil
 		}),
 		topcli.CommandDiagnosePort: projectcli.DiagnosePortHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.DiagnosePortRequest) (maintenance.PortDiagnostic, error) {
 			command, err := ctx.app.newProjectCommandService(ctx)
@@ -712,6 +714,19 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Service: func(ctx *CommandContext) contractapp.Service {
 				return contractapp.NewDefaultService()
 			},
+		}),
+		topcli.CommandPlans: planshandlers.RootHandler(planshandlers.HandlerDeps[*CommandContext]{
+			Stdout:       commandStdout,
+			Stdin:        func(ctx *CommandContext) io.Reader { return os.Stdin },
+			Root:         func(ctx *CommandContext) string { return ctx.Root },
+			Home:         func(ctx *CommandContext) (string, error) { return ctx.HomeDir() },
+			OutputFormat: projectOutputFormat,
+		}),
+		topcli.CommandHygiene: hygienehandlers.Handler(hygienehandlers.HandlerDeps[*CommandContext]{
+			Stdout:       commandStdout,
+			Root:         func(ctx *CommandContext) string { return ctx.Root },
+			Home:         func(ctx *CommandContext) (string, error) { return ctx.HomeDir() },
+			OutputFormat: projectOutputFormat,
 		}),
 		topcli.CommandAuth: authhandlers.RootHandler(authhandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,

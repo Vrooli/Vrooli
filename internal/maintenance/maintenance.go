@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/portspec"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
 
@@ -33,6 +34,45 @@ type (
 	PortListener = network.PortListener
 )
 
+type RuntimeClaimInfo struct {
+	ClaimID           string     `json:"claim_id"`
+	InstanceID        string     `json:"instance_id"`
+	Scenario          string     `json:"scenario"`
+	Generation        int64      `json:"generation,omitempty"`
+	PortName          string     `json:"port_name"`
+	EnvVar            string     `json:"env_var,omitempty"`
+	Port              int        `json:"port"`
+	BindHost          string     `json:"bind_host"`
+	URL               string     `json:"url,omitempty"`
+	ClaimStatus       string     `json:"claim_status"`
+	InstanceStatus    string     `json:"instance_status,omitempty"`
+	LeaseFresh        *bool      `json:"lease_fresh,omitempty"`
+	HeartbeatDeadline *time.Time `json:"heartbeat_deadline,omitempty"`
+	HealthStatus      string     `json:"health_status,omitempty"`
+	HealthReady       *bool      `json:"health_ready,omitempty"`
+	Reconciliation    string     `json:"reconciliation,omitempty"`
+	ReconcileReason   string     `json:"reconcile_reason,omitempty"`
+	Authoritative     *bool      `json:"authoritative,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
+	LastBoundAt       *time.Time `json:"last_bound_at,omitempty"`
+}
+
+type RuntimeProcessRefInfo struct {
+	RefID          string `json:"ref_id"`
+	InstanceID     string `json:"instance_id"`
+	Scenario       string `json:"scenario,omitempty"`
+	InstanceStatus string `json:"instance_status,omitempty"`
+	PID            *int   `json:"pid,omitempty"`
+	PGID           *int   `json:"pgid,omitempty"`
+	ProcessID      string `json:"process_id,omitempty"`
+	Step           string `json:"step,omitempty"`
+	Command        string `json:"command,omitempty"`
+	Status         string `json:"status,omitempty"`
+	PIDRunning     *bool  `json:"pid_running,omitempty"`
+}
+
 type PortDiagnostic struct {
 	Port               int                        `json:"port"`
 	Scenario           string                     `json:"scenario,omitempty"`
@@ -40,6 +80,8 @@ type PortDiagnostic struct {
 	Listeners          []PortListener             `json:"listeners,omitempty"`
 	ListenerInspection network.ListenerInspection `json:"listener_inspection"`
 	Lock               *LockInfo                  `json:"lock,omitempty"`
+	RegistryClaims     []RuntimeClaimInfo         `json:"registry_claims,omitempty"`
+	RegistryProcesses  []RuntimeProcessRefInfo    `json:"registry_processes,omitempty"`
 	HostOrphanCount    int                        `json:"host_orphan_count"`
 	Recommendations    []string                   `json:"recommendations,omitempty"`
 
@@ -63,10 +105,12 @@ type PortPolicyReport struct {
 var (
 	listLocksFn              = network.ListLocks
 	readLockFileFn           = network.ReadLockFile
+	pruneStaleLocksFn        = network.PruneStaleLocks
 	inspectPortListenersFn   = network.InspectPortListeners
 	killProcessFn            = killProcess
 	looksLikeVrooliProcessFn = looksLikeVrooliProcess
 	runProtoGenerateFn       = runProtoGenerate
+	openRuntimeRegistryFn    = openRuntimeRegistryIfPresent
 )
 
 func NewController(root, home string) *Controller {
@@ -80,22 +124,69 @@ func (c *Controller) ListLocks() ([]LockInfo, error) {
 	return listLocksFn(c.Home)
 }
 
+func (c *Controller) ListRuntimeClaims() ([]RuntimeClaimInfo, error) {
+	store, closeStore, err := openRuntimeRegistryFn(c.Home)
+	if err != nil || store == nil {
+		return nil, err
+	}
+	defer closeStore()
+	return listRuntimeClaims(context.Background(), store, 0, "")
+}
+
 func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
-	cleanedLocks, err := network.PruneStaleLocks(c.Home)
+	ctx := context.Background()
+	stopped := make([]control.ResultItem, 0)
+	failed := make([]control.ResultItem, 0)
+
+	store, closeStore, err := openRuntimeRegistryFn(c.Home)
 	if err != nil {
 		return control.StopReport{}, err
 	}
+	if store != nil {
+		defer closeStore()
+		now := time.Now().UTC()
+		expiredLeases, err := store.ExpireStaleStartingLeases(ctx, now)
+		if err != nil {
+			return control.StopReport{}, err
+		}
+		for _, instance := range expiredLeases {
+			stopped = append(stopped, control.Stopped(instance.Scenario+"/"+instance.InstanceID, "Expired stale starting runtime lease"))
+		}
+		expiredRuntime, err := expireNonAuthoritativeRegistryState(ctx, store)
+		if err != nil {
+			return control.StopReport{}, err
+		}
+		stopped = append(stopped, expiredRuntime...)
 
-	cleaned := make([]control.ResultItem, 0, len(cleanedLocks))
-	failed := make([]control.ResultItem, 0)
+		expiredClaims, err := store.ListExpiredActivePortClaims(ctx, now)
+		if err != nil {
+			return control.StopReport{}, err
+		}
+		for _, claim := range expiredClaims {
+			if claim.Status != scenarioruntime.ClaimStatusReserved {
+				continue
+			}
+			expired, err := store.ExpirePortClaim(ctx, claim.ClaimID)
+			if err != nil {
+				failed = append(failed, control.Failed(claim.ClaimID, err))
+				continue
+			}
+			stopped = append(stopped, control.Stopped(fmt.Sprintf("%d", expired.Port), "Expired abandoned registry port reservation"))
+		}
+	}
+
+	cleanedLocks, err := pruneStaleLocksFn(c.Home)
+	if err != nil {
+		return control.StopReport{}, err
+	}
 	for _, lock := range cleanedLocks {
-		cleaned = append(cleaned, control.Stopped(fmt.Sprintf("%d", lock.Port), "Removed stale lock"))
+		stopped = append(stopped, control.Stopped(fmt.Sprintf("%d", lock.Port), "Removed stale legacy lock"))
 	}
 
 	return control.StopReport{
-		Stopped: cleaned,
+		Stopped: stopped,
 		Failed:  failed,
-		Message: control.StopSummary(len(cleaned), len(failed)),
+		Message: control.StopSummary(len(stopped), len(failed)),
 	}, nil
 }
 
@@ -287,6 +378,24 @@ func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic
 		HostOrphanCount:    snapshot.OrphanProcesses,
 		PortPolicy:         describePortPolicy(port),
 	}
+
+	store, closeStore, err := openRuntimeRegistryFn(c.Home)
+	if err != nil {
+		return PortDiagnostic{}, err
+	}
+	if store != nil {
+		defer closeStore()
+		claims, err := listRuntimeClaims(context.Background(), store, port, diagnostic.Scenario)
+		if err != nil {
+			return PortDiagnostic{}, err
+		}
+		diagnostic.RegistryClaims = claims
+		processes, err := listRuntimeProcessRefs(context.Background(), store, claims)
+		if err != nil {
+			return PortDiagnostic{}, err
+		}
+		diagnostic.RegistryProcesses = processes
+	}
 	diagnostic.Recommendations = buildRecommendations(port, diagnostic)
 	return diagnostic, nil
 }
@@ -325,6 +434,27 @@ func buildRecommendations(port int, diagnostic PortDiagnostic) []string {
 	}
 	if diagnostic.Lock != nil && diagnostic.Lock.Stale {
 		recommendations = append(recommendations, fmt.Sprintf("Clean stale lock file %s", diagnostic.Lock.Path))
+	}
+	for _, claim := range diagnostic.RegistryClaims {
+		if claim.Authoritative != nil && !*claim.Authoritative {
+			switch claim.Reconciliation {
+			case scenarioruntime.ReconcileUnverified:
+				recommendations = append(recommendations, fmt.Sprintf("Registry claim %s for %s is unverified (%s); restart the scenario under registry-enabled lifecycle before using strict registry discovery", claim.ClaimID, claim.Scenario, claim.ReconcileReason))
+			case scenarioruntime.ReconcileStaleInstance, scenarioruntime.ReconcileStaleClaim:
+				recommendations = append(recommendations, fmt.Sprintf("Run `vrooli cleanup locks` to expire non-authoritative registry claim %s for %s (%s)", claim.ClaimID, claim.Scenario, claim.ReconcileReason))
+			default:
+				recommendations = append(recommendations, fmt.Sprintf("Registry claim %s for %s is non-authoritative (%s)", claim.ClaimID, claim.Scenario, claim.ReconcileReason))
+			}
+		}
+		if claim.ClaimStatus == scenarioruntime.ClaimStatusReserved && claim.ExpiresAt != nil && claim.ExpiresAt.Before(time.Now().UTC()) {
+			recommendations = append(recommendations, fmt.Sprintf("Expire abandoned registry reservation %s for %s port %d", claim.ClaimID, claim.Scenario, claim.Port))
+		}
+		if claim.InstanceStatus == scenarioruntime.StatusExpired || claim.InstanceStatus == scenarioruntime.StatusFailed {
+			recommendations = append(recommendations, fmt.Sprintf("Inspect registry claim %s for %s instance %s (%s)", claim.ClaimID, claim.Scenario, claim.InstanceID, claim.InstanceStatus))
+		}
+		if claim.LeaseFresh != nil && !*claim.LeaseFresh && claim.InstanceStatus == scenarioruntime.StatusStarting {
+			recommendations = append(recommendations, fmt.Sprintf("Run `vrooli cleanup locks` to expire stale startup lease %s", claim.InstanceID))
+		}
 	}
 	if diagnostic.InUse {
 		recommendations = append(recommendations, fmt.Sprintf("Stop the process currently listening on port %d", port))
