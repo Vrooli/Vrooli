@@ -267,10 +267,10 @@ The canonical API shape is:
 
 ```
 api/internal/<domain>/
+  <flow>_workflow.flow.json
   <flow>_workflow.qnt
   <flow>_workflow.formal.generated.json
   <flow>_workflow.go
-  <flow>_workflow.spec.json
   <flow>_workflow_test.go
 ```
 
@@ -292,16 +292,18 @@ api/internal/<domain>/
 - duplicate, missing, and unknown rows fail loudly,
 - traces replay step-by-step against the production transition
   function.
-- the declarative `*.spec.json` agrees with the matrix and trace tests.
+- the generated formal artifact is fresh against the `*.flow.json`
+  contract, generated `.qnt` model, generator source, and checked
+  invariants.
 
 The canonical UI shape is:
 
 ```
 ui/src/features/<domain>/
+  <domain>Workflow.flow.json
   <domain>Workflow.qnt
   <domain>Workflow.formal.generated.json
   <domain>Workflow.ts
-  <domain>Workflow.spec.json
   <domain>Workflow.test.ts
 ```
 
@@ -319,21 +321,21 @@ Workflow maturity is incremental:
 | 1 | Inventory | Flow listed in `docs/concepts/FLOWS.md`. |
 | 2 | Workflow model | Pure transition and invariant checks exist. |
 | 3 | Matrix + traces | Every state/event pair and representative trace is executable. |
-| 4 | Declarative spec | `*.spec.json` exists beside the workflow and conformance tests compare it to matrix/traces. |
-| 5 | Checked formal model | Quint/TLA+ or equivalent generates deterministic artifacts replayed by production tests. |
+| 4 | Declarative contract | A domain-local `*.flow.json` declares states, events, transitions, invariants, and named traces. |
+| 5 | Checked formal model | Quint/TLA+ or equivalent is generated from the contract, checked, and replayed by production tests. |
 
 The notes attachment upload workflow is the reference Level 5 pattern:
 
 - `tools/temporal-model/generate.mjs`
+- `api/internal/notes/attachment_upload_workflow.flow.json`
 - `api/internal/notes/attachment_upload_workflow.go`
 - `api/internal/notes/attachment_upload_workflow.qnt`
 - `api/internal/notes/attachment_upload_workflow.formal.generated.json`
-- `api/internal/notes/attachment_upload_workflow.spec.json`
 - `api/internal/notes/attachment_workflow_test.go`
+- `ui/src/features/notes/AttachmentUploadWorkflow.flow.json`
 - `ui/src/features/notes/AttachmentUploadWorkflow.ts`
 - `ui/src/features/notes/AttachmentUploadWorkflow.qnt`
 - `ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json`
-- `ui/src/features/notes/AttachmentUploadWorkflow.spec.json`
 - `ui/src/features/notes/AttachmentUploadWorkflow.test.ts`
 
 `node tools/temporal-model/generate.mjs --check` runs `quint typecheck`,

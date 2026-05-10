@@ -61,8 +61,8 @@ workflow model.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | Go transition matrix, declarative spec, Quint model, generated formal artifact replay |
-| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, completion before upload, retry without file context | Vitest transition matrix, discriminated-union invariants, declarative spec, Quint model, generated formal artifact replay |
+| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
+| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
 
 ## Maturity Ladder
 
@@ -75,8 +75,8 @@ to add a standalone formal document.
 | 1 | Inventory | The flow is listed here with owner, source links, risk, and next step. |
 | 2 | Workflow model | State/status values, event values, `Transition`, and `CheckInvariants` live beside the owning domain or feature. |
 | 3 | Matrix + traces | Tests cover every state/event pair and replay representative traces against production transition logic. |
-| 4 | Declarative spec | A domain-local `*.spec.json` declares states, events, transitions, invariants, traces, and formal-model status. |
-| 5 | Checked formal model | Quint/TLA+ or an equivalent tool checks the model and generates deterministic artifacts replayed by production tests. |
+| 4 | Declarative contract | A domain-local `*.flow.json` declares states, events, transitions, invariants, and named traces. |
+| 5 | Checked formal model | Quint/TLA+ or an equivalent tool is generated from the contract, checked, and replayed by production tests. |
 
 ## Production Shape
 
@@ -84,10 +84,10 @@ API domains that own durable lifecycle state use:
 
 ```text
 api/internal/<domain>/
+  <flow>_workflow.flow.json
   <flow>_workflow.qnt
   <flow>_workflow.formal.generated.json
   <flow>_workflow.go
-  <flow>_workflow.spec.json
   <flow>_workflow_test.go
 ```
 
@@ -95,10 +95,10 @@ UI features that own client-side modes use:
 
 ```text
 ui/src/features/<domain>/
+  <domain>Workflow.flow.json
   <domain>Workflow.qnt
   <domain>Workflow.formal.generated.json
   <domain>Workflow.ts
-  <domain>Workflow.spec.json
   <domain>Workflow.test.ts
 ```
 
@@ -107,13 +107,15 @@ The workflow owns state/status values, events, `Transition`, and
 outside the workflow behind seams: repositories, BlobStore, clocks,
 timers, HTTP clients, or UI API modules.
 
-Level 5 formal artifacts are checked in source artifacts. They are
-refreshed and checked by `node tools/temporal-model/generate.mjs`; the
-scenario lifecycle runs `node tools/temporal-model/generate.mjs --check`
-before the normal test suite. A Quint file by itself is not accepted:
-the model must typecheck, test, verify, emit deterministic artifacts,
-and those artifacts must replay against the production Go/TypeScript
-transition functions.
+The `*.flow.json` contract is the source of truth. Level 5 generated
+Quint models and formal artifacts are checked-in source artifacts for
+reviewability, but they are refreshed and checked by
+`node tools/temporal-model/generate.mjs`; the scenario lifecycle runs
+`node tools/temporal-model/generate.mjs --check` before the normal test
+suite. A Quint file by itself is not accepted: the model must typecheck,
+test, verify named invariants, emit deterministic artifacts, and those
+artifacts must replay against the production Go/TypeScript transition
+functions.
 
 ## Deferred / Unmodeled Flows
 

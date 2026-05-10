@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "flowId": "notes.attachment-upload.ui",
+  "domain": "notes",
+  "description": "UI attachment upload interaction, including stale async completion protection through attempt identity.",
+  "model": {
+    "module": "UiAttachmentUploadWorkflow",
+    "seed": "2026051002",
+    "maxSteps": 8,
+    "traceCount": 12,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState",
+        "AllDeclaredTransitionsCovered",
+        "StaleCompletionIsIgnored"
+      ]
+    }
+  },
+  "outputs": {
+    "modelPath": "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
+    "artifactPath": "ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json"
+  },
+  "states": [
+    { "id": "idle", "quint": "Idle", "initial": true },
+    { "id": "selected", "quint": "Selected" },
+    { "id": "uploading", "quint": "Uploading" },
+    { "id": "succeeded", "quint": "Succeeded" },
+    { "id": "failed", "quint": "Failed" }
+  ],
+  "events": [
+    { "id": "select", "quint": "Select" },
+    { "id": "start", "quint": "Start" },
+    { "id": "succeed", "quint": "Succeed" },
+    { "id": "fail", "quint": "Fail" },
+    { "id": "reset", "quint": "Reset" }
+  ],
+  "transitions": [
+    { "from": "idle", "event": "select", "to": "selected", "wantError": false },
+    { "from": "idle", "event": "start", "to": "idle", "wantError": true },
+    { "from": "idle", "event": "succeed", "to": "idle", "wantError": false },
+    { "from": "idle", "event": "fail", "to": "idle", "wantError": false },
+    { "from": "idle", "event": "reset", "to": "idle", "wantError": false },
+    { "from": "selected", "event": "select", "to": "selected", "wantError": false },
+    { "from": "selected", "event": "start", "to": "uploading", "wantError": false },
+    { "from": "selected", "event": "succeed", "to": "selected", "wantError": false },
+    { "from": "selected", "event": "fail", "to": "selected", "wantError": false },
+    { "from": "selected", "event": "reset", "to": "idle", "wantError": false },
+    { "from": "uploading", "event": "select", "to": "selected", "wantError": false },
+    { "from": "uploading", "event": "start", "to": "uploading", "wantError": true },
+    { "from": "uploading", "event": "succeed", "to": "succeeded", "wantError": false },
+    { "from": "uploading", "event": "fail", "to": "failed", "wantError": false },
+    { "from": "uploading", "event": "reset", "to": "idle", "wantError": false },
+    { "from": "succeeded", "event": "select", "to": "selected", "wantError": false },
+    { "from": "succeeded", "event": "start", "to": "succeeded", "wantError": true },
+    { "from": "succeeded", "event": "succeed", "to": "succeeded", "wantError": false },
+    { "from": "succeeded", "event": "fail", "to": "succeeded", "wantError": false },
+    { "from": "succeeded", "event": "reset", "to": "idle", "wantError": false },
+    { "from": "failed", "event": "select", "to": "selected", "wantError": false },
+    { "from": "failed", "event": "start", "to": "uploading", "wantError": false },
+    { "from": "failed", "event": "succeed", "to": "failed", "wantError": false },
+    { "from": "failed", "event": "fail", "to": "failed", "wantError": false },
+    { "from": "failed", "event": "reset", "to": "idle", "wantError": false }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },
+    { "id": "terminal_closure", "quint": "TerminalClosure", "description": "No terminal state is declared for this restartable UI flow." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions are state preserving." },
+    { "id": "all_declared_transitions_covered", "quint": "AllDeclaredTransitionsCovered", "description": "The generated transition table is checked by Quint tests." },
+    {
+      "id": "stale_completion_is_ignored",
+      "quint": "StaleCompletionIsIgnored",
+      "description": "Completion callbacks outside the active uploading state cannot change UI status.",
+      "expression": "status == Uploading or (nextStatus(status, Succeed) == status and nextStatus(status, Fail) == status)"
+    }
+  ],
+  "traces": [
+    {
+      "name": "successful_upload",
+      "initial": "idle",
+      "steps": [
+        { "event": "select", "want": "selected", "wantError": false },
+        { "event": "start", "want": "uploading", "wantError": false },
+        { "event": "succeed", "want": "succeeded", "wantError": false }
+      ]
+    },
+    {
+      "name": "failed_upload_then_retry",
+      "initial": "idle",
+      "steps": [
+        { "event": "select", "want": "selected", "wantError": false },
+        { "event": "start", "want": "uploading", "wantError": false },
+        { "event": "fail", "want": "failed", "wantError": false },
+        { "event": "start", "want": "uploading", "wantError": false },
+        { "event": "succeed", "want": "succeeded", "wantError": false }
+      ]
+    },
+    {
+      "name": "stale_success_after_reset_is_ignored",
+      "initial": "idle",
+      "steps": [
+        { "event": "select", "want": "selected", "wantError": false },
+        { "event": "start", "want": "uploading", "wantError": false },
+        { "event": "reset", "want": "idle", "wantError": false },
+        { "event": "succeed", "want": "idle", "wantError": false }
+      ]
+    },
+    {
+      "name": "stale_failure_after_reselect_is_ignored",
+      "initial": "idle",
+      "steps": [
+        { "event": "select", "want": "selected", "wantError": false },
+        { "event": "start", "want": "uploading", "wantError": false },
+        { "event": "select", "want": "selected", "wantError": false },
+        { "event": "fail", "want": "selected", "wantError": false }
+      ]
+    }
+  ],
+  "runtime": {
+    "staleCompletion": "attempt-id"
+  }
+}

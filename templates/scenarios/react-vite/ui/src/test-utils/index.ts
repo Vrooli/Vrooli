@@ -77,16 +77,6 @@ export type {
   TraceStep,
 } from "./modeltest/traces";
 export {
-  assertWorkflowSpecConformance,
-  validateWorkflowSpecConformance,
-} from "./modeltest/spec";
-export type {
-  SpecTrace,
-  SpecTraceStep,
-  SpecTransition,
-  WorkflowSpec,
-} from "./modeltest/spec";
-export {
   assertFormalArtifactFresh,
   assertFormalTransitionsReplay,
   assertFormalTracesReplay,

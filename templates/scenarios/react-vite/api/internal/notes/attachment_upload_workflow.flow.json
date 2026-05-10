@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "flowId": "notes.attachment-upload.api",
+  "domain": "notes",
+  "description": "API-side attachment upload orchestration from request receipt through byte storage and metadata recording.",
+  "model": {
+    "module": "ApiAttachmentUploadWorkflow",
+    "seed": "2026051001",
+    "maxSteps": 6,
+    "traceCount": 8,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState",
+        "AllDeclaredTransitionsCovered",
+        "MetadataRequiresBytesStored"
+      ]
+    }
+  },
+  "outputs": {
+    "modelPath": "api/internal/notes/attachment_upload_workflow.qnt",
+    "artifactPath": "api/internal/notes/attachment_upload_workflow.formal.generated.json"
+  },
+  "states": [
+    { "id": "received", "quint": "Received", "initial": true },
+    { "id": "bytes_stored", "quint": "BytesStored" },
+    { "id": "metadata_recorded", "quint": "MetadataRecorded", "terminal": true },
+    { "id": "failed", "quint": "Failed", "terminal": true }
+  ],
+  "events": [
+    { "id": "store_bytes", "quint": "StoreBytes" },
+    { "id": "record_metadata", "quint": "RecordMetadata" },
+    { "id": "fail", "quint": "Fail" }
+  ],
+  "transitions": [
+    { "from": "received", "event": "store_bytes", "to": "bytes_stored", "wantError": false },
+    { "from": "received", "event": "record_metadata", "to": "received", "wantError": true },
+    { "from": "received", "event": "fail", "to": "failed", "wantError": false },
+    { "from": "bytes_stored", "event": "store_bytes", "to": "bytes_stored", "wantError": true },
+    { "from": "bytes_stored", "event": "record_metadata", "to": "metadata_recorded", "wantError": false },
+    { "from": "bytes_stored", "event": "fail", "to": "failed", "wantError": false },
+    { "from": "metadata_recorded", "event": "store_bytes", "to": "metadata_recorded", "wantError": true },
+    { "from": "metadata_recorded", "event": "record_metadata", "to": "metadata_recorded", "wantError": true },
+    { "from": "metadata_recorded", "event": "fail", "to": "metadata_recorded", "wantError": true },
+    { "from": "failed", "event": "store_bytes", "to": "failed", "wantError": true },
+    { "from": "failed", "event": "record_metadata", "to": "failed", "wantError": true },
+    { "from": "failed", "event": "fail", "to": "failed", "wantError": true }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },
+    { "id": "terminal_closure", "quint": "TerminalClosure", "description": "Terminal states cannot transition to another status." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions are state preserving." },
+    { "id": "all_declared_transitions_covered", "quint": "AllDeclaredTransitionsCovered", "description": "The generated transition table is checked by Quint tests." },
+    {
+      "id": "metadata_requires_bytes_stored",
+      "quint": "MetadataRequiresBytesStored",
+      "description": "Metadata recording can only be valid after bytes are stored.",
+      "expression": "not(isValid(status, RecordMetadata)) or status == BytesStored"
+    }
+  ],
+  "traces": [
+    {
+      "name": "successful_upload",
+      "initial": "received",
+      "steps": [
+        { "event": "store_bytes", "want": "bytes_stored", "wantError": false },
+        { "event": "record_metadata", "want": "metadata_recorded", "wantError": false }
+      ]
+    },
+    {
+      "name": "store_failure",
+      "initial": "received",
+      "steps": [
+        { "event": "fail", "want": "failed", "wantError": false },
+        { "event": "record_metadata", "want": "failed", "wantError": true }
+      ]
+    },
+    {
+      "name": "metadata_failure",
+      "initial": "received",
+      "steps": [
+        { "event": "store_bytes", "want": "bytes_stored", "wantError": false },
+        { "event": "fail", "want": "failed", "wantError": false }
+      ]
+    }
+  ],
+  "runtime": {
+    "sideEffects": [
+      "BlobStore write failure returns before metadata is created.",
+      "Metadata creation failure deletes the stored blob.",
+      "Missing note during metadata creation deletes the stored blob."
+    ]
+  }
+}

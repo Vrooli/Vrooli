@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/react-vite/temporal-flow.json",
+  "title": "Temporal Flow Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "flowId",
+    "domain",
+    "description",
+    "model",
+    "outputs",
+    "states",
+    "events",
+    "transitions",
+    "invariants",
+    "traces"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "flowId": { "type": "string", "minLength": 1 },
+    "domain": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "seed", "maxSteps", "traceCount", "verify"],
+      "properties": {
+        "module": { "type": "string", "minLength": 1 },
+        "seed": { "type": "string", "minLength": 1 },
+        "maxSteps": { "type": "integer", "minimum": 1 },
+        "traceCount": { "type": "integer", "minimum": 1 },
+        "verify": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["invariants"],
+          "properties": {
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modelPath", "artifactPath"],
+      "properties": {
+        "modelPath": { "type": "string", "minLength": 1 },
+        "artifactPath": { "type": "string", "minLength": 1 }
+      }
+    },
+    "states": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/state" }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/event" }
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/transition" }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/invariant" }
+    },
+    "traces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/trace" }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "quint"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "quint": { "type": "string", "minLength": 1 },
+        "initial": { "type": "boolean" },
+        "terminal": { "type": "boolean" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "quint"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "quint": { "type": "string", "minLength": 1 }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "event", "to", "wantError"],
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "event": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "wantError": { "type": "boolean" }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "quint", "description"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "quint": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "expression": { "type": "string", "minLength": 1 }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "initial", "steps"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "initial": { "type": "string", "minLength": 1 },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/traceStep" }
+        }
+      }
+    },
+    "traceStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event", "want", "wantError"],
+      "properties": {
+        "event": { "type": "string", "minLength": 1 },
+        "want": { "type": "string", "minLength": 1 },
+        "wantError": { "type": "boolean" }
+      }
+    }
+  }
+}

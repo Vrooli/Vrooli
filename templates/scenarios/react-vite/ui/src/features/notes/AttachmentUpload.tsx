@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Upload } from "lucide-react";
 
@@ -25,29 +25,30 @@ export function AttachmentUpload({ noteId }: AttachmentUploadProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [uploadState, setUploadState] = useState<AttachmentUploadState>(initialAttachmentUploadState);
+  const nextAttemptId = useRef(0);
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => {
+    mutationFn: ({ file }: { file: File; attemptId: string }) => {
       return uploadAttachment(noteId, file);
     },
-    onSuccess: (_attachment, file) => {
+    onSuccess: (_attachment, { file, attemptId }) => {
       setUploadState((state) =>
-        transitionAttachmentUpload(state, { type: "succeed", fileName: file.name }),
+        transitionAttachmentUpload(state, { type: "succeed", attemptId, fileName: file.name }),
       );
       void queryClient.invalidateQueries({ queryKey: NOTES_QUERY_KEY });
     },
-    onError: (error) => {
+    onError: (error, { attemptId }) => {
       setUploadState((state) =>
-        transitionAttachmentUpload(state, { type: "fail", message: errorMessage(error, t) }),
+        transitionAttachmentUpload(state, { type: "fail", attemptId, message: errorMessage(error, t) }),
       );
     },
   });
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const nextFile = event.target.files?.[0] ?? null;
-    setUploadState(nextFile
-      ? transitionAttachmentUpload(uploadState, { type: "select", file: nextFile })
-      : transitionAttachmentUpload(uploadState, { type: "reset" }));
+    setUploadState((state) => nextFile
+      ? transitionAttachmentUpload(state, { type: "select", file: nextFile })
+      : transitionAttachmentUpload(state, { type: "reset" }));
   };
 
   const handleUpload = () => {
@@ -55,8 +56,9 @@ export function AttachmentUpload({ noteId }: AttachmentUploadProps) {
       return;
     }
     const file = uploadState.file;
-    setUploadState((state) => transitionAttachmentUpload(state, { type: "start" }));
-    uploadMutation.mutate(file);
+    const attemptId = `upload-${nextAttemptId.current += 1}`;
+    setUploadState((state) => transitionAttachmentUpload(state, { type: "start", attemptId }));
+    uploadMutation.mutate({ file, attemptId });
   };
 
   return (

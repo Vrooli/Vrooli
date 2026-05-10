@@ -7,19 +7,34 @@ export interface FormalArtifact {
   readonly schemaVersion: number;
   readonly flowId: string;
   readonly source: {
+    readonly contractPath: string;
+    readonly contractSha256: string;
+    readonly generatorPath: string;
+    readonly generatorSha256: string;
+    readonly generatorVersion: number;
     readonly modelPath: string;
     readonly modelSha256: string;
     readonly quintVersion: string;
+    readonly verificationBackend: string;
   };
   readonly commands: Record<string, readonly string[]>;
   readonly states: readonly string[];
   readonly events: readonly string[];
   readonly transitions: readonly FormalArtifactTransition[];
-  readonly traces: readonly FormalArtifactTrace[];
+  readonly namedTraces: readonly FormalArtifactTrace[];
+  readonly generatedTraces: readonly FormalArtifactTrace[];
+  readonly invariants: readonly string[];
+  readonly coverage: {
+    readonly allStatesCovered: boolean;
+    readonly allEventsCovered: boolean;
+    readonly allPairsCovered: boolean;
+    readonly terminalStatesChecked: boolean;
+  };
   readonly checks: {
     readonly typechecked: boolean;
     readonly tested: boolean;
     readonly verified: boolean;
+    readonly generatedFromContract: boolean;
     readonly generatedFromModel: boolean;
   };
 }
@@ -45,17 +60,49 @@ export interface FormalArtifactTraceStep {
 
 export const validateFormalArtifactFresh = (
   artifact: FormalArtifact,
-  expected: { readonly modelPath: string; readonly modelSha256?: string },
+  expected: {
+    readonly contractPath: string;
+    readonly contractSha256?: string;
+    readonly modelPath: string;
+    readonly modelSha256?: string;
+    readonly generatorPath?: string;
+    readonly generatorSha256?: string;
+    readonly invariants?: readonly string[];
+  },
 ): string[] => {
   const errors: string[] = [];
-  if (artifact.schemaVersion !== 1) {
-    errors.push(`formal artifact schemaVersion=${artifact.schemaVersion}, want 1`);
+  if (artifact.schemaVersion !== 2) {
+    errors.push(`formal artifact schemaVersion=${artifact.schemaVersion}, want 2`);
   }
   if (artifact.flowId.trim() === "") {
     errors.push("formal artifact flowId is required");
   }
+  if (artifact.source.contractPath !== expected.contractPath) {
+    errors.push(`formal artifact contractPath=${artifact.source.contractPath}, want ${expected.contractPath}`);
+  }
+  if (!/^[a-f0-9]{64}$/.test(artifact.source.contractSha256)) {
+    errors.push("formal artifact contractSha256 is required");
+  }
+  if (expected.contractSha256 && artifact.source.contractSha256 !== expected.contractSha256) {
+    errors.push(`formal artifact contractSha256=${artifact.source.contractSha256}, want ${expected.contractSha256}`);
+  }
   if (artifact.source.modelPath !== expected.modelPath) {
     errors.push(`formal artifact modelPath=${artifact.source.modelPath}, want ${expected.modelPath}`);
+  }
+  if (expected.generatorPath && artifact.source.generatorPath !== expected.generatorPath) {
+    errors.push(`formal artifact generatorPath=${artifact.source.generatorPath}, want ${expected.generatorPath}`);
+  }
+  if (!/^[a-f0-9]{64}$/.test(artifact.source.generatorSha256)) {
+    errors.push("formal artifact generatorSha256 is required");
+  }
+  if (expected.generatorSha256 && artifact.source.generatorSha256 !== expected.generatorSha256) {
+    errors.push(`formal artifact generatorSha256=${artifact.source.generatorSha256}, want ${expected.generatorSha256}`);
+  }
+  if (!Number.isInteger(artifact.source.generatorVersion) || artifact.source.generatorVersion < 1) {
+    errors.push("formal artifact generatorVersion is required");
+  }
+  if (artifact.source.verificationBackend.trim() === "") {
+    errors.push("formal artifact verificationBackend is required");
   }
   if (artifact.source.quintVersion.trim() === "") {
     errors.push("formal artifact quintVersion is required");
@@ -75,14 +122,37 @@ export const validateFormalArtifactFresh = (
   if (!artifact.checks.verified) {
     errors.push("formal artifact was not verified");
   }
+  if (!artifact.checks.generatedFromContract) {
+    errors.push("formal artifact was not generated from contract");
+  }
   if (!artifact.checks.generatedFromModel) {
     errors.push("formal artifact was not generated from model");
+  }
+  for (const invariant of expected.invariants ?? []) {
+    if (!artifact.invariants.includes(invariant)) {
+      errors.push(`formal artifact missing invariant ${invariant}`);
+    }
+  }
+  if (!artifact.coverage.allStatesCovered) {
+    errors.push("formal artifact does not cover all states");
+  }
+  if (!artifact.coverage.allEventsCovered) {
+    errors.push("formal artifact does not cover all events");
+  }
+  if (!artifact.coverage.allPairsCovered) {
+    errors.push("formal artifact does not cover all state/event pairs");
+  }
+  if (!artifact.coverage.terminalStatesChecked) {
+    errors.push("formal artifact does not check terminal states");
   }
   if (artifact.transitions.length === 0) {
     errors.push("formal artifact transitions must not be empty");
   }
-  if (artifact.traces.length === 0) {
-    errors.push("formal artifact traces must not be empty");
+  if (artifact.namedTraces.length === 0) {
+    errors.push("formal artifact namedTraces must not be empty");
+  }
+  if (artifact.generatedTraces.length === 0) {
+    errors.push("formal artifact generatedTraces must not be empty");
   }
   return errors;
 };
@@ -128,7 +198,7 @@ export const validateFormalTracesReplay = <State extends PropertyKey, Event exte
   events: readonly Event[],
   transition: WorkflowTransition<State, Event>,
 ): string[] => {
-  const { traces, errors } = formalTraces(artifact, states, events);
+  const { traces, errors } = formalTraces([...artifact.namedTraces, ...artifact.generatedTraces], states, events);
   if (errors.length > 0) {
     return errors;
   }
@@ -186,7 +256,7 @@ const formalRows = <State extends PropertyKey, Event extends PropertyKey>(
 };
 
 const formalTraces = <State extends PropertyKey, Event extends PropertyKey>(
-  artifact: FormalArtifact,
+  artifactTraces: readonly FormalArtifactTrace[],
   states: readonly State[],
   events: readonly Event[],
 ): { traces: Trace<State, Event>[]; errors: string[] } => {
@@ -195,7 +265,7 @@ const formalTraces = <State extends PropertyKey, Event extends PropertyKey>(
   const traces: Trace<State, Event>[] = [];
   const errors: string[] = [];
 
-  artifact.traces.forEach((trace, traceIndex) => {
+  artifactTraces.forEach((trace, traceIndex) => {
     const initial = stateByName.get(trace.initial);
     if (initial === undefined) {
       errors.push(`formal trace ${trace.name} unknown initial state ${trace.initial}`);

@@ -11,28 +11,45 @@ import (
 )
 
 type FormalArtifact struct {
-	SchemaVersion int                        `json:"schemaVersion"`
-	FlowID        string                     `json:"flowId"`
-	Source        FormalArtifactSource       `json:"source"`
-	Commands      map[string][]string        `json:"commands"`
-	States        []string                   `json:"states"`
-	Events        []string                   `json:"events"`
-	Transitions   []FormalArtifactTransition `json:"transitions"`
-	Traces        []FormalArtifactTrace      `json:"traces"`
-	Checks        FormalArtifactChecks       `json:"checks"`
+	SchemaVersion   int                        `json:"schemaVersion"`
+	FlowID          string                     `json:"flowId"`
+	Source          FormalArtifactSource       `json:"source"`
+	Commands        map[string][]string        `json:"commands"`
+	States          []string                   `json:"states"`
+	Events          []string                   `json:"events"`
+	Transitions     []FormalArtifactTransition `json:"transitions"`
+	NamedTraces     []FormalArtifactTrace      `json:"namedTraces"`
+	GeneratedTraces []FormalArtifactTrace      `json:"generatedTraces"`
+	Invariants      []string                   `json:"invariants"`
+	Coverage        FormalArtifactCoverage     `json:"coverage"`
+	Checks          FormalArtifactChecks       `json:"checks"`
 }
 
 type FormalArtifactSource struct {
-	ModelPath    string `json:"modelPath"`
-	ModelSHA256  string `json:"modelSha256"`
-	QuintVersion string `json:"quintVersion"`
+	ContractPath        string `json:"contractPath"`
+	ContractSHA256      string `json:"contractSha256"`
+	GeneratorPath       string `json:"generatorPath"`
+	GeneratorSHA256     string `json:"generatorSha256"`
+	GeneratorVersion    int    `json:"generatorVersion"`
+	ModelPath           string `json:"modelPath"`
+	ModelSHA256         string `json:"modelSha256"`
+	QuintVersion        string `json:"quintVersion"`
+	VerificationBackend string `json:"verificationBackend"`
 }
 
 type FormalArtifactChecks struct {
-	Typechecked        bool `json:"typechecked"`
-	Tested             bool `json:"tested"`
-	Verified           bool `json:"verified"`
-	GeneratedFromModel bool `json:"generatedFromModel"`
+	Typechecked           bool `json:"typechecked"`
+	Tested                bool `json:"tested"`
+	Verified              bool `json:"verified"`
+	GeneratedFromContract bool `json:"generatedFromContract"`
+	GeneratedFromModel    bool `json:"generatedFromModel"`
+}
+
+type FormalArtifactCoverage struct {
+	AllStatesCovered      bool `json:"allStatesCovered"`
+	AllEventsCovered      bool `json:"allEventsCovered"`
+	AllPairsCovered       bool `json:"allPairsCovered"`
+	TerminalStatesChecked bool `json:"terminalStatesChecked"`
 }
 
 type FormalArtifactTransition struct {
@@ -67,33 +84,49 @@ func LoadFormalArtifact(t TestingT, path string) FormalArtifact {
 	return artifact
 }
 
-func ValidateFormalArtifactFresh(artifact FormalArtifact, modelPath string) []error {
+type FormalArtifactExpectation struct {
+	ContractPath  string
+	ModelPath     string
+	GeneratorPath string
+	Invariants    []string
+}
+
+func ValidateFormalArtifactFresh(artifact FormalArtifact, expected FormalArtifactExpectation) []error {
 	var errs []error
-	if artifact.SchemaVersion != 1 {
-		errs = append(errs, fmt.Errorf("formal artifact schemaVersion=%d, want 1", artifact.SchemaVersion))
+	if artifact.SchemaVersion != 2 {
+		errs = append(errs, fmt.Errorf("formal artifact schemaVersion=%d, want 2", artifact.SchemaVersion))
 	}
 	if artifact.FlowID == "" {
 		errs = append(errs, fmt.Errorf("formal artifact flowId is required"))
 	}
-	if artifact.Source.ModelPath != modelPath {
-		errs = append(errs, fmt.Errorf("formal artifact modelPath=%s, want %s", artifact.Source.ModelPath, modelPath))
+	if artifact.Source.ContractPath != expected.ContractPath {
+		errs = append(errs, fmt.Errorf("formal artifact contractPath=%s, want %s", artifact.Source.ContractPath, expected.ContractPath))
+	}
+	if err := validateFreshHash(artifact.Source.ContractPath, artifact.Source.ContractSHA256, "contractSha256"); err != nil {
+		errs = append(errs, err)
+	}
+	if artifact.Source.ModelPath != expected.ModelPath {
+		errs = append(errs, fmt.Errorf("formal artifact modelPath=%s, want %s", artifact.Source.ModelPath, expected.ModelPath))
+	}
+	if expected.GeneratorPath != "" && artifact.Source.GeneratorPath != expected.GeneratorPath {
+		errs = append(errs, fmt.Errorf("formal artifact generatorPath=%s, want %s", artifact.Source.GeneratorPath, expected.GeneratorPath))
+	}
+	if artifact.Source.GeneratorPath == "" {
+		errs = append(errs, fmt.Errorf("formal artifact generatorPath is required"))
+	} else if err := validateFreshHash(artifact.Source.GeneratorPath, artifact.Source.GeneratorSHA256, "generatorSha256"); err != nil {
+		errs = append(errs, err)
+	}
+	if artifact.Source.GeneratorVersion < 1 {
+		errs = append(errs, fmt.Errorf("formal artifact generatorVersion is required"))
+	}
+	if artifact.Source.VerificationBackend == "" {
+		errs = append(errs, fmt.Errorf("formal artifact verificationBackend is required"))
 	}
 	if artifact.Source.QuintVersion == "" {
 		errs = append(errs, fmt.Errorf("formal artifact quintVersion is required"))
 	}
-	if artifact.Source.ModelSHA256 == "" {
-		errs = append(errs, fmt.Errorf("formal artifact modelSha256 is required"))
-	} else {
-		data, err := readModelFile(modelPath)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("read formal model %s: %v", modelPath, err))
-		} else {
-			sum := sha256.Sum256(data)
-			got := hex.EncodeToString(sum[:])
-			if got != artifact.Source.ModelSHA256 {
-				errs = append(errs, fmt.Errorf("formal artifact modelSha256=%s, want %s", artifact.Source.ModelSHA256, got))
-			}
-		}
+	if err := validateFreshHash(expected.ModelPath, artifact.Source.ModelSHA256, "modelSha256"); err != nil {
+		errs = append(errs, err)
 	}
 	if !artifact.Checks.Typechecked {
 		errs = append(errs, fmt.Errorf("formal artifact was not typechecked"))
@@ -104,25 +137,64 @@ func ValidateFormalArtifactFresh(artifact FormalArtifact, modelPath string) []er
 	if !artifact.Checks.Verified {
 		errs = append(errs, fmt.Errorf("formal artifact was not verified"))
 	}
+	if !artifact.Checks.GeneratedFromContract {
+		errs = append(errs, fmt.Errorf("formal artifact was not generated from contract"))
+	}
 	if !artifact.Checks.GeneratedFromModel {
 		errs = append(errs, fmt.Errorf("formal artifact was not generated from model"))
+	}
+	for _, invariant := range expected.Invariants {
+		if !containsString(artifact.Invariants, invariant) {
+			errs = append(errs, fmt.Errorf("formal artifact missing invariant %s", invariant))
+		}
+	}
+	if !artifact.Coverage.AllStatesCovered {
+		errs = append(errs, fmt.Errorf("formal artifact does not cover all states"))
+	}
+	if !artifact.Coverage.AllEventsCovered {
+		errs = append(errs, fmt.Errorf("formal artifact does not cover all events"))
+	}
+	if !artifact.Coverage.AllPairsCovered {
+		errs = append(errs, fmt.Errorf("formal artifact does not cover all state/event pairs"))
+	}
+	if !artifact.Coverage.TerminalStatesChecked {
+		errs = append(errs, fmt.Errorf("formal artifact does not check terminal states"))
 	}
 	if len(artifact.Transitions) == 0 {
 		errs = append(errs, fmt.Errorf("formal artifact transitions must not be empty"))
 	}
-	if len(artifact.Traces) == 0 {
-		errs = append(errs, fmt.Errorf("formal artifact traces must not be empty"))
+	if len(artifact.NamedTraces) == 0 {
+		errs = append(errs, fmt.Errorf("formal artifact namedTraces must not be empty"))
+	}
+	if len(artifact.GeneratedTraces) == 0 {
+		errs = append(errs, fmt.Errorf("formal artifact generatedTraces must not be empty"))
 	}
 	return errs
 }
 
-func readModelFile(modelPath string) ([]byte, error) {
+func validateFreshHash(filePath string, wantHash string, field string) error {
+	if wantHash == "" {
+		return fmt.Errorf("formal artifact %s is required", field)
+	}
+	data, err := readRepoFile(filePath)
+	if err != nil {
+		return fmt.Errorf("read formal artifact source %s: %v", filePath, err)
+	}
+	sum := sha256.Sum256(data)
+	got := hex.EncodeToString(sum[:])
+	if got != wantHash {
+		return fmt.Errorf("formal artifact %s=%s, want %s", field, wantHash, got)
+	}
+	return nil
+}
+
+func readRepoFile(repoPath string) ([]byte, error) {
 	var firstErr error
-	candidates := []string{modelPath}
-	if trimmed, ok := strings.CutPrefix(modelPath, "api/"); ok {
+	candidates := []string{repoPath}
+	if trimmed, ok := strings.CutPrefix(repoPath, "api/"); ok {
 		candidates = append(candidates, trimmed)
 	}
-	candidates = append(candidates, filepath.Base(modelPath))
+	candidates = append(candidates, filepath.Base(repoPath))
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -146,9 +218,9 @@ func readModelFile(modelPath string) ([]byte, error) {
 	return nil, firstErr
 }
 
-func AssertFormalArtifactFresh(t TestingT, artifact FormalArtifact, modelPath string) {
+func AssertFormalArtifactFresh(t TestingT, artifact FormalArtifact, expected FormalArtifactExpectation) {
 	t.Helper()
-	if errs := ValidateFormalArtifactFresh(artifact, modelPath); len(errs) > 0 {
+	if errs := ValidateFormalArtifactFresh(artifact, expected); len(errs) > 0 {
 		t.Fatalf("formal artifact is stale or incomplete:\n%s", formatErrors(errs))
 	}
 }
@@ -185,11 +257,20 @@ func ValidateFormalTracesReplay[S comparable, E comparable](
 	events []E,
 	transition Transition[S, E],
 ) []error {
-	traces, errs := formalTraces(artifact, statuses, events)
+	traces, errs := formalTraces(append(artifact.NamedTraces, artifact.GeneratedTraces...), statuses, events)
 	if len(errs) > 0 {
 		return errs
 	}
 	return ValidateTraces(traces, transition)
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func AssertFormalTracesReplay[S comparable, E comparable](
@@ -246,15 +327,15 @@ func formalRows[S comparable, E comparable](
 }
 
 func formalTraces[S comparable, E comparable](
-	artifact FormalArtifact,
+	artifactTraces []FormalArtifactTrace,
 	statuses []S,
 	events []E,
 ) ([]Trace[S, E], []error) {
 	statusByName := valuesByString(statuses)
 	eventByName := valuesByString(events)
-	traces := make([]Trace[S, E], 0, len(artifact.Traces))
+	traces := make([]Trace[S, E], 0, len(artifactTraces))
 	var errs []error
-	for traceIndex, formalTrace := range artifact.Traces {
+	for traceIndex, formalTrace := range artifactTraces {
 		initial, ok := statusByName[formalTrace.Initial]
 		if !ok {
 			errs = append(errs, fmt.Errorf("formal trace %s unknown initial state %s", formalTrace.Name, formalTrace.Initial))

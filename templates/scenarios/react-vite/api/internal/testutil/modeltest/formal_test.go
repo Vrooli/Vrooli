@@ -13,26 +13,30 @@ import (
 
 func TestValidateFormalArtifactFresh_AcceptsCurrentModelHash(t *testing.T) {
 	modelPath := writeFormalModel(t, "module Example {}\n")
-	artifact := validFormalArtifact(t, modelPath)
+	contractPath := writeFormalModel(t, "{}\n")
+	generatorPath := writeFormalModel(t, "#!/usr/bin/env node\n")
+	artifact := validFormalArtifact(t, contractPath, modelPath, generatorPath)
 
-	errs := modeltest.ValidateFormalArtifactFresh(artifact, modelPath)
+	errs := modeltest.ValidateFormalArtifactFresh(artifact, formalExpectation(contractPath, modelPath, generatorPath))
 	require.Empty(t, errs)
 }
 
 func TestValidateFormalArtifactFresh_RejectsStaleHashAndMissingChecks(t *testing.T) {
 	modelPath := writeFormalModel(t, "module Example {}\n")
-	artifact := validFormalArtifact(t, modelPath)
+	contractPath := writeFormalModel(t, "{}\n")
+	generatorPath := writeFormalModel(t, "#!/usr/bin/env node\n")
+	artifact := validFormalArtifact(t, contractPath, modelPath, generatorPath)
 	artifact.Source.ModelSHA256 = "0000000000000000000000000000000000000000000000000000000000000000"
 	artifact.Checks.Verified = false
 
-	errs := modeltest.ValidateFormalArtifactFresh(artifact, modelPath)
+	errs := modeltest.ValidateFormalArtifactFresh(artifact, formalExpectation(contractPath, modelPath, generatorPath))
 	require.NotEmpty(t, errs)
 	require.Contains(t, joined(errs), "formal artifact modelSha256=")
 	require.Contains(t, joined(errs), "formal artifact was not verified")
 }
 
 func TestValidateFormalTransitionsReplay_AcceptsGeneratedMatrix(t *testing.T) {
-	artifact := validFormalArtifact(t, writeFormalModel(t, "module Example {}\n"))
+	artifact := validFormalArtifact(t, writeFormalModel(t, "{}\n"), writeFormalModel(t, "module Example {}\n"), writeFormalModel(t, "#!/usr/bin/env node\n"))
 
 	errs := modeltest.ValidateFormalTransitionsReplay(
 		artifact,
@@ -44,7 +48,7 @@ func TestValidateFormalTransitionsReplay_AcceptsGeneratedMatrix(t *testing.T) {
 }
 
 func TestValidateFormalTransitionsReplay_RejectsUnknownAndDivergentTransition(t *testing.T) {
-	artifact := validFormalArtifact(t, writeFormalModel(t, "module Example {}\n"))
+	artifact := validFormalArtifact(t, writeFormalModel(t, "{}\n"), writeFormalModel(t, "module Example {}\n"), writeFormalModel(t, "#!/usr/bin/env node\n"))
 	artifact.Transitions[0].To = "done"
 	artifact.Transitions[1].Event = "ghost"
 
@@ -59,9 +63,9 @@ func TestValidateFormalTransitionsReplay_RejectsUnknownAndDivergentTransition(t 
 }
 
 func TestValidateFormalTracesReplay_RejectsUnknownAndDivergentTrace(t *testing.T) {
-	artifact := validFormalArtifact(t, writeFormalModel(t, "module Example {}\n"))
-	artifact.Traces[0].Steps[0].Want = "done"
-	artifact.Traces[0].Steps[1].Event = "ghost"
+	artifact := validFormalArtifact(t, writeFormalModel(t, "{}\n"), writeFormalModel(t, "module Example {}\n"), writeFormalModel(t, "#!/usr/bin/env node\n"))
+	artifact.NamedTraces[0].Steps[0].Want = "done"
+	artifact.NamedTraces[0].Steps[1].Event = "ghost"
 
 	errs := modeltest.ValidateFormalTracesReplay(
 		artifact,
@@ -73,15 +77,30 @@ func TestValidateFormalTracesReplay_RejectsUnknownAndDivergentTrace(t *testing.T
 	require.Contains(t, joined(errs), "unknown event ghost")
 }
 
-func validFormalArtifact(t *testing.T, modelPath string) modeltest.FormalArtifact {
+func formalExpectation(contractPath string, modelPath string, generatorPath string) modeltest.FormalArtifactExpectation {
+	return modeltest.FormalArtifactExpectation{
+		ContractPath:  contractPath,
+		ModelPath:     modelPath,
+		GeneratorPath: generatorPath,
+		Invariants:    []string{"TypeOK", "TerminalClosure"},
+	}
+}
+
+func validFormalArtifact(t *testing.T, contractPath string, modelPath string, generatorPath string) modeltest.FormalArtifact {
 	t.Helper()
 	return modeltest.FormalArtifact{
-		SchemaVersion: 1,
+		SchemaVersion: 2,
 		FlowID:        "example.flow",
 		Source: modeltest.FormalArtifactSource{
-			ModelPath:    modelPath,
-			ModelSHA256:  fileSHA256(t, modelPath),
-			QuintVersion: "0.32.0",
+			ContractPath:        contractPath,
+			ContractSHA256:      fileSHA256(t, contractPath),
+			GeneratorPath:       generatorPath,
+			GeneratorSHA256:     fileSHA256(t, generatorPath),
+			GeneratorVersion:    2,
+			ModelPath:           modelPath,
+			ModelSHA256:         fileSHA256(t, modelPath),
+			QuintVersion:        "0.32.0",
+			VerificationBackend: "apalache",
 		},
 		Commands: map[string][]string{
 			"typecheck": {"quint", "typecheck", modelPath},
@@ -99,7 +118,7 @@ func validFormalArtifact(t *testing.T, modelPath string) modeltest.FormalArtifac
 			{From: "done", Event: "start", To: "done", WantError: true},
 			{From: "done", Event: "finish", To: "done", WantError: true},
 		},
-		Traces: []modeltest.FormalArtifactTrace{
+		NamedTraces: []modeltest.FormalArtifactTrace{
 			{
 				Name:    "generated",
 				Initial: "idle",
@@ -109,11 +128,28 @@ func validFormalArtifact(t *testing.T, modelPath string) modeltest.FormalArtifac
 				},
 			},
 		},
+		GeneratedTraces: []modeltest.FormalArtifactTrace{
+			{
+				Name:    "generated_model_001",
+				Initial: "idle",
+				Steps: []modeltest.FormalArtifactTraceStep{
+					{Event: "start", Want: "busy", WantError: false},
+				},
+			},
+		},
+		Invariants: []string{"TypeOK", "TerminalClosure"},
+		Coverage: modeltest.FormalArtifactCoverage{
+			AllStatesCovered:      true,
+			AllEventsCovered:      true,
+			AllPairsCovered:       true,
+			TerminalStatesChecked: true,
+		},
 		Checks: modeltest.FormalArtifactChecks{
-			Typechecked:        true,
-			Tested:             true,
-			Verified:           true,
-			GeneratedFromModel: true,
+			Typechecked:           true,
+			Tested:                true,
+			Verified:              true,
+			GeneratedFromContract: true,
+			GeneratedFromModel:    true,
 		},
 	}
 }
