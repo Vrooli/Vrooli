@@ -158,8 +158,8 @@ implementation agents clear `[REQ:ID]` targets for tests.
 
 ### Gate 3 — Domain Map
 
-Use `docs/concepts/ARCHITECTURE.md#domain-map` as the durable
-domain-map artifact. Do the thinking before coding.
+Use `docs/concepts/DOMAINS.md` as the durable domain-map artifact. Do
+the thinking before coding.
 
 - [ ] Name the real bounded contexts for this scenario.
 - [ ] For each domain, identify the data it owns, proto operations, API
@@ -167,9 +167,12 @@ domain-map artifact. Do the thinking before coding.
       evidence.
 - [ ] Confirm each domain maps back to at least one operational target
       or requirement.
-- [ ] Update `docs/concepts/ARCHITECTURE.md` so the Domain Map,
-      Shared Infrastructure, and Architecture Maturity tables describe
-      this scenario rather than only the starter reference domains.
+- [ ] Update `docs/concepts/DOMAINS.md` so the Domain Inventory and
+      Domain Details sections describe this scenario rather than only
+      the starter reference domains.
+- [ ] Review `docs/concepts/DATA.md`, `docs/concepts/FLOWS.md`, and
+      `docs/concepts/INTEGRATIONS.md`; fill the relevant sections or
+      leave explicit deferred/not-applicable entries.
 
 **Exit criteria:** you can explain what the first real domain is, why
 it exists, and which files it will touch before writing code.
@@ -178,8 +181,8 @@ it exists, and which files it will touch before writing code.
 
 - [ ] Keep SQLite unless a domain truly needs a shared resource.
 - [ ] If adding resources or scenario dependencies, document the reason
-      in `PRD.md` during the charter gate or in
-      `docs/concepts/ARCHITECTURE.md` before editing
+      in `PRD.md` during the charter gate and in
+      `docs/concepts/INTEGRATIONS.md` before editing
       `.vrooli/service.json`.
 - [ ] Confirm no dependency is added only because the example `notes`
       domain happens to use a local SQLite store.
@@ -206,6 +209,29 @@ Treat that file as the UI source of truth before building screens.
 **Exit criteria:** UI work has a reviewed root `DESIGN.md`, and the
 global styles, Tailwind theme, primitives, selectors, and accessibility
 tests all point back to that contract.
+
+### Gate 5b — Business And Operations Stubs
+
+These documents start as stubs. Review them early so missing business,
+deployment, security, and telemetry assumptions are visible before
+implementation hardens around them.
+
+- [ ] Review `docs/business/MONETIZATION.md` and
+      `docs/business/GO-TO-MARKET.md`; mark them deferred or fill the
+      scenario-specific hypothesis.
+- [ ] Review `docs/operations/DEPLOYMENT.md`,
+      `docs/operations/RUNBOOK.md`, and
+      `docs/operations/OBSERVABILITY.md`; confirm local-run assumptions
+      are accurate.
+- [ ] Review `docs/internal/SECURITY.md`,
+      `docs/internal/PERFORMANCE.md`, and
+      `docs/internal/DECISIONS.md`; fill any risk, budget, or durable
+      choice discovered during initialization.
+- [ ] Keep `docs/manifest.json` maturity values aligned with the real
+      state of these documents.
+
+**Exit criteria:** every generated documentation stub is either active,
+deferred, or explicitly not-applicable for a reason.
 
 ### Gate 6 — First Real Vertical Slice
 

@@ -48,6 +48,10 @@ metadata and leaves provenance, docs, requirements, and code intact.
   output.
 - Root-level `DESIGN.md` plus generated UI token assets from the
   selected design kit.
+- A scenario documentation contract in `docs/manifest.json`, including
+  stubs for domains, flows, data, integrations, monetization,
+  deployment, runbooks, observability, security, performance, and
+  durable decisions.
 
 ## Setup Workflow
 ```bash
@@ -72,6 +76,10 @@ Run tests with `make test` (which runs `vrooli scenario test`) or invoke `test-g
 | Establish UI design language | `DESIGN.md` at the generated scenario root |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
 | Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
+| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
+| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
+| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
 | Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
 | Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
 | Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
@@ -83,9 +91,11 @@ Run tests with `make test` (which runs `vrooli scenario test`) or invoke `test-g
 2. **Run `make orient` as a progress check.** It reports template-owned initialization gates from `.vrooli/orientation.json`.
 3. **Update PRD.md + requirements/** before feature work. Operational targets drive code + tests.
 4. **Read root `DESIGN.md` before UI work.** Keep global styles, Tailwind theme, and primitives aligned with it.
-5. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-6. **Add resources** in `.vrooli/service.json` only when needed; the template ships with no resource dependencies (SQLite is in-process).
-7. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
+5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
+6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
+7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
+8. **Add resources** in `.vrooli/service.json` only when needed; the template ships with no resource dependencies (SQLite is in-process).
+9. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
 
 ## pnpm Everywhere
 The template assumes pnpm. If you run another package manager, convert lockfiles yourself before committing. Scripts use `pnpm` directly (no `npm` fallbacks) to reduce drift.

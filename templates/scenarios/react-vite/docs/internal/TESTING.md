@@ -253,6 +253,10 @@ layer's tests focused on what that layer owns.
 
 ### Temporal workflow tests
 
+The canonical workflow inventory lives in
+[`FLOWS.md`](../concepts/FLOWS.md). Tests prove the state/event
+contracts documented there.
+
 Use temporal workflow tests when a domain has lifecycle states where
 some events are allowed and others are forbidden. Do not use coverage
 percentages as proof that the state space is complete; a suite can
@@ -308,7 +312,7 @@ Workflow maturity is incremental:
 
 | Level | Name | Validation expectation |
 |---|---|---|
-| 1 | Inventory | Flow listed in `docs/internal/TEMPORAL-FLOWS.md`. |
+| 1 | Inventory | Flow listed in `docs/concepts/FLOWS.md`. |
 | 2 | Workflow model | Pure transition and invariant checks exist. |
 | 3 | Matrix + traces | Every state/event pair and representative trace is executable. |
 | 4 | Declarative spec | `*.spec.json` exists beside the workflow and conformance tests compare it to matrix/traces. |
