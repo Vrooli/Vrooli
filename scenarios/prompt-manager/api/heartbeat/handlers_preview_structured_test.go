@@ -6,9 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"testing"
-
 	"prompt-manager/store"
+	"testing"
 )
 
 func TestPreviewPromptStructuredHandler(t *testing.T) {

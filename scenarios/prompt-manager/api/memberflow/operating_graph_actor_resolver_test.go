@@ -1,9 +1,8 @@
 package memberflow
 
 import (
-	"testing"
-
 	"prompt-manager/teamcontract"
+	"testing"
 )
 
 func TestOperatingActorResolverExpandsDeclaredMarketingAliases(t *testing.T) {

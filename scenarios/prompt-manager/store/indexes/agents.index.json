@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-09T20:02:12Z",
+  "generatedAt": "2026-05-10T02:49:15Z",
   "items": [
     {
       "id": "agent-29",
@@ -14,11 +14,6 @@
     {
       "id": "agent-31",
       "displayName": "Agent 31",
-      "status": "active"
-    },
-    {
-      "id": "agent-32",
-      "displayName": "Agent 32",
       "status": "active"
     },
     {

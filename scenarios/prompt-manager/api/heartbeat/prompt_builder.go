@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
-
 	"prompt-manager/interop"
 	"prompt-manager/memberflow"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
+	"sort"
+	"strings"
 )
 
 // PromptBuildRequest defines the inputs for assembling a heartbeat prompt.

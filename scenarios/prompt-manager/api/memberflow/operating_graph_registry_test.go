@@ -12,14 +12,20 @@ func TestDefaultOperatingRelationshipRegistryIsInternallyConsistent(t *testing.T
 		if spec.DiffIncluded && !spec.CoverageIncluded {
 			t.Fatalf("relationship %q participates in diff but not coverage", spec.Kind)
 		}
-		if spec.CoverageIncluded && spec.ValidationRule == "" {
+		if spec.CoverageIncluded && len(spec.ValidationRules) == 0 {
 			t.Fatalf("relationship %q participates in coverage without validation metadata", spec.Kind)
 		}
 		if spec.CoverageIncluded && spec.ValidationSeverity == "" {
 			t.Fatalf("relationship %q participates in coverage without validation severity", spec.Kind)
 		}
+		if spec.CoverageIncluded && spec.RuntimeCoverageMode == "" {
+			t.Fatalf("relationship %q participates in coverage without runtime coverage mode", spec.Kind)
+		}
 		if spec.RuntimeOnlyCompletes && len(spec.RuntimeFields) == 0 {
 			t.Fatalf("relationship %q requires runtime completeness without acceptable runtime fields", spec.Kind)
+		}
+		if spec.RuntimeOnlyCompletes && len(spec.CompletenessTargets) == 0 {
+			t.Fatalf("relationship %q requires runtime completeness without registry targets", spec.Kind)
 		}
 	}
 }
@@ -39,11 +45,33 @@ func TestDefaultOperatingGraphRulesIncludeRegistryBackedCompleteness(t *testing.
 		if !spec.RuntimeOnlyCompletes {
 			continue
 		}
-		for _, ruleID := range splitRelationshipValidationRules(spec.ValidationRule) {
-			if _, ok := rulesByID[ruleID]; !ok {
-				t.Fatalf("registry relationship %q expects completeness rule %q", spec.Kind, ruleID)
+		for _, target := range spec.CompletenessTargets {
+			if _, ok := rulesByID[target.RuleID]; !ok {
+				t.Fatalf("registry relationship %q expects completeness rule %q", spec.Kind, target.RuleID)
 			}
 		}
+	}
+}
+
+func TestOperatingRelationshipRegistryOwnsCoveragePolicies(t *testing.T) {
+	registry := DefaultOperatingRelationshipRegistry()
+	topicRead, ok := registry.Spec(operatingRelTopicRead)
+	if !ok {
+		t.Fatalf("topic read relationship spec missing")
+	}
+	if !topicRead.SubtypeCoverage {
+		t.Fatalf("topic read should declare runtime subtype coverage in the registry")
+	}
+	if len(topicRead.CompletenessTargets) != 3 {
+		t.Fatalf("topic read completeness targets = %d, want 3", len(topicRead.CompletenessTargets))
+	}
+
+	externalIntake, ok := registry.Spec(operatingRelExternalProducerIntake)
+	if !ok {
+		t.Fatalf("external producer intake relationship spec missing")
+	}
+	if externalIntake.RuntimeCoverageMode != OperatingRelationshipRuntimeCoverageGraphShown {
+		t.Fatalf("external producer intake runtime coverage mode = %q, want %q", externalIntake.RuntimeCoverageMode, OperatingRelationshipRuntimeCoverageGraphShown)
 	}
 }
 

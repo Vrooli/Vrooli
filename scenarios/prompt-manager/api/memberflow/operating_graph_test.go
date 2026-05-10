@@ -3,10 +3,9 @@ package memberflow
 import (
 	"os"
 	"path/filepath"
+	"prompt-manager/teamcontract"
 	"strings"
 	"testing"
-
-	"prompt-manager/teamcontract"
 )
 
 func TestParseOperatingMermaidTypedNodesAndEdges(t *testing.T) {
@@ -230,6 +229,151 @@ Prose before the table is allowed.
 	if row := docs.Decisions.Rows[0]; row.Decision != "content-publish-proposal" || len(row.Owners) != 2 || row.ExpectedEvidenceTrigger == "" || row.AcceptedEffect == "" {
 		t.Fatalf("bad decision row: %+v", row)
 	}
+}
+
+func TestExtractOperatingGraphBlocksScopesDocsTablesPerGraph(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "multi.md")
+	if err := os.WriteFile(path, []byte(`<!-- prompt-manager-graph:
+id: g1
+scope: team
+team: team-a
+mode: contract
+-->
+`+"```mermaid"+`
+flowchart LR
+  A1["member:a"]
+  T1["topic:first/*"]
+  D1["decision:first-decision"]
+  T1 --> A1
+  A1 --> D1
+`+"```"+`
+
+## Topic Catalog
+
+| Topic family | Status | Owner / primary writer | Primary readers | Purpose |
+|---|---|---|---|---|
+| `+"`topic:first/*`"+` | live | member:a | member:a | First. |
+
+## Decisions
+
+| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
+|---|---|---|---|---|
+| `+"`first-decision`"+` | member:a | First decision. | First evidence. | Member writes `+"`topic:first/*`"+`. |
+
+<!-- prompt-manager-graph:
+id: g2
+scope: team
+team: team-a
+mode: contract
+-->
+`+"```mermaid"+`
+flowchart LR
+  A2["member:a"]
+  T2["topic:second/*"]
+  D2["decision:second-decision"]
+  T2 --> A2
+  A2 --> D2
+`+"```"+`
+
+## Topic Catalog
+
+| Topic family | Status | Owner / primary writer | Primary readers | Purpose |
+|---|---|---|---|---|
+| `+"`topic:second/*`"+` | live | member:a | member:a | Second. |
+
+## Decisions
+
+| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
+|---|---|---|---|---|
+| `+"`second-decision`"+` | member:a | Second decision. | Second evidence. | Member writes `+"`topic:second/*`"+`. |
+`), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	blocks, err := ExtractOperatingGraphBlocks(path, "docs/test/multi.md")
+	if err != nil {
+		t.Fatalf("ExtractOperatingGraphBlocks: %v", err)
+	}
+	if len(blocks) != 2 {
+		t.Fatalf("blocks=%d, want 2", len(blocks))
+	}
+	if got := blocks[0].Docs.TopicCatalog.Rows; len(got) != 1 || got[0].Topic != "first/*" {
+		t.Fatalf("g1 topic catalog leaked or missing rows: %+v", got)
+	}
+	if got := blocks[0].Docs.Decisions.Rows; len(got) != 1 || got[0].Decision != "first-decision" {
+		t.Fatalf("g1 decisions leaked or missing rows: %+v", got)
+	}
+	if got := blocks[1].Docs.TopicCatalog.Rows; len(got) != 1 || got[0].Topic != "second/*" {
+		t.Fatalf("g2 topic catalog leaked or missing rows: %+v", got)
+	}
+	if got := blocks[1].Docs.Decisions.Rows; len(got) != 1 || got[0].Decision != "second-decision" {
+		t.Fatalf("g2 decisions leaked or missing rows: %+v", got)
+	}
+}
+
+func TestExtractOperatingGraphBlocksDoesNotBorrowLaterDocsTables(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "multi.md")
+	if err := os.WriteFile(path, []byte(`<!-- prompt-manager-graph:
+id: g1
+scope: team
+team: team-a
+mode: contract
+-->
+`+"```mermaid"+`
+flowchart LR
+  A1["member:a"]
+  T1["topic:first/*"]
+  D1["decision:first-decision"]
+  T1 --> A1
+  A1 --> D1
+`+"```"+`
+
+<!-- prompt-manager-graph:
+id: g2
+scope: team
+team: team-a
+mode: contract
+-->
+`+"```mermaid"+`
+flowchart LR
+  A2["member:a"]
+  T2["topic:second/*"]
+  D2["decision:second-decision"]
+  T2 --> A2
+  A2 --> D2
+`+"```"+`
+
+## Topic Catalog
+
+| Topic family | Status | Owner / primary writer | Primary readers | Purpose |
+|---|---|---|---|---|
+| `+"`topic:first/*`"+` | live | member:a | member:a | This row belongs to the later graph's docs range. |
+
+## Decisions
+
+| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
+|---|---|---|---|---|
+| `+"`first-decision`"+` | member:a | Later decision. | Later evidence. | Member writes `+"`topic:first/*`"+`. |
+`), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	blocks, err := ExtractOperatingGraphBlocks(path, "docs/test/multi.md")
+	if err != nil {
+		t.Fatalf("ExtractOperatingGraphBlocks: %v", err)
+	}
+	if len(blocks) != 2 {
+		t.Fatalf("blocks=%d, want 2", len(blocks))
+	}
+	if blocks[0].Docs.TopicCatalog.Present || blocks[0].Docs.Decisions.Present {
+		t.Fatalf("g1 borrowed later docs tables: %+v", blocks[0].Docs)
+	}
+
+	result := ValidateOperatingGraphs(blocks, OperatingGraphRuntime{}, "team-a", "g1")
+	assertOperatingFinding(t, result, "graph_topic_catalog_missing")
+	assertOperatingFinding(t, result, "graph_decisions_table_missing")
 }
 
 func TestValidateOperatingGraphsDocsTablesDetectDrift(t *testing.T) {
@@ -984,6 +1128,67 @@ func TestDefaultOperatingGraphRulesRegistersBaselineContractRules(t *testing.T) 
 	}
 }
 
+func TestDefaultOperatingModelRulesRegistersBaselineContractRules(t *testing.T) {
+	want := []string{
+		"operating_model_required_section_missing",
+		"operating_model_duplicate_section",
+		"operating_model_decisions_header_drift",
+		"operating_model_decisions_empty",
+		"operating_model_decisions_row_incomplete",
+		"operating_model_decisions_effect_weak",
+		"operating_model_external_inputs_table_missing",
+		"operating_model_external_inputs_header_drift",
+		"operating_model_external_inputs_empty",
+		"operating_model_external_inputs_row_incomplete",
+		"operating_model_external_inputs_producer_unbacked",
+		"operating_model_external_inputs_entry_unbacked",
+		"operating_model_external_inputs_drainer_unbacked",
+		"operating_model_outputs_table_missing",
+		"operating_model_outputs_header_drift",
+		"operating_model_outputs_empty",
+		"operating_model_outputs_row_incomplete",
+		"operating_model_outputs_surface_unbacked",
+		"operating_model_outputs_consumer_unbacked",
+		"operating_model_feedback_steps_missing",
+		"operating_model_feedback_step_unanchored",
+		"operating_model_feedback_reference_unbacked",
+		"operating_model_gaps_items_missing",
+		"operating_model_gap_item_unanchored",
+		"operating_model_gap_item_target_state_missing",
+		"operating_model_adoption_command_missing",
+		"operating_model_plan_of_record_missing",
+		"operating_model_readme_link_missing",
+	}
+	rules := DefaultOperatingModelRules()
+	if len(rules) != len(want) {
+		t.Fatalf("rules=%d, want %d", len(rules), len(want))
+	}
+	seen := map[string]bool{}
+	contractModel := operatingModelDocumentFixture(t)
+	contractModel.Graphs[0].Metadata.Mode = OperatingGraphModeContract
+	explanatoryModel := contractModel
+	explanatoryModel.Graphs = append([]OperatingGraphBlock(nil), contractModel.Graphs...)
+	explanatoryModel.Graphs[0].Metadata.Mode = OperatingGraphModeExplanatory
+	for i, rule := range rules {
+		if rule.ID() != want[i] {
+			t.Fatalf("rule[%d]=%q, want %q", i, rule.ID(), want[i])
+		}
+		if seen[rule.ID()] {
+			t.Fatalf("duplicate operating model rule id %q", rule.ID())
+		}
+		seen[rule.ID()] = true
+		if rule.ID() == "" || rule.Group() == "" || rule.DefaultSeverity() == "" {
+			t.Fatalf("rule[%d] has incomplete metadata: id=%q group=%q severity=%q", i, rule.ID(), rule.Group(), rule.DefaultSeverity())
+		}
+		if !rule.AppliesTo(contractModel) {
+			t.Fatalf("rule[%d] should apply to contract models", i)
+		}
+		if rule.AppliesTo(explanatoryModel) {
+			t.Fatalf("rule[%d] should not apply to explanatory models", i)
+		}
+	}
+}
+
 func TestValidateOperatingGraphsDecisionNodesAreTeamScoped(t *testing.T) {
 	block := OperatingGraphBlock{
 		Metadata: OperatingGraphMetadata{ID: "g", Scope: "team", Team: "team-a", Mode: "checkable"},
@@ -1727,6 +1932,164 @@ func TestValidateOperatingModelsRejectsMissingAdoptionCommands(t *testing.T) {
 	assertOperatingFindingDetail(t, result, "operating_model_adoption_command_missing", "diff")
 }
 
+func TestOperatingModelGoldenFixtureValidatesAndCoversAllSections(t *testing.T) {
+	model := operatingModelDocumentFixture(t)
+	runtime := operatingModelDiscoverabilityRuntime(t, model, true, true)
+
+	result := ValidateOperatingModels([]OperatingModelDocument{model}, runtime, "team-a", "g")
+	if result.Errors != 0 || result.Warnings != 0 {
+		t.Fatalf("golden operating-model fixture should validate cleanly: %+v", result.Findings)
+	}
+
+	coverage := BuildOperatingModelCoverage([]OperatingModelDocument{model}, runtime, "team-a", "g")
+	if len(coverage) != 1 {
+		t.Fatalf("coverage length=%d, want 1: %+v", len(coverage), coverage)
+	}
+	docs := coverage[0].Docs
+	if docs.RequiredSectionsPresent != docs.RequiredSectionsTotal || docs.RequiredSectionsTotal == 0 {
+		t.Fatalf("golden fixture should cover every required section: %+v", docs)
+	}
+	if docs.TopicCatalogRows != 1 || docs.TopicCatalogMatched != 1 || docs.TopicCatalogGraphOnly != 0 || docs.TopicCatalogDocsOnly != 0 {
+		t.Fatalf("golden fixture topic coverage drifted: %+v", docs)
+	}
+	if docs.DecisionsRows != 1 || docs.DecisionsMatched != 1 || docs.DecisionsGraphOnly != 0 || docs.DecisionsDocsOnly != 0 {
+		t.Fatalf("golden fixture decision coverage drifted: %+v", docs)
+	}
+	if docs.ExternalInputsRows != 1 || docs.ExternalInputsBackedRows != 1 || docs.ExternalInputsUnbackedRows != 0 {
+		t.Fatalf("golden fixture external input coverage drifted: %+v", docs)
+	}
+	if docs.OutputsRows != 1 || docs.OutputsBackedRows != 1 || docs.OutputsUnbackedRows != 0 {
+		t.Fatalf("golden fixture output coverage drifted: %+v", docs)
+	}
+	if docs.FeedbackSteps != 1 || docs.FeedbackAnchoredSteps != 1 || docs.FeedbackUnbackedReferences != 0 {
+		t.Fatalf("golden fixture feedback coverage drifted: %+v", docs)
+	}
+	if docs.GapsItems != 1 || docs.GapsAnchoredItems != 1 || docs.GapsTargetStateItems != 1 {
+		t.Fatalf("golden fixture gap coverage drifted: %+v", docs)
+	}
+	if docs.AdoptionValidationCommands != 3 ||
+		docs.PlanOfRecordRegistration != OperatingCoverageStatusEnforced ||
+		docs.ReadmeDiscoverability != OperatingCoverageStatusEnforced {
+		t.Fatalf("golden fixture discoverability coverage drifted: %+v", docs)
+	}
+}
+
+func TestOperatingModelRegisteredRulesHaveFailureFixtures(t *testing.T) {
+	cases := []struct {
+		rule    string
+		mutate  func(*OperatingModelDocument)
+		runtime func(t *testing.T, model OperatingModelDocument) OperatingGraphRuntime
+	}{
+		{rule: "operating_model_required_section_missing", mutate: func(model *OperatingModelDocument) {
+			model.Sections.ExternalInputs = OperatingExternalInputsTable{}
+		}},
+		{rule: "operating_model_duplicate_section", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Mission.Duplicates = []int{3}
+		}},
+		{rule: "operating_model_decisions_header_drift", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Decisions.Headers = []string{"decision context", "owner", "purpose"}
+		}},
+		{rule: "operating_model_decisions_empty", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Decisions.Rows = nil
+		}},
+		{rule: "operating_model_decisions_row_incomplete", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Decisions.Rows[0].ExpectedEvidenceTrigger = ""
+		}},
+		{rule: "operating_model_decisions_effect_weak", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Decisions.Rows[0].AcceptedEffect = "Operator approves it."
+		}},
+		{rule: "operating_model_external_inputs_table_missing", mutate: func(model *OperatingModelDocument) {
+			model.Sections.ExternalInputs.Table = false
+		}},
+		{rule: "operating_model_external_inputs_header_drift", mutate: func(model *OperatingModelDocument) {
+			model.Sections.ExternalInputs.Headers = []string{"input", "enters through", "first handler", "notes"}
+		}},
+		{rule: "operating_model_external_inputs_empty", mutate: func(model *OperatingModelDocument) {
+			model.Sections.ExternalInputs.Rows = nil
+		}},
+		{rule: "operating_model_external_inputs_row_incomplete", mutate: func(model *OperatingModelDocument) {
+			model.Sections.ExternalInputs.Rows[0].RoutingRule = ""
+		}},
+		{rule: "operating_model_external_inputs_producer_unbacked", mutate: func(model *OperatingModelDocument) {
+			model.Sections.ExternalInputs.Rows[0].ProducerTrigger = "`external:ghost-system`"
+		}},
+		{rule: "operating_model_external_inputs_entry_unbacked", mutate: func(model *OperatingModelDocument) {
+			model.Sections.ExternalInputs.Rows[0].EntrySurface = "`topic:ghost-inbox/*`"
+		}},
+		{rule: "operating_model_external_inputs_drainer_unbacked", mutate: func(model *OperatingModelDocument) {
+			model.Sections.ExternalInputs.Rows[0].Drainer = "member:ghost"
+		}},
+		{rule: "operating_model_outputs_table_missing", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Outputs.Table = false
+		}},
+		{rule: "operating_model_outputs_header_drift", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Outputs.Headers = []string{"output", "downstream consumer", "path"}
+		}},
+		{rule: "operating_model_outputs_empty", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Outputs.Rows = nil
+		}},
+		{rule: "operating_model_outputs_row_incomplete", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Outputs.Rows[0].Purpose = ""
+		}},
+		{rule: "operating_model_outputs_surface_unbacked", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Outputs.Rows[0].Surface = "`topic:ghost-output/*`"
+		}},
+		{rule: "operating_model_outputs_consumer_unbacked", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Outputs.Rows[0].Consumer = "ghost"
+		}},
+		{rule: "operating_model_feedback_steps_missing", mutate: func(model *OperatingModelDocument) {
+			model.Sections.FeedbackLoop.Steps = nil
+		}},
+		{rule: "operating_model_feedback_step_unanchored", mutate: func(model *OperatingModelDocument) {
+			model.Sections.FeedbackLoop.Steps[0].References = nil
+		}},
+		{rule: "operating_model_feedback_reference_unbacked", mutate: func(model *OperatingModelDocument) {
+			model.Sections.FeedbackLoop.Steps[0].References = []string{"ghost-surface/*"}
+		}},
+		{rule: "operating_model_gaps_items_missing", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Gaps.Items = nil
+		}},
+		{rule: "operating_model_gap_item_unanchored", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Gaps.Items[0].References = nil
+		}},
+		{rule: "operating_model_gap_item_target_state_missing", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Gaps.Items[0].TargetState = false
+		}},
+		{rule: "operating_model_adoption_command_missing", mutate: func(model *OperatingModelDocument) {
+			model.Sections.Adoption.Commands = model.Sections.Adoption.Commands[:1]
+		}},
+		{rule: "operating_model_plan_of_record_missing", runtime: func(t *testing.T, model OperatingModelDocument) OperatingGraphRuntime {
+			return operatingModelDiscoverabilityRuntime(t, model, false, true)
+		}},
+		{rule: "operating_model_readme_link_missing", runtime: func(t *testing.T, model OperatingModelDocument) OperatingGraphRuntime {
+			return operatingModelDiscoverabilityRuntime(t, model, true, false)
+		}},
+	}
+
+	fixtured := map[string]bool{}
+	for _, tc := range cases {
+		t.Run(tc.rule, func(t *testing.T) {
+			model := operatingModelDocumentFixture(t)
+			if tc.mutate != nil {
+				tc.mutate(&model)
+			}
+			runtime := OperatingGraphRuntime{}
+			if tc.runtime != nil {
+				runtime = tc.runtime(t, model)
+			}
+			result := ValidateOperatingModels([]OperatingModelDocument{model}, runtime, "team-a", "g")
+			assertOperatingFinding(t, result, tc.rule)
+			fixtured[tc.rule] = true
+		})
+	}
+
+	for _, rule := range DefaultOperatingModelRules() {
+		if !fixtured[rule.ID()] {
+			t.Fatalf("registered operating-model rule %q has no deliberate failure fixture", rule.ID())
+		}
+	}
+}
+
 func TestExtractOperatingGraphBlocksRejectsUnsupportedAllowMetadata(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "OPERATING_MODEL.md")
@@ -2040,9 +2403,9 @@ func operatingModelDocumentFixture(t *testing.T) OperatingModelDocument {
 	t.Helper()
 	block := operatingDiffBlock(t, []string{
 		"flowchart LR",
-		`  OP["external:operator"]`,
+		`  OP(["external:operator"])`,
 		`  A["member:a"]`,
-		`  T["topic:first/*"]`,
+		`  T[("topic:first/*")]`,
 		`  D{"decision:model-update"}`,
 		"  OP --> A",
 		"  A --> T",
@@ -2111,7 +2474,7 @@ func operatingModelDocumentFixture(t *testing.T) OperatingModelDocument {
 				Table:                    true,
 				Rows: []OperatingOutputRow{{
 					Output:     "Output",
-					Surface:    "topic:first/*",
+					Surface:    "`topic:first/*`",
 					Consumer:   "member:a",
 					Purpose:    "Read it.",
 					SourceLine: 23,
@@ -2147,6 +2510,59 @@ func operatingModelDocumentFixture(t *testing.T) OperatingModelDocument {
 	}
 }
 
+func operatingModelDiscoverabilityRuntime(t *testing.T, model OperatingModelDocument, includePlanOfRecord, includeReadmeLink bool) OperatingGraphRuntime {
+	t.Helper()
+	repoRoot := t.TempDir()
+	readmePath := operatingModelTeamReadmePath(model.Source.Path)
+	if readmePath != "" && includeReadmeLink {
+		absReadmePath := filepath.Join(repoRoot, filepath.FromSlash(readmePath))
+		if err := os.MkdirAll(filepath.Dir(absReadmePath), 0o755); err != nil {
+			t.Fatalf("create README dir: %v", err)
+		}
+		if err := os.WriteFile(absReadmePath, []byte("See OPERATING_MODEL.md.\n"), 0o644); err != nil {
+			t.Fatalf("write README fixture: %v", err)
+		}
+	}
+	loaded := &LoadedTeamContract{TeamID: model.Team}
+	members := []MemberTopics{{
+		Ref: MemberRef{Team: model.Team, Member: "a"},
+		Topics: Topics{
+			Intake:            []IntakeEntry{{Prefix: "first/*"}},
+			Output:            []OutputEntry{{Prefix: "first/*", DestinationKind: DestinationKnowledge}},
+			DecisionsOwned:    []string{"model-update"},
+			DecisionsConsumed: []string{"model-update"},
+			ExternalProducers: []string{"operator"},
+		},
+		Exists: true,
+	}}
+	loaded.Contract = &teamcontract.OperatingContract{
+		DecisionContext: map[string]teamcontract.DecisionContext{"model-update": {OwnerMemberIDs: []string{"a"}}},
+		Members:         map[string]teamcontract.MemberContract{"a": {}},
+	}
+	loaded.TopicCatalog = []TopicCatalogEntry{{
+		Prefix:  "first/*",
+		Status:  "live",
+		Purpose: "First.",
+	}}
+	if includePlanOfRecord {
+		loaded.PlanOfRecordDocuments = []teamcontract.PlanOfRecordDocument{{
+			ID: "operating-model",
+			Paths: []teamcontract.PathRef{{
+				Base: "repo-root",
+				Path: model.Source.Path,
+			}},
+		}}
+	}
+	return OperatingGraphRuntime{
+		RepoRoot:       repoRoot,
+		Members:        members,
+		PromptSections: derivedTopicContractPromptSections(members, TeamContractRegistry{model.Team: loaded}),
+		Contracts: TeamContractRegistry{
+			model.Team: loaded,
+		},
+	}
+}
+
 func TestValidateOperatingModelsRejectsUnbackedExternalInputs(t *testing.T) {
 	models := []OperatingModelDocument{operatingModelDocumentFixture(t)}
 	models[0].Sections.ExternalInputs.Rows[0].ProducerTrigger = "`external:ghost-system`"
@@ -2167,6 +2583,87 @@ func TestValidateOperatingModelsRejectsUnbackedOutputs(t *testing.T) {
 	result := ValidateOperatingModels(models, OperatingGraphRuntime{}, "team-a", "g")
 	assertOperatingFinding(t, result, "operating_model_outputs_surface_unbacked")
 	assertOperatingFinding(t, result, "operating_model_outputs_consumer_unbacked")
+}
+
+func TestOperatingModelReferenceIndexNormalizesDocumentReferences(t *testing.T) {
+	model := operatingModelDocumentFixture(t)
+	model.Sections.Outputs.Rows[0].Surface = "`topic:first/*`"
+	index := NewOperatingModelReferenceIndex(model, OperatingGraphRuntime{})
+
+	assertOperatingModelReference(t, index, OperatingModelReferenceKindTopic, "", "first/*", "topic_catalog")
+	assertOperatingModelReference(t, index, OperatingModelReferenceKindDecision, "", "model-update", "decisions")
+	assertOperatingModelReference(t, index, OperatingModelReferenceKindMember, "", "a", "topic_catalog")
+	assertOperatingModelReference(t, index, OperatingModelReferenceKindTopic, OperatingGraphQualifierFuture, "second/*", "gaps")
+	assertOperatingModelReference(t, index, OperatingModelReferenceKindCommand, "", "prompt-manager graph operating-model validate --team team-a --id g", "adoption")
+
+	inputAssurance := index.ExternalInputAssurance(model.Sections.ExternalInputs.Rows[0])
+	if !inputAssurance.Backed() {
+		t.Fatalf("expected fixture external input row to be fully backed: %+v", inputAssurance)
+	}
+	outputAssurance := index.OutputAssurance(model.Sections.Outputs.Rows[0])
+	if !outputAssurance.Backed() {
+		t.Fatalf("expected fixture output row to be fully backed: %+v", outputAssurance)
+	}
+	if !index.FeedbackReferenceAssurance("topic:first/*").Backed {
+		t.Fatalf("expected feedback topic reference to be backed")
+	}
+}
+
+func TestOperatingModelReferenceIndexOwnsCoverageAssurance(t *testing.T) {
+	model := operatingModelDocumentFixture(t)
+	model.Sections.ExternalInputs.Rows[0].ProducerTrigger = "`external:ghost-system`"
+	model.Sections.Outputs.Rows[0].Surface = "`topic:ghost-output/*`"
+	model.Sections.FeedbackLoop.Steps[0].References = []string{"topic:first/*", "topic:never-seen/*"}
+	index := NewOperatingModelReferenceIndex(model, OperatingGraphRuntime{})
+
+	inputBacked, inputUnbacked := externalInputsCoverageCounts(index)
+	if inputBacked != 0 || inputUnbacked != 1 {
+		t.Fatalf("expected coverage to count reference-index external input assurance, got backed=%d unbacked=%d", inputBacked, inputUnbacked)
+	}
+	outputBacked, outputUnbacked := outputsCoverageCounts(index)
+	if outputBacked != 0 || outputUnbacked != 1 {
+		t.Fatalf("expected coverage to count reference-index output assurance, got backed=%d unbacked=%d", outputBacked, outputUnbacked)
+	}
+	steps, anchored, unbackedRefs := feedbackLoopCoverageCounts(index)
+	if steps != 1 || anchored != 1 || unbackedRefs != 1 {
+		t.Fatalf("expected coverage to count reference-index feedback assurance, got steps=%d anchored=%d unbacked=%d", steps, anchored, unbackedRefs)
+	}
+}
+
+func TestOperatingModelReferenceIndexExpandsRuntimeActorGroups(t *testing.T) {
+	model := operatingModelDocumentFixture(t)
+	model.Graphs[0].Metadata.Extra = map[string]string{
+		"actor_alias.available-drainers": "group:available-drainers",
+		"actor_group.available-drainers": "team-members",
+	}
+	model.Sections.ExternalInputs.Rows[0].Drainer = "available-drainers"
+
+	withoutRuntime := NewOperatingModelReferenceIndex(model, OperatingGraphRuntime{}).ExternalInputAssurance(model.Sections.ExternalInputs.Rows[0])
+	if withoutRuntime.Drainer {
+		t.Fatalf("expected unresolved team-members group to leave drainer unbacked: %+v", withoutRuntime)
+	}
+
+	runtime := OperatingGraphRuntime{
+		Contracts: TeamContractRegistry{
+			"team-a": {TeamID: "team-a", Contract: &teamcontract.OperatingContract{
+				Members: map[string]teamcontract.MemberContract{"a": {}},
+			}},
+		},
+	}
+	withRuntime := NewOperatingModelReferenceIndex(model, runtime).ExternalInputAssurance(model.Sections.ExternalInputs.Rows[0])
+	if !withRuntime.Drainer {
+		t.Fatalf("expected runtime-expanded team-members group to back drainer: %+v", withRuntime)
+	}
+}
+
+func assertOperatingModelReference(t *testing.T, index OperatingModelReferenceIndex, kind OperatingModelReferenceKind, qualifier OperatingGraphQualifier, value, surface string) {
+	t.Helper()
+	for _, ref := range index.References {
+		if ref.Kind == kind && ref.Qualifier == qualifier && ref.Value == value && ref.Surface == surface {
+			return
+		}
+	}
+	t.Fatalf("missing normalized reference kind=%s qualifier=%s value=%q surface=%q in %+v", kind, qualifier, value, surface, index.References)
 }
 
 func operatingDiffRuntime(t *testing.T, members []MemberTopics) OperatingGraphRuntime {

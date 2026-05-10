@@ -136,7 +136,6 @@ func (s *Service) DeleteFromIndex(ctx context.Context, skillID string) error {
 	return nil
 }
 
-
 // composeEmbeddingText creates a rich text representation for embedding.
 func composeEmbeddingText(skill *skills.Metadata, content string) string {
 	var parts []string

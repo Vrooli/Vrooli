@@ -12,10 +12,9 @@ package heartbeat
 import (
 	"fmt"
 	"path/filepath"
+	"prompt-manager/memberflow"
 	"sort"
 	"strings"
-
-	"prompt-manager/memberflow"
 )
 
 // inboxFlowInputs is the deterministic input bundle for RenderInboxFlow.

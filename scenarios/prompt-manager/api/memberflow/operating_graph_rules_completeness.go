@@ -2,7 +2,6 @@ package memberflow
 
 import (
 	"fmt"
-	"strings"
 )
 
 type graphDeclaredMemberMissingRule struct{}
@@ -66,15 +65,8 @@ func graphDeclaredRuntimeRelationshipMissingRules(registry OperatingRelationship
 		if !spec.RuntimeOnlyCompletes {
 			continue
 		}
-		ruleIDs := splitRelationshipValidationRules(spec.ValidationRule)
-		runtimeKinds := spec.RuntimeKinds
-		if spec.Kind == operatingRelTopicRead {
-			runtimeKinds = []OperatingRelationshipKind{operatingRelTopicIntake, operatingRelTopicRequiredRead, operatingRelTopicEvidenceConsumed}
-		}
-		for i, ruleID := range ruleIDs {
-			if ruleID == "" {
-				continue
-			}
+		for _, target := range spec.CompletenessTargets {
+			ruleID := target.RuleID
 			rule, ok := rulesByID[ruleID]
 			if !ok {
 				rule = &graphDeclaredRuntimeRelationshipMissingRule{
@@ -84,15 +76,9 @@ func graphDeclaredRuntimeRelationshipMissingRules(registry OperatingRelationship
 				rulesByID[ruleID] = rule
 				order = append(order, ruleID)
 			}
-			var kind OperatingRelationshipKind
-			if spec.Kind == operatingRelTopicRead && i < len(runtimeKinds) {
-				kind = runtimeKinds[i]
-			} else {
-				kind = spec.Kind
-			}
 			rule.targets = append(rule.targets, declaredRuntimeRelationshipTarget{
-				kind:  kind,
-				label: declaredRuntimeRelationshipLabel(kind),
+				kind:  target.Kind,
+				label: target.Label,
 			})
 		}
 	}
@@ -101,41 +87,6 @@ func graphDeclaredRuntimeRelationshipMissingRules(registry OperatingRelationship
 		out = append(out, *rulesByID[id])
 	}
 	return out
-}
-
-func splitRelationshipValidationRules(raw string) []string {
-	parts := strings.Split(raw, ",")
-	for i := range parts {
-		parts[i] = strings.TrimSpace(parts[i])
-	}
-	return parts
-}
-
-func declaredRuntimeRelationshipLabel(kind OperatingRelationshipKind) string {
-	switch kind {
-	case operatingRelTopicIntake:
-		return "declared intake"
-	case operatingRelTopicRequiredRead:
-		return "declared required read"
-	case operatingRelTopicEvidenceConsumed:
-		return "declared evidence"
-	case operatingRelTopicOutput:
-		return "declared output"
-	case operatingRelPOROutput:
-		return "declared PoR output"
-	case operatingRelDecisionOwned:
-		return "declared decision ownership"
-	case operatingRelDecisionConsumed:
-		return "declared decision consumption"
-	case operatingRelCapabilityGapRaised:
-		return "declared capability-gap routing"
-	case operatingRelExternalProducer:
-		return "declared external producer"
-	case operatingRelCrossTeamOutput:
-		return "declared cross-team output"
-	default:
-		return "declared relationship"
-	}
 }
 
 func declaredRuntimeRelationshipMissingFindings(ctx OperatingGraphRuleContext, rule OperatingGraphRule, kind OperatingRelationshipKind, label string) []OperatingGraphFinding {

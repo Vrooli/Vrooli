@@ -59,6 +59,14 @@ const sampleEntry: KnowledgeEntry = {
   },
 }
 
+function firstIntakePrefix(): string {
+  const entry = intake[0]
+  if (!entry) {
+    throw new Error('test fixture must include an intake entry')
+  }
+  return entry.prefix
+}
+
 describe('MemberInboxTab', () => {
   beforeEach(() => {
     mockedList.mockReset()
@@ -89,10 +97,10 @@ describe('MemberInboxTab', () => {
       expect(screen.getByTestId(`inbox-entry-${sampleEntry.id}`)).toBeInTheDocument()
     })
 
-    expect(screen.getByTestId(`inbox-count-${intake[0]!.prefix}`)).toHaveTextContent('1 unrouted')
+    expect(screen.getByTestId(`inbox-count-${firstIntakePrefix()}`)).toHaveTextContent('1 unrouted')
     expect(screen.getByText('research-inbox/audience/foo-pain')).toBeInTheDocument()
     expect(screen.getByText(/by vision-walk/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /source/i })).toHaveAttribute('href', sampleEntry.source!)
+    expect(screen.getByRole('link', { name: /source/i })).toHaveAttribute('href', sampleEntry.source)
   })
 
   it('renders empty inbox message when prefix returns no entries', async () => {
@@ -101,7 +109,7 @@ describe('MemberInboxTab', () => {
     render(<MemberInboxTab teamId="marketing-crew" intake={intake} output={output} />)
 
     await waitFor(() => {
-      expect(screen.getByTestId(`inbox-empty-${intake[0]!.prefix}`)).toBeInTheDocument()
+      expect(screen.getByTestId(`inbox-empty-${firstIntakePrefix()}`)).toBeInTheDocument()
     })
   })
 
@@ -197,7 +205,7 @@ describe('MemberInboxTab', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByTestId(`inbox-empty-${intake[0]!.prefix}`)).toBeInTheDocument()
+      expect(screen.getByTestId(`inbox-empty-${firstIntakePrefix()}`)).toBeInTheDocument()
     })
   })
 

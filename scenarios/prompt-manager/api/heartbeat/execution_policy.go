@@ -3,7 +3,6 @@ package heartbeat
 import (
 	"errors"
 	"fmt"
-
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 )

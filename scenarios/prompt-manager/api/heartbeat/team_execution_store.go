@@ -3,9 +3,8 @@ package heartbeat
 import (
 	"context"
 	"log"
-	"sync"
-
 	"prompt-manager/store"
+	"sync"
 )
 
 // TeamExecutionStore manages TeamExecutionContexts for all teams.

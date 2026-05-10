@@ -163,6 +163,9 @@ export function TeamEditorPanel({
   onHighlightHandled,
   className,
 }: TeamEditorPanelProps) {
+  const teamId = team?.id
+  const teamReportingMode = team?.coordination.reportingMode
+
   // Active tab state
   const [activeTab, setActiveTab] = useState('info')
 
@@ -210,7 +213,7 @@ export function TeamEditorPanel({
   }, [])
 
   // Topics graph (single source of truth — also feeds the Members-tab pill).
-  const { graph: topicsGraph } = useTopicsGraph(team?.id)
+  const { graph: topicsGraph } = useTopicsGraph(teamId)
   const validationCount = useMemo(() => {
     if (!topicsGraph) return 0
     return topicsGraph.validation.errors + topicsGraph.validation.warnings
@@ -232,19 +235,19 @@ export function TeamEditorPanel({
   // Recompute graph-mode whenever the active team changes. Stored override
   // (per-team) wins; otherwise auto-default from reportingMode.
   useEffect(() => {
-    if (!team) return
-    const stored = readGraphMode(team.id)
-    setGraphMode(stored ?? autoDefaultGraphMode(team.coordination.reportingMode))
-  }, [team?.id, team?.coordination.reportingMode])
+    if (!teamId || !teamReportingMode) return
+    const stored = readGraphMode(teamId)
+    setGraphMode(stored ?? autoDefaultGraphMode(teamReportingMode))
+  }, [teamId, teamReportingMode])
 
   // Hierarchy layout direction — per-team; default 'TB' (vertical).
   const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>('TB')
 
   // Recompute layout direction on team change.
   useEffect(() => {
-    if (!team) return
-    setLayoutDirection(readLayoutDirection(team.id))
-  }, [team?.id])
+    if (!teamId) return
+    setLayoutDirection(readLayoutDirection(teamId))
+  }, [teamId])
 
   // Persist view mode preference
   useEffect(() => {
@@ -256,13 +259,13 @@ export function TeamEditorPanel({
   // Operator override: persists per-team and updates state.
   const handleSetGraphMode = useCallback((mode: GraphMode) => {
     setGraphMode(mode)
-    if (team) writeGraphMode(team.id, mode)
-  }, [team?.id])
+    if (teamId) writeGraphMode(teamId, mode)
+  }, [teamId])
 
   const handleSetLayoutDirection = useCallback((dir: LayoutDirection) => {
     setLayoutDirection(dir)
-    if (team) writeLayoutDirection(team.id, dir)
-  }, [team?.id])
+    if (teamId) writeLayoutDirection(teamId, dir)
+  }, [teamId])
 
   // Team editor store
   const selectedMemberId = useTeamEditorStore((state) => state.selectedMemberId)
@@ -341,22 +344,21 @@ export function TeamEditorPanel({
 
   // Load org chart edges when team changes
   useEffect(() => {
-    if (!team) {
+    if (!teamId) {
       reset()
       return
     }
 
     const loadEdges = async () => {
       try {
-        const orgEdges = await orgChartService.getEdges(team.id)
+        const orgEdges = await orgChartService.getEdges(teamId)
         setEdges(orgEdges)
       } catch (error) {
         console.error('[TeamEditorPanel] Failed to load org chart edges:', error)
       }
     }
     void loadEdges()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only re-run when team ID changes
-  }, [team?.id, setEdges, reset])
+  }, [teamId, setEdges, reset])
 
   // Get selected member
   const selectedMember = useMemo(() => {

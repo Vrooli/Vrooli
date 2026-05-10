@@ -1,6 +1,9 @@
 package memberflow
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type OperatingGraphEdgeShape struct {
 	FromKind OperatingGraphNodeKind
@@ -12,15 +15,31 @@ type OperatingRelationshipSpec struct {
 	RuntimeKinds         []OperatingRelationshipKind
 	GraphShape           OperatingGraphEdgeShape
 	RuntimeFields        []string
+	CompletenessTargets  []OperatingRelationshipCompletenessTarget
 	GraphSuggestions     func(OperatingGraphContractDiff) []string
 	RuntimeSuggestions   func(OperatingGraphContractDiff) []string
 	Statement            func(OperatingGraphContractDiff) string
-	ValidationRule       string
+	ValidationRules      []string
 	ValidationSeverity   Severity
+	RuntimeCoverageMode  OperatingRelationshipRuntimeCoverageMode
+	SubtypeCoverage      bool
 	CoverageIncluded     bool
 	DiffIncluded         bool
 	RuntimeOnlyCompletes bool
 }
+
+type OperatingRelationshipCompletenessTarget struct {
+	Kind   OperatingRelationshipKind
+	RuleID string
+	Label  string
+}
+
+type OperatingRelationshipRuntimeCoverageMode string
+
+const (
+	OperatingRelationshipRuntimeCoverageAll        OperatingRelationshipRuntimeCoverageMode = "all"
+	OperatingRelationshipRuntimeCoverageGraphShown OperatingRelationshipRuntimeCoverageMode = "graph_shown"
+)
 
 type OperatingRelationshipRegistry struct {
 	specs []OperatingRelationshipSpec
@@ -33,11 +52,14 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			RuntimeKinds:         []OperatingRelationshipKind{operatingRelTopicIntake, operatingRelTopicRequiredRead, operatingRelTopicEvidenceConsumed},
 			GraphShape:           OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindTopic, ToKind: OperatingGraphNodeKindMember},
 			RuntimeFields:        []string{"intake", "required_read", "evidence_consumed"},
+			CompletenessTargets:  relationshipCompletenessTargets([]relationshipCompletenessTargetSpec{{operatingRelTopicIntake, "graph_declared_intake_missing"}, {operatingRelTopicRequiredRead, "graph_declared_required_read_missing"}, {operatingRelTopicEvidenceConsumed, "graph_declared_evidence_missing"}}),
 			GraphSuggestions:     graphTopicReadSuggestions,
 			RuntimeSuggestions:   runtimeTopicReadSuggestions,
 			Statement:            topicReadStatement,
-			ValidationRule:       "graph_declared_intake_missing,graph_declared_required_read_missing,graph_declared_evidence_missing",
+			ValidationRules:      []string{"graph_declared_intake_missing", "graph_declared_required_read_missing", "graph_declared_evidence_missing"},
 			ValidationSeverity:   SeverityError,
+			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
+			SubtypeCoverage:      true,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
 			RuntimeOnlyCompletes: true,
@@ -47,11 +69,13 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			RuntimeKinds:         []OperatingRelationshipKind{operatingRelTopicOutput},
 			GraphShape:           OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindMember, ToKind: OperatingGraphNodeKindTopic},
 			RuntimeFields:        []string{"output"},
+			CompletenessTargets:  relationshipCompletenessTargets([]relationshipCompletenessTargetSpec{{operatingRelTopicOutput, "graph_declared_output_missing"}}),
 			GraphSuggestions:     graphTopicOutputSuggestions,
 			RuntimeSuggestions:   runtimeTopicOutputSuggestions,
 			Statement:            topicOutputStatement,
-			ValidationRule:       "graph_declared_output_missing",
+			ValidationRules:      []string{"graph_declared_output_missing"},
 			ValidationSeverity:   SeverityWarning,
+			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
 			RuntimeOnlyCompletes: true,
@@ -61,11 +85,13 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			RuntimeKinds:         []OperatingRelationshipKind{operatingRelPOROutput},
 			GraphShape:           OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindMember, ToKind: OperatingGraphNodeKindPOR},
 			RuntimeFields:        []string{"output.destination_kind=por_file"},
+			CompletenessTargets:  relationshipCompletenessTargets([]relationshipCompletenessTargetSpec{{operatingRelPOROutput, "graph_declared_output_missing"}}),
 			GraphSuggestions:     graphPOROutputSuggestions,
 			RuntimeSuggestions:   runtimePOROutputSuggestions,
 			Statement:            porOutputStatement,
-			ValidationRule:       "graph_declared_output_missing",
+			ValidationRules:      []string{"graph_declared_output_missing"},
 			ValidationSeverity:   SeverityWarning,
+			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
 			RuntimeOnlyCompletes: true,
@@ -75,11 +101,13 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			RuntimeKinds:         []OperatingRelationshipKind{operatingRelDecisionOwned},
 			GraphShape:           OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindMember, ToKind: OperatingGraphNodeKindDecision},
 			RuntimeFields:        []string{"decisions_owned"},
+			CompletenessTargets:  relationshipCompletenessTargets([]relationshipCompletenessTargetSpec{{operatingRelDecisionOwned, "graph_declared_decision_owned_missing"}}),
 			GraphSuggestions:     graphDecisionOwnedSuggestions,
 			RuntimeSuggestions:   runtimeDecisionOwnedSuggestions,
 			Statement:            decisionOwnedStatement,
-			ValidationRule:       "graph_declared_decision_owned_missing",
+			ValidationRules:      []string{"graph_declared_decision_owned_missing"},
 			ValidationSeverity:   SeverityError,
+			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
 			RuntimeOnlyCompletes: true,
@@ -89,11 +117,13 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			RuntimeKinds:         []OperatingRelationshipKind{operatingRelDecisionConsumed, operatingRelTopicEvidenceConsumed},
 			GraphShape:           OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindDecision, ToKind: OperatingGraphNodeKindMember},
 			RuntimeFields:        []string{"decisions_consumed", "evidence_consumed.for_decisions"},
+			CompletenessTargets:  relationshipCompletenessTargets([]relationshipCompletenessTargetSpec{{operatingRelDecisionConsumed, "graph_declared_decision_consumed_missing"}, {operatingRelTopicEvidenceConsumed, "graph_declared_decision_consumed_missing"}}),
 			GraphSuggestions:     graphDecisionConsumedSuggestions,
 			RuntimeSuggestions:   runtimeDecisionConsumedSuggestions,
 			Statement:            decisionConsumedStatement,
-			ValidationRule:       "graph_declared_decision_consumed_missing",
+			ValidationRules:      []string{"graph_declared_decision_consumed_missing"},
 			ValidationSeverity:   SeverityError,
+			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
 			RuntimeOnlyCompletes: true,
@@ -103,11 +133,13 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			RuntimeKinds:         []OperatingRelationshipKind{operatingRelCapabilityGapRaised},
 			GraphShape:           OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindMember, ToKind: OperatingGraphNodeKindDecision},
 			RuntimeFields:        []string{"raises_capability_gaps"},
+			CompletenessTargets:  relationshipCompletenessTargets([]relationshipCompletenessTargetSpec{{operatingRelCapabilityGapRaised, "graph_declared_capability_gap_missing"}}),
 			GraphSuggestions:     graphCapabilityGapRaisedSuggestions,
 			RuntimeSuggestions:   runtimeCapabilityGapRaisedSuggestions,
 			Statement:            capabilityGapRaisedStatement,
-			ValidationRule:       "graph_declared_capability_gap_missing",
+			ValidationRules:      []string{"graph_declared_capability_gap_missing"},
 			ValidationSeverity:   SeverityWarning,
+			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
 			RuntimeOnlyCompletes: true,
@@ -117,11 +149,13 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			RuntimeKinds:         []OperatingRelationshipKind{operatingRelExternalProducer},
 			GraphShape:           OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindExternal, ToKind: OperatingGraphNodeKindMember},
 			RuntimeFields:        []string{"external_producers"},
+			CompletenessTargets:  relationshipCompletenessTargets([]relationshipCompletenessTargetSpec{{operatingRelExternalProducer, "graph_declared_external_producer_missing"}}),
 			GraphSuggestions:     graphExternalProducerSuggestions,
 			RuntimeSuggestions:   runtimeExternalProducerSuggestions,
 			Statement:            externalProducerStatement,
-			ValidationRule:       "graph_declared_external_producer_missing",
+			ValidationRules:      []string{"graph_declared_external_producer_missing"},
 			ValidationSeverity:   SeverityWarning,
+			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
 			RuntimeOnlyCompletes: true,
@@ -134,8 +168,9 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			GraphSuggestions:     graphExternalProducerIntakeSuggestions,
 			RuntimeSuggestions:   runtimeExternalProducerIntakeSuggestions,
 			Statement:            externalProducerIntakeStatement,
-			ValidationRule:       "graph_edge_unbacked",
+			ValidationRules:      []string{"graph_edge_unbacked"},
 			ValidationSeverity:   SeverityError,
+			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageGraphShown,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
 			RuntimeOnlyCompletes: false,
@@ -145,16 +180,35 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			RuntimeKinds:         []OperatingRelationshipKind{operatingRelCrossTeamOutput},
 			GraphShape:           OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindTopic, ToKind: OperatingGraphNodeKindTeam},
 			RuntimeFields:        []string{"output.destination_team"},
+			CompletenessTargets:  relationshipCompletenessTargets([]relationshipCompletenessTargetSpec{{operatingRelCrossTeamOutput, "graph_declared_cross_team_output_missing"}}),
 			GraphSuggestions:     graphCrossTeamOutputSuggestions,
 			RuntimeSuggestions:   runtimeCrossTeamOutputSuggestions,
 			Statement:            crossTeamOutputStatement,
-			ValidationRule:       "graph_declared_cross_team_output_missing",
+			ValidationRules:      []string{"graph_declared_cross_team_output_missing"},
 			ValidationSeverity:   SeverityWarning,
+			RuntimeCoverageMode:  OperatingRelationshipRuntimeCoverageAll,
 			CoverageIncluded:     true,
 			DiffIncluded:         true,
 			RuntimeOnlyCompletes: true,
 		},
 	}}
+}
+
+type relationshipCompletenessTargetSpec struct {
+	kind   OperatingRelationshipKind
+	ruleID string
+}
+
+func relationshipCompletenessTargets(specs []relationshipCompletenessTargetSpec) []OperatingRelationshipCompletenessTarget {
+	out := make([]OperatingRelationshipCompletenessTarget, 0, len(specs))
+	for _, spec := range specs {
+		out = append(out, OperatingRelationshipCompletenessTarget{
+			Kind:   spec.kind,
+			RuleID: spec.ruleID,
+			Label:  declaredRuntimeRelationshipLabel(spec.kind),
+		})
+	}
+	return out
 }
 
 func (r OperatingRelationshipRegistry) Specs() []OperatingRelationshipSpec {
@@ -282,6 +336,65 @@ func (r OperatingRelationshipRegistry) AcceptableRuntimeFields(kind OperatingRel
 	return out
 }
 
+func (s OperatingRelationshipSpec) ValidationRule() string {
+	return strings.Join(s.ValidationRules, ",")
+}
+
+func (s OperatingRelationshipSpec) RuntimeCoverageRelationships(ctx OperatingGraphContractContext) []OperatingRelationship {
+	rels := runtimeRelationshipsByGraphKind(ctx.Index.RuntimeRelationships.All(), s.Kind)
+	if s.RuntimeCoverageMode == OperatingRelationshipRuntimeCoverageGraphShown {
+		return runtimeRelationshipsShownInGraph(ctx, rels)
+	}
+	return rels
+}
+
+func runtimeRelationshipsByGraphKind(rels []OperatingRelationship, kind OperatingRelationshipKind) []OperatingRelationship {
+	var out []OperatingRelationship
+	for _, rel := range rels {
+		if runtimeRelationshipAsGraphRelationship(rel) == kind {
+			out = append(out, rel)
+		}
+	}
+	return out
+}
+
+func runtimeRelationshipsShownInGraph(ctx OperatingGraphContractContext, rels []OperatingRelationship) []OperatingRelationship {
+	var out []OperatingRelationship
+	for _, rel := range rels {
+		if ctx.Matcher.RuntimeShownInGraph(rel, ctx.Index.GraphRelationships) {
+			out = append(out, rel)
+		}
+	}
+	return out
+}
+
+func declaredRuntimeRelationshipLabel(kind OperatingRelationshipKind) string {
+	switch kind {
+	case operatingRelTopicIntake:
+		return "declared intake"
+	case operatingRelTopicRequiredRead:
+		return "declared required read"
+	case operatingRelTopicEvidenceConsumed:
+		return "declared evidence"
+	case operatingRelTopicOutput:
+		return "declared output"
+	case operatingRelPOROutput:
+		return "declared PoR output"
+	case operatingRelDecisionOwned:
+		return "declared decision ownership"
+	case operatingRelDecisionConsumed:
+		return "declared decision consumption"
+	case operatingRelCapabilityGapRaised:
+		return "declared capability-gap routing"
+	case operatingRelExternalProducer:
+		return "declared external producer"
+	case operatingRelCrossTeamOutput:
+		return "declared cross-team output"
+	default:
+		return "declared relationship"
+	}
+}
+
 func (r OperatingRelationshipRegistry) Validate() error {
 	seen := map[OperatingRelationshipKind]bool{}
 	for _, spec := range r.specs {
@@ -292,8 +405,22 @@ func (r OperatingRelationshipRegistry) Validate() error {
 			return fmt.Errorf("duplicate relationship spec %q", spec.Kind)
 		}
 		seen[spec.Kind] = true
-		if spec.CoverageIncluded && spec.ValidationRule == "" {
+		if spec.CoverageIncluded && len(spec.ValidationRules) == 0 {
 			return fmt.Errorf("relationship spec %q is covered but has no validation rule", spec.Kind)
+		}
+		if spec.RuntimeCoverageMode == "" {
+			return fmt.Errorf("relationship spec %q has no runtime coverage mode", spec.Kind)
+		}
+		if spec.RuntimeOnlyCompletes && len(spec.CompletenessTargets) == 0 {
+			return fmt.Errorf("relationship spec %q requires runtime completeness without targets", spec.Kind)
+		}
+		for _, target := range spec.CompletenessTargets {
+			if target.Kind == "" || target.RuleID == "" || target.Label == "" {
+				return fmt.Errorf("relationship spec %q has incomplete completeness target", spec.Kind)
+			}
+			if !spec.AcceptsRuntimeKind(target.Kind) {
+				return fmt.Errorf("relationship spec %q has completeness target %q outside runtime kinds", spec.Kind, target.Kind)
+			}
 		}
 		if spec.DiffIncluded && (spec.GraphSuggestions == nil || spec.RuntimeSuggestions == nil || spec.Statement == nil) {
 			return fmt.Errorf("relationship spec %q is diffed but has incomplete diff metadata", spec.Kind)

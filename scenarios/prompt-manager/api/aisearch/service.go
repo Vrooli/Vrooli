@@ -900,7 +900,6 @@ func (s *Service) Available(ctx context.Context) bool {
 	return s.embedder.Available(ctx) && s.vectorStore.Available(ctx)
 }
 
-
 // SetAgentSearch configures agent AI search support.
 func (s *Service) SetAgentSearch(vectorStore VectorStore, agentStore AgentStoreReader, searchSvc *search.AgentSearchService) {
 	s.agentVectorStore = vectorStore
@@ -1362,4 +1361,3 @@ func toAITeamSearchResult(r SearchResult) AITeamSearchResult {
 		ScorePercent: scorePercent,
 	}
 }
-

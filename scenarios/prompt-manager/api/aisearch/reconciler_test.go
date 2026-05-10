@@ -66,6 +66,7 @@ func (f *fakeStore) BatchDelete(_ context.Context, ids []string) error {
 func (f *fakeStore) Search(context.Context, []float64, int, float64) ([]SearchResult, error) {
 	return nil, nil
 }
+
 func (f *fakeStore) CountPoints(context.Context) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

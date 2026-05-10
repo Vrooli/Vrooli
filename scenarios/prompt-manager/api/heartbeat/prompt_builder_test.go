@@ -4,16 +4,15 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"prompt-manager/memberflow"
+	"prompt-manager/store"
+	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 	"runtime"
 	"sort"
 	"strings"
 	"testing"
 	"time"
-
-	"prompt-manager/memberflow"
-	"prompt-manager/store"
-	"prompt-manager/teamconfig"
-	"prompt-manager/teamcontract"
 )
 
 func TestPromptBuilderAgentOnly(t *testing.T) {

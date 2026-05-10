@@ -723,7 +723,6 @@ func TestService_DeleteFromIndex_Success(t *testing.T) {
 	}
 }
 
-
 // --- Helper function tests ---
 
 func TestStringifyID(t *testing.T) {

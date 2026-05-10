@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui type type-go type-ui check setup open
 
 .DEFAULT_GOAL := help
 
@@ -116,6 +116,21 @@ lint-go: ## Lint Go code
 lint-ui: ## Lint UI code
 	@if [ -f ui/package.json ]; then \
 		cd ui && pnpm run lint && pnpm run type-check; \
+	fi
+
+type: type-go type-ui ## Type-check all code
+
+type-go: ## Type-check Go code
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		cd api && go test ./... -run '^$$'; \
+	fi
+	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
+		cd cli && go test ./... -run '^$$'; \
+	fi
+
+type-ui: ## Type-check UI code
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run type-check; \
 	fi
 
 check: fmt lint test ## Run full quality gates

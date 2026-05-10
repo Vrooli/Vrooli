@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"prompt-manager/store"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
-
-	"prompt-manager/store"
 )
 
 // runtimeFixture is a small DSL for laying down a synthetic store under

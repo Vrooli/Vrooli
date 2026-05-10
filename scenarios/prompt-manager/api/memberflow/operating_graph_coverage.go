@@ -130,10 +130,7 @@ func buildOperatingRelationshipCoverage(ctx OperatingGraphContractContext) []Ope
 	out := make([]OperatingRelationshipCoverage, 0, len(specs))
 	for _, spec := range specs {
 		graphRels := relationshipsByGraphKind(ctx.Index.GraphRelationships.All(), spec.Kind)
-		runtimeRels := runtimeRelationshipsByGraphKind(ctx.Index.RuntimeRelationships.All(), spec.Kind)
-		if spec.Kind == operatingRelExternalProducerIntake {
-			runtimeRels = runtimeRelationshipsShownInGraph(ctx, runtimeRels)
-		}
+		runtimeRels := spec.RuntimeCoverageRelationships(ctx)
 		graphOnly := countGraphOnlyRelationships(ctx, graphRels)
 		runtimeOnly := countRuntimeOnlyRelationships(ctx, runtimeRels)
 		out = append(out, OperatingRelationshipCoverage{
@@ -144,7 +141,7 @@ func buildOperatingRelationshipCoverage(ctx OperatingGraphContractContext) []Ope
 			GraphOnly:          graphOnly,
 			RuntimeOnly:        runtimeOnly,
 			RuntimeSubtypes:    buildOperatingRelationshipSubtypeCoverage(ctx, spec),
-			ValidationRule:     spec.ValidationRule,
+			ValidationRule:     spec.ValidationRule(),
 			ValidationSeverity: string(spec.ValidationSeverity),
 			DiffRelationship:   coverageDiffRelationship(spec),
 		})
@@ -153,7 +150,7 @@ func buildOperatingRelationshipCoverage(ctx OperatingGraphContractContext) []Ope
 }
 
 func buildOperatingRelationshipSubtypeCoverage(ctx OperatingGraphContractContext, spec OperatingRelationshipSpec) []OperatingRelationshipSubtypeCoverage {
-	if spec.Kind != operatingRelTopicRead {
+	if !spec.SubtypeCoverage {
 		return nil
 	}
 	out := make([]OperatingRelationshipSubtypeCoverage, 0, len(spec.RuntimeKinds))
@@ -177,30 +174,10 @@ func coverageDiffRelationship(spec OperatingRelationshipSpec) string {
 	return string(spec.Kind)
 }
 
-func runtimeRelationshipsShownInGraph(ctx OperatingGraphContractContext, rels []OperatingRelationship) []OperatingRelationship {
-	var out []OperatingRelationship
-	for _, rel := range rels {
-		if ctx.Matcher.RuntimeShownInGraph(rel, ctx.Index.GraphRelationships) {
-			out = append(out, rel)
-		}
-	}
-	return out
-}
-
 func relationshipsByGraphKind(rels []OperatingRelationship, kind OperatingRelationshipKind) []OperatingRelationship {
 	var out []OperatingRelationship
 	for _, rel := range rels {
 		if rel.Kind == kind {
-			out = append(out, rel)
-		}
-	}
-	return out
-}
-
-func runtimeRelationshipsByGraphKind(rels []OperatingRelationship, kind OperatingRelationshipKind) []OperatingRelationship {
-	var out []OperatingRelationship
-	for _, rel := range rels {
-		if runtimeRelationshipAsGraphRelationship(rel) == kind {
 			out = append(out, rel)
 		}
 	}
@@ -300,6 +277,7 @@ func buildOperatingDocsCoverage(ctx OperatingGraphContractContext) OperatingDocs
 }
 
 func addOperatingModelDocsCoverage(docs *OperatingDocsCoverage, model OperatingModelDocument, runtime OperatingGraphRuntime) {
+	references := NewOperatingModelReferenceIndex(model, runtime)
 	required := requiredOperatingModelSections(model)
 	docs.RequiredSectionsTotal = len(required)
 	for _, section := range required {
@@ -309,11 +287,11 @@ func addOperatingModelDocsCoverage(docs *OperatingDocsCoverage, model OperatingM
 	}
 	docs.ExternalInputsTable = docsTableStatus(model.Sections.ExternalInputs.Table)
 	docs.ExternalInputsRows = len(model.Sections.ExternalInputs.Rows)
-	docs.ExternalInputsBackedRows, docs.ExternalInputsUnbackedRows = externalInputsCoverageCounts(model)
+	docs.ExternalInputsBackedRows, docs.ExternalInputsUnbackedRows = externalInputsCoverageCounts(references)
 	docs.OutputsTable = docsTableStatus(model.Sections.Outputs.Table)
 	docs.OutputsRows = len(model.Sections.Outputs.Rows)
-	docs.OutputsBackedRows, docs.OutputsUnbackedRows = outputsCoverageCounts(model)
-	docs.FeedbackSteps, docs.FeedbackAnchoredSteps, docs.FeedbackUnbackedReferences = feedbackLoopCoverageCounts(model)
+	docs.OutputsBackedRows, docs.OutputsUnbackedRows = outputsCoverageCounts(references)
+	docs.FeedbackSteps, docs.FeedbackAnchoredSteps, docs.FeedbackUnbackedReferences = feedbackLoopCoverageCounts(references)
 	docs.GapsItems, docs.GapsAnchoredItems, docs.GapsTargetStateItems = gapsCoverageCounts(model)
 	docs.AdoptionValidationCommands = countOperatingModelValidationCommands(model)
 	if runtime.Contracts.HasPlanOfRecordPath(model.Team, model.Source.Path) {
@@ -346,28 +324,24 @@ func countOperatingModelValidationCommands(model OperatingModelDocument) int {
 	return len(seen)
 }
 
-func feedbackLoopCoverageCounts(model OperatingModelDocument) (steps, anchored, unbacked int) {
-	for _, step := range model.Sections.FeedbackLoop.Steps {
+func feedbackLoopCoverageCounts(references OperatingModelReferenceIndex) (steps, anchored, unbacked int) {
+	for _, assurance := range references.Feedback {
 		steps++
-		var stepAnchored bool
-		for _, ref := range step.References {
-			if operatingFeedbackReferenceBacked(model, ref) {
-				stepAnchored = true
-			} else {
+		if assurance.Anchored {
+			anchored++
+		}
+		for _, ref := range assurance.References {
+			if !ref.Backed {
 				unbacked++
 			}
-		}
-		if stepAnchored {
-			anchored++
 		}
 	}
 	return
 }
 
-func externalInputsCoverageCounts(model OperatingModelDocument) (backed, unbacked int) {
-	for _, row := range model.Sections.ExternalInputs.Rows {
-		check := operatingExternalInputBacking(model, row)
-		if check.Producer && check.Entry && check.Drainer {
+func externalInputsCoverageCounts(references OperatingModelReferenceIndex) (backed, unbacked int) {
+	for _, assurance := range references.ExternalInputs {
+		if assurance.Backed() {
 			backed++
 		} else {
 			unbacked++
@@ -376,10 +350,9 @@ func externalInputsCoverageCounts(model OperatingModelDocument) (backed, unbacke
 	return
 }
 
-func outputsCoverageCounts(model OperatingModelDocument) (backed, unbacked int) {
-	for _, row := range model.Sections.Outputs.Rows {
-		check := operatingOutputBacking(model, row)
-		if check.Surface && check.Consumer {
+func outputsCoverageCounts(references OperatingModelReferenceIndex) (backed, unbacked int) {
+	for _, assurance := range references.Outputs {
+		if assurance.Backed() {
 			backed++
 		} else {
 			unbacked++

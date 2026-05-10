@@ -19,10 +19,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"prompt-manager/teamcontract"
 	"sort"
 	"strings"
-
-	"prompt-manager/teamcontract"
 )
 
 // LoadedTeamContract pairs a team id with its parsed operating contract

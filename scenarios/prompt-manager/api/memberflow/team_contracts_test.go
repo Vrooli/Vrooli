@@ -3,10 +3,9 @@ package memberflow
 import (
 	"os"
 	"path/filepath"
+	"prompt-manager/teamcontract"
 	"reflect"
 	"testing"
-
-	"prompt-manager/teamcontract"
 )
 
 // stubContract is a tiny test helper that builds a *teamcontract.OperatingContract

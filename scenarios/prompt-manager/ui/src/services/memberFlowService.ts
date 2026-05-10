@@ -130,7 +130,7 @@ export async function promoteInboxEntry(
  * `prompt-manager team knowledge-delete <team> <id>`.
  */
 export async function dropInboxEntry(teamId: string, knowledgeId: string): Promise<void> {
-  await apiRequest<void>(
+  await apiRequest<unknown>(
     `/teams/${encodeURIComponent(teamId)}/knowledge/${encodeURIComponent(knowledgeId)}`,
     { method: 'DELETE', parseJson: false },
   )

@@ -3,10 +3,9 @@ package heartbeat
 import (
 	"encoding/base64"
 	"encoding/json"
+	"prompt-manager/store"
 	"strings"
 	"testing"
-
-	"prompt-manager/store"
 )
 
 // TestBuildHeartbeatAttributionEnv_HappyPath asserts the helper produces a

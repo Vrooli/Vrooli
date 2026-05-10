@@ -1,11 +1,10 @@
 package aisearch
 
 import (
-	"strings"
-	"testing"
-
 	"prompt-manager/skills"
 	"prompt-manager/store"
+	"strings"
+	"testing"
 )
 
 func TestComposePayloadHash_Deterministic(t *testing.T) {

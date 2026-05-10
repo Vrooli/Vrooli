@@ -120,13 +120,15 @@ function getGridLayout(
   const order: string[] = []
   const groups = new Map<string, OrgChartNodeType[]>()
   for (const node of nodes) {
-    const roles = node.data.member.roles ?? []
+    const roles = node.data.member.roles
     const groupKey = roles[0] ?? 'unassigned'
-    if (!groups.has(groupKey)) {
-      groups.set(groupKey, [])
+    let group = groups.get(groupKey)
+    if (!group) {
+      group = []
+      groups.set(groupKey, group)
       order.push(groupKey)
     }
-    groups.get(groupKey)!.push(node)
+    group.push(node)
   }
 
   const placedNodes: OrgChartFlowNode[] = []

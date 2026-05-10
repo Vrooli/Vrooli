@@ -161,7 +161,6 @@ func TestDiscover_NoTopicStore_ReturnsResponseWithBudget(t *testing.T) {
 	svc := &Service{
 		skillStore:    mockSkills,
 		searchService: search.NewService(mockSkills),
-		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"api"}, "moderate", 10)
@@ -188,7 +187,6 @@ func TestDiscover_BudgetCalculation_Under(t *testing.T) {
 	svc := &Service{
 		skillStore:    mockSkills,
 		searchService: search.NewService(mockSkills),
-		
 	}
 
 	// No AI services = no results, 0 chars → under budget
@@ -210,7 +208,6 @@ func TestDiscover_ReadCommand_Empty(t *testing.T) {
 	svc := &Service{
 		skillStore:    mockSkills,
 		searchService: search.NewService(mockSkills),
-		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"nonexistent"}, "", 10)
@@ -242,7 +239,6 @@ func TestDiscoverTyped_DefaultPreservesSkillOnlyShape(t *testing.T) {
 			Owner:       store.ActionOwner{Type: "scenario", ID: "prompt-manager"},
 			Command:     store.ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "meta-optimization"}},
 		}}},
-		
 	}
 
 	resp, err := svc.DiscoverTyped(context.Background(), []string{"debug"}, "", 10, "")
@@ -274,7 +270,6 @@ func TestDiscoverTyped_ActionOnlyUsesActionStore(t *testing.T) {
 			Command:     store.ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "meta-optimization"}},
 			Tags:        []string{"team", "decisions"},
 		}}},
-		
 	}
 
 	resp, err := svc.DiscoverTyped(context.Background(), []string{"team decisions"}, "", 10, "action")
@@ -360,7 +355,6 @@ func TestDiscoverTyped_AllPreservesActionResultsWithinLimit(t *testing.T) {
 			Command:     store.ActionCommand{Argv: []string{"vrooli", "scenario", "status", "{{scenario}}"}},
 			Tags:        []string{"scenario", "status", "lifecycle"},
 		}}},
-		
 	}
 
 	resp, err := svc.DiscoverTyped(context.Background(), []string{"show scenario status"}, "", 2, "all")
@@ -444,9 +438,7 @@ func TestSortDiscoverSearchResults(t *testing.T) {
 }
 
 func TestSearchTopics_NoVectorStore(t *testing.T) {
-	svc := &Service{
-		
-	}
+	svc := &Service{}
 
 	results, method, err := svc.SearchTopics(context.Background(), "test", 5)
 	if err != nil {
@@ -592,7 +584,6 @@ func TestDiscover_FullPipeline_TopicAndSkillResults(t *testing.T) {
 		threshold:        0.5,
 		topicVectorStore: topicVS,
 		topicStore:       mockTopics,
-		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"testing"}, "moderate", 10)
@@ -732,7 +723,6 @@ func TestDiscover_OverBudget_TrimsReadCommand(t *testing.T) {
 		skillStore:    mockSkills,
 		searchService: search.NewService(mockSkills),
 		threshold:     0.5,
-		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"stuff"}, "minor", 10)
@@ -813,7 +803,6 @@ func TestDiscover_Deduplication_TopicWinsOverSearch(t *testing.T) {
 		threshold:        0.5,
 		topicVectorStore: topicVS,
 		topicStore:       mockTopics,
-		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"shared"}, "", 10)
@@ -869,7 +858,6 @@ func TestDiscover_WithCustomBudgetConfig(t *testing.T) {
 		searchService: search.NewService(mockSkills),
 		threshold:     0.5,
 		budgetConfig:  mockBudget,
-		
 	}
 
 	resp, err := svc.Discover(context.Background(), []string{"test"}, "minor", 10)

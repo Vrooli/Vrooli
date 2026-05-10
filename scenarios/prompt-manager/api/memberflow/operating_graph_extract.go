@@ -26,11 +26,10 @@ func ExtractOperatingGraphBlocks(path, sourcePath string) ([]OperatingGraphBlock
 		return nil, err
 	}
 	lines := strings.Split(string(data), "\n")
-	sections := parseOperatingModelMarkdownSections(lines)
-	return extractOperatingGraphBlocksFromLines(lines, sourcePath, sections)
+	return extractOperatingGraphBlocksFromLines(lines, sourcePath)
 }
 
-func extractOperatingGraphBlocksFromLines(lines []string, sourcePath string, sections map[string][]OperatingMarkdownSection) ([]OperatingGraphBlock, error) {
+func extractOperatingGraphBlocksFromLines(lines []string, sourcePath string) ([]OperatingGraphBlock, error) {
 	var blocks []OperatingGraphBlock
 	inFence := false
 	for i := 0; i < len(lines); i++ {
@@ -76,7 +75,7 @@ func extractOperatingGraphBlocksFromLines(lines []string, sourcePath string, sec
 		if err != nil {
 			return nil, fmt.Errorf("%s:%d: %w", sourcePath, fenceLine, err)
 		}
-		docs := ExtractOperatingGraphDocsForGraph(operatingModelDocLines(lines, sections), meta, graph)
+		docs := ExtractOperatingGraphDocsForGraph(operatingGraphDocLines(lines, i+1), meta, graph)
 		blocks = append(blocks, OperatingGraphBlock{
 			Metadata: meta,
 			Graph:    graph,
@@ -91,9 +90,31 @@ func extractOperatingGraphBlocksFromLines(lines []string, sourcePath string, sec
 	return blocks, nil
 }
 
-func operatingModelDocLines(lines []string, _ map[string][]OperatingMarkdownSection) []string {
+func operatingGraphDocLines(lines []string, start int) []string {
 	scoped := make([]string, len(lines))
-	copy(scoped, lines)
+	if start < 0 {
+		start = 0
+	}
+	if start > len(lines) {
+		return scoped
+	}
+	end := len(lines)
+	inFence := false
+	for i := start; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(trimmed, "```") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
+		if metadataStartRE.MatchString(lines[i]) || strings.HasPrefix(trimmed, "# ") {
+			end = i
+			break
+		}
+	}
+	copy(scoped[start:end], lines[start:end])
 	return scoped
 }
 

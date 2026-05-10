@@ -3,10 +3,9 @@ package heartbeat
 import (
 	"errors"
 	"net/http"
+	"prompt-manager/internal/testutil/httpx"
 	"strings"
 	"testing"
-
-	"prompt-manager/internal/testutil/httpx"
 )
 
 func TestCreateInvestigationRunSetsErrorHopHeaderOnUpstreamFailure(t *testing.T) {

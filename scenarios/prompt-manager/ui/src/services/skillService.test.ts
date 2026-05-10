@@ -57,6 +57,14 @@ function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   }
 }
 
+function firstSkill(skills: Skill[]): Skill {
+  const skill = skills[0]
+  if (!skill) {
+    throw new Error('test fixture must include at least one skill')
+  }
+  return skill
+}
+
 describe('skillService', () => {
   beforeEach(() => {
     // Clear all mocks
@@ -289,7 +297,7 @@ describe('skillService', () => {
         createTestSkill({ id: '3', name: 'Gamma Skill' }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
-      vi.mocked(api.searchSkills).mockResolvedValue([mockSkills[0]!])
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
 
       // Populate cache
       await getSkills()
@@ -307,7 +315,7 @@ describe('skillService', () => {
         createTestSkill({ id: '2', name: 'Another', description: 'Nothing matching' }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
-      vi.mocked(api.searchSkills).mockResolvedValue([mockSkills[0]!])
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
       await getSkills()
 
       const results = await searchSkills('search term')
@@ -322,7 +330,7 @@ describe('skillService', () => {
         createTestSkill({ id: '2', content: 'No match' }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
-      vi.mocked(api.searchSkills).mockResolvedValue([mockSkills[0]!])
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
       await getSkills()
 
       const results = await searchSkills('keyword')
@@ -337,7 +345,7 @@ describe('skillService', () => {
         createTestSkill({ id: '2', tags: ['low-priority'] }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
-      vi.mocked(api.searchSkills).mockResolvedValue([mockSkills[0]!])
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
       await getSkills()
 
       const results = await searchSkills('urgent')
@@ -352,7 +360,7 @@ describe('skillService', () => {
         createTestSkill({ id: '2', modes: ['testing'] }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
-      vi.mocked(api.searchSkills).mockResolvedValue([mockSkills[0]!])
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
       await getSkills()
 
       const results = await searchSkills('react')
@@ -376,7 +384,7 @@ describe('skillService', () => {
         createTestSkill({ id: '1', name: 'UPPERCASE' }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
-      vi.mocked(api.searchSkills).mockResolvedValue([mockSkills[0]!])
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
       await getSkills()
 
       const results = await searchSkills('uppercase')

@@ -62,11 +62,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"prompt-manager/store"
 	"sort"
 	"strings"
 	"time"
-
-	"prompt-manager/store"
 )
 
 // ruleActualWriterUndeclared is the Pillar 3 runtime ground-truth rule.

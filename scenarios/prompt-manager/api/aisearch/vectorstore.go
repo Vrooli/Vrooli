@@ -456,7 +456,7 @@ func (v *qdrantVectorStore) ScrollIDs(ctx context.Context) (map[string]ScrollIte
 	endpoint := u.String()
 
 	out := make(map[string]ScrollItem)
-	var offset interface{} = nil
+	var offset interface{}
 	for {
 		reqObj := scrollRequest{
 			Limit:       scrollPageLimit,

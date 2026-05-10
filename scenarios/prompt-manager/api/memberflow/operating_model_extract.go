@@ -48,7 +48,7 @@ func ExtractOperatingModelDocuments(path, sourcePath string) ([]OperatingModelDo
 	}
 	lines := strings.Split(string(data), "\n")
 	sections := parseOperatingModelMarkdownSections(lines)
-	blocks, err := extractOperatingGraphBlocksFromLines(lines, sourcePath, sections)
+	blocks, err := extractOperatingGraphBlocksFromLines(lines, sourcePath)
 	if err != nil {
 		return nil, err
 	}

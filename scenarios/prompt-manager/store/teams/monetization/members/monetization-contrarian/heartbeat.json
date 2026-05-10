@@ -6,14 +6,14 @@
   "enabled": true,
   "schedule": "30 17 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-08T21:30:00Z",
-    "endedAt": "2026-05-08T21:30:40Z",
+    "startedAt": "2026-05-09T21:30:00Z",
+    "endedAt": "2026-05-09T21:30:09Z",
     "status": "failed",
-    "runId": "8b3c87df-c637-4d3a-844b-42653b2f8cac",
-    "logPath": "../store/teams/monetization/members/monetization-contrarian/logs/2026-05-08T21-30-00Z.log",
-    "error": "=== Process Log (stderr) | Sandbox 3dff9536-5ba8-4f20-aedc-ee67d3e2862e | Started 2026-05-08T17:30:00-04:00 ===\n\n2026-05-08T21:30:03.238233Z ERROR codex_models_manager::manager: failed to refresh available models: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/models?client_version=0.128.0)\n2026-05-08T21:30:03.277500Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest(\"http/request failed: error sending request for url (https://chatgpt.com/backend-api/wham/apps)\")))\n2026-05-08T21:30:03.305614Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-08T21:30:03.354894Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-08T21:30:03.580724Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-08T21:30:04.014329Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-08T21:30:04.891095Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-08T21:30:06.445947Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n2026-05-08T21:30:09.930327Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: no native root CA certificates found (errors: []), url: wss://chatgpt.com/backend-api/codex/responses\n\n=== Process Exited: code 1 signal 0 oom false | 2026-05-08T17:30:35-04:00 ===\n"
+    "runId": "3868b5a6-02b7-49fc-a794-ca91ac468994",
+    "logPath": "../store/teams/monetization/members/monetization-contrarian/logs/2026-05-09T21-30-00Z.log",
+    "error": "agent-manager unreachable after 4 attempts: resolve agent-manager url: api-core discovery command_failed scenario=\"agent-manager\" port=\"API_PORT\" output=\"# github.com/vrooli/vrooli/internal/runtimesupervisor\\ninternal/runtimesupervisor/service.go:5:2: \\\"errors\\\" imported and not used\\ninternal/runtimesupervisor/service.go:12:2: \\\"sync\\\" imported and not used\\ninternal/runtimesupervisor/service.go:18:2: \\\"github.com/vrooli/vrooli/internal/scenario\\\" imported and not used\\nRuntime error: stale binary check failed: rebuild ./cmd/vrooli: exit status 1\\nUse --no-stale-check for local experiments\" err=exit status 1"
   },
-  "revision": 56,
+  "revision": 59,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-05-08T21:30:40Z"
+  "updatedAt": "2026-05-09T21:30:13Z"
 }
