@@ -84,6 +84,11 @@ func (h toolHandler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, o
 	command, args, err := hostreqkit.InstallCommand(host, status.PackageName, opts.SudoMode)
 	if err != nil {
 		status.Notes = append(status.Notes, err.Error())
+		if hostreqkit.IsSudoSkipped(err) {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.BlockingReason = hostreqkit.BlockingNeedsSudo
+			return status, nil
+		}
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		return status, nil

@@ -115,6 +115,32 @@
       "notes": "Root-owned development helper runtime"
     },
     {
+      "name": "java",
+      "required": true,
+      "reason": "Provide Java 17+ for formal verification backends used by Quint verify",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Root-owned formal verification runtime"
+    },
+    {
+      "name": "quint",
+      "required": true,
+      "reason": "Check formal temporal-flow models and generate deterministic model-based test artifacts",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Pinned to 0.32.0; installed via internal/tools/quint Go handler from @informalsystems/quint."
+    },
+    {
       "name": "buf",
       "required": true,
       "reason": "Drive packages/proto codegen, lint, and breaking-change checks; also gates template validation",

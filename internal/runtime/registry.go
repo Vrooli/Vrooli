@@ -39,6 +39,7 @@ import (
 	protocgenconnectgo "github.com/vrooli/vrooli/internal/tools/protoc-gen-connect-go"
 	protocgenes "github.com/vrooli/vrooli/internal/tools/protoc-gen-es"
 	protocgengo "github.com/vrooli/vrooli/internal/tools/protoc-gen-go"
+	"github.com/vrooli/vrooli/internal/tools/quint"
 	"github.com/vrooli/vrooli/internal/tools/rasdaemon"
 	"github.com/vrooli/vrooli/internal/tools/stripe"
 	"github.com/vrooli/vrooli/internal/tools/vault"
@@ -57,6 +58,7 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 	"protoc_gen_connect_go": protocgenconnectgo.NewHandler,
 	"protoc_gen_es":         protocgenes.NewHandler,
 	"protoc_gen_go":         protocgengo.NewHandler,
+	"quint":                 quint.NewHandler,
 	"rasdaemon":             rasdaemon.NewHandler,
 	"stripe":                stripe.NewHandler,
 	"vault":                 vault.NewHandler,

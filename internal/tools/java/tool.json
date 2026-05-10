@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "java",
+  "description": "Java runtime used by formal verification backends such as Quint verify",
+  "commands": ["java"],
+  "versionArgs": ["-version"],
+  "defaultPackage": "openjdk-17-jre",
+  "packages": {
+    "apt": "openjdk-17-jre",
+    "apt-get": "openjdk-17-jre",
+    "brew": "openjdk@17",
+    "winget": "EclipseAdoptium.Temurin.17.JRE",
+    "dnf": "java-17-openjdk",
+    "yum": "java-17-openjdk",
+    "pacman": "jre17-openjdk",
+    "apk": "openjdk17-jre"
+  },
+  "installHint": "Install Java 17+ for Quint formal verification",
+  "platforms": ["linux", "macos", "windows"],
+  "notes": "Required for `quint verify`; keep version guidance aligned with Quint verification backend requirements."
+}

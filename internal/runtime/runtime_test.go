@@ -463,6 +463,44 @@ func TestInstallCommandMappings(t *testing.T) {
 	}
 }
 
+func TestGenericToolSudoSkippedRemainsSupportedAndNeedsSudo(t *testing.T) {
+	restore := stubRuntimeLookups(t)
+	defer restore()
+
+	hostreqkit.LookPathFn = func(name string) (string, error) {
+		switch name {
+		case "sudo":
+			return "/usr/bin/sudo", nil
+		default:
+			return "", os.ErrNotExist
+		}
+	}
+
+	h := newGenericToolHandler(hostreqkit.ToolManifest{
+		Name:           "java",
+		Commands:       []string{"java"},
+		DefaultPackage: "openjdk-17-jre",
+	})
+	req := hostreq.ResolvedRequirement{Name: "java", Kind: hostreq.KindTool, Required: true}
+	status := h.Inspect(Host{OS: "linux", PackageManager: "apt-get"}, req)
+	out, err := h.Apply(Host{OS: "linux", PackageManager: "apt-get"}, status, EnsureOptions{SudoMode: "skip"})
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if out.SupportClass != SupportSupported {
+		t.Fatalf("SupportClass = %q, want supported", out.SupportClass)
+	}
+	if out.ExecutionState != ExecutionFailed {
+		t.Fatalf("ExecutionState = %q, want failed", out.ExecutionState)
+	}
+	if out.BlockingReason != hostreqkit.BlockingNeedsSudo {
+		t.Fatalf("BlockingReason = %q, want needs_sudo", out.BlockingReason)
+	}
+	if !containsNote(out.Notes, "sudo skipped") {
+		t.Fatalf("notes should mention sudo skipped, got %v", out.Notes)
+	}
+}
+
 func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	reg, err := ensureRegistry()
 	if err != nil {
@@ -471,11 +509,11 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	toolNames := reg.names(hostreq.KindTool)
 	expectedTools := []string{
 		"Xvfb", "ast-grep", "bats", "buf", "cloudflared", "curl",
-		"docker", "ffmpeg", "git", "go", "helm", "jq", "kdump-tools", "lychee",
+		"docker", "ffmpeg", "git", "go", "helm", "java", "jq", "kdump-tools", "lychee",
 		"mcelog", "node", "openbox", "protoc", "protoc-gen-connect-go",
 		"protoc-gen-es", "protoc-gen-go",
-		"python", "rasdaemon", "stripe", "tmux", "vault", "websockify", "x11vnc",
-		"xdotool", "yq",
+		"python", "quint", "rasdaemon", "stripe", "tmux", "vault", "websockify",
+		"x11vnc", "xdotool", "yq",
 	}
 	if len(toolNames) != len(expectedTools) {
 		t.Fatalf("tool count = %d, want %d; got %v", len(toolNames), len(expectedTools), toolNames)
