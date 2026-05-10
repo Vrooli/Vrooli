@@ -172,6 +172,18 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 		for port, evidence := range scenarioruntime.ListenerEvidenceFromClaims(claims, refs, s.portListener) {
 			listeners[port] = evidence
 		}
+		for _, claim := range claims {
+			if !scenarioruntime.IsDiscoverablePortClaimStatus(claim.Status) || claim.Port <= 0 {
+				continue
+			}
+			evidence, ok := listeners[claim.Port]
+			if !ok {
+				continue
+			}
+			if _, err := s.store.UpdatePortClaimListenerEvidence(ctx, claim.ClaimID, scenarioruntime.ListenerObservationFromEvidence(s.now(), evidence)); err != nil {
+				return TickReport{}, fmt.Errorf("update listener evidence for %s: %w", claim.ClaimID, err)
+			}
+		}
 		health, err := s.store.GetHealthSnapshot(ctx, instance.InstanceID)
 		if err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
 			return TickReport{}, fmt.Errorf("get health snapshot for %s: %w", instance.InstanceID, err)
@@ -384,7 +396,13 @@ func (s *Service) portListener(port int) scenarioruntime.ListenerEvidence {
 	if err != nil || !inspection.Inspection.Available {
 		return scenarioruntime.ListenerEvidence{Known: false}
 	}
-	return scenarioruntime.ListenerEvidence{Known: true, Listening: len(inspection.Listeners) > 0}
+	evidence := scenarioruntime.ListenerEvidence{Known: true, Listening: len(inspection.Listeners) > 0}
+	if len(inspection.Listeners) > 0 {
+		listener := inspection.Listeners[0]
+		evidence.PID = &listener.PID
+		evidence.ProcessLabel = listener.Command
+	}
+	return evidence
 }
 
 func (s *Service) executeHealthProbes(ctx context.Context, instanceIDs []string, instances map[string]scenarioruntime.Instance, claims map[string][]scenarioruntime.PortClaim) (int, error) {

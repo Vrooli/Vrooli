@@ -214,9 +214,10 @@ func registryRuntimeDetails(manifest scenario.ServiceManifest, instance scenario
 			ports[key] = claim.Port
 		}
 		bindings = append(bindings, scenario.RuntimePortBinding{
-			Key:  key,
-			Step: claim.PortName,
-			Port: claim.Port,
+			Key:            key,
+			Step:           claim.PortName,
+			Port:           claim.Port,
+			ListenerStatus: claim.ListenerStatus,
 		})
 	}
 	sort.Slice(bindings, func(i, j int) bool {

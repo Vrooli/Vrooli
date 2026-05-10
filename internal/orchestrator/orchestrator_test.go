@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -95,15 +96,16 @@ func TestResolvePortUsesRegistryInPreferModeWithoutProcessRecords(t *testing.T) 
 	home := t.TempDir()
 	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModePrefer)
 	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("registry"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", 18081)
+	port := openTestListener(t)
+	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", port)
 
 	service := New(root, home, io.Discard, io.Discard)
 	resolved, err := service.ResolvePort("alpha", "API_PORT")
 	if err != nil {
 		t.Fatalf("ResolvePort: %v", err)
 	}
-	if resolved.Name != "API_PORT" || resolved.Port != 18081 {
-		t.Fatalf("resolved = %+v, want API_PORT 18081", resolved)
+	if resolved.Name != "API_PORT" || resolved.Port != port {
+		t.Fatalf("resolved = %+v, want API_PORT %d", resolved, port)
 	}
 
 	status, exists, err := service.Status("alpha")
@@ -113,8 +115,8 @@ func TestResolvePortUsesRegistryInPreferModeWithoutProcessRecords(t *testing.T) 
 	if !exists {
 		t.Fatal("expected alpha to exist")
 	}
-	if status.Status != "running" || status.Ports["API_PORT"] != 18081 {
-		t.Fatalf("status = %+v, want registry running with API_PORT 18081", status)
+	if status.Status != "running" || status.Ports["API_PORT"] != port {
+		t.Fatalf("status = %+v, want registry running with API_PORT %d", status, port)
 	}
 }
 
@@ -157,15 +159,17 @@ func TestStrictRegistryModeResolvesPortWithoutPIDVisibility(t *testing.T) {
 		StartedAt: time.Now().Add(-2 * time.Minute).UTC(),
 		Status:    "running",
 	})
-	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", 18081)
+	port := openTestListener(t)
+	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", port)
+	markRegistryClaimListenerStatus(t, home, "claim-alpha-api", scenarioruntime.ListenerStatusListening)
 
 	service := New(root, home, io.Discard, io.Discard)
 	resolved, err := service.ResolvePort("alpha", "API_PORT")
 	if err != nil {
 		t.Fatalf("ResolvePort: %v", err)
 	}
-	if resolved.Port != 18081 || resolved.Name != "API_PORT" {
-		t.Fatalf("resolved = %+v, want registry API_PORT 18081", resolved)
+	if resolved.Port != port || resolved.Name != "API_PORT" {
+		t.Fatalf("resolved = %+v, want registry API_PORT %d", resolved, port)
 	}
 
 	status, exists, err := service.Status("alpha")
@@ -175,8 +179,18 @@ func TestStrictRegistryModeResolvesPortWithoutPIDVisibility(t *testing.T) {
 	if !exists {
 		t.Fatal("expected alpha to exist")
 	}
-	if status.Status != "running" || status.Ports["API_PORT"] != 18081 {
-		t.Fatalf("status = %+v, want registry running with API_PORT 18081", status)
+	if status.Status != "running" || status.Ports["API_PORT"] != port {
+		t.Fatalf("status = %+v, want registry running with API_PORT %d", status, port)
+	}
+	detail, err := service.Detail("alpha")
+	if err != nil {
+		t.Fatalf("Detail(alpha): %v", err)
+	}
+	if len(detail.Details.PortBindings) != 1 {
+		t.Fatalf("port bindings = %#v, want one binding", detail.Details.PortBindings)
+	}
+	if got := detail.Details.PortBindings[0].ListenerStatus; got != scenarioruntime.ListenerStatusListening {
+		t.Fatalf("listener status = %q, want %q", got, scenarioruntime.ListenerStatusListening)
 	}
 }
 
@@ -285,7 +299,8 @@ func TestRegistryAllowlistScopesPreferModeReads(t *testing.T) {
 	for _, name := range []string{"alpha", "beta"} {
 		testscenario.WriteScenarioService(t, root, name, testscenario.ScenarioServiceManifest(name, testscenario.WithDisplayName(name), testscenario.WithDescription("registry"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
 	}
-	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", 18081)
+	alphaPort := openTestListener(t)
+	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", alphaPort)
 	writeRegistryRuntime(t, home, "beta", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", 18082)
 
 	service := New(root, home, io.Discard, io.Discard)
@@ -293,7 +308,7 @@ func TestRegistryAllowlistScopesPreferModeReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Status(alpha): %v", err)
 	}
-	if !exists || alpha.Status != "running" || alpha.Ports["API_PORT"] != 18081 {
+	if !exists || alpha.Status != "running" || alpha.Ports["API_PORT"] != alphaPort {
 		t.Fatalf("alpha status = %+v, want allowlisted registry runtime", alpha)
 	}
 	beta, exists, err := service.Status("beta")
@@ -313,7 +328,8 @@ func TestRegistryAllowlistScopesStrictModeReads(t *testing.T) {
 	for _, name := range []string{"alpha", "beta"} {
 		testscenario.WriteScenarioService(t, root, name, testscenario.ScenarioServiceManifest(name, testscenario.WithDisplayName(name), testscenario.WithDescription("mixed"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
 	}
-	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", 18081)
+	alphaPort := openTestListener(t)
+	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", alphaPort)
 	testprocess.WriteScenarioProcessRecord(t, home, "beta", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "beta", Step: "start-api", Port: 18082, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
 
 	service := New(root, home, io.Discard, io.Discard)
@@ -321,7 +337,7 @@ func TestRegistryAllowlistScopesStrictModeReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Status(alpha): %v", err)
 	}
-	if !exists || alpha.Status != "running" || alpha.Ports["API_PORT"] != 18081 {
+	if !exists || alpha.Status != "running" || alpha.Ports["API_PORT"] != alphaPort {
 		t.Fatalf("alpha status = %+v, want allowlisted strict registry runtime", alpha)
 	}
 	beta, exists, err := service.Status("beta")
@@ -480,6 +496,24 @@ func writeRegistryRuntime(t *testing.T, home, scenarioName, instanceStatus, clai
 	writeRegistryRuntimeWithBoot(t, home, scenarioName, host.BootID, instanceStatus, claimStatus, portName, envVar, port)
 }
 
+func openTestListener(t *testing.T) int {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("open test listener: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := listener.Close(); err != nil {
+			t.Fatalf("close test listener: %v", err)
+		}
+	})
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("listener address = %T, want *net.TCPAddr", listener.Addr())
+	}
+	return addr.Port
+}
+
 func writeRegistryRuntimeWithBoot(t *testing.T, home, scenarioName, bootID, instanceStatus, claimStatus, portName, envVar string, port int) {
 	t.Helper()
 	ctx := context.Background()
@@ -525,6 +559,22 @@ func writeRegistryRuntimeWithBoot(t *testing.T, home, scenarioName, bootID, inst
 		if _, err := store.BindPortClaim(ctx, claim.ClaimID); err != nil {
 			t.Fatalf("BindPortClaim: %v", err)
 		}
+	}
+}
+
+func markRegistryClaimListenerStatus(t *testing.T, home, claimID, status string) {
+	t.Helper()
+	ctx := context.Background()
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	defer store.Close()
+	if _, err := store.UpdatePortClaimListenerEvidence(ctx, claimID, scenarioruntime.ListenerObservation{
+		CheckedAt: time.Now().UTC(),
+		Status:    status,
+	}); err != nil {
+		t.Fatalf("UpdatePortClaimListenerEvidence: %v", err)
 	}
 }
 

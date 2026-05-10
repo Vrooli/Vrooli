@@ -66,11 +66,6 @@
       "env_var": "UI_PORT",
       "description": "React UI",
       "port": 21239
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
     }
   },
   "lifecycle": {

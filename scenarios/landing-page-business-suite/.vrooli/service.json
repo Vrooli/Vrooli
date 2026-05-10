@@ -179,11 +179,6 @@
       "description": "React UI",
       "env_var": "UI_PORT",
       "range": "20000-24999"
-    },
-    "websocket": {
-      "description": "WebSocket channel",
-      "env_var": "WS_PORT",
-      "range": "25000-29999"
     }
   },
   "service": {

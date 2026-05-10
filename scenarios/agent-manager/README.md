@@ -184,7 +184,6 @@ make lint
 |----------|-------------|
 | `API_PORT` | API server port |
 | `UI_PORT` | UI server port |
-| `WS_PORT` | WebSocket port |
 | `AM_SQLITE_PATH` | Direct path to SQLite database file (highest priority) |
 | `DATABASE_URL` | SQLite path via `file:` protocol (e.g. `file:/path/to/db`) |
 | `WORKSPACE_SANDBOX_URL` | workspace-sandbox API URL |

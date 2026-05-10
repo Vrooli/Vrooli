@@ -106,7 +106,7 @@ See [CODE: cli/app.go#NewApp] for the full resolution chain.
 
 The service lifecycle is configured via [CODE: .vrooli/service.json]:
 
-- **Ports**: API, UI, and WebSocket ports allocated from Vrooli's port ranges
+- **Ports**: API and UI listener ports allocated from Vrooli's port ranges
 - **Health checks**: HTTP checks on `/health` for both API and UI
 - **Resources**: SQLite (embedded, no daemon required)
 - **Lifecycle**: Setup builds Go API and React UI; develop starts both servers

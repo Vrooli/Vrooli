@@ -63,8 +63,8 @@ type ManifestBundle struct {
 	Resources       []string `json:"resources,omitempty"`
 }
 
-// ManifestPorts maps port names to port numbers.
-// Standard ports (ui, api, ws) are common, but scenarios can define additional ports
+// ManifestPorts maps scenario listener port names to fixed deployment ports.
+// API and UI are common, but scenarios can define additional listener ports
 // like playwright_driver, metrics, etc. in their service.json.
 type ManifestPorts map[string]int
 

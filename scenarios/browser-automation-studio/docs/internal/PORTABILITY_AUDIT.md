@@ -18,7 +18,7 @@
 | `VROOLI_DATA` | Referenced only in `database/sqlite_smoke_test.go:56` (test isolation, asserts it is *ignored*) | n/a | n/a | Not a runtime input. Resolver uses `ProfileAuto` instead. |
 | `BAS_SQLITE_PATH` | `api/database/connection.go:113` | Yes — falls back to `DATABASE_URL=file:…` then `storage.NewResolver` | ✅ | Desktop bundles can inject an Electron-managed path. |
 | `DATABASE_URL` | `api/database/connection.go:115` (file: prefix only) | Yes | ✅ | |
-| `API_PORT` / `UI_PORT` / `WS_PORT` | `internal/scenarioport/scenarioport.go:189`, `automation/session/manager.go:343`, `handlers/record_mode.go`, `sidecar/supervisor/process.go:104`, etc. | Mixed — some sites have defaults, some warn-and-default | ⚠️ Partial | Electron wrapper must inject all three. `sidecar/supervisor/process.go:107` is the only site that logs a warning instead of crashing on missing `API_PORT`. |
+| `API_PORT` / `UI_PORT` | `internal/scenarioport/scenarioport.go:189`, `automation/session/manager.go:343`, `handlers/record_mode.go`, `sidecar/supervisor/process.go:104`, etc. | Mixed — some sites have defaults, some warn-and-default | ⚠️ Partial | Electron wrapper must inject both listener ports. `sidecar/supervisor/process.go:107` is the only site that logs a warning instead of crashing on missing `API_PORT`. |
 | `BROWSERLESS_PORT`, `MINIO_*` | Various | Hard requirement | ❌ for desktop | Both resources are not bundleable as-is — see Resource Dependencies table. |
 
 **No code currently uses `VROOLI_DESKTOP_MODE`, `APP_DATA_DIR`, or `BUNDLE_ROOT`.** Adopting these would unblock the bundle-aware variant of `resolveScenarioRoot`.
@@ -47,7 +47,7 @@
 
 ## Network Status
 - [x] **CORS accepts both `localhost` and `127.0.0.1`** (`api/middleware/cors.go:83-87`).
-- [x] Ports configured via `API_PORT`/`UI_PORT`/`WS_PORT` env vars throughout. Most sites have inline defaults; `sidecar/supervisor/process.go:107` warns rather than crashes.
+- [x] Listener ports configured via `API_PORT`/`UI_PORT` env vars throughout. Most sites have inline defaults; `sidecar/supervisor/process.go:107` warns rather than crashes.
 - [ ] No explicit `offline_capable` declaration in `service.json` `capabilities`. AI features require OpenRouter (or local Ollama if enabled); core workflow execution does not require network beyond the target page load. Worth declaring formally per `cross-platform-readiness/SKILL.md` §6.3.
 
 ## Secret Classification

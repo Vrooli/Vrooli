@@ -62,7 +62,6 @@ The lifecycle exports everything automatically when you run `vrooli scenario run
 |----------|---------|
 | `API_PORT` | Port assigned to the Go API server |
 | `UI_PORT` | Port assigned to the Vite dev server / production UI |
-| `WS_PORT` | WebSocket channel for live updates |
 | `DATABASE_URL` *or* `POSTGRES_HOST/PORT/USER/PASSWORD/DB` | PostgreSQL connection details |
 | `N8N_BASE_URL` | Base URL for workflow automation calls |
 | `UI_BASE_URL` | Base URL for the Vrooli UI shell / iframe bridge |

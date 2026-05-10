@@ -99,6 +99,89 @@ func TestServiceTickAdoptsAndRenewsRunningInstance(t *testing.T) {
 	}
 }
 
+func TestServiceTickPersistsListenerEvidenceForBoundClaims(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+		InstanceID:    "inst-alpha",
+		Scenario:      "alpha",
+		Status:        scenarioruntime.StatusRunning,
+		HostBootID:    "boot-current",
+		HostSessionID: "session-current",
+	}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-alpha-api",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "api",
+		EnvVar:     "API_PORT",
+		Port:       18080,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	listenerPID := 2468
+	svc := New(Config{
+		DBPath:       dbPath,
+		SupervisorID: "sup-alpha",
+		LeaseTTL:     90 * time.Second,
+		Clock:        clk,
+		HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot-current", SessionID: "session-current"}},
+		PortListener: func(port int) scenarioruntime.ListenerEvidence {
+			if port != 18080 {
+				t.Fatalf("inspected port = %d, want 18080", port)
+			}
+			return scenarioruntime.ListenerEvidence{Known: true, Listening: true, PID: &listenerPID, ProcessLabel: "alpha-api"}
+		},
+	})
+	defer svc.Close()
+	report, err := svc.Tick(ctx)
+	if err != nil {
+		t.Fatalf("Tick() error = %v", err)
+	}
+	if report.Renewed != 1 || report.Unverified != 0 || report.Expired != 0 {
+		t.Fatalf("report = %#v, want one renewed", report)
+	}
+
+	check, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("reopen store: %v", err)
+	}
+	defer check.Close()
+	claims, err := check.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(claims) != 1 {
+		t.Fatalf("claims = %#v, want one", claims)
+	}
+	claim := claims[0]
+	if claim.ListenerStatus != scenarioruntime.ListenerStatusListening {
+		t.Fatalf("ListenerStatus = %q, want listening", claim.ListenerStatus)
+	}
+	if claim.LastListenerCheckAt == nil || !claim.LastListenerCheckAt.Equal(clk.Now()) {
+		t.Fatalf("LastListenerCheckAt = %#v, want %s", claim.LastListenerCheckAt, clk.Now())
+	}
+	if claim.LastListenerSeenAt == nil || !claim.LastListenerSeenAt.Equal(clk.Now()) {
+		t.Fatalf("LastListenerSeenAt = %#v, want %s", claim.LastListenerSeenAt, clk.Now())
+	}
+	if claim.ListenerPID == nil || *claim.ListenerPID != listenerPID || claim.ListenerProcessLabel != "alpha-api" {
+		t.Fatalf("listener identity = pid %#v label %q, want %d alpha-api", claim.ListenerPID, claim.ListenerProcessLabel, listenerPID)
+	}
+}
+
 func TestServiceTickExpiresPreviousBootInstance(t *testing.T) {
 	ctx := context.Background()
 	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))

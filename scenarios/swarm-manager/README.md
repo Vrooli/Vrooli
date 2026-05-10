@@ -108,7 +108,6 @@ execute/
 |----------|---------|
 | `API_PORT` | Go API server port |
 | `UI_PORT` | React UI port |
-| `WS_PORT` | WebSocket for real-time updates |
 
 ## CLI Commands
 

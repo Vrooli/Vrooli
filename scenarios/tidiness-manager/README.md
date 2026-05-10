@@ -100,8 +100,7 @@ tidiness-manager/
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `API_PORT` | Go API server port | Assigned by lifecycle (15000-19999) |
-| `UI_PORT` | React UI port | Assigned by lifecycle (35000-39999) |
-| `WS_PORT` | WebSocket channel port | Assigned by lifecycle (25000-29999) |
+| `UI_PORT` | React UI port | Assigned by lifecycle (20000-24999) |
 | `DATABASE_URL` | PostgreSQL connection | From postgres resource |
 | `REDIS_URL` | Redis connection (optional) | From redis resource |
 | `CLAUDE_CODE_CLI` | Path to resource-claude-code CLI | Auto-detected |

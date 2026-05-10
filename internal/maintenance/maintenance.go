@@ -35,32 +35,42 @@ type (
 )
 
 type RuntimeClaimInfo struct {
-	ClaimID            string                                  `json:"claim_id"`
-	InstanceID         string                                  `json:"instance_id"`
-	Scenario           string                                  `json:"scenario"`
-	Generation         int64                                   `json:"generation,omitempty"`
-	PortName           string                                  `json:"port_name"`
-	EnvVar             string                                  `json:"env_var,omitempty"`
-	Port               int                                     `json:"port"`
-	BindHost           string                                  `json:"bind_host"`
-	URL                string                                  `json:"url,omitempty"`
-	ClaimStatus        string                                  `json:"claim_status"`
-	InstanceStatus     string                                  `json:"instance_status,omitempty"`
-	SupervisorID       string                                  `json:"supervisor_id,omitempty"`
-	SupervisorStatus   string                                  `json:"supervisor_status,omitempty"`
-	SupervisorFresh    *bool                                   `json:"supervisor_fresh,omitempty"`
-	LeaseFresh         *bool                                   `json:"lease_fresh,omitempty"`
-	HeartbeatDeadline  *time.Time                              `json:"heartbeat_deadline,omitempty"`
-	SupervisorDeadline *time.Time                              `json:"supervisor_heartbeat_deadline,omitempty"`
-	HealthStatus       string                                  `json:"health_status,omitempty"`
-	HealthReady        *bool                                   `json:"health_ready,omitempty"`
-	Reconciliation     scenarioruntime.ReconcileClassification `json:"reconciliation,omitempty"`
-	ReconcileReason    string                                  `json:"reconcile_reason,omitempty"`
-	Authoritative      *bool                                   `json:"authoritative,omitempty"`
-	CreatedAt          time.Time                               `json:"created_at"`
-	UpdatedAt          time.Time                               `json:"updated_at"`
-	ExpiresAt          *time.Time                              `json:"expires_at,omitempty"`
-	LastBoundAt        *time.Time                              `json:"last_bound_at,omitempty"`
+	ClaimID                   string                                  `json:"claim_id"`
+	InstanceID                string                                  `json:"instance_id"`
+	Scenario                  string                                  `json:"scenario"`
+	Generation                int64                                   `json:"generation,omitempty"`
+	PortName                  string                                  `json:"port_name"`
+	EnvVar                    string                                  `json:"env_var,omitempty"`
+	Port                      int                                     `json:"port"`
+	BindHost                  string                                  `json:"bind_host"`
+	URL                       string                                  `json:"url,omitempty"`
+	ClaimStatus               string                                  `json:"claim_status"`
+	InstanceStatus            string                                  `json:"instance_status,omitempty"`
+	SupervisorID              string                                  `json:"supervisor_id,omitempty"`
+	SupervisorStatus          string                                  `json:"supervisor_status,omitempty"`
+	SupervisorFresh           *bool                                   `json:"supervisor_fresh,omitempty"`
+	LeaseFresh                *bool                                   `json:"lease_fresh,omitempty"`
+	HeartbeatDeadline         *time.Time                              `json:"heartbeat_deadline,omitempty"`
+	SupervisorDeadline        *time.Time                              `json:"supervisor_heartbeat_deadline,omitempty"`
+	HealthStatus              string                                  `json:"health_status,omitempty"`
+	HealthReady               *bool                                   `json:"health_ready,omitempty"`
+	Reconciliation            scenarioruntime.ReconcileClassification `json:"reconciliation,omitempty"`
+	ReconcileReason           string                                  `json:"reconcile_reason,omitempty"`
+	Authoritative             *bool                                   `json:"authoritative,omitempty"`
+	CreatedAt                 time.Time                               `json:"created_at"`
+	UpdatedAt                 time.Time                               `json:"updated_at"`
+	ExpiresAt                 *time.Time                              `json:"expires_at,omitempty"`
+	LastBoundAt               *time.Time                              `json:"last_bound_at,omitempty"`
+	LastListenerCheckAt       *time.Time                              `json:"last_listener_check_at,omitempty"`
+	LastListenerSeenAt        *time.Time                              `json:"last_listener_seen_at,omitempty"`
+	FirstUnboundAt            *time.Time                              `json:"first_unbound_at,omitempty"`
+	ConsecutiveListenerMisses int                                     `json:"consecutive_listener_misses"`
+	ListenerStatus            string                                  `json:"listener_status,omitempty"`
+	ListenerPID               *int                                    `json:"listener_pid,omitempty"`
+	ListenerProcessLabel      string                                  `json:"listener_process_label,omitempty"`
+	RecommendationCode        string                                  `json:"recommendation_code,omitempty"`
+	RecommendationConfidence  string                                  `json:"recommendation_confidence,omitempty"`
+	RecommendationRationale   string                                  `json:"recommendation_rationale,omitempty"`
 }
 
 type RuntimeProcessRefInfo struct {
@@ -134,7 +144,7 @@ func (c *Controller) ListRuntimeClaims() ([]RuntimeClaimInfo, error) {
 		return nil, err
 	}
 	defer closeStore()
-	return listRuntimeClaims(context.Background(), store, 0, "")
+	return listRuntimeClaims(context.Background(), store, 0, "", false)
 }
 
 func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
@@ -389,7 +399,7 @@ func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic
 	}
 	if store != nil {
 		defer closeStore()
-		claims, err := listRuntimeClaims(context.Background(), store, port, diagnostic.Scenario)
+		claims, err := listRuntimeClaims(context.Background(), store, port, diagnostic.Scenario, diagnostic.InUse)
 		if err != nil {
 			return PortDiagnostic{}, err
 		}
@@ -440,6 +450,18 @@ func buildRecommendations(port int, diagnostic PortDiagnostic) []string {
 		recommendations = append(recommendations, fmt.Sprintf("Clean stale lock file %s", diagnostic.Lock.Path))
 	}
 	for _, claim := range diagnostic.RegistryClaims {
+		switch claim.RecommendationCode {
+		case scenarioruntime.PortRecommendationLikelyManifestDrift:
+			recommendations = append(recommendations, fmt.Sprintf("Registry evidence for %s %s (%s) suggests manifest drift: %s", claim.Scenario, claim.PortName, claim.EnvVar, claim.RecommendationRationale))
+		case scenarioruntime.PortRecommendationLikelyRuntimeFailure:
+			recommendations = append(recommendations, fmt.Sprintf("Registry evidence for %s %s (%s) suggests a runtime listener failure: %s", claim.Scenario, claim.PortName, claim.EnvVar, claim.RecommendationRationale))
+		case scenarioruntime.PortRecommendationUnboundWatch:
+			recommendations = append(recommendations, fmt.Sprintf("Registry evidence for %s %s (%s) is inconclusive: %s", claim.Scenario, claim.PortName, claim.EnvVar, claim.RecommendationRationale))
+		case scenarioruntime.PortRecommendationInspectionUnavailable:
+			recommendations = append(recommendations, fmt.Sprintf("Registry listener evidence for %s %s (%s) is unavailable: %s", claim.Scenario, claim.PortName, claim.EnvVar, claim.RecommendationRationale))
+		case scenarioruntime.PortRecommendationOrphanListenerInvestigate:
+			recommendations = append(recommendations, fmt.Sprintf("Registry evidence for %s %s (%s) conflicts with current listener state: %s", claim.Scenario, claim.PortName, claim.EnvVar, claim.RecommendationRationale))
+		}
 		if claim.Authoritative != nil && !*claim.Authoritative {
 			switch claim.Reconciliation {
 			case scenarioruntime.ReconcileUnverified:

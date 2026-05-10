@@ -296,6 +296,70 @@ func TestSQLiteStoreBindsAndReleasesActiveClaimsForInstance(t *testing.T) {
 	}
 }
 
+func TestSQLiteStoreUpdatesPortClaimListenerEvidence(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
+	if err != nil {
+		t.Fatalf("CreateInstance() error = %v", err)
+	}
+	claim, err := store.AcquirePortClaim(ctx, PortClaim{
+		ClaimID:    "claim-alpha-api",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "api",
+		EnvVar:     "API_PORT",
+		Port:       15080,
+		Status:     ClaimStatusBound,
+	})
+	if err != nil {
+		t.Fatalf("AcquirePortClaim() error = %v", err)
+	}
+	if claim.ListenerStatus != ListenerStatusUnknown {
+		t.Fatalf("claim.ListenerStatus = %q, want unknown", claim.ListenerStatus)
+	}
+
+	clk.Advance(time.Second)
+	unbound, err := store.UpdatePortClaimListenerEvidence(ctx, claim.ClaimID, ListenerObservation{
+		CheckedAt: clk.Now(),
+		Status:    ListenerStatusNotListening,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePortClaimListenerEvidence(not_listening) error = %v", err)
+	}
+	if unbound.ListenerStatus != ListenerStatusNotListening || unbound.ConsecutiveListenerMisses != 1 {
+		t.Fatalf("unbound evidence = %#v, want one not_listening miss", unbound)
+	}
+	if unbound.FirstUnboundAt == nil || !unbound.FirstUnboundAt.Equal(clk.Now()) {
+		t.Fatalf("FirstUnboundAt = %#v, want %s", unbound.FirstUnboundAt, clk.Now())
+	}
+
+	clk.Advance(time.Second)
+	pid := 4321
+	listening, err := store.UpdatePortClaimListenerEvidence(ctx, claim.ClaimID, ListenerObservation{
+		CheckedAt:    clk.Now(),
+		Status:       ListenerStatusListening,
+		PID:          &pid,
+		ProcessLabel: "alpha-api",
+	})
+	if err != nil {
+		t.Fatalf("UpdatePortClaimListenerEvidence(listening) error = %v", err)
+	}
+	if listening.ListenerStatus != ListenerStatusListening || listening.ConsecutiveListenerMisses != 0 {
+		t.Fatalf("listening evidence = %#v, want listening without misses", listening)
+	}
+	if listening.FirstUnboundAt != nil {
+		t.Fatalf("FirstUnboundAt = %#v, want nil after listener is seen", listening.FirstUnboundAt)
+	}
+	if listening.LastListenerSeenAt == nil || !listening.LastListenerSeenAt.Equal(clk.Now()) {
+		t.Fatalf("LastListenerSeenAt = %#v, want %s", listening.LastListenerSeenAt, clk.Now())
+	}
+	if listening.ListenerPID == nil || *listening.ListenerPID != pid || listening.ListenerProcessLabel != "alpha-api" {
+		t.Fatalf("listener identity = pid %#v label %q, want %d alpha-api", listening.ListenerPID, listening.ListenerProcessLabel, pid)
+	}
+}
+
 func TestSQLiteStoreProcessRefsRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))

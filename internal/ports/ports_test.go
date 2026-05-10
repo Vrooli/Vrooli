@@ -54,8 +54,11 @@ func TestBuildEnvironmentHonorsRealTestGenieContract(t *testing.T) {
 	if env.AllocatedPorts["api"] < 15000 || env.AllocatedPorts["api"] > 19999 {
 		t.Fatalf("API port = %d outside expected range", env.AllocatedPorts["api"])
 	}
-	if env.AllocatedPorts["websocket"] < 25000 || env.AllocatedPorts["websocket"] > 29999 {
-		t.Fatalf("WS port = %d outside expected range", env.AllocatedPorts["websocket"])
+	if _, ok := env.AllocatedPorts["websocket"]; ok {
+		t.Fatalf("unexpected websocket port allocation for test-genie")
+	}
+	if _, ok := env.EnvVars["WS_PORT"]; ok {
+		t.Fatalf("unexpected WS_PORT env var for test-genie")
 	}
 	wantSQLite := filepath.Join(item.Path, "data", "test-genie.db")
 	if env.EnvVars["TEST_GENIE_SQLITE_PATH"] != wantSQLite {

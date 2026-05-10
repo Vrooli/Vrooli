@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -109,8 +110,8 @@ Targets: service_json
   <expected-message>valid JSON</expected-message>
 </test-case>
 
-<test-case id="missing-api-entry" should-fail="true" path=".vrooli/service.json">
-  <description>ports block defined without api entry</description>
+<test-case id="missing-api-entry" should-fail="false" path=".vrooli/service.json">
+  <description>ports block can define only the listener ports a scenario needs</description>
   <input language="json"><![CDATA[
 {
   "ports": {
@@ -121,8 +122,6 @@ Targets: service_json
   }
 }
   ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>ports configuration must define</expected-message>
 </test-case>
 
 <test-case id="api-range-missing" should-fail="true" path=".vrooli/service.json">
@@ -332,8 +331,11 @@ const (
 // reproducible across CI hosts and developer machines.
 var staticEphemeralRange = [2]int{32768, 60999}
 
-// CheckServicePortConfiguration validates that service.json declares expected port entries.
-func CheckServicePortConfiguration(content []byte, filePath string) []Violation {
+// CheckServicePortConfiguration validates that service.json declares listener
+// ports with explicit env vars and safe fixed/ranged allocations. Port names
+// are scenario-defined; only canonical names/env vars receive canonical-band
+// enforcement.
+func CheckServicePortConfiguration(content []byte, filePath string, scenario ...string) []Violation {
 	if !shouldCheckPortsServiceJSON(filePath) {
 		return nil
 	}
@@ -362,146 +364,397 @@ func CheckServicePortConfiguration(content []byte, filePath string) []Violation 
 	}
 
 	var violations []Violation
+	scenarioRoot := resolveScenarioRootForPortUsage(filePath)
 
-	apiRaw, hasAPI := portsMap["api"]
-	if !hasAPI {
-		line := findPortsJSONLine(source, "\"api\"", "\"ports\"")
-		violations = append(violations, newPortsViolation(filePath, line, "ports configuration must define an \"api\" entry"))
-	} else if apiMap, ok := apiRaw.(map[string]any); ok {
-		validateAPIPort(apiMap, source, filePath, &violations)
-	} else {
-		line := findPortsJSONLine(source, "\"api\"")
-		violations = append(violations, newPortsViolation(filePath, line, "ports.api must be an object with env_var and range fields"))
-	}
-
-	if uiRaw, hasUI := portsMap["ui"]; hasUI {
-		if uiMap, ok := uiRaw.(map[string]any); ok {
-			validateUIPort(uiMap, source, filePath, &violations)
-		} else {
-			line := findPortsJSONLine(source, "\"ui\"")
-			violations = append(violations, newPortsViolation(filePath, line, "ports.ui must be an object when provided"))
+	for name, raw := range portsMap {
+		entry, ok := raw.(map[string]any)
+		if !ok {
+			line := findPortsJSONLine(source, strconv.Quote(name))
+			violations = append(violations, newPortsViolation(filePath, line, fmt.Sprintf("ports.%s must be an object with env_var and either range or port fields", name)))
+			continue
 		}
+		validateDeclaredPort(name, entry, source, filePath, &violations)
+		validateDeclaredPortEnvUsage(name, entry, source, filePath, scenarioRoot, firstScenarioName(scenario), &violations)
 	}
 
 	return dedupePortViolations(violations)
 }
 
-func validateAPIPort(entry map[string]any, source, filePath string, violations *[]Violation) {
+func validateDeclaredPort(name string, entry map[string]any, source, filePath string, violations *[]Violation) {
+	envVarLine := findPortsJSONLine(source, strconv.Quote(name), "\"env_var\"")
 	envVar, ok := entry["env_var"].(string)
-	lineEnv := findPortsJSONLine(source, "\"api\"", "\"env_var\"")
 	if !ok || strings.TrimSpace(envVar) == "" {
-		*violations = append(*violations, newPortsViolation(filePath, lineEnv, "ports.api.env_var must be set to \"API_PORT\""))
-	} else if envVar != "API_PORT" {
-		*violations = append(*violations, newPortsViolation(filePath, lineEnv, "ports.api.env_var must be \"API_PORT\""))
-	}
-
-	rangeLine := findPortsJSONLine(source, "\"api\"", "\"range\"")
-	rangeVal, hasRange := entry["range"]
-	if !hasRange {
-		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \""+canonicalAPIRange+"\""))
+		*violations = append(*violations, newPortsViolation(filePath, envVarLine, fmt.Sprintf("ports.%s.env_var must define the environment variable lifecycle reserves for this listener", name)))
 		return
 	}
 
+	canonicalRange, canonicalEnv, canonical := canonicalPortContract(name, envVar)
+	if canonical && envVar != canonicalEnv {
+		*violations = append(*violations, newPortsViolation(filePath, envVarLine, fmt.Sprintf("ports.%s.env_var must be %q for the canonical %s port", name, canonicalEnv, name)))
+	}
+
+	_, hasRange := entry["range"]
+	_, hasPort := entry["port"]
+	if hasRange == hasPort {
+		line := findPortsJSONLine(source, strconv.Quote(name))
+		*violations = append(*violations, newPortsViolation(filePath, line, fmt.Sprintf("ports.%s.range or ports.%s.port must define exactly one allocation source", name, name)))
+		return
+	}
+
+	if hasRange {
+		validateDeclaredPortRange(name, entry, source, filePath, canonicalRange, canonical, violations)
+		return
+	}
+	validateDeclaredFixedPort(name, entry, source, filePath, canonicalRange, canonical, violations)
+}
+
+func validateDeclaredPortRange(name string, entry map[string]any, source, filePath, canonicalRange string, canonical bool, violations *[]Violation) {
+	rangeLine := findPortsJSONLine(source, strconv.Quote(name), "\"range\"")
+	rangeVal := entry["range"]
 	rangeStr, ok := rangeVal.(string)
 	if !ok || strings.TrimSpace(rangeStr) == "" {
-		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \""+canonicalAPIRange+"\""))
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.%s.range must be a non-empty port range", name)))
 		return
 	}
 
 	start, end, err := parsePortRange(rangeStr)
 	if err != nil {
-		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.api.range has %s", err.Error())))
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.%s.range has %s", name, err.Error())))
 		return
 	}
-
+	if rangeOverlapsEphemeral(start, end) {
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.%s.range %s overlaps the Linux ephemeral range %d-%d", name, rangeStr, staticEphemeralRange[0], staticEphemeralRange[1])))
+		return
+	}
+	if end > canonicalMax {
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.%s.range %s exceeds canonical maximum %d", name, rangeStr, canonicalMax)))
+		return
+	}
 	if overlaps, reservedName := checkReservedRangeOverlap(start, end); overlaps {
-		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.api.range overlaps with reserved range: %s", reservedName)))
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.%s.range overlaps with reserved range: %s", name, reservedName)))
 		return
 	}
-
-	if rangeStr != canonicalAPIRange {
-		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \""+canonicalAPIRange+"\""))
+	if canonical && rangeStr != canonicalRange {
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.%s.range must be %q for the canonical %s port", name, canonicalRange, name)))
 	}
 }
 
-func validateUIPort(entry map[string]any, source, filePath string, violations *[]Violation) {
-	envVarLine := findPortsJSONLine(source, "\"ui\"", "\"env_var\"")
+func validateDeclaredFixedPort(name string, entry map[string]any, source, filePath, canonicalRange string, canonical bool, violations *[]Violation) {
+	portLine := findPortsJSONLine(source, strconv.Quote(name), "\"port\"")
+	port, ok := parseDeclaredPortNumber(entry["port"])
+	if !ok {
+		*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.%s.port must be a valid port number", name)))
+		return
+	}
+	if port < 1 || port > 65535 {
+		*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.%s.port must be between 1 and 65535", name)))
+		return
+	}
+	if inReserved, reservedName := checkFixedPortInReserved(port); inReserved {
+		*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.%s.port %d is in reserved range: %s", name, port, reservedName)))
+		return
+	}
+	if fixedPortInEphemeral(port) {
+		*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.%s.port %d sits inside the Linux ephemeral range %d-%d; move it below %d", name, port, staticEphemeralRange[0], staticEphemeralRange[1], canonicalMax+1)))
+		return
+	}
+	if port > canonicalMax {
+		*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.%s.port %d exceeds canonical maximum %d", name, port, canonicalMax)))
+		return
+	}
+	if canonical {
+		start, end, err := parsePortRange(canonicalRange)
+		if err == nil && (port < start || port > end) {
+			*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.%s.port %d should be in range %s", name, port, canonicalRange)))
+		}
+	}
+}
+
+func validateDeclaredPortEnvUsage(name string, entry map[string]any, source, filePath, scenarioRoot, scenarioName string, violations *[]Violation) {
 	envVar, ok := entry["env_var"].(string)
-	if !ok || strings.TrimSpace(envVar) == "" || envVar != "UI_PORT" {
-		*violations = append(*violations, newPortsViolation(filePath, envVarLine, "ports.ui.env_var must be \"UI_PORT\" when the ui port is defined"))
+	envVar = strings.TrimSpace(envVar)
+	if !ok || envVar == "" || scenarioRoot == "" {
+		return
+	}
+	evidence := collectPortEnvUsageEvidence(scenarioRoot, filePath, envVar)
+	runtimeEvidence := lookupRuntimePortEvidence(scenarioName, name, envVar)
+	if evidence.ListenerReferences > 0 {
+		return
 	}
 
-	if rangeVal, hasRange := entry["range"]; hasRange {
-		rangeLine := findPortsJSONLine(source, "\"ui\"", "\"range\"")
-		rangeStr, ok := rangeVal.(string)
-		if !ok || strings.TrimSpace(rangeStr) == "" {
-			*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.ui.range must be \""+canonicalUIRange+"\" when a range is specified"))
-			return
-		}
+	line := findPortsJSONLine(source, strconv.Quote(name), "\"env_var\"")
+	if evidence.RuntimeReferences > 0 {
+		*violations = append(*violations, newPortUsageAmbiguousViolation(filePath, line, withRuntimePortEvidence(fmt.Sprintf("ports.%s.env_var %q is referenced by runtime source but not near recognized listener startup code; this declared listener port should be verified with runtime evidence", name, envVar), runtimeEvidence)))
+		return
+	}
+	if evidence.IgnoredReferences > 0 {
+		*violations = append(*violations, newPortUsageViolation(filePath, line, withRuntimePortEvidence(fmt.Sprintf("ports.%s.env_var %q is only referenced in tests, docs, generated output, or scenario metadata; declared ports should correspond to runtime listener code", name, envVar), runtimeEvidence)))
+		return
+	}
+	*violations = append(*violations, newPortUsageViolation(filePath, line, withRuntimePortEvidence(fmt.Sprintf("ports.%s.env_var %q is not referenced by scenario runtime source; this declared listener port may be stale manifest data", name, envVar), runtimeEvidence)))
+}
 
-		start, end, err := parsePortRange(rangeStr)
+type portEnvUsageEvidence struct {
+	ListenerReferences int
+	RuntimeReferences  int
+	IgnoredReferences  int
+}
+
+func collectPortEnvUsageEvidence(scenarioRoot, servicePath, envVar string) portEnvUsageEvidence {
+	var evidence portEnvUsageEvidence
+	if strings.TrimSpace(scenarioRoot) == "" || strings.TrimSpace(envVar) == "" {
+		return evidence
+	}
+
+	_ = filepath.WalkDir(scenarioRoot, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if entry.IsDir() {
+			if shouldSkipPortUsageDir(entry.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		if filepath.Clean(path) == filepath.Clean(servicePath) || !shouldScanPortUsageFile(path) {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil || info.Size() > 1024*1024 {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil || !strings.Contains(string(content), envVar) {
+			return nil
+		}
+		rel, err := filepath.Rel(scenarioRoot, path)
 		if err != nil {
-			*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.ui.range has %s", err.Error())))
-			return
+			rel = path
 		}
-
-		if rangeOverlapsEphemeral(start, end) {
-			*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.ui.range %s overlaps the Linux ephemeral range %d-%d", rangeStr, staticEphemeralRange[0], staticEphemeralRange[1])))
-			return
+		if isRuntimePortUsageFile(filepath.ToSlash(rel)) {
+			if containsLikelyListenerUsage(string(content), envVar) {
+				evidence.ListenerReferences++
+			} else {
+				evidence.RuntimeReferences++
+			}
+		} else {
+			evidence.IgnoredReferences++
 		}
+		return nil
+	})
+	return evidence
+}
 
-		if rangeStr != canonicalUIRange {
-			*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.ui.range must be \""+canonicalUIRange+"\" when a range is specified"))
-			return
+func resolveScenarioRootForPortUsage(filePath string) string {
+	clean := filepath.Clean(filePath)
+	if !filepath.IsAbs(clean) {
+		return ""
+	}
+	if filepath.Base(clean) != "service.json" || filepath.Base(filepath.Dir(clean)) != ".vrooli" {
+		return ""
+	}
+	root := filepath.Dir(filepath.Dir(clean))
+	if info, err := os.Stat(root); err == nil && info.IsDir() {
+		return root
+	}
+	return ""
+}
+
+func shouldSkipPortUsageDir(name string) bool {
+	switch strings.ToLower(name) {
+	case ".git", ".vrooli", "node_modules", "dist", "build", "coverage", ".next", ".nuxt", "vendor", "tmp", "logs", ".cache":
+		return true
+	default:
+		return false
+	}
+}
+
+func shouldScanPortUsageFile(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".go", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".sh", ".bash", ".env", ".json", ".yaml", ".yml", ".toml", ".md":
+		return true
+	default:
+		return false
+	}
+}
+
+func isRuntimePortUsageFile(relativePath string) bool {
+	lower := strings.ToLower(relativePath)
+	if strings.HasPrefix(lower, "test/") || strings.HasPrefix(lower, "tests/") ||
+		strings.HasPrefix(lower, "docs/") || strings.Contains(lower, "/testdata/") ||
+		strings.Contains(lower, "/__tests__/") || strings.Contains(lower, ".test.") ||
+		strings.Contains(lower, ".spec.") || strings.HasSuffix(lower, "_test.go") ||
+		strings.HasSuffix(lower, ".md") {
+		return false
+	}
+	return strings.HasPrefix(lower, "api/") || strings.HasPrefix(lower, "cli/") ||
+		strings.HasPrefix(lower, "ui/") || strings.HasPrefix(lower, "lib/") ||
+		strings.HasPrefix(lower, "scripts/") || lower == "makefile"
+}
+
+func containsLikelyListenerUsage(content, envVar string) bool {
+	envIndex := strings.Index(content, envVar)
+	for envIndex >= 0 {
+		if listenerTokenNear(content, envIndex) {
+			return true
 		}
+		nextStart := envIndex + len(envVar)
+		next := strings.Index(content[nextStart:], envVar)
+		if next < 0 {
+			break
+		}
+		envIndex = nextStart + next
+	}
+	return false
+}
 
-		if overlaps, reservedName := checkReservedRangeOverlap(start, end); overlaps {
-			*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.ui.range overlaps with reserved range: %s", reservedName)))
+func listenerTokenNear(content string, envIndex int) bool {
+	const window = 1600
+	start := envIndex - window
+	if start < 0 {
+		start = 0
+	}
+	end := envIndex + window
+	if end > len(content) {
+		end = len(content)
+	}
+	snippet := content[start:end]
+	for _, token := range listenerStartupTokens {
+		if strings.Contains(snippet, token) {
+			return true
 		}
 	}
+	return false
+}
 
-	if portVal, hasPort := entry["port"]; hasPort {
-		portLine := findPortsJSONLine(source, "\"ui\"", "\"port\"")
+var listenerStartupTokens = []string{
+	"ListenAndServe",
+	"ListenAndServeTLS",
+	"net.Listen",
+	"http.Server",
+	".Listen(",
+	".ListenTLS(",
+	".Run(",
+	".listen(",
+	" listen(",
+	".createServer(",
+	"http.createServer",
+	"https.createServer",
+	"server.listen",
+	"app.listen",
+	"fastify.listen",
+	"vite.listen",
+}
 
-		var port int
-		switch v := portVal.(type) {
-		case float64:
-			port = int(v)
-		case int:
-			port = v
-		case string:
-			if strings.Contains(v, "${") {
-				return
-			}
-			parsed, err := strconv.Atoi(strings.TrimSpace(v))
-			if err != nil {
-				*violations = append(*violations, newPortsViolation(filePath, portLine, "ports.ui.port must be a valid port number"))
-				return
-			}
-			port = parsed
-		default:
-			*violations = append(*violations, newPortsViolation(filePath, portLine, "ports.ui.port must be a number"))
-			return
+const runtimePortEvidencePathEnv = "SCENARIO_AUDITOR_RUNTIME_PORT_EVIDENCE_PATH"
+
+type runtimePortEvidenceArtifact struct {
+	RegistryClaims []runtimePortEvidenceClaim `json:"registry_claims"`
+}
+
+type runtimePortEvidenceClaim struct {
+	Scenario                  string `json:"scenario"`
+	PortName                  string `json:"port_name"`
+	EnvVar                    string `json:"env_var"`
+	ListenerStatus            string `json:"listener_status"`
+	ConsecutiveListenerMisses int    `json:"consecutive_listener_misses"`
+	RecommendationCode        string `json:"recommendation_code"`
+	RecommendationConfidence  string `json:"recommendation_confidence"`
+	RecommendationRationale   string `json:"recommendation_rationale"`
+}
+
+func lookupRuntimePortEvidence(scenarioName, portName, envVar string) *runtimePortEvidenceClaim {
+	path := strings.TrimSpace(os.Getenv(runtimePortEvidencePathEnv))
+	if path == "" || strings.TrimSpace(envVar) == "" {
+		return nil
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var artifact runtimePortEvidenceArtifact
+	if err := json.Unmarshal(content, &artifact); err != nil {
+		return nil
+	}
+	for _, claim := range artifact.RegistryClaims {
+		if scenarioName != "" && claim.Scenario != "" && claim.Scenario != scenarioName {
+			continue
 		}
-
-		if port < 1 || port > 65535 {
-			*violations = append(*violations, newPortsViolation(filePath, portLine, "ports.ui.port must be between 1 and 65535"))
-			return
+		if claim.EnvVar != envVar {
+			continue
 		}
-
-		if inReserved, reservedName := checkFixedPortInReserved(port); inReserved {
-			*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.ui.port %d is in reserved range: %s", port, reservedName)))
-			return
+		if portName != "" && claim.PortName != "" && claim.PortName != portName {
+			continue
 		}
+		matched := claim
+		return &matched
+	}
+	return nil
+}
 
-		if fixedPortInEphemeral(port) {
-			*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.ui.port %d sits inside the Linux ephemeral range %d-%d; move it below %d", port, staticEphemeralRange[0], staticEphemeralRange[1], canonicalMax+1)))
-			return
-		}
+func withRuntimePortEvidence(message string, evidence *runtimePortEvidenceClaim) string {
+	if evidence == nil {
+		return message
+	}
+	if evidence.RecommendationCode == "" && evidence.ListenerStatus == "" {
+		return message
+	}
+	var details []string
+	if evidence.RecommendationCode != "" {
+		details = append(details, "runtime recommendation "+evidence.RecommendationCode)
+	}
+	if evidence.RecommendationConfidence != "" {
+		details = append(details, "confidence "+evidence.RecommendationConfidence)
+	}
+	if evidence.ListenerStatus != "" {
+		details = append(details, "listener status "+evidence.ListenerStatus)
+	}
+	if evidence.ConsecutiveListenerMisses > 0 {
+		details = append(details, fmt.Sprintf("%d consecutive listener misses", evidence.ConsecutiveListenerMisses))
+	}
+	if len(details) == 0 {
+		return message
+	}
+	return message + "; historical runtime evidence reports " + strings.Join(details, ", ")
+}
 
-		if port < 20000 || port > 24999 {
-			*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.ui.port %d should be in range %s", port, canonicalUIRange)))
+func firstScenarioName(scenarios []string) string {
+	if len(scenarios) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(scenarios[0])
+}
+
+func parseDeclaredPortNumber(value any) (int, bool) {
+	switch v := value.(type) {
+	case float64:
+		return int(v), float64(int(v)) == v
+	case int:
+		return v, true
+	case string:
+		if strings.Contains(v, "${") {
+			return 0, false
 		}
+		parsed, err := strconv.Atoi(strings.TrimSpace(v))
+		return parsed, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func canonicalPortContract(name, envVar string) (canonicalRange string, canonicalEnv string, canonical bool) {
+	switch {
+	case name == "api" || envVar == "API_PORT":
+		return canonicalAPIRange, "API_PORT", true
+	case name == "ui" || envVar == "UI_PORT":
+		return canonicalUIRange, "UI_PORT", true
+	case name == "websocket" || name == "ws" || envVar == "WS_PORT":
+		return canonicalWSRange, "WS_PORT", true
+	default:
+		return "", "", false
 	}
 }
 
@@ -516,7 +769,39 @@ func newPortsViolation(filePath string, line int, message string) Violation {
 		Description:    message,
 		FilePath:       filePath,
 		LineNumber:     line,
-		Recommendation: "Define API_PORT (range " + canonicalAPIRange + ") and UI_PORT (range " + canonicalUIRange + " when used) in .vrooli/service.json. See docs/reference/port-allocation.md.",
+		Recommendation: "Define each listener port with an explicit env_var and either a fixed port or range in .vrooli/service.json. Keep canonical API/UI/WS ports in their documented bands. See docs/reference/port-allocation.md.",
+		Standard:       "configuration-v1",
+	}
+}
+
+func newPortUsageViolation(filePath string, line int, message string) Violation {
+	if line <= 0 {
+		line = 1
+	}
+	return Violation{
+		Type:           "config_service_port_usage",
+		Severity:       "medium",
+		Title:          "Declared port env var is not used by runtime source",
+		Description:    message,
+		FilePath:       filePath,
+		LineNumber:     line,
+		Recommendation: "Remove stale listener port declarations or update runtime source to read the declared env var when binding a listener. Treat this as evidence, not proof, when runtime history disagrees.",
+		Standard:       "configuration-v1",
+	}
+}
+
+func newPortUsageAmbiguousViolation(filePath string, line int, message string) Violation {
+	if line <= 0 {
+		line = 1
+	}
+	return Violation{
+		Type:           "config_service_port_usage",
+		Severity:       "low",
+		Title:          "Declared port env var has ambiguous listener usage",
+		Description:    message,
+		FilePath:       filePath,
+		LineNumber:     line,
+		Recommendation: "Confirm that runtime source binds a listener using this env var, or correlate this static signal with runtime listener evidence before removing the declaration.",
 		Standard:       "configuration-v1",
 	}
 }

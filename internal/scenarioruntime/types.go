@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	SchemaVersion = 3
+	SchemaVersion = 4
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -30,6 +30,12 @@ const (
 	ClaimStatusBound    = "bound"
 	ClaimStatusReleased = "released"
 	ClaimStatusExpired  = "expired"
+
+	ListenerStatusUnknown               = "unknown"
+	ListenerStatusListening             = "listening"
+	ListenerStatusNotListening          = "not_listening"
+	ListenerStatusInspectionUnavailable = "inspection_unavailable"
+	ListenerStatusForeignListener       = "foreign_listener"
 
 	HealthStatusHealthy       = "healthy"
 	HealthStatusDegraded      = "degraded"
@@ -140,19 +146,26 @@ type SupervisorSession struct {
 }
 
 type PortClaim struct {
-	ClaimID     string
-	InstanceID  string
-	Scenario    string
-	PortName    string
-	EnvVar      string
-	Port        int
-	BindHost    string
-	URL         string
-	Status      string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	ExpiresAt   *time.Time
-	LastBoundAt *time.Time
+	ClaimID                   string
+	InstanceID                string
+	Scenario                  string
+	PortName                  string
+	EnvVar                    string
+	Port                      int
+	BindHost                  string
+	URL                       string
+	Status                    string
+	CreatedAt                 time.Time
+	UpdatedAt                 time.Time
+	ExpiresAt                 *time.Time
+	LastBoundAt               *time.Time
+	LastListenerCheckAt       *time.Time
+	LastListenerSeenAt        *time.Time
+	FirstUnboundAt            *time.Time
+	ConsecutiveListenerMisses int
+	ListenerStatus            string
+	ListenerPID               *int
+	ListenerProcessLabel      string
 }
 
 type HealthSnapshot struct {
@@ -249,6 +262,7 @@ type PortClaimRepository interface {
 	ReleaseActivePortClaimsForInstance(ctx context.Context, instanceID string) ([]PortClaim, error)
 	ListPortClaims(ctx context.Context, filter PortClaimFilter) ([]PortClaim, error)
 	ListExpiredActivePortClaims(ctx context.Context, at time.Time) ([]PortClaim, error)
+	UpdatePortClaimListenerEvidence(ctx context.Context, claimID string, evidence ListenerObservation) (PortClaim, error)
 }
 
 type HealthRepository interface {
@@ -284,4 +298,11 @@ func LocalPortURL(portName string, port int) string {
 	default:
 		return ""
 	}
+}
+
+type ListenerObservation struct {
+	CheckedAt    time.Time
+	Status       string
+	PID          *int
+	ProcessLabel string
 }

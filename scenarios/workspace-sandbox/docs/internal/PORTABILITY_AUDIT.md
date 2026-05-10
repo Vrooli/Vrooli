@@ -20,7 +20,7 @@
 |----------|-------|-----------|----------------|
 | `SQLITE_PATH` | DB file override | Yes — derived from `api-core/storage` `ClassData` when unset. | Yes |
 | `VROOLI_ROOT` | Source-tree resolution for some helpers | Yes — falls back to `VROOLI_SOURCE_ROOT` or cwd-based detection | Yes |
-| `API_PORT`, `UI_PORT`, `WS_PORT` | Lifecycle-injected; defaulted in code | Yes | Yes |
+| `API_PORT`, `UI_PORT` | Lifecycle-injected; defaulted in code | Yes | Yes |
 | `WORKSPACE_SANDBOX_*` | Local feature flags / driver knobs | Yes — defaulted | Yes |
 
 No `POSTGRES_*` or `DATABASE_URL` references remain.
@@ -41,7 +41,7 @@ No `POSTGRES_*` or `DATABASE_URL` references remain.
 
 ## Network Status
 - [x] CORS configurable (`WORKSPACE_SANDBOX_CORS_ORIGINS`).
-- [x] Ports configurable via `API_PORT`/`UI_PORT`/`WS_PORT`.
+- [x] Ports configurable via `API_PORT`/`UI_PORT`.
 - [x] No fixed `:8080`/`:5432` references.
 
 ## Issues Found

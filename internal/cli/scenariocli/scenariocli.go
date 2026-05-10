@@ -26,9 +26,10 @@ func isQuietOutput() bool {
 }
 
 type ListPortOutput struct {
-	Key  string `json:"key"`
-	Step string `json:"step,omitempty"`
-	Port int    `json:"port"`
+	Key            string `json:"key"`
+	Step           string `json:"step,omitempty"`
+	Port           int    `json:"port"`
+	ListenerStatus string `json:"listener_status,omitempty"`
 }
 
 type ListItemOutput struct {
@@ -42,16 +43,17 @@ type ListItemOutput struct {
 }
 
 type StatusItemOutput struct {
-	Name        string         `json:"name"`
-	DisplayName string         `json:"display_name,omitempty"`
-	Description string         `json:"description,omitempty"`
-	Tags        []string       `json:"tags"`
-	Status      string         `json:"status"`
-	Processes   int            `json:"processes"`
-	Runtime     string         `json:"runtime"`
-	StartedAt   *time.Time     `json:"started_at,omitempty"`
-	Ports       map[string]int `json:"ports"`
-	Health      any            `json:"health_status"`
+	Name         string           `json:"name"`
+	DisplayName  string           `json:"display_name,omitempty"`
+	Description  string           `json:"description,omitempty"`
+	Tags         []string         `json:"tags"`
+	Status       string           `json:"status"`
+	Processes    int              `json:"processes"`
+	Runtime      string           `json:"runtime"`
+	StartedAt    *time.Time       `json:"started_at,omitempty"`
+	Ports        map[string]int   `json:"ports"`
+	PortBindings []ListPortOutput `json:"port_bindings,omitempty"`
+	Health       any              `json:"health_status"`
 }
 
 type InfoOutput struct {
@@ -180,16 +182,17 @@ func BuildStatusDetail(detail orchestrator.Detail) StatusItemOutput {
 		health = detail.Details.Health
 	}
 	return StatusItemOutput{
-		Name:        detail.Scenario.Slug,
-		DisplayName: detail.Scenario.Manifest.Service.DisplayName,
-		Description: detail.Scenario.Manifest.Service.Description,
-		Tags:        CopyStrings(detail.Scenario.Manifest.Service.Tags),
-		Status:      detail.Details.Status,
-		Processes:   detail.Details.Processes,
-		Runtime:     detail.Details.Runtime,
-		StartedAt:   detail.Details.StartedAt,
-		Ports:       CopyIntMap(detail.Details.Ports),
-		Health:      health,
+		Name:         detail.Scenario.Slug,
+		DisplayName:  detail.Scenario.Manifest.Service.DisplayName,
+		Description:  detail.Scenario.Manifest.Service.Description,
+		Tags:         CopyStrings(detail.Scenario.Manifest.Service.Tags),
+		Status:       detail.Details.Status,
+		Processes:    detail.Details.Processes,
+		Runtime:      detail.Details.Runtime,
+		StartedAt:    detail.Details.StartedAt,
+		Ports:        CopyIntMap(detail.Details.Ports),
+		PortBindings: RuntimePortOutputs(detail.Details.PortBindings),
+		Health:       health,
 	}
 }
 
@@ -229,9 +232,10 @@ func RuntimePortOutputs(bindings []scenariomodel.RuntimePortBinding) []ListPortO
 	listPorts := make([]ListPortOutput, 0, len(bindings))
 	for _, binding := range bindings {
 		listPorts = append(listPorts, ListPortOutput{
-			Key:  binding.Key,
-			Step: binding.Step,
-			Port: binding.Port,
+			Key:            binding.Key,
+			Step:           binding.Step,
+			Port:           binding.Port,
+			ListenerStatus: binding.ListenerStatus,
 		})
 	}
 	return listPorts

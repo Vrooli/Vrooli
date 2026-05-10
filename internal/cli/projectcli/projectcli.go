@@ -211,9 +211,9 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 		_, _ = fmt.Fprintln(w, "Registry claims")
 		rows := make([][]string, 0, len(resp.RuntimeClaims))
 		for _, item := range resp.RuntimeClaims {
-			rows = append(rows, []string{strconv.Itoa(item.Port), item.Scenario, item.InstanceStatus, item.ClaimStatus})
+			rows = append(rows, []string{strconv.Itoa(item.Port), item.Scenario, item.InstanceStatus, item.ClaimStatus, item.ListenerStatus, item.RecommendationCode})
 		}
-		if err := cliout.RenderTable(w, []string{"Port", "Scenario", "Lease", "Claim"}, rows); err != nil {
+		if err := cliout.RenderTable(w, []string{"Port", "Scenario", "Lease", "Claim", "Listener", "Recommendation"}, rows); err != nil {
 			return err
 		}
 		if len(resp.List) > 0 {

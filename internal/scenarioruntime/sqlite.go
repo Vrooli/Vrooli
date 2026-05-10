@@ -224,6 +224,9 @@ func (s *SQLiteStore) AcquirePortClaim(ctx context.Context, claim PortClaim) (Po
 	if claim.Status == "" {
 		claim.Status = ClaimStatusReserved
 	}
+	if claim.ListenerStatus == "" {
+		claim.ListenerStatus = ListenerStatusUnknown
+	}
 	now := s.now()
 	if claim.CreatedAt.IsZero() {
 		claim.CreatedAt = now
@@ -234,11 +237,16 @@ func (s *SQLiteStore) AcquirePortClaim(ctx context.Context, claim PortClaim) (Po
 		_, err := tx.ExecContext(ctx, `
 INSERT INTO runtime_port_claims (
   claim_id, instance_id, scenario, port_name, env_var, port, bind_host, url,
-  status, created_at, updated_at, expires_at, last_bound_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  status, created_at, updated_at, expires_at, last_bound_at, last_listener_check_at,
+  last_listener_seen_at, first_unbound_at, consecutive_listener_misses, listener_status,
+  listener_pid, listener_process_label
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			claim.ClaimID, claim.InstanceID, claim.Scenario, claim.PortName, claim.EnvVar, claim.Port, claim.BindHost,
 			claim.URL, claim.Status, formatTime(claim.CreatedAt), formatTime(claim.UpdatedAt),
-			formatOptionalTime(claim.ExpiresAt), formatOptionalTime(claim.LastBoundAt))
+			formatOptionalTime(claim.ExpiresAt), formatOptionalTime(claim.LastBoundAt),
+			formatOptionalTime(claim.LastListenerCheckAt), formatOptionalTime(claim.LastListenerSeenAt),
+			formatOptionalTime(claim.FirstUnboundAt), claim.ConsecutiveListenerMisses, claim.ListenerStatus,
+			optionalIntValue(claim.ListenerPID), claim.ListenerProcessLabel)
 		if err != nil {
 			if isUniqueConstraint(err) {
 				return ErrActiveClaimConflict
@@ -466,6 +474,68 @@ func (s *SQLiteStore) ListExpiredActivePortClaims(ctx context.Context, at time.T
 	return scanPortClaims(rows)
 }
 
+func (s *SQLiteStore) UpdatePortClaimListenerEvidence(ctx context.Context, claimID string, evidence ListenerObservation) (PortClaim, error) {
+	if strings.TrimSpace(claimID) == "" {
+		return PortClaim{}, fmt.Errorf("update listener evidence: claim_id is required")
+	}
+	status := normalizeListenerStatus(evidence.Status)
+	checkedAt := evidence.CheckedAt
+	if checkedAt.IsZero() {
+		checkedAt = s.now()
+	}
+	checkedAt = checkedAt.UTC()
+
+	var out PortClaim
+	err := s.withTx(ctx, func(tx *sql.Tx) error {
+		current, err := getPortClaimTx(ctx, tx, claimID)
+		if err != nil {
+			return err
+		}
+		lastSeenAt := current.LastListenerSeenAt
+		firstUnboundAt := current.FirstUnboundAt
+		misses := current.ConsecutiveListenerMisses
+		switch status {
+		case ListenerStatusListening, ListenerStatusForeignListener:
+			lastSeenAt = &checkedAt
+			firstUnboundAt = nil
+			misses = 0
+		case ListenerStatusNotListening:
+			if firstUnboundAt == nil {
+				firstUnboundAt = &checkedAt
+			}
+			misses++
+		case ListenerStatusInspectionUnavailable, ListenerStatusUnknown:
+			// Inspection gaps should be visible, but they are not listener misses.
+		}
+
+		result, err := tx.ExecContext(ctx, `
+UPDATE runtime_port_claims
+SET updated_at = ?, last_listener_check_at = ?, last_listener_seen_at = ?,
+  first_unbound_at = ?, consecutive_listener_misses = ?, listener_status = ?,
+  listener_pid = ?, listener_process_label = ?
+WHERE claim_id = ?`,
+			formatTime(s.now()), formatTime(checkedAt), formatOptionalTime(lastSeenAt),
+			formatOptionalTime(firstUnboundAt), misses, status, optionalIntValue(evidence.PID),
+			evidence.ProcessLabel, claimID)
+		if err != nil {
+			return fmt.Errorf("update runtime port listener evidence: %w", err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("inspect runtime port listener evidence update: %w", err)
+		}
+		if affected == 0 {
+			return ErrNotFound
+		}
+		out, err = getPortClaimTx(ctx, tx, claimID)
+		return err
+	})
+	if err != nil {
+		return PortClaim{}, err
+	}
+	return out, nil
+}
+
 func (s *SQLiteStore) UpsertHealthSnapshot(ctx context.Context, snapshot HealthSnapshot) (HealthSnapshot, error) {
 	if snapshot.InstanceID == "" {
 		return HealthSnapshot{}, fmt.Errorf("upsert health snapshot: instance_id is required")
@@ -683,6 +753,15 @@ func placeholders(n int) string {
 func isUniqueConstraint(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "constraint failed") || strings.Contains(msg, "UNIQUE constraint failed")
+}
+
+func normalizeListenerStatus(status string) string {
+	switch status {
+	case ListenerStatusListening, ListenerStatusNotListening, ListenerStatusInspectionUnavailable, ListenerStatusForeignListener:
+		return status
+	default:
+		return ListenerStatusUnknown
+	}
 }
 
 func optionalIntValue(v *int) any {

@@ -196,7 +196,6 @@ If `overlayfs-userns` fails to launch, check:
 |----------|---------|
 | `API_PORT` | Port for the Go API server |
 | `UI_PORT` | Port for the Vite dev server |
-| `WS_PORT` | WebSocket for live updates |
 | `SQLITE_PATH` | Override SQLite database file location (default: `<api-core/storage>/data/workspace-sandbox/workspace-sandbox.db`) |
 | `PROJECT_ROOT` | Root path for sandboxable directories |
 

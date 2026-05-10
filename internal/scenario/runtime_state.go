@@ -10,9 +10,10 @@ import (
 )
 
 type RuntimePortBinding struct {
-	Key  string `json:"key"`
-	Step string `json:"step,omitempty"`
-	Port int    `json:"port"`
+	Key            string `json:"key"`
+	Step           string `json:"step,omitempty"`
+	Port           int    `json:"port"`
+	ListenerStatus string `json:"listener_status,omitempty"`
 }
 
 type RuntimeEndpoint struct {

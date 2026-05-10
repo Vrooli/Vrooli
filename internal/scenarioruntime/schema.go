@@ -7,11 +7,6 @@ import (
 )
 
 const schemaSQL = `
-CREATE TABLE IF NOT EXISTS schema_version (
-  version INTEGER NOT NULL,
-  applied_at TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS runtime_instances (
   instance_id TEXT PRIMARY KEY,
   scenario TEXT NOT NULL,
@@ -78,6 +73,13 @@ CREATE TABLE IF NOT EXISTS runtime_port_claims (
   updated_at TEXT NOT NULL,
   expires_at TEXT,
   last_bound_at TEXT,
+  last_listener_check_at TEXT,
+  last_listener_seen_at TEXT,
+  first_unbound_at TEXT,
+  consecutive_listener_misses INTEGER NOT NULL DEFAULT 0,
+  listener_status TEXT NOT NULL DEFAULT 'unknown',
+  listener_pid INTEGER,
+  listener_process_label TEXT NOT NULL DEFAULT '',
   FOREIGN KEY(instance_id) REFERENCES runtime_instances(instance_id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_port_claims_instance ON runtime_port_claims(instance_id);
@@ -135,13 +137,6 @@ CREATE INDEX IF NOT EXISTS idx_runtime_events_type ON runtime_events(event_type)
 `
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
-	if _, err := s.db.ExecContext(ctx, `
-CREATE TABLE IF NOT EXISTS schema_version (
-  version INTEGER NOT NULL,
-  applied_at TEXT NOT NULL
-)`); err != nil {
-		return fmt.Errorf("prepare runtime registry schema version table: %w", err)
-	}
 	current, err := readSchemaVersion(ctx, s.db)
 	if err != nil {
 		return fmt.Errorf("read runtime registry schema version: %w", err)
@@ -155,25 +150,39 @@ CREATE TABLE IF NOT EXISTS schema_version (
 	if current != 0 {
 		return fmt.Errorf("runtime registry schema_version %d -> %d requires greenfield rebuild or an operator-run temporary conversion script", current, SchemaVersion)
 	}
+	existing, err := runtimeSchemaExists(ctx, s.db)
+	if err != nil {
+		return fmt.Errorf("inspect runtime registry schema: %w", err)
+	}
+	if existing {
+		return fmt.Errorf("runtime registry schema is unstamped or incompatible with schema_version %d: requires greenfield rebuild or an operator-run temporary conversion script", SchemaVersion)
+	}
 	if _, err := s.db.ExecContext(ctx, schemaSQL); err != nil {
 		return fmt.Errorf("apply runtime registry schema: %w", err)
 	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM schema_version`); err != nil {
-		return fmt.Errorf("clear runtime registry schema version: %w", err)
-	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, SchemaVersion, formatTime(s.now())); err != nil {
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`PRAGMA user_version = %d`, SchemaVersion)); err != nil {
 		return fmt.Errorf("stamp runtime registry schema version: %w", err)
 	}
 	return nil
 }
 
 func readSchemaVersion(ctx context.Context, db *sql.DB) (int, error) {
-	var v sql.NullInt64
-	if err := db.QueryRowContext(ctx, `SELECT MAX(version) FROM schema_version`).Scan(&v); err != nil {
+	var v int
+	if err := db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&v); err != nil {
 		return 0, err
 	}
-	if !v.Valid {
-		return 0, nil
+	return v, nil
+}
+
+func runtimeSchemaExists(ctx context.Context, db *sql.DB) (bool, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT name
+FROM sqlite_master
+WHERE type = 'table'
+  AND name IN ('schema_version', 'runtime_instances', 'runtime_port_claims', 'runtime_supervisor_sessions')`)
+	if err != nil {
+		return false, err
 	}
-	return int(v.Int64), nil
+	defer rows.Close()
+	return rows.Next(), rows.Err()
 }

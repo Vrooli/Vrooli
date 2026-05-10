@@ -9,7 +9,7 @@
       "category": "deploy",
       "prd_ref": "OT-P0-005",
       "title": "Start resources + scenario and verify HTTPS",
-      "description": "Start analyzer-derived resources, start the scenario with UI_PORT=3000/API_PORT=3001/WS_PORT=3002 overrides, configure Caddy+LE, and confirm https://<domain>/health returns 200.",
+      "description": "Start analyzer-derived resources, start the scenario with UI_PORT=3000/API_PORT=3001 overrides, configure Caddy+LE, and confirm https://<domain>/health returns 200.",
       "status": "planned",
       "tags": [
         "deploy",

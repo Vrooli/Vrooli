@@ -124,7 +124,12 @@ func toCLIEndpoints(items []scenarioapp.EndpointOutput) []EndpointOutput {
 func toCLIListPorts(items []scenarioapp.ListPortOutput) []ListPortOutput {
 	out := make([]ListPortOutput, 0, len(items))
 	for _, item := range items {
-		out = append(out, ListPortOutput{Key: item.Key, Step: item.Step, Port: item.Port})
+		out = append(out, ListPortOutput{
+			Key:            item.Key,
+			Step:           item.Step,
+			Port:           item.Port,
+			ListenerStatus: item.ListenerStatus,
+		})
 	}
 	return out
 }
@@ -182,16 +187,17 @@ func toCLIInfoOutput(resp scenarioapp.InfoOutput) InfoOutput {
 
 func toCLIStatusItem(item scenarioapp.StatusItemOutput) StatusItemOutput {
 	return StatusItemOutput{
-		Name:        item.Name,
-		DisplayName: item.DisplayName,
-		Description: item.Description,
-		Tags:        CopyStrings(item.Tags),
-		Status:      item.Status,
-		Processes:   item.Processes,
-		Runtime:     item.Runtime,
-		StartedAt:   item.StartedAt,
-		Ports:       CopyIntMap(item.Ports),
-		Health:      item.Health,
+		Name:         item.Name,
+		DisplayName:  item.DisplayName,
+		Description:  item.Description,
+		Tags:         CopyStrings(item.Tags),
+		Status:       item.Status,
+		Processes:    item.Processes,
+		Runtime:      item.Runtime,
+		StartedAt:    item.StartedAt,
+		Ports:        CopyIntMap(item.Ports),
+		PortBindings: toCLIListPorts(item.PortBindings),
+		Health:       item.Health,
 	}
 }
 

@@ -12,7 +12,6 @@ These are set on the host or in the scenario's environment before starting.
 | `OPENROUTER_API_KEY` | *(unset — provider disabled)* | Set to any non-empty value to activate OpenRouter as a fallback LLM provider. |
 | `API_PORT` | Allocated by Vrooli | Port the Go API listens on. Managed by the lifecycle system. |
 | `UI_PORT` | Allocated by Vrooli | Port the Vite UI dev server or production server listens on. |
-| `WS_PORT` | Allocated by Vrooli | WebSocket channel port. |
 | `POSTGRES_*` | Via `api-core` | Standard PostgreSQL connection variables (host, port, user, password, dbname). |
 
 ## API Constants (`api/config.go`)

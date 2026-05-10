@@ -62,6 +62,8 @@ func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
 	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "git")
 	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "curl")
 	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "jq")
+	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "java")
+	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "quint")
 	assertManifestContainsTool(t, filepath.Join(root, "resources", "searxng", "resource.json"), "yq")
 	assertManifestContainsTool(t, filepath.Join(root, "resources", "codex", "resource.json"), "yq")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "web-console", ".vrooli", "service.json"), "tmux")

@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/manifest"
-	"strings"
-	"time"
 )
 
 // ManifestInitRequest describes API input for creating a starter cloud manifest.
@@ -349,7 +350,6 @@ func defaultTemplateManifest() domain.CloudManifest {
 		Ports: domain.ManifestPorts{
 			"ui":  3000,
 			"api": 3001,
-			"ws":  3002,
 		},
 		Edge: domain.ManifestEdge{
 			Domain:    "example.com",

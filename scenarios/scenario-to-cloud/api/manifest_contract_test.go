@@ -1,9 +1,10 @@
 package main
 
 import (
+	"testing"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/manifest"
-	"testing"
 )
 
 // testManifestBase creates a valid base manifest for testing.
@@ -138,8 +139,8 @@ func TestValidateAndNormalizeManifest_DefaultsAreApplied(t *testing.T) {
 		if normalized.Ports["api"] != 3001 {
 			t.Errorf("expected api port 3001, got %d", normalized.Ports["api"])
 		}
-		if normalized.Ports["ws"] != 3002 {
-			t.Errorf("expected ws port 3002, got %d", normalized.Ports["ws"])
+		if _, ok := normalized.Ports["ws"]; ok {
+			t.Errorf("did not expect default ws port, got %d", normalized.Ports["ws"])
 		}
 	})
 

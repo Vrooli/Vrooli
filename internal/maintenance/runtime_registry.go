@@ -43,7 +43,7 @@ func openRuntimeRegistryIfPresent(home string) (runtimeMaintenanceStore, func(),
 	return store, func() { _ = store.Close() }, nil
 }
 
-func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port int, scenarioName string) ([]RuntimeClaimInfo, error) {
+func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port int, scenarioName string, hostListenerInUse bool) ([]RuntimeClaimInfo, error) {
 	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
 		Scenario: scenarioName,
 		Statuses: append(scenarioruntime.ActivePortClaimStatuses(), scenarioruntime.ClaimStatusExpired),
@@ -65,22 +65,33 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 			continue
 		}
 		item := RuntimeClaimInfo{
-			ClaimID:     claim.ClaimID,
-			InstanceID:  claim.InstanceID,
-			Scenario:    claim.Scenario,
-			PortName:    claim.PortName,
-			EnvVar:      claim.EnvVar,
-			Port:        claim.Port,
-			BindHost:    claim.BindHost,
-			URL:         claim.URL,
-			ClaimStatus: claim.Status,
-			CreatedAt:   claim.CreatedAt,
-			UpdatedAt:   claim.UpdatedAt,
-			ExpiresAt:   claim.ExpiresAt,
-			LastBoundAt: claim.LastBoundAt,
+			ClaimID:                   claim.ClaimID,
+			InstanceID:                claim.InstanceID,
+			Scenario:                  claim.Scenario,
+			PortName:                  claim.PortName,
+			EnvVar:                    claim.EnvVar,
+			Port:                      claim.Port,
+			BindHost:                  claim.BindHost,
+			URL:                       claim.URL,
+			ClaimStatus:               claim.Status,
+			CreatedAt:                 claim.CreatedAt,
+			UpdatedAt:                 claim.UpdatedAt,
+			ExpiresAt:                 claim.ExpiresAt,
+			LastBoundAt:               claim.LastBoundAt,
+			LastListenerCheckAt:       claim.LastListenerCheckAt,
+			LastListenerSeenAt:        claim.LastListenerSeenAt,
+			FirstUnboundAt:            claim.FirstUnboundAt,
+			ConsecutiveListenerMisses: claim.ConsecutiveListenerMisses,
+			ListenerStatus:            claim.ListenerStatus,
+			ListenerPID:               claim.ListenerPID,
+			ListenerProcessLabel:      claim.ListenerProcessLabel,
 		}
+		var runtimeInstance scenarioruntime.Instance
+		var hasRuntimeInstance bool
 		instance, err := store.GetInstance(ctx, claim.InstanceID)
 		if err == nil {
+			runtimeInstance = instance
+			hasRuntimeInstance = true
 			item.Generation = instance.Generation
 			item.InstanceStatus = instance.Status
 			item.SupervisorID = instance.SupervisorID
@@ -125,12 +136,33 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 		} else if !errors.Is(err, scenarioruntime.ErrNotFound) {
 			return nil, err
 		}
-		health, err := store.GetHealthSnapshot(ctx, claim.InstanceID)
+		var health scenarioruntime.HealthSnapshot
+		health, err = store.GetHealthSnapshot(ctx, claim.InstanceID)
 		if err == nil {
 			item.HealthStatus = health.Status
 			item.HealthReady = health.Readiness
 		} else if !errors.Is(err, scenarioruntime.ErrNotFound) {
 			return nil, err
+		}
+		if hasRuntimeInstance {
+			authoritative := false
+			hasAuthoritative := false
+			if item.Authoritative != nil {
+				authoritative = *item.Authoritative
+				hasAuthoritative = true
+			}
+			recommendation := scenarioruntime.ClassifyPortEvidence(scenarioruntime.PortEvidenceInput{
+				Claim:             claim,
+				Instance:          runtimeInstance,
+				Health:            health,
+				Reconciliation:    item.Reconciliation,
+				Authoritative:     authoritative,
+				HasAuthoritative:  hasAuthoritative,
+				HostListenerInUse: hostListenerInUse && port > 0 && claim.Port == port,
+			})
+			item.RecommendationCode = recommendation.Code
+			item.RecommendationConfidence = recommendation.Confidence
+			item.RecommendationRationale = recommendation.Rationale
 		}
 		out = append(out, item)
 	}

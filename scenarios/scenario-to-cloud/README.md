@@ -54,5 +54,5 @@ P0 will:
 - Use `scenario-dependency-analyzer` to compute required scenarios + resources for a target scenario (plus always include `vrooli-autoheal`).
 - Build a “mini Vrooli” tarball containing the required repo subset (`scenarios/`, `resources/`, shared `packages/`, and generated deployment metadata).
 - Upload the tarball to the VPS, extract it, upload a deployment-local native `vrooli` binary to `<workdir>/.vrooli/bin/vrooli`, then run native setup + start required resources + start the scenario.
-- Force fixed ports at start time: `UI_PORT=3000`, `API_PORT=3001`, `WS_PORT=3002`.
+- Force fixed listener ports at start time from the scenario manifest, typically `UI_PORT=3000` and `API_PORT=3001`.
 - Configure Caddy + Let’s Encrypt to expose the UI over HTTPS (DNS is manual prerequisite in P0).

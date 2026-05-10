@@ -4,16 +4,15 @@ One canonical reference for configuring the browser-automation-studio scenario (
 
 ## Required Variables
 
-- `API_PORT` – API server port (20000-24999)
-- `UI_PORT` – UI server port (40000-44999)
-- `WS_PORT` – WebSocket port (25000-29999)
+- `API_PORT` – API server port (15000-19999)
+- `UI_PORT` – UI server port (20000-24999)
 - `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET_NAME`
 - `BROWSERLESS_PORT`
 - `VROOLI_LIFECYCLE_MANAGED` – must be `true`
 
 ## Optional Overrides
 
-- Hosts: `API_HOST`, `UI_HOST`, `WS_HOST`, `MINIO_HOST`, `BROWSERLESS_HOST` (default: `localhost`)
+- Hosts: `API_HOST`, `UI_HOST`, `MINIO_HOST`, `BROWSERLESS_HOST` (default: `localhost`)
 - CORS: `CORS_ALLOWED_ORIGINS` (or legacy `ALLOWED_ORIGINS`, `CORS_ALLOWED_ORIGIN`)
 - Screenshot defaults: `SCREENSHOT_DEFAULT_WIDTH`, `SCREENSHOT_DEFAULT_HEIGHT`
 - Full URLs: `BROWSERLESS_URL`, `MINIO_ENDPOINT`, `BROWSER_AUTOMATION_API_URL`, `BAS_EXPORT_PAGE_URL`, `BAS_UI_BASE_URL`, `UI_SCHEME`, `UI_HOST`, `UI_PORT`, `BAS_EXPORT_PAGE_PATH` (default `/export/composer.html`)
@@ -161,7 +160,6 @@ Set automatically by Vrooli lifecycle:
 # Core (set by lifecycle)
 export API_PORT=20100
 export UI_PORT=40100
-export WS_PORT=25100
 export MINIO_PORT=9000
 export MINIO_ACCESS_KEY="minioadmin"
 export MINIO_SECRET_KEY="minioadmin"

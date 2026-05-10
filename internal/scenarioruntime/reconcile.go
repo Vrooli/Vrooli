@@ -23,8 +23,10 @@ type ProcessEvidence struct {
 }
 
 type ListenerEvidence struct {
-	Known     bool
-	Listening bool
+	Known        bool
+	Listening    bool
+	PID          *int
+	ProcessLabel string
 }
 
 type PIDRunningFunc func(pid int) bool
@@ -124,7 +126,7 @@ func ProcessEvidenceFromRefs(refs []ProcessRef, isRunning PIDRunningFunc) map[st
 }
 
 func ListenerEvidenceFromClaims(claims []PortClaim, refs []ProcessRef, inspect PortListenerFunc) map[int]ListenerEvidence {
-	if len(refs) == 0 || inspect == nil {
+	if inspect == nil {
 		return nil
 	}
 	out := make(map[int]ListenerEvidence)
@@ -135,6 +137,23 @@ func ListenerEvidenceFromClaims(claims []PortClaim, refs []ProcessRef, inspect P
 		out[claim.Port] = inspect(claim.Port)
 	}
 	return out
+}
+
+func ListenerObservationFromEvidence(checkedAt time.Time, evidence ListenerEvidence) ListenerObservation {
+	status := ListenerStatusUnknown
+	if evidence.Known {
+		if evidence.Listening {
+			status = ListenerStatusListening
+		} else {
+			status = ListenerStatusNotListening
+		}
+	}
+	return ListenerObservation{
+		CheckedAt:    checkedAt,
+		Status:       status,
+		PID:          evidence.PID,
+		ProcessLabel: evidence.ProcessLabel,
+	}
 }
 
 func (r ReconcileResult) fail(classification ReconcileClassification, reason string) ReconcileResult {

@@ -21,7 +21,9 @@ FROM runtime_supervisor_sessions`
 
 const portClaimSelectSQL = `
 SELECT claim_id, instance_id, scenario, port_name, env_var, port, bind_host, url,
-  status, created_at, updated_at, expires_at, last_bound_at
+  status, created_at, updated_at, expires_at, last_bound_at, last_listener_check_at,
+  last_listener_seen_at, first_unbound_at, consecutive_listener_misses, listener_status,
+  listener_pid, listener_process_label
 FROM runtime_port_claims`
 
 const processRefSelectSQL = `
@@ -157,10 +159,13 @@ func getPortClaimTx(ctx context.Context, tx *sql.Tx, claimID string) (PortClaim,
 func scanPortClaim(row scanner) (PortClaim, error) {
 	var claim PortClaim
 	var createdAt, updatedAt string
-	var expiresAt, lastBoundAt sql.NullString
+	var expiresAt, lastBoundAt, lastListenerCheckAt, lastListenerSeenAt, firstUnboundAt sql.NullString
+	var listenerPID sql.NullInt64
 	err := row.Scan(
 		&claim.ClaimID, &claim.InstanceID, &claim.Scenario, &claim.PortName, &claim.EnvVar, &claim.Port,
 		&claim.BindHost, &claim.URL, &claim.Status, &createdAt, &updatedAt, &expiresAt, &lastBoundAt,
+		&lastListenerCheckAt, &lastListenerSeenAt, &firstUnboundAt, &claim.ConsecutiveListenerMisses,
+		&claim.ListenerStatus, &listenerPID, &claim.ListenerProcessLabel,
 	)
 	if err != nil {
 		return PortClaim{}, mapRowErr(err)
@@ -181,6 +186,16 @@ func scanPortClaim(row scanner) (PortClaim, error) {
 	if claim.LastBoundAt, err = parseOptionalTime(lastBoundAt); err != nil {
 		return PortClaim{}, fmt.Errorf("parse claim last_bound_at: %w", err)
 	}
+	if claim.LastListenerCheckAt, err = parseOptionalTime(lastListenerCheckAt); err != nil {
+		return PortClaim{}, fmt.Errorf("parse claim last_listener_check_at: %w", err)
+	}
+	if claim.LastListenerSeenAt, err = parseOptionalTime(lastListenerSeenAt); err != nil {
+		return PortClaim{}, fmt.Errorf("parse claim last_listener_seen_at: %w", err)
+	}
+	if claim.FirstUnboundAt, err = parseOptionalTime(firstUnboundAt); err != nil {
+		return PortClaim{}, fmt.Errorf("parse claim first_unbound_at: %w", err)
+	}
+	claim.ListenerPID = ptrInt(listenerPID)
 	return claim, nil
 }
 

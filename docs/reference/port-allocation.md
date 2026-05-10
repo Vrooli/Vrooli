@@ -1,7 +1,7 @@
 # Port Allocation
 
 This page is the canonical reference for scenario listener ports in Vrooli.
-Templates, scaffolding, the `vrooli scenario audit` rule, and the manifest
+Templates, scaffolding, scenario-auditor config rules, and the manifest
 validator all point here rather than duplicating policy.
 
 ## TL;DR
@@ -21,6 +21,12 @@ restart failures).
 
 Fixed ports (e.g. Cloudflare-tunneled UIs) pin a single value inside the band
 for that role.
+
+The `ports` block declares listener ports that lifecycle should allocate and
+that runtime supervision should expect to observe as bound sockets. It is not
+endpoint metadata. HTTP routes, WebSocket routes, gRPC services, and UI proxy
+paths can share one listener; describe those user-facing endpoints in
+`.vrooli/endpoints.json` rather than adding extra `service.json` ports.
 
 ## Why 32768 matters
 
@@ -52,13 +58,32 @@ Three layers work together so a regression is caught as early as possible:
    `internal/portspec.OSEphemeralRange`). Broken manifests fail fast with a
    link back to this document.
 2. **Auditor rule** — `scenarios/scenario-auditor/api/rules/config/service_ports.go`
-   runs during `vrooli scenario audit`. It applies the same canonical-band
+   runs during scenario-auditor validation. It applies the same canonical-band
    rules against a **static reference** ephemeral range (Linux's default
    `32768-60999`) so CI output is reproducible regardless of the machine
-   running the audit.
+   running the audit. It also checks whether declared port env vars appear in
+   runtime listener-startup source and can optionally correlate findings with
+   historical runtime evidence.
 3. **Template defaults** — `templates/scenarios/react-vite/.vrooli/service.json`
    and `templates/scenarios/landing-page-react-vite/.vrooli/service.json`
    declare the canonical bands. New scenarios inherit them automatically.
+
+### Runtime evidence artifact
+
+Static validation does not start scenarios. When you want scenario-auditor to
+consider historical runtime evidence, capture the public maintenance JSON and
+pass it through the auditor environment:
+
+```bash
+vrooli locks --json > /tmp/vrooli-runtime-port-evidence.json
+SCENARIO_AUDITOR_RUNTIME_PORT_EVIDENCE_PATH=/tmp/vrooli-runtime-port-evidence.json \
+  scenario-auditor standards scan <scenario-name> --wait
+```
+
+The artifact is intentionally a CLI JSON snapshot, not a direct read of
+`runtime.db`. The auditor treats it as evidence, not proof: repeated
+`not_listening` observations can raise confidence that a declared listener is
+stale, while healthy listener evidence can reduce ambiguity.
 
 ### Escape hatch
 

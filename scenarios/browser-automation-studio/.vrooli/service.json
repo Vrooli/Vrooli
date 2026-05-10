@@ -52,11 +52,6 @@
       "description": "Visual workflow builder UI port",
       "range": "20000-24999"
     },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket port for real-time updates",
-      "range": "25000-29999"
-    },
     "playwright_driver": {
       "env_var": "PLAYWRIGHT_DRIVER_PORT",
       "description": "Playwright driver HTTP server port",

@@ -102,7 +102,6 @@ cd ui && pnpm test
 |----------|---------|
 | `API_PORT` | Port for Go API server |
 | `UI_PORT` | Port for React UI |
-| `WS_PORT` | WebSocket for real-time updates |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `OLLAMA_URL` | Ollama endpoint for LLM-as-judge |
 | `QDRANT_URL` | Qdrant endpoint for semantic similarity |
