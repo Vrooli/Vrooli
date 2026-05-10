@@ -1,4 +1,4 @@
-.PHONY: help setup start stop restart status logs test open orient run dev endpoints
+.PHONY: help setup start stop restart status logs test temporal-models open orient run dev endpoints
 
 .DEFAULT_GOAL := help
 
@@ -13,6 +13,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make status                     Show scenario runtime status\n"
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
+	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
@@ -41,6 +42,9 @@ logs: ## Show scenario logs
 
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
+
+temporal-models: ## Check formal temporal-model artifacts
+	@node tools/temporal-model/generate.mjs --check
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"

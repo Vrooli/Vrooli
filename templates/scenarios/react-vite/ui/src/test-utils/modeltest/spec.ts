@@ -15,6 +15,7 @@ export interface WorkflowSpec {
   readonly formalModel?: {
     readonly status: string;
     readonly tool?: string;
+    readonly model?: string;
     readonly generatedArtifacts?: string;
     readonly driftCheck?: string;
   };

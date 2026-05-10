@@ -82,9 +82,10 @@
     }
   ],
   "formalModel": {
-    "status": "not_adopted",
-    "tool": "Quint/TLA+ candidate",
-    "generatedArtifacts": "none",
-    "driftCheck": "JSON spec is checked against hand-authored matrix and trace tests; it does not yet generate test artifacts."
+    "status": "adopted",
+    "tool": "Quint 0.32.0",
+    "model": "AttachmentUploadWorkflow.qnt",
+    "generatedArtifacts": "AttachmentUploadWorkflow.formal.generated.json",
+    "driftCheck": "quint typecheck/test/verify plus generated artifact replay in Vitest tests"
   }
 }

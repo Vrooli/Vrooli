@@ -16,9 +16,9 @@ running a binary by hand or when a scenario adds a new variable.
 | `API_PORT` | `15000-19999` | Port for the Go API server |
 | `UI_PORT` | `20000-24999` | Port for the production UI server (`ui/server.js`) |
 
-If the scenario adds WebSocket channels, declare a `websocket` port
-under `.vrooli/service.json` `ports` (canonical band: `25000-29999`)
-and add the corresponding env var here.
+If the scenario adds WebSocket channels on the existing API or UI server, do
+not add another `ports` entry. Declare an additional port only when the
+scenario starts a separate listener process.
 
 The canonical bands all sit below 32768 so Linux never hands out the
 ports as outbound source ports. See the project-level

@@ -267,6 +267,8 @@ The canonical API shape is:
 
 ```
 api/internal/<domain>/
+  <flow>_workflow.qnt
+  <flow>_workflow.formal.generated.json
   <flow>_workflow.go
   <flow>_workflow.spec.json
   <flow>_workflow_test.go
@@ -296,6 +298,8 @@ The canonical UI shape is:
 
 ```
 ui/src/features/<domain>/
+  <domain>Workflow.qnt
+  <domain>Workflow.formal.generated.json
   <domain>Workflow.ts
   <domain>Workflow.spec.json
   <domain>Workflow.test.ts
@@ -318,19 +322,30 @@ Workflow maturity is incremental:
 | 4 | Declarative spec | `*.spec.json` exists beside the workflow and conformance tests compare it to matrix/traces. |
 | 5 | Checked formal model | Quint/TLA+ or equivalent generates deterministic artifacts replayed by production tests. |
 
-The notes attachment upload workflow is the reference Level 4 pattern:
+The notes attachment upload workflow is the reference Level 5 pattern:
 
+- `tools/temporal-model/generate.mjs`
 - `api/internal/notes/attachment_upload_workflow.go`
+- `api/internal/notes/attachment_upload_workflow.qnt`
+- `api/internal/notes/attachment_upload_workflow.formal.generated.json`
 - `api/internal/notes/attachment_upload_workflow.spec.json`
 - `api/internal/notes/attachment_workflow_test.go`
 - `ui/src/features/notes/AttachmentUploadWorkflow.ts`
+- `ui/src/features/notes/AttachmentUploadWorkflow.qnt`
+- `ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json`
 - `ui/src/features/notes/AttachmentUploadWorkflow.spec.json`
 - `ui/src/features/notes/AttachmentUploadWorkflow.test.ts`
 
-A Quint/TLA+ model is only accepted when generated traces or transition
-matrices are replayed against the production Go/TypeScript transition
-functions and validation fails on stale artifacts. Documentation-only
-formal specs are drift-prone and should not be added.
+`node tools/temporal-model/generate.mjs --check` runs `quint typecheck`,
+`quint test`, `quint verify`, and deterministic MBT trace generation,
+then fails if the checked-in artifacts are stale. Go and TypeScript
+tests load those artifacts through `modeltest` and replay generated
+transitions/traces against production transition functions.
+
+A Quint/TLA+ model is only accepted when this full loop exists.
+Documentation-only formal specs are drift-prone and should not be
+added. Plain CRUD should stay plain; copy the Level 5 pattern only for
+flows with lifecycle states and illegal transitions.
 
 ### Buffer-backed logger pattern
 

@@ -22,7 +22,7 @@ workflow model.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Handler/service tests and upload workflow tests. |
+| Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
 
 ## Flow Details
 
@@ -45,14 +45,24 @@ workflow model.
   product requirements demand it.
 - Tests: `api/handlers/notes/attachments_handler_test.go`,
   `api/internal/notes/attachments_service_test.go`,
-  `ui/src/features/notes/AttachmentUpload.test.tsx`.
+  `api/internal/notes/attachment_workflow_test.go`,
+  `ui/src/features/notes/AttachmentUpload.test.tsx`, and
+  `ui/src/features/notes/AttachmentUploadWorkflow.test.ts`.
+- Formal models:
+  `api/internal/notes/attachment_upload_workflow.qnt` and
+  `ui/src/features/notes/AttachmentUploadWorkflow.qnt`.
+- Generated artifacts:
+  `api/internal/notes/attachment_upload_workflow.formal.generated.json`
+  and
+  `ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json`.
 - Requirements: template starter only.
 
 ## State Machines
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| notes / attachment upload | pending, uploading, success, error | success/error before upload starts; duplicate submit while uploading | UI workflow tests and handler/service validation |
+| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | Go transition matrix, declarative spec, Quint model, generated formal artifact replay |
+| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, completion before upload, retry without file context | Vitest transition matrix, discriminated-union invariants, declarative spec, Quint model, generated formal artifact replay |
 
 ## Maturity Ladder
 
@@ -74,6 +84,8 @@ API domains that own durable lifecycle state use:
 
 ```text
 api/internal/<domain>/
+  <flow>_workflow.qnt
+  <flow>_workflow.formal.generated.json
   <flow>_workflow.go
   <flow>_workflow.spec.json
   <flow>_workflow_test.go
@@ -83,6 +95,8 @@ UI features that own client-side modes use:
 
 ```text
 ui/src/features/<domain>/
+  <domain>Workflow.qnt
+  <domain>Workflow.formal.generated.json
   <domain>Workflow.ts
   <domain>Workflow.spec.json
   <domain>Workflow.test.ts
@@ -92,6 +106,14 @@ The workflow owns state/status values, events, `Transition`, and
 `CheckInvariants`. It should be pure or nearly pure. Effects live
 outside the workflow behind seams: repositories, BlobStore, clocks,
 timers, HTTP clients, or UI API modules.
+
+Level 5 formal artifacts are checked in source artifacts. They are
+refreshed and checked by `node tools/temporal-model/generate.mjs`; the
+scenario lifecycle runs `node tools/temporal-model/generate.mjs --check`
+before the normal test suite. A Quint file by itself is not accepted:
+the model must typecheck, test, verify, emit deterministic artifacts,
+and those artifacts must replay against the production Go/TypeScript
+transition functions.
 
 ## Deferred / Unmodeled Flows
 

@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertWorkflowSpecConformance,
+  assertFormalArtifactFresh,
+  assertFormalTransitionsReplay,
+  assertFormalTracesReplay,
   assertTransitionMatrix,
   replayTraces,
+  type FormalArtifact,
   type MatrixRow,
   type Trace,
   type WorkflowSpec,
 } from "../../test-utils";
+import formalArtifact from "./AttachmentUploadWorkflow.formal.generated.json";
 import spec from "./AttachmentUploadWorkflow.spec.json";
 import {
   attachmentUploadEvents,
@@ -136,6 +141,15 @@ describe("AttachmentUpload workflow", () => {
       matrix,
       traces,
     );
+  });
+
+  it("replays generated formal model artifacts", () => {
+    const artifact = formalArtifact as FormalArtifact;
+    assertFormalArtifactFresh(artifact, {
+      modelPath: "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
+    });
+    assertFormalTransitionsReplay(artifact, attachmentUploadStatuses, attachmentUploadEvents, transitionStatus);
+    assertFormalTracesReplay(artifact, attachmentUploadStatuses, attachmentUploadEvents, transitionStatus);
   });
 
   it("rejects impossible states", () => {

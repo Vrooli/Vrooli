@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.com/schemas/react-vite/temporal-formal-artifact.schema.json",
+  "title": "React-Vite formal temporal model artifact",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "flowId",
+    "source",
+    "commands",
+    "states",
+    "events",
+    "transitions",
+    "traces",
+    "checks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "flowId": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "required": ["modelPath", "modelSha256", "quintVersion"],
+      "additionalProperties": false,
+      "properties": {
+        "modelPath": { "type": "string", "minLength": 1 },
+        "modelSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "quintVersion": { "type": "string", "minLength": 1 }
+      }
+    },
+    "commands": { "type": "object" },
+    "states": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "events": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "transitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["from", "event", "to", "wantError"],
+        "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string" },
+          "event": { "type": "string" },
+          "to": { "type": "string" },
+          "wantError": { "type": "boolean" }
+        }
+      }
+    },
+    "traces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "initial", "steps"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "initial": { "type": "string" },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["event", "want", "wantError"],
+              "additionalProperties": false,
+              "properties": {
+                "event": { "type": "string" },
+                "want": { "type": "string" },
+                "wantError": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "required": ["typechecked", "tested", "verified", "generatedFromModel"],
+      "additionalProperties": false,
+      "properties": {
+        "typechecked": { "type": "boolean" },
+        "tested": { "type": "boolean" },
+        "verified": { "type": "boolean" },
+        "generatedFromModel": { "type": "boolean" }
+      }
+    }
+  }
+}

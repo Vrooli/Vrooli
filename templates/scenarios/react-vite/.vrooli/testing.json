@@ -23,7 +23,10 @@
         "cli": "warning"
       },
       "unmatched_code_components": "warning"
-    }
+    },
+    "ignore": [
+      "tools"
+    ]
   },
   "structure": {
     "additional_dirs": [

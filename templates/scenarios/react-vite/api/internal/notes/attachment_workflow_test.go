@@ -40,6 +40,29 @@ func TestAttachmentUploadWorkflow_ConformsToSpec(t *testing.T) {
 	)
 }
 
+func TestAttachmentUploadWorkflow_ReplaysFormalModelArtifacts(t *testing.T) {
+	artifact := modeltest.LoadFormalArtifact(t, "attachment_upload_workflow.formal.generated.json")
+	modeltest.AssertFormalArtifactFresh(t, artifact, "api/internal/notes/attachment_upload_workflow.qnt")
+	transition := func(status notes.AttachmentUploadStatus, event notes.AttachmentUploadEvent) (notes.AttachmentUploadStatus, error) {
+		next, err := notes.TransitionAttachmentUpload(notes.AttachmentUploadState{Status: status}, event)
+		return next.Status, err
+	}
+	modeltest.AssertFormalTransitionsReplay(
+		t,
+		artifact,
+		notes.AllAttachmentUploadStatuses(),
+		notes.AllAttachmentUploadEvents(),
+		transition,
+	)
+	modeltest.AssertFormalTracesReplay(
+		t,
+		artifact,
+		notes.AllAttachmentUploadStatuses(),
+		notes.AllAttachmentUploadEvents(),
+		transition,
+	)
+}
+
 func TestAttachmentUploadWorkflow_RejectsUnknownState(t *testing.T) {
 	err := notes.CheckAttachmentUploadInvariants(notes.AttachmentUploadState{Status: "ghost"})
 	require.Error(t, err)

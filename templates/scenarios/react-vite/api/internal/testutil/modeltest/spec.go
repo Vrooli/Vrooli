@@ -44,6 +44,7 @@ type SpecTraceStep struct {
 type SpecFormalModelInfo struct {
 	Status             string `json:"status"`
 	Tool               string `json:"tool,omitempty"`
+	Model              string `json:"model,omitempty"`
 	GeneratedArtifacts string `json:"generatedArtifacts,omitempty"`
 	DriftCheck         string `json:"driftCheck,omitempty"`
 }

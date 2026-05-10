@@ -86,6 +86,20 @@ export type {
   SpecTransition,
   WorkflowSpec,
 } from "./modeltest/spec";
+export {
+  assertFormalArtifactFresh,
+  assertFormalTransitionsReplay,
+  assertFormalTracesReplay,
+  validateFormalArtifactFresh,
+  validateFormalTransitionsReplay,
+  validateFormalTracesReplay,
+} from "./modeltest/formal";
+export type {
+  FormalArtifact,
+  FormalArtifactTrace,
+  FormalArtifactTraceStep,
+  FormalArtifactTransition,
+} from "./modeltest/formal";
 
 // Mock builders for external SDKs. Each test file still calls
 // `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the
