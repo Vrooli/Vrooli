@@ -12,6 +12,8 @@ import (
 
 	"github.com/vrooli/api-core/markedrefs"
 	"github.com/vrooli/api-core/relationshiprefs"
+
+	"knowledge-observatory/internal/docvalidation"
 )
 
 // UndocumentedFile represents a code file with exported symbols but no DOC: references.
@@ -45,20 +47,20 @@ type DuplicateTitle struct {
 
 // AuditResult contains the full audit of a scenario's documentation.
 type AuditResult struct {
-	ScenarioName        string             `json:"scenario_name"`
-	HealthScore         float64            `json:"health_score"`
-	TotalDocs           int                `json:"total_docs"`
-	Infrastructure      *ValidationResult  `json:"infrastructure"`
-	CodeWithoutDocRefs  []UndocumentedFile `json:"code_without_doc_refs"`
-	BrokenCodeRefs      []BrokenRef        `json:"broken_code_refs"`
-	MarkedRefsFound     int                `json:"marked_refs_found"`
-	MarkedRefsSkipped   int                `json:"marked_refs_skipped"`
-	BrokenMarkedRefs    []MarkedRefIssue   `json:"broken_marked_refs"`
-	UnknownMarkedRefs   []MarkedRefIssue   `json:"unknown_marked_refs"`
-	OrphanedDocs        []string           `json:"orphaned_docs"`
-	DuplicateTitles     []DuplicateTitle   `json:"duplicate_titles"`
-	UndocumentedTargets []string           `json:"undocumented_targets"`
-	PerfAuditIssues     []FrontmatterIssue `json:"perf_audit_issues"`
+	ScenarioName        string                `json:"scenario_name"`
+	HealthScore         float64               `json:"health_score"`
+	TotalDocs           int                   `json:"total_docs"`
+	Infrastructure      *docvalidation.Result `json:"infrastructure"`
+	CodeWithoutDocRefs  []UndocumentedFile    `json:"code_without_doc_refs"`
+	BrokenCodeRefs      []BrokenRef           `json:"broken_code_refs"`
+	MarkedRefsFound     int                   `json:"marked_refs_found"`
+	MarkedRefsSkipped   int                   `json:"marked_refs_skipped"`
+	BrokenMarkedRefs    []MarkedRefIssue      `json:"broken_marked_refs"`
+	UnknownMarkedRefs   []MarkedRefIssue      `json:"unknown_marked_refs"`
+	OrphanedDocs        []string              `json:"orphaned_docs"`
+	DuplicateTitles     []DuplicateTitle      `json:"duplicate_titles"`
+	UndocumentedTargets []string              `json:"undocumented_targets"`
+	PerfAuditIssues     []FrontmatterIssue    `json:"perf_audit_issues"`
 }
 
 var (
@@ -106,7 +108,7 @@ func AuditScenarioDocumentation(scenarioPath string) (*AuditResult, error) {
 	}
 
 	// Step 1: Infrastructure check (reuses existing validation).
-	validation, err := ValidateScenarioDocumentation(scenarioPath)
+	validation, err := docvalidation.ValidateScenarioDocumentation(scenarioPath)
 	if err != nil {
 		return nil, err
 	}
@@ -677,6 +679,16 @@ func countDocFiles(scenarioPath string) int {
 		})
 	}
 	return count
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+func isDocFile(name string) bool {
+	ext := strings.ToLower(filepath.Ext(name))
+	return ext == ".md" || ext == ".json"
 }
 
 // ErrEmptyPath is returned when the scenario path is empty.

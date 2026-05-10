@@ -327,7 +327,8 @@ Fetch status for a healing job by ID.
 
 ### docs reset
 
-Reset/clean supported documents (PROBLEMS/PROGRESS).
+Reset/clean supported documents that declare `operations.appendLog` with
+reset support in the resolved documentation manifest.
 
 **Options:**
 | Flag | Description |

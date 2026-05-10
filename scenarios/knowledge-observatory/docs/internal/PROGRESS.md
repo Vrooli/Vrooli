@@ -1,3 +1,9 @@
+# Progress
+
+Lifecycle log for completed Knowledge Observatory changes.
+
+## Progress Log
+
 | Date       | Author            | Status Snapshot | Notes |
 |------------|-------------------|-----------------|-------|
 | 2026-01-27 | GPT-5 (Codex CLI) | Phase 6 dashboard polish | Unified search mode selector, doc search UI, quick search handoff, documentation health + scenario coverage cards, activity feed, docs updates, new UI tests; `make test` 9/9 phases passing, Lighthouse perf 98% (accessibility 100%, SEO 100%). |

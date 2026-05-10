@@ -126,17 +126,7 @@ func TestExtractFrontmatter_StripsBOM(t *testing.T) {
 	}
 }
 
-func TestDocTypePerfAudit_ExpectedDir(t *testing.T) {
-	if got := DocTypePerfAudit.ExpectedDir(); got != "docs/perf" {
-		t.Fatalf("DocTypePerfAudit.ExpectedDir()=%q, want docs/perf", got)
-	}
-}
-
-func TestDocTypePerfAudit_FilenamePattern(t *testing.T) {
-	pat := DocTypePerfAudit.FilenamePattern()
-	if pat == nil {
-		t.Fatal("expected non-nil FilenamePattern")
-	}
+func TestPerfAuditFilenamePattern(t *testing.T) {
 	cases := []struct {
 		name string
 		want bool
@@ -149,18 +139,8 @@ func TestDocTypePerfAudit_FilenamePattern(t *testing.T) {
 		{"2026-05-03-graph-perf.v2.md", true}, // dotted suffix allowed
 	}
 	for _, tc := range cases {
-		if got := pat.MatchString(tc.name); got != tc.want {
+		if got := perfAuditFilenamePattern.MatchString(tc.name); got != tc.want {
 			t.Errorf("pattern.MatchString(%q)=%v, want %v", tc.name, got, tc.want)
 		}
-	}
-}
-
-func TestDocTypeFixed_ExpectedDir(t *testing.T) {
-	// Spot-check that existing types still report sensible dirs.
-	if got := DocTypeProblems.ExpectedDir(); got != "docs/internal" {
-		t.Fatalf("DocTypeProblems.ExpectedDir()=%q, want docs/internal", got)
-	}
-	if DocTypeProblems.FilenamePattern() != nil {
-		t.Fatal("DocTypeProblems should have nil FilenamePattern")
 	}
 }

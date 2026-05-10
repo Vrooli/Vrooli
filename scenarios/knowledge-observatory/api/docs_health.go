@@ -6,30 +6,39 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 
-	"knowledge-observatory/internal/docschema"
+	"knowledge-observatory/internal/doclogs"
+	"knowledge-observatory/internal/docvalidation"
 	"knowledge-observatory/internal/services/dochealth"
 )
 
 type ScenarioDocHealthResponse struct {
-	ScenarioName  string                   `json:"scenario_name"`
-	HealthScore   float64                  `json:"health_score"`
-	TotalDocs     int                      `json:"total_docs"`
-	MisplacedDocs []docschema.MisplacedDoc `json:"misplaced_docs"`
-	MissingDocs   []string                 `json:"missing_docs"`
-	ExtraDocs     []string                 `json:"extra_docs"`
-	TemporaryDocs []string                 `json:"temporary_docs"`
-	Warnings      []DocWarning             `json:"warnings"`
-	CanAutoFix    bool                     `json:"can_auto_fix"`
-	FixCategory   string                   `json:"fix_category"`
+	ScenarioName     string                       `json:"scenario_name"`
+	SourceTemplateID string                       `json:"source_template_id"`
+	ManifestPath     string                       `json:"manifest_path"`
+	ManifestStatus   string                       `json:"manifest_status"`
+	HealthScore      float64                      `json:"health_score"`
+	TotalDocs        int                          `json:"total_docs"`
+	MisplacedDocs    []docvalidation.MisplacedDoc `json:"misplaced_docs"`
+	MissingDocs      []string                     `json:"missing_docs"`
+	ExtraDocs        []string                     `json:"extra_docs"`
+	TemporaryDocs    []string                     `json:"temporary_docs"`
+	Warnings         []DocWarning                 `json:"warnings"`
+	ContractFindings []DocWarning                 `json:"contract_findings,omitempty"`
+	ContentIssues    []DocWarning                 `json:"content_issues,omitempty"`
+	CanAutoFix       bool                         `json:"can_auto_fix"`
+	FixCategory      string                       `json:"fix_category"`
 }
 
 type DocWarning struct {
 	Type         string `json:"type"`
 	Message      string `json:"message"`
 	ExpectedPath string `json:"expected_path,omitempty"`
+	Path         string `json:"path,omitempty"`
+	DocType      string `json:"doc_type,omitempty"`
 	Severity     string `json:"severity"`
 }
 
@@ -64,30 +73,36 @@ func (s *Server) handleDocsHealth(w http.ResponseWriter, r *http.Request) {
 
 	result, err := s.docHealthService.ValidateScenario(r.Context(), scenarioName)
 	if err != nil {
+		if strings.Contains(err.Error(), "reset is not supported") {
+			s.respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		respondDocHealthError(w, err)
 		return
 	}
 
-	missing := make([]string, 0, len(result.Validation.MissingDocs))
-	for _, dt := range result.Validation.MissingDocs {
-		missing = append(missing, string(dt))
-	}
+	missing := append([]string{}, result.Validation.MissingDocs...)
 
 	warnings := buildDocWarnings(result.Validation)
 
 	fixCategory := computeFixCategory(result.Validation.MisplacedDocs, missing, result.Validation.ExtraDocs, result.Validation.TemporaryDocs)
 
 	response := ScenarioDocHealthResponse{
-		ScenarioName:  result.Validation.ScenarioName,
-		HealthScore:   result.Validation.HealthScore,
-		TotalDocs:     result.TotalDocs,
-		MisplacedDocs: result.Validation.MisplacedDocs,
-		MissingDocs:   missing,
-		ExtraDocs:     result.Validation.ExtraDocs,
-		TemporaryDocs: result.Validation.TemporaryDocs,
-		Warnings:      warnings,
-		CanAutoFix:    s.docHealingService != nil && result.Validation.HealthScore < 1,
-		FixCategory:   fixCategory,
+		ScenarioName:     result.Validation.ScenarioName,
+		SourceTemplateID: result.Validation.SourceTemplateID,
+		ManifestPath:     result.Validation.ManifestPath,
+		ManifestStatus:   result.Validation.ManifestStatus,
+		HealthScore:      result.Validation.HealthScore,
+		TotalDocs:        result.TotalDocs,
+		MisplacedDocs:    result.Validation.MisplacedDocs,
+		MissingDocs:      missing,
+		ExtraDocs:        result.Validation.ExtraDocs,
+		TemporaryDocs:    result.Validation.TemporaryDocs,
+		Warnings:         warnings,
+		ContractFindings: buildContractWarnings(result.Validation),
+		ContentIssues:    buildContentWarnings(result.Validation),
+		CanAutoFix:       s.docHealingService != nil && result.Validation.HealthScore < 1,
+		FixCategory:      fixCategory,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -116,32 +131,25 @@ func (s *Server) handleDocsReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	docType, err := docschema.ParseDocType(req.DocType)
-	if err != nil {
-		s.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if docType != docschema.DocTypeProblems && docType != docschema.DocTypeProgress {
-		s.respondError(w, http.StatusBadRequest, "reset is only supported for problems and progress docs")
-		return
-	}
-
-	result, err := s.docHealthService.ResetScenarioDoc(r.Context(), scenarioName, docschema.ResetConfig{
-		DocType:        docType,
+	result, docType, err := s.docHealthService.ResetScenarioDoc(r.Context(), scenarioName, req.DocType, doclogs.ResetConfig{
 		MaxAgeDays:     req.MaxAgeDays,
 		KeepMinEntries: req.KeepMinEntries,
 		PreviewMode:    req.Preview,
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "reset is not supported") {
+			s.respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		respondDocHealthError(w, err)
 		return
 	}
 
-	s.logDocAccess(r.Context(), scenarioName, string(docType), "reset")
+	s.logDocAccess(r.Context(), scenarioName, docType, "reset")
 
 	response := DocResetResponse{
 		ScenarioName:   scenarioName,
-		DocType:        string(docType),
+		DocType:        docType,
 		Preview:        req.Preview,
 		RemovedCount:   result.RemovedCount,
 		KeptCount:      result.KeptCount,
@@ -152,7 +160,7 @@ func (s *Server) handleDocsReset(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func buildDocWarnings(result *docschema.ValidationResult) []DocWarning {
+func buildDocWarnings(result *docvalidation.Result) []DocWarning {
 	warnings := make([]DocWarning, 0, len(result.MisplacedDocs)+len(result.MissingDocs)+len(result.ExtraDocs))
 	for _, misplaced := range result.MisplacedDocs {
 		warnings = append(warnings, DocWarning{
@@ -162,17 +170,28 @@ func buildDocWarnings(result *docschema.ValidationResult) []DocWarning {
 			Severity:     misplaced.Severity,
 		})
 	}
+	missingDetails := map[string]docvalidation.MissingDoc{}
+	for _, missing := range result.MissingDocDetails {
+		missingDetails[missing.DocType] = missing
+	}
 	for _, missing := range result.MissingDocs {
+		detail := missingDetails[missing]
+		severity := detail.Severity
+		if severity == "" {
+			severity = "warning"
+		}
 		warnings = append(warnings, DocWarning{
 			Type:     "missing",
 			Message:  "Documentation file is missing",
-			Severity: missingDocSeverity(missing),
+			Path:     detail.Path,
+			DocType:  missing,
+			Severity: severity,
 		})
 	}
 	for _, extra := range result.ExtraDocs {
 		warnings = append(warnings, DocWarning{
 			Type:     "extra",
-			Message:  fmt.Sprintf("Documentation file is outside the standard layout: %s", extra),
+			Message:  fmt.Sprintf("Documentation file is not registered in the documentation contract: %s", extra),
 			Severity: "info",
 		})
 	}
@@ -186,14 +205,35 @@ func buildDocWarnings(result *docschema.ValidationResult) []DocWarning {
 	return warnings
 }
 
-func missingDocSeverity(docType docschema.DocType) string {
-	if docType == docschema.DocTypeReadme {
-		return "error"
+func buildContractWarnings(result *docvalidation.Result) []DocWarning {
+	warnings := make([]DocWarning, 0, len(result.ContractFindings))
+	for _, finding := range result.ContractFindings {
+		warnings = append(warnings, DocWarning{
+			Type:     finding.Code,
+			Message:  finding.Message,
+			Path:     finding.Path,
+			DocType:  finding.DocType,
+			Severity: finding.Severity,
+		})
 	}
-	return "warning"
+	return warnings
 }
 
-func computeFixCategory(misplaced []docschema.MisplacedDoc, missing []string, extra []string, temporary []string) string {
+func buildContentWarnings(result *docvalidation.Result) []DocWarning {
+	warnings := make([]DocWarning, 0, len(result.ContentIssues))
+	for _, issue := range result.ContentIssues {
+		warnings = append(warnings, DocWarning{
+			Type:     "content",
+			Message:  issue.Message,
+			Path:     issue.Path,
+			DocType:  issue.DocType,
+			Severity: issue.Severity,
+		})
+	}
+	return warnings
+}
+
+func computeFixCategory(misplaced []docvalidation.MisplacedDoc, missing []string, extra []string, temporary []string) string {
 	hasMisplaced := len(misplaced) > 0
 	hasAgentIssues := len(missing) > 0 || len(extra) > 0 || len(temporary) > 0
 	switch {

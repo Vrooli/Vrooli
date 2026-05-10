@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"knowledge-observatory/internal/docschema"
+	"knowledge-observatory/internal/docvalidation"
 	"knowledge-observatory/internal/services/dochealth"
 )
 
@@ -471,7 +471,7 @@ func (s *Service) estimateHealthAfter(scenarioName string, diff *RunDiff) *float
 		}
 	}
 
-	result, err := docschema.ValidateScenarioDocumentation(tmpScenario)
+	result, err := docvalidation.ValidateScenarioDocumentation(tmpScenario)
 	if err != nil {
 		return nil
 	}
@@ -575,18 +575,13 @@ func (s *Service) validateDiffPaths(scenarioName string, diff *RunDiff) error {
 	return nil
 }
 
-func issuesFromValidation(validation *docschema.ValidationResult) []string {
+func issuesFromValidation(validation *docvalidation.Result) []string {
 	if validation == nil {
 		return nil
 	}
 	issues := make([]string, 0, len(validation.MissingDocs)+len(validation.MisplacedDocs)+len(validation.ExtraDocs))
 	for _, missing := range validation.MissingDocs {
-		expected := missing.ExpectedPath()
-		label := fmt.Sprintf("Missing %s", string(missing))
-		if expected != "" {
-			label = fmt.Sprintf("%s (%s)", label, expected)
-		}
-		issues = append(issues, label)
+		issues = append(issues, fmt.Sprintf("Missing %s", missing))
 	}
 	for _, misplaced := range validation.MisplacedDocs {
 		issues = append(issues, fmt.Sprintf("Misplaced %s -> %s", misplaced.ActualPath, misplaced.ExpectedPath))
@@ -598,7 +593,7 @@ func issuesFromValidation(validation *docschema.ValidationResult) []string {
 	return issues
 }
 
-func (s *Service) buildPrompt(ctx context.Context, req HealRequest, scenarioPath string, validation *docschema.ValidationResult) (string, error) {
+func (s *Service) buildPrompt(ctx context.Context, req HealRequest, scenarioPath string, validation *docvalidation.Result) (string, error) {
 	var skill string
 	if s.skills != nil {
 		content, err := s.skills.GetSkill(ctx, docHealingSkillID)
@@ -619,6 +614,8 @@ func (s *Service) buildPrompt(ctx context.Context, req HealRequest, scenarioPath
 	builder.WriteString(fmt.Sprintf("- Scenario root: %s\n", scenarioPath))
 	if validation != nil {
 		builder.WriteString(fmt.Sprintf("- Current health score: %.2f\n", validation.HealthScore))
+		builder.WriteString(fmt.Sprintf("- Documentation contract/template: %s\n", validation.SourceTemplateID))
+		builder.WriteString(fmt.Sprintf("- Manifest status: %s (%s)\n", validation.ManifestStatus, validation.ManifestPath))
 	}
 	if len(req.Issues) > 0 {
 		builder.WriteString("- Target issues:\n")
@@ -629,7 +626,7 @@ func (s *Service) buildPrompt(ctx context.Context, req HealRequest, scenarioPath
 	builder.WriteString("\nRules:\n")
 	builder.WriteString("- Only modify documentation files (.md/.json/.txt) within the scenario docs or root.\n")
 	builder.WriteString("- Do not change application code or business logic.\n")
-	builder.WriteString("- Prefer moving/mending docs to match the standard layout.\n")
+	builder.WriteString("- Prefer moving/mending docs to match the scenario's resolved documentation contract.\n")
 	builder.WriteString("- Keep changes minimal and focused on documentation health.\n")
 	builder.WriteString("\nDeliverable:\n")
 	builder.WriteString("- Apply fixes directly in the workspace.\n")

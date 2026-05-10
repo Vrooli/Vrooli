@@ -1,4 +1,8 @@
-# Problems and Solutions Log
+# Problems
+
+Known issues, technical debt, and deferred work for Knowledge Observatory.
+
+## Entries
 
 ## Architecture Drift
 

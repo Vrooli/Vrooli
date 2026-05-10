@@ -19,17 +19,15 @@ var perfAuditComponentTableSeparator = regexp.MustCompile(`(?m)^\s*\|\s*-{3,}\s*
 // (case-insensitive).
 var perfAuditComponentTableHeading = regexp.MustCompile(`(?im)^\s*#{1,6}\s+.*per-?component.*$`)
 
+var perfAuditFilenamePattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9.-]*\.md$`)
+
 // findPerfAuditDocs walks <scenarioPath>/docs/perf and returns the relative
-// paths of files matching DocTypePerfAudit's filename pattern. Returns nil if
-// the directory doesn't exist.
+// paths of files matching the perf audit filename pattern. Returns nil if the
+// directory doesn't exist.
 func findPerfAuditDocs(scenarioPath string) []string {
 	dir := filepath.Join(scenarioPath, "docs", "perf")
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
-		return nil
-	}
-	pattern := DocTypePerfAudit.FilenamePattern()
-	if pattern == nil {
 		return nil
 	}
 	var found []string
@@ -44,7 +42,7 @@ func findPerfAuditDocs(scenarioPath string) []string {
 			// docs/perf/ is intentionally flat — don't descend into subdirs.
 			return filepath.SkipDir
 		}
-		if !pattern.MatchString(d.Name()) {
+		if !perfAuditFilenamePattern.MatchString(d.Name()) {
 			return nil
 		}
 		rel, err := filepath.Rel(scenarioPath, path)

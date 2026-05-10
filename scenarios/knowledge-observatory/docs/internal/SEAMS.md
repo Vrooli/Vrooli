@@ -28,7 +28,7 @@
 - **CLI entry/presentation**: CLI command parsing and output formatting delegates behavior to API endpoints. [CODE: cli/app.go]
 - **Coordination/orchestration**: server wiring + service construction. [CODE: api/server.go]
 - **Domain rules**: ingest/search/graph services, metric calculations. [CODE: api/internal/services/ingest/service.go] [CODE: api/internal/services/search/service.go] [CODE: api/internal/services/graph/service.go]
-- **Documentation standards**: docschema package owns documentation layout validation and reset rules. [CODE: api/internal/docschema/types.go] [CODE: api/internal/docschema/validation.go]
+- **Documentation contract seam**: doccontract, doctemplates, docvalidation, and doclogs interpret scenario manifest contracts instead of hardcoding layout rules. [CODE: api/internal/doccontract/manifest.go] [CODE: api/internal/doctemplates/resolver.go] [CODE: api/internal/docvalidation/validation.go] [CODE: api/internal/doclogs/logs.go]
 - **Documentation health API**: handlers and service for scenario validation/reset. [CODE: api/docs_health.go] [CODE: api/internal/services/dochealth/service.go]
 - **Documentation search API**: handlers + docsearch service for file/text/unified search. [CODE: api/docs_search.go] [CODE: api/internal/services/docsearch/service.go]
 - **Documentation explorer API**: handlers + explorer service for scenario listing and doc tree. [CODE: api/docs_explorer.go] [CODE: api/docs_search.go] [CODE: api/internal/services/explorer/tree.go]

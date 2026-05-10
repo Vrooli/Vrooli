@@ -33,8 +33,7 @@ type FrontmatterSchema struct {
 }
 
 // PerfAuditFrontmatterSchema is the canonical schema for
-// `docs/perf/<date>-<slug>.md` files. Adding a new required key here requires
-// updating the embedded PERF-AUDIT.md template in lockstep.
+// `docs/perf/<date>-<slug>.md` files.
 var PerfAuditFrontmatterSchema = FrontmatterSchema{
 	RequiredKeys: []string{"date", "scenario", "interactions", "status"},
 	EnumValues: map[string][]string{

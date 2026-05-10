@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
 
@@ -190,51 +189,15 @@ func TestRenderDocsHealthReport_Default(t *testing.T) {
 	assertContainsAll(t, report,
 		"Documentation Health: healthy",
 		"Score: 87% (9 docs)",
-		"Issues: 1 misplaced, 1 missing, 2 extra, 1 temporary",
-		"Score breakdown",
-		"Required docs baseline: 100% (1/1 present)",
-		"Misplaced penalty: -5% (1 x 5%)",
-		"Temporary-docs penalty: -1% (1 x 1%)",
-		"Extra docs are informational only (2)",
+		"Issues: 1 misplaced, 1 missing, 2 extra, 1 temporary, 0 content, 0 contract",
+		"Findings",
+		"Documentation file is in the wrong location",
+		"Documentation file is missing",
 		"Fixability",
 		"Fix category: mixed",
 		"Quick-fixable files: 1",
 		"Auto-fix available: yes",
 	)
-}
-
-func TestLegacyInfrastructureJSON_Unmarshal(t *testing.T) {
-	payload := `{
-		"infrastructure": {
-			"MisplacedDocs": [
-				{
-					"ActualPath": "docs/PROGRESS.md",
-					"ExpectedPath": "docs/internal/PROGRESS.md",
-					"DocType": "progress",
-					"Severity": "warning"
-				}
-			],
-			"MissingDocs": ["manifest"],
-			"ExtraDocs": ["docs/misc/NOTE.md"],
-			"TemporaryDocs": ["IMPLEMENTATION_PLAN.md"]
-		}
-	}`
-
-	var decoded struct {
-		Infrastructure docsdomain.AuditInfrastructure `json:"infrastructure"`
-	}
-	if err := json.Unmarshal([]byte(payload), &decoded); err != nil {
-		t.Fatalf("unmarshal failed: %v", err)
-	}
-	if len(decoded.Infrastructure.MisplacedDocs) != 1 {
-		t.Fatalf("expected 1 misplaced doc, got %d", len(decoded.Infrastructure.MisplacedDocs))
-	}
-	if decoded.Infrastructure.MisplacedDocs[0].ActualPath != "docs/PROGRESS.md" {
-		t.Fatalf("expected legacy ActualPath to be parsed, got %q", decoded.Infrastructure.MisplacedDocs[0].ActualPath)
-	}
-	if len(decoded.Infrastructure.TemporaryDocs) != 1 {
-		t.Fatalf("expected 1 temporary doc, got %d", len(decoded.Infrastructure.TemporaryDocs))
-	}
 }
 
 func assertContainsAll(t *testing.T, got string, expected ...string) {

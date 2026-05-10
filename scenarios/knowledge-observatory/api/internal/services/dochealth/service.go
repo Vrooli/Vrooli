@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"knowledge-observatory/internal/doclogs"
 	"knowledge-observatory/internal/docschema"
+	"knowledge-observatory/internal/doctemplates"
+	"knowledge-observatory/internal/docvalidation"
 )
 
 var (
@@ -25,7 +27,7 @@ type Service struct {
 
 // HealthResult bundles validation results with doc counts.
 type HealthResult struct {
-	Validation *docschema.ValidationResult
+	Validation *docvalidation.Result
 	TotalDocs  int
 }
 
@@ -52,29 +54,31 @@ func (s *Service) ValidateScenario(ctx context.Context, scenarioName string) (*H
 	if err != nil {
 		return nil, err
 	}
-	validation, err := docschema.ValidateScenarioDocumentation(path)
+	validation, err := docvalidation.ValidateScenarioDocumentation(path)
 	if err != nil {
 		return nil, err
 	}
-	count, err := countDocs(path)
-	if err != nil {
-		return nil, err
-	}
+	count := docvalidation.CountDocs(path)
 	return &HealthResult{Validation: validation, TotalDocs: count}, nil
 }
 
 // ResetScenarioDoc applies reset rules to a known document in a scenario.
-func (s *Service) ResetScenarioDoc(ctx context.Context, scenarioName string, config docschema.ResetConfig) (*docschema.ResetResult, error) {
+func (s *Service) ResetScenarioDoc(ctx context.Context, scenarioName string, docID string, config doclogs.ResetConfig) (*doclogs.ResetResult, string, error) {
 	_ = ctx
-	path, err := s.scenarioPath(scenarioName)
+	scenarioPath, err := s.scenarioPath(scenarioName)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	rel := config.DocType.ExpectedPath()
-	if rel == "" {
-		return nil, fmt.Errorf("unknown doc type: %s", config.DocType)
+	resolved, err := doctemplates.NewResolverFromScenariosRoot(s.scenariosRoot).ResolveScenario(scenarioPath)
+	if err != nil {
+		return nil, "", err
 	}
-	return docschema.ResetDocument(filepath.Join(path, rel), config)
+	doc, ok := resolved.Contract.ResolveIdentifier(docID)
+	if !ok || doc.Operations.AppendLog == nil || !doc.Operations.AppendLog.Enabled || !doc.Operations.AppendLog.Retention.SupportsReset {
+		return nil, "", fmt.Errorf("reset is not supported for document %q", docID)
+	}
+	result, err := doclogs.Reset(filepath.Join(scenarioPath, filepath.FromSlash(doc.ScenarioPath)), *doc.Operations.AppendLog, config)
+	return result, doc.DocType, err
 }
 
 // AuditScenario runs a comprehensive documentation audit for a scenario.
@@ -101,47 +105,4 @@ func (s *Service) scenarioPath(scenarioName string) (string, error) {
 		return "", ErrScenarioNotFound
 	}
 	return path, nil
-}
-
-func countDocs(scenarioPath string) (int, error) {
-	count := 0
-	for _, rootFile := range []string{"README.md", "PRD.md"} {
-		if exists(filepath.Join(scenarioPath, rootFile)) {
-			count++
-		}
-	}
-	for _, docsRoot := range []string{filepath.Join(scenarioPath, "docs")} {
-		info, err := os.Stat(docsRoot)
-		if err != nil || !info.IsDir() {
-			continue
-		}
-		if err := filepath.WalkDir(docsRoot, func(path string, d fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if d.IsDir() {
-				if strings.HasPrefix(d.Name(), ".") {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if isDocFile(path) {
-				count++
-			}
-			return nil
-		}); err != nil {
-			return 0, err
-		}
-	}
-	return count, nil
-}
-
-func isDocFile(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	return ext == ".md" || ext == ".json"
-}
-
-func exists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && !info.IsDir()
 }

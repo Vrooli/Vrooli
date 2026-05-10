@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"knowledge-observatory/internal/docschema"
+	"knowledge-observatory/internal/docvalidation"
 	"knowledge-observatory/internal/services/dochealth"
 )
 
@@ -60,7 +60,7 @@ func TestHandleDocsResetPreview(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(scenario, "docs", "internal"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	content := "# Problems\n\n## 2025-01-01: Old\n"
+	content := "# Problems\n\n## Entries\n\n### 2025-01-01 - Old\n"
 	writeDocFile(t, filepath.Join(scenario, "docs", "internal", "PROBLEMS.md"), content)
 
 	service, err := dochealth.NewService(root)
@@ -116,12 +116,23 @@ func writeDocFile(t *testing.T, path string, content string) {
 	}
 }
 
-func TestMissingDocSeverity(t *testing.T) {
-	if got := missingDocSeverity(docschema.DocTypeReadme); got != "error" {
+func TestBuildDocWarningsUsesManifestSeverity(t *testing.T) {
+	warnings := buildDocWarnings(&docvalidation.Result{
+		MissingDocs: []string{"readme", "flows"},
+		MissingDocDetails: []docvalidation.MissingDoc{
+			{DocType: "readme", Path: "README.md", Severity: "error"},
+			{DocType: "flows", Path: "docs/concepts/FLOWS.md", Severity: "warning"},
+		},
+	})
+	severities := map[string]string{}
+	for _, warning := range warnings {
+		severities[warning.DocType] = warning.Severity
+	}
+	if got := severities["readme"]; got != "error" {
 		t.Fatalf("expected error for readme, got %s", got)
 	}
-	if got := missingDocSeverity(docschema.DocTypeProgress); got != "warning" {
-		t.Fatalf("expected warning for progress, got %s", got)
+	if got := severities["flows"]; got != "warning" {
+		t.Fatalf("expected warning for flows, got %s", got)
 	}
 }
 
@@ -176,7 +187,7 @@ func TestComputeFixCategory_IncludesTemporaryDocs(t *testing.T) {
 	if got := computeFixCategory(nil, nil, nil, []string{"IMPLEMENTATION_PLAN.md"}); got != "all_agent" {
 		t.Fatalf("expected all_agent for temporary docs only, got %s", got)
 	}
-	if got := computeFixCategory([]docschema.MisplacedDoc{{ActualPath: "a", ExpectedPath: "b"}}, nil, nil, []string{"IMPLEMENTATION_PLAN.md"}); got != "mixed" {
+	if got := computeFixCategory([]docvalidation.MisplacedDoc{{ActualPath: "a", ExpectedPath: "b"}}, nil, nil, []string{"IMPLEMENTATION_PLAN.md"}); got != "mixed" {
 		t.Fatalf("expected mixed when misplaced and temporary docs exist, got %s", got)
 	}
 }

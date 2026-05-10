@@ -54,7 +54,7 @@ Knowledge Observatory is the control-plane for Vrooli's semantic memory. It inge
 | deep-search | API, UI | Orchestration | Integration/client, temporal workflow | `path:api/docs_deep_search.go`, `path:api/internal/services/deepsearch/`, `path:api/internal/adapters/agentmanager/` | Agent-backed search jobs with polling and persisted job state. |
 | graph | API, UI | Reporting / query | Integration/client | `path:api/graph.go`, `path:api/internal/services/graph/` | Materializes concept graph data from vector similarity. |
 | metrics | API, UI | Reporting / query | Scheduled/background work | `path:api/metrics.go` | Samples vector collections and persists quality metrics. |
-| documentation-health | API, CLI | Policy / rules | Configuration/settings | `path:api/docs_health.go`, `path:api/internal/docschema/`, `path:api/internal/services/dochealth/` | Owns canonical documentation layout, templates, validation, and reset rules. |
+| documentation-health | API, CLI | Policy / rules | Configuration/settings | `path:api/docs_health.go`, `path:api/internal/doccontract/`, `path:api/internal/doctemplates/`, `path:api/internal/docvalidation/`, `path:api/internal/doclogs/`, `path:api/internal/services/dochealth/` | Interprets scenario documentation contracts declared by templates and scenario manifests. |
 | documentation-healing | API, UI | Orchestration | Integration/client, approvals | `path:api/docs_heal.go`, `path:api/internal/services/dochealing/`, `path:api/internal/adapters/dochealingstore/` | Coordinates agent-backed documentation fixes and approval workflow. |
 
 ## Shared Infrastructure
@@ -247,7 +247,8 @@ A background loop runs every 5 minutes, sampling vectors and computing health sc
 
 ## Documentation Health Flow
 
-Validates scenario documentation layout against 15 canonical doc types.
+Validates scenario documentation layout against the scenario's resolved
+documentation contract.
 
 ```
 Scenario name
@@ -255,23 +256,27 @@ Scenario name
        ▼
 ┌──────────────────┐
 │  Resolve scenario│  Filesystem path via VROOLI_SCENARIOS_ROOT
-│  root directory  │
+│  root directory  │  + .vrooli/service.json template provenance
 └──────┬───────────┘
        │
        ▼
-┌──────────────────┐    Known doc types:
-│  Validate layout │    README, PROBLEMS, PROGRESS, SEAMS,
-│  against         │    INVARIANTS, ASSUMPTIONS, ERROR-SEMANTICS,
-│  docschema       │    SECURITY-POSTURE, TEMPORAL-FLOWS,
-│  standards       │    COHERENCE-NOTES, EXPERIENCE-AUDIT,
-└──────┬───────────┘    QUICKSTART, ARCHITECTURE, GLOSSARY,
-       │                PRD, manifest.json
+┌──────────────────┐    Contract source:
+│  Resolve docs    │    scenario docs/manifest.json when present,
+│  contract        │    otherwise template docs/manifest.json
+└──────┬───────────┘    with react-vite fallback
+       │
+       ▼
+┌──────────────────┐
+│  Validate files  │    Paths, aliases, required docs,
+│  against         │    content rules, append-log operations,
+│  manifest rules  │    unregistered docs, temporary artifacts
+└──────┬───────────┘
        ▼
 ┌──────────────────┐
 │  Generate report │    • health_score (0-1)
-│  • missing docs  │    • misplaced docs (wrong path)
-│  • extra docs    │    • warnings + auto-fix hints
-│  • warnings      │
+│  • missing docs  │    • contract/content findings
+│  • extra docs    │    • misplaced docs (wrong path)
+│  • warnings      │    • reset/add support from appendLog
 └──────┬───────────┘
        │
        ▼
@@ -279,8 +284,8 @@ Scenario name
 ```
 
 [CODE: api/docs_health.go]
-[CODE: api/internal/docschema/validation.go]
-[CODE: api/internal/docschema/types.go]
+[CODE: api/internal/doccontract/manifest.go]
+[CODE: api/internal/docvalidation/validation.go]
 [CODE: api/internal/services/dochealth/service.go]
 
 ---

@@ -404,8 +404,8 @@ Returns documentation health for a scenario (misplaced, missing, extra docs).
 ```
 
 [CODE: api/docs_health.go]
-[CODE: api/internal/docschema/validation.go]
-[CODE: api/internal/docschema/reset.go]
+[CODE: api/internal/docvalidation/validation.go]
+[CODE: api/internal/doclogs/logs.go]
 
 ## Documentation Healing
 `POST /api/v1/scenarios/{name}/docs/heal`

@@ -2,7 +2,6 @@ package docs
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -67,79 +66,30 @@ type AuditDuplicateTitle struct {
 }
 
 type HealthResponse struct {
-	ScenarioName  string              `json:"scenario_name"`
-	HealthScore   float64             `json:"health_score"`
-	TotalDocs     int                 `json:"total_docs"`
-	MisplacedDocs []AuditMisplacedDoc `json:"misplaced_docs"`
-	MissingDocs   []string            `json:"missing_docs"`
-	ExtraDocs     []string            `json:"extra_docs"`
-	TemporaryDocs []string            `json:"temporary_docs"`
-	CanAutoFix    bool                `json:"can_auto_fix"`
-	FixCategory   string              `json:"fix_category"`
+	ScenarioName     string              `json:"scenario_name"`
+	SourceTemplateID string              `json:"source_template_id"`
+	ManifestPath     string              `json:"manifest_path"`
+	ManifestStatus   string              `json:"manifest_status"`
+	HealthScore      float64             `json:"health_score"`
+	TotalDocs        int                 `json:"total_docs"`
+	MisplacedDocs    []AuditMisplacedDoc `json:"misplaced_docs"`
+	MissingDocs      []string            `json:"missing_docs"`
+	ExtraDocs        []string            `json:"extra_docs"`
+	TemporaryDocs    []string            `json:"temporary_docs"`
+	Warnings         []HealthWarning     `json:"warnings"`
+	ContractFindings []HealthWarning     `json:"contract_findings"`
+	ContentIssues    []HealthWarning     `json:"content_issues"`
+	CanAutoFix       bool                `json:"can_auto_fix"`
+	FixCategory      string              `json:"fix_category"`
 }
 
-func (d *AuditMisplacedDoc) UnmarshalJSON(data []byte) error {
-	type alias AuditMisplacedDoc
-	var tagged alias
-	if err := json.Unmarshal(data, &tagged); err != nil {
-		return err
-	}
-	type legacy struct {
-		ActualPath   string `json:"ActualPath"`
-		ExpectedPath string `json:"ExpectedPath"`
-		DocType      string `json:"DocType"`
-		Severity     string `json:"Severity"`
-	}
-	var legacyValue legacy
-	if err := json.Unmarshal(data, &legacyValue); err != nil {
-		return err
-	}
-	if strings.TrimSpace(tagged.ActualPath) == "" {
-		tagged.ActualPath = legacyValue.ActualPath
-	}
-	if strings.TrimSpace(tagged.ExpectedPath) == "" {
-		tagged.ExpectedPath = legacyValue.ExpectedPath
-	}
-	if strings.TrimSpace(tagged.DocType) == "" {
-		tagged.DocType = legacyValue.DocType
-	}
-	if strings.TrimSpace(tagged.Severity) == "" {
-		tagged.Severity = legacyValue.Severity
-	}
-	*d = AuditMisplacedDoc(tagged)
-	return nil
-}
-
-func (d *AuditInfrastructure) UnmarshalJSON(data []byte) error {
-	type alias AuditInfrastructure
-	var tagged alias
-	if err := json.Unmarshal(data, &tagged); err != nil {
-		return err
-	}
-	type legacy struct {
-		MisplacedDocs []AuditMisplacedDoc `json:"MisplacedDocs"`
-		MissingDocs   []string            `json:"MissingDocs"`
-		ExtraDocs     []string            `json:"ExtraDocs"`
-		TemporaryDocs []string            `json:"TemporaryDocs"`
-	}
-	var legacyValue legacy
-	if err := json.Unmarshal(data, &legacyValue); err != nil {
-		return err
-	}
-	if len(tagged.MisplacedDocs) == 0 {
-		tagged.MisplacedDocs = legacyValue.MisplacedDocs
-	}
-	if len(tagged.MissingDocs) == 0 {
-		tagged.MissingDocs = legacyValue.MissingDocs
-	}
-	if len(tagged.ExtraDocs) == 0 {
-		tagged.ExtraDocs = legacyValue.ExtraDocs
-	}
-	if len(tagged.TemporaryDocs) == 0 {
-		tagged.TemporaryDocs = legacyValue.TemporaryDocs
-	}
-	*d = AuditInfrastructure(tagged)
-	return nil
+type HealthWarning struct {
+	Type         string `json:"type"`
+	Message      string `json:"message"`
+	ExpectedPath string `json:"expected_path"`
+	Path         string `json:"path"`
+	DocType      string `json:"doc_type"`
+	Severity     string `json:"severity"`
 }
 
 type auditSeverity string
@@ -264,25 +214,6 @@ func BuildHealthReport(result HealthResponse, fallbackScenario string) cliapp.Op
 		scenario = "unknown"
 	}
 
-	requiredDocs := 1
-	requiredPresent := requiredDocs
-	missingRequired := 0
-	for _, missing := range result.MissingDocs {
-		if strings.EqualFold(strings.TrimSpace(missing), "readme") {
-			missingRequired++
-		}
-	}
-	requiredPresent -= missingRequired
-	if requiredPresent < 0 {
-		requiredPresent = 0
-	}
-	requiredCoverage := 1.0
-	if requiredDocs > 0 {
-		requiredCoverage = float64(requiredPresent) / float64(requiredDocs)
-	}
-
-	misplacedPenalty := 0.05 * float64(len(result.MisplacedDocs))
-	temporaryPenalty := 0.01 * float64(len(result.TemporaryDocs))
 	healthPct := int(result.HealthScore*100 + 0.5)
 	if healthPct < 0 {
 		healthPct = 0
@@ -294,19 +225,14 @@ func BuildHealthReport(result HealthResponse, fallbackScenario string) cliapp.Op
 	report := cliapp.OperationalReport{
 		Status: []string{
 			fmt.Sprintf("Documentation Health: %s", scenario),
+			fmt.Sprintf("Contract: template=%s manifest=%s (%s)", emptyDefault(result.SourceTemplateID, "unknown"), emptyDefault(result.ManifestStatus, "unknown"), emptyDefault(result.ManifestPath, "unknown")),
 			fmt.Sprintf("Score: %d%% (%d docs)", healthPct, result.TotalDocs),
-			fmt.Sprintf("Issues: %d misplaced, %d missing, %d extra, %d temporary", len(result.MisplacedDocs), len(result.MissingDocs), len(result.ExtraDocs), len(result.TemporaryDocs)),
+			fmt.Sprintf("Issues: %d misplaced, %d missing, %d extra, %d temporary, %d content, %d contract", len(result.MisplacedDocs), len(result.MissingDocs), len(result.ExtraDocs), len(result.TemporaryDocs), len(result.ContentIssues), len(result.ContractFindings)),
 		},
 		Triage: []cliapp.TriageGroup{
 			{
-				Heading: "Score breakdown",
-				Items: []string{
-					fmt.Sprintf("Required docs baseline: %.0f%% (%d/%d present)", requiredCoverage*100, requiredPresent, requiredDocs),
-					fmt.Sprintf("Misplaced penalty: -%.0f%% (%d x 5%%)", misplacedPenalty*100, len(result.MisplacedDocs)),
-					fmt.Sprintf("Temporary-docs penalty: -%.0f%% (%d x 1%%)", temporaryPenalty*100, len(result.TemporaryDocs)),
-					fmt.Sprintf("Extra docs are informational only (%d)", len(result.ExtraDocs)),
-					"Final score is clamped to 0-100%",
-				},
+				Heading: "Findings",
+				Items:   healthFindingLines(result),
 			},
 			{
 				Heading: "Fixability",
@@ -323,6 +249,56 @@ func BuildHealthReport(result HealthResponse, fallbackScenario string) cliapp.Op
 		report.Triage[1].Items = append(report.Triage[1].Items, "Auto-fix available: no")
 	}
 	return report
+}
+
+func healthFindingLines(result HealthResponse) []string {
+	lines := make([]string, 0, len(result.Warnings)+len(result.ContractFindings)+len(result.ContentIssues)+1)
+	warnings := append(append([]HealthWarning{}, result.ContractFindings...), append(result.ContentIssues, result.Warnings...)...)
+	if len(warnings) == 0 {
+		warnings = synthesizeHealthWarnings(result)
+	}
+	for _, warning := range warnings {
+		label := strings.TrimSpace(warning.DocType)
+		if label == "" {
+			label = strings.TrimSpace(warning.Path)
+		}
+		if label == "" {
+			label = strings.TrimSpace(warning.Type)
+		}
+		lines = append(lines, fmt.Sprintf("%s: %s (%s)", emptyDefault(warning.Severity, "info"), warning.Message, label))
+		if len(lines) >= 10 {
+			break
+		}
+	}
+	if len(lines) == 0 {
+		return []string{"No contract, content, placement, missing, extra, or temporary findings"}
+	}
+	return lines
+}
+
+func synthesizeHealthWarnings(result HealthResponse) []HealthWarning {
+	var warnings []HealthWarning
+	for _, misplaced := range result.MisplacedDocs {
+		warnings = append(warnings, HealthWarning{Type: "misplaced", Message: "Documentation file is in the wrong location", Path: misplaced.ActualPath, ExpectedPath: misplaced.ExpectedPath, DocType: misplaced.DocType, Severity: emptyDefault(misplaced.Severity, "warning")})
+	}
+	for _, missing := range result.MissingDocs {
+		warnings = append(warnings, HealthWarning{Type: "missing", Message: "Documentation file is missing", DocType: missing, Severity: "warning"})
+	}
+	for _, extra := range result.ExtraDocs {
+		warnings = append(warnings, HealthWarning{Type: "extra", Message: "Documentation file is not registered in the documentation contract", Path: extra, Severity: "info"})
+	}
+	for _, temporary := range result.TemporaryDocs {
+		warnings = append(warnings, HealthWarning{Type: "temporary", Message: "Temporary documentation artifact should be cleaned up", Path: temporary, Severity: "warning"})
+	}
+	return warnings
+}
+
+func emptyDefault(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 func triageTexts(items []triageItem) []string {

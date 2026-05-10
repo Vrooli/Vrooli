@@ -133,7 +133,7 @@ func Usage() string {
 
 Subcommands:
   read          Read a scenario doc by type
-  add           Add a structured entry (problems/progress)
+  add           Add an entry to any manifest-declared append log
   view          View a doc by file path
   search-files  Find files by glob pattern
   search-text   Full-text search across docs
@@ -618,11 +618,11 @@ func read(deps support.Dependencies, args []string) error {
 func add(deps support.Dependencies, args []string) error {
 	fs := flag.NewFlagSet("docs add", flag.ContinueOnError)
 	scenario := fs.String("scenario", "", "Scenario name")
-	doc := fs.String("doc", "", "Document type (problems, progress)")
+	doc := fs.String("doc", "", "Document identifier or alias with append-log support")
 	title := fs.String("title", "", "Entry title (required)")
 	body := fs.String("body", "", "Entry body/notes")
-	author := fs.String("author", "", "Author (for progress entries)")
-	status := fs.String("status", "", "Status (for progress entries)")
+	author := fs.String("author", "", "Author when supported by the document log format")
+	status := fs.String("status", "", "Status when supported by the document log format")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -656,10 +656,19 @@ func stats(deps support.Dependencies, args []string) error {
 func templates(deps support.Dependencies, args []string) error {
 	fs := flag.NewFlagSet("docs templates", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output raw JSON")
+	templateID := fs.String("template", "", "Scenario template id (defaults to react-vite)")
+	scenario := fs.String("scenario", "", "Scenario name used to select its source template")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	body, err := deps.ScenarioApp().Request("GET", "/docs/templates", nil, nil)
+	query := url.Values{}
+	if value := strings.TrimSpace(*templateID); value != "" {
+		query.Set("template", value)
+	}
+	if value := strings.TrimSpace(*scenario); value != "" {
+		query.Set("scenario", value)
+	}
+	body, err := deps.ScenarioApp().Request("GET", "/docs/templates", query, nil)
 	if err != nil {
 		return err
 	}
@@ -681,14 +690,23 @@ func templates(deps support.Dependencies, args []string) error {
 func template(deps support.Dependencies, args []string) error {
 	fs := flag.NewFlagSet("docs template", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output full JSON response")
+	templateID := fs.String("template", "", "Scenario template id (defaults to react-vite)")
+	scenario := fs.String("scenario", "", "Scenario name used to select its source template")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	docType := strings.TrimSpace(strings.Join(fs.Args(), " "))
 	if docType == "" {
-		return fmt.Errorf("usage: docs template <type> [--json]")
+		return fmt.Errorf("usage: docs template <type> [--template=react-vite|--scenario=name] [--json]")
 	}
-	body, err := deps.ScenarioApp().Request("GET", fmt.Sprintf("/docs/templates/%s", docType), nil, nil)
+	query := url.Values{}
+	if value := strings.TrimSpace(*templateID); value != "" {
+		query.Set("template", value)
+	}
+	if value := strings.TrimSpace(*scenario); value != "" {
+		query.Set("scenario", value)
+	}
+	body, err := deps.ScenarioApp().Request("GET", fmt.Sprintf("/docs/templates/%s", docType), query, nil)
 	if err != nil {
 		return err
 	}

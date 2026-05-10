@@ -37,7 +37,7 @@ status: ## Show scenario runtime status
 	@vrooli scenario status "$(SCENARIO_NAME)"
 
 logs: ## Show scenario logs
-	@vrooli scenario logs "$(SCENARIO_NAME)"
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"

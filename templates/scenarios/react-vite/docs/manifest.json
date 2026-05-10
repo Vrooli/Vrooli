@@ -54,6 +54,21 @@
           }
         },
         {
+          "path": "manifest.json",
+          "docType": "manifest",
+          "title": "Documentation Manifest",
+          "aliases": ["docs-manifest", "contract"],
+          "description": "Machine-readable documentation contract used by documentation health tooling",
+          "audience": ["developers", "agents", "tools"],
+          "canonicalFor": ["documentation-contract", "documentation-validation"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required",
+          "validation": {
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
           "path": "../PRD.md",
           "docType": "prd",
           "title": "Product Requirements",
