@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -261,6 +264,30 @@ func (s *runtimeRegistrySession) markRunning(ctx context.Context) error {
 	}
 	s.instance = updated
 	return nil
+}
+
+func (r *Runner) ensureRuntimeSupervisor(ctx context.Context, session runtimeRegistrySession) error {
+	if !session.enabled {
+		return nil
+	}
+	mode := runtimesupervisor.ModeFromEnv()
+	if mode == runtimesupervisor.ModeOff {
+		return nil
+	}
+	deps := r.runtimeDeps()
+	err := deps.ensureRuntimeSupervisor(ctx, r.Home, io.Discard, r.Err)
+	if err == nil {
+		return nil
+	}
+	if mode == runtimesupervisor.ModeAuto {
+		r.logWarn("Runtime supervisor auto-start failed; scenario remains registry-managed but awaits adoption",
+			logx.AttrScenario, session.instance.Scenario,
+			logx.AttrOperation, "ensure_runtime_supervisor",
+			"error", err.Error(),
+		)
+		return nil
+	}
+	return fmt.Errorf("ensure runtime supervisor: %w", err)
 }
 
 func (s *runtimeRegistrySession) fail(ctx context.Context, cause error) error {

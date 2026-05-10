@@ -35,28 +35,32 @@ type (
 )
 
 type RuntimeClaimInfo struct {
-	ClaimID           string                                  `json:"claim_id"`
-	InstanceID        string                                  `json:"instance_id"`
-	Scenario          string                                  `json:"scenario"`
-	Generation        int64                                   `json:"generation,omitempty"`
-	PortName          string                                  `json:"port_name"`
-	EnvVar            string                                  `json:"env_var,omitempty"`
-	Port              int                                     `json:"port"`
-	BindHost          string                                  `json:"bind_host"`
-	URL               string                                  `json:"url,omitempty"`
-	ClaimStatus       string                                  `json:"claim_status"`
-	InstanceStatus    string                                  `json:"instance_status,omitempty"`
-	LeaseFresh        *bool                                   `json:"lease_fresh,omitempty"`
-	HeartbeatDeadline *time.Time                              `json:"heartbeat_deadline,omitempty"`
-	HealthStatus      string                                  `json:"health_status,omitempty"`
-	HealthReady       *bool                                   `json:"health_ready,omitempty"`
-	Reconciliation    scenarioruntime.ReconcileClassification `json:"reconciliation,omitempty"`
-	ReconcileReason   string                                  `json:"reconcile_reason,omitempty"`
-	Authoritative     *bool                                   `json:"authoritative,omitempty"`
-	CreatedAt         time.Time                               `json:"created_at"`
-	UpdatedAt         time.Time                               `json:"updated_at"`
-	ExpiresAt         *time.Time                              `json:"expires_at,omitempty"`
-	LastBoundAt       *time.Time                              `json:"last_bound_at,omitempty"`
+	ClaimID            string                                  `json:"claim_id"`
+	InstanceID         string                                  `json:"instance_id"`
+	Scenario           string                                  `json:"scenario"`
+	Generation         int64                                   `json:"generation,omitempty"`
+	PortName           string                                  `json:"port_name"`
+	EnvVar             string                                  `json:"env_var,omitempty"`
+	Port               int                                     `json:"port"`
+	BindHost           string                                  `json:"bind_host"`
+	URL                string                                  `json:"url,omitempty"`
+	ClaimStatus        string                                  `json:"claim_status"`
+	InstanceStatus     string                                  `json:"instance_status,omitempty"`
+	SupervisorID       string                                  `json:"supervisor_id,omitempty"`
+	SupervisorStatus   string                                  `json:"supervisor_status,omitempty"`
+	SupervisorFresh    *bool                                   `json:"supervisor_fresh,omitempty"`
+	LeaseFresh         *bool                                   `json:"lease_fresh,omitempty"`
+	HeartbeatDeadline  *time.Time                              `json:"heartbeat_deadline,omitempty"`
+	SupervisorDeadline *time.Time                              `json:"supervisor_heartbeat_deadline,omitempty"`
+	HealthStatus       string                                  `json:"health_status,omitempty"`
+	HealthReady        *bool                                   `json:"health_ready,omitempty"`
+	Reconciliation     scenarioruntime.ReconcileClassification `json:"reconciliation,omitempty"`
+	ReconcileReason    string                                  `json:"reconcile_reason,omitempty"`
+	Authoritative      *bool                                   `json:"authoritative,omitempty"`
+	CreatedAt          time.Time                               `json:"created_at"`
+	UpdatedAt          time.Time                               `json:"updated_at"`
+	ExpiresAt          *time.Time                              `json:"expires_at,omitempty"`
+	LastBoundAt        *time.Time                              `json:"last_bound_at,omitempty"`
 }
 
 type RuntimeProcessRefInfo struct {

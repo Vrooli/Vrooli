@@ -9,8 +9,15 @@ import (
 const instanceSelectSQL = `
 SELECT instance_id, scenario, generation, scope_path, sandbox_id, status, phase,
   started_at, updated_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at,
-  stop_reason, owner_kind, owner_pid, working_dir, host_boot_id, host_session_id, schema_version
+  stop_reason, owner_kind, owner_pid, working_dir, host_boot_id, host_session_id,
+  supervisor_id, supervised_at, last_reconciled_at, reconciliation_status,
+  reconciliation_reason, supervision_policy, schema_version
 FROM runtime_instances`
+
+const supervisorSessionSelectSQL = `
+SELECT supervisor_id, host_boot_id, host_session_id, pid, status, started_at,
+  last_heartbeat_at, heartbeat_deadline_at, stopped_at, stop_reason, version, metadata_json
+FROM runtime_supervisor_sessions`
 
 const portClaimSelectSQL = `
 SELECT claim_id, instance_id, scenario, port_name, env_var, port, bind_host, url,
@@ -33,12 +40,14 @@ func getInstanceTx(ctx context.Context, tx *sql.Tx, instanceID string) (Instance
 func scanInstance(row scanner) (Instance, error) {
 	var in Instance
 	var startedAt, updatedAt string
-	var lastHeartbeatAt, heartbeatDeadlineAt, stoppedAt sql.NullString
+	var lastHeartbeatAt, heartbeatDeadlineAt, stoppedAt, supervisedAt, lastReconciledAt sql.NullString
 	var ownerPID sql.NullInt64
 	err := row.Scan(
 		&in.InstanceID, &in.Scenario, &in.Generation, &in.ScopePath, &in.SandboxID, &in.Status, &in.Phase,
 		&startedAt, &updatedAt, &lastHeartbeatAt, &heartbeatDeadlineAt, &stoppedAt,
-		&in.StopReason, &in.OwnerKind, &ownerPID, &in.WorkingDir, &in.HostBootID, &in.HostSessionID, &in.SchemaVersion,
+		&in.StopReason, &in.OwnerKind, &ownerPID, &in.WorkingDir, &in.HostBootID, &in.HostSessionID,
+		&in.SupervisorID, &supervisedAt, &lastReconciledAt, &in.ReconciliationStatus,
+		&in.ReconciliationReason, &in.SupervisionPolicy, &in.SchemaVersion,
 	)
 	if err != nil {
 		return Instance{}, mapRowErr(err)
@@ -62,8 +71,68 @@ func scanInstance(row scanner) (Instance, error) {
 	if in.StoppedAt, err = parseOptionalTime(stoppedAt); err != nil {
 		return Instance{}, fmt.Errorf("parse instance stopped_at: %w", err)
 	}
+	if in.SupervisedAt, err = parseOptionalTime(supervisedAt); err != nil {
+		return Instance{}, fmt.Errorf("parse instance supervised_at: %w", err)
+	}
+	if in.LastReconciledAt, err = parseOptionalTime(lastReconciledAt); err != nil {
+		return Instance{}, fmt.Errorf("parse instance last_reconciled_at: %w", err)
+	}
 	in.OwnerPID = ptrInt(ownerPID)
 	return in, nil
+}
+
+func getSupervisorSessionTx(ctx context.Context, tx *sql.Tx, supervisorID string) (SupervisorSession, error) {
+	return scanSupervisorSession(tx.QueryRowContext(ctx, supervisorSessionSelectSQL+` WHERE supervisor_id = ?`, supervisorID))
+}
+
+func scanSupervisorSession(row scanner) (SupervisorSession, error) {
+	var session SupervisorSession
+	var pid sql.NullInt64
+	var startedAt, lastHeartbeatAt, heartbeatDeadlineAt string
+	var stoppedAt sql.NullString
+	err := row.Scan(
+		&session.SupervisorID, &session.HostBootID, &session.HostSessionID, &pid, &session.Status,
+		&startedAt, &lastHeartbeatAt, &heartbeatDeadlineAt, &stoppedAt, &session.StopReason,
+		&session.Version, &session.MetadataJSON,
+	)
+	if err != nil {
+		return SupervisorSession{}, mapRowErr(err)
+	}
+	parsedStartedAt, err := parseRequiredTime(startedAt)
+	if err != nil {
+		return SupervisorSession{}, fmt.Errorf("parse supervisor started_at: %w", err)
+	}
+	parsedLastHeartbeatAt, err := parseRequiredTime(lastHeartbeatAt)
+	if err != nil {
+		return SupervisorSession{}, fmt.Errorf("parse supervisor last_heartbeat_at: %w", err)
+	}
+	parsedHeartbeatDeadlineAt, err := parseRequiredTime(heartbeatDeadlineAt)
+	if err != nil {
+		return SupervisorSession{}, fmt.Errorf("parse supervisor heartbeat_deadline_at: %w", err)
+	}
+	session.StartedAt = parsedStartedAt
+	session.LastHeartbeatAt = parsedLastHeartbeatAt
+	session.HeartbeatDeadlineAt = parsedHeartbeatDeadlineAt
+	if session.StoppedAt, err = parseOptionalTime(stoppedAt); err != nil {
+		return SupervisorSession{}, fmt.Errorf("parse supervisor stopped_at: %w", err)
+	}
+	session.PID = ptrInt(pid)
+	return session, nil
+}
+
+func scanSupervisorSessions(rows *sql.Rows) ([]SupervisorSession, error) {
+	var out []SupervisorSession
+	for rows.Next() {
+		session, err := scanSupervisorSession(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate runtime supervisor sessions: %w", err)
+	}
+	return out, nil
 }
 
 func scanInstances(rows *sql.Rows) ([]Instance, error) {

@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	SchemaVersion = 2
+	SchemaVersion = 3
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -16,6 +16,11 @@ const (
 	StatusStopped  = "stopped"
 	StatusFailed   = "failed"
 	StatusExpired  = "expired"
+
+	SupervisorStatusRunning  = "running"
+	SupervisorStatusStopping = "stopping"
+	SupervisorStatusStopped  = "stopped"
+	SupervisorStatusFailed   = "failed"
 
 	OwnerKindLifecycle  = "lifecycle"
 	OwnerKindSupervisor = "supervisor"
@@ -31,6 +36,9 @@ const (
 	HealthStatusUnhealthy     = "unhealthy"
 	HealthStatusUnknown       = "unknown"
 	HealthStatusNotConfigured = "not_configured"
+
+	SupervisionPolicyManaged = "managed"
+	SupervisionPolicyManual  = "manual"
 
 	DefaultHeartbeatTTL           = 30 * time.Second
 	DefaultMaxHealthResponseBytes = 64 * 1024
@@ -89,25 +97,46 @@ type Clock interface {
 }
 
 type Instance struct {
-	InstanceID          string
-	Scenario            string
-	Generation          int64
-	ScopePath           string
-	SandboxID           string
-	Status              string
-	Phase               string
-	StartedAt           time.Time
-	UpdatedAt           time.Time
-	LastHeartbeatAt     *time.Time
-	HeartbeatDeadlineAt *time.Time
-	StoppedAt           *time.Time
-	StopReason          string
-	OwnerKind           string
-	OwnerPID            *int
-	WorkingDir          string
+	InstanceID           string
+	Scenario             string
+	Generation           int64
+	ScopePath            string
+	SandboxID            string
+	Status               string
+	Phase                string
+	StartedAt            time.Time
+	UpdatedAt            time.Time
+	LastHeartbeatAt      *time.Time
+	HeartbeatDeadlineAt  *time.Time
+	StoppedAt            *time.Time
+	StopReason           string
+	OwnerKind            string
+	OwnerPID             *int
+	WorkingDir           string
+	HostBootID           string
+	HostSessionID        string
+	SupervisorID         string
+	SupervisedAt         *time.Time
+	LastReconciledAt     *time.Time
+	ReconciliationStatus string
+	ReconciliationReason string
+	SupervisionPolicy    string
+	SchemaVersion        int
+}
+
+type SupervisorSession struct {
+	SupervisorID        string
 	HostBootID          string
 	HostSessionID       string
-	SchemaVersion       int
+	PID                 *int
+	Status              string
+	StartedAt           time.Time
+	LastHeartbeatAt     time.Time
+	HeartbeatDeadlineAt time.Time
+	StoppedAt           *time.Time
+	StopReason          string
+	Version             string
+	MetadataJSON        string
 }
 
 type PortClaim struct {
@@ -163,8 +192,19 @@ type Event struct {
 }
 
 type InstanceFilter struct {
-	Scenario string
+	Scenario     string
+	Statuses     []string
+	SupervisorID string
+}
+
+type SupervisorSessionFilter struct {
 	Statuses []string
+}
+
+type SupervisionClaim struct {
+	InstanceID   string
+	Generation   int64
+	SupervisorID string
 }
 
 type PortClaimFilter struct {
@@ -182,6 +222,17 @@ type LifecycleRepository interface {
 	UpdateInstanceStatus(ctx context.Context, instanceID string, generation int64, status string, phase string) (Instance, error)
 	GetInstance(ctx context.Context, instanceID string) (Instance, error)
 	ListInstances(ctx context.Context, filter InstanceFilter) ([]Instance, error)
+}
+
+type SupervisorRepository interface {
+	CreateSupervisorSession(ctx context.Context, session SupervisorSession, ttl time.Duration) (SupervisorSession, error)
+	HeartbeatSupervisorSession(ctx context.Context, supervisorID string, ttl time.Duration) (SupervisorSession, error)
+	StopSupervisorSession(ctx context.Context, supervisorID string, status string, reason string) (SupervisorSession, error)
+	ListSupervisorSessions(ctx context.Context, filter SupervisorSessionFilter) ([]SupervisorSession, error)
+	ClaimSupervision(ctx context.Context, claim SupervisionClaim) (Instance, error)
+	ReleaseSupervision(ctx context.Context, instanceID string, generation int64, supervisorID string) (Instance, error)
+	UpdateInstanceReconciliation(ctx context.Context, instanceID string, generation int64, status string, reason string) (Instance, error)
+	HeartbeatSupervisedLeaseBatch(ctx context.Context, claims []SupervisionClaim, ttl time.Duration) ([]Instance, error)
 }
 
 type QueryRepository interface {

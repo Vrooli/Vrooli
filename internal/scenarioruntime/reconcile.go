@@ -82,6 +82,9 @@ func ReconcileRuntime(in ReconcileInput) ReconcileResult {
 	if in.Instance.Status == StatusStarting && in.Instance.HeartbeatDeadlineAt != nil && !in.Instance.HeartbeatDeadlineAt.After(in.Now) {
 		return result.fail(ReconcileStaleInstance, "starting lease heartbeat deadline has expired")
 	}
+	if in.Instance.Status == StatusRunning && in.Instance.SupervisorID != "" && in.Instance.HeartbeatDeadlineAt != nil && !in.Instance.HeartbeatDeadlineAt.After(in.Now) {
+		return result.fail(ReconcileStaleInstance, "supervised running lease heartbeat deadline has expired")
+	}
 
 	deadKnownRefs, liveKnownRefs := processRefEvidence(in)
 	if deadKnownRefs > 0 && liveKnownRefs == 0 {

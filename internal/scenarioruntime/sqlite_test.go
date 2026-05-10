@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -81,7 +82,7 @@ func TestSQLiteStoreCreatesUpdatesAndQueriesInstance(t *testing.T) {
 	}
 }
 
-func TestSQLiteStoreMigratesV1RegistryBeforeCreatingV2Indexes(t *testing.T) {
+func TestSQLiteStoreRejectsLegacyRegistryForGreenfieldSchemaV3(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	db, err := sql.Open("sqlite", buildDSN(dbPath))
@@ -164,17 +165,12 @@ CREATE TABLE runtime_events (
 		t.Fatalf("create v1 database: %v", err)
 	}
 
-	store, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
-	if err != nil {
-		t.Fatalf("NewSQLiteStore should migrate v1 database: %v", err)
+	_, err = NewSQLiteStore(ctx, Config{DBPath: dbPath})
+	if err == nil {
+		t.Fatalf("NewSQLiteStore should reject legacy runtime registry schema")
 	}
-	defer store.Close()
-	created, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha", HostBootID: "boot-current", HostSessionID: "boot-current"})
-	if err != nil {
-		t.Fatalf("CreateInstance after migration: %v", err)
-	}
-	if created.SchemaVersion != SchemaVersion {
-		t.Fatalf("SchemaVersion = %d, want %d", created.SchemaVersion, SchemaVersion)
+	if !strings.Contains(err.Error(), "requires greenfield rebuild") {
+		t.Fatalf("NewSQLiteStore error = %v, want greenfield rebuild guidance", err)
 	}
 }
 

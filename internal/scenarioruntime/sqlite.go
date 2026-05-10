@@ -100,6 +100,9 @@ func (s *SQLiteStore) CreateInstance(ctx context.Context, in Instance) (Instance
 	if in.OwnerKind == "" {
 		in.OwnerKind = OwnerKindLifecycle
 	}
+	if in.SupervisionPolicy == "" {
+		in.SupervisionPolicy = SupervisionPolicyManaged
+	}
 	if in.StartedAt.IsZero() {
 		in.StartedAt = now
 	}
@@ -118,12 +121,16 @@ func (s *SQLiteStore) CreateInstance(ctx context.Context, in Instance) (Instance
 INSERT INTO runtime_instances (
   instance_id, scenario, generation, scope_path, sandbox_id, status, phase,
   started_at, updated_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at,
-  stop_reason, owner_kind, owner_pid, working_dir, host_boot_id, host_session_id, schema_version
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  stop_reason, owner_kind, owner_pid, working_dir, host_boot_id, host_session_id,
+  supervisor_id, supervised_at, last_reconciled_at, reconciliation_status,
+  reconciliation_reason, supervision_policy, schema_version
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			in.InstanceID, in.Scenario, in.Generation, in.ScopePath, in.SandboxID, in.Status, in.Phase,
 			formatTime(in.StartedAt), formatTime(in.UpdatedAt), formatOptionalTime(in.LastHeartbeatAt),
 			formatOptionalTime(in.HeartbeatDeadlineAt), formatOptionalTime(in.StoppedAt),
-			in.StopReason, in.OwnerKind, optionalIntValue(in.OwnerPID), in.WorkingDir, in.HostBootID, in.HostSessionID, in.SchemaVersion)
+			in.StopReason, in.OwnerKind, optionalIntValue(in.OwnerPID), in.WorkingDir, in.HostBootID, in.HostSessionID,
+			in.SupervisorID, formatOptionalTime(in.SupervisedAt), formatOptionalTime(in.LastReconciledAt),
+			in.ReconciliationStatus, in.ReconciliationReason, in.SupervisionPolicy, in.SchemaVersion)
 		if err != nil {
 			return fmt.Errorf("insert runtime instance: %w", err)
 		}
@@ -180,6 +187,10 @@ func (s *SQLiteStore) ListInstances(ctx context.Context, filter InstanceFilter) 
 		for _, status := range filter.Statuses {
 			args = append(args, status)
 		}
+	}
+	if filter.SupervisorID != "" {
+		clauses = append(clauses, "supervisor_id = ?")
+		args = append(args, filter.SupervisorID)
 	}
 	if len(clauses) > 0 {
 		query += " WHERE " + strings.Join(clauses, " AND ")

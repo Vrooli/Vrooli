@@ -45,6 +45,18 @@ func TestReconcileRuntimeClassifiesCrashRebootStates(t *testing.T) {
 			authoritative: false,
 		},
 		{
+			name:          "expired supervised running heartbeat is stale",
+			instance:      Instance{InstanceID: "inst-alpha", Scenario: "alpha", Status: StatusRunning, HostBootID: "boot-current", SupervisorID: "sup-alpha", HeartbeatDeadlineAt: ptrTime(now.Add(-time.Second))},
+			wantClass:     ReconcileStaleInstance,
+			authoritative: false,
+		},
+		{
+			name:          "expired lifecycle-owned running heartbeat remains rollout-compatible",
+			instance:      Instance{InstanceID: "inst-alpha", Scenario: "alpha", Status: StatusRunning, HostBootID: "boot-current", HeartbeatDeadlineAt: ptrTime(now.Add(-time.Second))},
+			wantClass:     ReconcileVerifiedRunning,
+			authoritative: true,
+		},
+		{
 			name:      "all dead process refs and no listeners is stale sudden stop",
 			instance:  Instance{InstanceID: "inst-alpha", Scenario: "alpha", Status: StatusRunning, HostBootID: "boot-current"},
 			refs:      []ProcessRef{{InstanceID: "inst-alpha", PID: &deadPID, Status: "running"}},

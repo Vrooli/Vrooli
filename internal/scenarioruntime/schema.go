@@ -31,12 +31,38 @@ CREATE TABLE IF NOT EXISTS runtime_instances (
   working_dir TEXT NOT NULL DEFAULT '',
   host_boot_id TEXT NOT NULL DEFAULT '',
   host_session_id TEXT NOT NULL DEFAULT '',
+  supervisor_id TEXT NOT NULL DEFAULT '',
+  supervised_at TEXT,
+  last_reconciled_at TEXT,
+  reconciliation_status TEXT NOT NULL DEFAULT '',
+  reconciliation_reason TEXT NOT NULL DEFAULT '',
+  supervision_policy TEXT NOT NULL DEFAULT 'managed',
   schema_version INTEGER NOT NULL,
   UNIQUE(scenario, generation)
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_instances_scenario ON runtime_instances(scenario);
 CREATE INDEX IF NOT EXISTS idx_runtime_instances_status ON runtime_instances(status);
 CREATE INDEX IF NOT EXISTS idx_runtime_instances_heartbeat_deadline ON runtime_instances(heartbeat_deadline_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_instances_host_boot ON runtime_instances(host_boot_id);
+CREATE INDEX IF NOT EXISTS idx_runtime_instances_supervisor ON runtime_instances(supervisor_id);
+CREATE INDEX IF NOT EXISTS idx_runtime_instances_reconcile ON runtime_instances(reconciliation_status, last_reconciled_at);
+
+CREATE TABLE IF NOT EXISTS runtime_supervisor_sessions (
+  supervisor_id TEXT PRIMARY KEY,
+  host_boot_id TEXT NOT NULL,
+  host_session_id TEXT NOT NULL,
+  pid INTEGER,
+  status TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  last_heartbeat_at TEXT NOT NULL,
+  heartbeat_deadline_at TEXT NOT NULL,
+  stopped_at TEXT,
+  stop_reason TEXT NOT NULL DEFAULT '',
+  version TEXT NOT NULL DEFAULT '',
+  metadata_json TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_supervisor_sessions_status ON runtime_supervisor_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_runtime_supervisor_sessions_deadline ON runtime_supervisor_sessions(heartbeat_deadline_at);
 
 CREATE TABLE IF NOT EXISTS runtime_port_claims (
   claim_id TEXT PRIMARY KEY,
@@ -109,8 +135,12 @@ CREATE INDEX IF NOT EXISTS idx_runtime_events_type ON runtime_events(event_type)
 `
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
-	if _, err := s.db.ExecContext(ctx, schemaSQL); err != nil {
-		return fmt.Errorf("apply runtime registry schema: %w", err)
+	if _, err := s.db.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS schema_version (
+  version INTEGER NOT NULL,
+  applied_at TEXT NOT NULL
+)`); err != nil {
+		return fmt.Errorf("prepare runtime registry schema version table: %w", err)
 	}
 	current, err := readSchemaVersion(ctx, s.db)
 	if err != nil {
@@ -120,50 +150,19 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 		return fmt.Errorf("runtime registry schema_version %d > expected %d: binary is older than database", current, SchemaVersion)
 	}
 	if current == SchemaVersion {
-		return ensureSchemaV2Indexes(ctx, s.db)
-	}
-	if current == 1 && SchemaVersion == 2 {
-		if err := migrateSchemaV1ToV2(ctx, s.db); err != nil {
-			return err
-		}
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM schema_version`); err != nil {
-			return fmt.Errorf("clear runtime registry schema version: %w", err)
-		}
-		if _, err := s.db.ExecContext(ctx, `INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, SchemaVersion, formatTime(s.now())); err != nil {
-			return fmt.Errorf("stamp runtime registry schema version: %w", err)
-		}
-		return ensureSchemaV2Indexes(ctx, s.db)
+		return nil
 	}
 	if current != 0 {
-		return fmt.Errorf("runtime registry schema_version %d -> %d has no registered migration", current, SchemaVersion)
+		return fmt.Errorf("runtime registry schema_version %d -> %d requires greenfield rebuild or an operator-run temporary conversion script", current, SchemaVersion)
+	}
+	if _, err := s.db.ExecContext(ctx, schemaSQL); err != nil {
+		return fmt.Errorf("apply runtime registry schema: %w", err)
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM schema_version`); err != nil {
 		return fmt.Errorf("clear runtime registry schema version: %w", err)
 	}
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`, SchemaVersion, formatTime(s.now())); err != nil {
 		return fmt.Errorf("stamp runtime registry schema version: %w", err)
-	}
-	return ensureSchemaV2Indexes(ctx, s.db)
-}
-
-func migrateSchemaV1ToV2(ctx context.Context, db *sql.DB) error {
-	columns := []string{
-		`ALTER TABLE runtime_instances ADD COLUMN host_boot_id TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE runtime_instances ADD COLUMN host_session_id TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE runtime_process_refs ADD COLUMN host_boot_id TEXT NOT NULL DEFAULT ''`,
-		`CREATE INDEX IF NOT EXISTS idx_runtime_instances_host_boot ON runtime_instances(host_boot_id)`,
-	}
-	for _, statement := range columns {
-		if _, err := db.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("migrate runtime registry schema v1 to v2: %w", err)
-		}
-	}
-	return nil
-}
-
-func ensureSchemaV2Indexes(ctx context.Context, db *sql.DB) error {
-	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_runtime_instances_host_boot ON runtime_instances(host_boot_id)`); err != nil {
-		return fmt.Errorf("create runtime registry v2 indexes: %w", err)
 	}
 	return nil
 }

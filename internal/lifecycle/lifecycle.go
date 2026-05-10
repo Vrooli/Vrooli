@@ -30,6 +30,7 @@ import (
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
+	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -144,6 +145,7 @@ type lifecycleDeps struct {
 	enforceHostRequirements func(hostreqrun.Options) (vrooliruntime.Report, error)
 	runtimeRegistry         func(context.Context, string) (scenarioRuntimeStore, error)
 	hostSession             func(context.Context, string) (hostsession.Snapshot, error)
+	ensureRuntimeSupervisor func(context.Context, string, io.Writer, io.Writer) error
 }
 
 type hostProbeDeps struct {
@@ -300,6 +302,15 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 	}
 	if deps.hostSession == nil {
 		deps.hostSession = hostsession.DefaultProvider{}.Current
+	}
+	if deps.ensureRuntimeSupervisor == nil {
+		deps.ensureRuntimeSupervisor = func(ctx context.Context, home string, stdout io.Writer, stderr io.Writer) error {
+			cfg := runtimesupervisor.EnvConfig()
+			cfg.HomeDir = home
+			cfg.Stdout = stdout
+			cfg.Stderr = stderr
+			return runtimesupervisor.EnsureRunning(ctx, cfg)
+		}
 	}
 	return deps
 }
@@ -491,6 +502,9 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		return Result{}, err
 	}
 	if err := runtimeSession.markRunning(context.Background()); err != nil {
+		return Result{}, err
+	}
+	if err := r.ensureRuntimeSupervisor(context.Background(), runtimeSession); err != nil {
 		return Result{}, err
 	}
 

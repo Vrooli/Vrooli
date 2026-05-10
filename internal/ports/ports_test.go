@@ -562,7 +562,8 @@ func TestBuildEnvironmentWithRuntimeClaimsPreventsConcurrentPortClaims(t *testin
 	ctx := context.Background()
 	first := createRuntimeInstanceForPortTests(t, store, "alpha")
 	second := createRuntimeInstanceForPortTests(t, store, "beta")
-	item := fixedPortScenario(root, "service", 21234)
+	port := freeLocalPort(t)
+	item := fixedPortScenario(root, "service", port)
 
 	var wg sync.WaitGroup
 	errs := make(chan error, 2)
@@ -609,8 +610,8 @@ func TestBuildEnvironmentWithRuntimeClaimsPreventsConcurrentPortClaims(t *testin
 	if err != nil {
 		t.Fatalf("ListPortClaims: %v", err)
 	}
-	if len(claims) != 1 || claims[0].Port != 21234 {
-		t.Fatalf("active claims = %#v, want one claim for 21234", claims)
+	if len(claims) != 1 || claims[0].Port != port {
+		t.Fatalf("active claims = %#v, want one claim for %d", claims, port)
 	}
 }
 
@@ -622,6 +623,7 @@ func TestBuildEnvironmentWithRuntimeClaimsExpiresAbandonedReservedClaim(t *testi
 	ctx := context.Background()
 	abandoned := createRuntimeInstanceForPortTests(t, store, "alpha")
 	replacement := createRuntimeInstanceForPortTests(t, store, "beta")
+	port := freeLocalPort(t)
 	now := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
 	expiresAt := now.Add(-time.Minute)
 	oldClaim, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
@@ -629,7 +631,7 @@ func TestBuildEnvironmentWithRuntimeClaimsExpiresAbandonedReservedClaim(t *testi
 		Scenario:   abandoned.Scenario,
 		PortName:   "api",
 		EnvVar:     "API_PORT",
-		Port:       21234,
+		Port:       port,
 		ExpiresAt:  &expiresAt,
 	})
 	if err != nil {
@@ -641,7 +643,7 @@ func TestBuildEnvironmentWithRuntimeClaimsExpiresAbandonedReservedClaim(t *testi
 		t.Fatalf("NewManager: %v", err)
 	}
 	manager.Now = func() time.Time { return now }
-	env, err := manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "beta", 21234), nil, RuntimeClaimOptions{
+	env, err := manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "beta", port), nil, RuntimeClaimOptions{
 		Enabled:    true,
 		Context:    ctx,
 		Store:      store,
@@ -650,8 +652,8 @@ func TestBuildEnvironmentWithRuntimeClaimsExpiresAbandonedReservedClaim(t *testi
 	if err != nil {
 		t.Fatalf("BuildEnvironmentWithRuntimeClaims: %v", err)
 	}
-	if env.AllocatedPorts["api"] != 21234 {
-		t.Fatalf("allocated api port = %d, want 21234", env.AllocatedPorts["api"])
+	if env.AllocatedPorts["api"] != port {
+		t.Fatalf("allocated api port = %d, want %d", env.AllocatedPorts["api"], port)
 	}
 	expired, err := store.GetInstance(ctx, abandoned.InstanceID)
 	if err != nil {
@@ -684,13 +686,14 @@ func TestBoundRuntimeClaimSurvivesExpiredReservationCleanup(t *testing.T) {
 	ctx := context.Background()
 	alpha := createRuntimeInstanceForPortTests(t, store, "alpha")
 	beta := createRuntimeInstanceForPortTests(t, store, "beta")
+	port := freeLocalPort(t)
 	past := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC).Add(-time.Minute)
 	claim, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
 		InstanceID: alpha.InstanceID,
 		Scenario:   alpha.Scenario,
 		PortName:   "api",
 		EnvVar:     "API_PORT",
-		Port:       21234,
+		Port:       port,
 		ExpiresAt:  &past,
 	})
 	if err != nil {
@@ -704,7 +707,7 @@ func TestBoundRuntimeClaimSurvivesExpiredReservationCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewManager: %v", err)
 	}
-	if _, err := manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "beta", 21234), nil, RuntimeClaimOptions{
+	if _, err := manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "beta", port), nil, RuntimeClaimOptions{
 		Enabled:    true,
 		Context:    ctx,
 		Store:      store,
@@ -775,12 +778,13 @@ func TestRuntimeClaimsAndLegacyLocksRollbackWhenLaterPortAllocationFails(t *test
 	}
 	defer listener.Close()
 	conflictPort := listener.Addr().(*net.TCPAddr).Port
+	firstPort := freeLocalPort(t)
 
 	manager, err := NewManager(root, home)
 	if err != nil {
 		t.Fatalf("NewManager: %v", err)
 	}
-	_, err = manager.BuildEnvironmentWithRuntimeClaims(multiFixedPortScenario(root, "alpha", 21234, conflictPort), nil, RuntimeClaimOptions{
+	_, err = manager.BuildEnvironmentWithRuntimeClaims(multiFixedPortScenario(root, "alpha", firstPort, conflictPort), nil, RuntimeClaimOptions{
 		Enabled:    true,
 		Context:    ctx,
 		Store:      store,
@@ -798,13 +802,13 @@ func TestRuntimeClaimsAndLegacyLocksRollbackWhenLaterPortAllocationFails(t *test
 	for _, claim := range claims {
 		statusByPort[claim.Port] = claim.Status
 	}
-	if statusByPort[21234] != scenarioruntime.ClaimStatusReleased {
-		t.Fatalf("first claim status = %q, want released; claims=%#v", statusByPort[21234], claims)
+	if statusByPort[firstPort] != scenarioruntime.ClaimStatusReleased {
+		t.Fatalf("first claim status = %q, want released; claims=%#v", statusByPort[firstPort], claims)
 	}
 	if statusByPort[conflictPort] != scenarioruntime.ClaimStatusReleased {
 		t.Fatalf("conflicting claim status = %q, want released; claims=%#v", statusByPort[conflictPort], claims)
 	}
-	if lock, exists, err := manager.ReadLock(21234); err != nil {
+	if lock, exists, err := manager.ReadLock(firstPort); err != nil {
 		t.Fatalf("ReadLock(first): %v", err)
 	} else if exists {
 		t.Fatalf("first legacy lock should be abandoned after partial allocation failure, got %#v", lock)
@@ -819,12 +823,13 @@ func TestLegacyStaleLockDoesNotOverrideActiveRuntimeClaim(t *testing.T) {
 	ctx := context.Background()
 	alpha := createRuntimeInstanceForPortTests(t, store, "alpha")
 	beta := createRuntimeInstanceForPortTests(t, store, "beta")
+	port := freeLocalPort(t)
 	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
 		InstanceID: alpha.InstanceID,
 		Scenario:   alpha.Scenario,
 		PortName:   "api",
 		EnvVar:     "API_PORT",
-		Port:       21234,
+		Port:       port,
 	}); err != nil {
 		t.Fatalf("AcquirePortClaim(alpha): %v", err)
 	}
@@ -833,10 +838,10 @@ func TestLegacyStaleLockDoesNotOverrideActiveRuntimeClaim(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewManager: %v", err)
 	}
-	if err := manager.WriteLock(21234, "stale-legacy", 999999); err != nil {
+	if err := manager.WriteLock(port, "stale-legacy", 999999); err != nil {
 		t.Fatalf("WriteLock(stale-legacy): %v", err)
 	}
-	_, err = manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "beta", 21234), nil, RuntimeClaimOptions{
+	_, err = manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "beta", port), nil, RuntimeClaimOptions{
 		Enabled:    true,
 		Context:    ctx,
 		Store:      store,
@@ -848,7 +853,7 @@ func TestLegacyStaleLockDoesNotOverrideActiveRuntimeClaim(t *testing.T) {
 	if !strings.Contains(err.Error(), "active registry claim already owns port") {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	lock, exists, err := manager.ReadLock(21234)
+	lock, exists, err := manager.ReadLock(port)
 	if err != nil {
 		t.Fatalf("ReadLock: %v", err)
 	}
@@ -917,6 +922,19 @@ func multiFixedPortScenario(root, slug string, apiPort, uiPort int) scenario.Sce
 			},
 		},
 	}
+}
+
+func freeLocalPort(t *testing.T) int {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen(127.0.0.1:0): %v", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	if err := listener.Close(); err != nil {
+		t.Fatalf("Close free-port listener: %v", err)
+	}
+	return port
 }
 
 func newRuntimeClaimStoreForPortTests(t *testing.T) *scenarioruntime.SQLiteStore {

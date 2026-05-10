@@ -20,6 +20,7 @@ const (
 	CommandScenario     CommandID = "scenario"
 	CommandPackage      CommandID = "package"
 	CommandResource     CommandID = "resource"
+	CommandRuntime      CommandID = "runtime"
 	CommandCleanup      CommandID = "cleanup"
 	CommandDoctor       CommandID = "doctor"
 	CommandOrphans      CommandID = "orphans"
@@ -45,6 +46,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandScenario), Group: "Scenario Management", Summary: "Manage scenarios from their source locations", Handler: CommandScenario, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ScenarioCanRunWithoutRoot}},
 		{Name: string(CommandPackage), Group: "Package Governance", Summary: "Manage governed shared packages", Handler: CommandPackage, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
 		{Name: string(CommandResource), Group: "Resource Management", Summary: "Manage local resources and dependency services", Handler: CommandResource, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
+		{Name: string(CommandRuntime), Group: "Runtime Management", Summary: "Manage the scenario runtime supervisor", Handler: CommandRuntime, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
 		{Name: string(CommandCleanup), Group: "Maintenance Commands", Summary: "Clean up orphans and stale locks", Handler: CommandCleanup, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
 		{Name: string(CommandDoctor), Group: "Maintenance Commands", Summary: "Run environment and tool diagnostics", Handler: CommandDoctor, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandOrphans), Group: "Maintenance Commands", Summary: "Inspect or clean orphaned Vrooli processes", Handler: CommandOrphans, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},

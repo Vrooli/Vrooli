@@ -21,6 +21,7 @@ type runtimeMaintenanceStore interface {
 	scenarioruntime.QueryRepository
 	scenarioruntime.CleanupRepository
 	scenarioruntime.ProcessRefRepository
+	ListSupervisorSessions(ctx context.Context, filter scenarioruntime.SupervisorSessionFilter) ([]scenarioruntime.SupervisorSession, error)
 	ListExpiredActivePortClaims(ctx context.Context, at time.Time) ([]scenarioruntime.PortClaim, error)
 }
 
@@ -53,6 +54,11 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 
 	now := time.Now().UTC()
 	host, _ := hostsession.DefaultProvider{}.Current(ctx, "")
+	supervisors, err := store.ListSupervisorSessions(ctx, scenarioruntime.SupervisorSessionFilter{Statuses: []string{scenarioruntime.SupervisorStatusRunning}})
+	if err != nil {
+		return nil, err
+	}
+	supervisorsByID := supervisorSessionsByID(supervisors)
 	out := make([]RuntimeClaimInfo, 0, len(claims))
 	for _, claim := range claims {
 		if port > 0 && claim.Port != port {
@@ -77,10 +83,22 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 		if err == nil {
 			item.Generation = instance.Generation
 			item.InstanceStatus = instance.Status
+			item.SupervisorID = instance.SupervisorID
 			item.HeartbeatDeadline = instance.HeartbeatDeadlineAt
 			if instance.HeartbeatDeadlineAt != nil {
 				fresh := instance.HeartbeatDeadlineAt.After(now)
 				item.LeaseFresh = &fresh
+			}
+			if instance.SupervisorID != "" {
+				if supervisor, ok := supervisorsByID[instance.SupervisorID]; ok {
+					item.SupervisorStatus = supervisor.Status
+					item.SupervisorDeadline = &supervisor.HeartbeatDeadlineAt
+					fresh := supervisor.HeartbeatDeadlineAt.After(now)
+					item.SupervisorFresh = &fresh
+				} else {
+					fresh := false
+					item.SupervisorFresh = &fresh
+				}
 			}
 			refs, err := store.ListProcessRefs(ctx, claim.InstanceID)
 			if err != nil {
@@ -117,6 +135,20 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 		out = append(out, item)
 	}
 	return out, nil
+}
+
+func supervisorSessionsByID(sessions []scenarioruntime.SupervisorSession) map[string]scenarioruntime.SupervisorSession {
+	out := make(map[string]scenarioruntime.SupervisorSession, len(sessions))
+	for _, session := range sessions {
+		if session.SupervisorID == "" {
+			continue
+		}
+		current, ok := out[session.SupervisorID]
+		if !ok || session.StartedAt.After(current.StartedAt) {
+			out[session.SupervisorID] = session
+		}
+	}
+	return out
 }
 
 func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaintenanceStore) ([]control.ResultItem, error) {

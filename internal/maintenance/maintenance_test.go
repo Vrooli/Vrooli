@@ -621,6 +621,23 @@ func TestDiagnosePortShowsRegistryClaimHealthAndProcessRefs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateLease: %v", err)
 	}
+	if _, err := store.CreateSupervisorSession(ctx, scenarioruntime.SupervisorSession{
+		SupervisorID:    "sup-alpha",
+		HostBootID:      "boot-current",
+		HostSessionID:   "session-current",
+		Status:          scenarioruntime.SupervisorStatusRunning,
+		LastHeartbeatAt: time.Now().UTC(),
+	}, time.Minute); err != nil {
+		t.Fatalf("CreateSupervisorSession: %v", err)
+	}
+	instance, err = store.ClaimSupervision(ctx, scenarioruntime.SupervisionClaim{
+		InstanceID:   instance.InstanceID,
+		Generation:   instance.Generation,
+		SupervisorID: "sup-alpha",
+	})
+	if err != nil {
+		t.Fatalf("ClaimSupervision: %v", err)
+	}
 	claim, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
 		ClaimID:    "claim-alpha-api",
 		InstanceID: instance.InstanceID,
@@ -677,6 +694,9 @@ func TestDiagnosePortShowsRegistryClaimHealthAndProcessRefs(t *testing.T) {
 	}
 	if diagnostic.RegistryClaims[0].HealthStatus != scenarioruntime.HealthStatusHealthy {
 		t.Fatalf("health status = %q", diagnostic.RegistryClaims[0].HealthStatus)
+	}
+	if diagnostic.RegistryClaims[0].SupervisorID != "sup-alpha" || diagnostic.RegistryClaims[0].SupervisorFresh == nil || !*diagnostic.RegistryClaims[0].SupervisorFresh {
+		t.Fatalf("supervisor diagnostics = %#v, want fresh sup-alpha", diagnostic.RegistryClaims[0])
 	}
 	if len(diagnostic.RegistryProcesses) != 1 || diagnostic.RegistryProcesses[0].PIDRunning == nil || !*diagnostic.RegistryProcesses[0].PIDRunning {
 		t.Fatalf("registry processes = %#v", diagnostic.RegistryProcesses)

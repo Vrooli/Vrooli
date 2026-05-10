@@ -29,6 +29,7 @@ import (
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
+	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -1062,6 +1063,33 @@ func TestRunnerStartDualWritesScenarioRuntimeRegistry(t *testing.T) {
 	}
 	if health.Status != scenarioruntime.HealthStatusHealthy || health.Readiness == nil || !*health.Readiness {
 		t.Fatalf("health = %#v, want healthy and ready", health)
+	}
+}
+
+func TestRunnerStartEnsuresRuntimeSupervisorWhenAuto(t *testing.T) {
+	t.Setenv(runtimeRegistryModeEnv, runtimeRegistryModeDual)
+	t.Setenv(runtimesupervisor.ModeEnv, runtimesupervisor.ModeAuto)
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	var ensured []string
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.ensureRuntimeSupervisor = func(_ context.Context, gotHome string, _, _ io.Writer) error {
+			ensured = append(ensured, gotHome)
+			return nil
+		}
+	})
+	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
+		t.Fatalf("Start(alpha): %v", err)
+	}
+	defer func() {
+		if err := runner.Stop("alpha", StopOptions{}); err != nil {
+			t.Fatalf("Stop(alpha): %v", err)
+		}
+	}()
+	if len(ensured) != 1 || ensured[0] != home {
+		t.Fatalf("ensureRuntimeSupervisor calls = %#v, want one call with home", ensured)
 	}
 }
 
