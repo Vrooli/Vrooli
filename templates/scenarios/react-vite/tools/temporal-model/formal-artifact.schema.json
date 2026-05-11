@@ -15,11 +15,12 @@
     "namedTraces",
     "generatedTraces",
     "invariants",
+    "generatedChecks",
     "coverage",
     "checks"
   ],
   "properties": {
-    "schemaVersion": { "const": 2 },
+    "schemaVersion": { "const": 4 },
     "flowId": { "type": "string", "minLength": 1 },
     "source": {
       "type": "object",
@@ -60,15 +61,16 @@
     "namedTraces": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/trace" } },
     "generatedTraces": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/trace" } },
     "invariants": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "generatedChecks": { "type": "array", "minItems": 1, "items": { "type": "string" } },
     "coverage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["allStatesCovered", "allEventsCovered", "allPairsCovered", "terminalStatesChecked"],
+      "required": ["transitionMatrixComplete", "terminalTransitionsChecked", "namedTraces", "generatedTraces"],
       "properties": {
-        "allStatesCovered": { "type": "boolean" },
-        "allEventsCovered": { "type": "boolean" },
-        "allPairsCovered": { "type": "boolean" },
-        "terminalStatesChecked": { "type": "boolean" }
+        "transitionMatrixComplete": { "type": "boolean" },
+        "terminalTransitionsChecked": { "type": "boolean" },
+        "namedTraces": { "$ref": "#/$defs/traceCoverage" },
+        "generatedTraces": { "$ref": "#/$defs/generatedTraceCoverage" }
       }
     },
     "checks": {
@@ -115,6 +117,30 @@
         "event": { "type": "string", "minLength": 1 },
         "want": { "type": "string", "minLength": 1 },
         "wantError": { "type": "boolean" }
+      }
+    },
+    "traceCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allStatesCovered", "allEventsCovered", "coveredStates", "coveredEvents"],
+      "properties": {
+        "allStatesCovered": { "type": "boolean" },
+        "allEventsCovered": { "type": "boolean" },
+        "coveredStates": { "type": "array", "items": { "type": "string" } },
+        "coveredEvents": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "generatedTraceCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allStatesCovered", "allEventsCovered", "coveredStates", "coveredEvents", "coveredPairs", "allPairsCovered"],
+      "properties": {
+        "allStatesCovered": { "type": "boolean" },
+        "allEventsCovered": { "type": "boolean" },
+        "coveredStates": { "type": "array", "items": { "type": "string" } },
+        "coveredEvents": { "type": "array", "items": { "type": "string" } },
+        "coveredPairs": { "type": "array", "items": { "type": "string" } },
+        "allPairsCovered": { "type": "boolean" }
       }
     }
   }

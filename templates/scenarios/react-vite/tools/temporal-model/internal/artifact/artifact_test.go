@@ -50,6 +50,21 @@ func TestBuildUsesRunnerAndNormalizesGeneratedTraces(t *testing.T) {
 	if len(built.GeneratedTraces) != 1 {
 		t.Fatalf("generated traces = %d, want 1", len(built.GeneratedTraces))
 	}
+	if got := strings.Join(built.GeneratedChecks, ","); got != "transitionTable" {
+		t.Fatalf("generated checks = %q, want transitionTable", got)
+	}
+	if !built.Coverage.TransitionMatrixComplete {
+		t.Fatalf("transition matrix should be complete")
+	}
+	if !built.Coverage.NamedTraces.AllStatesCovered || !built.Coverage.NamedTraces.AllEventsCovered {
+		t.Fatalf("named traces should cover all states and events: %+v", built.Coverage.NamedTraces)
+	}
+	if built.Coverage.GeneratedTraces.AllPairsCovered == nil || *built.Coverage.GeneratedTraces.AllPairsCovered {
+		t.Fatalf("generated trace pair coverage should not be inferred from matrix completeness: %+v", built.Coverage.GeneratedTraces)
+	}
+	if got := strings.Join(built.Coverage.GeneratedTraces.CoveredPairs, ","); got != "idle/start" {
+		t.Fatalf("generated trace covered pairs = %q, want idle/start", got)
+	}
 }
 
 func TestBuildReportsRunnerFailures(t *testing.T) {
@@ -97,7 +112,7 @@ func (f failingRunner) Run(_ context.Context, command quint.Command) (quint.Resu
 
 func validContract() contract.Contract {
 	c := contract.Contract{
-		SchemaVersion: 2,
+		SchemaVersion: contract.SchemaVersion,
 		FlowID:        "example.flow",
 		Domain:        "example",
 		Description:   "Example.",
@@ -109,13 +124,17 @@ func validContract() contract.Contract {
 			TraceCount: 1,
 			Verify:     contract.Verify{Invariants: []string{"TypeOK"}},
 		},
-		Outputs:            contract.Outputs{ModelPath: "model.qnt", ArtifactPath: "model.formal.generated.json"},
+		Outputs:            contract.Outputs{ModelPath: "model.qnt", ArtifactPath: "model.formal.generated.json", DeclarationsPath: "model.generated.go"},
 		States:             []contract.State{{ID: "idle", Quint: "Idle", Initial: true}, {ID: "busy", Quint: "Busy"}},
 		Events:             []contract.Event{{ID: "start", Quint: "Start"}},
 		TransitionDefaults: contract.TransitionDefaults{Invalid: &contract.DefaultTransition{To: "self", WantError: true}},
 		Transitions:        []contract.Transition{{From: contract.StringList{"idle"}, Event: contract.StringList{"start"}, To: "busy"}},
 		Invariants:         []contract.Invariant{{ID: "type_ok", Quint: "TypeOK", Description: "Type OK."}},
 		Traces:             []contract.Trace{{Name: "success", Initial: "idle", Steps: []contract.TraceStep{{Event: "start", Want: "busy"}}}},
+		Runtime: contract.Runtime{
+			Go: &contract.GoRuntime{Package: "example", StatusType: "Status", EventType: "Event", ConstantPrefix: "Example"},
+		},
+		Replay: contract.Replay{Bindings: []contract.ReplayBinding{{Kind: "go-test", Path: "workflow_test.go", Assertion: "TestWorkflow_ReplaysFormalModelArtifacts"}}},
 	}
 	if err := contract.ValidateAndExpand(&c); err != nil {
 		panic(err)

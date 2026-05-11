@@ -4,11 +4,11 @@ import (
 	"context"
 	"log"
 
+	"{{SCENARIO_ID}}/internal/notes"
+
 	"connectrpc.com/connect"
 
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
-
-	"{{SCENARIO_ID}}/internal/notes"
 )
 
 // Deps wires the seams the Connect notes handler needs.

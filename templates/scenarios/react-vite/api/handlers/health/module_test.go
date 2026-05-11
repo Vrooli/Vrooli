@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/require"
-
 	"{{SCENARIO_ID}}/handlers/health"
 	"{{SCENARIO_ID}}/internal/testutil/mocks"
+
+	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/require"
 )
 
 // TestModule_Shape pins the public contract.
@@ -60,6 +60,6 @@ func newRecorder() *recorder {
 	}
 }
 
-func (r *recorder) Header() http.Header        { return r.headers }
+func (r *recorder) Header() http.Header         { return r.headers }
 func (r *recorder) Write(p []byte) (int, error) { return r.body.Write(p) }
 func (r *recorder) WriteHeader(s int)           { r.status = s }

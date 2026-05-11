@@ -6,9 +6,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"{{SCENARIO_ID}}/internal/notes"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFakeService_CreateRecordsInputAndSynthesisesNote(t *testing.T) {

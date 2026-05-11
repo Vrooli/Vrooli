@@ -55,6 +55,10 @@ workflow model.
   `api/internal/notes/attachment_upload_workflow.formal.generated.json`
   and
   `ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json`.
+- Generated declarations:
+  `api/internal/notes/attachment_upload_workflow.generated.go`
+  and
+  `ui/src/features/notes/AttachmentUploadWorkflow.generated.ts`.
 - Requirements: template starter only.
 
 ## State Machines
@@ -87,6 +91,7 @@ api/internal/<domain>/
   <flow>_workflow.flow.json
   <flow>_workflow.qnt
   <flow>_workflow.formal.generated.json
+  <flow>_workflow.generated.go
   <flow>_workflow.go
   <flow>_workflow_test.go
 ```
@@ -98,6 +103,7 @@ ui/src/features/<domain>/
   <domain>Workflow.flow.json
   <domain>Workflow.qnt
   <domain>Workflow.formal.generated.json
+  <domain>Workflow.generated.ts
   <domain>Workflow.ts
   <domain>Workflow.test.ts
 ```
@@ -108,13 +114,54 @@ outside the workflow behind seams: repositories, BlobStore, clocks,
 timers, HTTP clients, or UI API modules.
 
 The `*.flow.json` contract is the source of truth. Level 5 generated
-Quint models and formal artifacts are checked-in source artifacts for
-reviewability, but they are refreshed and checked by
-the Go-native `tools/temporal-model` command; the scenario lifecycle runs
-`make temporal-models` before the normal test suite. A Quint file by itself is not accepted: the model must typecheck,
+Quint models, formal artifacts, and Go/TypeScript declarations are
+checked-in source artifacts for reviewability, but they are refreshed
+and checked by the Go-native `tools/temporal-model` command; the
+scenario lifecycle runs `make temporal-models` before the normal test
+suite. A Quint file by itself is not accepted: the model must typecheck,
 test, verify named invariants, emit deterministic artifacts, and those
 artifacts must replay against the production Go/TypeScript transition
 functions.
+
+The generated declarations keep state/event topology and formal
+freshness metadata out of hand-maintained test lists. They also provide
+pure status-transition helpers generated from the `*.flow.json`
+transition matrix. For TypeScript flows, the same declarations can own
+the discriminated state/event union shape and replay fixture contract.
+Production workflow wrappers call those helpers for abstract validity
+and next-status outcomes, while keeping payload validation, side-effect
+orchestration, and rich state construction in hand-authored code. API
+tests get expected paths, hashes, invariants, and generated checks from
+`*_workflow.generated.go`; UI tests import the same metadata from
+`*Workflow.generated.ts`. Browser-safe replay helpers stay free of Node
+APIs, while Node-only tests recompute contract/model/generator hashes
+from disk to catch stale UI artifacts.
+
+Formal artifacts use schema v4 coverage metadata. Matrix completeness,
+terminal transition checks, named trace coverage, and generated MBT trace
+coverage are separate fields. Do not treat generated trace
+`allPairsCovered` as required proof of correctness; replay tests require
+the complete transition matrix and named traces, while generated trace
+coverage reports how much the model explorer happened to visit.
+
+Each schema v3 `*.flow.json` also declares `replay.bindings`. The
+temporal-model tool validates that every binding file exists and still
+contains the declared replay test marker plus the formal freshness,
+transition, and trace helper calls. A new formal flow without a
+production replay test fails during `validate`, `generate`, and `check`.
+The same commands validate the raw contract against `flow.schema.json`
+before semantic expansion, so shape drift fails before Quint runs.
+
+To add or rename a state/event:
+
+1. Edit the owning `*.flow.json`.
+2. Regenerate that flow with `tools/temporal-model`.
+3. Update only payload-specific wrapper branches that need new runtime
+   data; the abstract transition table is generated.
+4. Update UI replay fixture maps. Generated fixture map types and the
+   generated `*ReplayFixtureContract` constant should make missing
+   fixtures a type error.
+5. Run `make temporal-models` and the scenario tests.
 
 ## Deferred / Unmodeled Flows
 

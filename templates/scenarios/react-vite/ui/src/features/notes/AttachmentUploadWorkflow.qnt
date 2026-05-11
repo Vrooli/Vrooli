@@ -75,7 +75,6 @@ module UiAttachmentUploadWorkflow {
   val IllegalTransitionsPreserveState =
     not(rejected) or nextStatus(status, event) == status
 
-  val AllDeclaredTransitionsCovered = true
 
   val StaleCompletionIsIgnored =
     status == Uploading or (nextStatus(status, Succeed) == status and nextStatus(status, Fail) == status)

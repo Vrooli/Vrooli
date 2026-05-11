@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"{{SCENARIO_ID}}/internal/middleware"
 	"{{SCENARIO_ID}}/internal/testutil/mocks"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestLoggingMiddleware_LogsDuration proves the FakeClock seam works:

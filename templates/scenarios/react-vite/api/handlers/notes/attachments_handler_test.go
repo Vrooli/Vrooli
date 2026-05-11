@@ -11,6 +11,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"{{SCENARIO_ID}}/handlers/notes"
+	"{{SCENARIO_ID}}/internal/clock"
+	"{{SCENARIO_ID}}/internal/testutil/assertx"
+	"{{SCENARIO_ID}}/internal/testutil/db"
+
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/blobstore"
@@ -18,12 +23,8 @@ import (
 
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 
-	"{{SCENARIO_ID}}/handlers/notes"
-	"{{SCENARIO_ID}}/internal/clock"
 	localdb "{{SCENARIO_ID}}/internal/database"
 	internalnotes "{{SCENARIO_ID}}/internal/notes"
-	"{{SCENARIO_ID}}/internal/testutil/assertx"
-	"{{SCENARIO_ID}}/internal/testutil/db"
 )
 
 func TestAttachmentsHandlerUploadSuccess(t *testing.T) {

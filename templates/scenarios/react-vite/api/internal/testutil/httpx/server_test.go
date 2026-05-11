@@ -96,6 +96,7 @@ func (r *recordingT) Helper() { r.helperCalls++ }
 func (r *recordingT) Cleanup(fn func()) {
 	r.cleanups = append(r.cleanups, fn)
 }
+
 func (r *recordingT) Fatal(args ...any) {
 	r.fatalCalled = true
 	r.fatalMessage = fmt.Sprint(args...)

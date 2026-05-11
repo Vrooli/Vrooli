@@ -1,6 +1,9 @@
 package contract
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -65,15 +68,106 @@ func TestValidateAndExpandRejectsUnknownInvariantReference(t *testing.T) {
 	requireErrorContains(t, ValidateAndExpand(&c), "references unknown invariant GhostInvariant")
 }
 
+func TestValidateAndExpandRejectsTraceTargetDrift(t *testing.T) {
+	c := validContract()
+	c.Traces[0].Steps[0].Want = "done"
+	requireErrorContains(t, ValidateAndExpand(&c), "expanded transition wants busy wantError=false")
+}
+
+func TestValidateAndExpandRejectsTraceWantErrorDrift(t *testing.T) {
+	c := validContract()
+	c.Traces[0].Steps[0].WantError = true
+	requireErrorContains(t, ValidateAndExpand(&c), "declares want=busy wantError=true")
+}
+
+func TestValidateAndExpandAcceptsSelfTransitionErrorTrace(t *testing.T) {
+	c := validContract()
+	c.Traces = append(c.Traces, Trace{
+		Name:    "rejected_terminal_event_preserves_state",
+		Initial: "done",
+		Steps: []TraceStep{
+			{Event: "start", Want: "done", WantError: true},
+			{Event: "finish", Want: "done", WantError: true},
+		},
+	})
+	if err := ValidateAndExpand(&c); err != nil {
+		t.Fatalf("ValidateAndExpand() error = %v", err)
+	}
+}
+
 func TestValidateAndExpandRejectsInvalidQuintName(t *testing.T) {
 	c := validContract()
 	c.States[0].Quint = "not-valid"
 	requireErrorContains(t, ValidateAndExpand(&c), "invalid Quint identifier not-valid")
 }
 
+func TestValidateAndExpandRejectsMissingReplayBindings(t *testing.T) {
+	c := validContract()
+	c.Replay.Bindings = nil
+	requireErrorContains(t, ValidateAndExpand(&c), "replay.bindings must declare at least one production replay test binding")
+}
+
+func TestValidateAndExpandRejectsReplayBindingPathTraversal(t *testing.T) {
+	c := validContract()
+	c.Replay.Bindings[0].Path = "../outside_test.go"
+	requireErrorContains(t, ValidateAndExpand(&c), "path must be a relative path inside the scenario root")
+}
+
+func TestValidateAndExpandRejectsNonExhaustiveTypeScriptStateVariants(t *testing.T) {
+	c := validTypeScriptContract()
+	delete(c.Runtime.TypeScript.StateVariants, "done")
+	requireErrorContains(t, ValidateAndExpand(&c), "runtime.typescript.stateVariants missing variant for done")
+}
+
+func TestValidateAndExpandRejectsUnknownTypeScriptEventVariant(t *testing.T) {
+	c := validTypeScriptContract()
+	c.Runtime.TypeScript.EventVariants["ghost"] = map[string]string{}
+	requireErrorContains(t, ValidateAndExpand(&c), "runtime.typescript.eventVariants references unknown id ghost")
+}
+
+func TestValidateAndExpandRejectsUnknownTypeScriptPayloadAlias(t *testing.T) {
+	c := validTypeScriptContract()
+	c.Runtime.TypeScript.StateVariants["busy"]["file"] = "missing"
+	requireErrorContains(t, ValidateAndExpand(&c), "runtime.typescript.stateVariants.busy.file references unknown payload alias missing")
+}
+
+func TestLoadRejectsSchemaViolations(t *testing.T) {
+	root := t.TempDir()
+	for name, mutate := range map[string]func(map[string]any){
+		"unknown property": func(body map[string]any) { body["unexpected"] = true },
+		"missing required": func(body map[string]any) { delete(body, "flowId") },
+		"invalid enum": func(body map[string]any) {
+			replay := body["replay"].(map[string]any)
+			bindings := replay["bindings"].([]any)
+			binding := bindings[0].(map[string]any)
+			binding["kind"] = "jest"
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			body := mustJSONMap(t, validContract())
+			mutate(body)
+			path := filepath.Join(root, strings.ReplaceAll(name, " ", "_")+".flow.json")
+			writeJSON(t, path, body)
+			_, err := Load(path, filepath.Base(path))
+			requireErrorContains(t, err, "schema validation failed")
+		})
+	}
+}
+
+func TestValidateReplayBindingsRequiresMarkerAndHelpers(t *testing.T) {
+	root := t.TempDir()
+	c := validContract()
+	writeBindingFile(t, root, "workflow_test.go", "TestWorkflow_ReplaysFormalModelArtifacts\nAssertFormalArtifactFresh\nAssertFormalTransitionsReplay\n")
+	requireErrorContains(t, ValidateReplayBindings(c, root), "AssertFormalTracesReplay")
+	writeBindingFile(t, root, "workflow_test.go", "TestWorkflow_ReplaysFormalModelArtifacts\nAssertFormalArtifactFresh\nAssertFormalTransitionsReplay\nAssertFormalTracesReplay\n")
+	if err := ValidateReplayBindings(c, root); err != nil {
+		t.Fatalf("ValidateReplayBindings() error = %v", err)
+	}
+}
+
 func validContract() Contract {
 	return Contract{
-		SchemaVersion: 2,
+		SchemaVersion: SchemaVersion,
 		FlowID:        "example.flow",
 		Domain:        "example",
 		Description:   "Example flow.",
@@ -84,7 +178,7 @@ func validContract() Contract {
 			TraceCount: 2,
 			Verify:     Verify{Invariants: []string{"TypeOK", "TerminalClosure"}},
 		},
-		Outputs: Outputs{ModelPath: "model.qnt", ArtifactPath: "model.formal.generated.json"},
+		Outputs: Outputs{ModelPath: "model.qnt", ArtifactPath: "model.formal.generated.json", DeclarationsPath: "model.generated.go"},
 		States: []State{
 			{ID: "idle", Quint: "Idle", Initial: true},
 			{ID: "busy", Quint: "Busy"},
@@ -109,7 +203,39 @@ func validContract() Contract {
 		Traces: []Trace{
 			{Name: "success", Initial: "idle", Steps: []TraceStep{{Event: "start", Want: "busy"}, {Event: "finish", Want: "done"}}},
 		},
+		Runtime: Runtime{
+			Go: &GoRuntime{Package: "example", StatusType: "Status", EventType: "Event", ConstantPrefix: "Example"},
+		},
+		Replay: Replay{Bindings: []ReplayBinding{{Kind: "go-test", Path: "workflow_test.go", Assertion: "TestWorkflow_ReplaysFormalModelArtifacts"}}},
 	}
+}
+
+func validTypeScriptContract() Contract {
+	c := validContract()
+	c.Outputs.DeclarationsPath = "workflow.generated.ts"
+	c.Runtime = Runtime{
+		TypeScript: &TypeScriptRuntime{
+			StatusType:             "ExampleStatus",
+			EventType:              "ExampleEventType",
+			StatusesConst:          "exampleStatuses",
+			EventsConst:            "exampleEvents",
+			FormalExpectationConst: "exampleFormalExpectation",
+			StateUnionType:         "ExampleState",
+			EventUnionType:         "ExampleEvent",
+			PayloadTypes:           map[string]string{"file": "File", "message": "string"},
+			StateVariants: map[string]map[string]string{
+				"idle": {},
+				"busy": {"file": "file"},
+				"done": {"message": "message"},
+			},
+			EventVariants: map[string]map[string]string{
+				"start":  {"file": "file"},
+				"finish": {},
+			},
+		},
+	}
+	c.Replay.Bindings = []ReplayBinding{{Kind: "vitest", Path: "workflow.test.ts", Assertion: "replays generated formal model artifacts"}}
+	return c
 }
 
 func assertTransition(t *testing.T, c Contract, from string, event string, to string, wantError bool) {
@@ -132,5 +258,43 @@ func requireErrorContains(t *testing.T, err error, want string) {
 	}
 	if !strings.Contains(err.Error(), want) {
 		t.Fatalf("error = %q, want substring %q", err.Error(), want)
+	}
+}
+
+func writeBindingFile(t *testing.T, root string, rel string, body string) {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustJSONMap(t *testing.T, c Contract) map[string]any {
+	t.Helper()
+	data, err := json.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(data, &body); err != nil {
+		t.Fatal(err)
+	}
+	return body
+}
+
+func writeJSON(t *testing.T, path string, body map[string]any) {
+	t.Helper()
+	data, err := json.MarshalIndent(body, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

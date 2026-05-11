@@ -1,59 +1,54 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  assertFormalArtifactFresh,
   assertFormalTransitionsReplay,
   assertFormalTracesReplay,
+  transitionFromReplayAdapter,
   type FormalArtifact,
 } from "../../test-utils";
+import { assertFormalArtifactFreshFromFiles } from "../../test-utils/modeltest/formal.node";
 import formalArtifact from "./AttachmentUploadWorkflow.formal.generated.json";
+import {
+  attachmentUploadFormalExpectation,
+  attachmentUploadReplayFixtureContract,
+  type AttachmentUploadEventFixtureMap,
+  type AttachmentUploadStateFixtureMap,
+} from "./AttachmentUploadWorkflow.generated";
 import {
   attachmentUploadEvents,
   attachmentUploadStatuses,
   checkAttachmentUploadInvariants,
   transitionAttachmentUpload,
-  type AttachmentUploadEvent,
-  type AttachmentUploadEventType,
-  type AttachmentUploadState,
-  type AttachmentUploadStatus,
 } from "./AttachmentUploadWorkflow";
 
 const file = new File(["hello"], "hello.txt", { type: "text/plain" });
+const attemptId = "attempt-1";
+const networkFailedMessage = "network failed";
 
-const stateFor = (status: AttachmentUploadStatus): AttachmentUploadState => {
-  switch (status) {
-    case "idle":
-      return { status: "idle" };
-    case "selected":
-      return { status: "selected", file };
-    case "uploading":
-      return { status: "uploading", file, attemptId: "attempt-1" };
-    case "succeeded":
-      return { status: "succeeded", fileName: file.name, attemptId: "attempt-1" };
-    case "failed":
-      return { status: "failed", file, message: "network failed", attemptId: "attempt-1" };
-  }
-};
+const stateFor = {
+  idle: () => ({ status: "idle" }),
+  selected: () => ({ status: "selected", file }),
+  uploading: () => ({ status: "uploading", file, attemptId }),
+  succeeded: () => ({ status: "succeeded", fileName: file.name, attemptId }),
+  failed: () => ({ status: "failed", file, message: networkFailedMessage, attemptId }),
+} satisfies AttachmentUploadStateFixtureMap;
 
-const eventFor = (event: AttachmentUploadEventType): AttachmentUploadEvent => {
-  switch (event) {
-    case "select":
-      return { type: "select", file };
-    case "start":
-      return { type: "start", attemptId: "attempt-1" };
-    case "succeed":
-      return { type: "succeed", attemptId: "attempt-1", fileName: file.name };
-    case "fail":
-      return { type: "fail", attemptId: "attempt-1", message: "network failed" };
-    case "reset":
-      return { type: "reset" };
-  }
-};
+const eventFor = {
+  select: () => ({ type: "select", file }),
+  start: () => ({ type: "start", attemptId }),
+  succeed: () => ({ type: "succeed", attemptId, fileName: file.name }),
+  fail: () => ({ type: "fail", attemptId, message: networkFailedMessage }),
+  reset: () => ({ type: "reset" }),
+} satisfies AttachmentUploadEventFixtureMap;
 
-const transitionStatus = (
-  status: AttachmentUploadStatus,
-  event: AttachmentUploadEventType,
-): AttachmentUploadStatus => transitionAttachmentUpload(stateFor(status), eventFor(event)).status;
+const transitionStatus = transitionFromReplayAdapter({
+  states: attachmentUploadReplayFixtureContract.states,
+  events: attachmentUploadReplayFixtureContract.events,
+  stateFor,
+  eventFor,
+  statusOf: (state) => state.status,
+  transition: transitionAttachmentUpload,
+});
 
 describe("AttachmentUpload workflow", () => {
   it("covers every status/event pair", () => {
@@ -76,20 +71,9 @@ describe("AttachmentUpload workflow", () => {
 
   it("replays generated formal model artifacts", () => {
     const artifact = formalArtifact as FormalArtifact;
-    assertFormalArtifactFresh(artifact, {
-      contractPath: "ui/src/features/notes/AttachmentUploadWorkflow.flow.json",
-      modelPath: "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
-      generatorPath: "tools/temporal-model",
-      invariants: [
-        "TypeOK",
-        "TerminalClosure",
-        "IllegalTransitionsPreserveState",
-        "AllDeclaredTransitionsCovered",
-        "StaleCompletionIsIgnored",
-      ],
-    });
-    assertFormalTransitionsReplay(artifact, attachmentUploadStatuses, attachmentUploadEvents, transitionStatus);
-    assertFormalTracesReplay(artifact, attachmentUploadStatuses, attachmentUploadEvents, transitionStatus);
+    assertFormalArtifactFreshFromFiles(artifact, attachmentUploadFormalExpectation);
+    assertFormalTransitionsReplay(artifact, attachmentUploadReplayFixtureContract.states, attachmentUploadReplayFixtureContract.events, transitionStatus);
+    assertFormalTracesReplay(artifact, attachmentUploadReplayFixtureContract.states, attachmentUploadReplayFixtureContract.events, transitionStatus);
   });
 
   it("rejects impossible states", () => {

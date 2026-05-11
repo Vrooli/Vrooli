@@ -35,7 +35,7 @@ func writeFlow(t *testing.T, root string, rel string, flowID string) {
 		t.Fatal(err)
 	}
 	body := `{
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "flowId": "` + flowID + `",
   "domain": "example",
   "description": "Example.",
@@ -46,13 +46,19 @@ func writeFlow(t *testing.T, root string, rel string, flowID string) {
     "traceCount": 1,
     "verify": { "invariants": ["TypeOK"] }
   },
-  "outputs": { "modelPath": "model.qnt", "artifactPath": "model.formal.generated.json" },
+  "outputs": { "modelPath": "model.qnt", "artifactPath": "model.formal.generated.json", "declarationsPath": "api/example.generated.go" },
   "states": [{ "id": "idle", "quint": "Idle", "initial": true }],
   "events": [{ "id": "tick", "quint": "Tick" }],
   "transitionDefaults": { "invalid": { "to": "self", "wantError": true } },
   "transitions": [{ "from": "idle", "event": "tick", "to": "self", "wantError": true }],
   "invariants": [{ "id": "type_ok", "quint": "TypeOK", "description": "Type OK." }],
-  "traces": [{ "name": "idle", "initial": "idle", "steps": [] }]
+  "traces": [{ "name": "idle", "initial": "idle", "steps": [] }],
+  "runtime": {
+    "go": { "package": "api", "statusType": "Status", "eventType": "Event", "constantPrefix": "Example" }
+  },
+  "replay": {
+    "bindings": [{ "kind": "go-test", "path": "api/example_test.go", "assertion": "TestExample_ReplaysFormalModelArtifacts" }]
+  }
 }`
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)

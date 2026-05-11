@@ -48,7 +48,6 @@ module ApiAttachmentUploadWorkflow {
   val IllegalTransitionsPreserveState =
     not(rejected) or nextStatus(status, event) == status
 
-  val AllDeclaredTransitionsCovered = true
 
   val MetadataRequiresBytesStored =
     not(isValid(status, RecordMetadata)) or status == BytesStored

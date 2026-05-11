@@ -5,12 +5,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"{{SCENARIO_ID}}/internal/httpx"
+
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/errors"
-
-	"{{SCENARIO_ID}}/internal/httpx"
 )
 
 // TestWriteError exercises the canonical non-2xx writer end-to-end:

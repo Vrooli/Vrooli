@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log"
 
+	"{{SCENARIO_ID}}/internal/clock"
+	"{{SCENARIO_ID}}/internal/module"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/blobstore"
 	"github.com/vrooli/api-core/connectx"
@@ -12,8 +15,6 @@ import (
 
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
-	"{{SCENARIO_ID}}/internal/clock"
-	"{{SCENARIO_ID}}/internal/module"
 	internalnotes "{{SCENARIO_ID}}/internal/notes"
 )
 

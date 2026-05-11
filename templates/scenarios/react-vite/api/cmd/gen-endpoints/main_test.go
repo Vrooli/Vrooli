@@ -34,10 +34,10 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	}
 
 	var got struct {
-		Schema      string                       `json:"$schema"`
-		Version     string                       `json:"version"`
-		Endpoints   []module.EndpointDescriptor  `json:"endpoints"`
-		CLICommands []CLICommand                 `json:"cli_commands"`
+		Schema      string                      `json:"$schema"`
+		Version     string                      `json:"version"`
+		Endpoints   []module.EndpointDescriptor `json:"endpoints"`
+		CLICommands []CLICommand                `json:"cli_commands"`
 	}
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("unmarshal output: %v\nbody=%s", err, string(data))
@@ -105,15 +105,18 @@ func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
 // normalisation step: the endpoint's "{{SCENARIO_ID}} notes list"
 // must compare against the seed's "notes list".
 func TestStripBinaryPrefix(t *testing.T) {
-	cases := map[string]string{
-		"{{SCENARIO_ID}} status":      "status",
-		"{{SCENARIO_ID}} notes list":  "notes list",
-		"already-stripped":            "already-stripped",
-		"{{SCENARIO_ID}}":             "{{SCENARIO_ID}}", // no trailing space → preserved
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{in: "{{SCENARIO_ID}} status", want: "status"},
+		{in: "{{SCENARIO_ID}} notes list", want: "notes list"},
+		{in: "already-stripped", want: "already-stripped"},
+		{in: "{{SCENARIO_ID}}", want: "{{SCENARIO_ID}}"}, // no trailing space → preserved
 	}
-	for in, want := range cases {
-		if got := stripBinaryPrefix(in); got != want {
-			t.Errorf("stripBinaryPrefix(%q) = %q, want %q", in, got, want)
+	for _, tc := range cases {
+		if got := stripBinaryPrefix(tc.in); got != tc.want {
+			t.Errorf("stripBinaryPrefix(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }

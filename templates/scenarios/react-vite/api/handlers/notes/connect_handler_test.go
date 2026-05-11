@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"{{SCENARIO_ID}}/handlers/notes"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/connectx"
@@ -15,7 +17,6 @@ import (
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
-	"{{SCENARIO_ID}}/handlers/notes"
 	internalnotes "{{SCENARIO_ID}}/internal/notes"
 	mocks "{{SCENARIO_ID}}/internal/notes/mocks"
 )

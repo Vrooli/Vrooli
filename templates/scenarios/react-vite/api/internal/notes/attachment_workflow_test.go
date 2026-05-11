@@ -2,6 +2,7 @@ package notes_test
 
 import (
 	"testing"
+
 	"{{SCENARIO_ID}}/internal/notes"
 	"{{SCENARIO_ID}}/internal/testutil/modeltest"
 
@@ -39,16 +40,14 @@ func TestAttachmentUploadWorkflow_ReplaysTraces(t *testing.T) {
 func TestAttachmentUploadWorkflow_ReplaysFormalModelArtifacts(t *testing.T) {
 	artifact := modeltest.LoadFormalArtifact(t, "attachment_upload_workflow.formal.generated.json")
 	modeltest.AssertFormalArtifactFresh(t, artifact, modeltest.FormalArtifactExpectation{
-		ContractPath:  "api/internal/notes/attachment_upload_workflow.flow.json",
-		ModelPath:     "api/internal/notes/attachment_upload_workflow.qnt",
-		GeneratorPath: "tools/temporal-model",
-		Invariants: []string{
-			"TypeOK",
-			"TerminalClosure",
-			"IllegalTransitionsPreserveState",
-			"AllDeclaredTransitionsCovered",
-			"MetadataRequiresBytesStored",
-		},
+		ContractPath:    notes.AttachmentUploadContractPath,
+		ContractSHA256:  notes.AttachmentUploadContractSHA256,
+		ModelPath:       notes.AttachmentUploadModelPath,
+		ModelSHA256:     notes.AttachmentUploadModelSHA256,
+		GeneratorPath:   notes.AttachmentUploadGeneratorPath,
+		GeneratorSHA256: notes.AttachmentUploadGeneratorSHA256,
+		Invariants:      notes.AttachmentUploadFormalExpectedInvariants(),
+		GeneratedChecks: notes.AttachmentUploadFormalExpectedGeneratedChecks(),
 	})
 	transition := func(status notes.AttachmentUploadStatus, event notes.AttachmentUploadEvent) (notes.AttachmentUploadStatus, error) {
 		next, err := notes.TransitionAttachmentUpload(notes.AttachmentUploadState{Status: status}, event)

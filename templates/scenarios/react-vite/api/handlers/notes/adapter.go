@@ -1,10 +1,10 @@
 package notes
 
 import (
+	"{{SCENARIO_ID}}/internal/notes"
+
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"{{SCENARIO_ID}}/internal/notes"
 )
 
 // domainToProto converts an internal notes.Note into the wire shape

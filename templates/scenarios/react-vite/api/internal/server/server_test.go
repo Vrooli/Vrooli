@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/require"
-
 	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/module"
 	"{{SCENARIO_ID}}/internal/server"
 	"{{SCENARIO_ID}}/internal/testutil/httpx"
+
+	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/require"
 )
 
 // TestServer_MountsEachModule pins the contract the server owns:

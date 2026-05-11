@@ -71,7 +71,7 @@ func Render(c contract.Contract) string {
 
 	customInvariants := make([]string, 0)
 	builtins := map[string]bool{
-		"TypeOK": true, "TerminalClosure": true, "IllegalTransitionsPreserveState": true, "AllDeclaredTransitionsCovered": true,
+		"TypeOK": true, "TerminalClosure": true, "IllegalTransitionsPreserveState": true,
 	}
 	for _, invariant := range c.Invariants {
 		if builtins[invariant.Quint] {
@@ -125,7 +125,6 @@ func Render(c contract.Contract) string {
   val IllegalTransitionsPreserveState =
     not(rejected) or nextStatus(status, event) == status
 
-  val AllDeclaredTransitionsCovered = true
 %s
 
   run transitionTable = {

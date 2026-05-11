@@ -8,9 +8,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health"
-
 	"{{SCENARIO_ID}}/handlers/health"
 	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/module"
@@ -18,6 +15,9 @@ import (
 	"{{SCENARIO_ID}}/internal/testutil/assertx"
 	"{{SCENARIO_ID}}/internal/testutil/httpx"
 	"{{SCENARIO_ID}}/internal/testutil/mocks"
+
+	"github.com/stretchr/testify/require"
+	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health"
 
 	"github.com/gorilla/mux"
 )
@@ -111,4 +111,3 @@ func TestHealthHandler(t *testing.T) {
 		})
 	}
 }
-

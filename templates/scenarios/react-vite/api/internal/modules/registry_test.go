@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"{{SCENARIO_ID}}/internal/modules"
+	"{{SCENARIO_ID}}/internal/testutil/db"
+
 	"github.com/stretchr/testify/require"
 
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "{{SCENARIO_ID}}/internal/database"
-	"{{SCENARIO_ID}}/internal/modules"
-	"{{SCENARIO_ID}}/internal/testutil/db"
 )
 
 // TestAllEndpoints_NonEmpty pins the smoke contract: at minimum the

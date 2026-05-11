@@ -1,14 +1,14 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 4,
   "flowId": "notes.attachment-upload.api",
   "source": {
     "contractPath": "api/internal/notes/attachment_upload_workflow.flow.json",
-    "contractSha256": "084b2acad87e2a381749b28ab1439803bc29073a64c75fab29fb8e413e737c21",
+    "contractSha256": "c3ef21f23068f61178095e850d10897fd9583efe665d512438fd727806647e0a",
     "generatorPath": "tools/temporal-model",
-    "generatorSha256": "1f07525efaed9f93eef2752322946cff9e384655cf5cc1f9f081c537e759fc98",
-    "generatorVersion": 3,
+    "generatorSha256": "fcee0fc08a18e9c36c79248cec36f3d5e3d85ef11a3c21ff85ac54f26db199dc",
+    "generatorVersion": 5,
     "modelPath": "api/internal/notes/attachment_upload_workflow.qnt",
-    "modelSha256": "51e90862ba7b757afe9cb01f580a6c4cd58e2b74dc295a11d7aa567a0ff624cb",
+    "modelSha256": "2c341156b2834df1e9a4ac39940abac4dfab3cd99b3954c2fc6e4debdeb25a6b",
     "quintVersion": "0.32.0",
     "verificationBackend": "apalache"
   },
@@ -49,7 +49,6 @@
       "TypeOK",
       "TerminalClosure",
       "IllegalTransitionsPreserveState",
-      "AllDeclaredTransitionsCovered",
       "MetadataRequiresBytesStored",
       "--max-steps",
       "6"
@@ -484,14 +483,59 @@
     "TypeOK",
     "TerminalClosure",
     "IllegalTransitionsPreserveState",
-    "AllDeclaredTransitionsCovered",
     "MetadataRequiresBytesStored"
   ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
   "coverage": {
-    "allStatesCovered": true,
-    "allEventsCovered": true,
-    "allPairsCovered": true,
-    "terminalStatesChecked": true
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "received",
+        "bytes_stored",
+        "metadata_recorded",
+        "failed"
+      ],
+      "coveredEvents": [
+        "store_bytes",
+        "record_metadata",
+        "fail"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "received",
+        "bytes_stored",
+        "metadata_recorded",
+        "failed"
+      ],
+      "coveredEvents": [
+        "store_bytes",
+        "record_metadata",
+        "fail"
+      ],
+      "coveredPairs": [
+        "received/store_bytes",
+        "received/record_metadata",
+        "received/fail",
+        "bytes_stored/store_bytes",
+        "bytes_stored/record_metadata",
+        "bytes_stored/fail",
+        "metadata_recorded/store_bytes",
+        "metadata_recorded/record_metadata",
+        "metadata_recorded/fail",
+        "failed/store_bytes",
+        "failed/record_metadata",
+        "failed/fail"
+      ],
+      "allPairsCovered": true
+    }
   },
   "checks": {
     "typechecked": true,

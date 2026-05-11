@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
 	"{{SCENARIO_ID}}/internal/httpx"
 	"{{SCENARIO_ID}}/internal/notes"
 

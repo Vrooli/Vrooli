@@ -24,11 +24,12 @@ export interface FormalArtifact {
   readonly namedTraces: readonly FormalArtifactTrace[];
   readonly generatedTraces: readonly FormalArtifactTrace[];
   readonly invariants: readonly string[];
+  readonly generatedChecks: readonly string[];
   readonly coverage: {
-    readonly allStatesCovered: boolean;
-    readonly allEventsCovered: boolean;
-    readonly allPairsCovered: boolean;
-    readonly terminalStatesChecked: boolean;
+    readonly transitionMatrixComplete: boolean;
+    readonly terminalTransitionsChecked: boolean;
+    readonly namedTraces: FormalArtifactTraceCoverage;
+    readonly generatedTraces: FormalArtifactTraceCoverage;
   };
   readonly checks: {
     readonly typechecked: boolean;
@@ -37,6 +38,15 @@ export interface FormalArtifact {
     readonly generatedFromContract: boolean;
     readonly generatedFromModel: boolean;
   };
+}
+
+export interface FormalArtifactTraceCoverage {
+  readonly allStatesCovered: boolean;
+  readonly allEventsCovered: boolean;
+  readonly coveredStates: readonly string[];
+  readonly coveredEvents: readonly string[];
+  readonly coveredPairs?: readonly string[];
+  readonly allPairsCovered?: boolean;
 }
 
 export interface FormalArtifactTransition {
@@ -58,6 +68,27 @@ export interface FormalArtifactTraceStep {
   readonly wantError: boolean;
 }
 
+export interface FormalReplayAdapter<
+  State extends PropertyKey,
+  Event extends PropertyKey,
+  RuntimeState,
+  RuntimeEvent,
+> {
+  readonly states: readonly State[];
+  readonly events: readonly Event[];
+  readonly stateFor: Record<State, () => RuntimeState>;
+  readonly eventFor: Record<Event, () => RuntimeEvent>;
+  readonly statusOf: (state: RuntimeState) => State;
+  readonly transition: (state: RuntimeState, event: RuntimeEvent) => RuntimeState;
+}
+
+export const transitionFromReplayAdapter =
+  <State extends PropertyKey, Event extends PropertyKey, RuntimeState, RuntimeEvent>(
+    adapter: FormalReplayAdapter<State, Event, RuntimeState, RuntimeEvent>,
+  ): WorkflowTransition<State, Event> =>
+  (state, event) =>
+    adapter.statusOf(adapter.transition(adapter.stateFor[state](), adapter.eventFor[event]()));
+
 export interface FormalArtifactFreshExpectation {
   readonly contractPath: string;
   readonly contractSha256?: string;
@@ -66,6 +97,7 @@ export interface FormalArtifactFreshExpectation {
   readonly generatorPath?: string;
   readonly generatorSha256?: string;
   readonly invariants?: readonly string[];
+  readonly generatedChecks?: readonly string[];
 }
 
 export const validateFormalArtifactFresh = (
@@ -73,8 +105,8 @@ export const validateFormalArtifactFresh = (
   expected: FormalArtifactFreshExpectation,
 ): string[] => {
   const errors: string[] = [];
-  if (artifact.schemaVersion !== 2) {
-    errors.push(`formal artifact schemaVersion=${artifact.schemaVersion}, want 2`);
+  if (artifact.schemaVersion !== 4) {
+    errors.push(`formal artifact schemaVersion=${artifact.schemaVersion}, want 4`);
   }
   if (artifact.flowId.trim() === "") {
     errors.push("formal artifact flowId is required");
@@ -135,17 +167,31 @@ export const validateFormalArtifactFresh = (
       errors.push(`formal artifact missing invariant ${invariant}`);
     }
   }
-  if (!artifact.coverage.allStatesCovered) {
-    errors.push("formal artifact does not cover all states");
+  for (const check of expected.generatedChecks ?? []) {
+    if (!artifact.generatedChecks.includes(check)) {
+      errors.push(`formal artifact missing generated check ${check}`);
+    }
   }
-  if (!artifact.coverage.allEventsCovered) {
-    errors.push("formal artifact does not cover all events");
+  if (!artifact.coverage.transitionMatrixComplete) {
+    errors.push("formal artifact transition matrix is incomplete");
   }
-  if (!artifact.coverage.allPairsCovered) {
-    errors.push("formal artifact does not cover all state/event pairs");
+  if (!artifact.coverage.terminalTransitionsChecked) {
+    errors.push("formal artifact does not check terminal transitions");
   }
-  if (!artifact.coverage.terminalStatesChecked) {
-    errors.push("formal artifact does not check terminal states");
+  if (!artifact.coverage.namedTraces.allStatesCovered) {
+    errors.push("formal artifact named traces do not cover all states");
+  }
+  if (!artifact.coverage.namedTraces.allEventsCovered) {
+    errors.push("formal artifact named traces do not cover all events");
+  }
+  if (artifact.coverage.generatedTraces.coveredStates.length === 0) {
+    errors.push("formal artifact generated traces do not report covered states");
+  }
+  if (artifact.coverage.generatedTraces.coveredEvents.length === 0) {
+    errors.push("formal artifact generated traces do not report covered events");
+  }
+  if (!artifact.coverage.generatedTraces.coveredPairs) {
+    errors.push("formal artifact generated traces do not report covered pairs");
   }
   if (artifact.transitions.length === 0) {
     errors.push("formal artifact transitions must not be empty");

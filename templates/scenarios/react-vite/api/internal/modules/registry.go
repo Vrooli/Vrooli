@@ -17,12 +17,13 @@
 package modules
 
 import (
+	"{{SCENARIO_ID}}/internal/module"
+
 	apidb "github.com/vrooli/api-core/database"
 
 	healthH "{{SCENARIO_ID}}/handlers/health"
 	notesH "{{SCENARIO_ID}}/handlers/notes"
 	localdb "{{SCENARIO_ID}}/internal/database"
-	"{{SCENARIO_ID}}/internal/module"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a

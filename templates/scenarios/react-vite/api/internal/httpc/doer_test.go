@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"{{SCENARIO_ID}}/internal/httpc"
 	"{{SCENARIO_ID}}/internal/testutil/mocks"
+
+	"github.com/stretchr/testify/require"
 )
 
 // fetchBody is a tiny inline reference caller — represents the shape

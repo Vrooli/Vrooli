@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "flowId": "notes.attachment-upload.ui",
   "domain": "notes",
   "description": "UI attachment upload interaction, including stale async completion protection through attempt identity.",
@@ -13,14 +13,14 @@
         "TypeOK",
         "TerminalClosure",
         "IllegalTransitionsPreserveState",
-        "AllDeclaredTransitionsCovered",
         "StaleCompletionIsIgnored"
       ]
     }
   },
   "outputs": {
     "modelPath": "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
-    "artifactPath": "ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json"
+    "artifactPath": "ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json",
+    "declarationsPath": "ui/src/features/notes/AttachmentUploadWorkflow.generated.ts"
   },
   "states": [
     { "id": "idle", "quint": "Idle", "initial": true },
@@ -52,7 +52,6 @@
     { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },
     { "id": "terminal_closure", "quint": "TerminalClosure", "description": "No terminal state is declared for this restartable UI flow." },
     { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions are state preserving." },
-    { "id": "all_declared_transitions_covered", "quint": "AllDeclaredTransitionsCovered", "description": "The generated transition table is checked by Quint tests." },
     {
       "id": "stale_completion_is_ignored",
       "quint": "StaleCompletionIsIgnored",
@@ -103,6 +102,66 @@
     }
   ],
   "runtime": {
+    "typescript": {
+      "statusType": "AttachmentUploadStatus",
+      "eventType": "AttachmentUploadEventType",
+      "statusesConst": "attachmentUploadStatuses",
+      "eventsConst": "attachmentUploadEvents",
+      "formalExpectationConst": "attachmentUploadFormalExpectation",
+      "stateUnionType": "AttachmentUploadState",
+      "eventUnionType": "AttachmentUploadEvent",
+      "payloadTypes": {
+        "attemptId": "string",
+        "file": "File",
+        "fileName": "string",
+        "message": "string"
+      },
+      "stateVariants": {
+        "idle": {},
+        "selected": {
+          "file": "file"
+        },
+        "uploading": {
+          "attemptId": "attemptId",
+          "file": "file"
+        },
+        "succeeded": {
+          "attemptId": "attemptId",
+          "fileName": "fileName"
+        },
+        "failed": {
+          "attemptId": "attemptId",
+          "file": "file",
+          "message": "message"
+        }
+      },
+      "eventVariants": {
+        "select": {
+          "file": "file"
+        },
+        "start": {
+          "attemptId": "attemptId"
+        },
+        "succeed": {
+          "attemptId": "attemptId",
+          "fileName": "fileName"
+        },
+        "fail": {
+          "attemptId": "attemptId",
+          "message": "message"
+        },
+        "reset": {}
+      }
+    },
     "staleCompletion": "attempt-id"
+  },
+  "replay": {
+    "bindings": [
+      {
+        "kind": "vitest",
+        "path": "ui/src/features/notes/AttachmentUploadWorkflow.test.ts",
+        "assertion": "replays generated formal model artifacts"
+      }
+    ]
   }
 }

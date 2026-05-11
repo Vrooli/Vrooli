@@ -13,12 +13,12 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-
 	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/middleware"
 	"{{SCENARIO_ID}}/internal/module"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 )
 
 // Deps holds the cross-cutting interfaces the Server depends on

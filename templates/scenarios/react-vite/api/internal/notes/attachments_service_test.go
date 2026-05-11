@@ -5,9 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"{{SCENARIO_ID}}/internal/notes"
+
 	"github.com/stretchr/testify/require"
 
-	"{{SCENARIO_ID}}/internal/notes"
 	mocks "{{SCENARIO_ID}}/internal/notes/mocks"
 )
 

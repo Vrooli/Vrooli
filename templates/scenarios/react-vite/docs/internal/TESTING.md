@@ -270,16 +270,16 @@ api/internal/<domain>/
   <flow>_workflow.flow.json
   <flow>_workflow.qnt
   <flow>_workflow.formal.generated.json
+  <flow>_workflow.generated.go
   <flow>_workflow.go
   <flow>_workflow_test.go
 ```
 
 `workflow.go` defines:
 
-- enumerable statuses, via `AllStatuses()` or an equivalent constant
-  list,
-- enumerable events, via `AllEvents()` or an equivalent constant list,
-- a pure `Transition(state, event)` function,
+- status and event types used by the generated topology declarations,
+- a pure `Transition(state, event)` wrapper around generated
+  status-transition helpers,
 - `CheckInvariants(state)` for rules that must hold after every
   transition.
 
@@ -295,6 +295,8 @@ api/internal/<domain>/
 - the generated formal artifact is fresh against the `*.flow.json`
   contract, generated `.qnt` model, generator source, and checked
   invariants.
+- the generated transition-table check is present as generated-check
+  metadata, not as a fake verified invariant.
 
 The canonical UI shape is:
 
@@ -303,6 +305,7 @@ ui/src/features/<domain>/
   <domain>Workflow.flow.json
   <domain>Workflow.qnt
   <domain>Workflow.formal.generated.json
+  <domain>Workflow.generated.ts
   <domain>Workflow.ts
   <domain>Workflow.test.ts
 ```
@@ -312,7 +315,10 @@ representable. For example, an upload should not be able to hold both
 `{ status: "uploading" }` and a success payload through parallel
 booleans. Components dispatch events to the workflow and render the
 returned state; they do not duplicate transition rules in event
-handlers.
+handlers. Workflow tests build replay transitions with the shared
+`transitionFromReplayAdapter` helper plus generated fixture map types
+and generated `*ReplayFixtureContract` constants, so adding a generated
+status/event creates a type error until the runtime fixture exists.
 
 Workflow maturity is incremental:
 
@@ -331,24 +337,63 @@ The notes attachment upload workflow is the reference Level 5 pattern:
 - `api/internal/notes/attachment_upload_workflow.go`
 - `api/internal/notes/attachment_upload_workflow.qnt`
 - `api/internal/notes/attachment_upload_workflow.formal.generated.json`
+- `api/internal/notes/attachment_upload_workflow.generated.go`
 - `api/internal/notes/attachment_workflow_test.go`
 - `ui/src/features/notes/AttachmentUploadWorkflow.flow.json`
 - `ui/src/features/notes/AttachmentUploadWorkflow.ts`
 - `ui/src/features/notes/AttachmentUploadWorkflow.qnt`
 - `ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json`
+- `ui/src/features/notes/AttachmentUploadWorkflow.generated.ts`
 - `ui/src/features/notes/AttachmentUploadWorkflow.test.ts`
 
 `make temporal-models` runs the Go-native temporal-model tool tests, then
 runs `quint typecheck`, `quint test`, `quint verify`, and deterministic MBT
 trace generation through `tools/temporal-model`. It fails if the checked-in
-artifacts are stale. Go and TypeScript tests load those artifacts through
-`modeltest` and replay generated transitions/traces against production
-transition functions.
+artifacts or generated declarations are stale. The generated declarations
+provide state/event topology and formal freshness expectations, including
+concrete hashes for the contract, model, and generator. They also expose
+pure generated status-transition helpers derived from `*.flow.json`, so
+production code does not maintain a second abstract transition matrix.
+Go and TypeScript tests load those artifacts through `modeltest` and
+replay generated transitions/traces against production transition
+functions. UI tests keep browser-safe replay helpers separate from the
+Node-only freshness helper, which recomputes the contract, generated
+model, and generator tree hashes from disk.
+
+Formal artifacts use schema v4 coverage metadata. `transitionMatrixComplete`
+and `terminalTransitionsChecked` describe the generated matrix. `namedTraces`
+describes required hand-authored trace coverage. `generatedTraces` reports
+what Quint MBT traces visited, including `coveredPairs` and
+`allPairsCovered`; that field is informational and may be false.
+
+Schema v3 `*.flow.json` files must also declare `replay.bindings`.
+`tools/temporal-model validate`, `generate`, and `check` verify that each
+binding path exists and contains the declared replay test marker plus the
+formal artifact, transition, and trace helper calls. This makes a missing
+production replay test a generator failure instead of a later review catch.
+Those commands also validate each contract against
+`tools/temporal-model/flow.schema.json` before semantic validation, so
+unknown fields, missing required fields, and invalid enum values fail
+with contract-path context before Quint runs. Use
+`tools/temporal-model explain --flow <flow-id>` to inspect generated
+files, runtime typing, fixture contracts, topology, replay bindings,
+coverage, and the exact commands to run next.
 
 A Quint/TLA+ model is only accepted when this full loop exists.
 Documentation-only formal specs are drift-prone and should not be
 added. Plain CRUD should stay plain; copy the Level 5 pattern only for
 flows with lifecycle states and illegal transitions.
+
+When adding or changing a Level 5 state/event:
+
+1. Edit the flow contract.
+2. Regenerate that flow with `cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow <flow-id>`.
+3. Update only runtime payload logic that the abstract model cannot own
+   (file handles, attempt ids, repository side effects, user-facing
+   messages).
+4. Update UI replay fixture maps; missing keys should be compile-time
+   failures via the generated fixture map types.
+5. Run `make temporal-models` before the regular scenario tests.
 
 ### Buffer-backed logger pattern
 

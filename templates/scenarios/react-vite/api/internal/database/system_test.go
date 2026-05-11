@@ -5,12 +5,13 @@ import (
 	"strings"
 	"testing"
 
+	"{{SCENARIO_ID}}/internal/testutil/db"
+
 	"github.com/stretchr/testify/require"
 
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "{{SCENARIO_ID}}/internal/database"
-	"{{SCENARIO_ID}}/internal/testutil/db"
 )
 
 // TestSystemSchema_IsEmpty is a deliberate tripwire. The system file

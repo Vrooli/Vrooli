@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"{{SCENARIO_ID}}/internal/clock"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSystemNowReturnsCurrentTime(t *testing.T) {

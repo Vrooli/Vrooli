@@ -6,14 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"{{SCENARIO_ID}}/internal/notes"
+	"{{SCENARIO_ID}}/internal/testutil/db"
+	"{{SCENARIO_ID}}/internal/testutil/mocks"
+
 	"github.com/stretchr/testify/require"
 
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "{{SCENARIO_ID}}/internal/database"
-	"{{SCENARIO_ID}}/internal/notes"
-	"{{SCENARIO_ID}}/internal/testutil/db"
-	"{{SCENARIO_ID}}/internal/testutil/mocks"
 )
 
 // newSchemaDB returns a sqlite handle with the production schema

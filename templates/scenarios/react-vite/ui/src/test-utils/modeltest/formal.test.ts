@@ -4,6 +4,7 @@ import {
   validateFormalArtifactFresh,
   validateFormalTransitionsReplay,
   validateFormalTracesReplay,
+  transitionFromReplayAdapter,
   type FormalArtifact,
 } from "./formal";
 
@@ -39,6 +40,7 @@ describe("formal modeltest helpers", () => {
       generatorPath,
       generatorSha256,
       invariants: ["TypeOK", "TerminalClosure"],
+      generatedChecks: ["transitionTable"],
     })).toEqual([]);
   });
 
@@ -57,6 +59,34 @@ describe("formal modeltest helpers", () => {
   it("replays generated transitions", () => {
     const artifact = validArtifact();
     expect(validateFormalTransitionsReplay(artifact, statuses, events, transition)).toEqual([]);
+  });
+
+  it("builds typed replay transitions from runtime adapters", () => {
+    type RuntimeState = { readonly status: Status };
+    type RuntimeEvent = { readonly type: Event };
+    const stateFor = {
+      idle: () => ({ status: "idle" }),
+      busy: () => ({ status: "busy" }),
+      done: () => ({ status: "done" }),
+    } satisfies Record<Status, () => RuntimeState>;
+    const eventFor = {
+      start: () => ({ type: "start" }),
+      finish: () => ({ type: "finish" }),
+    } satisfies Record<Event, () => RuntimeEvent>;
+    const runtimeTransition = (state: RuntimeState, event: RuntimeEvent): RuntimeState => ({
+      status: transition(state.status, event.type),
+    });
+
+    const replayTransition = transitionFromReplayAdapter({
+      states: statuses,
+      events,
+      stateFor,
+      eventFor,
+      statusOf: (state) => state.status,
+      transition: runtimeTransition,
+    });
+
+    expect(replayTransition("idle", "start")).toBe("busy");
   });
 
   it("rejects unknown and divergent transitions", () => {
@@ -99,7 +129,7 @@ describe("formal modeltest helpers", () => {
 });
 
 const validArtifact = (): FormalArtifact => ({
-  schemaVersion: 2,
+  schemaVersion: 4,
   flowId: "example.flow",
   source: {
     contractPath,
@@ -148,11 +178,24 @@ const validArtifact = (): FormalArtifact => ({
     },
   ],
   invariants: ["TypeOK", "TerminalClosure"],
+  generatedChecks: ["transitionTable"],
   coverage: {
-    allStatesCovered: true,
-    allEventsCovered: true,
-    allPairsCovered: true,
-    terminalStatesChecked: true,
+    transitionMatrixComplete: true,
+    terminalTransitionsChecked: true,
+    namedTraces: {
+      allStatesCovered: true,
+      allEventsCovered: true,
+      coveredStates: ["idle", "busy", "done"],
+      coveredEvents: ["start", "finish"],
+    },
+    generatedTraces: {
+      allStatesCovered: false,
+      allEventsCovered: false,
+      coveredStates: ["idle", "busy"],
+      coveredEvents: ["start"],
+      coveredPairs: ["idle/start"],
+      allPairsCovered: false,
+    },
   },
   checks: {
     typechecked: true,

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"{{SCENARIO_ID}}/internal/notes"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFakeAttachmentsRepository_CreateBackfillsUploadedAt(t *testing.T) {

@@ -1,36 +1,26 @@
-export const attachmentUploadStatuses = [
-  "idle",
-  "selected",
-  "uploading",
-  "succeeded",
-  "failed",
-] as const;
+import type {
+  AttachmentUploadEvent,
+  AttachmentUploadStatus,
+  AttachmentUploadState,
+} from "./AttachmentUploadWorkflow.generated";
+import {
+  isAttachmentUploadEventValid,
+  nextAttachmentUploadStatus,
+} from "./AttachmentUploadWorkflow.generated";
 
-export type AttachmentUploadStatus = (typeof attachmentUploadStatuses)[number];
-
-export const attachmentUploadEvents = [
-  "select",
-  "start",
-  "succeed",
-  "fail",
-  "reset",
-] as const;
-
-export type AttachmentUploadEventType = (typeof attachmentUploadEvents)[number];
-
-export type AttachmentUploadState =
-  | { readonly status: "idle" }
-  | { readonly status: "selected"; readonly file: File }
-  | { readonly status: "uploading"; readonly file: File; readonly attemptId: string }
-  | { readonly status: "succeeded"; readonly fileName: string; readonly attemptId: string }
-  | { readonly status: "failed"; readonly file: File; readonly message: string; readonly attemptId: string };
-
-export type AttachmentUploadEvent =
-  | { readonly type: "select"; readonly file: File }
-  | { readonly type: "start"; readonly attemptId: string }
-  | { readonly type: "succeed"; readonly attemptId: string; readonly fileName: string }
-  | { readonly type: "fail"; readonly attemptId: string; readonly message: string }
-  | { readonly type: "reset" };
+export {
+  attachmentUploadEvents,
+  attachmentUploadStatuses,
+  isAttachmentUploadEventValid,
+  nextAttachmentUploadStatus,
+  transitionAttachmentUploadStatus,
+} from "./AttachmentUploadWorkflow.generated";
+export type {
+  AttachmentUploadEvent,
+  AttachmentUploadEventType,
+  AttachmentUploadState,
+  AttachmentUploadStatus,
+} from "./AttachmentUploadWorkflow.generated";
 
 export type StartableAttachmentUploadState = Extract<
   AttachmentUploadState,
@@ -60,12 +50,13 @@ export const transitionAttachmentUpload = (
   event: AttachmentUploadEvent,
 ): AttachmentUploadState => {
   let next: AttachmentUploadState;
+  let matchesFormalStatus = true;
   switch (event.type) {
     case "select":
       next = { status: "selected", file: event.file };
       break;
     case "start":
-      if (state.status !== "selected" && state.status !== "failed") {
+      if (!isAttachmentUploadEventValid(state.status, event.type) || (state.status !== "selected" && state.status !== "failed")) {
         throw new Error(`cannot start upload from ${state.status}`);
       }
       if (event.attemptId.trim() === "") {
@@ -74,15 +65,17 @@ export const transitionAttachmentUpload = (
       next = { status: "uploading", file: state.file, attemptId: event.attemptId };
       break;
     case "succeed":
-      if (state.status !== "uploading" || state.attemptId !== event.attemptId) {
+      if (!isAttachmentUploadEventValid(state.status, event.type) || state.status !== "uploading" || state.attemptId !== event.attemptId) {
         next = state;
+        matchesFormalStatus = state.status !== "uploading";
         break;
       }
       next = { status: "succeeded", fileName: event.fileName, attemptId: event.attemptId };
       break;
     case "fail":
-      if (state.status !== "uploading" || state.attemptId !== event.attemptId) {
+      if (!isAttachmentUploadEventValid(state.status, event.type) || state.status !== "uploading" || state.attemptId !== event.attemptId) {
         next = state;
+        matchesFormalStatus = state.status !== "uploading";
         break;
       }
       next = { status: "failed", file: state.file, message: event.message, attemptId: event.attemptId };
@@ -90,6 +83,10 @@ export const transitionAttachmentUpload = (
     case "reset":
       next = initialAttachmentUploadState;
       break;
+  }
+  const expectedStatus = nextAttachmentUploadStatus(state.status, event.type);
+  if (matchesFormalStatus && expectedStatus !== next.status) {
+    throw new Error(`attachment upload transition drift: ${state.status}/${event.type} produced ${next.status}, want ${expectedStatus}`);
   }
   checkAttachmentUploadInvariants(next);
   return next;

@@ -8,6 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"{{SCENARIO_ID}}/internal/clock"
+	"{{SCENARIO_ID}}/internal/modules"
+	"{{SCENARIO_ID}}/internal/server"
+
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -16,9 +20,6 @@ import (
 
 	healthH "{{SCENARIO_ID}}/handlers/health"
 	notesH "{{SCENARIO_ID}}/handlers/notes"
-	"{{SCENARIO_ID}}/internal/clock"
-	"{{SCENARIO_ID}}/internal/modules"
-	"{{SCENARIO_ID}}/internal/server"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN

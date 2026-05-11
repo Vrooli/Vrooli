@@ -80,12 +80,15 @@ export {
   assertFormalArtifactFresh,
   assertFormalTransitionsReplay,
   assertFormalTracesReplay,
+  transitionFromReplayAdapter,
   validateFormalArtifactFresh,
   validateFormalTransitionsReplay,
   validateFormalTracesReplay,
 } from "./modeltest/formal";
 export type {
   FormalArtifact,
+  FormalArtifactTraceCoverage,
+  FormalReplayAdapter,
   FormalArtifactTrace,
   FormalArtifactTraceStep,
   FormalArtifactTransition,

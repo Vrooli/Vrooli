@@ -12,6 +12,7 @@ import (
 func TestRunListAndExplainUseDiscoveredContracts(t *testing.T) {
 	root := t.TempDir()
 	writeFlow(t, root, "api/example.flow.json", "example.visible")
+	writeBinding(t, root, "api/example_test.go", "TestExample_ReplaysFormalModelArtifacts")
 
 	var stdout bytes.Buffer
 	if err := Run(context.Background(), []string{"list", "--root", root}, &stdout, &bytes.Buffer{}); err != nil {
@@ -25,7 +26,20 @@ func TestRunListAndExplainUseDiscoveredContracts(t *testing.T) {
 	if err := Run(context.Background(), []string{"explain", "--root", root, "--flow", "example.visible"}, &stdout, &bytes.Buffer{}); err != nil {
 		t.Fatalf("Run(explain) error = %v", err)
 	}
-	for _, want := range []string{"flow: example.visible", "states: 1", "events: 1", "named traces: 1"} {
+	for _, want := range []string{
+		"flow: example.visible",
+		"Generated files:",
+		"Runtime:",
+		"Topology:",
+		"states: 1 (initial idle; terminal none)",
+		"events: 1",
+		"expanded transitions: 1",
+		"Replay bindings:",
+		"Coverage requirements:",
+		"named traces: 1",
+		"Commands:",
+		"Hand-authored follow-up files:",
+	} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("explain output = %q, want %q", stdout.String(), want)
 		}
@@ -35,6 +49,7 @@ func TestRunListAndExplainUseDiscoveredContracts(t *testing.T) {
 func TestRunRejectsUnknownFlow(t *testing.T) {
 	root := t.TempDir()
 	writeFlow(t, root, "api/example.flow.json", "example.visible")
+	writeBinding(t, root, "api/example_test.go", "TestExample_ReplaysFormalModelArtifacts")
 
 	err := Run(context.Background(), []string{"list", "--root", root, "--flow", "missing.flow"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "unknown flow id missing.flow") {
@@ -58,7 +73,7 @@ func writeFlow(t *testing.T, root string, rel string, flowID string) {
 		t.Fatal(err)
 	}
 	body := `{
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "flowId": "` + flowID + `",
   "domain": "example",
   "description": "Example.",
@@ -69,14 +84,32 @@ func writeFlow(t *testing.T, root string, rel string, flowID string) {
     "traceCount": 1,
     "verify": { "invariants": ["TypeOK"] }
   },
-  "outputs": { "modelPath": "model.qnt", "artifactPath": "model.formal.generated.json" },
+  "outputs": { "modelPath": "model.qnt", "artifactPath": "model.formal.generated.json", "declarationsPath": "api/example.generated.go" },
   "states": [{ "id": "idle", "quint": "Idle", "initial": true }],
   "events": [{ "id": "tick", "quint": "Tick" }],
   "transitionDefaults": { "invalid": { "to": "self", "wantError": true } },
   "transitions": [{ "from": "idle", "event": "tick", "to": "self", "wantError": true }],
   "invariants": [{ "id": "type_ok", "quint": "TypeOK", "description": "Type OK." }],
-  "traces": [{ "name": "idle", "initial": "idle", "steps": [] }]
+  "traces": [{ "name": "idle", "initial": "idle", "steps": [] }],
+  "runtime": {
+    "go": { "package": "api", "statusType": "Status", "eventType": "Event", "constantPrefix": "Example" }
+  },
+  "replay": {
+    "bindings": [{ "kind": "go-test", "path": "api/example_test.go", "assertion": "TestExample_ReplaysFormalModelArtifacts" }]
+  }
 }`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeBinding(t *testing.T, root string, rel string, marker string) {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := marker + "\nAssertFormalArtifactFresh\nAssertFormalTransitionsReplay\nAssertFormalTracesReplay\n"
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}

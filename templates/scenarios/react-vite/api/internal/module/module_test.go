@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"{{SCENARIO_ID}}/internal/module"
+
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
-
-	"{{SCENARIO_ID}}/internal/module"
 )
 
 func TestModuleMountRegistersRoutes(t *testing.T) {

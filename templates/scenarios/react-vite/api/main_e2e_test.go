@@ -180,4 +180,3 @@ func waitForHealth(url string, timeout time.Duration) error {
 	}
 	return fmt.Errorf("timed out after %s; last error: %v", timeout, lastErr)
 }
-

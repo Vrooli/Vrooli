@@ -14,7 +14,7 @@ linters:
 
 linters-settings:
   gofumpt:
-    module-path: "{{SCENARIO_ID}}"
+    module-path: react-vite-temporal-model
   revive:
     rules:
       - name: blank-imports

@@ -10,9 +10,9 @@ import (
 	"context"
 	"net/http"
 
-	apihealth "github.com/vrooli/api-core/health"
-
 	"{{SCENARIO_ID}}/internal/database"
+
+	apihealth "github.com/vrooli/api-core/health"
 )
 
 // Deps wires the seams the health handler needs. Service and Version

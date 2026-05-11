@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"{{SCENARIO_ID}}/internal/notes"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestDomainToProto_PopulatedFields pins the field-by-field mapping

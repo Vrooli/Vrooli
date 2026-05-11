@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "flowId": "notes.attachment-upload.api",
   "domain": "notes",
   "description": "API-side attachment upload orchestration from request receipt through byte storage and metadata recording.",
@@ -13,14 +13,14 @@
         "TypeOK",
         "TerminalClosure",
         "IllegalTransitionsPreserveState",
-        "AllDeclaredTransitionsCovered",
         "MetadataRequiresBytesStored"
       ]
     }
   },
   "outputs": {
     "modelPath": "api/internal/notes/attachment_upload_workflow.qnt",
-    "artifactPath": "api/internal/notes/attachment_upload_workflow.formal.generated.json"
+    "artifactPath": "api/internal/notes/attachment_upload_workflow.formal.generated.json",
+    "declarationsPath": "api/internal/notes/attachment_upload_workflow.generated.go"
   },
   "states": [
     { "id": "received", "quint": "Received", "initial": true },
@@ -47,7 +47,6 @@
     { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },
     { "id": "terminal_closure", "quint": "TerminalClosure", "description": "Terminal states cannot transition to another status." },
     { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions are state preserving." },
-    { "id": "all_declared_transitions_covered", "quint": "AllDeclaredTransitionsCovered", "description": "The generated transition table is checked by Quint tests." },
     {
       "id": "metadata_requires_bytes_stored",
       "quint": "MetadataRequiresBytesStored",
@@ -82,10 +81,25 @@
     }
   ],
   "runtime": {
+    "go": {
+      "package": "notes",
+      "statusType": "AttachmentUploadStatus",
+      "eventType": "AttachmentUploadEvent",
+      "constantPrefix": "AttachmentUpload"
+    },
     "sideEffects": [
       "BlobStore write failure returns before metadata is created.",
       "Metadata creation failure deletes the stored blob.",
       "Missing note during metadata creation deletes the stored blob."
+    ]
+  },
+  "replay": {
+    "bindings": [
+      {
+        "kind": "go-test",
+        "path": "api/internal/notes/attachment_workflow_test.go",
+        "assertion": "TestAttachmentUploadWorkflow_ReplaysFormalModelArtifacts"
+      }
     ]
   }
 }

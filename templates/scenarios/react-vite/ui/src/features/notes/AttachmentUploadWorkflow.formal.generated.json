@@ -1,14 +1,14 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 4,
   "flowId": "notes.attachment-upload.ui",
   "source": {
     "contractPath": "ui/src/features/notes/AttachmentUploadWorkflow.flow.json",
-    "contractSha256": "321fbcdd220fb28a3ece4768422156c01b1c1365c5511caaac62d03af29de01d",
+    "contractSha256": "666a9c94ade683d970a00dc959fd70f54b7db4bc677ea2e2b475f574868e8fc5",
     "generatorPath": "tools/temporal-model",
-    "generatorSha256": "1f07525efaed9f93eef2752322946cff9e384655cf5cc1f9f081c537e759fc98",
-    "generatorVersion": 3,
+    "generatorSha256": "fcee0fc08a18e9c36c79248cec36f3d5e3d85ef11a3c21ff85ac54f26db199dc",
+    "generatorVersion": 5,
     "modelPath": "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
-    "modelSha256": "d99acafafa2db2882e70a13910c957adcbbaa732b3869dbbc71e5eca33827838",
+    "modelSha256": "ced2d34630dba6513089e8c03a9b74099cd5194f2e169285f20e7e932ff95be0",
     "quintVersion": "0.32.0",
     "verificationBackend": "apalache"
   },
@@ -49,7 +49,6 @@
       "TypeOK",
       "TerminalClosure",
       "IllegalTransitionsPreserveState",
-      "AllDeclaredTransitionsCovered",
       "StaleCompletionIsIgnored",
       "--max-steps",
       "8"
@@ -885,14 +884,66 @@
     "TypeOK",
     "TerminalClosure",
     "IllegalTransitionsPreserveState",
-    "AllDeclaredTransitionsCovered",
     "StaleCompletionIsIgnored"
   ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
   "coverage": {
-    "allStatesCovered": true,
-    "allEventsCovered": true,
-    "allPairsCovered": true,
-    "terminalStatesChecked": true
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "idle",
+        "selected",
+        "uploading",
+        "succeeded",
+        "failed"
+      ],
+      "coveredEvents": [
+        "select",
+        "start",
+        "succeed",
+        "fail",
+        "reset"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": false,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "idle",
+        "selected",
+        "uploading",
+        "succeeded"
+      ],
+      "coveredEvents": [
+        "select",
+        "start",
+        "succeed",
+        "fail",
+        "reset"
+      ],
+      "coveredPairs": [
+        "idle/select",
+        "idle/start",
+        "idle/succeed",
+        "idle/fail",
+        "idle/reset",
+        "selected/select",
+        "selected/start",
+        "selected/succeed",
+        "selected/fail",
+        "selected/reset",
+        "uploading/select",
+        "uploading/succeed",
+        "uploading/reset",
+        "succeeded/select"
+      ],
+      "allPairsCovered": false
+    }
   },
   "checks": {
     "typechecked": true,

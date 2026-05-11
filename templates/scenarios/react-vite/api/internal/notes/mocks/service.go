@@ -5,9 +5,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/google/uuid"
-
 	"{{SCENARIO_ID}}/internal/notes"
+
+	"github.com/google/uuid"
 )
 
 // FakeService satisfies notes.Service for handler tests that don't

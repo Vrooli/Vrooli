@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	SchemaVersion    = 2
-	GeneratorVersion = 3
+	SchemaVersion    = 4
+	GeneratorVersion = 5
 	GeneratorPath    = "tools/temporal-model"
 )
 
@@ -31,6 +31,7 @@ type Artifact struct {
 	NamedTraces     []NamedTrace                  `json:"namedTraces"`
 	GeneratedTraces []quint.ArtifactTrace         `json:"generatedTraces"`
 	Invariants      []string                      `json:"invariants"`
+	GeneratedChecks []string                      `json:"generatedChecks"`
 	Coverage        Coverage                      `json:"coverage"`
 	Checks          Checks                        `json:"checks"`
 }
@@ -50,10 +51,19 @@ type Source struct {
 type NamedTrace = quint.ArtifactTrace
 
 type Coverage struct {
-	AllStatesCovered      bool `json:"allStatesCovered"`
-	AllEventsCovered      bool `json:"allEventsCovered"`
-	AllPairsCovered       bool `json:"allPairsCovered"`
-	TerminalStatesChecked bool `json:"terminalStatesChecked"`
+	TransitionMatrixComplete   bool          `json:"transitionMatrixComplete"`
+	TerminalTransitionsChecked bool          `json:"terminalTransitionsChecked"`
+	NamedTraces                TraceCoverage `json:"namedTraces"`
+	GeneratedTraces            TraceCoverage `json:"generatedTraces"`
+}
+
+type TraceCoverage struct {
+	AllStatesCovered bool     `json:"allStatesCovered"`
+	AllEventsCovered bool     `json:"allEventsCovered"`
+	CoveredStates    []string `json:"coveredStates"`
+	CoveredEvents    []string `json:"coveredEvents"`
+	CoveredPairs     []string `json:"coveredPairs,omitempty"`
+	AllPairsCovered  *bool    `json:"allPairsCovered,omitempty"`
 }
 
 type Checks struct {
@@ -132,7 +142,8 @@ func Build(ctx context.Context, c contract.Contract, options BuildOptions) (Arti
 		NamedTraces:     namedTraces(c),
 		GeneratedTraces: generatedTraces,
 		Invariants:      append([]string(nil), c.Model.Verify.Invariants...),
-		Coverage:        coverage(c),
+		GeneratedChecks: []string{"transitionTable"},
+		Coverage:        coverage(c, generatedTraces),
 		Checks: Checks{
 			Typechecked:           true,
 			Tested:                true,
@@ -237,39 +248,140 @@ func namedTraces(c contract.Contract) []NamedTrace {
 	return out
 }
 
-func coverage(c contract.Contract) Coverage {
-	pairs := map[string]bool{}
+func coverage(c contract.Contract, generatedTraces []quint.ArtifactTrace) Coverage {
+	matrixPairs := map[string]bool{}
 	for _, t := range c.ExpandedTransitions {
-		pairs[t.From+"\x00"+t.Event] = true
+		matrixPairs[t.From+"\x00"+t.Event] = true
 	}
-	traceStates := map[string]bool{}
-	traceEvents := map[string]bool{}
-	for _, trace := range c.Traces {
-		traceStates[trace.Initial] = true
-		for _, step := range trace.Steps {
-			traceStates[step.Want] = true
-			traceEvents[step.Event] = true
+	matrixComplete := true
+	terminalTransitionsChecked := true
+	for _, state := range c.States {
+		stateComplete := true
+		for _, event := range c.Events {
+			if !matrixPairs[state.ID+"\x00"+event.ID] {
+				matrixComplete = false
+				stateComplete = false
+			}
+		}
+		if state.Terminal && !stateComplete {
+			terminalTransitionsChecked = false
 		}
 	}
-	allStates := true
+	return Coverage{
+		TransitionMatrixComplete:   matrixComplete,
+		TerminalTransitionsChecked: terminalTransitionsChecked,
+		NamedTraces:                namedTraceCoverage(c),
+		GeneratedTraces:            generatedTraceCoverage(c, generatedTraces),
+	}
+}
+
+func namedTraceCoverage(c contract.Contract) TraceCoverage {
+	traces := make([]quint.ArtifactTrace, 0, len(c.Traces))
+	for _, trace := range c.Traces {
+		steps := make([]quint.ArtifactTraceStep, 0, len(trace.Steps))
+		for _, step := range trace.Steps {
+			steps = append(steps, quint.ArtifactTraceStep{Event: step.Event, Want: step.Want, WantError: step.WantError})
+		}
+		traces = append(traces, quint.ArtifactTrace{Name: trace.Name, Initial: trace.Initial, Steps: steps})
+	}
+	return traceCoverage(c, traces, false)
+}
+
+func generatedTraceCoverage(c contract.Contract, traces []quint.ArtifactTrace) TraceCoverage {
+	return traceCoverage(c, traces, true)
+}
+
+func traceCoverage(c contract.Contract, traces []quint.ArtifactTrace, includePairs bool) TraceCoverage {
+	states := map[string]bool{}
+	events := map[string]bool{}
+	pairs := map[string]bool{}
+	for _, trace := range traces {
+		current := trace.Initial
+		states[current] = true
+		for _, step := range trace.Steps {
+			events[step.Event] = true
+			if includePairs {
+				pairs[current+"/"+step.Event] = true
+			}
+			current = step.Want
+			states[current] = true
+		}
+	}
+	coverage := TraceCoverage{
+		AllStatesCovered: allStatesCovered(c, states),
+		AllEventsCovered: allEventsCovered(c, events),
+		CoveredStates:    coveredStates(c, states),
+		CoveredEvents:    coveredEvents(c, events),
+	}
+	if includePairs {
+		coverage.CoveredPairs = coveredPairs(c, pairs)
+		coverage.AllPairsCovered = boolPtr(allPairsCovered(c, pairs))
+	}
+	return coverage
+}
+
+func boolPtr(value bool) *bool {
+	return &value
+}
+
+func allStatesCovered(c contract.Contract, seen map[string]bool) bool {
 	for _, state := range c.States {
-		allStates = allStates && traceStates[state.ID]
+		if !seen[state.ID] {
+			return false
+		}
 	}
-	allEvents := true
+	return true
+}
+
+func allEventsCovered(c contract.Contract, seen map[string]bool) bool {
 	for _, event := range c.Events {
-		allEvents = allEvents && traceEvents[event.ID]
+		if !seen[event.ID] {
+			return false
+		}
 	}
-	allPairs := true
-	terminalChecked := true
+	return true
+}
+
+func allPairsCovered(c contract.Contract, seen map[string]bool) bool {
 	for _, state := range c.States {
 		for _, event := range c.Events {
-			if !pairs[state.ID+"\x00"+event.ID] {
-				allPairs = false
-				if state.Terminal {
-					terminalChecked = false
-				}
+			if !seen[state.ID+"/"+event.ID] {
+				return false
 			}
 		}
 	}
-	return Coverage{AllStatesCovered: allStates, AllEventsCovered: allEvents, AllPairsCovered: allPairs, TerminalStatesChecked: terminalChecked}
+	return true
+}
+
+func coveredStates(c contract.Contract, seen map[string]bool) []string {
+	out := []string{}
+	for _, state := range c.States {
+		if seen[state.ID] {
+			out = append(out, state.ID)
+		}
+	}
+	return out
+}
+
+func coveredEvents(c contract.Contract, seen map[string]bool) []string {
+	out := []string{}
+	for _, event := range c.Events {
+		if seen[event.ID] {
+			out = append(out, event.ID)
+		}
+	}
+	return out
+}
+
+func coveredPairs(c contract.Contract, seen map[string]bool) []string {
+	out := []string{}
+	for _, state := range c.States {
+		for _, event := range c.Events {
+			key := state.ID + "/" + event.ID
+			if seen[key] {
+				out = append(out, key)
+			}
+		}
+	}
+	return out
 }

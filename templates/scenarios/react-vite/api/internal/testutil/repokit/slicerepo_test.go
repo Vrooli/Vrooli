@@ -7,9 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"{{SCENARIO_ID}}/internal/testutil/repokit"
+
+	"github.com/stretchr/testify/require"
 )
 
 // thing is a stand-in domain entity used only by these tests. Picked over

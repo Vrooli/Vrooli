@@ -26,7 +26,7 @@ import (
 // If this test fires:
 //   - ✅ Move the helper out of testutil into a non-test package.
 //   - ❌ Don't add a `// nolint` — the production binary will then carry
-//      the test-only dep on every build.
+//     the test-only dep on every build.
 func TestNoProductionImports(t *testing.T) {
 	module := readModuleName(t)
 	prefix := module + "/internal/testutil"

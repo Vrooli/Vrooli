@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	"{{SCENARIO_ID}}/internal/clock"
+
+	"github.com/google/uuid"
 )
 
 // sqliteRepository is the production Repository impl. Unexported so

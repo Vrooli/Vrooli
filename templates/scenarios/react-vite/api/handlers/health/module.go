@@ -3,10 +3,10 @@ package health
 import (
 	"net/http"
 
-	"github.com/gorilla/mux"
-
 	"{{SCENARIO_ID}}/internal/database"
 	"{{SCENARIO_ID}}/internal/module"
+
+	"github.com/gorilla/mux"
 )
 
 // Module returns the health domain's contribution to the API: the
