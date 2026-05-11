@@ -1,4 +1,5 @@
 {
+  "$schema": "../agent-system/team-plan-of-record.schema.json",
   "version": "1.0.0",
   "title": "Director Swarm Plan of Record",
   "description": "Plan-of-record manifest for the director-swarm team canon",

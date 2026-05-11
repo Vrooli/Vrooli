@@ -276,7 +276,7 @@ Tests live at `path:packages/cli-core/cliapp/*_test.go` and `path:packages/cli-c
 
 Two viable locations:
 
-1. **Recommended**: `path:scenarios/prompt-manager/store/teams/meta-optimization/notebook/template-fitness/react-vite/2026-05-04/`. The fitness PoR doc explicitly names this as the canonical home for fitness audits. Tracked in git, citable from future docs, durable across machines/iterations. The notebook already has retention conventions (date-stamped subfolders).
+1. **Recommended**: `path:scenarios/prompt-manager/store/teams/meta-optimization/template-fitness-audit/react-vite/2026-05-04/`. The fitness PoR doc explicitly names this as the canonical home for fitness audits. Tracked in git, citable from future docs, durable across machines/iterations. The typed audit record uses date-stamped subfolders.
 2. **Alternative requested by user**: an untracked path under `~/.claude/template-fitness/react-vite/iteration-1/`. Forces cleanup-by-disuse. Cost: machine-bound; iteration N+1 must re-baseline if the machine is wiped.
 
 This plan recommends location #1 for iteration durability, and adds an explicit cleanup checklist item to the *final* iteration's Definition of Done (whichever iteration concludes the program). The agent executing this plan should use location #1 unless the user adjudicates otherwise. If the user prefers #2, the only change is `mkdir -p $LOCATION` in Phase A; everything else in this plan stays.
@@ -345,7 +345,7 @@ Five phases. Phases A → B → C → D → E run strictly in order. Phase B gat
 
 #### A.1 Choose location
 
-Default to `path:scenarios/prompt-manager/store/teams/meta-optimization/notebook/template-fitness/react-vite/2026-05-04/` per §6.4. If the user has communicated the alternative untracked path before this phase starts, use that and update `README.md` to point at it.
+Default to `path:scenarios/prompt-manager/store/teams/meta-optimization/template-fitness-audit/react-vite/2026-05-04/` per §6.4. If the user has communicated the alternative untracked path before this phase starts, use that and update `README.md` to point at it.
 
 #### A.2 Create the seven files
 
@@ -735,7 +735,7 @@ The lib/ folder has 3 files today; adding a fourth for one helper is overkill. `
 
 ### 9.5 The measurement harness lives in tracked git (default), not an untracked path
 
-Per §6.4. The fitness PoR doc names the notebook location explicitly. Durability across iterations beats auto-cleanup-by-disuse. Cleanup is encoded as a checklist item in the *final* iteration's Definition of Done — not by burying the harness on one machine.
+Per §6.4. The fitness PoR doc names the typed audit-record location explicitly. Durability across iterations beats auto-cleanup-by-disuse. Cleanup is encoded as a checklist item in the *final* iteration's Definition of Done — not by burying the harness on one machine.
 
 If the user prefers the untracked alternative, the only mechanical difference is path; everything else (recipes, metrics, hypothesis grading) is identical.
 
@@ -815,7 +815,7 @@ template-fitness-iteration-1-smoke notes create --help
 # both naming conventions (dash form for schemas/go/typescript, underscore
 # form for python) and both typescript output dirs (gen/typescript and
 # gen/typescript/js) — lives in the harness README:
-#   scenarios/prompt-manager/store/teams/meta-optimization/notebook/template-fitness/react-vite-template/2026-05-04/README.md
+#   scenarios/prompt-manager/store/teams/meta-optimization/template-fitness-audit/react-vite-template/2026-05-04/README.md
 # Future iteration plans should link to that snippet rather than inline a
 # variant; the inline form below misses Python-underscored gen and the
 # gen/typescript/js mirror, which is how iteration 1 accumulated 62
@@ -841,7 +841,7 @@ Every step must succeed first try.
 
 - [ ] Required-reading skills loaded (§3).
 - [ ] **Phase A — harness**:
-  - [ ] Location chosen per §6.4 (default: notebook path).
+  - [ ] Location chosen per §6.4 (default: typed audit-record path).
   - [ ] `README.md`, `SCENARIOS.md`, `METRICS.md`, `STOPPING_RULE.md`, `BASELINE.md` (empty), `RESULTS.md` (empty), `HYPOTHESIS.md` exist.
   - [ ] `HYPOTHESIS.md` predicts numerical movement per scenario.
   - [ ] No code changes outside the harness directory yet.
@@ -886,9 +886,9 @@ Every step must succeed first try.
 | `RunContext.Render*` methods don't have access to the global `--json` flag because cli-core's parsing happens at a layer above the handler | medium | The dispatcher passes `globals *GlobalOptions` into `parseArgs`; the constructed `RunContext` closes over it. The same plumbing exists today for `app.Request`'s base URL. Verify in Phase C.2. |
 | Help output drifts from the existing scenario's status command help shape | low | `helpgen` is fixture-tested. The `template-fitness-iteration-1-smoke` end-to-end gate runs `notes --help` and `notes create --help` so a regression surfaces. |
 | Recipes in `SCENARIOS.md` are non-deterministic — Phase B numbers vary across runs | medium | Phase B's act of recording the numbers IS the recipe-validation gate. If a number varies, the recipe is broken; fix the recipe before proceeding. Lock formatter versions (gofumpt, prettier) in the recipe. |
-| The notebook path is ambiguous (multiple `react-vite` audits have happened on different dates) | low | Date-stamped subfolders (`2026-05-04/`) are the convention. This iteration creates a new dated folder; future iterations reuse the same folder (since the harness IS the iteration tracker, not per-iteration scratch). |
+| The typed audit-record path is ambiguous (multiple `react-vite` audits have happened on different dates) | low | Date-stamped subfolders (`2026-05-04/`) are the convention. This iteration creates a new dated folder; future iterations reuse the same folder (since the harness IS the iteration tracker, not per-iteration scratch). |
 | Phase D test refactor accidentally weakens assertions | medium | Pre-iteration assertions (`require.Contains(t, out, "Found 2 note(s).")`, etc.) are listed in §D.3 and must round-trip. Add a "test-coverage diff" check: every assertion present pre-Phase D must still be present post-Phase D, even if its surrounding setup changed. |
-| The user changes their mind and prefers the untracked harness path | low | §6.4 calls this out. The mechanical difference is one `mkdir` invocation; nothing else in the plan changes. The agent should ask if they have access to the user; otherwise default to the notebook path. |
+| The user changes their mind and prefers the untracked harness path | low | §6.4 calls this out. The mechanical difference is one `mkdir` invocation; nothing else in the plan changes. The agent should ask if they have access to the user; otherwise default to the typed audit-record path. |
 
 ---
 

@@ -12,6 +12,8 @@ Every configuration value in Vrooli fits exactly one category. Mixing them is th
 
 These don't reduce to each other. A scenario's manifest declares `runtime.kind = "long_running"`; the operator's state says `auto_restart: true`; an analyzer's output says `tier-3-mobile fitness 0.4`. Same scenario, three independent statements, three independent files.
 
+Generated runtime state is outside this configuration model. Setup completion markers, resource-populated markers, runtime registries, port locks, process records, logs, and telemetry are mutable operational artifacts and live under `~/.vrooli/`, not project `.vrooli/`. Project-specific setup/resource markers are rooted at `~/.vrooli/state/projects/<project-key>/`, where the project key is derived from the cleaned absolute project root.
+
 ## Source-of-truth table
 
 For each operator-visible decision, exactly one file is the source of truth. Other files may reference or derive from it; they never override it.

@@ -115,6 +115,8 @@ Checked-in scenario behavior or policy files should live in explicit scenario di
 
 Secrets are intentionally outside the repo surface. The canonical shared plaintext store is `~/.vrooli/secrets.json`, scenario-scoped plaintext stores live under `~/.vrooli/scenarios/<scenario>/secrets.json`, and encrypted user secrets live under `~/.vrooli/secrets.enc.json`.
 
+Generated runtime and lifecycle state is also intentionally outside the repo surface. Project-scoped setup/resource markers live under `~/.vrooli/state/projects/<project-key>/`, where `<project-key>` is derived from the cleaned absolute project root. This lets one operator keep separate state for multiple local checkouts without allowing `.vrooli/state/` to drift into the repository.
+
 ## Compatibility Policy
 
 - The contract describes the future-state Go-native cross-platform structure only.

@@ -2118,6 +2118,16 @@ func TestResourceAndDependencyChecksCoverMarkersAndToolchains(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
+	legacyStateDir := filepath.Join(root, ".vrooli", "state", "setup")
+	if err := os.MkdirAll(legacyStateDir, 0o755); err != nil {
+		t.Fatalf("mkdir legacy setup state: %v", err)
+	}
+	testkitgo.WriteFile(t, filepath.Join(legacyStateDir, ".resources-populated"), "ok\n")
+	testkitgo.WriteFile(t, filepath.Join(legacyStateDir, ".postgres-populated"), "ok\n")
+
+	if !resourcesNeedSetup(home, root, scenario.ConditionCheck{Populated: true}) {
+		t.Fatalf("legacy repo-local resources marker must not satisfy setup")
+	}
 	if !resourcesNeedSetup(home, root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
 		t.Fatalf("expected missing resource markers to require setup")
 	}

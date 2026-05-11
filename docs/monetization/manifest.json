@@ -1,4 +1,5 @@
 {
+  "$schema": "../agent-system/team-plan-of-record.schema.json",
   "version": "1.0.0",
   "title": "Monetization Plan of Record",
   "description": "Plan-of-record manifest for the monetization team canon",

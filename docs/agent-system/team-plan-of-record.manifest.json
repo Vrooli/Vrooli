@@ -1,4 +1,5 @@
 {
+  "$schema": "team-plan-of-record.schema.json",
   "version": "1.0.0",
   "title": "Team Plan of Record Contract",
   "description": "Reusable documentation contract for prompt-manager team plan-of-record folders",
