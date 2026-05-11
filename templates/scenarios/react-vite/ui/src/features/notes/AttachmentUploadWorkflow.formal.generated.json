@@ -5,7 +5,7 @@
     "contractPath": "ui/src/features/notes/AttachmentUploadWorkflow.flow.json",
     "contractSha256": "f6d85441c8701d2a60cf92dab1c30b72d380f6ea08bd25d0d3fea1a4f889d8ce",
     "generatorPath": "tools/temporal-model",
-    "generatorSha256": "c1e5bcf48f12e5f2829dc4b09c4875997b424688c58393a524d6f40733cf94bd",
+    "generatorSha256": "0b669eb794ca6c91a7f1783a31fe82fd138477b7579fec8cb6c551fc3812c473",
     "generatorVersion": 5,
     "modelPath": "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
     "modelSha256": "ced2d34630dba6513089e8c03a9b74099cd5194f2e169285f20e7e932ff95be0",

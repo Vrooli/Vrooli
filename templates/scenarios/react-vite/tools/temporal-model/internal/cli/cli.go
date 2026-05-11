@@ -4,52 +4,27 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
-	"react-vite-temporal-model/internal/artifact"
-	"react-vite-temporal-model/internal/codegen"
 	"react-vite-temporal-model/internal/contract"
 	"react-vite-temporal-model/internal/discovery"
-	"react-vite-temporal-model/internal/filesystem"
 	"react-vite-temporal-model/internal/model"
+	"react-vite-temporal-model/internal/pipeline"
 	"react-vite-temporal-model/internal/quint"
 )
 
 func Run(ctx context.Context, args []string, stdout io.Writer, _ io.Writer) error {
 	return Service{
 		Runner: quint.ExecRunner{},
-		FS:     osFileSystem{},
 		Stdout: stdout,
 	}.Run(ctx, args)
 }
 
 type Service struct {
 	Runner quint.Runner
-	FS     FileSystem
+	FS     pipeline.FileSystem
 	Stdout io.Writer
-}
-
-type FileSystem interface {
-	MkdirAll(path string, perm os.FileMode) error
-	WriteFile(path string, data []byte, perm os.FileMode) error
-	ReadFile(path string) ([]byte, error)
-}
-
-type osFileSystem struct{}
-
-func (osFileSystem) MkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
-func (osFileSystem) WriteFile(path string, data []byte, perm os.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-
-func (osFileSystem) ReadFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
 }
 
 func (s Service) Run(ctx context.Context, args []string) error {
@@ -60,10 +35,6 @@ func (s Service) Run(ctx context.Context, args []string) error {
 	runner := s.Runner
 	if runner == nil {
 		runner = quint.ExecRunner{}
-	}
-	fs := s.FS
-	if fs == nil {
-		fs = osFileSystem{}
 	}
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
 		printHelp(stdout)
@@ -98,14 +69,9 @@ func (s Service) Run(ctx context.Context, args []string) error {
 		}
 		return nil
 	case "generate":
-		return s.generate(ctx, stdout, fs, runner, root, selected, false)
+		return pipeline.Run(ctx, pipeline.Options{Root: root, Flows: selected, Mode: pipeline.ModeGenerate, Runner: runner, FS: s.FS, Stdout: stdout})
 	case "check":
-		for _, flow := range selected {
-			if err := validateReplayFixture(flow, root); err != nil {
-				return err
-			}
-		}
-		return s.generate(ctx, stdout, fs, runner, root, selected, true)
+		return pipeline.Run(ctx, pipeline.Options{Root: root, Flows: selected, Mode: pipeline.ModeCheck, Runner: runner, FS: s.FS, Stdout: stdout})
 	case "explain":
 		if flags.flow == "" {
 			return fmt.Errorf("explain requires --flow <flow-id>")
@@ -142,88 +108,6 @@ func parseFlags(args []string) (flags, error) {
 		}
 	}
 	return out, nil
-}
-
-func (s Service) generate(ctx context.Context, stdout io.Writer, fs FileSystem, runner quint.Runner, root string, flows []model.Flow, check bool) error {
-	version, err := runner.Run(ctx, quint.Command{Args: []string{"quint", "--version"}, Dir: root})
-	if err != nil {
-		return err
-	}
-	quintVersion := trim(version.Stdout)
-	if quintVersion == "" {
-		return fmt.Errorf("quint --version returned an empty version")
-	}
-	wrote := 0
-	for _, flow := range flows {
-		rendered := quint.Render(flow)
-		modelPath := filesystem.Abs(root, flow.Outputs.ModelPath)
-		if check {
-			if err := assertFresh(fs, modelPath, []byte(rendered), flow.FlowID); err != nil {
-				return err
-			}
-		} else {
-			if err := fs.MkdirAll(filepath.Dir(modelPath), 0o755); err != nil {
-				return err
-			}
-			if err := fs.WriteFile(modelPath, []byte(rendered), 0o644); err != nil {
-				return err
-			}
-		}
-		built, err := artifact.Build(ctx, flow, artifact.BuildOptions{
-			Root:         root,
-			Rendered:     rendered,
-			QuintVersion: quintVersion,
-			RunQuint:     true,
-			Runner:       runner,
-		})
-		if err != nil {
-			return err
-		}
-		data, err := artifact.CanonicalJSON(built)
-		if err != nil {
-			return err
-		}
-		renderedCode, err := codegen.Render(flow, built)
-		if err != nil {
-			return err
-		}
-		artifactPath := filesystem.Abs(root, flow.Outputs.ArtifactPath)
-		if check {
-			if err := assertFresh(fs, artifactPath, data, flow.FlowID); err != nil {
-				return err
-			}
-			for _, file := range renderedCode.Files {
-				if err := assertFresh(fs, filesystem.Abs(root, file.Path), file.Data, flow.FlowID); err != nil {
-					return err
-				}
-			}
-			fmt.Fprintf(stdout, "fresh %s\n", flow.FlowID)
-			continue
-		}
-		if err := fs.MkdirAll(filepath.Dir(artifactPath), 0o755); err != nil {
-			return err
-		}
-		if err := fs.WriteFile(artifactPath, data, 0o644); err != nil {
-			return err
-		}
-		fmt.Fprintf(stdout, "wrote %s\n", flow.Outputs.ModelPath)
-		fmt.Fprintf(stdout, "wrote %s\n", flow.Outputs.ArtifactPath)
-		for _, file := range renderedCode.Files {
-			target := filesystem.Abs(root, file.Path)
-			if err := fs.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return err
-			}
-			if err := fs.WriteFile(target, file.Data, 0o644); err != nil {
-				return err
-			}
-			fmt.Fprintf(stdout, "wrote %s\n", file.Path)
-		}
-		wrote++
-	}
-	if !check {
-		fmt.Fprintf(stdout, "generated %d temporal flow(s)\n", wrote)
-	}
-	return nil
 }
 
 func explain(stdout io.Writer, root string, flow model.Flow) error {
@@ -265,10 +149,10 @@ func explain(stdout io.Writer, root string, flow model.Flow) error {
 	fmt.Fprintf(stdout, "  transition: %s\n", flow.Replay.Transition.Function)
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Coverage requirements:")
-	coveredStates, missingStates, coveredEvents, missingEvents := namedTraceCoverage(flow)
+	coverage := model.NamedTraceCoverage(flow)
 	fmt.Fprintf(stdout, "  named traces: %d\n", len(flow.Traces))
-	fmt.Fprintf(stdout, "  named trace states: %s\n", coverageSummary(coveredStates, missingStates))
-	fmt.Fprintf(stdout, "  named trace events: %s\n", coverageSummary(coveredEvents, missingEvents))
+	fmt.Fprintf(stdout, "  named trace states: %s\n", coverageSummary(coverage.CoveredStates, coverage.MissingStates))
+	fmt.Fprintf(stdout, "  named trace events: %s\n", coverageSummary(coverage.CoveredEvents, coverage.MissingEvents))
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Commands:")
 	fmt.Fprintf(stdout, "  regenerate: cd %s && GOWORK=off go run . generate --root %s --flow %s\n", filepath.ToSlash(filepath.Join("tools", "temporal-model")), explainRoot(root), flow.FlowID)
@@ -339,37 +223,6 @@ func invalidTransitionCount(flow model.Flow) int {
 	return total
 }
 
-func namedTraceCoverage(flow model.Flow) ([]string, []string, []string, []string) {
-	coveredStates := map[string]bool{}
-	coveredEvents := map[string]bool{}
-	for _, trace := range flow.Traces {
-		coveredStates[trace.Initial] = true
-		for _, step := range trace.Steps {
-			coveredEvents[step.Event] = true
-			coveredStates[step.Want] = true
-		}
-	}
-	var states []string
-	var missingStates []string
-	for _, state := range flow.States {
-		if coveredStates[state.ID] {
-			states = append(states, state.ID)
-		} else {
-			missingStates = append(missingStates, state.ID)
-		}
-	}
-	var events []string
-	var missingEvents []string
-	for _, event := range flow.Events {
-		if coveredEvents[event.ID] {
-			events = append(events, event.ID)
-		} else {
-			missingEvents = append(missingEvents, event.ID)
-		}
-	}
-	return states, missingStates, events, missingEvents
-}
-
 func coverageSummary(covered []string, missing []string) string {
 	if len(missing) == 0 {
 		return "all covered"
@@ -397,38 +250,6 @@ func handAuthoredFollowUps(flow model.Flow) []string {
 	return out
 }
 
-func validateReplayFixture(flow model.Flow, root string) error {
-	if model.ReplayKind(flow.Replay.Kind) != model.ReplayKindVitest {
-		return nil
-	}
-	path, err := contract.ResolveTypeScriptImport(flow.Outputs.ReplayTestPath, flow.Replay.FixtureModule)
-	if err != nil {
-		return fmt.Errorf("invalid replay fixture module for %s: %w", flow.FlowID, err)
-	}
-	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
-	if err != nil {
-		return fmt.Errorf("invalid replay fixture for %s:\n  - replay fixture module %s for %s is missing or unreadable: %v", flow.FlowID, path, flow.FlowID, err)
-	}
-	if !hasTypeScriptExport(data, flow.Replay.FixtureExport) {
-		return fmt.Errorf("invalid replay fixture for %s:\n  - replay fixture module %s for %s does not export %s", flow.FlowID, path, flow.FlowID, flow.Replay.FixtureExport)
-	}
-	return nil
-}
-
-func hasTypeScriptExport(data []byte, name string) bool {
-	quoted := regexp.QuoteMeta(name)
-	patterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?m)^\s*export\s+(const|let|var|function|class)\s+` + quoted + `\b`),
-		regexp.MustCompile(`(?m)^\s*export\s*\{[^}]*\b` + quoted + `\b[^}]*\}`),
-	}
-	for _, pattern := range patterns {
-		if pattern.Match(data) {
-			return true
-		}
-	}
-	return false
-}
-
 func inferRuntimeWrapper(generated string) string {
 	switch {
 	case strings.HasSuffix(generated, ".generated.ts"):
@@ -450,24 +271,6 @@ func explainRoot(root string) string {
 		return "../.."
 	}
 	return filepath.ToSlash(root)
-}
-
-func trim(value string) string {
-	for len(value) > 0 && (value[len(value)-1] == '\n' || value[len(value)-1] == '\r' || value[len(value)-1] == ' ' || value[len(value)-1] == '\t') {
-		value = value[:len(value)-1]
-	}
-	return value
-}
-
-func assertFresh(fs FileSystem, path string, next []byte, flowID string) error {
-	current, err := fs.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("%s is missing. Run cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow %s", filepath.ToSlash(path), flowID)
-	}
-	if string(current) != string(next) {
-		return fmt.Errorf("%s is stale. Run cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow %s", filepath.ToSlash(path), flowID)
-	}
-	return nil
 }
 
 func printHelp(stdout io.Writer) {

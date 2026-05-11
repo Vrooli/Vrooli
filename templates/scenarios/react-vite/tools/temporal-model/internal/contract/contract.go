@@ -13,13 +13,15 @@ import (
 	"sync"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
+
+	"react-vite-temporal-model/internal/spec"
 )
 
-const SchemaVersion = 4
+const SchemaVersion = spec.SchemaVersion
 
 const (
-	ReplayKindGoTest = "go-test"
-	ReplayKindVitest = "vitest"
+	ReplayKindGoTest = spec.ReplayKindGoTest
+	ReplayKindVitest = spec.ReplayKindVitest
 )
 
 type Contract struct {
@@ -237,23 +239,27 @@ func compiledFlowSchema() (*jsonschema.Schema, error) {
 }
 
 func ValidateReplayFixture(c Contract, root string) error {
+	return ValidateReplayFixturePaths(root, c.FlowID, c.Replay.Kind, c.Outputs.ReplayTestPath, c.Replay.FixtureModule, c.Replay.FixtureExport)
+}
+
+func ValidateReplayFixturePaths(root string, flowID string, replayKind string, replayTestPath string, fixtureModule string, fixtureExport string) error {
 	var errs []string
-	if c.Replay.Kind != ReplayKindVitest {
+	if replayKind != ReplayKindVitest {
 		return nil
 	}
-	path, err := ResolveTypeScriptImport(c.Outputs.ReplayTestPath, c.Replay.FixtureModule)
+	path, err := ResolveTypeScriptImport(replayTestPath, fixtureModule)
 	if err != nil {
-		return fmt.Errorf("invalid replay fixture module for %s: %w", c.FlowID, err)
+		return fmt.Errorf("invalid replay fixture module for %s: %w", flowID, err)
 	}
 	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
 	if err != nil {
-		errs = append(errs, fmt.Sprintf("replay fixture module %s for %s is missing or unreadable: %v", path, c.FlowID, err))
-	} else if !hasTypeScriptExport(data, c.Replay.FixtureExport) {
-		errs = append(errs, fmt.Sprintf("replay fixture module %s for %s does not export %s", path, c.FlowID, c.Replay.FixtureExport))
+		errs = append(errs, fmt.Sprintf("replay fixture module %s for %s is missing or unreadable: %v", path, flowID, err))
+	} else if !hasTypeScriptExport(data, fixtureExport) {
+		errs = append(errs, fmt.Sprintf("replay fixture module %s for %s does not export %s", path, flowID, fixtureExport))
 	}
 	if len(errs) > 0 {
 		sort.Strings(errs)
-		return fmt.Errorf("invalid replay fixture for %s:\n  - %s", c.FlowID, strings.Join(errs, "\n  - "))
+		return fmt.Errorf("invalid replay fixture for %s:\n  - %s", flowID, strings.Join(errs, "\n  - "))
 	}
 	return nil
 }

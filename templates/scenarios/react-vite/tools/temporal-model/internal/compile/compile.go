@@ -9,6 +9,7 @@ import (
 
 	"react-vite-temporal-model/internal/contract"
 	"react-vite-temporal-model/internal/model"
+	"react-vite-temporal-model/internal/spec"
 )
 
 func Compile(raw contract.Contract) (model.Flow, error) {
@@ -336,21 +337,25 @@ func validateReplayShape(errs *[]string, raw contract.Contract) {
 
 func validateOutputCollisions(errs *[]string, raw contract.Contract) {
 	seen := map[string]string{}
-	for label, path := range map[string]string{
-		"outputs.modelPath":        raw.Outputs.ModelPath,
-		"outputs.artifactPath":     raw.Outputs.ArtifactPath,
-		"outputs.declarationsPath": raw.Outputs.DeclarationsPath,
-		"outputs.replayHelperPath": raw.Outputs.ReplayHelperPath,
-		"outputs.replayTestPath":   raw.Outputs.ReplayTestPath,
-	} {
-		if path == "" {
+	outputs := []struct {
+		label string
+		path  string
+	}{
+		{label: "outputs.modelPath", path: raw.Outputs.ModelPath},
+		{label: "outputs.artifactPath", path: raw.Outputs.ArtifactPath},
+		{label: "outputs.declarationsPath", path: raw.Outputs.DeclarationsPath},
+		{label: "outputs.replayHelperPath", path: raw.Outputs.ReplayHelperPath},
+		{label: "outputs.replayTestPath", path: raw.Outputs.ReplayTestPath},
+	}
+	for _, output := range outputs {
+		if output.path == "" {
 			continue
 		}
-		clean := cleanRelative(path)
+		clean := cleanRelative(output.path)
 		if prev := seen[clean]; prev != "" {
-			*errs = append(*errs, fmt.Sprintf("%s collides with %s at %s", label, prev, clean))
+			*errs = append(*errs, fmt.Sprintf("%s collides with %s at %s", output.label, prev, clean))
 		}
-		seen[clean] = label
+		seen[clean] = output.label
 	}
 }
 
@@ -391,11 +396,6 @@ func requireString(errs *[]string, name string, value string) {
 }
 
 func validateQuintNames(errs *[]string, groups ...map[string]bool) {
-	reserved := map[string]bool{
-		"Status": true, "Event": true, "init": true, "step": true, "apply": true,
-		"isValid": true, "nextStatus": true, model.GeneratedCheckTransitionTable: true, "rejected": true,
-		"status": true, "event": true,
-	}
 	valid := regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
 	seen := map[string]bool{}
 	for _, group := range groups {
@@ -403,7 +403,7 @@ func validateQuintNames(errs *[]string, groups ...map[string]bool) {
 			if !valid.MatchString(name) {
 				*errs = append(*errs, "invalid Quint identifier "+name)
 			}
-			if reserved[name] {
+			if spec.QuintReservedIdentifiers[name] {
 				*errs = append(*errs, "Quint identifier collides with generated helper "+name)
 			}
 			if seen[name] {

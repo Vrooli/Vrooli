@@ -5,9 +5,10 @@ import (
 	"strings"
 
 	"react-vite-temporal-model/internal/model"
+	"react-vite-temporal-model/internal/spec"
 )
 
-const TransitionTableRun = model.GeneratedCheckTransitionTable
+const TransitionTableRun = spec.GeneratedCheckTransitionTable
 
 func Render(flow model.Flow) string {
 	stateTags := make([]string, 0, len(flow.States))

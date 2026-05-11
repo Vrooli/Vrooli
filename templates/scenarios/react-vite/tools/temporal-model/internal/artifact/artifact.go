@@ -12,14 +12,15 @@ import (
 	"react-vite-temporal-model/internal/filesystem"
 	"react-vite-temporal-model/internal/model"
 	"react-vite-temporal-model/internal/quint"
+	"react-vite-temporal-model/internal/spec"
 )
 
 const (
-	SchemaVersion                 = 4
-	GeneratorVersion              = 5
-	GeneratorPath                 = "tools/temporal-model"
-	GeneratedCheckTransitionTable = model.GeneratedCheckTransitionTable
-	VerificationBackendApalache   = "apalache"
+	SchemaVersion                 = spec.SchemaVersion
+	GeneratorVersion              = spec.GeneratorVersion
+	GeneratorPath                 = spec.GeneratorPath
+	GeneratedCheckTransitionTable = spec.GeneratedCheckTransitionTable
+	VerificationBackendApalache   = spec.VerificationBackendApalache
 )
 
 type Artifact struct {
@@ -94,10 +95,10 @@ func Build(ctx context.Context, flow model.Flow, options BuildOptions) (Artifact
 
 	commands := commandContract(flow)
 	if options.RunQuint {
-		for _, name := range []string{"typecheck", "test", "verify", "run"} {
+		for _, name := range []string{spec.CommandTypecheck, spec.CommandTest, spec.CommandVerify, spec.CommandRun} {
 			args := commands[name]
 			runArgs := args
-			if name == "run" {
+			if name == spec.CommandRun {
 				runArgs = replaceTempPattern(args, filepath.Join(tempDir, flowFilePattern(flow)))
 			}
 			result, err := options.Runner.Run(ctx, quint.Command{Args: runArgs, Dir: options.Root})
@@ -156,17 +157,6 @@ func Build(ctx context.Context, flow model.Flow, options BuildOptions) (Artifact
 	}, nil
 }
 
-func WriteJSON(path string, value any) error {
-	data, err := CanonicalJSON(value)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
-}
-
 func CanonicalJSON(value any) ([]byte, error) {
 	var buffer bytes.Buffer
 	encoder := json.NewEncoder(&buffer)
@@ -178,32 +168,21 @@ func CanonicalJSON(value any) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func AssertFresh(path string, next []byte, flowID string) error {
-	current, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("%s is missing. Run cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow %s", filepath.ToSlash(path), flowID)
-	}
-	if string(current) != string(next) {
-		return fmt.Errorf("%s is stale. Run cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow %s", filepath.ToSlash(path), flowID)
-	}
-	return nil
-}
-
 func commandContract(flow model.Flow) map[string][]string {
 	invariants := append([]string(nil), flow.Model.Verify.Invariants...)
 	return map[string][]string{
-		"typecheck": {"quint", "typecheck", flow.Outputs.ModelPath},
-		"test":      {"quint", "test", flow.Outputs.ModelPath, "--seed", flow.Model.Seed},
-		"verify": append(append([]string{"quint", "verify", flow.Outputs.ModelPath, "--invariants"}, invariants...),
+		spec.CommandTypecheck: {"quint", "typecheck", flow.Outputs.ModelPath},
+		spec.CommandTest:      {"quint", "test", flow.Outputs.ModelPath, "--seed", flow.Model.Seed},
+		spec.CommandVerify: append(append([]string{"quint", "verify", flow.Outputs.ModelPath, "--invariants"}, invariants...),
 			"--max-steps", fmt.Sprint(flow.Model.MaxSteps)),
-		"run": {"quint", "run", flow.Outputs.ModelPath, "--mbt", "--seed", flow.Model.Seed, "--max-samples", fmt.Sprint(flow.Model.TraceCount), "--n-traces", fmt.Sprint(flow.Model.TraceCount), "--max-steps", fmt.Sprint(flow.Model.MaxSteps), "--out-itf", "<temp-itf-pattern>"},
+		spec.CommandRun: {"quint", "run", flow.Outputs.ModelPath, "--mbt", "--seed", flow.Model.Seed, "--max-samples", fmt.Sprint(flow.Model.TraceCount), "--n-traces", fmt.Sprint(flow.Model.TraceCount), "--max-steps", fmt.Sprint(flow.Model.MaxSteps), "--out-itf", spec.TempITFPattern},
 	}
 }
 
 func replaceTempPattern(args []string, pattern string) []string {
 	out := append([]string(nil), args...)
 	for i, arg := range out {
-		if arg == "<temp-itf-pattern>" {
+		if arg == spec.TempITFPattern {
 			out[i] = pattern
 		}
 	}

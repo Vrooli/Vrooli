@@ -105,7 +105,7 @@ export const attachmentUploadFormalExpectation = {
   modelPath: "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
   modelSha256: "ced2d34630dba6513089e8c03a9b74099cd5194f2e169285f20e7e932ff95be0",
   generatorPath: "tools/temporal-model",
-  generatorSha256: "c1e5bcf48f12e5f2829dc4b09c4875997b424688c58393a524d6f40733cf94bd",
+  generatorSha256: "0b669eb794ca6c91a7f1783a31fe82fd138477b7579fec8cb6c551fc3812c473",
   invariants: ["TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "StaleCompletionIsIgnored"],
   generatedChecks: ["transitionTable"],
 } as const;

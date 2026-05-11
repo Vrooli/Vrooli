@@ -1,18 +1,21 @@
 package model
 
-import "react-vite-temporal-model/internal/contract"
+import (
+	"react-vite-temporal-model/internal/contract"
+	"react-vite-temporal-model/internal/spec"
+)
 
 const (
-	SchemaVersion                 = 4
+	SchemaVersion                 = spec.SchemaVersion
 	SelfTarget                    = "self"
-	GeneratedCheckTransitionTable = "transitionTable"
+	GeneratedCheckTransitionTable = spec.GeneratedCheckTransitionTable
 )
 
 type ReplayKind string
 
 const (
-	ReplayKindGoTest ReplayKind = contract.ReplayKindGoTest
-	ReplayKindVitest ReplayKind = contract.ReplayKindVitest
+	ReplayKindGoTest ReplayKind = spec.ReplayKindGoTest
+	ReplayKindVitest ReplayKind = spec.ReplayKindVitest
 )
 
 type Flow struct {

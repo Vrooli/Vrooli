@@ -8,16 +8,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-)
 
-var ignoredDirs = map[string]bool{
-	".git":          true,
-	"node_modules":  true,
-	"dist":          true,
-	"build":         true,
-	"coverage":      true,
-	"_apalache-out": true,
-}
+	"react-vite-temporal-model/internal/spec"
+)
 
 func Slash(path string) string {
 	return filepath.ToSlash(filepath.Clean(path))
@@ -41,7 +34,7 @@ func Find(root string, suffix string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() && ignoredDirs[entry.Name()] && path != root {
+		if entry.IsDir() && spec.IgnoredDirectories[entry.Name()] && path != root {
 			return filepath.SkipDir
 		}
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), suffix) {
@@ -82,7 +75,7 @@ func TreeSHA256(root string) (string, error) {
 			return err
 		}
 		if entry.IsDir() {
-			if ignoredDirs[entry.Name()] && path != root {
+			if spec.IgnoredDirectories[entry.Name()] && path != root {
 				return filepath.SkipDir
 			}
 			return nil
