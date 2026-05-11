@@ -1,40 +1,47 @@
 package discovery
 
 import (
+	"fmt"
 	"path/filepath"
 	"sort"
 
+	"react-vite-temporal-model/internal/compile"
 	"react-vite-temporal-model/internal/contract"
 	"react-vite-temporal-model/internal/filesystem"
+	"react-vite-temporal-model/internal/model"
 )
 
-func FindContracts(root string) ([]contract.Contract, error) {
+func FindContracts(root string) ([]model.Flow, error) {
 	paths, err := filesystem.Find(root, ".flow.json")
 	if err != nil {
 		return nil, err
 	}
-	contracts := make([]contract.Contract, 0, len(paths))
+	flows := make([]model.Flow, 0, len(paths))
 	for _, rel := range paths {
-		loaded, err := contract.Load(filepath.Join(root, filepath.FromSlash(rel)), rel)
+		raw, err := contract.LoadRaw(filepath.Join(root, filepath.FromSlash(rel)), rel)
 		if err != nil {
 			return nil, err
 		}
-		contracts = append(contracts, loaded)
+		flow, err := compile.Compile(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid temporal flow contract %s:\n%s", rel, err)
+		}
+		flows = append(flows, flow)
 	}
-	sort.Slice(contracts, func(i int, j int) bool {
-		return contracts[i].FlowID < contracts[j].FlowID
+	sort.Slice(flows, func(i int, j int) bool {
+		return flows[i].FlowID < flows[j].FlowID
 	})
-	return contracts, nil
+	return flows, nil
 }
 
-func Filter(contracts []contract.Contract, flowID string) []contract.Contract {
+func Filter(flows []model.Flow, flowID string) []model.Flow {
 	if flowID == "" {
-		return contracts
+		return flows
 	}
-	var out []contract.Contract
-	for _, c := range contracts {
-		if c.FlowID == flowID {
-			out = append(out, c)
+	var out []model.Flow
+	for _, flow := range flows {
+		if flow.FlowID == flowID {
+			out = append(out, flow)
 		}
 	}
 	return out

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"react-vite-temporal-model/internal/contract"
+	"react-vite-temporal-model/internal/model"
 )
 
 type ArtifactTrace struct {
@@ -22,7 +22,7 @@ type ArtifactTraceStep struct {
 	WantError bool   `json:"wantError"`
 }
 
-func NormalizeTraces(c contract.Contract, dir string) ([]ArtifactTrace, error) {
+func NormalizeTraces(flow model.Flow, dir string) ([]ArtifactTrace, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -35,11 +35,11 @@ func NormalizeTraces(c contract.Contract, dir string) ([]ArtifactTrace, error) {
 	}
 	sort.Strings(files)
 	stateByQuint := map[string]string{}
-	for _, state := range c.States {
+	for _, state := range flow.States {
 		stateByQuint[state.Quint] = state.ID
 	}
 	eventByQuint := map[string]string{}
-	for _, event := range c.Events {
+	for _, event := range flow.Events {
 		eventByQuint[event.Quint] = event.ID
 	}
 	traces := make([]ArtifactTrace, 0, len(files))

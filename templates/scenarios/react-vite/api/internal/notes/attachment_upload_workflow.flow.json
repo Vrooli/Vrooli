@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "flowId": "notes.attachment-upload.api",
   "domain": "notes",
   "description": "API-side attachment upload orchestration from request receipt through byte storage and metadata recording.",
@@ -20,7 +20,8 @@
   "outputs": {
     "modelPath": "api/internal/notes/attachment_upload_workflow.qnt",
     "artifactPath": "api/internal/notes/attachment_upload_workflow.formal.generated.json",
-    "declarationsPath": "api/internal/notes/attachment_upload_workflow.generated.go"
+    "declarationsPath": "api/internal/notes/attachment_upload_workflow.generated.go",
+    "replayTestPath": "api/internal/notes/attachment_upload_workflow.formal_replay_test.generated.go"
   },
   "states": [
     { "id": "received", "quint": "Received", "initial": true },
@@ -94,12 +95,12 @@
     ]
   },
   "replay": {
-    "bindings": [
-      {
-        "kind": "go-test",
-        "path": "api/internal/notes/attachment_workflow_test.go",
-        "assertion": "TestAttachmentUploadWorkflow_ReplaysFormalModelArtifacts"
-      }
-    ]
+    "kind": "go-test",
+    "testPath": "api/internal/notes/attachment_upload_workflow.formal_replay_test.generated.go",
+    "transition": {
+      "function": "TransitionAttachmentUpload",
+      "stateType": "AttachmentUploadState",
+      "statusField": "Status"
+    }
   }
 }

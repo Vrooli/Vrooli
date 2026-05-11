@@ -9,31 +9,33 @@ import (
 	"path/filepath"
 	"strings"
 
-	"react-vite-temporal-model/internal/contract"
 	"react-vite-temporal-model/internal/filesystem"
+	"react-vite-temporal-model/internal/model"
 	"react-vite-temporal-model/internal/quint"
 )
 
 const (
-	SchemaVersion    = 4
-	GeneratorVersion = 5
-	GeneratorPath    = "tools/temporal-model"
+	SchemaVersion                 = 4
+	GeneratorVersion              = 5
+	GeneratorPath                 = "tools/temporal-model"
+	GeneratedCheckTransitionTable = model.GeneratedCheckTransitionTable
+	VerificationBackendApalache   = "apalache"
 )
 
 type Artifact struct {
-	SchemaVersion   int                           `json:"schemaVersion"`
-	FlowID          string                        `json:"flowId"`
-	Source          Source                        `json:"source"`
-	Commands        map[string][]string           `json:"commands"`
-	States          []string                      `json:"states"`
-	Events          []string                      `json:"events"`
-	Transitions     []contract.ExpandedTransition `json:"transitions"`
-	NamedTraces     []NamedTrace                  `json:"namedTraces"`
-	GeneratedTraces []quint.ArtifactTrace         `json:"generatedTraces"`
-	Invariants      []string                      `json:"invariants"`
-	GeneratedChecks []string                      `json:"generatedChecks"`
-	Coverage        Coverage                      `json:"coverage"`
-	Checks          Checks                        `json:"checks"`
+	SchemaVersion   int                   `json:"schemaVersion"`
+	FlowID          string                `json:"flowId"`
+	Source          Source                `json:"source"`
+	Commands        map[string][]string   `json:"commands"`
+	States          []string              `json:"states"`
+	Events          []string              `json:"events"`
+	Transitions     []model.Transition    `json:"transitions"`
+	NamedTraces     []NamedTrace          `json:"namedTraces"`
+	GeneratedTraces []quint.ArtifactTrace `json:"generatedTraces"`
+	Invariants      []string              `json:"invariants"`
+	GeneratedChecks []string              `json:"generatedChecks"`
+	Coverage        Coverage              `json:"coverage"`
+	Checks          Checks                `json:"checks"`
 }
 
 type Source struct {
@@ -82,7 +84,7 @@ type BuildOptions struct {
 	Runner       quint.Runner
 }
 
-func Build(ctx context.Context, c contract.Contract, options BuildOptions) (Artifact, error) {
+func Build(ctx context.Context, flow model.Flow, options BuildOptions) (Artifact, error) {
 	tempDir, err := os.MkdirTemp("", "react-vite-temporal-model-")
 	if err != nil {
 		return Artifact{}, err
@@ -90,13 +92,13 @@ func Build(ctx context.Context, c contract.Contract, options BuildOptions) (Arti
 	defer os.RemoveAll(tempDir)
 	defer os.RemoveAll(filepath.Join(options.Root, "_apalache-out"))
 
-	commands := commandContract(c)
+	commands := commandContract(flow)
 	if options.RunQuint {
 		for _, name := range []string{"typecheck", "test", "verify", "run"} {
 			args := commands[name]
 			runArgs := args
 			if name == "run" {
-				runArgs = replaceTempPattern(args, filepath.Join(tempDir, flowFilePattern(c)))
+				runArgs = replaceTempPattern(args, filepath.Join(tempDir, flowFilePattern(flow)))
 			}
 			result, err := options.Runner.Run(ctx, quint.Command{Args: runArgs, Dir: options.Root})
 			if err != nil {
@@ -109,11 +111,11 @@ func Build(ctx context.Context, c contract.Contract, options BuildOptions) (Arti
 		}
 	}
 
-	generatedTraces, err := quint.NormalizeTraces(c, tempDir)
+	generatedTraces, err := quint.NormalizeTraces(flow, tempDir)
 	if err != nil {
 		return Artifact{}, err
 	}
-	contractHash, err := filesystem.FileSHA256(filesystem.Abs(options.Root, c.ContractPath))
+	contractHash, err := filesystem.FileSHA256(filesystem.Abs(options.Root, flow.ContractPath))
 	if err != nil {
 		return Artifact{}, err
 	}
@@ -123,27 +125,27 @@ func Build(ctx context.Context, c contract.Contract, options BuildOptions) (Arti
 	}
 	return Artifact{
 		SchemaVersion: SchemaVersion,
-		FlowID:        c.FlowID,
+		FlowID:        flow.FlowID,
 		Source: Source{
-			ContractPath:        c.ContractPath,
+			ContractPath:        flow.ContractPath,
 			ContractSHA256:      contractHash,
 			GeneratorPath:       GeneratorPath,
 			GeneratorSHA256:     generatorHash,
 			GeneratorVersion:    GeneratorVersion,
-			ModelPath:           c.Outputs.ModelPath,
+			ModelPath:           flow.Outputs.ModelPath,
 			ModelSHA256:         filesystem.SHA256String(options.Rendered),
 			QuintVersion:        options.QuintVersion,
-			VerificationBackend: "apalache",
+			VerificationBackend: VerificationBackendApalache,
 		},
 		Commands:        commands,
-		States:          stateIDs(c),
-		Events:          eventIDs(c),
-		Transitions:     c.ExpandedTransitions,
-		NamedTraces:     namedTraces(c),
+		States:          model.StateIDs(flow),
+		Events:          model.EventIDs(flow),
+		Transitions:     flow.Matrix.Rows(),
+		NamedTraces:     namedTraces(flow),
 		GeneratedTraces: generatedTraces,
-		Invariants:      append([]string(nil), c.Model.Verify.Invariants...),
-		GeneratedChecks: []string{"transitionTable"},
-		Coverage:        coverage(c, generatedTraces),
+		Invariants:      append([]string(nil), flow.Model.Verify.Invariants...),
+		GeneratedChecks: []string{GeneratedCheckTransitionTable},
+		Coverage:        coverage(flow, generatedTraces),
 		Checks: Checks{
 			Typechecked:           true,
 			Tested:                true,
@@ -187,14 +189,14 @@ func AssertFresh(path string, next []byte, flowID string) error {
 	return nil
 }
 
-func commandContract(c contract.Contract) map[string][]string {
-	invariants := append([]string(nil), c.Model.Verify.Invariants...)
+func commandContract(flow model.Flow) map[string][]string {
+	invariants := append([]string(nil), flow.Model.Verify.Invariants...)
 	return map[string][]string{
-		"typecheck": {"quint", "typecheck", c.Outputs.ModelPath},
-		"test":      {"quint", "test", c.Outputs.ModelPath, "--seed", c.Model.Seed},
-		"verify": append(append([]string{"quint", "verify", c.Outputs.ModelPath, "--invariants"}, invariants...),
-			"--max-steps", fmt.Sprint(c.Model.MaxSteps)),
-		"run": {"quint", "run", c.Outputs.ModelPath, "--mbt", "--seed", c.Model.Seed, "--max-samples", fmt.Sprint(c.Model.TraceCount), "--n-traces", fmt.Sprint(c.Model.TraceCount), "--max-steps", fmt.Sprint(c.Model.MaxSteps), "--out-itf", "<temp-itf-pattern>"},
+		"typecheck": {"quint", "typecheck", flow.Outputs.ModelPath},
+		"test":      {"quint", "test", flow.Outputs.ModelPath, "--seed", flow.Model.Seed},
+		"verify": append(append([]string{"quint", "verify", flow.Outputs.ModelPath, "--invariants"}, invariants...),
+			"--max-steps", fmt.Sprint(flow.Model.MaxSteps)),
+		"run": {"quint", "run", flow.Outputs.ModelPath, "--mbt", "--seed", flow.Model.Seed, "--max-samples", fmt.Sprint(flow.Model.TraceCount), "--n-traces", fmt.Sprint(flow.Model.TraceCount), "--max-steps", fmt.Sprint(flow.Model.MaxSteps), "--out-itf", "<temp-itf-pattern>"},
 	}
 }
 
@@ -208,9 +210,9 @@ func replaceTempPattern(args []string, pattern string) []string {
 	return out
 }
 
-func flowFilePattern(c contract.Contract) string {
+func flowFilePattern(flow model.Flow) string {
 	name := ""
-	for _, r := range c.FlowID {
+	for _, r := range flow.FlowID {
 		if r == '.' {
 			name += "-"
 		} else {
@@ -220,25 +222,9 @@ func flowFilePattern(c contract.Contract) string {
 	return name + "_{seq}.itf.json"
 }
 
-func stateIDs(c contract.Contract) []string {
-	out := make([]string, 0, len(c.States))
-	for _, state := range c.States {
-		out = append(out, state.ID)
-	}
-	return out
-}
-
-func eventIDs(c contract.Contract) []string {
-	out := make([]string, 0, len(c.Events))
-	for _, event := range c.Events {
-		out = append(out, event.ID)
-	}
-	return out
-}
-
-func namedTraces(c contract.Contract) []NamedTrace {
-	out := make([]NamedTrace, 0, len(c.Traces))
-	for _, trace := range c.Traces {
+func namedTraces(flow model.Flow) []NamedTrace {
+	out := make([]NamedTrace, 0, len(flow.Traces))
+	for _, trace := range flow.Traces {
 		steps := make([]quint.ArtifactTraceStep, 0, len(trace.Steps))
 		for _, step := range trace.Steps {
 			steps = append(steps, quint.ArtifactTraceStep{Event: step.Event, Want: step.Want, WantError: step.WantError})
@@ -248,50 +234,32 @@ func namedTraces(c contract.Contract) []NamedTrace {
 	return out
 }
 
-func coverage(c contract.Contract, generatedTraces []quint.ArtifactTrace) Coverage {
-	matrixPairs := map[string]bool{}
-	for _, t := range c.ExpandedTransitions {
-		matrixPairs[t.From+"\x00"+t.Event] = true
-	}
-	matrixComplete := true
-	terminalTransitionsChecked := true
-	for _, state := range c.States {
-		stateComplete := true
-		for _, event := range c.Events {
-			if !matrixPairs[state.ID+"\x00"+event.ID] {
-				matrixComplete = false
-				stateComplete = false
-			}
-		}
-		if state.Terminal && !stateComplete {
-			terminalTransitionsChecked = false
-		}
-	}
+func coverage(flow model.Flow, generatedTraces []quint.ArtifactTrace) Coverage {
 	return Coverage{
-		TransitionMatrixComplete:   matrixComplete,
-		TerminalTransitionsChecked: terminalTransitionsChecked,
-		NamedTraces:                namedTraceCoverage(c),
-		GeneratedTraces:            generatedTraceCoverage(c, generatedTraces),
+		TransitionMatrixComplete:   flow.Matrix.Complete(),
+		TerminalTransitionsChecked: flow.Matrix.TerminalTransitionsChecked(),
+		NamedTraces:                namedTraceCoverage(flow),
+		GeneratedTraces:            generatedTraceCoverage(flow, generatedTraces),
 	}
 }
 
-func namedTraceCoverage(c contract.Contract) TraceCoverage {
-	traces := make([]quint.ArtifactTrace, 0, len(c.Traces))
-	for _, trace := range c.Traces {
+func namedTraceCoverage(flow model.Flow) TraceCoverage {
+	traces := make([]quint.ArtifactTrace, 0, len(flow.Traces))
+	for _, trace := range flow.Traces {
 		steps := make([]quint.ArtifactTraceStep, 0, len(trace.Steps))
 		for _, step := range trace.Steps {
 			steps = append(steps, quint.ArtifactTraceStep{Event: step.Event, Want: step.Want, WantError: step.WantError})
 		}
 		traces = append(traces, quint.ArtifactTrace{Name: trace.Name, Initial: trace.Initial, Steps: steps})
 	}
-	return traceCoverage(c, traces, false)
+	return traceCoverage(flow, traces, false)
 }
 
-func generatedTraceCoverage(c contract.Contract, traces []quint.ArtifactTrace) TraceCoverage {
-	return traceCoverage(c, traces, true)
+func generatedTraceCoverage(flow model.Flow, traces []quint.ArtifactTrace) TraceCoverage {
+	return traceCoverage(flow, traces, true)
 }
 
-func traceCoverage(c contract.Contract, traces []quint.ArtifactTrace, includePairs bool) TraceCoverage {
+func traceCoverage(flow model.Flow, traces []quint.ArtifactTrace, includePairs bool) TraceCoverage {
 	states := map[string]bool{}
 	events := map[string]bool{}
 	pairs := map[string]bool{}
@@ -308,14 +276,14 @@ func traceCoverage(c contract.Contract, traces []quint.ArtifactTrace, includePai
 		}
 	}
 	coverage := TraceCoverage{
-		AllStatesCovered: allStatesCovered(c, states),
-		AllEventsCovered: allEventsCovered(c, events),
-		CoveredStates:    coveredStates(c, states),
-		CoveredEvents:    coveredEvents(c, events),
+		AllStatesCovered: allStatesCovered(flow, states),
+		AllEventsCovered: allEventsCovered(flow, events),
+		CoveredStates:    coveredStates(flow, states),
+		CoveredEvents:    coveredEvents(flow, events),
 	}
 	if includePairs {
-		coverage.CoveredPairs = coveredPairs(c, pairs)
-		coverage.AllPairsCovered = boolPtr(allPairsCovered(c, pairs))
+		coverage.CoveredPairs = coveredPairs(flow, pairs)
+		coverage.AllPairsCovered = boolPtr(allPairsCovered(flow, pairs))
 	}
 	return coverage
 }
@@ -324,8 +292,8 @@ func boolPtr(value bool) *bool {
 	return &value
 }
 
-func allStatesCovered(c contract.Contract, seen map[string]bool) bool {
-	for _, state := range c.States {
+func allStatesCovered(flow model.Flow, seen map[string]bool) bool {
+	for _, state := range flow.States {
 		if !seen[state.ID] {
 			return false
 		}
@@ -333,8 +301,8 @@ func allStatesCovered(c contract.Contract, seen map[string]bool) bool {
 	return true
 }
 
-func allEventsCovered(c contract.Contract, seen map[string]bool) bool {
-	for _, event := range c.Events {
+func allEventsCovered(flow model.Flow, seen map[string]bool) bool {
+	for _, event := range flow.Events {
 		if !seen[event.ID] {
 			return false
 		}
@@ -342,9 +310,9 @@ func allEventsCovered(c contract.Contract, seen map[string]bool) bool {
 	return true
 }
 
-func allPairsCovered(c contract.Contract, seen map[string]bool) bool {
-	for _, state := range c.States {
-		for _, event := range c.Events {
+func allPairsCovered(flow model.Flow, seen map[string]bool) bool {
+	for _, state := range flow.States {
+		for _, event := range flow.Events {
 			if !seen[state.ID+"/"+event.ID] {
 				return false
 			}
@@ -353,9 +321,9 @@ func allPairsCovered(c contract.Contract, seen map[string]bool) bool {
 	return true
 }
 
-func coveredStates(c contract.Contract, seen map[string]bool) []string {
+func coveredStates(flow model.Flow, seen map[string]bool) []string {
 	out := []string{}
-	for _, state := range c.States {
+	for _, state := range flow.States {
 		if seen[state.ID] {
 			out = append(out, state.ID)
 		}
@@ -363,9 +331,9 @@ func coveredStates(c contract.Contract, seen map[string]bool) []string {
 	return out
 }
 
-func coveredEvents(c contract.Contract, seen map[string]bool) []string {
+func coveredEvents(flow model.Flow, seen map[string]bool) []string {
 	out := []string{}
-	for _, event := range c.Events {
+	for _, event := range flow.Events {
 		if seen[event.ID] {
 			out = append(out, event.ID)
 		}
@@ -373,10 +341,10 @@ func coveredEvents(c contract.Contract, seen map[string]bool) []string {
 	return out
 }
 
-func coveredPairs(c contract.Contract, seen map[string]bool) []string {
+func coveredPairs(flow model.Flow, seen map[string]bool) []string {
 	out := []string{}
-	for _, state := range c.States {
-		for _, event := range c.Events {
+	for _, state := range flow.States {
+		for _, event := range flow.Events {
 			key := state.ID + "/" + event.ID
 			if seen[key] {
 				out = append(out, key)

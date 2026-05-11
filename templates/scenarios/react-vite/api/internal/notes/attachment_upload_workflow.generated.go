@@ -20,9 +20,9 @@ const (
 const AttachmentUploadContractPath = "api/internal/notes/attachment_upload_workflow.flow.json"
 const AttachmentUploadModelPath = "api/internal/notes/attachment_upload_workflow.qnt"
 const AttachmentUploadGeneratorPath = "tools/temporal-model"
-const AttachmentUploadContractSHA256 = "c3ef21f23068f61178095e850d10897fd9583efe665d512438fd727806647e0a"
+const AttachmentUploadContractSHA256 = "2c4f204a4774182f7ef5b2a5398f751b5d52f5c0a2ffbdd06c80b9ef82546b07"
 const AttachmentUploadModelSHA256 = "2c341156b2834df1e9a4ac39940abac4dfab3cd99b3954c2fc6e4debdeb25a6b"
-const AttachmentUploadGeneratorSHA256 = "fcee0fc08a18e9c36c79248cec36f3d5e3d85ef11a3c21ff85ac54f26db199dc"
+const AttachmentUploadGeneratorSHA256 = "c1e5bcf48f12e5f2829dc4b09c4875997b424688c58393a524d6f40733cf94bd"
 
 var attachmentUploadFormalInvariants = []string{"TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "MetadataRequiresBytesStored"}
 var attachmentUploadFormalGeneratedChecks = []string{"transitionTable"}

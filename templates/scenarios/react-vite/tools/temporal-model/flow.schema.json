@@ -20,7 +20,7 @@
     "replay"
   ],
   "properties": {
-    "schemaVersion": { "const": 3 },
+    "schemaVersion": { "const": 4 },
     "flowId": { "type": "string", "minLength": 1 },
     "domain": { "type": "string", "minLength": 1 },
     "description": { "type": "string", "minLength": 1 },
@@ -50,11 +50,13 @@
     "outputs": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["modelPath", "artifactPath", "declarationsPath"],
+      "required": ["modelPath", "artifactPath", "declarationsPath", "replayTestPath"],
       "properties": {
         "modelPath": { "type": "string", "minLength": 1 },
         "artifactPath": { "type": "string", "minLength": 1 },
-        "declarationsPath": { "type": "string", "minLength": 1 }
+        "declarationsPath": { "type": "string", "minLength": 1 },
+        "replayHelperPath": { "type": "string", "minLength": 1 },
+        "replayTestPath": { "type": "string", "minLength": 1 }
       }
     },
     "states": {
@@ -104,13 +106,14 @@
     "replay": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["bindings"],
+      "required": ["kind", "testPath", "transition"],
       "properties": {
-        "bindings": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/replayBinding" }
-        }
+        "kind": { "enum": ["go-test", "vitest"] },
+        "helperPath": { "type": "string", "minLength": 1 },
+        "testPath": { "type": "string", "minLength": 1 },
+        "fixtureModule": { "type": "string", "minLength": 1 },
+        "fixtureExport": { "type": "string", "minLength": 1 },
+        "transition": { "$ref": "#/$defs/replayTransition" }
       }
     }
   },
@@ -153,14 +156,15 @@
         "additionalProperties": { "type": "string", "minLength": 1 }
       }
     },
-    "replayBinding": {
+    "replayTransition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "path", "assertion"],
       "properties": {
-        "kind": { "enum": ["go-test", "vitest"] },
-        "path": { "type": "string", "minLength": 1 },
-        "assertion": { "type": "string", "minLength": 1 }
+        "module": { "type": "string", "minLength": 1 },
+        "function": { "type": "string", "minLength": 1 },
+        "stateType": { "type": "string", "minLength": 1 },
+        "statusField": { "type": "string", "minLength": 1 },
+        "statusAccessor": { "type": "string", "minLength": 1 }
       }
     },
     "state": {

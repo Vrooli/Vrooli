@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "flowId": "notes.attachment-upload.ui",
   "domain": "notes",
   "description": "UI attachment upload interaction, including stale async completion protection through attempt identity.",
@@ -20,7 +20,9 @@
   "outputs": {
     "modelPath": "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
     "artifactPath": "ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json",
-    "declarationsPath": "ui/src/features/notes/AttachmentUploadWorkflow.generated.ts"
+    "declarationsPath": "ui/src/features/notes/AttachmentUploadWorkflow.generated.ts",
+    "replayHelperPath": "ui/src/features/notes/AttachmentUploadWorkflow.formal-replay.generated.ts",
+    "replayTestPath": "ui/src/features/notes/AttachmentUploadWorkflow.formal.test.generated.ts"
   },
   "states": [
     { "id": "idle", "quint": "Idle", "initial": true },
@@ -156,12 +158,15 @@
     "staleCompletion": "attempt-id"
   },
   "replay": {
-    "bindings": [
-      {
-        "kind": "vitest",
-        "path": "ui/src/features/notes/AttachmentUploadWorkflow.test.ts",
-        "assertion": "replays generated formal model artifacts"
-      }
-    ]
+    "kind": "vitest",
+    "helperPath": "ui/src/features/notes/AttachmentUploadWorkflow.formal-replay.generated.ts",
+    "testPath": "ui/src/features/notes/AttachmentUploadWorkflow.formal.test.generated.ts",
+    "fixtureModule": "./AttachmentUploadWorkflow.formal-fixtures",
+    "fixtureExport": "attachmentUploadFormalFixtures",
+    "transition": {
+      "module": "./AttachmentUploadWorkflow",
+      "function": "transitionAttachmentUpload",
+      "statusAccessor": "state.status"
+    }
   }
 }

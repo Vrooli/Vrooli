@@ -59,6 +59,11 @@ workflow model.
   `api/internal/notes/attachment_upload_workflow.generated.go`
   and
   `ui/src/features/notes/AttachmentUploadWorkflow.generated.ts`.
+- Generated replay:
+  `api/internal/notes/attachment_upload_workflow.formal_replay_test.generated.go`,
+  `ui/src/features/notes/AttachmentUploadWorkflow.formal-replay.generated.ts`,
+  and
+  `ui/src/features/notes/AttachmentUploadWorkflow.formal.test.generated.ts`.
 - Requirements: template starter only.
 
 ## State Machines
@@ -131,11 +136,11 @@ the discriminated state/event union shape and replay fixture contract.
 Production workflow wrappers call those helpers for abstract validity
 and next-status outcomes, while keeping payload validation, side-effect
 orchestration, and rich state construction in hand-authored code. API
-tests get expected paths, hashes, invariants, and generated checks from
-`*_workflow.generated.go`; UI tests import the same metadata from
-`*Workflow.generated.ts`. Browser-safe replay helpers stay free of Node
-APIs, while Node-only tests recompute contract/model/generator hashes
-from disk to catch stale UI artifacts.
+generated replay tests get expected paths, hashes, invariants, and generated
+checks from `*_workflow.generated.go`; UI generated replay tests import the
+same metadata from `*Workflow.generated.ts`. Browser-safe replay helpers stay
+free of Node APIs, while generated Node-only Vitest replay files recompute
+contract/model/generator hashes from disk to catch stale UI artifacts.
 
 Formal artifacts use schema v4 coverage metadata. Matrix completeness,
 terminal transition checks, named trace coverage, and generated MBT trace
@@ -144,13 +149,13 @@ coverage are separate fields. Do not treat generated trace
 the complete transition matrix and named traces, while generated trace
 coverage reports how much the model explorer happened to visit.
 
-Each schema v3 `*.flow.json` also declares `replay.bindings`. The
-temporal-model tool validates that every binding file exists and still
-contains the declared replay test marker plus the formal freshness,
-transition, and trace helper calls. A new formal flow without a
-production replay test fails during `validate`, `generate`, and `check`.
-The same commands validate the raw contract against `flow.schema.json`
-before semantic expansion, so shape drift fails before Quint runs.
+Each schema v4 `*.flow.json` also declares generated replay outputs. Go flows
+generate the formal replay `_test.go` directly. TypeScript flows generate a
+formal replay helper and a Vitest replay file that imports the declared fixture
+module. `check` compares those generated files with the current contract,
+model, and generator output, so missing freshness, matrix replay, or trace
+replay cannot hide behind comments or stale hand-written tests. The old
+marker-based `replay.bindings` pattern is not supported.
 
 To add or rename a state/event:
 
@@ -158,9 +163,8 @@ To add or rename a state/event:
 2. Regenerate that flow with `tools/temporal-model`.
 3. Update only payload-specific wrapper branches that need new runtime
    data; the abstract transition table is generated.
-4. Update UI replay fixture maps. Generated fixture map types and the
-   generated `*ReplayFixtureContract` constant should make missing
-   fixtures a type error.
+4. Update the UI replay fixture module. The generated formal replay fixture
+   interface should make missing state/event fixtures a type error.
 5. Run `make temporal-models` and the scenario tests.
 
 ## Deferred / Unmodeled Flows

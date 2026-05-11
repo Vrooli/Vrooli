@@ -1,9 +1,11 @@
 package discovery
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
+
+	"react-vite-temporal-model/internal/contract"
+	"react-vite-temporal-model/internal/model"
+	"react-vite-temporal-model/internal/testkit"
 )
 
 func TestFindContractsIgnoresGeneratedAndDependencyDirs(t *testing.T) {
@@ -30,37 +32,18 @@ func TestFindContractsIgnoresGeneratedAndDependencyDirs(t *testing.T) {
 
 func writeFlow(t *testing.T, root string, rel string, flowID string) {
 	t.Helper()
-	path := filepath.Join(root, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	body := `{
-  "schemaVersion": 3,
-  "flowId": "` + flowID + `",
-  "domain": "example",
-  "description": "Example.",
-  "model": {
-    "module": "Example",
-    "seed": "1",
-    "maxSteps": 1,
-    "traceCount": 1,
-    "verify": { "invariants": ["TypeOK"] }
-  },
-  "outputs": { "modelPath": "model.qnt", "artifactPath": "model.formal.generated.json", "declarationsPath": "api/example.generated.go" },
-  "states": [{ "id": "idle", "quint": "Idle", "initial": true }],
-  "events": [{ "id": "tick", "quint": "Tick" }],
-  "transitionDefaults": { "invalid": { "to": "self", "wantError": true } },
-  "transitions": [{ "from": "idle", "event": "tick", "to": "self", "wantError": true }],
-  "invariants": [{ "id": "type_ok", "quint": "TypeOK", "description": "Type OK." }],
-  "traces": [{ "name": "idle", "initial": "idle", "steps": [] }],
-  "runtime": {
-    "go": { "package": "api", "statusType": "Status", "eventType": "Event", "constantPrefix": "Example" }
-  },
-  "replay": {
-    "bindings": [{ "kind": "go-test", "path": "api/example_test.go", "assertion": "TestExample_ReplaysFormalModelArtifacts" }]
-  }
-}`
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	raw := testkit.ValidRawContract()
+	raw.FlowID = flowID
+	raw.States = raw.States[:1]
+	raw.Events = raw.Events[:1]
+	raw.TransitionDefaults.Terminal = nil
+	raw.Transitions = raw.Transitions[:1]
+	raw.Transitions[0].To = model.SelfTarget
+	wantError := true
+	raw.Transitions[0].WantError = &wantError
+	raw.Traces = []contract.Trace{{Name: "idle", Initial: "idle", Steps: []contract.TraceStep{}}}
+	raw.Outputs.DeclarationsPath = "api/example.generated.go"
+	raw.Outputs.ReplayTestPath = "api/example_formal_replay_test.generated.go"
+	raw.Replay.TestPath = raw.Outputs.ReplayTestPath
+	testkit.WriteFlowJSON(t, root, rel, raw)
 }

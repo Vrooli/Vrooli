@@ -7,12 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"react-vite-temporal-model/internal/contract"
+	"react-vite-temporal-model/internal/model"
+	"react-vite-temporal-model/internal/testkit"
 )
 
 func TestRunListAndExplainUseDiscoveredContracts(t *testing.T) {
 	root := t.TempDir()
 	writeFlow(t, root, "api/example.flow.json", "example.visible")
-	writeBinding(t, root, "api/example_test.go", "TestExample_ReplaysFormalModelArtifacts")
 
 	var stdout bytes.Buffer
 	if err := Run(context.Background(), []string{"list", "--root", root}, &stdout, &bytes.Buffer{}); err != nil {
@@ -34,7 +37,7 @@ func TestRunListAndExplainUseDiscoveredContracts(t *testing.T) {
 		"states: 1 (initial idle; terminal none)",
 		"events: 1",
 		"expanded transitions: 1",
-		"Replay bindings:",
+		"Generated replay:",
 		"Coverage requirements:",
 		"named traces: 1",
 		"Commands:",
@@ -49,11 +52,38 @@ func TestRunListAndExplainUseDiscoveredContracts(t *testing.T) {
 func TestRunRejectsUnknownFlow(t *testing.T) {
 	root := t.TempDir()
 	writeFlow(t, root, "api/example.flow.json", "example.visible")
-	writeBinding(t, root, "api/example_test.go", "TestExample_ReplaysFormalModelArtifacts")
 
 	err := Run(context.Background(), []string{"list", "--root", root, "--flow", "missing.flow"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "unknown flow id missing.flow") {
 		t.Fatalf("Run() error = %v", err)
+	}
+}
+
+func TestServiceGenerateUsesInjectedRunnerAndFileSystem(t *testing.T) {
+	root := t.TempDir()
+	testkit.WriteFile(t, root, "tools/temporal-model/go.mod", "module test\n")
+	raw := testkit.ValidRawContract()
+	raw.FlowID = "example.visible"
+	testkit.WriteFlowJSON(t, root, "api/example.flow.json", raw)
+
+	fs := recordingFS{}
+	var stdout bytes.Buffer
+	service := Service{Runner: testkit.FakeRunner{}, FS: &fs, Stdout: &stdout}
+	if err := service.Run(context.Background(), []string{"generate", "--root", root, "--flow", "example.visible"}); err != nil {
+		t.Fatalf("Service.Run(generate) error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "generated 1 temporal flow(s)") {
+		t.Fatalf("generate output = %q", stdout.String())
+	}
+	for _, want := range []string{
+		"model.qnt",
+		"model.formal.generated.json",
+		"model.generated.go",
+		"model_formal_replay_test.generated.go",
+	} {
+		if !fs.wroteSuffix(want) {
+			t.Fatalf("expected generated write ending in %s; writes=%v", want, fs.writes)
+		}
 	}
 }
 
@@ -68,49 +98,44 @@ func TestParseFlagsRequiresValues(t *testing.T) {
 
 func writeFlow(t *testing.T, root string, rel string, flowID string) {
 	t.Helper()
-	path := filepath.Join(root, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	body := `{
-  "schemaVersion": 3,
-  "flowId": "` + flowID + `",
-  "domain": "example",
-  "description": "Example.",
-  "model": {
-    "module": "Example",
-    "seed": "1",
-    "maxSteps": 1,
-    "traceCount": 1,
-    "verify": { "invariants": ["TypeOK"] }
-  },
-  "outputs": { "modelPath": "model.qnt", "artifactPath": "model.formal.generated.json", "declarationsPath": "api/example.generated.go" },
-  "states": [{ "id": "idle", "quint": "Idle", "initial": true }],
-  "events": [{ "id": "tick", "quint": "Tick" }],
-  "transitionDefaults": { "invalid": { "to": "self", "wantError": true } },
-  "transitions": [{ "from": "idle", "event": "tick", "to": "self", "wantError": true }],
-  "invariants": [{ "id": "type_ok", "quint": "TypeOK", "description": "Type OK." }],
-  "traces": [{ "name": "idle", "initial": "idle", "steps": [] }],
-  "runtime": {
-    "go": { "package": "api", "statusType": "Status", "eventType": "Event", "constantPrefix": "Example" }
-  },
-  "replay": {
-    "bindings": [{ "kind": "go-test", "path": "api/example_test.go", "assertion": "TestExample_ReplaysFormalModelArtifacts" }]
-  }
-}`
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	raw := testkit.ValidRawContract()
+	raw.FlowID = flowID
+	raw.States = raw.States[:1]
+	raw.Events = raw.Events[:1]
+	raw.TransitionDefaults.Terminal = nil
+	raw.Transitions = raw.Transitions[:1]
+	raw.Transitions[0].To = model.SelfTarget
+	wantError := true
+	raw.Transitions[0].WantError = &wantError
+	raw.Traces = []contract.Trace{{Name: "idle", Initial: "idle", Steps: []contract.TraceStep{}}}
+	raw.Outputs.DeclarationsPath = "api/example.generated.go"
+	raw.Outputs.ReplayTestPath = "api/example_formal_replay_test.generated.go"
+	raw.Replay.TestPath = raw.Outputs.ReplayTestPath
+	testkit.WriteFlowJSON(t, root, rel, raw)
 }
 
-func writeBinding(t *testing.T, root string, rel string, marker string) {
-	t.Helper()
-	path := filepath.Join(root, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
+type recordingFS struct {
+	writes []string
+}
+
+func (fs *recordingFS) MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}
+
+func (fs *recordingFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	fs.writes = append(fs.writes, path)
+	return os.WriteFile(path, data, perm)
+}
+
+func (fs *recordingFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+func (fs *recordingFS) wroteSuffix(suffix string) bool {
+	for _, path := range fs.writes {
+		if strings.HasSuffix(filepath.ToSlash(path), suffix) {
+			return true
+		}
 	}
-	body := marker + "\nAssertFormalArtifactFresh\nAssertFormalTransitionsReplay\nAssertFormalTracesReplay\n"
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	return false
 }

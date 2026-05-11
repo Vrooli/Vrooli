@@ -1,10 +1,13 @@
-package quint
+package quint_test
 
 import (
 	"strings"
 	"testing"
 
 	"react-vite-temporal-model/internal/contract"
+	"react-vite-temporal-model/internal/model"
+	"react-vite-temporal-model/internal/quint"
+	"react-vite-temporal-model/internal/testkit"
 )
 
 func TestRenderKeepsTransitionTableOutOfVerifiedInvariants(t *testing.T) {
@@ -21,24 +24,35 @@ func TestRenderKeepsTransitionTableOutOfVerifiedInvariants(t *testing.T) {
 			TraceCount: 1,
 			Verify:     contract.Verify{Invariants: []string{"TypeOK"}},
 		},
-		Outputs: contract.Outputs{ModelPath: "model.qnt", ArtifactPath: "model.formal.generated.json", DeclarationsPath: "model.generated.go"},
-		States:  []contract.State{{ID: "idle", Quint: "Idle", Initial: true}},
-		Events:  []contract.Event{{ID: "tick", Quint: "Tick"}},
-		TransitionDefaults: contract.TransitionDefaults{
-			Invalid: &contract.DefaultTransition{To: "self", WantError: true},
+		Outputs: contract.Outputs{
+			ModelPath:        "model.qnt",
+			ArtifactPath:     "model.formal.generated.json",
+			DeclarationsPath: "model.generated.go",
+			ReplayTestPath:   "model_formal_replay_test.generated.go",
 		},
-		Transitions: []contract.Transition{{From: contract.StringList{"idle"}, Event: contract.StringList{"tick"}, To: "self", WantError: boolPtr(true)}},
+		States: []contract.State{{ID: "idle", Quint: "Idle", Initial: true}},
+		Events: []contract.Event{{ID: "tick", Quint: "Tick"}},
+		TransitionDefaults: contract.TransitionDefaults{
+			Invalid: &contract.DefaultTransition{To: model.SelfTarget, WantError: true},
+		},
+		Transitions: []contract.Transition{{From: contract.StringList{"idle"}, Event: contract.StringList{"tick"}, To: model.SelfTarget, WantError: boolPtr(true)}},
 		Invariants:  []contract.Invariant{{ID: "type_ok", Quint: "TypeOK", Description: "Type OK."}},
 		Traces:      []contract.Trace{{Name: "idle", Initial: "idle", Steps: nil}},
 		Runtime: contract.Runtime{
 			Go: &contract.GoRuntime{Package: "example", StatusType: "Status", EventType: "Event", ConstantPrefix: "Example"},
 		},
-		Replay: contract.Replay{Bindings: []contract.ReplayBinding{{Kind: "go-test", Path: "workflow_test.go", Assertion: "TestWorkflow_ReplaysFormalModelArtifacts"}}},
+		Replay: contract.Replay{
+			Kind:     string(model.ReplayKindGoTest),
+			TestPath: "model_formal_replay_test.generated.go",
+			Transition: contract.ReplayTransition{
+				Function:    "TransitionExample",
+				StateType:   "State",
+				StatusField: "Status",
+			},
+		},
 	}
-	if err := contract.ValidateAndExpand(&c); err != nil {
-		t.Fatalf("ValidateAndExpand() error = %v", err)
-	}
-	rendered := Render(c)
+	flow := testkit.MustCompile(t, c)
+	rendered := quint.Render(flow)
 	if strings.Contains(rendered, "AllDeclaredTransitionsCovered") {
 		t.Fatalf("rendered model still contains fake invariant:\n%s", rendered)
 	}

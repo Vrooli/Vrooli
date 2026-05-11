@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"react-vite-temporal-model/internal/contract"
 	"react-vite-temporal-model/internal/quint"
+	"react-vite-temporal-model/internal/testkit"
 )
 
 func TestCanonicalJSONIsDeterministic(t *testing.T) {
@@ -34,10 +34,10 @@ func TestBuildUsesRunnerAndNormalizesGeneratedTraces(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, GeneratorPath, "go.mod"), []byte("module test\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c := validContract()
-	writeFile(t, root, c.ContractPath, "{}")
-	runner := fakeRunner{}
-	built, err := Build(context.Background(), c, BuildOptions{
+	runner := testkit.FakeRunner{}
+	flow := testkit.MustCompile(t, testkit.ValidRawContract())
+	writeFile(t, root, flow.ContractPath, "{}")
+	built, err := Build(context.Background(), flow, BuildOptions{
 		Root:         root,
 		Rendered:     "module Example {}",
 		QuintVersion: "0.32.0",
@@ -50,7 +50,7 @@ func TestBuildUsesRunnerAndNormalizesGeneratedTraces(t *testing.T) {
 	if len(built.GeneratedTraces) != 1 {
 		t.Fatalf("generated traces = %d, want 1", len(built.GeneratedTraces))
 	}
-	if got := strings.Join(built.GeneratedChecks, ","); got != "transitionTable" {
+	if got := strings.Join(built.GeneratedChecks, ","); got != GeneratedCheckTransitionTable {
 		t.Fatalf("generated checks = %q, want transitionTable", got)
 	}
 	if !built.Coverage.TransitionMatrixComplete {
@@ -73,9 +73,9 @@ func TestBuildReportsRunnerFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeFile(t, root, filepath.Join(GeneratorPath, "go.mod"), "module test\n")
-	c := validContract()
-	writeFile(t, root, c.ContractPath, "{}")
-	_, err := Build(context.Background(), c, BuildOptions{
+	flow := testkit.MustCompile(t, testkit.ValidRawContract())
+	writeFile(t, root, flow.ContractPath, "{}")
+	_, err := Build(context.Background(), flow, BuildOptions{
 		Root:         root,
 		Rendered:     "module Example {}",
 		QuintVersion: "0.32.0",
@@ -87,59 +87,13 @@ func TestBuildReportsRunnerFailures(t *testing.T) {
 	}
 }
 
-type fakeRunner struct{}
-
-func (fakeRunner) Run(_ context.Context, command quint.Command) (quint.Result, error) {
-	if len(command.Args) >= 2 && command.Args[1] == "run" {
-		pattern := command.Args[len(command.Args)-1]
-		path := strings.Replace(pattern, "{seq}", "1", 1)
-		body := `{"states":[{"status":{"tag":"Idle"},"event":{"tag":"Start"},"rejected":false},{"status":{"tag":"Busy"},"event":{"tag":"Start"},"rejected":false}]}`
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-			return quint.Result{}, err
-		}
-	}
-	return quint.Result{Stdout: "ok"}, nil
-}
-
 type failingRunner struct{}
 
 func (f failingRunner) Run(_ context.Context, command quint.Command) (quint.Result, error) {
 	if len(command.Args) >= 2 && command.Args[1] == "test" {
 		return quint.Result{Stdout: "stdout", Stderr: "stderr"}, os.ErrPermission
 	}
-	return fakeRunner{}.Run(context.Background(), command)
-}
-
-func validContract() contract.Contract {
-	c := contract.Contract{
-		SchemaVersion: contract.SchemaVersion,
-		FlowID:        "example.flow",
-		Domain:        "example",
-		Description:   "Example.",
-		ContractPath:  "example.flow.json",
-		Model: contract.Model{
-			Module:     "Example",
-			Seed:       "1",
-			MaxSteps:   2,
-			TraceCount: 1,
-			Verify:     contract.Verify{Invariants: []string{"TypeOK"}},
-		},
-		Outputs:            contract.Outputs{ModelPath: "model.qnt", ArtifactPath: "model.formal.generated.json", DeclarationsPath: "model.generated.go"},
-		States:             []contract.State{{ID: "idle", Quint: "Idle", Initial: true}, {ID: "busy", Quint: "Busy"}},
-		Events:             []contract.Event{{ID: "start", Quint: "Start"}},
-		TransitionDefaults: contract.TransitionDefaults{Invalid: &contract.DefaultTransition{To: "self", WantError: true}},
-		Transitions:        []contract.Transition{{From: contract.StringList{"idle"}, Event: contract.StringList{"start"}, To: "busy"}},
-		Invariants:         []contract.Invariant{{ID: "type_ok", Quint: "TypeOK", Description: "Type OK."}},
-		Traces:             []contract.Trace{{Name: "success", Initial: "idle", Steps: []contract.TraceStep{{Event: "start", Want: "busy"}}}},
-		Runtime: contract.Runtime{
-			Go: &contract.GoRuntime{Package: "example", StatusType: "Status", EventType: "Event", ConstantPrefix: "Example"},
-		},
-		Replay: contract.Replay{Bindings: []contract.ReplayBinding{{Kind: "go-test", Path: "workflow_test.go", Assertion: "TestWorkflow_ReplaysFormalModelArtifacts"}}},
-	}
-	if err := contract.ValidateAndExpand(&c); err != nil {
-		panic(err)
-	}
-	return c
+	return testkit.FakeRunner{}.Run(context.Background(), command)
 }
 
 func writeFile(t *testing.T, root string, rel string, body string) {

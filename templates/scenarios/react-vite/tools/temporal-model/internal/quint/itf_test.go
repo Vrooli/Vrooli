@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"react-vite-temporal-model/internal/contract"
+	"react-vite-temporal-model/internal/model"
 )
 
 func TestNormalizeTracesRejectsUnknownTags(t *testing.T) {
@@ -15,7 +16,7 @@ func TestNormalizeTracesRejectsUnknownTags(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "trace.itf.json"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := NormalizeTraces(contract.Contract{
+	_, err := NormalizeTraces(model.Flow{
 		States: []contract.State{{ID: "idle", Quint: "Idle"}},
 		Events: []contract.Event{{ID: "tick", Quint: "Tick"}},
 	}, dir)

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"react-vite-temporal-model/internal/artifact"
@@ -13,10 +14,57 @@ import (
 	"react-vite-temporal-model/internal/contract"
 	"react-vite-temporal-model/internal/discovery"
 	"react-vite-temporal-model/internal/filesystem"
+	"react-vite-temporal-model/internal/model"
 	"react-vite-temporal-model/internal/quint"
 )
 
 func Run(ctx context.Context, args []string, stdout io.Writer, _ io.Writer) error {
+	return Service{
+		Runner: quint.ExecRunner{},
+		FS:     osFileSystem{},
+		Stdout: stdout,
+	}.Run(ctx, args)
+}
+
+type Service struct {
+	Runner quint.Runner
+	FS     FileSystem
+	Stdout io.Writer
+}
+
+type FileSystem interface {
+	MkdirAll(path string, perm os.FileMode) error
+	WriteFile(path string, data []byte, perm os.FileMode) error
+	ReadFile(path string) ([]byte, error)
+}
+
+type osFileSystem struct{}
+
+func (osFileSystem) MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}
+
+func (osFileSystem) WriteFile(path string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(path, data, perm)
+}
+
+func (osFileSystem) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+func (s Service) Run(ctx context.Context, args []string) error {
+	stdout := s.Stdout
+	if stdout == nil {
+		stdout = io.Discard
+	}
+	runner := s.Runner
+	if runner == nil {
+		runner = quint.ExecRunner{}
+	}
+	fs := s.FS
+	if fs == nil {
+		fs = osFileSystem{}
+	}
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
 		printHelp(stdout)
 		return nil
@@ -38,12 +86,6 @@ func Run(ctx context.Context, args []string, stdout io.Writer, _ io.Writer) erro
 	if flags.flow != "" && len(selected) == 0 {
 		return fmt.Errorf("unknown flow id %s", flags.flow)
 	}
-	for _, c := range selected {
-		if err := contract.ValidateReplayBindings(c, root); err != nil {
-			return err
-		}
-	}
-
 	switch command {
 	case "list":
 		for _, c := range selected {
@@ -56,9 +98,14 @@ func Run(ctx context.Context, args []string, stdout io.Writer, _ io.Writer) erro
 		}
 		return nil
 	case "generate":
-		return generate(ctx, stdout, root, selected, false)
+		return s.generate(ctx, stdout, fs, runner, root, selected, false)
 	case "check":
-		return generate(ctx, stdout, root, selected, true)
+		for _, flow := range selected {
+			if err := validateReplayFixture(flow, root); err != nil {
+				return err
+			}
+		}
+		return s.generate(ctx, stdout, fs, runner, root, selected, true)
 	case "explain":
 		if flags.flow == "" {
 			return fmt.Errorf("explain requires --flow <flow-id>")
@@ -97,8 +144,7 @@ func parseFlags(args []string) (flags, error) {
 	return out, nil
 }
 
-func generate(ctx context.Context, stdout io.Writer, root string, contracts []contract.Contract, check bool) error {
-	runner := quint.ExecRunner{}
+func (s Service) generate(ctx context.Context, stdout io.Writer, fs FileSystem, runner quint.Runner, root string, flows []model.Flow, check bool) error {
 	version, err := runner.Run(ctx, quint.Command{Args: []string{"quint", "--version"}, Dir: root})
 	if err != nil {
 		return err
@@ -108,22 +154,22 @@ func generate(ctx context.Context, stdout io.Writer, root string, contracts []co
 		return fmt.Errorf("quint --version returned an empty version")
 	}
 	wrote := 0
-	for _, c := range contracts {
-		rendered := quint.Render(c)
-		modelPath := filesystem.Abs(root, c.Outputs.ModelPath)
+	for _, flow := range flows {
+		rendered := quint.Render(flow)
+		modelPath := filesystem.Abs(root, flow.Outputs.ModelPath)
 		if check {
-			if err := artifact.AssertFresh(modelPath, []byte(rendered), c.FlowID); err != nil {
+			if err := assertFresh(fs, modelPath, []byte(rendered), flow.FlowID); err != nil {
 				return err
 			}
 		} else {
-			if err := os.MkdirAll(filepath.Dir(modelPath), 0o755); err != nil {
+			if err := fs.MkdirAll(filepath.Dir(modelPath), 0o755); err != nil {
 				return err
 			}
-			if err := os.WriteFile(modelPath, []byte(rendered), 0o644); err != nil {
+			if err := fs.WriteFile(modelPath, []byte(rendered), 0o644); err != nil {
 				return err
 			}
 		}
-		built, err := artifact.Build(ctx, c, artifact.BuildOptions{
+		built, err := artifact.Build(ctx, flow, artifact.BuildOptions{
 			Root:         root,
 			Rendered:     rendered,
 			QuintVersion: quintVersion,
@@ -137,37 +183,41 @@ func generate(ctx context.Context, stdout io.Writer, root string, contracts []co
 		if err != nil {
 			return err
 		}
-		declarations, err := codegen.Render(c, built)
+		renderedCode, err := codegen.Render(flow, built)
 		if err != nil {
 			return err
 		}
-		artifactPath := filesystem.Abs(root, c.Outputs.ArtifactPath)
+		artifactPath := filesystem.Abs(root, flow.Outputs.ArtifactPath)
 		if check {
-			if err := artifact.AssertFresh(artifactPath, data, c.FlowID); err != nil {
+			if err := assertFresh(fs, artifactPath, data, flow.FlowID); err != nil {
 				return err
 			}
-			if err := artifact.AssertFresh(filesystem.Abs(root, c.Outputs.DeclarationsPath), []byte(declarations), c.FlowID); err != nil {
-				return err
+			for _, file := range renderedCode.Files {
+				if err := assertFresh(fs, filesystem.Abs(root, file.Path), file.Data, flow.FlowID); err != nil {
+					return err
+				}
 			}
-			fmt.Fprintf(stdout, "fresh %s\n", c.FlowID)
+			fmt.Fprintf(stdout, "fresh %s\n", flow.FlowID)
 			continue
 		}
-		if err := os.MkdirAll(filepath.Dir(artifactPath), 0o755); err != nil {
+		if err := fs.MkdirAll(filepath.Dir(artifactPath), 0o755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(artifactPath, data, 0o644); err != nil {
+		if err := fs.WriteFile(artifactPath, data, 0o644); err != nil {
 			return err
 		}
-		declarationsPath := filesystem.Abs(root, c.Outputs.DeclarationsPath)
-		if err := os.MkdirAll(filepath.Dir(declarationsPath), 0o755); err != nil {
-			return err
+		fmt.Fprintf(stdout, "wrote %s\n", flow.Outputs.ModelPath)
+		fmt.Fprintf(stdout, "wrote %s\n", flow.Outputs.ArtifactPath)
+		for _, file := range renderedCode.Files {
+			target := filesystem.Abs(root, file.Path)
+			if err := fs.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			if err := fs.WriteFile(target, file.Data, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "wrote %s\n", file.Path)
 		}
-		if err := os.WriteFile(declarationsPath, []byte(declarations), 0o644); err != nil {
-			return err
-		}
-		fmt.Fprintf(stdout, "wrote %s\n", c.Outputs.ModelPath)
-		fmt.Fprintf(stdout, "wrote %s\n", c.Outputs.ArtifactPath)
-		fmt.Fprintf(stdout, "wrote %s\n", c.Outputs.DeclarationsPath)
 		wrote++
 	}
 	if !check {
@@ -176,7 +226,7 @@ func generate(ctx context.Context, stdout io.Writer, root string, contracts []co
 	return nil
 }
 
-func explain(stdout io.Writer, root string, flow contract.Contract) error {
+func explain(stdout io.Writer, root string, flow model.Flow) error {
 	fmt.Fprintf(stdout, "flow: %s\n", flow.FlowID)
 	fmt.Fprintf(stdout, "contract: %s\n", flow.ContractPath)
 	fmt.Fprintln(stdout, "source of truth: *.flow.json")
@@ -185,6 +235,10 @@ func explain(stdout io.Writer, root string, flow contract.Contract) error {
 	fmt.Fprintf(stdout, "  model: %s\n", flow.Outputs.ModelPath)
 	fmt.Fprintf(stdout, "  artifact: %s\n", flow.Outputs.ArtifactPath)
 	fmt.Fprintf(stdout, "  declarations: %s\n", flow.Outputs.DeclarationsPath)
+	if flow.Outputs.ReplayHelperPath != "" {
+		fmt.Fprintf(stdout, "  replay helper: %s\n", flow.Outputs.ReplayHelperPath)
+	}
+	fmt.Fprintf(stdout, "  replay test: %s\n", flow.Outputs.ReplayTestPath)
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Runtime:")
 	fmt.Fprintf(stdout, "  language: %s\n", runtimeLanguage(flow))
@@ -194,17 +248,21 @@ func explain(stdout io.Writer, root string, flow contract.Contract) error {
 	fmt.Fprintf(stdout, "  fixture contract: %s\n", yesNo(runtimeLanguage(flow) == "typescript"))
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Topology:")
-	fmt.Fprintf(stdout, "  states: %d (initial %s; terminal %s)\n", len(flow.States), contract.Initial(flow).ID, terminalSummary(flow))
+	fmt.Fprintf(stdout, "  states: %d (initial %s; terminal %s)\n", len(flow.States), flow.Initial.ID, terminalSummary(flow))
 	fmt.Fprintf(stdout, "  events: %d\n", len(flow.Events))
-	fmt.Fprintf(stdout, "  expanded transitions: %d\n", len(flow.ExpandedTransitions))
+	fmt.Fprintf(stdout, "  expanded transitions: %d\n", flow.Matrix.Len())
 	fmt.Fprintf(stdout, "  invalid transitions: %d\n", invalidTransitionCount(flow))
 	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Replay bindings:")
-	for _, binding := range flow.Replay.Bindings {
-		fmt.Fprintf(stdout, "  ok %s\n", binding.Path)
-		fmt.Fprintf(stdout, "    marker: %s\n", binding.Assertion)
-		fmt.Fprintf(stdout, "    helpers: artifact freshness, transitions, traces\n")
+	fmt.Fprintln(stdout, "Generated replay:")
+	fmt.Fprintf(stdout, "  kind: %s\n", flow.Replay.Kind)
+	fmt.Fprintf(stdout, "  test: %s\n", flow.Replay.TestPath)
+	if flow.Replay.HelperPath != "" {
+		fmt.Fprintf(stdout, "  helper: %s\n", flow.Replay.HelperPath)
 	}
+	if flow.Replay.FixtureModule != "" {
+		fmt.Fprintf(stdout, "  fixture: %s (%s)\n", flow.Replay.FixtureModule, flow.Replay.FixtureExport)
+	}
+	fmt.Fprintf(stdout, "  transition: %s\n", flow.Replay.Transition.Function)
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Coverage requirements:")
 	coveredStates, missingStates, coveredEvents, missingEvents := namedTraceCoverage(flow)
@@ -223,7 +281,7 @@ func explain(stdout io.Writer, root string, flow contract.Contract) error {
 	return nil
 }
 
-func runtimeLanguage(flow contract.Contract) string {
+func runtimeLanguage(flow model.Flow) string {
 	switch {
 	case flow.Runtime.Go != nil:
 		return "go"
@@ -234,7 +292,7 @@ func runtimeLanguage(flow contract.Contract) string {
 	}
 }
 
-func runtimeStatusType(flow contract.Contract) string {
+func runtimeStatusType(flow model.Flow) string {
 	if flow.Runtime.Go != nil {
 		return flow.Runtime.Go.StatusType
 	}
@@ -244,7 +302,7 @@ func runtimeStatusType(flow contract.Contract) string {
 	return ""
 }
 
-func runtimeEventType(flow contract.Contract) string {
+func runtimeEventType(flow model.Flow) string {
 	if flow.Runtime.Go != nil {
 		return flow.Runtime.Go.EventType
 	}
@@ -254,11 +312,11 @@ func runtimeEventType(flow contract.Contract) string {
 	return ""
 }
 
-func hasGeneratedRuntimeUnions(flow contract.Contract) bool {
+func hasGeneratedRuntimeUnions(flow model.Flow) bool {
 	return flow.Runtime.TypeScript != nil && flow.Runtime.TypeScript.StateUnionType != "" && flow.Runtime.TypeScript.EventUnionType != ""
 }
 
-func terminalSummary(flow contract.Contract) string {
+func terminalSummary(flow model.Flow) string {
 	var terminal []string
 	for _, state := range flow.States {
 		if state.Terminal {
@@ -271,9 +329,9 @@ func terminalSummary(flow contract.Contract) string {
 	return strings.Join(terminal, ", ")
 }
 
-func invalidTransitionCount(flow contract.Contract) int {
+func invalidTransitionCount(flow model.Flow) int {
 	total := 0
-	for _, transition := range flow.ExpandedTransitions {
+	for _, transition := range flow.Matrix.Rows() {
 		if transition.WantError {
 			total++
 		}
@@ -281,7 +339,7 @@ func invalidTransitionCount(flow contract.Contract) int {
 	return total
 }
 
-func namedTraceCoverage(flow contract.Contract) ([]string, []string, []string, []string) {
+func namedTraceCoverage(flow model.Flow) ([]string, []string, []string, []string) {
 	coveredStates := map[string]bool{}
 	coveredEvents := map[string]bool{}
 	for _, trace := range flow.Traces {
@@ -319,7 +377,7 @@ func coverageSummary(covered []string, missing []string) string {
 	return fmt.Sprintf("covered %s; missing %s", strings.Join(covered, ", "), strings.Join(missing, ", "))
 }
 
-func handAuthoredFollowUps(flow contract.Contract) []string {
+func handAuthoredFollowUps(flow model.Flow) []string {
 	seen := map[string]bool{}
 	var out []string
 	add := func(path string) {
@@ -330,10 +388,45 @@ func handAuthoredFollowUps(flow contract.Contract) []string {
 		out = append(out, path)
 	}
 	add(inferRuntimeWrapper(flow.Outputs.DeclarationsPath))
-	for _, binding := range flow.Replay.Bindings {
-		add(binding.Path)
+	if model.ReplayKind(flow.Replay.Kind) == model.ReplayKindVitest {
+		fixture, err := contract.ResolveTypeScriptImport(flow.Outputs.ReplayTestPath, flow.Replay.FixtureModule)
+		if err == nil {
+			add(fixture)
+		}
 	}
 	return out
+}
+
+func validateReplayFixture(flow model.Flow, root string) error {
+	if model.ReplayKind(flow.Replay.Kind) != model.ReplayKindVitest {
+		return nil
+	}
+	path, err := contract.ResolveTypeScriptImport(flow.Outputs.ReplayTestPath, flow.Replay.FixtureModule)
+	if err != nil {
+		return fmt.Errorf("invalid replay fixture module for %s: %w", flow.FlowID, err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+	if err != nil {
+		return fmt.Errorf("invalid replay fixture for %s:\n  - replay fixture module %s for %s is missing or unreadable: %v", flow.FlowID, path, flow.FlowID, err)
+	}
+	if !hasTypeScriptExport(data, flow.Replay.FixtureExport) {
+		return fmt.Errorf("invalid replay fixture for %s:\n  - replay fixture module %s for %s does not export %s", flow.FlowID, path, flow.FlowID, flow.Replay.FixtureExport)
+	}
+	return nil
+}
+
+func hasTypeScriptExport(data []byte, name string) bool {
+	quoted := regexp.QuoteMeta(name)
+	patterns := []*regexp.Regexp{
+		regexp.MustCompile(`(?m)^\s*export\s+(const|let|var|function|class)\s+` + quoted + `\b`),
+		regexp.MustCompile(`(?m)^\s*export\s*\{[^}]*\b` + quoted + `\b[^}]*\}`),
+	}
+	for _, pattern := range patterns {
+		if pattern.Match(data) {
+			return true
+		}
+	}
+	return false
 }
 
 func inferRuntimeWrapper(generated string) string {
@@ -364,6 +457,17 @@ func trim(value string) string {
 		value = value[:len(value)-1]
 	}
 	return value
+}
+
+func assertFresh(fs FileSystem, path string, next []byte, flowID string) error {
+	current, err := fs.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("%s is missing. Run cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow %s", filepath.ToSlash(path), flowID)
+	}
+	if string(current) != string(next) {
+		return fmt.Errorf("%s is stale. Run cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow %s", filepath.ToSlash(path), flowID)
+	}
+	return nil
 }
 
 func printHelp(stdout io.Writer) {
