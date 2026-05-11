@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "flowId": "notes.attachment-upload.ui",
   "domain": "notes",
   "description": "UI attachment upload interaction, including stale async completion protection through attempt identity.",
@@ -36,32 +36,17 @@
     { "id": "fail", "quint": "Fail" },
     { "id": "reset", "quint": "Reset" }
   ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": false }
+  },
   "transitions": [
-    { "from": "idle", "event": "select", "to": "selected", "wantError": false },
-    { "from": "idle", "event": "start", "to": "idle", "wantError": true },
-    { "from": "idle", "event": "succeed", "to": "idle", "wantError": false },
-    { "from": "idle", "event": "fail", "to": "idle", "wantError": false },
-    { "from": "idle", "event": "reset", "to": "idle", "wantError": false },
-    { "from": "selected", "event": "select", "to": "selected", "wantError": false },
-    { "from": "selected", "event": "start", "to": "uploading", "wantError": false },
-    { "from": "selected", "event": "succeed", "to": "selected", "wantError": false },
-    { "from": "selected", "event": "fail", "to": "selected", "wantError": false },
-    { "from": "selected", "event": "reset", "to": "idle", "wantError": false },
-    { "from": "uploading", "event": "select", "to": "selected", "wantError": false },
-    { "from": "uploading", "event": "start", "to": "uploading", "wantError": true },
-    { "from": "uploading", "event": "succeed", "to": "succeeded", "wantError": false },
-    { "from": "uploading", "event": "fail", "to": "failed", "wantError": false },
-    { "from": "uploading", "event": "reset", "to": "idle", "wantError": false },
-    { "from": "succeeded", "event": "select", "to": "selected", "wantError": false },
-    { "from": "succeeded", "event": "start", "to": "succeeded", "wantError": true },
-    { "from": "succeeded", "event": "succeed", "to": "succeeded", "wantError": false },
-    { "from": "succeeded", "event": "fail", "to": "succeeded", "wantError": false },
-    { "from": "succeeded", "event": "reset", "to": "idle", "wantError": false },
-    { "from": "failed", "event": "select", "to": "selected", "wantError": false },
-    { "from": "failed", "event": "start", "to": "uploading", "wantError": false },
-    { "from": "failed", "event": "succeed", "to": "failed", "wantError": false },
-    { "from": "failed", "event": "fail", "to": "failed", "wantError": false },
-    { "from": "failed", "event": "reset", "to": "idle", "wantError": false }
+    { "from": ["idle", "selected", "uploading", "succeeded", "failed"], "event": "select", "to": "selected" },
+    { "from": "selected", "event": "start", "to": "uploading" },
+    { "from": "failed", "event": "start", "to": "uploading" },
+    { "from": "uploading", "event": "succeed", "to": "succeeded" },
+    { "from": "uploading", "event": "fail", "to": "failed" },
+    { "from": ["selected", "uploading", "succeeded", "failed"], "event": "reset", "to": "idle" },
+    { "from": ["idle", "uploading", "succeeded"], "event": "start", "to": "self", "wantError": true }
   ],
   "invariants": [
     { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },

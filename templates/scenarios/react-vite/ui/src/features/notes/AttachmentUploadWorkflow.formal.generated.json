@@ -1,10 +1,16 @@
 {
-  "checks": {
-    "generatedFromContract": true,
-    "generatedFromModel": true,
-    "tested": true,
-    "typechecked": true,
-    "verified": true
+  "schemaVersion": 2,
+  "flowId": "notes.attachment-upload.ui",
+  "source": {
+    "contractPath": "ui/src/features/notes/AttachmentUploadWorkflow.flow.json",
+    "contractSha256": "321fbcdd220fb28a3ece4768422156c01b1c1365c5511caaac62d03af29de01d",
+    "generatorPath": "tools/temporal-model",
+    "generatorSha256": "1f07525efaed9f93eef2752322946cff9e384655cf5cc1f9f081c537e759fc98",
+    "generatorVersion": 3,
+    "modelPath": "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
+    "modelSha256": "d99acafafa2db2882e70a13910c957adcbbaa732b3869dbbc71e5eca33827838",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
   },
   "commands": {
     "run": [
@@ -49,12 +55,13 @@
       "8"
     ]
   },
-  "coverage": {
-    "allEventsCovered": true,
-    "allPairsCovered": true,
-    "allStatesCovered": true,
-    "terminalStatesChecked": true
-  },
+  "states": [
+    "idle",
+    "selected",
+    "uploading",
+    "succeeded",
+    "failed"
+  ],
   "events": [
     "select",
     "start",
@@ -62,11 +69,268 @@
     "fail",
     "reset"
   ],
-  "flowId": "notes.attachment-upload.ui",
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "select",
+      "to": "selected",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "start",
+      "to": "idle",
+      "wantError": true
+    },
+    {
+      "from": "idle",
+      "event": "succeed",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "fail",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "reset",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "selected",
+      "event": "select",
+      "to": "selected",
+      "wantError": false
+    },
+    {
+      "from": "selected",
+      "event": "start",
+      "to": "uploading",
+      "wantError": false
+    },
+    {
+      "from": "selected",
+      "event": "succeed",
+      "to": "selected",
+      "wantError": false
+    },
+    {
+      "from": "selected",
+      "event": "fail",
+      "to": "selected",
+      "wantError": false
+    },
+    {
+      "from": "selected",
+      "event": "reset",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "uploading",
+      "event": "select",
+      "to": "selected",
+      "wantError": false
+    },
+    {
+      "from": "uploading",
+      "event": "start",
+      "to": "uploading",
+      "wantError": true
+    },
+    {
+      "from": "uploading",
+      "event": "succeed",
+      "to": "succeeded",
+      "wantError": false
+    },
+    {
+      "from": "uploading",
+      "event": "fail",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "uploading",
+      "event": "reset",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "succeeded",
+      "event": "select",
+      "to": "selected",
+      "wantError": false
+    },
+    {
+      "from": "succeeded",
+      "event": "start",
+      "to": "succeeded",
+      "wantError": true
+    },
+    {
+      "from": "succeeded",
+      "event": "succeed",
+      "to": "succeeded",
+      "wantError": false
+    },
+    {
+      "from": "succeeded",
+      "event": "fail",
+      "to": "succeeded",
+      "wantError": false
+    },
+    {
+      "from": "succeeded",
+      "event": "reset",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "select",
+      "to": "selected",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "start",
+      "to": "uploading",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "succeed",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "fail",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "failed",
+      "event": "reset",
+      "to": "idle",
+      "wantError": false
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "successful_upload",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "select",
+          "want": "selected",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "uploading",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "failed_upload_then_retry",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "select",
+          "want": "selected",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "uploading",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "uploading",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "succeeded",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "stale_success_after_reset_is_ignored",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "select",
+          "want": "selected",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "uploading",
+          "wantError": false
+        },
+        {
+          "event": "reset",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "stale_failure_after_reselect_is_ignored",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "select",
+          "want": "selected",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "uploading",
+          "wantError": false
+        },
+        {
+          "event": "select",
+          "want": "selected",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "selected",
+          "wantError": false
+        }
+      ]
+    }
+  ],
   "generatedTraces": [
     {
-      "initial": "idle",
       "name": "generated_model_001",
+      "initial": "idle",
       "steps": [
         {
           "event": "select",
@@ -111,8 +375,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_002",
+      "initial": "idle",
       "steps": [
         {
           "event": "reset",
@@ -157,8 +421,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_003",
+      "initial": "idle",
       "steps": [
         {
           "event": "succeed",
@@ -203,8 +467,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_004",
+      "initial": "idle",
       "steps": [
         {
           "event": "succeed",
@@ -249,8 +513,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_005",
+      "initial": "idle",
       "steps": [
         {
           "event": "select",
@@ -295,8 +559,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_006",
+      "initial": "idle",
       "steps": [
         {
           "event": "select",
@@ -341,8 +605,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_007",
+      "initial": "idle",
       "steps": [
         {
           "event": "select",
@@ -387,8 +651,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_008",
+      "initial": "idle",
       "steps": [
         {
           "event": "succeed",
@@ -433,8 +697,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_009",
+      "initial": "idle",
       "steps": [
         {
           "event": "reset",
@@ -479,8 +743,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_010",
+      "initial": "idle",
       "steps": [
         {
           "event": "start",
@@ -525,8 +789,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_011",
+      "initial": "idle",
       "steps": [
         {
           "event": "start",
@@ -571,8 +835,8 @@
       ]
     },
     {
-      "initial": "idle",
       "name": "generated_model_012",
+      "initial": "idle",
       "steps": [
         {
           "event": "reset",
@@ -624,281 +888,17 @@
     "AllDeclaredTransitionsCovered",
     "StaleCompletionIsIgnored"
   ],
-  "namedTraces": [
-    {
-      "initial": "idle",
-      "name": "successful_upload",
-      "steps": [
-        {
-          "event": "select",
-          "want": "selected",
-          "wantError": false
-        },
-        {
-          "event": "start",
-          "want": "uploading",
-          "wantError": false
-        },
-        {
-          "event": "succeed",
-          "want": "succeeded",
-          "wantError": false
-        }
-      ]
-    },
-    {
-      "initial": "idle",
-      "name": "failed_upload_then_retry",
-      "steps": [
-        {
-          "event": "select",
-          "want": "selected",
-          "wantError": false
-        },
-        {
-          "event": "start",
-          "want": "uploading",
-          "wantError": false
-        },
-        {
-          "event": "fail",
-          "want": "failed",
-          "wantError": false
-        },
-        {
-          "event": "start",
-          "want": "uploading",
-          "wantError": false
-        },
-        {
-          "event": "succeed",
-          "want": "succeeded",
-          "wantError": false
-        }
-      ]
-    },
-    {
-      "initial": "idle",
-      "name": "stale_success_after_reset_is_ignored",
-      "steps": [
-        {
-          "event": "select",
-          "want": "selected",
-          "wantError": false
-        },
-        {
-          "event": "start",
-          "want": "uploading",
-          "wantError": false
-        },
-        {
-          "event": "reset",
-          "want": "idle",
-          "wantError": false
-        },
-        {
-          "event": "succeed",
-          "want": "idle",
-          "wantError": false
-        }
-      ]
-    },
-    {
-      "initial": "idle",
-      "name": "stale_failure_after_reselect_is_ignored",
-      "steps": [
-        {
-          "event": "select",
-          "want": "selected",
-          "wantError": false
-        },
-        {
-          "event": "start",
-          "want": "uploading",
-          "wantError": false
-        },
-        {
-          "event": "select",
-          "want": "selected",
-          "wantError": false
-        },
-        {
-          "event": "fail",
-          "want": "selected",
-          "wantError": false
-        }
-      ]
-    }
-  ],
-  "schemaVersion": 2,
-  "source": {
-    "contractPath": "ui/src/features/notes/AttachmentUploadWorkflow.flow.json",
-    "contractSha256": "1b2e44562329f6ac10290c64f8bb719f2166348dd0b5cd1b77080f388b5a0310",
-    "generatorPath": "tools/temporal-model/generate.mjs",
-    "generatorSha256": "df33d386ae9fc341f417ac592d6144afddf7c16ba8e7e2d7e2922e6606056f48",
-    "generatorVersion": 2,
-    "modelPath": "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
-    "modelSha256": "92c68cdc2fc204ce86d0e25effdc72a9957368c84f1f1a95195bbd83595a2c62",
-    "quintVersion": "0.32.0",
-    "verificationBackend": "apalache"
+  "coverage": {
+    "allStatesCovered": true,
+    "allEventsCovered": true,
+    "allPairsCovered": true,
+    "terminalStatesChecked": true
   },
-  "states": [
-    "idle",
-    "selected",
-    "uploading",
-    "succeeded",
-    "failed"
-  ],
-  "transitions": [
-    {
-      "event": "select",
-      "from": "idle",
-      "to": "selected",
-      "wantError": false
-    },
-    {
-      "event": "start",
-      "from": "idle",
-      "to": "idle",
-      "wantError": true
-    },
-    {
-      "event": "succeed",
-      "from": "idle",
-      "to": "idle",
-      "wantError": false
-    },
-    {
-      "event": "fail",
-      "from": "idle",
-      "to": "idle",
-      "wantError": false
-    },
-    {
-      "event": "reset",
-      "from": "idle",
-      "to": "idle",
-      "wantError": false
-    },
-    {
-      "event": "select",
-      "from": "selected",
-      "to": "selected",
-      "wantError": false
-    },
-    {
-      "event": "start",
-      "from": "selected",
-      "to": "uploading",
-      "wantError": false
-    },
-    {
-      "event": "succeed",
-      "from": "selected",
-      "to": "selected",
-      "wantError": false
-    },
-    {
-      "event": "fail",
-      "from": "selected",
-      "to": "selected",
-      "wantError": false
-    },
-    {
-      "event": "reset",
-      "from": "selected",
-      "to": "idle",
-      "wantError": false
-    },
-    {
-      "event": "select",
-      "from": "uploading",
-      "to": "selected",
-      "wantError": false
-    },
-    {
-      "event": "start",
-      "from": "uploading",
-      "to": "uploading",
-      "wantError": true
-    },
-    {
-      "event": "succeed",
-      "from": "uploading",
-      "to": "succeeded",
-      "wantError": false
-    },
-    {
-      "event": "fail",
-      "from": "uploading",
-      "to": "failed",
-      "wantError": false
-    },
-    {
-      "event": "reset",
-      "from": "uploading",
-      "to": "idle",
-      "wantError": false
-    },
-    {
-      "event": "select",
-      "from": "succeeded",
-      "to": "selected",
-      "wantError": false
-    },
-    {
-      "event": "start",
-      "from": "succeeded",
-      "to": "succeeded",
-      "wantError": true
-    },
-    {
-      "event": "succeed",
-      "from": "succeeded",
-      "to": "succeeded",
-      "wantError": false
-    },
-    {
-      "event": "fail",
-      "from": "succeeded",
-      "to": "succeeded",
-      "wantError": false
-    },
-    {
-      "event": "reset",
-      "from": "succeeded",
-      "to": "idle",
-      "wantError": false
-    },
-    {
-      "event": "select",
-      "from": "failed",
-      "to": "selected",
-      "wantError": false
-    },
-    {
-      "event": "start",
-      "from": "failed",
-      "to": "uploading",
-      "wantError": false
-    },
-    {
-      "event": "succeed",
-      "from": "failed",
-      "to": "failed",
-      "wantError": false
-    },
-    {
-      "event": "fail",
-      "from": "failed",
-      "to": "failed",
-      "wantError": false
-    },
-    {
-      "event": "reset",
-      "from": "failed",
-      "to": "idle",
-      "wantError": false
-    }
-  ]
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
 }

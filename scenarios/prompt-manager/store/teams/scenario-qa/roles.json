@@ -16,7 +16,7 @@
     {
       "id": "bug-investigator",
       "name": "Bug Investigator",
-      "description": "Drains bug-inbox/* (universal-source intake — any team's members may file via the report-bug skill), applies a registered investigation technique from docs/scenario-qa/investigation-techniques/, and closes each entry with a bug-investigation-report/<slug> audit-log entry naming the technique applied and outcome taken."
+      "description": "Drains bug-inbox/* (universal-source intake — any team's members may file via the report-bug skill), applies a registered investigation technique from docs/scenario-qa/methods/investigation/, and closes each entry with a bug-investigation-report/<slug> audit-log entry naming the technique applied and outcome taken."
     },
     {
       "id": "qa-contrarian",

@@ -5,7 +5,7 @@ Universal writer skill any agent on any team may invoke when they observe a bug 
 This skill is **destination-coupled by design** — writer skills always are. The portability rule (`non_portable_classifier`) applies to classifier skills, not to writers. Bug reporting is a one-way producer pattern.
 
 Required reading:
-- `docs/scenario-qa/BUG_REPORT_TAXONOMY.md` — signal types, schemas, evidence rules, honesty flags. Read this before invoking; the taxonomy is the source of truth for valid input shape.
+- `docs/scenario-qa/taxonomies/bug-report/README.md` — signal types, schemas, evidence rules, honesty flags. Read this before invoking; the taxonomy is the source of truth for valid input shape.
 
 ---
 
@@ -52,7 +52,7 @@ Severity rule: severity is **the reporter's claim**. The investigator may overru
 
 ### **3. Procedure**
 
-1. **Validate inputs against the taxonomy.** Read `docs/scenario-qa/BUG_REPORT_TAXONOMY.md`. Confirm `signal_type` is one of the six values. Confirm severity is one of the three values. Confirm `repro`, `expected`, `actual` are populated (or that you've added the appropriate honesty flag).
+1. **Validate inputs against the taxonomy.** Read `docs/scenario-qa/taxonomies/bug-report/README.md`. Confirm `signal_type` is one of the six values. Confirm severity is one of the three values. Confirm `repro`, `expected`, `actual` are populated (or that you've added the appropriate honesty flag).
 
 2. **Generate a kebab-case slug** that summarizes the bug in 3–6 words. Examples: `landing-page-builds-fail-on-empty-config`, `seam-discovery-misses-test-files`, `swarm-manager-cli-rejects-valid-uuid`.
 
@@ -128,8 +128,8 @@ If the `report-bug` skill is itself buggy or ambiguous, file a `bug-inbox/prompt
 
 ### **6. Cross-references**
 
-- `docs/scenario-qa/BUG_REPORT_TAXONOMY.md` — taxonomy (required reading).
+- `docs/scenario-qa/taxonomies/bug-report/README.md` — taxonomy (required reading).
 - `docs/scenario-qa/README.md` — scenario-qa team plan-of-record overview.
-- `docs/scenario-qa/investigation-techniques/scientific-debugging.md` — the default investigation technique the bug-investigator applies; useful context for understanding why repro and root-cause-friendly framing matter.
+- `docs/scenario-qa/methods/investigation/scientific-debugging.md` — the default investigation technique the bug-investigator applies; useful context for understanding why repro and root-cause-friendly framing matter.
 - `docs/agent-system/INTAKE_PIPELINE.md` — the inbox-router-drain pattern; bug-inbox uses deterministic-prefix routing (no separate classifier).
 - `docs/agent-system/TOPICS_SCHEMA.md` § Universal-source intakes — the `source_team: "*"` semantics that make `bug-inbox/*` reachable from every team.

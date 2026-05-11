@@ -52,6 +52,6 @@ The `qa-contrarian` member challenges bug-investigation outcomes; for `scientifi
 ## Cross-references
 
 - [`README.md`](README.md) — registry overview, lifecycle rules, doc + paired skill discipline.
-- [`../BUG_REPORT_TAXONOMY.md`](../BUG_REPORT_TAXONOMY.md) — bug-report taxonomy; this technique is the `defaultMethod` for every signal type.
-- [`../README.md`](../README.md) — scenario-qa team plan-of-record overview.
-- [`docs/agent-system/SKILL_AUTHORING.md`](../../agent-system/SKILL_AUTHORING.md) — universal authoring quality bars.
+- [`../../taxonomies/bug-report/README.md`](../../taxonomies/bug-report/README.md) — bug-report taxonomy; this technique is the `defaultMethod` for every signal type.
+- [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.
+- [`docs/agent-system/SKILL_AUTHORING.md`](../../../agent-system/SKILL_AUTHORING.md) — universal authoring quality bars.

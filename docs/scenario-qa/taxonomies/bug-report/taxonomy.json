@@ -3,7 +3,7 @@
   "id": "bug-report",
   "displayName": "Bug Report Triage Taxonomy",
   "owner_team": "scenario-qa",
-  "porPath": "docs/scenario-qa/BUG_REPORT_TAXONOMY.md",
+  "porPath": "docs/scenario-qa/taxonomies/bug-report/README.md",
   "signalTypes": [
     {
       "id": "code-defect",

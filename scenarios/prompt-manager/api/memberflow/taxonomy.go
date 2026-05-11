@@ -71,6 +71,7 @@ var taxonomyGlobs = []string{
 	"*-taxonomy.json",
 	"signal-taxonomy.json",
 	"opportunity-taxonomy.json",
+	"taxonomy.json",
 	"validation-taxonomy.json",
 }
 

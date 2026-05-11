@@ -172,7 +172,7 @@
           "description": "User/system workflows, lifecycle states, transitions, retries, cancellation, stale-completion risks, and checked formal model status",
           "audience": ["developers", "agents"],
           "canonicalFor": ["workflows", "temporal-flows", "state-transitions"],
-          "maturity": "level-5-reference",
+          "maturity": "active",
           "requiredBy": ["implemented", "validated"],
           "completion": "conditional",
           "condition": "Required once a real domain has lifecycle states, retries, cancellation, stale-completion risk, or formal workflow invariants.",

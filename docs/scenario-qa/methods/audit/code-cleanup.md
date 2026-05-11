@@ -62,4 +62,4 @@ The `qa-contrarian` member challenges audit outcomes; for `code-cleanup` specifi
 - [`README.md`](README.md) — registry overview, lifecycle rules, doc + paired skill discipline.
 - [`cognitive-load-reduction.md`](cognitive-load-reduction.md) — companion lens; dead code is cognitive load even off to the side.
 - [`screaming-architecture-audit.md`](screaming-architecture-audit.md) — companion lens; dead modules can mask the actual structure.
-- [`../README.md`](../README.md) — scenario-qa team plan-of-record overview.
+- [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.

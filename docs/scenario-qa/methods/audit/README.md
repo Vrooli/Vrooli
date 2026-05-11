@@ -16,7 +16,7 @@ Keeping each lens in its own canonical home — and pairing it with a focused sk
 - Compress each skill independently as Vrooli's substrate (CLIs, lint integrations, audit-specific tooling) absorbs more of the work. A unified `quality-audit` mega-skill would compress worse — same argument the marketing team uses for one skill per post type.
 - Surface graduation candidates from observed patterns: when a recurring kind of audit doesn't fit any registered lens, that approach graduates to a new entry here.
 
-This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../agent-system/TEAM_DOCS_PATTERNS.md): each lens is its own entity. It also mirrors `path:docs/marketing/post-techniques/`: cross-cutting techniques get one canonical home and are referenced by the consumer (here, `quality-auditor/RESPONSIBILITIES.md` Available Skills table; the rotation order is in `team.json`'s `skillRotation`).
+This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../agent-system/TEAM_DOCS_PATTERNS.md): each lens is its own entity. It also mirrors `path:docs/marketing/post-techniques/`: cross-cutting techniques get one canonical home and are referenced by the consumer (here, `quality-auditor/RESPONSIBILITIES.md` Available Skills table; the rotation order is in `team.json`'s `skillRotation`).
 
 ## Doc + paired skill discipline
 
@@ -66,8 +66,8 @@ Future candidates the audit log will surface: `performance-audit`, `security-aud
 
 ## Cross-references
 
-- [`../README.md`](../README.md) — scenario-qa team plan-of-record overview.
-- [`../investigation-techniques/README.md`](../investigation-techniques/README.md) — sister registry for the bug-investigator's techniques; same lifecycle and discipline.
-- [`docs/marketing/post-techniques/README.md`](../../marketing/post-techniques/README.md) — gold-standard reference this folder replicates.
-- [`docs/agent-system/PROMOTION_LADDER.md`](../../agent-system/PROMOTION_LADDER.md) — how prose techniques mature into CLI-backed ones.
+- [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.
+- [`../investigation/README.md`](../investigation/README.md) — sister registry for the bug-investigator's techniques; same lifecycle and discipline.
+- [`docs/marketing/post-techniques/README.md`](../../../marketing/post-techniques/README.md) — gold-standard reference this folder replicates.
+- [`docs/agent-system/PROMOTION_LADDER.md`](../../../agent-system/PROMOTION_LADDER.md) — how prose techniques mature into CLI-backed ones.
 - [`scenarios/prompt-manager/store/teams/scenario-qa/team.json`](../../../scenarios/prompt-manager/store/teams/scenario-qa/team.json) — runtime contract; `skillRotation` array on `quality-auditor` enumerates the active subset of this registry.

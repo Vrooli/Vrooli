@@ -7,7 +7,7 @@ Your goal is to reduce **developer cognitive load**: how much context, jumping a
 Do **not** break functionality, regress tests, or change user-facing behavior. All changes must maintain or improve completeness and reliability.
 
 Required reading:
-- `docs/scenario-qa/audit-techniques/cognitive-load-reduction.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
+- `docs/scenario-qa/methods/audit/cognitive-load-reduction.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
 - `prompt-manager skills read knowledge-observatory-tools`
 
 ---

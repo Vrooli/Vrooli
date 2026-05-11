@@ -58,17 +58,19 @@ export interface FormalArtifactTraceStep {
   readonly wantError: boolean;
 }
 
+export interface FormalArtifactFreshExpectation {
+  readonly contractPath: string;
+  readonly contractSha256?: string;
+  readonly modelPath: string;
+  readonly modelSha256?: string;
+  readonly generatorPath?: string;
+  readonly generatorSha256?: string;
+  readonly invariants?: readonly string[];
+}
+
 export const validateFormalArtifactFresh = (
   artifact: FormalArtifact,
-  expected: {
-    readonly contractPath: string;
-    readonly contractSha256?: string;
-    readonly modelPath: string;
-    readonly modelSha256?: string;
-    readonly generatorPath?: string;
-    readonly generatorSha256?: string;
-    readonly invariants?: readonly string[];
-  },
+  expected: FormalArtifactFreshExpectation,
 ): string[] => {
   const errors: string[] = [];
   if (artifact.schemaVersion !== 2) {
@@ -159,7 +161,7 @@ export const validateFormalArtifactFresh = (
 
 export const assertFormalArtifactFresh = (
   artifact: FormalArtifact,
-  expected: { readonly modelPath: string; readonly modelSha256?: string },
+  expected: FormalArtifactFreshExpectation,
 ): void => {
   const errors = validateFormalArtifactFresh(artifact, expected);
   if (errors.length > 0) {

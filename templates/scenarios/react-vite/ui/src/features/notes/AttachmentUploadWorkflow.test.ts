@@ -79,7 +79,7 @@ describe("AttachmentUpload workflow", () => {
     assertFormalArtifactFresh(artifact, {
       contractPath: "ui/src/features/notes/AttachmentUploadWorkflow.flow.json",
       modelPath: "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
-      generatorPath: "tools/temporal-model/generate.mjs",
+      generatorPath: "tools/temporal-model",
       invariants: [
         "TypeOK",
         "TerminalClosure",
@@ -93,7 +93,7 @@ describe("AttachmentUpload workflow", () => {
   });
 
   it("rejects impossible states", () => {
-    expect(() => checkAttachmentUploadInvariants({ status: "succeeded", fileName: "   " })).toThrow(
+    expect(() => checkAttachmentUploadInvariants({ status: "succeeded", fileName: "   ", attemptId: "attempt-1" })).toThrow(
       "succeeded upload state requires a file name",
     );
     expect(() => checkAttachmentUploadInvariants({ status: "failed", file, message: " ", attemptId: "attempt-1" })).toThrow(

@@ -10,7 +10,7 @@ They would **not** answer: *step-by-step procedure for applying it.* That belong
 
 This registry currently has **no entries**. It exists to reserve the canonical home for individual readiness checks once GCT readiness dimensions stabilize and individual checks become candidate skills.
 
-The registry's shape — paired doc + skill per check — mirrors the `investigation-techniques/` and `audit-techniques/` siblings. Adoption rules below apply when the first concrete entry lands; until then, this stub is the only file.
+The registry's shape — paired doc + skill per check — mirrors the `methods/investigation/` and `methods/audit/` siblings. Adoption rules below apply when the first concrete entry lands; until then, this stub is the only file.
 
 ## Why this is intentional asymmetry
 
@@ -18,15 +18,15 @@ The scenario-qa team's three technique registries are at deliberately different 
 
 | Registry | Maturity | Reason |
 |---|---|---|
-| `audit-techniques/` | 7 entries (full) | Seven `quality-auditor` audit lenses already had paired skills before this PoR was authored. Closing the `skillless canon` smell on them was a single mechanical pass. |
-| `investigation-techniques/` | 1 entry (`scientific-debugging`) | Default investigation method; future entries (bisect-debugging, minimal-reproduction, differential-trace, etc.) graduate via `meta-self-improvement` decisions when the bug-investigator's audit log surfaces graduation candidates. |
-| `readiness-checks/` (this folder) | 0 entries (stub) | GCT readiness dimensions are externally driven — by the GCT scenario itself, not by Vrooli skills. The right registry shape isn't yet known until those dimensions stabilize or are replaced by an internal Vrooli equivalent. Stubbing now reserves the home. |
+| `methods/audit/` | 7 entries (full) | Seven `quality-auditor` audit lenses already had paired skills before this PoR was authored. Closing the `skillless canon` smell on them was a single mechanical pass. |
+| `methods/investigation/` | 1 entry (`scientific-debugging`) | Default investigation method; future entries (bisect-debugging, minimal-reproduction, differential-trace, etc.) graduate via `meta-self-improvement` decisions when the bug-investigator's audit log surfaces graduation candidates. |
+| `methods/readiness/` (this folder) | 0 entries (stub) | GCT readiness dimensions are externally driven — by the GCT scenario itself, not by Vrooli skills. The right registry shape isn't yet known until those dimensions stabilize or are replaced by an internal Vrooli equivalent. Stubbing now reserves the home. |
 
 Cross-reference: scenario-qa README `## Future PoR work` enumerates this and other gaps.
 
 ## Doc + paired skill discipline
 
-When this registry receives its first entry, the same mandatory rule applies (mirrored from [`docs/marketing/post-types/README.md`](../../marketing/post-types/README.md)):
+When this registry receives its first entry, the same mandatory rule applies (mirrored from [`docs/marketing/post-types/README.md`](../../../marketing/post-types/README.md)):
 
 > Every entry ships as `doc + paired skill`. This is a hard rule, not a recommendation. Neither half is optional, and neither half replaces the other. The doc holds *reasoning*; the skill holds *procedure*. A doc with no skill is a stale shrine. A skill with no doc is brittle.
 
@@ -53,7 +53,7 @@ When the substrate calls for a concrete entry, follow the same flow as the sibli
 
 ## Cross-references
 
-- [`../README.md`](../README.md) — scenario-qa team plan-of-record overview; full set of registries and `## Future PoR work` items.
-- [`../investigation-techniques/README.md`](../investigation-techniques/README.md) — sister registry; same lifecycle, currently 1 entry.
-- [`../audit-techniques/README.md`](../audit-techniques/README.md) — sister registry; same lifecycle, currently 7 entries.
-- [`docs/marketing/post-techniques/README.md`](../../marketing/post-techniques/README.md) — gold-standard reference all three registries replicate.
+- [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview; full set of registries and `## Future PoR work` items.
+- [`../investigation/README.md`](../investigation/README.md) — sister registry; same lifecycle, currently 1 entry.
+- [`../audit/README.md`](../audit/README.md) — sister registry; same lifecycle, currently 7 entries.
+- [`docs/marketing/post-techniques/README.md`](../../../marketing/post-techniques/README.md) — gold-standard reference all three registries replicate.

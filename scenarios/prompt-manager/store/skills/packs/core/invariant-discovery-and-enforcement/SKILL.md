@@ -7,7 +7,7 @@ An invariant is a condition that **must always be true** for the system to behav
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve overall completeness and reliability.
 
 Required reading:
-- `docs/scenario-qa/audit-techniques/invariant-discovery-and-enforcement.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
+- `docs/scenario-qa/methods/audit/invariant-discovery-and-enforcement.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
 
 ---
 

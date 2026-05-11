@@ -106,23 +106,23 @@
             },
             {
               "base": "repo-root",
-              "path": "docs/scenario-qa/OPERATING_MODEL.md"
+              "path": "docs/scenario-qa/operating/OPERATING_MODEL.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/scenario-qa/BUG_REPORT_TAXONOMY.md"
+              "path": "docs/scenario-qa/taxonomies/bug-report/README.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/scenario-qa/investigation-techniques/README.md"
+              "path": "docs/scenario-qa/methods/investigation/README.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/scenario-qa/audit-techniques/README.md"
+              "path": "docs/scenario-qa/methods/audit/README.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/scenario-qa/readiness-checks/README.md"
+              "path": "docs/scenario-qa/methods/readiness/README.md"
             }
           ],
           "writePolicy": "operator-curated-via-decisions",
@@ -383,7 +383,7 @@
         "taskParameters": {
           "newInvestigationsPerHeartbeat": 1,
           "severityOrdered": true,
-          "techniqueRegistryPath": "docs/scenario-qa/investigation-techniques/"
+          "techniqueRegistryPath": "docs/scenario-qa/methods/investigation/"
         }
       },
       "qa-contrarian": {

@@ -12,11 +12,11 @@ Use this README first, then choose the file or sub-hub that matches the work:
 
 | Question | Start with |
 |---|---|
-| How do I report a bug I just observed? | [`BUG_REPORT_TAXONOMY.md`](BUG_REPORT_TAXONOMY.md) — invoke `prompt-manager skill read report-bug` |
-| Which investigation method applies to this bug? | [`investigation-techniques/README.md`](investigation-techniques/README.md) |
-| Which audit lens applies to this scenario? | [`audit-techniques/README.md`](audit-techniques/README.md) |
-| Which programmatic readiness check applies? | [`readiness-checks/README.md`](readiness-checks/README.md) |
-| What is the team's whole operating contract? | [`OPERATING_MODEL.md`](OPERATING_MODEL.md) |
+| How do I report a bug I just observed? | [`taxonomies/bug-report/README.md`](taxonomies/bug-report/README.md) — invoke `prompt-manager skill read report-bug` |
+| Which investigation method applies to this bug? | [`methods/investigation/README.md`](methods/investigation/README.md) |
+| Which audit lens applies to this scenario? | [`methods/audit/README.md`](methods/audit/README.md) |
+| Which programmatic readiness check applies? | [`methods/readiness/README.md`](methods/readiness/README.md) |
+| What is the team's whole operating contract? | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) |
 | What is the team's mission and member roster? | this README §"Team shape" + `shared/TEAM.md` |
 | How does a bug enter scenario-qa? | this README §"Cross-team flow" |
 
@@ -43,12 +43,12 @@ Decision contexts owned by the team:
 
 | File / folder | Purpose |
 |---|---|
-| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Team-level operating contract: loops, operating graph, topic catalog, decisions, inputs, outputs, feedback loop, and validation path. |
-| [`BUG_REPORT_TAXONOMY.md`](BUG_REPORT_TAXONOMY.md) | Human-readable view of `bug-report-taxonomy.json`. Signal types, schemas, action-selection rules, evidence rules. |
-| [`bug-report-taxonomy.json`](bug-report-taxonomy.json) | Machine-readable taxonomy sidecar (loaded by the heartbeat builder; cited by `bug-investigator/topics.json`). |
-| [`investigation-techniques/`](investigation-techniques/) | Strategic canon for techniques the bug-investigator applies. One paired doc + skill per technique (mirrors `path:docs/marketing/post-techniques/`). |
-| [`audit-techniques/`](audit-techniques/) | Strategic canon for `quality-auditor`'s seven audit lenses. Same paired doc + skill discipline. |
-| [`readiness-checks/`](readiness-checks/) | Strategic canon for `programmatic-qa-runner`'s individual readiness dimensions. Stub — populated as GCT dimensions stabilize. |
+| [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) | Team-level operating contract: loops, operating graph, topic catalog, decisions, inputs, outputs, feedback loop, and validation path. |
+| [`taxonomies/bug-report/README.md`](taxonomies/bug-report/README.md) | Human-readable view of `taxonomy.json`. Signal types, schemas, action-selection rules, evidence rules. |
+| [`taxonomies/bug-report/taxonomy.json`](taxonomies/bug-report/taxonomy.json) | Machine-readable taxonomy sidecar (loaded by the heartbeat builder; cited by `bug-investigator/topics.json`). |
+| [`methods/investigation/`](methods/investigation/) | Strategic canon for techniques the bug-investigator applies. One paired doc + skill per technique (mirrors `path:docs/marketing/post-techniques/`). |
+| [`methods/audit/`](methods/audit/) | Strategic canon for `quality-auditor`'s seven audit lenses. Same paired doc + skill discipline. |
+| [`methods/readiness/`](methods/readiness/) | Strategic canon for `programmatic-qa-runner`'s individual readiness dimensions. Stub — populated as GCT dimensions stabilize. |
 
 ## Cross-team flow
 
@@ -73,13 +73,13 @@ The `qa-contrarian` reads peer-team decisions and member outputs (including bug-
 ## Editing rules
 
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.
-- **Edit context:** `bug-resolution-proposal` covers `BUG_REPORT_TAXONOMY.md` updates and bug-report-taxonomy schema changes; `meta-self-improvement` (on `meta-optimization`) covers new technique entries in `investigation-techniques/` and `audit-techniques/`; per-rotation skill updates go through the standard skill-edit decision flow.
+- **Edit context:** `bug-resolution-proposal` covers `taxonomies/bug-report/README.md` updates and bug-report taxonomy schema changes; `meta-self-improvement` (on `meta-optimization`) covers new technique entries in `methods/investigation/` and `methods/audit/`; per-rotation skill updates go through the standard skill-edit decision flow.
 - **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
 - **Drafts are not canon.** Synthesis-in-flux content lives elsewhere (working notebooks or `path:docs/agent-system/drafts/`); files in this folder are stable PoR.
 
 ## Doc + paired skill discipline
 
-All three technique registries (`investigation-techniques/`, `audit-techniques/`, `readiness-checks/`) follow the same mandatory rule from [`docs/marketing/post-types/README.md`](../marketing/post-types/README.md):
+All three technique registries (`methods/investigation/`, `methods/audit/`, `methods/readiness/`) follow the same mandatory rule from [`docs/marketing/post-types/README.md`](../marketing/post-types/README.md):
 
 > Every entry ships as `doc + paired skill`. This is a hard rule, not a recommendation. Neither half is optional, and neither half replaces the other. The doc holds *reasoning*; the skill holds *procedure*. A doc with no skill is a stale shrine. A skill with no doc is brittle.
 

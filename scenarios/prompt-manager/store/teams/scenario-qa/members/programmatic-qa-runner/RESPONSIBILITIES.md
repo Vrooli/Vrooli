@@ -8,7 +8,7 @@
 
 ## Cross-references
 - [`docs/scenario-qa/README.md`](../../../../../../../docs/scenario-qa/README.md) — team plan-of-record overview; covers cross-team flow, member roster, decision contexts.
-- [`docs/scenario-qa/readiness-checks/README.md`](../../../../../../../docs/scenario-qa/readiness-checks/README.md) — strategic-canon registry for individual readiness checks. Currently a stub; entries graduate as GCT readiness dimensions stabilize.
+- [`docs/scenario-qa/methods/readiness/README.md`](../../../../../../../docs/scenario-qa/methods/readiness/README.md) — strategic-canon registry for individual readiness checks. Currently a stub; entries graduate as GCT readiness dimensions stabilize.
 
 ## Available Skills
 

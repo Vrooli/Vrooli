@@ -54,4 +54,4 @@ The `qa-contrarian` member challenges audit outcomes; for `boundary-of-responsib
 - [`README.md`](README.md) — registry overview, lifecycle rules, doc + paired skill discipline.
 - [`screaming-architecture-audit.md`](screaming-architecture-audit.md) — companion lens for *names and grouping*; this lens governs *who owns what*.
 - [`seam-discovery-and-enforcement.md`](seam-discovery-and-enforcement.md) — companion lens; clear boundaries are a precondition for testable seams.
-- [`../README.md`](../README.md) — scenario-qa team plan-of-record overview.
+- [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.

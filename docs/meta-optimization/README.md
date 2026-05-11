@@ -70,7 +70,7 @@ The curator is a **router, not an analyst**. Synthesis stays with debt-curator. 
 - [`docs/agent-system/INTAKE_PIPELINE.md`](../agent-system/INTAKE_PIPELINE.md) — the inbox-router-drain pattern used by the friction-curator.
 - [`docs/agent-system/TOPICS.md`](../agent-system/TOPICS.md) — registry of every active topic prefix; meta-optimization entries (including friction-inbox and friction-triage-record) live there.
 - [`docs/agent-system/TOPICS_SCHEMA.md`](../agent-system/TOPICS_SCHEMA.md) — schema reference for `topics.json`; documents `source_team: "*"` (universal-source) semantics that friction-inbox uses.
-- [`docs/scenario-qa/BUG_REPORT_TAXONOMY.md`](../scenario-qa/BUG_REPORT_TAXONOMY.md) — the sister universal observation flow on scenario-qa.
+- [`docs/scenario-qa/taxonomies/bug-report/README.md`](../scenario-qa/taxonomies/bug-report/README.md) — the sister universal observation flow on scenario-qa.
 - [`docs/scenario-qa/README.md`](../scenario-qa/README.md) — pattern this folder mirrors (paired-doc-and-skill discipline applies).
 - [`scenarios/prompt-manager/store/skills/packs/core/report-friction/SKILL.md`](../../scenarios/prompt-manager/store/skills/packs/core/report-friction/SKILL.md) — universal writer skill.
 - [`scenarios/prompt-manager/store/skills/packs/core/conversation-friction-analysis/SKILL.md`](../../scenarios/prompt-manager/store/skills/packs/core/conversation-friction-analysis/SKILL.md) — deeper post-hoc analysis skill.

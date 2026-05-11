@@ -7,7 +7,7 @@ Your goal is to keep behavior the same while tightening **who owns what**: prese
 Do **not** break functionality, regress tests, or introduce new product features. All changes must maintain or improve completeness and reliability.
 
 Required reading:
-- `docs/scenario-qa/audit-techniques/boundary-of-responsibility-enforcement.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
+- `docs/scenario-qa/methods/audit/boundary-of-responsibility-enforcement.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
 - `prompt-manager skills read knowledge-observatory-tools`
 
 ---

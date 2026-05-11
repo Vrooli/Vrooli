@@ -57,4 +57,4 @@ The `qa-contrarian` member challenges audit outcomes; for `decision-boundary-ext
 - [`README.md`](README.md) — registry overview, lifecycle rules, doc + paired skill discipline.
 - [`cognitive-load-reduction.md`](cognitive-load-reduction.md) — companion lens; named decisions help readability when the name is honest.
 - [`invariant-discovery-and-enforcement.md`](invariant-discovery-and-enforcement.md) — companion lens; many decision criteria correspond to invariants on inputs.
-- [`../README.md`](../README.md) — scenario-qa team plan-of-record overview.
+- [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.

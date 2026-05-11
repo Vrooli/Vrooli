@@ -161,8 +161,8 @@ check "No active reference to team-shared-docs-design" no_active_refs_to "team-s
 # Future registries plug in by appending one entry to TECHNIQUE_REGISTRIES.
 
 TECHNIQUE_REGISTRIES=(
-    "docs/scenario-qa/investigation-techniques|investigation-technique"
-    "docs/scenario-qa/audit-techniques|audit-technique"
+    "docs/scenario-qa/methods/investigation|investigation-technique"
+    "docs/scenario-qa/methods/audit|audit-technique"
 )
 
 # For each registry, derive the doc slug set and the skill slug set, then

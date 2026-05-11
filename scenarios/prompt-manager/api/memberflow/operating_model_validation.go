@@ -18,6 +18,7 @@ func ValidateOperatingModels(models []OperatingModelDocument, runtime OperatingG
 			}
 		}
 	}
+	addOperatingFindings(&result, ValidatePlanOfRecordManifestsForModels(filtered, runtime))
 	sortOperatingFindings(result.Findings)
 	return result
 }
@@ -310,6 +311,11 @@ func validateOperatingModelDiscoverability(model OperatingModelDocument, runtime
 func operatingModelTeamReadmePath(modelPath string) string {
 	if !strings.HasSuffix(modelPath, "/OPERATING_MODEL.md") {
 		return ""
+	}
+	dir := filepath.ToSlash(filepath.Dir(modelPath))
+	if filepath.Base(dir) == "operating" {
+		parent := filepath.ToSlash(filepath.Dir(dir))
+		return parent + "/README.md"
 	}
 	return strings.TrimSuffix(modelPath, "OPERATING_MODEL.md") + "README.md"
 }

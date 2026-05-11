@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "flowId": "notes.attachment-upload.api",
   "domain": "notes",
   "description": "API-side attachment upload orchestration from request receipt through byte storage and metadata recording.",
@@ -33,19 +33,15 @@
     { "id": "record_metadata", "quint": "RecordMetadata" },
     { "id": "fail", "quint": "Fail" }
   ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": true },
+    "terminal": { "to": "self", "wantError": true }
+  },
   "transitions": [
-    { "from": "received", "event": "store_bytes", "to": "bytes_stored", "wantError": false },
-    { "from": "received", "event": "record_metadata", "to": "received", "wantError": true },
-    { "from": "received", "event": "fail", "to": "failed", "wantError": false },
-    { "from": "bytes_stored", "event": "store_bytes", "to": "bytes_stored", "wantError": true },
-    { "from": "bytes_stored", "event": "record_metadata", "to": "metadata_recorded", "wantError": false },
-    { "from": "bytes_stored", "event": "fail", "to": "failed", "wantError": false },
-    { "from": "metadata_recorded", "event": "store_bytes", "to": "metadata_recorded", "wantError": true },
-    { "from": "metadata_recorded", "event": "record_metadata", "to": "metadata_recorded", "wantError": true },
-    { "from": "metadata_recorded", "event": "fail", "to": "metadata_recorded", "wantError": true },
-    { "from": "failed", "event": "store_bytes", "to": "failed", "wantError": true },
-    { "from": "failed", "event": "record_metadata", "to": "failed", "wantError": true },
-    { "from": "failed", "event": "fail", "to": "failed", "wantError": true }
+    { "from": "received", "event": "store_bytes", "to": "bytes_stored" },
+    { "from": "received", "event": "fail", "to": "failed" },
+    { "from": "bytes_stored", "event": "record_metadata", "to": "metadata_recorded" },
+    { "from": "bytes_stored", "event": "fail", "to": "failed" }
   ],
   "invariants": [
     { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },

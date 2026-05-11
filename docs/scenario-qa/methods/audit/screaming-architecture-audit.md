@@ -53,4 +53,4 @@ The `qa-contrarian` member challenges audit outcomes; for `screaming-architectur
 - [`README.md`](README.md) — registry overview, lifecycle rules, doc + paired skill discipline.
 - [`boundary-of-responsibility-enforcement.md`](boundary-of-responsibility-enforcement.md) — companion lens; this lens governs *names and grouping*, that one governs *who owns what*.
 - [`cognitive-load-reduction.md`](cognitive-load-reduction.md) — companion lens; clarity at the *local readability* layer pairs with clarity at the *macro structure* layer.
-- [`../README.md`](../README.md) — scenario-qa team plan-of-record overview.
+- [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.

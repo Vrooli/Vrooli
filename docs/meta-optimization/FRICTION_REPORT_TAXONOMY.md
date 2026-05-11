@@ -10,7 +10,7 @@ Cited by:
 
 Universal-source intake: `friction-inbox/*` declares `source_team: "*"` — any team's members may write. The producer-side anchor is the `report-friction` skill (declared in the friction-curator's `external_producers` so the validator's `wildcard_source_misuse` rule stays quiet).
 
-This is the second universal observation flow in the system; the first is `bug-inbox/*` on scenario-qa. See [`docs/scenario-qa/BUG_REPORT_TAXONOMY.md`](../scenario-qa/BUG_REPORT_TAXONOMY.md) for the sister pattern.
+This is the second universal observation flow in the system; the first is `bug-inbox/*` on scenario-qa. See [`docs/scenario-qa/taxonomies/bug-report/README.md`](../scenario-qa/taxonomies/bug-report/README.md) for the sister pattern.
 
 ## Topic shape
 
@@ -141,7 +141,7 @@ Reporter and curator may set:
 ## Cross-references
 
 - [`README.md`](README.md) — meta-optimization team's friction-related canon overview.
-- [`docs/scenario-qa/BUG_REPORT_TAXONOMY.md`](../scenario-qa/BUG_REPORT_TAXONOMY.md) — the sister universal observation flow.
+- [`docs/scenario-qa/taxonomies/bug-report/README.md`](../scenario-qa/taxonomies/bug-report/README.md) — the sister universal observation flow.
 - [`docs/agent-system/INTAKE_PIPELINE.md`](../agent-system/INTAKE_PIPELINE.md) — the inbox-router-drain pattern; friction-inbox uses *deterministic-prefix routing* (no classifier skill).
 - [`docs/agent-system/TOPICS.md`](../agent-system/TOPICS.md) — registry of every active topic prefix; meta-optimization entries live there.
 - [`docs/agent-system/TOPICS_SCHEMA.md`](../agent-system/TOPICS_SCHEMA.md) — schema reference for `topics.json`; documents `source_team: "*"` (universal-source) semantics.

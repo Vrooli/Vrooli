@@ -11,7 +11,7 @@ Read first when present:
 - `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` — unresolved architecture drift and deferred refactors.
 
 Optional context:
-- `docs/scenario-qa/audit-techniques/screaming-architecture-audit.md` — when this lens applies, when it backfires, and what QA should challenge.
+- `docs/scenario-qa/methods/audit/screaming-architecture-audit.md` — when this lens applies, when it backfires, and what QA should challenge.
 - `prompt-manager skill read temporal-flow-audit` — use when a discovered domain has lifecycle states, illegal transitions, retries, cancellation, or stale-completion risk.
 
 ---

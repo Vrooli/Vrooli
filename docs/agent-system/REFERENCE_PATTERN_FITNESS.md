@@ -10,7 +10,7 @@ Audit whether an artifact that **exists to be copied** is fit to be a copy sourc
 - **Reference scenarios** — entries in [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md). The reference's quality is bounded above by the template it was generated from.
 - **Canonical examples** inside scenarios — patterns documented as "copy this when adding X" (e.g., the `notes` CRUD reference inside `path:templates/scenarios/react-vite/`, accompanied by a `REPLACING-NOTES.md`-style guide).
 
-The lens does **not** ask *"is this code good?"* — that is what the seven single-instance audit lenses in [`path:docs/scenario-qa/audit-techniques/`](../scenario-qa/audit-techniques/) are for. This lens asks the multiplier-aware question: *"is this code good **as a copy source**?"* A 50-line CLI helper duplicated per domain isn't 50 lines of debt — it's 50 × D × S lines across the portfolio. A contract encoded in a doc comment survives a careful read but not a copy/paste/modify cycle. A "delete this with sed" guide proves the architecture's removal promise wasn't real.
+The lens does **not** ask *"is this code good?"* — that is what the seven single-instance audit lenses in [`path:docs/scenario-qa/methods/audit/`](../scenario-qa/methods/audit/) are for. This lens asks the multiplier-aware question: *"is this code good **as a copy source**?"* A 50-line CLI helper duplicated per domain isn't 50 lines of debt — it's 50 × D × S lines across the portfolio. A contract encoded in a doc comment survives a careful read but not a copy/paste/modify cycle. A "delete this with sed" guide proves the architecture's removal promise wasn't real.
 
 The full procedure (applicability gate → run single-instance lenses first → four sub-lenses → tier findings → categorize substrate-vs-template → notebook entry → optional decision proposal) lives in the paired skill. This document is the strategic-canon side: when the lens applies, when it backfires, what the meta-contrarian challenges, and how it composes with the existing audit lenses.
 
@@ -72,9 +72,9 @@ The `contrarian` member of the `meta-optimization` team is the mandatory skeptic
 
 This lens **runs after** the relevant single-instance lenses on the same artifact, not instead of them. Multiplier-framed findings are only correct *given that the artifact is otherwise structurally sound*. Asking *"is this fit to be copied?"* before *"is this code structurally sound?"* produces noise.
 
-The auditor selects from [`path:docs/scenario-qa/audit-techniques/`](../scenario-qa/audit-techniques/) based on the artifact's shape. For a CRUD-template audit (the react-vite case), `screaming-architecture-audit`, `decision-boundary-extraction`, and `utils-unification` are typical prerequisites; for a reference scenario being scrutinized for testing patterns, `seam-discovery-and-enforcement` and `invariant-discovery-and-enforcement` are typical. The paired skill's required-reading section codifies this — the auditor names the prerequisites in their notebook entry.
+The auditor selects from [`path:docs/scenario-qa/methods/audit/`](../scenario-qa/methods/audit/) based on the artifact's shape. For a CRUD-template audit (the react-vite case), `screaming-architecture-audit`, `decision-boundary-extraction`, and `utils-unification` are typical prerequisites; for a reference scenario being scrutinized for testing patterns, `seam-discovery-and-enforcement` and `invariant-discovery-and-enforcement` are typical. The paired skill's required-reading section codifies this — the auditor names the prerequisites in their notebook entry.
 
-This lens does **not** belong in the [`path:docs/scenario-qa/audit-techniques/`](../scenario-qa/audit-techniques/) registry. That registry is scoped to the `quality-auditor` member of the `scenario-qa` team, which audits real scenarios where multiplier framing would mislead. Promotion to its own registry — `path:docs/agent-system/audit-techniques/` — is deferred until a second similar lens lands.
+This lens does **not** belong in the [`path:docs/scenario-qa/methods/audit/`](../scenario-qa/methods/audit/) registry. That registry is scoped to the `quality-auditor` member of the `scenario-qa` team, which audits real scenarios where multiplier framing would mislead. Promotion to its own registry — `path:docs/agent-system/audit-techniques/` — is deferred until a second similar lens lands.
 
 ## Worked example: react-vite template (2026-05-04)
 
@@ -106,6 +106,6 @@ This worked example is frozen as of 2026-05-04. Future audits create new noteboo
 
 - [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md) — registry of templates and the references generated from them. Confirms applicability before running this lens.
 - [`README.md`](README.md) — agent-system canon-doc index.
-- [`../scenario-qa/audit-techniques/README.md`](../scenario-qa/audit-techniques/README.md) — sibling registry for the seven single-instance lenses. This lens is **not** in it, by design (see "Composition with single-instance lenses" above).
+- [`../scenario-qa/methods/audit/README.md`](../scenario-qa/methods/audit/README.md) — sibling registry for the seven single-instance lenses. This lens is **not** in it, by design (see "Composition with single-instance lenses" above).
 - [`../../scenarios/prompt-manager/store/teams/meta-optimization/members/toolchain-validator/RESPONSIBILITIES.md`](../../scenarios/prompt-manager/store/teams/meta-optimization/members/toolchain-validator/RESPONSIBILITIES.md) — the consumer.
 - [`PROMOTION_LADDER.md`](PROMOTION_LADDER.md) — when this lens accumulates a sibling, graduate to a registry per the ladder's promotion criteria.

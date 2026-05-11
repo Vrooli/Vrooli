@@ -13,7 +13,7 @@ Required reading:
 - `docs/agent-system/REFERENCE_PATTERN_FITNESS.md` — strategic-canon home: when this lens applies, when it backfires, what the meta-contrarian challenges, the four sub-lenses, the worked example.
 - `docs/agent-system/REFERENCE_SCENARIOS.md` — registry of templates and references; confirm `{{TARGET}}` is registered before running this lens.
 - `prompt-manager skills read knowledge-observatory-tools` — notebook integration; findings land under `meta-optimization/notebook/template-fitness/<artifact-slug>/<YYYY-MM-DD>`.
-- The single-instance lens(es) appropriate to `{{TARGET}}` — the auditor selects from `path:docs/scenario-qa/audit-techniques/`. For CRUD-template audits: `screaming-architecture-audit`, `decision-boundary-extraction`, `utils-unification` are typical prerequisites.
+- The single-instance lens(es) appropriate to `{{TARGET}}` — the auditor selects from `path:docs/scenario-qa/methods/audit/`. For CRUD-template audits: `screaming-architecture-audit`, `decision-boundary-extraction`, `utils-unification` are typical prerequisites.
 
 ---
 
@@ -33,7 +33,7 @@ If `{{TARGET}}` qualifies, capture which category it falls into (template / refe
 
 ### **2. Run Single-Instance Lenses First**
 
-The auditor selects the lens(es) appropriate to `{{TARGET}}` from `path:docs/scenario-qa/audit-techniques/`:
+The auditor selects the lens(es) appropriate to `{{TARGET}}` from `path:docs/scenario-qa/methods/audit/`:
 
 - `screaming-architecture-audit` — for any artifact with non-trivial structure
 - `boundary-of-responsibility-enforcement` — for artifacts mixing presentation/coordination/domain/integration

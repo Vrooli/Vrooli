@@ -26,7 +26,7 @@ const modelPath = "ui/src/features/example/model.qnt";
 const modelSha256 = "a".repeat(64);
 const contractPath = "ui/src/features/example/model.flow.json";
 const contractSha256 = "b".repeat(64);
-const generatorPath = "tools/temporal-model/generate.mjs";
+const generatorPath = "tools/temporal-model";
 const generatorSha256 = "c".repeat(64);
 
 describe("formal modeltest helpers", () => {

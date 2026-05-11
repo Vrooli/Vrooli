@@ -1,0 +1,112 @@
+{
+  "version": "1.0.0",
+  "title": "Scenario QA Plan of Record",
+  "description": "Plan-of-record manifest for the scenario-qa team canon",
+  "contract": {
+    "kind": "team-plan-of-record",
+    "schema": "team-plan-of-record/v1",
+    "base": "docs/agent-system/team-plan-of-record.manifest.json",
+    "team": "scenario-qa"
+  },
+  "sections": [
+    {
+      "id": "entrypoint",
+      "path": ".",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "por-readme",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Start here for agents", "Team shape", "Folder map", "Cross-team flow", "Editing rules", "Doc + paired skill discipline", "Cross-references", "Future PoR work"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "operating",
+      "path": "operating/",
+      "documents": [
+        {
+          "path": "OPERATING_MODEL.md",
+          "docType": "operating-model",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "taxonomies",
+      "path": "taxonomies/",
+      "packages": [
+        {
+          "id": "bug-report",
+          "path": "bug-report/",
+          "packageType": "taxonomy",
+          "requiredFiles": ["README.md", "taxonomy.json"]
+        }
+      ]
+    },
+    {
+      "id": "methods",
+      "path": "methods/",
+      "packages": [
+        {
+          "id": "investigation",
+          "path": "investigation/",
+          "packageType": "method-registry",
+          "requiredFiles": ["README.md"],
+          "entryPattern": "*.md",
+          "minimumEntries": 1
+        },
+        {
+          "id": "audit",
+          "path": "audit/",
+          "packageType": "method-registry",
+          "requiredFiles": ["README.md"],
+          "entryPattern": "*.md",
+          "minimumEntries": 1
+        },
+        {
+          "id": "readiness",
+          "path": "readiness/",
+          "packageType": "method-registry",
+          "requiredFiles": ["README.md"],
+          "entryPattern": "*.md",
+          "minimumEntries": 0
+        }
+      ]
+    },
+    {
+      "id": "governance",
+      "path": "governance/",
+      "documents": [
+        {
+          "path": "editing.md",
+          "docType": "editing-rules",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Authority", "Change Flow", "Direct Edits"]
+          }
+        },
+        {
+          "path": "adoption-validation.md",
+          "docType": "validation-runbook",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Migration Notes"]
+          }
+        },
+        {
+          "path": "changelog.md",
+          "docType": "por-changelog",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Changelog"]
+          }
+        }
+      ]
+    }
+  ],
+  "extensionRule": "Scenario QA durable canon must live under operating/, taxonomies/, methods/, governance/, or a declared extensions/<extension-id>/ package. Do not add top-level canon files without updating this manifest."
+}
+

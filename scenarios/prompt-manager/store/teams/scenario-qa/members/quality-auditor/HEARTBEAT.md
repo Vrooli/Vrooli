@@ -1,6 +1,6 @@
 # Heartbeat: Quality Auditor
 
-Before applying the rotation's current lens, read the paired strategic-canon doc at `docs/scenario-qa/audit-techniques/<current-rotation-slug>.md` (Available Skills table in [RESPONSIBILITIES.md](RESPONSIBILITIES.md) lists all seven). The PoR doc covers when the lens applies, when it backfires, and what the qa-contrarian will challenge.
+Before applying the rotation's current lens, read the paired strategic-canon doc at `docs/scenario-qa/methods/audit/<current-rotation-slug>.md` (Available Skills table in [RESPONSIBILITIES.md](RESPONSIBILITIES.md) lists all seven). The PoR doc covers when the lens applies, when it backfires, and what the qa-contrarian will challenge.
 
 If during the audit you observe a bug that's outside structural scope (broken code, regression, prompt confusion, data-shape mismatch, unexpected error), file it via the `report-bug` skill to `bug-inbox/*` — bugs go to the bug-investigator, not into the audit knowledge or backlog stream.
 

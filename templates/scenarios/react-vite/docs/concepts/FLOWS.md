@@ -110,9 +110,8 @@ timers, HTTP clients, or UI API modules.
 The `*.flow.json` contract is the source of truth. Level 5 generated
 Quint models and formal artifacts are checked-in source artifacts for
 reviewability, but they are refreshed and checked by
-`node tools/temporal-model/generate.mjs`; the scenario lifecycle runs
-`node tools/temporal-model/generate.mjs --check` before the normal test
-suite. A Quint file by itself is not accepted: the model must typecheck,
+the Go-native `tools/temporal-model` command; the scenario lifecycle runs
+`make temporal-models` before the normal test suite. A Quint file by itself is not accepted: the model must typecheck,
 test, verify named invariants, emit deterministic artifacts, and those
 artifacts must replay against the production Go/TypeScript transition
 functions.

@@ -1,6 +1,6 @@
 # Bug Report Triage Taxonomy
 
-Cross-team-readable canon for how the `literal:scenario-qa/bug-investigator` member classifies and resolves entries written to `bug-inbox/*`. Human-readable view of [`bug-report-taxonomy.json`](bug-report-taxonomy.json).
+Cross-team-readable canon for how the `literal:scenario-qa/bug-investigator` member classifies and resolves entries written to `bug-inbox/*`. Human-readable view of [`taxonomy.json`](taxonomy.json).
 
 **Owner team:** scenario-qa. **Status:** canon. Operator-curated via `bug-resolution-proposal` decisions on the scenario-qa team.
 
@@ -29,7 +29,7 @@ The producer (the agent invoking `report-bug`) picks the signal type from the fi
 | `unexpected-error`    | Error not documented anywhere — error code or exception no skill anticipated.|
 | `unknown`             | Type unclear; investigator classifies during triage.                         |
 
-Default investigation method for every signal type: `scientific-debugging` (see [`investigation-techniques/scientific-debugging.md`](investigation-techniques/scientific-debugging.md)).
+Default investigation method for every signal type: `scientific-debugging` (see [`../../methods/investigation/scientific-debugging.md`](../../methods/investigation/scientific-debugging.md)).
 
 ## Severity
 
@@ -109,8 +109,8 @@ Reporter and investigator may set:
 ## Cross-references
 
 - [`README.md`](README.md) — scenario-qa team plan-of-record overview.
-- [`investigation-techniques/README.md`](investigation-techniques/README.md) — registry of techniques the investigator may apply.
-- [`investigation-techniques/scientific-debugging.md`](investigation-techniques/scientific-debugging.md) — the default technique for every signal type.
+- [`../../methods/investigation/README.md`](../../methods/investigation/README.md) — registry of techniques the investigator may apply.
+- [`../../methods/investigation/scientific-debugging.md`](../../methods/investigation/scientific-debugging.md) — the default technique for every signal type.
 - [`docs/agent-system/INTAKE_PIPELINE.md`](../agent-system/INTAKE_PIPELINE.md) — the inbox-router-drain pattern; bug-inbox uses *deterministic-prefix routing* (no classifier skill).
 - [`docs/agent-system/TOPICS.md`](../agent-system/TOPICS.md) — scenario-qa registry; bug-inbox listing.
 - [`scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md`](../../scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md) — the universal writer skill any agent invokes to file a bug.

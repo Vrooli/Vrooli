@@ -326,7 +326,7 @@ Workflow maturity is incremental:
 
 The notes attachment upload workflow is the reference Level 5 pattern:
 
-- `tools/temporal-model/generate.mjs`
+- `tools/temporal-model`
 - `api/internal/notes/attachment_upload_workflow.flow.json`
 - `api/internal/notes/attachment_upload_workflow.go`
 - `api/internal/notes/attachment_upload_workflow.qnt`
@@ -338,11 +338,12 @@ The notes attachment upload workflow is the reference Level 5 pattern:
 - `ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json`
 - `ui/src/features/notes/AttachmentUploadWorkflow.test.ts`
 
-`node tools/temporal-model/generate.mjs --check` runs `quint typecheck`,
-`quint test`, `quint verify`, and deterministic MBT trace generation,
-then fails if the checked-in artifacts are stale. Go and TypeScript
-tests load those artifacts through `modeltest` and replay generated
-transitions/traces against production transition functions.
+`make temporal-models` runs the Go-native temporal-model tool tests, then
+runs `quint typecheck`, `quint test`, `quint verify`, and deterministic MBT
+trace generation through `tools/temporal-model`. It fails if the checked-in
+artifacts are stale. Go and TypeScript tests load those artifacts through
+`modeltest` and replay generated transitions/traces against production
+transition functions.
 
 A Quint/TLA+ model is only accepted when this full loop exists.
 Documentation-only formal specs are drift-prone and should not be

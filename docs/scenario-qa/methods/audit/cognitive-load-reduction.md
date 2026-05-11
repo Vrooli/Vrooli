@@ -57,4 +57,4 @@ The `qa-contrarian` member challenges audit outcomes; for `cognitive-load-reduct
 - [`screaming-architecture-audit.md`](screaming-architecture-audit.md) — companion lens; this lens governs *local* readability, that one governs *macro* structure.
 - [`decision-boundary-extraction.md`](decision-boundary-extraction.md) — companion lens; named decisions help local readability.
 - [`code-cleanup.md`](code-cleanup.md) — companion lens; dead code is cognitive load even when it's "off to the side."
-- [`../README.md`](../README.md) — scenario-qa team plan-of-record overview.
+- [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.

@@ -140,7 +140,7 @@ If the `report-friction` skill is itself buggy or ambiguous, file a `bug-inbox/p
 
 - `docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md` — taxonomy (required reading).
 - `docs/meta-optimization/README.md` — meta-optimization team's friction canon overview and cross-team flow diagram.
-- `docs/scenario-qa/BUG_REPORT_TAXONOMY.md` — sister taxonomy for the bug-inbox flow; useful context for understanding why these are separate writer skills with separate destinations.
+- `docs/scenario-qa/taxonomies/bug-report/README.md` — sister taxonomy for the bug-inbox flow; useful context for understanding why these are separate writer skills with separate destinations.
 - `scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md` — sister writer skill for code/scenario defects.
 - `scenarios/prompt-manager/store/skills/packs/core/conversation-friction-analysis/SKILL.md` — deeper post-hoc analysis skill; complementary, not a replacement for in-flight `report-friction`.
 - `docs/agent-system/INTAKE_PIPELINE.md` — the inbox-router-drain pattern; friction-inbox uses deterministic-prefix routing (no separate classifier).

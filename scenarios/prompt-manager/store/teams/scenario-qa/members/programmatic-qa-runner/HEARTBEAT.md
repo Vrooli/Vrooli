@@ -1,6 +1,6 @@
 # Heartbeat: Programmatic QA Runner
 
-Cross-link: [`docs/scenario-qa/readiness-checks/README.md`](../../../../../../../docs/scenario-qa/readiness-checks/README.md) (stub; future strategic-canon home for individual readiness checks).
+Cross-link: [`docs/scenario-qa/methods/readiness/README.md`](../../../../../../../docs/scenario-qa/methods/readiness/README.md) (stub; future strategic-canon home for individual readiness checks).
 
 If during a review you observe a bug that's outside the readiness-review scope (broken code, regression, prompt confusion, data-shape mismatch, unexpected error), file it via the `report-bug` skill to `bug-inbox/*` rather than queuing it as a backlog item — bugs go to the bug-investigator for triage, not into the readiness backlog.
 

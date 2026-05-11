@@ -54,5 +54,5 @@ The `qa-contrarian` member challenges audit outcomes; for `seam-discovery-and-en
 - [`README.md`](README.md) — registry overview, lifecycle rules, doc + paired skill discipline.
 - [`boundary-of-responsibility-enforcement.md`](boundary-of-responsibility-enforcement.md) — companion lens; clear ownership is a precondition for testable seams.
 - [`invariant-discovery-and-enforcement.md`](invariant-discovery-and-enforcement.md) — companion lens; seams are often where invariants must be enforced (e.g., at integration boundaries).
-- [`../README.md`](../README.md) — scenario-qa team plan-of-record overview.
+- [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.
 - `docs/internal/SEAMS.md` (per-scenario) — operator/agent-curated seam map produced by audits.

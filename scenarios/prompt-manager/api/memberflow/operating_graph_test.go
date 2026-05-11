@@ -2090,6 +2090,75 @@ func TestOperatingModelRegisteredRulesHaveFailureFixtures(t *testing.T) {
 	}
 }
 
+func TestValidateOperatingModelsChecksPlanOfRecordManifest(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeFile := func(rel, body string) {
+		t.Helper()
+		path := filepath.Join(repoRoot, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", rel, err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatalf("write %s: %v", rel, err)
+		}
+	}
+	writeFile("docs/team-a/manifest.json", `{
+  "contract": {"kind": "team-plan-of-record", "schema": "team-plan-of-record/v1", "team": "team-a"},
+  "sections": [
+    {
+      "id": "entrypoint",
+      "path": ".",
+      "documents": [{
+        "path": "README.md",
+        "required": true,
+        "validation": {"requiredHeadings": ["Start here for agents", "Folder map"]}
+      }]
+    },
+    {
+      "id": "operating",
+      "path": "operating/",
+      "required": true,
+      "documents": [{"path": "OPERATING_MODEL.md", "required": true}]
+    },
+    {
+      "id": "taxonomies",
+      "path": "taxonomies/",
+      "packages": [{"id": "signal", "path": "signal/", "requiredFiles": ["README.md", "taxonomy.json"]}]
+    }
+  ]
+}`)
+	writeFile("docs/team-a/README.md", "# Team A\n\n## Start here for agents\n")
+	writeFile("docs/team-a/operating/OPERATING_MODEL.md", "# Operating\n")
+	writeFile("docs/team-a/taxonomies/signal/README.md", "# Signal\n")
+
+	model := operatingModelDocumentFixture(t)
+	model.Team = "team-a"
+	model.Source.Path = "docs/team-a/operating/OPERATING_MODEL.md"
+	result := ValidateOperatingModels([]OperatingModelDocument{model}, OperatingGraphRuntime{RepoRoot: repoRoot}, "team-a", "g")
+
+	assertOperatingFinding(t, result, "por_required_heading_missing")
+	assertOperatingFinding(t, result, "por_package_required_file_missing")
+}
+
+func TestLoadAllTaxonomiesDiscoversPackagedTaxonomyJSON(t *testing.T) {
+	repoRoot := t.TempDir()
+	path := filepath.Join(repoRoot, "docs", "team-a", "taxonomies", "signal", "taxonomy.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir taxonomy dir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(`{"id":"team-a-signal","signalTypes":[{"id":"bug"}]}`), 0o644); err != nil {
+		t.Fatalf("write taxonomy: %v", err)
+	}
+
+	registry, err := LoadAllTaxonomies(repoRoot)
+	if err != nil {
+		t.Fatalf("LoadAllTaxonomies: %v", err)
+	}
+	if _, ok := registry["team-a-signal"]; !ok {
+		t.Fatalf("expected packaged taxonomy to load, got ids=%v", registry.IDs())
+	}
+}
+
 func TestExtractOperatingGraphBlocksRejectsUnsupportedAllowMetadata(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "OPERATING_MODEL.md")

@@ -9,10 +9,11 @@ be edited by hand.
 Run:
 
 ```bash
-node tools/temporal-model/generate.mjs --list
-node tools/temporal-model/generate.mjs --flow notes.attachment-upload.ui
-node tools/temporal-model/generate.mjs
-node tools/temporal-model/generate.mjs --check
+cd tools/temporal-model && GOWORK=off go run . list --root ../..
+cd tools/temporal-model && GOWORK=off go run . validate --root ../..
+cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow notes.attachment-upload.ui
+cd tools/temporal-model && GOWORK=off go run . generate --root ../..
+cd tools/temporal-model && GOWORK=off go run . check --root ../..
 ```
 
 The generator runs `quint typecheck`, `quint test`, `quint verify`, and
@@ -21,10 +22,16 @@ from the contract, normalizes ITF traces, records source/model/generator hashes,
 and writes checked-in `*.formal.generated.json` artifacts beside the workflow
 they validate.
 
+Normal unit tests do not require Quint or Java:
+
+```bash
+cd tools/temporal-model && GOWORK=off go test ./...
+```
+
 To update a flow:
 
 1. Edit the domain-local `*.flow.json` contract.
 2. Update the production transition function.
-3. Run `node tools/temporal-model/generate.mjs --flow <flow-id>`.
-4. Run `node tools/temporal-model/generate.mjs --check`.
+3. Run `cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow <flow-id>`.
+4. Run `make temporal-models`.
 5. Run the scenario tests on an instantiated scenario.

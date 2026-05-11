@@ -9,7 +9,7 @@ Your goal is to make the scenario **easier to test, safer to change, and more mo
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve completeness and reliability.
 
 Required reading:
-- `docs/scenario-qa/audit-techniques/seam-discovery-and-enforcement.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
+- `docs/scenario-qa/methods/audit/seam-discovery-and-enforcement.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
 - `prompt-manager skills read knowledge-observatory-tools`
 
 ---

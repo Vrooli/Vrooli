@@ -54,4 +54,4 @@ The `qa-contrarian` member challenges audit outcomes; for `invariant-discovery-a
 - [`README.md`](README.md) — registry overview, lifecycle rules, doc + paired skill discipline.
 - [`seam-discovery-and-enforcement.md`](seam-discovery-and-enforcement.md) — companion lens; seams are often where invariants get enforced (validation at the boundary).
 - [`decision-boundary-extraction.md`](decision-boundary-extraction.md) — companion lens; named decision points often imply invariants on their inputs.
-- [`../README.md`](../README.md) — scenario-qa team plan-of-record overview.
+- [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.

@@ -10,11 +10,11 @@ Does not directly edit target scenarios. Does not own monetization, marketing, i
 
 ## Plan of Record
 Strategic canon lives at [`docs/scenario-qa/README.md`](../../../../../../docs/scenario-qa/README.md), with three paired-doc-and-skill registries:
-- [`path:docs/scenario-qa/investigation-techniques/`](../../../../../../docs/scenario-qa/investigation-techniques/README.md) — bug-investigator's methods (1 entry: `scientific-debugging`).
-- [`path:docs/scenario-qa/audit-techniques/`](../../../../../../docs/scenario-qa/audit-techniques/README.md) — quality-auditor's seven lenses.
-- [`path:docs/scenario-qa/readiness-checks/`](../../../../../../docs/scenario-qa/readiness-checks/README.md) — programmatic-qa-runner's individual checks (stub; populated as GCT dimensions stabilize).
+- [`path:docs/scenario-qa/methods/investigation/`](../../../../../../docs/scenario-qa/methods/investigation/README.md) — bug-investigator's methods (1 entry: `scientific-debugging`).
+- [`path:docs/scenario-qa/methods/audit/`](../../../../../../docs/scenario-qa/methods/audit/README.md) — quality-auditor's seven lenses.
+- [`path:docs/scenario-qa/methods/readiness/`](../../../../../../docs/scenario-qa/methods/readiness/README.md) — programmatic-qa-runner's individual checks (stub; populated as GCT dimensions stabilize).
 
-Bug taxonomy: [`docs/scenario-qa/BUG_REPORT_TAXONOMY.md`](../../../../../../docs/scenario-qa/BUG_REPORT_TAXONOMY.md) (paired with `bug-report-taxonomy.json`).
+Bug taxonomy: [`docs/scenario-qa/taxonomies/bug-report/README.md`](../../../../../../docs/scenario-qa/taxonomies/bug-report/README.md) (paired with `taxonomy.json`).
 
 ## Roster
 The canonical list lives in `team.json` (`operatingContract.members`). Roles, in summary:

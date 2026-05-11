@@ -13,12 +13,13 @@
     "outputs",
     "states",
     "events",
+    "transitionDefaults",
     "transitions",
     "invariants",
     "traces"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "const": 2 },
     "flowId": { "type": "string", "minLength": 1 },
     "domain": { "type": "string", "minLength": 1 },
     "description": { "type": "string", "minLength": 1 },
@@ -69,6 +70,15 @@
       "minItems": 1,
       "items": { "$ref": "#/$defs/transition" }
     },
+    "transitionDefaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invalid"],
+      "properties": {
+        "invalid": { "$ref": "#/$defs/defaultTransition" },
+        "terminal": { "$ref": "#/$defs/defaultTransition" }
+      }
+    },
     "invariants": {
       "type": "array",
       "minItems": 1,
@@ -105,13 +115,22 @@
         "quint": { "type": "string", "minLength": 1 }
       }
     },
+    "defaultTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["to", "wantError"],
+      "properties": {
+        "to": { "type": "string", "minLength": 1 },
+        "wantError": { "type": "boolean" }
+      }
+    },
     "transition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["from", "event", "to", "wantError"],
+      "required": ["from", "event", "to"],
       "properties": {
-        "from": { "type": "string", "minLength": 1 },
-        "event": { "type": "string", "minLength": 1 },
+        "from": { "$ref": "#/$defs/stringOrStringArray" },
+        "event": { "$ref": "#/$defs/stringOrStringArray" },
         "to": { "type": "string", "minLength": 1 },
         "wantError": { "type": "boolean" }
       }
@@ -149,6 +168,16 @@
         "want": { "type": "string", "minLength": 1 },
         "wantError": { "type": "boolean" }
       }
+    },
+    "stringOrStringArray": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      ]
     }
   }
 }

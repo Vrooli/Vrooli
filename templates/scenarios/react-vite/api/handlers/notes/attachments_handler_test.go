@@ -166,7 +166,6 @@ func (s *recordingAttachmentsService) Create(_ context.Context, in internalnotes
 		return internalnotes.Attachment{}, s.err
 	}
 	return internalnotes.Attachment{
-		ID:        "attachment-1",
 		NoteID:    in.NoteID,
 		Key:       in.Key,
 		MIMEType:  in.MIMEType,
