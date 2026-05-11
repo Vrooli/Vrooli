@@ -120,12 +120,12 @@ A taxonomy is the per-domain signal vocabulary, dispatch table, evidence rules, 
 
 | Taxonomy id | Owner team | Sidecar | PoR | Drainers |
 |---|---|---|---|---|
-| `marketing-research` | `marketing-crew` | `path:docs/marketing/signal-taxonomy.json` | `path:docs/marketing/SIGNAL_TAXONOMY.md` | `team:marketing-crew/researcher` |
-| `monetization-opportunity` | `monetization` | `path:docs/monetization/opportunity-taxonomy.json` | `path:docs/monetization/OPPORTUNITY_TAXONOMY.md` | `team:monetization/opportunity-scout` |
-| `monetization-validation` | `monetization` | `path:docs/monetization/validation-taxonomy.json` | `path:docs/monetization/VALIDATION_TAXONOMY.md` | `team:monetization/market-validator` |
+| `marketing-research` | `marketing-crew` | `path:docs/marketing/taxonomies/marketing-research/taxonomy.json` | `path:docs/marketing/taxonomies/marketing-research/README.md` | `team:marketing-crew/researcher` |
+| `monetization-opportunity` | `monetization` | `path:docs/monetization/taxonomies/monetization-opportunity/taxonomy.json` | `path:docs/monetization/taxonomies/monetization-opportunity/README.md` | `team:monetization/opportunity-scout` |
+| `monetization-validation` | `monetization` | `path:docs/monetization/taxonomies/monetization-validation/taxonomy.json` | `path:docs/monetization/taxonomies/monetization-validation/README.md` | `team:monetization/market-validator` |
 | `notebook-debt` | `meta-optimization` | `path:docs/agent-system/notebook-debt-taxonomy.json` | `path:docs/agent-system/NOTEBOOK_DEBT_TAXONOMY.md` | `team:marketing-crew/brand-manager`, `team:meta-optimization/debt-curator` |
 | `bug-report` | `scenario-qa` | `path:docs/scenario-qa/taxonomies/bug-report/taxonomy.json` | `path:docs/scenario-qa/taxonomies/bug-report/README.md` | `team:scenario-qa/bug-investigator` (universal-source intake — any team's members may write via the `report-bug` skill) |
-| `friction-report` | `meta-optimization` | `path:docs/meta-optimization/friction-report-taxonomy.json` | `path:docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md` | `team:meta-optimization/friction-curator` (universal-source intake — any team's members may write via the `report-friction` skill; curator routes to scoped friction sub-topics) |
+| `friction-report` | `meta-optimization` | `path:docs/meta-optimization/taxonomies/friction-report/taxonomy.json` | `path:docs/meta-optimization/taxonomies/friction-report/README.md` | `team:meta-optimization/friction-curator` (universal-source intake — any team's members may write via the `report-friction` skill; curator routes to scoped friction sub-topics) |
 
 Discover programmatically: `prompt-manager graph topics` resolves every `intake[].taxonomy` against the registry and fails on `unknown_taxonomy`. Add a taxonomy: prefer `path:docs/<domain>/taxonomies/<taxonomy-id>/taxonomy.json` with a unique `id` field; legacy `*-taxonomy.json`, `signal-taxonomy.json`, `opportunity-taxonomy.json`, and `validation-taxonomy.json` sidecars under `path:docs/<domain>/` still load during migration — the loader at `path:scenarios/prompt-manager/api/memberflow/taxonomy.go` walks `docs/` and indexes by id. Every `defaultMethod` referenced by a `signalType` must either resolve to a registered skill or be listed under the taxonomy's `pendingMethodSkills`.
 

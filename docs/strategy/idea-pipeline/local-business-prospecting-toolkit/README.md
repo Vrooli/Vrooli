@@ -19,14 +19,14 @@ For Vrooli, this is **the productization target** of the `lead-generation` reven
 
 **Direct revenue paths:**
 
-- **Lead-generation services line** (currently `candidate` in `monetization/revenue-lines/lead-generation.md`). Operator runs this scenario to deliver per-lead or per-close pricing to local service businesses. Three vertical playbooks already captured in `lead-generation.md`'s "Candidate vertical playbooks" section (website-building service, reputation management, cold-outreach automation) — this scenario is the underlying tool for all three.
-- **`property-services` add-on** (currently `candidate` in `monetization/catalog/addons/property-services.md`). Once the business bundle has paying users and at least one vertical has been validated as a service-line pilot, the underlying scenario gets sold as a subscription add-on. The pitch becomes "here's a tool that does what we did for you; subscribe to run it yourself."
+- **Lead-generation services line** (currently `candidate` in `monetization/catalogs/revenue-lines/lead-generation.md`). Operator runs this scenario to deliver per-lead or per-close pricing to local service businesses. Three vertical playbooks already captured in `lead-generation.md`'s "Candidate vertical playbooks" section (website-building service, reputation management, cold-outreach automation) — this scenario is the underlying tool for all three.
+- **`property-services` add-on** (currently `candidate` in `monetization/catalogs/skus/addons/property-services.md`). Once the business bundle has paying users and at least one vertical has been validated as a service-line pilot, the underlying scenario gets sold as a subscription add-on. The pitch becomes "here's a tool that does what we did for you; subscribe to run it yourself."
 
 **Revisit trigger** (inherited from `lead-generation.md`): "Revisit when at least one property-services scenario is deployable as a thin tool AND one local-service prospect signs a pilot agreement."
 
 **Bundle role:** depth (within the business bundle's property-services add-on; not a headliner). Standalone-app sale possible at a higher tier once productized.
 
-**Dig-the-gold candidacy:** YES, deliberately. This scenario's design intent is operator-runs-as-service first, customer-runs-as-subscription second. The services-trap discipline in `monetization/REVENUE_LINES.md` applies: validation hypothesis + fixed-duration pilot + productization target + sunset-or-convert clause are required before activation.
+**Dig-the-gold candidacy:** YES, deliberately. This scenario's design intent is operator-runs-as-service first, customer-runs-as-subscription second. The services-trap discipline in `monetization/catalogs/revenue-lines/README.md` applies: validation hypothesis + fixed-duration pilot + productization target + sunset-or-convert clause are required before activation.
 
 **Legal surface:** highest among Vrooli scenarios. TCPA (US telemarketing — applies to SMS/calls, distinct rules for emails), CAN-SPAM (US email), GDPR (international), CASL (Canada), state-level B2B-vs-B2C distinctions on lead sales. Per `lead-generation.md`, explicit legal review is required before first paid engagement. The scenario itself must structurally enforce per-jurisdiction guardrails — not policy-as-prose.
 
@@ -58,8 +58,8 @@ For Vrooli, this is **the productization target** of the `lead-generation` reven
 
 **Project goals served** (referencing `path:docs/strategy/`):
 
-- **Headliner-pre-default-alive revenue lever** (per `monetization/REVENUE_LINES.md` Phase posture): services lines are expected to actively produce revenue in the window between core bundles shipping and subscriptions crossing default-alive. This scenario is one of the strongest near-term services-line candidates because of high capability reuse with the property-services add-on.
-- **Customer acquisition for the business bundle** (per `monetization/STRATEGY.md`): service-clients are the most legible upgrade path to subscriptions ("we built you a tool; now subscribe to run it yourself"). This scenario operationalizes that path for a specific vertical.
+- **Headliner-pre-default-alive revenue lever** (per `monetization/catalogs/revenue-lines/README.md` Phase posture): services lines are expected to actively produce revenue in the window between core bundles shipping and subscriptions crossing default-alive. This scenario is one of the strongest near-term services-line candidates because of high capability reuse with the property-services add-on.
+- **Customer acquisition for the business bundle** (per `monetization/strategy/STRATEGY.md`): service-clients are the most legible upgrade path to subscriptions ("we built you a tool; now subscribe to run it yourself"). This scenario operationalizes that path for a specific vertical.
 - **Validation of property-services capabilities** (per the add-on's productization target): operating this scenario as a service surfaces real-world friction in geo-scanning, review-classification, outreach-deliverability — feedback that improves the productized add-on.
 
 **Phase of deployment vision** (per CLAUDE.md): Phase 1 / Phase 2 — current local-stack deployment and emerging hosted/SaaS tier. Not Phase 3 (specialized hardware) territory.
@@ -74,9 +74,9 @@ For Vrooli, this is **the productization target** of the `lead-generation` reven
 
 ## Cross-references
 
-- [`../../monetization/revenue-lines/lead-generation.md`](../../monetization/revenue-lines/lead-generation.md) — productization target's revenue line; reference architecture and candidate vertical playbooks live there.
-- [`../../monetization/catalog/addons/property-services.md`](../../monetization/catalog/addons/property-services.md) — productization target's SKU.
-- [`../../monetization/REVENUE_LINES.md`](../../monetization/REVENUE_LINES.md) — services-trap discipline, conversion-rate metric, 30%-time-budget cap.
+- [`../../monetization/catalogs/revenue-lines/lead-generation.md`](../../monetization/catalogs/revenue-lines/lead-generation.md) — productization target's revenue line; reference architecture and candidate vertical playbooks live there.
+- [`../../monetization/catalogs/skus/addons/property-services.md`](../../monetization/catalogs/skus/addons/property-services.md) — productization target's SKU.
+- [`../../monetization/catalogs/revenue-lines/README.md`](../../monetization/catalogs/revenue-lines/README.md) — services-trap discipline, conversion-rate metric, 30%-time-budget cap.
 - [`../../marketing/STRATEGY.md`](../../marketing/STRATEGY.md) — Source-material-discipline section; applies to all numbers borrowed from MapiLeads source.
 - `path:scenarios/bas/` — substrate for Maps scraping (wrap-not-use).
 - `path:scenarios/swarm-manager/ideas/email-outreach-manager-archived/` — partial-overlap archived scenario; not to be revived.

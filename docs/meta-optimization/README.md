@@ -12,8 +12,8 @@ Use this README first, then choose the file that matches the work:
 
 | Question | Start with |
 |---|---|
-| How do I report friction I just hit? | [`FRICTION_REPORT_TAXONOMY.md`](FRICTION_REPORT_TAXONOMY.md) — invoke `prompt-manager skill read report-friction` |
-| How does the meta-optimization team work end to end? | [`OPERATING_MODEL.md`](OPERATING_MODEL.md) |
+| How do I report friction I just hit? | [`taxonomies/friction-report/README.md`](taxonomies/friction-report/README.md) — invoke `prompt-manager skill read report-friction` |
+| How does the meta-optimization team work end to end? | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) |
 | Why is friction reporting cross-team rather than per-team? | this README §"Why cross-team" |
 | What is the cross-team flow? | this README §"Cross-team flow" |
 | What is the team's mission? | [`docs/agent-system/REFERENCE_SCENARIOS.md`](../agent-system/REFERENCE_SCENARIOS.md) and the `meta-optimization/team.json` mission field |
@@ -54,14 +54,19 @@ The curator is a **router, not an analyst**. Synthesis stays with debt-curator. 
 
 | File | Purpose |
 |---|---|
-| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Team-level operating graph, topic catalog, decision catalog, external inputs, outputs, and validation target for `meta-optimization`. |
-| [`FRICTION_REPORT_TAXONOMY.md`](FRICTION_REPORT_TAXONOMY.md) | Human-readable view of `friction-report-taxonomy.json`. Scopes, severities, schemas, action-selection rules, evidence rules, "what is NOT friction" guard. |
-| [`friction-report-taxonomy.json`](friction-report-taxonomy.json) | Machine-readable taxonomy sidecar (loaded by the heartbeat builder; cited by `friction-curator/topics.json`). |
+| [`manifest.json`](manifest.json) | Local plan-of-record manifest declaring the enabled `team-plan-of-record/v1` modules. |
+| [`operating/README.md`](operating/README.md) | Operating-contract subfolder entrypoint and validation pointer. |
+| [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) | Team-level operating graph, topic catalog, decision catalog, external inputs, outputs, and validation target for `meta-optimization`. |
+| [`taxonomies/friction-report/README.md`](taxonomies/friction-report/README.md) | Human-readable view of `taxonomy.json`. Scopes, severities, schemas, action-selection rules, evidence rules, "what is NOT friction" guard. |
+| [`taxonomies/friction-report/taxonomy.json`](taxonomies/friction-report/taxonomy.json) | Machine-readable taxonomy sidecar (loaded by the heartbeat builder; cited by `friction-curator/topics.json`). |
+| [`governance/editing.md`](governance/editing.md) | Editing authority and decision flow for this PoR. |
+| [`governance/adoption-validation.md`](governance/adoption-validation.md) | Validation commands and expected clean state after PoR changes. |
+| [`governance/changelog.md`](governance/changelog.md) | Durable migration and change history. |
 
 ## Editing rules
 
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.
-- **Edit context:** `meta-self-improvement` (owned by debt-curator on meta-optimization) covers `FRICTION_REPORT_TAXONOMY.md` updates and friction-report taxonomy schema changes. Scope additions go through the same decision flow with empirical evidence from `friction-triage-record/*` snapshots.
+- **Edit context:** `meta-self-improvement` (owned by debt-curator on meta-optimization) covers `taxonomies/friction-report/README.md` updates and friction-report taxonomy schema changes. Scope additions go through the same decision flow with empirical evidence from `friction-triage-record/*` snapshots.
 - **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
 - **Drafts are not canon.** Synthesis-in-flux content lives elsewhere (working notebooks or `path:docs/agent-system/drafts/`); files in this folder are stable PoR.
 
@@ -74,10 +79,6 @@ The curator is a **router, not an analyst**. Synthesis stays with debt-curator. 
 - [`docs/scenario-qa/README.md`](../scenario-qa/README.md) — pattern this folder mirrors (paired-doc-and-skill discipline applies).
 - [`scenarios/prompt-manager/store/skills/packs/core/report-friction/SKILL.md`](../../scenarios/prompt-manager/store/skills/packs/core/report-friction/SKILL.md) — universal writer skill.
 - [`scenarios/prompt-manager/store/skills/packs/core/conversation-friction-analysis/SKILL.md`](../../scenarios/prompt-manager/store/skills/packs/core/conversation-friction-analysis/SKILL.md) — deeper post-hoc analysis skill.
-
-## Changelog
-
-- **2026-05-03 — Friction observation flow landed.** Added `friction-curator` agent on meta-optimization, `friction-inbox/<scope>/<slug>` universal-source intake, `report-friction` writer skill, and `friction-triage-record/<YYYY-MM-DD>` daily snapshot topic. Heartbeat trigger paragraph in the Storage Map / Observe subsection now points all agents at `report-friction` for structural friction (with one-off-in-handoff guidance preserved). Producers should prefer the skill over ad-hoc friction notebook entries; the curator routes to the existing scoped friction sub-topics owned by toolchain-validator, run-introspector, team-agent-optimizer, and debt-curator. Sister flow to scenario-qa's bug-inbox; together they establish the universal-observation-flow primitive.
 
 ## Future PoR work
 

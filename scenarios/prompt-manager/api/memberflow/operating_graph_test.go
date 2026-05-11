@@ -2183,8 +2183,8 @@ flowchart LR
 }
 
 func TestMarketingOperatingModelUsesReadableAnnotatedLabels(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "marketing", "OPERATING_MODEL.md")
-	blocks, err := ExtractOperatingGraphBlocks(path, "docs/marketing/OPERATING_MODEL.md")
+	path := filepath.Join("..", "..", "..", "..", "docs", "marketing", "operating", "OPERATING_MODEL.md")
+	blocks, err := ExtractOperatingGraphBlocks(path, "docs/marketing/operating/OPERATING_MODEL.md")
 	if err != nil {
 		t.Fatalf("ExtractOperatingGraphBlocks: %v", err)
 	}
@@ -2205,8 +2205,8 @@ func TestMarketingOperatingModelUsesReadableAnnotatedLabels(t *testing.T) {
 }
 
 func TestMarketingOperatingModelCentralizesNotebookDrainage(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "docs", "marketing", "OPERATING_MODEL.md")
-	blocks, err := ExtractOperatingGraphBlocks(path, "docs/marketing/OPERATING_MODEL.md")
+	path := filepath.Join("..", "..", "..", "..", "docs", "marketing", "operating", "OPERATING_MODEL.md")
+	blocks, err := ExtractOperatingGraphBlocks(path, "docs/marketing/operating/OPERATING_MODEL.md")
 	if err != nil {
 		t.Fatalf("ExtractOperatingGraphBlocks: %v", err)
 	}

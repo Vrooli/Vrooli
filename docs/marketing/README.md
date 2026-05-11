@@ -1,68 +1,65 @@
 # Marketing — Plan of Record
 
-This folder is the **plan-of-record** for Vrooli's external voice: subscription marketing, open-source / community marketing, brand canon, and audience frames. It's maintained by the `marketing-crew` team and consumed by its members every heartbeat.
+This folder is the **plan of record** for Vrooli's external voice: subscription marketing, open-source and community marketing, brand canon, audience frames, content formats, publishing discipline, and the learning loop that improves those systems over time.
 
-There is a companion working notebook under [`notebook/`](notebook/README.md). The two are deliberately different:
+It is maintained by the `marketing-crew` team and consumed by its members every heartbeat. The team's live operating rules are at [`scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md`](../../scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md); this folder is the strategic-canon side.
 
-- **Plan-of-record (this folder).** Canon. Operator-curated via approved decisions. Agents propose diffs; they never edit directly. Entries grow and stabilize over time.
-- **Working notebook ([`notebook/`](notebook/)).** Debt. Any member may append freely. `brand-manager` proposes promotions and retirements. Entries shrink over time as they're crystallized into permanent structure.
-
-See [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../agent-system/TEAM_DOCS_PATTERNS.md) for the pattern definition. See [`scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md`](../../scenarios/prompt-manager/store/teams/marketing-crew/shared/TEAM.md) for the team's live operating rules.
+The local contract is [`manifest.json`](manifest.json), which instantiates the shared plan-of-record shape from [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json).
 
 ## Start here for agents
 
-Use this README first, then choose the file or sub-hub that matches the work:
+Use this README first, then choose the module that matches the work:
 
 | Question | Start with |
 |---|---|
-| How does the marketing team operate end to end? | [`OPERATING_MODEL.md`](OPERATING_MODEL.md) |
-| What should Vrooli sound like? | [`STRATEGY.md`](STRATEGY.md) |
-| Who is the audience? | [`AUDIENCES.md`](AUDIENCES.md) |
-| Which campaign is active? | [`CAMPAIGNS.md`](CAMPAIGNS.md) |
-| What are the publishing rules for a platform? | [`CHANNELS.md`](CHANNELS.md) |
-| Which brand or visual rule applies? | [`BRAND.md`](BRAND.md), [`ASSETS.md`](ASSETS.md), or [`IMAGE_STYLE.md`](IMAGE_STYLE.md) |
-| Which post shape should be used? | [`post-types/README.md`](post-types/README.md) |
-| Which reusable writing technique applies? | [`post-techniques/README.md`](post-techniques/README.md) |
-| Which cross-cutting campaign strategy applies? | [`strategies/README.md`](strategies/README.md) |
-| How should external signals become research evidence? | [`research/README.md`](research/README.md) |
-| Which generated-media asset or schema applies? | [`rich-media/README.md`](rich-media/README.md) |
+| How does the marketing team operate end to end? | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) |
+| What should Vrooli sound like? | [`strategy/STRATEGY.md`](strategy/STRATEGY.md) |
+| Who is the audience? | [`strategy/AUDIENCES.md`](strategy/AUDIENCES.md) |
+| Which campaign is active? | [`strategy/CAMPAIGNS.md`](strategy/CAMPAIGNS.md) |
+| What are the publishing rules for a platform? | [`strategy/CHANNELS.md`](strategy/CHANNELS.md) |
+| Which brand or visual rule applies? | [`strategy/BRAND.md`](strategy/BRAND.md), [`strategy/ASSETS.md`](strategy/ASSETS.md), or [`strategy/IMAGE_STYLE.md`](strategy/IMAGE_STYLE.md) |
+| Which post shape should be used? | [`catalogs/post-types/README.md`](catalogs/post-types/README.md) |
+| Which reusable writing technique applies? | [`methods/post-techniques/README.md`](methods/post-techniques/README.md) |
+| Which cross-cutting marketing strategy applies? | [`strategy/patterns/README.md`](strategy/patterns/README.md) |
+| How should external signals become research evidence? | [`evidence/research/README.md`](evidence/research/README.md) |
+| Which generated-media asset or schema applies? | [`catalogs/rich-media/README.md`](catalogs/rich-media/README.md) |
+| How is marketing research classified and routed? | [`taxonomies/marketing-research/README.md`](taxonomies/marketing-research/README.md) |
 | Is this unresolved learning rather than canon? | [`notebook/README.md`](notebook/README.md) |
 
-## Files in this folder
-
-| File | Purpose |
-|------|---------|
-| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Target-state operating model: loops, roles, topic surfaces, decision handoffs, notebook drainage, current implementation gaps, and adoption sequence. |
-| [`STRATEGY.md`](STRATEGY.md) | Voice canon: positioning principles, dual-audience framing (subscription + OSS), voice samples, anti-patterns, dev-log narrative principles. |
-| [`AUDIENCES.md`](AUDIENCES.md) | Personas. Subscription buyer, OSS contributor. Researcher proposes updates via `audience-update` decisions. |
-| [`CAMPAIGNS.md`](CAMPAIGNS.md) | Index of active campaigns. Brand-manager proposes launches via `campaign-launch-proposal` decisions. |
-| [`CHANNELS.md`](CHANNELS.md) | Per-platform publishing rules. Publisher proposes drift corrections via `channel-update` decisions. |
-| [`BRAND.md`](BRAND.md) | Visual identity navigation hub. Points at ASSETS, IMAGE_STYLE, STRATEGY for the actual content. |
-| [`ASSETS.md`](ASSETS.md) | Canonical brand asset registry (logos, favicons, OG image, font, usage rules). Eventually subsumed by the `brand-manager` scenario when it ships. |
-| [`IMAGE_STYLE.md`](IMAGE_STYLE.md) | AI image generation style guide. Palette (dark blue / deep purple / neon green), aesthetic (abstract, futuristic, neon), prompt directives. Eventually subsumed by the `brand-manager` scenario. |
-
-## Sub-folders
-
-The first file in each sub-folder is a hub. Start there rather than guessing at individual spokes.
+## Folder map
 
 | Folder | Purpose |
-|--------|---------|
-| [`post-types/README.md`](post-types/README.md) | One file per kind of marketing post Vrooli produces, organized by primary medium under `text/`, `image/`, and `video/`. Each file is the strategic canon at the operator-decision level (purpose, audience, conversion goal, asset requirements, contrarian failure modes). Each pairs with an `x-<type>` skill that is the executable spec. |
-| [`post-techniques/README.md`](post-techniques/README.md) | One file per cross-cutting voice/structure technique (essay-shape, hook-vs-body asymmetry, intro-on-first-mention, recommendation-framing, etc.). Techniques are referenced from multiple post-type files rather than duplicated. |
-| [`strategies/README.md`](strategies/README.md) | Cross-cutting marketing strategies that span multiple post-types and aren't pure techniques (AI-UGC personas, hook library, funnel patterns). One file per strategy. |
-| [`research/README.md`](research/README.md) | Research intake, collection, method, and promotion architecture for operator-fed alpha, proactive scans, future bookmark-intelligence-hub exports, and research method evolution. |
-| [`rich-media/README.md`](rich-media/README.md) | Structured-data substrate for AI image and video generation: character / scene / product schemas (JSON), prompt templates (Veo/Seedance-compatible), and ground-truth assets. Drives multi-frame and multi-shot consistency. |
-| [`notebook/`](notebook/) | Working notebook for patterns observed in production. Append-anyone; brand-manager curates promotions to plan-of-record (here, in `post-types/`, in `post-techniques/`, in `strategies/`) or to permanent structure (a skill or scenario). |
+|---|---|
+| [`operating/`](operating/README.md) | Team operating contract and validation commands. |
+| [`taxonomies/marketing-research/`](taxonomies/marketing-research/README.md) | Human-readable taxonomy plus machine-readable `taxonomy.json` for marketing research signals. |
+| [`methods/post-techniques/`](methods/post-techniques/README.md) | One file per reusable cross-cutting voice or structure technique. |
+| [`catalogs/post-types/`](catalogs/post-types/README.md) | One file per kind of marketing post Vrooli produces, organized by medium. |
+| [`catalogs/rich-media/`](catalogs/rich-media/README.md) | Structured-data substrate for generated imagery and video: character, scene, product, asset, and prompt-template registries. |
+| [`strategy/`](strategy/README.md) | Voice, audience, campaign, channel, brand, asset, image-style, and strategy-pattern canon. |
+| [`evidence/research/`](evidence/research/README.md) | Research intake, collection, method, promotion, and evidence rules. |
+| [`governance/`](governance/editing.md) | Editing authority, adoption validation, and changelog. |
+| [`notebook/`](notebook/README.md) | Working notebook. Appendable debt, not authoritative plan-of-record canon. |
 
-## Write rules
+## Editing rules
 
-- **Agents never write to these files directly.** All edits come through operator-approved decisions.
-- **Edit context:** `brand-guideline-update` covers STRATEGY / BRAND / ASSETS / IMAGE_STYLE / `path:docs/marketing/strategies/*` / `path:docs/marketing/rich-media/*` / `path:docs/marketing/research/*` *and* the cross-team narrative canon at `path:docs/narrative/*`. Use `audience-update` for AUDIENCES; `campaign-launch-proposal` for CAMPAIGNS; `channel-update` for per-platform-rule edits to CHANNELS; `channel-strategy-update` (researcher) for channel-priority/strategy edits to CHANNELS; `post-type-proposal` (researcher) for new entries under `post-types/`; `hook-candidate-promotion` (researcher) for additions to `strategies/hook-library.md`.
-- **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
+- **Agents never write to plan-of-record canon directly.** All canon edits come through operator-approved decisions.
+- **Working observations go to [`notebook/`](notebook/README.md).** The notebook is deliberately excluded from PoR authority; `brand-manager` proposes promotions and retirements.
+- **Use the most specific module.** Add post shapes under `catalogs/post-types/`, reusable writing techniques under `methods/post-techniques/`, directional marketing truth under `strategy/`, classification/routing rules under `taxonomies/`, and supporting proof under `evidence/`.
+- **Operator executes accepted edits.** Commit messages cite the decision id.
+
+Decision-context detail lives in [`governance/editing.md`](governance/editing.md).
 
 ## Cross-references
 
-- `path:docs/narrative/` — project-identity canon (pitch, story, FAQ, press kit, pitch-deck outline). Cross-team consumers (advertisers, monetization, director, LPBS) pull narrative content from there. Voice canon (this folder's STRATEGY.md) is the linguistic *how*; narrative is the *what*.
-- `path:docs/monetization/` — STRATEGY, CATALOG, PRICING, TIERS, per-bundle files, scenario-sku-map.json. Positioning ground truth. The team reads; never writes.
-- `VISION.md` (root) — operator-authored manifesto. Long-term north-star; pulled into deepest narrative layers.
-- `docs/concepts/ARCHITECTURE.md` — canonical technical reference for "how Vrooli actually works."
+- [`docs/agent-system/PLAN_OF_RECORD_STRUCTURE.md`](../agent-system/PLAN_OF_RECORD_STRUCTURE.md) — shared PoR architecture and extension rules.
+- [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../agent-system/TEAM_DOCS_PATTERNS.md) — plan-of-record vs working-notebook pattern.
+- [`docs/narrative/`](../narrative/README.md) — project-identity canon. Marketing owns the linguistic how; narrative owns the what.
+- [`docs/monetization/`](../monetization/README.md) — positioning, pricing, catalog, and bundle ground truth. Marketing reads; monetization owns.
+- [`VISION.md`](../../VISION.md) — operator-authored manifesto and long-term north star.
+
+## Future PoR work
+
+- Promote stable notebook lessons into the correct module, then retire the notebook entry.
+- Add PoR manifest validation once prompt-manager consumes `manifest.json`.
+- Split large strategy documents only when one-entity-per-file structure would make future edits safer.
+- Move generated-media schemas toward dedicated scenario support when the future `rich-media-studio` or `brand-manager` scenario owns that capability.

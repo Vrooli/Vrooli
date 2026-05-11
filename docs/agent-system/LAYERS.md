@@ -56,7 +56,7 @@ When canon lives in the wrong home — typically when a skill restates doctrine 
 
 | Layer | Location | Examples |
 |---|---|---|
-| Plan of Record | `path:docs/<domain>/` and `path:docs/agent-system/` | `path:docs/monetization/`, `path:docs/marketing/research/README.md`, this file |
+| Plan of Record | `path:docs/<domain>/` and `path:docs/agent-system/` | `path:docs/monetization/`, `path:docs/marketing/evidence/research/README.md`, this file |
 | Skills | `path:scenarios/prompt-manager/store/skills/packs/<pack>/<skill-id>/SKILL.md` | `marketing-signal-classifier`, `team-member-capability-architecture-audit` |
 | Actions | `path:scenarios/prompt-manager/store/actions/<action-id>/` | `scenario.status.show`, `team.decisions.list` |
 | CLIs | `path:scenarios/<scenario>/cli/` and resource CLIs | `prompt-manager`, `swarm-manager`, `resource-postgres` |

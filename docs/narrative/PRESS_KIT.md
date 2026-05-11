@@ -45,12 +45,12 @@ Pull from [`FAQ.md` § How is Vrooli different from agent frameworks like OpenCl
 
 ## Visual assets
 
-See [`docs/marketing/ASSETS.md`](../marketing/ASSETS.md) for the canonical logo / icon / og-image registry. Logos are at:
+See [`docs/marketing/strategy/ASSETS.md`](../marketing/strategy/ASSETS.md) for the canonical logo / icon / og-image registry. Logos are at:
 - High-resolution: `assets/public/logo-mask-512x512.webp`
 - Motto-bearing: `assets/public/Vrooli-motto-shadow.png`
 - Open Graph (social previews): `assets/public/og-image.webp`
 
-For AI-generated supporting imagery, use [`docs/marketing/IMAGE_STYLE.md`](../marketing/IMAGE_STYLE.md) as the prompt directive (palette, mood, aesthetic).
+For AI-generated supporting imagery, use [`docs/marketing/strategy/IMAGE_STYLE.md`](../marketing/strategy/IMAGE_STYLE.md) as the prompt directive (palette, mood, aesthetic).
 
 ## Founder background — operator-authored
 

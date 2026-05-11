@@ -7,7 +7,7 @@ This skill is **destination-coupled by design** — writer skills always are. Th
 This is the sister to `report-bug`. The two together form the universal observation flow: bugs go to scenario-qa, friction to meta-optimization. Use the right one — see § "When NOT to use" below.
 
 Required reading:
-- `docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md` — scopes, severities, schemas, evidence rules, honesty flags. Read this before invoking; the taxonomy is the source of truth for valid input shape.
+- `docs/meta-optimization/taxonomies/friction-report/README.md` — scopes, severities, schemas, evidence rules, honesty flags. Read this before invoking; the taxonomy is the source of truth for valid input shape.
 
 ---
 
@@ -58,7 +58,7 @@ Gather before invoking the writer:
 
 ### **3. Procedure**
 
-1. **Validate inputs against the taxonomy.** Read `docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md`. Confirm `scope` is one of the five values. Confirm `severity` is one of the three values. Confirm `expected`, `actual`, `description` are populated (or that you've added the appropriate honesty flag).
+1. **Validate inputs against the taxonomy.** Read `docs/meta-optimization/taxonomies/friction-report/README.md`. Confirm `scope` is one of the five values. Confirm `severity` is one of the three values. Confirm `expected`, `actual`, `description` are populated (or that you've added the appropriate honesty flag).
 
 2. **Generate a kebab-case slug** that summarizes the friction in 3–6 words. Examples: `cli-rejects-valid-uuid-input`, `heartbeat-loops-on-empty-handoff`, `decision-vs-knowledge-routing-unclear`, `same-yaml-front-matter-fix-applied-fourth-time`.
 
@@ -138,7 +138,7 @@ If the `report-friction` skill is itself buggy or ambiguous, file a `bug-inbox/p
 
 ### **6. Cross-references**
 
-- `docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md` — taxonomy (required reading).
+- `docs/meta-optimization/taxonomies/friction-report/README.md` — taxonomy (required reading).
 - `docs/meta-optimization/README.md` — meta-optimization team's friction canon overview and cross-team flow diagram.
 - `docs/scenario-qa/taxonomies/bug-report/README.md` — sister taxonomy for the bug-inbox flow; useful context for understanding why these are separate writer skills with separate destinations.
 - `scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md` — sister writer skill for code/scenario defects.

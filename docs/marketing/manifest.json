@@ -1,0 +1,222 @@
+{
+  "version": "1.0.0",
+  "title": "Marketing Plan of Record",
+  "description": "Plan-of-record manifest for the marketing-crew team canon",
+  "contract": {
+    "kind": "team-plan-of-record",
+    "schema": "team-plan-of-record/v1",
+    "base": "docs/agent-system/team-plan-of-record.manifest.json",
+    "team": "marketing-crew"
+  },
+  "sections": [
+    {
+      "id": "entrypoint",
+      "path": ".",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "por-readme",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Start here for agents", "Folder map", "Editing rules", "Cross-references", "Future PoR work"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "operating",
+      "path": "operating/",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "operating-hub",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Operating Documents", "Validation"]
+          }
+        },
+        {
+          "path": "OPERATING_MODEL.md",
+          "docType": "operating-model",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "taxonomies",
+      "path": "taxonomies/",
+      "packages": [
+        {
+          "id": "marketing-research",
+          "path": "marketing-research/",
+          "packageType": "taxonomy",
+          "requiredFiles": ["README.md", "taxonomy.json"]
+        }
+      ]
+    },
+    {
+      "id": "methods",
+      "path": "methods/",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "methods-hub",
+          "required": true
+        }
+      ],
+      "packages": [
+        {
+          "id": "post-techniques",
+          "path": "post-techniques/",
+          "packageType": "method-registry",
+          "requiredFiles": ["README.md"],
+          "entryPattern": "*.md",
+          "minimumEntries": 1
+        }
+      ]
+    },
+    {
+      "id": "catalogs",
+      "path": "catalogs/",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "catalogs-hub",
+          "required": true
+        }
+      ],
+      "packages": [
+        {
+          "id": "post-types",
+          "path": "post-types/",
+          "packageType": "catalog-registry",
+          "requiredFiles": ["README.md"],
+          "entryPattern": "*/*.md",
+          "minimumEntries": 1
+        },
+        {
+          "id": "rich-media",
+          "path": "rich-media/",
+          "packageType": "catalog-registry",
+          "requiredFiles": ["README.md"]
+        }
+      ]
+    },
+    {
+      "id": "strategy",
+      "path": "strategy/",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "strategy-hub",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Strategy Documents", "Extension Rules"]
+          }
+        },
+        {
+          "path": "STRATEGY.md",
+          "docType": "voice-strategy",
+          "required": true
+        },
+        {
+          "path": "AUDIENCES.md",
+          "docType": "audience-strategy",
+          "required": true
+        },
+        {
+          "path": "CAMPAIGNS.md",
+          "docType": "campaign-strategy",
+          "required": true
+        },
+        {
+          "path": "CHANNELS.md",
+          "docType": "channel-strategy",
+          "required": true
+        },
+        {
+          "path": "BRAND.md",
+          "docType": "brand-strategy",
+          "required": true
+        },
+        {
+          "path": "ASSETS.md",
+          "docType": "brand-assets",
+          "required": true
+        },
+        {
+          "path": "IMAGE_STYLE.md",
+          "docType": "image-style",
+          "required": true
+        }
+      ],
+      "packages": [
+        {
+          "id": "patterns",
+          "path": "patterns/",
+          "packageType": "strategy-package",
+          "requiredFiles": ["README.md"],
+          "entryPattern": "*.md",
+          "minimumEntries": 1
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "path": "evidence/",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "evidence-hub",
+          "required": true
+        }
+      ],
+      "packages": [
+        {
+          "id": "research",
+          "path": "research/",
+          "packageType": "evidence-package",
+          "requiredFiles": ["README.md"]
+        }
+      ]
+    },
+    {
+      "id": "governance",
+      "path": "governance/",
+      "documents": [
+        {
+          "path": "editing.md",
+          "docType": "editing-rules",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Authority", "Change Flow", "Direct Edits"]
+          }
+        },
+        {
+          "path": "adoption-validation.md",
+          "docType": "validation-runbook",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Migration Notes"]
+          }
+        },
+        {
+          "path": "changelog.md",
+          "docType": "por-changelog",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Changelog"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "notebook",
+      "path": "notebook/",
+      "packageType": "working-notebook",
+      "authority": "excluded-from-plan-of-record",
+      "requiredFiles": ["README.md"]
+    }
+  ],
+  "extensionRule": "Marketing durable canon must live under operating/, taxonomies/, methods/, catalogs/, strategy/, evidence/, governance/, or a declared extensions/<extension-id>/ package. Working notes stay under notebook/ and are not authoritative plan-of-record canon."
+}

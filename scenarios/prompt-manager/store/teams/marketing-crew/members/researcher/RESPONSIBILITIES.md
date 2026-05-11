@@ -10,4 +10,4 @@
 - Keep research evidence usable by brand-manager, advertisers, publisher, and marketing-contrarian.
 - Prefer bookmark-intelligence-hub as the future collection layer for social/bookmark alpha; do not create source-specific intake skills by default.
 
-(Inbox draining mechanics, destinations, and dispatch are generated into the heartbeat's `# Inbox Flow` section from `topics.json` + `docs/marketing/SIGNAL_TAXONOMY.md`. Do not duplicate them here.)
+(Inbox draining mechanics, destinations, and dispatch are generated into the heartbeat's `# Inbox Flow` section from `topics.json` + `docs/marketing/taxonomies/marketing-research/README.md`. Do not duplicate them here.)

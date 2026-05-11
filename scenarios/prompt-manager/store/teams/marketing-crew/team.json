@@ -203,35 +203,35 @@
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/OPERATING_MODEL.md"
+              "path": "docs/marketing/operating/OPERATING_MODEL.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/STRATEGY.md"
+              "path": "docs/marketing/strategy/STRATEGY.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/AUDIENCES.md"
+              "path": "docs/marketing/strategy/AUDIENCES.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/CAMPAIGNS.md"
+              "path": "docs/marketing/strategy/CAMPAIGNS.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/CHANNELS.md"
+              "path": "docs/marketing/strategy/CHANNELS.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/BRAND.md"
+              "path": "docs/marketing/strategy/BRAND.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/ASSETS.md"
+              "path": "docs/marketing/strategy/ASSETS.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/IMAGE_STYLE.md"
+              "path": "docs/marketing/strategy/IMAGE_STYLE.md"
             }
           ],
           "writePolicy": "operator-curated-via-decisions",
@@ -248,7 +248,7 @@
           "paths": [
             {
               "base": "repo-root",
-              "path": "docs/marketing/post-types/README.md"
+              "path": "docs/marketing/catalogs/post-types/README.md"
             }
           ],
           "writePolicy": "operator-curated-via-decisions",
@@ -262,24 +262,24 @@
           "id": "marketing-strategies",
           "hub": {
             "base": "repo-root",
-            "path": "docs/marketing/strategies/README.md"
+            "path": "docs/marketing/strategy/patterns/README.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "docs/marketing/strategies/README.md"
+              "path": "docs/marketing/strategy/patterns/README.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/strategies/ai-ugc-personas.md"
+              "path": "docs/marketing/strategy/patterns/ai-ugc-personas.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/strategies/funnel-patterns.md"
+              "path": "docs/marketing/strategy/patterns/funnel-patterns.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/marketing/strategies/hook-library.md"
+              "path": "docs/marketing/strategy/patterns/hook-library.md"
             }
           ],
           "writePolicy": "operator-curated-via-decisions",
@@ -293,12 +293,12 @@
           "id": "marketing-research",
           "hub": {
             "base": "repo-root",
-            "path": "docs/marketing/research/README.md"
+            "path": "docs/marketing/evidence/research/README.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "docs/marketing/research/README.md"
+              "path": "docs/marketing/evidence/research/README.md"
             }
           ],
           "writePolicy": "operator-curated-via-decisions",
@@ -363,19 +363,19 @@
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/CATALOG.md"
+              "path": "docs/monetization/catalogs/CATALOG.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/PRICING.md"
+              "path": "docs/monetization/strategy/PRICING.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/TIERS.md"
+              "path": "docs/monetization/strategy/TIERS.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/scenario-sku-map.json"
+              "path": "docs/monetization/catalogs/scenario-sku-map.json"
             }
           ],
           "writePolicy": "read-only",
@@ -1048,7 +1048,7 @@
           "framework-update": 1
         },
         "taskParameters": {
-          "failureModeFrameworkSource": "docs/marketing/STRATEGY.md#anti-patterns",
+          "failureModeFrameworkSource": "docs/marketing/strategy/STRATEGY.md#anti-patterns",
           "reviewPostTypeV1Status": true
         }
       }

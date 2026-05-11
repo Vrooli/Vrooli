@@ -214,8 +214,8 @@ See [`path:docs/monetization/`](../monetization/) for the full plan.
 ## Cross-references
 
 - All copy pulls from [`PITCH.md`](PITCH.md), [`NARRATIVE.md`](NARRATIVE.md), and [`FAQ.md`](FAQ.md).
-- Visual assets from [`docs/marketing/ASSETS.md`](../marketing/ASSETS.md).
-- Brand image style for slide backgrounds / visual elements: [`docs/marketing/IMAGE_STYLE.md`](../marketing/IMAGE_STYLE.md).
+- Visual assets from [`docs/marketing/strategy/ASSETS.md`](../marketing/strategy/ASSETS.md).
+- Brand image style for slide backgrounds / visual elements: [`docs/marketing/strategy/IMAGE_STYLE.md`](../marketing/strategy/IMAGE_STYLE.md).
 - Long-arc content: [`VISION.md`](../../VISION.md) (operator-authored manifesto).
 - Architecture detail (for technical audiences asking "how does this really work"): [`docs/concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md).
 

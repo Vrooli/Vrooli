@@ -33,7 +33,6 @@
   "decisions_owned": [
     "runtime-health-finding",
     "instrumentation-gap",
-    "capability-gap",
     "reliability-target-update"
   ],
   "raises_capability_gaps": true,

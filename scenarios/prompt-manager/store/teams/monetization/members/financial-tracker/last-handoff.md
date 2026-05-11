@@ -1,11 +1,11 @@
 ### Inputs needed from operator (pending-operator status in operator-inputs.json)
-- `cash`: last updated: never. Gathering guide: docs/monetization/HOW_TO_GATHER_INPUTS.md#cash-on-hand
-- `monthlyBurn.aiApi`: last updated: never. Gathering guide: docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-ai--api-cost
-- `monthlyBurn.infrastructure`: last updated: never. Gathering guide: docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-infrastructure-cost
-- `monthlyBurn.saas`: last updated: never. Gathering guide: docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-third-party-saas-cost
-- `monthlyBurn.tooling`: last updated: never. Gathering guide: docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-tooling-cost
-- `timeAllocation.product`: last updated: never. Gathering guide: docs/monetization/HOW_TO_GATHER_INPUTS.md#time-allocation
-- `timeAllocation.ops`: last updated: never. Gathering guide: docs/monetization/HOW_TO_GATHER_INPUTS.md#time-allocation
+- `cash`: last updated: never. Gathering guide: docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#cash-on-hand
+- `monthlyBurn.aiApi`: last updated: never. Gathering guide: docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#monthly-ai--api-cost
+- `monthlyBurn.infrastructure`: last updated: never. Gathering guide: docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#monthly-infrastructure-cost
+- `monthlyBurn.saas`: last updated: never. Gathering guide: docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#monthly-third-party-saas-cost
+- `monthlyBurn.tooling`: last updated: never. Gathering guide: docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#monthly-tooling-cost
+- `timeAllocation.product`: last updated: never. Gathering guide: docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#time-allocation
+- `timeAllocation.ops`: last updated: never. Gathering guide: docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#time-allocation
 
 ### Stale operator inputs (updatedAt exceeds stalenessPolicy)
 - No stale inputs (file has never been populated).

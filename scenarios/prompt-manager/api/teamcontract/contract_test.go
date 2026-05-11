@@ -98,8 +98,8 @@ func TestRenderMemberUsesPlanOfRecordHubs(t *testing.T) {
 		Hub: &PathRef{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 		Paths: []PathRef{
 			{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
-			{Base: BaseRepoRoot, Path: "docs/monetization/CATALOG.md", Required: boolPtr(false), OptionalReason: "test fixture"},
-			{Base: BaseRepoRoot, Path: "docs/monetization/PRICING.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			{Base: BaseRepoRoot, Path: "docs/monetization/catalogs/CATALOG.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			{Base: BaseRepoRoot, Path: "docs/monetization/strategy/PRICING.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 		},
 		WritePolicy:    "operator-curated-via-decisions",
 		Consumers:      []string{"monetization"},
@@ -129,7 +129,7 @@ func TestRenderMemberUsesPlanOfRecordHubs(t *testing.T) {
 			t.Fatalf("rendered contract missing %q:\n%s", want, rendered)
 		}
 	}
-	if strings.Contains(rendered, "docs/monetization/CATALOG.md") {
+	if strings.Contains(rendered, "docs/monetization/catalogs/CATALOG.md") {
 		t.Fatalf("rendered contract should not dump plan-of-record spokes:\n%s", rendered)
 	}
 }
@@ -257,8 +257,8 @@ func TestRenderTeamStorageUsesPlanOfRecordHubs(t *testing.T) {
 		Hub: &PathRef{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 		Paths: []PathRef{
 			{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
-			{Base: BaseRepoRoot, Path: "docs/monetization/CATALOG.md", Required: boolPtr(false), OptionalReason: "test fixture"},
-			{Base: BaseRepoRoot, Path: "docs/monetization/PRICING.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			{Base: BaseRepoRoot, Path: "docs/monetization/catalogs/CATALOG.md", Required: boolPtr(false), OptionalReason: "test fixture"},
+			{Base: BaseRepoRoot, Path: "docs/monetization/strategy/PRICING.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 		},
 		WritePolicy:    "operator-curated-via-decisions",
 		Consumers:      []string{"monetization"},
@@ -282,7 +282,7 @@ func TestRenderTeamStorageUsesPlanOfRecordHubs(t *testing.T) {
 			t.Fatalf("rendered storage missing %q:\n%s", want, rendered)
 		}
 	}
-	for _, legacy := range []string{"docs under", "Exact paths: see `## Document Authority` above.", "`docs/monetization/CATALOG.md`"} {
+	for _, legacy := range []string{"docs under", "Exact paths: see `## Document Authority` above.", "`docs/monetization/catalogs/CATALOG.md`"} {
 		if strings.Contains(rendered, legacy) {
 			t.Fatalf("rendered storage contains legacy path-list wording %q:\n%s", legacy, rendered)
 		}

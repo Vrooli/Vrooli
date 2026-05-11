@@ -4,7 +4,7 @@
   "teamId": "monetization",
   "readBy": ["financial-tracker"],
   "editedBy": "operator",
-  "notes": "Operator-provided financial state. Edited directly by the operator (NOT via decisions). Field gathering guidance lives in docs/monetization/HOW_TO_GATHER_INPUTS.md. Per-field status vocabulary: 'pending-operator' (operator can provide, hasn't yet), 'current' (fresh value), 'stale' (value exists but updatedAt >30 days old), 'not-applicable-pre-launch' (genuinely not available at this phase). The financial-tracker treats 'pending-operator' fields as the team's first-call-to-action and surfaces them in its HANDOFF. It does not nag on 'not-applicable-*' fields.",
+  "notes": "Operator-provided financial state. Edited directly by the operator (NOT via decisions). Field gathering guidance lives in docs/monetization/governance/HOW_TO_GATHER_INPUTS.md. Per-field status vocabulary: 'pending-operator' (operator can provide, hasn't yet), 'current' (fresh value), 'stale' (value exists but updatedAt >30 days old), 'not-applicable-pre-launch' (genuinely not available at this phase). The financial-tracker treats 'pending-operator' fields as the team's first-call-to-action and surfaces them in its HANDOFF. It does not nag on 'not-applicable-*' fields.",
   "lastUpdatedAt": null,
 
   "cash": {
@@ -14,7 +14,7 @@
     "updatedAt": null,
     "source": null,
     "status": "pending-operator",
-    "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#cash-on-hand"
+    "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#cash-on-hand"
   },
 
   "monthlyBurn": {
@@ -24,7 +24,7 @@
       "updatedAt": null,
       "source": null,
       "status": "pending-operator",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-ai--api-cost"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#monthly-ai--api-cost"
     },
     "infrastructure": {
       "value": null,
@@ -32,7 +32,7 @@
       "updatedAt": null,
       "source": null,
       "status": "pending-operator",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-infrastructure-cost"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#monthly-infrastructure-cost"
     },
     "saas": {
       "value": null,
@@ -40,7 +40,7 @@
       "updatedAt": null,
       "source": null,
       "status": "pending-operator",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-third-party-saas-cost"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#monthly-third-party-saas-cost"
     },
     "tooling": {
       "value": null,
@@ -48,7 +48,7 @@
       "updatedAt": null,
       "source": null,
       "status": "pending-operator",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-tooling-cost"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#monthly-tooling-cost"
     }
   },
 
@@ -59,21 +59,21 @@
       "flag": null,
       "updatedAt": null,
       "status": "pending-operator",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#time-allocation"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#time-allocation"
     },
     "services": {
       "value": null,
       "flag": null,
       "updatedAt": null,
       "status": "not-applicable-pre-launch",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#time-allocation"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#time-allocation"
     },
     "ops": {
       "value": null,
       "flag": null,
       "updatedAt": null,
       "status": "pending-operator",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#time-allocation"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#time-allocation"
     }
   },
 
@@ -81,17 +81,17 @@
     "leadGen": {
       "value": null,
       "status": "not-applicable-pre-launch",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#services-revenue"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#services-revenue"
     },
     "doneForYou": {
       "value": null,
       "status": "not-applicable-pre-launch",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#services-revenue"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#services-revenue"
     },
     "consulting": {
       "value": null,
       "status": "not-applicable-pre-launch",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#services-revenue"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#services-revenue"
     }
   },
 
@@ -100,7 +100,7 @@
     "hoursThisWindow": {
       "value": null,
       "status": "not-applicable-pre-launch",
-      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#services-time"
+      "howToGather": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md#services-time"
     }
   },
 

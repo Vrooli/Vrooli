@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "id": "monetization-validation",
+  "displayName": "Monetization Validation Request Taxonomy",
+  "owner_team": "monetization",
+  "porPath": "docs/monetization/taxonomies/monetization-validation/README.md",
+  "signalTypes": [
+    {
+      "id": "pricing-comp-needed",
+      "definition": "A specific competitor pricing comp is requested.",
+      "defaultMethod": "pricing-comp-capture",
+      "defaultDestinationPrefix": "monetization-benchmark-record/<slug>",
+      "evidenceMinimum": "single-snapshot from cited source"
+    },
+    {
+      "id": "assumption-check",
+      "definition": "Validate a financial-model assumption.",
+      "defaultMethod": "assumption-grounding",
+      "defaultDestinationPrefix": "monetization-benchmark-record/<slug>",
+      "evidenceMinimum": "2-3 comps; raise financial-model-assumption-update if material"
+    },
+    {
+      "id": "benchmark-staleness",
+      "definition": "Auto-populated by benchmark-staleness-sweep; refresh existing benchmark.",
+      "defaultMethod": "stale-refresh",
+      "defaultDestinationPrefix": "monetization-benchmark-record/<slug>",
+      "evidenceMinimum": "supersede via benchmark-update if changed"
+    },
+    {
+      "id": "competitor-deep-dive",
+      "definition": "Broad capture across pricing + packaging + retention; multiple scans.",
+      "defaultMethod": "competitor-deep-dive-capture",
+      "defaultDestinationPrefix": "monetization-benchmark-record/<slug>",
+      "evidenceMinimum": "multi-scan capture"
+    },
+    {
+      "id": "channel-validation",
+      "definition": "Comp CAC / conversion / payback for a channel.",
+      "defaultMethod": "channel-validation-capture",
+      "defaultDestinationPrefix": "monetization-benchmark-record/<slug>",
+      "evidenceMinimum": "single-snapshot with `light-interpretation`"
+    }
+  ],
+  "evidenceRules": [
+    "Cite `--source=<url>` on every scan entry.",
+    "Label single-snapshot findings `light-interpretation`.",
+    "Tailwind references must be cited or flagged `tailwind-uncited`.",
+    "Mixed external data stays conflicting; do not average into a fake clean number.",
+    "If source access is blocked, raise `capability-gap`; do not invent."
+  ],
+  "actionSelection": {
+    "drop": "Duplicate / out of scope / low-leverage. Delete the queue entry.",
+    "observe": "Single-snapshot fact below the materiality threshold. Retag queue entry to `monetization-benchmark-record/<slug>`; no decision.",
+    "promote-to-canon": "Scan crosses the materiality threshold. Retag entry plus raise `benchmark-update` / `pricing-decision` / `financial-model-assumption-update`.",
+    "file-decision": "Decision-only outcome (e.g., assumption invalidated, no new scan). Raise the decision; delete the queue entry.",
+    "capability-gap": "Source / tool / scenario missing. File `capability-gap`; leave the queue entry until the gap is closed."
+  },
+  "schemas": {
+    "market-scan": {
+      "frontMatter": {
+        "type": "market-scan",
+        "kind": "<benchmark-capture|assumption-check|competitive-observation|stale-refresh|channel-assumption-check>",
+        "comp": "<name or category-wide>",
+        "category": "<text>",
+        "dimension": "<pricing|retention|churn|attach-rate|activation|channel-cac|other>",
+        "date_observed": "<YYYY-MM-DD>",
+        "applicability": "<high|medium|low>",
+        "affects_benchmarks_md": "<true|false>",
+        "affects_pricing": "<true|false>",
+        "affects_financial_model": "<text or null>",
+        "supersedes": "<prior-scan-id or null>",
+        "original_at": "<ISO timestamp>",
+        "original_by": "market-validator"
+      },
+      "bodyRequiredSections": ["Value", "Notes"]
+    }
+  },
+  "materialityThresholds": {
+    "pricing-tier-1": "move >15% on Vrooli's tier-1 target band",
+    "retention-or-churn": "move >5 percentage points on the comparable cohort",
+    "activation-or-attach": "move >10 percentage points",
+    "channel-cac-payback": "move >25% on payback period",
+    "tier-1-financial-assumption": "finding contradicts assumption with applicability=high"
+  },
+  "honestyFlags": [
+    "light-interpretation",
+    "tailwind-uncited",
+    "single-source",
+    "applicability-low"
+  ],
+  "pendingMethodSkills": [
+    "assumption-grounding",
+    "stale-refresh",
+    "competitor-deep-dive-capture",
+    "channel-validation-capture"
+  ]
+}

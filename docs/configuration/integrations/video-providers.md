@@ -21,7 +21,7 @@ For pay-per-use without subscription, **fal.ai** is currently the cleanest aggre
 
 ## Recommended resource shape
 
-When the first consuming scenario is built (likely `rich-media-studio` per [`docs/marketing/rich-media/README.md`](../../marketing/rich-media/README.md)), wire a provider resource using `secretDescriptor`:
+When the first consuming scenario is built (likely `rich-media-studio` per [`docs/marketing/catalogs/rich-media/README.md`](../../marketing/rich-media/README.md)), wire a provider resource using `secretDescriptor`:
 
 ```json
 {

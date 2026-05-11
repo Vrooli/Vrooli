@@ -1,75 +1,75 @@
-# Monetization
+# Monetization — Plan of Record
 
-Durable monetization strategy, catalog, and operational framework for Vrooli. Owned by the `monetization` team in prompt-manager; authored and curated by the human operator.
+This folder is the **plan of record** for Vrooli's monetization system: SKU catalog, delivery tiers, pricing posture, revenue lines, acquisition channels, funnel economics, financial assumptions, benchmarks, and validation taxonomies.
+
+It is maintained by the `monetization` team and consumed by its members every heartbeat. The team's live operating rules are at [`scenarios/prompt-manager/store/teams/monetization/shared/TEAM.md`](../../scenarios/prompt-manager/store/teams/monetization/shared/TEAM.md); this folder is the strategic-canon side.
+
+The local contract is [`manifest.json`](manifest.json), which instantiates the shared plan-of-record shape from [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json).
 
 ## Start here for agents
 
-Use this hub first for monetization canon. Choose the next file by the question you are answering:
+Use this README first, then choose the module that matches the work:
 
 | Question | Start with |
 |---|---|
-| What is the monetization posture or strategic rule? | [STRATEGY.md](STRATEGY.md) |
-| What exactly can be sold or bundled? | [CATALOG.md](CATALOG.md) |
-| Which delivery tier or deployment mode matters? | [TIERS.md](TIERS.md) |
-| What price should a surface cite? | [PRICING.md](PRICING.md) |
-| What revenue line is being evaluated or productized? | [REVENUE_LINES.md](REVENUE_LINES.md) |
-| Which acquisition or distribution channel applies? | [CHANNELS.md](CHANNELS.md) |
-| Which funnel stage or metric is blocked? | [FUNNEL.md](FUNNEL.md) or [TELEMETRY_ROADMAP.md](TELEMETRY_ROADMAP.md) |
-| What assumptions drive runway or default-alive analysis? | [FINANCIAL_MODEL.md](FINANCIAL_MODEL.md) |
-| What market benchmark is accepted canon? | [BENCHMARKS.md](BENCHMARKS.md) |
-| What operator input should be requested or interpreted? | [HOW_TO_GATHER_INPUTS.md](HOW_TO_GATHER_INPUTS.md) |
+| How does the monetization team operate end to end? | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) |
+| What is the monetization posture or strategic rule? | [`strategy/STRATEGY.md`](strategy/STRATEGY.md) |
+| Which delivery tier or deployment mode matters? | [`strategy/TIERS.md`](strategy/TIERS.md) |
+| What price should a surface cite? | [`strategy/PRICING.md`](strategy/PRICING.md) |
+| Which funnel stage or metric is blocked? | [`strategy/FUNNEL.md`](strategy/FUNNEL.md) or [`evidence/TELEMETRY_ROADMAP.md`](evidence/TELEMETRY_ROADMAP.md) |
+| What exactly can be sold or bundled? | [`catalogs/CATALOG.md`](catalogs/CATALOG.md) |
+| What revenue line is being evaluated or productized? | [`catalogs/revenue-lines/README.md`](catalogs/revenue-lines/README.md) |
+| Which acquisition or distribution channel applies? | [`catalogs/channels/README.md`](catalogs/channels/README.md) |
+| What assumptions drive runway or default-alive analysis? | [`evidence/FINANCIAL_MODEL.md`](evidence/FINANCIAL_MODEL.md) |
+| What market benchmark is accepted canon? | [`evidence/BENCHMARKS.md`](evidence/BENCHMARKS.md) |
+| What operator input should be requested or interpreted? | [`governance/HOW_TO_GATHER_INPUTS.md`](governance/HOW_TO_GATHER_INPUTS.md) |
+| How are opportunities classified and routed? | [`taxonomies/monetization-opportunity/README.md`](taxonomies/monetization-opportunity/README.md) |
+| How are validation requests classified and routed? | [`taxonomies/monetization-validation/README.md`](taxonomies/monetization-validation/README.md) |
+
+## Folder map
+
+| Folder | Purpose |
+|---|---|
+| [`operating/`](operating/README.md) | Team operating contract and validation commands. |
+| [`strategy/`](strategy/README.md) | Monetization strategy, tiers, pricing, and funnel canon. |
+| [`catalogs/`](catalogs/README.md) | SKU catalog, scenario-to-SKU map, revenue-line registry, and channel registry. |
+| [`taxonomies/monetization-opportunity/`](taxonomies/monetization-opportunity/README.md) | Opportunity signal taxonomy plus machine-readable `taxonomy.json`. |
+| [`taxonomies/monetization-validation/`](taxonomies/monetization-validation/README.md) | Validation-request taxonomy plus machine-readable `taxonomy.json`. |
+| [`evidence/`](evidence/README.md) | Financial model, benchmarks, and telemetry roadmap. |
+| [`governance/`](governance/editing.md) | Editing authority, adoption validation, changelog, and operator-input guidance. |
 
 ## Organizing principle
 
-Monetization is described across **five orthogonal axes**:
+Monetization is described across five orthogonal axes:
 
-1. **WHAT** we sell — the [catalog](CATALOG.md) of bundles and add-ons.
-2. **HOW** it's delivered — the [delivery tiers](TIERS.md) (apps → self-hosted → hosted → hardware).
-3. **WHERE USERS COME FROM** — the [channels](CHANNELS.md) (web SEO, app stores, skill registries, OSS discovery, community content, in-product expansion).
-4. **WHO** flows through — the [funnel](FUNNEL.md) from acquisition to advocacy.
-5. **HOW WE MAKE MONEY** — the [revenue lines](REVENUE_LINES.md) (subscriptions, services, lead-gen, consulting).
+1. **WHAT** we sell: [`catalogs/CATALOG.md`](catalogs/CATALOG.md), SKU package files, and [`catalogs/scenario-sku-map.json`](catalogs/scenario-sku-map.json).
+2. **HOW** it is delivered: [`strategy/TIERS.md`](strategy/TIERS.md).
+3. **WHERE USERS COME FROM:** [`catalogs/channels/README.md`](catalogs/channels/README.md).
+4. **WHO** flows through: [`strategy/FUNNEL.md`](strategy/FUNNEL.md).
+5. **HOW WE MAKE MONEY:** [`catalogs/revenue-lines/README.md`](catalogs/revenue-lines/README.md).
 
-Pricing is the intersection of WHAT × HOW. The [financial model](FINANCIAL_MODEL.md) projects runway, default-alive position, and per-tier economics from these inputs.
+Pricing is the intersection of WHAT and HOW. The financial model projects runway, default-alive position, and per-tier economics from those inputs.
 
-## Files
+## Editing rules
 
-| File | Purpose |
-|---|---|
-| [STRATEGY.md](STRATEGY.md) | Narrative framing, principles, long-term directions, operator's intent |
-| [CATALOG.md](CATALOG.md) | SKU index — bundles + add-ons with lifecycle state |
-| [catalog/base/business.md](catalog/base/business.md) | Business bundle: headliners, depth, DAG, rationale |
-| [catalog/base/lifestyle.md](catalog/base/lifestyle.md) | Lifestyle bundle: status, scope, pending definition |
-| [catalog/addons/](catalog/addons/) | Add-on candidates (dormant until triggers fire) |
-| [TIERS.md](TIERS.md) | Delivery tiers with activation triggers |
-| [PRICING.md](PRICING.md) | Tier × bundle pricing matrix (mostly TBD pre-launch) |
-| [FINANCIAL_MODEL.md](FINANCIAL_MODEL.md) | Cost structure, runway math, default-alive target |
-| [CHANNELS.md](CHANNELS.md) | Discovery-channel index + activation discipline |
-| [FUNNEL.md](FUNNEL.md) | Acquisition → retention stages, metrics, telemetry gaps |
-| [REVENUE_LINES.md](REVENUE_LINES.md) | Revenue-line index + standing discipline (services trap, activation procedure) |
-| [revenue-lines/](revenue-lines/) | One file per revenue line (subscription, lead-gen, app-dev, consulting) |
-| [TELEMETRY_ROADMAP.md](TELEMETRY_ROADMAP.md) | What metrics need what data capabilities; replaces-manual migration list |
-| [BENCHMARKS.md](BENCHMARKS.md) | Curated market benchmarks (populated by monetization team) |
-| [HOW_TO_GATHER_INPUTS.md](HOW_TO_GATHER_INPUTS.md) | Per-field guidance for the operator-edited `operator-inputs.json` |
-| [scenario-sku-map.json](scenario-sku-map.json) | Many-to-many: which scenarios belong to which SKUs |
+- **Agents never write to plan-of-record canon directly.** All canon edits come through operator-approved decisions.
+- **Use the most specific module.** Add SKU/bundle/add-on files under `catalogs/skus/`, revenue-line files under `catalogs/revenue-lines/`, channel files under `catalogs/channels/`, directional strategy under `strategy/`, supporting proof under `evidence/`, and classification/routing rules under `taxonomies/`.
+- **Operator inputs are not canon edits.** `operator-inputs.json` lives under team shared state; [`governance/HOW_TO_GATHER_INPUTS.md`](governance/HOW_TO_GATHER_INPUTS.md) describes how to gather and interpret those fields.
+- **Operator executes accepted edits.** Commit messages cite the decision id.
 
-## Ownership and editing discipline
+Decision-context detail lives in [`governance/editing.md`](governance/editing.md).
 
-- These docs are the **canonical plan**. The `monetization` team reads them every heartbeat and proposes edits via decisions.
-- The human operator is the final author. Agents do not write to these files directly; they propose diffs in their decision logs.
-- Team-produced operational exhaust (ledger snapshots, opportunity pool, market scans, decisions) lives in `path:scenarios/prompt-manager/store/teams/monetization/shared/`, not here.
+## Cross-references
 
-## Consumers
+- [`docs/agent-system/PLAN_OF_RECORD_STRUCTURE.md`](../agent-system/PLAN_OF_RECORD_STRUCTURE.md) — shared PoR architecture and extension rules.
+- [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../agent-system/TEAM_DOCS_PATTERNS.md) — plan-of-record vs working-notebook pattern.
+- [`docs/marketing/`](../marketing/README.md) — external voice and channel execution. Marketing reads monetization for pricing, catalog, and tier authority.
+- [`docs/director-swarm/`](../director-swarm/README.md) — portfolio steering and revenue-critical sequencing.
+- [`docs/strategy/idea-pipeline/`](../strategy/idea-pipeline/README.md) — operator-curated idea staging before SKU-shaped items graduate into monetization canon.
 
-Other teams and scenarios read these docs as the source of truth for monetization state:
+## Future PoR work
 
-- **director-swarm** reads `CATALOG.md` for the revenue critical path instead of deriving it ad-hoc.
-- **marketing-crew** reads `CATALOG.md` + `STRATEGY.md` for positioning.
-- **landing-page-business-suite** reads `CATALOG.md` + `PRICING.md` to generate pricing pages and entitlements.
-- **scenario-to-cloud** reads `TIERS.md` to understand which deployment modes the monetization plan requires.
-- **publisher / OSS surfaces** read `CHANNELS.md` + channel-specific files when a distribution channel produces a publishable event.
-
-## Honesty conventions
-
-- Any metric that is not yet measurable carries an explicit **`pending-telemetry`** flag with a pointer to `TELEMETRY_ROADMAP.md`.
-- Pre-launch targets are labelled **`aspirational`**; post-launch numbers are labelled **`measured`**.
-- Revenue-line and SKU statuses use the lifecycle vocabulary: `idea` → `candidate` → `trigger-met` → `active` → `shipped` / `retired`.
+- Add prompt-manager validation against this `manifest.json` once the PoR validator lands.
+- Promote a clean `interfaces/` module if monetization input/output tables outgrow the operating model.
+- Split large strategy or evidence documents only when one-entity-per-file structure would make future edits safer.
+- Migrate old path references in historical handoff logs only if those logs become active operational inputs; they are otherwise immutable history.

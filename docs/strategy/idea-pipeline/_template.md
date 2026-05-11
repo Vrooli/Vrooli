@@ -49,7 +49,7 @@ When fillable, cover:
 
 <!--
 When fillable, cover:
-- Who's the audience (reference docs/marketing/AUDIENCES.md)?
+- Who's the audience (reference docs/marketing/strategy/AUDIENCES.md)?
 - What's the conversion goal (click-through / trial / sign-up / OSS-adoption)?
 - Which post types apply (dev-log / scenario-spotlight / oss-framework / use-case-tutorial)?
 - What assets would be needed (screen recordings via BAS, screenshots, blog-length writeup)?
@@ -88,9 +88,9 @@ When fillable, cover:
 
 <!--
 Link relevant existing surfaces. Examples:
-- `docs/monetization/CATALOG.md#<sku>` — productization target
-- `docs/monetization/revenue-lines/<line>.md` — relevant revenue line
-- `docs/marketing/AUDIENCES.md#<persona>` — primary audience
+- `docs/monetization/catalogs/CATALOG.md#<sku>` — productization target
+- `docs/monetization/catalogs/revenue-lines/<line>.md` — relevant revenue line
+- `docs/marketing/strategy/AUDIENCES.md#<persona>` — primary audience
 - `path:scenarios/<existing-scenario>/` — capability-multiplier upstream/downstream
 - `monetization` team knowledge entry under `monetization/opportunity/<slug>` — paired opportunity-scout entry, if any (`prompt-manager team knowledge-list monetization --topic-prefix=monetization/opportunity/<slug>`)
 -->

@@ -43,6 +43,6 @@ Individual resource docs should explain the specific resource.
 
 ## Plans
 
-Scratch implementation plans should be created with `vrooli plans add --stdin`, which stores them outside the git worktree by default.
+Scratch implementation plans should be created with `vrooli plans add --stdin`, which stores them outside the git worktree by default under `~/.vrooli/plans/<readable-slug>.md`.
 
 `path:docs/plans/` are not current truth by default. They are promoted design and migration artifacts unless a canonical doc explicitly points to them as active.

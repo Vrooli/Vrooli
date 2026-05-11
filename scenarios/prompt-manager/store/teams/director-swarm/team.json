@@ -64,15 +64,19 @@
             },
             {
               "base": "repo-root",
-              "path": "docs/director-swarm/PORTFOLIO_PHILOSOPHY.md"
+              "path": "docs/director-swarm/operating/OPERATING_MODEL.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/director-swarm/ROADMAP.md"
+              "path": "docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/director-swarm/OUTCOMES_CHARTER.md"
+              "path": "docs/director-swarm/strategy/ROADMAP.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/director-swarm/evidence/OUTCOMES_CHARTER.md"
             }
           ],
           "writePolicy": "operator-curated-via-decisions",

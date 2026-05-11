@@ -228,12 +228,12 @@
           "id": "meta-optimization-operating-model",
           "hub": {
             "base": "repo-root",
-            "path": "docs/meta-optimization/OPERATING_MODEL.md"
+            "path": "docs/meta-optimization/operating/OPERATING_MODEL.md"
           },
           "paths": [
             {
               "base": "repo-root",
-              "path": "docs/meta-optimization/OPERATING_MODEL.md"
+              "path": "docs/meta-optimization/operating/OPERATING_MODEL.md"
             }
           ],
           "posture": "canon",
@@ -263,7 +263,7 @@
             },
             {
               "base": "repo-root",
-              "path": "docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md"
+              "path": "docs/meta-optimization/taxonomies/friction-report/README.md"
             }
           ],
           "posture": "canon",

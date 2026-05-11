@@ -194,7 +194,7 @@ Supported node shapes:
 | `diamond` | `CPP{content-publish-proposal}` | decisions |
 | `stadium` | `OP([Operator])` | external actors, process placeholders, and future placeholders |
 | `subroutine` | `MON[[Monetization team]]` | teams |
-| `document` | `CANON[/docs/marketing/STRATEGY.md/]` | plan-of-record files |
+| `document` | `CANON[/docs/marketing/strategy/STRATEGY.md/]` | plan-of-record files |
 
 Shape conventions are validated for `checkable` and `contract` graphs. A mismatched shape reports `graph_node_shape_convention_drift` as a warning. POR nodes may use either `document` or `rectangle` without warning because Mermaid document syntax is more fragile for some labels.
 
@@ -231,7 +231,7 @@ Do not combine both forms on the same node. The validator treats that as an ambi
 | `member` | `member:researcher` | `team.json::operatingContract.members` |
 | `topic` | `topic:campaign-draft/*` | member `topics.json` declarations |
 | `decision` | `decision:content-publish-proposal` | this graph team's `team.json::operatingContract.decisionContexts` |
-| `por` | `por:docs/marketing/STRATEGY.md` | filesystem path existence, plus edge backing when a member writes the PoR |
+| `por` | `por:docs/marketing/strategy/STRATEGY.md` | filesystem path existence, plus edge backing when a member writes the PoR |
 | `external` | `external:operator` | `external_producers` or explicit external boundary |
 | `team` | `team:monetization` | team registry |
 | `process` | `process:learning-synthesis` | readability grouping only |
@@ -301,7 +301,7 @@ Example graph-to-runtime diff:
 
 ```text
 [graph_relationship_missing_in_runtime] topic_read
-docs/marketing/OPERATING_MODEL.md:355 says topic:marketing/notebook/* -> member:researcher.
+docs/marketing/operating/OPERATING_MODEL.md:355 says topic:marketing/notebook/* -> member:researcher.
 Runtime has no matching researcher intake, required_read, or evidence_consumed declaration.
 Suggested fixes:
 - add required_read "marketing/notebook/*" to researcher/topics.json

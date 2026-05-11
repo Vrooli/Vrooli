@@ -6,8 +6,8 @@ This skill is member-agnostic and team-agnostic. It is callable from any member 
 
 ### Required reading
 
-- `docs/marketing/SIGNAL_TAXONOMY.md` — canonical signal types, definitions, dispatch.
-- `docs/marketing/AUDIENCES.md`, `docs/marketing/CHANNELS.md`, `docs/marketing/strategies/hook-library.md` — domain references for borderline cases.
+- `docs/marketing/taxonomies/marketing-research/README.md` — canonical signal types, definitions, dispatch.
+- `docs/marketing/strategy/AUDIENCES.md`, `docs/marketing/strategy/CHANNELS.md`, `docs/marketing/strategy/patterns/hook-library.md` — domain references for borderline cases.
 
 ### Inputs
 

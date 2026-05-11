@@ -55,12 +55,12 @@
     {
       "prefix": "marketing-canon/*",
       "destination_kind": "por_file",
-      "destination_path": "docs/marketing/STRATEGY.md"
+      "destination_path": "docs/marketing/strategy/STRATEGY.md"
     },
     {
       "prefix": "marketing-canon/*",
       "destination_kind": "por_file",
-      "destination_path": "docs/marketing/AUDIENCES.md"
+      "destination_path": "docs/marketing/strategy/AUDIENCES.md"
     },
     {
       "prefix": "brand-snapshot/*",

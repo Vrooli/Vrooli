@@ -71,7 +71,7 @@ Coordination patterns (orthogonal to doc architecture): independent, leader-led,
 
 ## Plan of Record (PoR)
 
-Doctrine — durable, operator-curated documentation that defines what is true. Lives at `path:docs/<domain>/` (e.g., `path:docs/monetization/`, `path:docs/marketing/research/`, `path:docs/agent-system/`).
+Doctrine — durable, operator-curated documentation that defines what is true. Lives at `path:docs/<domain>/` (e.g., `path:docs/monetization/`, `path:docs/marketing/evidence/research/`, `path:docs/agent-system/`).
 
 Properties:
 - **Approval-gated:** operator-curated via approved decisions. Agents propose diffs; they never edit directly.
@@ -134,7 +134,7 @@ The distinction: backlog is "we plan to build X." Capability-gap is "we are bloc
 
 The first stage where raw observations land before they have permanent structure. In the agent system, this is **not** a markdown notebook — it is team knowledge entries under the topic prefix `<inbox-name>/<signal-type>/<slug>`.
 
-The draining member resolves each entry by retagging it to its destination prefix or deleting it as duplicate/weak. The procedure is universal (rendered into the heartbeat as a generated `# Inbox Flow` section); the per-domain signal vocabulary, dispatch table, evidence rules, and destination schemas live as a taxonomy JSON sidecar (e.g., `path:docs/marketing/signal-taxonomy.json`); pure-judgment classification (when the topic-prefix isn't deterministic) lives as a portable classifier skill (e.g., `marketing-signal-classifier`). The "unrouted set" is the live inbox view; once routed, an entry no longer carries an inbox prefix. See `INTAKE_PIPELINE.md` for the full pattern.
+The draining member resolves each entry by retagging it to its destination prefix or deleting it as duplicate/weak. The procedure is universal (rendered into the heartbeat as a generated `# Inbox Flow` section); the per-domain signal vocabulary, dispatch table, evidence rules, and destination schemas live as a taxonomy JSON sidecar (e.g., `path:docs/marketing/taxonomies/marketing-research/taxonomy.json`); pure-judgment classification (when the topic-prefix isn't deterministic) lives as a portable classifier skill (e.g., `marketing-signal-classifier`). The "unrouted set" is the live inbox view; once routed, an entry no longer carries an inbox prefix. See `INTAKE_PIPELINE.md` for the full pattern.
 
 Markdown-file notebooks are a special case of synthesis — short-lived drafts living adjacent to canon (`path:docs/agent-system/drafts/`, for example) where structure is being workshopped before promotion. They are not a permanent layer; the historical "three-tier model" (hot buffer / notebook / permanent) is replaced by the inbox-router-drain model in the current architecture.
 

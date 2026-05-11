@@ -73,95 +73,131 @@
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/STRATEGY.md"
+              "path": "docs/monetization/manifest.json"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/CATALOG.md"
+              "path": "docs/monetization/operating/OPERATING_MODEL.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/catalog/base/business.md"
+              "path": "docs/monetization/strategy/STRATEGY.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/catalog/base/lifestyle.md"
+              "path": "docs/monetization/catalogs/CATALOG.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/catalog/addons/elder-care.md"
+              "path": "docs/monetization/catalogs/skus/base/business.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/catalog/addons/family-with-kids.md"
+              "path": "docs/monetization/catalogs/skus/base/lifestyle.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/catalog/addons/property-services.md"
+              "path": "docs/monetization/catalogs/skus/addons/elder-care.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/scenario-sku-map.json"
+              "path": "docs/monetization/catalogs/skus/addons/family-with-kids.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/TIERS.md"
+              "path": "docs/monetization/catalogs/skus/addons/property-services.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/PRICING.md"
+              "path": "docs/monetization/catalogs/scenario-sku-map.json"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/FINANCIAL_MODEL.md"
+              "path": "docs/monetization/strategy/TIERS.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/FUNNEL.md"
+              "path": "docs/monetization/strategy/PRICING.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/REVENUE_LINES.md"
+              "path": "docs/monetization/evidence/FINANCIAL_MODEL.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/TELEMETRY_ROADMAP.md"
+              "path": "docs/monetization/strategy/FUNNEL.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/BENCHMARKS.md"
+              "path": "docs/monetization/catalogs/revenue-lines/README.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/HOW_TO_GATHER_INPUTS.md"
+              "path": "docs/monetization/evidence/TELEMETRY_ROADMAP.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/CHANNELS.md"
+              "path": "docs/monetization/evidence/BENCHMARKS.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/channels/app-stores.md"
+              "path": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/channels/community-content.md"
+              "path": "docs/monetization/taxonomies/monetization-opportunity/README.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/channels/in-product-expansion.md"
+              "path": "docs/monetization/taxonomies/monetization-opportunity/taxonomy.json"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/channels/oss-discovery.md"
+              "path": "docs/monetization/taxonomies/monetization-validation/README.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/channels/skill-registries.md"
+              "path": "docs/monetization/taxonomies/monetization-validation/taxonomy.json"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/channels/web-seo.md"
+              "path": "docs/monetization/governance/editing.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/adoption-validation.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/changelog.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/app-stores.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/community-content.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/in-product-expansion.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/oss-discovery.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/skill-registries.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/web-seo.md"
             }
           ],
           "writePolicy": "operator-curated-via-decisions",

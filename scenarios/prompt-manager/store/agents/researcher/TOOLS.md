@@ -6,9 +6,9 @@
 - `prompt-manager team knowledge-list marketing-crew ...`
 - `prompt-manager team knowledge-update marketing-crew <id> --topic="<new-topic>"` (route an inbox entry to permanent canon)
 - `prompt-manager team knowledge-delete marketing-crew <id>` (drop an inbox entry)
-- `docs/marketing/OPERATING_MODEL.md`
-- `docs/marketing/research/README.md`
-- `docs/marketing/SIGNAL_TAXONOMY.md`
+- `docs/marketing/operating/OPERATING_MODEL.md`
+- `docs/marketing/evidence/research/README.md`
+- `docs/marketing/taxonomies/marketing-research/README.md`
 - `scenarios/prompt-manager/store/teams/marketing-crew/shared/audience-scans.jsonl`
 - `vrooli help`
 

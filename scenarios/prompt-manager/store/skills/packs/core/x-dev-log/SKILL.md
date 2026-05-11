@@ -30,14 +30,14 @@ Required scenarios (check with `vrooli scenario status`):
 - **app-issue-tracker** - issues and investigations
 
 Required reading (every run):
-- `docs/marketing/post-types/text/dev-log.md` — type-level strategic canon (purpose, audience, conversion goal, voice rules, what→why framing, contrarian failure modes). **Load-bearing.**
-- `docs/marketing/OPERATING_MODEL.md` — team workflow canon: advertiser lanes draft from evidence, publisher releases, brand-manager owns canon and artifact requests.
-- `docs/marketing/STRATEGY.md` — voice canon (Voice section, Voice samples, Anti-patterns).
-- `docs/marketing/post-techniques/essay-shape.md`
-- `docs/marketing/post-techniques/hook-vs-body-asymmetry.md`
-- `docs/marketing/post-techniques/intro-on-first-mention.md`
-- `docs/marketing/post-techniques/inter-post-linkage.md`
-- `docs/marketing/post-techniques/no-internal-numbering-externally.md`
+- `docs/marketing/catalogs/post-types/text/dev-log.md` — type-level strategic canon (purpose, audience, conversion goal, voice rules, what→why framing, contrarian failure modes). **Load-bearing.**
+- `docs/marketing/operating/OPERATING_MODEL.md` — team workflow canon: advertiser lanes draft from evidence, publisher releases, brand-manager owns canon and artifact requests.
+- `docs/marketing/strategy/STRATEGY.md` — voice canon (Voice section, Voice samples, Anti-patterns).
+- `docs/marketing/methods/post-techniques/essay-shape.md`
+- `docs/marketing/methods/post-techniques/hook-vs-body-asymmetry.md`
+- `docs/marketing/methods/post-techniques/intro-on-first-mention.md`
+- `docs/marketing/methods/post-techniques/inter-post-linkage.md`
+- `docs/marketing/methods/post-techniques/no-internal-numbering-externally.md`
 
 ---
 

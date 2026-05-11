@@ -1,7 +1,7 @@
 # Heartbeat: Researcher
 
 ## Task Loop
-1. Read `docs/marketing/research/README.md`, previous handoff, owned pending decisions, and recent researcher knowledge. Inbox flow, destinations, and dispatch are in the generated `# Inbox Flow` section above; do not duplicate them here.
+1. Read `docs/marketing/evidence/research/README.md`, previous handoff, owned pending decisions, and recent researcher knowledge. Inbox flow, destinations, and dispatch are in the generated `# Inbox Flow` section above; do not duplicate them here.
 2. Drain your inbox per the generated procedure. If the inbox is empty or stale, run a small proactive baseline scan with cited sources.
 3. Route distinct observations to the appropriate evidence surface: audience, competitor, hook, workflow, skill, channel, format, or benchmark-adjacent.
 4. Append source references and honesty flags before proposing interpretation.

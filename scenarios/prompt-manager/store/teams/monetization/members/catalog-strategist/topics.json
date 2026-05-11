@@ -50,7 +50,7 @@
     {
       "prefix": "monetization-canon/*",
       "destination_kind": "por_file",
-      "destination_path": "docs/monetization/CATALOG.md"
+      "destination_path": "docs/monetization/catalogs/CATALOG.md"
     },
     {
       "prefix": "catalog-snapshot/*",

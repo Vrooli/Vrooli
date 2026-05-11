@@ -21,6 +21,7 @@ Use this ledger as the durable handoff surface. Each phase should be completed, 
 | 8A. Allowlist rollout guardrail | Completed 2026-05-08 | Codex | Added `VROOLI_RUNTIME_REGISTRY_ALLOWLIST` to scope `dual`/`prefer`/`strict` migration behavior to selected scenarios during soak, with lifecycle write gating, orchestrator read gating, focused tests, and non-invasive live status checks. See [Phase 8A Completion Record](#phase-8a-completion-record). No scenario was stopped or restarted. |
 | 8B. Crash/reboot and sudden-stop reconciliation | Completed 2026-05-09 | Codex | Added host boot/session metadata, schema v2 migration, domain reconciliation, strict/prefer read-side enforcement, maintenance diagnostics/cleanup, and crash-regression tests. Adoption is explicitly deferred; strict fails closed until a scenario is restarted under registry-enabled lifecycle. See [Phase 8B Completion Record](#phase-8b-completion-record). |
 | 8C. Registry authority refactor and hardening | Completed 2026-05-09 | Codex | Tightened the reconciliation boundary so claim-level authority lives in `internal/scenarioruntime`, centralized host evidence construction and runtime/claim status policies, and prevented reserved registry claims from surfacing as runtime ports. See [Phase 8C Completion Record](#phase-8c-completion-record). |
+| 8D. Runtime supervisor and heartbeat authority | Completed 2026-05-09 | Codex | Added the central runtime supervisor, schema v3, supervisor sessions, lifecycle auto/on ensure, strict stale supervised-lease enforcement, diagnostics, bounded health probe execution, Linux systemd user-service install/uninstall, and live allowlist soak for workspace-sandbox, agent-manager, and swarm-manager. `vrooli locks --json` reports zero authoritative registry claims with `lease_fresh=false`. See [Phase 8D Completion Record](#phase-8d-completion-record) and `docs/plans/runtime-supervisor-heartbeat-authority-implementation-plan.md`. |
 | 9. Legacy cleanup | Not started |  |  |
 
 ## Purpose
@@ -1872,9 +1873,9 @@ cd packages/api-core && go test ./... -count=1
 
 Remaining recommendations before Phase 9:
 
-- Preserve the full 8B/8C work in source control before expanding the soak; the worktree contains unrelated changes and untracked files.
-- Run a workspace-sandbox-only allowlist soak after restarting that scenario through registry-enabled lifecycle.
-- Do not remove legacy read authority until strict registry reads have live stability evidence for freshly registry-managed scenarios.
+- Preserve the full 8B/8C/8D work in source control before Phase 9; the worktree contains unrelated changes and untracked files.
+- Use the Phase 8D completion evidence in `docs/plans/runtime-supervisor-heartbeat-authority-implementation-plan.md` as the starting point for Phase 9.
+- Do not remove legacy read authority until the current supervised allowlist soak remains stable for the operator's desired observation window.
 - Consider a future follow-up that makes reconciliation classifications a typed enum throughout JSON/Go boundaries if more callers start switching on those values.
 
 ### Phase 9: Legacy Cleanup
@@ -1938,6 +1939,36 @@ vrooli scenario test vrooli-autoheal
 ```
 
 Do not run scenario binaries or dev scripts directly. Use scenario Makefiles or `vrooli scenario ...`.
+
+## Phase 8D Completion Record
+
+Completed 2026-05-09 by Codex.
+
+Implemented the dedicated runtime supervisor plan in `docs/plans/runtime-supervisor-heartbeat-authority-implementation-plan.md`:
+
+- Greenfield runtime registry schema v3 and supervisor session/domain APIs.
+- Central `internal/runtimesupervisor` service with lifecycle auto/on adoption, session heartbeat, reconciliation-gated lease renewal, stale supervised strict-mode enforcement, and supervisor-aware diagnostics.
+- Bounded health probe execution with `VROOLI_RUNTIME_SUPERVISOR_MAX_HEALTH_CONCURRENCY` and health snapshot cadence based on health snapshot timestamps, not lease timestamps.
+- Linux systemd user-service install/uninstall through `vrooli runtime supervisor install --user` and `vrooli runtime supervisor uninstall --user`.
+- Recovery path for expired prior-supervisor rows: strict reads fail closed while stale, but a live supervisor can revalidate process/listener evidence, take over supervision, and renew.
+
+Validation completed:
+
+```bash
+go test ./internal/runtimesupervisor ./internal/scenarioruntime ./internal/cli/vroolicli ./internal/cli/topcli -count=1
+go test ./internal/runtimesupervisor ./internal/scenarioruntime ./internal/orchestrator ./internal/lifecycle ./internal/maintenance ./internal/app/scenario ./internal/app/project ./internal/cli/projectcli ./internal/cli/scenariocli ./internal/cli/topcli ./internal/cli/vroolicli -count=1
+cd packages/api-core && go test ./... -count=1
+go run ./cmd/vrooli --no-stale-check locks --json | jq '[.registry_claims[] | select(.authoritative==true and .lease_fresh==false)] | length'
+```
+
+Live allowlist soak:
+
+- `workspace-sandbox`, `agent-manager`, and `swarm-manager` were stopped and restarted through lifecycle commands with registry writes and `VROOLI_RUNTIME_SUPERVISOR=auto`.
+- Strict registry status resolved for all three scenarios.
+- `vrooli locks --json` reported zero authoritative registry claims with `lease_fresh=false`.
+- API/UI claims for the three soak scenarios showed fresh supervised leases, fresh supervisor sessions, healthy snapshots, and `verified_running` reconciliation.
+
+Known caveat before Phase 9: some old expired/stopped registry rows remain visible as non-authoritative diagnostics. They are not discovery authority and can be handled by the existing cleanup path or Phase 9 legacy cleanup.
 
 ## Rollout and Validation Checklist
 

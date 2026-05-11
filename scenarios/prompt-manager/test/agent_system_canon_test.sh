@@ -10,8 +10,9 @@
 #   3. The docs/meta-optimization/ folder is the friction-report canon hub
 #      (revived 2026-05-03 with narrow scope: friction-report taxonomy + PoR
 #      only; the old broad meta-opt content remains absorbed into
-#      docs/agent-system/). The folder must contain README.md,
-#      FRICTION_REPORT_TAXONOMY.md, and friction-report-taxonomy.json.
+#      docs/agent-system/). The folder must contain README.md, manifest.json,
+#      operating/OPERATING_MODEL.md, taxonomies/friction-report/README.md, and
+#      taxonomies/friction-report/taxonomy.json.
 #   4. No active SKILL.md or live team/agent config references the retired
 #      skill IDs. (Historical logs in *.jsonl and member last-handoff.md are
 #      exempt; they are immutable runtime traces.)
@@ -94,8 +95,10 @@ check "Skill 'team-shared-docs-design' is deleted" team_shared_docs_design_gone
 meta_opt_friction_canon_present() {
     [[ -d docs/meta-optimization ]] \
       && [[ -f docs/meta-optimization/README.md ]] \
-      && [[ -f docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md ]] \
-      && [[ -f docs/meta-optimization/friction-report-taxonomy.json ]]
+      && [[ -f docs/meta-optimization/manifest.json ]] \
+      && [[ -f docs/meta-optimization/operating/OPERATING_MODEL.md ]] \
+      && [[ -f docs/meta-optimization/taxonomies/friction-report/README.md ]] \
+      && [[ -f docs/meta-optimization/taxonomies/friction-report/taxonomy.json ]]
 }
 
 check "Folder docs/meta-optimization/ holds friction-report canon" meta_opt_friction_canon_present

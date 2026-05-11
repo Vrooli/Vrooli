@@ -9,7 +9,7 @@ Produces marketing drafts, release-ready publishing work, brand-canon stewardshi
 Does not own monetization strategy, service-line strategy, or other teams' plans of record.
 
 ## Team-Specific Principles
-- The authoritative end-to-end operating model lives in `docs/marketing/OPERATING_MODEL.md`.
+- The authoritative end-to-end operating model lives in `docs/marketing/operating/OPERATING_MODEL.md`.
 - OSS and subscription are advertiser lanes, not separate mechanics. They share the same evidence -> request -> draft -> proposal -> publish loop.
 - Subscription means convenience plus integrated gateway, not paywalling core features.
 - OSS self-host is deliberate brand credibility, not a revenue leak.

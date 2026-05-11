@@ -110,7 +110,7 @@ The Intake → Collection → Analysis → Promotion pipeline. Inbox-router-drai
 | `marketing-research-router/SKILL.md` | "Routing Process" steps 1–5 — the **generic** parts (normalize, classify, choose smallest action, apply collection discipline, resolve inbox entry under topic-prefix retag/delete) | Move (the routing-process *pattern* is canon; the marketing-specific signal-type table and method registry stay in the skill) |
 | `monetization-opportunity-router/SKILL.md` | (TBD — analogous router pattern) | Cite-only (pattern lives once in `INTAKE_PIPELINE.md`; the skill keeps monetization-specific tables) |
 | `market-validation-router/SKILL.md` | (TBD — analogous) | Cite-only |
-| `path:docs/marketing/research/README.md` | "Pipeline" + "Intake" + "Inbox convention" + "Routing inbox entries" + "Collection" + "Analysis Methods" + "Promotion Matrix" + "Evidence Rules" | Move the **generic** patterns; keep the marketing-specific registry in `path:docs/marketing/research/README.md`, which becomes a marketing-specific instantiation citing `path:docs/agent-system/INTAKE_PIPELINE.md` |
+| `path:docs/marketing/evidence/research/README.md` | "Pipeline" + "Intake" + "Inbox convention" + "Routing inbox entries" + "Collection" + "Analysis Methods" + "Promotion Matrix" + "Evidence Rules" | Move the **generic** patterns; keep the marketing-specific registry in `path:docs/marketing/evidence/research/README.md`, which becomes a marketing-specific instantiation citing `path:docs/agent-system/INTAKE_PIPELINE.md` |
 
 ### `path:docs/agent-system/SKILL_AUTHORING.md`
 
@@ -194,7 +194,7 @@ Anything in this list must be re-pointed before the source is removed. The Phase
 - `path:scenarios/prompt-manager/store/teams/*/members/*/RESPONSIBILITIES.md` — same
 - `path:scenarios/prompt-manager/store/agents/*/AGENTS.md` and `TOOLS.md` — same
 - `path:scenarios/prompt-manager/store/teams/*/shared/TEAM.md` — any team that cites a relocated doc
-- `path:docs/marketing/research/README.md` — already plan-of-record; will gain a citation line to `path:docs/agent-system/INTAKE_PIPELINE.md` and lose any duplicated framing
+- `path:docs/marketing/evidence/research/README.md` — already plan-of-record; will gain a citation line to `path:docs/agent-system/INTAKE_PIPELINE.md` and lose any duplicated framing
 - Top-level `CLAUDE.md` — currently references `path:docs/meta-optimization/` indirectly via prompt-manager skill paths; check for direct mentions
 
 ## Out of scope for Phase 1

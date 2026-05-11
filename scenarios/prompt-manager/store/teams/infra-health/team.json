@@ -22,6 +22,33 @@
       "requireHandoff": true
     }
   },
+  "topicCatalog": [
+    {
+      "prefix": "runtime-health-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot one runtime-health signal or quiet-day review."
+    },
+    {
+      "prefix": "platform-code-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot one internal platform-code audit slice."
+    },
+    {
+      "prefix": "contrarian-scan/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Stale decision and failure-mode review snapshot."
+    },
+    {
+      "prefix": "challenge-report/<decision-id>",
+      "status": "live",
+      "purpose": "Append-only challenge against a pending infra-health decision."
+    },
+    {
+      "prefix": "challenge-resolution-record/<decision-id>",
+      "status": "live",
+      "purpose": "Latest-state record for an infra-health challenge."
+    }
+  ],
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
@@ -73,15 +100,23 @@
             },
             {
               "base": "repo-root",
-              "path": "docs/infra-health/RELIABILITY_TARGETS.md"
+              "path": "docs/infra-health/manifest.json"
             },
             {
               "base": "repo-root",
-              "path": "docs/infra-health/INSTRUMENTATION_ROADMAP.md"
+              "path": "docs/infra-health/operating/OPERATING_MODEL.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/infra-health/CROSS_PLATFORM_LEDGER.md"
+              "path": "docs/infra-health/strategy/RELIABILITY_TARGETS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md"
             }
           ],
           "writePolicy": "operator-curated-via-decisions",
@@ -222,27 +257,32 @@
       "runtime-health-audit/YYYY-MM-DD": {
         "ownerMemberId": "runtime-health-scanner",
         "supersedesPrevious": true,
-        "retention": "snapshot"
+        "retention": "snapshot",
+        "comment": "Snapshot of one runtime-health signal or quiet-day review."
       },
       "platform-code-audit/YYYY-MM-DD": {
         "ownerMemberId": "platform-code-auditor",
         "supersedesPrevious": true,
-        "retention": "snapshot"
+        "retention": "snapshot",
+        "comment": "Snapshot of one internal platform-code audit slice."
       },
       "contrarian-scan/YYYY-MM-DD": {
         "ownerMemberId": "infra-contrarian",
         "supersedesPrevious": true,
-        "retention": "snapshot"
+        "retention": "snapshot",
+        "comment": "Stale decision and failure-mode review snapshot."
       },
       "challenge-report/<decision-id>": {
         "ownerMemberId": "infra-contrarian",
         "supersedesPrevious": false,
-        "retention": "append-only"
+        "retention": "append-only",
+        "comment": "Append-only challenge against a pending infra-health decision."
       },
       "challenge-resolution-record/<decision-id>": {
         "ownerMemberId": "infra-contrarian",
         "supersedesPrevious": true,
-        "retention": "snapshot"
+        "retention": "snapshot",
+        "comment": "Latest-state record for an infra-health challenge."
       }
     },
     "members": {

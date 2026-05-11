@@ -8,17 +8,17 @@ Capability classes that satisfy all of:
 - **Not currently actionable** — substrate doesn't exist yet, or capability is too speculative for near-term roadmap inclusion
 - **Worth not-forgetting** — could become viable when prerequisite scenarios / hardware / external substrate matures, or could shape long-term direction-setting
 - **Lighter than `VISION.md`** — these are speculative direction-flags, not philosophical claims about Vrooli's nature
-- **Lighter than `docs/director-swarm/ROADMAP.md`** — not yet promoted to active initiative-portfolio consideration
+- **Lighter than `docs/director-swarm/strategy/ROADMAP.md`** — not yet promoted to active initiative-portfolio consideration
 
 If a flag matures (substrate becomes viable, audience interest emerges, or it crystallizes into an actionable scope), promote it to the appropriate active layer:
-- A new initiative in `docs/director-swarm/ROADMAP.md` if it's actionable now
-- A new bundle / SKU candidate in `docs/monetization/CATALOG.md` if it's monetization-shaped
+- A new initiative in `docs/director-swarm/strategy/ROADMAP.md` if it's actionable now
+- A new bundle / SKU candidate in `docs/monetization/catalogs/CATALOG.md` if it's monetization-shaped
 - A new section in `VISION.md` if it's manifesto-grade direction (rare)
 - Retire the flag from this file once promoted
 
 ## What does NOT go here
 
-- Active initiatives (those go in `docs/director-swarm/ROADMAP.md`)
+- Active initiatives (those go in `docs/director-swarm/strategy/ROADMAP.md`)
 - Backlog items (those go in `swarm-manager`)
 - Operator-curated philosophical claims (those go in `VISION.md`)
 - Marketing positioning (that goes in `path:docs/marketing/`)

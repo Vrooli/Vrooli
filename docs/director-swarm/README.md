@@ -1,43 +1,51 @@
-# Director Swarm
+# Director Swarm Plan of Record
 
-Plan-of-record for portfolio direction, initiative sequencing, and outcome discipline. Owned by the `director-swarm` team in prompt-manager; authored and curated by the human operator through approved decisions.
+This folder is the plan of record for portfolio direction, initiative sequencing, and outcome discipline. It is owned by the `director-swarm` team in prompt-manager and curated through approved operator decisions.
 
-## Start Here For Agents
+The local contract is [`manifest.json`](manifest.json), which instantiates the shared plan-of-record shape from [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json).
 
-Use this hub first whenever a heartbeat needs director-swarm canon. Pick the spoke by question:
+## Start here for agents
+
+Use this README first, then choose the module that matches the work:
 
 | Question | Start with |
 |---|---|
-| Which work should matter most, and why? | [PORTFOLIO_PHILOSOPHY.md](PORTFOLIO_PHILOSOPHY.md) |
-| What sequence of initiatives are we steering toward? | [ROADMAP.md](ROADMAP.md) |
-| What outcome categories should the Command Center eventually close? | [OUTCOMES_CHARTER.md](OUTCOMES_CHARTER.md) |
+| How does the director-swarm team operate end to end? | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) |
+| Which work should matter most, and why? | [`strategy/PORTFOLIO_PHILOSOPHY.md`](strategy/PORTFOLIO_PHILOSOPHY.md) |
+| What sequence of initiatives are we steering toward? | [`strategy/ROADMAP.md`](strategy/ROADMAP.md) |
+| What outcome categories should the Command Center eventually close? | [`evidence/OUTCOMES_CHARTER.md`](evidence/OUTCOMES_CHARTER.md) |
 | Does a proposed direction drift from the operator's north star? | [`../../VISION.md`](../../VISION.md) |
 | Does a proposal depend on how Vrooli technically works? | [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) |
 
-## Spokes
+## Folder map
 
-| File | Purpose | Primary members |
-|---|---|---|
-| [PORTFOLIO_PHILOSOPHY.md](PORTFOLIO_PHILOSOPHY.md) | Ranking criteria, initiative threshold, and portfolio tradeoff discipline. | `portfolio-manager`, `vision-walk-prep` |
-| [ROADMAP.md](ROADMAP.md) | Thematic roadmap and sequencing guidance. Swarm Manager remains authoritative for live initiative status. | `portfolio-manager`, `vision-walk-prep` |
-| [OUTCOMES_CHARTER.md](OUTCOMES_CHARTER.md) | Outcome categories and the future Command Center gap-closure contract. | `vision-walk-prep`, `outcome-strategist` |
+| Folder | Purpose |
+|---|---|
+| [`operating/`](operating/README.md) | Team operating contract and validation commands. |
+| [`strategy/`](strategy/README.md) | Portfolio philosophy and thematic roadmap canon. |
+| [`evidence/`](evidence/README.md) | Outcome framing and Command Center gap-closure evidence. |
+| [`governance/`](governance/editing.md) | Editing authority, adoption validation, and changelog. |
 
-## Related Authorities
+## Editing rules
 
-- [`../../VISION.md`](../../VISION.md) is the operator-authored manifesto and north-star. Agents may flag drift but do not author substantive changes.
-- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) is the canonical technical reference for how Vrooli works. It is currently sketch-level, so cite uncertainty when a detail is not documented there.
-- Swarm Manager owns live initiative status, work execution, and run evidence. This folder owns durable director-level interpretation.
+- Agents never write to plan-of-record canon directly during heartbeat work.
+- Proposed changes go through `director-swarm` decisions and are applied only after approval.
+- Use the most specific module: operating contract under `operating/`, directional portfolio truth under `strategy/`, and outcome or metric framing under `evidence/`.
+- Swarm Manager remains authoritative for live initiative status, dependencies, backlog items, and execution state.
 
-## Write Rules
+Decision-context detail lives in [`governance/editing.md`](governance/editing.md).
 
-- Agents never edit these files directly.
-- Proposed changes go through `director-swarm` decisions:
-  - `initiative-portfolio` for portfolio ranking, roadmap, and sequencing changes.
-  - `initiative-proposal` for proposing concrete initiative work.
-  - `vision-update` for operator-north-star drift or manifesto updates.
-  - Outcome-related contexts for Command Center outcome taxonomy or gap-closure changes.
-- The operator performs accepted edits and cites the decision id in the change.
+## Cross-references
 
-## Boundaries
+- [`docs/agent-system/PLAN_OF_RECORD_STRUCTURE.md`](../agent-system/PLAN_OF_RECORD_STRUCTURE.md) - shared PoR architecture and extension rules.
+- [`../../VISION.md`](../../VISION.md) - operator-authored manifesto and north star.
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) - canonical technical reference for how Vrooli works.
+- [`../monetization/`](../monetization/README.md) - monetization strategy and revenue truth consumed by director-swarm.
+- [`../meta-optimization/`](../meta-optimization/README.md) - self-improvement loop that feeds director-level capability gaps.
 
-This folder is not a task board and not a replacement for Swarm Manager. It should explain what enduring direction means, not mirror every active initiative, run, or backlog item.
+## Future PoR work
+
+- Add `interfaces/` only if the team needs standalone input/output/consumer contracts beyond the operating model.
+- Promote stable Command Center metrics into [`evidence/OUTCOMES_CHARTER.md`](evidence/OUTCOMES_CHARTER.md) once the dashboard surfaces are live.
+- Add PoR manifest validation once prompt-manager consumes `manifest.json`.
+- Split roadmap themes into separate strategy packages only if one-theme-per-file editing becomes safer than the current compact roadmap.

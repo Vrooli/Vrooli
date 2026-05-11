@@ -100,7 +100,7 @@ Team is enabled. **4 pending decisions, 1 carry-over + 3 new.** Top 3 with categ
 
 **Tech tree:** Not yet available — no `tech-tree-designer` scenario integration. Status unchanged.
 
-**Bundle roadmap** (from `docs/monetization/CATALOG.md`):
+**Bundle roadmap** (from `docs/monetization/catalogs/CATALOG.md`):
 - **Active base:** `business`. The two prerequisites for GCT integration just shipped (`agent-sandbox-audit-foundation` + `protected-agent-sandboxing`). Tier-3 expansion via `hosted-cloud-tier-foundation` (priority 6, 0/0 — was 0/0 yesterday, no items defined yet — this is a **shell initiative**).
 - **Candidate base:** `lifestyle` (4 supporting initiatives — `routines-app` 0/4, `inventory-app` 0/3, `contact-book-plus` 0/2, `lifestyle-demand-validation` 0/1; all 0/N).
 - **Headliner readiness today vs. yesterday:** `command-center-foundation` 2/5 (unchanged), `desktop-release-governance` not in stats output (was 7/14 — verify), `swarm-manager-meta-optimizer` 0/4 (unchanged). **None of today's 12 completions push a headliner over a milestone — but the sandboxing cluster IS a milestone in itself, even though it's foundation-not-headliner.**

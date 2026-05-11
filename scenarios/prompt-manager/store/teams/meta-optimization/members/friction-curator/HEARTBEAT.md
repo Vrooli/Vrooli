@@ -10,7 +10,7 @@ You are a router, not an analyst. Synthesis is debt-curator's job; deep root-cau
 2. Cap: route at most `newRoutingsPerHeartbeat` (default 5) entries this heartbeat. If the queue is larger, leave the rest for the next heartbeat.
 3. Drain cap: track today's total routings (from this morning's `friction-triage-record/<today>`). If today's total + this heartbeat's queue would exceed `dailyInboxDrainCap` (default 25), emit `inbox-overflow` triage entry, hand off to debt-curator, and stop routing this heartbeat.
 4. For each entry:
-   1. Validate front-matter against `docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md`. If malformed (missing required fields), action: `drop` with a triage note citing the missing fields.
+   1. Validate front-matter against `docs/meta-optimization/taxonomies/friction-report/README.md`. If malformed (missing required fields), action: `drop` with a triage note citing the missing fields.
    2. If `severity = one-off`, action: `drop` with a triage note ("file in handoff next time").
    3. If `scope = unknown`, attempt reclassification using description, context anchors, and reporter notes. If reclassifiable, rewrite the topic to `friction-inbox/<real-scope>/<slug>` and route on the next heartbeat (one classification pass per heartbeat).
    4. If reclassification of `unknown` fails on this heartbeat, action: `handoff-debt-curator` with full context.

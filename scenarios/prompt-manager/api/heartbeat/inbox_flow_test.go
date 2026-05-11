@@ -92,7 +92,7 @@ func TestRenderInboxFlow_SingleIntake_AllSectionsPresent(t *testing.T) {
 func TestRenderInboxFlow_TwoIntakes_CrossTeam(t *testing.T) {
 	tx := &memberflow.Taxonomy{
 		ID:          "monetization-validation",
-		PoRPath:     "docs/monetization/VALIDATION_TAXONOMY.md",
+		PoRPath:     "docs/monetization/taxonomies/monetization-validation/README.md",
 		SignalTypes: []memberflow.TaxonomySignalType{{ID: "pricing-comp-needed", DefaultMethod: "pricing-comp-capture"}},
 	}
 	in := mkInputs("monetization", "market-validator",

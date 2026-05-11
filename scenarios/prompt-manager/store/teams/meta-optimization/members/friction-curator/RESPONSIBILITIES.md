@@ -2,7 +2,7 @@
 
 ## Primary Duties
 - Drain `friction-inbox/*` (universal-source intake — any team's members may write via the `report-friction` skill).
-- Validate the producer's `scope` choice against `docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md`. Reclassify when evidence supports it (rewrite the topic from `friction-inbox/unknown/<slug>` to `friction-inbox/<real-scope>/<slug>` — mirrors bug-investigator's `route-to-another-topic` pattern).
+- Validate the producer's `scope` choice against `docs/meta-optimization/taxonomies/friction-report/README.md`. Reclassify when evidence supports it (rewrite the topic from `friction-inbox/unknown/<slug>` to `friction-inbox/<real-scope>/<slug>` — mirrors bug-investigator's `route-to-another-topic` pattern).
 - Route by writing the entry to `friction-report/<scope>/<date>/<slug>` on the owning sub-member's behalf:
   - `toolchain` → `friction-report/toolchain/<date>/<slug>` (toolchain-validator)
   - `run-execution` → `friction-report/run-execution/<date>/<slug>` (run-introspector)
@@ -21,7 +21,7 @@
 
 ## Cross-references
 - [`docs/meta-optimization/README.md`](../../../../../../../docs/meta-optimization/README.md) — team plan-of-record overview; covers cross-team flow diagram and "why cross-team."
-- [`docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md`](../../../../../../../docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md) — taxonomy: scopes, severities, schemas, action-selection, evidence rules, "what is NOT friction" guard. Required reading before draining.
+- [`docs/meta-optimization/taxonomies/friction-report/README.md`](../../../../../../../docs/meta-optimization/taxonomies/friction-report/README.md) — taxonomy: scopes, severities, schemas, action-selection, evidence rules, "what is NOT friction" guard. Required reading before draining.
 - [`docs/agent-system/INTAKE_PIPELINE.md`](../../../../../../../docs/agent-system/INTAKE_PIPELINE.md) — friction-inbox uses deterministic-prefix routing (no separate classifier skill); the curator validates and routes.
 - [`docs/scenario-qa/taxonomies/bug-report/README.md`](../../../../../../../docs/scenario-qa/taxonomies/bug-report/README.md) — sister universal observation flow; useful boundary reference.
 

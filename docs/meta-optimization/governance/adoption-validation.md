@@ -1,0 +1,28 @@
+# Meta-Optimization Adoption Validation
+
+## Validation Commands
+
+Run these from the repository root after changing this plan of record:
+
+```bash
+go test ./scenarios/prompt-manager/api/memberflow
+prompt-manager graph operating-model validate --team meta-optimization --id meta-optimization-operating-model
+prompt-manager graph operating-model coverage --team meta-optimization --id meta-optimization-operating-model
+bash scenarios/prompt-manager/test/agent_system_canon_test.sh
+```
+
+## Expected Clean State
+
+The structural plan-of-record manifest should report no missing required files, no missing required headings, no missing package files, and no unregistered durable Markdown files under `docs/meta-optimization/`.
+
+The operating model should validate cleanly against the team graph, topic catalog, decision catalog, runtime prompt sections, and plan-of-record registration.
+
+The friction-report taxonomy should resolve from `intake[].taxonomy = "friction-report"` and its `porPath` should point to `docs/meta-optimization/taxonomies/friction-report/README.md`.
+
+## Migration Notes
+
+This folder migrated from top-level taxonomy and operating-model files into the shared `team-plan-of-record/v1` shape:
+
+- `OPERATING_MODEL.md` moved to `operating/OPERATING_MODEL.md`.
+- `FRICTION_REPORT_TAXONOMY.md` and `friction-report-taxonomy.json` moved to `taxonomies/friction-report/`.
+- Change-flow and validation notes moved out of the README into `governance/`.

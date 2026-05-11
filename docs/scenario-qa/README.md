@@ -46,7 +46,7 @@ Decision contexts owned by the team:
 | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) | Team-level operating contract: loops, operating graph, topic catalog, decisions, inputs, outputs, feedback loop, and validation path. |
 | [`taxonomies/bug-report/README.md`](taxonomies/bug-report/README.md) | Human-readable view of `taxonomy.json`. Signal types, schemas, action-selection rules, evidence rules. |
 | [`taxonomies/bug-report/taxonomy.json`](taxonomies/bug-report/taxonomy.json) | Machine-readable taxonomy sidecar (loaded by the heartbeat builder; cited by `bug-investigator/topics.json`). |
-| [`methods/investigation/`](methods/investigation/) | Strategic canon for techniques the bug-investigator applies. One paired doc + skill per technique (mirrors `path:docs/marketing/post-techniques/`). |
+| [`methods/investigation/`](methods/investigation/) | Strategic canon for techniques the bug-investigator applies. One paired doc + skill per technique (mirrors `path:docs/marketing/methods/post-techniques/`). |
 | [`methods/audit/`](methods/audit/) | Strategic canon for `quality-auditor`'s seven audit lenses. Same paired doc + skill discipline. |
 | [`methods/readiness/`](methods/readiness/) | Strategic canon for `programmatic-qa-runner`'s individual readiness dimensions. Stub — populated as GCT dimensions stabilize. |
 
@@ -54,7 +54,7 @@ Decision contexts owned by the team:
 
 scenario-qa is the bug-triage hub of the agent system. The `bug-inbox/*` topic prefix is **universal-source**: any team's members may write to it, by invoking the `report-bug` skill. The `bug-investigator` drains the inbox; classification is deterministic-prefix (signal type embedded in the topic), so no separate classifier skill is needed — investigation includes classification as its first step.
 
-**Sister flow.** The agent system has a second universal observation flow at `topic:friction-inbox/*`, drained by `friction-curator`, fed by the `report-friction` skill — for system-level capture-leak (tooling gaps, run-execution friction, storage-map confusion, recurring workarounds). Use `report-bug` for broken code or scenario behavior; use `report-friction` for things that worked but were harder than they should have been. See [`docs/meta-optimization/FRICTION_REPORT_TAXONOMY.md`](../meta-optimization/FRICTION_REPORT_TAXONOMY.md).
+**Sister flow.** The agent system has a second universal observation flow at `topic:friction-inbox/*`, drained by `friction-curator`, fed by the `report-friction` skill — for system-level capture-leak (tooling gaps, run-execution friction, storage-map confusion, recurring workarounds). Use `report-bug` for broken code or scenario behavior; use `report-friction` for things that worked but were harder than they should have been. See [`docs/meta-optimization/taxonomies/friction-report/README.md`](../meta-optimization/taxonomies/friction-report/README.md).
 
 ```
 any-team/* ─[report-bug skill]──▶ scenario-qa/bug-inbox/<signal-type>/<slug>
@@ -79,7 +79,7 @@ The `qa-contrarian` reads peer-team decisions and member outputs (including bug-
 
 ## Doc + paired skill discipline
 
-All three technique registries (`methods/investigation/`, `methods/audit/`, `methods/readiness/`) follow the same mandatory rule from [`docs/marketing/post-types/README.md`](../marketing/post-types/README.md):
+All three technique registries (`methods/investigation/`, `methods/audit/`, `methods/readiness/`) follow the same mandatory rule from [`docs/marketing/catalogs/post-types/README.md`](../marketing/catalogs/post-types/README.md):
 
 > Every entry ships as `doc + paired skill`. This is a hard rule, not a recommendation. Neither half is optional, and neither half replaces the other. The doc holds *reasoning*; the skill holds *procedure*. A doc with no skill is a stale shrine. A skill with no doc is brittle.
 
@@ -91,7 +91,7 @@ Enforced by the canon coherence test at `scenarios/prompt-manager/test/agent_sys
 - `docs/agent-system/INTAKE_PIPELINE.md` — the inbox-router-drain pattern used by the bug-investigator.
 - `docs/agent-system/TOPICS.md` — registry of every active topic prefix; scenario-qa entries live there.
 - `docs/agent-system/TOPICS_SCHEMA.md` — schema reference for `topics.json`; documents the `source_team: "*"` (universal-source) semantics that bug-inbox uses.
-- `path:docs/marketing/post-techniques/README.md` — the gold-standard reference this folder's three registries replicate.
+- `path:docs/marketing/methods/post-techniques/README.md` — the gold-standard reference this folder's three registries replicate.
 - `path:scenarios/swarm-manager/` — downstream consumer of the team's backlog items.
 
 ## Future PoR work

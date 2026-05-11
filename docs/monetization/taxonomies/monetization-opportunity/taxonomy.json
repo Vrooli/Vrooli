@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "id": "monetization-opportunity",
+  "displayName": "Monetization Opportunity Signal Taxonomy",
+  "owner_team": "monetization",
+  "porPath": "docs/monetization/taxonomies/monetization-opportunity/README.md",
+  "signalTypes": [
+    {
+      "id": "competitor-move",
+      "definition": "Competitor pricing, packaging, positioning, or changelog change.",
+      "defaultMethod": "competitor-move-capture",
+      "defaultDestinationPrefix": "monetization/market-scan/<slug>",
+      "evidenceMinimum": "single-snapshot allowed; opportunity if it implies a new SKU/bundle"
+    },
+    {
+      "id": "capability-arrival",
+      "definition": "Vrooli gained a scenario or resource that unlocks a new SKU/bundle.",
+      "defaultMethod": "capability-arrival-scan",
+      "defaultDestinationPrefix": "candidate-sku-record/<slug>",
+      "evidenceMinimum": "single-snapshot from internal capability ledger"
+    },
+    {
+      "id": "customer-ask",
+      "definition": "Operator-fed signal that someone asked for a specific capability or SKU.",
+      "defaultMethod": "customer-ask-shaping",
+      "defaultDestinationPrefix": "candidate-sku-record/<slug>",
+      "evidenceMinimum": "single ask is observation; multiple distinct asks meet promotion threshold"
+    },
+    {
+      "id": "channel",
+      "definition": "New acquisition channel observed working in market for monetizable offers.",
+      "defaultMethod": "channel-fit-scan",
+      "defaultDestinationPrefix": "monetization/market-scan/<slug>",
+      "evidenceMinimum": "single-snapshot allowed; channel-activation when material"
+    },
+    {
+      "id": "bundle-hint",
+      "definition": "Signal that two existing things should be packaged together.",
+      "defaultMethod": "bundle-hint-shaping",
+      "defaultDestinationPrefix": "candidate-sku-record/<slug>",
+      "evidenceMinimum": "single-snapshot allowed when capability_reuse=high"
+    },
+    {
+      "id": "retention-signal",
+      "definition": "Observed retention lever (own or competitor).",
+      "defaultMethod": "retention-signal-capture",
+      "defaultDestinationPrefix": "monetization/market-scan/<slug>",
+      "evidenceMinimum": "single-snapshot for observation; addon promotion requires converging"
+    },
+    {
+      "id": "benchmark",
+      "definition": "Comparable pricing or market fact (single-snapshot benchmark).",
+      "defaultMethod": "pricing-comp-capture",
+      "defaultDestinationPrefix": "monetization/market-scan/<slug>",
+      "evidenceMinimum": "single-snapshot with `light-interpretation`"
+    }
+  ],
+  "evidenceRules": [
+    "Cite sources for every external claim (`--source=<url>`).",
+    "Label single-snapshot findings `light-interpretation`.",
+    "Do not silently invent benchmarks; raise a `capability-gap` if source access is blocked.",
+    "Tailwind references must be cited or flagged `tailwind-uncited`.",
+    "Tier-4 hardware proposals without operator initiation are out of scope; drop."
+  ],
+  "actionSelection": {
+    "drop": "Weak one-off / no Vrooli capability fit / out of scope. Delete the inbox row.",
+    "observe": "Single-snapshot market fact (benchmark / competitor pricing). Retag inbox row to `monetization/market-scan/<slug>`.",
+    "promote-to-canon": "Plausible SKU-shaped idea with classifiable fit. Retag inbox row to `candidate-sku-record/<slug>` with required front-matter.",
+    "file-decision": "Strong signal, clear fit, evidence threshold met. Promote AND raise the matching owned-context decision (`catalog-promotion`, `channel-activation`, `services-activation`).",
+    "capability-gap": "Source / tool / scenario missing. File `capability-gap`; leave the inbox entry until the gap is closed."
+  },
+  "schemas": {
+    "candidate-sku": {
+      "frontMatter": {
+        "type": "opportunity",
+        "kind": "<sku-candidate|addon-candidate|services-line-candidate|channel-candidate>",
+        "catalog": "{ proposed_sku: <new-base-bundle|addon|services-line|null>, parent_bundle: <business|lifestyle|null> }",
+        "capability_reuse": "<high|medium|low>",
+        "tam": "<S|M|L>",
+        "effort": "<S|M|L>",
+        "status": "<idea|candidate|trigger-met|active|shipped|retired>",
+        "original_at": "<ISO timestamp>",
+        "original_by": "<agent id or operator>"
+      },
+      "bodyRequiredSections": ["Name", "Description", "Revisit trigger", "Acquisition hypothesis", "Retention hypothesis", "Signal"]
+    },
+    "market-scan": {
+      "frontMatter": {
+        "type": "market-scan",
+        "kind": "<benchmark-capture|assumption-check|competitive-observation|stale-refresh|channel-assumption-check>",
+        "comp": "<name or category-wide>",
+        "category": "<text>",
+        "dimension": "<pricing|retention|churn|attach-rate|activation|channel-cac|other>",
+        "date_observed": "<YYYY-MM-DD>",
+        "applicability": "<high|medium|low>",
+        "affects_benchmarks_md": "<true|false>",
+        "affects_pricing": "<true|false>",
+        "affects_financial_model": "<text or null>",
+        "supersedes": "<prior-scan-id or null>",
+        "original_at": "<ISO timestamp>",
+        "original_by": "<agent id>"
+      },
+      "bodyRequiredSections": ["Value", "Notes"]
+    }
+  },
+  "honestyFlags": [
+    "light-interpretation",
+    "tailwind-uncited",
+    "hardware-tier",
+    "legal-surface",
+    "single-source"
+  ],
+  "pendingMethodSkills": [
+    "competitor-move-capture",
+    "capability-arrival-scan",
+    "customer-ask-shaping",
+    "channel-fit-scan",
+    "bundle-hint-shaping",
+    "retention-signal-capture"
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "version": "1.0.0",
+  "title": "Infra Health Plan of Record",
+  "description": "Plan-of-record manifest for the infra-health team canon",
+  "contract": {
+    "kind": "team-plan-of-record",
+    "schema": "team-plan-of-record/v1",
+    "base": "docs/agent-system/team-plan-of-record.manifest.json",
+    "team": "infra-health"
+  },
+  "sections": [
+    {
+      "id": "entrypoint",
+      "path": ".",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "por-readme",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Start here for agents", "Folder map", "Organizing principle", "Editing rules", "Cross-references", "Future PoR work"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "operating",
+      "path": "operating/",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "operating-hub",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Operating Documents", "Validation"]
+          }
+        },
+        {
+          "path": "OPERATING_MODEL.md",
+          "docType": "operating-model",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "strategy",
+      "path": "strategy/",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "strategy-hub",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Strategy Documents", "Extension Rules"]
+          }
+        },
+        {
+          "path": "RELIABILITY_TARGETS.md",
+          "docType": "reliability-targets",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "path": "evidence/",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "evidence-hub",
+          "required": true
+        },
+        {
+          "path": "INSTRUMENTATION_ROADMAP.md",
+          "docType": "instrumentation-roadmap",
+          "required": true
+        },
+        {
+          "path": "CROSS_PLATFORM_LEDGER.md",
+          "docType": "cross-platform-ledger",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "governance",
+      "path": "governance/",
+      "documents": [
+        {
+          "path": "editing.md",
+          "docType": "editing-rules",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Authority", "Change Flow", "Direct Edits"]
+          }
+        },
+        {
+          "path": "adoption-validation.md",
+          "docType": "validation-runbook",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Migration Notes"]
+          }
+        },
+        {
+          "path": "changelog.md",
+          "docType": "por-changelog",
+          "required": true,
+          "validation": {
+            "requiredHeadings": ["Changelog"]
+          }
+        }
+      ]
+    }
+  ],
+  "extensionRule": "Infra-health durable canon must live under operating/, strategy/, evidence/, governance/, or a declared extensions/<extension-id>/ package. Do not add top-level canon files without updating this manifest."
+}

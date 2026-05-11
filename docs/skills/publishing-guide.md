@@ -1,6 +1,6 @@
 # Skills Publishing Guide
 
-End-to-end pipeline for publishing a Claude Skill from this repo to curated registries with full supply-chain attestation. This is the **how**; for the **what** and **why**, see [skills/README.md](../../skills/README.md) and [docs/monetization/channels/skill-registries.md](../monetization/channels/skill-registries.md). For the security checklist that gates publishing, see [security-baseline.md](security-baseline.md).
+End-to-end pipeline for publishing a Claude Skill from this repo to curated registries with full supply-chain attestation. This is the **how**; for the **what** and **why**, see [skills/README.md](../../skills/README.md) and [docs/monetization/catalogs/channels/skill-registries.md](../monetization/catalogs/channels/skill-registries.md). For the security checklist that gates publishing, see [security-baseline.md](security-baseline.md).
 
 ## What we publish
 
@@ -162,7 +162,7 @@ The kill-switch procedure must be runnable in under an hour from "vulnerability 
 
 ## Observability and channel telemetry
 
-Per [skill-registries.md](../monetization/channels/skill-registries.md), `financial-tracker` ingests these signals when this channel activates:
+Per [skill-registries.md](../monetization/catalogs/channels/skill-registries.md), `financial-tracker` ingests these signals when this channel activates:
 
 - Install count by registry × time
 - Referrer traffic from skill registries to Vrooli landing pages

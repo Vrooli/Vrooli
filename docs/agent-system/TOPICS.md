@@ -106,7 +106,7 @@ Topics use kebab-case, are scoped to a team's knowledge store unless cross-team 
 | **Record (entity record)** | `<subject>-record/<slug>` | `competitor-record/foo`, `hook-record/bar`, `candidate-sku-record/baz`, `monetization-benchmark-record/qux`, `topic[example]:outcome-target-record/quux`, `initiative-portfolio-record/...`, `friction-triage-record/...` | durable; one entity per entry |
 | **Draft (in-flight artifact)** | `<subject>-draft/<slug>` | `campaign-draft/foo` | durable until promotion to canon or record; mutable until then |
 | **Log (append-only events)** | `<subject>-log/<slug>` | `publish-log/foo`, `monetization-ledger-log/bar`, `qa-run/baz` (run is implicit log; treated as such) | durable, append-only |
-| **Canon (PoR edit)** | `<team>-canon/<slug>` | `marketing-canon/foo` (→ docs/marketing/STRATEGY.md or AUDIENCES.md), `monetization-canon/bar` (→ docs/monetization/CATALOG.md) | translates to a PoR markdown edit; `destination_kind = por_file` |
+| **Canon (PoR edit)** | `<team>-canon/<slug>` | `marketing-canon/foo` (→ docs/marketing/strategy/STRATEGY.md or AUDIENCES.md), `monetization-canon/bar` (→ docs/monetization/catalogs/CATALOG.md) | translates to a PoR markdown edit; `destination_kind = por_file` |
 | **Report (investigative finding)** | `<subject>-report/<slug>` | `bug-investigation-report/login-500-2026-05-03`, `friction-report/toolchain/2026-05-03/cli-flag-confusion`, `run-lesson-report/2026-04-25`, `challenge-report/dec-1777060904331053267` | durable; one finding per entry, with rationale |
 | **Prep (synthesis briefing)** | `<subject>-prep/<slug>` | `topic[example]:workshop-decision-prep/2026-05-03` | durable; consumed by a downstream synthesizer or operator |
 | **Cross-team flow** | same as any of the above, with explicit `destination_team` / `source_team` | `monetization-benchmark-adjacent-record/foo` (marketing → monetization) | depends on the receiving member's drain |
@@ -170,7 +170,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
 | `researcher` | `research-inbox/*` (taxonomy: marketing-research, classifier: marketing-signal-classifier) | `audience-scan/*`, `competitor-record/*`, `hook-record/*`, `monetization-benchmark-adjacent-record/*` | writes `monetization-benchmark-adjacent-record/*` → monetization |
-| `brand-manager` | `marketing/notebook/*` (taxonomy: notebook-debt, no classifier) | `marketing-canon/*` (por_file → `path:docs/marketing/STRATEGY.md`, `path:docs/marketing/AUDIENCES.md`) | — |
+| `brand-manager` | `marketing/notebook/*` (taxonomy: notebook-debt, no classifier) | `marketing-canon/*` (por_file → `path:docs/marketing/strategy/STRATEGY.md`, `path:docs/marketing/strategy/AUDIENCES.md`) | — |
 | `publisher` | _(none — proactive)_ | `publish-log/*` | — |
 | `oss-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
 | `subscription-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
@@ -210,7 +210,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 |---|---|---|---|
 | `opportunity-scout` | `opportunity-inbox/*` (taxonomy: monetization-opportunity, classifier: monetization-signal-classifier) | `candidate-sku-record/*` | — |
 | `market-validator` | `validation-inbox/*` (taxonomy: monetization-validation, classifier: market-validation-triage), `monetization-benchmark-adjacent-record/*` (cross-team from marketing) | `monetization-benchmark-record/*` | reads `monetization-benchmark-adjacent-record/*` ← marketing-crew |
-| `catalog-strategist` | _(none — proactive; reads decisions)_ | `monetization-canon/*` (por_file → `path:docs/monetization/CATALOG.md`) | — |
+| `catalog-strategist` | _(none — proactive; reads decisions)_ | `monetization-canon/*` (por_file → `path:docs/monetization/catalogs/CATALOG.md`) | — |
 | `financial-tracker` | _(none — proactive)_ | `monetization-ledger-log/*` | — |
 | `monetization-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*`, `challenge-resolution-record/*` | — |
 

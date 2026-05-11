@@ -36,10 +36,10 @@ Choose the spoke by the communication question:
 - **Operator-curated.** Agents propose updates via `brand-guideline-update` decisions on `marketing-crew`. They do not edit directly.
 - **`VISION.md` (root)** is the operator-authored manifesto. Owned by `director-swarm` for drift detection (via `vision-update` context); operator authors substantive changes directly.
 - **`docs/concepts/ARCHITECTURE.md`** is the canonical technical reference for "how Vrooli actually works." Owned by `director-swarm`; operator authors substantive expansion.
-- **Visual identity** (logos, fonts, image-style) lives in [`docs/marketing/ASSETS.md`](../marketing/ASSETS.md) and [`docs/marketing/IMAGE_STYLE.md`](../marketing/IMAGE_STYLE.md). Eventually subsumed by the `brand-manager` scenario when it ships.
+- **Visual identity** (logos, fonts, image-style) lives in [`docs/marketing/strategy/ASSETS.md`](../marketing/strategy/ASSETS.md) and [`docs/marketing/strategy/IMAGE_STYLE.md`](../marketing/strategy/IMAGE_STYLE.md). Eventually subsumed by the `brand-manager` scenario when it ships.
 
 ## Why this layer exists
 
-Until 2026-04-27, project-identity content was scattered: implicit in `README.md`, philosophical in `VISION.md`, fragmentary in `docs/marketing/STRATEGY.md`. Every advertiser had to reconstruct the elevator pitch from primary sources every time, producing slightly different versions across drafts. This folder centralizes those answers so all external touchpoints stay coherent.
+Until 2026-04-27, project-identity content was scattered: implicit in `README.md`, philosophical in `VISION.md`, fragmentary in `docs/marketing/strategy/STRATEGY.md`. Every advertiser had to reconstruct the elevator pitch from primary sources every time, producing slightly different versions across drafts. This folder centralizes those answers so all external touchpoints stay coherent.
 
 Created during vision walk #4's third divergence (2026-04-27). See `scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/last-handoff.md` for context.

@@ -239,7 +239,7 @@ Worked example: `team:scenario-qa/bug-investigator` drains `bug-inbox/*`. Every 
 
 Sister example: `team:meta-optimization/friction-curator` drains `friction-inbox/*` against the `friction-report` taxonomy. Every team's members may file friction via the `report-friction` writer skill. Topology declared identically: `intake[].source_team: "*"` + `external_producers: ["report-friction"]`. The curator validates scope (or reclassifies `unknown`), then routes by writing the entry to the appropriate `topic[old]:friction/<scope>/<date>/<slug>` topic owned by an existing meta-optimization sub-member. Critically, the curator owns no decision contexts — routing is determinate from scope; the destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) raise capability-gaps and other decisions after they drain the routed entries. This is the divergence from bug-investigator's pattern, which does own `bug-resolution-proposal` because investigation produces cross-cutting fixes; friction-curator produces routing only.
 
-Worked example: `team:marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*` for the monetization team to consume. The schema for that prefix lives on the marketing-research taxonomy (`path:docs/marketing/signal-taxonomy.json#schemas.monetization-benchmark-adjacent`), not on `monetization-validation`. The validator's `missing_destination_schema` rule resolves `output[].schema` against the producer's taxonomy, not the consumer's. The consumer's `intake[].taxonomy` governs only routing/dispatch on the receiving side, not the on-disk shape of incoming entries.
+Worked example: `team:marketing-crew/researcher` writes `monetization-benchmark-adjacent-record/*` for the monetization team to consume. The schema for that prefix lives on the marketing-research taxonomy (`path:docs/marketing/taxonomies/marketing-research/taxonomy.json#schemas.monetization-benchmark-adjacent`), not on `monetization-validation`. The validator's `missing_destination_schema` rule resolves `output[].schema` against the producer's taxonomy, not the consumer's. The consumer's `intake[].taxonomy` governs only routing/dispatch on the receiving side, not the on-disk shape of incoming entries.
 
 ## Example: marketing-crew researcher
 
@@ -269,7 +269,7 @@ Worked example: `team:marketing-crew/researcher` writes `monetization-benchmark-
 When loaded, `prompt-manager graph topics --team marketing-crew` should:
 - Render edges from `vision-walk` and `operator` (external boundary nodes) into the researcher.
 - Render edges from the researcher to four output prefixes (three same-team knowledge sinks, one cross-team monetization sink).
-- Validate that `marketing-research` taxonomy exists and resolves to `path:docs/marketing/signal-taxonomy.json`.
+- Validate that `marketing-research` taxonomy exists and resolves to `path:docs/marketing/taxonomies/marketing-research/taxonomy.json`.
 - Validate that `marketing-signal-classifier` is a registered, portable skill (no forbidden coupling content).
 - Validate every `output[].schema` resolves against the producer's taxonomy.
 - Cross-validate `monetization-benchmark-adjacent-record/*` against the monetization team's intake (some monetization member should declare this prefix in their `intake` with `source_team: "marketing-crew"`).

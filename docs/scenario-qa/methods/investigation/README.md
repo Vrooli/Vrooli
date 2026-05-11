@@ -14,7 +14,7 @@ Bug investigation is not one monolithic workflow. Different bugs benefit from di
 - Compress each skill independently as Vrooli's substrate (CLIs, debug tooling, reproduction harnesses) absorbs more of the work. A unified `bug-investigate` mega-skill that branches on technique would compress worse — same argument the marketing team uses for one skill per post type.
 - Surface graduation candidates from observed patterns: when the bug-investigator's audit log (`bug-investigation-report/<slug>` entries) shows a recurring approach that doesn't fit any registered technique, that approach graduates to a new entry here.
 
-This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../agent-system/TEAM_DOCS_PATTERNS.md): each technique is its own entity. It also mirrors `path:docs/marketing/post-techniques/`: cross-cutting techniques get one canonical home and are referenced by the consumer (here, `bug-investigator/RESPONSIBILITIES.md` Available Skills table).
+This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../agent-system/TEAM_DOCS_PATTERNS.md): each technique is its own entity. It also mirrors `path:docs/marketing/methods/post-techniques/`: cross-cutting techniques get one canonical home and are referenced by the consumer (here, `bug-investigator/RESPONSIBILITIES.md` Available Skills table).
 
 ## Doc + paired skill discipline
 
@@ -57,5 +57,5 @@ The bug-investigator surfaces graduation candidates in its heartbeat output as `
 - [`../../README.md`](../../README.md) — scenario-qa team plan-of-record overview.
 - [`../../taxonomies/bug-report/README.md`](../../taxonomies/bug-report/README.md) — bug-report taxonomy; each signal type's `defaultMethod` resolves to a technique here.
 - [`../audit/README.md`](../audit/README.md) — sister registry for `quality-auditor`'s audit lenses; same lifecycle and discipline.
-- [`docs/marketing/post-techniques/README.md`](../../../marketing/post-techniques/README.md) — gold-standard reference this folder replicates.
+- [`docs/marketing/methods/post-techniques/README.md`](../../../marketing/post-techniques/README.md) — gold-standard reference this folder replicates.
 - [`docs/agent-system/PROMOTION_LADDER.md`](../../../agent-system/PROMOTION_LADDER.md) — how prose techniques mature into CLI-backed ones.
