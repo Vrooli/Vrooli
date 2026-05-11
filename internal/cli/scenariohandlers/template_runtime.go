@@ -546,8 +546,10 @@ type parsedTestGenieResult struct {
 
 func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGenieResult {
 	type testGenieResponse struct {
-		Success      *bool `json:"success"`
-		PhaseSummary struct {
+		Success       *bool    `json:"success"`
+		Error         string   `json:"error"`
+		ErrorMessages []string `json:"errors"`
+		PhaseSummary  struct {
 			Total  int `json:"total"`
 			Passed int `json:"passed"`
 			Failed int `json:"failed"`
@@ -599,9 +601,16 @@ func parseTestGenieJSONResult(templateName string, output []byte) parsedTestGeni
 		}
 		failed = append(failed, fmt.Sprintf("%s: %s", phase.Name, phase.Error))
 	}
+	for _, msg := range response.ErrorMessages {
+		if strings.TrimSpace(msg) != "" {
+			failed = append(failed, strings.TrimSpace(msg))
+		}
+	}
 	summary := fmt.Sprintf("%d passed, %d failed, %d total", response.PhaseSummary.Passed, response.PhaseSummary.Failed, response.PhaseSummary.Total)
 	if len(failed) > 0 {
 		summary += "; failed phases: " + strings.Join(failed, "; ")
+	} else if strings.TrimSpace(response.Error) != "" {
+		summary += "; " + strings.TrimSpace(response.Error)
 	}
 	result.Issue = &TemplateValidationIssue{
 		Template: templateName,

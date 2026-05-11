@@ -90,7 +90,7 @@ Update the vision-walk-prep agent's HEARTBEAT to read from BIH (via API or CLI),
 - Implementing automated platform scraping (X, Reddit, TikTok). When BAS matures, that's a separate enhancement initiative.
 - Designing the Vrooli-use classification taxonomy in detail. Work-item (a) captures the requirement; the taxonomy specifics are the first deliverable of (a).
 - Migrating existing bookmark data (if any). This rework is treated as a v0 reset; if migration is needed, surface during execution and decide.
-- The flipping monetization concept, the homelab-as-bundle marketing positioning, and the prompt-to-product capability-class flag — those are tangentially related (they all came from the same chore-audit conversation) but are captured separately in their own homes (`docs/monetization/REVENUE_LINES.md`, `docs/marketing/notebook/`, `docs/strategy/long-term-capability-flags.md` respectively).
+- The flipping monetization concept, the homelab-as-bundle marketing positioning, and the prompt-to-product capability-class flag — those are tangentially related (they all came from the same chore-audit conversation) but are captured separately in their own homes (`docs/monetization/REVENUE_LINES.md`, typed marketing-craft observations, `docs/strategy/long-term-capability-flags.md` respectively).
 
 ## Pointers
 

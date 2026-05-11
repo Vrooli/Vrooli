@@ -251,3 +251,52 @@ func TestResolveBaseURL_Defaults(t *testing.T) {
 		t.Errorf("override base URL = %q", got)
 	}
 }
+
+func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
+	var got struct {
+		Model   string         `json:"model"`
+		Prompt  string         `json:"prompt"`
+		Stream  bool           `json:"stream"`
+		Options map[string]any `json:"options"`
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/generate" {
+			t.Errorf("path = %q, want /api/generate", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %s, want POST", r.Method)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Errorf("decode request: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(GenerateResponse{Response: "ok", Done: true, EvalCount: 42})
+	}))
+	defer srv.Close()
+
+	maxTokens := 123
+	temperature := 0.25
+	client := &Client{BaseURL: srv.URL, HTTP: http.DefaultClient}
+	resp, err := client.Generate(context.Background(), GenerateRequest{
+		Model:       "llama3.2:1b",
+		Prompt:      "hello",
+		NumPredict:  &maxTokens,
+		Temperature: &temperature,
+	})
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if resp.Response != "ok" || resp.EvalCount != 42 {
+		t.Fatalf("response = %+v, want response ok with eval_count 42", resp)
+	}
+	if got.Model != "llama3.2:1b" || got.Prompt != "hello" || got.Stream {
+		t.Fatalf("request body = %+v", got)
+	}
+	if got.Options["num_predict"] != float64(123) {
+		t.Fatalf("num_predict = %#v, want 123", got.Options["num_predict"])
+	}
+	if got.Options["temperature"] != 0.25 {
+		t.Fatalf("temperature = %#v, want 0.25", got.Options["temperature"])
+	}
+}

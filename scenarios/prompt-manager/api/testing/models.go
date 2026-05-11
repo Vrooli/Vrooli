@@ -36,15 +36,7 @@ type TestResponse struct {
 	TestedAt     time.Time `json:"testedAt"`
 }
 
-// OllamaRequest is the request body for Ollama's generate endpoint.
-type OllamaRequest struct {
-	Model   string                 `json:"model"`
-	Prompt  string                 `json:"prompt"`
-	Stream  bool                   `json:"stream"`
-	Options map[string]interface{} `json:"options"`
-}
-
-// OllamaResponse is the response from Ollama's generate endpoint.
+// OllamaResponse is the response from resource-ollama gateway generate.
 type OllamaResponse struct {
 	Response  string `json:"response"`
 	EvalCount int    `json:"eval_count"`

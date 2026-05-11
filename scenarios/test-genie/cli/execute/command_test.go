@@ -3,6 +3,7 @@ package execute
 import (
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -126,5 +127,19 @@ func TestExecutionResultErrorFailsUnsuccessfulJSONResult(t *testing.T) {
 	}
 	if err := executionResultError(Response{Success: false}); err == nil {
 		t.Fatal("expected unsuccessful execution result to fail")
+	}
+}
+
+func TestExtractErrorMessageIncludesStructuredDetails(t *testing.T) {
+	got := extractErrorMessage([]byte(`{
+		"success": false,
+		"error": "suite execution failed",
+		"errors": ["start target scenario demo: exit status 2"]
+	}`))
+
+	for _, want := range []string{"suite execution failed", "start target scenario demo: exit status 2"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("extractErrorMessage() = %q, want %q", got, want)
+		}
 	}
 }

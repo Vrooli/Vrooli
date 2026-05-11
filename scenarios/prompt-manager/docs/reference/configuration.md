@@ -8,7 +8,8 @@ Environment variables and configuration options for prompt-manager.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OLLAMA_URL` | (disabled) | Ollama API URL for skill testing (e.g., `http://localhost:11434`) |
+| `OLLAMA_ENABLED` | `false` | Enable skill testing through `resource-ollama gateway generate` |
+| `OLLAMA_GATEWAY_BIN` | `resource-ollama` | Gateway command used for Ollama-backed skill testing and AI search embeddings |
 | `STORE_DIR` | `../store` | Path to the store directory containing skills, agents, teams, and relations |
 | `DATABASE_URL` | (from lifecycle) | PostgreSQL connection string |
 | `QDRANT_URL` | `http://localhost:6333` | Qdrant vector database URL for AI search |
@@ -181,8 +182,9 @@ curl -fsSL https://ollama.ai/install.sh | sh
 # Pull a model
 ollama pull llama3.2
 
-# Set environment variable
-export OLLAMA_URL=http://localhost:11434
+# Enable gateway-backed skill testing
+export OLLAMA_ENABLED=true
+export OLLAMA_GATEWAY_BIN=resource-ollama
 ```
 
 Test via CLI:

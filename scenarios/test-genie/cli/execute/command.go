@@ -1,6 +1,8 @@
 package execute
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -148,6 +150,10 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 			tailer.Stop()
 		}
 		if err != nil {
+			if parsed.JSON {
+				printJSONExecutionError(raw, err)
+				return err
+			}
 			PrintError(os.Stdout, err, req, httpClient)
 			return err
 		}
@@ -165,6 +171,22 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 	}
 
 	return executionResultError(resp)
+}
+
+func printJSONExecutionError(raw []byte, err error) {
+	if json.Valid(bytes.TrimSpace(raw)) {
+		cliutil.PrintJSON(raw)
+		return
+	}
+	payload, marshalErr := json.Marshal(map[string]interface{}{
+		"success": false,
+		"error":   err.Error(),
+	})
+	if marshalErr != nil {
+		fmt.Printf("{\"success\":false,\"error\":%q}\n", err.Error())
+		return
+	}
+	cliutil.PrintJSON(payload)
 }
 
 func executionResultError(resp Response) error {

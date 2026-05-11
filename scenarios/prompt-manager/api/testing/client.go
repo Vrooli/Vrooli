@@ -1,36 +1,43 @@
-// Package testing provides LLM-based skill testing via Ollama.
+// Package testing provides LLM-based skill testing via the resource-ollama gateway.
 package testing
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
+	"os/exec"
+	"strconv"
 	"time"
 )
 
-// OllamaClient handles communication with the Ollama API.
-// This is a testing seam: inject a mock client to test without a real Ollama instance.
+type ollamaRunner func(ctx context.Context, args []string, stdin []byte) ([]byte, error)
+
+const defaultOllamaGatewayBin = "resource-ollama"
+
+// OllamaClient handles skill-test generation through the resource-ollama gateway.
+// This is a testing seam: inject a runner to test without a real Ollama instance.
 type OllamaClient struct {
-	baseURL    string
-	httpClient *http.Client
+	enabled bool
+	bin     string
+	run     ollamaRunner
 }
 
 // NewOllamaClient creates a new Ollama client.
-// If baseURL is empty, the client is considered disabled.
-func NewOllamaClient(baseURL string) *OllamaClient {
-	return &OllamaClient{
-		baseURL: baseURL,
-		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
-		},
+func NewOllamaClient(enabled bool, bin string) *OllamaClient {
+	return newOllamaClientWithRunner(enabled, bin, defaultOllamaRunner)
+}
+
+func newOllamaClientWithRunner(enabled bool, bin string, run ollamaRunner) *OllamaClient {
+	if bin == "" {
+		bin = defaultOllamaGatewayBin
 	}
+	return &OllamaClient{enabled: enabled, bin: bin, run: run}
 }
 
 // IsEnabled returns true if Ollama is configured.
 func (c *OllamaClient) IsEnabled() bool {
-	return c.baseURL != ""
+	return c.enabled
 }
 
 // Generate runs a skill through Ollama and returns the response.
@@ -38,41 +45,57 @@ func (c *OllamaClient) Generate(model, prompt string, maxTokens int, temperature
 	if !c.IsEnabled() {
 		return nil, 0, fmt.Errorf("ollama not configured")
 	}
-
-	req := OllamaRequest{
-		Model:  model,
-		Prompt: prompt,
-		Stream: false,
-		Options: map[string]interface{}{
-			"num_predict": maxTokens,
-			"temperature": temperature,
-		},
+	if c.run == nil {
+		return nil, 0, fmt.Errorf("ollama gateway runner is not configured")
 	}
 
-	jsonData, err := json.Marshal(req)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to marshal request: %w", err)
+	args := []string{
+		c.bin,
+		"gateway",
+		"generate",
+		"--model", model,
+		"--json",
+		"--prompt-stdin",
+	}
+	if maxTokens > 0 {
+		args = append(args, "--max-tokens", strconv.Itoa(maxTokens))
+	}
+	if temperature >= 0 {
+		args = append(args, "--temperature", strconv.FormatFloat(temperature, 'g', -1, 64))
 	}
 
 	startTime := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
-	resp, err := c.httpClient.Post(c.baseURL+"/api/generate", "application/json", strings.NewReader(string(jsonData)))
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to call Ollama: %w", err)
-	}
-	defer resp.Body.Close()
-
+	out, err := c.run(ctx, args, []byte(prompt))
 	responseTime := float64(time.Since(startTime).Milliseconds())
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, responseTime, fmt.Errorf("ollama error: %s", string(body))
+	if err != nil {
+		return nil, responseTime, fmt.Errorf("failed to call Ollama gateway: %w", err)
 	}
 
 	var ollamaResp OllamaResponse
-	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
-		return nil, responseTime, fmt.Errorf("failed to parse response: %w", err)
+	if err := json.Unmarshal(bytes.TrimSpace(out), &ollamaResp); err != nil {
+		return nil, responseTime, fmt.Errorf("failed to parse Ollama gateway response: %w", err)
 	}
 
 	return &ollamaResp, responseTime, nil
+}
+
+func defaultOllamaRunner(ctx context.Context, args []string, stdin []byte) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	if len(stdin) > 0 {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := bytes.TrimSpace(stderr.Bytes())
+		if len(msg) == 0 {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%s: %w", string(msg), err)
+	}
+	return stdout.Bytes(), nil
 }

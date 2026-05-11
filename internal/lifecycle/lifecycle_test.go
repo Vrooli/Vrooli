@@ -2015,10 +2015,14 @@ func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 	if !needed || reason != "Resources not populated" {
 		t.Fatalf("resources missing => needed=%v reason=%q", needed, reason)
 	}
-	if err := os.MkdirAll(projectstate.SetupStateDir(root), 0o755); err != nil {
+	locator, err := projectstate.NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("NewLocator: %v", err)
+	}
+	if err := os.MkdirAll(locator.SetupStateDir(), 0o755); err != nil {
 		t.Fatalf("mkdir setup state: %v", err)
 	}
-	testkitgo.WriteFile(t, projectstate.ResourcesPopulatedPath(root), "ok\n")
+	testkitgo.WriteFile(t, locator.ResourcesPopulatedPath(), "ok\n")
 	needed, _, err = runner.evaluateSetupCheck(item, scenario.ConditionCheck{Type: "resources", Populated: true})
 	if err != nil {
 		t.Fatalf("evaluateSetupCheck(resources ready): %v", err)
@@ -2112,19 +2116,24 @@ func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 
 func TestResourceAndDependencyChecksCoverMarkersAndToolchains(t *testing.T) {
 	root := t.TempDir()
+	home := t.TempDir()
 
-	if !resourcesNeedSetup(root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
+	if !resourcesNeedSetup(home, root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
 		t.Fatalf("expected missing resource markers to require setup")
 	}
-	if err := os.MkdirAll(projectstate.SetupStateDir(root), 0o755); err != nil {
+	locator, err := projectstate.NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("NewLocator: %v", err)
+	}
+	if err := os.MkdirAll(locator.SetupStateDir(), 0o755); err != nil {
 		t.Fatalf("mkdir setup state: %v", err)
 	}
-	testkitgo.WriteFile(t, projectstate.ResourcePopulatedPath(root, "postgres"), "ok\n")
-	if !resourcesNeedSetup(root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
+	testkitgo.WriteFile(t, locator.ResourcePopulatedPath("postgres"), "ok\n")
+	if !resourcesNeedSetup(home, root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
 		t.Fatalf("expected missing redis marker to keep setup required")
 	}
-	testkitgo.WriteFile(t, projectstate.ResourcePopulatedPath(root, "redis"), "ok\n")
-	if resourcesNeedSetup(root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
+	testkitgo.WriteFile(t, locator.ResourcePopulatedPath("redis"), "ok\n")
+	if resourcesNeedSetup(home, root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
 		t.Fatalf("expected all resource markers to satisfy setup")
 	}
 

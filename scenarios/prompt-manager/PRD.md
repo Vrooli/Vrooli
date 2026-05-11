@@ -186,9 +186,9 @@ optional:
 
   - resource_name: ollama
     purpose: Local LLM for skill testing and enhancement
-    integration_pattern: Direct HTTP API integration
+    integration_pattern: resource-ollama gateway CLI
     fallback: Feature disabled if unavailable
-    access_method: Direct HTTP calls to Ollama API from Go backend
+    access_method: resource-ollama gateway generate/embed commands
 ```
 
 ### Resource Integration Standards
@@ -211,9 +211,9 @@ integration_approach:
       implementation: Built-in Go HTTP client
 
     - resource: ollama
-      method: HTTP REST API calls
+      method: resource-ollama gateway CLI
       purpose: LLM inference for skill testing and enhancement
-      implementation: Built-in Go HTTP client with streaming support
+      implementation: CLI-backed gateway seam with host-wide resource throttling
 ```
 
 ### Data Models
@@ -390,11 +390,11 @@ built_in_capabilities:
 
   - name: skill-enhancer
     purpose: Suggest improvements to skills
-    implementation: Direct Ollama API integration for enhancement suggestions
+    implementation: resource-ollama gateway integration for enhancement suggestions
 
   - name: skill-tester
     purpose: Test skills against different models
-    implementation: Streaming Ollama API calls with response metrics
+    implementation: resource-ollama gateway generation with response metrics
 
   - name: semantic-search
     purpose: Find similar skills using vector similarity

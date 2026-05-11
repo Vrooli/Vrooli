@@ -60,7 +60,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Args: commandtree.ArgSchema{
 				Options: []commandtree.OptionArg{
 					{Name: "--title", ValueName: "title", Description: "Readable plan title"},
-					{Name: "--slug", ValueName: "slug", Description: "Optional stable slug"},
+					{Name: "--slug", ValueName: "slug", Description: "Optional readable filename slug"},
 					{Name: "--repo", ValueName: "path", Description: "Associate the plan with a repository path"},
 					{Name: "--stdin", Description: "Read markdown content from stdin"},
 					commandtree.JSONOption(),

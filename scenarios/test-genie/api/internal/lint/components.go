@@ -49,11 +49,56 @@ func discoverComponents(scenarioDir string, settings *Settings) ([]Component, er
 			RelativePath: name,
 			AbsolutePath: filepath.Join(scenarioDir, name),
 		}
-		component.CodeBearing, component.CodeEvidence = detectCodeBearing(component.AbsolutePath, false)
+		if hasDirectProjectIndicator(component.AbsolutePath) {
+			component.CodeBearing, component.CodeEvidence = detectCodeBearing(component.AbsolutePath, false)
+		} else {
+			component.CodeBearing, component.CodeEvidence = detectCodeBearing(component.AbsolutePath, true)
+			nested, err := discoverNestedProjectComponents(scenarioDir, component.RelativePath, ignored)
+			if err != nil {
+				return nil, err
+			}
+			components = append(components, nested...)
+		}
 		components = append(components, component)
 	}
 
 	return components, nil
+}
+
+func discoverNestedProjectComponents(scenarioDir, parentRel string, ignored map[string]bool) ([]Component, error) {
+	var components []Component
+	parentAbs := filepath.Join(scenarioDir, parentRel)
+	err := filepath.WalkDir(parentAbs, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		name := d.Name()
+		if path != parentAbs {
+			if ignored[name] || shouldSkipDiscoveryDir(name) {
+				return filepath.SkipDir
+			}
+		}
+		if path == parentAbs || !hasDirectProjectIndicator(path) {
+			return nil
+		}
+		rel, err := filepath.Rel(scenarioDir, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		component := Component{
+			Name:         rel,
+			RelativePath: rel,
+			AbsolutePath: path,
+		}
+		component.CodeBearing, component.CodeEvidence = detectCodeBearing(component.AbsolutePath, false)
+		components = append(components, component)
+		return filepath.SkipDir
+	})
+	return components, err
 }
 
 func discoverRootComponent(scenarioDir string) Component {
@@ -130,4 +175,29 @@ func detectCodeBearing(dir string, topLevelOnly bool) (bool, []string) {
 	})
 
 	return len(evidence) > 0, evidence
+}
+
+func hasDirectProjectIndicator(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if _, ok := projectIndicatorFiles[entry.Name()]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldSkipDiscoveryDir(name string) bool {
+	switch name {
+	case ".git", "node_modules", "dist", "build", "coverage", ".venv", "venv", "__pycache__", "vendor":
+		return true
+	default:
+		return false
+	}
 }

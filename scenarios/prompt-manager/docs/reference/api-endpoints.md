@@ -880,9 +880,9 @@ Create a new tag.
 
 ### POST /api/v1/skills/{id}/test
 
-Test a skill with Ollama LLM.
+Test a skill with Ollama through `resource-ollama gateway generate`.
 
-**Prerequisites:** Ollama running with model loaded.
+**Prerequisites:** `OLLAMA_ENABLED=true`, `resource-ollama` available on PATH (or `OLLAMA_GATEWAY_BIN` set), and the requested model loaded.
 
 **Request Body:**
 ```json

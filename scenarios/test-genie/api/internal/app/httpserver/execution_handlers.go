@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/shared"
@@ -106,8 +107,17 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, http.StatusBadRequest, vErr.Error())
 			return
 		}
-		s.log("suite execution failed", map[string]interface{}{"error": err.Error()})
-		s.writeError(w, http.StatusInternalServerError, "suite execution failed")
+		detail := err.Error()
+		s.log("suite execution failed", map[string]interface{}{"error": detail})
+		s.writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"success": false,
+			"error":   "suite execution failed",
+			"errors":  []string{detail},
+			"metadata": map[string]interface{}{
+				"scenarioName": input.Request.ScenarioName,
+				"scenarioPath": input.Request.ScenarioPath,
+			},
+		})
 		return
 	}
 

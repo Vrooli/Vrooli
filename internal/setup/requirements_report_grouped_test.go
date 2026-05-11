@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -242,7 +243,8 @@ func TestVrooliInvocationReturnsBareWhenLauncherPresent(t *testing.T) {
 		vrooliExecutableFn = origExe
 	}()
 	vrooliLauncherStatFn = func() (os.FileInfo, error) { return fakeFileInfo{}, nil }
-	vrooliExecutableFn = func() (string, error) { return "/home/whoever/.vrooli/bin/vrooli", nil }
+	exePath := filepath.Join(t.TempDir(), ".vrooli", "bin", "vrooli")
+	vrooliExecutableFn = func() (string, error) { return exePath, nil }
 
 	if got := vrooliInvocation(); got != "vrooli" {
 		t.Fatalf("vrooliInvocation = %q, want bare 'vrooli' when launcher is present", got)
@@ -257,9 +259,10 @@ func TestVrooliInvocationFallsBackToAbsolutePathWhenLauncherMissing(t *testing.T
 		vrooliExecutableFn = origExe
 	}()
 	vrooliLauncherStatFn = func() (os.FileInfo, error) { return nil, fs.ErrNotExist }
-	vrooliExecutableFn = func() (string, error) { return "/home/whoever/.vrooli/bin/vrooli", nil }
+	exePath := filepath.Join(t.TempDir(), ".vrooli", "bin", "vrooli")
+	vrooliExecutableFn = func() (string, error) { return exePath, nil }
 
-	if got := vrooliInvocation(); got != "/home/whoever/.vrooli/bin/vrooli" {
+	if got := vrooliInvocation(); got != exePath {
 		t.Fatalf("vrooliInvocation = %q, want absolute path fallback", got)
 	}
 }
@@ -293,7 +296,8 @@ func TestActionBlockUsesAbsolutePathWhenLauncherMissing(t *testing.T) {
 		vrooliExecutableFn = origExe
 	}()
 	vrooliLauncherStatFn = func() (os.FileInfo, error) { return nil, fs.ErrNotExist }
-	vrooliExecutableFn = func() (string, error) { return "/home/dev/.vrooli/bin/vrooli", nil }
+	exePath := filepath.Join(t.TempDir(), ".vrooli", "bin", "vrooli")
+	vrooliExecutableFn = func() (string, error) { return exePath, nil }
 
 	prov := []hostreqspec.Provenance{{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"}}
 	report := vrooliruntime.Report{
@@ -322,10 +326,10 @@ func TestActionBlockUsesAbsolutePathWhenLauncherMissing(t *testing.T) {
 	renderGrouped(&sb, report)
 	out := sb.String()
 
-	if !strings.Contains(out, "sudo /home/dev/.vrooli/bin/vrooli setup") {
+	if !strings.Contains(out, "sudo "+exePath+" setup") {
 		t.Fatalf("action block should contain absolute-path sudo command:\n%s", out)
 	}
-	if !strings.Contains(out, "/home/dev/.vrooli/bin/vrooli setup --include-optional") {
+	if !strings.Contains(out, exePath+" setup --include-optional") {
 		t.Fatalf("action block should contain absolute-path include-optional command:\n%s", out)
 	}
 }

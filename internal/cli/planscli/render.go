@@ -14,7 +14,7 @@ func RenderAdd(w io.Writer, format cliout.Format, resp planapp.AddOutput) error 
 		return cliout.WriteJSON(w, resp)
 	}
 	printPlanSummary(w, resp.Plan)
-	_, _ = fmt.Fprintln(w, "next: vrooli plans show "+resp.Plan.ID)
+	_, _ = fmt.Fprintln(w, "next: vrooli plans show "+resp.Plan.Slug)
 	return nil
 }
 
@@ -85,5 +85,4 @@ func printPlanSummary(w io.Writer, plan planapp.PlanRecord) {
 	_, _ = fmt.Fprintf(w, "id: %s\n", plan.ID)
 	_, _ = fmt.Fprintf(w, "title: %s\n", plan.Title)
 	_, _ = fmt.Fprintf(w, "path: %s\n", filepath.ToSlash(plan.Path))
-	_, _ = fmt.Fprintf(w, "repo_key: %s\n", plan.RepoKey)
 }

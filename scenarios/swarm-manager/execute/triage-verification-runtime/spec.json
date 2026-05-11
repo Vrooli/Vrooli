@@ -7,7 +7,7 @@
   "depends_on": [
     "research/vrooli-bridge-verification-integration"
   ],
-  "description": "Implement the triage → bridge integration per research/vrooli-bridge-verification-integration. Adds a verification step to the triage team's disposition flow, runs PR patches and scenario proposals through the isolated install, and feeds results back into disposition + working-notebook.",
+  "description": "Implement the triage → bridge integration per research/vrooli-bridge-verification-integration. Adds a verification step to the triage team's disposition flow, runs PR patches and scenario proposals through the isolated install, and feeds results back into disposition + typed evidence.",
   "effort": "L",
   "initiative": "contribution-verification-isolated",
   "kind": "execute",

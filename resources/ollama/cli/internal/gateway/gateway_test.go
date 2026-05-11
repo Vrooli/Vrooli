@@ -20,14 +20,14 @@ import (
 
 type fakeClient struct {
 	embed    func(ctx context.Context, model, input string) ([]float64, error)
-	generate func(ctx context.Context, in ensure.GenerateRequest) (string, error)
+	generate func(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error)
 }
 
 func (f *fakeClient) Embed(ctx context.Context, model, input string) ([]float64, error) {
 	return f.embed(ctx, model, input)
 }
 
-func (f *fakeClient) Generate(ctx context.Context, in ensure.GenerateRequest) (string, error) {
+func (f *fakeClient) Generate(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
 	return f.generate(ctx, in)
 }
 
@@ -100,25 +100,35 @@ func TestEmbedSurfacesUpstreamError(t *testing.T) {
 
 func TestGenerateJSONOutput(t *testing.T) {
 	client := &fakeClient{
-		generate: func(_ context.Context, in ensure.GenerateRequest) (string, error) {
+		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
 			if in.Model != "llama3.2:1b" || in.Prompt != "hi" {
 				t.Errorf("unexpected args: %+v", in)
 			}
-			return "hello!", nil
+			if in.NumPredict == nil || *in.NumPredict != 123 {
+				t.Errorf("num_predict = %v, want 123", in.NumPredict)
+			}
+			if in.Temperature == nil || *in.Temperature != 0.25 {
+				t.Errorf("temperature = %v, want 0.25", in.Temperature)
+			}
+			return ensure.GenerateResponse{Response: "hello!", EvalCount: 7}, nil
 		},
 	}
 	h, stdout, _ := newHandlers(t, client, nil)
-	if err := h.Generate([]string{"--model", "llama3.2:1b", "--prompt", "hi", "--json"}); err != nil {
+	if err := h.Generate([]string{"--model", "llama3.2:1b", "--prompt", "hi", "--max-tokens", "123", "--temperature", "0.25", "--json"}); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 	var got struct {
-		Response string `json:"response"`
+		Response  string `json:"response"`
+		EvalCount int    `json:"eval_count"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
 		t.Fatalf("decode: %v (raw=%q)", err, stdout.String())
 	}
 	if got.Response != "hello!" {
 		t.Fatalf("response = %q", got.Response)
+	}
+	if got.EvalCount != 7 {
+		t.Fatalf("eval_count = %d, want 7", got.EvalCount)
 	}
 }
 
@@ -205,7 +215,7 @@ func TestAcquireRespectsContextDeadline(t *testing.T) {
 	h := &Handlers{
 		NewClient: func() Client { return &fakeClient{} },
 		Sem:       sem,
-		GetEnv:    func(k string) string {
+		GetEnv: func(k string) string {
 			if k == envAcquireTO {
 				return "30ms"
 			}

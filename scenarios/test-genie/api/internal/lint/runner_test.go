@@ -7,9 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
+
 	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
-	"testing"
 )
 
 type stubCommandRunner struct {
@@ -210,6 +211,53 @@ func TestRunner_Run_MixedComponentsRootOverridesIgnoreAndPolicy(t *testing.T) {
 	}
 	if ui, ok := seen["ui"]; !ok || ui.Matched || len(ui.PolicyFindings) != 1 {
 		t.Fatalf("expected unmatched ui with one policy finding, got %+v", seen["ui"])
+	}
+}
+
+func TestRunner_Run_DiscoversNestedToolProject(t *testing.T) {
+	tmpDir := t.TempDir()
+	toolDir := filepath.Join(tmpDir, "tools", "temporal-model")
+	if err := os.MkdirAll(toolDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(toolDir, "go.mod"), []byte("module example.com/temporal-model\n\ngo 1.23\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(toolDir, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	settings := DefaultSettings()
+	result := New(Config{
+		ScenarioDir:  tmpDir,
+		ScenarioName: "demo",
+		CommandLookup: func(name string) (string, error) {
+			return "/tmp/" + name, nil
+		},
+		CommandRunner: stubCommandRunner{
+			byName: map[string]execution.Result{
+				"golangci-lint": {Stdout: []byte(`{"Issues":[]}`), ExitCode: 0},
+			},
+		},
+		Settings: settings,
+	}).Run(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success for nested tool project, got error: %v", result.Error)
+	}
+	seen := map[string]ComponentResult{}
+	for _, component := range result.Components {
+		seen[component.Component.Name] = component
+	}
+	tool, ok := seen["tools/temporal-model"]
+	if !ok {
+		t.Fatalf("expected nested tool component, got %+v", result.Components)
+	}
+	if tool.HandlerID != HandlerGoModule {
+		t.Fatalf("expected nested tool to use go_module, got %+v", tool)
+	}
+	if parent, ok := seen["tools"]; ok && len(parent.PolicyFindings) > 0 {
+		t.Fatalf("expected parent tools directory to avoid unmatched policy findings, got %+v", parent)
 	}
 }
 

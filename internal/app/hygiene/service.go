@@ -191,9 +191,9 @@ func contractFinding(name, message string) Finding {
 				Fixability: FixabilityGuided,
 			},
 			{
-				Code:       "remove_vrooli_logs",
-				Message:    "If .vrooli/logs is generated local state, remove it.",
-				Command:    "rm -rf .vrooli/logs",
+				Code:       "remove_generated_vrooli_state",
+				Message:    "If .vrooli/logs or .vrooli/state are generated local state, remove them.",
+				Command:    "rm -rf .vrooli/logs .vrooli/state",
 				Fixability: FixabilityGuided,
 			},
 		}

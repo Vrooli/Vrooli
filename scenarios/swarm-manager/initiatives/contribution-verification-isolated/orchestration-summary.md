@@ -8,7 +8,7 @@ Lets the inbound triage team safely run incoming PR patches and scenario proposa
 
 - **vrooli-bridge is the verification runtime.** Don't build a second isolated-install mechanism — reuse what we have.
 - **Isolated install is reset between verification runs.** No cross-contamination between candidate contributions.
-- **Verified-fail is a strong rejection signal.** Feeds into the contribution-inbound-triage team's working-notebook with high weight, making the learning loop tighter.
+- **Verified-fail is a strong rejection signal.** Feeds into the contribution-inbound-triage team's typed rejection evidence with high weight, making the learning loop tighter.
 - **Verification is not auto-approval.** A passing verification is a necessary-but-not-sufficient signal; triage team still makes the final call.
 
 ## Deferred to Research

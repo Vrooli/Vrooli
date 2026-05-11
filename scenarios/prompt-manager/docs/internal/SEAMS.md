@@ -19,7 +19,7 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 │       │          │          │          │                    │
 │  ┌────┴──────────┴──────────┴──────────┴───────────────┐   │
 │  │                   Interfaces                         │   │
-│  │  SkillStore │ AgentStore │ TeamStore │ OllamaClient │   │
+│  │  SkillStore │ AgentStore │ TeamStore │  LLMClient   │   │
 │  └────┬──────────┴──────────┴──────────┴──────┬────────┘   │
 └───────┼─────────────────────────────────────────┼───────────┘
         │ Production                              │ Testing

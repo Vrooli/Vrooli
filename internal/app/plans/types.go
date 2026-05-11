@@ -7,8 +7,6 @@ type PlanRecord struct {
 	Title       string    `json:"title"`
 	Slug        string    `json:"slug"`
 	Path        string    `json:"path"`
-	RepoKey     string    `json:"repo_key"`
-	RepoName    string    `json:"repo_name,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	Archived    bool      `json:"archived"`

@@ -45,8 +45,12 @@ func writeOnboardingScenarioFixture(t *testing.T, root string) {
 	testkitgo.WriteFile(t, scenario.ServicePath(root, onboardingSlug), "{}\n")
 }
 
-func writeSetupCompleteMarker(t *testing.T, root string) error {
+func writeSetupCompleteMarker(t *testing.T, home, root string) error {
 	t.Helper()
-	testkitgo.WriteFile(t, projectstate.SetupCompletePath(root), "ok\n")
+	locator, err := projectstate.NewLocator(home, root)
+	if err != nil {
+		return err
+	}
+	testkitgo.WriteFile(t, locator.SetupCompletePath(), "ok\n")
 	return nil
 }

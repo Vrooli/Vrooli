@@ -12,6 +12,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"prompt-manager/actions"
 	"prompt-manager/agents"
 	"prompt-manager/aisearch"
@@ -30,9 +34,6 @@ import (
 	"prompt-manager/topics"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -96,9 +97,21 @@ func main() {
 	}
 
 	// Configuration from environment
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		log.Println("OLLAMA_URL not provided - skill testing will be disabled")
+	ollamaEnabled := false
+	if raw := strings.TrimSpace(os.Getenv("OLLAMA_ENABLED")); raw != "" {
+		parsed, err := strconv.ParseBool(raw)
+		if err != nil {
+			log.Printf("Invalid OLLAMA_ENABLED=%q - skill testing will be disabled", raw)
+		} else {
+			ollamaEnabled = parsed
+		}
+	}
+	ollamaGatewayBin := strings.TrimSpace(os.Getenv("OLLAMA_GATEWAY_BIN"))
+	if ollamaGatewayBin == "" {
+		ollamaGatewayBin = "resource-ollama"
+	}
+	if !ollamaEnabled {
+		log.Println("OLLAMA_ENABLED not set to true - skill testing will be disabled")
 	}
 
 	// Storage configuration
@@ -137,7 +150,7 @@ func main() {
 	metricsRepo := metrics.NewRepository(db)
 	tagsRepo := tags.NewRepository(db)
 	testingRepo := testing.NewRepository(db)
-	ollamaClient := testing.NewOllamaClient(ollamaURL)
+	ollamaClient := testing.NewOllamaClient(ollamaEnabled, ollamaGatewayBin)
 
 	// Initialize handlers with interface adapters
 	metricsAdapter := skills.NewMetricsAdapter(metricsRepo)
@@ -282,8 +295,8 @@ func main() {
 	// AI Search: build the Reconciler + SyncLoop and wire them through the
 	// handlers. The reconciler replaces the old count-based reindex loop with
 	// a hash-driven Plan/Apply pipeline (see scenarios/prompt-manager/docs/...).
-	if ollamaURL != "" && qdrantURL != "" {
-		log.Printf("AI Search: Ollama=%s, Qdrant=%s, Collection=%s", ollamaURL, qdrantURL, aiSearchCollection)
+	if qdrantURL != "" {
+		log.Printf("AI Search: Ollama gateway=%s, Qdrant=%s, Collection=%s", ollamaGatewayBin, qdrantURL, aiSearchCollection)
 		go func() {
 			ctx := context.Background()
 			if !aiSearchService.Available(ctx) {
@@ -673,8 +686,8 @@ func main() {
 
 	log.Printf("Prompt Manager API v2.0 starting")
 	log.Printf("Store directory: %s", storeDir)
-	if ollamaURL != "" {
-		log.Printf("Ollama: %s", ollamaURL)
+	if ollamaEnabled {
+		log.Printf("Ollama gateway: %s", ollamaGatewayBin)
 	}
 
 	handler := corsHandler(router)

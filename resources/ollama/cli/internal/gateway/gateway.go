@@ -39,7 +39,7 @@ const (
 // satisfied by *ensure.Client in production and by fakes in tests.
 type Client interface {
 	Embed(ctx context.Context, model, input string) ([]float64, error)
-	Generate(ctx context.Context, in ensure.GenerateRequest) (string, error)
+	Generate(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error)
 }
 
 // Handlers owns the runtime dependencies for the gateway subcommand group.
@@ -84,7 +84,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{
 				Name:        "generate",
 				Description: "Generate a completion for --prompt (or stdin) using --model",
-				Usage:       "resource-ollama gateway generate --model <name> [--json] [--prompt <text> | --prompt-stdin]",
+				Usage:       "resource-ollama gateway generate --model <name> [--json] [--max-tokens <n>] [--temperature <f>] [--prompt <text> | --prompt-stdin]",
 				Run:         h.Generate,
 			},
 		},
@@ -142,7 +142,9 @@ func (h *Handlers) Generate(args []string) error {
 	model := fs.String("model", "", "Ollama model reference")
 	prompt := fs.String("prompt", "", "Inline prompt text")
 	fromStdin := fs.Bool("prompt-stdin", false, "Read prompt from stdin")
-	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"response\":\"...\"} on stdout")
+	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
+	temperature := fs.Float64("temperature", -1, "Sampling temperature; omitted when < 0")
+	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"response\":\"...\",\"eval_count\":0} on stdout")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -160,16 +162,24 @@ func (h *Handlers) Generate(args []string) error {
 	}
 	defer release()
 
-	out, err := h.NewClient().Generate(ctx, ensure.GenerateRequest{Model: *model, Prompt: text})
+	req := ensure.GenerateRequest{Model: *model, Prompt: text}
+	if *maxTokens > 0 {
+		req.NumPredict = maxTokens
+	}
+	if *temperature >= 0 {
+		req.Temperature = temperature
+	}
+	out, err := h.NewClient().Generate(ctx, req)
 	if err != nil {
 		return err
 	}
 	if *asJSON {
 		return json.NewEncoder(h.Stdout).Encode(struct {
-			Response string `json:"response"`
-		}{Response: out})
+			Response  string `json:"response"`
+			EvalCount int    `json:"eval_count"`
+		}{Response: out.Response, EvalCount: out.EvalCount})
 	}
-	_, err = fmt.Fprint(h.Stdout, out)
+	_, err = fmt.Fprint(h.Stdout, out.Response)
 	return err
 }
 

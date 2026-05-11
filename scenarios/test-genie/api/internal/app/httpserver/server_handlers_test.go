@@ -11,13 +11,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"testing"
+	"time"
+
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/queue"
 	"test-genie/internal/scenarios"
 	"test-genie/internal/shared"
-	"testing"
-	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -415,6 +416,53 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 				tt.assert(t, tt.executor)
 			}
 		})
+	}
+}
+
+func TestServer_handleExecuteSuiteIncludesFailureDetails(t *testing.T) {
+	server := &Server{
+		config: Config{Port: "0"},
+		router: mux.NewRouter(),
+		executionSvc: &stubSuiteExecutor{
+			err: errors.New("start target scenario demo: exit status 2"),
+		},
+		logger: log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/executions", strings.NewReader(`{
+		"scenarioName": "demo",
+		"scenarioPath": "/tmp/vrooli-template/scenarios/demo"
+	}`))
+	rec := httptest.NewRecorder()
+
+	server.handleExecuteSuite(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Success  bool     `json:"success"`
+		Error    string   `json:"error"`
+		Errors   []string `json:"errors"`
+		Metadata struct {
+			ScenarioName string `json:"scenarioName"`
+			ScenarioPath string `json:"scenarioPath"`
+		} `json:"metadata"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Success {
+		t.Fatal("expected success=false")
+	}
+	if payload.Error != "suite execution failed" {
+		t.Fatalf("error = %q", payload.Error)
+	}
+	if len(payload.Errors) != 1 || payload.Errors[0] != "start target scenario demo: exit status 2" {
+		t.Fatalf("errors = %#v", payload.Errors)
+	}
+	if payload.Metadata.ScenarioName != "demo" || payload.Metadata.ScenarioPath != "/tmp/vrooli-template/scenarios/demo" {
+		t.Fatalf("metadata = %#v", payload.Metadata)
 	}
 }
 

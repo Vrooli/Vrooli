@@ -194,43 +194,63 @@ func (c *Client) Embed(ctx context.Context, model, input string) ([]float64, err
 // always false at this layer — callers wanting NDJSON should add a separate
 // streaming entrypoint when needed.
 type GenerateRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
+	Model       string   `json:"model"`
+	Prompt      string   `json:"prompt"`
+	NumPredict  *int     `json:"num_predict,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 }
 
 // GenerateResponse captures the buffered (stream=false) shape.
 type GenerateResponse struct {
-	Response string `json:"response"`
-	Done     bool   `json:"done"`
+	Response  string `json:"response"`
+	Done      bool   `json:"done"`
+	EvalCount int    `json:"eval_count,omitempty"`
 }
 
 // Generate calls /api/generate with stream=false and returns the full response.
-func (c *Client) Generate(ctx context.Context, in GenerateRequest) (string, error) {
-	body, err := json.Marshal(struct {
-		Model  string `json:"model"`
-		Prompt string `json:"prompt"`
-		Stream bool   `json:"stream"`
-	}{Model: in.Model, Prompt: in.Prompt, Stream: false})
+func (c *Client) Generate(ctx context.Context, in GenerateRequest) (GenerateResponse, error) {
+	options := map[string]any{}
+	if in.NumPredict != nil {
+		options["num_predict"] = *in.NumPredict
+	}
+	if in.Temperature != nil {
+		options["temperature"] = *in.Temperature
+	}
+	requestBody := struct {
+		Model   string         `json:"model"`
+		Prompt  string         `json:"prompt"`
+		Stream  bool           `json:"stream"`
+		Options map[string]any `json:"options,omitempty"`
+	}{
+		Model:   in.Model,
+		Prompt:  in.Prompt,
+		Stream:  false,
+		Options: options,
+	}
+	if len(options) == 0 {
+		requestBody.Options = nil
+	}
+	body, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", err
+		return GenerateResponse{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/api/generate", bytes.NewReader(body))
 	if err != nil {
-		return "", err
+		return GenerateResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("generate: %w", err)
+		return GenerateResponse{}, fmt.Errorf("generate: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return "", fmt.Errorf("generate: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		return GenerateResponse{}, fmt.Errorf("generate: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 	var parsed GenerateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return "", fmt.Errorf("decode generate response: %w", err)
+		return GenerateResponse{}, fmt.Errorf("decode generate response: %w", err)
 	}
-	return parsed.Response, nil
+	return parsed, nil
 }

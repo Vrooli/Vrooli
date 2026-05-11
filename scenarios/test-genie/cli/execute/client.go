@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"test-genie/cli/internal/apijson"
+	"strings"
 	"time"
+
+	"test-genie/cli/internal/apijson"
 
 	"github.com/vrooli/cli-core/cliutil"
 
@@ -112,19 +114,49 @@ func (c *Client) resolveBaseURL() string {
 func extractErrorMessage(data []byte) string {
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(data, &parsed); err == nil {
+		parts := make([]string, 0, 2)
 		if errObj, ok := parsed["error"].(map[string]interface{}); ok {
 			if msg, ok := errObj["message"].(string); ok {
-				return msg
+				parts = append(parts, msg)
 			}
 		}
 		if msg, ok := parsed["message"].(string); ok {
-			return msg
+			parts = append(parts, msg)
+		}
+		if msg, ok := parsed["error"].(string); ok {
+			parts = append(parts, msg)
+		}
+		if details, ok := parsed["errors"].([]interface{}); ok {
+			for _, detail := range details {
+				if msg, ok := detail.(string); ok && msg != "" {
+					parts = append(parts, msg)
+				}
+			}
+		}
+		if len(parts) > 0 {
+			return joinUnique(parts, ": ")
 		}
 	}
 	if len(data) > 200 {
 		return string(data[:200]) + "..."
 	}
 	return string(data)
+}
+
+func joinUnique(parts []string, sep string) string {
+	seen := make(map[string]struct{}, len(parts))
+	unique := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		if _, ok := seen[part]; ok {
+			continue
+		}
+		seen[part] = struct{}{}
+		unique = append(unique, part)
+	}
+	return strings.Join(unique, sep)
 }
 
 func parseRunResponse(body []byte) (Response, error) {

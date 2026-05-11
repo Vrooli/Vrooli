@@ -475,6 +475,51 @@ func TestRunTemplateValidateDeepParsesTestGenieJSONOnNonzeroExit(t *testing.T) {
 	}
 }
 
+func TestRunTemplateValidateDeepReportsTestGenieStartupErrorDetails(t *testing.T) {
+	repoRoot := t.TempDir()
+	seedRepoContract(t, repoRoot)
+	templateName := "demo-template"
+	templateDir := filepath.Join(repoRoot, "templates", "scenarios", templateName)
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatalf("mkdir template dir: %v", err)
+	}
+	writeTestFile(t, filepath.Join(templateDir, "template.json"), `{
+  "name": "demo-template",
+  "requiredVars": {
+    "SCENARIO_ID": {"flag": "id"},
+    "SCENARIO_DISPLAY_NAME": {"flag": "display-name"},
+    "SCENARIO_DESCRIPTION": {"flag": "description"}
+  }
+}`)
+	writeTestFile(t, filepath.Join(templateDir, "README.md"), "# {{SCENARIO_DISPLAY_NAME}}\n")
+	var stdout, stderr strings.Builder
+	capture := &capturedSubprocess{
+		stdout: `{
+  "success": false,
+  "error": "suite execution failed",
+  "errors": ["start target scenario demo: exit status 2"]
+}`,
+		err: errors.New("api error (500): suite execution failed"),
+	}
+	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
+	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
+
+	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+		Mode:         scenariocli.TemplateValidationModeDeep,
+		TemplateName: templateName,
+		TestPreset:   "quick",
+	})
+	if err != nil {
+		t.Fatalf("runTemplateValidate(deep) error = %v", err)
+	}
+	if len(report.Issues) != 1 {
+		t.Fatalf("issues = %#v", report.Issues)
+	}
+	if !strings.Contains(report.Issues[0].Message, "start target scenario demo: exit status 2") {
+		t.Fatalf("issue message = %q", report.Issues[0].Message)
+	}
+}
+
 func TestRunTemplateValidateDeepKeepsRelocationsDuringTestGenie(t *testing.T) {
 	repoRoot := t.TempDir()
 	seedRepoContract(t, repoRoot)

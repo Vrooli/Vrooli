@@ -1,10 +1,12 @@
 package plans
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -28,7 +30,6 @@ type Service struct {
 
 type indexFile struct {
 	Version int          `json:"version"`
-	RepoKey string       `json:"repo_key"`
 	Plans   []PlanRecord `json:"plans"`
 }
 
@@ -36,32 +37,30 @@ const indexFilename = "_index.json"
 
 func (s Service) Add(req AddRequest) (AddOutput, error) {
 	title := strings.TrimSpace(req.Title)
-	if title == "" {
-		return AddOutput{}, fmt.Errorf("title is required")
-	}
 	content := strings.TrimSpace(req.Content)
 	if content == "" {
 		return AddOutput{}, fmt.Errorf("plan content is required")
 	}
-	now := s.now()
-	repoRoot := s.repoRoot(req.Repo)
-	repoKey := RepoKey(repoRoot)
-	repoName := repoName(repoRoot)
 	slug := slugOrDefault(req.Slug, title)
-	idx, err := s.loadIndex(repoKey)
+	if slug == "" {
+		slug = s.generatedSlug()
+	}
+	if title == "" {
+		title = titleFromSlug(slug)
+	}
+	now := s.now()
+	idx, err := s.loadIndex()
 	if err != nil {
 		return AddOutput{}, err
 	}
 	slug = uniqueSlug(slug, idx.Plans)
-	id := uniqueID(now.Format("20060102")+"-"+slug, idx.Plans)
-	path := filepath.Join(s.repoDir(repoKey), now.Format("2006-01-02")+"-"+slug+".md")
+	id := uniqueID(slug, idx.Plans)
+	path := filepath.Join(s.storageDir(), slug+".md")
 	record := PlanRecord{
 		ID:          id,
 		Title:       title,
 		Slug:        slug,
 		Path:        path,
-		RepoKey:     repoKey,
-		RepoName:    repoName,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 		ContentHash: contentHash(content),
@@ -73,7 +72,7 @@ func (s Service) Add(req AddRequest) (AddOutput, error) {
 		return AddOutput{}, err
 	}
 	idx.Plans = append(idx.Plans, record)
-	if err := s.saveIndex(repoKey, idx); err != nil {
+	if err := s.saveIndex(idx); err != nil {
 		return AddOutput{}, err
 	}
 	return AddOutput{Success: true, Plan: record}, nil
@@ -87,7 +86,7 @@ func (s Service) List(req ListRequest) (ListOutput, error) {
 		}
 		return ListOutput{Success: true, Plans: records}, nil
 	}
-	idx, err := s.loadIndex(RepoKey(s.repoRoot(req.Repo)))
+	idx, err := s.loadIndex()
 	if err != nil {
 		return ListOutput{}, err
 	}
@@ -115,8 +114,7 @@ func (s Service) Path(req ShowRequest) (PathOutput, error) {
 }
 
 func (s Service) Archive(req ArchiveRequest) (ArchiveOutput, error) {
-	repoKey := RepoKey(s.repoRoot(req.Repo))
-	idx, err := s.loadIndex(repoKey)
+	idx, err := s.loadIndex()
 	if err != nil {
 		return ArchiveOutput{}, err
 	}
@@ -128,7 +126,7 @@ func (s Service) Archive(req ArchiveRequest) (ArchiveOutput, error) {
 	idx.Plans[pos].Archived = true
 	idx.Plans[pos].ArchivedAt = now
 	idx.Plans[pos].UpdatedAt = now
-	if err := s.saveIndex(repoKey, idx); err != nil {
+	if err := s.saveIndex(idx); err != nil {
 		return ArchiveOutput{}, err
 	}
 	return ArchiveOutput{Success: true, Plan: idx.Plans[pos]}, nil
@@ -193,7 +191,7 @@ func (s Service) Export(req ExportRequest) (ExportOutput, error) {
 }
 
 func (s Service) updateRecord(record PlanRecord) error {
-	idx, err := s.loadIndex(record.RepoKey)
+	idx, err := s.loadIndex()
 	if err != nil {
 		return err
 	}
@@ -202,7 +200,7 @@ func (s Service) updateRecord(record PlanRecord) error {
 		return err
 	}
 	idx.Plans[pos] = record
-	return s.saveIndex(record.RepoKey, idx)
+	return s.saveIndex(idx)
 }
 
 func (s Service) find(ref, repo string) (PlanRecord, error) {
@@ -210,7 +208,7 @@ func (s Service) find(ref, repo string) (PlanRecord, error) {
 	if ref == "" {
 		return PlanRecord{}, fmt.Errorf("plan id or slug is required")
 	}
-	idx, err := s.loadIndex(RepoKey(s.repoRoot(repo)))
+	idx, err := s.loadIndex()
 	if err != nil {
 		return PlanRecord{}, err
 	}
@@ -222,35 +220,21 @@ func (s Service) find(ref, repo string) (PlanRecord, error) {
 }
 
 func (s Service) listAll(includeArchived bool) ([]PlanRecord, error) {
-	base := s.storageDir()
-	entries, err := os.ReadDir(base)
+	idx, err := s.loadIndex()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
-	var records []PlanRecord
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		idx, err := s.loadIndex(entry.Name())
-		if err != nil {
-			continue
-		}
-		records = append(records, filterArchived(idx.Plans, includeArchived)...)
-	}
+	records := filterArchived(idx.Plans, includeArchived)
 	sortRecords(records)
 	return records, nil
 }
 
-func (s Service) loadIndex(repoKey string) (indexFile, error) {
-	path := s.indexPath(repoKey)
+func (s Service) loadIndex() (indexFile, error) {
+	path := s.indexPath()
 	data, err := s.readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return indexFile{Version: 1, RepoKey: repoKey}, nil
+			return indexFile{Version: 1}, nil
 		}
 		return indexFile{}, fmt.Errorf("read plan index: %w", err)
 	}
@@ -261,25 +245,21 @@ func (s Service) loadIndex(repoKey string) (indexFile, error) {
 	if idx.Version == 0 {
 		idx.Version = 1
 	}
-	if idx.RepoKey == "" {
-		idx.RepoKey = repoKey
-	}
 	sortRecords(idx.Plans)
 	return idx, nil
 }
 
-func (s Service) saveIndex(repoKey string, idx indexFile) error {
+func (s Service) saveIndex(idx indexFile) error {
 	idx.Version = 1
-	idx.RepoKey = repoKey
 	sortRecords(idx.Plans)
-	if err := s.mkdirAll(s.repoDir(repoKey), 0o755); err != nil {
+	if err := s.mkdirAll(s.storageDir(), 0o755); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(idx, "", "  ")
 	if err != nil {
 		return err
 	}
-	return s.writeFile(s.indexPath(repoKey), append(data, '\n'), 0o600)
+	return s.writeFile(s.indexPath(), append(data, '\n'), 0o600)
 }
 
 func (s Service) storageDir() string {
@@ -292,12 +272,8 @@ func (s Service) storageDir() string {
 	return filepath.Join(configpkg.VrooliDir(home), "plans")
 }
 
-func (s Service) repoDir(repoKey string) string {
-	return filepath.Join(s.storageDir(), repoKey)
-}
-
-func (s Service) indexPath(repoKey string) string {
-	return filepath.Join(s.repoDir(repoKey), indexFilename)
+func (s Service) indexPath() string {
+	return filepath.Join(s.storageDir(), indexFilename)
 }
 
 func (s Service) repoRoot(override string) string {
@@ -351,36 +327,15 @@ func (s Service) remove(path string) error {
 	return os.Remove(path)
 }
 
-func RepoKey(root string) string {
-	clean := filepath.ToSlash(filepath.Clean(strings.TrimSpace(root)))
-	if clean == "" || clean == "." {
-		clean = "unknown"
-	}
-	name := slugify(repoName(clean))
-	if name == "" {
-		name = "repo"
-	}
-	sum := sha256.Sum256([]byte(strings.ToLower(clean)))
-	return name + "-" + hex.EncodeToString(sum[:])[:10]
-}
-
-func repoName(root string) string {
-	base := filepath.Base(filepath.Clean(root))
-	if base == "." || base == string(filepath.Separator) || base == "" {
-		return "unknown"
-	}
-	return base
+func (s Service) generatedSlug() string {
+	return randomWord(planAdjectives) + "-" + randomWord(planNouns)
 }
 
 func slugOrDefault(slug, title string) string {
 	if cleaned := slugify(slug); cleaned != "" {
 		return cleaned
 	}
-	cleaned := slugify(title)
-	if cleaned == "" {
-		return "plan"
-	}
-	return cleaned
+	return slugify(title)
 }
 
 var slugCleaner = regexp.MustCompile(`[^a-z0-9]+`)
@@ -481,4 +436,53 @@ func titleFromContentOrPath(content, path string) string {
 	}
 	base := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	return strings.ReplaceAll(base, "-", " ")
+}
+
+func titleFromSlug(slug string) string {
+	words := strings.Split(slug, "-")
+	for i, word := range words {
+		if word == "" {
+			continue
+		}
+		words[i] = strings.ToUpper(word[:1]) + word[1:]
+	}
+	return strings.Join(words, " ")
+}
+
+func randomWord(words []string) string {
+	if len(words) == 0 {
+		return "plan"
+	}
+	max := big.NewInt(int64(len(words)))
+	n, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return words[time.Now().UTC().Nanosecond()%len(words)]
+	}
+	return words[n.Int64()]
+}
+
+var planAdjectives = []string{
+	"bright",
+	"calm",
+	"clear",
+	"crisp",
+	"direct",
+	"fresh",
+	"plain",
+	"steady",
+	"swift",
+	"tidy",
+}
+
+var planNouns = []string{
+	"anchor",
+	"bridge",
+	"field",
+	"frame",
+	"harbor",
+	"ledger",
+	"signal",
+	"thread",
+	"trail",
+	"window",
 }

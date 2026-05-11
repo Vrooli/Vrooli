@@ -26,18 +26,29 @@ import (
 
 func TestMarkCompleteWritesSetupMarker(t *testing.T) {
 	root := t.TempDir()
+	home := t.TempDir()
 
-	if err := markComplete(root); err != nil {
+	if err := markComplete(home, root); err != nil {
 		t.Fatalf("markComplete: %v", err)
 	}
 
-	setupMarker := projectstate.SetupCompletePath(root)
+	locator, err := projectstate.NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("NewLocator: %v", err)
+	}
+	setupMarker := locator.SetupCompletePath()
 	payload := testkitgo.ReadJSONFile(t, setupMarker)
 	if payload["setup_version"] != "2.0.0" {
 		t.Fatalf("setup_version = %v", payload["setup_version"])
 	}
-	if _, err := os.Stat(projectstate.ResourcesPopulatedPath(root)); !os.IsNotExist(err) {
+	if payload["project_key"] != locator.ProjectKey() {
+		t.Fatalf("project_key = %v, want %q", payload["project_key"], locator.ProjectKey())
+	}
+	if _, err := os.Stat(locator.ResourcesPopulatedPath()); !os.IsNotExist(err) {
 		t.Fatalf("expected no resources marker, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".vrooli", "state")); !os.IsNotExist(err) {
+		t.Fatalf("expected no repo-local setup state, got %v", err)
 	}
 }
 
@@ -86,8 +97,11 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 	markCompleteCalled := false
-	svc.deps.markComplete = func(root string) error {
+	svc.deps.markComplete = func(gotHome, gotRoot string) error {
 		markCompleteCalled = true
+		if gotHome != home || gotRoot != root {
+			t.Fatalf("markComplete inputs = (%q, %q), want (%q, %q)", gotHome, gotRoot, home, root)
+		}
 		return nil
 	}
 	schemaSyncCalled := false
@@ -126,6 +140,19 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "data")); err != nil {
 		t.Fatalf("expected data dir: %v", err)
 	}
+	if _, err := os.Stat(filepath.Join(root, ".vrooli", "logs")); !os.IsNotExist(err) {
+		t.Fatalf("expected no repo-local logs dir, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".vrooli", "state")); !os.IsNotExist(err) {
+		t.Fatalf("expected no repo-local state dir, got %v", err)
+	}
+	locator, err := projectstate.NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("NewLocator: %v", err)
+	}
+	if _, err := os.Stat(locator.SetupStateDir()); err != nil {
+		t.Fatalf("expected user-home setup state dir: %v", err)
+	}
 }
 
 func TestRunSetupTriggersOnboardingAfterSuccessfulSetup(t *testing.T) {
@@ -148,8 +175,11 @@ func TestRunSetupTriggersOnboardingAfterSuccessfulSetup(t *testing.T) {
 	}
 
 	markCompleteCalled := false
-	svc.deps.markComplete = func(root string) error {
+	svc.deps.markComplete = func(gotHome, gotRoot string) error {
 		markCompleteCalled = true
+		if gotHome != home || gotRoot != root {
+			t.Fatalf("markComplete inputs = (%q, %q), want (%q, %q)", gotHome, gotRoot, home, root)
+		}
 		return nil
 	}
 
@@ -210,7 +240,7 @@ func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
 	}
 
 	markCompleteCalled := false
-	svc.deps.markComplete = func(root string) error {
+	svc.deps.markComplete = func(string, string) error {
 		markCompleteCalled = true
 		return nil
 	}
@@ -309,7 +339,7 @@ func TestRunSetupPassesScenarioSelectionToResolver(t *testing.T) {
 	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
-	svc.deps.markComplete = func(root string) error { return nil }
+	svc.deps.markComplete = func(string, string) error { return nil }
 
 	if err := svc.RunSetupWithOptions(root, home, Options{Scenarios: "alpha,beta", Resources: "none", DryRun: true}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
@@ -414,7 +444,7 @@ func TestRunSetupDryRunPrintsSingleGroupedResult(t *testing.T) {
 			},
 		}, nil
 	}
-	svc.deps.markComplete = func(root string) error { return nil }
+	svc.deps.markComplete = func(string, string) error { return nil }
 
 	stdout := &strings.Builder{}
 	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none", Scenarios: "alpha", DryRun: true}, stdout, io.Discard); err != nil {
@@ -599,9 +629,9 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	}
 
 	setupCalls := 0
-	svc.deps.markComplete = func(root string) error {
+	svc.deps.markComplete = func(gotHome, gotRoot string) error {
 		setupCalls++
-		return writeSetupCompleteMarker(t, root)
+		return writeSetupCompleteMarker(t, gotHome, gotRoot)
 	}
 
 	apiStarted := false
@@ -655,7 +685,7 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	projectScenario := writeProjectFixture(t, root)
 	testresource.WritePortRegistry(t, root, nil)
 	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
-	if err := writeSetupCompleteMarker(t, root); err != nil {
+	if err := writeSetupCompleteMarker(t, home, root); err != nil {
 		t.Fatalf("write setup marker: %v", err)
 	}
 
@@ -672,7 +702,7 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	}
 
 	setupCalls := 0
-	svc.deps.markComplete = func(root string) error {
+	svc.deps.markComplete = func(string, string) error {
 		setupCalls++
 		return nil
 	}
@@ -696,7 +726,7 @@ func TestRunDevelopTriggersOnboardingFallback(t *testing.T) {
 	projectScenario := writeProjectFixture(t, root)
 	testresource.WritePortRegistry(t, root, nil)
 	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
-	if err := writeSetupCompleteMarker(t, root); err != nil {
+	if err := writeSetupCompleteMarker(t, home, root); err != nil {
 		t.Fatalf("write setup marker: %v", err)
 	}
 

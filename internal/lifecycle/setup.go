@@ -59,7 +59,7 @@ func (r *Runner) evaluateSetupCheck(item scenario.Scenario, check scenario.Condi
 	case "ui-bundle":
 		return uiBundleNeedsSetup(item.Path, check)
 	case "resources":
-		return resourcesNeedSetup(item.Path, check), "Resources not populated", nil
+		return resourcesNeedSetup(r.Home, item.Path, check), "Resources not populated", nil
 	case "dependencies":
 		return dependenciesNeedSetup(item.Path, check), "Dependencies not installed", nil
 	case "data":

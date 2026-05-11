@@ -1313,15 +1313,19 @@ func hasGlobPattern(value string) bool {
 	return strings.ContainsAny(value, "*?[")
 }
 
-func resourcesNeedSetup(appRoot string, check scenario.ConditionCheck) bool {
+func resourcesNeedSetup(home, appRoot string, check scenario.ConditionCheck) bool {
+	locator, err := projectstate.NewLocator(home, appRoot)
+	if err != nil {
+		return true
+	}
 	if check.Populated {
-		return !projectstate.HasResourcesPopulated(appRoot)
+		return !locator.HasResourcesPopulated()
 	}
 	if len(check.Resources) == 0 {
-		return !projectstate.HasResourcesPopulated(appRoot)
+		return !locator.HasResourcesPopulated()
 	}
 	for _, resourceName := range check.Resources {
-		if !projectstate.HasResourcePopulated(appRoot, resourceName) {
+		if !locator.HasResourcePopulated(resourceName) {
 			return true
 		}
 	}

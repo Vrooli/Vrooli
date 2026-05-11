@@ -27,8 +27,12 @@ func TestServiceAddListShowArchive(t *testing.T) {
 	if !added.Success {
 		t.Fatalf("Add success = false")
 	}
-	if !strings.Contains(filepath.ToSlash(added.Plan.Path), "/.vrooli/plans/") {
-		t.Fatalf("plan path = %q, want user-scoped .vrooli plan path", added.Plan.Path)
+	wantPath := filepath.Join(home, ".vrooli", "plans", "plan-lifecycle-hygiene.md")
+	if added.Plan.Path != wantPath {
+		t.Fatalf("plan path = %q, want %q", added.Plan.Path, wantPath)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".vrooli", "plans", "_index.json")); err != nil {
+		t.Fatalf("flat index not written: %v", err)
 	}
 	if strings.HasPrefix(filepath.Clean(added.Plan.Path), filepath.Clean(repo)) {
 		t.Fatalf("plan path %q should not be under repo %q", added.Plan.Path, repo)
@@ -67,6 +71,53 @@ func TestServiceAddListShowArchive(t *testing.T) {
 	}
 }
 
+func TestServiceAddUsesFlatConflictSuffix(t *testing.T) {
+	home := t.TempDir()
+	repo := filepath.Join(t.TempDir(), "demo-repo")
+	svc := Service{Root: repo, Home: home}
+
+	first, err := svc.Add(AddRequest{Title: "Repeat Plan", Content: "# One\n"})
+	if err != nil {
+		t.Fatalf("Add first: %v", err)
+	}
+	second, err := svc.Add(AddRequest{Title: "Repeat Plan", Content: "# Two\n"})
+	if err != nil {
+		t.Fatalf("Add second: %v", err)
+	}
+	if first.Plan.Slug != "repeat-plan" {
+		t.Fatalf("first slug = %q, want repeat-plan", first.Plan.Slug)
+	}
+	if second.Plan.Slug != "repeat-plan-2" {
+		t.Fatalf("second slug = %q, want repeat-plan-2", second.Plan.Slug)
+	}
+	if filepath.Base(second.Plan.Path) != "repeat-plan-2.md" {
+		t.Fatalf("second path = %q, want repeat-plan-2.md basename", second.Plan.Path)
+	}
+}
+
+func TestServiceAddAllowsGeneratedTitle(t *testing.T) {
+	home := t.TempDir()
+	repo := filepath.Join(t.TempDir(), "demo-repo")
+	svc := Service{Root: repo, Home: home}
+
+	added, err := svc.Add(AddRequest{Content: "# Untitled body\n"})
+	if err != nil {
+		t.Fatalf("Add without title: %v", err)
+	}
+	if added.Plan.Title == "" {
+		t.Fatalf("generated title is empty")
+	}
+	if added.Plan.Slug == "" {
+		t.Fatalf("generated slug is empty")
+	}
+	if filepath.Dir(added.Plan.Path) != filepath.Join(home, ".vrooli", "plans") {
+		t.Fatalf("generated path = %q, want flat plan dir", added.Plan.Path)
+	}
+	if !strings.HasSuffix(added.Plan.Path, added.Plan.Slug+".md") {
+		t.Fatalf("generated path = %q, want slug filename %q", added.Plan.Path, added.Plan.Slug+".md")
+	}
+}
+
 func TestServiceImportAndExport(t *testing.T) {
 	home := t.TempDir()
 	repo := filepath.Join(t.TempDir(), "demo-repo")
@@ -85,6 +136,9 @@ func TestServiceImportAndExport(t *testing.T) {
 	}
 	if imported.Plan.SourcePath != source {
 		t.Fatalf("SourcePath = %q, want %q", imported.Plan.SourcePath, source)
+	}
+	if filepath.Base(imported.Plan.Path) != "legacy-plan.md" {
+		t.Fatalf("imported path = %q, want legacy-plan.md basename", imported.Plan.Path)
 	}
 	if _, err := os.Stat(source); err != nil {
 		t.Fatalf("source should be preserved by default: %v", err)

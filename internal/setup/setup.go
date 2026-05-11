@@ -71,7 +71,7 @@ type cliInstallManager interface {
 type setupDeps struct {
 	currentHost                 func() vrooliruntime.Host
 	loadProject                 func(string) (scenario.Scenario, error)
-	markComplete                func(string) error
+	markComplete                func(string, string) error
 	syncResourceSchema          func(string) error
 	newCLIInstallManager        func(root, home string) cliInstallManager
 	resolveHostRequirements     func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error)
@@ -199,7 +199,7 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	if err := cliManager.InstallAllScenarioCLIs(); err != nil {
 		return err
 	}
-	if err := s.deps.markComplete(root); err != nil {
+	if err := s.deps.markComplete(home, root); err != nil {
 		return err
 	}
 	if err := s.maybeOpenOnboarding(root, home, stdout, stderr); err != nil {
@@ -244,7 +244,7 @@ func (s *setupService) RunDevelopWithOptions(root, home string, opts Options, st
 		return err
 	}
 
-	if setupNeeded(root, projectScenario.Slug) {
+	if setupNeeded(home, root, projectScenario.Slug) {
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Running setup before develop")
 		if err := s.RunSetupWithOptions(root, home, opts, stdout, stderr); err != nil {
 			return err
@@ -322,14 +322,17 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 }
 
 func ensureProjectFilesystem(root, home string) error {
+	locator, err := projectstate.NewLocator(home, root)
+	if err != nil {
+		return err
+	}
 	paths := []string{
 		filepath.Join(root, "data"),
 		filepath.Join(root, ".vrooli", "build"),
-		filepath.Join(root, ".vrooli", "logs"),
-		projectstate.SetupStateDir(root),
 		filepath.Join(home, ".vrooli", "bin"),
 		filepath.Join(home, ".vrooli", "logs"),
 		filepath.Join(home, ".vrooli", "processes"),
+		locator.SetupStateDir(),
 	}
 	for _, path := range paths {
 		if err := os.MkdirAll(path, 0o755); err != nil {
@@ -457,11 +460,15 @@ func syncResourceSchemaArtifacts(root string) error {
 	return fmt.Errorf("resource schema sync failed")
 }
 
-func setupNeeded(root, slug string) bool {
+func setupNeeded(home, root, slug string) bool {
 	if forceSetupApplies(slug) {
 		return true
 	}
-	return !projectstate.HasSetupComplete(root)
+	locator, err := projectstate.NewLocator(home, root)
+	if err != nil {
+		return true
+	}
+	return !locator.HasSetupComplete()
 }
 
 func (s *setupService) applyDotEnv(root string) error {
@@ -797,8 +804,12 @@ func (s *setupService) resolveOnboardingURL(executable string) (string, error) {
 	}
 }
 
-func markComplete(root string) error {
-	stateDir := projectstate.SetupStateDir(root)
+func markComplete(home, root string) error {
+	locator, err := projectstate.NewLocator(home, root)
+	if err != nil {
+		return err
+	}
+	stateDir := locator.SetupStateDir()
 	if err := os.MkdirAll(stateDir, 0o755); err != nil {
 		return err
 	}
@@ -806,13 +817,15 @@ func markComplete(root string) error {
 	payload := map[string]any{
 		"setup_version": "2.0.0",
 		"completed_at":  time.Now().Format(time.RFC3339),
+		"project_key":   locator.ProjectKey(),
+		"root":          locator.Root(),
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return err
 	}
 	data = append(data, '\n')
-	if err := os.WriteFile(projectstate.SetupCompletePath(root), data, 0o644); err != nil {
+	if err := os.WriteFile(locator.SetupCompletePath(), data, 0o644); err != nil {
 		return err
 	}
 	return nil
