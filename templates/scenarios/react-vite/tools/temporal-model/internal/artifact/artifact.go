@@ -124,7 +124,7 @@ func Build(ctx context.Context, flow model.Flow, options BuildOptions) (Artifact
 			GeneratorPath:       GeneratorPath,
 			GeneratorSHA256:     generatorHash,
 			GeneratorVersion:    GeneratorVersion,
-			ModelPath:           flow.Outputs.ModelPath,
+			ModelPath:           flow.Layout.ModelPath,
 			ModelSHA256:         filesystem.SHA256String(options.Rendered),
 			QuintVersion:        options.QuintVersion,
 			VerificationBackend: VerificationBackendApalache,
@@ -162,11 +162,11 @@ func CanonicalJSON(value any) ([]byte, error) {
 func commandContract(flow model.Flow) map[string][]string {
 	invariants := append([]string(nil), flow.Model.Verify.Invariants...)
 	return map[string][]string{
-		spec.CommandTypecheck: {"quint", "typecheck", flow.Outputs.ModelPath},
-		spec.CommandTest:      {"quint", "test", flow.Outputs.ModelPath, "--seed", flow.Model.Seed},
-		spec.CommandVerify: append(append([]string{"quint", "verify", flow.Outputs.ModelPath, "--invariants"}, invariants...),
+		spec.CommandTypecheck: {"quint", "typecheck", flow.Layout.ModelPath},
+		spec.CommandTest:      {"quint", "test", flow.Layout.ModelPath, "--seed", flow.Model.Seed},
+		spec.CommandVerify: append(append([]string{"quint", "verify", flow.Layout.ModelPath, "--invariants"}, invariants...),
 			"--max-steps", fmt.Sprint(flow.Model.MaxSteps)),
-		spec.CommandRun: {"quint", "run", flow.Outputs.ModelPath, "--mbt", "--seed", flow.Model.Seed, "--max-samples", fmt.Sprint(flow.Model.TraceCount), "--n-traces", fmt.Sprint(flow.Model.TraceCount), "--max-steps", fmt.Sprint(flow.Model.MaxSteps), "--out-itf", spec.TempITFPattern},
+		spec.CommandRun: {"quint", "run", flow.Layout.ModelPath, "--mbt", "--seed", flow.Model.Seed, "--max-samples", fmt.Sprint(flow.Model.TraceCount), "--n-traces", fmt.Sprint(flow.Model.TraceCount), "--max-steps", fmt.Sprint(flow.Model.MaxSteps), "--out-itf", spec.TempITFPattern},
 	}
 }
 

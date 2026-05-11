@@ -1,14 +1,14 @@
-package notes_test
+package notes
 
 import (
 	"testing"
-	"{{SCENARIO_ID}}/internal/notes"
 
-	"github.com/stretchr/testify/require"
+	"{{SCENARIO_ID}}/internal/notes/generated/attachmentupload"
 )
 
-func TestAttachmentUploadWorkflow_RejectsUnknownState(t *testing.T) {
-	err := notes.CheckAttachmentUploadInvariants(notes.AttachmentUploadState{Status: "ghost"})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "unknown attachment upload status")
+func TestAttachmentUploadFormalReplay(t *testing.T) {
+	attachmentupload.RunReplay(t, func(s attachmentupload.AttachmentUploadStatus, e attachmentupload.AttachmentUploadEvent) (attachmentupload.AttachmentUploadStatus, error) {
+		next, err := TransitionAttachmentUpload(AttachmentUploadState{Status: s}, e)
+		return next.Status, err
+	})
 }

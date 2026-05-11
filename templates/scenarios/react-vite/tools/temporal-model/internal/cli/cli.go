@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"react-vite-temporal-model/internal/contract"
 	"react-vite-temporal-model/internal/discovery"
+	"react-vite-temporal-model/internal/layout"
 	"react-vite-temporal-model/internal/model"
 	"react-vite-temporal-model/internal/pipeline"
 	"react-vite-temporal-model/internal/quint"
@@ -118,14 +118,26 @@ func explain(stdout io.Writer, root string, flow model.Flow) error {
 func buildExplainReport(root string, flow model.Flow) string {
 	coverage := model.NamedTraceCoverage(flow)
 	var b strings.Builder
-	writeSection(&b, "", pair("flow", flow.FlowID), pair("contract", flow.ContractPath), pair("source of truth", "*.flow.json"))
-	writeSection(&b, "Generated files", generatedFileRows(flow)...)
+	handAuthored := handAuthoredFiles(flow)
+	writeSection(&b, "",
+		pair("flow", flow.FlowID),
+		pair("contract", flow.ContractPath),
+		pair("layout", fmt.Sprintf("hand-authored: %d file(s) at %s; generated: %s/", len(handAuthored), flow.Layout.BaseDir, flow.Layout.BaseDir+"/generated/"+flow.Layout.FolderName)),
+	)
+	writeSection(&b, "Hand-authored (edit these)", handAuthored...)
+	writeSection(&b, "Generated (regenerated; do not edit)",
+		pair("model", flow.Layout.ModelPath),
+		pair("artifact", flow.Layout.ArtifactPath),
+		pair("runtime", flow.Layout.RuntimePath),
+		pair("replay helper", flow.Layout.ReplayHelperPath),
+	)
 	writeSection(&b, "Runtime",
-		pair("language", runtimeLanguage(flow)),
+		pair("language", string(flow.Layout.Language)),
 		pair("status type", runtimeStatusType(flow)),
 		pair("event type", runtimeEventType(flow)),
 		pair("generated runtime unions", yesNo(hasGeneratedRuntimeUnions(flow))),
-		pair("fixture contract", yesNo(runtimeLanguage(flow) == "typescript")),
+		pair("fixture contract", yesNo(flow.Layout.Language == layout.LanguageTypeScript)),
+		pair("subpackage import", layout.SubpackageImportPath(flow.Layout)),
 	)
 	writeSection(&b, "Topology",
 		pair("states", fmt.Sprintf("%d (initial %s; terminal %s)", len(flow.States), flow.Initial.ID, terminalSummary(flow))),
@@ -133,7 +145,10 @@ func buildExplainReport(root string, flow model.Flow) string {
 		pair("expanded transitions", fmt.Sprint(flow.Matrix.Len())),
 		pair("invalid transitions", fmt.Sprint(invalidTransitionCount(flow))),
 	)
-	writeSection(&b, "Generated replay", replayRows(flow)...)
+	writeSection(&b, "Replay",
+		pair("transition", flow.Replay.Transition.Function),
+		pair("fixture", fixtureSummary(flow)),
+	)
 	writeSection(&b, "Coverage requirements",
 		pair("named traces", fmt.Sprint(len(flow.Traces))),
 		pair("named trace states", coverageSummary(coverage.CoveredStates, coverage.MissingStates)),
@@ -143,7 +158,6 @@ func buildExplainReport(root string, flow model.Flow) string {
 		pair("regenerate", fmt.Sprintf("cd %s && GOWORK=off go run . generate --root %s --flow %s", filepath.ToSlash(filepath.Join("tools", "temporal-model")), explainRoot(root), flow.FlowID)),
 		pair("check", "make temporal-models"),
 	)
-	writeSection(&b, "Hand-authored follow-up files", handAuthoredFollowUps(flow)...)
 	return b.String()
 }
 
@@ -167,41 +181,42 @@ func pair(label string, value string) string {
 	return label + ": " + value
 }
 
-func generatedFileRows(flow model.Flow) []string {
-	rows := []string{
-		pair("model", flow.Outputs.ModelPath),
-		pair("artifact", flow.Outputs.ArtifactPath),
-		pair("declarations", flow.Outputs.DeclarationsPath),
+// handAuthoredFiles returns the paths the developer is expected to
+// maintain by hand for this flow. The list is informational; the lint
+// pass in temporal-model check enforces the contract on the test file.
+func handAuthoredFiles(flow model.Flow) []string {
+	out := []string{
+		"contract: " + flow.ContractPath,
 	}
-	if flow.Outputs.ReplayHelperPath != "" {
-		rows = append(rows, pair("replay helper", flow.Outputs.ReplayHelperPath))
+	switch flow.Layout.Language {
+	case layout.LanguageGo:
+		out = append(out,
+			"wrapper: "+flow.Layout.BaseDir+"/<wrapper>.go",
+			"thin replay test (any *_test.go in "+flow.Layout.BaseDir+" that imports the generated subpackage and calls RunReplay)",
+		)
+	case layout.LanguageTypeScript:
+		out = append(out,
+			"wrapper: "+flow.Layout.BaseDir+"/"+strings.TrimPrefix(flow.Replay.Transition.Module, "./")+".ts",
+			"fixtures: "+resolveTSImport(flow.ContractPath, flow.Replay.FixtureModule),
+			"thin replay test (any *.test.ts in "+flow.Layout.BaseDir+" that imports replay.helper and calls runFormalReplay)",
+		)
 	}
-	return append(rows, pair("replay test", flow.Outputs.ReplayTestPath))
+	return out
 }
 
-func replayRows(flow model.Flow) []string {
-	rows := []string{
-		pair("kind", flow.Replay.Kind),
-		pair("test", flow.Replay.TestPath),
+func fixtureSummary(flow model.Flow) string {
+	if flow.Replay.FixtureModule == "" {
+		return "n/a (go-test replay)"
 	}
-	if flow.Replay.HelperPath != "" {
-		rows = append(rows, pair("helper", flow.Replay.HelperPath))
-	}
-	if flow.Replay.FixtureModule != "" {
-		rows = append(rows, pair("fixture", fmt.Sprintf("%s (%s)", flow.Replay.FixtureModule, flow.Replay.FixtureExport)))
-	}
-	return append(rows, pair("transition", flow.Replay.Transition.Function))
+	return fmt.Sprintf("%s (export %s)", flow.Replay.FixtureModule, flow.Replay.FixtureExport)
 }
 
-func runtimeLanguage(flow model.Flow) string {
-	switch {
-	case flow.Runtime.Go != nil:
-		return "go"
-	case flow.Runtime.TypeScript != nil:
-		return "typescript"
-	default:
-		return "unknown"
+func resolveTSImport(fromPath string, module string) string {
+	if module == "" {
+		return ""
 	}
+	base := filepath.Dir(filepath.ToSlash(fromPath))
+	return filepath.ToSlash(filepath.Clean(filepath.Join(base, filepath.FromSlash(module)))) + ".ts"
 }
 
 func runtimeStatusType(flow model.Flow) string {
@@ -256,35 +271,6 @@ func coverageSummary(covered []string, missing []string) string {
 		return "all covered"
 	}
 	return fmt.Sprintf("covered %s; missing %s", strings.Join(covered, ", "), strings.Join(missing, ", "))
-}
-
-func handAuthoredFollowUps(flow model.Flow) []string {
-	seen := map[string]bool{}
-	var out []string
-	add := func(path string) {
-		if path == "" || seen[path] {
-			return
-		}
-		seen[path] = true
-		out = append(out, path)
-	}
-	add(inferRuntimeWrapper(flow.Outputs.DeclarationsPath))
-	if model.ReplayKind(flow.Replay.Kind) == model.ReplayKindVitest {
-		fixture, err := contract.ResolveTypeScriptImport(flow.Outputs.ReplayTestPath, flow.Replay.FixtureModule)
-		if err == nil {
-			add(fixture)
-		}
-	}
-	return out
-}
-
-func inferRuntimeWrapper(generated string) string {
-	switch {
-	case strings.HasSuffix(generated, ".generated.ts"):
-		return strings.TrimSuffix(generated, ".generated.ts") + ".ts"
-	default:
-		return ""
-	}
 }
 
 func yesNo(value bool) string {

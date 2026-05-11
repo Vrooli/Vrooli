@@ -12,6 +12,7 @@ import (
 	"react-vite-temporal-model/internal/codegen"
 	"react-vite-temporal-model/internal/contract"
 	"react-vite-temporal-model/internal/filesystem"
+	"react-vite-temporal-model/internal/lint"
 	"react-vite-temporal-model/internal/model"
 	"react-vite-temporal-model/internal/quint"
 )
@@ -89,6 +90,11 @@ func Run(ctx context.Context, options Options) error {
 	if options.Mode == ModeGenerate {
 		fmt.Fprintf(stdout, "generated %d temporal flow(s)\n", wrote)
 	}
+	if options.Mode == ModeCheck {
+		if err := lint.CheckAll(options.Root, options.Flows); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -99,6 +105,17 @@ type OutputFile struct {
 
 func buildOutputPlan(ctx context.Context, root string, flow model.Flow, quintVersion string, runner quint.Runner) ([]OutputFile, error) {
 	rendered := quint.Render(flow)
+	// Quint reads the model from disk, so ensure the model file
+	// exists at its canonical path before running the verifier.
+	// This is idempotent — write-and-overwrite — and required so a
+	// fresh scenario can bootstrap from contract alone.
+	modelAbs := filesystem.Abs(root, flow.Layout.ModelPath)
+	if err := os.MkdirAll(filepath.Dir(modelAbs), 0o755); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(modelAbs, []byte(rendered), 0o644); err != nil {
+		return nil, err
+	}
 	built, err := artifact.Build(ctx, flow, artifact.BuildOptions{
 		Root:         root,
 		Rendered:     rendered,
@@ -118,8 +135,8 @@ func buildOutputPlan(ctx context.Context, root string, flow model.Flow, quintVer
 		return nil, err
 	}
 	files := []OutputFile{
-		{Path: flow.Outputs.ModelPath, Data: []byte(rendered)},
-		{Path: flow.Outputs.ArtifactPath, Data: artifactData},
+		{Path: flow.Layout.ModelPath, Data: []byte(rendered)},
+		{Path: flow.Layout.ArtifactPath, Data: artifactData},
 	}
 	for _, file := range renderedCode.Files {
 		files = append(files, OutputFile{Path: file.Path, Data: file.Data})
@@ -159,11 +176,13 @@ func AssertFresh(fs FileSystem, path string, next []byte, flowID string) error {
 }
 
 func validateReplayFixture(flow model.Flow, root string) error {
+	if flow.Runtime.TypeScript == nil {
+		return nil
+	}
 	return contract.ValidateReplayFixturePaths(
 		root,
 		flow.FlowID,
-		flow.Replay.Kind,
-		flow.Outputs.ReplayTestPath,
+		flow.ContractPath,
 		flow.Replay.FixtureModule,
 		flow.Replay.FixtureExport,
 	)

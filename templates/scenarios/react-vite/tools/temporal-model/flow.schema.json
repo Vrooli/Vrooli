@@ -10,17 +10,17 @@
     "domain",
     "description",
     "model",
-    "outputs",
     "states",
     "events",
     "transitionDefaults",
     "transitions",
     "invariants",
     "traces",
+    "runtime",
     "replay"
   ],
   "properties": {
-    "schemaVersion": { "const": 4 },
+    "schemaVersion": { "const": 5 },
     "flowId": { "type": "string", "minLength": 1 },
     "domain": { "type": "string", "minLength": 1 },
     "description": { "type": "string", "minLength": 1 },
@@ -45,18 +45,6 @@
             }
           }
         }
-      }
-    },
-    "outputs": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["modelPath", "artifactPath", "declarationsPath", "replayTestPath"],
-      "properties": {
-        "modelPath": { "type": "string", "minLength": 1 },
-        "artifactPath": { "type": "string", "minLength": 1 },
-        "declarationsPath": { "type": "string", "minLength": 1 },
-        "replayHelperPath": { "type": "string", "minLength": 1 },
-        "replayTestPath": { "type": "string", "minLength": 1 }
       }
     },
     "states": {
@@ -106,17 +94,35 @@
     "replay": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "testPath", "transition"],
+      "required": ["transition"],
       "properties": {
-        "kind": { "enum": ["go-test", "vitest"] },
-        "helperPath": { "type": "string", "minLength": 1 },
-        "testPath": { "type": "string", "minLength": 1 },
         "fixtureModule": { "type": "string", "minLength": 1 },
         "fixtureExport": { "type": "string", "minLength": 1 },
         "transition": { "$ref": "#/$defs/replayTransition" }
       }
     }
   },
+  "oneOf": [
+    {
+      "properties": {
+        "runtime": { "required": ["go"], "not": { "required": ["typescript"] } },
+        "replay": {
+          "not": {
+            "anyOf": [
+              { "required": ["fixtureModule"] },
+              { "required": ["fixtureExport"] }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "runtime": { "required": ["typescript"], "not": { "required": ["go"] } },
+        "replay": { "required": ["fixtureModule", "fixtureExport"] }
+      }
+    }
+  ],
   "$defs": {
     "goRuntime": {
       "type": "object",

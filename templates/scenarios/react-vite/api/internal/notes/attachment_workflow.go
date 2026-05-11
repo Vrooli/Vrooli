@@ -1,15 +1,26 @@
 package notes
 
-import "fmt"
+import (
+	"fmt"
 
-// AttachmentUploadStatus describes the API-side lifecycle for the
-// multipart attachment upload orchestration. It is intentionally about
-// orchestration, not persistence: attachment metadata is still owned by
-// Attachment and the repository.
-type AttachmentUploadStatus string
+	"{{SCENARIO_ID}}/internal/notes/generated/attachmentupload"
+)
 
-// AttachmentUploadEvent describes allowed lifecycle events during upload.
-type AttachmentUploadEvent string
+type AttachmentUploadStatus = attachmentupload.AttachmentUploadStatus
+type AttachmentUploadEvent = attachmentupload.AttachmentUploadEvent
+
+const (
+	AttachmentUploadReceived         = attachmentupload.AttachmentUploadReceived
+	AttachmentUploadBytesStored      = attachmentupload.AttachmentUploadBytesStored
+	AttachmentUploadMetadataRecorded = attachmentupload.AttachmentUploadMetadataRecorded
+	AttachmentUploadFailed           = attachmentupload.AttachmentUploadFailed
+)
+
+const (
+	AttachmentUploadStoreBytes     = attachmentupload.AttachmentUploadStoreBytes
+	AttachmentUploadRecordMetadata = attachmentupload.AttachmentUploadRecordMetadata
+	AttachmentUploadFail           = attachmentupload.AttachmentUploadFail
+)
 
 type AttachmentUploadState struct {
 	Status AttachmentUploadStatus
@@ -23,7 +34,7 @@ func TransitionAttachmentUpload(state AttachmentUploadState, event AttachmentUpl
 	if err := CheckAttachmentUploadInvariants(state); err != nil {
 		return state, err
 	}
-	next, err := TransitionAttachmentUploadStatus(state.Status, event)
+	next, err := attachmentupload.TransitionAttachmentUploadStatus(state.Status, event)
 	return AttachmentUploadState{Status: next}, err
 }
 

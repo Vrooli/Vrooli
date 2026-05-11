@@ -48,22 +48,11 @@ workflow model.
   `api/internal/notes/attachment_workflow_test.go`,
   `ui/src/features/notes/AttachmentUpload.test.tsx`, and
   `ui/src/features/notes/AttachmentUploadWorkflow.test.ts`.
-- Formal models:
-  `api/internal/notes/attachment_upload_workflow.qnt` and
-  `ui/src/features/notes/AttachmentUploadWorkflow.qnt`.
-- Generated artifacts:
-  `api/internal/notes/attachment_upload_workflow.formal.generated.json`
-  and
-  `ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json`.
-- Generated declarations:
-  `api/internal/notes/attachment_upload_workflow.generated.go`
-  and
-  `ui/src/features/notes/AttachmentUploadWorkflow.generated.ts`.
-- Generated replay:
-  `api/internal/notes/attachment_upload_workflow.formal_replay_test.generated.go`,
-  `ui/src/features/notes/AttachmentUploadWorkflow.formal-replay.generated.ts`,
-  and
-  `ui/src/features/notes/AttachmentUploadWorkflow.formal.test.generated.ts`.
+- Generated subpackages:
+  `api/internal/notes/generated/attachmentupload/` (`model.qnt`, `artifact.json`,
+  `runtime.go`, `replay.go`) and
+  `ui/src/features/notes/generated/attachmentupload/` (`model.qnt`,
+  `artifact.json`, `runtime.ts`, `replay.helper.ts`).
 - Requirements: template starter only.
 
 ## State Machines
@@ -89,29 +78,40 @@ to add a standalone formal document.
 
 ## Production Shape
 
+Three (Go) or four (UI) files per flow at the top of the feature folder,
+plus one `generated/` sibling. Everything in `generated/` is codegen output.
+
 API domains that own durable lifecycle state use:
 
 ```text
 api/internal/<domain>/
-  <flow>_workflow.flow.json
-  <flow>_workflow.qnt
-  <flow>_workflow.formal.generated.json
-  <flow>_workflow.generated.go
-  <flow>_workflow.go
-  <flow>_workflow_test.go
+  <flow>_workflow.flow.json     # hand: source of truth
+  <flow>_workflow.go            # hand: wrapper
+  <flow>_workflow_test.go       # hand: thin replay delegation
+  generated/<foldername>/
+    model.qnt
+    artifact.json
+    runtime.go
+    replay.go
 ```
 
 UI features that own client-side modes use:
 
 ```text
 ui/src/features/<domain>/
-  <domain>Workflow.flow.json
-  <domain>Workflow.qnt
-  <domain>Workflow.formal.generated.json
-  <domain>Workflow.generated.ts
-  <domain>Workflow.ts
-  <domain>Workflow.test.ts
+  <Domain>Workflow.flow.json    # hand: source of truth
+  <Domain>Workflow.ts           # hand: wrapper
+  <Domain>Workflow.fixtures.ts  # hand: replay fixtures
+  <Domain>Workflow.test.ts      # hand: thin replay delegation
+  generated/<foldername>/
+    model.qnt
+    artifact.json
+    runtime.ts
+    replay.helper.ts
 ```
+
+The `generated/<foldername>/` segment is derived mechanically from the flow ID;
+the contract no longer declares any output paths.
 
 The workflow owns state/status values, events, `Transition`, and
 `CheckInvariants`. It should be pure or nearly pure. Effects live
@@ -136,26 +136,31 @@ the discriminated state/event union shape and replay fixture contract.
 Production workflow wrappers call those helpers for abstract validity
 and next-status outcomes, while keeping payload validation, side-effect
 orchestration, and rich state construction in hand-authored code. API
-generated replay tests get expected paths, hashes, invariants, and generated
-checks from `*_workflow.generated.go`; UI generated replay tests import the
-same metadata from `*Workflow.generated.ts`. Browser-safe replay helpers stay
-free of Node APIs, while generated Node-only Vitest replay files recompute
-contract/model/generator hashes from disk to catch stale UI artifacts.
+replay tests get expected paths, hashes, invariants, and generated checks
+from `generated/<folder>/runtime.go`; UI replay tests import the same metadata
+from `generated/<folder>/runtime.ts`. The generated `replay.{go,helper.ts}`
+files own the assertion calls; the hand-authored top-level test simply binds
+the wrapper's transition function and the fixtures and invokes
+`RunReplay`/`runFormalReplay` once.
 
-Formal artifacts use schema v4 coverage metadata. Matrix completeness,
+Formal artifacts use schema v5 coverage metadata. Matrix completeness,
 terminal transition checks, named trace coverage, and generated MBT trace
 coverage are separate fields. Do not treat generated trace
 `allPairsCovered` as required proof of correctness; replay tests require
 the complete transition matrix and named traces, while generated trace
 coverage reports how much the model explorer happened to visit.
 
-Each schema v4 `*.flow.json` also declares generated replay outputs. Go flows
-generate the formal replay `_test.go` directly. TypeScript flows generate a
-formal replay helper and a Vitest replay file that imports the declared fixture
-module. `check` compares those generated files with the current contract,
-model, and generator output, so missing freshness, matrix replay, or trace
-replay cannot hide behind comments or stale hand-written tests. The old
-marker-based `replay.bindings` pattern is not supported.
+Schema v5 `*.flow.json` files do not declare any output paths. The contract's
+`replay` block carries only `fixtureModule`, `fixtureExport`, and `transition`
+metadata; everything else is derived from the flow ID and runtime language.
+Go flows emit `generated/<folder>/replay.go` and require a hand-authored
+`*_test.go` that calls `<folder>.RunReplay`. TypeScript flows emit
+`generated/<folder>/replay.helper.ts` and require a hand-authored `.test.ts`
+that calls `runFormalReplay({ transition, fixtures })` at module top level.
+`temporal-model check` byte-compares every generated file and runs an
+AST-level lint over the hand-authored test, so a silent bypass — missing
+import, stubbed transition, or call buried inside a guarded block — fails
+the check.
 
 To add or rename a state/event:
 

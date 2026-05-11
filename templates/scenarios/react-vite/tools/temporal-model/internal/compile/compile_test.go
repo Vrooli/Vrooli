@@ -101,24 +101,16 @@ func TestCompileRejectsInvalidQuintName(t *testing.T) {
 	testkit.RequireErrorContains(t, compileErr(raw), "invalid Quint identifier not-valid")
 }
 
-func TestCompileRejectsMissingReplayKind(t *testing.T) {
+func TestCompileRejectsMissingReplayTransitionFunction(t *testing.T) {
 	raw := testkit.ValidRawContract()
-	raw.Replay.Kind = ""
-	testkit.RequireErrorContains(t, compileErr(raw), "replay.kind must be one of go-test, vitest")
+	raw.Replay.Transition.Function = ""
+	testkit.RequireErrorContains(t, compileErr(raw), "replay.transition.function is required")
 }
 
-func TestCompileRejectsReplayPathTraversal(t *testing.T) {
+func TestCompileRejectsGoReplayWithFixtureFields(t *testing.T) {
 	raw := testkit.ValidRawContract()
-	raw.Outputs.ReplayTestPath = "../outside_test.go"
-	raw.Replay.TestPath = "../outside_test.go"
-	testkit.RequireErrorContains(t, compileErr(raw), "must be a relative path inside the scenario root")
-}
-
-func TestCompileRejectsOutputCollisions(t *testing.T) {
-	raw := testkit.ValidRawContract()
-	raw.Outputs.ReplayTestPath = raw.Outputs.DeclarationsPath
-	raw.Replay.TestPath = raw.Outputs.DeclarationsPath
-	testkit.RequireErrorContains(t, compileErr(raw), "collides")
+	raw.Replay.FixtureModule = "./wrapper"
+	testkit.RequireErrorContains(t, compileErr(raw), "go replay must not declare fixtureModule or fixtureExport")
 }
 
 func TestCompileRejectsNonExhaustiveTypeScriptStateVariants(t *testing.T) {

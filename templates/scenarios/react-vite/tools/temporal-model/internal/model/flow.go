@@ -2,6 +2,7 @@ package model
 
 import (
 	"react-vite-temporal-model/internal/contract"
+	"react-vite-temporal-model/internal/layout"
 	"react-vite-temporal-model/internal/spec"
 )
 
@@ -11,13 +12,6 @@ const (
 	GeneratedCheckTransitionTable = spec.GeneratedCheckTransitionTable
 )
 
-type ReplayKind string
-
-const (
-	ReplayKindGoTest ReplayKind = spec.ReplayKindGoTest
-	ReplayKindVitest ReplayKind = spec.ReplayKindVitest
-)
-
 type Flow struct {
 	SchemaVersion      int
 	FlowID             string
@@ -25,7 +19,7 @@ type Flow struct {
 	Description        string
 	ContractPath       string
 	Model              contract.Model
-	Outputs            contract.Outputs
+	Layout             layout.Layout
 	States             []contract.State
 	Events             []contract.Event
 	TransitionDefaults contract.TransitionDefaults
@@ -49,7 +43,7 @@ func FromRaw(raw contract.Contract, initial contract.State, matrix TransitionMat
 		Description:        raw.Description,
 		ContractPath:       raw.ContractPath,
 		Model:              raw.Model,
-		Outputs:            raw.Outputs,
+		Layout:             raw.Layout,
 		States:             append([]contract.State(nil), raw.States...),
 		Events:             append([]contract.Event(nil), raw.Events...),
 		TransitionDefaults: raw.TransitionDefaults,

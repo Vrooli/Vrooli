@@ -1,0 +1,5 @@
+# Mark codegen output as generated so GitHub PR review collapses the
+# diff by default and "lines changed" stats reflect human-authored
+# work. Anything under generated/ is emitted by tools/temporal-model
+# (or another codegen step) and must not be hand-edited.
+**/generated/** linguist-generated=true

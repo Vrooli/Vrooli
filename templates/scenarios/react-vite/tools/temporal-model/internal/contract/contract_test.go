@@ -15,14 +15,12 @@ func TestLoadRawRejectsSchemaViolations(t *testing.T) {
 	for name, mutate := range map[string]func(map[string]any){
 		"unknown property": func(body map[string]any) { body["unexpected"] = true },
 		"missing required": func(body map[string]any) { delete(body, "flowId") },
-		"invalid enum": func(body map[string]any) {
-			replay := body["replay"].(map[string]any)
-			replay["kind"] = "jest"
+		"legacy outputs block": func(body map[string]any) {
+			body["outputs"] = map[string]any{"modelPath": "model.qnt"}
 		},
-		"old replay bindings": func(body map[string]any) {
-			body["replay"] = map[string]any{
-				"bindings": []any{map[string]any{"kind": "go-test", "path": "workflow_test.go", "assertion": "TestWorkflow"}},
-			}
+		"legacy replay kind": func(body map[string]any) {
+			replay := body["replay"].(map[string]any)
+			replay["kind"] = "go-test"
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -40,24 +38,31 @@ func TestLoadRawDoesNotCompileOrMutateContract(t *testing.T) {
 	root := t.TempDir()
 	raw := testkit.ValidRawContract()
 	raw.Traces[0].Steps[0].Want = "done"
-	path := filepath.Join(root, "workflow.flow.json")
+	rel := "api/internal/example/workflow.flow.json"
+	path := filepath.Join(root, filepath.FromSlash(rel))
 	testkit.WriteJSONMap(t, path, testkit.MustJSONMap(t, raw))
 
-	loaded, err := contract.LoadRaw(path, "workflow.flow.json")
+	loaded, err := contract.LoadRaw(path, rel)
 	if err != nil {
 		t.Fatalf("LoadRaw() error = %v", err)
 	}
 	if got := loaded.Traces[0].Steps[0].Want; got != "done" {
 		t.Fatalf("raw trace was compiled or mutated, got want=%s", got)
 	}
+	if loaded.Layout.FolderName == "" {
+		t.Fatalf("Layout.FolderName should be derived")
+	}
 }
 
 func TestValidateReplayFixtureRequiresExport(t *testing.T) {
 	root := t.TempDir()
 	raw := testkit.ValidTypeScriptRawContract()
-	writeBindingFile(t, root, "workflow.formal-fixtures.ts", "export const wrongExport = {}\n")
+	fixtureRel := strings.TrimPrefix(raw.Layout.ReplayHelperPath, "")
+	// fixtures.ts lives in the wrapper dir, not the generated subpackage.
+	fixtureRel = "ui/src/features/example/ExampleWorkflow.fixtures.ts"
+	writeBindingFile(t, root, fixtureRel, "export const wrongExport = {}\n")
 	testkit.RequireErrorContains(t, contract.ValidateReplayFixture(raw, root), "does not export exampleFormalFixtures")
-	writeBindingFile(t, root, "workflow.formal-fixtures.ts", "export const exampleFormalFixtures = {}\n")
+	writeBindingFile(t, root, fixtureRel, "export const exampleFormalFixtures = {}\n")
 	if err := contract.ValidateReplayFixture(raw, root); err != nil {
 		t.Fatalf("ValidateReplayFixture() error = %v", err)
 	}

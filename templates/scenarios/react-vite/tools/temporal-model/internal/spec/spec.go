@@ -1,14 +1,11 @@
 package spec
 
 const (
-	SchemaVersion    = 4
-	GeneratorVersion = 5
+	SchemaVersion    = 5
+	GeneratorVersion = 6
 	GeneratorPath    = "tools/temporal-model"
 
 	VerificationBackendApalache = "apalache"
-
-	ReplayKindGoTest = "go-test"
-	ReplayKindVitest = "vitest"
 
 	GeneratedCheckTransitionTable = "transitionTable"
 )

@@ -2,9 +2,9 @@ package codegen
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"react-vite-temporal-model/internal/artifact"
+	"react-vite-temporal-model/internal/layout"
 	"react-vite-temporal-model/internal/model"
 )
 
@@ -18,42 +18,38 @@ type RenderResult struct {
 	Files []File
 }
 
+// Render produces the codegen output for a flow. Exactly two files are
+// emitted regardless of language: a runtime declarations file and a
+// replay helper. Both live under generated/<folderName>/.
 func Render(flow model.Flow, built artifact.Artifact) (RenderResult, error) {
-	var result RenderResult
-	switch filepath.Ext(flow.Outputs.DeclarationsPath) {
-	case ".go":
-		declarations, err := renderGoDeclarations(flow, built)
+	switch flow.Layout.Language {
+	case layout.LanguageGo:
+		runtime, err := renderGoRuntime(flow, built)
 		if err != nil {
 			return RenderResult{}, err
 		}
-		replayTest, err := renderGoReplayTest(flow)
+		replay, err := renderGoReplayHelper(flow)
 		if err != nil {
 			return RenderResult{}, err
 		}
-		result.Files = append(result.Files,
-			File{Path: flow.Outputs.DeclarationsPath, Data: []byte(declarations), Generated: true},
-			File{Path: flow.Outputs.ReplayTestPath, Data: []byte(replayTest), Generated: true},
-		)
-	case ".ts":
-		declarations, err := renderTypeScriptDeclarations(flow, built)
+		return RenderResult{Files: []File{
+			{Path: flow.Layout.RuntimePath, Data: []byte(runtime), Generated: true},
+			{Path: flow.Layout.ReplayHelperPath, Data: []byte(replay), Generated: true},
+		}}, nil
+	case layout.LanguageTypeScript:
+		runtime, err := renderTypeScriptRuntime(flow, built)
 		if err != nil {
 			return RenderResult{}, err
 		}
-		replayHelper, err := renderTypeScriptReplayHelper(flow)
+		helper, err := renderTypeScriptReplayHelper(flow)
 		if err != nil {
 			return RenderResult{}, err
 		}
-		replayTest, err := renderTypeScriptReplayTest(flow)
-		if err != nil {
-			return RenderResult{}, err
-		}
-		result.Files = append(result.Files,
-			File{Path: flow.Outputs.DeclarationsPath, Data: []byte(declarations), Generated: true},
-			File{Path: flow.Outputs.ReplayHelperPath, Data: []byte(replayHelper), Generated: true},
-			File{Path: flow.Outputs.ReplayTestPath, Data: []byte(replayTest), Generated: true},
-		)
+		return RenderResult{Files: []File{
+			{Path: flow.Layout.RuntimePath, Data: []byte(runtime), Generated: true},
+			{Path: flow.Layout.ReplayHelperPath, Data: []byte(helper), Generated: true},
+		}}, nil
 	default:
-		return RenderResult{}, fmt.Errorf("unsupported declarationsPath extension for %s: %s", flow.FlowID, flow.Outputs.DeclarationsPath)
+		return RenderResult{}, fmt.Errorf("unsupported language %q for %s", flow.Layout.Language, flow.FlowID)
 	}
-	return result, nil
 }

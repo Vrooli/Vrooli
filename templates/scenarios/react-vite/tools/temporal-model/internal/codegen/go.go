@@ -8,20 +8,26 @@ import (
 
 	"react-vite-temporal-model/internal/artifact"
 	"react-vite-temporal-model/internal/contract"
+	"react-vite-temporal-model/internal/layout"
 	"react-vite-temporal-model/internal/model"
 )
 
-func renderGoDeclarations(flow model.Flow, built artifact.Artifact) (string, error) {
+// renderGoRuntime emits generated/<folder>/runtime.go: the
+// state/event consts, transition table helpers, and freshness hashes
+// for the flow. The package name matches the layout folder name so the
+// hand-authored wrapper imports it as e.g. attachmentupload.StatusIdle.
+func renderGoRuntime(flow model.Flow, built artifact.Artifact) (string, error) {
 	if flow.Runtime.Go == nil {
 		return "", fmt.Errorf("runtime.go is required for %s", flow.FlowID)
 	}
 	rt := flow.Runtime.Go
+	pkg := flow.Layout.FolderName
 	var b strings.Builder
 	b.WriteString(generatedHeader(flow))
-	b.WriteString("package ")
-	b.WriteString(rt.Package)
-	b.WriteString("\n\n")
+	fmt.Fprintf(&b, "package %s\n\n", pkg)
 	b.WriteString("import \"fmt\"\n\n")
+	fmt.Fprintf(&b, "type %s string\n", rt.StatusType)
+	fmt.Fprintf(&b, "type %s string\n\n", rt.EventType)
 	b.WriteString("const (\n")
 	for _, state := range flow.States {
 		fmt.Fprintf(&b, "\t%s%s %s = %q\n", rt.ConstantPrefix, pascal(state.ID), rt.StatusType, state.ID)
@@ -92,41 +98,45 @@ func renderGoDeclarations(flow model.Flow, built artifact.Artifact) (string, err
 	return formatGo(b.String())
 }
 
-func renderGoReplayTest(flow model.Flow) (string, error) {
+// renderGoReplayHelper emits generated/<folder>/replay.go, which lives
+// in the same subpackage as runtime.go. It exports RunReplay so a
+// hand-authored top-level _test.go can pass in a Transition closure and
+// delegate the entire transition+trace replay matrix.
+func renderGoReplayHelper(flow model.Flow) (string, error) {
 	if flow.Runtime.Go == nil {
 		return "", fmt.Errorf("runtime.go is required for %s", flow.FlowID)
 	}
 	rt := flow.Runtime.Go
+	pkg := flow.Layout.FolderName
+	artifactFile := filepath.Base(flow.Layout.ArtifactPath)
 	var b strings.Builder
 	b.WriteString(generatedHeader(flow))
-	fmt.Fprintf(&b, "package %s_test\n\n", rt.Package)
+	fmt.Fprintf(&b, "package %s\n\n", pkg)
 	b.WriteString("import (\n")
 	b.WriteString("\t\"testing\"\n\n")
-	fmt.Fprintf(&b, "\t%q\n", goRuntimeImportPath(flow))
 	b.WriteString("\t\"{{SCENARIO_ID}}/internal/testutil/modeltest\"\n")
 	b.WriteString(")\n\n")
-	fmt.Fprintf(&b, "func Test%sFormalReplay_ReplaysGeneratedModelArtifacts(t *testing.T) {\n", rt.ConstantPrefix)
-	fmt.Fprintf(&b, "\tartifact := modeltest.LoadFormalArtifact(t, %q)\n", filepath.Base(flow.Outputs.ArtifactPath))
-	fmt.Fprintf(&b, "\tassert%sFormalReplay(t, artifact)\n", rt.ConstantPrefix)
-	b.WriteString("}\n\n")
-	fmt.Fprintf(&b, "func assert%sFormalReplay(t *testing.T, artifact modeltest.FormalArtifact) {\n", rt.ConstantPrefix)
-	b.WriteString("\tt.Helper()\n\n")
+	fmt.Fprintf(&b, "// Transition is the shape the hand-authored test must supply. The\n")
+	fmt.Fprintf(&b, "// wrapper around %s should produce one of these for delegation.\n", rt.StatusType)
+	fmt.Fprintf(&b, "type Transition func(status %s, event %s) (%s, error)\n\n", rt.StatusType, rt.EventType, rt.StatusType)
+	b.WriteString("// RunReplay loads the canonical formal artifact, asserts it is\n")
+	b.WriteString("// fresh, and replays every expanded transition and named trace\n")
+	b.WriteString("// against the caller's transition.\n")
+	b.WriteString("func RunReplay(t *testing.T, transition Transition) {\n")
+	b.WriteString("\tt.Helper()\n")
+	fmt.Fprintf(&b, "\tartifact := modeltest.LoadFormalArtifact(t, %q)\n", artifactFile)
 	b.WriteString("\tmodeltest.AssertFormalArtifactFresh(t, artifact, modeltest.FormalArtifactExpectation{\n")
-	fmt.Fprintf(&b, "\t\tContractPath:    %s.%sContractPath,\n", rt.Package, rt.ConstantPrefix)
-	fmt.Fprintf(&b, "\t\tContractSHA256:  %s.%sContractSHA256,\n", rt.Package, rt.ConstantPrefix)
-	fmt.Fprintf(&b, "\t\tModelPath:       %s.%sModelPath,\n", rt.Package, rt.ConstantPrefix)
-	fmt.Fprintf(&b, "\t\tModelSHA256:     %s.%sModelSHA256,\n", rt.Package, rt.ConstantPrefix)
-	fmt.Fprintf(&b, "\t\tGeneratorPath:   %s.%sGeneratorPath,\n", rt.Package, rt.ConstantPrefix)
-	fmt.Fprintf(&b, "\t\tGeneratorSHA256: %s.%sGeneratorSHA256,\n", rt.Package, rt.ConstantPrefix)
-	fmt.Fprintf(&b, "\t\tInvariants:      %s.%sFormalExpectedInvariants(),\n", rt.Package, rt.ConstantPrefix)
-	fmt.Fprintf(&b, "\t\tGeneratedChecks: %s.%sFormalExpectedGeneratedChecks(),\n", rt.Package, rt.ConstantPrefix)
-	b.WriteString("\t})\n\n")
-	fmt.Fprintf(&b, "\ttransition := func(status %s.%s, event %s.%s) (%s.%s, error) {\n", rt.Package, rt.StatusType, rt.Package, rt.EventType, rt.Package, rt.StatusType)
-	fmt.Fprintf(&b, "\t\tnext, err := %s.%s(%s.%s{%s: status}, event)\n", rt.Package, flow.Replay.Transition.Function, rt.Package, flow.Replay.Transition.StateType, flow.Replay.Transition.StatusField)
-	fmt.Fprintf(&b, "\t\treturn next.%s, err\n", flow.Replay.Transition.StatusField)
-	b.WriteString("\t}\n")
-	fmt.Fprintf(&b, "\tmodeltest.AssertFormalTransitionsReplay(t, artifact, %s.All%sStatuses(), %s.All%sEvents(), transition)\n", rt.Package, rt.ConstantPrefix, rt.Package, rt.ConstantPrefix)
-	fmt.Fprintf(&b, "\tmodeltest.AssertFormalTracesReplay(t, artifact, %s.All%sStatuses(), %s.All%sEvents(), transition)\n", rt.Package, rt.ConstantPrefix, rt.Package, rt.ConstantPrefix)
+	fmt.Fprintf(&b, "\t\tContractPath:    %sContractPath,\n", rt.ConstantPrefix)
+	fmt.Fprintf(&b, "\t\tContractSHA256:  %sContractSHA256,\n", rt.ConstantPrefix)
+	fmt.Fprintf(&b, "\t\tModelPath:       %sModelPath,\n", rt.ConstantPrefix)
+	fmt.Fprintf(&b, "\t\tModelSHA256:     %sModelSHA256,\n", rt.ConstantPrefix)
+	fmt.Fprintf(&b, "\t\tGeneratorPath:   %sGeneratorPath,\n", rt.ConstantPrefix)
+	fmt.Fprintf(&b, "\t\tGeneratorSHA256: %sGeneratorSHA256,\n", rt.ConstantPrefix)
+	fmt.Fprintf(&b, "\t\tInvariants:      %sFormalExpectedInvariants(),\n", rt.ConstantPrefix)
+	fmt.Fprintf(&b, "\t\tGeneratedChecks: %sFormalExpectedGeneratedChecks(),\n", rt.ConstantPrefix)
+	b.WriteString("\t})\n")
+	fmt.Fprintf(&b, "\tmodeltest.AssertFormalTransitionsReplay(t, artifact, All%sStatuses(), All%sEvents(), transition)\n", rt.ConstantPrefix, rt.ConstantPrefix)
+	fmt.Fprintf(&b, "\tmodeltest.AssertFormalTracesReplay(t, artifact, All%sStatuses(), All%sEvents(), transition)\n", rt.ConstantPrefix, rt.ConstantPrefix)
 	b.WriteString("}\n")
 	return formatGo(b.String())
 }
@@ -134,7 +144,7 @@ func renderGoReplayTest(flow model.Flow) (string, error) {
 func formatGo(source string) (string, error) {
 	formatted, err := goformat.Source([]byte(source))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("format go source: %w\n--- source ---\n%s", err, source)
 	}
 	return string(formatted), nil
 }
@@ -155,8 +165,9 @@ func goEventList(flow model.Flow, rt *contract.GoRuntime) string {
 	return strings.Join(values, ", ")
 }
 
-func goRuntimeImportPath(flow model.Flow) string {
-	dir := filepath.ToSlash(filepath.Dir(flow.Outputs.DeclarationsPath))
-	dir = strings.TrimPrefix(dir, "api/")
-	return "{{SCENARIO_ID}}/" + dir
+// GoSubpackageImportPath returns the import path of the generated
+// runtime subpackage, suitable for inclusion in a hand-authored test
+// file's import list.
+func GoSubpackageImportPath(flow model.Flow) string {
+	return layout.SubpackageImportPath(flow.Layout)
 }

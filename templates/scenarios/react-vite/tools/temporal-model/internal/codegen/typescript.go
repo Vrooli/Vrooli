@@ -11,7 +11,10 @@ import (
 	"react-vite-temporal-model/internal/model"
 )
 
-func renderTypeScriptDeclarations(flow model.Flow, built artifact.Artifact) (string, error) {
+// renderTypeScriptRuntime emits generated/<folder>/runtime.ts: state
+// and event unions, transition table, fixture-map types, freshness
+// expectation, and runtime helper functions.
+func renderTypeScriptRuntime(flow model.Flow, built artifact.Artifact) (string, error) {
 	if flow.Runtime.TypeScript == nil {
 		return "", fmt.Errorf("runtime.typescript is required for %s", flow.FlowID)
 	}
@@ -100,6 +103,10 @@ func renderTypeScriptTransitionTable(flow model.Flow) (string, error) {
 	return b.String(), nil
 }
 
+// renderTypeScriptReplayHelper emits generated/<folder>/replay.helper.ts.
+// It exports a single function runFormalReplay so the hand-authored
+// .test.ts at the top of the feature folder can delegate the entire
+// replay matrix in one call.
 func renderTypeScriptReplayHelper(flow model.Flow) (string, error) {
 	if flow.Runtime.TypeScript == nil {
 		return "", fmt.Errorf("runtime.typescript is required for %s", flow.FlowID)
@@ -110,12 +117,19 @@ func renderTypeScriptReplayHelper(flow model.Flow) (string, error) {
 		base = rt.StatusType
 	}
 	lowerBase := lowerFirst(base)
-	testUtilsImport := tsRelativeImport(flow.Outputs.ReplayHelperPath, "ui/src/test-utils")
-	formalNodeImport := tsRelativeImport(flow.Outputs.ReplayHelperPath, "ui/src/test-utils/modeltest/formal.node")
-	declarationsImport := tsRelativeImport(flow.Outputs.ReplayHelperPath, strings.TrimSuffix(flow.Outputs.DeclarationsPath, ".ts"))
+	helperPath := flow.Layout.ReplayHelperPath
+	artifactImport := tsRelativeImport(helperPath, flow.Layout.ArtifactPath)
+	runtimeImport := tsRelativeImport(helperPath, strings.TrimSuffix(flow.Layout.RuntimePath, ".ts"))
+	testUtilsImport := tsRelativeImport(helperPath, "ui/src/test-utils")
+	formalNodeImport := tsRelativeImport(helperPath, "ui/src/test-utils/modeltest/formal.node")
 	statusField := strings.TrimPrefix(flow.Replay.Transition.StatusAccessor, "state.")
+	wrapperModule := flow.Replay.Transition.Module
+	wrapperImport := tsRelativeImport(helperPath, filepath.ToSlash(filepath.Join(filepath.Dir(filepath.ToSlash(flow.ContractPath)), strings.TrimPrefix(wrapperModule, "./"))))
+	wrapperImport = strings.TrimSuffix(wrapperImport, ".ts")
 	var b strings.Builder
 	b.WriteString(generatedHeader(flow))
+	b.WriteString("import { describe, it } from \"vitest\";\n\n")
+	fmt.Fprintf(&b, "import formalArtifact from %q;\n", artifactImport)
 	fmt.Fprintf(&b, "import type { FormalArtifact } from %q;\n", testUtilsImport)
 	b.WriteString("import {\n")
 	b.WriteString("  assertFormalTransitionsReplay,\n")
@@ -128,65 +142,48 @@ func renderTypeScriptReplayHelper(flow model.Flow) (string, error) {
 	fmt.Fprintf(&b, "  %sReplayFixtureContract,\n", lowerBase)
 	fmt.Fprintf(&b, "  type %sEventFixtureMap,\n", base)
 	fmt.Fprintf(&b, "  type %sStateFixtureMap,\n", base)
-	fmt.Fprintf(&b, "} from %q;\n", declarationsImport)
-	fmt.Fprintf(&b, "import { %s } from %q;\n\n", flow.Replay.Transition.Function, flow.Replay.Transition.Module)
+	fmt.Fprintf(&b, "} from %q;\n", runtimeImport)
+	fmt.Fprintf(&b, "import { %s } from %q;\n\n", flow.Replay.Transition.Function, wrapperImport)
 	fmt.Fprintf(&b, "export interface %sFormalReplayFixtures {\n", base)
 	fmt.Fprintf(&b, "  readonly stateFor: %sStateFixtureMap;\n", base)
 	fmt.Fprintf(&b, "  readonly eventFor: %sEventFixtureMap;\n", base)
 	b.WriteString("}\n\n")
-	fmt.Fprintf(&b, "export const assert%sFormalReplay = (\n", base)
-	b.WriteString("  artifact: FormalArtifact,\n")
-	fmt.Fprintf(&b, "  fixtures: %sFormalReplayFixtures,\n", base)
-	b.WriteString("): void => {\n")
+	fmt.Fprintf(&b, "export interface RunFormalReplayOptions {\n")
+	fmt.Fprintf(&b, "  readonly transition?: typeof %s;\n", flow.Replay.Transition.Function)
+	fmt.Fprintf(&b, "  readonly fixtures: %sFormalReplayFixtures;\n", base)
+	b.WriteString("}\n\n")
+	b.WriteString("// runFormalReplay is the single entry point the hand-authored\n")
+	b.WriteString("// .test.ts file must invoke at module top level. The lint pass in\n")
+	b.WriteString("// tools/temporal-model rejects any test file that imports this\n")
+	b.WriteString("// helper without calling it.\n")
+	b.WriteString("export const runFormalReplay = (options: RunFormalReplayOptions): void => {\n")
+	fmt.Fprintf(&b, "  const transitionImpl = options.transition ?? %s;\n", flow.Replay.Transition.Function)
 	b.WriteString("  const transitionStatus = transitionFromReplayAdapter({\n")
 	fmt.Fprintf(&b, "    states: %sReplayFixtureContract.states,\n", lowerBase)
 	fmt.Fprintf(&b, "    events: %sReplayFixtureContract.events,\n", lowerBase)
-	b.WriteString("    stateFor: fixtures.stateFor,\n")
-	b.WriteString("    eventFor: fixtures.eventFor,\n")
+	b.WriteString("    stateFor: options.fixtures.stateFor,\n")
+	b.WriteString("    eventFor: options.fixtures.eventFor,\n")
 	fmt.Fprintf(&b, "    statusOf: (state) => state.%s,\n", statusField)
-	fmt.Fprintf(&b, "    transition: %s,\n", flow.Replay.Transition.Function)
+	b.WriteString("    transition: transitionImpl,\n")
 	b.WriteString("  });\n\n")
-	fmt.Fprintf(&b, "  assertFormalArtifactFreshFromFiles(artifact, %sFormalExpectation);\n", lowerBase)
-	b.WriteString("  assertFormalTransitionsReplay(\n")
-	b.WriteString("    artifact,\n")
-	fmt.Fprintf(&b, "    %sReplayFixtureContract.states,\n", lowerBase)
-	fmt.Fprintf(&b, "    %sReplayFixtureContract.events,\n", lowerBase)
-	b.WriteString("    transitionStatus,\n")
-	b.WriteString("  );\n")
-	b.WriteString("  assertFormalTracesReplay(\n")
-	b.WriteString("    artifact,\n")
-	fmt.Fprintf(&b, "    %sReplayFixtureContract.states,\n", lowerBase)
-	fmt.Fprintf(&b, "    %sReplayFixtureContract.events,\n", lowerBase)
-	b.WriteString("    transitionStatus,\n")
-	b.WriteString("  );\n")
-	b.WriteString("};\n")
-	return b.String(), nil
-}
-
-func renderTypeScriptReplayTest(flow model.Flow) (string, error) {
-	if flow.Runtime.TypeScript == nil {
-		return "", fmt.Errorf("runtime.typescript is required for %s", flow.FlowID)
-	}
-	rt := flow.Runtime.TypeScript
-	base := strings.TrimSuffix(rt.StatusType, "Status")
-	if base == "" {
-		base = rt.StatusType
-	}
-	artifactImport := tsRelativeImport(flow.Outputs.ReplayTestPath, flow.Outputs.ArtifactPath)
-	helperImport := tsRelativeImport(flow.Outputs.ReplayTestPath, strings.TrimSuffix(flow.Outputs.ReplayHelperPath, ".ts"))
-	testUtilsImport := tsRelativeImport(flow.Outputs.ReplayTestPath, "ui/src/test-utils")
-	var b strings.Builder
-	b.WriteString(generatedHeader(flow))
-	b.WriteString("import { describe, it } from \"vitest\";\n\n")
-	fmt.Fprintf(&b, "import formalArtifact from %q;\n", artifactImport)
-	fmt.Fprintf(&b, "import { %s } from %q;\n", flow.Replay.FixtureExport, flow.Replay.FixtureModule)
-	fmt.Fprintf(&b, "import { assert%sFormalReplay } from %q;\n", base, helperImport)
-	fmt.Fprintf(&b, "import type { FormalArtifact } from %q;\n\n", testUtilsImport)
-	fmt.Fprintf(&b, "describe(%q, () => {\n", base+" formal workflow")
-	b.WriteString("  it(\"replays generated formal model artifacts\", () => {\n")
-	fmt.Fprintf(&b, "    assert%sFormalReplay(formalArtifact as FormalArtifact, %s);\n", base, flow.Replay.FixtureExport)
+	fmt.Fprintf(&b, "  describe(%q, () => {\n", base+" formal workflow")
+	b.WriteString("    it(\"replays generated formal model artifacts\", () => {\n")
+	fmt.Fprintf(&b, "      assertFormalArtifactFreshFromFiles(formalArtifact as FormalArtifact, %sFormalExpectation);\n", lowerBase)
+	b.WriteString("      assertFormalTransitionsReplay(\n")
+	b.WriteString("        formalArtifact as FormalArtifact,\n")
+	fmt.Fprintf(&b, "        %sReplayFixtureContract.states,\n", lowerBase)
+	fmt.Fprintf(&b, "        %sReplayFixtureContract.events,\n", lowerBase)
+	b.WriteString("        transitionStatus,\n")
+	b.WriteString("      );\n")
+	b.WriteString("      assertFormalTracesReplay(\n")
+	b.WriteString("        formalArtifact as FormalArtifact,\n")
+	fmt.Fprintf(&b, "        %sReplayFixtureContract.states,\n", lowerBase)
+	fmt.Fprintf(&b, "        %sReplayFixtureContract.events,\n", lowerBase)
+	b.WriteString("        transitionStatus,\n")
+	b.WriteString("      );\n")
+	b.WriteString("    });\n")
 	b.WriteString("  });\n")
-	b.WriteString("});\n")
+	b.WriteString("};\n")
 	return b.String(), nil
 }
 

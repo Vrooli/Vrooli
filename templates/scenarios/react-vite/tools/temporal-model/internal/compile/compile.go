@@ -2,7 +2,6 @@ package compile
 
 import (
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -27,10 +26,6 @@ func Compile(raw contract.Contract) (model.Flow, error) {
 	requireString(&errs, "description", raw.Description)
 	requireString(&errs, "model.module", raw.Model.Module)
 	requireString(&errs, "model.seed", raw.Model.Seed)
-	requireString(&errs, "outputs.modelPath", raw.Outputs.ModelPath)
-	requireString(&errs, "outputs.artifactPath", raw.Outputs.ArtifactPath)
-	requireString(&errs, "outputs.declarationsPath", raw.Outputs.DeclarationsPath)
-	requireString(&errs, "outputs.replayTestPath", raw.Outputs.ReplayTestPath)
 	if raw.Model.MaxSteps < 1 {
 		errs = append(errs, "model.maxSteps must be a positive integer")
 	}
@@ -214,27 +209,25 @@ func validateTraces(errs *[]string, raw contract.Contract, matrix model.Transiti
 }
 
 func validateRuntime(errs *[]string, raw contract.Contract) {
-	if strings.HasSuffix(raw.Outputs.DeclarationsPath, ".go") {
-		if raw.Runtime.Go == nil {
-			*errs = append(*errs, "runtime.go is required for Go declarations")
-			return
-		}
+	if raw.Runtime.Go != nil && raw.Runtime.TypeScript != nil {
+		*errs = append(*errs, "runtime must declare exactly one of go or typescript")
+		return
+	}
+	switch {
+	case raw.Runtime.Go != nil:
 		requireString(errs, "runtime.go.package", raw.Runtime.Go.Package)
 		requireString(errs, "runtime.go.statusType", raw.Runtime.Go.StatusType)
 		requireString(errs, "runtime.go.eventType", raw.Runtime.Go.EventType)
 		requireString(errs, "runtime.go.constantPrefix", raw.Runtime.Go.ConstantPrefix)
-	}
-	if strings.HasSuffix(raw.Outputs.DeclarationsPath, ".ts") {
-		if raw.Runtime.TypeScript == nil {
-			*errs = append(*errs, "runtime.typescript is required for TypeScript declarations")
-			return
-		}
+	case raw.Runtime.TypeScript != nil:
 		requireString(errs, "runtime.typescript.statusType", raw.Runtime.TypeScript.StatusType)
 		requireString(errs, "runtime.typescript.eventType", raw.Runtime.TypeScript.EventType)
 		requireString(errs, "runtime.typescript.statusesConst", raw.Runtime.TypeScript.StatusesConst)
 		requireString(errs, "runtime.typescript.eventsConst", raw.Runtime.TypeScript.EventsConst)
 		requireString(errs, "runtime.typescript.formalExpectationConst", raw.Runtime.TypeScript.FormalExpectationConst)
 		validateTypeScriptRuntimeVariants(errs, *raw.Runtime.TypeScript, raw)
+	default:
+		*errs = append(*errs, "runtime must declare either go or typescript")
 	}
 }
 
@@ -280,102 +273,23 @@ func validateVariantMap(errs *[]string, path string, variants map[string]map[str
 }
 
 func validateReplayShape(errs *[]string, raw contract.Contract) {
-	switch model.ReplayKind(raw.Replay.Kind) {
-	case model.ReplayKindGoTest, model.ReplayKindVitest:
-	default:
-		*errs = append(*errs, "replay.kind must be one of go-test, vitest")
-	}
-	requireString(errs, "replay.testPath", raw.Replay.TestPath)
 	requireString(errs, "replay.transition.function", raw.Replay.Transition.Function)
-	validateRelativePath(errs, "outputs.modelPath", raw.Outputs.ModelPath)
-	validateRelativePath(errs, "outputs.artifactPath", raw.Outputs.ArtifactPath)
-	validateRelativePath(errs, "outputs.declarationsPath", raw.Outputs.DeclarationsPath)
-	validateRelativePath(errs, "outputs.replayTestPath", raw.Outputs.ReplayTestPath)
-	validateRelativePath(errs, "replay.testPath", raw.Replay.TestPath)
-	if raw.Outputs.ReplayHelperPath != "" {
-		validateRelativePath(errs, "outputs.replayHelperPath", raw.Outputs.ReplayHelperPath)
-	}
-	if raw.Replay.HelperPath != "" {
-		validateRelativePath(errs, "replay.helperPath", raw.Replay.HelperPath)
-	}
-	if raw.Outputs.ReplayTestPath != "" && raw.Replay.TestPath != "" && cleanRelative(raw.Outputs.ReplayTestPath) != cleanRelative(raw.Replay.TestPath) {
-		*errs = append(*errs, "outputs.replayTestPath must match replay.testPath")
-	}
-	if raw.Outputs.ReplayHelperPath != "" && raw.Replay.HelperPath != "" && cleanRelative(raw.Outputs.ReplayHelperPath) != cleanRelative(raw.Replay.HelperPath) {
-		*errs = append(*errs, "outputs.replayHelperPath must match replay.helperPath")
-	}
-	validateOutputCollisions(errs, raw)
-	switch model.ReplayKind(raw.Replay.Kind) {
-	case model.ReplayKindGoTest:
-		if raw.Runtime.Go == nil {
-			*errs = append(*errs, "replay.kind go-test requires runtime.go")
-		}
-		if raw.Outputs.ReplayHelperPath != "" || raw.Replay.HelperPath != "" {
-			*errs = append(*errs, "go-test replay does not use a replay helper path")
+	switch {
+	case raw.Runtime.Go != nil:
+		if raw.Replay.FixtureModule != "" || raw.Replay.FixtureExport != "" {
+			*errs = append(*errs, "go replay must not declare fixtureModule or fixtureExport")
 		}
 		requireString(errs, "replay.transition.stateType", raw.Replay.Transition.StateType)
 		requireString(errs, "replay.transition.statusField", raw.Replay.Transition.StatusField)
-		if !strings.HasSuffix(raw.Outputs.ReplayTestPath, "_test.generated.go") {
-			*errs = append(*errs, "outputs.replayTestPath for go-test must end with _test.generated.go")
-		}
-	case model.ReplayKindVitest:
-		if raw.Runtime.TypeScript == nil {
-			*errs = append(*errs, "replay.kind vitest requires runtime.typescript")
-		}
-		requireString(errs, "outputs.replayHelperPath", raw.Outputs.ReplayHelperPath)
-		requireString(errs, "replay.helperPath", raw.Replay.HelperPath)
+	case raw.Runtime.TypeScript != nil:
 		requireString(errs, "replay.fixtureModule", raw.Replay.FixtureModule)
 		requireString(errs, "replay.fixtureExport", raw.Replay.FixtureExport)
 		requireString(errs, "replay.transition.module", raw.Replay.Transition.Module)
 		requireString(errs, "replay.transition.statusAccessor", raw.Replay.Transition.StatusAccessor)
-		if raw.Outputs.ReplayHelperPath != "" && !strings.HasSuffix(raw.Outputs.ReplayHelperPath, ".generated.ts") {
-			*errs = append(*errs, "outputs.replayHelperPath for vitest must end with .generated.ts")
-		}
-		if raw.Outputs.ReplayTestPath != "" && !strings.HasSuffix(raw.Outputs.ReplayTestPath, ".test.generated.ts") {
-			*errs = append(*errs, "outputs.replayTestPath for vitest must end with .test.generated.ts")
-		}
 		if accessor := raw.Replay.Transition.StatusAccessor; accessor != "" && !typeScriptStatusAccessorExpr.MatchString(accessor) {
 			*errs = append(*errs, "replay.transition.statusAccessor must have the form state.<field>")
 		}
 	}
-}
-
-func validateOutputCollisions(errs *[]string, raw contract.Contract) {
-	seen := map[string]string{}
-	outputs := []struct {
-		label string
-		path  string
-	}{
-		{label: "outputs.modelPath", path: raw.Outputs.ModelPath},
-		{label: "outputs.artifactPath", path: raw.Outputs.ArtifactPath},
-		{label: "outputs.declarationsPath", path: raw.Outputs.DeclarationsPath},
-		{label: "outputs.replayHelperPath", path: raw.Outputs.ReplayHelperPath},
-		{label: "outputs.replayTestPath", path: raw.Outputs.ReplayTestPath},
-	}
-	for _, output := range outputs {
-		if output.path == "" {
-			continue
-		}
-		clean := cleanRelative(output.path)
-		if prev := seen[clean]; prev != "" {
-			*errs = append(*errs, fmt.Sprintf("%s collides with %s at %s", output.label, prev, clean))
-		}
-		seen[clean] = output.label
-	}
-}
-
-func validateRelativePath(errs *[]string, label string, path string) {
-	if path == "" {
-		return
-	}
-	clean := filepath.ToSlash(filepath.Clean(path))
-	if filepath.IsAbs(path) || clean == "." || strings.HasPrefix(clean, "../") || clean == ".." {
-		*errs = append(*errs, label+" must be a relative path inside the scenario root")
-	}
-}
-
-func cleanRelative(path string) string {
-	return filepath.ToSlash(filepath.Clean(path))
 }
 
 func idsFromStates(states []contract.State) map[string]bool {

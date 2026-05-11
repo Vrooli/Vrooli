@@ -101,11 +101,11 @@ export const transitionAttachmentUploadStatus = (status: AttachmentUploadStatus,
 
 export const attachmentUploadFormalExpectation = {
   contractPath: "ui/src/features/notes/AttachmentUploadWorkflow.flow.json",
-  contractSha256: "f6d85441c8701d2a60cf92dab1c30b72d380f6ea08bd25d0d3fea1a4f889d8ce",
-  modelPath: "ui/src/features/notes/AttachmentUploadWorkflow.qnt",
+  contractSha256: "a8fa558469c50d6134653267e78c4d2b66519647d3a60cda659c6662832f36af",
+  modelPath: "ui/src/features/notes/generated/attachmentupload/model.qnt",
   modelSha256: "ced2d34630dba6513089e8c03a9b74099cd5194f2e169285f20e7e932ff95be0",
   generatorPath: "tools/temporal-model",
-  generatorSha256: "f7cc2fccaa7330b1e904bc19f5dd9e8bb036f08fd83d88db6d80a3ebbc96a0cc",
+  generatorSha256: "b47f353f7a40aac42259d58f1ea8f6d28f02f5462bc756909ae72c28c7a3e753",
   invariants: ["TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "StaleCompletionIsIgnored"],
   generatedChecks: ["transitionTable"],
 } as const;

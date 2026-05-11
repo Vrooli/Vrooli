@@ -14,15 +14,11 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
+	"react-vite-temporal-model/internal/layout"
 	"react-vite-temporal-model/internal/spec"
 )
 
 const SchemaVersion = spec.SchemaVersion
-
-const (
-	ReplayKindGoTest = spec.ReplayKindGoTest
-	ReplayKindVitest = spec.ReplayKindVitest
-)
 
 type Contract struct {
 	SchemaVersion      int                `json:"schemaVersion"`
@@ -30,16 +26,16 @@ type Contract struct {
 	Domain             string             `json:"domain"`
 	Description        string             `json:"description"`
 	Model              Model              `json:"model"`
-	Outputs            Outputs            `json:"outputs"`
 	States             []State            `json:"states"`
 	Events             []Event            `json:"events"`
 	TransitionDefaults TransitionDefaults `json:"transitionDefaults"`
 	Transitions        []Transition       `json:"transitions"`
 	Invariants         []Invariant        `json:"invariants"`
 	Traces             []Trace            `json:"traces"`
-	Runtime            Runtime            `json:"runtime,omitempty"`
+	Runtime            Runtime            `json:"runtime"`
 	Replay             Replay             `json:"replay"`
 	ContractPath       string             `json:"-"`
+	Layout             layout.Layout      `json:"-"`
 }
 
 type Model struct {
@@ -52,14 +48,6 @@ type Model struct {
 
 type Verify struct {
 	Invariants []string `json:"invariants"`
-}
-
-type Outputs struct {
-	ModelPath        string `json:"modelPath"`
-	ArtifactPath     string `json:"artifactPath"`
-	DeclarationsPath string `json:"declarationsPath"`
-	ReplayHelperPath string `json:"replayHelperPath,omitempty"`
-	ReplayTestPath   string `json:"replayTestPath"`
 }
 
 type Runtime struct {
@@ -138,9 +126,6 @@ type TraceStep struct {
 }
 
 type Replay struct {
-	Kind          string           `json:"kind"`
-	HelperPath    string           `json:"helperPath,omitempty"`
-	TestPath      string           `json:"testPath"`
 	FixtureModule string           `json:"fixtureModule,omitempty"`
 	FixtureExport string           `json:"fixtureExport,omitempty"`
 	Transition    ReplayTransition `json:"transition"`
@@ -170,6 +155,20 @@ func (s *StringList) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Language returns the runtime language declared by the contract.
+func (c Contract) Language() (layout.Language, error) {
+	if c.Runtime.Go != nil && c.Runtime.TypeScript != nil {
+		return "", fmt.Errorf("contract %s declares both go and typescript runtimes", c.FlowID)
+	}
+	if c.Runtime.Go != nil {
+		return layout.LanguageGo, nil
+	}
+	if c.Runtime.TypeScript != nil {
+		return layout.LanguageTypeScript, nil
+	}
+	return "", fmt.Errorf("contract %s declares no runtime", c.FlowID)
+}
+
 func LoadRaw(path string, relPath string) (Contract, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -185,6 +184,15 @@ func LoadRaw(path string, relPath string) (Contract, error) {
 		return Contract{}, fmt.Errorf("parse %s: %w", relPath, err)
 	}
 	c.ContractPath = relPath
+	lang, err := c.Language()
+	if err != nil {
+		return Contract{}, err
+	}
+	lay, err := layout.Derive(relPath, c.FlowID, lang)
+	if err != nil {
+		return Contract{}, fmt.Errorf("derive layout for %s: %w", relPath, err)
+	}
+	c.Layout = lay
 	return c, nil
 }
 
@@ -238,16 +246,26 @@ func compiledFlowSchema() (*jsonschema.Schema, error) {
 	return flowSchema, flowSchemaErr
 }
 
+// ValidateReplayFixture verifies that the TypeScript fixture module
+// referenced by a vitest contract exists on disk and exports the named
+// symbol. Go contracts do not declare fixtures and pass through.
+//
+// fixtureModule and transition.module are always anchored to the
+// contract path (i.e. the wrapper directory). Generated import paths
+// are re-anchored elsewhere.
 func ValidateReplayFixture(c Contract, root string) error {
-	return ValidateReplayFixturePaths(root, c.FlowID, c.Replay.Kind, c.Outputs.ReplayTestPath, c.Replay.FixtureModule, c.Replay.FixtureExport)
-}
-
-func ValidateReplayFixturePaths(root string, flowID string, replayKind string, replayTestPath string, fixtureModule string, fixtureExport string) error {
-	var errs []string
-	if replayKind != ReplayKindVitest {
+	if c.Runtime.TypeScript == nil {
 		return nil
 	}
-	path, err := ResolveTypeScriptImport(replayTestPath, fixtureModule)
+	return ValidateReplayFixturePaths(root, c.FlowID, c.ContractPath, c.Replay.FixtureModule, c.Replay.FixtureExport)
+}
+
+// ValidateReplayFixturePaths is the lower-level entry point used by the
+// pipeline. fromPath is the file the module string is relative to —
+// always the contract path for fixture validation.
+func ValidateReplayFixturePaths(root string, flowID string, fromPath string, fixtureModule string, fixtureExport string) error {
+	var errs []string
+	path, err := ResolveTypeScriptImport(fromPath, fixtureModule)
 	if err != nil {
 		return fmt.Errorf("invalid replay fixture module for %s: %w", flowID, err)
 	}

@@ -80,6 +80,10 @@ export default defineConfig(({ mode }): UserConfig => {
           'src/test-utils/**',
           'src/consts/strings.generated.ts',
           'src/i18n/locales/**',
+          // Temporal-flow codegen. Everything under generated/ is
+          // emitted by tools/temporal-model and verified by the
+          // hand-authored thin-test at the feature root.
+          'src/**/generated/**',
         ],
         // 85% is the floor every canonical-surface file (App.tsx +
         // button/input/textarea + consts + i18n + api/client + lib/utils +

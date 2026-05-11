@@ -267,12 +267,14 @@ The canonical API shape is:
 
 ```
 api/internal/<domain>/
-  <flow>_workflow.flow.json
-  <flow>_workflow.qnt
-  <flow>_workflow.formal.generated.json
-  <flow>_workflow.generated.go
-  <flow>_workflow.go
-  <flow>_workflow_test.go
+  <flow>_workflow.flow.json     # hand: source of truth
+  <flow>_workflow.go            # hand: wrapper
+  <flow>_workflow_test.go       # hand: thin replay delegation
+  generated/<foldername>/
+    model.qnt
+    artifact.json
+    runtime.go
+    replay.go
 ```
 
 `workflow.go` defines:
@@ -302,15 +304,15 @@ The canonical UI shape is:
 
 ```
 ui/src/features/<domain>/
-  <domain>Workflow.flow.json
-  <domain>Workflow.qnt
-  <domain>Workflow.formal.generated.json
-  <domain>Workflow.generated.ts
-  <domain>Workflow.formal-replay.generated.ts
-  <domain>Workflow.formal.test.generated.ts
-  <domain>Workflow.formal-fixtures.ts
-  <domain>Workflow.ts
-  <domain>Workflow.test.ts
+  <Domain>Workflow.flow.json    # hand: source of truth
+  <Domain>Workflow.ts           # hand: wrapper
+  <Domain>Workflow.fixtures.ts  # hand: replay fixtures
+  <Domain>Workflow.test.ts      # hand: thin replay delegation (~5-8 lines)
+  generated/<foldername>/
+    model.qnt
+    artifact.json
+    runtime.ts
+    replay.helper.ts
 ```
 
 Use TypeScript discriminated unions so impossible UI states are not
@@ -338,21 +340,14 @@ The notes attachment upload workflow is the reference Level 5 pattern:
 
 - `tools/temporal-model`
 - `api/internal/notes/attachment_upload_workflow.flow.json`
-- `api/internal/notes/attachment_upload_workflow.go`
-- `api/internal/notes/attachment_upload_workflow.qnt`
-- `api/internal/notes/attachment_upload_workflow.formal.generated.json`
-- `api/internal/notes/attachment_upload_workflow.generated.go`
-- `api/internal/notes/attachment_upload_workflow.formal_replay_test.generated.go`
-- `api/internal/notes/attachment_workflow_test.go`
+- `api/internal/notes/attachment_workflow.go`
+- `api/internal/notes/attachment_workflow_test.go` (thin replay delegation)
+- `api/internal/notes/generated/attachmentupload/{model.qnt,artifact.json,runtime.go,replay.go}`
 - `ui/src/features/notes/AttachmentUploadWorkflow.flow.json`
 - `ui/src/features/notes/AttachmentUploadWorkflow.ts`
-- `ui/src/features/notes/AttachmentUploadWorkflow.qnt`
-- `ui/src/features/notes/AttachmentUploadWorkflow.formal.generated.json`
-- `ui/src/features/notes/AttachmentUploadWorkflow.generated.ts`
-- `ui/src/features/notes/AttachmentUploadWorkflow.formal-replay.generated.ts`
-- `ui/src/features/notes/AttachmentUploadWorkflow.formal.test.generated.ts`
-- `ui/src/features/notes/AttachmentUploadWorkflow.formal-fixtures.ts`
-- `ui/src/features/notes/AttachmentUploadWorkflow.test.ts`
+- `ui/src/features/notes/AttachmentUploadWorkflow.fixtures.ts`
+- `ui/src/features/notes/AttachmentUploadWorkflow.test.ts` (thin replay delegation)
+- `ui/src/features/notes/generated/attachmentupload/{model.qnt,artifact.json,runtime.ts,replay.helper.ts}`
 
 `make temporal-models` runs the Go-native temporal-model tool tests, then
 runs `quint typecheck`, `quint test`, `quint verify`, and deterministic MBT
@@ -365,16 +360,23 @@ They also expose pure generated status-transition helpers derived from
 transition matrix. Generated Go and TypeScript replay tests load those
 artifacts through `modeltest` and replay generated transitions/traces against
 production transition functions. UI replay keeps the hand-authored runtime
-fixture map in `AttachmentUploadWorkflow.formal-fixtures.ts`; the generated
-helper owns freshness, matrix replay, and trace replay.
+fixture map in `AttachmentUploadWorkflow.fixtures.ts`; the generated
+`replay.helper.ts` owns freshness, matrix replay, and trace replay, and
+the hand-authored `.test.ts` is a ~5-line module that imports the helper
+and the fixtures and calls `runFormalReplay({ transition, fixtures })`
+at top level. An AST-level lint in `temporal-model check` rejects any
+file that imports the helper without calling it.
 
-Formal artifacts use schema v4 coverage metadata. `transitionMatrixComplete`
+Formal artifacts use schema v5 coverage metadata. `transitionMatrixComplete`
 and `terminalTransitionsChecked` describe the generated matrix. `namedTraces`
 describes required hand-authored trace coverage. `generatedTraces` reports
 what Quint MBT traces visited, including `coveredPairs` and
 `allPairsCovered`; that field is informational and may be false.
 
-Schema v4 `*.flow.json` files must also declare generated replay outputs.
+Schema v5 `*.flow.json` files no longer declare any output paths; the
+generated subpackage location is derived from the flow ID. The contract's
+`replay` block carries only `fixtureModule`, `fixtureExport`, and
+`transition` metadata.
 `tools/temporal-model validate`, `generate`, and `check` validate each contract
 against `tools/temporal-model/flow.schema.json` before semantic validation, so
 unknown fields, missing required fields, old marker-based `replay.bindings`,

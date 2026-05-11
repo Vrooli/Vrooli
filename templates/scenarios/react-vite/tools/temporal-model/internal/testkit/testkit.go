@@ -10,29 +10,28 @@ import (
 
 	"react-vite-temporal-model/internal/compile"
 	"react-vite-temporal-model/internal/contract"
+	"react-vite-temporal-model/internal/layout"
 	"react-vite-temporal-model/internal/model"
 	"react-vite-temporal-model/internal/quint"
 )
 
 func ValidRawContract() contract.Contract {
+	contractPath := "api/internal/example/example_workflow.flow.json"
+	flowID := "example.workflow.api"
+	lay, _ := layout.Derive(contractPath, flowID, layout.LanguageGo)
 	return contract.Contract{
 		SchemaVersion: model.SchemaVersion,
-		FlowID:        "example.flow",
+		FlowID:        flowID,
 		Domain:        "example",
 		Description:   "Example flow.",
-		ContractPath:  "example.flow.json",
+		ContractPath:  contractPath,
+		Layout:        lay,
 		Model: contract.Model{
 			Module:     "ExampleFlow",
 			Seed:       "1",
 			MaxSteps:   4,
 			TraceCount: 2,
 			Verify:     contract.Verify{Invariants: []string{"TypeOK", "TerminalClosure"}},
-		},
-		Outputs: contract.Outputs{
-			ModelPath:        "model.qnt",
-			ArtifactPath:     "model.formal.generated.json",
-			DeclarationsPath: "model.generated.go",
-			ReplayTestPath:   "model_formal_replay_test.generated.go",
 		},
 		States: []contract.State{
 			{ID: "idle", Quint: "Idle", Initial: true},
@@ -62,8 +61,6 @@ func ValidRawContract() contract.Contract {
 			Go: &contract.GoRuntime{Package: "example", StatusType: "Status", EventType: "Event", ConstantPrefix: "Example"},
 		},
 		Replay: contract.Replay{
-			Kind:     string(model.ReplayKindGoTest),
-			TestPath: "model_formal_replay_test.generated.go",
 			Transition: contract.ReplayTransition{
 				Function:    "TransitionExample",
 				StateType:   "State",
@@ -75,9 +72,9 @@ func ValidRawContract() contract.Contract {
 
 func ValidTypeScriptRawContract() contract.Contract {
 	raw := ValidRawContract()
-	raw.Outputs.DeclarationsPath = "workflow.generated.ts"
-	raw.Outputs.ReplayHelperPath = "workflow.formal-replay.generated.ts"
-	raw.Outputs.ReplayTestPath = "workflow.formal.test.generated.ts"
+	raw.ContractPath = "ui/src/features/example/ExampleWorkflow.flow.json"
+	raw.FlowID = "example.workflow.ui"
+	raw.Layout, _ = layout.Derive(raw.ContractPath, raw.FlowID, layout.LanguageTypeScript)
 	raw.Runtime = contract.Runtime{
 		TypeScript: &contract.TypeScriptRuntime{
 			StatusType:             "ExampleStatus",
@@ -100,13 +97,10 @@ func ValidTypeScriptRawContract() contract.Contract {
 		},
 	}
 	raw.Replay = contract.Replay{
-		Kind:          string(model.ReplayKindVitest),
-		HelperPath:    "workflow.formal-replay.generated.ts",
-		TestPath:      "workflow.formal.test.generated.ts",
-		FixtureModule: "./workflow.formal-fixtures",
+		FixtureModule: "./ExampleWorkflow.fixtures",
 		FixtureExport: "exampleFormalFixtures",
 		Transition: contract.ReplayTransition{
-			Module:         "./workflow",
+			Module:         "./ExampleWorkflow",
 			Function:       "transitionExample",
 			StatusAccessor: "state.status",
 		},

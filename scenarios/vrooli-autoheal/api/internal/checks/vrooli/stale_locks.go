@@ -58,13 +58,13 @@ func NewStaleLockCheck(opts ...StaleLockCheckOption) *StaleLockCheck {
 }
 
 func (c *StaleLockCheck) ID() string    { return "vrooli-stale-locks" }
-func (c *StaleLockCheck) Title() string { return "Stale Port Locks" }
+func (c *StaleLockCheck) Title() string { return "Registry Claim Hygiene" }
 func (c *StaleLockCheck) Description() string {
-	return "Summarizes Vrooli core stale port lock status"
+	return "Summarizes Vrooli core registry claim hygiene and legacy port-lock artifact buildup"
 }
 
 func (c *StaleLockCheck) Importance() string {
-	return "Stale locks block scenarios from binding to their ports, causing startup failures"
+	return "Stale registry claims or leftover legacy lock files can confuse diagnostics; allocation authority lives in the registry"
 }
 
 func (c *StaleLockCheck) Category() checks.Category  { return checks.CategoryInfrastructure }
@@ -153,15 +153,15 @@ func (c *StaleLockCheck) RecoveryActions(lastResult *checks.Result) []checks.Rec
 	return []checks.RecoveryAction{
 		{
 			ID:          "clean",
-			Name:        "Clean Stale Locks",
-			Description: "Delegate stale lock cleanup to `vrooli cleanup locks`",
+			Name:        "Clean Stale Registry Claims and Legacy Artifacts",
+			Description: "Delegate cleanup to `vrooli cleanup locks` — expires non-authoritative registry claims and prunes leftover legacy lock files",
 			Dangerous:   false,
 			Available:   hasStale,
 		},
 		{
 			ID:          "list",
-			Name:        "List Stale Locks",
-			Description: "Show lock state reported by core Vrooli maintenance commands",
+			Name:        "List Lock Diagnostics",
+			Description: "Show registry claim and legacy artifact state reported by core Vrooli maintenance commands",
 			Dangerous:   false,
 			Available:   true,
 		},

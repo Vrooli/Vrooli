@@ -2,11 +2,11 @@ import type {
   AttachmentUploadEvent,
   AttachmentUploadStatus,
   AttachmentUploadState,
-} from "./AttachmentUploadWorkflow.generated";
+} from "./generated/attachmentupload/runtime";
 import {
   isAttachmentUploadEventValid,
   nextAttachmentUploadStatus,
-} from "./AttachmentUploadWorkflow.generated";
+} from "./generated/attachmentupload/runtime";
 
 export {
   attachmentUploadEvents,
@@ -14,13 +14,13 @@ export {
   isAttachmentUploadEventValid,
   nextAttachmentUploadStatus,
   transitionAttachmentUploadStatus,
-} from "./AttachmentUploadWorkflow.generated";
+} from "./generated/attachmentupload/runtime";
 export type {
   AttachmentUploadEvent,
   AttachmentUploadEventType,
   AttachmentUploadState,
   AttachmentUploadStatus,
-} from "./AttachmentUploadWorkflow.generated";
+} from "./generated/attachmentupload/runtime";
 
 export type StartableAttachmentUploadState = Extract<
   AttachmentUploadState,
