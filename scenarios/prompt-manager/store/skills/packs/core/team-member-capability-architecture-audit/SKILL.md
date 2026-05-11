@@ -50,7 +50,7 @@ Read only enough context to understand the member's current capability shape:
 1. Agent files: `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `agent.json`
 2. Team files: `TEAM.md`, `roles.json`, `team.json`
 3. Member files: `RESPONSIBILITIES.md`, `HEARTBEAT.md`, `last-handoff.md`, `topics.json`
-4. Relevant shared state: decisions, knowledge, audit logs, notebooks, plan-of-record hubs
+4. Relevant shared state: decisions, knowledge, audit logs, typed evidence, plan-of-record hubs
 5. Existing skill references from the member, team, docs, and graph node if available
 6. Structural pipeline state — run once for the team and reuse the output:
 
@@ -94,7 +94,7 @@ Look for these recurring smells:
 | Source ambiguity | External research required but source collection is unspecified | Add collection skill/tool/backlog |
 | Passive-only intake | Operator can feed work, but proactive scan path is absent | Add proactive baseline or explicit non-goal |
 | Proactive-only scan | Agent searches broadly but ignores operator-fed discoveries | Add inbox/intake from vision walk or team handoff |
-| Promotion fog | No rule for observation vs notebook vs decision vs backlog | Add promotion/routing matrix |
+| Promotion fog | No rule for observation vs typed evidence vs decision vs backlog | Add promotion/routing matrix |
 | Dead-end gap | Member observes missing capability but cannot route it | Add capability-gap or owning optimizer path |
 
 #### Phase 4: Choose the Smallest Useful Fix
@@ -170,7 +170,7 @@ When using this skill, produce a concise audit in this shape:
 **Routing:**
 - team-agent-optimizer: <agent/team prompt or contract change>
 - skill-optimizer: <skill create/split/improve, if any>
-- debt-curator: <plan-of-record/notebook promotion, if any>
+- debt-curator: <plan-of-record or typed-evidence promotion, if any>
 - capability-gap/backlog: <missing tool/scenario/action, if any>
 
 **Validation report:** (copy verbatim from `prompt-manager graph topics --team <team>`)
@@ -195,7 +195,7 @@ Likely diagnosis:
 - Skill surface is weak if all research methods live in heartbeat prose or broad role language.
 - Intake should support both operator-fed alpha from the morning vision walk and proactive baseline scans.
 - Collection and analysis should not collapse into one vague "research" instruction forever.
-- Promotion should distinguish observation, notebook, audience scan, decision, skill proposal, and capability-gap.
+- Promotion should distinguish observation, typed evidence, audience scan, decision, skill proposal, and capability-gap.
 
 Likely target architecture:
 
@@ -203,7 +203,7 @@ Likely target architecture:
 Research inbox / alpha intake
   -> research router skill
   -> focused method skills
-  -> knowledge / notebook / decision / skill proposal / capability-gap
+  -> knowledge / decision / skill proposal / capability-gap
 ```
 
 Example method skills:

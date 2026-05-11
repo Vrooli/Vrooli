@@ -119,7 +119,7 @@ Other content types not yet broken into per-entity files:
 
 - **Feature announcements** (subscription or OSS, depending on framing): shipped features only. Imminent-release features carry "launching [date]."
 - **Blog posts**: 500-2000 words, technical depth welcome, code snippets fine, end with a concrete invitation (try it, read more, contribute). Apply the same [essay-shape](../methods/post-techniques/essay-shape.md) and [intro-on-first-mention](../methods/post-techniques/intro-on-first-mention.md) techniques as dev logs.
-- **Videos**: demos or architecture walkthroughs; production workaround tracked in [`../notebook/VIDEO_WORKAROUNDS.md`](../notebook/VIDEO_WORKAROUNDS.md) until `video-studio` scenario ships.
+- **Videos**: demos or architecture walkthroughs; recurring manual production workarounds require typed marketing-craft observations or `capability-gap` decisions until `video-studio` scenario ships.
 - **Contributor-onboarding**: specific entry points (start with scenario X, run these commands, expect this output).
 
 ## Cross-cutting post techniques
@@ -145,7 +145,7 @@ These are the voice, positioning, process, and narrative-shape failures marketin
 5. **OSS-as-leak framing.** Self-host described as lost revenue or fallback.
 6. **Coverage-gap ignorance.** New campaigns while deployed SKUs have stale/missing coverage.
 7. **Acquisition-only hypothesis.** Proposal names acquisition mechanism only; no retention side, no explicit `awareness-only: true`.
-8. **Capability-workaround without gap.** Manual workaround with no matching `capability-gap` decision and no notebook entry.
+8. **Capability-workaround without gap.** Manual workaround with no matching `capability-gap` decision or typed observation.
 9. **Narrative-flatness.** Draft reads as a changelog or atomic-tweet list rather than essay-shape (hook → introduction → body → conclusion). Distinct from voice-drift (mode 2) — that's word/phrase-level corporate-marketer language; this is structural shape.
 10. **Internal-vocabulary-leakage.** Published copy uses internal artifact names (e.g. `p8`, `round-002`, internal codenames) without translation. Distinct from hype-drift (mode 1) — that's feature-claim overreach; this is vocabulary obscurity unrelated to claims.
 11. **Missing-introduction-on-first-mention.** Draft refers to a scenario / agent / named file by name with no prior mention in `marketing-crew/shared/published-scenario-mentions.jsonl` for the target audience, AND no introduction in the draft itself.
@@ -182,7 +182,7 @@ What is **not** appropriate to extract:
 - ❌ Strategy claims at face value. "7,000 people are doing this and making $5,000-20,000/month" is unverified-third-party-claim — informative as a market-existence signal, not as a sizing input.
 - ❌ Capability claims about competitors. Borrowed "X tool does Y" claims must be re-verified against the named tool's current docs before landing in any Vrooli post.
 
-**Tagging convention:** when a marketing-crew member's notebook entry, knowledge entry, or candidate-vertical-playbook draft references external content, the entry must carry an `unverified-third-party-claim` tag on every quantitative claim, an explicit citation (URL or post reference) for the source, and a freshness date (when was this read).
+**Tagging convention:** when a marketing-crew member's knowledge entry or candidate-vertical-playbook draft references external content, the entry must carry an `unverified-third-party-claim` tag on every quantitative claim, an explicit citation (URL or post reference) for the source, and a freshness date (when was this read).
 
 **Contrarian gate:** the marketing-contrarian validates that drafts using mined patterns:
 

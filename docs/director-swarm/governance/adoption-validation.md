@@ -8,7 +8,7 @@ prompt-manager graph operating-model diff --team director-swarm --id director-sw
 prompt-manager graph operating-model coverage --team director-swarm --id director-swarm-operating-model
 ```
 
-When PoR manifest validation lands, run the director-swarm PoR validator against [`../manifest.json`](../manifest.json) and the shared base contract at [`../../agent-system/team-plan-of-record.manifest.json`](../../agent-system/team-plan-of-record.manifest.json).
+Operating-model validation consumes the local [`../manifest.json`](../manifest.json) and the shared base contract at [`../../agent-system/team-plan-of-record.manifest.json`](../../agent-system/team-plan-of-record.manifest.json).
 
 ## Expected Clean State
 
@@ -18,6 +18,6 @@ When PoR manifest validation lands, run the director-swarm PoR validator against
 - `evidence/OUTCOMES_CHARTER.md` remains outcome framing, not a duplicate Command Center dashboard.
 - `operating/OPERATING_MODEL.md` remains clean under operating-model validation.
 
-## Migration Notes
+## Enforcement Scope
 
-This folder was migrated from the earlier flat director-swarm PoR layout. The portfolio philosophy and roadmap moved under `strategy/`; the outcomes charter moved under `evidence/`; the operating model, manifest, and governance files were added to match the shared team PoR structure.
+Validation treats [`../manifest.json`](../manifest.json) as the only structural contract for this plan of record. New durable canon must be registered in the manifest, placed under the most specific standard module, and edited only through accepted director-swarm decisions.

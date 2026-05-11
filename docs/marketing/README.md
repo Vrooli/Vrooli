@@ -24,7 +24,6 @@ Use this README first, then choose the module that matches the work:
 | How should external signals become research evidence? | [`evidence/research/README.md`](evidence/research/README.md) |
 | Which generated-media asset or schema applies? | [`catalogs/rich-media/README.md`](catalogs/rich-media/README.md) |
 | How is marketing research classified and routed? | [`taxonomies/marketing-research/README.md`](taxonomies/marketing-research/README.md) |
-| Is this unresolved learning rather than canon? | [`notebook/README.md`](notebook/README.md) |
 
 ## Folder map
 
@@ -38,12 +37,11 @@ Use this README first, then choose the module that matches the work:
 | [`strategy/`](strategy/README.md) | Voice, audience, campaign, channel, brand, asset, image-style, and strategy-pattern canon. |
 | [`evidence/research/`](evidence/research/README.md) | Research intake, collection, method, promotion, and evidence rules. |
 | [`governance/`](governance/editing.md) | Editing authority, adoption validation, and changelog. |
-| [`notebook/`](notebook/README.md) | Working notebook. Appendable debt, not authoritative plan-of-record canon. |
 
 ## Editing rules
 
 - **Agents never write to plan-of-record canon directly.** All canon edits come through operator-approved decisions.
-- **Working observations go to [`notebook/`](notebook/README.md).** The notebook is deliberately excluded from PoR authority; `brand-manager` proposes promotions and retirements.
+- **Working observations go to typed team knowledge topics.** Use the most specific topic prefix available (`research-inbox/*`, `marketing-craft-observation/*`, `friction-inbox/*`, `bug-inbox/*`, or `capability-gap/*`) and promote only through an owned decision.
 - **Use the most specific module.** Add post shapes under `catalogs/post-types/`, reusable writing techniques under `methods/post-techniques/`, directional marketing truth under `strategy/`, classification/routing rules under `taxonomies/`, and supporting proof under `evidence/`.
 - **Operator executes accepted edits.** Commit messages cite the decision id.
 
@@ -51,15 +49,15 @@ Decision-context detail lives in [`governance/editing.md`](governance/editing.md
 
 ## Cross-references
 
-- [`docs/agent-system/PLAN_OF_RECORD_STRUCTURE.md`](../agent-system/PLAN_OF_RECORD_STRUCTURE.md) — shared PoR architecture and extension rules.
-- [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../agent-system/TEAM_DOCS_PATTERNS.md) — plan-of-record vs working-notebook pattern.
+- [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json) — shared machine-readable PoR contract and extension rules.
+- [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../agent-system/TEAM_DOCS_PATTERNS.md) — typed knowledge flow and plan-of-record write boundary.
 - [`docs/narrative/`](../narrative/README.md) — project-identity canon. Marketing owns the linguistic how; narrative owns the what.
 - [`docs/monetization/`](../monetization/README.md) — positioning, pricing, catalog, and bundle ground truth. Marketing reads; monetization owns.
 - [`VISION.md`](../../VISION.md) — operator-authored manifesto and long-term north star.
 
 ## Future PoR work
 
-- Promote stable notebook lessons into the correct module, then retire the notebook entry.
+- Add typed marketing-craft observation schemas for recurring production lessons that are not research evidence, bugs, friction, or capability gaps.
 - Add PoR manifest validation once prompt-manager consumes `manifest.json`.
 - Split large strategy documents only when one-entity-per-file structure would make future edits safer.
 - Move generated-media schemas toward dedicated scenario support when the future `rich-media-studio` or `brand-manager` scenario owns that capability.

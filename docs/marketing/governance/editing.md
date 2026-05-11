@@ -15,10 +15,9 @@ The marketing plan of record is operator-curated canon owned by the `marketing-c
 | Channel-priority and strategy changes | `channel-strategy-update` |
 | New post-type entries | `post-type-proposal` |
 | Hook-library additions | `hook-candidate-promotion` |
-| Notebook promotion or retirement | `notebook-promotion` / `notebook-retirement` |
 
 Accepted decisions are executed by the operator. Commit messages cite the decision id.
 
 ## Direct Edits
 
-Direct edits are limited to operator migration work, mechanical link repair, and explicitly approved canon updates. Working observations belong in [`../notebook/`](../notebook/README.md), not in PoR files.
+Direct edits are limited to operator migration work, mechanical link repair, and explicitly approved canon updates. Working observations belong in typed team knowledge topics, not in PoR files.

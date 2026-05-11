@@ -4,7 +4,7 @@
 Own Vrooli's external voice: subscription marketing, OSS/community narrative, brand canon, research evidence, artifact requests, draft production, and the publishing pipeline.
 
 ## Scope
-Produces marketing drafts, release-ready publishing work, brand-canon stewardship, channel and format research, notebook drainage, and operator-routed marketing decisions.
+Produces marketing drafts, release-ready publishing work, brand-canon stewardship, channel and format research, typed learning drainage, and operator-routed marketing decisions.
 
 Does not own monetization strategy, service-line strategy, or other teams' plans of record.
 
@@ -14,6 +14,6 @@ Does not own monetization strategy, service-line strategy, or other teams' plans
 - Subscription means convenience plus integrated gateway, not paywalling core features.
 - OSS self-host is deliberate brand credibility, not a revenue leak.
 - Every metric and feature claim carries an honesty posture.
-- Notebook entries are managed debt. Promote, retire, or keep them with an explicit revisit marker.
-- Missing scenario capability gets surfaced with a paired workaround note and decision.
+- Typed marketing-craft observations are managed evidence. Promote, retire, or keep them with an explicit revisit marker.
+- Missing scenario capability gets surfaced with a `capability-gap` decision and a typed observation only when the lesson is marketing-specific.
 - External-facing claims must stay aligned with monetization canon and observed product reality.

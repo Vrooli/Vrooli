@@ -89,7 +89,7 @@
           "docType": "validation-runbook",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Migration Notes"]
+            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Enforcement Scope"]
           }
         },
         {
@@ -111,4 +111,3 @@
     }
   ]
 }
-

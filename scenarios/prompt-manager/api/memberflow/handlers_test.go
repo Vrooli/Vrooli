@@ -436,8 +436,8 @@ flowchart LR
   OP([Operator])
   %% @node IN topic:research-inbox/*
   IN[(research-inbox/*)]
-  %% @node NOTE topic:marketing/notebook/*
-  NOTE[(marketing/notebook/*)]
+  %% @node NOTE topic:marketing-craft-observation/*
+  NOTE[(marketing-craft-observation/*)]
   %% @node D decision:model-update
   D{model-update}
   OP --> IN
@@ -451,7 +451,7 @@ flowchart LR
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
 | ` + "`topic:research-inbox/*`" + ` | live | external:operator | member:member-a | Intake. |
-| ` + "`topic:marketing/notebook/*`" + ` | live | | | Notebook. |
+| ` + "`topic:marketing-craft-observation/*`" + ` | live | | | Typed observation. |
 
 ## Decisions
 
@@ -503,9 +503,9 @@ flowchart LR
       "purpose": "Intake."
     },
     {
-      "prefix": "marketing/notebook/*",
+      "prefix": "marketing-craft-observation/*",
       "status": "live",
-      "purpose": "Notebook."
+      "purpose": "Typed observation."
     }
   ],
   "operatingContract": {
@@ -523,7 +523,6 @@ flowchart LR
           "writePolicy": "operator-curated-via-decisions"
         }
       ],
-      "notebooks": [],
       "sharedState": []
     },
     "decisionContexts": {
@@ -661,7 +660,6 @@ flowchart LR
           "writePolicy": "operator-curated-via-decisions"
         }
       ],
-      "notebooks": [],
       "sharedState": []
     },
     "decisionContexts": {

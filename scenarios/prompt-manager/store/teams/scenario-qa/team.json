@@ -135,7 +135,6 @@
           "useFor": "QA mission, member roster, decision contexts, bug-report schemas, audit-technique applicability, investigation-technique applicability, future technique graduation"
         }
       ],
-      "notebooks": [],
       "sharedState": [
         {
           "id": "team-md",

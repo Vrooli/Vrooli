@@ -19,7 +19,6 @@ The canonical contexts:
 | `content-publish-proposal` | New content draft proposed for publish | marketing-crew |
 | `campaign-launch-proposal` | Campaign launches/changes | marketing-crew |
 | `brand-guideline-update` | Brand canon evolves | marketing-crew |
-| `notebook-promotion` / `notebook-retirement` | Working-notebook entry matures or expires | curator role on each team |
 | `coverage-gap` | Deployed-SKU coverage is stale | marketing-crew |
 | `audience-update` follow-ons (per team) | … | varies |
 | `catalog-promotion` | Monetization SKU lands or shifts | monetization opportunity-scout / market-validator |
@@ -81,7 +80,7 @@ The choice is **scope-driven, not team-driven**.
 ### Direct write is allowed when **all** of these hold
 
 1. **The decision text fully specifies the change.** The executing agent is transcribing, not designing. ("Update audience X's pain-point list to include Y" is direct-write-eligible. "Improve audience X's pain-point list" is not — that needs design work, which means swarm-manager.)
-2. **The change is scoped to one of:** the team's own plan-of-record, the team's own knowledge entries, the team's own working-notebook drafts, the team's own member files (RESPONSIBILITIES.md, topics.json, etc.), or **an existing backlog item / initiative the team already owns** (updating planning artifacts to reflect a planning decision is itself a planning act, not new execution work).
+2. **The change is scoped to one of:** the team's own plan-of-record, the team's own knowledge entries, the team's own member files (RESPONSIBILITIES.md, topics.json, etc.), or **an existing backlog item / initiative the team already owns** (updating planning artifacts to reflect a planning decision is itself a planning act, not new execution work).
 3. **No new scenario, no new scenario CLI verb, no new or modified skill, no new or modified action, no infra change** is part of the change.
 4. **No cross-team artifact** is touched. (If marketing's decision modifies marketing's own POR but reads from monetization's POR, that's still direct-write. If it modifies monetization's POR, that becomes a cross-team decision and routes to monetization's queue, not a direct write.)
 
@@ -315,5 +314,5 @@ Otherwise                      -> file backlog item or initiative in swarm-manag
 - `CONTRARIAN_REVIEW.md` — decision challenge sidecar: challenge reports, resolution records, author response, escalation
 - `PROMOTION_LADDER.md` — the prose → CLI → Action lifecycle that `action-candidate` decisions drive
 - `LAYERS.md` — where each artifact (decision, skill, action, knowledge, POR) lives
-- `TEAM_DOCS_PATTERNS.md` — plan-of-record vs working-notebook patterns; informs which surfaces are direct-write-eligible
+- `TEAM_DOCS_PATTERNS.md` — plan-of-record authority, typed knowledge flow, and direct-write boundaries
 - `TEAM_MEMBER_ARCHITECTURE.md` — the 9-layer audit; layer 8 (Promotion / Routing) and layer 9 (Feedback Loop) consume this file

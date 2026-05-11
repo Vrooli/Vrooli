@@ -151,4 +151,4 @@ The marketing-contrarian validates v1 status as part of every `content-publish-p
 - [`../../strategy/patterns/`](../../strategy/patterns/) — strategies that span multiple post-types (AI-UGC personas, hook library, funnel patterns).
 - [`../rich-media/`](../rich-media/) — character / scene / product / prompt-template schemas for image and video generation.
 - [`../../strategy/CHANNELS.md`](../../strategy/CHANNELS.md) — channel × format matrix showing which post-types map to which platforms.
-- [`../../notebook/`](../../notebook/) — working notebook for patterns observed in production. Each post-type's promotion target may be either *this folder* (strategic refinements) or its paired skill (executable refinements).
+- `marketing-craft-observation/<post-type>/<slug>` — typed production observations. Each post-type's promotion target may be either *this folder* (strategic refinements) or its paired skill (executable refinements).

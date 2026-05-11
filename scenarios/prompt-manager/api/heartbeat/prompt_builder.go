@@ -1069,11 +1069,9 @@ Write what your next run needs to know: what changed, what remains open, what to
 
 Use the knowledge log for structured observations from this heartbeat: evidence, measurements, snapshots, findings, and concrete friction signals.
 
-Use the notebook only for unresolved patterns, workarounds, or rough lessons that are not ready for durable structure. Notebook entries are debt, not authority. The curator later promotes or retires them.
+When an observation has a clear typed destination — another member's inbox topic, or a concrete-typed topic that another member drains — write to that topic with ` + "`prompt-manager team knowledge-add`" + ` so the right drainer picks it up. If no typed topic fits, use ` + "`report-friction`" + ` for system/process friction or raise a ` + "`meta-self-improvement`" + ` proposal to add the missing topic/taxonomy. The full registry of inboxes and other typed topics is ` + "`docs/agent-system/TOPICS.md`" + `.
 
-When an observation has a clear typed destination — another member's inbox topic, or a concrete-typed topic that another member drains — write to that topic with ` + "`prompt-manager team knowledge-add`" + ` so the right drainer picks it up. The notebook is the residual surface for observations that don't fit any typed inbox; if you don't know where it goes, the notebook is correct. The full registry of inboxes and other typed topics is ` + "`docs/agent-system/TOPICS.md`" + `.
-
-For broken scenario or code behavior — bugs of any kind: code defects, regressions, prompt confusion, data-shape mismatches, unexpected errors — load ` + "`prompt-manager skill read report-bug`" + ` and follow it. The skill writes to ` + "`bug-inbox/<signal-type>/<slug>`" + ` on ` + "`scenario-qa`" + `, where the bug-investigator drains. Do not put bugs in the notebook; ` + "`bug-inbox/*`" + ` is the universal-source intake any team's members write to.
+For broken scenario or code behavior — bugs of any kind: code defects, regressions, prompt confusion, data-shape mismatches, unexpected errors — load ` + "`prompt-manager skill read report-bug`" + ` and follow it. The skill writes to ` + "`bug-inbox/<signal-type>/<slug>`" + ` on ` + "`scenario-qa`" + `, where the bug-investigator drains. ` + "`bug-inbox/*`" + ` is the universal-source intake any team's members write to.
 
 If something expected was missing, broken, confusing, slow, undocumented, or harder than it should have been, capture it as friction. For structural friction — a skill that misled you, a tool that's missing, a doc you couldn't find, a workaround you keep repeating — load ` + "`prompt-manager skill read report-friction`" + ` and follow it. The skill writes to ` + "`friction-inbox/<scope>/<slug>`" + ` on ` + "`meta-optimization`" + `, where the friction-curator drains and routes to the appropriate sub-member or to debt-curator for synthesis. For situational, one-off friction not worth filing, mention it in handoff.
 
@@ -1098,8 +1096,7 @@ When sources disagree, prefer:
 3. Accepted decisions
 4. Team working state
 5. Knowledge log evidence
-6. Notebook entries
-7. Handoff
+6. Handoff
 `)
 
 	teamStorage, err := teamcontract.RenderTeamStorage(team.OperatingContract, teamcontract.RenderInput{

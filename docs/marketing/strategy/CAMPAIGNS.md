@@ -29,7 +29,7 @@ When a `campaign-launch-proposal` is accepted, append an entry in the shape belo
 **Outstanding artifact slots:**
 - [ ] <channel>: <format> (e.g., `x-twitter: launch thread`)
 - [ ] <channel>: <format>
-**Close note:** <when closed — summary of what was produced and any postmortem reference in notebook/CAMPAIGN_LESSONS.md>
+**Close note:** <when closed — summary of what was produced and any postmortem reference topic>
 ```
 
 ## Closed campaigns

@@ -301,10 +301,10 @@ Example graph-to-runtime diff:
 
 ```text
 [graph_relationship_missing_in_runtime] topic_read
-docs/marketing/operating/OPERATING_MODEL.md:355 says topic:marketing/notebook/* -> member:researcher.
+docs/marketing/operating/OPERATING_MODEL.md:355 says topic:research-inbox/* -> member:researcher.
 Runtime has no matching researcher intake, required_read, or evidence_consumed declaration.
 Suggested fixes:
-- add required_read "marketing/notebook/*" to researcher/topics.json
+- add intake "research-inbox/*" to researcher/topics.json
 - or remove the topic -> member edge from the operating graph
 ```
 
@@ -495,7 +495,7 @@ Candidate coherence checks include:
 - intake queue has no modeled drainer;
 - decision has no owner or no reviewer/consumer path;
 - process node is the only bridge between two live runtime surfaces;
-- learning/canon loop writes into a notebook or backlog that no member drains;
+- learning/canon loop writes into an undrained topic or backlog that no member owns;
 - feedback-loop exit mentions a valid surface but that surface cannot actually drain the named failure mode;
 - current-gap item is accepted indefinitely without a modeled decision, future topic, or backlog route;
 - external reader/writer semantics should become an explicit cross-boundary relationship instead of a warning-only docs claim.

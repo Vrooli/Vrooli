@@ -134,14 +134,14 @@
       "purpose": "Telemetry and qualitative performance: impressions, clicks, replies, saves, conversion, comments, channel-specific notes."
     },
     {
-      "prefix": "marketing/notebook/*",
+      "prefix": "marketing-craft-observation/*",
       "status": "live",
-      "purpose": "Working debt: repeated lessons, workarounds, craft observations, campaign lessons. Any member may append unresolved debt, but brand-manager is the only runtime drainer and must promote or retire entries."
+      "purpose": "Typed production observations: repeated lessons, workarounds, craft observations, and campaign lessons that may feed canon, skill, scenario, capability-gap, or retirement decisions."
     },
     {
       "prefix": "brand-snapshot/*",
       "status": "live",
-      "purpose": "Snapshot of canon drift, notebook state, campaign signals, and promotion/retirement candidates."
+      "purpose": "Snapshot of canon drift, typed learning state, campaign signals, and promotion/retirement candidates."
     },
     {
       "prefix": "challenge-report/*",
@@ -386,41 +386,6 @@
           "useFor": "read-only SKU, pricing, delivery-tier, and scenario mapping facts for marketing claims"
         }
       ],
-      "notebooks": [
-        {
-          "id": "marketing-working-notebook",
-          "paths": [
-            {
-              "base": "repo-root",
-              "path": "docs/marketing/notebook/README.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/marketing/notebook/VIDEO_WORKAROUNDS.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/marketing/notebook/POSTING_WORKAROUNDS.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/marketing/notebook/AUDIENCE_OBSERVATIONS.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/marketing/notebook/CAMPAIGN_LESSONS.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/marketing/notebook/DEV_LOG_CRAFT.md"
-            }
-          ],
-          "posture": "debt",
-          "writePolicy": "append-any-member",
-          "curatorMemberId": "brand-manager",
-          "promotionContext": "notebook-promotion"
-        }
-      ],
       "sharedState": [
         {
           "id": "team-md",
@@ -588,18 +553,6 @@
         ],
         "description": "Deployed or imminent SKU/app has stale or missing marketing coverage."
       },
-      "notebook-promotion": {
-        "ownerMemberIds": [
-          "brand-manager"
-        ],
-        "description": "Promote stable notebook debt into permanent structure."
-      },
-      "notebook-retirement": {
-        "ownerMemberIds": [
-          "brand-manager"
-        ],
-        "description": "Retire notebook debt obsoleted by shipped capability."
-      },
       "capability-gap": {
         "ownerMemberIds": [
           "subscription-advertiser",
@@ -705,16 +658,19 @@
         "ownerMemberId": "publisher",
         "supersedesPrevious": false,
         "retention": "append-only"
+      },
+      "marketing-craft-observation/<post-type>/<slug>": {
+        "ownerMemberId": "brand-manager",
+        "supersedesPrevious": false,
+        "retention": "append-only"
       }
     },
     "members": {
       "brand-manager": {
-        "lane": "Steward marketing and narrative canon, curate the marketing notebook, and propose campaigns only when signal warrants.",
+        "lane": "Steward marketing and narrative canon, drain typed marketing-craft observations, and propose campaigns only when signal warrants.",
         "ownedDecisionContexts": [
           "campaign-launch-proposal",
-          "brand-guideline-update",
-          "notebook-promotion",
-          "notebook-retirement"
+          "brand-guideline-update"
         ],
         "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
@@ -740,7 +696,7 @@
         ],
         "safetyCriticalRules": [
           "Do not review individual drafts before publisher; advertisers produce first-class drafts independently.",
-          "Do not edit plan-of-record or notebook entries directly; propose promotions, retirements, or canon edits."
+          "Do not edit plan-of-record files directly; propose promotions, retirements, or canon edits through the relevant decision."
         ],
         "readOnlyModeBehavior": {
           "skipNewDecisions": true,
@@ -750,16 +706,14 @@
         },
         "newDecisionCapsByContext": {
           "campaign-launch-proposal": 1,
-          "brand-guideline-update": 1,
-          "notebook-promotion": 2,
-          "notebook-retirement": 2
+          "brand-guideline-update": 1
         },
         "taskParameters": {
           "narrativeCanonTriggers": [
             "accepted decision changes positioning",
             "new SKU ships or launch window opens",
             "systematic drift across >=3 recent drafts",
-            "notebook entry reaches promotion threshold",
+            "typed marketing-craft observation reaches promotion threshold",
             "operator-flagged drift"
           ]
         }
@@ -776,10 +730,6 @@
           {
             "base": "team-shared",
             "path": "campaign-drafts.jsonl"
-          },
-          {
-            "base": "repo-root",
-            "path": "docs/marketing/notebook/"
           },
           {
             "kind": "knowledge"
@@ -804,7 +754,7 @@
         "safetyCriticalRules": [
           "Never frame subscriptions as paywalling core features.",
           "Never auto-publish.",
-          "Missing tooling becomes capability-gap plus notebook note."
+          "Missing tooling becomes capability-gap plus typed marketing-craft observation when the lesson is marketing-specific."
         ],
         "readOnlyModeBehavior": {
           "skipNewDecisions": true,
@@ -830,10 +780,6 @@
           {
             "base": "team-shared",
             "path": "campaign-drafts.jsonl"
-          },
-          {
-            "base": "repo-root",
-            "path": "docs/marketing/notebook/"
           },
           {
             "kind": "knowledge"
@@ -898,10 +844,6 @@
             "path": "coverage/"
           },
           {
-            "base": "repo-root",
-            "path": "docs/marketing/notebook/"
-          },
-          {
             "kind": "knowledge"
           },
           {
@@ -952,10 +894,6 @@
           {
             "base": "team-shared",
             "path": "audience-scans.jsonl"
-          },
-          {
-            "base": "repo-root",
-            "path": "docs/marketing/notebook/AUDIENCE_OBSERVATIONS.md"
           },
           {
             "kind": "knowledge"

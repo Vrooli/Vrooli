@@ -1,10 +1,10 @@
 # Post Type: Scenario Spotlight
 
-**Status:** v1. New post type introduced at walk #5 (2026-04-28). Will mature as the `x-scenario-spotlight` skill runs in production and the marketing notebook accumulates entries.
+**Status:** v1. New post type introduced at walk #5 (2026-04-28). Will mature as the `x-scenario-spotlight` skill runs in production and typed marketing-craft observations accumulate.
 
 **Paired skill:** [`x-scenario-spotlight`](../../../../../scenarios/prompt-manager/store/skills/packs/core/x-scenario-spotlight/SKILL.md)
 **Primary lane/member:** Subscription lane (`subscription-advertiser`) for drafting, with publisher/operator handoff for the release step.
-**Notebook home for emerging craft patterns:** `docs/marketing/notebook/SCENARIO_SPOTLIGHT_CRAFT.md` (created on first observation, not pre-emptively)
+**Craft observation topic:** `marketing-craft-observation/scenario-spotlight/<slug>`
 
 ## Purpose
 
@@ -148,13 +148,13 @@ Honesty flags the publisher-member must attach to a spotlight draft (mirroring t
 
 ## Promotion path for craft observations
 
-Patterns observed during production runs of `x-scenario-spotlight` should be appended to `docs/marketing/notebook/SCENARIO_SPOTLIGHT_CRAFT.md` (created on first observation). Promotion targets per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../../agent-system/TEAM_DOCS_PATTERNS.md):
+Patterns observed during production runs of `x-scenario-spotlight` should be written to `marketing-craft-observation/scenario-spotlight/<slug>`. Promotion targets per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../../agent-system/TEAM_DOCS_PATTERNS.md):
 
 - **Skill edit** — most observations land as edits to the `x-scenario-spotlight` skill (round structure, mining-strategy adjustments, output-contract refinements).
 - **This file** — observations that change strategic canon (audience model, conversion goal phrasing, new variant, new failure mode).
 - **A `post-techniques/` file** — observations that turn out to be cross-cutting and apply to multiple post types.
 
-The notebook entry never persists indefinitely; brand-manager curates promotions.
+The typed observation never persists indefinitely; brand-manager curates promotions.
 
 ## Cross-references
 

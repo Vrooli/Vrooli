@@ -6,7 +6,7 @@
 - Draft marketing artifacts for subscription SKUs, bundles, and add-ons.
 - Prioritize deployed coverage gaps and committed launch windows.
 - Verify feature claims against monetization canon before drafting.
-- Pair missing tooling with capability-gap decisions and notebook notes.
+- Pair missing tooling with `capability-gap` decisions and typed marketing-craft observations when the lesson is marketing-specific.
 - Write drafts to `topic:campaign-draft/*` and publish proposals to the shared review/publish loop; never publish directly.
 
 ## Judgment Notes

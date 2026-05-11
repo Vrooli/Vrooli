@@ -4,7 +4,7 @@
 
 **Paired skill:** `x-infographic` *(planned)*
 **Primary lane/member:** Subscription lane (`subscription-advertiser`) for lifestyle/general subjects; OSS lane (`oss-advertiser`) for technical subjects.
-**Notebook home for emerging craft patterns:** `../../../notebook/INFOGRAPHIC_CRAFT.md` (created on first observation)
+**Craft observation topic:** `marketing-craft-observation/infographic/<slug>`
 
 ## Purpose
 

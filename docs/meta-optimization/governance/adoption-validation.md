@@ -19,10 +19,6 @@ The operating model should validate cleanly against the team graph, topic catalo
 
 The friction-report taxonomy should resolve from `intake[].taxonomy = "friction-report"` and its `porPath` should point to `docs/meta-optimization/taxonomies/friction-report/README.md`.
 
-## Migration Notes
+## Enforcement Scope
 
-This folder migrated from top-level taxonomy and operating-model files into the shared `team-plan-of-record/v1` shape:
-
-- `OPERATING_MODEL.md` moved to `operating/OPERATING_MODEL.md`.
-- `FRICTION_REPORT_TAXONOMY.md` and `friction-report-taxonomy.json` moved to `taxonomies/friction-report/`.
-- Change-flow and validation notes moved out of the README into `governance/`.
+Validation treats [`../manifest.json`](../manifest.json) as the only structural contract for this plan of record. New durable canon must be registered in the manifest, placed under the most specific standard module, and edited only through accepted meta-optimization decisions.

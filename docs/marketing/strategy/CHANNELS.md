@@ -89,14 +89,14 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 
 ## Video (self-hosted YouTube)
 
-**Active:** partial (production via notebook workaround; `video-studio` scenario not yet shipped).
+**Active:** partial (manual production; `video-studio` scenario not yet shipped).
 **Priority:** P1 — long-form demos and architecture walks live here; short-form video lives on TikTok/Reels/Shorts (separate channels below).
 **Accounts:** 1 brand YouTube channel (placeholder until activated).
 **Primary lane/member:** Subscription lane (`subscription-advertiser`) for SKU demos; OSS lane (`oss-advertiser`) for architecture walkthroughs.
 **Format support:** demo-recording (long-form), occasional comparison-reel and use-case-tutorial.
 
 **Rules:**
-- Production: currently manual; workarounds documented in `../notebook/VIDEO_WORKAROUNDS.md`.
+- Production: currently manual; recurring workarounds are captured as typed marketing-craft observations or `capability-gap` decisions.
 - Lengths: 30-60s for social clips, 2-5min for demos, 5-15min for architecture walks.
 - Captions mandatory.
 - Every metric in the description carries an honesty flag.

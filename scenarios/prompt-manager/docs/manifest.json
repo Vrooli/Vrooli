@@ -49,7 +49,7 @@
         {
           "path": "concepts/MEMORY-PROMOTION.md",
           "title": "Memory Promotion",
-          "description": "Ontology and decision tree for promoting notebook observations into durable forms",
+          "description": "Ontology and decision tree for promoting typed observations into durable forms",
           "audience": ["developers", "operators"]
         },
         {

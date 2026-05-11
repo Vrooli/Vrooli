@@ -178,16 +178,6 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 		Consumers:   []string{"team-1", "team-2"},
 		UseFor:      "durable strategy canon",
 	}}
-	contract.Documents.Notebooks = []NotebookDocument{{
-		ID:               "notebook",
-		Paths:            []PathRef{{Base: BaseRepoRoot, Path: "docs/notebook.md", Required: boolPtr(false), OptionalReason: "test fixture"}},
-		Posture:          "debt",
-		WritePolicy:      "append-any-member",
-		CuratorMemberID:  "agent-1",
-		PromotionContext: "general",
-		Required:         boolPtr(false),
-		OptionalReason:   "test fixture",
-	}}
 	contract.Documents.SharedState = []SharedStateDocument{{
 		ID:             "events",
 		Path:           PathRef{Base: BaseTeamShared, Path: "events.jsonl", Required: boolPtr(false), OptionalReason: "test fixture"},
@@ -209,10 +199,6 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 		"Consumers: `team-1, team-2`",
 		"Use for: durable strategy canon",
 		"Navigation: start at the hub and follow its file map to the relevant spoke.",
-		"Notebook, append unresolved learning:",
-		"Curator: `agent-1`",
-		"Promotion context: `general`",
-		"Posture: `debt`",
 		"Team working state:",
 		"Kind: `append-only-event-log`",
 		"Use for: structured historical events or observations owned by the team",

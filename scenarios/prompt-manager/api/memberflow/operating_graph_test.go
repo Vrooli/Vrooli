@@ -778,7 +778,7 @@ func TestDiffOperatingGraphsDetectsGraphReadMissingInRuntime(t *testing.T) {
 	block := operatingDiffBlock(t, []string{
 		"flowchart LR",
 		`  M["member:researcher"]`,
-		`  T["topic:marketing/notebook/*"]`,
+		`  T["topic:marketing-craft-observation/*"]`,
 		"  T --> M",
 	})
 	runtime := operatingDiffRuntime(t, []MemberTopics{{
@@ -788,7 +788,7 @@ func TestDiffOperatingGraphsDetectsGraphReadMissingInRuntime(t *testing.T) {
 
 	diffs := DiffOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
 	diff := assertOperatingDiff(t, diffs, "graph_relationship_missing_in_runtime", operatingRelTopicRead)
-	if diff.Member != "researcher" || diff.Topic != "marketing/notebook/*" || diff.RuntimePath == "" || len(diff.Suggestions) == 0 {
+	if diff.Member != "researcher" || diff.Topic != "marketing-craft-observation/*" || diff.RuntimePath == "" || len(diff.Suggestions) == 0 {
 		t.Fatalf("unexpected diff: %+v", diff)
 	}
 }
@@ -801,32 +801,32 @@ func TestDiffOperatingGraphsDetectsRuntimeRequiredReadMissingInGraph(t *testing.
 	runtime := operatingDiffRuntime(t, []MemberTopics{{
 		Ref: MemberRef{Team: "team-a", Member: "researcher"},
 		Topics: Topics{RequiredRead: []RequiredReadEntry{{
-			Prefix: "marketing/notebook/*",
+			Prefix: "marketing-craft-observation/*",
 		}}},
 	}})
 
 	diffs := DiffOperatingGraphs([]OperatingGraphBlock{block}, runtime, "team-a", "g")
 	diff := assertOperatingDiff(t, diffs, "runtime_relationship_missing_in_graph", operatingRelTopicRead)
-	if diff.Member != "researcher" || diff.Topic != "marketing/notebook/*" || diff.RuntimePath == "" || len(diff.Suggestions) == 0 {
+	if diff.Member != "researcher" || diff.Topic != "marketing-craft-observation/*" || diff.RuntimePath == "" || len(diff.Suggestions) == 0 {
 		t.Fatalf("unexpected diff: %+v", diff)
 	}
 }
 
 func TestDiffOperatingGraphsGraphReadMatchesRuntimeReadSubtypes(t *testing.T) {
 	for name, topics := range map[string]Topics{
-		"intake": {Intake: []IntakeEntry{{Prefix: "marketing/notebook/*"}}},
+		"intake": {Intake: []IntakeEntry{{Prefix: "marketing-craft-observation/*"}}},
 		"required_read": {RequiredRead: []RequiredReadEntry{{
-			Prefix: "marketing/notebook/*",
+			Prefix: "marketing-craft-observation/*",
 		}}},
 		"evidence_consumed": {EvidenceConsumed: []EvidenceConsumedEntry{{
-			Prefix: "marketing/notebook/*",
+			Prefix: "marketing-craft-observation/*",
 		}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			block := operatingDiffBlock(t, []string{
 				"flowchart LR",
 				`  M["member:researcher"]`,
-				`  T["topic:marketing/notebook/*"]`,
+				`  T["topic:marketing-craft-observation/*"]`,
 				"  T --> M",
 			})
 			runtime := operatingDiffRuntime(t, []MemberTopics{{
@@ -1452,7 +1452,7 @@ func TestValidateOperatingGraphsCompletenessUsesIndexedGraphRelationships(t *tes
 			`  M["member:researcher"]`,
 			`  EXT["external:operator"]`,
 			`  IN["topic:research-inbox/*"]`,
-			`  READ["topic:marketing/notebook/*"]`,
+			`  READ["topic:marketing-craft-observation/*"]`,
 			`  EV["topic:challenge-report/*"]`,
 			`  OUT["topic:hook-record/*"]`,
 			`  MON["team:monetization"]`,
@@ -1476,7 +1476,7 @@ func TestValidateOperatingGraphsCompletenessUsesIndexedGraphRelationships(t *tes
 		Topics: Topics{
 			Intake: []IntakeEntry{{Prefix: "research-inbox/*"}},
 			RequiredRead: []RequiredReadEntry{{
-				Prefix: "marketing/notebook/*",
+				Prefix: "marketing-craft-observation/*",
 			}},
 			EvidenceConsumed: []EvidenceConsumedEntry{{
 				Prefix:       "challenge-report/*",
@@ -1520,7 +1520,7 @@ func TestValidateOperatingGraphsCompletenessCoversRuntimeRelationshipsComparedBy
 		Topics: Topics{
 			Intake: []IntakeEntry{{Prefix: "research-inbox/*"}},
 			RequiredRead: []RequiredReadEntry{{
-				Prefix: "marketing/notebook/*",
+				Prefix: "marketing-craft-observation/*",
 			}},
 			EvidenceConsumed: []EvidenceConsumedEntry{{
 				Prefix:       "challenge-report/*",
@@ -1581,7 +1581,7 @@ func TestBuildRuntimeOperatingRelationshipsExtractsTopicsContractFields(t *testi
 		Topics: Topics{
 			Intake: []IntakeEntry{{Prefix: "research-inbox/*"}},
 			RequiredRead: []RequiredReadEntry{{
-				Prefix: "marketing/notebook/*",
+				Prefix: "marketing-craft-observation/*",
 			}},
 			EvidenceConsumed: []EvidenceConsumedEntry{{
 				Prefix:       "challenge-report/*",
@@ -2140,6 +2140,38 @@ func TestValidateOperatingModelsChecksPlanOfRecordManifest(t *testing.T) {
 	assertOperatingFinding(t, result, "por_package_required_file_missing")
 }
 
+func TestValidateOperatingModelsRejectsPlanOfRecordHardCutoverDrift(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeFile := func(rel, body string) {
+		t.Helper()
+		path := filepath.Join(repoRoot, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", rel, err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatalf("write %s: %v", rel, err)
+		}
+	}
+	writeFile("docs/team-a/manifest.json", `{
+  "contract": {"kind": "team-plan-of-record", "schema": "team-plan-of-record/v1", "team": "team-a"},
+  "sections": [
+    {"id": "entrypoint", "path": ".", "required": true, "documents": [{"path": "README.md", "required": true}]},
+    {"id": "operating", "path": "operating/", "required": true, "documents": [{"path": "OPERATING_MODEL.md", "required": true}]}
+  ]
+}`)
+	writeFile("docs/team-a/README.md", "# Team A\n\nThis current file points to docs/marketing/notebook.\n")
+	writeFile("docs/team-a/operating/OPERATING_MODEL.md", "# Operating\n")
+	writeFile("docs/team-a/notebook/NOTE.md", "# Note\n")
+
+	model := operatingModelDocumentFixture(t)
+	model.Team = "team-a"
+	model.Source.Path = "docs/team-a/operating/OPERATING_MODEL.md"
+	result := ValidateOperatingModels([]OperatingModelDocument{model}, OperatingGraphRuntime{RepoRoot: repoRoot}, "team-a", "g")
+
+	assertOperatingFinding(t, result, "por_hard_cutover_drift")
+	assertOperatingFinding(t, result, "por_notebook_surface")
+}
+
 func TestLoadAllTaxonomiesDiscoversPackagedTaxonomyJSON(t *testing.T) {
 	repoRoot := t.TempDir()
 	path := filepath.Join(repoRoot, "docs", "team-a", "taxonomies", "signal", "taxonomy.json")
@@ -2204,7 +2236,7 @@ func TestMarketingOperatingModelUsesReadableAnnotatedLabels(t *testing.T) {
 	}
 }
 
-func TestMarketingOperatingModelCentralizesNotebookDrainage(t *testing.T) {
+func TestMarketingOperatingModelCentralizesTypedObservationDrainage(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "..", "docs", "marketing", "operating", "OPERATING_MODEL.md")
 	blocks, err := ExtractOperatingGraphBlocks(path, "docs/marketing/operating/OPERATING_MODEL.md")
 	if err != nil {
@@ -2214,14 +2246,14 @@ func TestMarketingOperatingModelCentralizesNotebookDrainage(t *testing.T) {
 		t.Fatalf("blocks=%d, want 1", len(blocks))
 	}
 	rels := NewOperatingRelationshipSet(BuildGraphOperatingRelationships(blocks[0]))
-	wantBrandManagerRead := OperatingRelationship{Kind: operatingRelTopicRead, Team: "marketing-crew", Member: "brand-manager", Topic: "marketing/notebook/*"}
+	wantBrandManagerRead := OperatingRelationship{Kind: operatingRelTopicRead, Team: "marketing-crew", Member: "brand-manager", Topic: "marketing-craft-observation/*"}
 	if !operatingRelationshipSetContains(rels, wantBrandManagerRead) {
-		t.Fatalf("marketing notebook must drain through brand-manager; relationships=%+v", rels.All())
+		t.Fatalf("marketing craft observation must drain through brand-manager; relationships=%+v", rels.All())
 	}
 	for _, member := range []string{"researcher", "oss-advertiser", "subscription-advertiser", "publisher"} {
-		forbidden := OperatingRelationship{Kind: operatingRelTopicRead, Team: "marketing-crew", Member: member, Topic: "marketing/notebook/*"}
+		forbidden := OperatingRelationship{Kind: operatingRelTopicRead, Team: "marketing-crew", Member: member, Topic: "marketing-craft-observation/*"}
 		if operatingRelationshipSetContains(rels, forbidden) {
-			t.Fatalf("raw marketing notebook should not be a direct runtime read for %s", member)
+			t.Fatalf("raw marketing craft observation should not be a direct runtime read for %s", member)
 		}
 	}
 }

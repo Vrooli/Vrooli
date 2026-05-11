@@ -63,7 +63,7 @@ After the router classifies an entry, it must either retag or delete it:
   prompt-manager team knowledge-update marketing-crew <id> --topic="<destination-topic>"
   ```
 
-  e.g. `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface: `audience-scan/<slug>`, `competitor-record/<slug>`, `hook-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc. If the routed action creates a new entry on a different surface (decision, notebook debt, capability-gap), delete the inbox row instead of retagging.
+  e.g. `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface: `audience-scan/<slug>`, `competitor-record/<slug>`, `hook-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc. If the routed action creates a new entry on a different surface (decision, typed craft observation, capability-gap), delete the inbox row instead of retagging.
 
 - **Delete** when the entry was weak, duplicate, or otherwise dropped:
 
@@ -113,7 +113,7 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 |---|---|
 | Low-signal or one-off item | Handoff, or `research-inbox/*` knowledge entry. |
 | Concrete observation with source | `audience-scan/*` knowledge entry, or `audience-scans.jsonl` for batch scan rows. |
-| Unresolved repeated pattern | `path:docs/marketing/notebook/*`. |
+| Unresolved repeated marketing-specific pattern | `marketing-craft-observation/<post-type>/<slug>` knowledge entry. |
 | Audience/persona change with converging evidence | `audience-update` decision. |
 | Channel priority or activation change | `channel-strategy-update` decision. |
 | New post format with enough evidence | `post-type-proposal` decision. |

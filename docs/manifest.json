@@ -232,7 +232,7 @@
         {
           "path": "agent-system/TEAM_DOCS_PATTERNS.md",
           "title": "Team Docs Patterns",
-          "description": "Plan-of-record, working-notebook, and inbox/synthesis surface rules"
+          "description": "Plan-of-record authority, typed knowledge flow, and promotion gates"
         },
         {
           "path": "agent-system/SKILL_AUTHORING.md",
@@ -248,11 +248,6 @@
           "path": "agent-system/REFERENCE_SCENARIOS.md",
           "title": "Reference Scenarios",
           "description": "Gold-star reference scenario registry and rot triage rules"
-        },
-        {
-          "path": "agent-system/_outline.md",
-          "title": "Migration Outline",
-          "description": "Historical migration manifest for the agent-system plan-of-record"
         },
         {
           "path": "agent-system/TOPICS_SCHEMA.md",

@@ -37,7 +37,7 @@ Decision-context detail lives in [`governance/editing.md`](governance/editing.md
 
 ## Cross-references
 
-- [`docs/agent-system/PLAN_OF_RECORD_STRUCTURE.md`](../agent-system/PLAN_OF_RECORD_STRUCTURE.md) - shared PoR architecture and extension rules.
+- [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json) - shared machine-readable PoR contract and extension rules.
 - [`../../VISION.md`](../../VISION.md) - operator-authored manifesto and north star.
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) - canonical technical reference for how Vrooli works.
 - [`../monetization/`](../monetization/README.md) - monetization strategy and revenue truth consumed by director-swarm.

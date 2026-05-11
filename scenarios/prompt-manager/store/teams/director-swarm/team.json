@@ -122,7 +122,6 @@
           "useFor": "canonical technical reference for how Vrooli works, currently sketch-level rather than exhaustive"
         }
       ],
-      "notebooks": [],
       "sharedState": [
         {
           "id": "team-md",

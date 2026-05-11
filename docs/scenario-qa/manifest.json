@@ -93,7 +93,7 @@
           "docType": "validation-runbook",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Migration Notes"]
+            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Enforcement Scope"]
           }
         },
         {
@@ -109,4 +109,3 @@
   ],
   "extensionRule": "Scenario QA durable canon must live under operating/, taxonomies/, methods/, governance/, or a declared extensions/<extension-id>/ package. Do not add top-level canon files without updating this manifest."
 }
-

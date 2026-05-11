@@ -32,7 +32,7 @@
     {
       "id": "unknown",
       "definition": "Scope unclear at report time; curator reclassifies during triage. The curator is required to reclassify into one of the four real scopes before routing — never write to friction-report/recurring-workaround/* directly from unknown (that would corrupt debt-curator's synthesis input).",
-      "defaultDestinationPrefix": "friction/unknown/",
+      "defaultDestinationPrefix": "friction-report/unknown/",
       "evidenceMinimum": "any observation the reporter could capture; the curator owns classification"
     }
   ],
@@ -46,7 +46,7 @@
     "Friction entries are observation, not authority. The destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) decide what action follows; the original friction-inbox entry is closed on routing."
   ],
   "actionSelection": {
-    "route": "Default action. Curator classifies scope (or accepts reporter's classification), then writes the entry to friction/<scope>/<date>/<slug> on the scoped-topic owner's behalf. Original friction-inbox entry is closed after the routing record lands in friction-triage.",
+    "route": "Default action. Curator classifies scope (or accepts reporter's classification), then writes the entry to friction-report/<scope>/<date>/<slug> on the scoped-topic owner's behalf. Original friction-inbox entry is closed after the routing record lands in friction-triage.",
     "drop": "Severity = one-off + no clear recurrence pattern. Curator writes a short note in friction-triage explaining the drop and removes the friction-inbox entry. Reporter should use handoff next time.",
     "handoff-debt-curator": "Scope = unknown and reclassification failed after one heartbeat, OR friction-inbox is overflowing past dailyInboxDrainCap. Curator hands off to debt-curator for synthesis with full context. The friction-inbox entry stays open until debt-curator acks.",
     "reclassify": "Scope = unknown but evidence supports a clear reclassification. Curator rewrites the topic to friction-inbox/<real-scope>/<slug>, then proceeds to route on the next heartbeat. Mirrors bug-investigator's route-to-another-topic action.",

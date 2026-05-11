@@ -21,7 +21,7 @@ Marketing owns the operating path from marketing signal to public-facing artifac
 - draft artifact production for OSS and subscription lanes;
 - publishing execution state and coverage snapshots;
 - challenge reports for weak marketing decisions;
-- learning-loop promotion from notebook debt into skills, plan-of-record docs, scenarios, or retirements.
+- learning-loop promotion from typed production observations into skills, plan-of-record docs, scenarios, capability gaps, or retirements.
 
 Marketing does not own product prioritization, monetization strategy, legal approval, social-account credential operations, scheduler infrastructure, or the final decision to publish. Those surfaces route through decisions, cross-team output, or explicit capability gaps.
 
@@ -33,9 +33,9 @@ Marketing has five loops:
 2. **Planning loop** — decide what should be marketed, to whom, on which channel, and why now.
 3. **Draft loop** — turn campaign or artifact requests into draft artifacts with sources, audience, lane, channel, format, and honesty flags.
 4. **Review and publish loop** — challenge proposals, approve or reject, release accepted artifacts, and record what actually shipped.
-5. **Learning loop** — turn publish logs, coverage state, telemetry, and repeated production lessons into notebook entries, canon updates, skills, scenarios, or retirements.
+5. **Learning loop** — turn publish logs, coverage state, telemetry, and repeated production lessons into typed observations, canon updates, skills, scenarios, capability gaps, or retirements.
 
-The loops are sequential when a full campaign flows through the system, but members may also operate independently when their trigger fires. For example, the researcher can add evidence without a campaign; the publisher can update coverage without a new draft; the brand-manager can retire stale notebook debt without changing a campaign.
+The loops are sequential when a full campaign flows through the system, but members may also operate independently when their trigger fires. For example, the researcher can add evidence without a campaign; the publisher can update coverage without a new draft; the brand-manager can promote or retire stale typed observations without changing a campaign.
 
 ## Operating Graph
 
@@ -55,10 +55,10 @@ flowchart LR
 
   R --> EVID[research evidence topics]
   EVID --> PLAN[planning decisions]
-  EVID --> NOTE[marketing notebook]
+  EVID --> LEARN[typed marketing observations]
 
   PLAN --> BM[Brand Manager]
-  NOTE --> BM
+  LEARN --> BM
   BM --> CANON[marketing and narrative canon]
   BM --> CAMP[campaign-launch-proposal]
   BM --> REQ[artifact-request queue]
@@ -93,7 +93,7 @@ flowchart LR
   PSM --> LEARN
   TEL --> PERF[publish-performance]
   PERF --> LEARN
-  LEARN --> NOTE
+  LEARN --> BM
 ```
 
 The second diagram is the full topic-level view. It is the reference shape for validating whether topic producers, readers, decisions, and durable logs form a coherent marketing system.
@@ -184,8 +184,8 @@ flowchart LR
   PSM[(published-scenario-mentions/*)]
   %% @node PERF topic[future]:publish-performance/*
   PERF[(publish-performance/*)]
-  %% @node NOTE topic:marketing/notebook/*
-  NOTE[(marketing/notebook/*)]
+  %% @node MCO topic:marketing-craft-observation/*
+  MCO[(marketing-craft-observation/*)]
   %% @node CHAL topic:challenge-report/*
   CHAL[(challenge-report/*)]
   %% @node RES topic:challenge-resolution-record/*
@@ -208,10 +208,6 @@ flowchart LR
   CAMP{campaign-launch-proposal}
   %% @node BGUIDE decision:brand-guideline-update
   BGUIDE{brand-guideline-update}
-  %% @node NPROMO decision:notebook-promotion
-  NPROMO{notebook-promotion}
-  %% @node NRETIRE decision:notebook-retirement
-  NRETIRE{notebook-retirement}
   %% @node CPP decision:content-publish-proposal
   CPP{content-publish-proposal}
   %% @node CHUP decision:channel-update
@@ -273,7 +269,7 @@ flowchart LR
   %% Brand management and canon
   OP --> BM
   VW --> BM
-  NOTE --> BM
+  MCO --> BM
   AS --> BM
   COMP --> BM
   HOOK --> BM
@@ -292,8 +288,6 @@ flowchart LR
   BM --> REQSUB
   BM --> CAMP
   BM --> BGUIDE
-  BM --> NPROMO
-  BM --> NRETIRE
 
   %% Draft production
   OP --> OSS
@@ -354,8 +348,6 @@ flowchart LR
   HCP --> CONTRA
   CHUP --> CONTRA
   COVGAP --> CONTRA
-  NPROMO --> CONTRA
-  NRETIRE --> CONTRA
   CAP --> CONTRA
   CONTRA --> CHAL
   CONTRA --> RES
@@ -386,8 +378,12 @@ flowchart LR
   PERF --> LEARN
   CHAL --> LEARN
   RES --> LEARN
-  LEARN --> NOTE
-  NPROMO --> BACKLOG
+  LEARN --> MCO
+  BGUIDE --> BACKLOG
+  POST --> BACKLOG
+  HCP --> BACKLOG
+  CHUP --> BACKLOG
+  CAP --> BACKLOG
 ```
 
 ## Topic Catalog
@@ -415,8 +411,8 @@ These are the knowledge-topic families the target operating model uses. Current 
 | `topic:coverage-snapshot/*` | live | publisher | advertisers, brand-manager, publisher | Current marketing coverage by SKU, lane, channel, or campaign. |
 | `topic[future]:published-scenario-mentions/*` | target | publisher | advertisers, marketing-contrarian | Familiarity tracking for named scenarios, agents, and concepts, so drafts introduce subjects correctly for each audience. Current storage is JSONL. |
 | `topic[future]:publish-performance/*` | target | publisher or future growth analyst | researcher, brand-manager, publisher, advertisers | Telemetry and qualitative performance: impressions, clicks, replies, saves, conversion, comments, channel-specific notes. |
-| `topic:marketing/notebook/*` | live | learning synthesis | brand-manager | Working debt: repeated lessons, workarounds, craft observations, campaign lessons. Any member may append unresolved debt, but brand-manager is the only runtime drainer and must promote or retire entries. |
-| `topic:brand-snapshot/*` | live | brand-manager | brand-manager | Snapshot of canon drift, notebook state, campaign signals, and promotion/retirement candidates. |
+| `topic:marketing-craft-observation/*` | live | learning synthesis | brand-manager | Typed production observations: repeated lessons, workarounds, craft observations, and campaign lessons that may feed canon, skill, scenario, capability-gap, or retirement decisions. |
+| `topic:brand-snapshot/*` | live | brand-manager | brand-manager | Snapshot of canon drift, typed learning state, campaign signals, and promotion/retirement candidates. |
 | `topic:challenge-report/*` | live | marketing-contrarian | decision owners | Append-only challenge evidence for pending marketing decisions. |
 | `topic:challenge-resolution-record/*` | live | marketing-contrarian | decision owners | Latest challenge state: open, author-responded, resolved, escalated, overridden, or stale. |
 | `topic:aging-scan-note/*` | live | marketing-contrarian | marketing-contrarian | Stale-decision hygiene notes. |
@@ -433,9 +429,7 @@ Decision contexts are the operator-reviewed gates that move work between loops. 
 | `post-type-proposal` | researcher | Add or materially change a post type. | Format scans, hook records, channel scans, or repeated draft/publish lessons. | Post-type canon changes after operator approval. |
 | `hook-candidate-promotion` | researcher | Promote a stable hook into `path:docs/marketing/strategy/patterns/hook-library.md`. | Hook records with repeated applicability and source context. | Hook-library canon gains a reusable pattern. |
 | `campaign-launch-proposal` | brand-manager | Create, change, or close a campaign. | Research evidence, coverage state, campaign lessons, or operator direction. | Campaign state changes and may create artifact requests. |
-| `brand-guideline-update` | brand-manager | Change marketing, brand, strategy, research, rich-media, or narrative canon. | Brand snapshot, notebook debt, challenge reports, or repeated artifact issues. | Plan-of-record docs change through operator-curated edits. |
-| `notebook-promotion` | brand-manager | Promote notebook debt into a skill, plan-of-record file, scenario, or config. | Notebook entries recurring across heartbeats or blocking production. | Debt leaves notebook and becomes skill, scenario, config, backlog, or plan-of-record canon. |
-| `notebook-retirement` | brand-manager | Delete notebook debt that is obsolete or transient. | Notebook entry is duplicated, superseded, or no longer useful. | Debt is retired without becoming permanent canon. |
+| `brand-guideline-update` | brand-manager | Change marketing, brand, strategy, research, rich-media, or narrative canon. | Brand snapshot, typed production observations, challenge reports, or repeated artifact issues. | Plan-of-record docs change through operator-curated edits. |
 | `content-publish-proposal` | advertiser or publisher | Ask operator to approve a draft or release package. | Campaign draft, artifact request, source refs, honesty flags, channel/format fit. | Publisher may release or record manual release steps. |
 | `channel-update` | publisher | Change per-platform rules based on publish friction or platform drift. | Publish-log friction, platform behavior changes, or repeated release workarounds. | Channel rules change after operator approval. |
 | `coverage-gap` | advertiser or publisher | Surface missing or stale coverage for a SKU, lane, channel, or campaign. | Coverage snapshot, stale publish-log state, or campaign plan with no artifact. | Gap is accepted, deferred, or converted into artifact requests/backlog. |
@@ -473,12 +467,12 @@ Current validation enforces table presence, graph/table parity, owner edges, exp
 
 Marketing improves itself through four explicit exits:
 
-1. **Notebook debt** — repeated lessons and workarounds enter `topic:marketing/notebook/*`; the brand-manager drains and promotes or retires them.
+1. **Typed learning observations** — repeated lessons and workarounds enter `topic:marketing-craft-observation/*`; the brand-manager drains them into canon, skills, scenarios, capability gaps, or retirement.
 2. **Decision challenge** — marketing-contrarian writes `challenge-report/*` and `challenge-resolution-record/*` when a decision has concrete failure-mode evidence.
 3. **Capability gaps** — members raise `capability-gap` when missing access, tooling, scheduler support, media generation, telemetry, account state, or scenario capability blocks the work.
 4. **Coverage gaps** — advertisers and publisher raise `coverage-gap` when a SKU, lane, channel, or campaign lacks sufficient marketing coverage.
 
-General code/scenario defects should use scenario-qa's `report-bug` flow. System-level friction that is not a defect should use meta-optimization's `report-friction` flow. Marketing should not turn every local frustration into marketing notebook debt when a universal observation flow is the correct destination.
+General code/scenario defects should use scenario-qa's `report-bug` flow. System-level friction that is not a defect should use meta-optimization's `report-friction` flow. Marketing should not turn every local frustration into a marketing-craft observation when a universal observation flow is the correct destination.
 
 ## Roles
 
@@ -496,13 +490,13 @@ Primary responsibilities:
 
 ### Brand Manager
 
-Owns canon and campaign planning, not routine draft production. The brand-manager reads research evidence, publish outcomes, coverage state, and notebook debt; then proposes canon, campaign, promotion, or retirement decisions.
+Owns canon and campaign planning, not routine draft production. The brand-manager reads research evidence, publish outcomes, coverage state, and typed production observations; then proposes canon, campaign, capability-gap, skill, scenario, or retirement decisions.
 
 Primary responsibilities:
 
 - steward `path:docs/marketing/` and `path:docs/narrative/` through accepted decisions;
 - maintain the campaign model;
-- drain `topic:marketing/notebook/*` and propose promotion or retirement;
+- drain `topic:marketing-craft-observation/*` and propose promotion or retirement through the relevant owned decision;
 - turn repeated lessons into permanent structure;
 - prevent campaign sprawl when signal is weak.
 
@@ -549,27 +543,27 @@ Primary responsibilities:
 - propose rejection or framework updates when warranted;
 - run stale-decision hygiene.
 
-## Notebook Drainage
+## Typed Learning Drainage
 
-The notebook is not a destination of last resort. It is a temporary holding area for patterns that are real but not yet permanent.
+Typed learning observations are not a destination of last resort. They are structured evidence for patterns that are real but not yet permanent.
 
-Every notebook entry must eventually resolve to one of four outcomes:
+Every marketing-craft observation must eventually resolve to one of four outcomes:
 
 1. **Promote to a skill** when it is executable procedure.
 2. **Promote to plan-of-record** when it is strategic canon.
 3. **Promote to a scenario or config change** when automation should replace the workaround.
-4. **Retire** when the note was transient, duplicated, or superseded.
+4. **Retire** when the observation was transient, duplicated, or superseded.
 
 Append and read responsibilities are deliberately different:
 
-- any marketing member may append unresolved debt when no typed topic, decision, skill, scenario, or plan-of-record surface is ready for it;
-- brand-manager drains raw notebook debt and proposes promotion or retirement;
-- researcher consumes promoted research and canon outputs, not raw notebook entries by default;
-- advertisers consume artifact requests, canon, evidence, coverage, publish state, and skill updates, not raw notebook entries by default;
-- publisher consumes accepted decisions, drafts, channel rules, coverage state, and promoted publishing guidance, not raw notebook entries by default;
-- marketing-contrarian reviews notebook-derived promotion and retirement proposals when scoring whether the proposed permanent structure actually resolves the debt.
+- any marketing member may write typed marketing-craft observations when the lesson is truly marketing-specific;
+- brand-manager drains typed observations and proposes promotion or retirement through the relevant owned decision;
+- researcher consumes promoted research and canon outputs, not raw craft observations by default;
+- advertisers consume artifact requests, canon, evidence, coverage, publish state, and skill updates, not raw craft observations by default;
+- publisher consumes accepted decisions, drafts, channel rules, coverage state, and promoted publishing guidance, not raw craft observations by default;
+- marketing-contrarian reviews observation-derived proposals when scoring whether the proposed permanent structure actually resolves the issue.
 
-If a notebook family grows for multiple heartbeats without promotion, retirement, or a clear revisit marker, that is a system smell. The brand-manager should raise either `notebook-promotion`, `notebook-retirement`, or `capability-gap`.
+If a marketing-craft observation family grows for multiple heartbeats without promotion, retirement, or a clear revisit marker, that is a system smell. The brand-manager should raise the relevant canon, skill, scenario, config, or `capability-gap` decision.
 
 ## Current Implementation Gaps
 
@@ -589,7 +583,7 @@ Adopt this model in order:
 1. Keep this document and `path:docs/marketing/README.md` as the target-state plan-of-record.
 2. Keep `path:scenarios/prompt-manager/store/teams/marketing-crew/team.json` registered against this model.
 3. Keep member `RESPONSIBILITIES.md` and `HEARTBEAT.md` files aligned with the five loops.
-4. Keep member `topics.json` files aligned with the research outputs, lane-specific artifact requests, publish-log reads, and notebook reads.
+4. Keep member `topics.json` files aligned with the research outputs, lane-specific artifact requests, publish-log reads, and typed learning reads.
 5. Run `prompt-manager graph operating-model validate --team marketing-crew --id marketing-operating-model`.
 6. Run `prompt-manager graph operating-model diff --team marketing-crew --id marketing-operating-model`.
 7. Run `prompt-manager graph operating-model coverage --team marketing-crew --id marketing-operating-model`.

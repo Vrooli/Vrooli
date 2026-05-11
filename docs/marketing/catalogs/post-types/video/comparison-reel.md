@@ -4,7 +4,7 @@
 
 **Paired skill:** `x-comparison-reel` *(planned)*
 **Primary lane/member:** Subscription lane (`subscription-advertiser`) for subscription bundles; OSS lane (`oss-advertiser`) for OSS framework comparisons.
-**Notebook home for emerging craft patterns:** `../../../notebook/COMPARISON_REEL_CRAFT.md` (created on first observation)
+**Craft observation topic:** `marketing-craft-observation/comparison-reel/<slug>`
 
 ## Purpose
 

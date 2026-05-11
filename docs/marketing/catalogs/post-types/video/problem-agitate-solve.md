@@ -4,7 +4,7 @@
 
 **Paired skill:** `x-problem-agitate-solve` *(planned)*
 **Primary lane/member:** Usually subscription lane (`subscription-advertiser`)
-**Notebook home for emerging craft patterns:** `../../../notebook/PROBLEM_AGITATE_SOLVE_CRAFT.md` (created on first observation)
+**Craft observation topic:** `marketing-craft-observation/problem-agitate-solve/<slug>`
 
 ## Purpose
 

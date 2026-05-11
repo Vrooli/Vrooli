@@ -116,14 +116,9 @@
       "purpose": "Visited tracker used to avoid repeatedly auditing the same Action before the rotation completes."
     },
     {
-      "prefix": "meta-optimization/notebook/*",
-      "status": "live",
-      "purpose": "Working-notebook intake for raw meta-optimization debt before promotion, routing, or retirement."
-    },
-    {
       "prefix": "debt-scan/YYYY-MM-DD",
       "status": "live",
-      "purpose": "Snapshot scan of stable notebook debt and recurring workaround evidence selected for promotion, routing, or retirement."
+      "purpose": "Snapshot scan of stable typed evidence and recurring workaround evidence selected for promotion, routing, or retirement."
     },
     {
       "prefix": "challenge-report/<decision-id>",
@@ -281,7 +276,6 @@
           "useFor": "friction-report taxonomy, friction routing rules, cross-team flow diagram, the second instance of the universal observation flow primitive (mirror of bug-inbox)"
         }
       ],
-      "notebooks": [],
       "sharedState": [
         {
           "id": "agent-audit-md",
@@ -493,7 +487,7 @@
         "ownerMemberIds": [
           "debt-curator"
         ],
-        "description": "Notebook/debt promotion or retirement."
+        "description": "Typed evidence promotion or retirement."
       }
     },
     "knowledgeTopics": {
@@ -800,7 +794,7 @@
         }
       },
       "debt-curator": {
-        "lane": "Promote or retire mature meta-optimization synthesis debt under topic prefix `meta-optimization/notebook/<slug>`. Propose updates to `docs/agent-system/` canon when patterns stabilize. Never edits canon directly.",
+        "lane": "Promote or retire mature meta-optimization synthesis from typed evidence topics. Propose updates to `docs/agent-system/` canon when patterns stabilize. Never edits canon directly.",
         "ownedDecisionContexts": [
           "meta-self-improvement"
         ],

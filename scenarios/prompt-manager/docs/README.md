@@ -19,7 +19,7 @@ The prompt-manager is built on three coordination domains and one execution doma
 |---------|----------|-------------|
 | **Swarm Model** | [SWARM-MODEL.md](concepts/SWARM-MODEL.md) | How Skills, Agents, Teams, and Actions work together |
 | **Actions** | [ACTIONS.md](concepts/ACTIONS.md) | Executable wrapper entity for deterministic Vrooli-controlled CLI operations |
-| **Memory Promotion** | [MEMORY-PROMOTION.md](concepts/MEMORY-PROMOTION.md) | How notebook observations graduate into Plan of Record, Skills, Actions, CLIs, or backlog |
+| **Memory Promotion** | [MEMORY-PROMOTION.md](concepts/MEMORY-PROMOTION.md) | How typed observations graduate into Plan of Record, Skills, Actions, CLIs, or backlog |
 | **Relations** | [RELATIONS.md](concepts/RELATIONS.md) | Team-member junction records |
 | **SOUL System** | [PERSONA-SYSTEM.md](concepts/PERSONA-SYSTEM.md) | Agent personality defined in SOUL.md (+ optional .md files) |
 | **Capability Matching** | [CAPABILITY-MATCHING.md](concepts/CAPABILITY-MATCHING.md) | Skill-to-agent matching based on capabilities |
@@ -98,7 +98,7 @@ Development documentation for contributors:
 Use this ontology when deciding where persistent knowledge belongs:
 
 ```text
-Notebook = raw observations
+Knowledge = typed observations
 Plan of Record = accepted durable truth
 Skill = reusable judgment/process guidance
 Action = typed executable operation
@@ -114,7 +114,7 @@ If it says how to decide -> Skill.
 If it says what to run -> Action.
 If it says how it works -> CLI implementation.
 If it says what is missing -> Backlog/capability-gap.
-If it is unverified or one-off -> Notebook.
+If it is unverified or one-off -> typed knowledge under the most specific topic.
 ```
 
 See [Memory Promotion](concepts/MEMORY-PROMOTION.md) for the full decision tree and [Actions](concepts/ACTIONS.md) for the proposed executable entity contract.

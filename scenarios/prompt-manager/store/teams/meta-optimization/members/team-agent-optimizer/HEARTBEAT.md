@@ -33,9 +33,9 @@ Common proposal shapes:
 - `team-structure-change`: add or clarify a plan-of-record hub, shared inbox/log/register, team working state, role boundary, or member responsibility.
 - `capability-gap`: missing source collection, telemetry, Action, CLI, or scenario support blocks the member from doing the work honestly.
 - route to `skill-optimizer`: a focused skill should be created, split, compressed, or attached to a member.
-- route to `debt-curator`: notebook or living-doc material should become durable plan-of-record or permanent structure.
+- route to `debt-curator`: typed evidence or living-doc material should become durable plan-of-record or permanent structure.
 
-Respect lane ownership. You may propose the structure and routing, but skill authoring belongs to `skill-optimizer`, notebook/doc promotion belongs to `debt-curator`, and deterministic execution improvements belong to the relevant Action/CLI/tooling lane unless the operator explicitly redirects you.
+Respect lane ownership. You may propose the structure and routing, but skill authoring belongs to `skill-optimizer`, typed evidence/doc promotion belongs to `debt-curator`, and deterministic execution improvements belong to the relevant Action/CLI/tooling lane unless the operator explicitly redirects you.
 
 ## Required Output Sections
 

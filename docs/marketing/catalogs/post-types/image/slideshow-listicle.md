@@ -4,7 +4,7 @@
 
 **Paired skill:** `x-slideshow-listicle` *(planned)*
 **Primary lane/member:** Usually subscription lane (`subscription-advertiser`)
-**Notebook home for emerging craft patterns:** `../../../notebook/SLIDESHOW_LISTICLE_CRAFT.md` (created on first observation)
+**Craft observation topic:** `marketing-craft-observation/slideshow-listicle/<slug>`
 
 ## Purpose
 

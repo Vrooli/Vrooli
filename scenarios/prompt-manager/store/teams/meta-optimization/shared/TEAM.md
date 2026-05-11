@@ -28,7 +28,7 @@ flowchart TB
       M1[team-agent-optimizer<br/>9-layer rubric on<br/>teams + agents +<br/>capability architecture]
       M2[skill-optimizer<br/>skill drift, usage,<br/>action graduation candidates,<br/>deprecation]
       M3[run-introspector<br/>agent-manager run traces,<br/>error / retry / slowness<br/>patterns]
-      M4[debt-curator<br/>notebook prefix scan;<br/>promote to canon /<br/>retire when obsolete]
+      M4[debt-curator<br/>typed evidence scan;<br/>promote to canon /<br/>retire when obsolete]
       M5[toolchain-validator<br/>development-toolchain-validator<br/>against gold-star scenarios]
       M6[meta-contrarian<br/>skeptic across all<br/>proposals; aging scan<br/>on the decision queue]
     end
@@ -49,7 +49,6 @@ flowchart TB
     CTX --> CTX3[action-candidate /<br/>action-improvement /<br/>action-deprecation]
     CTX --> CTX4[meta-self-improvement]
     CTX --> CTX5[capability-gap]
-    CTX --> CTX6[notebook-promotion /<br/>notebook-retirement]
 ```
 
 ### Member responsibilities (compact)
@@ -59,7 +58,7 @@ flowchart TB
 | `team-agent-optimizer` | 9-layer team-member capability audit (`docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`); team + agent file structure | `team-structure-change`, `agent-improvement`, `capability-gap` |
 | `skill-optimizer` | Skill drift, usage telemetry, promotion-ladder progress (`docs/agent-system/PROMOTION_LADDER.md`); detects action-candidate + action-deprecation | `action-candidate`, `action-improvement`, `action-deprecation`, `meta-self-improvement` |
 | `run-introspector` | Recent agent-manager run telemetry; ground-truth on what actually happens vs. what's documented | `agent-improvement`, `meta-self-improvement`, `capability-gap` |
-| `debt-curator` | The team's own working-notebook prefix (`meta-optimization/notebook/<slug>`); promotion + retirement candidates | `notebook-promotion`, `notebook-retirement`, `meta-self-improvement` |
+| `debt-curator` | The team's own typed evidence topics and shared artifacts; promotion + retirement candidates | `meta-self-improvement` |
 | `toolchain-validator` | Dev toolchain (development-toolchain-validator and fallbacks) against gold-star reference scenarios | `meta-self-improvement`, `capability-gap` |
 | `meta-contrarian` | Skepticism across all of the above; aging scan on the team's decision queue (the team's stale-decision-handler) | (none owned; proposes counterargument and supersession) |
 

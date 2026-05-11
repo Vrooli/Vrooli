@@ -4,7 +4,7 @@
 
 **Paired skill:** [`x-dev-log`](../../../../../scenarios/prompt-manager/store/skills/packs/core/x-dev-log/SKILL.md)
 **Primary lane/member:** OSS lane (`oss-advertiser`)
-**Notebook home for emerging craft patterns:** [`docs/marketing/notebook/DEV_LOG_CRAFT.md`](../../../notebook/DEV_LOG_CRAFT.md) — already populated; promotion target is `x-dev-log` skill edits.
+**Craft observation topic:** `marketing-craft-observation/dev-log/<slug>` — promotion target is usually `x-dev-log` skill edits.
 
 ## Purpose
 
@@ -80,13 +80,13 @@ The `marketing-contrarian` member skill ingests this section as type-level revie
 | **Hype drift in feature claims** | Overpromising shipped scope; "soon" without a committed date; claims not verifiable in `docs/monetization/catalogs/skus/base/*.md` or in shipped commits. | mode 1 (hype drift) |
 | **Voice drift to corporate-marketer language** | "We're excited to announce," "supercharge," "transform," "unlock" replacing builder voice. | mode 2 (voice drift) |
 | **Engagement-metric hallucination** | Numbers without honesty flags (`measured / estimate / aspirational / pending-telemetry`). | mode 3 (hallucinated engagement metrics) |
-| **Capability-workaround without gap** | The post narrates a manual workaround the operator is doing, with no matching `capability-gap` decision and no notebook entry. | mode 8 |
+| **Capability-workaround without gap** | The post narrates a manual workaround the operator is doing, with no matching `capability-gap` decision or typed observation. | mode 8 |
 
 Honesty flags the publisher / oss-advertiser member must attach to a dev-log draft:
 
 - `feature_claims=measured | overclaimed | uncertain` — measured = every claim cross-checked against shipped commits and PRDs.
 - `engagement=measured | pending-telemetry | aspirational | estimate` — for any numeric claim about engagement / growth / usage.
-- `data_source=complete | incomplete-data:<source-unavailable>` — when a draft was authored against a degraded data source (e.g., agent-manager unavailable), flag which leg of the data-source matrix was missing. See `notebook/DEV_LOG_CRAFT.md` for the canonical example.
+- `data_source=complete | incomplete-data:<source-unavailable>` — when a draft was authored against a degraded data source (e.g., agent-manager unavailable), flag which leg of the data-source matrix was missing.
 
 ## Cross-cutting techniques this type uses
 
@@ -134,19 +134,19 @@ Honesty flags the publisher / oss-advertiser member must attach to a dev-log dra
 
 ## Promotion path for craft observations
 
-Patterns observed during production runs of `x-dev-log` are appended to [`docs/marketing/notebook/DEV_LOG_CRAFT.md`](../../../notebook/DEV_LOG_CRAFT.md). Promotion targets per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../../agent-system/TEAM_DOCS_PATTERNS.md):
+Patterns observed during production runs of `x-dev-log` are written to `marketing-craft-observation/dev-log/<slug>`. Promotion targets per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../../agent-system/TEAM_DOCS_PATTERNS.md):
 
 - **Skill edit** — most observations land as edits to the `x-dev-log` skill (mining-strategy rubric, interestingness-scoring weights, output-contract refinements). Primary promotion target.
 - **This file** — observations that change strategic canon (audience model, conversion goal, new failure mode, type-specific voice rule).
 - **A `post-techniques/` file** — observations that turn out cross-cutting and apply to other post types.
 
-`brand-manager` curates the promotion path via `notebook-promotion` decisions.
+`brand-manager` curates the promotion path through the relevant canon, skill, scenario, config, or `capability-gap` decision.
 
 ## Cross-references
 
 - Paired skill: [`x-dev-log`](../../../../../scenarios/prompt-manager/store/skills/packs/core/x-dev-log/SKILL.md) (in prompt-manager core skills).
 - Plan-of-record neighbors: [`../../../strategy/STRATEGY.md`](../../../strategy/STRATEGY.md) (voice canon, voice samples — Sample 5 specifically illustrates the first-post intro burden), [`../../../strategy/AUDIENCES.md`](../../../strategy/AUDIENCES.md), [`../../../strategy/CHANNELS.md`](../../../strategy/CHANNELS.md), [`../../../strategy/ASSETS.md`](../../../strategy/ASSETS.md).
-- Notebook: [`../../../notebook/DEV_LOG_CRAFT.md`](../../../notebook/DEV_LOG_CRAFT.md) — populated; promotes mostly to `x-dev-log` skill.
+- Craft observations: `marketing-craft-observation/dev-log/<slug>` — promotes mostly to `x-dev-log` skill.
 - Sibling post type: [`scenario-spotlight.md`](scenario-spotlight.md) — for contrast (asset-led, product-focused, conversion-funnel).
 - Persistence surfaces: `marketing-crew/shared/publish-log.jsonl` (URL paste-back), `marketing-crew/shared/published-scenario-mentions.jsonl` (familiarity tracking), `marketing-crew/shared/published-improvements-log.jsonl` (what-→-why de-duplication).
 

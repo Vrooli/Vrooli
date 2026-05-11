@@ -78,7 +78,7 @@ Three design choices the research argued for, and we adopt:
 Schemas in this folder will mutate. The pattern:
 
 - Bake one character + one scene + one product end-to-end through a single campaign.
-- Note what's missing or awkward in [`../../notebook/AUDIENCE_OBSERVATIONS.md`](../../notebook/AUDIENCE_OBSERVATIONS.md) (or a new rich-media-craft notebook entry).
+- Capture what is missing or awkward in a typed `marketing-craft-observation/rich-media/<slug>` entry, or raise `capability-gap` when the issue is blocked by missing tooling.
 - After 2-3 campaigns' worth of usage, propose schema changes via `brand-guideline-update` decisions.
 
 Schemas authored before real use are theoretical; real use mutates them. Build for one, generalize after three.

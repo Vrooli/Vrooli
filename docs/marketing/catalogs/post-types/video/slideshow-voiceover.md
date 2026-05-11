@@ -4,7 +4,7 @@
 
 **Paired skill:** `x-slideshow-voiceover` *(planned)*
 **Primary lane/member:** Usually subscription lane (`subscription-advertiser`)
-**Notebook home for emerging craft patterns:** `../../../notebook/SLIDESHOW_VOICEOVER_CRAFT.md` (created on first observation)
+**Craft observation topic:** `marketing-craft-observation/slideshow-voiceover/<slug>`
 
 ## Purpose
 

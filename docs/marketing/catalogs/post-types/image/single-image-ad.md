@@ -1,10 +1,10 @@
 # Post Type: Single-Image Ad
 
-**Status:** v0 (skeleton — strategic canon authored 2026-04-28; will harden as the type runs in production and the marketing notebook accumulates entries).
+**Status:** v0 (skeleton — strategic canon authored 2026-04-28; will harden as the type runs in production and typed marketing-craft observations accumulate).
 
 **Paired skill:** `x-single-image-ad` *(planned)*
 **Primary lane/member:** Usually subscription lane (`subscription-advertiser`) for drafting, with publisher/operator handoff for posting.
-**Notebook home for emerging craft patterns:** `../../../notebook/SINGLE_IMAGE_AD_CRAFT.md` (created on first observation)
+**Craft observation topic:** `marketing-craft-observation/single-image-ad/<slug>`
 
 ## Purpose
 

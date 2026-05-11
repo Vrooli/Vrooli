@@ -14,7 +14,7 @@ Judgment lives in Skills.
 Execution lives in Actions.
 Implementation lives in CLIs.
 Unbuilt work lives in the Backlog.
-Raw learning starts in Notebooks.
+Raw learning starts in typed knowledge topics.
 ```
 
 ```

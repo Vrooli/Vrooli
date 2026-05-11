@@ -2,7 +2,7 @@
 
 ## Validation Commands
 
-Use these commands once prompt-manager PoR validation consumes local manifests:
+Use these commands after changing this plan of record:
 
 ```bash
 prompt-manager graph operating-model validate --team infra-health --id infra-health-operating-model
@@ -10,7 +10,7 @@ prompt-manager graph operating-model diff --team infra-health --id infra-health-
 prompt-manager graph operating-model coverage --team infra-health --id infra-health-operating-model
 ```
 
-Until the PoR validator lands, manually verify:
+For a quick local tree check, also run:
 
 ```bash
 find docs/infra-health -maxdepth 3 -type f | sort
@@ -26,6 +26,6 @@ prompt-manager graph topics
 - Instrumentation gaps and cross-platform debt live under `evidence/`.
 - Editing authority, validation notes, and migration history live under `governance/`.
 
-## Migration Notes
+## Enforcement Scope
 
-This folder was migrated from the older flat layout where reliability targets, instrumentation roadmap, and cross-platform ledger files all lived at the top level. Historical plan docs may still cite old paths; update active prompts, team config, and durable cross-references first.
+Validation treats [`../manifest.json`](../manifest.json) as the only structural contract for this plan of record. New durable canon must be registered in the manifest, placed under the most specific standard module, and edited only through accepted infra-health decisions.

@@ -20,7 +20,7 @@ Meta Optimization owns:
 - run lesson audits and process improvement proposals;
 - team and agent architecture audits;
 - skill and Action audits, conversion candidates, improvements, and deprecations;
-- notebook debt promotion or retirement for stable meta-layer lessons;
+- promotion or retirement of stable meta-layer lessons from typed knowledge topics;
 - contrarian review of pending meta-layer decisions;
 - capability-gap decisions when self-improvement is blocked by missing tools, docs, telemetry, or ownership.
 
@@ -35,7 +35,7 @@ Meta Optimization has six loops:
 3. **Run lesson loop** — inspect recent runs for repeated errors, retries, slowness, or deterministic manual sequences; raise durable `run-lesson` or `capability-gap` decisions.
 4. **Team and agent loop** — audit team/member structure against the meta-layer architecture; raise improvement, deprecation, structure-change, or capability-gap decisions.
 5. **Skill and Action loop** — audit skills and Actions for conversion, improvement, deprecation, and measurement-backed promotion.
-6. **Challenge and debt loop** — challenge stale, weak, or excessive decisions; promote stable notebook debt into canon, skills, Actions, CLI backlog, team changes, capability gaps, or retirement.
+6. **Challenge and debt loop** — challenge stale, weak, or excessive decisions; promote stable typed evidence into canon, skills, Actions, CLI backlog, team changes, capability gaps, or retirement.
 
 The loops are intentionally independent. A friction report can route without becoming a decision; a run lesson can create a capability gap without touching skills; a contrarian review can resolve a decision without generating new work.
 
@@ -111,8 +111,6 @@ flowchart LR
   ACTIONAUD[(action-audit/YYYY-MM-DD)]
   %% @node ACTIONVIS topic:action-visited/<action-id>
   ACTIONVIS[(action-visited/<action-id>)]
-  %% @node NOTE topic:meta-optimization/notebook/*
-  NOTE[(meta-optimization/notebook/*)]
   %% @node DEBT topic:debt-scan/YYYY-MM-DD
   DEBT[(debt-scan/YYYY-MM-DD)]
   %% @node CHAL topic:challenge-report/<decision-id>
@@ -250,10 +248,14 @@ flowchart LR
 
   %% Debt loop
   OP --> DC
-  OP --> NOTE
-  NOTE --> DC
   FREC --> DC
   FTRI --> DC
+  RUNLESS --> DC
+  TOOL --> DC
+  SKILLAUD --> DC
+  ACTIONAUD --> DC
+  TEAMAUD --> DC
+  AGENTAUD --> DC
   DEBT --> DC
   CHAL --> DC
   RES --> DC
@@ -323,8 +325,7 @@ flowchart LR
 | `topic:skill-visited/<skill-id>` | live | `skill-optimizer` | `skill-optimizer` | Visited tracker used to avoid repeatedly auditing the same skill before the rotation completes. |
 | `topic:action-audit/YYYY-MM-DD` | live | `skill-optimizer` | `skill-optimizer` | Snapshot audit of Action candidates, Action contracts, Action improvements, and deprecation opportunities. |
 | `topic:action-visited/<action-id>` | live | `skill-optimizer` | `skill-optimizer` | Visited tracker used to avoid repeatedly auditing the same Action before the rotation completes. |
-| `topic:meta-optimization/notebook/*` | live | operator | `debt-curator` | Working-notebook intake for raw meta-optimization debt before promotion, routing, or retirement. |
-| `topic:debt-scan/YYYY-MM-DD` | live | `debt-curator` | `debt-curator` | Snapshot scan of stable notebook debt and recurring workaround evidence selected for promotion, routing, or retirement. |
+| `topic:debt-scan/YYYY-MM-DD` | live | `debt-curator` | `debt-curator` | Snapshot scan of stable typed evidence and recurring workaround evidence selected for promotion, routing, or retirement. |
 | `topic:challenge-report/<decision-id>` | live | `meta-contrarian` | `toolchain-validator`, `run-introspector`, `team-agent-optimizer`, `skill-optimizer`, `debt-curator`, `meta-contrarian` | Append-only contrarian challenge evidence for meta-optimization decisions. |
 | `topic:challenge-resolution-record/<decision-id>` | live | `meta-contrarian` | `toolchain-validator`, `run-introspector`, `team-agent-optimizer`, `skill-optimizer`, `debt-curator`, `meta-contrarian` | Latest-state record for a meta-optimization challenge: open, author-responded, resolved, escalated, overridden, or stale. |
 
@@ -345,7 +346,7 @@ flowchart LR
 | `toolchain-violation` | `toolchain-validator` | Identify manual fallback, bypassed toolchain, or programmatic tool misuse. | Toolchain audit evidence or routed toolchain friction. | Operator-approved remediation request to the owning tool, skill, Action, or agent surface. |
 | `run-lesson` | `run-introspector` | Promote a durable process lesson from recent run traces. | Repeated run failures, retries, slowness, manual sequences, or missing actionability. | Operator-approved process, prompt, skill, Action, CLI backlog, or documentation update. |
 | `capability-gap` | `toolchain-validator`, `run-introspector`, `team-agent-optimizer` | Declare a missing capability blocking better self-improvement or downstream team effectiveness. | Audit evidence showing the team cannot proceed without a missing tool, data source, prompt surface, validation rule, or owner. | Gap routed to the appropriate owning team, backlog, or operator decision path. |
-| `meta-self-improvement` | `debt-curator` | Promote, route, or retire mature meta-optimization notebook debt and recurring workaround evidence. | Repeated notebook entries, stable debt, friction triage records, or recurring workaround reports. | Operator-approved canon, skill, Action, CLI backlog, team-structure change, capability gap, or retirement route. |
+| `meta-self-improvement` | `debt-curator` | Promote, route, or retire mature meta-optimization evidence and recurring workaround evidence. | Repeated typed evidence, friction triage records, recurring workaround reports, audits, or run lessons. | Operator-approved canon, skill, Action, CLI backlog, team-structure change, capability gap, or retirement route. |
 | `decision-rejection-proposed` | `meta-contrarian` | Recommend rejecting stale, weak, excessive, or poorly evidenced pending decisions. | Challenge report, stale decision scan, missing measurement, unsafe boundary, or premature conversion. | Operator rejects or asks owner to supersede/rework the decision. |
 | `framework-update` | `meta-contrarian` | Update the failure-mode or review framework used to challenge meta-layer decisions. | Repeated challenge patterns showing the current framework misses or over-flags a class of failure. | Operator-approved update to the relevant framework canon or prompt guidance. |
 
@@ -355,7 +356,7 @@ flowchart LR
 |---|---|---|---|
 | Cross-team friction | `report-friction` skill to `friction-inbox/<scope>/<slug>` | `friction-curator` | Universal-source intake; any team can write, but the curator routes rather than analyzes. |
 | Operator audit trigger | Member heartbeat trigger | `toolchain-validator`, `run-introspector`, `team-agent-optimizer`, `skill-optimizer`, `debt-curator` | Used for scheduled or directed audits across each lane. |
-| Notebook debt | `meta-optimization/notebook/*` | `debt-curator` | Raw synthesis is not canon until promoted or retired by decision. |
+| Stable typed evidence | `friction-report/recurring-workaround/*`, `run-lesson-report/*`, audit topics, and `debt-scan/*` | `debt-curator` | Raw synthesis is not canon until promoted or retired by decision. |
 | Challenge evidence | `challenge-report/<decision-id>` and `challenge-resolution-record/<decision-id>` | Relevant decision owner | Challenge records feed owners back into rework, supersession, or rejection. |
 
 ## Outputs / Downstream Consumers

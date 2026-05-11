@@ -75,7 +75,7 @@ Examples:
 
 ```markdown
 Use `topic[example]:friction-inbox/*` for cross-team friction intake.
-The old route was `topic[old]:friction/<scope>/*`.
+Use `topic[example]:friction-report/<scope>/*` for routed friction observations.
 Generated scenarios may have `path[example]:scenarios/<name>/docs/README.md`.
 The target platform is `platform:darwin/arm64`.
 The string `literal:if/else` is prose, not a topic or path.

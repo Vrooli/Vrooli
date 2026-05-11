@@ -49,8 +49,8 @@ Required file reads (every run):
 - `scenarios/prompt-manager/store/teams/marketing-crew/shared/published-scenario-mentions.jsonl` (filtered by audience) — to decide whether to apply intro-on-first-mention or use a one-line refresher.
 
 Optional reads:
-- `docs/marketing/notebook/SCENARIO_SPOTLIGHT_CRAFT.md` — emerging craft patterns (file may not yet exist on first run).
-- `docs/marketing/notebook/AUDIENCE_OBSERVATIONS.md` — observations about how audiences respond.
+- `marketing-craft-observation/scenario-spotlight/*` knowledge entries — emerging craft patterns.
+- `audience-scan/*` knowledge entries — observations about how audiences respond.
 
 ---
 
@@ -185,13 +185,13 @@ Defer to `post-types/text/scenario-spotlight.md`'s contrarian table for the cano
 
 ### **8. Promotion Path for Patterns You Notice**
 
-If you observe a recurring pattern across runs (e.g., "audience X responds better to comparison variant," "scenarios with CLI-only surfaces benefit from asciinema rather than BAS recording"), append it to `docs/marketing/notebook/SCENARIO_SPOTLIGHT_CRAFT.md` (create the file on first observation). Tag the entry with the pattern and a target promotion location:
+If you observe a recurring pattern across runs (e.g., "audience X responds better to comparison variant," "scenarios with CLI-only surfaces benefit from asciinema rather than BAS recording"), write it as a typed `marketing-craft-observation/scenario-spotlight/<slug>` knowledge entry. Tag the entry with the pattern and a target promotion location:
 
 - Skill edit (this file's process / output contract) — most observations land here.
 - `docs/marketing/catalogs/post-types/text/scenario-spotlight.md` — observations changing strategic canon (audience model, new variant, new failure mode).
 - `docs/marketing/methods/post-techniques/<name>.md` — observations that turn out cross-cutting and apply to other post types.
 
-`brand-manager` curates the promotion path via `notebook-promotion` decisions.
+`brand-manager` curates the promotion path through the relevant canon, skill, scenario, config, or `capability-gap` decision.
 
 ---
 

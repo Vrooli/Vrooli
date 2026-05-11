@@ -20,7 +20,7 @@ Use this README first, then choose the file that matches the work:
 
 ## Why cross-team
 
-Friction signals — things that were missing, broken, confusing, slow, undocumented, or harder than they should have been — are observed by every agent on every team during normal work. Without a cross-team intake, those signals get trapped in each team's own knowledge log or notebook, and `meta-optimization` (whose mission is *"applying evolutionary pressure to Vrooli's dev meta-layer"*) loses the signal.
+Friction signals — things that were missing, broken, confusing, slow, undocumented, or harder than they should have been — are observed by every agent on every team during normal work. Without a cross-team intake, those signals remain local to the team that hit them, and `meta-optimization` (whose mission is *"applying evolutionary pressure to Vrooli's dev meta-layer"*) loses the signal.
 
 `friction-inbox/*` is the universal-source intake on `meta-optimization` that closes that loop. Any agent on any team files friction once via the `report-friction` skill; the `friction-curator` member triages and routes to the appropriate scoped friction topic. The scoped-topic owner (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) then synthesizes patterns and proposes durable fixes via their existing decision contexts.
 
@@ -68,7 +68,7 @@ The curator is a **router, not an analyst**. Synthesis stays with debt-curator. 
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.
 - **Edit context:** `meta-self-improvement` (owned by debt-curator on meta-optimization) covers `taxonomies/friction-report/README.md` updates and friction-report taxonomy schema changes. Scope additions go through the same decision flow with empirical evidence from `friction-triage-record/*` snapshots.
 - **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
-- **Drafts are not canon.** Synthesis-in-flux content lives elsewhere (working notebooks or `path:docs/agent-system/drafts/`); files in this folder are stable PoR.
+- **Drafts are not canon.** Synthesis-in-flux content belongs in typed knowledge topics until an accepted decision promotes it; files in this folder are stable PoR.
 
 ## Cross-references
 

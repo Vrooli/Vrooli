@@ -1,6 +1,6 @@
 # Agent System
 
-Plan-of-record for the prompt-manager self-improvement framework: how skills, agents, teams, plans, decisions, knowledge, notebooks, actions, and CLIs fit together.
+Plan-of-record for the prompt-manager self-improvement framework: how skills, agents, teams, plans, decisions, knowledge topics, actions, and CLIs fit together.
 
 This folder is **canon**. Edits go through approved decisions on the `meta-optimization` team. Other teams cite files here as required reading; nobody outside the meta-optimization decision flow rewrites them in place.
 
@@ -82,7 +82,7 @@ For a first read, use this order:
 
 1. `PRIMITIVES.md` — the nouns: Skill, Agent, Team, PoR, Action, CLI, Decision, Knowledge entry, Inbox/synthesis.
 2. `LAYERS.md` — the rule for where each kind of guidance belongs.
-3. `TEAM_DOCS_PATTERNS.md` — when a team owns a plan-of-record (and the hub-and-spokes shape) vs. a working notebook.
+3. `TEAM_DOCS_PATTERNS.md` — where durable truth, typed observations, decisions, and implementation work belong.
 4. `INTAKE_PIPELINE.md` — how signals enter through topic inboxes and get routed.
 5. `DECISIONS.md` — what happens after the router files a decision: contexts, lifecycle, direct-write vs swarm-manager, action graduation, stale-decision policy.
 6. `CONTRARIAN_REVIEW.md` — how team-local contrarians challenge decisions, how authors respond, and how unresolved challenges return to decision review.
@@ -96,7 +96,7 @@ For a first read, use this order:
 | `PRIMITIVES.md` | canon | What skills, agents, teams, plans, decisions, knowledge, inboxes, actions, CLIs are; how they relate |
 | `LAYERS.md` | canon | The layering rule: truth / judgment / execution / implementation / unbuilt / raw learning |
 | `PROMOTION_LADDER.md` | canon | Lifecycle of guidance: prose guardrail → CLI/tool contract → Action → retired prose |
-| `TEAM_DOCS_PATTERNS.md` | canon | Plan-of-record vs working-notebook patterns, the four axes, both-patterns rules |
+| `TEAM_DOCS_PATTERNS.md` | canon | Plan-of-record authority, typed knowledge flow, promotion gates, and write boundaries |
 | `TEAM_MEMBER_ARCHITECTURE.md` | canon | The 9-layer member capability model |
 | `INTAKE_PIPELINE.md` | canon | Intake → Collection → Analysis → Promotion pipeline; inbox-router-drain pattern; two routing modes (classifier-required vs deterministic-prefix); cross-team schema ownership; topic-prefix conventions |
 | `TOPICS_SCHEMA.md` | canon | `topics.json` schema reference — paired with `path:scenarios/prompt-manager/api/memberflow/schema.go`. Pillar 1 of topic validation (declared graph). |
@@ -110,9 +110,6 @@ For a first read, use this order:
 | `REFERENCE_SCENARIOS.md` | canon | Gold-star reference scenario registry (template→reference pair, generation date, audit cadence), nomination + demotion rules, rot triage including template-rot |
 | `REFERENCE_PATTERN_FITNESS.md` | canon | Audit lens for artifacts that exist to be copied (templates, references, canonical examples). Composes with scenario-qa's single-instance audit lenses; owned by `toolchain-validator` on `meta-optimization` |
 | `SHARED_PACKAGE_TESTING.md` | canon | `<pkg>test` sibling-package convention for shared Go package fakes, harnesses, and consumer-facing test helpers |
-| `NOTEBOOK_DEBT_TAXONOMY.md` | canon (taxonomy) | Cross-team taxonomy for notebook-debt curation; cited by any member whose intake taxonomy is `notebook-debt` |
-| `_outline.md` | migration record | Historical migration manifest mapping source-skill sections to destination PoR files |
-| `drafts/` | folder | Synthesis-in-flux content not yet promoted to canon. Subject to faster churn; reviewed by meta-optimization before promotion |
 
 ## Active taxonomies
 
@@ -123,11 +120,10 @@ A taxonomy is the per-domain signal vocabulary, dispatch table, evidence rules, 
 | `marketing-research` | `marketing-crew` | `path:docs/marketing/taxonomies/marketing-research/taxonomy.json` | `path:docs/marketing/taxonomies/marketing-research/README.md` | `team:marketing-crew/researcher` |
 | `monetization-opportunity` | `monetization` | `path:docs/monetization/taxonomies/monetization-opportunity/taxonomy.json` | `path:docs/monetization/taxonomies/monetization-opportunity/README.md` | `team:monetization/opportunity-scout` |
 | `monetization-validation` | `monetization` | `path:docs/monetization/taxonomies/monetization-validation/taxonomy.json` | `path:docs/monetization/taxonomies/monetization-validation/README.md` | `team:monetization/market-validator` |
-| `notebook-debt` | `meta-optimization` | `path:docs/agent-system/notebook-debt-taxonomy.json` | `path:docs/agent-system/NOTEBOOK_DEBT_TAXONOMY.md` | `team:marketing-crew/brand-manager`, `team:meta-optimization/debt-curator` |
 | `bug-report` | `scenario-qa` | `path:docs/scenario-qa/taxonomies/bug-report/taxonomy.json` | `path:docs/scenario-qa/taxonomies/bug-report/README.md` | `team:scenario-qa/bug-investigator` (universal-source intake — any team's members may write via the `report-bug` skill) |
 | `friction-report` | `meta-optimization` | `path:docs/meta-optimization/taxonomies/friction-report/taxonomy.json` | `path:docs/meta-optimization/taxonomies/friction-report/README.md` | `team:meta-optimization/friction-curator` (universal-source intake — any team's members may write via the `report-friction` skill; curator routes to scoped friction sub-topics) |
 
-Discover programmatically: `prompt-manager graph topics` resolves every `intake[].taxonomy` against the registry and fails on `unknown_taxonomy`. Add a taxonomy: prefer `path:docs/<domain>/taxonomies/<taxonomy-id>/taxonomy.json` with a unique `id` field; legacy `*-taxonomy.json`, `signal-taxonomy.json`, `opportunity-taxonomy.json`, and `validation-taxonomy.json` sidecars under `path:docs/<domain>/` still load during migration — the loader at `path:scenarios/prompt-manager/api/memberflow/taxonomy.go` walks `docs/` and indexes by id. Every `defaultMethod` referenced by a `signalType` must either resolve to a registered skill or be listed under the taxonomy's `pendingMethodSkills`.
+Discover programmatically: `prompt-manager graph topics` resolves every `intake[].taxonomy` against the registry and fails on `unknown_taxonomy`. Add a taxonomy under `path:docs/<domain>/taxonomies/<taxonomy-id>/taxonomy.json` with a unique `id` field. Every `defaultMethod` referenced by a `signalType` must either resolve to a registered skill or be listed under the taxonomy's `pendingMethodSkills`.
 
 ## Editing rules
 
@@ -135,12 +131,7 @@ Discover programmatically: `prompt-manager graph topics` resolves every `intake[
 2. **Cross-team-readable.** Any team's members may cite a file here as required reading.
 3. **One concept, one file.** No double residency. The PoR coherence test (`path:scenarios/prompt-manager/test/agent_system_canon_test.sh`) enforces this.
 4. **Skills cite, never restate.** Any skill that previously contained doctrine in this folder must drop it and add a `Required reading: docs/agent-system/<file>` line.
-5. **Drafts are not canon.** `drafts/` exists for content that is being workshopped before it becomes a stable PoR file. Drafts may be cited only by the same team's draft skills, not by external consumers.
 
 ## Naming note: `topics.json` vs `path:api/topics/` package
 
 The per-member data file is `topics.json` (declares intake/output topic-prefixes for the inbox-router-drain pattern). The Go implementation lives at `path:scenarios/prompt-manager/api/memberflow/` because the existing `path:scenarios/prompt-manager/api/topics/` package serves a different concern (content-taxonomy topics with parent/child relationships and attached skills). Keeping the data-file name as `topics.json` matches the inbox topic-prefix vocabulary; the package is renamed to avoid collision.
-
-## Folder origin
-
-Migrated from `path:docs/meta-optimization/` (which previously declared itself a "working notebook" but actually contained framework canon — see Phase 1 of the migration plan for the resolution).

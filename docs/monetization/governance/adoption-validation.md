@@ -2,7 +2,7 @@
 
 ## Validation Commands
 
-Use these commands once prompt-manager PoR validation consumes local manifests:
+Use these commands after changing this plan of record:
 
 ```bash
 prompt-manager graph operating-model validate --team monetization --id monetization-operating-model
@@ -10,7 +10,7 @@ prompt-manager graph operating-model diff --team monetization --id monetization-
 prompt-manager graph operating-model coverage --team monetization --id monetization-operating-model
 ```
 
-Until the PoR validator lands, manually verify:
+For a quick local tree check, also run:
 
 ```bash
 find docs/monetization -maxdepth 3 -type f | sort
@@ -27,6 +27,6 @@ prompt-manager graph topics
 - Strategy docs live under `strategy/`.
 - Benchmarks, financial assumptions, and telemetry gaps live under `evidence/`.
 
-## Migration Notes
+## Enforcement Scope
 
-This folder was migrated from the older flat layout where strategy, catalog, taxonomies, evidence, and governance files all lived at the top level. Historical handoff logs may still cite old paths; update active prompts, team config, and docs references first.
+Validation treats [`../manifest.json`](../manifest.json) as the only structural contract for this plan of record. New durable canon must be registered in the manifest, placed under the most specific standard module, and edited only through accepted monetization decisions.

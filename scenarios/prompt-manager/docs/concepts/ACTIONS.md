@@ -16,7 +16,7 @@ Judgment lives in Skills.
 Execution lives in Actions.
 Implementation lives in CLIs.
 Unbuilt work lives in the Backlog.
-Raw learning starts in Notebooks.
+Raw learning starts in typed knowledge topics.
 ```
 
 An Action is a typed, discoverable wrapper over exactly one Vrooli-controlled CLI command. It makes an operation easier for agents to find, validate, and run without embedding operational prose in a skill.

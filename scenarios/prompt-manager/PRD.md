@@ -33,7 +33,7 @@ Prompt Manager's next ontology expansion is the proposed **Action** entity: a ty
 - Advanced analytics dashboard
 - Version history for skills (complete)
 - Action entity for typed executable wrappers over Vrooli-controlled CLI commands
-- Memory promotion workflow for graduating notebook observations into Plan of Record, Skills, Actions, CLIs, or backlog
+- Memory promotion workflow for graduating typed observations into Plan of Record, Skills, Actions, CLIs, or backlog
 
 ## 🧱 Tech Direction Snapshot
 - **API:** Go with versioned REST endpoints and health checks.

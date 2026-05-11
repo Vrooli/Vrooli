@@ -38,7 +38,7 @@ Every topic that has a drainer — any topic declared in some member's `intake[]
 
 This is the load-bearing claim that makes the substrate auditable. Adding a new input shape doesn't require new architecture — only a topic + a drainer + a taxonomy entry. See `INTAKE_PIPELINE.md` § Promotion / Routing for the full table of when each outcome is allowed, and `DECISIONS.md` §4 for the direct-write-vs-swarm-manager threshold.
 
-The drainer's classifier/triage skill (when one exists) is loaded by the heartbeat builder from the member's `intake[].classifier_skill` and lives at `path:scenarios/prompt-manager/store/skills/packs/core/<id>/`. Today's classifiers: `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage`. Topics with deterministic prefixes (e.g., `notebook-debt`-taxonomy intakes) need no classifier — the prefix segment after the inbox name *is* the signal type.
+The drainer's classifier/triage skill (when one exists) is loaded by the heartbeat builder from the member's `intake[].classifier_skill` and lives at `path:scenarios/prompt-manager/store/skills/packs/core/<id>/`. Today's classifiers: `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage`. Deterministic-prefix intakes need no classifier when the writer skill or producer-side contract already enforces the signal type.
 
 For **universal-source intakes** (`intake[].source_team = "*"` — any team's members may write; today: `bug-inbox/*` on scenario-qa, `friction-inbox/*` on meta-optimization), the trigger paragraph that tells producers when to invoke the writer skill is rendered into every member's heartbeat prompt via the Storage Map's `## Observe` subsection (`path:scenarios/prompt-manager/api/heartbeat/prompt_builder.go:buildStorageMapSection`). When you add a new universal-source intake, update that section so producers actually receive the trigger — see `TOPICS_SCHEMA.md` § Universal-source intakes for the convention. With two universal observation flows now in place (bugs and friction), the pattern (intake + writer skill + drainer + trigger paragraph) is at the threshold where a data-driven rendering off `intake[].source_team == "*"` declarations becomes worth exploring rather than a third hardcoded paragraph.
 
@@ -90,17 +90,14 @@ Topics use kebab-case, are scoped to a team's knowledge store unless cross-team 
     | `-report` | Investigative finding with structured rationale | report-shaped |
     | `-prep` | Synthesis briefing for a downstream consumer | prep-shaped |
     Mechanical constraint: the `<subject>` must NOT itself be a vocabulary word, so `topic[example]:quality-audit/*` is fine (`quality` is the subject, `audit` is the suffix), but `topic[example]:audit-audit/*` is rejected. Picking the right suffix is structural, not aesthetic — `*-audit/*` carries audit-shaped front-matter; `*-scan/*` carries scan-shaped; etc. Audit vs. scan: look at the producing member's `decisions_owned` — `*-finding` / `*-violation` / `*-gap` contexts mean adversarial (audit), pure observation collection means survey (scan). Reports vs. records: a report carries reasoning (a finding + evidence + rationale); a record carries one entity's state (one row, no narrative). Logs are append-only event streams; preps are synthesis briefings explicitly authored for a downstream consumer.
-- **Inbox / synthesis topics use purpose suffixes, not type suffixes.** The vocabulary above is for *canonical* surfaces. Transient and synthesis surfaces use a different convention:
-    - `*-inbox/*` — transient queue, drained per entry (see § Topic shapes Inbox row)
-    - `<short-domain>/notebook/*` — team-scoped curation surface (see § Topic shapes Notebook row)
-- **Team name in the prefix only when the team name is part of the *concept*.** Team scoping is implicit — every entry already lives in some team's knowledge store, and cross-team flow is declared explicitly via `destination_team` / `source_team`. Adding a team name to the prefix is therefore redundant by default, and *coupling* the topic to a particular team makes it harder to reorganize (re-assign a topic to a different drainer, move it between teams, or have multiple teams share a concept). The default is **no team in the prefix** — `audience-scan/*`, `competitor-record/*`, `bug-inbox/*`, `qa-run/*`. Add the team only when the team name is genuinely part of the concept (e.g., `marketing-canon/*` and `monetization-canon/*` are two distinct PoR-write surfaces that need to coexist as named concepts), or when the topic is a hierarchical team-internal namespace (e.g., `marketing/notebook/<signal-type>/<slug>` — the notebook IS team-internal and signal types nest under it). When team appears, use the **short domain name** (`marketing`, not `marketing-crew`); the only abbreviation in active use is `marketing-crew` → `marketing` (others — `monetization`, `meta-optimization`, `scenario-qa`, `infra-health`, `director-swarm` — match team id verbatim).
+- **Inbox / synthesis topics use purpose suffixes, not type suffixes.** The vocabulary above is for *canonical* surfaces. Transient and synthesis surfaces use `*-inbox/*` when a drainer must route entries per item.
+- **Team name in the prefix only when the team name is part of the *concept*.** Team scoping is implicit — every entry already lives in some team's knowledge store, and cross-team flow is declared explicitly via `destination_team` / `source_team`. Adding a team name to the prefix is therefore redundant by default, and *coupling* the topic to a particular team makes it harder to reorganize. The default is **no team in the prefix** — `audience-scan/*`, `competitor-record/*`, `bug-inbox/*`, `qa-run/*`. Add the team only when the team name is genuinely part of the concept, such as `marketing-canon/*` and `monetization-canon/*`, which are distinct PoR-write surfaces that need to coexist as named concepts.
 
 ### Topic shapes (current usage)
 
 | Shape | Pattern | Examples | Lifetime |
 |---|---|---|---|
 | **Inbox (transient)** | `<inbox-name>/<signal-type>/<slug>` | `research-inbox/audience/foo`, `opportunity-inbox/competitor-move/bar`, `bug-inbox/regression/baz`, `friction-inbox/toolchain/qux` | drained → entry retagged or deleted |
-| **Notebook debt** | `<short-domain>/notebook/<signal-type>/<slug>` | `marketing/notebook/audience-question/foo`, `meta-optimization/notebook/skill-debt/bar` | drained → promoted, retired, or aged |
 | **Scan (survey-shaped observation)** | `<subject>-scan/<slug>` | `audience-scan/foo`, `debt-scan/bar`, `topic[example]:quality-audit/baz` (audit, not scan — see below) | durable; the entry's permanent home |
 | **Audit (adversarial / compliance review)** | `<subject>-audit/<slug>` | `topic[example]:quality-audit/foo`, `toolchain-audit/bar`, `runtime-health-audit/baz`, `platform-code-audit/qux`, `skill-audit/quux`, `action-audit/...`, `team-audit/...`, `agent-audit/...` | durable; not retagged |
 | **Record (entity record)** | `<subject>-record/<slug>` | `competitor-record/foo`, `hook-record/bar`, `candidate-sku-record/baz`, `monetization-benchmark-record/qux`, `topic[example]:outcome-target-record/quux`, `initiative-portfolio-record/...`, `friction-triage-record/...` | durable; one entity per entry |
@@ -111,11 +108,17 @@ Topics use kebab-case, are scoped to a team's knowledge store unless cross-team 
 | **Prep (synthesis briefing)** | `<subject>-prep/<slug>` | `topic[example]:workshop-decision-prep/2026-05-03` | durable; consumed by a downstream synthesizer or operator |
 | **Cross-team flow** | same as any of the above, with explicit `destination_team` / `source_team` | `monetization-benchmark-adjacent-record/foo` (marketing → monetization) | depends on the receiving member's drain |
 
-### Notebook vs typed inbox
+### Residual Signals
 
-Both are kinds of intake but serve different roles. A typed inbox (`*-inbox/*`) is for observations whose destination is *known* — the producer assigns a hint signal-type, the drainer classifies and routes promptly, and the inbox view is the unrouted set (entries must leave). A notebook (`<team>/notebook/*`) is for observations whose destination is *not yet known* — the producer just drops the entry, the curator decides later, and entries may persist as `still-debt` indefinitely. The notebook is therefore the residual surface for the catch-all case; as concrete observation types graduate to their own typed inboxes, the notebook narrows to ever-more-residual content.
+There is no residual catch-all topic. If a signal does not fit an existing typed inbox, the producer chooses the closest structural route:
 
-The producer-side rule that follows from this: if you discover something with a clear typed destination, write to that inbox directly. Use the notebook only when no typed inbox fits. The curator's job includes spotting recurring notebook signal-types and proposing graduation to a typed inbox via `meta-self-improvement` decision.
+- code/scenario defect -> `bug-inbox/*`;
+- system friction, workaround, repeated manual pain, or process leak -> `friction-inbox/*`;
+- missing capability that blocks work -> `capability-gap` decision;
+- domain evidence -> the owning domain's typed inbox or canonical observation prefix;
+- durable truth change -> owning decision context.
+
+If none of those routes fits, file `meta-self-improvement` to add the missing typed topic or taxonomy. Do not create an undrained holding area.
 
 ### Contrarian challenge topics
 
@@ -170,7 +173,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
 | `researcher` | `research-inbox/*` (taxonomy: marketing-research, classifier: marketing-signal-classifier) | `audience-scan/*`, `competitor-record/*`, `hook-record/*`, `monetization-benchmark-adjacent-record/*` | writes `monetization-benchmark-adjacent-record/*` → monetization |
-| `brand-manager` | `marketing/notebook/*` (taxonomy: notebook-debt, no classifier) | `marketing-canon/*` (por_file → `path:docs/marketing/strategy/STRATEGY.md`, `path:docs/marketing/strategy/AUDIENCES.md`) | — |
+| `brand-manager` | _(none — reads evidence and decisions)_ | `marketing-canon/*` (por_file → `path:docs/marketing/strategy/STRATEGY.md`, `path:docs/marketing/strategy/AUDIENCES.md`), `brand-snapshot/*`, `artifact-request/oss/*`, `artifact-request/subscription/*` | — |
 | `publisher` | _(none — proactive)_ | `publish-log/*` | — |
 | `oss-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
 | `subscription-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
@@ -187,7 +190,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
-| `debt-curator` | `meta-optimization/notebook/*` (taxonomy: notebook-debt, no classifier) | `debt-scan/*` | — |
+| `debt-curator` | _(none — reads friction, audits, and decisions)_ | `debt-scan/*` | — |
 | `skill-optimizer` | _(none — proactive)_ | `skill-audit/*`, `action-audit/*` | — |
 | `team-agent-optimizer` | _(none — proactive)_ | `team-audit/*`, `agent-audit/*` | — |
 | `toolchain-validator` | _(none — proactive)_ | `toolchain-audit/*` | — |
@@ -196,7 +199,7 @@ Per team: the topics that team currently produces and drains, with first-princip
 | `friction-curator` | `friction-inbox/*` (taxonomy: `friction-report`, source: `*` — universal-source) | `friction-report/<scope>/*` (delivered to scoped sub-member topics), `friction-triage-record/<YYYY-MM-DD>` | producers: every team via the `report-friction` writer skill |
 
 **Observations (draft):**
-- Five proactive auditors plus one notebook-debt drainer plus one contrarian plus one friction router. This is the densest team.
+- Five proactive auditors plus one contrarian plus one friction router. This is the densest team.
 - `friction-inbox/*` is the system's second **universal-source intake** (the first is `bug-inbox/*` on scenario-qa). Any team's members may write via the `report-friction` skill (declared as `external_producers`). The friction-curator validates scope, reclassifies `unknown`, and routes by writing to the existing `friction-report/<scope>/<date>/<slug>` topics on the scoped-topic owners' behalf. Curator owns no decision contexts — routing is determinate; capability-gaps are still raised by the scoped-topic owners.
 - `friction-triage-record/<YYYY-MM-DD>` is a daily snapshot, supersedesPrevious=true, drained by debt-curator (synthesis input) and by operator review. `orphan_output` warning is by-design here (no peer drainer).
 - `run-lesson-report/*` is heavily consumed by `meta-contrarian` (via `decisions_consumed: ["run-lesson", ...]`) and by other optimizers' input gathering, but no `intake[]` declares it. The flow goes through decisions, not direct topic-drain. Document this as the canonical example of "topic → decision-consumer" flow rather than "topic → topic-drainer."
@@ -277,7 +280,7 @@ For someone adding a new topic to a member:
 2. **Pick a name** that follows § Stable conventions and doesn't collide with an existing topic in § Per-team topic registry.
 3. **Declare the producer side** on the producing member's `topics.json#output[]` with `destination_kind`, optional `destination_team`, optional `schema`.
 4. **Declare the drainer side** on the drainer's `topics.json#intake[]` with `taxonomy` and (when judgment is required) `classifier_skill`. If no drainer exists yet, file a `capability-gap` decision instead — don't ship undrained topics.
-5. **Author the taxonomy if needed.** If the new shape doesn't fit any existing taxonomy (`marketing-research`, `monetization-opportunity`, `monetization-validation`, `notebook-debt`), author a new taxonomy JSON sidecar + PoR per `INTAKE_PIPELINE.md` § Two routing modes and `README.md` § Active taxonomies.
+5. **Author the taxonomy if needed.** If the new shape doesn't fit any existing taxonomy (`marketing-research`, `monetization-opportunity`, `monetization-validation`, `bug-report`, `friction-report`), author a new taxonomy JSON sidecar + PoR per `INTAKE_PIPELINE.md` § Two routing modes and `README.md` § Active taxonomies.
 6. **Run the validator.** `prompt-manager graph topics` must report zero new errors.
 7. **Update this file.** Add the topic to § Per-team topic registry under the relevant team.
 8. **Update INPUTS.md.** If the topic introduces a new producer (cross-team flow, scheduled scan, vision-walk input, proactive self-generation), declare the source there.

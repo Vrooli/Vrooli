@@ -175,7 +175,7 @@ Judgment lives in Skills.
 Execution lives in Actions.
 Implementation lives in CLIs.
 Unbuilt work lives in the Backlog.
-Raw learning starts in Notebooks.
+Raw learning starts in typed knowledge topics.
 ```
 
 Actions are not arbitrary code. They are typed contracts that call exactly one Vrooli-controlled CLI command. Branching, retries, resource access, and implementation details remain in the owning CLI. See [Actions](ACTIONS.md) and [Memory Promotion](MEMORY-PROMOTION.md).

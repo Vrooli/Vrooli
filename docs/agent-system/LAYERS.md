@@ -75,7 +75,7 @@ When a topic-prefix crosses team boundaries, the producer's taxonomy owns the fr
 
 `team-member-capability-architecture-audit` flags as a smell ("skillless canon residue") any skill whose content includes:
 
-- the layer mantra above (any paraphrase that names ≥3 of: PoR, Skill, Action, CLI, backlog, notebook, identity, ownership)
+- the layer mantra above (any paraphrase that names ≥3 of: PoR, Skill, Action, CLI, backlog, typed knowledge, identity, ownership)
 - the classifier ("If it says X → Y") with ≥3 rows
 - the promotion ladder steps (interim → CLI/tool → Action → retire) without citing `PROMOTION_LADDER.md`
 - the 9-layer table without citing `TEAM_MEMBER_ARCHITECTURE.md`

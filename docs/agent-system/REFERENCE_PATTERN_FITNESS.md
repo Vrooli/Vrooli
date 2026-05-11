@@ -12,7 +12,7 @@ Audit whether an artifact that **exists to be copied** is fit to be a copy sourc
 
 The lens does **not** ask *"is this code good?"* — that is what the seven single-instance audit lenses in [`path:docs/scenario-qa/methods/audit/`](../scenario-qa/methods/audit/) are for. This lens asks the multiplier-aware question: *"is this code good **as a copy source**?"* A 50-line CLI helper duplicated per domain isn't 50 lines of debt — it's 50 × D × S lines across the portfolio. A contract encoded in a doc comment survives a careful read but not a copy/paste/modify cycle. A "delete this with sed" guide proves the architecture's removal promise wasn't real.
 
-The full procedure (applicability gate → run single-instance lenses first → four sub-lenses → tier findings → categorize substrate-vs-template → notebook entry → optional decision proposal) lives in the paired skill. This document is the strategic-canon side: when the lens applies, when it backfires, what the meta-contrarian challenges, and how it composes with the existing audit lenses.
+The full procedure (applicability gate → run single-instance lenses first → four sub-lenses → tier findings → categorize substrate-vs-template → typed audit record → optional decision proposal) lives in the paired skill. This document is the strategic-canon side: when the lens applies, when it backfires, what the meta-contrarian challenges, and how it composes with the existing audit lenses.
 
 ## When it applies
 
@@ -65,14 +65,14 @@ The `contrarian` member of the `meta-optimization` team is the mandatory skeptic
 - **"Is the multiplier hypothetical or measured?"** Demand a concrete count: N templates × M future domains × S scenarios. Speculative multipliers ("imagine this gets copied a lot") are noise. A finding without a concrete replication factor is not a Tier 1 candidate.
 - **"Does the substrate extraction proposed here actually exist anywhere yet?"** If the proposed home (cli-core, api-core, shared lib) doesn't exist today or doesn't accept the helper today, the finding is a wishlist item, not actionable. Either the substrate work belongs to a separate decision, or the finding stays in the in-artifact-fix category until the substrate exists.
 - **"Is this prose paint?"** Description style, naming consistency, prose drift can be surfaced but should be ranked Tier 3, never Tier 1. Tier 1 is reserved for findings that change runtime shape, contract location, or coordinated-edit count.
-- **"Did the auditor run the single-instance lenses first?"** If the notebook entry doesn't cite single-instance findings as a prerequisite, the multiplier findings rest on unverified ground. Block the proposal until the prerequisite is satisfied.
+- **"Did the auditor run the single-instance lenses first?"** If the audit record doesn't cite single-instance findings as a prerequisite, the multiplier findings rest on unverified ground. Block the proposal until the prerequisite is satisfied.
 - **"Is the artifact actually copied at the rate the auditor assumes?"** A canonical example documented as "copy this for X" but never actually copied (because the X never came up) is a paper template. Real replication count, not documented replication intent, is the load-bearing input.
 
 ## Composition with single-instance lenses
 
 This lens **runs after** the relevant single-instance lenses on the same artifact, not instead of them. Multiplier-framed findings are only correct *given that the artifact is otherwise structurally sound*. Asking *"is this fit to be copied?"* before *"is this code structurally sound?"* produces noise.
 
-The auditor selects from [`path:docs/scenario-qa/methods/audit/`](../scenario-qa/methods/audit/) based on the artifact's shape. For a CRUD-template audit (the react-vite case), `screaming-architecture-audit`, `decision-boundary-extraction`, and `utils-unification` are typical prerequisites; for a reference scenario being scrutinized for testing patterns, `seam-discovery-and-enforcement` and `invariant-discovery-and-enforcement` are typical. The paired skill's required-reading section codifies this — the auditor names the prerequisites in their notebook entry.
+The auditor selects from [`path:docs/scenario-qa/methods/audit/`](../scenario-qa/methods/audit/) based on the artifact's shape. For a CRUD-template audit (the react-vite case), `screaming-architecture-audit`, `decision-boundary-extraction`, and `utils-unification` are typical prerequisites; for a reference scenario being scrutinized for testing patterns, `seam-discovery-and-enforcement` and `invariant-discovery-and-enforcement` are typical. The paired skill's required-reading section codifies this — the auditor names the prerequisites in the typed audit record.
 
 This lens does **not** belong in the [`path:docs/scenario-qa/methods/audit/`](../scenario-qa/methods/audit/) registry. That registry is scoped to the `quality-auditor` member of the `scenario-qa` team, which audits real scenarios where multiplier framing would mislead. Promotion to its own registry — `path:docs/agent-system/audit-techniques/` — is deferred until a second similar lens lands.
 
@@ -96,7 +96,7 @@ The first concrete application of this lens. A long-form session audited `path:t
 
 The findings became a Pass-4 plan against the template (separate file, separate decision); this lens is the methodology that produced them.
 
-This worked example is frozen as of 2026-05-04. Future audits create new notebook entries under `meta-optimization/notebook/template-fitness/<artifact-slug>/<YYYY-MM-DD>` per the paired skill's procedure; the canon doc cites those by date.
+This worked example is frozen as of 2026-05-04. Future audits create typed knowledge records under `template-fitness-audit/<artifact-slug>/<YYYY-MM-DD>` per the paired skill's procedure; the canon doc cites those by date.
 
 ## Paired skill
 

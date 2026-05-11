@@ -27,7 +27,7 @@ For each target, distinguish:
 - Intake: how work enters the member's lane, including operator-fed, proactive, cross-team, and telemetry sources.
 - Collection: how evidence/source material is gathered, and whether missing tooling should become a capability gap.
 - Analysis method: reusable reasoning methods that should not be reinvented every heartbeat.
-- Promotion/routing: how outputs become knowledge, notebook debt, decisions, skill proposals, Actions, scenario/backlog work, or handoffs.
+- Promotion/routing: how outputs become typed knowledge, decisions, skill proposals, Actions, scenario/backlog work, or handoffs.
 - Feedback loop: which meta-optimization member should own the next improvement.
 
 Prefer router-plus-focused-method skills over one mega-skill when a member handles multiple distinct methodologies. For signal-processing members, explicitly check whether both proactive and operator-fed intake are relevant. If only one is relevant, say why.

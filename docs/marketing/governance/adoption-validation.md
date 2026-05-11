@@ -8,16 +8,16 @@ prompt-manager graph operating-model diff --team marketing-crew --id marketing-o
 prompt-manager graph operating-model coverage --team marketing-crew --id marketing-operating-model
 ```
 
-When PoR manifest validation lands, run the marketing PoR validator against [`../manifest.json`](../manifest.json) and the shared base contract at [`../../agent-system/team-plan-of-record.manifest.json`](../../agent-system/team-plan-of-record.manifest.json).
+Operating-model validation consumes the local [`../manifest.json`](../manifest.json) and the shared base contract at [`../../agent-system/team-plan-of-record.manifest.json`](../../agent-system/team-plan-of-record.manifest.json).
 
 ## Expected Clean State
 
 - `README.md` is the only top-level prose entrypoint.
 - Durable canon lives under `operating/`, `taxonomies/`, `methods/`, `catalogs/`, `strategy/`, `evidence/`, or `governance/`.
-- `notebook/` remains a working notebook and is excluded from PoR authority.
+- Non-canon observations use typed team knowledge topics and enter the PoR only through accepted decisions.
 - `taxonomies/marketing-research/README.md` and `taxonomies/marketing-research/taxonomy.json` remain paired.
 - `operating/OPERATING_MODEL.md` remains clean under operating-model validation.
 
-## Migration Notes
+## Enforcement Scope
 
-This folder was migrated from the earlier flat marketing PoR layout. Old top-level strategy files moved under `strategy/`; `post-types/`, `post-techniques/`, `research/`, `rich-media/`, and the signal taxonomy moved into semantic modules declared by [`../manifest.json`](../manifest.json).
+Validation treats [`../manifest.json`](../manifest.json) as the only structural contract for this plan of record. New durable canon must be registered in the manifest, placed under the most specific standard module, and edited only through accepted marketing decisions.

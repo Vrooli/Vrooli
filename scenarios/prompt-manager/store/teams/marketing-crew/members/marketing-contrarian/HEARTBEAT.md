@@ -8,7 +8,7 @@ Follow `docs/agent-system/CONTRARIAN_REVIEW.md`: write `challenge-report/<decisi
 ## Task Loop
 1. Load pending marketing proposals and recent member outputs.
 2. Score pending proposals against the applicable framework, post-type canon, and operating-model boundaries.
-3. For notebook promotions, verify the proposal has a real permanent target and a deletion/retirement plan for the source entry.
+3. For typed-observation promotions, verify the proposal has a real permanent target and a retirement plan for the source entry.
 4. Write append-only challenge notes and matching resolution records for concrete hits.
 5. Run the stale decision scan required by the contract.
 6. Check supersession on owned pending decisions.

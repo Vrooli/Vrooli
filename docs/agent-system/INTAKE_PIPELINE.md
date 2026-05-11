@@ -2,7 +2,7 @@
 
 The canonical pattern for how external signals become structured evidence, decisions, skills, or capability-gap proposals. Cites `LAYERS.md`, `TEAM_MEMBER_ARCHITECTURE.md`, `PROMOTION_LADDER.md`, and `DECISIONS.md` (for what happens after the router files a decision). Validated by the [three pillars](PRIMITIVES.md#three-pillars-of-topic-validation): [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md) (declarations), [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) (prose drift), [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) (observed writes).
 
-This is the live model. The historical "hot buffer / living notebook / permanent structure" three-tier framing is retired in favor of this one.
+This is the live model. Agents write observations to typed knowledge topics; durable truth moves through decisions into the owning plan of record or implementation work.
 
 ---
 
@@ -57,7 +57,7 @@ Inbox entries live as **team knowledge entries** under a hierarchical topic pref
 <inbox-name>/<signal-type>/<short-slug>
 ```
 
-Examples: `research-inbox/audience/foo`, `opportunity-inbox/competitor-move/bar`. There is no separate JSONL file or notebook markdown — the inbox is a query against team knowledge:
+Examples: `research-inbox/audience/foo`, `opportunity-inbox/competitor-move/bar`, `bug-inbox/regression/foo`, and `friction-inbox/toolchain/bar`. The inbox is a query against team knowledge:
 
 ```bash
 prompt-manager team knowledge-list <team> --topic-prefix=<inbox-name>/
@@ -86,7 +86,7 @@ The same drain procedure runs in either of two modes, picked per intake by wheth
 
 **Mode 1 — Classifier-required (judgment intake).** The producer writes a raw note under a generic prefix (`research-inbox/<signal-type>/<slug>`); the assigned signal-type is a *hint*, not authority. The drainer applies a portable classifier skill — pure judgment, no team or destination coupling — to derive the authoritative `signal_type`, `evidence_strength`, and `honesty_flags` for each entry. Use this mode when the producer is upstream of the taxonomy (operator, vision-walk, cross-team handoff) and may misclassify, or when interpretation is required to disambiguate signal types. Examples: `literal:marketing-crew/researcher` → `marketing-signal-classifier` over `marketing-research`; `literal:monetization/opportunity-scout` → `monetization-signal-classifier` over `monetization-opportunity`; `literal:monetization/market-validator` → `market-validation-triage` over `monetization-validation`.
 
-**Mode 2 — Deterministic prefix (no classifier).** The producer is constrained to write only valid taxonomy signal-types in the prefix segment after the inbox name (`<inbox-name>/<signal-type>/<slug>`), and that segment is taken as authoritative. No classifier skill is loaded; the drainer's heartbeat omits the classifier line and reads the signal-type straight from the topic. Use this mode when (a) the producer set is closed and trusted (typically same-team curation, not external alpha) and (b) the taxonomy's signal-types are mutually exclusive enough that misclassification is rare. Examples: `literal:marketing-crew/brand-manager` and `literal:meta-optimization/debt-curator` both drain `<team>/notebook/*` against the `notebook-debt` taxonomy with no classifier — the producer writes `topic[example]:notebook/promotion-candidate/<slug>` etc., and the curator trusts the prefix.
+**Mode 2 — Deterministic prefix (no classifier).** The producer is constrained to write only valid taxonomy signal-types in the prefix segment after the inbox name (`<inbox-name>/<signal-type>/<slug>`), and that segment is taken as authoritative. No classifier skill is loaded; the drainer's heartbeat omits the classifier line and reads the signal-type straight from the topic. Use this mode when the producer side enforces the topic shape and the taxonomy's signal-types are mutually exclusive enough that misclassification is rare. Examples: `literal:scenario-qa/bug-investigator` drains `bug-inbox/*` through the `bug-report` taxonomy via `report-bug`; `literal:meta-optimization/friction-curator` drains `friction-inbox/*` through the `friction-report` taxonomy via `report-friction`.
 
 **Universal-source intakes pair with deterministic-prefix routing.** When `intake[].source_team = "*"` (any team's members may write — see `TOPICS_SCHEMA.md` § Universal-source intakes), the producer set is structurally open. Trust must be established at the producer side: a single writer skill (declared in `external_producers`) constrains the topic shape and signal-type assignment, and the drainer treats the prefix as authoritative. Adding a classifier skill on top of a universal-source intake is architectural drift — the writer skill already enforces shape, and the drainer must read the entry to start work anyway. Examples: `literal:scenario-qa/bug-investigator` drains `bug-inbox/*` (universal-source) against `bug-report` taxonomy via `report-bug` writer skill; investigation includes signal-type validation as its first sub-step. The sister flow `literal:meta-optimization/friction-curator` drains `friction-inbox/*` against `friction-report` taxonomy via `report-friction` writer skill; the curator validates scope (or reclassifies `unknown`) and routes to the appropriate scoped friction topic owned by an existing sub-member. Both flows establish the **universal observation flow** primitive — universal-source intake + writer skill + drainer + heartbeat trigger paragraph — as a reusable architectural pattern.
 
@@ -177,7 +177,7 @@ The draining member (using its taxonomy's `actionSelection` set, possibly inform
 | Concrete sourced observation | Add a knowledge entry under the canonical surface prefix (e.g., `audience-scan/<slug>`, `competitor-record/<slug>`). |
 | Capability already exists for this signal | Run the existing skill or Action; route the output as a knowledge observation. |
 | Trivial automation, no LLM judgment needed | Create + run a new Action (no decision required — see `DECISIONS.md` §4). |
-| Repeated but unresolved pattern | File a `meta-self-improvement` decision proposing a skill / scenario / config change. The "notebook debt" surface is, in the live architecture, this kind of decision — not a markdown file. |
+| Repeated but unresolved pattern | File a `meta-self-improvement` decision proposing a skill / scenario / config change, or route the observation through `friction-inbox/*` when the pattern is system friction. |
 | Converging evidence meets threshold | Raise the owned decision context (e.g., `audience-update`, `channel-strategy-update`). |
 | Repeatable method has no skill | Propose a skill through the meta-optimization path (`skill-optimizer`). |
 | Collection requires missing source/tool/scenario | Raise `capability-gap` (see `DECISIONS.md` §5 for the capability-gap-vs-decision criteria). |

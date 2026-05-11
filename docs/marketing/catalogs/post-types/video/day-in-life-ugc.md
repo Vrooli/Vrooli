@@ -4,7 +4,7 @@
 
 **Paired skill:** `x-day-in-life-ugc` *(planned)*
 **Primary lane/member:** Usually subscription lane (`subscription-advertiser`)
-**Notebook home for emerging craft patterns:** `../../../notebook/DAY_IN_LIFE_UGC_CRAFT.md` (created on first observation)
+**Craft observation topic:** `marketing-craft-observation/day-in-life-ugc/<slug>`
 
 ## Purpose
 

@@ -4,7 +4,7 @@
 
 **Paired skill:** `x-demo-recording` *(planned)*
 **Primary lane/member:** Lane depends on demo subject; publisher handles the release package.
-**Notebook home for emerging craft patterns:** `../../../notebook/DEMO_RECORDING_CRAFT.md` (created on first observation)
+**Craft observation topic:** `marketing-craft-observation/demo-recording/<slug>`
 
 ## Purpose
 

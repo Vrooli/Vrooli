@@ -24,7 +24,7 @@ func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {
 					Prefix:       "challenge-report/*",
 					ForDecisions: []string{"capability-gap", "audience-update"},
 				}, {
-					Prefix: "marketing/notebook/*",
+					Prefix: "marketing-craft-observation/*",
 				}},
 				Output: []memberflow.OutputEntry{{
 					Prefix:          "audience-scan/*",
@@ -48,7 +48,7 @@ func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {
 		"- `research-inbox/*` - taxonomy `marketing-research`, classifier `marketing-signal-classifier`",
 		"- `audience-scan/*`",
 		"- `challenge-report/*` - for `audience-update`, `capability-gap`",
-		"- `marketing/notebook/*` - general evidence",
+		"- `marketing-craft-observation/*` - general evidence",
 		"- `audience-scan/*` - knowledge, schema `audience-scan`",
 		"- `marketing-canon/*` - por_file, path `docs/marketing/STRATEGY.md`",
 		"- own/propose: `audience-update`",

@@ -1206,7 +1206,6 @@ Create a new team.
     },
     "documents": {
       "planOfRecord": [],
-      "notebooks": [],
       "sharedState": []
     },
     "decisionContexts": {},

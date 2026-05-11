@@ -42,7 +42,7 @@ Once a deprecation decision is accepted by the operator:
 3. **Hard archive after 30 heartbeats.** Move the entity's files to a `path:store/archived/<entity-type>/<id>/` folder (to be created on first use). Update indexes. The entity no longer appears in `prompt-manager <entity> list`.
 4. **Hard delete after 180 heartbeats.** Remove the archived folder. By this point nothing should reference it, and the relation files have been cleaned up.
 
-The grace-period and hard-archive numbers (30 / 180 heartbeats) are starting points. Edge cases that suggest tightening or relaxing these numbers are tracked as team knowledge entries under topic prefix `meta-optimization/notebook/deprecation-edges/<slug>` and reviewed at the next deprecation cadence.
+The grace-period and hard-archive numbers (30 / 180 heartbeats) are starting points. Edge cases that suggest tightening or relaxing these numbers are tracked as team knowledge entries under topic prefix `deprecation-edge-record/<slug>` and reviewed at the next deprecation cadence.
 
 ---
 
@@ -52,7 +52,7 @@ The grace-period and hard-archive numbers (30 / 180 heartbeats) are starting poi
 - `agent-deprecation` — **team-agent-optimizer** files it, after running the roadmap check.
 - `team-deprecation` — **team-agent-optimizer** files it, after running the roadmap check.
 
-The `debt-curator` does NOT file deprecation decisions for entities outside meta-optimization — those are the owning members' lanes. The debt-curator only retires *doc entries it owns* (the inbox/synthesis layer for the meta-optimization team itself).
+The meta-optimization team does NOT file deprecation decisions for entities outside its ownership boundary — those are the owning members' lanes. Meta-optimization may file `meta-self-improvement` or `capability-gap` decisions when repeated deprecation friction reveals a missing tool, policy, or validation surface.
 
 ---
 

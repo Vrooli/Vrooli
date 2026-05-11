@@ -191,13 +191,13 @@ func TestCmdOperatingModelDiffRendersHumanOutput(t *testing.T) {
 			Relationship:     "topic_read",
 			Team:             "marketing-crew",
 			Member:           "researcher",
-			Topic:            "marketing/notebook/*",
+			Topic:            "marketing-craft-observation/*",
 			SourcePath:       "docs/marketing/OPERATING_MODEL.md",
 			Line:             355,
 			RuntimePath:      "scenarios/prompt-manager/store/teams/marketing-crew/members/researcher/topics.json",
 			AcceptableFields: []string{"intake", "required_read", "evidence_consumed"},
-			Suggestions:      []string{"add required_read \"marketing/notebook/*\" to researcher/topics.json"},
-			Detail:           "docs/marketing/OPERATING_MODEL.md:355 says topic:marketing/notebook/* -> member:researcher. Runtime has no matching declaration.",
+			Suggestions:      []string{"add required_read \"marketing-craft-observation/*\" to researcher/topics.json"},
+			Detail:           "docs/marketing/OPERATING_MODEL.md:355 says topic:marketing-craft-observation/* -> member:researcher. Runtime has no matching declaration.",
 		}},
 	})
 
@@ -216,7 +216,7 @@ func TestCmdOperatingModelDiffRendersHumanOutput(t *testing.T) {
 		"[topic_read] docs/marketing/OPERATING_MODEL.md:355",
 		"Runtime file: scenarios/prompt-manager/store/teams/marketing-crew/members/researcher/topics.json",
 		"Acceptable runtime fields: intake, required_read, evidence_consumed",
-		"Suggested fix: add required_read \"marketing/notebook/*\" to researcher/topics.json",
+		"Suggested fix: add required_read \"marketing-craft-observation/*\" to researcher/topics.json",
 		"Runtime Declares, Graph Missing",
 		"- clean",
 	} {

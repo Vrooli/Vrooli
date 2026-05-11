@@ -32,4 +32,4 @@ Same as the rest of `path:docs/marketing/`: agents never write directly; operato
 
 - [`../../catalogs/post-types/`](../../catalogs/post-types/) — per-post-type strategic canon. Each post-type file lists which techniques here it depends on.
 - [`../../strategy/STRATEGY.md`](../../strategy/STRATEGY.md) — voice canon. Several techniques currently still live as subsections there; will migrate via Action B.
-- [`../../notebook/AUDIENCE_OBSERVATIONS.md`](../../notebook/AUDIENCE_OBSERVATIONS.md) — where new technique observations are appended before promotion to this folder.
+- `marketing-craft-observation/post-technique/<slug>` — where new technique observations are captured before promotion to this folder.

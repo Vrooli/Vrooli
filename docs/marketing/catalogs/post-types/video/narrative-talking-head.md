@@ -4,7 +4,7 @@
 
 **Paired skill:** `x-narrative-talking-head` *(planned)*
 **Primary lane/member:** Usually subscription lane (`subscription-advertiser`)
-**Notebook home for emerging craft patterns:** `../../../notebook/NARRATIVE_TALKING_HEAD_CRAFT.md` (created on first observation)
+**Craft observation topic:** `marketing-craft-observation/narrative-talking-head/<slug>`
 
 ## Purpose
 

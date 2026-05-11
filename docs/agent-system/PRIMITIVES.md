@@ -65,7 +65,7 @@ A coordinated group of agents (members) sharing a team-level contract, role conf
 - `path[example]:shared/<various>` — per-team shared state (knowledge, decisions, audit logs, run lessons)
 - `path[example]:members/<id>/` — per-member binding (heartbeat, responsibilities, last-handoff, topics declarations)
 
-Coordination patterns (orthogonal to doc architecture): independent, leader-led, or peer. Doc architecture patterns (orthogonal to coordination): plan-of-record, working notebook, or both — see `TEAM_DOCS_PATTERNS.md`.
+Coordination patterns (orthogonal to documentation architecture): independent, leader-led, or peer. Documentation architecture is split between plan-of-record truth and typed knowledge flow — see `TEAM_DOCS_PATTERNS.md`.
 
 ---
 
@@ -79,7 +79,7 @@ Properties:
 - **Durable:** entries persist and evolve. High churn signals something wrong with the plan, not with the rate of change.
 - **One concept, one file:** no double residency.
 
-Detailed comparison with the working-notebook pattern lives in `TEAM_DOCS_PATTERNS.md`.
+The write boundary between plan-of-record canon and typed knowledge topics lives in `TEAM_DOCS_PATTERNS.md`.
 
 ---
 
@@ -130,13 +130,11 @@ The distinction: backlog is "we plan to build X." Capability-gap is "we are bloc
 
 ---
 
-## Inbox / synthesis (transient)
+## Inbox / Synthesis
 
-The first stage where raw observations land before they have permanent structure. In the agent system, this is **not** a markdown notebook — it is team knowledge entries under the topic prefix `<inbox-name>/<signal-type>/<slug>`.
+The first stage where raw observations land before they have permanent structure. In the agent system, this is team knowledge entries under typed topic prefixes such as `<inbox-name>/<signal-type>/<slug>`, `friction-inbox/<scope>/<slug>`, or `run-lesson-report/<date>/<slug>`.
 
 The draining member resolves each entry by retagging it to its destination prefix or deleting it as duplicate/weak. The procedure is universal (rendered into the heartbeat as a generated `# Inbox Flow` section); the per-domain signal vocabulary, dispatch table, evidence rules, and destination schemas live as a taxonomy JSON sidecar (e.g., `path:docs/marketing/taxonomies/marketing-research/taxonomy.json`); pure-judgment classification (when the topic-prefix isn't deterministic) lives as a portable classifier skill (e.g., `marketing-signal-classifier`). The "unrouted set" is the live inbox view; once routed, an entry no longer carries an inbox prefix. See `INTAKE_PIPELINE.md` for the full pattern.
-
-Markdown-file notebooks are a special case of synthesis — short-lived drafts living adjacent to canon (`path:docs/agent-system/drafts/`, for example) where structure is being workshopped before promotion. They are not a permanent layer; the historical "three-tier model" (hot buffer / notebook / permanent) is replaced by the inbox-router-drain model in the current architecture.
 
 ---
 

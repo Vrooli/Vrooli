@@ -24,7 +24,7 @@ Do **not** use `report-bug` when:
 
 - The observation is a **friction report** with a known owner (route to that owner directly via decision or knowledge entry).
 - The observation is a **capability gap** (file a `capability-gap` decision instead).
-- The observation is a **half-formed idea or workaround** (write to your team's notebook).
+- The observation is a **half-formed idea or workaround** (write to the most specific typed team knowledge topic, or use `report-friction` when it is system-level friction).
 - The observation is a **bug you are about to fix in this same heartbeat**. Just fix it; reporting it for someone else when you're already there is overhead. (If the fix has cross-cutting implications, file `bug-resolution-proposal` after the fix lands.)
 
 If unsure, prefer to file: an over-eager bug report becomes a `drop` after a short investigation, which costs less than a missed defect.

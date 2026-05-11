@@ -38,7 +38,7 @@ This skill exists because of a core insight about Vrooli:
 
 **Meta-optimization context:** The meta-optimization team produces decisions about how Vrooli improves itself — skill conversions (prose → programmatic), agent/team structure changes, toolchain violations, run-derived lessons, debt promotion, and framework challenges. These are second-order but compounding — they make every future agent run cheaper and sharper. Phase 5.5 gives them dedicated air time so they aren't crowded out by first-order product decisions. `capability-gap` decisions raised by this team are an exception: they surface in Phase 3 alongside portfolio decisions because director-swarm consumes them.
 
-**Marketing-crew context:** The marketing-crew team produces decisions about Vrooli's external voice — what gets published (content-publish-proposal), what campaigns launch (campaign-launch-proposal), when brand canon evolves (brand-guideline-update, audience-update, channel-update), where coverage on deployed SKUs is stale (coverage-gap), and when working-notebook entries mature into permanent structure (notebook-promotion / notebook-retirement). Phase 5.3 handles these; `capability-gap` items raised by marketing-crew members are folded into Phase 3 alongside meta-optimization's (both have director-swarm as consumer).
+**Marketing-crew context:** The marketing-crew team produces decisions about Vrooli's external voice — what gets published (content-publish-proposal), what campaigns launch (campaign-launch-proposal), when brand canon evolves (brand-guideline-update, audience-update, channel-update), where coverage on deployed SKUs is stale (coverage-gap), and when typed marketing-craft observations mature into permanent structure. Phase 5.3 handles these; `capability-gap` items raised by marketing-crew members are folded into Phase 3 alongside meta-optimization's (both have director-swarm as consumer).
 
 **Monetization context:** Vrooli's full monetization plan is canonical at `path:docs/monetization/` — see `STRATEGY.md` for principles, `CATALOG.md` for the SKU index, `TIERS.md` for delivery tiers, `REVENUE_LINES.md` for subscription-vs-services discipline. In brief: the business bundle (developer + solopreneur tools, including LPBS, Git Control Tower, and Web Console) is the first active bundle; the lifestyle bundle (personal + household) is the next candidate. Delivery tiers ladder from individual apps → self-hosted → hosted cloud → hardware (north-star only). Each new scenario brainstormed during this walk should be assessed for bundle fit (does it serve the business or lifestyle bundle?), role (headliner or depth?), and compound value within the ecosystem. The `monetization` team surfaces the concrete decisions that come out of tracking this plan.
 
@@ -199,18 +199,16 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
    - `campaign-launch-proposal` — "Brand-manager proposes a campaign: <theme> targeting <audience> with launch window <date>. Approve (operator updates `docs/marketing/strategy/CAMPAIGNS.md`), defer, or reject?"
    - `brand-guideline-update` / `audience-update` / `channel-update` — "Proposed edit to plan-of-record: <brief>. Approve (operator edits `docs/marketing/<file>.md`) or reject?"
    - `coverage-gap` — "Deployed SKU <sku> has stale / missing marketing coverage. Direct the advertiser to prioritize refresh, or acknowledge and defer?"
-   - `notebook-promotion` — "Brand-manager proposes promoting <notebook-entry> into <target-surface>. Approve (operator executes file moves / creates skill / edits plan-of-record) or reject?"
-   - `notebook-retirement` — "Brand-manager proposes retiring <notebook-entry> (scenario X shipped). Approve (operator deletes entry) or reject?"
    - `decision-rejection-proposed` — "Marketing-contrarian recommends rejecting or superseding <original-decision> for <failure-mode>. Agree, override, or defer?"
 4. Execute the user's choice:
    ```bash
    prompt-manager team decision-accept marketing-crew <decision-id> --selected <option-key> --notes "<user's reasoning>"
    ```
-5. For approved `notebook-promotion` / `notebook-retirement` / plan-of-record edits, the operator (or you, on the operator's direction) executes the actual file edits. Cite the decision id in the commit message.
+5. For approved plan-of-record edits, the operator (or you, on the operator's direction) executes the actual file edits. Cite the decision id in the commit message.
 6. If the user wants to defer, note it and move on.
 7. If there are no pending decisions, say so briefly and move on.
 
-**Disabled-team branch:** If `teams/marketing-crew/team.json` has `"enabled": false`, **or** the team is enabled but every member's heartbeat is disabled (check with `prompt-manager team heartbeat-list marketing-crew`), skip with: "Marketing-crew is not currently running. Once running, this phase will surface publish proposals, campaign launches, brand-canon edits, coverage gaps, and notebook-curation decisions." The prep deliverable must distinguish *dormant* (heartbeats disabled, no recent runs) from *quiet* (heartbeats active but nothing raised) — only the latter is genuinely quiet.
+**Disabled-team branch:** If `teams/marketing-crew/team.json` has `"enabled": false`, **or** the team is enabled but every member's heartbeat is disabled (check with `prompt-manager team heartbeat-list marketing-crew`), skip with: "Marketing-crew is not currently running. Once running, this phase will surface publish proposals, campaign launches, brand-canon edits, coverage gaps, and typed-learning decisions." The prep deliverable must distinguish *dormant* (heartbeats disabled, no recent runs) from *quiet* (heartbeats active but nothing raised) — only the latter is genuinely quiet.
 
 **Guardrail:** Max 3 decisions. Prep agent has already prioritized.
 
@@ -243,7 +241,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 | Agent / team structure | Changes to agent prompts, team coordination patterns, role additions/removals, deprecations |
 | Run lessons | Durable lessons from specific agent-manager runs that warrant a skill/agent change |
 | Toolchain violations | Issues the dev toolchain surfaced against the gold-star reference scenario |
-| Debt promotions | Synthesis material under topic prefix `meta-optimization/notebook/<slug>` mature enough to become permanent structure (Plan of Record under `path:docs/agent-system/`, skill, Action, CLI backlog, team-config change, or scenario feature) |
+| Debt promotions | Synthesis material from typed evidence topics mature enough to become permanent structure (Plan of Record under `path:docs/agent-system/`, skill, Action, CLI backlog, team-config change, or scenario feature) |
 | Framework meta | Contrarian-identified failure modes not covered by the existing seven, or proposals to reject pending decisions |
 
 **Guardrail:** Max 3 decisions in this phase. The prep agent has already diversified across categories; do not go hunting for more.

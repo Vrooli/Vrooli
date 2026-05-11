@@ -75,7 +75,7 @@ The `qa-contrarian` reads peer-team decisions and member outputs (including bug-
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.
 - **Edit context:** `bug-resolution-proposal` covers `taxonomies/bug-report/README.md` updates and bug-report taxonomy schema changes; `meta-self-improvement` (on `meta-optimization`) covers new technique entries in `methods/investigation/` and `methods/audit/`; per-rotation skill updates go through the standard skill-edit decision flow.
 - **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
-- **Drafts are not canon.** Synthesis-in-flux content lives elsewhere (working notebooks or `path:docs/agent-system/drafts/`); files in this folder are stable PoR.
+- **Drafts are not canon.** Synthesis-in-flux content belongs in typed knowledge topics until an accepted decision promotes it; files in this folder are stable PoR.
 
 ## Doc + paired skill discipline
 

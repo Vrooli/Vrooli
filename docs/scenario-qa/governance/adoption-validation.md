@@ -16,11 +16,6 @@ The structural plan-of-record manifest should report no missing required files, 
 
 The operating model should validate cleanly against the team graph, topic catalog, decision catalog, runtime prompt sections, and plan-of-record registration.
 
-## Migration Notes
+## Enforcement Scope
 
-This folder migrated from top-level taxonomy and registry folders into the shared `team-plan-of-record/v1` shape:
-
-- `OPERATING_MODEL.md` moved to `operating/OPERATING_MODEL.md`.
-- `BUG_REPORT_TAXONOMY.md` and `taxonomy.json` moved to `taxonomies/bug-report/`.
-- `investigation-techniques/`, `audit-techniques/`, and `readiness-checks/` moved under `methods/`.
-
+Validation treats [`../manifest.json`](../manifest.json) as the only structural contract for this plan of record. New durable canon must be registered in the manifest, placed under the most specific standard module, and edited only through accepted scenario-qa decisions.

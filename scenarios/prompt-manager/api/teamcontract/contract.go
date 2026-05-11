@@ -145,7 +145,6 @@ type StaleDecisionPolicy struct {
 
 type Documents struct {
 	PlanOfRecord []PlanOfRecordDocument `json:"planOfRecord"`
-	Notebooks    []NotebookDocument     `json:"notebooks"`
 	SharedState  []SharedStateDocument  `json:"sharedState"`
 }
 
@@ -159,17 +158,6 @@ type PlanOfRecordDocument struct {
 	UseFor         string    `json:"useFor,omitempty"`
 	Required       *bool     `json:"required,omitempty"`
 	OptionalReason string    `json:"optionalReason,omitempty"`
-}
-
-type NotebookDocument struct {
-	ID               string    `json:"id"`
-	Paths            []PathRef `json:"paths"`
-	Posture          string    `json:"posture,omitempty"`
-	WritePolicy      string    `json:"writePolicy"`
-	CuratorMemberID  string    `json:"curatorMemberId"`
-	PromotionContext string    `json:"promotionContext"`
-	Required         *bool     `json:"required,omitempty"`
-	OptionalReason   string    `json:"optionalReason,omitempty"`
 }
 
 type SharedStateDocument struct {
@@ -569,23 +557,6 @@ func validateDocuments(contract *OperatingContract, input ValidationInput) error
 			}
 		}
 	}
-	for _, doc := range contract.Documents.Notebooks {
-		if strings.TrimSpace(doc.ID) == "" {
-			return fmt.Errorf("operatingContract.documents.notebooks contains a document without id")
-		}
-		if strings.TrimSpace(doc.CuratorMemberID) == "" || strings.TrimSpace(doc.PromotionContext) == "" {
-			return fmt.Errorf("operatingContract.documents.notebooks.%s requires curatorMemberId and promotionContext", doc.ID)
-		}
-		if _, ok := contract.Members[doc.CuratorMemberID]; !ok {
-			return fmt.Errorf("operatingContract.documents.notebooks.%s curatorMemberId %q is not a contract member", doc.ID, doc.CuratorMemberID)
-		}
-		if _, ok := contract.DecisionContext[doc.PromotionContext]; !ok {
-			return fmt.Errorf("operatingContract.documents.notebooks.%s promotionContext %q is not declared", doc.ID, doc.PromotionContext)
-		}
-		if err := validatePathRefs(doc.Paths, docRequired(doc.Required), doc.OptionalReason, input, "", "notebooks."+doc.ID); err != nil {
-			return err
-		}
-	}
 	for _, doc := range contract.Documents.SharedState {
 		if strings.TrimSpace(doc.ID) == "" {
 			return fmt.Errorf("operatingContract.documents.sharedState contains a document without id")
@@ -741,21 +712,6 @@ func renderDocuments(b *strings.Builder, contract *OperatingContract, input Rend
 		}
 		b.WriteString("\n")
 	}
-	if len(contract.Documents.Notebooks) > 0 {
-		b.WriteString("Notebook docs:\n")
-		for _, doc := range contract.Documents.Notebooks {
-			for _, ref := range doc.Paths {
-				if p, err := NormalizePath(ref, validationInput, input.MemberID); err == nil {
-					b.WriteString("- " + p + "\n")
-				}
-			}
-		}
-		b.WriteString("\nNotebook rules:\n")
-		for _, doc := range contract.Documents.Notebooks {
-			b.WriteString(fmt.Sprintf("- %s: writePolicy=%s, curator=%s, promotionContext=%s\n", doc.ID, doc.WritePolicy, doc.CuratorMemberID, doc.PromotionContext))
-		}
-		b.WriteString("\n")
-	}
 	if len(contract.Documents.SharedState) > 0 {
 		b.WriteString("Team working state:\n")
 		for _, doc := range contract.Documents.SharedState {
@@ -780,27 +736,6 @@ func RenderTeamStorage(contract *OperatingContract, input RenderInput) (string, 
 	if len(contract.Documents.PlanOfRecord) > 0 {
 		b.WriteString("Plan of record, read/propose only:\n")
 		renderStoragePlanOfRecordHubs(&b, contract.Documents.PlanOfRecord, validationInput, input.MemberID)
-		b.WriteString("\n")
-	}
-
-	if len(contract.Documents.Notebooks) > 0 {
-		b.WriteString("Notebook, append unresolved learning:\n")
-		for _, doc := range contract.Documents.Notebooks {
-			posture := strings.TrimSpace(doc.Posture)
-			if posture == "" {
-				posture = "debt"
-			}
-			for _, ref := range doc.Paths {
-				p, err := NormalizePath(ref, validationInput, input.MemberID)
-				if err != nil {
-					return "", err
-				}
-				b.WriteString(fmt.Sprintf("- `%s`\n", p))
-				b.WriteString(fmt.Sprintf("  Curator: `%s`\n", doc.CuratorMemberID))
-				b.WriteString(fmt.Sprintf("  Promotion context: `%s`\n", doc.PromotionContext))
-				b.WriteString(fmt.Sprintf("  Posture: `%s`\n", posture))
-			}
-		}
 		b.WriteString("\n")
 	}
 

@@ -51,6 +51,12 @@
           "path": "marketing-research/",
           "packageType": "taxonomy",
           "requiredFiles": ["README.md", "taxonomy.json"]
+        },
+        {
+          "id": "marketing-craft-observation",
+          "path": "marketing-craft-observation/",
+          "packageType": "taxonomy",
+          "requiredFiles": ["README.md", "taxonomy.json"]
         }
       ]
     },
@@ -197,7 +203,7 @@
           "docType": "validation-runbook",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Migration Notes"]
+            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Enforcement Scope"]
           }
         },
         {
@@ -209,14 +215,7 @@
           }
         }
       ]
-    },
-    {
-      "id": "notebook",
-      "path": "notebook/",
-      "packageType": "working-notebook",
-      "authority": "excluded-from-plan-of-record",
-      "requiredFiles": ["README.md"]
     }
   ],
-  "extensionRule": "Marketing durable canon must live under operating/, taxonomies/, methods/, catalogs/, strategy/, evidence/, governance/, or a declared extensions/<extension-id>/ package. Working notes stay under notebook/ and are not authoritative plan-of-record canon."
+  "extensionRule": "Marketing durable canon must live under operating/, taxonomies/, methods/, catalogs/, strategy/, evidence/, governance/, or a declared extensions/<extension-id>/ package. Non-canon observations must use typed team knowledge topics and only enter the plan of record through an owned decision."
 }

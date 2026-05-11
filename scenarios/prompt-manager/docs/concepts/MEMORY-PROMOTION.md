@@ -2,18 +2,18 @@
 
 Memory promotion is the process for moving raw agent discoveries into the right durable form.
 
-Status: adopted for Action-aware meta-optimization. This document defines the ontology prompt-manager uses when teams analyze notebooks, knowledge logs, run lessons, and other accumulated observations.
+Status: adopted for Action-aware meta-optimization. This document defines the ontology prompt-manager uses when teams analyze typed knowledge, run lessons, and other accumulated observations.
 
 ## Core Ontology
 
 ```text
 Continue -> handoff
-Observe  -> knowledge, notebook, friction evidence
+Observe  -> typed knowledge and friction evidence
 Propose  -> decisions
 Operate  -> team working state
 ```
 
-Promotion starts after observation. Knowledge log entries hold structured evidence, snapshots, findings, and concrete friction signals from a heartbeat. Notebook entries hold unresolved patterns, workarounds, and rough lessons that are not ready for durable structure. Plan-of-record docs hold accepted durable truth.
+Promotion starts after observation. Knowledge log entries hold structured evidence, snapshots, findings, concrete friction signals, unresolved patterns, workarounds, and rough lessons that are not ready for durable structure. Plan-of-record docs hold accepted durable truth.
 
 Team working state is different: it is team-local operational memory such as task boards, ledgers, registers, rolling audits, append-only logs, and operator input files. It is not automatically canonical outside the team.
 
@@ -21,7 +21,6 @@ The promotion destination ontology is:
 
 ```text
 Knowledge = structured observation/evidence memory
-Notebook = unresolved learning debt
 Plan of Record = accepted durable truth
 Skill = reusable judgment/process guidance
 Action = typed executable operation
@@ -39,7 +38,7 @@ If it says what to run -> Action.
 If it says how it works -> CLI implementation.
 If it says what is missing -> Backlog/capability-gap.
 If it is evidence or a measurement -> Knowledge.
-If it is unverified, recurring, or a workaround -> Notebook.
+If it is unverified, recurring, or a workaround -> typed knowledge under the most specific topic.
 If it is missing, broken, confusing, slow, undocumented, or harder than expected -> friction observation.
 ```
 
@@ -50,7 +49,6 @@ This keeps prompt-manager from turning every useful note into prose. It also pre
 | Form | Responsibility | Typical owner |
 |------|----------------|---------------|
 | Knowledge | Structured observations, evidence, measurements, snapshots, findings, concrete friction signals | Any agent or team |
-| Notebook | Unresolved patterns, recurring workarounds, rough lessons, learning debt | Any agent or team |
 | Plan of Record | Accepted durable truth, policy, architecture, canonical context | Operator or curator |
 | Skill | Judgment, decision process, methodology, reusable guidance | Skill authoring / optimization lane |
 | Action | Typed execution wrapper over one Vrooli-controlled CLI command | Prompt-manager Action registry |
@@ -60,11 +58,11 @@ This keeps prompt-manager from turning every useful note into prose. It also pre
 
 ## Promotion Decision Tree
 
-For each notebook or knowledge entry:
+For each typed knowledge entry:
 
 1. Is it still true and useful?
    - No: retire, archive, or mark obsolete.
-   - Unsure: keep it in the notebook and add a verification task.
+   - Unsure: keep it as typed knowledge and add a verification task.
    - Yes: continue.
 
 2. Is it a fact, policy, constraint, architecture decision, or durable context?
@@ -102,7 +100,7 @@ Skill answers: How should an agent approach this class of work?
 
 Examples:
 
-| Notebook item | Promotion |
+| Typed knowledge item | Promotion |
 |---------------|-----------|
 | "Meta-optimization runs in approval mode because edits affect other teams." | Plan of Record |
 | "Before proposing a meta-layer change, capture a baseline and expected delta." | Skill |
@@ -116,9 +114,9 @@ Examples:
 Workarounds deserve special care because they often imply multiple promotions.
 
 ```text
-Notebook workaround
+Typed workaround evidence
   -> Is it still needed?
-    -> No: retire the note
+    -> No: retire the entry
     -> Yes: why does it exist?
 ```
 
@@ -143,8 +141,8 @@ Something expected was missing, broken, confusing, slow, undocumented, misplaced
 Route friction through the lightest useful durable form:
 
 - Minor or one-off friction goes in the final handoff when it helps the next run.
-- Concrete friction that is not blocking becomes a knowledge topic using `friction/<surface>/<YYYY-MM-DD>/<slug>`.
-- Recurring friction or workarounds go into the notebook when the team has one.
+- Concrete system friction, workarounds, inefficiencies, or process leaks are filed through `report-friction` to `friction-inbox/<scope>/<slug>`.
+- The friction curator routes accepted entries to `friction-report/<scope>/<YYYY-MM-DD>/<slug>` and records routing in `friction-triage-record/<YYYY-MM-DD>`.
 - Missing or broken capability that blocks work becomes a decision in the relevant capability-gap, bug, instrumentation, CLI, skill, scenario, or team context.
 
 Good friction notes include:
@@ -163,12 +161,12 @@ Recurrence: one-off | recurring | unknown
 Recommended flow:
 
 ```text
-Notebook / knowledge entry
+Typed knowledge entry
   -> classifier applies promotion decision tree
   -> decision proposal records target form and rationale
   -> operator accepts, rejects, or defers
   -> owning lane implements the accepted promotion
-  -> obsolete notebook text is retired or linked to the permanent form
+  -> obsolete typed evidence is retired or linked to the permanent form
 ```
 
 Agents should not silently rewrite durable memory. The promotion path should produce reviewable decisions when the change affects shared team behavior, prompt-manager entities, scenario implementation, or operator-facing policy.
@@ -178,7 +176,7 @@ Agents should not silently rewrite durable memory. The promotion path should pro
 The meta-optimization team is the natural owner of this loop:
 
 - `skill-optimizer` identifies skill sections that can collapse into Actions.
-- `debt-curator` promotes stable notebook patterns into permanent structure.
+- `debt-curator` promotes stable typed evidence patterns into permanent structure.
 - `run-introspector` detects repeated manual operations in real agent runs.
 - `toolchain-validator` raises gaps when missing tools block reproducible validation.
 - `meta-contrarian` challenges premature or unsafe promotions.

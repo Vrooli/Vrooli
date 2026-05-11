@@ -91,7 +91,7 @@ Path: `path:docs/<domain>/**/*.md` (e.g. `path:docs/agent-system/`, `path:docs/m
 |---|---|---|
 | All `.md` files under `docs/` | `docs:<domain>` (first path segment after `docs/`) | Topic references must resolve to **some** declaration somewhere in the system. Cross-team references are permitted (these are operator-facing PoR docs). |
 | `path:docs/agent-system/` canon docs (this file, RUNTIME_ATTRIBUTION.md, TOPICS.md, TOPICS_SCHEMA.md, INTAKE_PIPELINE.md, PRIMITIVES.md, README.md) | `docs:agent-system` | These docs **describe** the topic system, so they reference example prefixes pedagogically. The scanner respects fenced code blocks (see § Code-block exclusion); examples inside ` ```jsonc ` and similar fences are ignored. Backticked references in body prose still get checked but only at warning severity. |
-| `path:docs/agent-system/drafts/` and `path:docs/agent-system/_outline.md` | excluded | Working notebooks; not authority. |
+| `path:docs/agent-system/drafts/` | excluded | Draft material; not authority. |
 
 ---
 
@@ -106,8 +106,7 @@ The scanner skips these explicitly. Each exclusion has a reason; relaxing one re
 | `**/coverage/**`, `**/dist/**`, `**/node_modules/**`, `**/__pycache__/**` | Build / dependency output. |
 | `path:scenarios/prompt-manager/store/teams/*/shared/*.jsonl` | Data files, not prose. P3 handles these. |
 | `path:scenarios/prompt-manager/store/teams/*/shared/*.jsonl.backup` | Migration artifacts. |
-| `path:docs/agent-system/drafts/**` | Working drafts; not canon. |
-| `path:docs/agent-system/_outline.md` | Working outline. |
+| `path:docs/agent-system/drafts/**` | Draft material; not canon. |
 | `**/*.json`, `**/*.json.backup`, `**/*.go`, `**/*.tsx`, `**/*.ts` | Not prose; type-system or P1 handles these. |
 | Files larger than 1 MB | Defense against accidental binary inclusion. |
 

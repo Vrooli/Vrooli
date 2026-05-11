@@ -9,7 +9,7 @@
 > - the SKU index (that's [`docs/monetization/catalogs/CATALOG.md`](../../monetization/catalogs/CATALOG.md))
 > - engineering-pipeline staging (that's `path:scenarios/swarm-manager/ideas/`)
 > - settled monetization reference material (that's [`path:docs/monetization/catalogs/revenue-lines/`](../../monetization/catalogs/revenue-lines/))
-> - team-internal craft observations (that's the `notebook/` subdirectories under each team-shared docs folder)
+> - team-internal craft observations (captured in typed team knowledge topics)
 
 ## Write rule (load-bearing)
 
@@ -152,7 +152,7 @@ Idea-pipeline does not replace any existing idea-storage surface. It *complement
 | `path:docs/monetization/catalogs/revenue-lines/*.md` | monetization team | Revenue-stream registry with productization targets, legal surfaces, candidate playbooks | Settled reference material, not idea-staging. Reference-architectures can be cited from idea-pipeline entries. |
 | `path:scenarios/swarm-manager/ideas/<slug>/` | swarm-manager (engineering pipeline) | Scenario hypotheses ready for workshop loop | Pulls into development pipeline / director-team prioritization. Idea-pipeline graduates here when capacity opens. |
 | `path:docs/strategy/*.md` (other files) | operator-curated | Long-form durable strategic framing (context, decisions, risks, roadmap, business-solutions, capability-flags) | Strategic positioning, not idea-staging. Idea-pipeline entries reference these for goal-alignment context. |
-| `*/notebook/*.md` (per-team) | Team members append-anyone | Team-internal craft observations, pre-promotion to plan-of-record | Team-internal working memory, not project-wide ideas. Notebook entries promote to *that team's* plan-of-record, not to idea-pipeline. |
+| Typed team knowledge topics | Team members through declared topic writers | Team-internal craft observations, pre-promotion to plan-of-record | Team-internal evidence, not project-wide ideas. Typed observations promote to *that team's* plan-of-record, not to idea-pipeline. |
 | Vision-walk `last-handoff.md` Phase-8 deferred actions | walk artifact | Ephemeral list of post-walk actions | Walk-internal; cleaned at Phase 9. Idea-pipeline entries created during a walk are listed here only as the action that creates them. |
 
 ## Folder convention

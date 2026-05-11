@@ -12,7 +12,7 @@ Required reading:
 
 - `docs/agent-system/REFERENCE_PATTERN_FITNESS.md` — strategic-canon home: when this lens applies, when it backfires, what the meta-contrarian challenges, the four sub-lenses, the worked example.
 - `docs/agent-system/REFERENCE_SCENARIOS.md` — registry of templates and references; confirm `{{TARGET}}` is registered before running this lens.
-- `prompt-manager skills read knowledge-observatory-tools` — notebook integration; findings land under `meta-optimization/notebook/template-fitness/<artifact-slug>/<YYYY-MM-DD>`.
+- `prompt-manager skills read knowledge-observatory-tools` — typed knowledge integration; findings land under `template-fitness-audit/<artifact-slug>/<YYYY-MM-DD>`.
 - The single-instance lens(es) appropriate to `{{TARGET}}` — the auditor selects from `path:docs/scenario-qa/methods/audit/`. For CRUD-template audits: `screaming-architecture-audit`, `decision-boundary-extraction`, `utils-unification` are typical prerequisites.
 
 ---
@@ -44,7 +44,7 @@ The auditor selects the lens(es) appropriate to `{{TARGET}}` from `path:docs/sce
 - `code-cleanup` — for artifacts accumulating dead code or stale TODOs
 - `invariant-discovery-and-enforcement` — for artifacts with implicit critical conditions
 
-Produce findings under their respective notebook entries before this lens runs. The notebook entry for *this* lens (step 9) cites the prerequisite single-instance findings — without that citation, the multiplier findings rest on unverified ground and the meta-contrarian will block the proposal.
+Produce findings under their respective typed audit records before this lens runs. The audit record for *this* lens (step 9) cites the prerequisite single-instance findings — without that citation, the multiplier findings rest on unverified ground and the meta-contrarian will block the proposal.
 
 If single-instance lenses surfaced structural issues, those need to land or be deferred *before* this lens proceeds. Multiplier framing applied to broken structure is noise.
 
@@ -141,24 +141,24 @@ For each Tier-1 and Tier-2 finding, place it in one of three buckets:
 - **In-artifact fix** — fix lives in the artifact itself.
 - **Deferred** — the substrate fix is right but premature per Vrooli's "don't extract until you see the pattern" rule (typically: extraction trigger is the third repetition, and we only have two replicas of the pattern today).
 
-Substrate fixes typically need their own `meta-self-improvement` decision (the substrate package may have its own owners and conventions). In-artifact fixes feed into a Pass-N plan against the artifact. Deferred findings get a notebook entry so the next auditor can re-evaluate after a new replica lands.
+Substrate fixes typically need their own `meta-self-improvement` decision (the substrate package may have its own owners and conventions). In-artifact fixes feed into a Pass-N plan against the artifact. Deferred findings get a typed audit record so the next auditor can re-evaluate after a new replica lands.
 
 ---
 
-### **9. Write Notebook Entry**
+### **9. Write Typed Audit Record**
 
 Per `knowledge-observatory-tools` convention, write findings under topic prefix:
 
 ```
-meta-optimization/notebook/template-fitness/<artifact-slug>/<YYYY-MM-DD>
+template-fitness-audit/<artifact-slug>/<YYYY-MM-DD>
 ```
 
-Example slug: `react-vite-template`. Full topic: `meta-optimization/notebook/template-fitness/react-vite-template/2026-05-04`.
+Example slug: `react-vite-template`. Full topic: `template-fitness-audit/react-vite-template/2026-05-04`.
 
 Required content:
 
 1. **Applicability confirmation** (from step 1) — which category, replication factor.
-2. **Prerequisite single-instance lens citations** (from step 2) — link to those notebook entries.
+2. **Prerequisite single-instance lens citations** (from step 2) — link to those typed audit records.
 3. **Tiered findings** (from steps 3-7) — table with finding, sub-lens, tier, evidence, proposed fix.
 4. **Substrate-vs-template categorization** (from step 8) — bucket per finding.
 5. **Open questions** — anything the auditor flagged but couldn't resolve (e.g., "is this substrate's owner accepting helpers?").
@@ -171,7 +171,7 @@ Cross-link the entry from the artifact's row in `REFERENCE_SCENARIOS.md` (the "L
 
 If findings warrant a `meta-optimization` decision (substrate work proposal, registry update, role change, template patch beyond a single fix), draft it and file under context `meta-self-improvement` in `scenarios/prompt-manager/store/teams/meta-optimization/shared/decisions.jsonl`.
 
-Mirror the format of the last 5 entries in that file; the procedure is non-negotiable on field shape (see decision filing convention in `path:docs/agent-system/`). The decision links to the notebook entry from step 9 as evidence.
+Mirror the format of the last 5 entries in that file; the procedure is non-negotiable on field shape (see decision filing convention in `path:docs/agent-system/`). The decision links to the typed audit record from step 9 as evidence.
 
 Decisions are reviewed by the operator. The auditor's role is to file proposals; the operator accepts, rejects, or defers.
 
@@ -183,10 +183,10 @@ If findings can be implemented as a single Pass-N plan against the artifact with
 
 By the end of this loop, the artifact should have:
 
-- A notebook entry at the canonical topic prefix capturing all findings.
+- A typed audit record at the canonical topic prefix capturing all findings.
 - Tier-1 findings each routed to either a Pass-N plan (in-artifact fix) or a `meta-self-improvement` decision (substrate fix) or a deferred-with-trigger note.
 - A row in `REFERENCE_SCENARIOS.md` (or its template-side equivalent) updated with the new "Last audit" date and findings link.
-- Cross-references from prerequisite single-instance lens findings to this notebook entry.
+- Cross-references from prerequisite single-instance lens findings to this typed audit record.
 
 The lens does **not** produce code changes directly. Code changes flow through Pass-N plans (in-artifact) or through substrate-package work (cross-cutting). This separation is deliberate — the lens is methodology; implementation is a separate decision.
 
@@ -204,6 +204,6 @@ The lens does **not** produce code changes directly. Code changes flow through P
 
 ### **13. Documentation**
 
-Use `knowledge-observatory-tools` to read any existing topic prefix `meta-optimization/notebook/template-fitness/<artifact-slug>/`, then update with the current audit's findings.
+Use `knowledge-observatory-tools` to read any existing topic prefix `template-fitness-audit/<artifact-slug>/`, then update with the current audit's findings.
 
 If `{{TARGET}}` is registered in `REFERENCE_SCENARIOS.md`, update its row's "Last audit" column with the date and findings link.

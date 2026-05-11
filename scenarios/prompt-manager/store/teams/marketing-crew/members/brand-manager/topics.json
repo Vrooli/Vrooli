@@ -1,8 +1,8 @@
 {
   "intake": [
     {
-      "prefix": "marketing/notebook/*",
-      "taxonomy": "notebook-debt"
+      "prefix": "marketing-craft-observation/*",
+      "taxonomy": "marketing-craft-observation"
     }
   ],
   "required_read": [
@@ -36,18 +36,14 @@
       "prefix": "challenge-report/*",
       "for_decisions": [
         "campaign-launch-proposal",
-        "brand-guideline-update",
-        "notebook-promotion",
-        "notebook-retirement"
+        "brand-guideline-update"
       ]
     },
     {
       "prefix": "challenge-resolution-record/*",
       "for_decisions": [
         "campaign-launch-proposal",
-        "brand-guideline-update",
-        "notebook-promotion",
-        "notebook-retirement"
+        "brand-guideline-update"
       ]
     }
   ],
@@ -77,9 +73,7 @@
   ],
   "decisions_owned": [
     "campaign-launch-proposal",
-    "brand-guideline-update",
-    "notebook-promotion",
-    "notebook-retirement"
+    "brand-guideline-update"
   ],
   "decisions_consumed": [
     "capability-gap"
