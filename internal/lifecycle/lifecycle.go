@@ -391,36 +391,41 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		return Result{}, err
 	}
 
-	records, err := deps.readScenarioRecords(r.Home, item.Slug)
+	forceSetup := opts.ForceSetup && (opts.ForceSetupScenario == "" || opts.ForceSetupScenario == item.Slug)
+	registryView, err := r.lookupRegistryRuntime(context.Background(), item)
 	if err != nil {
 		return Result{}, err
 	}
-	runtime := process.SummarizeScenario(item.Slug, records)
-	forceSetup := opts.ForceSetup && (opts.ForceSetupScenario == "" || opts.ForceSetupScenario == item.Slug)
-	if runtime.ProcessCount > 0 {
-		strictHealthy := r.isScenarioHealthyStrict(item, runtime.Records)
+	if registryView.Authoritative {
 		setupNeeded, _, setupErr := r.SetupNeeded(item, forceSetup)
 		if setupErr != nil {
 			return Result{}, setupErr
 		}
+		strictHealthy := r.isRegistryRuntimeHealthy(item, registryView)
 		if strictHealthy && !setupNeeded {
-			currentPorts := r.runtimePorts(item.Manifest, runtime.Records)
-			health := scenario.EvaluateHealth(item.Manifest.HealthConfig(), currentPorts)
+			health := scenario.EvaluateHealth(item.Manifest.HealthConfig(), registryView.Ports)
 			r.progressf("%s is already running", item.Slug)
 			r.logInfo("Scenario already running and healthy",
 				logx.AttrScenario, item.Slug,
 				logx.AttrStatus, health,
-				logx.AttrProcesses, runtime.ProcessCount,
+				"registry_instance", registryView.Instance.InstanceID,
 			)
 			return Result{
 				Scenario:           item,
-				AllocatedPorts:     currentPorts,
+				AllocatedPorts:     registryView.Ports,
 				Health:             health,
 				FailedDependencies: failedDeps,
 				FailedResources:    failedResources,
 				AlreadyRunning:     true,
 			}, nil
 		}
+		if err := r.Stop(item.Slug, StopOptions{}); err != nil {
+			return Result{}, err
+		}
+		deps.sleep(1 * time.Second)
+	} else if registryView.Present {
+		// Stale or non-authoritative registry instance exists; clean it up
+		// before starting fresh so leftover claims do not collide.
 		if err := r.Stop(item.Slug, StopOptions{}); err != nil {
 			return Result{}, err
 		}
@@ -436,7 +441,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		return Result{}, err
 	}
 
-	env, err := r.prepareScenarioEnvironment(item, records, runtimeSession)
+	env, err := r.prepareScenarioEnvironment(item, runtimeSession)
 	cleanupOnError = true
 	if err != nil {
 		return Result{}, err
@@ -492,12 +497,6 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		return Result{}, err
 	}
 
-	// Upgrade each fixed-port lock to record the real listener PID now that
-	// the health check confirmed the binary bound. ensurePortClaimed wrote
-	// the lock with the lifecycle runner's PID, so without this upgrade the
-	// next ensurePortClaimed call would incorrectly trust the runner's PID
-	// as proof the listener is alive.
-	r.confirmFixedPortLocks(item)
 	if err := runtimeSession.bindPorts(context.Background()); err != nil {
 		return Result{}, err
 	}
@@ -546,8 +545,8 @@ func (r *Runner) bootstrapScenarioDependencies(item scenario.Scenario, opts Star
 	return failedDeps, failedResources, nil
 }
 
-func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, records []process.Record, runtimeSession runtimeRegistrySession) (ports.Environment, error) {
-	if err := r.cleanupFixedPortOrphans(item, records); err != nil {
+func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, runtimeSession runtimeRegistrySession) (ports.Environment, error) {
+	if err := r.cleanupFixedPortOrphans(item); err != nil {
 		return ports.Environment{}, err
 	}
 
@@ -767,37 +766,6 @@ func (r *Runner) logError(msg string, err error, args ...any) {
 	logx.Error(r.logger(), msg, err, args...)
 }
 
-// confirmFixedPortLocks upgrades every fixed-port lock to point at the real
-// listener PID observed via inspectPort. Errors are logged and swallowed;
-// lock-confirmation is advisory and must never fail a healthy start.
-func (r *Runner) confirmFixedPortLocks(item scenario.Scenario) {
-	deps := r.runtimeDeps()
-	for _, portSummary := range item.Manifest.SortedPorts() {
-		if portSummary.FixedPort == nil {
-			continue
-		}
-		port := *portSummary.FixedPort
-		inspection, err := deps.inspectPort(port)
-		if err != nil || !inspection.Inspection.Available {
-			continue
-		}
-		if len(inspection.Listeners) == 0 {
-			continue
-		}
-		realPID := inspection.Listeners[0].PID
-		if realPID <= 0 {
-			continue
-		}
-		if err := r.Ports.ConfirmLock(port, item.Slug, realPID); err != nil {
-			r.logWarn("ConfirmLock failed",
-				logx.AttrScenario, item.Slug,
-				"port", port,
-				"pid", realPID,
-				"err", err.Error())
-		}
-	}
-}
-
 // verifyPortsReleased polls each port for up to ~2 s after the kill loop and
 // returns a loud error if any are still held. Surfacing this at stop time
 // lets Restart fail fast with a diagnostic rather than silently racing into
@@ -873,13 +841,10 @@ func (r *Runner) killOrphansOnPorts(portsToCheck map[int]struct{}) error {
 	return nil
 }
 
-func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario, records []process.Record) error {
+func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario) error {
 	portsToCheck := make(map[int]struct{})
 	for _, portSummary := range item.Manifest.SortedPorts() {
 		if portSummary.FixedPort == nil {
-			continue
-		}
-		if runtimeOwnerPID(records, *portSummary.FixedPort) > 0 {
 			continue
 		}
 		portsToCheck[*portSummary.FixedPort] = struct{}{}
@@ -960,15 +925,6 @@ func (r *Runner) killManagedScenarioListeners(portsToCheck map[int]struct{}, sce
 		}
 	}
 	return nil
-}
-
-func runtimeOwnerPID(records []process.Record, port int) int {
-	for _, record := range process.LiveRecords(records) {
-		if record.Port == port && record.PID > 0 {
-			return record.PID
-		}
-	}
-	return 0
 }
 
 func listeningPIDs(port int) ([]int, error) {

@@ -2,16 +2,14 @@ package api
 
 import (
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testprocess "github.com/vrooli/vrooli/packages/testkit-go/processfixture"
 	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
@@ -32,6 +30,15 @@ func TestRespondErrorSetsHTTPStatusAndCode(t *testing.T) {
 }
 
 func TestGetScenarioStatusNativeReturnsRealProcessDataAndStatusCode(t *testing.T) {
+	// Open a live listener so the registry's bound claim passes reconciliation
+	// (which verifies listener evidence for bound claims).
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+	defer listener.Close()
+	port := listener.Addr().(*net.TCPAddr).Port
+
 	root := t.TempDir()
 	home := t.TempDir()
 	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
@@ -39,15 +46,7 @@ func TestGetScenarioStatusNativeReturnsRealProcessDataAndStatusCode(t *testing.T
 		testscenario.WithDisplayName("alpha"),
 		testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
 	))
-	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
-		PID:       os.Getpid(),
-		PGID:      os.Getpid(),
-		Scenario:  "alpha",
-		Step:      "start-api",
-		Port:      18080,
-		StartedAt: time.Now().Add(-time.Minute).UTC(),
-		Status:    "running",
-	})
+	writeAPITestRegistryRuntime(t, home, "alpha", "api", "API_PORT", port)
 
 	app := New(root, home)
 	rec := httptest.NewRecorder()
@@ -70,8 +69,9 @@ func TestGetScenarioStatusNativeReturnsRealProcessDataAndStatusCode(t *testing.T
 	if processData["step_name"] != "start-api" {
 		t.Fatalf("step_name = %v", processData["step_name"])
 	}
-	if allocated := data["allocated_ports"].(map[string]any); int(allocated["API_PORT"].(float64)) != 18080 {
-		t.Fatalf("allocated_ports = %#v", allocated)
+	allocated := data["allocated_ports"].(map[string]any)
+	if int(allocated["API_PORT"].(float64)) != port {
+		t.Fatalf("allocated_ports = %#v, want API_PORT %d", allocated, port)
 	}
 }
 

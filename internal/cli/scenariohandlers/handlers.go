@@ -1,6 +1,7 @@
 package scenariohandlers
 
 import (
+	"context"
 	"io"
 	"os"
 	"strings"
@@ -403,7 +404,9 @@ func HealFromSandboxHandlerResponse[C any](deps HandlerDeps[C], ctx C, req HealF
 	if err != nil {
 		return "", HealFromSandboxResponse{}, err
 	}
-	affected, err := orchestrator.SandboxAffectedScenarios(home, req.MergedPath)
+	root := deps.Root(ctx)
+	svc := orchestrator.New(root, home, deps.Stdout(ctx), deps.Stderr(ctx))
+	affected, err := svc.SandboxAffectedScenarios(context.Background(), req.MergedPath)
 	if err != nil {
 		return "", HealFromSandboxResponse{}, err
 	}

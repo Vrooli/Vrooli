@@ -1,40 +1,51 @@
 package orchestrator
 
 import (
-	"os"
-	"path/filepath"
+	"context"
 	"sort"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
-func SandboxAffectedScenarios(home, mergedPath string) ([]string, error) {
-	processRoot := filepath.Join(home, ".vrooli", "processes", "scenarios")
-	entries, err := os.ReadDir(processRoot)
+// SandboxAffectedScenarios returns scenarios whose registry-known runtime
+// instance has a WorkingDir rooted inside the given mergedPath. It is used by
+// `vrooli scenario heal-from-sandbox` to relaunch only those scenarios whose
+// processes are observably bound to a now-collapsed sandbox merge tree.
+//
+// The registry is authoritative: scenarios with no active instance are not
+// considered affected, even if legacy process records exist on disk pointing
+// into mergedPath.
+func (s *Service) SandboxAffectedScenarios(ctx context.Context, mergedPath string) ([]string, error) {
+	mergedPath = strings.TrimRight(mergedPath, "/")
+	if mergedPath == "" {
+		return nil, nil
+	}
+	store, err := s.openRuntimeRegistry(ctx)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
+	defer store.Close()
 
+	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{Statuses: scenarioruntime.ActiveInstanceStatuses()})
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]struct{}{}
 	affected := []string{}
-	for _, entry := range entries {
-		if !entry.IsDir() {
+	for _, instance := range instances {
+		dir := strings.TrimRight(instance.WorkingDir, "/")
+		if dir == "" {
 			continue
 		}
-		name := entry.Name()
-		records, readErr := process.ReadScenarioRecords(home, name)
-		if readErr != nil {
-			return nil, readErr
+		if !strings.HasPrefix(dir, mergedPath) {
+			continue
 		}
-		for _, record := range records {
-			if strings.HasPrefix(record.WorkingDir, mergedPath) {
-				affected = append(affected, name)
-				break
-			}
+		if _, ok := seen[instance.Scenario]; ok {
+			continue
 		}
+		seen[instance.Scenario] = struct{}{}
+		affected = append(affected, instance.Scenario)
 	}
 	sort.Strings(affected)
 	return affected, nil

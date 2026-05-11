@@ -13,18 +13,6 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
-func (s *Service) registryReadMode() (string, error) {
-	return scenarioruntime.ModeFromEnv()
-}
-
-func (s *Service) registryReadsEnabled(scenarioName string) (bool, bool, error) {
-	mode, err := s.registryReadMode()
-	if err != nil {
-		return false, false, err
-	}
-	return scenarioruntime.ReadEnabledForScenario(mode, scenarioName), scenarioruntime.StrictReadsForScenario(mode, scenarioName), nil
-}
-
 func (s *Service) registryDetailsByScenario(ctx context.Context, items []scenario.Scenario) (map[string]Detail, error) {
 	if len(items) == 0 {
 		return map[string]Detail{}, nil
@@ -45,9 +33,6 @@ func (s *Service) registryDetailsByScenario(ctx context.Context, items []scenari
 	}
 	latest := make(map[string]reconciledDetail, len(instances))
 	for _, instance := range instances {
-		if !scenarioruntime.ScenarioAllowedByEnv(instance.Scenario) {
-			continue
-		}
 		item, ok := registryScenarioBySlug(items, instance.Scenario)
 		if !ok {
 			continue

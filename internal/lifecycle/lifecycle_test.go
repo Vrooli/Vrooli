@@ -22,7 +22,6 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/network"
-	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -994,8 +993,7 @@ func TestRunnerStartRollsBackLocksOnSetupFailure(t *testing.T) {
 	}
 }
 
-func TestRunnerStartDualWritesScenarioRuntimeRegistry(t *testing.T) {
-	t.Setenv(runtimeRegistryModeEnv, runtimeRegistryModeDual)
+func TestRunnerStartWritesScenarioRuntimeRegistry(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeLifecycleFixture(t, root, "alpha")
@@ -1067,7 +1065,6 @@ func TestRunnerStartDualWritesScenarioRuntimeRegistry(t *testing.T) {
 }
 
 func TestRunnerStartEnsuresRuntimeSupervisorWhenAuto(t *testing.T) {
-	t.Setenv(runtimeRegistryModeEnv, runtimeRegistryModeDual)
 	t.Setenv(runtimesupervisor.ModeEnv, runtimesupervisor.ModeAuto)
 	root := t.TempDir()
 	home := t.TempDir()
@@ -1093,34 +1090,7 @@ func TestRunnerStartEnsuresRuntimeSupervisorWhenAuto(t *testing.T) {
 	}
 }
 
-func TestRunnerStartHonorsRuntimeRegistryAllowlist(t *testing.T) {
-	t.Setenv(runtimeRegistryModeEnv, runtimeRegistryModeDual)
-	t.Setenv(scenarioruntime.AllowlistEnv, "beta")
-	root := t.TempDir()
-	home := t.TempDir()
-	writeLifecycleFixture(t, root, "alpha")
-
-	runner := newLifecycleRunnerForTest(t, root, home, nil)
-	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
-		t.Fatalf("Start(alpha): %v", err)
-	}
-	defer func() {
-		if err := runner.Stop("alpha", StopOptions{}); err != nil {
-			t.Fatalf("Stop(alpha): %v", err)
-		}
-	}()
-
-	dbPath, err := scenarioruntime.DefaultDBPath(home)
-	if err != nil {
-		t.Fatalf("DefaultDBPath: %v", err)
-	}
-	if _, err := os.Stat(dbPath); !os.IsNotExist(err) {
-		t.Fatalf("runtime registry db stat err = %v, want not exist for non-allowlisted start", err)
-	}
-}
-
-func TestRunnerStopDualWritesStoppedRuntimeRegistry(t *testing.T) {
-	t.Setenv(runtimeRegistryModeEnv, runtimeRegistryModeDual)
+func TestRunnerStopWritesStoppedRuntimeRegistry(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeLifecycleFixture(t, root, "alpha")
@@ -1159,8 +1129,7 @@ func TestRunnerStopDualWritesStoppedRuntimeRegistry(t *testing.T) {
 	}
 }
 
-func TestRunnerStartHealthFailureDualWritesFailedRuntimeRegistry(t *testing.T) {
-	t.Setenv(runtimeRegistryModeEnv, runtimeRegistryModeDual)
+func TestRunnerStartHealthFailureWritesFailedRuntimeRegistry(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeLifecycleFixture(t, root, "alpha")
@@ -1701,56 +1670,6 @@ func TestRunnerStartRejectsCircularDependencies(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "circular scenario dependency detected") {
 		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestEnsureDependenciesUsesInjectedScenarioRecordReader(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testresource.WritePortRegistry(t, root, nil)
-
-	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
-		"alpha",
-		testscenario.WithDependencies(scenario.Dependencies{
-			Scenarios: map[string]scenario.Dependency{
-				"beta": {Required: true},
-			},
-		}),
-	))
-	testscenario.WriteScenarioService(t, root, "beta", testscenario.ScenarioServiceManifest("beta"))
-
-	var readCalls []string
-	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.readScenarioRecords = func(gotHome, name string) ([]process.Record, error) {
-			if gotHome != home {
-				t.Fatalf("readScenarioRecords home = %q, want %q", gotHome, home)
-			}
-			readCalls = append(readCalls, name)
-			return []process.Record{{
-				PID:       os.Getpid(),
-				PGID:      os.Getpid(),
-				Scenario:  name,
-				Step:      "develop",
-				Status:    "running",
-				StartedAt: time.Now().UTC(),
-			}}, nil
-		}
-	})
-
-	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
-	if err != nil {
-		t.Fatalf("Load(alpha): %v", err)
-	}
-
-	failed, err := runner.ensureDependencies(item, StartOptions{}, map[string]struct{}{}, []string{"alpha"})
-	if err != nil {
-		t.Fatalf("ensureDependencies: %v", err)
-	}
-	if len(failed) != 0 {
-		t.Fatalf("failed dependencies = %#v", failed)
-	}
-	if got := strings.Join(readCalls, ","); got != "beta" {
-		t.Fatalf("readScenarioRecords calls = %q, want beta", got)
 	}
 }
 
@@ -2474,7 +2393,7 @@ func TestCleanupFixedPortOrphans_Aggressive(t *testing.T) {
 	var signaled []string
 	runner := &Runner{deps: orphanLifecycleDeps(&signaled)}
 
-	if err := runner.cleanupFixedPortOrphans(item, nil); err != nil {
+	if err := runner.cleanupFixedPortOrphans(item); err != nil {
 		t.Fatalf("cleanupFixedPortOrphans: %v", err)
 	}
 
@@ -2505,7 +2424,7 @@ func TestCleanupFixedPortOrphans_StrictPreservesOldBehavior(t *testing.T) {
 	var signaled []string
 	runner := &Runner{deps: orphanLifecycleDeps(&signaled)}
 
-	if err := runner.cleanupFixedPortOrphans(item, nil); err != nil {
+	if err := runner.cleanupFixedPortOrphans(item); err != nil {
 		t.Fatalf("cleanupFixedPortOrphans: %v", err)
 	}
 
@@ -2517,30 +2436,6 @@ func TestCleanupFixedPortOrphans_StrictPreservesOldBehavior(t *testing.T) {
 		if signaled[i] != want[i] {
 			t.Fatalf("signaled[%d] = %q, want %q", i, signaled[i], want[i])
 		}
-	}
-}
-
-func TestCleanupFixedPortOrphansSkipsTrackedRuntimeOwner(t *testing.T) {
-	item := scenario.Scenario{
-		Slug: "alpha",
-		Manifest: scenario.ServiceManifest{
-			Ports: map[string]scenario.Port{
-				"ui": {EnvVar: "UI_PORT", Port: intPtr(36235)},
-			},
-		},
-	}
-
-	runner := &Runner{
-		deps: lifecycleDeps{
-			inspectPort: func(port int) (network.PortInspection, error) {
-				t.Fatal("inspectPort should not be called for tracked runtime owner")
-				return network.PortInspection{}, nil
-			},
-		},
-	}
-
-	if err := runner.cleanupFixedPortOrphans(item, []process.Record{{PID: os.Getpid(), Port: 36235}}); err != nil {
-		t.Fatalf("cleanupFixedPortOrphans: %v", err)
 	}
 }
 
@@ -2610,55 +2505,7 @@ func TestVerifyPortsReleased_EmptyPortSetSkips(t *testing.T) {
 	}
 }
 
-func TestConfirmFixedPortLocks_UpdatesLockToRealPID(t *testing.T) {
-	root := t.TempDir()
-	testresource.WritePortRegistry(t, root, nil)
-	home := t.TempDir()
-	manager, err := ports.NewManager(root, home)
-	if err != nil {
-		t.Fatalf("NewManager: %v", err)
-	}
-	// Seed a lock with the lifecycle runner's PID (simulating what
-	// allocatePortDefinition currently does).
-	if err := manager.WriteLock(21234, "swarm-manager", os.Getpid()); err != nil {
-		t.Fatalf("WriteLock: %v", err)
-	}
-
-	item := scenario.Scenario{
-		Slug: "swarm-manager",
-		Manifest: scenario.ServiceManifest{
-			Ports: map[string]scenario.Port{
-				"ui": {EnvVar: "UI_PORT", Port: intPtr(21234)},
-			},
-		},
-	}
-
-	runner := &Runner{
-		Ports: manager,
-		deps: lifecycleDeps{
-			inspectPort: func(port int) (network.PortInspection, error) {
-				if port != 21234 {
-					return network.PortInspection{}, nil
-				}
-				return network.PortInspection{
-					Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
-					Listeners:  []network.PortListener{{PID: 4242}},
-				}, nil
-			},
-		},
-	}
-	runner.confirmFixedPortLocks(item)
-
-	lock, exists, err := manager.ReadLock(21234)
-	if err != nil || !exists {
-		t.Fatalf("lock missing: %v exists=%v", err, exists)
-	}
-	if lock.PID != 4242 {
-		t.Errorf("lock PID = %d, want 4242 (real listener)", lock.PID)
-	}
-}
-
-func TestRuntimePortsAndStrictHealthUseRecordedMetadata(t *testing.T) {
+func TestRegistryRuntimeHealthCheckUsesBoundPorts(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -2688,21 +2535,18 @@ func TestRuntimePortsAndStrictHealthUseRecordedMetadata(t *testing.T) {
 	}
 
 	runner := &Runner{}
-	records := []process.Record{{
-		PID:  os.Getpid(),
-		Step: "start-api",
-		Port: port,
-	}}
-
-	ports := runner.runtimePorts(item.Manifest, records)
-	if ports["API_PORT"] != port {
-		t.Fatalf("API_PORT = %d, want %d", ports["API_PORT"], port)
+	authorityView := registryRuntimeView{
+		Authoritative: true,
+		Ports:         map[string]int{"API_PORT": port},
 	}
-	if !runner.isScenarioHealthyStrict(item, records) {
-		t.Fatalf("expected live record and healthy endpoint to pass strict health")
+	if !runner.isRegistryRuntimeHealthy(item, authorityView) {
+		t.Fatalf("expected authoritative registry runtime with bound API_PORT to pass strict health")
 	}
-	if runner.isScenarioHealthyStrict(item, nil) {
-		t.Fatalf("expected empty runtime to fail strict health")
+	if runner.isRegistryRuntimeHealthy(item, registryRuntimeView{}) {
+		t.Fatalf("expected non-authoritative view to fail strict health")
+	}
+	if runner.isRegistryRuntimeHealthy(item, registryRuntimeView{Authoritative: true, Ports: map[string]int{"API_PORT": port + 1}}) {
+		t.Fatalf("expected authoritative view with wrong port to fail health check")
 	}
 }
 

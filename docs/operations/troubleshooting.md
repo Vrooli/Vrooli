@@ -74,15 +74,27 @@ vrooli diagnose-port <port>
 vrooli diagnose-port <port> --json
 ```
 
-These are the preferred first-line tools for stale lock files, orphaned processes, and port conflicts.
+These are the preferred first-line tools for registry claim hygiene, leftover
+legacy lock files, orphaned processes, and port conflicts.
 
-`vrooli locks --json` includes runtime registry claims with listener evidence
-when the supervisor has observed them. Important fields include
-`listener_status`, `last_listener_check_at`, `last_listener_seen_at`,
-`consecutive_listener_misses`, `recommendation_code`, and
-`recommendation_confidence`. Treat these as diagnostic evidence: a declared
-port with repeated `not_listening` observations may be stale manifest data, but
-scenario source usage and health still matter.
+`vrooli locks --json` returns two distinct lists:
+
+- `registry_claims` — the **authoritative** allocation state. Every active
+  scenario port should appear here as a `bound` claim attached to a supervised
+  runtime lease. Important fields: `listener_status`,
+  `last_listener_check_at`, `last_listener_seen_at`,
+  `consecutive_listener_misses`, `lease_fresh`, `authoritative`,
+  `recommendation_code`, `recommendation_confidence`.
+- `locks` — **legacy artifacts only**. `.port_<port>.lock` files left over
+  from older installs; allocation no longer consults them. They are surfaced
+  for cleanup visibility, not as ownership evidence.
+
+A declared port with repeated `not_listening` observations on a `bound` claim
+may be stale manifest data, but scenario source usage and health still matter.
+If a claim's `authoritative` field is `false`, run `vrooli cleanup locks` to
+expire stale leases and non-authoritative claims; a `bound` claim whose
+`authoritative` flag is `false` after the host rebooted should be re-adopted
+by restarting the scenario through lifecycle.
 
 To feed that evidence into static scenario-auditor validation without starting
 the scenario:
@@ -95,9 +107,14 @@ SCENARIO_AUDITOR_RUNTIME_PORT_EVIDENCE_PATH=/tmp/vrooli-runtime-port-evidence.js
 
 Current lifecycle behavior:
 
-- scenario startup now automatically cleans stale lock files before a top-level start
-- startup also rolls back failed runs instead of leaving tracked process records and owned locks behind
-- fixed-port startup will proactively terminate clearly-owned same-scenario managed orphan listeners before relaunch
+- scenario startup acquires a registry `PortClaim` for each declared port
+  before any process starts; another instance's active claim blocks allocation
+  with a typed `active registry claim already owns port <N>` error
+- startup also rolls back failed runs (releases the reserved claim, marks the
+  instance failed) instead of leaving tracked process records behind
+- fixed-port startup will proactively terminate clearly-owned same-scenario
+  managed orphan listeners before relaunch; a foreign scenario's listener
+  surfaces as a typed conflict naming the owning scenario and PID
 
 Use `vrooli diagnose-port <port>` when the conflict is still unresolved, especially for:
 

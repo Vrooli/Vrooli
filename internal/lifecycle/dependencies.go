@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -9,10 +10,16 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/logx"
-	"github.com/vrooli/vrooli/internal/process"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
 
 type dependencyDecision struct {
 	policy            string
@@ -64,7 +71,6 @@ func resourceDependencyStartReason(status resourcecontrol.Status) string {
 }
 
 func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) ([]string, error) {
-	deps := r.runtimeDeps()
 	if len(item.Manifest.Dependencies.Scenarios) == 0 {
 		return nil, nil
 	}
@@ -106,31 +112,31 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 			return nil, err
 		}
 
-		dependencyRecords, err := deps.readScenarioRecords(r.Home, dependencyName)
+		dependencyView, err := r.lookupRegistryRuntime(context.Background(), dependencyItem)
 		if err != nil {
 			return nil, err
 		}
-		dependencyRuntime := process.SummarizeScenario(dependencyName, dependencyRecords)
 		dependencyForceSetup := opts.ForceSetup && opts.ForceSetupScenario == dependencyName
 		setupNeeded, setupReasons, err := r.SetupNeeded(dependencyItem, dependencyForceSetup)
 		if err != nil {
 			return nil, err
 		}
-		strictHealthy := r.isScenarioHealthyStrict(dependencyItem, dependencyRuntime.Records)
-		if dependencyRuntime.ProcessCount > 0 && strictHealthy && !setupNeeded {
+		strictHealthy := r.isRegistryRuntimeHealthy(dependencyItem, dependencyView)
+		dependencyRunning := dependencyView.Authoritative
+		if dependencyRunning && strictHealthy && !setupNeeded {
 			r.progressf("%s: dependency %s already running; reusing existing process", item.Slug, dependencyName)
 			r.logDebug("Dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
 			ready[dependencyName] = struct{}{}
 			continue
 		}
 
-		reason := dependencyRestartReason(dependencyRuntime.ProcessCount, strictHealthy, setupNeeded, setupReasons)
+		reason := dependencyRestartReason(boolToInt(dependencyRunning), strictHealthy, setupNeeded, setupReasons)
 		r.progressf("%s: starting dependency %s (%s)", item.Slug, dependencyName, reason)
 		r.logInfo("Dependency start required",
 			logx.AttrScenario, item.Slug,
 			logx.AttrDependency, dependencyName,
 			"reason", reason,
-			"processes", dependencyRuntime.ProcessCount,
+			"registry_running", dependencyRunning,
 			"healthy", strictHealthy,
 			"setup_needed", setupNeeded,
 			"setup_reasons", setupReasons,

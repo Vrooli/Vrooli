@@ -22,13 +22,14 @@ import (
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-11
 
-func TestListAndStatusReflectRuntimeRecords(t *testing.T) {
+func TestListAndStatusUseRegistryAsAuthority(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
 	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
 	testscenario.WriteScenarioService(t, root, "beta", testscenario.ScenarioServiceManifest("beta", testscenario.WithDisplayName("Beta"), testscenario.WithDescription("stopped"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
+	port := openTestListener(t)
+	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", port)
 
 	service := New(root, home, io.Discard, io.Discard)
 
@@ -47,11 +48,11 @@ func TestListAndStatusReflectRuntimeRecords(t *testing.T) {
 	if !exists {
 		t.Fatal("expected alpha to exist")
 	}
-	if alpha.Status != "running" || alpha.Processes != 1 {
+	if alpha.Status != "running" {
 		t.Fatalf("alpha status = %+v", alpha)
 	}
-	if alpha.Ports["API_PORT"] != 18080 {
-		t.Fatalf("alpha ports = %#v", alpha.Ports)
+	if alpha.Ports["API_PORT"] != port {
+		t.Fatalf("alpha ports = %#v, want API_PORT=%d", alpha.Ports, port)
 	}
 
 	running, err := service.Running()
@@ -79,51 +80,25 @@ func TestResolvePortFallsBackFromUIToAPI(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
+	port := openTestListener(t)
+	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", port)
 
 	service := New(root, home, io.Discard, io.Discard)
 	resolved, err := service.ResolvePort("alpha", "UI_PORT")
 	if err != nil {
 		t.Fatalf("ResolvePort: %v", err)
 	}
-	if resolved.Name != "API_PORT" || resolved.Port != 18080 || resolved.URL != "http://localhost:18080" {
-		t.Fatalf("resolved = %+v", resolved)
-	}
-}
-
-func TestResolvePortUsesRegistryInPreferModeWithoutProcessRecords(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModePrefer)
-	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("registry"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	port := openTestListener(t)
-	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", port)
-
-	service := New(root, home, io.Discard, io.Discard)
-	resolved, err := service.ResolvePort("alpha", "API_PORT")
-	if err != nil {
-		t.Fatalf("ResolvePort: %v", err)
-	}
 	if resolved.Name != "API_PORT" || resolved.Port != port {
 		t.Fatalf("resolved = %+v, want API_PORT %d", resolved, port)
 	}
-
-	status, exists, err := service.Status("alpha")
-	if err != nil {
-		t.Fatalf("Status(alpha): %v", err)
-	}
-	if !exists {
-		t.Fatal("expected alpha to exist")
-	}
-	if status.Status != "running" || status.Ports["API_PORT"] != port {
-		t.Fatalf("status = %+v, want registry running with API_PORT %d", status, port)
-	}
 }
 
-func TestStrictRegistryModeDoesNotUseLegacyProcessRecords(t *testing.T) {
+// TestLegacyProcessRecordsDoNotMakeScenarioRunning proves that the registry is
+// the sole running-state authority: legacy process records on disk with live
+// PIDs are completely ignored.
+func TestLegacyProcessRecordsDoNotMakeScenarioRunning(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModeStrict)
 	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("legacy"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
 	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
 
@@ -136,7 +111,7 @@ func TestStrictRegistryModeDoesNotUseLegacyProcessRecords(t *testing.T) {
 		t.Fatal("expected alpha to exist")
 	}
 	if status.Status == "running" || len(status.Ports) != 0 {
-		t.Fatalf("status = %+v, want stopped/empty from strict registry mode", status)
+		t.Fatalf("status = %+v, want stopped/empty from registry authority", status)
 	}
 
 	_, err = service.ResolvePort("alpha", "API_PORT")
@@ -145,20 +120,13 @@ func TestStrictRegistryModeDoesNotUseLegacyProcessRecords(t *testing.T) {
 	}
 }
 
-func TestStrictRegistryModeResolvesPortWithoutPIDVisibility(t *testing.T) {
+// TestRegistryResolvesPortWithoutPIDVisibility verifies the registry can return
+// a port when no live PID is visible to the runner — supervised leases plus
+// listener evidence are enough.
+func TestRegistryResolvesPortWithoutPIDVisibility(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModeStrict)
 	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("registry"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
-		PID:       999999999,
-		PGID:      999999999,
-		Scenario:  "alpha",
-		Step:      "start-api",
-		Port:      18080,
-		StartedAt: time.Now().Add(-2 * time.Minute).UTC(),
-		Status:    "running",
-	})
 	port := openTestListener(t)
 	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", port)
 	markRegistryClaimListenerStatus(t, home, "claim-alpha-api", scenarioruntime.ListenerStatusListening)
@@ -172,16 +140,6 @@ func TestStrictRegistryModeResolvesPortWithoutPIDVisibility(t *testing.T) {
 		t.Fatalf("resolved = %+v, want registry API_PORT %d", resolved, port)
 	}
 
-	status, exists, err := service.Status("alpha")
-	if err != nil {
-		t.Fatalf("Status(alpha): %v", err)
-	}
-	if !exists {
-		t.Fatal("expected alpha to exist")
-	}
-	if status.Status != "running" || status.Ports["API_PORT"] != port {
-		t.Fatalf("status = %+v, want registry running with API_PORT %d", status, port)
-	}
 	detail, err := service.Detail("alpha")
 	if err != nil {
 		t.Fatalf("Detail(alpha): %v", err)
@@ -194,10 +152,9 @@ func TestStrictRegistryModeResolvesPortWithoutPIDVisibility(t *testing.T) {
 	}
 }
 
-func TestStrictRegistryModeDoesNotExposeReservedRegistryClaimsAsPorts(t *testing.T) {
+func TestReservedRegistryClaimsAreNotExposedAsPorts(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModeStrict)
 	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("registry"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
 	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusReserved, "api", "API_PORT", 18081)
 
@@ -221,48 +178,12 @@ func TestStrictRegistryModeDoesNotExposeReservedRegistryClaimsAsPorts(t *testing
 	}
 }
 
-func TestPreferRegistryModeFallsBackToLegacyWhenRegistryMissing(t *testing.T) {
+// TestRegistryFailsClosedForPreviousBootClaim proves that a registry instance
+// claiming a port but with a stale supervisor lease from a previous host boot
+// is treated as not running — never a successful resolution.
+func TestRegistryFailsClosedForPreviousBootClaim(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModePrefer)
-	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("legacy"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
-
-	service := New(root, home, io.Discard, io.Discard)
-	resolved, err := service.ResolvePort("alpha", "API_PORT")
-	if err != nil {
-		t.Fatalf("ResolvePort: %v", err)
-	}
-	if resolved.Port != 18080 {
-		t.Fatalf("resolved.Port = %d, want legacy fallback 18080", resolved.Port)
-	}
-}
-
-func TestPreferRegistryModeFallsBackWhenRegistryInstanceIsFromPreviousBoot(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModePrefer)
-	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("legacy"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
-	writeRegistryRuntimeWithBoot(t, home, "alpha", "previous-boot", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", 18081)
-
-	service := New(root, home, io.Discard, io.Discard)
-	service.hostSession = func(context.Context, string) (hostsession.Snapshot, error) {
-		return hostsession.Snapshot{BootID: "current-boot", SessionID: "current-boot"}, nil
-	}
-	resolved, err := service.ResolvePort("alpha", "API_PORT")
-	if err != nil {
-		t.Fatalf("ResolvePort: %v", err)
-	}
-	if resolved.Port != 18080 {
-		t.Fatalf("resolved.Port = %d, want legacy fallback 18080", resolved.Port)
-	}
-}
-
-func TestStrictRegistryModeFailsClosedForPreviousBootClaim(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModeStrict)
 	testscenario.WriteScenarioService(t, root, "workspace-sandbox", testscenario.ScenarioServiceManifest("workspace-sandbox", testscenario.WithDisplayName("Workspace Sandbox"), testscenario.WithDescription("registry"), testscenario.WithPorts(map[string]scenario.Port{
 		"api": {EnvVar: "API_PORT", Range: "28080-28090"},
 		"ws":  {EnvVar: "WS_PORT", Range: "28830-28840"},
@@ -288,64 +209,6 @@ func TestStrictRegistryModeFailsClosedForPreviousBootClaim(t *testing.T) {
 	_, err = service.ResolvePort("workspace-sandbox", "WS_PORT")
 	if got := vroolierr.Code(err, ""); got != "scenario_not_running" {
 		t.Fatalf("ResolvePort error code = %q, want scenario_not_running; err=%v", got, err)
-	}
-}
-
-func TestRegistryAllowlistScopesPreferModeReads(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModePrefer)
-	t.Setenv(scenarioruntime.AllowlistEnv, "alpha")
-	for _, name := range []string{"alpha", "beta"} {
-		testscenario.WriteScenarioService(t, root, name, testscenario.ScenarioServiceManifest(name, testscenario.WithDisplayName(name), testscenario.WithDescription("registry"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	}
-	alphaPort := openTestListener(t)
-	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", alphaPort)
-	writeRegistryRuntime(t, home, "beta", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", 18082)
-
-	service := New(root, home, io.Discard, io.Discard)
-	alpha, exists, err := service.Status("alpha")
-	if err != nil {
-		t.Fatalf("Status(alpha): %v", err)
-	}
-	if !exists || alpha.Status != "running" || alpha.Ports["API_PORT"] != alphaPort {
-		t.Fatalf("alpha status = %+v, want allowlisted registry runtime", alpha)
-	}
-	beta, exists, err := service.Status("beta")
-	if err != nil {
-		t.Fatalf("Status(beta): %v", err)
-	}
-	if !exists || beta.Status == "running" || len(beta.Ports) != 0 {
-		t.Fatalf("beta status = %+v, want non-allowlisted legacy/off behavior", beta)
-	}
-}
-
-func TestRegistryAllowlistScopesStrictModeReads(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	t.Setenv(scenarioruntime.ModeEnv, scenarioruntime.ModeStrict)
-	t.Setenv(scenarioruntime.AllowlistEnv, "alpha")
-	for _, name := range []string{"alpha", "beta"} {
-		testscenario.WriteScenarioService(t, root, name, testscenario.ScenarioServiceManifest(name, testscenario.WithDisplayName(name), testscenario.WithDescription("mixed"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	}
-	alphaPort := openTestListener(t)
-	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", alphaPort)
-	testprocess.WriteScenarioProcessRecord(t, home, "beta", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "beta", Step: "start-api", Port: 18082, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
-
-	service := New(root, home, io.Discard, io.Discard)
-	alpha, exists, err := service.Status("alpha")
-	if err != nil {
-		t.Fatalf("Status(alpha): %v", err)
-	}
-	if !exists || alpha.Status != "running" || alpha.Ports["API_PORT"] != alphaPort {
-		t.Fatalf("alpha status = %+v, want allowlisted strict registry runtime", alpha)
-	}
-	beta, exists, err := service.Status("beta")
-	if err != nil {
-		t.Fatalf("Status(beta): %v", err)
-	}
-	if !exists || beta.Status != "running" || beta.Ports["API_PORT"] != 18082 {
-		t.Fatalf("beta status = %+v, want non-allowlisted legacy runtime", beta)
 	}
 }
 
@@ -378,13 +241,14 @@ func TestResolvePortRejectsStoppedScenario(t *testing.T) {
 	}
 }
 
-func TestInventoryIgnoresRuntimeRecordsForUnknownScenarios(t *testing.T) {
+func TestInventoryIgnoresRegistryRecordsForUnknownScenarios(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
 	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
-	testprocess.WriteScenarioProcessRecord(t, home, "ghost", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "ghost", Step: "start-api", Port: 28080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
+	port := openTestListener(t)
+	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", port)
+	writeRegistryRuntime(t, home, "ghost", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", 28080)
 
 	service := New(root, home, io.Discard, io.Discard)
 	inventory, err := service.Inventory()
@@ -396,30 +260,12 @@ func TestInventoryIgnoresRuntimeRecordsForUnknownScenarios(t *testing.T) {
 	}
 }
 
-func TestDetailRejectsBrokenProcessMetadata(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-
-	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	brokenPath := filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "broken.json")
-	if err := os.MkdirAll(filepath.Dir(brokenPath), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(brokenPath), err)
-	}
-	if err := os.WriteFile(brokenPath, []byte("{broken\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", brokenPath, err)
-	}
-
-	service := New(root, home, io.Discard, io.Discard)
-	if _, err := service.Detail("alpha"); err == nil {
-		t.Fatal("expected invalid process metadata to fail detail loading")
-	}
-}
-
 func TestStartDetailedUsesInjectedRunnerFactory(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
-	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
+	port := openTestListener(t)
+	writeRegistryRuntime(t, home, "alpha", scenarioruntime.StatusRunning, scenarioruntime.ClaimStatusBound, "api", "API_PORT", port)
 
 	service := New(root, home, io.Discard, io.Discard)
 	service.newRunner = func(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (lifecycleRunner, error) {
@@ -428,7 +274,7 @@ func TestStartDetailedUsesInjectedRunnerFactory(t *testing.T) {
 				return lifecycle.Result{
 					Scenario: scenarioFixture(name, filepath.Join(root, "scenarios", name)),
 					AllocatedPorts: map[string]int{
-						"API_PORT": 18080,
+						"API_PORT": port,
 					},
 					Health: "healthy",
 				}, nil

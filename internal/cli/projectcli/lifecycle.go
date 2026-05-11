@@ -377,7 +377,7 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 	return opts, nil
 }
 
-const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes, stale locks, and template validation workspaces\n\nUsage:\n  vrooli cleanup orphans [--dry-run]                  Kill orphaned Vrooli processes\n  vrooli cleanup locks                                Clean stale port lock files\n  vrooli cleanup template-validation [options]        Clean marker-backed deep template validation workspaces\n\nOptions:\n  --dry-run                 Preview cleanup without deleting files\n  --older-than <duration>   For `template-validation`: clean broad matches older than this Go duration (default 24h)\n  --include-retained        For `template-validation`: include retained debugging runs in broad cleanup\n  --run <run-id>            For `template-validation`: clean one explicit run id\n  --help, -h                Show this help message\n\nExamples:\n  vrooli cleanup orphans --dry-run                    # Preview which Vrooli processes would be killed\n  vrooli cleanup orphans                              # Kill orphaned Vrooli processes (SIGTERM, then SIGKILL)\n  vrooli cleanup locks                                # Remove stale lock files\n  vrooli cleanup template-validation --dry-run        # Preview stale template validation workspaces\n  vrooli cleanup template-validation --older-than 24h # Clean stale non-retained validation workspaces\n"
+const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes, stale registry claims and legacy lock artifacts, and template validation workspaces\n\nUsage:\n  vrooli cleanup orphans [--dry-run]                  Kill orphaned Vrooli processes\n  vrooli cleanup locks                                Expire stale registry claims and prune legacy port-lock artifacts\n  vrooli cleanup template-validation [options]        Clean marker-backed deep template validation workspaces\n\nOptions:\n  --dry-run                 Preview cleanup without deleting files\n  --older-than <duration>   For `template-validation`: clean broad matches older than this Go duration (default 24h)\n  --include-retained        For `template-validation`: include retained debugging runs in broad cleanup\n  --run <run-id>            For `template-validation`: clean one explicit run id\n  --help, -h                Show this help message\n\nExamples:\n  vrooli cleanup orphans --dry-run                    # Preview which Vrooli processes would be killed\n  vrooli cleanup orphans                              # Kill orphaned Vrooli processes (SIGTERM, then SIGKILL)\n  vrooli cleanup locks                                # Expire stale registry claims and remove legacy `.port_<port>.lock` artifacts\n  vrooli cleanup template-validation --dry-run        # Preview stale template validation workspaces\n  vrooli cleanup template-validation --older-than 24h # Clean stale non-retained validation workspaces\n"
 
 func statusArgSchema() commandtree.ArgSchema {
 	return commandtree.ArgSchema{
@@ -447,14 +447,14 @@ func OrphansHelpText() string {
 }
 
 func LocksHelpText() string {
-	return commandtree.HelpText("", "vrooli locks", "Inspect or clean stale port lock files.", commandtree.Help{}, commandtree.ArgSchema{
+	return commandtree.HelpText("", "vrooli locks", "Inspect runtime registry claims and legacy lock artifacts.", commandtree.Help{}, commandtree.ArgSchema{
 		Positionals: []commandtree.PositionalArg{{Name: "action"}},
 		Options:     []commandtree.OptionArg{commandtree.JSONOption()},
 	})
 }
 
 func DiagnosePortHelpText() string {
-	return commandtree.HelpText("", "vrooli diagnose-port", "Diagnose port conflicts and stale lock ownership.", commandtree.Help{}, diagnosePortArgSchema())
+	return commandtree.HelpText("", "vrooli diagnose-port", "Diagnose port conflicts using registry claims, listener evidence, and legacy artifact hints.", commandtree.Help{}, diagnosePortArgSchema())
 }
 
 func BuildHelpText() string {

@@ -193,7 +193,7 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 			_, _ = fmt.Fprintf(w, "Failed to remove lock for port %s: %s\n", item.Name, item.Error)
 		}
 		if len(typed.Stopped) == 0 && len(typed.Failed) == 0 {
-			_, _ = fmt.Fprintln(w, "No stale port locks found.")
+			_, _ = fmt.Fprintln(w, "No registry claims or legacy lock artifacts found.")
 		}
 		return nil
 	}
@@ -221,7 +221,7 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 		}
 	}
 	if len(resp.List) > 0 {
-		_, _ = fmt.Fprintln(w, "Legacy lock files")
+		_, _ = fmt.Fprintln(w, "Legacy artifacts (diagnostic only — not ownership authority)")
 		rows := make([][]string, 0, len(resp.List))
 		for _, item := range resp.List {
 			status := "active"

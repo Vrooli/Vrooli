@@ -55,15 +55,18 @@ func (a *App) getEnhancedProcessMetrics() map[string]interface{} {
 }
 
 func (a *App) DiscoverScenarioPorts(scenarioName string) map[string]int {
-	item, err := scenario.Load(a.Root, scenarioName, scenario.SandboxEnvFromEnv())
+	detail, err := a.Scenarios.Detail(scenarioName)
 	if err != nil {
 		return map[string]int{}
 	}
-	records, err := process.ReadScenarioRecords(a.Home, scenarioName)
-	if err != nil {
+	if detail.Details.Status != "running" {
 		return map[string]int{}
 	}
-	return scenario.RuntimePorts(item.Manifest, process.LiveRecords(records))
+	out := make(map[string]int, len(detail.Details.Ports))
+	for k, v := range detail.Details.Ports {
+		out[k] = v
+	}
+	return out
 }
 
 func checkForkBomb() error {

@@ -106,11 +106,32 @@ error message in the current CLI; the port-allocation policy addresses each.
    abnormally. Fix (unrelated to this page): the start-time cleanup path in
    `internal/lifecycle/lifecycle.go` now kills env-less orphans on canonical
    ports; see that code's tests for the contract.
-3. **Lock-before-bind race.** Port lock file was written before the child
-   actually bound; a crash between the two steps strands the lock. Fix
-   (also unrelated to this page): `ConfirmLock` / `AbandonLock` in
-   `internal/ports/ports.go` split the allocation and the confirmation
-   steps.
+
+## Allocation authority
+
+Port ownership lives in the scenario runtime registry. Lifecycle acquires a
+registry `PortClaim` for each declared port before any process starts. The
+registry — not files on disk — decides which scenario owns which port:
+
+- `BuildEnvironmentWithRuntimeClaims` in `internal/ports/ports.go` calls
+  `AcquirePortClaim` first. If another active instance holds the port, the
+  call fails with `active registry claim already owns port <N>` and no
+  process is launched.
+- `ensurePortBindable` then runs a single socket probe. The only thing it
+  can reject is a *foreign* TCP listener (a stale process from another
+  scenario or external tool that is currently bound to the port). A listener
+  from the same scenario is treated as a recoverable restart-in-progress.
+- The runtime supervisor renews the lease and observes listener evidence
+  while the scenario is running. A claim becomes non-authoritative when its
+  lease is stale, the host has rebooted, or the listener disappears — all
+  surfaced by `vrooli locks --json` and `vrooli diagnose-port`.
+
+Older releases also wrote `.port_<port>.lock` files in
+`~/.vrooli/state/scenarios/`. These files are **diagnostic artifacts only**
+and no longer participate in ownership decisions. `vrooli locks` still lists
+them under a "Legacy artifacts" heading so operators can see leftover files
+from old installs; `vrooli cleanup locks` removes the stale ones. Allocation
+ignores them entirely.
 
 ## Migration
 

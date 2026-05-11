@@ -55,8 +55,13 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 	}
 }
 
-func (r *Runner) isScenarioHealthyStrict(item scenario.Scenario, records []process.Record) bool {
-	if len(process.LiveRecords(records)) == 0 {
+// isRegistryRuntimeHealthy decides whether an authoritative registry runtime
+// is data-plane ready, using the registry-bound ports as the probe target.
+// Lease freshness and reconciliation already proved the scenario is *running*
+// (that authority lives in the registry); this only evaluates whether the
+// manifest's health checks pass against the bound ports.
+func (r *Runner) isRegistryRuntimeHealthy(item scenario.Scenario, view registryRuntimeView) bool {
+	if !view.Authoritative {
 		return false
 	}
 	health := item.Manifest.HealthConfig()
@@ -64,7 +69,7 @@ func (r *Runner) isScenarioHealthyStrict(item scenario.Scenario, records []proce
 		return true
 	}
 	for _, check := range health.Checks {
-		if err := scenario.PerformHealthCheck(check, scenario.RuntimePorts(item.Manifest, records)); err != nil {
+		if err := scenario.PerformHealthCheck(check, view.Ports); err != nil {
 			return false
 		}
 	}

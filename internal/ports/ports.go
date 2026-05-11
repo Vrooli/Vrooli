@@ -21,7 +21,6 @@ import (
 )
 
 const (
-	staleLockWindow         = 5 * time.Minute
 	mutationLockTimeout     = 2 * time.Second
 	mutationLockRetry       = 10 * time.Millisecond
 	mutationLockStaleWindow = 30 * time.Second
@@ -133,75 +132,16 @@ func (m *Manager) readLockFile(path string, port int) (Lock, bool, error) {
 	return lock, true, nil
 }
 
-func (m *Manager) WriteLock(port int, scenarioName string, pid int) error {
-	return m.withMutationLock(port, func() error {
-		return m.writeLockUnlocked(port, scenarioName, pid)
-	})
-}
-
-func (m *Manager) claimLock(port int, scenarioName string, pid int) error {
-	return m.withMutationLock(port, func() error {
-		lock, exists, err := m.ReadLock(port)
-		if err != nil {
-			return err
-		}
-		if exists && lock.Scenario != "" && lock.Scenario != scenarioName {
-			return fmt.Errorf("port %d locked by scenario %q", port, lock.Scenario)
-		}
-		return m.writeLockUnlocked(port, scenarioName, pid)
-	})
-}
-
 func (m *Manager) RemoveLock(port int) error {
 	return m.withMutationLock(port, func() error {
 		return m.removeLockUnlocked(port)
 	})
 }
 
-// ConfirmLock updates the lock file for port so it records the real listener
-// PID observed after the scenario bound. Callers invoke it from the
-// health-check transition, once a live listener is visible via inspectPort.
-// No-op if the lock does not belong to scenarioName.
-func (m *Manager) ConfirmLock(port int, scenarioName string, pid int) error {
-	return m.withMutationLock(port, func() error {
-		lock, exists, err := m.ReadLock(port)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return nil
-		}
-		if lock.Scenario != scenarioName {
-			return nil
-		}
-		if lock.PID == pid {
-			return nil
-		}
-		return m.writeLockUnlocked(port, scenarioName, pid)
-	})
-}
-
-// AbandonLock removes a lock file that was claimed for scenarioName but
-// whose scenario never successfully bound the port. Differs from RemoveLock
-// in that it only acts when the current lock matches the scenario; a lock
-// owned by a different scenario is left untouched so one scenario's crash
-// never cleans up another's state.
-func (m *Manager) AbandonLock(port int, scenarioName string) error {
-	return m.withMutationLock(port, func() error {
-		lock, exists, err := m.ReadLock(port)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return nil
-		}
-		if lock.Scenario != scenarioName {
-			return nil
-		}
-		return m.removeLockUnlocked(port)
-	})
-}
-
+// RemoveScenarioLocks deletes any leftover `.port_<port>.lock` files owned by
+// scenarioName plus the legacy `<scenario>.json` state file. Allocation does
+// not consult these files for ownership; the cleanup exists to keep the state
+// directory tidy until older installs have stopped writing them.
 func (m *Manager) RemoveScenarioLocks(scenarioName string) error {
 	locks, err := m.LocksForScenario(scenarioName)
 	if err != nil {
@@ -330,14 +270,6 @@ func (m *Manager) readMutationGuard(path string) (mutationGuard, bool, error) {
 	return guard, true, nil
 }
 
-func (m *Manager) writeLockUnlocked(port int, scenarioName string, pid int) error {
-	if err := m.EnsureStateDir(); err != nil {
-		return err
-	}
-	content := []byte(fmt.Sprintf("%s:%d:%d\n", scenarioName, pid, m.Now().Unix()))
-	return writeFileAtomically(m.lockPath(port), content, 0o644)
-}
-
 func (m *Manager) removeLockUnlocked(port int) error {
 	if err := os.Remove(m.lockPath(port)); err != nil && !os.IsNotExist(err) {
 		return err
@@ -424,10 +356,8 @@ func (m *Manager) BuildEnvironment(item scenario.Scenario, records []process.Rec
 	return m.BuildEnvironmentWithRuntimeClaims(item, records, RuntimeClaimOptions{})
 }
 
-func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, records []process.Record, claimOptions RuntimeClaimOptions) (Environment, error) {
-	live := process.LiveRecords(records)
-
-	allocated, envVars, runtimeClaims, err := m.allocateScenario(item.Slug, item.Manifest, live, claimOptions)
+func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, _ []process.Record, claimOptions RuntimeClaimOptions) (Environment, error) {
+	allocated, envVars, runtimeClaims, err := m.allocateScenario(item.Slug, item.Manifest, claimOptions)
 	if err != nil {
 		return Environment{}, err
 	}
@@ -464,7 +394,6 @@ func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, reco
 		AllocatedPorts: allocated,
 		EnvVars:        envVars,
 		RuntimeClaims:  runtimeClaims,
-		IsRunning:      len(live) > 0,
 		Message:        "allocated ports for scenario",
 	}, nil
 }
@@ -513,14 +442,14 @@ func (m *Manager) BuildProjectEnvironment(item scenario.Scenario) (Environment, 
 	}, nil
 }
 
-func (m *Manager) allocateScenario(scenarioName string, manifest scenario.ServiceManifest, records []process.Record, claimOptions RuntimeClaimOptions) (map[string]int, map[string]string, map[string]scenarioruntime.PortClaim, error) {
+func (m *Manager) allocateScenario(scenarioName string, manifest scenario.ServiceManifest, claimOptions RuntimeClaimOptions) (map[string]int, map[string]string, map[string]scenarioruntime.PortClaim, error) {
 	allocated := make(map[string]int)
 	envVars := make(map[string]string)
 	runtimeClaims := make(map[string]scenarioruntime.PortClaim)
 	newRuntimeClaims := make(map[string]scenarioruntime.PortClaim)
 
 	for _, portSummary := range manifest.SortedPorts() {
-		allocation, err := m.allocatePortDefinition(scenarioName, records, portSummary, claimOptions)
+		allocation, err := m.allocatePortDefinition(scenarioName, portSummary, claimOptions)
 		if err != nil {
 			m.releaseNewRuntimeClaims(runtimeClaimContext(claimOptions), claimOptions.Store, scenarioName, newRuntimeClaims)
 			return nil, nil, nil, err
@@ -548,25 +477,18 @@ type portAllocation struct {
 	newClaim     bool
 }
 
-func (m *Manager) allocatePortDefinition(scenarioName string, records []process.Record, portSummary scenario.PortSummary, claimOptions RuntimeClaimOptions) (portAllocation, error) {
+func (m *Manager) allocatePortDefinition(scenarioName string, portSummary scenario.PortSummary, claimOptions RuntimeClaimOptions) (portAllocation, error) {
 	if portSummary.FixedPort != nil {
 		port := *portSummary.FixedPort
 		claim, claimed, err := m.acquireRuntimePortClaim(scenarioName, portSummary, port, claimOptions)
 		if err != nil {
 			return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
 		}
-		ownerPID, err := m.ensurePortClaimed(port, scenarioName, records)
-		if err != nil {
+		if err := m.ensurePortBindable(port, scenarioName); err != nil {
 			if claimed {
 				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
 			}
 			return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
-		}
-		if err := m.claimLock(port, scenarioName, ownerPID); err != nil {
-			if claimed {
-				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
-			}
-			return portAllocation{}, err
 		}
 		return portAllocation{port: port, runtimeClaim: claim, newClaim: claimed}, nil
 	}
@@ -591,14 +513,7 @@ func (m *Manager) allocatePortDefinition(scenarioName string, records []process.
 		if err != nil {
 			continue
 		}
-		ownerPID, err := m.ensurePortClaimed(port, scenarioName, records)
-		if err != nil {
-			if claimed {
-				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
-			}
-			continue
-		}
-		if err := m.claimLock(port, scenarioName, ownerPID); err != nil {
+		if err := m.ensurePortBindable(port, scenarioName); err != nil {
 			if claimed {
 				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
 			}
@@ -654,7 +569,7 @@ func runtimeClaimsEnabled(options RuntimeClaimOptions) bool {
 	return options.Enabled && options.Store != nil && strings.TrimSpace(options.InstanceID) != ""
 }
 
-func (m *Manager) releaseNewRuntimeClaims(ctx context.Context, store RuntimeClaimStore, scenarioName string, claims map[string]scenarioruntime.PortClaim) {
+func (m *Manager) releaseNewRuntimeClaims(ctx context.Context, store RuntimeClaimStore, _ string, claims map[string]scenarioruntime.PortClaim) {
 	if store == nil || len(claims) == 0 {
 		return
 	}
@@ -663,9 +578,6 @@ func (m *Manager) releaseNewRuntimeClaims(ctx context.Context, store RuntimeClai
 			continue
 		}
 		_, _ = store.ReleasePortClaim(ctx, claim.ClaimID)
-		if claim.Port > 0 {
-			_ = m.AbandonLock(claim.Port, scenarioName)
-		}
 	}
 }
 
@@ -740,53 +652,39 @@ func parseRange(value string) (int, int, error) {
 	return start, end, nil
 }
 
-func (m *Manager) ensurePortClaimed(port int, scenarioName string, records []process.Record) (int, error) {
+// ensurePortBindable confirms the OS port is not already held by a foreign
+// listener. The registry claim acquired before this call is the ownership
+// authority; this only adds a socket-bind safety check so a same-scenario
+// restart can detect lingering external processes squatting on the port.
+//
+// Lock files are no longer consulted here. A leftover `.port_<port>.lock`
+// file is a legacy artifact that the maintenance layer will clean up;
+// allocation never treats it as ownership evidence.
+func (m *Manager) ensurePortBindable(port int, scenarioName string) error {
 	if reservedByResource(m.ResourcePorts, port) {
-		return 0, fmt.Errorf("reserved for resource")
+		return fmt.Errorf("reserved for resource")
 	}
-
-	lock, exists, err := m.ReadLock(port)
-	if err != nil {
-		return 0, err
-	}
-	if exists {
-		switch {
-		case lock.Scenario == scenarioName && lock.PID > 0 && process.IsPIDRunning(lock.PID):
-			return lock.PID, nil
-		case lock.Scenario == scenarioName:
-			_ = m.removeLockIfMatches(lock)
-		case lock.PID > 0 && process.IsPIDRunning(lock.PID):
-			return 0, fmt.Errorf("locked by scenario %q", lock.Scenario)
-		// Keep a short hold window for dead foreign owners so parallel restarts do not
-		// immediately race each other into reclaiming the same port.
-		case !lock.Timestamp.IsZero() && m.Now().UTC().Sub(lock.Timestamp) < staleLockWindow:
-			return 0, fmt.Errorf("recent stale lock held by scenario %q", lock.Scenario)
-		default:
-			_ = m.removeLockIfMatches(lock)
-		}
-	}
-
-	if pid := runtimeOwnerPID(records, port); pid > 0 {
-		if err := m.WriteLock(port, scenarioName, pid); err != nil {
-			return 0, fmt.Errorf("repair lock for port %d: %w", port, err)
-		}
-		return pid, nil
-	}
-
 	inUse, err := isTCPPortInUseFn(port)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	if inUse {
-		if detail, ok, err := describeVrooliPortConflict(port, scenarioName); err != nil {
-			return 0, err
-		} else if ok {
-			return 0, errors.New(detail)
+	if !inUse {
+		return nil
+	}
+	// A listener exists. If it belongs to this scenario, treat as a
+	// recoverable restart-in-progress (the registry claim is already ours).
+	// Anything else is a real conflict that the operator must resolve.
+	detail, ok, descErr := describeVrooliPortConflict(port, scenarioName)
+	if descErr != nil {
+		return descErr
+	}
+	if ok {
+		if strings.Contains(detail, fmt.Sprintf("scenario %q", scenarioName)) {
+			return nil
 		}
-		return 0, errors.New("port already in use")
+		return errors.New(detail)
 	}
-
-	return os.Getpid(), nil
+	return errors.New("port already in use")
 }
 
 func describeVrooliPortConflict(port int, scenarioName string) (string, bool, error) {
@@ -833,15 +731,6 @@ func reservedByResource(resourcePorts map[string]int, port int) bool {
 		}
 	}
 	return false
-}
-
-func runtimeOwnerPID(records []process.Record, port int) int {
-	for _, record := range process.LiveRecords(records) {
-		if record.Port == port && record.PID > 0 {
-			return record.PID
-		}
-	}
-	return 0
 }
 
 func isTCPPortInUse(port int) (bool, error) {

@@ -10,7 +10,6 @@ import (
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
@@ -52,73 +51,24 @@ func (s *Service) InventoryReport() (InventoryReport, error) {
 		return InventoryReport{}, err
 	}
 
-	valid := make(map[string]struct{}, len(discoveryReport.Items))
-	for _, item := range discoveryReport.Items {
-		valid[item.Slug] = struct{}{}
-	}
-
 	ctx := context.Background()
-	mode, err := s.registryReadMode()
+	registryDetails, err := s.registryDetailsByScenario(ctx, discoveryReport.Items)
 	if err != nil {
 		return InventoryReport{}, err
 	}
-	registryDetails := map[string]Detail{}
-	if scenarioruntime.ReadEnabled(mode) {
-		registryDetails, err = s.registryDetailsByScenario(ctx, discoveryReport.Items)
-		if err != nil {
-			return InventoryReport{}, err
-		}
-	}
 
 	details := make([]Detail, 0, len(discoveryReport.Items))
-	if !scenarioruntime.StrictReads(mode) || scenarioruntime.HasAllowlistByEnv() {
-		running, err := process.DiscoverRunningScenarios(s.Home, func(name string) bool {
-			_, ok := valid[name]
-			return ok
+	for _, item := range discoveryReport.Items {
+		if detail, ok := registryDetails[item.Slug]; ok {
+			details = append(details, detail)
+			continue
+		}
+		runtime := process.ScenarioRuntime{Name: item.Slug, Runtime: "N/A"}
+		details = append(details, Detail{
+			Scenario: item,
+			Runtime:  runtime,
+			Details:  scenario.DescribeRuntime(item.Manifest, runtime),
 		})
-		if err != nil {
-			return InventoryReport{}, err
-		}
-
-		runtimes := make(map[string]process.ScenarioRuntime, len(running))
-		for _, runtime := range running {
-			runtimes[runtime.Name] = runtime
-		}
-
-		for _, item := range discoveryReport.Items {
-			if detail, ok := registryDetails[item.Slug]; ok {
-				details = append(details, detail)
-				continue
-			}
-			if scenarioruntime.StrictReadsForScenario(mode, item.Slug) {
-				runtime := process.ScenarioRuntime{Name: item.Slug, Runtime: "N/A"}
-				details = append(details, Detail{
-					Scenario: item,
-					Runtime:  runtime,
-					Details:  scenario.DescribeRuntime(item.Manifest, runtime),
-				})
-				continue
-			}
-			runtime := runtimes[item.Slug]
-			details = append(details, Detail{
-				Scenario: item,
-				Runtime:  runtime,
-				Details:  scenario.DescribeRuntime(item.Manifest, runtime),
-			})
-		}
-	} else {
-		for _, item := range discoveryReport.Items {
-			if detail, ok := registryDetails[item.Slug]; ok {
-				details = append(details, detail)
-				continue
-			}
-			runtime := process.ScenarioRuntime{Name: item.Slug, Runtime: "N/A"}
-			details = append(details, Detail{
-				Scenario: item,
-				Runtime:  runtime,
-				Details:  scenario.DescribeRuntime(item.Manifest, runtime),
-			})
-		}
 	}
 	sort.Slice(details, func(i, j int) bool { return details[i].Scenario.Slug < details[j].Scenario.Slug })
 	return InventoryReport{
@@ -137,33 +87,14 @@ func (s *Service) Lookup(name string) (Detail, bool, error) {
 	}
 
 	ctx := context.Background()
-	registryEnabled, strictRegistry, err := s.registryReadsEnabled(item.Slug)
+	detail, ok, err := s.registryDetail(ctx, item)
 	if err != nil {
 		return Detail{}, true, err
 	}
-	if registryEnabled {
-		detail, ok, err := s.registryDetail(ctx, item)
-		if err != nil {
-			return Detail{}, true, err
-		}
-		if ok {
-			return detail, true, nil
-		}
+	if ok {
+		return detail, true, nil
 	}
-	if strictRegistry {
-		runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
-		return Detail{
-			Scenario: item,
-			Runtime:  runtime,
-			Details:  scenario.DescribeRuntime(item.Manifest, runtime),
-		}, true, nil
-	}
-
-	records, err := process.ReadScenarioRecords(s.Home, name)
-	if err != nil {
-		return Detail{}, true, err
-	}
-	runtime := process.SummarizeScenario(name, records)
+	runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
 	return Detail{
 		Scenario: item,
 		Runtime:  runtime,
@@ -237,33 +168,14 @@ func (s *Service) RestartDetailed(name string, opts lifecycle.StartOptions) (Sta
 
 func (s *Service) detailFor(item scenario.Scenario, name string) (Detail, error) {
 	ctx := context.Background()
-	registryEnabled, strictRegistry, err := s.registryReadsEnabled(item.Slug)
+	detail, ok, err := s.registryDetail(ctx, item)
 	if err != nil {
 		return Detail{}, err
 	}
-	if registryEnabled {
-		detail, ok, err := s.registryDetail(ctx, item)
-		if err != nil {
-			return Detail{}, err
-		}
-		if ok {
-			return detail, nil
-		}
+	if ok {
+		return detail, nil
 	}
-	if strictRegistry {
-		runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
-		return Detail{
-			Scenario: item,
-			Runtime:  runtime,
-			Details:  scenario.DescribeRuntime(item.Manifest, runtime),
-		}, nil
-	}
-
-	records, err := process.ReadScenarioRecords(s.Home, name)
-	if err != nil {
-		return Detail{}, err
-	}
-	runtime := process.SummarizeScenario(name, records)
+	runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
 	return Detail{
 		Scenario: item,
 		Runtime:  runtime,

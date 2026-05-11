@@ -3,13 +3,16 @@ package lifecycle
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
@@ -18,9 +21,6 @@ import (
 )
 
 const (
-	runtimeRegistryModeEnv  = scenarioruntime.ModeEnv
-	runtimeRegistryModeDual = scenarioruntime.ModeDual
-
 	runtimeRegistryInstanceEnv   = "VROOLI_RUNTIME_INSTANCE_ID"
 	runtimeRegistryGenerationEnv = "VROOLI_RUNTIME_GENERATION"
 )
@@ -52,23 +52,7 @@ func disabledRuntimeRegistrySession() runtimeRegistrySession {
 	return runtimeRegistrySession{}
 }
 
-func runtimeRegistryMode() (string, error) {
-	return scenarioruntime.ModeFromEnv()
-}
-
-func runtimeRegistryWriteEnabled(scenarioName string) (bool, error) {
-	mode, err := runtimeRegistryMode()
-	if err != nil {
-		return false, err
-	}
-	return scenarioruntime.WriteEnabledForScenario(mode, scenarioName), nil
-}
-
 func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Scenario) (runtimeRegistrySession, error) {
-	enabled, err := runtimeRegistryWriteEnabled(item.Slug)
-	if err != nil || !enabled {
-		return runtimeRegistrySession{}, err
-	}
 	deps := r.runtimeDeps()
 	store, err := deps.runtimeRegistry(ctx, r.Home)
 	if err != nil {
@@ -104,10 +88,6 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 }
 
 func (r *Runner) beginRuntimeRegistryStop(ctx context.Context, scenarioName string) (runtimeRegistryStopSession, error) {
-	enabled, err := runtimeRegistryWriteEnabled(scenarioName)
-	if err != nil || !enabled {
-		return runtimeRegistryStopSession{}, err
-	}
 	store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
 	if err != nil {
 		return runtimeRegistryStopSession{}, err
@@ -335,10 +315,6 @@ func (s runtimeRegistryStopSession) finish(ctx context.Context) error {
 }
 
 func recordRuntimeProcessRef(ctx context.Context, deps lifecycleDeps, home string, env map[string]string, record process.Record) error {
-	enabled, err := runtimeRegistryWriteEnabled(record.Scenario)
-	if err != nil || !enabled {
-		return err
-	}
 	instanceID := strings.TrimSpace(env[runtimeRegistryInstanceEnv])
 	if instanceID == "" {
 		return nil
@@ -389,6 +365,132 @@ func runtimeHealthStatus(status string) string {
 	default:
 		return scenarioruntime.HealthStatusUnknown
 	}
+}
+
+// registryRuntimeView is the lifecycle-facing view of registry-authoritative
+// runtime state. It captures everything the start/dependency reuse decisions
+// need: whether there is an authoritative instance, the ports it claims, and
+// the recorded health snapshot. PID visibility is intentionally not part of
+// this view — registry lease freshness and listener evidence are the
+// authority, not process records.
+type registryRuntimeView struct {
+	Present       bool
+	Authoritative bool
+	Instance      scenarioruntime.Instance
+	Claims        []scenarioruntime.PortClaim
+	Ports         map[string]int
+	HealthStatus  string
+}
+
+// lookupRegistryRuntime returns the authoritative registry runtime for a
+// scenario, or a zero view if no authoritative instance exists. The caller
+// can use the result to decide whether to reuse, restart, or start fresh —
+// without consulting legacy process records.
+func (r *Runner) lookupRegistryRuntime(ctx context.Context, item scenario.Scenario) (registryRuntimeView, error) {
+	deps := r.runtimeDeps()
+	store, err := deps.runtimeRegistry(ctx, r.Home)
+	if err != nil {
+		return registryRuntimeView{}, err
+	}
+	defer store.Close()
+
+	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
+		Scenario: item.Slug,
+		Statuses: scenarioruntime.ActiveInstanceStatuses(),
+	})
+	if err != nil {
+		return registryRuntimeView{}, err
+	}
+	if len(instances) == 0 {
+		return registryRuntimeView{}, nil
+	}
+
+	var latest scenarioruntime.Instance
+	for _, instance := range instances {
+		if latest.InstanceID == "" || isNewerInstance(instance, latest) {
+			latest = instance
+		}
+	}
+
+	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
+		InstanceID: latest.InstanceID,
+		Statuses:   scenarioruntime.ActivePortClaimStatuses(),
+	})
+	if err != nil {
+		return registryRuntimeView{}, err
+	}
+	refs, err := store.ListProcessRefs(ctx, latest.InstanceID)
+	if err != nil {
+		return registryRuntimeView{}, err
+	}
+	health, err := store.GetHealthSnapshot(ctx, latest.InstanceID)
+	if err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+		return registryRuntimeView{}, err
+	}
+
+	host, err := deps.hostSession(ctx, r.Home)
+	if err != nil {
+		return registryRuntimeView{}, fmt.Errorf("resolve host session: %w", err)
+	}
+	reconciled := scenarioruntime.ReconcileRuntime(scenarioruntime.ReconcileInput{
+		Now:           time.Now().UTC(),
+		CurrentBootID: host.BootID,
+		Instance:      latest,
+		Claims:        claims,
+		ProcessRefs:   refs,
+		Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, process.IsPIDRunning),
+		Listeners: scenarioruntime.ListenerEvidenceFromClaims(claims, refs, func(port int) scenarioruntime.ListenerEvidence {
+			inspection, err := network.InspectPortListeners(port)
+			if err != nil || !inspection.Inspection.Available {
+				return scenarioruntime.ListenerEvidence{Known: false}
+			}
+			return scenarioruntime.ListenerEvidence{Known: true, Listening: len(inspection.Listeners) > 0}
+		}),
+	})
+
+	view := registryRuntimeView{
+		Present:       true,
+		Authoritative: reconciled.Authoritative,
+		Instance:      latest,
+		HealthStatus:  health.Status,
+	}
+	if !reconciled.Authoritative {
+		return view, nil
+	}
+	authClaims := make([]scenarioruntime.PortClaim, 0, len(reconciled.Claims))
+	ports := map[string]int{}
+	for _, claim := range reconciled.Claims {
+		if !claim.Authoritative {
+			continue
+		}
+		authClaims = append(authClaims, claim.Claim)
+		if claim.Claim.Port <= 0 {
+			continue
+		}
+		key := claim.Claim.EnvVar
+		if key == "" {
+			key = item.Manifest.PortEnvVar(claim.Claim.PortName)
+		}
+		if key == "" {
+			continue
+		}
+		if _, exists := ports[key]; !exists {
+			ports[key] = claim.Claim.Port
+		}
+	}
+	view.Claims = authClaims
+	view.Ports = ports
+	return view, nil
+}
+
+func isNewerInstance(candidate, current scenarioruntime.Instance) bool {
+	if candidate.Generation != current.Generation {
+		return candidate.Generation > current.Generation
+	}
+	if !candidate.UpdatedAt.Equal(current.UpdatedAt) {
+		return candidate.UpdatedAt.After(current.UpdatedAt)
+	}
+	return candidate.InstanceID > current.InstanceID
 }
 
 func shouldPreferLifecycleHealthStatus(snapshot scenarioruntime.HealthSnapshot) bool {
