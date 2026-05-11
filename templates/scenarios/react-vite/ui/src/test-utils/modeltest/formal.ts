@@ -3,6 +3,9 @@ import { validateTransitionMatrix } from "./matrix";
 import type { Trace } from "./traces";
 import { validateTraces } from "./traces";
 
+const formalArtifactSchemaVersion = 4;
+const sha256Pattern = /^[a-f0-9]{64}$/;
+
 export interface FormalArtifact {
   readonly schemaVersion: number;
   readonly flowId: string;
@@ -105,8 +108,8 @@ export const validateFormalArtifactFresh = (
   expected: FormalArtifactFreshExpectation,
 ): string[] => {
   const errors: string[] = [];
-  if (artifact.schemaVersion !== 4) {
-    errors.push(`formal artifact schemaVersion=${artifact.schemaVersion}, want 4`);
+  if (artifact.schemaVersion !== formalArtifactSchemaVersion) {
+    errors.push(`formal artifact schemaVersion=${artifact.schemaVersion}, want ${formalArtifactSchemaVersion}`);
   }
   if (artifact.flowId.trim() === "") {
     errors.push("formal artifact flowId is required");
@@ -114,9 +117,7 @@ export const validateFormalArtifactFresh = (
   if (artifact.source.contractPath !== expected.contractPath) {
     errors.push(`formal artifact contractPath=${artifact.source.contractPath}, want ${expected.contractPath}`);
   }
-  if (!/^[a-f0-9]{64}$/.test(artifact.source.contractSha256)) {
-    errors.push("formal artifact contractSha256 is required");
-  }
+  requireSha256(errors, "contractSha256", artifact.source.contractSha256);
   if (expected.contractSha256 && artifact.source.contractSha256 !== expected.contractSha256) {
     errors.push(`formal artifact contractSha256=${artifact.source.contractSha256}, want ${expected.contractSha256}`);
   }
@@ -126,9 +127,7 @@ export const validateFormalArtifactFresh = (
   if (expected.generatorPath && artifact.source.generatorPath !== expected.generatorPath) {
     errors.push(`formal artifact generatorPath=${artifact.source.generatorPath}, want ${expected.generatorPath}`);
   }
-  if (!/^[a-f0-9]{64}$/.test(artifact.source.generatorSha256)) {
-    errors.push("formal artifact generatorSha256 is required");
-  }
+  requireSha256(errors, "generatorSha256", artifact.source.generatorSha256);
   if (expected.generatorSha256 && artifact.source.generatorSha256 !== expected.generatorSha256) {
     errors.push(`formal artifact generatorSha256=${artifact.source.generatorSha256}, want ${expected.generatorSha256}`);
   }
@@ -141,9 +140,7 @@ export const validateFormalArtifactFresh = (
   if (artifact.source.quintVersion.trim() === "") {
     errors.push("formal artifact quintVersion is required");
   }
-  if (!/^[a-f0-9]{64}$/.test(artifact.source.modelSha256)) {
-    errors.push("formal artifact modelSha256 is required");
-  }
+  requireSha256(errors, "modelSha256", artifact.source.modelSha256);
   if (expected.modelSha256 && artifact.source.modelSha256 !== expected.modelSha256) {
     errors.push(`formal artifact modelSha256=${artifact.source.modelSha256}, want ${expected.modelSha256}`);
   }
@@ -203,6 +200,12 @@ export const validateFormalArtifactFresh = (
     errors.push("formal artifact generatedTraces must not be empty");
   }
   return errors;
+};
+
+const requireSha256 = (errors: string[], field: string, value: string): void => {
+  if (!sha256Pattern.test(value)) {
+    errors.push(`formal artifact ${field} is required`);
+  }
 };
 
 export const assertFormalArtifactFresh = (

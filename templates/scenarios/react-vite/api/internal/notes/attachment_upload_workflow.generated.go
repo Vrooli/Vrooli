@@ -22,7 +22,7 @@ const AttachmentUploadModelPath = "api/internal/notes/attachment_upload_workflow
 const AttachmentUploadGeneratorPath = "tools/temporal-model"
 const AttachmentUploadContractSHA256 = "2c4f204a4774182f7ef5b2a5398f751b5d52f5c0a2ffbdd06c80b9ef82546b07"
 const AttachmentUploadModelSHA256 = "2c341156b2834df1e9a4ac39940abac4dfab3cd99b3954c2fc6e4debdeb25a6b"
-const AttachmentUploadGeneratorSHA256 = "0b669eb794ca6c91a7f1783a31fe82fd138477b7579fec8cb6c551fc3812c473"
+const AttachmentUploadGeneratorSHA256 = "f7cc2fccaa7330b1e904bc19f5dd9e8bb036f08fd83d88db6d80a3ebbc96a0cc"
 
 var attachmentUploadFormalInvariants = []string{"TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "MetadataRequiresBytesStored"}
 var attachmentUploadFormalGeneratedChecks = []string{"transitionTable"}

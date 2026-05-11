@@ -111,58 +111,86 @@ func parseFlags(args []string) (flags, error) {
 }
 
 func explain(stdout io.Writer, root string, flow model.Flow) error {
-	fmt.Fprintf(stdout, "flow: %s\n", flow.FlowID)
-	fmt.Fprintf(stdout, "contract: %s\n", flow.ContractPath)
-	fmt.Fprintln(stdout, "source of truth: *.flow.json")
-	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Generated files:")
-	fmt.Fprintf(stdout, "  model: %s\n", flow.Outputs.ModelPath)
-	fmt.Fprintf(stdout, "  artifact: %s\n", flow.Outputs.ArtifactPath)
-	fmt.Fprintf(stdout, "  declarations: %s\n", flow.Outputs.DeclarationsPath)
-	if flow.Outputs.ReplayHelperPath != "" {
-		fmt.Fprintf(stdout, "  replay helper: %s\n", flow.Outputs.ReplayHelperPath)
+	_, err := io.WriteString(stdout, buildExplainReport(root, flow))
+	return err
+}
+
+func buildExplainReport(root string, flow model.Flow) string {
+	coverage := model.NamedTraceCoverage(flow)
+	var b strings.Builder
+	writeSection(&b, "", pair("flow", flow.FlowID), pair("contract", flow.ContractPath), pair("source of truth", "*.flow.json"))
+	writeSection(&b, "Generated files", generatedFileRows(flow)...)
+	writeSection(&b, "Runtime",
+		pair("language", runtimeLanguage(flow)),
+		pair("status type", runtimeStatusType(flow)),
+		pair("event type", runtimeEventType(flow)),
+		pair("generated runtime unions", yesNo(hasGeneratedRuntimeUnions(flow))),
+		pair("fixture contract", yesNo(runtimeLanguage(flow) == "typescript")),
+	)
+	writeSection(&b, "Topology",
+		pair("states", fmt.Sprintf("%d (initial %s; terminal %s)", len(flow.States), flow.Initial.ID, terminalSummary(flow))),
+		pair("events", fmt.Sprint(len(flow.Events))),
+		pair("expanded transitions", fmt.Sprint(flow.Matrix.Len())),
+		pair("invalid transitions", fmt.Sprint(invalidTransitionCount(flow))),
+	)
+	writeSection(&b, "Generated replay", replayRows(flow)...)
+	writeSection(&b, "Coverage requirements",
+		pair("named traces", fmt.Sprint(len(flow.Traces))),
+		pair("named trace states", coverageSummary(coverage.CoveredStates, coverage.MissingStates)),
+		pair("named trace events", coverageSummary(coverage.CoveredEvents, coverage.MissingEvents)),
+	)
+	writeSection(&b, "Commands",
+		pair("regenerate", fmt.Sprintf("cd %s && GOWORK=off go run . generate --root %s --flow %s", filepath.ToSlash(filepath.Join("tools", "temporal-model")), explainRoot(root), flow.FlowID)),
+		pair("check", "make temporal-models"),
+	)
+	writeSection(&b, "Hand-authored follow-up files", handAuthoredFollowUps(flow)...)
+	return b.String()
+}
+
+func writeSection(b *strings.Builder, title string, rows ...string) {
+	if b.Len() > 0 {
+		b.WriteByte('\n')
 	}
-	fmt.Fprintf(stdout, "  replay test: %s\n", flow.Outputs.ReplayTestPath)
-	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Runtime:")
-	fmt.Fprintf(stdout, "  language: %s\n", runtimeLanguage(flow))
-	fmt.Fprintf(stdout, "  status type: %s\n", runtimeStatusType(flow))
-	fmt.Fprintf(stdout, "  event type: %s\n", runtimeEventType(flow))
-	fmt.Fprintf(stdout, "  generated runtime unions: %s\n", yesNo(hasGeneratedRuntimeUnions(flow)))
-	fmt.Fprintf(stdout, "  fixture contract: %s\n", yesNo(runtimeLanguage(flow) == "typescript"))
-	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Topology:")
-	fmt.Fprintf(stdout, "  states: %d (initial %s; terminal %s)\n", len(flow.States), flow.Initial.ID, terminalSummary(flow))
-	fmt.Fprintf(stdout, "  events: %d\n", len(flow.Events))
-	fmt.Fprintf(stdout, "  expanded transitions: %d\n", flow.Matrix.Len())
-	fmt.Fprintf(stdout, "  invalid transitions: %d\n", invalidTransitionCount(flow))
-	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Generated replay:")
-	fmt.Fprintf(stdout, "  kind: %s\n", flow.Replay.Kind)
-	fmt.Fprintf(stdout, "  test: %s\n", flow.Replay.TestPath)
+	if title != "" {
+		fmt.Fprintf(b, "%s:\n", title)
+	}
+	for _, row := range rows {
+		if title == "" {
+			fmt.Fprintln(b, row)
+		} else {
+			fmt.Fprintf(b, "  %s\n", row)
+		}
+	}
+}
+
+func pair(label string, value string) string {
+	return label + ": " + value
+}
+
+func generatedFileRows(flow model.Flow) []string {
+	rows := []string{
+		pair("model", flow.Outputs.ModelPath),
+		pair("artifact", flow.Outputs.ArtifactPath),
+		pair("declarations", flow.Outputs.DeclarationsPath),
+	}
+	if flow.Outputs.ReplayHelperPath != "" {
+		rows = append(rows, pair("replay helper", flow.Outputs.ReplayHelperPath))
+	}
+	return append(rows, pair("replay test", flow.Outputs.ReplayTestPath))
+}
+
+func replayRows(flow model.Flow) []string {
+	rows := []string{
+		pair("kind", flow.Replay.Kind),
+		pair("test", flow.Replay.TestPath),
+	}
 	if flow.Replay.HelperPath != "" {
-		fmt.Fprintf(stdout, "  helper: %s\n", flow.Replay.HelperPath)
+		rows = append(rows, pair("helper", flow.Replay.HelperPath))
 	}
 	if flow.Replay.FixtureModule != "" {
-		fmt.Fprintf(stdout, "  fixture: %s (%s)\n", flow.Replay.FixtureModule, flow.Replay.FixtureExport)
+		rows = append(rows, pair("fixture", fmt.Sprintf("%s (%s)", flow.Replay.FixtureModule, flow.Replay.FixtureExport)))
 	}
-	fmt.Fprintf(stdout, "  transition: %s\n", flow.Replay.Transition.Function)
-	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Coverage requirements:")
-	coverage := model.NamedTraceCoverage(flow)
-	fmt.Fprintf(stdout, "  named traces: %d\n", len(flow.Traces))
-	fmt.Fprintf(stdout, "  named trace states: %s\n", coverageSummary(coverage.CoveredStates, coverage.MissingStates))
-	fmt.Fprintf(stdout, "  named trace events: %s\n", coverageSummary(coverage.CoveredEvents, coverage.MissingEvents))
-	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Commands:")
-	fmt.Fprintf(stdout, "  regenerate: cd %s && GOWORK=off go run . generate --root %s --flow %s\n", filepath.ToSlash(filepath.Join("tools", "temporal-model")), explainRoot(root), flow.FlowID)
-	fmt.Fprintln(stdout, "  check: make temporal-models")
-	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Hand-authored follow-up files:")
-	for _, path := range handAuthoredFollowUps(flow) {
-		fmt.Fprintf(stdout, "  %s\n", path)
-	}
-	return nil
+	return append(rows, pair("transition", flow.Replay.Transition.Function))
 }
 
 func runtimeLanguage(flow model.Flow) string {

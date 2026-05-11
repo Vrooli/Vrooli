@@ -9,6 +9,8 @@ import {
   type FormalArtifactFreshExpectation,
 } from "./formal";
 
+const ignoredHashDirs = new Set([".git", "node_modules", "dist", "build", "coverage", "_apalache-out"]);
+
 export interface FormalArtifactFreshFileOptions {
   readonly scenarioRoot?: string | URL;
 }
@@ -81,7 +83,7 @@ const walk = (root: string, current: string, parts: string[]): void => {
     const absolute = path.join(current, entry.name);
     const relative = path.relative(root, absolute).split(path.sep).join("/");
     if (entry.isDirectory()) {
-      if (ignoredDirs.has(entry.name)) {
+      if (ignoredHashDirs.has(entry.name)) {
         continue;
       }
       walk(root, absolute, parts);
@@ -105,8 +107,6 @@ const includedGeneratorFile = (relative: string): boolean => {
   }
   return relative.endsWith(".go") || relative === "go.mod" || relative.endsWith(".schema.json");
 };
-
-const ignoredDirs = new Set([".git", "node_modules", "dist", "build", "coverage", "_apalache-out"]);
 
 const sha256 = (data: string | Buffer): string => createHash("sha256").update(data).digest("hex");
 

@@ -11,6 +11,17 @@ import (
 	"strings"
 )
 
+const formalArtifactSchemaVersion = 4
+
+var ignoredHashDirs = map[string]bool{
+	".git":          true,
+	"node_modules":  true,
+	"dist":          true,
+	"build":         true,
+	"coverage":      true,
+	"_apalache-out": true,
+}
+
 type FormalArtifact struct {
 	SchemaVersion   int                        `json:"schemaVersion"`
 	FlowID          string                     `json:"flowId"`
@@ -108,8 +119,8 @@ type FormalArtifactExpectation struct {
 
 func ValidateFormalArtifactFresh(artifact FormalArtifact, expected FormalArtifactExpectation) []error {
 	var errs []error
-	if artifact.SchemaVersion != 4 {
-		errs = append(errs, fmt.Errorf("formal artifact schemaVersion=%d, want 4", artifact.SchemaVersion))
+	if artifact.SchemaVersion != formalArtifactSchemaVersion {
+		errs = append(errs, fmt.Errorf("formal artifact schemaVersion=%d, want %d", artifact.SchemaVersion, formalArtifactSchemaVersion))
 	}
 	if artifact.FlowID == "" {
 		errs = append(errs, fmt.Errorf("formal artifact flowId is required"))
@@ -251,8 +262,7 @@ func repoTreeSHA256(root string) (string, error) {
 			return err
 		}
 		if entry.IsDir() {
-			switch entry.Name() {
-			case ".git", "node_modules", "dist", "build", "coverage", "_apalache-out":
+			if ignoredHashDirs[entry.Name()] {
 				if path != root {
 					return filepath.SkipDir
 				}

@@ -179,10 +179,32 @@ func (FakeRunner) Run(_ context.Context, command quint.Command) (quint.Result, e
 	if len(command.Args) >= 2 && command.Args[1] == "run" {
 		pattern := command.Args[len(command.Args)-1]
 		path := strings.Replace(pattern, "{seq}", "1", 1)
-		body := `{"states":[{"status":{"tag":"Idle"},"event":{"tag":"Start"},"rejected":false},{"status":{"tag":"Busy"},"event":{"tag":"Start"},"rejected":false}]}`
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		body, err := json.Marshal(fakeITFTrace{
+			States: []fakeITFState{
+				{Status: fakeITFTag{Tag: "Idle"}, Event: fakeITFTag{Tag: "Start"}},
+				{Status: fakeITFTag{Tag: "Busy"}, Event: fakeITFTag{Tag: "Start"}},
+			},
+		})
+		if err != nil {
+			return quint.Result{}, err
+		}
+		if err := os.WriteFile(path, body, 0o644); err != nil {
 			return quint.Result{}, err
 		}
 	}
 	return quint.Result{Stdout: "ok"}, nil
+}
+
+type fakeITFTrace struct {
+	States []fakeITFState `json:"states"`
+}
+
+type fakeITFState struct {
+	Status   fakeITFTag `json:"status"`
+	Event    fakeITFTag `json:"event"`
+	Rejected bool       `json:"rejected"`
+}
+
+type fakeITFTag struct {
+	Tag string `json:"tag"`
 }

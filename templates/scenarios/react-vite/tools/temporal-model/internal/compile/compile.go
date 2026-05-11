@@ -12,6 +12,11 @@ import (
 	"react-vite-temporal-model/internal/spec"
 )
 
+var (
+	quintIdentifierPattern       = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
+	typeScriptStatusAccessorExpr = regexp.MustCompile(`^state\.[A-Za-z_][A-Za-z0-9_]*$`)
+)
+
 func Compile(raw contract.Contract) (model.Flow, error) {
 	var errs []string
 	if raw.SchemaVersion != model.SchemaVersion {
@@ -329,7 +334,7 @@ func validateReplayShape(errs *[]string, raw contract.Contract) {
 		if raw.Outputs.ReplayTestPath != "" && !strings.HasSuffix(raw.Outputs.ReplayTestPath, ".test.generated.ts") {
 			*errs = append(*errs, "outputs.replayTestPath for vitest must end with .test.generated.ts")
 		}
-		if accessor := raw.Replay.Transition.StatusAccessor; accessor != "" && !regexp.MustCompile(`^state\.[A-Za-z_][A-Za-z0-9_]*$`).MatchString(accessor) {
+		if accessor := raw.Replay.Transition.StatusAccessor; accessor != "" && !typeScriptStatusAccessorExpr.MatchString(accessor) {
 			*errs = append(*errs, "replay.transition.statusAccessor must have the form state.<field>")
 		}
 	}
@@ -396,11 +401,10 @@ func requireString(errs *[]string, name string, value string) {
 }
 
 func validateQuintNames(errs *[]string, groups ...map[string]bool) {
-	valid := regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
 	seen := map[string]bool{}
 	for _, group := range groups {
 		for name := range group {
-			if !valid.MatchString(name) {
+			if !quintIdentifierPattern.MatchString(name) {
 				*errs = append(*errs, "invalid Quint identifier "+name)
 			}
 			if spec.QuintReservedIdentifiers[name] {

@@ -70,53 +70,16 @@ func Run(ctx context.Context, options Options) error {
 
 	wrote := 0
 	for _, flow := range options.Flows {
-		rendered := quint.Render(flow)
-		modelFile := OutputFile{Path: flow.Outputs.ModelPath, Data: []byte(rendered)}
-		if err := writeOrCheck(fs, options.Root, modelFile, flow.FlowID, options.Mode); err != nil {
-			return err
-		}
-
-		built, err := artifact.Build(ctx, flow, artifact.BuildOptions{
-			Root:         options.Root,
-			Rendered:     rendered,
-			QuintVersion: quintVersion,
-			RunQuint:     true,
-			Runner:       runner,
-		})
+		files, err := buildOutputPlan(ctx, options.Root, flow, quintVersion, runner)
 		if err != nil {
 			return err
 		}
-		artifactData, err := artifact.CanonicalJSON(built)
-		if err != nil {
+		if err := applyOutputPlan(fs, options.Root, flow.FlowID, options.Mode, files); err != nil {
 			return err
 		}
-		renderedCode, err := codegen.Render(flow, built)
-		if err != nil {
-			return err
-		}
-
-		files := []OutputFile{
-			modelFile,
-			{Path: flow.Outputs.ArtifactPath, Data: artifactData},
-		}
-		for _, file := range renderedCode.Files {
-			files = append(files, OutputFile{Path: file.Path, Data: file.Data})
-		}
-
 		if options.Mode == ModeCheck {
-			for _, file := range files[1:] {
-				if err := writeOrCheck(fs, options.Root, file, flow.FlowID, options.Mode); err != nil {
-					return err
-				}
-			}
 			fmt.Fprintf(stdout, "fresh %s\n", flow.FlowID)
 			continue
-		}
-
-		for _, file := range files[1:] {
-			if err := writeOrCheck(fs, options.Root, file, flow.FlowID, options.Mode); err != nil {
-				return err
-			}
 		}
 		for _, file := range files {
 			fmt.Fprintf(stdout, "wrote %s\n", file.Path)
@@ -132,6 +95,45 @@ func Run(ctx context.Context, options Options) error {
 type OutputFile struct {
 	Path string
 	Data []byte
+}
+
+func buildOutputPlan(ctx context.Context, root string, flow model.Flow, quintVersion string, runner quint.Runner) ([]OutputFile, error) {
+	rendered := quint.Render(flow)
+	built, err := artifact.Build(ctx, flow, artifact.BuildOptions{
+		Root:         root,
+		Rendered:     rendered,
+		QuintVersion: quintVersion,
+		RunQuint:     true,
+		Runner:       runner,
+	})
+	if err != nil {
+		return nil, err
+	}
+	artifactData, err := artifact.CanonicalJSON(built)
+	if err != nil {
+		return nil, err
+	}
+	renderedCode, err := codegen.Render(flow, built)
+	if err != nil {
+		return nil, err
+	}
+	files := []OutputFile{
+		{Path: flow.Outputs.ModelPath, Data: []byte(rendered)},
+		{Path: flow.Outputs.ArtifactPath, Data: artifactData},
+	}
+	for _, file := range renderedCode.Files {
+		files = append(files, OutputFile{Path: file.Path, Data: file.Data})
+	}
+	return files, nil
+}
+
+func applyOutputPlan(fs FileSystem, root string, flowID string, mode Mode, files []OutputFile) error {
+	for _, file := range files {
+		if err := writeOrCheck(fs, root, file, flowID, mode); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writeOrCheck(fs FileSystem, root string, file OutputFile, flowID string, mode Mode) error {

@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -45,15 +46,12 @@ func renderTypeScriptDeclarations(flow model.Flow, built artifact.Artifact) (str
 	fmt.Fprintf(&b, "  readonly to: %s;\n", rt.StatusType)
 	b.WriteString("  readonly wantError: boolean;\n")
 	b.WriteString("};\n\n")
-	fmt.Fprintf(&b, "const %s = {\n", tableConst)
-	for _, state := range flow.States {
-		fmt.Fprintf(&b, "  %q: {\n", state.ID)
-		for _, transition := range flow.Matrix.RowsFrom(state.ID) {
-			fmt.Fprintf(&b, "    %q: { to: %q, wantError: %t },\n", transition.Event, transition.To, transition.WantError)
-		}
-		b.WriteString("  },\n")
+	table, err := renderTypeScriptTransitionTable(flow)
+	if err != nil {
+		return "", err
 	}
-	fmt.Fprintf(&b, "} satisfies Record<%s, Record<%s, %sTransitionRow>>;\n\n", rt.StatusType, rt.EventType, helperBase)
+	fmt.Fprintf(&b, "const %s = %s", tableConst, table)
+	fmt.Fprintf(&b, "satisfies Record<%s, Record<%s, %sTransitionRow>>;\n\n", rt.StatusType, rt.EventType, helperBase)
 	fmt.Fprintf(&b, "export const is%sEventValid = (status: %s, event: %s): boolean =>\n", helperBase, rt.StatusType, rt.EventType)
 	fmt.Fprintf(&b, "  !%s[status][event].wantError;\n\n", tableConst)
 	fmt.Fprintf(&b, "export const next%sStatus = (status: %s, event: %s): %s =>\n", helperBase, rt.StatusType, rt.EventType, rt.StatusType)
@@ -75,6 +73,30 @@ func renderTypeScriptDeclarations(flow model.Flow, built artifact.Artifact) (str
 	fmt.Fprintf(&b, "  invariants: [%s],\n", tsQuotedList(built.Invariants))
 	fmt.Fprintf(&b, "  generatedChecks: [%s],\n", tsQuotedList(built.GeneratedChecks))
 	b.WriteString("} as const;\n")
+	return b.String(), nil
+}
+
+type typeScriptTransitionRow struct {
+	To        string `json:"to"`
+	WantError bool   `json:"wantError"`
+}
+
+func renderTypeScriptTransitionTable(flow model.Flow) (string, error) {
+	var b strings.Builder
+	b.WriteString("{\n")
+	for _, state := range flow.States {
+		fmt.Fprintf(&b, "  %q: {\n", state.ID)
+		for _, transition := range flow.Matrix.RowsFrom(state.ID) {
+			row := typeScriptTransitionRow{To: transition.To, WantError: transition.WantError}
+			data, err := json.Marshal(row)
+			if err != nil {
+				return "", err
+			}
+			fmt.Fprintf(&b, "    %q: %s,\n", transition.Event, data)
+		}
+		b.WriteString("  },\n")
+	}
+	b.WriteString("} ")
 	return b.String(), nil
 }
 

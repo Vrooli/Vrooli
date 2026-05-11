@@ -54,19 +54,10 @@ type Source struct {
 type NamedTrace = quint.ArtifactTrace
 
 type Coverage struct {
-	TransitionMatrixComplete   bool          `json:"transitionMatrixComplete"`
-	TerminalTransitionsChecked bool          `json:"terminalTransitionsChecked"`
-	NamedTraces                TraceCoverage `json:"namedTraces"`
-	GeneratedTraces            TraceCoverage `json:"generatedTraces"`
-}
-
-type TraceCoverage struct {
-	AllStatesCovered bool     `json:"allStatesCovered"`
-	AllEventsCovered bool     `json:"allEventsCovered"`
-	CoveredStates    []string `json:"coveredStates"`
-	CoveredEvents    []string `json:"coveredEvents"`
-	CoveredPairs     []string `json:"coveredPairs,omitempty"`
-	AllPairsCovered  *bool    `json:"allPairsCovered,omitempty"`
+	TransitionMatrixComplete   bool                `json:"transitionMatrixComplete"`
+	TerminalTransitionsChecked bool                `json:"terminalTransitionsChecked"`
+	NamedTraces                model.TraceCoverage `json:"namedTraces"`
+	GeneratedTraces            model.TraceCoverage `json:"generatedTraces"`
 }
 
 type Checks struct {
@@ -222,113 +213,22 @@ func coverage(flow model.Flow, generatedTraces []quint.ArtifactTrace) Coverage {
 	}
 }
 
-func namedTraceCoverage(flow model.Flow) TraceCoverage {
-	traces := make([]quint.ArtifactTrace, 0, len(flow.Traces))
-	for _, trace := range flow.Traces {
-		steps := make([]quint.ArtifactTraceStep, 0, len(trace.Steps))
-		for _, step := range trace.Steps {
-			steps = append(steps, quint.ArtifactTraceStep{Event: step.Event, Want: step.Want, WantError: step.WantError})
-		}
-		traces = append(traces, quint.ArtifactTrace{Name: trace.Name, Initial: trace.Initial, Steps: steps})
-	}
-	return traceCoverage(flow, traces, false)
+func namedTraceCoverage(flow model.Flow) model.TraceCoverage {
+	return model.NamedTraceCoverage(flow)
 }
 
-func generatedTraceCoverage(flow model.Flow, traces []quint.ArtifactTrace) TraceCoverage {
-	return traceCoverage(flow, traces, true)
+func generatedTraceCoverage(flow model.Flow, traces []quint.ArtifactTrace) model.TraceCoverage {
+	return model.TraceCoverageFor(flow, coverageTraces(traces), true)
 }
 
-func traceCoverage(flow model.Flow, traces []quint.ArtifactTrace, includePairs bool) TraceCoverage {
-	states := map[string]bool{}
-	events := map[string]bool{}
-	pairs := map[string]bool{}
+func coverageTraces(traces []quint.ArtifactTrace) []model.CoverageTrace {
+	out := make([]model.CoverageTrace, 0, len(traces))
 	for _, trace := range traces {
-		current := trace.Initial
-		states[current] = true
+		steps := make([]model.CoverageTraceStep, 0, len(trace.Steps))
 		for _, step := range trace.Steps {
-			events[step.Event] = true
-			if includePairs {
-				pairs[current+"/"+step.Event] = true
-			}
-			current = step.Want
-			states[current] = true
+			steps = append(steps, model.CoverageTraceStep{Event: step.Event, Want: step.Want})
 		}
-	}
-	coverage := TraceCoverage{
-		AllStatesCovered: allStatesCovered(flow, states),
-		AllEventsCovered: allEventsCovered(flow, events),
-		CoveredStates:    coveredStates(flow, states),
-		CoveredEvents:    coveredEvents(flow, events),
-	}
-	if includePairs {
-		coverage.CoveredPairs = coveredPairs(flow, pairs)
-		coverage.AllPairsCovered = boolPtr(allPairsCovered(flow, pairs))
-	}
-	return coverage
-}
-
-func boolPtr(value bool) *bool {
-	return &value
-}
-
-func allStatesCovered(flow model.Flow, seen map[string]bool) bool {
-	for _, state := range flow.States {
-		if !seen[state.ID] {
-			return false
-		}
-	}
-	return true
-}
-
-func allEventsCovered(flow model.Flow, seen map[string]bool) bool {
-	for _, event := range flow.Events {
-		if !seen[event.ID] {
-			return false
-		}
-	}
-	return true
-}
-
-func allPairsCovered(flow model.Flow, seen map[string]bool) bool {
-	for _, state := range flow.States {
-		for _, event := range flow.Events {
-			if !seen[state.ID+"/"+event.ID] {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func coveredStates(flow model.Flow, seen map[string]bool) []string {
-	out := []string{}
-	for _, state := range flow.States {
-		if seen[state.ID] {
-			out = append(out, state.ID)
-		}
-	}
-	return out
-}
-
-func coveredEvents(flow model.Flow, seen map[string]bool) []string {
-	out := []string{}
-	for _, event := range flow.Events {
-		if seen[event.ID] {
-			out = append(out, event.ID)
-		}
-	}
-	return out
-}
-
-func coveredPairs(flow model.Flow, seen map[string]bool) []string {
-	out := []string{}
-	for _, state := range flow.States {
-		for _, event := range flow.Events {
-			key := state.ID + "/" + event.ID
-			if seen[key] {
-				out = append(out, key)
-			}
-		}
+		out = append(out, model.CoverageTrace{Initial: trace.Initial, Steps: steps})
 	}
 	return out
 }
