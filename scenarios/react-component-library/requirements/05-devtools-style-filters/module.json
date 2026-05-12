@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "module": "devtools-style-filters",
+    "description": "Chrome-DevTools-style visual filters applied to the preview iframe: color-scheme toggle and vision filters (blur, grayscale, three colorblindness modes).",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DV-001",
+      "title": "Color-scheme toggle (system/light/dark) posts a class to the harness child via the bridge",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "filters",
+      "criticality": "P1",
+      "description": "A three-way toggle posts a bridge message `colorScheme: 'system' | 'light' | 'dark'`. The harness child applies `color-scheme: <value>` on `:root` and toggles a `dark` class as needed.",
+      "tags": ["filters", "iframe-bridge"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "UI component test toggles the control, asserts the bridge message is posted with the expected payload."
+        }
+      ]
+    },
+    {
+      "id": "DV-002",
+      "title": "Vision-filter dropdown applies SVG-defined filters to the iframe",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "filters",
+      "criticality": "P1",
+      "description": "Options: none, blur (0–10px slider), grayscale, protanopia, deuteranopia, tritanopia. Implemented via hidden SVG `<filter>` defs on the host page; `filter: url(#...)` is applied to the iframe wrapper. Colorblindness matrices match the values used by `app-monitor`'s `DeviceVisionFilterDefs`.",
+      "tags": ["filters", "a11y"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Component test asserts dropdown selection updates the wrapper's `filter` CSS to the expected `url(#...)` value."
+        }
+      ]
+    }
+  ]
+}

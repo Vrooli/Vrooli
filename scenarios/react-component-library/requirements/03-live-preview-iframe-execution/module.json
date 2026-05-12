@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "live-preview-iframe-execution",
+    "description": "Per-component preview harness that executes real React inside an isolated iframe, wired via @vrooli/iframe-bridge.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PR-001",
+      "title": "Per-component harness page renders the actual React component (not placeholder HTML)",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "API serves `GET /api/v1/preview/{component_id}` returning an HTML shell that imports the component's bundled source and mounts it via `ReactDOM.createRoot`. The shell calls `initIframeBridgeChild()` on load. Bundling approach (esbuild service vs pre-bundled chunks with dynamic import) is captured in `docs/RESEARCH.md` and chosen before slice 3 of Phase 4.",
+      "tags": ["preview", "iframe", "react"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "BAS flow `preview-renders-component` loads a known component, asserts the iframe DOM contains expected rendered output."
+        }
+      ]
+    },
+    {
+      "id": "PR-002",
+      "title": "Reload-on-save: editor save triggers iframe NAV via the host bridge",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "After the editor PUT succeeds, the UI invokes the host-side `@vrooli/iframe-bridge` NAV message to reload the harness. Warm reload latency target is < 1s on a 50KB component on a developer-class machine.",
+      "tags": ["preview", "iframe-bridge"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "BAS flow `edit-and-preview` edits a string in Monaco, saves, and asserts the iframe reflects the change."
+        }
+      ]
+    },
+    {
+      "id": "PR-003",
+      "title": "Preview iframe is served same-origin from the library API with sandbox attributes",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "The harness page is served by the library's own API on a dedicated harness path so the bridge can inspect freely. The `<iframe>` carries the sandbox attribute set documented in `vrooli-ui-interop`; no third-party origins are loaded.",
+      "tags": ["preview", "security"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Handler test asserts harness route returns 200 with the expected origin; UI test asserts iframe sandbox attribute string."
+        }
+      ]
+    }
+  ]
+}

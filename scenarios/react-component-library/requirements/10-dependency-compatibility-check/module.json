@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "dependency-compatibility-check",
+    "description": "Validate the target scenario's package.json against the component's declared @deps before adoption.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DC-001",
+      "title": "Component dep declarations are parsed from the @deps header field",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "deps",
+      "criticality": "P1",
+      "description": "Indexer parses the optional `@deps` field as JSON `[{\"name\": \"react\", \"range\": \"^18.0.0\"}, ...]`. Missing field → empty array. Malformed JSON → indexer error per CR-002. Parsed rows go into `component_dep_declarations` (soft FK to components.id).",
+      "tags": ["deps", "indexer"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Indexer test feeds headers with valid, missing, and malformed @deps; repository test asserts dep rows."
+        }
+      ]
+    },
+    {
+      "id": "DC-002",
+      "title": "On adopt, validator compares declared deps against target scenario's package.json",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "deps",
+      "criticality": "P1",
+      "description": "`POST /api/v1/adoptions/preview {component_id, target_scenario}` reads the target's `package.json` (via storage resolver scoped to the scenarios root), runs semver intersection against each declared dep, and returns a verdict: `ok | warn | block`. `block` fires when a major-version range cannot be satisfied; `warn` fires when a dep is missing or minor/patch ranges don't intersect.",
+      "tags": ["deps", "adoption"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Service test covers each verdict with synthetic package.jsons; BAS flow `dep-mismatch-blocks-adopt` exercises the block path end-to-end."
+        }
+      ]
+    },
+    {
+      "id": "DC-003",
+      "title": "Adoption UI surfaces dep verdicts and blocks proceed on block",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "deps",
+      "criticality": "P1",
+      "description": "Adoption modal shows the dep verdict before confirm. `ok` enables proceed; `warn` enables proceed with an acknowledgment checkbox; `block` disables proceed and shows the failing dep + reason.",
+      "tags": ["deps", "ui"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Component test renders the modal against each verdict fixture and asserts proceed-button state."
+        }
+      ]
+    }
+  ]
+}

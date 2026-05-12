@@ -8,7 +8,7 @@ import (
 
 const (
 	appName        = "react-component-library"
-	appVersion     = "1.0.0"
+	appVersion     = "0.1.0"
 	defaultAPIBase = ""
 )
 
@@ -23,12 +23,13 @@ type App struct {
 }
 
 func NewApp() (*App, error) {
+	app := &App{}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
 		Description:      "React Component Library CLI",
 		DefaultAPIBase:   defaultAPIBase,
-		ExtraAPIEnvVars:  []string{"REACT_COMPONENT_LIBRARY_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
+		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 		BuildFingerprint: buildFingerprint,
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
@@ -39,7 +40,8 @@ func NewApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{core: core}, nil
+	app.core = core
+	return app, nil
 }
 
 func (a *App) Run(args []string) error {

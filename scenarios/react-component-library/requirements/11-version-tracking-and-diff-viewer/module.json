@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "version-tracking-and-diff-viewer",
+    "description": "Persist component version history and render diffs between versions and between library and adopted copies.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "VR-001",
+      "title": "Saving a component records a new version when content or @version changes",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "versions",
+      "criticality": "P1",
+      "description": "Editor save inserts a row into `component_versions(component_id, version, content, changelog_md, recorded_at)` when either the file's content bytes or the `@version` header changed since the previous recorded version. Identical re-saves do NOT create a new version.",
+      "tags": ["versions", "editor"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Service test saves the same content twice and asserts only one version row; varies @version to assert a new row on bump."
+        }
+      ]
+    },
+    {
+      "id": "VR-002",
+      "title": "List and fetch versions per component via API and CLI",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "versions",
+      "criticality": "P1",
+      "description": "`GET /api/v1/components/{id}/versions` lists; `GET /.../versions/{version}` returns content + changelog. CLI: `react-component-library versions list <id>` and `react-component-library versions show <id> <version>`.",
+      "tags": ["versions", "cli"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Handler tests cover list/show; CLI smoke test exercises both verbs."
+        }
+      ]
+    },
+    {
+      "id": "VR-003",
+      "title": "Diff viewer renders side-by-side unified diff between two versions",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "versions",
+      "criticality": "P1",
+      "description": "UI diff page accepts `?component=<id>&from=<v>&to=<v>` (or `from=<v>&to=adoption:<adoption_id>`). Renders a side-by-side unified diff. Library and adopted-copy comparisons use the same renderer.",
+      "tags": ["versions", "diff", "ui"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Component test asserts diff hunks render for a fixture pair; BAS flow `adopt-and-detect-drift` opens the diff viewer end-to-end."
+        }
+      ]
+    }
+  ]
+}

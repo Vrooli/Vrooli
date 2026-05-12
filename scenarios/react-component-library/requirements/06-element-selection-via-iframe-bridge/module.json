@@ -1,0 +1,79 @@
+{
+  "_metadata": {
+    "module": "element-selection-via-iframe-bridge",
+    "description": "Click-to-inspect element selection inside the preview iframe, wired through @vrooli/iframe-bridge.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ES-001",
+      "title": "Hover overlay rect tracks the pointed element inside the iframe",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "inspector",
+      "criticality": "P1",
+      "description": "When inspector mode is on, hovering an element inside the iframe sends a bridge `INSPECT_HOVER` message with the element's bounding rect (iframe-relative). The host renders an overlay rect over the iframe at that position.",
+      "tags": ["inspector", "iframe-bridge"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Host hook test simulates an INSPECT_HOVER message and asserts overlay rect state updates; BAS flow `select-element` exercises a click."
+        }
+      ]
+    },
+    {
+      "id": "ES-002",
+      "title": "Selected-element breadcrumb shows ancestor chain with tag + key class",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "inspector",
+      "criticality": "P1",
+      "description": "After click, the bridge returns the selected element's ancestor chain (root → element). Host renders a breadcrumb: each segment shows tagName plus the first className. Clicking a segment changes the selection to that ancestor.",
+      "tags": ["inspector", "breadcrumb"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Component test renders the panel against a fixture chain and asserts segment count, labels, and click-to-promote behavior."
+        }
+      ]
+    },
+    {
+      "id": "ES-003",
+      "title": "Element screenshot capture returns a PNG for the selected node",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "inspector",
+      "criticality": "P1",
+      "description": "Bridge `INSPECT_CAPTURE` request returns a base64 PNG of just the selected element's bounding rect (clipped). Capture uses `html-to-image` or equivalent inside the child; failures surface a structured error in the inspector panel.",
+      "tags": ["inspector", "screenshot"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Mock bridge returns a fixture PNG; component test asserts the image renders and a copy-to-clipboard button is wired."
+        }
+      ]
+    },
+    {
+      "id": "ES-004",
+      "title": "Selection context is exposed to the AI chat panel",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "inspector",
+      "criticality": "P1",
+      "description": "When the AI panel mounts, it reads the current inspector selection (tag, class, ancestor chain, optional screenshot ref) and includes it as context in the next prompt. No AI call is made until OT-P2-001 lands; this requirement only wires the data dependency.",
+      "tags": ["inspector", "ai-integration"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Hook test asserts the chat-context store reflects the inspector state."
+        }
+      ]
+    }
+  ]
+}

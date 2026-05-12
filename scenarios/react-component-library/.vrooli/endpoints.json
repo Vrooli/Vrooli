@@ -3,18 +3,252 @@
   "version": "1.0.0",
   "endpoints": [
     {
+      "id": "components_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents",
+      "method": "POST",
+      "summary": "List components",
+      "description": "Returns components matching optional match / tag / limit filters through the generated Connect-RPC ComponentsService.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (max rows, 0 = server default)",
+          "match": "string (case-insensitive substring filter)",
+          "tag": "string (exact tag filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "components": "array<Component>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components list"
+      }
+    },
+    {
+      "id": "components_get",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent",
+      "method": "POST",
+      "summary": "Get a component by id",
+      "description": "Returns the component matching the request id.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components get",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "components_get_by_library_id",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentByLibraryId",
+      "method": "POST",
+      "summary": "Get a component by libraryId",
+      "description": "Returns the component matching the @libraryId header value.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "library_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that libraryId"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components get-by-library-id",
+        "args": [
+          "<libraryId>"
+        ]
+      }
+    },
+    {
+      "id": "components_index",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/IndexComponents",
+      "method": "POST",
+      "summary": "Re-index components from disk",
+      "description": "Walks the configured source root for *.tsx files with @libraryId headers and upserts them into the registry. Removes rows whose files have been deleted.",
+      "category": "components",
+      "response": {
+        "type": "object",
+        "properties": {
+          "deleted": "int32",
+          "errors": "array<string>",
+          "indexed": "int32",
+          "library_ids": "array<string>",
+          "scanned": "int32",
+          "skipped": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Walk or upsert failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components index"
+      }
+    },
+    {
+      "id": "components_content_get",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent",
+      "method": "POST",
+      "summary": "Read a component's source file",
+      "description": "Returns the raw TSX content of the component's source file plus a SHA-256 digest. Path-traversal guard rejects rows whose source_path escapes the configured root.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string (utf-8 source)",
+          "sha256": "string (hex digest)",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Component source_path escapes configured root"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components content-get",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "components_content_set",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentContent",
+      "method": "POST",
+      "summary": "Write a component's source file",
+      "description": "Overwrites the component's TSX file in place. Pass expected_sha256 from a prior read for optimistic concurrency. Re-run `index` afterward if the @libraryId header changed.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "content": "string (utf-8 source)",
+          "expected_sha256": "string (optional)",
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "sha256": "string (hex digest of written content)",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Component source_path escapes configured root"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "expected_sha256 did not match on-disk digest"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem write failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components content-set",
+        "args": [
+          "<id>",
+          "<file>"
+        ]
+      }
+    },
+    {
       "id": "health",
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
         "type": "object",
         "properties": {
-          "status": "string",
+          "dependencies": "object",
           "readiness": "boolean",
-          "dependencies": "object"
+          "status": "string"
         }
       },
       "examples": [
@@ -26,13 +260,287 @@
       "cli_mapping": {
         "command": "react-component-library status"
       }
+    },
+    {
+      "id": "notes_list",
+      "path": "/vrooli.react_component_library.v1.notes.NotesService/ListNotes",
+      "method": "POST",
+      "summary": "List notes",
+      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
+      "category": "notes",
+      "response": {
+        "type": "object",
+        "properties": {
+          "notes": "array<Note>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List notes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.react_component_library.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library notes list"
+      }
+    },
+    {
+      "id": "notes_create",
+      "path": "/vrooli.react_component_library.v1.notes.NotesService/CreateNote",
+      "method": "POST",
+      "summary": "Create a note",
+      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
+      "category": "notes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "body": "string",
+          "title": "string (required, non-whitespace)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "note": "Note"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or whitespace-only title"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create note",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.react_component_library.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library notes create",
+        "args": [
+          "--title",
+          "<title>",
+          "--body",
+          "<body>"
+        ]
+      }
+    },
+    {
+      "id": "notes_get",
+      "path": "/vrooli.react_component_library.v1.notes.NotesService/GetNote",
+      "method": "POST",
+      "summary": "Get a note by id",
+      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
+      "category": "notes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "note": "Note"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No note with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get note",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.react_component_library.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library notes get",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "notes_attach",
+      "path": "/api/v1/notes/{id}/attachments",
+      "method": "POST",
+      "summary": "Upload a note attachment",
+      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
+      "category": "notes",
+      "request": {
+        "type": "multipart/form-data",
+        "properties": {
+          "file": "file (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "attachment": "Attachment"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Missing file or invalid multipart upload"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No note with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "BlobStore or metadata persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Attach file",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library notes attach",
+        "args": [
+          "<id>",
+          "--file",
+          "<path>"
+        ]
+      }
+    },
+    {
+      "id": "preview_get_bundle",
+      "path": "/vrooli.react_component_library.v1.preview.PreviewService/GetPreviewBundle",
+      "method": "POST",
+      "summary": "Bundle a component for preview",
+      "description": "Transpiles a component's TSX source to an ES module via esbuild. Used by the CLI for diagnostics and by the harness HTML route for iframe rendering. Externals: react, react-dom, react-dom/client.",
+      "category": "preview",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "js": "string (ES module text)",
+          "sha256": "string (hex digest of js)",
+          "source_path": "string",
+          "warnings": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Bundler rejected the file (syntax error or unresolved import) or source_path escapes root"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem read or bundler internal failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library preview bundle",
+        "args": [
+          "<id>"
+        ]
+      }
     }
   ],
   "cli_commands": [
     {
       "name": "status",
-      "description": "Check API and dependency health",
+      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
       "endpoint_id": "health"
+    },
+    {
+      "name": "components index",
+      "description": "Walk the source root and refresh the components registry",
+      "endpoint_id": "components_index"
+    },
+    {
+      "name": "components list",
+      "description": "List indexed components (--match SUBSTR, --tag TAG, --limit N)",
+      "endpoint_id": "components_list"
+    },
+    {
+      "name": "components get",
+      "description": "Get a component by id",
+      "endpoint_id": "components_get"
+    },
+    {
+      "name": "components get-by-library-id",
+      "description": "Get a component by its @libraryId header value",
+      "endpoint_id": "components_get_by_library_id"
+    },
+    {
+      "name": "components content-get",
+      "description": "Read a component's source file",
+      "endpoint_id": "components_content_get"
+    },
+    {
+      "name": "components content-set",
+      "description": "Write a component's source file (use - to read from stdin)",
+      "endpoint_id": "components_content_set"
+    },
+    {
+      "name": "preview bundle",
+      "description": "Print the esbuild-transpiled ES module for a component (used by the live-preview iframe and for diagnostics)",
+      "endpoint_id": "preview_get_bundle"
+    },
+    {
+      "name": "notes list",
+      "description": "List all notes (newest-first, default limit 100)",
+      "endpoint_id": "notes_list"
+    },
+    {
+      "name": "notes create",
+      "description": "Create a note (--title TITLE [--body BODY])",
+      "endpoint_id": "notes_create"
+    },
+    {
+      "name": "notes get",
+      "description": "Get a note by id",
+      "endpoint_id": "notes_get"
+    },
+    {
+      "name": "notes attach",
+      "description": "Upload an attachment for a note (--file PATH)",
+      "endpoint_id": "notes_attach"
     }
   ]
 }

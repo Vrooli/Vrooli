@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "theme-preview-switcher",
+    "description": "Switch the preview iframe's theme between built-in themes and themes derived from a target scenario's DESIGN.md.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TH-001",
+      "title": "Built-in themes are seeded into the registry and selectable from the UI",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "theme",
+      "criticality": "P1",
+      "description": "`builtin_themes` (id, name, tokens_json) is seeded at boot with at least: vrooli-default, neutral-light, neutral-dark, high-contrast. `GET /api/v1/themes/builtin` lists them; `GET /api/v1/themes/builtin/{id}` returns tokens.",
+      "tags": ["theme", "registry"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Repository test asserts seed-on-empty behavior; handler tests cover list/get."
+        }
+      ]
+    },
+    {
+      "id": "TH-002",
+      "title": "Target scenario's DESIGN.md is resolved server-side to normalized JSON",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "theme",
+      "criticality": "P1",
+      "description": "`GET /api/v1/themes/from-scenario/{scenario_id}` reads the named scenario's `DESIGN.md` via the storage resolver, parses the YAML front-matter using the canonical `vrooli-default` schema (colors, typography, rounded, spacing, components), and returns normalized JSON. Unknown shapes reject with HTTP 422 and a structured error. The client never builds the URL or parses DESIGN.md directly.",
+      "tags": ["theme", "api"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Service test feeds the flow-verifier DESIGN.md and asserts the normalized JSON shape; negative test for a malformed front-matter returns 422."
+        }
+      ]
+    },
+    {
+      "id": "TH-003",
+      "title": "Preview harness mounts the selected theme as CSS custom properties before render",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "theme",
+      "criticality": "P1",
+      "description": "When a theme is selected, the host posts the normalized tokens via the bridge. The harness child applies them as CSS custom properties on `:root` before mounting the component, then triggers a re-render.",
+      "tags": ["theme", "iframe-bridge", "preview"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "BAS flow `theme-switch-applies` confirms the preview reflects the theme change."
+        }
+      ]
+    }
+  ]
+}

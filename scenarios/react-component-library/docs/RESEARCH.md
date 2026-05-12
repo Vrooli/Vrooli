@@ -1,150 +1,82 @@
-# Research Notes
+# Research — React Component Library
 
-This document captures research findings, uniqueness checks, and external references for react-component-library.
+Notes on substrate decisions that don't rise to a permanent decision in
+`docs/internal/DECISIONS.md` but need a written record so future agents
+don't relitigate them.
 
-## Uniqueness Check
+## Preview harness bundling (Phase 4 slice 3, 2026-05-12)
 
-### Within Vrooli Repository
-- **Search Date**: 2025-11-22
-- **Search Pattern**: `react-component-library`, `component library`, `design system`, `UI library`
-- **Findings**:
-  - No existing `react-component-library` scenario found
-  - Found artifacts in `app-issue-tracker/artifacts/` suggesting prior planning or testing
-  - No other scenarios provide centralized component library management
-  - Several scenarios could benefit from shared component library (tidiness-manager, landing-manager, deployment-manager)
+The library has to execute real React inside an iframe so the user
+sees a live preview of the component they edited. That means the API
+needs a way to turn a TSX source file on disk into something the
+browser can load as an ES module.
 
-### Related Vrooli Scenarios
+### Options considered
 
-#### app-monitor
-- **Relevance**: Reference implementation for iframe-bridge integration and emulator patterns
-- **Overlap**: Uses iframe-bridge for element inspection, has preview/emulator functionality
-- **Differentiation**: app-monitor focuses on monitoring running scenarios, not component editing/management
-- **Learnings**:
-  - iframe-bridge implementation patterns
-  - Multi-viewport emulator architecture
-  - Element selection and inspection UI patterns
+1. **esbuild Go API on-the-fly** — call `github.com/evanw/esbuild/pkg/api`
+   from the API process; transform the TSX file (loader `tsx`, format
+   `esm`); serve the result as `/preview/{id}/bundle.js`. React /
+   ReactDOM resolved client-side via an importmap pointing at esm.sh.
+2. **Vite SSR / dev server proxy** — run a Vite dev server child
+   process; proxy `/preview/...` to it. Vite handles bundling.
+3. **Pre-bundle all components at scenario boot** — walk the registry,
+   produce one bundle per component up-front, serve as static files.
 
-#### app-issue-tracker
-- **Relevance**: Integration target for component adoption workflow
-- **Overlap**: Issue creation and tracking
-- **Differentiation**: react-component-library generates adoption issues, app-issue-tracker manages them
-- **Integration**: Will use app-issue-tracker API to create detailed adoption reports for coding agents
+### Decision: option 1 (esbuild Go on-the-fly)
 
-#### browser-automation-studio
-- **Relevance**: Template reference for React + Vite + Go stack
-- **Overlap**: Similar tech stack, lifecycle patterns
-- **Differentiation**: Focuses on browser automation, not component management
-- **Learnings**: UI structure, API patterns, testing organization
+| Axis | Why option 1 wins |
+|---|---|
+| Runtime topology | Pure Go; no Node child process; matches the rest of the API. |
+| Cold-start latency | esbuild ≈10ms per small TSX file — well under the PRD's <1s warm-preview budget. |
+| Determinism | One process, one transform; nothing async-cached behind the scenes. |
+| Greenfield fit | No bundler config files, no `vite.config.*` to babysit. |
+| Editing UX | Save → re-transform on the next iframe load. Cache-buster query forces reload. |
+| Failure surface | esbuild surface errors are structured and easy to return as Connect `InvalidArgument`. |
 
-## External References
+Option 2 was rejected because spawning a Node-side process duplicates
+the substrate and pushes us toward two languages of bundler config
+for the same problem. Option 3 was rejected because it forces a full
+re-bundle on every save and hides the "the file you edited is what's
+running" semantics that make live preview believable.
 
-### Component Library Patterns
+### Resolved contracts
 
-#### shadcn/ui
-- **URL**: https://ui.shadcn.com/
-- **Relevance**: Component architecture and structure patterns
-- **Learnings**:
-  - Component registry with metadata
-  - Copy/paste adoption model (similar to our "apply to scenario")
-  - Header comment pattern for component metadata
-  - Radix UI primitives for accessibility
+- **Externals**: `react`, `react-dom`, `react-dom/client` are marked
+  external in the esbuild call; the harness HTML carries an importmap
+  that maps them to `https://esm.sh/react@<pinned>` etc. The pin is
+  read from a constant in `internal/preview/`; bumping it is a
+  source-edit, not a runtime concern.
+- **Working directory**: esbuild's `ResolveDir` is the configured
+  component source root (the same root the FSContentStore guards).
+  Relative imports inside a component resolve relative to that root.
+- **Harness HTML**: served at `GET /preview/{id}/harness.html`. The
+  shell renders the component's default export into a `<div id="root">`
+  via `ReactDOM.createRoot`. The component bundle is fetched at
+  `/preview/{id}/bundle.js`.
+- **Cache-busting**: the host iframe wrapper appends a `?v=<sha256>`
+  query reflecting the latest content sha; saves cause the sha to
+  change which causes the iframe to reload.
+- **iframe-bridge child** (req 03 mentions `initIframeBridgeChild()`):
+  full bridge wiring (HELLO/READY/INSPECT) is **deferred** to req 06
+  (element selection). For now the harness posts a minimal
+  `preview-ready` message so the host can detect first-paint without
+  pulling the bridge package into the bundle yet. Tracked in
+  `docs/internal/PROBLEMS.md`.
 
-#### Storybook
-- **URL**: https://storybook.js.org/
-- **Relevance**: Component story/demo file patterns
-- **Learnings**:
-  - Story-based component development
-  - Multi-viewport preview
-  - Component documentation patterns
-- **Future Integration**: P2 feature for component story files
+### Revisit triggers
 
-#### Radix UI
-- **URL**: https://www.radix-ui.com/
-- **Relevance**: Accessible component primitives used by shadcn
-- **Learnings**:
-  - Accessibility-first component design
-  - Headless component architecture
-  - Keyboard navigation patterns
+- esbuild transform exceeds the warm-preview latency budget on any
+  realistic component.
+- esm.sh becomes an unacceptable network dependency for offline use —
+  if so, vendor React into the API binary as embedded files and serve
+  from `/preview/runtime/react@*.js` instead of the importmap CDN.
+- iframe-bridge wiring becomes blocking for any P0 feature — promote
+  the bundling of `@vrooli/iframe-bridge/child` into the esbuild call
+  (it's just another module to bundle in alongside the component).
 
-### Code Editor Solutions
+### Behaviors worth preserving (skimmed from the stashed pre-rewrite tree)
 
-#### Monaco Editor
-- **URL**: https://microsoft.github.io/monaco-editor/
-- **Relevance**: Potential code editor implementation
-- **Pros**: Full VS Code features, excellent TypeScript/TSX support, widely used
-- **Cons**: Larger bundle size (~2-3MB), more complex integration
-- **Use Cases**: VS Code, Azure DevOps, StackBlitz
-
-#### CodeMirror 6
-- **URL**: https://codemirror.net/
-- **Relevance**: Alternative code editor option
-- **Pros**: Lighter weight, highly customizable, modern architecture
-- **Cons**: Less feature-complete than Monaco out of box
-- **Use Cases**: Replit, Observable, many lightweight editors
-
-### AI Code Editing References
-
-#### GitHub Copilot
-- **Relevance**: AI-powered code suggestions and completions
-- **Learnings**: Context-aware suggestions, inline diff display, accept/reject workflow
-
-#### Cursor
-- **Relevance**: AI-first code editor with chat and inline editing
-- **Learnings**: Chat-to-code workflow, patch review UI, multi-file context
-
-#### Codeium
-- **Relevance**: AI code completion and chat
-- **Learnings**: Free AI code assistance, diff view patterns
-
-## Domain Research
-
-### Component Library Management
-- **Problem**: Component duplication across projects leads to inconsistency, maintenance burden
-- **Solution**: Centralized library with version tracking, adoption workflow, change detection
-- **Industry Examples**: Design systems at Airbnb (React Dates), Shopify (Polaris), Adobe (Spectrum)
-
-### Multi-Viewport Testing
-- **Problem**: Responsive design requires testing across many viewport sizes
-- **Industry Tools**: Browser DevTools, Responsively App, BrowserStack
-- **Our Approach**: Simultaneous multi-frame preview inspired by browser dev tools and app-monitor
-
-### AI-Powered Code Editing
-- **Problem**: Manual component refactoring is time-consuming and error-prone
-- **Industry Trend**: AI-assisted development (GitHub Copilot, Cursor, Codeium)
-- **Our Approach**: Context-aware AI editing via resource-openrouter with diff review workflow
-
-## Technical Constraints
-
-### iframe-bridge Integration
-- **Requirement**: Components must render in iframes for isolation and element selection
-- **Implication**: Need iframe-friendly build configuration, cross-origin communication
-- **Reference**: app-monitor implementation
-
-### Header Comment Parsing
-- **Requirement**: Components must have standardized header comments
-- **Implication**: Need robust parsing, validation, and enforcement
-- **Challenge**: Preventing developer deletion or modification
-
-### Version Tracking
-- **Requirement**: Track component versions and detect drift
-- **Implication**: Need file system scanning, content hashing, diff generation
-- **Complexity**: Balancing performance with accuracy
-
-## Open Research Questions
-
-1. **Code Editor Performance**: How to handle large component files (>1000 lines) without lag?
-2. **AI Context Limits**: What's the optimal context size for AI code suggestions? How to handle large components?
-3. **Adoption Verification**: How to reliably verify component adoption across scenarios without tight coupling?
-4. **Version Strategy**: Should we support automatic version bumping based on changes, or require manual version updates?
-
-## Related Literature & Blog Posts
-
-_To be populated as relevant articles and resources are discovered during implementation._
-
-## Future Research Areas
-
-- Component dependency graph generation and visualization
-- Design token integration with brand-manager or similar systems
-- Automated component test generation with test-genie
-- Component usage analytics and ROI tracking
-- Visual regression testing integration
+The stashed `/tmp/react-component-library-pre-rewrite-2026-05-12/`
+tree shipped a placeholder HTML preview, so there's nothing to lift.
+The behavioral lesson is that "iframe with text content" is not a
+preview — execution has to be real or the feature has no value.

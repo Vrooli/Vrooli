@@ -1,32 +1,33 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Layout } from "./components/Layout";
-import { Library } from "./pages/Library";
-import { Editor } from "./pages/Editor";
-import { Adoptions } from "./pages/Adoptions";
+import { AppShell } from "./components/AppShell";
+import { ComponentsCard } from "./features/components/ComponentsCard";
+import { HealthCard } from "./features/health/HealthCard";
+import { NotesCard } from "./features/notes/NotesCard";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 5000,
-    },
-  },
-});
-
+/**
+ * PLACEHOLDER — REPLACE WHEN BUILDING THE REAL UX.
+ *
+ * This `App` is a minimum-viable scaffold so the template boots green.
+ * It is not a reasonable end-state for your scenario. When you design
+ * the real product:
+ *   - Replace `AppShell` (or rewrite it heavily) with the real shell,
+ *     navigation, and layout your scenario needs.
+ *   - Replace this single-page composition with whatever surfaces
+ *     your scenario actually has (router, pages, panels, dashboards).
+ *   - Keep i18n, accessibility selectors, and design-token usage
+ *     intact inside the new layout — those are durable seams, not
+ *     placeholder choices.
+ *
+ * Pattern for adding a feature: create
+ * `features/<name>/<Name>Card.tsx`, then import + render it. Deleting
+ * a feature: delete the folder, remove the import + render. There is
+ * no central registry to mutate.
+ */
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Library />} />
-            <Route path="editor/:id" element={<Editor />} />
-            <Route path="adoptions" element={<Adoptions />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <AppShell>
+      <HealthCard />
+      <ComponentsCard />
+      <NotesCard />
+    </AppShell>
   );
 }

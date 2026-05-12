@@ -1,18 +1,24 @@
 {
   "_metadata": {
-    "description": "Parent registry linking operational targets to technical requirements",
+    "description": "Registry linking operational targets to technical requirements for react-component-library.",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0"
   },
-  "requirements": [],
   "imports": [
-    "01-component-registry/module.json",
-    "02-code-editor-preview/module.json",
-    "03-multi-viewport-emulator/module.json",
-    "04-element-selection/module.json",
-    "05-ai-editing/module.json",
-    "06-search-filtering/module.json",
-    "07-adoption-workflow/module.json",
-    "08-version-tracking/module.json"
+    "01-component-registry-and-header-format/module.json",
+    "02-code-editor-monaco/module.json",
+    "03-live-preview-iframe-execution/module.json",
+    "04-multi-viewport-emulator/module.json",
+    "05-devtools-style-filters/module.json",
+    "06-element-selection-via-iframe-bridge/module.json",
+    "07-search-and-filter/module.json",
+    "08-adoption-workflow/module.json",
+    "09-adoption-issue-integration/module.json",
+    "10-dependency-compatibility-check/module.json",
+    "11-version-tracking-and-diff-viewer/module.json",
+    "12-theme-preview-switcher/module.json",
+    "13-ai-powered-editing/module.json",
+    "14-cli-surface/module.json",
+    "15-testing-coverage/module.json"
   ]
 }

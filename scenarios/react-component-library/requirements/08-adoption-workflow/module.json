@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "adoption-workflow",
+    "description": "Track which scenarios have adopted which components, and compute drift status on refresh.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AD-001",
+      "title": "Create adoption record from CLI or UI",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "adoption",
+      "criticality": "P0",
+      "description": "`POST /api/v1/adoptions` (mirrored by `react-component-library adoptions create`) accepts `{component_id, scenario, adopted_path, adopted_version}` and inserts a row into `adoption_records`. Component_id is a soft FK (no SQL constraint) per per-domain rule.",
+      "tags": ["adoption", "cli"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Repository test, handler test, CLI smoke test all cover the create path."
+        }
+      ]
+    },
+    {
+      "id": "AD-002",
+      "title": "Refresh computes drift status per adoption record",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "adoption",
+      "criticality": "P0",
+      "description": "`POST /api/v1/adoptions/refresh` (and `... adoptions refresh`) reads each record, fetches the current library version of the component and the byte content at `adopted_path`, and sets `status` ∈ {current, behind, modified, unknown}: `current` if adopted_version == library version AND adopted bytes match library bytes; `behind` if adopted_version < library version AND adopted bytes still match the adopted_version snapshot; `modified` if adopted bytes diverge from any known version; `unknown` if adopted_path is missing.",
+      "tags": ["adoption", "drift"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Service test seeds a fake target scenario tree, varies version/bytes for each status, and asserts the computed status."
+        }
+      ]
+    },
+    {
+      "id": "AD-003",
+      "title": "UI adoptions dashboard lists records with status badges",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "adoption",
+      "criticality": "P0",
+      "description": "Adoptions page shows a table: component name, target scenario, adopted version, adopted path, status (color-coded badge), last refreshed timestamp. A refresh button triggers the API refresh and re-fetches.",
+      "tags": ["adoption", "ui"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Component test renders the page against fixture data covering each status; a11y test ensures status conveys non-color information."
+        }
+      ]
+    }
+  ]
+}

@@ -2,131 +2,122 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
-	"net/http"
-	"time"
+	"os"
+	"path/filepath"
+	"strings"
 
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	"react-component-library/internal/clock"
+	"react-component-library/internal/modules"
+	"react-component-library/internal/server"
+
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
+
+	componentsH "react-component-library/handlers/components"
+	healthH "react-component-library/handlers/health"
+	notesH "react-component-library/handlers/notes"
+	previewH "react-component-library/handlers/preview"
 )
 
-// Config holds minimal runtime configuration
-type Config struct {
-	Port        string
-	DatabaseURL string
-}
+// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
+// with the canonical pragma string. Resolution order:
+//
+//  1. SQLITE_PATH env — the canonical override.
+//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
+//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
+//     filesystem-safe-by-default location.
+//
+// The pragmas mirror agent-inbox; tweak in lockstep with
+// internal/testutil/db.NewSQLite so production and tests open files the
+// same way.
+func sqliteDSN() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
+	}
+	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+		return sqliteFileDSN(path)
+	}
 
-// Server wires the HTTP router and database connection
-type Server struct {
-	config *Config
-	db     *sql.DB
-	router *mux.Router
-}
-
-// NewServer initializes configuration, database, and routes
-func NewServer() (*Server, error) {
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return "", fmt.Errorf("create storage resolver: %w", err)
 	}
-
-	srv := &Server{
-		config: &Config{},
-		db:     db,
-		router: mux.NewRouter(),
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: "react-component-library"},
+		storage.ClassData,
+		"react-component-library.db",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve react-component-library db path: %w", err)
 	}
-
-	srv.setupRoutes()
-	return srv, nil
+	return sqliteFileDSN(path)
 }
 
-func (s *Server) setupRoutes() {
-	s.router.Use(loggingMiddleware)
-
-	// Health endpoints
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()
-	s.router.HandleFunc("/health", healthHandler).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
-
-	// Component endpoints
-	s.router.HandleFunc("/api/v1/components", s.handleGetComponents).Methods("GET")
-	s.router.HandleFunc("/api/v1/components", s.handleCreateComponent).Methods("POST")
-	s.router.HandleFunc("/api/v1/components/search", s.handleSearchComponents).Methods("GET")
-	s.router.HandleFunc("/api/v1/components/{id}", s.handleGetComponent).Methods("GET")
-	s.router.HandleFunc("/api/v1/components/{id}", s.handleUpdateComponent).Methods("PUT")
-	s.router.HandleFunc("/api/v1/components/{id}/content", s.handleGetComponentContent).Methods("GET")
-	s.router.HandleFunc("/api/v1/components/{id}/content", s.handleUpdateComponentContent).Methods("PUT")
-	s.router.HandleFunc("/api/v1/components/{id}/versions", s.handleGetComponentVersions).Methods("GET")
-
-	// Adoption endpoints
-	s.router.HandleFunc("/api/v1/adoptions", s.handleGetAdoptions).Methods("GET")
-	s.router.HandleFunc("/api/v1/adoptions", s.handleCreateAdoption).Methods("POST")
-
-	// AI endpoints
-	s.router.HandleFunc("/api/v1/ai/chat", s.handleAIChat).Methods("POST")
-	s.router.HandleFunc("/api/v1/ai/refactor", s.handleAIRefactor).Methods("POST")
-}
-
-// Router returns the HTTP handler for use with server.Run
-func (s *Server) Router() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
-}
-
-// Cleanup releases resources when the server shuts down
-func (s *Server) Cleanup() error {
-	if s.db != nil {
-		return s.db.Close()
+func sqliteFileDSN(path string) (string, error) {
+	if strings.HasPrefix(path, "file:") {
+		return path, nil
 	}
-	return nil
-}
-
-// loggingMiddleware prints simple request logs
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
-	})
-}
-
-func (s *Server) log(msg string, fields map[string]interface{}) {
-	if len(fields) == 0 {
-		log.Println(msg)
-		return
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
 	}
-	log.Printf("%s | %v", msg, fields)
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		path,
+	), nil
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "react-component-library",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "react-component-library"}) {
+		return
 	}
 
-	srv, err := NewServer()
+	dsn, err := sqliteDSN()
 	if err != nil {
-		log.Fatalf("failed to initialize server: %v", err)
+		log.Fatalf("sqlite configuration failed: %v", err)
 	}
 
-	if err := server.Run(server.Config{
-		Handler: srv.Router(),
-		Cleanup: func(ctx context.Context) error {
-			return srv.Cleanup()
-		},
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+
+	sourceRoot, err := componentsH.DefaultSourceRoot()
+	if err != nil {
+		log.Fatalf("components source root: %v", err)
+	}
+	componentsSvc, _ := componentsH.BuildService(db, clock.System{}, sourceRoot)
+
+	srv := server.New(
+		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		componentsH.ModuleWithRoot(db, clock.System{}, sourceRoot, log.Default()),
+		healthH.Module(db, "react-component-library-api", "1.0.0"),
+		notesH.Module(db, clock.System{}, log.Default()),
+		previewH.Module(componentsSvc, log.Default()),
+	)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: srv.Handler(),
+		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
-		log.Fatalf("server error: %v", err)
+		log.Fatalf("Server error: %v", err)
 	}
 }

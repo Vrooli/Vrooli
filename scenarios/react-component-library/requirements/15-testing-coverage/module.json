@@ -1,0 +1,96 @@
+{
+  "_metadata": {
+    "module": "testing-coverage",
+    "description": "Testing seams and coverage targets per unit-testing-architecture-steer: SQLite-backed repos, mocked handlers, UI component tests, BAS flows.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TC-001",
+      "title": "Per-domain SQLite-backed repository tests cover CRUD and error paths",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Each `api/internal/<dom>/sqlite.go` has a sibling `sqlite_test.go` that exercises the repository against `:memory:` or `t.TempDir()` SQLite. No testcontainers. No Postgres.",
+      "tags": ["testing", "sqlite"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "`go test ./internal/... -run Sqlite` is green; coverage tooling reports per-domain coverage."
+        }
+      ]
+    },
+    {
+      "id": "TC-002",
+      "title": "Handlers are tested against repository fakes, not the live SQLite",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Each `api/handlers/<dom>/handlers_test.go` uses the co-located `internal/<dom>/mocks/` fake. Handler tests assert request decoding, response shape, and error mapping — not SQL behavior.",
+      "tags": ["testing", "handlers"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "`go test ./handlers/... -run Handler` is green."
+        }
+      ]
+    },
+    {
+      "id": "TC-003",
+      "title": "UI has a component test per top-level page and an a11y test for each",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Library, Editor, Adoptions, Diff, Theme-switcher pages each ship a `*.test.tsx` and an `*.a11y.test.tsx` using the template's stock testing setup.",
+      "tags": ["testing", "ui"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "`pnpm test -- --run` is green; axe-core a11y assertions pass."
+        }
+      ]
+    },
+    {
+      "id": "TC-004",
+      "title": "BAS flows cover the primary user journeys",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Flows: `index-and-list`, `edit-and-preview`, `select-element`, `adopt-and-detect-drift`, `dep-mismatch-blocks-adopt`, `theme-switch-applies`.",
+      "tags": ["testing", "bas"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "`vrooli scenario test react-component-library` runs the BAS suite green."
+        }
+      ]
+    },
+    {
+      "id": "TC-005",
+      "title": "PROGRESS.md status mirrors test gates honestly",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Every requirement has a PROGRESS.md row with `planned | in progress: <test gate> | complete: <test names>`. A row never claims `complete` if the named tests are not green.",
+      "tags": ["testing", "discipline"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Auditor cross-checks PROGRESS.md complete-claims against the test report on each release."
+        }
+      ]
+    }
+  ]
+}

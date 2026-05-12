@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "module": "adoption-issue-integration",
+    "description": "When an adoption record goes behind, open an issue in the target scenario via app-issue-tracker's CLI.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "IS-001",
+      "title": "Drift transitions trigger a single issue per adoption record",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "On refresh, when an adoption record's status transitions from current to behind/modified, the service invokes `app-issue-tracker` via its scenario CLI to file an issue in the target scenario's tracker. The issue ID is recorded on the adoption record (`drift_issue_id`) to suppress duplicates on subsequent refreshes.",
+      "tags": ["adoption", "integration"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Service test injects a fake CLI invoker, asserts the CLI command/args, and verifies dedupe on a second refresh."
+        }
+      ]
+    },
+    {
+      "id": "IS-002",
+      "title": "Integration uses the scenario CLI, never raw HTTP",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "If app-issue-tracker's CLI lacks a verb needed for this integration, the verb must be added to that CLI first. The library never falls back to direct HTTP calls.",
+      "tags": ["integration", "cli-discipline"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Code review: `rg -n 'http\\.|fetch\\(' api/internal/adoptions` returns nothing related to issue filing."
+        }
+      ]
+    }
+  ]
+}

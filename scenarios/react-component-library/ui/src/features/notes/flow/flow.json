@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 6,
+  "flowId": "notes.attachment-upload.ui",
+  "domain": "notes",
+  "description": "UI attachment upload interaction, including stale async completion protection through attempt identity.",
+  "model": {
+    "module": "UiAttachmentUploadWorkflow",
+    "seed": "2026051002",
+    "maxSteps": 8,
+    "traceCount": 12,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState",
+        "StaleCompletionIsIgnored"
+      ]
+    }
+  },
+  "states": [
+    { "id": "idle", "quint": "Idle", "initial": true },
+    { "id": "selected", "quint": "Selected" },
+    { "id": "uploading", "quint": "Uploading" },
+    { "id": "succeeded", "quint": "Succeeded" },
+    { "id": "failed", "quint": "Failed" }
+  ],
+  "events": [
+    { "id": "select", "quint": "Select" },
+    { "id": "start", "quint": "Start" },
+    { "id": "succeed", "quint": "Succeed" },
+    { "id": "fail", "quint": "Fail" },
+    { "id": "reset", "quint": "Reset" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": false }
+  },
+  "transitions": [
+    { "from": ["idle", "selected", "uploading", "succeeded", "failed"], "event": "select", "to": "selected" },
+    { "from": "selected", "event": "start", "to": "uploading" },
+    { "from": "failed", "event": "start", "to": "uploading" },
+    { "from": "uploading", "event": "succeed", "to": "succeeded" },
+    { "from": "uploading", "event": "fail", "to": "failed" },
+    { "from": ["selected", "uploading", "succeeded", "failed"], "event": "reset", "to": "idle" },
+    { "from": ["idle", "uploading", "succeeded"], "event": "start", "to": "self", "wantError": true }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },
+    { "id": "terminal_closure", "quint": "TerminalClosure", "description": "No terminal state is declared for this restartable UI flow." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions are state preserving." },
+    {
+      "id": "stale_completion_is_ignored",
+      "quint": "StaleCompletionIsIgnored",
+      "description": "Completion callbacks outside the active uploading state cannot change UI status.",
+      "expression": "status == Uploading or (nextStatus(status, Succeed) == status and nextStatus(status, Fail) == status)"
+    }
+  ],
+  "traces": [
+    {
+      "name": "successful_upload",
+      "initial": "idle",
+      "steps": [
+        { "event": "select", "want": "selected", "wantError": false },
+        { "event": "start", "want": "uploading", "wantError": false },
+        { "event": "succeed", "want": "succeeded", "wantError": false }
+      ]
+    },
+    {
+      "name": "failed_upload_then_retry",
+      "initial": "idle",
+      "steps": [
+        { "event": "select", "want": "selected", "wantError": false },
+        { "event": "start", "want": "uploading", "wantError": false },
+        { "event": "fail", "want": "failed", "wantError": false },
+        { "event": "start", "want": "uploading", "wantError": false },
+        { "event": "succeed", "want": "succeeded", "wantError": false }
+      ]
+    },
+    {
+      "name": "stale_success_after_reset_is_ignored",
+      "initial": "idle",
+      "steps": [
+        { "event": "select", "want": "selected", "wantError": false },
+        { "event": "start", "want": "uploading", "wantError": false },
+        { "event": "reset", "want": "idle", "wantError": false },
+        { "event": "succeed", "want": "idle", "wantError": false }
+      ]
+    },
+    {
+      "name": "stale_failure_after_reselect_is_ignored",
+      "initial": "idle",
+      "steps": [
+        { "event": "select", "want": "selected", "wantError": false },
+        { "event": "start", "want": "uploading", "wantError": false },
+        { "event": "select", "want": "selected", "wantError": false },
+        { "event": "fail", "want": "selected", "wantError": false }
+      ]
+    }
+  ],
+  "runtime": {
+    "typescript": {
+      "statusType": "AttachmentUploadStatus",
+      "eventType": "AttachmentUploadEventType",
+      "statusesConst": "attachmentUploadStatuses",
+      "eventsConst": "attachmentUploadEvents",
+      "formalExpectationConst": "attachmentUploadFormalExpectation",
+      "stateUnionType": "AttachmentUploadState",
+      "eventUnionType": "AttachmentUploadEvent",
+      "payloadTypes": {
+        "attemptId": "string",
+        "file": "File",
+        "fileName": "string",
+        "message": "string"
+      },
+      "stateVariants": {
+        "idle": {},
+        "selected": {
+          "file": "file"
+        },
+        "uploading": {
+          "attemptId": "attemptId",
+          "file": "file"
+        },
+        "succeeded": {
+          "attemptId": "attemptId",
+          "fileName": "fileName"
+        },
+        "failed": {
+          "attemptId": "attemptId",
+          "file": "file",
+          "message": "message"
+        }
+      },
+      "eventVariants": {
+        "select": {
+          "file": "file"
+        },
+        "start": {
+          "attemptId": "attemptId"
+        },
+        "succeed": {
+          "attemptId": "attemptId",
+          "fileName": "fileName"
+        },
+        "fail": {
+          "attemptId": "attemptId",
+          "message": "message"
+        },
+        "reset": {}
+      }
+    },
+    "staleCompletion": "attempt-id"
+  },
+  "replay": {
+    "transition": {
+      "function": "transitionAttachmentUpload",
+      "statusAccessor": "state.status"
+    }
+  }
+}

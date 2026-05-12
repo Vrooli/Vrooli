@@ -1,12 +1,23 @@
-import { createScenarioServer } from '@vrooli/api-base/server'
+import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
 
-const app = createScenarioServer({
+const connectRpcPath = /^\/vrooli\.react_component_library\.v1\./
+
+startScenarioServer({
   uiPort: process.env.UI_PORT,
   apiPort: process.env.API_PORT,
   distDir: './dist',
   serviceName: 'react-component-library',
-  version: '1.0.0',
-  corsOrigins: '*'
-})
+  corsOrigins: '*',
+  setupRoutes(app) {
+    app.use((req, res, next) => {
+      if (!connectRpcPath.test(req.path)) {
+        next()
+        return
+      }
 
-app.listen(process.env.UI_PORT)
+      proxyToApi(req, res, req.originalUrl || req.url, {
+        apiPort: process.env.API_PORT,
+      }).catch(next)
+    })
+  },
+})

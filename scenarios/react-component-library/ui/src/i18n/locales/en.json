@@ -1,0 +1,93 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like React Component Library are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "React Component Library",
+    "eyebrow": "Scenario Template",
+    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "notes": {
+    "title": "Notes",
+    "loading": "Loading notes…",
+    "empty": "No notes yet.",
+    "create": "Create note",
+    "createdAtLabel": "Created:",
+    "attachmentsLabel": "{{count}} attachments",
+    "attachmentsLabel_one": "1 attachment",
+    "uploadAttachment": "Upload attachment",
+    "attachmentFileLabel": "Attachment file",
+    "uploadSuccess": "Uploaded {{name}}.",
+    "noFileSelected": "Select a file before uploading."
+  },
+  "components": {
+    "title": "Component Library",
+    "loading": "Loading components…",
+    "empty": "No components indexed yet. Click \"Re-index\" after dropping a .tsx file with a @libraryId header into the registry root.",
+    "indexAction": "Re-index",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Filter by name…",
+    "tagLabel": "Tag",
+    "tagPlaceholder": "e.g. form",
+    "summary": "{{count}} components",
+    "summary_one": "1 component",
+    "versionLabel": "v{{version}}",
+    "tagsLabel": "Tags: {{tags}}",
+    "noTags": "No tags",
+    "editAction": "Edit",
+    "editor": {
+      "title": "Editing {{libraryId}}",
+      "loading": "Loading source…",
+      "save": "Save",
+      "saving": "Saving…",
+      "close": "Back to list",
+      "dirty": "Unsaved changes",
+      "sha": "sha256 {{sha}}",
+      "saved": "Saved.",
+      "noSelection": "Select a component from the list to edit.",
+      "previewHeading": "Live preview",
+      "previewWaiting": "Waiting for first paint…",
+      "previewReady": "Rendered"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

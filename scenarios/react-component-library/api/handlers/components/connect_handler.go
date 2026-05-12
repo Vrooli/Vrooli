@@ -1,0 +1,133 @@
+package components
+
+import (
+	"context"
+	"log"
+
+	"connectrpc.com/connect"
+
+	"react-component-library/internal/components"
+
+	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
+)
+
+// Deps wires the seams the Connect components handler needs. Service
+// handles read paths; Repo is required by the indexer (DeleteMissing
+// and Upsert sit on the repository surface, deliberately not on the
+// service — those are walker-internal concerns, not application
+// policy).
+type Deps struct {
+	Service    components.Service
+	Repo       components.Repository
+	SourceRoot string
+	Logger     *log.Logger
+}
+
+type connectHandler struct {
+	deps Deps
+}
+
+func NewConnectHandler(d Deps) *connectHandler {
+	if d.Logger == nil {
+		d.Logger = log.Default()
+	}
+	return &connectHandler{deps: d}
+}
+
+func (h *connectHandler) ListComponents(ctx context.Context, req *connect.Request[componentsv1.ListComponentsRequest]) (*connect.Response[componentsv1.ListComponentsResponse], error) {
+	out, err := h.deps.Service.List(ctx, components.SearchQuery{
+		Match: req.Msg.Match,
+		Tag:   req.Msg.Tag,
+		Limit: int(req.Msg.Limit),
+	})
+	if err != nil {
+		h.deps.Logger.Printf("components.ListComponents: %v", err)
+		return nil, components.ToConnectError(err)
+	}
+	resp := &componentsv1.ListComponentsResponse{
+		Components: make([]*componentsv1.Component, 0, len(out)),
+	}
+	for _, c := range out {
+		resp.Components = append(resp.Components, domainToProto(c))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) GetComponent(ctx context.Context, req *connect.Request[componentsv1.GetComponentRequest]) (*connect.Response[componentsv1.GetComponentResponse], error) {
+	got, err := h.deps.Service.Get(ctx, req.Msg.Id)
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.GetComponent(%q): %v", req.Msg.Id, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&componentsv1.GetComponentResponse{Component: domainToProto(got)}), nil
+}
+
+func (h *connectHandler) GetComponentByLibraryId(ctx context.Context, req *connect.Request[componentsv1.GetComponentByLibraryIdRequest]) (*connect.Response[componentsv1.GetComponentByLibraryIdResponse], error) {
+	got, err := h.deps.Service.GetByLibraryID(ctx, req.Msg.LibraryId)
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.GetComponentByLibraryId(%q): %v", req.Msg.LibraryId, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&componentsv1.GetComponentByLibraryIdResponse{Component: domainToProto(got)}), nil
+}
+
+func (h *connectHandler) GetComponentContent(ctx context.Context, req *connect.Request[componentsv1.GetComponentContentRequest]) (*connect.Response[componentsv1.GetComponentContentResponse], error) {
+	content, err := h.deps.Service.GetContent(ctx, req.Msg.Id)
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.GetComponentContent(%q): %v", req.Msg.Id, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&componentsv1.GetComponentContentResponse{
+		Content:    content.Body,
+		SourcePath: content.SourcePath,
+		Sha256:     content.SHA256,
+	}), nil
+}
+
+func (h *connectHandler) UpdateComponentContent(ctx context.Context, req *connect.Request[componentsv1.UpdateComponentContentRequest]) (*connect.Response[componentsv1.UpdateComponentContentResponse], error) {
+	content, err := h.deps.Service.UpdateContent(ctx, req.Msg.Id, components.WriteContentInput{
+		Body:           req.Msg.Content,
+		ExpectedSHA256: req.Msg.ExpectedSha256,
+	})
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.UpdateComponentContent(%q): %v", req.Msg.Id, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&componentsv1.UpdateComponentContentResponse{
+		Sha256:     content.SHA256,
+		SourcePath: content.SourcePath,
+	}), nil
+}
+
+func (h *connectHandler) IndexComponents(ctx context.Context, _ *connect.Request[componentsv1.IndexComponentsRequest]) (*connect.Response[componentsv1.IndexComponentsResponse], error) {
+	idx := components.NewIndexer(h.deps.Repo, h.deps.SourceRoot, nil)
+	res, err := idx.Run(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("components.IndexComponents: %v", err)
+		return nil, components.ToConnectError(err)
+	}
+	errs := make([]string, 0, len(res.Errors))
+	for _, e := range res.Errors {
+		errs = append(errs, e.Error())
+	}
+	return connect.NewResponse(&componentsv1.IndexComponentsResponse{
+		Scanned:    int32(res.Scanned),
+		Indexed:    int32(res.Indexed),
+		Skipped:    int32(res.Skipped),
+		Deleted:    int32(res.Deleted),
+		Errors:     errs,
+		LibraryIds: append([]string(nil), res.LibraryIDs...),
+	}), nil
+}

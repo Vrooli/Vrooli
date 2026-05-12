@@ -1,0 +1,82 @@
+# Problems — React Component Library
+
+Persistent register of known issues, tech debt, and deferred work
+specific to **this** scenario. Future agents read this file to avoid
+re-discovering the same constraint.
+
+This file ships empty in newly generated scenarios. Append entries as
+they appear.
+
+## What belongs here
+
+- **Known bugs** that are real but not yet worth fixing
+- **Tech debt** — workarounds that need a real fix later
+- **Deferred work** — features descoped from a phase, with the reason
+- **Architecture drift** — code/docs/tests that no longer line up with
+  the intended capability map or boundary model
+- **Constraints discovered the hard way** that aren't visible from
+  the code (e.g., "this resource needs warm-up before the first call;
+  see commit X")
+
+## What does NOT belong here
+
+- **Generic template issues** — those go in
+  [`../guides/troubleshooting.md`](../guides/troubleshooting.md)
+- **Open feature requests** — track those in PRD operational targets
+- **Code comments** — if the constraint is local to one file, a
+  comment there is more discoverable
+- **Test failures** — fix them, don't document them
+
+## Entry template
+
+Use this shape so entries are scannable. Append newest at the bottom.
+
+```markdown
+### YYYY-MM-DD — short title
+
+**Symptom:** What goes wrong, observable from outside the system.
+
+**Root cause:** What actually causes it (or "unknown" if not yet diagnosed).
+
+**Workaround:** What to do today to keep moving.
+
+**Real fix:** What needs to happen for this entry to be deleted.
+
+**Owner:** Who should drive the fix (or "unassigned").
+
+**Refs:** Code paths, related issues, prior commits.
+```
+
+## Entries
+
+### 2026-05-12 — iframe-bridge child wiring deferred
+
+**Symptom:** The live-preview iframe announces first paint via a hand-rolled `postMessage({ type: "preview-ready" })` instead of going through `@vrooli/iframe-bridge/child`. Element-selection (req-06), full INSPECT/CAPTURE flow, and the bridge's structured log streaming are therefore unavailable from the preview harness.
+
+**Root cause:** Slice 3 (req PR-001/002/003) scope-cut: getting real React execution inside the iframe was the gate, and bundling the bridge child into the per-component esbuild call adds a second resolver setup that wasn't needed for first-paint. Deferring to req-06 lets the bridge work land alongside the inspector UI that consumes it.
+
+**Workaround:** Host listens for the `preview-ready` postMessage to flip the "Rendered" badge; cache-busting via `?v=<sha>` covers reload-on-save. Sufficient for slice-3 acceptance.
+
+**Real fix:** Bundle `@vrooli/iframe-bridge/child` into the esbuild Transform call (or switch to esbuild Build with a virtual entrypoint that imports both the component and the bridge) when req-06 lands. Bridge HELLO/READY/INSPECT then supersedes the ad-hoc message.
+
+**Owner:** unassigned (will be picked up with req-06).
+
+**Refs:** `docs/RESEARCH.md` (Preview harness bundling — Resolved contracts), `api/handlers/preview/static.go`, `requirements/06-element-selection-via-iframe-bridge/`.
+
+## Architecture Drift
+
+Use this section for deferred findings from `screaming-architecture-audit`.
+Do not create a standalone architecture-audit report unless the work is
+a migration handoff with a planned retirement path back into
+`ARCHITECTURE.md`, `SEAMS.md`, or this file.
+
+| Area | Drift | Maturity Impact | Real Fix |
+|---|---|---|---|
+| _None yet._ |  |  |  |
+
+## Cross-references
+
+- [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
+- [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
+- [`TESTING.md`](TESTING.md) — test patterns
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues

@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "component-registry-and-header-format",
+    "description": "Header-comment-driven indexer that walks the components root and upserts a SQLite-backed registry of shared UI primitives.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CR-001",
+      "title": "Indexer walks the configured components root and parses @libraryId header comments",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "registry",
+      "criticality": "P0",
+      "description": "On startup and on `react-component-library components index`, the indexer enumerates *.tsx files under the resolver-scoped components root, parses the `@libraryId`/`@displayName`/`@description`/`@version`/`@sourcePath`/`@warning`/`@deps` header comment, and upserts a row into `components` + `component_headers` in SQLite.",
+      "tags": ["registry", "indexer", "sqlite"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Repository test in api/internal/components/sqlite_test.go covers upsert/update/delete on indexer runs; service-level test asserts walk + parse against a synthetic root."
+        }
+      ]
+    },
+    {
+      "id": "CR-002",
+      "title": "Missing or malformed header comments reject with a structured error",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "registry",
+      "criticality": "P0",
+      "description": "If a candidate file omits required header fields or has a malformed `@deps` JSON, the indexer surfaces a structured `IndexerError{Path, Line, Field, Reason}` rather than silently skipping. CLI `components index` exits non-zero when any error is present; default human output prints one line per error.",
+      "tags": ["registry", "indexer", "errors"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Indexer test feeds files with each failure mode and asserts the structured error shape."
+        }
+      ]
+    },
+    {
+      "id": "CR-003",
+      "title": "Header-parse regex tolerates leading `/**` and `*` indentation",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "registry",
+      "criticality": "P0",
+      "description": "The parser must accept the canonical JSDoc-style header (block comment, leading `*` per line) and a single-line `//` form for `@libraryId` only; whitespace tolerance must not let undelimited fields bleed into adjacent fields.",
+      "tags": ["registry", "parser"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Parser test in api/internal/components/parser_test.go covers JSDoc, single-line, mixed-whitespace, and bleed-prevention cases."
+        }
+      ]
+    }
+  ]
+}
