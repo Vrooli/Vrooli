@@ -14,7 +14,6 @@ import (
 	"github.com/vrooli/api-core/blobstore"
 	apidb "github.com/vrooli/api-core/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
 	"{{SCENARIO_ID}}/handlers/notes"
@@ -112,33 +111,8 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 	}
 }
 
-// TestEndpoints_ParityWithProtoService is the drift-killer for the
-// hand-authored Endpoints metadata. Path strings already link to the
-// generated *Procedure constants so renames break compilation; this test
-// closes the remaining hole — adding `rpc Foo(...)` to notes.proto without
-// adding a notes_foo Endpoints entry would otherwise silently ship a
-// .vrooli/endpoints.json that disagrees with the running server.
-//
-// The proto's notes.NotesService is the source of truth: every method it
-// declares must have exactly one matching Endpoints entry, identified by
-// the Connect procedure path.
-func TestEndpoints_ParityWithProtoService(t *testing.T) {
-	svc := notesv1.File_{{SCENARIO_ID_SNAKE}}_v1_notes_notes_proto.
-		Services().ByName("NotesService")
-	require.NotNil(t, svc, "notes proto must declare a NotesService service")
-
-	byPath := make(map[string]int, len(notes.Endpoints))
-	for _, ep := range notes.Endpoints {
-		byPath[ep.Path]++
-	}
-
-	methods := svc.Methods()
-	for i := 0; i < methods.Len(); i++ {
-		m := methods.Get(i)
-		wantPath := "/" + string(svc.FullName()) + "/" + string(m.Name())
-		count := byPath[wantPath]
-		require.Equal(t, 1, count,
-			"proto method %q (path %q) must have exactly one Endpoints entry; found %d",
-			m.Name(), wantPath, count)
-	}
-}
+// Proto/Connect parity for the notes domain is now enforced globally by
+// TestProtoConnectParity in api/internal/modules/registry_test.go,
+// which walks every entry returned by modules.AllProtoFiles() — adding
+// a new domain there gets parity coverage automatically, no per-domain
+// test required.

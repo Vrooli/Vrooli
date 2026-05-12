@@ -32,17 +32,65 @@ type Module struct {
 // established. Optional fields use omitempty so health (no request, no
 // errors) and notes (full set) round-trip the same way.
 type EndpointDescriptor struct {
-	ID          string      `json:"id"`
-	Path        string      `json:"path"`
-	Method      string      `json:"method"`
-	Summary     string      `json:"summary"`
-	Description string      `json:"description"`
-	Category    string      `json:"category"`
-	Request     *Schema     `json:"request,omitempty"`
-	Response    *Schema     `json:"response,omitempty"`
-	Errors      []ErrorDesc `json:"errors,omitempty"`
-	Examples    []Example   `json:"examples,omitempty"`
-	CLIMapping  *CLIMapping `json:"cli_mapping,omitempty"`
+	ID            string         `json:"id"`
+	Path          string         `json:"path"`
+	Method        string         `json:"method"`
+	Summary       string         `json:"summary"`
+	Description   string         `json:"description"`
+	Category      string         `json:"category"`
+	Request       *Schema        `json:"request,omitempty"`
+	Response      *Schema        `json:"response,omitempty"`
+	Errors        []ErrorDesc    `json:"errors,omitempty"`
+	Examples      []Example      `json:"examples,omitempty"`
+	CLIMapping    *CLIMapping    `json:"cli_mapping,omitempty"`
+	RESTException *RESTException `json:"rest_exception,omitempty"`
+}
+
+// RESTReason enumerates the only mechanically-allowed reasons an endpoint
+// may use a hand-authored REST path instead of a generated Connect-RPC
+// procedure constant. The gen-endpoints validation pass rejects any
+// EndpointDescriptor whose Path is not a Connect procedure path unless
+// it carries a RESTException with one of these reasons.
+//
+// Adding a new reason here is a deliberate architectural decision — drift
+// between proto-typed payloads and JSON-typed payloads is exactly what
+// this enforcement exists to prevent. If you find yourself wanting a new
+// reason, first check whether the actual payload can be expressed as a
+// proto message; if it can, use Connect.
+type RESTReason string
+
+const (
+	// RESTReasonMultipartUpload covers endpoints that accept opaque file
+	// bytes via multipart/form-data. The proto-typed response payload is
+	// still the source of truth for the metadata shape; only the request
+	// transport is REST because proto cannot express multipart uploads.
+	// The notes attachments endpoint is the canonical worked example.
+	RESTReasonMultipartUpload RESTReason = "multipart_upload"
+
+	// RESTReasonWebhookReceiver covers endpoints whose request shape is
+	// dictated by a third-party system (Stripe, GitHub, etc.) we do not
+	// own and cannot ask to switch to proto.
+	RESTReasonWebhookReceiver RESTReason = "webhook_receiver"
+
+	// RESTReasonThirdPartyShape covers endpoints whose request or
+	// response shape is dictated by a third-party API contract (OpenAPI
+	// passthrough, OAuth callbacks, etc.) we do not own.
+	RESTReasonThirdPartyShape RESTReason = "third_party_shape"
+
+	// RESTReasonOpsProbe covers operational endpoints that lifecycle
+	// systems, load balancers, and curl probes must reach without a
+	// generated client (e.g. plain GET /health, static browser-facing
+	// HTML wrappers served to iframes).
+	RESTReasonOpsProbe RESTReason = "ops_probe"
+)
+
+// RESTException tags an EndpointDescriptor whose Path is a hand-authored
+// REST path rather than a generated Connect procedure constant. The Note
+// field surfaces in .vrooli/endpoints.json so consumers can see the
+// human-readable justification.
+type RESTException struct {
+	Reason RESTReason `json:"reason"`
+	Note   string     `json:"note,omitempty"`
 }
 
 // Schema is the permissive shape used by .vrooli/endpoints.json's

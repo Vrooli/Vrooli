@@ -117,16 +117,31 @@ Use Connect-RPC by default:
 - CLI to API for proto-typed payloads,
 - API to API / inter-scenario calls with Vrooli-owned protos.
 
-Use REST only when the payload shape is not Vrooli-owned proto data:
+REST is allowed only for four enumerated reasons, defined as
+`RESTReason` constants in `api/internal/module/module.go`:
 
-- file uploads and other opaque binary edges,
-- webhook receivers and third-party APIs in the external system's
-  shape,
-- operational endpoints that lifecycle systems, load balancers, and
-  `curl` probes must reach without a generated client.
+| Reason | When it applies |
+|---|---|
+| `RESTReasonMultipartUpload` | Opaque file bytes via `multipart/form-data`. The notes attachments endpoint is the worked example. |
+| `RESTReasonWebhookReceiver` | Endpoint shape is dictated by a third-party system (Stripe, GitHub, etc.) we do not own. |
+| `RESTReasonThirdPartyShape` | Request or response is an externally-defined contract (OAuth callbacks, OpenAPI passthrough). |
+| `RESTReasonOpsProbe` | Lifecycle systems, load balancers, and `curl` must reach the endpoint without a generated client (plain `GET /health`, static iframe-facing HTML wrappers). |
 
-If an internal endpoint would be REST only because it is simple, add a
-proto service method instead.
+Mechanical enforcement: `cmd/gen-endpoints` rejects any
+`EndpointDescriptor.Path` that is not a generated Connect procedure
+constant (i.e. does not start with `/vrooli.`) unless the descriptor
+carries a `RESTException` with one of the four reasons. A REST
+endpoint without that tag fails `make endpoints`, which fails
+`make test`, which fails CI. The fix is either to author a proto
+service method (the preferred path) or to tag the exception
+explicitly. There is no "internal endpoint, REST is fine" path —
+that rationalization is exactly what the validation pass prevents.
+
+Note: even for REST exceptions, the **payload shape** stays
+proto-typed wherever possible. The notes attachments handler returns
+the proto `UploadAttachmentResponse` message; only the request
+transport is multipart. Drift between API/UI/CLI is eliminated as
+long as the wire payload type is shared.
 
 ## Shared Infrastructure
 

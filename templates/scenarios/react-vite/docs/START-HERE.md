@@ -292,6 +292,17 @@ deferred, or explicitly not-applicable for a reason.
 ### Gate 6 — First Real Vertical Slice
 
 - [ ] Add the first real domain beside the example `notes` domain.
+- [ ] **Start in proto.** Author `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<domain>.proto`
+      with a `service` block FIRST, run `make generate`, then write
+      handlers/CLI/UI against the generated `*Procedure` constants and
+      `*Service` clients. If you find yourself writing `Path:` as a
+      literal string in an `EndpointDescriptor`, stop — codegen will
+      reject it. The only exceptions are the four `RESTReason` values
+      in `api/internal/module/module.go`.
+- [ ] **Register the proto file** in `api/internal/modules/registry.go`
+      by appending a `ProtoFileEntry` to `AllProtoFiles()`. The global
+      parity test (`TestProtoConnectParity`) then covers the new
+      domain automatically — no per-domain parity test required.
 - [ ] Mirror the pattern across proto, API domain, API handler module,
       CLI domain, UI API client, UI feature, i18n strings, selectors,
       and tests.

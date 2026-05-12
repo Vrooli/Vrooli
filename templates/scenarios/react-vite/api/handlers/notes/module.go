@@ -97,10 +97,20 @@ func Schema() string { return internalnotes.Schema() }
 // Endpoints is the machine-readable description of the notes module's public
 // surface. Connect-RPC method paths reference the generated *Procedure
 // constants from notesconnect, so adding or renaming an RPC in notes.proto
-// breaks this file at compile time. The complementary parity test in
-// module_test.go enforces that every RPC in the proto service has a matching
-// entry here. The REST multipart exception is the one entry whose path is
-// hand-authored because the proto can't express it.
+// breaks this file at compile time. The complementary global parity test
+// (TestProtoConnectParity in api/internal/modules/registry_test.go) walks
+// the proto FileDescriptor and asserts every rpc has exactly one entry
+// here — that runs automatically for every domain registered in
+// modules.AllProtoFiles().
+//
+// notes_attach is the canonical worked example of a REST exception. It
+// carries RESTException{Reason: RESTReasonMultipartUpload} so the
+// validateTransport pass in gen-endpoints accepts the hand-authored Path.
+// Proto is still the source of truth for the response payload (the
+// Attachment message is proto-typed); only the request transport is REST
+// because multipart/form-data cannot ride a proto Connect call. The four
+// allowed RESTReason values are defined in api/internal/module/module.go;
+// adding a fifth requires an architectural decision, not a quick fix.
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "notes_list",
@@ -218,6 +228,10 @@ var Endpoints = []module.EndpointDescriptor{
 		CLIMapping: &module.CLIMapping{
 			Command: "{{SCENARIO_ID}} notes attach",
 			Args:    []string{"<id>", "--file", "<path>"},
+		},
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonMultipartUpload,
+			Note:   "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
 		},
 	},
 }

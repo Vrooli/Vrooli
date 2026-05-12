@@ -3,7 +3,15 @@
 Create a durable implementation plan through `vrooli plans add --stdin` by default, preserving full execution context when conversation history is about to compact. This skill standardizes how to capture the problem, constraints, execution approach, and acceptance criteria so any future agent can continue without prior chat context.
 
 Required reading:
-- `prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement`
+- `prompt-manager skill read plan-skill-discovery` — the canonical method for finding domain-relevant skills for this specific plan. Run its discovery process before authoring.
+
+Conditional reading (load only when the plan touches the matching surface — `plan-skill-discovery` will usually surface these automatically):
+- `cli-steer` — when the plan adds or modifies a scenario CLI command.
+- `api-steer` — when the plan adds or modifies a proto / Connect-RPC contract.
+- `utils-unification` — when the plan introduces new helpers or touches shared utilities.
+- `seam-discovery-and-enforcement` — when the plan introduces new testability seams or changes existing ones.
+
+Skip these reads entirely for plans that don't touch the corresponding surface (e.g., pure docs, UI-only, research conclusions). Reading skills that don't apply wastes context.
 
 Optional reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
@@ -78,13 +86,19 @@ Use this decision flow to keep outputs consistent:
 
 #### Step A: Establish canonical context
 
-Run required reading first:
+Discover the skills that apply to *this* plan rather than reading a fixed list. Follow `plan-skill-discovery`:
 
 ```bash
-prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement
+prompt-manager skill read plan-skill-discovery
 ```
 
-Then gather implementation evidence (commands, files, observed failures) before writing.
+Then run its discovery process — typically:
+
+```bash
+prompt-manager discover "<concept-1>" "<concept-2>" "<concept-3>" --complexity moderate
+```
+
+If the discovery output surfaces any of the conditional reads above (`cli-steer`, `api-steer`, `utils-unification`, `seam-discovery-and-enforcement`), or your plan obviously touches their surface, load them now. Otherwise skip them. Then gather implementation evidence (commands, files, observed failures) before writing.
 
 #### Step B: Create the scratch plan through the CLI
 
@@ -101,7 +115,7 @@ In-repo exceptions:
 
 Every plan must include:
 1. Purpose
-2. Required Reading (explicit commands)
+2. Required Reading (explicit commands — see Step D for what to embed)
 3. Problem Statement
 4. Scope (in/out)
 5. Current Technical Context (key files/components)
@@ -124,6 +138,7 @@ Quality checks:
 - All major claims are tied to files/commands or marked assumptions
 - Constraints are explicit, repeated where needed, and testable
 - Acceptance criteria are objective (pass/fail), not narrative
+- The plan's Required Reading block lists only the skills that actually apply to the plan's surface — not a generic fixed list
 
 ---
 
@@ -133,6 +148,7 @@ Quality checks:
 - Do not hide assumptions; mark unknowns and how to resolve them.
 - Do not mix implementation and plan-authoring in the same step unless explicitly asked.
 - Do not include legacy/migration/compatibility guidance when user requested greenfield-only.
+- Do not pad the plan's Required Reading with skills that don't match the plan's surface — load the conditional steers only when they apply.
 
 ---
 
@@ -141,8 +157,9 @@ Quality checks:
 **Must produce:**
 - A saved implementation plan file path
 - A plan detailed enough for handoff to a future agent with no chat context
-- Required-reading command block, including:
-  - `prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement`
+- A Required-Reading command block tailored to the plan's actual surface. Compose it from:
+  - The conditional steers above, included only when the plan touches their surface
+  - Any domain-specific skills surfaced by `plan-skill-discovery`
 - Action validation or discovery commands only when they are directly relevant to the plan's execution path
 
 **May include:**
@@ -154,3 +171,4 @@ Quality checks:
 - Placeholder-only sections with no actionable content
 - Contradictory constraints (for example greenfield + migration bridge)
 - Implicit assumptions presented as facts
+- A generic fixed required-reading list that doesn't match the plan's surface

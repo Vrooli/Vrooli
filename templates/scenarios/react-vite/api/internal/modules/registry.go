@@ -20,10 +20,13 @@ import (
 	"{{SCENARIO_ID}}/internal/module"
 
 	apidb "github.com/vrooli/api-core/database"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "{{SCENARIO_ID}}/handlers/health"
 	notesH "{{SCENARIO_ID}}/handlers/notes"
 	localdb "{{SCENARIO_ID}}/internal/database"
+
+	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -35,6 +38,33 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, notesH.Endpoints...)
 	return out
+}
+
+// ProtoFileEntry pairs a domain module's name with the proto
+// FileDescriptor whose RPCs that module exposes via Connect-RPC. The
+// global parity test in registry_test.go walks every entry and asserts
+// each rpc method in the FileDescriptor has exactly one matching
+// EndpointDescriptor in AllEndpoints().
+//
+// Adding a Connect-RPC domain: append one line below. The global parity
+// test then covers it automatically — there is no per-domain parity
+// test to write.
+//
+// REST-exception-only domains (none in the template today) are simply
+// not listed here; the global test never inspects them, and the
+// gen-endpoints validateTransport pass enforces their RESTException
+// tags at codegen time.
+type ProtoFileEntry struct {
+	Module string
+	File   protoreflect.FileDescriptor
+}
+
+// AllProtoFiles returns the proto FileDescriptor backing each
+// Connect-mounted domain module, in registration order.
+func AllProtoFiles() []ProtoFileEntry {
+	return []ProtoFileEntry{
+		{Module: "notes", File: notesv1.File_{{SCENARIO_ID_SNAKE}}_v1_notes_notes_proto},
+	}
 }
 
 // AllSchemas returns every domain's schema provider plus the system

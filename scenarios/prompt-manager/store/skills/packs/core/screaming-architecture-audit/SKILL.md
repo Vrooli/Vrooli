@@ -16,6 +16,10 @@ Optional context:
 
 ---
 
+> **Template example domain — delete on generation.** The react-vite template ships a `notes` domain (API, UI feature, CLI commands) as a worked example so first-time readers can see every surface lit up at once. It is *not* a domain every scenario inherits — when generating from the template, delete `notes` and replace it with the scenario's real product capabilities. Any worked example in this skill uses placeholder identifiers (`<domain>`, `<Resource>Card`, etc.); substituting them is the moment to ask whether a leftover `notes` folder in your scenario is real product vocabulary or template residue that should be removed.
+
+---
+
 ### 1. Scope Boundaries
 
 **In scope:**
@@ -106,15 +110,15 @@ Does it wrap an external system?
   -> integration/client trait with an explicit seam
 ```
 
-Example classification:
+Example classification (using placeholder identifiers — substitute with your scenario's actual domain; see the template-example callout at the top of this skill):
 
 ```text
-notes
+<domain>
   primary: CRUD / entity
   secondary: binary/blob for attachments, temporal workflow for upload states
   API: service, repository, schema, attachment workflow
-  UI: NotesCard, AttachmentUploadWorkflow
-  CLI: notes commands
+  UI: <Resource>Card, AttachmentUploadWorkflow
+  CLI: <domain> commands
   shared infrastructure: BlobStore seam, modeltest helpers
 ```
 

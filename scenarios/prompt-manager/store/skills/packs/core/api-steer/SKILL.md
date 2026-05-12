@@ -1,392 +1,303 @@
 ## Steer focus: API Steer
 
-Design and maintain scenario APIs as **stable, intuitive, domain-aligned contracts**. The API is the scenario’s entrypoint for core logic and the primary integration surface for other scenarios and the scenario CLI—treat it as a product.
+Prioritize **scenario APIs as stable, proto-first, Connect-RPC contracts** in `scenarios/{{TARGET}}/api/`. Treat the API as the canonical entrypoint into the scenario's core logic — every UI and CLI surface, and every other scenario, consumes it through generated typed clients. The four REST exceptions enumerated in `path:templates/scenarios/react-vite/api/internal/module/module.go` are the only escape hatch.
 
-Optional reading:
-- `prompt-manager skills read interoperability-steer`
+Required reading:
+- `prompt-manager skill read knowledge-observatory-tools` — read and update scenario documentation through the canonical docs CLI.
+- `prompt-manager skill read interoperability-steer` — proto schema, generation, casing, validation, and discovery rules that this skill assumes.
+
+Read first when present:
+- `scenarios/{{TARGET}}/docs/concepts/ARCHITECTURE.md` — durable mental model, surfaces, domain map.
+- `scenarios/{{TARGET}}/docs/internal/SEAMS.md` — boundary registry (Connect handler factories, repositories, integrations).
+- `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` — unresolved API drift and deferred refactors.
+
+Optional context:
+- `prompt-manager skill read screaming-architecture-audit` — when API domain boundaries are unclear or shared infrastructure has absorbed product vocabulary.
+- `prompt-manager skill read cli-steer` — when designing API changes that the CLI must mirror.
 
 ---
 
-### 0. Why This Skill Exists
-
-In Vrooli, the API is not “just an interface”—it is:
-- The **entrypoint** into the scenario’s core logic and operational guarantees.
-- The primary mechanism for **inter-scenario communication**.
-- The foundation for the scenario’s **CLI**, which should be a thin wrapper over the API.
-- The most durable surface area: once clients depend on it, changing it becomes expensive.
-
-This skill steers toward APIs that are:
-- **Screaming-architecture organized** (domain boundaries are obvious by directory/module layout).
-- **Typed and contract-driven** (proto-first for reliability and interoperability).
-- **Consistent and predictable** (errors, naming, pagination, idempotency, auth).
-- **Thin at the transport edge** (Connect/HTTP handlers orchestrate; domain logic lives elsewhere).
-- **Hard to misuse** (safe defaults; obvious “happy path”; guardrails at boundaries).
+> **Template example domain — delete on generation.** The react-vite template carries a `notes` domain as a fully-worked example (`path:templates/scenarios/react-vite/{proto,api}/...`). It is starter scaffolding to study, not boilerplate to keep — when a new scenario is generated from the template, the `notes` domain must be removed and replaced with the scenario's actual domains. In this skill the identifiers `<domain>`, `<Domain>Service`, `<Resource>`, and `<Resources>` are placeholders. Substituting them is the prompt that should remind you whether a `notes` package still lingering in your scenario is intentional.
 
 ---
 
 ### 1. Scope Boundaries
 
-**In scope**
-- API surface design: endpoints, RPCs, request/response shapes, error models
-- API organization: module boundaries, routers/controllers layout, keeping files small
-- Connect-RPC adoption for proto-owned payloads; transport consistency is a coherence concern
-- Consistency conventions: naming, pagination/filtering, idempotency, auth, observability hooks
-- Compatibility strategy: versioning, additive change patterns, deprecation approach
-- Shared API utilities: validation, auth middleware, pagination helpers, error translation, context
+**In scope:**
+- proto-first RPC method design (`Service.Method` naming, request/response messages, error mapping)
+- Connect-RPC handler wiring, `Module` registration, and `EndpointDescriptor` parity with `.vrooli/endpoints.json`
+- the four canonical REST exceptions (`multipart_upload`, `webhook_receiver`, `third_party_shape`, `ops_probe`) and their `RESTException` tagging
+- consistency conventions: error envelopes, pagination, idempotency, auth, observability
+- additive evolution of proto contracts; deprecation paths
+- shared API substrate (validation, auth interceptors, error translation, request context)
 
-**Out of scope**
-- Deep domain modeling (belongs in domain/service architecture skills)
-- Full “proto governance” details (use `interoperability-steer` for canonical rules)
-- UI concerns (except where UI↔API contract reliability is impacted)
-
----
-
-### 2. The Scenario Development Ladder (Where API Fits)
-
-A useful ordering for development clarity:
-
-```
-
-PRD (what + targets)
-↓
-Requirements (how targets are met; constraints; failure modes)
-↓
-Documentation (onboarding + mental model)
-↓
-API (how other systems and agents use the scenario)
-↓
-Implementation (services, domain logic, infra)
-
-```
-
-**Steer:** If the API is unclear, the implementation will trend toward being unclear too.
-A strong API surface forces clean boundaries and makes downstream development faster and safer.
+**Out of scope:**
+- deep domain modeling (use `screaming-architecture-audit`)
+- proto package layering, casing, and generation workflow (use `interoperability-steer`)
+- UI rendering or CLI argument parsing (use `cli-steer`)
+- broad rewrites that change behavior without API-shape payoff
+- adding new product features under the banner of API cleanup
 
 ---
 
-### 3. Scream the Architecture: Organize APIs by Domain, Not by Mechanics
+### 2. API Maturity Model
 
-**Goal:** A new engineer (or agent) should be able to infer the scenario’s major capabilities by scanning the API directory tree.
+Assess the API surface against this ladder. A scenario may be L4 for one domain and L1 for another.
 
-Prefer:
-- Grouping by **bounded context / capability / feature area**
-- Endpoints that align to “what the scenario does,” not “what tables exist” or “what HTTP verbs we used”
-
-Avoid:
-- A single giant `routes.ts` / `handlers.ts`
-- A “misc” grab bag
-- Grouping solely by HTTP verbs (`get.ts`, `post.ts`) or by pure technical layers without domain shape
-
-#### 3.1 Convergence Pattern: Endpoint Placement Decision Tree
-
-```
-
-New API operation needed
-│
-▼
-Is it clearly part of an existing domain module?
-├─ YES → add to that domain module (keep module cohesive)
-└─ NO
-│
-▼
-Is it a cross-cutting concern (auth, health, admin, observability)?
-├─ YES → place in a dedicated cross-cutting module
-└─ NO
-│
-▼
-Does it represent a new bounded context / capability?
-├─ YES → create a new domain module with its own routes + handlers
-└─ NO  → refactor: your concept boundaries aren’t clear yet
-
-```
-
-#### 3.2 Convergence Pattern: Module Size and Responsibility Rules
-
-**A module stays healthy when:**
-- It has a single clear responsibility (one bounded context).
-- Its public surface is small and readable.
-- Handlers are short (orchestrate, don’t implement).
-- Shared helpers are extracted *only when they’re truly shared*.
-
-**Red flags**
-- A router/handler file routinely exceeds “human scannability” (hundreds of lines).
-- Similar validation/error mapping logic appears in multiple handlers.
-- Endpoints in the same module feel unrelated (“we didn’t know where else to put it”).
-
----
-
-### 4. API Shape: Resources, Commands, and Jobs (Make Usage Obvious)
-
-Scenarios commonly need three kinds of operations. Design the API so each kind is unmistakable.
-
-| Operation kind | What it means | Common patterns | Key property |
+| Level | Name | What exists | Main drift risk |
 |---|---|---|---|
-| **Query** | Read state without side effects | list/get endpoints | Safe + idempotent |
-| **Command** | Change state / trigger side effects | create/update/execute endpoints | Explicit intent |
-| **Job** | Long-running / async work | start + status + result endpoints | Observable progress |
+| 0 | Ad-hoc handlers | Routes hand-registered, error shapes vary, payloads are untyped JSON. | Every new endpoint reinvents auth/error/pagination. |
+| 1 | Consistent envelope | A handler factory or middleware enforces request context, auth, and a uniform error envelope; pagination is one canonical shape. | Domain logic still lives in handlers; types are still hand-written. |
+| 2 | Proto schemas per domain | Each domain has proto messages in `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/`; generated types exist but consumers may still hand-write. | Schemas drift from runtime shapes; consumers cast or bypass generated types. |
+| 3 | Connect-RPC end to end | Every proto-owned operation is a Connect-RPC `Service.Method`; UI and CLI consume generated Connect clients; `Module.Mount` registers Connect handlers, not hand-wired REST routes. | REST endpoints linger without `RESTException` tags; `EndpointDescriptor.Path` may carry hand-authored REST literals. |
+| 4 | Codegen drift gate | `cmd/gen-endpoints` `validateTransport` enforces that every `EndpointDescriptor.Path` is either a Connect procedure path or carries a `RESTException` with one of the four `RESTReason*` constants; `.vrooli/endpoints.json` is regenerated from `Module.Endpoints`. | Manual `endpoints.json` edits or new REST reasons added without proto rejection. |
+| 5 | Validated boundary | `protovalidate` constraints enforce request invariants at ingress; endpoint-descriptor parity tests assert UI/CLI command ↔ RPC mapping; deprecations carry an explicit migration window and are caught by drift tests. | Remaining drift requires a new validator rule, not a docs note. |
 
-#### 4.1 Resource vs Action: Naming Convergence Table
+Use the level to identify the next concrete move: tag, schema, wire, gate, or validate.
 
-| If the client is… | Prefer | Example shape |
+---
+
+### 3. API Domain Archetype Decision Model
+
+Choose the wire shape by behavior, not folder uniformity. Pick a primary archetype, then add secondary traits.
+
+| Archetype | Use when | Canonical wire shape |
 |---|---|---|
-| Managing a domain entity | Resource endpoints | `/projects/{id}`, `/projects:list` |
-| Triggering a meaningful operation | Command/action endpoint | `/projects/{id}:archive`, `/runs:execute` |
-| Starting work that may outlive the request | Job endpoints | `/imports:start` → `/imports/{jobId}` |
+| RPC service (CRUD/command) | A domain entity is created, listed, fetched, updated, archived, or a domain command is invoked | Connect-RPC unary methods: `<Domain>Service.List<Resources>`, `<Domain>Service.Create<Resource>`, `<Domain>Service.Archive<Resource>` |
+| Streaming RPC | Server pushes a sequence of typed events (logs, progress, watch) | Connect-RPC server-streaming method: `RunsService.StreamRunEvents` |
+| Long-running operation | Work outlives the request; client polls or subscribes | Pair of Connect methods: `ImportsService.StartImport` + `ImportsService.GetImport` (and optionally a streaming variant) |
+| Blob / multipart-upload exception | Opaque file bytes cross the wire and proto cannot express the request | REST `POST` tagged `RESTException{Reason: multipart_upload}`; response metadata remains proto-typed |
+| Webhook-receiver exception | A third party (Stripe, GitHub) dictates the request shape | REST handler tagged `RESTException{Reason: webhook_receiver}`; payload validated against a hand-written schema, then translated to proto-typed domain events |
+| Third-party-shape exception | OpenAPI passthrough, OAuth callback, or other contract owned by a third party | REST handler tagged `RESTException{Reason: third_party_shape}` |
+| Ops-probe exception | Lifecycle systems / load balancers / curl probes need a generated-client-free reach | REST handler tagged `RESTException{Reason: ops_probe}` (`GET /health`, static HTML wrappers, etc.) |
 
-**Steer:** Avoid “verb soup” routes that encode business logic in URLs without a stable conceptual model.
-If you must expose actions, make them explicit and consistent.
+Decision rule:
 
----
-
-### 5. Proto-First Contracts (Reliability + Interoperability)
-
-**Principle:** Treat the proto schema as the canonical contract. Generated types should flow through:
-- API↔API calls (inter-scenario)
-- UI↔API calls
-- CLI↔API calls
-
-This increases reliability by eliminating “stringly typed” drift and enforcing consistent shapes.
-
-**Guidance (high-level):**
-- Every proto-typed wire boundary requires a `service` block. Generated
-  Connect-RPC handlers and clients are the baseline transport for
-  inter-scenario, UI↔API, and CLI↔API calls.
-- REST is reserved for justified non-proto edges: multipart file uploads,
-  webhook receivers, and third-party API shapes. Document the reason when
-  adding one.
-- Requests/responses are **structured messages**, not ad-hoc JSON blobs.
-- Changes should be **additive** whenever possible.
-- Prefer **explicit fields** over “metadata maps” unless strongly justified.
-- Keep stable identifiers and enums stable; avoid reusing enum numeric values.
-
-> For detailed proto conventions (package naming, field numbering, compat rules, generation workflow), defer to `interoperability-steer`.
-
----
-
-### 6. Consistency Rules That Make APIs Feel “Professional”
-
-Professional APIs are boring in a good way: predictable, uniform, and easy to compose.
-
-#### 6.1 Error Model Consistency
-
-**Steer:** Every endpoint should fail in familiar ways and return errors in a consistent shape.
-
-Minimum expectations:
-- A stable **error code** (machine-oriented)
-- A human message safe to show in logs/UI
-- Structured **details** (field violations, retry hints, dependency failures)
-- Correlation/request ID propagation for debugging
-
-Avoid:
-- Endpoint-specific error shapes
-- Throwing raw exceptions through the boundary
-- Hiding dependency failure causes behind generic “Internal error” without any structured details
-
-#### 6.2 Pagination, Filtering, Sorting
-
-Pick one canonical approach and use it everywhere.
-
-**Convergence checklist:**
-- Cursor vs offset: choose one default (cursor often scales better).
-- Always define: `page_size` (bounded), `page_token`/`cursor`, `next_page_token`.
-- Filtering is explicit and typed, not free-form strings.
-- Sorting is explicit and validated.
-
-Avoid:
-- Endpoint-by-endpoint pagination styles
-- Unbounded list endpoints
-- “Filter strings” with ad-hoc parsing rules per endpoint
-
-#### 6.3 Idempotency and Retries
-
-Assume clients (and other scenarios) will retry.
-
-Use idempotency patterns for:
-- Create/execute commands that may be retried due to timeouts or network failures.
-- Any operation that could create duplicate side effects.
-
-Avoid:
-- “Double create” issues because retry semantics weren’t considered.
-- Non-deterministic behavior on repeated calls.
-
-#### 6.4 Authentication and Authorization Consistency
-
-Steer toward:
-- One auth gateway pattern (middleware/interceptor) that sets request context.
-- Authorization checks close to domain boundaries, but not duplicated everywhere.
-
-Avoid:
-- Some endpoints requiring auth and others “accidentally public.”
-- Copy/pasted auth parsing across handlers.
-
-#### 6.5 Observability Hooks (APIs Must Be Debuggable)
-
-Minimum: consistent structured logging fields such as:
-- request/correlation ID
-- scenario/module name
-- endpoint/method name
-- latency + outcome
-- dependency call outcomes
-
-Avoid:
-- Logging raw sensitive payloads
-- No way to tie logs across scenario boundaries
-
----
-
-### 7. Keep the Transport Edge Thin (Handlers Orchestrate)
-
-The API boundary should do boundary work:
-- Authentication / request context
-- Validation
-- Error translation
-- Calling the correct domain/service function
-- Returning typed responses
-
-It should **not**:
-- Contain business rules
-- Perform multi-step domain workflows inline
-- Mix persistence/integration calls directly into handlers without a service layer
-
-#### 7.1 Convergence Pattern: Layering Diagram
-
+```text
+Can the request and response be expressed as proto messages?
+  YES -> Connect-RPC method on a Service. No exception, no debate.
+  NO  -> Identify which of the four RESTReason* constants applies.
+         If none apply, the answer is still "express it as proto."
+Is the work long-running?
+  YES -> Pair Start + Get (and consider streaming).
+Is the wire shape dictated by an outside system?
+  YES -> third_party_shape or webhook_receiver exception.
+Does a kernel-level prober need it without a client?
+  YES -> ops_probe exception.
 ```
 
-API Boundary (routes/controllers/handlers)
-
-* parse + validate + auth context + error mapping
-* orchestrate a use-case call
-  ↓
-  Use-cases / Application services
-* coordinates domain operations
-* handles transactional boundaries if needed
-  ↓
-  Domain services
-* core rules and invariants
-  ↓
-  Infra adapters (DB, queues, external APIs)
-
-```
-
-**Dependency rule:** domain must not depend on API transport details.
+`path:templates/scenarios/react-vite/api/internal/module/module.go` is the authoritative source for the four allowed reasons. `path:templates/scenarios/react-vite/api/cmd/gen-endpoints/main.go` (`validateTransport`) is the enforcement point.
 
 ---
 
-### 8. DRY Without Losing Clarity: Shared Utilities and Singletons
+### 4. Canonical File-Shape Guidance
 
-A “professional API” avoids repeated boilerplate while preserving readability.
+For React-Vite-template scenarios, the healthy target is:
 
-Examples of good shared primitives:
-- Request context builder (auth, request IDs, actor identity)
-- Validation helpers (proto → validation; field violation formatting)
-- Standard pagination helper
-- Standard error translation layer
-- Client singletons (HTTP clients, DB clients) with consistent configuration and timeouts
+```text
+packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<domain>.proto   # source of truth
+packages/proto/gen/go/{{SCENARIO_ID}}/v1/<domain>/                  # generated; do not edit
+packages/proto/gen/go/{{SCENARIO_ID}}/v1/<domain>/<domain>_v1connect/  # generated Connect server+client
 
-#### 8.1 Convergence Pattern: Extract Helper Decision Tree
-
+scenarios/{{TARGET}}/api/
+  handlers/<domain>/         # Connect service implementation + Module constructor + EndpointDescriptors
+  internal/<domain>/         # domain types, service, repository, schema, workflows, mocks
+  internal/module/           # Module/EndpointDescriptor/RESTException contract (template-owned)
+  cmd/gen-endpoints/         # codegen + validateTransport gate
 ```
 
-You wrote helper logic in an endpoint
-│
-▼
-Will this logic be used in 2+ endpoints or 2+ modules?
-├─ NO → keep it local (optimize for readability)
-└─ YES
-│
-▼
-Is it a domain rule?
-├─ YES → move to domain/service layer (not API utils)
-└─ NO
-│
-▼
-Is it boundary glue (validation, auth, error mapping, pagination)?
-├─ YES → extract to shared API utility (canonical)
-└─ NO  → consider a dedicated application service helper
-
-```
-
-**Avoid**
-- “utils.ts” dumping grounds
-- Singletons that hide global mutable state without need
-- Copy/paste divergence for “same” behavior across endpoints
+Preserve these invariants:
+- One Connect service per domain. The service implementation lives in `handlers/<domain>/` and delegates to `internal/<domain>/`.
+- `Module.Endpoints` is the single source for `.vrooli/endpoints.json`; never hand-edit the JSON.
+- Each `EndpointDescriptor.Path` is either a Connect procedure path (e.g. `/{{SCENARIO_ID}}.v1.<domain>.<Domain>Service/List<Resources>`) or carries a `RESTException`.
+- REST exceptions live alongside the rest of the domain's `Module`; their `Note` field justifies the choice to the next agent.
+- Domain logic does not import transport packages (no `connect`, no `mux`) — handlers translate at the edge and call into the domain.
 
 ---
 
-### 9. API Evolution: Backward Compatibility Is a Feature
+### 5. RPC Method Naming Convergence
 
-Assume other scenarios and agents depend on you.
+Method names are part of the contract — they show up in the procedure path, the generated client, and the CLI. Make them predictable.
 
-#### 9.1 Convergence Pattern: Change Strategy Table
-
-| Desired change | Prefer | Avoid |
+| Operation kind | Method pattern | Example |
 |---|---|---|
-| Add a new optional field | Additive schema change | Breaking existing consumers |
-| Change meaning of a field | New field + deprecate old | Silent semantic change |
-| Remove a field/endpoint | Deprecate + migration window | Sudden removal |
-| Replace a workflow | New endpoint/version + compat shim | Forcing all clients to update immediately |
-
-**Steer:** Additive changes scale. Breaking changes create coordination tax.
-
----
-
-### 10. API Documentation and Discoverability
-
-A professional API can be learned quickly.
-
-Minimum expectations:
-- API “table of contents” grouped by domain/capability
-- For each operation: intent, request/response, key errors, auth, idempotency, examples
-- A mapping between **CLI commands** and API operations (since CLI is thin wrapper)
+| List a collection | `List<Plural>` | `<Domain>Service.List<Resources>` |
+| Get one by id | `Get<Singular>` | `<Domain>Service.Get<Resource>` |
+| Create one | `Create<Singular>` | `<Domain>Service.Create<Resource>` |
+| Update one | `Update<Singular>` | `<Domain>Service.Update<Resource>` |
+| Soft-delete / lifecycle command | `Archive<Singular>`, `Restore<Singular>`, `Cancel<Run>` | `ProjectsService.ArchiveProject` |
+| Long-running start | `Start<Verb>` | `ImportsService.StartImport` |
+| Long-running poll | `Get<Verb>` | `ImportsService.GetImport` |
+| Server-streaming | `Stream<Plural>` or `Watch<Singular>` | `RunsService.StreamRunEvents` |
+| Idempotent action | Verb that reads as a transition | `OrdersService.RefundOrder` (not `PostRefund`) |
 
 Avoid:
-- Docs that only restate types without explaining behavior
-- “Read the code” as the primary onboarding mechanism
+- HTTP-verb leakage in method names (`PostNote`, `PutNote`).
+- Resource-path leakage (`<Domain>V1Create<Resource>`).
+- "Misc" service buckets that group unrelated methods.
 
 ---
 
-### 11. API Coherence Audit (Brownfield-Friendly)
+### 6. Consistency Rules
 
-When inheriting or improving an existing scenario API, first establish the current shape.
+Connect-RPC absorbs much of the boilerplate (status codes via `connect.Code*`, error envelopes via `connect.NewError`). The remaining consistency surface:
 
-**Audit prompts (what to look for):**
-- Are endpoints grouped by domain boundaries?
-- Do proto-owned operations use Connect-RPC service methods end to end?
-- Are REST endpoints documented with explicit non-proto justification?
-- Do request/response shapes look uniform?
-- Are errors consistent and typed?
-- Where does domain logic live (handlers vs services)?
-- Are there “god routers” or “misc” endpoints?
-- Are there duplicate utility patterns?
+**Error mapping.** Translate domain errors to typed `*connect.Error` once, in a shared layer. Use stable `connect.Code` values and a structured `connect.ErrorDetail` (proto message) for field violations or retry hints.
 
-**Typical red flags:**
-- Huge handler files
-- Inconsistent pagination
-- Multiple error formats
-- Handler contains business logic and persistence calls
-- Proto types exist but aren’t end-to-end adopted
+**Pagination.** Pick one shape per scenario and use it for every list method. Cursor-shaped is the default (`page_size`, `page_token`, `next_page_token` in the request/response messages).
 
-**Document findings** in a durable place (e.g., `docs/internal/API_NOTES.md` or equivalent):
-- Current module map
-- Top 5 inconsistencies to fix
-- Proposed re-org plan (incremental, non-breaking)
+**Idempotency.** Connect headers (`Idempotency-Key`) survive the generated client; document which `Create*`/command methods honor them.
+
+**Auth.** One Connect interceptor sets request context (actor, scopes, request id). Authorization checks live close to the domain, never copy-pasted across handlers.
+
+**Observability.** Emit structured logs with request id, scenario id, RPC procedure, latency, outcome, dependency call outcomes. Never log raw secrets.
+
+**Dry-run.** Mutating methods honor the `X-Dry-Run: true` header (set automatically by cli-core when `--dry-run` is passed). Validate normally, short-circuit before the first side effect, return a realistic typed response with a `dry_run` indicator.
+
+---
+
+### 7. REST Exceptions: The Four Reasons
+
+The only mechanically-allowed reasons to keep a hand-authored REST path are the four constants in `path:templates/scenarios/react-vite/api/internal/module/module.go`:
+
+| `RESTReason*` constant | Wire string | Use when |
+|---|---|---|
+| `RESTReasonMultipartUpload` | `multipart_upload` | Request body is opaque file bytes; proto cannot express `multipart/form-data`. Response metadata still flows through a proto message. |
+| `RESTReasonWebhookReceiver` | `webhook_receiver` | A third-party system (Stripe, GitHub, …) dictates the request shape and we cannot ask them to switch to proto. |
+| `RESTReasonThirdPartyShape` | `third_party_shape` | OpenAPI passthrough, OAuth callbacks, or other request/response shape owned by a third-party contract. |
+| `RESTReasonOpsProbe` | `ops_probe` | Lifecycle systems, load balancers, and curl probes need to reach the endpoint without a generated client (e.g. `GET /health`, browser-facing static HTML). |
+
+Rules:
+- Every REST endpoint sets `EndpointDescriptor.RESTException` with one of these four `Reason` values and a free-form `Note` explaining the specific justification.
+- Adding a fifth reason is a deliberate architectural decision; it requires editing the template's `module.go` constants, not a local workaround.
+- `validateTransport` in `path:templates/scenarios/react-vite/api/cmd/gen-endpoints/main.go` rejects any descriptor whose `Path` is not a Connect procedure path and lacks a valid `RESTException`. Local copies inherit the same gate.
+
+---
+
+### 8. Audit Workflow
+
+1. **Read the docs.** Start with `ARCHITECTURE.md`, `SEAMS.md`, `PROBLEMS.md`, and `.vrooli/endpoints.json`. Treat docs as claims to verify.
+2. **Inventory domains.** List every `handlers/<domain>/` package and its `Module` constructor.
+3. **Verify proto coverage.** Each domain should have a proto file under `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/` with one `service` block.
+4. **Verify Connect wiring.** Each `Module.Mount` should register a Connect handler (or a small number of them), not hand-wired `mux.Router` REST routes — except for the four exceptions.
+5. **Verify descriptor parity.** Every `EndpointDescriptor.Path` is either a Connect procedure path or carries a `RESTException` with a valid `Reason`. Run `cmd/gen-endpoints` and confirm `validateTransport` passes.
+6. **Assign maturity levels.** Score each domain independently using §2.
+7. **Find drift.** Look for the red flags in §9.
+8. **Improve incrementally.** Prefer one domain's lift from L2 → L3 over a broad cross-cutting refactor.
+9. **Update docs.** Put durable shape decisions in `ARCHITECTURE.md`, boundary/interceptor decisions in `SEAMS.md`, and unresolved drift in `PROBLEMS.md`.
+
+Audit commands:
+
+```bash
+# Connect service implementations and Module constructors
+rg "connectrpc\.com/connect|_v1connect" scenarios/{{TARGET}}/api --type go
+rg "module\.Module\{" scenarios/{{TARGET}}/api/handlers --type go
+
+# REST-exception tagging — every REST path should set one
+rg "RESTException\s*:\s*&module\.RESTException" scenarios/{{TARGET}}/api/handlers --type go
+
+# Hand-wired REST routes (red flag unless paired with a RESTException)
+rg "r\.HandleFunc|router\.(GET|POST|PUT|DELETE|PATCH)" scenarios/{{TARGET}}/api --type go
+
+# EndpointDescriptor paths — should be Connect procedure paths or REST exceptions
+rg "Path:\s*\"/api/v1/" scenarios/{{TARGET}}/api/handlers --type go
+
+# Proto-less domains (handlers package without a matching proto schema)
+fd -t d . scenarios/{{TARGET}}/api/handlers
+fd "\.proto$" packages/proto/schemas/{{SCENARIO_ID}}
+
+# Codegen gate — validateTransport must pass
+cd scenarios/{{TARGET}} && go run ./api/cmd/gen-endpoints --check
+
+# Domain logic leaking into transport
+rg "\bconnect\.|\bmux\." scenarios/{{TARGET}}/api/internal --type go
+```
+
+---
+
+### 9. Red Flags
+
+- A `handlers/<domain>/` package with no matching `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/`.
+- `Module.Mount` registering `r.HandleFunc("/api/v1/...", ...)` for an operation whose payload could be a proto message.
+- `EndpointDescriptor.Path` containing a hand-authored REST literal without a `RESTException`.
+- `RESTException.Reason` set to a string that is not one of the four `RESTReason*` constants.
+- Domain packages (`internal/<domain>/`) importing `connectrpc.com/connect` or `gorilla/mux`.
+- Hand-written types in UI or CLI that duplicate generated proto messages.
+- `.vrooli/endpoints.json` edited by hand (it must be regenerated from `Module.Endpoints`).
+- Mutating Connect methods that ignore the `X-Dry-Run` header.
+- New "misc" or "v2" services that have no domain vocabulary.
+- Method names that leak HTTP verbs (`PostNote`, `PutNote`).
+
+---
+
+### 10. Safe Refactoring Guidelines
+
+You may:
+- introduce a proto schema for a domain that currently has only REST handlers, and migrate the methods one at a time
+- rename Connect service methods to match the patterns in §5 (with deprecation aliases if external consumers exist)
+- extract a shared Connect interceptor for auth/request-context/error mapping
+- tag a legitimate REST exception with the correct `RESTReason*` and a clarifying `Note`
+- regenerate `.vrooli/endpoints.json` from `Module.Endpoints`
+
+You must:
+- preserve observable behavior and wire compatibility unless the user has approved a breaking change
+- keep `validateTransport` passing after every change
+- update `ARCHITECTURE.md`, `SEAMS.md`, or `PROBLEMS.md` to reflect the new shape
+- update CLI commands and UI clients when method names or shapes change (or record the follow-up in `PROBLEMS.md`)
+
+Challenge yourself before a move:
+- Does this make the domain's RPC surface easier to discover from the proto?
+- Does it remove a hand-authored REST literal or a hand-written type?
+- Would a second agent independently arrive at the same shape from the docs?
+
+---
+
+### 11. Documentation
+
+Use `knowledge-observatory-tools` to read and update stable docs. Avoid creating `API_AUDIT.md` by default. One-off audit reports are acceptable only for a migration handoff; they should have a clear retirement path into `ARCHITECTURE.md`, `SEAMS.md`, or `PROBLEMS.md`.
+
+`ARCHITECTURE.md` should include:
+- the API surface map (domains, services, methods)
+- API maturity by domain
+- REST exceptions with their `RESTReason*` and justification
+- shared API substrate (interceptors, error mapping, pagination)
+
+`SEAMS.md` should include:
+- Connect interceptors (auth, request context, error translation)
+- repository/service seams within each domain
+- outbound integration adapters (covered jointly with `interoperability-steer`)
+
+`PROBLEMS.md` should include:
+- domains still on REST that should move to Connect
+- proto schemas that drift from runtime behavior
+- deprecation windows in progress
+
+Recommended architecture additions:
+
+```markdown
+## API Surface
+
+| Domain | Service | Methods | Maturity | Notes |
+|---|---|---|---|---|
+
+## REST Exceptions
+
+| Endpoint | Reason | Justification | Owner |
+|---|---|---|---|
+```
 
 ---
 
 ### 12. Output Expectations
 
-You may:
-- Re-organize endpoint modules to better match bounded contexts
-- Extract shared boundary utilities (auth/context/validation/errors/pagination)
-- Improve naming consistency and endpoint taxonomy (query/command/job)
-- Improve API documentation and CLI↔API mapping documentation
-- Add compatibility layers or deprecation markers
+By the end of this loop, the scenario API should:
+- expose every proto-owned operation as a Connect-RPC method via `Module.Endpoints`
+- carry a valid `RESTException` on every remaining REST endpoint
+- pass `validateTransport` in `cmd/gen-endpoints`
+- have a domain-aligned proto schema for every domain that exposes business logic
+- keep transport concerns out of `internal/<domain>/` packages
+- record unresolved drift in `PROBLEMS.md` rather than leaving it implicit
 
-You must:
-- Keep the API intuitive and domain-aligned (“screams” what the scenario does)
-- Keep handlers thin; move business logic into services/use-cases
-- Enforce consistent error shapes and response envelopes where applicable
-- Ensure proto-first adoption is progressing (or explicitly documented why not)
-- Avoid shallow refactors that only rename files without improving structure and reliability
+Avoid superficial changes that rename files or shuffle handlers without improving proto/Connect coverage or the REST-exception story.
 
-Last updated: 2026-05-04 (Connect-RPC adoption)
+Last updated: 2026-05-12

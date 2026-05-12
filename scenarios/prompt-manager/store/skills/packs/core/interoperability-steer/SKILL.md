@@ -101,11 +101,24 @@ out of hand-written UI/API/CLI glue.
 - Inter-scenario API↔API: **Connect-RPC**.
 - UI↔API for proto-typed payloads: **Connect-RPC**.
 - CLI↔API for proto-typed payloads: **Connect-RPC**.
-- File uploads / opaque binary edges: **REST with multipart**; proto
-  describes metadata only.
-- Webhook receivers / third-party API consumption: **REST/JSON** with the
-  shape the third party dictates.
+- File uploads / opaque binary edges: **REST with multipart**
+  (`RESTReason: multipart_upload`); proto describes metadata only.
+- Webhook receivers: **REST/JSON** with the shape the third party
+  dictates (`RESTReason: webhook_receiver`).
+- Third-party API consumption / OAuth callbacks / OpenAPI passthrough:
+  **REST/JSON** with the third-party shape (`RESTReason: third_party_shape`).
+- Operational probes that lifecycle systems, load balancers, and curl must
+  reach without a generated client: **REST/JSON**
+  (`RESTReason: ops_probe`) — e.g. `GET /health`.
 - Non-proto-typed internal endpoints: there should be none. Add a proto.
+
+The four REST exception reasons are the only mechanically-allowed escape
+hatches. They are enumerated as `RESTReason*` constants in
+`path:templates/scenarios/react-vite/api/internal/module/module.go`, and
+enforced by `validateTransport` in
+`path:templates/scenarios/react-vite/api/cmd/gen-endpoints/main.go`.
+Adding a fifth reason is a deliberate architectural decision; it requires
+editing the template's constants, not a local workaround.
 
 ---
 
@@ -216,13 +229,24 @@ Multipart/form-data and raw file uploads are transport exceptions. Send file byt
 #### 6.3 Type Consumption Decision Tree
 
 ```
-Incoming API/WS payload? -> schema parse (fromJson/protojson)
-Outgoing payload? -> schema serialization (toJsonString/protojson)
-Proto-owned UI/API/CLI call? -> generated Connect-RPC client
-Optional field presence check needed? -> explicit presence logic
-UI receiving REST exception response? -> schema parse in src/api with fromJson
-UI sending REST exception metadata? -> schema serialization in src/api with toJsonString + useProtoFieldName
-UI props/types? -> import generated types directly, never hand-written interfaces
+Default: every UI/API/CLI call uses a generated Connect-RPC client.
+         No fromJson, no toJsonString, no casing options needed.
+
+Only branch to a REST path when one of the four RESTReason* constants applies:
+  multipart_upload   -> multipart request; proto JSON for the metadata part
+                         (toJsonString + useProtoFieldName on send; fromJson
+                         + ignoreUnknownFields on the response).
+  webhook_receiver   -> request shape dictated by a third party; accept their
+                         JSON, translate to proto-typed domain events
+                         immediately.
+  third_party_shape  -> third-party OpenAPI/OAuth shape; parse with their
+                         schema, then proto-translate at the boundary.
+  ops_probe          -> plain GET; no payload, no parser.
+
+UI props/types?                       -> import generated types directly,
+                                          never hand-written interfaces.
+Optional field presence check needed? -> explicit presence logic, no truthy
+                                          fallback when 0/"" is valid.
 ```
 
 #### 6.4 Optional Field Handling
@@ -356,6 +380,18 @@ Before changes, assess `{{TARGET}}` posture.
 # Proto usage and unsafe casts
 rg "from '@vrooli/proto-types|@vrooli/proto-types|fromJson|toJsonString|protojson|protovalidate" scenarios/{{TARGET}}/
 rg "as [A-Z][a-zA-Z]+|as any|: any" scenarios/{{TARGET}}/ --glob '!**/*_test.*'
+
+# Anti-pattern: UI hitting proto-owned REST paths directly
+rg "fetch\(.*api/v1|axios\.(get|post|put|delete|patch)\(.*api/v1" packages/ui/ scenarios/{{TARGET}}/ui/
+
+# Anti-pattern: CLI hitting the API via raw APIClient outside REST exceptions
+rg "APIClient\.(Get|Post|Put|Delete|Patch)" scenarios/{{TARGET}}/cli/
+
+# Anti-pattern: literal REST paths inside EndpointDescriptors
+rg "Path:\s*\"/api/v1/" scenarios/{{TARGET}}/api/handlers/ scenarios/{{TARGET}}/api/internal/module/
+
+# REST exception tagging — every REST EndpointDescriptor must set one
+rg "RESTException\s*:\s*&module\.RESTException" scenarios/{{TARGET}}/api/handlers/
 
 # Discovery/addressing and hardcoded ports
 rg "ResolveScenarioURLDefault|ResolveScenarioURL|scenario port|localhost:[0-9]+" scenarios/{{TARGET}}/api --glob '!**/*_test.go'
@@ -519,4 +555,20 @@ You must NOT:
 
 **Avoid superficial changes that rename/restructure code without materially improving interoperability reliability.**
 
-Last updated: 2026-05-04 (Connect-RPC adoption)
+---
+
+### 20. Interop Maturity Model
+
+Use this brief ladder to identify the next concrete move. Each surface (UI↔API, API↔API) can be scored independently.
+
+| Level | Name | What exists |
+|---|---|---|
+| 0 | Untyped JSON | Hand-written interfaces, ad-hoc fetch/axios, no schema parse. |
+| 1 | Proto schemas exist | `packages/proto/schemas/` has the domain; generated types compile. |
+| 2 | Proto JSON at the boundary | `fromJson` / `toJsonString` / `protojson` used at every cross-boundary edge; no manual casing. |
+| 3 | Connect-RPC end to end | UI, CLI, and inter-scenario calls consume generated Connect clients for every proto-owned RPC. REST appears only with a valid `RESTReason*`. |
+| 4 | Validated boundaries + discovery | `protovalidate` enforces request invariants at ingress; URL resolution goes through `api-core/discovery`; bounded retry and re-resolution implemented. |
+| 5 | Codegen drift gate | `validateTransport` (or equivalent) fails the build on hand-authored REST paths without exceptions; parity tests assert UI/CLI ↔ RPC mapping; envelope/status normalization is centralized and tested. |
+
+Last updated: 2026-05-12
+

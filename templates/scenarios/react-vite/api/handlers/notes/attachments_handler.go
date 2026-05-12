@@ -1,3 +1,28 @@
+// attachments_handler.go is the canonical worked example of a REST
+// exception in a proto/Connect-RPC scenario.
+//
+// Why REST here and only here: the request transport is
+// multipart/form-data — opaque file bytes plus a filename. Proto
+// Connect calls are JSON-over-HTTP or binary protobuf; neither can
+// express a multipart upload without round-tripping bytes through
+// base64, which defeats streaming and inflates payloads. The four
+// mechanically-allowed REST reasons live in
+// api/internal/module/module.go; this handler uses
+// RESTReasonMultipartUpload.
+//
+// What stays proto-typed: the response. The UploadAttachmentResponse
+// message is defined in notes.proto and is the source of truth for the
+// metadata wire shape (id, note_id, filename, size, content_type, ...).
+// The handler hand-marshals it via protojson rather than calling the
+// generated Connect handler, but the message type is the same one the
+// generated TS/Go clients deserialize. There is no separate REST schema.
+//
+// What this means for new domains: do NOT copy this pattern unless the
+// request transport genuinely cannot be expressed in proto. The
+// validateTransport pass in cmd/gen-endpoints rejects literal-string
+// EndpointDescriptor.Path values that lack a RESTException tag, so the
+// failure surfaces at codegen time — not after the second scenario has
+// already drifted to REST.
 package notes
 
 import (
