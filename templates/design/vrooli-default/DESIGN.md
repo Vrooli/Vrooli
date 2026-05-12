@@ -162,6 +162,15 @@ constraints:
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
+## How To Read This Document
+
+This file mixes two kinds of guidance, and the distinction matters.
+
+- **Binding contract** (must follow): the tokens, color roles, typography scale, spacing, radius, motion rules, status-color semantics, responsive transformations, accessibility floors, and the overall "calm/dense/operational" feel target. These define the design language and must be respected.
+- **Illustrative examples** (shape, not checklist): any concrete list of components, layouts, page surfaces, settings controls, or copy. These exist to communicate *shape and feel*, not to enumerate the features your scenario must (or must not) ship. If a section lists "preferred primitives" or sketches an example settings page, treat that as a representative sample — your scenario should implement every feature its users actually need, even if it is not listed here.
+
+Concrete rule of thumb: this design tells you *how* a control should look, behave, and feel — not *which* controls your scenario must include. Match the design's visual and behavioral floor; do not constrain your scenario's feature set to whatever examples appear below.
+
 ## Intent
 
 Vrooli Operational Console is the default design language for scenario applications. It is built for operators, agents, reviewers, maintainers, and builders who need to understand system state quickly and act repeatedly without friction.
@@ -198,7 +207,7 @@ Reserve hero-scale type for true landing or product-identity screens. Scenario a
 
 Controls should be predictable, stable, and optimized for repeated work. Use icon buttons for familiar tool actions, segmented controls for modes, toggles or checkboxes for binary settings, sliders or inputs for numeric values, menus for option sets, tabs for sibling views, and command bars for high-frequency workflow actions.
 
-Preferred primitives:
+Example primitives (illustrative, not a feature checklist — include whatever your scenario actually needs, styled to match these patterns):
 
 - **Shells:** desktop sidebars, collapsible panes, resizable inspectors, bottom mobile navigation, route-level mobile panels.
 - **Dialogs:** compact modal on desktop; bottom sheet or full-screen panel on mobile when content is more than a short confirmation.
@@ -226,6 +235,8 @@ Use safe-area padding for mobile bottom and top chrome. Primary touch targets sh
 ## Customization
 
 Every generated scenario should be able to support light, dark, and system mode unless the product explicitly documents a different reason. Font size scaling, reduced motion, and RTL layout should be planned from the start. For mobile-heavy workflows with frequent bottom actions, support optional left-handed and right-handed action placement when feasible.
+
+Build a full settings/preferences surface covering everything your scenario actually needs — theme, font scale, locale, accessibility preferences, account or workspace controls, notification toggles, and scenario-specific options. Do not treat any specific subset of preferences mentioned elsewhere in this document as the complete set; those are illustrative. Style and behavior of the settings surface are governed by this design; *which* settings exist is governed by your scenario's users.
 
 Customization should be implemented through tokens and stateful preferences, not one-off component rewrites. Local product themes may extend this design, but they should keep semantic color roles, focus behavior, responsive transformations, and accessibility guarantees intact.
 

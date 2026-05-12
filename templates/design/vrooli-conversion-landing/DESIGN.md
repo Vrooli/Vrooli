@@ -152,6 +152,15 @@ constraints:
 
 This is not the general Vrooli marketing-site design. It is a conversion landing-page system for productized offers.
 
+## How To Read This Document
+
+This file mixes two kinds of guidance, and the distinction matters.
+
+- **Binding contract** (must follow): tokens, palette discipline, typography scale, premium-B2B feel target, the "one primary conversion goal per variant" rule, analytics/instrumentation preservation, accessibility/trust floors, mobile-first performance, honest proof rules, and the do/don't list.
+- **Illustrative examples** (shape, not checklist): the example component list (hero / sticky header / feature blocks / proof strip / artifact panels / pricing / downloads / FAQ / final CTA), the example section cadence, and any specific copy examples. Use whichever sections and components your offer actually needs — add or omit freely, matched to persona, traffic source, and conversion style.
+
+Rule of thumb: this design tells you *how* a landing page should look, prove, and convert; *which* sections, components, and copy your specific variant uses is governed by the offer and the experiment.
+
 ## Intent
 
 Vrooli Conversion Landing exists to move a specific visitor toward a specific action with as little uncertainty and friction as possible. The page should communicate what the offer is, who it is for, why it matters, why it can be trusted, and what the visitor should do next within the first viewport.

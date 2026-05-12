@@ -1,7 +1,9 @@
-# React + Vite Scenario Template (Go API + CLI)
+# {{SCENARIO_DISPLAY_NAME}}
 
-Use this template to bootstrap every new scenario. It packages the
-standard full-stack Vrooli scenario shape:
+{{SCENARIO_DESCRIPTION}}
+
+This scenario was generated from the `react-vite` template and packages
+the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
@@ -9,54 +11,56 @@ standard full-stack Vrooli scenario shape:
 - Lifecycle + health wiring (`.vrooli/service.json`)
 - Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
 
-## Copy the Template
-```bash
-# From the repo root
-vrooli scenario generate react-vite \
-  --id <your-scenario> \
-  --display-name "Your Scenario" \
-  --description "One sentence summary" \
-  --design vrooli-default
-cd scenarios/<your-scenario>/
-```
+> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
+> owns the first-session initialization protocol — charter, requirements,
+> domain map, design language, placeholder replacement, and first real
+> vertical slice. Run `make orient` for a machine-readable gate status.
 
-After generation, work from `scenarios/<your-scenario>/` and let the
-scenario lifecycle own setup, ports, start/stop, logs, and tests.
-Use `make orient` or `vrooli scenario orient <your-scenario>` during
-the first implementation session to see which initialization gates are
-complete. When the required gates pass, run `vrooli scenario orient
-<your-scenario> --finalize`; this removes only temporary orientation
-metadata and leaves provenance, docs, requirements, and code intact.
+## What's In This Scenario
 
-> **The `notes` domain is a worked example, not a starting feature.**
-> It demonstrates the canonical vertical slice: proto contract →
-> API domain/service/repository → handler module → CLI domain → UI
-> feature. Copy the structure for your first real domain, then delete
-> the example once your real domain is green.
-
-## What You Get
 - Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
   coordinated through generated proto contracts.
 - Lifecycle metadata, Makefile entrypoints, health checks, endpoint
   metadata, testing config, and CLI install wiring.
 - Domain-first API shape with per-domain service, repository, schema,
   handler module, mocks, and tests.
-- SQLite by default, with external resources added only when a scenario
-  actually needs them.
+- SQLite by default. Add external resources to `.vrooli/service.json`
+  only when this scenario actually needs them.
 - UI/CLI guardrails for i18n, accessibility, API base resolution,
   declarative command args, generated Connect clients, and report-shaped
   output.
 - Root-level `DESIGN.md` plus generated UI token assets from the
   selected design kit.
-- A scenario documentation contract in `docs/manifest.json`, including
-  stubs for domains, flows, data, integrations, monetization,
-  deployment, runbooks, observability, security, performance, and
-  durable decisions.
+- A documentation contract in `docs/manifest.json`, with stubs for
+  domains, flows, data, integrations, monetization, deployment,
+  runbooks, observability, security, performance, and durable
+  decisions.
 
-## Setup Workflow
+## Placeholders vs. Durable Scaffolding
+
+The generated scaffold is intentionally not the product. When you build
+the real UX, treat these as **placeholders** to replace:
+
+- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
+  slice meant to be copied once and then deleted.
+- The `AppShell` and the centered single-panel home page in `ui/src/`.
+- The bare-minimum settings surface (currently just locale switching).
+
+Treat these as **durable seams** to preserve, even as you rewrite the
+visual layout:
+
+- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
+- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
+- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
+- The feature-folder pattern under `ui/src/features/<name>/`.
+- The proto → API → CLI → UI vertical-slice shape.
+
+[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
+workflow in full.
+
+## Running The Scenario
+
 ```bash
-cd scenarios/<your-scenario>
-
 # Build API + UI, install pnpm deps, install scenario CLI
 make setup   # wraps `vrooli scenario setup`
 
@@ -66,14 +70,16 @@ make start   # wraps `vrooli scenario start`
 
 See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke `test-genie execute <your-scenario> --preset comprehensive` directly for finer-grained presets.
+Run tests with `make test` (which runs `vrooli scenario test`) or invoke
+`test-genie execute {{SCENARIO_ID}} --preset comprehensive` directly for
+finer-grained presets.
 
 ## Documentation Map
 
 | Need | Start Here |
 |---|---|
-| Begin implementation after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
-| Establish UI design language | `DESIGN.md` at the generated scenario root |
+| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Establish UI design language | `DESIGN.md` at this scenario's root |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
 | Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
 | Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
@@ -86,19 +92,25 @@ Run tests with `make test` (which runs `vrooli scenario test`) or invoke `test-g
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
 | Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
 
-## Customize Safely
-1. **Read `docs/START-HERE.md` first.** It owns the first implementation workflow.
-2. **Run `make orient` as a progress check.** It reports template-owned initialization gates from `.vrooli/orientation.json`.
-3. **Update PRD.md + requirements/** before feature work. Operational targets drive code + tests.
-4. **Read root `DESIGN.md` before UI work.** Keep global styles, Tailwind theme, and primitives aligned with it.
+## Working Rules
+
+1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
+2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
+3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
+4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
 5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
 6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
 7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-8. **Add resources** in `.vrooli/service.json` only when needed; the template ships with no resource dependencies (SQLite is in-process).
-9. **Keep boundaries**: only edit within `scenarios/<your-scenario>/`.
+8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
+9. **Keep boundaries**: only edit within this scenario's directory.
 
 ## pnpm Everywhere
-The template assumes pnpm. If you run another package manager, convert lockfiles yourself before committing. Scripts use `pnpm` directly (no `npm` fallbacks) to reduce drift.
+
+This scenario assumes pnpm. If you run another package manager, convert
+lockfiles yourself before committing. Scripts use `pnpm` directly (no
+`npm` fallbacks) to reduce drift.
 
 ## Need Inspiration?
-Open `scenarios/browser-automation-studio/` to see this template taken to completion.
+
+Open `scenarios/browser-automation-studio/` to see the same template
+shape taken to completion.

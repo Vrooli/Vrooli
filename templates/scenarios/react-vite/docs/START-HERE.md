@@ -13,10 +13,35 @@ machine-readable progress check for these gates. It delegates to
 all required gates pass, run `vrooli scenario orient {{SCENARIO_ID}}
 --finalize` to remove only that temporary orientation metadata.
 
-The generated scaffold is intentionally not the product. The `notes`
-domain is a worked example that shows the expected vertical slice
-shape. Build one real domain beside it, prove that domain is green,
-then remove the example.
+The generated scaffold is intentionally not the product. Treat every
+generated UI surface as placeholder unless it is explicitly listed as
+durable infrastructure below. In particular:
+
+- The `notes` domain is a worked example. Build one real domain beside
+  it, prove that domain is green, then remove the example.
+- The `AppShell` layout, the centered single-panel home page, the title
+  / description / eyebrow text, and the bare-minimum settings surface
+  are placeholders. They exist so the template boots green; they are
+  **not** a reasonable end-state for your scenario. Replace the shell
+  (or rewrite it heavily) when you build the real UX.
+- Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
+  `useTranslation`, the locale switcher behavior), accessibility
+  primitives (`role`, `aria-*`, `data-testid` selectors), the
+  design-token plumbing (`bg-app-background`, `rounded-panel`, etc.),
+  and the feature-folder pattern under `ui/src/features/<name>/`. Move
+  these into whatever shell/pages you design — do not delete the
+  behaviors just because you delete the visual placeholder.
+
+Binding contract vs. illustrative example: every reference doc this
+scenario ships with — `DESIGN.md`, `PRD.md`, the placeholder shell,
+and the `notes` example — mixes two kinds of guidance. Tokens, motion,
+status-color semantics, accessibility floors, i18n, and the
+domain/proto/API/CLI/UI shape are **binding contracts**: respect them.
+Specific lists of components, settings, page surfaces, or copy
+examples are **illustrative**: they exist to show shape, not to
+enumerate what your scenario must (or must not) include. Implement
+every feature your scenario actually needs, even if a specific
+example doc does not list it.
 
 ## Initialization Protocol
 
@@ -195,6 +220,24 @@ the real scenario needs.
 Generation installs root-level `DESIGN.md` from the selected design kit.
 Treat that file as the UI source of truth before building screens.
 
+**Binding vs. illustrative.** Read `DESIGN.md` carefully:
+
+- *Binding* (must follow): tokens, color roles, typography scale,
+  spacing, radius, motion rules, status-color semantics,
+  accessibility floors, responsive transformations, and the overall
+  feel/density target.
+- *Illustrative* (examples, not exhaustive): any concrete list of
+  components, page surfaces, settings, or copy. If the design lists
+  "preferred primitives" or shows an example settings page, those are
+  **shape hints**, not a feature checklist. Implement the full set of
+  features and surfaces your scenario actually needs, even if the
+  design doc does not enumerate them.
+
+Concretely: if `DESIGN.md` shows a settings page with three example
+controls, and your scenario also needs theme, locale, accessibility,
+account, or notification settings, build all of them. The design
+governs how they should look and behave, not which ones exist.
+
 - [ ] Read `DESIGN.md` and confirm it fits this scenario's users,
       density, workflow, and accessibility needs.
 - [ ] If the scenario needs a different language, regenerate with a
@@ -203,12 +246,25 @@ Treat that file as the UI source of truth before building screens.
 - [ ] Keep `ui/src/design-tokens.css`, `ui/tailwind.theme.json`,
       `ui/tailwind.config.ts`, and reusable `ui/src/components/ui/`
       primitives aligned with `DESIGN.md`.
+- [ ] Replace the placeholder `AppShell` and home page. Design the
+      real shell, navigation, and surfaces your scenario needs.
+      Preserve the durable seams listed above (i18n, locale switcher
+      behavior, accessibility selectors, design tokens) inside
+      whatever new layout you build.
+- [ ] Audit settings. The placeholder shell ships with the bare
+      minimum (currently just locale switching). Inventory every
+      preference your scenario needs (theme, font scale, locale,
+      a11y, account, notifications, scenario-specific toggles) and
+      build the full settings surface — do not constrain yourself to
+      whatever happens to be shown as an example in `DESIGN.md`.
 - [ ] Do not create `docs/DESIGN_LANGUAGE.md`; root `DESIGN.md` is the
       canonical design contract.
 
-**Exit criteria:** UI work has a reviewed root `DESIGN.md`, and the
-global styles, Tailwind theme, primitives, selectors, and accessibility
-tests all point back to that contract.
+**Exit criteria:** UI work has a reviewed root `DESIGN.md`, the
+placeholder shell has been replaced with scenario-specific layout, the
+settings surface covers everything this scenario actually needs, and
+the global styles, Tailwind theme, primitives, selectors, and
+accessibility tests all point back to the design contract.
 
 ### Gate 5b — Business And Operations Stubs
 

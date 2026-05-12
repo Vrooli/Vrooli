@@ -3,12 +3,23 @@ import { HealthCard } from "./features/health/HealthCard";
 import { NotesCard } from "./features/notes/NotesCard";
 
 /**
- * App composes the page from a shell + a list of feature cards.
+ * PLACEHOLDER — REPLACE WHEN BUILDING THE REAL UX.
  *
- * Adding a feature: create `features/<name>/<Name>Card.tsx`, then
- * add its import + render line below. Deleting a feature: delete
- * the folder, remove the import + line. There is no central
- * registry to mutate.
+ * This `App` is a minimum-viable scaffold so the template boots green.
+ * It is not a reasonable end-state for your scenario. When you design
+ * the real product:
+ *   - Replace `AppShell` (or rewrite it heavily) with the real shell,
+ *     navigation, and layout your scenario needs.
+ *   - Replace this single-page composition with whatever surfaces
+ *     your scenario actually has (router, pages, panels, dashboards).
+ *   - Keep i18n, accessibility selectors, and design-token usage
+ *     intact inside the new layout — those are durable seams, not
+ *     placeholder choices.
+ *
+ * Pattern for adding a feature: create
+ * `features/<name>/<Name>Card.tsx`, then import + render it. Deleting
+ * a feature: delete the folder, remove the import + render. There is
+ * no central registry to mutate.
  */
 export default function App() {
   return (

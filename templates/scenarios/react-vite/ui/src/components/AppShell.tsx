@@ -9,13 +9,29 @@ type Props = {
 };
 
 /**
- * AppShell renders the outer page layout. Keep shell-level visual
- * decisions aligned with root DESIGN.md and the generated token files.
+ * PLACEHOLDER SHELL — REPLACE WHEN BUILDING THE REAL UX.
+ *
+ * This shell is a minimum-viable layout so the template boots green
+ * and demonstrates the i18n/a11y/design-token seams. It is NOT a
+ * reasonable end-state for your scenario. When you design the real
+ * product UI:
+ *   - Replace this centered single-panel layout with the real shell
+ *     (navigation, routing, side panes, headers — whatever fits).
+ *   - Replace the eyebrow / title / description with real product
+ *     surfaces.
+ *   - Replace the inline locale buttons with whatever fits the real
+ *     settings/preferences surface (header menu, settings page,
+ *     keyboard shortcut, etc.). KEEP the underlying i18n behavior:
+ *     `useTranslation`, `setLocale`, `SUPPORTED_LOCALES` are durable
+ *     seams, not placeholder choices.
+ *   - Build a real settings page covering every preference the
+ *     scenario actually needs (theme, font scale, locale, a11y,
+ *     account, notifications, etc.) — do not constrain it to
+ *     whatever specific examples appear in `DESIGN.md`; the design
+ *     governs how settings look and behave, not which ones exist.
  *
  * Lives in `components/` (not `features/`) because the shell is
- * cross-cutting layout, not domain content. Per react-coherence:
- * `features/<name>/` owns domain UI; `components/` owns reusable
- * layout primitives.
+ * cross-cutting layout, not domain content.
  */
 export function AppShell({ children }: Props) {
   const { t } = useTranslation();

@@ -5,6 +5,66 @@ itself. It is excluded from generated scenarios by
 `template.json::copyExcludes`; generated scenarios should not carry
 template-maintainer instructions.
 
+## Binding Contract vs. Illustrative Example
+
+Every doc, scaffold, and design asset this template ships mixes two
+kinds of guidance, and the distinction shapes how scenario authors and
+agents downstream interpret the template. When you edit any
+template-owned file, always ask: **is this line a binding contract that
+generated scenarios must respect, or is it an illustrative example
+meant to communicate shape?** Make that classification obvious in the
+text — agents over-fit to whichever framing they see.
+
+- **Binding contracts** in a generated scenario: design tokens, color
+  roles, status-color semantics, motion rules, accessibility floors,
+  responsive transformations, i18n/a11y seams, the proto → API → CLI
+  → UI vertical-slice shape, lifecycle/health wiring, the placement
+  of business logic in `api/internal/<domain>/`, the durable
+  documentation contract in `docs/manifest.json`. These should read
+  prescriptively — "must", "use", "do not".
+- **Illustrative examples** in a generated scenario: the `notes`
+  domain, the placeholder `AppShell` and home page, the bare-minimum
+  settings surface, any specific component list inside `DESIGN.md`,
+  any sample copy or sample preferences. These should read as
+  examples — "for example", "such as", "this is one shape; build
+  what your scenario needs".
+
+Failure modes we have actually observed:
+
+- Agents leave the placeholder `AppShell` and home page intact and
+  only bolt new components onto them, because no doc told them the
+  shell itself is a placeholder.
+- Agents implement exactly and only the settings shown as examples in
+  `DESIGN.md` (and delete pre-existing settings like locale switching
+  that were not listed there), because the design's example controls
+  read prescriptively.
+- Agents read READMEs in template-author voice ("Use this template
+  to…") and act as if they are editing the template rather than
+  a generated scenario.
+
+When editing template files, prevent these failure modes proactively:
+
+1. If a paragraph names specific components, settings, pages, or copy,
+   hedge it ("for example", "such as", "illustrative") or wrap it in
+   an explicit "Example primitives" / "Example surfaces" header.
+2. If something in the scaffold is a placeholder, mark it with a
+   `PLACEHOLDER` comment at the top of the file, and reference it
+   from `docs/START-HERE.md` so the replacement workflow is visible
+   in the initialization gates.
+3. If a doc currently reads as template-author voice ("Use this
+   template…", "When you copy…"), rewrite it as scenario-voice ("This
+   scenario…") so it reads naturally inside a generated scenario.
+   Template-author guidance belongs in this file or in
+   `TEMPLATE-GENERATION-CONTRACT.md`, both of which are excluded from
+   generated scenarios by `copyExcludes`.
+4. When adding new sections to `DESIGN.md` (or any of the design kits
+   under `templates/design/`), put the binding tokens/rules in one
+   place and the illustrative component lists in another, clearly
+   labeled. Do not interleave.
+
+This principle is the single most common cause of generated-scenario
+quality drift. Apply it whenever you touch a template file.
+
 ## Audience Split
 
 - **Template maintainers** edit files under

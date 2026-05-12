@@ -9,6 +9,15 @@ template-maintainer notes. Put generated first-run guidance in
 `docs/START-HERE.md`; keep generation mechanics and template-only
 contracts here.
 
+When editing any template-owned file, also read the **Binding Contract
+vs. Illustrative Example** section in
+`docs/internal/TEMPLATE-MAINTENANCE.md`. It is the single most
+load-bearing editorial principle for template maintenance: every line
+generated scenarios inherit must be unambiguously a binding contract
+*or* an illustrative example, and the framing must match. Mis-framing
+is the root cause of placeholder-shell-not-replaced and
+settings-taken-too-literally bugs we have actually seen downstream.
+
 ## Manifest Behavior
 
 The template's `template.json` controls generation:

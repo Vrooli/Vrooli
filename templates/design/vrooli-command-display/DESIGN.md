@@ -155,6 +155,15 @@ constraints:
 
 `DESIGN.md` is the source of truth for fullscreen command-center, kiosk, TV, and ambient display scenarios. Stack-specific adapters may translate these tokens into CSS, Tailwind, Three.js scene palettes, chart themes, or future native-display targets, but adapters must not redefine the design language.
 
+## How To Read This Document
+
+This file mixes two kinds of guidance, and the distinction matters.
+
+- **Binding contract** (must follow): tokens, color roles, status-color semantics, typography scale, motion and reduced-motion rules, accessibility/contrast floors, kiosk/remote interaction requirements, data-truthfulness rules, and the overall "cinematic, honest, calm-at-rest" feel target.
+- **Illustrative examples** (shape, not checklist): any concrete list of themes, pages, components, or copy — including the listed dashboard themes (Ground Control, Bioluminescent, Foundry, Vault, Signal Tower, Cosmos) and any specific scene treatments. These exist to communicate shape and atmosphere; build whatever pages, scenes, and controls your scenario actually needs.
+
+Rule of thumb: this design governs *how* a display should look, move, and feel; *which* pages, themes, and controls your scenario ships is governed by its users and intent.
+
 ## Intent
 
 Vrooli Command Display is for screens that are meant to be seen from across a room and left running: war-room dashboards, office TVs, executive readouts, launch monitors, showcase demos, and command-center displays.
