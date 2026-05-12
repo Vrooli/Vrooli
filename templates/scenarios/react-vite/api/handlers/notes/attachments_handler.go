@@ -12,6 +12,7 @@ import (
 
 	"{{SCENARIO_ID}}/internal/httpx"
 	"{{SCENARIO_ID}}/internal/notes"
+	notesflow "{{SCENARIO_ID}}/internal/notes/flow"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -45,7 +46,7 @@ type attachmentsHandler struct {
 }
 
 func (h *attachmentsHandler) handleUpload(w http.ResponseWriter, r *http.Request) {
-	uploadState := notes.InitialAttachmentUploadState()
+	uploadState := notesflow.InitialAttachmentUploadState()
 	noteID := mux.Vars(r)["id"]
 	r.Body = http.MaxBytesReader(w, r.Body, maxMultipartFormBytes)
 	if err := r.ParseMultipartForm(maxMultipartFormBytes); err != nil {
@@ -70,12 +71,12 @@ func (h *attachmentsHandler) handleUpload(w http.ResponseWriter, r *http.Request
 	}
 	key := attachmentKey(noteID, header.Filename)
 	if err := h.deps.Store.Put(r.Context(), key, io.LimitReader(file, maxMultipartFormBytes), mime); err != nil {
-		_, _ = notes.TransitionAttachmentUpload(uploadState, notes.AttachmentUploadFail)
+		_, _ = notesflow.TransitionAttachmentUpload(uploadState, notesflow.AttachmentUploadFail)
 		h.deps.Logger.Printf("notes.Attachments.Put(%q): %v", key, err)
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "store attachment failed")
 		return
 	}
-	uploadState, err = notes.TransitionAttachmentUpload(uploadState, notes.AttachmentUploadStoreBytes)
+	uploadState, err = notesflow.TransitionAttachmentUpload(uploadState, notesflow.AttachmentUploadStoreBytes)
 	if err != nil {
 		h.deps.Logger.Printf("notes.Attachments.workflow(%q): %v", key, err)
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "invalid attachment upload state")
@@ -89,7 +90,7 @@ func (h *attachmentsHandler) handleUpload(w http.ResponseWriter, r *http.Request
 		SizeBytes: header.Size,
 	})
 	if err != nil {
-		_, _ = notes.TransitionAttachmentUpload(uploadState, notes.AttachmentUploadFail)
+		_, _ = notesflow.TransitionAttachmentUpload(uploadState, notesflow.AttachmentUploadFail)
 		_ = h.deps.Store.Delete(r.Context(), key)
 		status, code := attachmentErrorStatus(err)
 		if status == http.StatusInternalServerError {
@@ -98,7 +99,7 @@ func (h *attachmentsHandler) handleUpload(w http.ResponseWriter, r *http.Request
 		httpx.WriteError(w, status, code, err.Error())
 		return
 	}
-	if _, err := notes.TransitionAttachmentUpload(uploadState, notes.AttachmentUploadRecordMetadata); err != nil {
+	if _, err := notesflow.TransitionAttachmentUpload(uploadState, notesflow.AttachmentUploadRecordMetadata); err != nil {
 		h.deps.Logger.Printf("notes.Attachments.workflow(%q): %v", key, err)
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "invalid attachment upload state")
 		return

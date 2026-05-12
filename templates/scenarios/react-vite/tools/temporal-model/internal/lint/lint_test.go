@@ -6,22 +6,23 @@ import (
 	"strings"
 	"testing"
 
+	"react-vite-temporal-model/internal/layout"
 	"react-vite-temporal-model/internal/testkit"
 )
 
 func TestGoLintAcceptsValidTestFile(t *testing.T) {
 	root := t.TempDir()
 	flow := testkit.MustCompile(t, testkit.ValidRawContract())
-	writeFile(t, root, flow.Layout.BaseDir+"/example_workflow_test.go", `package example
+	writeFile(t, root, flow.Layout.BaseDir+"/flow_test.go", `package flow
 
 import (
 	"testing"
 
-	"`+pkgImport(flow.Layout.BaseDir, flow.Layout.FolderName)+`"
+	"`+pkgImport(flow.Layout.BaseDir)+`"
 )
 
 func TestExampleFormalReplay(t *testing.T) {
-	`+flow.Layout.FolderName+`.RunReplay(t, func(s `+flow.Layout.FolderName+`.Status, e `+flow.Layout.FolderName+`.Event) (`+flow.Layout.FolderName+`.Status, error) {
+	`+layout.GeneratedDirName+`.RunReplay(t, func(s `+layout.GeneratedDirName+`.Status, e `+layout.GeneratedDirName+`.Event) (`+layout.GeneratedDirName+`.Status, error) {
 		return s, nil
 	})
 }
@@ -34,12 +35,12 @@ func TestExampleFormalReplay(t *testing.T) {
 func TestGoLintRejectsMissingCall(t *testing.T) {
 	root := t.TempDir()
 	flow := testkit.MustCompile(t, testkit.ValidRawContract())
-	writeFile(t, root, flow.Layout.BaseDir+"/example_workflow_test.go", `package example
+	writeFile(t, root, flow.Layout.BaseDir+"/flow_test.go", `package flow
 
 import (
 	"testing"
 
-	_ "`+pkgImport(flow.Layout.BaseDir, flow.Layout.FolderName)+`"
+	_ "`+pkgImport(flow.Layout.BaseDir)+`"
 )
 
 func TestNothing(t *testing.T) {}
@@ -53,16 +54,16 @@ func TestNothing(t *testing.T) {}
 func TestGoLintRejectsNilTransition(t *testing.T) {
 	root := t.TempDir()
 	flow := testkit.MustCompile(t, testkit.ValidRawContract())
-	writeFile(t, root, flow.Layout.BaseDir+"/example_workflow_test.go", `package example
+	writeFile(t, root, flow.Layout.BaseDir+"/flow_test.go", `package flow
 
 import (
 	"testing"
 
-	"`+pkgImport(flow.Layout.BaseDir, flow.Layout.FolderName)+`"
+	"`+pkgImport(flow.Layout.BaseDir)+`"
 )
 
 func TestExampleFormalReplay(t *testing.T) {
-	`+flow.Layout.FolderName+`.RunReplay(t, nil)
+	`+layout.GeneratedDirName+`.RunReplay(t, nil)
 }
 `)
 	err := Check(root, flow)
@@ -74,16 +75,16 @@ func TestExampleFormalReplay(t *testing.T) {
 func TestGoLintRejectsEmptyTransitionBody(t *testing.T) {
 	root := t.TempDir()
 	flow := testkit.MustCompile(t, testkit.ValidRawContract())
-	writeFile(t, root, flow.Layout.BaseDir+"/example_workflow_test.go", `package example
+	writeFile(t, root, flow.Layout.BaseDir+"/flow_test.go", `package flow
 
 import (
 	"testing"
 
-	"`+pkgImport(flow.Layout.BaseDir, flow.Layout.FolderName)+`"
+	"`+pkgImport(flow.Layout.BaseDir)+`"
 )
 
 func TestExampleFormalReplay(t *testing.T) {
-	`+flow.Layout.FolderName+`.RunReplay(t, func(s `+flow.Layout.FolderName+`.Status, e `+flow.Layout.FolderName+`.Event) (`+flow.Layout.FolderName+`.Status, error) {
+	`+layout.GeneratedDirName+`.RunReplay(t, func(s `+layout.GeneratedDirName+`.Status, e `+layout.GeneratedDirName+`.Event) (`+layout.GeneratedDirName+`.Status, error) {
 	})
 }
 `)
@@ -96,9 +97,9 @@ func TestExampleFormalReplay(t *testing.T) {
 func TestTSLintAcceptsValidTestFile(t *testing.T) {
 	root := t.TempDir()
 	flow := testkit.MustCompile(t, testkit.ValidTypeScriptRawContract())
-	writeFile(t, root, flow.Layout.BaseDir+"/ExampleWorkflow.test.ts", `import { runFormalReplay } from "./generated/`+flow.Layout.FolderName+`/replay.helper";
-import { transitionExample } from "./ExampleWorkflow";
-import { exampleFormalFixtures } from "./ExampleWorkflow.fixtures";
+	writeFile(t, root, flow.Layout.BaseDir+"/flow.test.ts", `import { runFormalReplay } from "./generated/replay.helper";
+import { transitionExample } from "./transition";
+import { exampleFormalFixtures } from "./fixtures";
 
 runFormalReplay({ transition: transitionExample, fixtures: exampleFormalFixtures });
 `)
@@ -110,9 +111,9 @@ runFormalReplay({ transition: transitionExample, fixtures: exampleFormalFixtures
 func TestTSLintRejectsMissingCall(t *testing.T) {
 	root := t.TempDir()
 	flow := testkit.MustCompile(t, testkit.ValidTypeScriptRawContract())
-	writeFile(t, root, flow.Layout.BaseDir+"/ExampleWorkflow.test.ts", `import { runFormalReplay } from "./generated/`+flow.Layout.FolderName+`/replay.helper";
-import { transitionExample } from "./ExampleWorkflow";
-import { exampleFormalFixtures } from "./ExampleWorkflow.fixtures";
+	writeFile(t, root, flow.Layout.BaseDir+"/flow.test.ts", `import { runFormalReplay } from "./generated/replay.helper";
+import { transitionExample } from "./transition";
+import { exampleFormalFixtures } from "./fixtures";
 `)
 	err := Check(root, flow)
 	if err == nil || !strings.Contains(err.Error(), "no top-level call") {
@@ -123,9 +124,9 @@ import { exampleFormalFixtures } from "./ExampleWorkflow.fixtures";
 func TestTSLintRejectsCallInsideBlock(t *testing.T) {
 	root := t.TempDir()
 	flow := testkit.MustCompile(t, testkit.ValidTypeScriptRawContract())
-	writeFile(t, root, flow.Layout.BaseDir+"/ExampleWorkflow.test.ts", `import { runFormalReplay } from "./generated/`+flow.Layout.FolderName+`/replay.helper";
-import { transitionExample } from "./ExampleWorkflow";
-import { exampleFormalFixtures } from "./ExampleWorkflow.fixtures";
+	writeFile(t, root, flow.Layout.BaseDir+"/flow.test.ts", `import { runFormalReplay } from "./generated/replay.helper";
+import { transitionExample } from "./transition";
+import { exampleFormalFixtures } from "./fixtures";
 
 if (false) {
   runFormalReplay({ transition: transitionExample, fixtures: exampleFormalFixtures });
@@ -148,13 +149,10 @@ func writeFile(t *testing.T, root string, rel string, body string) {
 	}
 }
 
-func pkgImport(baseDir string, folder string) string {
+func pkgImport(baseDir string) string {
 	// Mirrors layout.SubpackageImportPath: strips api/ prefix and
-	// uses {{SCENARIO_ID}} as the module anchor in templates. In
-	// these unit tests we only care that the import string matches
-	// the one the lint computes; the test parser does not resolve
-	// the import.
-	dir := baseDir + "/generated/" + folder
+	// uses {{SCENARIO_ID}} as the module anchor in templates.
+	dir := baseDir + "/" + layout.GeneratedDirName
 	dir = strings.TrimPrefix(dir, "api/")
 	return "{{SCENARIO_ID}}/" + dir
 }

@@ -3,22 +3,22 @@ package lint
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
+	"react-vite-temporal-model/internal/codegen"
 	"react-vite-temporal-model/internal/model"
 )
 
-const tsShape = `    1. import { runFormalReplay } from "./generated/<folder>/replay.helper";
-    2. import { <transition> } from "./<Wrapper>";
-    3. import { <fixtures> } from "./<Wrapper>.fixtures";
+const tsShape = `    1. import { runFormalReplay } from "./generated/replay.helper";
+    2. import { <transition> } from "./transition";
+    3. import { <fixtures> } from "./fixtures";
     4. runFormalReplay({ transition, fixtures }); at module top level.
   Example:
-    import { runFormalReplay } from "./generated/foo/replay.helper";
-    import { transitionFoo } from "./Foo";
-    import { fixtures } from "./Foo.fixtures";
-    runFormalReplay({ transition: transitionFoo, fixtures });
+    import { runFormalReplay } from "./generated/replay.helper";
+    import { transitionFoo } from "./transition";
+    import { fooFormalFixtures } from "./fixtures";
+    runFormalReplay({ transition: transitionFoo, fixtures: fooFormalFixtures });
 `
 
 func checkTypeScript(root string, flow model.Flow) error {
@@ -26,15 +26,15 @@ func checkTypeScript(root string, flow model.Flow) error {
 	if err != nil {
 		return fmt.Errorf("%s: read %s: %w", flow.FlowID, flow.Layout.BaseDir, err)
 	}
-	expectedHelper := relativeImportFromBase(flow.Layout.BaseDir, flow.Layout.ReplayHelperPath)
-	wrapperModule := flow.Replay.Transition.Module
+	expectedHelper := "./generated/replay.helper"
+	expectedWrapper := "./transition"
+	expectedFixtures := "./fixtures"
 	wrapperFunc := flow.Replay.Transition.Function
-	fixtureModule := flow.Replay.FixtureModule
-	fixtureExport := flow.Replay.FixtureExport
+	fixtureExport := codegen.TypeScriptFixturesExportName(flow)
 	var failures []string
 	matched := false
 	for _, path := range files {
-		ok, why, err := scanTSTestFile(path, expectedHelper, wrapperModule, wrapperFunc, fixtureModule, fixtureExport)
+		ok, why, err := scanTSTestFile(path, expectedHelper, expectedWrapper, wrapperFunc, expectedFixtures, fixtureExport)
 		if err != nil {
 			failures = append(failures, fmt.Sprintf("    %s: %v", path, err))
 			continue
@@ -57,22 +57,6 @@ func checkTypeScript(root string, flow model.Flow) error {
 		msg += "  Scanned files: none with .test.ts suffix found.\n"
 	}
 	return fmt.Errorf("%s", msg)
-}
-
-// relativeImportFromBase computes the import path from a directory to
-// a target file, suitable for matching against an import specifier
-// (drops the .ts extension).
-func relativeImportFromBase(baseDir string, targetPath string) string {
-	rel, err := filepath.Rel(filepath.FromSlash(baseDir), filepath.FromSlash(targetPath))
-	if err != nil {
-		return ""
-	}
-	out := filepath.ToSlash(rel)
-	out = strings.TrimSuffix(out, ".ts")
-	if !strings.HasPrefix(out, ".") {
-		out = "./" + out
-	}
-	return out
 }
 
 // scanTSTestFile reads the source of a TS test file and verifies the
@@ -278,4 +262,3 @@ func stripComments(source string) string {
 	}
 	return b.String()
 }
-

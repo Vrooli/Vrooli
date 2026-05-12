@@ -2,37 +2,53 @@
 
 This directory owns the template-local formal temporal-model validation loop.
 
-## Canonical layout (schema v5)
+## Canonical layout (schema v6)
 
-Every flow lands as:
+Every flow lives in a `flow/` subdirectory next to its consumer:
 
 ```
 <feature-dir>/
-├── <Name>.flow.json            # hand: source of truth
-├── <wrapper>.{go,ts}           # hand: payload/runtime logic
-├── <Name>.fixtures.ts          # hand: replay fixtures (TS only)
-├── <test>_test.go OR <Name>.test.ts   # hand: thin replay delegation
-└── generated/<foldername>/
-    ├── model.qnt
-    ├── artifact.json
-    ├── runtime.{go,ts}
-    └── replay.{go,helper.ts}
+└── flow/
+    ├── flow.json                    # hand: source of truth (schema v6)
+    ├── transition.{ts,go}           # hand: payload/runtime logic
+    ├── fixtures.ts                  # hand: replay fixtures (TS only)
+    ├── flow.test.{ts,go}            # hand: thin replay delegation (lint-enforced)
+    └── generated/
+        ├── model.qnt
+        ├── artifact.json
+        ├── runtime.{ts,go}
+        └── replay.{helper.ts,go}
 ```
 
-The folder name under `generated/` is derived mechanically from the flow ID
-(middle dotted segments, lowercased, dashes stripped). The contract no longer
-declares any output paths — there is exactly one convention.
+Every flow uses the same file names. The `flow/` directory IS the unit; the
+contract no longer encodes any module/path information. `flow.json` is the
+source of truth; everything under any `generated/` directory is codegen
+output and must not be hand-edited.
 
-`*.flow.json` files are the source of truth. Everything under any `generated/`
-directory is codegen output and must not be hand-edited.
+## Scaffolding a new flow
+
+The `new` subcommand emits a runnable minimal flow into `<parent>/flow/`:
+
+```bash
+cd tools/temporal-model
+GOWORK=off go run . new ui/src/features/foo --flow-id foo.workflow.ui --root ../..
+GOWORK=off go run . new api/internal/bar --flow-id bar.workflow.api --root ../..
+```
+
+`--lang ts|go` is optional; it is inferred from `ui/*` / `api/*` paths.
+The scaffold writes the hand-authored files (`flow.json`, `transition.*`,
+`fixtures.ts` for TS, `flow.test.*`) and immediately runs `generate`, so
+`check` is green from the moment the command returns. A scaffolded flow has
+two states (`idle`, `ready`), two events (`start`, `reset`), and one named
+trace (`smoke`).
 
 ## Run
 
 ```bash
 cd tools/temporal-model && GOWORK=off go run . list --root ../..
 cd tools/temporal-model && GOWORK=off go run . validate --root ../..
-cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow notes.attachment-upload.ui
 cd tools/temporal-model && GOWORK=off go run . generate --root ../..
+cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow notes.attachment-upload.ui
 cd tools/temporal-model && GOWORK=off go run . check --root ../..
 cd tools/temporal-model && GOWORK=off go run . explain --root ../.. --flow notes.attachment-upload.ui
 ```
@@ -40,10 +56,10 @@ cd tools/temporal-model && GOWORK=off go run . explain --root ../.. --flow notes
 The generator runs `quint typecheck`, `quint test`, `quint verify`, and
 `quint run --mbt` for each discovered temporal flow contract. It renders the
 canonical Quint model, normalizes ITF traces, records source/model/generator
-hashes, and writes every artifact under `generated/<foldername>/`. Go flows
-get a `runtime.go` + `replay.go` subpackage that exports `RunReplay`;
-TypeScript flows get a `runtime.ts` + `replay.helper.ts` module that exports
-`runFormalReplay`. The hand-authored test at the wrapper-directory top
+hashes, and writes every artifact under `<flow>/generated/`. Go flows get a
+`runtime.go` + `replay.go` subpackage (package `generated`) that exports
+`RunReplay`; TypeScript flows get a `runtime.ts` + `replay.helper.ts` module
+that exports `runFormalReplay`. The hand-authored `flow.test.{ts,go}`
 delegates to that single entry point.
 
 ## Lint pass
@@ -52,55 +68,51 @@ delegates to that single entry point.
 AST-level lint of the hand-authored replay test.
 
 - Go test files are parsed with `go/ast`. The lint rejects: missing import of
-  the generated subpackage, missing call to `<subpkg>.RunReplay`, `nil`
-  transition argument, function-literal transition with an empty body, and
-  blank-assignment-only bodies.
+  `<scenario>/.../flow/generated`, missing call to `generated.RunReplay`,
+  `nil` transition argument, function-literal transition with an empty body,
+  and blank-assignment-only bodies.
 - TypeScript test files are parsed with a structural source reader. The lint
-  rejects: missing import of `./generated/<folder>/replay.helper`, missing
-  binding of the wrapper's transition function, missing binding of the
-  fixtures export, and any `runFormalReplay(...)` call that is not at module
-  top level (calls nested inside `if`, `try`, function bodies, etc. fail).
+  rejects: missing import of `./generated/replay.helper`, missing binding of
+  the wrapper's transition function from `./transition`, missing binding of
+  the fixtures export from `./fixtures`, and any `runFormalReplay(...)` call
+  that is not at module top level (calls nested inside `if`, `try`, function
+  bodies, etc. fail).
 
 There is no `--no-lint` flag. Lint failures are fatal.
 
-> **TS lint mechanism note.** The plan recommends shelling out to Node's
-> TypeScript Compiler API for the TS lint. The current implementation is a
-> pure-Go structural scanner that achieves the same invariants without the
-> Node dependency. It is intentionally strict: every required binding is
-> verified against the import section, and `hasTopLevelCall` walks the
-> source at brace depth zero. If a future change requires field-level type
-> inspection beyond what the scanner covers, swap in a Node helper —
-> `tools/temporal-model/internal/lint/tslint.go` is the single seam.
+## Migrating from schema v5
 
-## Formal artifacts
+Schema v5 contracts are no longer supported. The `LoadRaw` path emits a
+clear migration error pointing here. To migrate:
 
-Use schema v5. The `coverage` block distinguishes:
-
-- `transitionMatrixComplete`: the generated matrix contains every
-  state/event pair.
-- `terminalTransitionsChecked`: terminal states still have explicit
-  transition rows.
-- `namedTraces`: hand-authored trace state/event coverage.
-- `generatedTraces`: MBT trace state/event/pair coverage.
-
-`quint verify` only receives real invariants from `model.verify.invariants`.
-The generated full transition table is still executed through
-`run transitionTable`, but the JSON artifact records it under
-`generatedChecks` instead of pretending it is a verified invariant.
+1. Create `<feature>/flow/` next to the consumer.
+2. Move `<Name>.flow.json` → `flow/flow.json` and bump `schemaVersion` to 6.
+3. Drop `replay.fixtureModule`, `replay.fixtureExport`, and
+   `replay.transition.module`. Keep `replay.transition.function` (and the
+   `statusAccessor` for TS / `stateType` + `statusField` for Go).
+4. Move the wrapper to `flow/transition.{ts,go}` and the fixtures
+   (TS only) to `flow/fixtures.ts`.
+5. Move the test to `flow/flow.test.{ts,go}`. For Go, change the test's
+   package declaration to `flow` and update the import from the old
+   subpackage name to `<scenario>/.../flow/generated`.
+6. Move `generated/<old-folder>/` → `flow/generated/`. Regenerate with
+   `go run . generate --root ../..` to refresh hashes/imports.
+7. Update consumers' import paths to `./flow/transition` (TS) or
+   `<scenario>/.../flow` (Go).
 
 ## Workflow
 
 To update a flow:
 
-1. Edit the `*.flow.json` contract.
+1. Edit `flow/flow.json`.
 2. `cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow <flow-id>`.
-3. Update payload-specific wrapper logic if a new state or event needs richer
-   runtime data. Abstract status validity and next-status outcomes come from
-   `generated/<folder>/runtime.{go,ts}` and are byte-checked.
-4. Update the UI replay fixture file when a new status/event needs a runtime
-   fixture. The generated `AttachmentUploadFormalReplayFixtures` (or
-   equivalent) interface is the contract.
-5. Review the regenerated subdirectory under `generated/`.
+3. Update payload-specific wrapper logic in `flow/transition.{ts,go}`.
+   Abstract status validity and next-status outcomes come from
+   `flow/generated/runtime.{go,ts}` and are byte-checked.
+4. Update `flow/fixtures.ts` when a new status/event needs a runtime
+   fixture (TS only). The generated `<Name>FormalReplayFixtures` interface
+   is the contract.
+5. Review the regenerated `flow/generated/` directory.
 6. `make temporal-models` (runs `check` + lint).
 7. Run the scenario tests on an instantiated scenario.
 

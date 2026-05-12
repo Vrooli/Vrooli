@@ -15,7 +15,7 @@ import (
 
 func TestRunListAndExplainUseDiscoveredContracts(t *testing.T) {
 	root := t.TempDir()
-	writeFlow(t, root, "api/internal/visible/visible.flow.json", "example.visible.api")
+	writeFlow(t, root, "api/internal/visible/flow/flow.json", "example.visible.api")
 
 	var stdout bytes.Buffer
 	if err := Run(context.Background(), []string{"list", "--root", root}, &stdout, &bytes.Buffer{}); err != nil {
@@ -33,7 +33,7 @@ func TestRunListAndExplainUseDiscoveredContracts(t *testing.T) {
 		"flow: example.visible.api",
 		"Hand-authored (edit these):",
 		"Generated (regenerated; do not edit):",
-		"generated/visible/",
+		"flow/generated/",
 		"Runtime:",
 		"Topology:",
 		"states: 1 (initial idle; terminal none)",
@@ -52,7 +52,7 @@ func TestRunListAndExplainUseDiscoveredContracts(t *testing.T) {
 
 func TestRunRejectsUnknownFlow(t *testing.T) {
 	root := t.TempDir()
-	writeFlow(t, root, "api/internal/visible/visible.flow.json", "example.visible.api")
+	writeFlow(t, root, "api/internal/visible/flow/flow.json", "example.visible.api")
 
 	err := Run(context.Background(), []string{"list", "--root", root, "--flow", "missing.flow.api"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "unknown flow id missing.flow.api") {
@@ -65,7 +65,7 @@ func TestServiceGenerateUsesInjectedRunnerAndFileSystem(t *testing.T) {
 	testkit.WriteFile(t, root, "tools/temporal-model/go.mod", "module test\n")
 	raw := testkit.ValidRawContract()
 	raw.FlowID = "example.visible.api"
-	testkit.WriteFlowJSON(t, root, "api/internal/visible/visible.flow.json", raw)
+	testkit.WriteFlowJSON(t, root, "api/internal/visible/flow/flow.json", raw)
 
 	fs := recordingFS{}
 	var stdout bytes.Buffer
@@ -77,10 +77,10 @@ func TestServiceGenerateUsesInjectedRunnerAndFileSystem(t *testing.T) {
 		t.Fatalf("generate output = %q", stdout.String())
 	}
 	for _, want := range []string{
-		"generated/visible/model.qnt",
-		"generated/visible/artifact.json",
-		"generated/visible/runtime.go",
-		"generated/visible/replay.go",
+		"flow/generated/model.qnt",
+		"flow/generated/artifact.json",
+		"flow/generated/runtime.go",
+		"flow/generated/replay.go",
 	} {
 		if !fs.wroteSuffix(want) {
 			t.Fatalf("expected generated write ending in %s; writes=%v", want, fs.writes)

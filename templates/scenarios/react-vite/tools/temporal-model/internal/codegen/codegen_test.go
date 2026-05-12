@@ -20,7 +20,7 @@ func TestRenderGoEmitsTransitionCoreHelpers(t *testing.T) {
 	runtime := findGeneratedFile(t, rendered, flow.Layout.RuntimePath)
 
 	for _, want := range []string{
-		"package " + flow.Layout.FolderName,
+		"package " + "generated",
 		"type Status string",
 		"type Event string",
 		"func ExampleIsValidEvent(status Status, event Event) bool",
@@ -46,7 +46,7 @@ func TestRenderGoEmitsReplayHelper(t *testing.T) {
 	replay := findGeneratedFile(t, rendered, flow.Layout.ReplayHelperPath)
 
 	for _, want := range []string{
-		"package " + flow.Layout.FolderName,
+		"package " + "generated",
 		"type Transition func(status Status, event Event) (Status, error)",
 		"func RunReplay(t *testing.T, transition Transition)",
 		"AssertFormalArtifactFresh",

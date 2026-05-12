@@ -276,15 +276,9 @@ func validateReplayShape(errs *[]string, raw contract.Contract) {
 	requireString(errs, "replay.transition.function", raw.Replay.Transition.Function)
 	switch {
 	case raw.Runtime.Go != nil:
-		if raw.Replay.FixtureModule != "" || raw.Replay.FixtureExport != "" {
-			*errs = append(*errs, "go replay must not declare fixtureModule or fixtureExport")
-		}
 		requireString(errs, "replay.transition.stateType", raw.Replay.Transition.StateType)
 		requireString(errs, "replay.transition.statusField", raw.Replay.Transition.StatusField)
 	case raw.Runtime.TypeScript != nil:
-		requireString(errs, "replay.fixtureModule", raw.Replay.FixtureModule)
-		requireString(errs, "replay.fixtureExport", raw.Replay.FixtureExport)
-		requireString(errs, "replay.transition.module", raw.Replay.Transition.Module)
 		requireString(errs, "replay.transition.statusAccessor", raw.Replay.Transition.StatusAccessor)
 		if accessor := raw.Replay.Transition.StatusAccessor; accessor != "" && !typeScriptStatusAccessorExpr.MatchString(accessor) {
 			*errs = append(*errs, "replay.transition.statusAccessor must have the form state.<field>")

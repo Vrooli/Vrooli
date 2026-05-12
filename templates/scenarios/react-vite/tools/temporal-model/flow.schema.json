@@ -20,7 +20,7 @@
     "replay"
   ],
   "properties": {
-    "schemaVersion": { "const": 5 },
+    "schemaVersion": { "const": 6 },
     "flowId": { "type": "string", "minLength": 1 },
     "domain": { "type": "string", "minLength": 1 },
     "description": { "type": "string", "minLength": 1 },
@@ -96,8 +96,6 @@
       "additionalProperties": false,
       "required": ["transition"],
       "properties": {
-        "fixtureModule": { "type": "string", "minLength": 1 },
-        "fixtureExport": { "type": "string", "minLength": 1 },
         "transition": { "$ref": "#/$defs/replayTransition" }
       }
     }
@@ -105,21 +103,12 @@
   "oneOf": [
     {
       "properties": {
-        "runtime": { "required": ["go"], "not": { "required": ["typescript"] } },
-        "replay": {
-          "not": {
-            "anyOf": [
-              { "required": ["fixtureModule"] },
-              { "required": ["fixtureExport"] }
-            ]
-          }
-        }
+        "runtime": { "required": ["go"], "not": { "required": ["typescript"] } }
       }
     },
     {
       "properties": {
-        "runtime": { "required": ["typescript"], "not": { "required": ["go"] } },
-        "replay": { "required": ["fixtureModule", "fixtureExport"] }
+        "runtime": { "required": ["typescript"], "not": { "required": ["go"] } }
       }
     }
   ],
@@ -165,8 +154,8 @@
     "replayTransition": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["function"],
       "properties": {
-        "module": { "type": "string", "minLength": 1 },
         "function": { "type": "string", "minLength": 1 },
         "stateType": { "type": "string", "minLength": 1 },
         "statusField": { "type": "string", "minLength": 1 },

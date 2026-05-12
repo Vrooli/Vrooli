@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -126,13 +125,10 @@ type TraceStep struct {
 }
 
 type Replay struct {
-	FixtureModule string           `json:"fixtureModule,omitempty"`
-	FixtureExport string           `json:"fixtureExport,omitempty"`
-	Transition    ReplayTransition `json:"transition"`
+	Transition ReplayTransition `json:"transition"`
 }
 
 type ReplayTransition struct {
-	Module         string `json:"module,omitempty"`
 	Function       string `json:"function"`
 	StateType      string `json:"stateType,omitempty"`
 	StatusField    string `json:"statusField,omitempty"`
@@ -174,6 +170,9 @@ func LoadRaw(path string, relPath string) (Contract, error) {
 	if err != nil {
 		return Contract{}, err
 	}
+	if err := checkSchemaVersion(data, relPath); err != nil {
+		return Contract{}, err
+	}
 	if err := validateJSONSchema(data); err != nil {
 		return Contract{}, fmt.Errorf("schema validation failed for %s:\n%s", relPath, err)
 	}
@@ -188,12 +187,28 @@ func LoadRaw(path string, relPath string) (Contract, error) {
 	if err != nil {
 		return Contract{}, err
 	}
-	lay, err := layout.Derive(relPath, c.FlowID, lang)
+	lay, err := layout.Derive(relPath, lang)
 	if err != nil {
 		return Contract{}, fmt.Errorf("derive layout for %s: %w", relPath, err)
 	}
 	c.Layout = lay
 	return c, nil
+}
+
+// checkSchemaVersion runs before JSON-schema validation so that v5
+// contracts get a clear migration message instead of a "const: 6"
+// validation error.
+func checkSchemaVersion(data []byte, relPath string) error {
+	var probe struct {
+		SchemaVersion int `json:"schemaVersion"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return nil // let schema validator produce the real error
+	}
+	if probe.SchemaVersion == 5 {
+		return fmt.Errorf("contract %s: schemaVersion 5 is no longer supported. Move this flow into a flow/ subdirectory (flow.json, transition.{ts,go}, fixtures.ts for TS, flow.test.{ts,go}) and bump schemaVersion to 6. See tools/temporal-model/README.md for the migration steps", relPath)
+	}
+	return nil
 }
 
 var (
@@ -246,64 +261,39 @@ func compiledFlowSchema() (*jsonschema.Schema, error) {
 	return flowSchema, flowSchemaErr
 }
 
-// ValidateReplayFixture verifies that the TypeScript fixture module
-// referenced by a vitest contract exists on disk and exports the named
-// symbol. Go contracts do not declare fixtures and pass through.
-//
-// fixtureModule and transition.module are always anchored to the
-// contract path (i.e. the wrapper directory). Generated import paths
-// are re-anchored elsewhere.
-func ValidateReplayFixture(c Contract, root string) error {
-	if c.Runtime.TypeScript == nil {
-		return nil
-	}
-	return ValidateReplayFixturePaths(root, c.FlowID, c.ContractPath, c.Replay.FixtureModule, c.Replay.FixtureExport)
-}
-
-// ValidateReplayFixturePaths is the lower-level entry point used by the
-// pipeline. fromPath is the file the module string is relative to —
-// always the contract path for fixture validation.
-func ValidateReplayFixturePaths(root string, flowID string, fromPath string, fixtureModule string, fixtureExport string) error {
+// ValidateConventionalFiles verifies that the hand-authored files
+// required by the v6 layout convention exist on disk for this flow.
+// The check is structural: the lint pass in package lint verifies the
+// file contents.
+func ValidateConventionalFiles(root string, c Contract) error {
 	var errs []string
-	path, err := ResolveTypeScriptImport(fromPath, fixtureModule)
-	if err != nil {
-		return fmt.Errorf("invalid replay fixture module for %s: %w", flowID, err)
+	required := []string{c.Layout.TransitionPath, c.Layout.TestPath}
+	if c.Layout.FixturesPath != "" {
+		required = append(required, c.Layout.FixturesPath)
 	}
-	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
-	if err != nil {
-		errs = append(errs, fmt.Sprintf("replay fixture module %s for %s is missing or unreadable: %v", path, flowID, err))
-	} else if !hasTypeScriptExport(data, fixtureExport) {
-		errs = append(errs, fmt.Sprintf("replay fixture module %s for %s does not export %s", path, flowID, fixtureExport))
+	for _, rel := range required {
+		abs := filepath.Join(root, filepath.FromSlash(rel))
+		if _, err := os.Stat(abs); err != nil {
+			errs = append(errs, fmt.Sprintf("%s is missing (expected by the flow/ convention)", rel))
+		}
 	}
 	if len(errs) > 0 {
 		sort.Strings(errs)
-		return fmt.Errorf("invalid replay fixture for %s:\n  - %s", flowID, strings.Join(errs, "\n  - "))
+		return fmt.Errorf(
+			"flow %s is missing hand-authored files:\n  - %s\nRun `temporal-model new %s --flow-id %s` to scaffold a fresh flow, or add the missing files manually.",
+			c.FlowID,
+			strings.Join(errs, "\n  - "),
+			parentOfFlow(c.Layout.BaseDir),
+			c.FlowID,
+		)
 	}
 	return nil
 }
 
-func ResolveTypeScriptImport(fromPath string, module string) (string, error) {
-	if !strings.HasPrefix(module, ".") {
-		return "", fmt.Errorf("module must be relative")
+func parentOfFlow(baseDir string) string {
+	parent := filepath.Dir(baseDir)
+	if parent == "." || parent == "" {
+		return ""
 	}
-	base := filepath.Dir(filepath.ToSlash(fromPath))
-	clean := filepath.ToSlash(filepath.Clean(filepath.Join(base, filepath.FromSlash(module))))
-	if clean == "." || strings.HasPrefix(clean, "../") || clean == ".." {
-		return "", fmt.Errorf("module must resolve inside the scenario root")
-	}
-	return clean + ".ts", nil
-}
-
-func hasTypeScriptExport(data []byte, name string) bool {
-	quoted := regexp.QuoteMeta(name)
-	patterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?m)^\s*export\s+(const|let|var|function|class)\s+` + quoted + `\b`),
-		regexp.MustCompile(`(?m)^\s*export\s*\{[^}]*\b` + quoted + `\b[^}]*\}`),
-	}
-	for _, pattern := range patterns {
-		if pattern.Match(data) {
-			return true
-		}
-	}
-	return false
+	return parent
 }

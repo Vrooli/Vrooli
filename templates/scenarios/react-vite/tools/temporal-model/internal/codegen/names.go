@@ -61,3 +61,26 @@ func lowerFirst(value string) string {
 	}
 	return strings.ToLower(value[:1]) + value[1:]
 }
+
+// TypeScriptBase returns the "base name" used to derive runtime and
+// fixture identifier conventions from a TypeScript runtime's
+// StatusType (e.g. "AttachmentUploadStatus" → "AttachmentUpload").
+func TypeScriptBase(statusType string) string {
+	base := strings.TrimSuffix(statusType, "Status")
+	if base == "" {
+		return statusType
+	}
+	return base
+}
+
+// TypeScriptFixturesExportName is the canonical export name for the
+// hand-authored fixtures.ts file. Both codegen and the lint pass use
+// this helper so they cannot drift.
+//
+// Returns "" if the flow has no TypeScript runtime.
+func TypeScriptFixturesExportName(flow model.Flow) string {
+	if flow.Runtime.TypeScript == nil {
+		return ""
+	}
+	return lowerFirst(TypeScriptBase(flow.Runtime.TypeScript.StatusType)) + "FormalFixtures"
+}

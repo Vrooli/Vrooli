@@ -107,12 +107,6 @@ func TestCompileRejectsMissingReplayTransitionFunction(t *testing.T) {
 	testkit.RequireErrorContains(t, compileErr(raw), "replay.transition.function is required")
 }
 
-func TestCompileRejectsGoReplayWithFixtureFields(t *testing.T) {
-	raw := testkit.ValidRawContract()
-	raw.Replay.FixtureModule = "./wrapper"
-	testkit.RequireErrorContains(t, compileErr(raw), "go replay must not declare fixtureModule or fixtureExport")
-}
-
 func TestCompileRejectsNonExhaustiveTypeScriptStateVariants(t *testing.T) {
 	raw := testkit.ValidTypeScriptRawContract()
 	delete(raw.Runtime.TypeScript.StateVariants, "done")

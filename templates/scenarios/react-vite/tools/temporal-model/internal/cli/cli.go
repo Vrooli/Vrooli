@@ -7,11 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"react-vite-temporal-model/internal/codegen"
 	"react-vite-temporal-model/internal/discovery"
 	"react-vite-temporal-model/internal/layout"
 	"react-vite-temporal-model/internal/model"
 	"react-vite-temporal-model/internal/pipeline"
 	"react-vite-temporal-model/internal/quint"
+	"react-vite-temporal-model/internal/scaffold"
 )
 
 func Run(ctx context.Context, args []string, stdout io.Writer, _ io.Writer) error {
@@ -41,6 +43,9 @@ func (s Service) Run(ctx context.Context, args []string) error {
 		return nil
 	}
 	command := args[0]
+	if command == "new" {
+		return s.runNew(ctx, args[1:], stdout, runner)
+	}
 	flags, err := parseFlags(args[1:])
 	if err != nil {
 		return err
@@ -110,6 +115,88 @@ func parseFlags(args []string) (flags, error) {
 	return out, nil
 }
 
+// runNew handles the `new` subcommand. Shape:
+//
+//	temporal-model new <parent-dir> --flow-id <id> [--lang ts|go] [--root <path>]
+func (s Service) runNew(ctx context.Context, args []string, stdout io.Writer, runner quint.Runner) error {
+	if len(args) == 0 {
+		return fmt.Errorf("new requires <parent-dir> as the first positional argument; e.g. `temporal-model new ui/src/features/foo --flow-id foo.workflow.ui`")
+	}
+	parentDir := args[0]
+	if strings.HasPrefix(parentDir, "--") {
+		return fmt.Errorf("new requires <parent-dir> as the first positional argument before any flags")
+	}
+	root := "../.."
+	flowID := ""
+	langStr := ""
+	rest := args[1:]
+	for i := 0; i < len(rest); i++ {
+		switch rest[i] {
+		case "--root":
+			if i+1 >= len(rest) || rest[i+1] == "" {
+				return fmt.Errorf("--root requires a path")
+			}
+			root = rest[i+1]
+			i++
+		case "--flow-id":
+			if i+1 >= len(rest) || rest[i+1] == "" {
+				return fmt.Errorf("--flow-id requires a value")
+			}
+			flowID = rest[i+1]
+			i++
+		case "--lang":
+			if i+1 >= len(rest) || rest[i+1] == "" {
+				return fmt.Errorf("--lang requires a value (ts|go)")
+			}
+			langStr = rest[i+1]
+			i++
+		default:
+			return fmt.Errorf("unknown argument %s", rest[i])
+		}
+	}
+	if flowID == "" {
+		return fmt.Errorf("new requires --flow-id <id>")
+	}
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	var lang layout.Language
+	switch strings.ToLower(langStr) {
+	case "":
+		// inferred by scaffold
+	case "ts", "typescript":
+		lang = layout.LanguageTypeScript
+	case "go":
+		lang = layout.LanguageGo
+	default:
+		return fmt.Errorf("--lang must be ts or go, got %q", langStr)
+	}
+	flowDirRel, err := scaffold.Write(scaffold.Options{
+		Root:      rootAbs,
+		ParentDir: parentDir,
+		FlowID:    flowID,
+		Language:  lang,
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "scaffolded %s\n", flowDirRel)
+	// Immediately generate so the new flow is runnable from green.
+	contracts, err := discovery.FindContracts(rootAbs)
+	if err != nil {
+		return err
+	}
+	selected := discovery.Filter(contracts, flowID)
+	if len(selected) == 0 {
+		return fmt.Errorf("scaffold wrote %s but the new contract is not discoverable; check the layout", flowDirRel)
+	}
+	return pipeline.Run(ctx, pipeline.Options{
+		Root: rootAbs, Flows: selected, Mode: pipeline.ModeGenerate,
+		Runner: runner, FS: s.FS, Stdout: stdout,
+	})
+}
+
 func explain(stdout io.Writer, root string, flow model.Flow) error {
 	_, err := io.WriteString(stdout, buildExplainReport(root, flow))
 	return err
@@ -122,7 +209,7 @@ func buildExplainReport(root string, flow model.Flow) string {
 	writeSection(&b, "",
 		pair("flow", flow.FlowID),
 		pair("contract", flow.ContractPath),
-		pair("layout", fmt.Sprintf("hand-authored: %d file(s) at %s; generated: %s/", len(handAuthored), flow.Layout.BaseDir, flow.Layout.BaseDir+"/generated/"+flow.Layout.FolderName)),
+		pair("layout", fmt.Sprintf("hand-authored: %d file(s) at %s/; generated: %s/", len(handAuthored), flow.Layout.BaseDir, flow.Layout.BaseDir+"/"+layout.GeneratedDirName)),
 	)
 	writeSection(&b, "Hand-authored (edit these)", handAuthored...)
 	writeSection(&b, "Generated (regenerated; do not edit)",
@@ -187,36 +274,20 @@ func pair(label string, value string) string {
 func handAuthoredFiles(flow model.Flow) []string {
 	out := []string{
 		"contract: " + flow.ContractPath,
+		"wrapper: " + flow.Layout.TransitionPath,
 	}
-	switch flow.Layout.Language {
-	case layout.LanguageGo:
-		out = append(out,
-			"wrapper: "+flow.Layout.BaseDir+"/<wrapper>.go",
-			"thin replay test (any *_test.go in "+flow.Layout.BaseDir+" that imports the generated subpackage and calls RunReplay)",
-		)
-	case layout.LanguageTypeScript:
-		out = append(out,
-			"wrapper: "+flow.Layout.BaseDir+"/"+strings.TrimPrefix(flow.Replay.Transition.Module, "./")+".ts",
-			"fixtures: "+resolveTSImport(flow.ContractPath, flow.Replay.FixtureModule),
-			"thin replay test (any *.test.ts in "+flow.Layout.BaseDir+" that imports replay.helper and calls runFormalReplay)",
-		)
+	if flow.Layout.FixturesPath != "" {
+		out = append(out, "fixtures: "+flow.Layout.FixturesPath)
 	}
+	out = append(out, "thin replay test: "+flow.Layout.TestPath)
 	return out
 }
 
 func fixtureSummary(flow model.Flow) string {
-	if flow.Replay.FixtureModule == "" {
+	if flow.Layout.FixturesPath == "" {
 		return "n/a (go-test replay)"
 	}
-	return fmt.Sprintf("%s (export %s)", flow.Replay.FixtureModule, flow.Replay.FixtureExport)
-}
-
-func resolveTSImport(fromPath string, module string) string {
-	if module == "" {
-		return ""
-	}
-	base := filepath.Dir(filepath.ToSlash(fromPath))
-	return filepath.ToSlash(filepath.Clean(filepath.Join(base, filepath.FromSlash(module)))) + ".ts"
+	return fmt.Sprintf("%s (export %s)", flow.Layout.FixturesPath, codegen.TypeScriptFixturesExportName(flow))
 }
 
 func runtimeStatusType(flow model.Flow) string {
@@ -289,4 +360,5 @@ func explainRoot(root string) string {
 
 func printHelp(stdout io.Writer) {
 	fmt.Fprintln(stdout, "Usage: go run . <list|validate|generate|check|explain> [--root <path>] [--flow <flow-id>]")
+	fmt.Fprintln(stdout, "       go run . new <parent-dir> --flow-id <id> [--lang ts|go] [--root <path>]")
 }

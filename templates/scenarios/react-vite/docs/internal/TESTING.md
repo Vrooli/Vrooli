@@ -339,15 +339,15 @@ Workflow maturity is incremental:
 The notes attachment upload workflow is the reference Level 5 pattern:
 
 - `tools/temporal-model`
-- `api/internal/notes/attachment_upload_workflow.flow.json`
-- `api/internal/notes/attachment_workflow.go`
-- `api/internal/notes/attachment_workflow_test.go` (thin replay delegation)
-- `api/internal/notes/generated/attachmentupload/{model.qnt,artifact.json,runtime.go,replay.go}`
-- `ui/src/features/notes/AttachmentUploadWorkflow.flow.json`
-- `ui/src/features/notes/AttachmentUploadWorkflow.ts`
-- `ui/src/features/notes/AttachmentUploadWorkflow.fixtures.ts`
-- `ui/src/features/notes/AttachmentUploadWorkflow.test.ts` (thin replay delegation)
-- `ui/src/features/notes/generated/attachmentupload/{model.qnt,artifact.json,runtime.ts,replay.helper.ts}`
+- `api/internal/notes/flow/flow.json`
+- `api/internal/notes/flow/transition.go` (package `flow`)
+- `api/internal/notes/flow/flow_test.go` (thin replay delegation, package `flow`)
+- `api/internal/notes/flow/generated/{model.qnt,artifact.json,runtime.go,replay.go}` (package `generated`)
+- `ui/src/features/notes/flow/flow.json`
+- `ui/src/features/notes/flow/transition.ts`
+- `ui/src/features/notes/flow/fixtures.ts`
+- `ui/src/features/notes/flow/flow.test.ts` (thin replay delegation)
+- `ui/src/features/notes/flow/generated/{model.qnt,artifact.json,runtime.ts,replay.helper.ts}`
 
 `make temporal-models` runs the Go-native temporal-model tool tests, then
 runs `quint typecheck`, `quint test`, `quint verify`, and deterministic MBT
@@ -360,7 +360,7 @@ They also expose pure generated status-transition helpers derived from
 transition matrix. Generated Go and TypeScript replay tests load those
 artifacts through `modeltest` and replay generated transitions/traces against
 production transition functions. UI replay keeps the hand-authored runtime
-fixture map in `AttachmentUploadWorkflow.fixtures.ts`; the generated
+fixture map in `flow/fixtures.ts`; the generated
 `replay.helper.ts` owns freshness, matrix replay, and trace replay, and
 the hand-authored `.test.ts` is a ~5-line module that imports the helper
 and the fixtures and calls `runFormalReplay({ transition, fixtures })`

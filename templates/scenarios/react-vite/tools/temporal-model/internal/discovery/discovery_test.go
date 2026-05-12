@@ -10,13 +10,13 @@ import (
 
 func TestFindContractsIgnoresGeneratedAndDependencyDirs(t *testing.T) {
 	root := t.TempDir()
-	writeFlow(t, root, "api/example.flow.json", "example.visible.api")
-	writeFlow(t, root, ".git/hidden.flow.json", "example.git.api")
-	writeFlow(t, root, "node_modules/hidden.flow.json", "example.node.api")
-	writeFlow(t, root, "dist/hidden.flow.json", "example.dist.api")
-	writeFlow(t, root, "build/hidden.flow.json", "example.build.api")
-	writeFlow(t, root, "coverage/hidden.flow.json", "example.coverage.api")
-	writeFlow(t, root, "_apalache-out/hidden.flow.json", "example.apalache.api")
+	writeFlow(t, root, "api/visible/flow/flow.json", "example.visible.api")
+	writeFlow(t, root, ".git/flow/flow.json", "example.git.api")
+	writeFlow(t, root, "node_modules/flow/flow.json", "example.node.api")
+	writeFlow(t, root, "dist/flow/flow.json", "example.dist.api")
+	writeFlow(t, root, "build/flow/flow.json", "example.build.api")
+	writeFlow(t, root, "coverage/flow/flow.json", "example.coverage.api")
+	writeFlow(t, root, "_apalache-out/flow/flow.json", "example.apalache.api")
 
 	contracts, err := FindContracts(root)
 	if err != nil {

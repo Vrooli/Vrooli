@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "flowId": "notes.attachment-upload.ui",
   "domain": "notes",
   "description": "UI attachment upload interaction, including stale async completion protection through attempt identity.",
@@ -151,10 +151,7 @@
     "staleCompletion": "attempt-id"
   },
   "replay": {
-    "fixtureModule": "./AttachmentUploadWorkflow.fixtures",
-    "fixtureExport": "attachmentUploadFormalFixtures",
     "transition": {
-      "module": "./AttachmentUploadWorkflow",
       "function": "transitionAttachmentUpload",
       "statusAccessor": "state.status"
     }

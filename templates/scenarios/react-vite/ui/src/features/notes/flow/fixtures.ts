@@ -1,4 +1,4 @@
-import type { AttachmentUploadFormalReplayFixtures } from "./generated/attachmentupload/replay.helper";
+import type { AttachmentUploadFormalReplayFixtures } from "./generated/replay.helper";
 
 const file = new File(["hello"], "hello.txt", { type: "text/plain" });
 const attemptId = "attempt-1";

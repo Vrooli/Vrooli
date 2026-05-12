@@ -1,25 +1,25 @@
-package notes
+package flow
 
 import (
 	"fmt"
 
-	"{{SCENARIO_ID}}/internal/notes/generated/attachmentupload"
+	"{{SCENARIO_ID}}/internal/notes/flow/generated"
 )
 
-type AttachmentUploadStatus = attachmentupload.AttachmentUploadStatus
-type AttachmentUploadEvent = attachmentupload.AttachmentUploadEvent
+type AttachmentUploadStatus = generated.AttachmentUploadStatus
+type AttachmentUploadEvent = generated.AttachmentUploadEvent
 
 const (
-	AttachmentUploadReceived         = attachmentupload.AttachmentUploadReceived
-	AttachmentUploadBytesStored      = attachmentupload.AttachmentUploadBytesStored
-	AttachmentUploadMetadataRecorded = attachmentupload.AttachmentUploadMetadataRecorded
-	AttachmentUploadFailed           = attachmentupload.AttachmentUploadFailed
+	AttachmentUploadReceived         = generated.AttachmentUploadReceived
+	AttachmentUploadBytesStored      = generated.AttachmentUploadBytesStored
+	AttachmentUploadMetadataRecorded = generated.AttachmentUploadMetadataRecorded
+	AttachmentUploadFailed           = generated.AttachmentUploadFailed
 )
 
 const (
-	AttachmentUploadStoreBytes     = attachmentupload.AttachmentUploadStoreBytes
-	AttachmentUploadRecordMetadata = attachmentupload.AttachmentUploadRecordMetadata
-	AttachmentUploadFail           = attachmentupload.AttachmentUploadFail
+	AttachmentUploadStoreBytes     = generated.AttachmentUploadStoreBytes
+	AttachmentUploadRecordMetadata = generated.AttachmentUploadRecordMetadata
+	AttachmentUploadFail           = generated.AttachmentUploadFail
 )
 
 type AttachmentUploadState struct {
@@ -34,7 +34,7 @@ func TransitionAttachmentUpload(state AttachmentUploadState, event AttachmentUpl
 	if err := CheckAttachmentUploadInvariants(state); err != nil {
 		return state, err
 	}
-	next, err := attachmentupload.TransitionAttachmentUploadStatus(state.Status, event)
+	next, err := generated.TransitionAttachmentUploadStatus(state.Status, event)
 	return AttachmentUploadState{Status: next}, err
 }
 

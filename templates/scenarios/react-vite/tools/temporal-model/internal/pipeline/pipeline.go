@@ -54,7 +54,7 @@ func Run(ctx context.Context, options Options) error {
 	}
 	if options.Mode == ModeCheck {
 		for _, flow := range options.Flows {
-			if err := validateReplayFixture(flow, options.Root); err != nil {
+			if err := contract.ValidateConventionalFiles(options.Root, contractFromFlow(flow)); err != nil {
 				return err
 			}
 		}
@@ -175,17 +175,15 @@ func AssertFresh(fs FileSystem, path string, next []byte, flowID string) error {
 	return nil
 }
 
-func validateReplayFixture(flow model.Flow, root string) error {
-	if flow.Runtime.TypeScript == nil {
-		return nil
+// contractFromFlow rebuilds the minimal contract surface
+// ValidateConventionalFiles needs from a compiled Flow. The
+// validation only consults FlowID and Layout, so we don't need to
+// rehydrate the rest.
+func contractFromFlow(flow model.Flow) contract.Contract {
+	return contract.Contract{
+		FlowID: flow.FlowID,
+		Layout: flow.Layout,
 	}
-	return contract.ValidateReplayFixturePaths(
-		root,
-		flow.FlowID,
-		flow.ContractPath,
-		flow.Replay.FixtureModule,
-		flow.Replay.FixtureExport,
-	)
 }
 
 type osFileSystem struct{}

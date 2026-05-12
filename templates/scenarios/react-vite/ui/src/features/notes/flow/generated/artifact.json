@@ -1,14 +1,14 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "flowId": "notes.attachment-upload.ui",
   "source": {
-    "contractPath": "ui/src/features/notes/AttachmentUploadWorkflow.flow.json",
-    "contractSha256": "a8fa558469c50d6134653267e78c4d2b66519647d3a60cda659c6662832f36af",
+    "contractPath": "ui/src/features/notes/flow/flow.json",
+    "contractSha256": "710b2aa9aebfe0aeae7096a4ef38c1e8bc9aa1e7f5bd8faf7aba0c90de4bfc9a",
     "generatorPath": "tools/temporal-model",
-    "generatorSha256": "b47f353f7a40aac42259d58f1ea8f6d28f02f5462bc756909ae72c28c7a3e753",
-    "generatorVersion": 6,
-    "modelPath": "ui/src/features/notes/generated/attachmentupload/model.qnt",
-    "modelSha256": "ced2d34630dba6513089e8c03a9b74099cd5194f2e169285f20e7e932ff95be0",
+    "generatorSha256": "45756957dbef64e5f287cee047a2054cde79f9760b57cd077f399a3151197167",
+    "generatorVersion": 7,
+    "modelPath": "ui/src/features/notes/flow/generated/model.qnt",
+    "modelSha256": "c791837520749a89a5fa49904e507b43a52dc3482fd0ec7c8cb967fc91fe652c",
     "quintVersion": "0.32.0",
     "verificationBackend": "apalache"
   },
@@ -16,7 +16,7 @@
     "run": [
       "quint",
       "run",
-      "ui/src/features/notes/generated/attachmentupload/model.qnt",
+      "ui/src/features/notes/flow/generated/model.qnt",
       "--mbt",
       "--seed",
       "2026051002",
@@ -32,19 +32,19 @@
     "test": [
       "quint",
       "test",
-      "ui/src/features/notes/generated/attachmentupload/model.qnt",
+      "ui/src/features/notes/flow/generated/model.qnt",
       "--seed",
       "2026051002"
     ],
     "typecheck": [
       "quint",
       "typecheck",
-      "ui/src/features/notes/generated/attachmentupload/model.qnt"
+      "ui/src/features/notes/flow/generated/model.qnt"
     ],
     "verify": [
       "quint",
       "verify",
-      "ui/src/features/notes/generated/attachmentupload/model.qnt",
+      "ui/src/features/notes/flow/generated/model.qnt",
       "--invariants",
       "TypeOK",
       "TerminalClosure",

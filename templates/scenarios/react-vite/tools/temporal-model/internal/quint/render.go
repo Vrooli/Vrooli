@@ -35,6 +35,7 @@ func Render(flow model.Flow) string {
 	}
 	if len(transitionClauses) > 0 {
 		transitionClauses[0] = strings.Replace(transitionClauses[0], "else if", "if", 1)
+		transitionClauses = append(transitionClauses, "    else s")
 	}
 
 	rows := flow.Matrix.Rows()
@@ -101,7 +102,6 @@ func Render(flow model.Flow) string {
 
   pure def nextStatus(s: Status, e: Event): Status =
 %s
-    else s
 
   action init = all {
     status' = %s,

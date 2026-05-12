@@ -37,12 +37,15 @@ func Find(root string, suffix string) ([]string, error) {
 		if entry.IsDir() && spec.IgnoredDirectories[entry.Name()] && path != root {
 			return filepath.SkipDir
 		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), suffix) {
+		if entry.IsDir() {
 			return nil
 		}
 		rel, err := Rel(root, path)
 		if err != nil {
 			return err
+		}
+		if !strings.HasSuffix(rel, suffix) {
+			return nil
 		}
 		out = append(out, rel)
 		return nil

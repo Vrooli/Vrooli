@@ -38,7 +38,7 @@ func TestLoadRawDoesNotCompileOrMutateContract(t *testing.T) {
 	root := t.TempDir()
 	raw := testkit.ValidRawContract()
 	raw.Traces[0].Steps[0].Want = "done"
-	rel := "api/internal/example/workflow.flow.json"
+	rel := "api/internal/example/flow/flow.json"
 	path := filepath.Join(root, filepath.FromSlash(rel))
 	testkit.WriteJSONMap(t, path, testkit.MustJSONMap(t, raw))
 
@@ -49,22 +49,25 @@ func TestLoadRawDoesNotCompileOrMutateContract(t *testing.T) {
 	if got := loaded.Traces[0].Steps[0].Want; got != "done" {
 		t.Fatalf("raw trace was compiled or mutated, got want=%s", got)
 	}
-	if loaded.Layout.FolderName == "" {
-		t.Fatalf("Layout.FolderName should be derived")
+	if loaded.Layout.BaseDir == "" {
+		t.Fatalf("Layout.BaseDir should be derived")
+	}
+	if !strings.HasSuffix(loaded.Layout.BaseDir, "/flow") {
+		t.Fatalf("Layout.BaseDir should end in /flow, got %s", loaded.Layout.BaseDir)
 	}
 }
 
-func TestValidateReplayFixtureRequiresExport(t *testing.T) {
+func TestValidateConventionalFilesRequiresHandAuthoredFiles(t *testing.T) {
 	root := t.TempDir()
 	raw := testkit.ValidTypeScriptRawContract()
-	fixtureRel := strings.TrimPrefix(raw.Layout.ReplayHelperPath, "")
-	// fixtures.ts lives in the wrapper dir, not the generated subpackage.
-	fixtureRel = "ui/src/features/example/ExampleWorkflow.fixtures.ts"
-	writeBindingFile(t, root, fixtureRel, "export const wrongExport = {}\n")
-	testkit.RequireErrorContains(t, contract.ValidateReplayFixture(raw, root), "does not export exampleFormalFixtures")
-	writeBindingFile(t, root, fixtureRel, "export const exampleFormalFixtures = {}\n")
-	if err := contract.ValidateReplayFixture(raw, root); err != nil {
-		t.Fatalf("ValidateReplayFixture() error = %v", err)
+	err := contract.ValidateConventionalFiles(root, raw)
+	testkit.RequireErrorContains(t, err, "transition.ts is missing")
+
+	writeBindingFile(t, root, raw.Layout.TransitionPath, "export const transitionExample = () => null\n")
+	writeBindingFile(t, root, raw.Layout.FixturesPath, "export const exampleFormalFixtures = {}\n")
+	writeBindingFile(t, root, raw.Layout.TestPath, "// test\n")
+	if err := contract.ValidateConventionalFiles(root, raw); err != nil {
+		t.Fatalf("ValidateConventionalFiles() error = %v", err)
 	}
 }
 

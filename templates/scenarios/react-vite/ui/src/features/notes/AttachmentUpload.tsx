@@ -13,7 +13,7 @@ import {
   initialAttachmentUploadState,
   transitionAttachmentUpload,
   type AttachmentUploadState,
-} from "./AttachmentUploadWorkflow";
+} from "./flow/transition";
 
 const NOTES_QUERY_KEY = ["notes"] as const;
 

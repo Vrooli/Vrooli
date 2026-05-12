@@ -31,7 +31,7 @@ func checkGo(root string, flow model.Flow) error {
 	var failures []string
 	matched := false
 	for _, path := range files {
-		ok, why, err := scanGoTestFile(path, expectedImport, flow.Layout.FolderName)
+		ok, why, err := scanGoTestFile(path, expectedImport, layout.GeneratedDirName)
 		if err != nil {
 			failures = append(failures, fmt.Sprintf("    %s: %v", path, err))
 			continue

@@ -1,14 +1,14 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "flowId": "notes.attachment-upload.api",
   "source": {
-    "contractPath": "api/internal/notes/attachment_upload_workflow.flow.json",
-    "contractSha256": "d1882504016d05b8861036def7b7e17342d6309c439aa14ffcdea3341f1f822d",
+    "contractPath": "api/internal/notes/flow/flow.json",
+    "contractSha256": "0e6f1ff59169d9107348d16140c9c26c5a35c280fb6827f0f110f6b29f6458c2",
     "generatorPath": "tools/temporal-model",
-    "generatorSha256": "b47f353f7a40aac42259d58f1ea8f6d28f02f5462bc756909ae72c28c7a3e753",
-    "generatorVersion": 6,
-    "modelPath": "api/internal/notes/generated/attachmentupload/model.qnt",
-    "modelSha256": "2c341156b2834df1e9a4ac39940abac4dfab3cd99b3954c2fc6e4debdeb25a6b",
+    "generatorSha256": "45756957dbef64e5f287cee047a2054cde79f9760b57cd077f399a3151197167",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/notes/flow/generated/model.qnt",
+    "modelSha256": "cf976e87b8b76b28f8a927ed31cc6cf50d4098e300f5fac85637b64cb00c6d2b",
     "quintVersion": "0.32.0",
     "verificationBackend": "apalache"
   },
@@ -16,7 +16,7 @@
     "run": [
       "quint",
       "run",
-      "api/internal/notes/generated/attachmentupload/model.qnt",
+      "api/internal/notes/flow/generated/model.qnt",
       "--mbt",
       "--seed",
       "2026051001",
@@ -32,19 +32,19 @@
     "test": [
       "quint",
       "test",
-      "api/internal/notes/generated/attachmentupload/model.qnt",
+      "api/internal/notes/flow/generated/model.qnt",
       "--seed",
       "2026051001"
     ],
     "typecheck": [
       "quint",
       "typecheck",
-      "api/internal/notes/generated/attachmentupload/model.qnt"
+      "api/internal/notes/flow/generated/model.qnt"
     ],
     "verify": [
       "quint",
       "verify",
-      "api/internal/notes/generated/attachmentupload/model.qnt",
+      "api/internal/notes/flow/generated/model.qnt",
       "--invariants",
       "TypeOK",
       "TerminalClosure",

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "flowId": "notes.attachment-upload.api",
   "domain": "notes",
   "description": "API-side attachment upload orchestration from request receipt through byte storage and metadata recording.",
@@ -77,7 +77,7 @@
   ],
   "runtime": {
     "go": {
-      "package": "notes",
+      "package": "flow",
       "statusType": "AttachmentUploadStatus",
       "eventType": "AttachmentUploadEvent",
       "constantPrefix": "AttachmentUpload"

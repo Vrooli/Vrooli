@@ -12,7 +12,7 @@ import (
 )
 
 func FindContracts(root string) ([]model.Flow, error) {
-	paths, err := filesystem.Find(root, ".flow.json")
+	paths, err := filesystem.Find(root, "/flow/flow.json")
 	if err != nil {
 		return nil, err
 	}

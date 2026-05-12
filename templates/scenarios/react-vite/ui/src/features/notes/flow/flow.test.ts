@@ -1,6 +1,6 @@
-import { runFormalReplay } from "./generated/attachmentupload/replay.helper";
-import { transitionAttachmentUpload } from "./AttachmentUploadWorkflow";
-import { attachmentUploadFormalFixtures } from "./AttachmentUploadWorkflow.fixtures";
+import { runFormalReplay } from "./generated/replay.helper";
+import { transitionAttachmentUpload } from "./transition";
+import { attachmentUploadFormalFixtures } from "./fixtures";
 
 runFormalReplay({
   transition: transitionAttachmentUpload,

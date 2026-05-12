@@ -12,16 +12,16 @@ import (
 	"react-vite-temporal-model/internal/model"
 )
 
-// renderGoRuntime emits generated/<folder>/runtime.go: the
-// state/event consts, transition table helpers, and freshness hashes
-// for the flow. The package name matches the layout folder name so the
-// hand-authored wrapper imports it as e.g. attachmentupload.StatusIdle.
+// renderGoRuntime emits <flow>/generated/runtime.go: the state/event
+// consts, transition table helpers, and freshness hashes for the flow.
+// The package is always `generated`; the hand-authored wrapper (package
+// `flow`) imports it as e.g. generated.StatusIdle.
 func renderGoRuntime(flow model.Flow, built artifact.Artifact) (string, error) {
 	if flow.Runtime.Go == nil {
 		return "", fmt.Errorf("runtime.go is required for %s", flow.FlowID)
 	}
 	rt := flow.Runtime.Go
-	pkg := flow.Layout.FolderName
+	pkg := layout.GeneratedDirName
 	var b strings.Builder
 	b.WriteString(generatedHeader(flow))
 	fmt.Fprintf(&b, "package %s\n\n", pkg)
@@ -107,7 +107,7 @@ func renderGoReplayHelper(flow model.Flow) (string, error) {
 		return "", fmt.Errorf("runtime.go is required for %s", flow.FlowID)
 	}
 	rt := flow.Runtime.Go
-	pkg := flow.Layout.FolderName
+	pkg := layout.GeneratedDirName
 	artifactFile := filepath.Base(flow.Layout.ArtifactPath)
 	var b strings.Builder
 	b.WriteString(generatedHeader(flow))

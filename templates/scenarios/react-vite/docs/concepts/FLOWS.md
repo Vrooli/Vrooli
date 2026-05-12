@@ -45,14 +45,13 @@ workflow model.
   product requirements demand it.
 - Tests: `api/handlers/notes/attachments_handler_test.go`,
   `api/internal/notes/attachments_service_test.go`,
-  `api/internal/notes/attachment_workflow_test.go`,
+  `api/internal/notes/flow/flow_test.go`,
   `ui/src/features/notes/AttachmentUpload.test.tsx`, and
-  `ui/src/features/notes/AttachmentUploadWorkflow.test.ts`.
-- Generated subpackages:
-  `api/internal/notes/generated/attachmentupload/` (`model.qnt`, `artifact.json`,
-  `runtime.go`, `replay.go`) and
-  `ui/src/features/notes/generated/attachmentupload/` (`model.qnt`,
-  `artifact.json`, `runtime.ts`, `replay.helper.ts`).
+  `ui/src/features/notes/flow/flow.test.ts`.
+- Generated subpackages: `api/internal/notes/flow/generated/`
+  (`model.qnt`, `artifact.json`, `runtime.go`, `replay.go`) and
+  `ui/src/features/notes/flow/generated/` (`model.qnt`, `artifact.json`,
+  `runtime.ts`, `replay.helper.ts`).
 - Requirements: template starter only.
 
 ## State Machines
@@ -81,37 +80,40 @@ to add a standalone formal document.
 Three (Go) or four (UI) files per flow at the top of the feature folder,
 plus one `generated/` sibling. Everything in `generated/` is codegen output.
 
-API domains that own durable lifecycle state use:
+Every flow lives in a `flow/` subdirectory next to its consumer with
+conventional file names. API domains that own durable lifecycle state use:
 
 ```text
 api/internal/<domain>/
-  <flow>_workflow.flow.json     # hand: source of truth
-  <flow>_workflow.go            # hand: wrapper
-  <flow>_workflow_test.go       # hand: thin replay delegation
-  generated/<foldername>/
-    model.qnt
-    artifact.json
-    runtime.go
-    replay.go
+  flow/
+    flow.json                   # hand: source of truth (schema v6)
+    transition.go               # hand: wrapper (package flow)
+    flow_test.go                # hand: thin replay delegation (package flow)
+    generated/
+      model.qnt
+      artifact.json
+      runtime.go                # package generated
+      replay.go
 ```
 
 UI features that own client-side modes use:
 
 ```text
 ui/src/features/<domain>/
-  <Domain>Workflow.flow.json    # hand: source of truth
-  <Domain>Workflow.ts           # hand: wrapper
-  <Domain>Workflow.fixtures.ts  # hand: replay fixtures
-  <Domain>Workflow.test.ts      # hand: thin replay delegation
-  generated/<foldername>/
-    model.qnt
-    artifact.json
-    runtime.ts
-    replay.helper.ts
+  flow/
+    flow.json                   # hand: source of truth (schema v6)
+    transition.ts               # hand: wrapper
+    fixtures.ts                 # hand: replay fixtures
+    flow.test.ts                # hand: thin replay delegation
+    generated/
+      model.qnt
+      artifact.json
+      runtime.ts
+      replay.helper.ts
 ```
 
-The `generated/<foldername>/` segment is derived mechanically from the flow ID;
-the contract no longer declares any output paths.
+Every flow uses the same file names. The `flow/` directory IS the unit;
+the contract no longer declares any output paths or module names.
 
 The workflow owns state/status values, events, `Transition`, and
 `CheckInvariants`. It should be pure or nearly pure. Effects live
@@ -143,24 +145,39 @@ files own the assertion calls; the hand-authored top-level test simply binds
 the wrapper's transition function and the fixtures and invokes
 `RunReplay`/`runFormalReplay` once.
 
-Formal artifacts use schema v5 coverage metadata. Matrix completeness,
+Formal artifacts use schema v6 coverage metadata. Matrix completeness,
 terminal transition checks, named trace coverage, and generated MBT trace
 coverage are separate fields. Do not treat generated trace
 `allPairsCovered` as required proof of correctness; replay tests require
 the complete transition matrix and named traces, while generated trace
 coverage reports how much the model explorer happened to visit.
 
-Schema v5 `*.flow.json` files do not declare any output paths. The contract's
-`replay` block carries only `fixtureModule`, `fixtureExport`, and `transition`
-metadata; everything else is derived from the flow ID and runtime language.
-Go flows emit `generated/<folder>/replay.go` and require a hand-authored
-`*_test.go` that calls `<folder>.RunReplay`. TypeScript flows emit
-`generated/<folder>/replay.helper.ts` and require a hand-authored `.test.ts`
-that calls `runFormalReplay({ transition, fixtures })` at module top level.
+Schema v6 `flow.json` files carry no path or module information. The
+`replay` block declares only `transition.function` (plus
+`transition.statusAccessor` for TS or `transition.stateType` /
+`transition.statusField` for Go). Everything else is derived from the
+flow directory.
+
+Go flows emit `flow/generated/replay.go` and require a hand-authored
+`flow/flow_test.go` (package `flow`) that calls `generated.RunReplay`.
+TypeScript flows emit `flow/generated/replay.helper.ts` and require a
+hand-authored `flow/flow.test.ts` that calls
+`runFormalReplay({ transition, fixtures })` at module top level.
 `temporal-model check` byte-compares every generated file and runs an
 AST-level lint over the hand-authored test, so a silent bypass — missing
-import, stubbed transition, or call buried inside a guarded block — fails
-the check.
+import, stubbed transition, or call buried inside a guarded block —
+fails the check.
+
+To scaffold a new flow:
+
+```bash
+cd tools/temporal-model
+go run . new ui/src/features/<feature> --flow-id <flow-id> --root ../..
+go run . new api/internal/<domain> --flow-id <flow-id> --root ../..
+```
+
+The scaffold writes the hand-authored files and immediately runs
+`generate`, so `check` is green from the moment it returns.
 
 To add or rename a state/event:
 

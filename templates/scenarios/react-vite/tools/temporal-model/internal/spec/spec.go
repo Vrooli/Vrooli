@@ -1,8 +1,8 @@
 package spec
 
 const (
-	SchemaVersion    = 5
-	GeneratorVersion = 6
+	SchemaVersion    = 6
+	GeneratorVersion = 7
 	GeneratorPath    = "tools/temporal-model"
 
 	VerificationBackendApalache = "apalache"

@@ -16,9 +16,9 @@ import (
 )
 
 func ValidRawContract() contract.Contract {
-	contractPath := "api/internal/example/example_workflow.flow.json"
+	contractPath := "api/internal/example/flow/flow.json"
 	flowID := "example.workflow.api"
-	lay, _ := layout.Derive(contractPath, flowID, layout.LanguageGo)
+	lay, _ := layout.Derive(contractPath, layout.LanguageGo)
 	return contract.Contract{
 		SchemaVersion: model.SchemaVersion,
 		FlowID:        flowID,
@@ -72,9 +72,9 @@ func ValidRawContract() contract.Contract {
 
 func ValidTypeScriptRawContract() contract.Contract {
 	raw := ValidRawContract()
-	raw.ContractPath = "ui/src/features/example/ExampleWorkflow.flow.json"
+	raw.ContractPath = "ui/src/features/example/flow/flow.json"
 	raw.FlowID = "example.workflow.ui"
-	raw.Layout, _ = layout.Derive(raw.ContractPath, raw.FlowID, layout.LanguageTypeScript)
+	raw.Layout, _ = layout.Derive(raw.ContractPath, layout.LanguageTypeScript)
 	raw.Runtime = contract.Runtime{
 		TypeScript: &contract.TypeScriptRuntime{
 			StatusType:             "ExampleStatus",
@@ -97,10 +97,7 @@ func ValidTypeScriptRawContract() contract.Contract {
 		},
 	}
 	raw.Replay = contract.Replay{
-		FixtureModule: "./ExampleWorkflow.fixtures",
-		FixtureExport: "exampleFormalFixtures",
 		Transition: contract.ReplayTransition{
-			Module:         "./ExampleWorkflow",
 			Function:       "transitionExample",
 			StatusAccessor: "state.status",
 		},
