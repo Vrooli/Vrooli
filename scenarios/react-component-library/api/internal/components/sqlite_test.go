@@ -99,6 +99,200 @@ func TestSQLiteRepository_ListSearchAndTagFilter(t *testing.T) {
 	require.Nil(t, got)
 }
 
+func TestSQLiteRepository_ListMultiTagAndCategory(t *testing.T) {
+	repo, _ := newComponentsDB(t)
+	ctx := context.Background()
+
+	seed := []components.UpsertInput{
+		{
+			LibraryID:   "lib:Button",
+			DisplayName: "Button",
+			Tags:        []string{"form", "interactive"},
+			Headers:     map[string]string{"category": "controls"},
+		},
+		{
+			LibraryID:   "lib:Card",
+			DisplayName: "Card",
+			Tags:        []string{"layout"},
+			Headers:     map[string]string{"category": "containers"},
+		},
+		{
+			LibraryID:   "lib:Input",
+			DisplayName: "Input",
+			Tags:        []string{"form", "input"},
+			Headers:     map[string]string{"category": "controls"},
+		},
+		{
+			LibraryID:   "lib:Banner",
+			DisplayName: "Banner",
+			Tags:        []string{"layout", "feedback"},
+			Headers:     map[string]string{"category": "containers"},
+		},
+	}
+	for _, in := range seed {
+		_, err := repo.Upsert(ctx, in)
+		require.NoError(t, err)
+	}
+
+	// Multi-tag OR (any-of).
+	got, err := repo.List(ctx, components.SearchQuery{Tags: []string{"form", "layout"}, Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 4, "form OR layout should match all four seeded rows")
+
+	got, err = repo.List(ctx, components.SearchQuery{Tags: []string{"input"}, Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "lib:Input", got[0].LibraryID)
+
+	// Whitespace-only entries are ignored.
+	got, err = repo.List(ctx, components.SearchQuery{Tags: []string{"", "  ", "feedback"}, Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "lib:Banner", got[0].LibraryID)
+
+	// Category AND.
+	got, err = repo.List(ctx, components.SearchQuery{Category: "controls", Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	gotIDs := []string{got[0].LibraryID, got[1].LibraryID}
+	require.Contains(t, gotIDs, "lib:Button")
+	require.Contains(t, gotIDs, "lib:Input")
+
+	// Category + multi-tag AND.
+	got, err = repo.List(ctx, components.SearchQuery{
+		Category: "containers",
+		Tags:     []string{"feedback"},
+		Limit:    10,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "lib:Banner", got[0].LibraryID)
+
+	// Match + category + tag — full AND composition. Match against name.
+	got, err = repo.List(ctx, components.SearchQuery{
+		Match:    "button",
+		Category: "controls",
+		Tags:     []string{"form"},
+		Limit:    10,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "lib:Button", got[0].LibraryID)
+
+	// Empty match returns full list (limit-capped).
+	got, err = repo.List(ctx, components.SearchQuery{Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 4)
+}
+
+func TestSQLiteRepository_ListMatchOrdersByDisplayNameCaseInsensitive(t *testing.T) {
+	repo, _ := newComponentsDB(t)
+	ctx := context.Background()
+
+	for _, in := range []components.UpsertInput{
+		{LibraryID: "lib:zebra", DisplayName: "zebra"},
+		{LibraryID: "lib:Apple", DisplayName: "Apple"},
+		{LibraryID: "lib:mango", DisplayName: "mango"},
+		{LibraryID: "lib:Banana", DisplayName: "Banana"},
+	} {
+		_, err := repo.Upsert(ctx, in)
+		require.NoError(t, err)
+	}
+
+	// Match "" filters nothing — but req SF-001 only specifies match-path
+	// ordering; we keep newest-first for unfiltered lists. Test the
+	// match-path explicitly.
+	got, err := repo.List(ctx, components.SearchQuery{Match: "a", Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 4)
+	require.Equal(t, []string{"Apple", "Banana", "mango", "zebra"},
+		[]string{got[0].DisplayName, got[1].DisplayName, got[2].DisplayName, got[3].DisplayName},
+		"match-mode order is display_name COLLATE NOCASE")
+}
+
+func TestSQLiteRepository_ListSearchP95UnderBudget(t *testing.T) {
+	// Req SF-003 — 1000 synthetic components, p95 < 100ms across a
+	// representative query mix on an in-memory SQLite.
+	if testing.Short() {
+		t.Skip("skipping benchmark under -short")
+	}
+	repo, _ := newComponentsDB(t)
+	ctx := context.Background()
+
+	for i := 0; i < 1000; i++ {
+		cat := "controls"
+		if i%3 == 0 {
+			cat = "containers"
+		} else if i%5 == 0 {
+			cat = "feedback"
+		}
+		tag := "form"
+		if i%2 == 0 {
+			tag = "layout"
+		}
+		_, err := repo.Upsert(ctx, components.UpsertInput{
+			LibraryID:   "lib:Comp" + itoa(i),
+			DisplayName: "Comp " + itoa(i),
+			Description: "synthetic seed row #" + itoa(i),
+			Tags:        []string{tag, "synthetic"},
+			Headers:     map[string]string{"category": cat},
+		})
+		require.NoError(t, err)
+	}
+
+	queries := []components.SearchQuery{
+		{Match: "synthetic", Limit: 200},
+		{Tags: []string{"form"}, Limit: 200},
+		{Category: "controls", Limit: 200},
+		{Match: "Comp 5", Category: "controls", Tags: []string{"form", "layout"}, Limit: 200},
+	}
+
+	const samples = 50
+	latencies := make([]time.Duration, 0, samples*len(queries))
+	for i := 0; i < samples; i++ {
+		for _, q := range queries {
+			start := time.Now()
+			_, err := repo.List(ctx, q)
+			require.NoError(t, err)
+			latencies = append(latencies, time.Since(start))
+		}
+	}
+
+	// Percentile via insertion sort — N=200 stays cheap and avoids an
+	// import for a one-shot benchmark.
+	for i := 1; i < len(latencies); i++ {
+		for j := i; j > 0 && latencies[j-1] > latencies[j]; j-- {
+			latencies[j-1], latencies[j] = latencies[j], latencies[j-1]
+		}
+	}
+	p95 := latencies[(len(latencies)*95)/100]
+	t.Logf("search p95 over %d samples × %d queries: %v", samples, len(queries), p95)
+	require.Less(t, p95, 100*time.Millisecond, "req SF-003 p95 budget")
+}
+
+// itoa avoids strconv import noise inside the bench loop.
+func itoa(i int) string {
+	if i == 0 {
+		return "0"
+	}
+	neg := i < 0
+	if neg {
+		i = -i
+	}
+	var buf [20]byte
+	pos := len(buf)
+	for i > 0 {
+		pos--
+		buf[pos] = byte('0' + i%10)
+		i /= 10
+	}
+	if neg {
+		pos--
+		buf[pos] = '-'
+	}
+	return string(buf[pos:])
+}
+
 func TestSQLiteRepository_DeleteMissing(t *testing.T) {
 	repo, _ := newComponentsDB(t)
 	ctx := context.Background()

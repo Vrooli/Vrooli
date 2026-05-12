@@ -27,9 +27,20 @@ CREATE INDEX IF NOT EXISTS idx_components_indexed_at
 CREATE INDEX IF NOT EXISTS idx_components_display_name
   ON components(display_name);
 
+-- Case-insensitive index supporting ORDER BY display_name COLLATE NOCASE,
+-- the path req SF-001 takes when a substring match is present. Required
+-- to meet the p95 < 100ms budget at 1k+ rows (req SF-003).
+CREATE INDEX IF NOT EXISTS idx_components_display_name_nocase
+  ON components(display_name COLLATE NOCASE);
+
 CREATE TABLE IF NOT EXISTS component_headers (
   component_id  TEXT NOT NULL,
   field         TEXT NOT NULL,
   value         TEXT NOT NULL,
   PRIMARY KEY (component_id, field)
 );
+
+-- Category lookups go through component_headers via EXISTS; this index
+-- keeps the correlated subquery cheap on large libraries.
+CREATE INDEX IF NOT EXISTS idx_component_headers_field_value
+  ON component_headers(field, value);

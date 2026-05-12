@@ -120,6 +120,29 @@ describe("ComponentsCard", () => {
     });
   });
 
+  it("forwards multi-tag (comma-split) + category to listComponents", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.listComponents).mockResolvedValue(makeListComponentsResponse());
+
+    const user = userEvent.setup();
+    renderWithProviders(<ComponentsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.components.tagsInput)).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByTestId(selectors.components.tagsInput), "form, layout");
+    await user.type(screen.getByTestId(selectors.components.categoryInput), "controls");
+
+    await waitFor(() => {
+      const calls = vi.mocked(componentsClient.listComponents).mock.calls;
+      const last = calls[calls.length - 1]?.[0] ?? {};
+      expect(last).toMatchObject({
+        tags: ["form", "layout"],
+        category: "controls",
+      });
+    });
+  });
+
   it("opens the editor when an item's Edit button is clicked", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.listComponents).mockResolvedValue(

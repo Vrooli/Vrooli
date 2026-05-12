@@ -26,6 +26,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"react-component-library/internal/module"
 	"react-component-library/internal/modules"
@@ -78,6 +79,10 @@ func run(output, seedPath string) error {
 	}
 
 	if err := crossCheck(endpoints, seed.CLICommands); err != nil {
+		return err
+	}
+
+	if err := validateTransport(endpoints); err != nil {
 		return err
 	}
 
@@ -145,6 +150,59 @@ func crossCheck(endpoints []module.EndpointDescriptor, commands []CLICommand) er
 		}
 	}
 	return nil
+}
+
+// validateTransport enforces the proto/Connect-RPC anti-drift contract:
+// every EndpointDescriptor.Path must either be a generated Connect
+// procedure constant (which always starts with "/vrooli." because
+// Vrooli proto services are namespaced under
+// vrooli.<scenario>.v1.<domain>.<Service>), or carry a RESTException
+// declaring one of the four mechanically-allowed REST reasons.
+//
+// The four allowed reasons are defined in
+// react-component-library/internal/module/module.go. Adding a new
+// reason is a deliberate architectural decision; do not add one to
+// silence this check.
+func validateTransport(endpoints []module.EndpointDescriptor) error {
+	var violations []string
+	for _, e := range endpoints {
+		isConnect := strings.HasPrefix(e.Path, "/vrooli.")
+		hasException := e.RESTException != nil
+		switch {
+		case isConnect && hasException:
+			violations = append(violations, fmt.Sprintf(
+				"endpoint %q: Path %q is a Connect procedure but has RESTException set; remove RESTException",
+				e.ID, e.Path))
+		case !isConnect && !hasException:
+			violations = append(violations, fmt.Sprintf(
+				"endpoint %q: Path %q is not a Connect procedure (must start with %q) and has no RESTException; "+
+					"either reference a generated *Procedure constant from packages/proto/gen, or tag with "+
+					"RESTException{Reason: one of multipart_upload|webhook_receiver|third_party_shape|ops_probe}",
+				e.ID, e.Path, "/vrooli."))
+		case !isConnect && hasException:
+			if !validRESTReason(e.RESTException.Reason) {
+				violations = append(violations, fmt.Sprintf(
+					"endpoint %q: RESTException.Reason %q is not one of the allowed reasons "+
+						"(multipart_upload, webhook_receiver, third_party_shape, ops_probe)",
+					e.ID, e.RESTException.Reason))
+			}
+		}
+	}
+	if len(violations) > 0 {
+		return fmt.Errorf("transport validation failed:\n  - %s", strings.Join(violations, "\n  - "))
+	}
+	return nil
+}
+
+func validRESTReason(r module.RESTReason) bool {
+	switch r {
+	case module.RESTReasonMultipartUpload,
+		module.RESTReasonWebhookReceiver,
+		module.RESTReasonThirdPartyShape,
+		module.RESTReasonOpsProbe:
+		return true
+	}
+	return false
 }
 
 // stripBinaryPrefix removes the leading "react-component-library " from a CLI

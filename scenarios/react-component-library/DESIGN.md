@@ -1,8 +1,8 @@
 ---
-id: vrooli-default
-version: 0.2.0
-name: Vrooli Operational Console
-description: Dense, responsive, customizable operational UI for generated Vrooli scenarios.
+id: react-component-library
+version: 0.1.0
+name: React Component Library Console
+description: Dense, responsive operational UI for browsing, editing, and live-previewing the shared React component registry.
 colors:
   primary: "#2563eb"
   secondary: "#0891b2"

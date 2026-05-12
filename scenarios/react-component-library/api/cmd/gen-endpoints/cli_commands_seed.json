@@ -13,7 +13,7 @@
     },
     {
       "name": "components list",
-      "description": "List indexed components (--match SUBSTR, --tag TAG, --limit N)",
+      "description": "List indexed components (--match SUBSTR, --tag TAG, --tags a,b, --category CAT, --limit N)",
       "endpoint_id": "components_list"
     },
     {
@@ -40,26 +40,6 @@
       "name": "preview bundle",
       "description": "Print the esbuild-transpiled ES module for a component (used by the live-preview iframe and for diagnostics)",
       "endpoint_id": "preview_get_bundle"
-    },
-    {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
-    },
-    {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
-    },
-    {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
-    },
-    {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
     }
   ]
 }

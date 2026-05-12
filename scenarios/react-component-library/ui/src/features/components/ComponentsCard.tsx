@@ -22,12 +22,20 @@ export function ComponentsCard() {
   const queryClient = useQueryClient();
   const [match, setMatch] = useState("");
   const [tag, setTag] = useState("");
+  const [tagsRaw, setTagsRaw] = useState("");
+  const [category, setCategory] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string>("");
 
+  const tags = tagsRaw
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t !== "");
+
   const componentsQuery = useQuery({
-    queryKey: ["components", { match, tag }],
-    queryFn: () => componentsClient.listComponents({ match, tag }),
+    queryKey: ["components", { match, tag, tags, category }],
+    queryFn: () =>
+      componentsClient.listComponents({ match, tag, tags, category }),
   });
 
   const indexMutation = useMutation({
@@ -87,6 +95,26 @@ export function ComponentsCard() {
             value={tag}
             onChange={(e) => setTag(e.target.value)}
             placeholder={t(strings.components.tagPlaceholder)}
+            className="mt-1"
+          />
+        </label>
+        <label className="block text-xs text-slate-400">
+          {t(strings.components.tagsFilterLabel)}
+          <Input
+            data-testid={selectors.components.tagsInput}
+            value={tagsRaw}
+            onChange={(e) => setTagsRaw(e.target.value)}
+            placeholder={t(strings.components.tagsFilterPlaceholder)}
+            className="mt-1"
+          />
+        </label>
+        <label className="block text-xs text-slate-400">
+          {t(strings.components.categoryLabel)}
+          <Input
+            data-testid={selectors.components.categoryInput}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder={t(strings.components.categoryPlaceholder)}
             className="mt-1"
           />
         </label>

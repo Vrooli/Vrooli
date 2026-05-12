@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package vrooli.flow_verifier.v1.verifications;
+
+import "flow-verifier/v1/runs/runs.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/verifications;verifications_v1";
+
+// =============================================================================
+// VERIFICATIONS DOMAIN — start a verify pipeline invocation
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain verifications
+// @imports vrooli.flow_verifier.v1.runs
+// @stability stable
+//
+// Wire contract for kicking off the verify pipeline and reading the
+// resulting run rows back. The pipeline writes a runs.Run row per
+// flow; StartVerification returns the recorded rows so the UI can
+// jump straight into Run Detail without a second round-trip.
+// =============================================================================
+
+service VerificationsService {
+  rpc StartVerification(StartVerificationRequest) returns (StartVerificationResponse);
+  rpc GetVerification(GetVerificationRequest) returns (GetVerificationResponse);
+}
+
+// VerificationMode mirrors pipeline.Mode. CHECK verifies on-disk
+// artifacts against the renderer; GENERATE (re)writes artifacts and
+// records a passing run on success.
+enum VerificationMode {
+  VERIFICATION_MODE_UNSPECIFIED = 0;
+  VERIFICATION_MODE_CHECK = 1;
+  VERIFICATION_MODE_GENERATE = 2;
+}
+
+message StartVerificationRequest {
+  // Optional Vrooli root override; falls back to server default.
+  string root = 1;
+  // Optional. Empty means "every flow discovered under root."
+  string flow_id = 2;
+  VerificationMode mode = 3;
+}
+
+message StartVerificationResponse {
+  // Overall outcome across every recorded run. "passed" when every
+  // run.status == PASSED; "failed" otherwise. Convenience mirror of
+  // the per-row statuses for the CLI's exit-code logic.
+  string status = 1;
+  // Populated when the pipeline itself errored before recording any
+  // run rows (quint missing, IO failure).
+  string error_message = 2;
+  // One row per verified flow.
+  repeated vrooli.flow_verifier.v1.runs.Run runs = 3;
+}
+
+message GetVerificationRequest { string run_id = 1; }
+message GetVerificationResponse { vrooli.flow_verifier.v1.runs.Run run = 1; }

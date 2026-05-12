@@ -3,7 +3,57 @@
   "app": {
     "title": "React Component Library",
     "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.",
+    "brand": "Component Library",
+    "brandInitials": "RC"
+  },
+  "nav": {
+    "label": "Primary navigation",
+    "bottomLabel": "Primary",
+    "openDrawer": "Open navigation",
+    "closeDrawer": "Close navigation",
+    "drawerLabel": "Navigation drawer",
+    "dashboard": "Dashboard",
+    "components": "Components",
+    "settings": "Settings"
+  },
+  "sidebar": {
+    "components": "Components",
+    "loading": "Loading…",
+    "error": "Failed to load components",
+    "empty": "No components indexed yet"
+  },
+  "theme": {
+    "light": "Light theme",
+    "dark": "Dark theme",
+    "system": "System theme"
+  },
+  "route": {
+    "loading": "Loading…"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Overview of the component library and the local API.",
+    "componentsTitle": "Indexed components",
+    "loading": "—",
+    "openLibrary": "Open library"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Theme and locale preferences persist locally in your browser.",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "language": "Language"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you requested doesn't exist or has moved.",
+    "home": "Back to dashboard"
+  },
+  "componentDetail": {
+    "missingId": "No component id in URL.",
+    "loading": "Loading component…",
+    "notFound": "Component not found."
   },
   "health": {
     "title": "API Health",
@@ -21,21 +71,9 @@
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
   },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading."
-  },
   "components": {
     "title": "Component Library",
+    "subtitle": "Components are indexed from the source root by their @libraryId header. Edit one to open the live preview.",
     "loading": "Loading components…",
     "empty": "No components indexed yet. Click \"Re-index\" after dropping a .tsx file with a @libraryId header into the registry root.",
     "indexAction": "Re-index",
@@ -43,6 +81,10 @@
     "searchPlaceholder": "Filter by name…",
     "tagLabel": "Tag",
     "tagPlaceholder": "e.g. form",
+    "tagsFilterLabel": "Tags (any of)",
+    "tagsFilterPlaceholder": "e.g. form, input",
+    "categoryLabel": "Category",
+    "categoryPlaceholder": "e.g. controls",
     "summary": "{{count}} components",
     "summary_one": "1 component",
     "versionLabel": "v{{version}}",
@@ -62,6 +104,18 @@
       "previewHeading": "Live preview",
       "previewWaiting": "Waiting for first paint…",
       "previewReady": "Rendered"
+    },
+    "emulator": {
+      "label": "Viewport",
+      "presetLabel": "Preset",
+      "dimensions": "{{width}} × {{height}}",
+      "zoomLabel": "Zoom",
+      "zoomValue": "{{percent}}%",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetZoom": "Reset zoom",
+      "rotate": "Rotate",
+      "reset": "Reset emulator"
     }
   },
   "errors": {

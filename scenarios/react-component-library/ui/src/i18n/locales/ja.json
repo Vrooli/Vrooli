@@ -3,7 +3,57 @@
   "app": {
     "title": "React Component Library",
     "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。",
+    "brand": "コンポーネントライブラリ",
+    "brandInitials": "RC"
+  },
+  "nav": {
+    "label": "主なナビゲーション",
+    "bottomLabel": "メイン",
+    "openDrawer": "ナビゲーションを開く",
+    "closeDrawer": "ナビゲーションを閉じる",
+    "drawerLabel": "ナビゲーションドロワー",
+    "dashboard": "ダッシュボード",
+    "components": "コンポーネント",
+    "settings": "設定"
+  },
+  "sidebar": {
+    "components": "コンポーネント",
+    "loading": "読み込み中…",
+    "error": "コンポーネントの読み込みに失敗しました",
+    "empty": "まだコンポーネントが登録されていません"
+  },
+  "theme": {
+    "light": "ライトテーマ",
+    "dark": "ダークテーマ",
+    "system": "システムテーマ"
+  },
+  "route": {
+    "loading": "読み込み中…"
+  },
+  "dashboard": {
+    "title": "ダッシュボード",
+    "subtitle": "コンポーネントライブラリとローカル API の概要。",
+    "componentsTitle": "登録済みコンポーネント",
+    "loading": "—",
+    "openLibrary": "ライブラリを開く"
+  },
+  "settings": {
+    "title": "設定",
+    "subtitle": "テーマとロケールの設定はブラウザにローカル保存されます。",
+    "appearance": "外観",
+    "theme": "テーマ",
+    "language": "言語"
+  },
+  "notFound": {
+    "title": "ページが見つかりません",
+    "description": "お探しのページは存在しないか、移動しました。",
+    "home": "ダッシュボードへ戻る"
+  },
+  "componentDetail": {
+    "missingId": "URL にコンポーネント ID がありません。",
+    "loading": "コンポーネントを読み込み中…",
+    "notFound": "コンポーネントが見つかりません。"
   },
   "health": {
     "title": "API ステータス",
@@ -18,20 +68,9 @@
   "notifications": {
     "summary": "{{count}} 件の通知"
   },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。"
-  },
   "components": {
     "title": "コンポーネントライブラリ",
+    "subtitle": "コンポーネントは @libraryId ヘッダーによってソースルートから検出されます。編集するとライブプレビューが開きます。",
     "loading": "コンポーネントを読み込み中…",
     "empty": "まだコンポーネントが登録されていません。@libraryId ヘッダー付きの .tsx ファイルを配置してから「再インデックス」を押してください。",
     "indexAction": "再インデックス",
@@ -39,6 +78,10 @@
     "searchPlaceholder": "名前で絞り込み…",
     "tagLabel": "タグ",
     "tagPlaceholder": "例: form",
+    "tagsFilterLabel": "タグ (いずれか)",
+    "tagsFilterPlaceholder": "例: form, input",
+    "categoryLabel": "カテゴリ",
+    "categoryPlaceholder": "例: controls",
     "summary": "{{count}} 件のコンポーネント",
     "versionLabel": "v{{version}}",
     "tagsLabel": "タグ: {{tags}}",
@@ -57,6 +100,18 @@
       "previewHeading": "ライブプレビュー",
       "previewWaiting": "初回描画を待機中…",
       "previewReady": "描画済み"
+    },
+    "emulator": {
+      "label": "ビューポート",
+      "presetLabel": "プリセット",
+      "dimensions": "{{width}} × {{height}}",
+      "zoomLabel": "ズーム",
+      "zoomValue": "{{percent}}%",
+      "zoomIn": "ズームイン",
+      "zoomOut": "ズームアウト",
+      "resetZoom": "ズームをリセット",
+      "rotate": "回転",
+      "reset": "エミュレーターをリセット"
     }
   },
   "errors": {

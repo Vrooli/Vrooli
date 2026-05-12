@@ -20,7 +20,6 @@ import (
 
 	componentsH "react-component-library/handlers/components"
 	healthH "react-component-library/handlers/health"
-	notesH "react-component-library/handlers/notes"
 	previewH "react-component-library/handlers/preview"
 )
 
@@ -110,7 +109,6 @@ func main() {
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		componentsH.ModuleWithRoot(db, clock.System{}, sourceRoot, log.Default()),
 		healthH.Module(db, "react-component-library-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()),
 		previewH.Module(componentsSvc, log.Default()),
 	)
 

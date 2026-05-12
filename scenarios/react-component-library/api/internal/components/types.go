@@ -52,13 +52,23 @@ type UpsertInput struct {
 }
 
 // SearchQuery filters a List call. All fields optional.
+//
 // Match is a case-insensitive substring tested against library_id,
-// display_name, description, and source_path. Tag matches require an
-// exact (case-insensitive) hit in the comma-separated tags column.
+// display_name, description, and source_path. When Match is set the
+// result is ordered by display_name (case-insensitive); otherwise by
+// indexed_at DESC.
+//
+// Tag (singular) matches a single exact-token hit. Tags (plural)
+// matches ANY of the supplied tokens (OR semantics, req SF-002). Both
+// AND with Match and with Category. Category is an AND filter that
+// looks up the canonical `@category` header field; only components
+// declaring that header value match.
 type SearchQuery struct {
-	Match string
-	Tag   string
-	Limit int
+	Match    string
+	Tag      string
+	Tags     []string
+	Category string
+	Limit    int
 }
 
 // ErrComponentNotFound is the typed sentinel handlers translate to a

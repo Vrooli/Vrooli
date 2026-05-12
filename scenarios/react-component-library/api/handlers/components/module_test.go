@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
 
 	"react-component-library/handlers/components"
@@ -119,29 +118,9 @@ func TestModule_GetReturnsNotFound(t *testing.T) {
 	require.Contains(t, rw.Body.String(), `"not_found"`)
 }
 
-// TestEndpoints_ParityWithProtoService — adding `rpc Foo(...)` to
-// components.proto without a matching Endpoints entry would silently
-// ship a .vrooli/endpoints.json that disagrees with the server.
-func TestEndpoints_ParityWithProtoService(t *testing.T) {
-	svc := componentsv1.File_react_component_library_v1_components_components_proto.
-		Services().ByName("ComponentsService")
-	require.NotNil(t, svc, "components proto must declare a ComponentsService service")
-
-	byPath := make(map[string]int, len(components.Endpoints))
-	for _, ep := range components.Endpoints {
-		byPath[ep.Path]++
-	}
-
-	methods := svc.Methods()
-	for i := 0; i < methods.Len(); i++ {
-		m := methods.Get(i)
-		wantPath := "/" + string(svc.FullName()) + "/" + string(m.Name())
-		count := byPath[wantPath]
-		require.Equal(t, 1, count,
-			"proto method %q (path %q) must have exactly one Endpoints entry; found %d",
-			m.Name(), wantPath, count)
-	}
-}
+// Proto/Connect parity for the components domain is now enforced
+// globally by TestProtoConnectParity in
+// api/internal/modules/registry_test.go.
 
 func callConnect(r *mux.Router, path, body string) *httptest.ResponseRecorder {
 	req, _ := http.NewRequest(http.MethodPost, path, strings.NewReader(body))

@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package vrooli.flow_verifier.v1.settings;
+
+import "google/protobuf/field_mask.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/settings;settings_v1";
+
+// =============================================================================
+// SETTINGS DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain settings
+// @imports none (external only: google.protobuf.FieldMask)
+// @stability stable
+//
+// Wire contract for per-principal local UI settings (theme, density,
+// sidebar width, inventory-filter defaults). FieldMask carries patch
+// semantics on UpdateSettings — only fields named in the mask are
+// merged, so the UI can flip a single preference without re-sending
+// every previous value.
+//
+// USAGE CONTEXTS:
+//   - API: handlers/settings/connect_handler.go implements SettingsServiceHandler.
+//   - UI:  ui/src/api/settings.ts exposes the generated client; the settings
+//          page reads via GetSettings and writes deltas via UpdateSettings.
+//   - CLI: `flow-verifier settings get|set` is a thin wrapper.
+// =============================================================================
+
+service SettingsService {
+  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+}
+
+// Theme controls the UI's colour scheme. SYSTEM follows the OS-level
+// preference. UNSPECIFIED is rejected by the validator and exists only
+// because proto3 enums must declare a zero value.
+enum Theme {
+  THEME_UNSPECIFIED = 0;
+  THEME_LIGHT = 1;
+  THEME_DARK = 2;
+  THEME_SYSTEM = 3;
+}
+
+// FontScale clamps the readable font-size multiplier to three discrete
+// steps. UNSPECIFIED is rejected by the validator.
+enum FontScale {
+  FONT_SCALE_UNSPECIFIED = 0;
+  FONT_SCALE_SM = 1;
+  FONT_SCALE_MD = 2;
+  FONT_SCALE_LG = 3;
+}
+
+// Density controls table/list row spacing.
+enum Density {
+  DENSITY_UNSPECIFIED = 0;
+  DENSITY_COMFORTABLE = 1;
+  DENSITY_COMPACT = 2;
+}
+
+// InventorySortOrder mirrors the wire shape of the inventory page's URL-
+// synced sort state. Key is one of "alpha", "flowcount", "id", "language",
+// etc; dir is "asc" or "desc". Kept as free-form strings so the UI can
+// extend without a wire bump.
+message InventorySortOrder {
+  string key = 1;
+  string dir = 2;
+}
+
+// InventoryFilters remembers the last-applied filter selection so it
+// can be restored when the user re-opens the inventory page.
+message InventoryFilters {
+  string search = 1;
+  string language = 2;
+  repeated string status = 3;
+  InventorySortOrder sort = 4;
+}
+
+// Settings is the full per-principal preference row. Persisted to
+// SQLite under a single fixed principal id ("local") in the local
+// scenario; multi-principal scoping is out of scope for v1.
+message Settings {
+  string principal_id = 1;
+  Theme theme = 2;
+  FontScale font_scale = 3;
+  bool reduced_motion = 4;
+  bool rtl = 5;
+  // Default Vrooli root path the UI passes back on subsequent
+  // requests when the user hasn't picked another. Empty when unset.
+  string default_root = 6;
+  Density density = 7;
+  // Sidebar width in pixels. Zero means "use the UI default."
+  int32 sidebar_width = 8;
+  InventoryFilters inventory_filters = 9;
+  // RFC3339 timestamp the row was last persisted. Server-set.
+  string updated_at = 10;
+}
+
+message GetSettingsRequest {}
+message GetSettingsResponse { Settings settings = 1; }
+
+// UpdateSettingsRequest carries a partial patch. Only fields named in
+// `update_mask` are merged into the stored row; every other field is
+// preserved. An empty mask means "patch everything in the message,"
+// matching google.protobuf.FieldMask convention. Validation runs on
+// the merged result, so a mask that names a single enum field still
+// gets that enum value-checked.
+message UpdateSettingsRequest {
+  Settings settings = 1;
+  google.protobuf.FieldMask update_mask = 2;
+}
+
+message UpdateSettingsResponse { Settings settings = 1; }

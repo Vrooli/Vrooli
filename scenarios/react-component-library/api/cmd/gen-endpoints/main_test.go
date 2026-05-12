@@ -25,10 +25,6 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "components content-get", Description: "Read content", EndpointID: "components_content_get"},
 		{Name: "components content-set", Description: "Write content", EndpointID: "components_content_set"},
 		{Name: "preview bundle", Description: "Bundle for preview", EndpointID: "preview_get_bundle"},
-		{Name: "notes list", Description: "List notes", EndpointID: "notes_list"},
-		{Name: "notes create", Description: "Create note", EndpointID: "notes_create"},
-		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
-		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -59,8 +55,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 12 {
-		t.Errorf("cli_commands count = %d, want 12", len(got.CLICommands))
+	if len(got.CLICommands) != 8 {
+		t.Errorf("cli_commands count = %d, want 8", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
@@ -109,15 +105,15 @@ func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
 }
 
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "react-component-library notes list"
-// must compare against the seed's "notes list".
+// normalisation step: the endpoint's "react-component-library components list"
+// must compare against the seed's "components list".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "react-component-library status", want: "status"},
-		{in: "react-component-library notes list", want: "notes list"},
+		{in: "react-component-library components list", want: "components list"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "react-component-library", want: "react-component-library"}, // no trailing space → preserved
 	}

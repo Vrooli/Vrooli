@@ -3,7 +3,57 @@
   "app": {
     "title": "React Component Library",
     "eyebrow": "قالب السيناريو",
-    "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
+    "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو.",
+    "brand": "مكتبة المكوّنات",
+    "brandInitials": "RC"
+  },
+  "nav": {
+    "label": "التنقل الأساسي",
+    "bottomLabel": "أساسي",
+    "openDrawer": "فتح التنقل",
+    "closeDrawer": "إغلاق التنقل",
+    "drawerLabel": "درج التنقل",
+    "dashboard": "لوحة المعلومات",
+    "components": "المكوّنات",
+    "settings": "الإعدادات"
+  },
+  "sidebar": {
+    "components": "المكوّنات",
+    "loading": "جارٍ التحميل…",
+    "error": "تعذر تحميل المكوّنات",
+    "empty": "لا توجد مكوّنات مفهرسة بعد"
+  },
+  "theme": {
+    "light": "السمة الفاتحة",
+    "dark": "السمة الداكنة",
+    "system": "سمة النظام"
+  },
+  "route": {
+    "loading": "جارٍ التحميل…"
+  },
+  "dashboard": {
+    "title": "لوحة المعلومات",
+    "subtitle": "نظرة عامة على مكتبة المكوّنات وواجهة API المحلية.",
+    "componentsTitle": "المكوّنات المفهرسة",
+    "loading": "—",
+    "openLibrary": "فتح المكتبة"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "subtitle": "تُحفظ تفضيلات السمة واللغة محليًا في المتصفح.",
+    "appearance": "المظهر",
+    "theme": "السمة",
+    "language": "اللغة"
+  },
+  "notFound": {
+    "title": "الصفحة غير موجودة",
+    "description": "الصفحة التي طلبتها غير موجودة أو نُقلت.",
+    "home": "العودة إلى لوحة المعلومات"
+  },
+  "componentDetail": {
+    "missingId": "لا يوجد معرّف مكوّن في عنوان URL.",
+    "loading": "جارٍ تحميل المكوّن…",
+    "notFound": "المكوّن غير موجود."
   },
   "health": {
     "title": "حالة API",
@@ -21,21 +71,9 @@
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
   },
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع."
-  },
   "components": {
     "title": "مكتبة المكوّنات",
+    "subtitle": "يتم اكتشاف المكوّنات من جذر المصدر عبر ترويسة @libraryId. عدّل أحدها لفتح المعاينة المباشرة.",
     "loading": "جارٍ تحميل المكوّنات…",
     "empty": "لم تتم فهرسة أي مكوّن بعد. ضع ملف .tsx يحوي ترويسة @libraryId ثم اضغط «إعادة الفهرسة».",
     "indexAction": "إعادة الفهرسة",
@@ -43,6 +81,10 @@
     "searchPlaceholder": "تصفية بالاسم…",
     "tagLabel": "وسم",
     "tagPlaceholder": "مثال: form",
+    "tagsFilterLabel": "الوسوم (أي منها)",
+    "tagsFilterPlaceholder": "مثال: form, input",
+    "categoryLabel": "الفئة",
+    "categoryPlaceholder": "مثال: controls",
     "summary": "{{count}} مكوّنات",
     "summary_one": "مكوّن واحد",
     "versionLabel": "v{{version}}",
@@ -62,6 +104,18 @@
       "previewHeading": "معاينة مباشرة",
       "previewWaiting": "بانتظار أول طلاء…",
       "previewReady": "تم العرض"
+    },
+    "emulator": {
+      "label": "نطاق العرض",
+      "presetLabel": "الإعداد المسبق",
+      "dimensions": "{{width}} × {{height}}",
+      "zoomLabel": "التكبير",
+      "zoomValue": "{{percent}}%",
+      "zoomIn": "تكبير",
+      "zoomOut": "تصغير",
+      "resetZoom": "إعادة التكبير",
+      "rotate": "تدوير",
+      "reset": "إعادة ضبط المحاكي"
     }
   },
   "errors": {

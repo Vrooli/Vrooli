@@ -2,7 +2,6 @@ package domains
 
 import (
 	"react-component-library/cli/domains/components"
-	"react-component-library/cli/domains/notes"
 	"react-component-library/cli/domains/preview"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -23,15 +22,12 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 //
 // Each domain package owns a Register(core *cliapp.ScenarioApp) function
 // returning a SubcommandGroup; this aggregator is intentionally a one-liner
-// per domain so adding a new one is mechanical. The notes domain is the
-// canonical CRUD reference — copy its shape (cli/domains/notes/) when
-// adding a real feature.
+// per domain so adding a new one is mechanical.
 //
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
 // See docs/concepts/ARCHITECTURE.md "Domain modules" for the canonical
-// pattern when swapping the notes reference for your scenario's first
-// domain.
+// pattern.
 //
 // For API-backed commands:
 //   - set NeedsAPI: true so stale-check + --auto-start preflight works
@@ -43,7 +39,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		components.Register(core),
-		notes.Register(core),
 		preview.Register(core),
 	}
 }

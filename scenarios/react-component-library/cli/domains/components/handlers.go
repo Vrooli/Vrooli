@@ -65,8 +65,18 @@ func (h *handlers) index(ctx cliapp.RunContext) error {
 // list calls ComponentsService.ListComponents with optional filter flags.
 func (h *handlers) list(ctx cliapp.RunContext) error {
 	req := &componentsv1.ListComponentsRequest{
-		Match: ctx.Flag("match"),
-		Tag:   ctx.Flag("tag"),
+		Match:    ctx.Flag("match"),
+		Tag:      ctx.Flag("tag"),
+		Category: ctx.Flag("category"),
+	}
+	if rawTags := ctx.Flag("tags"); rawTags != "" {
+		// Comma-separated multi-tag OR. Trim entries silently — the
+		// repository drops blanks too, so `--tags ,form,` is fine.
+		for _, t := range strings.Split(rawTags, ",") {
+			if trimmed := strings.TrimSpace(t); trimmed != "" {
+				req.Tags = append(req.Tags, trimmed)
+			}
+		}
 	}
 	if raw := ctx.Flag("limit"); raw != "" {
 		n, err := strconv.Atoi(raw)

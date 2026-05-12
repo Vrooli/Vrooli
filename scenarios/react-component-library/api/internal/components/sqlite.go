@@ -141,17 +141,50 @@ func (s *sqliteRepository) List(ctx context.Context, q SearchQuery) ([]Component
 		clauses = append(clauses, `(',' || lower(tags) || ',') LIKE ?`)
 		args = append(args, "%,"+strings.ToLower(tag)+",%")
 	}
+	// Multi-tag OR: any-of semantics, per req SF-002. Empty / whitespace-
+	// only entries are dropped silently so callers can pass raw splits.
+	var multiTagPredicates []string
+	for _, t := range q.Tags {
+		trimmed := strings.TrimSpace(t)
+		if trimmed == "" {
+			continue
+		}
+		multiTagPredicates = append(multiTagPredicates, `(',' || lower(tags) || ',') LIKE ?`)
+		args = append(args, "%,"+strings.ToLower(trimmed)+",%")
+	}
+	if len(multiTagPredicates) > 0 {
+		clauses = append(clauses, "("+strings.Join(multiTagPredicates, " OR ")+")")
+	}
+	if cat := strings.TrimSpace(q.Category); cat != "" {
+		// Categories live in the parsed @category header. Use a
+		// correlated EXISTS so the predicate AND-composes cleanly with
+		// the others without inflating the main row count.
+		clauses = append(clauses, `EXISTS (
+		  SELECT 1 FROM component_headers ch
+		  WHERE ch.component_id = components.id
+		    AND ch.field = 'category'
+		    AND lower(ch.value) = ?
+		)`)
+		args = append(args, strings.ToLower(cat))
+	}
 	where := ""
 	if len(clauses) > 0 {
 		where = "WHERE " + strings.Join(clauses, " AND ")
+	}
+	orderBy := "ORDER BY indexed_at DESC, library_id ASC"
+	if strings.TrimSpace(q.Match) != "" {
+		// Match queries surface a discoverability list — alphabetical
+		// by display_name (case-insensitive) matches the spec's "ordered
+		// by name" wording (req SF-001).
+		orderBy = "ORDER BY display_name COLLATE NOCASE ASC, library_id ASC"
 	}
 	query := fmt.Sprintf(`
 SELECT id, library_id, display_name, description, source_path, version, tags, indexed_at, updated_at
 FROM components
 %s
-ORDER BY indexed_at DESC, library_id ASC
+%s
 LIMIT ?
-`, where)
+`, where, orderBy)
 	args = append(args, limit)
 
 	rows, err := s.db.QueryContext(ctx, query, args...)

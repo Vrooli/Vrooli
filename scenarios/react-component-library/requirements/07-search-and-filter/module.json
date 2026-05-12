@@ -10,7 +10,7 @@
     {
       "id": "SF-001",
       "title": "Name and description substring search returns matches case-insensitively",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "search",
       "criticality": "P0",
@@ -19,7 +19,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Repository test seeds a fixture corpus and asserts result set + ordering for several queries including empty/edge cases."
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "SF-002",
       "title": "Tag and category facets narrow the result set",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "search",
       "criticality": "P0",
@@ -36,7 +36,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Repository test covers tag+category AND, multi-tag OR, and combination with q."
         }
       ]
@@ -44,7 +44,7 @@
     {
       "id": "SF-003",
       "title": "Search p95 query latency under 100ms on the test corpus",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "search",
       "criticality": "P0",
@@ -53,7 +53,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Benchmark test seeds 1000 rows, runs the query mix N times, asserts p95."
         }
       ]

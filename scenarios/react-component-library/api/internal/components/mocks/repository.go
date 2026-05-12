@@ -121,6 +121,15 @@ func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]
 	}
 	matchL := strings.ToLower(strings.TrimSpace(q.Match))
 	tagL := strings.ToLower(strings.TrimSpace(q.Tag))
+	categoryL := strings.ToLower(strings.TrimSpace(q.Category))
+	multiTags := make([]string, 0, len(q.Tags))
+	for _, t := range q.Tags {
+		trimmed := strings.ToLower(strings.TrimSpace(t))
+		if trimmed == "" {
+			continue
+		}
+		multiTags = append(multiTags, trimmed)
+	}
 	var out []components.Component
 	for _, c := range f.items {
 		if matchL != "" {
@@ -141,13 +150,47 @@ func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]
 				continue
 			}
 		}
+		if len(multiTags) > 0 {
+			hit := false
+			for _, want := range multiTags {
+				for _, t := range c.Tags {
+					if strings.EqualFold(t, want) {
+						hit = true
+						break
+					}
+				}
+				if hit {
+					break
+				}
+			}
+			if !hit {
+				continue
+			}
+		}
+		if categoryL != "" {
+			v, ok := c.Headers["category"]
+			if !ok || !strings.EqualFold(v, categoryL) {
+				continue
+			}
+		}
 		out = append(out, c)
 	}
-	// Sort newest IndexedAt first, then LibraryID asc — mirrors sqlite ORDER BY.
+	matchSet := matchL != ""
+	// Mirrors sqlite ORDER BY: match-mode → display_name COLLATE NOCASE;
+	// otherwise newest indexed first, then library_id asc.
 	for i := 0; i < len(out); i++ {
 		for j := i + 1; j < len(out); j++ {
-			if out[j].IndexedAt.After(out[i].IndexedAt) ||
+			less := false
+			if matchSet {
+				li, lj := strings.ToLower(out[i].DisplayName), strings.ToLower(out[j].DisplayName)
+				if lj < li || (lj == li && out[j].LibraryID < out[i].LibraryID) {
+					less = true
+				}
+			} else if out[j].IndexedAt.After(out[i].IndexedAt) ||
 				(out[j].IndexedAt.Equal(out[i].IndexedAt) && out[j].LibraryID < out[i].LibraryID) {
+				less = true
+			}
+			if less {
 				out[i], out[j] = out[j], out[i]
 			}
 		}

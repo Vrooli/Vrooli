@@ -10,7 +10,7 @@
     {
       "id": "VP-001",
       "title": "Viewport preset dropdown with mobile/tablet/desktop and named devices",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "emulator",
       "criticality": "P0",
@@ -19,7 +19,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "UI store-state test verifies preset selection updates the emulator state machine; component test asserts dropdown lists all presets."
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "VP-002",
       "title": "Continuous zoom 10–200% with a slider and discrete step buttons",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "emulator",
       "criticality": "P0",
@@ -36,7 +36,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Store-state test asserts clamp; component test asserts slider/zoom-out/zoom-in/reset interactions."
         }
       ]
@@ -44,7 +44,7 @@
     {
       "id": "VP-003",
       "title": "Rotate flips width/height; reset clears all emulator state",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "emulator",
       "criticality": "P0",
@@ -53,7 +53,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Store-state test covers rotate-then-reset sequence."
         }
       ]
@@ -61,7 +61,7 @@
     {
       "id": "VP-004",
       "title": "Emulator state persists across sessions",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "emulator",
       "criticality": "P0",
@@ -70,7 +70,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Hook test mounts useDeviceEmulation, dispatches changes, asserts localStorage payload; second mount reads it."
         }
       ]

@@ -121,7 +121,7 @@ describe("renderWithProviders I18nextProvider wiring", () => {
     renderWithProviders(<Probe />);
     // test-setup.ts puts the singleton in cimode; if renderWithProviders
     // accidentally constructed its own i18n instance, this would render
-    // the translated copy ("React Component Library" or similar)
+    // the translated copy ("Flow Verifier" or similar)
     // rather than the literal key path.
     expect(screen.getByTestId("probe-key")).toHaveTextContent("app.title");
   });

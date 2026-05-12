@@ -30,7 +30,9 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				Args: cliapp.ArgSchema{
 					Flags: []cliapp.Flag{
 						{Name: "match", Description: "Case-insensitive substring filter"},
-						{Name: "tag", Description: "Exact tag filter"},
+						{Name: "tag", Description: "Exact single-tag filter"},
+						{Name: "tags", Description: "Comma-separated multi-tag OR filter (any-of)"},
+						{Name: "category", Description: "Filter by @category header value"},
 						{Name: "limit", Description: "Maximum number of rows (default 200)"},
 					},
 				},

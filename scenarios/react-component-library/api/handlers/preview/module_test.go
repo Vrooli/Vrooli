@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
-	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
 	previewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview/preview_v1connect"
 
 	componentsH "react-component-library/handlers/components"
@@ -149,28 +148,8 @@ export const Broken = () => <div
 	require.Contains(t, rec.Body.String(), "bundle failed")
 }
 
-// TestEndpoints_ParityWithProtoService mirrors the components handler's
-// parity test — adding `rpc Foo(...)` to preview.proto without a
-// matching Endpoints entry would ship a misleading endpoints.json.
-func TestEndpoints_ParityWithProtoService(t *testing.T) {
-	svc := previewv1.File_react_component_library_v1_preview_preview_proto.
-		Services().ByName("PreviewService")
-	require.NotNil(t, svc, "preview proto must declare a PreviewService service")
-
-	byPath := make(map[string]int, len(previewH.Endpoints))
-	for _, ep := range previewH.Endpoints {
-		byPath[ep.Path]++
-	}
-
-	methods := svc.Methods()
-	for i := 0; i < methods.Len(); i++ {
-		m := methods.Get(i)
-		wantPath := "/" + string(svc.FullName()) + "/" + string(m.Name())
-		require.Equal(t, 1, byPath[wantPath],
-			"proto method %q (path %q) must have exactly one Endpoints entry",
-			m.Name(), wantPath)
-	}
-}
+// Proto/Connect parity for the preview domain is now enforced globally
+// by TestProtoConnectParity in api/internal/modules/registry_test.go.
 
 func extractFirstID(t *testing.T, body string) string {
 	t.Helper()

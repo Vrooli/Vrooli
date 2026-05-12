@@ -1,90 +1,89 @@
-import type { ReactNode } from "react";
-
-import { selectors } from "../consts/selectors";
-import { strings } from "../consts/strings";
-import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
-
-type Props = {
-  children: ReactNode;
-};
-
 /**
- * PLACEHOLDER SHELL — REPLACE WHEN BUILDING THE REAL UX.
+ * AppShell — full-width operational shell.
  *
- * This shell is a minimum-viable layout so the template boots green
- * and demonstrates the i18n/a11y/design-token seams. It is NOT a
- * reasonable end-state for your scenario. When you design the real
- * product UI:
- *   - Replace this centered single-panel layout with the real shell
- *     (navigation, routing, side panes, headers — whatever fits).
- *   - Replace the eyebrow / title / description with real product
- *     surfaces.
- *   - Replace the inline locale buttons with whatever fits the real
- *     settings/preferences surface (header menu, settings page,
- *     keyboard shortcut, etc.). KEEP the underlying i18n behavior:
- *     `useTranslation`, `setLocale`, `SUPPORTED_LOCALES` are durable
- *     seams, not placeholder choices.
- *   - Build a real settings page covering every preference the
- *     scenario actually needs (theme, font scale, locale, a11y,
- *     account, notifications, etc.) — do not constrain it to
- *     whatever specific examples appear in `DESIGN.md`; the design
- *     governs how settings look and behave, not which ones exist.
+ * Desktop (≥ md): resizable left sidebar + main content. The sidebar is
+ * driven by `useResizablePanel` so widths persist across reloads.
+ * Mobile (< md): top header, bottom navigation, and a slide-in drawer
+ * that hosts the same nav + component list. The dark/light theme is mirrored
+ * on `<html>` by the surrounding `<ThemeProvider>`.
  *
- * Lives in `components/` (not `features/`) because the shell is
- * cross-cutting layout, not domain content.
+ * Replaces the starter centered-card layout: no `max-w-xl`, no eyebrow,
+ * no card wrapping page-level content.
  */
+import { type ReactNode, useCallback, useRef, useState } from "react";
+import { Outlet } from "react-router-dom";
+
+import { useIsMobile } from "../hooks/useMediaQuery";
+import { useResizablePanel } from "../hooks/useResizablePanel";
+import { HealthPill } from "./HealthPill";
+import { MobileDrawer } from "./MobileDrawer";
+import { MobileHeader } from "./MobileHeader";
+import { MobileNav } from "./MobileNav";
+import { Sidebar } from "./Sidebar";
+import { SidebarComponentList } from "./SidebarComponentList";
+import { ThemeToggle } from "./ThemeToggle";
+
+const SIDEBAR_STORAGE = "react-component-library.sidebar.width.v1";
+
+interface Props {
+  children?: ReactNode;
+}
+
 export function AppShell({ children }: Props) {
-  const { t } = useTranslation();
-  const currentLocale = getCurrentLocale();
+  const shellRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const isMobile = useIsMobile();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const { size: sidebarWidth, resizeHandleProps } = useResizablePanel({
+    containerRef: shellRef,
+    targetRef: sidebarRef,
+    minSize: 260,
+    maxSize: 480,
+    defaultSize: 300,
+    adjacentMinSize: 420,
+    handleWidth: 6,
+    storageKey: SIDEBAR_STORAGE,
+  });
+
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+
+  const headerSlot = (
+    <div className="flex items-center gap-1">
+      <HealthPill />
+      <ThemeToggle />
+    </div>
+  );
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-app-background p-6 text-app-foreground">
-      <div className="w-full max-w-xl rounded-panel border border-app-border bg-app-surface p-8 shadow-lg">
-        <div className="flex items-center justify-between gap-4">
-          <p
-            data-testid={selectors.app.eyebrow}
-            className="text-sm uppercase text-app-muted-foreground"
-          >
-            {t(strings.app.eyebrow)}
-          </p>
-          <div
-            role="group"
-            aria-label={t(strings.locale.switcherLabel)}
-            data-testid={selectors.locale.switcher}
-            className="flex items-center gap-1 rounded-control border border-app-border bg-app-surface-muted p-1 text-xs"
-          >
-            {SUPPORTED_LOCALES.map((lng) => (
-              <button
-                key={lng}
-                type="button"
-                data-testid={selectors.locale.toggle({ code: lng })}
-                onClick={() => void setLocale(lng)}
-                aria-pressed={currentLocale === lng}
-                className={
-                  currentLocale === lng
-                    ? "rounded-control bg-app-primary px-3 py-1 font-medium text-app-primary-foreground"
-                    : "rounded-control px-3 py-1 text-app-muted-foreground hover:text-app-foreground"
-                }
-              >
-                {getLocaleConfig(lng).nativeLabel}
-              </button>
-            ))}
-          </div>
-        </div>
-        <h1
-          data-testid={selectors.app.title}
-          className="mt-3 text-3xl font-semibold"
+    <div
+      ref={shellRef}
+      data-testid="app-shell"
+      className="flex min-h-screen w-full bg-app-background text-app-foreground"
+    >
+      <Sidebar
+        ref={sidebarRef}
+        width={isMobile ? undefined : sidebarWidth}
+        resizeHandleProps={isMobile ? undefined : resizeHandleProps}
+        headerSlot={headerSlot}
+        inventorySlot={<SidebarComponentList />}
+      />
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <MobileHeader onOpenDrawer={openDrawer} />
+        <main
+          data-testid="app-main"
+          className="pb-safe min-w-0 flex-1 px-4 py-4 pb-20 md:px-8 md:py-6 md:pb-8"
         >
-          {t(strings.app.title)}
-        </h1>
-        <p
-          data-testid={selectors.app.description}
-          className="mt-2 text-app-muted-foreground"
-        >
-          {t(strings.app.description)}
-        </p>
-        {children}
+          {children ?? <Outlet />}
+        </main>
+        <MobileNav />
       </div>
+
+      <MobileDrawer open={drawerOpen} onClose={closeDrawer}>
+        <SidebarComponentList onNavigate={closeDrawer} />
+      </MobileDrawer>
     </div>
   );
 }

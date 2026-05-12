@@ -1,0 +1,188 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.components;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components;components_v1";
+
+// =============================================================================
+// COMPONENTS DOMAIN — registry of indexed React components
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain components
+// @stability stable
+//
+// Wire contract for the ComponentsService Connect-RPC service. The registry
+// catalogs TSX files on disk that declare a `@libraryId` JSDoc header. Index
+// is a server-side walk + upsert; the rest are reads.
+//
+// Consumed by:
+//   - API: handlers/components/connect_handler.go implements the generated
+//          ComponentsServiceHandler interface.
+//   - UI:  ui/src/api/components.ts (Connect-Web client).
+//   - CLI: cli/domains/components/handlers.go (Connect-Go client).
+// =============================================================================
+
+service ComponentsService {
+  rpc ListComponents(ListComponentsRequest) returns (ListComponentsResponse);
+  rpc GetComponent(GetComponentRequest) returns (GetComponentResponse);
+  rpc GetComponentByLibraryId(GetComponentByLibraryIdRequest) returns (GetComponentByLibraryIdResponse);
+  rpc IndexComponents(IndexComponentsRequest) returns (IndexComponentsResponse);
+  rpc GetComponentContent(GetComponentContentRequest) returns (GetComponentContentResponse);
+  rpc UpdateComponentContent(UpdateComponentContentRequest) returns (UpdateComponentContentResponse);
+}
+
+// Component is the canonical wire shape for a single indexed component.
+message Component {
+  // UUID assigned by the API on first index.
+  string id = 1;
+
+  // Stable cross-scenario identifier parsed from the `@libraryId` header.
+  string library_id = 2;
+
+  // Human-readable name (from `@displayName`, falls back to file basename).
+  string display_name = 3;
+
+  // Short prose description (from `@description`).
+  string description = 4;
+
+  // Path of the .tsx file relative to the configured source root.
+  string source_path = 5;
+
+  // Optional version string parsed from `@version`.
+  string version = 6;
+
+  // Tag list parsed from `@tags` (JSON array or comma-separated).
+  repeated string tags = 7;
+
+  // Server time at the moment this component was last (re-)indexed.
+  google.protobuf.Timestamp indexed_at = 8;
+
+  // Server time at the moment this row was last updated (changes per upsert).
+  google.protobuf.Timestamp updated_at = 9;
+
+  // Captured raw JSDoc header fields keyed by `@name` (after stripping `@`).
+  // Echoed for transparency; UI may surface unknown fields. Empty when the
+  // caller did not opt into header inclusion (List omits it; Get includes it).
+  map<string, string> headers = 10;
+}
+
+// ListComponentsRequest filters the registry view.
+message ListComponentsRequest {
+  // Case-insensitive substring matched against library_id, display_name,
+  // description, and source_path. Empty string = no filter. When set,
+  // results are ordered by display_name (case-insensitive) per req SF-001.
+  string match = 1;
+
+  // Exact (case-insensitive) single-tag filter. Kept for back-compat;
+  // for new callers prefer `tags` (multi-tag OR). Empty string = no filter.
+  string tag = 2;
+
+  // Max rows to return. 0 = server default (200). Capped server-side.
+  int32 limit = 3;
+
+  // Multi-tag OR filter (any-of) — req SF-002. Empty / whitespace-only
+  // entries are ignored. When combined with `match` and/or `category`,
+  // each facet ANDs with the others.
+  repeated string tags = 4;
+
+  // Category AND filter — matches against the parsed @category header.
+  // Empty string = no filter.
+  string category = 5;
+}
+
+message ListComponentsResponse {
+  // Components ordered newest-first by indexed_at.
+  repeated Component components = 1;
+}
+
+message GetComponentRequest {
+  string id = 1;
+}
+
+message GetComponentResponse {
+  Component component = 1;
+}
+
+message GetComponentByLibraryIdRequest {
+  string library_id = 1;
+}
+
+message GetComponentByLibraryIdResponse {
+  Component component = 1;
+}
+
+// IndexComponentsRequest triggers a re-walk of the configured source root.
+// Currently parameter-less; future filters (subtree, dry-run) land here.
+message IndexComponentsRequest {
+}
+
+// IndexComponentsResponse summarises the index pass.
+message IndexComponentsResponse {
+  // Total files visited by the walker.
+  int32 scanned = 1;
+
+  // Files that produced a successful upsert.
+  int32 indexed = 2;
+
+  // Files skipped because they had no `@libraryId` header (not an error).
+  int32 skipped = 3;
+
+  // Rows deleted because their previously-indexed source file is gone.
+  int32 deleted = 4;
+
+  // Human-readable error strings, one per file that failed validation.
+  repeated string errors = 5;
+
+  // Library IDs successfully indexed in this pass, in walk order.
+  repeated string library_ids = 6;
+}
+
+// GetComponentContentRequest reads the on-disk source file backing a
+// component. The id is the registry id (NOT the library_id) — callers
+// should resolve via List/Get first.
+message GetComponentContentRequest {
+  string id = 1;
+}
+
+message GetComponentContentResponse {
+  // Raw source text of the component file (UTF-8).
+  string content = 1;
+
+  // Echoed source_path (relative to the configured source root) so the
+  // caller can render a header without re-fetching the Component row.
+  string source_path = 2;
+
+  // SHA-256 hex digest of the content at read time. Callers send this
+  // back on UpdateComponentContent as expected_sha256 to detect
+  // concurrent edits; empty string = caller opts out of the check.
+  string sha256 = 3;
+}
+
+// UpdateComponentContentRequest writes the on-disk source file in
+// place. The component row itself is not mutated; callers should follow
+// with IndexComponents if the header changed.
+message UpdateComponentContentRequest {
+  // Registry id of the component to write.
+  string id = 1;
+
+  // New full file content (UTF-8). Caller is responsible for keeping
+  // the @libraryId header intact — the indexer will reject the file on
+  // the next walk if it doesn't.
+  string content = 2;
+
+  // Optional optimistic-concurrency guard. When non-empty and not equal
+  // to the current on-disk SHA-256, the server returns FailedPrecondition
+  // and the write is rejected.
+  string expected_sha256 = 3;
+}
+
+message UpdateComponentContentResponse {
+  // SHA-256 hex digest of the freshly written content.
+  string sha256 = 1;
+
+  // Echoed source_path of the file just written.
+  string source_path = 2;
+}

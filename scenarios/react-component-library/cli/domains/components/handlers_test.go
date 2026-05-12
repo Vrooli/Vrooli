@@ -163,7 +163,7 @@ func TestComponentsList_ForwardsFiltersAndRenders(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"match": "btn", "tag": "form", "limit": "50"},
 	})
@@ -173,16 +173,37 @@ func TestComponentsList_ForwardsFiltersAndRenders(t *testing.T) {
 	require.Equal(t, "btn", svc.listReqs[0].Match)
 	require.Equal(t, "form", svc.listReqs[0].Tag)
 	require.Equal(t, int32(50), svc.listReqs[0].Limit)
+	require.Empty(t, svc.listReqs[0].Tags)
+	require.Empty(t, svc.listReqs[0].Category)
 	require.Contains(t, out.String(), "Found 1 component(s).")
 	require.Contains(t, out.String(), "lib:Button")
 	require.Contains(t, out.String(), "v1.0.0")
+}
+
+func TestComponentsList_ForwardsMultiTagAndCategory(t *testing.T) {
+	svc := &componentsService{listResp: &componentsv1.ListComponentsResponse{
+		Components: []*componentsv1.Component{sampleComponent()},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "limit"}},
+	}, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"tags": " form , , layout ", "category": "controls"},
+	})
+
+	require.NoError(t, h.list(ctx))
+	require.Len(t, svc.listReqs, 1)
+	require.Equal(t, []string{"form", "layout"}, svc.listReqs[0].Tags,
+		"comma-separated --tags is parsed and trimmed; blanks dropped")
+	require.Equal(t, "controls", svc.listReqs[0].Category)
 }
 
 func TestComponentsList_RejectsBadLimit(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &componentsService{}))
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"limit": "abc"},
 	})
@@ -200,7 +221,7 @@ func TestComponentsList_JSONIsProtoWireShape(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{JSON: true})
 
 	require.NoError(t, h.list(ctx))

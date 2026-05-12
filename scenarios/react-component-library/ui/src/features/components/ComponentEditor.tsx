@@ -9,7 +9,9 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { API_BASE } from "../../api/client";
 import { componentsClient } from "../../api/components";
+import { useDeviceEmulation } from "../../hooks/useDeviceEmulation";
 import { errorMessage } from "../../lib/errorMessage";
+import { EmulatorChrome } from "./EmulatorChrome";
 
 /**
  * Build the harness URL the iframe loads. The query param `v` is the
@@ -42,6 +44,7 @@ interface ComponentEditorProps {
 export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const emulator = useDeviceEmulation();
 
   const contentQuery = useQuery({
     queryKey: ["components", "content", id],
@@ -235,13 +238,21 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
                   : t(strings.components.editor.previewWaiting)}
               </span>
             </div>
-            <iframe
-              data-testid={selectors.components.editor.previewFrame}
-              title={t(strings.components.editor.previewHeading)}
-              src={harnessUrl(id, baselineSha)}
-              sandbox="allow-scripts allow-same-origin"
-              className="h-[440px] w-full border-0 bg-white"
-            />
+            <div className="h-[440px]">
+              <EmulatorChrome emulator={emulator}>
+                <iframe
+                  data-testid={selectors.components.editor.previewFrame}
+                  title={t(strings.components.editor.previewHeading)}
+                  src={harnessUrl(id, baselineSha)}
+                  sandbox="allow-scripts allow-same-origin"
+                  style={{
+                    width: emulator.displayWidth,
+                    height: emulator.displayHeight,
+                  }}
+                  className="block border-0 bg-white"
+                />
+              </EmulatorChrome>
+            </div>
           </div>
         </div>
       )}
