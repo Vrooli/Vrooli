@@ -1,12 +1,18 @@
-// API client for the scenarios aggregate. Scenarios are the primary
-// inventory entity in the UI: every flow lives inside one. The list
-// endpoint returns one row per scenario (with flow count); detail
-// embeds the flows directly so the scenario-detail page renders in
-// one round-trip.
-import { buildApiUrl } from "@vrooli/api-base";
+// API client for the scenarios aggregate. Thin wrapper over the
+// generated ScenariosService Connect client; the public types preserve
+// the camelCase field names the existing UI consumes.
+import { createClient } from "@connectrpc/connect";
 
-import { API_BASE, decodeApiError } from "./client";
-import type { FlowSummary } from "./inventory";
+import { transport } from "./client";
+import { flowSummaryFromProto, type FlowSummary } from "./inventory";
+
+import {
+  ScenariosService,
+  type ScenarioSummary as ProtoScenarioSummary,
+  type ScenarioDetail as ProtoScenarioDetail,
+} from "@vrooli/proto-types/flow-verifier/v1/scenarios/scenarios_pb";
+
+export const scenariosClient = createClient(ScenariosService, transport);
 
 export type ScenarioSummary = {
   id: string;
@@ -26,39 +32,37 @@ export type ScenarioDetail = ScenarioSummary & {
   flows: FlowSummary[];
 };
 
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(buildApiUrl(path, { baseUrl: API_BASE }), {
-    method: "GET",
-    cache: "no-store",
-  });
-  if (!res.ok) throw await decodeApiError(res);
-  return (await res.json()) as T;
-}
-
-// The wire shape is permissive — Go may emit `null` for empty slices —
-// so we accept partial fields and normalise to the strict client type
-// below. Keeping the raw type narrow here is what lets the rest of the
-// app trust that `scenarios`/`flows` are arrays.
-type RawScenariosListResponse = {
-  vrooliRoot?: string;
-  scenarios?: ScenarioSummary[] | null;
-};
-
-type RawScenarioDetail = Omit<ScenarioDetail, "flows"> & {
-  flows?: FlowSummary[] | null;
-};
-
 export async function fetchScenarios(): Promise<ScenariosListResponse> {
-  const body = await getJson<RawScenariosListResponse>(`/api/v1/scenarios`);
+  const resp = await scenariosClient.listScenarios({});
   return {
-    vrooliRoot: body.vrooliRoot ?? "",
-    scenarios: body.scenarios ?? [],
+    vrooliRoot: resp.vrooliRoot,
+    scenarios: resp.scenarios.map(summaryFromProto),
   };
 }
 
 export async function fetchScenarioDetail(id: string): Promise<ScenarioDetail> {
-  const body = await getJson<RawScenarioDetail>(
-    `/api/v1/scenarios/${encodeURIComponent(id)}`,
-  );
-  return { ...body, flows: body.flows ?? [] };
+  const resp = await scenariosClient.getScenario({ id });
+  if (!resp.scenario) throw new Error("server returned no scenario");
+  return detailFromProto(resp.scenario);
+}
+
+function summaryFromProto(p: ProtoScenarioSummary): ScenarioSummary {
+  return {
+    id: p.id,
+    displayName: p.displayName,
+    description: p.description || undefined,
+    path: p.path,
+    flowCount: p.flowCount,
+    discoveryError: p.discoveryError || undefined,
+  };
+}
+
+function detailFromProto(p: ProtoScenarioDetail): ScenarioDetail {
+  const summary = p.summary
+    ? summaryFromProto(p.summary)
+    : { id: "", displayName: "", path: "", flowCount: 0 };
+  return {
+    ...summary,
+    flows: p.flows.map(flowSummaryFromProto),
+  };
 }

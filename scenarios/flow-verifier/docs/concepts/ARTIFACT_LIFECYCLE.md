@@ -48,19 +48,29 @@ string-matched error message.
 `--yes` is required for `--scenario` and `--all` clears so a tab-complete
 mistake can't wipe every flow's tree.
 
-## HTTP surface
+## RPC surface
 
-| Method | Path | Purpose |
-| ------ | ---- | ------- |
-| `GET`  | `/api/v1/flows/{id}/artifacts` | report status + per-file existence |
-| `POST` | `/api/v1/flows/{id}/artifacts:generate` | generate / regenerate one flow |
-| `DELETE` | `/api/v1/flows/{id}/artifacts` | clear one flow's generated/ |
-| `POST` | `/api/v1/scenarios/{id}/artifacts:generate` | generate every flow in a scenario |
-| `DELETE` | `/api/v1/scenarios/{id}/artifacts` | clear every flow in a scenario |
+Every wire-facing operation is a Connect-RPC procedure on the
+`ArtifactsService` or `ScenariosService` from
+`packages/proto/schemas/flow-verifier/v1/`. Procedure URLs are derived
+from the proto package, so a rename in `.proto` breaks API, UI, and CLI
+in lockstep at compile time.
 
-Every mutating route refuses to act on a `generatedDir` that resolves
-outside the scenario root — a path-traversal guard sits in the service
-layer, not the handler.
+| RPC | Service | Purpose |
+| --- | ------- | ------- |
+| `GetArtifactStatus` | `ArtifactsService` | report status + per-file existence |
+| `GenerateArtifacts` | `ArtifactsService` | generate / regenerate one flow |
+| `ClearArtifacts` | `ArtifactsService` | clear one flow's generated/ |
+| `GenerateScenarioArtifacts` (stream) | `ScenariosService` | server-stream one progress message per flow |
+| `ClearScenarioArtifacts` | `ScenariosService` | clear every flow in a scenario |
+
+`GenerateScenarioArtifacts` is the canonical streaming RPC in this
+scenario. Per-flow failures do not abort the stream — the consumer
+renders one yellow row and keeps going.
+
+Every mutating RPC refuses to act on a `generatedDir` that resolves
+outside the scenario root — the path-traversal guard sits in the
+service layer (`internal/artifacts/service.go`), not the handler.
 
 ## Where the code lives
 

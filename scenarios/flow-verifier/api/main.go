@@ -9,6 +9,7 @@ import (
 	localdb "flow-verifier/internal/database"
 	"flow-verifier/internal/flows"
 	"flow-verifier/internal/modules"
+	"flow-verifier/internal/runs"
 	"flow-verifier/internal/scenarios"
 	"flow-verifier/internal/server"
 
@@ -77,13 +78,19 @@ func main() {
 	scenariosSvc := scenarios.NewService(vrooliRoot, flowsListerAdapter{})
 	log.Printf("scenarios: Vrooli root resolved to %s", vrooliRoot)
 
+	// Artifacts service is constructed once and shared with the
+	// scenarios handler so the streaming GenerateScenarioArtifacts
+	// RPC and the per-flow artifacts RPCs see the same generator.
+	runsSvc := runs.NewService(runs.NewSQLiteRepository(db, clock.System{}))
+	artifactsSvc := artifactsH.NewService(runsSvc)
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "flow-verifier-api", "1.0.0"),
 		flowsH.Module(scenariosSvc),
-		scenariosH.Module(scenariosSvc),
+		scenariosH.Module(scenariosSvc, artifactsSvc),
 		verificationsH.Module(db, clock.System{}),
-		artifactsH.Module(db, clock.System{}, scenariosSvc),
+		artifactsH.ModuleWithDeps(artifactsSvc, scenariosSvc, log.Default()),
 		runsH.Module(db, clock.System{}),
 		settingsH.Module(db, clock.System{}),
 	)

@@ -1,5 +1,5 @@
 /**
- * preferences — typed client for `/api/v1/settings`.
+ * preferences — typed client for the SettingsService Connect RPC.
  *
  * The settings row is single-tenant ('local' principal) and read by the
  * shell at boot, the theme provider at mount, and the inventory page when
@@ -8,9 +8,21 @@
  *
  * localStorage is only a first-paint cache — never the source of truth.
  */
-import { buildApiUrl } from "@vrooli/api-base";
+import { create } from "@bufbuild/protobuf";
+import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
+import { createClient } from "@connectrpc/connect";
 
-import { API_BASE, decodeApiError } from "../api/client";
+import { transport } from "../api/client";
+
+import {
+  SettingsService,
+  Theme as ProtoTheme,
+  FontScale as ProtoFontScale,
+  Density as ProtoDensity,
+  type Settings as ProtoSettings,
+} from "@vrooli/proto-types/flow-verifier/v1/settings/settings_pb";
+
+const settingsClient = createClient(SettingsService, transport);
 
 export type ThemePref = "light" | "dark" | "system";
 export type FontScale = "sm" | "md" | "lg";
@@ -75,29 +87,181 @@ export function writeCache(s: UserSettings): void {
 }
 
 export async function fetchSettings(): Promise<UserSettings> {
-  const res = await fetch(buildApiUrl("/api/v1/settings", { baseUrl: API_BASE }), {
-    method: "GET",
-    cache: "no-store",
-  });
-  if (!res.ok) throw await decodeApiError(res);
-  const body = (await res.json()) as Partial<UserSettings>;
-  const merged = { ...DEFAULT_SETTINGS, ...body };
+  const resp = await settingsClient.getSettings({});
+  const merged = protoToUserSettings(resp.settings);
   writeCache(merged);
   return merged;
 }
 
-export async function putSettings(
-  patch: Partial<UserSettings>,
-): Promise<UserSettings> {
-  const res = await fetch(buildApiUrl("/api/v1/settings", { baseUrl: API_BASE }), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-    body: JSON.stringify(patch),
+export async function putSettings(patch: Partial<UserSettings>): Promise<UserSettings> {
+  const { settings, paths } = userSettingsToProtoPatch(patch);
+  const resp = await settingsClient.updateSettings({
+    settings,
+    updateMask: create(FieldMaskSchema, { paths }),
   });
-  if (!res.ok) throw await decodeApiError(res);
-  const body = (await res.json()) as Partial<UserSettings>;
-  const merged = { ...DEFAULT_SETTINGS, ...body };
+  const merged = protoToUserSettings(resp.settings);
   writeCache(merged);
   return merged;
+}
+
+function protoToUserSettings(s: ProtoSettings | undefined): UserSettings {
+  if (!s) return DEFAULT_SETTINGS;
+  return {
+    theme: protoTheme(s.theme),
+    fontScale: protoFontScale(s.fontScale),
+    reducedMotion: s.reducedMotion,
+    rtl: s.rtl,
+    defaultRoot: s.defaultRoot || DEFAULT_SETTINGS.defaultRoot,
+    density: protoDensity(s.density),
+    sidebarWidth: s.sidebarWidth || DEFAULT_SETTINGS.sidebarWidth,
+    inventoryFilters: s.inventoryFilters
+      ? {
+          search: s.inventoryFilters.search,
+          language: pickLanguage(s.inventoryFilters.language),
+          status: s.inventoryFilters.status as InventoryFilters["status"],
+          sort: s.inventoryFilters.sort
+            ? {
+                key: pickSortKey(s.inventoryFilters.sort.key),
+                dir: pickSortDir(s.inventoryFilters.sort.dir),
+              }
+            : DEFAULT_SETTINGS.inventoryFilters.sort,
+        }
+      : DEFAULT_SETTINGS.inventoryFilters,
+    updatedAt: s.updatedAt || undefined,
+  };
+}
+
+function userSettingsToProtoPatch(
+  patch: Partial<UserSettings>,
+): { settings: ProtoSettings; paths: string[] } {
+  const paths: string[] = [];
+  const settings: ProtoSettings = {
+    $typeName: "vrooli.flow_verifier.v1.settings.Settings",
+    principalId: "",
+    theme: ProtoTheme.UNSPECIFIED,
+    fontScale: ProtoFontScale.UNSPECIFIED,
+    reducedMotion: false,
+    rtl: false,
+    defaultRoot: "",
+    density: ProtoDensity.UNSPECIFIED,
+    sidebarWidth: 0,
+    inventoryFilters: undefined,
+    updatedAt: "",
+  };
+  if (patch.theme !== undefined) {
+    settings.theme = themeToProto(patch.theme);
+    paths.push("theme");
+  }
+  if (patch.fontScale !== undefined) {
+    settings.fontScale = fontScaleToProto(patch.fontScale);
+    paths.push("font_scale");
+  }
+  if (patch.reducedMotion !== undefined) {
+    settings.reducedMotion = patch.reducedMotion;
+    paths.push("reduced_motion");
+  }
+  if (patch.rtl !== undefined) {
+    settings.rtl = patch.rtl;
+    paths.push("rtl");
+  }
+  if (patch.defaultRoot !== undefined) {
+    settings.defaultRoot = patch.defaultRoot;
+    paths.push("default_root");
+  }
+  if (patch.density !== undefined) {
+    settings.density = densityToProto(patch.density);
+    paths.push("density");
+  }
+  if (patch.sidebarWidth !== undefined) {
+    settings.sidebarWidth = patch.sidebarWidth;
+    paths.push("sidebar_width");
+  }
+  if (patch.inventoryFilters !== undefined) {
+    settings.inventoryFilters = {
+      $typeName: "vrooli.flow_verifier.v1.settings.InventoryFilters",
+      search: patch.inventoryFilters.search,
+      language: patch.inventoryFilters.language,
+      status: patch.inventoryFilters.status,
+      sort: {
+        $typeName: "vrooli.flow_verifier.v1.settings.InventorySortOrder",
+        key: patch.inventoryFilters.sort.key,
+        dir: patch.inventoryFilters.sort.dir,
+      },
+    };
+    paths.push("inventory_filters");
+  }
+  return { settings, paths };
+}
+
+function protoTheme(t: ProtoTheme): ThemePref {
+  switch (t) {
+    case ProtoTheme.LIGHT:
+      return "light";
+    case ProtoTheme.DARK:
+      return "dark";
+    case ProtoTheme.SYSTEM:
+      return "system";
+  }
+  return DEFAULT_SETTINGS.theme;
+}
+function themeToProto(t: ThemePref): ProtoTheme {
+  switch (t) {
+    case "light":
+      return ProtoTheme.LIGHT;
+    case "dark":
+      return ProtoTheme.DARK;
+    case "system":
+      return ProtoTheme.SYSTEM;
+  }
+}
+function protoFontScale(f: ProtoFontScale): FontScale {
+  switch (f) {
+    case ProtoFontScale.SM:
+      return "sm";
+    case ProtoFontScale.MD:
+      return "md";
+    case ProtoFontScale.LG:
+      return "lg";
+  }
+  return DEFAULT_SETTINGS.fontScale;
+}
+function fontScaleToProto(f: FontScale): ProtoFontScale {
+  switch (f) {
+    case "sm":
+      return ProtoFontScale.SM;
+    case "md":
+      return ProtoFontScale.MD;
+    case "lg":
+      return ProtoFontScale.LG;
+  }
+}
+function protoDensity(d: ProtoDensity): Density {
+  switch (d) {
+    case ProtoDensity.COMFORTABLE:
+      return "comfortable";
+    case ProtoDensity.COMPACT:
+      return "compact";
+  }
+  return DEFAULT_SETTINGS.density;
+}
+function densityToProto(d: Density): ProtoDensity {
+  switch (d) {
+    case "comfortable":
+      return ProtoDensity.COMFORTABLE;
+    case "compact":
+      return ProtoDensity.COMPACT;
+  }
+}
+
+function pickLanguage(v: string): InventoryFilters["language"] {
+  if (v === "ts" || v === "go" || v === "all") return v;
+  return DEFAULT_SETTINGS.inventoryFilters.language;
+}
+function pickSortKey(v: string): InventoryFilters["sort"]["key"] {
+  if (v === "flowId" || v === "language" || v === "status" || v === "finishedAt") return v;
+  return DEFAULT_SETTINGS.inventoryFilters.sort.key;
+}
+function pickSortDir(v: string): InventoryFilters["sort"]["dir"] {
+  if (v === "asc" || v === "desc") return v;
+  return DEFAULT_SETTINGS.inventoryFilters.sort.dir;
 }

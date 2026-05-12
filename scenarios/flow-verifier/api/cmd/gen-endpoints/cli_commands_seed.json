@@ -12,9 +12,24 @@
       "endpoint_id": "flows.list"
     },
     {
-      "name": "flows explain",
-      "description": "Print the typed flow plus its latest verification status",
+      "name": "flows show",
+      "description": "Print the typed flow.json projection consumed by the UI's flow-detail page",
       "endpoint_id": "flows.get"
+    },
+    {
+      "name": "flows new",
+      "description": "Scaffold a fresh flow directory with hand-authored sidecars",
+      "endpoint_id": "flows.create"
+    },
+    {
+      "name": "flows validate",
+      "description": "Validate every flow.json under the configured root",
+      "endpoint_id": "flows.validate"
+    },
+    {
+      "name": "flows explain",
+      "description": "Print the human-readable explain report for one flow",
+      "endpoint_id": "flows.explain"
     },
     {
       "name": "artifacts status",
@@ -23,23 +38,23 @@
     },
     {
       "name": "artifacts generate",
-      "description": "Generate or regenerate one flow's artifacts (or every flow in a scenario)",
+      "description": "Generate or regenerate one flow's artifacts",
       "endpoint_id": "flows.artifacts.generate"
     },
     {
       "name": "artifacts clear",
-      "description": "Remove one flow's generated/ tree (or every flow in a scenario)",
+      "description": "Remove one flow's generated/ tree",
       "endpoint_id": "flows.artifacts.clear"
     },
     {
-      "name": "artifacts generate --scenario",
-      "description": "Generate artifacts for every flow inside one scenario",
-      "endpoint_id": "scenarios.artifacts.generate"
+      "name": "artifacts generate --scenario <id>",
+      "description": "Stream generation progress for every flow inside one scenario",
+      "endpoint_id": "scenarios.generate_artifacts"
     },
     {
-      "name": "artifacts clear --scenario",
+      "name": "artifacts clear --scenario <id> --yes",
       "description": "Clear artifacts for every flow inside one scenario",
-      "endpoint_id": "scenarios.artifacts.clear"
+      "endpoint_id": "scenarios.clear_artifacts"
     },
     {
       "name": "verify run",
@@ -47,12 +62,17 @@
       "endpoint_id": "verifications.start"
     },
     {
+      "name": "verify show",
+      "description": "Show one verification's recorded run row",
+      "endpoint_id": "verifications.get"
+    },
+    {
       "name": "scenarios list",
       "description": "List every scenario discovered under the Vrooli root with its flow count",
       "endpoint_id": "scenarios.list"
     },
     {
-      "name": "scenarios get",
+      "name": "scenarios show",
       "description": "Show one scenario with its discovered flows",
       "endpoint_id": "scenarios.get"
     },
@@ -74,7 +94,7 @@
     {
       "name": "settings set",
       "description": "Update one or more UI/CLI preferences (key=value pairs)",
-      "endpoint_id": "settings.put"
+      "endpoint_id": "settings.update"
     }
   ]
 }

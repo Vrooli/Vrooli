@@ -1,24 +1,42 @@
-// API client for the flow-verifier inventory: discovered flows + their
-// most recent verification run, and POST /api/v1/verifications to kick
-// one off. These endpoints are plain JSON (not proto-typed), so this
-// module fetches directly rather than going through connect/proto.
-import { buildApiUrl } from "@vrooli/api-base";
+// API client for inventory: flows, flow detail, runs, run detail, and
+// kicking off a verify pipeline run. Thin wrapper over generated Connect
+// clients; the public types below shadow the proto-generated message
+// shapes (matching field names) so existing consumers keep compiling.
+import { create } from "@bufbuild/protobuf";
+import { createClient } from "@connectrpc/connect";
 
-import { API_BASE, decodeApiError } from "./client";
+import { transport } from "./client";
 
-export type FlowSummary = {
-  flowId: string;
-  contractPath: string;
-  language: string;
-  schemaVersion: number;
-  scenarioId?: string;
-};
+import { FlowsService } from "@vrooli/proto-types/flow-verifier/v1/flows/flows_pb";
+import { RunsService } from "@vrooli/proto-types/flow-verifier/v1/runs/runs_pb";
+import {
+  VerificationsService,
+  VerificationMode,
+  StartVerificationRequestSchema,
+} from "@vrooli/proto-types/flow-verifier/v1/verifications/verifications_pb";
+import {
+  RunStatus,
+  RunMode,
+  FailureReason as ProtoFailureReason,
+  type Run as ProtoRun,
+} from "@vrooli/proto-types/flow-verifier/v1/runs/runs_pb";
+import type {
+  FlowSummary as ProtoFlowSummary,
+  FlowDetail as ProtoFlowDetail,
+  FlowState as ProtoFlowState,
+  FlowEvent as ProtoFlowEvent,
+  FlowTransition as ProtoFlowTransition,
+  FlowTrace as ProtoFlowTrace,
+  FlowTraceStep as ProtoFlowTraceStep,
+  FlowInvariant as ProtoFlowInvariant,
+  FlowModel as ProtoFlowModel,
+  FlowRuntime as ProtoFlowRuntime,
+} from "@vrooli/proto-types/flow-verifier/v1/flows/flows_pb";
 
-// FailureReason narrows a failed run into a typed category. The UI's
-// status pill renders the "missing_artifacts" / "stale_artifacts" cases
-// as a distinct yellow "Needs generate" state with a one-click
-// regenerate CTA. Other reasons fall through to the standard red
-// "Failed" pill.
+export const flowsClient = createClient(FlowsService, transport);
+export const runsClient = createClient(RunsService, transport);
+export const verificationsClient = createClient(VerificationsService, transport);
+
 export type FailureReason =
   | ""
   | "missing_artifacts"
@@ -27,6 +45,14 @@ export type FailureReason =
   | "lint"
   | "quint_failure"
   | "io";
+
+export type FlowSummary = {
+  flowId: string;
+  contractPath: string;
+  language: string;
+  schemaVersion: number;
+  scenarioId?: string;
+};
 
 export type RunRow = {
   id: string;
@@ -51,76 +77,28 @@ export type VerifyResponse = {
   runs: RunRow[];
 };
 
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(buildApiUrl(path, { baseUrl: API_BASE }), {
-    method: "GET",
-    cache: "no-store",
-  });
-  if (!res.ok) throw await decodeApiError(res);
-  return (await res.json()) as T;
-}
-
-export async function fetchFlows(opts: { scenarioId?: string } = {}): Promise<FlowSummary[]> {
-  const q = new URLSearchParams();
-  if (opts.scenarioId) q.set("scenario", opts.scenarioId);
-  const suffix = q.toString();
-  const body = await getJson<{ flows?: FlowSummary[] }>(
-    `/api/v1/flows${suffix ? "?" + suffix : ""}`,
-  );
-  return body.flows ?? [];
-}
-
-export async function fetchRuns(opts: { flowId?: string; limit?: number } = {}): Promise<RunRow[]> {
-  const q = new URLSearchParams();
-  if (opts.flowId) q.set("flowId", opts.flowId);
-  if (opts.limit !== undefined) q.set("limit", String(opts.limit));
-  const suffix = q.toString();
-  const body = await getJson<{ runs?: RunRow[] }>(`/api/v1/runs${suffix ? "?" + suffix : ""}`);
-  return body.runs ?? [];
-}
-
 export type FlowState = {
   id: string;
   quint: string;
   initial?: boolean;
   terminal?: boolean;
 };
-
-export type FlowEvent = {
-  id: string;
-  quint: string;
-};
-
+export type FlowEvent = { id: string; quint: string };
 export type FlowTransition = {
   from: string;
   event: string;
   to: string;
   wantError: boolean;
 };
-
-export type FlowTraceStep = {
-  event: string;
-  want: string;
-  wantError: boolean;
-};
-
-export type FlowTrace = {
-  name: string;
-  initial: string;
-  steps: FlowTraceStep[];
-};
-
+export type FlowTraceStep = { event: string; want: string; wantError: boolean };
+export type FlowTrace = { name: string; initial: string; steps: FlowTraceStep[] };
 export type FlowInvariant = {
   id: string;
   quint: string;
   description: string;
   expression?: string;
 };
-
-export type FlowModelVerify = {
-  invariants: string[];
-};
-
+export type FlowModelVerify = { invariants: string[] };
 export type FlowModel = {
   module: string;
   seed: string;
@@ -128,14 +106,12 @@ export type FlowModel = {
   traceCount: number;
   verify: FlowModelVerify;
 };
-
 export type FlowGoRuntime = {
   package: string;
   statusType: string;
   eventType: string;
   constantPrefix: string;
 };
-
 export type FlowTypeScriptRuntime = {
   statusType: string;
   eventType: string;
@@ -145,14 +121,12 @@ export type FlowTypeScriptRuntime = {
   stateUnionType?: string;
   eventUnionType?: string;
 };
-
 export type FlowRuntime = {
   go?: FlowGoRuntime;
   typescript?: FlowTypeScriptRuntime;
   sideEffects?: string[];
   staleCompletion?: string;
 };
-
 export type FlowDetail = {
   flowId: string;
   domain?: string;
@@ -171,29 +145,205 @@ export type FlowDetail = {
   report: string;
 };
 
+export async function fetchFlows(
+  opts: { scenarioId?: string; root?: string } = {},
+): Promise<FlowSummary[]> {
+  const resp = await flowsClient.listFlows({ root: opts.root ?? "", flowId: "" });
+  let rows = resp.flows.map(flowSummaryFromProto);
+  if (opts.scenarioId) {
+    rows = rows.map((r) => ({ ...r, scenarioId: r.scenarioId || opts.scenarioId }));
+  }
+  return rows;
+}
+
 export async function fetchFlowDetail(
   flowId: string,
-  opts: { scenarioId?: string } = {},
+  opts: { scenarioId?: string; root?: string } = {},
 ): Promise<FlowDetail> {
-  const q = new URLSearchParams();
-  if (opts.scenarioId) q.set("scenario", opts.scenarioId);
-  const suffix = q.toString();
-  return getJson<FlowDetail>(
-    `/api/v1/flows/${encodeURIComponent(flowId)}${suffix ? "?" + suffix : ""}`,
-  );
+  void opts.scenarioId;
+  const resp = await flowsClient.getFlow({ flowId, root: opts.root ?? "" });
+  if (!resp.flow) throw new Error("server returned no flow");
+  return flowDetailFromProto(resp.flow);
+}
+
+export async function fetchRuns(
+  opts: { flowId?: string; limit?: number } = {},
+): Promise<RunRow[]> {
+  const resp = await runsClient.listRuns({
+    flowId: opts.flowId ?? "",
+    limit: opts.limit ?? 0,
+  });
+  return resp.runs.map(runFromProto);
 }
 
 export async function fetchRun(runId: string): Promise<RunRow> {
-  return getJson<RunRow>(`/api/v1/runs/${encodeURIComponent(runId)}`);
+  const resp = await runsClient.getRun({ id: runId });
+  if (!resp.run) throw new Error("server returned no run");
+  return runFromProto(resp.run);
 }
 
 export async function verifyFlow(root: string, flowId?: string): Promise<VerifyResponse> {
-  const res = await fetch(buildApiUrl("/api/v1/verifications", { baseUrl: API_BASE }), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-    body: JSON.stringify({ root, flowId, mode: "check" }),
+  const req = create(StartVerificationRequestSchema, {
+    root: root || ".",
+    flowId: flowId ?? "",
+    mode: VerificationMode.CHECK,
   });
-  if (!res.ok) throw await decodeApiError(res);
-  return (await res.json()) as VerifyResponse;
+  const resp = await verificationsClient.startVerification(req);
+  return {
+    status: resp.status === "passed" ? "passed" : "failed",
+    error: resp.errorMessage || undefined,
+    runs: resp.runs.map(runFromProto),
+  };
+}
+
+export function flowSummaryFromProto(p: ProtoFlowSummary): FlowSummary {
+  return {
+    flowId: p.flowId,
+    contractPath: p.contractPath,
+    language: p.language,
+    schemaVersion: p.schemaVersion,
+    scenarioId: p.scenarioId || undefined,
+  };
+}
+
+function flowDetailFromProto(p: ProtoFlowDetail): FlowDetail {
+  return {
+    flowId: p.flowId,
+    domain: p.domain || undefined,
+    description: p.description || undefined,
+    contractPath: p.contractPath,
+    language: p.language,
+    schemaVersion: p.schemaVersion,
+    initialState: p.initialState,
+    states: p.states.map(stateFromProto),
+    events: p.events.map(eventFromProto),
+    transitions: p.transitions.map(transitionFromProto),
+    traces: p.traces.map(traceFromProto),
+    invariants: p.invariants.map(invariantFromProto),
+    model: modelFromProto(p.model),
+    runtime: runtimeFromProto(p.runtime),
+    report: p.report,
+  };
+}
+
+function stateFromProto(s: ProtoFlowState): FlowState {
+  return {
+    id: s.id,
+    quint: s.quint,
+    initial: s.initial || undefined,
+    terminal: s.terminal || undefined,
+  };
+}
+function eventFromProto(e: ProtoFlowEvent): FlowEvent {
+  return { id: e.id, quint: e.quint };
+}
+function transitionFromProto(t: ProtoFlowTransition): FlowTransition {
+  return {
+    from: t.from[0] ?? "",
+    event: t.event[0] ?? "",
+    to: t.to,
+    wantError: t.wantError,
+  };
+}
+function traceFromProto(t: ProtoFlowTrace): FlowTrace {
+  return {
+    name: t.name,
+    initial: t.initial,
+    steps: t.steps.map(stepFromProto),
+  };
+}
+function stepFromProto(s: ProtoFlowTraceStep): FlowTraceStep {
+  return { event: s.event, want: s.want, wantError: s.wantError };
+}
+function invariantFromProto(inv: ProtoFlowInvariant): FlowInvariant {
+  return {
+    id: inv.id,
+    quint: inv.quint,
+    description: inv.description,
+    expression: inv.expression || undefined,
+  };
+}
+function modelFromProto(m: ProtoFlowModel | undefined): FlowModel {
+  return {
+    module: m?.module ?? "",
+    seed: m?.seed ?? "",
+    maxSteps: m?.maxSteps ?? 0,
+    traceCount: m?.traceCount ?? 0,
+    verify: { invariants: m?.verify?.invariants ?? [] },
+  };
+}
+function runtimeFromProto(r: ProtoFlowRuntime | undefined): FlowRuntime {
+  if (!r) return { sideEffects: [] };
+  return {
+    go: r.go
+      ? {
+          package: r.go.package,
+          statusType: r.go.statusType,
+          eventType: r.go.eventType,
+          constantPrefix: r.go.constantPrefix,
+        }
+      : undefined,
+    typescript: r.typescript
+      ? {
+          statusType: r.typescript.statusType,
+          eventType: r.typescript.eventType,
+          statusesConst: r.typescript.statusesConst,
+          eventsConst: r.typescript.eventsConst,
+          formalExpectationConst: r.typescript.formalExpectationConst,
+          stateUnionType: r.typescript.stateUnionType || undefined,
+          eventUnionType: r.typescript.eventUnionType || undefined,
+        }
+      : undefined,
+    sideEffects: r.sideEffects,
+    staleCompletion: r.staleCompletion || undefined,
+  };
+}
+
+export function runFromProto(r: ProtoRun): RunRow {
+  return {
+    id: r.id,
+    flowId: r.flowId,
+    flowPath: r.flowPath,
+    root: r.root,
+    mode: r.mode === RunMode.RUN ? "run" : "check",
+    status: runStatusToString(r.status),
+    errorMessage: r.errorMessage || undefined,
+    failureReason: failureReasonToString(r.failureReason),
+    missingArtifacts: r.missingArtifacts.length > 0 ? r.missingArtifacts : undefined,
+    output: r.output || undefined,
+    counterexample: r.counterexample || undefined,
+    startedAt: r.startedAt ? new Date(Number(r.startedAt.seconds) * 1000).toISOString() : "",
+    finishedAt: r.finishedAt ? new Date(Number(r.finishedAt.seconds) * 1000).toISOString() : "",
+    durationMs: Number(r.durationMs),
+  };
+}
+
+function runStatusToString(s: RunStatus): "passed" | "failed" | "error" {
+  switch (s) {
+    case RunStatus.PASSED:
+      return "passed";
+    case RunStatus.FAILED:
+      return "failed";
+    case RunStatus.ERROR:
+      return "error";
+  }
+  return "error";
+}
+
+function failureReasonToString(r: ProtoFailureReason): FailureReason {
+  switch (r) {
+    case ProtoFailureReason.MISSING_ARTIFACTS:
+      return "missing_artifacts";
+    case ProtoFailureReason.STALE_ARTIFACTS:
+      return "stale_artifacts";
+    case ProtoFailureReason.COUNTEREXAMPLE:
+      return "counterexample";
+    case ProtoFailureReason.LINT:
+      return "lint";
+    case ProtoFailureReason.QUINT_FAILURE:
+      return "quint_failure";
+    case ProtoFailureReason.IO:
+      return "io";
+  }
+  return "";
 }

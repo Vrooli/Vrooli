@@ -1,26 +1,29 @@
 package verifications
 
-import "flow-verifier/internal/module"
+import (
+	"flow-verifier/internal/module"
 
-// Endpoints describes the verifications HTTP surface. The shape is
-// locked now; real handlers land in Phase D.
+	verificationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/verifications/verifications_v1connect"
+)
+
+// Endpoints describes the verifications Connect-RPC surface.
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "verifications.start",
-		Path:        "/api/v1/verifications",
+		Path:        verificationsconnect.VerificationsServiceStartVerificationProcedure,
 		Method:      "POST",
 		Summary:     "Start a verification",
-		Description: "Kicks off pipeline (discover → compile → artifact → codegen → lint) for one or all flows under the given root and returns a runId.",
+		Description: "Kicks off pipeline (discover → compile → artifact → codegen → lint) for one or all flows under the given root and returns the recorded run rows.",
 		Category:    "verifications",
 		CLIMapping:  &module.CLIMapping{Command: "flow-verifier verify run"},
 	},
 	{
 		ID:          "verifications.get",
-		Path:        "/api/v1/verifications/{runId}",
-		Method:      "GET",
+		Path:        verificationsconnect.VerificationsServiceGetVerificationProcedure,
+		Method:      "POST",
 		Summary:     "Verification status",
 		Description: "Returns status + result for one verification run.",
 		Category:    "verifications",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier runs show"},
+		CLIMapping:  &module.CLIMapping{Command: "flow-verifier verify show"},
 	},
 }

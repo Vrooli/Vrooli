@@ -2,6 +2,7 @@ package modules_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"flow-verifier/internal/modules"
@@ -80,4 +81,49 @@ func TestAllSchemas_AppliesIdempotently(t *testing.T) {
 	require.NoError(t, apidb.EnsureSchemas(ctx, d, modules.AllSchemas()...))
 	require.NoError(t, apidb.EnsureSchemas(ctx, d, modules.AllSchemas()...),
 		"second apply must succeed (uses IF NOT EXISTS guards)")
+}
+
+// TestProtoConnectParity enforces the proto/Connect-RPC anti-drift
+// contract globally: every `rpc Foo(...)` method declared in any proto
+// FileDescriptor returned by AllProtoFiles() must have exactly one
+// matching EndpointDescriptor in AllEndpoints() whose Path equals
+// "/" + service.FullName + "/" + method.Name.
+//
+// On failure the message names the proto method, the expected path,
+// and the module, so the fix is mechanical: either add the matching
+// EndpointDescriptor (referencing the generated *Procedure constant
+// from the *v1connect package) or remove the rpc from the proto file.
+func TestProtoConnectParity(t *testing.T) {
+	endpoints := modules.AllEndpoints()
+	byPath := make(map[string]int, len(endpoints))
+	for _, ep := range endpoints {
+		byPath[ep.Path]++
+	}
+
+	files := modules.AllProtoFiles()
+	require.NotEmpty(t, files,
+		"AllProtoFiles() returned no entries; every Connect-mounted "+
+			"domain module must be registered there")
+
+	for _, entry := range files {
+		services := entry.File.Services()
+		require.NotZero(t, services.Len(),
+			"module %q: proto file declares no services", entry.Module)
+
+		for s := 0; s < services.Len(); s++ {
+			svc := services.Get(s)
+			methods := svc.Methods()
+			for m := 0; m < methods.Len(); m++ {
+				method := methods.Get(m)
+				wantPath := fmt.Sprintf("/%s/%s", svc.FullName(), method.Name())
+				count := byPath[wantPath]
+				require.Equal(t, 1, count,
+					"module %q: proto method %s.%s (expected EndpointDescriptor.Path %q) "+
+						"must have exactly one matching entry in AllEndpoints(); found %d. "+
+						"Fix: either add an EndpointDescriptor referencing the generated "+
+						"*Procedure constant, or remove the rpc from the proto file.",
+					entry.Module, svc.FullName(), method.Name(), wantPath, count)
+			}
+		}
+	}
 }

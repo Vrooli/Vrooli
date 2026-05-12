@@ -1,15 +1,20 @@
 package artifacts
 
-import "flow-verifier/internal/module"
+import (
+	"flow-verifier/internal/module"
 
-// Endpoints describes the artifacts HTTP surface. The UI's Artifacts
-// panel and the `flow-verifier flows artifacts ...` CLI both target
-// these routes; both surfaces share the same contract.
+	artifactsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/artifacts/artifacts_v1connect"
+)
+
+// Endpoints describes the artifacts Connect-RPC surface. Scenario-level
+// generate/clear live on ScenariosService (handlers/scenarios) so the
+// streaming GenerateScenarioArtifacts RPC is colocated with the
+// scenario index it operates on.
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "flows.artifacts.status",
-		Path:        "/api/v1/flows/{id}/artifacts",
-		Method:      "GET",
+		Path:        artifactsconnect.ArtifactsServiceGetArtifactStatusProcedure,
+		Method:      "POST",
 		Summary:     "Inspect a flow's generated/ tree",
 		Description: "Returns each expected artifact path with its existence/mtime, plus an overall fresh|missing status. Pure inspection — no mutation.",
 		Category:    "artifacts",
@@ -17,7 +22,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "flows.artifacts.generate",
-		Path:        "/api/v1/flows/{id}/artifacts:generate",
+		Path:        artifactsconnect.ArtifactsServiceGenerateArtifactsProcedure,
 		Method:      "POST",
 		Summary:     "Generate or regenerate a flow's artifacts",
 		Description: "Runs the pipeline in generate mode for one flow. Returns the new artifacts status alongside the recorded run.",
@@ -26,29 +31,11 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "flows.artifacts.clear",
-		Path:        "/api/v1/flows/{id}/artifacts",
-		Method:      "DELETE",
+		Path:        artifactsconnect.ArtifactsServiceClearArtifactsProcedure,
+		Method:      "POST",
 		Summary:     "Clear a flow's generated/ tree",
 		Description: "Removes every file under <flow-dir>/generated/. Refuses crafted paths that would escape the scenario root.",
 		Category:    "artifacts",
 		CLIMapping:  &module.CLIMapping{Command: "flow-verifier artifacts clear"},
-	},
-	{
-		ID:          "scenarios.artifacts.generate",
-		Path:        "/api/v1/scenarios/{id}/artifacts:generate",
-		Method:      "POST",
-		Summary:     "Generate artifacts for every flow in a scenario",
-		Description: "Walks every flow inside the scenario and regenerates each one serially.",
-		Category:    "artifacts",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier artifacts generate --scenario"},
-	},
-	{
-		ID:          "scenarios.artifacts.clear",
-		Path:        "/api/v1/scenarios/{id}/artifacts",
-		Method:      "DELETE",
-		Summary:     "Clear artifacts for every flow in a scenario",
-		Description: "Walks every flow inside the scenario and clears each one.",
-		Category:    "artifacts",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier artifacts clear --scenario"},
 	},
 }

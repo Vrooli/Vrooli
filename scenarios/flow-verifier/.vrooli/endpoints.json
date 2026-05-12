@@ -4,8 +4,8 @@
   "endpoints": [
     {
       "id": "flows.artifacts.status",
-      "path": "/api/v1/flows/{id}/artifacts",
-      "method": "GET",
+      "path": "/vrooli.flow_verifier.v1.artifacts.ArtifactsService/GetArtifactStatus",
+      "method": "POST",
       "summary": "Inspect a flow's generated/ tree",
       "description": "Returns each expected artifact path with its existence/mtime, plus an overall fresh|missing status. Pure inspection — no mutation.",
       "category": "artifacts",
@@ -15,7 +15,7 @@
     },
     {
       "id": "flows.artifacts.generate",
-      "path": "/api/v1/flows/{id}/artifacts:generate",
+      "path": "/vrooli.flow_verifier.v1.artifacts.ArtifactsService/GenerateArtifacts",
       "method": "POST",
       "summary": "Generate or regenerate a flow's artifacts",
       "description": "Runs the pipeline in generate mode for one flow. Returns the new artifacts status alongside the recorded run.",
@@ -26,8 +26,8 @@
     },
     {
       "id": "flows.artifacts.clear",
-      "path": "/api/v1/flows/{id}/artifacts",
-      "method": "DELETE",
+      "path": "/vrooli.flow_verifier.v1.artifacts.ArtifactsService/ClearArtifacts",
+      "method": "POST",
       "summary": "Clear a flow's generated/ tree",
       "description": "Removes every file under <flow-dir>/generated/. Refuses crafted paths that would escape the scenario root.",
       "category": "artifacts",
@@ -36,33 +36,11 @@
       }
     },
     {
-      "id": "scenarios.artifacts.generate",
-      "path": "/api/v1/scenarios/{id}/artifacts:generate",
-      "method": "POST",
-      "summary": "Generate artifacts for every flow in a scenario",
-      "description": "Walks every flow inside the scenario and regenerates each one serially.",
-      "category": "artifacts",
-      "cli_mapping": {
-        "command": "flow-verifier artifacts generate --scenario"
-      }
-    },
-    {
-      "id": "scenarios.artifacts.clear",
-      "path": "/api/v1/scenarios/{id}/artifacts",
-      "method": "DELETE",
-      "summary": "Clear artifacts for every flow in a scenario",
-      "description": "Walks every flow inside the scenario and clears each one.",
-      "category": "artifacts",
-      "cli_mapping": {
-        "command": "flow-verifier artifacts clear --scenario"
-      }
-    },
-    {
       "id": "flows.list",
-      "path": "/api/v1/flows",
-      "method": "GET",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/ListFlows",
+      "method": "POST",
       "summary": "List discovered flows",
-      "description": "Walks the configured root and returns one entry per flow/flow.json with id, path, language, and schema version.",
+      "description": "Walks the configured root and returns one entry per flow/flow.json with id, contract path, language, and schema version.",
       "category": "flows",
       "cli_mapping": {
         "command": "flow-verifier flows list"
@@ -70,10 +48,43 @@
     },
     {
       "id": "flows.get",
-      "path": "/api/v1/flows/{id}",
-      "method": "GET",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/GetFlow",
+      "method": "POST",
       "summary": "Flow detail",
-      "description": "Returns the typed flow plus the latest verification status.",
+      "description": "Returns the typed flow.json projection consumed by the UI's flow-detail page.",
+      "category": "flows",
+      "cli_mapping": {
+        "command": "flow-verifier flows show"
+      }
+    },
+    {
+      "id": "flows.create",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/CreateFlow",
+      "method": "POST",
+      "summary": "Scaffold a new flow",
+      "description": "Creates a fresh flow directory with hand-authored transition + test sidecars. Replaces the legacy in-process CLI command.",
+      "category": "flows",
+      "cli_mapping": {
+        "command": "flow-verifier flows new"
+      }
+    },
+    {
+      "id": "flows.validate",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/ValidateFlow",
+      "method": "POST",
+      "summary": "Validate every flow under root",
+      "description": "Compiles every flow.json and returns the first compilation/contract error encountered, or empty on success.",
+      "category": "flows",
+      "cli_mapping": {
+        "command": "flow-verifier flows validate"
+      }
+    },
+    {
+      "id": "flows.explain",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/ExplainFlow",
+      "method": "POST",
+      "summary": "Human-readable explain report",
+      "description": "Renders the markdown explanation consumed by the UI Overview tab and CLI explain output.",
       "category": "flows",
       "cli_mapping": {
         "command": "flow-verifier flows explain"
@@ -102,14 +113,18 @@
       ],
       "cli_mapping": {
         "command": "flow-verifier status"
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
       }
     },
     {
       "id": "runs.list",
-      "path": "/api/v1/runs",
-      "method": "GET",
+      "path": "/vrooli.flow_verifier.v1.runs.RunsService/ListRuns",
+      "method": "POST",
       "summary": "List verification runs",
-      "description": "Returns persisted verification history with optional flowId filter and a configurable limit.",
+      "description": "Returns persisted verification history with optional flow_id filter and a configurable limit.",
       "category": "runs",
       "cli_mapping": {
         "command": "flow-verifier runs list"
@@ -117,8 +132,8 @@
     },
     {
       "id": "runs.get",
-      "path": "/api/v1/runs/{id}",
-      "method": "GET",
+      "path": "/vrooli.flow_verifier.v1.runs.RunsService/GetRun",
+      "method": "POST",
       "summary": "Single run detail",
       "description": "Returns one verification run including the counterexample blob on failure.",
       "category": "runs",
@@ -128,10 +143,10 @@
     },
     {
       "id": "scenarios.list",
-      "path": "/api/v1/scenarios",
-      "method": "GET",
+      "path": "/vrooli.flow_verifier.v1.scenarios.ScenariosService/ListScenarios",
+      "method": "POST",
       "summary": "List discovered scenarios",
-      "description": "Walks <vrooli-root>/scenarios/* for .vrooli/service.json descriptors and returns one row per scenario with display name, description, path, and flow count.",
+      "description": "Walks <vrooli-root>/scenarios/* for .vrooli/service.json descriptors and returns one row per scenario.",
       "category": "scenarios",
       "cli_mapping": {
         "command": "flow-verifier scenarios list"
@@ -139,32 +154,54 @@
     },
     {
       "id": "scenarios.get",
-      "path": "/api/v1/scenarios/{id}",
-      "method": "GET",
+      "path": "/vrooli.flow_verifier.v1.scenarios.ScenariosService/GetScenario",
+      "method": "POST",
       "summary": "Scenario detail",
       "description": "Returns the scenario descriptor plus the flow summaries discovered inside it.",
       "category": "scenarios",
       "cli_mapping": {
-        "command": "flow-verifier scenarios get"
+        "command": "flow-verifier scenarios show"
+      }
+    },
+    {
+      "id": "scenarios.generate_artifacts",
+      "path": "/vrooli.flow_verifier.v1.scenarios.ScenariosService/GenerateScenarioArtifacts",
+      "method": "POST",
+      "summary": "Generate every flow's artifacts in a scenario (server-stream)",
+      "description": "Server-streams one ScenarioArtifactsProgress per flow as artifacts are regenerated.",
+      "category": "scenarios",
+      "cli_mapping": {
+        "command": "flow-verifier artifacts generate --scenario <id>"
+      }
+    },
+    {
+      "id": "scenarios.clear_artifacts",
+      "path": "/vrooli.flow_verifier.v1.scenarios.ScenariosService/ClearScenarioArtifacts",
+      "method": "POST",
+      "summary": "Clear every flow's generated/ tree in a scenario",
+      "description": "Removes every generated/ tree under the scenario root. Refuses traversal outside root.",
+      "category": "scenarios",
+      "cli_mapping": {
+        "command": "flow-verifier artifacts clear --scenario <id> --yes"
       }
     },
     {
       "id": "settings.get",
-      "path": "/api/v1/settings",
-      "method": "GET",
+      "path": "/vrooli.flow_verifier.v1.settings.SettingsService/GetSettings",
+      "method": "POST",
       "summary": "Get UI/CLI preferences",
-      "description": "Returns the local principal's persisted UI/CLI preferences. Hard-coded defaults are returned when no row exists; never 404s.",
+      "description": "Returns the local principal's persisted UI/CLI preferences. Hard-coded defaults are returned when no row exists; never NotFound.",
       "category": "settings",
       "cli_mapping": {
         "command": "flow-verifier settings get"
       }
     },
     {
-      "id": "settings.put",
-      "path": "/api/v1/settings",
-      "method": "PUT",
+      "id": "settings.update",
+      "path": "/vrooli.flow_verifier.v1.settings.SettingsService/UpdateSettings",
+      "method": "POST",
       "summary": "Update UI/CLI preferences",
-      "description": "Partial-update of the local principal's preferences. Body is merged with the current row; unknown enum values produce 400.",
+      "description": "Partial-update of the local principal's preferences. The FieldMask names which fields of the supplied Settings message are merged into the stored row.",
       "category": "settings",
       "cli_mapping": {
         "command": "flow-verifier settings set"
@@ -172,10 +209,10 @@
     },
     {
       "id": "verifications.start",
-      "path": "/api/v1/verifications",
+      "path": "/vrooli.flow_verifier.v1.verifications.VerificationsService/StartVerification",
       "method": "POST",
       "summary": "Start a verification",
-      "description": "Kicks off pipeline (discover → compile → artifact → codegen → lint) for one or all flows under the given root and returns a runId.",
+      "description": "Kicks off pipeline (discover → compile → artifact → codegen → lint) for one or all flows under the given root and returns the recorded run rows.",
       "category": "verifications",
       "cli_mapping": {
         "command": "flow-verifier verify run"
@@ -183,13 +220,13 @@
     },
     {
       "id": "verifications.get",
-      "path": "/api/v1/verifications/{runId}",
-      "method": "GET",
+      "path": "/vrooli.flow_verifier.v1.verifications.VerificationsService/GetVerification",
+      "method": "POST",
       "summary": "Verification status",
       "description": "Returns status + result for one verification run.",
       "category": "verifications",
       "cli_mapping": {
-        "command": "flow-verifier runs show"
+        "command": "flow-verifier verify show"
       }
     }
   ],
@@ -205,9 +242,24 @@
       "endpoint_id": "flows.list"
     },
     {
-      "name": "flows explain",
-      "description": "Print the typed flow plus its latest verification status",
+      "name": "flows show",
+      "description": "Print the typed flow.json projection consumed by the UI's flow-detail page",
       "endpoint_id": "flows.get"
+    },
+    {
+      "name": "flows new",
+      "description": "Scaffold a fresh flow directory with hand-authored sidecars",
+      "endpoint_id": "flows.create"
+    },
+    {
+      "name": "flows validate",
+      "description": "Validate every flow.json under the configured root",
+      "endpoint_id": "flows.validate"
+    },
+    {
+      "name": "flows explain",
+      "description": "Print the human-readable explain report for one flow",
+      "endpoint_id": "flows.explain"
     },
     {
       "name": "artifacts status",
@@ -216,23 +268,23 @@
     },
     {
       "name": "artifacts generate",
-      "description": "Generate or regenerate one flow's artifacts (or every flow in a scenario)",
+      "description": "Generate or regenerate one flow's artifacts",
       "endpoint_id": "flows.artifacts.generate"
     },
     {
       "name": "artifacts clear",
-      "description": "Remove one flow's generated/ tree (or every flow in a scenario)",
+      "description": "Remove one flow's generated/ tree",
       "endpoint_id": "flows.artifacts.clear"
     },
     {
-      "name": "artifacts generate --scenario",
-      "description": "Generate artifacts for every flow inside one scenario",
-      "endpoint_id": "scenarios.artifacts.generate"
+      "name": "artifacts generate --scenario <id>",
+      "description": "Stream generation progress for every flow inside one scenario",
+      "endpoint_id": "scenarios.generate_artifacts"
     },
     {
-      "name": "artifacts clear --scenario",
+      "name": "artifacts clear --scenario <id> --yes",
       "description": "Clear artifacts for every flow inside one scenario",
-      "endpoint_id": "scenarios.artifacts.clear"
+      "endpoint_id": "scenarios.clear_artifacts"
     },
     {
       "name": "verify run",
@@ -240,12 +292,17 @@
       "endpoint_id": "verifications.start"
     },
     {
+      "name": "verify show",
+      "description": "Show one verification's recorded run row",
+      "endpoint_id": "verifications.get"
+    },
+    {
       "name": "scenarios list",
       "description": "List every scenario discovered under the Vrooli root with its flow count",
       "endpoint_id": "scenarios.list"
     },
     {
-      "name": "scenarios get",
+      "name": "scenarios show",
       "description": "Show one scenario with its discovered flows",
       "endpoint_id": "scenarios.get"
     },
@@ -267,7 +324,7 @@
     {
       "name": "settings set",
       "description": "Update one or more UI/CLI preferences (key=value pairs)",
-      "endpoint_id": "settings.put"
+      "endpoint_id": "settings.update"
     }
   ]
 }

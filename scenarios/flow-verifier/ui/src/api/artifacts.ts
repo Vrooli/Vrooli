@@ -1,10 +1,20 @@
-// API client for the artifacts (codegen lifecycle) surface. Mirrors
-// scenarios.ts's Raw → Public type pattern: the wire shape is permissive
-// so Go's nil-slice / nil-string quirks don't leak into React, and the
-// public type the rest of the app consumes is strictly arrays-only.
-import { buildApiUrl } from "@vrooli/api-base";
+// API client for the artifacts (codegen lifecycle) surface. Thin
+// wrapper over the generated ArtifactsService + ScenariosService Connect
+// clients; preserves the public types existing consumers depend on.
+import { createClient } from "@connectrpc/connect";
 
-import { API_BASE, decodeApiError } from "./client";
+import { transport } from "./client";
+import { scenariosClient } from "./scenarios";
+
+import {
+  ArtifactsService,
+  ArtifactStatus as ProtoArtifactStatus,
+  type ArtifactReport as ProtoArtifactReport,
+  type ArtifactFile as ProtoArtifactFile,
+  type ClearArtifactsResponse as ProtoClearArtifactsResponse,
+} from "@vrooli/proto-types/flow-verifier/v1/artifacts/artifacts_pb";
+
+export const artifactsClient = createClient(ArtifactsService, transport);
 
 export type ArtifactStatus = "fresh" | "missing";
 
@@ -29,100 +39,6 @@ export type ClearResult = {
   removed: string[];
 };
 
-type RawArtifactReport = Omit<ArtifactReport, "files" | "missing"> & {
-  files?: ArtifactFile[] | null;
-  missing?: string[] | null;
-};
-
-type RawClearResult = Omit<ClearResult, "removed"> & {
-  removed?: string[] | null;
-};
-
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(buildApiUrl(path, { baseUrl: API_BASE }), {
-    method: "GET",
-    cache: "no-store",
-  });
-  if (!res.ok) throw await decodeApiError(res);
-  return (await res.json()) as T;
-}
-
-async function postJson<T>(path: string): Promise<T> {
-  const res = await fetch(buildApiUrl(path, { baseUrl: API_BASE }), {
-    method: "POST",
-    cache: "no-store",
-  });
-  if (!res.ok) throw await decodeApiError(res);
-  return (await res.json()) as T;
-}
-
-async function deleteJson<T>(path: string): Promise<T> {
-  const res = await fetch(buildApiUrl(path, { baseUrl: API_BASE }), {
-    method: "DELETE",
-    cache: "no-store",
-  });
-  if (!res.ok) throw await decodeApiError(res);
-  return (await res.json()) as T;
-}
-
-function qs(params: Record<string, string | undefined>): string {
-  const out = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) if (v) out.set(k, v);
-  const s = out.toString();
-  return s ? `?${s}` : "";
-}
-
-function normaliseReport(raw: RawArtifactReport): ArtifactReport {
-  return {
-    ...raw,
-    files: raw.files ?? [],
-    missing: raw.missing ?? [],
-  };
-}
-
-function normaliseClear(raw: RawClearResult): ClearResult {
-  return { ...raw, removed: raw.removed ?? [] };
-}
-
-export async function fetchArtifactsStatus(
-  flowId: string,
-  opts: { scenarioId?: string; root?: string } = {},
-): Promise<ArtifactReport> {
-  const raw = await getJson<RawArtifactReport>(
-    `/api/v1/flows/${encodeURIComponent(flowId)}/artifacts${qs({
-      scenario: opts.scenarioId,
-      root: opts.root,
-    })}`,
-  );
-  return normaliseReport(raw);
-}
-
-export async function generateArtifacts(
-  flowId: string,
-  opts: { scenarioId?: string; root?: string } = {},
-): Promise<ArtifactReport> {
-  const raw = await postJson<RawArtifactReport>(
-    `/api/v1/flows/${encodeURIComponent(flowId)}/artifacts:generate${qs({
-      scenario: opts.scenarioId,
-      root: opts.root,
-    })}`,
-  );
-  return normaliseReport(raw);
-}
-
-export async function clearArtifacts(
-  flowId: string,
-  opts: { scenarioId?: string; root?: string } = {},
-): Promise<ClearResult> {
-  const raw = await deleteJson<RawClearResult>(
-    `/api/v1/flows/${encodeURIComponent(flowId)}/artifacts${qs({
-      scenario: opts.scenarioId,
-      root: opts.root,
-    })}`,
-  );
-  return normaliseClear(raw);
-}
-
 export type ScenarioArtifactsResult = {
   scenarioId: string;
   flows: ArtifactReport[];
@@ -133,16 +49,103 @@ export type ScenarioClearResult = {
   flows: ClearResult[];
 };
 
-export async function generateScenarioArtifacts(scenarioId: string): Promise<ScenarioArtifactsResult> {
-  const raw = await postJson<{ scenarioId: string; flows?: RawArtifactReport[] | null }>(
-    `/api/v1/scenarios/${encodeURIComponent(scenarioId)}/artifacts:generate`,
-  );
-  return { scenarioId: raw.scenarioId, flows: (raw.flows ?? []).map(normaliseReport) };
+export async function fetchArtifactsStatus(
+  flowId: string,
+  opts: { scenarioId?: string } = {},
+): Promise<ArtifactReport> {
+  const resp = await artifactsClient.getArtifactStatus({
+    flowId,
+    scenarioId: opts.scenarioId ?? "",
+    root: "",
+  });
+  if (!resp.report) throw new Error("server returned no artifact report");
+  return reportFromProto(resp.report);
 }
 
-export async function clearScenarioArtifacts(scenarioId: string): Promise<ScenarioClearResult> {
-  const raw = await deleteJson<{ scenarioId: string; flows?: RawClearResult[] | null }>(
-    `/api/v1/scenarios/${encodeURIComponent(scenarioId)}/artifacts`,
-  );
-  return { scenarioId: raw.scenarioId, flows: (raw.flows ?? []).map(normaliseClear) };
+export async function generateArtifacts(
+  flowId: string,
+  opts: { scenarioId?: string } = {},
+): Promise<ArtifactReport> {
+  const resp = await artifactsClient.generateArtifacts({
+    flowId,
+    scenarioId: opts.scenarioId ?? "",
+    root: "",
+  });
+  if (!resp.report) throw new Error("server returned no artifact report");
+  return reportFromProto(resp.report);
+}
+
+export async function clearArtifacts(
+  flowId: string,
+  opts: { scenarioId?: string } = {},
+): Promise<ClearResult> {
+  const resp = await artifactsClient.clearArtifacts({
+    flowId,
+    scenarioId: opts.scenarioId ?? "",
+    root: "",
+  });
+  return { flowId: resp.flowId, removed: resp.removed };
+}
+
+// generateScenarioArtifacts consumes the server-streaming RPC and
+// collects every per-flow message into a final array. UIs that want
+// live progress can call scenariosClient.generateScenarioArtifacts
+// directly and iterate the stream themselves.
+export async function generateScenarioArtifacts(
+  scenarioId: string,
+): Promise<ScenarioArtifactsResult> {
+  const flows: ArtifactReport[] = [];
+  const stream = scenariosClient.generateScenarioArtifacts({ scenarioId });
+  for await (const msg of stream) {
+    if (msg.report) {
+      flows.push(reportFromProto(msg.report));
+    } else if (msg.errorMessage) {
+      throw new Error(`generate failed for ${msg.flowId}: ${msg.errorMessage}`);
+    }
+  }
+  return { scenarioId, flows };
+}
+
+export async function clearScenarioArtifacts(
+  scenarioId: string,
+): Promise<ScenarioClearResult> {
+  const resp = await scenariosClient.clearScenarioArtifacts({ scenarioId });
+  return {
+    scenarioId,
+    flows: resp.flows.map((f: ProtoClearArtifactsResponse) => ({
+      flowId: f.flowId,
+      removed: f.removed,
+    })),
+  };
+}
+
+function reportFromProto(r: ProtoArtifactReport): ArtifactReport {
+  return {
+    flowId: r.flowId,
+    scenarioPath: r.scenarioPath,
+    generatedDir: r.generatedDir,
+    status: statusFromProto(r.status),
+    files: r.files.map(fileFromProto),
+    missing: r.missing,
+  };
+}
+
+function fileFromProto(f: ProtoArtifactFile): ArtifactFile {
+  return {
+    path: f.path,
+    exists: f.exists,
+    size: f.size ? Number(f.size) : undefined,
+    mtime: f.mtime ? new Date(Number(f.mtime.seconds) * 1000).toISOString() : undefined,
+  };
+}
+
+function statusFromProto(s: ProtoArtifactStatus): ArtifactStatus {
+  switch (s) {
+    case ProtoArtifactStatus.FRESH:
+      return "fresh";
+    case ProtoArtifactStatus.MISSING:
+    case ProtoArtifactStatus.STALE:
+      return "missing";
+  }
+  return "missing";
 }

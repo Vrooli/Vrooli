@@ -4,6 +4,7 @@ import (
 	"flow-verifier/cli/domains/artifacts"
 	"flow-verifier/cli/domains/flows"
 	"flow-verifier/cli/domains/runs"
+	"flow-verifier/cli/domains/scenarios"
 	"flow-verifier/cli/domains/settings"
 	"flow-verifier/cli/domains/verify"
 
@@ -46,6 +47,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		artifacts.Register(core),
 		flows.Register(core),
 		runs.Register(core),
+		scenarios.Register(core),
 		settings.Register(core),
 		verify.Register(core),
 	}

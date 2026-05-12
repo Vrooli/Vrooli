@@ -20,6 +20,7 @@ import (
 	"flow-verifier/internal/module"
 
 	apidb "github.com/vrooli/api-core/database"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	artifactsH "flow-verifier/handlers/artifacts"
 	flowsH "flow-verifier/handlers/flows"
@@ -29,6 +30,13 @@ import (
 	settingsH "flow-verifier/handlers/settings"
 	verificationsH "flow-verifier/handlers/verifications"
 	localdb "flow-verifier/internal/database"
+
+	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/artifacts"
+	flowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/flows"
+	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/runs"
+	scenariosv1 "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/scenarios"
+	settingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/settings"
+	verificationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/verifications"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -45,6 +53,29 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, settingsH.Endpoints...)
 	out = append(out, verificationsH.Endpoints...)
 	return out
+}
+
+// ProtoFileEntry pairs a domain module's name with the proto
+// FileDescriptor whose RPCs that module exposes via Connect-RPC. The
+// global parity test in registry_test.go walks every entry and asserts
+// each rpc method in the FileDescriptor has exactly one matching
+// EndpointDescriptor in AllEndpoints().
+type ProtoFileEntry struct {
+	Module string
+	File   protoreflect.FileDescriptor
+}
+
+// AllProtoFiles returns the proto FileDescriptor backing each
+// Connect-mounted domain module, in registration order.
+func AllProtoFiles() []ProtoFileEntry {
+	return []ProtoFileEntry{
+		{Module: "artifacts", File: artifactsv1.File_flow_verifier_v1_artifacts_artifacts_proto},
+		{Module: "flows", File: flowsv1.File_flow_verifier_v1_flows_flows_proto},
+		{Module: "runs", File: runsv1.File_flow_verifier_v1_runs_runs_proto},
+		{Module: "scenarios", File: scenariosv1.File_flow_verifier_v1_scenarios_scenarios_proto},
+		{Module: "settings", File: settingsv1.File_flow_verifier_v1_settings_settings_proto},
+		{Module: "verifications", File: verificationsv1.File_flow_verifier_v1_verifications_verifications_proto},
+	}
 }
 
 // AllSchemas returns every domain's schema provider plus the system

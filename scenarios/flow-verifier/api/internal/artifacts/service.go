@@ -173,6 +173,38 @@ func (s *Service) GenerateForScenario(ctx context.Context, root string) ([]Repor
 	return out, nil
 }
 
+// GenerateForScenarioStream walks every flow rooted at root, regenerates
+// each, and reports progress through onProgress one flow at a time.
+// Per-flow failures do not abort the walk: the callback receives a
+// non-nil err for the failing flow and the next flow runs. Returns a
+// fatal error only when discovery itself fails or the generator isn't
+// configured (i.e. the stream cannot meaningfully begin).
+func (s *Service) GenerateForScenarioStream(ctx context.Context, root string, onProgress func(flowID string, report Report, err error) error) error {
+	if s.gen == nil {
+		return fmt.Errorf("artifacts: generator not configured")
+	}
+	all, err := discovery.FindContracts(rootAbs(root))
+	if err != nil {
+		return err
+	}
+	for _, flow := range all {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		if genErr := s.gen.Generate(ctx, root, flow.FlowID); genErr != nil {
+			if sendErr := onProgress(flow.FlowID, Report{}, genErr); sendErr != nil {
+				return sendErr
+			}
+			continue
+		}
+		report, statusErr := s.statusForFlow(root, flow)
+		if sendErr := onProgress(flow.FlowID, report, statusErr); sendErr != nil {
+			return sendErr
+		}
+	}
+	return nil
+}
+
 // ClearForScenario removes the generated/ tree for every flow rooted at
 // root and returns the union of cleared file paths.
 func (s *Service) ClearForScenario(root string) ([]ClearResult, error) {

@@ -23,19 +23,23 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
 		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
 		{Name: "flows list", Description: "List flows", EndpointID: "flows.list"},
-		{Name: "flows explain", Description: "Explain flow", EndpointID: "flows.get"},
+		{Name: "flows show", Description: "Show flow", EndpointID: "flows.get"},
+		{Name: "flows new", Description: "Scaffold flow", EndpointID: "flows.create"},
+		{Name: "flows validate", Description: "Validate flows", EndpointID: "flows.validate"},
+		{Name: "flows explain", Description: "Explain flow", EndpointID: "flows.explain"},
 		{Name: "artifacts status", Description: "Status", EndpointID: "flows.artifacts.status"},
 		{Name: "artifacts generate", Description: "Generate", EndpointID: "flows.artifacts.generate"},
 		{Name: "artifacts clear", Description: "Clear", EndpointID: "flows.artifacts.clear"},
-		{Name: "artifacts generate --scenario", Description: "Scenario generate", EndpointID: "scenarios.artifacts.generate"},
-		{Name: "artifacts clear --scenario", Description: "Scenario clear", EndpointID: "scenarios.artifacts.clear"},
+		{Name: "artifacts generate --scenario <id>", Description: "Scenario generate", EndpointID: "scenarios.generate_artifacts"},
+		{Name: "artifacts clear --scenario <id> --yes", Description: "Scenario clear", EndpointID: "scenarios.clear_artifacts"},
 		{Name: "scenarios list", Description: "List scenarios", EndpointID: "scenarios.list"},
-		{Name: "scenarios get", Description: "Show scenario", EndpointID: "scenarios.get"},
+		{Name: "scenarios show", Description: "Show scenario", EndpointID: "scenarios.get"},
 		{Name: "verify run", Description: "Start verification", EndpointID: "verifications.start"},
+		{Name: "verify show", Description: "Show verification", EndpointID: "verifications.get"},
 		{Name: "runs list", Description: "List runs", EndpointID: "runs.list"},
 		{Name: "runs show", Description: "Show run", EndpointID: "runs.get"},
 		{Name: "settings get", Description: "Get prefs", EndpointID: "settings.get"},
-		{Name: "settings set", Description: "Set prefs", EndpointID: "settings.put"},
+		{Name: "settings set", Description: "Set prefs", EndpointID: "settings.update"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -66,8 +70,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 19 {
-		t.Errorf("cli_commands count = %d, want 19", len(got.CLICommands))
+	if len(got.CLICommands) != 23 {
+		t.Errorf("cli_commands count = %d, want 23", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
