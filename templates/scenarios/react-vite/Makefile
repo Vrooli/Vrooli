@@ -43,8 +43,8 @@ logs: ## Show scenario logs
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
 
-temporal-models: ## Check formal temporal-model artifacts
-	@cd tools/temporal-model && GOWORK=off go test ./... && GOWORK=off go run . check --root ../..
+temporal-models: ## Verify formal flow artifacts via the flow-verifier scenario CLI
+	@flow-verifier verify check --root .
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"

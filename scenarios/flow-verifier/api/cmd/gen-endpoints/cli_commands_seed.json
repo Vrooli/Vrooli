@@ -1,0 +1,35 @@
+{
+  "_comment": "Source of truth for the cli_commands[] portion of .vrooli/endpoints.json. Hand-maintained because the CLI is a separate Go module from the API; cross-module codegen would force one to import the other. Each entry mirrors a real subcommand registered in cli/domains/<dom>/register.go (or cli-core's StandardScenarioApp built-ins). Codegen verifies every cli_mapping.command in endpoints[] has a matching name here.",
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "flows list",
+      "description": "List every discovered flow under the configured root",
+      "endpoint_id": "flows.list"
+    },
+    {
+      "name": "flows explain",
+      "description": "Print the typed flow plus its latest verification status",
+      "endpoint_id": "flows.get"
+    },
+    {
+      "name": "verify run",
+      "description": "Regenerate verification artifacts for every flow",
+      "endpoint_id": "verifications.start"
+    },
+    {
+      "name": "runs list",
+      "description": "List persisted verification runs",
+      "endpoint_id": "runs.list"
+    },
+    {
+      "name": "runs show",
+      "description": "Show one verification run (with counterexample on failure)",
+      "endpoint_id": "runs.get"
+    }
+  ]
+}

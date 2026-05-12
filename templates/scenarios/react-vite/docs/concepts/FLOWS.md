@@ -123,8 +123,9 @@ timers, HTTP clients, or UI API modules.
 The `*.flow.json` contract is the source of truth. Level 5 generated
 Quint models, formal artifacts, and Go/TypeScript declarations are
 checked-in source artifacts for reviewability, but they are refreshed
-and checked by the Go-native `tools/temporal-model` command; the
-scenario lifecycle runs `make temporal-models` before the normal test
+and checked by the `flow-verifier` scenario CLI; the
+scenario lifecycle runs `make temporal-models` (which calls
+`flow-verifier verify check`) before the normal test
 suite. A Quint file by itself is not accepted: the model must typecheck,
 test, verify named invariants, emit deterministic artifacts, and those
 artifacts must replay against the production Go/TypeScript transition
@@ -163,7 +164,7 @@ Go flows emit `flow/generated/replay.go` and require a hand-authored
 TypeScript flows emit `flow/generated/replay.helper.ts` and require a
 hand-authored `flow/flow.test.ts` that calls
 `runFormalReplay({ transition, fixtures })` at module top level.
-`temporal-model check` byte-compares every generated file and runs an
+`flow-verifier verify check` byte-compares every generated file and runs an
 AST-level lint over the hand-authored test, so a silent bypass — missing
 import, stubbed transition, or call buried inside a guarded block —
 fails the check.
@@ -171,9 +172,8 @@ fails the check.
 To scaffold a new flow:
 
 ```bash
-cd tools/temporal-model
-go run . new ui/src/features/<feature> --flow-id <flow-id> --root ../..
-go run . new api/internal/<domain> --flow-id <flow-id> --root ../..
+flow-verifier flows new ui/src/features/<feature> --flow-id <flow-id> --lang ts --root .
+flow-verifier flows new api/internal/<domain>     --flow-id <flow-id> --lang go --root .
 ```
 
 The scaffold writes the hand-authored files and immediately runs
@@ -182,7 +182,7 @@ The scaffold writes the hand-authored files and immediately runs
 To add or rename a state/event:
 
 1. Edit the owning `*.flow.json`.
-2. Regenerate that flow with `tools/temporal-model`.
+2. Regenerate that flow with `flow-verifier verify run --flow <flow-id>`.
 3. Update only payload-specific wrapper branches that need new runtime
    data; the abstract transition table is generated.
 4. Update the UI replay fixture module. The generated formal replay fixture

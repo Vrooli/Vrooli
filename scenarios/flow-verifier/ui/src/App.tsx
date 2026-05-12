@@ -1,0 +1,20 @@
+import { AppShell } from "./components/AppShell";
+import { HealthCard } from "./features/health/HealthCard";
+import { InventoryCard } from "./features/inventory/InventoryCard";
+
+/**
+ * App composes the page from a shell + a list of feature cards.
+ *
+ * Adding a feature: create `features/<name>/<Name>Card.tsx`, then
+ * add its import + render line below. Deleting a feature: delete
+ * the folder, remove the import + line. There is no central
+ * registry to mutate.
+ */
+export default function App() {
+  return (
+    <AppShell>
+      <HealthCard />
+      <InventoryCard />
+    </AppShell>
+  );
+}

@@ -198,8 +198,8 @@
       "steps": [
         {
           "name": "check-temporal-models",
-          "run": "cd tools/temporal-model && GOWORK=off go test ./... && GOWORK=off go run . check --root ../..",
-          "description": "Check formal temporal-flow artifacts are fresh"
+          "run": "flow-verifier verify check --root .",
+          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
         },
         {
           "name": "run-tests",

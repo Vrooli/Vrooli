@@ -338,7 +338,7 @@ Workflow maturity is incremental:
 
 The notes attachment upload workflow is the reference Level 5 pattern:
 
-- `tools/temporal-model`
+- The `flow-verifier` scenario CLI (`flow-verifier verify check|run`, `flows list|validate|explain`)
 - `api/internal/notes/flow/flow.json`
 - `api/internal/notes/flow/transition.go` (package `flow`)
 - `api/internal/notes/flow/flow_test.go` (thin replay delegation, package `flow`)
@@ -349,9 +349,9 @@ The notes attachment upload workflow is the reference Level 5 pattern:
 - `ui/src/features/notes/flow/flow.test.ts` (thin replay delegation)
 - `ui/src/features/notes/flow/generated/{model.qnt,artifact.json,runtime.ts,replay.helper.ts}`
 
-`make temporal-models` runs the Go-native temporal-model tool tests, then
+`make temporal-models` invokes `flow-verifier verify check --root .`, which
 runs `quint typecheck`, `quint test`, `quint verify`, and deterministic MBT
-trace generation through `tools/temporal-model`. It fails if the checked-in
+trace generation through the flow-verifier pipeline. It fails if the checked-in
 artifacts, generated declarations, or generated replay files are stale. The
 generated declarations provide state/event topology and formal freshness
 expectations, including concrete hashes for the contract, model, and generator.
@@ -364,7 +364,7 @@ fixture map in `flow/fixtures.ts`; the generated
 `replay.helper.ts` owns freshness, matrix replay, and trace replay, and
 the hand-authored `.test.ts` is a ~5-line module that imports the helper
 and the fixtures and calls `runFormalReplay({ transition, fixtures })`
-at top level. An AST-level lint in `temporal-model check` rejects any
+at top level. An AST-level lint in `flow-verifier verify check` rejects any
 file that imports the helper without calling it.
 
 Formal artifacts use schema v5 coverage metadata. `transitionMatrixComplete`
@@ -377,13 +377,13 @@ Schema v5 `*.flow.json` files no longer declare any output paths; the
 generated subpackage location is derived from the flow ID. The contract's
 `replay` block carries only `fixtureModule`, `fixtureExport`, and
 `transition` metadata.
-`tools/temporal-model validate`, `generate`, and `check` validate each contract
-against `tools/temporal-model/flow.schema.json` before semantic validation, so
+`flow-verifier flows validate`, `verify run`, and `verify check` validate each
+contract against the embedded flow schema before semantic validation, so
 unknown fields, missing required fields, old marker-based `replay.bindings`,
 and invalid enum values fail with contract-path context before Quint runs.
 `check` then compares the generated replay files byte-for-byte, which makes a
 missing production replay test a generator failure instead of a later review
-catch. Use `tools/temporal-model explain --flow <flow-id>` to inspect generated
+catch. Use `flow-verifier flows explain --flow <flow-id>` to inspect generated
 files, runtime typing, fixture contracts, topology, generated replay paths,
 fixture module expectations, coverage, and the exact commands to run next.
 
@@ -395,7 +395,7 @@ flows with lifecycle states and illegal transitions.
 When adding or changing a Level 5 state/event:
 
 1. Edit the flow contract.
-2. Regenerate that flow with `cd tools/temporal-model && GOWORK=off go run . generate --root ../.. --flow <flow-id>`.
+2. Regenerate that flow with `flow-verifier verify run --root . --flow <flow-id>`.
 3. Update only runtime payload logic that the abstract model cannot own
    (file handles, attempt ids, repository side effects, user-facing
    messages).

@@ -1,0 +1,129 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "flows.list",
+      "path": "/api/v1/flows",
+      "method": "GET",
+      "summary": "List discovered flows",
+      "description": "Walks the configured root and returns one entry per flow/flow.json with id, path, language, and schema version.",
+      "category": "flows",
+      "cli_mapping": {
+        "command": "flow-verifier flows list"
+      }
+    },
+    {
+      "id": "flows.get",
+      "path": "/api/v1/flows/{id}",
+      "method": "GET",
+      "summary": "Flow detail",
+      "description": "Returns the typed flow plus the latest verification status.",
+      "category": "flows",
+      "cli_mapping": {
+        "command": "flow-verifier flows explain"
+      }
+    },
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "flow-verifier status"
+      }
+    },
+    {
+      "id": "runs.list",
+      "path": "/api/v1/runs",
+      "method": "GET",
+      "summary": "List verification runs",
+      "description": "Returns persisted verification history with optional flowId filter and a configurable limit.",
+      "category": "runs",
+      "cli_mapping": {
+        "command": "flow-verifier runs list"
+      }
+    },
+    {
+      "id": "runs.get",
+      "path": "/api/v1/runs/{id}",
+      "method": "GET",
+      "summary": "Single run detail",
+      "description": "Returns one verification run including the counterexample blob on failure.",
+      "category": "runs",
+      "cli_mapping": {
+        "command": "flow-verifier runs show"
+      }
+    },
+    {
+      "id": "verifications.start",
+      "path": "/api/v1/verifications",
+      "method": "POST",
+      "summary": "Start a verification",
+      "description": "Kicks off pipeline (discover → compile → artifact → codegen → lint) for one or all flows under the given root and returns a runId.",
+      "category": "verifications",
+      "cli_mapping": {
+        "command": "flow-verifier verify run"
+      }
+    },
+    {
+      "id": "verifications.get",
+      "path": "/api/v1/verifications/{runId}",
+      "method": "GET",
+      "summary": "Verification status",
+      "description": "Returns status + result for one verification run.",
+      "category": "verifications",
+      "cli_mapping": {
+        "command": "flow-verifier runs show"
+      }
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "flows list",
+      "description": "List every discovered flow under the configured root",
+      "endpoint_id": "flows.list"
+    },
+    {
+      "name": "flows explain",
+      "description": "Print the typed flow plus its latest verification status",
+      "endpoint_id": "flows.get"
+    },
+    {
+      "name": "verify run",
+      "description": "Regenerate verification artifacts for every flow",
+      "endpoint_id": "verifications.start"
+    },
+    {
+      "name": "runs list",
+      "description": "List persisted verification runs",
+      "endpoint_id": "runs.list"
+    },
+    {
+      "name": "runs show",
+      "description": "Show one verification run (with counterexample on failure)",
+      "endpoint_id": "runs.get"
+    }
+  ]
+}

@@ -94,7 +94,7 @@ func formalExpectation(t *testing.T, contractPath string, modelPath string, gene
 func validFormalArtifact(t *testing.T, contractPath string, modelPath string, generatorPath string) modeltest.FormalArtifact {
 	t.Helper()
 	return modeltest.FormalArtifact{
-		SchemaVersion: 4,
+		SchemaVersion: 6,
 		FlowID:        "example.flow",
 		Source: modeltest.FormalArtifactSource{
 			ContractPath:        contractPath,

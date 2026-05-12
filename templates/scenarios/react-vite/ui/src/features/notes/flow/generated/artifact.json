@@ -4,11 +4,11 @@
   "source": {
     "contractPath": "ui/src/features/notes/flow/flow.json",
     "contractSha256": "710b2aa9aebfe0aeae7096a4ef38c1e8bc9aa1e7f5bd8faf7aba0c90de4bfc9a",
-    "generatorPath": "tools/temporal-model",
-    "generatorSha256": "45756957dbef64e5f287cee047a2054cde79f9760b57cd077f399a3151197167",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "b7362f6363aea370c6932eb535d0ce1300ebe0d7c711e026dc045a0a468c6312",
     "generatorVersion": 7,
     "modelPath": "ui/src/features/notes/flow/generated/model.qnt",
-    "modelSha256": "c791837520749a89a5fa49904e507b43a52dc3482fd0ec7c8cb967fc91fe652c",
+    "modelSha256": "47a97f004212ca9f41097bf070dd8baf5f39de646aca2816d5fb16768e67a973",
     "quintVersion": "0.32.0",
     "verificationBackend": "apalache"
   },

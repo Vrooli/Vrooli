@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "verification",
+    "description": "Quint-driven verification pipeline: codegen, lint, run-time/check-time freshness and trace replay.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "VER-001",
+      "title": "Verify check passes against the template's notes flows",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "verification",
+      "criticality": "P0",
+      "description": "flow-verifier verify check --root templates/scenarios/react-vite finishes ≤ 30s cold and is green on the two notes flows.",
+      "tags": ["verify", "quint"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Integration test gated by FLOW_VERIFIER_INTEGRATION=1 runs real quint typecheck/test/verify."
+        }
+      ]
+    },
+    {
+      "id": "VER-002",
+      "title": "CLI parity with the old tool",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "verification",
+      "criticality": "P0",
+      "description": "flows list|validate|new|explain and verify run|check produce byte-identical output and behavior to the deleted tools/temporal-model.",
+      "tags": ["cli", "parity"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Parity test diffs old vs new generated artifacts before Phase G cutover."
+        }
+      ]
+    },
+    {
+      "id": "VER-003",
+      "title": "Lint gate is fatal (no --no-lint)",
+      "status": "planned",
+      "prd_ref": "PRD.md",
+      "category": "verification",
+      "criticality": "P0",
+      "description": "Hand-test replay lint rejects missing imports, missing transition/fixture bindings, and non-top-level runFormalReplay calls. There is no --no-lint flag.",
+      "tags": ["lint"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Unit tests in api/internal/verification/lint."
+        }
+      ]
+    }
+  ]
+}
