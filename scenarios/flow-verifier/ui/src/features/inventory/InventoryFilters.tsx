@@ -1,3 +1,4 @@
+import type { ScenarioSummary } from "../../api/scenarios";
 import { useTranslation } from "../../i18n";
 
 export type StatusKey = "passed" | "failed" | "error" | "none";
@@ -6,7 +7,7 @@ export type SortKey = "flowId" | "language" | "status" | "finishedAt";
 export type SortDir = "asc" | "desc";
 
 export interface InventoryFilterState {
-  root: string;
+  scenarioId: string;
   search: string;
   language: LanguageKey;
   status: StatusKey[];
@@ -15,6 +16,7 @@ export interface InventoryFilterState {
 
 interface Props {
   value: InventoryFilterState;
+  scenarios: ScenarioSummary[];
   onChange: (next: InventoryFilterState) => void;
   onReload: () => void;
   onVerifyAll: () => void;
@@ -26,6 +28,7 @@ const STATUS_OPTIONS: StatusKey[] = ["passed", "failed", "error", "none"];
 
 export function InventoryFilters({
   value,
+  scenarios,
   onChange,
   onReload,
   onVerifyAll,
@@ -59,13 +62,22 @@ export function InventoryFilters({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
-          <span>{t("inventory.rootLabel", { defaultValue: "Root path" })}</span>
-          <input
-            data-testid="inventory-root"
-            value={value.root}
-            onChange={(e) => onChange({ ...value, root: e.target.value })}
-            className="h-9 w-40 rounded-control border border-app-border bg-app-surface px-2 text-sm text-app-foreground"
-          />
+          <span>{t("inventory.scenarioLabel", { defaultValue: "Scenario" })}</span>
+          <select
+            data-testid="inventory-scenario"
+            value={value.scenarioId}
+            onChange={(e) => onChange({ ...value, scenarioId: e.target.value })}
+            className="h-9 min-w-[12rem] rounded-control border border-app-border bg-app-surface px-2 text-sm text-app-foreground"
+          >
+            <option value="">
+              {t("inventory.scenarioAll", { defaultValue: "All scenarios" })}
+            </option>
+            {scenarios.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.displayName} ({s.flowCount})
+              </option>
+            ))}
+          </select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
           <span>{t("inventory.language", { defaultValue: "Language" })}</span>

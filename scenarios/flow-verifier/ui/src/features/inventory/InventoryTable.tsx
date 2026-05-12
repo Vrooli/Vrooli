@@ -6,7 +6,7 @@ import { useTranslation } from "../../i18n";
 interface Props {
   flows: FlowSummary[];
   latestByFlow: Map<string, RunRow>;
-  onVerifyOne: (flowId: string) => void;
+  onVerifyOne: (flow: FlowSummary) => void;
   verifyingFlowId?: string;
   anyPending: boolean;
 }
@@ -33,6 +33,7 @@ export function InventoryTable({
         <thead className="bg-app-surface-muted text-xs uppercase tracking-wide text-app-muted-foreground">
           <tr>
             <th className="px-3 py-2 font-medium">{t("inventory.colFlow", { defaultValue: "Flow" })}</th>
+            <th className="px-3 py-2 font-medium">{t("inventory.colScenario", { defaultValue: "Scenario" })}</th>
             <th className="px-3 py-2 font-medium">{t("inventory.colLang", { defaultValue: "Lang" })}</th>
             <th className="px-3 py-2 font-medium">{t("inventory.colStatus", { defaultValue: "Last status" })}</th>
             <th className="px-3 py-2 font-medium">{t("inventory.colWhen", { defaultValue: "When" })}</th>
@@ -54,11 +55,27 @@ export function InventoryTable({
                 <td className="px-3 py-2 font-medium">
                   <Link
                     data-testid={`inventory-link-${flow.flowId}`}
-                    to={`/flows/${flow.flowId}`}
+                    to={
+                      flow.scenarioId
+                        ? `/flows/${encodeURIComponent(flow.flowId)}?scenario=${encodeURIComponent(flow.scenarioId)}`
+                        : `/flows/${encodeURIComponent(flow.flowId)}`
+                    }
                     className="text-app-primary hover:underline"
                   >
                     {flow.flowId}
                   </Link>
+                </td>
+                <td className="px-3 py-2 text-xs text-app-muted-foreground">
+                  {flow.scenarioId ? (
+                    <Link
+                      to={`/scenarios/${encodeURIComponent(flow.scenarioId)}`}
+                      className="hover:underline"
+                    >
+                      {flow.scenarioId}
+                    </Link>
+                  ) : (
+                    "—"
+                  )}
                 </td>
                 <td className="px-3 py-2 text-app-muted-foreground">{flow.language}</td>
                 <td className="px-3 py-2">
@@ -76,7 +93,7 @@ export function InventoryTable({
                   <button
                     type="button"
                     data-testid={`inventory-verify-${flow.flowId}`}
-                    onClick={() => onVerifyOne(flow.flowId)}
+                    onClick={() => onVerifyOne(flow)}
                     disabled={anyPending}
                     className="inline-flex h-8 items-center rounded-control border border-app-border bg-app-surface px-3 text-xs text-app-foreground hover:bg-app-surface-muted disabled:opacity-60"
                   >

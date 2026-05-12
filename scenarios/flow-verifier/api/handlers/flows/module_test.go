@@ -25,14 +25,14 @@ func newFlowsLive(t *testing.T) *httpx.LiveServer {
 	t.Helper()
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
-		handlers.Module(),
+		handlers.Module(nil),
 	)
 	return httpx.NewLiveServer(t, srv)
 }
 
 // TestModule_Shape pins the public contract of the module.
 func TestModule_Shape(t *testing.T) {
-	mod := handlers.Module()
+	mod := handlers.Module(nil)
 	require.Equal(t, "flows", mod.Name)
 	require.NotNil(t, mod.Mount)
 	require.NotEmpty(t, mod.Endpoints, "flows ships GET /api/v1/flows and GET /api/v1/flows/{id}")

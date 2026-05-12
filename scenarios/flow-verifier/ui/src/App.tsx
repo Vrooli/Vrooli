@@ -7,6 +7,8 @@ import { useTranslation } from "./i18n";
 
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const InventoryPage = lazy(() => import("./pages/InventoryPage").then((m) => ({ default: m.InventoryPage })));
+const ScenariosPage = lazy(() => import("./pages/ScenariosPage").then((m) => ({ default: m.ScenariosPage })));
+const ScenarioDetailPage = lazy(() => import("./pages/ScenarioDetailPage").then((m) => ({ default: m.ScenarioDetailPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 const FlowDetailPage = lazy(() =>
@@ -44,6 +46,8 @@ export default function App() {
     <Routes>
       <Route element={<AppShell />}>
         <Route path="/" element={<Page><DashboardPage /></Page>} />
+        <Route path="/scenarios" element={<Page><ScenariosPage /></Page>} />
+        <Route path="/scenarios/:scenarioId" element={<Page><ScenarioDetailPage /></Page>} />
         <Route path="/flows" element={<Page><InventoryPage /></Page>} />
         <Route path="/flows/:flowId" element={<Page><FlowDetailPage /></Page>} />
         <Route path="/runs/:runId" element={<Page><RunDetailPage /></Page>} />

@@ -13,16 +13,15 @@ import { fetchFlows } from "../api/inventory";
 import { useTranslation } from "../i18n";
 
 interface Props {
-  root?: string;
   onNavigate?: () => void;
 }
 
-export function SidebarFlowList({ root = ".", onNavigate }: Props) {
+export function SidebarFlowList({ onNavigate }: Props) {
   const { t } = useTranslation();
   const { flowId: active } = useParams();
   const { data, isLoading, error } = useQuery({
-    queryKey: ["flows", root],
-    queryFn: () => fetchFlows(root),
+    queryKey: ["flows", "all"],
+    queryFn: () => fetchFlows(),
     staleTime: 30_000,
   });
 
@@ -50,7 +49,11 @@ export function SidebarFlowList({ root = ".", onNavigate }: Props) {
         {(data ?? []).map((f) => (
           <li key={f.flowId}>
             <NavLink
-              to={`/flows/${f.flowId}`}
+              to={
+                f.scenarioId
+                  ? `/flows/${encodeURIComponent(f.flowId)}?scenario=${encodeURIComponent(f.scenarioId)}`
+                  : `/flows/${encodeURIComponent(f.flowId)}`
+              }
               onClick={onNavigate}
               data-testid={`sidebar-flow-${f.flowId}`}
               data-active={active === f.flowId ? "true" : undefined}

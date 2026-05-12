@@ -36,6 +36,14 @@ func Find(root string, suffix string) ([]string, error) {
 	var out []string
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
+			// Unreadable subtrees (resource data dirs, .git internals,
+			// chrome-user-data, …) must not abort a multi-scenario walk.
+			// Skip the subtree and keep going — the alternative is the
+			// original bug where one permission-denied dir produced an
+			// empty inventory.
+			if entry != nil && entry.IsDir() && os.IsPermission(err) {
+				return filepath.SkipDir
+			}
 			return err
 		}
 		if entry.IsDir() && spec.IgnoredDirectories[entry.Name()] && path != root {

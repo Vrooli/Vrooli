@@ -58,7 +58,7 @@ describe("InventoryTable", () => {
       />,
     );
     await user.click(screen.getByTestId("inventory-verify-alpha.flow"));
-    expect(onVerify).toHaveBeenCalledWith("alpha.flow");
+    expect(onVerify).toHaveBeenCalledWith(expect.objectContaining({ flowId: "alpha.flow" }));
   });
 
   it("shows em-dash when no run has happened yet", () => {

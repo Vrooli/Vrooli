@@ -11,6 +11,7 @@ export type FlowSummary = {
   contractPath: string;
   language: string;
   schemaVersion: number;
+  scenarioId?: string;
 };
 
 export type RunRow = {
@@ -43,9 +44,13 @@ async function getJson<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function fetchFlows(root: string): Promise<FlowSummary[]> {
-  const q = new URLSearchParams({ root });
-  const body = await getJson<{ flows?: FlowSummary[] }>(`/api/v1/flows?${q.toString()}`);
+export async function fetchFlows(opts: { scenarioId?: string } = {}): Promise<FlowSummary[]> {
+  const q = new URLSearchParams();
+  if (opts.scenarioId) q.set("scenario", opts.scenarioId);
+  const suffix = q.toString();
+  const body = await getJson<{ flows?: FlowSummary[] }>(
+    `/api/v1/flows${suffix ? "?" + suffix : ""}`,
+  );
   return body.flows ?? [];
 }
 
@@ -112,9 +117,16 @@ export type FlowDetail = {
   report: string;
 };
 
-export async function fetchFlowDetail(root: string, flowId: string): Promise<FlowDetail> {
-  const q = new URLSearchParams({ root });
-  return getJson<FlowDetail>(`/api/v1/flows/${encodeURIComponent(flowId)}?${q.toString()}`);
+export async function fetchFlowDetail(
+  flowId: string,
+  opts: { scenarioId?: string } = {},
+): Promise<FlowDetail> {
+  const q = new URLSearchParams();
+  if (opts.scenarioId) q.set("scenario", opts.scenarioId);
+  const suffix = q.toString();
+  return getJson<FlowDetail>(
+    `/api/v1/flows/${encodeURIComponent(flowId)}${suffix ? "?" + suffix : ""}`,
+  );
 }
 
 export async function fetchRun(runId: string): Promise<RunRow> {

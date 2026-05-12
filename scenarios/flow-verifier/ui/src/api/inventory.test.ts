@@ -53,7 +53,7 @@ describe("inventory API client", () => {
   });
 
   describe("fetchFlows", () => {
-    it("issues GET to /api/v1/flows with the encoded root and returns the flows array", async () => {
+    it("issues GET to /api/v1/flows with no query string by default", async () => {
       fetchMock.mockResolvedValue(
         jsonResponse({
           flows: [
@@ -62,32 +62,41 @@ describe("inventory API client", () => {
               contractPath: "api/example/flow/flow.json",
               language: "go",
               schemaVersion: 6,
+              scenarioId: "demo",
             },
           ],
         }),
       );
 
-      const got = await fetchFlows("templates/scenarios/react-vite");
+      const got = await fetchFlows();
 
       expect(got).toHaveLength(1);
       expect(got[0]?.flowId).toBe("example.workflow.api");
+      expect(got[0]?.scenarioId).toBe("demo");
 
       const args = lastFetchCall(fetchMock);
       expect(args[1]?.method).toBe("GET");
       expect(args[1]?.cache).toBe("no-store");
       const url = urlOf(args);
       expect(url).toContain("/api/v1/flows");
-      expect(url).toContain("root=templates%2Fscenarios%2Freact-vite");
+      expect(url).not.toContain("?");
+    });
+
+    it("encodes scenarioId as ?scenario=", async () => {
+      fetchMock.mockResolvedValue(jsonResponse({ flows: [] }));
+      await fetchFlows({ scenarioId: "alpha beta" });
+      const url = urlOf(lastFetchCall(fetchMock));
+      expect(url).toContain("scenario=alpha+beta");
     });
 
     it("returns an empty array when the server omits flows", async () => {
       fetchMock.mockResolvedValue(jsonResponse({}));
-      await expect(fetchFlows(".")).resolves.toEqual([]);
+      await expect(fetchFlows()).resolves.toEqual([]);
     });
 
     it("throws ApiError on a 5xx envelope so the UI surfaces a typed error", async () => {
       fetchMock.mockResolvedValue(errorEnvelope(500, "internal", "boom"));
-      await expect(fetchFlows(".")).rejects.toBeInstanceOf(ApiError);
+      await expect(fetchFlows()).rejects.toBeInstanceOf(ApiError);
     });
   });
 

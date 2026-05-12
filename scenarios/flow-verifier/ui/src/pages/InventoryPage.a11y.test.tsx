@@ -13,6 +13,11 @@ vi.mock("../api/inventory", async (importOriginal) => {
   };
 });
 
+vi.mock("../api/scenarios", () => ({
+  fetchScenarios: vi.fn().mockResolvedValue({ vrooliRoot: "/repo", scenarios: [] }),
+  fetchScenarioDetail: vi.fn(),
+}));
+
 import { InventoryPage } from "./InventoryPage";
 
 describe("InventoryPage accessibility", () => {

@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 6,
+  "flowId": "flow-verifier.verification-run.api",
+  "domain": "runs",
+  "description": "Lifecycle of a single verification run: queued → running → passed / failed / errored.",
+  "model": {
+    "module": "VerificationRunWorkflow",
+    "seed": "2026051201",
+    "maxSteps": 4,
+    "traceCount": 4,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState"
+      ]
+    }
+  },
+  "states": [
+    { "id": "queued", "quint": "Queued", "initial": true },
+    { "id": "running", "quint": "Running" },
+    { "id": "passed", "quint": "Passed", "terminal": true },
+    { "id": "failed", "quint": "Failed", "terminal": true },
+    { "id": "errored", "quint": "Errored", "terminal": true }
+  ],
+  "events": [
+    { "id": "start", "quint": "Start" },
+    { "id": "succeed", "quint": "Succeed" },
+    { "id": "fail", "quint": "Fail" },
+    { "id": "crash", "quint": "Crash" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": true },
+    "terminal": { "to": "self", "wantError": true }
+  },
+  "transitions": [
+    { "from": "queued", "event": "start", "to": "running" },
+    { "from": "queued", "event": "crash", "to": "errored" },
+    { "from": "running", "event": "succeed", "to": "passed" },
+    { "from": "running", "event": "fail", "to": "failed" },
+    { "from": "running", "event": "crash", "to": "errored" }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },
+    { "id": "terminal_closure", "quint": "TerminalClosure", "description": "Terminal states cannot transition to another status." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions are state preserving." }
+  ],
+  "traces": [
+    {
+      "name": "success",
+      "initial": "queued",
+      "steps": [
+        { "event": "start", "want": "running", "wantError": false },
+        { "event": "succeed", "want": "passed", "wantError": false }
+      ]
+    },
+    {
+      "name": "verification_failure",
+      "initial": "queued",
+      "steps": [
+        { "event": "start", "want": "running", "wantError": false },
+        { "event": "fail", "want": "failed", "wantError": false }
+      ]
+    },
+    {
+      "name": "runner_crash_after_start",
+      "initial": "queued",
+      "steps": [
+        { "event": "start", "want": "running", "wantError": false },
+        { "event": "crash", "want": "errored", "wantError": false }
+      ]
+    },
+    {
+      "name": "runner_crash_before_start",
+      "initial": "queued",
+      "steps": [
+        { "event": "crash", "want": "errored", "wantError": false }
+      ]
+    }
+  ],
+  "runtime": {
+    "go": {
+      "package": "flow",
+      "statusType": "VerificationRunStatus",
+      "eventType": "VerificationRunEvent",
+      "constantPrefix": "VerificationRun"
+    }
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionVerificationRun",
+      "stateType": "VerificationRunState",
+      "statusField": "Status"
+    }
+  }
+}

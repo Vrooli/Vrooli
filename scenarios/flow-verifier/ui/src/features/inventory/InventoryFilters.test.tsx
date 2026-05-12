@@ -9,7 +9,7 @@ import {
 } from "./InventoryFilters";
 
 const baseState: InventoryFilterState = {
-  root: ".",
+  scenarioId: "",
   search: "",
   language: "all",
   status: [],
@@ -25,6 +25,7 @@ describe("InventoryFilters", () => {
     renderWithProviders(
       <InventoryFilters
         value={baseState}
+        scenarios={[]}
         onChange={onChange}
         onReload={() => {}}
         onVerifyAll={() => {}}
@@ -43,6 +44,7 @@ describe("InventoryFilters", () => {
     renderWithProviders(
       <InventoryFilters
         value={baseState}
+        scenarios={[]}
         onChange={onChange}
         onReload={() => {}}
         onVerifyAll={() => {}}
@@ -61,6 +63,7 @@ describe("InventoryFilters", () => {
     renderWithProviders(
       <InventoryFilters
         value={baseState}
+        scenarios={[]}
         onChange={onChange}
         onReload={() => {}}
         onVerifyAll={() => {}}
@@ -77,6 +80,7 @@ describe("InventoryFilters", () => {
     renderWithProviders(
       <InventoryFilters
         value={baseState}
+        scenarios={[]}
         onChange={() => {}}
         onReload={() => {}}
         onVerifyAll={() => {}}
@@ -92,6 +96,7 @@ describe("InventoryFilters", () => {
     renderWithProviders(
       <InventoryFilters
         value={baseState}
+        scenarios={[]}
         onChange={() => {}}
         onReload={onReload}
         onVerifyAll={() => {}}

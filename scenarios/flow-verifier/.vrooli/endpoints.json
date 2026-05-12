@@ -72,6 +72,28 @@
       }
     },
     {
+      "id": "scenarios.list",
+      "path": "/api/v1/scenarios",
+      "method": "GET",
+      "summary": "List discovered scenarios",
+      "description": "Walks <vrooli-root>/scenarios/* for .vrooli/service.json descriptors and returns one row per scenario with display name, description, path, and flow count.",
+      "category": "scenarios",
+      "cli_mapping": {
+        "command": "flow-verifier scenarios list"
+      }
+    },
+    {
+      "id": "scenarios.get",
+      "path": "/api/v1/scenarios/{id}",
+      "method": "GET",
+      "summary": "Scenario detail",
+      "description": "Returns the scenario descriptor plus the flow summaries discovered inside it.",
+      "category": "scenarios",
+      "cli_mapping": {
+        "command": "flow-verifier scenarios get"
+      }
+    },
+    {
       "id": "settings.get",
       "path": "/api/v1/settings",
       "method": "GET",
@@ -136,6 +158,16 @@
       "name": "verify run",
       "description": "Regenerate verification artifacts for every flow",
       "endpoint_id": "verifications.start"
+    },
+    {
+      "name": "scenarios list",
+      "description": "List every scenario discovered under the Vrooli root with its flow count",
+      "endpoint_id": "scenarios.list"
+    },
+    {
+      "name": "scenarios get",
+      "description": "Show one scenario with its discovered flows",
+      "endpoint_id": "scenarios.get"
     },
     {
       "name": "runs list",

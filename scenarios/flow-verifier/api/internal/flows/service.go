@@ -18,11 +18,17 @@ import (
 
 // Summary is the thin row returned by List — enough for the inventory UI
 // and `flows list` text output without forcing the full Flow type.
+//
+// ScenarioID is left empty by List (which works in a single root); the
+// scenarios HTTP handler stamps it in when aggregating across roots so
+// the UI's global flow list can show which scenario each flow belongs
+// to without an extra round-trip.
 type Summary struct {
 	FlowID       string `json:"flowId"`
 	ContractPath string `json:"contractPath"`
 	Language     string `json:"language"`
 	SchemaVer    int    `json:"schemaVersion"`
+	ScenarioID   string `json:"scenarioId,omitempty"`
 }
 
 // List discovers, compiles, and summarises every flow rooted at root.

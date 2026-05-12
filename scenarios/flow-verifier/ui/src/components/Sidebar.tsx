@@ -7,7 +7,7 @@
  */
 import { type CSSProperties, type ReactNode, forwardRef } from "react";
 import { NavLink, Link } from "react-router-dom";
-import { GaugeCircle, Layers, Settings as SettingsIcon } from "lucide-react";
+import { Boxes, GaugeCircle, Layers, Settings as SettingsIcon } from "lucide-react";
 
 import { useTranslation } from "../i18n";
 
@@ -42,8 +42,14 @@ export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
       testid: "nav-dashboard",
     },
     {
+      to: "/scenarios",
+      label: t("nav.scenarios", { defaultValue: "Scenarios" }),
+      icon: <Boxes aria-hidden className="h-4 w-4" />,
+      testid: "nav-scenarios",
+    },
+    {
       to: "/flows",
-      label: t("nav.flows", { defaultValue: "Flows" }),
+      label: t("nav.flows", { defaultValue: "All flows" }),
       icon: <Layers aria-hidden className="h-4 w-4" />,
       testid: "nav-flows",
     },

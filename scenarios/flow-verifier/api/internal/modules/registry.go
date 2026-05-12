@@ -24,6 +24,7 @@ import (
 	flowsH "flow-verifier/handlers/flows"
 	healthH "flow-verifier/handlers/health"
 	runsH "flow-verifier/handlers/runs"
+	scenariosH "flow-verifier/handlers/scenarios"
 	settingsH "flow-verifier/handlers/settings"
 	verificationsH "flow-verifier/handlers/verifications"
 	localdb "flow-verifier/internal/database"
@@ -38,6 +39,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, flowsH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, runsH.Endpoints...)
+	out = append(out, scenariosH.Endpoints...)
 	out = append(out, settingsH.Endpoints...)
 	out = append(out, verificationsH.Endpoints...)
 	return out
@@ -56,6 +58,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(flowsH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(runsH.Schema),
+		apidb.SchemaProviderFunc(scenariosH.Schema),
 		apidb.SchemaProviderFunc(settingsH.Schema),
 		apidb.SchemaProviderFunc(verificationsH.Schema),
 	}

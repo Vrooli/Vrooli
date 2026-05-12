@@ -1,8 +1,15 @@
 /**
- * InventoryPage — full-width Flow Inventory.
+ * InventoryPage — flat global flow inventory across every scenario.
  *
- * Filters/sort are URL-first (so deep-links work) and a debounced echo
- * to `user_settings.inventoryFilters` provides cross-session defaults.
+ * Primary navigation surface for flows is `/scenarios`; this page is
+ * the secondary "all flows everywhere" view. State is URL-first so
+ * deep links work, with a debounced echo to user settings handled
+ * elsewhere (filters value alone is local).
+ *
+ * The page composes two queries: `/api/v1/scenarios` for the filter
+ * options (so the dropdown is populated and we can resolve a
+ * scenario's filesystem path before calling verify), and
+ * `/api/v1/flows[?scenario=<id>]` for the rows themselves.
  */
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +22,7 @@ import {
   type FlowSummary,
   type RunRow,
 } from "../api/inventory";
+import { fetchScenarios } from "../api/scenarios";
 import { errorMessage } from "../lib/errorMessage";
 import { useTranslation } from "../i18n";
 import {
@@ -27,12 +35,13 @@ import {
 } from "../features/inventory/InventoryFilters";
 import { InventoryTable } from "../features/inventory/InventoryTable";
 
-const FLOWS_KEY = (root: string) => ["flows", root] as const;
+const FLOWS_KEY = (scenarioId: string) => ["flows", scenarioId || "all"] as const;
 const RUNS_KEY = ["runs", "all"] as const;
+const SCENARIOS_KEY = ["scenarios"] as const;
 
 function defaultState(): InventoryFilterState {
   return {
-    root: ".",
+    scenarioId: "",
     search: "",
     language: "all",
     status: [],
@@ -43,7 +52,7 @@ function defaultState(): InventoryFilterState {
 function readUrl(params: URLSearchParams): InventoryFilterState {
   const d = defaultState();
   return {
-    root: params.get("root") ?? d.root,
+    scenarioId: params.get("scenario") ?? d.scenarioId,
     search: params.get("q") ?? d.search,
     language: (params.get("lang") as LanguageKey | null) ?? d.language,
     status: (params.get("status") ?? "")
@@ -59,7 +68,7 @@ function readUrl(params: URLSearchParams): InventoryFilterState {
 
 function writeUrl(s: InventoryFilterState): URLSearchParams {
   const out = new URLSearchParams();
-  if (s.root && s.root !== ".") out.set("root", s.root);
+  if (s.scenarioId) out.set("scenario", s.scenarioId);
   if (s.search) out.set("q", s.search);
   if (s.language !== "all") out.set("lang", s.language);
   if (s.status.length > 0) out.set("status", s.status.join(","));
@@ -79,14 +88,27 @@ export function InventoryPage() {
     setSearchParams(writeUrl(state), { replace: true });
   }, [state, setSearchParams]);
 
+  const scenariosQuery = useQuery({
+    queryKey: SCENARIOS_KEY,
+    queryFn: fetchScenarios,
+  });
   const flowsQuery = useQuery({
-    queryKey: FLOWS_KEY(state.root),
-    queryFn: () => fetchFlows(state.root),
+    queryKey: FLOWS_KEY(state.scenarioId),
+    queryFn: () => fetchFlows({ scenarioId: state.scenarioId || undefined }),
   });
   const runsQuery = useQuery({
     queryKey: RUNS_KEY,
     queryFn: () => fetchRuns({ limit: 200 }),
   });
+
+  // Lookup table from scenarioId → filesystem path so verify mutations
+  // can pass the path through to the verifications endpoint (which
+  // takes a root, not a scenario id).
+  const pathByScenario = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of scenariosQuery.data?.scenarios ?? []) m.set(s.id, s.path);
+    return m;
+  }, [scenariosQuery.data]);
 
   const latestByFlow = useMemo(() => {
     const m = new Map<string, RunRow>();
@@ -116,14 +138,18 @@ export function InventoryPage() {
   const verifyAll = useMutation({
     mutationFn: async (flows: FlowSummary[]) => {
       for (const flow of flows) {
-        await verifyFlow(state.root, flow.flowId);
+        const root = pathByScenario.get(flow.scenarioId ?? "") ?? "";
+        if (!root) continue;
+        await verifyFlow(root, flow.flowId);
         await queryClient.invalidateQueries({ queryKey: RUNS_KEY });
       }
     },
   });
   const verifyOne = useMutation({
-    mutationFn: async (flowId: string) => {
-      await verifyFlow(state.root, flowId);
+    mutationFn: async (flow: FlowSummary) => {
+      const root = pathByScenario.get(flow.scenarioId ?? "") ?? "";
+      if (!root) throw new Error("scenario path unresolved for " + flow.flowId);
+      await verifyFlow(root, flow.flowId);
       await queryClient.invalidateQueries({ queryKey: RUNS_KEY });
     },
   });
@@ -134,21 +160,23 @@ export function InventoryPage() {
     <div data-testid="inventory-page" className="flex flex-col gap-4">
       <header>
         <h1 className="text-2xl font-semibold text-app-foreground">
-          {t("inventory.heading", { defaultValue: "Flow inventory" })}
+          {t("inventory.heading", { defaultValue: "All flows" })}
         </h1>
         <p className="mt-1 text-sm text-app-muted-foreground">
           {t("inventory.subtitle", {
-            defaultValue: "Search, filter, and verify every discovered flow under the current root.",
+            defaultValue: "Search, filter, and verify every discovered flow across every scenario.",
           })}
         </p>
       </header>
 
       <InventoryFilters
         value={state}
+        scenarios={scenariosQuery.data?.scenarios ?? []}
         onChange={setState}
         onReload={() => {
           void flowsQuery.refetch();
           void runsQuery.refetch();
+          void scenariosQuery.refetch();
         }}
         onVerifyAll={() => verifyAll.mutate(filtered)}
         verifyingAll={verifyAll.isPending}
@@ -167,15 +195,20 @@ export function InventoryPage() {
       )}
       {!flowsQuery.isLoading && filtered.length === 0 && !flowsQuery.error && (
         <p data-testid="inventory-empty" className="text-sm text-app-muted-foreground">
-          {t("inventory.empty", { defaultValue: "No flows match these filters." })}
+          {(flowsQuery.data ?? []).length === 0
+            ? t("inventory.emptyAll", {
+                defaultValue:
+                  "No flows discovered yet. Generate or migrate a scenario to use schema-v6 flow.json files.",
+              })
+            : t("inventory.empty", { defaultValue: "No flows match these filters." })}
         </p>
       )}
       {filtered.length > 0 && (
         <InventoryTable
           flows={filtered}
           latestByFlow={latestByFlow}
-          onVerifyOne={(id) => verifyOne.mutate(id)}
-          verifyingFlowId={verifyOne.isPending ? verifyOne.variables : undefined}
+          onVerifyOne={(flow) => verifyOne.mutate(flow)}
+          verifyingFlowId={verifyOne.isPending ? verifyOne.variables.flowId : undefined}
           anyPending={anyPending}
         />
       )}

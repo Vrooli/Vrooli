@@ -22,6 +22,16 @@
       "endpoint_id": "verifications.start"
     },
     {
+      "name": "scenarios list",
+      "description": "List every scenario discovered under the Vrooli root with its flow count",
+      "endpoint_id": "scenarios.list"
+    },
+    {
+      "name": "scenarios get",
+      "description": "Show one scenario with its discovered flows",
+      "endpoint_id": "scenarios.get"
+    },
+    {
       "name": "runs list",
       "description": "List persisted verification runs",
       "endpoint_id": "runs.list"

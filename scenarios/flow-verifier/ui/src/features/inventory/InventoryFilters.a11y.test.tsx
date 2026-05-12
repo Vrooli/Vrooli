@@ -11,12 +11,13 @@ describe("InventoryFilters accessibility", () => {
     const { container } = renderWithProviders(
       <InventoryFilters
         value={{
-          root: ".",
+          scenarioId: "",
           search: "",
           language: "all",
           status: [],
           sort: { key: "flowId", dir: "asc" },
         }}
+        scenarios={[]}
         onChange={() => {}}
         onReload={() => {}}
         onVerifyAll={() => {}}

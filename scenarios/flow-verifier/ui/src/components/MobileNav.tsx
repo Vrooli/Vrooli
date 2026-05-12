@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { GaugeCircle, Layers, Settings as SettingsIcon } from "lucide-react";
+import { Boxes, GaugeCircle, Layers, Settings as SettingsIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useTranslation } from "../i18n";
@@ -23,8 +23,14 @@ export function MobileNav() {
       testid: "mobile-nav-dashboard",
     },
     {
+      to: "/scenarios",
+      label: t("nav.scenarios", { defaultValue: "Scenarios" }),
+      icon: <Boxes aria-hidden className="h-5 w-5" />,
+      testid: "mobile-nav-scenarios",
+    },
+    {
       to: "/flows",
-      label: t("nav.flows", { defaultValue: "Flows" }),
+      label: t("nav.flows", { defaultValue: "All flows" }),
       icon: <Layers aria-hidden className="h-5 w-5" />,
       testid: "mobile-nav-flows",
     },

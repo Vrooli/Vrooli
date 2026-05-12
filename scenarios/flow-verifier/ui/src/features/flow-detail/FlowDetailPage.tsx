@@ -18,24 +18,23 @@ import { TracePlayer } from "./TracePlayer";
 
 type TabKey = "graph" | "traces" | "history";
 
-const DEFAULT_ROOT = ".";
-
-const FLOW_DETAIL_KEY = (root: string, flowId: string) =>
-  ["flow-detail", root, flowId] as const;
+const FLOW_DETAIL_KEY = (scenarioId: string, flowId: string) =>
+  ["flow-detail", scenarioId, flowId] as const;
 const FLOW_RUNS_KEY = (flowId: string) => ["runs", "flow", flowId] as const;
 
 /**
  * FlowDetailPage — the per-flow visual debugger.
  *
- * Reads `:flowId` from the route + `root` from `?root=` (defaulting to
- * "."). Tabs: Graph (StateGraph), Traces (TracePlayer), History (run
- * list + CounterexampleDiff on failing-run selection).
+ * Reads `:flowId` from the route + an optional `?scenario=<id>` hint
+ * (skips the cross-scenario lookup on the server). Tabs: Graph
+ * (StateGraph), Traces (TracePlayer), History (run list +
+ * CounterexampleDiff on failing-run selection).
  */
 export function FlowDetailPage() {
   const { t } = useTranslation();
   const { flowId } = useParams<{ flowId: string }>();
   const [searchParams] = useSearchParams();
-  const root = searchParams.get("root") ?? DEFAULT_ROOT;
+  const scenarioId = searchParams.get("scenario") ?? "";
   const [tab, setTab] = useState<TabKey>("graph");
 
   if (!flowId) {
@@ -52,7 +51,7 @@ export function FlowDetailPage() {
   return (
     <FlowDetailBody
       flowId={flowId}
-      root={root}
+      scenarioId={scenarioId}
       tab={tab}
       onTabChange={setTab}
       t={t}
@@ -62,16 +61,16 @@ export function FlowDetailPage() {
 
 interface BodyProps {
   flowId: string;
-  root: string;
+  scenarioId: string;
   tab: TabKey;
   onTabChange: (tab: TabKey) => void;
   t: ReturnType<typeof useTranslation>["t"];
 }
 
-function FlowDetailBody({ flowId, root, tab, onTabChange, t }: BodyProps) {
+function FlowDetailBody({ flowId, scenarioId, tab, onTabChange, t }: BodyProps) {
   const detailQuery = useQuery({
-    queryKey: FLOW_DETAIL_KEY(root, flowId),
-    queryFn: () => fetchFlowDetail(root, flowId),
+    queryKey: FLOW_DETAIL_KEY(scenarioId, flowId),
+    queryFn: () => fetchFlowDetail(flowId, { scenarioId: scenarioId || undefined }),
   });
   const [inspectedRun, setInspectedRun] = useState<RunRow | null>(null);
 
