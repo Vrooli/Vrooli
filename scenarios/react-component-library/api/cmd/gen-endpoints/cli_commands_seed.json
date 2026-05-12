@@ -7,6 +7,26 @@
       "endpoint_id": "health"
     },
     {
+      "name": "adoptions list",
+      "description": "List adoption records (--component-id ID, --scenario NAME, --limit N)",
+      "endpoint_id": "adoptions_list"
+    },
+    {
+      "name": "adoptions create",
+      "description": "Create an adoption record linking a library component to a scenario tree",
+      "endpoint_id": "adoptions_create"
+    },
+    {
+      "name": "adoptions delete",
+      "description": "Delete an adoption record by id",
+      "endpoint_id": "adoptions_delete"
+    },
+    {
+      "name": "adoptions refresh",
+      "description": "Recompute drift status for every adoption (or one component's; use --component-id ID)",
+      "endpoint_id": "adoptions_refresh"
+    },
+    {
       "name": "components index",
       "description": "Walk the source root and refresh the components registry",
       "endpoint_id": "components_index"

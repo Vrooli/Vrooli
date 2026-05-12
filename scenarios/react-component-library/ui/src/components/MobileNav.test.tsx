@@ -7,11 +7,12 @@ import { MobileNav } from "./MobileNav";
 describe("MobileNav", () => {
   afterEach(() => cleanup());
 
-  it("renders the three primary destinations", () => {
+  it("renders the four primary destinations", () => {
     renderWithProviders(<MobileNav />);
     expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-nav-dashboard")).toHaveAttribute("href", "/");
     expect(screen.getByTestId("mobile-nav-components")).toHaveAttribute("href", "/components");
+    expect(screen.getByTestId("mobile-nav-adoptions")).toHaveAttribute("href", "/adoptions");
     expect(screen.getByTestId("mobile-nav-settings")).toHaveAttribute("href", "/settings");
   });
 });

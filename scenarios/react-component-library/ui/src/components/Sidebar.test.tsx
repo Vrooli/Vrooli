@@ -13,6 +13,7 @@ describe("Sidebar", () => {
     expect(screen.getByTestId("app-brand")).toHaveAttribute("href", "/");
     expect(screen.getByTestId("nav-dashboard")).toHaveAttribute("href", "/");
     expect(screen.getByTestId("nav-components")).toHaveAttribute("href", "/components");
+    expect(screen.getByTestId("nav-adoptions")).toHaveAttribute("href", "/adoptions");
     expect(screen.getByTestId("nav-settings")).toHaveAttribute("href", "/settings");
   });
 

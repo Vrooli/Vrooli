@@ -10,7 +10,7 @@
     {
       "id": "AD-001",
       "title": "Create adoption record from CLI or UI",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "adoption",
       "criticality": "P0",
@@ -19,7 +19,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Repository test, handler test, CLI smoke test all cover the create path."
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "AD-002",
       "title": "Refresh computes drift status per adoption record",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "adoption",
       "criticality": "P0",
@@ -36,7 +36,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Service test seeds a fake target scenario tree, varies version/bytes for each status, and asserts the computed status."
         }
       ]
@@ -44,7 +44,7 @@
     {
       "id": "AD-003",
       "title": "UI adoptions dashboard lists records with status badges",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "adoption",
       "criticality": "P0",
@@ -53,7 +53,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Component test renders the page against fixture data covering each status; a11y test ensures status conveys non-color information."
         }
       ]

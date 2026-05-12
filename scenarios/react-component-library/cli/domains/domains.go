@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"react-component-library/cli/domains/adoptions"
 	"react-component-library/cli/domains/components"
 	"react-component-library/cli/domains/preview"
 
@@ -38,6 +39,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 //   - render proto responses with cliapp.RenderProtoList or RenderProtoMutation
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
+		adoptions.Register(core),
 		components.Register(core),
 		preview.Register(core),
 	}

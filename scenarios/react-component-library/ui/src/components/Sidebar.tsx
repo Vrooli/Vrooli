@@ -7,7 +7,7 @@
  */
 import { type CSSProperties, type ReactNode, forwardRef } from "react";
 import { NavLink, Link } from "react-router-dom";
-import { GaugeCircle, Library, Settings as SettingsIcon } from "lucide-react";
+import { GaugeCircle, GitBranch, Library, Settings as SettingsIcon } from "lucide-react";
 
 import { useTranslation } from "../i18n";
 
@@ -46,6 +46,12 @@ export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
       label: t("nav.components", { defaultValue: "Components" }),
       icon: <Library aria-hidden className="h-4 w-4" />,
       testid: "nav-components",
+    },
+    {
+      to: "/adoptions",
+      label: t("nav.adoptions", { defaultValue: "Adoptions" }),
+      icon: <GitBranch aria-hidden className="h-4 w-4" />,
+      testid: "nav-adoptions",
     },
     {
       to: "/settings",

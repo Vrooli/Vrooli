@@ -15,6 +15,7 @@
     "drawerLabel": "ナビゲーションドロワー",
     "dashboard": "ダッシュボード",
     "components": "コンポーネント",
+    "adoptions": "採用状況",
     "settings": "設定"
   },
   "sidebar": {
@@ -112,6 +113,29 @@
       "resetZoom": "ズームをリセット",
       "rotate": "回転",
       "reset": "エミュレーターをリセット"
+    }
+  },
+  "adoptions": {
+    "title": "採用状況",
+    "subtitle": "ライブラリのコンポーネントを採用したシナリオを把握し、ドリフトを検出します。",
+    "loading": "読み込み中…",
+    "empty": "採用レコードはまだありません。CLI で `react-component-library adoptions create` を実行してください。",
+    "refreshAction": "更新",
+    "refreshing": "更新中…",
+    "scenarioFilterLabel": "シナリオで絞り込み",
+    "scenarioFilterPlaceholder": "例: swarm-manager",
+    "summary": "{{count}} 件の採用 — current: {{current}}, behind: {{behind}}, modified: {{modified}}, unknown: {{unknown}}",
+    "versionLabel": "v{{version}}",
+    "neverRefreshed": "未更新",
+    "refreshedAt": "更新: {{when}}",
+    "deleteAction": "削除",
+    "deleting": "削除中…",
+    "status": {
+      "current": "最新",
+      "behind": "古い",
+      "modified": "変更あり",
+      "unknown": "不明",
+      "unspecified": "更新待ち"
     }
   },
   "errors": {

@@ -3,6 +3,150 @@
   "version": "1.0.0",
   "endpoints": [
     {
+      "id": "adoptions_list",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListAdoptions",
+      "method": "POST",
+      "summary": "List adoption records",
+      "description": "Returns adoption records matching optional component_id / scenario / limit filters.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string (filter)",
+          "limit": "int32 (max rows, 0 = server default)",
+          "scenario": "string (filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<Adoption>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library adoptions list"
+      }
+    },
+    {
+      "id": "adoptions_create",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/CreateAdoption",
+      "method": "POST",
+      "summary": "Create an adoption record",
+      "description": "Soft-links a library component to a copy of its source under a target scenario. Validates the component exists; captures a sha256 of the adopted file at create time for later drift comparison.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "adopted_path": "string",
+          "adopted_version": "string",
+          "component_id": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing required field or unknown component_id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library adoptions create",
+        "args": [
+          "<component_id>",
+          "<scenario>",
+          "<adopted_path>"
+        ]
+      }
+    },
+    {
+      "id": "adoptions_delete",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/DeleteAdoption",
+      "method": "POST",
+      "summary": "Delete an adoption record",
+      "description": "Removes the adoption record matching the id.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No adoption with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library adoptions delete",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "adoptions_refresh",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/RefreshAdoptions",
+      "method": "POST",
+      "summary": "Refresh drift status for adoption records",
+      "description": "Recomputes status (current / behind / modified / unknown) for every adoption record, or just those for a single component when component_id is supplied.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string (optional filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<Adoption>",
+          "behind": "int32",
+          "current": "int32",
+          "modified": "int32",
+          "unknown": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library adoptions refresh"
+      }
+    },
+    {
       "id": "components_list",
       "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents",
       "method": "POST",
@@ -317,6 +461,26 @@
       "name": "status",
       "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
       "endpoint_id": "health"
+    },
+    {
+      "name": "adoptions list",
+      "description": "List adoption records (--component-id ID, --scenario NAME, --limit N)",
+      "endpoint_id": "adoptions_list"
+    },
+    {
+      "name": "adoptions create",
+      "description": "Create an adoption record linking a library component to a scenario tree",
+      "endpoint_id": "adoptions_create"
+    },
+    {
+      "name": "adoptions delete",
+      "description": "Delete an adoption record by id",
+      "endpoint_id": "adoptions_delete"
+    },
+    {
+      "name": "adoptions refresh",
+      "description": "Recompute drift status for every adoption (or one component's; use --component-id ID)",
+      "endpoint_id": "adoptions_refresh"
     },
     {
       "name": "components index",

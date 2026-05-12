@@ -15,6 +15,7 @@
     "drawerLabel": "Navigation drawer",
     "dashboard": "Dashboard",
     "components": "Components",
+    "adoptions": "Adoptions",
     "settings": "Settings"
   },
   "sidebar": {
@@ -116,6 +117,29 @@
       "resetZoom": "Reset zoom",
       "rotate": "Rotate",
       "reset": "Reset emulator"
+    }
+  },
+  "adoptions": {
+    "title": "Adoptions",
+    "subtitle": "Track which scenarios have adopted library components and detect drift.",
+    "loading": "Loading adoptions…",
+    "empty": "No adoption records yet. Use `react-component-library adoptions create` from the CLI.",
+    "refreshAction": "Refresh",
+    "refreshing": "Refreshing…",
+    "scenarioFilterLabel": "Filter by scenario",
+    "scenarioFilterPlaceholder": "e.g. swarm-manager",
+    "summary": "{{count}} adoption(s) — current: {{current}}, behind: {{behind}}, modified: {{modified}}, unknown: {{unknown}}",
+    "versionLabel": "v{{version}}",
+    "neverRefreshed": "Never refreshed",
+    "refreshedAt": "Refreshed {{when}}",
+    "deleteAction": "Delete",
+    "deleting": "Deleting…",
+    "status": {
+      "current": "Current",
+      "behind": "Behind",
+      "modified": "Modified",
+      "unknown": "Unknown",
+      "unspecified": "Pending refresh"
     }
   },
   "errors": {

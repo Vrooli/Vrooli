@@ -24,10 +24,12 @@ import (
 
 	localdb "react-component-library/internal/database"
 
+	adoptionsH "react-component-library/handlers/adoptions"
 	componentsH "react-component-library/handlers/components"
 	healthH "react-component-library/handlers/health"
 	previewH "react-component-library/handlers/preview"
 
+	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
 )
@@ -38,6 +40,7 @@ import (
 // .vrooli/endpoints.json meaningful.
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
+	out = append(out, adoptionsH.Endpoints...)
 	out = append(out, componentsH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, previewH.Endpoints...)
@@ -58,6 +61,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "adoptions", File: adoptionsv1.File_react_component_library_v1_adoptions_adoptions_proto},
 		{Module: "components", File: componentsv1.File_react_component_library_v1_components_components_proto},
 		{Module: "preview", File: previewv1.File_react_component_library_v1_preview_preview_proto},
 	}
@@ -73,6 +77,7 @@ func AllProtoFiles() []ProtoFileEntry {
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(adoptionsH.Schema),
 		apidb.SchemaProviderFunc(componentsH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 	}

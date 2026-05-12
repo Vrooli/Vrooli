@@ -14,6 +14,9 @@ const ComponentsPage = lazy(() =>
 const ComponentDetailPage = lazy(() =>
   import("./pages/ComponentDetailPage").then((m) => ({ default: m.ComponentDetailPage })),
 );
+const AdoptionsPage = lazy(() =>
+  import("./pages/AdoptionsPage").then((m) => ({ default: m.AdoptionsPage })),
+);
 const SettingsPage = lazy(() =>
   import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
@@ -51,6 +54,7 @@ export default function App() {
         <Route path="/" element={<Page><DashboardPage /></Page>} />
         <Route path="/components" element={<Page><ComponentsPage /></Page>} />
         <Route path="/components/:id" element={<Page><ComponentDetailPage /></Page>} />
+        <Route path="/adoptions" element={<Page><AdoptionsPage /></Page>} />
         <Route path="/settings" element={<Page><SettingsPage /></Page>} />
         <Route path="*" element={<Page><NotFoundPage /></Page>} />
       </Route>

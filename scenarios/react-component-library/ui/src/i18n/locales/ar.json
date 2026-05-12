@@ -15,6 +15,7 @@
     "drawerLabel": "درج التنقل",
     "dashboard": "لوحة المعلومات",
     "components": "المكوّنات",
+    "adoptions": "حالات التبني",
     "settings": "الإعدادات"
   },
   "sidebar": {
@@ -116,6 +117,29 @@
       "resetZoom": "إعادة التكبير",
       "rotate": "تدوير",
       "reset": "إعادة ضبط المحاكي"
+    }
+  },
+  "adoptions": {
+    "title": "حالات التبني",
+    "subtitle": "تتبع السيناريوهات التي تبنّت مكوّنات المكتبة واكتشف الانحراف.",
+    "loading": "جارٍ التحميل…",
+    "empty": "لا توجد سجلات تبنٍ بعد. استخدم `react-component-library adoptions create` من سطر الأوامر.",
+    "refreshAction": "تحديث",
+    "refreshing": "جارٍ التحديث…",
+    "scenarioFilterLabel": "تصفية حسب السيناريو",
+    "scenarioFilterPlaceholder": "مثال: swarm-manager",
+    "summary": "{{count}} عملية تبنٍ — current: {{current}}, behind: {{behind}}, modified: {{modified}}, unknown: {{unknown}}",
+    "versionLabel": "v{{version}}",
+    "neverRefreshed": "لم يتم التحديث",
+    "refreshedAt": "آخر تحديث: {{when}}",
+    "deleteAction": "حذف",
+    "deleting": "جارٍ الحذف…",
+    "status": {
+      "current": "محدث",
+      "behind": "متأخر",
+      "modified": "مُعدّل",
+      "unknown": "غير معروف",
+      "unspecified": "بانتظار التحديث"
     }
   },
   "errors": {

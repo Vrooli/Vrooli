@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { GaugeCircle, Library, Settings as SettingsIcon } from "lucide-react";
+import { GaugeCircle, GitBranch, Library, Settings as SettingsIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useTranslation } from "../i18n";
@@ -27,6 +27,12 @@ export function MobileNav() {
       label: t("nav.components", { defaultValue: "Components" }),
       icon: <Library aria-hidden className="h-5 w-5" />,
       testid: "mobile-nav-components",
+    },
+    {
+      to: "/adoptions",
+      label: t("nav.adoptions", { defaultValue: "Adoptions" }),
+      icon: <GitBranch aria-hidden className="h-5 w-5" />,
+      testid: "mobile-nav-adoptions",
     },
     {
       to: "/settings",

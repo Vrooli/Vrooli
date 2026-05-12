@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	adoptionsH "react-component-library/handlers/adoptions"
 	componentsH "react-component-library/handlers/components"
 	healthH "react-component-library/handlers/health"
 	previewH "react-component-library/handlers/preview"
@@ -107,6 +108,7 @@ func main() {
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		adoptionsH.Module(db, clock.System{}, adoptionsH.LibraryFromComponents(componentsSvc), log.Default()),
 		componentsH.ModuleWithRoot(db, clock.System{}, sourceRoot, log.Default()),
 		healthH.Module(db, "react-component-library-api", "1.0.0"),
 		previewH.Module(componentsSvc, log.Default()),
