@@ -76,15 +76,17 @@ type runsRecorder struct{ svc *runs.Service }
 
 func (r *runsRecorder) Record(ctx context.Context, e pipeline.RunEntry) error {
 	_, err := r.svc.Record(ctx, runs.Run{
-		FlowID:       e.FlowID,
-		FlowPath:     e.FlowPath,
-		Root:         e.Root,
-		Mode:         pipelineModeToRunsMode(e.Mode),
-		Status:       runs.Status(e.Status),
-		Output:       e.Output,
-		ErrorMessage: e.ErrorMessage,
-		StartedAt:    e.StartedAt,
-		FinishedAt:   e.FinishedAt,
+		FlowID:           e.FlowID,
+		FlowPath:         e.FlowPath,
+		Root:             e.Root,
+		Mode:             pipelineModeToRunsMode(e.Mode),
+		Status:           runs.Status(e.Status),
+		Output:           e.Output,
+		ErrorMessage:     e.ErrorMessage,
+		FailureReason:    e.FailureReason,
+		MissingArtifacts: e.MissingArtifacts,
+		StartedAt:        e.StartedAt,
+		FinishedAt:       e.FinishedAt,
 	})
 	return err
 }

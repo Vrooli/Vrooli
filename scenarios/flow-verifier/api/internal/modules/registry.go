@@ -21,6 +21,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
+	artifactsH "flow-verifier/handlers/artifacts"
 	flowsH "flow-verifier/handlers/flows"
 	healthH "flow-verifier/handlers/health"
 	runsH "flow-verifier/handlers/runs"
@@ -36,6 +37,7 @@ import (
 // .vrooli/endpoints.json meaningful.
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
+	out = append(out, artifactsH.Endpoints...)
 	out = append(out, flowsH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, runsH.Endpoints...)
@@ -55,6 +57,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(artifactsH.Schema),
 		apidb.SchemaProviderFunc(flowsH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(runsH.Schema),

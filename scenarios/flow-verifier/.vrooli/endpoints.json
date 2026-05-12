@@ -3,6 +3,61 @@
   "version": "1.0.0",
   "endpoints": [
     {
+      "id": "flows.artifacts.status",
+      "path": "/api/v1/flows/{id}/artifacts",
+      "method": "GET",
+      "summary": "Inspect a flow's generated/ tree",
+      "description": "Returns each expected artifact path with its existence/mtime, plus an overall fresh|missing status. Pure inspection — no mutation.",
+      "category": "artifacts",
+      "cli_mapping": {
+        "command": "flow-verifier artifacts status"
+      }
+    },
+    {
+      "id": "flows.artifacts.generate",
+      "path": "/api/v1/flows/{id}/artifacts:generate",
+      "method": "POST",
+      "summary": "Generate or regenerate a flow's artifacts",
+      "description": "Runs the pipeline in generate mode for one flow. Returns the new artifacts status alongside the recorded run.",
+      "category": "artifacts",
+      "cli_mapping": {
+        "command": "flow-verifier artifacts generate"
+      }
+    },
+    {
+      "id": "flows.artifacts.clear",
+      "path": "/api/v1/flows/{id}/artifacts",
+      "method": "DELETE",
+      "summary": "Clear a flow's generated/ tree",
+      "description": "Removes every file under <flow-dir>/generated/. Refuses crafted paths that would escape the scenario root.",
+      "category": "artifacts",
+      "cli_mapping": {
+        "command": "flow-verifier artifacts clear"
+      }
+    },
+    {
+      "id": "scenarios.artifacts.generate",
+      "path": "/api/v1/scenarios/{id}/artifacts:generate",
+      "method": "POST",
+      "summary": "Generate artifacts for every flow in a scenario",
+      "description": "Walks every flow inside the scenario and regenerates each one serially.",
+      "category": "artifacts",
+      "cli_mapping": {
+        "command": "flow-verifier artifacts generate --scenario"
+      }
+    },
+    {
+      "id": "scenarios.artifacts.clear",
+      "path": "/api/v1/scenarios/{id}/artifacts",
+      "method": "DELETE",
+      "summary": "Clear artifacts for every flow in a scenario",
+      "description": "Walks every flow inside the scenario and clears each one.",
+      "category": "artifacts",
+      "cli_mapping": {
+        "command": "flow-verifier artifacts clear --scenario"
+      }
+    },
+    {
       "id": "flows.list",
       "path": "/api/v1/flows",
       "method": "GET",
@@ -153,6 +208,31 @@
       "name": "flows explain",
       "description": "Print the typed flow plus its latest verification status",
       "endpoint_id": "flows.get"
+    },
+    {
+      "name": "artifacts status",
+      "description": "Inspect the on-disk generated/ tree for one flow",
+      "endpoint_id": "flows.artifacts.status"
+    },
+    {
+      "name": "artifacts generate",
+      "description": "Generate or regenerate one flow's artifacts (or every flow in a scenario)",
+      "endpoint_id": "flows.artifacts.generate"
+    },
+    {
+      "name": "artifacts clear",
+      "description": "Remove one flow's generated/ tree (or every flow in a scenario)",
+      "endpoint_id": "flows.artifacts.clear"
+    },
+    {
+      "name": "artifacts generate --scenario",
+      "description": "Generate artifacts for every flow inside one scenario",
+      "endpoint_id": "scenarios.artifacts.generate"
+    },
+    {
+      "name": "artifacts clear --scenario",
+      "description": "Clear artifacts for every flow inside one scenario",
+      "endpoint_id": "scenarios.artifacts.clear"
     },
     {
       "name": "verify run",

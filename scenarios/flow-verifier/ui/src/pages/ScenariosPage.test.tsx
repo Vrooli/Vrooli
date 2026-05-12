@@ -1,11 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
 
 vi.mock("../api/scenarios", () => ({
   fetchScenarios: vi.fn(),
   fetchScenarioDetail: vi.fn(),
+}));
+
+vi.mock("../api/artifacts", () => ({
+  generateScenarioArtifacts: vi.fn(),
+  clearScenarioArtifacts: vi.fn(),
 }));
 
 import { ScenariosPage } from "./ScenariosPage";
@@ -20,18 +26,30 @@ const alpha = {
 const beta = {
   id: "beta",
   displayName: "Beta",
+  description: "Second scenario",
   path: "/repo/scenarios/beta",
   flowCount: 0,
+};
+const gamma = {
+  id: "gamma",
+  displayName: "Gamma",
+  description: "Third (broken)",
+  path: "/repo/scenarios/gamma",
+  flowCount: 0,
+  discoveryError: "permission denied",
 };
 
 describe("ScenariosPage", () => {
   beforeEach(async () => {
     const { fetchScenarios } = await import("../api/scenarios");
     vi.mocked(fetchScenarios).mockReset();
+    const { generateScenarioArtifacts, clearScenarioArtifacts } = await import("../api/artifacts");
+    vi.mocked(generateScenarioArtifacts).mockReset();
+    vi.mocked(clearScenarioArtifacts).mockReset();
   });
   afterEach(() => cleanup());
 
-  it("renders one card per scenario with name + flow count + drill-in link", async () => {
+  it("renders one row per scenario with a drill-in link", async () => {
     const { fetchScenarios } = await import("../api/scenarios");
     vi.mocked(fetchScenarios).mockResolvedValue({
       vrooliRoot: "/repo",
@@ -39,20 +57,120 @@ describe("ScenariosPage", () => {
     });
     renderWithProviders(<ScenariosPage />);
     await waitFor(() =>
-      expect(screen.getByTestId("scenarios-grid")).toBeInTheDocument(),
+      expect(screen.getByTestId("scenario-table")).toBeInTheDocument(),
     );
-    const card = screen.getByTestId("scenario-card-alpha");
-    expect(card).toHaveAttribute("href", "/scenarios/alpha");
-    expect(card).toHaveTextContent("Alpha");
-    // Flow-count nodes exist for both rows. (Their text content is i18n-
-    // interpolated; in cimode the key is returned, so we assert presence
-    // not the rendered count.)
-    expect(screen.getByTestId("scenario-card-flowcount-alpha")).toBeInTheDocument();
-    expect(screen.getByTestId("scenario-card-flowcount-beta")).toBeInTheDocument();
-    expect(screen.getByTestId("scenario-card-beta")).toHaveAttribute(
+    expect(screen.getByTestId("scenario-link-alpha")).toHaveAttribute(
+      "href",
+      "/scenarios/alpha",
+    );
+    expect(screen.getByTestId("scenario-link-beta")).toHaveAttribute(
       "href",
       "/scenarios/beta",
     );
+  });
+
+  it("filters by search text against id, displayName, and description", async () => {
+    const { fetchScenarios } = await import("../api/scenarios");
+    vi.mocked(fetchScenarios).mockResolvedValue({
+      vrooliRoot: "/repo",
+      scenarios: [alpha, beta],
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<ScenariosPage />);
+    await waitFor(() => expect(screen.getByTestId("scenario-table")).toBeInTheDocument());
+    await user.type(screen.getByTestId("scenario-search"), "Beta");
+    await waitFor(() =>
+      expect(screen.queryByTestId("scenario-row-alpha")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("scenario-row-beta")).toBeInTheDocument();
+  });
+
+  it("filters by flows=has and by flows=empty", async () => {
+    const { fetchScenarios } = await import("../api/scenarios");
+    vi.mocked(fetchScenarios).mockResolvedValue({
+      vrooliRoot: "/repo",
+      scenarios: [alpha, beta],
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<ScenariosPage />);
+    await waitFor(() => expect(screen.getByTestId("scenario-table")).toBeInTheDocument());
+
+    await user.selectOptions(screen.getByTestId("scenario-flows"), "has");
+    await waitFor(() =>
+      expect(screen.queryByTestId("scenario-row-beta")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("scenario-row-alpha")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByTestId("scenario-flows"), "empty");
+    await waitFor(() =>
+      expect(screen.queryByTestId("scenario-row-alpha")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("scenario-row-beta")).toBeInTheDocument();
+  });
+
+  it("filters by errors=with to surface only scenarios with a discovery error", async () => {
+    const { fetchScenarios } = await import("../api/scenarios");
+    vi.mocked(fetchScenarios).mockResolvedValue({
+      vrooliRoot: "/repo",
+      scenarios: [alpha, gamma],
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<ScenariosPage />);
+    await waitFor(() => expect(screen.getByTestId("scenario-table")).toBeInTheDocument());
+    await user.selectOptions(screen.getByTestId("scenario-errors"), "with");
+    await waitFor(() =>
+      expect(screen.queryByTestId("scenario-row-alpha")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("scenario-row-gamma")).toBeInTheDocument();
+  });
+
+  it("sorts by flowCount descending when key=flowCount + dir flipped", async () => {
+    const { fetchScenarios } = await import("../api/scenarios");
+    vi.mocked(fetchScenarios).mockResolvedValue({
+      vrooliRoot: "/repo",
+      scenarios: [beta, alpha], // initial unsorted
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<ScenariosPage />);
+    await waitFor(() => expect(screen.getByTestId("scenario-table")).toBeInTheDocument());
+    await user.selectOptions(screen.getByTestId("scenario-sort-key"), "flowCount");
+    await user.click(screen.getByTestId("scenario-sort-dir"));
+    const rows = screen.getAllByTestId(/^scenario-row-(alpha|beta)$/);
+    expect(rows[0]).toHaveAttribute("data-testid", "scenario-row-alpha");
+    expect(rows[1]).toHaveAttribute("data-testid", "scenario-row-beta");
+  });
+
+  it("invokes generateScenarioArtifacts for selected scenarios when Generate is clicked", async () => {
+    const { fetchScenarios } = await import("../api/scenarios");
+    const { generateScenarioArtifacts } = await import("../api/artifacts");
+    vi.mocked(fetchScenarios).mockResolvedValue({
+      vrooliRoot: "/repo",
+      scenarios: [alpha, beta],
+    });
+    vi.mocked(generateScenarioArtifacts).mockResolvedValue({ scenarioId: "alpha", flows: [] });
+    const user = userEvent.setup();
+    renderWithProviders(<ScenariosPage />);
+    await waitFor(() => expect(screen.getByTestId("scenario-table")).toBeInTheDocument());
+    await user.click(screen.getByTestId("scenario-select-alpha"));
+    await user.click(screen.getByTestId("scenario-generate-all"));
+    await waitFor(() => expect(generateScenarioArtifacts).toHaveBeenCalledWith("alpha"));
+    expect(generateScenarioArtifacts).not.toHaveBeenCalledWith("beta");
+  });
+
+  it("invokes generateScenarioArtifacts for every filtered scenario when nothing is selected", async () => {
+    const { fetchScenarios } = await import("../api/scenarios");
+    const { generateScenarioArtifacts } = await import("../api/artifacts");
+    vi.mocked(fetchScenarios).mockResolvedValue({
+      vrooliRoot: "/repo",
+      scenarios: [alpha, beta],
+    });
+    vi.mocked(generateScenarioArtifacts).mockResolvedValue({ scenarioId: "alpha", flows: [] });
+    const user = userEvent.setup();
+    renderWithProviders(<ScenariosPage />);
+    await waitFor(() => expect(screen.getByTestId("scenario-table")).toBeInTheDocument());
+    await user.click(screen.getByTestId("scenario-generate-all"));
+    await waitFor(() => expect(generateScenarioArtifacts).toHaveBeenCalledWith("alpha"));
+    expect(generateScenarioArtifacts).toHaveBeenCalledWith("beta");
   });
 
   it("renders the diagnostic empty state when no scenarios are discovered", async () => {
@@ -62,25 +180,20 @@ describe("ScenariosPage", () => {
     await waitFor(() =>
       expect(screen.getByTestId("scenarios-empty")).toBeInTheDocument(),
     );
-    // The empty state surfaces the resolved root so a misconfigured deploy
-    // can be diagnosed without server access. The actual root is injected
-    // through an i18n {{root}} placeholder which doesn't expand under
-    // cimode; we assert the structural presence here and verify the
-    // interpolation contract in the ScenariosPage component's render code.
   });
 
-  it("surfaces the per-row discovery error on the card", async () => {
+  it("renders a no-match hint when scenarios exist but filters exclude all", async () => {
     const { fetchScenarios } = await import("../api/scenarios");
     vi.mocked(fetchScenarios).mockResolvedValue({
       vrooliRoot: "/repo",
-      scenarios: [{ ...beta, discoveryError: "permission denied" }],
+      scenarios: [alpha],
     });
+    const user = userEvent.setup();
     renderWithProviders(<ScenariosPage />);
+    await waitFor(() => expect(screen.getByTestId("scenario-table")).toBeInTheDocument());
+    await user.type(screen.getByTestId("scenario-search"), "zzznomatch");
     await waitFor(() =>
-      expect(screen.getByTestId("scenario-card-error-beta")).toBeInTheDocument(),
-    );
-    expect(screen.getByTestId("scenario-card-error-beta")).toHaveTextContent(
-      "permission denied",
+      expect(screen.getByTestId("scenarios-no-match")).toBeInTheDocument(),
     );
   });
 

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 import type { FlowSummary, RunRow } from "../../api/inventory";
+import { ArtifactStatusPill } from "../artifacts/ArtifactStatusPill";
 import { useTranslation } from "../../i18n";
 
 interface Props {
@@ -46,6 +47,10 @@ export function InventoryTable({
           {flows.map((flow) => {
             const last = latestByFlow.get(flow.flowId);
             const status = last?.status ?? "none";
+            const needsGenerate =
+              last?.status === "failed" &&
+              (last.failureReason === "missing_artifacts" ||
+                last.failureReason === "stale_artifacts");
             return (
               <tr
                 key={flow.flowId}
@@ -79,12 +84,19 @@ export function InventoryTable({
                 </td>
                 <td className="px-3 py-2 text-app-muted-foreground">{flow.language}</td>
                 <td className="px-3 py-2">
-                  <span
-                    data-testid={`inventory-status-${flow.flowId}`}
-                    className={`inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs font-medium ${statusTone(last?.status)}`}
-                  >
-                    {status === "none" ? "—" : status}
-                  </span>
+                  {needsGenerate ? (
+                    <ArtifactStatusPill
+                      status="needs_generate"
+                      testId={`inventory-status-${flow.flowId}`}
+                    />
+                  ) : (
+                    <span
+                      data-testid={`inventory-status-${flow.flowId}`}
+                      className={`inline-flex items-center rounded-pill px-2.5 py-0.5 text-xs font-medium ${statusTone(last?.status)}`}
+                    >
+                      {status === "none" ? "—" : status}
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-xs text-app-muted-foreground">
                   {last ? new Date(last.finishedAt).toLocaleString() : ""}

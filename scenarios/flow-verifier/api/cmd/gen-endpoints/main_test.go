@@ -24,6 +24,11 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
 		{Name: "flows list", Description: "List flows", EndpointID: "flows.list"},
 		{Name: "flows explain", Description: "Explain flow", EndpointID: "flows.get"},
+		{Name: "artifacts status", Description: "Status", EndpointID: "flows.artifacts.status"},
+		{Name: "artifacts generate", Description: "Generate", EndpointID: "flows.artifacts.generate"},
+		{Name: "artifacts clear", Description: "Clear", EndpointID: "flows.artifacts.clear"},
+		{Name: "artifacts generate --scenario", Description: "Scenario generate", EndpointID: "scenarios.artifacts.generate"},
+		{Name: "artifacts clear --scenario", Description: "Scenario clear", EndpointID: "scenarios.artifacts.clear"},
 		{Name: "scenarios list", Description: "List scenarios", EndpointID: "scenarios.list"},
 		{Name: "scenarios get", Description: "Show scenario", EndpointID: "scenarios.get"},
 		{Name: "verify run", Description: "Start verification", EndpointID: "verifications.start"},
@@ -61,8 +66,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 14 {
-		t.Errorf("cli_commands count = %d, want 14", len(got.CLICommands))
+	if len(got.CLICommands) != 19 {
+		t.Errorf("cli_commands count = %d, want 19", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

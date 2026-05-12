@@ -149,32 +149,56 @@ func buildOutputPlan(ctx context.Context, root string, flow model.Flow, quintVer
 }
 
 func applyOutputPlan(fs FileSystem, root string, flowID string, mode Mode, files []OutputFile) error {
-	for _, file := range files {
-		if err := writeOrCheck(fs, root, file, flowID, mode); err != nil {
-			return err
+	if mode != ModeCheck {
+		for _, file := range files {
+			target := fsadapter.Abs(root, file.Path)
+			if err := fs.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			if err := fs.WriteFile(target, file.Data, 0o644); err != nil {
+				return err
+			}
 		}
+		return nil
+	}
+	// Check mode aggregates every missing/stale artifact for this flow
+	// into a single FreshnessError so the recorder can persist a
+	// structured list instead of a single string-matched message.
+	freshness := &FreshnessError{FlowID: flowID}
+	for _, file := range files {
+		target := fsadapter.Abs(root, file.Path)
+		rel := normaliseArtifactPath(root, target)
+		current, err := fs.ReadFile(target)
+		if err != nil {
+			freshness.Missing = append(freshness.Missing, rel)
+			continue
+		}
+		if string(current) != string(file.Data) {
+			freshness.Stale = append(freshness.Stale, rel)
+		}
+	}
+	if len(freshness.Missing) > 0 {
+		freshness.Kind = FreshnessMissing
+		return freshness
+	}
+	if len(freshness.Stale) > 0 {
+		freshness.Kind = FreshnessStale
+		return freshness
 	}
 	return nil
 }
 
-func writeOrCheck(fs FileSystem, root string, file OutputFile, flowID string, mode Mode) error {
-	target := fsadapter.Abs(root, file.Path)
-	if mode == ModeCheck {
-		return AssertFresh(fs, target, file.Data, flowID)
-	}
-	if err := fs.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		return err
-	}
-	return fs.WriteFile(target, file.Data, 0o644)
-}
-
+// AssertFresh remains for callers that check a single artifact (notably
+// the pipeline_test fakes). It now reports through *FreshnessError so
+// recorders can inspect the typed payload uniformly.
 func AssertFresh(fs FileSystem, path string, next []byte, flowID string) error {
+	rel := filepath.ToSlash(filepath.Base(path))
 	current, err := fs.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("%s is missing. Run: flow-verifier verify run --flow %s", filepath.ToSlash(path), flowID)
+		return &FreshnessError{FlowID: flowID, Kind: FreshnessMissing, Missing: []string{rel}}
 	}
 	if string(current) != string(next) {
-		return fmt.Errorf("%s is stale. Run: flow-verifier verify run --flow %s", filepath.ToSlash(path), flowID)
+		return &FreshnessError{FlowID: flowID, Kind: FreshnessStale, Stale: []string{rel}}
 	}
 	return nil
 }
@@ -195,17 +219,21 @@ func contractFromFlow(flow model.Flow) contract.Contract {
 // the file is absent (the codegen falls back to the {{SCENARIO_ID}}
 // template placeholder in that case).
 func detectGoModulePath(root string) (string, error) {
-	data, err := os.ReadFile(filepath.Join(root, "api", "go.mod"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
+	// Most scenarios live under <root>/api; the in-tree built-in flow
+	// runs with root already pointing at the api dir, so probe both.
+	for _, rel := range []string{filepath.Join("api", "go.mod"), "go.mod"} {
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return "", err
 		}
-		return "", err
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if rest, ok := strings.CutPrefix(line, "module "); ok {
-			return strings.TrimSpace(rest), nil
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if rest, ok := strings.CutPrefix(line, "module "); ok {
+				return strings.TrimSpace(rest), nil
+			}
 		}
 	}
 	return "", nil

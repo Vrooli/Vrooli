@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import { fetchRun, type RunRow } from "../../api/inventory";
+import { ArtifactStatusPill } from "../artifacts/ArtifactStatusPill";
 import { errorMessage } from "../../lib/errorMessage";
 import { useTranslation } from "../../i18n";
 import { TabList, TabPanel } from "../../components/ui/Tabs";
@@ -211,6 +212,26 @@ function ResultTab({ run }: { run: RunRow }) {
           {run.flowPath}
         </span>
       </Row>
+      {run.failureReason === "missing_artifacts" || run.failureReason === "stale_artifacts" ? (
+        <Row label={t("runDetail.colArtifacts", { defaultValue: "Artifacts" })}>
+          <span className="flex flex-col gap-1">
+            <ArtifactStatusPill
+              status="needs_generate"
+              testId="run-detail-needs-generate"
+            />
+            {run.missingArtifacts && run.missingArtifacts.length > 0 && (
+              <ul
+                data-testid="run-detail-missing-artifacts"
+                className="mt-1 list-disc pl-5 font-mono text-xs text-app-muted-foreground"
+              >
+                {run.missingArtifacts.map((path) => (
+                  <li key={path}>{path}</li>
+                ))}
+              </ul>
+            )}
+          </span>
+        </Row>
+      ) : null}
       {run.errorMessage && (
         <Row label={t("runDetail.colError", { defaultValue: "Error" })}>
           <span data-testid="run-detail-error-message" className="text-app-danger">

@@ -55,15 +55,17 @@ type runsRecorder struct {
 
 func (r *runsRecorder) Record(ctx context.Context, entry pipeline.RunEntry) error {
 	row := runs.Run{
-		FlowID:       entry.FlowID,
-		FlowPath:     entry.FlowPath,
-		Root:         entry.Root,
-		Mode:         pipelineModeToRunsMode(entry.Mode),
-		Status:       runs.Status(entry.Status),
-		Output:       entry.Output,
-		ErrorMessage: entry.ErrorMessage,
-		StartedAt:    entry.StartedAt,
-		FinishedAt:   entry.FinishedAt,
+		FlowID:           entry.FlowID,
+		FlowPath:         entry.FlowPath,
+		Root:             entry.Root,
+		Mode:             pipelineModeToRunsMode(entry.Mode),
+		Status:           runs.Status(entry.Status),
+		Output:           entry.Output,
+		ErrorMessage:     entry.ErrorMessage,
+		FailureReason:    entry.FailureReason,
+		MissingArtifacts: entry.MissingArtifacts,
+		StartedAt:        entry.StartedAt,
+		FinishedAt:       entry.FinishedAt,
 	}
 	inserted, err := r.svc.Record(ctx, row)
 	if err != nil {

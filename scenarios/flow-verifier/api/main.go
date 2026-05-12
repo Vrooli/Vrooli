@@ -17,6 +17,7 @@ import (
 	apiserver "github.com/vrooli/api-core/server"
 	_ "modernc.org/sqlite"
 
+	artifactsH "flow-verifier/handlers/artifacts"
 	flowsH "flow-verifier/handlers/flows"
 	healthH "flow-verifier/handlers/health"
 	runsH "flow-verifier/handlers/runs"
@@ -82,6 +83,7 @@ func main() {
 		flowsH.Module(scenariosSvc),
 		scenariosH.Module(scenariosSvc),
 		verificationsH.Module(db, clock.System{}),
+		artifactsH.Module(db, clock.System{}, scenariosSvc),
 		runsH.Module(db, clock.System{}),
 		settingsH.Module(db, clock.System{}),
 	)

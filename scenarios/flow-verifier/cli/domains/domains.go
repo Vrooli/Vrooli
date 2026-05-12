@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"flow-verifier/cli/domains/artifacts"
 	"flow-verifier/cli/domains/flows"
 	"flow-verifier/cli/domains/runs"
 	"flow-verifier/cli/domains/settings"
@@ -42,6 +43,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 //   - render proto responses with cliapp.RenderProtoList or RenderProtoMutation
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
+		artifacts.Register(core),
 		flows.Register(core),
 		runs.Register(core),
 		settings.Register(core),

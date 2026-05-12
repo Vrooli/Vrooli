@@ -26,17 +26,39 @@ type Recorder interface {
 
 // RunEntry is the per-flow record handed to a Recorder. ID/timestamps
 // may be left zero; the recorder is free to fill them.
+//
+// FailureReason narrows a Status="failed" entry into the recoverable
+// categories the UI's "Needs generate" affordance keys off: empty means
+// "no further detail / status is the whole story", "missing_artifacts"
+// and "stale_artifacts" come from a typed *FreshnessError, other
+// reasons are reserved for future substrate fixes (counterexample,
+// lint, quint_failure, io). MissingArtifacts carries the structured
+// list of artifact paths the UI lists in its Artifacts panel.
 type RunEntry struct {
-	FlowID       string
-	FlowPath     string
-	Root         string
-	Mode         Mode
-	Status       string
-	Output       string
-	ErrorMessage string
-	StartedAt    time.Time
-	FinishedAt   time.Time
+	FlowID           string
+	FlowPath         string
+	Root             string
+	Mode             Mode
+	Status           string
+	Output           string
+	ErrorMessage     string
+	FailureReason    string
+	MissingArtifacts []string
+	StartedAt        time.Time
+	FinishedAt       time.Time
 }
+
+// FailureReason* constants name the typed categories the recorder may
+// stamp onto a failed RunEntry. Kept as exported strings (not iota) so
+// they round-trip cleanly through JSON / SQLite.
+const (
+	FailureReasonMissingArtifacts = "missing_artifacts"
+	FailureReasonStaleArtifacts   = "stale_artifacts"
+	FailureReasonCounterexample   = "counterexample"
+	FailureReasonLint             = "lint"
+	FailureReasonQuintFailure     = "quint_failure"
+	FailureReasonIO               = "io"
+)
 
 // VerifyOptions configures a Verify invocation.
 type VerifyOptions struct {
@@ -139,6 +161,15 @@ func recordPerFlow(ctx context.Context, rec Recorder, flows []model.Flow, starte
 		case failingFlow == "" || failingFlow == flow.FlowID:
 			entry.Status = "failed"
 			entry.ErrorMessage = runErr.Error()
+			if fe, ok := AsFreshnessError(runErr); ok {
+				entry.MissingArtifacts = fe.Paths()
+				switch fe.Kind {
+				case FreshnessMissing:
+					entry.FailureReason = FailureReasonMissingArtifacts
+				case FreshnessStale:
+					entry.FailureReason = FailureReasonStaleArtifacts
+				}
+			}
 			failingFlow = flow.FlowID
 		default:
 			// Earlier flow than the failing one: it succeeded before

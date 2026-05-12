@@ -12,11 +12,19 @@ import { useTranslation } from "../../i18n";
 import { InspectorPanel } from "../../components/InspectorPanel";
 import { TabList, TabPanel } from "../../components/ui/Tabs";
 
+import { ArtifactsPanel } from "../artifacts/ArtifactsPanel";
+
 import { CounterexampleDiff } from "./CounterexampleDiff";
+import { OverviewTab } from "./OverviewTab";
 import { StateGraph } from "./StateGraph";
 import { TracePlayer } from "./TracePlayer";
 
-type TabKey = "graph" | "traces" | "history";
+type TabKey = "overview" | "graph" | "traces" | "artifacts" | "history";
+
+const TAB_KEYS: readonly TabKey[] = ["overview", "graph", "traces", "artifacts", "history"];
+function parseTab(raw: string | null): TabKey {
+  return raw && (TAB_KEYS as readonly string[]).includes(raw) ? (raw as TabKey) : "overview";
+}
 
 const FLOW_DETAIL_KEY = (scenarioId: string, flowId: string) =>
   ["flow-detail", scenarioId, flowId] as const;
@@ -33,9 +41,16 @@ const FLOW_RUNS_KEY = (flowId: string) => ["runs", "flow", flowId] as const;
 export function FlowDetailPage() {
   const { t } = useTranslation();
   const { flowId } = useParams<{ flowId: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const scenarioId = searchParams.get("scenario") ?? "";
-  const [tab, setTab] = useState<TabKey>("graph");
+  const [tab, setTabState] = useState<TabKey>(() => parseTab(searchParams.get("tab")));
+  const setTab = (next: TabKey) => {
+    setTabState(next);
+    const params = new URLSearchParams(searchParams);
+    if (next === "overview") params.delete("tab");
+    else params.set("tab", next);
+    setSearchParams(params, { replace: true });
+  };
 
   if (!flowId) {
     return (
@@ -145,13 +160,18 @@ function FlowDetailBody({ flowId, scenarioId, tab, onTabChange, t }: BodyProps) 
         aria-label={t("flowDetail.tabsAria", { defaultValue: "Flow detail sections" })}
         className="mt-4"
         items={[
+          { value: "overview", label: tabLabel("overview", t) },
           { value: "graph", label: tabLabel("graph", t) },
           { value: "traces", label: tabLabel("traces", t) },
+          { value: "artifacts", label: tabLabel("artifacts", t) },
           { value: "history", label: tabLabel("history", t) },
         ]}
       />
 
       <div className="mt-4">
+        <TabPanel idPrefix="flow-detail" value="overview" active={tab}>
+          <OverviewTab detail={detail} />
+        </TabPanel>
         <TabPanel idPrefix="flow-detail" value="graph" active={tab}>
           <StateGraph
             states={detail.states}
@@ -170,6 +190,9 @@ function FlowDetailBody({ flowId, scenarioId, tab, onTabChange, t }: BodyProps) 
               initialState: detail.initialState,
             }}
           />
+        </TabPanel>
+        <TabPanel idPrefix="flow-detail" value="artifacts" active={tab}>
+          <ArtifactsPanel flowId={detail.flowId} scenarioId={scenarioId || undefined} />
         </TabPanel>
         <TabPanel idPrefix="flow-detail" value="history" active={tab}>
           <HistoryTab
@@ -206,10 +229,14 @@ function FlowDetailBody({ flowId, scenarioId, tab, onTabChange, t }: BodyProps) 
 
 function tabLabel(key: TabKey, t: BodyProps["t"]): string {
   switch (key) {
+    case "overview":
+      return t("flowDetail.tabOverview", { defaultValue: "Overview" });
     case "graph":
       return t("flowDetail.tabGraph", { defaultValue: "Graph" });
     case "traces":
       return t("flowDetail.tabTraces", { defaultValue: "Traces" });
+    case "artifacts":
+      return t("flowDetail.tabArtifacts", { defaultValue: "Artifacts" });
     case "history":
       return t("flowDetail.tabHistory", { defaultValue: "History" });
   }

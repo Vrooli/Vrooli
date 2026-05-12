@@ -38,11 +38,22 @@ func TestAssertFreshReportsMissingArtifact(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when artifact is missing")
 	}
-	if !strings.Contains(err.Error(), "is missing") {
-		t.Fatalf("error should call out missing artifact, got: %v", err)
+	fe, ok := AsFreshnessError(err)
+	if !ok {
+		t.Fatalf("expected *FreshnessError, got %T: %v", err, err)
 	}
+	if fe.Kind != FreshnessMissing {
+		t.Fatalf("expected FreshnessMissing, got %q", fe.Kind)
+	}
+	if len(fe.Missing) != 1 || fe.Missing[0] != "model.qnt" {
+		t.Fatalf("expected Missing=[model.qnt], got %v", fe.Missing)
+	}
+	if fe.FlowID != "demo.flow" {
+		t.Fatalf("expected FlowID=demo.flow, got %q", fe.FlowID)
+	}
+	// Error() still mentions the flow id so CLI output stays informative.
 	if !strings.Contains(err.Error(), "demo.flow") {
-		t.Fatalf("error should include the flow id, got: %v", err)
+		t.Fatalf("error message should include flow id, got: %v", err)
 	}
 }
 
@@ -52,8 +63,15 @@ func TestAssertFreshReportsStaleArtifact(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when artifact is stale")
 	}
-	if !strings.Contains(err.Error(), "is stale") {
-		t.Fatalf("error should call out stale artifact, got: %v", err)
+	fe, ok := AsFreshnessError(err)
+	if !ok {
+		t.Fatalf("expected *FreshnessError, got %T: %v", err, err)
+	}
+	if fe.Kind != FreshnessStale {
+		t.Fatalf("expected FreshnessStale, got %q", fe.Kind)
+	}
+	if len(fe.Stale) != 1 || fe.Stale[0] != "model.qnt" {
+		t.Fatalf("expected Stale=[model.qnt], got %v", fe.Stale)
 	}
 }
 

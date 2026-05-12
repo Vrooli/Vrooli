@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS verification_runs (
   status         TEXT NOT NULL CHECK (status IN ('passed','failed','error')),
   counterexample TEXT,
   error_message  TEXT NOT NULL DEFAULT '',
+  failure_reason TEXT NOT NULL DEFAULT '',
+  missing_artifacts TEXT NOT NULL DEFAULT '',
   output         TEXT NOT NULL DEFAULT '',
   started_at     TEXT NOT NULL,
   finished_at    TEXT NOT NULL,

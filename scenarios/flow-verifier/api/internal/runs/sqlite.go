@@ -3,8 +3,10 @@ package runs
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"flow-verifier/internal/clock"
@@ -22,9 +24,59 @@ type sqliteRepository struct {
 // NewSQLiteRepository constructs the production Repository. db is the
 // connection pool opened in main.go; clk supplies StartedAt/FinishedAt
 // timestamps when callers omit them so tests can advance time
-// deterministically.
+// deterministically. The constructor runs an idempotent column
+// migration so existing dev databases pick up failure_reason /
+// missing_artifacts without a separate migration tool — additive only,
+// no data movement.
 func NewSQLiteRepository(db *sql.DB, clk clock.Clock) Repository {
+	_ = ensureRunColumns(context.Background(), db)
 	return &sqliteRepository{db: db, clock: clk}
+}
+
+// ensureRunColumns inspects verification_runs and ALTERs the table to
+// add any columns the current build expects but the on-disk schema
+// hasn't declared yet. Safe to call repeatedly. Errors are intentionally
+// best-effort: a brand-new database created from schema.sql already has
+// every column, so the migration is a no-op there; if the migration
+// fails on an exotic schema the next Insert call surfaces the error
+// directly.
+func ensureRunColumns(ctx context.Context, db *sql.DB) error {
+	want := map[string]string{
+		"failure_reason":    "TEXT NOT NULL DEFAULT ''",
+		"missing_artifacts": "TEXT NOT NULL DEFAULT ''",
+	}
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info(verification_runs)")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	have := map[string]struct{}{}
+	for rows.Next() {
+		var (
+			cid     int
+			name    string
+			ctype   string
+			notnull int
+			dflt    sql.NullString
+			pk      int
+		)
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return err
+		}
+		have[name] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for col, def := range want {
+		if _, ok := have[col]; ok {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE verification_runs ADD COLUMN %s %s", col, def)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 var _ Repository = (*sqliteRepository)(nil)
@@ -33,15 +85,17 @@ const insertRunSQL = `
 INSERT INTO verification_runs (
   id, flow_id, flow_path, root,
   source_sha256, model_sha256, gen_sha256,
-  mode, status, counterexample, error_message, output,
+  mode, status, counterexample, error_message,
+  failure_reason, missing_artifacts, output,
   started_at, finished_at, duration_ms
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 const selectRunByIDSQL = `
 SELECT id, flow_id, flow_path, root,
        source_sha256, model_sha256, gen_sha256,
-       mode, status, counterexample, error_message, output,
+       mode, status, counterexample, error_message,
+       failure_reason, missing_artifacts, output,
        started_at, finished_at, duration_ms
 FROM verification_runs
 WHERE id = ?
@@ -50,7 +104,8 @@ WHERE id = ?
 const listRunsBaseSQL = `
 SELECT id, flow_id, flow_path, root,
        source_sha256, model_sha256, gen_sha256,
-       mode, status, counterexample, error_message, output,
+       mode, status, counterexample, error_message,
+       failure_reason, missing_artifacts, output,
        started_at, finished_at, duration_ms
 FROM verification_runs
 `
@@ -75,6 +130,14 @@ func (s *sqliteRepository) Insert(ctx context.Context, run Run) (Run, error) {
 	if run.Counterexample != "" {
 		ce = run.Counterexample
 	}
+	missingArtifacts := ""
+	if len(run.MissingArtifacts) > 0 {
+		raw, err := json.Marshal(run.MissingArtifacts)
+		if err != nil {
+			return Run{}, fmt.Errorf("encode missing_artifacts: %w", err)
+		}
+		missingArtifacts = string(raw)
+	}
 	if _, err := s.db.ExecContext(ctx, insertRunSQL,
 		run.ID,
 		run.FlowID,
@@ -87,6 +150,8 @@ func (s *sqliteRepository) Insert(ctx context.Context, run Run) (Run, error) {
 		string(run.Status),
 		ce,
 		run.ErrorMessage,
+		run.FailureReason,
+		missingArtifacts,
 		run.Output,
 		run.StartedAt.Format(runTimeFormat),
 		run.FinishedAt.Format(runTimeFormat),
@@ -153,13 +218,15 @@ func scanRun(s rowScanner) (Run, error) {
 		mode        string
 		status      string
 		ce          sql.NullString
+		missingRaw  string
 		startedRaw  string
 		finishedRaw string
 	)
 	if err := s.Scan(
 		&r.ID, &r.FlowID, &r.FlowPath, &r.Root,
 		&r.SourceSHA256, &r.ModelSHA256, &r.GenSHA256,
-		&mode, &status, &ce, &r.ErrorMessage, &r.Output,
+		&mode, &status, &ce, &r.ErrorMessage,
+		&r.FailureReason, &missingRaw, &r.Output,
 		&startedRaw, &finishedRaw, &r.DurationMs,
 	); err != nil {
 		return Run{}, err
@@ -168,6 +235,11 @@ func scanRun(s rowScanner) (Run, error) {
 	r.Status = Status(status)
 	if ce.Valid {
 		r.Counterexample = ce.String
+	}
+	if strings.TrimSpace(missingRaw) != "" {
+		if err := json.Unmarshal([]byte(missingRaw), &r.MissingArtifacts); err != nil {
+			return Run{}, fmt.Errorf("decode missing_artifacts: %w", err)
+		}
 	}
 	started, err := time.Parse(runTimeFormat, startedRaw)
 	if err != nil {

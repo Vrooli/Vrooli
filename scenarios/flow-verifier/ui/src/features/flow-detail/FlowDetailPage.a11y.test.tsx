@@ -38,6 +38,8 @@ describe("FlowDetailPage accessibility", () => {
       transitions: [{ from: "a", event: "go", to: "b", wantError: false }],
       traces: [],
       invariants: [],
+      model: { module: "M", seed: "0", maxSteps: 1, traceCount: 0, verify: { invariants: [] } },
+      runtime: {},
       report: "",
     });
     vi.mocked(fetchRuns).mockResolvedValue([]);

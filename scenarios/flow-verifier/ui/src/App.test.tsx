@@ -28,6 +28,8 @@ vi.mock("./api/inventory", async (importOriginal) => {
       transitions: [],
       traces: [],
       invariants: [],
+      model: { module: "M", seed: "0", maxSteps: 1, traceCount: 0, verify: { invariants: [] } },
+      runtime: {},
       report: "",
     }),
     fetchRun: vi.fn().mockResolvedValue({

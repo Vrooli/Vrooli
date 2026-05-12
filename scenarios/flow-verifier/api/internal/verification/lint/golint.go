@@ -5,11 +5,42 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"flow-verifier/internal/flows/layout"
 	"flow-verifier/internal/flows/model"
 )
+
+// resolvedSubpackageImportPath returns the import path that the
+// hand-authored test must use. For scenarios generated from a
+// template, this is the {{SCENARIO_ID}}-anchored template path; for
+// in-tree flows whose host scenario already has a go.mod, we
+// substitute the resolved module name so the lint matches what a
+// compilable Go file actually imports.
+func resolvedSubpackageImportPath(root string, lay layout.Layout) string {
+	tmpl := layout.SubpackageImportPath(lay)
+	module := readGoModule(root)
+	if module == "" {
+		return tmpl
+	}
+	return strings.Replace(tmpl, "{{SCENARIO_ID}}", module, 1)
+}
+
+func readGoModule(root string) string {
+	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if rest, ok := strings.CutPrefix(line, "module "); ok {
+			return strings.TrimSpace(rest)
+		}
+	}
+	return ""
+}
 
 const goShape = `    1. imports the generated subpackage
     2. defines exactly one Test* function that calls <subpkg>.RunReplay(t, transition)
@@ -27,7 +58,7 @@ func checkGo(root string, flow model.Flow) error {
 	if err != nil {
 		return fmt.Errorf("%s: read %s: %w", flow.FlowID, flow.Layout.BaseDir, err)
 	}
-	expectedImport := layout.SubpackageImportPath(flow.Layout)
+	expectedImport := resolvedSubpackageImportPath(root, flow.Layout)
 	var failures []string
 	matched := false
 	for _, path := range files {

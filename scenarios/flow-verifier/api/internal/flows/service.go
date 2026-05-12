@@ -73,6 +73,11 @@ func Explain(root, flowID string) (string, error) {
 // FlowDetail is the structured projection of a single flow consumed by
 // the UI's flow-detail page. The text `report` is kept alongside for the
 // CLI's `flows explain` and for any caller that wants a printable view.
+//
+// Model and Runtime mirror the same-named blocks in flow.json so the
+// UI's Overview tab can render module/seed/maxSteps/invariants and the
+// runtime package metadata without a second round-trip to the
+// scenario's source files.
 type FlowDetail struct {
 	FlowID        string               `json:"flowId"`
 	Domain        string               `json:"domain,omitempty"`
@@ -86,6 +91,8 @@ type FlowDetail struct {
 	Transitions   []model.Transition   `json:"transitions"`
 	Traces        []contract.Trace     `json:"traces"`
 	Invariants    []contract.Invariant `json:"invariants"`
+	Model         contract.Model       `json:"model"`
+	Runtime       contract.Runtime     `json:"runtime"`
 	Report        string               `json:"report"`
 }
 
@@ -113,6 +120,8 @@ func Detail(root, flowID string) (FlowDetail, error) {
 		Transitions:   flow.Matrix.Rows(),
 		Traces:        append([]contract.Trace(nil), flow.Traces...),
 		Invariants:    append([]contract.Invariant(nil), flow.Invariants...),
+		Model:         flow.Model,
+		Runtime:       flow.Runtime,
 		Report:        buildExplainReport(root, flow),
 	}, nil
 }

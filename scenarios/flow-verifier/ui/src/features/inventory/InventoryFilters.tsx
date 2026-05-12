@@ -1,10 +1,15 @@
+// InventoryFilters wires the inventory-specific scenario/language
+// selects and status chip-bank into the shared ListToolbar shell.
+// Search + sort + outer panel come from the toolbar.
 import type { ScenarioSummary } from "../../api/scenarios";
 import { useTranslation } from "../../i18n";
+import { ListToolbar } from "../listing/ListToolbar";
+import type { SortDir as ListingSortDir } from "../listing/types";
 
 export type StatusKey = "passed" | "failed" | "error" | "none";
 export type LanguageKey = "all" | "ts" | "go";
 export type SortKey = "flowId" | "language" | "status" | "finishedAt";
-export type SortDir = "asc" | "desc";
+export type SortDir = ListingSortDir;
 
 export interface InventoryFilterState {
   scenarioId: string;
@@ -45,91 +50,60 @@ export function InventoryFilters({
   };
 
   return (
-    <div
-      data-testid="inventory-filters"
-      className="flex flex-col gap-3 rounded-panel border border-app-border bg-app-surface p-3"
-    >
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-1 min-w-[220px] flex-col gap-1 text-xs text-app-muted-foreground">
-          <span>{t("inventory.search", { defaultValue: "Search" })}</span>
-          <input
-            data-testid="inventory-search"
-            type="search"
-            value={value.search}
-            placeholder={t("inventory.searchPlaceholder", { defaultValue: "Flow id…" })}
-            onChange={(e) => onChange({ ...value, search: e.target.value })}
-            className="h-9 rounded-control border border-app-border bg-app-surface px-2 text-sm text-app-foreground"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
-          <span>{t("inventory.scenarioLabel", { defaultValue: "Scenario" })}</span>
-          <select
-            data-testid="inventory-scenario"
-            value={value.scenarioId}
-            onChange={(e) => onChange({ ...value, scenarioId: e.target.value })}
-            className="h-9 min-w-[12rem] rounded-control border border-app-border bg-app-surface px-2 text-sm text-app-foreground"
-          >
-            <option value="">
-              {t("inventory.scenarioAll", { defaultValue: "All scenarios" })}
-            </option>
-            {scenarios.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.displayName} ({s.flowCount})
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
-          <span>{t("inventory.language", { defaultValue: "Language" })}</span>
-          <select
-            data-testid="inventory-language"
-            value={value.language}
-            onChange={(e) => onChange({ ...value, language: e.target.value as LanguageKey })}
-            className="h-9 rounded-control border border-app-border bg-app-surface px-2 text-sm text-app-foreground"
-          >
-            <option value="all">{t("inventory.langAll", { defaultValue: "All" })}</option>
-            <option value="ts">{t("inventory.langTs", { defaultValue: "TypeScript" })}</option>
-            <option value="go">{t("inventory.langGo", { defaultValue: "Go" })}</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
-          <span>{t("inventory.sort", { defaultValue: "Sort" })}</span>
-          <div className="flex h-9 items-stretch overflow-hidden rounded-control border border-app-border">
+    <ListToolbar
+      testId="inventory-filters"
+      searchTestId="inventory-search"
+      searchValue={value.search}
+      searchPlaceholder={t("inventory.searchPlaceholder", { defaultValue: "Flow id…" })}
+      onSearchChange={(next) => onChange({ ...value, search: next })}
+      filters={
+        <>
+          <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+            <span>{t("inventory.scenarioLabel", { defaultValue: "Scenario" })}</span>
             <select
-              data-testid="inventory-sort-key"
-              value={value.sort.key}
-              onChange={(e) =>
-                onChange({
-                  ...value,
-                  sort: { ...value.sort, key: e.target.value as SortKey },
-                })
-              }
-              className="bg-app-surface px-2 text-sm text-app-foreground"
+              data-testid="inventory-scenario"
+              value={value.scenarioId}
+              onChange={(e) => onChange({ ...value, scenarioId: e.target.value })}
+              className="h-9 min-w-[12rem] rounded-control border border-app-border bg-app-surface px-2 text-sm text-app-foreground"
             >
-              <option value="flowId">{t("inventory.sortFlow", { defaultValue: "Flow id" })}</option>
-              <option value="language">{t("inventory.sortLang", { defaultValue: "Language" })}</option>
-              <option value="status">{t("inventory.sortStatus", { defaultValue: "Last status" })}</option>
-              <option value="finishedAt">{t("inventory.sortWhen", { defaultValue: "Last verified" })}</option>
+              <option value="">
+                {t("inventory.scenarioAll", { defaultValue: "All scenarios" })}
+              </option>
+              {scenarios.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.displayName} ({s.flowCount})
+                </option>
+              ))}
             </select>
-            <button
-              type="button"
-              data-testid="inventory-sort-dir"
-              aria-label={t("inventory.sortDir", { defaultValue: "Toggle sort direction" })}
-              onClick={() =>
-                onChange({
-                  ...value,
-                  sort: { ...value.sort, dir: value.sort.dir === "asc" ? "desc" : "asc" },
-                })
-              }
-              className="border-l border-app-border bg-app-surface-muted px-2 text-sm text-app-foreground hover:bg-app-surface"
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+            <span>{t("inventory.language", { defaultValue: "Language" })}</span>
+            <select
+              data-testid="inventory-language"
+              value={value.language}
+              onChange={(e) => onChange({ ...value, language: e.target.value as LanguageKey })}
+              className="h-9 rounded-control border border-app-border bg-app-surface px-2 text-sm text-app-foreground"
             >
-              {value.sort.dir === "asc"
-                ? t("inventory.sortDirAsc", { defaultValue: "↑" })
-                : t("inventory.sortDirDesc", { defaultValue: "↓" })}
-            </button>
-          </div>
-        </label>
-        <div className="ms-auto flex items-end gap-2">
+              <option value="all">{t("inventory.langAll", { defaultValue: "All" })}</option>
+              <option value="ts">{t("inventory.langTs", { defaultValue: "TypeScript" })}</option>
+              <option value="go">{t("inventory.langGo", { defaultValue: "Go" })}</option>
+            </select>
+          </label>
+        </>
+      }
+      sort={{
+        options: [
+          { value: "flowId", label: t("inventory.sortFlow", { defaultValue: "Flow id" }) },
+          { value: "language", label: t("inventory.sortLang", { defaultValue: "Language" }) },
+          { value: "status", label: t("inventory.sortStatus", { defaultValue: "Last status" }) },
+          { value: "finishedAt", label: t("inventory.sortWhen", { defaultValue: "Last verified" }) },
+        ],
+        value: value.sort,
+        onChange: (sort) => onChange({ ...value, sort }),
+        testIdPrefix: "inventory",
+      }}
+      actions={
+        <>
           <button
             type="button"
             data-testid="inventory-reload"
@@ -149,35 +123,37 @@ export function InventoryFilters({
               ? t("inventory.verifyingAll", { defaultValue: "Verifying…" })
               : t("inventory.verifyAll", { defaultValue: "Verify all" })}
           </button>
+        </>
+      }
+      summary={
+        <div
+          data-testid="inventory-status-filters"
+          role="group"
+          aria-label={t("inventory.statusFilter", { defaultValue: "Filter by status" })}
+          className="flex flex-wrap gap-1"
+        >
+          {STATUS_OPTIONS.map((s) => {
+            const active = value.status.includes(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                data-testid={`inventory-status-${s}`}
+                aria-pressed={active}
+                onClick={() => toggleStatus(s)}
+                className={[
+                  "h-7 rounded-pill border px-3 text-xs",
+                  active
+                    ? "border-app-primary bg-app-primary/15 text-app-foreground"
+                    : "border-app-border bg-app-surface text-app-muted-foreground hover:text-app-foreground",
+                ].join(" ")}
+              >
+                {t(`inventory.status.${s}`, { defaultValue: s })}
+              </button>
+            );
+          })}
         </div>
-      </div>
-      <div
-        data-testid="inventory-status-filters"
-        role="group"
-        aria-label={t("inventory.statusFilter", { defaultValue: "Filter by status" })}
-        className="flex flex-wrap gap-1"
-      >
-        {STATUS_OPTIONS.map((s) => {
-          const active = value.status.includes(s);
-          return (
-            <button
-              key={s}
-              type="button"
-              data-testid={`inventory-status-${s}`}
-              aria-pressed={active}
-              onClick={() => toggleStatus(s)}
-              className={[
-                "h-7 rounded-pill border px-3 text-xs",
-                active
-                  ? "border-app-primary bg-app-primary/15 text-app-foreground"
-                  : "border-app-border bg-app-surface text-app-muted-foreground hover:text-app-foreground",
-              ].join(" ")}
-            >
-              {t(`inventory.status.${s}`, { defaultValue: s })}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+      }
+    />
   );
 }

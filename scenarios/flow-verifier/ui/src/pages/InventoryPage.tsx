@@ -11,9 +11,8 @@
  * scenario's filesystem path before calling verify), and
  * `/api/v1/flows[?scenario=<id>]` for the rows themselves.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
 
 import {
   fetchFlows,
@@ -34,6 +33,7 @@ import {
   type StatusKey,
 } from "../features/inventory/InventoryFilters";
 import { InventoryTable } from "../features/inventory/InventoryTable";
+import { useListState } from "../features/listing/useListState";
 
 const FLOWS_KEY = (scenarioId: string) => ["flows", scenarioId || "all"] as const;
 const RUNS_KEY = ["runs", "all"] as const;
@@ -80,13 +80,10 @@ function writeUrl(s: InventoryFilterState): URLSearchParams {
 export function InventoryPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const [state, setState] = useState<InventoryFilterState>(() => readUrl(searchParams));
-
-  useEffect(() => {
-    setSearchParams(writeUrl(state), { replace: true });
-  }, [state, setSearchParams]);
+  const { state, setState } = useListState<InventoryFilterState>({
+    fromUrl: readUrl,
+    toUrl: writeUrl,
+  });
 
   const scenariosQuery = useQuery({
     queryKey: SCENARIOS_KEY,

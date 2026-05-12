@@ -57,6 +57,14 @@ const detail: FlowDetail = {
     },
   ],
   invariants: [],
+  model: {
+    module: "NotesAttachmentUpload",
+    seed: "2026051001",
+    maxSteps: 3,
+    traceCount: 1,
+    verify: { invariants: [] },
+  },
+  runtime: {},
   report: "flow: notes.attachment-upload.ui\n",
 };
 
@@ -124,7 +132,7 @@ describe("FlowDetailPage", () => {
     expect(screen.getByTestId("flow-detail-back")).toHaveAttribute("href", "/flows");
   });
 
-  it("renders the header, defaults to the Graph tab, and shows StateGraph", async () => {
+  it("renders the header, defaults to the Overview tab, and shows the description", async () => {
     const { fetchFlowDetail } = await import("../../api/inventory");
     vi.mocked(fetchFlowDetail).mockResolvedValue(detail);
     renderAt("/flows/notes.attachment-upload.ui");
@@ -135,6 +143,22 @@ describe("FlowDetailPage", () => {
       "notes.attachment-upload.ui",
     );
     expect(screen.getByTestId("flow-detail-lang")).toHaveTextContent("ts");
+    expect(screen.getByTestId("flow-detail-tab-overview")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("flow-overview")).toBeInTheDocument();
+  });
+
+  it("switches to the Graph tab and mounts the StateGraph", async () => {
+    const { fetchFlowDetail } = await import("../../api/inventory");
+    vi.mocked(fetchFlowDetail).mockResolvedValue(detail);
+    const user = userEvent.setup();
+    renderAt("/flows/notes.attachment-upload.ui");
+    await waitFor(() =>
+      expect(screen.getByTestId("flow-detail-page")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByTestId("flow-detail-tab-graph"));
     expect(screen.getByTestId("flow-detail-tab-graph")).toHaveAttribute(
       "aria-selected",
       "true",

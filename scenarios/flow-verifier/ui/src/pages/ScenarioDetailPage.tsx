@@ -10,11 +10,18 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
+import { useState } from "react";
+
 import { ApiError } from "../api/client";
 import { verifyFlow, fetchRuns, type RunRow } from "../api/inventory";
 import { fetchScenarioDetail } from "../api/scenarios";
+import {
+  clearScenarioArtifacts,
+  generateScenarioArtifacts,
+} from "../api/artifacts";
 import { errorMessage } from "../lib/errorMessage";
 import { useTranslation } from "../i18n";
+import { ArtifactStatusPill } from "../features/artifacts/ArtifactStatusPill";
 
 export function ScenarioDetailPage() {
   const { t } = useTranslation();
@@ -62,6 +69,24 @@ export function ScenarioDetailPage() {
         await verifyFlow(root, f.flowId);
         await queryClient.invalidateQueries({ queryKey: ["runs", "all"] });
       }
+    },
+  });
+  const generateAll = useMutation({
+    mutationFn: async () => {
+      await generateScenarioArtifacts(scenarioId);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["runs", "all"] });
+    },
+  });
+  const [confirmingClear, setConfirmingClear] = useState(false);
+  const clearAll = useMutation({
+    mutationFn: async () => {
+      await clearScenarioArtifacts(scenarioId);
+    },
+    onSuccess: () => {
+      setConfirmingClear(false);
+      void queryClient.invalidateQueries({ queryKey: ["runs", "all"] });
     },
   });
 
@@ -126,17 +151,66 @@ export function ScenarioDetailPage() {
           </p>
         </div>
         {flows.length > 0 && (
-          <button
-            type="button"
-            data-testid="scenario-detail-verify-all"
-            onClick={() => verifyAll.mutate()}
-            disabled={verifyAll.isPending}
-            className="inline-flex h-9 items-center rounded-control bg-app-primary px-4 text-sm font-medium text-app-primary-foreground hover:brightness-95 disabled:opacity-60"
-          >
-            {verifyAll.isPending
-              ? t("scenarioDetail.verifyingAll", { defaultValue: "Verifying all…" })
-              : t("scenarioDetail.verifyAll", { defaultValue: "Verify all" })}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              data-testid="scenario-detail-verify-all"
+              onClick={() => verifyAll.mutate()}
+              disabled={verifyAll.isPending}
+              className="inline-flex h-9 items-center rounded-control bg-app-primary px-4 text-sm font-medium text-app-primary-foreground hover:brightness-95 disabled:opacity-60"
+            >
+              {verifyAll.isPending
+                ? t("scenarioDetail.verifyingAll", { defaultValue: "Verifying all…" })
+                : t("scenarioDetail.verifyAll", { defaultValue: "Verify all" })}
+            </button>
+            <button
+              type="button"
+              data-testid="scenario-detail-generate-all"
+              onClick={() => generateAll.mutate()}
+              disabled={generateAll.isPending}
+              className="inline-flex h-9 items-center rounded-control border border-app-border bg-app-surface px-3 text-sm text-app-foreground hover:bg-app-surface-muted disabled:opacity-60"
+            >
+              {generateAll.isPending
+                ? t("scenarioDetail.generatingAll", { defaultValue: "Generating…" })
+                : t("scenarioDetail.generateAll", { defaultValue: "Generate all artifacts" })}
+            </button>
+            {!confirmingClear ? (
+              <button
+                type="button"
+                data-testid="scenario-detail-clear-all"
+                onClick={() => setConfirmingClear(true)}
+                disabled={clearAll.isPending}
+                className="inline-flex h-9 items-center rounded-control border border-app-border bg-app-surface px-3 text-sm text-app-foreground hover:bg-app-surface-muted disabled:opacity-60"
+              >
+                {t("scenarioDetail.clearAll", { defaultValue: "Clear all artifacts" })}
+              </button>
+            ) : (
+              <div data-testid="scenario-detail-clear-confirm" className="flex items-center gap-2">
+                <span className="text-xs text-app-warning">
+                  {t("scenarioDetail.clearConfirm", {
+                    defaultValue: "Remove every generated/ tree in this scenario?",
+                  })}
+                </span>
+                <button
+                  type="button"
+                  data-testid="scenario-detail-clear-all-yes"
+                  onClick={() => clearAll.mutate()}
+                  disabled={clearAll.isPending}
+                  className="inline-flex h-9 items-center rounded-control border border-app-border bg-app-danger px-3 text-xs text-app-primary-foreground disabled:opacity-60"
+                >
+                  {t("scenarioDetail.clearAllYes", { defaultValue: "Yes, remove" })}
+                </button>
+                <button
+                  type="button"
+                  data-testid="scenario-detail-clear-all-cancel"
+                  onClick={() => setConfirmingClear(false)}
+                  className="inline-flex h-9 items-center rounded-control border border-app-border bg-app-surface px-3 text-xs"
+                >
+                  {t("scenarioDetail.clearAllCancel", { defaultValue: "Cancel" })}
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </header>
 
@@ -195,12 +269,21 @@ export function ScenarioDetailPage() {
                   <td className="py-2 pr-3 text-xs text-app-muted-foreground">{f.language}</td>
                   <td className="py-2 pr-3 text-xs">
                     {last ? (
-                      <Link
-                        to={`/runs/${last.id}`}
-                        className={statusClass(last.status)}
-                      >
-                        {last.status}
-                      </Link>
+                      needsGenerate(last) ? (
+                        <Link to={`/runs/${last.id}`}>
+                          <ArtifactStatusPill
+                            status="needs_generate"
+                            testId={`scenario-detail-pill-${f.flowId}`}
+                          />
+                        </Link>
+                      ) : (
+                        <Link
+                          to={`/runs/${last.id}`}
+                          className={statusClass(last.status)}
+                        >
+                          {last.status}
+                        </Link>
+                      )
                     ) : (
                       <span className="text-app-muted-foreground">—</span>
                     )}
@@ -235,7 +318,24 @@ export function ScenarioDetailPage() {
           {errorMessage(verifyOne.error, t)}
         </p>
       )}
+      {generateAll.error && (
+        <p data-testid="scenario-detail-generate-error" className="text-sm text-app-danger">
+          {errorMessage(generateAll.error, t)}
+        </p>
+      )}
+      {clearAll.error && (
+        <p data-testid="scenario-detail-clear-error" className="text-sm text-app-danger">
+          {errorMessage(clearAll.error, t)}
+        </p>
+      )}
     </div>
+  );
+}
+
+function needsGenerate(run: RunRow): boolean {
+  return (
+    run.status === "failed" &&
+    (run.failureReason === "missing_artifacts" || run.failureReason === "stale_artifacts")
   );
 }
 

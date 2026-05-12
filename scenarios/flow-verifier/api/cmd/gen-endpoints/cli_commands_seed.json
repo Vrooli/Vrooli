@@ -17,6 +17,31 @@
       "endpoint_id": "flows.get"
     },
     {
+      "name": "artifacts status",
+      "description": "Inspect the on-disk generated/ tree for one flow",
+      "endpoint_id": "flows.artifacts.status"
+    },
+    {
+      "name": "artifacts generate",
+      "description": "Generate or regenerate one flow's artifacts (or every flow in a scenario)",
+      "endpoint_id": "flows.artifacts.generate"
+    },
+    {
+      "name": "artifacts clear",
+      "description": "Remove one flow's generated/ tree (or every flow in a scenario)",
+      "endpoint_id": "flows.artifacts.clear"
+    },
+    {
+      "name": "artifacts generate --scenario",
+      "description": "Generate artifacts for every flow inside one scenario",
+      "endpoint_id": "scenarios.artifacts.generate"
+    },
+    {
+      "name": "artifacts clear --scenario",
+      "description": "Clear artifacts for every flow inside one scenario",
+      "endpoint_id": "scenarios.artifacts.clear"
+    },
+    {
       "name": "verify run",
       "description": "Regenerate verification artifacts for every flow",
       "endpoint_id": "verifications.start"

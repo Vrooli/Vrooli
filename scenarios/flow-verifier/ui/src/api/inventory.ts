@@ -14,6 +14,20 @@ export type FlowSummary = {
   scenarioId?: string;
 };
 
+// FailureReason narrows a failed run into a typed category. The UI's
+// status pill renders the "missing_artifacts" / "stale_artifacts" cases
+// as a distinct yellow "Needs generate" state with a one-click
+// regenerate CTA. Other reasons fall through to the standard red
+// "Failed" pill.
+export type FailureReason =
+  | ""
+  | "missing_artifacts"
+  | "stale_artifacts"
+  | "counterexample"
+  | "lint"
+  | "quint_failure"
+  | "io";
+
 export type RunRow = {
   id: string;
   flowId: string;
@@ -22,6 +36,8 @@ export type RunRow = {
   mode: "run" | "check";
   status: "passed" | "failed" | "error";
   errorMessage?: string;
+  failureReason?: FailureReason;
+  missingArtifacts?: string[];
   output?: string;
   counterexample?: string;
   startedAt: string;
@@ -101,6 +117,42 @@ export type FlowInvariant = {
   expression?: string;
 };
 
+export type FlowModelVerify = {
+  invariants: string[];
+};
+
+export type FlowModel = {
+  module: string;
+  seed: string;
+  maxSteps: number;
+  traceCount: number;
+  verify: FlowModelVerify;
+};
+
+export type FlowGoRuntime = {
+  package: string;
+  statusType: string;
+  eventType: string;
+  constantPrefix: string;
+};
+
+export type FlowTypeScriptRuntime = {
+  statusType: string;
+  eventType: string;
+  statusesConst: string;
+  eventsConst: string;
+  formalExpectationConst: string;
+  stateUnionType?: string;
+  eventUnionType?: string;
+};
+
+export type FlowRuntime = {
+  go?: FlowGoRuntime;
+  typescript?: FlowTypeScriptRuntime;
+  sideEffects?: string[];
+  staleCompletion?: string;
+};
+
 export type FlowDetail = {
   flowId: string;
   domain?: string;
@@ -114,6 +166,8 @@ export type FlowDetail = {
   transitions: FlowTransition[];
   traces: FlowTrace[];
   invariants: FlowInvariant[];
+  model: FlowModel;
+  runtime: FlowRuntime;
   report: string;
 };
 
