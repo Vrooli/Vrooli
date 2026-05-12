@@ -149,6 +149,142 @@ type TemplateValidateRequest struct {
 	WarningPolicy TemplateValidationWarningPolicy
 }
 
+// TemplateDriftRequest selects which scenarios to audit and how verbose the
+// output should be. Exactly one of Scenario or All is set (parser enforces).
+type TemplateDriftRequest struct {
+	Scenario string
+	All      bool
+	Verbose  bool
+	JSON     bool
+}
+
+// TemplateDriftStatus classifies the outcome for a single scenario. Empty
+// values default to "ok" in renderers.
+type TemplateDriftStatus string
+
+const (
+	TemplateDriftStatusOK            TemplateDriftStatus = "ok"
+	TemplateDriftStatusDrifted       TemplateDriftStatus = "drifted"
+	TemplateDriftStatusMissingHashes TemplateDriftStatus = "no_recorded_hashes"
+	TemplateDriftStatusTemplateGone  TemplateDriftStatus = "template_not_found"
+	TemplateDriftStatusNoProvenance  TemplateDriftStatus = "no_provenance"
+	TemplateDriftStatusHashError     TemplateDriftStatus = "hash_error"
+)
+
+// TemplateDriftFileDiff describes one inherited file whose bytes differ
+// between the current template and the scenario's copy. Only populated when
+// --verbose was requested and content drift was detected.
+type TemplateDriftFileDiff struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"` // "modified" | "added_in_template" | "removed_from_scenario"
+}
+
+type TemplateDriftScenarioReport struct {
+	Scenario         string                  `json:"scenario"`
+	TemplateID       string                  `json:"templateId,omitempty"`
+	RecordedVersion  string                  `json:"recordedVersion,omitempty"`
+	CurrentVersion   string                  `json:"currentVersion,omitempty"`
+	RecordedManifest string                  `json:"recordedManifestSha,omitempty"`
+	CurrentManifest  string                  `json:"currentManifestSha,omitempty"`
+	RecordedContent  string                  `json:"recordedContentSha,omitempty"`
+	CurrentContent   string                  `json:"currentContentSha,omitempty"`
+	ManifestDrifted  bool                    `json:"manifestDrifted,omitempty"`
+	ContentDrifted   bool                    `json:"contentDrifted,omitempty"`
+	Status           TemplateDriftStatus     `json:"status"`
+	Message          string                  `json:"message,omitempty"`
+	FileDiffs        []TemplateDriftFileDiff `json:"fileDiffs,omitempty"`
+}
+
+func (r TemplateDriftScenarioReport) Drifted() bool {
+	return r.ManifestDrifted || r.ContentDrifted
+}
+
+type TemplateDriftReport struct {
+	Scenarios []TemplateDriftScenarioReport `json:"scenarios"`
+}
+
+func (r TemplateDriftReport) AnyDrifted() bool {
+	for _, s := range r.Scenarios {
+		if s.Drifted() {
+			return true
+		}
+	}
+	return false
+}
+
+func RenderTemplateDriftResponse(w io.Writer, format cliout.Format, report TemplateDriftReport) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteSuccessJSON(w, "drift", report)
+	}
+	if len(report.Scenarios) == 0 {
+		_, _ = fmt.Fprintln(w, "No scenarios with template provenance found.")
+		return nil
+	}
+	for i, s := range report.Scenarios {
+		if i > 0 {
+			_, _ = fmt.Fprintln(w)
+		}
+		writeTemplateDriftScenario(w, s)
+	}
+	return nil
+}
+
+func writeTemplateDriftScenario(w io.Writer, s TemplateDriftScenarioReport) {
+	header := s.Scenario
+	if s.TemplateID != "" {
+		header = fmt.Sprintf("%s (%s)", s.Scenario, s.TemplateID)
+	}
+	switch s.Status {
+	case TemplateDriftStatusNoProvenance:
+		_, _ = fmt.Fprintf(w, "%s: no template provenance recorded\n", header)
+		return
+	case TemplateDriftStatusMissingHashes:
+		_, _ = fmt.Fprintf(w, "%s: provenance recorded without hashes (generated before drift tracking)\n", header)
+		return
+	case TemplateDriftStatusTemplateGone:
+		_, _ = fmt.Fprintf(w, "%s: template %q not found in current tree\n", header, s.TemplateID)
+		return
+	case TemplateDriftStatusHashError:
+		_, _ = fmt.Fprintf(w, "%s: %s\n", header, s.Message)
+		return
+	}
+	if !s.Drifted() {
+		_, _ = fmt.Fprintf(w, "%s: in sync with template\n", header)
+		return
+	}
+	_, _ = fmt.Fprintf(w, "%s: drifted\n", header)
+	if s.RecordedVersion != "" || s.CurrentVersion != "" {
+		_, _ = fmt.Fprintf(w, "  version:  recorded=%s current=%s\n", emptyDash(s.RecordedVersion), emptyDash(s.CurrentVersion))
+	}
+	if s.ManifestDrifted {
+		_, _ = fmt.Fprintf(w, "  manifest: recorded=%s current=%s\n", shortSha(s.RecordedManifest), shortSha(s.CurrentManifest))
+	}
+	if s.ContentDrifted {
+		_, _ = fmt.Fprintf(w, "  content:  recorded=%s current=%s\n", shortSha(s.RecordedContent), shortSha(s.CurrentContent))
+	}
+	for _, fd := range s.FileDiffs {
+		_, _ = fmt.Fprintf(w, "    %-22s %s\n", fd.Reason, fd.Path)
+	}
+}
+
+func emptyDash(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "-"
+	}
+	return s
+}
+
+func shortSha(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "-"
+	}
+	if len(s) <= 12 {
+		return s
+	}
+	return s[:12]
+}
+
 type TemplateCleanupRequest struct {
 	DryRun          bool
 	OlderThan       string
@@ -196,6 +332,8 @@ type GenerationProvenance struct {
 	Template    GenerationTemplate `json:"template,omitempty"`
 	GeneratedAt string             `json:"generated_at,omitempty"`
 	Design      GenerationDesign   `json:"design,omitempty"`
+	ManifestSha string             `json:"manifest_sha,omitempty"`
+	ContentSha  string             `json:"content_sha,omitempty"`
 }
 
 type GenerationTemplate struct {
@@ -468,6 +606,12 @@ func WriteTemplateProvenance(w io.Writer, provenance GenerationProvenance) {
 	}
 	if provenance.GeneratedAt != "" {
 		_, _ = fmt.Fprintf(w, "  generated_at: %s\n", provenance.GeneratedAt)
+	}
+	if provenance.ManifestSha != "" {
+		_, _ = fmt.Fprintf(w, "  manifest_sha: %s\n", shortSha(provenance.ManifestSha))
+	}
+	if provenance.ContentSha != "" {
+		_, _ = fmt.Fprintf(w, "  content_sha:  %s\n", shortSha(provenance.ContentSha))
 	}
 	if provenance.Design.ID != "" {
 		_, _ = fmt.Fprintf(w, "  design: %s", provenance.Design.ID)

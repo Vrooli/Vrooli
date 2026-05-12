@@ -63,20 +63,22 @@ type InfoOutput struct {
 }
 
 type InfoScenarioData struct {
-	Name             string                       `json:"name"`
-	DisplayName      string                       `json:"display_name,omitempty"`
-	Description      string                       `json:"description,omitempty"`
-	Version          string                       `json:"version,omitempty"`
-	Type             string                       `json:"type,omitempty"`
-	Category         string                       `json:"category,omitempty"`
-	Tags             []string                     `json:"tags"`
-	Path             string                       `json:"path"`
-	ServicePath      string                       `json:"service_path"`
-	SandboxRedirect  bool                         `json:"sandbox_redirected"`
-	ConfigVersion    string                       `json:"config_version,omitempty"`
-	LifecycleVersion string                       `json:"lifecycle_version,omitempty"`
-	Ports            []scenariomodel.PortSummary  `json:"ports"`
-	Phases           []scenariomodel.PhaseSummary `json:"phases"`
+	Name             string                            `json:"name"`
+	DisplayName      string                            `json:"display_name,omitempty"`
+	Description      string                            `json:"description,omitempty"`
+	Version          string                            `json:"version,omitempty"`
+	Type             string                            `json:"type,omitempty"`
+	Category         string                            `json:"category,omitempty"`
+	Tags             []string                          `json:"tags"`
+	Path             string                            `json:"path"`
+	ServicePath      string                            `json:"service_path"`
+	SandboxRedirect  bool                              `json:"sandbox_redirected"`
+	ConfigVersion    string                            `json:"config_version,omitempty"`
+	LifecycleVersion string                            `json:"lifecycle_version,omitempty"`
+	Ports            []scenariomodel.PortSummary       `json:"ports"`
+	Phases           []scenariomodel.PhaseSummary      `json:"phases"`
+	Generation       *scenariomodel.GenerationMetadata `json:"generation,omitempty"`
+	TemplateDrifted  bool                              `json:"template_drifted,omitempty"`
 }
 
 type InfoRuntimeData struct {
@@ -212,6 +214,7 @@ func BuildInfoData(item scenariomodel.Scenario) InfoScenarioData {
 		LifecycleVersion: item.Manifest.Lifecycle.Version,
 		Ports:            item.Manifest.SortedPorts(),
 		Phases:           item.Manifest.PhaseSummaries(),
+		Generation:       item.Manifest.Generation,
 	}
 }
 
@@ -582,6 +585,16 @@ func WriteInfoHuman(w io.Writer, info InfoScenarioData, runtime InfoRuntimeData)
 	}
 	if info.LifecycleVersion != "" {
 		_, _ = fmt.Fprintf(w, "Lifecycle version: %s\n", info.LifecycleVersion)
+	}
+	if info.Generation != nil && strings.TrimSpace(info.Generation.Template.ID) != "" {
+		line := fmt.Sprintf("Template: %s", info.Generation.Template.ID)
+		if v := strings.TrimSpace(info.Generation.Template.Version); v != "" {
+			line += fmt.Sprintf(" (%s)", v)
+		}
+		if info.TemplateDrifted {
+			line += " — drifted from current (run `vrooli scenario template drift " + info.Name + "`)"
+		}
+		_, _ = fmt.Fprintln(w, line)
 	}
 	_, _ = fmt.Fprintf(w, "Runtime status: %s\n", runtime.Status)
 	if runtime.StartedAt != nil {

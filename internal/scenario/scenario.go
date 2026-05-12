@@ -77,6 +77,8 @@ type GenerationMetadata struct {
 	Template    GenerationTemplate `json:"template,omitempty"`
 	GeneratedAt string             `json:"generated_at,omitempty"`
 	Design      GenerationDesign   `json:"design,omitempty"`
+	ManifestSha string             `json:"manifest_sha,omitempty"`
+	ContentSha  string             `json:"content_sha,omitempty"`
 }
 
 type GenerationTemplate struct {

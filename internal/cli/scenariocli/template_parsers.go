@@ -16,6 +16,7 @@ const (
 	TemplateCommandShow     TemplateCommandID = "show"
 	TemplateCommandValidate TemplateCommandID = "validate"
 	TemplateCommandCleanup  TemplateCommandID = "cleanup"
+	TemplateCommandDrift    TemplateCommandID = "drift"
 )
 
 type DesignCommandID string
@@ -54,6 +55,19 @@ func templateCommandSpecs() []commandtree.Spec[TemplateCommandID] {
 				},
 			},
 			Handler: TemplateCommandValidate,
+		},
+		{
+			Name:    string(TemplateCommandDrift),
+			Summary: "Compare a generated scenario's recorded template hashes against the current template",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "scenario"}},
+				Options: []commandtree.OptionArg{
+					{Name: "--all", Description: "Audit every generated scenario with recorded provenance"},
+					{Name: "--verbose", Description: "List per-file differences when content drift is detected"},
+					{Name: "--json", Description: "Emit a JSON report instead of human-readable output"},
+				},
+			},
+			Handler: TemplateCommandDrift,
 		},
 		{
 			Name:    string(TemplateCommandCleanup),
@@ -169,6 +183,28 @@ func ParseTemplateValidateRequest(args []string) (TemplateValidateRequest, error
 	}
 	if req.Mode == TemplateValidationModeShallow && req.RetainTemp {
 		return TemplateValidateRequest{}, fmt.Errorf("--retain-temp is only valid with --mode deep")
+	}
+	return req, nil
+}
+
+func ParseTemplateDriftRequest(args []string) (TemplateDriftRequest, error) {
+	parsed, err := commandtree.ParseArgs("scenario template drift", templateCommandHelpText(TemplateCommandDrift), templateCommandSpec(TemplateCommandDrift).Args, args)
+	if err != nil {
+		return TemplateDriftRequest{}, err
+	}
+	req := TemplateDriftRequest{
+		All:     parsed.HasFlag("--all"),
+		Verbose: parsed.HasFlag("--verbose"),
+		JSON:    parsed.HasFlag("--json"),
+	}
+	if len(parsed.Positionals) > 0 {
+		req.Scenario = strings.TrimSpace(parsed.Positionals[0])
+	}
+	if req.Scenario == "" && !req.All {
+		return TemplateDriftRequest{}, fmt.Errorf("scenario template drift requires a scenario name or --all")
+	}
+	if req.Scenario != "" && req.All {
+		return TemplateDriftRequest{}, fmt.Errorf("scenario template drift accepts either a scenario name or --all, not both")
 	}
 	return req, nil
 }

@@ -172,6 +172,8 @@ func toCLIInfoOutput(resp scenarioapp.InfoOutput) InfoOutput {
 			LifecycleVersion: resp.Scenario.LifecycleVersion,
 			Ports:            append(resp.Scenario.Ports[:0:0], resp.Scenario.Ports...),
 			Phases:           append(resp.Scenario.Phases[:0:0], resp.Scenario.Phases...),
+			Generation:       resp.Scenario.Generation,
+			TemplateDrifted:  resp.Scenario.TemplateDrifted,
 		},
 		Runtime: InfoRuntimeData{
 			Status:      resp.Runtime.Status,

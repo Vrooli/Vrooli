@@ -84,6 +84,9 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				resp, err := InfoResponseFrom(format, func(req InfoRequest) (scenarioapp.InfoOutput, error) {
 					return service.Info(scenarioapp.InfoRequest(req))
 				}, req)
+				if err == nil {
+					EnrichInfoDriftFlag(deps.Root(ctx), &resp)
+				}
 				return format, resp, err
 			},
 			RenderInfoResponse,

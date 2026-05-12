@@ -78,6 +78,14 @@ func TemplateCommandHandler[C any](deps HandlerDeps[C]) func(C, []string) error 
 				return fmt.Errorf("scenario template validation failed")
 			}
 			return nil
+		case "drift":
+			return bindGlobal(deps.Stdout,
+				func(ctx C, args []string) (TemplateDriftRequest, error) { return ParseTemplateDriftRequest(args) },
+				func(ctx C, req TemplateDriftRequest) (cliout.Format, TemplateDriftReport, error) {
+					return runTemplateDrift(deps, ctx, req)
+				},
+				RenderTemplateDriftResponse,
+			)(ctx, args[1:])
 		case "cleanup":
 			return bindGlobal(deps.Stdout,
 				func(ctx C, args []string) (TemplateCleanupRequest, error) { return ParseTemplateCleanupRequest(args) },
@@ -1185,9 +1193,39 @@ func copyTemplate(templateDir, destination string, values map[string]string, man
 	if err := os.MkdirAll(destination, 0o755); err != nil {
 		return err
 	}
-	// Build the set of relocation source paths (template-relative, cleaned)
-	// so the walk can prune them — they're handled by runRelocations and
-	// must not also land in the scenario destination.
+	return walkTemplateEmissions(templateDir, manifest, func(relPath, absPath string, entry fs.DirEntry) error {
+		targetPath := filepath.Join(destination, renderTemplateString(relPath, values))
+		if entry.IsDir() {
+			return os.MkdirAll(targetPath, 0o755)
+		}
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+			return err
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(absPath)
+		if err != nil {
+			return err
+		}
+		if looksLikeTextFile(data) {
+			data = []byte(renderTemplateString(string(data), values))
+		}
+		return os.WriteFile(targetPath, data, info.Mode())
+	})
+}
+
+// walkTemplateEmissions iterates the template tree, invoking fn for every
+// entry (file or directory) that would be emitted into a generated scenario
+// destination. The skip rules — relocation sources, manifest.CopyExcludes,
+// hard-coded dirs (node_modules/dist/build/coverage/.turbo/.vite), and the
+// always-skipped files (.DS_Store, template.json) — are applied once here so
+// copyTemplate and the content-hash walker stay in lockstep.
+//
+// relPath is the template-relative path (filepath-style separators). For
+// directories, fn is called before its children are visited.
+func walkTemplateEmissions(templateDir string, manifest TemplateManifest, fn func(relPath, absPath string, entry fs.DirEntry) error) error {
 	relocSources := make(map[string]struct{}, len(manifest.Relocations))
 	for _, reloc := range manifest.Relocations {
 		from := strings.TrimSpace(reloc.From)
@@ -1218,43 +1256,30 @@ func copyTemplate(templateDir, destination string, values map[string]string, man
 		if err != nil {
 			return err
 		}
+		cleanRel := filepath.Clean(relPath)
 		if entry.IsDir() {
-			if _, skip := relocSources[filepath.Clean(relPath)]; skip {
+			if _, skip := relocSources[cleanRel]; skip {
 				return filepath.SkipDir
 			}
-			if _, skip := copyExcludes[filepath.Clean(relPath)]; skip {
+			if _, skip := copyExcludes[cleanRel]; skip {
 				return filepath.SkipDir
 			}
 		}
 		if filepath.Base(path) == ".DS_Store" || relPath == "template.json" {
 			return nil
 		}
-		if _, skip := copyExcludes[filepath.Clean(relPath)]; skip {
+		if _, skip := copyExcludes[cleanRel]; skip {
 			return nil
 		}
-		targetPath := filepath.Join(destination, renderTemplateString(relPath, values))
-		if entry.IsDir() {
-			return os.MkdirAll(targetPath, 0o755)
-		}
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-			return err
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		if looksLikeTextFile(data) {
-			data = []byte(renderTemplateString(string(data), values))
-		}
-		return os.WriteFile(targetPath, data, info.Mode())
+		return fn(relPath, path, entry)
 	})
 }
 
 func buildGenerationProvenance(info TemplateInfo, design ResolvedDesign, now time.Time) GenerationProvenance {
+	// Hash failures are non-fatal: a scenario must still generate even if the
+	// hasher has a bug, and a stale/missing hash just makes drift unmeasurable
+	// for that scenario — the surface degrades gracefully.
+	manifestSha, contentSha, _ := computeTemplateHashes(info)
 	return GenerationProvenance{
 		Template: GenerationTemplate{
 			ID:      info.Name,
@@ -1266,6 +1291,8 @@ func buildGenerationProvenance(info TemplateInfo, design ResolvedDesign, now tim
 			Version: strings.TrimSpace(design.Version),
 			Adapter: strings.TrimSpace(design.AdapterID),
 		},
+		ManifestSha: manifestSha,
+		ContentSha:  contentSha,
 	}
 }
 
@@ -1293,6 +1320,8 @@ func injectScenarioProvenance(destination string, provenance GenerationProvenanc
 			Version: provenance.Design.Version,
 			Adapter: provenance.Design.Adapter,
 		},
+		ManifestSha: provenance.ManifestSha,
+		ContentSha:  provenance.ContentSha,
 	}
 	rendered, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
