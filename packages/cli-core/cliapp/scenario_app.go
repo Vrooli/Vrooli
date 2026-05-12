@@ -642,13 +642,6 @@ func (a *ScenarioApp) apiRecoveryError(commandName string, ctx apiRecoveryContex
 
 // tryAutoStart attempts to start the scenario via vrooli and waits for the API to become available.
 func (a *ScenarioApp) tryAutoStart() error {
-	if cliutil.IsAgentControlledContext() {
-		envVar := firstNonEmpty(a.options.APIEnvVars)
-		if envVar == "" {
-			envVar = strings.ToUpper(strings.ReplaceAll(a.options.Name, "-", "_")) + "_API_BASE"
-		}
-		return fmt.Errorf("%s API base was not detected inside an agent sandbox; set %s or run `vrooli scenario status %s` / `vrooli scenario start %s` outside the session", a.options.Name, envVar, a.options.Name, a.options.Name)
-	}
 	fmt.Printf("Starting %s...\n", a.options.Name)
 
 	// Scenario start is itself a lifecycle orchestration command. Let it run to

@@ -515,6 +515,38 @@ func TestSQLiteStoreUsesExplicitTempPathOnly(t *testing.T) {
 	}
 }
 
+func TestSQLiteStoreReadOnlyOpensExistingRegistryWithoutWrites(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore() error = %v", err)
+	}
+	created, err := store.CreateInstance(ctx, Instance{Scenario: "alpha"})
+	if err != nil {
+		t.Fatalf("CreateInstance() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	readOnly, err := NewSQLiteStore(ctx, Config{DBPath: dbPath, ReadOnly: true})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore(read-only) error = %v", err)
+	}
+	defer readOnly.Close()
+	got, err := readOnly.GetInstance(ctx, created.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance() error = %v", err)
+	}
+	if got.InstanceID != created.InstanceID {
+		t.Fatalf("GetInstance() = %+v, want %s", got, created.InstanceID)
+	}
+	if _, err := readOnly.CreateInstance(ctx, Instance{Scenario: "beta"}); err == nil {
+		t.Fatal("read-only store unexpectedly accepted write")
+	}
+}
+
 func newTestStore(t *testing.T, clk Clock) *SQLiteStore {
 	t.Helper()
 	store, err := NewSQLiteStore(context.Background(), Config{

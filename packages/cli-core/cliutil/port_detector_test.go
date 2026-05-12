@@ -47,11 +47,11 @@ func TestDetectPortFromVrooliUsesNoStaleCheck(t *testing.T) {
 		if name != "/custom/vrooli" {
 			t.Fatalf("expected resolved vrooli path, got %s", name)
 		}
-		want := []string{"--no-stale-check", "scenario", "port", "test-genie", "API_PORT"}
+		want := []string{"--no-stale-check", "--json", "scenario", "port", "test-genie", "API_PORT"}
 		if !reflect.DeepEqual(args, want) {
 			t.Fatalf("args = %#v, want %#v", args, want)
 		}
-		return exec.CommandContext(ctx, "bash", "-lc", "printf '15422\\n'")
+		return exec.CommandContext(ctx, "bash", "-lc", "printf '{\"success\":true,\"port\":15422}\\n'")
 	}
 
 	port := DetectPortFromVrooli("test-genie", "API_PORT")()

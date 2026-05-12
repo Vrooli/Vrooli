@@ -22,9 +22,10 @@ const (
 )
 
 type Config struct {
-	HomeDir string
-	DBPath  string
-	Clock   Clock
+	HomeDir  string
+	DBPath   string
+	Clock    Clock
+	ReadOnly bool
 }
 
 type SQLiteStore struct {
@@ -61,11 +62,18 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 		}
 		dbPath = resolved
 	}
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		return nil, fmt.Errorf("prepare runtime registry directory: %w", err)
+	readOnly := cfg.ReadOnly || strings.TrimSpace(os.Getenv("VROOLI_SANDBOX_MERGED")) != ""
+	if !readOnly {
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+			return nil, fmt.Errorf("prepare runtime registry directory: %w", err)
+		}
 	}
 
-	db, err := sql.Open("sqlite", buildDSN(dbPath))
+	dsn := buildDSN(dbPath)
+	if readOnly {
+		dsn = buildReadOnlyDSN(dbPath)
+	}
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open runtime registry sqlite: %w", err)
 	}
@@ -722,6 +730,13 @@ func (s *SQLiteStore) withTx(ctx context.Context, fn func(*sql.Tx) error) error 
 
 func buildDSN(path string) string {
 	return "file:" + url.PathEscape(path) + "?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)"
+}
+
+func buildReadOnlyDSN(path string) string {
+	if _, err := os.Stat(path + "-wal"); err != nil {
+		return "file:" + url.PathEscape(path) + "?mode=ro&immutable=1&_pragma=foreign_keys(ON)&_pragma=query_only(ON)&_pragma=busy_timeout(10000)&_pragma=temp_store(MEMORY)"
+	}
+	return "file:" + url.PathEscape(path) + "?mode=ro&nolock=1&_pragma=foreign_keys(ON)&_pragma=query_only(ON)&_pragma=busy_timeout(10000)&_pragma=temp_store(MEMORY)"
 }
 
 func nextGeneration(ctx context.Context, tx *sql.Tx, scenario string) (int64, error) {

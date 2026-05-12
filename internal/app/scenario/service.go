@@ -1,12 +1,16 @@
 package scenarioapp
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/hostlifecycle"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -106,6 +110,12 @@ func (s Service) Restart(req RestartRequest) ([]LifecycleItemOutput, error) {
 }
 
 func (s Service) Stop(req StopRequest) ([]LifecycleItemOutput, error) {
+	if hostlifecycle.InSandbox() {
+		if _, err := hostlifecycle.RunScenario(context.Background(), hostlifecycle.ScenarioRequest{Action: "stop", Name: req.Name}); err != nil {
+			return nil, err
+		}
+		return []LifecycleItemOutput{{Name: req.Name, Status: "stopped"}}, nil
+	}
 	if err := s.Runner.Stop(req.Name, lifecycle.StopOptions{}); err != nil {
 		return nil, err
 	}
@@ -221,6 +231,9 @@ func (s Service) StopAll() (BatchResponse, error) {
 }
 
 func (s Service) Port(req PortRequest) (PortResponse, error) {
+	if hostlifecycle.InSandbox() {
+		return s.hostPort(req)
+	}
 	detail, err := s.Scenarios.Detail(req.ScenarioName)
 	if err != nil {
 		return PortResponse{}, err
@@ -283,6 +296,42 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 		Step:     resolved.Step,
 		Port:     resolved.Port,
 	}}, nil
+}
+
+func (s Service) hostPort(req PortRequest) (PortResponse, error) {
+	resp, err := hostlifecycle.RunScenario(context.Background(), hostlifecycle.ScenarioRequest{
+		Action:   "port",
+		Name:     req.ScenarioName,
+		PortName: req.PortName,
+	})
+	if err != nil {
+		return PortResponse{}, err
+	}
+	if req.PortName == "" {
+		return PortResponse{}, fmt.Errorf("sandbox host port proxy requires a port name")
+	}
+	port, parseErr := parsePort(resp.Stdout)
+	if parseErr != nil {
+		return PortResponse{}, parseErr
+	}
+	return PortResponse{Single: &PortSingleOutput{
+		Success:  true,
+		Scenario: req.ScenarioName,
+		PortName: req.PortName,
+		Port:     port,
+	}}, nil
+}
+
+func parsePort(output string) (int, error) {
+	match := regexp.MustCompile(`\b(\d{2,5})\b`).FindStringSubmatch(output)
+	if len(match) < 2 {
+		return 0, fmt.Errorf("host port proxy returned no port in %q", strings.TrimSpace(output))
+	}
+	port, err := strconv.Atoi(match[1])
+	if err != nil {
+		return 0, fmt.Errorf("parse host port proxy output: %w", err)
+	}
+	return port, nil
 }
 
 func (s Service) Open(req OpenRequest) (OpenOutput, error) {

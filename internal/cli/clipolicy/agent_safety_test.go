@@ -43,6 +43,7 @@ func TestClassifyAgentCommandAllowsReadOnlyCommands(t *testing.T) {
 		{"vrooli", "help"},
 		{"vrooli", "scenario", "status", "agent-manager"},
 		{"vrooli", "scenario", "port", "agent-manager", "API_PORT"},
+		{"vrooli", "scenario", "stop", "prompt-manager"},
 		{"vrooli", "cleanup", "orphans", "--dry-run"},
 		{"vrooli", "orphans", "kill", "--dry-run"},
 		{"swarm-manager", "sessions", "get", "--help"},

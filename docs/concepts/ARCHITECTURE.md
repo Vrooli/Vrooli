@@ -38,6 +38,7 @@ The platform is therefore best understood as a **local software foundry** rather
 - Scenario templates + reliable generation make initial wrapping cheap.
 - A wrapper starts as a simple passthrough and gains custom capability only as needed — never speculatively.
 - Identity comes from agent-manager (agents are spawned through it), so permission/analytics layers fall out naturally.
+- Sandboxed agents can perform approved privileged work through controlled scenario surfaces instead of direct host access. For example, `vrooli scenario start|restart|stop` from a protected workspace is proxied through workspace-sandbox to the host lifecycle command, while arbitrary Docker, systemd, or filesystem mutation remains unavailable unless a Vrooli scenario deliberately wraps it.
 - Each wrapper becomes a control point for future capability layering. Strategic value compounds.
 
 **Corollary — internal scope discipline.** The wrap-not-use principle also applies to internal domain boundaries. Each Vrooli scenario stays in its own lane: domain-specific CLIs (marketing-publisher commands, swarm-manager backlog commands, etc.) live in their own scenarios, not bolted onto generic platforms like prompt-manager. Generic team / coordination primitives belong in prompt-manager; everything else in its domain scenario.

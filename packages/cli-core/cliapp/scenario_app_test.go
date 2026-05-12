@@ -550,10 +550,15 @@ func TestScenarioAppTryAutoStartRunsScenarioStartCommand(t *testing.T) {
 	}
 }
 
-func TestScenarioAppTryAutoStartRefusesControlPlaneInAgentContext(t *testing.T) {
+func TestScenarioAppTryAutoStartUsesLifecycleInAgentContext(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
 	t.Setenv("VROOLI_SANDBOX_ID", "sbx-1")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
 
 	app, err := NewScenarioApp(ScenarioOptions{
 		Name:             "swarm-manager",
@@ -565,21 +570,30 @@ func TestScenarioAppTryAutoStartRefusesControlPlaneInAgentContext(t *testing.T) 
 		t.Fatalf("NewScenarioApp: %v", err)
 	}
 
-	err = app.tryAutoStart()
-	if err == nil {
-		t.Fatal("expected tryAutoStart to be refused in agent context")
+	originalExec := execScenarioStartCommand
+	t.Cleanup(func() { execScenarioStartCommand = originalExec })
+	var started string
+	execScenarioStartCommand = func(name string) *exec.Cmd {
+		started = name
+		return exec.Command("true")
 	}
-	for _, want := range []string{"agent sandbox", "SWARM_MANAGER_API_BASE", "vrooli scenario start swarm-manager"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("error %q missing %q", err.Error(), want)
-		}
+	if err := app.tryAutoStart(); err != nil {
+		t.Fatalf("tryAutoStart: %v", err)
+	}
+	if started != "swarm-manager" {
+		t.Fatalf("started scenario = %q, want swarm-manager", started)
 	}
 }
 
-func TestScenarioAppTryAutoStartRefusesAllScenariosInAgentContext(t *testing.T) {
+func TestScenarioAppTryAutoStartUsesLifecycleForAnyScenarioInAgentContext(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
 	t.Setenv("VROOLI_SANDBOX_ID", "sbx-1")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	t.Setenv("API_BASE_ENV", server.URL)
 
 	app, err := NewScenarioApp(ScenarioOptions{
 		Name:             "demo",
@@ -591,14 +605,18 @@ func TestScenarioAppTryAutoStartRefusesAllScenariosInAgentContext(t *testing.T) 
 		t.Fatalf("NewScenarioApp: %v", err)
 	}
 
-	err = app.tryAutoStart()
-	if err == nil {
-		t.Fatal("expected tryAutoStart to be refused in agent context")
+	originalExec := execScenarioStartCommand
+	t.Cleanup(func() { execScenarioStartCommand = originalExec })
+	var started string
+	execScenarioStartCommand = func(name string) *exec.Cmd {
+		started = name
+		return exec.Command("true")
 	}
-	for _, want := range []string{"agent sandbox", "API_BASE_ENV", "vrooli scenario start demo"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("error %q missing %q", err.Error(), want)
-		}
+	if err := app.tryAutoStart(); err != nil {
+		t.Fatalf("tryAutoStart: %v", err)
+	}
+	if started != "demo" {
+		t.Fatalf("started scenario = %q, want demo", started)
 	}
 }
 

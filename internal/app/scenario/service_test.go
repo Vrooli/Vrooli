@@ -121,6 +121,19 @@ func TestPortResolvesSpecificPortFromRuntimeDetails(t *testing.T) {
 	}
 }
 
+func TestParsePort(t *testing.T) {
+	port, err := parsePort("API_PORT=18060\n")
+	if err != nil {
+		t.Fatalf("parsePort: %v", err)
+	}
+	if port != 18060 {
+		t.Fatalf("port = %d, want 18060", port)
+	}
+	if _, err := parsePort("not running"); err == nil {
+		t.Fatal("expected parse error")
+	}
+}
+
 func portDetail(status string, port int) orchestrator.Detail {
 	manifest := scenariomodel.ServiceManifest{
 		Ports: map[string]scenariomodel.Port{

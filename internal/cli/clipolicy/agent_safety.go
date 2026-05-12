@@ -139,7 +139,7 @@ func destructiveVrooliArgs(args []string) bool {
 	case "stop", "stop-all":
 		return true
 	case "scenario":
-		return len(args) > 1 && (args[1] == "stop-all" || args[1] == "stop")
+		return len(args) > 1 && args[1] == "stop-all"
 	case "resource":
 		return len(args) > 1 && (args[1] == "stop-all" || args[1] == "stop")
 	}

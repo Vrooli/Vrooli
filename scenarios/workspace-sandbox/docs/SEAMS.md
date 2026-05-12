@@ -780,6 +780,15 @@ layer). `Mount` populates `s.HomeMergedDir` for both drivers; the
 profile's `HOME=$HOME` env entry degrades gracefully (no bind, no
 overlay — the agent CLI runs without host-config visibility).
 
+`~/.vrooli` is the intentional exception to the "all HOME state comes
+from the overlay" rule. `vrooli-aware` adds a read-only `$HOME/.vrooli`
+bind after the HOME overlay bind. That later bind shadows the overlay
+copy for this one subtree so sandboxed agents see live Vrooli runtime
+state: port registry, scenario logs, and scenario-owned persistent
+stores. It is read-only because that state is outside the tracked
+workspace; mutations go through controlled scenario/lifecycle APIs such
+as the host lifecycle proxy.
+
 ## Portable launch contract
 
 The default driver is **kernel overlayfs in an unprivileged user

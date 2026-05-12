@@ -166,16 +166,15 @@ func DefaultProfiles() []IsolationProfile {
 			// PATH=$HOME/... and HOME=$HOME require the host-home overlay
 			// to be present; the handler refuses exec otherwise.
 			HomeOverlayRequirement: types.HomeOverlayRequired,
-			// $HOME-relative state (~/.local/{bin,share}, ~/.config,
-			// ~/.claude, ~/.config/vrooli, etc.) is provided by the
-			// per-sandbox HOME overlay set up in driver.Mount. The
-			// overlay's lower layer is the host $HOME and its upper
-			// layer is per-sandbox writable, so agent CLIs find their
-			// host config and any $HOME-relative writes are auditable
-			// per-run rather than escaping to the host or silently
-			// failing. We therefore do NOT add ad-hoc binds for
-			// individual subpaths here — they would shadow the overlay
-			// and reintroduce the very drift the overlay eliminates.
+			// Most $HOME-relative state is provided by the per-sandbox
+			// HOME overlay set up in driver.Mount. One path is
+			// intentionally different: ~/.vrooli is mounted read-only
+			// from the host after the HOME overlay bind so agents see
+			// live runtime state, logs, and scenario databases instead
+			// of a stale per-sandbox snapshot. The bind is read-only
+			// because Vrooli runtime state is outside the tracked
+			// workspace; host mutations must go through controlled
+			// lifecycle/scenario APIs.
 			ReadOnlyBinds: map[string]string{
 				"/usr":             "/usr",
 				"/lib":             "/lib",
@@ -186,6 +185,7 @@ func DefaultProfiles() []IsolationProfile {
 				"/etc/passwd":      "/etc/passwd",
 				"/etc/group":       "/etc/group",
 				"$VROOLI_ROOT":     "/vrooli",
+				"$HOME/.vrooli":    "$HOME/.vrooli",
 			},
 			ReadWriteBinds: map[string]string{},
 			Environment: map[string]string{

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/hostlifecycle"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -119,6 +121,12 @@ func (s *Service) Detail(name string) (Detail, error) {
 }
 
 func (s *Service) StartDetailed(name string, opts lifecycle.StartOptions) (StartResult, error) {
+	if hostlifecycle.InSandbox() {
+		if _, err := hostlifecycle.RunScenario(context.Background(), hostlifecycle.StartOptionsRequest("start", name, opts)); err != nil {
+			return StartResult{}, err
+		}
+		return s.startResultFromLiveDetail(name, false)
+	}
 	runner, err := s.runner()
 	if err != nil {
 		return StartResult{}, err
@@ -143,6 +151,12 @@ func (s *Service) StartDetailed(name string, opts lifecycle.StartOptions) (Start
 }
 
 func (s *Service) RestartDetailed(name string, opts lifecycle.StartOptions) (StartResult, error) {
+	if hostlifecycle.InSandbox() {
+		if _, err := hostlifecycle.RunScenario(context.Background(), hostlifecycle.StartOptionsRequest("restart", name, opts)); err != nil {
+			return StartResult{}, err
+		}
+		return s.startResultFromLiveDetail(name, false)
+	}
 	runner, err := s.runner()
 	if err != nil {
 		return StartResult{}, err
@@ -164,6 +178,43 @@ func (s *Service) RestartDetailed(name string, opts lifecycle.StartOptions) (Sta
 		AlreadyRunning:     result.AlreadyRunning,
 		Details:            detail.Details,
 	}, nil
+}
+
+func (s *Service) startResultFromLiveDetail(name string, alreadyRunning bool) (StartResult, error) {
+	item, err := scenario.Load(s.Root, name, scenario.SandboxEnvFromEnv())
+	if err != nil {
+		return StartResult{}, err
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	var detail Detail
+	for {
+		detail, err = s.detailFor(item, name)
+		if err == nil && detail.Details.Status == "running" {
+			break
+		}
+		if time.Now().After(deadline) {
+			if err != nil {
+				return StartResult{}, err
+			}
+			return StartResult{}, fmt.Errorf("scenario %s did not report running after host lifecycle proxy", name)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return StartResult{
+		View:           s.viewForDetail(detail),
+		Scenario:       item,
+		AllocatedPorts: detailPorts(detail),
+		AlreadyRunning: alreadyRunning,
+		Details:        detail.Details,
+	}, nil
+}
+
+func detailPorts(detail Detail) map[string]int {
+	out := make(map[string]int, len(detail.Details.PortBindings))
+	for _, binding := range detail.Details.PortBindings {
+		out[binding.Key] = binding.Port
+	}
+	return out
 }
 
 func (s *Service) detailFor(item scenario.Scenario, name string) (Detail, error) {

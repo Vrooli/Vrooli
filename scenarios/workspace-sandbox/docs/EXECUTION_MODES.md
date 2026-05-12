@@ -151,10 +151,11 @@ workspace-sandbox run abc123 --vrooli-aware -- scenario-manager start
 ```
 
 **Additional access:**
-- `~/.local/bin/` (Vrooli CLIs, read-only)
-- `~/.config/vrooli/` (CLI configurations, read-only)
+- `$HOME` through a per-sandbox writable overlay for ordinary CLI config/cache reads and writes.
+- `~/.vrooli` as a live read-only host mount. This keeps runtime databases, port state, and logs current inside long-lived sandboxes without allowing agents to mutate host runtime state directly.
 - Localhost network (can reach local APIs)
 - Vrooli environment variables
+- `vrooli scenario start|restart|stop <name>` through the workspace-sandbox host lifecycle proxy. The proxy accepts only those scenario lifecycle actions and strips sandbox identity before executing the host `vrooli` command.
 
 **Best for:**
 - Agents that orchestrate other scenarios
