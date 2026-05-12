@@ -332,6 +332,7 @@ type ClaudeContentItem struct {
 	Input     json.RawMessage `json:"input,omitempty"`
 	ToolUseID string          `json:"tool_use_id,omitempty"`
 	Content   string          `json:"content,omitempty"`
+	IsError   bool            `json:"is_error,omitempty"`
 }
 
 // ExtractTextContent extracts text from a ClaudeMessage, handling both
@@ -902,7 +903,7 @@ func parseMessageEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEven
 		toolResults := ev.Message.ExtractToolResults()
 		for _, r := range toolResults {
 			events = append(events, domain.NewToolResultEvent(
-				runID, "", r.ToolUseID, r.Content, nil,
+				runID, "", r.ToolUseID, r.Content, claudeToolResultError(r),
 			))
 		}
 	}
@@ -961,7 +962,7 @@ func parseUserEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEvent) 
 	toolResults := ev.Message.ExtractToolResults()
 	for _, r := range toolResults {
 		events = append(events, domain.NewToolResultEvent(
-			runID, "", r.ToolUseID, r.Content, nil,
+			runID, "", r.ToolUseID, r.Content, claudeToolResultError(r),
 		))
 	}
 	textContent := ev.Message.ExtractTextContent()
@@ -977,6 +978,17 @@ func parseUserEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEvent) 
 		return events
 	}
 	return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "User turn marker")}
+}
+
+func claudeToolResultError(result ClaudeContentItem) error {
+	if !result.IsError {
+		return nil
+	}
+	msg := strings.TrimSpace(result.Content)
+	if msg == "" {
+		msg = "tool result reported is_error=true"
+	}
+	return errors.New(msg)
 }
 
 func flushStreamMessage(runID uuid.UUID, state *claudeState) []*domain.RunEvent {

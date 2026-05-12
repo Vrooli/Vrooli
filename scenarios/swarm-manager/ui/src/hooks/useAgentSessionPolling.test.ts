@@ -57,7 +57,7 @@ describe("useAgentSessionPolling", () => {
       vi.advanceTimersByTime(4_000);
       await Promise.resolve();
     });
-    expect(fetchSessions).toHaveBeenCalledWith({ activeOnly: true }, { force: true });
+    expect(fetchSessions).toHaveBeenCalledWith(undefined, { force: true });
   });
 
   it("polls the active detail session separately", async () => {

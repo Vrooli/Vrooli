@@ -383,6 +383,21 @@ func TestClaude_DecodeStreamLine_UserToolResult(t *testing.T) {
 	}
 }
 
+func TestClaude_DecodeStreamLine_UserToolResultError(t *testing.T) {
+	c := NewClaudeForTest()
+	events := decodeOne(t, c, `{"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_error","type":"tool_result","content":"Exit code 1\nboom","is_error":true}]}}`)
+	if len(events) == 0 {
+		t.Fatal("expected events")
+	}
+	r := events[0].Data.(*domain.ToolResultEventData)
+	if r.Success {
+		t.Fatal("tool_result Success = true, want false for is_error content block")
+	}
+	if r.Error != "Exit code 1\nboom" {
+		t.Fatalf("tool_result Error = %q", r.Error)
+	}
+}
+
 func TestClaude_DecodeStreamLine_ResultSuccess(t *testing.T) {
 	c := NewClaudeForTest()
 	events := decodeOne(t, c, claudeCodeSamples["result_success"])

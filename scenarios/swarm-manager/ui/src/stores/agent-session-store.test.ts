@@ -74,6 +74,33 @@ describe("agent-session-store", () => {
     expect(state.sessions.map((session) => session.id)).toEqual(["sess_b", "sess_a"]);
   });
 
+  it("does not let filtered refreshes replace the canonical session list", async () => {
+    await useAgentSessionStore.getState().fetchSessions(undefined, { force: true });
+
+    vi.mocked(service.list).mockResolvedValue([SESSION_A]);
+    await useAgentSessionStore.getState().fetchSessions({ activeOnly: true }, { force: true });
+
+    const state = useAgentSessionStore.getState();
+    expect(service.list).toHaveBeenLastCalledWith({ activeOnly: true });
+    expect(state.sessions.map((session) => session.id)).toEqual(["sess_b", "sess_a"]);
+    expect(window.localStorage.getItem("swarm-manager.agent-sessions.v1")).toContain("sess_b");
+  });
+
+  it("fetches the canonical list even while a detail session is refreshing", async () => {
+    useAgentSessionStore.setState({
+      sessions: [SESSION_A],
+      status: "success",
+      isRefreshing: true,
+      lastFetchedAt: Date.now(),
+    });
+
+    await useAgentSessionStore.getState().fetchSessions(undefined, { force: true });
+
+    const state = useAgentSessionStore.getState();
+    expect(service.list).toHaveBeenCalledWith(undefined);
+    expect(state.sessions.map((session) => session.id)).toEqual(["sess_b", "sess_a"]);
+  });
+
   it("loads, creates, continues, refreshes, cancels, and applies sessions", async () => {
     const loaded = await useAgentSessionStore.getState().loadSession("sess_a");
     expect(loaded.id).toBe("sess_a");

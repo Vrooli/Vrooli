@@ -18,7 +18,7 @@ export function useAgentSessionPolling(sessionId?: string): void {
   const shouldPollDetail = !!sessionId && (!detailSession || isActiveAgentSession(detailSession));
 
   const pollSessionList = useCallback(async () => {
-    await fetchSessions({ activeOnly: true }, { force: true });
+    await fetchSessions(undefined, { force: true });
   }, [fetchSessions]);
 
   const pollDetailSession = useCallback(async () => {

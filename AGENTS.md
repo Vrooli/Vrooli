@@ -98,7 +98,6 @@ vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
 ## ❌ Common Pitfalls
 - DON'T skip reading memory files at session start
 - DON'T use mass-update scripts or automated tools to modify multiple files - check and update each file individually
-- DON'T use `2>&1` shell redirection syntax - Claude Code CLI parses this as separate arguments, breaking scripts. Use `&>` instead for redirecting both stdout and stderr to a file
 - DON'T start scenarios with direct execution (`./api/scenario-api`, `nohup ./api/binary &`, etc.)
 - DON'T bypass the lifecycle system - it manages process naming, ports, and health checks
 

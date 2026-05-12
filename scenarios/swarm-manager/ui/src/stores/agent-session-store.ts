@@ -76,23 +76,31 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
   ...agentSessionStoreInitialState,
 
   fetchSessions: async (filters, { force = false } = {}): Promise<void> => {
-    const { status, sessions, lastFetchedAt, isRefreshing } = get();
-    if (status === "loading" || isRefreshing) return;
+    const { status, sessions, lastFetchedAt } = get();
+    if (status === "loading") return;
     if (!shouldRefetch({ lastFetchedAt, hasData: sessions.length > 0, force })) return;
 
+    const filteredRequest = hasSessionListFilters(filters);
     const hasData = sessions.length > 0;
     set({ status: hasData ? "success" : "loading", isRefreshing: hasData, error: null });
     try {
       const result = await fetchWithRetry(() => service.list(filters));
       const now = Date.now();
-      set({
-        sessions: sortSessions(result),
-        status: "success",
-        error: null,
-        isRefreshing: false,
-        lastFetchedAt: now,
+      set((state) => {
+        const nextSessions = filteredRequest && state.sessions.length > 0
+          ? mergeSessions(state.sessions, result)
+          : sortSessions(result);
+        if (!filteredRequest) {
+          saveToStorage(PERSIST_CONFIG, result, now);
+        }
+        return {
+          sessions: nextSessions,
+          status: "success",
+          error: null,
+          isRefreshing: false,
+          lastFetchedAt: filteredRequest ? state.lastFetchedAt : now,
+        };
       });
-      saveToStorage(PERSIST_CONFIG, result, now);
     } catch (error) {
       set({
         error: error instanceof Error ? error : new Error("Unable to load agent sessions."),
@@ -263,6 +271,21 @@ export function artifactEntityKey(artifactType: AgentSessionArtifact["artifactTy
 
 function upsertSession(sessions: AgentSession[], session: AgentSession): AgentSession[] {
   return sortSessions([session, ...sessions.filter((entry) => entry.id !== session.id)]);
+}
+
+function mergeSessions(existing: AgentSession[], incoming: AgentSession[]): AgentSession[] {
+  const byID = new Map<string, AgentSession>();
+  for (const session of existing) {
+    byID.set(session.id, session);
+  }
+  for (const session of incoming) {
+    byID.set(session.id, session);
+  }
+  return sortSessions(Array.from(byID.values()));
+}
+
+function hasSessionListFilters(filters?: ListAgentSessionsFilters): boolean {
+  return !!(filters?.kind || filters?.status || filters?.activeOnly || (filters?.limit && filters.limit > 0));
 }
 
 function sortSessions(sessions: AgentSession[]): AgentSession[] {

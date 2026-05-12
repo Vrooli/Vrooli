@@ -65,7 +65,7 @@ export function AppShell() {
     void fetchBacklog();
     void fetchCaptures();
     void fetchExecutions();
-    void fetchSessions();
+    void fetchSessions(undefined, { force: true });
   }, [fetchBacklog, fetchCaptures, fetchExecutions, fetchSessions]);
 
   useStorePolling({
