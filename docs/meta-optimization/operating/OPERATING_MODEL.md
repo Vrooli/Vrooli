@@ -37,6 +37,8 @@ Meta Optimization has six loops:
 5. **Skill and Action loop** — audit skills and Actions for conversion, improvement, deprecation, and measurement-backed promotion.
 6. **Challenge and debt loop** — challenge stale, weak, or excessive decisions; promote stable typed evidence into canon, skills, Actions, CLI backlog, team changes, capability gaps, or retirement.
 
+The Skill and Action loop has two clear axes that compose rather than compete. **Destination clarity** is covered by `path:docs/agent-system/SKILL_AUTHORING.md` §"Destination over direction: maturity ladders for audit-shaped skills" — does the skill name a verifiable end state? **Implementation maturity** is covered by `path:docs/agent-system/PROMOTION_LADDER.md` — prose → CLI wrapper → Action → retired. Destination clarity is the *precondition* for climbing the implementation ladder: there is nothing to mechanize until the skill has named its target artifact. The Skill Maturity Score in `path:scenarios/development-toolchain-validator/` P1-005 is the programmatic reading of the destination axis (weighted by structural config, CLI tool assertions, and conflict-free passing), and feeds the conversion / improvement / deprecation decisions this loop raises.
+
 The loops are intentionally independent. A friction report can route without becoming a decision; a run lesson can create a capability gap without touching skills; a contrarian review can resolve a decision without generating new work.
 
 ## Operating Graph

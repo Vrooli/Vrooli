@@ -102,8 +102,13 @@ This worked example is frozen as of 2026-05-04. Future audits create typed knowl
 
 `path:scenarios/prompt-manager/store/skills/packs/core/reference-pattern-fitness/SKILL.md` — the executable spec. Tagged `template-fitness` (deliberately not `audit-technique` — keeps the skill out of scenario-qa's registry coherence test). Required reading: this PoR doc, [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md), `prompt-manager skills read knowledge-observatory-tools`, plus the single-instance lens(es) appropriate to the artifact.
 
+## Relation to audit-shaped skill ladders
+
+Audit-shaped skills (the steer audit cohort) carry their own maturity ladders per [`SKILL_AUTHORING.md`](SKILL_AUTHORING.md) §"Destination over direction: maturity ladders for audit-shaped skills". Those ladders are the structural expectations `development-toolchain-validator` mechanizes via its Skill Maturity Score (P1-005). This lens consumes that signal indirectly: a reference scenario whose dirtiness traces back to a skill that has no named destination is a different finding than one where the skill is well-defined but the substrate is missing. When triaging a finding, check whether the relevant audit-shaped skill has destination clarity before attributing the rot to template or substrate.
+
 ## Cross-references
 
+- [`SKILL_AUTHORING.md`](SKILL_AUTHORING.md) §"Destination over direction" — the canon section that defines the maturity-ladder contract this lens depends on.
 - [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md) — registry of templates and the references generated from them. Confirms applicability before running this lens.
 - [`README.md`](README.md) — agent-system canon-doc index.
 - [`../scenario-qa/methods/audit/README.md`](../scenario-qa/methods/audit/README.md) — sibling registry for the seven single-instance lenses. This lens is **not** in it, by design (see "Composition with single-instance lenses" above).
