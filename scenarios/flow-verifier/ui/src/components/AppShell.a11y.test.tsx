@@ -1,33 +1,44 @@
-/**
- * AppShell accessibility regression test.
- *
- * Renders the shell directly instead of `<App />` so this test owns only
- * cross-cutting layout, headings, locale controls, and landmarks. Feature
- * cards carry their own a11y tests beside the feature they exercise.
- */
-import { afterEach, beforeEach, describe, it } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, waitFor } from "@testing-library/react";
+import { Route, Routes } from "react-router-dom";
 
-import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
-import { setLocale } from "../i18n";
+import { expectNoA11yViolations, renderWithProviders, makeHealthResponse } from "../test-utils";
+
+vi.mock("../api/inventory", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/inventory")>();
+  return { ...actual, fetchFlows: vi.fn() };
+});
+vi.mock("../api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/health")>();
+  return { ...actual, fetchHealth: vi.fn() };
+});
+
 import { AppShell } from "./AppShell";
 
 describe("AppShell accessibility", () => {
   beforeEach(async () => {
-    await setLocale("en");
+    const { fetchFlows } = await import("../api/inventory");
+    const { fetchHealth } = await import("../api/health");
+    vi.mocked(fetchFlows).mockResolvedValue([]);
+    vi.mocked(fetchHealth).mockResolvedValue(makeHealthResponse());
   });
+  afterEach(() => cleanup());
 
-  afterEach(() => {
-    cleanup();
-  });
-
-  it("renders the shell without axe violations in English", async () => {
+  it("renders without axe violations", async () => {
     const { container } = renderWithProviders(
-      <AppShell>
-        <main aria-label="Feature content">Stable feature slot</main>
-      </AppShell>,
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<section aria-label="content">page</section>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/"] },
     );
-
+    await waitFor(() =>
+      expect(screen.getByTestId("health-pill")).toHaveTextContent(/ok/i),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("sidebar-flow-list-empty")).toBeInTheDocument(),
+    );
     await expectNoA11yViolations(container);
   });
 });

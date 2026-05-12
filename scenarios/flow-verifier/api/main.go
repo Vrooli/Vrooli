@@ -17,6 +17,7 @@ import (
 	flowsH "flow-verifier/handlers/flows"
 	healthH "flow-verifier/handlers/health"
 	runsH "flow-verifier/handlers/runs"
+	settingsH "flow-verifier/handlers/settings"
 	verificationsH "flow-verifier/handlers/verifications"
 )
 
@@ -52,6 +53,7 @@ func main() {
 		flowsH.Module(),
 		verificationsH.Module(db, clock.System{}),
 		runsH.Module(db, clock.System{}),
+		settingsH.Module(db, clock.System{}),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

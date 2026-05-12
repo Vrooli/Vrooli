@@ -217,6 +217,23 @@
             "forbiddenPlaceholders": ["[TODO]"],
             "requiredLinks": ["../reference/configuration.md"]
           }
+        },
+        {
+          "path": "concepts/ux-overview.md",
+          "docType": "ux-overview",
+          "title": "UX Overview",
+          "aliases": ["ui-routes", "screen-map", "ux-map"],
+          "description": "Route-by-route map of the flow-verifier UI: every visible screen, its data dependencies, and a textual screenshot description",
+          "audience": ["developers", "agents", "users"],
+          "canonicalFor": ["ui-routes", "ui-data-dependencies", "ui-screen-map"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "ownerSkills": ["react-coherence", "vrooli-ui-interop", "documentation-health"],
+          "validation": {
+            "requiredHeadings": ["Purpose Of This Document", "Route Map", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
         }
       ]
     },

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"flow-verifier/internal/verification/quint"
 	"flow-verifier/internal/testkit"
+	"flow-verifier/internal/verification/quint"
 )
 
 func TestCanonicalJSONIsDeterministic(t *testing.T) {

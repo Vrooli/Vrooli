@@ -14,8 +14,6 @@
 export const strings = {
   app: {
     title: "app.title",
-    eyebrow: "app.eyebrow",
-    description: "app.description",
   },
   health: {
     title: "health.title",
@@ -50,9 +48,6 @@ export const strings = {
     unavailable: "errors.unavailable",
     data_loss: "errors.data_loss",
     unauthenticated: "errors.unauthenticated",
-  },
-  locale: {
-    switcherLabel: "locale.switcherLabel",
   },
   errorBoundary: {
     title: "errorBoundary.title",

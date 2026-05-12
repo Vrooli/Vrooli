@@ -3,6 +3,7 @@ package domains
 import (
 	"flow-verifier/cli/domains/flows"
 	"flow-verifier/cli/domains/runs"
+	"flow-verifier/cli/domains/settings"
 	"flow-verifier/cli/domains/verify"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -43,6 +44,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		flows.Register(core),
 		runs.Register(core),
+		settings.Register(core),
 		verify.Register(core),
 	}
 }

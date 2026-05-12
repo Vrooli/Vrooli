@@ -30,6 +30,16 @@
       "name": "runs show",
       "description": "Show one verification run (with counterexample on failure)",
       "endpoint_id": "runs.get"
+    },
+    {
+      "name": "settings get",
+      "description": "Print the local principal's UI/CLI preferences",
+      "endpoint_id": "settings.get"
+    },
+    {
+      "name": "settings set",
+      "description": "Update one or more UI/CLI preferences (key=value pairs)",
+      "endpoint_id": "settings.put"
     }
   ]
 }

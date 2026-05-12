@@ -1,0 +1,79 @@
+{
+  "_metadata": {
+    "module": "visualization-ui",
+    "description": "P1 visualization surface: state-graph viewer, trace player, counterexample diff, and verification timeline.",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UI-100",
+      "title": "State-graph visualizer renders a flow's state machine",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "ui/src/features/flow-detail/StateGraph.tsx renders model states + transitions as a @xyflow/react graph laid out with dagre. Selecting a node highlights incident edges; keyboard navigable.",
+      "tags": ["ui", "visualization", "state-graph"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "StateGraph.test.tsx + StateGraph.a11y.test.tsx assert rendering, highlight on select, and axe-clean."
+        }
+      ]
+    },
+    {
+      "id": "UI-101",
+      "title": "Trace player walks through Quint counterexample traces",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "ui/src/features/flow-detail/TracePlayer.tsx picks a named trace from artifact.json.traces and supports play / pause / step / reset; the graph mirrors the current step via a parent state prop (no Context).",
+      "tags": ["ui", "trace-player"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "TracePlayer.test.tsx asserts transport-control behavior; .a11y.test.tsx axe-clean."
+        }
+      ]
+    },
+    {
+      "id": "UI-102",
+      "title": "Counterexample diff surfaces expected vs actual transitions",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "ui/src/features/flow-detail/CounterexampleDiff.tsx renders side-by-side expected (model) vs actual (counterexample) transitions for a failing run.",
+      "tags": ["ui", "counterexample", "diff"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "CounterexampleDiff.test.tsx + .a11y.test.tsx."
+        }
+      ]
+    },
+    {
+      "id": "UI-103",
+      "title": "Verification timeline charts pass/fail rate over time",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "ui/src/features/timeline/TimelineCard.tsx fetches GET /api/v1/runs (optionally scoped by flowId), buckets runs by day, and renders a stacked recharts BarChart of passed/failed/error outcomes. Embeds in / dashboard and the Flow Detail History tab.",
+      "tags": ["ui", "timeline", "chart"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "TimelineCard.test.tsx + .a11y.test.tsx assert bucketing, loading/empty/error states, axe-clean."
+        }
+      ]
+    }
+  ]
+}

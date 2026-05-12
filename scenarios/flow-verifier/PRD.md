@@ -21,10 +21,10 @@
 - [ ] OT-P0-005 | Flow Inventory UI | One UI screen renders every discovered flow with its last-run status; supports a "Verify all" action.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | State-graph visualizer | React Flow render of `model.qnt` for a selected flow.
-- [ ] OT-P1-002 | Trace player | UI to step through Quint counterexample traces.
-- [ ] OT-P1-003 | Counterexample diff | Side-by-side view of expected vs. actual transitions.
-- [ ] OT-P1-004 | Verification timeline | Chart of pass/fail rate per flow over time.
+- [x] OT-P1-001 | State-graph visualizer | React Flow render of `model.qnt` for a selected flow.
+- [x] OT-P1-002 | Trace player | UI to step through Quint counterexample traces.
+- [x] OT-P1-003 | Counterexample diff | Side-by-side view of expected vs. actual transitions.
+- [x] OT-P1-004 | Verification timeline | Chart of pass/fail rate per flow over time.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Monetization plumbing | Tenant, billing, public landing.
@@ -43,6 +43,7 @@
 - Launch sequencing: Internal-first. Cutover deletes `templates/scenarios/react-vite/tools/temporal-model/` in the same change that flow-verifier reaches CLI parity. Template `make temporal-models` retargets to `flow-verifier verify check`.
 
 ## 🎨 UX & Branding
+- Shell + routing reference: [`docs/concepts/UI_ARCHITECTURE.md`](docs/concepts/UI_ARCHITECTURE.md) — full-width operational console (resizable sidebar / mobile drawer), light/dark/system themes, settings persisted via `/api/v1/settings`.
 - Look & feel: Vrooli-default design kit, react-vite-tailwind adapter. Dense, list-first inventory page.
 - Accessibility: WCAG-AA baseline. a11y tests required for every UI feature (matches template).
 - Voice & messaging: Engineering-tool tone. Terse status labels (passed/failed/error).

@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"flow-verifier/internal/verification/artifact"
 	"flow-verifier/internal/flows/contract"
 	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/verification/artifact"
 )
 
 // renderTypeScriptRuntime emits generated/<folder>/runtime.ts: state

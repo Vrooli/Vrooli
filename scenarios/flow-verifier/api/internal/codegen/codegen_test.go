@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"flow-verifier/internal/verification/artifact"
 	"flow-verifier/internal/flows/model"
 	"flow-verifier/internal/testkit"
+	"flow-verifier/internal/verification/artifact"
 )
 
 func TestRenderGoEmitsTransitionCoreHelpers(t *testing.T) {

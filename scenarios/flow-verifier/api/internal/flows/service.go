@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"flow-verifier/internal/codegen"
+	"flow-verifier/internal/flows/contract"
 	"flow-verifier/internal/flows/discovery"
 	"flow-verifier/internal/flows/layout"
 	"flow-verifier/internal/flows/model"
@@ -61,6 +62,53 @@ func Explain(root, flowID string) (string, error) {
 		return "", err
 	}
 	return buildExplainReport(root, flows[0]), nil
+}
+
+// FlowDetail is the structured projection of a single flow consumed by
+// the UI's flow-detail page. The text `report` is kept alongside for the
+// CLI's `flows explain` and for any caller that wants a printable view.
+type FlowDetail struct {
+	FlowID        string               `json:"flowId"`
+	Domain        string               `json:"domain,omitempty"`
+	Description   string               `json:"description,omitempty"`
+	ContractPath  string               `json:"contractPath"`
+	Language      string               `json:"language"`
+	SchemaVersion int                  `json:"schemaVersion"`
+	InitialState  string               `json:"initialState"`
+	States        []contract.State     `json:"states"`
+	Events        []contract.Event     `json:"events"`
+	Transitions   []model.Transition   `json:"transitions"`
+	Traces        []contract.Trace     `json:"traces"`
+	Invariants    []contract.Invariant `json:"invariants"`
+	Report        string               `json:"report"`
+}
+
+// Detail returns the structured FlowDetail for a single flow id. Mirrors
+// Explain's discovery path; the UI fetches this via GET /api/v1/flows/:id.
+func Detail(root, flowID string) (FlowDetail, error) {
+	if flowID == "" {
+		return FlowDetail{}, fmt.Errorf("detail requires a flow id")
+	}
+	flows, err := discoverFiltered(root, flowID)
+	if err != nil {
+		return FlowDetail{}, err
+	}
+	flow := flows[0]
+	return FlowDetail{
+		FlowID:        flow.FlowID,
+		Domain:        flow.Domain,
+		Description:   flow.Description,
+		ContractPath:  flow.ContractPath,
+		Language:      string(flow.Layout.Language),
+		SchemaVersion: flow.SchemaVersion,
+		InitialState:  flow.Initial.ID,
+		States:        append([]contract.State(nil), flow.States...),
+		Events:        append([]contract.Event(nil), flow.Events...),
+		Transitions:   flow.Matrix.Rows(),
+		Traces:        append([]contract.Trace(nil), flow.Traces...),
+		Invariants:    append([]contract.Invariant(nil), flow.Invariants...),
+		Report:        buildExplainReport(root, flow),
+	}, nil
 }
 
 // NewOptions configures `flows new`.

@@ -1,9 +1,7 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Flow Verifier are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Flow Verifier",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Flow Verifier"
   },
   "health": {
     "title": "API Health",
@@ -38,9 +36,6 @@
     "unavailable": "Service temporarily unavailable.",
     "data_loss": "Data loss detected.",
     "unauthenticated": "Please sign in to continue."
-  },
-  "locale": {
-    "switcherLabel": "Language"
   },
   "errorBoundary": {
     "title": "Something went wrong",

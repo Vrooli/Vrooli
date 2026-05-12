@@ -85,6 +85,44 @@ Run tests with `make test` (which runs `vrooli scenario test`) or invoke `test-g
 | Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
 | Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| Map the UI surface | [`docs/concepts/ux-overview.md`](docs/concepts/ux-overview.md) |
+| Understand the UI shell | [`docs/concepts/UI_ARCHITECTURE.md`](docs/concepts/UI_ARCHITECTURE.md) |
+
+## UX At A Glance
+
+The UI is a six-route SPA under `ui/` (React 18 + Vite, `react-router-dom` v7,
+`@tanstack/react-query`, `@xyflow/react` + `dagre` for the state graph,
+`recharts` for the run-outcome timeline). The application shell is full-width
+with a resizable left sidebar on desktop and a drawer + bottom nav on mobile.
+Every route is lazy-loaded and wrapped in a per-route `<ErrorBoundary>`.
+Theme (light / dark / system) and other preferences are persisted server-side
+via `/api/v1/settings`.
+
+| Path | What you see |
+|---|---|
+| `/` | Dashboard — compact health, recent runs, and the run-outcome timeline. |
+| `/flows` | Inventory — searchable / filterable / sortable table of discovered flows with per-row + bulk verify, URL-synced state. |
+| `/flows/:flowId` | Flow Detail — tabs: **Graph**, **Traces**, **History**. |
+| `/runs/:runId` | Run Detail — tabs: **Result** (metadata), **Counterexample** (JSON tree), **Raw output** (quint output + copy button). |
+| `/settings` | Appearance + behavior preferences, persisted via `/api/v1/settings`. |
+| `*` | NotFoundPage with a back-to-dashboard CTA. |
+
+See [`docs/concepts/UI_ARCHITECTURE.md`](docs/concepts/UI_ARCHITECTURE.md) for
+the shell, routing, and token system, and
+[`docs/concepts/ux-overview.md`](docs/concepts/ux-overview.md) for per-route
+data dependencies.
+
+## CLI
+
+```bash
+flow-verifier flows list [--root <path>]
+flow-verifier verify <flowId> [--root <path>]
+flow-verifier runs list [--flow-id <flowId>] [--limit <n>]
+flow-verifier settings get [--format text|json]
+flow-verifier settings set theme=dark density=compact
+```
+
+All commands default to human-readable output; `--format json` is opt-in.
 
 ## Customize Safely
 1. **Read `docs/START-HERE.md` first.** It owns the first implementation workflow.

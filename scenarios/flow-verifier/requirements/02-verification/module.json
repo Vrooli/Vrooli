@@ -45,7 +45,7 @@
       "id": "VER-003",
       "title": "Lint gate is fatal (no --no-lint)",
       "status": "planned",
-      "prd_ref": "PRD.md",
+      "prd_ref": "OT-P0-002",
       "category": "verification",
       "criticality": "P0",
       "description": "Hand-test replay lint rejects missing imports, missing transition/fixture bindings, and non-top-level runFormalReplay calls. There is no --no-lint flag.",

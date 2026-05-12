@@ -48,12 +48,12 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 	if root == "" {
 		root = "."
 	}
-	report, err := flows.Explain(root, id)
+	detail, err := flows.Detail(root, id)
 	if err != nil {
 		httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"flowId": id, "report": report})
+	writeJSON(w, http.StatusOK, detail)
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

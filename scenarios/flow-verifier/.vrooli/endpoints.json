@@ -72,6 +72,28 @@
       }
     },
     {
+      "id": "settings.get",
+      "path": "/api/v1/settings",
+      "method": "GET",
+      "summary": "Get UI/CLI preferences",
+      "description": "Returns the local principal's persisted UI/CLI preferences. Hard-coded defaults are returned when no row exists; never 404s.",
+      "category": "settings",
+      "cli_mapping": {
+        "command": "flow-verifier settings get"
+      }
+    },
+    {
+      "id": "settings.put",
+      "path": "/api/v1/settings",
+      "method": "PUT",
+      "summary": "Update UI/CLI preferences",
+      "description": "Partial-update of the local principal's preferences. Body is merged with the current row; unknown enum values produce 400.",
+      "category": "settings",
+      "cli_mapping": {
+        "command": "flow-verifier settings set"
+      }
+    },
+    {
       "id": "verifications.start",
       "path": "/api/v1/verifications",
       "method": "POST",
@@ -124,6 +146,16 @@
       "name": "runs show",
       "description": "Show one verification run (with counterexample on failure)",
       "endpoint_id": "runs.get"
+    },
+    {
+      "name": "settings get",
+      "description": "Print the local principal's UI/CLI preferences",
+      "endpoint_id": "settings.get"
+    },
+    {
+      "name": "settings set",
+      "description": "Update one or more UI/CLI preferences (key=value pairs)",
+      "endpoint_id": "settings.put"
     }
   ]
 }

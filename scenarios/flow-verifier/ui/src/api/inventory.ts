@@ -22,6 +22,7 @@ export type RunRow = {
   status: "passed" | "failed" | "error";
   errorMessage?: string;
   output?: string;
+  counterexample?: string;
   startedAt: string;
   finishedAt: string;
   durationMs: number;
@@ -44,7 +45,7 @@ async function getJson<T>(path: string): Promise<T> {
 
 export async function fetchFlows(root: string): Promise<FlowSummary[]> {
   const q = new URLSearchParams({ root });
-  const body = await getJson<{ flows: FlowSummary[] }>(`/api/v1/flows?${q.toString()}`);
+  const body = await getJson<{ flows?: FlowSummary[] }>(`/api/v1/flows?${q.toString()}`);
   return body.flows ?? [];
 }
 
@@ -53,8 +54,71 @@ export async function fetchRuns(opts: { flowId?: string; limit?: number } = {}):
   if (opts.flowId) q.set("flowId", opts.flowId);
   if (opts.limit !== undefined) q.set("limit", String(opts.limit));
   const suffix = q.toString();
-  const body = await getJson<{ runs: RunRow[] }>(`/api/v1/runs${suffix ? "?" + suffix : ""}`);
+  const body = await getJson<{ runs?: RunRow[] }>(`/api/v1/runs${suffix ? "?" + suffix : ""}`);
   return body.runs ?? [];
+}
+
+export type FlowState = {
+  id: string;
+  quint: string;
+  initial?: boolean;
+  terminal?: boolean;
+};
+
+export type FlowEvent = {
+  id: string;
+  quint: string;
+};
+
+export type FlowTransition = {
+  from: string;
+  event: string;
+  to: string;
+  wantError: boolean;
+};
+
+export type FlowTraceStep = {
+  event: string;
+  want: string;
+  wantError: boolean;
+};
+
+export type FlowTrace = {
+  name: string;
+  initial: string;
+  steps: FlowTraceStep[];
+};
+
+export type FlowInvariant = {
+  id: string;
+  quint: string;
+  description: string;
+  expression?: string;
+};
+
+export type FlowDetail = {
+  flowId: string;
+  domain?: string;
+  description?: string;
+  contractPath: string;
+  language: string;
+  schemaVersion: number;
+  initialState: string;
+  states: FlowState[];
+  events: FlowEvent[];
+  transitions: FlowTransition[];
+  traces: FlowTrace[];
+  invariants: FlowInvariant[];
+  report: string;
+};
+
+export async function fetchFlowDetail(root: string, flowId: string): Promise<FlowDetail> {
+  const q = new URLSearchParams({ root });
+  return getJson<FlowDetail>(`/api/v1/flows/${encodeURIComponent(flowId)}?${q.toString()}`);
+}
+
+export async function fetchRun(runId: string): Promise<RunRow> {
+  return getJson<RunRow>(`/api/v1/runs/${encodeURIComponent(runId)}`);
 }
 
 export async function verifyFlow(root: string, flowId?: string): Promise<VerifyResponse> {

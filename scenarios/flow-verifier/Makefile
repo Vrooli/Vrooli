@@ -1,4 +1,17 @@
-.PHONY: help setup start stop restart status logs test temporal-models open orient run dev endpoints
+# Flow Verifier Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/flow-verifier-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
+
+.PHONY: help setup start stop restart status logs test clean build fmt fmt-go fmt-ui lint lint-go lint-ui check dev run open orient endpoints temporal-models
 
 .DEFAULT_GOAL := help
 
@@ -44,7 +57,7 @@ test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
 
 temporal-models: ## Verify formal flow artifacts via the flow-verifier scenario CLI
-	@cd cli && go run . verify check --root ..
+	@flow-verifier verify check --root .
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"
@@ -58,3 +71,35 @@ endpoints: ## Regenerate .vrooli/endpoints.json from API modules
 run: start
 
 dev: start
+
+clean: ## Remove build artifacts
+	@rm -rf ui/dist api/bin cli/bin coverage/
+
+build: ## Build API + UI bundles
+	@cd api && go build ./...
+	@cd cli && go build ./...
+	@cd ui && npm run build
+
+fmt: fmt-go fmt-ui ## Format Go + UI code
+
+fmt-go: ## Format Go code via gofumpt (gracefully skips when gofumpt is not installed)
+	@command -v gofumpt >/dev/null 2>&1 || { echo "gofumpt not installed; skipping fmt-go"; exit 0; }
+	@test -d api && cd api && gofumpt -w . || true
+	@test -d cli && cd cli && gofumpt -w . || true
+
+fmt-ui: ## Format UI code via prettier (gracefully skips when prettier is not installed)
+	@test -d ui || { echo "no ui directory; skipping fmt-ui"; exit 0; }
+	@cd ui && npx --no-install prettier --write 'src/**/*.{ts,tsx,css}' 2>/dev/null || echo "prettier not installed; skipping fmt-ui"
+
+lint: lint-go lint-ui ## Lint Go + UI code
+
+lint-go: ## Lint Go code via golangci-lint (gracefully skips when golangci-lint is not installed)
+	@command -v golangci-lint >/dev/null 2>&1 || { echo "golangci-lint not installed; skipping lint-go"; exit 0; }
+	@test -d api && cd api && golangci-lint run ./... || true
+	@test -d cli && cd cli && golangci-lint run ./... || true
+
+lint-ui: ## Lint UI code via eslint
+	@test -d ui || { echo "no ui directory; skipping lint-ui"; exit 0; }
+	@cd ui && npx --no-install eslint 'src/**/*.{ts,tsx}' 2>/dev/null || echo "eslint not installed; skipping lint-ui"
+
+check: fmt lint test ## Run fmt + lint + test

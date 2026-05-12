@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"flow-verifier/internal/verification/artifact"
 	"flow-verifier/internal/flows/contract"
 	"flow-verifier/internal/flows/layout"
 	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/verification/artifact"
 )
 
 // renderGoRuntime emits <flow>/generated/runtime.go: the state/event

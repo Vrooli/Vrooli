@@ -13,6 +13,9 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/cli-core/cliapp"
+	// modernc.org/sqlite registers itself as the "sqlite" driver via init();
+	// the CLI opens the verification-history DB directly and needs the driver
+	// loaded even though it doesn't reference an exported symbol.
 	_ "modernc.org/sqlite"
 
 	"flow-verifier/internal/clock"

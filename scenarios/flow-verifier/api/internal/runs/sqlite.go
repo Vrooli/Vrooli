@@ -149,11 +149,11 @@ type rowScanner interface {
 
 func scanRun(s rowScanner) (Run, error) {
 	var (
-		r          Run
-		mode       string
-		status     string
-		ce         sql.NullString
-		startedRaw string
+		r           Run
+		mode        string
+		status      string
+		ce          sql.NullString
+		startedRaw  string
 		finishedRaw string
 	)
 	if err := s.Scan(

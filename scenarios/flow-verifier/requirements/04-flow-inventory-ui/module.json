@@ -45,7 +45,7 @@
       "id": "UI-003",
       "title": "Accessibility baseline",
       "status": "planned",
-      "prd_ref": "PRD.md",
+      "prd_ref": "OT-P0-005",
       "category": "ui",
       "criticality": "P0",
       "description": "Inventory page passes axe a11y test with no violations at WCAG-AA.",

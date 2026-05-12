@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"flow-verifier/internal/verification/artifact"
 	"flow-verifier/internal/codegen"
 	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/fsadapter"
-	"flow-verifier/internal/verification/lint"
 	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/fsadapter"
+	"flow-verifier/internal/verification/artifact"
+	"flow-verifier/internal/verification/lint"
 	"flow-verifier/internal/verification/quint"
 )
 

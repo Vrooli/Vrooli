@@ -6,8 +6,8 @@ import (
 
 	"flow-verifier/internal/flows/contract"
 	"flow-verifier/internal/flows/model"
-	"flow-verifier/internal/verification/quint"
 	"flow-verifier/internal/testkit"
+	"flow-verifier/internal/verification/quint"
 )
 
 func TestRenderKeepsTransitionTableOutOfVerifiedInvariants(t *testing.T) {

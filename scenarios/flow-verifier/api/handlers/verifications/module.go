@@ -102,7 +102,7 @@ func postHandler(parent *runsRecorder, _ *runs.Service) http.HandlerFunc {
 		if body.Root == "" {
 			body.Root = "."
 		}
-		mode := pipeline.ModeCheck
+		var mode pipeline.Mode
 		switch strings.ToLower(body.Mode) {
 		case "", "check":
 			mode = pipeline.ModeCheck

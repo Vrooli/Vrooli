@@ -7,8 +7,8 @@ import (
 
 	"flow-verifier/internal/flows/compile"
 	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/fsadapter"
 	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/fsadapter"
 )
 
 func FindContracts(root string) ([]model.Flow, error) {

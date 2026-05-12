@@ -16,32 +16,46 @@ const appRoot = rootEl;
 
 const queryClient = new QueryClient();
 
+// Vite's `import.meta.env.BASE_URL` is built from the `base` config option
+// (set to `./` so emitted assets resolve relative to wherever the SPA is
+// mounted — tunnels, proxies, sub-paths). react-router-dom's `basename`
+// expects an *absolute* path; passing `./` makes BrowserRouter unable to
+// match any URL, which silently renders an empty tree (and trips Lighthouse
+// with NO_FCP). Strip the relative prefix and trailing slash so the router
+// gets a basename it can actually match against.
+function normalizeRouterBasename(raw: string): string {
+  const trimmed = raw.replace(/^\.\//, "/").replace(/\/$/, "");
+  return trimmed === "" || trimmed === "." ? "/" : trimmed;
+}
+
 async function bootstrap() {
-  const [{ default: App }, { ErrorBoundary }, { onProfilerRender }] = await Promise.all([
+  const [
+    { default: App },
+    { ErrorBoundary },
+    { onProfilerRender },
+    { BrowserRouter },
+    { ThemeProvider },
+  ] = await Promise.all([
     import("./App"),
     import("./components/ErrorBoundary"),
     import("./lib/profiler"),
+    import("react-router-dom"),
+    import("./components/theme/ThemeProvider"),
     import("./i18n"),
   ]);
 
   ReactDOM.createRoot(appRoot).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
-        {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
-            ./i18n side-effect init above) so the localised fallback can
-            call useTranslation. A render-time crash inside QueryClient
-            itself would escape this boundary, but that failure mode is
-            covered by react-query's own tests, not application logic. */}
-        <ErrorBoundary>
-          {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
-              the profiling hook); emits user_timing entries via onProfilerRender
-              when the perf-build channel is active. See lib/profiler.ts. Add
-              inner <Profiler> boundaries around heavy subtrees as needed; do
-              not remove this one. */}
-          <React.Profiler id="App" onRender={onProfilerRender}>
-            <App />
-          </React.Profiler>
-        </ErrorBoundary>
+        <ThemeProvider>
+          <ErrorBoundary>
+            <BrowserRouter basename={normalizeRouterBasename(import.meta.env.BASE_URL)}>
+              <React.Profiler id="App" onRender={onProfilerRender}>
+                <App />
+              </React.Profiler>
+            </BrowserRouter>
+          </ErrorBoundary>
+        </ThemeProvider>
       </QueryClientProvider>
     </React.StrictMode>
   );

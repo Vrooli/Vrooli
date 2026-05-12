@@ -3,9 +3,9 @@ package codegen
 import (
 	"fmt"
 
-	"flow-verifier/internal/verification/artifact"
 	"flow-verifier/internal/flows/layout"
 	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/verification/artifact"
 )
 
 type File struct {
