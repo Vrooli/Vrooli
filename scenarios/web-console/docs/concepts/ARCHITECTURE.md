@@ -161,7 +161,7 @@ These cursors drive unread badges, missed-response replay, and future conversati
 
 ### Error Handling
 
-All API errors return structured JSON with `code`, `category`, `recovery`, and `retry` fields. See [Error Semantics](../internal/ERROR-SEMANTICS.md) for the full contract.
+All API errors return structured JSON with `code`, `category`, `recovery`, and `retry` fields. See [Error Semantics](../internal/ERROR_SEMANTICS.md) for the full contract.
 
 Client-side [CODE: ui/src/lib/api.ts#APIError] parses these into typed errors. The [CODE: ui/src/components/ErrorBanner.tsx] component renders recovery hints and retry buttons based on error metadata.
 

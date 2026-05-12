@@ -70,7 +70,7 @@ func (s *Session) broadcast(data []byte) {
 	}
 }
 
-// DOC: docs/internal/ERROR-SEMANTICS.md#sync-warning-coalescing-notification
+// DOC: docs/internal/ERROR_SEMANTICS.md#sync-warning-coalescing-notification
 // deliver sends data to a client channel, coalescing into the pending buffer
 // when the channel is full. Must be called with s.mu held.
 func (s *Session) deliver(ch chan []byte, info *ClientInfo, data []byte) {

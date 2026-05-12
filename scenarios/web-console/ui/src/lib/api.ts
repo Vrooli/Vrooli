@@ -1,5 +1,5 @@
 // DOC: docs/concepts/ARCHITECTURE.md#session-creation
-// DOC: docs/internal/ERROR-SEMANTICS.md#structured-error-type-typescript
+// DOC: docs/internal/ERROR_SEMANTICS.md#structured-error-type-typescript
 import { resolveApiBase, buildApiUrl, buildWsUrl } from "@vrooli/api-base";
 import type { ShortcutEntry } from "../consts/shortcuts";
 

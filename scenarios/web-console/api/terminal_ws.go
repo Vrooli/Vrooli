@@ -21,7 +21,7 @@ var wsPingPeriod = 30 * time.Second
 var probeReadyTimeout = 3 * time.Second
 
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
-// DOC: docs/internal/ERROR-SEMANTICS.md#websocket-error-protocol
+// DOC: docs/internal/ERROR_SEMANTICS.md#websocket-error-protocol
 // WebSocket message types for terminal I/O.
 // [REQ:P0-002b] WebSocket I/O Streaming
 const (

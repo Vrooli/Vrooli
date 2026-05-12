@@ -2,7 +2,7 @@ package main
 
 // session_recovery_handler.go: HTTP surface for the persistent-session
 // recovery flow described in
-// docs/plans/persistent-session-recovery-hardening-plan.md §4.
+// docs/internal/plans/persistent-session-recovery-hardening-plan.md §4.
 //
 //   GET    /api/v1/sessions/recoverable          -> list awaiting_recovery rows
 //   POST   /api/v1/sessions/{id}/recover         -> spawn fresh pane + resume agent

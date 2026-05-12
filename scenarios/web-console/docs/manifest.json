@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "title": "Web Console Documentation",
-  "description": "Documentation for the web-console scenario — a browser-based terminal with PTY-backed sessions, pane layouts, and AI command generation",
+  "description": "Documentation for the web-console scenario — a browser-based terminal with PTY-backed sessions, pane layouts, AI command generation, and voice/TTS. Structure mirrors the reference-react-vite template; `guides/`, `concepts/GLOSSARY.md`, `reference/tts-api.md`, and several `internal/` files are template-extensions specific to this scenario.",
   "defaultDocument": "QUICKSTART.md",
   "sections": [
     {
@@ -14,6 +14,11 @@
           "title": "Quick Start",
           "description": "Get a browser terminal running in under 2 minutes",
           "audience": ["users", "developers"]
+        },
+        {
+          "path": "PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Development history and session changes"
         }
       ]
     },
@@ -40,9 +45,24 @@
       "icon": "book",
       "documents": [
         {
+          "path": "reference/api-endpoints.md",
+          "title": "API Reference",
+          "description": "Every HTTP and WebSocket endpoint exposed by the web-console API"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Reference",
+          "description": "Every subcommand of the web-console CLI"
+        },
+        {
           "path": "reference/configuration.md",
           "title": "Configuration Reference",
           "description": "All tunable levers — API environment variables and UI compile-time constants"
+        },
+        {
+          "path": "reference/data-model.md",
+          "title": "Data Model",
+          "description": "In-memory session state and SQLite-backed persistent tables"
         },
         {
           "path": "reference/tts-api.md",
@@ -81,7 +101,7 @@
       "documents": [
         {
           "path": "internal/SEAMS.md",
-          "title": "Seams & Boundaries",
+          "title": "Architecture Seams",
           "description": "Responsibility zones, testability seams, and change axes",
           "internal": true
         },
@@ -92,21 +112,33 @@
           "internal": true
         },
         {
-          "path": "internal/PROGRESS.md",
-          "title": "Development Progress",
-          "description": "Phase-by-phase development history",
-          "internal": true
-        },
-        {
-          "path": "internal/ERROR-SEMANTICS.md",
+          "path": "internal/ERROR_SEMANTICS.md",
           "title": "Error Semantics",
           "description": "Error categories, recovery paths, and the error response contract",
           "internal": true
         },
         {
-          "path": "internal/RESEARCH.md",
-          "title": "Research Notes",
-          "description": "Technical references, design decisions, and related scenarios",
+          "path": "internal/STORAGE_AUDIT.md",
+          "title": "Storage Audit",
+          "description": "Storage posture analysis: in-memory vs persistent, migration roadmap",
+          "internal": true
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "title": "Unit Test Architecture",
+          "description": "Test organization, mock infrastructure, and testability patterns",
+          "internal": true
+        },
+        {
+          "path": "internal/UTILS_UNIFICATION_NOTES.md",
+          "title": "Utils Unification Notes",
+          "description": "Patterns and decisions from consolidating utility functions",
+          "internal": true
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "title": "React Coherence Notes",
+          "description": "React state patterns, styling consistency, and component organization audit",
           "internal": true
         },
         {
@@ -122,15 +154,9 @@
           "internal": true
         },
         {
-          "path": "internal/STORAGE_AUDIT.md",
-          "title": "Storage Audit",
-          "description": "Storage posture analysis: in-memory vs persistent, migration roadmap",
-          "internal": true
-        },
-        {
-          "path": "internal/UTILS_UNIFICATION_NOTES.md",
-          "title": "Utils Unification Notes",
-          "description": "Patterns and decisions from consolidating utility functions",
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "title": "Experience Audit",
+          "description": "Persona mapping, UX friction analysis, and navigation assessment",
           "internal": true
         },
         {
@@ -140,15 +166,9 @@
           "internal": true
         },
         {
-          "path": "internal/COHERENCE-NOTES.md",
-          "title": "React Coherence Notes",
-          "description": "React state patterns, styling consistency, and component organization audit",
-          "internal": true
-        },
-        {
-          "path": "internal/EXPERIENCE-AUDIT.md",
-          "title": "Experience Audit",
-          "description": "Persona mapping, UX friction analysis, and navigation assessment",
+          "path": "internal/RESEARCH.md",
+          "title": "Research Notes",
+          "description": "Technical references, design decisions, and related scenarios",
           "internal": true
         },
         {
@@ -158,9 +178,21 @@
           "internal": true
         },
         {
-          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
-          "title": "Unit Test Architecture",
-          "description": "Test organization, mock infrastructure, and testability patterns",
+          "path": "internal/PORTABILITY_AUDIT.md",
+          "title": "Portability Audit",
+          "description": "Cross-platform compatibility and packaging considerations",
+          "internal": true
+        },
+        {
+          "path": "internal/VOICE-LATENCY.md",
+          "title": "Voice Latency",
+          "description": "End-to-end latency budgets and measurements for the voice pipeline",
+          "internal": true
+        },
+        {
+          "path": "internal/TERMINAL-INPUT-PROTOCOL.md",
+          "title": "Terminal Input Protocol",
+          "description": "Browser-to-PTY input message protocol and ANSI handling",
           "internal": true
         }
       ]

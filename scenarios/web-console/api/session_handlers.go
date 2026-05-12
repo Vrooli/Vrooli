@@ -1,5 +1,5 @@
 // DOC: docs/concepts/ARCHITECTURE.md#data-flow
-// DOC: docs/internal/ERROR-SEMANTICS.md
+// DOC: docs/internal/ERROR_SEMANTICS.md
 // DOC: docs/internal/INVARIANTS.md
 
 package main

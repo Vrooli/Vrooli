@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// DOC: docs/internal/ERROR-SEMANTICS.md
+// DOC: docs/internal/ERROR_SEMANTICS.md
 // DOC: docs/internal/SEAMS.md#axis-3-error-codes--recovery-api--ui
 
 /**
@@ -28,7 +28,7 @@ import (
  * ║  To add a new error code:                                      ║
  * ║  1. Assign it to exactly one category above                    ║
  * ║  2. Define its recovery action in the handler                  ║
- * ║  3. Update docs/internal/ERROR-SEMANTICS.md                    ║
+ * ║  3. Update docs/internal/ERROR_SEMANTICS.md                    ║
  * ║  4. Add a test in session_handlers_test.go                     ║
  * ╚════════════════════════════════════════════════════════════════╝
  */

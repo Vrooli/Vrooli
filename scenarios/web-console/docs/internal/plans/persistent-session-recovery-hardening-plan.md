@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Make `backend=persistent` web-console panes actually durable across the failure modes that today silently destroy them, and turn the 8-step manual `codex --yolo resume` recovery procedure documented in [SESSION_RECOVERY.md](../guides/SESSION_RECOVERY.md) into a one-call CLI / one-button UI flow.
+Make `backend=persistent` web-console panes actually durable across the failure modes that today silently destroy them, and turn the 8-step manual `codex --yolo resume` recovery procedure documented in [SESSION_RECOVERY.md](../../guides/SESSION_RECOVERY.md) into a one-call CLI / one-button UI flow.
 
 Two concrete defects motivate this work:
 
@@ -32,7 +32,7 @@ cat              scenarios/web-console/initialization/sqlite/schema.sql
 
 ## 3. Greenfield Constraint (Hard Rule)
 
-Per project standing rules ([feedback_planning_guidelines](../../../.claude/projects/-home-matthalloran8-Vrooli/memory/feedback_planning_guidelines.md), repeated here so this plan is self-contained):
+Per project standing rules (recorded in agent memory under `feedback_planning_guidelines`, repeated here so this plan is self-contained):
 
 - This is greenfield. Do **not** add migration shims, dual-write paths, or "preserve old behavior under a flag" toggles. Existing rows that lack the new columns get sensible defaults from the migration; that is the whole compatibility story.
 - Restart `vrooli scenario restart web-console` before declaring done.
@@ -312,7 +312,7 @@ The recovery handler must guard against double-recover (idempotency): an `X-Idem
 {Name: "dismiss",          Description: "Permanently drop an orphaned session row",                  Run: ...},
 ```
 
-Surface uses default human output per [feedback_cli_default_human_output](../../../.claude/projects/-home-matthalloran8-Vrooli/memory/feedback_cli_default_human_output.md). `recover` prints the new session id and a hint pointing to `web-console session get`.
+Surface uses default human output per the `feedback_cli_default_human_output` agent-memory rule. `recover` prints the new session id and a hint pointing to `web-console session get`.
 
 Test gate:
 - `TestHandleRecover_HappyPath_Codex`
@@ -460,7 +460,7 @@ This is the post-implementation verification, all automated:
 - Do **not** parse claude/codex transcript bodies to infer agent type. Use the documented signals (rollout `session_meta`, hook payload, launch metadata).
 - Do **not** open a WebSocket from the API to itself to send the resume paste. Call `sess.WriteInput` directly — it's the same code path the WS handler uses.
 - Do **not** keep `supportsMessagesView` as a separate boolean once `agent_type` exists. Drop the column in the same schema change (greenfield).
-- Do **not** add `curl ...` examples to `SESSION_RECOVERY.md`. Lead with the CLI per project rule [feedback_skills_use_cli_never_api](../../../.claude/projects/-home-matthalloran8-Vrooli/memory/feedback_skills_use_cli_never_api.md).
+- Do **not** add `curl ...` examples to `SESSION_RECOVERY.md`. Lead with the CLI per project rule `feedback_skills_use_cli_never_api` (agent memory).
 
 ## 14. Definition of Done
 
@@ -477,4 +477,4 @@ A future agent or human can declare this plan done iff **all** of the following 
 9. Greenfield rule honored: no `supportsMessagesView` column, no migration shims, no compat flags.
 10. `git log --oneline` shows commits scoped per phase, in dependency order, with messages tied to this plan's filename.
 
-When all ten are checked, the plan can be archived under `scenarios/web-console/docs/plans/archive/`.
+When all ten are checked, this plan can be removed from `scenarios/web-console/docs/internal/plans/`.
