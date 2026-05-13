@@ -1,0 +1,58 @@
+{
+  "_comment": "Japanese catalog for web-console. Mirrors the key shape of en.json. CLDR plurals: Japanese has only the default form, so plural variants (`_one`, `_zero`) are intentionally omitted.",
+  "app": {
+    "title": "Web Console"
+  },
+  "errorBoundary": {
+    "somethingWentWrong": "{{region}}で問題が発生しました",
+    "tryAgain": "再試行"
+  },
+  "errorBanner": {
+    "retry": "再試行",
+    "dismiss": "閉じる"
+  },
+  "enableAudioBanner": {
+    "title": "音声再生がブロックされています",
+    "description": "このタブで音声を再生するには、ブラウザがクリックを必要としています。",
+    "enable": "音声を有効化",
+    "enabling": "有効化中…",
+    "enableTitle": "このセッションで音声を有効化",
+    "dismiss": "閉じる"
+  },
+  "voiceRejection": {
+    "title": "話者があなたの声と一致しませんでした",
+    "explanatoryDetail": "{{reason}}(スコア {{score}} < しきい値 {{threshold}})",
+    "retryableDetail": "スコア {{score}} < しきい値 {{threshold}} · {{duration}}保持",
+    "transcribeAnyway": "強制的に文字起こし",
+    "retry": "再試行",
+    "transcribing": "文字起こし中…",
+    "retryTitle": "話者検証なしで音声を文字起こしする",
+    "dismiss": "閉じる",
+    "dismissAriaLabel": "拒否通知を閉じる"
+  },
+  "summarizeError": {
+    "autoFailed": "自動要約に失敗しました",
+    "failed": "要約に失敗しました",
+    "retry": "再試行",
+    "retrying": "再試行中…",
+    "retryTitle": "要約を再試行",
+    "dismiss": "閉じる",
+    "dismissAriaLabel": "要約エラーを閉じる"
+  },
+  "confirmClose": {
+    "title": "ターミナルを閉じますか?",
+    "body": "「{{name}}」で実行中のプロセスは終了されます。",
+    "cancel": "キャンセル",
+    "confirm": "閉じる"
+  },
+  "recoverableSessions": {
+    "heading": "前回の実行から復旧待ちのセッションが{{count}}件あります",
+    "agentLabel": "エージェント: {{agent}}",
+    "cwdLabel": "cwd: {{cwd}}",
+    "agentNone": "なし",
+    "reattach": "再アタッチ",
+    "reattachTitle": "新しいペインに再アタッチ",
+    "dismiss": "閉じる",
+    "dismissTitle": "このオーファンをリストから非表示にする(ディスク上の状態は保持)"
+  }
+}

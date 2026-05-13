@@ -2,6 +2,31 @@
 
 > Source of truth: the code. Verify claims below against actual implementation.
 
+## Flow Index
+
+| Flow ID | Domain | Risk | Model Status | Source of Truth | Tests | Remaining Gaps |
+|---|---|---|---|---|---|---|
+| `web-console.playback-transport.ui` | `tts-playback` | High — pause/resume + queue advancement bugs reported by users | L5 (Quint-checked) | `ui/src/domains/tts-playback/flow/flow.json` + `transition.ts` | `flow.test.ts` (formal replay), `useTtsPlaybackController.test.ts` | None known. Within-event paragraph concatenation still routes through `Kokoro.speakSequence`; the removed event-iterating for-loop in `TerminalPane` never produced cross-event continuous audio — just chained per-event audio elements |
+
+## Unmodeled Candidates
+
+| Candidate | Why It May Be Temporal | Current Risk | Recommended Next Step |
+|---|---|---|---|
+| Session SSE / WebSocket stream | Reconnect, exponential backoff, partial-event buffering | Medium — silent stalls reported | Inventory states (connecting/open/draining/reconnecting/closed) before any rework |
+| Claude-console attach lifecycle | Sessions reattach across reloads; pty buffering | Medium | L1 inventory of attach/replay/swap states |
+| Optimistic message send | UI shows pending, then server confirms | Low | Keep at L1 until a bug surfaces |
+| Voice persistent mode | Already partially inventoried below; segment boundary + speaker verification has implicit ordering | Medium | Promote VAD + speaker-verification gate to a single L2 workflow |
+
+## Declarative & Formal Spec Status
+
+| Flow ID | Spec Type | Generated Artifacts | Drift Check | Status |
+|---|---|---|---|---|
+| `web-console.playback-transport.ui` | `flow.json` (schemaVersion 6) | `flow/generated/{model.qnt,runtime.ts,replay.helper.ts,artifact.json}` | `flow-verifier verify check` + vitest replay of all named traces | adopted |
+
+## Audit Notes
+
+- **2026-05-13** — Initial L5 adoption of `web-console.playback-transport.ui`. Quint check passes (TypeOK, IllegalTransitionsPreserveState, PausedSwallowsAutoAdvance, StaleCompletionIsIgnored). Vitest replay green. Wired into `useTtsPlaybackController` to fix user-reported "pause auto-advances to next message" and "pause then play elsewhere" races. Stale-completion guarding via `loadId` carried in event payloads, mirroring the notes template's `attempt-id` pattern.
+
 ## Async Operation Inventory
 
 ### API (Go)

@@ -1,8 +1,10 @@
 // DOC: docs/internal/ERROR_SEMANTICS.md#client-side-failure-handling
 // DOC: docs/internal/SEAMS.md#axis-3-error-codes--recovery-api--ui
 import { AlertTriangle, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { ErrorInfo } from "../lib/errors";
 import { cn } from "../lib/classnames";
+import { strings } from "../consts/strings";
 
 // Re-export so existing importers of ErrorInfo from this file continue to work.
 export type { ErrorInfo } from "../lib/errors";
@@ -29,6 +31,7 @@ export default function ErrorBanner({
   onRetry,
   className = "",
 }: ErrorBannerProps) {
+  const { t } = useTranslation();
   return (
     <div
       data-testid="create-error-banner"
@@ -43,10 +46,14 @@ export default function ErrorBanner({
             onClick={onRetry}
             className="shrink-0 text-xs underline hover:text-red-100"
           >
-            Retry
+            {t(strings.errorBanner.retry)}
           </button>
         )}
-        <button onClick={onDismiss} className="shrink-0 p-0.5 hover:text-red-100">
+        <button
+          onClick={onDismiss}
+          aria-label={t(strings.errorBanner.dismiss)}
+          className="shrink-0 p-0.5 hover:text-red-100"
+        >
           <X className="h-3 w-3" />
         </button>
       </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   dismissRecoverableSession,
@@ -7,6 +8,7 @@ import {
   type RecoverableSession,
   type RecoverResult,
 } from "../api/sessions";
+import { strings } from "../consts/strings";
 
 export interface RecoverableSessionsBannerProps {
   // Called after a successful recovery so the workspace can attach the new
@@ -21,6 +23,7 @@ export interface RecoverableSessionsBannerProps {
 // See: scenarios/web-console/docs/guides/SESSION_RECOVERY.md
 export default function RecoverableSessionsBanner(props: RecoverableSessionsBannerProps) {
   const { onRecovered } = props;
+  const { t } = useTranslation();
   const [rows, setRows] = useState<RecoverableSession[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +84,7 @@ export default function RecoverableSessionsBanner(props: RecoverableSessionsBann
       className="border-b border-amber-700/40 bg-amber-900/20 text-sm text-amber-100"
     >
       <div className="px-3 py-2 font-medium">
-        {rows.length} session{rows.length === 1 ? "" : "s"} awaiting recovery from a previous run
+        {t(strings.recoverableSessions.heading, { count: rows.length })}
       </div>
       <ul className="divide-y divide-amber-700/30">
         {rows.map((row) => (
@@ -91,28 +94,40 @@ export default function RecoverableSessionsBanner(props: RecoverableSessionsBann
             className="flex items-center gap-2 px-3 py-2"
           >
             <span className="font-mono text-xs">{row.id.slice(0, 8)}</span>
-            <span className="text-xs">agent: {row.agent_type ?? "none"}</span>
-            {row.cwd ? <span className="truncate text-xs opacity-70">cwd: {row.cwd}</span> : null}
+            <span className="text-xs">
+              {t(strings.recoverableSessions.agentLabel, {
+                agent: row.agent_type ?? t(strings.recoverableSessions.agentNone),
+              })}
+            </span>
+            {row.cwd ? (
+              <span className="truncate text-xs opacity-70">
+                {t(strings.recoverableSessions.cwdLabel, { cwd: row.cwd })}
+              </span>
+            ) : null}
             <div className="ml-auto flex gap-2">
               <button
                 type="button"
                 disabled={!row.recoverable || busy === row.id}
                 onClick={() => handleRecover(row.id)}
                 className="rounded border border-amber-400/50 px-2 py-0.5 text-xs hover:bg-amber-700/30 disabled:opacity-50"
-                title={row.recoverable ? "Reattach into a fresh pane" : row.not_recoverable_reason}
+                title={
+                  row.recoverable
+                    ? t(strings.recoverableSessions.reattachTitle)
+                    : row.not_recoverable_reason
+                }
                 data-testid={`recoverable-row-${row.id}-recover`}
               >
-                Reattach
+                {t(strings.recoverableSessions.reattach)}
               </button>
               <button
                 type="button"
                 disabled={busy === row.id}
                 onClick={() => handleDismiss(row.id)}
                 className="rounded border border-amber-400/30 px-2 py-0.5 text-xs hover:bg-amber-700/20 disabled:opacity-50"
-                title="Hide this orphan from the list (on-disk state preserved)"
+                title={t(strings.recoverableSessions.dismissTitle)}
                 data-testid={`recoverable-row-${row.id}-dismiss`}
               >
-                Dismiss
+                {t(strings.recoverableSessions.dismiss)}
               </button>
             </div>
           </li>

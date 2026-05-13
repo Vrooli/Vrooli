@@ -1,10 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import { describe, expect, it } from "vitest";
-// @ts-expect-error -- vitest runs in Node; types aren't in the UI tsconfig
 import { readFileSync, readdirSync, statSync } from "node:fs";
-// @ts-expect-error -- vitest runs in Node; types aren't in the UI tsconfig
 import { join, resolve } from "node:path";
-// @ts-expect-error -- vitest runs in Node; types aren't in the UI tsconfig
 import { fileURLToPath } from "node:url";
 
 /**

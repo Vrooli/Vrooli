@@ -1,0 +1,59 @@
+{
+  "_comment": "Canonical English catalog for web-console. Keys with a leading underscore (like this one) are sentinels — skipped by codegen, parity tests, and unused-key audits. Runtime interpolation uses i18next syntax: {{count}}, {{name}}, etc.",
+  "app": {
+    "title": "Web Console"
+  },
+  "errorBoundary": {
+    "somethingWentWrong": "Something went wrong in {{region}}",
+    "tryAgain": "Try Again"
+  },
+  "errorBanner": {
+    "retry": "Retry",
+    "dismiss": "Dismiss"
+  },
+  "enableAudioBanner": {
+    "title": "Voice playback is blocked",
+    "description": "Your browser requires a click before it will play audio in this tab.",
+    "enable": "Enable voice",
+    "enabling": "Enabling…",
+    "enableTitle": "Enable voice for this session",
+    "dismiss": "Dismiss"
+  },
+  "voiceRejection": {
+    "title": "Speech didn't match your voice",
+    "explanatoryDetail": "{{reason}} (score {{score}} < threshold {{threshold}})",
+    "retryableDetail": "Score {{score}} < threshold {{threshold}} · {{duration}} retained",
+    "transcribeAnyway": "Transcribe anyway",
+    "retry": "Retry",
+    "transcribing": "Transcribing…",
+    "retryTitle": "Transcribe the audio without speaker verification",
+    "dismiss": "Dismiss",
+    "dismissAriaLabel": "Dismiss rejection notice"
+  },
+  "summarizeError": {
+    "autoFailed": "Auto-summarize failed",
+    "failed": "Summarize failed",
+    "retry": "Retry",
+    "retrying": "Retrying…",
+    "retryTitle": "Retry summarization",
+    "dismiss": "Dismiss",
+    "dismissAriaLabel": "Dismiss summarization error"
+  },
+  "confirmClose": {
+    "title": "Close terminal?",
+    "body": "The running process in \"{{name}}\" will be terminated.",
+    "cancel": "Cancel",
+    "confirm": "Close"
+  },
+  "recoverableSessions": {
+    "heading": "{{count}} sessions awaiting recovery from a previous run",
+    "heading_one": "1 session awaiting recovery from a previous run",
+    "agentLabel": "agent: {{agent}}",
+    "cwdLabel": "cwd: {{cwd}}",
+    "agentNone": "none",
+    "reattach": "Reattach",
+    "reattachTitle": "Reattach into a fresh pane",
+    "dismiss": "Dismiss",
+    "dismissTitle": "Hide this orphan from the list (on-disk state preserved)"
+  }
+}

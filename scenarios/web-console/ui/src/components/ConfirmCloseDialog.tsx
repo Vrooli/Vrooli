@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 
 interface ConfirmCloseDialogProps {
   open: boolean;
@@ -13,6 +15,7 @@ export default function ConfirmCloseDialog({
   onConfirm,
   onCancel,
 }: ConfirmCloseDialogProps) {
+  const { t } = useTranslation();
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   // Auto-focus Cancel for safety, handle Escape
@@ -43,10 +46,10 @@ export default function ConfirmCloseDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-2 text-sm font-semibold text-wc-text-primary">
-          Close terminal?
+          {t(strings.confirmClose.title)}
         </h2>
         <p className="mb-4 text-xs text-wc-text-secondary">
-          The running process in &ldquo;{sessionName}&rdquo; will be terminated.
+          {t(strings.confirmClose.body, { name: sessionName })}
         </p>
         <div className="flex justify-end gap-2">
           <button
@@ -55,14 +58,14 @@ export default function ConfirmCloseDialog({
             onClick={onCancel}
             data-testid="confirm-close-cancel"
           >
-            Cancel
+            {t(strings.confirmClose.cancel)}
           </button>
           <button
             className="rounded-full px-4 py-1.5 text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
             onClick={onConfirm}
             data-testid="confirm-close-confirm"
           >
-            Close
+            {t(strings.confirmClose.confirm)}
           </button>
         </div>
       </div>

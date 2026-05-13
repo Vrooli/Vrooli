@@ -1,9 +1,11 @@
 // Tests for VoiceRejectionBanner.
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import VoiceRejectionBanner from "../VoiceRejectionBanner";
 import type { VoiceRejection } from "../../hooks/voice/types";
+import { strings } from "../../consts/strings";
+import { i18n } from "../../i18n";
 
 function retryable(overrides: Partial<Extract<VoiceRejection, { kind: "retryable" }>> = {}): VoiceRejection {
   const base: Extract<VoiceRejection, { kind: "retryable" }> = {
@@ -40,7 +42,7 @@ describe("VoiceRejectionBanner", () => {
         onDismiss={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent("Transcribe anyway");
+    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent(strings.voiceRejection.transcribeAnyway);
     expect(screen.getByTestId("voice-rejection-dismiss")).toBeInTheDocument();
   });
 
@@ -92,7 +94,7 @@ describe("VoiceRejectionBanner", () => {
     );
     expect(screen.getByTestId("voice-rejection-retry")).toBeDisabled();
     expect(screen.getByTestId("voice-rejection-dismiss")).toBeDisabled();
-    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent("Transcribing…");
+    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent(strings.voiceRejection.transcribing);
   });
 
   it("shows Retry + error text on failed status", () => {
@@ -103,21 +105,30 @@ describe("VoiceRejectionBanner", () => {
         onDismiss={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent("Retry");
+    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent(strings.voiceRejection.retry);
     expect(screen.getByTestId("voice-rejection-error")).toHaveTextContent("Network error");
     expect(screen.getByTestId("voice-rejection-retry")).not.toBeDisabled();
   });
 
-  it("includes the score, threshold, and duration in the retryable variant", () => {
-    render(
-      <VoiceRejectionBanner
-        rejection={retryable({ score: 0.42, threshold: 0.85, durationMs: 5_500 })}
-        onRetry={vi.fn()}
-        onDismiss={vi.fn()}
-      />,
-    );
-    expect(screen.getByText(/0\.42/)).toBeInTheDocument();
-    expect(screen.getByText(/0\.85/)).toBeInTheDocument();
-    expect(screen.getByText(/5\.5s retained/)).toBeInTheDocument();
+  // Real-translations test: cimode returns the key without interpolation, so
+  // this test opts back to `en` to verify the score / threshold / duration
+  // values actually thread through the interpolation tokens.
+  describe("interpolation (en locale)", () => {
+    beforeEach(async () => {
+      await i18n.changeLanguage("en");
+    });
+
+    it("includes the score, threshold, and duration in the retryable variant", () => {
+      render(
+        <VoiceRejectionBanner
+          rejection={retryable({ score: 0.42, threshold: 0.85, durationMs: 5_500 })}
+          onRetry={vi.fn()}
+          onDismiss={vi.fn()}
+        />,
+      );
+      expect(screen.getByText(/0\.42/)).toBeInTheDocument();
+      expect(screen.getByText(/0\.85/)).toBeInTheDocument();
+      expect(screen.getByText(/5\.5s retained/)).toBeInTheDocument();
+    });
   });
 });

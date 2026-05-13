@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 import { AlertTriangle, Loader2, RotateCcw, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 
 export type SummarizeErrorStatus = "idle" | "retrying" | "failed";
 
@@ -29,11 +31,15 @@ export default function SummarizeErrorBanner({
   onRetry,
   onDismiss,
 }: SummarizeErrorBannerProps) {
+  const { t } = useTranslation();
   const handleRetry = useCallback(() => { onRetry(); }, [onRetry]);
   const handleDismiss = useCallback(() => { onDismiss(); }, [onDismiss]);
 
   const isRetrying = state.status === "retrying";
-  const sourceLabel = state.source === "auto" ? "Auto-summarize failed" : "Summarize failed";
+  const sourceLabel =
+    state.source === "auto"
+      ? t(strings.summarizeError.autoFailed)
+      : t(strings.summarizeError.failed);
 
   return (
     <div
@@ -54,14 +60,14 @@ export default function SummarizeErrorBanner({
         onClick={handleRetry}
         disabled={isRetrying}
         className="shrink-0 inline-flex items-center gap-1 rounded border border-amber-400/40 bg-amber-500/20 px-2 py-1 font-medium text-amber-100 transition active:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
-        title="Retry summarization"
+        title={t(strings.summarizeError.retryTitle)}
       >
         {isRetrying ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
         ) : (
           <RotateCcw className="h-3.5 w-3.5" aria-hidden />
         )}
-        <span>{isRetrying ? "Retrying…" : "Retry"}</span>
+        <span>{isRetrying ? t(strings.summarizeError.retrying) : t(strings.summarizeError.retry)}</span>
       </button>
       <button
         type="button"
@@ -69,8 +75,8 @@ export default function SummarizeErrorBanner({
         onClick={handleDismiss}
         disabled={isRetrying}
         className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1 text-wc-text-secondary transition active:bg-wc-accent-active disabled:cursor-not-allowed disabled:opacity-60"
-        title="Dismiss"
-        aria-label="Dismiss summarization error"
+        title={t(strings.summarizeError.dismiss)}
+        aria-label={t(strings.summarizeError.dismissAriaLabel)}
       >
         <X className="h-3.5 w-3.5" />
       </button>

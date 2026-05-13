@@ -92,7 +92,6 @@ export default function Workspace() {
     registerTerminalRef,
     stopActiveTts,
     speakTextOnPane,
-    speakSequenceOnPane,
     pauseTtsOnPane,
     resumeTtsOnPane,
     seekTtsOnPane,
@@ -688,7 +687,6 @@ export default function Workspace() {
     speakText: (sessionId, text, paragraphs, opts) => {
       speakTextOnPane(sessionId, text, paragraphs, opts);
     },
-    speakSequence: speakSequenceOnPane,
     stopPlayback: stopActiveTts,
     applySummarizeResult,
     onSummarizeFailed: (sessionId, eventId, message) => handleSummarizeFailed(sessionId, eventId, message, "on-demand"),

@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import App from "./App";
+import "./i18n";
 import "./styles.css";
 
 const queryClient = new QueryClient();

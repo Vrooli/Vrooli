@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import EnableAudioBanner from "../EnableAudioBanner";
+import { strings } from "../../consts/strings";
 
 describe("EnableAudioBanner", () => {
   it("renders enable and dismiss buttons with copy explaining the block", () => {
@@ -8,7 +9,7 @@ describe("EnableAudioBanner", () => {
     expect(screen.getByTestId("enable-audio-banner")).toBeInTheDocument();
     expect(screen.getByTestId("enable-audio-banner-enable")).toBeInTheDocument();
     expect(screen.getByTestId("enable-audio-banner-dismiss")).toBeInTheDocument();
-    expect(screen.getByText("Voice playback is blocked")).toBeInTheDocument();
+    expect(screen.getByText(strings.enableAudioBanner.title)).toBeInTheDocument();
   });
 
   it("clicking enable invokes onEnable exactly once", async () => {
@@ -33,7 +34,7 @@ describe("EnableAudioBanner", () => {
     render(<EnableAudioBanner onEnable={onEnable} onDismiss={onDismiss} />);
 
     fireEvent.click(screen.getByTestId("enable-audio-banner-enable"));
-    await waitFor(() => expect(screen.getByText("Enabling…")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(strings.enableAudioBanner.enabling)).toBeInTheDocument());
     expect(screen.getByTestId("enable-audio-banner-enable")).toBeDisabled();
     expect(screen.getByTestId("enable-audio-banner-dismiss")).toBeDisabled();
 
@@ -42,7 +43,7 @@ describe("EnableAudioBanner", () => {
     expect(onDismiss).not.toHaveBeenCalled();
 
     resolveEnable?.(true);
-    await waitFor(() => expect(screen.getByText("Enable voice")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(strings.enableAudioBanner.enable)).toBeInTheDocument());
   });
 
   it("role=status for assistive tech", () => {

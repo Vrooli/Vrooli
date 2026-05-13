@@ -2,6 +2,8 @@
 // DOC: docs/internal/ERROR_SEMANTICS.md
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 
 interface ErrorBoundaryProps {
@@ -14,6 +16,30 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   error: Error | null;
+}
+
+interface FallbackProps {
+  region: string;
+  message: string;
+  onReset: () => void;
+}
+
+function DefaultFallback({ region, message, onReset }: FallbackProps) {
+  const { t } = useTranslation();
+  return (
+    <div
+      data-testid={`error-boundary-${region}`}
+      className="flex flex-col items-center justify-center gap-3 rounded-md border border-wc-error bg-wc-error-surface p-6 text-sm text-wc-error-text"
+    >
+      <AlertTriangle className="h-6 w-6 text-wc-error-detail" />
+      <p className="font-medium">{t(strings.errorBoundary.somethingWentWrong, { region })}</p>
+      <p className="max-w-md text-center text-xs text-wc-error-detail/70">{message}</p>
+      <Button variant="outline" size="sm" onClick={onReset} className="mt-2">
+        <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+        {t(strings.errorBoundary.tryAgain)}
+      </Button>
+    </div>
+  );
 }
 
 /**
@@ -42,25 +68,11 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
       if (this.props.fallback) return this.props.fallback;
 
       return (
-        <div
-          data-testid={`error-boundary-${this.props.region}`}
-          className="flex flex-col items-center justify-center gap-3 rounded-md border border-wc-error bg-wc-error-surface p-6 text-sm text-wc-error-text"
-        >
-          <AlertTriangle className="h-6 w-6 text-wc-error-detail" />
-          <p className="font-medium">Something went wrong in {this.props.region}</p>
-          <p className="max-w-md text-center text-xs text-wc-error-detail/70">
-            {this.state.error.message}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={this.handleReset}
-            className="mt-2"
-          >
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-            Try Again
-          </Button>
-        </div>
+        <DefaultFallback
+          region={this.props.region}
+          message={this.state.error.message}
+          onReset={this.handleReset}
+        />
       );
     }
 

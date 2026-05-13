@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import SummarizeErrorBanner, { type SummarizeErrorState } from "../SummarizeErrorBanner";
+import { strings } from "../../consts/strings";
 
 function makeState(overrides?: Partial<SummarizeErrorState>): SummarizeErrorState {
   return {
@@ -17,13 +18,13 @@ describe("SummarizeErrorBanner", () => {
   it("renders the message and source label for auto failures", () => {
     render(<SummarizeErrorBanner state={makeState({ source: "auto" })} onRetry={vi.fn()} onDismiss={vi.fn()} />);
     expect(screen.getByTestId("summarize-error-banner")).toBeInTheDocument();
-    expect(screen.getByText("Auto-summarize failed")).toBeInTheDocument();
+    expect(screen.getByText(strings.summarizeError.autoFailed)).toBeInTheDocument();
     expect(screen.getByText("Ollama timed out")).toBeInTheDocument();
   });
 
   it("renders a different source label for on-demand failures", () => {
     render(<SummarizeErrorBanner state={makeState({ source: "on-demand" })} onRetry={vi.fn()} onDismiss={vi.fn()} />);
-    expect(screen.getByText("Summarize failed")).toBeInTheDocument();
+    expect(screen.getByText(strings.summarizeError.failed)).toBeInTheDocument();
   });
 
   it("clicking retry fires onRetry", () => {
@@ -44,7 +45,7 @@ describe("SummarizeErrorBanner", () => {
     render(<SummarizeErrorBanner state={makeState({ status: "retrying" })} onRetry={vi.fn()} onDismiss={vi.fn()} />);
     expect(screen.getByTestId("summarize-error-retry")).toBeDisabled();
     expect(screen.getByTestId("summarize-error-dismiss")).toBeDisabled();
-    expect(screen.getByText("Retrying…")).toBeInTheDocument();
+    expect(screen.getByText(strings.summarizeError.retrying)).toBeInTheDocument();
   });
 
   it("banner carries data attributes for source and status", () => {

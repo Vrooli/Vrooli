@@ -1,11 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 
 // INTEROP-CRITICAL: base must be './' for tunnel/proxy embedding compatibility.
 // Changing this breaks parent-scenario iframe routing.
 export default defineConfig({
   base: './',
-  plugins: [react()],
+  plugins: [react(), stringsCodegen()],
   test: {
     globals: true,
     environment: 'jsdom',

@@ -17,7 +17,9 @@
 
 import { useCallback } from "react";
 import { AlertTriangle, X, RotateCcw, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { VoiceRejection } from "../hooks/voice/types";
+import { strings } from "../consts/strings";
 
 interface VoiceRejectionBannerProps {
   rejection: VoiceRejection;
@@ -42,6 +44,7 @@ export default function VoiceRejectionBanner({
   onRetry,
   onDismiss,
 }: VoiceRejectionBannerProps) {
+  const { t } = useTranslation();
   const handleRetry = useCallback(() => {
     onRetry();
   }, [onRetry]);
@@ -60,17 +63,21 @@ export default function VoiceRejectionBanner({
       >
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         <div className="flex-1">
-          <div className="font-medium">Speech didn&apos;t match your voice</div>
+          <div className="font-medium">{t(strings.voiceRejection.title)}</div>
           <div className="mt-0.5 text-sky-200/80">
-            {rejection.reason} (score {rejection.score.toFixed(2)} &lt; threshold {rejection.threshold.toFixed(2)})
+            {t(strings.voiceRejection.explanatoryDetail, {
+              reason: rejection.reason,
+              score: rejection.score.toFixed(2),
+              threshold: rejection.threshold.toFixed(2),
+            })}
           </div>
         </div>
         <button
           data-testid="voice-rejection-dismiss"
           onClick={handleDismiss}
           className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1 text-wc-text-secondary transition active:bg-wc-accent-active"
-          title="Dismiss"
-          aria-label="Dismiss rejection notice"
+          title={t(strings.voiceRejection.dismiss)}
+          aria-label={t(strings.voiceRejection.dismissAriaLabel)}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -80,7 +87,9 @@ export default function VoiceRejectionBanner({
 
   const isRetrying = rejection.status === "retrying";
   const isFailed = rejection.status === "failed";
-  const primaryLabel = isFailed ? "Retry" : "Transcribe anyway";
+  const primaryLabel = isFailed
+    ? t(strings.voiceRejection.retry)
+    : t(strings.voiceRejection.transcribeAnyway);
 
   return (
     <div
@@ -92,11 +101,13 @@ export default function VoiceRejectionBanner({
     >
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
       <div className="flex-1 min-w-0">
-        <div className="font-medium">Speech didn&apos;t match your voice</div>
+        <div className="font-medium">{t(strings.voiceRejection.title)}</div>
         <div className="mt-0.5 text-sky-200/80">
-          Score {rejection.score.toFixed(2)} &lt; threshold {rejection.threshold.toFixed(2)}
-          {" · "}
-          {formatDurationMs(rejection.durationMs)} retained
+          {t(strings.voiceRejection.retryableDetail, {
+            score: rejection.score.toFixed(2),
+            threshold: rejection.threshold.toFixed(2),
+            duration: formatDurationMs(rejection.durationMs),
+          })}
         </div>
         {isFailed && rejection.errorMessage ? (
           <div
@@ -112,22 +123,22 @@ export default function VoiceRejectionBanner({
         onClick={handleRetry}
         disabled={isRetrying}
         className="shrink-0 inline-flex items-center gap-1 rounded border border-sky-400/40 bg-sky-500/20 px-2 py-1 font-medium text-sky-100 transition active:bg-sky-500/30 disabled:cursor-not-allowed disabled:opacity-60"
-        title="Transcribe the audio without speaker verification"
+        title={t(strings.voiceRejection.retryTitle)}
       >
         {isRetrying ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
         ) : (
           <RotateCcw className="h-3.5 w-3.5" aria-hidden />
         )}
-        <span>{isRetrying ? "Transcribing…" : primaryLabel}</span>
+        <span>{isRetrying ? t(strings.voiceRejection.transcribing) : primaryLabel}</span>
       </button>
       <button
         data-testid="voice-rejection-dismiss"
         onClick={handleDismiss}
         disabled={isRetrying}
         className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1 text-wc-text-secondary transition active:bg-wc-accent-active disabled:cursor-not-allowed disabled:opacity-60"
-        title="Dismiss"
-        aria-label="Dismiss rejection notice"
+        title={t(strings.voiceRejection.dismiss)}
+        aria-label={t(strings.voiceRejection.dismissAriaLabel)}
       >
         <X className="h-3.5 w-3.5" />
       </button>

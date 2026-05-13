@@ -1,6 +1,22 @@
 import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
-import { afterEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
+import { i18n } from "../i18n";
+
+// Default every test into i18next's `cimode` pseudo-locale. In cimode,
+// `t("app.title")` returns the *key* (`"app.title"`) rather than translated
+// copy, so component tests can assert against `strings.app.title` from the
+// typed registry instead of brittle string literals. Translators rewriting
+// English copy never break tests; only structural changes to keys do.
+//
+// Tests that specifically validate translation behaviour (locale switcher,
+// real English/Arabic rendering, RTL pipeline) opt out via their own
+// `beforeEach(() => setLocale("en"))` — the file-local hook runs after this
+// process-wide one, so per-file overrides win.
+beforeEach(async () => {
+  window.localStorage.clear();
+  await i18n.changeLanguage("cimode");
+});
 
 Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
   configurable: true,

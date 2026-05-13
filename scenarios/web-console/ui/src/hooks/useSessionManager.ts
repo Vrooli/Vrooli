@@ -377,17 +377,6 @@ export function useSessionManager() {
     [],
   );
 
-  const speakSequenceOnPane = useCallback(
-    (
-      sessionId: string,
-      entries: Array<{ eventId: string; text: string; paragraphs: string[]; version: "active" | "original" }>,
-      onEventStart: (index: number, eventId: string) => void,
-    ) => {
-      return terminalRefs.current.get(sessionId)?.speakSequence(entries, onEventStart) ?? Promise.resolve();
-    },
-    [],
-  );
-
   const pauseTtsOnPane = useCallback(
     (sessionId: string) => {
       terminalRefs.current.get(sessionId)?.pauseTts();
@@ -457,7 +446,6 @@ export function useSessionManager() {
     registerTerminalRef,
     stopActiveTts,
     speakTextOnPane,
-    speakSequenceOnPane,
     pauseTtsOnPane,
     resumeTtsOnPane,
     seekTtsOnPane,

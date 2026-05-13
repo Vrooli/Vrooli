@@ -1,0 +1,58 @@
+{
+  "_comment": "Arabic catalog for web-console. Mirrors the key shape of en.json. Arabic uses the full CLDR plural set (zero/one/two/few/many/other) — add variants as needed when strings are translated.",
+  "app": {
+    "title": "Web Console"
+  },
+  "errorBoundary": {
+    "somethingWentWrong": "حدث خطأ ما في {{region}}",
+    "tryAgain": "حاول مرة أخرى"
+  },
+  "errorBanner": {
+    "retry": "إعادة المحاولة",
+    "dismiss": "إغلاق"
+  },
+  "enableAudioBanner": {
+    "title": "تشغيل الصوت محظور",
+    "description": "يتطلب متصفحك نقرة قبل تشغيل الصوت في هذه التبويبة.",
+    "enable": "تمكين الصوت",
+    "enabling": "جارٍ التمكين…",
+    "enableTitle": "تمكين الصوت لهذه الجلسة",
+    "dismiss": "إغلاق"
+  },
+  "voiceRejection": {
+    "title": "الكلام لم يطابق صوتك",
+    "explanatoryDetail": "{{reason}} (الدرجة {{score}} < الحد {{threshold}})",
+    "retryableDetail": "الدرجة {{score}} < الحد {{threshold}} · {{duration}} محفوظ",
+    "transcribeAnyway": "النسخ على أي حال",
+    "retry": "إعادة المحاولة",
+    "transcribing": "جارٍ النسخ…",
+    "retryTitle": "نسخ الصوت بدون التحقق من المتحدث",
+    "dismiss": "إغلاق",
+    "dismissAriaLabel": "إغلاق إشعار الرفض"
+  },
+  "summarizeError": {
+    "autoFailed": "فشل التلخيص التلقائي",
+    "failed": "فشل التلخيص",
+    "retry": "إعادة المحاولة",
+    "retrying": "جارٍ الإعادة…",
+    "retryTitle": "إعادة محاولة التلخيص",
+    "dismiss": "إغلاق",
+    "dismissAriaLabel": "إغلاق خطأ التلخيص"
+  },
+  "confirmClose": {
+    "title": "إغلاق الطرفية؟",
+    "body": "ستنتهي العملية الجارية في \"{{name}}\".",
+    "cancel": "إلغاء",
+    "confirm": "إغلاق"
+  },
+  "recoverableSessions": {
+    "heading": "{{count}} جلسة بانتظار الاستعادة من تشغيل سابق",
+    "agentLabel": "وكيل: {{agent}}",
+    "cwdLabel": "cwd: {{cwd}}",
+    "agentNone": "بدون",
+    "reattach": "إعادة الإرفاق",
+    "reattachTitle": "إعادة الإرفاق في لوحة جديدة",
+    "dismiss": "إغلاق",
+    "dismissTitle": "إخفاء هذه الجلسة اليتيمة من القائمة (يبقى الحالة على القرص)"
+  }
+}

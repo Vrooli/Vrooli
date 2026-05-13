@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ErrorBoundary from "../components/ErrorBoundary";
+import { strings } from "../consts/strings";
 
 // [REQ:P0-002d] Error Boundary — isolates runtime crashes to UI regions
 
@@ -35,9 +36,9 @@ describe("ErrorBoundary", () => {
 
     // Should show the error boundary panel with region name
     expect(screen.getByTestId("error-boundary-workspace")).toBeTruthy();
-    expect(screen.getByText("Something went wrong in workspace")).toBeTruthy();
+    expect(screen.getByText(strings.errorBoundary.somethingWentWrong)).toBeTruthy();
     expect(screen.getByText("test crash")).toBeTruthy();
-    expect(screen.getByText("Try Again")).toBeTruthy();
+    expect(screen.getByText(strings.errorBoundary.tryAgain)).toBeTruthy();
   });
 
   it("renders custom fallback when provided", () => {
@@ -75,7 +76,7 @@ describe("ErrorBoundary", () => {
     // Stop throwing before clicking reset
     shouldThrow = false;
 
-    fireEvent.click(screen.getByText("Try Again"));
+    fireEvent.click(screen.getByText(strings.errorBoundary.tryAgain));
 
     // Children should render again
     expect(screen.getByTestId("recovered")).toBeTruthy();
