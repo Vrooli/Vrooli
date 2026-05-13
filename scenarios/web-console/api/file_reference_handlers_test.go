@@ -1,15 +1,17 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+
+	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
 )
 
 func TestSplitFileReferenceLine(t *testing.T) {
@@ -30,7 +32,19 @@ func TestSplitFileReferenceLine(t *testing.T) {
 	}
 }
 
-func TestHandleResolveFileReference_ProjectRootRelative(t *testing.T) {
+func resolveFileRef(t *testing.T, srv *Server, sessID, path string) *conversationv1.ResolveFileReferenceResponse {
+	t.Helper()
+	resp, err := newConversationConnectHandlerForServer(srv).ResolveFileReference(
+		context.Background(),
+		connect.NewRequest(&conversationv1.ResolveFileReferenceRequest{SessionId: sessID, Path: path}),
+	)
+	if err != nil {
+		t.Fatalf("ResolveFileReference: %v", err)
+	}
+	return resp.Msg
+}
+
+func TestConnect_ResolveFileReference_ProjectRootRelative(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("WC_DEFAULT_CWD", root)
 	filePath := filepath.Join(root, "docs", "plan.md")
@@ -65,33 +79,19 @@ func TestHandleResolveFileReference_ProjectRootRelative(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions/"+sess.ID+"/files/resolve", strings.NewReader(`{"path":"docs/plan.md:3"}`))
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleResolveFileReference(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp := resolveFileRef(t, srv, sess.ID, "docs/plan.md:3")
+	if resp.GetResolutionBasis() != "project_root" {
+		t.Fatalf("expected project_root resolution, got %q", resp.GetResolutionBasis())
 	}
-
-	var resp fileReferenceResolveResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
+	if !resp.GetHasLine() || resp.GetLine() != 3 {
+		t.Fatalf("expected line 3, got has=%v val=%d", resp.GetHasLine(), resp.GetLine())
 	}
-	if resp.ResolutionBasis != "project_root" {
-		t.Fatalf("expected project_root resolution, got %q", resp.ResolutionBasis)
-	}
-	if resp.Line == nil || *resp.Line != 3 {
-		t.Fatalf("expected line 3, got %#v", resp.Line)
-	}
-	if resp.Category != "markdown" || !resp.CanPreview {
-		t.Fatalf("expected markdown previewable response, got category=%q preview=%v", resp.Category, resp.CanPreview)
+	if resp.GetCategory() != "markdown" || !resp.GetCanPreview() {
+		t.Fatalf("expected markdown previewable response, got category=%q preview=%v", resp.GetCategory(), resp.GetCanPreview())
 	}
 }
 
-func TestHandleResolveFileReference_SessionCwdPreferred(t *testing.T) {
+func TestConnect_ResolveFileReference_SessionCwdPreferred(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("WC_DEFAULT_CWD", root)
 	subdir := filepath.Join(root, "scenarios", "web-console")
@@ -125,30 +125,16 @@ func TestHandleResolveFileReference_SessionCwdPreferred(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions/"+sess.ID+"/files/resolve", strings.NewReader(`{"path":"notes.txt"}`))
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleResolveFileReference(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp := resolveFileRef(t, srv, sess.ID, "notes.txt")
+	if resp.GetResolutionBasis() != "session_cwd" {
+		t.Fatalf("expected session_cwd resolution, got %q", resp.GetResolutionBasis())
 	}
-
-	var resp fileReferenceResolveResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if resp.ResolutionBasis != "session_cwd" {
-		t.Fatalf("expected session_cwd resolution, got %q", resp.ResolutionBasis)
-	}
-	if resp.ResolvedPath != filepath.Clean(targetFile) {
-		t.Fatalf("expected resolved path %q, got %q", targetFile, resp.ResolvedPath)
+	if resp.GetResolvedPath() != filepath.Clean(targetFile) {
+		t.Fatalf("expected resolved path %q, got %q", targetFile, resp.GetResolvedPath())
 	}
 }
 
-func TestHandleResolveFileReference_FileURL(t *testing.T) {
+func TestConnect_ResolveFileReference_FileURL(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("WC_DEFAULT_CWD", root)
 	filePath := filepath.Join(root, "docs", "file-url.md")
@@ -165,31 +151,16 @@ func TestHandleResolveFileReference_FileURL(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	body := `{"path":"file://` + filePath + `:9"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions/"+sess.ID+"/files/resolve", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleResolveFileReference(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp := resolveFileRef(t, srv, sess.ID, "file://"+filePath+":9")
+	if resp.GetResolvedPath() != filepath.Clean(filePath) {
+		t.Fatalf("expected resolved path %q, got %q", filepath.Clean(filePath), resp.GetResolvedPath())
 	}
-
-	var resp fileReferenceResolveResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if resp.ResolvedPath != filepath.Clean(filePath) {
-		t.Fatalf("expected resolved path %q, got %q", filepath.Clean(filePath), resp.ResolvedPath)
-	}
-	if resp.Line == nil || *resp.Line != 9 {
-		t.Fatalf("expected line 9, got %#v", resp.Line)
+	if !resp.GetHasLine() || resp.GetLine() != 9 {
+		t.Fatalf("expected line 9, got has=%v val=%d", resp.GetHasLine(), resp.GetLine())
 	}
 }
 
-func TestHandleResolveFileReference_RejectsOutsideAllowedRoot(t *testing.T) {
+func TestConnect_ResolveFileReference_RejectsOutsideAllowedRoot(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("WC_DEFAULT_CWD", root)
 
@@ -204,20 +175,20 @@ func TestHandleResolveFileReference_RejectsOutsideAllowedRoot(t *testing.T) {
 		t.Fatalf("write outside file: %v", err)
 	}
 
-	body := `{"path":"` + outsideFile + `"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions/"+sess.ID+"/files/resolve", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleResolveFileReference(rec, req)
-
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected 403, got %d: %s", rec.Code, rec.Body.String())
+	_, err = newConversationConnectHandlerForServer(srv).ResolveFileReference(
+		context.Background(),
+		connect.NewRequest(&conversationv1.ResolveFileReferenceRequest{SessionId: sess.ID, Path: outsideFile}),
+	)
+	if err == nil {
+		t.Fatalf("expected error for outside-root path, got nil")
+	}
+	var ce *connect.Error
+	if !errors.As(err, &ce) || ce.Code() != connect.CodePermissionDenied {
+		t.Fatalf("expected CodePermissionDenied, got %v", err)
 	}
 }
 
-func TestHandleGetFileReferenceContent_RejectsOversizedPreview(t *testing.T) {
+func TestConnect_GetFileReferenceContent_RejectsOversizedPreview(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("WC_DEFAULT_CWD", root)
 	filePath := filepath.Join(root, "large.txt")
@@ -231,18 +202,20 @@ func TestHandleGetFileReferenceContent_RejectsOversizedPreview(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions/"+sess.ID+"/files/content?path=large.txt", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	rec := httptest.NewRecorder()
-
-	srv.handleGetFileReferenceContent(rec, req)
-
-	if rec.Code != http.StatusRequestEntityTooLarge {
-		t.Fatalf("expected 413, got %d: %s", rec.Code, rec.Body.String())
+	_, err = newConversationConnectHandlerForServer(srv).GetFileReferenceContent(
+		context.Background(),
+		connect.NewRequest(&conversationv1.GetFileReferenceContentRequest{SessionId: sess.ID, Path: "large.txt"}),
+	)
+	if err == nil {
+		t.Fatalf("expected error for oversize preview, got nil")
+	}
+	var ce *connect.Error
+	if !errors.As(err, &ce) || ce.Code() != connect.CodeFailedPrecondition {
+		t.Fatalf("expected CodeFailedPrecondition, got %v", err)
 	}
 }
 
-func TestHandleGetFileReferenceContent_ReturnsContent(t *testing.T) {
+func TestConnect_GetFileReferenceContent_ReturnsContent(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("WC_DEFAULT_CWD", root)
 	filePath := filepath.Join(root, "src", "file.ts")
@@ -260,24 +233,17 @@ func TestHandleGetFileReferenceContent_ReturnsContent(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions/"+sess.ID+"/files/content?path=src/file.ts:1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	rec := httptest.NewRecorder()
-
-	srv.handleGetFileReferenceContent(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := newConversationConnectHandlerForServer(srv).GetFileReferenceContent(
+		context.Background(),
+		connect.NewRequest(&conversationv1.GetFileReferenceContentRequest{SessionId: sess.ID, Path: "src/file.ts:1"}),
+	)
+	if err != nil {
+		t.Fatalf("GetFileReferenceContent: %v", err)
 	}
-
-	var resp fileReferenceContentResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
+	if resp.Msg.GetContent() != content {
+		t.Fatalf("expected content %q, got %q", content, resp.Msg.GetContent())
 	}
-	if resp.Content != content {
-		t.Fatalf("expected content %q, got %q", content, resp.Content)
-	}
-	if resp.Category != "code" {
-		t.Fatalf("expected code category, got %q", resp.Category)
+	if resp.Msg.GetCategory() != "code" {
+		t.Fatalf("expected code category, got %q", resp.Msg.GetCategory())
 	}
 }

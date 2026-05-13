@@ -5,101 +5,56 @@ package main
 
 import (
 	"log"
-	"net/http"
 
-	"github.com/gorilla/mux"
+	workspaceH "web-console/handlers/workspace"
 )
 
-// --- Workspace Layout Handlers ---
-
-// LayoutResponse is the JSON shape returned by GET /api/v1/workspace/layout.
-type LayoutResponse struct {
-	ActivePane string           `json:"active_pane"`
-	Panes      []*WorkspacePane `json:"panes"`
-	Groups     []*TabGroup      `json:"groups"`
+// workspaceAdapter implements workspaceH.Service over the existing
+// WorkspaceStore + EventBus. Validation rules (unknown scope, missing
+// group, etc.) live here so the Connect handler stays a pure transport.
+type workspaceAdapter struct {
+	srv *Server
 }
 
-// handleGetLayout returns the full workspace layout: ordered panes and tab groups.
-// GET /api/v1/workspace/layout
-func (s *Server) handleGetLayout(w http.ResponseWriter, r *http.Request) {
-	layout, err := s.workspace.GetLayout()
+func newWorkspaceAdapter(s *Server) *workspaceAdapter {
+	return &workspaceAdapter{srv: s}
+}
+
+func (a *workspaceAdapter) GetLayout() (workspaceH.Layout, error) {
+	layout, err := a.srv.workspace.GetLayout()
 	if err != nil {
-		log.Printf("get-layout [%s]: %v", getRequestID(r), err)
-		writeAppError(w, errorCatalog["internal_error"])
-		return
+		return workspaceH.Layout{}, err
 	}
-
-	writeJSON(w, http.StatusOK, LayoutResponse{
+	return workspaceH.Layout{
 		ActivePane: layout.ActivePane,
-		Panes:      layout.Panes,
-		Groups:     layout.Groups,
+		Panes:      panesToTransport(layout.Panes),
+		Groups:     groupsToTransport(layout.Groups),
+	}, nil
+}
+
+func (a *workspaceAdapter) SaveLayout(activePane string, paneOrder []string) error {
+	if err := a.srv.workspace.SavePaneOrder(activePane, paneOrder); err != nil {
+		return err
+	}
+	a.srv.events.Emit(EventWorkspaceLayoutUpdated, "", map[string]string{
+		"active_pane": activePane,
 	})
+	return nil
 }
 
-// SaveLayoutRequest is the JSON body for PUT /api/v1/workspace/layout.
-type SaveLayoutRequest struct {
-	ActivePane string   `json:"active_pane"`
-	PaneOrder  []string `json:"pane_order"`
-}
-
-// handleSaveLayout persists pane ordering and the active pane selection.
-// PUT /api/v1/workspace/layout
-func (s *Server) handleSaveLayout(w http.ResponseWriter, r *http.Request) {
-	var req SaveLayoutRequest
-	if !decodeJSON(w, r, &req) {
-		return
-	}
-
-	if err := s.workspace.SavePaneOrder(req.ActivePane, req.PaneOrder); err != nil {
-		log.Printf("save-layout [%s]: %v", getRequestID(r), err)
-		writeAppError(w, errorCatalog["internal_error"])
-		return
-	}
-
-	s.events.Emit(EventWorkspaceLayoutUpdated, "", map[string]string{
-		"active_pane": req.ActivePane,
-	})
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// --- Workspace Pane Handlers ---
-
-// UpdatePaneRequest is the JSON body for PUT /api/v1/workspace/panes/{session_id}.
-type UpdatePaneRequest struct {
-	Name                 *string `json:"name,omitempty"`
-	HeaderColor          *string `json:"header_color,omitempty"`
-	ThemeID              *string `json:"theme_id,omitempty"`
-	FontSize             *int    `json:"font_size,omitempty"`
-	SortOrder            *int    `json:"sort_order,omitempty"`
-	GroupID              *string `json:"group_id,omitempty"`
-	SupportsMessagesView *bool   `json:"supports_messages_view,omitempty"`
-}
-
-// handleUpdatePane creates or updates a single pane's metadata.
-// PUT /api/v1/workspace/panes/{session_id}
-func (s *Server) handleUpdatePane(w http.ResponseWriter, r *http.Request) {
-	sessionID := mux.Vars(r)["session_id"]
-
-	var req UpdatePaneRequest
-	if !decodeJSON(w, r, &req) {
-		return
-	}
-
-	// Build pane from request, using defaults for unset fields
+func (a *workspaceAdapter) UpdatePane(req workspaceH.UpdatePaneRequest) (workspaceH.Pane, error) {
+	// Start from defaults; existing values preserve unset fields.
 	pane := &WorkspacePane{
-		SessionID:   sessionID,
+		SessionID:   req.SessionID,
 		Name:        defaultPaneName,
 		HeaderColor: defaultPaneHeaderColor,
 		ThemeID:     defaultPaneThemeID,
 		FontSize:    defaultPaneFontSize,
 	}
 
-	// Get existing pane to preserve unchanged fields
-	layout, err := s.workspace.GetLayout()
-	if err == nil {
+	if layout, err := a.srv.workspace.GetLayout(); err == nil {
 		for _, p := range layout.Panes {
-			if p.SessionID == sessionID {
+			if p.SessionID == req.SessionID {
 				pane.Name = p.Name
 				pane.HeaderColor = p.HeaderColor
 				pane.ThemeID = p.ThemeID
@@ -112,136 +67,135 @@ func (s *Server) handleUpdatePane(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Apply request overrides
-	if req.Name != nil {
-		pane.Name = *req.Name
+	if req.HasName {
+		pane.Name = req.Name
 	}
-	if req.HeaderColor != nil {
-		pane.HeaderColor = *req.HeaderColor
+	if req.HasHeaderColor {
+		pane.HeaderColor = req.HeaderColor
 	}
-	if req.ThemeID != nil {
-		pane.ThemeID = *req.ThemeID
+	if req.HasThemeID {
+		pane.ThemeID = req.ThemeID
 	}
-	if req.FontSize != nil {
-		pane.FontSize = *req.FontSize
+	if req.HasFontSize {
+		pane.FontSize = req.FontSize
 	}
-	if req.SortOrder != nil {
-		pane.SortOrder = *req.SortOrder
+	if req.HasSortOrder {
+		pane.SortOrder = req.SortOrder
 	}
-	if req.GroupID != nil {
-		pane.GroupID = *req.GroupID
+	if req.HasGroupID {
+		pane.GroupID = req.GroupID
 	}
-	if req.SupportsMessagesView != nil {
-		pane.SupportsMessagesView = *req.SupportsMessagesView
-	}
-
-	if err := s.workspace.UpsertPane(pane); err != nil {
-		log.Printf("update-pane [%s]: %v", getRequestID(r), err)
-		writeAppError(w, errorCatalog["internal_error"])
-		return
+	if req.HasSupportsMessagesView {
+		pane.SupportsMessagesView = req.SupportsMessagesView
 	}
 
-	s.events.Emit(EventPaneUpdated, sessionID, map[string]string{
+	if err := a.srv.workspace.UpsertPane(pane); err != nil {
+		return workspaceH.Pane{}, err
+	}
+
+	a.srv.events.Emit(EventPaneUpdated, req.SessionID, map[string]string{
 		"name": pane.Name,
 	})
 
-	writeJSON(w, http.StatusOK, pane)
+	return paneToTransport(pane), nil
 }
 
-// handleDeletePane removes pane metadata. Idempotent: always returns 204.
-// DELETE /api/v1/workspace/panes/{session_id}
-func (s *Server) handleDeletePane(w http.ResponseWriter, r *http.Request) {
-	sessionID := mux.Vars(r)["session_id"]
-
-	if err := s.workspace.DeletePane(sessionID); err != nil {
-		log.Printf("delete-pane [%s]: %v", getRequestID(r), err)
+func (a *workspaceAdapter) DeletePane(sessionID string) {
+	if err := a.srv.workspace.DeletePane(sessionID); err != nil {
+		log.Printf("workspace.DeletePane: %v", err)
 	}
-
-	w.WriteHeader(http.StatusNoContent)
 }
 
-// --- Tab Group Handlers ---
-
-// CreateGroupRequest is the JSON body for POST /api/v1/workspace/groups.
-type CreateGroupRequest struct {
-	Name  string `json:"name"`
-	Color string `json:"color"`
-}
-
-// handleCreateGroup creates a new tab group.
-// POST /api/v1/workspace/groups
-func (s *Server) handleCreateGroup(w http.ResponseWriter, r *http.Request) {
-	var req CreateGroupRequest
-	if !decodeJSON(w, r, &req) {
-		return
-	}
-
-	group, err := s.workspace.CreateGroup(req.Name, req.Color)
+func (a *workspaceAdapter) CreateGroup(name, color string) (workspaceH.Group, error) {
+	g, err := a.srv.workspace.CreateGroup(name, color)
 	if err != nil {
-		log.Printf("create-group [%s]: %v", getRequestID(r), err)
-		writeAppError(w, errorCatalog["internal_error"])
-		return
+		return workspaceH.Group{}, err
 	}
-
-	s.events.Emit(EventTabGroupCreated, "", map[string]string{
-		"group_id": group.ID,
-		"name":     group.Name,
+	a.srv.events.Emit(EventTabGroupCreated, "", map[string]string{
+		"group_id": g.ID,
+		"name":     g.Name,
 	})
-
-	writeJSON(w, http.StatusCreated, group)
+	return groupToTransport(g), nil
 }
 
-// UpdateGroupRequest is the JSON body for PUT /api/v1/workspace/groups/{id}.
-type UpdateGroupRequest struct {
-	Name        *string `json:"name,omitempty"`
-	Color       *string `json:"color,omitempty"`
-	IsCollapsed *bool   `json:"is_collapsed,omitempty"`
-}
-
-// handleUpdateGroup modifies a tab group's properties.
-// PUT /api/v1/workspace/groups/{id}
-func (s *Server) handleUpdateGroup(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	var req UpdateGroupRequest
-	if !decodeJSON(w, r, &req) {
-		return
+func (a *workspaceAdapter) UpdateGroup(req workspaceH.UpdateGroupRequest) (workspaceH.Group, error) {
+	var name, color *string
+	var collapsed *bool
+	if req.HasName {
+		name = &req.Name
+	}
+	if req.HasColor {
+		color = &req.Color
+	}
+	if req.HasIsCollapsed {
+		collapsed = &req.IsCollapsed
 	}
 
-	group, err := s.workspace.UpdateGroup(id, req.Name, req.Color, req.IsCollapsed)
+	g, err := a.srv.workspace.UpdateGroup(req.ID, name, color, collapsed)
 	if err != nil {
 		if err.Error() == "group not found" {
-			writeCatalogError(w, "group_not_found", "Tab group "+sanitizeID(id)+" not found")
-			return
+			return workspaceH.Group{}, workspaceH.ErrGroupNotFound
 		}
-		log.Printf("update-group [%s]: %v", getRequestID(r), err)
-		writeAppError(w, errorCatalog["internal_error"])
-		return
+		return workspaceH.Group{}, err
 	}
-
-	s.events.Emit(EventTabGroupUpdated, "", map[string]string{
-		"group_id": group.ID,
-		"name":     group.Name,
+	a.srv.events.Emit(EventTabGroupUpdated, "", map[string]string{
+		"group_id": g.ID,
+		"name":     g.Name,
 	})
-
-	writeJSON(w, http.StatusOK, group)
+	return groupToTransport(g), nil
 }
 
-// handleDeleteGroup removes a tab group. Idempotent: always returns 204.
-// Panes in the group get group_id = NULL (via ON DELETE SET NULL in schema).
-// DELETE /api/v1/workspace/groups/{id}
-func (s *Server) handleDeleteGroup(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	removed, err := s.workspace.DeleteGroup(id)
+func (a *workspaceAdapter) DeleteGroup(id string) {
+	removed, err := a.srv.workspace.DeleteGroup(id)
 	if err != nil {
-		log.Printf("delete-group [%s]: %v", getRequestID(r), err)
+		log.Printf("workspace.DeleteGroup: %v", err)
 	}
 	if removed {
-		s.events.Emit(EventTabGroupDeleted, "", map[string]string{
+		a.srv.events.Emit(EventTabGroupDeleted, "", map[string]string{
 			"group_id": id,
 		})
 	}
+}
 
-	w.WriteHeader(http.StatusNoContent)
+func paneToTransport(p *WorkspacePane) workspaceH.Pane {
+	return workspaceH.Pane{
+		SessionID:            p.SessionID,
+		Name:                 p.Name,
+		HeaderColor:          p.HeaderColor,
+		ThemeID:              p.ThemeID,
+		FontSize:             p.FontSize,
+		SortOrder:            p.SortOrder,
+		GroupID:              p.GroupID,
+		SupportsMessagesView: p.SupportsMessagesView,
+		CreatedAt:            p.CreatedAt,
+		UpdatedAt:            p.UpdatedAt,
+	}
+}
+
+func panesToTransport(in []*WorkspacePane) []workspaceH.Pane {
+	out := make([]workspaceH.Pane, 0, len(in))
+	for _, p := range in {
+		out = append(out, paneToTransport(p))
+	}
+	return out
+}
+
+func groupToTransport(g *TabGroup) workspaceH.Group {
+	return workspaceH.Group{
+		ID:          g.ID,
+		Name:        g.Name,
+		Color:       g.Color,
+		SortOrder:   g.SortOrder,
+		IsCollapsed: g.IsCollapsed,
+		CreatedAt:   g.CreatedAt,
+		UpdatedAt:   g.UpdatedAt,
+	}
+}
+
+func groupsToTransport(in []*TabGroup) []workspaceH.Group {
+	out := make([]workspaceH.Group, 0, len(in))
+	for _, g := range in {
+		out = append(out, groupToTransport(g))
+	}
+	return out
 }

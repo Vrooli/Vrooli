@@ -140,16 +140,18 @@ export async function createSession(opts?: {
   launch_command?: string;
   agent_type?: "none" | "codex" | "claude";
 }): Promise<SessionInfo> {
-  const url = buildApiUrl("/sessions", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(opts ?? {}),
+  const resp = await sessionsClient.create({
+    shell: opts?.shell ?? "",
+    cols: opts?.cols ?? 0,
+    rows: opts?.rows ?? 0,
+    backend: opts?.backend ?? "",
+    launchCommand: opts?.launch_command ?? "",
+    agentType: opts?.agent_type ?? "",
+    ...(opts?.policy
+      ? { policy: { mode: opts.policy.mode, duration: opts.policy.duration ?? "" }, hasPolicy: true }
+      : {}),
   });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to create session");
-  }
-  return (await res.json()) as SessionInfo;
+  return decodeSession(resp.session);
 }
 
 // Persistent-session-recovery surface. See
@@ -181,97 +183,151 @@ export interface RecoverResult {
 }
 
 export async function listRecoverableSessions(): Promise<RecoverableSession[]> {
-  const url = buildApiUrl("/sessions/recoverable", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to list recoverable sessions");
-  }
-  return (await res.json()) as RecoverableSession[];
+  const resp = await sessionsClient.listRecoverable({});
+  return resp.sessions.map(decodeRecoverable);
 }
 
 export async function recoverSession(oldId: string): Promise<RecoverResult> {
-  const url = buildApiUrl(`/sessions/${oldId}/recover`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: "{}",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to recover session");
-  }
-  return (await res.json()) as RecoverResult;
+  const resp = await sessionsClient.recover({ id: oldId });
+  return {
+    old_session_id: resp.oldSessionId,
+    new_session_id: resp.newSessionId,
+    agent_type: resp.agentType || undefined,
+    command_sent: resp.commandSent || undefined,
+    codex_home_copied: resp.codexHomeCopied,
+  };
 }
 
 export async function dismissRecoverableSession(oldId: string): Promise<void> {
-  const url = buildApiUrl(`/sessions/recoverable/${oldId}`, { baseUrl: API_BASE });
-  const res = await fetch(url, { method: "DELETE" });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to dismiss recoverable session");
-  }
+  await sessionsClient.dismissRecoverable({ id: oldId });
 }
 
 export async function listSessions(): Promise<SessionInfo[]> {
-  const url = buildApiUrl("/sessions", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to list sessions");
-  }
-  return (await res.json()) as SessionInfo[];
+  const resp = await sessionsClient.list({});
+  return resp.sessions.map(decodeSession);
 }
 
 export async function getSession(id: string): Promise<SessionInfo> {
-  const url = buildApiUrl(`/sessions/${id}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to get session");
-  }
-  return (await res.json()) as SessionInfo;
+  const resp = await sessionsClient.get({ id });
+  return decodeSession(resp.session);
 }
 
 export async function deleteSession(id: string): Promise<void> {
-  const url = buildApiUrl(`/sessions/${id}`, { baseUrl: API_BASE });
-  const res = await fetch(url, { method: "DELETE" });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to delete session");
-  }
+  await sessionsClient.delete({ id });
 }
 
 // [REQ:P1-001a] Session Policy API - client
 export async function getSessionPolicy(id: string): Promise<PolicyResponse> {
-  const url = buildApiUrl(`/sessions/${id}/policy`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to get session policy");
-  }
-  return (await res.json()) as PolicyResponse;
+  const resp = await sessionsClient.getPolicy({ id });
+  return decodePolicyView(resp.policy);
 }
 
 export async function updateSessionPolicy(
   id: string,
   policy: { mode: string; duration?: string },
 ): Promise<PolicyResponse> {
-  const url = buildApiUrl(`/sessions/${id}/policy`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(policy),
+  const resp = await sessionsClient.updatePolicy({
+    id,
+    policy: { mode: policy.mode, duration: policy.duration ?? "" },
   });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to update session policy");
-  }
-  return (await res.json()) as PolicyResponse;
+  return decodePolicyView(resp.policy);
+}
+
+// Connect-Web proto messages always materialize nested fields (no
+// `undefined`); the helpers below normalize them to the legacy
+// snake_case shape the rest of the UI consumes.
+type ProtoSession = {
+  id: string;
+  shell: string;
+  createdAt: string;
+  cols: number;
+  rows: number;
+  backend: string;
+  survivesRestart: boolean;
+  policy?: { mode: string; duration: string };
+  busy: boolean;
+  recovered: boolean;
+};
+
+type ProtoRecoverable = {
+  id: string;
+  backend: string;
+  shell: string;
+  cols: number;
+  rows: number;
+  createdAt: string;
+  orphanedAt: string;
+  lastActivityAt: string;
+  agentType: string;
+  agentSessionId: string;
+  launchCommand: string;
+  cwd: string;
+  lastRolloutPath: string;
+  recoverable: boolean;
+  notRecoverableReason: string;
+};
+
+type ProtoPolicyView = {
+  sessionId: string;
+  policy?: { mode: string; duration: string };
+  expiresAt: string;
+  ttlSeconds: number;
+  hasExpiry: boolean;
+};
+
+function decodeSession(s: ProtoSession | undefined): SessionInfo {
+  const policy = s?.policy;
+  return {
+    id: s?.id ?? "",
+    shell: s?.shell ?? "",
+    created_at: s?.createdAt ?? "",
+    cols: s?.cols ?? 0,
+    rows: s?.rows ?? 0,
+    backend: (s?.backend as BackendID) ?? "standard",
+    survives_restart: s?.survivesRestart ?? false,
+    policy: {
+      mode: (policy?.mode as PolicyMode) ?? "never",
+      ...(policy?.duration ? { duration: policy.duration } : {}),
+    },
+    busy: s?.busy ?? false,
+    ...(s?.recovered ? { recovered: true } : {}),
+  };
+}
+
+function decodeRecoverable(r: ProtoRecoverable): RecoverableSession {
+  return {
+    id: r.id,
+    backend: r.backend || undefined,
+    shell: r.shell || undefined,
+    cols: r.cols || undefined,
+    rows: r.rows || undefined,
+    created_at: r.createdAt || undefined,
+    orphaned_at: r.orphanedAt || undefined,
+    last_activity_at: r.lastActivityAt || undefined,
+    agent_type: (r.agentType as "none" | "codex" | "claude") || undefined,
+    agent_session_id: r.agentSessionId || undefined,
+    launch_command: r.launchCommand || undefined,
+    cwd: r.cwd || undefined,
+    last_rollout_path: r.lastRolloutPath || undefined,
+    recoverable: r.recoverable,
+    not_recoverable_reason: r.notRecoverableReason || undefined,
+  };
+}
+
+function decodePolicyView(v: ProtoPolicyView | undefined): PolicyResponse {
+  return {
+    session_id: v?.sessionId ?? "",
+    policy: {
+      mode: (v?.policy?.mode as PolicyMode) ?? "never",
+      ...(v?.policy?.duration ? { duration: v.policy.duration } : {}),
+    },
+    ...(v?.hasExpiry
+      ? {
+          expires_at: v.expiresAt,
+          ttl_seconds: v.ttlSeconds,
+        }
+      : {}),
+  };
 }
 
 // [REQ:P0-005a] AI Command Generation API - client
@@ -281,16 +337,8 @@ export interface AIGenerateResponse {
 }
 
 export async function generateAICommand(prompt: string, context?: string): Promise<AIGenerateResponse> {
-  const url = buildApiUrl("/ai/generate", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, context }),
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "AI command generation failed");
-  }
-  return (await res.json()) as AIGenerateResponse;
+  const resp = await aiClient.generate({ prompt, context: context ?? "" });
+  return { command: resp.command, provider: resp.provider };
 }
 
 // [REQ:P0-005a] AI Suggestion API - client
@@ -300,16 +348,8 @@ export interface AISuggestResponse {
 }
 
 export async function generateAISuggestions(prompt: string, context?: string): Promise<AISuggestResponse> {
-  const url = buildApiUrl("/ai/suggest", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, context }),
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "AI suggestion failed");
-  }
-  return (await res.json()) as AISuggestResponse;
+  const resp = await aiClient.suggest({ prompt, context: context ?? "" });
+  return { commands: resp.commands, provider: resp.provider };
 }
 
 export interface TTSPlaybackEvent {
@@ -367,82 +407,130 @@ export interface ConversationSessionResponse {
 }
 
 export async function reportTTSEvent(event: TTSPlaybackEvent): Promise<void> {
-  const url = buildApiUrl("/tts/events", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(event),
+  await ttsClient.recordPlaybackEvent({
+    event: {
+      source: event.source,
+      stage: event.stage,
+      backend: event.backend ?? "",
+      sessionId: event.sessionId ?? "",
+      message: event.message ?? "",
+    },
   });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to report TTS event");
-  }
 }
 
 export async function getConversationSession(
   sessionId: string,
   opts?: { sinceSequence?: number },
 ): Promise<ConversationSessionResponse> {
-  let path = `/sessions/${sessionId}/conversation`;
-  if (opts?.sinceSequence && opts.sinceSequence > 0) {
-    path += `?since_sequence=${opts.sinceSequence}`;
-  }
-  const url = buildApiUrl(path, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
+  const resp = await conversationClient.get({
+    sessionId,
+    sinceSequence: opts?.sinceSequence && opts.sinceSequence > 0 ? BigInt(opts.sinceSequence) : 0n,
   });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to get conversation session");
-  }
-  return (await res.json()) as ConversationSessionResponse;
+  return {
+    sessionId: resp.sessionId,
+    events: resp.events.map(decodeConversationEvent),
+    cursor: decodeConversationCursor(resp.cursor),
+  };
 }
 
 export async function updateConversationCursor(
   sessionId: string,
   patch: Partial<ConversationCursor>,
 ): Promise<ConversationCursor> {
-  const url = buildApiUrl(`/sessions/${sessionId}/conversation/cursor`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to update conversation cursor");
+  const req: {
+    sessionId: string;
+    lastSeenSequence?: bigint;
+    hasLastSeenSequence?: boolean;
+    lastListenedSequence?: bigint;
+    hasLastListenedSequence?: boolean;
+  } = { sessionId };
+  if (patch.lastSeenSequence !== undefined) {
+    req.lastSeenSequence = BigInt(patch.lastSeenSequence);
+    req.hasLastSeenSequence = true;
   }
-  return (await res.json()) as ConversationCursor;
+  if (patch.lastListenedSequence !== undefined) {
+    req.lastListenedSequence = BigInt(patch.lastListenedSequence);
+    req.hasLastListenedSequence = true;
+  }
+  const resp = await conversationClient.updateCursor(req);
+  return decodeConversationCursor(resp.cursor);
 }
 
 export async function resolveFileReference(
   sessionId: string,
   path: string,
 ): Promise<FileReferenceResolveResponse> {
-  const url = buildApiUrl(`/sessions/${sessionId}/files/resolve`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path }),
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to resolve file reference");
-  }
-  return (await res.json()) as FileReferenceResolveResponse;
+  const resp = await conversationClient.resolveFileReference({ sessionId, path });
+  return {
+    input_path: resp.inputPath,
+    resolved_path: resp.resolvedPath,
+    line: resp.hasLine ? resp.line : undefined,
+    exists: resp.exists,
+    resolution_basis: resp.resolutionBasis as FileReferenceResolveResponse["resolution_basis"],
+    category: resp.category as FileReferenceResolveResponse["category"],
+    can_preview: resp.canPreview,
+  };
 }
 
 export async function getFileReferenceContent(
   sessionId: string,
   path: string,
 ): Promise<FileReferenceContentResponse> {
-  const params = new URLSearchParams({ path });
-  const url = buildApiUrl(`/sessions/${sessionId}/files/content?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to load file content");
-  }
-  return (await res.json()) as FileReferenceContentResponse;
+  const resp = await conversationClient.getFileReferenceContent({ sessionId, path });
+  return {
+    path: resp.path,
+    line: resp.hasLine ? resp.line : undefined,
+    category: resp.category as FileReferenceContentResponse["category"],
+    content_type: resp.contentType,
+    content: resp.content,
+    truncated: resp.truncated,
+  };
+}
+
+interface ProtoConversationEvent {
+  id: string;
+  sessionId: string;
+  source: string;
+  role: string;
+  text: string;
+  speechParagraphs: string[];
+  originalSpeechParagraphs: string[];
+  summarized: boolean;
+  createdAt: string;
+  sequence: bigint;
+  deliveryState: string;
+  ttsState: string;
+  consumptionState: string;
+}
+
+interface ProtoConversationCursor {
+  lastSeenSequence: bigint;
+  lastListenedSequence: bigint;
+}
+
+function decodeConversationEvent(e: ProtoConversationEvent): ConversationEvent {
+  return {
+    id: e.id,
+    sessionId: e.sessionId,
+    source: e.source,
+    role: e.role as ConversationEvent["role"],
+    text: e.text,
+    speechParagraphs: e.speechParagraphs,
+    originalSpeechParagraphs: e.originalSpeechParagraphs.length > 0 ? e.originalSpeechParagraphs : undefined,
+    summarized: e.summarized,
+    createdAt: e.createdAt,
+    sequence: Number(e.sequence),
+    deliveryState: e.deliveryState,
+    ttsState: e.ttsState,
+    consumptionState: e.consumptionState,
+  };
+}
+
+function decodeConversationCursor(c: ProtoConversationCursor | undefined): ConversationCursor {
+  return {
+    lastSeenSequence: c ? Number(c.lastSeenSequence) : 0,
+    lastListenedSequence: c ? Number(c.lastListenedSequence) : 0,
+  };
 }
 
 // [REQ:P1-002a] Shortcut Profile API - client
@@ -459,28 +547,44 @@ export interface ShortcutProfile {
   updated_at: string;
 }
 
+// Shortcut helpers are shims over the Connect-Web ShortcutsService client
+// (src/api/shortcuts.ts). The legacy snake_case wire shape is preserved
+// here so existing call-sites don't have to change.
+
+function decodeShortcuts(in_: { label: string; command: string; description: string }[]): ShortcutEntry[] {
+  return in_.map((s) => ({
+    label: s.label,
+    command: s.command,
+    description: s.description || undefined,
+  }));
+}
+
+function decodeProfile(p: {
+  id: string;
+  scope: string;
+  name: string;
+  shortcuts: { label: string; command: string; description: string }[];
+  createdAt: string;
+  updatedAt: string;
+}): ShortcutProfile {
+  return {
+    id: p.id,
+    scope: p.scope,
+    name: p.name,
+    shortcuts: decodeShortcuts(p.shortcuts),
+    created_at: p.createdAt,
+    updated_at: p.updatedAt,
+  };
+}
+
 export async function getEffectiveShortcuts(): Promise<ShortcutEntry[]> {
-  const url = buildApiUrl("/shortcuts", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to get shortcuts");
-  }
-  return (await res.json()) as ShortcutEntry[];
+  const resp = await shortcutsClient.getEffective({});
+  return decodeShortcuts(resp.shortcuts);
 }
 
 export async function listShortcutProfiles(): Promise<ShortcutProfile[]> {
-  const url = buildApiUrl("/shortcuts/profiles", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to list shortcut profiles");
-  }
-  return (await res.json()) as ShortcutProfile[];
+  const resp = await shortcutsClient.listProfiles({});
+  return resp.profiles.map(decodeProfile);
 }
 
 export async function upsertShortcutProfile(profile: {
@@ -489,24 +593,24 @@ export async function upsertShortcutProfile(profile: {
   name: string;
   shortcuts: ShortcutEntry[];
 }): Promise<ShortcutProfile> {
-  const url = buildApiUrl("/shortcuts/profiles", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(profile),
+  const resp = await shortcutsClient.upsertProfile({
+    id: profile.id,
+    scope: profile.scope,
+    name: profile.name,
+    shortcuts: profile.shortcuts.map((s) => ({
+      label: s.label,
+      command: s.command,
+      description: s.description ?? "",
+    })),
   });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to save shortcut profile");
+  if (!resp.profile) {
+    throw new Error("upsertShortcutProfile: missing profile in response");
   }
-  return (await res.json()) as ShortcutProfile;
+  return decodeProfile(resp.profile);
 }
 
 export async function deleteShortcutProfile(id: string): Promise<void> {
-  const url = buildApiUrl(`/shortcuts/profiles/${id}`, { baseUrl: API_BASE });
-  const res = await fetch(url, { method: "DELETE" });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to delete shortcut profile");
-  }
+  await shortcutsClient.deleteProfile({ id });
 }
 
 // [REQ:P1-003a] AI Provider Config API - client
@@ -533,16 +637,40 @@ export interface AIProviderConfigResponse {
   health: ProviderHealth[];
 }
 
+type AIConfigClientReq = Parameters<typeof aiClient.getConfig>[0];
+type AIConfigClientResp = Awaited<ReturnType<typeof aiClient.getConfig>>;
+type AIProviderConfigProto = AIConfigClientResp["providers"][number];
+type AIProviderHealthProto = AIConfigClientResp["health"][number];
+
+function decodeProviderConfig(p: AIProviderConfigProto): ProviderConfig {
+  return {
+    name: p.name,
+    enabled: p.enabled,
+    priority: p.priority,
+    timeout_sec: p.timeoutSec,
+    max_retries: p.maxRetries,
+  };
+}
+
+function decodeProviderHealth(h: AIProviderHealthProto): ProviderHealth {
+  return {
+    name: h.name,
+    available: h.available,
+    last_check: h.lastCheck || undefined,
+    last_latency: h.lastLatency || undefined,
+    error_count: Number(h.errorCount),
+    success_count: Number(h.successCount),
+    error_rate: h.errorRate,
+  };
+}
+
 export async function getAIConfig(): Promise<AIProviderConfigResponse> {
-  const url = buildApiUrl("/ai/config", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to get AI config");
-  }
-  return (await res.json()) as AIProviderConfigResponse;
+  const req: AIConfigClientReq = {};
+  const resp = await aiClient.getConfig(req);
+  return {
+    providers: resp.providers.map(decodeProviderConfig),
+    health: resp.health.map(decodeProviderHealth),
+  };
 }
 
 export async function updateAIConfig(update: {
@@ -552,28 +680,33 @@ export async function updateAIConfig(update: {
   timeout_sec?: number;
   max_retries?: number;
 }): Promise<AIProviderConfigResponse> {
-  const url = buildApiUrl("/ai/config", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(update),
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to update AI config");
+  const req: Parameters<typeof aiClient.updateConfig>[0] = { name: update.name };
+  if (update.enabled !== undefined) {
+    req.enabled = update.enabled;
+    req.hasEnabled = true;
   }
-  return (await res.json()) as AIProviderConfigResponse;
+  if (update.priority !== undefined) {
+    req.priority = update.priority;
+    req.hasPriority = true;
+  }
+  if (update.timeout_sec !== undefined) {
+    req.timeoutSec = update.timeout_sec;
+    req.hasTimeoutSec = true;
+  }
+  if (update.max_retries !== undefined) {
+    req.maxRetries = update.max_retries;
+    req.hasMaxRetries = true;
+  }
+  const resp = await aiClient.updateConfig(req);
+  return {
+    providers: resp.providers.map(decodeProviderConfig),
+    health: resp.health.map(decodeProviderHealth),
+  };
 }
 
 export async function getAIHealth(): Promise<ProviderHealth[]> {
-  const url = buildApiUrl("/ai/health", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to get AI health");
-  }
-  return (await res.json()) as ProviderHealth[];
+  const resp = await aiClient.getHealth({});
+  return resp.health.map(decodeProviderHealth);
 }
 
 function apiBaseToWsBase(apiBase: string): string {
@@ -618,28 +751,77 @@ export interface CapabilitiesResponse {
 }
 
 export async function fetchCapabilities(): Promise<CapabilitiesResponse> {
-  const url = buildApiUrl("/capabilities", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to fetch capabilities");
-  }
-  return (await res.json()) as CapabilitiesResponse;
+  const resp = await capabilitiesClient.get({});
+  return decodeCapabilitiesResponse(resp);
 }
 
 /** Fast liveness-only capability check (GET health only, no test transcription). */
 export async function fetchCapabilitiesLiveness(): Promise<CapabilitiesResponse> {
-  const url = buildApiUrl("/capabilities/liveness", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to fetch capabilities liveness");
+  const resp = await capabilitiesClient.liveness({});
+  return decodeCapabilitiesResponse(resp);
+}
+
+interface ProtoCapabilityState {
+  id: string;
+  name: string;
+  description: string;
+  dependencyKind: string;
+  dependencySlug: string;
+  features: string[];
+  status: string;
+  message: string;
+  checkedAt: string;
+}
+
+interface ProtoBackendOption {
+  id: string;
+  displayName: string;
+  description: string;
+  survivesRestart: boolean;
+  available: boolean;
+  reason: string;
+}
+
+interface ProtoCapabilitiesResponse {
+  capabilities: ProtoCapabilityState[];
+  timestamp: string;
+  sessionBackends?: ProtoBackendOption[];
+  defaultBackend?: string;
+}
+
+function decodeCapabilitiesResponse(resp: ProtoCapabilitiesResponse): CapabilitiesResponse {
+  const out: CapabilitiesResponse = {
+    capabilities: resp.capabilities.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      dependencyKind: c.dependencyKind,
+      dependencySlug: c.dependencySlug,
+      features: c.features ?? [],
+      status: decodeCapabilityStatus(c.status),
+      message: c.message || undefined,
+      checkedAt: c.checkedAt || undefined,
+    })),
+    timestamp: resp.timestamp,
+  };
+  if (resp.sessionBackends && resp.sessionBackends.length > 0) {
+    out.session_backends = resp.sessionBackends.map((b) => ({
+      id: b.id as BackendID,
+      display_name: b.displayName,
+      description: b.description,
+      survives_restart: b.survivesRestart,
+      available: b.available,
+      reason: b.reason || undefined,
+    }));
   }
-  return (await res.json()) as CapabilitiesResponse;
+  if (resp.defaultBackend) {
+    out.default_backend = resp.defaultBackend;
+  }
+  return out;
+}
+
+function decodeCapabilityStatus(s: string): CapabilityStatus {
+  return s === "available" || s === "unavailable" ? s : "unknown";
 }
 
 /**
@@ -713,52 +895,36 @@ export async function uploadFile(sessionId: string, file: File | Blob, filename?
   return data.path;
 }
 
+async function blobToBytes(b: Blob): Promise<Uint8Array> {
+  return new Uint8Array(await b.arrayBuffer());
+}
+
 export async function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {
-  let path = "/voice/transcribe";
-  if (language) path += `?language=${encodeURIComponent(language)}`;
-  const url = buildApiUrl(path, { baseUrl: API_BASE });
-  const formData = new FormData();
-  formData.append("audio_file", audioBlob, "recording.webm");
-  const res = await fetch(url, {
-    method: "POST",
-    body: formData,
+  const resp = await voiceClient.transcribe({
+    audio: await blobToBytes(audioBlob),
+    contentType: audioBlob.type,
+    language: language ?? "",
+    skipSpeakerVerification: false,
   });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Voice transcription failed");
-  }
-  const data = (await res.json()) as { text: string };
-  return data.text;
+  return resp.text;
 }
 
 /**
  * Transcribe audio while bypassing the server-side speaker-verification
  * filter. Used exclusively by the "Transcribe anyway" retry action after a
- * false rejection. Every other call site uses `transcribeAudio` so the
- * filter remains the default.
- *
- * Server contract: accepts the literal string `"true"` on the
- * `skip_speaker_verification` query parameter; any other value (including
- * `"1"`, `"yes"`, omitted) keeps the filter active.
- *
+ * false rejection.
  */
 export async function transcribeAudioBypassFilter(
   audioBlob: Blob,
   language?: string,
 ): Promise<string> {
-  const params = new URLSearchParams({ skip_speaker_verification: "true" });
-  if (language) params.set("language", language);
-  const url = buildApiUrl(`/voice/transcribe?${params.toString()}`, { baseUrl: API_BASE });
-  const formData = new FormData();
-  formData.append("audio_file", audioBlob, "recording.webm");
-  const res = await fetch(url, {
-    method: "POST",
-    body: formData,
+  const resp = await voiceClient.transcribe({
+    audio: await blobToBytes(audioBlob),
+    contentType: audioBlob.type,
+    language: language ?? "",
+    skipSpeakerVerification: true,
   });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Voice transcription failed");
-  }
-  const data = (await res.json()) as { text: string };
-  return data.text;
+  return resp.text;
 }
 
 // Voice streaming configuration (server-side pipeline tuning)
@@ -772,27 +938,65 @@ export interface VoiceStreamConfig {
   segmentSilenceMs: number;
 }
 
+function decodeStreamConfig(c: {
+  flushIntervalMs: number;
+  minDeltaBytes: number;
+  overlapBytes: number;
+  persistentMode: boolean;
+  wakeWordEnabled: boolean;
+  wakeWordThreshold: number;
+  segmentSilenceMs: number;
+} | undefined): VoiceStreamConfig {
+  return {
+    flushIntervalMs: c?.flushIntervalMs ?? 0,
+    minDeltaBytes: c?.minDeltaBytes ?? 0,
+    overlapBytes: c?.overlapBytes ?? 0,
+    persistentMode: c?.persistentMode ?? false,
+    wakeWordEnabled: c?.wakeWordEnabled ?? false,
+    wakeWordThreshold: c?.wakeWordThreshold ?? 0,
+    segmentSilenceMs: c?.segmentSilenceMs ?? 0,
+  };
+}
+
 export async function getVoiceStreamConfig(): Promise<VoiceStreamConfig> {
-  const url = buildApiUrl("/voice/config", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to get voice config");
-  return (await res.json()) as VoiceStreamConfig;
+  const resp = await voiceClient.getStreamConfig({});
+  return decodeStreamConfig(resp.config);
 }
 
 export async function updateVoiceStreamConfig(
   patch: Partial<VoiceStreamConfig>,
 ): Promise<VoiceStreamConfig> {
-  const url = buildApiUrl("/voice/config", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to update voice config");
-  return (await res.json()) as VoiceStreamConfig;
+  const req: Record<string, unknown> = {};
+  if (patch.flushIntervalMs !== undefined) {
+    req.flushIntervalMs = patch.flushIntervalMs;
+    req.hasFlushIntervalMs = true;
+  }
+  if (patch.minDeltaBytes !== undefined) {
+    req.minDeltaBytes = patch.minDeltaBytes;
+    req.hasMinDeltaBytes = true;
+  }
+  if (patch.overlapBytes !== undefined) {
+    req.overlapBytes = patch.overlapBytes;
+    req.hasOverlapBytes = true;
+  }
+  if (patch.persistentMode !== undefined) {
+    req.persistentMode = patch.persistentMode;
+    req.hasPersistentMode = true;
+  }
+  if (patch.wakeWordEnabled !== undefined) {
+    req.wakeWordEnabled = patch.wakeWordEnabled;
+    req.hasWakeWordEnabled = true;
+  }
+  if (patch.wakeWordThreshold !== undefined) {
+    req.wakeWordThreshold = patch.wakeWordThreshold;
+    req.hasWakeWordThreshold = true;
+  }
+  if (patch.segmentSilenceMs !== undefined) {
+    req.segmentSilenceMs = patch.segmentSilenceMs;
+    req.hasSegmentSilenceMs = true;
+  }
+  const resp = await voiceClient.updateStreamConfig(req as Parameters<typeof voiceClient.updateStreamConfig>[0]);
+  return decodeStreamConfig(resp.config);
 }
 
 // Wake word template configuration
@@ -801,34 +1005,35 @@ export interface WakeWordConfig {
   template: import("../hooks/voice/wakeword/types").WakeWordTemplate | null;
 }
 
+function decodeWakeWord(cfg: { configured: boolean; templateJson: string } | undefined): WakeWordConfig {
+  const configured = cfg?.configured ?? false;
+  const tj = cfg?.templateJson ?? "";
+  let template: import("../hooks/voice/wakeword/types").WakeWordTemplate | null = null;
+  if (configured && tj) {
+    try {
+      template = JSON.parse(tj) as import("../hooks/voice/wakeword/types").WakeWordTemplate;
+    } catch {
+      template = null;
+    }
+  }
+  return { configured, template };
+}
+
 export async function getWakeWordConfig(): Promise<WakeWordConfig> {
-  const url = buildApiUrl("/voice/wakeword", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to get wake word config");
-  return (await res.json()) as WakeWordConfig;
+  const resp = await voiceClient.getWakeWordConfig({});
+  return decodeWakeWord(resp.config);
 }
 
 export async function updateWakeWordConfig(
   template: import("../hooks/voice/wakeword/types").WakeWordTemplate,
 ): Promise<WakeWordConfig> {
-  const url = buildApiUrl("/voice/wakeword", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(template),
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to save wake word template");
-  return (await res.json()) as WakeWordConfig;
+  const resp = await voiceClient.updateWakeWordTemplate({ templateJson: JSON.stringify(template) });
+  return decodeWakeWord(resp.config);
 }
 
 export async function deleteWakeWordConfig(): Promise<WakeWordConfig> {
-  const url = buildApiUrl("/voice/wakeword", { baseUrl: API_BASE });
-  const res = await fetch(url, { method: "DELETE" });
-  if (!res.ok) throw await extractAPIError(res, "Failed to delete wake word template");
-  return (await res.json()) as WakeWordConfig;
+  const resp = await voiceClient.deleteWakeWordTemplate({});
+  return decodeWakeWord(resp.config);
 }
 
 export interface SpeakerVerificationConfig {
@@ -889,48 +1094,117 @@ export interface SpeakerVerificationEnrollResult {
   config: SpeakerVerificationConfig;
 }
 
+function decodeSpeakerConfig(c: {
+  enabled: boolean;
+  profileIds: string[];
+  threshold: number;
+  mode: string;
+  rejectBehavior: string;
+  fallbackWithoutVerification: boolean;
+} | undefined): SpeakerVerificationConfig {
+  const mode = (c?.mode ?? "filter") as SpeakerVerificationConfig["mode"];
+  const reject = (c?.rejectBehavior ?? "drop") as SpeakerVerificationConfig["rejectBehavior"];
+  return {
+    enabled: c?.enabled ?? false,
+    profileIds: c?.profileIds ?? [],
+    threshold: c?.threshold ?? 0,
+    mode,
+    rejectBehavior: reject,
+    fallbackWithoutVerification: c?.fallbackWithoutVerification ?? false,
+  };
+}
+
+function decodeSpeakerProfile(p: {
+  id: string;
+  displayName: string;
+  createdAt: string;
+  updatedAt: string;
+  modelName: string;
+  embeddingDim: number;
+  sampleRate: number;
+  enrollmentAudioSeconds: number;
+  notes: string;
+}): SpeakerVerificationProfile {
+  return {
+    id: p.id,
+    display_name: p.displayName,
+    created_at: p.createdAt,
+    updated_at: p.updatedAt,
+    model_name: p.modelName,
+    embedding_dim: p.embeddingDim,
+    sample_rate: p.sampleRate,
+    enrollment_audio_seconds: p.enrollmentAudioSeconds,
+    notes: p.notes,
+  };
+}
+
 export async function getSpeakerVerificationConfig(): Promise<SpeakerVerificationConfig> {
-  const url = buildApiUrl("/voice/speaker/config", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to get speaker verification config");
-  return (await res.json()) as SpeakerVerificationConfig;
+  const resp = await voiceClient.getSpeakerConfig({});
+  return decodeSpeakerConfig(resp.config);
 }
 
 export async function updateSpeakerVerificationConfig(
   patch: Partial<SpeakerVerificationConfig>,
 ): Promise<SpeakerVerificationConfig> {
-  const url = buildApiUrl("/voice/speaker/config", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to update speaker verification config");
-  return (await res.json()) as SpeakerVerificationConfig;
+  const req: Record<string, unknown> = {};
+  if (patch.enabled !== undefined) {
+    req.enabled = patch.enabled;
+    req.hasEnabled = true;
+  }
+  if (patch.profileIds !== undefined) {
+    req.profileIds = patch.profileIds;
+    req.hasProfileIds = true;
+  }
+  if (patch.threshold !== undefined) {
+    req.threshold = patch.threshold;
+    req.hasThreshold = true;
+  }
+  if (patch.mode !== undefined) {
+    req.mode = patch.mode;
+    req.hasMode = true;
+  }
+  if (patch.rejectBehavior !== undefined) {
+    req.rejectBehavior = patch.rejectBehavior;
+    req.hasRejectBehavior = true;
+  }
+  if (patch.fallbackWithoutVerification !== undefined) {
+    req.fallbackWithoutVerification = patch.fallbackWithoutVerification;
+    req.hasFallbackWithoutVerification = true;
+  }
+  const resp = await voiceClient.updateSpeakerConfig(req as Parameters<typeof voiceClient.updateSpeakerConfig>[0]);
+  return decodeSpeakerConfig(resp.config);
 }
 
 export async function getSpeakerVerificationStatus(): Promise<SpeakerVerificationStatusResponse> {
-  const url = buildApiUrl("/voice/speaker/status", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to get speaker verification status");
-  return (await res.json()) as SpeakerVerificationStatusResponse;
+  const resp = await voiceClient.getSpeakerStatus({});
+  const st = resp.status;
+  if (!st) throw new Error("speaker status response missing status field");
+  return {
+    config: decodeSpeakerConfig(st.config),
+    capability: st.capability as CapabilityStatus,
+    capabilityLabel: st.capabilityLabel || undefined,
+    resourceReady: st.resourceReady,
+    profileConfigured: st.profileConfigured,
+    profileExists: st.profileExists,
+    profileCount: st.profileCount,
+    profiles: st.profiles?.map(decodeSpeakerProfile),
+    info: st.info
+      ? {
+          backend: st.info.backend,
+          model: st.info.model,
+          device: st.info.device,
+          sample_rate: st.info.sampleRate,
+          version: st.info.version,
+          embedding_dim: st.info.embeddingDim,
+        }
+      : undefined,
+    checkedAt: st.checkedAt,
+  };
 }
 
 export async function listSpeakerVerificationProfiles(): Promise<SpeakerVerificationProfile[]> {
-  const url = buildApiUrl("/voice/speaker/profiles", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to list speaker verification profiles");
-  const data = (await res.json()) as { profiles: SpeakerVerificationProfile[] };
-  return data.profiles;
+  const resp = await voiceClient.listSpeakerProfiles({});
+  return resp.profiles.map(decodeSpeakerProfile);
 }
 
 export async function enrollSpeakerVerificationProfile(args: {
@@ -941,53 +1215,52 @@ export async function enrollSpeakerVerificationProfile(args: {
   addToActive?: boolean;
   enable?: boolean;
 }): Promise<SpeakerVerificationEnrollResult> {
-  const url = buildApiUrl("/voice/speaker/enroll", { baseUrl: API_BASE });
-  const formData = new FormData();
-  formData.append("audio_file", args.audioBlob, "speaker-enrollment.webm");
-  if (args.profileId) formData.append("profileId", args.profileId);
-  if (args.displayName) formData.append("displayName", args.displayName);
-  if (args.notes) formData.append("notes", args.notes);
-  if (args.addToActive !== undefined) formData.append("addToActive", String(args.addToActive));
-  if (args.enable !== undefined) formData.append("enable", String(args.enable));
-
-  const res = await fetch(url, {
-    method: "POST",
-    body: formData,
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to enroll speaker verification profile");
-  return (await res.json()) as SpeakerVerificationEnrollResult;
+  const req: Record<string, unknown> = {
+    audio: await blobToBytes(args.audioBlob),
+    contentType: args.audioBlob.type,
+    profileId: args.profileId ?? "",
+    displayName: args.displayName ?? "",
+    notes: args.notes ?? "",
+  };
+  if (args.addToActive !== undefined) {
+    req.addToActive = args.addToActive;
+    req.hasAddToActive = true;
+  }
+  if (args.enable !== undefined) {
+    req.enable = args.enable;
+    req.hasEnable = true;
+  }
+  const resp = await voiceClient.enrollSpeakerProfile(
+    req as Parameters<typeof voiceClient.enrollSpeakerProfile>[0],
+  );
+  const en = resp.enrollment;
+  return {
+    enrollment: {
+      profile_id: en?.profileId ?? "",
+      display_name: en?.displayName ?? "",
+      embedding_dim: en?.embeddingDim ?? 0,
+      sample_rate: en?.sampleRate ?? 0,
+      enrollment_audio_seconds: en?.enrollmentAudioSeconds ?? 0,
+      model_name: en?.modelName ?? "",
+      created_at: en?.createdAt ?? "",
+    },
+    config: decodeSpeakerConfig(resp.config),
+  };
 }
 
 export async function clearSpeakerVerificationProfile(): Promise<SpeakerVerificationConfig> {
-  const url = buildApiUrl("/voice/speaker/profile", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to clear active speaker profile");
-  return (await res.json()) as SpeakerVerificationConfig;
+  const resp = await voiceClient.clearSpeakerProfileBinding({});
+  return decodeSpeakerConfig(resp.config);
 }
 
 export async function removeSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> {
-  const url = buildApiUrl("/voice/speaker/profile/remove", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ profileId }),
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to remove speaker profile");
-  return (await res.json()) as SpeakerVerificationConfig;
+  const resp = await voiceClient.removeSpeakerProfile({ profileId });
+  return decodeSpeakerConfig(resp.config);
 }
 
 export async function deleteSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> {
-  const url = buildApiUrl("/voice/speaker/profile/delete", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ profileId }),
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to delete speaker profile");
-  return (await res.json()) as SpeakerVerificationConfig;
+  const resp = await voiceClient.deleteSpeakerProfile({ profileId });
+  return decodeSpeakerConfig(resp.config);
 }
 
 /** Maximum time (ms) to wait for Kokoro to return synthesized audio.
@@ -1002,30 +1275,30 @@ export async function synthesizeTTS(
   speed?: number,
   signal?: AbortSignal,
 ): Promise<Blob> {
-  const url = buildApiUrl("/tts/synthesize", { baseUrl: API_BASE });
   // Combine caller-provided abort signal with a hard timeout so a stalled
   // Kokoro server doesn't leave speech hanging silently for 60+ seconds.
   const timeout = AbortSignal.timeout(TTS_SYNTHESIS_TIMEOUT_MS);
   const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const resp = await ttsClient.synthesize(
+    {
       input,
-      voice,
-      speed,
-      response_format: "mp3",
-    }),
-    signal: combined,
+      voice: voice ?? "",
+      responseFormat: "mp3",
+      speed: speed ?? 0,
+      eventId: "",
+      version: "",
+    },
+    { signal: combined },
+  );
+  return new Blob([resp.audio as Uint8Array<ArrayBuffer>], {
+    type: resp.contentType || "audio/mpeg",
   });
-  if (!res.ok) throw new Error("TTS synthesis failed");
-  return res.blob();
 }
 
 /**
  * Fetch pre-cached TTS audio for an event. Returns the audio Blob on cache
- * hit, or null on cache miss (404). Used by the cache-first playback path
- * to eliminate synthesis latency on tab switch.
+ * hit, or null on cache miss. Used by the cache-first playback path to
+ * eliminate synthesis latency on tab switch.
  */
 export async function fetchCachedTTS(
   eventId: string,
@@ -1034,13 +1307,15 @@ export async function fetchCachedTTS(
   version: "active" | "original" = "active",
   signal?: AbortSignal,
 ): Promise<Blob | null> {
-  const params = new URLSearchParams({ voice, speed: String(speed), version });
-  const url = buildApiUrl(`/tts/cache/${eventId}?${params}`, { baseUrl: API_BASE });
   try {
-    const resp = await fetch(url, { signal });
-    if (resp.status === 404) return null;
-    if (!resp.ok) return null;
-    return resp.blob();
+    const resp = await ttsClient.getCache(
+      { eventId, voice, speed, version },
+      { signal },
+    );
+    if (resp.audio.byteLength === 0) return null;
+    return new Blob([resp.audio as Uint8Array<ArrayBuffer>], {
+      type: resp.contentType || "audio/mpeg",
+    });
   } catch {
     return null;
   }
@@ -1053,10 +1328,8 @@ export interface TTSVoiceInfo {
 
 /** Fetch available TTS voices from the Kokoro backend. */
 export async function getTTSVoices(): Promise<TTSVoiceInfo[]> {
-  const url = buildApiUrl("/tts/voices", { baseUrl: API_BASE });
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to get TTS voices");
-  return (await res.json()) as TTSVoiceInfo[];
+  const resp = await ttsClient.listVoices({});
+  return resp.voices.map((v) => ({ id: v.id, name: v.name }));
 }
 
 // TTS auto-speak configuration (server-side)
@@ -1111,27 +1384,40 @@ export interface TTSStatus {
   kokoroCapabilityLabel?: string;
 }
 
+function decodeTTSConfig(c: {
+  autoEnabled: boolean;
+  backend: string;
+  kokoroVoice: string;
+  kokoroSpeed: number;
+} | undefined): TTSConfig {
+  return {
+    autoEnabled: c?.autoEnabled ?? false,
+    backend: ((c?.backend || "auto") as TTSConfig["backend"]),
+    kokoroVoice: c?.kokoroVoice ?? "",
+    kokoroSpeed: c?.kokoroSpeed ?? 1,
+  };
+}
+
 export async function getTTSConfig(): Promise<TTSConfig> {
-  const url = buildApiUrl("/tts/config", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to get TTS config");
-  return (await res.json()) as TTSConfig;
+  const resp = await ttsClient.getConfig({});
+  return decodeTTSConfig(resp.config);
 }
 
 export async function updateTTSConfig(
   patch: Partial<TTSConfig>,
 ): Promise<TTSConfig> {
-  const url = buildApiUrl("/tts/config", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to update TTS config");
-  return (await res.json()) as TTSConfig;
+  const req = {
+    autoEnabled: patch.autoEnabled ?? false,
+    hasAutoEnabled: patch.autoEnabled !== undefined,
+    backend: patch.backend ?? "",
+    hasBackend: patch.backend !== undefined,
+    kokoroVoice: patch.kokoroVoice ?? "",
+    hasKokoroVoice: patch.kokoroVoice !== undefined,
+    kokoroSpeed: patch.kokoroSpeed ?? 0,
+    hasKokoroSpeed: patch.kokoroSpeed !== undefined,
+  };
+  const resp = await ttsClient.updateConfig(req);
+  return decodeTTSConfig(resp.config);
 }
 
 // TTS summarization configuration
@@ -1143,27 +1429,44 @@ export interface TTSSummarizeConfig {
   timeoutSeconds: number;
 }
 
+function decodeSummarizeConfig(c: {
+  enabled: boolean;
+  charThreshold: number;
+  level: string;
+  model: string;
+  timeoutSeconds: number;
+} | undefined): TTSSummarizeConfig {
+  return {
+    enabled: c?.enabled ?? false,
+    charThreshold: c?.charThreshold ?? 0,
+    level: ((c?.level || "moderate") as TTSSummarizeConfig["level"]),
+    model: c?.model ?? "",
+    timeoutSeconds: c?.timeoutSeconds ?? 0,
+  };
+}
+
 export async function getTTSSummarizeConfig(): Promise<TTSSummarizeConfig> {
-  const url = buildApiUrl("/tts/summarize/config", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to get TTS summarize config");
-  return (await res.json()) as TTSSummarizeConfig;
+  const resp = await ttsClient.getSummarizeConfig({});
+  return decodeSummarizeConfig(resp.config);
 }
 
 export async function updateTTSSummarizeConfig(
   patch: Partial<TTSSummarizeConfig>,
 ): Promise<TTSSummarizeConfig> {
-  const url = buildApiUrl("/tts/summarize/config", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to update TTS summarize config");
-  return (await res.json()) as TTSSummarizeConfig;
+  const req = {
+    enabled: patch.enabled ?? false,
+    hasEnabled: patch.enabled !== undefined,
+    charThreshold: patch.charThreshold ?? 0,
+    hasCharThreshold: patch.charThreshold !== undefined,
+    level: patch.level ?? "",
+    hasLevel: patch.level !== undefined,
+    model: patch.model ?? "",
+    hasModel: patch.model !== undefined,
+    timeoutSeconds: patch.timeoutSeconds ?? 0,
+    hasTimeoutSeconds: patch.timeoutSeconds !== undefined,
+  };
+  const resp = await ttsClient.updateSummarizeConfig(req);
+  return decodeSummarizeConfig(resp.config);
 }
 
 export interface SummarizeEventResponse {
@@ -1177,24 +1480,102 @@ export async function summarizeEvent(
   eventId: string,
   signal?: AbortSignal,
 ): Promise<SummarizeEventResponse> {
-  const url = buildApiUrl(`/sessions/${sessionId}/conversation/${eventId}/summarize`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    signal,
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to summarize event");
-  return (await res.json()) as SummarizeEventResponse;
+  const resp = await conversationClient.summarizeEvent({ sessionId, eventId }, { signal });
+  return {
+    summarized: resp.summarized,
+    speechParagraphs: resp.speechParagraphs.length > 0 ? resp.speechParagraphs : undefined,
+    error: resp.error || undefined,
+  };
+}
+
+function decodeRouting(r: {
+  appended: boolean;
+  code: string;
+  reason: string;
+  source: string;
+  sessionId: string;
+  eventId: string;
+  sequence: bigint;
+  duplicate: boolean;
+} | undefined): TTSRoutingResult | undefined {
+  if (!r || (!r.appended && !r.code && !r.source)) return undefined;
+  return {
+    appended: r.appended,
+    code: r.code,
+    reason: r.reason,
+    source: r.source,
+    sessionId: r.sessionId || undefined,
+    eventId: r.eventId || undefined,
+    sequence: r.sequence !== 0n ? Number(r.sequence) : undefined,
+    duplicate: r.duplicate || undefined,
+  };
+}
+
+function decodeAck(a: {
+  eventId: string;
+  source: string;
+  sessionId: string;
+  stage: string;
+  backend: string;
+  message: string;
+} | undefined): TTSClientAck | undefined {
+  if (!a || (!a.eventId && !a.source && !a.stage)) return undefined;
+  return {
+    eventId: a.eventId,
+    source: a.source,
+    sessionId: a.sessionId,
+    stage: a.stage,
+    backend: a.backend || undefined,
+    message: a.message || undefined,
+  };
+}
+
+function decodePlayback(p: {
+  source: string;
+  stage: string;
+  backend: string;
+  sessionId: string;
+  message: string;
+} | undefined): TTSPlaybackEvent | undefined {
+  if (!p || (!p.source && !p.stage)) return undefined;
+  return {
+    source: p.source,
+    stage: p.stage,
+    backend: p.backend || undefined,
+    sessionId: p.sessionId || undefined,
+    message: p.message || undefined,
+  };
 }
 
 export async function getTTSStatus(): Promise<TTSStatus> {
-  const url = buildApiUrl("/tts/status", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) throw await extractAPIError(res, "Failed to get TTS status");
-  return (await res.json()) as TTSStatus;
+  const resp = await ttsClient.getStatus({});
+  const st = resp.status;
+  if (!st) {
+    throw new Error("TTS status response missing payload");
+  }
+  return {
+    config: decodeTTSConfig(st.config),
+    hookRegistered: st.hookRegistered,
+    hookCode: st.hookCode || undefined,
+    hookReason: st.hookReason,
+    hookSettingsPath: st.hookSettingsPath || undefined,
+    lastRouting: decodeRouting(st.lastRouting),
+    lastRoutingAt: st.lastRoutingAt || undefined,
+    lastHookRouting: decodeRouting(st.lastHookRouting),
+    lastHookRoutingAt: st.lastHookRoutingAt || undefined,
+    lastTailerRouting: decodeRouting(st.lastTailerRouting),
+    lastTailerRoutingAt: st.lastTailerRoutingAt || undefined,
+    lastAck: decodeAck(st.lastAck),
+    lastAckAt: st.lastAckAt || undefined,
+    lastHookAck: decodeAck(st.lastHookAck),
+    lastHookAckAt: st.lastHookAckAt || undefined,
+    lastTailerAck: decodeAck(st.lastTailerAck),
+    lastTailerAckAt: st.lastTailerAckAt || undefined,
+    lastPlaybackEvent: decodePlayback(st.lastPlaybackEvent),
+    lastPlaybackAt: st.lastPlaybackAt || undefined,
+    kokoroCapability: st.kokoroCapability || undefined,
+    kokoroCapabilityLabel: st.kokoroCapabilityLabel || undefined,
+  };
 }
 
 export async function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> {
@@ -1238,127 +1619,206 @@ export interface WorkspaceLayoutDTO {
   groups: TabGroupDTO[];
 }
 
+// Workspace functions below are shims over Connect-RPC WorkspaceService.
+// The legacy snake_case DTOs are preserved so existing call-sites don't
+// have to change; the Connect-Web client lives in ../api/workspace.
+
+function decodePane(p: {
+  sessionId: string;
+  name: string;
+  headerColor: string;
+  themeId: string;
+  fontSize: number;
+  sortOrder: number;
+  groupId: string;
+  supportsMessagesView: boolean;
+}): WorkspacePaneDTO {
+  return {
+    session_id: p.sessionId,
+    name: p.name,
+    header_color: p.headerColor,
+    theme_id: p.themeId,
+    font_size: p.fontSize,
+    sort_order: p.sortOrder,
+    group_id: p.groupId === "" ? null : p.groupId,
+    supports_messages_view: p.supportsMessagesView,
+  };
+}
+
+function decodeGroup(g: {
+  id: string;
+  name: string;
+  color: string;
+  sortOrder: number;
+  isCollapsed: boolean;
+}): TabGroupDTO {
+  return {
+    id: g.id,
+    name: g.name,
+    color: g.color,
+    sort_order: g.sortOrder,
+    is_collapsed: g.isCollapsed,
+  };
+}
+
 export async function getWorkspaceLayout(): Promise<WorkspaceLayoutDTO> {
-  const url = buildApiUrl("/workspace/layout", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to get workspace layout");
-  }
-  return (await res.json()) as WorkspaceLayoutDTO;
+  const resp = await workspaceClient.getLayout({});
+  return {
+    active_pane: resp.activePane,
+    panes: resp.panes.map(decodePane),
+    groups: resp.groups.map(decodeGroup),
+  };
 }
 
 export async function saveWorkspaceLayout(req: {
   active_pane: string | null;
   pane_order: string[];
 }): Promise<void> {
-  const url = buildApiUrl("/workspace/layout", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
+  await workspaceClient.saveLayout({
+    activePane: req.active_pane ?? "",
+    paneOrder: req.pane_order,
   });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to save workspace layout");
-  }
 }
 
 export async function updateWorkspacePane(
   sessionId: string,
   update: Partial<Omit<WorkspacePaneDTO, "session_id">>,
 ): Promise<WorkspacePaneDTO> {
-  const url = buildApiUrl(`/workspace/panes/${sessionId}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(update),
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to update workspace pane");
+  const req: Parameters<typeof workspaceClient.updatePane>[0] = { sessionId };
+  if (update.name !== undefined) {
+    req.name = update.name;
+    req.hasName = true;
   }
-  return (await res.json()) as WorkspacePaneDTO;
+  if (update.header_color !== undefined) {
+    req.headerColor = update.header_color;
+    req.hasHeaderColor = true;
+  }
+  if (update.theme_id !== undefined) {
+    req.themeId = update.theme_id;
+    req.hasThemeId = true;
+  }
+  if (update.font_size !== undefined) {
+    req.fontSize = update.font_size;
+    req.hasFontSize = true;
+  }
+  if (update.sort_order !== undefined) {
+    req.sortOrder = update.sort_order;
+    req.hasSortOrder = true;
+  }
+  if (update.group_id !== undefined) {
+    req.groupId = update.group_id ?? "";
+    req.hasGroupId = true;
+  }
+  if (update.supports_messages_view !== undefined) {
+    req.supportsMessagesView = update.supports_messages_view;
+    req.hasSupportsMessagesView = true;
+  }
+  const resp = await workspaceClient.updatePane(req);
+  if (!resp.pane) {
+    throw new Error("workspace.updatePane: missing pane in response");
+  }
+  return decodePane(resp.pane);
 }
 
 export async function deleteWorkspacePane(sessionId: string): Promise<void> {
-  const url = buildApiUrl(`/workspace/panes/${sessionId}`, { baseUrl: API_BASE });
-  const res = await fetch(url, { method: "DELETE" });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to delete workspace pane");
-  }
+  await workspaceClient.deletePane({ sessionId });
 }
 
 export async function createTabGroup(req: {
   name: string;
   color: string;
 }): Promise<TabGroupDTO> {
-  const url = buildApiUrl("/workspace/groups", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to create tab group");
+  const resp = await workspaceClient.createGroup(req);
+  if (!resp.group) {
+    throw new Error("workspace.createGroup: missing group in response");
   }
-  return (await res.json()) as TabGroupDTO;
+  return decodeGroup(resp.group);
 }
 
 export async function updateTabGroup(
   id: string,
   update: Partial<Omit<TabGroupDTO, "id">>,
 ): Promise<TabGroupDTO> {
-  const url = buildApiUrl(`/workspace/groups/${id}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(update),
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to update tab group");
+  const req: Parameters<typeof workspaceClient.updateGroup>[0] = { id };
+  if (update.name !== undefined) {
+    req.name = update.name;
+    req.hasName = true;
   }
-  return (await res.json()) as TabGroupDTO;
+  if (update.color !== undefined) {
+    req.color = update.color;
+    req.hasColor = true;
+  }
+  if (update.is_collapsed !== undefined) {
+    req.isCollapsed = update.is_collapsed;
+    req.hasIsCollapsed = true;
+  }
+  const resp = await workspaceClient.updateGroup(req);
+  if (!resp.group) {
+    throw new Error("workspace.updateGroup: missing group in response");
+  }
+  return decodeGroup(resp.group);
 }
 
 export async function deleteTabGroup(id: string): Promise<void> {
-  const url = buildApiUrl(`/workspace/groups/${id}`, { baseUrl: API_BASE });
-  const res = await fetch(url, { method: "DELETE" });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to delete tab group");
-  }
+  await workspaceClient.deleteGroup({ id });
 }
 
-// Session defaults settings
+// Session defaults settings — backed by Connect-RPC SettingsService.
+// The legacy snake_case shape is preserved here so existing call-sites
+// don't have to change; the Connect-Web client lives in
+// src/api/settings.ts.
+import { aiClient } from "../api/ai";
+import { conversationClient } from "../api/conversation";
+import { sessionsClient } from "../api/sessions";
+import { capabilitiesClient } from "../api/capabilities";
+import { settingsClient } from "../api/settings";
+import { shortcutsClient } from "../api/shortcuts";
+import { ttsClient } from "../api/tts";
+import { voiceClient } from "../api/voice";
+import { workspaceClient } from "../api/workspace";
+
 export interface SessionDefaultsResponse {
   default_backend: string;
   default_policy: ExpirationPolicy;
 }
 
+function decodePolicy(p: { mode?: string; duration?: string } | undefined): ExpirationPolicy {
+  return {
+    mode: ((p?.mode as ExpirationPolicy["mode"]) || "never"),
+    duration: p?.duration || "",
+  };
+}
+
 export async function getSessionDefaults(): Promise<SessionDefaultsResponse> {
-  const url = buildApiUrl("/settings/session-defaults", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to get session defaults");
-  }
-  return (await res.json()) as SessionDefaultsResponse;
+  const resp = await settingsClient.getSessionDefaults({});
+  const d = resp.defaults;
+  return {
+    default_backend: d?.defaultBackend ?? "",
+    default_policy: decodePolicy(d?.defaultPolicy),
+  };
 }
 
 export async function updateSessionDefaults(update: {
   default_backend?: string;
   default_policy?: ExpirationPolicy;
 }): Promise<SessionDefaultsResponse> {
-  const url = buildApiUrl("/settings/session-defaults", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(update),
-  });
-  if (!res.ok) {
-    throw await extractAPIError(res, "Failed to update session defaults");
+  const req: {
+    defaultBackend?: string;
+    defaultPolicy?: { mode: string; duration: string };
+  } = {};
+  if (update.default_backend !== undefined) {
+    req.defaultBackend = update.default_backend;
   }
-  return (await res.json()) as SessionDefaultsResponse;
+  if (update.default_policy !== undefined) {
+    req.defaultPolicy = {
+      mode: update.default_policy.mode,
+      duration: update.default_policy.duration ?? "",
+    };
+  }
+  const resp = await settingsClient.updateSessionDefaults(req);
+  const d = resp.defaults;
+  return {
+    default_backend: d?.defaultBackend ?? "",
+    default_policy: decodePolicy(d?.defaultPolicy),
+  };
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 )
 
@@ -82,24 +81,5 @@ func (k *KokoroVoiceLister) ListVoices(ctx context.Context) ([]TTSVoice, error) 
 	return nil, fmt.Errorf("unexpected voice list format")
 }
 
-// handleTTSVoices returns available TTS voices.
-// GET /api/v1/tts/voices
-func (s *Server) handleTTSVoices(w http.ResponseWriter, r *http.Request) {
-	if s.ttsVoiceLister == nil {
-		writeCatalogError(w, "not_configured", "TTS voice listing is not configured")
-		return
-	}
-	if !s.capabilities.IsAvailable(r.Context(), "kokoro-tts") {
-		writeCatalogError(w, "tts_unavailable", "Kokoro TTS is not available")
-		return
-	}
-
-	voices, err := s.ttsVoiceLister.ListVoices(r.Context())
-	if err != nil {
-		log.Printf("tts-voices: list failed: %v", err)
-		writeCatalogError(w, "tts_voice_list_failed", "failed to list voices")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, voices)
-}
+// HTTP handler for /api/v1/tts/voices moved to handlers/tts. The voice-list
+// fetch/validation now lives in tts_adapter.go's ListVoices.

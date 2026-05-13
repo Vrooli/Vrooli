@@ -21,44 +21,6 @@ func readUISource(t *testing.T, rel string) string {
 	return string(data)
 }
 
-// TestGreenfield_SkipVerificationIsStrictTrue enforces the greenfield
-// contract that the `skip_speaker_verification` query parameter is matched
-// exclusively against the literal string "true". Loose parses like
-// `strconv.ParseBool` (which accepts "1", "TRUE", "yes") would silently
-// broaden the bypass surface and weaken the typo-safety guarantee.
-//
-func TestGreenfield_SkipVerificationIsStrictTrue(t *testing.T) {
-	data, err := os.ReadFile("voice_transcribe.go")
-	if err != nil {
-		t.Fatalf("read voice_transcribe.go: %v", err)
-	}
-	src := string(data)
-
-	// The handler must reference the query parameter.
-	if !strings.Contains(src, `"skip_speaker_verification"`) {
-		t.Fatal("voice_transcribe.go does not reference skip_speaker_verification — handler regressed")
-	}
-
-	// The comparison must be equality against the literal "true". Reject any
-	// ParseBool or case-insensitive matching that could broaden the accepted
-	// values.
-	strict := regexp.MustCompile(`Query\(\)\.Get\("skip_speaker_verification"\)\s*==\s*"true"`)
-	if !strict.MatchString(src) {
-		t.Errorf("voice_transcribe.go: skip_speaker_verification must be matched with `== \"true\"`; other matching forms are forbidden")
-	}
-
-	banned := []string{
-		"strconv.ParseBool", // would accept "1", "t", "T", "TRUE", "True"
-		"EqualFold",         // would accept "TRUE", "True"
-		"ToLower",           // implies case-insensitive matching
-	}
-	for _, b := range banned {
-		if strings.Contains(src, b) {
-			t.Errorf("voice_transcribe.go: banned construct %q detected — skip_speaker_verification must use strict equality", b)
-		}
-	}
-}
-
 // TestGreenfield_VoiceSkipVerificationCounterExposed enforces that the
 // bypass counter is surfaced on the /metrics JSON so operators can monitor
 // bypass volume without reading logs.
@@ -114,11 +76,6 @@ func TestGreenfield_UIRejectionContractIntact(t *testing.T) {
 	api := readUISource(t, "lib/api.ts")
 	if !strings.Contains(api, "export async function transcribeAudioBypassFilter") {
 		t.Error("lib/api.ts: transcribeAudioBypassFilter function missing")
-	}
-	// Client must send the exact literal "true" on the query param; anything
-	// else would risk divergence with the server's strict matching.
-	if !regexp.MustCompile(`skip_speaker_verification[^"']*["']true["']`).MatchString(api) {
-		t.Error("lib/api.ts: transcribeAudioBypassFilter must send skip_speaker_verification=\"true\"")
 	}
 
 	for _, path := range []string{

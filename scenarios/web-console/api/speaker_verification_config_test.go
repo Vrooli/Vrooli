@@ -1,16 +1,14 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
+
+	voicev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/voice"
 )
 
 func TestLoadSpeakerVerificationConfig_MissingFile(t *testing.T) {
@@ -71,18 +69,12 @@ func TestHandleGetSpeakerVerificationConfig(t *testing.T) {
 	srv := &Server{
 		speakerVerificationConfig: DefaultSpeakerVerificationConfig(),
 	}
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/voice/speaker/config", nil)
-	rec := httptest.NewRecorder()
-	srv.handleGetSpeakerVerificationConfig(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rec.Code)
-	}
-	var cfg SpeakerVerificationConfig
-	if err := json.Unmarshal(rec.Body.Bytes(), &cfg); err != nil {
-		t.Fatalf("decode response: %v", err)
+	cfg, err := callGetSpeakerConfig(t, srv)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 	defaults := DefaultSpeakerVerificationConfig()
-	if cfg.Enabled != defaults.Enabled || cfg.Threshold != defaults.Threshold || cfg.Mode != defaults.Mode {
+	if cfg.GetEnabled() != defaults.Enabled || cfg.GetThreshold() != defaults.Threshold || cfg.GetMode() != defaults.Mode {
 		t.Fatalf("config mismatch: got %+v", cfg)
 	}
 }
@@ -93,19 +85,22 @@ func TestHandleUpdateSpeakerVerificationConfig(t *testing.T) {
 		speakerVerificationConfig:     DefaultSpeakerVerificationConfig(),
 		speakerVerificationConfigPath: filepath.Join(dir, "speaker-verification-config.json"),
 	}
-	body := `{"enabled":true,"profileIds":["default"],"threshold":0.9,"mode":"filter","rejectBehavior":"drop"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/voice/speaker/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleUpdateSpeakerVerificationConfig(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	cfg, err := callUpdateSpeakerConfig(t, srv, &voicev1.UpdateSpeakerConfigRequest{
+		Enabled:           true,
+		HasEnabled:        true,
+		ProfileIds:        []string{"default"},
+		HasProfileIds:     true,
+		Threshold:         0.9,
+		HasThreshold:      true,
+		Mode:              "filter",
+		HasMode:           true,
+		RejectBehavior:    "drop",
+		HasRejectBehavior: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	var cfg SpeakerVerificationConfig
-	if err := json.Unmarshal(rec.Body.Bytes(), &cfg); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if !cfg.Enabled || len(cfg.ProfileIDs) != 1 || cfg.ProfileIDs[0] != "default" || cfg.Threshold != 0.9 {
+	if !cfg.GetEnabled() || len(cfg.GetProfileIds()) != 1 || cfg.GetProfileIds()[0] != "default" || cfg.GetThreshold() != 0.9 {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 }
@@ -165,34 +160,27 @@ func TestHandleGetSpeakerVerificationStatus(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/voice/speaker/status", nil)
-	rec := httptest.NewRecorder()
-	srv.handleGetSpeakerVerificationStatus(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	status, err := callGetSpeakerStatus(t, srv)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	var status SpeakerVerificationStatusResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &status); err != nil {
-		t.Fatalf("decode response: %v", err)
+	if status.GetCapability() != string(StatusAvailable) {
+		t.Fatalf("capability = %q, want %q", status.GetCapability(), StatusAvailable)
 	}
-	if status.Capability != string(StatusAvailable) {
-		t.Fatalf("capability = %q, want %q", status.Capability, StatusAvailable)
-	}
-	if !status.ResourceReady {
+	if !status.GetResourceReady() {
 		t.Fatal("expected resourceReady=true")
 	}
-	if !status.ProfileConfigured || !status.ProfileExists {
+	if !status.GetProfileConfigured() || !status.GetProfileExists() {
 		t.Fatalf("expected configured existing profile, got %+v", status)
 	}
-	if status.ProfileCount != 1 {
-		t.Fatalf("profileCount = %d, want 1", status.ProfileCount)
+	if status.GetProfileCount() != 1 {
+		t.Fatalf("profileCount = %d, want 1", status.GetProfileCount())
 	}
-	if status.Info == nil || status.Info.Backend != "nemo-titanet" {
-		t.Fatalf("unexpected info: %+v", status.Info)
+	if status.GetInfo() == nil || status.GetInfo().GetBackend() != "nemo-titanet" {
+		t.Fatalf("unexpected info: %+v", status.GetInfo())
 	}
-	if _, err := time.Parse(time.RFC3339, status.CheckedAt); err != nil {
-		t.Fatalf("checkedAt is not RFC3339: %q", status.CheckedAt)
+	if _, err := time.Parse(time.RFC3339, status.GetCheckedAt()); err != nil {
+		t.Fatalf("checkedAt is not RFC3339: %q", status.GetCheckedAt())
 	}
 }
 
@@ -218,17 +206,11 @@ func TestHandleGetSpeakerVerificationProfiles(t *testing.T) {
 		},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/voice/speaker/profiles", nil)
-	rec := httptest.NewRecorder()
-	srv.handleGetSpeakerVerificationProfiles(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	resp, err := callListSpeakerProfiles(t, srv)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	var resp SpeakerVerificationProfilesResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if resp.Count != 1 || len(resp.Profiles) != 1 || resp.Profiles[0].ID != "default" {
+	if resp.GetCount() != 1 || len(resp.GetProfiles()) != 1 || resp.GetProfiles()[0].GetId() != "default" {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
 }
@@ -273,29 +255,19 @@ func TestHandleEnrollSpeakerProfile(t *testing.T) {
 		},
 	}
 
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	part, err := writer.CreateFormFile("audio_file", "voice.webm")
+	addToActive := true
+	enable := true
+	_, err := callEnrollSpeakerProfile(t, srv, &voicev1.EnrollSpeakerProfileRequest{
+		Audio:          []byte("fake-audio"),
+		ProfileId:      "default",
+		DisplayName:    "My Voice",
+		AddToActive:    addToActive,
+		HasAddToActive: true,
+		Enable:         enable,
+		HasEnable:      true,
+	})
 	if err != nil {
-		t.Fatalf("CreateFormFile: %v", err)
-	}
-	if _, err := part.Write([]byte("fake-audio")); err != nil {
-		t.Fatalf("write audio: %v", err)
-	}
-	_ = writer.WriteField("profileId", "default")
-	_ = writer.WriteField("displayName", "My Voice")
-	_ = writer.WriteField("addToActive", "true")
-	_ = writer.WriteField("enable", "true")
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close writer: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/speaker/enroll", &body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	rec := httptest.NewRecorder()
-	srv.handleEnrollSpeakerProfile(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	cfg := srv.getSpeakerVerificationConfig()
@@ -317,11 +289,8 @@ func TestHandleClearSpeakerProfileBinding(t *testing.T) {
 		speakerVerificationConfigPath: filepath.Join(dir, "speaker-verification-config.json"),
 	}
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/voice/speaker/profile", nil)
-	rec := httptest.NewRecorder()
-	srv.handleClearSpeakerProfileBinding(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	if _, err := callClearSpeakerProfileBinding(t, srv); err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	cfg := srv.getSpeakerVerificationConfig()

@@ -28,23 +28,17 @@ func setupWSServer(t *testing.T) (*httptest.Server, *Server) {
 	return ts, srv
 }
 
-// createTestSession creates a session via the API and returns its ID.
-func createTestSession(t *testing.T, ts *httptest.Server) string {
+// createTestSession creates a session via the in-memory manager and
+// returns its ID. The terminal WS still lives on the legacy REST path
+// while the Connect-RPC SessionsService owns everything else, so we
+// bypass the wire and call the manager directly.
+func createTestSession(t *testing.T, ts *httptest.Server, srv *Server) string {
 	t.Helper()
-	resp, err := http.Post(ts.URL+"/api/v1/sessions", "application/json",
-		strings.NewReader(`{"cols":80,"rows":24}`))
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("expected 201, got %d", resp.StatusCode)
-	}
-	var sr SessionResponse
-	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	return sr.ID
+	return sess.ID
 }
 
 // [REQ:P0-002b] WebSocket I/O Streaming - session not found returns 404
@@ -129,8 +123,8 @@ func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
 
 // [REQ:P0-002b] WebSocket I/O Streaming - successful WS upgrade and ping/pong
 func TestHandleTerminalWS_PingPong(t *testing.T) {
-	ts, _ := setupWSServer(t)
-	sessID := createTestSession(t, ts)
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts, srv)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
@@ -160,7 +154,7 @@ func TestHandleTerminalWS_PingPong(t *testing.T) {
 // [REQ:P0-002b] WebSocket I/O Streaming - stdin writes succeed without error
 func TestHandleTerminalWS_Stdin(t *testing.T) {
 	ts, srv := setupWSServer(t)
-	sessID := createTestSession(t, ts)
+	sessID := createTestSession(t, ts, srv)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
@@ -189,7 +183,7 @@ func TestHandleTerminalWS_Stdin(t *testing.T) {
 // [REQ:P0-002c] Terminal Resize Handling - resize via WebSocket
 func TestHandleTerminalWS_Resize(t *testing.T) {
 	ts, srv := setupWSServer(t)
-	sessID := createTestSession(t, ts)
+	sessID := createTestSession(t, ts, srv)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
@@ -220,8 +214,8 @@ func TestHandleTerminalWS_Resize(t *testing.T) {
 
 // [REQ:P0-002b] WebSocket I/O Streaming - invalid JSON returns error message
 func TestHandleTerminalWS_InvalidJSON(t *testing.T) {
-	ts, _ := setupWSServer(t)
-	sessID := createTestSession(t, ts)
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts, srv)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
@@ -250,8 +244,8 @@ func TestHandleTerminalWS_InvalidJSON(t *testing.T) {
 // Every stdin message must receive a matching stdin_ack carrying the
 // client-assigned seq number with ok=true when the PTY write succeeds.
 func TestHandleTerminalWS_StdinAck_Success(t *testing.T) {
-	ts, _ := setupWSServer(t)
-	sessID := createTestSession(t, ts)
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts, srv)
 
 	conn, _, err := (&websocket.Dialer{}).Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
 	if err != nil {
@@ -292,8 +286,8 @@ func TestHandleTerminalWS_StdinAck_Success(t *testing.T) {
 // session_ready is emitted exactly once per connection before the first
 // stdin_ack, matching the client's gating contract.
 func TestHandleTerminalWS_SessionReady_EmittedOnce(t *testing.T) {
-	ts, _ := setupWSServer(t)
-	sessID := createTestSession(t, ts)
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts, srv)
 
 	conn, _, err := (&websocket.Dialer{}).Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
 	if err != nil {
@@ -330,7 +324,7 @@ func TestHandleTerminalWS_SessionReady_EmittedOnce(t *testing.T) {
 // [REQ:P1-004a] Metrics - WebSocket connections increment metrics
 func TestHandleTerminalWS_MetricsIncrement(t *testing.T) {
 	ts, srv := setupWSServer(t)
-	sessID := createTestSession(t, ts)
+	sessID := createTestSession(t, ts, srv)
 
 	before := srv.metrics.ConnectionsTotal.Load()
 
@@ -411,7 +405,7 @@ func TestTerminalMessage_ResizeFields(t *testing.T) {
 // goroutine leaks. The session should remain alive (PTY not killed).
 func TestHandleTerminalWS_ForwarderExitsOnClientClose(t *testing.T) {
 	ts, srv := setupWSServer(t)
-	sessID := createTestSession(t, ts)
+	sessID := createTestSession(t, ts, srv)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
@@ -439,8 +433,8 @@ func TestHandleTerminalWS_ForwarderExitsOnClientClose(t *testing.T) {
 // TestHandleTerminalWS_RepeatedConnectDisconnect verifies that repeatedly
 // connecting and disconnecting WebSocket clients does not leak goroutines.
 func TestHandleTerminalWS_RepeatedConnectDisconnect(t *testing.T) {
-	ts, _ := setupWSServer(t)
-	sessID := createTestSession(t, ts)
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts, srv)
 
 	// Let any startup goroutines settle.
 	time.Sleep(100 * time.Millisecond)

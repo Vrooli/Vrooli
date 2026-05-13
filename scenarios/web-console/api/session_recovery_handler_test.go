@@ -1,30 +1,25 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"context"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
+	"connectrpc.com/connect"
+
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 )
 
 // newRecoveryTestServer wires the in-memory store + fake PTY factory so the
-// recovery endpoint can be exercised end-to-end without tmux. The fake PTY
-// preserves the WriteInput contract used by the recovery handler.
+// recovery flow can be exercised end-to-end without tmux. The fake PTY
+// preserves the WriteInput contract the recovery adapter depends on.
 func newRecoveryTestServer(t *testing.T) *Server {
 	t.Helper()
 	useIsolatedSessionState(t)
 	srv := newFakeTestServer()
 	srv.sessionStore = NewInMemorySessionStore()
 	srv.sessions.SetStore(srv.sessionStore)
-	// Register recovery routes on the test router so we can exercise them via
-	// the same HTTP path the production binary uses.
-	srv.router.HandleFunc("/api/v1/sessions/recoverable", srv.handleListRecoverable).Methods("GET")
-	srv.router.HandleFunc("/api/v1/sessions/recoverable/{id}", srv.handleDismissRecoverable).Methods("DELETE")
-	srv.router.HandleFunc("/api/v1/sessions/{id}/recover", srv.handleRecoverSession).Methods("POST")
 	return srv
 }
 
@@ -47,33 +42,48 @@ func saveOrphan(t *testing.T, srv *Server, id string, agent AgentType, agentSess
 	}
 }
 
+func callListRecoverable(t *testing.T, srv *Server) []*sessionsv1.RecoverableSession {
+	t.Helper()
+	resp, err := newSessionsConnectHandlerForServer(srv).ListRecoverable(context.Background(),
+		connect.NewRequest(&sessionsv1.ListRecoverableRequest{}))
+	if err != nil {
+		t.Fatalf("ListRecoverable: %v", err)
+	}
+	return resp.Msg.GetSessions()
+}
+
+func callRecover(t *testing.T, srv *Server, id string) (*sessionsv1.RecoverResponse, error) {
+	t.Helper()
+	resp, err := newSessionsConnectHandlerForServer(srv).Recover(context.Background(),
+		connect.NewRequest(&sessionsv1.RecoverRequest{Id: id}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+func callDismissRecoverable(t *testing.T, srv *Server, id string) error {
+	t.Helper()
+	_, err := newSessionsConnectHandlerForServer(srv).DismissRecoverable(context.Background(),
+		connect.NewRequest(&sessionsv1.DismissRecoverableRequest{Id: id}))
+	return err
+}
+
 func TestHandleListRecoverable_OrdersByActivity(t *testing.T) {
 	srv := newRecoveryTestServer(t)
 	saveOrphan(t, srv, "older", AgentTypeCodex, "codex-1")
 	saveOrphan(t, srv, "newer", AgentTypeCodex, "codex-2")
-	// Set last_activity_at differently so we can verify ordering.
 	_ = srv.sessionStore.UpdateAgentInfo("older", AgentInfo{LastActivityAt: time.Now().Add(-2 * time.Hour)})
 	_ = srv.sessionStore.UpdateAgentInfo("newer", AgentInfo{LastActivityAt: time.Now().Add(-5 * time.Minute)})
 
-	req := httptest.NewRequest("GET", "/api/v1/sessions/recoverable", nil)
-	rec := httptest.NewRecorder()
-	srv.router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
-	var rows []RecoverableSessionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &rows); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	// In-memory store does not enforce ordering; just check membership +
-	// recoverable flag for each.
+	rows := callListRecoverable(t, srv)
+	// In-memory store does not enforce ordering; just check membership + recoverable flag.
 	if len(rows) != 2 {
 		t.Fatalf("expected 2 rows, got %d", len(rows))
 	}
 	for _, r := range rows {
-		if !r.Recoverable {
-			t.Errorf("expected codex orphan %s recoverable, got reason=%q", r.ID, r.NotRecoverable)
+		if !r.GetRecoverable() {
+			t.Errorf("expected codex orphan %s recoverable, got reason=%q", r.GetId(), r.GetNotRecoverableReason())
 		}
 	}
 }
@@ -82,33 +92,25 @@ func TestHandleRecover_Codex_HappyPath(t *testing.T) {
 	srv := newRecoveryTestServer(t)
 	saveOrphan(t, srv, "codex-old", AgentTypeCodex, "019d-codex-uuid")
 
-	req := httptest.NewRequest("POST", "/api/v1/sessions/codex-old/recover", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "codex-old"})
-	rec := httptest.NewRecorder()
-	srv.handleRecoverSession(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := callRecover(t, srv, "codex-old")
+	if err != nil {
+		t.Fatalf("Recover: %v", err)
 	}
-	var resp RecoverSessionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode: %v", err)
+	if resp.GetOldSessionId() != "codex-old" {
+		t.Errorf("OldSessionID: got %q", resp.GetOldSessionId())
 	}
-	if resp.OldSessionID != "codex-old" {
-		t.Errorf("OldSessionID: got %q", resp.OldSessionID)
+	if resp.GetNewSessionId() == "" {
+		t.Error("NewSessionID empty")
 	}
-	if resp.NewSessionID == "" {
-		t.Errorf("NewSessionID empty")
-	}
-	if !strings.Contains(resp.CommandSent, "codex --yolo resume 019d-codex-uuid") {
-		t.Errorf("CommandSent: got %q", resp.CommandSent)
+	if !strings.Contains(resp.GetCommandSent(), "codex --yolo resume 019d-codex-uuid") {
+		t.Errorf("CommandSent: got %q", resp.GetCommandSent())
 	}
 	old, _ := srv.sessionStore.Get("codex-old")
 	if old.Status != SessionStatusDismissed {
 		t.Errorf("old row status: got %q", old.Status)
 	}
-	if old.RecoveredInto != resp.NewSessionID {
-		t.Errorf("RecoveredInto: got %q want %q", old.RecoveredInto, resp.NewSessionID)
+	if old.RecoveredInto != resp.GetNewSessionId() {
+		t.Errorf("RecoveredInto: got %q want %q", old.RecoveredInto, resp.GetNewSessionId())
 	}
 }
 
@@ -116,18 +118,12 @@ func TestHandleRecover_Codex_NoSessionIDFallsBackToLast(t *testing.T) {
 	srv := newRecoveryTestServer(t)
 	saveOrphan(t, srv, "codex-bare", AgentTypeCodex, "")
 
-	req := httptest.NewRequest("POST", "/api/v1/sessions/codex-bare/recover", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "codex-bare"})
-	rec := httptest.NewRecorder()
-	srv.handleRecoverSession(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := callRecover(t, srv, "codex-bare")
+	if err != nil {
+		t.Fatalf("Recover: %v", err)
 	}
-	var resp RecoverSessionResponse
-	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
-	if !strings.Contains(resp.CommandSent, "codex --yolo resume --last") {
-		t.Errorf("CommandSent: got %q", resp.CommandSent)
+	if !strings.Contains(resp.GetCommandSent(), "codex --yolo resume --last") {
+		t.Errorf("CommandSent: got %q", resp.GetCommandSent())
 	}
 }
 
@@ -135,13 +131,9 @@ func TestHandleRecover_Claude_RequiresSessionID(t *testing.T) {
 	srv := newRecoveryTestServer(t)
 	saveOrphan(t, srv, "claude-bare", AgentTypeClaude, "")
 
-	req := httptest.NewRequest("POST", "/api/v1/sessions/claude-bare/recover", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "claude-bare"})
-	rec := httptest.NewRecorder()
-	srv.handleRecoverSession(rec, req)
-
-	if rec.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("expected 422, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callRecover(t, srv, "claude-bare")
+	if got := connectCode(err); got != connect.CodeFailedPrecondition {
+		t.Fatalf("expected CodeFailedPrecondition, got %s (err=%v)", got, err)
 	}
 }
 
@@ -161,23 +153,17 @@ func TestHandleRecover_RejectsLiveSession(t *testing.T) {
 		t.Fatalf("save: %v", err)
 	}
 
-	req := httptest.NewRequest("POST", "/api/v1/sessions/live-id/recover", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "live-id"})
-	rec := httptest.NewRecorder()
-	srv.handleRecoverSession(rec, req)
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callRecover(t, srv, "live-id")
+	if got := connectCode(err); got != connect.CodeFailedPrecondition {
+		t.Fatalf("expected CodeFailedPrecondition, got %s (err=%v)", got, err)
 	}
 }
 
 func TestHandleRecover_NotFound(t *testing.T) {
 	srv := newRecoveryTestServer(t)
-	req := httptest.NewRequest("POST", "/api/v1/sessions/nope/recover", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nope"})
-	rec := httptest.NewRecorder()
-	srv.handleRecoverSession(rec, req)
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callRecover(t, srv, "nope")
+	if got := connectCode(err); got != connect.CodeNotFound {
+		t.Fatalf("expected CodeNotFound, got %s (err=%v)", got, err)
 	}
 }
 
@@ -185,12 +171,8 @@ func TestHandleDismissRecoverable_TransitionsToDismissed(t *testing.T) {
 	srv := newRecoveryTestServer(t)
 	saveOrphan(t, srv, "drop-me", AgentTypeCodex, "x")
 
-	req := httptest.NewRequest("DELETE", "/api/v1/sessions/recoverable/drop-me", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "drop-me"})
-	rec := httptest.NewRecorder()
-	srv.handleDismissRecoverable(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	if err := callDismissRecoverable(t, srv, "drop-me"); err != nil {
+		t.Fatalf("DismissRecoverable: %v", err)
 	}
 	got, _ := srv.sessionStore.Get("drop-me")
 	if got.Status != SessionStatusDismissed {
@@ -203,18 +185,18 @@ func TestCreateSession_PersistsLaunchCommandAndAgentType(t *testing.T) {
 	srv.sessionStore = NewInMemorySessionStore()
 	srv.sessions.SetStore(srv.sessionStore)
 
-	body := strings.NewReader(`{"cols":80,"rows":24,"backend":"standard","launch_command":"codex --yolo","agent_type":"codex"}`)
-	req := httptest.NewRequest("POST", "/api/v1/sessions", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := newSessionsConnectHandlerForServer(srv).Create(context.Background(),
+		connect.NewRequest(&sessionsv1.CreateRequest{
+			Cols:          80,
+			Rows:          24,
+			Backend:       "standard",
+			LaunchCommand: "codex --yolo",
+			AgentType:     "codex",
+		}))
+	if err != nil {
+		t.Fatalf("Create: %v", err)
 	}
-	var resp SessionResponse
-	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
-	got, err := srv.sessionStore.Get(resp.ID)
+	got, err := srv.sessionStore.Get(resp.Msg.GetSession().GetId())
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}

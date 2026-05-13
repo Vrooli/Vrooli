@@ -80,6 +80,76 @@ describe("useSessionManager", () => {
     expect(result.current.isHydrated).toBe(true);
   });
 
+  it("surfaces hydrationError when both hydration calls fail", async () => {
+    // Simulate the exact regression that prompted this safety net:
+    // both calls reject (e.g. proxy misroute, network drop). The hook
+    // must log each failure and set a user-visible hydrationError with
+    // retry=true so the empty catch can't hide it again.
+    const api = await import("../lib/api");
+    const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
+    mockListSessions.mockRejectedValueOnce(new Error("sessions 404"));
+    mockGetWorkspaceLayout.mockRejectedValueOnce(new Error("layout 404"));
+
+    const { result } = renderHook(() => useSessionManager());
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(result.current.isHydrated).toBe(true);
+    expect(result.current.panes).toHaveLength(0);
+    expect(result.current.hydrationError).not.toBeNull();
+    expect(result.current.hydrationError?.retry).toBe(true);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "hydratePanes: listSessions failed",
+      expect.any(Error),
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "hydratePanes: getWorkspaceLayout failed",
+      expect.any(Error),
+    );
+  });
+
+  it("logs a single-call hydration failure without setting hydrationError", async () => {
+    // Layout fetch fails, sessions fetch succeeds — the fallback path can
+    // still render. We log but do not surface a banner.
+    const api = await import("../lib/api");
+    const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
+    mockListSessions.mockResolvedValueOnce([]);
+    mockGetWorkspaceLayout.mockRejectedValueOnce(new Error("layout 503"));
+
+    const { result } = renderHook(() => useSessionManager());
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(result.current.isHydrated).toBe(true);
+    expect(result.current.hydrationError).toBeNull();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "hydratePanes: getWorkspaceLayout failed",
+      expect.any(Error),
+    );
+  });
+
+  it("clearHydrationError dismisses the error", async () => {
+    const api = await import("../lib/api");
+    const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
+    mockListSessions.mockRejectedValueOnce(new Error("sessions fail"));
+    mockGetWorkspaceLayout.mockRejectedValueOnce(new Error("layout fail"));
+
+    const { result } = renderHook(() => useSessionManager());
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(result.current.hydrationError).not.toBeNull();
+
+    act(() => {
+      result.current.clearHydrationError();
+    });
+    expect(result.current.hydrationError).toBeNull();
+  });
+
   it("launches a session and adds a pane", async () => {
     const mockSession = { id: "sess-1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
     mockCreateSession.mockResolvedValueOnce(mockSession);

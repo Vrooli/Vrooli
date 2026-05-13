@@ -19,33 +19,14 @@ func TestSetupRoutes_AllEndpointsRegistered(t *testing.T) {
 	}{
 		{"GET", "/health"},
 		{"GET", "/api/v1/health"},
-		{"POST", "/api/v1/sessions"},
-		{"GET", "/api/v1/sessions"},
-		{"GET", "/api/v1/sessions/test-id"},
-		{"DELETE", "/api/v1/sessions/test-id"},
-		{"GET", "/api/v1/sessions/test-id/policy"},
-		{"PUT", "/api/v1/sessions/test-id/policy"},
 		{"GET", "/api/v1/sessions/test-id/ws"},
-		{"POST", "/api/v1/sessions/test-id/files/resolve"},
-		{"GET", "/api/v1/sessions/test-id/files/content"},
-		{"POST", "/api/v1/ai/generate"},
-		{"POST", "/api/v1/ai/suggest"},
-		{"GET", "/api/v1/shortcuts"},
-		{"GET", "/api/v1/shortcuts/profiles"},
-		{"PUT", "/api/v1/shortcuts/profiles"},
-		{"DELETE", "/api/v1/shortcuts/profiles/test-id"},
-		{"GET", "/api/v1/ai/config"},
-		{"PUT", "/api/v1/ai/config"},
-		{"GET", "/api/v1/ai/health"},
+		// NOTE: ai/*, shortcuts/*, files/resolve, files/content,
+		// conversation/*, sessions/*, tts/*, and voice/* routes have moved
+		// to Connect-RPC under /vrooli.web_console.v1.<domain>.<Service>/<RPC>.
+		// Per-RPC registration is covered by Connect-handler tests in the
+		// matching domain test files; the parity test in
+		// internal/modules ensures registry coverage.
 		{"GET", "/api/v1/metrics"},
-		{"GET", "/api/v1/voice/speaker/config"},
-		{"PUT", "/api/v1/voice/speaker/config"},
-		{"GET", "/api/v1/voice/speaker/status"},
-		{"GET", "/api/v1/voice/speaker/profiles"},
-		{"POST", "/api/v1/voice/speaker/enroll"},
-		{"DELETE", "/api/v1/voice/speaker/profile"},
-		{"POST", "/api/v1/voice/speaker/profile/remove"},
-		{"POST", "/api/v1/voice/speaker/profile/delete"},
 	}
 
 	for _, rt := range routes {
@@ -134,14 +115,15 @@ func TestGetRequestID_WithoutContext(t *testing.T) {
 	}
 }
 
-// [REQ:P0-004a] Method not allowed returns 405
+// [REQ:P0-004a] Method not allowed returns 405. The terminal WS path is
+// still a raw REST route registered as GET-only, so a PATCH against it is
+// the canonical method-not-allowed probe after the Connect-RPC migration.
 func TestHandler_MethodNotAllowed(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.setupRoutes()
 	handler := srv.Handler()
 
-	// PATCH is not registered for sessions
-	req := httptest.NewRequest("PATCH", "/api/v1/sessions", nil)
+	req := httptest.NewRequest("PATCH", "/api/v1/sessions/test-id/ws", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

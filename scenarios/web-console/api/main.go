@@ -24,6 +24,16 @@ import (
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
+
+	capabilitiesH "web-console/handlers/capabilities"
+	aiH "web-console/handlers/ai"
+	conversationH "web-console/handlers/conversation"
+	sessionsH "web-console/handlers/sessions"
+	ttsH "web-console/handlers/tts"
+	settingsH "web-console/handlers/settings"
+	shortcutsH "web-console/handlers/shortcuts"
+	voiceH "web-console/handlers/voice"
+	workspaceH "web-console/handlers/workspace"
 )
 
 // initSchema runs the idempotent schema and seed SQL against the database.
@@ -386,20 +396,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 
-	// Session CRUD - [REQ:P0-002a] [REQ:P0-003a]
-	s.router.HandleFunc("/api/v1/sessions", s.handleCreateSession).Methods("POST")
-	s.router.HandleFunc("/api/v1/sessions", s.handleListSessions).Methods("GET")
-	// Recovery endpoints — register BEFORE the /{id} catch-all so gorilla/mux
-	// resolves them as specific paths.
-	s.router.HandleFunc("/api/v1/sessions/recoverable", s.handleListRecoverable).Methods("GET")
-	s.router.HandleFunc("/api/v1/sessions/recoverable/{id}", s.handleDismissRecoverable).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/sessions/{id}/recover", s.handleRecoverSession).Methods("POST")
-	s.router.HandleFunc("/api/v1/sessions/{id}", s.handleGetSession).Methods("GET")
-	s.router.HandleFunc("/api/v1/sessions/{id}", s.handleDeleteSession).Methods("DELETE")
-
-	// Session policy - [REQ:P1-001a]
-	s.router.HandleFunc("/api/v1/sessions/{id}/policy", s.handleGetPolicy).Methods("GET")
-	s.router.HandleFunc("/api/v1/sessions/{id}/policy", s.handleUpdatePolicy).Methods("PUT")
+	// Sessions domain (CRUD, recovery, policy) — Connect-RPC.
+	sessionsH.Module(newSessionsAdapter(s), nil).Mount(s.router)
 
 	// WebSocket terminal I/O - [REQ:P0-002b]
 	s.router.HandleFunc("/api/v1/sessions/{id}/ws", s.handleTerminalWS).Methods("GET")
@@ -407,38 +405,20 @@ func (s *Server) setupRoutes() {
 	// Image upload for terminal path injection
 	s.router.HandleFunc("/api/v1/sessions/{id}/upload", s.handleUpload).Methods("POST")
 
-	// Workspace layout (cross-device pane ordering and tab groups)
-	s.router.HandleFunc("/api/v1/workspace/layout", s.handleGetLayout).Methods("GET")
-	s.router.HandleFunc("/api/v1/workspace/layout", s.handleSaveLayout).Methods("PUT")
-	s.router.HandleFunc("/api/v1/sessions/{id}/conversation", s.handleGetConversationSession).Methods("GET")
-	s.router.HandleFunc("/api/v1/sessions/{id}/conversation/cursor", s.handleUpdateConversationCursor).Methods("PUT")
-	s.router.HandleFunc("/api/v1/sessions/{id}/conversation/{eventId}/summarize", s.handleSummarizeEvent).Methods("POST")
-	s.router.HandleFunc("/api/v1/sessions/{id}/files/resolve", s.handleResolveFileReference).Methods("POST")
-	s.router.HandleFunc("/api/v1/sessions/{id}/files/content", s.handleGetFileReferenceContent).Methods("GET")
-	s.router.HandleFunc("/api/v1/workspace/panes/{session_id}", s.handleUpdatePane).Methods("PUT")
-	s.router.HandleFunc("/api/v1/workspace/panes/{session_id}", s.handleDeletePane).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/workspace/groups", s.handleCreateGroup).Methods("POST")
-	s.router.HandleFunc("/api/v1/workspace/groups/{id}", s.handleUpdateGroup).Methods("PUT")
-	s.router.HandleFunc("/api/v1/workspace/groups/{id}", s.handleDeleteGroup).Methods("DELETE")
+	// Workspace domain (panes, groups, layout) — Connect-RPC.
+	workspaceH.Module(newWorkspaceAdapter(s), nil).Mount(s.router)
 
-	// Session defaults settings
-	s.router.HandleFunc("/api/v1/settings/session-defaults", s.handleGetSessionDefaults).Methods("GET")
-	s.router.HandleFunc("/api/v1/settings/session-defaults", s.handleUpdateSessionDefaults).Methods("PUT")
+	// Conversation domain (history, cursor, summarize, file refs) — Connect-RPC.
+	conversationH.Module(newConversationAdapter(s), nil).Mount(s.router)
 
-	// AI command generation - [REQ:P0-005a]
-	s.router.HandleFunc("/api/v1/ai/generate", s.handleAIGenerate).Methods("POST")
-	s.router.HandleFunc("/api/v1/ai/suggest", s.handleAISuggest).Methods("POST")
+	// Settings domain — Connect-RPC, mounted via Module.
+	settingsH.Module(newSettingsAdapter(s), nil).Mount(s.router)
 
-	// Shortcut profiles - [REQ:P1-002a]
-	s.router.HandleFunc("/api/v1/shortcuts", s.handleGetEffectiveShortcuts).Methods("GET")
-	s.router.HandleFunc("/api/v1/shortcuts/profiles", s.handleListShortcutProfiles).Methods("GET")
-	s.router.HandleFunc("/api/v1/shortcuts/profiles", s.handleUpsertShortcutProfile).Methods("PUT")
-	s.router.HandleFunc("/api/v1/shortcuts/profiles/{id}", s.handleDeleteShortcutProfile).Methods("DELETE")
+	// Shortcut profiles - [REQ:P1-002a] (Connect-RPC ShortcutsService)
+	shortcutsH.Module(newShortcutsAdapter(s), nil).Mount(s.router)
 
-	// AI provider configuration - [REQ:P1-003a] [REQ:P1-003b]
-	s.router.HandleFunc("/api/v1/ai/config", s.handleGetAIConfig).Methods("GET")
-	s.router.HandleFunc("/api/v1/ai/config", s.handleUpdateAIConfig).Methods("PUT")
-	s.router.HandleFunc("/api/v1/ai/health", s.handleGetAIHealth).Methods("GET")
+	// AI domain - [REQ:P0-005a] [REQ:P1-003a] [REQ:P1-003b] (Connect-RPC AIService)
+	aiH.Module(newAIAdapter(s), nil).Mount(s.router)
 
 	// Metrics endpoint - [REQ:P1-004b]
 	s.router.HandleFunc("/api/v1/metrics", s.handleMetrics).Methods("GET")
@@ -447,42 +427,20 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/events", s.handleEvents).Methods("GET")
 
 	// Voice input capabilities
-	s.router.HandleFunc("/api/v1/capabilities", s.handleCapabilities).Methods("GET")
-	s.router.HandleFunc("/api/v1/capabilities/liveness", s.handleCapabilitiesLiveness).Methods("GET")
-	s.router.HandleFunc("/api/v1/voice/transcribe", s.handleVoiceTranscribe).Methods("POST")
+	capabilitiesH.Module(newCapabilitiesAdapter(s), nil).Mount(s.router)
+	// Voice stream WS stays on the legacy path until the dedicated streams phase.
 	s.router.HandleFunc("/api/v1/voice/stream", s.handleVoiceStreamWS).Methods("GET")
-	s.router.HandleFunc("/api/v1/voice/config", s.handleGetVoiceConfig).Methods("GET")
-	s.router.HandleFunc("/api/v1/voice/config", s.handleUpdateVoiceConfig).Methods("PUT")
-	s.router.HandleFunc("/api/v1/voice/wakeword", s.handleGetWakeWordConfig).Methods("GET")
-	s.router.HandleFunc("/api/v1/voice/wakeword", s.handleUpdateWakeWordTemplate).Methods("PUT")
-	s.router.HandleFunc("/api/v1/voice/wakeword", s.handleDeleteWakeWordTemplate).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/voice/speaker/config", s.handleGetSpeakerVerificationConfig).Methods("GET")
-	s.router.HandleFunc("/api/v1/voice/speaker/config", s.handleUpdateSpeakerVerificationConfig).Methods("PUT")
-	s.router.HandleFunc("/api/v1/voice/speaker/status", s.handleGetSpeakerVerificationStatus).Methods("GET")
-	s.router.HandleFunc("/api/v1/voice/speaker/profiles", s.handleGetSpeakerVerificationProfiles).Methods("GET")
-	s.router.HandleFunc("/api/v1/voice/speaker/enroll", s.handleEnrollSpeakerProfile).Methods("POST")
-	s.router.HandleFunc("/api/v1/voice/speaker/profile", s.handleClearSpeakerProfileBinding).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/voice/speaker/profile/remove", s.handleRemoveSpeakerProfile).Methods("POST")
-	s.router.HandleFunc("/api/v1/voice/speaker/profile/delete", s.handleDeleteSpeakerProfile).Methods("POST")
+	// Voice — Connect-RPC module replaces the 14 legacy REST handlers
+	// (transcribe, stream config, wake word, speaker config/status/profiles).
+	voiceH.Module(newVoiceAdapter(s), nil).Mount(s.router)
 
 	// Hooks
 	s.router.HandleFunc("/api/v1/hooks/stop", s.handleHookStop).Methods("POST")
 	s.router.HandleFunc("/api/v1/hooks/prompt-submit", s.handleHookPromptSubmit).Methods("POST")
 
-	// TTS config
-	s.router.HandleFunc("/api/v1/tts/config", s.handleGetTTSConfig).Methods("GET")
-	s.router.HandleFunc("/api/v1/tts/config", s.handleUpdateTTSConfig).Methods("PUT")
-	s.router.HandleFunc("/api/v1/tts/status", s.handleGetTTSStatus).Methods("GET")
-	s.router.HandleFunc("/api/v1/tts/events", s.handlePostTTSEvent).Methods("POST")
-
-	// TTS summarization config
-	s.router.HandleFunc("/api/v1/tts/summarize/config", s.handleGetTTSSummarizeConfig).Methods("GET")
-	s.router.HandleFunc("/api/v1/tts/summarize/config", s.handleUpdateTTSSummarizeConfig).Methods("PUT")
-
-	// TTS synthesis, cache, and voices (Kokoro backend)
-	s.router.HandleFunc("/api/v1/tts/synthesize", s.handleTTSSynthesize).Methods("POST")
-	s.router.HandleFunc("/api/v1/tts/cache/{eventId}", s.handleGetTTSCache).Methods("GET")
-	s.router.HandleFunc("/api/v1/tts/voices", s.handleTTSVoices).Methods("GET")
+	// TTS — Connect-RPC module replaces the legacy nine REST handlers
+	// (config/status/events, summarize config, synthesize/cache/voices).
+	ttsH.Module(newTTSAdapter(s), nil).Mount(s.router)
 }
 
 // Handler returns the router wrapped with CORS and panic-recovery middleware.

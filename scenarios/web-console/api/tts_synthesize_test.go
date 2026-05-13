@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+
+	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/tts"
 )
 
 // mockSynthesizer implements TTSSynthesizer for testing.
@@ -50,77 +51,54 @@ func TestHandleTTSSynthesize_HappyPath(t *testing.T) {
 		contentType: "audio/mpeg",
 	}, true)
 
-	body := strings.NewReader(`{"input":"Hello world","voice":"af_heart","response_format":"mp3"}`)
-	req := httptest.NewRequest("POST", "/api/v1/tts/synthesize", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleTTSSynthesize(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := callTTSSynthesize(t, srv, &ttsv1.SynthesizeRequest{
+		Input: "Hello world", Voice: "af_heart", ResponseFormat: "mp3",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if ct := rec.Header().Get("Content-Type"); ct != "audio/mpeg" {
-		t.Errorf("expected Content-Type audio/mpeg, got %s", ct)
+	if resp.GetContentType() != "audio/mpeg" {
+		t.Errorf("expected audio/mpeg, got %s", resp.GetContentType())
 	}
-	if rec.Body.String() != "fake-audio-bytes" {
-		t.Errorf("unexpected body: %s", rec.Body.String())
+	if string(resp.GetAudio()) != "fake-audio-bytes" {
+		t.Errorf("unexpected body: %s", string(resp.GetAudio()))
 	}
 }
 
 func TestHandleTTSSynthesize_503WhenCapabilityUnavailable(t *testing.T) {
 	srv := newSynthesizeTestServer(&mockSynthesizer{body: "audio"}, false)
 
-	body := strings.NewReader(`{"input":"Hello"}`)
-	req := httptest.NewRequest("POST", "/api/v1/tts/synthesize", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleTTSSynthesize(rec, req)
-
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected 503, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callTTSSynthesize(t, srv, &ttsv1.SynthesizeRequest{Input: "Hello"})
+	if connectCode(err) != connect.CodeUnavailable {
+		t.Fatalf("expected CodeUnavailable, got %v (err=%v)", connectCode(err), err)
 	}
 }
 
-func TestHandleTTSSynthesize_400OnEmptyInput(t *testing.T) {
+func TestHandleTTSSynthesize_EmptyInput(t *testing.T) {
 	srv := newSynthesizeTestServer(&mockSynthesizer{body: "audio"}, true)
 
-	body := strings.NewReader(`{"input":"  ","voice":"af_heart"}`)
-	req := httptest.NewRequest("POST", "/api/v1/tts/synthesize", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleTTSSynthesize(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callTTSSynthesize(t, srv, &ttsv1.SynthesizeRequest{Input: "  ", Voice: "af_heart"})
+	if connectCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected CodeInvalidArgument, got %v (err=%v)", connectCode(err), err)
 	}
 }
 
-func TestHandleTTSSynthesize_400OnInputTooLong(t *testing.T) {
+func TestHandleTTSSynthesize_InputTooLong(t *testing.T) {
 	srv := newSynthesizeTestServer(&mockSynthesizer{body: "audio"}, true)
 
 	longInput := strings.Repeat("a", maxSynthesizeInputLength+1)
-	body := strings.NewReader(`{"input":"` + longInput + `"}`)
-	req := httptest.NewRequest("POST", "/api/v1/tts/synthesize", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleTTSSynthesize(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callTTSSynthesize(t, srv, &ttsv1.SynthesizeRequest{Input: longInput})
+	if connectCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected CodeInvalidArgument, got %v (err=%v)", connectCode(err), err)
 	}
 }
 
-func TestHandleTTSSynthesize_502OnSynthesizerError(t *testing.T) {
+func TestHandleTTSSynthesize_OnSynthesizerError(t *testing.T) {
 	srv := newSynthesizeTestServer(&mockSynthesizer{err: errors.New("backend down")}, true)
 
-	body := strings.NewReader(`{"input":"Hello"}`)
-	req := httptest.NewRequest("POST", "/api/v1/tts/synthesize", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleTTSSynthesize(rec, req)
-
-	if rec.Code != http.StatusBadGateway {
-		t.Fatalf("expected 502, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callTTSSynthesize(t, srv, &ttsv1.SynthesizeRequest{Input: "Hello"})
+	if connectCode(err) != connect.CodeInternal {
+		t.Fatalf("expected CodeInternal, got %v (err=%v)", connectCode(err), err)
 	}
 }
 
@@ -134,31 +112,21 @@ func TestHandleTTSSynthesize_DefaultVoiceFromConfig(t *testing.T) {
 	srv := newSynthesizeTestServer(synth, true)
 	srv.ttsConfig.KokoroVoice = "bf_emma"
 
-	body := strings.NewReader(`{"input":"Hello"}`)
-	req := httptest.NewRequest("POST", "/api/v1/tts/synthesize", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleTTSSynthesize(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callTTSSynthesize(t, srv, &ttsv1.SynthesizeRequest{Input: "Hello"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if capturedReq.Voice != "bf_emma" {
 		t.Errorf("expected voice bf_emma from config, got %s", capturedReq.Voice)
 	}
 }
 
-func TestHandleTTSSynthesize_400OnInvalidFormat(t *testing.T) {
+func TestHandleTTSSynthesize_InvalidFormat(t *testing.T) {
 	srv := newSynthesizeTestServer(&mockSynthesizer{body: "audio"}, true)
 
-	body := strings.NewReader(`{"input":"Hello","response_format":"aac"}`)
-	req := httptest.NewRequest("POST", "/api/v1/tts/synthesize", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleTTSSynthesize(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callTTSSynthesize(t, srv, &ttsv1.SynthesizeRequest{Input: "Hello", ResponseFormat: "aac"})
+	if connectCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected CodeInvalidArgument, got %v (err=%v)", connectCode(err), err)
 	}
 }
 
@@ -166,15 +134,9 @@ func TestHandleTTSSynthesize_NilSynthesizer(t *testing.T) {
 	srv := newSynthesizeTestServer(nil, true)
 	srv.ttsSynthesizer = nil
 
-	body := strings.NewReader(`{"input":"Hello"}`)
-	req := httptest.NewRequest("POST", "/api/v1/tts/synthesize", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleTTSSynthesize(rec, req)
-
-	// Should return an error when synthesizer is nil
-	if rec.Code == http.StatusOK {
-		t.Fatal("expected error when synthesizer is nil")
+	_, err := callTTSSynthesize(t, srv, &ttsv1.SynthesizeRequest{Input: "Hello"})
+	if connectCode(err) == connect.CodeUnknown {
+		t.Fatal("expected a Connect error when synthesizer is nil")
 	}
 }
 
@@ -187,75 +149,12 @@ func TestHandleTTSSynthesize_SpeedClamped(t *testing.T) {
 	}
 	srv := newSynthesizeTestServer(synth, true)
 
-	body := strings.NewReader(`{"input":"Hello","speed":100}`)
-	req := httptest.NewRequest("POST", "/api/v1/tts/synthesize", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleTTSSynthesize(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callTTSSynthesize(t, srv, &ttsv1.SynthesizeRequest{Input: "Hello", Speed: 100})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if capturedReq.Speed != 4.0 {
 		t.Errorf("expected speed clamped to 4.0, got %f", capturedReq.Speed)
-	}
-}
-
-func TestHandleTTSSynthesize_StructuredErrors(t *testing.T) {
-	tests := []struct {
-		name         string
-		body         string
-		capAvailable bool
-		expectedCode string
-		expectedHTTP int
-	}{
-		{
-			name:         "unavailable returns structured error",
-			body:         `{"input":"Hello"}`,
-			capAvailable: false,
-			expectedCode: "tts_unavailable",
-			expectedHTTP: http.StatusServiceUnavailable,
-		},
-		{
-			name:         "empty input returns structured error",
-			body:         `{"input":"  "}`,
-			capAvailable: true,
-			expectedCode: "tts_input_required",
-			expectedHTTP: http.StatusBadRequest,
-		},
-		{
-			name:         "invalid format returns structured error",
-			body:         `{"input":"Hello","response_format":"aac"}`,
-			capAvailable: true,
-			expectedCode: "tts_invalid_format",
-			expectedHTTP: http.StatusBadRequest,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			srv := newSynthesizeTestServer(&mockSynthesizer{body: "audio"}, tt.capAvailable)
-			req := httptest.NewRequest("POST", "/api/v1/tts/synthesize", strings.NewReader(tt.body))
-			req.Header.Set("Content-Type", "application/json")
-			rec := httptest.NewRecorder()
-			srv.handleTTSSynthesize(rec, req)
-
-			if rec.Code != tt.expectedHTTP {
-				t.Fatalf("expected %d, got %d: %s", tt.expectedHTTP, rec.Code, rec.Body.String())
-			}
-			var errResp ErrorResponse
-			if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-				t.Fatalf("expected structured JSON error, got parse error: %v\nbody: %s", err, rec.Body.String())
-			}
-			if errResp.Code != tt.expectedCode {
-				t.Errorf("expected error code %q, got %q", tt.expectedCode, errResp.Code)
-			}
-			if errResp.Category == "" {
-				t.Error("expected non-empty category in structured error")
-			}
-			if errResp.Recovery == "" {
-				t.Error("expected non-empty recovery in structured error")
-			}
-		})
 	}
 }
 

@@ -1,14 +1,10 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 type SpeakerVerificationConfig struct {
@@ -146,97 +142,6 @@ func (s *Server) setSpeakerVerificationConfig(cfg SpeakerVerificationConfig) {
 	s.speakerVerificationConfig = cfg
 }
 
-func (s *Server) handleGetSpeakerVerificationConfig(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, s.getSpeakerVerificationConfig())
-}
-
-func (s *Server) handleUpdateSpeakerVerificationConfig(w http.ResponseWriter, r *http.Request) {
-	var patch SpeakerVerificationConfigPatch
-	if !decodeJSON(w, r, &patch) {
-		return
-	}
-	current := s.getSpeakerVerificationConfig()
-	updated := patch.Apply(current)
-	if updated.Mode == "" {
-		updated.Mode = "filter"
-	}
-	if updated.RejectBehavior == "" {
-		updated.RejectBehavior = "drop"
-	}
-	if err := updated.Validate(); err != nil {
-		writeCatalogError(w, "invalid_body", err.Error())
-		return
-	}
-	s.setSpeakerVerificationConfig(updated)
-	if err := saveSpeakerVerificationConfig(s.speakerVerificationConfigPath, updated); err != nil {
-		log.Printf("speaker-verification-config: persist failed (in-memory updated): %v", err)
-	}
-	writeJSON(w, http.StatusOK, updated)
-}
-
-type SpeakerVerificationStatusResponse struct {
-	Config            SpeakerVerificationConfig        `json:"config"`
-	Capability        string                           `json:"capability"`
-	CapabilityLabel   string                           `json:"capabilityLabel,omitempty"`
-	ResourceReady     bool                             `json:"resourceReady"`
-	ProfileConfigured bool                             `json:"profileConfigured"`
-	ProfileExists     bool                             `json:"profileExists"`
-	ProfileCount      int                              `json:"profileCount"`
-	Profiles          []SpeakerVerificationProfile     `json:"profiles,omitempty"`
-	Info              *SpeakerVerificationResourceInfo `json:"info,omitempty"`
-	CheckedAt         string                           `json:"checkedAt"`
-}
-
-func (s *Server) handleGetSpeakerVerificationStatus(w http.ResponseWriter, r *http.Request) {
-	cfg := s.getSpeakerVerificationConfig()
-	resp := SpeakerVerificationStatusResponse{
-		Config:            cfg,
-		Capability:        string(StatusUnknown),
-		ProfileConfigured: len(cfg.ProfileIDs) > 0,
-		CheckedAt:         time.Now().UTC().Format(time.RFC3339),
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	for _, cap := range s.capabilities.ResolveLiveness(ctx) {
-		if cap.ID != "speaker-verification" {
-			continue
-		}
-		resp.Capability = string(cap.Status)
-		resp.CapabilityLabel = cap.Message
-		break
-	}
-
-	if s.speakerVerification == nil || resp.Capability != string(StatusAvailable) {
-		writeJSON(w, http.StatusOK, resp)
-		return
-	}
-
-	ready, err := s.speakerVerification.Ready(ctx)
-	if err == nil && ready.Status == "ready" {
-		resp.ResourceReady = true
-	}
-
-	profiles, err := s.speakerVerification.ListProfiles(ctx)
-	if err == nil {
-		resp.ProfileCount = profiles.Count
-		resp.Profiles = profiles.Profiles
-		configuredSet := make(map[string]struct{}, len(cfg.ProfileIDs))
-		for _, id := range cfg.ProfileIDs {
-			configuredSet[id] = struct{}{}
-		}
-		for _, profile := range profiles.Profiles {
-			if _, ok := configuredSet[profile.ID]; ok {
-				resp.ProfileExists = true
-				break
-			}
-		}
-	}
-
-	info, err := s.speakerVerification.Info(ctx)
-	if err == nil {
-		resp.Info = &info
-	}
-
-	writeJSON(w, http.StatusOK, resp)
-}
+// HTTP handlers for /voice/speaker/config and /voice/speaker/status have moved
+// to the Connect VoiceService (see handlers/voice and voice_adapter.go).
+// Types, validation, and persistence helpers above remain shared.

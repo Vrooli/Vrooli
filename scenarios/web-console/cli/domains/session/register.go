@@ -1,20 +1,28 @@
 package session
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
+	"time"
 
-	"web-console/cli/internal/support"
+	"connectrpc.com/connect"
+
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
+	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions/sessions_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+
+	"web-console/cli/internal/support"
 )
 
 // Register builds the `session` subcommand group covering session CRUD,
-// expiration policy, and the conversation sub-resource on /sessions/{id}.
-// The API is the source of truth; this package is a thin presentation layer.
+// expiration policy, and persistent-session recovery. All RPCs go through
+// the Connect-RPC SessionsService — the legacy REST routes have been
+// removed.
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
 		Name:        "session",
@@ -27,9 +35,6 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "delete", Aliases: []string{"rm"}, Description: "Terminate a session", Run: func(args []string) error { return runDelete(core, args) }},
 			{Name: "policy-get", Description: "Show the expiration policy for a session", Run: func(args []string) error { return runPolicyGet(core, args) }},
 			{Name: "policy-set", Description: "Set the expiration policy (--mode, optional --duration)", Run: func(args []string) error { return runPolicySet(core, args) }},
-			{Name: "conversation", Description: "Show the conversation feed for a session", Run: func(args []string) error { return runConversation(core, args) }},
-			{Name: "conversation-cursor", Description: "Update the conversation cursor (--body-file PATH)", Run: func(args []string) error { return runConversationCursor(core, args) }},
-			{Name: "summarize-event", Description: "Trigger summarization of a conversation event", Run: func(args []string) error { return runSummarizeEvent(core, args) }},
 			{Name: "list-recoverable", Description: "List orphaned persistent sessions awaiting recovery", Run: func(args []string) error { return runListRecoverable(core, args) }},
 			{Name: "recover", Description: "Recover an orphaned persistent session into a fresh pane", Run: func(args []string) error { return runRecover(core, args) }},
 			{Name: "dismiss", Description: "Permanently dismiss an orphaned session row (preserves on-disk state)", Run: func(args []string) error { return runDismiss(core, args) }},
@@ -37,123 +42,14 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	}
 }
 
-func runListRecoverable(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("session list-recoverable")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	body, err := core.Get("/sessions/recoverable", nil)
-	if err != nil {
-		return err
-	}
-	var rows []support.RecoverableSession
-	if err := support.Decode(body, &rows); err != nil {
-		return err
-	}
-
-	results := recoverableRows(rows)
-	report := cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Recoverable sessions: %d", len(rows))},
-		ResultsHeading: "Recoverable",
-		Results:        results,
-		RetrievalHints: []string{
-			fmt.Sprintf("%s session recover <session-id>", support.CLIName),
-			fmt.Sprintf("%s session dismiss <session-id>", support.CLIName),
-		},
-	}
-	if *jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
-	}
-	return cliapp.RenderListReport(os.Stdout, report)
+func newClient(core *cliapp.ScenarioApp) sessionsconnect.SessionsServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return sessionsconnect.NewSessionsServiceClient(httpClient, baseURL)
 }
 
-func runRecover(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("session recover")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: session recover <session-id>")
-	}
-	id := fs.Arg(0)
-
-	body, err := core.Request("POST", "/sessions/"+id+"/recover", nil, map[string]any{})
-	if err != nil {
-		return err
-	}
-	var res support.RecoverResult
-	if err := support.Decode(body, &res); err != nil {
-		return err
-	}
-	report := cliapp.MutationReport{
-		Result: []string{
-			fmt.Sprintf("Recovered %s -> %s", support.ShortID(res.OldSessionID), support.ShortID(res.NewSessionID)),
-		},
-		Changes: []string{
-			fmt.Sprintf("Agent: %s", res.AgentType),
-			fmt.Sprintf("Pasted: %s", strings.TrimSpace(res.CommandSent)),
-			fmt.Sprintf("CODEX_HOME copied: %t", res.CodexHomeCopy),
-		},
-		NextCommand: []string{fmt.Sprintf("%s session get %s", support.CLIName, res.NewSessionID)},
-	}
-	if *jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
-	}
-	return cliapp.RenderMutationReport(os.Stdout, report)
-}
-
-func runDismiss(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("session dismiss")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: session dismiss <session-id>")
-	}
-	id := fs.Arg(0)
-	if _, err := core.Request("DELETE", "/sessions/recoverable/"+id, nil, nil); err != nil {
-		return err
-	}
-	report := cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Dismissed orphan session %s (on-disk state preserved)", id)},
-		NextCommand: []string{fmt.Sprintf("%s session list-recoverable", support.CLIName)},
-	}
-	if *jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
-	}
-	return cliapp.RenderMutationReport(os.Stdout, report)
-}
-
-func recoverableRows(rows []support.RecoverableSession) []string {
-	if len(rows) == 0 {
-		return []string{"No orphaned persistent sessions awaiting recovery"}
-	}
-	out := make([]string, 0, len(rows))
-	for _, r := range rows {
-		flag := ""
-		if !r.Recoverable {
-			flag = " (NOT RECOVERABLE: " + r.NotRecoverable + ")"
-		}
-		out = append(out, fmt.Sprintf("%s | agent=%s | session=%s | orphaned=%s%s",
-			support.ShortID(r.ID),
-			defaultIfEmpty(r.AgentType, "none"),
-			defaultIfEmpty(support.ShortID(r.AgentSessionID), "-"),
-			support.FormatTime(r.OrphanedAt),
-			flag,
-		))
-	}
-	return out
-}
-
-func defaultIfEmpty(s, d string) string {
-	if strings.TrimSpace(s) == "" {
-		return d
-	}
-	return s
-}
+// -----------------------------------------------------------------------------
+// list / get / create / delete
+// -----------------------------------------------------------------------------
 
 func runList(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("session list")
@@ -162,19 +58,15 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	body, err := core.Get("/sessions", nil)
+	resp, err := newClient(core).List(context.Background(), connect.NewRequest(&sessionsv1.ListRequest{}))
 	if err != nil {
-		return err
-	}
-	var sessions []support.Session
-	if err := support.Decode(body, &sessions); err != nil {
-		return err
+		return cliapp.WrapAPIError("session list", err, nil)
 	}
 
 	report := cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Active sessions: %d", len(sessions))},
+		Summary:        []string{fmt.Sprintf("Active sessions: %d", len(resp.Msg.GetSessions()))},
 		ResultsHeading: "Sessions",
-		Results:        sessionRows(sessions),
+		Results:        sessionRows(resp.Msg.GetSessions()),
 		RetrievalHints: []string{
 			fmt.Sprintf("%s session get <session-id>", support.CLIName),
 			fmt.Sprintf("%s session policy-get <session-id>", support.CLIName),
@@ -197,43 +89,56 @@ func runGet(core *cliapp.ScenarioApp, args []string) error {
 	}
 	id := fs.Arg(0)
 
-	body, err := core.Get("/sessions/"+id, nil)
+	resp, err := newClient(core).Get(context.Background(), connect.NewRequest(&sessionsv1.GetRequest{Id: id}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("session get", err, nil)
 	}
-	var sess support.Session
-	if err := support.Decode(body, &sess); err != nil {
-		return err
-	}
+	sess := resp.Msg.GetSession()
 
 	results := []string{
-		fmt.Sprintf("ID: %s", sess.ID),
-		fmt.Sprintf("Shell: %s", sess.Shell),
-		fmt.Sprintf("Backend: %s", sess.Backend),
-		fmt.Sprintf("Size: %dx%d", sess.Cols, sess.Rows),
-		fmt.Sprintf("Busy: %t", sess.Busy),
-		fmt.Sprintf("Survives restart: %t", sess.SurvivesRestart),
+		fmt.Sprintf("ID: %s", sess.GetId()),
+		fmt.Sprintf("Shell: %s", sess.GetShell()),
+		fmt.Sprintf("Backend: %s", sess.GetBackend()),
+		fmt.Sprintf("Size: %dx%d", sess.GetCols(), sess.GetRows()),
+		fmt.Sprintf("Busy: %t", sess.GetBusy()),
+		fmt.Sprintf("Survives restart: %t", sess.GetSurvivesRestart()),
 	}
-	if sess.CreatedAt != "" {
-		results = append(results, fmt.Sprintf("Created: %s", support.FormatTime(sess.CreatedAt)))
+	if t := sess.GetCreatedAt(); t != "" {
+		results = append(results, fmt.Sprintf("Created: %s", support.FormatTime(t)))
 	}
-	if len(sess.Policy) > 0 {
-		results = append(results, fmt.Sprintf("Policy: %s", string(sess.Policy)))
-	}
+	results = append(results, fmt.Sprintf("Policy: %s", policyString(sess.GetPolicy())))
 
 	report := cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Session: %s (%s)", sess.ID, sess.Backend)},
+		Summary:        []string{fmt.Sprintf("Session: %s (%s)", sess.GetId(), sess.GetBackend())},
 		ResultsHeading: "Details",
 		Results:        results,
 		RetrievalHints: []string{
-			fmt.Sprintf("%s session policy-get %s", support.CLIName, sess.ID),
-			fmt.Sprintf("%s session conversation %s", support.CLIName, sess.ID),
+			fmt.Sprintf("%s session policy-get %s", support.CLIName, sess.GetId()),
+			fmt.Sprintf("%s conversation get --session %s", support.CLIName, sess.GetId()),
 		},
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderListReport(os.Stdout, report)
+}
+
+// createBody mirrors CreateRequest's JSON form so --body-file is supported
+// uniformly. Pointer fields toggle the has_policy flag server-side.
+type createBody struct {
+	Shell         string         `json:"shell,omitempty"`
+	Cols          int32          `json:"cols,omitempty"`
+	Rows          int32          `json:"rows,omitempty"`
+	Backend       string         `json:"backend,omitempty"`
+	Policy        *policyBody    `json:"policy,omitempty"`
+	LaunchCommand string         `json:"launchCommand,omitempty"`
+	AgentType     string         `json:"agentType,omitempty"`
+	Extra         map[string]any `json:"-"`
+}
+
+type policyBody struct {
+	Mode     string `json:"mode"`
+	Duration string `json:"duration,omitempty"`
 }
 
 func runCreate(core *cliapp.ScenarioApp, args []string) error {
@@ -248,46 +153,48 @@ func runCreate(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	var payload interface{}
+	body := createBody{
+		Shell:   strings.TrimSpace(*shell),
+		Cols:    int32(*cols),
+		Rows:    int32(*rows),
+		Backend: strings.TrimSpace(*backend),
+	}
 	if strings.TrimSpace(*bodyFile) != "" {
 		raw, err := support.ReadJSONFile(*bodyFile, true)
 		if err != nil {
 			return err
 		}
-		payload = raw
-	} else {
-		body := map[string]interface{}{}
-		if strings.TrimSpace(*shell) != "" {
-			body["shell"] = *shell
+		if err := json.Unmarshal(raw, &body); err != nil {
+			return fmt.Errorf("decode --body-file: %w", err)
 		}
-		if *cols > 0 {
-			body["cols"] = *cols
-		}
-		if *rows > 0 {
-			body["rows"] = *rows
-		}
-		if strings.TrimSpace(*backend) != "" {
-			body["backend"] = *backend
-		}
-		payload = body
 	}
 
-	respBody, err := core.Request("POST", "/sessions", nil, payload)
+	req := connect.NewRequest(&sessionsv1.CreateRequest{
+		Shell:         body.Shell,
+		Cols:          body.Cols,
+		Rows:          body.Rows,
+		Backend:       body.Backend,
+		LaunchCommand: body.LaunchCommand,
+		AgentType:     body.AgentType,
+	})
+	if body.Policy != nil {
+		req.Msg.Policy = &sessionsv1.ExpirationPolicy{Mode: body.Policy.Mode, Duration: body.Policy.Duration}
+		req.Msg.HasPolicy = true
+	}
+
+	resp, err := newClient(core).Create(context.Background(), req)
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("session create", err, nil)
 	}
-	var sess support.Session
-	if err := support.Decode(respBody, &sess); err != nil {
-		return err
-	}
+	sess := resp.Msg.GetSession()
 
 	report := cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Created session %s", sess.ID)},
+		Result: []string{fmt.Sprintf("Created session %s", sess.GetId())},
 		Changes: []string{
-			fmt.Sprintf("Backend: %s", sess.Backend),
-			fmt.Sprintf("Shell: %s", sess.Shell),
+			fmt.Sprintf("Backend: %s", sess.GetBackend()),
+			fmt.Sprintf("Shell: %s", sess.GetShell()),
 		},
-		NextCommand: []string{fmt.Sprintf("%s session get %s", support.CLIName, sess.ID)},
+		NextCommand: []string{fmt.Sprintf("%s session get %s", support.CLIName, sess.GetId())},
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
@@ -306,8 +213,9 @@ func runDelete(core *cliapp.ScenarioApp, args []string) error {
 	}
 	id := fs.Arg(0)
 
-	if _, err := core.Request("DELETE", "/sessions/"+id, nil, nil); err != nil {
-		return err
+	if _, err := newClient(core).Delete(context.Background(),
+		connect.NewRequest(&sessionsv1.DeleteRequest{Id: id})); err != nil {
+		return cliapp.WrapAPIError("session delete", err, nil)
 	}
 
 	report := cliapp.MutationReport{
@@ -320,6 +228,10 @@ func runDelete(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderMutationReport(os.Stdout, report)
 }
 
+// -----------------------------------------------------------------------------
+// policy
+// -----------------------------------------------------------------------------
+
 func runPolicyGet(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("session policy-get")
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -331,31 +243,28 @@ func runPolicyGet(core *cliapp.ScenarioApp, args []string) error {
 	}
 	id := fs.Arg(0)
 
-	body, err := core.Get("/sessions/"+id+"/policy", nil)
+	resp, err := newClient(core).GetPolicy(context.Background(), connect.NewRequest(&sessionsv1.GetPolicyRequest{Id: id}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("session policy-get", err, nil)
 	}
-	var resp support.PolicyResponse
-	if err := support.Decode(body, &resp); err != nil {
-		return err
-	}
+	view := resp.Msg.GetPolicy()
 
-	results := []string{fmt.Sprintf("Session: %s", resp.SessionID)}
-	if len(resp.Policy) > 0 {
-		results = append(results, fmt.Sprintf("Policy: %s", string(resp.Policy)))
+	results := []string{
+		fmt.Sprintf("Session: %s", view.GetSessionId()),
+		fmt.Sprintf("Policy: %s", policyString(view.GetPolicy())),
 	}
-	if resp.ExpiresAt != "" {
-		results = append(results, fmt.Sprintf("Expires at: %s", support.FormatTime(resp.ExpiresAt)))
-	}
-	if resp.TTL != nil {
-		results = append(results, fmt.Sprintf("TTL: %.0fs", *resp.TTL))
+	if view.GetHasExpiry() {
+		results = append(results,
+			fmt.Sprintf("Expires at: %s", support.FormatTime(view.GetExpiresAt())),
+			fmt.Sprintf("TTL: %.0fs", view.GetTtlSeconds()),
+		)
 	}
 
 	report := cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Policy for session %s", resp.SessionID)},
+		Summary:        []string{fmt.Sprintf("Policy for session %s", view.GetSessionId())},
 		ResultsHeading: "Details",
 		Results:        results,
-		RetrievalHints: []string{fmt.Sprintf("%s session policy-set %s --mode <mode>", support.CLIName, resp.SessionID)},
+		RetrievalHints: []string{fmt.Sprintf("%s session policy-set %s --mode <mode>", support.CLIName, view.GetSessionId())},
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
@@ -377,36 +286,38 @@ func runPolicySet(core *cliapp.ScenarioApp, args []string) error {
 	}
 	id := fs.Arg(0)
 
-	var payload interface{}
+	var policy policyBody
 	if strings.TrimSpace(*bodyFile) != "" {
 		raw, err := support.ReadJSONFile(*bodyFile, true)
 		if err != nil {
 			return err
 		}
-		payload = raw
+		if err := json.Unmarshal(raw, &policy); err != nil {
+			return fmt.Errorf("decode --body-file: %w", err)
+		}
 	} else {
 		if strings.TrimSpace(*mode) == "" {
 			return fmt.Errorf("--mode is required (or provide --body-file)")
 		}
-		payload = map[string]interface{}{
-			"mode":     *mode,
-			"duration": *duration,
-		}
+		policy = policyBody{Mode: *mode, Duration: *duration}
 	}
 
-	body, err := core.Request("PUT", "/sessions/"+id+"/policy", nil, payload)
+	resp, err := newClient(core).UpdatePolicy(context.Background(), connect.NewRequest(&sessionsv1.UpdatePolicyRequest{
+		Id: id,
+		Policy: &sessionsv1.ExpirationPolicy{
+			Mode:     policy.Mode,
+			Duration: policy.Duration,
+		},
+	}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("session policy-set", err, nil)
 	}
-	var resp support.PolicyResponse
-	if err := support.Decode(body, &resp); err != nil {
-		return err
-	}
+	view := resp.Msg.GetPolicy()
 
 	report := cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Updated policy for session %s", resp.SessionID)},
-		Changes:     []string{fmt.Sprintf("Policy: %s", string(resp.Policy))},
-		NextCommand: []string{fmt.Sprintf("%s session policy-get %s", support.CLIName, resp.SessionID)},
+		Result:      []string{fmt.Sprintf("Updated policy for session %s", view.GetSessionId())},
+		Changes:     []string{fmt.Sprintf("Policy: %s", policyString(view.GetPolicy()))},
+		NextCommand: []string{fmt.Sprintf("%s session policy-get %s", support.CLIName, view.GetSessionId())},
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
@@ -414,36 +325,32 @@ func runPolicySet(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderMutationReport(os.Stdout, report)
 }
 
-func runConversation(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("session conversation")
-	limit := fs.Int("limit", 0, "Maximum events to return")
+// -----------------------------------------------------------------------------
+// recovery
+// -----------------------------------------------------------------------------
+
+func runListRecoverable(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("session list-recoverable")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: session conversation <session-id> [--limit N]")
-	}
-	id := fs.Arg(0)
 
-	query := support.BuildQuery(map[string]string{
-		"limit": optInt(*limit),
-	})
-	body, err := core.Get("/sessions/"+id+"/conversation", query)
+	resp, err := newClient(core).ListRecoverable(context.Background(),
+		connect.NewRequest(&sessionsv1.ListRecoverableRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("session list-recoverable", err, nil)
 	}
-
-	var payload map[string]interface{}
-	if err := support.Decode(body, &payload); err != nil {
-		return err
-	}
+	rows := resp.Msg.GetSessions()
 
 	report := cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Conversation for session %s", id)},
-		ResultsHeading: "Payload",
-		Results:        support.MapRows(payload),
-		RetrievalHints: []string{fmt.Sprintf("%s session summarize-event %s <event-id>", support.CLIName, id)},
+		Summary:        []string{fmt.Sprintf("Recoverable sessions: %d", len(rows))},
+		ResultsHeading: "Recoverable",
+		Results:        recoverableRows(rows),
+		RetrievalHints: []string{
+			fmt.Sprintf("%s session recover <session-id>", support.CLIName),
+			fmt.Sprintf("%s session dismiss <session-id>", support.CLIName),
+		},
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
@@ -451,29 +358,31 @@ func runConversation(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderListReport(os.Stdout, report)
 }
 
-func runConversationCursor(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("session conversation-cursor")
-	bodyFile := fs.String("body-file", "", "Path to JSON body with the cursor payload (required)")
+func runRecover(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("session recover")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: session conversation-cursor <session-id> --body-file PATH")
+		return fmt.Errorf("usage: session recover <session-id>")
 	}
 	id := fs.Arg(0)
 
-	payload, err := support.ReadJSONFile(*bodyFile, true)
+	resp, err := newClient(core).Recover(context.Background(), connect.NewRequest(&sessionsv1.RecoverRequest{Id: id}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("session recover", err, nil)
 	}
-	if _, err := core.Request("PUT", "/sessions/"+id+"/conversation/cursor", nil, payload); err != nil {
-		return err
-	}
+	res := resp.Msg
 
 	report := cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Updated conversation cursor for session %s", id)},
-		NextCommand: []string{fmt.Sprintf("%s session conversation %s", support.CLIName, id)},
+		Result: []string{fmt.Sprintf("Recovered %s -> %s", support.ShortID(res.GetOldSessionId()), support.ShortID(res.GetNewSessionId()))},
+		Changes: []string{
+			fmt.Sprintf("Agent: %s", res.GetAgentType()),
+			fmt.Sprintf("Pasted: %s", strings.TrimSpace(res.GetCommandSent())),
+			fmt.Sprintf("CODEX_HOME copied: %t", res.GetCodexHomeCopied()),
+		},
+		NextCommand: []string{fmt.Sprintf("%s session get %s", support.CLIName, res.GetNewSessionId())},
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
@@ -481,39 +390,24 @@ func runConversationCursor(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderMutationReport(os.Stdout, report)
 }
 
-func runSummarizeEvent(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("session summarize-event")
-	bodyFile := fs.String("body-file", "", "Optional JSON body for the summarize request")
+func runDismiss(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("session dismiss")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: session summarize-event <session-id> <event-id> [--body-file PATH]")
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: session dismiss <session-id>")
 	}
-	sessionID := fs.Arg(0)
-	eventID := fs.Arg(1)
-
-	var payload interface{}
-	if strings.TrimSpace(*bodyFile) != "" {
-		raw, err := support.ReadJSONFile(*bodyFile, true)
-		if err != nil {
-			return err
-		}
-		payload = raw
+	id := fs.Arg(0)
+	if _, err := newClient(core).DismissRecoverable(context.Background(),
+		connect.NewRequest(&sessionsv1.DismissRecoverableRequest{Id: id})); err != nil {
+		return cliapp.WrapAPIError("session dismiss", err, nil)
 	}
-
-	body, err := core.Request("POST", "/sessions/"+sessionID+"/conversation/"+eventID+"/summarize", nil, payload)
-	if err != nil {
-		return err
-	}
-	var payloadMap map[string]interface{}
-	_ = support.Decode(body, &payloadMap)
 
 	report := cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Summarization requested for event %s (session %s)", eventID, sessionID)},
-		Changes:     support.MapRows(payloadMap),
-		NextCommand: []string{fmt.Sprintf("%s session conversation %s", support.CLIName, sessionID)},
+		Result:      []string{fmt.Sprintf("Dismissed orphan session %s (on-disk state preserved)", id)},
+		NextCommand: []string{fmt.Sprintf("%s session list-recoverable", support.CLIName)},
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
@@ -521,21 +415,61 @@ func runSummarizeEvent(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderMutationReport(os.Stdout, report)
 }
 
-func sessionRows(sessions []support.Session) []string {
+// -----------------------------------------------------------------------------
+// formatting helpers
+// -----------------------------------------------------------------------------
+
+func sessionRows(sessions []*sessionsv1.Session) []string {
 	if len(sessions) == 0 {
 		return []string{"No active sessions"}
 	}
 	rows := make([]string, 0, len(sessions))
 	for _, s := range sessions {
 		rows = append(rows, fmt.Sprintf("%s | shell=%s | backend=%s | %dx%d | busy=%t",
-			support.ShortID(s.ID), s.Shell, s.Backend, s.Cols, s.Rows, s.Busy))
+			support.ShortID(s.GetId()), s.GetShell(), s.GetBackend(), s.GetCols(), s.GetRows(), s.GetBusy()))
 	}
 	return rows
 }
 
-func optInt(v int) string {
-	if v <= 0 {
-		return ""
+func recoverableRows(rows []*sessionsv1.RecoverableSession) []string {
+	if len(rows) == 0 {
+		return []string{"No orphaned persistent sessions awaiting recovery"}
 	}
-	return strconv.Itoa(v)
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		flag := ""
+		if !r.GetRecoverable() {
+			flag = " (NOT RECOVERABLE: " + r.GetNotRecoverableReason() + ")"
+		}
+		out = append(out, fmt.Sprintf("%s | agent=%s | session=%s | orphaned=%s%s",
+			support.ShortID(r.GetId()),
+			defaultIfEmpty(r.GetAgentType(), "none"),
+			defaultIfEmpty(support.ShortID(r.GetAgentSessionId()), "-"),
+			support.FormatTime(r.GetOrphanedAt()),
+			flag,
+		))
+	}
+	return out
 }
+
+func policyString(p *sessionsv1.ExpirationPolicy) string {
+	if p == nil || p.GetMode() == "" {
+		return "never"
+	}
+	if p.GetDuration() != "" {
+		return p.GetMode() + "/" + p.GetDuration()
+	}
+	return p.GetMode()
+}
+
+func defaultIfEmpty(s, d string) string {
+	if strings.TrimSpace(s) == "" {
+		return d
+	}
+	return s
+}
+
+// Build-time guard: ensures time import isn't accidentally removed when
+// the file is regenerated; FormatTime accepts strings, not time.Time, so
+// nothing imports it directly today.
+var _ = time.RFC3339

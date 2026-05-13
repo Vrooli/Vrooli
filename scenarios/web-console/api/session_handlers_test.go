@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 )
 
 // newTestServer creates a Server with real PTY processes — use for
@@ -53,96 +57,41 @@ func newFakeTestServer() *Server {
 	return srv
 }
 
-// [REQ:P0-002a] PTY Session Backend - create endpoint
+// --- Session CRUD happy paths (Connect handler) ---
+
 func TestHandleCreateSession(t *testing.T) {
 	srv := newTestServer()
 
-	body := strings.NewReader(`{"cols": 80, "rows": 24}`)
-	req := httptest.NewRequest("POST", "/api/v1/sessions", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	sess, err := callCreate(t, srv, 80, 24, "")
+	if err != nil {
+		t.Fatalf("create: %v", err)
 	}
-
-	var resp SessionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON response: %v", err)
-	}
-	if resp.ID == "" {
+	if sess.GetId() == "" {
 		t.Error("response ID should not be empty")
 	}
-	if resp.Cols != 80 {
-		t.Errorf("expected cols=80, got %d", resp.Cols)
+	if sess.GetCols() != 80 {
+		t.Errorf("expected cols=80, got %d", sess.GetCols())
 	}
 
-	// Cleanup
-	_ = srv.sessions.Delete(resp.ID)
+	_ = srv.sessions.Delete(sess.GetId())
 }
 
-// Failure path: malformed JSON body returns 400 with structured error
-func TestHandleCreateSession_MalformedJSON(t *testing.T) {
-	srv := newFakeTestServer()
-
-	body := strings.NewReader(`{invalid json}`)
-	req := httptest.NewRequest("POST", "/api/v1/sessions", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("error response should be valid JSON: %v", err)
-	}
-	if errResp.Code != "invalid_body" {
-		t.Errorf("expected code=invalid_body, got %s", errResp.Code)
-	}
-	if errResp.Error == "" {
-		t.Error("error message should not be empty")
-	}
-}
-
-// Failure path: session limit returns 429 with structured error
 func TestHandleCreateSession_SessionLimit(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.sessions.cfg.MaxSessions = 1
 
-	// Create one session to hit the limit
 	s1, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("first session create: %v", err)
 	}
 	defer func() { _ = srv.sessions.Delete(s1.ID) }()
 
-	// Attempt to create a second session via the handler
-	req := httptest.NewRequest("POST", "/api/v1/sessions", strings.NewReader(`{}`))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusTooManyRequests {
-		t.Fatalf("expected 429, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("error response should be valid JSON: %v", err)
-	}
-	if errResp.Code != "session_limit_reached" {
-		t.Errorf("expected code=session_limit_reached, got %s", errResp.Code)
+	_, err = callCreate(t, srv, 0, 0, "")
+	if got := connectCode(err); got != connect.CodeResourceExhausted {
+		t.Errorf("expected CodeResourceExhausted, got %s (err=%v)", got, err)
 	}
 }
 
-// Failure path: PTY spawn failure returns 500 with structured error
 func TestHandleCreateSession_PTYSpawnFailed(t *testing.T) {
 	failingFactory := func(spec SessionLaunchSpec) (PTY, error) {
 		return nil, fmt.Errorf("shell not found: %s", spec.Shell)
@@ -150,71 +99,36 @@ func TestHandleCreateSession_PTYSpawnFailed(t *testing.T) {
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    NewSessionManagerWithFactory(failingFactory),
+		events:      NewEventLogger(10),
+		metrics:     NewMetrics(),
 		idempotency: newIdempotencyCache(),
 	}
 
-	req := httptest.NewRequest("POST", "/api/v1/sessions", strings.NewReader(`{"shell": "/nonexistent"}`))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callCreate(t, srv, 0, 0, "")
+	if got := connectCode(err); got != connect.CodeInternal {
+		t.Errorf("expected CodeInternal, got %s (err=%v)", got, err)
 	}
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("error response should be valid JSON: %v", err)
-	}
-	if errResp.Code != "pty_spawn_failed" {
-		t.Errorf("expected code=pty_spawn_failed, got %s", errResp.Code)
-	}
-	// Ensure internal details are not leaked
-	if strings.Contains(errResp.Error, "shell not found") {
-		t.Error("error message should not leak internal PTY error details to client")
+	// Internal PTY details must not leak into the error message.
+	if err != nil && strings.Contains(err.Error(), "shell not found") {
+		t.Errorf("error should not leak internal PTY details, got %v", err)
 	}
 }
 
-// Failure path: get/delete not-found returns JSON error
-func TestHandleGetSession_NotFound_JSONError(t *testing.T) {
+func TestHandleGetSession_NotFound_ReturnsNotFound(t *testing.T) {
 	srv := newFakeTestServer()
-
-	req := httptest.NewRequest("GET", "/api/v1/sessions/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleGetSession(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", rec.Code)
-	}
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("error response should be valid JSON: %v", err)
-	}
-	if errResp.Code != "session_not_found" {
-		t.Errorf("expected code=session_not_found, got %s", errResp.Code)
+	_, err := callGet(t, srv, "nonexistent")
+	if got := connectCode(err); got != connect.CodeNotFound {
+		t.Errorf("expected CodeNotFound, got %s (err=%v)", got, err)
 	}
 }
 
-// DELETE is idempotent: deleting a non-existent session returns 204 with no body.
-func TestHandleDeleteSession_NotFound_Idempotent_NoBody(t *testing.T) {
+func TestHandleDeleteSession_NotFound_Idempotent(t *testing.T) {
 	srv := newFakeTestServer()
-
-	req := httptest.NewRequest("DELETE", "/api/v1/sessions/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleDeleteSession(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Errorf("expected 204 (idempotent), got %d", rec.Code)
+	if err := callDelete(t, srv, "nonexistent"); err != nil {
+		t.Errorf("delete unknown session should be idempotent (no error), got %v", err)
 	}
 }
 
-// Verify sentinel errors wrap correctly
 func TestSentinelErrors(t *testing.T) {
 	limitErr := fmt.Errorf("%w (%d)", ErrSessionLimitReached, 5)
 	if !errors.Is(limitErr, ErrSessionLimitReached) {
@@ -227,20 +141,16 @@ func TestSentinelErrors(t *testing.T) {
 	}
 }
 
-// Verify sanitizeID prevents injection and truncates long IDs
 func TestSanitizeID(t *testing.T) {
-	// Normal ID
 	if got := sanitizeID("abc-123"); got != "abc-123" {
 		t.Errorf("normal ID: got %q", got)
 	}
-	// Control characters stripped
 	if got := sanitizeID("abc\x00\ndef"); got != "abcdef" {
 		t.Errorf("control chars: got %q", got)
 	}
-	// Long ID truncated
 	longID := strings.Repeat("x", 100)
 	got := sanitizeID(longID)
-	if len(got) > 44 { // 40 + "..."
+	if len(got) > 44 {
 		t.Errorf("long ID should be truncated, got length %d", len(got))
 	}
 	if !strings.HasSuffix(got, "...") {
@@ -248,7 +158,7 @@ func TestSanitizeID(t *testing.T) {
 	}
 }
 
-// --- writeJSON utility tests ---
+// --- writeJSON utility tests (unchanged — utility still exists) ---
 
 func TestWriteJSON_SetsContentTypeAndStatus(t *testing.T) {
 	rec := httptest.NewRecorder()
@@ -287,9 +197,8 @@ func TestWriteJSON_EncodesSlice(t *testing.T) {
 	}
 }
 
-// --- Error category and recovery tests ---
+// --- Error category / recovery tests (unchanged — catalog remains) ---
 
-// Verify all error responses include category and recovery fields
 func TestErrorResponse_CategoryAndRecovery(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -328,35 +237,6 @@ func TestErrorResponse_CategoryAndRecovery(t *testing.T) {
 	}
 }
 
-// Verify session_limit_reached error is retryable
-func TestErrorResponse_SessionLimit_Retryable(t *testing.T) {
-	srv := newFakeTestServer()
-	srv.sessions.cfg.MaxSessions = 1
-
-	s1, err := srv.sessions.Create("", 80, 24, "", nil)
-	if err != nil {
-		t.Fatalf("first create: %v", err)
-	}
-	defer func() { _ = srv.sessions.Delete(s1.ID) }()
-
-	req := httptest.NewRequest("POST", "/api/v1/sessions", strings.NewReader(`{}`))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleCreateSession(rec, req)
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if !errResp.Retry {
-		t.Error("session_limit_reached should be retryable")
-	}
-	if errResp.Category != "resource_limit" {
-		t.Errorf("expected category=resource_limit, got %s", errResp.Category)
-	}
-}
-
-// Verify error catalog covers all known error codes
 func TestErrorCatalog_Completeness(t *testing.T) {
 	expectedCodes := []string{
 		"invalid_body", "session_limit_reached", "pty_spawn_failed",
@@ -370,13 +250,6 @@ func TestErrorCatalog_Completeness(t *testing.T) {
 	}
 }
 
-// --- Change axis invariant tests ---
-// These tests encode structural invariants that must hold when adding
-// new error codes, categories, or recovery hints. They validate the
-// extension point contract rather than specific values.
-
-// Every error catalog entry must have a valid category and non-empty recovery hint.
-// This prevents adding new error codes that silently break the client contract.
 func TestErrorCatalog_StructuralInvariants(t *testing.T) {
 	validCategories := map[string]bool{
 		"validation":     true,
@@ -409,10 +282,6 @@ func TestErrorCatalog_StructuralInvariants(t *testing.T) {
 	}
 }
 
-// writeCatalogError with an unknown code should still return a valid
-// structured error (the fallback path). This ensures new codes can
-// be referenced in handlers before being added to the catalog during
-// development without crashing.
 func TestWriteCatalogError_UnknownCode_Fallback(t *testing.T) {
 	rec := httptest.NewRecorder()
 	writeCatalogError(rec, "new_future_code", "test")
@@ -432,7 +301,6 @@ func TestWriteCatalogError_UnknownCode_Fallback(t *testing.T) {
 	}
 }
 
-// Config variation: multiple session limits should work correctly
 // [REQ:P1-001a] Session Policy Controls
 func TestSessionLimit_VariousLimits(t *testing.T) {
 	limits := []int{1, 3, 5, 10}
@@ -450,13 +318,11 @@ func TestSessionLimit_VariousLimits(t *testing.T) {
 				sessions = append(sessions, s)
 			}
 
-			// Next one should fail
 			_, err := sm.Create("", 0, 0, "", nil)
 			if err == nil {
 				t.Errorf("session %d should be rejected when MaxSessions=%d", limit+1, limit)
 			}
 
-			// Cleanup
 			for _, s := range sessions {
 				_ = sm.Delete(s.ID)
 			}
@@ -464,7 +330,6 @@ func TestSessionLimit_VariousLimits(t *testing.T) {
 	}
 }
 
-// Verify X-Request-ID header is set by middleware
 func TestRequestIDMiddleware(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.setupRoutes()
@@ -482,7 +347,7 @@ func TestRequestIDMiddleware(t *testing.T) {
 	}
 }
 
-// --- Session CRUD happy-path tests (use real PTY) ---
+// --- Session CRUD additional Connect-handler tests ---
 
 // [REQ:P0-003a] Session Persistence Store - list endpoint
 func TestHandleListSessions(t *testing.T) {
@@ -491,104 +356,53 @@ func TestHandleListSessions(t *testing.T) {
 	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
 	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
-	req := httptest.NewRequest("GET", "/api/v1/sessions", nil)
-	rec := httptest.NewRecorder()
-
-	srv.handleListSessions(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	got, err := callList(t, srv)
+	if err != nil {
+		t.Fatalf("list: %v", err)
 	}
-
-	var sessions []SessionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &sessions); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if len(sessions) == 0 {
+	if len(got) == 0 {
 		t.Error("expected at least 1 session")
 	}
 }
 
 func TestHandleGetSession(t *testing.T) {
 	srv := newTestServer()
-
 	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
 	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
-	req := httptest.NewRequest("GET", "/api/v1/sessions/"+sess.ID, nil)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	rec := httptest.NewRecorder()
-
-	srv.handleGetSession(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	got, err := callGet(t, srv, sess.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
 	}
-
-	var resp SessionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if resp.ID != sess.ID {
-		t.Errorf("expected ID %s, got %s", sess.ID, resp.ID)
+	if got.GetId() != sess.ID {
+		t.Errorf("expected ID %s, got %s", sess.ID, got.GetId())
 	}
 }
 
 func TestHandleGetSession_NotFound(t *testing.T) {
 	srv := newTestServer()
-
-	req := httptest.NewRequest("GET", "/api/v1/sessions/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleGetSession(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", rec.Code)
+	_, err := callGet(t, srv, "nonexistent")
+	if got := connectCode(err); got != connect.CodeNotFound {
+		t.Errorf("expected CodeNotFound, got %s", got)
 	}
 }
 
 func TestHandleDeleteSession(t *testing.T) {
 	srv := newTestServer()
-
 	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
 
-	req := httptest.NewRequest("DELETE", "/api/v1/sessions/"+sess.ID, nil)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	rec := httptest.NewRecorder()
-
-	srv.handleDeleteSession(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Errorf("expected 204, got %d", rec.Code)
+	if err := callDelete(t, srv, sess.ID); err != nil {
+		t.Errorf("delete: %v", err)
 	}
 
-	_, ok := srv.sessions.Get(sess.ID)
-	if ok {
+	if _, ok := srv.sessions.Get(sess.ID); ok {
 		t.Error("session should not exist after delete")
-	}
-}
-
-// DELETE is idempotent: deleting a non-existent session returns 204 (not 404),
-// so that retries and replays are safe.
-func TestHandleDeleteSession_NotFound_Idempotent(t *testing.T) {
-	srv := newTestServer()
-
-	req := httptest.NewRequest("DELETE", "/api/v1/sessions/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleDeleteSession(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Errorf("expected 204 (idempotent delete), got %d", rec.Code)
 	}
 }
 
 // --- Replay / Idempotency Tests ---
 
-// Deleting the same session twice: first deletes it, second is a no-op 204.
-// Metrics and events should only fire once.
+// Deleting the same session 3 times: only one real delete; metrics + events fire once.
 func TestDeleteSession_Replay_MetricsOnce(t *testing.T) {
 	srv := newFakeTestServer()
 
@@ -600,101 +414,53 @@ func TestDeleteSession_Replay_MetricsOnce(t *testing.T) {
 	deletedBefore := srv.metrics.SessionsDeleted.Load()
 	eventsBefore := srv.events.Count()
 
-	// First delete — actually removes the session
 	for i := 0; i < 3; i++ {
-		req := httptest.NewRequest("DELETE", "/api/v1/sessions/"+sess.ID, nil)
-		req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-		rec := httptest.NewRecorder()
-		srv.handleDeleteSession(rec, req)
-
-		if rec.Code != http.StatusNoContent {
-			t.Fatalf("attempt %d: expected 204, got %d", i+1, rec.Code)
+		if err := callDelete(t, srv, sess.ID); err != nil {
+			t.Fatalf("attempt %d: %v", i+1, err)
 		}
 	}
 
-	// Metrics should increment exactly once (from the first real delete)
-	deletedAfter := srv.metrics.SessionsDeleted.Load()
-	if got := deletedAfter - deletedBefore; got != 1 {
+	if got := srv.metrics.SessionsDeleted.Load() - deletedBefore; got != 1 {
 		t.Errorf("expected SessionsDeleted to increment by 1, got %d", got)
 	}
-
-	// Only one deletion event should be emitted
-	eventsAfter := srv.events.Count()
-	if got := eventsAfter - eventsBefore; got != 1 {
+	if got := srv.events.Count() - eventsBefore; got != 1 {
 		t.Errorf("expected 1 deletion event, got %d", got)
 	}
 }
 
-// Session creation with idempotency key: same key returns the same session.
 func TestCreateSession_IdempotencyKey_ReturnsCache(t *testing.T) {
 	srv := newFakeTestServer()
-
 	key := "test-idem-key-123"
 
-	// First creation
-	body1 := strings.NewReader(`{"cols": 80, "rows": 24}`)
-	req1 := httptest.NewRequest("POST", "/api/v1/sessions", body1)
-	req1.Header.Set("Content-Type", "application/json")
-	req1.Header.Set("X-Idempotency-Key", key)
-	rec1 := httptest.NewRecorder()
-	srv.handleCreateSession(rec1, req1)
-
-	if rec1.Code != http.StatusCreated {
-		t.Fatalf("first create: expected 201, got %d: %s", rec1.Code, rec1.Body.String())
-	}
-	var resp1 SessionResponse
-	if err := json.Unmarshal(rec1.Body.Bytes(), &resp1); err != nil {
-		t.Fatalf("unmarshal first: %v", err)
+	first, err := callCreate(t, srv, 80, 24, key)
+	if err != nil {
+		t.Fatalf("first create: %v", err)
 	}
 
-	// Replay with same key — should return the cached session, no new session
-	body2 := strings.NewReader(`{"cols": 80, "rows": 24}`)
-	req2 := httptest.NewRequest("POST", "/api/v1/sessions", body2)
-	req2.Header.Set("Content-Type", "application/json")
-	req2.Header.Set("X-Idempotency-Key", key)
-	rec2 := httptest.NewRecorder()
-	srv.handleCreateSession(rec2, req2)
-
-	if rec2.Code != http.StatusCreated {
-		t.Fatalf("replay: expected 201, got %d: %s", rec2.Code, rec2.Body.String())
-	}
-	var resp2 SessionResponse
-	if err := json.Unmarshal(rec2.Body.Bytes(), &resp2); err != nil {
-		t.Fatalf("unmarshal replay: %v", err)
+	second, err := callCreate(t, srv, 80, 24, key)
+	if err != nil {
+		t.Fatalf("replay: %v", err)
 	}
 
-	// Same session ID returned
-	if resp1.ID != resp2.ID {
-		t.Errorf("replay should return same session: first=%s, replay=%s", resp1.ID, resp2.ID)
+	if first.GetId() != second.GetId() {
+		t.Errorf("replay should return same session: first=%s, replay=%s", first.GetId(), second.GetId())
 	}
-
-	// Only one session should exist
-	sessions := srv.sessions.List()
-	if len(sessions) != 1 {
+	if sessions := srv.sessions.List(); len(sessions) != 1 {
 		t.Errorf("expected 1 session, got %d", len(sessions))
 	}
-
-	// Metrics should show only 1 creation
 	if got := srv.metrics.SessionsCreated.Load(); got != 1 {
 		t.Errorf("expected SessionsCreated=1, got %d", got)
 	}
 
-	// Cleanup
-	_ = srv.sessions.Delete(resp1.ID)
+	_ = srv.sessions.Delete(first.GetId())
 }
 
-// Without idempotency key, two requests create two sessions.
 func TestCreateSession_NoIdempotencyKey_CreatesTwoSessions(t *testing.T) {
 	srv := newFakeTestServer()
 
 	for i := 0; i < 2; i++ {
-		body := strings.NewReader(`{}`)
-		req := httptest.NewRequest("POST", "/api/v1/sessions", body)
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-		srv.handleCreateSession(rec, req)
-		if rec.Code != http.StatusCreated {
-			t.Fatalf("create %d: expected 201, got %d", i+1, rec.Code)
+		if _, err := callCreate(t, srv, 0, 0, ""); err != nil {
+			t.Fatalf("create %d: %v", i+1, err)
 		}
 	}
 
@@ -702,8 +468,6 @@ func TestCreateSession_NoIdempotencyKey_CreatesTwoSessions(t *testing.T) {
 	if len(sessions) != 2 {
 		t.Errorf("expected 2 sessions without idempotency key, got %d", len(sessions))
 	}
-
-	// Cleanup
 	for _, s := range sessions {
 		_ = srv.sessions.Delete(s.ID)
 	}
@@ -713,28 +477,24 @@ func TestCreateSession_NoIdempotencyKey_CreatesTwoSessions(t *testing.T) {
 func TestIdempotencyCache_TTLExpiry(t *testing.T) {
 	c := &idempotencyCache{
 		entries: make(map[string]idempotencyEntry),
-		ttl:     10 * time.Millisecond, // very short TTL
+		ttl:     10 * time.Millisecond,
 	}
 
 	resp := SessionResponse{ID: "s1"}
 	c.Set("key1", resp)
 
-	// Immediately retrievable
 	got, ok := c.Get("key1")
 	if !ok || got.ID != "s1" {
 		t.Fatal("entry should be retrievable immediately after set")
 	}
 
-	// Wait for TTL to expire
 	time.Sleep(15 * time.Millisecond)
 
-	// Should return false and clean up
 	_, ok = c.Get("key1")
 	if ok {
 		t.Error("expired entry should not be returned by Get")
 	}
 
-	// Entry should be deleted from map
 	c.mu.Lock()
 	_, stillThere := c.entries["key1"]
 	c.mu.Unlock()
@@ -750,26 +510,22 @@ func TestIdempotencyCache_EvictionScan(t *testing.T) {
 		ttl:     time.Hour,
 	}
 
-	// Pre-populate with 100 expired entries
 	for i := 0; i < 100; i++ {
 		c.entries[fmt.Sprintf("expired-%d", i)] = idempotencyEntry{
-			expiresAt: time.Now().Add(-time.Minute), // already expired
+			expiresAt: time.Now().Add(-time.Minute),
 		}
 	}
 
-	// This Set should trigger eviction scan (>100 entries)
 	c.Set("fresh-key", SessionResponse{ID: "fresh"})
 
 	c.mu.Lock()
 	count := len(c.entries)
 	c.mu.Unlock()
 
-	// All expired entries should be evicted, leaving only "fresh-key"
 	if count != 1 {
 		t.Errorf("expected 1 entry after eviction (fresh-key), got %d", count)
 	}
 
-	// Fresh entry should still be retrievable
 	got, ok := c.Get("fresh-key")
 	if !ok || got.ID != "fresh" {
 		t.Error("fresh entry should survive eviction scan")
@@ -788,23 +544,18 @@ func TestUpdatePolicy_Replay_EventOnlyOnChange(t *testing.T) {
 
 	eventsBefore := srv.events.Count()
 
-	// Set policy to "1h" preset — should emit event
 	for i := 0; i < 3; i++ {
-		body := strings.NewReader(`{"mode": "preset", "duration": "1h"}`)
-		req := httptest.NewRequest("PUT", "/api/v1/sessions/"+sess.ID+"/policy", body)
-		req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-		srv.handleUpdatePolicy(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("attempt %d: expected 200, got %d: %s", i+1, rec.Code, rec.Body.String())
+		if _, err := callUpdatePolicy(t, srv, sess.ID, "preset", "1h"); err != nil {
+			t.Fatalf("attempt %d: %v", i+1, err)
 		}
 	}
 
-	// Only 1 event should be emitted (first call changes policy, repeats are no-ops)
-	eventsAfter := srv.events.Count()
-	if got := eventsAfter - eventsBefore; got != 1 {
+	if got := srv.events.Count() - eventsBefore; got != 1 {
 		t.Errorf("expected 1 policy event (first change only), got %d", got)
 	}
 }
+
+// guard: the proto type for CreateRequest is referenced so a removed field
+// breaks compilation.
+var _ = sessionsv1.CreateRequest{}
+var _ = context.Background

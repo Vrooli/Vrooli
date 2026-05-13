@@ -6,12 +6,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
-	"strconv"
 	"sync"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
 // TTSCacheKey identifies a cached TTS audio entry.
@@ -258,61 +254,5 @@ func (s *Server) synthesizeParagraphs(ctx context.Context, paragraphs []string, 
 	return combined, contentType, nil
 }
 
-// handleGetTTSCache serves cached TTS audio for an event.
-// GET /api/v1/tts/cache/{eventId}?voice={voice}&speed={speed}&version={active|original}
-func (s *Server) handleGetTTSCache(w http.ResponseWriter, r *http.Request) {
-	if s.ttsCache == nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	vars := mux.Vars(r)
-	eventID := vars["eventId"]
-	if eventID == "" {
-		writeCatalogError(w, "tts_cache_missing_id", "eventId is required")
-		return
-	}
-
-	voice := r.URL.Query().Get("voice")
-	if voice == "" {
-		cfg := s.getTTSConfig()
-		voice = cfg.KokoroVoice
-		if voice == "" {
-			voice = "af_heart"
-		}
-	}
-
-	speedStr := r.URL.Query().Get("speed")
-	speed := 1.0
-	if speedStr != "" {
-		if parsed, err := strconv.ParseFloat(speedStr, 64); err == nil && parsed > 0 {
-			speed = parsed
-		}
-	}
-
-	version := r.URL.Query().Get("version")
-	if version == "" {
-		version = "active"
-	}
-
-	key := TTSCacheKey{
-		EventID: eventID,
-		Voice:   voice,
-		Speed:   speed,
-		Version: version,
-	}
-
-	entry, ok := s.ttsCache.Get(key)
-	if !ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, `{"error":"not_cached","message":"No cached audio for this event"}`)
-		return
-	}
-
-	w.Header().Set("Content-Type", entry.ContentType)
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write(entry.Audio); err != nil {
-		log.Printf("tts-cache: write response: %v", err)
-	}
-}
+// HTTP handler for /api/v1/tts/cache/{eventId} moved to handlers/tts.
+// The cache-lookup logic now lives in tts_adapter.go's GetCache.

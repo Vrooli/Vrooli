@@ -1,86 +1,92 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
+	"context"
+	"errors"
 	"testing"
 
-	"github.com/gorilla/mux"
+	"connectrpc.com/connect"
+
+	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/workspace"
+	workspaceH "web-console/handlers/workspace"
 )
 
-// --- Layout handlers ---
+// Workspace Connect-handler tests. The adapter in workspace_handlers.go
+// owns the merge-with-existing behavior, event emission, and the
+// "group not found" → ErrGroupNotFound translation; these tests exercise
+// that surface end-to-end via the Connect handler.
 
-func TestHandleGetLayout_Empty(t *testing.T) {
-	srv := newFakeTestServer()
-	req := httptest.NewRequest("GET", "/api/v1/workspace/layout", nil)
-	rec := httptest.NewRecorder()
-
-	srv.handleGetLayout(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var resp LayoutResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if len(resp.Panes) != 0 {
-		t.Fatalf("expected 0 panes, got %d", len(resp.Panes))
-	}
-	if len(resp.Groups) != 0 {
-		t.Fatalf("expected 0 groups, got %d", len(resp.Groups))
+type workspaceConnectTestHarness struct {
+	h interface {
+		GetLayout(context.Context, *connect.Request[workspacev1.GetLayoutRequest]) (*connect.Response[workspacev1.GetLayoutResponse], error)
+		SaveLayout(context.Context, *connect.Request[workspacev1.SaveLayoutRequest]) (*connect.Response[workspacev1.SaveLayoutResponse], error)
+		UpdatePane(context.Context, *connect.Request[workspacev1.UpdatePaneRequest]) (*connect.Response[workspacev1.UpdatePaneResponse], error)
+		DeletePane(context.Context, *connect.Request[workspacev1.DeletePaneRequest]) (*connect.Response[workspacev1.DeletePaneResponse], error)
+		CreateGroup(context.Context, *connect.Request[workspacev1.CreateGroupRequest]) (*connect.Response[workspacev1.CreateGroupResponse], error)
+		UpdateGroup(context.Context, *connect.Request[workspacev1.UpdateGroupRequest]) (*connect.Response[workspacev1.UpdateGroupResponse], error)
+		DeleteGroup(context.Context, *connect.Request[workspacev1.DeleteGroupRequest]) (*connect.Response[workspacev1.DeleteGroupResponse], error)
 	}
 }
 
-func TestHandleGetLayout_WithPanes(t *testing.T) {
+func newWorkspaceConnectHandler(t *testing.T) (*workspaceConnectTestHarness, *Server) {
+	t.Helper()
 	srv := newFakeTestServer()
+	h := workspaceH.NewConnectHandler(workspaceH.Deps{Service: newWorkspaceAdapter(srv)})
+	return &workspaceConnectTestHarness{h: h}, srv
+}
 
-	// Insert panes via store
+// --- Layout ---
+
+func TestConnect_GetLayout_Empty(t *testing.T) {
+	harness, _ := newWorkspaceConnectHandler(t)
+	resp, err := harness.h.GetLayout(context.Background(), connect.NewRequest(&workspacev1.GetLayoutRequest{}))
+	if err != nil {
+		t.Fatalf("GetLayout: %v", err)
+	}
+	if len(resp.Msg.GetPanes()) != 0 {
+		t.Errorf("expected 0 panes, got %d", len(resp.Msg.GetPanes()))
+	}
+	if len(resp.Msg.GetGroups()) != 0 {
+		t.Errorf("expected 0 groups, got %d", len(resp.Msg.GetGroups()))
+	}
+}
+
+func TestConnect_GetLayout_WithPanes(t *testing.T) {
+	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*MemWorkspaceStore)
 	_ = store.UpsertPane(&WorkspacePane{SessionID: "s1", Name: "bash", SortOrder: 1})
 	_ = store.UpsertPane(&WorkspacePane{SessionID: "s2", Name: "node", SortOrder: 0, IsActive: true})
 
-	req := httptest.NewRequest("GET", "/api/v1/workspace/layout", nil)
-	rec := httptest.NewRecorder()
-	srv.handleGetLayout(rec, req)
-
-	var resp LayoutResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
+	resp, err := harness.h.GetLayout(context.Background(), connect.NewRequest(&workspacev1.GetLayoutRequest{}))
+	if err != nil {
+		t.Fatalf("GetLayout: %v", err)
 	}
-	if len(resp.Panes) != 2 {
-		t.Fatalf("expected 2 panes, got %d", len(resp.Panes))
+	if len(resp.Msg.GetPanes()) != 2 {
+		t.Fatalf("expected 2 panes, got %d", len(resp.Msg.GetPanes()))
 	}
-	// Should be ordered by sort_order: s2 (0) then s1 (1)
-	if resp.Panes[0].SessionID != "s2" {
-		t.Errorf("expected first pane s2, got %s", resp.Panes[0].SessionID)
+	if resp.Msg.GetPanes()[0].GetSessionId() != "s2" {
+		t.Errorf("expected first pane s2, got %s", resp.Msg.GetPanes()[0].GetSessionId())
 	}
-	if resp.ActivePane != "s2" {
-		t.Errorf("expected active_pane s2, got %s", resp.ActivePane)
+	if resp.Msg.GetActivePane() != "s2" {
+		t.Errorf("expected active_pane s2, got %s", resp.Msg.GetActivePane())
 	}
 }
 
-func TestHandleSaveLayout_Reorder(t *testing.T) {
-	srv := newFakeTestServer()
+func TestConnect_SaveLayout_Reorder(t *testing.T) {
+	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*MemWorkspaceStore)
 	_ = store.UpsertPane(&WorkspacePane{SessionID: "a", Name: "a", SortOrder: 0})
 	_ = store.UpsertPane(&WorkspacePane{SessionID: "b", Name: "b", SortOrder: 1})
 	_ = store.UpsertPane(&WorkspacePane{SessionID: "c", Name: "c", SortOrder: 2})
 
-	body := `{"active_pane":"b","pane_order":["c","a","b"]}`
-	req := httptest.NewRequest("PUT", "/api/v1/workspace/layout", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleSaveLayout(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d: %s", rec.Code, rec.Body.String())
+	_, err := harness.h.SaveLayout(context.Background(), connect.NewRequest(&workspacev1.SaveLayoutRequest{
+		ActivePane: "b",
+		PaneOrder:  []string{"c", "a", "b"},
+	}))
+	if err != nil {
+		t.Fatalf("SaveLayout: %v", err)
 	}
 
-	// Verify order was updated
 	layout, _ := store.GetLayout()
 	if layout.Panes[0].SessionID != "c" {
 		t.Errorf("expected first pane c, got %s", layout.Panes[0].SessionID)
@@ -93,210 +99,196 @@ func TestHandleSaveLayout_Reorder(t *testing.T) {
 	}
 }
 
-// --- Pane handlers ---
+// --- Pane ---
 
-func TestHandleUpdatePane_Create(t *testing.T) {
-	srv := newFakeTestServer()
-	body := `{"name":"custom","header_color":"#ff0000","theme_id":"dracula","font_size":16}`
-	req := httptest.NewRequest("PUT", "/api/v1/workspace/panes/s1", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"session_id": "s1"})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdatePane(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+func TestConnect_UpdatePane_Create(t *testing.T) {
+	harness, _ := newWorkspaceConnectHandler(t)
+	resp, err := harness.h.UpdatePane(context.Background(), connect.NewRequest(&workspacev1.UpdatePaneRequest{
+		SessionId:      "s1",
+		Name:           "custom",
+		HasName:        true,
+		HeaderColor:    "#ff0000",
+		HasHeaderColor: true,
+		ThemeId:        "dracula",
+		HasThemeId:     true,
+		FontSize:       16,
+		HasFontSize:    true,
+	}))
+	if err != nil {
+		t.Fatalf("UpdatePane: %v", err)
 	}
-
-	var pane WorkspacePane
-	if err := json.NewDecoder(rec.Body).Decode(&pane); err != nil {
-		t.Fatalf("decode: %v", err)
+	p := resp.Msg.GetPane()
+	if p.GetName() != "custom" {
+		t.Errorf("expected name custom, got %s", p.GetName())
 	}
-	if pane.Name != "custom" {
-		t.Errorf("expected name custom, got %s", pane.Name)
+	if p.GetHeaderColor() != "#ff0000" {
+		t.Errorf("expected color #ff0000, got %s", p.GetHeaderColor())
 	}
-	if pane.HeaderColor != "#ff0000" {
-		t.Errorf("expected color #ff0000, got %s", pane.HeaderColor)
+	if p.GetThemeId() != "dracula" {
+		t.Errorf("expected theme dracula, got %s", p.GetThemeId())
 	}
-	if pane.ThemeID != "dracula" {
-		t.Errorf("expected theme dracula, got %s", pane.ThemeID)
-	}
-	if pane.FontSize != 16 {
-		t.Errorf("expected font_size 16, got %d", pane.FontSize)
+	if p.GetFontSize() != 16 {
+		t.Errorf("expected font_size 16, got %d", p.GetFontSize())
 	}
 }
 
-func TestHandleUpdatePane_PartialUpdate(t *testing.T) {
-	srv := newFakeTestServer()
+func TestConnect_UpdatePane_PartialUpdate(t *testing.T) {
+	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*MemWorkspaceStore)
 	_ = store.UpsertPane(&WorkspacePane{
 		SessionID: "s1", Name: "original", HeaderColor: "#00ff00",
 		ThemeID: "monokai", FontSize: 14,
 	})
 
-	// Only update color
-	body := `{"header_color":"#ff0000"}`
-	req := httptest.NewRequest("PUT", "/api/v1/workspace/panes/s1", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"session_id": "s1"})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdatePane(rec, req)
-
-	var pane WorkspacePane
-	_ = json.NewDecoder(rec.Body).Decode(&pane)
-	if pane.Name != "original" {
-		t.Errorf("name should be preserved, got %s", pane.Name)
+	resp, err := harness.h.UpdatePane(context.Background(), connect.NewRequest(&workspacev1.UpdatePaneRequest{
+		SessionId:      "s1",
+		HeaderColor:    "#ff0000",
+		HasHeaderColor: true,
+	}))
+	if err != nil {
+		t.Fatalf("UpdatePane: %v", err)
 	}
-	if pane.HeaderColor != "#ff0000" {
-		t.Errorf("color should be updated, got %s", pane.HeaderColor)
+	p := resp.Msg.GetPane()
+	if p.GetName() != "original" {
+		t.Errorf("name should be preserved, got %s", p.GetName())
 	}
-	if pane.ThemeID != "monokai" {
-		t.Errorf("theme should be preserved, got %s", pane.ThemeID)
+	if p.GetHeaderColor() != "#ff0000" {
+		t.Errorf("color should be updated, got %s", p.GetHeaderColor())
+	}
+	if p.GetThemeId() != "monokai" {
+		t.Errorf("theme should be preserved, got %s", p.GetThemeId())
 	}
 }
 
-func TestHandleDeletePane_Idempotent(t *testing.T) {
-	srv := newFakeTestServer()
-
-	req := httptest.NewRequest("DELETE", "/api/v1/workspace/panes/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"session_id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleDeletePane(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d", rec.Code)
+func TestConnect_DeletePane_Idempotent(t *testing.T) {
+	harness, _ := newWorkspaceConnectHandler(t)
+	_, err := harness.h.DeletePane(context.Background(), connect.NewRequest(&workspacev1.DeletePaneRequest{SessionId: "nonexistent"}))
+	if err != nil {
+		t.Fatalf("DeletePane: %v", err)
 	}
 }
 
-// --- Group handlers ---
+func TestConnect_UpdatePane_SetGroup(t *testing.T) {
+	harness, srv := newWorkspaceConnectHandler(t)
+	store := srv.workspace.(*MemWorkspaceStore)
+	group, _ := store.CreateGroup("Dev", "#3b82f6")
+	_ = store.UpsertPane(&WorkspacePane{SessionID: "s1", Name: "bash"})
 
-func TestHandleCreateGroup(t *testing.T) {
-	srv := newFakeTestServer()
-	body := `{"name":"Dev servers","color":"#e11d48"}`
-	req := httptest.NewRequest("POST", "/api/v1/workspace/groups", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
+	resp, err := harness.h.UpdatePane(context.Background(), connect.NewRequest(&workspacev1.UpdatePaneRequest{
+		SessionId:  "s1",
+		GroupId:    group.ID,
+		HasGroupId: true,
+	}))
+	if err != nil {
+		t.Fatalf("UpdatePane: %v", err)
+	}
+	if resp.Msg.GetPane().GetGroupId() != group.ID {
+		t.Errorf("expected group_id %s, got %s", group.ID, resp.Msg.GetPane().GetGroupId())
+	}
+}
 
-	srv.handleCreateGroup(rec, req)
+// --- Group ---
 
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+func TestConnect_CreateGroup(t *testing.T) {
+	harness, _ := newWorkspaceConnectHandler(t)
+	resp, err := harness.h.CreateGroup(context.Background(), connect.NewRequest(&workspacev1.CreateGroupRequest{
+		Name: "Dev servers", Color: "#e11d48",
+	}))
+	if err != nil {
+		t.Fatalf("CreateGroup: %v", err)
 	}
-
-	var group TabGroup
-	if err := json.NewDecoder(rec.Body).Decode(&group); err != nil {
-		t.Fatalf("decode: %v", err)
+	g := resp.Msg.GetGroup()
+	if g.GetName() != "Dev servers" {
+		t.Errorf("expected name 'Dev servers', got %s", g.GetName())
 	}
-	if group.Name != "Dev servers" {
-		t.Errorf("expected name 'Dev servers', got %s", group.Name)
+	if g.GetColor() != "#e11d48" {
+		t.Errorf("expected color #e11d48, got %s", g.GetColor())
 	}
-	if group.Color != "#e11d48" {
-		t.Errorf("expected color #e11d48, got %s", group.Color)
-	}
-	if group.ID == "" {
+	if g.GetId() == "" {
 		t.Error("expected generated ID")
 	}
 }
 
-func TestHandleCreateGroup_Defaults(t *testing.T) {
-	srv := newFakeTestServer()
-	body := `{}`
-	req := httptest.NewRequest("POST", "/api/v1/workspace/groups", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateGroup(rec, req)
-
-	var group TabGroup
-	_ = json.NewDecoder(rec.Body).Decode(&group)
-	if group.Name != "Group" {
-		t.Errorf("expected default name 'Group', got %s", group.Name)
+func TestConnect_CreateGroup_Defaults(t *testing.T) {
+	harness, _ := newWorkspaceConnectHandler(t)
+	resp, err := harness.h.CreateGroup(context.Background(), connect.NewRequest(&workspacev1.CreateGroupRequest{}))
+	if err != nil {
+		t.Fatalf("CreateGroup: %v", err)
 	}
-	if group.Color != "#3b82f6" {
-		t.Errorf("expected default color #3b82f6, got %s", group.Color)
+	g := resp.Msg.GetGroup()
+	if g.GetName() != "Group" {
+		t.Errorf("expected default name 'Group', got %s", g.GetName())
+	}
+	if g.GetColor() != "#3b82f6" {
+		t.Errorf("expected default color #3b82f6, got %s", g.GetColor())
 	}
 }
 
-func TestHandleUpdateGroup(t *testing.T) {
-	srv := newFakeTestServer()
+func TestConnect_UpdateGroup(t *testing.T) {
+	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*MemWorkspaceStore)
 	group, _ := store.CreateGroup("Old name", "#000000")
 
-	body := `{"name":"New name","is_collapsed":true}`
-	req := httptest.NewRequest("PUT", "/api/v1/workspace/groups/"+group.ID, strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"id": group.ID})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdateGroup(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := harness.h.UpdateGroup(context.Background(), connect.NewRequest(&workspacev1.UpdateGroupRequest{
+		Id:             group.ID,
+		Name:           "New name",
+		HasName:        true,
+		IsCollapsed:    true,
+		HasIsCollapsed: true,
+	}))
+	if err != nil {
+		t.Fatalf("UpdateGroup: %v", err)
 	}
-
-	var updated TabGroup
-	_ = json.NewDecoder(rec.Body).Decode(&updated)
-	if updated.Name != "New name" {
-		t.Errorf("expected name 'New name', got %s", updated.Name)
+	g := resp.Msg.GetGroup()
+	if g.GetName() != "New name" {
+		t.Errorf("expected name 'New name', got %s", g.GetName())
 	}
-	if !updated.IsCollapsed {
+	if !g.GetIsCollapsed() {
 		t.Error("expected is_collapsed to be true")
 	}
-	if updated.Color != "#000000" {
-		t.Errorf("color should be preserved, got %s", updated.Color)
+	if g.GetColor() != "#000000" {
+		t.Errorf("color should be preserved, got %s", g.GetColor())
 	}
 }
 
-func TestHandleUpdateGroup_NotFound(t *testing.T) {
-	srv := newFakeTestServer()
-	body := `{"name":"x"}`
-	req := httptest.NewRequest("PUT", "/api/v1/workspace/groups/nonexistent", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdateGroup(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d", rec.Code)
+func TestConnect_UpdateGroup_NotFound(t *testing.T) {
+	harness, _ := newWorkspaceConnectHandler(t)
+	_, err := harness.h.UpdateGroup(context.Background(), connect.NewRequest(&workspacev1.UpdateGroupRequest{
+		Id:      "nonexistent",
+		Name:    "x",
+		HasName: true,
+	}))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var connErr *connect.Error
+	if !errors.As(err, &connErr) || connErr.Code() != connect.CodeNotFound {
+		t.Errorf("expected NotFound, got %v", err)
 	}
 }
 
-func TestHandleDeleteGroup_Idempotent(t *testing.T) {
-	srv := newFakeTestServer()
-	req := httptest.NewRequest("DELETE", "/api/v1/workspace/groups/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleDeleteGroup(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d", rec.Code)
+func TestConnect_DeleteGroup_Idempotent(t *testing.T) {
+	harness, _ := newWorkspaceConnectHandler(t)
+	_, err := harness.h.DeleteGroup(context.Background(), connect.NewRequest(&workspacev1.DeleteGroupRequest{Id: "nonexistent"}))
+	if err != nil {
+		t.Fatalf("DeleteGroup: %v", err)
 	}
 }
 
-func TestHandleDeleteGroup_ClearsGroupOnPanes(t *testing.T) {
-	srv := newFakeTestServer()
+func TestConnect_DeleteGroup_ClearsGroupOnPanes(t *testing.T) {
+	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*MemWorkspaceStore)
 
 	group, _ := store.CreateGroup("Test", "#ff0000")
 	_ = store.UpsertPane(&WorkspacePane{SessionID: "s1", Name: "a", GroupID: group.ID})
 	_ = store.UpsertPane(&WorkspacePane{SessionID: "s2", Name: "b", GroupID: group.ID})
-	_ = store.UpsertPane(&WorkspacePane{SessionID: "s3", Name: "c"}) // not in group
+	_ = store.UpsertPane(&WorkspacePane{SessionID: "s3", Name: "c"})
 
-	req := httptest.NewRequest("DELETE", "/api/v1/workspace/groups/"+group.ID, nil)
-	req = mux.SetURLVars(req, map[string]string{"id": group.ID})
-	rec := httptest.NewRecorder()
-	srv.handleDeleteGroup(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d", rec.Code)
+	_, err := harness.h.DeleteGroup(context.Background(), connect.NewRequest(&workspacev1.DeleteGroupRequest{Id: group.ID}))
+	if err != nil {
+		t.Fatalf("DeleteGroup: %v", err)
 	}
 
-	// Verify panes had their group_id cleared
 	layout, _ := store.GetLayout()
 	for _, p := range layout.Panes {
 		if p.GroupID != "" {
@@ -305,56 +297,31 @@ func TestHandleDeleteGroup_ClearsGroupOnPanes(t *testing.T) {
 	}
 }
 
-func TestHandleUpdatePane_SetGroup(t *testing.T) {
-	srv := newFakeTestServer()
-	store := srv.workspace.(*MemWorkspaceStore)
-	group, _ := store.CreateGroup("Dev", "#3b82f6")
-	_ = store.UpsertPane(&WorkspacePane{SessionID: "s1", Name: "bash"})
-
-	body := `{"group_id":"` + group.ID + `"}`
-	req := httptest.NewRequest("PUT", "/api/v1/workspace/panes/s1", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"session_id": "s1"})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdatePane(rec, req)
-
-	var pane WorkspacePane
-	_ = json.NewDecoder(rec.Body).Decode(&pane)
-	if pane.GroupID != group.ID {
-		t.Errorf("expected group_id %s, got %s", group.ID, pane.GroupID)
-	}
-}
-
-func TestHandleGetLayout_WithGroups(t *testing.T) {
-	srv := newFakeTestServer()
+func TestConnect_GetLayout_WithGroups(t *testing.T) {
+	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*MemWorkspaceStore)
 	group, _ := store.CreateGroup("Servers", "#e11d48")
 	_ = store.UpsertPane(&WorkspacePane{SessionID: "s1", Name: "web", GroupID: group.ID, SortOrder: 0})
 	_ = store.UpsertPane(&WorkspacePane{SessionID: "s2", Name: "db", GroupID: group.ID, SortOrder: 1})
 	_ = store.UpsertPane(&WorkspacePane{SessionID: "s3", Name: "logs", SortOrder: 2})
 
-	req := httptest.NewRequest("GET", "/api/v1/workspace/layout", nil)
-	rec := httptest.NewRecorder()
-	srv.handleGetLayout(rec, req)
-
-	var resp LayoutResponse
-	_ = json.NewDecoder(rec.Body).Decode(&resp)
-
-	if len(resp.Panes) != 3 {
-		t.Fatalf("expected 3 panes, got %d", len(resp.Panes))
+	resp, err := harness.h.GetLayout(context.Background(), connect.NewRequest(&workspacev1.GetLayoutRequest{}))
+	if err != nil {
+		t.Fatalf("GetLayout: %v", err)
 	}
-	if len(resp.Groups) != 1 {
-		t.Fatalf("expected 1 group, got %d", len(resp.Groups))
+	if len(resp.Msg.GetPanes()) != 3 {
+		t.Fatalf("expected 3 panes, got %d", len(resp.Msg.GetPanes()))
 	}
-	if resp.Groups[0].Name != "Servers" {
-		t.Errorf("expected group name 'Servers', got %s", resp.Groups[0].Name)
+	if len(resp.Msg.GetGroups()) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(resp.Msg.GetGroups()))
+	}
+	if resp.Msg.GetGroups()[0].GetName() != "Servers" {
+		t.Errorf("expected group name 'Servers', got %s", resp.Msg.GetGroups()[0].GetName())
 	}
 
-	// Check pane-group association
 	groupedCount := 0
-	for _, p := range resp.Panes {
-		if p.GroupID == group.ID {
+	for _, p := range resp.Msg.GetPanes() {
+		if p.GetGroupId() == group.ID {
 			groupedCount++
 		}
 	}

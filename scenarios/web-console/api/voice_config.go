@@ -4,8 +4,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 )
@@ -189,31 +187,6 @@ func (s *Server) setVoiceConfig(cfg VoiceStreamConfig) {
 	s.voiceConfig = cfg
 }
 
-// handleGetVoiceConfig returns the current voice streaming configuration.
-// GET /api/v1/voice/config
-func (s *Server) handleGetVoiceConfig(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, s.getVoiceConfig())
-}
-
-// handleUpdateVoiceConfig applies a partial update to voice streaming config,
-// validates the result, persists to disk, and returns the updated config.
-// PUT /api/v1/voice/config
-func (s *Server) handleUpdateVoiceConfig(w http.ResponseWriter, r *http.Request) {
-	var patch VoiceStreamConfigPatch
-	if !decodeJSON(w, r, &patch) {
-		return
-	}
-	current := s.getVoiceConfig()
-	updated := patch.Apply(current)
-	if err := updated.Validate(); err != nil {
-		writeCatalogError(w, "invalid_body", err.Error())
-		return
-	}
-	s.setVoiceConfig(updated)
-	if err := saveVoiceConfig(s.voiceConfigPath, updated); err != nil {
-		log.Printf("voice-config: persist failed (in-memory updated): %v", err)
-	}
-	log.Printf("voice-config: updated: flush=%dms delta=%d overlap=%d",
-		updated.FlushIntervalMs, updated.MinDeltaBytes, updated.OverlapBytes)
-	writeJSON(w, http.StatusOK, updated)
-}
+// HTTP handlers for /voice/config have moved to the Connect VoiceService
+// (see handlers/voice and voice_adapter.go). Type, validation, and persistence
+// helpers above remain shared.

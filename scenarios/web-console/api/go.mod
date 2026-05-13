@@ -3,12 +3,14 @@ module web-console
 go 1.24.0
 
 require (
+	connectrpc.com/connect v1.19.2
 	github.com/creack/pty/v2 v2.0.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
 	modernc.org/sqlite v1.37.1
 )
 
@@ -22,6 +24,7 @@ require (
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	modernc.org/libc v1.65.7 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
@@ -32,3 +35,5 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto

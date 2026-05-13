@@ -16,6 +16,21 @@ const (
 
 var errTTSSummarizeCoolingDown = errors.New("summarization cooling down after a recent failure")
 
+// errSummarizeBudgetInThink / errSummarizeTruncated / errSummarizeEmptyAfterStrip
+// / errSummarizeTrulyEmpty are the four categorized empty-result sentinels used
+// by the service and error-message helpers. Each names a distinct failure mode
+// so logs and user-facing banners can say something actionable.
+var (
+	errSummarizeBudgetInThink   = summarizeError("budget exhausted inside <think>")
+	errSummarizeTruncated       = summarizeError("response truncated (done_reason=length)")
+	errSummarizeEmptyAfterStrip = summarizeError("empty after stripping <think> block")
+	errSummarizeTrulyEmpty      = summarizeError("truly empty response from model")
+)
+
+type summarizeError string
+
+func (e summarizeError) Error() string { return string(e) }
+
 type TTSSummarizeRequest struct {
 	EventID string
 	Path    string

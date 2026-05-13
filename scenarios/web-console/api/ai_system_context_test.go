@@ -1,12 +1,14 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+
+	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
 )
 
 // fakeLookPath returns a LookPathFunc that "finds" only the tools in the found set.
@@ -211,15 +213,9 @@ func TestEnrichedPromptReachesProvider_Generate(t *testing.T) {
 		},
 	}
 
-	body := strings.NewReader(`{"prompt":"find debugging docs"}`)
-	req := httptest.NewRequest("POST", "/api/v1/ai/generate", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleAIGenerate(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	h := newAIConnectHandlerForServer(srv)
+	if _, err := h.Generate(context.Background(), connect.NewRequest(&aiv1.GenerateRequest{Prompt: "find debugging docs"})); err != nil {
+		t.Fatalf("Generate: %v", err)
 	}
 	for _, want := range []string{"linux/amd64", "rg, fd", "bash"} {
 		if !strings.Contains(capturedSystem, want) {
@@ -247,22 +243,12 @@ func TestEnrichedPromptReachesProvider_Suggest(t *testing.T) {
 		},
 	}
 
-	body := strings.NewReader(`{"prompt":"find debugging docs"}`)
-	req := httptest.NewRequest("POST", "/api/v1/ai/suggest", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleAISuggest(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	h := newAIConnectHandlerForServer(srv)
+	resp, err := h.Suggest(context.Background(), connect.NewRequest(&aiv1.SuggestRequest{Prompt: "find debugging docs"}))
+	if err != nil {
+		t.Fatalf("Suggest: %v", err)
 	}
-
-	var resp AISuggestResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if len(resp.Commands) == 0 {
+	if len(resp.Msg.GetCommands()) == 0 {
 		t.Fatal("expected at least one command")
 	}
 	if !strings.Contains(capturedSystem, "rg") {

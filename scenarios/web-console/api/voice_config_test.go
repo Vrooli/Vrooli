@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+
+	voicev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/voice"
 )
 
 func TestDefaultVoiceStreamConfig(t *testing.T) {
@@ -251,20 +253,14 @@ func voiceConfigTestServer(t *testing.T) *Server {
 
 func TestHandleGetVoiceConfig(t *testing.T) {
 	srv := voiceConfigTestServer(t)
-
-	req := httptest.NewRequest("GET", "/api/v1/voice/config", nil)
-	rec := httptest.NewRecorder()
-	srv.handleGetVoiceConfig(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rec.Code)
+	cfg, err := callGetVoiceStreamConfig(t, srv)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	var cfg VoiceStreamConfig
-	if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if cfg != DefaultVoiceStreamConfig() {
+	def := DefaultVoiceStreamConfig()
+	if int(cfg.GetFlushIntervalMs()) != def.FlushIntervalMs ||
+		int(cfg.GetMinDeltaBytes()) != def.MinDeltaBytes ||
+		int(cfg.GetOverlapBytes()) != def.OverlapBytes {
 		t.Errorf("expected defaults, got %+v", cfg)
 	}
 }
@@ -272,121 +268,91 @@ func TestHandleGetVoiceConfig(t *testing.T) {
 func TestHandleUpdateVoiceConfig_Valid(t *testing.T) {
 	srv := voiceConfigTestServer(t)
 
-	body := `{"flushIntervalMs": 200, "overlapBytes": 0}`
-	req := httptest.NewRequest("PUT", "/api/v1/voice/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleUpdateVoiceConfig(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+	cfg, err := callUpdateVoiceStreamConfig(t, srv, &voicev1.UpdateStreamConfigRequest{
+		FlushIntervalMs:    200,
+		HasFlushIntervalMs: true,
+		OverlapBytes:       0,
+		HasOverlapBytes:    true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	var cfg VoiceStreamConfig
-	if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
-		t.Fatalf("decode: %v", err)
+	if cfg.GetFlushIntervalMs() != 200 {
+		t.Errorf("FlushIntervalMs = %d, want 200", cfg.GetFlushIntervalMs())
 	}
-	if cfg.FlushIntervalMs != 200 {
-		t.Errorf("FlushIntervalMs = %d, want 200", cfg.FlushIntervalMs)
+	if cfg.GetOverlapBytes() != 0 {
+		t.Errorf("OverlapBytes = %d, want 0", cfg.GetOverlapBytes())
 	}
-	if cfg.OverlapBytes != 0 {
-		t.Errorf("OverlapBytes = %d, want 0", cfg.OverlapBytes)
+	if cfg.GetMinDeltaBytes() != 4096 {
+		t.Errorf("MinDeltaBytes = %d, want 4096 (unchanged)", cfg.GetMinDeltaBytes())
 	}
-	// Unchanged fields should retain defaults
-	if cfg.MinDeltaBytes != 4096 {
-		t.Errorf("MinDeltaBytes = %d, want 4096 (unchanged)", cfg.MinDeltaBytes)
-	}
-	// Verify in-memory config was updated
 	mem := srv.getVoiceConfig()
 	if mem.FlushIntervalMs != 200 || mem.OverlapBytes != 0 {
 		t.Errorf("in-memory config not updated: %+v", mem)
 	}
-
-	// Verify file was persisted
 	loaded, err := loadVoiceConfig(srv.voiceConfigPath)
 	if err != nil {
 		t.Fatalf("load persisted: %v", err)
 	}
-	if loaded != cfg {
-		t.Errorf("persisted config mismatch: got %+v, want %+v", loaded, cfg)
+	if loaded.FlushIntervalMs != 200 || loaded.OverlapBytes != 0 {
+		t.Errorf("persisted config mismatch: got %+v", loaded)
 	}
 }
 
 func TestHandleUpdateVoiceConfig_OutOfRange(t *testing.T) {
 	srv := voiceConfigTestServer(t)
 
-	body := `{"flushIntervalMs": 50}`
-	req := httptest.NewRequest("PUT", "/api/v1/voice/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleUpdateVoiceConfig(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400, body: %s", rec.Code, rec.Body.String())
+	_, err := callUpdateVoiceStreamConfig(t, srv, &voicev1.UpdateStreamConfigRequest{
+		FlushIntervalMs:    50,
+		HasFlushIntervalMs: true,
+	})
+	if connectCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected CodeInvalidArgument, got %v (err=%v)", connectCode(err), err)
 	}
-
-	// Config should be unchanged
 	mem := srv.getVoiceConfig()
 	if mem != DefaultVoiceStreamConfig() {
 		t.Errorf("config should not have changed: %+v", mem)
 	}
 }
 
-func TestHandleUpdateVoiceConfig_InvalidJSON(t *testing.T) {
-	srv := voiceConfigTestServer(t)
-
-	req := httptest.NewRequest("PUT", "/api/v1/voice/config", strings.NewReader("{bad json"))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleUpdateVoiceConfig(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400", rec.Code)
-	}
-}
-
 func TestHandleUpdateVoiceConfig_PersistentMode(t *testing.T) {
 	srv := voiceConfigTestServer(t)
 
-	body := `{"persistentMode": true, "wakeWordEnabled": true, "wakeWordThreshold": 0.7, "segmentSilenceMs": 2000}`
-	req := httptest.NewRequest("PUT", "/api/v1/voice/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleUpdateVoiceConfig(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+	cfg, err := callUpdateVoiceStreamConfig(t, srv, &voicev1.UpdateStreamConfigRequest{
+		PersistentMode:       true,
+		HasPersistentMode:    true,
+		WakeWordEnabled:      true,
+		HasWakeWordEnabled:   true,
+		WakeWordThreshold:    0.7,
+		HasWakeWordThreshold: true,
+		SegmentSilenceMs:     2000,
+		HasSegmentSilenceMs:  true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	var cfg VoiceStreamConfig
-	if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if !cfg.PersistentMode {
+	if !cfg.GetPersistentMode() {
 		t.Error("PersistentMode should be true")
 	}
-	if !cfg.WakeWordEnabled {
+	if !cfg.GetWakeWordEnabled() {
 		t.Error("WakeWordEnabled should be true")
 	}
-	if cfg.WakeWordThreshold != 0.7 {
-		t.Errorf("WakeWordThreshold = %f, want 0.7", cfg.WakeWordThreshold)
+	if cfg.GetWakeWordThreshold() != 0.7 {
+		t.Errorf("WakeWordThreshold = %f, want 0.7", cfg.GetWakeWordThreshold())
 	}
-	if cfg.SegmentSilenceMs != 2000 {
-		t.Errorf("SegmentSilenceMs = %d, want 2000", cfg.SegmentSilenceMs)
+	if cfg.GetSegmentSilenceMs() != 2000 {
+		t.Errorf("SegmentSilenceMs = %d, want 2000", cfg.GetSegmentSilenceMs())
 	}
 }
 
 func TestHandleUpdateVoiceConfig_SegmentSilenceOutOfRange(t *testing.T) {
 	srv := voiceConfigTestServer(t)
-
-	body := `{"segmentSilenceMs": 500}`
-	req := httptest.NewRequest("PUT", "/api/v1/voice/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleUpdateVoiceConfig(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400, body: %s", rec.Code, rec.Body.String())
+	_, err := callUpdateVoiceStreamConfig(t, srv, &voicev1.UpdateStreamConfigRequest{
+		SegmentSilenceMs:    500,
+		HasSegmentSilenceMs: true,
+	})
+	if connectCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected CodeInvalidArgument, got %v", connectCode(err))
 	}
 }
 
@@ -431,29 +397,17 @@ func TestVoiceStreamMessage_SegmentIndexOmitEmpty(t *testing.T) {
 func TestHandleGetVoiceConfig_AfterPut(t *testing.T) {
 	srv := voiceConfigTestServer(t)
 
-	// PUT to change config
-	putBody := `{"minDeltaBytes": 8192}`
-	putReq := httptest.NewRequest("PUT", "/api/v1/voice/config", strings.NewReader(putBody))
-	putReq.Header.Set("Content-Type", "application/json")
-	putRec := httptest.NewRecorder()
-	srv.handleUpdateVoiceConfig(putRec, putReq)
-	if putRec.Code != http.StatusOK {
-		t.Fatalf("PUT status = %d, want 200", putRec.Code)
+	if _, err := callUpdateVoiceStreamConfig(t, srv, &voicev1.UpdateStreamConfigRequest{
+		MinDeltaBytes:    8192,
+		HasMinDeltaBytes: true,
+	}); err != nil {
+		t.Fatalf("PUT: %v", err)
 	}
-
-	// GET should reflect the update
-	getReq := httptest.NewRequest("GET", "/api/v1/voice/config", nil)
-	getRec := httptest.NewRecorder()
-	srv.handleGetVoiceConfig(getRec, getReq)
-	if getRec.Code != http.StatusOK {
-		t.Fatalf("GET status = %d, want 200", getRec.Code)
+	cfg, err := callGetVoiceStreamConfig(t, srv)
+	if err != nil {
+		t.Fatalf("GET: %v", err)
 	}
-
-	var cfg VoiceStreamConfig
-	if err := json.NewDecoder(getRec.Body).Decode(&cfg); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if cfg.MinDeltaBytes != 8192 {
-		t.Errorf("MinDeltaBytes = %d, want 8192", cfg.MinDeltaBytes)
+	if cfg.GetMinDeltaBytes() != 8192 {
+		t.Errorf("MinDeltaBytes = %d, want 8192", cfg.GetMinDeltaBytes())
 	}
 }

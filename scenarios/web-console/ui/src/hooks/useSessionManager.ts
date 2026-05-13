@@ -46,6 +46,7 @@ export function useSessionManager() {
   const [panes, setPanes] = useState<PaneState[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<ErrorInfo | null>(null);
+  const [hydrationError, setHydrationError] = useState<ErrorInfo | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const terminalRefs = useRef<Map<string, TerminalPaneHandle>>(new Map());
   const pendingCommands = useRef<Map<string, string>>(new Map());
@@ -76,6 +77,25 @@ export function useSessionManager() {
         const layout = layoutResult.status === "fulfilled" ? layoutResult.value : null;
 
         if (canceled) return;
+
+        // Surface per-call failures. Logging always (so a single-call
+        // regression is visible without devtools-on-mobile); the UI banner
+        // fires only when both calls fail, because a single failure usually
+        // means a degraded surface rather than a totally broken hydration
+        // (e.g. layout fetch fails but sessions still render via the
+        // fallback path below).
+        if (sessionsResult.status === "rejected") {
+          console.error("hydratePanes: listSessions failed", sessionsResult.reason);
+        }
+        if (layoutResult.status === "rejected") {
+          console.error("hydratePanes: getWorkspaceLayout failed", layoutResult.reason);
+        }
+        if (sessionsResult.status === "rejected" && layoutResult.status === "rejected") {
+          setHydrationError({
+            ...toErrorInfo(sessionsResult.reason),
+            retry: true,
+          });
+        }
 
         if (sessions.length > 0) {
           // Build a lookup of supports_messages_view from the backend layout
@@ -160,8 +180,15 @@ export function useSessionManager() {
             activePane: sessions[0]?.id || null,
           });
         }
-      } catch {
-        // Best-effort hydration: keep empty-state on API/list failures.
+      } catch (err) {
+        // Unexpected synchronous failure inside the hydration pipeline
+        // (decoder bug, type mismatch, etc.). The per-call rejection paths
+        // above already cover network failures; reaching this catch means
+        // something is structurally wrong, so surface it.
+        if (!canceled) {
+          console.error("hydratePanes: unexpected failure", err);
+          setHydrationError({ ...toErrorInfo(err), retry: true });
+        }
       } finally {
         if (!canceled) setIsHydrated(true);
       }
@@ -188,6 +215,10 @@ export function useSessionManager() {
       dismissTimerRef.current = null;
     }
     setCreateError(null);
+  }, []);
+
+  const clearHydrationError = useCallback(() => {
+    setHydrationError(null);
   }, []);
 
   // Guard against concurrent creation requests (e.g., rapid double-click).
@@ -409,7 +440,9 @@ export function useSessionManager() {
     isHydrated,
     isCreating,
     createError,
+    hydrationError,
     clearError,
+    clearHydrationError,
     launchSession,
     handleTerminalReady,
     removePane,

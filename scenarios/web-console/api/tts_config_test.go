@@ -2,13 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
+
+	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/tts"
 )
 
 func TestLoadTTSConfig_MissingFile(t *testing.T) {
@@ -86,18 +85,11 @@ func TestHandleGetTTSConfig(t *testing.T) {
 	srv.ttsConfig = TTSConfig{AutoEnabled: true, Backend: "kokoro", KokoroVoice: "af_heart", KokoroSpeed: 1.0}
 	srv.ttsConfigPath = filepath.Join(t.TempDir(), "tts-config.json")
 
-	req := httptest.NewRequest("GET", "/api/v1/tts/config", nil)
-	rec := httptest.NewRecorder()
-	srv.handleGetTTSConfig(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	cfg, err := callGetTTSConfig(t, srv)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	var cfg TTSConfig
-	if err := json.Unmarshal(rec.Body.Bytes(), &cfg); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if !cfg.AutoEnabled {
+	if !cfg.GetAutoEnabled() {
 		t.Error("expected autoEnabled=true")
 	}
 }
@@ -108,24 +100,16 @@ func TestHandleUpdateTTSConfig(t *testing.T) {
 	srv.ttsConfig = DefaultTTSConfig()
 	srv.ttsConfigPath = filepath.Join(dir, "tts-config.json")
 
-	body := strings.NewReader(`{"autoEnabled": true}`)
-	req := httptest.NewRequest("PUT", "/api/v1/tts/config", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleUpdateTTSConfig(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	cfg, err := callUpdateTTSConfig(t, srv, &ttsv1.UpdateConfigRequest{
+		AutoEnabled: true, HasAutoEnabled: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	var cfg TTSConfig
-	if err := json.Unmarshal(rec.Body.Bytes(), &cfg); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if !cfg.AutoEnabled {
+	if !cfg.GetAutoEnabled() {
 		t.Error("expected autoEnabled=true after patch")
 	}
 
-	// Verify persisted to disk
 	data, err := os.ReadFile(srv.ttsConfigPath)
 	if err != nil {
 		t.Fatalf("config file not written: %v", err)
@@ -294,24 +278,17 @@ func TestHandleGetTTSStatus_SeparatesHookAndTailerRoutingAndAck(t *testing.T) {
 		Backend:   "browser",
 	})
 
-	req := httptest.NewRequest("GET", "/api/v1/tts/status", nil)
-	rec := httptest.NewRecorder()
-	srv.handleGetTTSStatus(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	status, err := callGetTTSStatus(t, srv)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	var status TTSRuntimeStatus
-	if err := json.Unmarshal(rec.Body.Bytes(), &status); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
+	if status.GetLastHookRouting() == nil || status.GetLastHookRouting().GetSource() != "claude_hook" {
+		t.Fatalf("expected last hook routing, got %+v", status.GetLastHookRouting())
 	}
-	if status.LastHookRouting == nil || status.LastHookRouting.Source != "claude_hook" {
-		t.Fatalf("expected last hook routing, got %+v", status.LastHookRouting)
+	if status.GetLastTailerRouting() == nil || status.GetLastTailerRouting().GetSource() != "codex_tailer" {
+		t.Fatalf("expected last tailer routing, got %+v", status.GetLastTailerRouting())
 	}
-	if status.LastTailerRouting == nil || status.LastTailerRouting.Source != "codex_tailer" {
-		t.Fatalf("expected last tailer routing, got %+v", status.LastTailerRouting)
-	}
-	if status.LastHookAck == nil || status.LastHookAck.Source != "claude_hook" {
-		t.Fatalf("expected last hook ack, got %+v", status.LastHookAck)
+	if status.GetLastHookAck() == nil || status.GetLastHookAck().GetSource() != "claude_hook" {
+		t.Fatalf("expected last hook ack, got %+v", status.GetLastHookAck())
 	}
 }

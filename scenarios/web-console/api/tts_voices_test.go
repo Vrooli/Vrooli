@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
 )
 
 // mockVoiceLister implements TTSVoiceLister for testing.
@@ -47,20 +47,12 @@ func TestHandleTTSVoices_HappyPath(t *testing.T) {
 		},
 	}, true)
 
-	req := httptest.NewRequest("GET", "/api/v1/tts/voices", nil)
-	rec := httptest.NewRecorder()
-	srv.handleTTSVoices(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	voices, err := callTTSVoices(t, srv)
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
 	}
-	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
-		t.Errorf("expected Content-Type application/json, got %s", ct)
-	}
-	// Verify the body contains voice data
-	body := rec.Body.String()
-	if body == "" || body == "null\n" {
-		t.Error("expected non-empty voice list")
+	if len(voices) != 2 {
+		t.Fatalf("expected 2 voices, got %d", len(voices))
 	}
 }
 
@@ -69,26 +61,20 @@ func TestHandleTTSVoices_503WhenCapabilityUnavailable(t *testing.T) {
 		voices: []TTSVoice{{ID: "af_heart", Name: "af_heart"}},
 	}, false)
 
-	req := httptest.NewRequest("GET", "/api/v1/tts/voices", nil)
-	rec := httptest.NewRecorder()
-	srv.handleTTSVoices(rec, req)
-
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected 503, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callTTSVoices(t, srv)
+	if connectCode(err) != connect.CodeUnavailable {
+		t.Fatalf("expected CodeUnavailable, got %v (err=%v)", connectCode(err), err)
 	}
 }
 
-func TestHandleTTSVoices_502OnListerError(t *testing.T) {
+func TestHandleTTSVoices_OnListerError(t *testing.T) {
 	srv := newVoicesTestServer(&mockVoiceLister{
 		err: errors.New("kokoro down"),
 	}, true)
 
-	req := httptest.NewRequest("GET", "/api/v1/tts/voices", nil)
-	rec := httptest.NewRecorder()
-	srv.handleTTSVoices(rec, req)
-
-	if rec.Code != http.StatusBadGateway {
-		t.Fatalf("expected 502, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callTTSVoices(t, srv)
+	if connectCode(err) != connect.CodeInternal {
+		t.Fatalf("expected CodeInternal, got %v (err=%v)", connectCode(err), err)
 	}
 }
 
@@ -96,12 +82,8 @@ func TestHandleTTSVoices_NilLister(t *testing.T) {
 	srv := newVoicesTestServer(nil, true)
 	srv.ttsVoiceLister = nil
 
-	req := httptest.NewRequest("GET", "/api/v1/tts/voices", nil)
-	rec := httptest.NewRecorder()
-	srv.handleTTSVoices(rec, req)
-
-	// Should return an error when lister is nil
-	if rec.Code == http.StatusOK {
-		t.Fatal("expected error when voice lister is nil")
+	_, err := callTTSVoices(t, srv)
+	if connectCode(err) == connect.CodeUnknown {
+		t.Fatalf("expected a Connect error, got %v", err)
 	}
 }

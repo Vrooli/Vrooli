@@ -4,11 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 )
 
 // TTSConfig holds configuration for automatic text-to-speech delivery.
@@ -122,130 +119,7 @@ func (s *Server) setTTSConfig(cfg TTSConfig) {
 	s.ttsConfig = cfg
 }
 
-// handleGetTTSConfig returns the current TTS configuration.
-// GET /api/v1/tts/config
-func (s *Server) handleGetTTSConfig(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, s.getTTSConfig())
-}
-
-type TTSRuntimeStatus struct {
-	Config                TTSConfig                 `json:"config"`
-	HookRegistered        bool                      `json:"hookRegistered"`
-	HookCode              string                    `json:"hookCode,omitempty"`
-	HookReason            string                    `json:"hookReason"`
-	HookSettingsPath      string                    `json:"hookSettingsPath,omitempty"`
-	LastRouting           *ConversationAppendResult `json:"lastRouting,omitempty"`
-	LastRoutingAt         string                    `json:"lastRoutingAt,omitempty"`
-	LastHookRouting       *ConversationAppendResult `json:"lastHookRouting,omitempty"`
-	LastHookRoutingAt     string                    `json:"lastHookRoutingAt,omitempty"`
-	LastTailerRouting     *ConversationAppendResult `json:"lastTailerRouting,omitempty"`
-	LastTailerRoutingAt   string                    `json:"lastTailerRoutingAt,omitempty"`
-	LastAck               *TTSClientAck             `json:"lastAck,omitempty"`
-	LastAckAt             string                    `json:"lastAckAt,omitempty"`
-	LastHookAck           *TTSClientAck             `json:"lastHookAck,omitempty"`
-	LastHookAckAt         string                    `json:"lastHookAckAt,omitempty"`
-	LastTailerAck         *TTSClientAck             `json:"lastTailerAck,omitempty"`
-	LastTailerAckAt       string                    `json:"lastTailerAckAt,omitempty"`
-	LastPlaybackEvent     *TTSPlaybackEvent         `json:"lastPlaybackEvent,omitempty"`
-	LastPlaybackAt        string                    `json:"lastPlaybackAt,omitempty"`
-	KokoroCapability      string                    `json:"kokoroCapability,omitempty"`
-	KokoroCapabilityLabel string                    `json:"kokoroCapabilityLabel,omitempty"`
-}
-
-func (s *Server) handleGetTTSStatus(w http.ResponseWriter, r *http.Request) {
-	hookRegistered, hookCode, hookReason, hookSettingsPath := s.getClaudeHookStatus()
-	lastRouting, lastRoutingAt := s.getLastTTSRouting()
-	lastHookRouting, lastHookRoutingAt := s.getLastTTSRoutingBySource("claude_hook")
-	lastTailerRouting, lastTailerRoutingAt := s.getLastTTSRoutingBySource("codex_tailer")
-	lastAck, lastAckAt := s.getLastTTSAck()
-	lastHookAck, lastHookAckAt := s.getLastTTSAckBySource("claude_hook")
-	lastTailerAck, lastTailerAckAt := s.getLastTTSAckBySource("codex_tailer")
-	lastPlaybackEvent, lastPlaybackAt := s.getLastTTSPlaybackEvent()
-
-	kokoroCapability := "unknown"
-	kokoroCapabilityLabel := "Kokoro status not checked yet"
-	for _, cap := range s.capabilities.ResolveLiveness(r.Context()) {
-		if cap.ID == "kokoro-tts" {
-			kokoroCapability = string(cap.Status)
-			kokoroCapabilityLabel = strings.TrimSpace(cap.Message)
-			if kokoroCapabilityLabel == "" {
-				kokoroCapabilityLabel = "Kokoro status available"
-			}
-			break
-		}
-	}
-
-	status := TTSRuntimeStatus{
-		Config:                s.getTTSConfig(),
-		HookRegistered:        hookRegistered,
-		HookCode:              hookCode,
-		HookReason:            hookReason,
-		HookSettingsPath:      hookSettingsPath,
-		LastRouting:           lastRouting,
-		LastHookRouting:       lastHookRouting,
-		LastTailerRouting:     lastTailerRouting,
-		LastAck:               lastAck,
-		LastHookAck:           lastHookAck,
-		LastTailerAck:         lastTailerAck,
-		LastPlaybackEvent:     lastPlaybackEvent,
-		KokoroCapability:      kokoroCapability,
-		KokoroCapabilityLabel: kokoroCapabilityLabel,
-	}
-	if !lastRoutingAt.IsZero() {
-		status.LastRoutingAt = lastRoutingAt.UTC().Format(time.RFC3339)
-	}
-	if !lastHookRoutingAt.IsZero() {
-		status.LastHookRoutingAt = lastHookRoutingAt.UTC().Format(time.RFC3339)
-	}
-	if !lastTailerRoutingAt.IsZero() {
-		status.LastTailerRoutingAt = lastTailerRoutingAt.UTC().Format(time.RFC3339)
-	}
-	if !lastAckAt.IsZero() {
-		status.LastAckAt = lastAckAt.UTC().Format(time.RFC3339)
-	}
-	if !lastHookAckAt.IsZero() {
-		status.LastHookAckAt = lastHookAckAt.UTC().Format(time.RFC3339)
-	}
-	if !lastTailerAckAt.IsZero() {
-		status.LastTailerAckAt = lastTailerAckAt.UTC().Format(time.RFC3339)
-	}
-	if !lastPlaybackAt.IsZero() {
-		status.LastPlaybackAt = lastPlaybackAt.UTC().Format(time.RFC3339)
-	}
-	writeJSON(w, http.StatusOK, status)
-}
-
-// handleUpdateTTSConfig applies a partial update to TTS config,
-// persists to disk, and returns the updated config.
-// PUT /api/v1/tts/config
-func (s *Server) handleUpdateTTSConfig(w http.ResponseWriter, r *http.Request) {
-	var patch TTSConfigPatch
-	if !decodeJSON(w, r, &patch) {
-		return
-	}
-	current := s.getTTSConfig()
-	updated := patch.Apply(current)
-	switch updated.Backend {
-	case "", "auto", "kokoro", "browser":
-		if updated.Backend == "" {
-			updated.Backend = "auto"
-		}
-	default:
-		writeCatalogError(w, "invalid_body", "backend must be auto, kokoro, or browser")
-		return
-	}
-	if updated.KokoroVoice == "" {
-		updated.KokoroVoice = "af_heart"
-	}
-	if updated.KokoroSpeed < 0.5 || updated.KokoroSpeed > 4.0 {
-		writeCatalogError(w, "invalid_body", "kokoroSpeed must be between 0.5 and 4.0")
-		return
-	}
-	s.setTTSConfig(updated)
-	if err := saveTTSConfig(s.ttsConfigPath, updated); err != nil {
-		log.Printf("tts-config: persist failed (in-memory updated): %v", err)
-	}
-	log.Printf("tts-config: updated: autoEnabled=%v backend=%s voice=%s speed=%.1f",
-		updated.AutoEnabled, updated.Backend, updated.KokoroVoice, updated.KokoroSpeed)
-	writeJSON(w, http.StatusOK, updated)
-}
+// HTTP handlers for the TTS config/status/update endpoints have moved to
+// handlers/tts (Connect-RPC). The legacy types and validation now live in
+// tts_adapter.go; this file keeps only the config struct, patch type, and
+// persistence helpers.

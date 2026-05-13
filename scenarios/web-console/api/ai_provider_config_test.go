@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+
+	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
 )
 
 // [REQ:P1-003a] Provider Configuration Storage - store tests
@@ -18,7 +18,6 @@ func TestAIProviderConfigStore_Defaults(t *testing.T) {
 	if len(configs) != 2 {
 		t.Fatalf("expected 2 providers, got %d", len(configs))
 	}
-	// Should be sorted by priority (ollama=1, openrouter=2)
 	if configs[0].Name != "ollama" {
 		t.Errorf("expected first provider 'ollama', got %q", configs[0].Name)
 	}
@@ -33,7 +32,6 @@ func TestAIProviderConfigStore_Defaults(t *testing.T) {
 func TestAIProviderConfigStore_UpdateConfig(t *testing.T) {
 	store := NewAIProviderConfigStore()
 
-	// Disable ollama
 	ok := store.UpdateConfig("ollama", false, 1, 15, 2)
 	if !ok {
 		t.Fatal("expected update to succeed")
@@ -54,7 +52,6 @@ func TestAIProviderConfigStore_UpdateConfig(t *testing.T) {
 		}
 	}
 
-	// Unknown provider
 	if store.UpdateConfig("unknown", true, 1, 30, 0) {
 		t.Error("expected update of unknown provider to fail")
 	}
@@ -124,110 +121,95 @@ func TestAIProviderConfigStore_HealthTracking(t *testing.T) {
 	}
 }
 
-// [REQ:P1-003a] Provider Configuration Storage - handler tests
+// [REQ:P1-003a] Provider Configuration Storage - Connect handler tests
 
-func TestHandleGetAIConfig(t *testing.T) {
+func TestConnect_GetAIConfig(t *testing.T) {
 	srv := newFakeTestServer()
-	req := httptest.NewRequest("GET", "/api/v1/ai/config", nil)
-	rec := httptest.NewRecorder()
+	h := newAIConnectHandlerForServer(srv)
 
-	srv.handleGetAIConfig(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	resp, err := h.GetConfig(context.Background(), connect.NewRequest(&aiv1.GetConfigRequest{}))
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
 	}
-
-	var resp AIProviderConfigResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode: %v", err)
+	if len(resp.Msg.GetProviders()) != 2 {
+		t.Errorf("expected 2 providers, got %d", len(resp.Msg.GetProviders()))
 	}
-	if len(resp.Providers) != 2 {
-		t.Errorf("expected 2 providers, got %d", len(resp.Providers))
-	}
-	if len(resp.Health) != 2 {
-		t.Errorf("expected 2 health entries, got %d", len(resp.Health))
+	if len(resp.Msg.GetHealth()) != 2 {
+		t.Errorf("expected 2 health entries, got %d", len(resp.Msg.GetHealth()))
 	}
 }
 
-func TestHandleUpdateAIConfig(t *testing.T) {
+func TestConnect_UpdateAIConfig(t *testing.T) {
 	srv := newFakeTestServer()
+	h := newAIConnectHandlerForServer(srv)
 
-	body := `{"name":"ollama","enabled":false,"timeout_sec":10}`
-	req := httptest.NewRequest("PUT", "/api/v1/ai/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdateAIConfig(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	enabled := false
+	timeout := int32(10)
+	resp, err := h.UpdateConfig(context.Background(), connect.NewRequest(&aiv1.UpdateConfigRequest{
+		Name:          "ollama",
+		Enabled:       enabled,
+		HasEnabled:    true,
+		TimeoutSec:    timeout,
+		HasTimeoutSec: true,
+	}))
+	if err != nil {
+		t.Fatalf("UpdateConfig: %v", err)
 	}
-
-	var resp AIProviderConfigResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	for _, p := range resp.Providers {
-		if p.Name == "ollama" {
-			if p.Enabled {
+	for _, p := range resp.Msg.GetProviders() {
+		if p.GetName() == "ollama" {
+			if p.GetEnabled() {
 				t.Error("expected ollama disabled")
 			}
-			if p.TimeoutSec != 10 {
-				t.Errorf("expected timeout 10, got %d", p.TimeoutSec)
+			if p.GetTimeoutSec() != 10 {
+				t.Errorf("expected timeout 10, got %d", p.GetTimeoutSec())
 			}
 		}
 	}
 }
 
-func TestHandleUpdateAIConfig_InvalidTimeout(t *testing.T) {
+func TestConnect_UpdateAIConfig_InvalidTimeout(t *testing.T) {
 	srv := newFakeTestServer()
+	h := newAIConnectHandlerForServer(srv)
 
-	body := `{"name":"ollama","timeout_sec":999}`
-	req := httptest.NewRequest("PUT", "/api/v1/ai/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdateAIConfig(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", rec.Code)
+	_, err := h.UpdateConfig(context.Background(), connect.NewRequest(&aiv1.UpdateConfigRequest{
+		Name:          "ollama",
+		TimeoutSec:    999,
+		HasTimeoutSec: true,
+	}))
+	if err == nil {
+		t.Fatal("expected error for invalid timeout")
+	}
+	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
+		t.Errorf("expected CodeInvalidArgument, got %v", got)
 	}
 }
 
-func TestHandleUpdateAIConfig_UnknownProvider(t *testing.T) {
+func TestConnect_UpdateAIConfig_UnknownProvider(t *testing.T) {
 	srv := newFakeTestServer()
+	h := newAIConnectHandlerForServer(srv)
 
-	body := `{"name":"unknown"}`
-	req := httptest.NewRequest("PUT", "/api/v1/ai/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdateAIConfig(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", rec.Code)
+	_, err := h.UpdateConfig(context.Background(), connect.NewRequest(&aiv1.UpdateConfigRequest{
+		Name: "unknown",
+	}))
+	if err == nil {
+		t.Fatal("expected error for unknown provider")
+	}
+	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
+		t.Errorf("expected CodeInvalidArgument, got %v", got)
 	}
 }
 
-func TestHandleGetAIHealth(t *testing.T) {
+func TestConnect_GetAIHealth(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.aiConfig.RecordSuccess("ollama", 50*time.Millisecond)
 
-	req := httptest.NewRequest("GET", "/api/v1/ai/health", nil)
-	rec := httptest.NewRecorder()
-
-	srv.handleGetAIHealth(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	h := newAIConnectHandlerForServer(srv)
+	resp, err := h.GetHealth(context.Background(), connect.NewRequest(&aiv1.GetHealthRequest{}))
+	if err != nil {
+		t.Fatalf("GetHealth: %v", err)
 	}
-
-	var health []ProviderHealth
-	if err := json.Unmarshal(rec.Body.Bytes(), &health); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if len(health) != 2 {
-		t.Errorf("expected 2 health entries, got %d", len(health))
+	if len(resp.Msg.GetHealth()) != 2 {
+		t.Errorf("expected 2 health entries, got %d", len(resp.Msg.GetHealth()))
 	}
 }
 
@@ -246,7 +228,6 @@ func TestGenerateWithConfig_DisabledProvider(t *testing.T) {
 		workspace: NewMemWorkspaceStore(),
 	}
 
-	// Disable ollama
 	srv.aiConfig.UpdateConfig("ollama", false, 1, 30, 0)
 
 	cmd, provider, err := srv.executeAI(context.Background(), commandSystemPrompt, "test")

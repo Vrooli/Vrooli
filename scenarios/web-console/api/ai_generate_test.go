@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+
+	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
+	aiH "web-console/handlers/ai"
 )
 
 // fakeAIProvider is a test double for AIProvider.
@@ -132,94 +134,78 @@ func newTestServerWithAI(providers ...AIProvider) *Server {
 	}
 }
 
+// aiConnectIface is the public method surface NewConnectHandler returns.
+// The concrete *connectHandler type is unexported in the ai package, but
+// its exported methods are reachable through this interface.
+type aiConnectIface interface {
+	Generate(context.Context, *connect.Request[aiv1.GenerateRequest]) (*connect.Response[aiv1.GenerateResponse], error)
+	Suggest(context.Context, *connect.Request[aiv1.SuggestRequest]) (*connect.Response[aiv1.SuggestResponse], error)
+	GetConfig(context.Context, *connect.Request[aiv1.GetConfigRequest]) (*connect.Response[aiv1.GetConfigResponse], error)
+	UpdateConfig(context.Context, *connect.Request[aiv1.UpdateConfigRequest]) (*connect.Response[aiv1.UpdateConfigResponse], error)
+	GetHealth(context.Context, *connect.Request[aiv1.GetHealthRequest]) (*connect.Response[aiv1.GetHealthResponse], error)
+}
+
+func newAIConnectHandlerForServer(srv *Server) aiConnectIface {
+	return aiH.NewConnectHandler(aiH.Deps{Service: newAIAdapter(srv)})
+}
+
 // [REQ:P0-005a] - handler returns generated command
-func TestHandleAIGenerateSuccess(t *testing.T) {
+func TestConnect_AIGenerate_Success(t *testing.T) {
 	provider := &fakeAIProvider{name: "ollama", result: "find . -name '*.go'"}
 	srv := newTestServerWithAI(provider)
+	h := newAIConnectHandlerForServer(srv)
 
-	body := strings.NewReader(`{"prompt":"find all Go files"}`)
-	req := httptest.NewRequest("POST", "/api/v1/ai/generate", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleAIGenerate(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := h.Generate(context.Background(), connect.NewRequest(&aiv1.GenerateRequest{Prompt: "find all Go files"}))
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
 	}
-
-	var resp AIGenerateResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode response: %v", err)
+	if resp.Msg.GetCommand() != "find . -name '*.go'" {
+		t.Errorf("got command %q, want %q", resp.Msg.GetCommand(), "find . -name '*.go'")
 	}
-	if resp.Command != "find . -name '*.go'" {
-		t.Errorf("got command %q, want %q", resp.Command, "find . -name '*.go'")
-	}
-	if resp.Provider != "ollama" {
-		t.Errorf("got provider %q, want %q", resp.Provider, "ollama")
+	if resp.Msg.GetProvider() != "ollama" {
+		t.Errorf("got provider %q, want %q", resp.Msg.GetProvider(), "ollama")
 	}
 }
 
-// [REQ:P0-005a] - handler returns 400 for empty prompt
-func TestHandleAIGenerateEmptyPrompt(t *testing.T) {
+// [REQ:P0-005a] - handler returns InvalidArgument for empty prompt
+func TestConnect_AIGenerate_EmptyPrompt(t *testing.T) {
 	srv := newTestServerWithAI(&fakeAIProvider{name: "ollama", result: "ls"})
+	h := newAIConnectHandlerForServer(srv)
 
-	body := strings.NewReader(`{"prompt":""}`)
-	req := httptest.NewRequest("POST", "/api/v1/ai/generate", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleAIGenerate(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	_, err := h.Generate(context.Background(), connect.NewRequest(&aiv1.GenerateRequest{Prompt: ""}))
+	if err == nil {
+		t.Fatal("expected error for empty prompt")
+	}
+	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
+		t.Errorf("expected CodeInvalidArgument, got %v", got)
 	}
 }
 
-// [REQ:P0-005a] - handler returns 503 when all providers fail
-func TestHandleAIGenerateAllProvidersFail(t *testing.T) {
+// [REQ:P0-005a] - handler returns Unavailable when all providers fail
+func TestConnect_AIGenerate_AllProvidersFail(t *testing.T) {
 	provider := &fakeAIProvider{name: "ollama", err: fmt.Errorf("connection refused")}
 	srv := newTestServerWithAI(provider)
+	h := newAIConnectHandlerForServer(srv)
 
-	body := strings.NewReader(`{"prompt":"list files"}`)
-	req := httptest.NewRequest("POST", "/api/v1/ai/generate", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleAIGenerate(rec, req)
-
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected 503, got %d: %s", rec.Code, rec.Body.String())
+	_, err := h.Generate(context.Background(), connect.NewRequest(&aiv1.GenerateRequest{Prompt: "list files"}))
+	if err == nil {
+		t.Fatal("expected error when all providers fail")
 	}
-
-	var errResp ErrorResponse
-	if err := json.NewDecoder(rec.Body).Decode(&errResp); err != nil {
-		t.Fatalf("decode error response: %v", err)
-	}
-	if errResp.Code != "ai_provider_unavailable" {
-		t.Errorf("got error code %q, want %q", errResp.Code, "ai_provider_unavailable")
-	}
-	if !errResp.Retry {
-		t.Error("expected retry=true for provider unavailable")
+	if got := connect.CodeOf(err); got != connect.CodeUnavailable {
+		t.Errorf("expected CodeUnavailable, got %v", got)
 	}
 }
 
 // [REQ:P0-005a] - handler increments metrics
-func TestHandleAIGenerateMetrics(t *testing.T) {
+func TestConnect_AIGenerate_Metrics(t *testing.T) {
 	provider := &fakeAIProvider{name: "ollama", result: "pwd"}
 	srv := newTestServerWithAI(provider)
+	h := newAIConnectHandlerForServer(srv)
 
 	before := srv.metrics.AIGenerations.Load()
 
-	body := strings.NewReader(`{"prompt":"current directory"}`)
-	req := httptest.NewRequest("POST", "/api/v1/ai/generate", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleAIGenerate(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	if _, err := h.Generate(context.Background(), connect.NewRequest(&aiv1.GenerateRequest{Prompt: "current directory"})); err != nil {
+		t.Fatalf("Generate: %v", err)
 	}
 
 	after := srv.metrics.AIGenerations.Load()
@@ -228,8 +214,8 @@ func TestHandleAIGenerateMetrics(t *testing.T) {
 	}
 }
 
-// [REQ:P0-005a] - handler includes terminal context in prompt
-func TestHandleAIGenerateWithContext(t *testing.T) {
+// [REQ:P0-005a] - handler includes terminal context in user prompt
+func TestConnect_AIGenerate_WithContext(t *testing.T) {
 	var capturedUserPrompt string
 	provider := &contextCapturingProvider{
 		name:   "ollama",
@@ -239,19 +225,16 @@ func TestHandleAIGenerateWithContext(t *testing.T) {
 		},
 	}
 	srv := newTestServerWithAI(provider)
+	h := newAIConnectHandlerForServer(srv)
 
-	body := strings.NewReader(`{"prompt":"list temp files","context":"cwd: /home/user"}`)
-	req := httptest.NewRequest("POST", "/api/v1/ai/generate", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleAIGenerate(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	if _, err := h.Generate(context.Background(), connect.NewRequest(&aiv1.GenerateRequest{
+		Prompt:  "list temp files",
+		Context: "cwd: /home/user",
+	})); err != nil {
+		t.Fatalf("Generate: %v", err)
 	}
 	if !strings.Contains(capturedUserPrompt, "cwd: /home/user") {
-		t.Errorf("expected prompt to contain terminal context, got %q", capturedUserPrompt)
+		t.Errorf("expected user prompt to contain terminal context, got %q", capturedUserPrompt)
 	}
 }
 
@@ -268,29 +251,19 @@ func (c *contextCapturingProvider) Generate(_ context.Context, systemPrompt, use
 	return c.result, nil
 }
 
-// TestHandleAIGenerate_ExtractsCommand verifies the handler applies extractCommand
+// TestConnect_AIGenerate_ExtractsCommand verifies the adapter applies extractCommand
 // to raw AI output (strips code fences).
-func TestHandleAIGenerate_ExtractsCommand(t *testing.T) {
+func TestConnect_AIGenerate_ExtractsCommand(t *testing.T) {
 	provider := &fakeAIProvider{name: "ollama", result: "```bash\nls -la\n```"}
 	srv := newTestServerWithAI(provider)
+	h := newAIConnectHandlerForServer(srv)
 
-	body := strings.NewReader(`{"prompt":"list files"}`)
-	req := httptest.NewRequest("POST", "/api/v1/ai/generate", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleAIGenerate(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := h.Generate(context.Background(), connect.NewRequest(&aiv1.GenerateRequest{Prompt: "list files"}))
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
 	}
-
-	var resp AIGenerateResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if resp.Command != "ls -la" {
-		t.Errorf("got command %q, want %q", resp.Command, "ls -la")
+	if resp.Msg.GetCommand() != "ls -la" {
+		t.Errorf("got command %q, want %q", resp.Msg.GetCommand(), "ls -la")
 	}
 }
 

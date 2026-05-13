@@ -3,6 +3,7 @@ package domains
 import (
 	"web-console/cli/domains/ai"
 	"web-console/cli/domains/capabilities"
+	"web-console/cli/domains/conversation"
 	"web-console/cli/domains/events"
 	"web-console/cli/domains/metrics"
 	"web-console/cli/domains/session"
@@ -34,6 +35,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		settings.Register(core),
 		shortcuts.Register(core),
 		ai.Register(core),
+		conversation.Register(core),
 		voice.Register(core),
 		tts.Register(core),
 	}

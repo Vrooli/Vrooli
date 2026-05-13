@@ -1,14 +1,10 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
+	"connectrpc.com/connect"
 )
 
 // --- Policy validation tests ---
@@ -171,7 +167,7 @@ func TestSession_GetSetPolicy(t *testing.T) {
 
 // --- HTTP handler tests ---
 
-// [REQ:P1-001a] Expiration Policy Engine — GET handler
+// [REQ:P1-001a] Expiration Policy Engine — Get RPC
 func TestHandleGetPolicy(t *testing.T) {
 	srv := newFakeTestServer()
 	sess, err := srv.sessions.Create("", 80, 24, "", nil)
@@ -180,43 +176,27 @@ func TestHandleGetPolicy(t *testing.T) {
 	}
 	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
-	req := httptest.NewRequest("GET", "/api/v1/sessions/"+sess.ID+"/policy", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	rec := httptest.NewRecorder()
-
-	srv.handleGetPolicy(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	view, err := callGetPolicy(t, srv, sess.ID)
+	if err != nil {
+		t.Fatalf("GetPolicy: %v", err)
 	}
-
-	var resp PolicyResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
+	if view.GetPolicy().GetMode() != string(PolicyNever) {
+		t.Errorf("default should be never, got %s", view.GetPolicy().GetMode())
 	}
-	if resp.Policy.Mode != PolicyNever {
-		t.Errorf("default should be never, got %s", resp.Policy.Mode)
-	}
-	if resp.ExpiresAt != nil {
-		t.Error("never policy should have nil expires_at")
+	if view.GetHasExpiry() {
+		t.Error("never policy should not have expiry")
 	}
 }
 
 func TestHandleGetPolicy_NotFound(t *testing.T) {
 	srv := newFakeTestServer()
-
-	req := httptest.NewRequest("GET", "/api/v1/sessions/nonexistent/policy", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleGetPolicy(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", rec.Code)
+	_, err := callGetPolicy(t, srv, "nonexistent")
+	if got := connectCode(err); got != connect.CodeNotFound {
+		t.Errorf("expected CodeNotFound, got %s", got)
 	}
 }
 
-// [REQ:P1-001a] Expiration Policy Engine — PUT handler
+// [REQ:P1-001a] Expiration Policy Engine — Update RPC
 func TestHandleUpdatePolicy(t *testing.T) {
 	srv := newFakeTestServer()
 	sess, err := srv.sessions.Create("", 80, 24, "", nil)
@@ -225,30 +205,19 @@ func TestHandleUpdatePolicy(t *testing.T) {
 	}
 	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
-	body := strings.NewReader(`{"mode":"preset","duration":"8h"}`)
-	req := httptest.NewRequest("PUT", "/api/v1/sessions/"+sess.ID+"/policy", body)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdatePolicy(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	view, err := callUpdatePolicy(t, srv, sess.ID, "preset", "8h")
+	if err != nil {
+		t.Fatalf("UpdatePolicy: %v", err)
 	}
-
-	var resp PolicyResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
+	if view.GetPolicy().GetMode() != string(PolicyPreset) || view.GetPolicy().GetDuration() != "8h" {
+		t.Errorf("expected preset/8h, got %s/%s", view.GetPolicy().GetMode(), view.GetPolicy().GetDuration())
 	}
-	if resp.Policy.Mode != PolicyPreset || resp.Policy.Duration != "8h" {
-		t.Errorf("expected preset/8h, got %s/%s", resp.Policy.Mode, resp.Policy.Duration)
+	if !view.GetHasExpiry() {
+		t.Error("preset policy should have expiry")
 	}
-	if resp.ExpiresAt == nil {
-		t.Error("preset policy should have expires_at")
-	}
-	if resp.TTL == nil {
-		t.Error("preset policy should have ttl_seconds")
+	if view.GetExpiresAt() == "" || view.GetTtlSeconds() <= 0 {
+		t.Errorf("preset policy should have expires_at and positive ttl, got %q / %v",
+			view.GetExpiresAt(), view.GetTtlSeconds())
 	}
 }
 
@@ -260,86 +229,31 @@ func TestHandleUpdatePolicy_InvalidMode(t *testing.T) {
 	}
 	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
-	body := strings.NewReader(`{"mode":"bad"}`)
-	req := httptest.NewRequest("PUT", "/api/v1/sessions/"+sess.ID+"/policy", body)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdatePolicy(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if errResp.Code != "invalid_policy" {
-		t.Errorf("expected code=invalid_policy, got %s", errResp.Code)
-	}
-}
-
-func TestHandleUpdatePolicy_MalformedJSON(t *testing.T) {
-	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
-
-	body := strings.NewReader(`{bad json}`)
-	req := httptest.NewRequest("PUT", "/api/v1/sessions/"+sess.ID+"/policy", body)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdatePolicy(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rec.Code)
+	_, err = callUpdatePolicy(t, srv, sess.ID, "bad", "")
+	if got := connectCode(err); got != connect.CodeInvalidArgument {
+		t.Errorf("expected CodeInvalidArgument, got %s (err=%v)", got, err)
 	}
 }
 
 func TestHandleUpdatePolicy_NotFound(t *testing.T) {
 	srv := newFakeTestServer()
-
-	body := strings.NewReader(`{"mode":"never"}`)
-	req := httptest.NewRequest("PUT", "/api/v1/sessions/nonexistent/policy", body)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdatePolicy(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", rec.Code)
+	_, err := callUpdatePolicy(t, srv, "nonexistent", "never", "")
+	if got := connectCode(err); got != connect.CodeNotFound {
+		t.Errorf("expected CodeNotFound, got %s", got)
 	}
 }
 
 // Verify policy is included in session response
 func TestSessionResponse_IncludesPolicy(t *testing.T) {
 	srv := newFakeTestServer()
-
-	body := strings.NewReader(`{"cols":80,"rows":24}`)
-	req := httptest.NewRequest("POST", "/api/v1/sessions", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	sess, err := callCreate(t, srv, 80, 24, "")
+	if err != nil {
+		t.Fatalf("create: %v", err)
 	}
-
-	var resp SessionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
+	if sess.GetPolicy().GetMode() != string(PolicyNever) {
+		t.Errorf("new session should have never policy, got %s", sess.GetPolicy().GetMode())
 	}
-	if resp.Policy.Mode != PolicyNever {
-		t.Errorf("new session should have never policy, got %s", resp.Policy.Mode)
-	}
-
-	_ = srv.sessions.Delete(resp.ID)
+	_ = srv.sessions.Delete(sess.GetId())
 }
 
 // Verify error catalog includes invalid_policy

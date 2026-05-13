@@ -1,8 +1,6 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,56 +12,10 @@ import (
 // These validate that decision points are correctly classified and
 // that edge cases at decision boundaries behave as intended.
 
-// --- classifyCreateError: session creation error routing ---
-
-func TestClassifyCreateError_SessionLimit(t *testing.T) {
-	err := fmt.Errorf("%w (5)", ErrSessionLimitReached)
-	ae := classifyCreateError(err)
-	if ae.Code != "session_limit_reached" {
-		t.Errorf("expected code=session_limit_reached, got %s", ae.Code)
-	}
-	if ae.Status != http.StatusTooManyRequests {
-		t.Errorf("expected status 429, got %d", ae.Status)
-	}
-	if ae.Category != "resource_limit" {
-		t.Errorf("expected category=resource_limit, got %s", ae.Category)
-	}
-}
-
-func TestClassifyCreateError_PTYSpawnFailed(t *testing.T) {
-	err := fmt.Errorf("%w: /bin/nosh not found", ErrPTYSpawnFailed)
-	ae := classifyCreateError(err)
-	if ae.Code != "pty_spawn_failed" {
-		t.Errorf("expected code=pty_spawn_failed, got %s", ae.Code)
-	}
-	if ae.Status != http.StatusInternalServerError {
-		t.Errorf("expected status 500, got %d", ae.Status)
-	}
-}
-
-func TestClassifyCreateError_UnexpectedError(t *testing.T) {
-	err := fmt.Errorf("something completely unexpected")
-	ae := classifyCreateError(err)
-	if ae.Code != "internal_error" {
-		t.Errorf("expected code=internal_error, got %s", ae.Code)
-	}
-	if ae.Category != "internal" {
-		t.Errorf("expected category=internal, got %s", ae.Category)
-	}
-}
-
-// Verify that classifyCreateError preserves catalog metadata (recovery, retry)
-func TestClassifyCreateError_PreservesRecovery(t *testing.T) {
-	err := fmt.Errorf("%w (5)", ErrSessionLimitReached)
-	ae := classifyCreateError(err)
-	catalogEntry := errorCatalog["session_limit_reached"]
-	if ae.Recovery != catalogEntry.Recovery {
-		t.Errorf("recovery mismatch: got %q, want %q", ae.Recovery, catalogEntry.Recovery)
-	}
-	if ae.Retry != catalogEntry.Retry {
-		t.Errorf("retry mismatch: got %v, want %v", ae.Retry, catalogEntry.Retry)
-	}
-}
+// classifyCreateError tests moved to sessions_adapter_test.go: the Connect
+// handler maps session creation sentinels via mapCreateError + handler-level
+// sentinels (ErrResourceExhausted, ErrInternal, ErrUnavailable,
+// ErrInvalidArgument).
 
 // --- applySessionDefaults: zero-value substitution ---
 
@@ -139,57 +91,8 @@ func TestIsSessionLimitReached_AtLimit(t *testing.T) {
 	}
 }
 
-// --- buildPolicyResponse: TTL presence decision ---
-
-func TestBuildPolicyResponse_NeverMode_NoTTL(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
-	sess, _ := sm.Create("", 0, 0, "", nil)
-	defer func() { _ = sm.Delete(sess.ID) }()
-
-	policy := ExpirationPolicy{Mode: PolicyNever}
-	resp := buildPolicyResponse(sess, policy)
-	if resp.ExpiresAt != nil {
-		t.Error("never-expire policy should not have ExpiresAt")
-	}
-	if resp.TTL != nil {
-		t.Error("never-expire policy should not have TTL")
-	}
-}
-
-func TestBuildPolicyResponse_PresetMode_HasTTL(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
-	sess, _ := sm.Create("", 0, 0, "", nil)
-	defer func() { _ = sm.Delete(sess.ID) }()
-
-	policy := ExpirationPolicy{Mode: PolicyPreset, Duration: "1h"}
-	resp := buildPolicyResponse(sess, policy)
-	if resp.ExpiresAt == nil {
-		t.Error("preset policy should have ExpiresAt")
-	}
-	if resp.TTL == nil {
-		t.Error("preset policy should have TTL")
-	}
-	if *resp.TTL <= 0 {
-		t.Errorf("TTL should be positive for fresh session, got %f", *resp.TTL)
-	}
-}
-
-func TestBuildPolicyResponse_TTLClampedToZero(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
-	sess, _ := sm.Create("", 0, 0, "", nil)
-	defer func() { _ = sm.Delete(sess.ID) }()
-
-	// Force creation time far in the past
-	sess.CreatedAt = time.Now().Add(-2 * time.Hour)
-	policy := ExpirationPolicy{Mode: PolicyPreset, Duration: "1h"}
-	resp := buildPolicyResponse(sess, policy)
-	if resp.TTL == nil {
-		t.Fatal("should still have TTL field even when expired")
-	}
-	if *resp.TTL < 0 {
-		t.Errorf("TTL should be clamped to >= 0, got %f", *resp.TTL)
-	}
-}
+// PolicyView (HasExpiry+ExpiresAt+TTLSeconds) presence is covered by the
+// policy round-trip tests in session_policy_test.go.
 
 // --- resolveShell: fallback chain ---
 
@@ -315,38 +218,5 @@ func TestCustomDurationConstants(t *testing.T) {
 	}
 }
 
-// --- Session limit decision boundary with errors.Is ---
-
-func TestClassifyCreateError_WrappedSentinels(t *testing.T) {
-	// Ensure double-wrapped errors still classify correctly
-	innerLimit := fmt.Errorf("%w (5)", ErrSessionLimitReached)
-	outerLimit := fmt.Errorf("create: %w", innerLimit)
-	ae := classifyCreateError(outerLimit)
-	if ae.Code != "session_limit_reached" {
-		t.Errorf("double-wrapped limit error should classify as session_limit_reached, got %s", ae.Code)
-	}
-
-	innerPTY := fmt.Errorf("%w: exec: not found", ErrPTYSpawnFailed)
-	outerPTY := fmt.Errorf("create: %w", innerPTY)
-	ae = classifyCreateError(outerPTY)
-	if ae.Code != "pty_spawn_failed" {
-		t.Errorf("double-wrapped PTY error should classify as pty_spawn_failed, got %s", ae.Code)
-	}
-}
-
-// Verify classifyCreateError returns an appError usable with writeAppError
-func TestClassifyCreateError_IntegrationWithWriteAppError(t *testing.T) {
-	errs := []error{
-		fmt.Errorf("%w (2)", ErrSessionLimitReached),
-		fmt.Errorf("%w: no such file", ErrPTYSpawnFailed),
-		errors.New("unknown problem"),
-	}
-	for _, err := range errs {
-		ae := classifyCreateError(err)
-		rec := httptest.NewRecorder()
-		writeAppError(rec, ae)
-		if rec.Code < 400 {
-			t.Errorf("error %v should produce 4xx/5xx status, got %d", err, rec.Code)
-		}
-	}
-}
+// (sessions creation error mapping is now exercised end-to-end via the
+// Connect handler tests in session_handlers_test.go.)

@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+
+	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/tts"
 )
 
 func TestTTSSummarizeConfig_LoadSaveRoundTrip(t *testing.T) {
@@ -143,20 +144,12 @@ func TestHandleGetTTSSummarizeConfig(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.ttsSummarizeConfig = DefaultTTSSummarizeConfig()
 
-	req := httptest.NewRequest("GET", "/api/v1/tts/summarize/config", nil)
-	rec := httptest.NewRecorder()
-	srv.handleGetTTSSummarizeConfig(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	cfg, err := callGetTTSSummarizeConfig(t, srv)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	var cfg TTSSummarizeConfig
-	if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if cfg.Level != "moderate" {
-		t.Errorf("expected default level moderate, got %q", cfg.Level)
+	if cfg.GetLevel() != "moderate" {
+		t.Errorf("expected default level moderate, got %q", cfg.GetLevel())
 	}
 }
 
@@ -166,29 +159,22 @@ func TestHandleUpdateTTSSummarizeConfig(t *testing.T) {
 	srv.ttsSummarizeConfig = DefaultTTSSummarizeConfig()
 	srv.ttsSummarizePath = filepath.Join(dir, "config.json")
 
-	body := strings.NewReader(`{"enabled":true,"charThreshold":200,"level":"heavy"}`)
-	req := httptest.NewRequest("PUT", "/api/v1/tts/summarize/config", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdateTTSSummarizeConfig(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	cfg, err := callUpdateTTSSummarizeConfig(t, srv, &ttsv1.UpdateSummarizeConfigRequest{
+		Enabled: true, HasEnabled: true,
+		CharThreshold: 200, HasCharThreshold: true,
+		Level: "heavy", HasLevel: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	var cfg TTSSummarizeConfig
-	if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if !cfg.Enabled {
+	if !cfg.GetEnabled() {
 		t.Error("expected enabled")
 	}
-	if cfg.CharThreshold != 200 {
-		t.Errorf("expected charThreshold 200, got %d", cfg.CharThreshold)
+	if cfg.GetCharThreshold() != 200 {
+		t.Errorf("expected charThreshold 200, got %d", cfg.GetCharThreshold())
 	}
-	if cfg.Level != "heavy" {
-		t.Errorf("expected level heavy, got %q", cfg.Level)
+	if cfg.GetLevel() != "heavy" {
+		t.Errorf("expected level heavy, got %q", cfg.GetLevel())
 	}
 }
 
@@ -198,24 +184,14 @@ func TestHandleUpdateTTSSummarizeConfig_TimeoutAcceptsLargeValues(t *testing.T) 
 	srv.ttsSummarizeConfig = DefaultTTSSummarizeConfig()
 	srv.ttsSummarizePath = filepath.Join(dir, "config.json")
 
-	// 120s should be accepted — Ollama cold-loads + reasoning models need this
-	body := strings.NewReader(`{"timeoutSeconds":120}`)
-	req := httptest.NewRequest("PUT", "/api/v1/tts/summarize/config", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdateTTSSummarizeConfig(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 for 120s timeout, got %d: %s", rec.Code, rec.Body.String())
+	cfg, err := callUpdateTTSSummarizeConfig(t, srv, &ttsv1.UpdateSummarizeConfigRequest{
+		TimeoutSeconds: 120, HasTimeoutSeconds: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	var cfg TTSSummarizeConfig
-	if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if cfg.TimeoutSeconds != 120 {
-		t.Errorf("expected timeoutSeconds 120, got %d", cfg.TimeoutSeconds)
+	if cfg.GetTimeoutSeconds() != 120 {
+		t.Errorf("expected timeoutSeconds 120, got %d", cfg.GetTimeoutSeconds())
 	}
 }
 
@@ -223,15 +199,11 @@ func TestHandleUpdateTTSSummarizeConfig_TimeoutRejectsOver300(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.ttsSummarizeConfig = DefaultTTSSummarizeConfig()
 
-	body := strings.NewReader(`{"timeoutSeconds":301}`)
-	req := httptest.NewRequest("PUT", "/api/v1/tts/summarize/config", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdateTTSSummarizeConfig(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400 for 301s timeout, got %d", rec.Code)
+	_, err := callUpdateTTSSummarizeConfig(t, srv, &ttsv1.UpdateSummarizeConfigRequest{
+		TimeoutSeconds: 301, HasTimeoutSeconds: true,
+	})
+	if connectCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected CodeInvalidArgument, got %v (err=%v)", connectCode(err), err)
 	}
 }
 
@@ -247,14 +219,10 @@ func TestHandleUpdateTTSSummarizeConfig_InvalidLevel(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.ttsSummarizeConfig = DefaultTTSSummarizeConfig()
 
-	body := strings.NewReader(`{"level":"extreme"}`)
-	req := httptest.NewRequest("PUT", "/api/v1/tts/summarize/config", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpdateTTSSummarizeConfig(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", rec.Code)
+	_, err := callUpdateTTSSummarizeConfig(t, srv, &ttsv1.UpdateSummarizeConfigRequest{
+		Level: "extreme", HasLevel: true,
+	})
+	if connectCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected CodeInvalidArgument, got %v (err=%v)", connectCode(err), err)
 	}
 }

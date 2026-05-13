@@ -4,8 +4,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -31,12 +29,6 @@ type WakeWordTemplate struct {
 	Label     string          `json:"label"`
 	Threshold float64         `json:"threshold"`
 	UpdatedAt string          `json:"updatedAt"`
-}
-
-// WakeWordConfig is the top-level config returned by the GET endpoint.
-type WakeWordConfig struct {
-	Configured bool              `json:"configured"`
-	Template   *WakeWordTemplate `json:"template,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -131,53 +123,6 @@ func (s *Server) setWakeWordTemplate(tmpl *WakeWordTemplate) {
 	s.wakeWordTemplate = tmpl
 }
 
-// ---------------------------------------------------------------------------
-// HTTP handlers
-// ---------------------------------------------------------------------------
-
-// handleGetWakeWordConfig returns the current wake word configuration.
-// GET /api/v1/voice/wakeword
-func (s *Server) handleGetWakeWordConfig(w http.ResponseWriter, _ *http.Request) {
-	tmpl := s.getWakeWordTemplate()
-	cfg := WakeWordConfig{
-		Configured: tmpl != nil,
-		Template:   tmpl,
-	}
-	writeJSON(w, http.StatusOK, cfg)
-}
-
-// handleUpdateWakeWordTemplate saves a new wake word template.
-// PUT /api/v1/voice/wakeword
-func (s *Server) handleUpdateWakeWordTemplate(w http.ResponseWriter, r *http.Request) {
-	var tmpl WakeWordTemplate
-	if !decodeJSON(w, r, &tmpl) {
-		return
-	}
-	if err := validateWakeWordTemplate(&tmpl); err != nil {
-		writeCatalogError(w, "invalid_body", err.Error())
-		return
-	}
-	s.setWakeWordTemplate(&tmpl)
-	if err := saveWakeWordTemplate(s.wakeWordTemplatePath, &tmpl); err != nil {
-		log.Printf("wakeword: persist failed (in-memory updated): %v", err)
-	}
-	log.Printf("wakeword: template saved: label=%q samples=%d threshold=%.2f",
-		tmpl.Label, len(tmpl.Samples), tmpl.Threshold)
-	writeJSON(w, http.StatusOK, WakeWordConfig{
-		Configured: true,
-		Template:   &tmpl,
-	})
-}
-
-// handleDeleteWakeWordTemplate clears the stored wake word template.
-// DELETE /api/v1/voice/wakeword
-func (s *Server) handleDeleteWakeWordTemplate(w http.ResponseWriter, _ *http.Request) {
-	s.setWakeWordTemplate(nil)
-	if err := deleteWakeWordTemplate(s.wakeWordTemplatePath); err != nil {
-		log.Printf("wakeword: delete failed: %v", err)
-	}
-	log.Printf("wakeword: template cleared")
-	writeJSON(w, http.StatusOK, WakeWordConfig{
-		Configured: false,
-	})
-}
+// HTTP handlers for /voice/wakeword have moved to the Connect VoiceService
+// (see handlers/voice and voice_adapter.go). Types, persistence, and
+// validation helpers above remain shared.

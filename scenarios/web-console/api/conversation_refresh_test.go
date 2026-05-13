@@ -1,16 +1,16 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"context"
 	"testing"
 
-	"github.com/gorilla/mux"
+	"connectrpc.com/connect"
+
+	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
 )
 
 // TestGetConversationSession_SinceSequence_FiltersEvents verifies that
-// ?since_sequence=N returns only events with sequence > N, so reconnect /
+// since_sequence=N returns only events with sequence > N, so reconnect /
 // view-open refresh can close gaps cheaply.
 func TestGetConversationSession_SinceSequence_FiltersEvents(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
@@ -23,51 +23,43 @@ func TestGetConversationSession_SinceSequence_FiltersEvents(t *testing.T) {
 		}
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions/"+sess.ID+"/conversation?since_sequence=2", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	rec := httptest.NewRecorder()
-	srv.handleGetConversationSession(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := newConversationConnectHandlerForServer(srv).Get(
+		context.Background(),
+		connect.NewRequest(&conversationv1.GetRequest{SessionId: sess.ID, SinceSequence: 2}),
+	)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
 	}
-	var resp conversationSessionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode: %v", err)
+	if len(resp.Msg.GetEvents()) != 2 {
+		t.Fatalf("expected 2 events after since_sequence=2, got %d", len(resp.Msg.GetEvents()))
 	}
-	if len(resp.Events) != 2 {
-		t.Fatalf("expected 2 events after since_sequence=2, got %d", len(resp.Events))
-	}
-	for _, ev := range resp.Events {
-		if ev.Sequence <= 2 {
-			t.Errorf("expected every event sequence > 2, got %d (%q)", ev.Sequence, ev.Text)
+	for _, ev := range resp.Msg.GetEvents() {
+		if ev.GetSequence() <= 2 {
+			t.Errorf("expected every event sequence > 2, got %d (%q)", ev.GetSequence(), ev.GetText())
 		}
 	}
 }
 
 // TestGetConversationSession_SinceSequence_IgnoresInvalid verifies that a
-// malformed or negative since_sequence falls back to the full history —
-// crucial so a bad query never silently hides messages.
+// non-positive since_sequence falls back to the full history — crucial so a
+// bad value never silently hides messages. (Malformed string inputs are now
+// rejected at the proto layer rather than silently ignored, so this test
+// only exercises the documented 0 / negative fallback path.)
 func TestGetConversationSession_SinceSequence_IgnoresInvalid(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
 	srv.conversations = NewConversationStore()
 	srv.appendConversationEvent("only", sess.ID, "unit-test")
 
-	for _, q := range []string{"?since_sequence=abc", "?since_sequence=-5", "?since_sequence=0"} {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions/"+sess.ID+"/conversation"+q, nil)
-		req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-		rec := httptest.NewRecorder()
-		srv.handleGetConversationSession(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("%s: expected 200, got %d", q, rec.Code)
+	for _, since := range []int64{-5, 0} {
+		resp, err := newConversationConnectHandlerForServer(srv).Get(
+			context.Background(),
+			connect.NewRequest(&conversationv1.GetRequest{SessionId: sess.ID, SinceSequence: since}),
+		)
+		if err != nil {
+			t.Fatalf("since=%d: %v", since, err)
 		}
-		var resp conversationSessionResponse
-		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-			t.Fatalf("%s: decode: %v", q, err)
-		}
-		if len(resp.Events) != 1 {
-			t.Errorf("%s: expected 1 event (full fallback), got %d", q, len(resp.Events))
+		if len(resp.Msg.GetEvents()) != 1 {
+			t.Errorf("since=%d: expected 1 event (full fallback), got %d", since, len(resp.Msg.GetEvents()))
 		}
 	}
 }
@@ -93,7 +85,6 @@ func TestAppendConversation_DedupAcrossSources(t *testing.T) {
 		t.Errorf("expected duplicate to resolve to original event %s, got %s", first.EventID, second.EventID)
 	}
 
-	// And only one event should actually be stored.
 	state := srv.conversations.ListSession(sess.ID)
 	if len(state.Events) != 1 {
 		t.Errorf("expected exactly one stored event, got %d", len(state.Events))

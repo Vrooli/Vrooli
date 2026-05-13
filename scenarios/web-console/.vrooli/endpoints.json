@@ -7,14 +7,14 @@
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
         "type": "object",
         "properties": {
-          "status": "string",
+          "dependencies": "object",
           "readiness": "boolean",
-          "dependencies": "object"
+          "status": "string"
         }
       },
       "examples": [
@@ -25,91 +25,1538 @@
       ],
       "cli_mapping": {
         "command": "web-console status"
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
       }
     },
     {
-      "id": "create-session",
-      "path": "/api/v1/sessions",
+      "id": "ai_generate",
+      "path": "/vrooli.web_console.v1.ai.AIService/Generate",
       "method": "POST",
-      "summary": "Create a new terminal session",
-      "description": "Starts a new PTY-backed shell session and returns session metadata",
-      "category": "sessions",
+      "summary": "Generate a shell command from natural language",
+      "description": "Runs the provider chain (Ollama -> OpenRouter) to produce a single shell command for the given prompt.",
+      "category": "ai",
       "request": {
         "type": "object",
         "properties": {
-          "shell": "string (optional, defaults to user shell)",
-          "cols": "integer (optional, default 80)",
-          "rows": "integer (optional, default 24)"
+          "context": "string",
+          "prompt": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "id": "string",
-          "shell": "string",
-          "created_at": "string",
-          "cols": "integer",
-          "rows": "integer"
+          "command": "string",
+          "provider": "string"
         }
       },
-      "examples": [
+      "errors": [
         {
-          "name": "Create session",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/sessions -H 'Content-Type: application/json' -d '{\"cols\":80,\"rows\":24}'"
-        }
-      ]
-    },
-    {
-      "id": "list-sessions",
-      "path": "/api/v1/sessions",
-      "method": "GET",
-      "summary": "List all active terminal sessions",
-      "description": "Returns metadata for all live PTY sessions",
-      "category": "sessions",
-      "examples": [
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Prompt missing"
+        },
         {
-          "name": "List sessions",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/sessions"
+          "status": 503,
+          "code": "unavailable",
+          "description": "All AI providers failed"
         }
-      ]
+      ],
+      "cli_mapping": {
+        "command": "web-console ai generate",
+        "args": [
+          "--body-file"
+        ]
+      }
     },
     {
-      "id": "get-session",
-      "path": "/api/v1/sessions/{id}",
-      "method": "GET",
-      "summary": "Get a specific session",
-      "description": "Returns metadata for a single session by ID",
-      "category": "sessions"
+      "id": "ai_suggest",
+      "path": "/vrooli.web_console.v1.ai.AIService/Suggest",
+      "method": "POST",
+      "summary": "Suggest 1-3 candidate shell commands",
+      "description": "Runs the provider chain to produce 1-3 shell-command suggestions for the given prompt.",
+      "category": "ai",
+      "request": {
+        "type": "object",
+        "properties": {
+          "context": "string",
+          "prompt": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "commands": "[]string",
+          "provider": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Prompt missing"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "All AI providers failed"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console ai suggest",
+        "args": [
+          "--body-file"
+        ]
+      }
     },
     {
-      "id": "delete-session",
-      "path": "/api/v1/sessions/{id}",
-      "method": "DELETE",
-      "summary": "Terminate a session",
-      "description": "Kills the PTY process and removes the session",
-      "category": "sessions"
+      "id": "ai_config_get",
+      "path": "/vrooli.web_console.v1.ai.AIService/GetConfig",
+      "method": "POST",
+      "summary": "Get AI provider configuration and health",
+      "description": "Returns the persisted provider configs plus runtime health snapshot.",
+      "category": "ai",
+      "response": {
+        "type": "object",
+        "properties": {
+          "health": "[]ProviderHealth",
+          "providers": "[]ProviderConfig"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console ai config-get"
+      }
     },
     {
-      "id": "terminal-ws",
-      "path": "/api/v1/sessions/{id}/ws",
-      "method": "GET",
-      "summary": "WebSocket terminal I/O",
-      "description": "Upgrades to WebSocket for bidirectional terminal streaming. JSON message protocol with stdin/stdout/resize/exit types.",
-      "category": "terminal"
+      "id": "ai_config_update",
+      "path": "/vrooli.web_console.v1.ai.AIService/UpdateConfig",
+      "method": "POST",
+      "summary": "Update an AI provider's configuration",
+      "description": "Applies a partial update to one provider's config. Only fields with has_* = true are applied.",
+      "category": "ai",
+      "response": {
+        "type": "object",
+        "properties": {
+          "health": "[]ProviderHealth",
+          "providers": "[]ProviderConfig"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown provider or out-of-range value"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console ai config-set",
+        "args": [
+          "--body-file"
+        ]
+      }
     },
     {
-      "id": "get-events",
+      "id": "ai_health_get",
+      "path": "/vrooli.web_console.v1.ai.AIService/GetHealth",
+      "method": "POST",
+      "summary": "Get AI provider health",
+      "description": "Returns only the runtime provider health snapshot.",
+      "category": "ai",
+      "response": {
+        "type": "object",
+        "properties": {
+          "health": "[]ProviderHealth"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console ai health"
+      }
+    },
+    {
+      "id": "capabilities_get",
+      "path": "/vrooli.web_console.v1.capabilities.CapabilitiesService/Get",
+      "method": "POST",
+      "summary": "Get full capabilities snapshot",
+      "description": "Returns the full runtime-capability snapshot, including session backends and the active default backend. May trigger expensive verification checks when the server-side cache is stale.",
+      "category": "capabilities",
+      "response": {
+        "type": "object",
+        "properties": {
+          "capabilities": "CapabilityState[]",
+          "default_backend": "string",
+          "session_backends": "BackendOption[]",
+          "timestamp": "string"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console capabilities"
+      }
+    },
+    {
+      "id": "capabilities_liveness",
+      "path": "/vrooli.web_console.v1.capabilities.CapabilitiesService/Liveness",
+      "method": "POST",
+      "summary": "Fast capability liveness probe",
+      "description": "Returns cached full-check results when fresh, otherwise lightweight health checkers only. Suitable for hot-path callers like voice activation.",
+      "category": "capabilities",
+      "response": {
+        "type": "object",
+        "properties": {
+          "capabilities": "CapabilityState[]",
+          "timestamp": "string"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console capabilities",
+        "args": [
+          "--liveness"
+        ]
+      }
+    },
+    {
+      "id": "conversation_get",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/Get",
+      "method": "POST",
+      "summary": "Get a session's conversation history",
+      "description": "Returns events and cursor for a session; since_sequence > 0 returns only events after that sequence.",
+      "category": "conversation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "session_id": "string",
+          "since_sequence": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cursor": "ConversationCursor",
+          "events": "[]ConversationEvent",
+          "session_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing session_id"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console conversation get",
+        "args": [
+          "--session",
+          "--since"
+        ]
+      }
+    },
+    {
+      "id": "conversation_cursor_update",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/UpdateCursor",
+      "method": "POST",
+      "summary": "Update a session's read/listened cursor",
+      "description": "Partial update; only fields with has_* = true are applied.",
+      "category": "conversation",
+      "response": {
+        "type": "object",
+        "properties": {
+          "cursor": "ConversationCursor"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing session_id"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console conversation cursor-set",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "conversation_event_summarize",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/SummarizeEvent",
+      "method": "POST",
+      "summary": "Summarize one assistant event for TTS",
+      "description": "Re-runs the Ollama-backed summarizer on a single event and updates its speech paragraphs.",
+      "category": "conversation",
+      "response": {
+        "type": "object",
+        "properties": {
+          "error": "string",
+          "speech_paragraphs": "[]string",
+          "summarized": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing ids or event is not assistant-authored"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session or event not found"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console conversation summarize",
+        "args": [
+          "--session",
+          "--event"
+        ]
+      }
+    },
+    {
+      "id": "conversation_file_resolve",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/ResolveFileReference",
+      "method": "POST",
+      "summary": "Resolve a file reference for a session",
+      "description": "Translates a path string (with optional :line suffix or file:// scheme) into an absolute path that lives under an allowed root.",
+      "category": "conversation",
+      "response": {
+        "type": "object",
+        "properties": {
+          "can_preview": "bool",
+          "category": "string",
+          "exists": "bool",
+          "has_line": "bool",
+          "input_path": "string",
+          "line": "int32",
+          "resolution_basis": "string",
+          "resolved_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or malformed path"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Path resolved outside allowed roots"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session or file not found"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console conversation file-resolve",
+        "args": [
+          "--session",
+          "--path"
+        ]
+      }
+    },
+    {
+      "id": "conversation_file_content",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/GetFileReferenceContent",
+      "method": "POST",
+      "summary": "Read a previewable file referenced by a session",
+      "description": "Returns up to 256 KiB of UTF-8 text content for a path that resolved under an allowed root.",
+      "category": "conversation",
+      "response": {
+        "type": "object",
+        "properties": {
+          "category": "string",
+          "content": "string",
+          "content_type": "string",
+          "has_line": "bool",
+          "line": "int32",
+          "path": "string",
+          "truncated": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing path"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Path resolved outside allowed roots"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session or file not found"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "File type not previewable or too large"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console conversation file-content",
+        "args": [
+          "--session",
+          "--path"
+        ]
+      }
+    },
+    {
+      "id": "events_stream",
       "path": "/api/v1/events",
       "method": "GET",
-      "summary": "Recent structured events",
-      "description": "Returns recent lifecycle events from the in-memory ring buffer. Query param: limit (default 50, max 1000).",
-      "category": "observability",
-      "examples": [
-        {
-          "name": "Get recent events",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/events?limit=20"
+      "summary": "Server-sent events stream",
+      "description": "Server-Sent Events stream for live session/conversation updates consumed by the UI via EventSource.",
+      "category": "events",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "EventSource is a browser primitive with a fixed wire shape. Migration to Connect server-streaming is deferred to the final streams phase."
+      }
+    },
+    {
+      "id": "hooks_stop",
+      "path": "/api/v1/hooks/stop",
+      "method": "POST",
+      "summary": "Claude Code Stop hook receiver",
+      "description": "Inbound webhook from the Claude Code CLI fired on the Stop lifecycle event. Routes the assistant's final response into the conversation store and (when present) records agent identity for session recovery. Authenticated by the X-Hook-Token header.",
+      "category": "hooks",
+      "rest_exception": {
+        "reason": "webhook_receiver",
+        "note": "Called by the Claude Code CLI, which we do not control. Request shape is dictated by Claude Code and cannot be wrapped in a Connect client."
+      }
+    },
+    {
+      "id": "hooks_prompt_submit",
+      "path": "/api/v1/hooks/prompt-submit",
+      "method": "POST",
+      "summary": "Claude Code UserPromptSubmit hook receiver",
+      "description": "Inbound webhook from the Claude Code CLI fired when the user submits a prompt. Appends the prompt to the conversation store so the UI sees user turns even when typed through the agent CLI rather than the web console. Authenticated by the X-Hook-Token header.",
+      "category": "hooks",
+      "rest_exception": {
+        "reason": "webhook_receiver",
+        "note": "Called by the Claude Code CLI, which we do not control. Request shape is dictated by Claude Code and cannot be wrapped in a Connect client."
+      }
+    },
+    {
+      "id": "metrics_snapshot",
+      "path": "/api/v1/metrics",
+      "method": "GET",
+      "summary": "Operational metrics snapshot",
+      "description": "Returns a JSON snapshot of all operational metrics for monitoring/scrape tooling.",
+      "category": "system",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Metrics are consumed by external monitoring tooling whose scrape format we do not control. Stays REST and never becomes Connect."
+      }
+    },
+    {
+      "id": "sessions_create",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Create",
+      "method": "POST",
+      "summary": "Create a terminal session",
+      "description": "Spawns a PTY (ephemeral) or tmux pane (persistent). X-Idempotency-Key replays the cached response for 5 minutes.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "session": "Session"
         }
-      ]
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Malformed body or invalid policy"
+        },
+        {
+          "status": 429,
+          "code": "resource_exhausted",
+          "description": "Configured session limit reached"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Backend unavailable (e.g. tmux missing)"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console session create",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "sessions_list",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/List",
+      "method": "POST",
+      "summary": "List all active sessions",
+      "description": "Returns every live session known to the server, including persistent panes adopted from a prior restart.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "sessions": "[]Session"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console session list"
+      }
+    },
+    {
+      "id": "sessions_get",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Get",
+      "method": "POST",
+      "summary": "Get a session",
+      "description": "Returns one session by id.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "session": "Session"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console session get",
+        "args": [
+          "--id"
+        ]
+      }
+    },
+    {
+      "id": "sessions_delete",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Delete",
+      "method": "POST",
+      "summary": "Terminate a session",
+      "description": "Idempotent: succeeds whether or not the session existed.",
+      "category": "sessions",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console session delete",
+        "args": [
+          "--id"
+        ]
+      }
+    },
+    {
+      "id": "sessions_recoverable_list",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/ListRecoverable",
+      "method": "POST",
+      "summary": "List recoverable (orphaned) sessions",
+      "description": "Returns awaiting_recovery rows from the session store, ordered by recency.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "sessions": "[]RecoverableSession"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console session list-recoverable"
+      }
+    },
+    {
+      "id": "sessions_recoverable_dismiss",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/DismissRecoverable",
+      "method": "POST",
+      "summary": "Dismiss a recoverable session",
+      "description": "Marks a row dismissed without recovery. On-disk state (CODEX_HOME) is preserved.",
+      "category": "sessions",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such session row"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Session is not in awaiting_recovery status"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console session dismiss",
+        "args": [
+          "--id"
+        ]
+      }
+    },
+    {
+      "id": "sessions_recover",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Recover",
+      "method": "POST",
+      "summary": "Recover an orphaned session",
+      "description": "Spawns a fresh persistent pane, copies CODEX_HOME for codex agents, and pastes the resume command. Idempotent via X-Idempotency-Key.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "agent_type": "string",
+          "codex_home_copied": "bool",
+          "command_sent": "string",
+          "new_session_id": "string",
+          "old_session_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such session row"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Session is not awaiting_recovery, or no agent identity recorded"
+        },
+        {
+          "status": 429,
+          "code": "resource_exhausted",
+          "description": "Session limit reached while spawning replacement"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console session recover",
+        "args": [
+          "--id"
+        ]
+      }
+    },
+    {
+      "id": "sessions_policy_get",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/GetPolicy",
+      "method": "POST",
+      "summary": "Get a session's expiration policy",
+      "description": "Returns the policy plus derived expires_at/ttl_seconds (present only when has_expiry = true).",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "policy": "PolicyView"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console session policy-get",
+        "args": [
+          "--id"
+        ]
+      }
+    },
+    {
+      "id": "sessions_policy_update",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/UpdatePolicy",
+      "method": "POST",
+      "summary": "Update a session's expiration policy",
+      "description": "Sets a new policy. Replaying the same mode+duration is a no-op for the audit event log.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "policy": "PolicyView"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id, missing policy, or invalid mode/duration"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console session policy-set",
+        "args": [
+          "--id",
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "settings_session_defaults_get",
+      "path": "/vrooli.web_console.v1.settings.SettingsService/GetSessionDefaults",
+      "method": "POST",
+      "summary": "Get session defaults",
+      "description": "Returns the backend and expiration policy applied to newly created sessions when the client doesn't override them.",
+      "category": "settings",
+      "response": {
+        "type": "object",
+        "properties": {
+          "defaults": "SessionDefaults"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console settings session-defaults-get"
+      }
+    },
+    {
+      "id": "settings_session_defaults_update",
+      "path": "/vrooli.web_console.v1.settings.SettingsService/UpdateSessionDefaults",
+      "method": "POST",
+      "summary": "Update session defaults",
+      "description": "Sparse update: only the fields the caller sets are applied. Returns the merged defaults.",
+      "category": "settings",
+      "request": {
+        "type": "object",
+        "properties": {
+          "default_backend": "string (optional)",
+          "default_policy": "ExpirationPolicy (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "defaults": "SessionDefaults"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown backend or malformed expiration policy"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console settings session-defaults-set",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "shortcuts_get_effective",
+      "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/GetEffective",
+      "method": "POST",
+      "summary": "Get effective shortcuts",
+      "description": "Returns the resolved shortcut list — the highest-priority scope (parent > workspace > service) wins, falling back to built-in defaults if no profiles exist.",
+      "category": "shortcuts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "shortcuts": "[]Shortcut"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console shortcuts effective"
+      }
+    },
+    {
+      "id": "shortcuts_list_profiles",
+      "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/ListProfiles",
+      "method": "POST",
+      "summary": "List shortcut profiles",
+      "description": "Returns every stored shortcut profile across all scopes.",
+      "category": "shortcuts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "profiles": "[]Profile"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console shortcuts list"
+      }
+    },
+    {
+      "id": "shortcuts_upsert_profile",
+      "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/UpsertProfile",
+      "method": "POST",
+      "summary": "Create or update a shortcut profile",
+      "description": "Idempotent upsert keyed by id; updated_at is only bumped when content changes.",
+      "category": "shortcuts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "name": "string",
+          "scope": "string (service|workspace|parent)",
+          "shortcuts": "[]Shortcut"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "profile": "Profile"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown scope, blank id/name, or shortcut entry missing label/command"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console shortcuts upsert",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "shortcuts_delete_profile",
+      "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/DeleteProfile",
+      "method": "POST",
+      "summary": "Delete a shortcut profile",
+      "description": "Idempotent: succeeds whether the id exists or not.",
+      "category": "shortcuts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console shortcuts delete",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "terminal_upload",
+      "path": "/api/v1/sessions/{id}/upload",
+      "method": "POST",
+      "summary": "Upload an image to a terminal session",
+      "description": "Multipart image upload that stores the image under the session workspace so the user can reference it from the terminal by path.",
+      "category": "terminal",
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Multipart/form-data upload. Stays REST even post-Connect because Connect's wire format does not natively carry multipart payloads."
+      }
+    },
+    {
+      "id": "tts_config_get",
+      "path": "/vrooli.web_console.v1.tts.TTSService/GetConfig",
+      "method": "POST",
+      "summary": "Get TTS config",
+      "description": "Returns the active auto-TTS configuration (backend, voice, speed).",
+      "category": "tts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "Config"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console tts config-get"
+      }
+    },
+    {
+      "id": "tts_config_update",
+      "path": "/vrooli.web_console.v1.tts.TTSService/UpdateConfig",
+      "method": "POST",
+      "summary": "Update TTS config",
+      "description": "Applies a partial update. Each field has a paired has_* flag indicating intent to set.",
+      "category": "tts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "Config"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Bad backend, voice, or speed"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console tts config-set",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "tts_status",
+      "path": "/vrooli.web_console.v1.tts.TTSService/GetStatus",
+      "method": "POST",
+      "summary": "Get TTS runtime status",
+      "description": "Returns the live TTS snapshot: config, hook state, last routing/ack/playback per source, and the Kokoro capability label.",
+      "category": "tts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "Status"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console tts status"
+      }
+    },
+    {
+      "id": "tts_event_record",
+      "path": "/vrooli.web_console.v1.tts.TTSService/RecordPlaybackEvent",
+      "method": "POST",
+      "summary": "Record a TTS playback event",
+      "description": "UI clients post playback lifecycle events (start/end/error per source/backend).",
+      "category": "tts",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing source or stage"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console tts event",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "tts_summarize_config_get",
+      "path": "/vrooli.web_console.v1.tts.TTSService/GetSummarizeConfig",
+      "method": "POST",
+      "summary": "Get TTS summarization config",
+      "description": "Returns the long-response summarization config (threshold, level, model, timeout).",
+      "category": "tts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "SummarizeConfig"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console tts summarize-config-get"
+      }
+    },
+    {
+      "id": "tts_summarize_config_update",
+      "path": "/vrooli.web_console.v1.tts.TTSService/UpdateSummarizeConfig",
+      "method": "POST",
+      "summary": "Update TTS summarization config",
+      "description": "Applies a partial update. has_* flags signal intent to set per field.",
+      "category": "tts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "SummarizeConfig"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid level, threshold, timeout, or empty model"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console tts summarize-config-set",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "tts_synthesize",
+      "path": "/vrooli.web_console.v1.tts.TTSService/Synthesize",
+      "method": "POST",
+      "summary": "Synthesize text to audio (returns audio bytes)",
+      "description": "Proxies to the Kokoro backend. event_id + version trigger cache-on-write.",
+      "category": "tts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "audio": "bytes",
+          "content_type": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing/too-long input, or invalid response_format"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Kokoro TTS not available"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console tts synthesize",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "tts_cache_get",
+      "path": "/vrooli.web_console.v1.tts.TTSService/GetCache",
+      "method": "POST",
+      "summary": "Fetch cached TTS audio for an event",
+      "description": "Returns cached audio bytes for (event_id, voice, speed, version). Defaults to version=active.",
+      "category": "tts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "audio": "bytes",
+          "content_type": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing event_id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No cached audio for this event"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console tts cache-get",
+        "args": [
+          "--event-id"
+        ]
+      }
+    },
+    {
+      "id": "tts_voices",
+      "path": "/vrooli.web_console.v1.tts.TTSService/ListVoices",
+      "method": "POST",
+      "summary": "List available TTS voices",
+      "description": "Returns the list of voice IDs known to the Kokoro backend.",
+      "category": "tts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "voices": "[]Voice"
+        }
+      },
+      "errors": [
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Kokoro TTS not available"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console tts voices"
+      }
+    },
+    {
+      "id": "voice_transcribe",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/Transcribe",
+      "method": "POST",
+      "summary": "Transcribe audio bytes via Whisper",
+      "description": "Returns the transcribed text. Honors the server-side speaker-verification gate unless skip_speaker_verification is true.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "text": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or unreadable audio"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Whisper not available"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console voice transcribe",
+        "args": [
+          "--audio-file"
+        ]
+      }
+    },
+    {
+      "id": "voice_config_get",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/GetStreamConfig",
+      "method": "POST",
+      "summary": "Get voice stream config",
+      "description": "Returns the voice streaming pipeline tuning (flush, delta, overlap, persistent mode, wake-word knobs).",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "StreamConfig"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console voice config-get"
+      }
+    },
+    {
+      "id": "voice_config_update",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/UpdateStreamConfig",
+      "method": "POST",
+      "summary": "Update voice stream config",
+      "description": "Applies a partial update. has_* flags signal intent to set per field.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "StreamConfig"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Field out of range"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console voice config-set",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "voice_wakeword_get",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/GetWakeWordConfig",
+      "method": "POST",
+      "summary": "Get wake word config",
+      "description": "Returns the wake-word configuration. template_json is empty when configured=false.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "WakeWordConfig"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console voice wakeword-get"
+      }
+    },
+    {
+      "id": "voice_wakeword_update",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/UpdateWakeWordTemplate",
+      "method": "POST",
+      "summary": "Upload/update a wake word template",
+      "description": "Validates and persists the WakeWordTemplate JSON payload (samples, label, threshold).",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "WakeWordConfig"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Bad sample count, threshold, or kind"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console voice wakeword-set",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "voice_wakeword_delete",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/DeleteWakeWordTemplate",
+      "method": "POST",
+      "summary": "Delete the wake word template",
+      "description": "Clears the stored wake-word template.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "WakeWordConfig"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console voice wakeword-delete"
+      }
+    },
+    {
+      "id": "voice_speaker_config_get",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/GetSpeakerConfig",
+      "method": "POST",
+      "summary": "Get speaker verification config",
+      "description": "Returns the speaker-verification gate config.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "SpeakerConfig"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console voice speaker-config-get"
+      }
+    },
+    {
+      "id": "voice_speaker_config_update",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/UpdateSpeakerConfig",
+      "method": "POST",
+      "summary": "Update speaker verification config",
+      "description": "Applies a partial update. has_* flags signal intent per field.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "SpeakerConfig"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Bad threshold/mode/reject_behavior, or enabled without profiles"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console voice speaker-config-set",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "voice_speaker_status",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/GetSpeakerStatus",
+      "method": "POST",
+      "summary": "Get speaker verification status",
+      "description": "Returns capability state, resource readiness, profile count, and the active config.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "SpeakerStatus"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console voice speaker-status"
+      }
+    },
+    {
+      "id": "voice_speaker_profiles",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/ListSpeakerProfiles",
+      "method": "POST",
+      "summary": "List speaker verification profiles",
+      "description": "Returns the profiles known to the speaker-verification resource.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int",
+          "profiles": "[]SpeakerProfile"
+        }
+      },
+      "errors": [
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Speaker verification not configured"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console voice speaker-profiles"
+      }
+    },
+    {
+      "id": "voice_speaker_enroll",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/EnrollSpeakerProfile",
+      "method": "POST",
+      "summary": "Enroll a speaker profile",
+      "description": "Enrolls a new profile from audio bytes. Optionally activates it and enables the gate.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "SpeakerConfig",
+          "enrollment": "SpeakerEnrollment"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing audio"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Speaker verification not configured"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console voice speaker-enroll",
+        "args": [
+          "--audio-file"
+        ]
+      }
+    },
+    {
+      "id": "voice_speaker_clear",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/ClearSpeakerProfileBinding",
+      "method": "POST",
+      "summary": "Clear the bound speaker profile",
+      "description": "Disables the gate and clears active profile IDs.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "SpeakerConfig"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console voice speaker-clear"
+      }
+    },
+    {
+      "id": "voice_speaker_remove",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/RemoveSpeakerProfile",
+      "method": "POST",
+      "summary": "Remove a speaker profile from the active list",
+      "description": "Drops the profile ID from the active list; does not delete from the speaker-verification resource.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "SpeakerConfig"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing profile_id"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console voice speaker-remove",
+        "args": [
+          "--profile-id"
+        ]
+      }
+    },
+    {
+      "id": "voice_speaker_delete",
+      "path": "/vrooli.web_console.v1.voice.VoiceService/DeleteSpeakerProfile",
+      "method": "POST",
+      "summary": "Hard-delete a speaker profile",
+      "description": "Deletes the profile from the speaker-verification resource AND drops it from the active list.",
+      "category": "voice",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "SpeakerConfig"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing profile_id"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Speaker verification not configured"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console voice speaker-delete",
+        "args": [
+          "--profile-id"
+        ]
+      }
+    },
+    {
+      "id": "workspace_get_layout",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/GetLayout",
+      "method": "POST",
+      "summary": "Get workspace layout",
+      "description": "Returns the active pane, ordered panes, and tab groups.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "active_pane": "string",
+          "groups": "[]Group",
+          "panes": "[]Pane"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console workspace layout-get"
+      }
+    },
+    {
+      "id": "workspace_save_layout",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/SaveLayout",
+      "method": "POST",
+      "summary": "Save workspace layout",
+      "description": "Persists pane ordering and the active pane selection.",
+      "category": "workspace",
+      "request": {
+        "type": "object",
+        "properties": {
+          "active_pane": "string",
+          "pane_order": "[]string"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console workspace layout-save",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "workspace_update_pane",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/UpdatePane",
+      "method": "POST",
+      "summary": "Create or update a pane",
+      "description": "Upserts a pane keyed by session_id. Only fields with has_* = true are applied.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "pane": "Pane"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console workspace pane-update",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "workspace_delete_pane",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/DeletePane",
+      "method": "POST",
+      "summary": "Delete a pane",
+      "description": "Idempotent: succeeds whether the session_id exists or not.",
+      "category": "workspace",
+      "cli_mapping": {
+        "command": "web-console workspace pane-delete",
+        "args": [
+          "<session-id>"
+        ]
+      }
+    },
+    {
+      "id": "workspace_create_group",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/CreateGroup",
+      "method": "POST",
+      "summary": "Create a tab group",
+      "description": "Creates a new tab group with the given name and display color.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "group": "Group"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console workspace group-create",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "workspace_update_group",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/UpdateGroup",
+      "method": "POST",
+      "summary": "Update a tab group",
+      "description": "Updates fields on an existing tab group. Only fields with has_* = true are applied.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "group": "Group"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Group id does not exist"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console workspace group-update",
+        "args": [
+          "--body-file"
+        ]
+      }
+    },
+    {
+      "id": "workspace_delete_group",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/DeleteGroup",
+      "method": "POST",
+      "summary": "Delete a tab group",
+      "description": "Idempotent. Panes in the group have their group_id cleared.",
+      "category": "workspace",
+      "cli_mapping": {
+        "command": "web-console workspace group-delete",
+        "args": [
+          "<group-id>"
+        ]
+      }
     }
   ],
   "cli_commands": [
@@ -117,6 +1564,291 @@
       "name": "status",
       "description": "Check API and dependency health",
       "endpoint_id": "health"
+    },
+    {
+      "name": "capabilities",
+      "description": "Inspect runtime capabilities (full snapshot)",
+      "endpoint_id": "capabilities_get"
+    },
+    {
+      "name": "capabilities --liveness",
+      "description": "Fast capability liveness probe",
+      "endpoint_id": "capabilities_liveness"
+    },
+    {
+      "name": "settings session-defaults-get",
+      "description": "Show default values applied to new sessions",
+      "endpoint_id": "settings_session_defaults_get"
+    },
+    {
+      "name": "settings session-defaults-set",
+      "description": "Update default session settings",
+      "endpoint_id": "settings_session_defaults_update"
+    },
+    {
+      "name": "shortcuts effective",
+      "description": "Show the effective shortcut list",
+      "endpoint_id": "shortcuts_get_effective"
+    },
+    {
+      "name": "shortcuts list",
+      "description": "List all shortcut profiles",
+      "endpoint_id": "shortcuts_list_profiles"
+    },
+    {
+      "name": "shortcuts upsert",
+      "description": "Create or update a shortcut profile",
+      "endpoint_id": "shortcuts_upsert_profile"
+    },
+    {
+      "name": "shortcuts delete",
+      "description": "Delete a shortcut profile",
+      "endpoint_id": "shortcuts_delete_profile"
+    },
+    {
+      "name": "ai generate",
+      "description": "Generate a shell command from natural language",
+      "endpoint_id": "ai_generate"
+    },
+    {
+      "name": "ai suggest",
+      "description": "Suggest 1-3 candidate shell commands",
+      "endpoint_id": "ai_suggest"
+    },
+    {
+      "name": "ai config-get",
+      "description": "Get AI provider configuration and health",
+      "endpoint_id": "ai_config_get"
+    },
+    {
+      "name": "ai config-set",
+      "description": "Update an AI provider's configuration",
+      "endpoint_id": "ai_config_update"
+    },
+    {
+      "name": "ai health",
+      "description": "Get AI provider health",
+      "endpoint_id": "ai_health_get"
+    },
+    {
+      "name": "conversation get",
+      "description": "Get a session's conversation history",
+      "endpoint_id": "conversation_get"
+    },
+    {
+      "name": "conversation cursor-set",
+      "description": "Update a session's read/listened cursor",
+      "endpoint_id": "conversation_cursor_update"
+    },
+    {
+      "name": "conversation summarize",
+      "description": "Summarize one assistant event for TTS",
+      "endpoint_id": "conversation_event_summarize"
+    },
+    {
+      "name": "conversation file-resolve",
+      "description": "Resolve a file reference for a session",
+      "endpoint_id": "conversation_file_resolve"
+    },
+    {
+      "name": "conversation file-content",
+      "description": "Read a previewable file referenced by a session",
+      "endpoint_id": "conversation_file_content"
+    },
+    {
+      "name": "session create",
+      "description": "Create a terminal session",
+      "endpoint_id": "sessions_create"
+    },
+    {
+      "name": "session list",
+      "description": "List active sessions",
+      "endpoint_id": "sessions_list"
+    },
+    {
+      "name": "session get",
+      "description": "Show one session",
+      "endpoint_id": "sessions_get"
+    },
+    {
+      "name": "session delete",
+      "description": "Terminate a session",
+      "endpoint_id": "sessions_delete"
+    },
+    {
+      "name": "session list-recoverable",
+      "description": "List orphaned persistent sessions awaiting recovery",
+      "endpoint_id": "sessions_recoverable_list"
+    },
+    {
+      "name": "session dismiss",
+      "description": "Dismiss a recoverable session",
+      "endpoint_id": "sessions_recoverable_dismiss"
+    },
+    {
+      "name": "session recover",
+      "description": "Recover an orphaned session",
+      "endpoint_id": "sessions_recover"
+    },
+    {
+      "name": "session policy-get",
+      "description": "Show the expiration policy for a session",
+      "endpoint_id": "sessions_policy_get"
+    },
+    {
+      "name": "session policy-set",
+      "description": "Update a session's expiration policy",
+      "endpoint_id": "sessions_policy_update"
+    },
+    {
+      "name": "tts config-get",
+      "description": "Get the auto-TTS configuration",
+      "endpoint_id": "tts_config_get"
+    },
+    {
+      "name": "tts config-set",
+      "description": "Update auto-TTS configuration",
+      "endpoint_id": "tts_config_update"
+    },
+    {
+      "name": "tts status",
+      "description": "Show the live TTS runtime status snapshot",
+      "endpoint_id": "tts_status"
+    },
+    {
+      "name": "tts event",
+      "description": "Record a TTS playback lifecycle event",
+      "endpoint_id": "tts_event_record"
+    },
+    {
+      "name": "tts summarize-config-get",
+      "description": "Get long-response summarization config",
+      "endpoint_id": "tts_summarize_config_get"
+    },
+    {
+      "name": "tts summarize-config-set",
+      "description": "Update long-response summarization config",
+      "endpoint_id": "tts_summarize_config_update"
+    },
+    {
+      "name": "tts synthesize",
+      "description": "Synthesize text to audio (returns audio bytes)",
+      "endpoint_id": "tts_synthesize"
+    },
+    {
+      "name": "tts cache-get",
+      "description": "Fetch cached TTS audio for an event",
+      "endpoint_id": "tts_cache_get"
+    },
+    {
+      "name": "tts voices",
+      "description": "List available TTS voices",
+      "endpoint_id": "tts_voices"
+    },
+    {
+      "name": "voice transcribe",
+      "description": "Transcribe audio bytes via Whisper",
+      "endpoint_id": "voice_transcribe"
+    },
+    {
+      "name": "voice config-get",
+      "description": "Show voice stream config",
+      "endpoint_id": "voice_config_get"
+    },
+    {
+      "name": "voice config-set",
+      "description": "Update voice stream config",
+      "endpoint_id": "voice_config_update"
+    },
+    {
+      "name": "voice wakeword-get",
+      "description": "Show wake word config",
+      "endpoint_id": "voice_wakeword_get"
+    },
+    {
+      "name": "voice wakeword-set",
+      "description": "Upload/update a wake word template",
+      "endpoint_id": "voice_wakeword_update"
+    },
+    {
+      "name": "voice wakeword-delete",
+      "description": "Delete the wake word template",
+      "endpoint_id": "voice_wakeword_delete"
+    },
+    {
+      "name": "voice speaker-config-get",
+      "description": "Show speaker verification config",
+      "endpoint_id": "voice_speaker_config_get"
+    },
+    {
+      "name": "voice speaker-config-set",
+      "description": "Update speaker verification config",
+      "endpoint_id": "voice_speaker_config_update"
+    },
+    {
+      "name": "voice speaker-status",
+      "description": "Show speaker verification status",
+      "endpoint_id": "voice_speaker_status"
+    },
+    {
+      "name": "voice speaker-profiles",
+      "description": "List speaker verification profiles",
+      "endpoint_id": "voice_speaker_profiles"
+    },
+    {
+      "name": "voice speaker-enroll",
+      "description": "Enroll a speaker profile from audio bytes",
+      "endpoint_id": "voice_speaker_enroll"
+    },
+    {
+      "name": "voice speaker-clear",
+      "description": "Clear the bound speaker profile",
+      "endpoint_id": "voice_speaker_clear"
+    },
+    {
+      "name": "voice speaker-remove",
+      "description": "Remove a speaker profile from the active list",
+      "endpoint_id": "voice_speaker_remove"
+    },
+    {
+      "name": "voice speaker-delete",
+      "description": "Hard-delete a speaker profile",
+      "endpoint_id": "voice_speaker_delete"
+    },
+    {
+      "name": "workspace layout-get",
+      "description": "Show workspace layout",
+      "endpoint_id": "workspace_get_layout"
+    },
+    {
+      "name": "workspace layout-save",
+      "description": "Persist workspace layout",
+      "endpoint_id": "workspace_save_layout"
+    },
+    {
+      "name": "workspace pane-update",
+      "description": "Create or update a pane",
+      "endpoint_id": "workspace_update_pane"
+    },
+    {
+      "name": "workspace pane-delete",
+      "description": "Delete a pane",
+      "endpoint_id": "workspace_delete_pane"
+    },
+    {
+      "name": "workspace group-create",
+      "description": "Create a tab group",
+      "endpoint_id": "workspace_create_group"
+    },
+    {
+      "name": "workspace group-update",
+      "description": "Update a tab group",
+      "endpoint_id": "workspace_update_group"
+    },
+    {
+      "name": "workspace group-delete",
+      "description": "Delete a tab group",
+      "endpoint_id": "workspace_delete_group"
     }
   ]
 }

@@ -1,17 +1,25 @@
 package settings
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
-	"web-console/cli/internal/support"
+	"connectrpc.com/connect"
+
+	settingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/settings"
+	settingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/settings/settings_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+
+	"web-console/cli/internal/support"
 )
 
 // Register builds the `settings` subcommand group for scenario-wide
-// configuration (currently: session defaults).
+// configuration (currently: session defaults). Calls Connect-RPC
+// SettingsService directly via the generated client.
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
 		Name:        "settings",
@@ -24,6 +32,11 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	}
 }
 
+func newClient(core *cliapp.ScenarioApp) settingsconnect.SettingsServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return settingsconnect.NewSettingsServiceClient(httpClient, baseURL)
+}
+
 func runGet(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("settings session-defaults-get")
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -31,19 +44,16 @@ func runGet(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	body, err := core.Get("/settings/session-defaults", nil)
+	client := newClient(core)
+	resp, err := client.GetSessionDefaults(context.Background(), connect.NewRequest(&settingsv1.GetSessionDefaultsRequest{}))
 	if err != nil {
-		return err
-	}
-	var payload map[string]interface{}
-	if err := support.Decode(body, &payload); err != nil {
-		return err
+		return cliapp.WrapAPIError("get session defaults", err, nil)
 	}
 
 	report := cliapp.ListReport{
 		Summary:        []string{"Session defaults"},
 		ResultsHeading: "Values",
-		Results:        support.MapRows(payload),
+		Results:        defaultsRows(resp.Msg.GetDefaults()),
 		RetrievalHints: []string{fmt.Sprintf("%s settings session-defaults-set --body-file defaults.json", support.CLIName)},
 	}
 	if *jsonOutput {
@@ -64,8 +74,40 @@ func runSet(core *cliapp.ScenarioApp, args []string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := core.Request("PUT", "/settings/session-defaults", nil, payload); err != nil {
-		return err
+
+	// Map the legacy JSON body shape (default_backend + default_policy)
+	// onto the proto request. Unknown fields are ignored; the wire-level
+	// validation is server-side.
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal body: %w", err)
+	}
+	var legacy struct {
+		DefaultBackend *string `json:"default_backend,omitempty"`
+		DefaultPolicy  *struct {
+			Mode     string `json:"mode"`
+			Duration string `json:"duration,omitempty"`
+		} `json:"default_policy,omitempty"`
+	}
+	if err := json.Unmarshal(body, &legacy); err != nil {
+		return fmt.Errorf("decode body: %w", err)
+	}
+
+	req := &settingsv1.UpdateSessionDefaultsRequest{}
+	if legacy.DefaultBackend != nil {
+		v := *legacy.DefaultBackend
+		req.DefaultBackend = &v
+	}
+	if legacy.DefaultPolicy != nil {
+		req.DefaultPolicy = &settingsv1.ExpirationPolicy{
+			Mode:     legacy.DefaultPolicy.Mode,
+			Duration: legacy.DefaultPolicy.Duration,
+		}
+	}
+
+	client := newClient(core)
+	if _, err := client.UpdateSessionDefaults(context.Background(), connect.NewRequest(req)); err != nil {
+		return cliapp.WrapAPIError("update session defaults", err, nil)
 	}
 
 	report := cliapp.MutationReport{
@@ -76,4 +118,20 @@ func runSet(core *cliapp.ScenarioApp, args []string) error {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderMutationReport(os.Stdout, report)
+}
+
+func defaultsRows(d *settingsv1.SessionDefaults) []string {
+	if d == nil {
+		return nil
+	}
+	rows := []string{
+		fmt.Sprintf("default_backend: %s", d.GetDefaultBackend()),
+	}
+	if p := d.GetDefaultPolicy(); p != nil {
+		rows = append(rows,
+			fmt.Sprintf("default_policy.mode: %s", p.GetMode()),
+			fmt.Sprintf("default_policy.duration: %s", p.GetDuration()),
+		)
+	}
+	return rows
 }

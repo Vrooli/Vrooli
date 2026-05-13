@@ -1,17 +1,24 @@
 package workspace
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
-	"web-console/cli/internal/support"
+	"connectrpc.com/connect"
+
+	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/workspace"
+	workspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/workspace/workspace_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+
+	"web-console/cli/internal/support"
 )
 
 // Register builds the `workspace` subcommand group covering the shared pane
-// layout and group/pane mutations exposed under /workspace.
+// layout and group/pane mutations exposed under WorkspaceService.
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
 		Name:        "workspace",
@@ -29,6 +36,11 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	}
 }
 
+func newClient(core *cliapp.ScenarioApp) workspaceconnect.WorkspaceServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return workspaceconnect.NewWorkspaceServiceClient(httpClient, baseURL)
+}
+
 func runLayoutGet(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("workspace layout-get")
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -36,25 +48,38 @@ func runLayoutGet(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	body, err := core.Get("/workspace/layout", nil)
+	resp, err := newClient(core).GetLayout(context.Background(), connect.NewRequest(&workspacev1.GetLayoutRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("workspace layout-get", err, nil)
 	}
-	var payload map[string]interface{}
-	if err := support.Decode(body, &payload); err != nil {
-		return err
+
+	rows := []string{
+		fmt.Sprintf("Active pane: %s", resp.Msg.GetActivePane()),
+		fmt.Sprintf("Panes: %d", len(resp.Msg.GetPanes())),
+		fmt.Sprintf("Groups: %d", len(resp.Msg.GetGroups())),
+	}
+	for _, p := range resp.Msg.GetPanes() {
+		rows = append(rows, fmt.Sprintf("  pane %s | name=%s | group=%s | sort=%d", support.ShortID(p.GetSessionId()), p.GetName(), p.GetGroupId(), p.GetSortOrder()))
+	}
+	for _, g := range resp.Msg.GetGroups() {
+		rows = append(rows, fmt.Sprintf("  group %s | name=%s | color=%s | collapsed=%t", support.ShortID(g.GetId()), g.GetName(), g.GetColor(), g.GetIsCollapsed()))
 	}
 
 	report := cliapp.ListReport{
 		Summary:        []string{"Workspace layout"},
 		ResultsHeading: "Layout",
-		Results:        support.MapRows(payload),
+		Results:        rows,
 		RetrievalHints: []string{fmt.Sprintf("%s workspace layout-save --body-file layout.json", support.CLIName)},
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderListReport(os.Stdout, report)
+}
+
+type layoutSaveBody struct {
+	ActivePane string   `json:"active_pane"`
+	PaneOrder  []string `json:"pane_order"`
 }
 
 func runLayoutSave(core *cliapp.ScenarioApp, args []string) error {
@@ -65,12 +90,20 @@ func runLayoutSave(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	payload, err := support.ReadJSONFile(*bodyFile, true)
+	raw, err := support.ReadJSONFile(*bodyFile, true)
 	if err != nil {
 		return err
 	}
-	if _, err := core.Request("PUT", "/workspace/layout", nil, payload); err != nil {
-		return err
+	var body layoutSaveBody
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return fmt.Errorf("decode --body-file: %w", err)
+	}
+
+	if _, err := newClient(core).SaveLayout(context.Background(), connect.NewRequest(&workspacev1.SaveLayoutRequest{
+		ActivePane: body.ActivePane,
+		PaneOrder:  body.PaneOrder,
+	})); err != nil {
+		return cliapp.WrapAPIError("workspace layout-save", err, nil)
 	}
 
 	report := cliapp.MutationReport{
@@ -81,6 +114,19 @@ func runLayoutSave(core *cliapp.ScenarioApp, args []string) error {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderMutationReport(os.Stdout, report)
+}
+
+// paneUpdateBody mirrors UpdatePaneRequest. Any field present in the JSON
+// flips the corresponding has_* flag server-side. Pointer fields let us
+// distinguish "absent" from "zero value".
+type paneUpdateBody struct {
+	Name                 *string `json:"name,omitempty"`
+	HeaderColor          *string `json:"header_color,omitempty"`
+	ThemeID              *string `json:"theme_id,omitempty"`
+	FontSize             *int32  `json:"font_size,omitempty"`
+	SortOrder            *int32  `json:"sort_order,omitempty"`
+	GroupID              *string `json:"group_id,omitempty"`
+	SupportsMessagesView *bool   `json:"supports_messages_view,omitempty"`
 }
 
 func runPaneUpdate(core *cliapp.ScenarioApp, args []string) error {
@@ -95,12 +141,47 @@ func runPaneUpdate(core *cliapp.ScenarioApp, args []string) error {
 	}
 	sessionID := fs.Arg(0)
 
-	payload, err := support.ReadJSONFile(*bodyFile, true)
+	raw, err := support.ReadJSONFile(*bodyFile, true)
 	if err != nil {
 		return err
 	}
-	if _, err := core.Request("PUT", "/workspace/panes/"+sessionID, nil, payload); err != nil {
-		return err
+	var body paneUpdateBody
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return fmt.Errorf("decode --body-file: %w", err)
+	}
+
+	req := &workspacev1.UpdatePaneRequest{SessionId: sessionID}
+	if body.Name != nil {
+		req.Name = *body.Name
+		req.HasName = true
+	}
+	if body.HeaderColor != nil {
+		req.HeaderColor = *body.HeaderColor
+		req.HasHeaderColor = true
+	}
+	if body.ThemeID != nil {
+		req.ThemeId = *body.ThemeID
+		req.HasThemeId = true
+	}
+	if body.FontSize != nil {
+		req.FontSize = *body.FontSize
+		req.HasFontSize = true
+	}
+	if body.SortOrder != nil {
+		req.SortOrder = *body.SortOrder
+		req.HasSortOrder = true
+	}
+	if body.GroupID != nil {
+		req.GroupId = *body.GroupID
+		req.HasGroupId = true
+	}
+	if body.SupportsMessagesView != nil {
+		req.SupportsMessagesView = *body.SupportsMessagesView
+		req.HasSupportsMessagesView = true
+	}
+
+	if _, err := newClient(core).UpdatePane(context.Background(), connect.NewRequest(req)); err != nil {
+		return cliapp.WrapAPIError("workspace pane-update", err, nil)
 	}
 
 	report := cliapp.MutationReport{
@@ -124,8 +205,8 @@ func runPaneDelete(core *cliapp.ScenarioApp, args []string) error {
 	}
 	sessionID := fs.Arg(0)
 
-	if _, err := core.Request("DELETE", "/workspace/panes/"+sessionID, nil, nil); err != nil {
-		return err
+	if _, err := newClient(core).DeletePane(context.Background(), connect.NewRequest(&workspacev1.DeletePaneRequest{SessionId: sessionID})); err != nil {
+		return cliapp.WrapAPIError("workspace pane-delete", err, nil)
 	}
 
 	report := cliapp.MutationReport{
@@ -138,6 +219,11 @@ func runPaneDelete(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderMutationReport(os.Stdout, report)
 }
 
+type groupCreateBody struct {
+	Name  string `json:"name"`
+	Color string `json:"color"`
+}
+
 func runGroupCreate(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("workspace group-create")
 	bodyFile := fs.String("body-file", "", "Path to a JSON group body (required)")
@@ -146,26 +232,42 @@ func runGroupCreate(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	payload, err := support.ReadJSONFile(*bodyFile, true)
+	raw, err := support.ReadJSONFile(*bodyFile, true)
 	if err != nil {
 		return err
 	}
-	body, err := core.Request("POST", "/workspace/groups", nil, payload)
-	if err != nil {
-		return err
+	var body groupCreateBody
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return fmt.Errorf("decode --body-file: %w", err)
 	}
-	var resp map[string]interface{}
-	_ = support.Decode(body, &resp)
+
+	resp, err := newClient(core).CreateGroup(context.Background(), connect.NewRequest(&workspacev1.CreateGroupRequest{
+		Name: body.Name, Color: body.Color,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("workspace group-create", err, nil)
+	}
+	g := resp.Msg.GetGroup()
 
 	report := cliapp.MutationReport{
-		Result:      []string{"Created workspace group"},
-		Changes:     support.MapRows(resp),
+		Result: []string{"Created workspace group"},
+		Changes: []string{
+			fmt.Sprintf("ID: %s", g.GetId()),
+			fmt.Sprintf("Name: %s", g.GetName()),
+			fmt.Sprintf("Color: %s", g.GetColor()),
+		},
 		NextCommand: []string{fmt.Sprintf("%s workspace layout-get", support.CLIName)},
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderMutationReport(os.Stdout, report)
+}
+
+type groupUpdateBody struct {
+	Name        *string `json:"name,omitempty"`
+	Color       *string `json:"color,omitempty"`
+	IsCollapsed *bool   `json:"is_collapsed,omitempty"`
 }
 
 func runGroupUpdate(core *cliapp.ScenarioApp, args []string) error {
@@ -180,12 +282,31 @@ func runGroupUpdate(core *cliapp.ScenarioApp, args []string) error {
 	}
 	id := fs.Arg(0)
 
-	payload, err := support.ReadJSONFile(*bodyFile, true)
+	raw, err := support.ReadJSONFile(*bodyFile, true)
 	if err != nil {
 		return err
 	}
-	if _, err := core.Request("PUT", "/workspace/groups/"+id, nil, payload); err != nil {
-		return err
+	var body groupUpdateBody
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return fmt.Errorf("decode --body-file: %w", err)
+	}
+
+	req := &workspacev1.UpdateGroupRequest{Id: id}
+	if body.Name != nil {
+		req.Name = *body.Name
+		req.HasName = true
+	}
+	if body.Color != nil {
+		req.Color = *body.Color
+		req.HasColor = true
+	}
+	if body.IsCollapsed != nil {
+		req.IsCollapsed = *body.IsCollapsed
+		req.HasIsCollapsed = true
+	}
+
+	if _, err := newClient(core).UpdateGroup(context.Background(), connect.NewRequest(req)); err != nil {
+		return cliapp.WrapAPIError("workspace group-update", err, nil)
 	}
 
 	report := cliapp.MutationReport{
@@ -209,8 +330,8 @@ func runGroupDelete(core *cliapp.ScenarioApp, args []string) error {
 	}
 	id := fs.Arg(0)
 
-	if _, err := core.Request("DELETE", "/workspace/groups/"+id, nil, nil); err != nil {
-		return err
+	if _, err := newClient(core).DeleteGroup(context.Background(), connect.NewRequest(&workspacev1.DeleteGroupRequest{Id: id})); err != nil {
+		return cliapp.WrapAPIError("workspace group-delete", err, nil)
 	}
 
 	report := cliapp.MutationReport{

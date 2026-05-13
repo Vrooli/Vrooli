@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
+	"connectrpc.com/connect"
+
+	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/tts"
 )
 
 func TestTTSCache_PutAndGet(t *testing.T) {
@@ -194,7 +194,6 @@ func newCacheTestServer() *Server {
 	srv := newFakeTestServer()
 	srv.ttsCache = NewTTSCache(1024 * 1024)
 	srv.ttsConfig = DefaultTTSConfig()
-	srv.router.HandleFunc("/api/v1/tts/cache/{eventId}", srv.handleGetTTSCache).Methods("GET")
 	return srv
 }
 
@@ -204,50 +203,45 @@ func TestHandleGetTTSCache_Hit(t *testing.T) {
 	key := TTSCacheKey{EventID: "abc123", Voice: "af_heart", Speed: 1.0, Version: "active"}
 	srv.ttsCache.Put(key, []byte("cached-audio"), "audio/mpeg")
 
-	req := httptest.NewRequest("GET", "/api/v1/tts/cache/abc123?voice=af_heart&speed=1&version=active", nil)
-	req = mux.SetURLVars(req, map[string]string{"eventId": "abc123"})
-	rec := httptest.NewRecorder()
-	srv.handleGetTTSCache(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := callTTSGetCache(t, srv, &ttsv1.GetCacheRequest{
+		EventId: "abc123", Voice: "af_heart", Speed: 1, Version: "active",
+	})
+	if err != nil {
+		t.Fatalf("expected cache hit, got %v", err)
 	}
-	if rec.Header().Get("Content-Type") != "audio/mpeg" {
-		t.Errorf("expected audio/mpeg, got %s", rec.Header().Get("Content-Type"))
+	if resp.GetContentType() != "audio/mpeg" {
+		t.Errorf("expected audio/mpeg, got %s", resp.GetContentType())
 	}
-	if rec.Body.String() != "cached-audio" {
-		t.Errorf("expected 'cached-audio', got %q", rec.Body.String())
+	if string(resp.GetAudio()) != "cached-audio" {
+		t.Errorf("expected 'cached-audio', got %q", string(resp.GetAudio()))
 	}
 }
 
 func TestHandleGetTTSCache_Miss(t *testing.T) {
 	srv := newCacheTestServer()
 
-	req := httptest.NewRequest("GET", "/api/v1/tts/cache/nonexistent?voice=af_heart&speed=1&version=active", nil)
-	req = mux.SetURLVars(req, map[string]string{"eventId": "nonexistent"})
-	rec := httptest.NewRecorder()
-	srv.handleGetTTSCache(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d", rec.Code)
+	_, err := callTTSGetCache(t, srv, &ttsv1.GetCacheRequest{
+		EventId: "nonexistent", Voice: "af_heart", Speed: 1, Version: "active",
+	})
+	if connectCode(err) != connect.CodeNotFound {
+		t.Fatalf("expected CodeNotFound, got %v (err=%v)", connectCode(err), err)
 	}
 }
 
 func TestHandleGetTTSCache_DefaultVersion(t *testing.T) {
 	srv := newCacheTestServer()
 
-	// Cache with version "active" (the default)
 	key := TTSCacheKey{EventID: "abc123", Voice: "af_heart", Speed: 1.0, Version: "active"}
 	srv.ttsCache.Put(key, []byte("default-audio"), "audio/mpeg")
 
-	// Request without version param — should default to "active"
-	req := httptest.NewRequest("GET", "/api/v1/tts/cache/abc123?voice=af_heart&speed=1", nil)
-	req = mux.SetURLVars(req, map[string]string{"eventId": "abc123"})
-	rec := httptest.NewRecorder()
-	srv.handleGetTTSCache(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 with default version, got %d", rec.Code)
+	resp, err := callTTSGetCache(t, srv, &ttsv1.GetCacheRequest{
+		EventId: "abc123", Voice: "af_heart", Speed: 1,
+	})
+	if err != nil {
+		t.Fatalf("expected default version hit, got %v", err)
+	}
+	if string(resp.GetAudio()) != "default-audio" {
+		t.Errorf("unexpected audio: %q", string(resp.GetAudio()))
 	}
 }
 
@@ -352,17 +346,14 @@ func TestEndToEnd_PreCacheFlow(t *testing.T) {
 	}
 	srv.preSynthesizeTTS(event, "session1")
 
-	// Now retrieve via the cache endpoint
-	req := httptest.NewRequest("GET", "/api/v1/tts/cache/evt-e2e?voice=af_heart&speed=1&version=active", nil)
-	req = mux.SetURLVars(req, map[string]string{"eventId": "evt-e2e"})
-	rec := httptest.NewRecorder()
-	srv.handleGetTTSCache(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	resp, err := callTTSGetCache(t, srv, &ttsv1.GetCacheRequest{
+		EventId: "evt-e2e", Voice: "af_heart", Speed: 1, Version: "active",
+	})
+	if err != nil {
+		t.Fatalf("expected pre-cached hit, got %v", err)
 	}
-	if rec.Body.String() != "precached-audio" {
-		t.Errorf("expected 'precached-audio', got %q", rec.Body.String())
+	if string(resp.GetAudio()) != "precached-audio" {
+		t.Errorf("expected 'precached-audio', got %q", string(resp.GetAudio()))
 	}
 }
 
@@ -418,13 +409,10 @@ func TestInvalidateTTSCacheForEvent_EmptyIDIsNoop(t *testing.T) {
 func TestEndToEnd_CacheMissFallback(t *testing.T) {
 	srv := newCacheTestServer()
 
-	// Don't populate cache — should return 404
-	req := httptest.NewRequest("GET", "/api/v1/tts/cache/missing-event?voice=af_heart&speed=1", nil)
-	req = mux.SetURLVars(req, map[string]string{"eventId": "missing-event"})
-	rec := httptest.NewRecorder()
-	srv.handleGetTTSCache(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected 404 for cache miss, got %d", rec.Code)
+	_, err := callTTSGetCache(t, srv, &ttsv1.GetCacheRequest{
+		EventId: "missing-event", Voice: "af_heart", Speed: 1,
+	})
+	if connectCode(err) != connect.CodeNotFound {
+		t.Fatalf("expected CodeNotFound, got %v (err=%v)", connectCode(err), err)
 	}
 }

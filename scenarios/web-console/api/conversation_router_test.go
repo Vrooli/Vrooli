@@ -1,14 +1,29 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
+	"connectrpc.com/connect"
+
+	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
 )
+
+func callSummarizeEvent(t *testing.T, srv *Server, sessID, eventID string) *conversationv1.SummarizeEventResponse {
+	t.Helper()
+	resp, err := newConversationConnectHandlerForServer(srv).SummarizeEvent(
+		context.Background(),
+		connect.NewRequest(&conversationv1.SummarizeEventRequest{SessionId: sessID, EventId: eventID}),
+	)
+	if err != nil {
+		t.Fatalf("SummarizeEvent: %v", err)
+	}
+	return resp.Msg
+}
 
 func TestAppendConversationEvent_MissingSession(t *testing.T) {
 	srv := newFakeTestServer()
@@ -180,17 +195,7 @@ func TestHandleSummarizeEvent_EvictsCache(t *testing.T) {
 
 	srv, sess, eventID, _ := newSummarizeTestServer(t, ollama)
 
-	req := httptest.NewRequest("POST",
-		"/api/v1/sessions/"+sess.ID+"/conversation/"+eventID+"/summarize",
-		strings.NewReader(""))
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID, "eventId": eventID})
-	rec := httptest.NewRecorder()
-
-	srv.handleSummarizeEvent(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
+	callSummarizeEvent(t, srv, sess.ID, eventID)
 
 	rawKey := TTSCacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
 	if _, ok := srv.ttsCache.Get(rawKey); ok {
@@ -219,15 +224,7 @@ func TestHandleSummarizeEvent_AlreadySummarized_ReSummarizes(t *testing.T) {
 	srv, sess, eventID, _ := newSummarizeTestServer(t, ollama)
 
 	// First on-demand call.
-	req1 := httptest.NewRequest("POST",
-		"/api/v1/sessions/"+sess.ID+"/conversation/"+eventID+"/summarize",
-		strings.NewReader(""))
-	req1 = mux.SetURLVars(req1, map[string]string{"id": sess.ID, "eventId": eventID})
-	rec1 := httptest.NewRecorder()
-	srv.handleSummarizeEvent(rec1, req1)
-	if rec1.Code != http.StatusOK {
-		t.Fatalf("first call: expected 200, got %d", rec1.Code)
-	}
+	callSummarizeEvent(t, srv, sess.ID, eventID)
 
 	event, _ := srv.conversations.GetEvent(sess.ID, eventID)
 	if !event.Summarized {
@@ -235,27 +232,17 @@ func TestHandleSummarizeEvent_AlreadySummarized_ReSummarizes(t *testing.T) {
 	}
 
 	// Second on-demand call on the already-summarized event.
-	req2 := httptest.NewRequest("POST",
-		"/api/v1/sessions/"+sess.ID+"/conversation/"+eventID+"/summarize",
-		strings.NewReader(""))
-	req2 = mux.SetURLVars(req2, map[string]string{"id": sess.ID, "eventId": eventID})
-	rec2 := httptest.NewRecorder()
-	srv.handleSummarizeEvent(rec2, req2)
-	if rec2.Code != http.StatusOK {
-		t.Fatalf("second call: expected 200, got %d", rec2.Code)
-	}
+	resp := callSummarizeEvent(t, srv, sess.ID, eventID)
 
 	if callCount != 2 {
 		t.Errorf("expected 2 calls to summarizer (fresh re-summarize each time), got %d", callCount)
 	}
 
-	var resp summarizeEventResponse
-	_ = json.Unmarshal(rec2.Body.Bytes(), &resp)
-	if !resp.Summarized {
+	if !resp.GetSummarized() {
 		t.Error("second call response should be summarized=true")
 	}
-	if len(resp.SpeechParagraphs) == 0 || resp.SpeechParagraphs[0] == "First summary version." {
-		t.Errorf("second call should return the fresh summary, got %v", resp.SpeechParagraphs)
+	if len(resp.GetSpeechParagraphs()) == 0 || resp.GetSpeechParagraphs()[0] == "First summary version." {
+		t.Errorf("second call should return the fresh summary, got %v", resp.GetSpeechParagraphs())
 	}
 }
 
@@ -302,13 +289,7 @@ func TestHandleSummarizeEvent_FailurePreservesCache(t *testing.T) {
 
 	srv, sess, eventID, _ := newSummarizeTestServer(t, ollama)
 
-	req := httptest.NewRequest("POST",
-		"/api/v1/sessions/"+sess.ID+"/conversation/"+eventID+"/summarize",
-		strings.NewReader(""))
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID, "eventId": eventID})
-	rec := httptest.NewRecorder()
-
-	srv.handleSummarizeEvent(rec, req)
+	callSummarizeEvent(t, srv, sess.ID, eventID)
 
 	rawKey := TTSCacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
 	if _, ok := srv.ttsCache.Get(rawKey); !ok {

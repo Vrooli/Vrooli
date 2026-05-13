@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -14,29 +12,6 @@ import (
 
 const maxFilePreviewBytes int64 = 256 * 1024
 
-type resolveFileReferenceRequest struct {
-	Path string `json:"path"`
-}
-
-type fileReferenceResolveResponse struct {
-	InputPath       string `json:"input_path"`
-	ResolvedPath    string `json:"resolved_path"`
-	Line            *int   `json:"line,omitempty"`
-	Exists          bool   `json:"exists"`
-	ResolutionBasis string `json:"resolution_basis"`
-	Category        string `json:"category"`
-	CanPreview      bool   `json:"can_preview"`
-}
-
-type fileReferenceContentResponse struct {
-	Path        string `json:"path"`
-	Line        *int   `json:"line,omitempty"`
-	Category    string `json:"category"`
-	ContentType string `json:"content_type"`
-	Content     string `json:"content"`
-	Truncated   bool   `json:"truncated"`
-}
-
 type fileReferenceResolution struct {
 	inputPath       string
 	resolvedPath    string
@@ -46,97 +21,6 @@ type fileReferenceResolution struct {
 	category        string
 	canPreview      bool
 	sizeBytes       int64
-}
-
-func (s *Server) handleResolveFileReference(w http.ResponseWriter, r *http.Request) {
-	sess := s.lookupSession(w, r)
-	if sess == nil {
-		return
-	}
-
-	var req resolveFileReferenceRequest
-	if !decodeJSON(w, r, &req) {
-		return
-	}
-	if strings.TrimSpace(req.Path) == "" {
-		writeCatalogError(w, "file_reference_invalid", "path is required")
-		return
-	}
-
-	resolved, err := s.resolveFileReference(r.Context(), sess, req.Path)
-	if err != nil {
-		s.writeFileReferenceError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, fileReferenceResolveResponse{
-		InputPath:       resolved.inputPath,
-		ResolvedPath:    resolved.resolvedPath,
-		Line:            resolved.line,
-		Exists:          resolved.exists,
-		ResolutionBasis: resolved.resolutionBasis,
-		Category:        resolved.category,
-		CanPreview:      resolved.canPreview,
-	})
-}
-
-func (s *Server) handleGetFileReferenceContent(w http.ResponseWriter, r *http.Request) {
-	sess := s.lookupSession(w, r)
-	if sess == nil {
-		return
-	}
-
-	rawPath := strings.TrimSpace(r.URL.Query().Get("path"))
-	if rawPath == "" {
-		writeCatalogError(w, "file_reference_invalid", "path query parameter is required")
-		return
-	}
-
-	resolved, err := s.resolveFileReference(r.Context(), sess, rawPath)
-	if err != nil {
-		s.writeFileReferenceError(w, err)
-		return
-	}
-	if !resolved.canPreview {
-		writeCatalogError(w, "file_reference_not_previewable", "File type cannot be previewed")
-		return
-	}
-	if resolved.sizeBytes > maxFilePreviewBytes {
-		writeCatalogError(w, "file_reference_too_large", fmt.Sprintf("File exceeds preview limit of %d bytes", maxFilePreviewBytes))
-		return
-	}
-
-	data, err := os.ReadFile(resolved.resolvedPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			writeCatalogError(w, "file_reference_not_found", "Referenced file was not found")
-			return
-		}
-		writeCatalogError(w, "internal_error", "Failed to read referenced file")
-		return
-	}
-	if !utf8.Valid(data) || bytesContainNull(data) {
-		writeCatalogError(w, "file_reference_not_previewable", "File is not valid UTF-8 text")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, fileReferenceContentResponse{
-		Path:        resolved.resolvedPath,
-		Line:        resolved.line,
-		Category:    resolved.category,
-		ContentType: fileReferenceContentType(resolved.category),
-		Content:     string(data),
-		Truncated:   false,
-	})
-}
-
-func (s *Server) writeFileReferenceError(w http.ResponseWriter, err error) {
-	var refErr *fileReferenceError
-	if !asFileReferenceError(err, &refErr) {
-		writeCatalogError(w, "internal_error", "Failed to resolve file reference")
-		return
-	}
-	writeCatalogError(w, refErr.code, refErr.message)
 }
 
 type fileReferenceError struct {

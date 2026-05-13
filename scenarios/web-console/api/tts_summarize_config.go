@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -150,48 +149,8 @@ func (s *Server) setTTSSummarizeConfig(cfg TTSSummarizeConfig) {
 	s.ttsSummarizeConfig = cfg
 }
 
-// handleGetTTSSummarizeConfig returns the current TTS summarization config.
-// GET /api/v1/tts/summarize/config
-func (s *Server) handleGetTTSSummarizeConfig(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, s.getTTSSummarizeConfig())
-}
-
-// handleUpdateTTSSummarizeConfig applies a partial update, persists, and returns updated config.
-// PUT /api/v1/tts/summarize/config
-func (s *Server) handleUpdateTTSSummarizeConfig(w http.ResponseWriter, r *http.Request) {
-	var patch TTSSummarizeConfigPatch
-	if !decodeJSON(w, r, &patch) {
-		return
-	}
-
-	current := s.getTTSSummarizeConfig()
-	updated := patch.Apply(current)
-
-	if !validSummarizeLevels[updated.Level] {
-		writeCatalogError(w, "invalid_body", "level must be light, moderate, or heavy")
-		return
-	}
-	if updated.CharThreshold < 0 {
-		writeCatalogError(w, "invalid_body", "charThreshold must be non-negative")
-		return
-	}
-	if updated.TimeoutSeconds < minSummarizeTimeoutSeconds || updated.TimeoutSeconds > maxSummarizeTimeoutSeconds {
-		writeCatalogError(w, "invalid_body", fmt.Sprintf("timeoutSeconds must be between %d and %d", minSummarizeTimeoutSeconds, maxSummarizeTimeoutSeconds))
-		return
-	}
-	if updated.Model == "" {
-		writeCatalogError(w, "invalid_body", "model must not be empty")
-		return
-	}
-
-	s.setTTSSummarizeConfig(updated)
-	if err := saveTTSSummarizeConfig(s.ttsSummarizePath, updated); err != nil {
-		log.Printf("tts-summarize-config: persist failed (in-memory updated): %v", err)
-	}
-	log.Printf("tts-summarize-config: updated: enabled=%v threshold=%d level=%s model=%s timeout=%ds",
-		updated.Enabled, updated.CharThreshold, updated.Level, updated.Model, updated.TimeoutSeconds)
-	writeJSON(w, http.StatusOK, updated)
-}
+// HTTP handlers for /api/v1/tts/summarize/config moved to handlers/tts.
+// The validation logic now lives in tts_adapter.go's UpdateSummarizeConfig.
 
 // resolveTTSSummarizeConfigPath returns the summarize config file path using api-core/storage.
 func resolveTTSSummarizeConfigPath() string {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -100,98 +99,6 @@ var formatContentTypes = map[string]string{
 
 const maxSynthesizeInputLength = 5000
 
-// handleTTSSynthesize proxies synthesis to Kokoro and streams audio back.
-// POST /api/v1/tts/synthesize
-func (s *Server) handleTTSSynthesize(w http.ResponseWriter, r *http.Request) {
-	if s.ttsSynthesizer == nil {
-		writeCatalogError(w, "not_configured", "TTS synthesis is not configured")
-		return
-	}
-	if !s.capabilities.IsAvailable(r.Context(), "kokoro-tts") {
-		writeCatalogError(w, "tts_unavailable", "Kokoro TTS is not available")
-		return
-	}
-
-	var req SynthesizeRequest
-	if !decodeJSON(w, r, &req) {
-		return
-	}
-
-	// Validate
-	req.Input = strings.TrimSpace(req.Input)
-	if req.Input == "" {
-		writeCatalogError(w, "tts_input_required", "input is required")
-		return
-	}
-	if len(req.Input) > maxSynthesizeInputLength {
-		log.Printf("tts-synthesize: input too long (%d chars, limit %d)", len(req.Input), maxSynthesizeInputLength)
-		writeCatalogError(w, "tts_input_too_long", "input exceeds maximum length of 5000 characters")
-		return
-	}
-
-	// Apply defaults
-	if req.Voice == "" {
-		cfg := s.getTTSConfig()
-		req.Voice = cfg.KokoroVoice
-		if req.Voice == "" {
-			req.Voice = "af_heart"
-		}
-	}
-	if req.ResponseFormat == "" {
-		req.ResponseFormat = "mp3"
-	}
-	if _, ok := formatContentTypes[req.ResponseFormat]; !ok {
-		writeCatalogError(w, "tts_invalid_format", "unsupported response_format; use mp3, wav, opus, or flac")
-		return
-	}
-	const maxTTSSpeed = 4.0
-	if req.Speed <= 0 {
-		req.Speed = 1.0
-	} else if req.Speed > maxTTSSpeed {
-		req.Speed = maxTTSSpeed
-	}
-
-	audioBody, contentType, err := s.ttsSynthesizer.Synthesize(r.Context(), req)
-	if err != nil {
-		log.Printf("tts-synthesize: synthesis failed: %v", err)
-		writeCatalogError(w, "tts_synthesis_failed", "synthesis failed")
-		return
-	}
-	defer audioBody.Close()
-
-	// If an eventId is provided, read the full response so we can both
-	// stream it to the client and opportunistically cache it.
-	eventID := r.URL.Query().Get("eventId")
-	version := r.URL.Query().Get("version")
-	if eventID != "" && s.ttsCache != nil {
-		if version == "" {
-			version = "active"
-		}
-		data, readErr := io.ReadAll(audioBody)
-		if readErr != nil {
-			log.Printf("tts-synthesize: read for cache: %v", readErr)
-			writeCatalogError(w, "tts_synthesis_failed", "synthesis failed")
-			return
-		}
-		if len(data) > 0 {
-			s.ttsCache.Put(TTSCacheKey{
-				EventID: eventID,
-				Voice:   req.Voice,
-				Speed:   req.Speed,
-				Version: version,
-			}, data, contentType)
-		}
-		w.Header().Set("Content-Type", contentType)
-		w.WriteHeader(http.StatusOK)
-		if _, writeErr := w.Write(data); writeErr != nil {
-			log.Printf("tts-synthesize: write cached response: %v", writeErr)
-		}
-		return
-	}
-
-	w.Header().Set("Content-Type", contentType)
-	w.WriteHeader(http.StatusOK)
-	if _, err := io.Copy(w, audioBody); err != nil {
-		log.Printf("tts-synthesize: streaming audio to client: %v", err)
-	}
-}
+// HTTP handler for /api/v1/tts/synthesize moved to handlers/tts. The
+// validation, default-application, and cache-on-write logic now live in
+// tts_adapter.go's Synthesize.

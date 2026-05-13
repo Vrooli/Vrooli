@@ -74,7 +74,9 @@ export default function Workspace() {
     isHydrated,
     isCreating,
     createError,
+    hydrationError,
     clearError,
+    clearHydrationError,
     launchSession,
     handleTerminalReady,
     removePane: removeSessionPane,
@@ -891,6 +893,14 @@ export default function Workspace() {
             <p className="text-wc-text-muted mb-6">
               Browser terminal with PTY-backed sessions
             </p>
+            {hydrationError && (
+              <ErrorBanner
+                error={hydrationError}
+                onDismiss={clearHydrationError}
+                onRetry={hydrationError.retry ? () => window.location.reload() : undefined}
+                className="mb-4"
+              />
+            )}
             {createError && (
               <ErrorBanner
                 error={createError}

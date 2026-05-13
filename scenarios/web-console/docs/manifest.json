@@ -36,6 +36,11 @@
           "path": "concepts/GLOSSARY.md",
           "title": "Glossary",
           "description": "Domain vocabulary and term definitions used across the scenario"
+        },
+        {
+          "path": "concepts/DOMAINS.md",
+          "title": "API Domains",
+          "description": "Migration plan bucketing every API route into a Connect-RPC domain"
         }
       ]
     },

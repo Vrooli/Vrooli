@@ -3,42 +3,78 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 	"time"
+
+	capabilitiesH "web-console/handlers/capabilities"
 )
 
-func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-	caps := s.capabilities.Resolve(ctx)
-	log.Printf("capabilities: full resolve took %dms", time.Since(start).Milliseconds())
-
-	resp := map[string]any{
-		"capabilities": caps,
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-	}
-
-	// Include session backend information
-	if s.backendRegistry != nil {
-		resp["session_backends"] = s.backendRegistry.Available()
-		resp["default_backend"] = s.sessions.GetConfig().DefaultBackend
-	}
-
-	writeJSON(w, http.StatusOK, resp)
+// capabilitiesAdapter bridges the in-process CapabilityRegistry +
+// BackendRegistry to handlers/capabilities.Service so the Connect
+// handler can be mounted from main without crossing a package
+// boundary the wrong way.
+type capabilitiesAdapter struct {
+	srv *Server
 }
 
-// handleCapabilitiesLiveness returns capability status using fast liveness-only
-// checks (GET health endpoints only, no test transcription). Returns cached
-// full-check results when fresh.
-func (s *Server) handleCapabilitiesLiveness(w http.ResponseWriter, r *http.Request) {
+func newCapabilitiesAdapter(s *Server) *capabilitiesAdapter {
+	return &capabilitiesAdapter{srv: s}
+}
+
+func (a *capabilitiesAdapter) Resolve(ctx context.Context) capabilitiesH.Snapshot {
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	caps := s.capabilities.ResolveLiveness(ctx)
+	caps := a.srv.capabilities.Resolve(ctx)
+	log.Printf("capabilities: full resolve took %dms", time.Since(start).Milliseconds())
+
+	snap := capabilitiesH.Snapshot{
+		Capabilities: capsToTransport(caps),
+		Timestamp:    time.Now().UTC().Format(time.RFC3339),
+	}
+	if a.srv.backendRegistry != nil {
+		snap.BackendOptions = backendsToTransport(a.srv.backendRegistry.Available())
+		snap.DefaultBackend = string(a.srv.sessions.GetConfig().DefaultBackend)
+	}
+	return snap
+}
+
+func (a *capabilitiesAdapter) Liveness(ctx context.Context) capabilitiesH.Snapshot {
+	start := time.Now()
+	caps := a.srv.capabilities.ResolveLiveness(ctx)
 	log.Printf("capabilities: liveness resolve took %dms", time.Since(start).Milliseconds())
-	writeJSON(w, http.StatusOK, map[string]any{
-		"capabilities": caps,
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-	})
+	return capabilitiesH.Snapshot{
+		Capabilities: capsToTransport(caps),
+		Timestamp:    time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+func capsToTransport(in []CapabilityState) []capabilitiesH.CapabilityState {
+	out := make([]capabilitiesH.CapabilityState, len(in))
+	for i, c := range in {
+		out[i] = capabilitiesH.CapabilityState{
+			ID:             c.ID,
+			Name:           c.Name,
+			Description:    c.Description,
+			DependencyKind: string(c.DependencyKind),
+			DependencySlug: c.DependencySlug,
+			Features:       c.Features,
+			Status:         string(c.Status),
+			Message:        c.Message,
+			CheckedAt:      c.CheckedAt,
+		}
+	}
+	return out
+}
+
+func backendsToTransport(in []BackendDescriptor) []capabilitiesH.BackendOption {
+	out := make([]capabilitiesH.BackendOption, len(in))
+	for i, b := range in {
+		out[i] = capabilitiesH.BackendOption{
+			ID:              string(b.ID),
+			DisplayName:     b.DisplayName,
+			Description:     b.Description,
+			SurvivesRestart: b.SurvivesRestart,
+			Available:       b.Available,
+			Reason:          b.Reason,
+		}
+	}
+	return out
 }
