@@ -25,7 +25,11 @@ The template's `template.json` controls generation:
 - `requiredVars` and `optionalVars` define supported generator flags and
   placeholder values.
 - `version` identifies the template version recorded in generated
-  scenario provenance.
+  scenario provenance. It follows semver against the
+  *generated-scenario contract* and must be bumped — with a matching
+  `CHANGELOG.md` entry — for any change generated scenarios would have
+  to react to. See **Versioning and Changelog** in
+  `docs/internal/TEMPLATE-MAINTENANCE.md` for the full rule.
 - `startDocument` declares the generated scenario's first-read document.
   The generator prints it after creation, and template validation fails
   if the declared file is not present in the generated scenario.
@@ -101,8 +105,16 @@ to edit `packages/proto/schemas/<scenario-id>/...`.
 Use `copyExcludes` for files that should never appear in generated
 scenarios. Current template-only files:
 
+- `CHANGELOG.md`
 - `docs/internal/TEMPLATE-GENERATION-CONTRACT.md`
 - `docs/internal/TEMPLATE-MAINTENANCE.md`
+
+`CHANGELOG.md` is intentionally excluded so generated scenarios read
+the *live* template changelog when an update loop needs to figure out
+what migrations apply between the version recorded in their
+`.vrooli/service.json::generation.template.version` and the current
+template version. Shipping a frozen copy into each scenario would only
+go stale.
 
 Do not rely on post-generation cleanup for template-only content. The
 copy step should never write those files into the generated scenario.

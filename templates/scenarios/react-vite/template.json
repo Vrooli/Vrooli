@@ -9,7 +9,7 @@
     "go",
     "cli"
   ],
-  "version": "0.1.0",
+  "version": "1.0.0",
   "startDocument": "docs/START-HERE.md",
   "design": {
     "adapter": "react-vite-tailwind",
@@ -250,6 +250,7 @@
     "templateGuide": "templates/scenarios/react-vite/README.md"
   },
   "copyExcludes": [
+    "CHANGELOG.md",
     "docs/internal/TEMPLATE-GENERATION-CONTRACT.md",
     "docs/internal/TEMPLATE-MAINTENANCE.md"
   ],

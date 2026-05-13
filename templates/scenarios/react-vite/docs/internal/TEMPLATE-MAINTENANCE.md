@@ -104,12 +104,57 @@ confuse generated scenario authors.
 
 Current template-only files:
 
+- `CHANGELOG.md`
 - `docs/internal/TEMPLATE-GENERATION-CONTRACT.md`
 - `docs/internal/TEMPLATE-MAINTENANCE.md`
 
 Do not rely on post-generation shell hooks to remove template-only
 files. Excluding them during copy is simpler and avoids briefly writing
 files that should never be part of a generated scenario.
+
+## Versioning and Changelog
+
+The template advertises its version via `template.json::version`. That
+string is stamped into every generated scenario's
+`.vrooli/service.json::generation.template.version` and is the anchor
+the update loop uses to figure out what migrations a stale scenario
+needs. The version is therefore part of the binding contract, not
+cosmetic.
+
+**Every template change that affects generated scenarios must bump the
+version and add a matching entry to `CHANGELOG.md` in the same
+commit.** The two are kept in lockstep so an agent updating an older
+scenario can read a contiguous, complete history.
+
+Semver discipline, anchored to the generated-scenario contract:
+
+- **Major** — a generated scenario must *actively change* to stay
+  aligned. Examples: file/folder reorganization, removed or renamed
+  required documents, transport-protocol changes
+  (REST → Connect-RPC), required-tool additions, manifest schema
+  changes, orientation step removals.
+- **Minor** — new opt-in capabilities, new optional documents, new
+  example domains, new skills introduced, expansions to
+  `requiredVars`/`optionalVars` with defaults that keep existing
+  generated scenarios working without any change.
+- **Patch** — typo fixes, doc clarifications, illustrative-example
+  rewordings, dependency bumps without API impact.
+
+When in doubt about whether something is breaking, ask: *would an agent
+running an "update this older scenario to match the template" loop have
+to do anything because of this change?* If yes, it is at least minor;
+if yes-and-it-requires-edits-not-just-additions, it is major.
+
+The changelog entry format is documented at the top of `CHANGELOG.md`.
+Each entry's **Migration** block is the single most important section —
+it must be a concrete, verifiable checklist that points at the skill
+that owns each detail (e.g. screaming-architecture-audit,
+temporal-flow-audit). The changelog routes; the skills authoritatively
+describe.
+
+If you are uncertain whether your change qualifies, default to writing
+the entry. An extra patch-level entry costs nothing; a missing breaking
+entry silently breaks every future update loop.
 
 ## Canonical Generated Docs
 

@@ -1,34 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "hostTools": [
-    {
-      "name": "java",
-      "required": true,
-      "reason": "Provide Java 17+ for Quint verify during formal temporal-flow validation",
-      "when": [
-        "setup",
-        "test"
-      ],
-      "environments": [
-        "development"
-      ],
-      "notes": "Required by the Level 5 attachment-upload temporal-flow reference."
-    },
-    {
-      "name": "quint",
-      "required": true,
-      "reason": "Check Quint temporal-flow models and generated conformance artifacts",
-      "when": [
-        "setup",
-        "test"
-      ],
-      "environments": [
-        "development"
-      ],
-      "notes": "Required by the Level 5 attachment-upload temporal-flow reference."
-    }
-  ],
+  "hostTools": [],
   "service": {
     "parent": "vrooli",
     "name": "{{SCENARIO_ID}}",
