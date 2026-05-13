@@ -1,6 +1,7 @@
 package scenario
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -979,6 +980,37 @@ func PerformHealthCheck(check HealthCheck, ports map[string]int) error {
 
 		client := &http.Client{Timeout: timeout}
 		resp, err := client.Get(target)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return fmt.Errorf("HTTP %d", resp.StatusCode)
+		}
+		return nil
+	case "connect_rpc":
+		// Connect-RPC probe: POST {} with application/json. Matches the wire
+		// shape generated *_v1connect handlers expect for unary unary calls
+		// and lets scenarios that have migrated their health domain off
+		// REST keep using the standard lifecycle.checks config.
+		target := ExpandTarget(check.Target, ports)
+		if _, err := url.Parse(target); err != nil {
+			return fmt.Errorf("invalid URL %q: %w", target, err)
+		}
+
+		timeout := time.Duration(check.Timeout) * time.Millisecond
+		if timeout == 0 {
+			timeout = 5 * time.Second
+		}
+
+		client := &http.Client{Timeout: timeout}
+		req, err := http.NewRequest(http.MethodPost, target, bytes.NewReader([]byte("{}")))
+		if err != nil {
+			return fmt.Errorf("build connect_rpc request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(req)
 		if err != nil {
 			return err
 		}

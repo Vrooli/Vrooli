@@ -13,12 +13,19 @@ import * as http from 'node:http'
 import type { ServerTemplateOptions } from '../shared/types.js'
 import { createConfigEndpoint } from './config.js'
 import { createHealthEndpoint } from './health.js'
-import { createProxyMiddleware, proxyWebSocketUpgrade } from './proxy.js'
+import { createProxyMiddleware, proxyToApi, proxyWebSocketUpgrade } from './proxy.js'
 import { injectProxyMetadata, injectScenarioConfig, injectBaseTag } from './inject.js'
 import { resolveProxyAgent } from './agent.js'
 import { createEmbeddedProxyRouter } from './embedded.js'
 import { assertLifecycleManagedUI } from './lifecycle.js'
 import { parsePort, isAssetRequest } from '../shared/utils.js'
+
+// Connect-RPC URL grammar: /<dotted.package.Service>/<UpperCamelMethod>.
+// The package must contain at least one '.' so we never match plain SPA
+// routes like /login or static assets like /index.html. Method names start
+// with an uppercase letter, distinguishing /foo.bar/Baz from /assets/img.png
+// or any other lowercase-leading second segment.
+const CONNECT_PATH_PATTERN = /^\/[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\/[A-Z][A-Za-z0-9_]*$/
 
 const IMMUTABLE_ASSET_EXTENSIONS = new Set([
   '.js',
@@ -414,6 +421,29 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
   }
 
   const resolvedProxyAgent = resolveProxyAgent({ agent: proxyAgent, keepAlive: proxyKeepAlive })
+
+  // Connect-RPC proxy.
+  //
+  // Connect procedures live at /<fully.qualified.Service>/<MethodName> with
+  // no shared prefix, so the /api mount below can't reach them. The pattern
+  // requires a dotted package (at least one '.' before the first slash) and
+  // an UpperCamelCase method name, which matches Connect's URL grammar
+  // exactly and can't shadow any SPA route or static asset.
+  //
+  // proxyToApi is invoked directly here (rather than createProxyMiddleware)
+  // because the middleware coerces every path under /api; Connect paths must
+  // be forwarded unchanged.
+  app.use(CONNECT_PATH_PATTERN, async (req: Request, res: Response) => {
+    const headers = typeof proxyHeaders === 'function' ? proxyHeaders(req) : (proxyHeaders ?? {})
+    await proxyToApi(req, res, req.originalUrl, {
+      apiPort: parsedApiPort,
+      apiHost,
+      verbose,
+      headers,
+      timeout: proxyTimeoutMs,
+      agent: resolvedProxyAgent,
+    })
+  })
 
   // API proxy middleware
   app.use('/api', createProxyMiddleware({

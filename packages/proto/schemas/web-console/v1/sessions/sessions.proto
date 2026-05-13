@@ -1,0 +1,199 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.sessions;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions;sessions_v1";
+
+// =============================================================================
+// SESSIONS DOMAIN — terminal session lifecycle, expiration policy, and
+//                   persistent-session recovery
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain sessions
+// @stability stable
+//
+// Wire contract for SessionsService. Mirrors nine legacy REST routes:
+//   POST   /api/v1/sessions                       -> Create
+//   GET    /api/v1/sessions                       -> List
+//   GET    /api/v1/sessions/recoverable           -> ListRecoverable
+//   DELETE /api/v1/sessions/recoverable/{id}      -> DismissRecoverable
+//   POST   /api/v1/sessions/{id}/recover          -> Recover
+//   GET    /api/v1/sessions/{id}                  -> Get
+//   DELETE /api/v1/sessions/{id}                  -> Delete
+//   GET    /api/v1/sessions/{id}/policy           -> GetPolicy
+//   PUT    /api/v1/sessions/{id}/policy           -> UpdatePolicy
+//
+// The terminal WebSocket (/api/v1/sessions/{id}/ws) and multipart upload
+// (/api/v1/sessions/{id}/upload) are NOT part of this Service — they stay on
+// raw HTTP routes registered separately by main.go.
+//
+// X-Idempotency-Key continues to flow through Connect request headers; the
+// handler reads it via req.Header().
+//
+// Consumed by:
+//   - API: handlers/sessions/connect_handler.go
+//   - UI:  ui/src/api/sessions.ts
+//   - CLI: cli/domains/session/register.go
+// =============================================================================
+
+service SessionsService {
+  rpc Create(CreateRequest) returns (CreateResponse);
+  rpc List(ListRequest) returns (ListResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  rpc ListRecoverable(ListRecoverableRequest) returns (ListRecoverableResponse);
+  rpc DismissRecoverable(DismissRecoverableRequest) returns (DismissRecoverableResponse);
+  rpc Recover(RecoverRequest) returns (RecoverResponse);
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
+}
+
+// -----------------------------------------------------------------------------
+// Shared types
+// -----------------------------------------------------------------------------
+
+// ExpirationPolicy controls when a session ends. mode is one of
+// "never" | "preset" | "custom"; duration is Go-style "1h30m" only when
+// mode is "custom".
+message ExpirationPolicy {
+  string mode = 1;
+  string duration = 2;
+}
+
+// Session is the wire shape returned by Create/List/Get.
+message Session {
+  string id = 1;
+  string shell = 2;
+  string created_at = 3;
+  int32 cols = 4;
+  int32 rows = 5;
+  string backend = 6;            // "persistent" | "ephemeral"
+  bool survives_restart = 7;
+  ExpirationPolicy policy = 8;
+  bool busy = 9;
+  bool recovered = 10;
+}
+
+// RecoverableSession describes an awaiting_recovery row.
+message RecoverableSession {
+  string id = 1;
+  string backend = 2;
+  string shell = 3;
+  int32 cols = 4;
+  int32 rows = 5;
+  string created_at = 6;
+  string orphaned_at = 7;
+  string last_activity_at = 8;
+  string agent_type = 9;          // "none" | "codex" | "claude"
+  string agent_session_id = 10;
+  string launch_command = 11;
+  string cwd = 12;
+  string last_rollout_path = 13;
+  bool recoverable = 14;
+  string not_recoverable_reason = 15;
+}
+
+// -----------------------------------------------------------------------------
+// Create
+// -----------------------------------------------------------------------------
+
+message CreateRequest {
+  string shell = 1;
+  int32 cols = 2;
+  int32 rows = 3;
+  string backend = 4;
+  ExpirationPolicy policy = 5;
+  bool has_policy = 6;
+  string launch_command = 7;
+  string agent_type = 8;
+}
+
+message CreateResponse {
+  Session session = 1;
+}
+
+// -----------------------------------------------------------------------------
+// List / Get / Delete
+// -----------------------------------------------------------------------------
+
+message ListRequest {}
+
+message ListResponse {
+  repeated Session sessions = 1;
+}
+
+message GetRequest {
+  string id = 1;
+}
+
+message GetResponse {
+  Session session = 1;
+}
+
+message DeleteRequest {
+  string id = 1;
+}
+
+message DeleteResponse {}
+
+// -----------------------------------------------------------------------------
+// Recovery
+// -----------------------------------------------------------------------------
+
+message ListRecoverableRequest {}
+
+message ListRecoverableResponse {
+  repeated RecoverableSession sessions = 1;
+}
+
+message DismissRecoverableRequest {
+  string id = 1;
+}
+
+message DismissRecoverableResponse {
+  string id = 1;
+}
+
+message RecoverRequest {
+  string id = 1;
+}
+
+message RecoverResponse {
+  string old_session_id = 1;
+  string new_session_id = 2;
+  string agent_type = 3;
+  string command_sent = 4;
+  bool codex_home_copied = 5;
+}
+
+// -----------------------------------------------------------------------------
+// Policy
+// -----------------------------------------------------------------------------
+
+message GetPolicyRequest {
+  string id = 1;
+}
+
+// PolicyView bundles the policy with derived expiry info. expires_at and
+// ttl_seconds are only present when has_expiry = true (mode != "never").
+message PolicyView {
+  string session_id = 1;
+  ExpirationPolicy policy = 2;
+  string expires_at = 3;
+  double ttl_seconds = 4;
+  bool has_expiry = 5;
+}
+
+message GetPolicyResponse {
+  PolicyView policy = 1;
+}
+
+message UpdatePolicyRequest {
+  string id = 1;
+  ExpirationPolicy policy = 2;
+}
+
+message UpdatePolicyResponse {
+  PolicyView policy = 1;
+}

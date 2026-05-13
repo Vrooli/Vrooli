@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.conversation;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation;conversation_v1";
+
+// =============================================================================
+// CONVERSATION DOMAIN — per-session conversation history, cursor, summarization,
+//                       and file-reference resolution/preview
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain conversation
+// @stability stable
+//
+// Wire contract for ConversationService. Mirrors five legacy REST routes:
+//   GET  /api/v1/sessions/{id}/conversation
+//   PUT  /api/v1/sessions/{id}/conversation/cursor
+//   POST /api/v1/sessions/{id}/conversation/{eventId}/summarize
+//   POST /api/v1/sessions/{id}/files/resolve
+//   GET  /api/v1/sessions/{id}/files/content
+//
+// File-reference resolve/content live in this domain because the UI surfaces
+// them inside conversation events (assistant messages can embed file refs).
+//
+// Consumed by:
+//   - API: handlers/conversation/connect_handler.go
+//   - UI:  ui/src/api/conversation.ts (Connect-Web client)
+//   - CLI: cli/domains/conversation/register.go (Connect-Go client)
+// =============================================================================
+
+service ConversationService {
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc UpdateCursor(UpdateCursorRequest) returns (UpdateCursorResponse);
+  rpc SummarizeEvent(SummarizeEventRequest) returns (SummarizeEventResponse);
+  rpc ResolveFileReference(ResolveFileReferenceRequest) returns (ResolveFileReferenceResponse);
+  rpc GetFileReferenceContent(GetFileReferenceContentRequest) returns (GetFileReferenceContentResponse);
+}
+
+// ConversationEvent is one stored entry in a session's transcript. Mirrors the
+// legacy JSON shape exactly so the WS forwarder doesn't have to fork wire types.
+message ConversationEvent {
+  string id = 1;
+  string session_id = 2;
+  string source = 3;
+  string role = 4; // "assistant" | "user"
+  string text = 5;
+  repeated string speech_paragraphs = 6;
+  repeated string original_speech_paragraphs = 7;
+  bool summarized = 8;
+  string created_at = 9; // RFC3339
+  int64 sequence = 10;
+  string delivery_state = 11;   // "pending" | "received" | "seen"
+  string tts_state = 12;        // "idle" | "playing" | "played" | "rejected" | "failed"
+  string consumption_state = 13; // "unseen" | "seen" | "listening" | "listened"
+}
+
+message ConversationCursor {
+  int64 last_seen_sequence = 1;
+  int64 last_listened_sequence = 2;
+}
+
+// GetRequest fetches the conversation history for one session.
+// since_sequence (when > 0) limits the response to events with
+// sequence > since_sequence — used by reconnect/refresh to fetch only the gap.
+message GetRequest {
+  string session_id = 1;
+  int64 since_sequence = 2;
+}
+
+message GetResponse {
+  string session_id = 1;
+  repeated ConversationEvent events = 2;
+  ConversationCursor cursor = 3;
+}
+
+// UpdateCursorRequest applies a partial update to the session's cursor.
+// Only fields with has_* = true are applied.
+message UpdateCursorRequest {
+  string session_id = 1;
+
+  int64 last_seen_sequence = 2;
+  bool has_last_seen_sequence = 3;
+
+  int64 last_listened_sequence = 4;
+  bool has_last_listened_sequence = 5;
+}
+
+message UpdateCursorResponse {
+  ConversationCursor cursor = 1;
+}
+
+// SummarizeEventRequest triggers on-demand TTS summarization for a specific
+// assistant-authored event in the session's transcript.
+message SummarizeEventRequest {
+  string session_id = 1;
+  string event_id = 2;
+}
+
+// SummarizeEventResponse mirrors the legacy shape: summarized=false plus an
+// error string is the soft-failure path (model unavailable, empty output).
+// Hard validation failures (missing event, non-assistant role) come back as
+// Connect errors.
+message SummarizeEventResponse {
+  bool summarized = 1;
+  repeated string speech_paragraphs = 2;
+  string error = 3;
+}
+
+// ResolveFileReferenceRequest asks the server to translate a path string
+// (possibly with a :line suffix or file:// scheme) into an absolute path the
+// preview endpoint can serve. The resolution honors session cwd, project root,
+// and per-session upload roots.
+message ResolveFileReferenceRequest {
+  string session_id = 1;
+  string path = 2;
+}
+
+message ResolveFileReferenceResponse {
+  string input_path = 1;
+  string resolved_path = 2;
+  int32 line = 3; // 0 = absent
+  bool has_line = 4;
+  bool exists = 5;
+  string resolution_basis = 6; // "session_cwd" | "project_root" | "absolute_allowed" | "session_upload"
+  string category = 7;         // "markdown" | "code" | "text" | "binary"
+  bool can_preview = 8;
+}
+
+// GetFileReferenceContentRequest returns a UTF-8 text preview of a previously
+// resolvable file path (capped at 256 KiB).
+message GetFileReferenceContentRequest {
+  string session_id = 1;
+  string path = 2;
+}
+
+message GetFileReferenceContentResponse {
+  string path = 1;
+  int32 line = 2; // 0 = absent
+  bool has_line = 3;
+  string category = 4;
+  string content_type = 5;
+  string content = 6;
+  bool truncated = 7;
+}

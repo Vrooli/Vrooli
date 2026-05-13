@@ -7,18 +7,20 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class FlowSummary(_message.Message):
-    __slots__ = ("flow_id", "contract_path", "language", "schema_version", "scenario_id")
+    __slots__ = ("flow_id", "contract_path", "language", "schema_version", "scenario_id", "kind")
     FLOW_ID_FIELD_NUMBER: _ClassVar[int]
     CONTRACT_PATH_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
     flow_id: str
     contract_path: str
     language: str
     schema_version: int
     scenario_id: str
-    def __init__(self, flow_id: _Optional[str] = ..., contract_path: _Optional[str] = ..., language: _Optional[str] = ..., schema_version: _Optional[int] = ..., scenario_id: _Optional[str] = ...) -> None: ...
+    kind: str
+    def __init__(self, flow_id: _Optional[str] = ..., contract_path: _Optional[str] = ..., language: _Optional[str] = ..., schema_version: _Optional[int] = ..., scenario_id: _Optional[str] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class FlowState(_message.Message):
     __slots__ = ("id", "quint", "initial", "terminal")
@@ -188,13 +190,14 @@ class FlowRuntime(_message.Message):
     def __init__(self, go: _Optional[_Union[GoRuntime, _Mapping]] = ..., typescript: _Optional[_Union[TypeScriptRuntime, _Mapping]] = ..., side_effects: _Optional[_Iterable[str]] = ..., stale_completion: _Optional[str] = ...) -> None: ...
 
 class FlowDetail(_message.Message):
-    __slots__ = ("flow_id", "domain", "description", "contract_path", "language", "schema_version", "initial_state", "states", "events", "transitions", "traces", "invariants", "model", "runtime", "report")
+    __slots__ = ("flow_id", "domain", "description", "contract_path", "language", "schema_version", "kind", "initial_state", "states", "events", "transitions", "traces", "invariants", "model", "runtime", "report")
     FLOW_ID_FIELD_NUMBER: _ClassVar[int]
     DOMAIN_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     CONTRACT_PATH_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
     INITIAL_STATE_FIELD_NUMBER: _ClassVar[int]
     STATES_FIELD_NUMBER: _ClassVar[int]
     EVENTS_FIELD_NUMBER: _ClassVar[int]
@@ -210,6 +213,7 @@ class FlowDetail(_message.Message):
     contract_path: str
     language: str
     schema_version: int
+    kind: str
     initial_state: str
     states: _containers.RepeatedCompositeFieldContainer[FlowState]
     events: _containers.RepeatedCompositeFieldContainer[FlowEvent]
@@ -219,15 +223,17 @@ class FlowDetail(_message.Message):
     model: FlowModel
     runtime: FlowRuntime
     report: str
-    def __init__(self, flow_id: _Optional[str] = ..., domain: _Optional[str] = ..., description: _Optional[str] = ..., contract_path: _Optional[str] = ..., language: _Optional[str] = ..., schema_version: _Optional[int] = ..., initial_state: _Optional[str] = ..., states: _Optional[_Iterable[_Union[FlowState, _Mapping]]] = ..., events: _Optional[_Iterable[_Union[FlowEvent, _Mapping]]] = ..., transitions: _Optional[_Iterable[_Union[FlowTransition, _Mapping]]] = ..., traces: _Optional[_Iterable[_Union[FlowTrace, _Mapping]]] = ..., invariants: _Optional[_Iterable[_Union[FlowInvariant, _Mapping]]] = ..., model: _Optional[_Union[FlowModel, _Mapping]] = ..., runtime: _Optional[_Union[FlowRuntime, _Mapping]] = ..., report: _Optional[str] = ...) -> None: ...
+    def __init__(self, flow_id: _Optional[str] = ..., domain: _Optional[str] = ..., description: _Optional[str] = ..., contract_path: _Optional[str] = ..., language: _Optional[str] = ..., schema_version: _Optional[int] = ..., kind: _Optional[str] = ..., initial_state: _Optional[str] = ..., states: _Optional[_Iterable[_Union[FlowState, _Mapping]]] = ..., events: _Optional[_Iterable[_Union[FlowEvent, _Mapping]]] = ..., transitions: _Optional[_Iterable[_Union[FlowTransition, _Mapping]]] = ..., traces: _Optional[_Iterable[_Union[FlowTrace, _Mapping]]] = ..., invariants: _Optional[_Iterable[_Union[FlowInvariant, _Mapping]]] = ..., model: _Optional[_Union[FlowModel, _Mapping]] = ..., runtime: _Optional[_Union[FlowRuntime, _Mapping]] = ..., report: _Optional[str] = ...) -> None: ...
 
 class ListFlowsRequest(_message.Message):
-    __slots__ = ("root", "flow_id")
+    __slots__ = ("root", "flow_id", "kind")
     ROOT_FIELD_NUMBER: _ClassVar[int]
     FLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
     root: str
     flow_id: str
-    def __init__(self, root: _Optional[str] = ..., flow_id: _Optional[str] = ...) -> None: ...
+    kind: str
+    def __init__(self, root: _Optional[str] = ..., flow_id: _Optional[str] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class ListFlowsResponse(_message.Message):
     __slots__ = ("flows",)
@@ -250,16 +256,18 @@ class GetFlowResponse(_message.Message):
     def __init__(self, flow: _Optional[_Union[FlowDetail, _Mapping]] = ...) -> None: ...
 
 class CreateFlowRequest(_message.Message):
-    __slots__ = ("parent_dir", "flow_id", "language", "root")
+    __slots__ = ("parent_dir", "flow_id", "language", "root", "kind")
     PARENT_DIR_FIELD_NUMBER: _ClassVar[int]
     FLOW_ID_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     ROOT_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
     parent_dir: str
     flow_id: str
     language: str
     root: str
-    def __init__(self, parent_dir: _Optional[str] = ..., flow_id: _Optional[str] = ..., language: _Optional[str] = ..., root: _Optional[str] = ...) -> None: ...
+    kind: str
+    def __init__(self, parent_dir: _Optional[str] = ..., flow_id: _Optional[str] = ..., language: _Optional[str] = ..., root: _Optional[str] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class CreateFlowResponse(_message.Message):
     __slots__ = ("flow_dir",)

@@ -867,6 +867,139 @@ describe('createScenarioServer HTTP endpoints', () => {
   })
 })
 
+describe('createScenarioServer Connect-RPC proxy', () => {
+  let uiServer: Server | null = null
+  let apiServer: Server | null = null
+  let apiPort = 0
+  const apiRequests: Array<{ method: string; url: string; body: string }> = []
+
+  beforeEach(async () => {
+    apiRequests.length = 0
+    apiServer = http.createServer((req, res) => {
+      let body = ''
+      req.on('data', (chunk) => {
+        body += chunk
+      })
+      req.on('end', () => {
+        apiRequests.push({ method: req.method || '', url: req.url || '', body })
+        // Echo back the request so the test can verify the path was forwarded
+        // unchanged and the body survived intact.
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ receivedPath: req.url, receivedBody: body }))
+      })
+    })
+    await new Promise<void>((resolve) => {
+      apiServer!.listen(0, () => {
+        const addr = apiServer!.address()
+        if (addr && typeof addr !== 'string') {
+          apiPort = addr.port
+        }
+        resolve()
+      })
+    })
+  })
+
+  afterEach(async () => {
+    const stops: Array<Promise<void>> = []
+    if (uiServer) {
+      const s = uiServer
+      uiServer = null
+      stops.push(new Promise<void>((resolve) => s.close(() => resolve())))
+    }
+    if (apiServer) {
+      const s = apiServer
+      apiServer = null
+      stops.push(new Promise<void>((resolve) => s.close(() => resolve())))
+    }
+    await Promise.all(stops)
+  })
+
+  it('proxies Connect-RPC paths (dotted package + UpperCamel method) to the API unchanged', async () => {
+    const app = createScenarioServer({
+      uiPort: 34001,
+      apiPort,
+      distDir: './dist',
+    })
+    uiServer = app.listen(0)
+
+    const result = await postJson(
+      uiServer,
+      '/vrooli.example.v1.demo.DemoService/Echo',
+      { hello: 'world' },
+    )
+
+    expect(result.status).toBe(200)
+    expect(apiRequests).toHaveLength(1)
+    expect(apiRequests[0].method).toBe('POST')
+    expect(apiRequests[0].url).toBe('/vrooli.example.v1.demo.DemoService/Echo')
+    expect(JSON.parse(apiRequests[0].body)).toEqual({ hello: 'world' })
+    expect(result.body.receivedPath).toBe('/vrooli.example.v1.demo.DemoService/Echo')
+  })
+
+  it('still proxies legacy /api paths alongside Connect paths', async () => {
+    const app = createScenarioServer({
+      uiPort: 34002,
+      apiPort,
+      distDir: './dist',
+    })
+    uiServer = app.listen(0)
+
+    const result = await postJson(uiServer, '/api/v1/legacy', { ok: true })
+
+    expect(result.status).toBe(200)
+    expect(apiRequests).toHaveLength(1)
+    expect(apiRequests[0].url).toBe('/api/v1/legacy')
+  })
+
+  it('does not match SPA routes or non-dotted paths', async () => {
+    const temp = createTempDist('<html><body>spa</body></html>')
+    try {
+      const app = createScenarioServer({
+        uiPort: 34003,
+        apiPort,
+        distDir: temp.distDir,
+      })
+      uiServer = app.listen(0)
+
+      // Plain SPA route — no dot in first segment.
+      const spa = await makeRequest(uiServer, '/login')
+      expect(spa.status).toBe(200)
+      expect(typeof spa.body).toBe('string')
+      expect(spa.body).toContain('spa')
+
+      // Dotted first segment but lowercase second segment (asset-like).
+      const asset = await makeRequest(uiServer, '/foo.bar/baz')
+      // Falls through to SPA fallback, not proxied.
+      expect(asset.status).toBe(200)
+      expect(typeof asset.body).toBe('string')
+
+      expect(apiRequests).toHaveLength(0)
+    } finally {
+      temp.cleanup()
+    }
+  })
+
+  it('does not match static asset paths', async () => {
+    const temp = createTempDist('<html><body>x</body></html>', {
+      'assets/app-main-abc12345.js': 'console.log("ok")',
+    })
+    try {
+      const app = createScenarioServer({
+        uiPort: 34004,
+        apiPort,
+        distDir: temp.distDir,
+      })
+      uiServer = app.listen(0)
+
+      const result = await makeRequest(uiServer, '/assets/app-main-abc12345.js')
+      expect(result.status).toBe(200)
+      expect(apiRequests).toHaveLength(0)
+    } finally {
+      temp.cleanup()
+    }
+  })
+})
+
 describe('startScenarioServer', () => {
   // startScenarioServer returns Express app, not Server - just test it calls listen
   it('calls createScenarioServer and listen', async () => {

@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.workspace;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/workspace;workspace_v1";
+
+// =============================================================================
+// WORKSPACE DOMAIN — panes, tab groups, layout
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain workspace
+// @stability stable
+//
+// Wire contract for the WorkspaceService Connect-RPC service. Manages the
+// cross-device workspace layout: ordered panes (one per session), tab
+// groups, and the active-pane selection.
+//
+// Consumed by:
+//   - API: handlers/workspace/connect_handler.go
+//   - UI:  ui/src/api/workspace.ts (Connect-Web client)
+//   - CLI: cli/domains/workspace/register.go (Connect-Go client)
+// =============================================================================
+
+service WorkspaceService {
+  rpc GetLayout(GetLayoutRequest) returns (GetLayoutResponse);
+  rpc SaveLayout(SaveLayoutRequest) returns (SaveLayoutResponse);
+  rpc UpdatePane(UpdatePaneRequest) returns (UpdatePaneResponse);
+  rpc DeletePane(DeletePaneRequest) returns (DeletePaneResponse);
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse);
+  rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse);
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+}
+
+// Pane is one terminal pane's persisted metadata. session_id is the
+// primary key; group_id is empty when ungrouped.
+message Pane {
+  string session_id = 1;
+  string name = 2;
+  string header_color = 3;
+  string theme_id = 4;
+  int32 font_size = 5;
+  int32 sort_order = 6;
+  string group_id = 7;
+  bool supports_messages_view = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+// Group is a named tab group with a display color and collapsed flag.
+message Group {
+  string id = 1;
+  string name = 2;
+  string color = 3;
+  int32 sort_order = 4;
+  bool is_collapsed = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message GetLayoutRequest {}
+
+message GetLayoutResponse {
+  string active_pane = 1;
+  repeated Pane panes = 2;
+  repeated Group groups = 3;
+}
+
+// SaveLayoutRequest persists pane ordering and the active pane selection.
+// pane_order is the full ordered list of session_ids.
+message SaveLayoutRequest {
+  string active_pane = 1;
+  repeated string pane_order = 2;
+}
+
+message SaveLayoutResponse {}
+
+// UpdatePaneRequest creates or updates a single pane. Only fields with
+// has_* = true are applied; unset fields preserve the existing value
+// (or fall back to defaults if the pane is new).
+message UpdatePaneRequest {
+  string session_id = 1;
+
+  string name = 2;
+  bool has_name = 3;
+
+  string header_color = 4;
+  bool has_header_color = 5;
+
+  string theme_id = 6;
+  bool has_theme_id = 7;
+
+  int32 font_size = 8;
+  bool has_font_size = 9;
+
+  int32 sort_order = 10;
+  bool has_sort_order = 11;
+
+  string group_id = 12;
+  bool has_group_id = 13;
+
+  bool supports_messages_view = 14;
+  bool has_supports_messages_view = 15;
+}
+
+message UpdatePaneResponse {
+  Pane pane = 1;
+}
+
+// DeletePaneRequest is idempotent: deleting a missing session_id succeeds.
+message DeletePaneRequest {
+  string session_id = 1;
+}
+
+message DeletePaneResponse {}
+
+message CreateGroupRequest {
+  string name = 1;
+  string color = 2;
+}
+
+message CreateGroupResponse {
+  Group group = 1;
+}
+
+// UpdateGroupRequest modifies a group. Only fields with has_* = true are
+// applied; the rest are left unchanged. Returns group_not_found if id
+// doesn't exist.
+message UpdateGroupRequest {
+  string id = 1;
+
+  string name = 2;
+  bool has_name = 3;
+
+  string color = 4;
+  bool has_color = 5;
+
+  bool is_collapsed = 6;
+  bool has_is_collapsed = 7;
+}
+
+message UpdateGroupResponse {
+  Group group = 1;
+}
+
+// DeleteGroupRequest is idempotent. Panes in the group get group_id
+// cleared (via ON DELETE SET NULL in the SQL store).
+message DeleteGroupRequest {
+  string id = 1;
+}
+
+message DeleteGroupResponse {}

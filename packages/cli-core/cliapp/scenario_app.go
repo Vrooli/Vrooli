@@ -76,6 +76,13 @@ type ScenarioOptions struct {
 	HTTPTimeoutEnvVars []string
 	DefaultHTTPTimeout time.Duration
 	AllowAnonymous     bool
+	// HealthFetcher, when non-nil, replaces the built-in REST health probe
+	// used by the standard `status` command and `ensureAPIReachable`
+	// preflight. It must return a JSON body matching the legacy health
+	// envelope (status/service/version/readiness/dependencies). Scenarios
+	// whose health domain is served over Connect-RPC supply this hook so
+	// the CLI never hits a phantom REST path.
+	HealthFetcher func() ([]byte, error)
 }
 
 // StandardScenarioOptions provides a higher-level constructor for the common
@@ -112,6 +119,8 @@ type StandardScenarioOptions struct {
 	ConfigureTokenKeys      []string
 	CommandGroups           func(app *ScenarioApp) []CommandGroup
 	SubcommandGroups        func(app *ScenarioApp) []SubcommandGroup
+	// HealthFetcher is forwarded to ScenarioOptions; see ScenarioOptions.HealthFetcher.
+	HealthFetcher func() ([]byte, error)
 }
 
 // ScenarioApp encapsulates the shared CLI scaffolding for a scenario CLI.
@@ -236,6 +245,7 @@ func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) 
 		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
 		DefaultHTTPTimeout: opts.DefaultHTTPTimeout,
 		AllowAnonymous:     opts.AllowAnonymous,
+		HealthFetcher:      opts.HealthFetcher,
 	})
 	if err != nil {
 		return nil, err

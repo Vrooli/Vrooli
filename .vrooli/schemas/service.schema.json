@@ -1113,6 +1113,7 @@
                 "type": "string",
                 "enum": [
                   "http",
+                  "connect_rpc",
                   "tcp",
                   "postgres",
                   "redis",

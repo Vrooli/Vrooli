@@ -185,6 +185,14 @@ func (a *ScenarioApp) runStandardStatus(args []string, stdout io.Writer) error {
 }
 
 func (a *ScenarioApp) fetchHealth() ([]byte, error) {
+	// Scenarios whose health domain is served over Connect-RPC (the
+	// react-vite template default) supply a HealthFetcher that calls the
+	// generated client and renders the legacy JSON envelope. When set,
+	// that hook is the sole source of truth; REST fallback is skipped so
+	// stale `/health` paths never silently mask a Connect-side outage.
+	if a.options.HealthFetcher != nil {
+		return a.options.HealthFetcher()
+	}
 	paths := []string{a.HealthPath()}
 	paths = append(paths, a.options.LegacyHealthPaths...)
 

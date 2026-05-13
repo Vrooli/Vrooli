@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.shortcuts;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shortcuts;shortcuts_v1";
+
+// =============================================================================
+// SHORTCUTS DOMAIN — launch shortcut profiles
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain shortcuts
+// @stability stable
+//
+// Wire contract for the ShortcutsService Connect-RPC service. Profiles
+// group launch shortcuts under a scope hierarchy (service → workspace →
+// parent); the effective shortcut list is resolved by picking the
+// highest-priority scope's profile.
+//
+// Consumed by:
+//   - API: handlers/shortcuts/connect_handler.go implements
+//          ShortcutsServiceHandler.
+//   - UI:  ui/src/api/shortcuts.ts (Connect-Web client).
+//   - CLI: cli/domains/shortcuts/register.go (Connect-Go client).
+// =============================================================================
+
+service ShortcutsService {
+  rpc GetEffective(GetEffectiveRequest) returns (GetEffectiveResponse);
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse);
+  rpc UpsertProfile(UpsertProfileRequest) returns (UpsertProfileResponse);
+  rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse);
+}
+
+// Shortcut is a single launch shortcut: a labelled command line.
+message Shortcut {
+  string label = 1;
+  string command = 2;
+  string description = 3;
+}
+
+// Profile is a named bundle of shortcuts at a given scope. Scope is one
+// of "service", "workspace", "parent" — validated server-side.
+message Profile {
+  string id = 1;
+  string scope = 2;
+  string name = 3;
+  repeated Shortcut shortcuts = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}
+
+message GetEffectiveRequest {}
+
+message GetEffectiveResponse {
+  repeated Shortcut shortcuts = 1;
+}
+
+message ListProfilesRequest {}
+
+message ListProfilesResponse {
+  repeated Profile profiles = 1;
+}
+
+// UpsertProfileRequest creates or updates a profile by id. All fields are
+// required; the service rejects unknown scopes, blank names, and shortcut
+// entries with missing label/command.
+message UpsertProfileRequest {
+  string id = 1;
+  string scope = 2;
+  string name = 3;
+  repeated Shortcut shortcuts = 4;
+}
+
+message UpsertProfileResponse {
+  Profile profile = 1;
+}
+
+// DeleteProfileRequest is idempotent: deleting a missing id succeeds
+// silently. The post-condition "profile does not exist" is what matters.
+message DeleteProfileRequest {
+  string id = 1;
+}
+
+message DeleteProfileResponse {}

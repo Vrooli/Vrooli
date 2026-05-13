@@ -36,12 +36,16 @@ service FlowsService {
 message FlowSummary {
   string flow_id = 1;
   string contract_path = 2;
-  // "go" or "typescript".
+  // Runtime language ("go" or "typescript") for temporal flows; empty
+  // for kinds that have no language concept (navigation, etc.).
   string language = 3;
   int32 schema_version = 4;
   // Stamped in when aggregating across scenarios; empty for single-
   // scenario listings.
   string scenario_id = 5;
+  // Wire-stable identifier of the kind that owns this flow, e.g.
+  // "temporal" or "navigation". UI uses it to pick a renderer.
+  string kind = 6;
 }
 
 // FlowState mirrors contract.State.
@@ -144,6 +148,8 @@ message FlowDetail {
   string contract_path = 4;
   string language = 5;
   int32 schema_version = 6;
+  // Wire-stable kind identifier (e.g. "temporal").
+  string kind = 16;
   string initial_state = 7;
   repeated FlowState states = 8;
   repeated FlowEvent events = 9;
@@ -162,6 +168,8 @@ message ListFlowsRequest {
   string root = 1;
   // Optional flow id filter; an unknown id is an error.
   string flow_id = 2;
+  // Optional kind filter; empty means "every kind".
+  string kind = 3;
 }
 message ListFlowsResponse { repeated FlowSummary flows = 1; }
 
@@ -176,9 +184,12 @@ message CreateFlowRequest {
   // under, relative to root. Empty means "the root itself".
   string parent_dir = 1;
   string flow_id = 2;
-  // "go" or "typescript".
+  // "go" or "typescript". Required for temporal; ignored by kinds that
+  // have no language concept.
   string language = 3;
   string root = 4;
+  // Which kind to scaffold. Empty defaults to "temporal".
+  string kind = 5;
 }
 message CreateFlowResponse {
   // Path of the created flow directory, relative to root.

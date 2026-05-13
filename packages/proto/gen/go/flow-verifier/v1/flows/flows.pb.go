@@ -28,12 +28,16 @@ type FlowSummary struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	FlowId       string                 `protobuf:"bytes,1,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
 	ContractPath string                 `protobuf:"bytes,2,opt,name=contract_path,json=contractPath,proto3" json:"contract_path,omitempty"`
-	// "go" or "typescript".
+	// Runtime language ("go" or "typescript") for temporal flows; empty
+	// for kinds that have no language concept (navigation, etc.).
 	Language      string `protobuf:"bytes,3,opt,name=language,proto3" json:"language,omitempty"`
 	SchemaVersion int32  `protobuf:"varint,4,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
 	// Stamped in when aggregating across scenarios; empty for single-
 	// scenario listings.
-	ScenarioId    string `protobuf:"bytes,5,opt,name=scenario_id,json=scenarioId,proto3" json:"scenario_id,omitempty"`
+	ScenarioId string `protobuf:"bytes,5,opt,name=scenario_id,json=scenarioId,proto3" json:"scenario_id,omitempty"`
+	// Wire-stable identifier of the kind that owns this flow, e.g.
+	// "temporal" or "navigation". UI uses it to pick a renderer.
+	Kind          string `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -99,6 +103,13 @@ func (x *FlowSummary) GetSchemaVersion() int32 {
 func (x *FlowSummary) GetScenarioId() string {
 	if x != nil {
 		return x.ScenarioId
+	}
+	return ""
+}
+
+func (x *FlowSummary) GetKind() string {
+	if x != nil {
+		return x.Kind
 	}
 	return ""
 }
@@ -926,14 +937,16 @@ type FlowDetail struct {
 	ContractPath  string                 `protobuf:"bytes,4,opt,name=contract_path,json=contractPath,proto3" json:"contract_path,omitempty"`
 	Language      string                 `protobuf:"bytes,5,opt,name=language,proto3" json:"language,omitempty"`
 	SchemaVersion int32                  `protobuf:"varint,6,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	InitialState  string                 `protobuf:"bytes,7,opt,name=initial_state,json=initialState,proto3" json:"initial_state,omitempty"`
-	States        []*FlowState           `protobuf:"bytes,8,rep,name=states,proto3" json:"states,omitempty"`
-	Events        []*FlowEvent           `protobuf:"bytes,9,rep,name=events,proto3" json:"events,omitempty"`
-	Transitions   []*FlowTransition      `protobuf:"bytes,10,rep,name=transitions,proto3" json:"transitions,omitempty"`
-	Traces        []*FlowTrace           `protobuf:"bytes,11,rep,name=traces,proto3" json:"traces,omitempty"`
-	Invariants    []*FlowInvariant       `protobuf:"bytes,12,rep,name=invariants,proto3" json:"invariants,omitempty"`
-	Model         *FlowModel             `protobuf:"bytes,13,opt,name=model,proto3" json:"model,omitempty"`
-	Runtime       *FlowRuntime           `protobuf:"bytes,14,opt,name=runtime,proto3" json:"runtime,omitempty"`
+	// Wire-stable kind identifier (e.g. "temporal").
+	Kind         string            `protobuf:"bytes,16,opt,name=kind,proto3" json:"kind,omitempty"`
+	InitialState string            `protobuf:"bytes,7,opt,name=initial_state,json=initialState,proto3" json:"initial_state,omitempty"`
+	States       []*FlowState      `protobuf:"bytes,8,rep,name=states,proto3" json:"states,omitempty"`
+	Events       []*FlowEvent      `protobuf:"bytes,9,rep,name=events,proto3" json:"events,omitempty"`
+	Transitions  []*FlowTransition `protobuf:"bytes,10,rep,name=transitions,proto3" json:"transitions,omitempty"`
+	Traces       []*FlowTrace      `protobuf:"bytes,11,rep,name=traces,proto3" json:"traces,omitempty"`
+	Invariants   []*FlowInvariant  `protobuf:"bytes,12,rep,name=invariants,proto3" json:"invariants,omitempty"`
+	Model        *FlowModel        `protobuf:"bytes,13,opt,name=model,proto3" json:"model,omitempty"`
+	Runtime      *FlowRuntime      `protobuf:"bytes,14,opt,name=runtime,proto3" json:"runtime,omitempty"`
 	// Human-readable explain report for the CLI's `flows explain` and
 	// the UI's Overview tab.
 	Report        string `protobuf:"bytes,15,opt,name=report,proto3" json:"report,omitempty"`
@@ -1013,6 +1026,13 @@ func (x *FlowDetail) GetSchemaVersion() int32 {
 	return 0
 }
 
+func (x *FlowDetail) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
 func (x *FlowDetail) GetInitialState() string {
 	if x != nil {
 		return x.InitialState
@@ -1081,7 +1101,9 @@ type ListFlowsRequest struct {
 	// Optional Vrooli root override; falls back to server default.
 	Root string `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
 	// Optional flow id filter; an unknown id is an error.
-	FlowId        string `protobuf:"bytes,2,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	FlowId string `protobuf:"bytes,2,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	// Optional kind filter; empty means "every kind".
+	Kind          string `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1126,6 +1148,13 @@ func (x *ListFlowsRequest) GetRoot() string {
 func (x *ListFlowsRequest) GetFlowId() string {
 	if x != nil {
 		return x.FlowId
+	}
+	return ""
+}
+
+func (x *ListFlowsRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
 	}
 	return ""
 }
@@ -1276,9 +1305,12 @@ type CreateFlowRequest struct {
 	// under, relative to root. Empty means "the root itself".
 	ParentDir string `protobuf:"bytes,1,opt,name=parent_dir,json=parentDir,proto3" json:"parent_dir,omitempty"`
 	FlowId    string `protobuf:"bytes,2,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
-	// "go" or "typescript".
-	Language      string `protobuf:"bytes,3,opt,name=language,proto3" json:"language,omitempty"`
-	Root          string `protobuf:"bytes,4,opt,name=root,proto3" json:"root,omitempty"`
+	// "go" or "typescript". Required for temporal; ignored by kinds that
+	// have no language concept.
+	Language string `protobuf:"bytes,3,opt,name=language,proto3" json:"language,omitempty"`
+	Root     string `protobuf:"bytes,4,opt,name=root,proto3" json:"root,omitempty"`
+	// Which kind to scaffold. Empty defaults to "temporal".
+	Kind          string `protobuf:"bytes,5,opt,name=kind,proto3" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1337,6 +1369,13 @@ func (x *CreateFlowRequest) GetLanguage() string {
 func (x *CreateFlowRequest) GetRoot() string {
 	if x != nil {
 		return x.Root
+	}
+	return ""
+}
+
+func (x *CreateFlowRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
 	}
 	return ""
 }
@@ -1583,14 +1622,15 @@ var File_flow_verifier_v1_flows_flows_proto protoreflect.FileDescriptor
 
 const file_flow_verifier_v1_flows_flows_proto_rawDesc = "" +
 	"\n" +
-	"\"flow-verifier/v1/flows/flows.proto\x12\x1dvrooli.flow_verifier.v1.flows\"\xaf\x01\n" +
+	"\"flow-verifier/v1/flows/flows.proto\x12\x1dvrooli.flow_verifier.v1.flows\"\xc3\x01\n" +
 	"\vFlowSummary\x12\x17\n" +
 	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x12#\n" +
 	"\rcontract_path\x18\x02 \x01(\tR\fcontractPath\x12\x1a\n" +
 	"\blanguage\x18\x03 \x01(\tR\blanguage\x12%\n" +
 	"\x0eschema_version\x18\x04 \x01(\x05R\rschemaVersion\x12\x1f\n" +
 	"\vscenario_id\x18\x05 \x01(\tR\n" +
-	"scenarioId\"g\n" +
+	"scenarioId\x12\x12\n" +
+	"\x04kind\x18\x06 \x01(\tR\x04kind\"g\n" +
 	"\tFlowState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05quint\x18\x02 \x01(\tR\x05quint\x12\x18\n" +
@@ -1675,7 +1715,7 @@ const file_flow_verifier_v1_flows_flows_proto_rawDesc = "" +
 	"typescript\x18\x02 \x01(\v20.vrooli.flow_verifier.v1.flows.TypeScriptRuntimeR\n" +
 	"typescript\x12!\n" +
 	"\fside_effects\x18\x03 \x03(\tR\vsideEffects\x12)\n" +
-	"\x10stale_completion\x18\x04 \x01(\tR\x0fstaleCompletion\"\xef\x05\n" +
+	"\x10stale_completion\x18\x04 \x01(\tR\x0fstaleCompletion\"\x83\x06\n" +
 	"\n" +
 	"FlowDetail\x12\x17\n" +
 	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x12\x16\n" +
@@ -1683,7 +1723,8 @@ const file_flow_verifier_v1_flows_flows_proto_rawDesc = "" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12#\n" +
 	"\rcontract_path\x18\x04 \x01(\tR\fcontractPath\x12\x1a\n" +
 	"\blanguage\x18\x05 \x01(\tR\blanguage\x12%\n" +
-	"\x0eschema_version\x18\x06 \x01(\x05R\rschemaVersion\x12#\n" +
+	"\x0eschema_version\x18\x06 \x01(\x05R\rschemaVersion\x12\x12\n" +
+	"\x04kind\x18\x10 \x01(\tR\x04kind\x12#\n" +
 	"\rinitial_state\x18\a \x01(\tR\finitialState\x12@\n" +
 	"\x06states\x18\b \x03(\v2(.vrooli.flow_verifier.v1.flows.FlowStateR\x06states\x12@\n" +
 	"\x06events\x18\t \x03(\v2(.vrooli.flow_verifier.v1.flows.FlowEventR\x06events\x12O\n" +
@@ -1695,23 +1736,25 @@ const file_flow_verifier_v1_flows_flows_proto_rawDesc = "" +
 	"invariants\x12>\n" +
 	"\x05model\x18\r \x01(\v2(.vrooli.flow_verifier.v1.flows.FlowModelR\x05model\x12D\n" +
 	"\aruntime\x18\x0e \x01(\v2*.vrooli.flow_verifier.v1.flows.FlowRuntimeR\aruntime\x12\x16\n" +
-	"\x06report\x18\x0f \x01(\tR\x06report\"?\n" +
+	"\x06report\x18\x0f \x01(\tR\x06report\"S\n" +
 	"\x10ListFlowsRequest\x12\x12\n" +
 	"\x04root\x18\x01 \x01(\tR\x04root\x12\x17\n" +
-	"\aflow_id\x18\x02 \x01(\tR\x06flowId\"U\n" +
+	"\aflow_id\x18\x02 \x01(\tR\x06flowId\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\"U\n" +
 	"\x11ListFlowsResponse\x12@\n" +
 	"\x05flows\x18\x01 \x03(\v2*.vrooli.flow_verifier.v1.flows.FlowSummaryR\x05flows\"=\n" +
 	"\x0eGetFlowRequest\x12\x17\n" +
 	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x12\x12\n" +
 	"\x04root\x18\x02 \x01(\tR\x04root\"P\n" +
 	"\x0fGetFlowResponse\x12=\n" +
-	"\x04flow\x18\x01 \x01(\v2).vrooli.flow_verifier.v1.flows.FlowDetailR\x04flow\"{\n" +
+	"\x04flow\x18\x01 \x01(\v2).vrooli.flow_verifier.v1.flows.FlowDetailR\x04flow\"\x8f\x01\n" +
 	"\x11CreateFlowRequest\x12\x1d\n" +
 	"\n" +
 	"parent_dir\x18\x01 \x01(\tR\tparentDir\x12\x17\n" +
 	"\aflow_id\x18\x02 \x01(\tR\x06flowId\x12\x1a\n" +
 	"\blanguage\x18\x03 \x01(\tR\blanguage\x12\x12\n" +
-	"\x04root\x18\x04 \x01(\tR\x04root\"/\n" +
+	"\x04root\x18\x04 \x01(\tR\x04root\x12\x12\n" +
+	"\x04kind\x18\x05 \x01(\tR\x04kind\"/\n" +
 	"\x12CreateFlowResponse\x12\x19\n" +
 	"\bflow_dir\x18\x01 \x01(\tR\aflowDir\"B\n" +
 	"\x13ValidateFlowRequest\x12\x17\n" +

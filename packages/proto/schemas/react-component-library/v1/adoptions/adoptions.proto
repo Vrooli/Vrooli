@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.adoptions;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions;adoptions_v1";
+
+// =============================================================================
+// ADOPTIONS DOMAIN — tracks which scenarios have adopted which components
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain adoptions
+// @stability experimental
+//
+// Wire contract for the AdoptionsService Connect-RPC service. An
+// adoption record is a soft link from a registry component (by id) to a
+// concrete copy of its source under a target scenario's tree. Refresh
+// compares the adopted bytes against the library's current snapshot to
+// compute a drift status: current / behind / modified / unknown.
+//
+// Consumed by:
+//   - API: handlers/adoptions/connect_handler.go implements
+//          AdoptionsServiceHandler.
+//   - UI:  ui/src/api/adoptions.ts (Connect-Web client).
+//   - CLI: cli/domains/adoptions/handlers.go (Connect-Go client).
+// =============================================================================
+
+service AdoptionsService {
+  rpc ListAdoptions(ListAdoptionsRequest) returns (ListAdoptionsResponse);
+  rpc CreateAdoption(CreateAdoptionRequest) returns (CreateAdoptionResponse);
+  rpc DeleteAdoption(DeleteAdoptionRequest) returns (DeleteAdoptionResponse);
+  rpc RefreshAdoptions(RefreshAdoptionsRequest) returns (RefreshAdoptionsResponse);
+}
+
+// AdoptionStatus is the drift state computed by Refresh.
+enum AdoptionStatus {
+  ADOPTION_STATUS_UNSPECIFIED = 0;
+  // Adopted version matches the library version AND adopted bytes
+  // match the current library bytes.
+  ADOPTION_STATUS_CURRENT = 1;
+  // Adopted version is older than the library version; adopted bytes
+  // still look like the snapshot of the adopted version (clean copy).
+  ADOPTION_STATUS_BEHIND = 2;
+  // Adopted bytes diverge from the library bytes for the adopted
+  // version — local edits or unknown provenance.
+  ADOPTION_STATUS_MODIFIED = 3;
+  // Adopted_path does not exist on disk, or the component has been
+  // removed from the registry. Refresh stamps this and leaves the row
+  // for the operator to reconcile.
+  ADOPTION_STATUS_UNKNOWN = 4;
+}
+
+message Adoption {
+  // UUID assigned by the API on create.
+  string id = 1;
+
+  // Soft FK to components.id. No SQL constraint, per per-domain rule.
+  string component_id = 2;
+
+  // Echoed @libraryId of the component at the time of create. Lets
+  // the UI render rows whose component_id has since been deleted.
+  string library_id = 3;
+
+  // Target scenario name (e.g., "swarm-manager"). Free-form string;
+  // the library does not validate against a scenario registry here.
+  string scenario = 4;
+
+  // Filesystem path within the target scenario where the adopted
+  // copy lives. Resolved relative to a configured scenarios root by
+  // the refresh service.
+  string adopted_path = 5;
+
+  // Library version stamped on the adopted copy at create time.
+  string adopted_version = 6;
+
+  // Drift status from the most recent Refresh. Empty until the first
+  // refresh runs.
+  AdoptionStatus status = 7;
+
+  // Notes attached by Refresh — e.g., the library version the row is
+  // behind by, or the path that was missing.
+  string status_detail = 8;
+
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp refreshed_at = 10;
+}
+
+message ListAdoptionsRequest {
+  // Optional filter: only return adoptions for this component.
+  string component_id = 1;
+  // Optional filter: only return adoptions in this target scenario.
+  string scenario = 2;
+  // Max rows. 0 = server default.
+  int32 limit = 3;
+}
+
+message ListAdoptionsResponse {
+  repeated Adoption adoptions = 1;
+}
+
+message CreateAdoptionRequest {
+  // Required. Soft FK to components.id; server validates the
+  // component exists at create time.
+  string component_id = 1;
+  // Required. Target scenario name.
+  string scenario = 2;
+  // Required. Adopted path within the target scenario.
+  string adopted_path = 3;
+  // Required. Library version stamped on the adopted copy.
+  string adopted_version = 4;
+}
+
+message CreateAdoptionResponse {
+  Adoption adoption = 1;
+}
+
+message DeleteAdoptionRequest {
+  string id = 1;
+}
+
+message DeleteAdoptionResponse {}
+
+message RefreshAdoptionsRequest {
+  // Optional: scope the refresh to a single component_id. Empty =
+  // every adoption in the registry.
+  string component_id = 1;
+}
+
+message RefreshAdoptionsResponse {
+  // Updated rows after the refresh, in the same order ListAdoptions
+  // would return them.
+  repeated Adoption adoptions = 1;
+  // Summary counters for CLI/UI display.
+  int32 current = 2;
+  int32 behind = 3;
+  int32 modified = 4;
+  int32 unknown = 5;
+}

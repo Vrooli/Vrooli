@@ -1,0 +1,155 @@
+from google.protobuf.internal import containers as _containers
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
+
+DESCRIPTOR: _descriptor.FileDescriptor
+
+class ConversationEvent(_message.Message):
+    __slots__ = ("id", "session_id", "source", "role", "text", "speech_paragraphs", "original_speech_paragraphs", "summarized", "created_at", "sequence", "delivery_state", "tts_state", "consumption_state")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    SPEECH_PARAGRAPHS_FIELD_NUMBER: _ClassVar[int]
+    ORIGINAL_SPEECH_PARAGRAPHS_FIELD_NUMBER: _ClassVar[int]
+    SUMMARIZED_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    DELIVERY_STATE_FIELD_NUMBER: _ClassVar[int]
+    TTS_STATE_FIELD_NUMBER: _ClassVar[int]
+    CONSUMPTION_STATE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    session_id: str
+    source: str
+    role: str
+    text: str
+    speech_paragraphs: _containers.RepeatedScalarFieldContainer[str]
+    original_speech_paragraphs: _containers.RepeatedScalarFieldContainer[str]
+    summarized: bool
+    created_at: str
+    sequence: int
+    delivery_state: str
+    tts_state: str
+    consumption_state: str
+    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., source: _Optional[str] = ..., role: _Optional[str] = ..., text: _Optional[str] = ..., speech_paragraphs: _Optional[_Iterable[str]] = ..., original_speech_paragraphs: _Optional[_Iterable[str]] = ..., summarized: _Optional[bool] = ..., created_at: _Optional[str] = ..., sequence: _Optional[int] = ..., delivery_state: _Optional[str] = ..., tts_state: _Optional[str] = ..., consumption_state: _Optional[str] = ...) -> None: ...
+
+class ConversationCursor(_message.Message):
+    __slots__ = ("last_seen_sequence", "last_listened_sequence")
+    LAST_SEEN_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    LAST_LISTENED_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    last_seen_sequence: int
+    last_listened_sequence: int
+    def __init__(self, last_seen_sequence: _Optional[int] = ..., last_listened_sequence: _Optional[int] = ...) -> None: ...
+
+class GetRequest(_message.Message):
+    __slots__ = ("session_id", "since_sequence")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    SINCE_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    since_sequence: int
+    def __init__(self, session_id: _Optional[str] = ..., since_sequence: _Optional[int] = ...) -> None: ...
+
+class GetResponse(_message.Message):
+    __slots__ = ("session_id", "events", "cursor")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_FIELD_NUMBER: _ClassVar[int]
+    CURSOR_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    events: _containers.RepeatedCompositeFieldContainer[ConversationEvent]
+    cursor: ConversationCursor
+    def __init__(self, session_id: _Optional[str] = ..., events: _Optional[_Iterable[_Union[ConversationEvent, _Mapping]]] = ..., cursor: _Optional[_Union[ConversationCursor, _Mapping]] = ...) -> None: ...
+
+class UpdateCursorRequest(_message.Message):
+    __slots__ = ("session_id", "last_seen_sequence", "has_last_seen_sequence", "last_listened_sequence", "has_last_listened_sequence")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    LAST_SEEN_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    HAS_LAST_SEEN_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    LAST_LISTENED_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    HAS_LAST_LISTENED_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    last_seen_sequence: int
+    has_last_seen_sequence: bool
+    last_listened_sequence: int
+    has_last_listened_sequence: bool
+    def __init__(self, session_id: _Optional[str] = ..., last_seen_sequence: _Optional[int] = ..., has_last_seen_sequence: _Optional[bool] = ..., last_listened_sequence: _Optional[int] = ..., has_last_listened_sequence: _Optional[bool] = ...) -> None: ...
+
+class UpdateCursorResponse(_message.Message):
+    __slots__ = ("cursor",)
+    CURSOR_FIELD_NUMBER: _ClassVar[int]
+    cursor: ConversationCursor
+    def __init__(self, cursor: _Optional[_Union[ConversationCursor, _Mapping]] = ...) -> None: ...
+
+class SummarizeEventRequest(_message.Message):
+    __slots__ = ("session_id", "event_id")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    event_id: str
+    def __init__(self, session_id: _Optional[str] = ..., event_id: _Optional[str] = ...) -> None: ...
+
+class SummarizeEventResponse(_message.Message):
+    __slots__ = ("summarized", "speech_paragraphs", "error")
+    SUMMARIZED_FIELD_NUMBER: _ClassVar[int]
+    SPEECH_PARAGRAPHS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    summarized: bool
+    speech_paragraphs: _containers.RepeatedScalarFieldContainer[str]
+    error: str
+    def __init__(self, summarized: _Optional[bool] = ..., speech_paragraphs: _Optional[_Iterable[str]] = ..., error: _Optional[str] = ...) -> None: ...
+
+class ResolveFileReferenceRequest(_message.Message):
+    __slots__ = ("session_id", "path")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    path: str
+    def __init__(self, session_id: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
+
+class ResolveFileReferenceResponse(_message.Message):
+    __slots__ = ("input_path", "resolved_path", "line", "has_line", "exists", "resolution_basis", "category", "can_preview")
+    INPUT_PATH_FIELD_NUMBER: _ClassVar[int]
+    RESOLVED_PATH_FIELD_NUMBER: _ClassVar[int]
+    LINE_FIELD_NUMBER: _ClassVar[int]
+    HAS_LINE_FIELD_NUMBER: _ClassVar[int]
+    EXISTS_FIELD_NUMBER: _ClassVar[int]
+    RESOLUTION_BASIS_FIELD_NUMBER: _ClassVar[int]
+    CATEGORY_FIELD_NUMBER: _ClassVar[int]
+    CAN_PREVIEW_FIELD_NUMBER: _ClassVar[int]
+    input_path: str
+    resolved_path: str
+    line: int
+    has_line: bool
+    exists: bool
+    resolution_basis: str
+    category: str
+    can_preview: bool
+    def __init__(self, input_path: _Optional[str] = ..., resolved_path: _Optional[str] = ..., line: _Optional[int] = ..., has_line: _Optional[bool] = ..., exists: _Optional[bool] = ..., resolution_basis: _Optional[str] = ..., category: _Optional[str] = ..., can_preview: _Optional[bool] = ...) -> None: ...
+
+class GetFileReferenceContentRequest(_message.Message):
+    __slots__ = ("session_id", "path")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    path: str
+    def __init__(self, session_id: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
+
+class GetFileReferenceContentResponse(_message.Message):
+    __slots__ = ("path", "line", "has_line", "category", "content_type", "content", "truncated")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    LINE_FIELD_NUMBER: _ClassVar[int]
+    HAS_LINE_FIELD_NUMBER: _ClassVar[int]
+    CATEGORY_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    line: int
+    has_line: bool
+    category: str
+    content_type: str
+    content: str
+    truncated: bool
+    def __init__(self, path: _Optional[str] = ..., line: _Optional[int] = ..., has_line: _Optional[bool] = ..., category: _Optional[str] = ..., content_type: _Optional[str] = ..., content: _Optional[str] = ..., truncated: _Optional[bool] = ...) -> None: ...

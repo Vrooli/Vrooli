@@ -1,5 +1,6 @@
 {
   "schemaVersion": 6,
+  "kind": "temporal",
   "flowId": "notes.attachment-upload.ui",
   "domain": "notes",
   "description": "UI attachment upload interaction, including stale async completion protection through attempt identity.",

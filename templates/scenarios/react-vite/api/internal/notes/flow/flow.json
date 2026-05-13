@@ -1,5 +1,6 @@
 {
   "schemaVersion": 6,
+  "kind": "temporal",
   "flowId": "notes.attachment-upload.api",
   "domain": "notes",
   "description": "API-side attachment upload orchestration from request receipt through byte storage and metadata recording.",
