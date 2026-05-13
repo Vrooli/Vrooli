@@ -22,7 +22,10 @@ import {
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
 import type { GateResult, InputSource } from "./terminal/inputGate";
-import { getSession, uploadFile, fetchCapabilities, getSessionDefaults, type BackendOption, type BackendID, type ExpirationPolicy } from "../lib/api";
+import { uploadFile } from "../api/uploads";
+import { fetchCapabilities } from "../api/capabilities";
+import { getSessionDefaults } from "../api/settings";
+import { getSession, type BackendOption, type BackendID, type ExpirationPolicy } from "../api/sessions";
 import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
 import GridSplitter from "./GridSplitter";

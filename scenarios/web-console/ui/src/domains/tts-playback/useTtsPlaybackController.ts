@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getTTSSummarizeConfig, summarizeEvent, updateTTSSummarizeConfig, type ConversationEvent } from "../../lib/api";
+import { getTTSSummarizeConfig, updateTTSSummarizeConfig } from "../../api/tts";
+import { summarizeEvent, type ConversationEvent } from "../../api/conversation";
 import type { SummarizationLevel } from "../../components/tts/PlaybackModeControl";
 import type { SessionPlaybackAudioState, SessionPlaybackController, SessionPlaybackControllerState } from "./types";
 import { buildPlaybackContext, buildPlaybackQueue, playbackEventKey, resolvePlaybackParagraphs, resolvePlaybackVersion } from "./utils";

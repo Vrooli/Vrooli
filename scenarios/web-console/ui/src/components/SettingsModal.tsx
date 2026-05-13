@@ -4,7 +4,7 @@ import { GripHorizontal, X } from "lucide-react";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import type { SessionInfo } from "../lib/api";
+import type { SessionInfo } from "../api/sessions";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
 import IntegrationsSection from "./settings/IntegrationsSection";

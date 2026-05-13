@@ -1,5 +1,5 @@
 import type { TTSPlaybackCapabilities, TTSPlaybackProgressCallback, TTSPlaybackState, TTSProvider, TTSSpeakOptions } from "./types";
-import { synthesizeTTS } from "../../lib/api";
+import { synthesizeTTS } from "../../api/tts";
 
 /**
  * TTS provider backed by the Kokoro synthesis API.

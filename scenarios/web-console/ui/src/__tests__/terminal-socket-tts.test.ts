@@ -5,7 +5,7 @@ import { FakeWebSocket, createFakeSocketPair, createMockTerminal } from "../test
 import type { MockTerminal } from "../test-utils";
 import type { ConversationEventMessage } from "../types/terminal";
 
-vi.mock("../lib/api", () => ({
+vi.mock("../api/sessions", () => ({
   buildSessionWsUrl: vi.fn((id: string) => `ws://test/sessions/${id}/ws`),
 }));
 

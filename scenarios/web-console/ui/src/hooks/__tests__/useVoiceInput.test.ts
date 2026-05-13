@@ -5,24 +5,33 @@ import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
+const fetchCapabilitiesMock = vi.fn();
+const fetchCapabilitiesLivenessCachedMock = vi.fn();
+const refreshCapabilitiesLivenessMock = vi.fn();
+const getCapabilitiesLivenessSnapshotMock = vi.fn(() => null);
+
+vi.mock("../../api/capabilities", () => ({
+  fetchCapabilities: fetchCapabilitiesMock,
+  fetchCapabilitiesLiveness: fetchCapabilitiesLivenessCachedMock,
+  fetchCapabilitiesLivenessCached: fetchCapabilitiesLivenessCachedMock,
+  refreshCapabilitiesLiveness: refreshCapabilitiesLivenessMock,
+  getCapabilitiesLivenessSnapshot: getCapabilitiesLivenessSnapshotMock,
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 const mockCapabilities = (whisperAvailable: boolean) => {
-  globalThis.fetch = vi.fn().mockResolvedValue({
-    ok: true,
-    json: () =>
-      Promise.resolve({
-        capabilities: [
-          {
-            id: "whisper-stt",
-            status: whisperAvailable ? "available" : "unavailable",
-          },
-        ],
-        timestamp: new Date().toISOString(),
-      }),
-  }) as typeof fetch;
+  const resp = {
+    capabilities: [
+      { id: "whisper-stt", status: whisperAvailable ? "available" : "unavailable" },
+    ],
+    timestamp: new Date().toISOString(),
+  };
+  fetchCapabilitiesMock.mockResolvedValue(resp);
+  fetchCapabilitiesLivenessCachedMock.mockResolvedValue(resp);
+  refreshCapabilitiesLivenessMock.mockResolvedValue(resp);
 };
 
 const mockMediaDevices = (success: boolean) => {
@@ -150,9 +159,9 @@ describe("useVoiceInput", () => {
   });
 
   it("reports error when capabilities fetch fails", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(
-      new Error("Network error"),
-    ) as typeof fetch;
+    fetchCapabilitiesMock.mockRejectedValue(new Error("Network error"));
+    fetchCapabilitiesLivenessCachedMock.mockRejectedValue(new Error("Network error"));
+    refreshCapabilitiesLivenessMock.mockRejectedValue(new Error("Network error"));
     removeSpeechRecognition();
 
     const onTranscript = vi.fn();

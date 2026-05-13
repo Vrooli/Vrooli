@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { KokoroProvider } from "../KokoroProvider";
 
-vi.mock("../../../lib/api", () => ({
+vi.mock("../../../api/tts", () => ({
   synthesizeTTS: vi.fn(),
 }));
 
-import { synthesizeTTS } from "../../../lib/api";
+import { synthesizeTTS } from "../../../api/tts";
 
 const mockSynthesizeTTS = synthesizeTTS as ReturnType<typeof vi.fn>;
 

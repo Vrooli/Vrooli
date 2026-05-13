@@ -9,7 +9,7 @@
 // eliminate the audio gap between getUserMedia and WebSocket connection.
 // Chunks are buffered in pendingChunks until the WebSocket is ready.
 
-import { transcribeAudioWithRetry, buildVoiceStreamWsUrl } from "../../lib/api";
+import { transcribeAudioWithRetry, buildVoiceStreamWsUrl } from "../../api/voice";
 import type { LastTurnAudio, TranscriptionProvider } from "./types";
 import { AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, WHISPER_FAILED_SENTINEL, computeFinalTimeout } from "./types";
 

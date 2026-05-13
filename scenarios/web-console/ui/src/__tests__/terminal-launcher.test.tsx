@@ -1,31 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import TerminalLauncher from "../components/TerminalLauncher";
 import type { ShortcutEntry } from "../consts/shortcuts";
+import { asMockedClient } from "../test-utils";
 
 // [REQ:P0-006a] Terminal Launch Flow UI — component rendering & interactions
 // [REQ:P0-006b] Configurable Shortcut Entries — shortcut rendering and selection
-// [REQ:P1-002b] Shortcut Profile Management UI — API-driven shortcut loading
+// [REQ:P1-002b] Shortcut Profile Management UI — API-driven shortcut loading via
+// the Connect-Web ShortcutsService client.
+
+vi.mock("../api/shortcuts", () => ({
+  shortcutsClient: {
+    getEffective: vi.fn(),
+    listProfiles: vi.fn(),
+    upsertProfile: vi.fn(),
+    deleteProfile: vi.fn(),
+  },
+}));
+
+import { shortcutsClient as _shortcutsClient } from "../api/shortcuts";
+const shortcutsClient = asMockedClient(_shortcutsClient);
+
+import TerminalLauncher from "../components/TerminalLauncher";
 
 const testShortcuts: ShortcutEntry[] = [
   { label: "Claude Code", command: "claude --dangerously-skip-permissions", description: "AI coding assistant" },
   { label: "Codex", command: "codex --yolo", description: "OpenAI Codex CLI" },
 ];
 
-let mockGetEffectiveShortcuts: ReturnType<typeof vi.fn>;
-
-vi.mock("../lib/api", () => ({
-  getEffectiveShortcuts: vi.fn(),
-}));
-
 describe("TerminalLauncher", () => {
   const onClose = vi.fn();
   const onLaunch = vi.fn();
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-    const api = await import("../lib/api");
-    mockGetEffectiveShortcuts = api.getEffectiveShortcuts as ReturnType<typeof vi.fn>;
   });
 
   it("renders nothing when closed", () => {
@@ -142,11 +149,12 @@ describe("TerminalLauncher", () => {
     expect(shortcutBtn.hasAttribute("disabled")).toBe(true);
   });
 
-  it("fetches shortcuts from API when no prop provided", async () => {
-    const apiShortcuts: ShortcutEntry[] = [
-      { label: "Docker", command: "docker exec -it web bash", description: "Container shell" },
-    ];
-    mockGetEffectiveShortcuts.mockResolvedValueOnce(apiShortcuts);
+  it("fetches shortcuts via shortcutsClient.getEffective when no prop provided", async () => {
+    shortcutsClient.getEffective.mockResolvedValueOnce({
+      shortcuts: [
+        { $typeName: "vrooli.web_console.v1.shortcuts.Shortcut", label: "Docker", command: "docker exec -it web bash", description: "Container shell" },
+      ],
+    });
 
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} />,
@@ -155,11 +163,12 @@ describe("TerminalLauncher", () => {
     await waitFor(() => {
       expect(screen.getByText("Docker")).toBeTruthy();
     });
-    expect(mockGetEffectiveShortcuts).toHaveBeenCalledOnce();
+    expect(shortcutsClient.getEffective).toHaveBeenCalledOnce();
+    expect(shortcutsClient.getEffective).toHaveBeenCalledWith({});
   });
 
   it("falls back to DEFAULT_SHORTCUTS when API fetch fails", async () => {
-    mockGetEffectiveShortcuts.mockRejectedValueOnce(new Error("network error"));
+    shortcutsClient.getEffective.mockRejectedValueOnce(new Error("network error"));
 
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} />,
@@ -174,6 +183,6 @@ describe("TerminalLauncher", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
-    expect(mockGetEffectiveShortcuts).not.toHaveBeenCalled();
+    expect(shortcutsClient.getEffective).not.toHaveBeenCalled();
   });
 });

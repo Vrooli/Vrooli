@@ -35,8 +35,8 @@ const mockUpdateTTSConfig = vi.fn((patch?: Partial<{
   kokoroSpeed: patch?.kokoroSpeed ?? 1.0,
 }));
 
-vi.mock("../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/api")>();
+vi.mock("../api/tts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/tts")>();
   return {
     ...actual,
     getTTSStatus: vi.fn().mockResolvedValue({

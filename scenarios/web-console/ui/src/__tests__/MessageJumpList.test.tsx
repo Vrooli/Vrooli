@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import MessageJumpList from "../components/MessageJumpList";
-import type { ConversationEvent } from "../lib/api";
+import type { ConversationEvent } from "../api/conversation";
 
 function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequence: number }): ConversationEvent {
   return {

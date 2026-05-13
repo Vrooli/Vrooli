@@ -15,7 +15,8 @@
 // and the provider is initializing.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { fetchCapabilities, getCapabilitiesLivenessSnapshot, refreshCapabilitiesLiveness, getVoiceStreamConfig, transcribeAudioBypassFilter } from "../lib/api";
+import { getVoiceStreamConfig, transcribeAudioBypassFilter, getWakeWordConfig } from "../api/voice";
+import { fetchCapabilities, getCapabilitiesLivenessSnapshot, refreshCapabilitiesLiveness } from "../api/capabilities";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { createAudioFilterChain } from "./voice/audioUtils";
 import { playRecordingStartCue, playRecordingStopCue } from "./voice/audioCues";
@@ -27,7 +28,6 @@ import { WhisperProvider } from "./voice/WhisperProvider";
 import { WebSpeechProvider } from "./voice/WebSpeechProvider";
 import { parseCommandDirect } from "./voice/commandParser";
 import { createWakeWordEngine, PassiveListener } from "./voice/wakeword";
-import { getWakeWordConfig } from "../lib/api";
 import type { WakeWordEngine, WakeWordTemplate } from "./voice/wakeword";
 import {
   CAP_CHECK_FAIL_THRESHOLD,

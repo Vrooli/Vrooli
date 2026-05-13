@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { forwardRef, useImperativeHandle } from "react";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
-import type { ConversationEvent } from "../lib/api";
+import type { ConversationEvent } from "../api/conversation";
 import { apiBaseMock } from "../test-utils";
 import Workspace from "../components/Workspace";
 
@@ -238,14 +238,26 @@ vi.mock("../hooks/useConversationSession", () => ({
 vi.mock("../hooks/useImageUpload", () => ({
   useImageUpload: () => ({ uploadImage: vi.fn() }),
 }));
-vi.mock("../lib/api", () => ({
-  getSession: vi.fn(),
+vi.mock("../api/uploads", () => ({
   uploadFile: vi.fn(),
-  summarizeEvent: vi.fn().mockResolvedValue({}),
-  fetchCapabilities: vi.fn(() => new Promise(() => {})),
-  getSessionDefaults: vi.fn(() => new Promise(() => {})),
+}));
+vi.mock("../api/tts", () => ({
   getTTSSummarizeConfig: vi.fn().mockResolvedValue({ enabled: false, charThreshold: 500, level: "moderate", model: "qwen3:1.7b", timeoutSeconds: 30 }),
   updateTTSSummarizeConfig: vi.fn().mockResolvedValue({ enabled: false, charThreshold: 500, level: "moderate", model: "qwen3:1.7b", timeoutSeconds: 30 }),
+}));
+vi.mock("../api/sessions", async () => {
+  const actual = await vi.importActual<typeof import("../api/sessions")>("../api/sessions");
+  return { ...actual, getSession: vi.fn() };
+});
+vi.mock("../api/conversation", async () => {
+  const actual = await vi.importActual<typeof import("../api/conversation")>("../api/conversation");
+  return { ...actual, summarizeEvent: vi.fn().mockResolvedValue({}) };
+});
+vi.mock("../api/capabilities", () => ({
+  fetchCapabilities: vi.fn(() => new Promise(() => {})),
+}));
+vi.mock("../api/settings", () => ({
+  getSessionDefaults: vi.fn(() => new Promise(() => {})),
 }));
 
 // ── Test constants ──

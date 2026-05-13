@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTtsPlaybackController } from "./useTtsPlaybackController";
-import type { ConversationEvent } from "../../lib/api";
+import type { ConversationEvent } from "../../api/conversation";
 
 const { mockGetConfig, mockSummarizeEvent, mockUpdateConfig } = vi.hoisted(() => ({
   mockGetConfig: vi.fn(),
@@ -9,10 +9,13 @@ const { mockGetConfig, mockSummarizeEvent, mockUpdateConfig } = vi.hoisted(() =>
   mockUpdateConfig: vi.fn(),
 }));
 
-vi.mock("../../lib/api", () => ({
+vi.mock("../../api/tts", () => ({
   getTTSSummarizeConfig: mockGetConfig,
-  summarizeEvent: mockSummarizeEvent,
   updateTTSSummarizeConfig: mockUpdateConfig,
+}));
+
+vi.mock("../../api/conversation", () => ({
+  summarizeEvent: mockSummarizeEvent,
 }));
 
 function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequence: number }): ConversationEvent {

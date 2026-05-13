@@ -9,7 +9,7 @@
 // "Transcribe anyway" retry on speaker-verification rejection. The blob is
 // released on `disposeLastTurn()` or on the next `start()`.
 
-import { transcribeAudioWithRetry } from "../../lib/api";
+import { transcribeAudioWithRetry } from "../../api/voice";
 import type { LastTurnAudio, TranscriptionProvider } from "./types";
 import { AUDIO_BITRATE, WHISPER_FAILED_SENTINEL } from "./types";
 

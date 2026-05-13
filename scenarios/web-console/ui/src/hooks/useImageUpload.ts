@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { uploadFile } from "../lib/api";
+import { uploadFile } from "../api/uploads";
 import type { GateResult, InputSource } from "../components/terminal/inputGate";
 
 interface UseImageUploadResult {

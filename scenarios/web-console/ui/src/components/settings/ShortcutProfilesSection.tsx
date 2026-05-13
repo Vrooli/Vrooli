@@ -2,14 +2,22 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsSectionIntro } from "./primitives";
-import {
-  type ShortcutEntry,
-  type ShortcutProfile,
-  deleteShortcutProfile,
-  listShortcutProfiles,
-  toErrorInfo,
-  upsertShortcutProfile,
-} from "../../lib/api";
+import type { Profile as ShortcutProfile } from "@vrooli/proto-types/web-console/v1/shortcuts/shortcuts_pb";
+import { shortcutsClient } from "../../api/shortcuts";
+import { toErrorInfo } from "../../lib/errors";
+
+interface ShortcutDraft {
+  label: string;
+  command: string;
+  description: string;
+}
+
+interface ProfileDraft {
+  id: string;
+  scope: string;
+  name: string;
+  shortcuts: ShortcutDraft[];
+}
 
 function ShortcutEditor({
   profile,
@@ -17,14 +25,16 @@ function ShortcutEditor({
   onDelete,
 }: {
   profile: ShortcutProfile;
-  onSave: (profile: ShortcutProfile) => void;
+  onSave: (draft: ProfileDraft) => void;
   onDelete: (id: string) => void;
 }) {
-  const [entries, setEntries] = useState<ShortcutEntry[]>(profile.shortcuts);
+  const [entries, setEntries] = useState<ShortcutDraft[]>(
+    profile.shortcuts.map((s) => ({ label: s.label, command: s.command, description: s.description })),
+  );
   const [name, setName] = useState(profile.name);
   const [dirty, setDirty] = useState(false);
 
-  const updateEntry = (index: number, field: keyof ShortcutEntry, value: string) => {
+  const updateEntry = (index: number, field: keyof ShortcutDraft, value: string) => {
     setEntries((current) => current.map((entry, idx) => (
       idx === index ? { ...entry, [field]: value } : entry
     )));
@@ -32,7 +42,7 @@ function ShortcutEditor({
   };
 
   const addEntry = () => {
-    setEntries((current) => [...current, { label: "", command: "" }]);
+    setEntries((current) => [...current, { label: "", command: "", description: "" }]);
     setDirty(true);
   };
 
@@ -64,7 +74,7 @@ function ShortcutEditor({
               size="icon"
               className="h-7 w-7"
               onClick={() => {
-                onSave({ ...profile, name, shortcuts: entries });
+                onSave({ id: profile.id, scope: profile.scope, name, shortcuts: entries });
                 setDirty(false);
               }}
               title="Save changes"
@@ -136,9 +146,9 @@ export default function ShortcutProfilesSection() {
   const loadProfiles = useCallback(async (signal?: { cancelled: boolean }) => {
     setProfileLoading(true);
     try {
-      const data = await listShortcutProfiles();
+      const resp = await shortcutsClient.listProfiles({});
       if (signal?.cancelled) return;
-      setProfiles(data);
+      setProfiles(resp.profiles);
       setProfileError(null);
     } catch (error) {
       if (signal?.cancelled) return;
@@ -158,14 +168,13 @@ export default function ShortcutProfilesSection() {
     };
   }, [loadProfiles]);
 
-  const handleSaveProfile = useCallback(async (profile: ShortcutProfile) => {
+  const handleSaveProfile = useCallback(async (draft: ProfileDraft) => {
     try {
-      const updated = await upsertShortcutProfile({
-        id: profile.id,
-        scope: profile.scope,
-        name: profile.name,
-        shortcuts: profile.shortcuts,
-      });
+      const resp = await shortcutsClient.upsertProfile(draft);
+      if (!resp.profile) {
+        throw new Error("upsertProfile: missing profile in response");
+      }
+      const updated = resp.profile;
       setProfiles((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     } catch (error) {
       setProfileError(toErrorInfo(error).message);
@@ -175,7 +184,7 @@ export default function ShortcutProfilesSection() {
 
   const handleDeleteProfile = useCallback(async (id: string) => {
     try {
-      await deleteShortcutProfile(id);
+      await shortcutsClient.deleteProfile({ id });
       setProfiles((current) => current.filter((item) => item.id !== id));
     } catch (error) {
       setProfileError(toErrorInfo(error).message);
@@ -185,12 +194,16 @@ export default function ShortcutProfilesSection() {
 
   const handleCreateProfile = useCallback(async () => {
     try {
-      const newProfile = await upsertShortcutProfile({
+      const resp = await shortcutsClient.upsertProfile({
         id: `profile-${Date.now()}`,
         scope: "workspace",
         name: "New Profile",
-        shortcuts: [{ label: "List files", command: "ls -la" }],
+        shortcuts: [{ label: "List files", command: "ls -la", description: "" }],
       });
+      if (!resp.profile) {
+        throw new Error("upsertProfile: missing profile in response");
+      }
+      const newProfile = resp.profile;
       setProfiles((current) => [...current, newProfile]);
     } catch (error) {
       setProfileError(toErrorInfo(error).message);

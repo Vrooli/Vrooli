@@ -8,17 +8,19 @@ import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
 // Mock the API module so we can drive transcribeAudioBypassFilter.
-vi.mock("../../lib/api", async () => {
-  const actual = await vi.importActual<typeof import("../../lib/api")>("../../lib/api");
+vi.mock("../../api/capabilities", () => ({
+  fetchCapabilities: vi.fn().mockResolvedValue({
+    capabilities: [{ id: "whisper-stt", status: "available" }],
+    timestamp: new Date().toISOString(),
+  }),
+  getCapabilitiesLivenessSnapshot: vi.fn().mockReturnValue(null),
+  refreshCapabilitiesLiveness: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("../../api/voice", async () => {
+  const actual = await vi.importActual<typeof import("../../api/voice")>("../../api/voice");
   return {
     ...actual,
     transcribeAudioBypassFilter: vi.fn(),
-    fetchCapabilities: vi.fn().mockResolvedValue({
-      capabilities: [{ id: "whisper-stt", status: "available" }],
-      timestamp: new Date().toISOString(),
-    }),
-    getCapabilitiesLivenessSnapshot: vi.fn().mockReturnValue(null),
-    refreshCapabilitiesLiveness: vi.fn().mockResolvedValue(undefined),
     getVoiceStreamConfig: vi.fn().mockRejectedValue(new Error("no config")),
     getWakeWordConfig: vi.fn().mockRejectedValue(new Error("no wake word")),
     buildVoiceStreamWsUrl: vi.fn().mockReturnValue("ws://test"),
@@ -91,7 +93,7 @@ describe("useVoiceInput rejection + retry", () => {
    * retryWithoutFilter without a rejection is a no-op.
    */
   it("retryWithoutFilter is a no-op when rejectedAudio is null", async () => {
-    const api = await import("../../lib/api");
+    const api = await import("../../api/voice");
     const onTranscript = vi.fn();
     const { useVoiceInput } = await import("../useVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
@@ -143,7 +145,7 @@ describe("useVoiceInput rejection + retry", () => {
   });
 
   it("module surface exports transcribeAudioBypassFilter", async () => {
-    const api = await import("../../lib/api");
+    const api = await import("../../api/voice");
     expect(api).toHaveProperty("transcribeAudioBypassFilter");
     expect(typeof api.transcribeAudioBypassFilter).toBe("function");
   });

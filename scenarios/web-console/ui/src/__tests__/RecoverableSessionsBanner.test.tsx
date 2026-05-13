@@ -7,11 +7,15 @@ const listMock = vi.fn();
 const recoverMock = vi.fn();
 const dismissMock = vi.fn();
 
-vi.mock("../lib/api", () => ({
-  listRecoverableSessions: () => listMock(),
-  recoverSession: (id: string) => recoverMock(id),
-  dismissRecoverableSession: (id: string) => dismissMock(id),
-}));
+vi.mock("../api/sessions", async () => {
+  const actual = await vi.importActual<typeof import("../api/sessions")>("../api/sessions");
+  return {
+    ...actual,
+    listRecoverableSessions: () => listMock(),
+    recoverSession: (id: string) => recoverMock(id),
+    dismissRecoverableSession: (id: string) => dismissMock(id),
+  };
+});
 
 beforeEach(() => {
   listMock.mockReset();

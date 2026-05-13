@@ -32,6 +32,11 @@ export function apiBaseMock() {
     resolveWsBase: () => wsBase,
     buildWsUrl: (path: string, opts: { baseUrl: string }) =>
       `${opts.baseUrl}${path}`,
+    // Connect-Web transport used by src/api/*.ts domain clients. Tests
+    // that exercise those clients mock the domain module directly (so the
+    // transport is never invoked); a no-op stub here just stops the
+    // import-time `createScenarioConnectTransport` call from crashing.
+    createScenarioConnectTransport: () => ({}),
   };
 }
 
@@ -212,7 +217,7 @@ export function findWriteCall(
 // Session data factories
 // ---------------------------------------------------------------------------
 
-import type { SessionInfo } from "../lib/api";
+import type { SessionInfo } from "../api/sessions";
 
 /**
  * Creates an array of session entries suitable for component props.

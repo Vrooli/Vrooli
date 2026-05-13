@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ConversationCursor, ConversationEvent } from "../lib/api";
+import type { ConversationCursor, ConversationEvent } from "../api/conversation";
 
 export type PaneViewMode = "terminal" | "messages";
 

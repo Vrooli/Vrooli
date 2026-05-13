@@ -3,12 +3,26 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import MessagesPane from "../components/MessagesPane";
 import { useConversationStore } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import type { ConversationEvent } from "../lib/api";
+import type { ConversationEvent } from "../api/conversation";
 import type { TTSPlaybackState } from "../hooks/tts/types";
 
 vi.mock("../hooks/useConversationSession", () => ({
   refreshConversationSession: vi.fn().mockResolvedValue(undefined),
 }));
+
+const { mockResolveFileReference, mockGetFileReferenceContent } = vi.hoisted(() => ({
+  mockResolveFileReference: vi.fn(),
+  mockGetFileReferenceContent: vi.fn(),
+}));
+
+vi.mock("../api/conversation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/conversation")>();
+  return {
+    ...actual,
+    resolveFileReference: mockResolveFileReference,
+    getFileReferenceContent: mockGetFileReferenceContent,
+  };
+});
 
 // Mock the markdown renderer to avoid shiki/mermaid in jsdom
 vi.mock("../components/markdown", () => ({
@@ -248,30 +262,23 @@ describe("MessagesPane", () => {
   });
 
   it("opens the file viewer when clicking a file-like markdown link", async () => {
-    (globalThis.fetch as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
-          input_path: "/tmp/example.ts:12",
-          resolved_path: "/tmp/example.ts",
-          line: 12,
-          exists: true,
-          resolution_basis: "absolute_allowed",
-          category: "code",
-          can_preview: true,
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
-          path: "/tmp/example.ts",
-          line: 12,
-          category: "code",
-          content_type: "text/plain; charset=utf-8",
-          content: "const x = 1;\n",
-          truncated: false,
-        }),
-      });
+    mockResolveFileReference.mockResolvedValueOnce({
+      input_path: "/tmp/example.ts:12",
+      resolved_path: "/tmp/example.ts",
+      line: 12,
+      exists: true,
+      resolution_basis: "absolute_allowed",
+      category: "code",
+      can_preview: true,
+    });
+    mockGetFileReferenceContent.mockResolvedValueOnce({
+      path: "/tmp/example.ts",
+      line: 12,
+      category: "code",
+      content_type: "text/plain; charset=utf-8",
+      content: "const x = 1;\n",
+      truncated: false,
+    });
 
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[example.ts](/tmp/example.ts:12)" })]);
     render(<MessagesPane {...defaultProps} />);
@@ -284,23 +291,12 @@ describe("MessagesPane", () => {
       expect(screen.getByText("line 12")).toBeInTheDocument();
       expect(screen.getByText("const x = 1;")).toBeInTheDocument();
     });
-    expect(globalThis.fetch).toHaveBeenLastCalledWith(
-      expect.stringContaining("path=%2Ftmp%2Fexample.ts%3A12"),
-      expect.any(Object),
-    );
+    expect(mockResolveFileReference).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12");
+    expect(mockGetFileReferenceContent).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12");
   });
 
   it("shows a viewer error when file resolution fails", async () => {
-    (globalThis.fetch as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        json: () => Promise.resolve({
-          error: "Referenced file was not found",
-          code: "file_reference_not_found",
-          category: "validation",
-        }),
-      });
+    mockResolveFileReference.mockRejectedValueOnce(new Error("Referenced file was not found"));
 
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[missing.ts](missing.ts)" })]);
     render(<MessagesPane {...defaultProps} />);

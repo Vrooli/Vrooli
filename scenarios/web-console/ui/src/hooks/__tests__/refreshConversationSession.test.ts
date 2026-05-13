@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { ConversationEvent } from "../../lib/api";
+import type { ConversationEvent } from "../../api/conversation";
 import { apiBaseMock } from "../../test-utils";
 
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
 import { refreshConversationSession } from "../useConversationSession";
 import { useConversationStore } from "../../stores/useConversationStore";
-import * as api from "../../lib/api";
+import * as api from "../../api/conversation";
 
 const makeEvent = (id: string, sequence: number, text = "t"): ConversationEvent => ({
   id,

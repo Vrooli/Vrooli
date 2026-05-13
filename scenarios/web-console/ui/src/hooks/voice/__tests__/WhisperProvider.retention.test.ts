@@ -49,7 +49,7 @@ function installMocks() {
   (globalThis as Record<string, unknown>).MediaRecorder = MockMediaRecorder;
 }
 
-vi.mock("../../../lib/api", () => ({
+vi.mock("../../../api/voice", () => ({
   transcribeAudioWithRetry: vi.fn().mockResolvedValue(""),
 }));
 

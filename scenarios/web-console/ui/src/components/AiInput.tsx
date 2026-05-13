@@ -3,7 +3,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Sparkles, Send, Copy, Play, Loader2, AlertCircle, X, GripHorizontal } from "lucide-react";
 import { Button } from "./ui/button";
-import { generateAICommand, toErrorInfo } from "../lib/api";
+import { generateAICommand } from "../api/ai";
+import { toErrorInfo } from "../lib/errors";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 

@@ -1,4 +1,4 @@
-import type { ConversationEvent } from "../../lib/api";
+import type { ConversationEvent } from "../../api/conversation";
 import type { PlaybackEventContext, PlaybackQueueEntry, PlaybackTarget, PlaybackVersion, SessionPlaybackControllerState } from "./types";
 
 export function playbackEventKey(sessionId: string, eventId: string): string {

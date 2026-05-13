@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Terminal } from "@xterm/xterm";
-import { buildSessionWsUrl } from "../../lib/api";
+import { buildSessionWsUrl } from "../../api/sessions";
 import { refreshConversationSession } from "../../hooks/useConversationSession";
 import { ANSI } from "../../lib/ansi";
 import { LocalEchoController } from "../../lib/localEcho";

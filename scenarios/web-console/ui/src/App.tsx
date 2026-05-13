@@ -1,7 +1,7 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 import { lazy, Suspense, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchHealth } from "./lib/api";
+import { fetchHealth } from "./api/health";
 import { HEALTH_RETRY_COUNT, HEALTH_RETRY_DELAY_MS } from "./consts/config";
 import { Button } from "./components/ui/button";
 import ErrorBoundary from "./components/ErrorBoundary";

@@ -16,14 +16,14 @@ import { useConversationStore, getSessionConversationEvents } from "../stores/us
 import { refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { APIError } from "../lib/errors";
 import {
-  APIError,
   getFileReferenceContent,
   resolveFileReference,
   type ConversationEvent,
   type FileReferenceContentResponse,
   type FileReferenceResolveResponse,
-} from "../lib/api";
+} from "../api/conversation";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
 import { looksLikeFileReference } from "../lib/fileReferences";

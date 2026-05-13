@@ -19,7 +19,7 @@ import { useTextToSpeech } from "../hooks/useTextToSpeech";
 import { useMobileBackspaceRepeat } from "../hooks/useMobileBackspaceRepeat";
 import { useConversationSession } from "../hooks/useConversationSession";
 import { useConversationStore } from "../stores/useConversationStore";
-import type { ConversationEvent } from "../lib/api";
+import type { ConversationEvent } from "../api/conversation";
 import type { TTSPlaybackState } from "../hooks/tts/types";
 
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];

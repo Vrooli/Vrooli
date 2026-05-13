@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, type CSSProperties, type ChangeEvent } f
 import { createPortal } from "react-dom";
 import { Pause, Play, Volume2, VolumeX, X } from "lucide-react";
 import type { TTSPlaybackCapabilities } from "../hooks/tts/types";
-import type { ConversationEvent } from "../lib/api";
+import type { ConversationEvent } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { cn } from "../lib/classnames";
 import { AudioSettingsContent } from "./tts/AudioSettingsContent";

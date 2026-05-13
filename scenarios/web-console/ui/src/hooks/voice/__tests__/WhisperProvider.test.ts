@@ -60,7 +60,7 @@ function installMocks(micSuccess = true) {
 }
 
 // Mock the api module
-vi.mock("../../../lib/api", () => ({
+vi.mock("../../../api/voice", () => ({
   transcribeAudioWithRetry: vi.fn(),
 }));
 
@@ -112,7 +112,7 @@ describe("WhisperProvider", () => {
   });
 
   it("transcribes collected audio on stop", async () => {
-    const { transcribeAudioWithRetry } = await import("../../../lib/api");
+    const { transcribeAudioWithRetry } = await import("../../../api/voice");
     (transcribeAudioWithRetry as ReturnType<typeof vi.fn>).mockResolvedValue("hello world");
 
     const provider = new WhisperProvider();
@@ -135,7 +135,7 @@ describe("WhisperProvider", () => {
   });
 
   it("calls onError with WHISPER_FAILED_SENTINEL when transcription fails", async () => {
-    const { transcribeAudioWithRetry } = await import("../../../lib/api");
+    const { transcribeAudioWithRetry } = await import("../../../api/voice");
     (transcribeAudioWithRetry as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Network error"));
 
     const provider = new WhisperProvider();
@@ -155,7 +155,7 @@ describe("WhisperProvider", () => {
   });
 
   it("does not call onResult for empty audio blobs", async () => {
-    const { transcribeAudioWithRetry } = await import("../../../lib/api");
+    const { transcribeAudioWithRetry } = await import("../../../api/voice");
 
     const provider = new WhisperProvider();
     const onResult = vi.fn();
@@ -195,7 +195,7 @@ describe("WhisperProvider", () => {
   });
 
   it("passes language to transcribeAudioWithRetry", async () => {
-    const { transcribeAudioWithRetry } = await import("../../../lib/api");
+    const { transcribeAudioWithRetry } = await import("../../../api/voice");
     (transcribeAudioWithRetry as ReturnType<typeof vi.fn>).mockResolvedValue("bonjour");
 
     const provider = new WhisperProvider();

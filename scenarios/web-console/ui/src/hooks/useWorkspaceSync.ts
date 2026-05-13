@@ -7,7 +7,7 @@ import {
   deleteTabGroup,
   type WorkspacePaneDTO,
   type TabGroupDTO,
-} from "../lib/api";
+} from "../api/workspace";
 
 
 /** Debounce delay (ms) for pane reorder saves. */

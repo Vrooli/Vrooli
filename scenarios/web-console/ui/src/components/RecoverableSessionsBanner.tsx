@@ -6,7 +6,7 @@ import {
   recoverSession,
   type RecoverableSession,
   type RecoverResult,
-} from "../lib/api";
+} from "../api/sessions";
 
 export interface RecoverableSessionsBannerProps {
   // Called after a successful recovery so the workspace can attach the new

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import type { ConversationEvent } from "../lib/api";
+import type { ConversationEvent } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useVirtualList } from "../hooks/useVirtualList";
 import { cn } from "../lib/classnames";

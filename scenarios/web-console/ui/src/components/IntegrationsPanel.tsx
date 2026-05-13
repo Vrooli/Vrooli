@@ -1,7 +1,7 @@
 // DOC: docs/internal/SEAMS.md#capability-registry-seam
 import { CheckCircle, AlertCircle, Circle } from "lucide-react";
 import { useCapabilities } from "../hooks/useCapabilities";
-import type { CapabilityState, CapabilityStatus } from "../lib/api";
+import type { CapabilityState, CapabilityStatus } from "../api/capabilities";
 
 interface IntegrationsPanelProps {
   open: boolean;

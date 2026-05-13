@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { createSession, deleteSession, listSessions, getWorkspaceLayout, updateWorkspacePane, toErrorInfo, type SessionInfo, type ErrorInfo, type BackendID, type PolicyMode } from "../lib/api";
+import { toErrorInfo, type ErrorInfo } from "../lib/errors";
+import { getWorkspaceLayout, updateWorkspacePane } from "../api/workspace";
+import { createSession, deleteSession, listSessions, type SessionInfo, type BackendID, type PolicyMode } from "../api/sessions";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";

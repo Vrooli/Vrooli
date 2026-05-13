@@ -2,13 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useSessionManager } from "../hooks/useSessionManager";
 
-// Mock the API module
-vi.mock("../lib/api", () => ({
+// Mock the API modules
+vi.mock("../api/sessions", () => ({
   createSession: vi.fn(),
   listSessions: vi.fn(),
   deleteSession: vi.fn(),
+}));
+
+vi.mock("../api/workspace", () => ({
   getWorkspaceLayout: vi.fn().mockResolvedValue({ active_pane: "", panes: [], groups: [] }),
   updateWorkspacePane: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("../lib/errors", () => ({
   toErrorInfo: vi.fn((err: unknown) => ({
     code: "test_error",
     message: String(err),
@@ -29,7 +35,7 @@ describe("useSessionManager", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const api = await import("../lib/api");
+    const api = await import("../api/sessions");
     mockCreateSession = api.createSession as ReturnType<typeof vi.fn>;
     mockListSessions = api.listSessions as ReturnType<typeof vi.fn>;
     mockDeleteSession = api.deleteSession as ReturnType<typeof vi.fn>;
@@ -85,7 +91,7 @@ describe("useSessionManager", () => {
     // both calls reject (e.g. proxy misroute, network drop). The hook
     // must log each failure and set a user-visible hydrationError with
     // retry=true so the empty catch can't hide it again.
-    const api = await import("../lib/api");
+    const api = await import("../api/workspace");
     const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
     mockListSessions.mockRejectedValueOnce(new Error("sessions 404"));
     mockGetWorkspaceLayout.mockRejectedValueOnce(new Error("layout 404"));
@@ -113,7 +119,7 @@ describe("useSessionManager", () => {
   it("logs a single-call hydration failure without setting hydrationError", async () => {
     // Layout fetch fails, sessions fetch succeeds — the fallback path can
     // still render. We log but do not surface a banner.
-    const api = await import("../lib/api");
+    const api = await import("../api/workspace");
     const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
     mockListSessions.mockResolvedValueOnce([]);
     mockGetWorkspaceLayout.mockRejectedValueOnce(new Error("layout 503"));
@@ -133,7 +139,7 @@ describe("useSessionManager", () => {
   });
 
   it("clearHydrationError dismisses the error", async () => {
-    const api = await import("../lib/api");
+    const api = await import("../api/workspace");
     const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
     mockListSessions.mockRejectedValueOnce(new Error("sessions fail"));
     mockGetWorkspaceLayout.mockRejectedValueOnce(new Error("layout fail"));

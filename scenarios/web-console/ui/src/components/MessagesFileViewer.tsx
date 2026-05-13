@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { AlertTriangle, Loader2, X } from "lucide-react";
 import { MarkdownRenderer } from "./markdown";
 import { cn } from "../lib/classnames";
-import type { FileReferenceContentResponse, FileReferenceResolveResponse } from "../lib/api";
+import type { FileReferenceContentResponse, FileReferenceResolveResponse } from "../api/conversation";
 
 interface MessagesFileViewerProps {
   open: boolean;

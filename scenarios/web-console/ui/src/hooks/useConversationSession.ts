@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
-import type { ConversationEvent, ConversationCursor } from "../lib/api";
-import { getConversationSession, updateConversationCursor } from "../lib/api";
+import type { ConversationEvent, ConversationCursor } from "../api/conversation";
+import { getConversationSession, updateConversationCursor } from "../api/conversation";
 import { getSessionRefetchSinceSequence, useConversationStore } from "../stores/useConversationStore";
 
 /**

@@ -1,6 +1,6 @@
 // DOC: docs/internal/SEAMS.md#capability-registry-seam
 import { useQuery } from "@tanstack/react-query";
-import { fetchCapabilities, type CapabilitiesResponse } from "../lib/api";
+import { fetchCapabilities, type CapabilitiesResponse } from "../api/capabilities";
 
 /**
  * React-query hook for polling dependency capabilities.

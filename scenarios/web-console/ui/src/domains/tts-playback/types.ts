@@ -1,4 +1,4 @@
-import type { ConversationEvent } from "../../lib/api";
+import type { ConversationEvent } from "../../api/conversation";
 import type { SummarizationLevel } from "../../components/tts/PlaybackModeControl";
 import type { TTSPlaybackState } from "../../hooks/tts/types";
 

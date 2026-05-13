@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Sparkles, Loader2, AlertCircle } from "lucide-react";
-import { generateAISuggestions, toErrorInfo } from "../lib/api";
+import { generateAISuggestions } from "../api/ai";
+import { toErrorInfo } from "../lib/errors";
 
 const DEBOUNCE_MS = 600;
 

@@ -20,7 +20,7 @@ const mockCreateTabGroup = vi.fn().mockResolvedValue({
 });
 const mockUpdateTabGroup = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("../lib/api", () => ({
+vi.mock("../api/workspace", () => ({
   saveWorkspaceLayout: vi.fn().mockResolvedValue(undefined),
   updateWorkspacePane: (...args: unknown[]) => mockUpdateWorkspacePane(...args) as unknown,
   createTabGroup: (...args: unknown[]) => mockCreateTabGroup(...args) as unknown,

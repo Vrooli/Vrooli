@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import AudioPlayerBar from "../AudioPlayerBar";
 import type { AudioPlayerBarProps } from "../AudioPlayerBar";
 import type { TTSPlaybackCapabilities } from "../../hooks/tts/types";
-import type { ConversationEvent } from "../../lib/api";
+import type { ConversationEvent } from "../../api/conversation";
 
 const fullCapabilities: TTSPlaybackCapabilities = {
   canPause: true,

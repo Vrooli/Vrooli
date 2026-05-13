@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SessionManagementSection from "../components/settings/SessionManagementSection";
-import type { SessionInfo } from "../lib/api";
+import type { SessionInfo } from "../api/sessions";
 
 let mockUpdateSessionPolicy: ReturnType<typeof vi.fn>;
 
-vi.mock("../lib/api", async () => {
-  const actual = await vi.importActual<typeof import("../lib/api")>("../lib/api");
+vi.mock("../api/sessions", async () => {
+  const actual = await vi.importActual<typeof import("../api/sessions")>("../api/sessions");
   return {
     ...actual,
     updateSessionPolicy: vi.fn(),
@@ -60,7 +60,7 @@ describe("SessionManagementSection", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockStoreState.panes = [];
-    const api = await import("../lib/api");
+    const api = await import("../api/sessions");
     mockUpdateSessionPolicy = api.updateSessionPolicy as ReturnType<typeof vi.fn>;
   });
 

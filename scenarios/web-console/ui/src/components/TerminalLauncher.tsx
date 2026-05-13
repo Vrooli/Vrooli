@@ -4,11 +4,11 @@ import { useState, useCallback, useEffect } from "react";
 import { Terminal, Zap, X, ChevronDown, ChevronRight, Info } from "lucide-react";
 import { Button } from "./ui/button";
 import { DEFAULT_SHORTCUTS, type ShortcutEntry } from "../consts/shortcuts";
-import { getEffectiveShortcuts } from "../lib/api";
+import { shortcutsClient } from "../api/shortcuts";
 import { BACKEND_OPTIONS } from "../consts/backend-options";
 import { POLICY_OPTIONS, policyKey, parsePolicySelection } from "../consts/policy-options";
 import { slugify } from "../lib/slugify";
-import type { BackendID, BackendOption, ExpirationPolicy, PolicyMode } from "../lib/api";
+import type { BackendID, BackendOption, ExpirationPolicy, PolicyMode } from "../api/sessions";
 
 // [REQ:P0-006a] Terminal Launch Flow UI
 // [REQ:P0-006b] Configurable Shortcut Entries
@@ -69,9 +69,15 @@ export default function TerminalLauncher({
   useEffect(() => {
     if (!open || shortcutsProp) return;
     let cancelled = false;
-    getEffectiveShortcuts()
-      .then((data) => {
-        if (!cancelled) setApiShortcuts(data);
+    shortcutsClient.getEffective({})
+      .then((resp) => {
+        if (!cancelled) {
+          setApiShortcuts(resp.shortcuts.map((s) => ({
+            label: s.label,
+            command: s.command,
+            description: s.description || undefined,
+          })));
+        }
       })
       .catch(() => {
         if (!cancelled) setApiShortcuts(null);

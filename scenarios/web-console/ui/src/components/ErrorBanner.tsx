@@ -1,11 +1,11 @@
 // DOC: docs/internal/ERROR_SEMANTICS.md#client-side-failure-handling
 // DOC: docs/internal/SEAMS.md#axis-3-error-codes--recovery-api--ui
 import { AlertTriangle, X } from "lucide-react";
-import type { ErrorInfo } from "../lib/api";
+import type { ErrorInfo } from "../lib/errors";
 import { cn } from "../lib/classnames";
 
 // Re-export so existing importers of ErrorInfo from this file continue to work.
-export type { ErrorInfo } from "../lib/api";
+export type { ErrorInfo } from "../lib/errors";
 
 /**
  * ── VOLATILE: Error display component. ──

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { forwardRef } from "react";
 import Workspace from "../components/Workspace";
-import type { SessionInfo } from "../lib/api";
+import type { SessionInfo } from "../api/sessions";
 
 // [REQ:P0-001a] Responsive Pane Grid Layout — layout rendering
 // [REQ:P0-001b] Independent Pane Session Lifecycle — pane lifecycle

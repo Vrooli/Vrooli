@@ -2,12 +2,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils/render";
 import IntegrationsPanel from "../components/IntegrationsPanel";
-import type { CapabilitiesResponse } from "../lib/api";
+import type { CapabilitiesResponse } from "../api/capabilities";
 
 vi.mock("@vrooli/api-base", () => ({
   resolveApiBase: () => "http://localhost:4200/api/v1",
   buildApiUrl: (path: string) => `http://localhost:4200/api/v1${path}`,
   buildWsUrl: (path: string) => `ws://localhost:4200/api/v1${path}`,
+  createScenarioConnectTransport: () => ({}),
+}));
+
+const { mockFetchCapabilities } = vi.hoisted(() => ({
+  mockFetchCapabilities: vi.fn(),
+}));
+
+vi.mock("../api/capabilities", () => ({
+  fetchCapabilities: mockFetchCapabilities,
 }));
 
 const mockCapabilities: CapabilitiesResponse = {
@@ -55,27 +64,19 @@ const mockCapabilities: CapabilitiesResponse = {
   timestamp: "2026-03-17T00:00:00Z",
 };
 
-let fetchMock: ReturnType<typeof vi.fn>;
-
 beforeEach(() => {
-  vi.restoreAllMocks();
-  fetchMock = vi.fn();
-  globalThis.fetch = fetchMock as typeof fetch;
+  mockFetchCapabilities.mockReset();
 });
 
 describe("IntegrationsPanel", () => {
   it("shows loading state while fetching", () => {
-    fetchMock.mockReturnValue(new Promise(() => {})); // never resolves
+    mockFetchCapabilities.mockReturnValue(new Promise(() => {}));
     renderWithProviders(<IntegrationsPanel open={true} />);
     expect(screen.getByText("Checking integrations...")).toBeTruthy();
   });
 
   it("shows error state when fetch fails", async () => {
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ error: "Server error" }),
-    });
+    mockFetchCapabilities.mockRejectedValue(new Error("Server error"));
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
@@ -84,10 +85,7 @@ describe("IntegrationsPanel", () => {
   });
 
   it("renders all capability cards", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockCapabilities),
-    });
+    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
@@ -99,10 +97,7 @@ describe("IntegrationsPanel", () => {
   });
 
   it("shows correct active count", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockCapabilities),
-    });
+    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
@@ -111,10 +106,7 @@ describe("IntegrationsPanel", () => {
   });
 
   it("shows diagnostic messages", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockCapabilities),
-    });
+    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
@@ -125,10 +117,7 @@ describe("IntegrationsPanel", () => {
   });
 
   it("shows dependency kind badges", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockCapabilities),
-    });
+    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
@@ -138,10 +127,7 @@ describe("IntegrationsPanel", () => {
   });
 
   it("crosses out features for unavailable capabilities", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockCapabilities),
-    });
+    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
@@ -151,10 +137,7 @@ describe("IntegrationsPanel", () => {
   });
 
   it("does not cross out features for available capabilities", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockCapabilities),
-    });
+    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
@@ -165,6 +148,6 @@ describe("IntegrationsPanel", () => {
 
   it("does not fetch when open is false", () => {
     renderWithProviders(<IntegrationsPanel open={false} />);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockFetchCapabilities).not.toHaveBeenCalled();
   });
 });

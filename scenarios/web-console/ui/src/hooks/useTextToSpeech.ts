@@ -1,6 +1,7 @@
 // DOC: docs/internal/SEAMS.md#tts-provider-seam
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchCachedTTS, fetchCapabilitiesLivenessCached, getTTSVoices, reportTTSEvent, _resetCapabilitiesCache } from "../lib/api";
+import { fetchCachedTTS, getTTSVoices, reportTTSEvent } from "../api/tts";
+import { fetchCapabilitiesLivenessCached, _resetCapabilitiesCache } from "../api/capabilities";
 import type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider, TTSVoiceInfo } from "./tts/types";
 import { KokoroProvider } from "./tts/KokoroProvider";
 import { BrowserTTSProvider } from "./tts/BrowserTTSProvider";

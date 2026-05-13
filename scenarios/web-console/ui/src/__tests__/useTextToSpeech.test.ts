@@ -46,17 +46,20 @@ Object.defineProperty(globalThis, "SpeechSynthesisUtterance", {
 const { _mockFetchCaps } = vi.hoisted(() => ({
   _mockFetchCaps: vi.fn(),
 }));
-vi.mock("../lib/api", () => ({
+vi.mock("../api/capabilities", () => ({
   fetchCapabilitiesLiveness: _mockFetchCaps,
   fetchCapabilitiesLivenessCached: (...args: unknown[]) => _mockFetchCaps(...args) as unknown,
+  _resetCapabilitiesCache: vi.fn(),
+}));
+vi.mock("../api/tts", () => ({
   fetchCachedTTS: vi.fn(),
   getTTSVoices: vi.fn(),
   synthesizeTTS: vi.fn(),
   reportTTSEvent: vi.fn(),
-  _resetCapabilitiesCache: vi.fn(),
 }));
 
-import { fetchCapabilitiesLiveness, fetchCachedTTS, getTTSVoices, synthesizeTTS } from "../lib/api";
+import { fetchCapabilitiesLiveness } from "../api/capabilities";
+import { fetchCachedTTS, getTTSVoices, synthesizeTTS } from "../api/tts";
 import { useTextToSpeech, type TTSSettings } from "../hooks/useTextToSpeech";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 

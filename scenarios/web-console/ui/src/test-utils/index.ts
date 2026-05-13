@@ -11,3 +11,4 @@ export {
 } from "./mocks";
 export type { MockTerminal } from "./mocks";
 export { createTestQueryClient, renderWithProviders } from "./render";
+export { asMockedClient, type MockedConnectClient } from "./mockConnectClient";

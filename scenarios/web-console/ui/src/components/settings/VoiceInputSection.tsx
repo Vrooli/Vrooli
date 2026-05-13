@@ -15,25 +15,24 @@ import {
   UserRound,
 } from "lucide-react";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
+import { toErrorInfo } from "../../lib/errors";
 import {
   clearSpeakerVerificationProfile,
   deleteWakeWordConfig,
   deleteSpeakerVerificationProfile,
   enrollSpeakerVerificationProfile,
-  fetchCapabilities,
   getSpeakerVerificationStatus,
   getVoiceStreamConfig,
   getWakeWordConfig,
   removeSpeakerVerificationProfile,
-  toErrorInfo,
   updateWakeWordConfig,
-  type CapabilityState,
+  updateSpeakerVerificationConfig,
+  updateVoiceStreamConfig,
   type SpeakerVerificationStatusResponse,
   type VoiceStreamConfig,
   type WakeWordConfig,
-  updateSpeakerVerificationConfig,
-  updateVoiceStreamConfig,
-} from "../../lib/api";
+} from "../../api/voice";
+import { fetchCapabilities, type CapabilityState } from "../../api/capabilities";
 import { VOICE_COMMANDS } from "../../hooks/voice/commands";
 import {
   createWakeWordEngine,

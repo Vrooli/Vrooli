@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
-import { getTTSStatus, getTTSSummarizeConfig, updateTTSSummarizeConfig, toErrorInfo, updateTTSConfig } from "../../lib/api";
-import type { TTSSummarizeConfig } from "../../lib/api";
+import { toErrorInfo } from "../../lib/errors";
+import { getTTSStatus, getTTSSummarizeConfig, updateTTSSummarizeConfig, updateTTSConfig } from "../../api/tts";
+import type { TTSSummarizeConfig } from "../../api/tts";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
 

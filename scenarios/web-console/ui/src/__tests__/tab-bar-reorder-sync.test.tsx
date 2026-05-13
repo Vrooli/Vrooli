@@ -13,7 +13,7 @@ Element.prototype.releasePointerCapture = vi.fn();
 // Mock the api module so saveWorkspaceLayout can be spied on
 const mockSaveWorkspaceLayout = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("../lib/api", () => ({
+vi.mock("../api/workspace", () => ({
   saveWorkspaceLayout: (...args: unknown[]) => mockSaveWorkspaceLayout(...args) as unknown,
   updateWorkspacePane: vi.fn().mockResolvedValue(undefined),
   createTabGroup: vi.fn().mockResolvedValue({ id: "g1", name: "Group", color: "#3b82f6" }),
