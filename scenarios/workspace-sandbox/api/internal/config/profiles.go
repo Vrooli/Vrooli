@@ -139,6 +139,13 @@ func DefaultProfiles() []IsolationProfile {
 			NetworkAccess: "none",
 			// HOME=/tmp; no host $HOME visibility expected.
 			HomeOverlayRequirement: types.HomeOverlayNotNeeded,
+			// /etc/ssl/certs is bound so TLS clients using the system
+			// trust store (rustls-native-certs, OpenSSL, Go's crypto/x509
+			// fallback) find the host CA bundle. Without it, Rust agents
+			// like Codex emit "no native root CA certificates found" and
+			// every HTTPS handshake fails. The dir is mostly symlinks
+			// into /usr/share/ca-certificates (already covered by the
+			// /usr bind) plus the generated ca-certificates.crt bundle.
 			ReadOnlyBinds: map[string]string{
 				"/usr":             "/usr",
 				"/lib":             "/lib",
@@ -148,12 +155,18 @@ func DefaultProfiles() []IsolationProfile {
 				"/etc/hosts":       "/etc/hosts",
 				"/etc/passwd":      "/etc/passwd",
 				"/etc/group":       "/etc/group",
+				"/etc/ssl/certs":   "/etc/ssl/certs",
 			},
 			ReadWriteBinds: map[string]string{},
 			Environment: map[string]string{
-				"PATH":  "/usr/local/bin:/usr/bin:/bin",
-				"HOME":  "/tmp",
-				"SHELL": "/bin/sh",
+				"PATH": "/usr/local/bin:/usr/bin:/bin",
+				"HOME": "/tmp",
+				// SSL_CERT_FILE / SSL_CERT_DIR pin the trust store path
+				// explicitly so TLS libraries that don't probe the
+				// default locations still find the bundle.
+				"SSL_CERT_FILE": "/etc/ssl/certs/ca-certificates.crt",
+				"SSL_CERT_DIR":  "/etc/ssl/certs",
+				"SHELL":         "/bin/sh",
 			},
 			Hostname: "sandbox",
 		},
@@ -175,6 +188,9 @@ func DefaultProfiles() []IsolationProfile {
 			// because Vrooli runtime state is outside the tracked
 			// workspace; host mutations must go through controlled
 			// lifecycle/scenario APIs.
+			// See `full` profile for why /etc/ssl/certs is bound — Codex
+			// (rustls) and any system-OpenSSL caller need the host CA
+			// trust store to verify HTTPS endpoints.
 			ReadOnlyBinds: map[string]string{
 				"/usr":             "/usr",
 				"/lib":             "/lib",
@@ -184,6 +200,7 @@ func DefaultProfiles() []IsolationProfile {
 				"/etc/hosts":       "/etc/hosts",
 				"/etc/passwd":      "/etc/passwd",
 				"/etc/group":       "/etc/group",
+				"/etc/ssl/certs":   "/etc/ssl/certs",
 				"$VROOLI_ROOT":     "/vrooli",
 				"$HOME/.vrooli":    "$HOME/.vrooli",
 			},
@@ -197,10 +214,14 @@ func DefaultProfiles() []IsolationProfile {
 				"PATH": "$HOME/.vrooli/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin",
 				// HOME points to the host home so $HOME-relative
 				// lookups resolve to the overlay merged dir, not /tmp.
-				"HOME":        "$HOME",
-				"SHELL":       "/bin/sh",
-				"VROOLI_ROOT": "/vrooli",
-				"VROOLI_ENV":  "$VROOLI_ENV",
+				"HOME": "$HOME",
+				// SSL_CERT_FILE / SSL_CERT_DIR pin the trust store path
+				// explicitly — see `full` profile comment.
+				"SSL_CERT_FILE": "/etc/ssl/certs/ca-certificates.crt",
+				"SSL_CERT_DIR":  "/etc/ssl/certs",
+				"SHELL":         "/bin/sh",
+				"VROOLI_ROOT":   "/vrooli",
+				"VROOLI_ENV":    "$VROOLI_ENV",
 			},
 			Hostname: "sandbox",
 		},

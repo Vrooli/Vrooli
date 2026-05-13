@@ -128,6 +128,9 @@ func applyEnvOverrides(l *Levers) {
 	if v := getEnvDuration("AGENT_MANAGER_RUNNERS_STARTUP_GRACE_PERIOD"); v >= 0 {
 		l.Runners.StartupGracePeriod = v
 	}
+	if v, ok := envBoolOpt("AGENT_MANAGER_RUNNERS_USE_CLI_DEFAULT_MODEL"); ok {
+		l.Runners.UseCliDefaultModel = v
+	}
 
 	// Server levers
 	if v := getEnv("AGENT_MANAGER_SERVER_PORT"); v != "" {

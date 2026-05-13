@@ -20,12 +20,12 @@
           "description": "Fast, low-cost option. Vendor alias — auto-tracks current Haiku build."
         },
         {
-          "id": "claude-sonnet-4-5-20250929",
-          "description": "Pinned Sonnet 4.5 build."
+          "id": "claude-sonnet-4-6",
+          "description": "Pinned Sonnet 4.6 build."
         },
         {
-          "id": "claude-opus-4-5-20251101",
-          "description": "Pinned Opus 4.5 build."
+          "id": "claude-opus-4-7",
+          "description": "Pinned Opus 4.7 (1M context) build."
         },
         {
           "id": "claude-haiku-4-5-20251001",
@@ -34,43 +34,51 @@
       ],
       "presets": {
         "CHEAP": ["haiku", "claude-haiku-4-5-20251001"],
-        "FAST": ["sonnet", "claude-sonnet-4-5-20250929", ""],
-        "SMART": ["opus", "claude-opus-4-5-20251101", ""]
+        "FAST": ["sonnet", "claude-sonnet-4-6", ""],
+        "SMART": ["opus", "claude-opus-4-7", ""]
       }
     },
     "codex": {
       "models": [
         {
-          "id": "gpt-5.2-codex",
-          "description": "Latest frontier agentic coding model."
+          "id": "gpt-5.5",
+          "description": "Frontier model for complex coding, research, and real-world work."
         },
         {
-          "id": "gpt-5.1-codex-max",
-          "description": "Codex-optimized flagship for deep and fast reasoning."
+          "id": "gpt-5.4",
+          "description": "Strong model for everyday coding."
         },
         {
-          "id": "gpt-5.1-codex-mini",
-          "description": "Optimized for Codex; cheaper, faster, less capable."
+          "id": "gpt-5.4-mini",
+          "description": "Small, fast, and cost-efficient model for simpler coding tasks."
+        },
+        {
+          "id": "gpt-5.3-codex",
+          "description": "Coding-optimized model."
+        },
+        {
+          "id": "gpt-5.3-codex-spark",
+          "description": "Ultra-fast coding model."
         },
         {
           "id": "gpt-5.2",
-          "description": "General frontier model with broad improvements."
+          "description": "Optimized for professional work and long-running agents."
         }
       ],
       "presets": {
-        "CHEAP": ["gpt-5.1-codex-mini"],
-        "FAST": ["gpt-5.1-codex-mini", "gpt-5.2", ""],
-        "SMART": ["gpt-5.2-codex", "gpt-5.1-codex-max", "gpt-5.2", ""]
+        "CHEAP": ["gpt-5.4-mini", "gpt-5.3-codex-spark"],
+        "FAST": ["gpt-5.3-codex-spark", "gpt-5.4-mini", "gpt-5.4", ""],
+        "SMART": ["gpt-5.5", "gpt-5.4", "gpt-5.3-codex", ""]
       }
     },
     "opencode": {
       "models": [
         {
-          "id": "anthropic/claude-sonnet-4-5",
+          "id": "anthropic/claude-sonnet-4-6",
           "description": "Balanced default for OpenCode."
         },
         {
-          "id": "anthropic/claude-opus-4-5",
+          "id": "anthropic/claude-opus-4-7",
           "description": "Highest reasoning capability."
         },
         {
@@ -80,8 +88,8 @@
       ],
       "presets": {
         "CHEAP": ["anthropic/claude-haiku-4-5"],
-        "FAST": ["anthropic/claude-sonnet-4-5", ""],
-        "SMART": ["anthropic/claude-opus-4-5", ""]
+        "FAST": ["anthropic/claude-sonnet-4-6", ""],
+        "SMART": ["anthropic/claude-opus-4-7", ""]
       }
     }
   }

@@ -7,18 +7,29 @@ var DefaultModelAliases = map[string]struct {
 	Canonical string
 	Provider  string
 }{
-	// OpenAI models
+	// OpenAI models (current generation)
+	"gpt-5.5":             {"openai/gpt-5.5", "openrouter"},
+	"gpt-5.4":             {"openai/gpt-5.4", "openrouter"},
+	"gpt-5.4-mini":        {"openai/gpt-5.4-mini", "openrouter"},
+	"gpt-5.3-codex":       {"openai/gpt-5.3-codex", "openrouter"},
+	"gpt-5.3-codex-spark": {"openai/gpt-5.3-codex-spark", "openrouter"},
+	"gpt-5.2":             {"openai/gpt-5.2", "openrouter"},
+	// OpenAI models (older — retained for cost-history lookup on legacy runs)
 	"gpt-5.1-codex":      {"openai/gpt-5.1-codex", "openrouter"},
 	"gpt-5.1-codex-max":  {"openai/gpt-5.1-codex-max", "openrouter"},
 	"gpt-5.1-codex-mini": {"openai/gpt-5.1-codex-mini", "openrouter"},
 	"gpt-5-codex":        {"openai/gpt-5-codex", "openrouter"},
 	"codex-mini":         {"openai/codex-mini", "openrouter"},
-	"gpt-5.2":            {"openai/gpt-5.2", "openrouter"},
 	"gpt-4o":             {"openai/gpt-4o", "openrouter"},
 	"gpt-4o-mini":        {"openai/gpt-4o-mini", "openrouter"},
 	"gpt-4-turbo":        {"openai/gpt-4-turbo", "openrouter"},
 
-	// Anthropic models
+	// Anthropic models (current generation)
+	"claude-opus-4-7":          {"anthropic/claude-opus-4-7", "openrouter"},
+	"claude-sonnet-4-6":        {"anthropic/claude-sonnet-4-6", "openrouter"},
+	"claude-haiku-4-5":         {"anthropic/claude-haiku-4-5", "openrouter"},
+	"claude-haiku-4-5-20251001": {"anthropic/claude-haiku-4-5-20251001", "openrouter"},
+	// Anthropic models (older — retained for cost-history lookup on legacy runs)
 	"claude-opus-4-5":          {"anthropic/claude-opus-4-5", "openrouter"},
 	"claude-opus-4-5-20251101": {"anthropic/claude-opus-4-5-20251101", "openrouter"},
 	"claude-sonnet-4":          {"anthropic/claude-sonnet-4", "openrouter"},

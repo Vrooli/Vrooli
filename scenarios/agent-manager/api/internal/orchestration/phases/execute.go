@@ -146,6 +146,20 @@ type ExecuteWithModelFallbackInput struct {
 // The first outcome that is not a model-unavailable error determines
 // Run.ActualModel.
 func ExecuteWithModelFallback(ctx context.Context, in ExecuteWithModelFallbackInput) ExecuteAgentOutput {
+	// Runner-CLI-default short-circuit: when this lever is on we bypass
+	// the preset chain entirely and run with no model flag, letting the
+	// installed CLI use whatever model it is configured to use. This is
+	// the escape hatch for subscription-pricing setups where the user
+	// wants their CLI's selected model to govern cost.
+	if in.Deps.Levers.Runners.UseCliDefaultModel {
+		if in.Run != nil && in.Run.ResolvedConfig != nil {
+			in.Run.ResolvedConfig.Model = ""
+		}
+		out := ExecuteAgent(ctx, in.ExecuteAgentInput)
+		recordActualModel(in.Run, "")
+		return out
+	}
+
 	chain := resolveModelFallbackChain(in.ModelChains, in.Run)
 	if len(chain) == 0 {
 		out := ExecuteAgent(ctx, in.ExecuteAgentInput)

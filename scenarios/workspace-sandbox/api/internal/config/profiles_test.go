@@ -284,6 +284,30 @@ func TestFileProfileStoreReload(t *testing.T) {
 	}
 }
 
+// TestDefaultProfiles_BindCATrustStore asserts every builtin profile
+// exposes the host's CA trust store inside the sandbox so TLS clients
+// (notably Rust's rustls-native-certs used by Codex) can verify HTTPS
+// endpoints. The historical regression was Codex runs failing with
+// "no native root CA certificates found" because /etc/ssl/certs was
+// not bound — /usr alone exposes the source PEMs but rustls/OpenSSL
+// read the consolidated bundle in /etc/ssl/certs. We also pin the
+// SSL_CERT_FILE/SSL_CERT_DIR env defense in depth.
+func TestDefaultProfiles_BindCATrustStore(t *testing.T) {
+	for _, p := range DefaultProfiles() {
+		t.Run(p.ID, func(t *testing.T) {
+			if got := p.ReadOnlyBinds["/etc/ssl/certs"]; got != "/etc/ssl/certs" {
+				t.Errorf("profile %q must ro-bind /etc/ssl/certs into the sandbox; got %q", p.ID, got)
+			}
+			if got := p.Environment["SSL_CERT_FILE"]; got != "/etc/ssl/certs/ca-certificates.crt" {
+				t.Errorf("profile %q SSL_CERT_FILE = %q; want %q", p.ID, got, "/etc/ssl/certs/ca-certificates.crt")
+			}
+			if got := p.Environment["SSL_CERT_DIR"]; got != "/etc/ssl/certs" {
+				t.Errorf("profile %q SSL_CERT_DIR = %q; want %q", p.ID, got, "/etc/ssl/certs")
+			}
+		})
+	}
+}
+
 // TestDefaultProfiles_HomeOverlayRequirement pins the requirement value
 // each builtin profile carries. Catches accidental flips of the
 // vrooli-aware profile from required → optional/not_needed (which

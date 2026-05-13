@@ -173,6 +173,33 @@ func TestModelFallback_RunnerDefaultSentinelOmitsFlag(t *testing.T) {
 	}
 }
 
+// TestModelFallback_UseCliDefaultModelLeverSkipsChain asserts the
+// runner-CLI-default escape hatch: when Levers.Runners.UseCliDefaultModel
+// is on, ExecuteWithModelFallback bypasses the preset chain entirely,
+// clears cfg.Model so the codec emits no -m/--model flag, and records
+// ActualModel="" so observability reflects "runner default."
+func TestModelFallback_UseCliDefaultModelLeverSkipsChain(t *testing.T) {
+	chain := modelregistry.PresetChain{"primary", "secondary", ""}
+	h := newFallbackHarness(t, domain.RunnerTypeCodex, chain, domain.ModelPresetSmart)
+	h.deps.Levers.Runners.UseCliDefaultModel = true
+	h.programResponses([]*runner.ExecuteResult{successResult()})
+
+	h.run_(t)
+
+	if len(h.attempts) != 1 {
+		t.Fatalf("expected exactly 1 attempt (no chain walk), got %d: %v", len(h.attempts), h.attempts)
+	}
+	if h.attempts[0] != "" {
+		t.Fatalf("expected cfg.Model cleared on the single attempt, got %q", h.attempts[0])
+	}
+	if h.run.ResolvedConfig.Model != "" {
+		t.Fatalf("expected run.ResolvedConfig.Model cleared, got %q", h.run.ResolvedConfig.Model)
+	}
+	if h.run.ActualModel != "" {
+		t.Fatalf("expected ActualModel=\"\" (runner default), got %q", h.run.ActualModel)
+	}
+}
+
 func TestModelFallback_NonModelErrorSkipsRetry(t *testing.T) {
 	chain := modelregistry.PresetChain{"primary", "secondary", ""}
 	h := newFallbackHarness(t, domain.RunnerTypeCodex, chain, domain.ModelPresetSmart)

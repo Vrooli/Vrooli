@@ -236,6 +236,19 @@ type RunnerLevers struct {
 	// does not stall startup or the orchestrator's IsAvailable path.
 	// Range: 1s to 30s. Default: 5s.
 	ProbeTimeout time.Duration `json:"probeTimeout"`
+
+	// UseCliDefaultModel, when true, causes orchestration to skip passing
+	// a model flag to the runner CLI (no `-m`/`--model`). The agent runs
+	// with whatever model the installed CLI is configured to use (e.g.
+	// the model selected via `codex /model` or `claude /model`).
+	//
+	// Use this when you want the runner's subscription/plan default to
+	// govern pricing instead of agent-manager's preset chain — for
+	// example, a ChatGPT Plus account that already pins a model. Profile
+	// model presets and the model-fallback chain are bypassed entirely
+	// while this is on.
+	// Default: false.
+	UseCliDefaultModel bool `json:"useCliDefaultModel"`
 }
 
 // =============================================================================

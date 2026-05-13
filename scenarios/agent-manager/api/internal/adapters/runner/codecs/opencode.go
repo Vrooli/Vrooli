@@ -130,8 +130,9 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 		SupportsImageAttachments: false,
 		MaxTurns:                 0,
 		SupportedModels: []string{
-			"anthropic/claude-sonnet-4-5",
-			"anthropic/claude-opus-4-5",
+			"anthropic/claude-sonnet-4-6",
+			"anthropic/claude-opus-4-7",
+			"anthropic/claude-haiku-4-5",
 			"openai/gpt-4o",
 			"openai/o4-mini",
 			"google/gemini-2.0-flash",
