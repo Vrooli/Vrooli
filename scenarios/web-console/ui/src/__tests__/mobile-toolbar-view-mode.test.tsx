@@ -38,12 +38,12 @@ describe("MobileToolbar viewMode", () => {
     expect(screen.queryByTestId(/toolbar-key-/)).toBeNull();
   });
 
-  it("keeps input, send, expand, image upload, and mic in messages mode", () => {
+  it("keeps input, send, image upload, and mic in messages mode", () => {
     render(<MobileToolbar {...baseProps} viewMode="messages" />);
 
     expect(screen.getByTestId("mobile-command-input")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-command-submit")).toBeInTheDocument();
-    expect(screen.getByTestId("expand-toggle")).toBeInTheDocument();
+    expect(screen.queryByTestId("expand-toggle")).toBeNull();
     expect(screen.getByTestId("toolbar-upload-image")).toBeInTheDocument();
     // Mic button is present
     expect(screen.getByTestId("voice-mic-btn")).toBeInTheDocument();

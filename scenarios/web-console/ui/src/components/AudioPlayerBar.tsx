@@ -7,6 +7,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { cn } from "../lib/classnames";
 import { AudioSettingsContent } from "./tts/AudioSettingsContent";
 import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
+import { getScrubClasses } from "./tts/scrubStyles";
 import MessageJumpList from "./MessageJumpList";
 
 export interface AudioPlayerBarProps {
@@ -198,6 +199,14 @@ export default function AudioPlayerBar({
           }}
           onClose={() => setShowMessageSelector(false)}
           desktopStyle={getMessageSelectorStyle()}
+          currentTime={currentTime}
+          duration={duration}
+          isPaused={isPaused}
+          isSummarized={isSummarized}
+          onPause={onPause}
+          onResume={onResume}
+          onSeek={onSeek}
+          hasQueuedNext={hasQueuedNext}
         />
       )}
 
@@ -214,11 +223,11 @@ export default function AudioPlayerBar({
         disabled={!scrubEnabled}
         onChange={handleScrubChange}
         aria-label="Seek"
-        className={cn(
-          "mx-1 h-1 min-w-0 flex-1",
-          scrubEnabled ? "cursor-pointer" : "cursor-not-allowed opacity-50",
-          isSummarized ? "accent-amber-400" : "accent-wc-accent",
-        )}
+        className={getScrubClasses({
+          isSummarized,
+          enabled: scrubEnabled,
+          extra: "mx-1 flex-1",
+        })}
       />
 
       <span

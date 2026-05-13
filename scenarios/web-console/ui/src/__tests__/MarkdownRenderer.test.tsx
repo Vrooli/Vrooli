@@ -81,6 +81,22 @@ describe("MarkdownRenderer", () => {
     expect(cells.length).toBe(2);
   });
 
+  it("table cells have minimum width so they don't collapse, and table can horizontally overflow", () => {
+    render(<MarkdownRenderer content={"| A | B | C | D | E |\n|---|---|---|---|---|\n| 1 | 2 | 3 | 4 | 5 |"} />);
+    const cells = document.querySelectorAll("td");
+    expect(cells.length).toBe(5);
+    cells.forEach((cell) => {
+      expect(cell.className).toMatch(/min-w-\[8rem\]/);
+    });
+    const headers = document.querySelectorAll("th");
+    headers.forEach((h) => {
+      expect(h.className).toMatch(/min-w-\[8rem\]/);
+    });
+    const wrapper = document.querySelector("table")?.parentElement;
+    expect(wrapper?.className).toMatch(/overflow-x-auto/);
+    expect(document.querySelector("table")?.className).toMatch(/w-auto/);
+  });
+
   it("renders links with target=_blank", () => {
     render(<MarkdownRenderer content="[Click](https://example.com)" />);
     const link = document.querySelector("a");

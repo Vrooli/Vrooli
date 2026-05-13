@@ -67,6 +67,41 @@ interface MessagesPaneProps {
 const COLLAPSE_THRESHOLD_PX = 400;
 
 // ---------------------------------------------------------------------------
+// Scroll snapshot persistence — keeps a per-session record of where the user
+// left the messages pane so re-mounting after a view switch restores their
+// position instead of dumping them somewhere in the middle.
+// ---------------------------------------------------------------------------
+interface ScrollSnapshot {
+  atBottom: boolean;
+  topEventId: string | null;
+}
+
+const scrollSnapshotKey = (sessionId: string) => `wc.messagesScroll.${sessionId}`;
+
+function readScrollSnapshot(sessionId: string): ScrollSnapshot | null {
+  try {
+    const raw = sessionStorage.getItem(scrollSnapshotKey(sessionId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ScrollSnapshot>;
+    if (typeof parsed.atBottom !== "boolean") return null;
+    return {
+      atBottom: parsed.atBottom,
+      topEventId: typeof parsed.topEventId === "string" ? parsed.topEventId : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeScrollSnapshot(sessionId: string, snapshot: ScrollSnapshot): void {
+  try {
+    sessionStorage.setItem(scrollSnapshotKey(sessionId), JSON.stringify(snapshot));
+  } catch {
+    // Ignore — sessionStorage may be unavailable in some embeddings.
+  }
+}
+
+// ---------------------------------------------------------------------------
 // MessagesPane
 // ---------------------------------------------------------------------------
 
@@ -99,6 +134,7 @@ interface MessageRowProps {
   isExpanded: boolean;
   onToggleExpanded: (eventId: string) => void;
   onLinkClick: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
+  onFileReferenceClick: (path: string) => void;
 }
 
 const MessageRow = memo(function MessageRow({
@@ -130,6 +166,7 @@ const MessageRow = memo(function MessageRow({
   isExpanded,
   onToggleExpanded,
   onLinkClick,
+  onFileReferenceClick,
 }: MessageRowProps) {
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [isTall, setIsTall] = useState(false);
@@ -328,7 +365,7 @@ const MessageRow = memo(function MessageRow({
           style={{ fontSize: `${fontSize}px` }}
           className="text-wc-text-primary"
         >
-          <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} />
+          <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} />
         </div>
 
         {isCollapsed && (
@@ -362,7 +399,8 @@ const MessageRow = memo(function MessageRow({
   prevProps.isSearchFocused === nextProps.isSearchFocused &&
   prevProps.isDimmed === nextProps.isDimmed &&
   prevProps.isExpanded === nextProps.isExpanded &&
-  prevProps.onLinkClick === nextProps.onLinkClick
+  prevProps.onLinkClick === nextProps.onLinkClick &&
+  prevProps.onFileReferenceClick === nextProps.onFileReferenceClick
 ));
 
 export default function MessagesPane({
@@ -418,8 +456,17 @@ export default function MessagesPane({
   // --- Auto-scroll ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
+  const [isNearBottom, setIsNearBottom] = useState(true);
   const [newMessageCount, setNewMessageCount] = useState(0);
   const prevEventCountRef = useRef(events.length);
+  // While true, the totalSize-change effect re-pins the scroll position to the
+  // bottom. Cleared once the user scrolls away from the bottom.
+  const pinToBottomRef = useRef(true);
+  // While set, the totalSize-change effect re-scrolls to this event id until
+  // the row's measured size is stable. Cleared after restore completes or the
+  // user manually scrolls.
+  const pinToEventIdRef = useRef<string | null>(null);
+  const restoreAppliedRef = useRef(false);
 
   // --- Refresh: on mount, on browser tab focus, and via manual button ---
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -458,9 +505,10 @@ export default function MessagesPane({
 
     const updateNearBottom = () => {
       const remaining = el.scrollHeight - (el.scrollTop + el.clientHeight);
-      const isNearBottom = remaining <= 200;
-      isNearBottomRef.current = isNearBottom;
-      if (isNearBottom) setNewMessageCount(0);
+      const nearBottom = remaining <= 200;
+      isNearBottomRef.current = nearBottom;
+      setIsNearBottom(nearBottom);
+      if (nearBottom) setNewMessageCount(0);
     };
 
     updateNearBottom();
@@ -468,14 +516,25 @@ export default function MessagesPane({
     return () => el.removeEventListener("scroll", updateNearBottom);
   }, []);
 
-  // Auto-scroll to bottom on initial load
+  // Release the bottom-pin or event-pin as soon as the user scrolls away from
+  // it. We do this from a wheel/touchstart listener so synthetic re-scrolls
+  // from the totalSize-change effect don't release the pin.
   useEffect(() => {
-    if (events.length > 0) {
-      scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight });
-    }
-    // Only run on first hydration
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events.length > 0]);
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const release = () => {
+      pinToBottomRef.current = false;
+      pinToEventIdRef.current = null;
+    };
+    el.addEventListener("wheel", release, { passive: true });
+    el.addEventListener("touchstart", release, { passive: true });
+    el.addEventListener("keydown", release);
+    return () => {
+      el.removeEventListener("wheel", release);
+      el.removeEventListener("touchstart", release);
+      el.removeEventListener("keydown", release);
+    };
+  }, []);
 
   // Auto-scroll on new events (when near bottom) or show pill
   useEffect(() => {
@@ -497,6 +556,8 @@ export default function MessagesPane({
   }, [events.length]);
 
   const scrollToBottom = useCallback(() => {
+    pinToBottomRef.current = true;
+    pinToEventIdRef.current = null;
     scrollContainerRef.current?.scrollTo({
       top: scrollContainerRef.current.scrollHeight,
       behavior: "smooth",
@@ -560,6 +621,84 @@ export default function MessagesPane({
     if (index == null) return;
     scrollToIndex(index, "smooth", "center");
   }, [eventIndexById, scrollToIndex]);
+
+  // Restore scroll position on mount: read the snapshot saved when the pane
+  // last unmounted and pin to the appropriate target. The pin is held until
+  // the virtualizer's measured sizes stabilize (handled by the totalSize
+  // effect below).
+  useEffect(() => {
+    if (restoreAppliedRef.current) return;
+    if (events.length === 0) return;
+    const snapshot = readScrollSnapshot(sessionId);
+    if (!snapshot || snapshot.atBottom) {
+      pinToBottomRef.current = true;
+      pinToEventIdRef.current = null;
+    } else if (snapshot.topEventId && eventIndexById.has(snapshot.topEventId)) {
+      pinToBottomRef.current = false;
+      pinToEventIdRef.current = snapshot.topEventId;
+    } else {
+      pinToBottomRef.current = true;
+      pinToEventIdRef.current = null;
+    }
+    restoreAppliedRef.current = true;
+    // Trigger an immediate apply; the totalSize effect will keep re-applying
+    // as measurements settle.
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (pinToBottomRef.current) {
+      el.scrollTo({ top: el.scrollHeight });
+    } else if (pinToEventIdRef.current) {
+      const index = eventIndexById.get(pinToEventIdRef.current);
+      if (index != null) scrollToIndex(index, "auto", "start");
+    }
+  }, [events.length, sessionId, eventIndexById, scrollToIndex]);
+
+  // Re-apply the active pin whenever the virtualizer's totalSize changes.
+  // This is what fixes the "lands in the middle" bug: estimated sizes are
+  // smaller than actual, so the initial scrollTo lands too high; once rows
+  // measure their real heights totalSize grows and we re-scroll.
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (pinToBottomRef.current) {
+      el.scrollTo({ top: el.scrollHeight });
+    } else if (pinToEventIdRef.current) {
+      const index = eventIndexById.get(pinToEventIdRef.current);
+      if (index != null) scrollToIndex(index, "auto", "start");
+    }
+  }, [totalSize, eventIndexById, scrollToIndex]);
+
+  // Save snapshot on unmount and whenever sessionId changes. We compute
+  // `atBottom` directly from the live DOM instead of trusting
+  // isNearBottomRef.current — under React StrictMode the dev-only second
+  // mount unmounts synchronously, before the (async/passive) scroll listener
+  // has had a chance to observe the restore's programmatic scrollTo, so the
+  // ref can be stale (`true` from its initial value). Reading geometry here
+  // is the source of truth.
+  useEffect(() => {
+    const containerEl = scrollContainerRef.current;
+    return () => {
+      const el = containerEl;
+      if (!el) return;
+      const remaining = el.scrollHeight - (el.scrollTop + el.clientHeight);
+      const atBottom = remaining <= 200;
+      let topEventId: string | null = null;
+      if (!atBottom) {
+        const containerTop = el.getBoundingClientRect().top;
+        const rows = el.querySelectorAll<HTMLElement>("[data-event-id]");
+        for (const row of rows) {
+          if (row.getBoundingClientRect().bottom - containerTop > 0) {
+            topEventId = row.dataset.eventId ?? null;
+            break;
+          }
+        }
+      }
+      // Skip writing if we have nothing actionable: it'd just overwrite a
+      // previously-saved good snapshot with a default `atBottom: true`.
+      if (!atBottom && !topEventId) return;
+      writeScrollSnapshot(sessionId, { atBottom, topEventId });
+    };
+  }, [sessionId]);
 
   const focusAndScroll = useCallback((eventId: string) => {
     setFocusedEventId(eventId);
@@ -654,6 +793,10 @@ export default function MessagesPane({
     if (!looksLikeFileReference(href)) return;
     event.preventDefault();
     void openFileReference(href);
+  }, [openFileReference]);
+
+  const handleInlineCodeFileClick = useCallback((path: string) => {
+    void openFileReference(path);
   }, [openFileReference]);
 
   return (
@@ -753,7 +896,7 @@ export default function MessagesPane({
               const event = events[index];
               if (!event) return null;
               return (
-                <div key={event.id} className="absolute left-0 right-0" style={{ top: `${start}px` }}>
+                <div key={event.id} data-event-id={event.id} className="absolute left-0 right-0" style={{ top: `${start}px` }}>
                   <MessageRow
                     event={event}
                     index={index}
@@ -783,6 +926,7 @@ export default function MessagesPane({
                     isExpanded={expandedIds.has(event.id)}
                     onToggleExpanded={toggleExpanded}
                     onLinkClick={handleMarkdownLinkClick}
+                    onFileReferenceClick={handleInlineCodeFileClick}
                   />
                 </div>
               );
@@ -800,6 +944,18 @@ export default function MessagesPane({
         >
           <ArrowDown className="mr-1.5 inline-block h-3.5 w-3.5" />
           {newMessageCount} new message{newMessageCount !== 1 ? "s" : ""}
+        </button>
+      )}
+
+      {newMessageCount === 0 && !isNearBottom && events.length > 0 && (
+        <button
+          data-testid="msg-jump-bottom"
+          aria-label="Jump to bottom"
+          onClick={scrollToBottom}
+          className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised/60 p-2 text-wc-text-secondary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input hover:text-wc-text-primary"
+          type="button"
+        >
+          <ArrowDown className="h-4 w-4" />
         </button>
       )}
 

@@ -2,6 +2,7 @@ import { useCallback, type ChangeEvent } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import type { TTSPlaybackCapabilities } from "../../hooks/tts/types";
 import { cn } from "../../lib/classnames";
+import { getAccentClasses } from "./scrubStyles";
 
 const SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
@@ -87,9 +88,7 @@ export function AudioSettingsContent({
             className={cn(
               "h-1.5 w-full cursor-pointer rounded-full",
               isMuted && "opacity-50",
-              isSummarized
-                ? "[&::-webkit-slider-thumb]:bg-amber-400 accent-amber-400"
-                : "accent-wc-accent",
+              getAccentClasses(isSummarized),
             )}
           />
           <div className="mt-0.5 flex justify-between text-[10px] text-wc-text-faint">

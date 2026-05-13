@@ -30,6 +30,39 @@ func TestSplitFileReferenceLine(t *testing.T) {
 	if line != nil {
 		t.Fatalf("expected nil line, got %#v", line)
 	}
+
+	// Trailing wrapper/punctuation after the line number is tolerated.
+	path, line = splitFileReferenceLine("scenarios/api/main.go:42`")
+	if path != "scenarios/api/main.go" {
+		t.Fatalf("expected stripped path, got %q", path)
+	}
+	if line == nil || *line != 42 {
+		t.Fatalf("expected line 42, got %#v", line)
+	}
+}
+
+func TestNormalizeFileReferencePath_WrappedAndLineSuffix(t *testing.T) {
+	path, line, err := normalizeFileReferencePath("`scenarios/web-console/api/main.go:42`")
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	if path != "scenarios/web-console/api/main.go" {
+		t.Fatalf("expected stripped path, got %q", path)
+	}
+	if line == nil || *line != 42 {
+		t.Fatalf("expected line 42, got %#v", line)
+	}
+
+	path, line, err = normalizeFileReferencePath(`"docs/plan.md"`)
+	if err != nil {
+		t.Fatalf("normalize quoted: %v", err)
+	}
+	if path != "docs/plan.md" {
+		t.Fatalf("expected unquoted path, got %q", path)
+	}
+	if line != nil {
+		t.Fatalf("expected nil line, got %#v", line)
+	}
 }
 
 func resolveFileRef(t *testing.T, srv *Server, sessID, path string) *conversationv1.ResolveFileReferenceResponse {
@@ -160,7 +193,9 @@ func TestConnect_ResolveFileReference_FileURL(t *testing.T) {
 	}
 }
 
-func TestConnect_ResolveFileReference_RejectsOutsideAllowedRoot(t *testing.T) {
+func TestConnect_ResolveFileReference_AllowsOutsideProjectRoot(t *testing.T) {
+	// Plans live under ~/.vrooli outside the project; the resolver must
+	// preview any file the process can read, not just project-root files.
 	root := t.TempDir()
 	t.Setenv("WC_DEFAULT_CWD", root)
 
@@ -170,21 +205,44 @@ func TestConnect_ResolveFileReference_RejectsOutsideAllowedRoot(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	outsideFile := filepath.Join(t.TempDir(), "secret.txt")
-	if err := os.WriteFile(outsideFile, []byte("secret"), 0o644); err != nil {
+	outsideFile := filepath.Join(t.TempDir(), "plan.md")
+	if err := os.WriteFile(outsideFile, []byte("# plan"), 0o644); err != nil {
 		t.Fatalf("write outside file: %v", err)
 	}
 
-	_, err = newConversationConnectHandlerForServer(srv).ResolveFileReference(
-		context.Background(),
-		connect.NewRequest(&conversationv1.ResolveFileReferenceRequest{SessionId: sess.ID, Path: outsideFile}),
-	)
-	if err == nil {
-		t.Fatalf("expected error for outside-root path, got nil")
+	resp := resolveFileRef(t, srv, sess.ID, outsideFile)
+	if !resp.Exists {
+		t.Fatalf("expected outside-root file to resolve, got exists=false")
 	}
-	var ce *connect.Error
-	if !errors.As(err, &ce) || ce.Code() != connect.CodePermissionDenied {
-		t.Fatalf("expected CodePermissionDenied, got %v", err)
+	if resp.ResolvedPath != outsideFile {
+		t.Fatalf("expected resolved path %q, got %q", outsideFile, resp.ResolvedPath)
+	}
+}
+
+func TestConnect_ResolveFileReference_ExpandsTilde(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Skip("no home dir available")
+	}
+	relName := ".wc-file-ref-tilde-test.md"
+	abs := filepath.Join(home, relName)
+	if err := os.WriteFile(abs, []byte("# tilde"), 0o644); err != nil {
+		t.Fatalf("write home file: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Remove(abs) })
+
+	srv := newFakeTestServer()
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	resp := resolveFileRef(t, srv, sess.ID, "~/"+relName)
+	if !resp.Exists {
+		t.Fatalf("expected tilde-prefixed path to resolve, got exists=false")
+	}
+	if resp.ResolvedPath != abs {
+		t.Fatalf("expected resolved path %q, got %q", abs, resp.ResolvedPath)
 	}
 }
 

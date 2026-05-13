@@ -1,7 +1,7 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
 import { useCallback, useDeferredValue, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Image, Maximize2, Minimize2, SendHorizontal, Sparkles } from "lucide-react";
+import { Image, SendHorizontal, Sparkles } from "lucide-react";
 import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import type { GateResult, InputSource } from "./terminal/inputGate";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -229,7 +229,6 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       selectionRef.current = null;
     },
   }), [setInputValue, clearDraft]);
-  const [expanded, setExpanded] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
   /** Draft snapshot taken at submit time; restored on ack failure. */
   const pendingSendRef = useRef<{ draft: string } | null>(null);
@@ -266,16 +265,19 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     };
   }, [subscribePendingInput, getPendingInputSnapshot]);
 
-  // Auto-resize textarea height
+  // Auto-resize textarea height. We reset to "auto" first so scrollHeight
+  // reflects the natural content height (otherwise it stays pinned at the
+  // previous size). Skip the second write when the height hasn't changed to
+  // avoid a redundant layout pass on every keystroke — that was contributing
+  // to the laggy typing feel on mobile.
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    const target = expanded
-      ? el.scrollHeight
-      : Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT);
-    el.style.height = `${target}px`;
-  }, [inputValue, expanded]);
+    const target = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT);
+    const next = `${target}px`;
+    if (el.style.height !== next) el.style.height = next;
+  }, [inputValue]);
 
   const showStatus = useCallback((status: SendStatus) => {
     setSendStatus(status);
@@ -526,12 +528,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             placeholder="Type command…"
             className={cn(
               "min-w-0 resize-none rounded border border-wc-default bg-wc-surface-input px-2 py-1 text-base text-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
-              "overflow-y-auto",
-              !expanded && "overflow-x-hidden",
+              "overflow-y-auto overflow-x-hidden",
             )}
             style={{
               lineHeight: `${LINE_HEIGHT_PX}px`,
-              maxHeight: expanded ? "60dvh" : `${MAX_TEXTAREA_HEIGHT}px`,
+              maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
             }}
           />
           {sendStatus === "queued" && (
@@ -550,16 +551,6 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             </span>
           )}
         </div>
-        {/* Expand/collapse toggle */}
-        <button
-          data-testid="expand-toggle"
-          onPointerDown={(e) => e.preventDefault()}
-          onClick={() => setExpanded((prev) => !prev)}
-          className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-          title={expanded ? "Collapse editor" : "Expand editor"}
-        >
-          {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-        </button>
         {/* Send button — always enabled so that tapping it with an empty
              input acts as Enter (see submitCommand for rationale). */}
         <button
@@ -644,14 +635,21 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
            The mic button spans both rows for easy access. */
         <div
           className="grid gap-0.5 px-1 py-1 touch-manipulation select-none"
-          style={{ gridTemplateColumns: "auto auto 1fr auto", gridTemplateRows: "auto auto" }}
+          // Mic column is `minmax(0,1fr)` so it grows to fill remaining width
+          // (up to ~2× the image-upload button) but is allowed to shrink when
+          // the other columns are wide — preventing viewport overflow.
+          style={{ gridTemplateColumns: "auto auto auto minmax(0,1fr)", gridTemplateRows: "auto auto" }}
           onMouseDown={(e) => e.preventDefault()}
         >
           {/* Column 1: Combo picker + Modifiers (row 1) + Special keys (row 2) */}
           <div className="flex flex-col gap-0.5" style={{ gridRow: "1 / -1" }}>
-            <div className="flex items-center gap-0.5">
-              <KeyComboPicker onInput={onInput} onFocusTerminal={onFocusTerminal} />
-              <div className="w-px h-5 bg-wc-default shrink-0" />
+            <div className="flex items-stretch gap-0.5">
+              <KeyComboPicker
+                onInput={onInput}
+                onFocusTerminal={onFocusTerminal}
+                triggerClassName="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2 py-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation flex items-center justify-center"
+              />
+              <div className="w-px self-stretch bg-wc-default shrink-0" />
               {(["ctrl", "alt", "shift"] as const).map((mod) => (
                 <button
                   key={mod}
@@ -760,8 +758,12 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 onStop={onVoiceStop}
                 onCancel={onVoiceCancel}
                 onTtsStop={onTtsStop}
-                className="h-full"
-                buttonClassName="h-full px-3"
+                className="h-full w-full"
+                // Mic stretches to fill the remaining row width (its grid
+                // column is minmax(0,1fr)), making it as wide as fits without
+                // pushing other buttons off-screen. min-width keeps it a
+                // usable tap target even on very narrow viewports.
+                buttonClassName="h-full w-full min-w-[2.5rem] flex items-center justify-center"
               />
             </div>
           )}

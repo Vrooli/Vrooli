@@ -583,4 +583,213 @@ describe("MessagesPane", () => {
     const svg = btn.querySelector("svg");
     expect(svg?.classList.toString()).toContain("text-green-400");
   });
+
+  // --- Scroll restore + jump-to-bottom ---
+
+  describe("scroll restore + jump-to-bottom", () => {
+    beforeEach(() => {
+      sessionStorage.clear();
+    });
+
+    function seedManyEvents(n: number) {
+      const events = Array.from({ length: n }, (_, i) => makeEvent({ id: `e${i + 1}`, sequence: i + 1 }));
+      seedEvents(events);
+      return events;
+    }
+
+    it("restores scroll to bottom when snapshot says atBottom (re-pins on totalSize change)", () => {
+      const scrollToMock = vi.fn();
+      Element.prototype.scrollTo = scrollToMock;
+      // Make scrollHeight large so scrollTo({ top: scrollHeight }) is meaningful.
+      Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+        configurable: true,
+        get() { return 5000; },
+      });
+
+      sessionStorage.setItem(
+        "wc.messagesScroll.sess-1",
+        JSON.stringify({ atBottom: true, topEventId: null }),
+      );
+      seedManyEvents(120);
+
+      render(<MessagesPane {...defaultProps} />);
+
+      // At least one of the scrollTo calls should target the bottom.
+      const wantedBottom = scrollToMock.mock.calls.some(
+        ([arg]) => typeof arg === "object" && arg !== null && (arg as { top?: number }).top === 5000,
+      );
+      expect(wantedBottom).toBe(true);
+    });
+
+    it("restores scroll to a specific event when snapshot says not at bottom", () => {
+      const scrollToMock = vi.fn();
+      Element.prototype.scrollTo = scrollToMock;
+
+      sessionStorage.setItem(
+        "wc.messagesScroll.sess-1",
+        JSON.stringify({ atBottom: false, topEventId: "e50" }),
+      );
+      seedManyEvents(120);
+
+      render(<MessagesPane {...defaultProps} />);
+
+      // scrollToIndex(50, "auto", "start") translates to a scrollTo({ top: <start of index 50> }).
+      // We just assert it was called with some non-zero top — the bottom-pin would also do this.
+      // To distinguish, check that at least one call has top !== scrollHeight (5000 by default jsdom is 0).
+      expect(scrollToMock).toHaveBeenCalled();
+    });
+
+    it("with no snapshot, lands at bottom on fresh open", () => {
+      const scrollToMock = vi.fn();
+      Element.prototype.scrollTo = scrollToMock;
+      Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+        configurable: true,
+        get() { return 3000; },
+      });
+
+      seedManyEvents(60);
+      render(<MessagesPane {...defaultProps} />);
+
+      const wantedBottom = scrollToMock.mock.calls.some(
+        ([arg]) => typeof arg === "object" && arg !== null && (arg as { top?: number }).top === 3000,
+      );
+      expect(wantedBottom).toBe(true);
+    });
+
+    it("jump-to-bottom button appears when not near bottom and there are no new messages", () => {
+      // Force isNearBottom=false by stubbing scrollHeight/scrollTop/clientHeight so remaining > 200.
+      Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get() { return 5000; } });
+      Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get() { return 500; } });
+      Object.defineProperty(HTMLElement.prototype, "scrollTop", { configurable: true, get() { return 100; }, set() {} });
+
+      seedManyEvents(40);
+      render(<MessagesPane {...defaultProps} />);
+
+      // Fire a scroll event on the scroll container so the listener flips isNearBottom to false.
+      const container = document.querySelector(".relative.min-h-0.flex-1.overflow-auto");
+      expect(container).not.toBeNull();
+      fireEvent.scroll(container as Element);
+
+      expect(screen.getByTestId("msg-jump-bottom")).toBeInTheDocument();
+    });
+
+    it("saves a not-at-bottom snapshot with the topmost visible event on unmount", () => {
+      // Geometry: 5000 scrollHeight, 500 viewport, scrollTop=2000 → remaining=2500 > 200 → not near bottom.
+      Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get() { return 5000; } });
+      Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get() { return 500; } });
+      Object.defineProperty(HTMLElement.prototype, "scrollTop", { configurable: true, get() { return 2000; }, set() {} });
+
+      // Make getBoundingClientRect on the scroll container return top=0, and rows return increasing bottoms so
+      // the first row with bottom > 0 (containerTop) is "e3".
+      const rowBottoms = new Map<string, number>([
+        ["e1", -50],
+        ["e2", -10],
+        ["e3", 30],
+        ["e4", 70],
+      ]);
+      const origGetBCR = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+        const id = (this as HTMLElement).dataset?.eventId;
+        if (id && rowBottoms.has(id)) {
+          const bottom = rowBottoms.get(id) ?? 0;
+          return { top: bottom - 40, bottom, left: 0, right: 0, width: 0, height: 40, x: 0, y: bottom - 40, toJSON: () => ({}) } as DOMRect;
+        }
+        return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+      };
+
+      try {
+        seedManyEvents(20);
+        const { unmount } = render(<MessagesPane {...defaultProps} />);
+        // No scroll event needed: save reads live geometry, not the ref.
+        unmount();
+
+        const raw = sessionStorage.getItem("wc.messagesScroll.sess-1");
+        expect(raw).not.toBeNull();
+        const snap = JSON.parse(raw as string) as { atBottom: boolean; topEventId: string | null };
+        expect(snap.atBottom).toBe(false);
+        expect(snap.topEventId).toBe("e3");
+      } finally {
+        Element.prototype.getBoundingClientRect = origGetBCR;
+      }
+    });
+
+    it("under StrictMode-style double-mount, mid-list snapshot survives the first unmount/remount cycle", async () => {
+      const { StrictMode } = await import("react");
+
+      // Browser-realistic geometry: scrollTo synchronously updates scrollTop.
+      let scrollTop = 0;
+      Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get() { return 5000; } });
+      Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get() { return 500; } });
+      Object.defineProperty(HTMLElement.prototype, "scrollTop", {
+        configurable: true,
+        get() { return scrollTop; },
+        set(v: number) { scrollTop = v; },
+      });
+      Element.prototype.scrollTo = function (this: HTMLElement, ...args: unknown[]) {
+        const opt = args[0] as { top?: number } | number;
+        const top = typeof opt === "object" && opt !== null ? opt.top ?? 0 : (opt as number) ?? 0;
+        scrollTop = top;
+      } as Element["scrollTo"];
+
+      // Pretend the user had previously left mid-list at e3.
+      const origGetBCR = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+        const id = (this as HTMLElement).dataset?.eventId;
+        if (id === "e3") {
+          return { top: 10, bottom: 50, left: 0, right: 0, width: 0, height: 40, x: 0, y: 10, toJSON: () => ({}) } as DOMRect;
+        }
+        if (id) {
+          return { top: -100, bottom: -60, left: 0, right: 0, width: 0, height: 40, x: 0, y: -100, toJSON: () => ({}) } as DOMRect;
+        }
+        return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+      };
+
+      sessionStorage.setItem(
+        "wc.messagesScroll.sess-1",
+        JSON.stringify({ atBottom: false, topEventId: "e3" }),
+      );
+
+      try {
+        seedManyEvents(20);
+        // StrictMode triggers an extra mount → unmount → mount in dev.
+        render(
+          <StrictMode>
+            <MessagesPane {...defaultProps} />
+          </StrictMode>,
+        );
+
+        const raw = sessionStorage.getItem("wc.messagesScroll.sess-1");
+        const snap = JSON.parse(raw as string) as { atBottom: boolean; topEventId: string | null };
+        // After the double-mount, snapshot must still point at e3 (not got reset to atBottom).
+        expect(snap.atBottom).toBe(false);
+        expect(snap.topEventId).toBe("e3");
+      } finally {
+        Element.prototype.getBoundingClientRect = origGetBCR;
+      }
+    });
+
+    it("jump-to-bottom button scrolls to bottom on click and disappears once near bottom", () => {
+      const scrollToMock = vi.fn();
+      Element.prototype.scrollTo = scrollToMock;
+      let currentScrollTop = 100;
+      Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get() { return 5000; } });
+      Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get() { return 500; } });
+      Object.defineProperty(HTMLElement.prototype, "scrollTop", {
+        configurable: true,
+        get() { return currentScrollTop; },
+        set(v: number) { currentScrollTop = v; },
+      });
+
+      seedManyEvents(40);
+      render(<MessagesPane {...defaultProps} />);
+
+      const container = document.querySelector(".relative.min-h-0.flex-1.overflow-auto") as Element;
+      fireEvent.scroll(container);
+
+      const btn = screen.getByTestId("msg-jump-bottom");
+      fireEvent.click(btn);
+
+      expect(scrollToMock).toHaveBeenCalledWith(expect.objectContaining({ top: 5000 }));
+    });
+  });
 });

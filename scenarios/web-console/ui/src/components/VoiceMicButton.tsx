@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, useState, useCallback } from "react";
+import { memo, useRef, useLayoutEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Mic, Loader2, AlertCircle, Volume2 } from "lucide-react";
 import { cn } from "../lib/classnames";
@@ -87,7 +87,7 @@ function ErrorTooltip({ anchor, text }: { anchor: HTMLElement; text: string }) {
   );
 }
 
-export default function VoiceMicButton({
+function VoiceMicButtonInner({
   supported,
   isPreparing,
   isRecording,
@@ -249,3 +249,12 @@ export default function VoiceMicButton({
     </div>
   );
 }
+
+/**
+ * Memoized so it doesn't re-render on every MobileToolbar textarea keystroke —
+ * none of its props depend on the typed input. Without this, typing in the
+ * mobile input felt laggy because each keystroke re-walked this subtree
+ * (including the conditional ErrorTooltip portal).
+ */
+const VoiceMicButton = memo(VoiceMicButtonInner);
+export default VoiceMicButton;

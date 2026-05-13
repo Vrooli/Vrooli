@@ -45,6 +45,8 @@ interface MarkdownRendererProps {
   content: string;
   className?: string;
   onLinkClick?: (href: string, event: MouseEvent<HTMLAnchorElement>) => void;
+  /** Open a file in the preview dialog when an inline-code chip looks like a path. */
+  onFileReferenceClick?: (path: string) => void;
 }
 
 /** Renders markdown content with syntax highlighting, mermaid diagrams, and GFM support. */
@@ -52,6 +54,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   className,
   onLinkClick,
+  onFileReferenceClick,
 }: MarkdownRendererProps) {
   const components = useMemo(
     () => ({
@@ -64,7 +67,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         const codeContent = extractTextContent(children);
         const isInline = inline ?? (!codeClassName && !codeContent.includes("\n"));
 
-        if (isInline) return <InlineCode>{children}</InlineCode>;
+        if (isInline) return <InlineCode onFileReferenceClick={onFileReferenceClick}>{children}</InlineCode>;
         if (codeClassName === "language-mermaid") return <MermaidDiagram code={codeContent} />;
         return <CodeBlock code={codeContent} className={codeClassName} {...props} />;
       },
@@ -125,17 +128,17 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
 
       table: ({ children }: { children?: ReactNode }) => (
         <div className="overflow-x-auto my-4">
-          <table className="min-w-full border-collapse border border-wc-default">{children}</table>
+          <table className="w-auto border-collapse border border-wc-default">{children}</table>
         </div>
       ),
       thead: ({ children }: { children?: ReactNode }) => (
         <thead className="bg-wc-surface-raised">{children}</thead>
       ),
       th: ({ children }: { children?: ReactNode }) => (
-        <th className="border border-wc-default px-4 py-2 text-left font-semibold">{children}</th>
+        <th className="border border-wc-default px-4 py-2 text-left font-semibold align-top min-w-[8rem]">{children}</th>
       ),
       td: ({ children }: { children?: ReactNode }) => (
-        <td className="border border-wc-default px-4 py-2">{children}</td>
+        <td className="border border-wc-default px-4 py-2 align-top min-w-[8rem] [overflow-wrap:anywhere]">{children}</td>
       ),
 
       strong: ({ children }: { children?: ReactNode }) => (
@@ -147,7 +150,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         <del className="line-through text-wc-text-faint">{children}</del>
       ),
     }),
-    [onLinkClick],
+    [onLinkClick, onFileReferenceClick],
   );
 
   if (!content) return null;
@@ -172,7 +175,8 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   return (
     prevProps.content === nextProps.content &&
     prevProps.className === nextProps.className &&
-    prevProps.onLinkClick === nextProps.onLinkClick
+    prevProps.onLinkClick === nextProps.onLinkClick &&
+    prevProps.onFileReferenceClick === nextProps.onFileReferenceClick
   );
 });
 

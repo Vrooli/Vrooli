@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
-import { AlertTriangle, Loader2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Check, Copy, Loader2, X } from "lucide-react";
 import { MarkdownRenderer } from "./markdown";
 import { cn } from "../lib/classnames";
 import type { FileReferenceContentResponse, FileReferenceResolveResponse } from "../api/conversation";
@@ -24,6 +24,14 @@ export default function MessagesFileViewer({
   onClose,
 }: MessagesFileViewerProps) {
   const targetLine = content?.line ?? resolved?.line ?? null;
+  const displayPath = content?.path ?? resolved?.resolved_path ?? requestedPath ?? "";
+  const [copied, setCopied] = useState(false);
+  const copyPath = () => {
+    if (!displayPath) return;
+    void navigator.clipboard.writeText(displayPath);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   const basename = useMemo(() => {
     const fullPath = content?.path ?? resolved?.resolved_path ?? requestedPath ?? "";
     if (!fullPath) return "File preview";
@@ -47,13 +55,30 @@ export default function MessagesFileViewer({
   return (
     <div className="fixed inset-0 z-[80]">
       <div className="absolute inset-0 bg-wc-backdrop" onClick={onClose} />
-      <div className="absolute inset-x-3 bottom-3 top-3 overflow-hidden rounded-2xl border border-wc-default bg-wc-surface-raised shadow-2xl md:inset-x-8 md:bottom-8 md:top-8">
+      <div className="absolute inset-x-0 bottom-0 top-4 overflow-hidden rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised shadow-2xl md:inset-x-8 md:bottom-8 md:top-8 md:rounded-2xl md:border">
         <div className="flex items-start justify-between gap-4 border-b border-wc-default px-4 py-3">
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-wc-text-primary">{basename}</h2>
-            <p className="truncate text-xs text-wc-text-muted">
-              {content?.path ?? resolved?.resolved_path ?? requestedPath ?? "Loading file..."}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-xs text-wc-text-muted">
+                {displayPath || "Loading file..."}
+              </p>
+              {displayPath && (
+                <button
+                  type="button"
+                  onClick={copyPath}
+                  className="shrink-0 rounded p-1 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+                  aria-label={copied ? "Copied" : "Copy path"}
+                  title={copied ? "Copied" : "Copy path"}
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-green-400" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              )}
+            </div>
             <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-wc-text-faint">
               {resolved?.resolution_basis && (
                 <span className="rounded-full border border-wc-default px-2 py-0.5">

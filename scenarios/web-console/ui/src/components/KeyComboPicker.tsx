@@ -14,9 +14,11 @@ interface KeyComboPickerProps {
   onInput: (data: string, source: InputSource) => GateResult;
   /** Move focus to the active terminal after sending a combo. */
   onFocusTerminal?: () => void;
+  /** Override classes on the trigger button so callers can match neighbour button heights. */
+  triggerClassName?: string;
 }
 
-export default function KeyComboPicker({ onInput, onFocusTerminal }: KeyComboPickerProps) {
+export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassName }: KeyComboPickerProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -89,7 +91,7 @@ export default function KeyComboPicker({ onInput, onFocusTerminal }: KeyComboPic
         tabIndex={-1}
         onPointerDown={(e) => e.preventDefault()}
         onClick={() => setOpen(true)}
-        className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+        className={triggerClassName ?? "shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"}
         title="Key combos"
       >
         <SquareSlash className="h-3.5 w-3.5" />
