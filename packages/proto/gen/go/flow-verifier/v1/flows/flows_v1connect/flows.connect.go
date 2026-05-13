@@ -45,6 +45,15 @@ const (
 	// FlowsServiceExplainFlowProcedure is the fully-qualified name of the FlowsService's ExplainFlow
 	// RPC.
 	FlowsServiceExplainFlowProcedure = "/vrooli.flow_verifier.v1.flows.FlowsService/ExplainFlow"
+	// FlowsServiceCodegenFlowProcedure is the fully-qualified name of the FlowsService's CodegenFlow
+	// RPC.
+	FlowsServiceCodegenFlowProcedure = "/vrooli.flow_verifier.v1.flows.FlowsService/CodegenFlow"
+	// FlowsServiceReconcileFlowProcedure is the fully-qualified name of the FlowsService's
+	// ReconcileFlow RPC.
+	FlowsServiceReconcileFlowProcedure = "/vrooli.flow_verifier.v1.flows.FlowsService/ReconcileFlow"
+	// FlowsServiceGetNavigationStudioProcedure is the fully-qualified name of the FlowsService's
+	// GetNavigationStudio RPC.
+	FlowsServiceGetNavigationStudioProcedure = "/vrooli.flow_verifier.v1.flows.FlowsService/GetNavigationStudio"
 )
 
 // FlowsServiceClient is a client for the vrooli.flow_verifier.v1.flows.FlowsService service.
@@ -54,6 +63,9 @@ type FlowsServiceClient interface {
 	CreateFlow(context.Context, *connect.Request[flows.CreateFlowRequest]) (*connect.Response[flows.CreateFlowResponse], error)
 	ValidateFlow(context.Context, *connect.Request[flows.ValidateFlowRequest]) (*connect.Response[flows.ValidateFlowResponse], error)
 	ExplainFlow(context.Context, *connect.Request[flows.ExplainFlowRequest]) (*connect.Response[flows.ExplainFlowResponse], error)
+	CodegenFlow(context.Context, *connect.Request[flows.CodegenFlowRequest]) (*connect.Response[flows.CodegenFlowResponse], error)
+	ReconcileFlow(context.Context, *connect.Request[flows.ReconcileFlowRequest]) (*connect.Response[flows.ReconcileFlowResponse], error)
+	GetNavigationStudio(context.Context, *connect.Request[flows.GetNavigationStudioRequest]) (*connect.Response[flows.GetNavigationStudioResponse], error)
 }
 
 // NewFlowsServiceClient constructs a client for the vrooli.flow_verifier.v1.flows.FlowsService
@@ -97,16 +109,37 @@ func NewFlowsServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(flowsServiceMethods.ByName("ExplainFlow")),
 			connect.WithClientOptions(opts...),
 		),
+		codegenFlow: connect.NewClient[flows.CodegenFlowRequest, flows.CodegenFlowResponse](
+			httpClient,
+			baseURL+FlowsServiceCodegenFlowProcedure,
+			connect.WithSchema(flowsServiceMethods.ByName("CodegenFlow")),
+			connect.WithClientOptions(opts...),
+		),
+		reconcileFlow: connect.NewClient[flows.ReconcileFlowRequest, flows.ReconcileFlowResponse](
+			httpClient,
+			baseURL+FlowsServiceReconcileFlowProcedure,
+			connect.WithSchema(flowsServiceMethods.ByName("ReconcileFlow")),
+			connect.WithClientOptions(opts...),
+		),
+		getNavigationStudio: connect.NewClient[flows.GetNavigationStudioRequest, flows.GetNavigationStudioResponse](
+			httpClient,
+			baseURL+FlowsServiceGetNavigationStudioProcedure,
+			connect.WithSchema(flowsServiceMethods.ByName("GetNavigationStudio")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // flowsServiceClient implements FlowsServiceClient.
 type flowsServiceClient struct {
-	listFlows    *connect.Client[flows.ListFlowsRequest, flows.ListFlowsResponse]
-	getFlow      *connect.Client[flows.GetFlowRequest, flows.GetFlowResponse]
-	createFlow   *connect.Client[flows.CreateFlowRequest, flows.CreateFlowResponse]
-	validateFlow *connect.Client[flows.ValidateFlowRequest, flows.ValidateFlowResponse]
-	explainFlow  *connect.Client[flows.ExplainFlowRequest, flows.ExplainFlowResponse]
+	listFlows           *connect.Client[flows.ListFlowsRequest, flows.ListFlowsResponse]
+	getFlow             *connect.Client[flows.GetFlowRequest, flows.GetFlowResponse]
+	createFlow          *connect.Client[flows.CreateFlowRequest, flows.CreateFlowResponse]
+	validateFlow        *connect.Client[flows.ValidateFlowRequest, flows.ValidateFlowResponse]
+	explainFlow         *connect.Client[flows.ExplainFlowRequest, flows.ExplainFlowResponse]
+	codegenFlow         *connect.Client[flows.CodegenFlowRequest, flows.CodegenFlowResponse]
+	reconcileFlow       *connect.Client[flows.ReconcileFlowRequest, flows.ReconcileFlowResponse]
+	getNavigationStudio *connect.Client[flows.GetNavigationStudioRequest, flows.GetNavigationStudioResponse]
 }
 
 // ListFlows calls vrooli.flow_verifier.v1.flows.FlowsService.ListFlows.
@@ -134,6 +167,21 @@ func (c *flowsServiceClient) ExplainFlow(ctx context.Context, req *connect.Reque
 	return c.explainFlow.CallUnary(ctx, req)
 }
 
+// CodegenFlow calls vrooli.flow_verifier.v1.flows.FlowsService.CodegenFlow.
+func (c *flowsServiceClient) CodegenFlow(ctx context.Context, req *connect.Request[flows.CodegenFlowRequest]) (*connect.Response[flows.CodegenFlowResponse], error) {
+	return c.codegenFlow.CallUnary(ctx, req)
+}
+
+// ReconcileFlow calls vrooli.flow_verifier.v1.flows.FlowsService.ReconcileFlow.
+func (c *flowsServiceClient) ReconcileFlow(ctx context.Context, req *connect.Request[flows.ReconcileFlowRequest]) (*connect.Response[flows.ReconcileFlowResponse], error) {
+	return c.reconcileFlow.CallUnary(ctx, req)
+}
+
+// GetNavigationStudio calls vrooli.flow_verifier.v1.flows.FlowsService.GetNavigationStudio.
+func (c *flowsServiceClient) GetNavigationStudio(ctx context.Context, req *connect.Request[flows.GetNavigationStudioRequest]) (*connect.Response[flows.GetNavigationStudioResponse], error) {
+	return c.getNavigationStudio.CallUnary(ctx, req)
+}
+
 // FlowsServiceHandler is an implementation of the vrooli.flow_verifier.v1.flows.FlowsService
 // service.
 type FlowsServiceHandler interface {
@@ -142,6 +190,9 @@ type FlowsServiceHandler interface {
 	CreateFlow(context.Context, *connect.Request[flows.CreateFlowRequest]) (*connect.Response[flows.CreateFlowResponse], error)
 	ValidateFlow(context.Context, *connect.Request[flows.ValidateFlowRequest]) (*connect.Response[flows.ValidateFlowResponse], error)
 	ExplainFlow(context.Context, *connect.Request[flows.ExplainFlowRequest]) (*connect.Response[flows.ExplainFlowResponse], error)
+	CodegenFlow(context.Context, *connect.Request[flows.CodegenFlowRequest]) (*connect.Response[flows.CodegenFlowResponse], error)
+	ReconcileFlow(context.Context, *connect.Request[flows.ReconcileFlowRequest]) (*connect.Response[flows.ReconcileFlowResponse], error)
+	GetNavigationStudio(context.Context, *connect.Request[flows.GetNavigationStudioRequest]) (*connect.Response[flows.GetNavigationStudioResponse], error)
 }
 
 // NewFlowsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -181,6 +232,24 @@ func NewFlowsServiceHandler(svc FlowsServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(flowsServiceMethods.ByName("ExplainFlow")),
 		connect.WithHandlerOptions(opts...),
 	)
+	flowsServiceCodegenFlowHandler := connect.NewUnaryHandler(
+		FlowsServiceCodegenFlowProcedure,
+		svc.CodegenFlow,
+		connect.WithSchema(flowsServiceMethods.ByName("CodegenFlow")),
+		connect.WithHandlerOptions(opts...),
+	)
+	flowsServiceReconcileFlowHandler := connect.NewUnaryHandler(
+		FlowsServiceReconcileFlowProcedure,
+		svc.ReconcileFlow,
+		connect.WithSchema(flowsServiceMethods.ByName("ReconcileFlow")),
+		connect.WithHandlerOptions(opts...),
+	)
+	flowsServiceGetNavigationStudioHandler := connect.NewUnaryHandler(
+		FlowsServiceGetNavigationStudioProcedure,
+		svc.GetNavigationStudio,
+		connect.WithSchema(flowsServiceMethods.ByName("GetNavigationStudio")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.flow_verifier.v1.flows.FlowsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FlowsServiceListFlowsProcedure:
@@ -193,6 +262,12 @@ func NewFlowsServiceHandler(svc FlowsServiceHandler, opts ...connect.HandlerOpti
 			flowsServiceValidateFlowHandler.ServeHTTP(w, r)
 		case FlowsServiceExplainFlowProcedure:
 			flowsServiceExplainFlowHandler.ServeHTTP(w, r)
+		case FlowsServiceCodegenFlowProcedure:
+			flowsServiceCodegenFlowHandler.ServeHTTP(w, r)
+		case FlowsServiceReconcileFlowProcedure:
+			flowsServiceReconcileFlowHandler.ServeHTTP(w, r)
+		case FlowsServiceGetNavigationStudioProcedure:
+			flowsServiceGetNavigationStudioHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -220,4 +295,16 @@ func (UnimplementedFlowsServiceHandler) ValidateFlow(context.Context, *connect.R
 
 func (UnimplementedFlowsServiceHandler) ExplainFlow(context.Context, *connect.Request[flows.ExplainFlowRequest]) (*connect.Response[flows.ExplainFlowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.flow_verifier.v1.flows.FlowsService.ExplainFlow is not implemented"))
+}
+
+func (UnimplementedFlowsServiceHandler) CodegenFlow(context.Context, *connect.Request[flows.CodegenFlowRequest]) (*connect.Response[flows.CodegenFlowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.flow_verifier.v1.flows.FlowsService.CodegenFlow is not implemented"))
+}
+
+func (UnimplementedFlowsServiceHandler) ReconcileFlow(context.Context, *connect.Request[flows.ReconcileFlowRequest]) (*connect.Response[flows.ReconcileFlowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.flow_verifier.v1.flows.FlowsService.ReconcileFlow is not implemented"))
+}
+
+func (UnimplementedFlowsServiceHandler) GetNavigationStudio(context.Context, *connect.Request[flows.GetNavigationStudioRequest]) (*connect.Response[flows.GetNavigationStudioResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.flow_verifier.v1.flows.FlowsService.GetNavigationStudio is not implemented"))
 }

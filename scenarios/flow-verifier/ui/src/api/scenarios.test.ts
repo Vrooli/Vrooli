@@ -47,6 +47,7 @@ describe("scenarios API public type shape", () => {
           contractPath: "scenarios/alpha/flow/flow.json",
           language: "go",
           schemaVersion: 6,
+          kind: "temporal",
         },
       ],
     };

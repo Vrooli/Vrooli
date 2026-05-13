@@ -32,6 +32,7 @@ import type { FlowDetail, RunRow } from "../../api/inventory";
 
 const detail: FlowDetail = {
   flowId: "notes.attachment-upload.ui",
+  kind: "temporal",
   contractPath: "ui/src/features/notes/flow/flow.json",
   language: "ts",
   schemaVersion: 6,

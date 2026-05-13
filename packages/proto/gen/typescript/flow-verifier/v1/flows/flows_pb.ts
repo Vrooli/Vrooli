@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file flow-verifier/v1/flows/flows.proto.
  */
 export const file_flow_verifier_v1_flows_flows: GenFile = /*@__PURE__*/
-  fileDesc("CiJmbG93LXZlcmlmaWVyL3YxL2Zsb3dzL2Zsb3dzLnByb3RvEh12cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cyKCAQoLRmxvd1N1bW1hcnkSDwoHZmxvd19pZBgBIAEoCRIVCg1jb250cmFjdF9wYXRoGAIgASgJEhAKCGxhbmd1YWdlGAMgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAQgASgFEhMKC3NjZW5hcmlvX2lkGAUgASgJEgwKBGtpbmQYBiABKAkiSQoJRmxvd1N0YXRlEgoKAmlkGAEgASgJEg0KBXF1aW50GAIgASgJEg8KB2luaXRpYWwYAyABKAgSEAoIdGVybWluYWwYBCABKAgiJgoJRmxvd0V2ZW50EgoKAmlkGAEgASgJEg0KBXF1aW50GAIgASgJImUKDkZsb3dUcmFuc2l0aW9uEgwKBGZyb20YASADKAkSDQoFZXZlbnQYAiADKAkSCgoCdG8YAyABKAkSEgoKd2FudF9lcnJvchgEIAEoCBIWCg53YW50X2Vycm9yX3NldBgFIAEoCCJTCg1GbG93SW52YXJpYW50EgoKAmlkGAEgASgJEg0KBXF1aW50GAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhIKCmV4cHJlc3Npb24YBCABKAkiQAoNRmxvd1RyYWNlU3RlcBINCgVldmVudBgBIAEoCRIMCgR3YW50GAIgASgJEhIKCndhbnRfZXJyb3IYAyABKAgiZwoJRmxvd1RyYWNlEgwKBG5hbWUYASABKAkSDwoHaW5pdGlhbBgCIAEoCRI7CgVzdGVwcxgDIAMoCzIsLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkZsb3dUcmFjZVN0ZXAiIAoKRmxvd1ZlcmlmeRISCgppbnZhcmlhbnRzGAEgAygJIowBCglGbG93TW9kZWwSDgoGbW9kdWxlGAEgASgJEgwKBHNlZWQYAiABKAkSEQoJbWF4X3N0ZXBzGAMgASgFEhMKC3RyYWNlX2NvdW50GAQgASgFEjkKBnZlcmlmeRgFIAEoCzIpLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkZsb3dWZXJpZnkiXgoJR29SdW50aW1lEg8KB3BhY2thZ2UYASABKAkSEwoLc3RhdHVzX3R5cGUYAiABKAkSEgoKZXZlbnRfdHlwZRgDIAEoCRIXCg9jb25zdGFudF9wcmVmaXgYBCABKAki0gUKEVR5cGVTY3JpcHRSdW50aW1lEhMKC3N0YXR1c190eXBlGAEgASgJEhIKCmV2ZW50X3R5cGUYAiABKAkSFgoOc3RhdHVzZXNfY29uc3QYAyABKAkSFAoMZXZlbnRzX2NvbnN0GAQgASgJEiAKGGZvcm1hbF9leHBlY3RhdGlvbl9jb25zdBgFIAEoCRIYChBzdGF0ZV91bmlvbl90eXBlGAYgASgJEhgKEGV2ZW50X3VuaW9uX3R5cGUYByABKAkSWQoNcGF5bG9hZF90eXBlcxgIIAMoCzJCLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLlR5cGVTY3JpcHRSdW50aW1lLlBheWxvYWRUeXBlc0VudHJ5ElsKDnN0YXRlX3ZhcmlhbnRzGAkgAygLMkMudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuVHlwZVNjcmlwdFJ1bnRpbWUuU3RhdGVWYXJpYW50c0VudHJ5ElsKDmV2ZW50X3ZhcmlhbnRzGAogAygLMkMudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuVHlwZVNjcmlwdFJ1bnRpbWUuRXZlbnRWYXJpYW50c0VudHJ5GjMKEVBheWxvYWRUeXBlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaYgoSU3RhdGVWYXJpYW50c0VudHJ5EgsKA2tleRgBIAEoCRI7CgV2YWx1ZRgCIAEoCzIsLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLlZhcmlhbnRGaWVsZHM6AjgBGmIKEkV2ZW50VmFyaWFudHNFbnRyeRILCgNrZXkYASABKAkSOwoFdmFsdWUYAiABKAsyLC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5WYXJpYW50RmllbGRzOgI4ASKIAQoNVmFyaWFudEZpZWxkcxJICgZmaWVsZHMYASADKAsyOC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5WYXJpYW50RmllbGRzLkZpZWxkc0VudHJ5Gi0KC0ZpZWxkc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiuQEKC0Zsb3dSdW50aW1lEjQKAmdvGAEgASgLMigudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuR29SdW50aW1lEkQKCnR5cGVzY3JpcHQYAiABKAsyMC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5UeXBlU2NyaXB0UnVudGltZRIUCgxzaWRlX2VmZmVjdHMYAyADKAkSGAoQc3RhbGVfY29tcGxldGlvbhgEIAEoCSLiBAoKRmxvd0RldGFpbBIPCgdmbG93X2lkGAEgASgJEg4KBmRvbWFpbhgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIVCg1jb250cmFjdF9wYXRoGAQgASgJEhAKCGxhbmd1YWdlGAUgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAYgASgFEgwKBGtpbmQYECABKAkSFQoNaW5pdGlhbF9zdGF0ZRgHIAEoCRI4CgZzdGF0ZXMYCCADKAsyKC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5GbG93U3RhdGUSOAoGZXZlbnRzGAkgAygLMigudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRmxvd0V2ZW50EkIKC3RyYW5zaXRpb25zGAogAygLMi0udnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRmxvd1RyYW5zaXRpb24SOAoGdHJhY2VzGAsgAygLMigudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRmxvd1RyYWNlEkAKCmludmFyaWFudHMYDCADKAsyLC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5GbG93SW52YXJpYW50EjcKBW1vZGVsGA0gASgLMigudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRmxvd01vZGVsEjsKB3J1bnRpbWUYDiABKAsyKi52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5GbG93UnVudGltZRIOCgZyZXBvcnQYDyABKAkiPwoQTGlzdEZsb3dzUmVxdWVzdBIMCgRyb290GAEgASgJEg8KB2Zsb3dfaWQYAiABKAkSDAoEa2luZBgDIAEoCSJOChFMaXN0Rmxvd3NSZXNwb25zZRI5CgVmbG93cxgBIAMoCzIqLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkZsb3dTdW1tYXJ5Ii8KDkdldEZsb3dSZXF1ZXN0Eg8KB2Zsb3dfaWQYASABKAkSDAoEcm9vdBgCIAEoCSJKCg9HZXRGbG93UmVzcG9uc2USNwoEZmxvdxgBIAEoCzIpLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkZsb3dEZXRhaWwiZgoRQ3JlYXRlRmxvd1JlcXVlc3QSEgoKcGFyZW50X2RpchgBIAEoCRIPCgdmbG93X2lkGAIgASgJEhAKCGxhbmd1YWdlGAMgASgJEgwKBHJvb3QYBCABKAkSDAoEa2luZBgFIAEoCSImChJDcmVhdGVGbG93UmVzcG9uc2USEAoIZmxvd19kaXIYASABKAkiNAoTVmFsaWRhdGVGbG93UmVxdWVzdBIPCgdmbG93X2lkGAEgASgJEgwKBHJvb3QYAiABKAkiUQoUVmFsaWRhdGVGbG93UmVzcG9uc2USOQoFZmxvd3MYASADKAsyKi52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5GbG93U3VtbWFyeSIzChJFeHBsYWluRmxvd1JlcXVlc3QSDwoHZmxvd19pZBgBIAEoCRIMCgRyb290GAIgASgJIiUKE0V4cGxhaW5GbG93UmVzcG9uc2USDgoGcmVwb3J0GAEgASgJMsoECgxGbG93c1NlcnZpY2USbgoJTGlzdEZsb3dzEi8udnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuTGlzdEZsb3dzUmVxdWVzdBowLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkxpc3RGbG93c1Jlc3BvbnNlEmgKB0dldEZsb3cSLS52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5HZXRGbG93UmVxdWVzdBouLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkdldEZsb3dSZXNwb25zZRJxCgpDcmVhdGVGbG93EjAudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuQ3JlYXRlRmxvd1JlcXVlc3QaMS52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5DcmVhdGVGbG93UmVzcG9uc2USdwoMVmFsaWRhdGVGbG93EjIudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuVmFsaWRhdGVGbG93UmVxdWVzdBozLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLlZhbGlkYXRlRmxvd1Jlc3BvbnNlEnQKC0V4cGxhaW5GbG93EjEudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRXhwbGFpbkZsb3dSZXF1ZXN0GjIudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRXhwbGFpbkZsb3dSZXNwb25zZUJQWk5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Zsb3ctdmVyaWZpZXIvdjEvZmxvd3M7Zmxvd3NfdjFiBnByb3RvMw");
+  fileDesc("CiJmbG93LXZlcmlmaWVyL3YxL2Zsb3dzL2Zsb3dzLnByb3RvEh12cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cyKCAQoLRmxvd1N1bW1hcnkSDwoHZmxvd19pZBgBIAEoCRIVCg1jb250cmFjdF9wYXRoGAIgASgJEhAKCGxhbmd1YWdlGAMgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAQgASgFEhMKC3NjZW5hcmlvX2lkGAUgASgJEgwKBGtpbmQYBiABKAkiSQoJRmxvd1N0YXRlEgoKAmlkGAEgASgJEg0KBXF1aW50GAIgASgJEg8KB2luaXRpYWwYAyABKAgSEAoIdGVybWluYWwYBCABKAgiJgoJRmxvd0V2ZW50EgoKAmlkGAEgASgJEg0KBXF1aW50GAIgASgJImUKDkZsb3dUcmFuc2l0aW9uEgwKBGZyb20YASADKAkSDQoFZXZlbnQYAiADKAkSCgoCdG8YAyABKAkSEgoKd2FudF9lcnJvchgEIAEoCBIWCg53YW50X2Vycm9yX3NldBgFIAEoCCJTCg1GbG93SW52YXJpYW50EgoKAmlkGAEgASgJEg0KBXF1aW50GAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhIKCmV4cHJlc3Npb24YBCABKAkiQAoNRmxvd1RyYWNlU3RlcBINCgVldmVudBgBIAEoCRIMCgR3YW50GAIgASgJEhIKCndhbnRfZXJyb3IYAyABKAgiZwoJRmxvd1RyYWNlEgwKBG5hbWUYASABKAkSDwoHaW5pdGlhbBgCIAEoCRI7CgVzdGVwcxgDIAMoCzIsLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkZsb3dUcmFjZVN0ZXAiIAoKRmxvd1ZlcmlmeRISCgppbnZhcmlhbnRzGAEgAygJIowBCglGbG93TW9kZWwSDgoGbW9kdWxlGAEgASgJEgwKBHNlZWQYAiABKAkSEQoJbWF4X3N0ZXBzGAMgASgFEhMKC3RyYWNlX2NvdW50GAQgASgFEjkKBnZlcmlmeRgFIAEoCzIpLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkZsb3dWZXJpZnkiXgoJR29SdW50aW1lEg8KB3BhY2thZ2UYASABKAkSEwoLc3RhdHVzX3R5cGUYAiABKAkSEgoKZXZlbnRfdHlwZRgDIAEoCRIXCg9jb25zdGFudF9wcmVmaXgYBCABKAki0gUKEVR5cGVTY3JpcHRSdW50aW1lEhMKC3N0YXR1c190eXBlGAEgASgJEhIKCmV2ZW50X3R5cGUYAiABKAkSFgoOc3RhdHVzZXNfY29uc3QYAyABKAkSFAoMZXZlbnRzX2NvbnN0GAQgASgJEiAKGGZvcm1hbF9leHBlY3RhdGlvbl9jb25zdBgFIAEoCRIYChBzdGF0ZV91bmlvbl90eXBlGAYgASgJEhgKEGV2ZW50X3VuaW9uX3R5cGUYByABKAkSWQoNcGF5bG9hZF90eXBlcxgIIAMoCzJCLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLlR5cGVTY3JpcHRSdW50aW1lLlBheWxvYWRUeXBlc0VudHJ5ElsKDnN0YXRlX3ZhcmlhbnRzGAkgAygLMkMudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuVHlwZVNjcmlwdFJ1bnRpbWUuU3RhdGVWYXJpYW50c0VudHJ5ElsKDmV2ZW50X3ZhcmlhbnRzGAogAygLMkMudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuVHlwZVNjcmlwdFJ1bnRpbWUuRXZlbnRWYXJpYW50c0VudHJ5GjMKEVBheWxvYWRUeXBlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaYgoSU3RhdGVWYXJpYW50c0VudHJ5EgsKA2tleRgBIAEoCRI7CgV2YWx1ZRgCIAEoCzIsLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLlZhcmlhbnRGaWVsZHM6AjgBGmIKEkV2ZW50VmFyaWFudHNFbnRyeRILCgNrZXkYASABKAkSOwoFdmFsdWUYAiABKAsyLC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5WYXJpYW50RmllbGRzOgI4ASKIAQoNVmFyaWFudEZpZWxkcxJICgZmaWVsZHMYASADKAsyOC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5WYXJpYW50RmllbGRzLkZpZWxkc0VudHJ5Gi0KC0ZpZWxkc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiuQEKC0Zsb3dSdW50aW1lEjQKAmdvGAEgASgLMigudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuR29SdW50aW1lEkQKCnR5cGVzY3JpcHQYAiABKAsyMC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5UeXBlU2NyaXB0UnVudGltZRIUCgxzaWRlX2VmZmVjdHMYAyADKAkSGAoQc3RhbGVfY29tcGxldGlvbhgEIAEoCSLiBAoKRmxvd0RldGFpbBIPCgdmbG93X2lkGAEgASgJEg4KBmRvbWFpbhgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIVCg1jb250cmFjdF9wYXRoGAQgASgJEhAKCGxhbmd1YWdlGAUgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAYgASgFEgwKBGtpbmQYECABKAkSFQoNaW5pdGlhbF9zdGF0ZRgHIAEoCRI4CgZzdGF0ZXMYCCADKAsyKC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5GbG93U3RhdGUSOAoGZXZlbnRzGAkgAygLMigudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRmxvd0V2ZW50EkIKC3RyYW5zaXRpb25zGAogAygLMi0udnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRmxvd1RyYW5zaXRpb24SOAoGdHJhY2VzGAsgAygLMigudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRmxvd1RyYWNlEkAKCmludmFyaWFudHMYDCADKAsyLC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5GbG93SW52YXJpYW50EjcKBW1vZGVsGA0gASgLMigudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRmxvd01vZGVsEjsKB3J1bnRpbWUYDiABKAsyKi52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5GbG93UnVudGltZRIOCgZyZXBvcnQYDyABKAkiPwoQTGlzdEZsb3dzUmVxdWVzdBIMCgRyb290GAEgASgJEg8KB2Zsb3dfaWQYAiABKAkSDAoEa2luZBgDIAEoCSJOChFMaXN0Rmxvd3NSZXNwb25zZRI5CgVmbG93cxgBIAMoCzIqLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkZsb3dTdW1tYXJ5Ii8KDkdldEZsb3dSZXF1ZXN0Eg8KB2Zsb3dfaWQYASABKAkSDAoEcm9vdBgCIAEoCSJKCg9HZXRGbG93UmVzcG9uc2USNwoEZmxvdxgBIAEoCzIpLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkZsb3dEZXRhaWwiZgoRQ3JlYXRlRmxvd1JlcXVlc3QSEgoKcGFyZW50X2RpchgBIAEoCRIPCgdmbG93X2lkGAIgASgJEhAKCGxhbmd1YWdlGAMgASgJEgwKBHJvb3QYBCABKAkSDAoEa2luZBgFIAEoCSImChJDcmVhdGVGbG93UmVzcG9uc2USEAoIZmxvd19kaXIYASABKAkiNAoTVmFsaWRhdGVGbG93UmVxdWVzdBIPCgdmbG93X2lkGAEgASgJEgwKBHJvb3QYAiABKAkiUQoUVmFsaWRhdGVGbG93UmVzcG9uc2USOQoFZmxvd3MYASADKAsyKi52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5GbG93U3VtbWFyeSIzChJFeHBsYWluRmxvd1JlcXVlc3QSDwoHZmxvd19pZBgBIAEoCRIMCgRyb290GAIgASgJIiUKE0V4cGxhaW5GbG93UmVzcG9uc2USDgoGcmVwb3J0GAEgASgJIlQKEkNvZGVnZW5GbG93UmVxdWVzdBIPCgdmbG93X2lkGAEgASgJEgwKBHJvb3QYAiABKAkSEAoIbGFuZ3VhZ2UYAyABKAkSDQoFd3JpdGUYBCABKAgiMAoPQ29kZWdlbkFydGlmYWN0EgwKBHBhdGgYASABKAkSDwoHY29udGVudBgCIAEoDCJpChNDb2RlZ2VuRmxvd1Jlc3BvbnNlEkEKCWFydGlmYWN0cxgBIAMoCzIuLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkNvZGVnZW5BcnRpZmFjdBIPCgd3cml0dGVuGAIgAygJIkwKFFJlY29uY2lsZUZsb3dSZXF1ZXN0Eg8KB2Zsb3dfaWQYASABKAkSDAoEcm9vdBgCIAEoCRIVCg1zY2VuYXJpb19yb290GAMgASgJImsKEFJlY29uY2lsZUZpbmRpbmcSCgoCaWQYASABKAkSEAoIc2V2ZXJpdHkYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRITCgtzb3VyY2VfZmlsZRgEIAEoCRITCgtzb3VyY2VfbGluZRgFIAEoBSKBAQoVUmVjb25jaWxlRmxvd1Jlc3BvbnNlEg4KBnBhc3NlZBgBIAEoCBJBCghmaW5kaW5ncxgCIAMoCzIvLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLlJlY29uY2lsZUZpbmRpbmcSFQoNZmlsZXNfc2Nhbm5lZBgDIAEoBSJiChVOYXZpZ2F0aW9uU3R1ZGlvUm91dGUSCgoCaWQYASABKAkSDAoEcGF0aBgCIAEoCRIMCgRwYWdlGAMgASgJEhAKCHJlcXVpcmVzGAQgASgJEg8KB3BhcmVudHMYBSADKAkiSgocTmF2aWdhdGlvblN0dWRpb1ByZXNlbnRhdGlvbhIKCgJpbhgBIAEoCRINCgVsYWJlbBgCIAEoCRIPCgd0ZXN0X2lkGAMgASgJIrABChpOYXZpZ2F0aW9uU3R1ZGlvQWZmb3JkYW5jZRIKCgJpZBgBIAEoCRIKCgJ0bxgCIAEoCRIRCglzaG93X3doZW4YAyABKAkSEwoLc2lkZV9lZmZlY3QYBCABKAkSUgoNcHJlc2VudGF0aW9ucxgFIAMoCzI7LnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLk5hdmlnYXRpb25TdHVkaW9QcmVzZW50YXRpb24icQoZTmF2aWdhdGlvblN0dWRpb0NvbnRhaW5lchIKCgJpZBgBIAEoCRIMCgRraW5kGAIgASgJEhEKCXNob3dfd2hlbhgDIAEoCRISCgpkaXNjbG9zdXJlGAQgASgJEhMKC2hvc3Rfcm91dGVzGAUgAygJIlwKF05hdmlnYXRpb25TdHVkaW9Db250ZXh0EgwKBG5hbWUYASABKAkSDAoEa2luZBgCIAEoCRIOCgZ2YWx1ZXMYAyADKAkSFQoNZGVmYXVsdF92YWx1ZRgEIAEoCSJIChlOYXZpZ2F0aW9uU3R1ZGlvSW52YXJpYW50EgoKAmlkGAEgASgJEg4KBnBhc3NlZBgCIAEoCBIPCgdtZXNzYWdlGAMgASgJIqoDChpOYXZpZ2F0aW9uU3R1ZGlvRGVzY3JpcHRvchIQCghyZW5kZXJlchgBIAEoCRJECgZyb3V0ZXMYAiADKAsyNC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5OYXZpZ2F0aW9uU3R1ZGlvUm91dGUSTgoLYWZmb3JkYW5jZXMYAyADKAsyOS52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5OYXZpZ2F0aW9uU3R1ZGlvQWZmb3JkYW5jZRJMCgpjb250YWluZXJzGAQgAygLMjgudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuTmF2aWdhdGlvblN0dWRpb0NvbnRhaW5lchJICghjb250ZXh0cxgFIAMoCzI2LnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLk5hdmlnYXRpb25TdHVkaW9Db250ZXh0EkwKCmludmFyaWFudHMYBiADKAsyOC52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5OYXZpZ2F0aW9uU3R1ZGlvSW52YXJpYW50IjsKGkdldE5hdmlnYXRpb25TdHVkaW9SZXF1ZXN0Eg8KB2Zsb3dfaWQYASABKAkSDAoEcm9vdBgCIAEoCSJsChtHZXROYXZpZ2F0aW9uU3R1ZGlvUmVzcG9uc2USTQoKZGVzY3JpcHRvchgBIAEoCzI5LnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLk5hdmlnYXRpb25TdHVkaW9EZXNjcmlwdG9yMssHCgxGbG93c1NlcnZpY2USbgoJTGlzdEZsb3dzEi8udnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuTGlzdEZsb3dzUmVxdWVzdBowLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkxpc3RGbG93c1Jlc3BvbnNlEmgKB0dldEZsb3cSLS52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5HZXRGbG93UmVxdWVzdBouLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkdldEZsb3dSZXNwb25zZRJxCgpDcmVhdGVGbG93EjAudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuQ3JlYXRlRmxvd1JlcXVlc3QaMS52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5DcmVhdGVGbG93UmVzcG9uc2USdwoMVmFsaWRhdGVGbG93EjIudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuVmFsaWRhdGVGbG93UmVxdWVzdBozLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLlZhbGlkYXRlRmxvd1Jlc3BvbnNlEnQKC0V4cGxhaW5GbG93EjEudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRXhwbGFpbkZsb3dSZXF1ZXN0GjIudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuRXhwbGFpbkZsb3dSZXNwb25zZRJ0CgtDb2RlZ2VuRmxvdxIxLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkNvZGVnZW5GbG93UmVxdWVzdBoyLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLkNvZGVnZW5GbG93UmVzcG9uc2USegoNUmVjb25jaWxlRmxvdxIzLnZyb29saS5mbG93X3ZlcmlmaWVyLnYxLmZsb3dzLlJlY29uY2lsZUZsb3dSZXF1ZXN0GjQudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuUmVjb25jaWxlRmxvd1Jlc3BvbnNlEowBChNHZXROYXZpZ2F0aW9uU3R1ZGlvEjkudnJvb2xpLmZsb3dfdmVyaWZpZXIudjEuZmxvd3MuR2V0TmF2aWdhdGlvblN0dWRpb1JlcXVlc3QaOi52cm9vbGkuZmxvd192ZXJpZmllci52MS5mbG93cy5HZXROYXZpZ2F0aW9uU3R1ZGlvUmVzcG9uc2VCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9mbG93LXZlcmlmaWVyL3YxL2Zsb3dzO2Zsb3dzX3YxYgZwcm90bzM");
 
 /**
  * FlowSummary is the thin row returned by ListFlows: enough for the
@@ -793,6 +793,502 @@ export const ExplainFlowResponseSchema: GenMessage<ExplainFlowResponse> = /*@__P
   messageDesc(file_flow_verifier_v1_flows_flows, 23);
 
 /**
+ * CodegenFlow emits kind-specific source artifacts (e.g. navigation's
+ * routes.generated.ts) derived from the spec. The response carries the
+ * generated files keyed by their repo-relative destination path so the
+ * CLI/UI can either write-through or display them.
+ *
+ * @generated from message vrooli.flow_verifier.v1.flows.CodegenFlowRequest
+ */
+export type CodegenFlowRequest = Message<"vrooli.flow_verifier.v1.flows.CodegenFlowRequest"> & {
+  /**
+   * @generated from field: string flow_id = 1;
+   */
+  flowId: string;
+
+  /**
+   * @generated from field: string root = 2;
+   */
+  root: string;
+
+  /**
+   * Target language. Empty defaults to the kind's preferred language
+   * (TypeScript for navigation).
+   *
+   * @generated from field: string language = 3;
+   */
+  language: string;
+
+  /**
+   * When true, write generated files to disk under root; otherwise the
+   * response is informational and disk is untouched.
+   *
+   * @generated from field: bool write = 4;
+   */
+  write: boolean;
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.CodegenFlowRequest.
+ * Use `create(CodegenFlowRequestSchema)` to create a new message.
+ */
+export const CodegenFlowRequestSchema: GenMessage<CodegenFlowRequest> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 24);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.CodegenArtifact
+ */
+export type CodegenArtifact = Message<"vrooli.flow_verifier.v1.flows.CodegenArtifact"> & {
+  /**
+   * Repo-relative destination path the file should be written to.
+   *
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * File contents.
+   *
+   * @generated from field: bytes content = 2;
+   */
+  content: Uint8Array;
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.CodegenArtifact.
+ * Use `create(CodegenArtifactSchema)` to create a new message.
+ */
+export const CodegenArtifactSchema: GenMessage<CodegenArtifact> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 25);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.CodegenFlowResponse
+ */
+export type CodegenFlowResponse = Message<"vrooli.flow_verifier.v1.flows.CodegenFlowResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.flow_verifier.v1.flows.CodegenArtifact artifacts = 1;
+   */
+  artifacts: CodegenArtifact[];
+
+  /**
+   * Paths actually written to disk; empty when write=false.
+   *
+   * @generated from field: repeated string written = 2;
+   */
+  written: string[];
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.CodegenFlowResponse.
+ * Use `create(CodegenFlowResponseSchema)` to create a new message.
+ */
+export const CodegenFlowResponseSchema: GenMessage<CodegenFlowResponse> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 26);
+
+/**
+ * ReconcileFlow walks a scenario's source tree and asserts the source
+ * and the spec agree: every route declared in code is in the spec,
+ * every <Link to=>/useNavigate target resolves to a registered route,
+ * and no spec route is orphaned (declared but never referenced).
+ *
+ * @generated from message vrooli.flow_verifier.v1.flows.ReconcileFlowRequest
+ */
+export type ReconcileFlowRequest = Message<"vrooli.flow_verifier.v1.flows.ReconcileFlowRequest"> & {
+  /**
+   * @generated from field: string flow_id = 1;
+   */
+  flowId: string;
+
+  /**
+   * @generated from field: string root = 2;
+   */
+  root: string;
+
+  /**
+   * Scenario root (the directory holding ui/, api/, etc.). The
+   * reconciler walks scenario_root/ui/src/**\/*.{ts,tsx,js,jsx}.
+   *
+   * @generated from field: string scenario_root = 3;
+   */
+  scenarioRoot: string;
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.ReconcileFlowRequest.
+ * Use `create(ReconcileFlowRequestSchema)` to create a new message.
+ */
+export const ReconcileFlowRequestSchema: GenMessage<ReconcileFlowRequest> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 27);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.ReconcileFinding
+ */
+export type ReconcileFinding = Message<"vrooli.flow_verifier.v1.flows.ReconcileFinding"> & {
+  /**
+   * Stable identifier for the discrepancy (e.g. "missing_route:/foo").
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * "error" | "warning" | "info"
+   *
+   * @generated from field: string severity = 2;
+   */
+  severity: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+
+  /**
+   * Source file the finding originated in; empty for spec-side findings.
+   *
+   * @generated from field: string source_file = 4;
+   */
+  sourceFile: string;
+
+  /**
+   * @generated from field: int32 source_line = 5;
+   */
+  sourceLine: number;
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.ReconcileFinding.
+ * Use `create(ReconcileFindingSchema)` to create a new message.
+ */
+export const ReconcileFindingSchema: GenMessage<ReconcileFinding> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 28);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.ReconcileFlowResponse
+ */
+export type ReconcileFlowResponse = Message<"vrooli.flow_verifier.v1.flows.ReconcileFlowResponse"> & {
+  /**
+   * @generated from field: bool passed = 1;
+   */
+  passed: boolean;
+
+  /**
+   * @generated from field: repeated vrooli.flow_verifier.v1.flows.ReconcileFinding findings = 2;
+   */
+  findings: ReconcileFinding[];
+
+  /**
+   * @generated from field: int32 files_scanned = 3;
+   */
+  filesScanned: number;
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.ReconcileFlowResponse.
+ * Use `create(ReconcileFlowResponseSchema)` to create a new message.
+ */
+export const ReconcileFlowResponseSchema: GenMessage<ReconcileFlowResponse> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 29);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.NavigationStudioRoute
+ */
+export type NavigationStudioRoute = Message<"vrooli.flow_verifier.v1.flows.NavigationStudioRoute"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string page = 3;
+   */
+  page: string;
+
+  /**
+   * Predicate string in the navigation DSL (AND/OR/NOT/=/!=/IN/CONTAINS).
+   * Empty means unconditional. UI evaluates against the active context to
+   * decide whether the route is currently reachable.
+   *
+   * @generated from field: string requires = 4;
+   */
+  requires: string;
+
+  /**
+   * @generated from field: repeated string parents = 5;
+   */
+  parents: string[];
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.NavigationStudioRoute.
+ * Use `create(NavigationStudioRouteSchema)` to create a new message.
+ */
+export const NavigationStudioRouteSchema: GenMessage<NavigationStudioRoute> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 30);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.NavigationStudioPresentation
+ */
+export type NavigationStudioPresentation = Message<"vrooli.flow_verifier.v1.flows.NavigationStudioPresentation"> & {
+  /**
+   * Container or route id where the affordance is rendered.
+   *
+   * @generated from field: string in = 1;
+   */
+  in: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string test_id = 3;
+   */
+  testId: string;
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.NavigationStudioPresentation.
+ * Use `create(NavigationStudioPresentationSchema)` to create a new message.
+ */
+export const NavigationStudioPresentationSchema: GenMessage<NavigationStudioPresentation> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 31);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.NavigationStudioAffordance
+ */
+export type NavigationStudioAffordance = Message<"vrooli.flow_verifier.v1.flows.NavigationStudioAffordance"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Target route id (resolves to a NavigationStudioRoute.id).
+   *
+   * @generated from field: string to = 2;
+   */
+  to: string;
+
+  /**
+   * @generated from field: string show_when = 3;
+   */
+  showWhen: string;
+
+  /**
+   * @generated from field: string side_effect = 4;
+   */
+  sideEffect: string;
+
+  /**
+   * @generated from field: repeated vrooli.flow_verifier.v1.flows.NavigationStudioPresentation presentations = 5;
+   */
+  presentations: NavigationStudioPresentation[];
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.NavigationStudioAffordance.
+ * Use `create(NavigationStudioAffordanceSchema)` to create a new message.
+ */
+export const NavigationStudioAffordanceSchema: GenMessage<NavigationStudioAffordance> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 32);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.NavigationStudioContainer
+ */
+export type NavigationStudioContainer = Message<"vrooli.flow_verifier.v1.flows.NavigationStudioContainer"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * Whether the container is currently visible: empty means
+   * "always_visible"; otherwise the predicate the UI evaluates against
+   * the active context.
+   *
+   * @generated from field: string show_when = 3;
+   */
+  showWhen: string;
+
+  /**
+   * @generated from field: string disclosure = 4;
+   */
+  disclosure: string;
+
+  /**
+   * @generated from field: repeated string host_routes = 5;
+   */
+  hostRoutes: string[];
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.NavigationStudioContainer.
+ * Use `create(NavigationStudioContainerSchema)` to create a new message.
+ */
+export const NavigationStudioContainerSchema: GenMessage<NavigationStudioContainer> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 33);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.NavigationStudioContext
+ */
+export type NavigationStudioContext = Message<"vrooli.flow_verifier.v1.flows.NavigationStudioContext"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * "enum" | "bool"
+   *
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * Populated for enum contexts; empty for bool.
+   *
+   * @generated from field: repeated string values = 3;
+   */
+  values: string[];
+
+  /**
+   * JSON-encoded default value (string for enum, "true"/"false" for bool).
+   *
+   * @generated from field: string default_value = 4;
+   */
+  defaultValue: string;
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.NavigationStudioContext.
+ * Use `create(NavigationStudioContextSchema)` to create a new message.
+ */
+export const NavigationStudioContextSchema: GenMessage<NavigationStudioContext> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 34);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.NavigationStudioInvariant
+ */
+export type NavigationStudioInvariant = Message<"vrooli.flow_verifier.v1.flows.NavigationStudioInvariant"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: bool passed = 2;
+   */
+  passed: boolean;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.NavigationStudioInvariant.
+ * Use `create(NavigationStudioInvariantSchema)` to create a new message.
+ */
+export const NavigationStudioInvariantSchema: GenMessage<NavigationStudioInvariant> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 35);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor
+ */
+export type NavigationStudioDescriptor = Message<"vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor"> & {
+  /**
+   * Renderer plugin name (matches kind.StudioDescriptor.Renderer).
+   *
+   * @generated from field: string renderer = 1;
+   */
+  renderer: string;
+
+  /**
+   * @generated from field: repeated vrooli.flow_verifier.v1.flows.NavigationStudioRoute routes = 2;
+   */
+  routes: NavigationStudioRoute[];
+
+  /**
+   * @generated from field: repeated vrooli.flow_verifier.v1.flows.NavigationStudioAffordance affordances = 3;
+   */
+  affordances: NavigationStudioAffordance[];
+
+  /**
+   * @generated from field: repeated vrooli.flow_verifier.v1.flows.NavigationStudioContainer containers = 4;
+   */
+  containers: NavigationStudioContainer[];
+
+  /**
+   * @generated from field: repeated vrooli.flow_verifier.v1.flows.NavigationStudioContext contexts = 5;
+   */
+  contexts: NavigationStudioContext[];
+
+  /**
+   * @generated from field: repeated vrooli.flow_verifier.v1.flows.NavigationStudioInvariant invariants = 6;
+   */
+  invariants: NavigationStudioInvariant[];
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor.
+ * Use `create(NavigationStudioDescriptorSchema)` to create a new message.
+ */
+export const NavigationStudioDescriptorSchema: GenMessage<NavigationStudioDescriptor> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 36);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.GetNavigationStudioRequest
+ */
+export type GetNavigationStudioRequest = Message<"vrooli.flow_verifier.v1.flows.GetNavigationStudioRequest"> & {
+  /**
+   * @generated from field: string flow_id = 1;
+   */
+  flowId: string;
+
+  /**
+   * @generated from field: string root = 2;
+   */
+  root: string;
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.GetNavigationStudioRequest.
+ * Use `create(GetNavigationStudioRequestSchema)` to create a new message.
+ */
+export const GetNavigationStudioRequestSchema: GenMessage<GetNavigationStudioRequest> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 37);
+
+/**
+ * @generated from message vrooli.flow_verifier.v1.flows.GetNavigationStudioResponse
+ */
+export type GetNavigationStudioResponse = Message<"vrooli.flow_verifier.v1.flows.GetNavigationStudioResponse"> & {
+  /**
+   * @generated from field: vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor descriptor = 1;
+   */
+  descriptor?: NavigationStudioDescriptor | undefined;
+};
+
+/**
+ * Describes the message vrooli.flow_verifier.v1.flows.GetNavigationStudioResponse.
+ * Use `create(GetNavigationStudioResponseSchema)` to create a new message.
+ */
+export const GetNavigationStudioResponseSchema: GenMessage<GetNavigationStudioResponse> = /*@__PURE__*/
+  messageDesc(file_flow_verifier_v1_flows_flows, 38);
+
+/**
  * @generated from service vrooli.flow_verifier.v1.flows.FlowsService
  */
 export const FlowsService: GenService<{
@@ -835,6 +1331,30 @@ export const FlowsService: GenService<{
     methodKind: "unary";
     input: typeof ExplainFlowRequestSchema;
     output: typeof ExplainFlowResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.flow_verifier.v1.flows.FlowsService.CodegenFlow
+   */
+  codegenFlow: {
+    methodKind: "unary";
+    input: typeof CodegenFlowRequestSchema;
+    output: typeof CodegenFlowResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.flow_verifier.v1.flows.FlowsService.ReconcileFlow
+   */
+  reconcileFlow: {
+    methodKind: "unary";
+    input: typeof ReconcileFlowRequestSchema;
+    output: typeof ReconcileFlowResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.flow_verifier.v1.flows.FlowsService.GetNavigationStudio
+   */
+  getNavigationStudio: {
+    methodKind: "unary";
+    input: typeof GetNavigationStudioRequestSchema;
+    output: typeof GetNavigationStudioResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_flow_verifier_v1_flows_flows, 0);

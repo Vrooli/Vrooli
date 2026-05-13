@@ -34,6 +34,7 @@ describe("inventory API public type shape", () => {
       language: "go",
       schemaVersion: 6,
       scenarioId: "alpha",
+      kind: "temporal",
     });
   });
 

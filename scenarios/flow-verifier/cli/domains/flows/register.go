@@ -78,6 +78,12 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				}},
 				RunCtx: h.reconcile,
 			},
+			{
+				Name:        "studio",
+				Description: "Print the Flow Studio descriptor (routes, affordances, containers, context toggles, invariant pass/fail) for one navigation flow",
+				Args:        cliapp.ArgSchema{Flags: []cliapp.Flag{flowFlag, rootFlag}},
+				RunCtx:      h.studio,
+			},
 		},
 	}
 }

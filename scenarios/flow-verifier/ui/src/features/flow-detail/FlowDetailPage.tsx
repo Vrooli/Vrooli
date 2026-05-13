@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import {
   fetchFlowDetail,
+  fetchNavigationStudio,
   fetchRuns,
   type RunRow,
 } from "../../api/inventory";
@@ -16,6 +17,7 @@ import { ROUTES } from "../../routes.generated";
 import { ArtifactsPanel } from "../artifacts/ArtifactsPanel";
 
 import { CounterexampleDiff } from "./CounterexampleDiff";
+import { NavigationGraph } from "./NavigationGraph";
 import { OverviewTab } from "./OverviewTab";
 import { StateGraph } from "./StateGraph";
 import { TracePlayer } from "./TracePlayer";
@@ -123,6 +125,17 @@ function FlowDetailBody({ flowId, scenarioId, tab, onTabChange, t }: BodyProps) 
 
   const detail = detailQuery.data;
 
+  if (detail.kind === "navigation") {
+    return (
+      <NavigationFlowDetail
+        flowId={detail.flowId}
+        contractPath={detail.contractPath}
+        schemaVersion={detail.schemaVersion}
+        t={t}
+      />
+    );
+  }
+
   return (
     <div data-testid="flow-detail-page" className="flex min-h-0 gap-4">
       <section
@@ -225,6 +238,69 @@ function FlowDetailBody({ flowId, scenarioId, tab, onTabChange, t }: BodyProps) 
         )}
       </InspectorPanel>
     </div>
+  );
+}
+
+interface NavigationFlowDetailProps {
+  flowId: string;
+  contractPath: string;
+  schemaVersion: number;
+  t: BodyProps["t"];
+}
+
+const NAVIGATION_STUDIO_KEY = (flowId: string) => ["navigation-studio", flowId] as const;
+
+function NavigationFlowDetail({ flowId, contractPath, schemaVersion, t }: NavigationFlowDetailProps) {
+  const studio = useQuery({
+    queryKey: NAVIGATION_STUDIO_KEY(flowId),
+    queryFn: () => fetchNavigationStudio(flowId),
+  });
+
+  return (
+    <section
+      data-testid="navigation-flow-detail"
+      aria-label={t("flowDetail.navigationTitle", { defaultValue: "Navigation flow" })}
+      className="min-w-0 flex-1 rounded-panel border border-app-border bg-app-surface p-4"
+    >
+      <header className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-medium text-app-muted-foreground">
+            {t("flowDetail.navigationTitle", { defaultValue: "Navigation flow" })}
+          </h2>
+          <p data-testid="flow-detail-id" className="mt-1 font-mono text-base text-app-foreground">
+            {flowId}
+          </p>
+          <p className="mt-1 text-xs text-app-muted-foreground">
+            <span data-testid="flow-detail-kind">navigation</span>
+            {" · "}
+            <span data-testid="flow-detail-contract">{contractPath}</span>
+            {" · "}
+            <span>schema v{schemaVersion}</span>
+          </p>
+        </div>
+        <Link
+          data-testid="flow-detail-back"
+          to={ROUTES.flowsInventory}
+          className="text-sm text-app-primary underline"
+        >
+          {t("flowDetail.back", { defaultValue: "Back to inventory" })}
+        </Link>
+      </header>
+
+      <div className="mt-4">
+        {studio.isLoading && (
+          <p data-testid="navigation-studio-loading" className="text-app-foreground">
+            {t("flowDetail.navigationLoading", { defaultValue: "Loading navigation graph…" })}
+          </p>
+        )}
+        {studio.error && (
+          <p data-testid="navigation-studio-error" className="text-app-danger">
+            {errorMessage(studio.error, t)}
+          </p>
+        )}
+        {studio.data && <NavigationGraph descriptor={studio.data} />}
+      </div>
+    </section>
   );
 }
 

@@ -7,6 +7,7 @@ import { OverviewTab } from "./OverviewTab";
 
 const baseDetail: FlowDetail = {
   flowId: "demo.flow.api",
+  kind: "temporal",
   domain: "demo",
   description: "A small example flow.",
   contractPath: "api/demo/flow/flow.json",

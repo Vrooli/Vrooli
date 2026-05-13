@@ -302,3 +302,168 @@ class ExplainFlowResponse(_message.Message):
     REPORT_FIELD_NUMBER: _ClassVar[int]
     report: str
     def __init__(self, report: _Optional[str] = ...) -> None: ...
+
+class CodegenFlowRequest(_message.Message):
+    __slots__ = ("flow_id", "root", "language", "write")
+    FLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    ROOT_FIELD_NUMBER: _ClassVar[int]
+    LANGUAGE_FIELD_NUMBER: _ClassVar[int]
+    WRITE_FIELD_NUMBER: _ClassVar[int]
+    flow_id: str
+    root: str
+    language: str
+    write: bool
+    def __init__(self, flow_id: _Optional[str] = ..., root: _Optional[str] = ..., language: _Optional[str] = ..., write: _Optional[bool] = ...) -> None: ...
+
+class CodegenArtifact(_message.Message):
+    __slots__ = ("path", "content")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    content: bytes
+    def __init__(self, path: _Optional[str] = ..., content: _Optional[bytes] = ...) -> None: ...
+
+class CodegenFlowResponse(_message.Message):
+    __slots__ = ("artifacts", "written")
+    ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
+    WRITTEN_FIELD_NUMBER: _ClassVar[int]
+    artifacts: _containers.RepeatedCompositeFieldContainer[CodegenArtifact]
+    written: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, artifacts: _Optional[_Iterable[_Union[CodegenArtifact, _Mapping]]] = ..., written: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ReconcileFlowRequest(_message.Message):
+    __slots__ = ("flow_id", "root", "scenario_root")
+    FLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    ROOT_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_ROOT_FIELD_NUMBER: _ClassVar[int]
+    flow_id: str
+    root: str
+    scenario_root: str
+    def __init__(self, flow_id: _Optional[str] = ..., root: _Optional[str] = ..., scenario_root: _Optional[str] = ...) -> None: ...
+
+class ReconcileFinding(_message.Message):
+    __slots__ = ("id", "severity", "message", "source_file", "source_line")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FILE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_LINE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    severity: str
+    message: str
+    source_file: str
+    source_line: int
+    def __init__(self, id: _Optional[str] = ..., severity: _Optional[str] = ..., message: _Optional[str] = ..., source_file: _Optional[str] = ..., source_line: _Optional[int] = ...) -> None: ...
+
+class ReconcileFlowResponse(_message.Message):
+    __slots__ = ("passed", "findings", "files_scanned")
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    FILES_SCANNED_FIELD_NUMBER: _ClassVar[int]
+    passed: bool
+    findings: _containers.RepeatedCompositeFieldContainer[ReconcileFinding]
+    files_scanned: int
+    def __init__(self, passed: _Optional[bool] = ..., findings: _Optional[_Iterable[_Union[ReconcileFinding, _Mapping]]] = ..., files_scanned: _Optional[int] = ...) -> None: ...
+
+class NavigationStudioRoute(_message.Message):
+    __slots__ = ("id", "path", "page", "requires", "parents")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    PAGE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_FIELD_NUMBER: _ClassVar[int]
+    PARENTS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    path: str
+    page: str
+    requires: str
+    parents: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., path: _Optional[str] = ..., page: _Optional[str] = ..., requires: _Optional[str] = ..., parents: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class NavigationStudioPresentation(_message.Message):
+    __slots__ = ("label", "test_id")
+    IN_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    TEST_ID_FIELD_NUMBER: _ClassVar[int]
+    label: str
+    test_id: str
+    def __init__(self, label: _Optional[str] = ..., test_id: _Optional[str] = ..., **kwargs) -> None: ...
+
+class NavigationStudioAffordance(_message.Message):
+    __slots__ = ("id", "to", "show_when", "side_effect", "presentations")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TO_FIELD_NUMBER: _ClassVar[int]
+    SHOW_WHEN_FIELD_NUMBER: _ClassVar[int]
+    SIDE_EFFECT_FIELD_NUMBER: _ClassVar[int]
+    PRESENTATIONS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    to: str
+    show_when: str
+    side_effect: str
+    presentations: _containers.RepeatedCompositeFieldContainer[NavigationStudioPresentation]
+    def __init__(self, id: _Optional[str] = ..., to: _Optional[str] = ..., show_when: _Optional[str] = ..., side_effect: _Optional[str] = ..., presentations: _Optional[_Iterable[_Union[NavigationStudioPresentation, _Mapping]]] = ...) -> None: ...
+
+class NavigationStudioContainer(_message.Message):
+    __slots__ = ("id", "kind", "show_when", "disclosure", "host_routes")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    SHOW_WHEN_FIELD_NUMBER: _ClassVar[int]
+    DISCLOSURE_FIELD_NUMBER: _ClassVar[int]
+    HOST_ROUTES_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    kind: str
+    show_when: str
+    disclosure: str
+    host_routes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., show_when: _Optional[str] = ..., disclosure: _Optional[str] = ..., host_routes: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class NavigationStudioContext(_message.Message):
+    __slots__ = ("name", "kind", "values", "default_value")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    VALUES_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_VALUE_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    kind: str
+    values: _containers.RepeatedScalarFieldContainer[str]
+    default_value: str
+    def __init__(self, name: _Optional[str] = ..., kind: _Optional[str] = ..., values: _Optional[_Iterable[str]] = ..., default_value: _Optional[str] = ...) -> None: ...
+
+class NavigationStudioInvariant(_message.Message):
+    __slots__ = ("id", "passed", "message")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    passed: bool
+    message: str
+    def __init__(self, id: _Optional[str] = ..., passed: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+
+class NavigationStudioDescriptor(_message.Message):
+    __slots__ = ("renderer", "routes", "affordances", "containers", "contexts", "invariants")
+    RENDERER_FIELD_NUMBER: _ClassVar[int]
+    ROUTES_FIELD_NUMBER: _ClassVar[int]
+    AFFORDANCES_FIELD_NUMBER: _ClassVar[int]
+    CONTAINERS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXTS_FIELD_NUMBER: _ClassVar[int]
+    INVARIANTS_FIELD_NUMBER: _ClassVar[int]
+    renderer: str
+    routes: _containers.RepeatedCompositeFieldContainer[NavigationStudioRoute]
+    affordances: _containers.RepeatedCompositeFieldContainer[NavigationStudioAffordance]
+    containers: _containers.RepeatedCompositeFieldContainer[NavigationStudioContainer]
+    contexts: _containers.RepeatedCompositeFieldContainer[NavigationStudioContext]
+    invariants: _containers.RepeatedCompositeFieldContainer[NavigationStudioInvariant]
+    def __init__(self, renderer: _Optional[str] = ..., routes: _Optional[_Iterable[_Union[NavigationStudioRoute, _Mapping]]] = ..., affordances: _Optional[_Iterable[_Union[NavigationStudioAffordance, _Mapping]]] = ..., containers: _Optional[_Iterable[_Union[NavigationStudioContainer, _Mapping]]] = ..., contexts: _Optional[_Iterable[_Union[NavigationStudioContext, _Mapping]]] = ..., invariants: _Optional[_Iterable[_Union[NavigationStudioInvariant, _Mapping]]] = ...) -> None: ...
+
+class GetNavigationStudioRequest(_message.Message):
+    __slots__ = ("flow_id", "root")
+    FLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    ROOT_FIELD_NUMBER: _ClassVar[int]
+    flow_id: str
+    root: str
+    def __init__(self, flow_id: _Optional[str] = ..., root: _Optional[str] = ...) -> None: ...
+
+class GetNavigationStudioResponse(_message.Message):
+    __slots__ = ("descriptor",)
+    DESCRIPTOR_FIELD_NUMBER: _ClassVar[int]
+    descriptor: NavigationStudioDescriptor
+    def __init__(self, descriptor: _Optional[_Union[NavigationStudioDescriptor, _Mapping]] = ...) -> None: ...

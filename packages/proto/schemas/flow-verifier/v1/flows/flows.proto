@@ -28,6 +28,9 @@ service FlowsService {
   rpc CreateFlow(CreateFlowRequest) returns (CreateFlowResponse);
   rpc ValidateFlow(ValidateFlowRequest) returns (ValidateFlowResponse);
   rpc ExplainFlow(ExplainFlowRequest) returns (ExplainFlowResponse);
+  rpc CodegenFlow(CodegenFlowRequest) returns (CodegenFlowResponse);
+  rpc ReconcileFlow(ReconcileFlowRequest) returns (ReconcileFlowResponse);
+  rpc GetNavigationStudio(GetNavigationStudioRequest) returns (GetNavigationStudioResponse);
 }
 
 // FlowSummary is the thin row returned by ListFlows: enough for the
@@ -208,3 +211,143 @@ message ExplainFlowRequest {
   string root = 2;
 }
 message ExplainFlowResponse { string report = 1; }
+
+// CodegenFlow emits kind-specific source artifacts (e.g. navigation's
+// routes.generated.ts) derived from the spec. The response carries the
+// generated files keyed by their repo-relative destination path so the
+// CLI/UI can either write-through or display them.
+message CodegenFlowRequest {
+  string flow_id = 1;
+  string root = 2;
+  // Target language. Empty defaults to the kind's preferred language
+  // (TypeScript for navigation).
+  string language = 3;
+  // When true, write generated files to disk under root; otherwise the
+  // response is informational and disk is untouched.
+  bool write = 4;
+}
+
+message CodegenArtifact {
+  // Repo-relative destination path the file should be written to.
+  string path = 1;
+  // File contents.
+  bytes content = 2;
+}
+
+message CodegenFlowResponse {
+  repeated CodegenArtifact artifacts = 1;
+  // Paths actually written to disk; empty when write=false.
+  repeated string written = 2;
+}
+
+// ReconcileFlow walks a scenario's source tree and asserts the source
+// and the spec agree: every route declared in code is in the spec,
+// every <Link to=>/useNavigate target resolves to a registered route,
+// and no spec route is orphaned (declared but never referenced).
+message ReconcileFlowRequest {
+  string flow_id = 1;
+  string root = 2;
+  // Scenario root (the directory holding ui/, api/, etc.). The
+  // reconciler walks scenario_root/ui/src/**/*.{ts,tsx,js,jsx}.
+  string scenario_root = 3;
+}
+
+message ReconcileFinding {
+  // Stable identifier for the discrepancy (e.g. "missing_route:/foo").
+  string id = 1;
+  string severity = 2; // "error" | "warning" | "info"
+  string message = 3;
+  // Source file the finding originated in; empty for spec-side findings.
+  string source_file = 4;
+  int32 source_line = 5;
+}
+
+message ReconcileFlowResponse {
+  bool passed = 1;
+  repeated ReconcileFinding findings = 2;
+  int32 files_scanned = 3;
+}
+
+// =============================================================================
+// Flow Studio rendering — navigation kind
+// =============================================================================
+//
+// GetNavigationStudio returns a kind-specific descriptor of a navigation
+// flow's graph for Flow Studio to render: nodes (routes), edges
+// (affordances), context toggles (viewport, auth, ...) and the
+// pass/fail status of every declared reachability invariant. Temporal
+// flows render via the existing GetFlow projection; this RPC is the
+// navigation-kind equivalent.
+// =============================================================================
+
+message NavigationStudioRoute {
+  string id = 1;
+  string path = 2;
+  string page = 3;
+  // Predicate string in the navigation DSL (AND/OR/NOT/=/!=/IN/CONTAINS).
+  // Empty means unconditional. UI evaluates against the active context to
+  // decide whether the route is currently reachable.
+  string requires = 4;
+  repeated string parents = 5;
+}
+
+message NavigationStudioPresentation {
+  // Container or route id where the affordance is rendered.
+  string in = 1;
+  string label = 2;
+  string test_id = 3;
+}
+
+message NavigationStudioAffordance {
+  string id = 1;
+  // Target route id (resolves to a NavigationStudioRoute.id).
+  string to = 2;
+  string show_when = 3;
+  string side_effect = 4;
+  repeated NavigationStudioPresentation presentations = 5;
+}
+
+message NavigationStudioContainer {
+  string id = 1;
+  string kind = 2;
+  // Whether the container is currently visible: empty means
+  // "always_visible"; otherwise the predicate the UI evaluates against
+  // the active context.
+  string show_when = 3;
+  string disclosure = 4;
+  repeated string host_routes = 5;
+}
+
+message NavigationStudioContext {
+  string name = 1;
+  string kind = 2; // "enum" | "bool"
+  // Populated for enum contexts; empty for bool.
+  repeated string values = 3;
+  // JSON-encoded default value (string for enum, "true"/"false" for bool).
+  string default_value = 4;
+}
+
+message NavigationStudioInvariant {
+  string id = 1;
+  bool passed = 2;
+  string message = 3;
+}
+
+message NavigationStudioDescriptor {
+  // Renderer plugin name (matches kind.StudioDescriptor.Renderer).
+  string renderer = 1;
+  repeated NavigationStudioRoute routes = 2;
+  repeated NavigationStudioAffordance affordances = 3;
+  repeated NavigationStudioContainer containers = 4;
+  repeated NavigationStudioContext contexts = 5;
+  repeated NavigationStudioInvariant invariants = 6;
+}
+
+message GetNavigationStudioRequest {
+  string flow_id = 1;
+  string root = 2;
+}
+
+message GetNavigationStudioResponse {
+  NavigationStudioDescriptor descriptor = 1;
+}

@@ -24,7 +24,7 @@ describe("InventoryPage accessibility", () => {
   beforeEach(async () => {
     const { fetchFlows, fetchRuns } = await import("../api/inventory");
     vi.mocked(fetchFlows).mockResolvedValue([
-      { flowId: "alpha.flow", contractPath: "a/flow.json", language: "ts", schemaVersion: 1 },
+      { flowId: "alpha.flow", contractPath: "a/flow.json", language: "ts", schemaVersion: 1, kind: "temporal" },
     ]);
     vi.mocked(fetchRuns).mockResolvedValue([]);
   });

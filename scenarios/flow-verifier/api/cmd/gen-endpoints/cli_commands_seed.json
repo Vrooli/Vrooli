@@ -42,6 +42,11 @@
       "endpoint_id": "flows.reconcile"
     },
     {
+      "name": "flows studio",
+      "description": "Print the Flow Studio descriptor (routes, affordances, containers, context toggles, invariant pass/fail) for one navigation flow",
+      "endpoint_id": "flows.navigationStudio"
+    },
+    {
       "name": "artifacts status",
       "description": "Inspect the on-disk generated/ tree for one flow",
       "endpoint_id": "flows.artifacts.status"

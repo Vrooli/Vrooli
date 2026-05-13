@@ -29,6 +29,7 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "flows explain", Description: "Explain flow", EndpointID: "flows.explain"},
 		{Name: "flows codegen", Description: "Codegen flow", EndpointID: "flows.codegen"},
 		{Name: "flows reconcile", Description: "Reconcile flow", EndpointID: "flows.reconcile"},
+		{Name: "flows studio", Description: "Navigation studio descriptor", EndpointID: "flows.navigationStudio"},
 		{Name: "artifacts status", Description: "Status", EndpointID: "flows.artifacts.status"},
 		{Name: "artifacts generate", Description: "Generate", EndpointID: "flows.artifacts.generate"},
 		{Name: "artifacts clear", Description: "Clear", EndpointID: "flows.artifacts.clear"},
@@ -72,8 +73,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 25 {
-		t.Errorf("cli_commands count = %d, want 25", len(got.CLICommands))
+	if len(got.CLICommands) != 26 {
+		t.Errorf("cli_commands count = %d, want 26", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

@@ -1618,6 +1618,1000 @@ func (x *ExplainFlowResponse) GetReport() string {
 	return ""
 }
 
+// CodegenFlow emits kind-specific source artifacts (e.g. navigation's
+// routes.generated.ts) derived from the spec. The response carries the
+// generated files keyed by their repo-relative destination path so the
+// CLI/UI can either write-through or display them.
+type CodegenFlowRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	FlowId string                 `protobuf:"bytes,1,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	Root   string                 `protobuf:"bytes,2,opt,name=root,proto3" json:"root,omitempty"`
+	// Target language. Empty defaults to the kind's preferred language
+	// (TypeScript for navigation).
+	Language string `protobuf:"bytes,3,opt,name=language,proto3" json:"language,omitempty"`
+	// When true, write generated files to disk under root; otherwise the
+	// response is informational and disk is untouched.
+	Write         bool `protobuf:"varint,4,opt,name=write,proto3" json:"write,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CodegenFlowRequest) Reset() {
+	*x = CodegenFlowRequest{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CodegenFlowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CodegenFlowRequest) ProtoMessage() {}
+
+func (x *CodegenFlowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CodegenFlowRequest.ProtoReflect.Descriptor instead.
+func (*CodegenFlowRequest) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *CodegenFlowRequest) GetFlowId() string {
+	if x != nil {
+		return x.FlowId
+	}
+	return ""
+}
+
+func (x *CodegenFlowRequest) GetRoot() string {
+	if x != nil {
+		return x.Root
+	}
+	return ""
+}
+
+func (x *CodegenFlowRequest) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+func (x *CodegenFlowRequest) GetWrite() bool {
+	if x != nil {
+		return x.Write
+	}
+	return false
+}
+
+type CodegenArtifact struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Repo-relative destination path the file should be written to.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// File contents.
+	Content       []byte `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CodegenArtifact) Reset() {
+	*x = CodegenArtifact{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CodegenArtifact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CodegenArtifact) ProtoMessage() {}
+
+func (x *CodegenArtifact) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CodegenArtifact.ProtoReflect.Descriptor instead.
+func (*CodegenArtifact) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *CodegenArtifact) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *CodegenArtifact) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+type CodegenFlowResponse struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Artifacts []*CodegenArtifact     `protobuf:"bytes,1,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	// Paths actually written to disk; empty when write=false.
+	Written       []string `protobuf:"bytes,2,rep,name=written,proto3" json:"written,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CodegenFlowResponse) Reset() {
+	*x = CodegenFlowResponse{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CodegenFlowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CodegenFlowResponse) ProtoMessage() {}
+
+func (x *CodegenFlowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CodegenFlowResponse.ProtoReflect.Descriptor instead.
+func (*CodegenFlowResponse) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *CodegenFlowResponse) GetArtifacts() []*CodegenArtifact {
+	if x != nil {
+		return x.Artifacts
+	}
+	return nil
+}
+
+func (x *CodegenFlowResponse) GetWritten() []string {
+	if x != nil {
+		return x.Written
+	}
+	return nil
+}
+
+// ReconcileFlow walks a scenario's source tree and asserts the source
+// and the spec agree: every route declared in code is in the spec,
+// every <Link to=>/useNavigate target resolves to a registered route,
+// and no spec route is orphaned (declared but never referenced).
+type ReconcileFlowRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	FlowId string                 `protobuf:"bytes,1,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	Root   string                 `protobuf:"bytes,2,opt,name=root,proto3" json:"root,omitempty"`
+	// Scenario root (the directory holding ui/, api/, etc.). The
+	// reconciler walks scenario_root/ui/src/**/*.{ts,tsx,js,jsx}.
+	ScenarioRoot  string `protobuf:"bytes,3,opt,name=scenario_root,json=scenarioRoot,proto3" json:"scenario_root,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReconcileFlowRequest) Reset() {
+	*x = ReconcileFlowRequest{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconcileFlowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconcileFlowRequest) ProtoMessage() {}
+
+func (x *ReconcileFlowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconcileFlowRequest.ProtoReflect.Descriptor instead.
+func (*ReconcileFlowRequest) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ReconcileFlowRequest) GetFlowId() string {
+	if x != nil {
+		return x.FlowId
+	}
+	return ""
+}
+
+func (x *ReconcileFlowRequest) GetRoot() string {
+	if x != nil {
+		return x.Root
+	}
+	return ""
+}
+
+func (x *ReconcileFlowRequest) GetScenarioRoot() string {
+	if x != nil {
+		return x.ScenarioRoot
+	}
+	return ""
+}
+
+type ReconcileFinding struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable identifier for the discrepancy (e.g. "missing_route:/foo").
+	Id       string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Severity string `protobuf:"bytes,2,opt,name=severity,proto3" json:"severity,omitempty"` // "error" | "warning" | "info"
+	Message  string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	// Source file the finding originated in; empty for spec-side findings.
+	SourceFile    string `protobuf:"bytes,4,opt,name=source_file,json=sourceFile,proto3" json:"source_file,omitempty"`
+	SourceLine    int32  `protobuf:"varint,5,opt,name=source_line,json=sourceLine,proto3" json:"source_line,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReconcileFinding) Reset() {
+	*x = ReconcileFinding{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconcileFinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconcileFinding) ProtoMessage() {}
+
+func (x *ReconcileFinding) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconcileFinding.ProtoReflect.Descriptor instead.
+func (*ReconcileFinding) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ReconcileFinding) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ReconcileFinding) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *ReconcileFinding) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ReconcileFinding) GetSourceFile() string {
+	if x != nil {
+		return x.SourceFile
+	}
+	return ""
+}
+
+func (x *ReconcileFinding) GetSourceLine() int32 {
+	if x != nil {
+		return x.SourceLine
+	}
+	return 0
+}
+
+type ReconcileFlowResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Passed        bool                   `protobuf:"varint,1,opt,name=passed,proto3" json:"passed,omitempty"`
+	Findings      []*ReconcileFinding    `protobuf:"bytes,2,rep,name=findings,proto3" json:"findings,omitempty"`
+	FilesScanned  int32                  `protobuf:"varint,3,opt,name=files_scanned,json=filesScanned,proto3" json:"files_scanned,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReconcileFlowResponse) Reset() {
+	*x = ReconcileFlowResponse{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconcileFlowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconcileFlowResponse) ProtoMessage() {}
+
+func (x *ReconcileFlowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconcileFlowResponse.ProtoReflect.Descriptor instead.
+func (*ReconcileFlowResponse) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *ReconcileFlowResponse) GetPassed() bool {
+	if x != nil {
+		return x.Passed
+	}
+	return false
+}
+
+func (x *ReconcileFlowResponse) GetFindings() []*ReconcileFinding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+func (x *ReconcileFlowResponse) GetFilesScanned() int32 {
+	if x != nil {
+		return x.FilesScanned
+	}
+	return 0
+}
+
+type NavigationStudioRoute struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Path  string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Page  string                 `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Predicate string in the navigation DSL (AND/OR/NOT/=/!=/IN/CONTAINS).
+	// Empty means unconditional. UI evaluates against the active context to
+	// decide whether the route is currently reachable.
+	Requires      string   `protobuf:"bytes,4,opt,name=requires,proto3" json:"requires,omitempty"`
+	Parents       []string `protobuf:"bytes,5,rep,name=parents,proto3" json:"parents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigationStudioRoute) Reset() {
+	*x = NavigationStudioRoute{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigationStudioRoute) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigationStudioRoute) ProtoMessage() {}
+
+func (x *NavigationStudioRoute) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigationStudioRoute.ProtoReflect.Descriptor instead.
+func (*NavigationStudioRoute) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *NavigationStudioRoute) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *NavigationStudioRoute) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *NavigationStudioRoute) GetPage() string {
+	if x != nil {
+		return x.Page
+	}
+	return ""
+}
+
+func (x *NavigationStudioRoute) GetRequires() string {
+	if x != nil {
+		return x.Requires
+	}
+	return ""
+}
+
+func (x *NavigationStudioRoute) GetParents() []string {
+	if x != nil {
+		return x.Parents
+	}
+	return nil
+}
+
+type NavigationStudioPresentation struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container or route id where the affordance is rendered.
+	In            string `protobuf:"bytes,1,opt,name=in,proto3" json:"in,omitempty"`
+	Label         string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	TestId        string `protobuf:"bytes,3,opt,name=test_id,json=testId,proto3" json:"test_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigationStudioPresentation) Reset() {
+	*x = NavigationStudioPresentation{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigationStudioPresentation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigationStudioPresentation) ProtoMessage() {}
+
+func (x *NavigationStudioPresentation) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigationStudioPresentation.ProtoReflect.Descriptor instead.
+func (*NavigationStudioPresentation) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *NavigationStudioPresentation) GetIn() string {
+	if x != nil {
+		return x.In
+	}
+	return ""
+}
+
+func (x *NavigationStudioPresentation) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *NavigationStudioPresentation) GetTestId() string {
+	if x != nil {
+		return x.TestId
+	}
+	return ""
+}
+
+type NavigationStudioAffordance struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Target route id (resolves to a NavigationStudioRoute.id).
+	To            string                          `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	ShowWhen      string                          `protobuf:"bytes,3,opt,name=show_when,json=showWhen,proto3" json:"show_when,omitempty"`
+	SideEffect    string                          `protobuf:"bytes,4,opt,name=side_effect,json=sideEffect,proto3" json:"side_effect,omitempty"`
+	Presentations []*NavigationStudioPresentation `protobuf:"bytes,5,rep,name=presentations,proto3" json:"presentations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigationStudioAffordance) Reset() {
+	*x = NavigationStudioAffordance{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigationStudioAffordance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigationStudioAffordance) ProtoMessage() {}
+
+func (x *NavigationStudioAffordance) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigationStudioAffordance.ProtoReflect.Descriptor instead.
+func (*NavigationStudioAffordance) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *NavigationStudioAffordance) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *NavigationStudioAffordance) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+func (x *NavigationStudioAffordance) GetShowWhen() string {
+	if x != nil {
+		return x.ShowWhen
+	}
+	return ""
+}
+
+func (x *NavigationStudioAffordance) GetSideEffect() string {
+	if x != nil {
+		return x.SideEffect
+	}
+	return ""
+}
+
+func (x *NavigationStudioAffordance) GetPresentations() []*NavigationStudioPresentation {
+	if x != nil {
+		return x.Presentations
+	}
+	return nil
+}
+
+type NavigationStudioContainer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind  string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Whether the container is currently visible: empty means
+	// "always_visible"; otherwise the predicate the UI evaluates against
+	// the active context.
+	ShowWhen      string   `protobuf:"bytes,3,opt,name=show_when,json=showWhen,proto3" json:"show_when,omitempty"`
+	Disclosure    string   `protobuf:"bytes,4,opt,name=disclosure,proto3" json:"disclosure,omitempty"`
+	HostRoutes    []string `protobuf:"bytes,5,rep,name=host_routes,json=hostRoutes,proto3" json:"host_routes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigationStudioContainer) Reset() {
+	*x = NavigationStudioContainer{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigationStudioContainer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigationStudioContainer) ProtoMessage() {}
+
+func (x *NavigationStudioContainer) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigationStudioContainer.ProtoReflect.Descriptor instead.
+func (*NavigationStudioContainer) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *NavigationStudioContainer) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *NavigationStudioContainer) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *NavigationStudioContainer) GetShowWhen() string {
+	if x != nil {
+		return x.ShowWhen
+	}
+	return ""
+}
+
+func (x *NavigationStudioContainer) GetDisclosure() string {
+	if x != nil {
+		return x.Disclosure
+	}
+	return ""
+}
+
+func (x *NavigationStudioContainer) GetHostRoutes() []string {
+	if x != nil {
+		return x.HostRoutes
+	}
+	return nil
+}
+
+type NavigationStudioContext struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Kind  string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"` // "enum" | "bool"
+	// Populated for enum contexts; empty for bool.
+	Values []string `protobuf:"bytes,3,rep,name=values,proto3" json:"values,omitempty"`
+	// JSON-encoded default value (string for enum, "true"/"false" for bool).
+	DefaultValue  string `protobuf:"bytes,4,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigationStudioContext) Reset() {
+	*x = NavigationStudioContext{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigationStudioContext) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigationStudioContext) ProtoMessage() {}
+
+func (x *NavigationStudioContext) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigationStudioContext.ProtoReflect.Descriptor instead.
+func (*NavigationStudioContext) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *NavigationStudioContext) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *NavigationStudioContext) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *NavigationStudioContext) GetValues() []string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
+func (x *NavigationStudioContext) GetDefaultValue() string {
+	if x != nil {
+		return x.DefaultValue
+	}
+	return ""
+}
+
+type NavigationStudioInvariant struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Passed        bool                   `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigationStudioInvariant) Reset() {
+	*x = NavigationStudioInvariant{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigationStudioInvariant) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigationStudioInvariant) ProtoMessage() {}
+
+func (x *NavigationStudioInvariant) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigationStudioInvariant.ProtoReflect.Descriptor instead.
+func (*NavigationStudioInvariant) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *NavigationStudioInvariant) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *NavigationStudioInvariant) GetPassed() bool {
+	if x != nil {
+		return x.Passed
+	}
+	return false
+}
+
+func (x *NavigationStudioInvariant) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type NavigationStudioDescriptor struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Renderer plugin name (matches kind.StudioDescriptor.Renderer).
+	Renderer      string                        `protobuf:"bytes,1,opt,name=renderer,proto3" json:"renderer,omitempty"`
+	Routes        []*NavigationStudioRoute      `protobuf:"bytes,2,rep,name=routes,proto3" json:"routes,omitempty"`
+	Affordances   []*NavigationStudioAffordance `protobuf:"bytes,3,rep,name=affordances,proto3" json:"affordances,omitempty"`
+	Containers    []*NavigationStudioContainer  `protobuf:"bytes,4,rep,name=containers,proto3" json:"containers,omitempty"`
+	Contexts      []*NavigationStudioContext    `protobuf:"bytes,5,rep,name=contexts,proto3" json:"contexts,omitempty"`
+	Invariants    []*NavigationStudioInvariant  `protobuf:"bytes,6,rep,name=invariants,proto3" json:"invariants,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigationStudioDescriptor) Reset() {
+	*x = NavigationStudioDescriptor{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigationStudioDescriptor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigationStudioDescriptor) ProtoMessage() {}
+
+func (x *NavigationStudioDescriptor) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigationStudioDescriptor.ProtoReflect.Descriptor instead.
+func (*NavigationStudioDescriptor) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *NavigationStudioDescriptor) GetRenderer() string {
+	if x != nil {
+		return x.Renderer
+	}
+	return ""
+}
+
+func (x *NavigationStudioDescriptor) GetRoutes() []*NavigationStudioRoute {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
+func (x *NavigationStudioDescriptor) GetAffordances() []*NavigationStudioAffordance {
+	if x != nil {
+		return x.Affordances
+	}
+	return nil
+}
+
+func (x *NavigationStudioDescriptor) GetContainers() []*NavigationStudioContainer {
+	if x != nil {
+		return x.Containers
+	}
+	return nil
+}
+
+func (x *NavigationStudioDescriptor) GetContexts() []*NavigationStudioContext {
+	if x != nil {
+		return x.Contexts
+	}
+	return nil
+}
+
+func (x *NavigationStudioDescriptor) GetInvariants() []*NavigationStudioInvariant {
+	if x != nil {
+		return x.Invariants
+	}
+	return nil
+}
+
+type GetNavigationStudioRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FlowId        string                 `protobuf:"bytes,1,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	Root          string                 `protobuf:"bytes,2,opt,name=root,proto3" json:"root,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNavigationStudioRequest) Reset() {
+	*x = GetNavigationStudioRequest{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNavigationStudioRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNavigationStudioRequest) ProtoMessage() {}
+
+func (x *GetNavigationStudioRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNavigationStudioRequest.ProtoReflect.Descriptor instead.
+func (*GetNavigationStudioRequest) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GetNavigationStudioRequest) GetFlowId() string {
+	if x != nil {
+		return x.FlowId
+	}
+	return ""
+}
+
+func (x *GetNavigationStudioRequest) GetRoot() string {
+	if x != nil {
+		return x.Root
+	}
+	return ""
+}
+
+type GetNavigationStudioResponse struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Descriptor_   *NavigationStudioDescriptor `protobuf:"bytes,1,opt,name=descriptor,proto3" json:"descriptor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNavigationStudioResponse) Reset() {
+	*x = GetNavigationStudioResponse{}
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNavigationStudioResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNavigationStudioResponse) ProtoMessage() {}
+
+func (x *GetNavigationStudioResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_flow_verifier_v1_flows_flows_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNavigationStudioResponse.ProtoReflect.Descriptor instead.
+func (*GetNavigationStudioResponse) Descriptor() ([]byte, []int) {
+	return file_flow_verifier_v1_flows_flows_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *GetNavigationStudioResponse) GetDescriptor_() *NavigationStudioDescriptor {
+	if x != nil {
+		return x.Descriptor_
+	}
+	return nil
+}
+
 var File_flow_verifier_v1_flows_flows_proto protoreflect.FileDescriptor
 
 const file_flow_verifier_v1_flows_flows_proto_rawDesc = "" +
@@ -1766,14 +2760,97 @@ const file_flow_verifier_v1_flows_flows_proto_rawDesc = "" +
 	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x12\x12\n" +
 	"\x04root\x18\x02 \x01(\tR\x04root\"-\n" +
 	"\x13ExplainFlowResponse\x12\x16\n" +
-	"\x06report\x18\x01 \x01(\tR\x06report2\xca\x04\n" +
+	"\x06report\x18\x01 \x01(\tR\x06report\"s\n" +
+	"\x12CodegenFlowRequest\x12\x17\n" +
+	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x12\x12\n" +
+	"\x04root\x18\x02 \x01(\tR\x04root\x12\x1a\n" +
+	"\blanguage\x18\x03 \x01(\tR\blanguage\x12\x14\n" +
+	"\x05write\x18\x04 \x01(\bR\x05write\"?\n" +
+	"\x0fCodegenArtifact\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\fR\acontent\"}\n" +
+	"\x13CodegenFlowResponse\x12L\n" +
+	"\tartifacts\x18\x01 \x03(\v2..vrooli.flow_verifier.v1.flows.CodegenArtifactR\tartifacts\x12\x18\n" +
+	"\awritten\x18\x02 \x03(\tR\awritten\"h\n" +
+	"\x14ReconcileFlowRequest\x12\x17\n" +
+	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x12\x12\n" +
+	"\x04root\x18\x02 \x01(\tR\x04root\x12#\n" +
+	"\rscenario_root\x18\x03 \x01(\tR\fscenarioRoot\"\x9a\x01\n" +
+	"\x10ReconcileFinding\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1f\n" +
+	"\vsource_file\x18\x04 \x01(\tR\n" +
+	"sourceFile\x12\x1f\n" +
+	"\vsource_line\x18\x05 \x01(\x05R\n" +
+	"sourceLine\"\xa1\x01\n" +
+	"\x15ReconcileFlowResponse\x12\x16\n" +
+	"\x06passed\x18\x01 \x01(\bR\x06passed\x12K\n" +
+	"\bfindings\x18\x02 \x03(\v2/.vrooli.flow_verifier.v1.flows.ReconcileFindingR\bfindings\x12#\n" +
+	"\rfiles_scanned\x18\x03 \x01(\x05R\ffilesScanned\"\x85\x01\n" +
+	"\x15NavigationStudioRoute\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\tR\x04page\x12\x1a\n" +
+	"\brequires\x18\x04 \x01(\tR\brequires\x12\x18\n" +
+	"\aparents\x18\x05 \x03(\tR\aparents\"]\n" +
+	"\x1cNavigationStudioPresentation\x12\x0e\n" +
+	"\x02in\x18\x01 \x01(\tR\x02in\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x17\n" +
+	"\atest_id\x18\x03 \x01(\tR\x06testId\"\xdd\x01\n" +
+	"\x1aNavigationStudioAffordance\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x0e\n" +
+	"\x02to\x18\x02 \x01(\tR\x02to\x12\x1b\n" +
+	"\tshow_when\x18\x03 \x01(\tR\bshowWhen\x12\x1f\n" +
+	"\vside_effect\x18\x04 \x01(\tR\n" +
+	"sideEffect\x12a\n" +
+	"\rpresentations\x18\x05 \x03(\v2;.vrooli.flow_verifier.v1.flows.NavigationStudioPresentationR\rpresentations\"\x9d\x01\n" +
+	"\x19NavigationStudioContainer\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1b\n" +
+	"\tshow_when\x18\x03 \x01(\tR\bshowWhen\x12\x1e\n" +
+	"\n" +
+	"disclosure\x18\x04 \x01(\tR\n" +
+	"disclosure\x12\x1f\n" +
+	"\vhost_routes\x18\x05 \x03(\tR\n" +
+	"hostRoutes\"~\n" +
+	"\x17NavigationStudioContext\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x16\n" +
+	"\x06values\x18\x03 \x03(\tR\x06values\x12#\n" +
+	"\rdefault_value\x18\x04 \x01(\tR\fdefaultValue\"]\n" +
+	"\x19NavigationStudioInvariant\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06passed\x18\x02 \x01(\bR\x06passed\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xeb\x03\n" +
+	"\x1aNavigationStudioDescriptor\x12\x1a\n" +
+	"\brenderer\x18\x01 \x01(\tR\brenderer\x12L\n" +
+	"\x06routes\x18\x02 \x03(\v24.vrooli.flow_verifier.v1.flows.NavigationStudioRouteR\x06routes\x12[\n" +
+	"\vaffordances\x18\x03 \x03(\v29.vrooli.flow_verifier.v1.flows.NavigationStudioAffordanceR\vaffordances\x12X\n" +
+	"\n" +
+	"containers\x18\x04 \x03(\v28.vrooli.flow_verifier.v1.flows.NavigationStudioContainerR\n" +
+	"containers\x12R\n" +
+	"\bcontexts\x18\x05 \x03(\v26.vrooli.flow_verifier.v1.flows.NavigationStudioContextR\bcontexts\x12X\n" +
+	"\n" +
+	"invariants\x18\x06 \x03(\v28.vrooli.flow_verifier.v1.flows.NavigationStudioInvariantR\n" +
+	"invariants\"I\n" +
+	"\x1aGetNavigationStudioRequest\x12\x17\n" +
+	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x12\x12\n" +
+	"\x04root\x18\x02 \x01(\tR\x04root\"x\n" +
+	"\x1bGetNavigationStudioResponse\x12Y\n" +
+	"\n" +
+	"descriptor\x18\x01 \x01(\v29.vrooli.flow_verifier.v1.flows.NavigationStudioDescriptorR\n" +
+	"descriptor2\xcb\a\n" +
 	"\fFlowsService\x12n\n" +
 	"\tListFlows\x12/.vrooli.flow_verifier.v1.flows.ListFlowsRequest\x1a0.vrooli.flow_verifier.v1.flows.ListFlowsResponse\x12h\n" +
 	"\aGetFlow\x12-.vrooli.flow_verifier.v1.flows.GetFlowRequest\x1a..vrooli.flow_verifier.v1.flows.GetFlowResponse\x12q\n" +
 	"\n" +
 	"CreateFlow\x120.vrooli.flow_verifier.v1.flows.CreateFlowRequest\x1a1.vrooli.flow_verifier.v1.flows.CreateFlowResponse\x12w\n" +
 	"\fValidateFlow\x122.vrooli.flow_verifier.v1.flows.ValidateFlowRequest\x1a3.vrooli.flow_verifier.v1.flows.ValidateFlowResponse\x12t\n" +
-	"\vExplainFlow\x121.vrooli.flow_verifier.v1.flows.ExplainFlowRequest\x1a2.vrooli.flow_verifier.v1.flows.ExplainFlowResponseBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/flows;flows_v1b\x06proto3"
+	"\vExplainFlow\x121.vrooli.flow_verifier.v1.flows.ExplainFlowRequest\x1a2.vrooli.flow_verifier.v1.flows.ExplainFlowResponse\x12t\n" +
+	"\vCodegenFlow\x121.vrooli.flow_verifier.v1.flows.CodegenFlowRequest\x1a2.vrooli.flow_verifier.v1.flows.CodegenFlowResponse\x12z\n" +
+	"\rReconcileFlow\x123.vrooli.flow_verifier.v1.flows.ReconcileFlowRequest\x1a4.vrooli.flow_verifier.v1.flows.ReconcileFlowResponse\x12\x8c\x01\n" +
+	"\x13GetNavigationStudio\x129.vrooli.flow_verifier.v1.flows.GetNavigationStudioRequest\x1a:.vrooli.flow_verifier.v1.flows.GetNavigationStudioResponseBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/flows;flows_v1b\x06proto3"
 
 var (
 	file_flow_verifier_v1_flows_flows_proto_rawDescOnce sync.Once
@@ -1787,44 +2864,59 @@ func file_flow_verifier_v1_flows_flows_proto_rawDescGZIP() []byte {
 	return file_flow_verifier_v1_flows_flows_proto_rawDescData
 }
 
-var file_flow_verifier_v1_flows_flows_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_flow_verifier_v1_flows_flows_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_flow_verifier_v1_flows_flows_proto_goTypes = []any{
-	(*FlowSummary)(nil),          // 0: vrooli.flow_verifier.v1.flows.FlowSummary
-	(*FlowState)(nil),            // 1: vrooli.flow_verifier.v1.flows.FlowState
-	(*FlowEvent)(nil),            // 2: vrooli.flow_verifier.v1.flows.FlowEvent
-	(*FlowTransition)(nil),       // 3: vrooli.flow_verifier.v1.flows.FlowTransition
-	(*FlowInvariant)(nil),        // 4: vrooli.flow_verifier.v1.flows.FlowInvariant
-	(*FlowTraceStep)(nil),        // 5: vrooli.flow_verifier.v1.flows.FlowTraceStep
-	(*FlowTrace)(nil),            // 6: vrooli.flow_verifier.v1.flows.FlowTrace
-	(*FlowVerify)(nil),           // 7: vrooli.flow_verifier.v1.flows.FlowVerify
-	(*FlowModel)(nil),            // 8: vrooli.flow_verifier.v1.flows.FlowModel
-	(*GoRuntime)(nil),            // 9: vrooli.flow_verifier.v1.flows.GoRuntime
-	(*TypeScriptRuntime)(nil),    // 10: vrooli.flow_verifier.v1.flows.TypeScriptRuntime
-	(*VariantFields)(nil),        // 11: vrooli.flow_verifier.v1.flows.VariantFields
-	(*FlowRuntime)(nil),          // 12: vrooli.flow_verifier.v1.flows.FlowRuntime
-	(*FlowDetail)(nil),           // 13: vrooli.flow_verifier.v1.flows.FlowDetail
-	(*ListFlowsRequest)(nil),     // 14: vrooli.flow_verifier.v1.flows.ListFlowsRequest
-	(*ListFlowsResponse)(nil),    // 15: vrooli.flow_verifier.v1.flows.ListFlowsResponse
-	(*GetFlowRequest)(nil),       // 16: vrooli.flow_verifier.v1.flows.GetFlowRequest
-	(*GetFlowResponse)(nil),      // 17: vrooli.flow_verifier.v1.flows.GetFlowResponse
-	(*CreateFlowRequest)(nil),    // 18: vrooli.flow_verifier.v1.flows.CreateFlowRequest
-	(*CreateFlowResponse)(nil),   // 19: vrooli.flow_verifier.v1.flows.CreateFlowResponse
-	(*ValidateFlowRequest)(nil),  // 20: vrooli.flow_verifier.v1.flows.ValidateFlowRequest
-	(*ValidateFlowResponse)(nil), // 21: vrooli.flow_verifier.v1.flows.ValidateFlowResponse
-	(*ExplainFlowRequest)(nil),   // 22: vrooli.flow_verifier.v1.flows.ExplainFlowRequest
-	(*ExplainFlowResponse)(nil),  // 23: vrooli.flow_verifier.v1.flows.ExplainFlowResponse
-	nil,                          // 24: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.PayloadTypesEntry
-	nil,                          // 25: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.StateVariantsEntry
-	nil,                          // 26: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.EventVariantsEntry
-	nil,                          // 27: vrooli.flow_verifier.v1.flows.VariantFields.FieldsEntry
+	(*FlowSummary)(nil),                  // 0: vrooli.flow_verifier.v1.flows.FlowSummary
+	(*FlowState)(nil),                    // 1: vrooli.flow_verifier.v1.flows.FlowState
+	(*FlowEvent)(nil),                    // 2: vrooli.flow_verifier.v1.flows.FlowEvent
+	(*FlowTransition)(nil),               // 3: vrooli.flow_verifier.v1.flows.FlowTransition
+	(*FlowInvariant)(nil),                // 4: vrooli.flow_verifier.v1.flows.FlowInvariant
+	(*FlowTraceStep)(nil),                // 5: vrooli.flow_verifier.v1.flows.FlowTraceStep
+	(*FlowTrace)(nil),                    // 6: vrooli.flow_verifier.v1.flows.FlowTrace
+	(*FlowVerify)(nil),                   // 7: vrooli.flow_verifier.v1.flows.FlowVerify
+	(*FlowModel)(nil),                    // 8: vrooli.flow_verifier.v1.flows.FlowModel
+	(*GoRuntime)(nil),                    // 9: vrooli.flow_verifier.v1.flows.GoRuntime
+	(*TypeScriptRuntime)(nil),            // 10: vrooli.flow_verifier.v1.flows.TypeScriptRuntime
+	(*VariantFields)(nil),                // 11: vrooli.flow_verifier.v1.flows.VariantFields
+	(*FlowRuntime)(nil),                  // 12: vrooli.flow_verifier.v1.flows.FlowRuntime
+	(*FlowDetail)(nil),                   // 13: vrooli.flow_verifier.v1.flows.FlowDetail
+	(*ListFlowsRequest)(nil),             // 14: vrooli.flow_verifier.v1.flows.ListFlowsRequest
+	(*ListFlowsResponse)(nil),            // 15: vrooli.flow_verifier.v1.flows.ListFlowsResponse
+	(*GetFlowRequest)(nil),               // 16: vrooli.flow_verifier.v1.flows.GetFlowRequest
+	(*GetFlowResponse)(nil),              // 17: vrooli.flow_verifier.v1.flows.GetFlowResponse
+	(*CreateFlowRequest)(nil),            // 18: vrooli.flow_verifier.v1.flows.CreateFlowRequest
+	(*CreateFlowResponse)(nil),           // 19: vrooli.flow_verifier.v1.flows.CreateFlowResponse
+	(*ValidateFlowRequest)(nil),          // 20: vrooli.flow_verifier.v1.flows.ValidateFlowRequest
+	(*ValidateFlowResponse)(nil),         // 21: vrooli.flow_verifier.v1.flows.ValidateFlowResponse
+	(*ExplainFlowRequest)(nil),           // 22: vrooli.flow_verifier.v1.flows.ExplainFlowRequest
+	(*ExplainFlowResponse)(nil),          // 23: vrooli.flow_verifier.v1.flows.ExplainFlowResponse
+	(*CodegenFlowRequest)(nil),           // 24: vrooli.flow_verifier.v1.flows.CodegenFlowRequest
+	(*CodegenArtifact)(nil),              // 25: vrooli.flow_verifier.v1.flows.CodegenArtifact
+	(*CodegenFlowResponse)(nil),          // 26: vrooli.flow_verifier.v1.flows.CodegenFlowResponse
+	(*ReconcileFlowRequest)(nil),         // 27: vrooli.flow_verifier.v1.flows.ReconcileFlowRequest
+	(*ReconcileFinding)(nil),             // 28: vrooli.flow_verifier.v1.flows.ReconcileFinding
+	(*ReconcileFlowResponse)(nil),        // 29: vrooli.flow_verifier.v1.flows.ReconcileFlowResponse
+	(*NavigationStudioRoute)(nil),        // 30: vrooli.flow_verifier.v1.flows.NavigationStudioRoute
+	(*NavigationStudioPresentation)(nil), // 31: vrooli.flow_verifier.v1.flows.NavigationStudioPresentation
+	(*NavigationStudioAffordance)(nil),   // 32: vrooli.flow_verifier.v1.flows.NavigationStudioAffordance
+	(*NavigationStudioContainer)(nil),    // 33: vrooli.flow_verifier.v1.flows.NavigationStudioContainer
+	(*NavigationStudioContext)(nil),      // 34: vrooli.flow_verifier.v1.flows.NavigationStudioContext
+	(*NavigationStudioInvariant)(nil),    // 35: vrooli.flow_verifier.v1.flows.NavigationStudioInvariant
+	(*NavigationStudioDescriptor)(nil),   // 36: vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor
+	(*GetNavigationStudioRequest)(nil),   // 37: vrooli.flow_verifier.v1.flows.GetNavigationStudioRequest
+	(*GetNavigationStudioResponse)(nil),  // 38: vrooli.flow_verifier.v1.flows.GetNavigationStudioResponse
+	nil,                                  // 39: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.PayloadTypesEntry
+	nil,                                  // 40: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.StateVariantsEntry
+	nil,                                  // 41: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.EventVariantsEntry
+	nil,                                  // 42: vrooli.flow_verifier.v1.flows.VariantFields.FieldsEntry
 }
 var file_flow_verifier_v1_flows_flows_proto_depIdxs = []int32{
 	5,  // 0: vrooli.flow_verifier.v1.flows.FlowTrace.steps:type_name -> vrooli.flow_verifier.v1.flows.FlowTraceStep
 	7,  // 1: vrooli.flow_verifier.v1.flows.FlowModel.verify:type_name -> vrooli.flow_verifier.v1.flows.FlowVerify
-	24, // 2: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.payload_types:type_name -> vrooli.flow_verifier.v1.flows.TypeScriptRuntime.PayloadTypesEntry
-	25, // 3: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.state_variants:type_name -> vrooli.flow_verifier.v1.flows.TypeScriptRuntime.StateVariantsEntry
-	26, // 4: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.event_variants:type_name -> vrooli.flow_verifier.v1.flows.TypeScriptRuntime.EventVariantsEntry
-	27, // 5: vrooli.flow_verifier.v1.flows.VariantFields.fields:type_name -> vrooli.flow_verifier.v1.flows.VariantFields.FieldsEntry
+	39, // 2: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.payload_types:type_name -> vrooli.flow_verifier.v1.flows.TypeScriptRuntime.PayloadTypesEntry
+	40, // 3: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.state_variants:type_name -> vrooli.flow_verifier.v1.flows.TypeScriptRuntime.StateVariantsEntry
+	41, // 4: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.event_variants:type_name -> vrooli.flow_verifier.v1.flows.TypeScriptRuntime.EventVariantsEntry
+	42, // 5: vrooli.flow_verifier.v1.flows.VariantFields.fields:type_name -> vrooli.flow_verifier.v1.flows.VariantFields.FieldsEntry
 	9,  // 6: vrooli.flow_verifier.v1.flows.FlowRuntime.go:type_name -> vrooli.flow_verifier.v1.flows.GoRuntime
 	10, // 7: vrooli.flow_verifier.v1.flows.FlowRuntime.typescript:type_name -> vrooli.flow_verifier.v1.flows.TypeScriptRuntime
 	1,  // 8: vrooli.flow_verifier.v1.flows.FlowDetail.states:type_name -> vrooli.flow_verifier.v1.flows.FlowState
@@ -1837,23 +2929,38 @@ var file_flow_verifier_v1_flows_flows_proto_depIdxs = []int32{
 	0,  // 15: vrooli.flow_verifier.v1.flows.ListFlowsResponse.flows:type_name -> vrooli.flow_verifier.v1.flows.FlowSummary
 	13, // 16: vrooli.flow_verifier.v1.flows.GetFlowResponse.flow:type_name -> vrooli.flow_verifier.v1.flows.FlowDetail
 	0,  // 17: vrooli.flow_verifier.v1.flows.ValidateFlowResponse.flows:type_name -> vrooli.flow_verifier.v1.flows.FlowSummary
-	11, // 18: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.StateVariantsEntry.value:type_name -> vrooli.flow_verifier.v1.flows.VariantFields
-	11, // 19: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.EventVariantsEntry.value:type_name -> vrooli.flow_verifier.v1.flows.VariantFields
-	14, // 20: vrooli.flow_verifier.v1.flows.FlowsService.ListFlows:input_type -> vrooli.flow_verifier.v1.flows.ListFlowsRequest
-	16, // 21: vrooli.flow_verifier.v1.flows.FlowsService.GetFlow:input_type -> vrooli.flow_verifier.v1.flows.GetFlowRequest
-	18, // 22: vrooli.flow_verifier.v1.flows.FlowsService.CreateFlow:input_type -> vrooli.flow_verifier.v1.flows.CreateFlowRequest
-	20, // 23: vrooli.flow_verifier.v1.flows.FlowsService.ValidateFlow:input_type -> vrooli.flow_verifier.v1.flows.ValidateFlowRequest
-	22, // 24: vrooli.flow_verifier.v1.flows.FlowsService.ExplainFlow:input_type -> vrooli.flow_verifier.v1.flows.ExplainFlowRequest
-	15, // 25: vrooli.flow_verifier.v1.flows.FlowsService.ListFlows:output_type -> vrooli.flow_verifier.v1.flows.ListFlowsResponse
-	17, // 26: vrooli.flow_verifier.v1.flows.FlowsService.GetFlow:output_type -> vrooli.flow_verifier.v1.flows.GetFlowResponse
-	19, // 27: vrooli.flow_verifier.v1.flows.FlowsService.CreateFlow:output_type -> vrooli.flow_verifier.v1.flows.CreateFlowResponse
-	21, // 28: vrooli.flow_verifier.v1.flows.FlowsService.ValidateFlow:output_type -> vrooli.flow_verifier.v1.flows.ValidateFlowResponse
-	23, // 29: vrooli.flow_verifier.v1.flows.FlowsService.ExplainFlow:output_type -> vrooli.flow_verifier.v1.flows.ExplainFlowResponse
-	25, // [25:30] is the sub-list for method output_type
-	20, // [20:25] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	25, // 18: vrooli.flow_verifier.v1.flows.CodegenFlowResponse.artifacts:type_name -> vrooli.flow_verifier.v1.flows.CodegenArtifact
+	28, // 19: vrooli.flow_verifier.v1.flows.ReconcileFlowResponse.findings:type_name -> vrooli.flow_verifier.v1.flows.ReconcileFinding
+	31, // 20: vrooli.flow_verifier.v1.flows.NavigationStudioAffordance.presentations:type_name -> vrooli.flow_verifier.v1.flows.NavigationStudioPresentation
+	30, // 21: vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor.routes:type_name -> vrooli.flow_verifier.v1.flows.NavigationStudioRoute
+	32, // 22: vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor.affordances:type_name -> vrooli.flow_verifier.v1.flows.NavigationStudioAffordance
+	33, // 23: vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor.containers:type_name -> vrooli.flow_verifier.v1.flows.NavigationStudioContainer
+	34, // 24: vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor.contexts:type_name -> vrooli.flow_verifier.v1.flows.NavigationStudioContext
+	35, // 25: vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor.invariants:type_name -> vrooli.flow_verifier.v1.flows.NavigationStudioInvariant
+	36, // 26: vrooli.flow_verifier.v1.flows.GetNavigationStudioResponse.descriptor:type_name -> vrooli.flow_verifier.v1.flows.NavigationStudioDescriptor
+	11, // 27: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.StateVariantsEntry.value:type_name -> vrooli.flow_verifier.v1.flows.VariantFields
+	11, // 28: vrooli.flow_verifier.v1.flows.TypeScriptRuntime.EventVariantsEntry.value:type_name -> vrooli.flow_verifier.v1.flows.VariantFields
+	14, // 29: vrooli.flow_verifier.v1.flows.FlowsService.ListFlows:input_type -> vrooli.flow_verifier.v1.flows.ListFlowsRequest
+	16, // 30: vrooli.flow_verifier.v1.flows.FlowsService.GetFlow:input_type -> vrooli.flow_verifier.v1.flows.GetFlowRequest
+	18, // 31: vrooli.flow_verifier.v1.flows.FlowsService.CreateFlow:input_type -> vrooli.flow_verifier.v1.flows.CreateFlowRequest
+	20, // 32: vrooli.flow_verifier.v1.flows.FlowsService.ValidateFlow:input_type -> vrooli.flow_verifier.v1.flows.ValidateFlowRequest
+	22, // 33: vrooli.flow_verifier.v1.flows.FlowsService.ExplainFlow:input_type -> vrooli.flow_verifier.v1.flows.ExplainFlowRequest
+	24, // 34: vrooli.flow_verifier.v1.flows.FlowsService.CodegenFlow:input_type -> vrooli.flow_verifier.v1.flows.CodegenFlowRequest
+	27, // 35: vrooli.flow_verifier.v1.flows.FlowsService.ReconcileFlow:input_type -> vrooli.flow_verifier.v1.flows.ReconcileFlowRequest
+	37, // 36: vrooli.flow_verifier.v1.flows.FlowsService.GetNavigationStudio:input_type -> vrooli.flow_verifier.v1.flows.GetNavigationStudioRequest
+	15, // 37: vrooli.flow_verifier.v1.flows.FlowsService.ListFlows:output_type -> vrooli.flow_verifier.v1.flows.ListFlowsResponse
+	17, // 38: vrooli.flow_verifier.v1.flows.FlowsService.GetFlow:output_type -> vrooli.flow_verifier.v1.flows.GetFlowResponse
+	19, // 39: vrooli.flow_verifier.v1.flows.FlowsService.CreateFlow:output_type -> vrooli.flow_verifier.v1.flows.CreateFlowResponse
+	21, // 40: vrooli.flow_verifier.v1.flows.FlowsService.ValidateFlow:output_type -> vrooli.flow_verifier.v1.flows.ValidateFlowResponse
+	23, // 41: vrooli.flow_verifier.v1.flows.FlowsService.ExplainFlow:output_type -> vrooli.flow_verifier.v1.flows.ExplainFlowResponse
+	26, // 42: vrooli.flow_verifier.v1.flows.FlowsService.CodegenFlow:output_type -> vrooli.flow_verifier.v1.flows.CodegenFlowResponse
+	29, // 43: vrooli.flow_verifier.v1.flows.FlowsService.ReconcileFlow:output_type -> vrooli.flow_verifier.v1.flows.ReconcileFlowResponse
+	38, // 44: vrooli.flow_verifier.v1.flows.FlowsService.GetNavigationStudio:output_type -> vrooli.flow_verifier.v1.flows.GetNavigationStudioResponse
+	37, // [37:45] is the sub-list for method output_type
+	29, // [29:37] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_flow_verifier_v1_flows_flows_proto_init() }
@@ -1867,7 +2974,7 @@ func file_flow_verifier_v1_flows_flows_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_flow_verifier_v1_flows_flows_proto_rawDesc), len(file_flow_verifier_v1_flows_flows_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   28,
+			NumMessages:   43,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

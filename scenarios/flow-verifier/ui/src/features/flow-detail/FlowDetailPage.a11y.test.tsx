@@ -26,6 +26,7 @@ describe("FlowDetailPage accessibility", () => {
     const { fetchFlowDetail, fetchRuns } = await import("../../api/inventory");
     vi.mocked(fetchFlowDetail).mockResolvedValue({
       flowId: "notes.attachment-upload.ui",
+      kind: "temporal",
       contractPath: "ui/src/features/notes/flow/flow.json",
       language: "ts",
       schemaVersion: 6,

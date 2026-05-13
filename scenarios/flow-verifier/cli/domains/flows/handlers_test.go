@@ -63,6 +63,10 @@ func (f *fakeService) ReconcileFlow(context.Context, *connect.Request[flowsv1.Re
 	return connect.NewResponse(&flowsv1.ReconcileFlowResponse{Passed: true}), nil
 }
 
+func (f *fakeService) GetNavigationStudio(context.Context, *connect.Request[flowsv1.GetNavigationStudioRequest]) (*connect.Response[flowsv1.GetNavigationStudioResponse], error) {
+	return connect.NewResponse(&flowsv1.GetNavigationStudioResponse{Descriptor_: &flowsv1.NavigationStudioDescriptor{Renderer: "navigation-graph"}}), nil
+}
+
 func connectAPI(t *testing.T, svc *fakeService) http.Handler {
 	t.Helper()
 	path, handler := flowsconnect.NewFlowsServiceHandler(svc)

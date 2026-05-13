@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	"flow-verifier/internal/flows"
+	navigationstudio "flow-verifier/internal/flows/kinds/navigation/studio"
 	"flow-verifier/internal/flows/kinds/temporal/contract"
 	"flow-verifier/internal/flows/kinds/temporal/layout"
 	"flow-verifier/internal/scenarios"
@@ -178,6 +179,29 @@ func (h *connectHandler) ReconcileFlow(_ context.Context, req *connect.Request[f
 		})
 	}
 	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) GetNavigationStudio(_ context.Context, req *connect.Request[flowsv1.GetNavigationStudioRequest]) (*connect.Response[flowsv1.GetNavigationStudioResponse], error) {
+	root := req.Msg.GetRoot()
+	flowID := req.Msg.GetFlowId()
+	if flowID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("flow_id is required for GetNavigationStudio"))
+	}
+	if root == "" {
+		if h.deps.Scenarios == nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("root is required for GetNavigationStudio"))
+		}
+		resolved, err := h.resolveFlowRoot(flowID)
+		if err != nil {
+			return nil, err
+		}
+		root = resolved
+	}
+	d, err := flows.NavigationStudio(flows.NavigationStudioOptions{Root: root, FlowID: flowID})
+	if err != nil {
+		return nil, flows.ToConnectError(err)
+	}
+	return connect.NewResponse(&flowsv1.GetNavigationStudioResponse{Descriptor_: navigationStudioToProto(d)}), nil
 }
 
 // resolveFlowRoot walks scenarios to find one whose flows include
@@ -366,6 +390,60 @@ func wrapVariantMap(m map[string]map[string]string) map[string]*flowsv1.VariantF
 	out := make(map[string]*flowsv1.VariantFields, len(m))
 	for k, inner := range m {
 		out[k] = &flowsv1.VariantFields{Fields: copyStringMap(inner)}
+	}
+	return out
+}
+
+func navigationStudioToProto(d navigationstudio.Descriptor) *flowsv1.NavigationStudioDescriptor {
+	out := &flowsv1.NavigationStudioDescriptor{Renderer: d.Renderer}
+	for _, r := range d.Routes {
+		out.Routes = append(out.Routes, &flowsv1.NavigationStudioRoute{
+			Id:       r.ID,
+			Path:     r.Path,
+			Page:     r.Page,
+			Requires: r.Requires,
+			Parents:  append([]string(nil), r.Parents...),
+		})
+	}
+	for _, a := range d.Affordances {
+		af := &flowsv1.NavigationStudioAffordance{
+			Id:         a.ID,
+			To:         a.To,
+			ShowWhen:   a.ShowWhen,
+			SideEffect: a.SideEffect,
+		}
+		for _, p := range a.Presentations {
+			af.Presentations = append(af.Presentations, &flowsv1.NavigationStudioPresentation{
+				In:     p.In,
+				Label:  p.Label,
+				TestId: p.TestID,
+			})
+		}
+		out.Affordances = append(out.Affordances, af)
+	}
+	for _, c := range d.Containers {
+		out.Containers = append(out.Containers, &flowsv1.NavigationStudioContainer{
+			Id:         c.ID,
+			Kind:       c.Kind,
+			ShowWhen:   c.ShowWhen,
+			Disclosure: c.Disclosure,
+			HostRoutes: append([]string(nil), c.HostRoutes...),
+		})
+	}
+	for _, c := range d.Contexts {
+		out.Contexts = append(out.Contexts, &flowsv1.NavigationStudioContext{
+			Name:         c.Name,
+			Kind:         c.Kind,
+			Values:       append([]string(nil), c.Values...),
+			DefaultValue: c.DefaultValue,
+		})
+	}
+	for _, inv := range d.Invariants {
+		out.Invariants = append(out.Invariants, &flowsv1.NavigationStudioInvariant{
+			Id:      inv.ID,
+			Passed:  inv.Passed,
+			Message: inv.Message,
+		})
 	}
 	return out
 }

@@ -14,7 +14,7 @@ describe("SidebarFlowList accessibility", () => {
   beforeEach(async () => {
     const { fetchFlows } = await import("../api/inventory");
     vi.mocked(fetchFlows).mockResolvedValue([
-      { flowId: "alpha.flow", contractPath: "a/flow.json", language: "ts", schemaVersion: 1 },
+      { flowId: "alpha.flow", contractPath: "a/flow.json", language: "ts", schemaVersion: 1, kind: "temporal" },
     ]);
   });
   afterEach(() => cleanup());

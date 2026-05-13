@@ -25,6 +25,7 @@ const flow = {
   contractPath: "api/feature/flow/flow.json",
   language: "go",
   schemaVersion: 6,
+  kind: "temporal",
 };
 
 const detail = {

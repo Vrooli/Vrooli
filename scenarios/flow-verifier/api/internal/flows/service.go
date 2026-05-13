@@ -4,6 +4,7 @@
 package flows
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"flow-verifier/internal/flows/kind"
 	"flow-verifier/internal/flows/kinds/navigation"
 	navigationreconcile "flow-verifier/internal/flows/kinds/navigation/reconcile"
+	navigationstudio "flow-verifier/internal/flows/kinds/navigation/studio"
 	"flow-verifier/internal/flows/kinds/temporal"
 	"flow-verifier/internal/flows/kinds/temporal/codegen"
 	"flow-verifier/internal/flows/kinds/temporal/contract"
@@ -308,6 +310,34 @@ func Reconcile(opts ReconcileOptions) (ReconcileResult, error) {
 		Findings:     res.Findings,
 		FilesScanned: res.FilesScanned,
 	}, nil
+}
+
+// NavigationStudioOptions configures NavigationStudio.
+type NavigationStudioOptions struct {
+	Root   string
+	FlowID string
+}
+
+// NavigationStudio loads a navigation flow, runs the reachability
+// verifier, and returns the Flow Studio descriptor (routes, affordances,
+// containers, contexts, invariant pass/fail) the UI's navigation
+// renderer consumes.
+func NavigationStudio(opts NavigationStudioOptions) (navigationstudio.Descriptor, error) {
+	if opts.FlowID == "" {
+		return navigationstudio.Descriptor{}, fmt.Errorf("navigation studio requires a flow id")
+	}
+	spec, err := loadSpec(opts.Root, opts.FlowID)
+	if err != nil {
+		return navigationstudio.Descriptor{}, err
+	}
+	if spec.Kind() != navigation.Name {
+		return navigationstudio.Descriptor{}, fmt.Errorf("navigation studio: flow %s is kind %q; only navigation is supported", opts.FlowID, spec.Kind())
+	}
+	navSpec, ok := spec.(*navigation.Spec)
+	if !ok {
+		return navigationstudio.Descriptor{}, fmt.Errorf("navigation studio: spec is %T, want *navigation.Spec", spec)
+	}
+	return navigationstudio.VerifyAndBuild(context.Background(), navSpec.Graph())
 }
 
 // loadSpec discovers and returns the single spec matching flowID under root.

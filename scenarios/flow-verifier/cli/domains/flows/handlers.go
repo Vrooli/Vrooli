@@ -182,6 +182,40 @@ func (h *handlers) reconcile(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) studio(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetNavigationStudio(context.Background(), connect.NewRequest(&flowsv1.GetNavigationStudioRequest{
+		Root:   ctx.Flag("root"),
+		FlowId: ctx.Flag("flow"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("navigation studio", err, nil)
+	}
+	d := resp.Msg.GetDescriptor_()
+	if d == nil {
+		return fmt.Errorf("server returned no descriptor")
+	}
+	results := []string{
+		fmt.Sprintf("renderer    = %s", d.Renderer),
+		fmt.Sprintf("routes      = %d", len(d.Routes)),
+		fmt.Sprintf("affordances = %d", len(d.Affordances)),
+		fmt.Sprintf("containers  = %d", len(d.Containers)),
+		fmt.Sprintf("contexts    = %d", len(d.Contexts)),
+		fmt.Sprintf("invariants  = %d", len(d.Invariants)),
+	}
+	for _, inv := range d.Invariants {
+		status := "PASS"
+		if !inv.Passed {
+			status = "FAIL"
+		}
+		results = append(results, fmt.Sprintf("  [%s] %s — %s", status, inv.Id, inv.Message))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Studio descriptor for %s", ctx.Flag("flow"))},
+		ResultsHeading: "Descriptor",
+		Results:        results,
+	})
+}
+
 func formatSummary(f *flowsv1.FlowSummary) string {
 	if f == nil {
 		return "(nil)"

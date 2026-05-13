@@ -72,4 +72,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "flows",
 		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows reconcile"},
 	},
+	{
+		ID:          "flows.navigationStudio",
+		Path:        flowsconnect.FlowsServiceGetNavigationStudioProcedure,
+		Method:      "POST",
+		Summary:     "Flow Studio descriptor for a navigation flow",
+		Description: "Returns the Flow Studio renderer payload (routes, affordances, containers, context toggles, invariant pass/fail) consumed by the UI's navigation graph view.",
+		Category:    "flows",
+		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows studio"},
+	},
 }

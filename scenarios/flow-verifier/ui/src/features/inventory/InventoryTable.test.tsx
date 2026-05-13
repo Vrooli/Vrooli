@@ -11,6 +11,7 @@ const flow: FlowSummary = {
   contractPath: "a/flow.json",
   language: "ts",
   schemaVersion: 1,
+  kind: "temporal",
 };
 
 const passedRun: RunRow = {

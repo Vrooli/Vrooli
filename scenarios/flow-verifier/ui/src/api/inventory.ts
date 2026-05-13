@@ -52,6 +52,7 @@ export type FlowSummary = {
   language: string;
   schemaVersion: number;
   scenarioId?: string;
+  kind: string;
 };
 
 export type RunRow = {
@@ -129,6 +130,7 @@ export type FlowRuntime = {
 };
 export type FlowDetail = {
   flowId: string;
+  kind: string;
   domain?: string;
   description?: string;
   contractPath: string;
@@ -176,6 +178,84 @@ export async function fetchRuns(
   return resp.runs.map(runFromProto);
 }
 
+export type NavigationStudioRoute = {
+  id: string;
+  path: string;
+  page: string;
+  requires: string;
+  parents: string[];
+};
+export type NavigationStudioPresentation = { in: string; label: string; testId: string };
+export type NavigationStudioAffordance = {
+  id: string;
+  to: string;
+  showWhen: string;
+  sideEffect: string;
+  presentations: NavigationStudioPresentation[];
+};
+export type NavigationStudioContainer = {
+  id: string;
+  kind: string;
+  showWhen: string;
+  disclosure: string;
+  hostRoutes: string[];
+};
+export type NavigationStudioContext = {
+  name: string;
+  kind: "enum" | "bool" | string;
+  values: string[];
+  defaultValue: string;
+};
+export type NavigationStudioInvariant = { id: string; passed: boolean; message: string };
+export type NavigationStudioDescriptor = {
+  renderer: string;
+  routes: NavigationStudioRoute[];
+  affordances: NavigationStudioAffordance[];
+  containers: NavigationStudioContainer[];
+  contexts: NavigationStudioContext[];
+  invariants: NavigationStudioInvariant[];
+};
+
+export async function fetchNavigationStudio(
+  flowId: string,
+  opts: { root?: string } = {},
+): Promise<NavigationStudioDescriptor> {
+  const resp = await flowsClient.getNavigationStudio({ flowId, root: opts.root ?? "" });
+  const d = resp.descriptor;
+  if (!d) throw new Error("server returned no descriptor");
+  return {
+    renderer: d.renderer,
+    routes: d.routes.map((r) => ({
+      id: r.id,
+      path: r.path,
+      page: r.page,
+      requires: r.requires,
+      parents: [...r.parents],
+    })),
+    affordances: d.affordances.map((a) => ({
+      id: a.id,
+      to: a.to,
+      showWhen: a.showWhen,
+      sideEffect: a.sideEffect,
+      presentations: a.presentations.map((p) => ({ in: p.in, label: p.label, testId: p.testId })),
+    })),
+    containers: d.containers.map((c) => ({
+      id: c.id,
+      kind: c.kind,
+      showWhen: c.showWhen,
+      disclosure: c.disclosure,
+      hostRoutes: [...c.hostRoutes],
+    })),
+    contexts: d.contexts.map((c) => ({
+      name: c.name,
+      kind: c.kind,
+      values: [...c.values],
+      defaultValue: c.defaultValue,
+    })),
+    invariants: d.invariants.map((i) => ({ id: i.id, passed: i.passed, message: i.message })),
+  };
+}
+
 export async function fetchRun(runId: string): Promise<RunRow> {
   const resp = await runsClient.getRun({ id: runId });
   if (!resp.run) throw new Error("server returned no run");
@@ -203,12 +283,14 @@ export function flowSummaryFromProto(p: ProtoFlowSummary): FlowSummary {
     language: p.language,
     schemaVersion: p.schemaVersion,
     scenarioId: p.scenarioId || undefined,
+    kind: p.kind || "temporal",
   };
 }
 
 function flowDetailFromProto(p: ProtoFlowDetail): FlowDetail {
   return {
     flowId: p.flowId,
+    kind: p.kind || "temporal",
     domain: p.domain || undefined,
     description: p.description || undefined,
     contractPath: p.contractPath,

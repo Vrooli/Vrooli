@@ -13,6 +13,7 @@ import (
 	"flow-verifier/internal/flows/kinds/navigation/compile"
 	"flow-verifier/internal/flows/kinds/navigation/contract"
 	"flow-verifier/internal/flows/kinds/navigation/scaffold"
+	"flow-verifier/internal/flows/kinds/navigation/studio"
 	"flow-verifier/internal/flows/kinds/navigation/verify"
 	"flow-verifier/internal/flows/schemas"
 )
@@ -110,10 +111,24 @@ func (*Kind) Codegen(s kind.Spec, target kind.Language) (kind.Artifacts, error) 
 	return kind.Artifacts{Files: map[string][]byte{codegen.DefaultTypeScriptPath: src}}, nil
 }
 
-// StudioDescriptor returns a minimal descriptor; Flow Studio rendering
-// lands in Phase 6.
-func (*Kind) StudioDescriptor(_ kind.Spec) kind.StudioDescriptor {
-	return kind.StudioDescriptor{Renderer: "navigation-graph"}
+// StudioDescriptor projects the compiled graph into Flow Studio's
+// renderer-agnostic shape (nodes, edges, context toggles). Reachability
+// invariant pass/fail is folded in when the caller pre-runs verify and
+// uses studio.BuildWithFindings directly; this entry point returns the
+// raw descriptor with no findings (so it's safe in tests/handlers that
+// only need the structural projection).
+func (*Kind) StudioDescriptor(s kind.Spec) kind.StudioDescriptor {
+	spec, ok := s.(*Spec)
+	if !ok {
+		return kind.StudioDescriptor{Renderer: "navigation-graph"}
+	}
+	d := studio.Build(spec.graph)
+	return kind.StudioDescriptor{
+		Renderer: d.Renderer,
+		Nodes:    d.Routes,
+		Edges:    d.Affordances,
+		Toggles:  d.Contexts,
+	}
 }
 
 // Spec wraps a compiled navigation Graph and implements kind.Spec.

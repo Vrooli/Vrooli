@@ -91,6 +91,39 @@
       }
     },
     {
+      "id": "flows.codegen",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/CodegenFlow",
+      "method": "POST",
+      "summary": "Emit codegen artifacts",
+      "description": "Runs the navigation kind's codegen (routes.generated.ts) and optionally writes the output to disk.",
+      "category": "flows",
+      "cli_mapping": {
+        "command": "flow-verifier flows codegen"
+      }
+    },
+    {
+      "id": "flows.reconcile",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/ReconcileFlow",
+      "method": "POST",
+      "summary": "Reconcile spec against source",
+      "description": "Walks the scenario's ui/src tree and asserts every route declared in code matches a spec route (and vice-versa).",
+      "category": "flows",
+      "cli_mapping": {
+        "command": "flow-verifier flows reconcile"
+      }
+    },
+    {
+      "id": "flows.navigationStudio",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/GetNavigationStudio",
+      "method": "POST",
+      "summary": "Flow Studio descriptor for a navigation flow",
+      "description": "Returns the Flow Studio renderer payload (routes, affordances, containers, context toggles, invariant pass/fail) consumed by the UI's navigation graph view.",
+      "category": "flows",
+      "cli_mapping": {
+        "command": "flow-verifier flows studio"
+      }
+    },
+    {
       "id": "health",
       "path": "/health",
       "method": "GET",
@@ -260,6 +293,21 @@
       "name": "flows explain",
       "description": "Print the human-readable explain report for one flow",
       "endpoint_id": "flows.explain"
+    },
+    {
+      "name": "flows codegen",
+      "description": "Emit codegen artifacts for a navigation flow (routes.generated.ts)",
+      "endpoint_id": "flows.codegen"
+    },
+    {
+      "name": "flows reconcile",
+      "description": "Reconcile a navigation flow's spec against the scenario's ui/src tree",
+      "endpoint_id": "flows.reconcile"
+    },
+    {
+      "name": "flows studio",
+      "description": "Print the Flow Studio descriptor (routes, affordances, containers, context toggles, invariant pass/fail) for one navigation flow",
+      "endpoint_id": "flows.navigationStudio"
     },
     {
       "name": "artifacts status",

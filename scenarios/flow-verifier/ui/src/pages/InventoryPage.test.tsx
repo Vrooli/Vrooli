@@ -26,6 +26,7 @@ const flowAlpha = {
   contractPath: "a/flow.json",
   language: "ts" as const,
   schemaVersion: 1,
+  kind: "temporal",
 };
 
 const flowBeta = {
@@ -33,6 +34,7 @@ const flowBeta = {
   contractPath: "b/flow.json",
   language: "go" as const,
   schemaVersion: 1,
+  kind: "temporal",
 };
 
 describe("InventoryPage", () => {

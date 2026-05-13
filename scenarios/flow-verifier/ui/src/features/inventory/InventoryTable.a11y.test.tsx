@@ -11,7 +11,7 @@ describe("InventoryTable accessibility", () => {
     const { container } = renderWithProviders(
       <InventoryTable
         flows={[
-          { flowId: "alpha.flow", contractPath: "a/flow.json", language: "ts", schemaVersion: 1 },
+          { flowId: "alpha.flow", contractPath: "a/flow.json", language: "ts", schemaVersion: 1, kind: "temporal" },
         ]}
         latestByFlow={new Map()}
         onVerifyOne={() => {}}
