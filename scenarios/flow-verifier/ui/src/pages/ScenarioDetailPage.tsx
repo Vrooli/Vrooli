@@ -22,6 +22,7 @@ import {
 import { errorMessage } from "../lib/errorMessage";
 import { useTranslation } from "../i18n";
 import { ArtifactStatusPill } from "../features/artifacts/ArtifactStatusPill";
+import { ROUTES } from "../routes.generated";
 
 export function ScenarioDetailPage() {
   const { t } = useTranslation();
@@ -109,7 +110,7 @@ export function ScenarioDetailPage() {
               })
             : errorMessage(detail.error, t)}
         </p>
-        <Link to="/scenarios" className="text-sm text-app-primary hover:underline">
+        <Link to={ROUTES.scenarios} className="text-sm text-app-primary hover:underline">
           {t("scenarioDetail.backToList", { defaultValue: "← Back to scenarios" })}
         </Link>
       </div>
@@ -123,7 +124,7 @@ export function ScenarioDetailPage() {
     <div data-testid="scenario-detail-page" className="flex flex-col gap-4">
       <nav className="text-xs text-app-muted-foreground">
         <Link
-          to="/scenarios"
+          to={ROUTES.scenarios}
           data-testid="scenario-detail-breadcrumb"
           className="hover:underline"
         >
@@ -257,7 +258,7 @@ export function ScenarioDetailPage() {
                 >
                   <td className="py-2 pr-3">
                     <Link
-                      to={`/flows/${encodeURIComponent(f.flowId)}?scenario=${encodeURIComponent(scenarioId)}`}
+                      to={`${ROUTES.flowDetail(encodeURIComponent(f.flowId))}?scenario=${encodeURIComponent(scenarioId)}`}
                       className="font-mono text-app-primary hover:underline"
                     >
                       {f.flowId}
@@ -270,7 +271,7 @@ export function ScenarioDetailPage() {
                   <td className="py-2 pr-3 text-xs">
                     {last ? (
                       needsGenerate(last) ? (
-                        <Link to={`/runs/${last.id}`}>
+                        <Link to={ROUTES.runDetail(last.id)}>
                           <ArtifactStatusPill
                             status="needs_generate"
                             testId={`scenario-detail-pill-${f.flowId}`}
@@ -278,7 +279,7 @@ export function ScenarioDetailPage() {
                         </Link>
                       ) : (
                         <Link
-                          to={`/runs/${last.id}`}
+                          to={ROUTES.runDetail(last.id)}
                           className={statusClass(last.status)}
                         >
                           {last.status}

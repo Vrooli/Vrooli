@@ -138,6 +138,48 @@ func (h *connectHandler) ExplainFlow(_ context.Context, req *connect.Request[flo
 	return connect.NewResponse(&flowsv1.ExplainFlowResponse{Report: report}), nil
 }
 
+func (h *connectHandler) CodegenFlow(_ context.Context, req *connect.Request[flowsv1.CodegenFlowRequest]) (*connect.Response[flowsv1.CodegenFlowResponse], error) {
+	res, err := flows.Codegen(flows.CodegenOptions{
+		Root:     req.Msg.GetRoot(),
+		FlowID:   req.Msg.GetFlowId(),
+		Language: req.Msg.GetLanguage(),
+		Write:    req.Msg.GetWrite(),
+	})
+	if err != nil {
+		return nil, flows.ToConnectError(err)
+	}
+	out := &flowsv1.CodegenFlowResponse{Written: append([]string(nil), res.Written...)}
+	for _, a := range res.Artifacts {
+		out.Artifacts = append(out.Artifacts, &flowsv1.CodegenArtifact{Path: a.Path, Content: a.Content})
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) ReconcileFlow(_ context.Context, req *connect.Request[flowsv1.ReconcileFlowRequest]) (*connect.Response[flowsv1.ReconcileFlowResponse], error) {
+	res, err := flows.Reconcile(flows.ReconcileOptions{
+		Root:         req.Msg.GetRoot(),
+		FlowID:       req.Msg.GetFlowId(),
+		ScenarioRoot: req.Msg.GetScenarioRoot(),
+	})
+	if err != nil {
+		return nil, flows.ToConnectError(err)
+	}
+	out := &flowsv1.ReconcileFlowResponse{
+		Passed:       res.Passed,
+		FilesScanned: int32(res.FilesScanned),
+	}
+	for _, f := range res.Findings {
+		out.Findings = append(out.Findings, &flowsv1.ReconcileFinding{
+			Id:         f.ID,
+			Severity:   f.Severity,
+			Message:    f.Message,
+			SourceFile: f.SourceFile,
+			SourceLine: int32(f.SourceLine),
+		})
+	}
+	return connect.NewResponse(out), nil
+}
+
 // resolveFlowRoot walks scenarios to find one whose flows include
 // flowID, returning that scenario's path. Mirrors the cross-scenario
 // aggregation ListFlows performs when root is empty.

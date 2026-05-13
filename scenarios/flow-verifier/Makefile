@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help setup start stop restart status logs test clean build fmt fmt-go fmt-ui lint lint-go lint-ui check dev run open orient endpoints temporal-models
+.PHONY: help setup start stop restart status logs test clean build fmt fmt-go fmt-ui lint lint-go lint-ui check dev run open orient endpoints temporal-models navigation
 
 .DEFAULT_GOAL := help
 
@@ -27,6 +27,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
 	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
+	@printf "  make navigation                 Validate + verify + reconcile flow-verifier's own navigation.json (also writes routes.generated.ts)\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
@@ -58,6 +59,9 @@ test: ## Run scenario tests
 
 temporal-models: ## Verify formal flow artifacts via the flow-verifier scenario CLI
 	@flow-verifier verify check --root .
+
+navigation: ## Validate + verify + reconcile the scenario's own navigation.json and emit routes.generated.ts
+	@cd api && go run ./cmd/navigation-self-check --contract ../ui/flow/navigation.json --scenario .. --emit
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"
@@ -102,4 +106,4 @@ lint-ui: ## Lint UI code via eslint
 	@test -d ui || { echo "no ui directory; skipping lint-ui"; exit 0; }
 	@cd ui && npx --no-install eslint 'src/**/*.{ts,tsx}' 2>/dev/null || echo "eslint not installed; skipping lint-ui"
 
-check: fmt lint test ## Run fmt + lint + test
+check: fmt lint navigation test ## Run fmt + lint + navigation self-check + test

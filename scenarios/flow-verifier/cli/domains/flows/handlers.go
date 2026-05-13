@@ -129,6 +129,59 @@ func (h *handlers) show(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) codegen(ctx cliapp.RunContext) error {
+	write := ctx.Flag("write") == "true"
+	resp, err := h.client.CodegenFlow(context.Background(), connect.NewRequest(&flowsv1.CodegenFlowRequest{
+		Root:     ctx.Flag("root"),
+		FlowId:   ctx.Flag("flow"),
+		Language: ctx.Flag("lang"),
+		Write:    write,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("codegen flow", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.Artifacts)+len(resp.Msg.Written))
+	for _, a := range resp.Msg.Artifacts {
+		results = append(results, fmt.Sprintf("artifact: %s (%d bytes)", a.Path, len(a.Content)))
+	}
+	for _, w := range resp.Msg.Written {
+		results = append(results, fmt.Sprintf("written:  %s", w))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Codegen %s — %d artifact(s), %d written.", ctx.Flag("flow"), len(resp.Msg.Artifacts), len(resp.Msg.Written))},
+		ResultsHeading: "Artifacts",
+		Results:        results,
+	})
+}
+
+func (h *handlers) reconcile(ctx cliapp.RunContext) error {
+	resp, err := h.client.ReconcileFlow(context.Background(), connect.NewRequest(&flowsv1.ReconcileFlowRequest{
+		Root:         ctx.Flag("root"),
+		FlowId:       ctx.Flag("flow"),
+		ScenarioRoot: ctx.Flag("scenario"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("reconcile flow", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.Findings))
+	for _, f := range resp.Msg.Findings {
+		loc := ""
+		if f.SourceFile != "" {
+			loc = fmt.Sprintf(" (%s:%d)", f.SourceFile, f.SourceLine)
+		}
+		results = append(results, fmt.Sprintf("[%s] %s%s", f.Severity, f.Message, loc))
+	}
+	status := "PASSED"
+	if !resp.Msg.Passed {
+		status = "FAILED"
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Reconcile %s — %s (%d file(s) scanned, %d finding(s)).", ctx.Flag("flow"), status, resp.Msg.FilesScanned, len(resp.Msg.Findings))},
+		ResultsHeading: "Findings",
+		Results:        results,
+	})
+}
+
 func formatSummary(f *flowsv1.FlowSummary) string {
 	if f == nil {
 		return "(nil)"

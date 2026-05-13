@@ -7,6 +7,7 @@ import { ArtifactStatusPill } from "../artifacts/ArtifactStatusPill";
 import { errorMessage } from "../../lib/errorMessage";
 import { useTranslation } from "../../i18n";
 import { TabList, TabPanel } from "../../components/ui/Tabs";
+import { ROUTES } from "../../routes.generated";
 
 const RUN_KEY = (runId: string) => ["run", runId] as const;
 
@@ -69,7 +70,7 @@ function RunDetailBody({ runId }: { runId: string }) {
         <div className="mt-3">
           <Link
             data-testid="run-detail-back"
-            to="/flows"
+            to={ROUTES.flowsInventory}
             className="text-sm text-app-primary underline"
           >
             {t("runDetail.back", { defaultValue: "Back to inventory" })}
@@ -128,7 +129,7 @@ function RunDetailLoaded({ run }: { run: RunRow }) {
           <p className="mt-1 text-xs text-app-muted-foreground">
             <Link
               data-testid="run-detail-flow-link"
-              to={`/flows/${encodeURIComponent(run.flowId)}`}
+              to={ROUTES.flowDetail(encodeURIComponent(run.flowId))}
               className="font-mono text-app-primary underline"
             >
               {run.flowId}
@@ -150,7 +151,7 @@ function RunDetailLoaded({ run }: { run: RunRow }) {
         </div>
         <Link
           data-testid="run-detail-back"
-          to="/flows"
+          to={ROUTES.flowsInventory}
           className="text-sm text-app-primary underline"
         >
           {t("runDetail.back", { defaultValue: "Back to inventory" })}

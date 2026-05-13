@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"flow-verifier/internal/flows/kind"
+	"flow-verifier/internal/flows/kinds/navigation/codegen"
 	"flow-verifier/internal/flows/kinds/navigation/compile"
 	"flow-verifier/internal/flows/kinds/navigation/contract"
 	"flow-verifier/internal/flows/kinds/navigation/scaffold"
@@ -87,9 +88,26 @@ func (*Kind) Scaffold(opts kind.ScaffoldOptions) (string, error) {
 	})
 }
 
-// Codegen returns no artifacts until Phase 4 (routes.generated.ts).
-func (*Kind) Codegen(_ kind.Spec, _ kind.Language) (kind.Artifacts, error) {
-	return kind.Artifacts{}, nil
+// Codegen emits the kind's source artifacts. TypeScript is the only
+// supported target in Phase 4; the single artifact is
+// routes.generated.ts written to codegen.DefaultTypeScriptPath.
+func (*Kind) Codegen(s kind.Spec, target kind.Language) (kind.Artifacts, error) {
+	spec, ok := s.(*Spec)
+	if !ok {
+		return kind.Artifacts{}, fmt.Errorf("navigation.Codegen: spec is %T, want *navigation.Spec", s)
+	}
+	lang := target
+	if lang == "" {
+		lang = kind.LanguageTypeScript
+	}
+	if lang != kind.LanguageTypeScript {
+		return kind.Artifacts{}, fmt.Errorf("navigation.Codegen: unsupported language %q (typescript only in Phase 4)", lang)
+	}
+	src, err := codegen.TypeScript(spec.graph)
+	if err != nil {
+		return kind.Artifacts{}, err
+	}
+	return kind.Artifacts{Files: map[string][]byte{codegen.DefaultTypeScriptPath: src}}, nil
 }
 
 // StudioDescriptor returns a minimal descriptor; Flow Studio rendering

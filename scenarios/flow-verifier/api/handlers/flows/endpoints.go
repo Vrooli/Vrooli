@@ -54,4 +54,22 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "flows",
 		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows explain"},
 	},
+	{
+		ID:          "flows.codegen",
+		Path:        flowsconnect.FlowsServiceCodegenFlowProcedure,
+		Method:      "POST",
+		Summary:     "Emit codegen artifacts",
+		Description: "Runs the navigation kind's codegen (routes.generated.ts) and optionally writes the output to disk.",
+		Category:    "flows",
+		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows codegen"},
+	},
+	{
+		ID:          "flows.reconcile",
+		Path:        flowsconnect.FlowsServiceReconcileFlowProcedure,
+		Method:      "POST",
+		Summary:     "Reconcile spec against source",
+		Description: "Walks the scenario's ui/src tree and asserts every route declared in code matches a spec route (and vice-versa).",
+		Category:    "flows",
+		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows reconcile"},
+	},
 }

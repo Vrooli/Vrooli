@@ -55,6 +55,14 @@ func (f *fakeService) ExplainFlow(context.Context, *connect.Request[flowsv1.Expl
 	return connect.NewResponse(f.explainResp), nil
 }
 
+func (f *fakeService) CodegenFlow(context.Context, *connect.Request[flowsv1.CodegenFlowRequest]) (*connect.Response[flowsv1.CodegenFlowResponse], error) {
+	return connect.NewResponse(&flowsv1.CodegenFlowResponse{}), nil
+}
+
+func (f *fakeService) ReconcileFlow(context.Context, *connect.Request[flowsv1.ReconcileFlowRequest]) (*connect.Response[flowsv1.ReconcileFlowResponse], error) {
+	return connect.NewResponse(&flowsv1.ReconcileFlowResponse{Passed: true}), nil
+}
+
 func connectAPI(t *testing.T, svc *fakeService) http.Handler {
 	t.Helper()
 	path, handler := flowsconnect.NewFlowsServiceHandler(svc)
@@ -69,7 +77,7 @@ func TestFlowsList_RendersResults(t *testing.T) {
 	}}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "root"}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "root"}, {Name: "kind"}}}
 	ctx, out := cliapptest.NewCapturedRunContext(core, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"root": "."}})
 
 	require.NoError(t, h.list(ctx))
@@ -93,7 +101,7 @@ func TestFlowsCreate_WiresRequest(t *testing.T) {
 	h := newHandlers(core)
 	schema := cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "feature-dir", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "flow-id"}, {Name: "lang"}, {Name: "root"}},
+		Flags:       []cliapp.Flag{{Name: "flow-id"}, {Name: "lang"}, {Name: "root"}, {Name: "kind"}},
 	}
 	ctx, _ := cliapptest.NewCapturedRunContext(core, schema, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"feature-dir": "scenarios/test/feature"},
@@ -112,7 +120,7 @@ func TestFlowsCreate_SurfacesAPIError(t *testing.T) {
 	h := newHandlers(core)
 	schema := cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "feature-dir", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "flow-id"}, {Name: "lang"}, {Name: "root"}},
+		Flags:       []cliapp.Flag{{Name: "flow-id"}, {Name: "lang"}, {Name: "root"}, {Name: "kind"}},
 	}
 	ctx, _ := cliapptest.NewCapturedRunContext(core, schema, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"feature-dir": "scenarios/x/y"},

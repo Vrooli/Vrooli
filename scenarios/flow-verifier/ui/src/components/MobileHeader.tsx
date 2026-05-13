@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Menu, Settings as SettingsIcon } from "lucide-react";
 
 import { useTranslation } from "../i18n";
+import { ROUTES } from "../routes.generated";
 
 interface Props {
   onOpenDrawer: () => void;
@@ -23,7 +24,7 @@ export function MobileHeader({ onOpenDrawer }: Props) {
       >
         <Menu aria-hidden className="h-5 w-5" />
       </button>
-      <Link to="/" data-testid="mobile-header-brand" className="flex items-center gap-2 text-app-foreground">
+      <Link to={ROUTES.dashboard} data-testid="mobile-header-brand" className="flex items-center gap-2 text-app-foreground">
         <span
           aria-hidden
           className="inline-flex h-7 w-7 items-center justify-center rounded-control bg-app-primary text-sm font-semibold text-app-primary-foreground"
@@ -35,7 +36,7 @@ export function MobileHeader({ onOpenDrawer }: Props) {
         </span>
       </Link>
       <Link
-        to="/settings"
+        to={ROUTES.settings}
         data-testid="mobile-header-settings"
         aria-label={t("nav.settings", { defaultValue: "Settings" })}
         className="touch-target ms-auto inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"

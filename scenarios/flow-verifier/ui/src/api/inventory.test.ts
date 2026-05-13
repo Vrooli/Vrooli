@@ -25,6 +25,7 @@ describe("inventory API public type shape", () => {
       language: "go",
       schemaVersion: 6,
       scenarioId: "alpha",
+      kind: "temporal",
     };
     const got: FlowSummary = flowSummaryFromProto(proto);
     expect(got).toEqual({
@@ -44,6 +45,7 @@ describe("inventory API public type shape", () => {
       language: "go",
       schemaVersion: 6,
       scenarioId: "",
+      kind: "temporal",
     };
     expect(flowSummaryFromProto(proto).scenarioId).toBeUndefined();
   });

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { useTranslation } from "../i18n";
+import { ROUTES } from "../routes.generated";
 
 export function NotFoundPage() {
   const { t } = useTranslation();
@@ -15,7 +16,7 @@ export function NotFoundPage() {
         })}
       </p>
       <Link
-        to="/"
+        to={ROUTES.dashboard}
         data-testid="not-found-home"
         className="inline-flex h-9 items-center rounded-control bg-app-primary px-4 text-sm font-medium text-app-primary-foreground hover:brightness-95"
       >

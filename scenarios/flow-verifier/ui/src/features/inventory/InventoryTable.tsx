@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { FlowSummary, RunRow } from "../../api/inventory";
 import { ArtifactStatusPill } from "../artifacts/ArtifactStatusPill";
 import { useTranslation } from "../../i18n";
+import { ROUTES } from "../../routes.generated";
 
 interface Props {
   flows: FlowSummary[];
@@ -62,8 +63,8 @@ export function InventoryTable({
                     data-testid={`inventory-link-${flow.flowId}`}
                     to={
                       flow.scenarioId
-                        ? `/flows/${encodeURIComponent(flow.flowId)}?scenario=${encodeURIComponent(flow.scenarioId)}`
-                        : `/flows/${encodeURIComponent(flow.flowId)}`
+                        ? `${ROUTES.flowDetail(encodeURIComponent(flow.flowId))}?scenario=${encodeURIComponent(flow.scenarioId)}`
+                        : ROUTES.flowDetail(encodeURIComponent(flow.flowId))
                     }
                     className="text-app-primary hover:underline"
                   >
@@ -73,7 +74,7 @@ export function InventoryTable({
                 <td className="px-3 py-2 text-xs text-app-muted-foreground">
                   {flow.scenarioId ? (
                     <Link
-                      to={`/scenarios/${encodeURIComponent(flow.scenarioId)}`}
+                      to={ROUTES.scenarioDetail(encodeURIComponent(flow.scenarioId))}
                       className="hover:underline"
                     >
                       {flow.scenarioId}

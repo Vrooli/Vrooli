@@ -32,6 +32,16 @@
       "endpoint_id": "flows.explain"
     },
     {
+      "name": "flows codegen",
+      "description": "Emit codegen artifacts for a navigation flow (routes.generated.ts)",
+      "endpoint_id": "flows.codegen"
+    },
+    {
+      "name": "flows reconcile",
+      "description": "Reconcile a navigation flow's spec against the scenario's ui/src tree",
+      "endpoint_id": "flows.reconcile"
+    },
+    {
       "name": "artifacts status",
       "description": "Inspect the on-disk generated/ tree for one flow",
       "endpoint_id": "flows.artifacts.status"

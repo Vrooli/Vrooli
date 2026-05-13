@@ -4,6 +4,7 @@ import { Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useTranslation } from "./i18n";
+import { ROUTE_PATTERNS } from "./routes.generated";
 
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const InventoryPage = lazy(() => import("./pages/InventoryPage").then((m) => ({ default: m.InventoryPage })));
@@ -45,14 +46,14 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route path="/" element={<Page><DashboardPage /></Page>} />
-        <Route path="/scenarios" element={<Page><ScenariosPage /></Page>} />
-        <Route path="/scenarios/:scenarioId" element={<Page><ScenarioDetailPage /></Page>} />
-        <Route path="/flows" element={<Page><InventoryPage /></Page>} />
-        <Route path="/flows/:flowId" element={<Page><FlowDetailPage /></Page>} />
-        <Route path="/runs/:runId" element={<Page><RunDetailPage /></Page>} />
-        <Route path="/settings" element={<Page><SettingsPage /></Page>} />
-        <Route path="*" element={<Page><NotFoundPage /></Page>} />
+        <Route path={ROUTE_PATTERNS.dashboard} element={<Page><DashboardPage /></Page>} />
+        <Route path={ROUTE_PATTERNS.scenarios} element={<Page><ScenariosPage /></Page>} />
+        <Route path={ROUTE_PATTERNS.scenarioDetail} element={<Page><ScenarioDetailPage /></Page>} />
+        <Route path={ROUTE_PATTERNS.flowsInventory} element={<Page><InventoryPage /></Page>} />
+        <Route path={ROUTE_PATTERNS.flowDetail} element={<Page><FlowDetailPage /></Page>} />
+        <Route path={ROUTE_PATTERNS.runDetail} element={<Page><RunDetailPage /></Page>} />
+        <Route path={ROUTE_PATTERNS.settings} element={<Page><SettingsPage /></Page>} />
+        <Route path={ROUTE_PATTERNS.notFound} element={<Page><NotFoundPage /></Page>} />
       </Route>
     </Routes>
   );

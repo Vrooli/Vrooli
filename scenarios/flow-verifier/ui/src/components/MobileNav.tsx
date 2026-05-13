@@ -3,6 +3,7 @@ import { Boxes, GaugeCircle, Layers, Settings as SettingsIcon } from "lucide-rea
 import type { ReactNode } from "react";
 
 import { useTranslation } from "../i18n";
+import { ROUTES } from "../routes.generated";
 
 interface Item {
   to: string;
@@ -16,26 +17,26 @@ export function MobileNav() {
   const { t } = useTranslation();
   const items: Item[] = [
     {
-      to: "/",
+      to: ROUTES.dashboard,
       end: true,
       label: t("nav.dashboard", { defaultValue: "Dashboard" }),
       icon: <GaugeCircle aria-hidden className="h-5 w-5" />,
       testid: "mobile-nav-dashboard",
     },
     {
-      to: "/scenarios",
+      to: ROUTES.scenarios,
       label: t("nav.scenarios", { defaultValue: "Scenarios" }),
       icon: <Boxes aria-hidden className="h-5 w-5" />,
       testid: "mobile-nav-scenarios",
     },
     {
-      to: "/flows",
+      to: ROUTES.flowsInventory,
       label: t("nav.flows", { defaultValue: "All flows" }),
       icon: <Layers aria-hidden className="h-5 w-5" />,
       testid: "mobile-nav-flows",
     },
     {
-      to: "/settings",
+      to: ROUTES.settings,
       label: t("nav.settings", { defaultValue: "Settings" }),
       icon: <SettingsIcon aria-hidden className="h-5 w-5" />,
       testid: "mobile-nav-settings",

@@ -7,6 +7,7 @@ import { AlertTriangle } from "lucide-react";
 
 import type { ScenarioSummary } from "../../api/scenarios";
 import { useTranslation } from "../../i18n";
+import { ROUTES } from "../../routes.generated";
 
 interface Props {
   scenarios: ScenarioSummary[];
@@ -73,7 +74,7 @@ export function ScenarioTable({ scenarios, selectedIds, onToggleOne, onToggleAll
               </td>
               <td className="py-2 pr-3 align-top">
                 <Link
-                  to={`/scenarios/${encodeURIComponent(s.id)}`}
+                  to={ROUTES.scenarioDetail(encodeURIComponent(s.id))}
                   data-testid={`scenario-link-${s.id}`}
                   className="font-medium text-app-primary hover:underline"
                 >

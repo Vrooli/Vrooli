@@ -11,6 +11,7 @@ import { NavLink, useParams } from "react-router-dom";
 
 import { fetchFlows } from "../api/inventory";
 import { useTranslation } from "../i18n";
+import { ROUTES } from "../routes.generated";
 
 interface Props {
   onNavigate?: () => void;
@@ -51,8 +52,8 @@ export function SidebarFlowList({ onNavigate }: Props) {
             <NavLink
               to={
                 f.scenarioId
-                  ? `/flows/${encodeURIComponent(f.flowId)}?scenario=${encodeURIComponent(f.scenarioId)}`
-                  : `/flows/${encodeURIComponent(f.flowId)}`
+                  ? `${ROUTES.flowDetail(encodeURIComponent(f.flowId))}?scenario=${encodeURIComponent(f.scenarioId)}`
+                  : ROUTES.flowDetail(encodeURIComponent(f.flowId))
               }
               onClick={onNavigate}
               data-testid={`sidebar-flow-${f.flowId}`}

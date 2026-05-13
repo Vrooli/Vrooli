@@ -11,6 +11,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { useTranslation } from "../../i18n";
 import { InspectorPanel } from "../../components/InspectorPanel";
 import { TabList, TabPanel } from "../../components/ui/Tabs";
+import { ROUTES } from "../../routes.generated";
 
 import { ArtifactsPanel } from "../artifacts/ArtifactsPanel";
 
@@ -110,7 +111,7 @@ function FlowDetailBody({ flowId, scenarioId, tab, onTabChange, t }: BodyProps) 
         <div className="mt-3">
           <Link
             data-testid="flow-detail-back"
-            to="/flows"
+            to={ROUTES.flowsInventory}
             className="text-sm text-app-primary underline"
           >
             {t("flowDetail.back", { defaultValue: "Back to inventory" })}
@@ -146,7 +147,7 @@ function FlowDetailBody({ flowId, scenarioId, tab, onTabChange, t }: BodyProps) 
         </div>
         <Link
           data-testid="flow-detail-back"
-          to="/flows"
+          to={ROUTES.flowsInventory}
           className="text-sm text-app-primary underline"
         >
           {t("flowDetail.back", { defaultValue: "Back to inventory" })}
@@ -307,7 +308,7 @@ function HistoryTab({ flowId, inspectedRunId, onInspect, t }: HistoryTabProps) {
               <td className="py-1 pr-3">
                 <Link
                   data-testid={`flow-history-link-${run.id}`}
-                  to={`/runs/${run.id}`}
+                  to={ROUTES.runDetail(run.id)}
                   className="text-app-primary underline"
                 >
                   {run.id.slice(0, 8)}

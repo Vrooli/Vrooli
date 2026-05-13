@@ -10,6 +10,7 @@ import { NavLink, Link } from "react-router-dom";
 import { Boxes, GaugeCircle, Layers, Settings as SettingsIcon } from "lucide-react";
 
 import { useTranslation } from "../i18n";
+import { ROUTES } from "../routes.generated";
 
 interface NavItem {
   to: string;
@@ -35,26 +36,26 @@ export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
 
   const items: NavItem[] = [
     {
-      to: "/",
+      to: ROUTES.dashboard,
       end: true,
       label: t("nav.dashboard", { defaultValue: "Dashboard" }),
       icon: <GaugeCircle aria-hidden className="h-4 w-4" />,
       testid: "nav-dashboard",
     },
     {
-      to: "/scenarios",
+      to: ROUTES.scenarios,
       label: t("nav.scenarios", { defaultValue: "Scenarios" }),
       icon: <Boxes aria-hidden className="h-4 w-4" />,
       testid: "nav-scenarios",
     },
     {
-      to: "/flows",
+      to: ROUTES.flowsInventory,
       label: t("nav.flows", { defaultValue: "All flows" }),
       icon: <Layers aria-hidden className="h-4 w-4" />,
       testid: "nav-flows",
     },
     {
-      to: "/settings",
+      to: ROUTES.settings,
       label: t("nav.settings", { defaultValue: "Settings" }),
       icon: <SettingsIcon aria-hidden className="h-4 w-4" />,
       testid: "nav-settings",
@@ -73,7 +74,7 @@ export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
     >
       <div className="flex items-center gap-2 border-b border-app-border px-4 py-4">
         <Link
-          to="/"
+          to={ROUTES.dashboard}
           onClick={onNavigate}
           className="flex items-center gap-2 text-app-foreground"
           data-testid="app-brand"

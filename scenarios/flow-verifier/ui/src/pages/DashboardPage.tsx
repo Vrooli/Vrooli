@@ -5,6 +5,7 @@ import { fetchRuns } from "../api/inventory";
 import { HealthCard } from "../features/health/HealthCard";
 import { TimelineCard } from "../features/timeline/TimelineCard";
 import { useTranslation } from "../i18n";
+import { ROUTES } from "../routes.generated";
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -27,7 +28,7 @@ export function DashboardPage() {
           </p>
         </div>
         <Link
-          to="/flows"
+          to={ROUTES.flowsInventory}
           data-testid="dashboard-cta-verify"
           className="inline-flex h-9 items-center rounded-control bg-app-primary px-4 text-sm font-medium text-app-primary-foreground hover:brightness-95"
         >
@@ -65,7 +66,7 @@ export function DashboardPage() {
               <li key={r.id} className="flex items-center gap-2 text-xs">
                 <StatusDot status={r.status} />
                 <Link
-                  to={`/runs/${r.id}`}
+                  to={ROUTES.runDetail(r.id)}
                   data-testid={`dashboard-recent-${r.id}`}
                   className="truncate text-app-foreground hover:underline"
                 >

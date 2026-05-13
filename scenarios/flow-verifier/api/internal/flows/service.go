@@ -5,12 +5,14 @@ package flows
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"flow-verifier/internal/flows/discovery"
 	"flow-verifier/internal/flows/kind"
-	_ "flow-verifier/internal/flows/kinds/navigation" // register navigation kind
+	"flow-verifier/internal/flows/kinds/navigation"
+	navigationreconcile "flow-verifier/internal/flows/kinds/navigation/reconcile"
 	"flow-verifier/internal/flows/kinds/temporal"
 	"flow-verifier/internal/flows/kinds/temporal/codegen"
 	"flow-verifier/internal/flows/kinds/temporal/contract"
@@ -187,6 +189,159 @@ func New(opts NewOptions) (string, error) {
 		FlowID:    opts.FlowID,
 		Language:  kind.Language(opts.Language),
 	})
+}
+
+// CodegenArtifact is a single file emitted by a kind's codegen pass,
+// addressed by its repo-relative destination path.
+type CodegenArtifact struct {
+	Path    string
+	Content []byte
+}
+
+// CodegenOptions configures Codegen.
+type CodegenOptions struct {
+	Root     string
+	FlowID   string
+	Language string
+	// Write controls whether the artifacts are written to disk under
+	// the resolved scenario root. Write=false is the default for the
+	// HTTP surface; CLI passes Write=true.
+	Write bool
+}
+
+// CodegenResult is what Codegen returns.
+type CodegenResult struct {
+	Artifacts []CodegenArtifact
+	Written   []string
+}
+
+// Codegen runs the navigation kind's codegen pass for a single flow.
+// Phase 4 only supports the navigation kind here; the temporal pipeline
+// owns its own codegen path under verification.
+func Codegen(opts CodegenOptions) (CodegenResult, error) {
+	if opts.FlowID == "" {
+		return CodegenResult{}, fmt.Errorf("codegen requires a flow id")
+	}
+	spec, err := loadSpec(opts.Root, opts.FlowID)
+	if err != nil {
+		return CodegenResult{}, err
+	}
+	if spec.Kind() != navigation.Name {
+		return CodegenResult{}, fmt.Errorf("codegen: flow %s is kind %q; only navigation is supported in Phase 4", opts.FlowID, spec.Kind())
+	}
+	navKind, ok := kind.Get(navigation.Name)
+	if !ok {
+		return CodegenResult{}, fmt.Errorf("navigation kind not registered")
+	}
+	lang := kind.Language(opts.Language)
+	if lang == "" {
+		lang = kind.LanguageTypeScript
+	}
+	arts, err := navKind.Codegen(spec, lang)
+	if err != nil {
+		return CodegenResult{}, err
+	}
+	scenarioRoot := deriveScenarioRoot(spec.ContractPath())
+	result := CodegenResult{}
+	for path, content := range arts.Files {
+		result.Artifacts = append(result.Artifacts, CodegenArtifact{Path: path, Content: content})
+	}
+	if opts.Write {
+		for _, a := range result.Artifacts {
+			dest := filepath.Join(scenarioRoot, a.Path)
+			if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+				return CodegenResult{}, fmt.Errorf("mkdir %s: %w", filepath.Dir(dest), err)
+			}
+			if err := os.WriteFile(dest, a.Content, 0o644); err != nil {
+				return CodegenResult{}, fmt.Errorf("write %s: %w", dest, err)
+			}
+			result.Written = append(result.Written, dest)
+		}
+	}
+	return result, nil
+}
+
+// ReconcileFinding is one discrepancy reported by Reconcile.
+type ReconcileFinding = navigationreconcile.Finding
+
+// ReconcileResult is what Reconcile returns.
+type ReconcileResult struct {
+	Passed       bool
+	Findings     []ReconcileFinding
+	FilesScanned int
+}
+
+// ReconcileOptions configures Reconcile.
+type ReconcileOptions struct {
+	Root         string
+	FlowID       string
+	ScenarioRoot string
+}
+
+// Reconcile runs the navigation kind's reconciler against a scenario's
+// ui/src tree. ScenarioRoot empty derives from the flow's contract path.
+func Reconcile(opts ReconcileOptions) (ReconcileResult, error) {
+	if opts.FlowID == "" {
+		return ReconcileResult{}, fmt.Errorf("reconcile requires a flow id")
+	}
+	spec, err := loadSpec(opts.Root, opts.FlowID)
+	if err != nil {
+		return ReconcileResult{}, err
+	}
+	if spec.Kind() != navigation.Name {
+		return ReconcileResult{}, fmt.Errorf("reconcile: flow %s is kind %q; only navigation is supported", opts.FlowID, spec.Kind())
+	}
+	navSpec, ok := spec.(*navigation.Spec)
+	if !ok {
+		return ReconcileResult{}, fmt.Errorf("reconcile: spec is %T, want *navigation.Spec", spec)
+	}
+	scenarioRoot := opts.ScenarioRoot
+	if scenarioRoot == "" {
+		scenarioRoot = deriveScenarioRoot(spec.ContractPath())
+	}
+	res, err := navigationreconcile.Run(navSpec.Graph(), scenarioRoot)
+	if err != nil {
+		return ReconcileResult{}, err
+	}
+	return ReconcileResult{
+		Passed:       res.Passed,
+		Findings:     res.Findings,
+		FilesScanned: res.FilesScanned,
+	}, nil
+}
+
+// loadSpec discovers and returns the single spec matching flowID under root.
+func loadSpec(root, flowID string) (kind.Spec, error) {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return nil, err
+	}
+	specs, err := discovery.FindContracts(rootAbs)
+	if err != nil {
+		return nil, err
+	}
+	selected := discovery.Filter(specs, flowID)
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("unknown flow id %s", flowID)
+	}
+	return selected[0], nil
+}
+
+// deriveScenarioRoot infers the scenario root from a contract path that
+// follows the `<scenario>/<feature>/flow/<name>.json` convention. For
+// navigation under `<scenario>/ui/flow/navigation.json` the result is
+// `<scenario>`. Falls back to the contract's parent's parent for
+// anything else.
+func deriveScenarioRoot(contractPath string) string {
+	dir := filepath.Dir(contractPath) // .../ui/flow
+	if filepath.Base(dir) == "flow" {
+		dir = filepath.Dir(dir) // .../ui
+		if filepath.Base(dir) == "ui" {
+			return filepath.Dir(dir)
+		}
+		return filepath.Dir(dir)
+	}
+	return filepath.Dir(dir)
 }
 
 func discoverFiltered(root, flowID string) ([]model.Flow, error) {

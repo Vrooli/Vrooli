@@ -57,6 +57,27 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				Args:        cliapp.ArgSchema{Flags: []cliapp.Flag{flowFlag, rootFlag}},
 				RunCtx:      h.show,
 			},
+			{
+				Name:        "codegen",
+				Description: "Emit codegen artifacts for a navigation flow (routes.generated.ts)",
+				Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+					flowFlag,
+					rootFlag,
+					{Name: "lang", Description: "Codegen target language (typescript)", Default: "typescript"},
+					{Name: "write", Description: "Write artifacts to disk under the scenario root", Default: "false"},
+				}},
+				RunCtx: h.codegen,
+			},
+			{
+				Name:        "reconcile",
+				Description: "Reconcile a navigation flow's spec against the scenario's ui/src tree",
+				Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+					flowFlag,
+					rootFlag,
+					{Name: "scenario", Description: "Scenario root containing ui/src (defaults to derived from contract path)"},
+				}},
+				RunCtx: h.reconcile,
+			},
 		},
 	}
 }
