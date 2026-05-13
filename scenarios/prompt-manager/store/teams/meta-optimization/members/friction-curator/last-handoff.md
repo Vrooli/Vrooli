@@ -1,5 +1,5 @@
 ### Inbox state
-- Entries received today: 0 (initial state — member just bound)
+- Entries received today: 0
 - Routed today: 0
 - Dropped today (one-off): 0
 - Reclassified today: 0
@@ -16,7 +16,7 @@
 - None this heartbeat.
 
 ### Triage snapshot
-- friction-triage-record/<YYYY-MM-DD> not yet written — will be created on first heartbeat with non-zero activity.
+- friction-triage-record/2026-05-13 updated as `knw-1778644851788022903`
 
 ### Patterns surfaced to debt-curator
 - None this heartbeat.

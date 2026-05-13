@@ -1,24 +1,37 @@
-// Package metrics owns the descriptor for the operational metrics
-// scrape endpoint. The handler continues to live in api/metrics.go;
-// this package only exposes the canonical metadata so gen-endpoints can
-// validate the route under the RESTException rule. Metrics stay REST
-// because monitoring tools that scrape this endpoint dictate the wire
-// shape and cannot be wrapped in a generated Connect client.
+// Package metrics exposes the canonical metadata for the MetricsService
+// Connect-RPC endpoint. gen-endpoints consumes this slice to keep
+// `.vrooli/endpoints.json` in sync with the wire surface.
 package metrics
 
-import "web-console/internal/module"
+import (
+	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics/metrics_v1connect"
+
+	"web-console/internal/module"
+)
 
 var Endpoints = []module.EndpointDescriptor{
 	{
-		ID:          "metrics_snapshot",
-		Path:        "/api/v1/metrics",
-		Method:      "GET",
-		Summary:     "Operational metrics snapshot",
-		Description: "Returns a JSON snapshot of all operational metrics for monitoring/scrape tooling.",
+		ID:          "metrics_get",
+		Path:        metricsconnect.MetricsServiceGetProcedure,
+		Method:      "POST",
+		Summary:     "Get operational metrics snapshot",
+		Description: "Returns a point-in-time snapshot of all operational counters (sessions, connections, messages, reattach, recovery, AI, voice) plus uptime.",
 		Category:    "system",
-		RESTException: &module.RESTException{
-			Reason: module.RESTReasonThirdPartyShape,
-			Note:   "Metrics are consumed by external monitoring tooling whose scrape format we do not control. Stays REST and never becomes Connect.",
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"sessions":                      "SessionMetrics",
+				"connections":                   "ConnectionMetrics",
+				"messages":                      "MessageMetrics",
+				"reattach":                      "ReattachMetrics",
+				"recovery":                      "RecoveryMetrics",
+				"ai_generations":                "int64",
+				"ai_suggestions":                "int64",
+				"stdin_before_ready_total":      "int64",
+				"voice_skip_verification_total": "int64",
+				"uptime":                        "string",
+			},
 		},
+		CLIMapping: &module.CLIMapping{Command: "web-console metrics"},
 	},
 }

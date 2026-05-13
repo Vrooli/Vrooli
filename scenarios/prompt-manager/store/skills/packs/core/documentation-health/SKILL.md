@@ -346,7 +346,7 @@ knowledge-observatory docs templates              # List types with purpose desc
 knowledge-observatory docs template <type>         # Get template content
 ```
 
-Available types: seams, problems, progress, invariants, assumptions,
+Available types: seams, problems, progress, invariants,
 error-semantics, security-posture, temporal-flows, coherence-notes, experience-audit
 
 #### When to Create vs. Skip Files
@@ -356,8 +356,7 @@ error-semantics, security-posture, temporal-flows, coherence-notes, experience-a
 | SEAMS.md | Always - core internal doc | Never skip |
 | PROBLEMS.md | Always - core internal doc | Never skip |
 | PROGRESS.md | Always - core internal doc | Never skip |
-| INVARIANTS.md | System has critical contracts | Simple CRUD with no invariants |
-| ASSUMPTIONS.md | Code makes implicit assumptions | Well-typed, explicit code |
+| INVARIANTS.md | System has critical contracts or cross-cutting rules; also tracks unenforced-but-relied-on rules in Gaps section (see `invariant-discovery-and-enforcement`) | Simple CRUD with no invariants |
 | ERROR-SEMANTICS.md | User-facing errors matter | Internal tooling only |
 | SECURITY-POSTURE.md | Security is a concern | Internal-only, no auth |
 | TEMPORAL-FLOWS.md | Async/concurrent operations, lifecycle flows, workflow maturity/spec status | Purely synchronous code |

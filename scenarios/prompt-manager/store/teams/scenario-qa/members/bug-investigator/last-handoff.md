@@ -1,5 +1,5 @@
 ### Inbox state
-- bug-inbox entries pending: 0 (initial state — member just bound)
+- bug-inbox entries pending: 0
 
 ### Investigation in flight
 - none
@@ -8,10 +8,10 @@
 - none
 
 ### Technique applied
-- n/a
+- n/a; no inbox entry available to investigate
 
 ### Action taken
-- n/a
+- none for bug inbox
 
 ### Backlog item / decision created
 - none
@@ -20,4 +20,4 @@
 - none
 
 ### Surface for technique graduation
-- none — the audit log starts empty; graduation candidates emerge as `bug-investigation-report/*` entries accumulate.
+- none; no investigation ran this heartbeat

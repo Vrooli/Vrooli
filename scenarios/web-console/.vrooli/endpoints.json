@@ -409,15 +409,21 @@
       }
     },
     {
-      "id": "events_stream",
-      "path": "/api/v1/events",
-      "method": "GET",
-      "summary": "Server-sent events stream",
-      "description": "Server-Sent Events stream for live session/conversation updates consumed by the UI via EventSource.",
+      "id": "events_list",
+      "path": "/vrooli.web_console.v1.events.EventsService/List",
+      "method": "POST",
+      "summary": "List recent lifecycle events",
+      "description": "Returns the most recent events from the in-memory ring buffer, newest last. The server caps the limit at 1000.",
       "category": "events",
-      "rest_exception": {
-        "reason": "third_party_shape",
-        "note": "EventSource is a browser primitive with a fixed wire shape. Migration to Connect server-streaming is deferred to the final streams phase."
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "Event[]",
+          "total": "int32"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console events"
       }
     },
     {
@@ -445,15 +451,29 @@
       }
     },
     {
-      "id": "metrics_snapshot",
-      "path": "/api/v1/metrics",
-      "method": "GET",
-      "summary": "Operational metrics snapshot",
-      "description": "Returns a JSON snapshot of all operational metrics for monitoring/scrape tooling.",
+      "id": "metrics_get",
+      "path": "/vrooli.web_console.v1.metrics.MetricsService/Get",
+      "method": "POST",
+      "summary": "Get operational metrics snapshot",
+      "description": "Returns a point-in-time snapshot of all operational counters (sessions, connections, messages, reattach, recovery, AI, voice) plus uptime.",
       "category": "system",
-      "rest_exception": {
-        "reason": "third_party_shape",
-        "note": "Metrics are consumed by external monitoring tooling whose scrape format we do not control. Stays REST and never becomes Connect."
+      "response": {
+        "type": "object",
+        "properties": {
+          "ai_generations": "int64",
+          "ai_suggestions": "int64",
+          "connections": "ConnectionMetrics",
+          "messages": "MessageMetrics",
+          "reattach": "ReattachMetrics",
+          "recovery": "RecoveryMetrics",
+          "sessions": "SessionMetrics",
+          "stdin_before_ready_total": "int64",
+          "uptime": "string",
+          "voice_skip_verification_total": "int64"
+        }
+      },
+      "cli_mapping": {
+        "command": "web-console metrics"
       }
     },
     {
@@ -873,6 +893,18 @@
       "rest_exception": {
         "reason": "multipart_upload",
         "note": "Multipart/form-data upload. Stays REST even post-Connect because Connect's wire format does not natively carry multipart payloads."
+      }
+    },
+    {
+      "id": "terminal_ws",
+      "path": "/api/v1/sessions/{id}/ws",
+      "method": "GET",
+      "summary": "Terminal WebSocket bridge",
+      "description": "WebSocket upgrade endpoint for xterm.js. Streams stdin/stdout/resize/keepalive frames between the browser and the per-session PTY (or tmux pane). Migration to Connect server-streaming is deferred to the final streams phase.",
+      "category": "terminal",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "xterm.js requires a raw WebSocket upgrade — Connect-RPC cannot express that handshake. Stays REST until a Connect server-streaming RPC replaces it."
       }
     },
     {
@@ -1424,6 +1456,18 @@
       }
     },
     {
+      "id": "voice_stream",
+      "path": "/api/v1/voice/stream",
+      "method": "GET",
+      "summary": "Voice streaming WebSocket",
+      "description": "Bi-directional WebSocket carrying microphone audio frames upstream and partial/final transcripts plus wake-word and speaker-verification events downstream.",
+      "category": "voice",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Browser microphones stream raw audio over a WebSocket upgrade. Migration to Connect server-streaming is deferred to the final streams phase."
+      }
+    },
+    {
       "id": "workspace_get_layout",
       "path": "/vrooli.web_console.v1.workspace.WorkspaceService/GetLayout",
       "method": "POST",
@@ -1849,6 +1893,16 @@
       "name": "workspace group-delete",
       "description": "Delete a tab group",
       "endpoint_id": "workspace_delete_group"
+    },
+    {
+      "name": "events",
+      "description": "Show recent lifecycle events from the in-memory ring buffer",
+      "endpoint_id": "events_list"
+    },
+    {
+      "name": "metrics",
+      "description": "Show runtime metrics (active sessions, totals, TTS/voice counters)",
+      "endpoint_id": "metrics_get"
     }
   ]
 }

@@ -1,11 +1,13 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
+	"context"
 	"testing"
+
+	"connectrpc.com/connect"
+
+	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics"
+	metricsH "web-console/handlers/metrics"
 )
 
 // [REQ:P1-004b] Operational Metrics Collection - metrics tests
@@ -95,7 +97,9 @@ func TestMetrics_AtomicConcurrency(t *testing.T) {
 	}
 }
 
-func TestHandleMetrics_Endpoint(t *testing.T) {
+// MetricsService.Get returns the current snapshot through the Connect
+// handler. Exercises the same transport-neutral path the real CLI uses.
+func TestMetricsService_Get(t *testing.T) {
 	srv := newFakeTestServer()
 
 	// Simulate some operations
@@ -103,34 +107,22 @@ func TestHandleMetrics_Endpoint(t *testing.T) {
 	srv.metrics.ActiveSessions.Add(1)
 	srv.metrics.ConnectionsTotal.Add(3)
 
-	req := httptest.NewRequest("GET", "/api/v1/metrics", nil)
-	rec := httptest.NewRecorder()
-
-	srv.handleMetrics(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	h := metricsH.NewConnectHandler(metricsH.Deps{Service: newMetricsAdapter(srv)})
+	resp, err := h.Get(context.Background(), connect.NewRequest(&metricsv1.GetRequest{}))
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
 	}
-
-	ct := rec.Header().Get("Content-Type")
-	if !strings.HasPrefix(ct, "application/json") {
-		t.Errorf("expected Content-Type application/json, got %q", ct)
+	got := resp.Msg
+	if got.GetSessions().GetCreated() != 2 {
+		t.Errorf("expected 2 created, got %d", got.GetSessions().GetCreated())
 	}
-
-	var resp MetricsResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
+	if got.GetSessions().GetActive() != 1 {
+		t.Errorf("expected 1 active, got %d", got.GetSessions().GetActive())
 	}
-	if resp.Sessions.Created != 2 {
-		t.Errorf("expected 2 created, got %d", resp.Sessions.Created)
+	if got.GetConnections().GetTotal() != 3 {
+		t.Errorf("expected 3 total connections, got %d", got.GetConnections().GetTotal())
 	}
-	if resp.Sessions.Active != 1 {
-		t.Errorf("expected 1 active, got %d", resp.Sessions.Active)
-	}
-	if resp.Connections.Total != 3 {
-		t.Errorf("expected 3 total connections, got %d", resp.Connections.Total)
-	}
-	if resp.Uptime == "" {
+	if got.GetUptime() == "" {
 		t.Error("uptime should not be empty")
 	}
 }

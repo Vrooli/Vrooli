@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics/metrics_v1connect"
 )
 
 // [REQ:P0-004a] Proxy-Correct Networking - all expected routes are registered
@@ -21,12 +24,15 @@ func TestSetupRoutes_AllEndpointsRegistered(t *testing.T) {
 		{"GET", "/api/v1/health"},
 		{"GET", "/api/v1/sessions/test-id/ws"},
 		// NOTE: ai/*, shortcuts/*, files/resolve, files/content,
-		// conversation/*, sessions/*, tts/*, and voice/* routes have moved
-		// to Connect-RPC under /vrooli.web_console.v1.<domain>.<Service>/<RPC>.
-		// Per-RPC registration is covered by Connect-handler tests in the
+		// conversation/*, sessions/*, tts/*, voice/*, events, and
+		// metrics routes have moved to Connect-RPC under
+		// /vrooli.web_console.v1.<domain>.<Service>/<RPC>. Per-RPC
+		// registration is covered by Connect-handler tests in the
 		// matching domain test files; the parity test in
-		// internal/modules ensures registry coverage.
-		{"GET", "/api/v1/metrics"},
+		// internal/modules ensures registry coverage. The Connect
+		// procedure path constants below are spot-checked here to
+		// guarantee the router actually mounts them.
+		{"POST", metricsconnect.MetricsServiceGetProcedure},
 	}
 
 	for _, rt := range routes {
@@ -70,13 +76,18 @@ func TestHandler_HealthEndpoint(t *testing.T) {
 	}
 }
 
-// [REQ:P1-004b] Metrics - metrics endpoint responds
+// [REQ:P1-004b] Metrics - MetricsService.Get responds through the full
+// handler stack (CORS + request-ID middleware + Connect mux).
 func TestHandler_MetricsEndpoint(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.setupRoutes()
 	handler := srv.Handler()
 
-	req := httptest.NewRequest("GET", "/api/v1/metrics", nil)
+	// Connect's JSON codec accepts an empty body for a request with no
+	// fields. Using application/json keeps the test independent of the
+	// generated protobuf wire format.
+	req := httptest.NewRequest("POST", metricsconnect.MetricsServiceGetProcedure, bytes.NewReader([]byte("{}")))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

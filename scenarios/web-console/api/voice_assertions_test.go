@@ -73,9 +73,9 @@ func TestGreenfield_UIRejectionContractIntact(t *testing.T) {
 		t.Error("Workspace.tsx: VoiceRejectionBanner render missing")
 	}
 
-	api := readUISource(t, "lib/api.ts")
+	api := readUISource(t, "api/voice.ts")
 	if !strings.Contains(api, "export async function transcribeAudioBypassFilter") {
-		t.Error("lib/api.ts: transcribeAudioBypassFilter function missing")
+		t.Error("api/voice.ts: transcribeAudioBypassFilter function missing")
 	}
 
 	for _, path := range []string{

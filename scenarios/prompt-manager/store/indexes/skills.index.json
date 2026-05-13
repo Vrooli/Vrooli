@@ -20,19 +20,6 @@
       "status": "active"
     },
     {
-      "id": "assumption-mapping-and-hardening",
-      "pack": "core",
-      "name": "Assumption Mapping \u0026 Hardening",
-      "modes": [
-        "steer",
-        "analysis"
-      ],
-      "tags": [
-        "skill"
-      ],
-      "status": "active"
-    },
-    {
       "id": "boundary-of-responsibility-enforcement",
       "pack": "core",
       "name": "Boundary of Responsibility Enforcement",
@@ -60,7 +47,7 @@
     {
       "id": "change-axis-and-evolution-resilience-audit",
       "pack": "core",
-      "name": "Change Axis \u0026 Evolution Resilience",
+      "name": "Change Axis & Evolution Resilience",
       "modes": [
         "steer",
         "audits"
@@ -129,7 +116,7 @@
     {
       "id": "control-surface-tunable-levers-design",
       "pack": "core",
-      "name": "Control Surface \u0026 Tunable Levers",
+      "name": "Control Surface & Tunable Levers",
       "modes": [
         "steer",
         "configuration"
@@ -208,7 +195,7 @@
     {
       "id": "error-semantics-recovery-path-design",
       "pack": "core",
-      "name": "Error Semantics \u0026 Recovery Path",
+      "name": "Error Semantics & Recovery Path",
       "modes": [
         "steer",
         "errorhandling"
@@ -235,7 +222,7 @@
     {
       "id": "explore",
       "pack": "core",
-      "name": "Exploration \u0026 Discovery",
+      "name": "Exploration & Discovery",
       "modes": [
         "steer",
         "explore"
@@ -248,7 +235,7 @@
     {
       "id": "failure-topography-and-graceful-degradation",
       "pack": "core",
-      "name": "Failure Topography \u0026 Graceful Degradation",
+      "name": "Failure Topography & Graceful Degradation",
       "modes": [
         "steer",
         "reliability"
@@ -261,7 +248,7 @@
     {
       "id": "idempotency-replay-safety-hardening",
       "pack": "core",
-      "name": "Idempotency \u0026 Replay Safety",
+      "name": "Idempotency & Replay Safety",
       "modes": [
         "steer",
         "reliability"
@@ -303,7 +290,7 @@
     {
       "id": "invariant-discovery-and-enforcement",
       "pack": "core",
-      "name": "Invariant Discovery \u0026 Enforcement",
+      "name": "Invariant Discovery & Enforcement",
       "modes": [
         "steer",
         "analysis"
@@ -388,7 +375,7 @@
     {
       "id": "progress-continuity-interruption-resilience",
       "pack": "core",
-      "name": "Progress Continuity \u0026 Interruption Resilience",
+      "name": "Progress Continuity & Interruption Resilience",
       "modes": [
         "steer",
         "reliability"
@@ -484,7 +471,7 @@
     {
       "id": "seam-discovery-and-enforcement",
       "pack": "core",
-      "name": "Testing Seam Discovery \u0026 Enforcement",
+      "name": "Testing Seam Discovery & Enforcement",
       "modes": [
         "steer",
         "architecture"
@@ -510,7 +497,7 @@
     {
       "id": "signal-and-feedback-surface-design",
       "pack": "core",
-      "name": "Signal \u0026 Feedback Surface Design",
+      "name": "Signal & Feedback Surface Design",
       "modes": [
         "steer",
         "observability"

@@ -25,13 +25,17 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
-	capabilitiesH "web-console/handlers/capabilities"
 	aiH "web-console/handlers/ai"
+	capabilitiesH "web-console/handlers/capabilities"
 	conversationH "web-console/handlers/conversation"
+	eventsH "web-console/handlers/events"
+	hooksH "web-console/handlers/hooks"
+	metricsH "web-console/handlers/metrics"
 	sessionsH "web-console/handlers/sessions"
-	ttsH "web-console/handlers/tts"
 	settingsH "web-console/handlers/settings"
 	shortcutsH "web-console/handlers/shortcuts"
+	terminalH "web-console/handlers/terminal"
+	ttsH "web-console/handlers/tts"
 	voiceH "web-console/handlers/voice"
 	workspaceH "web-console/handlers/workspace"
 )
@@ -399,11 +403,12 @@ func (s *Server) setupRoutes() {
 	// Sessions domain (CRUD, recovery, policy) — Connect-RPC.
 	sessionsH.Module(newSessionsAdapter(s), nil).Mount(s.router)
 
-	// WebSocket terminal I/O - [REQ:P0-002b]
-	s.router.HandleFunc("/api/v1/sessions/{id}/ws", s.handleTerminalWS).Methods("GET")
-
-	// Image upload for terminal path injection
-	s.router.HandleFunc("/api/v1/sessions/{id}/upload", s.handleUpload).Methods("POST")
+	// Terminal REST exceptions: WebSocket bridge ([REQ:P0-002b]) and
+	// multipart image upload for path injection.
+	terminalH.Module(terminalH.Deps{
+		Upload: s.handleUpload,
+		WS:     s.handleTerminalWS,
+	}).Mount(s.router)
 
 	// Workspace domain (panes, groups, layout) — Connect-RPC.
 	workspaceH.Module(newWorkspaceAdapter(s), nil).Mount(s.router)
@@ -420,23 +425,25 @@ func (s *Server) setupRoutes() {
 	// AI domain - [REQ:P0-005a] [REQ:P1-003a] [REQ:P1-003b] (Connect-RPC AIService)
 	aiH.Module(newAIAdapter(s), nil).Mount(s.router)
 
-	// Metrics endpoint - [REQ:P1-004b]
-	s.router.HandleFunc("/api/v1/metrics", s.handleMetrics).Methods("GET")
+	// Metrics — Connect-RPC MetricsService [REQ:P1-004b]
+	metricsH.Module(newMetricsAdapter(s), nil).Mount(s.router)
 
-	// Events endpoint - [REQ:P1-004a]
-	s.router.HandleFunc("/api/v1/events", s.handleEvents).Methods("GET")
+	// Events — Connect-RPC EventsService [REQ:P1-004a]
+	eventsH.Module(newEventsAdapter(s), nil).Mount(s.router)
 
 	// Voice input capabilities
 	capabilitiesH.Module(newCapabilitiesAdapter(s), nil).Mount(s.router)
-	// Voice stream WS stays on the legacy path until the dedicated streams phase.
-	s.router.HandleFunc("/api/v1/voice/stream", s.handleVoiceStreamWS).Methods("GET")
 	// Voice — Connect-RPC module replaces the 14 legacy REST handlers
 	// (transcribe, stream config, wake word, speaker config/status/profiles).
 	voiceH.Module(newVoiceAdapter(s), nil).Mount(s.router)
+	// Voice stream WS — REST exception (raw audio frames over WebSocket).
+	voiceH.StreamModule(s.handleVoiceStreamWS).Mount(s.router)
 
-	// Hooks
-	s.router.HandleFunc("/api/v1/hooks/stop", s.handleHookStop).Methods("POST")
-	s.router.HandleFunc("/api/v1/hooks/prompt-submit", s.handleHookPromptSubmit).Methods("POST")
+	// Hooks — REST webhook receivers (Claude Code CLI dictates wire shape)
+	hooksH.Module(hooksH.Deps{
+		Stop:         s.handleHookStop,
+		PromptSubmit: s.handleHookPromptSubmit,
+	}).Mount(s.router)
 
 	// TTS — Connect-RPC module replaces the legacy nine REST handlers
 	// (config/status/events, summarize config, synthesize/cache/voices).

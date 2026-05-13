@@ -1,11 +1,46 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"context"
 	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+
+	eventsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/events"
+	eventsH "web-console/handlers/events"
 )
+
+// callEventsList invokes the EventsService.List Connect RPC directly
+// against the supplied EventLogger. Lives here in the test file so we
+// keep production code clean — the handler is the public boundary, the
+// test is just an adapter.
+func callEventsList(el *EventLogger, limit int32) (*eventsv1.ListResponse, error) {
+	h := eventsH.NewConnectHandler(eventsH.Deps{Service: testEventsService{el: el}})
+	resp, err := h.List(context.Background(), connect.NewRequest(&eventsv1.ListRequest{Limit: limit}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}
+
+type testEventsService struct{ el *EventLogger }
+
+func (s testEventsService) Recent(_ context.Context, limit int) []eventsH.Event {
+	in := s.el.Recent(limit)
+	out := make([]eventsH.Event, len(in))
+	for i, e := range in {
+		out[i] = eventsH.Event{
+			Type:      e.Type,
+			SessionID: e.SessionID,
+			Timestamp: e.Timestamp.UTC().Format(time.RFC3339Nano),
+			Details:   e.Details,
+		}
+	}
+	return out
+}
+
+func (s testEventsService) Count(_ context.Context) int { return s.el.Count() }
 
 // [REQ:P1-004a] Structured Event Logging - event logger tests
 
@@ -139,26 +174,16 @@ func TestEventLogger_PolicyUpdateConstant(t *testing.T) {
 	}
 }
 
-// [REQ:P1-004a] GET /api/v1/events returns recent events
-func TestHandleEvents_ReturnsRecentEvents(t *testing.T) {
+// [REQ:P1-004a] EventsService.List returns recent events
+func TestEventsService_List_ReturnsRecentEvents(t *testing.T) {
 	events := NewEventLogger(100)
 	events.Emit(EventSessionCreated, "s1", map[string]string{"shell": "/bin/bash"})
 	events.Emit(EventSessionConnected, "s1", nil)
 	events.Emit(EventSessionDeleted, "s1", nil)
 
-	srv := &Server{events: events}
-	req := httptest.NewRequest("GET", "/api/v1/events", nil)
-	w := httptest.NewRecorder()
-
-	srv.handleEvents(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
-	}
-
-	var resp EventsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode failed: %v", err)
+	resp, err := callEventsList(events, 0)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
 	}
 	if len(resp.Events) != 3 {
 		t.Fatalf("expected 3 events, got %d", len(resp.Events))
@@ -168,40 +193,29 @@ func TestHandleEvents_ReturnsRecentEvents(t *testing.T) {
 	}
 }
 
-// [REQ:P1-004a] GET /api/v1/events?limit=invalid falls back to default 50
-func TestHandleEvents_InvalidLimitFallback(t *testing.T) {
+// [REQ:P1-004a] EventsService.List with limit<=0 falls back to default 50
+func TestEventsService_List_DefaultLimit(t *testing.T) {
 	events := NewEventLogger(100)
 	for i := 0; i < 5; i++ {
 		events.Emit(EventSessionCreated, "s", nil)
 	}
 
-	srv := &Server{events: events}
-
-	// Negative limit should be ignored, returning default (50, capped to actual count)
-	req := httptest.NewRequest("GET", "/api/v1/events?limit=-1", nil)
-	w := httptest.NewRecorder()
-	srv.handleEvents(w, req)
-
-	var resp EventsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode failed: %v", err)
+	// Negative limit treated as default (50, capped to actual count).
+	resp, err := callEventsList(events, -1)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
 	}
-	// Default 50, but only 5 events exist
 	if len(resp.Events) != 5 {
-		t.Fatalf("expected 5 events with invalid limit, got %d", len(resp.Events))
+		t.Fatalf("expected 5 events with negative limit, got %d", len(resp.Events))
 	}
 
-	// Non-numeric limit should also fall back
-	req2 := httptest.NewRequest("GET", "/api/v1/events?limit=abc", nil)
-	w2 := httptest.NewRecorder()
-	srv.handleEvents(w2, req2)
-
-	var resp2 EventsResponse
-	if err := json.NewDecoder(w2.Body).Decode(&resp2); err != nil {
-		t.Fatalf("decode failed: %v", err)
+	// Zero is also "use default".
+	resp2, err := callEventsList(events, 0)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
 	}
 	if len(resp2.Events) != 5 {
-		t.Fatalf("expected 5 events with non-numeric limit, got %d", len(resp2.Events))
+		t.Fatalf("expected 5 events with zero limit, got %d", len(resp2.Events))
 	}
 }
 
@@ -232,22 +246,16 @@ func TestEventLogger_SubscriberNotification(t *testing.T) {
 	}
 }
 
-// [REQ:P1-004a] GET /api/v1/events?limit=9999 is capped at 1000
-func TestHandleEvents_LimitCappedAt1000(t *testing.T) {
+// [REQ:P1-004a] EventsService.List caps limit at 1000
+func TestEventsService_List_LimitCappedAt1000(t *testing.T) {
 	events := NewEventLogger(2000)
 	for i := 0; i < 1500; i++ {
 		events.Emit(EventSessionCreated, "s", nil)
 	}
 
-	srv := &Server{events: events}
-	req := httptest.NewRequest("GET", "/api/v1/events?limit=9999", nil)
-	w := httptest.NewRecorder()
-
-	srv.handleEvents(w, req)
-
-	var resp EventsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode failed: %v", err)
+	resp, err := callEventsList(events, 9999)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
 	}
 	if len(resp.Events) != 1000 {
 		t.Errorf("expected events capped at 1000, got %d", len(resp.Events))
@@ -257,22 +265,16 @@ func TestHandleEvents_LimitCappedAt1000(t *testing.T) {
 	}
 }
 
-// [REQ:P1-004a] GET /api/v1/events?limit=N respects limit
-func TestHandleEvents_RespectsLimit(t *testing.T) {
+// [REQ:P1-004a] EventsService.List respects caller-supplied limit
+func TestEventsService_List_RespectsLimit(t *testing.T) {
 	events := NewEventLogger(100)
 	for i := 0; i < 10; i++ {
 		events.Emit(EventSessionCreated, "s", nil)
 	}
 
-	srv := &Server{events: events}
-	req := httptest.NewRequest("GET", "/api/v1/events?limit=3", nil)
-	w := httptest.NewRecorder()
-
-	srv.handleEvents(w, req)
-
-	var resp EventsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode failed: %v", err)
+	resp, err := callEventsList(events, 3)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
 	}
 	if len(resp.Events) != 3 {
 		t.Fatalf("expected 3 events, got %d", len(resp.Events))

@@ -6,10 +6,8 @@
 // natively carry multipart payloads — the upload semantics are inherent
 // to the transport, not just incidentally tied to HTTP.
 //
-// The terminal WebSocket route at /api/v1/sessions/{id}/ws is
-// intentionally not registered here yet — it ships with the final
-// streams phase alongside voice/events so the streaming pattern is
-// decided once.
+// Both routes are owned by handlers/terminal's Module() in module.go;
+// this file is the canonical metadata source for gen-endpoints.
 package terminal
 
 import "web-console/internal/module"
@@ -25,6 +23,18 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonMultipartUpload,
 			Note:   "Multipart/form-data upload. Stays REST even post-Connect because Connect's wire format does not natively carry multipart payloads.",
+		},
+	},
+	{
+		ID:          "terminal_ws",
+		Path:        "/api/v1/sessions/{id}/ws",
+		Method:      "GET",
+		Summary:     "Terminal WebSocket bridge",
+		Description: "WebSocket upgrade endpoint for xterm.js. Streams stdin/stdout/resize/keepalive frames between the browser and the per-session PTY (or tmux pane). Migration to Connect server-streaming is deferred to the final streams phase.",
+		Category:    "terminal",
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonOpsProbe,
+			Note:   "xterm.js requires a raw WebSocket upgrade — Connect-RPC cannot express that handshake. Stays REST until a Connect server-streaming RPC replaces it.",
 		},
 	},
 }

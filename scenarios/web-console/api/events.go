@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"log"
-	"net/http"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -113,28 +111,4 @@ func (el *EventLogger) Count() int {
 	return len(el.history)
 }
 
-// EventsResponse is the JSON shape returned by the /api/v1/events endpoint.
-type EventsResponse struct {
-	Events []Event `json:"events"`
-	Total  int     `json:"total"`
-}
-
-// handleEvents returns recent structured events from the in-memory ring buffer.
-// GET /api/v1/events?limit=N (default 50, max 1000)
-// [REQ:P1-004a] Structured Event Logging — HTTP surface for event history
-func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
-	limit := 50
-	if v := r.URL.Query().Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			if n > 1000 {
-				n = 1000
-			}
-			limit = n
-		}
-	}
-	events := s.events.Recent(limit)
-	writeJSON(w, http.StatusOK, EventsResponse{
-		Events: events,
-		Total:  s.events.Count(),
-	})
-}
+// The /api/v1/events HTTP surface lives in handlers/events.

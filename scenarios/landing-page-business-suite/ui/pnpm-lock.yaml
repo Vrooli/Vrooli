@@ -31,7 +31,7 @@ importers:
         version: 5.90.20(react@18.3.1)
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
-        version: file:../../../packages/api-base(express@4.22.1)(ws@8.19.0)
+        version: file:../../../packages/api-base(@bufbuild/protobuf@2.11.0)(express@4.22.1)(ws@8.19.0)
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
@@ -244,6 +244,17 @@ packages:
 
   '@bufbuild/protobuf@2.11.0':
     resolution: {integrity: sha512-sBXGT13cpmPR5BMgHE6UEEfEaShh5Ror6rfN3yEK5si7QVrtZg8LEPQb0VVhiLRUslD2yLnXtnRzG035J/mZXQ==}
+
+  '@connectrpc/connect-web@2.1.1':
+    resolution: {integrity: sha512-J8317Q2MaFRCT1jzVR1o06bZhDIBmU0UAzWx6xOIXzOq8+k71/+k7MUF7AwcBUX+34WIvbm5syRgC5HXQA8fOg==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.7.0
+      '@connectrpc/connect': 2.1.1
+
+  '@connectrpc/connect@2.1.1':
+    resolution: {integrity: sha512-JzhkaTvM73m2K1URT6tv53k2RwngSmCXLZJgK580qNQOXRzZRR/BCMfZw3h+90JpnG6XksP5bYT+cz0rpUzUWQ==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.7.0
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -3297,6 +3308,15 @@ snapshots:
 
   '@bufbuild/protobuf@2.11.0': {}
 
+  '@connectrpc/connect-web@2.1.1(@bufbuild/protobuf@2.11.0)(@connectrpc/connect@2.1.1(@bufbuild/protobuf@2.11.0))':
+    dependencies:
+      '@bufbuild/protobuf': 2.11.0
+      '@connectrpc/connect': 2.1.1(@bufbuild/protobuf@2.11.0)
+
+  '@connectrpc/connect@2.1.1(@bufbuild/protobuf@2.11.0)':
+    dependencies:
+      '@bufbuild/protobuf': 2.11.0
+
   '@csstools/color-helpers@5.1.0': {}
 
   '@csstools/css-calc@2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)':
@@ -4189,10 +4209,14 @@ snapshots:
       loupe: 2.3.7
       pretty-format: 29.7.0
 
-  '@vrooli/api-base@file:../../../packages/api-base(express@4.22.1)(ws@8.19.0)':
+  '@vrooli/api-base@file:../../../packages/api-base(@bufbuild/protobuf@2.11.0)(express@4.22.1)(ws@8.19.0)':
     dependencies:
+      '@connectrpc/connect': 2.1.1(@bufbuild/protobuf@2.11.0)
+      '@connectrpc/connect-web': 2.1.1(@bufbuild/protobuf@2.11.0)(@connectrpc/connect@2.1.1(@bufbuild/protobuf@2.11.0))
       express: 4.22.1
       ws: 8.19.0
+    transitivePeerDependencies:
+      - '@bufbuild/protobuf'
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 

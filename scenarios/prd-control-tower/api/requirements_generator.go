@@ -296,7 +296,7 @@ func executeRequirementsGenerate(req RequirementsGenerateRequest) (RequirementsG
 
 	// Step 2: Initial AI generation pass
 	prompt := buildRequirementsPrompt(req.EntityType, req.EntityName, targets, req.Context)
-	aiResponse, usedModel, err := openRouterChatCompletionWithTimeout(openrouterURL, prompt, req.Model, 8000, 300)
+	aiResponse, usedModel, err := openRouterChatCompletionWithTimeout(openrouterURL, prompt, req.Model, 32000, 300)
 	if err != nil {
 		return RequirementsGenerateResponse{
 			EntityType: req.EntityType,

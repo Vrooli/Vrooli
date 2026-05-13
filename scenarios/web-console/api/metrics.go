@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/http"
 	"sync/atomic"
 	"time"
 )
@@ -155,9 +154,4 @@ func (m *Metrics) Snapshot() MetricsResponse {
 	}
 }
 
-// handleMetrics returns a JSON snapshot of all operational metrics.
-// GET /api/v1/metrics
-// [REQ:P1-004b] Operational Metrics Collection
-func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.metrics.Snapshot())
-}
+// The /api/v1/metrics HTTP surface lives in handlers/metrics.

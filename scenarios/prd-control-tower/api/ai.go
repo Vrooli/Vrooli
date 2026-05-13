@@ -387,7 +387,7 @@ func openRouterChatCompletion(baseURL string, prompt string, modelOverride strin
 
 func openRouterChatCompletionInternal(baseURL string, prompt string, modelOverride string, maxTokens int, timeout time.Duration) (string, string, error) {
 	// Determine which model to use
-	model := "anthropic/claude-3.5-sonnet"
+	model := "anthropic/claude-sonnet-4.6"
 	if modelOverride != "" && modelOverride != "default" {
 		// Remove "openrouter/" prefix if present
 		if strings.HasPrefix(modelOverride, "openrouter/") {
@@ -498,7 +498,7 @@ func generateAIContentCLI(draft Draft, section string, context string, action st
 	prompt := buildPrompt(draft, section, context, action, includeExisting, referencePRDs)
 
 	// Run resource-openrouter
-	cmd := exec.Command("resource-openrouter", "generate", "--model", "anthropic/claude-3.5-sonnet", "--prompt", prompt)
+	cmd := exec.Command("resource-openrouter", "generate", "--model", "anthropic/claude-sonnet-4.6", "--prompt", prompt)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -509,7 +509,7 @@ func generateAIContentCLI(draft Draft, section string, context string, action st
 		return "", "", fmt.Errorf("resource-openrouter failed: %v, stderr: %s", err, stderr.String())
 	}
 
-	return stdout.String(), "anthropic/claude-3.5-sonnet", nil
+	return stdout.String(), "anthropic/claude-sonnet-4.6", nil
 }
 
 func generateCompliantFullPRDHTTP(baseURL string, draft Draft, context string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string, customPath ...string) (string, string, error) {

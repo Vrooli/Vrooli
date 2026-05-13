@@ -289,6 +289,16 @@
       "name": "workspace group-delete",
       "description": "Delete a tab group",
       "endpoint_id": "workspace_delete_group"
+    },
+    {
+      "name": "events",
+      "description": "Show recent lifecycle events from the in-memory ring buffer",
+      "endpoint_id": "events_list"
+    },
+    {
+      "name": "metrics",
+      "description": "Show runtime metrics (active sessions, totals, TTS/voice counters)",
+      "endpoint_id": "metrics_get"
     }
   ]
 }

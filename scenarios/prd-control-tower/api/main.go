@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -140,6 +141,11 @@ func main() {
 	// Start server with graceful shutdown
 	if err := server.Run(server.Config{
 		Handler: router,
+		// AI generation routes call OpenRouter and routinely take 60–180s; the
+		// 30s default WriteTimeout would chop those responses. 6 minutes leaves
+		// headroom for the slowest full-PRD generation.
+		WriteTimeout: 6 * time.Minute,
+		ReadTimeout:  2 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			if db != nil {
 				return db.Close()
