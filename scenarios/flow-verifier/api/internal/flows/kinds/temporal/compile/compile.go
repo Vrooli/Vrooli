@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/flows/model"
-	"flow-verifier/internal/spec"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/model"
+	"flow-verifier/internal/verification/quint"
 )
 
 var (
@@ -315,7 +315,7 @@ func validateQuintNames(errs *[]string, groups ...map[string]bool) {
 			if !quintIdentifierPattern.MatchString(name) {
 				*errs = append(*errs, "invalid Quint identifier "+name)
 			}
-			if spec.QuintReservedIdentifiers[name] {
+			if quint.QuintReservedIdentifiers[name] {
 				*errs = append(*errs, "Quint identifier collides with generated helper "+name)
 			}
 			if seen[name] {

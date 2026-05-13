@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
 type ArtifactTrace struct {

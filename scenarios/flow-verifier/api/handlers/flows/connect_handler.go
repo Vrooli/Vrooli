@@ -8,8 +8,8 @@ import (
 	"connectrpc.com/connect"
 
 	"flow-verifier/internal/flows"
-	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/flows/layout"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
 	"flow-verifier/internal/scenarios"
 
 	flowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/flows"
@@ -43,8 +43,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 func (h *connectHandler) ListFlows(_ context.Context, req *connect.Request[flowsv1.ListFlowsRequest]) (*connect.Response[flowsv1.ListFlowsResponse], error) {
 	root := req.Msg.GetRoot()
 	flowID := req.Msg.GetFlowId()
+	kindFilter := req.Msg.GetKind()
 	if root != "" {
-		rows, err := flows.List(root, flowID)
+		rows, err := flows.List(root, flowID, kindFilter)
 		if err != nil {
 			return nil, flows.ToConnectError(err)
 		}
@@ -99,14 +100,20 @@ func (h *connectHandler) GetFlow(_ context.Context, req *connect.Request[flowsv1
 }
 
 func (h *connectHandler) CreateFlow(_ context.Context, req *connect.Request[flowsv1.CreateFlowRequest]) (*connect.Response[flowsv1.CreateFlowResponse], error) {
-	lang, err := languageFromString(req.Msg.GetLanguage())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	kindName := req.Msg.GetKind()
+	var lang layout.Language
+	if kindName == "" || kindName == "temporal" {
+		l, err := languageFromString(req.Msg.GetLanguage())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		lang = l
 	}
 	dir, err := flows.New(flows.NewOptions{
 		Root:      req.Msg.GetRoot(),
 		ParentDir: req.Msg.GetParentDir(),
 		FlowID:    req.Msg.GetFlowId(),
+		Kind:      kindName,
 		Language:  lang,
 	})
 	if err != nil {
@@ -116,7 +123,7 @@ func (h *connectHandler) CreateFlow(_ context.Context, req *connect.Request[flow
 }
 
 func (h *connectHandler) ValidateFlow(_ context.Context, req *connect.Request[flowsv1.ValidateFlowRequest]) (*connect.Response[flowsv1.ValidateFlowResponse], error) {
-	rows, err := flows.Validate(req.Msg.GetRoot(), req.Msg.GetFlowId())
+	rows, err := flows.Validate(req.Msg.GetRoot(), req.Msg.GetFlowId(), "")
 	if err != nil {
 		return nil, flows.ToConnectError(err)
 	}
@@ -179,6 +186,7 @@ func summariesToProto(rows []flows.Summary) []*flowsv1.FlowSummary {
 func summaryToProto(f flows.Summary) *flowsv1.FlowSummary {
 	return &flowsv1.FlowSummary{
 		FlowId:        f.FlowID,
+		Kind:          f.Kind,
 		ContractPath:  f.ContractPath,
 		Language:      f.Language,
 		SchemaVersion: int32(f.SchemaVer),
@@ -227,6 +235,7 @@ func detailToProto(d flows.FlowDetail) *flowsv1.FlowDetail {
 	}
 	return &flowsv1.FlowDetail{
 		FlowId:        d.FlowID,
+		Kind:          d.Kind,
 		Domain:        d.Domain,
 		Description:   d.Description,
 		ContractPath:  d.ContractPath,

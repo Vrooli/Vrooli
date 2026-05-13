@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"flow-verifier/internal/codegen"
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/codegen"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
 const tsShape = `    1. import { runFormalReplay } from "./generated/replay.helper";

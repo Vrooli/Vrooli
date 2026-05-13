@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"flow-verifier/internal/flows/compile"
-	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/flows/layout"
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/compile"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 	"flow-verifier/internal/verification/quint"
 )
 
@@ -21,6 +21,7 @@ func ValidRawContract() contract.Contract {
 	lay, _ := layout.Derive(contractPath, layout.LanguageGo)
 	return contract.Contract{
 		SchemaVersion: model.SchemaVersion,
+		Kind:          "temporal",
 		FlowID:        flowID,
 		Domain:        "example",
 		Description:   "Example flow.",

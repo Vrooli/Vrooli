@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"flow-verifier/internal/flows/layout"
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
 // resolvedSubpackageImportPath returns the import path that the

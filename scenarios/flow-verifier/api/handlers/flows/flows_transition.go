@@ -1,7 +1,7 @@
 package flows
 
 import (
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
 type transitionFields struct {

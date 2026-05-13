@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
 type capturingRecorder struct {

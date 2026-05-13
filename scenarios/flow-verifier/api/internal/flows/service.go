@@ -8,12 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"flow-verifier/internal/codegen"
-	"flow-verifier/internal/flows/contract"
 	"flow-verifier/internal/flows/discovery"
-	"flow-verifier/internal/flows/layout"
-	"flow-verifier/internal/flows/model"
-	"flow-verifier/internal/flows/scaffold"
+	"flow-verifier/internal/flows/kind"
+	_ "flow-verifier/internal/flows/kinds/navigation" // register navigation kind
+	"flow-verifier/internal/flows/kinds/temporal"
+	"flow-verifier/internal/flows/kinds/temporal/codegen"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
 // Summary is the thin row returned by List — enough for the inventory UI
@@ -25,28 +27,51 @@ import (
 // to without an extra round-trip.
 type Summary struct {
 	FlowID       string `json:"flowId"`
+	Kind         string `json:"kind"`
 	ContractPath string `json:"contractPath"`
-	Language     string `json:"language"`
+	Language     string `json:"language,omitempty"`
 	SchemaVer    int    `json:"schemaVersion"`
 	ScenarioID   string `json:"scenarioId,omitempty"`
 }
 
-// List discovers, compiles, and summarises every flow rooted at root.
-// An unknown flowID filter returns an error so callers can distinguish
-// "0 flows" from "you asked for a flow that does not exist".
-func List(root, flowID string) ([]Summary, error) {
-	flows, err := discoverFiltered(root, flowID)
+// List discovers and summarises every flow rooted at root. The kind
+// dispatch happens inside discovery; List projects each loaded Spec to
+// a generic Summary, pulling temporal-specific fields (Language) when
+// the spec is a temporal flow.
+func List(root, flowID, kindFilter string) ([]Summary, error) {
+	rootAbs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Summary, 0, len(flows))
-	for _, f := range flows {
-		out = append(out, Summary{
-			FlowID:       f.FlowID,
-			ContractPath: f.ContractPath,
-			Language:     string(f.Layout.Language),
-			SchemaVer:    f.SchemaVersion,
-		})
+	specs, err := discovery.FindContracts(rootAbs)
+	if err != nil {
+		return nil, err
+	}
+	selected := discovery.Filter(specs, flowID)
+	if flowID != "" && len(selected) == 0 {
+		return nil, fmt.Errorf("unknown flow id %s", flowID)
+	}
+	if kindFilter != "" {
+		filtered := make([]kind.Spec, 0, len(selected))
+		for _, s := range selected {
+			if s.Kind() == kindFilter {
+				filtered = append(filtered, s)
+			}
+		}
+		selected = filtered
+	}
+	out := make([]Summary, 0, len(selected))
+	for _, s := range selected {
+		summary := Summary{
+			FlowID:       s.FlowID(),
+			Kind:         s.Kind(),
+			ContractPath: s.ContractPath(),
+			SchemaVer:    s.SchemaVersion(),
+		}
+		if t, ok := s.(*temporal.Spec); ok {
+			summary.Language = string(t.Flow().Layout.Language)
+		}
+		out = append(out, summary)
 	}
 	return out, nil
 }
@@ -54,8 +79,8 @@ func List(root, flowID string) ([]Summary, error) {
 // Validate compiles every flow under root and returns the first
 // compilation/contract error encountered, or nil if all are valid.
 // Discovery itself is the validator — FindContracts compiles each flow.
-func Validate(root, flowID string) ([]Summary, error) {
-	return List(root, flowID)
+func Validate(root, flowID, kindFilter string) ([]Summary, error) {
+	return List(root, flowID, kindFilter)
 }
 
 // Explain renders the human-readable report for a single flow.
@@ -80,6 +105,7 @@ func Explain(root, flowID string) (string, error) {
 // scenario's source files.
 type FlowDetail struct {
 	FlowID        string               `json:"flowId"`
+	Kind          string               `json:"kind"`
 	Domain        string               `json:"domain,omitempty"`
 	Description   string               `json:"description,omitempty"`
 	ContractPath  string               `json:"contractPath"`
@@ -109,6 +135,7 @@ func Detail(root, flowID string) (FlowDetail, error) {
 	flow := flows[0]
 	return FlowDetail{
 		FlowID:        flow.FlowID,
+		Kind:          temporal.Name,
 		Domain:        flow.Domain,
 		Description:   flow.Description,
 		ContractPath:  flow.ContractPath,
@@ -131,22 +158,34 @@ type NewOptions struct {
 	Root      string
 	ParentDir string
 	FlowID    string
-	Language  layout.Language
+	// Kind selects which registered Kind to scaffold. Empty defaults to
+	// temporal so existing CLI/handler callers keep working unchanged.
+	Kind     string
+	Language layout.Language
 }
 
 // New scaffolds a fresh flow directory and returns the relative path of
-// the created flow dir. It does not run verification — the caller (CLI
+// the created flow dir. It dispatches to the registered Kind for the
+// requested kind name; it does not run verification — the caller (CLI
 // or HTTP handler) decides whether to chain a verify run.
 func New(opts NewOptions) (string, error) {
 	rootAbs, err := filepath.Abs(opts.Root)
 	if err != nil {
 		return "", err
 	}
-	return scaffold.Write(scaffold.Options{
+	kindName := opts.Kind
+	if kindName == "" {
+		kindName = temporal.Name
+	}
+	k, ok := kind.Get(kindName)
+	if !ok {
+		return "", fmt.Errorf("unknown kind %q (registered: %v)", kindName, kind.Names())
+	}
+	return k.Scaffold(kind.ScaffoldOptions{
 		Root:      rootAbs,
 		ParentDir: opts.ParentDir,
 		FlowID:    opts.FlowID,
-		Language:  opts.Language,
+		Language:  kind.Language(opts.Language),
 	})
 }
 
@@ -155,15 +194,15 @@ func discoverFiltered(root, flowID string) ([]model.Flow, error) {
 	if err != nil {
 		return nil, err
 	}
-	flows, err := discovery.FindContracts(rootAbs)
+	specs, err := discovery.FindContracts(rootAbs)
 	if err != nil {
 		return nil, err
 	}
-	selected := discovery.Filter(flows, flowID)
+	selected := discovery.Filter(specs, flowID)
 	if flowID != "" && len(selected) == 0 {
 		return nil, fmt.Errorf("unknown flow id %s", flowID)
 	}
-	return selected, nil
+	return temporal.FlowsFromSpecs(selected), nil
 }
 
 func buildExplainReport(root string, flow model.Flow) string {

@@ -1,15 +1,13 @@
 package model
 
 import (
-	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/flows/layout"
-	"flow-verifier/internal/spec"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
 )
 
 const (
-	SchemaVersion                 = spec.SchemaVersion
-	SelfTarget                    = "self"
-	GeneratedCheckTransitionTable = spec.GeneratedCheckTransitionTable
+	SchemaVersion = contract.SchemaVersion
+	SelfTarget    = "self"
 )
 
 type Flow struct {

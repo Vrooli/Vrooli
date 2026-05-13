@@ -22,7 +22,10 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
-	resp, err := h.client.ListFlows(context.Background(), connect.NewRequest(&flowsv1.ListFlowsRequest{Root: ctx.Flag("root")}))
+	resp, err := h.client.ListFlows(context.Background(), connect.NewRequest(&flowsv1.ListFlowsRequest{
+		Root: ctx.Flag("root"),
+		Kind: ctx.Flag("kind"),
+	}))
 	if err != nil {
 		return cliapp.WrapAPIError("list flows", err, nil)
 	}
@@ -61,13 +64,17 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) create(ctx cliapp.RunContext) error {
+	kindName := ctx.Flag("kind")
 	lang := ctx.Flag("lang")
-	if lang == "" {
-		lang = "typescript"
+	if kindName == "" || kindName == "temporal" {
+		if lang == "" {
+			lang = "typescript"
+		}
 	}
 	resp, err := h.client.CreateFlow(context.Background(), connect.NewRequest(&flowsv1.CreateFlowRequest{
 		ParentDir: ctx.Positional("feature-dir"),
 		FlowId:    ctx.Flag("flow-id"),
+		Kind:      kindName,
 		Language:  lang,
 		Root:      ctx.Flag("root"),
 	}))
@@ -126,5 +133,9 @@ func formatSummary(f *flowsv1.FlowSummary) string {
 	if f == nil {
 		return "(nil)"
 	}
-	return fmt.Sprintf("%s | %s | v%d | %s", f.FlowId, f.Language, f.SchemaVersion, f.ContractPath)
+	lang := f.Language
+	if lang == "" {
+		lang = "-"
+	}
+	return fmt.Sprintf("%s | %s | %s | v%d | %s", f.FlowId, f.Kind, lang, f.SchemaVersion, f.ContractPath)
 }

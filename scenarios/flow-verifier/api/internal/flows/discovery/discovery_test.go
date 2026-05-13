@@ -3,8 +3,9 @@ package discovery
 import (
 	"testing"
 
-	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/flows/model"
+	_ "flow-verifier/internal/flows/kinds/temporal" // register the temporal kind
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 	"flow-verifier/internal/testkit"
 )
 
@@ -25,8 +26,8 @@ func TestFindContractsIgnoresGeneratedAndDependencyDirs(t *testing.T) {
 	if got, want := len(contracts), 1; got != want {
 		t.Fatalf("contracts = %d, want %d", got, want)
 	}
-	if contracts[0].FlowID != "example.visible.api" {
-		t.Fatalf("flow id = %s", contracts[0].FlowID)
+	if contracts[0].FlowID() != "example.visible.api" {
+		t.Fatalf("flow id = %s", contracts[0].FlowID())
 	}
 }
 

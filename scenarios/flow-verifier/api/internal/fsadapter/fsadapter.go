@@ -12,9 +12,19 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"flow-verifier/internal/spec"
 )
+
+// ignoredDirs lists directory names a recursive walk never descends into.
+// These are noise (VCS, build outputs, dependency caches) that would
+// otherwise force every walker to filter them out individually.
+var ignoredDirs = map[string]bool{
+	".git":          true,
+	"node_modules":  true,
+	"dist":          true,
+	"build":         true,
+	"coverage":      true,
+	"_apalache-out": true,
+}
 
 func Slash(path string) string {
 	return filepath.ToSlash(filepath.Clean(path))
@@ -46,7 +56,7 @@ func Find(root string, suffix string) ([]string, error) {
 			}
 			return err
 		}
-		if entry.IsDir() && spec.IgnoredDirectories[entry.Name()] && path != root {
+		if entry.IsDir() && ignoredDirs[entry.Name()] && path != root {
 			return filepath.SkipDir
 		}
 		if entry.IsDir() {
@@ -90,7 +100,7 @@ func TreeSHA256(root string) (string, error) {
 			return err
 		}
 		if entry.IsDir() {
-			if spec.IgnoredDirectories[entry.Name()] && path != root {
+			if ignoredDirs[entry.Name()] && path != root {
 				return filepath.SkipDir
 			}
 			return nil

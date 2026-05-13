@@ -34,7 +34,7 @@ import (
 type flowsListerAdapter struct{}
 
 func (flowsListerAdapter) List(root string) ([]flows.Summary, error) {
-	return flows.List(root, "")
+	return flows.List(root, "", "")
 }
 
 func main() {

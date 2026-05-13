@@ -21,8 +21,9 @@ import (
 	"time"
 
 	"flow-verifier/internal/flows/discovery"
-	"flow-verifier/internal/flows/layout"
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
 // Status describes the on-disk state of one flow's generated/ tree.
@@ -134,10 +135,11 @@ func (s *Service) Clear(root, flowID string) (ClearResult, error) {
 // StatusForScenario walks every flow rooted at root and returns one
 // Report per flow.
 func (s *Service) StatusForScenario(root string) ([]Report, error) {
-	all, err := discovery.FindContracts(rootAbs(root))
+	specs, err := discovery.FindContracts(rootAbs(root))
 	if err != nil {
 		return nil, err
 	}
+	all := temporal.FlowsFromSpecs(specs)
 	out := make([]Report, 0, len(all))
 	for _, flow := range all {
 		report, err := s.statusForFlow(root, flow)
@@ -155,10 +157,11 @@ func (s *Service) GenerateForScenario(ctx context.Context, root string) ([]Repor
 	if s.gen == nil {
 		return nil, fmt.Errorf("artifacts: generator not configured")
 	}
-	all, err := discovery.FindContracts(rootAbs(root))
+	specs, err := discovery.FindContracts(rootAbs(root))
 	if err != nil {
 		return nil, err
 	}
+	all := temporal.FlowsFromSpecs(specs)
 	out := make([]Report, 0, len(all))
 	for _, flow := range all {
 		if err := s.gen.Generate(ctx, root, flow.FlowID); err != nil {
@@ -183,10 +186,11 @@ func (s *Service) GenerateForScenarioStream(ctx context.Context, root string, on
 	if s.gen == nil {
 		return fmt.Errorf("artifacts: generator not configured")
 	}
-	all, err := discovery.FindContracts(rootAbs(root))
+	specs, err := discovery.FindContracts(rootAbs(root))
 	if err != nil {
 		return err
 	}
+	all := temporal.FlowsFromSpecs(specs)
 	for _, flow := range all {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
@@ -208,10 +212,11 @@ func (s *Service) GenerateForScenarioStream(ctx context.Context, root string, on
 // ClearForScenario removes the generated/ tree for every flow rooted at
 // root and returns the union of cleared file paths.
 func (s *Service) ClearForScenario(root string) ([]ClearResult, error) {
-	all, err := discovery.FindContracts(rootAbs(root))
+	specs, err := discovery.FindContracts(rootAbs(root))
 	if err != nil {
 		return nil, err
 	}
+	all := temporal.FlowsFromSpecs(specs)
 	out := make([]ClearResult, 0, len(all))
 	for _, flow := range all {
 		generatedAbs, err := generatedAbs(root, flow)
@@ -271,10 +276,11 @@ func findFlow(root, flowID string) (model.Flow, error) {
 	if flowID == "" {
 		return model.Flow{}, fmt.Errorf("flow id is required")
 	}
-	flowsList, err := discovery.FindContracts(rootAbs(root))
+	specs, err := discovery.FindContracts(rootAbs(root))
 	if err != nil {
 		return model.Flow{}, err
 	}
+	flowsList := temporal.FlowsFromSpecs(specs)
 	for _, f := range flowsList {
 		if f.FlowID == flowID {
 			return f, nil

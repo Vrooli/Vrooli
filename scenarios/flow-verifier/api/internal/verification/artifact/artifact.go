@@ -9,19 +9,19 @@ import (
 	"path/filepath"
 	"strings"
 
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 	"flow-verifier/internal/flows/schemas"
 	"flow-verifier/internal/fsadapter"
-	"flow-verifier/internal/spec"
 	"flow-verifier/internal/verification/quint"
 )
 
 const (
-	SchemaVersion                 = spec.SchemaVersion
-	GeneratorVersion              = spec.GeneratorVersion
-	GeneratorPath                 = spec.GeneratorPath
-	GeneratedCheckTransitionTable = spec.GeneratedCheckTransitionTable
-	VerificationBackendApalache   = spec.VerificationBackendApalache
+	SchemaVersion                 = contract.SchemaVersion
+	GeneratorVersion              = contract.GeneratorVersion
+	GeneratorPath                 = contract.GeneratorPath
+	GeneratedCheckTransitionTable = quint.GeneratedCheckTransitionTable
+	VerificationBackendApalache   = quint.VerificationBackendApalache
 )
 
 type Artifact struct {
@@ -87,10 +87,10 @@ func Build(ctx context.Context, flow model.Flow, options BuildOptions) (Artifact
 
 	commands := commandContract(flow)
 	if options.RunQuint {
-		for _, name := range []string{spec.CommandTypecheck, spec.CommandTest, spec.CommandVerify, spec.CommandRun} {
+		for _, name := range []string{quint.CommandTypecheck, quint.CommandTest, quint.CommandVerify, quint.CommandRun} {
 			args := commands[name]
 			runArgs := args
-			if name == spec.CommandRun {
+			if name == quint.CommandRun {
 				runArgs = replaceTempPattern(args, filepath.Join(tempDir, flowFilePattern(flow)))
 			}
 			result, err := options.Runner.Run(ctx, quint.Command{Args: runArgs, Dir: options.Root})
@@ -160,18 +160,18 @@ func CanonicalJSON(value any) ([]byte, error) {
 func commandContract(flow model.Flow) map[string][]string {
 	invariants := append([]string(nil), flow.Model.Verify.Invariants...)
 	return map[string][]string{
-		spec.CommandTypecheck: {"quint", "typecheck", flow.Layout.ModelPath},
-		spec.CommandTest:      {"quint", "test", flow.Layout.ModelPath, "--seed", flow.Model.Seed},
-		spec.CommandVerify: append(append([]string{"quint", "verify", flow.Layout.ModelPath, "--invariants"}, invariants...),
+		quint.CommandTypecheck: {"quint", "typecheck", flow.Layout.ModelPath},
+		quint.CommandTest:      {"quint", "test", flow.Layout.ModelPath, "--seed", flow.Model.Seed},
+		quint.CommandVerify: append(append([]string{"quint", "verify", flow.Layout.ModelPath, "--invariants"}, invariants...),
 			"--max-steps", fmt.Sprint(flow.Model.MaxSteps)),
-		spec.CommandRun: {"quint", "run", flow.Layout.ModelPath, "--mbt", "--seed", flow.Model.Seed, "--max-samples", fmt.Sprint(flow.Model.TraceCount), "--n-traces", fmt.Sprint(flow.Model.TraceCount), "--max-steps", fmt.Sprint(flow.Model.MaxSteps), "--out-itf", spec.TempITFPattern},
+		quint.CommandRun: {"quint", "run", flow.Layout.ModelPath, "--mbt", "--seed", flow.Model.Seed, "--max-samples", fmt.Sprint(flow.Model.TraceCount), "--n-traces", fmt.Sprint(flow.Model.TraceCount), "--max-steps", fmt.Sprint(flow.Model.MaxSteps), "--out-itf", quint.TempITFPattern},
 	}
 }
 
 func replaceTempPattern(args []string, pattern string) []string {
 	out := append([]string(nil), args...)
 	for i, arg := range out {
-		if arg == spec.TempITFPattern {
+		if arg == quint.TempITFPattern {
 			out[i] = pattern
 		}
 	}
@@ -227,7 +227,7 @@ func generatedTraceCoverage(flow model.Flow, traces []quint.ArtifactTrace) model
 // content-addressable at build time and stable across machines.
 func generatorIdentityHash() string {
 	var buf bytes.Buffer
-	buf.Write(schemas.Flow)
+	buf.Write(schemas.Temporal)
 	buf.WriteByte(0)
 	buf.Write(schemas.FormalArtifact)
 	buf.WriteByte(0)

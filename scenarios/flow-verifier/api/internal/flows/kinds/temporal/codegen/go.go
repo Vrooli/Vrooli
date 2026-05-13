@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/flows/layout"
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 	"flow-verifier/internal/verification/artifact"
 )
 

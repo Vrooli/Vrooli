@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
 func TestNormalizeTracesRejectsUnknownTags(t *testing.T) {

@@ -2,15 +2,12 @@ package model
 
 import "testing"
 
-func TestSchemaVersionConstantsMatchSpec(t *testing.T) {
+func TestModelConstants(t *testing.T) {
 	if SchemaVersion <= 0 {
 		t.Fatalf("SchemaVersion must be positive, got %d", SchemaVersion)
 	}
 	if SelfTarget == "" {
 		t.Fatal("SelfTarget must not be empty")
-	}
-	if GeneratedCheckTransitionTable == "" {
-		t.Fatal("GeneratedCheckTransitionTable must not be empty")
 	}
 }
 

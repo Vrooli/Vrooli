@@ -24,8 +24,8 @@ import (
 	"sort"
 	"strings"
 
-	"flow-verifier/internal/flows/layout"
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
 // CheckAll runs the lint pass for every flow and returns a single

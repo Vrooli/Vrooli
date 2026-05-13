@@ -1,5 +1,6 @@
 {
   "schemaVersion": 6,
+  "kind": "temporal",
   "flowId": "flow-verifier.verification-run.api",
   "domain": "runs",
   "description": "Lifecycle of a single verification run: queued → running → passed / failed / errored.",

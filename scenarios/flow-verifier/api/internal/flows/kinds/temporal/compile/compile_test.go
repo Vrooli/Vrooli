@@ -3,9 +3,9 @@ package compile_test
 import (
 	"testing"
 
-	"flow-verifier/internal/flows/compile"
-	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/compile"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 	"flow-verifier/internal/testkit"
 )
 

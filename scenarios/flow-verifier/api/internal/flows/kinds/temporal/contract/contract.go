@@ -15,15 +15,26 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
-	"flow-verifier/internal/flows/layout"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
 	"flow-verifier/internal/flows/schemas"
-	"flow-verifier/internal/spec"
 )
 
-const SchemaVersion = spec.SchemaVersion
+// SchemaVersion is the on-disk schemaVersion every flow.json must
+// declare. Bumped on breaking schema changes — never decremented.
+const SchemaVersion = 6
+
+// GeneratorVersion identifies the codegen surface version stamped into
+// every emitted formal artifact. Bumped when the artifact format or the
+// codegen output format changes.
+const GeneratorVersion = 7
+
+// GeneratorPath is the stable identifier for the flow-verifier
+// generator stamped into formal artifacts.
+const GeneratorPath = "flow-verifier"
 
 type Contract struct {
 	SchemaVersion      int                `json:"schemaVersion"`
+	Kind               string             `json:"kind"`
 	FlowID             string             `json:"flowId"`
 	Domain             string             `json:"domain"`
 	Description        string             `json:"description"`
@@ -173,6 +184,13 @@ func LoadRaw(path string, relPath string) (Contract, error) {
 	if err != nil {
 		return Contract{}, err
 	}
+	return LoadBytes(data, relPath)
+}
+
+// LoadBytes parses and validates a contract from raw bytes. relPath is
+// the repo-relative path used in error messages and stamped into the
+// returned Contract; it is not consulted for IO.
+func LoadBytes(data []byte, relPath string) (Contract, error) {
 	if err := checkSchemaVersion(data, relPath); err != nil {
 		return Contract{}, err
 	}
@@ -235,14 +253,14 @@ func validateJSONSchema(data []byte) error {
 func compiledFlowSchema() (*jsonschema.Schema, error) {
 	flowSchemaOnce.Do(func() {
 		var schemaDoc any
-		if err := json.Unmarshal(schemas.Flow, &schemaDoc); err != nil {
-			flowSchemaErr = fmt.Errorf("parse embedded flow.schema.json: %w", err)
+		if err := json.Unmarshal(schemas.Temporal, &schemaDoc); err != nil {
+			flowSchemaErr = fmt.Errorf("parse embedded temporal.schema.json: %w", err)
 			return
 		}
 		compiler := jsonschema.NewCompiler()
 		const schemaURL = "https://vrooli.dev/schemas/react-vite/temporal-flow.json"
 		if err := compiler.AddResource(schemaURL, schemaDoc); err != nil {
-			flowSchemaErr = fmt.Errorf("load embedded flow.schema.json: %w", err)
+			flowSchemaErr = fmt.Errorf("load embedded temporal.schema.json: %w", err)
 			return
 		}
 		flowSchema, flowSchemaErr = compiler.Compile(schemaURL)

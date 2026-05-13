@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"flow-verifier/internal/flows/layout"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
 	"flow-verifier/internal/testkit"
 )
 

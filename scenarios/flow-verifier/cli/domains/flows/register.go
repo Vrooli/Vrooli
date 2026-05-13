@@ -9,6 +9,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	h := newHandlers(core)
 	rootFlag := cliapp.Flag{Name: "root", Description: "Repository root to scan (default: cwd)", Default: "."}
 	flowFlag := cliapp.Flag{Name: "flow", Required: true, Description: "Flow id to target"}
+	kindFlag := cliapp.Flag{Name: "kind", Description: "Filter by flow kind (e.g. temporal, navigation)"}
 	return cliapp.SubcommandGroup{
 		Name:        "flows",
 		Description: "Discover, validate, scaffold, and explain flow.json contracts",
@@ -17,7 +18,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{
 				Name:        "list",
 				Description: "List every discovered flow",
-				Args:        cliapp.ArgSchema{Flags: []cliapp.Flag{rootFlag}},
+				Args:        cliapp.ArgSchema{Flags: []cliapp.Flag{rootFlag, kindFlag}},
 				RunCtx:      h.list,
 			},
 			{
@@ -26,6 +27,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
 					rootFlag,
 					{Name: "flow", Description: "Validate only this flow id"},
+					kindFlag,
 				}},
 				RunCtx: h.validate,
 			},
@@ -36,7 +38,8 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 					Positionals: []cliapp.Positional{{Name: "feature-dir", Required: true, Description: "Parent directory for the new flow/"}},
 					Flags: []cliapp.Flag{
 						{Name: "flow-id", Required: true, Description: "Flow identifier"},
-						{Name: "lang", Description: "Target language (ts or go); defaults to ts"},
+						{Name: "kind", Description: "Flow kind to scaffold (temporal|navigation); defaults to temporal"},
+						{Name: "lang", Description: "Target language for temporal kinds (ts or go); defaults to ts"},
 						rootFlag,
 					},
 				},

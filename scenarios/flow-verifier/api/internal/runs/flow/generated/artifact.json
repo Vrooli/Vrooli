@@ -3,7 +3,7 @@
   "flowId": "flow-verifier.verification-run.api",
   "source": {
     "contractPath": "internal/runs/flow/flow.json",
-    "contractSha256": "fad1d756e2ee9380f4b8757ddae9c34024c403f7b247bcc02d9d61bbfc9fe963",
+    "contractSha256": "1ff3039447adc574cee48fe1dc596c413e7c228af2d7b12c6c7beb67cfea7039",
     "generatorPath": "flow-verifier",
     "generatorSha256": "b7362f6363aea370c6932eb535d0ce1300ebe0d7c711e026dc045a0a468c6312",
     "generatorVersion": 7,

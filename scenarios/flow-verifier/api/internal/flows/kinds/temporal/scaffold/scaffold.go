@@ -12,7 +12,7 @@ import (
 	"strings"
 	"text/template"
 
-	"flow-verifier/internal/flows/layout"
+	"flow-verifier/internal/flows/kinds/temporal/layout"
 )
 
 // Options drives a single scaffold invocation.
@@ -201,6 +201,7 @@ func flowJSONTemplate(lang layout.Language) string {
 
 const flowJSONTSTemplate = `{
   "schemaVersion": 6,
+  "kind": "temporal",
   "flowId": "{{.FlowID}}",
   "domain": "{{.Domain}}",
   "description": "Scaffolded {{.Name}} flow.",
@@ -263,6 +264,7 @@ const flowJSONTSTemplate = `{
 
 const flowJSONGoTemplate = `{
   "schemaVersion": 6,
+  "kind": "temporal",
   "flowId": "{{.FlowID}}",
   "domain": "{{.Domain}}",
   "description": "Scaffolded {{.Name}} flow.",

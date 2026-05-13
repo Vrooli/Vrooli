@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"flow-verifier/internal/codegen"
-	"flow-verifier/internal/flows/contract"
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/codegen"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 	"flow-verifier/internal/fsadapter"
 	"flow-verifier/internal/verification/artifact"
 	"flow-verifier/internal/verification/lint"

@@ -7,7 +7,7 @@ import (
 
 func TestListReturnsEmptyOnEmptyRoot(t *testing.T) {
 	dir := t.TempDir()
-	got, err := List(dir, "")
+	got, err := List(dir, "", "")
 	if err != nil {
 		t.Fatalf("List on empty dir should not error, got: %v", err)
 	}
@@ -18,7 +18,7 @@ func TestListReturnsEmptyOnEmptyRoot(t *testing.T) {
 
 func TestListFlowIDFilterMissReportsError(t *testing.T) {
 	dir := t.TempDir()
-	_, err := List(dir, "does.not.exist")
+	_, err := List(dir, "does.not.exist", "")
 	if err == nil {
 		t.Fatal("expected error when flowID filter matches no flow")
 	}

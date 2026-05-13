@@ -7,8 +7,11 @@ import (
 
 func TestEmbeddedSchemasParseAsJSON(t *testing.T) {
 	for name, blob := range map[string][]byte{
-		"Flow":           Flow,
-		"FormalArtifact": FormalArtifact,
+		"Temporal":                 Temporal,
+		"Navigation":               Navigation,
+		"FormalArtifact":           FormalArtifact,
+		"NavigationMinimalExample": NavigationMinimalExample,
+		"NavigationFullExample":    NavigationFullExample,
 	} {
 		if len(blob) == 0 {
 			t.Fatalf("%s schema is empty — go:embed failed?", name)

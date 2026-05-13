@@ -6,6 +6,7 @@
   "additionalProperties": false,
   "required": [
     "schemaVersion",
+    "kind",
     "flowId",
     "domain",
     "description",
@@ -21,6 +22,7 @@
   ],
   "properties": {
     "schemaVersion": { "const": 6 },
+    "kind": { "const": "temporal" },
     "flowId": { "type": "string", "minLength": 1 },
     "domain": { "type": "string", "minLength": 1 },
     "description": { "type": "string", "minLength": 1 },

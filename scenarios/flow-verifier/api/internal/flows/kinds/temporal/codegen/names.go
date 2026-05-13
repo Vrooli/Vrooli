@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"flow-verifier/internal/flows/model"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
 func generatedHeader(flow model.Flow) string {

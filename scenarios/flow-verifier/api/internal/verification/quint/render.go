@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"flow-verifier/internal/flows/model"
-	"flow-verifier/internal/spec"
+	"flow-verifier/internal/flows/kinds/temporal/model"
 )
 
-const TransitionTableRun = spec.GeneratedCheckTransitionTable
+const TransitionTableRun = GeneratedCheckTransitionTable
 
 func Render(flow model.Flow) string {
 	stateTags := make([]string, 0, len(flow.States))

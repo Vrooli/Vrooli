@@ -1,6 +1,6 @@
 package model
 
-import "flow-verifier/internal/flows/contract"
+import "flow-verifier/internal/flows/kinds/temporal/contract"
 
 type TraceCoverage struct {
 	AllStatesCovered bool     `json:"allStatesCovered"`

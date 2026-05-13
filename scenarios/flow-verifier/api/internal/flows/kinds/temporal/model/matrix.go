@@ -3,7 +3,7 @@ package model
 import (
 	"fmt"
 
-	"flow-verifier/internal/flows/contract"
+	"flow-verifier/internal/flows/kinds/temporal/contract"
 )
 
 type Pair struct {
