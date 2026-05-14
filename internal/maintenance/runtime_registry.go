@@ -21,8 +21,11 @@ type runtimeMaintenanceStore interface {
 	scenarioruntime.QueryRepository
 	scenarioruntime.CleanupRepository
 	scenarioruntime.ProcessRefRepository
+	scenarioruntime.EventRepository
 	ListSupervisorSessions(ctx context.Context, filter scenarioruntime.SupervisorSessionFilter) ([]scenarioruntime.SupervisorSession, error)
 	ListExpiredActivePortClaims(ctx context.Context, at time.Time) ([]scenarioruntime.PortClaim, error)
+	ReleaseActivePortClaimsForInstance(ctx context.Context, instanceID string) ([]scenarioruntime.PortClaim, error)
+	StopLease(ctx context.Context, instanceID string, generation int64, reason string) (scenarioruntime.Instance, error)
 }
 
 func openRuntimeRegistryIfPresent(home string) (runtimeMaintenanceStore, func(), error) {
@@ -241,6 +244,67 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 		}
 	}
 	return stopped, nil
+}
+
+// finalizeStuckStoppingInstances finalizes runtime_instances rows that got
+// stuck in status='stopping' because the lifecycle runner died between
+// marking the instance stopping and finishing the stop. This is the reaper
+// that enforces invariant I1: a lifecycle stop must never leave port claims,
+// process_refs, or instance state unfinalized.
+//
+// An instance is considered stuck when any of the following hold:
+//   - host_boot_id differs from the current boot (machine rebooted),
+//   - owner_pid is unset or no longer points at a live process,
+//   - heartbeat_deadline_at is in the past.
+//
+// For each stuck instance the reaper releases its active port claims, marks
+// its process_refs exited, transitions the instance to stopped with
+// stop_reason=reaper-finalize, and emits an instance_reaped event for
+// forensics.
+func finalizeStuckStoppingInstances(ctx context.Context, store runtimeMaintenanceStore) ([]control.ResultItem, error) {
+	host, err := hostsession.DefaultProvider{}.Current(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{Statuses: []string{scenarioruntime.StatusStopping}})
+	if err != nil {
+		return nil, err
+	}
+	stopped := make([]control.ResultItem, 0)
+	now := time.Now().UTC()
+	for _, instance := range instances {
+		trigger, ok := stuckStoppingTrigger(instance, host.BootID, now)
+		if !ok {
+			continue
+		}
+		if err := scenarioruntime.FinalizeStuckInstance(ctx, store, instance, trigger, now); err != nil {
+			return nil, err
+		}
+		stopped = append(stopped, control.Stopped(instance.Scenario+"/"+instance.InstanceID, "Finalized stuck-stopping runtime instance ("+trigger+")"))
+	}
+	return stopped, nil
+}
+
+// stuckStoppingTrigger returns a short label for the condition that makes a
+// stopping instance eligible for the reaper, or ("", false) if the instance
+// still looks alive.
+func stuckStoppingTrigger(instance scenarioruntime.Instance, currentBootID string, now time.Time) (string, bool) {
+	if instance.Status != scenarioruntime.StatusStopping {
+		return "", false
+	}
+	if currentBootID != "" && instance.HostBootID != "" && instance.HostBootID != currentBootID {
+		return "boot_id_mismatch", true
+	}
+	if instance.OwnerPID == nil || *instance.OwnerPID <= 0 {
+		return "owner_pid_missing", true
+	}
+	if !processIsRunning(*instance.OwnerPID) {
+		return "owner_pid_dead", true
+	}
+	if instance.HeartbeatDeadlineAt != nil && !instance.HeartbeatDeadlineAt.After(now) {
+		return "heartbeat_expired", true
+	}
+	return "", false
 }
 
 func runtimeListenerEvidence(claims []scenarioruntime.PortClaim, refs []scenarioruntime.ProcessRef) map[int]scenarioruntime.ListenerEvidence {

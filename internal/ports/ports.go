@@ -13,12 +13,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
+
+func defaultHostBootID(ctx context.Context) (string, error) {
+	snap, err := hostsession.DefaultProvider{}.Current(ctx, "")
+	if err != nil {
+		return "", err
+	}
+	return snap.BootID, nil
+}
 
 const (
 	mutationLockTimeout     = 2 * time.Second
@@ -59,7 +68,23 @@ type Environment struct {
 type RuntimeClaimStore interface {
 	scenarioruntime.PortClaimRepository
 	scenarioruntime.CleanupRepository
+	scenarioruntime.ProcessRefRepository
+	scenarioruntime.EventRepository
+	GetInstance(ctx context.Context, instanceID string) (scenarioruntime.Instance, error)
+	StopLease(ctx context.Context, instanceID string, generation int64, reason string) (scenarioruntime.Instance, error)
 }
+
+// PortPreempter is the lifecycle hook the ports package calls to gracefully
+// stop a still-live scenario that holds a fixed port we need. It is a small
+// interface so that ports never imports lifecycle (and lifecycle's runner is
+// the only production implementation).
+type PortPreempter interface {
+	StopScenario(ctx context.Context, scenarioName string) error
+}
+
+// CurrentBootIDFunc returns the current host boot ID. Injected so tests can
+// simulate a post-reboot machine without touching /proc.
+type CurrentBootIDFunc func(ctx context.Context) string
 
 type RuntimeClaimOptions struct {
 	Enabled    bool
@@ -67,6 +92,20 @@ type RuntimeClaimOptions struct {
 	Store      RuntimeClaimStore
 	InstanceID string
 	TTL        time.Duration
+
+	// Preempter, when non-nil, is called to gracefully stop a live vrooli
+	// scenario that holds a fixed port we need. Nil disables live preemption
+	// (stale-claim preemption still works without it).
+	Preempter PortPreempter
+
+	// CurrentBootID returns the current host boot identifier so the
+	// stale-claim classifier can recognize cross-boot leftover state.
+	// Defaults to hostsession-derived value when unset.
+	CurrentBootID CurrentBootIDFunc
+
+	// PIDIsRunning reports whether the given pid is live. Defaults to
+	// process.IsPIDRunning when unset; tests can override.
+	PIDIsRunning func(pid int) bool
 }
 
 func NewManager(root, home string) (*Manager, error) {
@@ -480,7 +519,7 @@ type portAllocation struct {
 func (m *Manager) allocatePortDefinition(scenarioName string, portSummary scenario.PortSummary, claimOptions RuntimeClaimOptions) (portAllocation, error) {
 	if portSummary.FixedPort != nil {
 		port := *portSummary.FixedPort
-		claim, claimed, err := m.acquireRuntimePortClaim(scenarioName, portSummary, port, claimOptions)
+		claim, claimed, err := m.acquireRuntimePortClaim(scenarioName, portSummary, port, claimOptions, true)
 		if err != nil {
 			return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
 		}
@@ -509,7 +548,7 @@ func (m *Manager) allocatePortDefinition(scenarioName string, portSummary scenar
 	offset := int(crc32.ChecksumIEEE([]byte(scenarioName+"_"+portSummary.Name)) % uint32(size))
 	for attempt := 0; attempt < size; attempt++ {
 		port := start + ((offset + attempt) % size)
-		claim, claimed, err := m.acquireRuntimePortClaim(scenarioName, portSummary, port, claimOptions)
+		claim, claimed, err := m.acquireRuntimePortClaim(scenarioName, portSummary, port, claimOptions, false)
 		if err != nil {
 			continue
 		}
@@ -525,7 +564,7 @@ func (m *Manager) allocatePortDefinition(scenarioName string, portSummary scenar
 	return portAllocation{}, fmt.Errorf("no available ports in range %s for %s", portSummary.Range, portSummary.Name)
 }
 
-func (m *Manager) acquireRuntimePortClaim(scenarioName string, portSummary scenario.PortSummary, port int, options RuntimeClaimOptions) (scenarioruntime.PortClaim, bool, error) {
+func (m *Manager) acquireRuntimePortClaim(scenarioName string, portSummary scenario.PortSummary, port int, options RuntimeClaimOptions, fixed bool) (scenarioruntime.PortClaim, bool, error) {
 	if !runtimeClaimsEnabled(options) {
 		return scenarioruntime.PortClaim{}, false, nil
 	}
@@ -545,24 +584,179 @@ func (m *Manager) acquireRuntimePortClaim(scenarioName string, portSummary scena
 		ttl = defaultClaimTTL
 	}
 	expiresAt := m.Now().UTC().Add(ttl)
-	claim, err := options.Store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
-		InstanceID: options.InstanceID,
-		Scenario:   scenarioName,
-		PortName:   portSummary.Name,
-		EnvVar:     portSummary.EnvVar,
-		Port:       port,
-		BindHost:   "127.0.0.1",
-		URL:        runtimePortURL(portSummary.Name, port),
-		Status:     scenarioruntime.ClaimStatusReserved,
-		ExpiresAt:  &expiresAt,
-	})
+	newClaim := func() (scenarioruntime.PortClaim, error) {
+		return options.Store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+			InstanceID: options.InstanceID,
+			Scenario:   scenarioName,
+			PortName:   portSummary.Name,
+			EnvVar:     portSummary.EnvVar,
+			Port:       port,
+			BindHost:   "127.0.0.1",
+			URL:        runtimePortURL(portSummary.Name, port),
+			Status:     scenarioruntime.ClaimStatusReserved,
+			ExpiresAt:  &expiresAt,
+		})
+	}
+	claim, err := newClaim()
+	if err == nil {
+		return claim, true, nil
+	}
+	if !errors.Is(err, scenarioruntime.ErrActiveClaimConflict) {
+		return scenarioruntime.PortClaim{}, false, err
+	}
+	// Conflict path. Range allocators retry on the next port and never
+	// preempt — fixed-port callers are the only ones that should disturb
+	// other instances' state.
+	if !fixed {
+		return scenarioruntime.PortClaim{}, false, fmt.Errorf("active registry claim already owns port %d", port)
+	}
+	preempted, kind, conflictScenario, perr := m.preemptFixedPortConflict(ctx, options, scenarioName, port)
+	if perr != nil {
+		return scenarioruntime.PortClaim{}, false, fmt.Errorf("active registry claim already owns port %d: preemption failed: %w", port, perr)
+	}
+	if !preempted {
+		return scenarioruntime.PortClaim{}, false, fmt.Errorf("active registry claim already owns port %d", port)
+	}
+	claim, err = newClaim()
 	if err != nil {
 		if errors.Is(err, scenarioruntime.ErrActiveClaimConflict) {
-			return scenarioruntime.PortClaim{}, false, fmt.Errorf("active registry claim already owns port %d", port)
+			return scenarioruntime.PortClaim{}, false, fmt.Errorf("active registry claim already owns port %d (preempted %s claim from %q, still conflicting)", port, kind, conflictScenario)
 		}
 		return scenarioruntime.PortClaim{}, false, err
 	}
+	m.recordPortPreemptedEvent(ctx, options, scenarioName, port, kind, conflictScenario)
 	return claim, true, nil
+}
+
+// preemptFixedPortConflict resolves an active registry claim that's blocking
+// a fixed-port acquire. It returns (preempted, kind, conflictingScenario, error).
+// `kind` is one of "stale" / "live" / "" (when no claim found).
+//
+// Stale conflicts are finalized in place via FinalizeStuckInstance. Live
+// conflicts are stopped via the lifecycle Preempter callback when one is
+// configured; without a Preempter, a live conflict is not preempted and the
+// caller surfaces the original ErrActiveClaimConflict.
+func (m *Manager) preemptFixedPortConflict(ctx context.Context, options RuntimeClaimOptions, requestingScenario string, port int) (bool, string, string, error) {
+	conflict, ok, err := findActiveClaimOnPort(ctx, options.Store, port)
+	if err != nil {
+		return false, "", "", err
+	}
+	if !ok {
+		// No registry row holds the port — the conflict is either a race
+		// with another in-flight acquire, or transient. Let the caller
+		// surface the original conflict error.
+		return false, "", "", nil
+	}
+	instance, err := options.Store.GetInstance(ctx, conflict.InstanceID)
+	if err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+		return false, "", conflict.Scenario, err
+	}
+	if errors.Is(err, scenarioruntime.ErrNotFound) {
+		// Claim row points at a deleted instance — definitionally stale.
+		// Just release the orphan claim.
+		_, relErr := options.Store.ReleasePortClaim(ctx, conflict.ClaimID)
+		if relErr != nil && !errors.Is(relErr, scenarioruntime.ErrNotFound) {
+			return false, "stale", conflict.Scenario, relErr
+		}
+		return true, "stale", conflict.Scenario, nil
+	}
+
+	currentBootID := resolveCurrentBootID(ctx, options)
+	pidIsRunning := options.PIDIsRunning
+	if pidIsRunning == nil {
+		pidIsRunning = process.IsPIDRunning
+	}
+	now := m.Now().UTC()
+
+	if trigger, stale := classifyStuckInstance(instance, currentBootID, pidIsRunning, now); stale {
+		if err := scenarioruntime.FinalizeStuckInstance(ctx, options.Store, instance, trigger, now); err != nil {
+			return false, "stale", instance.Scenario, err
+		}
+		return true, "stale", instance.Scenario, nil
+	}
+
+	// Live conflict — only preempt via the lifecycle hook.
+	if options.Preempter == nil {
+		return false, "live", instance.Scenario, nil
+	}
+	if err := options.Preempter.StopScenario(ctx, instance.Scenario); err != nil {
+		return false, "live", instance.Scenario, err
+	}
+	return true, "live", instance.Scenario, nil
+}
+
+// findActiveClaimOnPort returns the active (reserved or bound) registry claim
+// that currently owns the given port, if any. There can be at most one due to
+// the unique active-port index on runtime_port_claims.
+func findActiveClaimOnPort(ctx context.Context, store RuntimeClaimStore, port int) (scenarioruntime.PortClaim, bool, error) {
+	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
+		Statuses: scenarioruntime.ActivePortClaimStatuses(),
+	})
+	if err != nil {
+		return scenarioruntime.PortClaim{}, false, err
+	}
+	for _, c := range claims {
+		if c.Port == port {
+			return c, true, nil
+		}
+	}
+	return scenarioruntime.PortClaim{}, false, nil
+}
+
+// classifyStuckInstance decides whether a vrooli-owned conflicting instance
+// is stale enough that the ports preemption path can finalize it in place
+// without consulting the lifecycle. It is more conservative than the
+// maintenance reaper because it runs on any active claim — not just on
+// status=stopping. The rules:
+//
+//   - status NOT in {starting, running} → stale (the instance is already
+//     past its lifecycle; the active claim is leftover state),
+//   - boot mismatch → stale (machine rebooted; pid space changed),
+//   - owner_pid set but dead → stale,
+//   - heartbeat deadline elapsed → stale,
+//   - otherwise → live (owner_pid missing alone is *not* enough; many
+//     legitimate in-flight startups have not recorded a pid yet, and
+//     preempting them would be a self-inflicted denial of service).
+func classifyStuckInstance(instance scenarioruntime.Instance, currentBootID string, pidIsRunning func(int) bool, now time.Time) (string, bool) {
+	if currentBootID != "" && instance.HostBootID != "" && instance.HostBootID != currentBootID {
+		return "boot_id_mismatch", true
+	}
+	if !scenarioruntime.IsActiveInstanceStatus(instance.Status) {
+		return "non_active_status:" + instance.Status, true
+	}
+	if instance.OwnerPID != nil && *instance.OwnerPID > 0 && !pidIsRunning(*instance.OwnerPID) {
+		return "owner_pid_dead", true
+	}
+	if instance.HeartbeatDeadlineAt != nil && !instance.HeartbeatDeadlineAt.After(now) {
+		return "heartbeat_expired", true
+	}
+	return "", false
+}
+
+func resolveCurrentBootID(ctx context.Context, options RuntimeClaimOptions) string {
+	if options.CurrentBootID != nil {
+		return options.CurrentBootID(ctx)
+	}
+	host, err := defaultHostBootID(ctx)
+	if err != nil {
+		return ""
+	}
+	return host
+}
+
+// recordPortPreemptedEvent writes a port_preempted runtime event for forensics.
+// Best-effort: errors are intentionally swallowed because preemption already
+// succeeded and the acquire path should not fail solely due to an event-log
+// write failure.
+func (m *Manager) recordPortPreemptedEvent(ctx context.Context, options RuntimeClaimOptions, requestingScenario string, port int, kind, conflictingScenario string) {
+	details := fmt.Sprintf(`{"port":%d,"requesting_scenario":%q,"conflicting_scenario":%q,"conflict_kind":%q}`,
+		port, requestingScenario, conflictingScenario, kind)
+	_, _ = options.Store.RecordEvent(ctx, scenarioruntime.Event{
+		InstanceID:  options.InstanceID,
+		Scenario:    requestingScenario,
+		EventType:   "port_preempted",
+		DetailsJSON: details,
+	})
 }
 
 func runtimeClaimsEnabled(options RuntimeClaimOptions) bool {

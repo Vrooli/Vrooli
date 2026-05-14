@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	_ "modernc.org/sqlite"
 
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
@@ -818,6 +821,578 @@ func createRuntimeInstanceForPortTests(t *testing.T, store *scenarioruntime.SQLi
 		t.Fatalf("CreateInstance(%s): %v", scenarioName, err)
 	}
 	return instance
+}
+
+// TestLifecycleStartRecoversFromSigkilledMidStop is the end-to-end regression
+// for the original web-console failure: a prior lifecycle stop crashed
+// between marking the instance stopping and finalizing it, leaving the bound
+// port claim live. A fresh start on the same fixed port must self-heal and
+// succeed — this test injects the exact SQL state via the store (no killed
+// processes needed), runs the port allocator end-to-end, and asserts the
+// reaper + preemption path fired and recorded a port_preempted forensic
+// event.
+func TestLifecycleStartRecoversFromSigkilledMidStop(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	ctx := context.Background()
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	// Inject the exact stuck state observed in production: instance in
+	// stopping, claim in bound, owner_pid pointing at a dead process.
+	deadPID := 99999
+	prior, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID: "inst-prior",
+		Scenario:   "web-console",
+		Status:     scenarioruntime.StatusStopping,
+		OwnerPID:   &deadPID,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance(prior): %v", err)
+	}
+	port := freeLocalPort(t)
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-prior-ui",
+		InstanceID: prior.InstanceID,
+		Scenario:   prior.Scenario,
+		PortName:   "api",
+		Port:       port,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+	runningPID := 12345
+	if _, err := store.AddProcessRef(ctx, scenarioruntime.ProcessRef{
+		RefID:      "proc-prior-ui",
+		InstanceID: prior.InstanceID,
+		PID:        &runningPID,
+		Step:       "api",
+		Status:     "running",
+	}); err != nil {
+		t.Fatalf("AddProcessRef: %v", err)
+	}
+
+	// Simulate Runner.Start on the same scenario: it creates a new lease,
+	// then calls BuildEnvironmentWithRuntimeClaims which routes through the
+	// fixed-port preemption path.
+	replacement, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		Scenario: "web-console",
+		Status:   scenarioruntime.StatusStarting,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance(replacement): %v", err)
+	}
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	env, err := manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "web-console", port), nil, RuntimeClaimOptions{
+		Enabled:      true,
+		Context:      ctx,
+		Store:        store,
+		InstanceID:   replacement.InstanceID,
+		PIDIsRunning: func(int) bool { return false },
+	})
+	if err != nil {
+		t.Fatalf("BuildEnvironmentWithRuntimeClaims (recovery): %v", err)
+	}
+	if env.AllocatedPorts["api"] != port {
+		t.Fatalf("allocated port = %d, want %d", env.AllocatedPorts["api"], port)
+	}
+
+	priorAfter, err := store.GetInstance(ctx, prior.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance(prior): %v", err)
+	}
+	if priorAfter.Status != scenarioruntime.StatusStopped || priorAfter.StopReason != scenarioruntime.StopReasonReaperFinalize {
+		t.Fatalf("prior instance not finalized: status=%q reason=%q", priorAfter.Status, priorAfter.StopReason)
+	}
+
+	priorRefs, err := store.ListProcessRefs(ctx, prior.InstanceID)
+	if err != nil {
+		t.Fatalf("ListProcessRefs: %v", err)
+	}
+	if len(priorRefs) != 1 || priorRefs[0].Status != "exited" {
+		t.Fatalf("prior refs not exited: %#v", priorRefs)
+	}
+
+	// Verify the port_preempted forensic event landed in runtime_events.
+	events := queryEventsByType(t, dbPath, "port_preempted")
+	if len(events) != 1 {
+		t.Fatalf("port_preempted events = %d, want 1; details=%v", len(events), events)
+	}
+	if !strings.Contains(events[0], `"conflicting_scenario":"web-console"`) || !strings.Contains(events[0], `"conflict_kind":"stale"`) {
+		t.Fatalf("port_preempted event details = %q, missing fields", events[0])
+	}
+}
+
+func queryEventsByType(t *testing.T, dbPath, eventType string) []string {
+	t.Helper()
+	db, err := sql.Open("sqlite", "file:"+dbPath+"?mode=ro")
+	if err != nil {
+		t.Fatalf("open events db: %v", err)
+	}
+	defer db.Close()
+	rows, err := db.Query(`SELECT details_json FROM runtime_events WHERE event_type = ?`, eventType)
+	if err != nil {
+		t.Fatalf("query events: %v", err)
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var details string
+		if err := rows.Scan(&details); err != nil {
+			t.Fatalf("scan event row: %v", err)
+		}
+		out = append(out, details)
+	}
+	return out
+}
+
+// fakePreempter records calls and runs an optional hook that simulates the
+// real Runner.Stop side effect (releasing the conflicting instance's claims
+// and stopping its lease).
+type fakePreempter struct {
+	calls   []string
+	onStop  func(scenarioName string) error
+	stopErr error
+}
+
+func (f *fakePreempter) StopScenario(_ context.Context, scenarioName string) error {
+	f.calls = append(f.calls, scenarioName)
+	if f.onStop != nil {
+		if err := f.onStop(scenarioName); err != nil {
+			return err
+		}
+	}
+	return f.stopErr
+}
+
+// TestAcquireFixedPortPreemptsStaleSameScenarioClaim regresses the original
+// web-console bug: a stuck-stopping claim for the same scenario must not
+// block its own restart. The reaper inside acquireRuntimePortClaim should
+// finalize the prior instance and the new instance's reserved claim should
+// land on the same fixed port.
+func TestAcquireFixedPortPreemptsStaleSameScenarioClaim(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+	store := newRuntimeClaimStoreForPortTests(t)
+	ctx := context.Background()
+
+	deadPID := 99999
+	stale, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID: "inst-stuck",
+		Scenario:   "web-console",
+		Status:     scenarioruntime.StatusStopping,
+		OwnerPID:   &deadPID,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance(stale): %v", err)
+	}
+	port := freeLocalPort(t)
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-stuck-ui",
+		InstanceID: stale.InstanceID,
+		Scenario:   stale.Scenario,
+		PortName:   "api",
+		Port:       port,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	replacement := createRuntimeInstanceForPortTests(t, store, "web-console")
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	env, err := manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "web-console", port), nil, RuntimeClaimOptions{
+		Enabled:      true,
+		Context:      ctx,
+		Store:        store,
+		InstanceID:   replacement.InstanceID,
+		PIDIsRunning: func(int) bool { return false },
+	})
+	if err != nil {
+		t.Fatalf("BuildEnvironmentWithRuntimeClaims: %v", err)
+	}
+	if env.AllocatedPorts["api"] != port {
+		t.Fatalf("allocated port = %d, want %d", env.AllocatedPorts["api"], port)
+	}
+	staleAfter, err := store.GetInstance(ctx, stale.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance(stale): %v", err)
+	}
+	if staleAfter.Status != scenarioruntime.StatusStopped || staleAfter.StopReason != scenarioruntime.StopReasonReaperFinalize {
+		t.Fatalf("stale instance not finalized: %#v", staleAfter)
+	}
+	active, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
+		Statuses: scenarioruntime.ActivePortClaimStatuses(),
+	})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(active) != 1 || active[0].InstanceID != replacement.InstanceID {
+		t.Fatalf("active claims after preemption = %#v, want one owned by replacement", active)
+	}
+}
+
+// TestAcquireFixedPortPreemptsStaleForeignScenarioClaim covers the manifest
+// collision case: scenario "other" left a stuck-stopping claim on a fixed
+// port that scenario "web-console" needs. Same preemption path; the
+// port_preempted event must record the foreign scenario for forensics.
+func TestAcquireFixedPortPreemptsStaleForeignScenarioClaim(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+	store := newRuntimeClaimStoreForPortTests(t)
+	ctx := context.Background()
+
+	deadPID := 99999
+	stale, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID: "inst-other-stuck",
+		Scenario:   "other-scenario",
+		Status:     scenarioruntime.StatusStopping,
+		OwnerPID:   &deadPID,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance(stale): %v", err)
+	}
+	port := freeLocalPort(t)
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-other-stuck",
+		InstanceID: stale.InstanceID,
+		Scenario:   stale.Scenario,
+		PortName:   "api",
+		Port:       port,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	replacement := createRuntimeInstanceForPortTests(t, store, "web-console")
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	if _, err := manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "web-console", port), nil, RuntimeClaimOptions{
+		Enabled:      true,
+		Context:      ctx,
+		Store:        store,
+		InstanceID:   replacement.InstanceID,
+		PIDIsRunning: func(int) bool { return false },
+	}); err != nil {
+		t.Fatalf("BuildEnvironmentWithRuntimeClaims: %v", err)
+	}
+
+	staleAfter, err := store.GetInstance(ctx, stale.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance(stale): %v", err)
+	}
+	if staleAfter.Status != scenarioruntime.StatusStopped {
+		t.Fatalf("stale foreign instance not finalized: %#v", staleAfter)
+	}
+}
+
+// TestAcquireFixedPortGracefullyStopsLiveVrooliConflict covers the case
+// where the conflicting instance is alive and healthy: a live owner_pid,
+// fresh heartbeat, and matching boot. The ports package must defer to the
+// lifecycle Preempter (Runner.Stop) instead of forcibly mutating registry
+// state. The fake Preempter simulates Runner.Stop by releasing the
+// conflicting claim, allowing the retry to succeed.
+func TestAcquireFixedPortGracefullyStopsLiveVrooliConflict(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+	store := newRuntimeClaimStoreForPortTests(t)
+	ctx := context.Background()
+
+	livePID := os.Getpid()
+	heartbeatDeadline := time.Now().UTC().Add(time.Hour)
+	live, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID:          "inst-live-conflict",
+		Scenario:            "other-live",
+		Status:              scenarioruntime.StatusRunning,
+		OwnerPID:            &livePID,
+		HeartbeatDeadlineAt: &heartbeatDeadline,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance(live): %v", err)
+	}
+	port := freeLocalPort(t)
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-live-conflict",
+		InstanceID: live.InstanceID,
+		Scenario:   live.Scenario,
+		PortName:   "api",
+		Port:       port,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	requester := createRuntimeInstanceForPortTests(t, store, "web-console")
+	preempter := &fakePreempter{
+		onStop: func(scenarioName string) error {
+			if _, err := store.ReleaseActivePortClaimsForInstance(ctx, live.InstanceID); err != nil {
+				return err
+			}
+			_, err := store.StopLease(ctx, live.InstanceID, live.Generation, "scenario stopped")
+			return err
+		},
+	}
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	if _, err := manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "web-console", port), nil, RuntimeClaimOptions{
+		Enabled:      true,
+		Context:      ctx,
+		Store:        store,
+		InstanceID:   requester.InstanceID,
+		Preempter:    preempter,
+		PIDIsRunning: func(pid int) bool { return pid == livePID },
+	}); err != nil {
+		t.Fatalf("BuildEnvironmentWithRuntimeClaims: %v", err)
+	}
+	if len(preempter.calls) != 1 || preempter.calls[0] != "other-live" {
+		t.Fatalf("preempter calls = %#v, want [\"other-live\"]", preempter.calls)
+	}
+	liveAfter, err := store.GetInstance(ctx, live.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance(live): %v", err)
+	}
+	if liveAfter.Status != scenarioruntime.StatusStopped {
+		t.Fatalf("live conflicting instance not stopped: %#v", liveAfter)
+	}
+}
+
+// TestAcquireFixedPortRefusesLiveConflictWithoutPreempter asserts that when
+// no lifecycle hook is wired up, a live vrooli-owned conflict surfaces as a
+// hard error rather than silently preempting via registry mutation. The
+// registry alone must never be the source of forcible stop.
+func TestAcquireFixedPortRefusesLiveConflictWithoutPreempter(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+	store := newRuntimeClaimStoreForPortTests(t)
+	ctx := context.Background()
+
+	livePID := os.Getpid()
+	heartbeatDeadline := time.Now().UTC().Add(time.Hour)
+	live, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID:          "inst-live-noop",
+		Scenario:            "other-live",
+		Status:              scenarioruntime.StatusRunning,
+		OwnerPID:            &livePID,
+		HeartbeatDeadlineAt: &heartbeatDeadline,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance(live): %v", err)
+	}
+	port := freeLocalPort(t)
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-live-noop",
+		InstanceID: live.InstanceID,
+		Scenario:   live.Scenario,
+		PortName:   "api",
+		Port:       port,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	requester := createRuntimeInstanceForPortTests(t, store, "web-console")
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	_, err = manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "web-console", port), nil, RuntimeClaimOptions{
+		Enabled:      true,
+		Context:      ctx,
+		Store:        store,
+		InstanceID:   requester.InstanceID,
+		PIDIsRunning: func(pid int) bool { return pid == livePID },
+	})
+	if err == nil {
+		t.Fatal("expected ErrActiveClaimConflict without preempter")
+	}
+	if !strings.Contains(err.Error(), "active registry claim already owns port") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// TestAcquireRangePortDoesNotPreempt asserts the range allocator skips a
+// conflicted port instead of preempting whoever owns it. Range allocations
+// are by definition fungible — the next port in the range is just as good
+// and disturbing other scenarios for a port that isn't pinned would be
+// hostile behavior.
+func TestAcquireRangePortDoesNotPreempt(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+	store := newRuntimeClaimStoreForPortTests(t)
+	ctx := context.Background()
+
+	deadPID := 99999
+	stale, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID: "inst-range-block",
+		Scenario:   "other-scenario",
+		Status:     scenarioruntime.StatusStopping,
+		OwnerPID:   &deadPID,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+
+	// Build a range scenario with a single-port range to force the allocator
+	// to hit the conflict.
+	rangePort := freeLocalPort(t)
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-range-block",
+		InstanceID: stale.InstanceID,
+		Scenario:   stale.Scenario,
+		PortName:   "api",
+		Port:       rangePort,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	requester := createRuntimeInstanceForPortTests(t, store, "web-console")
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	item := scenario.Scenario{
+		Slug: "web-console",
+		Path: filepath.Join(root, "scenarios", "web-console"),
+		Manifest: scenario.ServiceManifest{
+			Ports: map[string]scenario.Port{
+				"api": {EnvVar: "API_PORT", Range: fmt.Sprintf("%d-%d", rangePort, rangePort)},
+			},
+		},
+	}
+	_, err = manager.BuildEnvironmentWithRuntimeClaims(item, nil, RuntimeClaimOptions{
+		Enabled:      true,
+		Context:      ctx,
+		Store:        store,
+		InstanceID:   requester.InstanceID,
+		PIDIsRunning: func(int) bool { return false },
+	})
+	if err == nil {
+		t.Fatal("expected range-only conflict to fail without preempting")
+	}
+	staleAfter, err := store.GetInstance(ctx, stale.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance(stale): %v", err)
+	}
+	if staleAfter.Status != scenarioruntime.StatusStopping {
+		t.Fatalf("range allocator preempted stale instance: %#v", staleAfter)
+	}
+}
+
+// TestAcquireFixedPortPreemptionRetryBudgetExceeded simulates the race where
+// preemption succeeds but a different scenario claims the freed port before
+// the requester can retry. The retry must not loop — it must surface the
+// conflict so a human can see "we preempted X, lost to Y" instead of
+// hanging indefinitely.
+func TestAcquireFixedPortPreemptionRetryBudgetExceeded(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+	store := newRuntimeClaimStoreForPortTests(t)
+	ctx := context.Background()
+
+	deadPID := 99999
+	stale, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID: "inst-race-1",
+		Scenario:   "other-scenario",
+		Status:     scenarioruntime.StatusStopping,
+		OwnerPID:   &deadPID,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance(stale): %v", err)
+	}
+	port := freeLocalPort(t)
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-race-1",
+		InstanceID: stale.InstanceID,
+		Scenario:   stale.Scenario,
+		PortName:   "api",
+		Port:       port,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	// Pre-create a second stale instance whose claim will materialize after
+	// the first preemption finalizes. We do this by wrapping the store so
+	// that after the first preemption releases the original claim, a
+	// concurrent acquire by a third instance lands on the same port.
+	racer := createRuntimeInstanceForPortTests(t, store, "yet-another")
+	requester := createRuntimeInstanceForPortTests(t, store, "web-console")
+
+	// Race hook: the FakeStore proxies the underlying SQLiteStore and, on
+	// the second ReleaseActivePortClaimsForInstance call (i.e. after our
+	// reaper finalizes the stale instance), inserts a new active claim on
+	// the same port for `racer` so the retry encounters a fresh conflict.
+	racing := &racingStore{
+		RuntimeClaimStore: store,
+		afterRelease: func() {
+			_, _ = store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+				ClaimID:    "claim-race-2",
+				InstanceID: racer.InstanceID,
+				Scenario:   racer.Scenario,
+				PortName:   "api",
+				Port:       port,
+				Status:     scenarioruntime.ClaimStatusBound,
+			})
+		},
+	}
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	_, err = manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "web-console", port), nil, RuntimeClaimOptions{
+		Enabled:      true,
+		Context:      ctx,
+		Store:        racing,
+		InstanceID:   requester.InstanceID,
+		PIDIsRunning: func(int) bool { return false },
+	})
+	if err == nil {
+		t.Fatal("expected retry-budget-exceeded error")
+	}
+	if !strings.Contains(err.Error(), "still conflicting") && !strings.Contains(err.Error(), "active registry claim already owns port") {
+		t.Fatalf("unexpected retry-budget error: %v", err)
+	}
+}
+
+// racingStore wraps a RuntimeClaimStore and fires a hook after every
+// ReleaseActivePortClaimsForInstance — simulating a concurrent acquire that
+// steals the freed port before our retry sees it.
+type racingStore struct {
+	RuntimeClaimStore
+	afterRelease func()
+	count        int
+}
+
+func (r *racingStore) ReleaseActivePortClaimsForInstance(ctx context.Context, instanceID string) ([]scenarioruntime.PortClaim, error) {
+	out, err := r.RuntimeClaimStore.ReleaseActivePortClaimsForInstance(ctx, instanceID)
+	r.count++
+	if r.afterRelease != nil {
+		r.afterRelease()
+	}
+	return out, err
 }
 
 func TestLoadResourceEnvironmentReturnsEmptyWhenMetadataMissing(t *testing.T) {

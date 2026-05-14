@@ -916,6 +916,396 @@ func TestCleanStaleLocksExpiresNonAuthoritativeClaimOnAuthoritativeInstance(t *t
 	}
 }
 
+// TestCleanStaleLocksFinalizesStuckStoppingInstanceWhenOwnerPidDead seeds an
+// instance that the previous lifecycle runner left in status=stopping when it
+// died mid-stop (owner_pid points at a dead process). The reaper must release
+// the bound port claim, mark the running process_refs exited, and stop the
+// instance with stop_reason=reaper-finalize — otherwise a subsequent restart
+// on the same fixed port will fail with "active registry claim already owns
+// port".
+func TestCleanStaleLocksFinalizesStuckStoppingInstanceWhenOwnerPidDead(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	host, err := hostsession.DefaultProvider{}.Current(ctx, home)
+	if err != nil {
+		t.Fatalf("Current host session: %v", err)
+	}
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	deadPID := 99999
+	originalReadEntry := readProcessEntryFn
+	t.Cleanup(func() { readProcessEntryFn = originalReadEntry })
+	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
+		return processTableEntry{}, false
+	}
+
+	heartbeatDeadline := time.Now().UTC().Add(time.Hour)
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID:          "inst-stuck",
+		Scenario:            "web-console",
+		Status:              scenarioruntime.StatusStopping,
+		HostBootID:          host.BootID,
+		OwnerPID:            &deadPID,
+		HeartbeatDeadlineAt: &heartbeatDeadline,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	claim, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-stuck-ui",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "ui",
+		Port:       21233,
+		Status:     scenarioruntime.ClaimStatusBound,
+	})
+	if err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+	runningPID := 11111
+	ref, err := store.AddProcessRef(ctx, scenarioruntime.ProcessRef{
+		RefID:      "proc-stuck-ui",
+		InstanceID: instance.InstanceID,
+		PID:        &runningPID,
+		Step:       "ui",
+		Status:     "running",
+		HostBootID: host.BootID,
+	})
+	if err != nil {
+		t.Fatalf("AddProcessRef: %v", err)
+	}
+
+	originalPrune := pruneStaleLocksFn
+	originalInspect := inspectPortListenersFn
+	t.Cleanup(func() {
+		pruneStaleLocksFn = originalPrune
+		inspectPortListenersFn = originalInspect
+	})
+	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
+	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}, nil
+	}
+
+	if _, err := NewController(root, home).CleanStaleLocks(); err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+
+	afterInstance, err := store.GetInstance(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if afterInstance.Status != scenarioruntime.StatusStopped {
+		t.Fatalf("instance status = %q, want stopped", afterInstance.Status)
+	}
+	if afterInstance.StopReason != scenarioruntime.StopReasonReaperFinalize {
+		t.Fatalf("stop reason = %q, want %q", afterInstance.StopReason, scenarioruntime.StopReasonReaperFinalize)
+	}
+	afterClaims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(afterClaims) != 1 || afterClaims[0].ClaimID != claim.ClaimID || afterClaims[0].Status != scenarioruntime.ClaimStatusReleased {
+		t.Fatalf("after claims = %#v, want single released claim", afterClaims)
+	}
+	afterRefs, err := store.ListProcessRefs(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatalf("ListProcessRefs: %v", err)
+	}
+	if len(afterRefs) != 1 || afterRefs[0].RefID != ref.RefID || afterRefs[0].Status != "exited" {
+		t.Fatalf("after refs = %#v, want single exited ref", afterRefs)
+	}
+}
+
+// TestCleanStaleLocksFinalizesStuckStoppingInstanceOnBootIDMismatch covers the
+// post-reboot recovery case: the lifecycle runner died in the OOM-or-kernel
+// sense, the box rebooted, and the registry was left with a stopping
+// instance whose owner_pid is unknowable (its meaning changed when the pid
+// space was reset). Boot-id mismatch is the unambiguous "this row is from
+// the old boot" signal.
+func TestCleanStaleLocksFinalizesStuckStoppingInstanceOnBootIDMismatch(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	host, err := hostsession.DefaultProvider{}.Current(ctx, home)
+	if err != nil {
+		t.Fatalf("Current host session: %v", err)
+	}
+	if host.BootID == "" {
+		t.Skip("current host has no boot id; cannot test boot mismatch")
+	}
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	livePID := os.Getpid()
+	originalReadEntry := readProcessEntryFn
+	t.Cleanup(func() { readProcessEntryFn = originalReadEntry })
+	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
+		if pid == livePID {
+			return processTableEntry{PID: livePID}, true
+		}
+		return processTableEntry{}, false
+	}
+
+	heartbeatDeadline := time.Now().UTC().Add(time.Hour)
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID:          "inst-pre-reboot",
+		Scenario:            "web-console",
+		Status:              scenarioruntime.StatusStopping,
+		HostBootID:          "previous-boot",
+		OwnerPID:            &livePID,
+		HeartbeatDeadlineAt: &heartbeatDeadline,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-prev-ui",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "ui",
+		Port:       21777,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	originalPrune := pruneStaleLocksFn
+	originalInspect := inspectPortListenersFn
+	t.Cleanup(func() {
+		pruneStaleLocksFn = originalPrune
+		inspectPortListenersFn = originalInspect
+	})
+	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
+	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}, nil
+	}
+
+	if _, err := NewController(root, home).CleanStaleLocks(); err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+
+	afterInstance, err := store.GetInstance(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	// Boot-id mismatch is caught earlier by expireNonAuthoritativeRegistryState
+	// (which transitions to expired) for active statuses; the stopping-instance
+	// reaper finalizes it here. Either outcome leaves the port claim released
+	// and the instance non-active. Tests assert the safety invariant: the
+	// claim must not be left in a bound/reserved state.
+	if afterInstance.Status == scenarioruntime.StatusStopping {
+		t.Fatalf("instance still stopping; reaper did not run: %#v", afterInstance)
+	}
+	afterClaims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(afterClaims) == 0 {
+		t.Fatalf("expected at least one claim row")
+	}
+	for _, c := range afterClaims {
+		if c.Status == scenarioruntime.ClaimStatusBound || c.Status == scenarioruntime.ClaimStatusReserved {
+			t.Fatalf("claim left in active status after reap: %#v", c)
+		}
+	}
+}
+
+// TestCleanStaleLocksDoesNotTouchHealthyStoppingInstance guards the inverse
+// invariant: a normal in-flight stop (live owner_pid, fresh heartbeat,
+// matching boot) must not be preempted by the reaper. Otherwise a slow but
+// healthy lifecycle stop could race the reaper into finalizing it twice and
+// double-counting the cleanup.
+func TestCleanStaleLocksDoesNotTouchHealthyStoppingInstance(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	host, err := hostsession.DefaultProvider{}.Current(ctx, home)
+	if err != nil {
+		t.Fatalf("Current host session: %v", err)
+	}
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	livePID := os.Getpid()
+	originalReadEntry := readProcessEntryFn
+	t.Cleanup(func() { readProcessEntryFn = originalReadEntry })
+	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
+		if pid == livePID {
+			return processTableEntry{PID: livePID}, true
+		}
+		return processTableEntry{}, false
+	}
+
+	heartbeatDeadline := time.Now().UTC().Add(time.Hour)
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID:          "inst-graceful",
+		Scenario:            "web-console",
+		Status:              scenarioruntime.StatusStopping,
+		HostBootID:          host.BootID,
+		OwnerPID:            &livePID,
+		HeartbeatDeadlineAt: &heartbeatDeadline,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-graceful-ui",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "ui",
+		Port:       21999,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	originalPrune := pruneStaleLocksFn
+	originalInspect := inspectPortListenersFn
+	t.Cleanup(func() {
+		pruneStaleLocksFn = originalPrune
+		inspectPortListenersFn = originalInspect
+	})
+	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
+	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}, nil
+	}
+
+	if _, err := NewController(root, home).CleanStaleLocks(); err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+
+	afterInstance, err := store.GetInstance(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if afterInstance.Status != scenarioruntime.StatusStopping {
+		t.Fatalf("healthy stopping instance was touched by reaper: %#v", afterInstance)
+	}
+	afterClaims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	if len(afterClaims) != 1 || afterClaims[0].Status != scenarioruntime.ClaimStatusBound {
+		t.Fatalf("healthy stopping claim was touched by reaper: %#v", afterClaims)
+	}
+}
+
+// TestDiagnosePortRecommendationMatchesCleanupAction locks in the contract
+// that diagnose-port and cleanup locks stay aligned: every reconcile reason
+// for which diagnose-port recommends `vrooli cleanup locks` must actually be
+// fixable by CleanStaleLocks. This was the third bug in the original RCA —
+// the recommendation pointed at a no-op for stuck-stopping rows.
+func TestDiagnosePortRecommendationMatchesCleanupAction(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	host, err := hostsession.DefaultProvider{}.Current(ctx, home)
+	if err != nil {
+		t.Fatalf("Current host session: %v", err)
+	}
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	deadPID := 99999
+	originalReadEntry := readProcessEntryFn
+	t.Cleanup(func() { readProcessEntryFn = originalReadEntry })
+	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
+		return processTableEntry{}, false
+	}
+
+	heartbeatDeadline := time.Now().UTC().Add(time.Hour)
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID:          "inst-recommend",
+		Scenario:            "web-console",
+		Status:              scenarioruntime.StatusStopping,
+		HostBootID:          host.BootID,
+		OwnerPID:            &deadPID,
+		HeartbeatDeadlineAt: &heartbeatDeadline,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-recommend-ui",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "ui",
+		Port:       22333,
+		Status:     scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	originalPrune := pruneStaleLocksFn
+	originalInspect := inspectPortListenersFn
+	t.Cleanup(func() {
+		pruneStaleLocksFn = originalPrune
+		inspectPortListenersFn = originalInspect
+	})
+	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
+	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}, nil
+	}
+
+	controller := NewController(root, home)
+	diagnostic, err := controller.DiagnosePort(22333, "web-console")
+	if err != nil {
+		t.Fatalf("DiagnosePort: %v", err)
+	}
+	recommendsCleanup := false
+	for _, rec := range diagnostic.Recommendations {
+		if reflect.DeepEqual(true, true) && containsCleanupLocks(rec) {
+			recommendsCleanup = true
+			break
+		}
+	}
+	if !recommendsCleanup {
+		t.Fatalf("diagnose-port recommendations = %#v, want one referencing `vrooli cleanup locks`", diagnostic.Recommendations)
+	}
+
+	if _, err := controller.CleanStaleLocks(); err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+	afterInstance, err := store.GetInstance(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if afterInstance.Status == scenarioruntime.StatusStopping {
+		t.Fatalf("CleanStaleLocks did not act on recommended state: %#v", afterInstance)
+	}
+}
+
+func containsCleanupLocks(rec string) bool {
+	return rec != "" && (indexContains(rec, "vrooli cleanup locks") || indexContains(rec, "cleanup locks"))
+}
+
+func indexContains(s, sub string) bool {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
+
 // TestListOrphansExcludesVrooliCLIInvocation guards against classifying a
 // transient user-initiated `vrooli` CLI command (and its build subtree) as
 // orphans. Without this, `vrooli cleanup orphans` would SIGTERM a concurrent

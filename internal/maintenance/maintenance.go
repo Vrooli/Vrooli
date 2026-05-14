@@ -172,6 +172,12 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 		}
 		stopped = append(stopped, expiredRuntime...)
 
+		finalized, err := finalizeStuckStoppingInstances(ctx, store)
+		if err != nil {
+			return control.StopReport{}, err
+		}
+		stopped = append(stopped, finalized...)
+
 		expiredClaims, err := store.ListExpiredActivePortClaims(ctx, now)
 		if err != nil {
 			return control.StopReport{}, err
