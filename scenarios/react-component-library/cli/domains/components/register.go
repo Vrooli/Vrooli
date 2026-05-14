@@ -59,6 +59,62 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				RunCtx: h.getByLibraryID,
 			},
 			{
+				Name:        "init",
+				Description: "Initialize a new library component source folder",
+				Args: cliapp.ArgSchema{
+					Positionals: []cliapp.Positional{
+						{Name: "slug", Required: true, Description: "Component folder slug"},
+					},
+					Flags: []cliapp.Flag{
+						{Name: "library-id", Description: "Stable library id (default react-component-library:<slug>)"},
+						{Name: "display-name", Description: "Human-readable display name"},
+						{Name: "description", Description: "Short component description"},
+						{Name: "tags", Description: "Comma-separated tags"},
+						{Name: "version", Description: "Initial released version (default 0.1.0)"},
+						{Name: "file-name", Description: "Initial TSX file name"},
+						{Name: "source-file", Description: "Initial source file, or - for stdin"},
+					},
+				},
+				RunCtx: h.init,
+			},
+			{
+				Name:        "version-create",
+				Description: "Create a new component version folder",
+				Args: cliapp.ArgSchema{
+					Positionals: []cliapp.Positional{
+						{Name: "component-id", Required: true, Description: "Component id"},
+						{Name: "version", Required: true, Description: "New semver-like version"},
+					},
+					Flags: []cliapp.Flag{
+						{Name: "from-version", Description: "Existing version to copy from"},
+						{Name: "draft", Description: "Treat the new version as draft/pre-release"},
+						{Name: "release", Description: "Treat the new version as latest release"},
+						{Name: "file-name", Description: "TSX file name in the new folder"},
+						{Name: "source-file", Description: "Source file, or - for stdin"},
+						{Name: "changelog", Description: "Changelog text for the version"},
+					},
+				},
+				RunCtx: h.versionCreate,
+			},
+			{
+				Name:        "manifest-update",
+				Description: "Update component manifest metadata and version pointers",
+				Args: cliapp.ArgSchema{
+					Positionals: []cliapp.Positional{
+						{Name: "component-id", Required: true, Description: "Component id"},
+					},
+					Flags: []cliapp.Flag{
+						{Name: "display-name", Description: "New display name"},
+						{Name: "description", Description: "New description"},
+						{Name: "tags", Description: "Comma-separated replacement tags"},
+						{Name: "latest-version", Description: "Latest released version pointer"},
+						{Name: "draft-version", Description: "Draft version pointer"},
+						{Name: "deprecated-versions", Description: "Comma-separated deprecated versions"},
+					},
+				},
+				RunCtx: h.manifestUpdate,
+			},
+			{
 				Name:        "content-get",
 				Description: "Read a component's source file",
 				Args: cliapp.ArgSchema{

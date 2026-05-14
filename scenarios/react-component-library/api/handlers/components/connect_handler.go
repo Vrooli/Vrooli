@@ -100,6 +100,75 @@ func (h *connectHandler) GetComponentContent(ctx context.Context, req *connect.R
 	}), nil
 }
 
+func (h *connectHandler) InitializeComponent(ctx context.Context, req *connect.Request[componentsv1.InitializeComponentRequest]) (*connect.Response[componentsv1.InitializeComponentResponse], error) {
+	out, err := h.deps.Service.InitializeComponent(ctx, components.InitializeComponentInput{
+		LibraryID:      req.Msg.LibraryId,
+		Slug:           req.Msg.Slug,
+		DisplayName:    req.Msg.DisplayName,
+		Description:    req.Msg.Description,
+		Tags:           append([]string(nil), req.Msg.Tags...),
+		InitialVersion: req.Msg.InitialVersion,
+		FileName:       req.Msg.FileName,
+		InitialSource:  req.Msg.InitialSource,
+	})
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.InitializeComponent(%q): %v", req.Msg.LibraryId, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&componentsv1.InitializeComponentResponse{
+		Component:    domainToProto(out.Component),
+		ManifestPath: out.ManifestPath,
+		SourcePath:   out.SourcePath,
+	}), nil
+}
+
+func (h *connectHandler) CreateComponentVersion(ctx context.Context, req *connect.Request[componentsv1.CreateComponentVersionRequest]) (*connect.Response[componentsv1.CreateComponentVersionResponse], error) {
+	out, err := h.deps.Service.CreateComponentVersion(ctx, components.CreateComponentVersionInput{
+		ComponentID: req.Msg.ComponentId,
+		Version:     req.Msg.Version,
+		FromVersion: req.Msg.FromVersion,
+		Intent:      protoIntentToDomain(req.Msg.Intent),
+		FileName:    req.Msg.FileName,
+		Source:      req.Msg.Source,
+		ChangelogMD: req.Msg.ChangelogMd,
+	})
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.CreateComponentVersion(%q, %q): %v", req.Msg.ComponentId, req.Msg.Version, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&componentsv1.CreateComponentVersionResponse{
+		Component:  domainToProto(out.Component),
+		Version:    versionToProto(out.Version),
+		SourcePath: out.SourcePath,
+	}), nil
+}
+
+func (h *connectHandler) UpdateComponentManifest(ctx context.Context, req *connect.Request[componentsv1.UpdateComponentManifestRequest]) (*connect.Response[componentsv1.UpdateComponentManifestResponse], error) {
+	out, err := h.deps.Service.UpdateComponentManifest(ctx, components.UpdateComponentManifestInput{
+		ComponentID:        req.Msg.ComponentId,
+		DisplayName:        req.Msg.DisplayName,
+		Description:        req.Msg.Description,
+		Tags:               append([]string(nil), req.Msg.Tags...),
+		LatestVersion:      req.Msg.LatestVersion,
+		DraftVersion:       req.Msg.DraftVersion,
+		DeprecatedVersions: append([]string(nil), req.Msg.DeprecatedVersions...),
+	})
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.UpdateComponentManifest(%q): %v", req.Msg.ComponentId, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&componentsv1.UpdateComponentManifestResponse{Component: domainToProto(out)}), nil
+}
+
 func (h *connectHandler) ListComponentVersions(ctx context.Context, req *connect.Request[componentsv1.ListComponentVersionsRequest]) (*connect.Response[componentsv1.ListComponentVersionsResponse], error) {
 	rows, err := h.deps.Service.ListVersions(ctx, req.Msg.ComponentId, int(req.Msg.Limit))
 	if err != nil {
@@ -171,4 +240,15 @@ func (h *connectHandler) IndexComponents(ctx context.Context, _ *connect.Request
 		Errors:     errs,
 		LibraryIds: append([]string(nil), res.LibraryIDs...),
 	}), nil
+}
+
+func protoIntentToDomain(intent componentsv1.ComponentVersionIntent) components.VersionIntent {
+	switch intent {
+	case componentsv1.ComponentVersionIntent_COMPONENT_VERSION_INTENT_DRAFT:
+		return components.VersionIntentDraft
+	case componentsv1.ComponentVersionIntent_COMPONENT_VERSION_INTENT_RELEASE:
+		return components.VersionIntentRelease
+	default:
+		return ""
+	}
 }

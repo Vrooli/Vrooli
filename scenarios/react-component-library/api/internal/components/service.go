@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"errors"
 	"strings"
 )
 
@@ -23,6 +24,9 @@ type Service interface {
 	GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error)
 	GetVersionContent(ctx context.Context, componentID, version string) (Content, error)
 	UpdateContent(ctx context.Context, id string, in WriteContentInput) (Content, error)
+	InitializeComponent(ctx context.Context, in InitializeComponentInput) (InitializeComponentResult, error)
+	CreateComponentVersion(ctx context.Context, in CreateComponentVersionInput) (CreateComponentVersionResult, error)
+	UpdateComponentManifest(ctx context.Context, in UpdateComponentManifestInput) (Component, error)
 }
 
 // ContentChangeListener is an optional sink the service invokes after a
@@ -37,6 +41,7 @@ type ContentChangeListener interface {
 type service struct {
 	repo     Repository
 	content  ContentStore
+	source   SourceStore
 	listener ContentChangeListener
 }
 
@@ -49,7 +54,11 @@ func NewService(repo Repository) Service {
 // content is nil. Production constructs the store from the configured
 // source root; tests inject a fake.
 func NewServiceWithContent(repo Repository, content ContentStore) Service {
-	return &service{repo: repo, content: content}
+	s := &service{repo: repo, content: content}
+	if source, ok := content.(SourceStore); ok {
+		s.source = source
+	}
+	return s
 }
 
 // SetContentChangeListener installs the post-save listener. Designed
@@ -133,13 +142,93 @@ func (s *service) UpdateContent(ctx context.Context, id string, in WriteContentI
 	return written, nil
 }
 
+func (s *service) InitializeComponent(ctx context.Context, in InitializeComponentInput) (InitializeComponentResult, error) {
+	if s.source == nil {
+		return InitializeComponentResult{}, errNoSourceStore
+	}
+	in.LibraryID = strings.TrimSpace(in.LibraryID)
+	in.Slug = normalizeSlug(firstNonEmpty(in.Slug, in.DisplayName, in.LibraryID))
+	if in.LibraryID == "" {
+		in.LibraryID = "react-component-library:" + in.Slug
+	}
+	if _, err := s.repo.GetByLibraryID(ctx, in.LibraryID); err == nil {
+		return InitializeComponentResult{}, ErrComponentAlreadyExists{LibraryID: in.LibraryID}
+	} else if !errors.As(err, &ErrComponentNotFound{}) {
+		return InitializeComponentResult{}, err
+	}
+	manifestPath, sourcePath, err := s.source.InitializeComponent(ctx, in)
+	if err != nil {
+		return InitializeComponentResult{}, err
+	}
+	if _, err := NewIndexer(s.repo, s.source.Root(), nil).Run(ctx); err != nil {
+		return InitializeComponentResult{}, err
+	}
+	c, err := s.repo.GetByLibraryID(ctx, in.LibraryID)
+	if err != nil {
+		return InitializeComponentResult{}, err
+	}
+	return InitializeComponentResult{Component: c, ManifestPath: manifestPath, SourcePath: sourcePath}, nil
+}
+
+func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponentVersionInput) (CreateComponentVersionResult, error) {
+	if s.source == nil {
+		return CreateComponentVersionResult{}, errNoSourceStore
+	}
+	c, err := s.repo.Get(ctx, in.ComponentID)
+	if err != nil {
+		return CreateComponentVersionResult{}, err
+	}
+	sourcePath, err := s.source.CreateVersion(ctx, c, in)
+	if err != nil {
+		return CreateComponentVersionResult{}, err
+	}
+	if _, err := NewIndexer(s.repo, s.source.Root(), nil).Run(ctx); err != nil {
+		return CreateComponentVersionResult{}, err
+	}
+	c, err = s.repo.Get(ctx, in.ComponentID)
+	if err != nil {
+		return CreateComponentVersionResult{}, err
+	}
+	v, err := s.repo.GetVersion(ctx, c.ID, in.Version)
+	if err != nil {
+		return CreateComponentVersionResult{}, err
+	}
+	return CreateComponentVersionResult{Component: c, Version: v, SourcePath: sourcePath}, nil
+}
+
+func (s *service) UpdateComponentManifest(ctx context.Context, in UpdateComponentManifestInput) (Component, error) {
+	if s.source == nil {
+		return Component{}, errNoSourceStore
+	}
+	c, err := s.repo.Get(ctx, in.ComponentID)
+	if err != nil {
+		return Component{}, err
+	}
+	if err := s.source.UpdateManifest(ctx, c, in); err != nil {
+		return Component{}, err
+	}
+	if _, err := NewIndexer(s.repo, s.source.Root(), nil).Run(ctx); err != nil {
+		return Component{}, err
+	}
+	return s.repo.Get(ctx, in.ComponentID)
+}
+
 // errNoContentStore signals that the service was constructed without a
 // ContentStore. Surfaces as Internal at the transport edge — it's a
 // wiring bug, not a caller error.
-var errNoContentStore = contentStoreUnconfiguredError{}
+var (
+	errNoContentStore = contentStoreUnconfiguredError{}
+	errNoSourceStore  = sourceStoreUnconfiguredError{}
+)
 
 type contentStoreUnconfiguredError struct{}
 
 func (contentStoreUnconfiguredError) Error() string {
 	return "components service: ContentStore not configured"
+}
+
+type sourceStoreUnconfiguredError struct{}
+
+func (sourceStoreUnconfiguredError) Error() string {
+	return "components service: SourceStore not configured"
 }

@@ -33,16 +33,25 @@ type componentsService struct {
 	indexResp      *componentsv1.IndexComponentsResponse
 	contentGetResp *componentsv1.GetComponentContentResponse
 	contentSetResp *componentsv1.UpdateComponentContentResponse
+	initResp       *componentsv1.InitializeComponentResponse
+	versionResp    *componentsv1.CreateComponentVersionResponse
+	manifestResp   *componentsv1.UpdateComponentManifestResponse
 	listErr        error
 	getErr         error
 	byLibIDErr     error
 	indexErr       error
 	contentGetErr  error
 	contentSetErr  error
+	initErr        error
+	versionErr     error
+	manifestErr    error
 	listReqs       []*componentsv1.ListComponentsRequest
 	getReqs        []string
 	byLibIDReqs    []string
 	contentSetReqs []*componentsv1.UpdateComponentContentRequest
+	initReqs       []*componentsv1.InitializeComponentRequest
+	versionReqs    []*componentsv1.CreateComponentVersionRequest
+	manifestReqs   []*componentsv1.UpdateComponentManifestRequest
 }
 
 func (s *componentsService) ListComponents(_ context.Context, req *connect.Request[componentsv1.ListComponentsRequest]) (*connect.Response[componentsv1.ListComponentsResponse], error) {
@@ -115,6 +124,45 @@ func (s *componentsService) UpdateComponentContent(_ context.Context, req *conne
 		s.contentSetResp = &componentsv1.UpdateComponentContentResponse{}
 	}
 	return connect.NewResponse(s.contentSetResp), nil
+}
+
+func (s *componentsService) InitializeComponent(_ context.Context, req *connect.Request[componentsv1.InitializeComponentRequest]) (*connect.Response[componentsv1.InitializeComponentResponse], error) {
+	s.mu.Lock()
+	s.initReqs = append(s.initReqs, req.Msg)
+	s.mu.Unlock()
+	if s.initErr != nil {
+		return nil, s.initErr
+	}
+	if s.initResp == nil {
+		s.initResp = &componentsv1.InitializeComponentResponse{Component: sampleComponent()}
+	}
+	return connect.NewResponse(s.initResp), nil
+}
+
+func (s *componentsService) CreateComponentVersion(_ context.Context, req *connect.Request[componentsv1.CreateComponentVersionRequest]) (*connect.Response[componentsv1.CreateComponentVersionResponse], error) {
+	s.mu.Lock()
+	s.versionReqs = append(s.versionReqs, req.Msg)
+	s.mu.Unlock()
+	if s.versionErr != nil {
+		return nil, s.versionErr
+	}
+	if s.versionResp == nil {
+		s.versionResp = &componentsv1.CreateComponentVersionResponse{Version: &componentsv1.ComponentVersion{Version: req.Msg.Version}}
+	}
+	return connect.NewResponse(s.versionResp), nil
+}
+
+func (s *componentsService) UpdateComponentManifest(_ context.Context, req *connect.Request[componentsv1.UpdateComponentManifestRequest]) (*connect.Response[componentsv1.UpdateComponentManifestResponse], error) {
+	s.mu.Lock()
+	s.manifestReqs = append(s.manifestReqs, req.Msg)
+	s.mu.Unlock()
+	if s.manifestErr != nil {
+		return nil, s.manifestErr
+	}
+	if s.manifestResp == nil {
+		s.manifestResp = &componentsv1.UpdateComponentManifestResponse{Component: sampleComponent()}
+	}
+	return connect.NewResponse(s.manifestResp), nil
 }
 
 func (s *componentsService) ListComponentVersions(_ context.Context, _ *connect.Request[componentsv1.ListComponentVersionsRequest]) (*connect.Response[componentsv1.ListComponentVersionsResponse], error) {
@@ -305,6 +353,102 @@ func TestComponentsContentSet_FromFile(t *testing.T) {
 	require.Equal(t, "// rewritten\n", svc.contentSetReqs[0].Content)
 	require.Equal(t, "stale", svc.contentSetReqs[0].ExpectedSha256)
 	require.Contains(t, out.String(), "sha256=deadbeef")
+}
+
+func TestComponentsInit_ForwardsAuthoringFields(t *testing.T) {
+	svc := &componentsService{initResp: &componentsv1.InitializeComponentResponse{
+		Component:    sampleComponent(),
+		ManifestPath: "components/Header/component.json",
+		SourcePath:   "components/Header/versions/0.1.0/Header.tsx",
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "slug", Required: true}},
+		Flags: []cliapp.Flag{
+			{Name: "library-id"},
+			{Name: "display-name"},
+			{Name: "description"},
+			{Name: "tags"},
+			{Name: "version"},
+			{Name: "file-name"},
+			{Name: "source-file"},
+		},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"slug": "Header"},
+		Flags: map[string]string{
+			"library-id":   "react-component-library:Header",
+			"display-name": "Header",
+			"description":  "Scenario header",
+			"tags":         "layout, navigation",
+			"version":      "0.1.0",
+			"file-name":    "Header.tsx",
+		},
+	})
+
+	require.NoError(t, h.init(ctx))
+	require.Len(t, svc.initReqs, 1)
+	require.Equal(t, "Header", svc.initReqs[0].Slug)
+	require.Equal(t, []string{"layout", "navigation"}, svc.initReqs[0].Tags)
+	require.Contains(t, out.String(), "components/Header/component.json")
+}
+
+func TestComponentsVersionCreate_ForwardsIntent(t *testing.T) {
+	svc := &componentsService{}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "component-id", Required: true}, {Name: "version", Required: true}},
+		Flags: []cliapp.Flag{
+			{Name: "from-version"},
+			{Name: "draft"},
+			{Name: "release"},
+			{Name: "file-name"},
+			{Name: "source-file"},
+			{Name: "changelog"},
+		},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"component-id": "cmp-1", "version": "0.2.0-beta.1"},
+		Flags:       map[string]string{"draft": "true", "from-version": "0.1.0"},
+	})
+
+	require.NoError(t, h.versionCreate(ctx))
+	require.Len(t, svc.versionReqs, 1)
+	require.Equal(t, "cmp-1", svc.versionReqs[0].ComponentId)
+	require.Equal(t, "0.2.0-beta.1", svc.versionReqs[0].Version)
+	require.Equal(t, componentsv1.ComponentVersionIntent_COMPONENT_VERSION_INTENT_DRAFT, svc.versionReqs[0].Intent)
+	require.Contains(t, out.String(), "Created version 0.2.0-beta.1.")
+}
+
+func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
+	svc := &componentsService{}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "component-id", Required: true}},
+		Flags: []cliapp.Flag{
+			{Name: "display-name"},
+			{Name: "description"},
+			{Name: "tags"},
+			{Name: "latest-version"},
+			{Name: "draft-version"},
+			{Name: "deprecated-versions"},
+		},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"component-id": "cmp-1"},
+		Flags: map[string]string{
+			"display-name":        "Header",
+			"description":         "Updated",
+			"tags":                "layout,nav",
+			"latest-version":      "1.0.0",
+			"deprecated-versions": "0.1.0",
+		},
+	})
+
+	require.NoError(t, h.manifestUpdate(ctx))
+	require.Len(t, svc.manifestReqs, 1)
+	require.Equal(t, []string{"layout", "nav"}, svc.manifestReqs[0].Tags)
+	require.Equal(t, []string{"0.1.0"}, svc.manifestReqs[0].DeprecatedVersions)
 }
 
 func writeFile(path, body string) error {

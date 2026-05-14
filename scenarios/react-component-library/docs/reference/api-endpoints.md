@@ -52,105 +52,48 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
-## Notes (CRUD reference)
+## Components
 
-The `notes` domain is the canonical worked example. Copy its layering
-when adding the first non-trivial mutation in your scenario.
+The components domain owns authoring and indexing of Git-tracked source
+under `library/components/<slug>/`. The API writes source files and
+manifests; UI and CLI stay thin generated-client callers.
 
-### `POST /vrooli.react_component_library.v1.notes.NotesService/ListNotes`
+### `POST /vrooli.react_component_library.v1.components.ComponentsService/InitializeComponent`
 
-List notes through the generated Connect-RPC service, newest-first.
-
-| | |
-|---|---|
-| **Auth** | None (template default; scenarios add auth as needed) |
-| **Response** | `ListNotesResponse { notes: Note[] }` (capped at 100 by `notes.Service`) |
-| **Errors** | `500 internal` — repository read failure |
-| **CLI** | `react-component-library notes list` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.react_component_library.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-
-UI and CLI code should normally use the generated client instead of
-calling this path by hand.
-
-### `POST /vrooli.react_component_library.v1.notes.NotesService/CreateNote`
-
-Create a note through the generated Connect-RPC service.
+Create `component.json` plus `versions/<initial_version>/<file>.tsx`,
+run the indexer, and return the registry row.
 
 | | |
 |---|---|
-| **Auth** | None (template default) |
-| **Request** | `CreateNoteRequest { title: string (required), body: string (optional) }` |
-| **Response** | `CreateNoteResponse { note: Note }` |
-| **Errors** | `invalid_argument` — missing/whitespace-only title<br>`internal` — repository write failure |
-| **CLI** | `react-component-library notes create --title <title> [--body <body>]` |
+| **Request** | `InitializeComponentRequest { library_id, slug, display_name, description, tags[], initial_version, file_name, initial_source }` |
+| **Response** | `InitializeComponentResponse { component, manifest_path, source_path }` |
+| **Errors** | `invalid_argument` — invalid slug/version/file/header<br>`already_exists` — duplicate library id or slug<br>`internal` — filesystem/index failure |
+| **CLI** | `react-component-library components init <slug>` |
 
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.react_component_library.v1.notes.NotesService/CreateNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"first","body":"hello"}'
-```
+### `POST /vrooli.react_component_library.v1.components.ComponentsService/CreateComponentVersion`
 
-Title validation (non-empty after whitespace trim) lives in
-`internal/notes/service.go`, **not** the handler. The Connect handler
-only translates `notes.ErrInvalidNote` into `invalid_argument`.
-
-### `POST /vrooli.react_component_library.v1.notes.NotesService/GetNote`
-
-Fetch a note by id through the generated Connect-RPC service.
+Create a new version folder for an existing component, update the
+manifest's `latest` or `draft` pointer, re-index, and return the version
+row.
 
 | | |
 |---|---|
-| **Auth** | None (template default) |
-| **Request** | `GetNoteRequest { id: string }` |
-| **Response** | `GetNoteResponse { note: Note }` |
-| **Errors** | `not_found` — no note with that id<br>`internal` — repository read failure |
-| **CLI** | `react-component-library notes get <id>` |
+| **Request** | `CreateComponentVersionRequest { component_id, version, from_version, intent, file_name, source, changelog_md }` |
+| **Response** | `CreateComponentVersionResponse { component, version, source_path }` |
+| **Errors** | `not_found` — component missing<br>`invalid_argument` — invalid version/file/header<br>`internal` — filesystem/index failure |
+| **CLI** | `react-component-library components version-create <component-id> <version>` |
 
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.react_component_library.v1.notes.NotesService/GetNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"abc123"}'
-```
+### `POST /vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentManifest`
 
-`notes.ErrNoteNotFound` returned by the service is translated into the
-typed `not_found` Connect error at the handler edge.
-
-### `POST /api/v1/notes/{id}/attachments`
-
-Upload opaque file bytes through the documented REST multipart exception.
-The response is still proto-typed metadata.
+Update display metadata and explicit version pointers in
+`component.json`, then re-index.
 
 | | |
 |---|---|
-| **Auth** | None (template default) |
-| **Path params** | `id` — note identifier |
-| **Request** | `multipart/form-data` with `file` part |
-| **Response** | `UploadAttachmentResponse { attachment: Attachment }` |
-| **Errors** | `400 invalid_request` — malformed multipart or missing file<br>`404 not_found` — no note with that id<br>`500 internal` — blob or metadata persistence failure |
-| **CLI** | `react-component-library notes attach <id> --file <path>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
-  -F file=@./example.png
-```
-
-### `Note` shape
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (UUID) | Server-generated |
-| `title` | string | Required, non-empty after trim |
-| `body` | string | Optional |
-| `created_at` | `google.protobuf.Timestamp` | Server-set on create |
-| `updated_at` | `google.protobuf.Timestamp` | Server-set on create / future update |
-| `attachment_keys` | `string[]` | Keys of uploaded note attachments |
-
-Defined in `packages/proto/schemas/react-component-library/v1/notes/notes.proto`.
+| **Request** | `UpdateComponentManifestRequest { component_id, display_name, description, tags[], latest_version, draft_version, deprecated_versions[] }` |
+| **Response** | `UpdateComponentManifestResponse { component }` |
+| **Errors** | `not_found` — component missing<br>`invalid_argument` — invalid manifest values<br>`internal` — filesystem/index failure |
+| **CLI** | `react-component-library components manifest-update <component-id>` |
 
 ---
 

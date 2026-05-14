@@ -21,6 +21,10 @@ func ToConnectError(err error) error {
 	if errors.As(err, &invalidHeader) {
 		return connect.NewError(connect.CodeInvalidArgument, invalidHeader)
 	}
+	var alreadyExists ErrComponentAlreadyExists
+	if errors.As(err, &alreadyExists) {
+		return connect.NewError(connect.CodeAlreadyExists, alreadyExists)
+	}
 	var pathEscape ErrPathEscape
 	if errors.As(err, &pathEscape) {
 		return connect.NewError(connect.CodeInvalidArgument, pathEscape)

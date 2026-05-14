@@ -139,6 +139,127 @@ func (h *handlers) getByLibraryID(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) init(ctx cliapp.RunContext) error {
+	req := &componentsv1.InitializeComponentRequest{
+		Slug:           ctx.Positional("slug"),
+		LibraryId:      ctx.Flag("library-id"),
+		DisplayName:    ctx.Flag("display-name"),
+		Description:    ctx.Flag("description"),
+		InitialVersion: ctx.Flag("version"),
+		FileName:       ctx.Flag("file-name"),
+	}
+	if rawTags := ctx.Flag("tags"); rawTags != "" {
+		req.Tags = splitCSV(rawTags)
+	}
+	if src := ctx.Flag("source-file"); src != "" {
+		body, err := readSourceArg(src)
+		if err != nil {
+			return err
+		}
+		req.InitialSource = string(body)
+	}
+	resp, err := h.client.InitializeComponent(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("initialize component", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
+		return fmt.Errorf("server returned no initialize response")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Initialized %s.", resp.Msg.Component.LibraryId)},
+		ResultsHeading: "Created files",
+		Results:        []string{resp.Msg.ManifestPath, resp.Msg.SourcePath},
+		RetrievalHints: []string{
+			"`components content-get " + resp.Msg.Component.Id + "` — inspect the generated source",
+		},
+	})
+}
+
+func (h *handlers) versionCreate(ctx cliapp.RunContext) error {
+	req := &componentsv1.CreateComponentVersionRequest{
+		ComponentId: ctx.Positional("component-id"),
+		Version:     ctx.Positional("version"),
+		FromVersion: ctx.Flag("from-version"),
+		FileName:    ctx.Flag("file-name"),
+		ChangelogMd: ctx.Flag("changelog"),
+	}
+	switch {
+	case ctx.Flag("draft") == "true":
+		req.Intent = componentsv1.ComponentVersionIntent_COMPONENT_VERSION_INTENT_DRAFT
+	case ctx.Flag("release") == "true":
+		req.Intent = componentsv1.ComponentVersionIntent_COMPONENT_VERSION_INTENT_RELEASE
+	}
+	if src := ctx.Flag("source-file"); src != "" {
+		body, err := readSourceArg(src)
+		if err != nil {
+			return err
+		}
+		req.Source = string(body)
+	}
+	resp, err := h.client.CreateComponentVersion(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("create component version", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Version == nil {
+		return fmt.Errorf("server returned no version create response")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Created version %s.", resp.Msg.Version.Version)},
+		ResultsHeading: "Source",
+		Results:        []string{resp.Msg.SourcePath},
+	})
+}
+
+func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {
+	req := &componentsv1.UpdateComponentManifestRequest{
+		ComponentId:   ctx.Positional("component-id"),
+		DisplayName:   ctx.Flag("display-name"),
+		Description:   ctx.Flag("description"),
+		LatestVersion: ctx.Flag("latest-version"),
+		DraftVersion:  ctx.Flag("draft-version"),
+	}
+	if rawTags := ctx.Flag("tags"); rawTags != "" {
+		req.Tags = splitCSV(rawTags)
+	}
+	if raw := ctx.Flag("deprecated-versions"); raw != "" {
+		req.DeprecatedVersions = splitCSV(raw)
+	}
+	resp, err := h.client.UpdateComponentManifest(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("update component manifest", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
+		return fmt.Errorf("server returned no manifest update response")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Updated %s.", resp.Msg.Component.LibraryId)},
+		ResultsHeading: "Component",
+		Results:        []string{formatComponent(resp.Msg.Component)},
+	})
+}
+
+func splitCSV(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func readSourceArg(src string) ([]byte, error) {
+	if src == "-" {
+		return readAllStdin()
+	}
+	body, err := os.ReadFile(src)
+	if err != nil {
+		return nil, fmt.Errorf("read source %q: %w", src, err)
+	}
+	return body, nil
+}
+
 // contentGet calls ComponentsService.GetComponentContent and prints the
 // source body to stdout. Human output writes the body as-is so it can
 // be piped (e.g. `… content get <id> > Button.tsx`); --json emits the

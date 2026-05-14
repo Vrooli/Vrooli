@@ -332,6 +332,159 @@
       }
     },
     {
+      "id": "components_initialize",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/InitializeComponent",
+      "method": "POST",
+      "summary": "Initialize a component",
+      "description": "Creates component.json plus an initial version TSX file under the Git-tracked library source root, indexes it, and returns the new registry row.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "description": "string",
+          "display_name": "string",
+          "file_name": "string",
+          "initial_source": "string",
+          "initial_version": "string",
+          "library_id": "string",
+          "slug": "string",
+          "tags": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component",
+          "manifest_path": "string",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid slug, version, file name, or source header"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Component libraryId or slug already exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components init",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
+      "id": "components_version_create",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/CreateComponentVersion",
+      "method": "POST",
+      "summary": "Create a component version",
+      "description": "Creates a new version folder for an existing component, updates component.json latest/draft pointers, indexes the library, and returns the version row.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "changelog_md": "string",
+          "component_id": "string",
+          "file_name": "string",
+          "from_version": "string",
+          "intent": "ComponentVersionIntent",
+          "source": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component",
+          "source_path": "string",
+          "version": "ComponentVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid version, file name, or source header"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components version-create",
+        "args": [
+          "<component-id>",
+          "<version>"
+        ]
+      }
+    },
+    {
+      "id": "components_manifest_update",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentManifest",
+      "method": "POST",
+      "summary": "Update a component manifest",
+      "description": "Updates component.json metadata/latest/draft/deprecation fields, re-indexes the library, and returns the refreshed component row.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "deprecated_versions": "array<string>",
+          "description": "string",
+          "display_name": "string",
+          "draft_version": "string",
+          "latest_version": "string",
+          "tags": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid manifest values"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components manifest-update",
+        "args": [
+          "<component-id>"
+        ]
+      }
+    },
+    {
       "id": "components_content_get",
       "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent",
       "method": "POST",
@@ -943,6 +1096,21 @@
       "name": "components get-by-library-id",
       "description": "Get a component by its @libraryId header value",
       "endpoint_id": "components_get_by_library_id"
+    },
+    {
+      "name": "components init",
+      "description": "Initialize a new Git-tracked component folder and first version",
+      "endpoint_id": "components_initialize"
+    },
+    {
+      "name": "components version-create",
+      "description": "Create a new component version folder",
+      "endpoint_id": "components_version_create"
+    },
+    {
+      "name": "components manifest-update",
+      "description": "Update component manifest metadata and version pointers",
+      "endpoint_id": "components_manifest_update"
     },
     {
       "name": "components content-get",

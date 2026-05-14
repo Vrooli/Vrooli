@@ -40,6 +40,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
   const [ack, setAck] = useState(false);
   const [verdict, setVerdict] = useState<ValidateAdoptionResponse | null>(null);
   const [validating, setValidating] = useState(false);
+  const [overwriteRequired, setOverwriteRequired] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -50,8 +51,13 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
       setAck(false);
       setVerdict(null);
       setValidating(false);
+      setOverwriteRequired(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    setOverwriteRequired(false);
+  }, [componentId, scenario, adoptedPath, adoptedVersion]);
 
   useEffect(() => {
     if (!open) return;
@@ -87,11 +93,16 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
         scenario: scenario.trim(),
         adoptedPath: adoptedPath.trim(),
         version: adoptedVersion.trim(),
-        confirmOverwrite: true,
+        confirmOverwrite: overwriteRequired,
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["adoptions"] });
       onClose();
+    },
+    onError: (err) => {
+      if (String(err).includes("target file already exists")) {
+        setOverwriteRequired(true);
+      }
     },
   });
 
@@ -194,7 +205,9 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
             data-testid={selectors.adoptions.createError}
             className="mt-3 text-xs text-red-400"
           >
-            {errorMessage(createMutation.error, t)}
+            {overwriteRequired
+              ? t(strings.adoptions.create.overwriteRequired)
+              : errorMessage(createMutation.error, t)}
           </p>
         )}
 
@@ -214,6 +227,8 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
           >
             {createMutation.isPending
               ? t(strings.adoptions.creating)
+              : overwriteRequired
+                ? t(strings.adoptions.create.confirmOverwriteAction)
               : t(strings.adoptions.create.confirmAction)}
           </Button>
         </div>

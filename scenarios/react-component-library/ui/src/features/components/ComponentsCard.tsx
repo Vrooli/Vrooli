@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -9,6 +10,7 @@ import { useTranslation } from "../../i18n";
 import { componentsClient } from "../../api/components";
 import { errorMessage } from "../../lib/errorMessage";
 import { ComponentEditor } from "./ComponentEditor";
+import { CreateComponentDialog } from "./CreateComponentDialog";
 
 /**
  * ComponentsCard renders the indexed component registry. The user can
@@ -26,6 +28,7 @@ export function ComponentsCard() {
   const [category, setCategory] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string>("");
+  const [showCreate, setShowCreate] = useState(false);
 
   const tags = tagsRaw
     .split(",")
@@ -68,14 +71,25 @@ export function ComponentsCard() {
     >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-medium text-slate-400">{t(strings.components.title)}</h2>
-        <Button
-          data-testid={selectors.components.indexButton}
-          onClick={() => indexMutation.mutate()}
-          disabled={indexMutation.isPending}
-        >
-          {t(strings.components.indexAction)}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            data-testid={selectors.components.create.button}
+            onClick={() => setShowCreate(true)}
+          >
+            {t(strings.components.create.action)}
+          </Button>
+          <Button
+            data-testid={selectors.components.indexButton}
+            onClick={() => indexMutation.mutate()}
+            disabled={indexMutation.isPending}
+            variant="outline"
+          >
+            {t(strings.components.indexAction)}
+          </Button>
+        </div>
       </div>
+
+      {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label className="block text-xs text-slate-400">
@@ -137,9 +151,21 @@ export function ComponentsCard() {
       )}
 
       {!componentsQuery.isLoading && components.length === 0 && (
-        <p data-testid={selectors.components.empty} className="mt-3 text-slate-200">
-          {t(strings.components.empty)}
-        </p>
+        <div data-testid={selectors.components.empty} className="mt-3 rounded-lg border border-dashed border-white/15 p-4 text-slate-200">
+          <p>{t(strings.components.empty)}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button onClick={() => setShowCreate(true)}>
+              {t(strings.components.create.action)}
+            </Button>
+            <Button
+              onClick={() => indexMutation.mutate()}
+              disabled={indexMutation.isPending}
+              variant="outline"
+            >
+              {t(strings.components.indexAction)}
+            </Button>
+          </div>
+        </div>
       )}
 
       {components.length > 0 && (
@@ -186,6 +212,13 @@ export function ComponentsCard() {
                     className="h-7 px-3 text-xs"
                   >
                     {t(strings.components.editAction)}
+                  </Button>
+                  <Button
+                    asChild
+                    className="h-7 px-3 text-xs"
+                    variant="outline"
+                  >
+                    <Link to={`/components/${c.id}`}>{t(strings.components.openAction)}</Link>
                   </Button>
                 </div>
                 {c.description && (

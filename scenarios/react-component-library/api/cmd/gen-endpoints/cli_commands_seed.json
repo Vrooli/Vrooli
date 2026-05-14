@@ -52,6 +52,21 @@
       "endpoint_id": "components_get_by_library_id"
     },
     {
+      "name": "components init",
+      "description": "Initialize a new Git-tracked component folder and first version",
+      "endpoint_id": "components_initialize"
+    },
+    {
+      "name": "components version-create",
+      "description": "Create a new component version folder",
+      "endpoint_id": "components_version_create"
+    },
+    {
+      "name": "components manifest-update",
+      "description": "Update component manifest metadata and version pointers",
+      "endpoint_id": "components_manifest_update"
+    },
+    {
       "name": "components content-get",
       "description": "Read a component's source file",
       "endpoint_id": "components_content_get"

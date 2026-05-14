@@ -42,7 +42,29 @@ func setupModule(t *testing.T) (*mux.Router, string) {
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, components.Endpoints, 8, "components ships list, get, get-by-library-id, index, content get/set, version list/get")
+	require.Len(t, components.Endpoints, 11, "components ships registry, source authoring, content, and version endpoints")
+}
+
+func TestModule_InitializeComponentRoundTrip(t *testing.T) {
+	r, root := setupModule(t)
+
+	rw := callConnect(r, componentsconnect.ComponentsServiceInitializeComponentProcedure, `{
+		"slug":"Header",
+		"libraryId":"react-component-library:Header",
+		"displayName":"Header",
+		"description":"Scenario header",
+		"tags":["layout"],
+		"initialVersion":"0.1.0"
+	}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `react-component-library:Header`)
+	require.Contains(t, rw.Body.String(), `components/Header/component.json`)
+	require.FileExists(t, filepath.Join(root, "components", "Header", "component.json"))
+	require.FileExists(t, filepath.Join(root, "components", "Header", "versions", "0.1.0", "Header.tsx"))
+
+	rw = callConnect(r, componentsconnect.ComponentsServiceListComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `react-component-library:Header`)
 }
 
 func TestModule_ContentRoundTrip(t *testing.T) {

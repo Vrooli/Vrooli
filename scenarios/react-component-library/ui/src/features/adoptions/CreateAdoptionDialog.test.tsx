@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
 
 import { renderWithProviders } from "../../test-utils";
+import { ApplyAdoptionResponseSchema } from "@vrooli/proto-types/react-component-library/v1/adoptions/adoptions_pb";
 import {
   DepIssueSchema,
   IssueKind,
@@ -80,6 +81,43 @@ describe("CreateAdoptionDialog", () => {
 
     await waitFor(() => {
       expect(adoptionsClient.applyAdoption).toHaveBeenCalledWith({
+        componentId: "cmp-button",
+        scenario: "swarm-manager",
+        adoptedPath: "ui/src/components/Button.tsx",
+        version: "1.0.0",
+        confirmOverwrite: false,
+      });
+    });
+  });
+
+  it("requires explicit overwrite confirmation after target conflict", async () => {
+    const { depsClient } = await import("../../api/deps");
+    const { adoptionsClient } = await import("../../api/adoptions");
+    vi.mocked(depsClient.validateAdoption).mockResolvedValue(
+      create(ValidateAdoptionResponseSchema, { kind: VerdictKind.OK, issues: [] }),
+    );
+    vi.mocked(adoptionsClient.applyAdoption)
+      .mockRejectedValueOnce(new Error("target file already exists"))
+      .mockResolvedValueOnce(create(ApplyAdoptionResponseSchema, { writtenPath: "" }));
+
+    const user = userEvent.setup();
+    renderWithProviders(<CreateAdoptionDialog open onClose={() => {}} />);
+    await fillRequired(user);
+
+    const confirm = await screen.findByTestId(selectors.adoptions.createConfirm);
+    await waitFor(() => expect(confirm).not.toBeDisabled());
+    await user.click(confirm);
+
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.adoptions.createError).textContent).toContain(
+        "target file already exists",
+      );
+    });
+    expect(confirm.textContent).toContain("Confirm overwrite");
+
+    await user.click(confirm);
+    await waitFor(() => {
+      expect(adoptionsClient.applyAdoption).toHaveBeenLastCalledWith({
         componentId: "cmp-button",
         scenario: "swarm-manager",
         adoptedPath: "ui/src/components/Button.tsx",

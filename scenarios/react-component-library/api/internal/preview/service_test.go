@@ -54,6 +54,18 @@ func (f *fakeComponentsService) GetVersionContent(context.Context, string, strin
 	panic("not called")
 }
 
+func (f *fakeComponentsService) InitializeComponent(context.Context, components.InitializeComponentInput) (components.InitializeComponentResult, error) {
+	panic("not called")
+}
+
+func (f *fakeComponentsService) CreateComponentVersion(context.Context, components.CreateComponentVersionInput) (components.CreateComponentVersionResult, error) {
+	panic("not called")
+}
+
+func (f *fakeComponentsService) UpdateComponentManifest(context.Context, components.UpdateComponentManifestInput) (components.Component, error) {
+	panic("not called")
+}
+
 func TestService_GetBundle_RoundTrip(t *testing.T) {
 	comp := &fakeComponentsService{
 		getContentFn: func(_ context.Context, id string) (components.Content, error) {

@@ -58,55 +58,36 @@ Read values back without an argument:
 react-component-library configure api_base
 ```
 
-## Scenario commands — `notes` (CRUD reference)
+## Scenario commands — `components`
 
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario.
-
-### `react-component-library notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
+The `components` group is the authoring and registry surface for the
+Git-tracked library source tree.
 
 ```bash
-react-component-library notes list
-react-component-library notes list --json
+react-component-library components init Header \
+  --library-id react-component-library:Header \
+  --display-name Header \
+  --description "Scenario header" \
+  --tags layout,navigation \
+  --version 0.1.0
+
+react-component-library components version-create <component-id> 0.2.0-beta.1 --draft
+react-component-library components manifest-update <component-id> --latest-version 1.0.0
+react-component-library components index
+react-component-library components list --match header --tags layout,navigation
+react-component-library components get <component-id>
+react-component-library components get-by-library-id react-component-library:Header
+react-component-library components content-get <component-id>
+react-component-library components content-set <component-id> ./Header.tsx --expected-sha256 <sha>
+react-component-library components versions <component-id>
+react-component-library components show-version <component-id> 0.1.0
 ```
 
-### `react-component-library notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-react-component-library notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-### `react-component-library notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-react-component-library notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-### `react-component-library notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-react-component-library notes attach abc123 --file ./example.png
-```
+`init`, `version-create`, and `manifest-update` mutate
+`library/components/<slug>/component.json` and
+`library/components/<slug>/versions/<version>/*.tsx`, then re-index the
+registry. SQLite remains the indexed registry and adoption ledger; it is
+not the canonical component source.
 
 ## Output contracts
 

@@ -62,6 +62,7 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
   const [baselineSha, setBaselineSha] = useState<string>("");
   const [showSaved, setShowSaved] = useState(false);
   const [previewReady, setPreviewReady] = useState(false);
+  const [mode, setMode] = useState<"preview" | "code">("code");
   const savedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -164,6 +165,27 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
           )}
         </div>
         <div className="flex items-center gap-2">
+          <div
+            data-testid={selectors.components.editor.modeSwitch}
+            className="flex overflow-hidden rounded-control border border-white/10"
+          >
+            <Button
+              type="button"
+              variant={mode === "preview" ? "default" : "outline"}
+              className="h-8 rounded-none px-3 text-xs"
+              onClick={() => setMode("preview")}
+            >
+              {t(strings.components.editor.previewMode)}
+            </Button>
+            <Button
+              type="button"
+              variant={mode === "code" ? "default" : "outline"}
+              className="h-8 rounded-none px-3 text-xs"
+              onClick={() => setMode("code")}
+            >
+              {t(strings.components.editor.codeMode)}
+            </Button>
+          </div>
           <Button
             data-testid={selectors.components.editor.closeButton}
             onClick={onClose}
@@ -213,10 +235,10 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
       )}
 
       {contentQuery.data && (
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <div className="mt-3 grid gap-3">
           <div
             data-testid={selectors.components.editor.surface}
-            className="overflow-hidden rounded-lg border border-white/10"
+            className={`overflow-hidden rounded-lg border border-white/10 ${mode === "code" ? "" : "hidden"}`}
           >
             <Editor
               height={480}
@@ -240,7 +262,7 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
           </div>
           <div
             data-testid={selectors.components.editor.preview}
-            className="overflow-hidden rounded-lg border border-white/10 bg-black/40"
+            className={`overflow-hidden rounded-lg border border-white/10 bg-black/40 ${mode === "preview" ? "" : "hidden"}`}
           >
             <div className="flex items-center justify-between border-b border-white/5 px-3 py-2 text-xs text-slate-400">
               <span>{t(strings.components.editor.previewHeading)}</span>

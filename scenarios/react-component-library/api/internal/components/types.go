@@ -127,6 +127,56 @@ type SearchQuery struct {
 	Limit    int
 }
 
+type InitializeComponentInput struct {
+	LibraryID      string
+	Slug           string
+	DisplayName    string
+	Description    string
+	Tags           []string
+	InitialVersion string
+	FileName       string
+	InitialSource  string
+}
+
+type InitializeComponentResult struct {
+	Component    Component
+	ManifestPath string
+	SourcePath   string
+}
+
+type VersionIntent string
+
+const (
+	VersionIntentDraft   VersionIntent = "draft"
+	VersionIntentRelease VersionIntent = "release"
+)
+
+type CreateComponentVersionInput struct {
+	ComponentID string
+	Version     string
+	FromVersion string
+	Intent      VersionIntent
+	FileName    string
+	Source      string
+	ChangelogMD string
+}
+
+type CreateComponentVersionResult struct {
+	Component  Component
+	Version    ComponentVersion
+	SourcePath string
+}
+
+type UpdateComponentManifestInput struct {
+	ComponentID        string
+	DisplayName        string
+	Description        string
+	Tags               []string
+	LatestVersion      string
+	DraftVersion       string
+	DeprecatedVersions []string
+}
+
 // ErrComponentNotFound is the typed sentinel handlers translate to a
 // 404 via errors.As.
 type ErrComponentNotFound struct {
@@ -148,4 +198,18 @@ type ErrInvalidHeader struct {
 
 func (e ErrInvalidHeader) Error() string {
 	return fmt.Sprintf("%s: header field %s: %s", e.SourcePath, e.Field, e.Reason)
+}
+
+// ErrComponentAlreadyExists is returned before creating source folders
+// when either the manifest libraryId or slug is already in use.
+type ErrComponentAlreadyExists struct {
+	LibraryID string
+	Slug      string
+}
+
+func (e ErrComponentAlreadyExists) Error() string {
+	if e.LibraryID != "" {
+		return fmt.Sprintf("component libraryId %q already exists", e.LibraryID)
+	}
+	return fmt.Sprintf("component slug %q already exists", e.Slug)
 }
