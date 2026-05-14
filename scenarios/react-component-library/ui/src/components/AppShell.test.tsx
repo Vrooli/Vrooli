@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 
 import { renderWithProviders, makeHealthResponse } from "../test-utils";
@@ -42,7 +43,8 @@ describe("AppShell", () => {
       { routerEntries: ["/"] },
     );
     expect(screen.getByTestId("app-shell")).toBeInTheDocument();
-    expect(screen.getByTestId("app-sidebar")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-shell")).toBeInTheDocument();
+    expect(screen.getByTestId("app-sidebar-content")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-header")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
     expect(screen.getByTestId("child")).toBeInTheDocument();
@@ -63,5 +65,26 @@ describe("AppShell", () => {
     expect(container.querySelector(".max-w-xl")).toBeNull();
     const shell = screen.getByTestId("app-shell");
     expect(shell.className).toContain("w-full");
+  });
+
+  it("opens a full-width safe-area sidebar shell from the mobile header", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div data-testid="child">hello</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/"] },
+    );
+
+    await user.click(screen.getByTestId("mobile-header-drawer"));
+
+    const shell = screen.getByTestId("sidebar-shell");
+    expect(shell).toHaveAttribute("role", "dialog");
+    expect(shell.className).toContain("w-full");
+    expect(shell.className).toContain("pt-safe");
+    expect(shell.className).toContain("pb-safe");
+    expect(screen.getByTestId("sidebar-shell-backdrop")).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
@@ -100,8 +100,7 @@ describe("ComponentEditor", () => {
     });
 
     const stub = screen.getByTestId<HTMLTextAreaElement>("monaco-stub");
-    await user.clear(stub);
-    await user.type(stub, "v2");
+    fireEvent.change(stub, { target: { value: "v2" } });
 
     await waitFor(() => {
       expect(screen.getByTestId(selectors.components.editor.dirtyBadge)).toBeInTheDocument();
@@ -166,8 +165,7 @@ describe("ComponentEditor", () => {
     });
 
     const stub = screen.getByTestId<HTMLTextAreaElement>("monaco-stub");
-    await user.clear(stub);
-    await user.type(stub, "v2");
+    fireEvent.change(stub, { target: { value: "v2" } });
     await user.click(screen.getByTestId(selectors.components.editor.saveButton));
 
     await waitFor(() => {

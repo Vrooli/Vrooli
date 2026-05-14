@@ -3,17 +3,16 @@
  *
  * Re-derived from requirement module 04-multi-viewport-emulator (req
  * VP-001..004). Distinct from app-monitor's same-named hook: rcl emulates
- * a *component* preview inside a fixed editor pane, not a full app
- * window, so we skip responsive-mode resize handles and container-
- * bound zoom clamping. Just: preset → display dimensions, zoom in
- * [0.1, 2.0] applied as CSS transform, rotate (swap w/h), reset,
- * localStorage persistence under react-component-library.emulator.v1.
+ * a *component* preview inside the editor workbench. Its toolbar mirrors
+ * app-monitor's DevTools-style control shape, including responsive width
+ * and height inputs, but keeps all state local to this scenario.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export const DEVICE_EMULATION_STORAGE_KEY = "react-component-library.emulator.v1";
 
 export const DEVICE_PRESETS = [
+  { id: "responsive", label: "Responsive", width: 1280, height: 720 },
   { id: "iphone-14", label: "iPhone 14", width: 390, height: 844 },
   { id: "iphone-se", label: "iPhone SE", width: 375, height: 667 },
   { id: "ipad", label: "iPad", width: 768, height: 1024 },
@@ -28,19 +27,33 @@ export type DevicePresetId = (typeof DEVICE_PRESETS)[number]["id"];
 export const ZOOM_MIN = 0.1;
 export const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.1;
+export const DEVICE_ZOOM_LEVELS = [0.1, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2] as const;
 
 const DEFAULT_PRESET_ID: DevicePresetId = "desktop-1280";
+const DEFAULT_CUSTOM_WIDTH = 1280;
+const DEFAULT_CUSTOM_HEIGHT = 720;
+const DIMENSION_MIN = 1;
+const DIMENSION_MAX = 2400;
 
 interface EmulatorState {
   presetId: DevicePresetId;
+  customWidth: number;
+  customHeight: number;
   zoom: number;
   isRotated: boolean;
 }
 
 const DEFAULT_STATE: Readonly<EmulatorState> = {
   presetId: DEFAULT_PRESET_ID,
+  customWidth: DEFAULT_CUSTOM_WIDTH,
+  customHeight: DEFAULT_CUSTOM_HEIGHT,
   zoom: 1,
   isRotated: false,
+};
+
+const clampDimension = (value: number): number => {
+  if (!Number.isFinite(value)) return DIMENSION_MIN;
+  return Math.min(Math.max(Math.round(value), DIMENSION_MIN), DIMENSION_MAX);
 };
 
 const clampZoom = (value: number): number => {
@@ -55,6 +68,10 @@ const sanitize = (raw: unknown): EmulatorState => {
   const preset = DEVICE_PRESETS.find((p) => p.id === r.presetId);
   return {
     presetId: preset?.id ?? DEFAULT_PRESET_ID,
+    customWidth:
+      typeof r.customWidth === "number" ? clampDimension(r.customWidth) : DEFAULT_CUSTOM_WIDTH,
+    customHeight:
+      typeof r.customHeight === "number" ? clampDimension(r.customHeight) : DEFAULT_CUSTOM_HEIGHT,
     zoom: typeof r.zoom === "number" ? clampZoom(r.zoom) : 1,
     isRotated: Boolean(r.isRotated),
   };
@@ -84,9 +101,11 @@ export interface DeviceEmulationValue {
   presets: typeof DEVICE_PRESETS;
   presetId: DevicePresetId;
   zoom: number;
+  zoomLevels: typeof DEVICE_ZOOM_LEVELS;
   zoomMin: number;
   zoomMax: number;
   isRotated: boolean;
+  isResponsive: boolean;
   /** Display dimensions = preset dims, swapped if rotated. */
   displayWidth: number;
   displayHeight: number;
@@ -94,6 +113,7 @@ export interface DeviceEmulationValue {
   scaledWidth: number;
   scaledHeight: number;
   setPreset: (id: DevicePresetId) => void;
+  setDimension: (dimension: "width" | "height", value: number) => void;
   setZoom: (zoom: number) => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -114,11 +134,27 @@ export function useDeviceEmulation(): DeviceEmulationValue {
     [state.presetId],
   );
 
-  const displayWidth = state.isRotated ? preset.height : preset.width;
-  const displayHeight = state.isRotated ? preset.width : preset.height;
+  const baseWidth = state.presetId === "responsive" ? state.customWidth : preset.width;
+  const baseHeight = state.presetId === "responsive" ? state.customHeight : preset.height;
+  const displayWidth = state.isRotated ? baseHeight : baseWidth;
+  const displayHeight = state.isRotated ? baseWidth : baseHeight;
+  const isResponsive = state.presetId === "responsive";
 
   const setPreset = useCallback((id: DevicePresetId) => {
     setState((prev) => sanitize({ ...prev, presetId: id }));
+  }, []);
+
+  const setDimension = useCallback((dimension: "width" | "height", value: number) => {
+    setState((prev) => {
+      const next = prev.isRotated
+        ? dimension === "width"
+          ? { ...prev, customHeight: value }
+          : { ...prev, customWidth: value }
+        : dimension === "width"
+          ? { ...prev, customWidth: value }
+          : { ...prev, customHeight: value };
+      return sanitize({ ...next, presetId: "responsive" });
+    });
   }, []);
 
   const setZoom = useCallback((zoom: number) => {
@@ -149,14 +185,17 @@ export function useDeviceEmulation(): DeviceEmulationValue {
     presets: DEVICE_PRESETS,
     presetId: state.presetId,
     zoom: state.zoom,
+    zoomLevels: DEVICE_ZOOM_LEVELS,
     zoomMin: ZOOM_MIN,
     zoomMax: ZOOM_MAX,
     isRotated: state.isRotated,
+    isResponsive,
     displayWidth,
     displayHeight,
     scaledWidth: displayWidth * state.zoom,
     scaledHeight: displayHeight * state.zoom,
     setPreset,
+    setDimension,
     setZoom,
     zoomIn,
     zoomOut,

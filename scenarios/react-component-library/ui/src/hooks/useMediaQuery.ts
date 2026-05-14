@@ -9,6 +9,8 @@
  */
 import { useEffect, useState } from "react";
 
+import { APP_MEDIA_QUERIES } from "../styles/breakpoints";
+
 function readMatch(query: string): boolean {
   if (typeof window === "undefined") return false;
   if (typeof window.matchMedia !== "function") return false;
@@ -35,13 +37,13 @@ export function useMediaQuery(query: string): boolean {
 
 // Breakpoints align with DESIGN.md responsive transformations.
 export function useIsMobile(): boolean {
-  return useMediaQuery("(max-width: 767px)");
+  return useMediaQuery(APP_MEDIA_QUERIES.mobile);
 }
 
 export function useIsTablet(): boolean {
-  return useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
+  return useMediaQuery(APP_MEDIA_QUERIES.tablet);
 }
 
 export function useIsDesktop(): boolean {
-  return useMediaQuery("(min-width: 1024px)");
+  return useMediaQuery(APP_MEDIA_QUERIES.desktop);
 }

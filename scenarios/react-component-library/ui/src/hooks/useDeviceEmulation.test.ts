@@ -38,6 +38,7 @@ describe("useDeviceEmulation", () => {
         "desktop-1280",
         "desktop-1440",
         "desktop-1920",
+        "responsive",
       ]),
     );
   });
@@ -47,6 +48,16 @@ describe("useDeviceEmulation", () => {
     act(() => result.current.setPreset("iphone-se"));
     expect(result.current.displayWidth).toBe(375);
     expect(result.current.displayHeight).toBe(667);
+  });
+
+  it("responsive dimensions can be edited and become the active preset", () => {
+    const { result } = renderHook(() => useDeviceEmulation());
+    act(() => result.current.setDimension("width", 369));
+    act(() => result.current.setDimension("height", 652));
+    expect(result.current.presetId).toBe("responsive");
+    expect(result.current.isResponsive).toBe(true);
+    expect(result.current.displayWidth).toBe(369);
+    expect(result.current.displayHeight).toBe(652);
   });
 
   it("clamps zoom into [0.1, 2.0]", () => {

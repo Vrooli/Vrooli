@@ -8,6 +8,7 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { themesClient, type Theme } from "../../api/themes";
 import { errorMessage } from "../../lib/errorMessage";
+import { cn } from "../../lib/utils";
 
 interface Props {
   /** iframe whose harness will receive the rcl-theme-apply message. */
@@ -15,6 +16,7 @@ interface Props {
   /** Set true once the harness has posted "preview-ready"; we re-apply
    *  the active theme on every reload so it survives save-driven nav. */
   previewReady: boolean;
+  className?: string;
 }
 
 /**
@@ -27,7 +29,7 @@ interface Props {
  * each token on :root so component CSS variables resolve to the new
  * values immediately.
  */
-export function ThemeSwitcher({ frameRef, previewReady }: Props) {
+export function ThemeSwitcher({ frameRef, previewReady, className }: Props) {
   const { t } = useTranslation();
   const [selection, setSelection] = useState("");
   const [scenarioId, setScenarioId] = useState("");
@@ -83,7 +85,7 @@ export function ThemeSwitcher({ frameRef, previewReady }: Props) {
   return (
     <div
       data-testid={selectors.components.themeSwitcher.root}
-      className="flex flex-wrap items-center gap-2 border-b border-white/5 bg-black/20 px-3 py-2 text-xs text-slate-300"
+      className={cn("flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-slate-300", className)}
     >
       <label className="flex items-center gap-1.5">
         <span className="text-slate-400">
@@ -93,7 +95,7 @@ export function ThemeSwitcher({ frameRef, previewReady }: Props) {
           data-testid={selectors.components.themeSwitcher.select}
           value={selection}
           onChange={(e) => setSelection(e.target.value)}
-          className="rounded border border-white/10 bg-black/40 px-2 py-1 text-slate-100"
+          className="h-7 max-w-32 rounded-md border border-white/10 bg-black/40 px-2 text-xs text-slate-100"
         >
           <option value="">{t(strings.components.themeSwitcher.noneOption)}</option>
           <optgroup label={t(strings.components.themeSwitcher.builtinOptionGroup)}>
@@ -115,12 +117,12 @@ export function ThemeSwitcher({ frameRef, previewReady }: Props) {
           value={scenarioId}
           onChange={(e) => setScenarioId(e.target.value)}
           placeholder={t(strings.components.themeSwitcher.scenarioInputPlaceholder)}
-          className="h-7 w-44"
+          className="h-7 w-36 rounded-md text-xs"
         />
         <Button
           data-testid={selectors.components.themeSwitcher.scenarioApply}
           variant="outline"
-          className="h-7 px-3 text-xs"
+          className="h-7 rounded-md px-2 text-xs"
           disabled={!scenarioId.trim()}
           onClick={() => setSelection(`scenario:${scenarioId.trim()}`)}
         >

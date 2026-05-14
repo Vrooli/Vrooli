@@ -45,9 +45,11 @@ describe("EmulatorChrome", () => {
     renderWithProviders(<Harness />);
     expect(screen.getByTestId(selectors.components.emulator.root)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.components.emulator.toolbar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.components.emulator.dimensions).textContent).toContain(
-      "1280",
-    );
+    const inputs = screen
+      .getByTestId(selectors.components.emulator.dimensions)
+      .querySelectorAll("input");
+    expect(inputs[0]?.value).toBe("1280");
+    expect(inputs[1]?.value).toBe("800");
     expect(screen.getByTestId("emulator-child")).toBeInTheDocument();
   });
 
@@ -56,20 +58,22 @@ describe("EmulatorChrome", () => {
     renderWithProviders(<Harness />);
     const select = screen.getByTestId<HTMLSelectElement>(selectors.components.emulator.presetSelect);
     await user.selectOptions(select, "iphone-se");
-    expect(screen.getByTestId(selectors.components.emulator.dimensions).textContent).toContain(
-      "375",
-    );
-    expect(screen.getByTestId(selectors.components.emulator.dimensions).textContent).toContain(
-      "667",
-    );
+    const inputs = screen
+      .getByTestId(selectors.components.emulator.dimensions)
+      .querySelectorAll("input");
+    expect(inputs[0]?.value).toBe("375");
+    expect(inputs[1]?.value).toBe("667");
   });
 
   it("zoom in/out updates the displayed percent and persists", async () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness />);
-    expect(screen.getByTestId(selectors.components.emulator.zoomValue).textContent).toBe("100%");
-    await user.click(screen.getByTestId(selectors.components.emulator.zoomOut));
-    expect(screen.getByTestId(selectors.components.emulator.zoomValue).textContent).toBe("90%");
+    const zoomSelect = screen.getByTestId<HTMLSelectElement>(
+      selectors.components.emulator.zoomValue,
+    );
+    expect(zoomSelect.value).toBe("1");
+    await user.selectOptions(zoomSelect, "0.9");
+    expect(zoomSelect.value).toBe("0.9");
     const persisted = window.localStorage.getItem(DEVICE_EMULATION_STORAGE_KEY);
     expect(persisted).toContain("0.9");
   });
@@ -81,13 +85,29 @@ describe("EmulatorChrome", () => {
       screen.getByTestId(selectors.components.emulator.presetSelect),
       "iphone-14",
     );
-    expect(screen.getByTestId(selectors.components.emulator.dimensions).textContent).toContain(
-      "390",
-    );
+    const inputs = screen
+      .getByTestId(selectors.components.emulator.dimensions)
+      .querySelectorAll("input");
+    expect(inputs[0]?.value).toBe("390");
     await user.click(screen.getByTestId(selectors.components.emulator.rotate));
-    const dims = screen.getByTestId(selectors.components.emulator.dimensions).textContent;
-    expect(dims).toContain("844");
-    expect(dims.indexOf("844")).toBeLessThan(dims.indexOf("390"));
+    expect(inputs[0]?.value).toBe("844");
+    expect(inputs[1]?.value).toBe("390");
+  });
+
+  it("responsive dimensions can be edited directly", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+    await user.selectOptions(
+      screen.getByTestId(selectors.components.emulator.presetSelect),
+      "responsive",
+    );
+    const inputs = screen
+      .getByTestId(selectors.components.emulator.dimensions)
+      .querySelectorAll("input");
+    fireEvent.change(inputs[0]!, { target: { value: "369" } });
+    fireEvent.change(inputs[1]!, { target: { value: "652" } });
+    expect(inputs[0]?.value).toBe("369");
+    expect(inputs[1]?.value).toBe("652");
   });
 
   it("reset returns to defaults", async () => {
@@ -97,13 +117,18 @@ describe("EmulatorChrome", () => {
       screen.getByTestId(selectors.components.emulator.presetSelect),
       "ipad-pro",
     );
-    await user.click(screen.getByTestId(selectors.components.emulator.zoomIn));
+    await user.selectOptions(
+      screen.getByTestId<HTMLSelectElement>(selectors.components.emulator.zoomValue),
+      "1.25",
+    );
     await user.click(screen.getByTestId(selectors.components.emulator.rotate));
     await user.click(screen.getByTestId(selectors.components.emulator.reset));
     expect(
       screen.getByTestId<HTMLSelectElement>(selectors.components.emulator.presetSelect).value,
     ).toBe("desktop-1280");
-    expect(screen.getByTestId(selectors.components.emulator.zoomValue).textContent).toBe("100%");
+    expect(
+      screen.getByTestId<HTMLSelectElement>(selectors.components.emulator.zoomValue).value,
+    ).toBe("1");
   });
 
   it("filter controls absent when no filters prop is supplied", () => {
@@ -171,7 +196,10 @@ describe("EmulatorChrome", () => {
   it("applies CSS transform scale on the viewport", async () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness />);
-    await user.click(screen.getByTestId(selectors.components.emulator.zoomOut));
+    await user.selectOptions(
+      screen.getByTestId<HTMLSelectElement>(selectors.components.emulator.zoomValue),
+      "0.9",
+    );
     const viewport = screen.getByTestId(selectors.components.emulator.viewport);
     expect(viewport.style.transform).toContain("scale(0.9)");
   });

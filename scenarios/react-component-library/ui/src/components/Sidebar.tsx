@@ -1,11 +1,4 @@
-/**
- * Sidebar — desktop primary navigation surface.
- *
- * Renders the app brand, primary route nav, and a flow inventory list.
- * Width is controlled by the parent (AppShell) via `width`. The vertical
- * resize handle is provided by `resizeHandleProps`; absent on mobile.
- */
-import { type CSSProperties, type ReactNode, forwardRef } from "react";
+import { type ReactNode } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { GaugeCircle, GitBranch, Library, Settings as SettingsIcon } from "lucide-react";
 
@@ -19,18 +12,13 @@ interface NavItem {
   testid: string;
 }
 
-interface SidebarProps {
-  width?: number;
-  resizeHandleProps?: React.HTMLAttributes<HTMLDivElement>;
+interface SidebarContentProps {
   onNavigate?: () => void;
   headerSlot?: ReactNode;
   inventorySlot?: ReactNode;
 }
 
-export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
-  { width, resizeHandleProps, onNavigate, headerSlot, inventorySlot },
-  ref,
-) {
+export function SidebarContent({ onNavigate, headerSlot, inventorySlot }: SidebarContentProps) {
   const { t } = useTranslation();
 
   const items: NavItem[] = [
@@ -61,17 +49,9 @@ export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
     },
   ];
 
-  const style: CSSProperties = width ? { width } : {};
-
   return (
-    <aside
-      ref={ref}
-      data-testid="app-sidebar"
-      aria-label={t("nav.label", { defaultValue: "Primary navigation" })}
-      style={style}
-      className="relative hidden h-screen shrink-0 flex-col border-r border-app-border bg-app-surface md:flex"
-    >
-      <div className="flex items-center gap-2 border-b border-app-border px-4 py-4">
+    <div data-testid="app-sidebar-content" className="flex min-h-0 flex-1 flex-col">
+      <div className="hidden items-center gap-2 border-b border-app-border px-4 py-4 md:flex">
         <Link
           to="/"
           onClick={onNavigate}
@@ -117,14 +97,6 @@ export const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar(
       <div className="min-h-0 flex-1 overflow-auto border-t border-app-border px-2 py-3">
         {inventorySlot}
       </div>
-
-      {resizeHandleProps && (
-        <div
-          data-testid="sidebar-resize-handle"
-          {...resizeHandleProps}
-          className="absolute right-[-3px] top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-app-primary/30"
-        />
-      )}
-    </aside>
+    </div>
   );
-});
+}

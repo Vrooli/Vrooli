@@ -50,15 +50,15 @@ export function ComponentDetailPage() {
   }
 
   return (
-    <div data-testid="component-detail-page" className="flex flex-col gap-3">
+    <div data-testid="component-detail-page" className="flex min-h-0 flex-1 flex-col">
       <ComponentEditor
         id={data.component.id}
         libraryId={data.component.libraryId || data.component.id}
         onClose={() => {
           void navigate("/components");
         }}
+        metadataSlot={<VersionsCard componentId={data.component.id} />}
       />
-      <VersionsCard componentId={data.component.id} />
     </div>
   );
 }

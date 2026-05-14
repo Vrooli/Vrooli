@@ -1,6 +1,14 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
+const packageAlias = {
+  react: resolve(rootDir, "node_modules/react"),
+  "lucide-react": resolve(rootDir, "node_modules/lucide-react"),
+};
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -31,17 +39,18 @@ export default defineConfig(({ mode }): UserConfig => {
     // INTEROP-CRITICAL: Relative asset URLs keep the UI working behind Vrooli tunnels, proxies, and iframe mounts.
     base: './',
     plugins: [react(), stringsCodegen()],
-    resolve: isProfile
-      ? {
-          alias: {
+    resolve: {
+      alias: isProfile
+        ? {
+            ...packageAlias,
             "react-dom/client": "react-dom/profiling",
             // Internal references inside react-dom/client.js do
             // `require('react-dom')`, which would resolve back to the
             // stripped-prod bundle. Force them through the profiling entry too.
             "react-dom$": "react-dom/profiling",
-          },
-        }
-      : undefined,
+          }
+        : packageAlias,
+    },
     esbuild: isProfile
       ? {
           keepNames: true,

@@ -11,15 +11,16 @@
  * no card wrapping page-level content.
  */
 import { type ReactNode, useCallback, useRef, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
+import { SidebarShell } from "../../../library/components/SidebarShell/versions/1.0.0/SidebarShell";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { useResizablePanel } from "../hooks/useResizablePanel";
+import { useTranslation } from "../i18n";
 import { HealthPill } from "./HealthPill";
-import { MobileDrawer } from "./MobileDrawer";
 import { MobileHeader } from "./MobileHeader";
 import { MobileNav } from "./MobileNav";
-import { Sidebar } from "./Sidebar";
+import { SidebarContent } from "./Sidebar";
 import { SidebarComponentList } from "./SidebarComponentList";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -30,8 +31,10 @@ interface Props {
 }
 
 export function AppShell({ children }: Props) {
+  const { t } = useTranslation();
+  const location = useLocation();
   const shellRef = useRef<HTMLDivElement>(null);
-  const sidebarRef = useRef<HTMLElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -55,6 +58,7 @@ export function AppShell({ children }: Props) {
       <ThemeToggle />
     </div>
   );
+  const isComponentDetail = /^\/components\/[^/]+/.test(location.pathname);
 
   return (
     <div
@@ -62,28 +66,43 @@ export function AppShell({ children }: Props) {
       data-testid="app-shell"
       className="flex min-h-screen w-full bg-app-background text-app-foreground"
     >
-      <Sidebar
+      <SidebarShell
         ref={sidebarRef}
+        mobileOpen={drawerOpen}
+        onMobileClose={closeDrawer}
+        mobileLabel={t("nav.drawerLabel", { defaultValue: "Navigation drawer" })}
+        desktopLabel={t("nav.label", { defaultValue: "Primary navigation" })}
+        closeLabel={t("nav.closeDrawer", { defaultValue: "Close navigation" })}
+        mobileHeader={
+          <span className="truncate text-sm font-semibold text-app-foreground">
+            {t("app.brand", { defaultValue: "Component Library" })}
+          </span>
+        }
         width={isMobile ? undefined : sidebarWidth}
         resizeHandleProps={isMobile ? undefined : resizeHandleProps}
-        headerSlot={headerSlot}
-        inventorySlot={<SidebarComponentList />}
-      />
+        contentClassName="flex"
+      >
+        <SidebarContent
+          onNavigate={closeDrawer}
+          headerSlot={headerSlot}
+          inventorySlot={<SidebarComponentList onNavigate={closeDrawer} />}
+        />
+      </SidebarShell>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileHeader onOpenDrawer={openDrawer} />
         <main
           data-testid="app-main"
-          className="pb-safe min-w-0 flex-1 px-4 py-4 pb-20 md:px-8 md:py-6 md:pb-8"
+          className={
+            isComponentDetail
+              ? "pb-safe flex min-h-0 min-w-0 flex-1 flex-col p-0 pb-20 md:pb-0"
+              : "pb-safe min-w-0 flex-1 px-4 py-4 pb-20 md:px-8 md:py-6 md:pb-8"
+          }
         >
           {children ?? <Outlet />}
         </main>
         <MobileNav />
       </div>
-
-      <MobileDrawer open={drawerOpen} onClose={closeDrawer}>
-        <SidebarComponentList onNavigate={closeDrawer} />
-      </MobileDrawer>
     </div>
   );
 }

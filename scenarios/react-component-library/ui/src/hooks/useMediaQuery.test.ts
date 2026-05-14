@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { APP_MEDIA_QUERIES } from "../styles/breakpoints";
 import { useIsDesktop, useIsMobile, useMediaQuery } from "./useMediaQuery";
 
 type Listener = (event: MediaQueryListEvent) => void;
@@ -56,23 +57,23 @@ describe("useMediaQuery", () => {
   });
 
   it("returns the current match value", () => {
-    installMatchMedia({ "(max-width: 767px)": true });
-    const { result } = renderHook(() => useMediaQuery("(max-width: 767px)"));
+    installMatchMedia({ [APP_MEDIA_QUERIES.mobile]: true });
+    const { result } = renderHook(() => useMediaQuery(APP_MEDIA_QUERIES.mobile));
     expect(result.current).toBe(true);
   });
 
   it("updates when the media query changes", () => {
-    const mm = installMatchMedia({ "(max-width: 767px)": false });
+    const mm = installMatchMedia({ [APP_MEDIA_QUERIES.mobile]: false });
     const { result } = renderHook(() => useIsMobile());
     expect(result.current).toBe(false);
-    act(() => mm.get("(max-width: 767px)").trigger(true));
+    act(() => mm.get(APP_MEDIA_QUERIES.mobile).trigger(true));
     expect(result.current).toBe(true);
   });
 
   it("desktop helper resolves separately from mobile", () => {
     installMatchMedia({
-      "(max-width: 767px)": false,
-      "(min-width: 1024px)": true,
+      [APP_MEDIA_QUERIES.mobile]: false,
+      [APP_MEDIA_QUERIES.desktop]: true,
     });
     const { result: m } = renderHook(() => useIsMobile());
     const { result: d } = renderHook(() => useIsDesktop());

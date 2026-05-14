@@ -349,6 +349,8 @@ const literalSelectors = {
       surface: "components-editor-surface",
       saveButton: "components-editor-save-button",
       closeButton: "components-editor-close-button",
+      infoButton: "components-editor-info-button",
+      infoDialog: "components-editor-info-dialog",
       dirtyBadge: "components-editor-dirty-badge",
       shaHash: "components-editor-sha-hash",
       savedToast: "components-editor-saved-toast",

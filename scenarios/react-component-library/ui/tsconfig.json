@@ -52,9 +52,15 @@
     /* Paths */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "lucide-react": ["./node_modules/lucide-react/dist/lucide-react.d.ts"],
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"]
     }
   },
-  "include": ["src"],
+  "include": [
+    "src",
+    "../library/components/SidebarShell/versions/1.0.0/SidebarShell.tsx"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

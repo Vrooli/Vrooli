@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
+import { ArrowLeft, Code2, Eye, Info, Save, X } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
@@ -13,7 +14,7 @@ import { useComponentInspector } from "../../hooks/useComponentInspector";
 import { useDeviceEmulation } from "../../hooks/useDeviceEmulation";
 import { useDeviceFilters } from "../../hooks/useDeviceFilters";
 import { errorMessage } from "../../lib/errorMessage";
-import { EmulatorChrome } from "./EmulatorChrome";
+import { EmulatorToolbar, EmulatorViewport } from "./EmulatorChrome";
 import { InspectorPanel } from "./InspectorPanel";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
@@ -33,6 +34,7 @@ interface ComponentEditorProps {
   id: string;
   libraryId: string;
   onClose: () => void;
+  metadataSlot?: ReactNode;
 }
 
 /**
@@ -45,7 +47,7 @@ interface ComponentEditorProps {
  * file moved underneath us, so the user sees a typed error instead of
  * silently overwriting drift.
  */
-export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps) {
+export function ComponentEditor({ id, libraryId, onClose, metadataSlot }: ComponentEditorProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const emulator = useDeviceEmulation();
@@ -63,6 +65,7 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
   const [showSaved, setShowSaved] = useState(false);
   const [previewReady, setPreviewReady] = useState(false);
   const [mode, setMode] = useState<"preview" | "code">("code");
+  const [infoOpen, setInfoOpen] = useState(false);
   const savedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -137,80 +140,121 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
     <section
       data-testid={selectors.components.editor.panel}
       aria-label={t(strings.components.editor.title, { libraryId })}
-      className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4"
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#05070d]"
     >
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h2
-            data-testid={selectors.components.editor.title}
-            className="text-sm font-medium text-slate-200"
-          >
-            {t(strings.components.editor.title, { libraryId })}
-          </h2>
-          {dirty && (
-            <span
-              data-testid={selectors.components.editor.dirtyBadge}
-              className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-200"
+      <header className="shrink-0 border-b border-white/10 bg-[#0f172a]">
+        <div className="flex min-w-0 items-center justify-between gap-3 px-4 py-2">
+          <div className="min-w-0">
+            <h2
+              data-testid={selectors.components.editor.title}
+              className="truncate text-base font-semibold text-slate-100"
             >
-              {t(strings.components.editor.dirty)}
-            </span>
-          )}
-          {baselineSha && (
-            <span
-              data-testid={selectors.components.editor.shaHash}
-              className="font-mono text-xs text-slate-500"
+              {libraryId}
+            </h2>
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-400">
+              <span className="truncate">{t(strings.components.editor.subtitle)}</span>
+              {baselineSha && (
+                <span
+                  data-testid={selectors.components.editor.shaHash}
+                  className="font-mono text-slate-500"
+                >
+                  {t(strings.components.editor.sha, { sha: baselineSha.slice(0, 12) })}
+                </span>
+              )}
+              {dirty && (
+                <span
+                  data-testid={selectors.components.editor.dirtyBadge}
+                  className="rounded-full bg-amber-500/20 px-2 py-0.5 text-amber-200"
+                >
+                  {t(strings.components.editor.dirty)}
+                </span>
+              )}
+              {previewReady && mode === "preview" && (
+                <span
+                  data-testid={selectors.components.editor.previewBadge}
+                  className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-200"
+                >
+                  {t(strings.components.editor.previewReady)}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button
+              data-testid={selectors.components.editor.infoButton}
+              type="button"
+              variant="outline"
+              onClick={() => setInfoOpen(true)}
+              aria-label={t(strings.components.editor.info)}
+              title={t(strings.components.editor.info)}
+              className="h-8 w-8 rounded-md p-0"
             >
-              {t(strings.components.editor.sha, { sha: baselineSha.slice(0, 12) })}
-            </span>
-          )}
+              <Info aria-hidden className="h-4 w-4" />
+            </Button>
+            <Button
+              data-testid={selectors.components.editor.closeButton}
+              onClick={onClose}
+              className="h-8 gap-1.5 rounded-md px-2 text-xs"
+              variant="outline"
+            >
+              <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
+              {t(strings.components.editor.close)}
+            </Button>
+            <Button
+              data-testid={selectors.components.editor.saveButton}
+              onClick={() => saveMutation.mutate()}
+              disabled={!dirty || saveMutation.isPending || contentQuery.isLoading}
+              className="h-8 gap-1.5 rounded-md px-2 text-xs"
+            >
+              <Save aria-hidden className="h-3.5 w-3.5" />
+              {saveMutation.isPending
+                ? t(strings.components.editor.saving)
+                : t(strings.components.editor.save)}
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-white/10">
           <div
             data-testid={selectors.components.editor.modeSwitch}
-            className="flex overflow-hidden rounded-control border border-white/10"
+            className="flex shrink-0 overflow-hidden rounded-md border border-white/10"
           >
             <Button
               type="button"
               variant={mode === "preview" ? "default" : "outline"}
-              className="h-8 rounded-none px-3 text-xs"
+              className="h-7 gap-1.5 rounded-none px-2 text-xs"
               onClick={() => setMode("preview")}
             >
+              <Eye aria-hidden className="h-3.5 w-3.5" />
               {t(strings.components.editor.previewMode)}
             </Button>
             <Button
               type="button"
               variant={mode === "code" ? "default" : "outline"}
-              className="h-8 rounded-none px-3 text-xs"
+              className="h-7 gap-1.5 rounded-none px-2 text-xs"
               onClick={() => setMode("code")}
             >
+              <Code2 aria-hidden className="h-3.5 w-3.5" />
               {t(strings.components.editor.codeMode)}
             </Button>
           </div>
-          <Button
-            data-testid={selectors.components.editor.closeButton}
-            onClick={onClose}
-            className="h-8 px-3 text-xs"
-            variant="outline"
-          >
-            {t(strings.components.editor.close)}
-          </Button>
-          <Button
-            data-testid={selectors.components.editor.saveButton}
-            onClick={() => saveMutation.mutate()}
-            disabled={!dirty || saveMutation.isPending || contentQuery.isLoading}
-            className="h-8 px-3 text-xs"
-          >
-            {saveMutation.isPending
-              ? t(strings.components.editor.saving)
-              : t(strings.components.editor.save)}
-          </Button>
+          {mode === "preview" && (
+            <ThemeSwitcher
+              frameRef={previewFrameRef}
+              previewReady={previewReady}
+            />
+          )}
+          <EmulatorToolbar
+            emulator={emulator}
+            filters={filters}
+          />
         </div>
       </header>
 
       {contentQuery.isLoading && (
         <p
           data-testid={selectors.components.editor.loading}
-          className="mt-3 text-slate-200"
+          className="p-4 text-slate-200"
         >
           {t(strings.components.editor.loading)}
         </p>
@@ -219,7 +263,7 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
       {contentQuery.error && (
         <p
           data-testid={selectors.components.editor.error}
-          className="mt-3 text-red-400"
+          className="p-4 text-red-400"
         >
           {errorMessage(contentQuery.error, t)}
         </p>
@@ -228,20 +272,20 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
       {saveMutation.error && (
         <p
           data-testid={selectors.components.editor.error}
-          className="mt-3 text-red-400"
+          className="p-4 text-red-400"
         >
           {errorMessage(saveMutation.error, t)}
         </p>
       )}
 
       {contentQuery.data && (
-        <div className="mt-3 grid gap-3">
+        <div className="min-h-0 flex-1">
           <div
             data-testid={selectors.components.editor.surface}
-            className={`overflow-hidden rounded-lg border border-white/10 ${mode === "code" ? "" : "hidden"}`}
+            className={`h-full min-h-0 overflow-hidden ${mode === "code" ? "" : "hidden"}`}
           >
             <Editor
-              height={480}
+              height="100%"
               language="typescript"
               path={`${libraryId || id}.tsx`}
               value={buffer}
@@ -262,28 +306,10 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
           </div>
           <div
             data-testid={selectors.components.editor.preview}
-            className={`overflow-hidden rounded-lg border border-white/10 bg-black/40 ${mode === "preview" ? "" : "hidden"}`}
+            className={`h-full min-h-0 overflow-hidden bg-black ${mode === "preview" ? "" : "hidden"}`}
           >
-            <div className="flex items-center justify-between border-b border-white/5 px-3 py-2 text-xs text-slate-400">
-              <span>{t(strings.components.editor.previewHeading)}</span>
-              <span
-                data-testid={selectors.components.editor.previewBadge}
-                className={
-                  previewReady
-                    ? "rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-200"
-                    : "rounded-full bg-slate-500/20 px-2 py-0.5 text-slate-300"
-                }
-              >
-                {previewReady
-                  ? t(strings.components.editor.previewReady)
-                  : t(strings.components.editor.previewWaiting)}
-              </span>
-            </div>
-            {previewReady && (
-              <ThemeSwitcher frameRef={previewFrameRef} previewReady={previewReady} />
-            )}
-            <div className="h-[440px]">
-              <EmulatorChrome emulator={emulator} filters={filters}>
+            <div className="h-full">
+              <EmulatorViewport emulator={emulator} filters={filters}>
                 <iframe
                   data-testid={selectors.components.editor.previewFrame}
                   title={t(strings.components.editor.previewHeading)}
@@ -296,7 +322,7 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
                   }}
                   className="block border-0 bg-white"
                 />
-              </EmulatorChrome>
+              </EmulatorViewport>
             </div>
             <InspectorPanel inspector={inspector} />
           </div>
@@ -306,10 +332,48 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
       {showSaved && (
         <p
           data-testid={selectors.components.editor.savedToast}
-          className="mt-2 text-xs text-emerald-300"
+          className="absolute bottom-3 right-3 rounded-md bg-emerald-950/90 px-3 py-2 text-xs text-emerald-200 shadow-lg"
         >
           {t(strings.components.editor.saved)}
         </p>
+      )}
+      {infoOpen && (
+        <div
+          data-testid={selectors.components.editor.infoDialog}
+          className="fixed inset-0 z-50 flex justify-end bg-black/55"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t(strings.components.editor.info)}
+        >
+          <aside className="flex h-full w-full max-w-md flex-col border-l border-white/10 bg-[#0f172a] text-slate-100 shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-3">
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-semibold">{libraryId}</h3>
+                {baselineSha && (
+                  <p className="mt-1 font-mono text-xs text-slate-400">
+                    {t(strings.components.editor.sha, { sha: baselineSha })}
+                  </p>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 w-8 rounded-md p-0"
+                onClick={() => setInfoOpen(false)}
+                aria-label={t(strings.components.editor.closeInfo)}
+              >
+                <X aria-hidden className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto p-4">
+              {metadataSlot ?? (
+                <p className="text-sm text-slate-400">
+                  {t(strings.components.editor.noInfo)}
+                </p>
+              )}
+            </div>
+          </aside>
+        </div>
       )}
     </section>
   );
