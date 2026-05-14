@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"web-console/internal/backend"
-	"web-console/internal/pty"
 )
 
 // tmux re-attach retry parameters. When the attach process dies but the tmux
@@ -59,24 +58,12 @@ func (s *Session) readLoop() {
 		n, err := p.Read(buf)
 		if n > 0 {
 			data := buf[:n]
-			// Answer terminal capability queries server-side (DA1/DA3/DECRQM)
-			// so TUI programs like Claude Code don't stall waiting for a
-			// response xterm.js will not send. Write the reply straight to
-			// the PTY master — it arrives at the foreground process as
-			// stdin, just as a real terminal emulator's reply would. Only
-			// the standard backend needs this: tmux answers queries for its
-			// own panes.
+			// ANSI terminal-query replies (DA1/DA3/XTVERSION/DECRQM 2026)
+			// are produced by the responder goroutine started in
+			// startAnsiResponder() — it subscribes to the emulator's
+			// ControlEvent channel and writes replies through SendInput.
+			// No inline scan here.
 			//
-			// Phase 3 migrates this inline call to a registered Observer.
-			if s.Backend != backend.Persistent {
-				if reply := AnsiResponderFunc(data); len(reply) > 0 {
-					// Server-origin reply; deliver as keystroke. For the
-					// standard backend this is just a pipe write.
-					if werr := p.WriteInput(reply, pty.KindKeystroke); werr != nil {
-						log.Printf("session %s: ansi-responder write failed: %v", s.ID, werr)
-					}
-				}
-			}
 			// Prepend any incomplete UTF-8 bytes from the previous read.
 			if len(s.utf8Buf) > 0 {
 				data = append(s.utf8Buf, data...)

@@ -187,6 +187,7 @@ func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry)
 			sm.onSessionCreate(id)
 		}
 
+		sess.startAnsiResponder()
 		go sess.readLoop()
 		go func(sessID string, bid backend.ID) {
 			<-sess.Done()
@@ -356,6 +357,7 @@ func (sm *Manager) reattachOrphanedSessions() {
 			sm.onSessionCreate(meta.ID)
 		}
 
+		sess.startAnsiResponder()
 		go sess.readLoop()
 		go func(sessID string, bid backend.ID) {
 			<-sess.Done()

@@ -42,6 +42,7 @@ import (
 	workspaceH "web-console/handlers/workspace"
 	"web-console/internal/audio"
 	"web-console/internal/backend"
+	"web-console/internal/capabilities"
 	"web-console/internal/config"
 	"web-console/internal/events"
 	"web-console/internal/metrics"
@@ -122,7 +123,7 @@ type Server struct {
 	aiConfig                      AIConfigStore
 	sweeper                       *session.ExpirationSweeper
 	idempotency                   *idempotencyCache // replay-safe session creation
-	capabilities                  *CapabilityRegistry
+	capabilities                  *capabilities.Registry
 	workspace                     WorkspaceStore
 	voiceConfigMu                 sync.RWMutex
 	voiceConfig                   VoiceStreamConfig
@@ -325,30 +326,30 @@ func NewServer(db *sql.DB) *Server {
 		Client:  &http.Client{Timeout: 5 * time.Second},
 	}
 
-	checkers := map[string]StatusChecker{
-		"whisper-stt": &WhisperChecker{
+	checkers := map[string]capabilities.Checker{
+		"whisper-stt": &capabilities.WhisperChecker{
 			BaseURL: whisperURL,
 			Client:  &http.Client{Timeout: 10 * time.Second},
 		},
-		"speaker-verification": &ResourceChecker{
+		"speaker-verification": &capabilities.ResourceChecker{
 			URL:    speakerVerificationURL + "/ready",
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
-		"kokoro-tts": &KokoroChecker{
+		"kokoro-tts": &capabilities.KokoroChecker{
 			BaseURL:       kokoroURL,
 			Client:        &http.Client{Timeout: 10 * time.Second},
 			ContainerName: "kokoro",
 		},
-		"ollama": &OllamaChecker{
+		"ollama": &capabilities.OllamaChecker{
 			BaseURL: ollamaURL,
 			Client:  &http.Client{Timeout: 5 * time.Second},
 		},
-		"openrouter": &OpenRouterChecker{
+		"openrouter": &capabilities.OpenRouterChecker{
 			APIKey: openrouterKey,
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
 	}
-	srv.capabilities = NewCapabilityRegistry(knownCapabilities, checkers, 30*time.Second)
+	srv.capabilities = capabilities.NewRegistry(capabilities.Known, checkers, 30*time.Second)
 	srv.ttsSynthesizer = &KokoroSynthesizer{
 		BaseURL: kokoroURL,
 		Client:  &http.Client{Timeout: 30 * time.Second},
@@ -359,24 +360,24 @@ func NewServer(db *sql.DB) *Server {
 	}
 	// Register lightweight liveness-only checkers for fast pre-recording checks.
 	// These use GET-only health checks (no test transcription/synthesis).
-	srv.capabilities.SetLivenessCheckers(map[string]StatusChecker{
-		"whisper-stt": &ResourceChecker{
+	srv.capabilities.SetLivenessCheckers(map[string]capabilities.Checker{
+		"whisper-stt": &capabilities.ResourceChecker{
 			URL:    whisperURL + "/",
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
-		"speaker-verification": &ResourceChecker{
+		"speaker-verification": &capabilities.ResourceChecker{
 			URL:    speakerVerificationURL + "/health",
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
-		"kokoro-tts": &ResourceChecker{
+		"kokoro-tts": &capabilities.ResourceChecker{
 			URL:    kokoroURL + "/v1/audio/voices",
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
-		"ollama": &ResourceChecker{
+		"ollama": &capabilities.ResourceChecker{
 			URL:    ollamaURL + "/api/tags",
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
-		"openrouter": &OpenRouterChecker{
+		"openrouter": &capabilities.OpenRouterChecker{
 			APIKey: openrouterKey,
 		},
 	})
@@ -444,7 +445,11 @@ func (s *Server) setupRoutes() {
 	eventsH.Module(newEventsAdapter(s), nil).Mount(s.router)
 
 	// Voice input capabilities
-	capabilitiesH.Module(newCapabilitiesAdapter(s), nil).Mount(s.router)
+	capabilitiesH.Module(&capabilitiesH.Adapter{
+		Registry:        s.capabilities,
+		BackendRegistry: s.backendRegistry,
+		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
+	}, nil).Mount(s.router)
 	// Voice — Connect-RPC module replaces the 14 legacy REST handlers
 	// (transcribe, stream config, wake word, speaker config/status/profiles).
 	voiceH.Module(newVoiceAdapter(s), nil).Mount(s.router)

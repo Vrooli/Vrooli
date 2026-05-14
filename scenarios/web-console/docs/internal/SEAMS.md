@@ -184,14 +184,64 @@ enforce:
 
 ### Terminal Control Event Seam (API)
 **File**: `api/terminal/events.go`
-**Purpose**: Stream parsed control events (alt-buffer enter/exit, CSI queries DA1/DA3/DECRQM) for observers that need them. Phase 3 migrates the ANSI auto-responder onto this seam.
+**Purpose**: Stream parsed control events (alt-buffer enter/exit, CSI queries DA1/DA3/XTVERSION/DECRQM 2026) for observers that need them. The ANSI auto-responder (Phase 3, 2026-05-13) consumes this stream and writes server-side replies through `Session.SendInput`; no inline byte-scan exists in `readLoop` any more.
 
 | Component | Surface |
 |-----------|---------|
 | `Emulator.ControlEvents()` | Read end of a bounded (256) channel; lazily allocated |
 | `Emulator.DroppedControlEvents()` | Running counter for diagnostics |
+| `Session.startAnsiResponder()` | Spawns the observer goroutine for non-persistent backends |
+| `ansiReplyFor(ControlEvent) []byte` | Pure mapping from event → reply bytes (unit-testable) |
 
-Backpressure: drop-oldest; the read loop must never block.
+Backpressure: drop-oldest; the read loop must never block. The responder skips persistent (tmux) backends — tmux answers queries for its own panes.
+
+### ANSI Strip Seam (API)
+**File**: `api/terminal/strip.go`
+**Purpose**: Stateless helper for callers that have a byte stream they want to render as plain text without spinning up an emulator (e.g. conversation-log normalization, dedup-key computation). For grid-level reads — visible cells, cursor, scrollback — use `Emulator.View()` / `Emulator.PlainText()` instead.
+
+| Component | Surface |
+|-----------|---------|
+| `terminal.StripEscapes([]byte) []byte` | Removes CSI / OSC / two-byte ESC sequences; preserves UTF-8 |
+
+Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
+
+### Conversation Dispatcher Seam (API)
+**File**: `api/conversation_router.go`
+**Purpose**: Narrow interface (`ConversationDispatcher`) for publishing trusted assistant and user conversation events to a terminal session. Lets non-Server callers — hook handlers, codex tailers, future adapters — depend on a small surface instead of `*Server`, and lets tests substitute a fake dispatcher.
+
+| Component | Surface |
+|-----------|---------|
+| `ConversationDispatcher.AppendAssistant(text, sessionID, source)` | Publish an assistant response, run TTS routing |
+| `ConversationDispatcher.AppendUser(text, sessionID, source)` | Publish a user prompt (no TTS) |
+| `*Server` implements both implicitly | Compile-time check via `var _ ConversationDispatcher = (*Server)(nil)` |
+
+### API↔CLI Parity Seam (CLI)
+**File**: `cli/parity_test.go`
+**Purpose**: Lock in the contract that every Connect-RPC method has a matching CLI command. Drift in either direction fails the test with a punch list so an agent can't ship a new RPC without a CLI command — and can't quietly drop a CLI command that the proto seed still references.
+
+| Component | Surface |
+|-----------|---------|
+| `TestAPICLIParity` | Loads `.vrooli/endpoints.json`, enumerates registered CLI commands via `domains.CommandGroups` + `domains.SubcommandGroups`, asserts: (a) every Connect-procedure endpoint has a `cli_mapping`, (b) every `cli_mapping.command` resolves to a registered CLI command, (c) every `cli_commands[]` seed entry has a registered command |
+| `parityCLISkipIDs` | Explicit opt-out map for endpoints that genuinely cannot have a CLI form (server streams, long-lived subscriptions). Adding here requires justification |
+| Note marker | An endpoint's `rest_exception.note` can contain `cli:skip` to opt out without touching test code |
+| `builtinCLICommands` | Allowlist for commands provided by cli-core's `NewStandardScenarioApp` (e.g. `status`) that domain registration doesn't surface |
+
+**Invariants**: command lookups strip the `web-console ` binary prefix and drop trailing `--flag` segments so `capabilities --liveness` resolves to the same key as `capabilities` (the flag is parsed inside the handler, not by the dispatcher).
+
+### Backend Plug-Point Seam (API)
+**Files**: `api/internal/backend/plug.go`, `api/internal/backend/backend.go`, `api/backends/claude/`, `api/backends/codex/`
+**Purpose**: Optional, code-only extension hooks on `backend.Descriptor` so per-backend behavior (key encoding, prompt detection, idle gating) lives next to the backend instead of branching in the session pipeline. All fields are `json:"-"` so the descriptor's wire shape is unchanged.
+
+| Component | Surface |
+|-----------|---------|
+| `backend.KeyMap` | `Encode(name) ([]byte, bool)` — symbolic key → bytes (e.g. `Ctrl+C` → `\x03`). Nil means session default. |
+| `backend.PromptDetector` | `IsAwaitingInput(view ScreenView) bool` — backend-aware "agent is at input prompt" signal. Nil means fall back to idle heuristics. |
+| `backend.IdleHeuristic` | `QuietWindowExceeded(sinceLastMillis int64) bool` — backend-aware quiet-window decision. Nil means session default. |
+| `backend.ScreenView` | Narrow read surface for detectors: `Cols/Rows/CursorRow/CursorCol/PlainText`. Session adapts its richer screen type to this interface. |
+| `backends/claude/` | `FilterEnv`, `DefaultPromptDetector` — claude-specific env stripping + ❯-glyph-on-cursor-row detector. |
+| `backends/codex/` | `SharedHome`, `SessionHome`, `SessionsDir`, `PrepareSessionHome`, `ExtractAssistantText`, `ExtractUserText`, `RolloutLine`, `DefaultPromptDetector` — codex-specific home layout + rollout parsing + heuristic detector. |
+
+**Invariants**: Nil-safe (verified by `internal/backend/plug_test.go`); no import cycle (interfaces live in `internal/backend`, not in `session/`); descriptor JSON unchanged so the UI's backend picker keeps working byte-for-byte.
 
 ### PTY Factory Seam (API)
 **File**: `api/pty.go`

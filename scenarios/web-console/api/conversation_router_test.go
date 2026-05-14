@@ -28,7 +28,7 @@ func callSummarizeEvent(t *testing.T, srv *Server, sessID, eventID string) *conv
 
 func TestAppendConversationEvent_MissingSession(t *testing.T) {
 	srv := newFakeTestServer()
-	result := srv.appendConversationEvent("hello", "", "test")
+	result := srv.AppendAssistant("hello", "", "test")
 	if result.Appended {
 		t.Error("expected failure for empty session")
 	}
@@ -39,7 +39,7 @@ func TestAppendConversationEvent_MissingSession(t *testing.T) {
 
 func TestAppendConversationEvent_UnknownSession(t *testing.T) {
 	srv := newFakeTestServer()
-	result := srv.appendConversationEvent("hello", "nonexistent", "test")
+	result := srv.AppendAssistant("hello", "nonexistent", "test")
 	if result.Appended {
 		t.Error("expected failure for unknown session")
 	}
@@ -47,7 +47,7 @@ func TestAppendConversationEvent_UnknownSession(t *testing.T) {
 
 func TestAppendUserConversationEvent_MissingSession(t *testing.T) {
 	srv := newFakeTestServer()
-	result := srv.appendUserConversationEvent("hello", "", "test")
+	result := srv.AppendUser("hello", "", "test")
 	if result.Appended {
 		t.Error("expected failure for empty session")
 	}
@@ -55,7 +55,7 @@ func TestAppendUserConversationEvent_MissingSession(t *testing.T) {
 
 func TestAppendUserConversationEvent_UnknownSession(t *testing.T) {
 	srv := newFakeTestServer()
-	result := srv.appendUserConversationEvent("hello", "nonexistent", "test")
+	result := srv.AppendUser("hello", "nonexistent", "test")
 	if result.Appended {
 		t.Error("expected failure for unknown session")
 	}

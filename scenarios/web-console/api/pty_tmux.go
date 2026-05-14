@@ -20,6 +20,7 @@ import (
 
 	creackpty "github.com/creack/pty/v2"
 
+	"web-console/backends/claude"
 	"web-console/internal/config"
 	"web-console/internal/pty"
 )
@@ -408,7 +409,7 @@ func buildSessionEnv(spec pty.LaunchSpec) []string {
 	return applySessionEnv(
 		ensureTermEnv(
 			filterServiceEnv(
-				filterClaudeEnv(os.Environ()),
+				claude.FilterEnv(os.Environ()),
 			),
 		),
 		spec.Env,

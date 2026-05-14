@@ -2,6 +2,11 @@
 // Keep it focused: flag/argument parsing, JSON body loading, output
 // path handling, and human-friendly formatting. Anything API-shape
 // related lives in the generated proto types, not here.
+//
+// Audit (2026-05-13): each helper here is used by ≥2 domains and is
+// strictly cross-cutting (no domain-specific knowledge). New entries
+// must clear the same bar — if it's used in one place, inline it; if
+// it's API-shape-aware, push it to the API.
 package support
 
 import (

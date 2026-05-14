@@ -1,7 +1,6 @@
 package main
 
 import (
-	"web-console/session"
 	"bytes"
 	"encoding/json"
 	"os"
@@ -9,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"web-console/backends/codex"
 	"web-console/internal/ptyfake"
+	"web-console/session"
 )
 
 func splitLines(data []byte) [][]byte {
@@ -31,7 +32,7 @@ func writeRolloutLine(t *testing.T, f *os.File, lineType string, payload interfa
 	if err != nil {
 		t.Fatal(err)
 	}
-	rl := RolloutLine{
+	rl := codex.RolloutLine{
 		Timestamp: time.Now().Format(time.RFC3339),
 		Type:      lineType,
 		Payload:   json.RawMessage(payloadBytes),
@@ -102,9 +103,9 @@ func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	writeRolloutLine(t, f, "response_item", ResponsePayload{
+	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
 		Role:    "assistant",
-		Content: []ContentItem{{Type: "output_text", Text: "TTS this"}},
+		Content: []codex.ContentItem{{Type: "output_text", Text: "TTS this"}},
 	})
 	writeRolloutLine(t, f, "event_msg", map[string]string{"message": "ignore"})
 	f.Close()
@@ -116,7 +117,7 @@ func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
 	lines := splitLines(data)
 	var texts []string
 	for _, line := range lines {
-		if txt := ExtractAssistantText(line); txt != "" {
+		if txt := codex.ExtractAssistantText(line); txt != "" {
 			texts = append(texts, txt)
 		}
 	}
@@ -150,9 +151,9 @@ func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 	ct.scanForNewFiles()
 	time.Sleep(200 * time.Millisecond)
 
-	writeRolloutLine(t, f, "response_item", ResponsePayload{
+	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
 		Role:    "assistant",
-		Content: []ContentItem{{Type: "output_text", Text: "Hello from the tailer"}},
+		Content: []codex.ContentItem{{Type: "output_text", Text: "Hello from the tailer"}},
 	})
 	if err := f.Sync(); err != nil {
 		t.Fatal(err)
@@ -186,9 +187,9 @@ func TestCodexTailer_BackfillsExistingRolloutContentWithoutCheckpoint(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeRolloutLine(t, f, "response_item", ResponsePayload{
+	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
 		Role:    "assistant",
-		Content: []ContentItem{{Type: "output_text", Text: "Backfilled assistant message"}},
+		Content: []codex.ContentItem{{Type: "output_text", Text: "Backfilled assistant message"}},
 	})
 	if err := f.Close(); err != nil {
 		t.Fatal(err)
@@ -222,9 +223,9 @@ func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
 	}
 	defer f.Close()
 
-	writeRolloutLine(t, f, "response_item", ResponsePayload{
+	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
 		Role:    "assistant",
-		Content: []ContentItem{{Type: "output_text", Text: "Old assistant message"}},
+		Content: []codex.ContentItem{{Type: "output_text", Text: "Old assistant message"}},
 	})
 	if err := f.Sync(); err != nil {
 		t.Fatal(err)
@@ -249,9 +250,9 @@ func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
 
 	time.Sleep(200 * time.Millisecond)
 
-	writeRolloutLine(t, f, "response_item", ResponsePayload{
+	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
 		Role:    "assistant",
-		Content: []ContentItem{{Type: "output_text", Text: "New assistant message"}},
+		Content: []codex.ContentItem{{Type: "output_text", Text: "New assistant message"}},
 	})
 	if err := f.Sync(); err != nil {
 		t.Fatal(err)

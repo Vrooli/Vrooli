@@ -47,14 +47,16 @@ type ClientInfo struct {
 // frame to all connected WebSocket clients. Slow clients have frames
 // coalesced into a pending buffer instead of being dropped.
 func (s *Session) broadcast(data []byte) {
-	data = SanitizeForClientFunc(data)
 	if len(data) == 0 {
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// Feed the durable emulator before delivering to clients so a
-	// concurrent Subscribe() snapshots after this frame, never before.
+	// Feed the durable emulator with RAW PTY bytes so its parser sees
+	// every CSI query — including DECRQM 2026 ($p), which the
+	// client-bound sanitizer strips. The ANSI responder observes the
+	// emulator's ControlEvent stream and answers queries server-side;
+	// if the emulator never saw the query, the reply never fires.
 	_, _ = s.emu.Feed(data)
 	prevAlt := s.inAltBuffer
 	s.inAltBuffer = s.emu.InAltBuffer()
@@ -66,8 +68,15 @@ func (s *Session) broadcast(data []byte) {
 	if len(s.clients) == 0 {
 		return
 	}
-	cp := make([]byte, len(data))
-	copy(cp, data)
+	// Sanitize only the client copy. The emulator already saw the raw
+	// bytes; xterm.js gets the cleaned stream (DEC mode 2026 sequences
+	// stripped — see sanitize.go for the xterm.js v6 crash rationale).
+	clientData := sanitizeForClient(data)
+	if len(clientData) == 0 {
+		return
+	}
+	cp := make([]byte, len(clientData))
+	copy(cp, clientData)
 	for ch, info := range s.clients {
 		s.deliver(ch, info, cp)
 	}

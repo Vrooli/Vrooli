@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"web-console/backends/codex"
 	"web-console/internal/sessionstore"
 )
 
@@ -171,10 +173,10 @@ func (ct *CodexTailer) tailFile(path, sessionID string) {
 				ct.saveCheckpoint(path, sessionID, currentOffset)
 				continue
 			}
-			if text := ExtractAssistantText(line); text != "" {
-				ct.server.appendConversationEvent(text, sessionID, "codex_tailer")
-			} else if text := ExtractUserText(line); text != "" {
-				ct.server.appendUserConversationEvent(text, sessionID, "codex_tailer")
+			if text := codex.ExtractAssistantText(line); text != "" {
+				ct.server.AppendAssistant(text, sessionID, "codex_tailer")
+			} else if text := codex.ExtractUserText(line); text != "" {
+				ct.server.AppendUser(text, sessionID, "codex_tailer")
 			}
 			ct.saveCheckpoint(path, sessionID, currentOffset)
 		}

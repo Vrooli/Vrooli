@@ -207,10 +207,13 @@ func (e *Emulator) fullReset() {
 
 func (e *Emulator) onCSI(private bool, params []int, final byte) {
 	// Surface terminal-query CSI sequences to observers. The emulator
-	// itself does not generate replies (that lives in ansi_responder).
-	// DA1 = `\x1b[c` (no params, non-private), DA3 = `\x1b[=c` (private),
-	// DECRQM 2026 = `\x1b[?2026$p` (private, final 'p').
-	if final == 'c' || final == 'p' {
+	// itself does not generate replies (that lives in the ANSI responder
+	// observer in package session).
+	// DA1     = `\x1b[c`         (no params, non-private, final 'c')
+	// DA3     = `\x1b[=c`        (private '=', final 'c')
+	// XTVER   = `\x1b[>0q`       (private '>', final 'q')
+	// DECRQM  = `\x1b[?2026$p`   (private '?', final 'p')
+	if final == 'c' || final == 'p' || final == 'q' {
 		paramsCopy := make([]int, len(params))
 		copy(paramsCopy, params)
 		e.emitControlEvent(ControlEvent{

@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.themes;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/themes;themes_v1";
+
+// =============================================================================
+// THEMES DOMAIN — built-in themes + scenario-derived theme resolution
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain themes
+// @stability experimental
+//
+// The preview iframe can be themed with one of:
+//   - a built-in theme (vrooli-default, neutral-light, neutral-dark,
+//     high-contrast) — seeded on first boot into `builtin_themes`.
+//   - a theme derived from a target scenario's DESIGN.md YAML
+//     front-matter, resolved server-side via the same storage resolver
+//     adoptions uses. Per [feedback_scenario_url_resolution.md] the
+//     client never builds the URL or parses DESIGN.md itself.
+//
+// Tokens are a flat map of CSS custom-property → value (e.g.
+// "--color-bg-default" → "#ffffff"). The harness child applies them as
+// `:root` CSS variables before mounting the component.
+//
+// Consumed by:
+//   - API: handlers/themes/connect_handler.go implements ThemesServiceHandler.
+//   - UI:  ui/src/features/components/ThemeSwitcher.tsx posts the
+//          chosen theme tokens to the preview iframe via the bridge.
+// =============================================================================
+
+service ThemesService {
+  rpc ListBuiltinThemes(ListBuiltinThemesRequest) returns (ListBuiltinThemesResponse);
+  rpc GetBuiltinTheme(GetBuiltinThemeRequest) returns (GetBuiltinThemeResponse);
+  rpc GetThemeFromScenario(GetThemeFromScenarioRequest) returns (GetThemeFromScenarioResponse);
+}
+
+message Theme {
+  // Stable identifier: built-ins use kebab-case slugs (e.g.
+  // "vrooli-default"); scenario themes echo the scenario id (e.g.
+  // "scenario:flow-verifier").
+  string id = 1;
+  string name = 2;
+  // Flat map of CSS custom-property → value. Keys include the leading
+  // "--" so the harness can apply them directly.
+  map<string, string> tokens = 3;
+  // Source provenance — "builtin" or "scenario:<id>".
+  string source = 4;
+}
+
+message ListBuiltinThemesRequest {}
+
+message ListBuiltinThemesResponse {
+  repeated Theme themes = 1;
+}
+
+message GetBuiltinThemeRequest {
+  string id = 1;
+}
+
+message GetBuiltinThemeResponse {
+  Theme theme = 1;
+}
+
+message GetThemeFromScenarioRequest {
+  string scenario_id = 1;
+}
+
+message GetThemeFromScenarioResponse {
+  Theme theme = 1;
+}

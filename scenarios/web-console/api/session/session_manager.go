@@ -326,6 +326,10 @@ func (sm *Manager) Create(shell string, cols, rows uint16, bid backend.ID, pol *
 		})
 	}
 
+	// Wire server-side ANSI responder before readLoop starts so the
+	// ControlEvent channel is in place when the first query arrives.
+	sess.startAnsiResponder()
+
 	// Start the PTY output reader; it will close exitCh when the process exits.
 	go sess.readLoop()
 

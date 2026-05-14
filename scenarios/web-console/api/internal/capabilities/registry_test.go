@@ -1,4 +1,4 @@
-package main
+package capabilities
 
 import (
 	"context"
@@ -7,18 +7,18 @@ import (
 )
 
 type fakeChecker struct {
-	status  CapabilityStatus
+	status  Status
 	message string
 	calls   int
 }
 
-func (f *fakeChecker) Check(_ context.Context) (CapabilityStatus, string) {
+func (f *fakeChecker) Check(_ context.Context) (Status, string) {
 	f.calls++
 	return f.status, f.message
 }
 
-func TestCapabilityRegistry_Resolve(t *testing.T) {
-	defs := []CapabilityDef{
+func TestRegistry_Resolve(t *testing.T) {
+	defs := []Def{
 		{ID: "cap-a", Name: "Cap A"},
 		{ID: "cap-b", Name: "Cap B"},
 		{ID: "cap-c", Name: "Cap C"},
@@ -26,9 +26,8 @@ func TestCapabilityRegistry_Resolve(t *testing.T) {
 
 	checkerA := &fakeChecker{status: StatusAvailable, message: "ok"}
 	checkerB := &fakeChecker{status: StatusUnavailable, message: "down"}
-	// cap-c intentionally has no checker
 
-	checkers := map[string]StatusChecker{
+	checkers := map[string]Checker{
 		"cap-a": checkerA,
 		"cap-b": checkerB,
 	}
@@ -36,7 +35,7 @@ func TestCapabilityRegistry_Resolve(t *testing.T) {
 	tests := []struct {
 		name       string
 		capID      string
-		wantStatus CapabilityStatus
+		wantStatus Status
 		wantMsg    string
 	}{
 		{"available checker", "cap-a", StatusAvailable, "ok"},
@@ -44,12 +43,12 @@ func TestCapabilityRegistry_Resolve(t *testing.T) {
 		{"no checker defaults to unknown", "cap-c", StatusUnknown, ""},
 	}
 
-	reg := NewCapabilityRegistry(defs, checkers, time.Minute)
+	reg := NewRegistry(defs, checkers, time.Minute)
 	states := reg.Resolve(context.Background())
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var found *CapabilityState
+			var found *State
 			for i := range states {
 				if states[i].ID == tt.capID {
 					found = &states[i]
@@ -69,45 +68,41 @@ func TestCapabilityRegistry_Resolve(t *testing.T) {
 	}
 }
 
-func TestCapabilityRegistry_Caching(t *testing.T) {
+func TestRegistry_Caching(t *testing.T) {
 	checker := &fakeChecker{status: StatusAvailable, message: "ok"}
-	defs := []CapabilityDef{{ID: "cap-x", Name: "Cap X"}}
-	checkers := map[string]StatusChecker{"cap-x": checker}
+	defs := []Def{{ID: "cap-x", Name: "Cap X"}}
+	checkers := map[string]Checker{"cap-x": checker}
 
-	reg := NewCapabilityRegistry(defs, checkers, time.Minute)
+	reg := NewRegistry(defs, checkers, time.Minute)
 
-	// First call should invoke checker
 	reg.Resolve(context.Background())
 	if checker.calls != 1 {
 		t.Fatalf("after first Resolve: calls = %d, want 1", checker.calls)
 	}
 
-	// Second call within TTL should use cache
 	reg.Resolve(context.Background())
 	if checker.calls != 1 {
 		t.Errorf("after second Resolve (cached): calls = %d, want 1", checker.calls)
 	}
 }
 
-func TestCapabilityRegistry_ResolveLiveness(t *testing.T) {
+func TestRegistry_ResolveLiveness(t *testing.T) {
 	fullChecker := &fakeChecker{status: StatusAvailable, message: "full check ok"}
 	livenessChecker := &fakeChecker{status: StatusAvailable, message: "liveness ok"}
-	defs := []CapabilityDef{{ID: "cap-x", Name: "Cap X"}}
+	defs := []Def{{ID: "cap-x", Name: "Cap X"}}
 
 	t.Run("returns cached full-check results when fresh", func(t *testing.T) {
-		reg := NewCapabilityRegistry(defs, map[string]StatusChecker{"cap-x": fullChecker}, time.Minute)
-		reg.SetLivenessCheckers(map[string]StatusChecker{"cap-x": livenessChecker})
+		reg := NewRegistry(defs, map[string]Checker{"cap-x": fullChecker}, time.Minute)
+		reg.SetLivenessCheckers(map[string]Checker{"cap-x": livenessChecker})
 
 		fullChecker.calls = 0
 		livenessChecker.calls = 0
 
-		// Populate the cache with a full check
 		reg.Resolve(context.Background())
 		if fullChecker.calls != 1 {
 			t.Fatalf("full checker should be called once, got %d", fullChecker.calls)
 		}
 
-		// Liveness should return cached results without calling liveness checker
 		states := reg.ResolveLiveness(context.Background())
 		if livenessChecker.calls != 0 {
 			t.Errorf("liveness checker should not be called when cache is fresh, got %d calls", livenessChecker.calls)
@@ -118,8 +113,8 @@ func TestCapabilityRegistry_ResolveLiveness(t *testing.T) {
 	})
 
 	t.Run("uses liveness checker when cache is stale", func(t *testing.T) {
-		reg := NewCapabilityRegistry(defs, map[string]StatusChecker{"cap-x": fullChecker}, 0) // 0 TTL = always stale
-		reg.SetLivenessCheckers(map[string]StatusChecker{"cap-x": livenessChecker})
+		reg := NewRegistry(defs, map[string]Checker{"cap-x": fullChecker}, 0)
+		reg.SetLivenessCheckers(map[string]Checker{"cap-x": livenessChecker})
 
 		livenessChecker.calls = 0
 
@@ -133,8 +128,7 @@ func TestCapabilityRegistry_ResolveLiveness(t *testing.T) {
 	})
 
 	t.Run("falls back to full resolve when no liveness checkers configured", func(t *testing.T) {
-		reg := NewCapabilityRegistry(defs, map[string]StatusChecker{"cap-x": fullChecker}, 0)
-		// Don't set liveness checkers
+		reg := NewRegistry(defs, map[string]Checker{"cap-x": fullChecker}, 0)
 
 		fullChecker.calls = 0
 
@@ -145,12 +139,12 @@ func TestCapabilityRegistry_ResolveLiveness(t *testing.T) {
 	})
 }
 
-func TestCapabilityRegistry_IsAvailable(t *testing.T) {
-	defs := []CapabilityDef{
+func TestRegistry_IsAvailable(t *testing.T) {
+	defs := []Def{
 		{ID: "avail", Name: "Available"},
 		{ID: "unavail", Name: "Unavailable"},
 	}
-	checkers := map[string]StatusChecker{
+	checkers := map[string]Checker{
 		"avail":   &fakeChecker{status: StatusAvailable, message: "ok"},
 		"unavail": &fakeChecker{status: StatusUnavailable, message: "down"},
 	}
@@ -165,7 +159,7 @@ func TestCapabilityRegistry_IsAvailable(t *testing.T) {
 		{"unknown capability ID", "nonexistent", false},
 	}
 
-	reg := NewCapabilityRegistry(defs, checkers, time.Minute)
+	reg := NewRegistry(defs, checkers, time.Minute)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

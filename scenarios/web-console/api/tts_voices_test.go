@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+
+	"web-console/internal/capabilities"
 )
 
 // mockVoiceLister implements TTSVoiceLister for testing.
@@ -26,14 +28,14 @@ func newVoicesTestServer(lister TTSVoiceLister, capAvailable bool) *Server {
 	srv := newFakeTestServer()
 	srv.ttsVoiceLister = lister
 
-	checker := &fakeChecker{status: StatusUnavailable, message: "down"}
+	checker := &fakeChecker{status: capabilities.StatusUnavailable, message: "down"}
 	if capAvailable {
-		checker.status = StatusAvailable
+		checker.status = capabilities.StatusAvailable
 		checker.message = "ok"
 	}
-	srv.capabilities = NewCapabilityRegistry(
-		[]CapabilityDef{{ID: "kokoro-tts", Name: "Kokoro TTS"}},
-		map[string]StatusChecker{"kokoro-tts": checker},
+	srv.capabilities = capabilities.NewRegistry(
+		[]capabilities.Def{{ID: "kokoro-tts", Name: "Kokoro TTS"}},
+		map[string]capabilities.Checker{"kokoro-tts": checker},
 		time.Minute,
 	)
 	return srv

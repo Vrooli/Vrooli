@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"web-console/backends/claude"
+	"web-console/backends/codex"
 	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
 )
@@ -76,7 +78,7 @@ func TestFilterClaudeEnv_RemovesCLAUDECODE(t *testing.T) {
 		"CLAUDECODE=1",
 		"PATH=/usr/bin",
 	}
-	got := filterClaudeEnv(env)
+	got := claude.FilterEnv(env)
 
 	for _, v := range got {
 		if v == "CLAUDECODE=1" {
@@ -98,7 +100,7 @@ func TestFilterClaudeEnv_RemovesAllClaudeVars(t *testing.T) {
 		"CLAUDE_CODE_ENTRYPOINT=sdk-cli",
 		"PATH=/usr/bin",
 	}
-	got := filterClaudeEnv(env)
+	got := claude.FilterEnv(env)
 
 	for _, v := range got {
 		if strings.HasPrefix(v, "CLAUDE") {
@@ -119,7 +121,7 @@ func TestFilterClaudeEnv_PreservesNonClaudeVars(t *testing.T) {
 		"SHELL=/bin/bash",
 		"LANGUAGE=en_US",
 	}
-	got := filterClaudeEnv(env)
+	got := claude.FilterEnv(env)
 
 	expected := map[string]bool{
 		"HOME=/home/user":     true,
@@ -141,7 +143,7 @@ func TestFilterClaudeEnv_PreservesNonClaudeVars(t *testing.T) {
 
 func TestFilterClaudeEnv_HandlesEmptyEnv(t *testing.T) {
 	env := []string{}
-	got := filterClaudeEnv(env)
+	got := claude.FilterEnv(env)
 
 	if len(got) != 0 {
 		t.Errorf("expected empty result, got %v", got)
@@ -156,7 +158,7 @@ func TestFilterClaudeEnv_RemovesBashFuncClaudeCode(t *testing.T) {
 		"BASH_FUNC_normal_func%%=() { echo test; }",
 		"PATH=/usr/bin",
 	}
-	got := filterClaudeEnv(env)
+	got := claude.FilterEnv(env)
 
 	for _, v := range got {
 		if strings.Contains(v, "claude_code::") {
@@ -314,7 +316,7 @@ func TestPrepareCodexSessionHome_SharesAuthAndConfig(t *testing.T) {
 	}
 
 	sessionHome := filepath.Join(t.TempDir(), "session-home")
-	got := prepareCodexSessionHome(sessionHome, sharedHome)
+	got := codex.PrepareSessionHome(sessionHome, sharedHome)
 	if got != sessionHome {
 		t.Fatalf("expected session home %q, got %q", sessionHome, got)
 	}

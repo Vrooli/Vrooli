@@ -30,7 +30,7 @@ func newTTSTestServer() *Server {
 func TestAppendConversationEvent_TargetMissing(t *testing.T) {
 	srv := newTTSTestServer()
 
-	result := srv.appendConversationEvent("some text", "", "test")
+	result := srv.AppendAssistant("some text", "", "test")
 	if result.Appended {
 		t.Fatal("expected append to fail without a mapped target")
 	}
@@ -58,7 +58,7 @@ func TestAppendConversationEvent_RoutesToMappedSession(t *testing.T) {
 	eventCh := fanout.Subscribe()
 	defer fanout.Unsubscribe(eventCh)
 
-	result := srv.appendConversationEvent("The answer is 42", sess.ID, "test")
+	result := srv.AppendAssistant("The answer is 42", sess.ID, "test")
 	if !result.Appended {
 		t.Fatalf("expected append to succeed, got %+v", result)
 	}
@@ -101,8 +101,8 @@ func TestAppendConversationEvent_DeduplicatesByEventIdentity(t *testing.T) {
 	eventCh := fanout.Subscribe()
 	defer fanout.Unsubscribe(eventCh)
 
-	first := srv.appendConversationEvent("duplicate me", sess.ID, "test")
-	second := srv.appendConversationEvent("duplicate me", sess.ID, "test")
+	first := srv.AppendAssistant("duplicate me", sess.ID, "test")
+	second := srv.AppendAssistant("duplicate me", sess.ID, "test")
 	if !first.Appended {
 		t.Fatalf("expected first append to succeed, got %+v", first)
 	}

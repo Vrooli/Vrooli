@@ -38,11 +38,3 @@ func wireDefaultManagerHooks(sm *session.Manager) {
 	sm.SetUploadDirFunc(resolveUploadDir)
 	sm.SetEnvForSessionFunc(defaultSessionEnv)
 }
-
-// init installs the package-main implementations of the ANSI hooks the
-// session package exposes for dependency injection. Doing this in init keeps
-// the session/ package side of the seam free of package-main symbols.
-func init() {
-	session.AnsiResponderFunc = generateAnsiResponses
-	session.SanitizeForClientFunc = sanitizeForClient
-}

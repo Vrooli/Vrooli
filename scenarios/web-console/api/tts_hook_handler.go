@@ -37,7 +37,7 @@ func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
 		writeCatalogError(w, "tts_input_required", "Hook payload did not include assistant response text")
 		return
 	}
-	result := s.appendConversationEvent(assistantText, req.WebConsoleSessionID, "claude_hook")
+	result := s.AppendAssistant(assistantText, req.WebConsoleSessionID, "claude_hook")
 	// Phase 3 (recovery hardening): persist agent identity from the hook
 	// payload so the recovery flow can later issue
 	// `claude --resume <agent_session_id>` against the right project. The

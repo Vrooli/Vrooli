@@ -22,6 +22,11 @@ const (
 )
 
 // Descriptor describes a session backend's capabilities and availability.
+//
+// Optional plug points (KeyMap, PromptDetector, IdleHeuristic) carry
+// code-only extension behavior — they're tagged `json:"-"` so the wire
+// shape stays unchanged and is JSON-stable for the UI's backend picker.
+// All plug points are nil-safe; callers must check for nil before use.
 type Descriptor struct {
 	ID              ID     `json:"id"`
 	DisplayName     string `json:"display_name"`
@@ -29,6 +34,10 @@ type Descriptor struct {
 	SurvivesRestart bool   `json:"survives_restart"`
 	Available       bool   `json:"available"`
 	Reason          string `json:"reason,omitempty"`
+
+	KeyMap         KeyMap         `json:"-"`
+	PromptDetector PromptDetector `json:"-"`
+	IdleHeuristic  IdleHeuristic  `json:"-"`
 }
 
 // Registry tracks available session backends and their PTY factories.

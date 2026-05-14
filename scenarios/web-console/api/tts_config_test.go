@@ -8,6 +8,8 @@ import (
 	"time"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/tts"
+
+	"web-console/internal/capabilities"
 )
 
 func TestLoadTTSConfig_MissingFile(t *testing.T) {
@@ -256,7 +258,7 @@ func TestHandleGetTTSStatus_SeparatesHookAndTailerRoutingAndAck(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.hookAuthToken = "secret-token"
 	srv.ttsConfig = TTSConfig{AutoEnabled: true, Backend: "auto", KokoroVoice: "af_heart", KokoroSpeed: 1.0}
-	srv.capabilities = NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{}, 0)
+	srv.capabilities = capabilities.NewRegistry(capabilities.Known, map[string]capabilities.Checker{}, 0)
 	srv.recordLastTTSRouting(ConversationAppendResult{
 		Appended: true,
 		Code:     "conversation_event_appended",

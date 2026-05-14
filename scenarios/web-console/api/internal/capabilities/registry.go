@@ -1,4 +1,9 @@
-package main
+// Package capabilities models the capability registry: the set of optional
+// resources (Whisper, Kokoro, Ollama, etc.) the web-console can use and
+// whether each is currently reachable. The HTTP transport lives in
+// handlers/capabilities; this package owns the in-process state and the
+// Checker contract.
+package capabilities
 
 import (
 	"context"
@@ -13,15 +18,15 @@ const (
 	DependencyResource DependencyKind = "resource"
 )
 
-type CapabilityStatus string
+type Status string
 
 const (
-	StatusAvailable   CapabilityStatus = "available"
-	StatusUnavailable CapabilityStatus = "unavailable"
-	StatusUnknown     CapabilityStatus = "unknown"
+	StatusAvailable   Status = "available"
+	StatusUnavailable Status = "unavailable"
+	StatusUnknown     Status = "unknown"
 )
 
-type CapabilityDef struct {
+type Def struct {
 	ID             string         `json:"id"`
 	Name           string         `json:"name"`
 	Description    string         `json:"description"`
@@ -30,18 +35,21 @@ type CapabilityDef struct {
 	Features       []string       `json:"features"`
 }
 
-type CapabilityState struct {
-	CapabilityDef
-	Status    CapabilityStatus `json:"status"`
-	Message   string           `json:"message,omitempty"`
-	CheckedAt string           `json:"checkedAt,omitempty"`
+type State struct {
+	Def
+	Status    Status `json:"status"`
+	Message   string `json:"message,omitempty"`
+	CheckedAt string `json:"checkedAt,omitempty"`
 }
 
-type StatusChecker interface {
-	Check(ctx context.Context) (CapabilityStatus, string)
+type Checker interface {
+	Check(ctx context.Context) (Status, string)
 }
 
-var knownCapabilities = []CapabilityDef{
+// Known is the built-in capability catalogue that ships with the
+// web-console scenario. Callers may pass a different slice to NewRegistry
+// (tests do); production wiring in main.go uses this value.
+var Known = []Def{
 	{
 		ID:             "whisper-stt",
 		Name:           "Whisper STT",
@@ -84,19 +92,19 @@ var knownCapabilities = []CapabilityDef{
 	},
 }
 
-type CapabilityRegistry struct {
-	defs             []CapabilityDef
-	checkers         map[string]StatusChecker
-	livenessCheckers map[string]StatusChecker
+type Registry struct {
+	defs             []Def
+	checkers         map[string]Checker
+	livenessCheckers map[string]Checker
 
 	mu       sync.RWMutex
-	cached   []CapabilityState
+	cached   []State
 	cachedAt time.Time
 	cacheTTL time.Duration
 }
 
-func NewCapabilityRegistry(defs []CapabilityDef, checkers map[string]StatusChecker, cacheTTL time.Duration) *CapabilityRegistry {
-	return &CapabilityRegistry{
+func NewRegistry(defs []Def, checkers map[string]Checker, cacheTTL time.Duration) *Registry {
+	return &Registry{
 		defs:     defs,
 		checkers: checkers,
 		cacheTTL: cacheTTL,
@@ -106,14 +114,14 @@ func NewCapabilityRegistry(defs []CapabilityDef, checkers map[string]StatusCheck
 // SetLivenessCheckers registers lightweight health-only checkers used by
 // ResolveLiveness. These skip expensive verification (e.g. test transcription)
 // and only perform a fast HTTP liveness check.
-func (r *CapabilityRegistry) SetLivenessCheckers(lc map[string]StatusChecker) {
+func (r *Registry) SetLivenessCheckers(lc map[string]Checker) {
 	r.livenessCheckers = lc
 }
 
-func (r *CapabilityRegistry) Resolve(ctx context.Context) []CapabilityState {
+func (r *Registry) Resolve(ctx context.Context) []State {
 	r.mu.RLock()
 	if r.cached != nil && time.Since(r.cachedAt) < r.cacheTTL {
-		result := make([]CapabilityState, len(r.cached))
+		result := make([]State, len(r.cached))
 		copy(result, r.cached)
 		r.mu.RUnlock()
 		return result
@@ -124,18 +132,18 @@ func (r *CapabilityRegistry) Resolve(ctx context.Context) []CapabilityState {
 	defer r.mu.Unlock()
 
 	if r.cached != nil && time.Since(r.cachedAt) < r.cacheTTL {
-		result := make([]CapabilityState, len(r.cached))
+		result := make([]State, len(r.cached))
 		copy(result, r.cached)
 		return result
 	}
 
 	now := time.Now().UTC()
-	states := make([]CapabilityState, len(r.defs))
+	states := make([]State, len(r.defs))
 	for i, def := range r.defs {
-		state := CapabilityState{
-			CapabilityDef: def,
-			Status:        StatusUnknown,
-			CheckedAt:     now.Format(time.RFC3339),
+		state := State{
+			Def:       def,
+			Status:    StatusUnknown,
+			CheckedAt: now.Format(time.RFC3339),
 		}
 		if checker, ok := r.checkers[def.ID]; ok {
 			state.Status, state.Message = checker.Check(ctx)
@@ -146,7 +154,7 @@ func (r *CapabilityRegistry) Resolve(ctx context.Context) []CapabilityState {
 	r.cached = states
 	r.cachedAt = now
 
-	result := make([]CapabilityState, len(states))
+	result := make([]State, len(states))
 	copy(result, states)
 	return result
 }
@@ -157,36 +165,32 @@ func (r *CapabilityRegistry) Resolve(ctx context.Context) []CapabilityState {
 // of the full checkers (which may include expensive operations like test
 // transcription). The liveness results are NOT written to the main cache to
 // avoid masking a broken-but-live service.
-func (r *CapabilityRegistry) ResolveLiveness(ctx context.Context) []CapabilityState {
-	// Return cached full-check results if still fresh.
+func (r *Registry) ResolveLiveness(ctx context.Context) []State {
 	r.mu.RLock()
 	if r.cached != nil && time.Since(r.cachedAt) < r.cacheTTL {
-		result := make([]CapabilityState, len(r.cached))
+		result := make([]State, len(r.cached))
 		copy(result, r.cached)
 		r.mu.RUnlock()
 		return result
 	}
 	r.mu.RUnlock()
 
-	// Cache is stale -- use liveness checkers for a fast response.
-	// Fall back to full checkers if no liveness checkers are configured.
 	checkers := r.livenessCheckers
 	if len(checkers) == 0 {
 		return r.Resolve(ctx)
 	}
 
 	now := time.Now().UTC()
-	states := make([]CapabilityState, len(r.defs))
+	states := make([]State, len(r.defs))
 	for i, def := range r.defs {
-		state := CapabilityState{
-			CapabilityDef: def,
-			Status:        StatusUnknown,
-			CheckedAt:     now.Format(time.RFC3339),
+		state := State{
+			Def:       def,
+			Status:    StatusUnknown,
+			CheckedAt: now.Format(time.RFC3339),
 		}
 		if checker, ok := checkers[def.ID]; ok {
 			state.Status, state.Message = checker.Check(ctx)
 		} else if checker, ok := r.checkers[def.ID]; ok {
-			// No liveness checker for this cap -- fall back to full check.
 			state.Status, state.Message = checker.Check(ctx)
 		}
 		states[i] = state
@@ -195,7 +199,7 @@ func (r *CapabilityRegistry) ResolveLiveness(ctx context.Context) []CapabilitySt
 	return states
 }
 
-func (r *CapabilityRegistry) IsAvailable(ctx context.Context, capabilityID string) bool {
+func (r *Registry) IsAvailable(ctx context.Context, capabilityID string) bool {
 	for _, s := range r.Resolve(ctx) {
 		if s.ID == capabilityID {
 			return s.Status == StatusAvailable

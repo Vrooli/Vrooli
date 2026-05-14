@@ -9,6 +9,8 @@ import (
 	"time"
 
 	voicev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/voice"
+
+	"web-console/internal/capabilities"
 )
 
 func TestLoadSpeakerVerificationConfig_MissingFile(t *testing.T) {
@@ -137,13 +139,13 @@ func TestHandleGetSpeakerVerificationStatus(t *testing.T) {
 	}))
 	defer resource.Close()
 
-	checker := &fakeChecker{status: StatusAvailable, message: "resource is healthy"}
-	reg := NewCapabilityRegistry(
-		knownCapabilities,
-		map[string]StatusChecker{"speaker-verification": checker},
+	checker := &fakeChecker{status: capabilities.StatusAvailable, message: "resource is healthy"}
+	reg := capabilities.NewRegistry(
+		capabilities.Known,
+		map[string]capabilities.Checker{"speaker-verification": checker},
 		0,
 	)
-	reg.SetLivenessCheckers(map[string]StatusChecker{"speaker-verification": checker})
+	reg.SetLivenessCheckers(map[string]capabilities.Checker{"speaker-verification": checker})
 
 	srv := &Server{
 		capabilities: reg,
@@ -164,8 +166,8 @@ func TestHandleGetSpeakerVerificationStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if status.GetCapability() != string(StatusAvailable) {
-		t.Fatalf("capability = %q, want %q", status.GetCapability(), StatusAvailable)
+	if status.GetCapability() != string(capabilities.StatusAvailable) {
+		t.Fatalf("capability = %q, want %q", status.GetCapability(), capabilities.StatusAvailable)
 	}
 	if !status.GetResourceReady() {
 		t.Fatal("expected resourceReady=true")

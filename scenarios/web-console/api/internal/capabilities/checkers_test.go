@@ -1,4 +1,4 @@
-package main
+package capabilities
 
 import (
 	"context"
@@ -64,7 +64,6 @@ func TestResourceChecker_Unavailable(t *testing.T) {
 }
 
 func TestResourceChecker_ConnectionRefused(t *testing.T) {
-	// Start and immediately close a server to get a port that refuses connections
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	url := srv.URL
 	srv.Close()
@@ -80,9 +79,6 @@ func TestResourceChecker_ConnectionRefused(t *testing.T) {
 	}
 }
 
-// --- WhisperChecker tests ---
-
-// fakeWhisperServer creates a mock Whisper server with configurable behavior.
 func fakeWhisperServer(t *testing.T, asrStatus int, asrBody any) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +87,6 @@ func fakeWhisperServer(t *testing.T, asrStatus int, asrBody any) *httptest.Serve
 			return
 		}
 		if r.URL.Path == "/asr" {
-			// Consume body to unblock pipe writer
 			_, _ = io.Copy(io.Discard, r.Body)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(asrStatus)
@@ -140,7 +135,6 @@ func TestWhisperChecker_LiveButInvalidJSON(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		// Consume body
 		_, _ = io.Copy(io.Discard, r.Body)
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
@@ -174,8 +168,6 @@ func TestWhisperChecker_ConnectionRefused(t *testing.T) {
 		t.Errorf("message = %q, want %q", msg, "resource is not responding")
 	}
 }
-
-// --- KokoroChecker tests ---
 
 func fakeKokoroServer(t *testing.T, voicesStatus, speechStatus int, speechBody []byte) *httptest.Server {
 	t.Helper()
@@ -241,7 +233,7 @@ func TestKokoroChecker_SynthesisFails(t *testing.T) {
 }
 
 func TestKokoroChecker_EmptyAudio(t *testing.T) {
-	srv := fakeKokoroServer(t, http.StatusOK, http.StatusOK, []byte("ab")) // < 4 bytes
+	srv := fakeKokoroServer(t, http.StatusOK, http.StatusOK, []byte("ab"))
 	defer srv.Close()
 
 	checker := &KokoroChecker{BaseURL: srv.URL}
@@ -318,8 +310,6 @@ func TestKokoroChecker_Stopped(t *testing.T) {
 	}
 }
 
-// --- OllamaChecker tests ---
-
 func TestOllamaChecker_Available(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/tags" {
@@ -373,8 +363,6 @@ func TestOllamaChecker_ConnectionRefused(t *testing.T) {
 		t.Errorf("message = %q, want %q", msg, "Ollama is not responding")
 	}
 }
-
-// --- OpenRouterChecker tests ---
 
 func TestOpenRouterChecker_NoAPIKey(t *testing.T) {
 	checker := &OpenRouterChecker{APIKey: ""}
@@ -445,7 +433,6 @@ func TestOpenRouterChecker_ConnectionRefused(t *testing.T) {
 func TestGenerateSilentWAV(t *testing.T) {
 	wav := generateSilentWAV()
 
-	// Basic WAV header validation
 	if len(wav) < 44 {
 		t.Fatalf("WAV too short: %d bytes", len(wav))
 	}

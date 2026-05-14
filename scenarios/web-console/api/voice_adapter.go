@@ -8,6 +8,7 @@ import (
 	"time"
 
 	voiceH "web-console/handlers/voice"
+	"web-console/internal/capabilities"
 )
 
 // newVoiceAdapter constructs the voice.Service implementation backed by the
@@ -226,7 +227,7 @@ func (a *voiceAdapter) GetSpeakerStatus(ctx context.Context) (voiceH.SpeakerStat
 	cfg := a.s.getSpeakerVerificationConfig()
 	out := voiceH.SpeakerStatus{
 		Config:            speakerConfigToHandler(cfg),
-		Capability:        string(StatusUnknown),
+		Capability:        string(capabilities.StatusUnknown),
 		ProfileConfigured: len(cfg.ProfileIDs) > 0,
 		CheckedAt:         time.Now().UTC().Format(time.RFC3339),
 	}
@@ -242,7 +243,7 @@ func (a *voiceAdapter) GetSpeakerStatus(ctx context.Context) (voiceH.SpeakerStat
 		break
 	}
 
-	if a.s.speakerVerification == nil || out.Capability != string(StatusAvailable) {
+	if a.s.speakerVerification == nil || out.Capability != string(capabilities.StatusAvailable) {
 		return out, nil
 	}
 

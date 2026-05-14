@@ -1,4 +1,4 @@
-package main
+package capabilities
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ type ResourceChecker struct {
 	Client *http.Client
 }
 
-func (c *ResourceChecker) Check(ctx context.Context) (CapabilityStatus, string) {
+func (c *ResourceChecker) Check(ctx context.Context) (Status, string) {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.URL, nil)
 	if err != nil {
 		return StatusUnavailable, "failed to create request: " + err.Error()
@@ -47,7 +47,6 @@ func (c *ResourceChecker) Check(ctx context.Context) (CapabilityStatus, string) 
 // where the Whisper health endpoint (GET /) responds but transcription
 // is broken (e.g. model not loaded, ffmpeg issues).
 type WhisperChecker struct {
-	// BaseURL is the Whisper base URL (e.g. "http://localhost:8090").
 	BaseURL string
 	Client  *http.Client
 }
@@ -59,39 +58,35 @@ func generateSilentWAV() []byte {
 		sampleRate  = 16000
 		numChannels = 1
 		bitsPerSamp = 16
-		numSamples  = 1600 // 0.1s
+		numSamples  = 1600
 		dataSize    = numSamples * numChannels * (bitsPerSamp / 8)
 	)
 
 	buf := &bytes.Buffer{}
-	// RIFF header
 	buf.WriteString("RIFF")
 	_ = binary.Write(buf, binary.LittleEndian, uint32(36+dataSize))
 	buf.WriteString("WAVE")
-	// fmt sub-chunk
 	buf.WriteString("fmt ")
-	_ = binary.Write(buf, binary.LittleEndian, uint32(16)) // sub-chunk size
-	_ = binary.Write(buf, binary.LittleEndian, uint16(1))  // PCM
+	_ = binary.Write(buf, binary.LittleEndian, uint32(16))
+	_ = binary.Write(buf, binary.LittleEndian, uint16(1))
 	_ = binary.Write(buf, binary.LittleEndian, uint16(numChannels))
 	_ = binary.Write(buf, binary.LittleEndian, uint32(sampleRate))
 	_ = binary.Write(buf, binary.LittleEndian, uint32(sampleRate*numChannels*bitsPerSamp/8))
 	_ = binary.Write(buf, binary.LittleEndian, uint16(numChannels*bitsPerSamp/8))
 	_ = binary.Write(buf, binary.LittleEndian, uint16(bitsPerSamp))
-	// data sub-chunk
 	buf.WriteString("data")
 	_ = binary.Write(buf, binary.LittleEndian, uint32(dataSize))
-	buf.Write(make([]byte, dataSize)) // silence
+	buf.Write(make([]byte, dataSize))
 
 	return buf.Bytes()
 }
 
-func (c *WhisperChecker) Check(ctx context.Context) (CapabilityStatus, string) {
+func (c *WhisperChecker) Check(ctx context.Context) (Status, string) {
 	client := c.Client
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
 	}
 
-	// First do a quick liveness check (GET /).
 	liveReq, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/", nil)
 	if err != nil {
 		return StatusUnavailable, "failed to create request: " + err.Error()
@@ -105,7 +100,6 @@ func (c *WhisperChecker) Check(ctx context.Context) (CapabilityStatus, string) {
 		return StatusUnavailable, "resource returned unexpected status"
 	}
 
-	// Send a minimal silent WAV to verify transcription works.
 	wav := generateSilentWAV()
 
 	pr, pw := io.Pipe()
@@ -141,7 +135,6 @@ func (c *WhisperChecker) Check(ctx context.Context) (CapabilityStatus, string) {
 		return StatusUnavailable, "transcription endpoint returned non-200 status"
 	}
 
-	// Verify the response is valid JSON with a "text" field.
 	var result struct {
 		Text string `json:"text"`
 	}
@@ -173,13 +166,12 @@ func inspectDockerContainerState(ctx context.Context, containerName string) (exi
 	return true, state == "true", nil
 }
 
-func (c *KokoroChecker) Check(ctx context.Context) (CapabilityStatus, string) {
+func (c *KokoroChecker) Check(ctx context.Context) (Status, string) {
 	client := c.Client
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
 	}
 
-	// Quick liveness check: GET /v1/audio/voices
 	liveReq, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/v1/audio/voices", nil)
 	if err != nil {
 		return StatusUnavailable, "failed to create request: " + err.Error()
@@ -209,7 +201,6 @@ func (c *KokoroChecker) Check(ctx context.Context) (CapabilityStatus, string) {
 		return StatusUnavailable, "resource returned unexpected status"
 	}
 
-	// Functional check: synthesize minimal text
 	body := `{"input":"test","voice":"af_heart","response_format":"mp3","model":"kokoro"}`
 	synthReq, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/v1/audio/speech", strings.NewReader(body))
 	if err != nil {
@@ -227,7 +218,6 @@ func (c *KokoroChecker) Check(ctx context.Context) (CapabilityStatus, string) {
 		return StatusUnavailable, "synthesis endpoint returned non-200 status"
 	}
 
-	// Verify response has content (at least a few bytes of audio)
 	buf := make([]byte, 4)
 	n, _ := io.ReadFull(synthResp.Body, buf)
 	if n < 4 {
@@ -238,14 +228,13 @@ func (c *KokoroChecker) Check(ctx context.Context) (CapabilityStatus, string) {
 }
 
 // OllamaChecker verifies that Ollama is running by hitting its /api/tags
-// endpoint. This is a lightweight check that confirms the server is up and
-// responding to API requests.
+// endpoint.
 type OllamaChecker struct {
 	BaseURL string
 	Client  *http.Client
 }
 
-func (c *OllamaChecker) Check(ctx context.Context) (CapabilityStatus, string) {
+func (c *OllamaChecker) Check(ctx context.Context) (Status, string) {
 	client := c.Client
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
@@ -270,15 +259,13 @@ func (c *OllamaChecker) Check(ctx context.Context) (CapabilityStatus, string) {
 }
 
 // OpenRouterChecker verifies that OpenRouter is configured and reachable.
-// It first checks whether the API key is set, then optionally verifies
-// connectivity by hitting the models endpoint.
 type OpenRouterChecker struct {
 	APIKey  string
-	BaseURL string // defaults to "https://openrouter.ai"
+	BaseURL string
 	Client  *http.Client
 }
 
-func (c *OpenRouterChecker) Check(ctx context.Context) (CapabilityStatus, string) {
+func (c *OpenRouterChecker) Check(ctx context.Context) (Status, string) {
 	if c.APIKey == "" {
 		return StatusUnavailable, "OPENROUTER_API_KEY not configured"
 	}

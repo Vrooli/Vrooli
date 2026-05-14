@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +11,8 @@ import (
 
 	creackpty "github.com/creack/pty/v2"
 
+	"web-console/backends/claude"
+	"web-console/backends/codex"
 	"web-console/internal/config"
 	"web-console/internal/pty"
 )
@@ -97,7 +98,7 @@ func defaultPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	// Filter Claude Code env vars first, then ensure TERM is set.
 	// This prevents nested session detection when users run `claude` in
 	// web-console terminals, even if the server was started from Claude Code.
-	cmd.Env = applySessionEnv(ensureTermEnv(filterServiceEnv(filterClaudeEnv(os.Environ()))), spec.Env)
+	cmd.Env = applySessionEnv(ensureTermEnv(filterServiceEnv(claude.FilterEnv(os.Environ()))), spec.Env)
 	cmd.Dir = config.ResolveWorkingDir()
 	ptmx, err := creackpty.StartWithSize(cmd, &creackpty.Winsize{Rows: spec.Rows, Cols: spec.Cols})
 	if err != nil {
@@ -119,35 +120,6 @@ func ensureTermEnv(env []string) []string {
 		}
 	}
 	return append(env, want)
-}
-
-// filterClaudeEnv removes Claude Code-specific environment variables from
-// the environment slice. This prevents nested session detection when users
-// run `claude` in a web-console terminal, even if the web-console server
-// was started from within a Claude Code session.
-//
-// Filtered patterns:
-//   - CLAUDECODE (nested session detection marker)
-//   - CLAUDE_* (session IDs, config paths, internal state)
-//   - BASH_FUNC_claude_code::* (exported shell functions)
-func filterClaudeEnv(env []string) []string {
-	result := make([]string, 0, len(env))
-	for _, v := range env {
-		// Filter CLAUDECODE exactly
-		if strings.HasPrefix(v, "CLAUDECODE=") {
-			continue
-		}
-		// Filter all CLAUDE_* variables
-		if strings.HasPrefix(v, "CLAUDE_") {
-			continue
-		}
-		// Filter exported bash functions for claude_code::
-		if strings.HasPrefix(v, "BASH_FUNC_claude_code::") {
-			continue
-		}
-		result = append(result, v)
-	}
-	return result
 }
 
 // serviceEnvVars lists environment variables that belong to the parent
@@ -233,90 +205,14 @@ func applySessionEnv(base []string, extra map[string]string) []string {
 	return applied
 }
 
-func ensureDir(path string) string {
-	if path == "" {
-		return path
-	}
-	if err := os.MkdirAll(path, 0o755); err != nil {
-		return path
-	}
-	return path
-}
-
-func resolveUserConfigDir(name string) string {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return ""
-	}
-	return filepath.Join(home, name)
-}
-
-func sharedCodexHome() string {
-	return ensureDir(resolveUserConfigDir(".codex"))
-}
-
-func ensureSymlink(dst, src string) {
-	info, err := os.Lstat(dst)
-	if err == nil {
-		if info.Mode()&os.ModeSymlink != 0 {
-			target, readErr := os.Readlink(dst)
-			if readErr == nil && target == src {
-				return
-			}
-		}
-		return
-	}
-	if !os.IsNotExist(err) {
-		return
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		log.Printf("session-state: failed creating parent for %s: %v", dst, err)
-		return
-	}
-	if err := os.Symlink(src, dst); err != nil && !os.IsExist(err) {
-		log.Printf("session-state: failed linking %s -> %s: %v", dst, src, err)
-	}
-}
-
-func prepareCodexSessionHome(sessionHome, sharedHome string) string {
-	sessionHome = ensureDir(sessionHome)
-	if sessionHome == "" {
-		return sessionHome
-	}
-
-	for _, dir := range []string{"sessions", "log", "logs", "outputs", "tmp"} {
-		ensureDir(filepath.Join(sessionHome, dir))
-	}
-
-	if sharedHome == "" {
-		return sessionHome
-	}
-
-	for _, entry := range []string{
-		"auth.json",
-		"config.toml",
-		"settings.json",
-		"skills",
-		"rules",
-		"version.json",
-		".personality_migration",
-	} {
-		src := filepath.Join(sharedHome, entry)
-		if _, err := os.Lstat(src); err != nil {
-			continue
-		}
-		ensureSymlink(filepath.Join(sessionHome, entry), src)
-	}
-	return sessionHome
-}
-
+// sessionCodexHome returns the per-session CODEX_HOME, delegating layout
+// to backends/codex. Kept in package main as a thin wrapper so callers
+// don't need to plumb the state root.
 func sessionCodexHome(sessionID string) string {
-	return prepareCodexSessionHome(
-		filepath.Join(resolveSessionStateRoot(), "codex", sessionID),
-		sharedCodexHome(),
-	)
+	return codex.SessionHome(resolveSessionStateRoot(), sessionID)
 }
 
+// sessionCodexSessionsDir returns the per-session rollout JSONL dir.
 func sessionCodexSessionsDir(sessionID string) string {
-	return ensureDir(filepath.Join(sessionCodexHome(sessionID), "sessions"))
+	return codex.SessionsDir(resolveSessionStateRoot(), sessionID)
 }

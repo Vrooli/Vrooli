@@ -8,6 +8,23 @@ import (
 	"time"
 )
 
+// ConversationDispatcher publishes trusted assistant and user conversation
+// events to a terminal session. *Server implements it via AppendAssistant
+// and AppendUser.
+//
+// The interface lets non-Server callers (hook handlers, tailers, future
+// adapters) depend on a narrow surface instead of the whole Server god
+// object, and lets tests substitute a fake dispatcher.
+//
+// DOC: docs/internal/SEAMS.md#conversation-dispatcher
+type ConversationDispatcher interface {
+	AppendAssistant(responseText, sessionID, source string) ConversationAppendResult
+	AppendUser(promptText, sessionID, source string) ConversationAppendResult
+}
+
+// Compile-time check that *Server satisfies ConversationDispatcher.
+var _ ConversationDispatcher = (*Server)(nil)
+
 // TTSClientAck records terminal-side event playback outcomes for a routed
 // assistant conversation event.
 type TTSClientAck struct {
@@ -29,10 +46,11 @@ func conversationAppendFailure(code, reason, source, sessionID string) Conversat
 	}
 }
 
-// appendConversationEvent validates and publishes a trusted assistant response
-// to the owning terminal session. Auto-TTS enablement is not checked here:
+// AppendAssistant validates and publishes a trusted assistant response to
+// the owning terminal session. Auto-TTS enablement is not checked here:
 // the conversation log is the source of truth and TTS is only one consumer.
-func (s *Server) appendConversationEvent(responseText, targetSessionID, source string) ConversationAppendResult {
+// Satisfies ConversationDispatcher.
+func (s *Server) AppendAssistant(responseText, targetSessionID, source string) ConversationAppendResult {
 	if strings.TrimSpace(targetSessionID) == "" {
 		result := conversationAppendFailure("conversation_target_missing", "No web-console terminal session was identified for this conversation event", source, "")
 		s.recordLastTTSRouting(result)
@@ -77,9 +95,10 @@ func (s *Server) appendConversationEvent(responseText, targetSessionID, source s
 	return result
 }
 
-// appendUserConversationEvent validates and publishes a user prompt to
-// the owning terminal session. No TTS routing is performed for user messages.
-func (s *Server) appendUserConversationEvent(promptText, targetSessionID, source string) ConversationAppendResult {
+// AppendUser validates and publishes a user prompt to the owning terminal
+// session. No TTS routing is performed for user messages. Satisfies
+// ConversationDispatcher.
+func (s *Server) AppendUser(promptText, targetSessionID, source string) ConversationAppendResult {
 	if strings.TrimSpace(targetSessionID) == "" {
 		return conversationAppendFailure("conversation_target_missing", "No web-console terminal session was identified for this conversation event", source, "")
 	}

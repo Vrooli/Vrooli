@@ -14,16 +14,17 @@ import (
 	voicev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/voice"
 
 	"web-console/internal/audio"
+	"web-console/internal/capabilities"
 	"web-console/internal/metrics"
 )
 
 func serverWithCapability(available bool) *Server {
-	status := StatusUnavailable
+	status := capabilities.StatusUnavailable
 	if available {
-		status = StatusAvailable
+		status = capabilities.StatusAvailable
 	}
 	checker := &fakeChecker{status: status, message: "test"}
-	reg := NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{"whisper-stt": checker}, time.Minute)
+	reg := capabilities.NewRegistry(capabilities.Known, map[string]capabilities.Checker{"whisper-stt": checker}, time.Minute)
 	return &Server{
 		capabilities:   reg,
 		voiceConfig:    DefaultVoiceStreamConfig(),

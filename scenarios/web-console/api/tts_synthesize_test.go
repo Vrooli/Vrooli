@@ -11,6 +11,8 @@ import (
 	"connectrpc.com/connect"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/tts"
+
+	"web-console/internal/capabilities"
 )
 
 // mockSynthesizer implements TTSSynthesizer for testing.
@@ -32,14 +34,14 @@ func newSynthesizeTestServer(synth TTSSynthesizer, capAvailable bool) *Server {
 	srv.ttsSynthesizer = synth
 	srv.ttsConfig = DefaultTTSConfig()
 
-	checker := &fakeChecker{status: StatusUnavailable, message: "down"}
+	checker := &fakeChecker{status: capabilities.StatusUnavailable, message: "down"}
 	if capAvailable {
-		checker.status = StatusAvailable
+		checker.status = capabilities.StatusAvailable
 		checker.message = "ok"
 	}
-	srv.capabilities = NewCapabilityRegistry(
-		[]CapabilityDef{{ID: "kokoro-tts", Name: "Kokoro TTS"}},
-		map[string]StatusChecker{"kokoro-tts": checker},
+	srv.capabilities = capabilities.NewRegistry(
+		[]capabilities.Def{{ID: "kokoro-tts", Name: "Kokoro TTS"}},
+		map[string]capabilities.Checker{"kokoro-tts": checker},
 		time.Minute,
 	)
 	return srv

@@ -4,6 +4,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"web-console/terminal"
 )
 
 const conversationDedupTTL = 30 * time.Second
@@ -175,7 +177,7 @@ func NewConversationStoreWithRepository(repository ConversationRepository) *Conv
 }
 
 func normalizeConversationText(text string) string {
-	return strings.TrimSpace(string(stripANSI([]byte(text))))
+	return strings.TrimSpace(string(terminal.StripEscapes([]byte(text))))
 }
 
 // conversationDedupKey intentionally omits the event source so that the same
