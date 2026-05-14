@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, fireEvent, screen } from "@testing-library/react";
-import { createRef } from "react";
+import { createRef, type RefObject } from "react";
 import MobileToolbar, { type MobileToolbarHandle } from "../components/MobileToolbar";
 import { i18n } from "../i18n";
 
@@ -292,6 +292,11 @@ describe("MobileToolbar — appendText (voice transcript insertion)", () => {
     return { ref, textarea, ...utils };
   }
 
+  function getToolbarHandle(ref: RefObject<MobileToolbarHandle>): MobileToolbarHandle {
+    if (!ref.current) throw new Error("MobileToolbar ref was not attached");
+    return ref.current;
+  }
+
   // RAF used by appendText for caret restoration — flush it synchronously.
   async function flushRaf() {
     await act(async () => {
@@ -302,7 +307,7 @@ describe("MobileToolbar — appendText (voice transcript insertion)", () => {
   it("appends to end with a leading space when prior text has no trailing whitespace", async () => {
     const { ref, textarea } = renderWithRef();
     fireEvent.change(textarea, { target: { value: "Hello." } });
-    act(() => ref.current!.appendText("World."));
+    act(() => getToolbarHandle(ref).appendText("World."));
     await flushRaf();
     expect(textarea.value).toBe("Hello. World.");
   });
@@ -310,7 +315,7 @@ describe("MobileToolbar — appendText (voice transcript insertion)", () => {
   it("does not double-space when prior text already ends in whitespace", async () => {
     const { ref, textarea } = renderWithRef();
     fireEvent.change(textarea, { target: { value: "Hello. " } });
-    act(() => ref.current!.appendText("World."));
+    act(() => getToolbarHandle(ref).appendText("World."));
     await flushRaf();
     expect(textarea.value).toBe("Hello. World.");
   });
@@ -322,7 +327,7 @@ describe("MobileToolbar — appendText (voice transcript insertion)", () => {
     textarea.focus();
     textarea.setSelectionRange(3, 3);
     fireEvent.select(textarea);
-    act(() => ref.current!.appendText("MID"));
+    act(() => getToolbarHandle(ref).appendText("MID"));
     await flushRaf();
     // Leading: prev char is "c" (non-ws) → add space. Trailing: next char is " " → no space.
     expect(textarea.value).toBe("abc MID xyz");
@@ -337,7 +342,7 @@ describe("MobileToolbar — appendText (voice transcript insertion)", () => {
     textarea.focus();
     textarea.setSelectionRange(5, 9); // selects "DROP"
     fireEvent.select(textarea);
-    act(() => ref.current!.appendText("NEW"));
+    act(() => getToolbarHandle(ref).appendText("NEW"));
     await flushRaf();
     expect(textarea.value).toBe("keep NEW keep");
   });
@@ -350,7 +355,7 @@ describe("MobileToolbar — appendText (voice transcript insertion)", () => {
     fireEvent.select(textarea);
     // Simulate focus moving to the mic button — blur fires and we record selection.
     fireEvent.blur(textarea);
-    act(() => ref.current!.appendText("MID"));
+    act(() => getToolbarHandle(ref).appendText("MID"));
     await flushRaf();
     expect(textarea.value).toBe("abc MID xyz");
   });
@@ -361,7 +366,7 @@ describe("MobileToolbar — appendText (voice transcript insertion)", () => {
     textarea.focus();
     textarea.setSelectionRange(0, 0);
     fireEvent.select(textarea);
-    act(() => ref.current!.appendText("hello"));
+    act(() => getToolbarHandle(ref).appendText("hello"));
     await flushRaf();
     // Trailing: next char "w" is non-ws → add trailing space.
     expect(textarea.value).toBe("hello world");

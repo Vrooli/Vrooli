@@ -3,9 +3,36 @@ import { apiBaseMock } from "../test-utils";
 
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
-const getConfigMock = vi.fn();
-const updateConfigMock = vi.fn();
-const getHealthMock = vi.fn();
+interface ProviderConfigProto {
+  name: string;
+  enabled: boolean;
+  priority: number;
+  timeoutSec: number;
+  maxRetries: number;
+}
+
+interface ProviderHealthProto {
+  name: string;
+  available: boolean;
+  lastCheck?: string;
+  lastLatency?: string;
+  errorCount: number;
+  successCount: number;
+  errorRate: number;
+}
+
+interface ConfigResponseProto {
+  providers: ProviderConfigProto[];
+  health: ProviderHealthProto[];
+}
+
+interface HealthResponseProto {
+  health: ProviderHealthProto[];
+}
+
+const getConfigMock = vi.fn<(_: Record<string, never>) => Promise<ConfigResponseProto>>();
+const updateConfigMock = vi.fn<(request: Record<string, unknown>) => Promise<ConfigResponseProto>>();
+const getHealthMock = vi.fn<(_: Record<string, never>) => Promise<HealthResponseProto>>();
 
 vi.mock("../api/ai", async () => {
   const actual = await vi.importActual<typeof import("../api/ai")>("../api/ai");
@@ -19,21 +46,21 @@ vi.mock("../api/ai", async () => {
     getAIConfig: async () => {
       const resp = await getConfigMock({});
       return {
-        providers: resp.providers.map((p: Record<string, unknown>) => ({
-          name: p.name as string,
-          enabled: p.enabled as boolean,
-          priority: p.priority as number,
-          timeout_sec: p.timeoutSec as number,
-          max_retries: p.maxRetries as number,
+        providers: resp.providers.map((p) => ({
+          name: p.name,
+          enabled: p.enabled,
+          priority: p.priority,
+          timeout_sec: p.timeoutSec,
+          max_retries: p.maxRetries,
         })),
-        health: resp.health.map((h: Record<string, unknown>) => ({
-          name: h.name as string,
-          available: h.available as boolean,
-          last_check: (h.lastCheck as string) || undefined,
-          last_latency: (h.lastLatency as string) || undefined,
-          error_count: Number(h.errorCount ?? 0),
-          success_count: Number(h.successCount ?? 0),
-          error_rate: h.errorRate as number,
+        health: resp.health.map((h) => ({
+          name: h.name,
+          available: h.available,
+          last_check: h.lastCheck || undefined,
+          last_latency: h.lastLatency || undefined,
+          error_count: h.errorCount,
+          success_count: h.successCount,
+          error_rate: h.errorRate,
         })),
       };
     },
@@ -45,30 +72,30 @@ vi.mock("../api/ai", async () => {
       if (update.max_retries !== undefined) { req.maxRetries = update.max_retries; req.hasMaxRetries = true; }
       const resp = await updateConfigMock(req);
       return {
-        providers: resp.providers.map((p: Record<string, unknown>) => ({
-          name: p.name as string,
-          enabled: p.enabled as boolean,
-          priority: p.priority as number,
-          timeout_sec: p.timeoutSec as number,
-          max_retries: p.maxRetries as number,
+        providers: resp.providers.map((p) => ({
+          name: p.name,
+          enabled: p.enabled,
+          priority: p.priority,
+          timeout_sec: p.timeoutSec,
+          max_retries: p.maxRetries,
         })),
-        health: resp.health.map((h: Record<string, unknown>) => ({
-          name: h.name as string,
-          available: h.available as boolean,
-          error_count: Number(h.errorCount ?? 0),
-          success_count: Number(h.successCount ?? 0),
-          error_rate: h.errorRate as number,
+        health: resp.health.map((h) => ({
+          name: h.name,
+          available: h.available,
+          error_count: h.errorCount,
+          success_count: h.successCount,
+          error_rate: h.errorRate,
         })),
       };
     },
     getAIHealth: async () => {
       const resp = await getHealthMock({});
-      return resp.health.map((h: Record<string, unknown>) => ({
-        name: h.name as string,
-        available: h.available as boolean,
-        error_count: Number(h.errorCount ?? 0),
-        success_count: Number(h.successCount ?? 0),
-        error_rate: h.errorRate as number,
+      return resp.health.map((h) => ({
+        name: h.name,
+        available: h.available,
+        error_count: h.errorCount,
+        success_count: h.successCount,
+        error_rate: h.errorRate,
       }));
     },
   };

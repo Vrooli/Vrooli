@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open endpoints
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open endpoints orient temporal-models
 
 .DEFAULT_GOAL := help
 
@@ -92,6 +92,12 @@ setup: ## Run scenario setup lifecycle
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"
+
+orient: ## Show generated-scenario orientation progress
+	@vrooli scenario orient "$(SCENARIO_NAME)"
+
+temporal-models: ## Verify formal flow artifacts via the flow-verifier scenario CLI
+	@flow-verifier verify check --root .
 
 # Development shortcuts
 run: start

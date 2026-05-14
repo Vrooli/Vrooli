@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { apiBaseMock } from "../test-utils";
+import type { AIGenerateResponse } from "../api/ai";
 
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
-const generateMock = vi.fn();
+type GenerateRequest = { prompt: string; context: string };
+
+const generateMock = vi.fn<(request: GenerateRequest) => Promise<AIGenerateResponse>>();
 vi.mock("../api/ai", async () => {
   const actual = await vi.importActual<typeof import("../api/ai")>("../api/ai");
   return {

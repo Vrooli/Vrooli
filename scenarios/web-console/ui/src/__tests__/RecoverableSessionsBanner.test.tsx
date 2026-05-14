@@ -2,18 +2,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 
 import RecoverableSessionsBanner from "../components/RecoverableSessionsBanner";
+import type { RecoverableSession, RecoverResult } from "../api/sessions";
 
-const listMock = vi.fn();
-const recoverMock = vi.fn();
-const dismissMock = vi.fn();
+const { listMock, recoverMock, dismissMock } = vi.hoisted(() => ({
+  listMock: vi.fn<() => Promise<RecoverableSession[]>>(),
+  recoverMock: vi.fn<(id: string) => Promise<RecoverResult>>(),
+  dismissMock: vi.fn<(id: string) => Promise<void>>(),
+}));
 
 vi.mock("../api/sessions", async () => {
   const actual = await vi.importActual<typeof import("../api/sessions")>("../api/sessions");
   return {
     ...actual,
-    listRecoverableSessions: () => listMock(),
-    recoverSession: (id: string) => recoverMock(id),
-    dismissRecoverableSession: (id: string) => dismissMock(id),
+    listRecoverableSessions: listMock,
+    recoverSession: recoverMock,
+    dismissRecoverableSession: dismissMock,
   };
 });
 

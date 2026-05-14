@@ -136,6 +136,24 @@ enforce:
   - `GET /api/v1/sessions/{id}/conversation`
   - `PUT /api/v1/sessions/{id}/conversation/cursor`
 
+### 4a. Sanctioned REST Exceptions (UI → API)
+
+Every UI → API call goes through Connect-RPC except for the two
+endpoints below. Both are template-sanctioned `RESTReason` values (see
+`api/internal/module/module.go::RESTReason*` in the react-vite
+template). Adding a third REST surface requires either picking another
+enumerated `RESTReason` or extending the template — not a one-off
+exemption.
+
+| File | Endpoint | Reason | Why REST |
+|---|---|---|---|
+| [CODE: ui/src/api/health.ts] | `GET /health` | `RESTReasonOpsProbe` | The API liveness probe must answer before Connect-RPC routing is wired up. Load balancers, lifecycle checks, and `curl` need the simplest possible shape. The proto in `packages/proto/schemas/web-console/v1/health/health.proto` carries the JSON wire shape so the response decodes through `fromJson(ResponseSchema, ...)` for type safety — there is no hand-rolled `HealthResponse` type. |
+| [CODE: ui/src/api/uploads.ts] | `POST /sessions/{id}/upload` | `RESTReasonMultipartUpload` | Multipart binary upload. Connect-RPC binary payloads are non-trivial; the template explicitly enumerates multipart as an allowed shape. Metadata around uploads (if any) stays proto-typed; only the raw bytes ride the REST edge. |
+
+**Regression guard**: [CODE: ui/src/api/__tests__/no-rest-exceptions.test.ts]
+greps `ui/src/api/*.ts` for the literal token `fetch(` and fails if it
+appears outside `health.ts` and `uploads.ts`.
+
 ### 5. Integration / Infrastructure
 **Owner**: [CODE: api/main.go], [CODE: ui/src/lib/api.ts]
 - `main.go` — Database connection, router setup, health checks, server lifecycle

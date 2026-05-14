@@ -1,46 +1,321 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "Web Console Documentation",
-  "description": "Documentation for the web-console scenario — a browser-based terminal with PTY-backed sessions, pane layouts, AI command generation, and voice/TTS. Structure mirrors the reference-react-vite template; `guides/`, `concepts/GLOSSARY.md`, `reference/tts-api.md`, and several `internal/` files are template-extensions specific to this scenario.",
-  "defaultDocument": "QUICKSTART.md",
+  "description": "Documentation contract for the web-console scenario, retrofitted to the react-vite template v1.0.0 contract.",
+  "defaultDocument": "START-HERE.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
+    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "extensionRule": "Every durable scenario document is registered here. Use docs/concepts/ for product and system concepts, docs/guides/ for task procedures, docs/reference/ for stable lookup material, docs/internal/ for developer and agent memory, docs/operations/ for runtime operations, docs/business/ for commercial strategy, and docs/domains/<domain>/ for domain-specific depth that would overload DOMAINS.md."
+  },
   "sections": [
     {
       "id": "getting-started",
       "title": "Getting Started",
       "icon": "rocket",
+      "description": "First-touch experience, scenario identity, and local startup flow",
+      "purpose": "Help users, operators, developers, and agents understand what the scenario is, where to begin, and how to run it.",
+      "extensionPolicy": "Add only entrypoint-level documents here. Task-specific procedures belong in guides; durable architecture or product concepts belong in concepts.",
       "documents": [
         {
-          "path": "QUICKSTART.md",
-          "title": "Quick Start",
-          "description": "Get a browser terminal running in under 2 minutes",
-          "audience": ["users", "developers"]
+          "path": "../README.md",
+          "docType": "readme",
+          "title": "README",
+          "aliases": ["overview", "summary"],
+          "description": "Top-level scenario summary and primary human entrypoint",
+          "audience": ["users", "operators", "developers", "agents"],
+          "canonicalFor": ["scenario-summary", "entrypoint"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
         },
         {
-          "path": "PROGRESS.md",
-          "title": "Progress Log",
-          "description": "Development history and session changes"
+          "path": "START-HERE.md",
+          "docType": "start-here",
+          "title": "Start Here",
+          "aliases": ["start", "orientation", "onboarding"],
+          "description": "First implementation session and template-adoption status",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["orientation", "first-implementation-session"],
+          "maturity": "active",
+          "requiredBy": ["generated", "oriented"],
+          "completion": "required",
+          "ownerSkills": ["scenario-generation"]
+        },
+        {
+          "path": "manifest.json",
+          "docType": "manifest",
+          "title": "Documentation Manifest",
+          "aliases": ["docs-manifest", "contract"],
+          "description": "Machine-readable documentation contract used by documentation health tooling",
+          "audience": ["developers", "agents", "tools"],
+          "canonicalFor": ["documentation-contract", "documentation-validation"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        },
+        {
+          "path": "../PRD.md",
+          "docType": "prd",
+          "title": "Product Requirements",
+          "aliases": ["requirements", "product-requirements"],
+          "description": "Scenario purpose, users, operational targets, dependencies, and UX direction",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["product-requirements", "operational-targets"],
+          "maturity": "active",
+          "requiredBy": ["oriented"],
+          "completion": "required",
+          "ownerSkills": ["prd-control-tower"]
+        },
+        {
+          "path": "../DESIGN.md",
+          "docType": "design",
+          "title": "Design Contract",
+          "aliases": ["design-contract", "ui-design"],
+          "description": "Canonical scenario UI design language",
+          "audience": ["developers", "agents", "designers"],
+          "canonicalFor": ["design-language", "ui-tokens", "accessibility-design"],
+          "maturity": "missing",
+          "requiredBy": ["generated", "oriented"],
+          "completion": "required",
+          "ownerSkills": ["react-coherence", "ux"]
+        },
+        {
+          "path": "QUICKSTART.md",
+          "docType": "quickstart",
+          "title": "Quickstart",
+          "aliases": ["quick-start", "run-local"],
+          "description": "Clone-to-running in a few minutes",
+          "audience": ["users", "operators", "developers", "agents"],
+          "canonicalFor": ["local-runbook", "first-run"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
         }
       ]
     },
     {
       "id": "concepts",
       "title": "Concepts",
-      "icon": "lightbulb",
+      "icon": "compass",
+      "description": "Durable product and system mental models",
+      "purpose": "Document how the scenario is put together, what capabilities it owns, and which concepts guide future code changes.",
+      "extensionPolicy": "Add durable concept docs here when they describe cross-cutting product/system ideas. Put deep domain-specific material under docs/domains/<domain>/ once a domain outgrows the central domain map.",
       "documents": [
         {
           "path": "concepts/ARCHITECTURE.md",
+          "docType": "architecture",
           "title": "Architecture",
-          "description": "High-level system design: API, UI, WebSocket protocol, and integration layers"
-        },
-        {
-          "path": "concepts/GLOSSARY.md",
-          "title": "Glossary",
-          "description": "Domain vocabulary and term definitions used across the scenario"
+          "aliases": ["arch", "system-architecture"],
+          "description": "System map: surfaces, contracts, boundaries, shared infrastructure",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["system-architecture", "surface-responsibilities"],
+          "maturity": "active",
+          "requiredBy": ["generated", "oriented", "implemented"],
+          "completion": "required",
+          "ownerSkills": ["screaming-architecture-audit"]
         },
         {
           "path": "concepts/DOMAINS.md",
-          "title": "API Domains",
-          "description": "Migration plan bucketing every API route into a Connect-RPC domain"
+          "docType": "domains",
+          "title": "Domains",
+          "aliases": ["domain", "domain-map", "bounded-contexts"],
+          "description": "Bounded contexts, product capabilities, ownership, and source paths",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["bounded-contexts", "capability-ownership", "domain-map"],
+          "maturity": "active",
+          "requiredBy": ["oriented", "implemented"],
+          "completion": "required",
+          "ownerSkills": ["screaming-architecture-audit"]
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "docType": "glossary",
+          "title": "Glossary",
+          "description": "Domain vocabulary and term definitions used across the scenario",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["glossary"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "concepts/FLOWS.md",
+          "docType": "flows",
+          "title": "Flows",
+          "aliases": ["flow", "workflows", "temporal-flows"],
+          "description": "User/system workflows, lifecycle states, transitions, retries, cancellation, stale-completion risks, and checked formal model status",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["workflows", "temporal-flows", "state-transitions"],
+          "maturity": "missing",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "conditional",
+          "condition": "Required once a real domain has lifecycle states, retries, cancellation, stale-completion risk, or formal workflow invariants. Web-console has these via PTY sessions and voice streaming; FLOWS.md should be authored in the temporal-flows batch.",
+          "ownerSkills": ["temporal-flow-audit"]
+        },
+        {
+          "path": "concepts/DATA.md",
+          "docType": "data",
+          "title": "Data",
+          "aliases": ["data-model", "storage"],
+          "description": "Data ownership, persistence, retention, migrations, import/export, and privacy-relevant data behavior",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["data-model", "storage-ownership", "retention", "migrations"],
+          "maturity": "missing",
+          "requiredBy": ["oriented", "implemented", "deployable"],
+          "completion": "required",
+          "ownerSkills": ["storage-steer"]
+        },
+        {
+          "path": "concepts/INTEGRATIONS.md",
+          "docType": "integrations",
+          "title": "Integrations",
+          "aliases": ["dependencies", "resources", "third-party-services"],
+          "description": "External resources, scenario dependencies, third-party APIs, and integration contracts",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["resources", "scenario-dependencies", "third-party-services"],
+          "maturity": "missing",
+          "requiredBy": ["oriented", "implemented", "deployable"],
+          "completion": "required",
+          "ownerSkills": ["interoperability-steer", "cross-platform-readiness"]
+        }
+      ]
+    },
+    {
+      "id": "business",
+      "title": "Business",
+      "icon": "briefcase",
+      "description": "Commercial strategy, packaging, pricing hypotheses, channels, and validation",
+      "purpose": "Keep the scenario's business role visible.",
+      "extensionPolicy": "Add business docs for durable market, packaging, pricing, channel, or validation strategy.",
+      "documents": [
+        {
+          "path": "business/MONETIZATION.md",
+          "docType": "monetization",
+          "title": "Monetization",
+          "aliases": ["revenue", "pricing", "business-model"],
+          "description": "Revenue role, packaging, pricing hypothesis, cost drivers, and validation plan",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["monetization", "packaging", "pricing-hypothesis"],
+          "maturity": "missing",
+          "requiredBy": ["monetizable"],
+          "completion": "conditional",
+          "condition": "Required when the scenario is evaluated as a product, SKU component, add-on, or service accelerator.",
+          "ownerSkills": ["monetization-signal-classifier"]
+        },
+        {
+          "path": "business/GO-TO-MARKET.md",
+          "docType": "go-to-market",
+          "title": "Go To Market",
+          "aliases": ["gtm", "launch", "channels"],
+          "description": "Launch strategy, target channels, positioning, and validation experiments",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["go-to-market", "channels", "launch-strategy"],
+          "maturity": "missing",
+          "requiredBy": ["monetizable"],
+          "completion": "conditional",
+          "condition": "Required when the scenario has a market-facing use case or monetization hypothesis.",
+          "ownerSkills": ["marketing-signal-classifier"]
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "icon": "activity",
+      "description": "Deployment, runbooks, observability, and runtime readiness",
+      "purpose": "Document how the scenario runs beyond a code edit.",
+      "extensionPolicy": "Add operations docs for production procedures, backup/restore, support playbooks, telemetry, incident response, or tier-specific deployment notes.",
+      "documents": [
+        {
+          "path": "operations/DEPLOYMENT.md",
+          "docType": "deployment",
+          "title": "Deployment",
+          "aliases": ["deploy", "release"],
+          "description": "Supported delivery tiers, packaging assumptions, runtime dependencies, and readiness status",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["deployment", "delivery-tiers", "release-readiness"],
+          "maturity": "missing",
+          "requiredBy": ["deployable"],
+          "completion": "required",
+          "ownerSkills": ["deployment-coordinator"]
+        },
+        {
+          "path": "operations/RUNBOOK.md",
+          "docType": "runbook",
+          "title": "Runbook",
+          "aliases": ["operations-runbook", "operator-runbook"],
+          "description": "Operator procedures for running, diagnosing, recovering, and maintaining the scenario",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["runbook", "operator-procedures", "incident-response"],
+          "maturity": "missing",
+          "requiredBy": ["deployable"],
+          "completion": "required",
+          "ownerSkills": ["deployment-coordinator"]
+        },
+        {
+          "path": "operations/OBSERVABILITY.md",
+          "docType": "observability",
+          "title": "Observability",
+          "aliases": ["telemetry", "monitoring", "health-signals"],
+          "description": "Logs, metrics, telemetry, alerts, and product success signals",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["observability", "telemetry", "health-signals", "alerts"],
+          "maturity": "missing",
+          "requiredBy": ["deployable", "monetizable"],
+          "completion": "required",
+          "ownerSkills": ["scenario-performance-audit"]
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book-open",
+      "description": "Task-oriented walkthroughs",
+      "purpose": "Explain repeatable procedures that are too operational for concepts and too narrative for reference material.",
+      "extensionPolicy": "Add a guide when a user, operator, developer, or agent needs step-by-step instructions for a recurring task.",
+      "documents": [
+        {
+          "path": "guides/troubleshooting.md",
+          "docType": "troubleshooting",
+          "title": "Troubleshooting",
+          "aliases": ["troubleshoot", "common-failures"],
+          "description": "Common issues and fixes",
+          "audience": ["users", "operators", "developers", "agents"],
+          "canonicalFor": ["troubleshooting", "common-failures"],
+          "maturity": "missing",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        },
+        {
+          "path": "guides/TTS_TROUBLESHOOTING.md",
+          "docType": "guide",
+          "title": "TTS Troubleshooting",
+          "description": "Diagnosing auto-TTS issues: Kokoro status, hook registration, text correlation, browser audio policy",
+          "audience": ["developers", "operators"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "guides/CONVERSATION_TRACKING.md",
+          "docType": "guide",
+          "title": "Conversation Tracking",
+          "description": "How claude/codex sessions get parsed into the messages feed, which launch paths work, and how attribution stays scoped",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "guides/SESSION_RECOVERY.md",
+          "docType": "guide",
+          "title": "Session Recovery",
+          "description": "Recovering persistent panes after API restarts or host crashes, including Codex and Claude resume workflows",
+          "audience": ["developers", "operators"],
+          "maturity": "active",
+          "completion": "optional"
         }
       ]
     },
@@ -48,163 +323,317 @@
       "id": "reference",
       "title": "Reference",
       "icon": "book",
+      "description": "Stable lookup material for APIs, CLI commands, and configuration",
+      "purpose": "Give agents and operators precise facts that should mirror generated manifests, code, and lifecycle metadata.",
+      "extensionPolicy": "Add reference docs for stable lookup tables, wire contracts, configuration keys, schemas, webhooks, or external protocol details.",
       "documents": [
         {
           "path": "reference/api-endpoints.md",
-          "title": "API Reference",
-          "description": "Every HTTP and WebSocket endpoint exposed by the web-console API"
+          "docType": "api-reference",
+          "title": "API Endpoints",
+          "aliases": ["api", "api-endpoints", "endpoints"],
+          "description": "HTTP API reference (mirrors .vrooli/endpoints.json)",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["api-reference"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented"],
+          "completion": "required"
         },
         {
           "path": "reference/cli-commands.md",
-          "title": "CLI Reference",
-          "description": "Every subcommand of the web-console CLI"
+          "docType": "cli-reference",
+          "title": "CLI Commands",
+          "aliases": ["cli", "cli-commands", "commands"],
+          "description": "CLI command reference",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["cli-reference"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented"],
+          "completion": "required"
         },
         {
           "path": "reference/configuration.md",
-          "title": "Configuration Reference",
-          "description": "All tunable levers — API environment variables and UI compile-time constants"
+          "docType": "configuration-reference",
+          "title": "Configuration",
+          "aliases": ["config", "configuration", "environment"],
+          "description": "Environment variables, service.json shape, and runtime configuration",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["configuration-reference", "runtime-configuration"],
+          "maturity": "active",
+          "requiredBy": ["generated", "deployable"],
+          "completion": "required"
         },
         {
           "path": "reference/data-model.md",
+          "docType": "reference",
           "title": "Data Model",
-          "description": "In-memory session state and SQLite-backed persistent tables"
+          "description": "In-memory session state and SQLite-backed persistent tables",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
         },
         {
           "path": "reference/tts-api.md",
+          "docType": "reference",
           "title": "TTS API Reference",
-          "description": "Text-to-Speech endpoints: synthesis, voice listing, config, hooks, and WebSocket delivery"
-        }
-      ]
-    },
-    {
-      "id": "guides",
-      "title": "Guides",
-      "icon": "map",
-      "documents": [
-        {
-          "path": "guides/TTS_TROUBLESHOOTING.md",
-          "title": "TTS Troubleshooting",
-          "description": "Diagnosing auto-TTS issues: Kokoro status, hook registration, text correlation, browser audio policy"
-        },
-        {
-          "path": "guides/CONVERSATION_TRACKING.md",
-          "title": "Conversation Tracking",
-          "description": "How claude/codex sessions get parsed into the messages feed, which launch paths work, and how attribution stays scoped"
-        },
-        {
-          "path": "guides/SESSION_RECOVERY.md",
-          "title": "Session Recovery",
-          "description": "Recovering persistent panes after API restarts or host crashes, including Codex and Claude resume workflows"
+          "description": "Text-to-Speech endpoints: synthesis, voice listing, config, hooks, and WebSocket delivery",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
         }
       ]
     },
     {
       "id": "internal",
       "title": "Internal",
-      "icon": "lock",
+      "icon": "wrench",
+      "description": "Developer-facing and agent-facing memory",
       "visibility": "developers-only",
+      "purpose": "Preserve engineering memory that keeps future changes testable, maintainable, and aligned with the template.",
+      "extensionPolicy": "Add internal docs for durable developer/agent memory: seams, tests, errors, decisions, problems, progress, audits, and skill-specific findings.",
       "documents": [
         {
           "path": "internal/SEAMS.md",
-          "title": "Architecture Seams",
-          "description": "Responsibility zones, testability seams, and change axes",
-          "internal": true
+          "docType": "seams",
+          "title": "Seams",
+          "aliases": ["seam", "boundaries", "boundary-registry"],
+          "description": "Boundary registry — every interface and its production / test fake",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["seams", "test-substitution", "boundary-registry"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented", "validated"],
+          "completion": "required",
+          "ownerSkills": ["seam-discovery-and-enforcement"]
         },
         {
-          "path": "internal/PROBLEMS.md",
-          "title": "Known Problems",
-          "description": "Known issues, risks, and tech debt",
-          "internal": true
+          "path": "internal/ERROR-HANDLING.md",
+          "docType": "error-handling",
+          "title": "Error Handling",
+          "aliases": ["errors", "error-semantics", "recovery"],
+          "description": "Connect-RPC error translation, REST multipart exceptions, and UI i18n mapping",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["error-semantics", "recovery-paths"],
+          "maturity": "missing",
+          "requiredBy": ["generated", "validated"],
+          "completion": "required",
+          "ownerSkills": ["error-semantics-recovery-path-design"]
         },
         {
           "path": "internal/ERROR_SEMANTICS.md",
-          "title": "Error Semantics",
-          "description": "Error categories, recovery paths, and the error response contract",
-          "internal": true
+          "docType": "error-handling",
+          "title": "Error Semantics (current draft)",
+          "description": "Current error semantics doc; will be renamed to ERROR-HANDLING.md in the doc-health batch",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
         },
         {
-          "path": "internal/STORAGE_AUDIT.md",
-          "title": "Storage Audit",
-          "description": "Storage posture analysis: in-memory vs persistent, migration roadmap",
-          "internal": true
+          "path": "internal/TESTING.md",
+          "docType": "testing",
+          "title": "Testing",
+          "aliases": ["tests", "test-strategy", "qa"],
+          "description": "Layered test patterns, fixtures, and coverage expectations",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["testing-strategy", "test-patterns", "coverage-policy"],
+          "maturity": "missing",
+          "requiredBy": ["generated", "validated"],
+          "completion": "required",
+          "ownerSkills": ["test"]
         },
         {
           "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "docType": "testing",
           "title": "Unit Test Architecture",
-          "description": "Test organization, mock infrastructure, and testability patterns",
-          "internal": true
+          "description": "Current test-architecture doc; will be folded into TESTING.md in the doc-health batch",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
         },
         {
-          "path": "internal/UTILS_UNIFICATION_NOTES.md",
-          "title": "Utils Unification Notes",
-          "description": "Patterns and decisions from consolidating utility functions",
-          "internal": true
-        },
-        {
-          "path": "internal/COHERENCE-NOTES.md",
-          "title": "React Coherence Notes",
-          "description": "React state patterns, styling consistency, and component organization audit",
-          "internal": true
-        },
-        {
-          "path": "internal/TEMPORAL-FLOWS.md",
-          "title": "Temporal Flows",
-          "description": "Async operation inventory, race conditions, ordering assumptions, and scheduling behavior",
-          "internal": true
-        },
-        {
-          "path": "internal/INVARIANTS.md",
-          "title": "Replay & Idempotency Invariants",
-          "description": "State-mutating operations, idempotency status, safe/unsafe retry patterns, and event emission guards",
-          "internal": true
-        },
-        {
-          "path": "internal/EXPERIENCE-AUDIT.md",
-          "title": "Experience Audit",
-          "description": "Persona mapping, UX friction analysis, and navigation assessment",
-          "internal": true
-        },
-        {
-          "path": "internal/ASSUMPTIONS.md",
-          "title": "Assumptions",
-          "description": "Implicit beliefs and assumptions not yet validated in code",
-          "internal": true
-        },
-        {
-          "path": "internal/RESEARCH.md",
-          "title": "Research Notes",
-          "description": "Technical references, design decisions, and related scenarios",
-          "internal": true
+          "path": "internal/SECURITY.md",
+          "docType": "security",
+          "title": "Security",
+          "aliases": ["security-posture", "threat-model", "secrets"],
+          "description": "Auth, secrets, privacy, threat areas, and security decisions",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["security", "privacy", "threat-model", "secrets"],
+          "maturity": "missing",
+          "requiredBy": ["deployable"],
+          "completion": "required",
+          "ownerSkills": ["security-posture"]
         },
         {
           "path": "internal/SECURITY-POSTURE.md",
-          "title": "Security Posture",
-          "description": "Security hardening status by category and trust boundaries",
-          "internal": true
+          "docType": "security",
+          "title": "Security Posture (current draft)",
+          "description": "Current security doc; will be renamed to SECURITY.md in the doc-health batch",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
         },
         {
-          "path": "internal/PORTABILITY_AUDIT.md",
-          "title": "Portability Audit",
-          "description": "Cross-platform compatibility and packaging considerations",
-          "internal": true
+          "path": "internal/PERFORMANCE.md",
+          "docType": "performance",
+          "title": "Performance",
+          "aliases": ["perf", "performance-budgets"],
+          "description": "Performance budgets, measurements, constraints, and regression procedures",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["performance", "budgets", "measurements"],
+          "maturity": "missing",
+          "requiredBy": ["validated", "deployable"],
+          "completion": "conditional",
+          "condition": "Required for performance-sensitive UX, data, or AI pipelines. Web-console has voice latency budgets in VOICE-LATENCY.md that should be promoted into PERFORMANCE.md.",
+          "ownerSkills": ["scenario-performance-audit"]
         },
         {
           "path": "internal/VOICE-LATENCY.md",
+          "docType": "performance",
           "title": "Voice Latency",
-          "description": "End-to-end latency budgets and measurements for the voice pipeline",
-          "internal": true
+          "description": "End-to-end latency budgets and measurements for the voice pipeline; promoted into PERFORMANCE.md in the doc-health batch",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/DECISIONS.md",
+          "docType": "decisions",
+          "title": "Decisions",
+          "aliases": ["decision-log", "adr", "tradeoffs"],
+          "description": "Durable decisions and tradeoffs future agents should not accidentally relitigate",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["decision-log", "tradeoffs"],
+          "maturity": "missing",
+          "requiredBy": ["generated", "implemented"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "docType": "problems",
+          "title": "Problems",
+          "aliases": ["problem", "issues", "known-problems"],
+          "description": "Known issues, tech debt, and deferred work specific to this scenario",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["known-problems", "deferred-work"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "docType": "progress",
+          "title": "Progress",
+          "aliases": ["progress-log", "changelog", "handoff-log"],
+          "description": "Lifecycle log — append a row whenever work lands. Current log lives at docs/PROGRESS.md and will move to docs/internal/PROGRESS.md in the doc-health batch.",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["change-history", "handoff-log"],
+          "maturity": "missing",
+          "requiredBy": ["generated", "implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "PROGRESS.md",
+          "docType": "progress",
+          "title": "Progress Log (current location)",
+          "description": "Active progress log; will move to internal/PROGRESS.md in the doc-health batch",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "docType": "flows",
+          "title": "Temporal Flows (internal notes)",
+          "description": "Async operation inventory, race conditions, ordering assumptions; will be promoted to concepts/FLOWS.md in the temporal-flows batch",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "docType": "invariants",
+          "title": "Replay & Idempotency Invariants",
+          "description": "State-mutating operations, idempotency status, safe/unsafe retry patterns, and event emission guards",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "docType": "data",
+          "title": "Storage Audit",
+          "description": "Storage posture analysis: in-memory vs persistent, migration roadmap. Will fold into concepts/DATA.md in the doc-health batch.",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "docType": "audit",
+          "title": "React Coherence Notes",
+          "description": "React state patterns, styling consistency, and component organization audit",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/UTILS_UNIFICATION_NOTES.md",
+          "docType": "audit",
+          "title": "Utils Unification Notes",
+          "description": "Patterns and decisions from consolidating utility functions",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "docType": "audit",
+          "title": "Experience Audit",
+          "description": "Persona mapping, UX friction analysis, and navigation assessment",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/ASSUMPTIONS.md",
+          "docType": "audit",
+          "title": "Assumptions",
+          "description": "Implicit beliefs and assumptions not yet validated in code",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/RESEARCH.md",
+          "docType": "research",
+          "title": "Research Notes",
+          "description": "Technical references, design decisions, and related scenarios",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
+          "path": "internal/PORTABILITY_AUDIT.md",
+          "docType": "audit",
+          "title": "Portability Audit",
+          "description": "Cross-platform compatibility and packaging considerations",
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
         },
         {
           "path": "internal/TERMINAL-INPUT-PROTOCOL.md",
+          "docType": "reference",
           "title": "Terminal Input Protocol",
           "description": "Browser-to-PTY input message protocol and ANSI handling",
-          "internal": true
+          "audience": ["developers"],
+          "maturity": "active",
+          "completion": "optional"
         }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "guides", "reference"],
+    "primary": ["getting-started", "concepts", "business", "operations", "guides", "reference"],
     "secondary": ["internal"]
   }
 }
