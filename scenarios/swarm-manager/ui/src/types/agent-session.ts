@@ -9,6 +9,7 @@ import type {
   AgentSessionMessage as ProtoAgentSessionMessage,
   AgentSessionProposal as ProtoAgentSessionProposal,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/agent_session_pb";
+import type { AgentSessionRunEvent as ProtoAgentSessionRunEvent } from "@vrooli/proto-types/swarm-manager/v1/api/agent_session_pb";
 import type { ProtoMessage } from "./shared";
 
 export type AgentSessionKind = "meta_orchestration" | "operating_mode_authoring";
@@ -95,4 +96,23 @@ export type AgentSession = Omit<
   proposals: AgentSessionProposal[];
   artifacts: AgentSessionArtifact[];
   createdBy?: AgentSessionAttribution;
+};
+
+export type AgentSessionEventType =
+  | "message"
+  | "tool_call"
+  | "tool_result"
+  | "status"
+  | "progress"
+  | "error"
+  | "log"
+  | "metric"
+  | "artifact"
+  | "compaction"
+  | "lifecycle"
+  | "message_deleted"
+  | "unknown";
+
+export type AgentSessionRunEvent = Omit<ProtoMessage<ProtoAgentSessionRunEvent>, "eventType"> & {
+  eventType: AgentSessionEventType;
 };

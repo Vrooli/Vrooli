@@ -3,6 +3,7 @@ package agentsessions
 import (
 	"swarm-manager/internal/identity"
 
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
 )
@@ -100,6 +101,30 @@ func artifactToProto(artifact Artifact) *domainpb.AgentSessionArtifact {
 		msg.Attribution = AttributionToProto(*artifact.Attribution)
 	}
 	return msg
+}
+
+func runEventToProto(event RunEvent) *apipb.AgentSessionRunEvent {
+	return &apipb.AgentSessionRunEvent{
+		Id:              event.ID,
+		RunId:           event.RunID,
+		Sequence:        event.Sequence,
+		CreatedAt:       event.CreatedAt,
+		EventType:       event.EventType,
+		Role:            event.Role,
+		Content:         event.Content,
+		ToolName:        event.ToolName,
+		ToolCallId:      event.ToolCallID,
+		Input:           event.Input,
+		Output:          event.Output,
+		Error:           event.Error,
+		Status:          event.Status,
+		PreviousStatus:  event.PreviousStatus,
+		ProgressPhase:   event.ProgressPhase,
+		ProgressPercent: event.ProgressPercent,
+		ProgressMessage: event.ProgressMessage,
+		Summary:         event.Summary,
+		RawJson:         event.RawJSON,
+	}
 }
 
 func SessionToProto(session Session) *domainpb.AgentSession {

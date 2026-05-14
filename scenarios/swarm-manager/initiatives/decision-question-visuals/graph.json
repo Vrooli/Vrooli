@@ -1,6 +1,6 @@
 {
   "initiative": "decision-question-visuals",
-  "generated_at": "2026-04-24T01:47:55Z",
+  "generated_at": "2026-05-14T22:07:35Z",
   "nodes": [
     {
       "id": "execute/workshop-option-image-schema",
@@ -51,12 +51,12 @@
     },
     {
       "from": "execute/workshop-skill-image-guidance",
-      "to": "execute/workshop-option-image-schema",
+      "to": "execute/image-generation-toggle-setting",
       "kind": "depends_on"
     },
     {
       "from": "execute/workshop-skill-image-guidance",
-      "to": "execute/image-generation-toggle-setting",
+      "to": "execute/workshop-option-image-schema",
       "kind": "depends_on"
     }
   ]

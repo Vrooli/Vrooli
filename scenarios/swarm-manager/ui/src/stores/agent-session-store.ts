@@ -4,6 +4,8 @@ import {
   type CreateAgentSessionArgs,
   type ContinueAgentSessionArgs,
   type IAgentSessionService,
+  type ListAgentSessionEventsArgs,
+  type ListAgentSessionEventsResult,
   type ListAgentSessionsFilters,
 } from "../services/agent-session-service";
 import type { AgentSession, AgentSessionArtifact } from "../types";
@@ -24,6 +26,7 @@ const PERSIST_CONFIG: StorePersistConfig = {
 };
 
 const ACTIVE_STATUSES = new Set<AgentSession["status"]>([
+  "draft",
   "starting",
   "running",
   "waiting_for_user",
@@ -42,7 +45,9 @@ interface AgentSessionStoreState {
   fetchSessions: (filters?: ListAgentSessionsFilters, options?: { force?: boolean }) => Promise<void>;
   loadSession: (sessionId: string) => Promise<AgentSession>;
   createSession: (args: CreateAgentSessionArgs) => Promise<AgentSession>;
+  startSession: (args: ContinueAgentSessionArgs) => Promise<AgentSession>;
   continueSession: (args: ContinueAgentSessionArgs) => Promise<AgentSession>;
+  listSessionEvents: (args: ListAgentSessionEventsArgs) => Promise<ListAgentSessionEventsResult>;
   refreshSession: (sessionId: string) => Promise<AgentSession>;
   cancelSession: (sessionId: string) => Promise<AgentSession>;
   deleteSession: (sessionId: string) => Promise<void>;
@@ -146,6 +151,24 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
     }
   },
 
+  startSession: async (args): Promise<AgentSession> => {
+    set({ isMutating: true, error: null });
+    try {
+      const session = await service.start(args);
+      set((state) => ({
+        sessions: upsertSession(state.sessions, session),
+        isMutating: false,
+      }));
+      return session;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error : new Error("Unable to start agent session."),
+        isMutating: false,
+      });
+      throw error;
+    }
+  },
+
   continueSession: async (args): Promise<AgentSession> => {
     set({ isMutating: true, error: null });
     try {
@@ -162,6 +185,10 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
       });
       throw error;
     }
+  },
+
+  listSessionEvents: async (args): Promise<ListAgentSessionEventsResult> => {
+    return service.listEvents(args);
   },
 
   refreshSession: async (sessionId): Promise<AgentSession> => {

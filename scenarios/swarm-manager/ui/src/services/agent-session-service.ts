@@ -7,6 +7,7 @@ import type {
   AgentSessionArtifact,
   AgentSessionArtifactType,
   AgentSessionKind,
+  AgentSessionRunEvent,
   AgentSessionStatus,
 } from "../types";
 import {
@@ -17,13 +18,16 @@ import {
   deleteAgentSessionResponseSchema,
   getAgentSessionResponseSchema,
   getArtifactsByEntityResponseSchema,
+  listAgentSessionEventsResponseSchema,
   listAgentSessionArtifactsResponseSchema,
   listAgentSessionsResponseSchema,
   mapProtoAgentSession,
   mapProtoAgentSessionArtifact,
+  mapProtoAgentSessionRunEvent,
   parseProtoResponse,
   refreshAgentSessionResponseSchema,
   requireProtoField,
+  startAgentSessionResponseSchema,
 } from "./proto-contracts";
 
 export interface ListAgentSessionsFilters {
@@ -36,7 +40,6 @@ export interface ListAgentSessionsFilters {
 export interface CreateAgentSessionArgs {
   kind: AgentSessionKind;
   title: string;
-  initialMessage: string;
   initiative?: string;
 }
 
@@ -51,11 +54,25 @@ export interface ApplyAgentSessionProposalResult {
   artifacts: AgentSessionArtifact[];
 }
 
+export interface ListAgentSessionEventsArgs {
+  sessionId: string;
+  afterSequence?: bigint;
+  limit?: number;
+}
+
+export interface ListAgentSessionEventsResult {
+  events: AgentSessionRunEvent[];
+  hasMore: boolean;
+  nextAfterSequence: bigint;
+}
+
 export interface IAgentSessionService {
   list(filters?: ListAgentSessionsFilters): Promise<AgentSession[]>;
   get(sessionId: string): Promise<AgentSession>;
   create(args: CreateAgentSessionArgs): Promise<AgentSession>;
+  start(args: ContinueAgentSessionArgs): Promise<AgentSession>;
   continue(args: ContinueAgentSessionArgs): Promise<AgentSession>;
+  listEvents(args: ListAgentSessionEventsArgs): Promise<ListAgentSessionEventsResult>;
   refresh(sessionId: string): Promise<AgentSession>;
   cancel(sessionId: string): Promise<AgentSession>;
   delete(sessionId: string): Promise<string>;
@@ -88,10 +105,19 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
       const data = await apiClient.post<unknown>(API_ENDPOINTS.agentSessions, {
         kind: args.kind,
         title: args.title,
-        initial_message: args.initialMessage,
         ...(args.initiative ? { initiative: args.initiative } : {}),
       });
       const parsed = parseProtoResponse(createAgentSessionResponseSchema, data, "agent session create");
+      return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
+    },
+
+    async start(args: ContinueAgentSessionArgs): Promise<AgentSession> {
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.agentSessionStart(args.sessionId), {
+        session_id: args.sessionId,
+        message: args.message,
+        attachment_ids: args.attachmentIds ?? [],
+      });
+      const parsed = parseProtoResponse(startAgentSessionResponseSchema, data, "agent session start");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
     },
 
@@ -103,6 +129,20 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
       });
       const parsed = parseProtoResponse(continueAgentSessionResponseSchema, data, "agent session continue");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
+    },
+
+    async listEvents(args: ListAgentSessionEventsArgs): Promise<ListAgentSessionEventsResult> {
+      const suffix = buildQueryString({
+        after_sequence: args.afterSequence?.toString(),
+        limit: args.limit,
+      });
+      const data = await apiClient.get<unknown>(`${API_ENDPOINTS.agentSessionEvents(args.sessionId)}${suffix}`);
+      const parsed = parseProtoResponse(listAgentSessionEventsResponseSchema, data, "agent session events");
+      return {
+        events: parsed.events.map(mapProtoAgentSessionRunEvent),
+        hasMore: parsed.hasMore,
+        nextAfterSequence: parsed.nextAfterSequence,
+      };
     },
 
     async refresh(sessionId: string): Promise<AgentSession> {

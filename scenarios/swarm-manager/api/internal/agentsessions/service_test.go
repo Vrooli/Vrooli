@@ -10,21 +10,52 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/identity"
+
+	agentdomainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestServiceCreateSpawnsSessionWithEnvironmentAndActivitySpec(t *testing.T) {
+func TestServiceCreateMakesDraftWithoutSpawning(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
 
 	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
 	svc := newTestService(t, spawner)
 	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindMetaOrchestration,
-		Title:          "Plan quality gates",
-		InitialMessage: "Plan this work.",
+		Kind:  KindMetaOrchestration,
+		Title: "Plan quality gates",
 	})
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
+	}
+	if session.Status != StatusDraft || session.RunID != "" || session.TaskID != "" || len(session.Messages) != 0 {
+		t.Fatalf("unexpected session: %+v", session)
+	}
+	if spawner.spawnCalls != 0 {
+		t.Fatalf("spawn calls = %d, want 0", spawner.spawnCalls)
+	}
+}
+
+func TestServiceStartSpawnsSessionWithFirstMessageEnvironmentAndActivitySpec(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+	svc := newTestService(t, spawner)
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  KindMetaOrchestration,
+		Title: "Plan quality gates",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	session, err := svc.Start(context.Background(), ContinueRequest{
+		SessionID: draft.ID,
+		Message:   "Plan this work.",
+	})
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
 	}
 	if session.Status != StatusRunning || session.RunID != "run-1" || session.TaskID != "task-1" {
 		t.Fatalf("unexpected session: %+v", session)
@@ -52,14 +83,7 @@ func TestServiceContinueAppendsMessageAndUsesTrackedContinuation(t *testing.T) {
 
 	spawner := &fakeSessionSpawner{}
 	svc := newTestService(t, spawner)
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindOperatingModeAuthoring,
-		Title:          "Author mode",
-		InitialMessage: "Draft a mode.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindOperatingModeAuthoring, "Author mode", "Draft a mode.")
 
 	continued, err := svc.Continue(context.Background(), ContinueRequest{
 		SessionID: session.ID,
@@ -84,14 +108,7 @@ func TestServiceResolveSessionForRun(t *testing.T) {
 	defer restoreClock()
 
 	svc := newTestService(t, &fakeSessionSpawner{})
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindMetaOrchestration,
-		Title:          "Plan quality gates",
-		InitialMessage: "Plan this work.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Plan quality gates", "Plan this work.")
 
 	ref, ok, err := svc.ResolveSessionForRun(context.Background(), "run-1")
 	if err != nil {
@@ -115,14 +132,7 @@ func TestServiceRefreshAndCancelUpdateLifecycle(t *testing.T) {
 
 	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "complete", Summary: "Final handoff."}}
 	svc := newTestService(t, spawner)
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindMetaOrchestration,
-		Title:          "Plan",
-		InitialMessage: "Plan.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Plan", "Plan.")
 
 	refreshed, err := svc.Refresh(context.Background(), session.ID)
 	if err != nil {
@@ -158,14 +168,7 @@ func TestServiceRefreshMapsFailedRunAndIsIdempotent(t *testing.T) {
 
 	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "failed", ErrorMsg: "sandbox process ended without exit info"}}
 	svc := newTestService(t, spawner)
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindMetaOrchestration,
-		Title:          "Plan",
-		InitialMessage: "Plan.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Plan", "Plan.")
 
 	refreshed, err := svc.Refresh(context.Background(), session.ID)
 	if err != nil {
@@ -190,20 +193,67 @@ func TestServiceRefreshMapsFailedRunAndIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestServiceListEventsReturnsEmptyForDraftAndMapsRunEvents(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{}
+	svc := newTestService(t, spawner)
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  KindMetaOrchestration,
+		Title: "Plan",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	empty, err := svc.ListEvents(context.Background(), ListEventsRequest{SessionID: draft.ID})
+	if err != nil {
+		t.Fatalf("ListEvents(draft) error = %v", err)
+	}
+	if len(empty.Events) != 0 {
+		t.Fatalf("draft events = %+v, want empty", empty.Events)
+	}
+
+	spawner.events = []*agentdomainpb.RunEvent{
+		{
+			Id:        "evt-1",
+			RunId:     "run-1",
+			Sequence:  7,
+			EventType: agentdomainpb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL,
+			Timestamp: timestamppb.New(time.Date(2026, 5, 1, 12, 3, 0, 0, time.UTC)),
+			Data: &agentdomainpb.RunEvent_ToolCall{ToolCall: &agentdomainpb.ToolCallEventData{
+				ToolName:   "Read",
+				ToolCallId: "call-1",
+				Input:      mustStruct(t, map[string]any{"file": "AGENTS.md"}),
+			}},
+		},
+	}
+	started, err := svc.Start(context.Background(), ContinueRequest{SessionID: draft.ID, Message: "Plan."})
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	result, err := svc.ListEvents(context.Background(), ListEventsRequest{SessionID: started.ID, AfterSequence: 3, Limit: 25})
+	if err != nil {
+		t.Fatalf("ListEvents(started) error = %v", err)
+	}
+	if spawner.eventsAfterSequence != 3 || spawner.eventsLimit != 25 {
+		t.Fatalf("event cursor = %d/%d", spawner.eventsAfterSequence, spawner.eventsLimit)
+	}
+	if len(result.Events) != 1 || result.Events[0].EventType != "tool_call" || result.Events[0].ToolName != "Read" {
+		t.Fatalf("events = %+v", result.Events)
+	}
+	if result.NextAfterSequence != 7 {
+		t.Fatalf("next sequence = %d, want 7", result.NextAfterSequence)
+	}
+}
+
 func TestServiceDeleteStopsActiveRunBeforeRemovingSession(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
 
 	spawner := &fakeSessionSpawner{}
 	svc := newTestService(t, spawner)
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindMetaOrchestration,
-		Title:          "Plan",
-		InitialMessage: "Plan.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Plan", "Plan.")
 
 	if err := svc.Delete(context.Background(), session.ID); err != nil {
 		t.Fatalf("Delete() error = %v", err)
@@ -222,14 +272,7 @@ func TestServiceDeleteStopFailureLeavesSessionStored(t *testing.T) {
 
 	spawner := &fakeSessionSpawner{stopErr: errors.New("stop failed")}
 	svc := newTestService(t, spawner)
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindMetaOrchestration,
-		Title:          "Plan",
-		InitialMessage: "Plan.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Plan", "Plan.")
 
 	if err := svc.Delete(context.Background(), session.ID); err == nil {
 		t.Fatal("Delete() error = nil, want stop failure")
@@ -245,14 +288,7 @@ func TestServiceDeleteTerminalSessionDoesNotStopRun(t *testing.T) {
 
 	spawner := &fakeSessionSpawner{}
 	svc := newTestService(t, spawner)
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindMetaOrchestration,
-		Title:          "Plan",
-		InitialMessage: "Plan.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Plan", "Plan.")
 	session.Status = StatusComplete
 	if err := svc.store.SaveSession(session); err != nil {
 		t.Fatalf("SaveSession() error = %v", err)
@@ -273,14 +309,7 @@ func TestServiceApplyBacklogBatchImportProposalUsesSessionAttribution(t *testing
 	applier := &fakeBacklogBatchApplier{}
 	svc := newTestService(t, &fakeSessionSpawner{})
 	svc.SetBacklogBatchApplier(applier)
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindMetaOrchestration,
-		Title:          "Plan",
-		InitialMessage: "Plan.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Plan", "Plan.")
 	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
 		ID:          "prop-1",
 		Kind:        ProposalBacklogBatchImport,
@@ -323,14 +352,7 @@ func TestServiceAttachArtifactsPersistsBatchAtomically(t *testing.T) {
 	defer restoreClock()
 
 	svc := newTestService(t, &fakeSessionSpawner{})
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindMetaOrchestration,
-		Title:          "Plan",
-		InitialMessage: "Plan.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Plan", "Plan.")
 
 	artifacts, err := svc.AttachArtifacts(context.Background(), []Artifact{
 		{
@@ -366,14 +388,7 @@ func TestServiceApplyOperatingModeDraftRecordsProposalArtifact(t *testing.T) {
 	defer restoreClock()
 
 	svc := newTestService(t, &fakeSessionSpawner{})
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindOperatingModeAuthoring,
-		Title:          "Author mode",
-		InitialMessage: "Draft a mode.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindOperatingModeAuthoring, "Author mode", "Draft a mode.")
 	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
 		ID:          "prop-draft",
 		Kind:        ProposalOperatingModeDraft,
@@ -416,14 +431,7 @@ func TestServiceApplyOperatingModeImplementationPlanUsesBatchApplier(t *testing.
 	applier := &fakeBacklogBatchApplier{}
 	svc := newTestService(t, &fakeSessionSpawner{})
 	svc.SetBacklogBatchApplier(applier)
-	session, err := svc.Create(context.Background(), CreateRequest{
-		Kind:           KindOperatingModeAuthoring,
-		Title:          "Author mode",
-		InitialMessage: "Draft a mode.",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
+	session := createStartedSession(t, svc, KindOperatingModeAuthoring, "Author mode", "Draft a mode.")
 	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
 		ID:      "prop-plan",
 		Kind:    ProposalOperatingModeImplementationPlan,
@@ -484,6 +492,34 @@ func newTestService(t *testing.T, spawner *fakeSessionSpawner) *Service {
 	return svc
 }
 
+func createStartedSession(t *testing.T, svc *Service, kind Kind, title, message string) Session {
+	t.Helper()
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  kind,
+		Title: title,
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	session, err := svc.Start(context.Background(), ContinueRequest{
+		SessionID: draft.ID,
+		Message:   message,
+	})
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	return session
+}
+
+func mustStruct(t *testing.T, fields map[string]any) *structpb.Struct {
+	t.Helper()
+	value, err := structpb.NewStruct(fields)
+	if err != nil {
+		t.Fatalf("NewStruct() error = %v", err)
+	}
+	return value
+}
+
 type fakeBacklogBatchApplier struct {
 	payloadJSON string
 	provenance  identity.Provenance
@@ -503,17 +539,23 @@ func (f *fakeBacklogBatchApplier) ApplyAgentSessionBacklogBatchImport(_ context.
 }
 
 type fakeSessionSpawner struct {
-	spawnReq        agentmanager.SessionSpawnRequest
-	spawnSpec       agentactivity.Spec
-	continueRunID   string
-	continueMessage string
-	continueSpec    agentactivity.Spec
-	stoppedRunID    string
-	stopErr         error
-	runState        agentmanager.RunState
+	spawnCalls          int
+	spawnReq            agentmanager.SessionSpawnRequest
+	spawnSpec           agentactivity.Spec
+	continueRunID       string
+	continueMessage     string
+	continueSpec        agentactivity.Spec
+	stoppedRunID        string
+	stopErr             error
+	runState            agentmanager.RunState
+	events              []*agentdomainpb.RunEvent
+	eventsHasMore       bool
+	eventsAfterSequence int64
+	eventsLimit         int32
 }
 
 func (f *fakeSessionSpawner) SpawnSession(ctx context.Context, req agentmanager.SessionSpawnRequest) (agentmanager.RunResult, error) {
+	f.spawnCalls++
 	f.spawnReq = req
 	f.spawnSpec = mustSpecFromContext(ctx)
 	return agentmanager.RunResult{TaskID: "task-1", RunID: "run-1"}, nil
@@ -531,6 +573,12 @@ func (f *fakeSessionSpawner) GetRunState(context.Context, string) (agentmanager.
 		return agentmanager.RunState{Status: "running"}, nil
 	}
 	return f.runState, nil
+}
+
+func (f *fakeSessionSpawner) GetRunEvents(_ context.Context, _ string, opts agentmanager.RunEventsOptions) ([]*agentdomainpb.RunEvent, bool, error) {
+	f.eventsAfterSequence = opts.AfterSequence
+	f.eventsLimit = opts.Limit
+	return f.events, f.eventsHasMore, nil
 }
 
 func (f *fakeSessionSpawner) StopRun(_ context.Context, runID string) error {

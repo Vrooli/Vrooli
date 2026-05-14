@@ -6,7 +6,7 @@
   "created_by": {
     "type": "operator"
   },
-  "description": "Dimension: tests (failed 4/11). Readiness: yellow.\n\nTop affected files:\n- scenarios/swarm-manager/api/eventlog_setup.go\n- scenarios/swarm-manager/api/internal/dispatch\n- scenarios/swarm-manager/api/internal/logging\n- scenarios/swarm-manager/cli/cmd\n- scenarios/swarm-manager/cli/go.mod\n\nWorst violation example: api/eventlog_setup.go uses sql.Open without api-core database.Connect (high severity).\n\nSuccess target: tests pass 11/11; type errors=0; docs validation passes; ui smoke passes after restart; standards high violations=0.\n\nRepro: git-control-tower review-run swarm-manager --json\n\nContract:\ntargetScenario: swarm-manager\nproblemOrOpportunity: Tests failing in standards, lint, docs, and smoke phases block readiness.\nproposedAction: Resolve high severity standards issues, fix type errors, repair docs validation, and restart UI bundle before smoke.\nevidence: GCT review job 14ca47e3-0748-4480-931e-cf7970a3f481 shows 4 failing phases.\nriskLevel: high\nexecutionModeHint: fix\ncreatedByTeam: scenario-qa\nsourceRunId: 14ca47e3-0748-4480-931e-cf7970a3f481",
+  "description": "Fresh GCT readiness review job f9d0b0b6-8493-4fc9-81fb-4d5330c8e696 on 2026-05-14T22:02:21Z classified swarm-manager as red, but the tests check was skipped because GCT reported test-genie capability as false. This supersedes the older 2026-04-08 evidence that tests failed 4/11; the stale failure details should not be treated as current without rerunning once test-genie capability is restored. Standards still report 25 warnings, mainly Missing Test File findings in api/internal/dispatch, fileserve, logging, runtimepaths, and testutil/assertx, which are now covered by companion item fix/qa-swarm-manager-standards-20260408.\n\nSuccess target: GCT can run the swarm-manager tests dimension again; `git-control-tower review run swarm-manager --json` reports tests available with nonzero total, and any real failing phases are fixed or split into fresh evidence-rich follow-up backlog items.\n\nContract:\ntargetScenario: swarm-manager\nproblemOrOpportunity: Current GCT cannot provide actionable swarm-manager test-phase evidence because tests are skipped when test-genie is reported unavailable. Older 4/11 failure evidence is stale.\nproposedAction: After the GCT/test-genie capability issue is triaged, rerun swarm-manager tests and update this item or split concrete failures by phase.\nevidence: GCT review job f9d0b0b6-8493-4fc9-81fb-4d5330c8e696, timestamp 2026-05-14T22:02:22Z, checks.tests=skipped and capabilities.test-genie=false. Related bug filed as bug-inbox/unknown/gct-test-capability-inconsistent.\nriskLevel: medium\nexecutionModeHint: fix\ncreatedByTeam: scenario-qa\nsourceRunId: f9d0b0b6-8493-4fc9-81fb-4d5330c8e696",
   "kind": "fix",
   "name": "qa-swarm-manager-tests-20260408",
   "priority": 4,
@@ -17,5 +17,5 @@
     "tests"
   ],
   "title": "Fix failing tests and smoke checks in swarm-manager",
-  "updated": "2026-04-08T04:13:17Z"
+  "updated": "2026-05-14T22:03:50Z"
 }

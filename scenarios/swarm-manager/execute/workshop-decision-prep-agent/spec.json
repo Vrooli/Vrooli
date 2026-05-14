@@ -6,7 +6,8 @@
   "archived_at": "2026-04-26T20:39:01Z",
   "created": "2026-04-22T20:27:45Z",
   "depends_on": [
-    "execute/swarm-manager-pending-questions-priority-sort"
+    "execute/swarm-manager-pending-questions-priority-sort",
+    "fix/qa-prompt-manager-standards-20260514"
   ],
   "description": "New director-swarm member that eagerly stages workshop-decision briefs for the new sync skill.\n\nFiles to create under scenarios/prompt-manager/store/teams/director-swarm/members/workshop-decision-prep/:\n- heartbeat.json: cron '0 */3 * * *' (every 3 hours)\n- HEARTBEAT.md: instructions + early-return-at-K pattern ported from portfolio-manager/HEARTBEAT.md\n- RESPONSIBILITIES.md: scope statement (read-only prep; no side effects on backlog items)\n- last-handoff.md: initialized empty with format header\n\nBehavior:\n1. Call `swarm-manager backlog pending-questions --source workshop --json` to get priority-ordered open workshop questions.\n2. Early-return if last-handoff.md already holds ≥ 15 briefs whose content hashes still match current state (verify by recomputing SHA-256 of canonical-form topic+context+options JSON for each cached entry against fresh pending-questions output).\n3. For top K (default 15, max 20) missing/stale questions, enrich each with:\n   - Initiative summary (1–2 sentences pulled from initiative metadata)\n   - Backlog-item summary (2–3 sentences from item description + workshop context)\n   - 2–4 anticipated clarifying questions with pre-answered responses drawn from the item's workshop round and description\n   - SHA-256 content hash\n   - Any prior clarification thread's LatestImpact.ContextNote if present (feed-forward from async clarifications resolved since last run)\n4. Group output in last-handoff.md by initiative → backlog item → decisions, narrative-ordered (not markdown-table-dumped).\n\nAlso register the new member in scenarios/prompt-manager/store/teams/director-swarm/TEAM.md.",
   "effort": "M",
@@ -17,5 +18,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Create workshop-decision-prep director-swarm member",
-  "updated": "2026-04-26T20:39:01Z"
+  "updated": "2026-05-14T22:07:23Z"
 }

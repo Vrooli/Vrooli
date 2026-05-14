@@ -24,9 +24,8 @@ func TestHandlerCreateUsesProtoJSONContract(t *testing.T) {
 	NewHandler(newTestService(t, &fakeSessionSpawner{})).RegisterRoutes(router)
 
 	body := marshalAgentSessionProto(t, &apipb.CreateAgentSessionRequest{
-		Kind:           string(KindMetaOrchestration),
-		Title:          "Plan work",
-		InitialMessage: "Plan the next initiative.",
+		Kind:  string(KindMetaOrchestration),
+		Title: "Plan work",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/agent-sessions", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
@@ -39,8 +38,8 @@ func TestHandlerCreateUsesProtoJSONContract(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"kind":"meta_orchestration"`) {
 		t.Fatalf("response did not use proto field contract: %s", rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"run_id":"run-1"`) {
-		t.Fatalf("response missing run id: %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), `"status":"draft"`) {
+		t.Fatalf("response missing draft status: %s", rec.Body.String())
 	}
 }
 
@@ -57,10 +56,9 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 	NewHandler(svc).RegisterRoutes(router)
 
 	createBody := marshalAgentSessionProto(t, &apipb.CreateAgentSessionRequest{
-		Kind:           string(KindOperatingModeAuthoring),
-		Title:          "Author mode",
-		InitialMessage: "Draft an operating mode.",
-		Initiative:     proto.String("mode-authoring"),
+		Kind:       string(KindOperatingModeAuthoring),
+		Title:      "Author mode",
+		Initiative: proto.String("mode-authoring"),
 	})
 	createRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions", createBody)
 	if createRec.Code != http.StatusCreated {
@@ -72,6 +70,9 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 	if sessionID == "" {
 		t.Fatalf("created session id is empty: %+v", createResp.GetSession())
 	}
+	if createResp.GetSession().GetRunId() != "" || createResp.GetSession().GetStatus() != string(StatusDraft) {
+		t.Fatalf("created session should be draft without run: %+v", createResp.GetSession())
+	}
 
 	listRec := serveAgentSessionRequest(router, http.MethodGet, "/api/v1/agent-sessions?kind=operating_mode_authoring&active_only=true&limit=10", nil)
 	if listRec.Code != http.StatusOK {
@@ -81,6 +82,19 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 	unmarshalAgentSessionProto(t, listRec, &listResp)
 	if len(listResp.GetSessions()) != 1 || listResp.GetSessions()[0].GetId() != sessionID {
 		t.Fatalf("list response = %+v", listResp.GetSessions())
+	}
+
+	startBody := marshalAgentSessionProto(t, &apipb.StartAgentSessionRequest{
+		Message: "Draft an operating mode.",
+	})
+	startRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions/"+sessionID+"/start", startBody)
+	if startRec.Code != http.StatusOK {
+		t.Fatalf("start status = %d, body = %s", startRec.Code, startRec.Body.String())
+	}
+	var startResp apipb.StartAgentSessionResponse
+	unmarshalAgentSessionProto(t, startRec, &startResp)
+	if startResp.GetSession().GetRunId() != "run-1" || startResp.GetSession().GetStatus() != string(StatusRunning) {
+		t.Fatalf("start response = %+v", startResp.GetSession())
 	}
 
 	continueBody := marshalAgentSessionProto(t, &apipb.ContinueAgentSessionRequest{
@@ -180,9 +194,8 @@ func TestHandlerDeleteStopsActiveRunAndRejectsInvalidIDs(t *testing.T) {
 	NewHandler(svc).RegisterRoutes(router)
 
 	createBody := marshalAgentSessionProto(t, &apipb.CreateAgentSessionRequest{
-		Kind:           string(KindMetaOrchestration),
-		Title:          "Plan work",
-		InitialMessage: "Plan the next initiative.",
+		Kind:  string(KindMetaOrchestration),
+		Title: "Plan work",
 	})
 	createRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions", createBody)
 	if createRec.Code != http.StatusCreated {
@@ -191,7 +204,14 @@ func TestHandlerDeleteStopsActiveRunAndRejectsInvalidIDs(t *testing.T) {
 	var createResp apipb.CreateAgentSessionResponse
 	unmarshalAgentSessionProto(t, createRec, &createResp)
 	sessionID := createResp.GetSession().GetId()
-	runID := createResp.GetSession().GetRunId()
+	startBody := marshalAgentSessionProto(t, &apipb.StartAgentSessionRequest{Message: "Plan the next initiative."})
+	startRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions/"+sessionID+"/start", startBody)
+	if startRec.Code != http.StatusOK {
+		t.Fatalf("start status = %d, body = %s", startRec.Code, startRec.Body.String())
+	}
+	var startResp apipb.StartAgentSessionResponse
+	unmarshalAgentSessionProto(t, startRec, &startResp)
+	runID := startResp.GetSession().GetRunId()
 
 	deleteRec := serveAgentSessionRequest(router, http.MethodDelete, "/api/v1/agent-sessions/"+sessionID, nil)
 	if deleteRec.Code != http.StatusOK {
@@ -216,7 +236,7 @@ func TestHandlerRejectsInvalidCreateRequest(t *testing.T) {
 	router := mux.NewRouter()
 	NewHandler(newTestService(t, &fakeSessionSpawner{})).RegisterRoutes(router)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/agent-sessions", strings.NewReader(`{"kind":"custom","title":"Bad","initial_message":"No"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/agent-sessions", strings.NewReader(`{"kind":"custom","title":"Bad"}`))
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)

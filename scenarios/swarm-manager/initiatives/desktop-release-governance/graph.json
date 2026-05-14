@@ -1,6 +1,6 @@
 {
   "initiative": "desktop-release-governance",
-  "generated_at": "2026-04-24T01:47:55Z",
+  "generated_at": "2026-05-14T22:07:25Z",
   "nodes": [
     {
       "id": "research/desktop-release-control-plane-audit",
@@ -221,12 +221,12 @@
     },
     {
       "from": "execute/landing-page-desktop-upload-guided-remediation-rewrite",
-      "to": "execute/deployment-manager-release-typed-remediation-errors",
+      "to": "execute/deployment-manager-release-preflight-endpoint",
       "kind": "depends_on"
     },
     {
       "from": "execute/landing-page-desktop-upload-guided-remediation-rewrite",
-      "to": "execute/deployment-manager-release-preflight-endpoint",
+      "to": "execute/deployment-manager-release-typed-remediation-errors",
       "kind": "depends_on"
     },
     {

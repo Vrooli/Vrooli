@@ -406,7 +406,7 @@ func matchesListFilters(session Session, filters ListFilters) bool {
 
 func isActiveSessionStatus(status Status) bool {
 	switch status {
-	case StatusStarting, StatusRunning, StatusWaitingForUser, StatusProposalReady, StatusApplying:
+	case StatusDraft, StatusStarting, StatusRunning, StatusWaitingForUser, StatusProposalReady, StatusApplying:
 		return true
 	default:
 		return false

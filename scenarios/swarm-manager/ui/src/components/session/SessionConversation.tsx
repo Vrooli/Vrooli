@@ -3,7 +3,7 @@ import { ChatComposer } from "../chat/ChatComposer";
 import { ChatThread } from "../chat/ChatThread";
 import { formatRelativeTime } from "../../lib/format-utils";
 import { cn } from "../../lib/utils";
-import type { AgentSessionMessage } from "../../types";
+import type { AgentSessionKind, AgentSessionMessage, AgentSessionStatus } from "../../types";
 import type { ChatMessageView } from "../chat/chat-types";
 
 interface SessionConversationProps {
@@ -13,6 +13,8 @@ interface SessionConversationProps {
   onSend: () => void;
   isMutating: boolean;
   isWaitingForAgent: boolean;
+  sessionKind: AgentSessionKind;
+  sessionStatus: AgentSessionStatus;
   variant?: "desktop" | "mobile";
 }
 
@@ -23,8 +25,17 @@ export function SessionConversation({
   onSend,
   isMutating,
   isWaitingForAgent,
+  sessionKind,
+  sessionStatus,
   variant = "desktop",
 }: SessionConversationProps) {
+  const isDraft = sessionStatus === "draft";
+  const placeholder = isDraft
+    ? sessionKind === "operating_mode_authoring"
+      ? "Describe the recurring agent workflow you want to author..."
+      : "Describe what you want to plan..."
+    : "Continue this session...";
+
   const sortedMessages = useMemo(
     () => [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
     [messages],
@@ -53,8 +64,8 @@ export function SessionConversation({
       {variant === "desktop" && <div className="border-b border-white/10 px-3 py-2 text-xs font-medium text-slate-300">Conversation</div>}
       <ChatThread
         messages={chatMessages}
-        isWaiting={isWaitingForAgent}
-        emptyLabel="No messages recorded yet."
+        isWaiting={!isDraft && isWaitingForAgent}
+        emptyLabel={isDraft ? "Start with the real context you want the agent to use." : "No messages recorded yet."}
         accent="cyan"
         className={cn("p-3", variant === "mobile" && "px-1 pb-32")}
         testId="agent-session-messages"
@@ -77,7 +88,7 @@ export function SessionConversation({
           onSubmit={onSend}
           disabled={isMutating}
           isSubmitting={isMutating}
-          placeholder="Continue this session..."
+          placeholder={placeholder}
           submitLabel="Send"
           testId="agent-session-composer"
         />

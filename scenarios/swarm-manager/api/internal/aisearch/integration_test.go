@@ -63,7 +63,7 @@ func buildTestService(t *testing.T, embedder Embedder, qdrantURL string) (*Servi
 }
 
 func TestIntegration_BacklogSave_FiresIndexUpsert(t *testing.T) {
-qStub := &qdrantStub{}
+	qStub := &qdrantStub{}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
@@ -80,7 +80,7 @@ qStub := &qdrantStub{}
 }
 
 func TestIntegration_BacklogDelete_FiresIndexDelete(t *testing.T) {
-qStub := &qdrantStub{}
+	qStub := &qdrantStub{}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
@@ -105,7 +105,7 @@ qStub := &qdrantStub{}
 }
 
 func TestIntegration_InitiativeSave_FiresIndexUpsert(t *testing.T) {
-qStub := &qdrantStub{}
+	qStub := &qdrantStub{}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
@@ -123,7 +123,7 @@ qStub := &qdrantStub{}
 func TestIntegration_QdrantFailure_DoesNotBreakCRUD(t *testing.T) {
 	// Core fire-and-forget invariant: CRUD must succeed even when Qdrant
 	// returns 500 on every call.
-qServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	qServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer qServer.Close()
@@ -165,7 +165,7 @@ func TestIntegration_OllamaEmpty_CRUDStillSucceeds(t *testing.T) {
 }
 
 func TestIntegration_Status_ReflectsOnDiskCounts(t *testing.T) {
-qStub := &qdrantStub{count: 0}
+	qStub := &qdrantStub{count: 0}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 

@@ -15,10 +15,19 @@ closely:
   to `/sessions/:sessionId` after successful creation.
 - Session details uses shared chat primitives instead of page-local transcript
   rendering.
+- Agent-session launchers are compose-first: graph actions create a `draft`
+  session and route immediately to details without a canned initial message.
+  `SessionConversation` starts draft sessions from the first submitted message
+  and uses kind-specific composer placeholders.
+- Active session details expose `SessionEventTimeline` in the desktop
+  inspector and mobile tabs. The page loads events through
+  `useAgentSessionEvents`, which polls only active runs and keeps event data out
+  of the generic chat components.
 - Desktop uses a collapsible, resizable right-side inspector for proposals,
-  artifacts, and metadata.
+  events, proposals, artifacts, and metadata.
 - Mobile uses full-page tabs for Conversation, Proposals, Artifacts, and
-  Details instead of stacking secondary content below the conversation.
+  Details instead of stacking secondary content below the conversation. Active
+  runs also show an Events tab.
 - Header actions are shared through `components/session/SessionActionsMenu.tsx`:
   desktop keeps routine refresh/cancel inline and places destructive deletion in
   the ellipsis menu, while mobile keeps refresh/cancel/delete in the header

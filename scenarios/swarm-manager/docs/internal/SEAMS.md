@@ -131,9 +131,18 @@ and page assembly only.
   only shared UI/lib/hooks. It must not import backlog, review, or session
   domain modules. Markdown rendering stays centralized through
   `lib/render-markdown.ts`.
+- **Compose-first boundary**: `POST /api/v1/agent-sessions` creates only a
+  `draft` session. `POST /api/v1/agent-sessions/{session_id}/start` is the only
+  path that turns the first real operator message into an Agent Manager spawn.
+  Subsequent sends continue through `/continue`.
+- **Run-event reader seam**: `agentsessions.Service` depends on a narrow
+  `RunEventReader` interface and serves
+  `GET /api/v1/agent-sessions/{session_id}/events` from session ownership.
+  Draft/no-run sessions return an empty event list; active sessions proxy and
+  bound Agent Manager run events.
 - **Session presentation boundary**: `ui/src/components/session/` owns
-  session-specific layout and adapters: conversation mapping, inspector tabs,
-  proposals, artifacts, metadata, and artifact-to-node routing.
+  session-specific layout and adapters: conversation mapping, event timeline,
+  inspector tabs, proposals, artifacts, metadata, and artifact-to-node routing.
 - **Graph start boundary**: graph action orchestration remains in
   `GraphWorkspace`; `GraphActionLauncher` receives status/error props and does
   not call stores or routes directly.
@@ -1962,8 +1971,8 @@ being modeled as capture, backlog, or initiative subtypes.
 | Boundary | Location | Behavior | Test |
 |----------|----------|----------|------|
 | Session store | `api/internal/agentsessions/store.go` | Persists `agent-sessions/sess_*/session.json` snapshots plus append-only `messages.jsonl` and `artifacts.jsonl`, with proposal JSON files under `proposals/`. Lists are hydrated from those logs and sortable/filterable for the sidebar. | `agentsessions/store_test.go` |
-| Session service | `api/internal/agentsessions/service.go` | Owns create/list/get/continue/refresh/cancel/proposal/artifact operations. Spawns and continues runs through Agent Activity with `owner_type=session`, injects session environment variables, maps Agent Manager run status to session lifecycle state, persists run summaries as assistant transcript messages, and resolves `run_id -> session` for provenance enrichment. | `agentsessions/service_test.go` |
-| Session HTTP API | `api/internal/agentsessions/handler.go` | Thin proto-JSON HTTP boundary for `/api/v1/agent-sessions` and `/api/v1/artifacts/by-entity`. Proposal apply routes through typed service appliers instead of agents mutating entities directly. | `agentsessions/handler_test.go` |
+| Session service | `api/internal/agentsessions/service.go` | Owns create/list/get/start/continue/events/refresh/cancel/proposal/artifact operations. Create persists a draft; start spawns through Agent Activity with `owner_type=session`, injects session environment variables, maps Agent Manager run status to session lifecycle state, persists run summaries as assistant transcript messages, bounds run-event payloads, and resolves `run_id -> session` for provenance enrichment. | `agentsessions/service_test.go` |
+| Session HTTP API | `api/internal/agentsessions/handler.go` | Thin proto-JSON HTTP boundary for `/api/v1/agent-sessions`, `/start`, `/continue`, `/events`, and `/api/v1/artifacts/by-entity`. Proposal apply routes through typed service appliers instead of agents mutating entities directly. | `agentsessions/handler_test.go` |
 | Agent Activity session owner | `api/internal/agentactivity/types.go`, `api/internal/agentactivity/service.go` | Adds `OwnerSession` and session purposes so session-owned Agent Manager work is not mislabeled as initiative or backlog work. | `agentactivity` package tests plus `agentsessions/service_test.go` |
 | Agent Manager session spawn | `api/internal/agentmanager/service.go` | Adds `SessionSpawnRequest` and `SpawnSession` as a narrow concrete service method. The broad `agentmanager.Service` handler interface does not include it, preventing unrelated test doubles and consumers from depending on session spawning. | `agentmanager` package tests |
 | Session lifecycle events | `api/internal/eventlog/types.go`, `api/internal/eventlog/emitter.go` | Emits `agent_session.*` lifecycle, proposal, and artifact events through the existing eventlog pipeline so stats aggregate session adoption and outcomes from events rather than UI state. | `eventlog` package tests |

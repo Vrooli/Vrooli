@@ -12,6 +12,8 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/idgen"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 var errNotFound = errors.New("agent activity not found")
@@ -46,6 +48,10 @@ type runDiffer interface {
 	GetRunDiff(ctx context.Context, runID string) (agentmanager.RunDiff, error)
 }
 
+type runEventReader interface {
+	GetRunEvents(ctx context.Context, runID string, opts agentmanager.RunEventsOptions) ([]*domainpb.RunEvent, bool, error)
+}
+
 type ServiceConfig struct {
 	StorePath    string
 	AgentService rawAgentService
@@ -63,6 +69,7 @@ type Service struct {
 	agentService      rawAgentService
 	continuer         runContinuer
 	differ            runDiffer
+	eventReader       runEventReader
 	initiativeSpawner initiativeSpawner
 	sessionSpawner    sessionSpawner
 	lanePolicy        LanePolicy
@@ -81,6 +88,9 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	if differ, ok := cfg.AgentService.(runDiffer); ok {
 		svc.differ = differ
+	}
+	if reader, ok := cfg.AgentService.(runEventReader); ok {
+		svc.eventReader = reader
 	}
 	if spawner, ok := cfg.AgentService.(initiativeSpawner); ok {
 		svc.initiativeSpawner = spawner
@@ -212,6 +222,13 @@ func (s *Service) GetRunState(ctx context.Context, runID string) (agentmanager.R
 		return agentmanager.RunState{}, agentmanager.ErrNotAvailable
 	}
 	return s.agentService.GetRunState(ctx, runID)
+}
+
+func (s *Service) GetRunEvents(ctx context.Context, runID string, opts agentmanager.RunEventsOptions) ([]*domainpb.RunEvent, bool, error) {
+	if s.eventReader == nil {
+		return nil, false, agentmanager.ErrNotAvailable
+	}
+	return s.eventReader.GetRunEvents(ctx, runID, opts)
 }
 
 func (s *Service) GetRunDiff(ctx context.Context, runID string) (agentmanager.RunDiff, error) {

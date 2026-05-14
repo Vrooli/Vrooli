@@ -43,6 +43,7 @@ func (s *Server) registerInitiativeReviewRoutes(materializer *graph.Materializer
 		Lock:            lock,
 		ExecutionLookup: newInitiativeReviewExecutionAdapter(s.executionSvc, s.backlogHandler.Store()),
 		GCTClient:       newInitiativeReviewGCTAdapter(execution.NewHTTPReviewClient(nil)),
+		PromptClient:    s.promptClient,
 	})
 	if err != nil {
 		slog.Warn("initiative-review: build service", "err", err)

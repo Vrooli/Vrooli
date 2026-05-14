@@ -25,7 +25,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions", h.Create).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Get).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Delete).Methods(http.MethodDelete)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/start", h.Start).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/continue", h.Continue).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/events", h.ListEvents).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/refresh", h.Refresh).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/cancel", h.Cancel).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/apply", h.ApplyProposal).Methods(http.MethodPost)
@@ -74,9 +76,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	createReq := CreateRequest{
-		Kind:           Kind(req.Kind),
-		Title:          req.Title,
-		InitialMessage: req.InitialMessage,
+		Kind:  Kind(req.Kind),
+		Title: req.Title,
 	}
 	if req.Initiative != nil {
 		createReq.Initiative = req.GetInitiative()
@@ -88,6 +89,30 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, &apipb.CreateAgentSessionResponse{Session: SessionToProto(session)}); err != nil {
 		apierr.MapError(w, "[agent-sessions] create", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
+	var req apipb.StartAgentSessionRequest
+	if err := httputil.DecodeProtoJSONStrict(r, &req); err != nil {
+		apierr.MapError(w, "[agent-sessions] start", apierr.BadRequest("invalid request body: %s", err))
+		return
+	}
+	req.SessionId = mux.Vars(r)["session_id"]
+	if !httputil.ValidateProtoRequest(w, "[agent-sessions] start", "invalid agent session start request", &req) {
+		return
+	}
+	session, err := h.service.Start(r.Context(), ContinueRequest{
+		SessionID:     req.SessionId,
+		Message:       req.Message,
+		AttachmentIDs: req.AttachmentIds,
+	})
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] start", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, &apipb.StartAgentSessionResponse{Session: SessionToProto(session)}); err != nil {
+		apierr.MapError(w, "[agent-sessions] start", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -112,6 +137,29 @@ func (h *Handler) Continue(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := httputil.ProtoJSON(w, &apipb.ContinueAgentSessionResponse{Session: SessionToProto(session)}); err != nil {
 		apierr.MapError(w, "[agent-sessions] continue", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request) {
+	req, err := listEventsRequestFromQuery(r)
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] events", err)
+		return
+	}
+	result, err := h.service.ListEvents(r.Context(), req)
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] events", err)
+		return
+	}
+	resp := &apipb.ListAgentSessionEventsResponse{
+		HasMore:           result.HasMore,
+		NextAfterSequence: result.NextAfterSequence,
+	}
+	for _, event := range result.Events {
+		resp.Events = append(resp.Events, runEventToProto(event))
+	}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[agent-sessions] events", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -203,6 +251,26 @@ func (h *Handler) GetArtifactsByEntity(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[agent-sessions] artifacts-by-entity", apierr.Internal("failed to encode response"))
 	}
+}
+
+func listEventsRequestFromQuery(r *http.Request) (ListEventsRequest, error) {
+	q := r.URL.Query()
+	req := ListEventsRequest{SessionID: mux.Vars(r)["session_id"], Limit: 100}
+	if value := strings.TrimSpace(q.Get("after_sequence")); value != "" {
+		parsed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || parsed < 0 {
+			return ListEventsRequest{}, apierr.BadRequest("after_sequence must be zero or greater")
+		}
+		req.AfterSequence = parsed
+	}
+	if value := strings.TrimSpace(q.Get("limit")); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 1 || parsed > 1000 {
+			return ListEventsRequest{}, apierr.BadRequest("limit must be between 1 and 1000")
+		}
+		req.Limit = int32(parsed)
+	}
+	return req, nil
 }
 
 func listFiltersFromQuery(r *http.Request) (ListFilters, error) {

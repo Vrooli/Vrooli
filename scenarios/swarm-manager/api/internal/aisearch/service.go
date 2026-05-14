@@ -388,4 +388,3 @@ func (s *Service) Available(ctx context.Context) bool {
 	}
 	return true
 }
-

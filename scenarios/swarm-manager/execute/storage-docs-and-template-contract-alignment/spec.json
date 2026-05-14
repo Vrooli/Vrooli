@@ -8,6 +8,7 @@
   ],
   "created": "2026-04-22T03:16:42Z",
   "depends_on": [
+    "fix/qa-prompt-manager-standards-20260514",
     "research/backup-contract-defaults-and-exceptions-design"
   ],
   "description": "Update the canonical docs, prompt-manager skills, and any scenario/resource template guidance so new work naturally produces backup-compatible persistence. The goal is that default storage behavior just works, while exceptions are rare, declarative, and documented consistently.",
@@ -19,5 +20,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Align docs, skills, and templates with the backup contract",
-  "updated": "2026-04-22T03:16:42Z"
+  "updated": "2026-05-14T22:07:22Z"
 }

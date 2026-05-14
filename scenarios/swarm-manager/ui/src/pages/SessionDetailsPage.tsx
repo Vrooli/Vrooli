@@ -17,6 +17,7 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { SessionArtifactList } from "../components/session/SessionArtifactList";
 import { SessionConversation } from "../components/session/SessionConversation";
 import { SessionDeleteDialog } from "../components/session/SessionDeleteDialog";
+import { SessionEventTimeline } from "../components/session/SessionEventTimeline";
 import { SessionInspector } from "../components/session/SessionInspector";
 import { SessionMetadata } from "../components/session/SessionMetadata";
 import { SessionProposalList } from "../components/session/SessionProposalList";
@@ -33,6 +34,7 @@ import {
 import { cn } from "../lib/utils";
 import { formatDisplayText, formatRelativeTime } from "../lib/format-utils";
 import { useAgentSessionStore } from "../stores";
+import { useAgentSessionEvents } from "../hooks/useAgentSessionEvents";
 import { useAgentSessionPolling } from "../hooks/useAgentSessionPolling";
 import { useAppBack } from "../app/routes/useAppBack";
 import { detailPathFromNodeId } from "../app/routes/route-paths";
@@ -50,6 +52,7 @@ export function SessionDetailsPage() {
     s.sessions.find((session) => session.id === sessionId),
   );
   const loadSession = useAgentSessionStore((s) => s.loadSession);
+  const startSession = useAgentSessionStore((s) => s.startSession);
   const continueSession = useAgentSessionStore((s) => s.continueSession);
   const refreshSession = useAgentSessionStore((s) => s.refreshSession);
   const cancelSession = useAgentSessionStore((s) => s.cancelSession);
@@ -68,6 +71,7 @@ export function SessionDetailsPage() {
   });
 
   const session: AgentSession | undefined = storeSession ?? fetchedSession;
+  const { events, isLoading: eventsLoading, error: eventsError, refreshEvents } = useAgentSessionEvents(session);
 
   const [draft, setDraft] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
@@ -82,12 +86,16 @@ export function SessionDetailsPage() {
     setDraft("");
     setLocalError(null);
     try {
-      await continueSession({ sessionId: session.id, message });
+      if (session.status === "draft") {
+        await startSession({ sessionId: session.id, message });
+      } else {
+        await continueSession({ sessionId: session.id, message });
+      }
     } catch (err) {
       setDraft(message);
-      setLocalError(err instanceof Error ? err.message : "Unable to continue session.");
+      setLocalError(err instanceof Error ? err.message : "Unable to send session message.");
     }
-  }, [continueSession, draft, session]);
+  }, [continueSession, draft, session, startSession]);
 
   const handleRefresh = useCallback(async () => {
     if (!session) return;
@@ -145,7 +153,7 @@ export function SessionDetailsPage() {
   );
 
   const defaultInspectorSection = useMemo(
-    () => (session ? defaultSessionInspectorSection(session.proposals, session.artifacts) : "details"),
+    () => (session ? defaultSessionInspectorSection(session.proposals, session.artifacts, session.status) : "details"),
     [session],
   );
 
@@ -183,8 +191,18 @@ export function SessionDetailsPage() {
     <SessionArtifactList artifacts={session.artifacts} onOpenArtifact={handleOpenArtifact} variant={variant} />
   );
   const detailContent = (variant: "panel" | "plain") => <SessionMetadata session={session} variant={variant} />;
+  const eventsContent = (variant: "panel" | "plain") => (
+    <SessionEventTimeline
+      events={events}
+      isLoading={eventsLoading}
+      error={eventsError}
+      onRefresh={() => void refreshEvents()}
+      variant={variant}
+    />
+  );
 
   const inspectorSections = [
+    { value: "events" as const, label: "Events", count: events.length, content: eventsContent("plain") },
     { value: "proposals" as const, label: "Proposals", count: session.proposals.length, content: proposalContent("plain") },
     { value: "artifacts" as const, label: "Artifacts", count: session.artifacts.length, content: artifactContent("plain") },
     { value: "details" as const, label: "Details", content: detailContent("plain") },
@@ -277,6 +295,7 @@ export function SessionDetailsPage() {
               <SessionSectionTabs
                 sections={[
                   { value: "conversation", label: "Conversation", content: null },
+                  { value: "events", label: "Events", count: events.length, content: null },
                   { value: "proposals", label: "Proposals", count: session.proposals.length, content: null },
                   { value: "artifacts", label: "Artifacts", count: session.artifacts.length, content: null },
                   { value: "details", label: "Details", content: null },
@@ -311,9 +330,12 @@ export function SessionDetailsPage() {
                 onSend={() => void handleSend()}
                 isMutating={isMutating}
                 isWaitingForAgent={isWaitingForAgent}
+                sessionKind={session.kind}
+                sessionStatus={session.status}
                 variant="mobile"
               />
             )}
+            {mobileSection === "events" && eventsContent("plain")}
             {mobileSection === "proposals" && proposalContent("plain")}
             {mobileSection === "artifacts" && artifactContent("plain")}
             {mobileSection === "details" && detailContent("plain")}
@@ -327,6 +349,8 @@ export function SessionDetailsPage() {
               onSend={() => void handleSend()}
               isMutating={isMutating}
               isWaitingForAgent={isWaitingForAgent}
+              sessionKind={session.kind}
+              sessionStatus={session.status}
             />
             <SessionInspector
               containerRef={desktopLayoutRef}

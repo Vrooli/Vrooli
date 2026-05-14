@@ -296,6 +296,11 @@ type RunState struct {
 	ContextTokens int32
 }
 
+type RunEventsOptions struct {
+	AfterSequence int64
+	Limit         int32
+}
+
 // RunDiff captures the changed files for a sandboxed run.
 type RunDiff struct {
 	RunID       string
@@ -669,6 +674,17 @@ func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState,
 	}
 	state.ChangedFiles = run.ChangedFiles
 	return state, nil
+}
+
+func (s *AgentService) GetRunEvents(ctx context.Context, runID string, opts RunEventsOptions) ([]*domainpb.RunEvent, bool, error) {
+	if !s.enabled {
+		return nil, false, ErrNotAvailable
+	}
+	resp, err := s.client.GetRunEvents(ctx, runID, opts)
+	if err != nil {
+		return nil, false, err
+	}
+	return resp.Events, resp.HasMore, nil
 }
 
 // GetRunDiff resolves changed files for a sandboxed run.

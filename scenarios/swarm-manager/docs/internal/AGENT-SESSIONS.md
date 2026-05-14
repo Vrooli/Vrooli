@@ -4,13 +4,13 @@ Agent Sessions are durable Swarm Manager-owned conversations with Agent Manager 
 
 ## Lifecycle
 
-A session starts from the graph action launcher or from a session-aware internal flow. The API creates a `sess_*` record under `agent-sessions/`, appends the operator's first message to `messages.jsonl`, spawns an Agent Manager run, and records the returned run and task IDs on the session snapshot.
+A session starts from the graph action launcher or from a session-aware internal flow as a pre-spawn draft. The API creates a `sess_*` record under `agent-sessions/` with no messages and no Agent Manager run. The first real operator message is sent to the explicit start route, appended to `messages.jsonl`, used as the initial prompt, and only then does Swarm Manager spawn Agent Manager and record the returned run and task IDs.
 
 Supported statuses:
 
 | Status | Meaning |
 |---|---|
-| `draft` | Reserved for future pre-spawn drafts. |
+| `draft` | Session exists, has not spawned Agent Manager, and is waiting for the operator's first real message. |
 | `starting` | Session exists and the initial Agent Manager run is being created. |
 | `running` | The active run is processing a user message. |
 | `waiting_for_user` | The run has yielded control and the operator can continue the conversation. |
@@ -20,7 +20,17 @@ Supported statuses:
 | `failed` | Spawn, continuation, refresh, or proposal apply failed. |
 | `canceled` | The operator canceled the session. |
 
-Refresh maps Agent Manager run state into the session lifecycle and appends the run summary as an assistant message when the summary is new.
+Refresh is a no-op for draft/no-run sessions. After start, refresh maps Agent Manager run state into the session lifecycle and appends the run summary as an assistant message when the summary is new.
+
+## Run Events
+
+Session details read run events through Swarm Manager, not directly from Agent Manager:
+
+```text
+GET /api/v1/agent-sessions/{session_id}/events?after_sequence=<n>&limit=<n>
+```
+
+Draft sessions and other no-run sessions return an empty event list. Active sessions proxy the session-owned Agent Manager run events and expose a bounded timeline shape for messages, tool calls, tool results, status/progress, errors, compaction, and a safe fallback for unknown event types. Large tool payload fields are truncated at the Swarm Manager API boundary.
 
 ## Supported Kinds
 
@@ -92,6 +102,8 @@ The graph bottom action launcher owns session creation:
 - Quick Capture opens the existing one-shot capture panel.
 - Plan Work With Agent creates a `meta_orchestration` session.
 - Author Operating Mode creates an `operating_mode_authoring` session.
+
+Both agent-session launchers create a draft and route to the session detail surface immediately. They do not send canned bootstrap prompts. The composer placeholder is kind-specific, and the first submitted message starts the run.
 
 The graph sidebar owns session history through the `Sessions` tab. Selecting a session opens the session detail panel rather than navigating to a dedicated Sessions page.
 

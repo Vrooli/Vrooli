@@ -7,6 +7,8 @@
     "type": "operator"
   },
   "depends_on": [
+    "fix/qa-lpbs-standards-20260514",
+    "fix/qa-lpbs-tests-playbooks-20260514",
     "research/command-center-data-aggregation-design"
   ],
   "description": "Add new handlers under `/api/v1/admin/dashboard/*` protected by the existing `requireAdminOrService` middleware. Endpoints wrap `MetricsService.GetAnalyticsSummary()` and `GetVariantStats()`, plus new aggregations for subscriber counts by tier, checkout revenue summary, and churn metrics. Response shape designed for direct command-center consumption (pre-aggregated, dashboard-keyed).\n\n**Context:** Authored from `research/command-center-architecture` (Action 1). See that item's `conclusion.md` Finding 4 and Finding 10 for rationale, routing precedent (`remote-profiles` / `download-artifacts`), and auth pattern (bearer token via `LPBS_SERVICE_SECRET` validated by `usageService.ValidateServiceToken()`).\n\n**Scope:**\n- New handlers under `/api/v1/admin/dashboard/*` in LPBS.\n- Reuse existing `requireAdminOrService` middleware (auth.go:356–371) — do not introduce new auth infrastructure.\n- Wrap existing `MetricsService` methods where possible; new aggregations (subscriber counts by tier, checkout revenue summary, churn) live in a new dashboard service.\n- Response payloads are pre-aggregated and dashboard-keyed to minimize command-center aggregator work.\n- Contract tests mirror the existing `remote-profiles` test pattern.\n\n**Coordination:** Exact endpoint contracts (request/response shapes) are owed by `research/command-center-data-aggregation-design`; this item depends on that research completing first.\n\n**Consumed by:** `execute/command-center-api-aggregator` (which calls these endpoints with the service bearer token).",
@@ -18,5 +20,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Add /api/v1/admin/dashboard/* endpoints to LPBS for command-center consumption",
-  "updated": "2026-04-18T14:01:39Z"
+  "updated": "2026-05-14T22:07:28Z"
 }

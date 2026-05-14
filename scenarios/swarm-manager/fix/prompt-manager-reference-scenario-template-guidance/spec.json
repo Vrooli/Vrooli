@@ -1,0 +1,19 @@
+{
+  "created": "2026-05-14T23:21:04Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "During the 2026-05-14 morning vision walk, the operator clarified that reference scenarios should no longer be treated as semi-independent hand-patched exemplars when the underlying scenario templates are expected to generate working valid scenarios immediately. Old model: patch reference scenario, then maybe backport general fixes to template. Desired model: fix the template first, regenerate or refresh reference scenarios from the template, and use those generated references as validation targets for template quality. Update relevant meta-optimization, reference-pattern-fitness, and toolchain-validator guidance so agents do not dual-maintain template and reference scenario drift. Acceptance: docs/skills clearly state that template defects are fixed in templates first; reference scenarios are regenerated/refreshed for validation; any exception to hand-patching a reference scenario must be explicit and justified.",
+  "kind": "fix",
+  "name": "prompt-manager-reference-scenario-template-guidance",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "prompt-manager",
+    "meta-optimization",
+    "reference-scenarios",
+    "templates"
+  ],
+  "title": "Update Prompt-Manager reference-scenario guidance for template-generated validation",
+  "updated": "2026-05-14T23:21:04Z"
+}

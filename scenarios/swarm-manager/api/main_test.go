@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"swarm-manager/internal/promptmanager"
 )
 
 // newTestServer creates a Server backed by an isolated temp directory so that
@@ -49,7 +51,7 @@ func newTestServer(t *testing.T) *Server {
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(xdg, "cache"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(xdg, "config"))
 	t.Setenv("AGENT_MANAGER_ENABLED", "false")
-	return NewServerWithRoot(root)
+	return newServerWithRoot(root, &promptmanager.MockClient{Result: "test prompt"})
 }
 
 func TestNewServerHealthRoutes(t *testing.T) {

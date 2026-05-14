@@ -229,6 +229,38 @@ func (c *HTTPClient) GetRun(ctx context.Context, runID string) (*domainpb.Run, e
 	return result.Run, nil
 }
 
+func (c *HTTPClient) GetRunEvents(ctx context.Context, runID string, opts RunEventsOptions) (*apipb.GetRunEventsResponse, error) {
+	trimmed := strings.TrimSpace(runID)
+	if trimmed == "" {
+		return nil, fmt.Errorf("%w: run id is required", ErrRequestFailed)
+	}
+
+	values := url.Values{}
+	if opts.AfterSequence > 0 {
+		values.Set("after_sequence", fmt.Sprintf("%d", opts.AfterSequence))
+	}
+	if opts.Limit > 0 {
+		values.Set("limit", fmt.Sprintf("%d", opts.Limit))
+	}
+	path := "/api/v1/runs/" + url.PathEscape(trimmed) + "/events"
+	if encoded := values.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp)
+	}
+	var result apipb.GetRunEventsResponse
+	if err := decodeProtoResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // GetRunDiff retrieves the diff for a sandboxed run.
 func (c *HTTPClient) GetRunDiff(ctx context.Context, runID string) (*domainpb.RunDiff, error) {
 	trimmed := strings.TrimSpace(runID)

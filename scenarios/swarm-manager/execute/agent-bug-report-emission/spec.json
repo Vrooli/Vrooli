@@ -5,7 +5,10 @@
   ],
   "created": "2026-04-22T18:33:52Z",
   "depends_on": [
-    "execute/contribution-submitter-bug-report"
+    "execute/contribution-submitter-bug-report",
+    "fix/qa-prompt-manager-standards-20260514",
+    "fix/qa-swarm-manager-standards-20260408",
+    "fix/qa-swarm-manager-tests-20260408"
   ],
   "description": "Plumb bug-report candidates into the outbound pipeline from the two natural sources: (1) scenario-qa team handoffs that identify real project-level bugs during affected-scenario checks, and (2) prompt-manager agent handoff docs that note bugs/gaps in tooling.\n\nAgents emit a structured signal ('candidate bug report' + evidence). The pipeline consumes it, not the other way around — agents don't know or care about submission mechanics.",
   "effort": "M",
@@ -16,5 +19,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Emit structured bug-report signals from agent handoffs",
-  "updated": "2026-04-22T18:33:52Z"
+  "updated": "2026-05-14T22:07:29Z"
 }

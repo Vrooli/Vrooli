@@ -65,7 +65,9 @@ export {
   listAgentSessionsResponseSchema,
   getAgentSessionResponseSchema,
   createAgentSessionResponseSchema,
+  startAgentSessionResponseSchema,
   continueAgentSessionResponseSchema,
+  listAgentSessionEventsResponseSchema,
   refreshAgentSessionResponseSchema,
   cancelAgentSessionResponseSchema,
   deleteAgentSessionResponseSchema,
@@ -77,4 +79,5 @@ export {
   mapProtoAgentSessionProposal,
   mapProtoAgentSessionArtifact,
   mapProtoAgentSessionAttribution,
+  mapProtoAgentSessionRunEvent,
 } from "./agent-session-contracts";

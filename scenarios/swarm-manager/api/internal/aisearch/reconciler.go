@@ -286,8 +286,8 @@ func (r *Reconciler) Apply(ctx context.Context, plan *DriftReport) (*ApplyResult
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(r.Parallelism)
-	r.scheduleUpserts(g, gctx, plan.ToUpsertBacklog, r.BacklogStore, addError, bumpUpsert)
-	r.scheduleUpserts(g, gctx, plan.ToUpsertInitiative, r.InitiativeStore, addError, bumpUpsert)
+	r.scheduleUpserts(gctx, g, plan.ToUpsertBacklog, r.BacklogStore, addError, bumpUpsert)
+	r.scheduleUpserts(gctx, g, plan.ToUpsertInitiative, r.InitiativeStore, addError, bumpUpsert)
 	// errgroup.Wait can return ctx.Canceled; that is the cooperative-cancel
 	// signal, not a hard failure — partial counts in result are still valid.
 	_ = g.Wait()
@@ -315,8 +315,8 @@ func (r *Reconciler) Apply(ctx context.Context, plan *DriftReport) (*ApplyResult
 // ref so the loop variable's per-iteration aliasing (Go ≥1.22) is irrelevant —
 // the test suite must pass on older Go versions if anyone ever back-ports.
 func (r *Reconciler) scheduleUpserts(
-	g *errgroup.Group,
 	gctx context.Context,
+	g *errgroup.Group,
 	refs []ItemRef,
 	store VectorStore,
 	addError func(ReconcileError),

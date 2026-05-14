@@ -81,20 +81,29 @@ describe("agent-session-service", () => {
     });
   });
 
-  it("creates and continues sessions using backend field names", async () => {
+  it("creates, starts, and continues sessions using backend field names", async () => {
     vi.mocked(mockApiClient.post).mockResolvedValue({ session: SESSION_RESPONSE });
 
     await service.create({
       kind: "operating_mode_authoring",
       title: "Author mode",
-      initialMessage: "Draft it.",
       initiative: "mode-work",
     });
     expect(mockApiClient.post).toHaveBeenCalledWith("/agent-sessions", {
       kind: "operating_mode_authoring",
       title: "Author mode",
-      initial_message: "Draft it.",
       initiative: "mode-work",
+    });
+
+    await service.start({
+      sessionId: "sess_1",
+      message: "Draft it.",
+      attachmentIds: ["att-0"],
+    });
+    expect(mockApiClient.post).toHaveBeenLastCalledWith("/agent-sessions/sess_1/start", {
+      session_id: "sess_1",
+      message: "Draft it.",
+      attachment_ids: ["att-0"],
     });
 
     await service.continue({
@@ -107,6 +116,30 @@ describe("agent-session-service", () => {
       message: "Continue.",
       attachment_ids: ["att-1"],
     });
+  });
+
+  it("lists session events with cursor params", async () => {
+    vi.mocked(mockApiClient.get).mockResolvedValue({
+      events: [
+        {
+          id: "evt-1",
+          run_id: "run-1",
+          sequence: "7",
+          created_at: "2026-05-01T12:03:00Z",
+          event_type: "tool_call",
+          tool_name: "Read",
+          input: "{\"file\":\"AGENTS.md\"}",
+        },
+      ],
+      has_more: false,
+      next_after_sequence: "7",
+    });
+
+    const result = await service.listEvents({ sessionId: "sess_1", afterSequence: 5n, limit: 25 });
+
+    expect(mockApiClient.get).toHaveBeenCalledWith("/agent-sessions/sess_1/events?after_sequence=5&limit=25");
+    expect(result.events[0]).toMatchObject({ eventType: "tool_call", toolName: "Read" });
+    expect(result.nextAfterSequence).toBe(7n);
   });
 
   it("refreshes, cancels, applies proposals, and reads artifacts", async () => {

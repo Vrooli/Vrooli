@@ -9,6 +9,42 @@ This document captures the canonical Swarm Manager API shapes that matter for ba
 - Backlog execution boundaries are expressed with `acceptance_allow` and `acceptance_deny`.
 - Initiative assignment is per backlog item (`initiative`), not a batch-level flag.
 
+## Agent Sessions
+
+`POST /api/v1/agent-sessions`
+
+Creates a typed draft session. It does not spawn Agent Manager and does not
+append a message.
+
+```json
+{
+  "kind": "meta_orchestration",
+  "title": "Plan work with agent"
+}
+```
+
+`POST /api/v1/agent-sessions/{session_id}/start`
+
+Starts a draft session with the first real operator prompt. This is the only
+path that turns a draft into an Agent Manager run.
+
+```json
+{
+  "message": "Here is the context to plan...",
+  "attachment_ids": []
+}
+```
+
+`POST /api/v1/agent-sessions/{session_id}/continue`
+
+Appends a follow-up message after the session has a run.
+
+`GET /api/v1/agent-sessions/{session_id}/events?after_sequence=0&limit=100`
+
+Returns bounded session-owned Agent Manager run events. Draft/no-run sessions
+return `events: []`. Tool inputs/outputs and raw fallbacks are truncated by the
+API boundary.
+
 ## Backlog Create
 
 `POST /api/v1/backlog`

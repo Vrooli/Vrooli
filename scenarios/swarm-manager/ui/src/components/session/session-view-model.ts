@@ -1,7 +1,7 @@
 import { GitPullRequestArrow, Workflow } from "lucide-react";
 import type { AgentSession, AgentSessionArtifact, AgentSessionProposal } from "../../types";
 
-export type SessionInspectorSection = "proposals" | "artifacts" | "details";
+export type SessionInspectorSection = "events" | "proposals" | "artifacts" | "details";
 
 export const SESSION_KIND_LABELS: Record<AgentSession["kind"], string> = {
   meta_orchestration: "Plan work",
@@ -18,8 +18,10 @@ export const TERMINAL_SESSION_STATUSES = new Set<AgentSession["status"]>(["compl
 export function defaultSessionInspectorSection(
   proposals: AgentSessionProposal[],
   artifacts: AgentSessionArtifact[],
+  status?: AgentSession["status"],
 ): SessionInspectorSection {
   if (proposals.some((proposal) => proposal.status === "ready")) return "proposals";
+  if (status === "starting" || status === "running") return "events";
   if (artifacts.length > 0) return "artifacts";
   return "details";
 }

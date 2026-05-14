@@ -48,7 +48,9 @@ describe("agent-session-store", () => {
       list: vi.fn().mockResolvedValue([SESSION_A, SESSION_B]),
       get: vi.fn().mockResolvedValue(SESSION_A),
       create: vi.fn().mockResolvedValue(SESSION_A),
+      start: vi.fn().mockResolvedValue({ ...SESSION_A, messages: [{ id: "msg-0", role: "user", content: "Start", createdAt: "2026-05-01T12:00:00Z", attachmentIds: [] }] }),
       continue: vi.fn().mockResolvedValue({ ...SESSION_A, messages: [{ id: "msg-1", role: "user", content: "Hi", createdAt: "2026-05-01T12:00:00Z", attachmentIds: [] }] }),
+      listEvents: vi.fn().mockResolvedValue({ events: [], hasMore: false, nextAfterSequence: 0n }),
       refresh: vi.fn().mockResolvedValue({ ...SESSION_A, status: "waiting_for_user" }),
       cancel: vi.fn().mockResolvedValue({ ...SESSION_A, status: "canceled" }),
       delete: vi.fn().mockResolvedValue("sess_a"),
@@ -109,9 +111,14 @@ describe("agent-session-store", () => {
     await useAgentSessionStore.getState().createSession({
       kind: "meta_orchestration",
       title: "Plan",
-      initialMessage: "Plan this.",
     });
     expect(service.create).toHaveBeenCalled();
+
+    const started = await useAgentSessionStore.getState().startSession({
+      sessionId: "sess_a",
+      message: "Start.",
+    });
+    expect(started.messages).toHaveLength(1);
 
     const continued = await useAgentSessionStore.getState().continueSession({
       sessionId: "sess_a",
@@ -124,6 +131,9 @@ describe("agent-session-store", () => {
 
     const artifacts = await useAgentSessionStore.getState().applyProposal("sess_a", "prop-1");
     expect(artifacts).toEqual([ARTIFACT]);
+
+    await useAgentSessionStore.getState().listSessionEvents({ sessionId: "sess_a", afterSequence: 1n });
+    expect(service.listEvents).toHaveBeenCalledWith({ sessionId: "sess_a", afterSequence: 1n });
 
     const canceled = await useAgentSessionStore.getState().cancelSession("sess_a");
     expect(canceled.status).toBe("canceled");
@@ -139,9 +149,7 @@ describe("agent-session-store", () => {
     expect(useAgentSessionStore.getState().artifactsByEntity[artifactEntityKey("initiative", "quality-gates")]).toEqual([
       ARTIFACT,
     ]);
-    expect(selectActiveAgentSessions(useAgentSessionStore.getState()).map((session) => session.id)).toEqual([
-      "sess_a",
-    ]);
+    expect(selectActiveAgentSessions(useAgentSessionStore.getState()).map((session) => session.id)).toEqual(["sess_a"]);
   });
 
   it("deletes sessions from memory, entity artifact cache, and persisted storage", async () => {

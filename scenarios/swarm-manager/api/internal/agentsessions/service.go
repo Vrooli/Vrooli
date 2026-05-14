@@ -14,6 +14,11 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
+
+	agentdomainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const (
@@ -47,6 +52,10 @@ type SessionSpawner interface {
 	StopRun(ctx context.Context, runID string) error
 }
 
+type RunEventReader interface {
+	GetRunEvents(ctx context.Context, runID string, opts agentmanager.RunEventsOptions) ([]*agentdomainpb.RunEvent, bool, error)
+}
+
 type BacklogBatchApplier interface {
 	ApplyAgentSessionBacklogBatchImport(ctx context.Context, payloadJSON string, prov identity.Provenance) ([]Artifact, error)
 }
@@ -54,6 +63,7 @@ type BacklogBatchApplier interface {
 type Service struct {
 	store               Store
 	spawner             SessionSpawner
+	eventReader         RunEventReader
 	backlogBatchApplier BacklogBatchApplier
 	eventLogger         EventLogger
 	projectRoot         string
@@ -63,6 +73,7 @@ type Service struct {
 type ServiceConfig struct {
 	Store               Store
 	Spawner             SessionSpawner
+	EventReader         RunEventReader
 	BacklogBatchApplier BacklogBatchApplier
 	EventLogger         EventLogger
 	ProjectRoot         string
@@ -70,16 +81,49 @@ type ServiceConfig struct {
 }
 
 type CreateRequest struct {
-	Kind           Kind
-	Title          string
-	InitialMessage string
-	Initiative     string
+	Kind       Kind
+	Title      string
+	Initiative string
 }
 
 type ContinueRequest struct {
 	SessionID     string
 	Message       string
 	AttachmentIDs []string
+}
+
+type ListEventsRequest struct {
+	SessionID     string
+	AfterSequence int64
+	Limit         int32
+}
+
+type ListEventsResult struct {
+	Events            []RunEvent
+	HasMore           bool
+	NextAfterSequence int64
+}
+
+type RunEvent struct {
+	ID              string `json:"id"`
+	RunID           string `json:"run_id"`
+	Sequence        int64  `json:"sequence"`
+	CreatedAt       string `json:"created_at"`
+	EventType       string `json:"event_type"`
+	Role            string `json:"role,omitempty"`
+	Content         string `json:"content,omitempty"`
+	ToolName        string `json:"tool_name,omitempty"`
+	ToolCallID      string `json:"tool_call_id,omitempty"`
+	Input           string `json:"input,omitempty"`
+	Output          string `json:"output,omitempty"`
+	Error           string `json:"error,omitempty"`
+	Status          string `json:"status,omitempty"`
+	PreviousStatus  string `json:"previous_status,omitempty"`
+	ProgressPhase   string `json:"progress_phase,omitempty"`
+	ProgressPercent int32  `json:"progress_percent,omitempty"`
+	ProgressMessage string `json:"progress_message,omitempty"`
+	Summary         string `json:"summary,omitempty"`
+	RawJSON         string `json:"raw_json,omitempty"`
 }
 
 func NewService(cfg ServiceConfig) (*Service, error) {
@@ -92,9 +136,15 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	if cfg.ProjectRoot == "" {
 		cfg.ProjectRoot = "."
 	}
+	if cfg.EventReader == nil {
+		if reader, ok := cfg.Spawner.(RunEventReader); ok {
+			cfg.EventReader = reader
+		}
+	}
 	return &Service{
 		store:               cfg.Store,
 		spawner:             cfg.Spawner,
+		eventReader:         cfg.EventReader,
 		backlogBatchApplier: cfg.BacklogBatchApplier,
 		eventLogger:         cfg.EventLogger,
 		projectRoot:         cfg.ProjectRoot,
@@ -108,18 +158,11 @@ func (s *Service) SetBacklogBatchApplier(applier BacklogBatchApplier) {
 
 func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error) {
 	req.Title = strings.TrimSpace(req.Title)
-	req.InitialMessage = strings.TrimSpace(req.InitialMessage)
 	if !IsKnownKind(req.Kind) {
 		return Session{}, apierr.BadRequest("session kind is invalid")
 	}
 	if req.Title == "" {
 		return Session{}, apierr.BadRequest("title is required")
-	}
-	if req.InitialMessage == "" {
-		return Session{}, apierr.BadRequest("initial_message is required")
-	}
-	if s.spawner == nil {
-		return Session{}, apierr.Unavailable("agent session spawning is unavailable")
 	}
 
 	now := nowRFC3339()
@@ -127,7 +170,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error
 		ID:         "sess_" + idgen.Generate(),
 		Title:      req.Title,
 		Kind:       req.Kind,
-		Status:     StatusStarting,
+		Status:     StatusDraft,
 		SkillID:    skillIDForKind(req.Kind),
 		ProfileKey: s.profileKey,
 		CreatedAt:  now,
@@ -137,24 +180,49 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error
 	if err := s.store.CreateSession(session); err != nil {
 		return Session{}, err
 	}
+	s.emitCreated(session)
+	return s.store.LoadSession(session.ID)
+}
 
+func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, error) {
+	messageText := strings.TrimSpace(req.Message)
+	if messageText == "" {
+		return Session{}, apierr.BadRequest("message is required")
+	}
+	session, err := s.store.LoadSession(strings.TrimSpace(req.SessionID))
+	if err != nil {
+		return Session{}, mapStoreError(err)
+	}
+	if session.Status != StatusDraft || strings.TrimSpace(session.RunID) != "" {
+		return Session{}, apierr.Conflict("agent session is already started")
+	}
+	if s.spawner == nil {
+		return Session{}, apierr.Unavailable("agent session spawning is unavailable")
+	}
+
+	now := nowRFC3339()
 	userMessage := Message{
-		ID:        "msg_" + idgen.Generate(),
-		Role:      MessageRoleUser,
-		Content:   req.InitialMessage,
-		CreatedAt: now,
+		ID:            "msg_" + idgen.Generate(),
+		Role:          MessageRoleUser,
+		Content:       messageText,
+		CreatedAt:     now,
+		AttachmentIDs: append([]string(nil), req.AttachmentIDs...),
 	}
 	if err := s.store.AppendMessage(session.ID, userMessage); err != nil {
 		return Session{}, err
 	}
-	s.emitCreated(session)
+	session.Status = StatusStarting
+	session.UpdatedAt = now
+	if err := s.store.SaveSession(session); err != nil {
+		return Session{}, err
+	}
 
 	spawnReq := agentmanager.SessionSpawnRequest{
 		SessionID:   session.ID,
 		Kind:        string(session.Kind),
 		Title:       session.Title,
-		Description: req.InitialMessage,
-		Prompt:      buildInitialPrompt(session, req.InitialMessage, req.Initiative),
+		Description: messageText,
+		Prompt:      buildInitialPrompt(session, messageText, ""),
 		ScopePath:   ".",
 		ProjectRoot: s.projectRoot,
 		CreatedBy:   sessionCreatedBy(session),
@@ -262,6 +330,42 @@ func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, e
 	}
 	s.emitContinued(session)
 	return s.store.LoadSession(session.ID)
+}
+
+func (s *Service) ListEvents(ctx context.Context, req ListEventsRequest) (ListEventsResult, error) {
+	session, err := s.store.LoadSession(strings.TrimSpace(req.SessionID))
+	if err != nil {
+		return ListEventsResult{}, mapStoreError(err)
+	}
+	if strings.TrimSpace(session.RunID) == "" {
+		return ListEventsResult{Events: []RunEvent{}}, nil
+	}
+	if s.eventReader == nil {
+		return ListEventsResult{}, apierr.Unavailable("agent session events are unavailable")
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+	events, hasMore, err := s.eventReader.GetRunEvents(ctx, session.RunID, agentmanager.RunEventsOptions{
+		AfterSequence: req.AfterSequence,
+		Limit:         limit,
+	})
+	if err != nil {
+		return ListEventsResult{}, mapSpawnError(err)
+	}
+	result := ListEventsResult{
+		Events:  make([]RunEvent, 0, len(events)),
+		HasMore: hasMore,
+	}
+	for _, event := range events {
+		mapped := mapRunEvent(event)
+		if mapped.Sequence > result.NextAfterSequence {
+			result.NextAfterSequence = mapped.Sequence
+		}
+		result.Events = append(result.Events, mapped)
+	}
+	return result, nil
 }
 
 func (s *Service) Refresh(ctx context.Context, sessionID string) (Session, error) {
@@ -645,6 +749,121 @@ func buildInitialPrompt(session Session, initialMessage, initiative string) stri
 	b.WriteString("\nOperator message:\n")
 	b.WriteString(strings.TrimSpace(initialMessage))
 	return b.String()
+}
+
+const maxRunEventFieldBytes = 6000
+
+func mapRunEvent(event *agentdomainpb.RunEvent) RunEvent {
+	if event == nil {
+		return RunEvent{}
+	}
+	mapped := RunEvent{
+		ID:        strings.TrimSpace(event.GetId()),
+		RunID:     strings.TrimSpace(event.GetRunId()),
+		Sequence:  event.GetSequence(),
+		EventType: agentRunEventType(event.GetEventType()),
+	}
+	if ts := event.GetTimestamp(); ts != nil {
+		mapped.CreatedAt = ts.AsTime().UTC().Format(time.RFC3339)
+	}
+	switch data := event.GetData().(type) {
+	case *agentdomainpb.RunEvent_Message:
+		mapped.Role = strings.TrimSpace(data.Message.GetRole())
+		mapped.Content = boundedText(data.Message.GetContent())
+	case *agentdomainpb.RunEvent_ToolCall:
+		mapped.ToolName = strings.TrimSpace(data.ToolCall.GetToolName())
+		mapped.ToolCallID = strings.TrimSpace(data.ToolCall.GetToolCallId())
+		mapped.Input = boundedText(structJSON(data.ToolCall.GetInput()))
+	case *agentdomainpb.RunEvent_ToolResult:
+		mapped.ToolName = strings.TrimSpace(data.ToolResult.GetToolName())
+		mapped.ToolCallID = strings.TrimSpace(data.ToolResult.GetToolCallId())
+		mapped.Output = boundedText(data.ToolResult.GetOutput())
+		mapped.Error = boundedText(data.ToolResult.GetError())
+	case *agentdomainpb.RunEvent_Status:
+		mapped.PreviousStatus = strings.TrimSpace(data.Status.GetOldStatus())
+		mapped.Status = strings.TrimSpace(data.Status.GetNewStatus())
+		mapped.Summary = boundedText(data.Status.GetReason())
+	case *agentdomainpb.RunEvent_Error:
+		mapped.Error = boundedText(data.Error.GetMessage())
+		if code := strings.TrimSpace(data.Error.GetCode()); code != "" {
+			mapped.Status = code
+		}
+		mapped.RawJSON = boundedText(structJSON(data.Error.GetDetails()))
+	case *agentdomainpb.RunEvent_Progress:
+		mapped.ProgressPhase = strings.TrimSpace(data.Progress.GetPhase().String())
+		mapped.ProgressPercent = data.Progress.GetPercentComplete()
+		mapped.ProgressMessage = boundedText(data.Progress.GetCurrentAction())
+	case *agentdomainpb.RunEvent_Compaction:
+		mapped.Summary = boundedText(data.Compaction.GetSummary())
+		mapped.ProgressMessage = boundedText(data.Compaction.GetTrigger())
+	case *agentdomainpb.RunEvent_Log:
+		mapped.Summary = boundedText(data.Log.GetMessage())
+		mapped.Status = strings.TrimSpace(data.Log.GetLevel())
+	case *agentdomainpb.RunEvent_Metric:
+		mapped.Summary = boundedText(data.Metric.GetName())
+	case *agentdomainpb.RunEvent_Artifact:
+		mapped.Summary = boundedText(data.Artifact.GetPath())
+	case *agentdomainpb.RunEvent_Cost:
+		mapped.Summary = boundedText(fmt.Sprintf("$%.4f", data.Cost.GetTotalCostUsd()))
+	case *agentdomainpb.RunEvent_RateLimit:
+		mapped.Error = boundedText(data.RateLimit.GetMessage())
+		mapped.Status = strings.TrimSpace(data.RateLimit.GetLimitType())
+	default:
+		mapped.RawJSON = boundedText(protoMessageJSON(event))
+	}
+	return mapped
+}
+
+func agentRunEventType(eventType agentdomainpb.RunEventType) string {
+	switch eventType {
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_LOG:
+		return "log"
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE:
+		return "message"
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL:
+		return "tool_call"
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT:
+		return "tool_result"
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_STATUS:
+		return "status"
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_METRIC:
+		return "metric"
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_ARTIFACT:
+		return "artifact"
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_ERROR:
+		return "error"
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED:
+		return "message_deleted"
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_COMPACTION:
+		return "compaction"
+	case agentdomainpb.RunEventType_RUN_EVENT_TYPE_LIFECYCLE:
+		return "lifecycle"
+	default:
+		return "unknown"
+	}
+}
+
+func structJSON(value *structpb.Struct) string {
+	if value == nil {
+		return ""
+	}
+	return protoMessageJSON(value)
+}
+
+func protoMessageJSON(value interface{ ProtoReflect() protoreflect.Message }) string {
+	data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(value)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func boundedText(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) <= maxRunEventFieldBytes {
+		return value
+	}
+	return value[:maxRunEventFieldBytes] + "\n[truncated]"
 }
 
 func sessionActivitySpec(session Session, interaction agentactivity.InteractionType) agentactivity.Spec {

@@ -3,6 +3,9 @@
     "scenarios/prompt-manager/**"
   ],
   "created": "2026-04-24T19:54:33Z",
+  "depends_on": [
+    "fix/qa-prompt-manager-standards-20260514"
+  ],
   "description": "`prompt-manager team heartbeat-list \u003cteam\u003e` human output currently shows e.g. `last: never` or `last: completed at \u003ctimestamp\u003e` — which conflates three distinct lifecycle states: (1) enabled but never fired (first-fire window not yet reached for a newly-enabled team — healthy), (2) enabled with past fires but none recent (possibly dormant or broken), (3) disabled entirely. The JSON output includes `nextExecution`; human view drops it. Prep-agent and operator both need this distinction to decide whether a silent queue is 'quiet' (genuinely no decisions) vs 'dormant' (agent broken and not surfacing) vs 'scheduled-not-yet-fired' (first-day activation, wait). Human output should surface nextExecution and explicitly label the state (e.g., `[enabled/scheduled] next: \u003ctimestamp\u003e` vs `[enabled/dormant] last: \u003ctimestamp\u003e`). Surfaced 2026-04-23 walk (filed in prior batch as initial note; re-surfaced 2026-04-24 walk) — needs concrete implementation.",
   "effort": "S",
   "initiative": "prompt-manager-decision-workflow-polish",
@@ -12,5 +15,5 @@
   "status": "in_review",
   "tags": [],
   "title": "Heartbeat-list should distinguish scheduled-never-fired vs dormant vs broken",
-  "updated": "2026-04-26T12:46:38Z"
+  "updated": "2026-05-14T04:07:19Z"
 }

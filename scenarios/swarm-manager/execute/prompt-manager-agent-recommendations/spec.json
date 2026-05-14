@@ -6,6 +6,7 @@
   "created": "2026-03-26T20:54:35Z",
   "depends_on": [
     "chore/qa-prompt-manager-tidiness-20260407",
+    "fix/qa-prompt-manager-standards-20260514",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407",
     "research/prompt-manager-rapid-approval-ux"
@@ -19,5 +20,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Add Agent Recommendation Support to Prompt-Manager Decisions",
-  "updated": "2026-04-09T13:11:28Z"
+  "updated": "2026-05-14T22:07:20Z"
 }

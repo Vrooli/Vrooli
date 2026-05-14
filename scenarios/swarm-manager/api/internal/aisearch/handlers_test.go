@@ -238,4 +238,3 @@ func TestHandler_ReconcileCancel_StopsRunning(t *testing.T) {
 		return !st.Running && st.Canceled
 	})
 }
-

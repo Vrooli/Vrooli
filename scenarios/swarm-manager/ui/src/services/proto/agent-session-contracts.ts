@@ -13,9 +13,12 @@ import {
   DeleteAgentSessionResponseSchema,
   GetAgentSessionResponseSchema,
   GetArtifactsByEntityResponseSchema,
+  ListAgentSessionEventsResponseSchema,
   ListAgentSessionArtifactsResponseSchema,
   ListAgentSessionsResponseSchema,
   RefreshAgentSessionResponseSchema,
+  StartAgentSessionResponseSchema,
+  type AgentSessionRunEvent,
 } from "@vrooli/proto-types/swarm-manager/v1/api/agent_session_pb";
 import type {
   AgentSession as AgentSessionDomain,
@@ -24,6 +27,7 @@ import type {
   AgentSessionKind,
   AgentSessionMessage as AgentSessionMessageDomain,
   AgentSessionProposal as AgentSessionProposalDomain,
+  AgentSessionRunEvent as AgentSessionRunEventDomain,
   AgentSessionStatus,
 } from "../../types";
 import { createProtoSchema } from "./shared";
@@ -64,6 +68,21 @@ const artifactTypes = new Set<string>([
   "agent_activity",
 ]);
 const artifactActions = new Set<string>(["proposed", "created", "updated", "deleted", "linked"]);
+const eventTypes = new Set<string>([
+  "message",
+  "tool_call",
+  "tool_result",
+  "status",
+  "progress",
+  "error",
+  "log",
+  "metric",
+  "artifact",
+  "compaction",
+  "lifecycle",
+  "message_deleted",
+  "unknown",
+]);
 
 export const listAgentSessionsResponseSchema = createProtoSchema(
   ListAgentSessionsResponseSchema,
@@ -80,6 +99,14 @@ export const createAgentSessionResponseSchema = createProtoSchema(
 export const continueAgentSessionResponseSchema = createProtoSchema(
   ContinueAgentSessionResponseSchema,
   "agent session continue"
+);
+export const startAgentSessionResponseSchema = createProtoSchema(
+  StartAgentSessionResponseSchema,
+  "agent session start"
+);
+export const listAgentSessionEventsResponseSchema = createProtoSchema(
+  ListAgentSessionEventsResponseSchema,
+  "agent session events"
 );
 export const refreshAgentSessionResponseSchema = createProtoSchema(
   RefreshAgentSessionResponseSchema,
@@ -188,6 +215,30 @@ export function mapProtoAgentSessionAttribution(
       ? { sessionKind: attribution.sessionKind as AgentSessionKind }
       : {}),
     ...(attribution.source ? { source: attribution.source } : {}),
+  };
+}
+
+export function mapProtoAgentSessionRunEvent(event: AgentSessionRunEvent): AgentSessionRunEventDomain {
+  return {
+    id: event.id ?? "",
+    runId: event.runId ?? "",
+    sequence: event.sequence ?? 0n,
+    createdAt: event.createdAt ?? "",
+    eventType: eventTypes.has(event.eventType) ? (event.eventType as AgentSessionRunEventDomain["eventType"]) : "unknown",
+    role: event.role ?? "",
+    content: event.content ?? "",
+    toolName: event.toolName ?? "",
+    toolCallId: event.toolCallId ?? "",
+    input: event.input ?? "",
+    output: event.output ?? "",
+    error: event.error ?? "",
+    status: event.status ?? "",
+    previousStatus: event.previousStatus ?? "",
+    progressPhase: event.progressPhase ?? "",
+    progressPercent: event.progressPercent ?? 0,
+    progressMessage: event.progressMessage ?? "",
+    summary: event.summary ?? "",
+    rawJson: event.rawJson ?? "",
   };
 }
 

@@ -1,0 +1,13 @@
+{
+  "id": "sess_d45eb3cdb5ae887c",
+  "title": "Plan work with agent",
+  "kind": "meta_orchestration",
+  "status": "draft",
+  "skill_id": "swarm-manager-meta-orchestrator",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-05-14T18:34:59Z",
+  "updated_at": "2026-05-14T18:34:59Z",
+  "created_by": {
+    "type": "operator"
+  }
+}

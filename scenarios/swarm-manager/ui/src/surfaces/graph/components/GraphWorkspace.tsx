@@ -117,9 +117,6 @@ export function GraphWorkspace() {
         const session = await createSession({
           kind,
           title: isAuthoring ? "Author operating mode" : "Plan work with agent",
-          initialMessage: isAuthoring
-            ? "Help me draft a proposal for a new Swarm Manager operating mode. Walk through the operating-mode authoring workflow and keep the output proposal-first."
-            : "Help me plan and organize project work in Swarm Manager. Use the meta-orchestration workflow to understand context, propose initiatives and backlog items, and wait for approval before applying changes.",
         });
         navigate(sessionDetailPath(session.id));
       } catch (error) {

@@ -303,4 +303,3 @@ func (s *Service) DeleteInitiative(ctx context.Context, name string) error {
 	slog.Debug("[aisearch] deleted initiative from index", "name", name, "id", id)
 	return nil
 }
-

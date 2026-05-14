@@ -37,6 +37,7 @@ import (
 	"swarm-manager/internal/operatingmode"
 	"swarm-manager/internal/overview"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/queue"
 	"swarm-manager/internal/review"
@@ -78,6 +79,7 @@ type Server struct {
 	graphProjection     *graph.ProjectionService
 	queueHandler        *queue.Handler
 	scenarioRoot        string
+	promptClient        promptmanager.Client
 	eventDB             *sql.DB
 	emitter             *eventlog.Emitter
 	statsEngine         *stats.Engine
@@ -97,6 +99,10 @@ func NewServer() *Server {
 // NewServerWithRoot initializes routes using the given scenario root directory.
 // Tests should use this with t.TempDir() to avoid touching production data.
 func NewServerWithRoot(scenarioRoot string) *Server {
+	return newServerWithRoot(scenarioRoot, nil)
+}
+
+func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *Server {
 	agentEnabled := strings.ToLower(strings.TrimSpace(os.Getenv("AGENT_MANAGER_ENABLED"))) != "false"
 	if err := operatingmode.ValidateRegistry(); err != nil {
 		log.Fatalf("invalid operating-mode registry: %v", err)
@@ -122,6 +128,7 @@ func NewServerWithRoot(scenarioRoot string) *Server {
 		aiSearchStopChan:    make(chan struct{}),
 		feedbackSweeperStop: make(chan struct{}),
 		scenarioRoot:        scenarioRoot,
+		promptClient:        promptClient,
 	}
 	// initEventLog must run before setupRoutes so that route registration
 	// captures a non-nil s.emitter. Constructors like registerFeedbackRoutes

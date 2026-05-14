@@ -108,32 +108,32 @@ type Dependencies struct {
 	InitiativesModeComplete         CommandFunc
 	InitiativesModeApplyBacklogSync CommandFunc
 	// Graph projection view (see cmd_initiatives_graph.go).
-	InitiativesGraphShow CommandFunc
-	CapturesList         CommandFunc
-	CapturesCreate       CommandFunc
-	CapturesGet          CommandFunc
-	CapturesDelete       CommandFunc
-	CapturesClassify     CommandFunc
-	AgentManagerStatus   CommandFunc
-	AgentManagerRunGet   CommandFunc
-	AgentManagerRunStop  CommandFunc
-	SessionsList         CommandFunc
-	SessionsGet          CommandFunc
-	SessionsDelete       CommandFunc
-	StatsSummary         CommandFunc
-	StatsThroughput      CommandFunc
-	StatsBlocking        CommandFunc
-	StatsInitiatives     CommandFunc
-	StatsAgent           CommandFunc
-	StatsSessions        CommandFunc
-	StatsSandboxAdoption CommandFunc
-	AISearchStatus       CommandFunc
-	AISearchQuery        CommandFunc
+	InitiativesGraphShow  CommandFunc
+	CapturesList          CommandFunc
+	CapturesCreate        CommandFunc
+	CapturesGet           CommandFunc
+	CapturesDelete        CommandFunc
+	CapturesClassify      CommandFunc
+	AgentManagerStatus    CommandFunc
+	AgentManagerRunGet    CommandFunc
+	AgentManagerRunStop   CommandFunc
+	SessionsList          CommandFunc
+	SessionsGet           CommandFunc
+	SessionsDelete        CommandFunc
+	StatsSummary          CommandFunc
+	StatsThroughput       CommandFunc
+	StatsBlocking         CommandFunc
+	StatsInitiatives      CommandFunc
+	StatsAgent            CommandFunc
+	StatsSessions         CommandFunc
+	StatsSandboxAdoption  CommandFunc
+	AISearchStatus        CommandFunc
+	AISearchQuery         CommandFunc
 	AISearchReconcile     CommandFunc
 	AISearchReconcileStat CommandFunc
 	AISearchReconcileCan  CommandFunc
-	BacklogSearchAI      CommandFunc
-	InitiativesSearchAI  CommandFunc
+	BacklogSearchAI       CommandFunc
+	InitiativesSearchAI   CommandFunc
 	// Top-level operating-mode catalog CLI (see cmd_operating_mode.go).
 	OperatingModeList CommandFunc
 	OperatingModeGet  CommandFunc
