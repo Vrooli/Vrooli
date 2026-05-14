@@ -134,7 +134,9 @@ describe("ComponentEditor", () => {
 
     const frame = (await screen.findByTestId(selectors.components.editor.previewFrame)) as HTMLIFrameElement;
     expect(frame.getAttribute("src")).toContain("/preview/cmp-7/harness.html");
-    expect(frame.getAttribute("src")).toContain("v=sha-pre");
+    await waitFor(() => {
+      expect(frame.getAttribute("src")).toContain("v=sha-pre");
+    });
   });
 
   it("reloads the iframe when save returns a new sha256", async () => {

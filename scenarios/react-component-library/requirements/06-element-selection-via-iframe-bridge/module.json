@@ -27,17 +27,17 @@
     {
       "id": "ES-002",
       "title": "Selected-element breadcrumb shows ancestor chain with tag + key class",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "inspector",
       "criticality": "P1",
-      "description": "After click, the bridge returns the selected element's ancestor chain (root → element). Host renders a breadcrumb: each segment shows tagName plus the first className. Clicking a segment changes the selection to that ancestor.",
+      "description": "After click, the bridge returns the selected element's ancestor chain (root → element). Host renders a breadcrumb: each segment shows tagName plus the first className. Click-to-promote behavior is deferred to ES-004.",
       "tags": ["inspector", "breadcrumb"],
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
-          "notes": "Component test renders the panel against a fixture chain and asserts segment count, labels, and click-to-promote behavior."
+          "status": "complete",
+          "notes": "InspectorPanel.test.tsx renders the panel against a fixture chain and asserts segment count and labels."
         }
       ]
     },

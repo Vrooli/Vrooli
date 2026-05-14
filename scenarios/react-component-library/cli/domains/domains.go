@@ -4,6 +4,7 @@ import (
 	"react-component-library/cli/domains/adoptions"
 	"react-component-library/cli/domains/components"
 	"react-component-library/cli/domains/preview"
+	"react-component-library/cli/domains/versions"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -42,5 +43,6 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		adoptions.Register(core),
 		components.Register(core),
 		preview.Register(core),
+		versions.Register(core),
 	}
 }

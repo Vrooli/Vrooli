@@ -64,6 +64,11 @@ type Adoption struct {
 	StatusDetail   string
 	CreatedAt      time.Time
 	RefreshedAt    time.Time
+	// DriftBacklogRef is the swarm-manager backlog item ("<kind>/<name>")
+	// filed by Refresh when this adoption first transitioned to
+	// behind/modified. Cleared back to "" when status returns to current
+	// so a future drift files a fresh item.
+	DriftBacklogRef string
 }
 
 // CreateInput is the explicit DTO the service hands to the repository
@@ -87,6 +92,13 @@ type RefreshUpdate struct {
 	Status       Status
 	StatusDetail string
 	RefreshedAt  time.Time
+	// DriftBacklogRef is set when Refresh successfully filed a backlog
+	// item via swarm-manager. Empty string means "leave the existing
+	// value untouched"; the explicit empty-clear path uses
+	// ClearDriftBacklogRef below so the repository can tell the
+	// difference between "no opinion" and "clear it".
+	DriftBacklogRef       string
+	ClearDriftBacklogRef  bool
 }
 
 // ListQuery filters a List call. All fields optional.

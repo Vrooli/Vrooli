@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,15 +66,68 @@ func (e ErrAdoptedFileMissing) Error() string {
 }
 
 type service struct {
-	repo    Repository
-	library LibraryReader
-	files   ScenarioFileReader
-	clock   clock.Clock
+	repo     Repository
+	library  LibraryReader
+	files    ScenarioFileReader
+	clock    clock.Clock
+	reporter DriftReporter
+	logger   *log.Logger
 }
 
-// NewService constructs the production Service.
+// NewService constructs the production Service. reporter may be nil
+// when the swarm-manager integration is disabled (e.g. tests that don't
+// exercise drift reporting); a nil reporter is treated as a no-op so
+// the rest of the Refresh path is unaffected.
 func NewService(repo Repository, lib LibraryReader, files ScenarioFileReader, clk clock.Clock) Service {
 	return &service{repo: repo, library: lib, files: files, clock: clk}
+}
+
+// SetDriftReporter installs the swarm-manager drift reporter on an
+// existing service. Kept as a setter (vs. NewService param) so handler
+// wiring can construct the service first and inject the reporter once
+// the swarm-manager CLI path has been resolved.
+func SetDriftReporter(svc Service, r DriftReporter, logger *log.Logger) {
+	if s, ok := svc.(*service); ok {
+		s.reporter = r
+		if logger != nil {
+			s.logger = logger
+		}
+	}
+}
+
+// DriftReporter is the seam the service uses to file a backlog item
+// when an adoption first transitions to behind/modified. Production
+// wires SwarmManagerCLIReporter; tests inject a fake.
+//
+// Implementations MUST be idempotent at the caller-visible level: if
+// Report returns the same ref for the same DriftEvent, callers will
+// see deduplication automatically. In practice, the service only
+// invokes Report when DriftBacklogRef is empty, so even a non-
+// idempotent reporter is safe under normal use.
+type DriftReporter interface {
+	Report(ctx context.Context, ev DriftEvent) (DriftReport, error)
+}
+
+// DriftEvent is the payload Refresh hands to the reporter when it
+// detects a fresh drift transition. Fields are flat so a CLI invoker
+// can format `--data` JSON without reaching back into the service.
+type DriftEvent struct {
+	AdoptionID     string
+	ComponentID    string
+	LibraryID      string
+	Scenario       string
+	AdoptedPath    string
+	AdoptedVersion string
+	LibraryVersion string
+	Status         Status
+	StatusDetail   string
+}
+
+// DriftReport is the reporter's return shape. Ref is the
+// `<kind>/<name>` identifier the service stores on the adoption to
+// dedupe future Refresh calls.
+type DriftReport struct {
+	Ref string
 }
 
 var _ Service = (*service)(nil)
@@ -140,9 +194,33 @@ func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, 
 		rows[i].Status = status
 		rows[i].StatusDetail = detail
 		rows[i].RefreshedAt = now
-		updates = append(updates, RefreshUpdate{
+		update := RefreshUpdate{
 			ID: row.ID, Status: status, StatusDetail: detail, RefreshedAt: now,
-		})
+		}
+		// Drift policy:
+		//   * status flips to behind/modified AND no backlog item filed
+		//     yet → call the reporter and store the returned ref so the
+		//     next refresh skips it.
+		//   * status returns to current → clear the stored ref so a
+		//     fresh drift files a new item rather than being silently
+		//     swallowed.
+		if s.reporter != nil {
+			switch {
+			case (status == StatusBehind || status == StatusModified) && row.DriftBacklogRef == "":
+				ev := s.buildDriftEvent(ctx, rows[i])
+				report, err := s.reporter.Report(ctx, ev)
+				if err != nil {
+					s.logf("drift reporter for adoption %q failed: %v", row.ID, err)
+				} else if ref := strings.TrimSpace(report.Ref); ref != "" {
+					update.DriftBacklogRef = ref
+					rows[i].DriftBacklogRef = ref
+				}
+			case status == StatusCurrent && row.DriftBacklogRef != "":
+				update.ClearDriftBacklogRef = true
+				rows[i].DriftBacklogRef = ""
+			}
+		}
+		updates = append(updates, update)
 		switch status {
 		case StatusCurrent:
 			summary.Current++
@@ -196,6 +274,38 @@ func (s *service) computeStatus(ctx context.Context, row Adoption) (Status, stri
 		return StatusBehind, detail
 	}
 	return StatusModified, "adopted bytes diverge from any known snapshot"
+}
+
+// buildDriftEvent assembles the payload handed to the reporter. The
+// LibraryVersion lookup is best-effort: if the library reader fails
+// (it shouldn't, since computeStatus just succeeded for this row), the
+// event still goes out without a library version.
+func (s *service) buildDriftEvent(ctx context.Context, row Adoption) DriftEvent {
+	ev := DriftEvent{
+		AdoptionID:     row.ID,
+		ComponentID:    row.ComponentID,
+		LibraryID:      row.LibraryID,
+		Scenario:       row.Scenario,
+		AdoptedPath:    row.AdoptedPath,
+		AdoptedVersion: row.AdoptedVersion,
+		Status:         row.Status,
+		StatusDetail:   row.StatusDetail,
+	}
+	if cmp, err := s.library.Get(ctx, row.ComponentID); err == nil {
+		ev.LibraryVersion = cmp.Version
+		if ev.LibraryID == "" {
+			ev.LibraryID = cmp.LibraryID
+		}
+	}
+	return ev
+}
+
+func (s *service) logf(format string, args ...any) {
+	if s.logger == nil {
+		log.Default().Printf(format, args...)
+		return
+	}
+	s.logger.Printf(format, args...)
 }
 
 func hashBytes(b []byte) string {

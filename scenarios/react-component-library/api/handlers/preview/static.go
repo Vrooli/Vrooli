@@ -137,6 +137,141 @@ import * as Mod from "data:text/javascript;base64,`)
 	// for the full ESM payload including non-ASCII characters.
 	sb.WriteString(base64Encode(b.JS))
 	sb.WriteString(`";
+// Color-scheme bridge (req DV-001): the host posts
+// {type:"rcl-color-scheme", colorScheme:"system"|"light"|"dark"}; we
+// apply CSS color-scheme on :root and toggle a "dark" class on body.
+window.addEventListener("message", (ev) => {
+  const data = ev && ev.data;
+  if (!data || data.type !== "rcl-color-scheme") return;
+  const cs = data.colorScheme;
+  if (cs !== "system" && cs !== "light" && cs !== "dark") return;
+  document.documentElement.style.colorScheme = cs === "system" ? "light dark" : cs;
+  document.body.classList.toggle("dark", cs === "dark");
+});
+// Inspector (req IS-001..003): minimal implementation of the
+// @vrooli/iframe-bridge INSPECT wire protocol. The host sends
+// {v:1,t:"INSPECT",cmd:"START"|"STOP"}; we reply with INSPECT_STATE,
+// INSPECT_HOVER, and INSPECT_RESULT messages whose payload shape
+// matches BridgeInspectHoverPayload / BridgeInspectResultPayload.
+(() => {
+  let active = false;
+  let lastHoverEl = null;
+  const post = (payload) => { try { parent.postMessage(payload, "*"); } catch (e) {} };
+  const truncate = (s, n) => (s && s.length > n) ? s.slice(0, n) + "…" : s || "";
+  const buildSelector = (el) => {
+    if (!el || el.nodeType !== 1) return "";
+    if (el.id) return "#" + el.id;
+    const parts = [el.tagName.toLowerCase()];
+    const cls = (el.className && typeof el.className === "string")
+      ? el.className.trim().split(/\s+/).filter(Boolean).slice(0, 2)
+      : [];
+    for (const c of cls) parts.push("." + c);
+    return parts.join("");
+  };
+  const buildMeta = (el) => {
+    const tag = el.tagName ? el.tagName.toLowerCase() : "";
+    const classes = (el.className && typeof el.className === "string")
+      ? el.className.trim().split(/\s+/).filter(Boolean)
+      : [];
+    const text = (el.textContent || "").trim();
+    return {
+      tag,
+      id: el.id || "",
+      classes,
+      selector: buildSelector(el),
+      label: el.getAttribute ? (el.getAttribute("aria-label") || "") : "",
+      ariaLabel: el.getAttribute ? (el.getAttribute("aria-label") || "") : "",
+      ariaDescription: el.getAttribute ? (el.getAttribute("aria-description") || "") : "",
+      title: el.getAttribute ? (el.getAttribute("title") || "") : "",
+      role: el.getAttribute ? (el.getAttribute("role") || "") : "",
+      text: truncate(text, 500),
+    };
+  };
+  const buildRect = (el) => {
+    const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+    if (!r) return null;
+    return { x: r.x, y: r.y, width: r.width, height: r.height };
+  };
+  const buildAncestors = (el) => {
+    const out = [];
+    let cur = el;
+    let depth = 0;
+    while (cur && cur.nodeType === 1 && depth < 12 && cur !== document.documentElement) {
+      out.push({
+        depth,
+        tag: cur.tagName.toLowerCase(),
+        selector: buildSelector(cur),
+        id: cur.id || "",
+        classes: (cur.className && typeof cur.className === "string")
+          ? cur.className.trim().split(/\s+/).filter(Boolean) : [],
+        rect: buildRect(cur),
+        documentRect: buildRect(cur),
+      });
+      cur = cur.parentElement;
+      depth++;
+    }
+    return out;
+  };
+  const buildPayload = (el) => {
+    if (!el) return null;
+    return {
+      meta: buildMeta(el),
+      rect: buildRect(el),
+      documentRect: buildRect(el),
+      ancestors: buildAncestors(el),
+      selectedAncestorIndex: 0,
+      pointerType: "mouse",
+    };
+  };
+  const onMove = (ev) => {
+    if (!active) return;
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    if (!el || el === lastHoverEl) return;
+    lastHoverEl = el;
+    const payload = buildPayload(el);
+    if (payload) post({ v: 1, t: "INSPECT_HOVER", payload });
+  };
+  const onClick = (ev) => {
+    if (!active) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    if (!el) return;
+    const payload = buildPayload(el);
+    if (!payload) return;
+    post({ v: 1, t: "INSPECT_RESULT", payload: { ...payload, method: "pointer" } });
+    setActive(false, "complete");
+  };
+  const onKey = (ev) => {
+    if (!active || ev.key !== "Escape") return;
+    ev.preventDefault();
+    setActive(false, "cancel");
+  };
+  function setActive(next, reason) {
+    active = next;
+    if (next) {
+      document.addEventListener("mousemove", onMove, true);
+      document.addEventListener("click", onClick, true);
+      document.addEventListener("keydown", onKey, true);
+      document.body.style.cursor = "crosshair";
+    } else {
+      document.removeEventListener("mousemove", onMove, true);
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("keydown", onKey, true);
+      document.body.style.cursor = "";
+      lastHoverEl = null;
+    }
+    post({ v: 1, t: "INSPECT_STATE", active, reason: reason || (next ? "start" : "stop") });
+  }
+  window.addEventListener("message", (ev) => {
+    const d = ev && ev.data;
+    if (!d || d.v !== 1 || d.t !== "INSPECT") return;
+    if (d.cmd === "START") setActive(true, "start");
+    else if (d.cmd === "STOP") setActive(false, "stop");
+  });
+  // Announce capability so the host knows the harness supports inspect.
+  post({ v: 1, t: "HELLO", caps: ["inspect"] });
+})();
 const Cmp = Mod.default ?? Mod[Object.keys(Mod).find(k => typeof Mod[k] === "function")] ?? null;
 const errEl = document.getElementById("preview-error");
 if (!Cmp) {

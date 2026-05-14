@@ -19,7 +19,12 @@ CREATE TABLE IF NOT EXISTS adoption_records (
   status          TEXT NOT NULL DEFAULT '',
   status_detail   TEXT NOT NULL DEFAULT '',
   created_at      TEXT NOT NULL,
-  refreshed_at    TEXT NOT NULL DEFAULT ''
+  refreshed_at    TEXT NOT NULL DEFAULT '',
+  -- drift_backlog_ref records the swarm-manager backlog item
+  -- (`<kind>/<name>`) filed when this adoption first transitioned to
+  -- behind/modified. Cleared back to '' when status returns to
+  -- current, so a subsequent drift files a fresh item.
+  drift_backlog_ref TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_adoptions_component_id

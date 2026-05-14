@@ -9,9 +9,12 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { API_BASE } from "../../api/client";
 import { componentsClient } from "../../api/components";
+import { useComponentInspector } from "../../hooks/useComponentInspector";
 import { useDeviceEmulation } from "../../hooks/useDeviceEmulation";
+import { useDeviceFilters } from "../../hooks/useDeviceFilters";
 import { errorMessage } from "../../lib/errorMessage";
 import { EmulatorChrome } from "./EmulatorChrome";
+import { InspectorPanel } from "./InspectorPanel";
 
 /**
  * Build the harness URL the iframe loads. The query param `v` is the
@@ -45,6 +48,9 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const emulator = useDeviceEmulation();
+  const filters = useDeviceFilters();
+  const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const inspector = useComponentInspector(previewFrameRef);
 
   const contentQuery = useQuery({
     queryKey: ["components", "content", id],
@@ -67,6 +73,18 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
   }, [id]);
+
+  // Push color-scheme into the harness whenever it changes, plus once
+  // on preview-ready so a reload (new baselineSha) re-applies it.
+  useEffect(() => {
+    if (!previewReady) return;
+    const win = previewFrameRef.current?.contentWindow;
+    if (!win) return;
+    win.postMessage(
+      { type: "rcl-color-scheme", colorScheme: filters.colorScheme },
+      "*",
+    );
+  }, [filters.colorScheme, previewReady]);
 
   useEffect(() => {
     // A new baselineSha (post-save or first fetch) means the iframe is
@@ -239,12 +257,13 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
               </span>
             </div>
             <div className="h-[440px]">
-              <EmulatorChrome emulator={emulator}>
+              <EmulatorChrome emulator={emulator} filters={filters}>
                 <iframe
                   data-testid={selectors.components.editor.previewFrame}
                   title={t(strings.components.editor.previewHeading)}
                   src={harnessUrl(id, baselineSha)}
                   sandbox="allow-scripts allow-same-origin"
+                  ref={previewFrameRef}
                   style={{
                     width: emulator.displayWidth,
                     height: emulator.displayHeight,
@@ -253,6 +272,7 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
                 />
               </EmulatorChrome>
             </div>
+            <InspectorPanel inspector={inspector} />
           </div>
         </div>
       )}

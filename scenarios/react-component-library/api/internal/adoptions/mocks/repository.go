@@ -151,6 +151,12 @@ func (f *FakeRepository) ApplyRefresh(ctx context.Context, updates []adoptions.R
 		a.Status = u.Status
 		a.StatusDetail = u.StatusDetail
 		a.RefreshedAt = u.RefreshedAt
+		switch {
+		case u.ClearDriftBacklogRef:
+			a.DriftBacklogRef = ""
+		case u.DriftBacklogRef != "":
+			a.DriftBacklogRef = u.DriftBacklogRef
+		}
 		f.items[u.ID] = a
 		touched++
 	}

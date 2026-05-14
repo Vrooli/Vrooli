@@ -10,7 +10,7 @@
     {
       "id": "VR-001",
       "title": "Saving a component records a new version when content or @version changes",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "versions",
       "criticality": "P1",
@@ -19,7 +19,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Service test saves the same content twice and asserts only one version row; varies @version to assert a new row on bump."
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "VR-002",
       "title": "List and fetch versions per component via API and CLI",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "versions",
       "criticality": "P1",
@@ -36,7 +36,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Handler tests cover list/show; CLI smoke test exercises both verbs."
         }
       ]
@@ -44,7 +44,7 @@
     {
       "id": "VR-003",
       "title": "Diff viewer renders side-by-side unified diff between two versions",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "versions",
       "criticality": "P1",
@@ -53,7 +53,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Component test asserts diff hunks render for a fixture pair; BAS flow `adopt-and-detect-drift` opens the diff viewer end-to-end."
         }
       ]

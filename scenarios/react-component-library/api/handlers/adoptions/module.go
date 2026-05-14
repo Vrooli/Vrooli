@@ -44,9 +44,13 @@ func Module(db *sql.DB, clk clock.Clock, library adoptions.LibraryReader, logger
 // ModuleWithRoot is the explicit-injection variant used by tests and
 // callers that want to point the scenario-file reader at a custom path.
 func ModuleWithRoot(db *sql.DB, clk clock.Clock, library adoptions.LibraryReader, scenariosRoot string, logger *log.Logger) module.Module {
-	repo := adoptions.NewSQLiteRepository(db, clk)
-	files := adoptions.NewFSScenarioFileReader(scenariosRoot)
-	svc := adoptions.NewService(repo, library, files, clk)
+	svc, _ := BuildService(db, clk, library, scenariosRoot)
+	return ModuleFromService(svc, logger)
+}
+
+// ModuleFromService mounts a prebuilt adoptions.Service. main.go uses
+// this variant when the service is shared with sibling modules.
+func ModuleFromService(svc adoptions.Service, logger *log.Logger) module.Module {
 	connectPath, connectHandler := adoptionsconnect.NewAdoptionsServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
@@ -62,6 +66,22 @@ func ModuleWithRoot(db *sql.DB, clk clock.Clock, library adoptions.LibraryReader
 
 // Schema re-exports internal/adoptions.Schema for the modules registry.
 func Schema() string { return adoptions.Schema() }
+
+// BuildService is the shared seam main.go calls to construct one
+// adoptions.Service that sibling modules can read from (e.g.,
+// versions resolves `adoption:<id>` diff sides through this service
+// and the returned ScenarioFileReader).
+func BuildService(db *sql.DB, clk clock.Clock, library adoptions.LibraryReader, scenariosRoot string) (adoptions.Service, adoptions.ScenarioFileReader) {
+	repo := adoptions.NewSQLiteRepository(db, clk)
+	files := adoptions.NewFSScenarioFileReader(scenariosRoot)
+	svc := adoptions.NewService(repo, library, files, clk)
+	return svc, files
+}
+
+// DefaultScenariosRoot exposes the production-default adoption scenarios
+// root so main.go can share the same value across the adoptions and
+// versions modules.
+func DefaultScenariosRoot() (string, error) { return defaultScenariosRoot() }
 
 // LibraryFromComponents adapts a components.Service into the minimal
 // LibraryReader the adoptions service depends on. Keeps the package

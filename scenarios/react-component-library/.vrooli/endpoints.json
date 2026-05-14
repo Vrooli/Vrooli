@@ -454,6 +454,133 @@
           "<id>"
         ]
       }
+    },
+    {
+      "id": "versions_list",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/ListVersions",
+      "method": "POST",
+      "summary": "List recorded versions for a component",
+      "description": "Returns version rows newest-first for the given component_id.",
+      "category": "versions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "limit": "int32 (max rows, 0 = server default)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "versions": "array<Version>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library versions list",
+        "args": [
+          "<component_id>"
+        ]
+      }
+    },
+    {
+      "id": "versions_get",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/GetVersion",
+      "method": "POST",
+      "summary": "Get a specific recorded version",
+      "description": "Returns the row matching (component_id, version). Set include_content=true to receive the full recorded body.",
+      "category": "versions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "include_content": "bool",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string (populated only when include_content was true)",
+          "version": "Version"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No version with that component_id/version pair"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library versions show",
+        "args": [
+          "<component_id>",
+          "<version>"
+        ]
+      }
+    },
+    {
+      "id": "versions_diff",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/DiffVersions",
+      "method": "POST",
+      "summary": "Diff two versions or a version and an adopted copy",
+      "description": "Returns paired left/right diff cells (equal/add/remove/empty). `from` and `to` accept either a @version value or `adoption:<id>` to compare against an adopted copy on disk.",
+      "category": "versions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "from": "string (version or adoption:<id>)",
+          "to": "string (version or adoption:<id>)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "additions": "int32",
+          "from_label": "string",
+          "removals": "int32",
+          "rows": "array<DiffRow>",
+          "to_label": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing from/to or invalid adoption reference"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Referenced version or adoption does not exist"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library versions diff",
+        "args": [
+          "<component_id>",
+          "<from>",
+          "<to>"
+        ]
+      }
     }
   ],
   "cli_commands": [
@@ -516,6 +643,21 @@
       "name": "preview bundle",
       "description": "Print the esbuild-transpiled ES module for a component (used by the live-preview iframe and for diagnostics)",
       "endpoint_id": "preview_get_bundle"
+    },
+    {
+      "name": "versions list",
+      "description": "List recorded versions for a component (--limit N)",
+      "endpoint_id": "versions_list"
+    },
+    {
+      "name": "versions show",
+      "description": "Show a specific recorded version (--with-content to include the body)",
+      "endpoint_id": "versions_get"
+    },
+    {
+      "name": "versions diff",
+      "description": "Diff two versions or a version and an adoption:<id>",
+      "endpoint_id": "versions_diff"
     }
   ]
 }

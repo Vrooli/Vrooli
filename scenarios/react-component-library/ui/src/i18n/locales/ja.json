@@ -112,7 +112,38 @@
       "zoomOut": "ズームアウト",
       "resetZoom": "ズームをリセット",
       "rotate": "回転",
-      "reset": "エミュレーターをリセット"
+      "reset": "エミュレーターをリセット",
+      "colorSchemeLabel": "カラースキーム",
+      "colorScheme": {
+        "system": "システム",
+        "light": "ライト",
+        "dark": "ダーク"
+      },
+      "visionFilterLabel": "視覚フィルター",
+      "visionFilter": {
+        "none": "なし",
+        "grayscale": "グレースケール",
+        "protanopia": "第一色覚異常",
+        "deuteranopia": "第二色覚異常",
+        "tritanopia": "第三色覚異常"
+      },
+      "blurLabel": "ぼかし",
+      "blurValue": "{{px}}px"
+    },
+    "inspector": {
+      "title": "要素インスペクタ",
+      "toggleStart": "要素を選択",
+      "toggleStop": "選択を終了",
+      "statusIdle": "待機中",
+      "statusActive": "プレビュー内の要素をクリック",
+      "statusReady": "要素を選択しました",
+      "empty": "まだ要素が選択されていません。",
+      "selectorLabel": "セレクタ",
+      "tagLabel": "タグ",
+      "rectLabel": "{{w}}×{{h}} @ ({{x}}, {{y}})",
+      "textLabel": "テキスト",
+      "breadcrumbLabel": "親要素の経路",
+      "ancestorDepth": "深さ {{n}}"
     }
   },
   "adoptions": {
@@ -136,6 +167,25 @@
       "modified": "変更あり",
       "unknown": "不明",
       "unspecified": "更新待ち"
+    }
+  },
+  "versions": {
+    "title": "バージョン履歴",
+    "loading": "バージョンを読み込み中…",
+    "empty": "記録されたバージョンはまだありません — コンポーネントを保存すると記録されます。",
+    "summary": "{{count}} 件のバージョン",
+    "recordedAt": "記録: {{when}}",
+    "shaLabel": "sha256 {{sha}}",
+    "versionLabel": "v{{version}}",
+    "diffAction": "差分",
+    "diff": {
+      "title": "差分",
+      "fromLabel": "比較元",
+      "toLabel": "比較先",
+      "runAction": "比較",
+      "running": "比較中…",
+      "empty": "2 つのバージョンを選択して [比較] を押してください。",
+      "summary": "{{from}} → {{to}} : +{{additions}} / -{{removals}} ({{rows}} 行)"
     }
   },
   "errors": {

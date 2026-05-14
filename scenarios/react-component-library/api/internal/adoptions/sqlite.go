@@ -44,8 +44,8 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Adoption
 	id := uuid.NewString()
 	if _, err := s.db.ExecContext(ctx, `
 INSERT INTO adoption_records
-  (id, component_id, library_id, scenario, adopted_path, adopted_version, adopted_snapshot_sha256, status, status_detail, created_at, refreshed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, '')
+  (id, component_id, library_id, scenario, adopted_path, adopted_version, adopted_snapshot_sha256, status, status_detail, created_at, refreshed_at, drift_backlog_ref)
+VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, '', '')
 `, id, in.ComponentID, in.LibraryID, in.Scenario, in.AdoptedPath, in.AdoptedVersion, in.AdoptedSnapshotSHA256, now.Format(timeFormat)); err != nil {
 		return Adoption{}, fmt.Errorf("insert adoption: %w", err)
 	}
@@ -87,7 +87,7 @@ func (s *sqliteRepository) List(ctx context.Context, q ListQuery) ([]Adoption, e
 	}
 	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
-SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, adopted_snapshot_sha256, status, status_detail, created_at, refreshed_at
+SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, adopted_snapshot_sha256, status, status_detail, created_at, refreshed_at, drift_backlog_ref
 FROM adoption_records
 %s
 ORDER BY created_at DESC, id ASC
@@ -143,6 +143,19 @@ WHERE id = ?
 		}
 		n, _ := res.RowsAffected()
 		touched += int(n)
+		// drift_backlog_ref updates ride alongside the row update so we
+		// stay in a single transaction. ClearDriftBacklogRef wins over a
+		// non-empty DriftBacklogRef so callers can be explicit either way.
+		switch {
+		case u.ClearDriftBacklogRef:
+			if _, err := tx.ExecContext(ctx, `UPDATE adoption_records SET drift_backlog_ref = '' WHERE id = ?`, u.ID); err != nil {
+				return touched, fmt.Errorf("clear drift ref for %q: %w", u.ID, err)
+			}
+		case u.DriftBacklogRef != "":
+			if _, err := tx.ExecContext(ctx, `UPDATE adoption_records SET drift_backlog_ref = ? WHERE id = ?`, u.DriftBacklogRef, u.ID); err != nil {
+				return touched, fmt.Errorf("set drift ref for %q: %w", u.ID, err)
+			}
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return touched, fmt.Errorf("commit refresh: %w", err)
@@ -151,7 +164,7 @@ WHERE id = ?
 }
 
 const selectAdoptionByIDSQL = `
-SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, adopted_snapshot_sha256, status, status_detail, created_at, refreshed_at
+SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, adopted_snapshot_sha256, status, status_detail, created_at, refreshed_at, drift_backlog_ref
 FROM adoption_records WHERE id = ?
 `
 
@@ -167,7 +180,7 @@ func scanAdoption(s rowScanner) (Adoption, error) {
 		refreshedRaw string
 	)
 	if err := s.Scan(&a.ID, &a.ComponentID, &a.LibraryID, &a.Scenario, &a.AdoptedPath, &a.AdoptedVersion,
-		&a.AdoptedSnapshotSHA256, &statusRaw, &a.StatusDetail, &createdRaw, &refreshedRaw); err != nil {
+		&a.AdoptedSnapshotSHA256, &statusRaw, &a.StatusDetail, &createdRaw, &refreshedRaw, &a.DriftBacklogRef); err != nil {
 		return Adoption{}, err
 	}
 	a.Status = Status(statusRaw)

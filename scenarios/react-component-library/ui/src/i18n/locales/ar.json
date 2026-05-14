@@ -116,7 +116,38 @@
       "zoomOut": "تصغير",
       "resetZoom": "إعادة التكبير",
       "rotate": "تدوير",
-      "reset": "إعادة ضبط المحاكي"
+      "reset": "إعادة ضبط المحاكي",
+      "colorSchemeLabel": "نظام الألوان",
+      "colorScheme": {
+        "system": "النظام",
+        "light": "فاتح",
+        "dark": "داكن"
+      },
+      "visionFilterLabel": "مرشح الرؤية",
+      "visionFilter": {
+        "none": "بدون",
+        "grayscale": "تدرّج الرمادي",
+        "protanopia": "عمى اللون الأحمر",
+        "deuteranopia": "عمى اللون الأخضر",
+        "tritanopia": "عمى اللون الأزرق"
+      },
+      "blurLabel": "ضبابية",
+      "blurValue": "{{px}}px"
+    },
+    "inspector": {
+      "title": "مفتش العناصر",
+      "toggleStart": "اختر عنصراً",
+      "toggleStop": "أوقف الاختيار",
+      "statusIdle": "خامل",
+      "statusActive": "انقر على عنصر في المعاينة",
+      "statusReady": "تم اختيار العنصر",
+      "empty": "لم يُختر أي عنصر بعد.",
+      "selectorLabel": "المحدد",
+      "tagLabel": "الوسم",
+      "rectLabel": "{{w}}×{{h}} @ ({{x}}, {{y}})",
+      "textLabel": "النص",
+      "breadcrumbLabel": "مسار الأسلاف",
+      "ancestorDepth": "العمق {{n}}"
     }
   },
   "adoptions": {
@@ -140,6 +171,25 @@
       "modified": "مُعدّل",
       "unknown": "غير معروف",
       "unspecified": "بانتظار التحديث"
+    }
+  },
+  "versions": {
+    "title": "سجل الإصدارات",
+    "loading": "يجري تحميل الإصدارات…",
+    "empty": "لا توجد إصدارات مسجّلة بعد — احفظ تغييراً على المكوّن لتسجيل إصدار.",
+    "summary": "{{count}} إصدار",
+    "recordedAt": "سُجّل في {{when}}",
+    "shaLabel": "sha256 {{sha}}",
+    "versionLabel": "v{{version}}",
+    "diffAction": "فروقات",
+    "diff": {
+      "title": "الفروقات",
+      "fromLabel": "من",
+      "toLabel": "إلى",
+      "runAction": "قارن",
+      "running": "جارٍ المقارنة…",
+      "empty": "اختر إصدارين ثم اضغط [قارن].",
+      "summary": "{{from}} → {{to}} : +{{additions}} / -{{removals}} ({{rows}} سطراً)"
     }
   },
   "errors": {

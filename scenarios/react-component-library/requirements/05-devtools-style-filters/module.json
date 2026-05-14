@@ -10,7 +10,7 @@
     {
       "id": "DV-001",
       "title": "Color-scheme toggle (system/light/dark) posts a class to the harness child via the bridge",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "filters",
       "criticality": "P1",
@@ -19,7 +19,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "UI component test toggles the control, asserts the bridge message is posted with the expected payload."
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "DV-002",
       "title": "Vision-filter dropdown applies SVG-defined filters to the iframe",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "filters",
       "criticality": "P1",
@@ -36,7 +36,7 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
+          "status": "complete",
           "notes": "Component test asserts dropdown selection updates the wrapper's `filter` CSS to the expected `url(#...)` value."
         }
       ]

@@ -60,6 +60,21 @@
       "name": "preview bundle",
       "description": "Print the esbuild-transpiled ES module for a component (used by the live-preview iframe and for diagnostics)",
       "endpoint_id": "preview_get_bundle"
+    },
+    {
+      "name": "versions list",
+      "description": "List recorded versions for a component (--limit N)",
+      "endpoint_id": "versions_list"
+    },
+    {
+      "name": "versions show",
+      "description": "Show a specific recorded version (--with-content to include the body)",
+      "endpoint_id": "versions_get"
+    },
+    {
+      "name": "versions diff",
+      "description": "Diff two versions or a version and an adoption:<id>",
+      "endpoint_id": "versions_diff"
     }
   ]
 }

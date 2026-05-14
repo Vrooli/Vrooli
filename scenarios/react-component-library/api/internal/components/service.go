@@ -22,9 +22,19 @@ type Service interface {
 	UpdateContent(ctx context.Context, id string, in WriteContentInput) (Content, error)
 }
 
+// ContentChangeListener is an optional sink the service invokes after a
+// successful UpdateContent write. Wired by main.go to drive the
+// versions recorder (req 11). Listener errors are logged at the
+// handler edge and do not roll back the save — the file on disk is
+// already updated. Keep listeners idempotent and fast.
+type ContentChangeListener interface {
+	OnContentSaved(ctx context.Context, c Component, content Content) error
+}
+
 type service struct {
-	repo    Repository
-	content ContentStore
+	repo     Repository
+	content  ContentStore
+	listener ContentChangeListener
 }
 
 func NewService(repo Repository) Service {
@@ -37,6 +47,15 @@ func NewService(repo Repository) Service {
 // source root; tests inject a fake.
 func NewServiceWithContent(repo Repository, content ContentStore) Service {
 	return &service{repo: repo, content: content}
+}
+
+// SetContentChangeListener installs the post-save listener. Designed
+// to be called once at boot before any requests land; not concurrency-
+// safe with in-flight UpdateContent.
+func SetContentChangeListener(svc Service, l ContentChangeListener) {
+	if s, ok := svc.(*service); ok {
+		s.listener = l
+	}
 }
 
 var _ Service = (*service)(nil)
@@ -83,7 +102,16 @@ func (s *service) UpdateContent(ctx context.Context, id string, in WriteContentI
 	if err != nil {
 		return Content{}, err
 	}
-	return s.content.Write(ctx, c, in)
+	written, err := s.content.Write(ctx, c, in)
+	if err != nil {
+		return Content{}, err
+	}
+	if s.listener != nil {
+		// Listener errors are non-fatal — the file is already written.
+		// Callers swallow + log at the handler edge.
+		_ = s.listener.OnContentSaved(ctx, c, written)
+	}
+	return written, nil
 }
 
 // errNoContentStore signals that the service was constructed without a

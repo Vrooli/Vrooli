@@ -42,8 +42,14 @@ func Module(db *sql.DB, clk clock.Clock, logger *log.Logger) module.Module {
 // ModuleWithRoot is the explicit-injection variant used by tests and by
 // callers that want to point the indexer at a custom path.
 func ModuleWithRoot(db *sql.DB, clk clock.Clock, sourceRoot string, logger *log.Logger) module.Module {
-	repo := components.NewSQLiteRepository(db, clk)
-	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(sourceRoot))
+	svc, repo := BuildService(db, clk, sourceRoot)
+	return ModuleFromService(svc, repo, sourceRoot, logger)
+}
+
+// ModuleFromService mounts a prebuilt components.Service. main.go uses
+// this variant so sibling modules (preview, versions) and the content-
+// change listener bind to the same service instance.
+func ModuleFromService(svc components.Service, repo components.Repository, sourceRoot string, logger *log.Logger) module.Module {
 	connectPath, connectHandler := componentsconnect.NewComponentsServiceHandler(NewConnectHandler(Deps{
 		Service:    svc,
 		Repo:       repo,

@@ -116,7 +116,38 @@
       "zoomOut": "Zoom out",
       "resetZoom": "Reset zoom",
       "rotate": "Rotate",
-      "reset": "Reset emulator"
+      "reset": "Reset emulator",
+      "colorSchemeLabel": "Color scheme",
+      "colorScheme": {
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "visionFilterLabel": "Vision filter",
+      "visionFilter": {
+        "none": "None",
+        "grayscale": "Grayscale",
+        "protanopia": "Protanopia",
+        "deuteranopia": "Deuteranopia",
+        "tritanopia": "Tritanopia"
+      },
+      "blurLabel": "Blur",
+      "blurValue": "{{px}}px"
+    },
+    "inspector": {
+      "title": "Element inspector",
+      "toggleStart": "Pick element",
+      "toggleStop": "Stop picking",
+      "statusIdle": "Idle",
+      "statusActive": "Click an element in the preview",
+      "statusReady": "Element selected",
+      "empty": "No element selected yet.",
+      "selectorLabel": "Selector",
+      "tagLabel": "Tag",
+      "rectLabel": "{{w}}×{{h}} @ ({{x}}, {{y}})",
+      "textLabel": "Text",
+      "breadcrumbLabel": "Ancestor path",
+      "ancestorDepth": "depth {{n}}"
     }
   },
   "adoptions": {
@@ -140,6 +171,25 @@
       "modified": "Modified",
       "unknown": "Unknown",
       "unspecified": "Pending refresh"
+    }
+  },
+  "versions": {
+    "title": "Version history",
+    "loading": "Loading versions…",
+    "empty": "No recorded versions yet — save a change to the component to record one.",
+    "summary": "{{count}} version(s)",
+    "recordedAt": "Recorded {{when}}",
+    "shaLabel": "sha256 {{sha}}",
+    "versionLabel": "v{{version}}",
+    "diffAction": "Diff",
+    "diff": {
+      "title": "Diff",
+      "fromLabel": "From",
+      "toLabel": "To",
+      "runAction": "Compare",
+      "running": "Comparing…",
+      "empty": "Pick two versions and press Compare.",
+      "summary": "{{from}} → {{to}} : +{{additions}} / -{{removals}} ({{rows}} rows)"
     }
   },
   "errors": {

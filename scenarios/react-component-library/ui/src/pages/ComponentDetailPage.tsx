@@ -11,6 +11,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { componentsClient } from "../api/components";
 import { ComponentEditor } from "../features/components/ComponentEditor";
+import { VersionsCard } from "../features/versions/VersionsCard";
 import { useTranslation } from "../i18n";
 
 export function ComponentDetailPage() {
@@ -55,6 +56,7 @@ export function ComponentDetailPage() {
         libraryId={data.component.libraryId || data.component.id}
         onClose={() => navigate("/components")}
       />
+      <VersionsCard componentId={data.component.id} />
     </div>
   );
 }

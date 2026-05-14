@@ -22,6 +22,10 @@ import (
 	componentsH "react-component-library/handlers/components"
 	healthH "react-component-library/handlers/health"
 	previewH "react-component-library/handlers/preview"
+	versionsH "react-component-library/handlers/versions"
+
+	adoptionsInternal "react-component-library/internal/adoptions"
+	componentsInternal "react-component-library/internal/components"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -104,14 +108,44 @@ func main() {
 	if err != nil {
 		log.Fatalf("components source root: %v", err)
 	}
-	componentsSvc, _ := componentsH.BuildService(db, clock.System{}, sourceRoot)
+	componentsSvc, componentsRepo := componentsH.BuildService(db, clock.System{}, sourceRoot)
+
+	scenariosRoot, err := adoptionsH.DefaultScenariosRoot()
+	if err != nil {
+		log.Fatalf("adoptions scenarios root: %v", err)
+	}
+	adoptionsSvc, scenariosReader := adoptionsH.BuildService(db, clock.System{}, adoptionsH.LibraryFromComponents(componentsSvc), scenariosRoot)
+
+	// Install the swarm-manager drift reporter so Refresh files a
+	// `fix` backlog item when an adoption first transitions to
+	// behind/modified. CLI-only per [feedback_skills_use_cli_never_api.md];
+	// disable by setting RCL_DRIFT_REPORTER=off.
+	if strings.TrimSpace(os.Getenv("RCL_DRIFT_REPORTER")) != "off" {
+		reporter := adoptionsInternal.NewSwarmManagerCLIReporter(nil)
+		if path := strings.TrimSpace(os.Getenv("RCL_SWARM_MANAGER_BIN")); path != "" {
+			reporter.BinaryPath = path
+		}
+		adoptionsInternal.SetDriftReporter(adoptionsSvc, reporter, log.Default())
+	}
+
+	versionsResolver := versionsH.AdoptionResolverFromService(adoptionsSvc, scenariosReader)
+	versionsSvc := versionsH.BuildService(db, clock.System{}, versionsResolver)
+
+	// Wire post-save versions recording. Listener errors are logged
+	// inside the adapter; UpdateContent does not fail when recording
+	// fails (the file is already on disk).
+	componentsInternal.SetContentChangeListener(componentsSvc, &versionsH.ListenerAdapter{
+		Service: versionsSvc,
+		Logger:  log.Default(),
+	})
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		adoptionsH.Module(db, clock.System{}, adoptionsH.LibraryFromComponents(componentsSvc), log.Default()),
-		componentsH.ModuleWithRoot(db, clock.System{}, sourceRoot, log.Default()),
+		adoptionsH.ModuleFromService(adoptionsSvc, log.Default()),
+		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default()),
 		healthH.Module(db, "react-component-library-api", "1.0.0"),
 		previewH.Module(componentsSvc, log.Default()),
+		versionsH.Module(db, clock.System{}, versionsResolver, log.Default()),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

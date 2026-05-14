@@ -26,7 +26,7 @@
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | DevTools-style visual filters | Color-scheme toggle (system/light/dark) and a vision-filter dropdown (blur 0–10px, grayscale, protanopia, deuteranopia, tritanopia) applied to the preview iframe.
 - [ ] OT-P1-002 | Element selection via `@vrooli/iframe-bridge` | Hover overlay rect, ancestor breadcrumb, element screenshot, selector capture; selection feeds the AI chat panel context.
-- [ ] OT-P1-003 | Adoption-issue integration | When refresh detects "behind", file an issue against the target scenario via `app-issue-tracker`'s CLI; never raw HTTP.
+- [ ] OT-P1-003 | Adoption-drift backlog integration | When refresh detects "behind"/"modified", file a `fix` backlog item via `swarm-manager`'s CLI; never raw HTTP; dedupe via the recorded `drift_backlog_ref`.
 - [ ] OT-P1-004 | Dependency compatibility check on adopt | Component declares `@deps` (JSON in header); on adopt, validate against the target scenario's `package.json`; warn on missing/mismatch, block on incompatible-major.
 - [ ] OT-P1-005 | Version tracking with a real diff viewer | Each save records a new version; UI renders a side-by-side unified diff between any two versions and between the library version and an adopted copy.
 - [ ] OT-P1-006 | Theme-preview switcher | Pick from built-in themes or load a target scenario's `DESIGN.md`-derived theme; tokens mount as CSS custom properties on the harness `:root` before render. Resolver is a server endpoint, never client-derived.
