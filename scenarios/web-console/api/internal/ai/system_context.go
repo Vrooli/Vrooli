@@ -1,4 +1,4 @@
-package main
+package ai
 
 import (
 	"bufio"
@@ -9,7 +9,12 @@ import (
 	"strings"
 )
 
-// DOC: docs/concepts/ARCHITECTURE.md#ai-command-generation
+// CommandSystemPrompt and SuggestSystemPrompt are the base instructions
+// used by BuildCommandSystemPrompt / BuildSuggestSystemPrompt.
+const (
+	CommandSystemPrompt = "You are a command-line assistant. Given a natural language description, output ONLY the shell command. No explanation, no markdown, no backticks."
+	SuggestSystemPrompt = "You are a command-line assistant. Given a natural language description, output 1 to 3 shell commands (one per line) that accomplish the task. If there is only one reasonable command, output just that one. No explanation, no numbering, no markdown, no backticks."
+)
 
 // LookPathFunc abstracts exec.LookPath for testability.
 type LookPathFunc func(file string) (string, error)
@@ -17,19 +22,18 @@ type LookPathFunc func(file string) (string, error)
 // ToolCategory groups related CLI tools for prompt formatting.
 type ToolCategory struct {
 	Name  string
-	Tools []string // binary names to probe
+	Tools []string
 }
 
 // SystemContext holds detected environment info for enriching AI prompts.
 type SystemContext struct {
-	OS     string              // runtime.GOOS (e.g. "linux")
-	Arch   string              // runtime.GOARCH (e.g. "amd64")
-	Distro string              // PRETTY_NAME from /etc/os-release, empty if unavailable
-	Shell  string              // basename of $SHELL (e.g. "bash")
-	Tools  map[string][]string // category name -> found tool names
+	OS     string
+	Arch   string
+	Distro string
+	Shell  string
+	Tools  map[string][]string
 }
 
-// defaultToolCategories lists the tools to probe, grouped by purpose.
 var defaultToolCategories = []ToolCategory{
 	{"Search", []string{"rg", "fd", "fzf", "ag", "grep", "find"}},
 	{"File viewing", []string{"bat", "less", "cat", "head", "tail"}},
@@ -45,8 +49,7 @@ var defaultToolCategories = []ToolCategory{
 }
 
 // DiscoverSystemContext probes the host environment for OS info, shell, and
-// available CLI tools. The lookPath parameter allows injecting a test double
-// for exec.LookPath.
+// available CLI tools.
 func DiscoverSystemContext(lookPath LookPathFunc) *SystemContext {
 	ctx := &SystemContext{
 		OS:     runtime.GOOS,
@@ -68,7 +71,6 @@ func DiscoverSystemContext(lookPath LookPathFunc) *SystemContext {
 		}
 	}
 
-	// Support user-supplied extra tools via WC_EXTRA_TOOLS env var.
 	if extra := os.Getenv("WC_EXTRA_TOOLS"); extra != "" {
 		var found []string
 		for _, tool := range strings.Split(extra, ",") {
@@ -91,7 +93,6 @@ func DiscoverSystemContext(lookPath LookPathFunc) *SystemContext {
 // DefaultLookPath is the production LookPathFunc using exec.LookPath.
 var DefaultLookPath LookPathFunc = exec.LookPath
 
-// readDistro reads PRETTY_NAME from /etc/os-release. Returns "" on any error.
 func readDistro() string {
 	f, err := os.Open("/etc/os-release")
 	if err != nil {
@@ -110,7 +111,6 @@ func readDistro() string {
 	return ""
 }
 
-// shellBasename returns the last path component of a shell path (e.g. "/bin/bash" → "bash").
 func shellBasename(shell string) string {
 	if shell == "" {
 		return ""
@@ -121,8 +121,8 @@ func shellBasename(shell string) string {
 	return shell
 }
 
-// countFoundTools returns the total number of discovered tools across all categories.
-func countFoundTools(tools map[string][]string) int {
+// CountFoundTools returns the total number of discovered tools.
+func CountFoundTools(tools map[string][]string) int {
 	n := 0
 	for _, v := range tools {
 		n += len(v)
@@ -130,29 +130,27 @@ func countFoundTools(tools map[string][]string) int {
 	return n
 }
 
-// buildCommandSystemPrompt constructs the system prompt for single-command generation,
-// enriched with environment context when available.
-func buildCommandSystemPrompt(ctx *SystemContext) string {
+// BuildCommandSystemPrompt constructs the system prompt for single-command
+// generation, enriched with environment context when available.
+func BuildCommandSystemPrompt(ctx *SystemContext) string {
 	if ctx == nil {
-		return commandSystemPrompt
+		return CommandSystemPrompt
 	}
-	return buildEnrichedPrompt(ctx, commandSystemPrompt)
+	return buildEnrichedPrompt(ctx, CommandSystemPrompt)
 }
 
-// buildSuggestSystemPrompt constructs the system prompt for multi-command suggestion,
-// enriched with environment context when available.
-func buildSuggestSystemPrompt(ctx *SystemContext) string {
+// BuildSuggestSystemPrompt constructs the system prompt for multi-command
+// suggestion, enriched with environment context when available.
+func BuildSuggestSystemPrompt(ctx *SystemContext) string {
 	if ctx == nil {
-		return suggestSystemPrompt
+		return SuggestSystemPrompt
 	}
-	return buildEnrichedPrompt(ctx, suggestSystemPrompt)
+	return buildEnrichedPrompt(ctx, SuggestSystemPrompt)
 }
 
-// buildEnrichedPrompt prepends environment context to a base instruction prompt.
 func buildEnrichedPrompt(ctx *SystemContext, baseInstruction string) string {
 	var b strings.Builder
 
-	// Environment header.
 	b.WriteString(fmt.Sprintf("You are a command-line assistant on %s/%s", ctx.OS, ctx.Arch))
 	if ctx.Distro != "" || ctx.Shell != "" {
 		b.WriteString(" (")
@@ -168,11 +166,8 @@ func buildEnrichedPrompt(ctx *SystemContext, baseInstruction string) string {
 	}
 	b.WriteString(".\n")
 
-	// Tool list by category, preserving defaultToolCategories order.
 	if len(ctx.Tools) > 0 {
 		b.WriteString("\nAvailable tools:\n")
-		// Emit categories in the canonical order defined by defaultToolCategories,
-		// then any extra categories (e.g. "Custom") at the end.
 		emitted := make(map[string]bool)
 		for _, cat := range defaultToolCategories {
 			if tools, ok := ctx.Tools[cat.Name]; ok {

@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { readSafeAreaInsets } from "../lib/safeArea";
 
 interface FloatingDimensions {
   width: number;
@@ -32,17 +33,20 @@ export const useFloatingPosition = (options: FloatingPositionOptions = {}) => {
         width: window.innerWidth,
         height: window.innerHeight,
       };
+      const safe = readSafeAreaInsets();
+      const minX = floatingMargin + safe.left;
+      const minY = floatingMargin + safe.top;
       const maxX = Math.max(
-        floatingMargin,
-        vp.width - size.width - floatingMargin,
+        minX,
+        vp.width - size.width - floatingMargin - safe.right,
       );
       const maxY = Math.max(
-        floatingMargin,
-        vp.height - size.height - floatingMargin,
+        minY,
+        vp.height - size.height - floatingMargin - safe.bottom,
       );
       return {
-        x: Math.min(Math.max(x, floatingMargin), maxX),
-        y: Math.min(Math.max(y, floatingMargin), maxY),
+        x: Math.min(Math.max(x, minX), maxX),
+        y: Math.min(Math.max(y, minY), maxY),
       };
     },
     [floatingMargin],

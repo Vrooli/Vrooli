@@ -61,6 +61,10 @@ const hookState = {
   createError: null as null | { message: string; recovery?: string; retry?: boolean },
 };
 
+const touchControlsState = {
+  needsTouchControls: false,
+};
+
 vi.mock("../hooks/useSessionManager", () => ({
   useSessionManager: () => ({
     panes: hookState.panes,
@@ -87,6 +91,10 @@ vi.mock("../hooks/useWorkspaceSync", () => ({
     syncUpdateGroup: vi.fn(),
     syncDeleteGroup: vi.fn(),
   }),
+}));
+
+vi.mock("../hooks/useTouchControls", () => ({
+  useTouchControls: () => touchControlsState.needsTouchControls,
 }));
 
 // Mock workspace store
@@ -186,7 +194,8 @@ vi.mock("../components/TerminalLauncher", () => ({
 }));
 
 vi.mock("../components/MobileToolbar", () => ({
-  default: forwardRef<HTMLDivElement>(function MockMobileToolbar(_, ref) {
+  default: forwardRef<HTMLDivElement, { visible?: boolean }>(function MockMobileToolbar({ visible = true }, ref) {
+    if (!visible) return null;
     return <div ref={ref} data-testid="mock-mobile-toolbar" />;
   }),
 }));
@@ -224,6 +233,7 @@ describe("Workspace", () => {
     hookState.isHydrated = true;
     hookState.isCreating = false;
     hookState.createError = null;
+    touchControlsState.needsTouchControls = false;
     mockStoreState.panes = [];
     mockStoreState.columnFractions = [];
     mockStoreState.rowFractions = [];
@@ -343,9 +353,51 @@ describe("Workspace", () => {
   it("renders AiInput and MobileToolbar in pane view", () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    touchControlsState.needsTouchControls = true;
     render(<Workspace />);
     expect(screen.getByTestId("mock-ai-input")).toBeTruthy();
     expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
+  });
+
+  it("hides the mobile toolbar on non-touch desktop viewports", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    touchControlsState.needsTouchControls = false;
+
+    render(<Workspace />);
+
+    expect(screen.queryByTestId("mock-mobile-toolbar")).toBeNull();
+  });
+
+  it("keeps touch controls available on wide phone landscape viewports", () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 844 });
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    touchControlsState.needsTouchControls = true;
+
+    render(<Workspace />);
+
+    expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+  });
+
+  it("keeps the terminal/messages toggle inside safe-area bounds", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.displayMode = "tabs";
+    mockStoreState.panes = [{
+      sessionId: mockSession.id,
+      name: "/bin/bash",
+      headerColor: "transparent",
+      supportsMessagesView: true,
+    }];
+
+    render(<Workspace />);
+
+    const toggleShell = screen.getByTitle(strings.workspace.switchToMessagesTitle).parentElement;
+    expect(toggleShell?.className).toContain("--wc-safe-right");
+    expect(toggleShell?.className).toContain("--wc-safe-top");
   });
 
   it("renders terminal headers for panes", () => {
@@ -401,7 +453,8 @@ describe("Workspace", () => {
     fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
     expect(screen.getByTestId("workspace-sidebar-backdrop")).toBeTruthy();
     expect(screen.getByTestId("workspace-sidebar-shell").className).toContain("--wc-safe-top");
-    expect(screen.getByTestId("workspace-sidebar-new").parentElement?.className).toContain("--wc-safe-bottom");
+    expect(screen.getByTestId("workspace-sidebar-new").parentElement?.className).toContain("border-b");
+    expect(screen.getByTestId("workspace-sidebar-settings").parentElement?.className).toContain("border-b");
 
     fireEvent.click(screen.getByTestId("workspace-sidebar-backdrop"));
     expect(screen.queryByTestId("workspace-sidebar-backdrop")).toBeNull();

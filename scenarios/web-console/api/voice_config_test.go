@@ -10,10 +10,12 @@ import (
 	"connectrpc.com/connect"
 
 	voicev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/voice"
+
+	intvoice "web-console/internal/voice"
 )
 
 func TestDefaultVoiceStreamConfig(t *testing.T) {
-	cfg := DefaultVoiceStreamConfig()
+	cfg := intvoice.DefaultConfig()
 	if cfg.FlushIntervalMs != 500 {
 		t.Errorf("FlushIntervalMs = %d, want 500", cfg.FlushIntervalMs)
 	}
@@ -29,7 +31,7 @@ func TestDefaultVoiceStreamConfig(t *testing.T) {
 }
 
 func TestDefaultVoiceStreamConfig_PersistentModeDefaults(t *testing.T) {
-	cfg := DefaultVoiceStreamConfig()
+	cfg := intvoice.DefaultConfig()
 	if cfg.PersistentMode {
 		t.Error("PersistentMode should default to false")
 	}
@@ -45,44 +47,44 @@ func TestDefaultVoiceStreamConfig_PersistentModeDefaults(t *testing.T) {
 }
 
 func TestVoiceStreamConfig_Validate(t *testing.T) {
-	valid := DefaultVoiceStreamConfig()
+	valid := intvoice.DefaultConfig()
 
 	tests := []struct {
 		name    string
-		modify  func(*VoiceStreamConfig)
+		modify  func(*intvoice.Config)
 		wantErr string
 	}{
 		// FlushIntervalMs bounds
-		{"flush_at_min", func(c *VoiceStreamConfig) { c.FlushIntervalMs = 100 }, ""},
-		{"flush_at_max", func(c *VoiceStreamConfig) { c.FlushIntervalMs = 5000 }, ""},
-		{"flush_below_min", func(c *VoiceStreamConfig) { c.FlushIntervalMs = 99 }, "flushIntervalMs"},
-		{"flush_above_max", func(c *VoiceStreamConfig) { c.FlushIntervalMs = 5001 }, "flushIntervalMs"},
+		{"flush_at_min", func(c *intvoice.Config) { c.FlushIntervalMs = 100 }, ""},
+		{"flush_at_max", func(c *intvoice.Config) { c.FlushIntervalMs = 5000 }, ""},
+		{"flush_below_min", func(c *intvoice.Config) { c.FlushIntervalMs = 99 }, "flushIntervalMs"},
+		{"flush_above_max", func(c *intvoice.Config) { c.FlushIntervalMs = 5001 }, "flushIntervalMs"},
 
 		// MinDeltaBytes bounds
-		{"delta_at_min", func(c *VoiceStreamConfig) { c.MinDeltaBytes = 512 }, ""},
-		{"delta_at_max", func(c *VoiceStreamConfig) { c.MinDeltaBytes = 32768 }, ""},
-		{"delta_below_min", func(c *VoiceStreamConfig) { c.MinDeltaBytes = 511 }, "minDeltaBytes"},
-		{"delta_above_max", func(c *VoiceStreamConfig) { c.MinDeltaBytes = 32769 }, "minDeltaBytes"},
+		{"delta_at_min", func(c *intvoice.Config) { c.MinDeltaBytes = 512 }, ""},
+		{"delta_at_max", func(c *intvoice.Config) { c.MinDeltaBytes = 32768 }, ""},
+		{"delta_below_min", func(c *intvoice.Config) { c.MinDeltaBytes = 511 }, "minDeltaBytes"},
+		{"delta_above_max", func(c *intvoice.Config) { c.MinDeltaBytes = 32769 }, "minDeltaBytes"},
 
 		// OverlapBytes bounds
-		{"overlap_at_min", func(c *VoiceStreamConfig) { c.OverlapBytes = 0 }, ""},
-		{"overlap_at_max", func(c *VoiceStreamConfig) { c.OverlapBytes = 16384 }, ""},
-		{"overlap_below_min", func(c *VoiceStreamConfig) { c.OverlapBytes = -1 }, "overlapBytes"},
-		{"overlap_above_max", func(c *VoiceStreamConfig) { c.OverlapBytes = 16385 }, "overlapBytes"},
+		{"overlap_at_min", func(c *intvoice.Config) { c.OverlapBytes = 0 }, ""},
+		{"overlap_at_max", func(c *intvoice.Config) { c.OverlapBytes = 16384 }, ""},
+		{"overlap_below_min", func(c *intvoice.Config) { c.OverlapBytes = -1 }, "overlapBytes"},
+		{"overlap_above_max", func(c *intvoice.Config) { c.OverlapBytes = 16385 }, "overlapBytes"},
 
 		// SegmentSilenceMs bounds
-		{"segment_at_min", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 800 }, ""},
-		{"segment_at_max", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 3000 }, ""},
-		{"segment_below_min", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 799 }, "segmentSilenceMs"},
-		{"segment_above_max", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 3001 }, "segmentSilenceMs"},
-		{"segment_zero_allowed", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 0 }, ""},
+		{"segment_at_min", func(c *intvoice.Config) { c.SegmentSilenceMs = 800 }, ""},
+		{"segment_at_max", func(c *intvoice.Config) { c.SegmentSilenceMs = 3000 }, ""},
+		{"segment_below_min", func(c *intvoice.Config) { c.SegmentSilenceMs = 799 }, "segmentSilenceMs"},
+		{"segment_above_max", func(c *intvoice.Config) { c.SegmentSilenceMs = 3001 }, "segmentSilenceMs"},
+		{"segment_zero_allowed", func(c *intvoice.Config) { c.SegmentSilenceMs = 0 }, ""},
 
 		// WakeWordThreshold bounds
-		{"wakeword_threshold_at_min", func(c *VoiceStreamConfig) { c.WakeWordThreshold = 0.1 }, ""},
-		{"wakeword_threshold_at_max", func(c *VoiceStreamConfig) { c.WakeWordThreshold = 0.95 }, ""},
-		{"wakeword_threshold_below_min", func(c *VoiceStreamConfig) { c.WakeWordThreshold = 0.05 }, "wakeWordThreshold"},
-		{"wakeword_threshold_above_max", func(c *VoiceStreamConfig) { c.WakeWordThreshold = 0.96 }, "wakeWordThreshold"},
-		{"wakeword_threshold_zero_allowed", func(c *VoiceStreamConfig) { c.WakeWordThreshold = 0 }, ""},
+		{"wakeword_threshold_at_min", func(c *intvoice.Config) { c.WakeWordThreshold = 0.1 }, ""},
+		{"wakeword_threshold_at_max", func(c *intvoice.Config) { c.WakeWordThreshold = 0.95 }, ""},
+		{"wakeword_threshold_below_min", func(c *intvoice.Config) { c.WakeWordThreshold = 0.05 }, "wakeWordThreshold"},
+		{"wakeword_threshold_above_max", func(c *intvoice.Config) { c.WakeWordThreshold = 0.96 }, "wakeWordThreshold"},
+		{"wakeword_threshold_zero_allowed", func(c *intvoice.Config) { c.WakeWordThreshold = 0 }, ""},
 	}
 
 	for _, tc := range tests {
@@ -106,11 +108,11 @@ func TestVoiceStreamConfig_Validate(t *testing.T) {
 }
 
 func TestVoiceStreamConfig_PatchApply(t *testing.T) {
-	base := DefaultVoiceStreamConfig()
+	base := intvoice.DefaultConfig()
 
 	t.Run("partial_update", func(t *testing.T) {
 		flush := 200
-		patch := VoiceStreamConfigPatch{FlushIntervalMs: &flush}
+		patch := intvoice.ConfigPatch{FlushIntervalMs: &flush}
 		result := patch.Apply(base)
 		if result.FlushIntervalMs != 200 {
 			t.Errorf("FlushIntervalMs = %d, want 200", result.FlushIntervalMs)
@@ -128,7 +130,7 @@ func TestVoiceStreamConfig_PatchApply(t *testing.T) {
 		flush := 300
 		delta := 8192
 		overlap := 4096
-		patch := VoiceStreamConfigPatch{
+		patch := intvoice.ConfigPatch{
 			FlushIntervalMs: &flush,
 			MinDeltaBytes:   &delta,
 			OverlapBytes:    &overlap,
@@ -141,7 +143,7 @@ func TestVoiceStreamConfig_PatchApply(t *testing.T) {
 	})
 
 	t.Run("empty_patch", func(t *testing.T) {
-		patch := VoiceStreamConfigPatch{}
+		patch := intvoice.ConfigPatch{}
 		result := patch.Apply(base)
 		if result != base {
 			t.Errorf("empty patch should not change config: %+v != %+v", result, base)
@@ -153,7 +155,7 @@ func TestVoiceStreamConfig_PatchApply(t *testing.T) {
 		wwEnabled := true
 		wwThreshold := 0.8
 		segMs := 2000
-		patch := VoiceStreamConfigPatch{
+		patch := intvoice.ConfigPatch{
 			PersistentMode:    &boolVal,
 			WakeWordEnabled:   &wwEnabled,
 			WakeWordThreshold: &wwThreshold,
@@ -183,7 +185,7 @@ func TestVoiceConfig_FileRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "voice-config.json")
 
-	cfg := VoiceStreamConfig{
+	cfg := intvoice.Config{
 		FlushIntervalMs:   200,
 		MinDeltaBytes:     8192,
 		OverlapBytes:      1024,
@@ -193,11 +195,11 @@ func TestVoiceConfig_FileRoundTrip(t *testing.T) {
 		SegmentSilenceMs:  2000,
 	}
 
-	if err := saveVoiceConfig(path, cfg); err != nil {
+	if err := intvoice.SaveConfig(path, cfg); err != nil {
 		t.Fatalf("save failed: %v", err)
 	}
 
-	loaded, err := loadVoiceConfig(path)
+	loaded, err := intvoice.LoadConfig(path)
 	if err != nil {
 		t.Fatalf("load failed: %v", err)
 	}
@@ -209,21 +211,21 @@ func TestVoiceConfig_FileRoundTrip(t *testing.T) {
 func TestVoiceConfig_LoadMissing(t *testing.T) {
 	t.Run("missing_file", func(t *testing.T) {
 		dir := t.TempDir()
-		cfg, err := loadVoiceConfig(filepath.Join(dir, "nonexistent.json"))
+		cfg, err := intvoice.LoadConfig(filepath.Join(dir, "nonexistent.json"))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg != DefaultVoiceStreamConfig() {
+		if cfg != intvoice.DefaultConfig() {
 			t.Errorf("expected defaults, got %+v", cfg)
 		}
 	})
 
 	t.Run("missing_directory", func(t *testing.T) {
-		cfg, err := loadVoiceConfig("/tmp/nonexistent-dir-12345/voice-config.json")
+		cfg, err := intvoice.LoadConfig("/tmp/nonexistent-dir-12345/voice-config.json")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg != DefaultVoiceStreamConfig() {
+		if cfg != intvoice.DefaultConfig() {
 			t.Errorf("expected defaults, got %+v", cfg)
 		}
 	})
@@ -233,8 +235,8 @@ func TestVoiceConfig_SaveCreatesDirectory(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "nested", "deep", "voice-config.json")
 
-	cfg := DefaultVoiceStreamConfig()
-	if err := saveVoiceConfig(path, cfg); err != nil {
+	cfg := intvoice.DefaultConfig()
+	if err := intvoice.SaveConfig(path, cfg); err != nil {
 		t.Fatalf("save to nested path failed: %v", err)
 	}
 
@@ -247,7 +249,7 @@ func TestVoiceConfig_SaveCreatesDirectory(t *testing.T) {
 func voiceConfigTestServer(t *testing.T) *Server {
 	t.Helper()
 	srv := serverWithCapability(true)
-	srv.voiceConfigPath = filepath.Join(t.TempDir(), "voice-config.json")
+	srv.voice.SetConfigPath(filepath.Join(t.TempDir(), "voice-config.json"))
 	return srv
 }
 
@@ -257,7 +259,7 @@ func TestHandleGetVoiceConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	def := DefaultVoiceStreamConfig()
+	def := intvoice.DefaultConfig()
 	if int(cfg.GetFlushIntervalMs()) != def.FlushIntervalMs ||
 		int(cfg.GetMinDeltaBytes()) != def.MinDeltaBytes ||
 		int(cfg.GetOverlapBytes()) != def.OverlapBytes {
@@ -286,11 +288,11 @@ func TestHandleUpdateVoiceConfig_Valid(t *testing.T) {
 	if cfg.GetMinDeltaBytes() != 4096 {
 		t.Errorf("MinDeltaBytes = %d, want 4096 (unchanged)", cfg.GetMinDeltaBytes())
 	}
-	mem := srv.getVoiceConfig()
+	mem := srv.voice.GetConfig()
 	if mem.FlushIntervalMs != 200 || mem.OverlapBytes != 0 {
 		t.Errorf("in-memory config not updated: %+v", mem)
 	}
-	loaded, err := loadVoiceConfig(srv.voiceConfigPath)
+	loaded, err := intvoice.LoadConfig(srv.voice.ConfigPath())
 	if err != nil {
 		t.Fatalf("load persisted: %v", err)
 	}
@@ -309,8 +311,8 @@ func TestHandleUpdateVoiceConfig_OutOfRange(t *testing.T) {
 	if connectCode(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected CodeInvalidArgument, got %v (err=%v)", connectCode(err), err)
 	}
-	mem := srv.getVoiceConfig()
-	if mem != DefaultVoiceStreamConfig() {
+	mem := srv.voice.GetConfig()
+	if mem != intvoice.DefaultConfig() {
 		t.Errorf("config should not have changed: %+v", mem)
 	}
 }
@@ -357,8 +359,8 @@ func TestHandleUpdateVoiceConfig_SegmentSilenceOutOfRange(t *testing.T) {
 }
 
 func TestVoiceStreamMessage_SegmentFinalJSON(t *testing.T) {
-	msg := VoiceStreamMessage{
-		Type:         VoiceMsgSegmentFinal,
+	msg := intvoice.StreamMessage{
+		Type:         intvoice.MsgSegmentFinal,
 		Text:         "hello world",
 		SegmentIndex: 2,
 	}
@@ -366,7 +368,7 @@ func TestVoiceStreamMessage_SegmentFinalJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("json.Marshal: %v", err)
 	}
-	var decoded VoiceStreamMessage
+	var decoded intvoice.StreamMessage
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("json.Unmarshal: %v", err)
 	}
@@ -379,7 +381,7 @@ func TestVoiceStreamMessage_SegmentFinalJSON(t *testing.T) {
 }
 
 func TestVoiceStreamMessage_SegmentIndexOmitEmpty(t *testing.T) {
-	msg := VoiceStreamMessage{Type: VoiceMsgPartial, Text: "test"}
+	msg := intvoice.StreamMessage{Type: intvoice.MsgPartial, Text: "test"}
 	data, err := json.Marshal(msg)
 	if err != nil {
 		t.Fatalf("json.Marshal: %v", err)

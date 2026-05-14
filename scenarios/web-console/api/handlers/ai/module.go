@@ -12,7 +12,15 @@ import (
 
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai/ai_v1connect"
 
+	aidomain "web-console/internal/ai"
 	"web-console/internal/module"
+)
+
+// ProviderConfig and ProviderHealth re-export the canonical types from
+// internal/ai so handler code can keep its short local names.
+type (
+	ProviderConfig = aidomain.Config
+	ProviderHealth = aidomain.Health
 )
 
 // Service is the seam the Connect handler depends on. The concrete
@@ -24,26 +32,6 @@ type Service interface {
 	GetConfig() ConfigSnapshot
 	UpdateConfig(req UpdateConfigRequest) (ConfigSnapshot, error)
 	GetHealth() []ProviderHealth
-}
-
-// ProviderConfig is the transport-neutral provider config shape.
-type ProviderConfig struct {
-	Name       string
-	Enabled    bool
-	Priority   int
-	TimeoutSec int
-	MaxRetries int
-}
-
-// ProviderHealth is the transport-neutral provider health snapshot.
-type ProviderHealth struct {
-	Name         string
-	Available    bool
-	LastCheck    string
-	LastLatency  string
-	ErrorCount   int64
-	SuccessCount int64
-	ErrorRate    float64
 }
 
 // ConfigSnapshot bundles current configs and health.

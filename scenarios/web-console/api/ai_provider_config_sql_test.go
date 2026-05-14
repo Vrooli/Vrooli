@@ -3,11 +3,13 @@ package main
 import (
 	"testing"
 	"time"
+
+	intai "web-console/internal/ai"
 )
 
 func TestSQLAIConfigStore_GetConfigsSeeded(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLAIConfigStore(db)
+	store := intai.NewSQLConfigStore(db)
 
 	configs := store.GetConfigs()
 	if len(configs) != 2 {
@@ -25,7 +27,7 @@ func TestSQLAIConfigStore_GetConfigsSeeded(t *testing.T) {
 
 func TestSQLAIConfigStore_IsEnabled(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLAIConfigStore(db)
+	store := intai.NewSQLConfigStore(db)
 
 	if !store.IsEnabled("ollama") {
 		t.Error("expected ollama to be enabled")
@@ -40,7 +42,7 @@ func TestSQLAIConfigStore_IsEnabled(t *testing.T) {
 
 func TestSQLAIConfigStore_GetProviderTimeout(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLAIConfigStore(db)
+	store := intai.NewSQLConfigStore(db)
 
 	timeout := store.GetProviderTimeout("ollama")
 	if timeout != 30*time.Second {
@@ -49,14 +51,14 @@ func TestSQLAIConfigStore_GetProviderTimeout(t *testing.T) {
 
 	// Non-existent returns default
 	timeout = store.GetProviderTimeout("nonexistent")
-	if timeout != defaultProviderTimeout {
-		t.Errorf("expected default timeout %v, got %v", defaultProviderTimeout, timeout)
+	if timeout != intai.DefaultProviderTimeout {
+		t.Errorf("expected default timeout %v, got %v", intai.DefaultProviderTimeout, timeout)
 	}
 }
 
 func TestSQLAIConfigStore_UpdateConfig(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLAIConfigStore(db)
+	store := intai.NewSQLConfigStore(db)
 
 	// Disable ollama, change timeout
 	if !store.UpdateConfig("ollama", false, 1, 15, 3) {
@@ -89,7 +91,7 @@ func TestSQLAIConfigStore_UpdateConfig(t *testing.T) {
 
 func TestSQLAIConfigStore_HealthTracking(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLAIConfigStore(db)
+	store := intai.NewSQLConfigStore(db)
 
 	// Record some activity
 	store.RecordSuccess("ollama", 50*time.Millisecond)
@@ -123,7 +125,7 @@ func TestSQLAIConfigStore_HealthTracking(t *testing.T) {
 
 func TestSQLAIConfigStore_HealthIgnoresUnknown(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLAIConfigStore(db)
+	store := intai.NewSQLConfigStore(db)
 
 	// Recording for unknown provider should not panic
 	store.RecordSuccess("unknown-provider", 10*time.Millisecond)

@@ -54,4 +54,11 @@ describe("SummarizeErrorBanner", () => {
     expect(banner.getAttribute("data-source")).toBe("on-demand");
     expect(banner.getAttribute("data-status")).toBe("retrying");
   });
+
+  it("applies horizontal safe-area padding", () => {
+    render(<SummarizeErrorBanner state={makeState()} onRetry={vi.fn()} onDismiss={vi.fn()} />);
+    const className = screen.getByTestId("summarize-error-banner").className;
+    expect(className).toContain("--wc-safe-left");
+    expect(className).toContain("--wc-safe-right");
+  });
 });

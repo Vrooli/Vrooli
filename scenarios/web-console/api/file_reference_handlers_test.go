@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	intai "web-console/internal/ai"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 
@@ -104,9 +106,9 @@ func TestConnect_ResolveFileReference_ProjectRootRelative(t *testing.T) {
 		sessions:    newSessionManagerWithFactory(ptyfake.Factory(fake)),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
-		aiChain:     NewAIProviderChain(),
+		aiChain:     intai.NewChain(),
 		shortcuts:   NewShortcutProfileStore(),
-		aiConfig:    NewAIProviderConfigStore(),
+		aiConfig:    intai.NewMemConfigStore(),
 		idempotency: intsessions.NewIdempotencyCache(),
 		workspace:   intworkspace.NewMemStore(),
 	}
@@ -149,9 +151,9 @@ func TestConnect_ResolveFileReference_SessionCwdPreferred(t *testing.T) {
 		sessions:    newSessionManagerWithFactory(ptyfake.Factory(fake)),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
-		aiChain:     NewAIProviderChain(),
+		aiChain:     intai.NewChain(),
 		shortcuts:   NewShortcutProfileStore(),
-		aiConfig:    NewAIProviderConfigStore(),
+		aiConfig:    intai.NewMemConfigStore(),
 		idempotency: intsessions.NewIdempotencyCache(),
 		workspace:   intworkspace.NewMemStore(),
 	}

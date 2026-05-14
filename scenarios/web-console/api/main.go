@@ -41,6 +41,7 @@ import (
 	ttsH "web-console/handlers/tts"
 	voiceH "web-console/handlers/voice"
 	workspaceH "web-console/handlers/workspace"
+	intai "web-console/internal/ai"
 	"web-console/internal/audio"
 	"web-console/internal/backend"
 	"web-console/internal/capabilities"
@@ -49,6 +50,7 @@ import (
 	"web-console/internal/metrics"
 	intsessions "web-console/internal/sessions"
 	"web-console/internal/sessionstore"
+	intvoice "web-console/internal/voice"
 	intworkspace "web-console/internal/workspace"
 )
 
@@ -121,23 +123,15 @@ type Server struct {
 	metrics                       *metrics.Metrics
 	backendRegistry               *backend.Registry
 	sessionStore                  sessionstore.Store
-	aiChain                       *AIProviderChain
+	aiChain                       *intai.Chain
 	shortcuts                     ShortcutStore
-	aiConfig                      AIConfigStore
+	aiConfig                      intai.ConfigStore
+	ai                            *intai.Service
 	sweeper                       *session.ExpirationSweeper
 	idempotency                   *intsessions.IdempotencyCache // replay-safe session creation
 	capabilities                  *capabilities.Registry
 	workspace                     intworkspace.Store
-	voiceConfigMu                 sync.RWMutex
-	voiceConfig                   VoiceStreamConfig
-	voiceConfigPath               string
-	wakeWordTemplateMu            sync.RWMutex
-	wakeWordTemplate              *WakeWordTemplate
-	wakeWordTemplatePath          string
-	speakerVerificationConfigMu   sync.RWMutex
-	speakerVerificationConfig     SpeakerVerificationConfig
-	speakerVerificationConfigPath string
-	speakerVerification           *SpeakerVerificationResourceClient
+	voice                         *intvoice.Service
 	ttsConfigMu                   sync.RWMutex
 	ttsConfig                     TTSConfig
 	ttsConfigPath                 string
@@ -162,9 +156,7 @@ type Server struct {
 	lastTTSAckBySrc               map[string]ttsAckSnapshot
 	lastTTSPlayback               *TTSPlaybackEvent
 	lastTTSPlayAt                 time.Time
-	systemContext                 *SystemContext
-	whisperURL                    string
-	transcodeAudio                func(context.Context, []byte) ([]byte, error)
+	systemContext                 *intai.SystemContext
 	// nextWSGen is a monotonically increasing generation counter; each
 	// new terminal WebSocket connection gets a fresh Gen that is echoed
 	// to the client in session_ready. Clients use it as the wsGen write
@@ -200,16 +192,16 @@ func NewServer(db *sql.DB) *Server {
 
 	// Resolve voice config path via api-core/storage (mutable state outside deploy dir).
 	vcPath := resolveVoiceConfigPath()
-	vc, err := loadVoiceConfig(vcPath)
+	vc, err := intvoice.LoadConfig(vcPath)
 	if err != nil {
 		log.Printf("voice-config: using defaults: %v", err)
-		vc = DefaultVoiceStreamConfig()
+		vc = intvoice.DefaultConfig()
 	}
 	log.Printf("voice-config: loaded: flush=%dms delta=%d overlap=%d",
 		vc.FlushIntervalMs, vc.MinDeltaBytes, vc.OverlapBytes)
 
 	wwPath := resolveWakeWordTemplatePath()
-	wwTmpl, err := loadWakeWordTemplate(wwPath)
+	wwTmpl, err := intvoice.LoadWakeWordTemplate(wwPath)
 	if err != nil {
 		log.Printf("wakeword: load failed (starting unconfigured): %v", err)
 	} else if wwTmpl != nil {
@@ -217,10 +209,10 @@ func NewServer(db *sql.DB) *Server {
 	}
 
 	speakerVerificationPath := resolveSpeakerVerificationConfigPath()
-	speakerVerificationCfg, err := loadSpeakerVerificationConfig(speakerVerificationPath)
+	speakerVerificationCfg, err := intvoice.LoadSpeakerConfig(speakerVerificationPath)
 	if err != nil {
 		log.Printf("speaker-verification-config: using defaults: %v", err)
-		speakerVerificationCfg = DefaultSpeakerVerificationConfig()
+		speakerVerificationCfg = intvoice.DefaultSpeakerConfig()
 	}
 	log.Printf(
 		"speaker-verification-config: loaded: enabled=%v profiles=%v threshold=%.2f mode=%s",
@@ -286,18 +278,12 @@ func NewServer(db *sql.DB) *Server {
 		metrics:                       metrics,
 		backendRegistry:               backendRegistry,
 		sessionStore:                  sessionStore,
-		aiChain:                       NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
+		aiChain:                       intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider()),
 		shortcuts:                     NewSQLShortcutStore(db),
-		aiConfig:                      NewSQLAIConfigStore(db),
+		aiConfig:                      intai.NewSQLConfigStore(db),
 		sweeper:                       session.NewExpirationSweeper(sessions, eventLog, metrics),
 		idempotency:                   intsessions.NewIdempotencyCache(),
 		workspace:                     intworkspace.NewSQLStore(db),
-		voiceConfig:                   vc,
-		voiceConfigPath:               vcPath,
-		wakeWordTemplate:              wwTmpl,
-		wakeWordTemplatePath:          wwPath,
-		speakerVerificationConfig:     speakerVerificationCfg,
-		speakerVerificationConfigPath: speakerVerificationPath,
 		ttsConfig:                     ttsCfg,
 		ttsConfigPath:                 ttsPath,
 		ttsSummarizeConfig:            ttsSummarizeCfg,
@@ -308,13 +294,12 @@ func NewServer(db *sql.DB) *Server {
 		conversations:                 NewConversationStoreWithRepository(NewSQLConversationRepository(db)),
 		lastTTSBySource:               make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:               make(map[string]ttsAckSnapshot),
-		whisperURL:                    resolveWhisperURL(),
-		transcodeAudio:                audio.Transcode,
 	}
-	srv.systemContext = DiscoverSystemContext(DefaultLookPath)
+	srv.systemContext = intai.DiscoverSystemContext(intai.DefaultLookPath)
 	log.Printf("system-context: os=%s/%s shell=%s tools-found=%d",
 		srv.systemContext.OS, srv.systemContext.Arch,
-		srv.systemContext.Shell, countFoundTools(srv.systemContext.Tools))
+		srv.systemContext.Shell, intai.CountFoundTools(srv.systemContext.Tools))
+	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, srv.systemContext, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 
 	whisperURL := getEnvOrDefault("WHISPER_URL", "http://localhost:8090")
 	kokoroURL := getEnvOrDefault("KOKORO_URL", "http://localhost:8880")
@@ -324,7 +309,7 @@ func NewServer(db *sql.DB) *Server {
 
 	srv.ttsSummarizer = NewTTSSummarizer(ollamaURL)
 	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
-	srv.speakerVerification = &SpeakerVerificationResourceClient{
+	speakerClient := &intvoice.SpeakerClient{
 		BaseURL: speakerVerificationURL,
 		Client:  &http.Client{Timeout: 5 * time.Second},
 	}
@@ -391,6 +376,18 @@ func NewServer(db *sql.DB) *Server {
 		srv.capabilities.Resolve(ctx)
 		log.Println("capabilities: initial check complete")
 	}()
+
+	srv.voice = intvoice.NewService(
+		vc, vcPath,
+		wwTmpl, wwPath,
+		speakerVerificationCfg, speakerVerificationPath,
+		speakerClient,
+		srv.capabilities,
+		&srv.metrics.VoiceSkipVerificationTotal,
+		intvoice.ResolveWhisperURL(),
+		audio.Transcode,
+	)
+
 	srv.sweeper.Start()
 	sessions.StartReattachWatchdog()
 	srv.setupRoutes()
@@ -451,7 +448,7 @@ func (s *Server) setupRoutes() {
 	shortcutsH.Module(newShortcutsAdapter(s), nil).Mount(s.router)
 
 	// AI domain - [REQ:P0-005a] [REQ:P1-003a] [REQ:P1-003b] (Connect-RPC AIService)
-	aiH.Module(&aiH.Adapter{Backend: newAIServiceShim(s)}, nil).Mount(s.router)
+	aiH.Module(&aiH.Adapter{Backend: s.ai}, nil).Mount(s.router)
 
 	// Metrics — Connect-RPC MetricsService [REQ:P1-004b]
 	metricsH.Module(&metricsH.Adapter{Metrics: s.metrics}, nil).Mount(s.router)
@@ -467,9 +464,9 @@ func (s *Server) setupRoutes() {
 	}, nil).Mount(s.router)
 	// Voice — Connect-RPC module replaces the 14 legacy REST handlers
 	// (transcribe, stream config, wake word, speaker config/status/profiles).
-	voiceH.Module(&voiceH.Adapter{Backend: newVoiceServiceShim(s)}, nil).Mount(s.router)
+	voiceH.Module(&voiceH.Adapter{Backend: s.voice}, nil).Mount(s.router)
 	// Voice stream WS — REST exception (raw audio frames over WebSocket).
-	voiceH.StreamModule(s.handleVoiceStreamWS).Mount(s.router)
+	voiceH.StreamModule(s.voice.HandleStreamWS).Mount(s.router)
 
 	// Hooks — REST webhook receivers (Claude Code CLI dictates wire shape)
 	hooksH.Module(hooksH.Deps{
@@ -577,6 +574,10 @@ func resolveSQLiteDSN() string {
 
 func resolveVoiceConfigPath() string {
 	return mustResolveScenarioStoragePath(storage.ClassState, "voice-config.json")
+}
+
+func resolveWakeWordTemplatePath() string {
+	return mustResolveScenarioStoragePath(storage.ClassState, "wakeword-template.json")
 }
 
 func resolveSpeakerVerificationConfigPath() string {

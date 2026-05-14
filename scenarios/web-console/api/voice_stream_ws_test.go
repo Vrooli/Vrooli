@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	intvoice "web-console/internal/voice"
 )
 
 // setupVoiceWSServer creates a test environment for voice streaming WebSocket tests.
@@ -28,10 +29,10 @@ func setupVoiceWSServer(t *testing.T, whisperHandler http.Handler) (*httptest.Se
 	t.Cleanup(whisper.Close)
 
 	srv := serverWithCapability(true)
-	srv.whisperURL = whisper.URL + "/asr?output=json"
-	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
+	srv.voice.SetWhisperURL(whisper.URL + "/asr?output=json")
+	srv.voice.SetTranscode(func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil })
 	srv.router = mux.NewRouter()
-	srv.router.HandleFunc("/api/v1/voice/stream", srv.handleVoiceStreamWS).Methods("GET")
+	srv.router.HandleFunc("/api/v1/voice/stream", srv.voice.HandleStreamWS).Methods("GET")
 
 	ts := httptest.NewServer(srv.router)
 	t.Cleanup(ts.Close)
@@ -50,7 +51,7 @@ func echoWhisperHandler(text string) http.Handler {
 
 // countingWhisperHandler returns a Whisper mock that responds with
 // "prefix1", "prefix2", etc. Each call produces unique text so that
-// deduplicateOverlap doesn't suppress subsequent partial messages.
+// intvoice.DeduplicateOverlap doesn't suppress subsequent partial messages.
 func countingWhisperHandler(prefix string) (*atomic.Int64, http.Handler) {
 	var counter atomic.Int64
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +121,7 @@ func TestVoiceStreamWS_RejectWhenUnavailable(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/api/v1/voice/stream", nil)
 	rec := httptest.NewRecorder()
-	srv.handleVoiceStreamWS(rec, req)
+	srv.voice.HandleStreamWS(rec, req)
 
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("expected 503 for unavailable whisper, got %d", rec.Code)
@@ -151,24 +152,24 @@ func TestVoiceStreamWS_BasicTranscription(t *testing.T) {
 	}
 
 	// Signal done
-	if err := conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone}); err != nil {
+	if err := conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone}); err != nil {
 		t.Fatalf("write done: %v", err)
 	}
 
 	// Read messages until we get a final
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read message: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			if msg.Text != "hello world" {
 				t.Errorf("final text = %q, want %q", msg.Text, "hello world")
 			}
 			return
 		}
-		if msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgError {
 			t.Fatalf("unexpected error: %s", msg.Text)
 		}
 		// Partial — continue reading
@@ -186,16 +187,16 @@ func TestVoiceStreamWS_EmptyBuffer(t *testing.T) {
 	defer conn.Close()
 
 	// Send done immediately with no audio
-	if err := conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone}); err != nil {
+	if err := conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone}); err != nil {
 		t.Fatalf("write done: %v", err)
 	}
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	var msg VoiceStreamMessage
+	var msg intvoice.StreamMessage
 	if err := conn.ReadJSON(&msg); err != nil {
 		t.Fatalf("read message: %v", err)
 	}
-	if msg.Type != VoiceMsgFinal {
+	if msg.Type != intvoice.MsgFinal {
 		t.Errorf("expected final, got type=%s", msg.Type)
 	}
 	if msg.Text != "" {
@@ -222,12 +223,12 @@ func TestVoiceStreamWS_PartialTranscripts(t *testing.T) {
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	var gotPartial bool
 	for i := 0; i < 10; i++ {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			// Timeout or close — break
 			break
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			gotPartial = true
 			if msg.Text != "partial text" {
 				t.Errorf("partial text = %q, want %q", msg.Text, "partial text")
@@ -241,7 +242,7 @@ func TestVoiceStreamWS_PartialTranscripts(t *testing.T) {
 	}
 
 	// Cleanup: send done
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 func TestVoiceStreamWS_DeltaPartials(t *testing.T) {
@@ -249,9 +250,9 @@ func TestVoiceStreamWS_DeltaPartials(t *testing.T) {
 	tracker := &trackingWhisperHandler{response: "delta"}
 	ts, srv := setupVoiceWSServer(t, tracker)
 
-	cfg := srv.getVoiceConfig()
+	cfg := srv.voice.GetConfig()
 	cfg.OverlapBytes = 0
-	srv.setVoiceConfig(cfg)
+	srv.voice.SetConfig(cfg)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -270,25 +271,25 @@ func TestVoiceStreamWS_DeltaPartials(t *testing.T) {
 		// Wait for the tick to fire and process
 		_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		for {
-			var msg VoiceStreamMessage
+			var msg intvoice.StreamMessage
 			if readErr := conn.ReadJSON(&msg); readErr != nil {
 				t.Fatalf("read partial batch %d: %v", batch, readErr)
 			}
-			if msg.Type == VoiceMsgPartial {
+			if msg.Type == intvoice.MsgPartial {
 				break
 			}
 		}
 	}
 
 	// Send done and wait for final
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			break
 		}
-		if msg.Type == VoiceMsgFinal || msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgFinal || msg.Type == intvoice.MsgError {
 			break
 		}
 	}
@@ -340,11 +341,11 @@ func TestVoiceStreamWS_SkipsUnchangedTicks(t *testing.T) {
 	// Wait for the first partial tick to fire
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatal("timed out waiting for partial")
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
@@ -360,11 +361,11 @@ func TestVoiceStreamWS_SkipsUnchangedTicks(t *testing.T) {
 	}
 
 	// Cleanup
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 func TestVoiceStreamWS_DefaultValues(t *testing.T) {
-	defaults := DefaultVoiceStreamConfig()
+	defaults := intvoice.DefaultConfig()
 	if defaults.FlushIntervalMs != 500 {
 		t.Errorf("FlushIntervalMs = %d, want 500", defaults.FlushIntervalMs)
 	}
@@ -391,9 +392,9 @@ func TestVoiceStreamWS_FlushInterval(t *testing.T) {
 			tracker := &trackingWhisperHandler{response: "flush-test"}
 			ts, srv := setupVoiceWSServer(t, tracker)
 
-			cfg := srv.getVoiceConfig()
+			cfg := srv.voice.GetConfig()
 			cfg.FlushIntervalMs = tc.intervalMs
-			srv.setVoiceConfig(cfg)
+			srv.voice.SetConfig(cfg)
 
 			dialer := websocket.Dialer{}
 			conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -412,11 +413,11 @@ func TestVoiceStreamWS_FlushInterval(t *testing.T) {
 			start := time.Now()
 			interval := time.Duration(tc.intervalMs) * time.Millisecond
 			for {
-				var msg VoiceStreamMessage
+				var msg intvoice.StreamMessage
 				if err := conn.ReadJSON(&msg); err != nil {
 					t.Fatalf("read: %v", err)
 				}
-				if msg.Type == VoiceMsgPartial {
+				if msg.Type == intvoice.MsgPartial {
 					elapsed := time.Since(start)
 					// Partial should arrive within ~2x the interval (interval + processing)
 					maxExpected := interval*2 + 500*time.Millisecond
@@ -427,7 +428,7 @@ func TestVoiceStreamWS_FlushInterval(t *testing.T) {
 				}
 			}
 
-			_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+			_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 		})
 	}
 }
@@ -438,10 +439,10 @@ func TestVoiceStreamWS_TranscodeSeamCalled(t *testing.T) {
 	ts, srv := setupVoiceWSServer(t, echoWhisperHandler("transcoded"))
 
 	// Override the passthrough installed by setupVoiceWSServer with a tracker.
-	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) {
+	srv.voice.SetTranscode(func(_ context.Context, audio []byte) ([]byte, error) {
 		transcodeCalls.Add(1)
 		return audio, nil
-	}
+	})
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -459,11 +460,11 @@ func TestVoiceStreamWS_TranscodeSeamCalled(t *testing.T) {
 	// Wait for partial tick
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
@@ -474,16 +475,16 @@ func TestVoiceStreamWS_TranscodeSeamCalled(t *testing.T) {
 	}
 
 	// Signal done
-	if err := conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone}); err != nil {
+	if err := conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone}); err != nil {
 		t.Fatalf("write done: %v", err)
 	}
 
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			break
 		}
 	}
@@ -516,17 +517,17 @@ func TestVoiceStreamWS_LanguageAutoDetect(t *testing.T) {
 	if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, 512)); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	if err := conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone}); err != nil {
+	if err := conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone}); err != nil {
 		t.Fatalf("write done: %v", err)
 	}
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal || msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgFinal || msg.Type == intvoice.MsgError {
 			break
 		}
 	}
@@ -557,17 +558,17 @@ func TestVoiceStreamWS_LanguagePassthrough(t *testing.T) {
 	if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, 512)); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	if err := conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone}); err != nil {
+	if err := conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone}); err != nil {
 		t.Fatalf("write done: %v", err)
 	}
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal || msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgFinal || msg.Type == intvoice.MsgError {
 			break
 		}
 	}
@@ -593,9 +594,9 @@ func TestLastNWords(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := lastNWords(tc.input, tc.n)
+			got := intvoice.LastNWords(tc.input, tc.n)
 			if got != tc.expected {
-				t.Errorf("lastNWords(%q, %d) = %q, want %q", tc.input, tc.n, got, tc.expected)
+				t.Errorf("intvoice.LastNWords(%q, %d) = %q, want %q", tc.input, tc.n, got, tc.expected)
 			}
 		})
 	}
@@ -607,10 +608,10 @@ func TestVoiceStreamWS_PartialSkipsTranscode(t *testing.T) {
 	ts, srv := setupVoiceWSServer(t, echoWhisperHandler("partial-no-transcode"))
 
 	// Override the passthrough with a call counter.
-	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) {
+	srv.voice.SetTranscode(func(_ context.Context, audio []byte) ([]byte, error) {
 		transcodeCalls.Add(1)
 		return audio, nil
-	}
+	})
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -627,11 +628,11 @@ func TestVoiceStreamWS_PartialSkipsTranscode(t *testing.T) {
 	// Wait for partial
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
@@ -642,13 +643,13 @@ func TestVoiceStreamWS_PartialSkipsTranscode(t *testing.T) {
 	}
 
 	// Send done and wait for final
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			break
 		}
 	}
@@ -678,11 +679,11 @@ func TestVoiceStreamWS_InitialPromptPassthrough(t *testing.T) {
 	}
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read first partial: %v", err)
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
@@ -693,23 +694,23 @@ func TestVoiceStreamWS_InitialPromptPassthrough(t *testing.T) {
 	}
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read second partial: %v", err)
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
 
 	// Cleanup
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			break
 		}
-		if msg.Type == VoiceMsgFinal || msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgFinal || msg.Type == intvoice.MsgError {
 			break
 		}
 	}
@@ -752,11 +753,11 @@ func TestVoiceStreamWS_MinDeltaSize(t *testing.T) {
 	// Wait for the first (eager) partial
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read first partial: %v", err)
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
@@ -783,11 +784,11 @@ func TestVoiceStreamWS_MinDeltaSize(t *testing.T) {
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
@@ -796,7 +797,7 @@ func TestVoiceStreamWS_MinDeltaSize(t *testing.T) {
 		t.Error("Whisper was never called after exceeding MinDeltaBytes")
 	}
 
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 // --- Phase 3: Audio Overlap Tests ---
@@ -805,9 +806,9 @@ func TestVoiceStreamWS_OverlapIncluded(t *testing.T) {
 	tracker := &trackingWhisperHandler{response: "overlap"}
 	ts, srv := setupVoiceWSServer(t, tracker)
 
-	cfg := srv.getVoiceConfig()
+	cfg := srv.voice.GetConfig()
 	cfg.OverlapBytes = 2048
-	srv.setVoiceConfig(cfg)
+	srv.voice.SetConfig(cfg)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -825,11 +826,11 @@ func TestVoiceStreamWS_OverlapIncluded(t *testing.T) {
 	}
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read partial 1: %v", err)
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
@@ -840,24 +841,24 @@ func TestVoiceStreamWS_OverlapIncluded(t *testing.T) {
 	}
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read partial 2: %v", err)
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
 
 	// Send done and wait for final
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			break
 		}
-		if msg.Type == VoiceMsgFinal || msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgFinal || msg.Type == intvoice.MsgError {
 			break
 		}
 	}
@@ -884,9 +885,9 @@ func TestVoiceStreamWS_OverlapClampedToStart(t *testing.T) {
 	tracker := &trackingWhisperHandler{response: "clamped"}
 	ts, srv := setupVoiceWSServer(t, tracker)
 
-	cfg := srv.getVoiceConfig()
+	cfg := srv.voice.GetConfig()
 	cfg.OverlapBytes = 1 << 20 // huge overlap — should clamp to buffer start
-	srv.setVoiceConfig(cfg)
+	srv.voice.SetConfig(cfg)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -903,11 +904,11 @@ func TestVoiceStreamWS_OverlapClampedToStart(t *testing.T) {
 	}
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read partial: %v", err)
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
@@ -922,16 +923,16 @@ func TestVoiceStreamWS_OverlapClampedToStart(t *testing.T) {
 	}
 
 	// Cleanup
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 func TestVoiceStreamWS_OverlapZeroDisabled(t *testing.T) {
 	tracker := &trackingWhisperHandler{response: "no-overlap"}
 	ts, srv := setupVoiceWSServer(t, tracker)
 
-	cfg := srv.getVoiceConfig()
+	cfg := srv.voice.GetConfig()
 	cfg.OverlapBytes = 0
-	srv.setVoiceConfig(cfg)
+	srv.voice.SetConfig(cfg)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -949,11 +950,11 @@ func TestVoiceStreamWS_OverlapZeroDisabled(t *testing.T) {
 		}
 		_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		for {
-			var msg VoiceStreamMessage
+			var msg intvoice.StreamMessage
 			if err := conn.ReadJSON(&msg); err != nil {
 				t.Fatalf("read partial %d: %v", batch, err)
 			}
-			if msg.Type == VoiceMsgPartial {
+			if msg.Type == intvoice.MsgPartial {
 				break
 			}
 		}
@@ -972,7 +973,7 @@ func TestVoiceStreamWS_OverlapZeroDisabled(t *testing.T) {
 	}
 
 	// Cleanup
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 // --- Phase 4: Final Transcription Tests ---
@@ -995,14 +996,14 @@ func TestVoiceStreamWS_AlwaysFullRetranscribe(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read final: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			break
 		}
 	}
@@ -1036,9 +1037,9 @@ func TestVoiceStreamWS_FinalOverridesPartials(t *testing.T) {
 
 	ts, srv := setupVoiceWSServer(t, handler)
 
-	cfg := srv.getVoiceConfig()
+	cfg := srv.voice.GetConfig()
 	cfg.FlushIntervalMs = 100
-	srv.setVoiceConfig(cfg)
+	srv.voice.SetConfig(cfg)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -1055,11 +1056,11 @@ func TestVoiceStreamWS_FinalOverridesPartials(t *testing.T) {
 	// Wait for partial
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read partial: %v", err)
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			if !strings.Contains(msg.Text, "partial text") {
 				t.Errorf("partial text = %q, want it to contain 'partial text'", msg.Text)
 			}
@@ -1068,15 +1069,15 @@ func TestVoiceStreamWS_FinalOverridesPartials(t *testing.T) {
 	}
 
 	// Send done, read final
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	var finalText string
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read final: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			finalText = msg.Text
 			break
 		}
@@ -1117,11 +1118,11 @@ func TestVoiceStreamWS_EagerFirstPartial(t *testing.T) {
 	// Wait for the first flush interval + margin
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatal("timed out waiting for eager first partial")
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			if msg.Text != "eager" {
 				t.Errorf("partial text = %q, want %q", msg.Text, "eager")
 			}
@@ -1133,7 +1134,7 @@ func TestVoiceStreamWS_EagerFirstPartial(t *testing.T) {
 		t.Errorf("Whisper call count = %d, want 1 (eager first tick)", calls)
 	}
 
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 func TestVoiceStreamWS_EagerFirstPartialEmptyBuffer(t *testing.T) {
@@ -1161,7 +1162,7 @@ func TestVoiceStreamWS_EagerFirstPartialEmptyBuffer(t *testing.T) {
 		t.Errorf("Whisper called %d time(s) with empty buffer, want 0", calls)
 	}
 
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 func TestVoiceStreamWS_SubsequentTicksStillGated(t *testing.T) {
@@ -1191,11 +1192,11 @@ func TestVoiceStreamWS_SubsequentTicksStillGated(t *testing.T) {
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatal("timed out waiting for eager first partial")
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			break
 		}
 	}
@@ -1214,7 +1215,7 @@ func TestVoiceStreamWS_SubsequentTicksStillGated(t *testing.T) {
 			calls-countAfterEager)
 	}
 
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 // (Tail transcription and coverage-skip tests removed — the pipeline now
@@ -1223,9 +1224,9 @@ func TestVoiceStreamWS_SubsequentTicksStillGated(t *testing.T) {
 func TestVoiceStreamWS_FullFinalWhenNoPartials(t *testing.T) {
 	tracker := &trackingWhisperHandler{response: "full-final"}
 	ts, srv := setupVoiceWSServer(t, tracker)
-	cfg := srv.getVoiceConfig()
+	cfg := srv.voice.GetConfig()
 	cfg.FlushIntervalMs = 5000
-	srv.setVoiceConfig(cfg)
+	srv.voice.SetConfig(cfg)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -1241,15 +1242,15 @@ func TestVoiceStreamWS_FullFinalWhenNoPartials(t *testing.T) {
 	if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, dataSize)); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			if !strings.Contains(msg.Text, "full-final") {
 				t.Errorf("final text = %q, want it to contain %q", msg.Text, "full-final")
 			}
@@ -1265,7 +1266,7 @@ func TestVoiceStreamWS_FullFinalWhenNoPartials(t *testing.T) {
 	}
 }
 
-// --- findWebMInitEnd tests ---
+// --- intvoice.FindWebMInitEnd tests ---
 
 func TestFindWebMInitEnd_ValidWebM(t *testing.T) {
 	// Simulate a WebM buffer: some header bytes followed by Cluster element ID.
@@ -1274,22 +1275,22 @@ func TestFindWebMInitEnd_ValidWebM(t *testing.T) {
 	audioData := make([]byte, 100)
 	buf := append(append(header, clusterID...), audioData...)
 
-	got := findWebMInitEnd(buf)
+	got := intvoice.FindWebMInitEnd(buf)
 	want := len(header)
 	if got != want {
-		t.Errorf("findWebMInitEnd = %d, want %d", got, want)
+		t.Errorf("intvoice.FindWebMInitEnd = %d, want %d", got, want)
 	}
 }
 
 func TestFindWebMInitEnd_NoCluster(t *testing.T) {
 	buf := []byte{0x1A, 0x45, 0xDF, 0xA3, 0x00, 0x00, 0x00, 0x10}
-	got := findWebMInitEnd(buf)
+	got := intvoice.FindWebMInitEnd(buf)
 	if got != 0 {
-		t.Errorf("findWebMInitEnd = %d, want 0 (no cluster found)", got)
+		t.Errorf("intvoice.FindWebMInitEnd = %d, want 0 (no cluster found)", got)
 	}
 }
 
-// --- deduplicateOverlap tests ---
+// --- intvoice.DeduplicateOverlap tests ---
 
 func TestDeduplicateOverlap(t *testing.T) {
 	tests := []struct {
@@ -1374,9 +1375,9 @@ func TestDeduplicateOverlap(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := deduplicateOverlap(tc.accumulated, tc.newText)
+			got := intvoice.DeduplicateOverlap(tc.accumulated, tc.newText)
 			if got != tc.want {
-				t.Errorf("deduplicateOverlap(%q, %q) = %q, want %q",
+				t.Errorf("intvoice.DeduplicateOverlap(%q, %q) = %q, want %q",
 					tc.accumulated, tc.newText, got, tc.want)
 			}
 		})
@@ -1401,9 +1402,9 @@ func TestVoiceStreamWS_DeduplicationIntegration(t *testing.T) {
 
 	ts, srv := setupVoiceWSServer(t, handler)
 
-	cfg := srv.getVoiceConfig()
+	cfg := srv.voice.GetConfig()
 	cfg.FlushIntervalMs = 100
-	srv.setVoiceConfig(cfg)
+	srv.voice.SetConfig(cfg)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -1420,11 +1421,11 @@ func TestVoiceStreamWS_DeduplicationIntegration(t *testing.T) {
 		}
 		_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		for {
-			var msg VoiceStreamMessage
+			var msg intvoice.StreamMessage
 			if readErr := conn.ReadJSON(&msg); readErr != nil {
 				t.Fatalf("read partial batch %d: %v", batch, readErr)
 			}
-			if msg.Type == VoiceMsgPartial {
+			if msg.Type == intvoice.MsgPartial {
 				lastPartialText = msg.Text
 				break
 			}
@@ -1437,19 +1438,19 @@ func TestVoiceStreamWS_DeduplicationIntegration(t *testing.T) {
 	}
 
 	// Signal done and collect the final transcript.
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	var finalText string
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read final: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			finalText = msg.Text
 			break
 		}
-		if msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgError {
 			t.Fatalf("unexpected error: %s", msg.Text)
 		}
 	}
@@ -1461,18 +1462,18 @@ func TestVoiceStreamWS_DeduplicationIntegration(t *testing.T) {
 }
 
 func TestFindWebMInitEnd_EmptyBuffer(t *testing.T) {
-	got := findWebMInitEnd(nil)
+	got := intvoice.FindWebMInitEnd(nil)
 	if got != 0 {
-		t.Errorf("findWebMInitEnd(nil) = %d, want 0", got)
+		t.Errorf("intvoice.FindWebMInitEnd(nil) = %d, want 0", got)
 	}
 }
 
 func TestFindWebMInitEnd_ClusterAtStart(t *testing.T) {
 	// Cluster ID right at offset 0 — init segment is empty.
 	buf := []byte{0x1F, 0x43, 0xB6, 0x75, 0x00, 0x00}
-	got := findWebMInitEnd(buf)
+	got := intvoice.FindWebMInitEnd(buf)
 	if got != 0 {
-		t.Errorf("findWebMInitEnd = %d, want 0", got)
+		t.Errorf("intvoice.FindWebMInitEnd = %d, want 0", got)
 	}
 }
 
@@ -1488,7 +1489,7 @@ func TestVoiceStreamWS_PartialCancelledOnDone(t *testing.T) {
 			// First call (partial) — block until cancelled or 10s.
 			select {
 			case <-r.Context().Done():
-				// Cancelled — return error so transcribeBytes sees a failure.
+				// Cancelled — return error so the transcribe path sees a failure.
 				http.Error(w, "cancelled", http.StatusServiceUnavailable)
 				return
 			case <-time.After(10 * time.Second):
@@ -1501,9 +1502,9 @@ func TestVoiceStreamWS_PartialCancelledOnDone(t *testing.T) {
 	})
 
 	ts, srv := setupVoiceWSServer(t, handler)
-	cfg := srv.getVoiceConfig()
+	cfg := srv.voice.GetConfig()
 	cfg.FlushIntervalMs = 100 // fast tick to ensure partial fires
-	srv.setVoiceConfig(cfg)
+	srv.voice.SetConfig(cfg)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -1522,18 +1523,18 @@ func TestVoiceStreamWS_PartialCancelledOnDone(t *testing.T) {
 
 	// Signal done — should cancel in-flight partial.
 	start := time.Now()
-	if err := conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone}); err != nil {
+	if err := conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone}); err != nil {
 		t.Fatalf("write done: %v", err)
 	}
 
 	// Final should arrive quickly (not blocked by the 10s partial).
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			elapsed := time.Since(start)
 			if elapsed > 3*time.Second {
 				t.Errorf("final took %v, want < 3s (partial should have been cancelled)", elapsed)
@@ -1564,9 +1565,9 @@ func TestTruncateForLog_Runes(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := truncateForLog(tc.input, tc.maxLen)
+			got := intvoice.TruncateForLog(tc.input, tc.maxLen)
 			if got != tc.want {
-				t.Errorf("truncateForLog(%q, %d) = %q, want %q", tc.input, tc.maxLen, got, tc.want)
+				t.Errorf("intvoice.TruncateForLog(%q, %d) = %q, want %q", tc.input, tc.maxLen, got, tc.want)
 			}
 		})
 	}
@@ -1589,7 +1590,7 @@ func TestIsWhisperHallucination(t *testing.T) {
 		"Please subscribe", "Please subscribe.",
 	}
 	for _, s := range positives {
-		if !isWhisperHallucination(s) {
+		if !intvoice.IsWhisperHallucination(s) {
 			t.Errorf("expected hallucination for %q", s)
 		}
 	}
@@ -1600,7 +1601,7 @@ func TestIsWhisperHallucination(t *testing.T) {
 		"I said goodbye to them", "The meeting starts at 3pm",
 	}
 	for _, s := range negatives {
-		if isWhisperHallucination(s) {
+		if intvoice.IsWhisperHallucination(s) {
 			t.Errorf("unexpected hallucination for %q", s)
 		}
 	}
@@ -1622,8 +1623,8 @@ func TestVoiceStreamWS_VadGatingSuppressesPartialsOnSilence(t *testing.T) {
 	defer conn.Close()
 
 	// Opt into VAD gating by signaling speech-start then speech-end.
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechEnd})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgVadSpeechStart})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgVadSpeechEnd})
 
 	// Send audio while VAD says "silent" — should NOT produce partials.
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 8192))
@@ -1637,17 +1638,17 @@ func TestVoiceStreamWS_VadGatingSuppressesPartialsOnSilence(t *testing.T) {
 	}
 
 	// Now signal speech-start — partials should resume.
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgVadSpeechStart})
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 8192))
 
 	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 	var gotPartial bool
 	for i := 0; i < 10; i++ {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			break
 		}
-		if msg.Type == VoiceMsgPartial {
+		if msg.Type == intvoice.MsgPartial {
 			gotPartial = true
 			break
 		}
@@ -1656,7 +1657,7 @@ func TestVoiceStreamWS_VadGatingSuppressesPartialsOnSilence(t *testing.T) {
 		t.Error("expected partial after vad-speech-start, got none")
 	}
 
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 // ---------------------------------------------------------------------------
@@ -1675,21 +1676,21 @@ func TestVoiceStreamWS_HallucinationFilteredFromFinal(t *testing.T) {
 	defer conn.Close()
 
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			if msg.Text != "" {
 				t.Errorf("final text = %q, want empty (hallucination filtered)", msg.Text)
 			}
 			return
 		}
-		if msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgError {
 			t.Fatalf("unexpected error: %s", msg.Text)
 		}
 	}
@@ -1711,8 +1712,8 @@ func TestVoiceStreamWS_SpeechStartTrimsSilenceWithLookback(t *testing.T) {
 	}
 	defer conn.Close()
 
-	// lookbackBytes = audioBitrateBps/8 * vadLookbackMs/1000 = 48000/8 * 600/1000 = 3600
-	expectedLookback := audioBitrateBps / 8 * vadLookbackMs / 1000
+	// lookbackBytes = intvoice.AudioBitrateBps/8 * intvoice.VadLookbackMs/1000 = 48000/8 * 600/1000 = 3600
+	expectedLookback := intvoice.AudioBitrateBps / 8 * intvoice.VadLookbackMs / 1000
 
 	// 1. Send 8KB of "silence" audio (before speech).
 	silenceAudio := make([]byte, 8192)
@@ -1720,7 +1721,7 @@ func TestVoiceStreamWS_SpeechStartTrimsSilenceWithLookback(t *testing.T) {
 
 	// 2. Signal speech start — this should advance segmentStartOffset
 	//    but keep a lookback margin to preserve speech onset.
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgVadSpeechStart})
 
 	// 3. Send 4KB of "speech" audio.
 	speechAudio := make([]byte, 4096)
@@ -1730,23 +1731,23 @@ func TestVoiceStreamWS_SpeechStartTrimsSilenceWithLookback(t *testing.T) {
 	_ = conn.WriteMessage(websocket.BinaryMessage, speechAudio)
 
 	// 4. Signal speech end and segment boundary.
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechEnd})
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgSegmentBoundary})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgVadSpeechEnd})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgSegmentBoundary})
 
 	// Wait for segment-final processing.
 	time.Sleep(800 * time.Millisecond)
 
 	// 5. Close the session.
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	// Read messages until final.
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			break
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			break
 		}
 	}
@@ -1797,25 +1798,25 @@ func TestVoiceStreamWS_InterWordSilenceBouncesPreserveAudio(t *testing.T) {
 	// Simulate 5 words with silence bounces between them:
 	// speech → silence → speech → silence → ... → segment-boundary
 	for word := 0; word < 5; word++ {
-		_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+		_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgVadSpeechStart})
 		_ = conn.WriteMessage(websocket.BinaryMessage, chunk) // "word" audio
-		_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechEnd})
+		_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgVadSpeechEnd})
 		_ = conn.WriteMessage(websocket.BinaryMessage, chunk[:512]) // brief silence
 	}
 
 	// Trigger segment-final
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgSegmentBoundary})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgSegmentBoundary})
 	time.Sleep(800 * time.Millisecond)
 
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			break
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			break
 		}
 	}
@@ -1873,31 +1874,31 @@ func TestVoiceStreamWS_StopMidSpeechInPersistentMode(t *testing.T) {
 	}
 
 	// Phase 1: First segment — speech, silence, segment-boundary.
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgVadSpeechStart})
 	_ = conn.WriteMessage(websocket.BinaryMessage, chunk)
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechEnd})
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgSegmentBoundary})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgVadSpeechEnd})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgSegmentBoundary})
 	time.Sleep(500 * time.Millisecond)
 
 	// Phase 2: More speech, then immediate stop (no silence/segment-boundary).
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgVadSpeechStart})
 	_ = conn.WriteMessage(websocket.BinaryMessage, chunk)
 	// User presses stop immediately — no vad-speech-end, no segment-boundary.
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	// Collect all server messages.
 	var segmentFinals []string
 	var finalText string
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			break
 		}
-		if msg.Type == VoiceMsgSegmentFinal {
+		if msg.Type == intvoice.MsgSegmentFinal {
 			segmentFinals = append(segmentFinals, msg.Text)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			finalText = msg.Text
 			break
 		}
@@ -1929,7 +1930,7 @@ func fakeSpeakerVerificationServer(t *testing.T, matched bool, score float64) *h
 			// Consume multipart body
 			_ = r.ParseMultipartForm(10 << 20)
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(SpeakerVerificationResult{
+			_ = json.NewEncoder(w).Encode(intvoice.SpeakerVerifyResult{
 				ProfileID: "default",
 				Matched:   matched,
 				Score:     score,
@@ -1958,18 +1959,18 @@ func setupVoiceWSServerWithSpeaker(
 	svSrv := fakeSpeakerVerificationServer(t, matched, score)
 	t.Cleanup(svSrv.Close)
 
-	srv.speakerVerification = &SpeakerVerificationResourceClient{
+	srv.voice.SetSpeakerClient(&intvoice.SpeakerClient{
 		BaseURL: svSrv.URL,
 		Client:  svSrv.Client(),
-	}
-	srv.speakerVerificationConfig = SpeakerVerificationConfig{
+	})
+	srv.voice.SetSpeakerConfig(intvoice.SpeakerConfig{
 		Enabled:                     true,
 		ProfileIDs:                  []string{"default"},
 		Threshold:                   0.85,
 		Mode:                        mode,
 		RejectBehavior:              "drop",
 		FallbackWithoutVerification: false,
-	}
+	})
 
 	return ts, srv
 }
@@ -1986,11 +1987,11 @@ func TestVoiceStreamWS_SpeakerVerification_SendsStatusOnConnect(t *testing.T) {
 
 	// First message should be speaker-status
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	var msg VoiceStreamMessage
+	var msg intvoice.StreamMessage
 	if err := conn.ReadJSON(&msg); err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	if msg.Type != VoiceMsgSpeakerStatus {
+	if msg.Type != intvoice.MsgSpeakerStatus {
 		t.Fatalf("expected speaker-status, got %s", msg.Type)
 	}
 	if !msg.Enabled {
@@ -2000,7 +2001,7 @@ func TestVoiceStreamWS_SpeakerVerification_SendsStatusOnConnect(t *testing.T) {
 		t.Error("expected profileConfigured=true")
 	}
 
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 func TestVoiceStreamWS_SpeakerVerification_AcceptedFinal(t *testing.T) {
@@ -2015,26 +2016,26 @@ func TestVoiceStreamWS_SpeakerVerification_AcceptedFinal(t *testing.T) {
 
 	// Read speaker-status
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	var statusMsg VoiceStreamMessage
+	var statusMsg intvoice.StreamMessage
 	_ = conn.ReadJSON(&statusMsg)
 
 	// Send audio + done
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	// Read until final — should contain transcription text (verification passed)
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			if msg.Text != "accepted text" {
 				t.Errorf("final text = %q, want %q", msg.Text, "accepted text")
 			}
 			return
 		}
-		if msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgError {
 			t.Fatalf("unexpected error: %s", msg.Text)
 		}
 	}
@@ -2052,26 +2053,26 @@ func TestVoiceStreamWS_SpeakerVerification_RejectedFinal(t *testing.T) {
 
 	// Read speaker-status
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	var statusMsg VoiceStreamMessage
+	var statusMsg intvoice.StreamMessage
 	_ = conn.ReadJSON(&statusMsg)
 
 	// Send audio + done
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	// Read until final — should be empty (verification rejected)
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			if msg.Text != "" {
 				t.Errorf("expected empty final for rejected speaker, got %q", msg.Text)
 			}
 			return
 		}
-		if msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgError {
 			t.Fatalf("unexpected error: %s", msg.Text)
 		}
 	}
@@ -2089,26 +2090,26 @@ func TestVoiceStreamWS_SpeakerVerification_AdvisoryModeAllowsThrough(t *testing.
 
 	// Read speaker-status
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	var statusMsg VoiceStreamMessage
+	var statusMsg intvoice.StreamMessage
 	_ = conn.ReadJSON(&statusMsg)
 
 	// Send audio + done
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	// Advisory mode: mismatch should still allow text through
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			if msg.Text != "advisory text" {
 				t.Errorf("final text = %q, want %q", msg.Text, "advisory text")
 			}
 			return
 		}
-		if msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgError {
 			t.Fatalf("unexpected error: %s", msg.Text)
 		}
 	}
@@ -2126,30 +2127,30 @@ func TestVoiceStreamWS_SpeakerVerification_SegmentRejected(t *testing.T) {
 
 	// Read speaker-status
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	var statusMsg VoiceStreamMessage
+	var statusMsg intvoice.StreamMessage
 	_ = conn.ReadJSON(&statusMsg)
 
 	// Send enough audio to exceed minSpeakerVerifyBytes, trigger segment boundary
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 16384))
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgSegmentBoundary})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgSegmentBoundary})
 
 	// Wait for segment-rejected message
 	var gotSegmentRejected bool
 	deadline := time.Now().Add(10 * time.Second)
 	_ = conn.SetReadDeadline(deadline)
 	for time.Now().Before(deadline) {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			break
 		}
-		if msg.Type == VoiceMsgSegmentRejected {
+		if msg.Type == intvoice.MsgSegmentRejected {
 			gotSegmentRejected = true
 			if msg.SegmentIndex != 0 {
 				t.Errorf("segmentIndex = %d, want 0", msg.SegmentIndex)
 			}
 			break
 		}
-		if msg.Type == VoiceMsgSegmentFinal {
+		if msg.Type == intvoice.MsgSegmentFinal {
 			t.Fatal("unexpected segment-final for rejected segment")
 		}
 	}
@@ -2159,7 +2160,7 @@ func TestVoiceStreamWS_SpeakerVerification_SegmentRejected(t *testing.T) {
 	}
 
 	// Cleanup
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 func TestVoiceStreamWS_SpeakerVerification_SegmentAccepted(t *testing.T) {
@@ -2174,29 +2175,29 @@ func TestVoiceStreamWS_SpeakerVerification_SegmentAccepted(t *testing.T) {
 
 	// Read speaker-status
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	var statusMsg VoiceStreamMessage
+	var statusMsg intvoice.StreamMessage
 	_ = conn.ReadJSON(&statusMsg)
 
 	// Send enough audio to exceed minSpeakerVerifyBytes, trigger segment boundary
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 16384))
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgSegmentBoundary})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgSegmentBoundary})
 
 	// Should get segment-accepted + segment-final
 	var gotAccepted, gotSegmentFinal bool
 	deadline := time.Now().Add(10 * time.Second)
 	_ = conn.SetReadDeadline(deadline)
 	for time.Now().Before(deadline) {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			break
 		}
-		if msg.Type == VoiceMsgSegmentAccepted {
+		if msg.Type == intvoice.MsgSegmentAccepted {
 			gotAccepted = true
 			if msg.SegmentIndex != 0 {
 				t.Errorf("accepted segmentIndex = %d, want 0", msg.SegmentIndex)
 			}
 		}
-		if msg.Type == VoiceMsgSegmentFinal {
+		if msg.Type == intvoice.MsgSegmentFinal {
 			gotSegmentFinal = true
 			if msg.Text != "accepted segment" {
 				t.Errorf("segment-final text = %q, want %q", msg.Text, "accepted segment")
@@ -2205,7 +2206,7 @@ func TestVoiceStreamWS_SpeakerVerification_SegmentAccepted(t *testing.T) {
 		if gotAccepted && gotSegmentFinal {
 			break
 		}
-		if msg.Type == VoiceMsgSegmentRejected {
+		if msg.Type == intvoice.MsgSegmentRejected {
 			t.Fatal("unexpected segment-rejected for matching speaker")
 		}
 	}
@@ -2218,7 +2219,7 @@ func TestVoiceStreamWS_SpeakerVerification_SegmentAccepted(t *testing.T) {
 	}
 
 	// Cleanup
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 }
 
 func TestVoiceStreamWS_SpeakerVerification_DisabledNoStatusMessage(t *testing.T) {
@@ -2233,19 +2234,19 @@ func TestVoiceStreamWS_SpeakerVerification_DisabledNoStatusMessage(t *testing.T)
 
 	// Send audio + done
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	// Should get partial/final but no speaker-status
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgSpeakerStatus {
+		if msg.Type == intvoice.MsgSpeakerStatus {
 			t.Fatal("unexpected speaker-status when verification is disabled")
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			if msg.Text != "no verification" {
 				t.Errorf("final text = %q, want %q", msg.Text, "no verification")
 			}
@@ -2263,19 +2264,19 @@ func TestVoiceStreamWS_SpeakerVerification_FallbackPolicy(t *testing.T) {
 
 	ts, srv := setupVoiceWSServer(t, echoWhisperHandler("fallback text"))
 
-	srv.speakerVerification = &SpeakerVerificationResourceClient{
+	srv.voice.SetSpeakerClient(&intvoice.SpeakerClient{
 		BaseURL: svSrv.URL,
 		Client:  svSrv.Client(),
-	}
+	})
 	// Fallback=false: should reject when verification errors
-	srv.speakerVerificationConfig = SpeakerVerificationConfig{
+	srv.voice.SetSpeakerConfig(intvoice.SpeakerConfig{
 		Enabled:                     true,
 		ProfileIDs:                  []string{"default"},
 		Threshold:                   0.85,
 		Mode:                        "filter",
 		RejectBehavior:              "drop",
 		FallbackWithoutVerification: false,
-	}
+	})
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -2286,24 +2287,24 @@ func TestVoiceStreamWS_SpeakerVerification_FallbackPolicy(t *testing.T) {
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	// Read speaker-status
-	var statusMsg VoiceStreamMessage
+	var statusMsg intvoice.StreamMessage
 	_ = conn.ReadJSON(&statusMsg)
 
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			if msg.Text != "" {
 				t.Errorf("expected empty final when fallback=false and resource errors, got %q", msg.Text)
 			}
 			return
 		}
-		if msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgError {
 			t.Fatalf("unexpected error: %s", msg.Text)
 		}
 	}
@@ -2318,19 +2319,19 @@ func TestVoiceStreamWS_SpeakerVerification_FallbackAllowed(t *testing.T) {
 
 	ts, srv := setupVoiceWSServer(t, echoWhisperHandler("fallback allowed"))
 
-	srv.speakerVerification = &SpeakerVerificationResourceClient{
+	srv.voice.SetSpeakerClient(&intvoice.SpeakerClient{
 		BaseURL: svSrv.URL,
 		Client:  svSrv.Client(),
-	}
+	})
 	// Fallback=true: should allow through when verification errors
-	srv.speakerVerificationConfig = SpeakerVerificationConfig{
+	srv.voice.SetSpeakerConfig(intvoice.SpeakerConfig{
 		Enabled:                     true,
 		ProfileIDs:                  []string{"default"},
 		Threshold:                   0.85,
 		Mode:                        "filter",
 		RejectBehavior:              "drop",
 		FallbackWithoutVerification: true,
-	}
+	})
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -2341,24 +2342,24 @@ func TestVoiceStreamWS_SpeakerVerification_FallbackAllowed(t *testing.T) {
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	// Read speaker-status
-	var statusMsg VoiceStreamMessage
+	var statusMsg intvoice.StreamMessage
 	_ = conn.ReadJSON(&statusMsg)
 
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			if msg.Text != "fallback allowed" {
 				t.Errorf("final text = %q, want %q", msg.Text, "fallback allowed")
 			}
 			return
 		}
-		if msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgError {
 			t.Fatalf("unexpected error: %s", msg.Text)
 		}
 	}
@@ -2375,21 +2376,21 @@ func TestVoiceStreamWS_LegitTextNotFiltered(t *testing.T) {
 	defer conn.Close()
 
 	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
-	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.WriteJSON(intvoice.StreamMessage{Type: intvoice.MsgDone})
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
-		var msg VoiceStreamMessage
+		var msg intvoice.StreamMessage
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		if msg.Type == VoiceMsgFinal {
+		if msg.Type == intvoice.MsgFinal {
 			if msg.Text != "Thank you for the great presentation" {
 				t.Errorf("final text = %q, want %q", msg.Text, "Thank you for the great presentation")
 			}
 			return
 		}
-		if msg.Type == VoiceMsgError {
+		if msg.Type == intvoice.MsgError {
 			t.Fatalf("unexpected error: %s", msg.Text)
 		}
 	}

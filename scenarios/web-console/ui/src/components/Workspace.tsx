@@ -10,6 +10,7 @@ import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { useAppViewport } from "../hooks/useAppViewport";
+import { useTouchControls } from "../hooks/useTouchControls";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useWakeLockStatus } from "../stores/useWakeLockStatus";
@@ -173,6 +174,7 @@ export default function Workspace() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
   useAppViewport();
+  const needsTouchControls = useTouchControls();
   const wakeLockStatus = useWakeLock(workspace.keepScreenAwake);
   const setWakeLockStatus = useWakeLockStatus((s) => s.setStatus);
   useEffect(() => { setWakeLockStatus(wakeLockStatus); }, [wakeLockStatus, setWakeLockStatus]);
@@ -1105,7 +1107,7 @@ export default function Workspace() {
 
       {/* Voice fallback notice */}
       {voiceInput.fallbackNotice && (
-        <div className="px-3 py-1.5 text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/30">
+        <div className="py-1.5 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/30">
           {voiceInput.fallbackNotice}
         </div>
       )}
@@ -1177,7 +1179,7 @@ export default function Workspace() {
       {workspace.displayMode === "sidebar" && (
         <div
           data-testid="workspace-sidebar-topbar"
-          className="flex h-[calc(2.5rem+var(--wc-safe-top,0px))] shrink-0 items-center gap-2 border-b border-wc-default bg-wc-surface-header px-2 pt-[var(--wc-safe-top,0px)] md:hidden"
+          className="flex h-[calc(2.5rem+var(--wc-safe-top,0px))] shrink-0 items-center gap-2 border-b border-wc-default bg-wc-surface-header pt-[var(--wc-safe-top,0px)] ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] md:hidden"
         >
           <Button
             data-testid="workspace-sidebar-toggle"
@@ -1263,7 +1265,7 @@ export default function Workspace() {
            * Circular icon button with a translucent background so it doesn't
            * obscure too much terminal content but is still easy to tap. */}
           {workspace.activePane && workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView && (
-            <div className="absolute right-3 top-3 z-20">
+            <div className="absolute end-[max(0.75rem,var(--wc-safe-right,0px))] top-[max(0.75rem,var(--wc-safe-top,0px))] z-20">
               <button
                 className="flex items-center justify-center h-8 w-8 rounded-full bg-wc-surface-raised/80 border border-wc-default text-wc-text-secondary hover:text-wc-text-primary hover:bg-wc-surface-input transition-colors backdrop-blur-sm"
                 onClick={() => {
@@ -1422,6 +1424,7 @@ export default function Workspace() {
         {/* Mobile toolbar */}
         <MobileToolbar
           ref={mobileToolbarRef}
+          visible={needsTouchControls}
           onInput={handleSendToTerminal}
           subscribeInputSettled={handleSubscribeInputSettled}
           subscribePendingInput={handleSubscribePendingInput}

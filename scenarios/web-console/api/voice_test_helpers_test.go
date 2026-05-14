@@ -9,7 +9,32 @@ import (
 	voicev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/voice"
 
 	voiceH "web-console/handlers/voice"
+	"web-console/internal/capabilities"
+	"web-console/internal/metrics"
+	intvoice "web-console/internal/voice"
 )
+
+// newVoiceOnlyServer builds a Server with just enough voice plumbing for
+// tests that exercise the voice Connect handlers / Service surface. caps
+// may be nil — a no-checker registry is supplied.
+func newVoiceOnlyServer(caps *capabilities.Registry) *Server {
+	if caps == nil {
+		caps = capabilities.NewRegistry(capabilities.Known, nil, 0)
+	}
+	m := metrics.New()
+	srv := &Server{capabilities: caps, metrics: m}
+	srv.voice = intvoice.NewService(
+		intvoice.DefaultConfig(), "",
+		nil, "",
+		intvoice.DefaultSpeakerConfig(), "",
+		nil,
+		caps,
+		&m.VoiceSkipVerificationTotal,
+		intvoice.ResolveWhisperURL(),
+		nil,
+	)
+	return srv
+}
 
 // voiceConnectIface mirrors the methods on the unexported *connectHandler in
 // handlers/voice so tests in package main can drive each RPC directly.
@@ -34,7 +59,7 @@ type voiceConnectIface interface {
 }
 
 func newVoiceConnectHandlerForServer(srv *Server) voiceConnectIface {
-	return voiceH.NewConnectHandler(voiceH.Deps{Service: &voiceH.Adapter{Backend: newVoiceServiceShim(srv)}})
+	return voiceH.NewConnectHandler(voiceH.Deps{Service: &voiceH.Adapter{Backend: srv.voice}})
 }
 
 func callVoiceTranscribe(t *testing.T, srv *Server, req *voicev1.TranscribeRequest) (string, error) {

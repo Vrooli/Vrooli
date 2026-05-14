@@ -190,6 +190,30 @@ export default function SessionSidebar({
               : t(strings.sessionSidebar.sessionCount, { count: paneItems.length })}
           </div>
         </div>
+        <Button
+          data-testid="workspace-sidebar-new"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          disabled={isCreating}
+          title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
+          onPointerDown={plusHandlers.onPointerDown}
+          onPointerUp={plusHandlers.onPointerUp}
+          onPointerCancel={plusHandlers.onPointerCancel}
+          onContextMenu={plusHandlers.onContextMenu}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        <Button
+          data-testid="workspace-sidebar-settings"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={onOpenSettings}
+          title={t(strings.workspace.settingsTitle)}
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
         {isMobile && (
           <Button
             data-testid="workspace-sidebar-close"
@@ -333,34 +357,6 @@ export default function SessionSidebar({
           );
         })}
       </div>
-
-      <div className="flex items-center gap-2 border-t border-wc-default p-2 pb-[max(0.5rem,var(--wc-safe-bottom,0px))]">
-        <Button
-          data-testid="workspace-sidebar-new"
-          variant="outline"
-          size="sm"
-          className="h-8 flex-1 justify-start"
-          disabled={isCreating}
-          title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
-          onPointerDown={plusHandlers.onPointerDown}
-          onPointerUp={plusHandlers.onPointerUp}
-          onPointerCancel={plusHandlers.onPointerCancel}
-          onContextMenu={plusHandlers.onContextMenu}
-        >
-          <Plus className="me-2 h-3.5 w-3.5" />
-          {t(strings.workspace.newTerminalButton)}
-        </Button>
-        <Button
-          data-testid="workspace-sidebar-settings"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={onOpenSettings}
-          title={t(strings.workspace.settingsTitle)}
-        >
-          <Settings className="h-4 w-4" />
-        </Button>
-      </div>
     </>
   );
 
@@ -371,7 +367,7 @@ export default function SessionSidebar({
           ref={sidebarRef}
           data-testid="workspace-sidebar-shell"
           className={cn(
-            "relative hidden shrink-0 flex-col border-e border-wc-default bg-wc-surface-header md:flex",
+            "relative hidden shrink-0 flex-col border-e border-wc-default bg-wc-surface-header ps-[var(--wc-safe-left,0px)] md:flex",
             isResizing && "select-none",
           )}
           style={{ width: size }}
@@ -397,7 +393,7 @@ export default function SessionSidebar({
           />
           <aside
             data-testid="workspace-sidebar-shell"
-            className="absolute inset-y-0 start-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col border-e border-wc-default bg-wc-surface-header pt-[var(--wc-safe-top,0px)] shadow-xl"
+            className="absolute inset-y-0 start-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col border-e border-wc-default bg-wc-surface-header pt-[var(--wc-safe-top,0px)] ps-[var(--wc-safe-left,0px)] shadow-xl"
           >
             {sidebarContent}
           </aside>

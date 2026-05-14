@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	intai "web-console/internal/ai"
+
 	"connectrpc.com/connect"
 
 	aiH "web-console/handlers/ai"
@@ -18,7 +20,7 @@ import (
 	intworkspace "web-console/internal/workspace"
 )
 
-// fakeAIProvider is a test double for AIProvider.
+// fakeAIProvider is a test double for intai.Provider.
 type fakeAIProvider struct {
 	name   string
 	result string
@@ -63,7 +65,7 @@ func TestAIProviderChainFailover(t *testing.T) {
 	primary := &fakeAIProvider{name: "ollama", err: fmt.Errorf("connection refused")}
 	fallback := &fakeAIProvider{name: "openrouter", result: "ls -la"}
 
-	chain := NewAIProviderChain(primary, fallback)
+	chain := intai.NewChain(primary, fallback)
 	cmd, provider, err := chain.Generate(context.Background(), "system", "list files")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -87,7 +89,7 @@ func TestAIProviderChainPrimarySuccess(t *testing.T) {
 	primary := &fakeAIProvider{name: "ollama", result: "docker ps"}
 	fallback := &fakeAIProvider{name: "openrouter", result: "should not be called"}
 
-	chain := NewAIProviderChain(primary, fallback)
+	chain := intai.NewChain(primary, fallback)
 	cmd, provider, err := chain.Generate(context.Background(), "system", "list containers")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -108,7 +110,7 @@ func TestAIProviderChainAllFail(t *testing.T) {
 	primary := &fakeAIProvider{name: "ollama", err: fmt.Errorf("timeout")}
 	fallback := &fakeAIProvider{name: "openrouter", err: fmt.Errorf("api key missing")}
 
-	chain := NewAIProviderChain(primary, fallback)
+	chain := intai.NewChain(primary, fallback)
 	_, _, err := chain.Generate(context.Background(), "system", "list files")
 
 	if err == nil {
@@ -118,7 +120,7 @@ func TestAIProviderChainAllFail(t *testing.T) {
 
 // [REQ:P0-005a] - no providers configured
 func TestAIProviderChainEmpty(t *testing.T) {
-	chain := NewAIProviderChain()
+	chain := intai.NewChain()
 	_, _, err := chain.Generate(context.Background(), "system", "list files")
 
 	if err == nil {
@@ -127,17 +129,19 @@ func TestAIProviderChainEmpty(t *testing.T) {
 }
 
 // newTestServerWithAI creates a test server with a fake AI provider chain.
-func newTestServerWithAI(providers ...AIProvider) *Server {
-	return &Server{
+func newTestServerWithAI(providers ...intai.Provider) *Server {
+	srv := &Server{
 		router:    nil,
 		sessions:  newSessionManagerWithFactory(ptyfake.NewFactory()),
 		events:    events.NewLogger(100),
 		metrics:   metrics.New(),
-		aiChain:   NewAIProviderChain(providers...),
+		aiChain:   intai.NewChain(providers...),
 		shortcuts: NewShortcutProfileStore(),
-		aiConfig:  NewAIProviderConfigStore(),
+		aiConfig:  intai.NewMemConfigStore(),
 		workspace: intworkspace.NewMemStore(),
 	}
+	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, nil, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
+	return srv
 }
 
 // aiConnectIface is the public method surface NewConnectHandler returns.
@@ -152,7 +156,7 @@ type aiConnectIface interface {
 }
 
 func newAIConnectHandlerForServer(srv *Server) aiConnectIface {
-	return aiH.NewConnectHandler(aiH.Deps{Service: &aiH.Adapter{Backend: newAIServiceShim(srv)}})
+	return aiH.NewConnectHandler(aiH.Deps{Service: &aiH.Adapter{Backend: srv.ai}})
 }
 
 // [REQ:P0-005a] - handler returns generated command
@@ -285,7 +289,7 @@ func TestExecuteAI_PassesSystemPrompt(t *testing.T) {
 	}
 	srv := newTestServerWithAI(provider)
 
-	_, _, err := srv.executeAI(context.Background(), "custom system prompt", "user input")
+	_, _, err := srv.ai.Execute(context.Background(), "custom system prompt", "user input")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -300,7 +304,7 @@ func TestExecuteAI_ReturnsRawOutput(t *testing.T) {
 	provider := &fakeAIProvider{name: "ollama", result: raw}
 	srv := newTestServerWithAI(provider)
 
-	result, _, err := srv.executeAI(context.Background(), "system", "user")
+	result, _, err := srv.ai.Execute(context.Background(), "system", "user")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

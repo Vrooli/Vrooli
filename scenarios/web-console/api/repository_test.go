@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	intai "web-console/internal/ai"
 	intworkspace "web-console/internal/workspace"
 )
 
@@ -14,8 +15,8 @@ import (
 var (
 	_ ShortcutStore      = (*ShortcutProfileStore)(nil)
 	_ ShortcutStore      = (*SQLShortcutStore)(nil)
-	_ AIConfigStore      = (*AIProviderConfigStore)(nil)
-	_ AIConfigStore      = (*SQLAIConfigStore)(nil)
+	_ intai.ConfigStore  = (*intai.MemConfigStore)(nil)
+	_ intai.ConfigStore  = (*intai.SQLConfigStore)(nil)
 	_ intworkspace.Store = (*intworkspace.MemStore)(nil)
 	_ intworkspace.Store = (*intworkspace.SQLStore)(nil)
 )
@@ -72,9 +73,9 @@ func TestShortcutStoreInterface(t *testing.T) {
 }
 
 // TestAIConfigStoreInterface verifies the in-memory implementation satisfies
-// the AIConfigStore contract.
+// the intai.ConfigStore contract.
 func TestAIConfigStoreInterface(t *testing.T) {
-	var store AIConfigStore = NewAIProviderConfigStore()
+	var store intai.ConfigStore = intai.NewMemConfigStore()
 
 	// GetConfigs returns default providers
 	configs := store.GetConfigs()

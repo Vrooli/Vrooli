@@ -259,7 +259,7 @@ export default function TabBar({
   return (
     <div
       data-testid="tab-bar"
-      className="flex items-stretch h-9 border-b border-wc-default bg-wc-surface-header shrink-0"
+      className="flex items-stretch h-9 border-b border-wc-default bg-wc-surface-header shrink-0 ps-[var(--wc-safe-left,0px)] pe-[var(--wc-safe-right,0px)]"
       role="tablist"
     >
       <div

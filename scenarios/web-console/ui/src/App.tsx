@@ -43,7 +43,7 @@ export default function App() {
       {showBanner && (
         <div
           data-testid="connection-banner"
-          className="flex items-center gap-2 bg-wc-error-surface border-b border-wc-error px-4 py-2 text-sm text-wc-error-text"
+          className="flex items-center gap-2 bg-wc-error-surface border-b border-wc-error py-2 ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] text-sm text-wc-error-text"
         >
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="flex-1">

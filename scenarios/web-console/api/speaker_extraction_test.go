@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	intvoice "web-console/internal/voice"
 )
 
 // ---------------------------------------------------------------------------
@@ -62,7 +64,7 @@ func TestExtract_Success(t *testing.T) {
 	}))
 	defer resource.Close()
 
-	client := &SpeakerVerificationResourceClient{
+	client := &intvoice.SpeakerClient{
 		BaseURL: resource.URL,
 		Client:  resource.Client(),
 	}
@@ -99,7 +101,7 @@ func TestExtract_ProfileNotFound(t *testing.T) {
 	}))
 	defer resource.Close()
 
-	client := &SpeakerVerificationResourceClient{
+	client := &intvoice.SpeakerClient{
 		BaseURL: resource.URL,
 		Client:  resource.Client(),
 	}
@@ -121,7 +123,7 @@ func TestExtract_Timeout(t *testing.T) {
 	}))
 	defer resource.Close()
 
-	client := &SpeakerVerificationResourceClient{
+	client := &intvoice.SpeakerClient{
 		BaseURL: resource.URL,
 		Client:  &http.Client{Timeout: 100 * time.Millisecond},
 	}
@@ -147,7 +149,7 @@ func containsHelper(s, substr string) bool {
 }
 
 // ---------------------------------------------------------------------------
-// extractTargetSpeaker() gate function tests
+// intvoice.ExtractTargetSpeaker() gate function tests
 // ---------------------------------------------------------------------------
 
 func TestExtractTargetSpeaker_Enabled(t *testing.T) {
@@ -163,23 +165,21 @@ func TestExtractTargetSpeaker_Enabled(t *testing.T) {
 	}))
 	defer resource.Close()
 
-	srv := &Server{
-		speakerVerificationConfig: SpeakerVerificationConfig{
-			Enabled:           true,
-			ExtractionEnabled: true,
-			ProfileIDs:        []string{"default"},
-			Threshold:         0.35,
-			Mode:              "filter",
-			RejectBehavior:    "drop",
-		},
-		speakerVerification: &SpeakerVerificationResourceClient{
-			BaseURL: resource.URL,
-			Client:  resource.Client(),
-		},
+	cfg := intvoice.SpeakerConfig{
+		Enabled:           true,
+		ExtractionEnabled: true,
+		ProfileIDs:        []string{"default"},
+		Threshold:         0.35,
+		Mode:              "filter",
+		RejectBehavior:    "drop",
+	}
+	client := &intvoice.SpeakerClient{
+		BaseURL: resource.URL,
+		Client:  resource.Client(),
 	}
 
 	ctx := context.Background()
-	audio, decision := srv.extractTargetSpeaker(ctx, []byte("original-audio"))
+	audio, decision := intvoice.ExtractTargetSpeaker(ctx, cfg, client, []byte("original-audio"))
 
 	if !decision.Allowed {
 		t.Fatal("expected allowed=true")
@@ -196,31 +196,19 @@ func TestExtractTargetSpeaker_Enabled(t *testing.T) {
 }
 
 func TestExtractTargetSpeaker_Disabled(t *testing.T) {
-	srv := &Server{
-		speakerVerificationConfig: SpeakerVerificationConfig{
-			Enabled:           true,
-			ExtractionEnabled: false,
-			ProfileIDs:        []string{"default"},
-			Threshold:         0.35,
-			Mode:              "filter",
-			RejectBehavior:    "drop",
-		},
-		speakerVerification: &SpeakerVerificationResourceClient{
-			BaseURL: "http://should-not-be-called",
-		},
+	cfg := intvoice.SpeakerConfig{
+		Enabled:                     true,
+		ExtractionEnabled:           false,
+		ProfileIDs:                  []string{"default"},
+		Threshold:                   0.35,
+		Mode:                        "filter",
+		RejectBehavior:              "drop",
+		FallbackWithoutVerification: true,
 	}
-
-	// The resource will never be called because extraction is disabled.
-	// evaluateSpeakerVerification will try to call Verify, but the URL is
-	// unreachable. FallbackWithoutVerification is false, so we check
-	// that the original audio is returned.
-	// To simplify: set speakerVerification to nil and FallbackWithoutVerification=true.
-	srv.speakerVerification = nil
-	srv.speakerVerificationConfig.FallbackWithoutVerification = true
 
 	ctx := context.Background()
 	originalAudio := []byte("original-audio")
-	audio, decision := srv.extractTargetSpeaker(ctx, originalAudio)
+	audio, decision := intvoice.ExtractTargetSpeaker(ctx, cfg, nil, originalAudio)
 
 	if decision.Extracted {
 		t.Fatal("expected extracted=false when TSE disabled")
@@ -241,7 +229,7 @@ func TestExtractTargetSpeaker_ClientError(t *testing.T) {
 		// Verify endpoint for fallback
 		if r.URL.Path == "/v1/verify" {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(SpeakerVerificationResult{
+			_ = json.NewEncoder(w).Encode(intvoice.SpeakerVerifyResult{
 				ProfileID:  "default",
 				Matched:    true,
 				Score:      0.9,
@@ -256,24 +244,22 @@ func TestExtractTargetSpeaker_ClientError(t *testing.T) {
 	}))
 	defer resource.Close()
 
-	srv := &Server{
-		speakerVerificationConfig: SpeakerVerificationConfig{
-			Enabled:           true,
-			ExtractionEnabled: true,
-			ProfileIDs:        []string{"default"},
-			Threshold:         0.35,
-			Mode:              "filter",
-			RejectBehavior:    "drop",
-		},
-		speakerVerification: &SpeakerVerificationResourceClient{
-			BaseURL: resource.URL,
-			Client:  resource.Client(),
-		},
+	cfg := intvoice.SpeakerConfig{
+		Enabled:           true,
+		ExtractionEnabled: true,
+		ProfileIDs:        []string{"default"},
+		Threshold:         0.35,
+		Mode:              "filter",
+		RejectBehavior:    "drop",
+	}
+	client := &intvoice.SpeakerClient{
+		BaseURL: resource.URL,
+		Client:  resource.Client(),
 	}
 
 	ctx := context.Background()
 	originalAudio := []byte("original-audio")
-	audio, decision := srv.extractTargetSpeaker(ctx, originalAudio)
+	audio, decision := intvoice.ExtractTargetSpeaker(ctx, cfg, client, originalAudio)
 
 	// Should fall back to verification-only and return original audio
 	if decision.Extracted {
@@ -294,7 +280,7 @@ func TestExtractTargetSpeaker_ClientError(t *testing.T) {
 func TestSpeakerVerificationConfig_ExtractionEnabled_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "speaker-verification-config.json")
-	cfg := SpeakerVerificationConfig{
+	cfg := intvoice.SpeakerConfig{
 		Enabled:           true,
 		ProfileIDs:        []string{"default"},
 		Threshold:         0.35,
@@ -302,10 +288,10 @@ func TestSpeakerVerificationConfig_ExtractionEnabled_RoundTrip(t *testing.T) {
 		RejectBehavior:    "drop",
 		ExtractionEnabled: true,
 	}
-	if err := saveSpeakerVerificationConfig(path, cfg); err != nil {
+	if err := intvoice.SaveSpeakerConfig(path, cfg); err != nil {
 		t.Fatalf("save error = %v", err)
 	}
-	loaded, err := loadSpeakerVerificationConfig(path)
+	loaded, err := intvoice.LoadSpeakerConfig(path)
 	if err != nil {
 		t.Fatalf("load error = %v", err)
 	}
@@ -315,13 +301,13 @@ func TestSpeakerVerificationConfig_ExtractionEnabled_RoundTrip(t *testing.T) {
 }
 
 func TestSpeakerVerificationConfigPatch_ExtractionEnabled(t *testing.T) {
-	base := DefaultSpeakerVerificationConfig()
+	base := intvoice.DefaultSpeakerConfig()
 	if base.ExtractionEnabled {
 		t.Fatal("default should have extractionEnabled=false")
 	}
 
 	enabled := true
-	patch := SpeakerVerificationConfigPatch{ExtractionEnabled: &enabled}
+	patch := intvoice.SpeakerConfigPatch{ExtractionEnabled: &enabled}
 	updated := patch.Apply(base)
 	if !updated.ExtractionEnabled {
 		t.Fatal("patch should set extractionEnabled=true")

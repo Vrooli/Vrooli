@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	intai "web-console/internal/ai"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
@@ -72,9 +74,9 @@ func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 		sessions:  sm,
 		events:    events.NewLogger(100),
 		metrics:   metrics.New(),
-		aiChain:   NewAIProviderChain(),
+		aiChain:   intai.NewChain(),
 		shortcuts: NewShortcutProfileStore(),
-		aiConfig:  NewAIProviderConfigStore(),
+		aiConfig:  intai.NewMemConfigStore(),
 		workspace: intworkspace.NewMemStore(),
 	}
 	deadSess, _ := sm.Create("/fake/shell", 80, 24, "", nil)
@@ -484,9 +486,9 @@ func setupWSServerWithPTY(t *testing.T) (*httptest.Server, string, *ptyfake.Fake
 		sessions:    sm,
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
-		aiChain:     NewAIProviderChain(),
+		aiChain:     intai.NewChain(),
 		shortcuts:   NewShortcutProfileStore(),
-		aiConfig:    NewAIProviderConfigStore(),
+		aiConfig:    intai.NewMemConfigStore(),
 		idempotency: intsessions.NewIdempotencyCache(),
 		workspace:   intworkspace.NewMemStore(),
 	}

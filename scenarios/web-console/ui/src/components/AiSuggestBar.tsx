@@ -90,7 +90,7 @@ export default function AiSuggestBar({ inputText, onExecute, onClose: _onClose }
   return (
     <div
       data-testid="ai-suggest-bar"
-      className="flex items-center gap-2 border-t border-wc-default bg-wc-surface-raised px-2 py-1.5 animate-in slide-in-from-bottom-2 duration-200 md:hidden touch-manipulation select-none"
+      className="flex items-center gap-2 border-t border-wc-default bg-wc-surface-raised px-2 py-1.5 animate-in slide-in-from-bottom-2 duration-200 touch-manipulation select-none"
       onMouseDown={(e) => e.preventDefault()}
     >
       <Sparkles className="h-3.5 w-3.5 shrink-0 text-wc-accent" />

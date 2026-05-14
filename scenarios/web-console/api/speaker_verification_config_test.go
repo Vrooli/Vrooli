@@ -11,14 +11,15 @@ import (
 	voicev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/voice"
 
 	"web-console/internal/capabilities"
+	intvoice "web-console/internal/voice"
 )
 
 func TestLoadSpeakerVerificationConfig_MissingFile(t *testing.T) {
-	cfg, err := loadSpeakerVerificationConfig("/nonexistent/path/speaker-verification-config.json")
+	cfg, err := intvoice.LoadSpeakerConfig("/nonexistent/path/speaker-verification-config.json")
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
-	defaults := DefaultSpeakerVerificationConfig()
+	defaults := intvoice.DefaultSpeakerConfig()
 	if cfg.Enabled != defaults.Enabled || cfg.Threshold != defaults.Threshold || cfg.Mode != defaults.Mode {
 		t.Fatalf("expected defaults, got %+v", cfg)
 	}
@@ -27,7 +28,7 @@ func TestLoadSpeakerVerificationConfig_MissingFile(t *testing.T) {
 func TestSpeakerVerificationConfig_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "speaker-verification-config.json")
-	cfg := SpeakerVerificationConfig{
+	cfg := intvoice.SpeakerConfig{
 		Enabled:                     true,
 		ProfileIDs:                  []string{"default"},
 		Threshold:                   0.9,
@@ -35,12 +36,12 @@ func TestSpeakerVerificationConfig_RoundTrip(t *testing.T) {
 		RejectBehavior:              "drop",
 		FallbackWithoutVerification: false,
 	}
-	if err := saveSpeakerVerificationConfig(path, cfg); err != nil {
-		t.Fatalf("saveSpeakerVerificationConfig error = %v", err)
+	if err := intvoice.SaveSpeakerConfig(path, cfg); err != nil {
+		t.Fatalf("intvoice.SaveSpeakerConfig error = %v", err)
 	}
-	loaded, err := loadSpeakerVerificationConfig(path)
+	loaded, err := intvoice.LoadSpeakerConfig(path)
 	if err != nil {
-		t.Fatalf("loadSpeakerVerificationConfig error = %v", err)
+		t.Fatalf("intvoice.LoadSpeakerConfig error = %v", err)
 	}
 	if loaded.Enabled != cfg.Enabled || loaded.Threshold != cfg.Threshold ||
 		loaded.Mode != cfg.Mode || loaded.RejectBehavior != cfg.RejectBehavior ||
@@ -55,7 +56,7 @@ func TestSpeakerVerificationConfig_RoundTrip(t *testing.T) {
 }
 
 func TestSpeakerVerificationConfigValidate(t *testing.T) {
-	cfg := DefaultSpeakerVerificationConfig()
+	cfg := intvoice.DefaultSpeakerConfig()
 	cfg.Enabled = true
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected missing profileIds validation error")
@@ -68,14 +69,12 @@ func TestSpeakerVerificationConfigValidate(t *testing.T) {
 }
 
 func TestHandleGetSpeakerVerificationConfig(t *testing.T) {
-	srv := &Server{
-		speakerVerificationConfig: DefaultSpeakerVerificationConfig(),
-	}
+	srv := newVoiceOnlyServer(nil)
 	cfg, err := callGetSpeakerConfig(t, srv)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defaults := DefaultSpeakerVerificationConfig()
+	defaults := intvoice.DefaultSpeakerConfig()
 	if cfg.GetEnabled() != defaults.Enabled || cfg.GetThreshold() != defaults.Threshold || cfg.GetMode() != defaults.Mode {
 		t.Fatalf("config mismatch: got %+v", cfg)
 	}
@@ -83,10 +82,8 @@ func TestHandleGetSpeakerVerificationConfig(t *testing.T) {
 
 func TestHandleUpdateSpeakerVerificationConfig(t *testing.T) {
 	dir := t.TempDir()
-	srv := &Server{
-		speakerVerificationConfig:     DefaultSpeakerVerificationConfig(),
-		speakerVerificationConfigPath: filepath.Join(dir, "speaker-verification-config.json"),
-	}
+	srv := newVoiceOnlyServer(nil)
+	srv.voice.SetSpeakerConfigPath(filepath.Join(dir, "speaker-verification-config.json"))
 	cfg, err := callUpdateSpeakerConfig(t, srv, &voicev1.UpdateSpeakerConfigRequest{
 		Enabled:           true,
 		HasEnabled:        true,
@@ -111,21 +108,21 @@ func TestHandleGetSpeakerVerificationStatus(t *testing.T) {
 	resource := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/ready":
-			writeJSON(w, http.StatusOK, SpeakerVerificationResourceReady{
+			writeJSON(w, http.StatusOK, intvoice.SpeakerResourceReady{
 				Status:         "ready",
 				ModelLoaded:    true,
 				ProfileStoreOK: true,
 				TempDirOK:      true,
 			})
 		case "/v1/profiles":
-			writeJSON(w, http.StatusOK, SpeakerVerificationProfileList{
+			writeJSON(w, http.StatusOK, intvoice.SpeakerProfileList{
 				Count: 1,
-				Profiles: []SpeakerVerificationProfile{
+				Profiles: []intvoice.SpeakerProfile{
 					{ID: "default", DisplayName: "Default Voice"},
 				},
 			})
 		case "/v1/info":
-			writeJSON(w, http.StatusOK, SpeakerVerificationResourceInfo{
+			writeJSON(w, http.StatusOK, intvoice.SpeakerResourceInfo{
 				Backend:      "nemo-titanet",
 				Model:        "titanet_large",
 				Device:       "cpu",
@@ -147,20 +144,18 @@ func TestHandleGetSpeakerVerificationStatus(t *testing.T) {
 	)
 	reg.SetLivenessCheckers(map[string]capabilities.Checker{"speaker-verification": checker})
 
-	srv := &Server{
-		capabilities: reg,
-		speakerVerificationConfig: SpeakerVerificationConfig{
-			Enabled:        true,
-			ProfileIDs:     []string{"default"},
-			Threshold:      0.85,
-			Mode:           "filter",
-			RejectBehavior: "drop",
-		},
-		speakerVerification: &SpeakerVerificationResourceClient{
-			BaseURL: resource.URL,
-			Client:  resource.Client(),
-		},
-	}
+	srv := newVoiceOnlyServer(reg)
+	srv.voice.SetSpeakerConfig(intvoice.SpeakerConfig{
+		Enabled:        true,
+		ProfileIDs:     []string{"default"},
+		Threshold:      0.85,
+		Mode:           "filter",
+		RejectBehavior: "drop",
+	})
+	srv.voice.SetSpeakerClient(&intvoice.SpeakerClient{
+		BaseURL: resource.URL,
+		Client:  resource.Client(),
+	})
 
 	status, err := callGetSpeakerStatus(t, srv)
 	if err != nil {
@@ -192,21 +187,20 @@ func TestHandleGetSpeakerVerificationProfiles(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		writeJSON(w, http.StatusOK, SpeakerVerificationProfileList{
+		writeJSON(w, http.StatusOK, intvoice.SpeakerProfileList{
 			Count: 1,
-			Profiles: []SpeakerVerificationProfile{
+			Profiles: []intvoice.SpeakerProfile{
 				{ID: "default", DisplayName: "My Voice"},
 			},
 		})
 	}))
 	defer resource.Close()
 
-	srv := &Server{
-		speakerVerification: &SpeakerVerificationResourceClient{
-			BaseURL: resource.URL,
-			Client:  resource.Client(),
-		},
-	}
+	srv := newVoiceOnlyServer(nil)
+	srv.voice.SetSpeakerClient(&intvoice.SpeakerClient{
+		BaseURL: resource.URL,
+		Client:  resource.Client(),
+	})
 
 	resp, err := callListSpeakerProfiles(t, srv)
 	if err != nil {
@@ -235,7 +229,7 @@ func TestHandleEnrollSpeakerProfile(t *testing.T) {
 		}
 		_, _ = io.ReadAll(file)
 		_ = file.Close()
-		writeJSON(w, http.StatusOK, SpeakerVerificationEnrollmentResponse{
+		writeJSON(w, http.StatusOK, intvoice.SpeakerEnrollmentResponse{
 			ProfileID:              "default",
 			DisplayName:            "My Voice",
 			EmbeddingDim:           192,
@@ -248,14 +242,12 @@ func TestHandleEnrollSpeakerProfile(t *testing.T) {
 	defer resource.Close()
 
 	dir := t.TempDir()
-	srv := &Server{
-		speakerVerificationConfig:     DefaultSpeakerVerificationConfig(),
-		speakerVerificationConfigPath: filepath.Join(dir, "speaker-verification-config.json"),
-		speakerVerification: &SpeakerVerificationResourceClient{
-			BaseURL: resource.URL,
-			Client:  resource.Client(),
-		},
-	}
+	srv := newVoiceOnlyServer(nil)
+	srv.voice.SetSpeakerConfigPath(filepath.Join(dir, "speaker-verification-config.json"))
+	srv.voice.SetSpeakerClient(&intvoice.SpeakerClient{
+		BaseURL: resource.URL,
+		Client:  resource.Client(),
+	})
 
 	addToActive := true
 	enable := true
@@ -272,7 +264,7 @@ func TestHandleEnrollSpeakerProfile(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	cfg := srv.getSpeakerVerificationConfig()
+	cfg := srv.voice.SpeakerConfigSnapshot()
 	if !cfg.Enabled || len(cfg.ProfileIDs) != 1 || cfg.ProfileIDs[0] != "default" {
 		t.Fatalf("unexpected config after enroll: %+v", cfg)
 	}
@@ -280,22 +272,21 @@ func TestHandleEnrollSpeakerProfile(t *testing.T) {
 
 func TestHandleClearSpeakerProfileBinding(t *testing.T) {
 	dir := t.TempDir()
-	srv := &Server{
-		speakerVerificationConfig: SpeakerVerificationConfig{
-			Enabled:        true,
-			ProfileIDs:     []string{"default", "singing"},
-			Threshold:      0.85,
-			Mode:           "filter",
-			RejectBehavior: "drop",
-		},
-		speakerVerificationConfigPath: filepath.Join(dir, "speaker-verification-config.json"),
-	}
+	srv := newVoiceOnlyServer(nil)
+	srv.voice.SetSpeakerConfig(intvoice.SpeakerConfig{
+		Enabled:        true,
+		ProfileIDs:     []string{"default", "singing"},
+		Threshold:      0.85,
+		Mode:           "filter",
+		RejectBehavior: "drop",
+	})
+	srv.voice.SetSpeakerConfigPath(filepath.Join(dir, "speaker-verification-config.json"))
 
 	if _, err := callClearSpeakerProfileBinding(t, srv); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	cfg := srv.getSpeakerVerificationConfig()
+	cfg := srv.voice.SpeakerConfigSnapshot()
 	if cfg.Enabled || len(cfg.ProfileIDs) != 0 {
 		t.Fatalf("unexpected config after clear: %+v", cfg)
 	}

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	intai "web-console/internal/ai"
+
 	"web-console/session"
 
 	"connectrpc.com/connect"
@@ -36,15 +38,16 @@ func newTestServer() *Server {
 		fanouts:     NewConversationFanoutRegistry().AttachToManager(sm),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
-		aiChain:     NewAIProviderChain(),
+		aiChain:     intai.NewChain(),
 		shortcuts:   NewShortcutProfileStore(),
-		aiConfig:    NewAIProviderConfigStore(),
+		aiConfig:    intai.NewMemConfigStore(),
 		idempotency: intsessions.NewIdempotencyCache(),
 		workspace:   intworkspace.NewMemStore(),
 	}
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
 	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, nil, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 	return srv
 }
 
@@ -58,15 +61,16 @@ func newFakeTestServer() *Server {
 		fanouts:     NewConversationFanoutRegistry().AttachToManager(sm),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
-		aiChain:     NewAIProviderChain(),
+		aiChain:     intai.NewChain(),
 		shortcuts:   NewShortcutProfileStore(),
-		aiConfig:    NewAIProviderConfigStore(),
+		aiConfig:    intai.NewMemConfigStore(),
 		idempotency: intsessions.NewIdempotencyCache(),
 		workspace:   intworkspace.NewMemStore(),
 	}
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
 	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, nil, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 	return srv
 }
 

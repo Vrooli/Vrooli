@@ -50,4 +50,11 @@ describe("EnableAudioBanner", () => {
     render(<EnableAudioBanner onEnable={vi.fn().mockResolvedValue(true)} onDismiss={vi.fn()} />);
     expect(screen.getByTestId("enable-audio-banner").getAttribute("role")).toBe("status");
   });
+
+  it("applies horizontal safe-area padding", () => {
+    render(<EnableAudioBanner onEnable={vi.fn().mockResolvedValue(true)} onDismiss={vi.fn()} />);
+    const className = screen.getByTestId("enable-audio-banner").className;
+    expect(className).toContain("--wc-safe-left");
+    expect(className).toContain("--wc-safe-right");
+  });
 });

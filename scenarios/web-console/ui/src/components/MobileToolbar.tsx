@@ -434,7 +434,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       // safe-area inset (for rounded corners / home indicators in PWA mode).
       // The useAppViewport hook sets --wc-safe-bottom to 0px when the virtual
       // keyboard is open since the keyboard covers the bottom edge.
-      className="flex shrink-0 flex-col border-t border-wc-default bg-wc-surface-raised md:hidden touch-manipulation pb-[var(--wc-safe-bottom)]"
+      className="flex shrink-0 flex-col border-t border-wc-default bg-wc-surface-raised touch-manipulation pb-[var(--wc-safe-bottom)] ps-[max(0.25rem,var(--wc-safe-left,0px))] pe-[max(0.25rem,var(--wc-safe-right,0px))]"
     >
       {/* Pending-input pill — visible whenever the terminal's stdin queue is non-empty.
           Clicking it toggles a disclosure listing truncated payloads and oldest age. */}

@@ -572,7 +572,7 @@ export default function MessageJumpList({
     <div className="fixed inset-0 z-40" onMouseDown={(e) => e.preventDefault()}>
       <div className="absolute inset-0 bg-wc-backdrop" onClick={onClose} />
       {isMobile ? (
-        <div className="absolute bottom-0 left-0 right-0 z-50">{content}</div>
+        <div className="absolute bottom-0 left-0 right-0 z-50 ps-[var(--wc-safe-left,0px)] pe-[var(--wc-safe-right,0px)]">{content}</div>
       ) : (
         <div className="absolute z-50" style={desktopStyle ?? { top: 48, right: 16 }}>
           {content}

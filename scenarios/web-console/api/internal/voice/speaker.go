@@ -1,4 +1,4 @@
-package main
+package voice
 
 import (
 	"context"
@@ -7,9 +7,11 @@ import (
 	"time"
 )
 
-const maxSpeakerEnrollmentAudioSize = 20 << 20 // 20 MB
-
-type speakerVerificationGateDecision struct {
+// SpeakerDecision holds the outcome of running speaker verification against
+// an audio sample. The transcription pipeline gates final output on the
+// Allowed flag; UI clients learn from Applied/Matched whether verification
+// actually ran and what the score was.
+type SpeakerDecision struct {
 	Enabled      bool
 	Applied      bool
 	Allowed      bool
@@ -19,20 +21,14 @@ type speakerVerificationGateDecision struct {
 	Threshold    float64
 	Mode         string
 	ErrorMessage string
-	Extracted    bool // True when TSE was used to isolate the speaker
+	Extracted    bool
 }
 
-func defaultSpeakerVerificationProfileID() string {
-	return "default"
-}
-
-// evaluateSpeakerVerification runs the configured profiles against the
-// supplied audio and returns the gate decision. Used by the voice stream
-// transcription path and (via the Connect voice adapter) the
-// VoiceService.Transcribe RPC.
-func (s *Server) evaluateSpeakerVerification(ctx context.Context, audio []byte) speakerVerificationGateDecision {
-	cfg := s.getSpeakerVerificationConfig()
-	decision := speakerVerificationGateDecision{
+// EvaluateSpeaker runs the configured profiles against the supplied audio
+// and returns the gate decision. client may be nil — the decision uses
+// FallbackWithoutVerification semantics in that case.
+func EvaluateSpeaker(ctx context.Context, cfg SpeakerConfig, client *SpeakerClient, audio []byte) SpeakerDecision {
+	decision := SpeakerDecision{
 		Enabled:   cfg.Enabled && cfg.Mode != "off",
 		Allowed:   true,
 		Threshold: cfg.Threshold,
@@ -46,18 +42,17 @@ func (s *Server) evaluateSpeakerVerification(ctx context.Context, audio []byte) 
 		decision.ErrorMessage = "no speaker profiles configured"
 		return decision
 	}
-	if s.speakerVerification == nil {
+	if client == nil {
 		decision.Allowed = cfg.FallbackWithoutVerification
 		decision.ErrorMessage = "speaker verification resource is not configured"
 		return decision
 	}
 
-	// Try each profile — accept on first match (any-match strategy).
 	var bestScore float64
 	var bestProfileID string
 	var lastErr error
 	for _, profileID := range cfg.ProfileIDs {
-		result, err := s.speakerVerification.Verify(ctx, audio, profileID, cfg.Threshold)
+		result, err := client.Verify(ctx, audio, profileID, cfg.Threshold)
 		if err != nil {
 			lastErr = err
 			continue
@@ -80,7 +75,6 @@ func (s *Server) evaluateSpeakerVerification(ctx context.Context, audio []byte) 
 		}
 	}
 
-	// No profile matched — report the best score.
 	if bestProfileID != "" {
 		decision.Applied = true
 		decision.Score = bestScore
@@ -100,53 +94,20 @@ func (s *Server) evaluateSpeakerVerification(ctx context.Context, audio []byte) 
 	return decision
 }
 
-func containsString(ss []string, s string) bool {
-	for _, v := range ss {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(ss []string, s string) []string {
-	result := make([]string, 0, len(ss))
-	for _, v := range ss {
-		if v != s {
-			result = append(result, v)
-		}
-	}
-	return result
-}
-
-// extractTargetSpeaker attempts to isolate the enrolled speaker's voice from
-// the audio mixture using Target Speaker Extraction (TSE). It returns the
-// cleaned audio and a gate decision.
-//
-// Fallback chain:
-//   - TSE enabled + resource available → extract + verify extracted audio
-//   - TSE enabled + resource error    → fall back to verify-only on original audio
-//   - TSE disabled                    → verify-only on original audio (current behavior)
+// ExtractTargetSpeaker attempts to isolate the enrolled speaker's voice from
+// the audio mixture using Target Speaker Extraction (TSE). Returns the
+// cleaned audio and a gate decision. Falls back to verification-only when
+// extraction is disabled or unavailable.
 //
 // DOC: docs/internal/SEAMS.md#extract-target-speaker-seam
-func (s *Server) extractTargetSpeaker(ctx context.Context, audio []byte) ([]byte, speakerVerificationGateDecision) {
-	cfg := s.getSpeakerVerificationConfig()
-
-	// If TSE is not enabled or not configured, fall back to verification-only.
+func ExtractTargetSpeaker(ctx context.Context, cfg SpeakerConfig, client *SpeakerClient, audio []byte) ([]byte, SpeakerDecision) {
 	if !cfg.ExtractionEnabled || !cfg.Enabled || cfg.Mode == "off" {
-		decision := s.evaluateSpeakerVerification(ctx, audio)
-		return audio, decision
+		return audio, EvaluateSpeaker(ctx, cfg, client, audio)
 	}
-	if len(cfg.ProfileIDs) == 0 {
-		decision := s.evaluateSpeakerVerification(ctx, audio)
-		return audio, decision
-	}
-	if s.speakerVerification == nil {
-		decision := s.evaluateSpeakerVerification(ctx, audio)
-		return audio, decision
+	if len(cfg.ProfileIDs) == 0 || client == nil {
+		return audio, EvaluateSpeaker(ctx, cfg, client, audio)
 	}
 
-	// Try extraction against each profile — accept on first match.
 	extractCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
@@ -154,7 +115,7 @@ func (s *Server) extractTargetSpeaker(ctx context.Context, audio []byte) ([]byte
 	var bestProfileID string
 	var bestAudio []byte
 	for _, profileID := range cfg.ProfileIDs {
-		result, err := s.speakerVerification.Extract(extractCtx, audio, profileID, true)
+		result, err := client.Extract(extractCtx, audio, profileID, true)
 		if err != nil {
 			log.Printf("speaker-extraction: profile %s failed: %v", profileID, err)
 			continue
@@ -165,7 +126,7 @@ func (s *Server) extractTargetSpeaker(ctx context.Context, audio []byte) ([]byte
 			bestAudio = result.Audio
 		}
 		if result.Matched {
-			return result.Audio, speakerVerificationGateDecision{
+			return result.Audio, SpeakerDecision{
 				Enabled:   true,
 				Applied:   true,
 				Matched:   true,
@@ -179,15 +140,12 @@ func (s *Server) extractTargetSpeaker(ctx context.Context, audio []byte) ([]byte
 		}
 	}
 
-	// No profile matched via extraction. If we got at least one result,
-	// report the best score; otherwise fall back to verify-only.
 	if bestProfileID == "" {
 		log.Printf("speaker-extraction: all profiles failed, falling back to verify-only")
-		decision := s.evaluateSpeakerVerification(ctx, audio)
-		return audio, decision
+		return audio, EvaluateSpeaker(ctx, cfg, client, audio)
 	}
 
-	decision := speakerVerificationGateDecision{
+	decision := SpeakerDecision{
 		Enabled:   true,
 		Applied:   true,
 		Matched:   false,
@@ -205,9 +163,28 @@ func (s *Server) extractTargetSpeaker(ctx context.Context, audio []byte) ([]byte
 	return nil, decision
 }
 
-func formatSpeakerDecisionError(decision speakerVerificationGateDecision) string {
+func FormatSpeakerDecisionError(decision SpeakerDecision) string {
 	if decision.ErrorMessage == "" {
 		return "speaker verification failed"
 	}
 	return fmt.Sprintf("speaker verification failed: %s", decision.ErrorMessage)
+}
+
+func containsString(ss []string, s string) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeString(ss []string, s string) []string {
+	result := make([]string, 0, len(ss))
+	for _, v := range ss {
+		if v != s {
+			result = append(result, v)
+		}
+	}
+	return result
 }

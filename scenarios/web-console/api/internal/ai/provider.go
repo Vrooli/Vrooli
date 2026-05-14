@@ -1,4 +1,4 @@
-package main
+package ai
 
 import (
 	"bytes"
@@ -9,39 +9,36 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 )
 
-// defaultProviderTimeout is the fallback timeout for AI provider HTTP calls.
-// CROSS-LANGUAGE COUPLING: ai_provider_config.go defaults also use 30s.
-const defaultProviderTimeout = 30 * time.Second
-
-// AIProvider abstracts a single AI provider for text generation.
-// Providers are use-case-agnostic: the caller supplies both the system prompt
-// (which sets the task context) and the user prompt.
-type AIProvider interface {
+// Provider abstracts a single AI provider for text generation.
+// Providers are use-case-agnostic: the caller supplies both the system
+// prompt (which sets the task context) and the user prompt.
+type Provider interface {
 	Name() string
 	Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error)
 }
 
-// AIProviderChain tries each provider in order until one succeeds.
-type AIProviderChain struct {
-	providers []AIProvider
+// Chain tries each provider in order until one succeeds.
+type Chain struct {
+	providers []Provider
 }
 
-// NewAIProviderChain creates a chain with the given providers.
-func NewAIProviderChain(providers ...AIProvider) *AIProviderChain {
-	return &AIProviderChain{providers: providers}
-}
+// NewChain creates a chain with the given providers.
+func NewChain(providers ...Provider) *Chain { return &Chain{providers: providers} }
+
+// Providers returns the chain's providers in order. Used by Service to
+// match enabled configs to live provider instances.
+func (c *Chain) Providers() []Provider { return c.providers }
 
 // Generate tries each provider in order, returning the first successful result.
-func (c *AIProviderChain) Generate(ctx context.Context, systemPrompt, userPrompt string) (result string, provider string, err error) {
+func (c *Chain) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, string, error) {
 	var lastErr error
 	for _, p := range c.providers {
-		res, provErr := p.Generate(ctx, systemPrompt, userPrompt)
-		if provErr != nil {
-			log.Printf("ai-generate: provider %s failed: %v", p.Name(), provErr)
-			lastErr = provErr
+		res, err := p.Generate(ctx, systemPrompt, userPrompt)
+		if err != nil {
+			log.Printf("ai-generate: provider %s failed: %v", p.Name(), err)
+			lastErr = err
 			continue
 		}
 		return res, p.Name(), nil
@@ -73,7 +70,7 @@ func NewOllamaProvider() *OllamaProvider {
 	return &OllamaProvider{
 		BaseURL: baseURL,
 		Model:   model,
-		Client:  &http.Client{Timeout: defaultProviderTimeout},
+		Client:  &http.Client{Timeout: DefaultProviderTimeout},
 	}
 }
 
@@ -117,7 +114,6 @@ func (o *OllamaProvider) Generate(ctx context.Context, systemPrompt, userPrompt 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("decode response: %w", err)
 	}
-
 	return result.Message.Content, nil
 }
 
@@ -137,7 +133,7 @@ func NewOpenRouterProvider() *OpenRouterProvider {
 	return &OpenRouterProvider{
 		APIKey: os.Getenv("OPENROUTER_API_KEY"),
 		Model:  model,
-		Client: &http.Client{Timeout: defaultProviderTimeout},
+		Client: &http.Client{Timeout: DefaultProviderTimeout},
 	}
 }
 
@@ -187,66 +183,16 @@ func (o *OpenRouterProvider) Generate(ctx context.Context, systemPrompt, userPro
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("decode response: %w", err)
 	}
-
 	if len(result.Choices) == 0 {
 		return "", fmt.Errorf("no choices in response")
 	}
-
 	return result.Choices[0].Message.Content, nil
 }
 
-// checkProviderResponse returns an error if the HTTP response from an AI
-// provider indicates failure (non-200 status).
 func checkProviderResponse(resp *http.Response, providerName string) error {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return fmt.Errorf("%s returned %d: %s", providerName, resp.StatusCode, string(body))
 	}
 	return nil
-}
-
-// executeAI wraps the AI provider chain with config-driven behavior:
-// respects enabled/disabled, per-provider timeouts, and records health metrics.
-// Returns raw LLM output with no post-processing.
-func (s *Server) executeAI(ctx context.Context, systemPrompt, userPrompt string) (result, provider string, err error) {
-	configs := s.aiConfig.GetConfigs()
-
-	for _, cfg := range configs {
-		if !cfg.Enabled {
-			continue
-		}
-
-		var p AIProvider
-		for _, cp := range s.aiChain.providers {
-			if cp.Name() == cfg.Name {
-				p = cp
-				break
-			}
-		}
-		if p == nil {
-			continue
-		}
-
-		timeout := time.Duration(cfg.TimeoutSec) * time.Second
-		pCtx, cancel := context.WithTimeout(ctx, timeout)
-
-		start := time.Now()
-		res, pErr := p.Generate(pCtx, systemPrompt, userPrompt)
-		elapsed := time.Since(start)
-		cancel()
-
-		if pErr != nil {
-			s.aiConfig.RecordError(cfg.Name)
-			err = pErr
-			continue
-		}
-
-		s.aiConfig.RecordSuccess(cfg.Name, elapsed)
-		return res, cfg.Name, nil
-	}
-
-	if err != nil {
-		return "", "", err
-	}
-	return "", "", fmt.Errorf("no enabled providers configured")
 }

@@ -277,7 +277,7 @@ const MessageRow = memo(function MessageRow({
                   <div className="absolute inset-0 bg-wc-backdrop" onClick={() => setOpenPopoverId(null)} />
                   <div
                     data-testid={`audio-popover-${event.id}`}
-                    className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] shadow-2xl"
+                    className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
                   >
                     <div className="mb-3 flex justify-center">
                       <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
@@ -943,7 +943,7 @@ export default function MessagesPane({
         <button
           data-testid="msg-new-pill"
           onClick={scrollToBottom}
-          className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input"
+          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input"
           type="button"
         >
           <ArrowDown className="me-1.5 inline-block h-3.5 w-3.5" />
@@ -956,7 +956,7 @@ export default function MessagesPane({
           data-testid="msg-jump-bottom"
           aria-label={t(strings.messagesPane.jumpToBottomAria)}
           onClick={scrollToBottom}
-          className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised/60 p-2 text-wc-text-secondary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input hover:text-wc-text-primary"
+          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised/60 p-2 text-wc-text-secondary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input hover:text-wc-text-primary"
           type="button"
         >
           <ArrowDown className="h-4 w-4" />

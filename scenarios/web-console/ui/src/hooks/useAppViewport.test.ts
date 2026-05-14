@@ -74,6 +74,8 @@ describe("useAppViewport", () => {
     document.documentElement.style.removeProperty("--wc-kb-height");
     document.documentElement.style.removeProperty("--wc-safe-top");
     document.documentElement.style.removeProperty("--wc-safe-bottom");
+    document.documentElement.style.removeProperty("--wc-safe-left");
+    document.documentElement.style.removeProperty("--wc-safe-right");
     Object.defineProperty(window, "innerHeight", {
       value: originalInnerHeight,
       writable: true,
@@ -89,6 +91,8 @@ describe("useAppViewport", () => {
     expect(getCssVar("--wc-kb-height")).toBe("0px");
     expect(getCssVar("--wc-safe-top")).toBe("env(safe-area-inset-top)");
     expect(getCssVar("--wc-safe-bottom")).toBe("env(safe-area-inset-bottom)");
+    expect(getCssVar("--wc-safe-left")).toBe("env(safe-area-inset-left)");
+    expect(getCssVar("--wc-safe-right")).toBe("env(safe-area-inset-right)");
   });
 
   it("computes keyboard height correctly and clears safe-bottom", () => {
@@ -239,6 +243,8 @@ describe("useAppViewport", () => {
     expect(getCssVar("--wc-kb-height")).toBe("0px");
     expect(getCssVar("--wc-safe-top")).toBe("env(safe-area-inset-top)");
     expect(getCssVar("--wc-safe-bottom")).toBe("env(safe-area-inset-bottom)");
+    expect(getCssVar("--wc-safe-left")).toBe("env(safe-area-inset-left)");
+    expect(getCssVar("--wc-safe-right")).toBe("env(safe-area-inset-right)");
 
     unmount();
 
@@ -246,6 +252,8 @@ describe("useAppViewport", () => {
     expect(getCssVar("--wc-kb-height")).toBeUndefined();
     expect(getCssVar("--wc-safe-top")).toBeUndefined();
     expect(getCssVar("--wc-safe-bottom")).toBeUndefined();
+    expect(getCssVar("--wc-safe-left")).toBeUndefined();
+    expect(getCssVar("--wc-safe-right")).toBeUndefined();
     expect(mockVV.removeEventListener).toHaveBeenCalledWith("resize", expect.any(Function));
     expect(mockVV.removeEventListener).toHaveBeenCalledWith("scroll", expect.any(Function));
   });

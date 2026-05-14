@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	intai "web-console/internal/ai"
 )
 
 func TestOllamaProvider_UsesChat(t *testing.T) {
@@ -21,7 +23,7 @@ func TestOllamaProvider_UsesChat(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	p := &OllamaProvider{
+	p := &intai.OllamaProvider{
 		BaseURL: ts.URL,
 		Model:   "test-model",
 		Client:  ts.Client(),
@@ -53,7 +55,7 @@ func TestOllamaProvider_UsesChat(t *testing.T) {
 }
 
 func TestOpenRouterProvider_MissingAPIKey(t *testing.T) {
-	noKey := &OpenRouterProvider{Model: "test"}
+	noKey := &intai.OpenRouterProvider{Model: "test"}
 	_, err := noKey.Generate(context.Background(), "sys", "user")
 	if err == nil {
 		t.Error("expected error with no API key")
@@ -71,7 +73,7 @@ func TestAIProviderChain_PassesBothPrompts(t *testing.T) {
 		},
 	}
 
-	chain := NewAIProviderChain(provider)
+	chain := intai.NewChain(provider)
 	_, _, err := chain.Generate(context.Background(), "my system", "my user")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -88,7 +90,7 @@ func TestAIProviderChain_Failover(t *testing.T) {
 	failing := &fakeAIProvider{name: "a", err: fmt.Errorf("fail")}
 	working := &fakeAIProvider{name: "b", result: "ok"}
 
-	chain := NewAIProviderChain(failing, working)
+	chain := intai.NewChain(failing, working)
 	result, provider, err := chain.Generate(context.Background(), "sys", "user")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -98,22 +100,5 @@ func TestAIProviderChain_Failover(t *testing.T) {
 	}
 	if !failing.called || !working.called {
 		t.Error("both providers should have been called")
-	}
-}
-
-func TestCheckProviderResponse_OKFromProvider(t *testing.T) {
-	resp := &http.Response{StatusCode: http.StatusOK}
-	if err := checkProviderResponse(resp, "test"); err != nil {
-		t.Errorf("unexpected error for 200: %v", err)
-	}
-}
-
-func TestCheckProviderResponse_ErrorFromProvider(t *testing.T) {
-	resp := &http.Response{
-		StatusCode: http.StatusInternalServerError,
-		Body:       http.NoBody,
-	}
-	if err := checkProviderResponse(resp, "test"); err == nil {
-		t.Error("expected error for 500")
 	}
 }

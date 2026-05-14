@@ -43,7 +43,7 @@ export default function EnableAudioBanner({ onEnable, onDismiss }: EnableAudioBa
   return (
     <div
       data-testid="enable-audio-banner"
-      className="flex items-start gap-2 border-b border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+      className="flex items-start gap-2 border-b border-amber-500/30 bg-amber-500/10 py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-200"
       role="status"
     >
       <Volume2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

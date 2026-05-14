@@ -1,4 +1,4 @@
-package main
+package voice
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-type SpeakerVerificationProfile struct {
+type SpeakerProfile struct {
 	ID                     string  `json:"id"`
 	DisplayName            string  `json:"display_name"`
 	CreatedAt              string  `json:"created_at"`
@@ -24,12 +24,12 @@ type SpeakerVerificationProfile struct {
 	Notes                  string  `json:"notes"`
 }
 
-type SpeakerVerificationProfileList struct {
-	Profiles []SpeakerVerificationProfile `json:"profiles"`
-	Count    int                          `json:"count"`
+type SpeakerProfileList struct {
+	Profiles []SpeakerProfile `json:"profiles"`
+	Count    int              `json:"count"`
 }
 
-type SpeakerVerificationResourceInfo struct {
+type SpeakerResourceInfo struct {
 	Backend      string `json:"backend"`
 	Model        string `json:"model"`
 	Device       string `json:"device"`
@@ -38,14 +38,14 @@ type SpeakerVerificationResourceInfo struct {
 	EmbeddingDim int    `json:"embedding_dim"`
 }
 
-type SpeakerVerificationResourceReady struct {
+type SpeakerResourceReady struct {
 	Status         string `json:"status"`
 	ModelLoaded    bool   `json:"model_loaded"`
 	ProfileStoreOK bool   `json:"profile_store_ok"`
 	TempDirOK      bool   `json:"temp_dir_ok"`
 }
 
-type SpeakerVerificationEnrollmentResponse struct {
+type SpeakerEnrollmentResponse struct {
 	ProfileID              string  `json:"profile_id"`
 	DisplayName            string  `json:"display_name"`
 	EmbeddingDim           int     `json:"embedding_dim"`
@@ -55,7 +55,7 @@ type SpeakerVerificationEnrollmentResponse struct {
 	CreatedAt              string  `json:"created_at"`
 }
 
-type SpeakerVerificationResult struct {
+type SpeakerVerifyResult struct {
 	ProfileID    string  `json:"profile_id"`
 	Matched      bool    `json:"matched"`
 	Score        float64 `json:"score"`
@@ -66,23 +66,33 @@ type SpeakerVerificationResult struct {
 	AudioSeconds float64 `json:"audio_seconds"`
 }
 
-type SpeakerVerificationResourceClient struct {
+// SpeakerExtractionResult holds the response from the /v1/extract endpoint.
+type SpeakerExtractionResult struct {
+	Audio        []byte
+	Score        float64
+	Matched      bool
+	DurationMs   float64
+	AudioSeconds float64
+}
+
+// SpeakerClient is the HTTP client for the speaker-verification resource.
+type SpeakerClient struct {
 	BaseURL string
 	Client  *http.Client
 }
 
-func (c *SpeakerVerificationResourceClient) httpClient() *http.Client {
+func (c *SpeakerClient) httpClient() *http.Client {
 	if c.Client != nil {
 		return c.Client
 	}
 	return &http.Client{Timeout: 5 * time.Second}
 }
 
-func (c *SpeakerVerificationResourceClient) endpoint(path string) string {
+func (c *SpeakerClient) endpoint(path string) string {
 	return strings.TrimRight(c.BaseURL, "/") + path
 }
 
-func (c *SpeakerVerificationResourceClient) getJSON(ctx context.Context, path string, out any) error {
+func (c *SpeakerClient) getJSON(ctx context.Context, path string, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.endpoint(path), nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
@@ -101,7 +111,7 @@ func (c *SpeakerVerificationResourceClient) getJSON(ctx context.Context, path st
 	return nil
 }
 
-func (c *SpeakerVerificationResourceClient) doJSON(req *http.Request, out any) error {
+func (c *SpeakerClient) doJSON(req *http.Request, out any) error {
 	resp, err := c.httpClient().Do(req)
 	if err != nil {
 		return err
@@ -120,7 +130,7 @@ func (c *SpeakerVerificationResourceClient) doJSON(req *http.Request, out any) e
 	return nil
 }
 
-func (c *SpeakerVerificationResourceClient) postMultipart(
+func (c *SpeakerClient) postMultipart(
 	ctx context.Context,
 	path string,
 	fields map[string]string,
@@ -155,32 +165,30 @@ func (c *SpeakerVerificationResourceClient) postMultipart(
 	return c.doJSON(req, out)
 }
 
-func (c *SpeakerVerificationResourceClient) Ready(ctx context.Context) (SpeakerVerificationResourceReady, error) {
-	var out SpeakerVerificationResourceReady
+func (c *SpeakerClient) Ready(ctx context.Context) (SpeakerResourceReady, error) {
+	var out SpeakerResourceReady
 	err := c.getJSON(ctx, "/ready", &out)
 	return out, err
 }
 
-func (c *SpeakerVerificationResourceClient) Info(ctx context.Context) (SpeakerVerificationResourceInfo, error) {
-	var out SpeakerVerificationResourceInfo
+func (c *SpeakerClient) Info(ctx context.Context) (SpeakerResourceInfo, error) {
+	var out SpeakerResourceInfo
 	err := c.getJSON(ctx, "/v1/info", &out)
 	return out, err
 }
 
-func (c *SpeakerVerificationResourceClient) ListProfiles(ctx context.Context) (SpeakerVerificationProfileList, error) {
-	var out SpeakerVerificationProfileList
+func (c *SpeakerClient) ListProfiles(ctx context.Context) (SpeakerProfileList, error) {
+	var out SpeakerProfileList
 	err := c.getJSON(ctx, "/v1/profiles", &out)
 	return out, err
 }
 
-func (c *SpeakerVerificationResourceClient) Enroll(
+func (c *SpeakerClient) Enroll(
 	ctx context.Context,
 	audio []byte,
-	profileID string,
-	displayName string,
-	notes string,
-) (SpeakerVerificationEnrollmentResponse, error) {
-	var out SpeakerVerificationEnrollmentResponse
+	profileID, displayName, notes string,
+) (SpeakerEnrollmentResponse, error) {
+	var out SpeakerEnrollmentResponse
 	err := c.postMultipart(
 		ctx,
 		"/v1/profiles",
@@ -197,13 +205,13 @@ func (c *SpeakerVerificationResourceClient) Enroll(
 	return out, err
 }
 
-func (c *SpeakerVerificationResourceClient) Verify(
+func (c *SpeakerClient) Verify(
 	ctx context.Context,
 	audio []byte,
 	profileID string,
 	threshold float64,
-) (SpeakerVerificationResult, error) {
-	var out SpeakerVerificationResult
+) (SpeakerVerifyResult, error) {
+	var out SpeakerVerifyResult
 	err := c.postMultipart(
 		ctx,
 		"/v1/verify",
@@ -219,19 +227,7 @@ func (c *SpeakerVerificationResourceClient) Verify(
 	return out, err
 }
 
-// SpeakerExtractionResult holds the response from the /v1/extract endpoint.
-type SpeakerExtractionResult struct {
-	Audio        []byte  // Extracted speaker audio as 16kHz mono 16-bit PCM WAV
-	Score        float64 // Speaker verification score (if verify=true)
-	Matched      bool    // Whether extracted audio matched the profile
-	DurationMs   float64 // Server-side processing time
-	AudioSeconds float64 // Duration of the extracted audio
-}
-
-// Extract calls the /v1/extract endpoint to isolate the target speaker's
-// voice from a mixture. The extracted audio is returned as WAV bytes suitable
-// for forwarding directly to Whisper.
-func (c *SpeakerVerificationResourceClient) Extract(
+func (c *SpeakerClient) Extract(
 	ctx context.Context,
 	audio []byte,
 	profileID string,
@@ -283,7 +279,6 @@ func (c *SpeakerVerificationResourceClient) Extract(
 	}
 
 	result := SpeakerExtractionResult{Audio: audioBytes}
-
 	if s := resp.Header.Get("X-Speaker-Score"); s != "" {
 		_, _ = fmt.Sscanf(s, "%f", &result.Score)
 	}
@@ -296,11 +291,10 @@ func (c *SpeakerVerificationResourceClient) Extract(
 	if s := resp.Header.Get("X-Audio-Seconds"); s != "" {
 		_, _ = fmt.Sscanf(s, "%f", &result.AudioSeconds)
 	}
-
 	return result, nil
 }
 
-func (c *SpeakerVerificationResourceClient) DeleteProfile(ctx context.Context, profileID string) error {
+func (c *SpeakerClient) DeleteProfile(ctx context.Context, profileID string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.endpoint("/v1/profiles/"+profileID), nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)

@@ -9,6 +9,7 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { Button } from "./ui/button";
 import VoiceMicButton from "./VoiceMicButton";
 import type { StartRecordingOpts } from "../hooks/useVoiceInput";
+import { readSafeAreaInsets } from "../lib/safeArea";
 
 /** Minimum fling speed (px/s) to trigger a dock */
 const FLING_VELOCITY_THRESHOLD = 400;
@@ -180,10 +181,12 @@ export default function FloatingToolbar({
     const y = position.y;
     if (docked === "left") {
       // Slide left so only the rightmost DOCK_TAB_WIDTH pixels are visible
-      return { transform: `translate3d(${-(toolbarWidth - DOCK_TAB_WIDTH)}px, ${y}px, 0)` };
+      const safe = readSafeAreaInsets();
+      return { transform: `translate3d(${safe.left - (toolbarWidth - DOCK_TAB_WIDTH)}px, ${Math.max(y, safe.top + 12)}px, 0)` };
     }
     // Slide right so only the leftmost DOCK_TAB_WIDTH pixels are visible
-    return { transform: `translate3d(${vpWidth - DOCK_TAB_WIDTH}px, ${y}px, 0)` };
+    const safe = readSafeAreaInsets();
+    return { transform: `translate3d(${vpWidth - safe.right - DOCK_TAB_WIDTH}px, ${Math.max(y, safe.top + 12)}px, 0)` };
   }, [docked, floatingStyle, position.y, toolbarWidth, vpWidth]);
 
   const plusHandlers = useLongPress({
@@ -225,11 +228,10 @@ export default function FloatingToolbar({
       >
         <Settings className="h-4 w-4" />
       </Button>
-      {/* AI and mic buttons are hidden on mobile (< md breakpoint) because
-       * the MobileToolbar already provides both. Keeping them in the floating
-       * toolbar on mobile would be redundant and waste precious screen space.
-       * On desktop the MobileToolbar is hidden (md:hidden), so these remain
-       * the only way to access AI and voice features. */}
+      {/* AI and mic buttons stay out of the narrow toolbar breakpoint because
+       * the bottom touch toolbar already provides both there. Wider touch
+       * viewports may show both surfaces so keyboardless devices retain the
+       * terminal key controls without changing the desktop toolbar contract. */}
       <Button
         data-testid="toolbar-ai"
         variant="ghost"

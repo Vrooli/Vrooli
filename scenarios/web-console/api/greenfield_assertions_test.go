@@ -192,6 +192,144 @@ func TestGreenfield_WorkspaceStoreNotInPackageMain(t *testing.T) {
 	}
 }
 
+// TestGreenfield_AIDomainNotInPackageMain enforces that AI provider /
+// config-store / system-context code lives in internal/ai, not package
+// main. The migration deleted ai_provider{,_config,_config_sql}.go,
+// ai_system_context.go, and ai_service_shim.go; resurrecting any of
+// them — or the old package-main type names — is a regression.
+func TestGreenfield_AIDomainNotInPackageMain(t *testing.T) {
+	forbiddenFiles := []string{
+		"ai_provider.go",
+		"ai_provider_config.go",
+		"ai_provider_config_sql.go",
+		"ai_system_context.go",
+		"ai_service_shim.go",
+	}
+	for _, f := range forbiddenFiles {
+		if _, err := os.Stat(f); err == nil {
+			t.Errorf("%s reappeared in package main — AI domain belongs in internal/ai", f)
+		}
+	}
+
+	forbiddenSymbols := []string{
+		`\bAIProviderChain\b`,
+		`\bNewAIProviderChain\b`,
+		`\bAIProviderConfigStore\b`,
+		`\bNewAIProviderConfigStore\b`,
+		`\bSQLAIConfigStore\b`,
+		`\bNewSQLAIConfigStore\b`,
+		`\bAIConfigStore\b`,
+		`\baiServiceShim\b`,
+		`\bnewAIServiceShim\b`,
+		`\bproviderHealthTracker\b`,
+		`\bbuildCommandSystemPrompt\b`,
+		`\bbuildSuggestSystemPrompt\b`,
+		`\bnewAIServiceShim\b`,
+	}
+	res := make([]*regexp.Regexp, len(forbiddenSymbols))
+	for i, p := range forbiddenSymbols {
+		res[i] = regexp.MustCompile(p)
+	}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatalf("glob: %v", err)
+	}
+	for _, f := range files {
+		if f == "greenfield_assertions_test.go" {
+			continue
+		}
+		b, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		for i, re := range res {
+			if re.Match(b) {
+				t.Errorf("%s references legacy AI symbol %q — use internal/ai types", f, forbiddenSymbols[i])
+			}
+		}
+	}
+}
+
+// TestGreenfield_VoiceDomainNotInPackageMain enforces that voice config,
+// stream WS, transcribe, wake-word, and speaker-verification code lives in
+// internal/voice, not package main. The migration deleted voice_config.go,
+// voice_transcribe.go, voice_stream_ws.go, voice_service_shim.go,
+// speaker_verification{,_client,_config}.go, and wakeword_handlers.go;
+// resurrecting any of them — or the old package-main type names — is a
+// regression.
+func TestGreenfield_VoiceDomainNotInPackageMain(t *testing.T) {
+	forbiddenFiles := []string{
+		"voice_config.go",
+		"voice_transcribe.go",
+		"voice_stream_ws.go",
+		"voice_service_shim.go",
+		"speaker_verification.go",
+		"speaker_verification_client.go",
+		"speaker_verification_config.go",
+		"wakeword_handlers.go",
+	}
+	for _, f := range forbiddenFiles {
+		if _, err := os.Stat(f); err == nil {
+			t.Errorf("%s reappeared in package main — voice domain belongs in internal/voice", f)
+		}
+	}
+
+	forbiddenSymbols := []string{
+		`\bVoiceStreamConfig\b`,
+		`\bVoiceStreamConfigPatch\b`,
+		`\bDefaultVoiceStreamConfig\b`,
+		`\bSpeakerVerificationConfig\b`,
+		`\bSpeakerVerificationConfigPatch\b`,
+		`\bDefaultSpeakerVerificationConfig\b`,
+		`\bSpeakerVerificationResourceClient\b`,
+		`\bSpeakerVerificationProfile\b`,
+		`\bSpeakerVerificationProfileList\b`,
+		`\bSpeakerVerificationResourceInfo\b`,
+		`\bSpeakerVerificationResourceReady\b`,
+		`\bSpeakerVerificationEnrollmentResponse\b`,
+		`\bSpeakerVerificationResult\b`,
+		`\bvoiceServiceShim\b`,
+		`\bnewVoiceServiceShim\b`,
+		`\bspeakerVerificationGateDecision\b`,
+		`\bevaluateSpeakerVerification\b`,
+		`\bextractTargetSpeaker\b`,
+		`\bisWhisperHallucination\b`,
+		`\bdeduplicateOverlap\b`,
+		`\btranscribeBytes\b`,
+		`\bhandleVoiceStreamWS\b`,
+		`\bloadVoiceConfig\b`,
+		`\bsaveVoiceConfig\b`,
+		`\bloadSpeakerVerificationConfig\b`,
+		`\bsaveSpeakerVerificationConfig\b`,
+		`\bloadWakeWordTemplate\b`,
+		`\bsaveWakeWordTemplate\b`,
+		`\bdeleteWakeWordTemplate\b`,
+		`\bvalidateWakeWordTemplate\b`,
+	}
+	res := make([]*regexp.Regexp, len(forbiddenSymbols))
+	for i, p := range forbiddenSymbols {
+		res[i] = regexp.MustCompile(p)
+	}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatalf("glob: %v", err)
+	}
+	for _, f := range files {
+		if f == "greenfield_assertions_test.go" {
+			continue
+		}
+		b, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		for i, re := range res {
+			if re.Match(b) {
+				t.Errorf("%s references legacy voice symbol %q — use internal/voice types", f, forbiddenSymbols[i])
+			}
+		}
+	}
+}
+
 // TestGreenfield_NoLegacyHistorySymbols enforces that the deleted
 // raw-byte history protocol stays deleted. New code must use the
 // snapshot-replay flow through terminal.Emulator.

@@ -83,7 +83,7 @@ export default function RecoverableSessionsBanner(props: RecoverableSessionsBann
       data-testid="recoverable-sessions-banner"
       className="border-b border-amber-700/40 bg-amber-900/20 text-sm text-amber-100"
     >
-      <div className="px-3 py-2 font-medium">
+      <div className="py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] font-medium">
         {t(strings.recoverableSessions.heading, { count: rows.length })}
       </div>
       <ul className="divide-y divide-amber-700/30">
@@ -91,7 +91,7 @@ export default function RecoverableSessionsBanner(props: RecoverableSessionsBann
           <li
             key={row.id}
             data-testid={`recoverable-row-${row.id}`}
-            className="flex items-center gap-2 px-3 py-2"
+            className="flex items-center gap-2 py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))]"
           >
             <span className="font-mono text-xs">{row.id.slice(0, 8)}</span>
             <span className="text-xs">
@@ -134,7 +134,7 @@ export default function RecoverableSessionsBanner(props: RecoverableSessionsBann
         ))}
       </ul>
       {error ? (
-        <div className="px-3 py-2 text-xs text-red-300" role="alert">
+        <div className="py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-red-300" role="alert">
           {error}
         </div>
       ) : null}

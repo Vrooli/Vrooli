@@ -6,13 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	intai "web-console/internal/ai"
+
 	"connectrpc.com/connect"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
 )
 
-// fakeLookPath returns a LookPathFunc that "finds" only the tools in the found set.
-func fakeLookPath(found map[string]bool) LookPathFunc {
+// fakeLookPath returns a intai.LookPathFunc that "finds" only the tools in the found set.
+func fakeLookPath(found map[string]bool) intai.LookPathFunc {
 	return func(file string) (string, error) {
 		if found[file] {
 			return "/usr/bin/" + file, nil
@@ -23,7 +25,7 @@ func fakeLookPath(found map[string]bool) LookPathFunc {
 
 func TestDiscoverSystemContext_FindsTools(t *testing.T) {
 	found := map[string]bool{"rg": true, "git": true, "docker": true, "jq": true}
-	ctx := DiscoverSystemContext(fakeLookPath(found))
+	ctx := intai.DiscoverSystemContext(fakeLookPath(found))
 
 	if ctx.OS == "" {
 		t.Error("OS should not be empty")
@@ -45,7 +47,7 @@ func TestDiscoverSystemContext_FindsTools(t *testing.T) {
 }
 
 func TestDiscoverSystemContext_NoToolsFound(t *testing.T) {
-	ctx := DiscoverSystemContext(fakeLookPath(nil))
+	ctx := intai.DiscoverSystemContext(fakeLookPath(nil))
 
 	if ctx.OS == "" {
 		t.Error("OS should always be populated")
@@ -62,7 +64,7 @@ func TestDiscoverSystemContext_ExtraToolsEnvVar(t *testing.T) {
 	t.Setenv("WC_EXTRA_TOOLS", "mytool, othertool")
 
 	found := map[string]bool{"mytool": true, "othertool": true}
-	ctx := DiscoverSystemContext(fakeLookPath(found))
+	ctx := intai.DiscoverSystemContext(fakeLookPath(found))
 
 	custom, ok := ctx.Tools["Custom"]
 	if !ok {
@@ -75,7 +77,7 @@ func TestDiscoverSystemContext_ExtraToolsEnvVar(t *testing.T) {
 
 func TestDiscoverSystemContext_ExtraToolsEmpty(t *testing.T) {
 	t.Setenv("WC_EXTRA_TOOLS", "")
-	ctx := DiscoverSystemContext(fakeLookPath(nil))
+	ctx := intai.DiscoverSystemContext(fakeLookPath(nil))
 
 	if _, ok := ctx.Tools["Custom"]; ok {
 		t.Error("Custom category should not exist for empty WC_EXTRA_TOOLS")
@@ -83,7 +85,7 @@ func TestDiscoverSystemContext_ExtraToolsEmpty(t *testing.T) {
 }
 
 func TestBuildCommandSystemPrompt_IncludesContext(t *testing.T) {
-	ctx := &SystemContext{
+	ctx := &intai.SystemContext{
 		OS:     "linux",
 		Arch:   "amd64",
 		Distro: "Ubuntu 24.04",
@@ -94,7 +96,7 @@ func TestBuildCommandSystemPrompt_IncludesContext(t *testing.T) {
 		},
 	}
 
-	prompt := buildCommandSystemPrompt(ctx)
+	prompt := intai.BuildCommandSystemPrompt(ctx)
 
 	for _, want := range []string{
 		"linux/amd64",
@@ -112,14 +114,14 @@ func TestBuildCommandSystemPrompt_IncludesContext(t *testing.T) {
 }
 
 func TestBuildCommandSystemPrompt_NilFallback(t *testing.T) {
-	prompt := buildCommandSystemPrompt(nil)
-	if prompt != commandSystemPrompt {
+	prompt := intai.BuildCommandSystemPrompt(nil)
+	if prompt != intai.CommandSystemPrompt {
 		t.Errorf("nil context should return hardcoded prompt, got:\n%s", prompt)
 	}
 }
 
 func TestBuildSuggestSystemPrompt_IncludesContext(t *testing.T) {
-	ctx := &SystemContext{
+	ctx := &intai.SystemContext{
 		OS:    "linux",
 		Arch:  "amd64",
 		Shell: "zsh",
@@ -128,7 +130,7 @@ func TestBuildSuggestSystemPrompt_IncludesContext(t *testing.T) {
 		},
 	}
 
-	prompt := buildSuggestSystemPrompt(ctx)
+	prompt := intai.BuildSuggestSystemPrompt(ctx)
 
 	for _, want := range []string{
 		"linux/amd64",
@@ -143,19 +145,19 @@ func TestBuildSuggestSystemPrompt_IncludesContext(t *testing.T) {
 }
 
 func TestBuildSuggestSystemPrompt_NilFallback(t *testing.T) {
-	prompt := buildSuggestSystemPrompt(nil)
-	if prompt != suggestSystemPrompt {
+	prompt := intai.BuildSuggestSystemPrompt(nil)
+	if prompt != intai.SuggestSystemPrompt {
 		t.Errorf("nil context should return hardcoded prompt, got:\n%s", prompt)
 	}
 }
 
 func TestBuildPrompt_NoTools(t *testing.T) {
-	ctx := &SystemContext{
+	ctx := &intai.SystemContext{
 		OS:   "linux",
 		Arch: "amd64",
 	}
 
-	prompt := buildCommandSystemPrompt(ctx)
+	prompt := intai.BuildCommandSystemPrompt(ctx)
 
 	if strings.Contains(prompt, "Available tools") {
 		t.Errorf("prompt should not mention tools when none found:\n%s", prompt)
@@ -166,7 +168,7 @@ func TestBuildPrompt_NoTools(t *testing.T) {
 }
 
 func TestBuildPrompt_CategoryOrder(t *testing.T) {
-	ctx := &SystemContext{
+	ctx := &intai.SystemContext{
 		OS:   "linux",
 		Arch: "amd64",
 		Tools: map[string][]string{
@@ -176,7 +178,7 @@ func TestBuildPrompt_CategoryOrder(t *testing.T) {
 		},
 	}
 
-	prompt := buildCommandSystemPrompt(ctx)
+	prompt := intai.BuildCommandSystemPrompt(ctx)
 
 	searchIdx := strings.Index(prompt, "Search:")
 	vcsIdx := strings.Index(prompt, "Version control:")
@@ -203,7 +205,7 @@ func TestEnrichedPromptReachesProvider_Generate(t *testing.T) {
 		},
 	}
 	srv := newTestServerWithAI(provider)
-	srv.systemContext = &SystemContext{
+	srv.systemContext = &intai.SystemContext{
 		OS:     "linux",
 		Arch:   "amd64",
 		Distro: "Ubuntu 24.04",
@@ -212,6 +214,7 @@ func TestEnrichedPromptReachesProvider_Generate(t *testing.T) {
 			"Search": {"rg", "fd"},
 		},
 	}
+	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, srv.systemContext, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 
 	h := newAIConnectHandlerForServer(srv)
 	if _, err := h.Generate(context.Background(), connect.NewRequest(&aiv1.GenerateRequest{Prompt: "find debugging docs"})); err != nil {
@@ -234,7 +237,7 @@ func TestEnrichedPromptReachesProvider_Suggest(t *testing.T) {
 		},
 	}
 	srv := newTestServerWithAI(provider)
-	srv.systemContext = &SystemContext{
+	srv.systemContext = &intai.SystemContext{
 		OS:    "linux",
 		Arch:  "amd64",
 		Shell: "bash",
@@ -242,6 +245,7 @@ func TestEnrichedPromptReachesProvider_Suggest(t *testing.T) {
 			"Search": {"rg"},
 		},
 	}
+	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, srv.systemContext, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 
 	h := newAIConnectHandlerForServer(srv)
 	resp, err := h.Suggest(context.Background(), connect.NewRequest(&aiv1.SuggestRequest{Prompt: "find debugging docs"}))
@@ -256,39 +260,21 @@ func TestEnrichedPromptReachesProvider_Suggest(t *testing.T) {
 	}
 }
 
-func TestShellBasename(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"/bin/bash", "bash"},
-		{"/usr/bin/zsh", "zsh"},
-		{"bash", "bash"},
-		{"", ""},
-	}
-	for _, tt := range tests {
-		got := shellBasename(tt.input)
-		if got != tt.want {
-			t.Errorf("shellBasename(%q) = %q, want %q", tt.input, got, tt.want)
-		}
-	}
-}
-
 func TestCountFoundTools(t *testing.T) {
 	tools := map[string][]string{
 		"Search":          {"rg", "fd"},
 		"Version control": {"git"},
 	}
-	if n := countFoundTools(tools); n != 3 {
-		t.Errorf("countFoundTools = %d, want 3", n)
+	if n := intai.CountFoundTools(tools); n != 3 {
+		t.Errorf("intai.CountFoundTools = %d, want 3", n)
 	}
-	if n := countFoundTools(nil); n != 0 {
-		t.Errorf("countFoundTools(nil) = %d, want 0", n)
+	if n := intai.CountFoundTools(nil); n != 0 {
+		t.Errorf("intai.CountFoundTools(nil) = %d, want 0", n)
 	}
 }
 
 // assertToolInCategory verifies a tool appears in the given category.
-func assertToolInCategory(t *testing.T, ctx *SystemContext, category, tool string) {
+func assertToolInCategory(t *testing.T, ctx *intai.SystemContext, category, tool string) {
 	t.Helper()
 	tools, ok := ctx.Tools[category]
 	if !ok {

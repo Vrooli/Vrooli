@@ -1,4 +1,4 @@
-package main
+package voice
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-type SpeakerVerificationConfig struct {
+type SpeakerConfig struct {
 	Enabled                     bool     `json:"enabled"`
 	ProfileIDs                  []string `json:"profileIds"`
 	Threshold                   float64  `json:"threshold"`
@@ -17,8 +17,8 @@ type SpeakerVerificationConfig struct {
 	ExtractionEnabled           bool     `json:"extractionEnabled"`
 }
 
-func DefaultSpeakerVerificationConfig() SpeakerVerificationConfig {
-	return SpeakerVerificationConfig{
+func DefaultSpeakerConfig() SpeakerConfig {
+	return SpeakerConfig{
 		Enabled:                     false,
 		Threshold:                   0.35,
 		Mode:                        "filter",
@@ -27,7 +27,7 @@ func DefaultSpeakerVerificationConfig() SpeakerVerificationConfig {
 	}
 }
 
-func (c SpeakerVerificationConfig) Validate() error {
+func (c SpeakerConfig) Validate() error {
 	if c.Threshold < 0 || c.Threshold > 1 {
 		return fmt.Errorf("threshold must be between 0 and 1, got %.3f", c.Threshold)
 	}
@@ -47,7 +47,7 @@ func (c SpeakerVerificationConfig) Validate() error {
 	return nil
 }
 
-type SpeakerVerificationConfigPatch struct {
+type SpeakerConfigPatch struct {
 	Enabled                     *bool     `json:"enabled,omitempty"`
 	ProfileIDs                  *[]string `json:"profileIds,omitempty"`
 	Threshold                   *float64  `json:"threshold,omitempty"`
@@ -57,7 +57,7 @@ type SpeakerVerificationConfigPatch struct {
 	ExtractionEnabled           *bool     `json:"extractionEnabled,omitempty"`
 }
 
-func (p SpeakerVerificationConfigPatch) Apply(base SpeakerVerificationConfig) SpeakerVerificationConfig {
+func (p SpeakerConfigPatch) Apply(base SpeakerConfig) SpeakerConfig {
 	if p.Enabled != nil {
 		base.Enabled = *p.Enabled
 	}
@@ -82,17 +82,17 @@ func (p SpeakerVerificationConfigPatch) Apply(base SpeakerVerificationConfig) Sp
 	return base
 }
 
-func loadSpeakerVerificationConfig(path string) (SpeakerVerificationConfig, error) {
+func LoadSpeakerConfig(path string) (SpeakerConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return DefaultSpeakerVerificationConfig(), nil
+			return DefaultSpeakerConfig(), nil
 		}
-		return DefaultSpeakerVerificationConfig(), fmt.Errorf("read speaker verification config: %w", err)
+		return DefaultSpeakerConfig(), fmt.Errorf("read speaker verification config: %w", err)
 	}
-	var cfg SpeakerVerificationConfig
+	var cfg SpeakerConfig
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return DefaultSpeakerVerificationConfig(), fmt.Errorf("parse speaker verification config: %w", err)
+		return DefaultSpeakerConfig(), fmt.Errorf("parse speaker verification config: %w", err)
 	}
 	if cfg.Mode == "" {
 		cfg.Mode = "filter"
@@ -104,12 +104,12 @@ func loadSpeakerVerificationConfig(path string) (SpeakerVerificationConfig, erro
 		cfg.Threshold = 0.35
 	}
 	if err := cfg.Validate(); err != nil {
-		return DefaultSpeakerVerificationConfig(), fmt.Errorf("speaker verification config validation: %w", err)
+		return DefaultSpeakerConfig(), fmt.Errorf("speaker verification config validation: %w", err)
 	}
 	return cfg, nil
 }
 
-func saveSpeakerVerificationConfig(path string, cfg SpeakerVerificationConfig) error {
+func SaveSpeakerConfig(path string, cfg SpeakerConfig) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create config directory: %w", err)
@@ -130,18 +130,6 @@ func saveSpeakerVerificationConfig(path string, cfg SpeakerVerificationConfig) e
 	return nil
 }
 
-func (s *Server) getSpeakerVerificationConfig() SpeakerVerificationConfig {
-	s.speakerVerificationConfigMu.RLock()
-	defer s.speakerVerificationConfigMu.RUnlock()
-	return s.speakerVerificationConfig
+func DefaultSpeakerProfileID() string {
+	return "default"
 }
-
-func (s *Server) setSpeakerVerificationConfig(cfg SpeakerVerificationConfig) {
-	s.speakerVerificationConfigMu.Lock()
-	defer s.speakerVerificationConfigMu.Unlock()
-	s.speakerVerificationConfig = cfg
-}
-
-// HTTP handlers for /voice/speaker/config and /voice/speaker/status have moved
-// to the Connect VoiceService (see handlers/voice and voice_adapter.go).
-// Types, validation, and persistence helpers above remain shared.

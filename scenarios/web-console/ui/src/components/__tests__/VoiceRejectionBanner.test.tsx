@@ -46,6 +46,19 @@ describe("VoiceRejectionBanner", () => {
     expect(screen.getByTestId("voice-rejection-dismiss")).toBeInTheDocument();
   });
 
+  it("applies horizontal safe-area padding", () => {
+    render(
+      <VoiceRejectionBanner
+        rejection={retryable()}
+        onRetry={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    const className = screen.getByTestId("voice-rejection-banner").className;
+    expect(className).toContain("--wc-safe-left");
+    expect(className).toContain("--wc-safe-right");
+  });
+
   it("only shows Dismiss for explanatory rejection", () => {
     render(
       <VoiceRejectionBanner

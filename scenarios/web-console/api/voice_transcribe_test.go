@@ -16,6 +16,7 @@ import (
 	"web-console/internal/audio"
 	"web-console/internal/capabilities"
 	"web-console/internal/metrics"
+	intvoice "web-console/internal/voice"
 )
 
 func serverWithCapability(available bool) *Server {
@@ -25,13 +26,22 @@ func serverWithCapability(available bool) *Server {
 	}
 	checker := &fakeChecker{status: status, message: "test"}
 	reg := capabilities.NewRegistry(capabilities.Known, map[string]capabilities.Checker{"whisper-stt": checker}, time.Minute)
-	return &Server{
-		capabilities:   reg,
-		voiceConfig:    DefaultVoiceStreamConfig(),
-		whisperURL:     resolveWhisperURL(),
-		transcodeAudio: audio.Transcode,
-		metrics:        metrics.New(),
+	m := metrics.New()
+	srv := &Server{
+		capabilities: reg,
+		metrics:      m,
 	}
+	srv.voice = intvoice.NewService(
+		intvoice.DefaultConfig(), "",
+		nil, "",
+		intvoice.DefaultSpeakerConfig(), "",
+		nil,
+		reg,
+		&m.VoiceSkipVerificationTotal,
+		intvoice.ResolveWhisperURL(),
+		audio.Transcode,
+	)
+	return srv
 }
 
 func TestVoiceTranscribe_WhisperUnavailable(t *testing.T) {
@@ -69,8 +79,8 @@ func TestVoiceTranscribe_Success(t *testing.T) {
 	defer whisper.Close()
 
 	srv := serverWithCapability(true)
-	srv.whisperURL = whisper.URL + "/asr?output=json"
-	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
+	srv.voice.SetWhisperURL(whisper.URL + "/asr?output=json")
+	srv.voice.SetTranscode(func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil })
 
 	text, err := callVoiceTranscribe(t, srv, &voicev1.TranscribeRequest{Audio: []byte("fake audio data")})
 	if err != nil {
@@ -88,8 +98,8 @@ func TestVoiceTranscribe_WhisperError(t *testing.T) {
 	defer whisper.Close()
 
 	srv := serverWithCapability(true)
-	srv.whisperURL = whisper.URL + "/asr?output=json"
-	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
+	srv.voice.SetWhisperURL(whisper.URL + "/asr?output=json")
+	srv.voice.SetTranscode(func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil })
 
 	_, err := callVoiceTranscribe(t, srv, &voicev1.TranscribeRequest{Audio: []byte("fake audio data")})
 	if connectCode(err) != connect.CodeInternal {
@@ -111,8 +121,8 @@ func TestVoiceTranscribe_LanguageParam(t *testing.T) {
 	defer whisper.Close()
 
 	srv := serverWithCapability(true)
-	srv.whisperURL = whisper.URL + "/asr?output=json"
-	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
+	srv.voice.SetWhisperURL(whisper.URL + "/asr?output=json")
+	srv.voice.SetTranscode(func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil })
 
 	if _, err := callVoiceTranscribe(t, srv, &voicev1.TranscribeRequest{
 		Audio:    []byte("fake audio"),
@@ -139,8 +149,8 @@ func TestVoiceTranscribe_AutoDetectLanguage(t *testing.T) {
 	defer whisper.Close()
 
 	srv := serverWithCapability(true)
-	srv.whisperURL = whisper.URL + "/asr?output=json"
-	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
+	srv.voice.SetWhisperURL(whisper.URL + "/asr?output=json")
+	srv.voice.SetTranscode(func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil })
 
 	if _, err := callVoiceTranscribe(t, srv, &voicev1.TranscribeRequest{Audio: []byte("fake audio")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -169,16 +179,16 @@ func TestVoiceTranscribe_SkipSpeakerVerificationBypassesFilter(t *testing.T) {
 	defer speaker.Close()
 
 	srv := serverWithCapability(true)
-	srv.whisperURL = whisper.URL + "/asr?output=json"
-	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
-	srv.speakerVerificationConfig = SpeakerVerificationConfig{
+	srv.voice.SetWhisperURL(whisper.URL + "/asr?output=json")
+	srv.voice.SetTranscode(func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil })
+	srv.voice.SetSpeakerConfig(intvoice.SpeakerConfig{
 		Enabled: true, ProfileIDs: []string{"default"}, Threshold: 0.85,
 		Mode: "filter", RejectBehavior: "drop",
-	}
-	srv.speakerVerification = &SpeakerVerificationResourceClient{
+	})
+	srv.voice.SetSpeakerClient(&intvoice.SpeakerClient{
 		BaseURL: speaker.URL,
 		Client:  speaker.Client(),
-	}
+	})
 
 	text, err := callVoiceTranscribe(t, srv, &voicev1.TranscribeRequest{
 		Audio:                   []byte("fake audio data"),
@@ -208,8 +218,8 @@ func TestVoiceTranscribe_SkipVerificationCounterOnlyWhenBypassActive(t *testing.
 	defer whisper.Close()
 
 	srv := serverWithCapability(true)
-	srv.whisperURL = whisper.URL + "/asr?output=json"
-	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
+	srv.voice.SetWhisperURL(whisper.URL + "/asr?output=json")
+	srv.voice.SetTranscode(func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil })
 	if _, err := callVoiceTranscribe(t, srv, &voicev1.TranscribeRequest{Audio: []byte("fake")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -235,7 +245,7 @@ func TestVoiceTranscribe_SpeakerVerificationRejectsAudio(t *testing.T) {
 		if err := r.ParseMultipartForm(10 << 20); err != nil {
 			t.Fatalf("parse verify form: %v", err)
 		}
-		writeJSON(w, http.StatusOK, SpeakerVerificationResult{
+		writeJSON(w, http.StatusOK, intvoice.SpeakerVerifyResult{
 			ProfileID:    "default",
 			Matched:      false,
 			Score:        0.42,
@@ -249,20 +259,20 @@ func TestVoiceTranscribe_SpeakerVerificationRejectsAudio(t *testing.T) {
 	defer speaker.Close()
 
 	srv := serverWithCapability(true)
-	srv.whisperURL = whisper.URL + "/asr?output=json"
-	srv.transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
-	srv.speakerVerificationConfig = SpeakerVerificationConfig{
+	srv.voice.SetWhisperURL(whisper.URL + "/asr?output=json")
+	srv.voice.SetTranscode(func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil })
+	srv.voice.SetSpeakerConfig(intvoice.SpeakerConfig{
 		Enabled:                     true,
 		ProfileIDs:                  []string{"default"},
 		Threshold:                   0.85,
 		Mode:                        "filter",
 		RejectBehavior:              "drop",
 		FallbackWithoutVerification: false,
-	}
-	srv.speakerVerification = &SpeakerVerificationResourceClient{
+	})
+	srv.voice.SetSpeakerClient(&intvoice.SpeakerClient{
 		BaseURL: speaker.URL,
 		Client:  speaker.Client(),
-	}
+	})
 
 	text, err := callVoiceTranscribe(t, srv, &voicev1.TranscribeRequest{Audio: []byte("fake audio data")})
 	if err != nil {

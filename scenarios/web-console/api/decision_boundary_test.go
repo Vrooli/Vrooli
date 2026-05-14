@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -69,36 +67,6 @@ func TestExtractCommand_UnknownFencePreserved(t *testing.T) {
 	// ```, leaving "python\nprint('hello')". Let's verify the actual behavior.
 	if strings.Contains(got, "```") {
 		t.Errorf("trailing fence should be stripped, got %q", got)
-	}
-}
-
-// --- checkProviderResponse: HTTP status decision ---
-
-func TestCheckProviderResponse_OK(t *testing.T) {
-	resp := &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       http.NoBody,
-	}
-	err := checkProviderResponse(resp, "test")
-	if err != nil {
-		t.Errorf("200 should return nil, got %v", err)
-	}
-}
-
-func TestCheckProviderResponse_NonOK(t *testing.T) {
-	rec := httptest.NewRecorder()
-	_, _ = rec.WriteString("rate limited")
-	resp := rec.Result()
-	resp.StatusCode = http.StatusTooManyRequests
-	err := checkProviderResponse(resp, "openrouter")
-	if err == nil {
-		t.Fatal("non-200 should return error")
-	}
-	if !strings.Contains(err.Error(), "openrouter") {
-		t.Errorf("error should mention provider name, got %v", err)
-	}
-	if !strings.Contains(err.Error(), "429") {
-		t.Errorf("error should mention status code, got %v", err)
 	}
 }
 

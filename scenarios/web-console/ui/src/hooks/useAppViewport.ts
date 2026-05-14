@@ -26,6 +26,8 @@ import { useEffect } from "react";
  * |                     |                                    | keyboard is open (it covers the bottom).   |
  * | `--wc-safe-top`     | `env(safe-area-inset-top)`         | Top safe-area inset for devices with       |
  * |                     |                                    | notches / dynamic islands.                 |
+ * | `--wc-safe-left`    | `env(safe-area-inset-left)`        | Left safe-area inset for landscape notches |
+ * | `--wc-safe-right`   | `env(safe-area-inset-right)`       | Right safe-area inset for landscape edges. |
  *
  * ## Why NOT `100vh` or `h-screen`?
  *
@@ -111,6 +113,8 @@ export function useAppViewport(): void {
       root.setProperty("--wc-kb-height", `${kbHeight}px`);
       root.setProperty("--wc-app-height", `${vv.height}px`);
       root.setProperty("--wc-safe-top", "env(safe-area-inset-top)");
+      root.setProperty("--wc-safe-left", "env(safe-area-inset-left)");
+      root.setProperty("--wc-safe-right", "env(safe-area-inset-right)");
       // When the keyboard is open it covers the bottom edge, so the safe-area
       // inset is irrelevant. When closed, use the real device inset.
       root.setProperty("--wc-safe-bottom", kbHeight > 0 ? "0px" : "env(safe-area-inset-bottom)");
@@ -164,6 +168,8 @@ export function useAppViewport(): void {
       document.documentElement.style.removeProperty("--wc-app-height");
       document.documentElement.style.removeProperty("--wc-safe-top");
       document.documentElement.style.removeProperty("--wc-safe-bottom");
+      document.documentElement.style.removeProperty("--wc-safe-left");
+      document.documentElement.style.removeProperty("--wc-safe-right");
     };
   }, []);
 }

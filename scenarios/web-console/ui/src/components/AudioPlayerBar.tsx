@@ -145,7 +145,7 @@ export default function AudioPlayerBar({
   return (
     <div
       data-testid="audio-player-bar"
-      className="flex items-center gap-1.5 border-t border-wc-default bg-wc-surface-raised px-2 py-1.5 text-wc-text-primary animate-in slide-in-from-bottom-2 duration-200"
+      className="flex items-center gap-1.5 border-t border-wc-default bg-wc-surface-raised py-1.5 ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] text-wc-text-primary animate-in slide-in-from-bottom-2 duration-200"
     >
       <PlaybackModeControl
         testIdPrefix="tts"
@@ -278,7 +278,7 @@ export default function AudioPlayerBar({
             />
             <div
               data-testid="audio-popover"
-              className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] shadow-2xl"
+              className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
             >
               <div className="mb-3 flex justify-center">
                 <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
