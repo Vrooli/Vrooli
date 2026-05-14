@@ -20,13 +20,41 @@ import (
 
 	adoptionsH "react-component-library/handlers/adoptions"
 	componentsH "react-component-library/handlers/components"
+	depsH "react-component-library/handlers/deps"
 	healthH "react-component-library/handlers/health"
 	previewH "react-component-library/handlers/preview"
+	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
 
 	adoptionsInternal "react-component-library/internal/adoptions"
 	componentsInternal "react-component-library/internal/components"
+	depsInternal "react-component-library/internal/deps"
+	themesInternal "react-component-library/internal/themes"
 )
+
+// componentsDepsObserver is the bridge from the components indexer's
+// UpsertObserver seam to the deps service's SyncForComponent. Parses
+// the component's @deps header field (req DC-001) and re-syncs the
+// dep declarations table for that component. Errors are returned so
+// the indexer surfaces a clear "header malformed" signal in the
+// IndexComponents response; a successful re-sync with zero
+// declarations clears any prior rows for the component.
+type componentsDepsObserver struct {
+	svc    depsInternal.Service
+	logger *log.Logger
+}
+
+func (o *componentsDepsObserver) Observe(ctx context.Context, c componentsInternal.Component, fields map[string]string) error {
+	declarations, err := depsInternal.ParseHeaderField(fields["deps"])
+	if err != nil {
+		return fmt.Errorf("parse @deps for %s: %w", c.LibraryID, err)
+	}
+	return o.svc.SyncForComponent(ctx, depsInternal.SyncInput{
+		ComponentID:  c.ID,
+		LibraryID:    c.LibraryID,
+		Declarations: declarations,
+	})
+}
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
 // with the canonical pragma string. Resolution order:
@@ -139,12 +167,30 @@ func main() {
 		Logger:  log.Default(),
 	})
 
+	// Wire the deps domain (req 10). Shares the adoptions scenarios
+	// root so the package.json reader walks the same tree adoption
+	// refresh does. depsObserver re-syncs declarations after every
+	// successful components Upsert so the registry stays in step with
+	// the on-disk @deps headers.
+	depsSvc := depsH.BuildService(db, depsInternal.NewFSPackageJSONReader(scenariosRoot))
+	depsObserver := &componentsDepsObserver{svc: depsSvc, logger: log.Default()}
+
+	// Wire the themes domain (req 12). Same scenariosRoot as adoptions
+	// + deps so the DESIGN.md reader walks the same tree. Seed the
+	// built-in themes table on first boot; idempotent on re-runs.
+	themesSvc := themesH.BuildService(db, themesInternal.NewFSDesignMDReader(scenariosRoot))
+	if err := themesSvc.EnsureBuiltinsSeeded(context.Background()); err != nil {
+		log.Fatalf("seed built-in themes: %v", err)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		adoptionsH.ModuleFromService(adoptionsSvc, log.Default()),
-		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default()),
+		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver)),
+		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(db, "react-component-library-api", "1.0.0"),
 		previewH.Module(componentsSvc, log.Default()),
+		themesH.ModuleFromService(themesSvc, log.Default()),
 		versionsH.Module(db, clock.System{}, versionsResolver, log.Default()),
 	)
 

@@ -28,7 +28,12 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "components get-by-library-id", Description: "Get by libraryId", EndpointID: "components_get_by_library_id"},
 		{Name: "components content-get", Description: "Read content", EndpointID: "components_content_get"},
 		{Name: "components content-set", Description: "Write content", EndpointID: "components_content_set"},
+		{Name: "deps list", Description: "List declarations", EndpointID: "deps_list_declarations"},
+		{Name: "deps validate", Description: "Validate adoption", EndpointID: "deps_validate_adoption"},
 		{Name: "preview bundle", Description: "Bundle for preview", EndpointID: "preview_get_bundle"},
+		{Name: "themes list-builtin", Description: "List built-in themes", EndpointID: "themes_list_builtin"},
+		{Name: "themes get-builtin", Description: "Get built-in theme", EndpointID: "themes_get_builtin"},
+		{Name: "themes get-from-scenario", Description: "Resolve from scenario", EndpointID: "themes_get_from_scenario"},
 		{Name: "versions list", Description: "List versions", EndpointID: "versions_list"},
 		{Name: "versions show", Description: "Show version", EndpointID: "versions_get"},
 		{Name: "versions diff", Description: "Diff versions", EndpointID: "versions_diff"},
@@ -62,8 +67,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 15 {
-		t.Errorf("cli_commands count = %d, want 15", len(got.CLICommands))
+	if len(got.CLICommands) != 20 {
+		t.Errorf("cli_commands count = %d, want 20", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

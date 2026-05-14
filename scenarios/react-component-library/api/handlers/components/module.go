@@ -49,13 +49,28 @@ func ModuleWithRoot(db *sql.DB, clk clock.Clock, sourceRoot string, logger *log.
 // ModuleFromService mounts a prebuilt components.Service. main.go uses
 // this variant so sibling modules (preview, versions) and the content-
 // change listener bind to the same service instance.
-func ModuleFromService(svc components.Service, repo components.Repository, sourceRoot string, logger *log.Logger) module.Module {
-	connectPath, connectHandler := componentsconnect.NewComponentsServiceHandler(NewConnectHandler(Deps{
+// ModuleOption mutates the Deps the components handler is constructed
+// with. Use WithIndexObserver to plug in a cross-domain post-upsert
+// hook (req 10's deps recorder).
+type ModuleOption func(*Deps)
+
+// WithIndexObserver installs the components.UpsertObserver the indexer
+// calls after each successful upsert.
+func WithIndexObserver(o components.UpsertObserver) ModuleOption {
+	return func(d *Deps) { d.IndexObserver = o }
+}
+
+func ModuleFromService(svc components.Service, repo components.Repository, sourceRoot string, logger *log.Logger, opts ...ModuleOption) module.Module {
+	d := Deps{
 		Service:    svc,
 		Repo:       repo,
 		SourceRoot: sourceRoot,
 		Logger:     logger,
-	}))
+	}
+	for _, opt := range opts {
+		opt(&d)
+	}
+	connectPath, connectHandler := componentsconnect.NewComponentsServiceHandler(NewConnectHandler(d))
 	return module.Module{
 		Name: "components",
 		Mount: func(r *mux.Router) {

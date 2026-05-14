@@ -381,6 +381,85 @@
       }
     },
     {
+      "id": "deps_list_declarations",
+      "path": "/vrooli.react_component_library.v1.deps.DepsService/ListDeclarations",
+      "method": "POST",
+      "summary": "List parsed @deps declarations for a component",
+      "description": "Returns the declarations the indexer recorded for the component's @deps header field. Empty slice when the header was absent or the component has not been indexed.",
+      "category": "deps",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "declarations": "array<DepDeclaration>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library deps list",
+        "args": [
+          "<component_id>"
+        ]
+      }
+    },
+    {
+      "id": "deps_validate_adoption",
+      "path": "/vrooli.react_component_library.v1.deps.DepsService/ValidateAdoption",
+      "method": "POST",
+      "summary": "Validate a component's declared deps against a target scenario",
+      "description": "Reads the target scenario's package.json (via the storage resolver) and intersects each declared semver range against the resolved version. Returns ok / warn / block plus a per-dep issues list the UI surfaces in the adoption modal.",
+      "category": "deps",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "scenario": "string (target scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "issues": "array<DepIssue>",
+          "kind": "VerdictKind (ok|warn|block)"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target scenario's package.json missing"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Component has no declarations on file (re-run components index)"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library deps validate",
+        "args": [
+          "<component_id>",
+          "<scenario>"
+        ]
+      }
+    },
+    {
       "id": "health",
       "path": "/health",
       "method": "GET",
@@ -452,6 +531,114 @@
         "command": "react-component-library preview bundle",
         "args": [
           "<id>"
+        ]
+      }
+    },
+    {
+      "id": "themes_list_builtin",
+      "path": "/vrooli.react_component_library.v1.themes.ThemesService/ListBuiltinThemes",
+      "method": "POST",
+      "summary": "List built-in themes",
+      "description": "Returns the seeded built-in themes (vrooli-default, neutral-light, neutral-dark, high-contrast).",
+      "category": "themes",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "themes": "array<Theme>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library themes list-builtin"
+      }
+    },
+    {
+      "id": "themes_get_builtin",
+      "path": "/vrooli.react_component_library.v1.themes.ThemesService/GetBuiltinTheme",
+      "method": "POST",
+      "summary": "Get a built-in theme by id",
+      "description": "Returns the named built-in theme including its flat token map.",
+      "category": "themes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "theme": "Theme"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No built-in theme with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library themes get-builtin",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "themes_get_from_scenario",
+      "path": "/vrooli.react_component_library.v1.themes.ThemesService/GetThemeFromScenario",
+      "method": "POST",
+      "summary": "Resolve a theme from a target scenario's DESIGN.md",
+      "description": "Reads <scenarios-root>/<scenario_id>/DESIGN.md via the storage resolver, parses the YAML front-matter, and projects it into a flat CSS-custom-property token map. Client never builds the URL or parses DESIGN.md directly.",
+      "category": "themes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "theme": "Theme"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target scenario's DESIGN.md missing"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "DESIGN.md is malformed or does not project to a recognizable theme"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem read or parse failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library themes get-from-scenario",
+        "args": [
+          "<scenario_id>"
         ]
       }
     },
@@ -640,9 +827,34 @@
       "endpoint_id": "components_content_set"
     },
     {
+      "name": "deps list",
+      "description": "List parsed @deps declarations for a component (req 10)",
+      "endpoint_id": "deps_list_declarations"
+    },
+    {
+      "name": "deps validate",
+      "description": "Validate a component's @deps against a target scenario's package.json (verdict: ok/warn/block)",
+      "endpoint_id": "deps_validate_adoption"
+    },
+    {
       "name": "preview bundle",
       "description": "Print the esbuild-transpiled ES module for a component (used by the live-preview iframe and for diagnostics)",
       "endpoint_id": "preview_get_bundle"
+    },
+    {
+      "name": "themes list-builtin",
+      "description": "List the built-in themes seeded into the registry (req 12)",
+      "endpoint_id": "themes_list_builtin"
+    },
+    {
+      "name": "themes get-builtin",
+      "description": "Get a built-in theme by id, including its CSS-custom-property token map",
+      "endpoint_id": "themes_get_builtin"
+    },
+    {
+      "name": "themes get-from-scenario",
+      "description": "Resolve a theme from a target scenario's DESIGN.md (server-side; client never parses DESIGN.md directly)",
+      "endpoint_id": "themes_get_from_scenario"
     },
     {
       "name": "versions list",

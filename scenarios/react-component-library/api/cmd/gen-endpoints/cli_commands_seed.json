@@ -57,9 +57,34 @@
       "endpoint_id": "components_content_set"
     },
     {
+      "name": "deps list",
+      "description": "List parsed @deps declarations for a component (req 10)",
+      "endpoint_id": "deps_list_declarations"
+    },
+    {
+      "name": "deps validate",
+      "description": "Validate a component's @deps against a target scenario's package.json (verdict: ok/warn/block)",
+      "endpoint_id": "deps_validate_adoption"
+    },
+    {
       "name": "preview bundle",
       "description": "Print the esbuild-transpiled ES module for a component (used by the live-preview iframe and for diagnostics)",
       "endpoint_id": "preview_get_bundle"
+    },
+    {
+      "name": "themes list-builtin",
+      "description": "List the built-in themes seeded into the registry (req 12)",
+      "endpoint_id": "themes_list_builtin"
+    },
+    {
+      "name": "themes get-builtin",
+      "description": "Get a built-in theme by id, including its CSS-custom-property token map",
+      "endpoint_id": "themes_get_builtin"
+    },
+    {
+      "name": "themes get-from-scenario",
+      "description": "Resolve a theme from a target scenario's DESIGN.md (server-side; client never parses DESIGN.md directly)",
+      "endpoint_id": "themes_get_from_scenario"
     },
     {
       "name": "versions list",

@@ -26,13 +26,17 @@ import (
 
 	adoptionsH "react-component-library/handlers/adoptions"
 	componentsH "react-component-library/handlers/components"
+	depsH "react-component-library/handlers/deps"
 	healthH "react-component-library/handlers/health"
 	previewH "react-component-library/handlers/preview"
+	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
 
 	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
+	depsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps"
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
+	themesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/themes"
 	versionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions"
 )
 
@@ -44,8 +48,10 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, adoptionsH.Endpoints...)
 	out = append(out, componentsH.Endpoints...)
+	out = append(out, depsH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, previewH.Endpoints...)
+	out = append(out, themesH.Endpoints...)
 	out = append(out, versionsH.Endpoints...)
 	return out
 }
@@ -66,7 +72,9 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "adoptions", File: adoptionsv1.File_react_component_library_v1_adoptions_adoptions_proto},
 		{Module: "components", File: componentsv1.File_react_component_library_v1_components_components_proto},
+		{Module: "deps", File: depsv1.File_react_component_library_v1_deps_deps_proto},
 		{Module: "preview", File: previewv1.File_react_component_library_v1_preview_preview_proto},
+		{Module: "themes", File: themesv1.File_react_component_library_v1_themes_themes_proto},
 		{Module: "versions", File: versionsv1.File_react_component_library_v1_versions_versions_proto},
 	}
 }
@@ -83,7 +91,9 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(adoptionsH.Schema),
 		apidb.SchemaProviderFunc(componentsH.Schema),
+		apidb.SchemaProviderFunc(depsH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(themesH.Schema),
 		apidb.SchemaProviderFunc(versionsH.Schema),
 	}
 }

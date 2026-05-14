@@ -32,11 +32,27 @@ import (
 // Only `@libraryId` is required. Files without the header are ignored
 // (they're not library components). Files with a malformed header
 // return ErrInvalidHeader so the operator can fix and re-index.
-type Indexer struct {
-	repo Repository
-	root string
-	fs   fs.FS // injected for tests; nil means use os.DirFS(root)
+// UpsertObserver is the post-upsert seam other domains hook into. The
+// indexer calls Observe after a successful repo.Upsert with the parsed
+// header fields, so cross-domain consumers (currently req 10's deps
+// recorder) can re-sync without parsing files themselves. nil observer
+// means "no hook"; production wires deps.Service via a small adapter
+// in main.go.
+type UpsertObserver interface {
+	Observe(ctx context.Context, c Component, headerFields map[string]string) error
 }
+
+type Indexer struct {
+	repo     Repository
+	root     string
+	fs       fs.FS // injected for tests; nil means use os.DirFS(root)
+	observer UpsertObserver
+}
+
+// SetUpsertObserver installs the post-upsert seam. Designed to be
+// called once at boot before any Run call; not concurrency-safe with
+// in-flight Runs.
+func (idx *Indexer) SetUpsertObserver(o UpsertObserver) { idx.observer = o }
 
 // NewIndexer constructs an Indexer rooted at root. The root is the
 // absolute path on disk; consumers resolve it via api-core/storage
@@ -101,9 +117,16 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 			result.Errors = append(result.Errors, perr)
 			return nil
 		}
-		if _, err := idx.repo.Upsert(ctx, in); err != nil {
+		comp, err := idx.repo.Upsert(ctx, in)
+		if err != nil {
 			result.Errors = append(result.Errors, fmt.Errorf("upsert %s: %w", path, err))
 			return nil
+		}
+		if idx.observer != nil {
+			if oerr := idx.observer.Observe(ctx, comp, fields); oerr != nil {
+				result.Errors = append(result.Errors, fmt.Errorf("observe %s: %w", path, oerr))
+				// continue — observer failure must not hide the upsert.
+			}
 		}
 		result.Indexed++
 		result.LibraryIDs = append(result.LibraryIDs, in.LibraryID)

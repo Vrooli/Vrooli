@@ -10,34 +10,34 @@
     {
       "id": "TH-001",
       "title": "Built-in themes are seeded into the registry and selectable from the UI",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "category": "theme",
       "criticality": "P1",
-      "description": "`builtin_themes` (id, name, tokens_json) is seeded at boot with at least: vrooli-default, neutral-light, neutral-dark, high-contrast. `GET /api/v1/themes/builtin` lists them; `GET /api/v1/themes/builtin/{id}` returns tokens.",
+      "description": "`builtin_themes` (id, name, tokens_json) is seeded at boot with: vrooli-default, neutral-light, neutral-dark, high-contrast. `ThemesService.ListBuiltinThemes` lists them; `GetBuiltinTheme` returns tokens. Seed is idempotent (skipped when table non-empty).",
       "tags": ["theme", "registry"],
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
-          "notes": "Repository test asserts seed-on-empty behavior; handler tests cover list/get."
+          "status": "complete",
+          "notes": "internal/themes/service_test.go::TestEnsureBuiltinsSeeded_PopulatesWhenEmpty + NoopWhenNonEmpty + GetBuiltin_NotFound. sqlite_test.go covers Upsert/Replace/List/Count round-trips against a real SQLite handle. UI selector remains follow-up work (TH-003 below)."
         }
       ]
     },
     {
       "id": "TH-002",
       "title": "Target scenario's DESIGN.md is resolved server-side to normalized JSON",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "category": "theme",
       "criticality": "P1",
-      "description": "`GET /api/v1/themes/from-scenario/{scenario_id}` reads the named scenario's `DESIGN.md` via the storage resolver, parses the YAML front-matter using the canonical `vrooli-default` schema (colors, typography, rounded, spacing, components), and returns normalized JSON. Unknown shapes reject with HTTP 422 and a structured error. The client never builds the URL or parses DESIGN.md directly.",
+      "description": "`ThemesService.GetThemeFromScenario` (Connect-RPC) reads the named scenario's `DESIGN.md` via the storage resolver (path-traversal-guarded under the adoptions scenarios root), parses the YAML front-matter using the canonical `vrooli-default` schema (colors, typography, rounded, spacing), and returns a flat CSS-custom-property token map (e.g. `--color-primary`, `--rounded-sm`, `--typography-body-md-fontfamily`). Malformed front-matter → ErrInvalidDesignMD (Connect InvalidArgument). The client never builds the URL or parses DESIGN.md directly.",
       "tags": ["theme", "api"],
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
-          "notes": "Service test feeds the flow-verifier DESIGN.md and asserts the normalized JSON shape; negative test for a malformed front-matter returns 422."
+          "status": "complete",
+          "notes": "internal/themes/design_md_test.go covers ExtractFrontMatter (happy + missing + unclosed) and ParseDesignMDToTheme (flow-verifier fixture, empty-shape rejection, bad-YAML rejection). service_test.go::TestResolveFromScenario_OK + Missing pin the wiring."
         }
       ]
     },

@@ -21,6 +21,11 @@ type Deps struct {
 	Repo       components.Repository
 	SourceRoot string
 	Logger     *log.Logger
+	// IndexObserver is the optional post-upsert seam wired by main.go
+	// to drive cross-domain consumers (currently the deps service's
+	// SyncForComponent — req 10). Nil = no observer; the indexer
+	// behaves exactly as before.
+	IndexObserver components.UpsertObserver
 }
 
 type connectHandler struct {
@@ -115,6 +120,9 @@ func (h *connectHandler) UpdateComponentContent(ctx context.Context, req *connec
 
 func (h *connectHandler) IndexComponents(ctx context.Context, _ *connect.Request[componentsv1.IndexComponentsRequest]) (*connect.Response[componentsv1.IndexComponentsResponse], error) {
 	idx := components.NewIndexer(h.deps.Repo, h.deps.SourceRoot, nil)
+	if h.deps.IndexObserver != nil {
+		idx.SetUpsertObserver(h.deps.IndexObserver)
+	}
 	res, err := idx.Run(ctx)
 	if err != nil {
 		h.deps.Logger.Printf("components.IndexComponents: %v", err)
