@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import { MessageSquareText, Plus, Settings, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
@@ -10,6 +10,9 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { Button } from "./ui/button";
 import TabContextMenu from "./TabContextMenu";
+
+const SIDEBAR_LONG_PRESS_MS = 500;
+const SIDEBAR_PRESS_MOVE_THRESHOLD = 8;
 
 interface SessionSidebarProps {
   items: WorkspaceNavigationItem[];
@@ -57,6 +60,12 @@ export default function SessionSidebar({
   const [editingPaneId, setEditingPaneId] = useState<string | null>(null);
   const [editingPaneName, setEditingPaneName] = useState("");
   const editingInputRef = useRef<HTMLInputElement>(null);
+  const touchActivatedPaneRef = useRef<string | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressReadyRef = useRef(false);
+  const longPressPaneIdRef = useRef<string | null>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressPointRef = useRef<{ x: number; y: number } | null>(null);
 
   const { size, isResizing, resizeHandleProps } = useResizablePanel({
     containerRef,
@@ -77,11 +86,24 @@ export default function SessionSidebar({
   const paneItems = items.filter((item) => item.kind === "pane");
   const totalUnread = paneItems.reduce((sum, item) => sum + item.unreadCount, 0);
 
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressReadyRef.current = false;
+    longPressPaneIdRef.current = null;
+    longPressStartRef.current = null;
+    longPressPointRef.current = null;
+  }, []);
+
   useEffect(() => {
     if (!editingPaneId) return;
     editingInputRef.current?.focus();
     editingInputRef.current?.select();
   }, [editingPaneId]);
+
+  useEffect(() => clearLongPress, [clearLongPress]);
 
   const startRename = useCallback((sessionId: string, currentName: string) => {
     setEditingPaneId(sessionId);
@@ -102,6 +124,49 @@ export default function SessionSidebar({
     onActivatePane(sessionId);
     if (isMobile) onCloseMobile();
   }, [isMobile, onActivatePane, onCloseMobile]);
+
+  const openContextMenu = useCallback((sessionId: string, x: number, y: number) => {
+    setTabContextMenu({ sessionId, position: { x, y } });
+  }, [setTabContextMenu]);
+
+  const handlePanePointerDown = useCallback((event: ReactPointerEvent, sessionId: string) => {
+    if (event.pointerType === "mouse" || event.button !== 0) return;
+    clearLongPress();
+    longPressPaneIdRef.current = sessionId;
+    longPressStartRef.current = { x: event.clientX, y: event.clientY };
+    longPressPointRef.current = { x: event.clientX, y: event.clientY };
+    longPressTimerRef.current = setTimeout(() => {
+      longPressReadyRef.current = true;
+      longPressTimerRef.current = null;
+    }, SIDEBAR_LONG_PRESS_MS);
+  }, [clearLongPress]);
+
+  const handlePanePointerMove = useCallback((event: ReactPointerEvent) => {
+    const start = longPressStartRef.current;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    longPressPointRef.current = { x: event.clientX, y: event.clientY };
+    if (Math.sqrt(dx * dx + dy * dy) > SIDEBAR_PRESS_MOVE_THRESHOLD) {
+      clearLongPress();
+    }
+  }, [clearLongPress]);
+
+  const handlePanePointerUp = useCallback((event: ReactPointerEvent, sessionId: string) => {
+    if (event.pointerType === "mouse") return;
+    event.preventDefault();
+    touchActivatedPaneRef.current = sessionId;
+
+    const shouldOpenMenu = longPressReadyRef.current && longPressPaneIdRef.current === sessionId;
+    const point = longPressPointRef.current ?? { x: event.clientX, y: event.clientY };
+    clearLongPress();
+
+    if (shouldOpenMenu) {
+      openContextMenu(sessionId, point.x, point.y);
+      return;
+    }
+    activate(sessionId);
+  }, [activate, clearLongPress, openContextMenu]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -160,37 +225,15 @@ export default function SessionSidebar({
 
           const { pane, activityLabel, previewText, unreadCount, viewMode, isActive, group } = item;
           const accentColor = pane.headerColor !== "transparent" ? pane.headerColor : group?.color;
-          return (
-            <div
-              key={pane.sessionId}
-              role="button"
-              tabIndex={0}
-              data-testid={`sidebar-session-${pane.sessionId}`}
-              className={cn(
-                "group relative mb-1 flex w-full items-start gap-2 rounded border px-2 py-2 text-start transition-colors",
-                "focus:outline-none focus-visible:ring-1 focus-visible:ring-wc-accent",
-                isActive
-                  ? "border-wc-accent bg-wc-surface-raised text-wc-text-primary"
-                  : "border-transparent text-wc-text-secondary hover:border-wc-default hover:bg-wc-surface-raised",
-              )}
-              onClick={() => activate(pane.sessionId)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  activate(pane.sessionId);
-                }
-              }}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                setTabContextMenu({ sessionId: pane.sessionId, position: { x: event.clientX, y: event.clientY } });
-              }}
-            >
+          const isEditing = editingPaneId === pane.sessionId;
+          const rowBody = (
+            <>
               {accentColor && (
                 <span className="mt-1 h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: accentColor }} />
               )}
               <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 items-center gap-2">
-                  {editingPaneId === pane.sessionId ? (
+                  {isEditing ? (
                     <input
                       ref={editingInputRef}
                       data-testid={`sidebar-rename-input-${pane.sessionId}`}
@@ -231,32 +274,67 @@ export default function SessionSidebar({
                   </span>
                 )}
               </span>
-              <span
-                role="button"
-                tabIndex={0}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-wc-text-muted opacity-0 hover:bg-wc-surface-input hover:text-wc-text-primary group-hover:opacity-100 focus:opacity-100"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onClosePane(pane.sessionId);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onClosePane(pane.sessionId);
-                  }
-                }}
+            </>
+          );
+          return (
+            <div
+              key={pane.sessionId}
+              className={cn(
+                "group relative mb-1 flex w-full items-start gap-2 rounded border text-start transition-colors",
+                isActive
+                  ? "border-wc-accent bg-wc-surface-raised text-wc-text-primary"
+                  : "border-transparent text-wc-text-secondary hover:border-wc-default hover:bg-wc-surface-raised",
+              )}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                setTabContextMenu({ sessionId: pane.sessionId, position: { x: event.clientX, y: event.clientY } });
+              }}
+            >
+              {isEditing ? (
+                <div
+                  data-testid={`sidebar-session-${pane.sessionId}`}
+                  className="flex min-w-0 flex-1 items-start gap-2 rounded px-2 py-2 text-start"
+                >
+                  {rowBody}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  data-testid={`sidebar-session-${pane.sessionId}`}
+                  className="flex min-w-0 flex-1 items-start gap-2 rounded px-2 py-2 text-start focus:outline-none focus-visible:ring-1 focus-visible:ring-wc-accent"
+                  onPointerDown={(event) => handlePanePointerDown(event, pane.sessionId)}
+                  onPointerMove={handlePanePointerMove}
+                  onPointerUp={(event) => handlePanePointerUp(event, pane.sessionId)}
+                  onPointerCancel={clearLongPress}
+                  onClick={() => {
+                    if (touchActivatedPaneRef.current === pane.sessionId) {
+                      touchActivatedPaneRef.current = null;
+                      return;
+                    }
+                    activate(pane.sessionId);
+                  }}
+                >
+                  {rowBody}
+                </button>
+              )}
+              <button
+                type="button"
+                className={cn(
+                  "me-2 mt-2 h-6 w-6 shrink-0 items-center justify-center rounded text-wc-text-muted opacity-0 hover:bg-wc-surface-input hover:text-wc-text-primary group-hover:opacity-100 focus:opacity-100",
+                  isMobile ? "hidden" : "flex",
+                )}
+                onClick={() => onClosePane(pane.sessionId)}
                 title={t(strings.tabBar.closeTabTitle)}
                 aria-label={t(strings.tabBar.closeTabAria, { name: pane.name })}
               >
                 <X className="h-3.5 w-3.5" />
-              </span>
+              </button>
             </div>
           );
         })}
       </div>
 
-      <div className="flex items-center gap-2 border-t border-wc-default p-2">
+      <div className="flex items-center gap-2 border-t border-wc-default p-2 pb-[max(0.5rem,var(--wc-safe-bottom,0px))]">
         <Button
           data-testid="workspace-sidebar-new"
           variant="outline"
@@ -319,7 +397,7 @@ export default function SessionSidebar({
           />
           <aside
             data-testid="workspace-sidebar-shell"
-            className="absolute inset-y-0 start-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col border-e border-wc-default bg-wc-surface-header shadow-xl"
+            className="absolute inset-y-0 start-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col border-e border-wc-default bg-wc-surface-header pt-[var(--wc-safe-top,0px)] shadow-xl"
           >
             {sidebarContent}
           </aside>

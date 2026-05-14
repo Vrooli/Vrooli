@@ -139,6 +139,59 @@ func findEnclosingFunc(lines []string, lineIdx int) string {
 	return ""
 }
 
+// TestGreenfield_WorkspaceStoreNotInPackageMain enforces that workspace
+// persistence code lives in internal/workspace, not package main. The
+// migration deleted workspace_store{,_mem,_sql,_shim}.go; resurrecting
+// any of them — or the old package-main type names — is a regression.
+func TestGreenfield_WorkspaceStoreNotInPackageMain(t *testing.T) {
+	forbiddenFiles := []string{
+		"workspace_store.go",
+		"workspace_store_mem.go",
+		"workspace_store_sql.go",
+		"workspace_store_shim.go",
+	}
+	for _, f := range forbiddenFiles {
+		if _, err := os.Stat(f); err == nil {
+			t.Errorf("%s reappeared in package main — workspace persistence belongs in internal/workspace", f)
+		}
+	}
+
+	// Word-bounded so e.g. events.WorkspaceLayoutUpdated (constant name)
+	// or TestSQLStore_* (renamed) don't false-positive.
+	forbiddenSymbols := []string{
+		`\bWorkspaceStore\b`,
+		`\bMemWorkspaceStore\b`,
+		`\bSQLWorkspaceStore\b`,
+		`\bWorkspacePane\b`,
+		`\bNewMemWorkspaceStore\b`,
+		`\bNewSQLWorkspaceStore\b`,
+		`\bworkspaceStoreShim\b`,
+		`\bnewWorkspaceStoreShim\b`,
+	}
+	res := make([]*regexp.Regexp, len(forbiddenSymbols))
+	for i, p := range forbiddenSymbols {
+		res[i] = regexp.MustCompile(p)
+	}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatalf("glob: %v", err)
+	}
+	for _, f := range files {
+		if f == "greenfield_assertions_test.go" {
+			continue
+		}
+		b, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		for i, re := range res {
+			if re.Match(b) {
+				t.Errorf("%s references legacy workspace symbol %q — use internal/workspace types", f, forbiddenSymbols[i])
+			}
+		}
+	}
+}
+
 // TestGreenfield_NoLegacyHistorySymbols enforces that the deleted
 // raw-byte history protocol stays deleted. New code must use the
 // snapshot-replay flow through terminal.Emulator.

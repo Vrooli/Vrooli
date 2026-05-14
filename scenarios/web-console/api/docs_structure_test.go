@@ -95,8 +95,10 @@ func TestDocsNoOrphans(t *testing.T) {
 	}
 }
 
-var docMarkerRe = regexp.MustCompile(`docs/[A-Za-z0-9_/-]+\.md`)
-var commentLineRe = regexp.MustCompile(`(?m)^\s*(?://|/\*|\*|#)?\s*(?://\s*)?DOC:\s*(docs/[A-Za-z0-9_/.#-]+)`)
+var (
+	docMarkerRe   = regexp.MustCompile(`docs/[A-Za-z0-9_/-]+\.md`)
+	commentLineRe = regexp.MustCompile(`(?m)^\s*(?://|/\*|\*|#)?\s*(?://\s*)?DOC:\s*(docs/[A-Za-z0-9_/.#-]+)`)
+)
 
 func TestCodeDocRefsResolve(t *testing.T) {
 	roots := []string{

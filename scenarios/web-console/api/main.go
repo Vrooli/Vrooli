@@ -1,7 +1,6 @@
 package main
 
 import (
-	"web-console/session"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -16,6 +15,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"web-console/session"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -46,7 +47,9 @@ import (
 	"web-console/internal/config"
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	intsessions "web-console/internal/sessions"
 	"web-console/internal/sessionstore"
+	intworkspace "web-console/internal/workspace"
 )
 
 // initSchema runs the idempotent schema and seed SQL against the database.
@@ -122,9 +125,9 @@ type Server struct {
 	shortcuts                     ShortcutStore
 	aiConfig                      AIConfigStore
 	sweeper                       *session.ExpirationSweeper
-	idempotency                   *idempotencyCache // replay-safe session creation
+	idempotency                   *intsessions.IdempotencyCache // replay-safe session creation
 	capabilities                  *capabilities.Registry
-	workspace                     WorkspaceStore
+	workspace                     intworkspace.Store
 	voiceConfigMu                 sync.RWMutex
 	voiceConfig                   VoiceStreamConfig
 	voiceConfigPath               string
@@ -287,8 +290,8 @@ func NewServer(db *sql.DB) *Server {
 		shortcuts:                     NewSQLShortcutStore(db),
 		aiConfig:                      NewSQLAIConfigStore(db),
 		sweeper:                       session.NewExpirationSweeper(sessions, eventLog, metrics),
-		idempotency:                   newIdempotencyCache(),
-		workspace:                     NewSQLWorkspaceStore(db),
+		idempotency:                   intsessions.NewIdempotencyCache(),
+		workspace:                     intworkspace.NewSQLStore(db),
 		voiceConfig:                   vc,
 		voiceConfigPath:               vcPath,
 		wakeWordTemplate:              wwTmpl,
@@ -413,18 +416,30 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 
 	// Sessions domain (CRUD, recovery, policy) — Connect-RPC.
-	sessionsH.Module(newSessionsAdapter(s), nil).Mount(s.router)
+	sessionsH.Module(&sessionsH.Adapter{
+		Manager:          s.sessions,
+		Store:            s.sessionStore,
+		Idempotency:      s.idempotency,
+		Events:           s.events,
+		Metrics:          s.metrics,
+		Conversations:    s.conversations,
+		CodexCheckpoints: s.codexCheckpointStore,
+		CopyCodexHome:    copyCodexHome,
+	}, nil).Mount(s.router)
 
 	// Terminal — Connect-RPC TerminalService (GetScreen, SendInput,
 	// WaitIdle) plus REST exceptions for the WebSocket bridge
 	// ([REQ:P0-002b]) and multipart image upload for path injection.
-	terminalH.Module(newTerminalAdapter(s), terminalH.LegacyDeps{
+	terminalH.Module(&terminalH.Adapter{Manager: s.sessions}, terminalH.LegacyDeps{
 		Upload: s.handleUpload,
 		WS:     s.handleTerminalWS,
 	}, nil).Mount(s.router)
 
 	// Workspace domain (panes, groups, layout) — Connect-RPC.
-	workspaceH.Module(newWorkspaceAdapter(s), nil).Mount(s.router)
+	workspaceH.Module(&workspaceH.Adapter{
+		Store:  s.workspace,
+		Events: s.events,
+	}, nil).Mount(s.router)
 
 	// Conversation domain (history, cursor, summarize, file refs) — Connect-RPC.
 	conversationH.Module(newConversationAdapter(s), nil).Mount(s.router)
@@ -436,13 +451,13 @@ func (s *Server) setupRoutes() {
 	shortcutsH.Module(newShortcutsAdapter(s), nil).Mount(s.router)
 
 	// AI domain - [REQ:P0-005a] [REQ:P1-003a] [REQ:P1-003b] (Connect-RPC AIService)
-	aiH.Module(newAIAdapter(s), nil).Mount(s.router)
+	aiH.Module(&aiH.Adapter{Backend: newAIServiceShim(s)}, nil).Mount(s.router)
 
 	// Metrics — Connect-RPC MetricsService [REQ:P1-004b]
-	metricsH.Module(newMetricsAdapter(s), nil).Mount(s.router)
+	metricsH.Module(&metricsH.Adapter{Metrics: s.metrics}, nil).Mount(s.router)
 
 	// Events — Connect-RPC EventsService [REQ:P1-004a]
-	eventsH.Module(newEventsAdapter(s), nil).Mount(s.router)
+	eventsH.Module(&eventsH.Adapter{Logger: s.events}, nil).Mount(s.router)
 
 	// Voice input capabilities
 	capabilitiesH.Module(&capabilitiesH.Adapter{
@@ -452,7 +467,7 @@ func (s *Server) setupRoutes() {
 	}, nil).Mount(s.router)
 	// Voice — Connect-RPC module replaces the 14 legacy REST handlers
 	// (transcribe, stream config, wake word, speaker config/status/profiles).
-	voiceH.Module(newVoiceAdapter(s), nil).Mount(s.router)
+	voiceH.Module(&voiceH.Adapter{Backend: newVoiceServiceShim(s)}, nil).Mount(s.router)
 	// Voice stream WS — REST exception (raw audio frames over WebSocket).
 	voiceH.StreamModule(s.handleVoiceStreamWS).Mount(s.router)
 

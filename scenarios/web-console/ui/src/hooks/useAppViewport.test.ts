@@ -72,6 +72,7 @@ describe("useAppViewport", () => {
     vi.useRealTimers();
     document.documentElement.style.removeProperty("--wc-app-height");
     document.documentElement.style.removeProperty("--wc-kb-height");
+    document.documentElement.style.removeProperty("--wc-safe-top");
     document.documentElement.style.removeProperty("--wc-safe-bottom");
     Object.defineProperty(window, "innerHeight", {
       value: originalInnerHeight,
@@ -86,6 +87,7 @@ describe("useAppViewport", () => {
 
     expect(getCssVar("--wc-app-height")).toBe("800px");
     expect(getCssVar("--wc-kb-height")).toBe("0px");
+    expect(getCssVar("--wc-safe-top")).toBe("env(safe-area-inset-top)");
     expect(getCssVar("--wc-safe-bottom")).toBe("env(safe-area-inset-bottom)");
   });
 
@@ -235,12 +237,14 @@ describe("useAppViewport", () => {
 
     expect(getCssVar("--wc-app-height")).toBe("800px");
     expect(getCssVar("--wc-kb-height")).toBe("0px");
+    expect(getCssVar("--wc-safe-top")).toBe("env(safe-area-inset-top)");
     expect(getCssVar("--wc-safe-bottom")).toBe("env(safe-area-inset-bottom)");
 
     unmount();
 
     expect(getCssVar("--wc-app-height")).toBeUndefined();
     expect(getCssVar("--wc-kb-height")).toBeUndefined();
+    expect(getCssVar("--wc-safe-top")).toBeUndefined();
     expect(getCssVar("--wc-safe-bottom")).toBeUndefined();
     expect(mockVV.removeEventListener).toHaveBeenCalledWith("resize", expect.any(Function));
     expect(mockVV.removeEventListener).toHaveBeenCalledWith("scroll", expect.any(Function));

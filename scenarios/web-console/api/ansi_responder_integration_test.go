@@ -1,7 +1,6 @@
 package main
 
 import (
-	"web-console/session"
 	"bytes"
 	"fmt"
 	"os"
@@ -10,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"web-console/session"
 )
 
 // da1ProbeScript writes `\x1b[c` to stdout, waits up to 2 s for a reply on

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	aiH "web-console/handlers/ai"
 	"web-console/internal/config"
 	"web-console/internal/policy"
 )
@@ -44,13 +45,13 @@ func TestResolveShell_FallsBackToBinSh(t *testing.T) {
 	}
 }
 
-// --- extractCommand: fence stripping decision ---
+// --- aiH.ExtractCommand: fence stripping decision ---
 
 func TestExtractCommand_KnownFences(t *testing.T) {
-	for _, fence := range knownCodeFences {
+	for _, fence := range aiH.KnownCodeFences {
 		t.Run(fence, func(t *testing.T) {
 			input := fence + "\nls -la\n```"
-			got := extractCommand(input)
+			got := aiH.ExtractCommand(input)
 			if got != "ls -la" {
 				t.Errorf("fence %q: got %q, want %q", fence, got, "ls -la")
 			}
@@ -61,7 +62,7 @@ func TestExtractCommand_KnownFences(t *testing.T) {
 func TestExtractCommand_UnknownFencePreserved(t *testing.T) {
 	// A python fence should NOT be stripped — only shell fences are recognized
 	input := "```python\nprint('hello')\n```"
-	got := extractCommand(input)
+	got := aiH.ExtractCommand(input)
 	// After removing trailing ``` and taking first line, we get "```python"
 	// (since the leading ``` is stripped by the generic fence, but "python" remains
 	// as part of the line). Actually: TrimPrefix("```") will strip the leading

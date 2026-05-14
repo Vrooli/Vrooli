@@ -49,6 +49,21 @@ describe("MobileToolbar viewMode", () => {
     expect(screen.getByTestId("voice-mic-btn")).toBeInTheDocument();
   });
 
+  it("spreads messages-mode action buttons evenly across the row", () => {
+    render(<MobileToolbar {...baseProps} onOpenAi={vi.fn()} viewMode="messages" />);
+
+    const row = screen.getByTestId("messages-toolbar-actions");
+    const ai = screen.getByTestId("toolbar-ai");
+    const upload = screen.getByTestId("toolbar-upload-image");
+    const mic = screen.getByTestId("voice-mic-btn");
+
+    expect(row).toHaveClass("items-stretch");
+    expect(ai).toHaveClass("flex-1");
+    expect(upload).toHaveClass("flex-1");
+    expect(mic.parentElement).toHaveClass("flex-1");
+    expect(mic).toHaveClass("w-full");
+  });
+
   it("shows full toolbar in terminal mode (default)", () => {
     render(<MobileToolbar {...baseProps} />);
 

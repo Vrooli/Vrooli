@@ -1,45 +1,42 @@
-package main
+package metrics
 
 import (
 	"context"
 
-	metricsH "web-console/handlers/metrics"
+	intmetrics "web-console/internal/metrics"
 )
 
-// metricsAdapter bridges the in-process *Metrics counter struct to
-// handlers/metrics.Service so the Connect handler can be mounted from
-// main without crossing a package boundary the wrong way.
-type metricsAdapter struct {
-	srv *Server
+// Adapter is the production Service implementation: it bridges the
+// in-process *metrics.Metrics counter struct to the transport-neutral
+// Snapshot the Connect handler consumes. Constructed in api/main.go
+// (and by metrics_test.go) and passed to Module.
+type Adapter struct {
+	Metrics *intmetrics.Metrics
 }
 
-func newMetricsAdapter(s *Server) *metricsAdapter {
-	return &metricsAdapter{srv: s}
-}
-
-func (a *metricsAdapter) Snapshot(_ context.Context) metricsH.Snapshot {
-	r := a.srv.metrics.Snapshot()
-	return metricsH.Snapshot{
-		Sessions: metricsH.SessionMetrics{
+func (a *Adapter) Snapshot(_ context.Context) Snapshot {
+	r := a.Metrics.Snapshot()
+	return Snapshot{
+		Sessions: SessionMetrics{
 			Created: r.Sessions.Created,
 			Deleted: r.Sessions.Deleted,
 			Active:  r.Sessions.Active,
 			Resizes: r.Sessions.Resizes,
 		},
-		Connections: metricsH.ConnectionMetrics{
+		Connections: ConnectionMetrics{
 			Total:  r.Connections.Total,
 			Active: r.Connections.Active,
 		},
-		Messages: metricsH.MessageMetrics{
+		Messages: MessageMetrics{
 			Sent:     r.Messages.Sent,
 			Received: r.Messages.Received,
 		},
-		Reattach: metricsH.ReattachMetrics{
+		Reattach: ReattachMetrics{
 			Attempts:  r.Reattach.Attempts,
 			Successes: r.Reattach.Successes,
 			Failures:  r.Reattach.Failures,
 		},
-		Recovery: metricsH.RecoveryMetrics{
+		Recovery: RecoveryMetrics{
 			Recovered:       r.Recovery.Recovered,
 			OrphanedMeta:    r.Recovery.OrphanedMeta,
 			OrphanedTmux:    r.Recovery.OrphanedTmux,

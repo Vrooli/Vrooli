@@ -19,3 +19,9 @@ func formatTimeOrEmpty(t time.Time) string {
 	}
 	return t.UTC().Format(time.RFC3339)
 }
+
+// formatTime renders a time as UTC RFC3339Nano. Used by storage layers
+// that write CreatedAt / UpdatedAt columns.
+func formatTime(t time.Time) string {
+	return t.UTC().Format(time.RFC3339Nano)
+}

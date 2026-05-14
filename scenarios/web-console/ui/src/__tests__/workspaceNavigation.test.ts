@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ConversationEvent } from "../api/conversation";
-import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
+import { buildWorkspaceNavigationItems, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
 import type { PaneMetadata, TabGroupMeta } from "../stores/useWorkspaceStore";
 
@@ -93,5 +93,38 @@ describe("buildWorkspaceNavigationItems", () => {
       globalIndex: 1,
       activityLabel: "Visited 10m",
     });
+  });
+});
+
+describe("countWorkspaceUnreadMessages", () => {
+  it("aggregates assistant unread counts across message-capable panes", () => {
+    const panes = [
+      pane("one"),
+      pane("two"),
+      { ...pane("terminal-only"), supportsMessagesView: false },
+    ];
+
+    expect(countWorkspaceUnreadMessages(panes, {
+      one: {
+        events: [
+          event(1, "2026-05-13T12:00:00Z", "user"),
+          event(2, "2026-05-13T12:01:00Z"),
+          event(3, "2026-05-13T12:02:00Z"),
+        ],
+        cursor: { lastSeenSequence: 1, lastListenedSequence: 0 },
+      },
+      two: {
+        events: [
+          { ...event(4, "2026-05-13T12:03:00Z"), sessionId: "two" },
+        ],
+        cursor: { lastSeenSequence: 3, lastListenedSequence: 0 },
+      },
+      "terminal-only": {
+        events: [
+          { ...event(5, "2026-05-13T12:04:00Z"), sessionId: "terminal-only" },
+        ],
+        cursor: { lastSeenSequence: 0, lastListenedSequence: 0 },
+      },
+    })).toBe(3);
   });
 });

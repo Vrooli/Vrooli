@@ -15,6 +15,7 @@ import (
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
+	intworkspace "web-console/internal/workspace"
 )
 
 // fakeAIProvider is a test double for AIProvider.
@@ -31,7 +32,7 @@ func (f *fakeAIProvider) Generate(_ context.Context, _, _ string) (string, error
 	return f.result, f.err
 }
 
-// [REQ:P0-005a] AI Command Generation API - extractCommand tests
+// [REQ:P0-005a] AI Command Generation API - aiH.ExtractCommand tests
 func TestExtractCommand(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -49,9 +50,9 @@ func TestExtractCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractCommand(tt.input)
+			got := aiH.ExtractCommand(tt.input)
 			if got != tt.want {
-				t.Errorf("extractCommand(%q) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("aiH.ExtractCommand(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
@@ -135,7 +136,7 @@ func newTestServerWithAI(providers ...AIProvider) *Server {
 		aiChain:   NewAIProviderChain(providers...),
 		shortcuts: NewShortcutProfileStore(),
 		aiConfig:  NewAIProviderConfigStore(),
-		workspace: NewMemWorkspaceStore(),
+		workspace: intworkspace.NewMemStore(),
 	}
 }
 
@@ -151,7 +152,7 @@ type aiConnectIface interface {
 }
 
 func newAIConnectHandlerForServer(srv *Server) aiConnectIface {
-	return aiH.NewConnectHandler(aiH.Deps{Service: newAIAdapter(srv)})
+	return aiH.NewConnectHandler(aiH.Deps{Service: &aiH.Adapter{Backend: newAIServiceShim(srv)}})
 }
 
 // [REQ:P0-005a] - handler returns generated command
@@ -256,7 +257,7 @@ func (c *contextCapturingProvider) Generate(_ context.Context, systemPrompt, use
 	return c.result, nil
 }
 
-// TestConnect_AIGenerate_ExtractsCommand verifies the adapter applies extractCommand
+// TestConnect_AIGenerate_ExtractsCommand verifies the adapter applies aiH.ExtractCommand
 // to raw AI output (strips code fences).
 func TestConnect_AIGenerate_ExtractsCommand(t *testing.T) {
 	provider := &fakeAIProvider{name: "ollama", result: "```bash\nls -la\n```"}
@@ -293,7 +294,7 @@ func TestExecuteAI_PassesSystemPrompt(t *testing.T) {
 	}
 }
 
-// TestExecuteAI_ReturnsRawOutput verifies no extractCommand is applied.
+// TestExecuteAI_ReturnsRawOutput verifies no aiH.ExtractCommand is applied.
 func TestExecuteAI_ReturnsRawOutput(t *testing.T) {
 	raw := "```bash\nls -la\n```"
 	provider := &fakeAIProvider{name: "ollama", result: raw}

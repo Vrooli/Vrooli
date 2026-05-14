@@ -12,13 +12,14 @@ package main
 // (screaming architecture) and §8.2 (input kind/reason wire contract).
 
 import (
-	"web-console/session"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"sync"
+
 	"web-console/internal/events"
+	"web-console/session"
 
 	"github.com/gorilla/websocket"
 )

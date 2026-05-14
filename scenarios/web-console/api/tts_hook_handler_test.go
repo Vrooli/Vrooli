@@ -14,6 +14,7 @@ import (
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
 	"web-console/internal/sessionstore"
+	intworkspace "web-console/internal/workspace"
 )
 
 func newHookTestServer(token string) *Server {
@@ -25,7 +26,7 @@ func newHookTestServer(token string) *Server {
 		fanouts:       fanouts,
 		events:        events.NewLogger(100),
 		metrics:       metrics.New(),
-		workspace:     NewMemWorkspaceStore(),
+		workspace:     intworkspace.NewMemStore(),
 		hookAuthToken: token,
 		ttsConfig:     TTSConfig{AutoEnabled: true, Backend: "auto", KokoroVoice: "af_heart", KokoroSpeed: 1.0},
 	}

@@ -24,8 +24,8 @@ import (
 // Deps is the seam: caller supplies the two handler functions and the
 // Module wires them onto the canonical paths.
 type Deps struct {
-	Stop          http.HandlerFunc
-	PromptSubmit  http.HandlerFunc
+	Stop         http.HandlerFunc
+	PromptSubmit http.HandlerFunc
 }
 
 // Module wires both hook handlers into the API router.

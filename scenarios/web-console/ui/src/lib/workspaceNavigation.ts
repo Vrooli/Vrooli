@@ -34,6 +34,18 @@ export interface BuildWorkspaceNavigationItemsOptions {
   now?: Date;
 }
 
+function countUnreadMessages(pane: PaneMetadata, session: ConversationSessionSnapshot | undefined): number {
+  if (!pane.supportsMessagesView || !session) return 0;
+  return session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
+}
+
+export function countWorkspaceUnreadMessages(
+  panes: PaneMetadata[],
+  conversationSessions: Record<string, ConversationSessionSnapshot | undefined>,
+): number {
+  return panes.reduce((sum, pane) => sum + countUnreadMessages(pane, conversationSessions[pane.sessionId]), 0);
+}
+
 function latestEvent(events: ConversationEvent[]): ConversationEvent | null {
   return events.reduce<ConversationEvent | null>((latest, event) => {
     if (!latest) return event;
@@ -85,9 +97,7 @@ export function buildWorkspaceNavigationItems({
         : `Visited ${formatRelativeTime(activityAt, now)}`
       : "";
 
-    const unreadCount = pane.supportsMessagesView && session
-      ? session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length
-      : 0;
+    const unreadCount = countUnreadMessages(pane, session);
 
     items.push({
       kind: "pane",

@@ -15,6 +15,7 @@ export default {
         wc: {
           "surface-base": "rgb(var(--wc-surface-base) / <alpha-value>)",
           "surface-raised": "rgb(var(--wc-surface-raised) / <alpha-value>)",
+          "surface-header": "rgb(var(--wc-surface-header) / <alpha-value>)",
           "surface-input": "rgb(var(--wc-surface-input) / <alpha-value>)",
           "text-primary": "rgb(var(--wc-text-primary) / <alpha-value>)",
           "text-secondary": "rgb(var(--wc-text-secondary) / <alpha-value>)",

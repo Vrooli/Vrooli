@@ -52,7 +52,7 @@ import { useConversationStore, type PaneViewMode } from "../stores/useConversati
 import type { TTSPlaybackState } from "../hooks/tts/types";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
-import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
+import { buildWorkspaceNavigationItems, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
 import { useTabLikeNavigationShortcuts } from "../hooks/useTabLikeNavigationShortcuts";
 
 type ActiveResize = {
@@ -1068,6 +1068,7 @@ export default function Workspace() {
     (item) => item.kind === "pane" && item.pane.sessionId === workspace.activePane,
   );
   const activeSidebarPane = activeNavigationItem?.kind === "pane" ? activeNavigationItem : null;
+  const sidebarUnreadCount = countWorkspaceUnreadMessages(orderedPanes, conversationSessions);
 
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
@@ -1176,17 +1177,25 @@ export default function Workspace() {
       {workspace.displayMode === "sidebar" && (
         <div
           data-testid="workspace-sidebar-topbar"
-          className="flex h-10 shrink-0 items-center gap-2 border-b border-wc-default bg-wc-surface-header px-2 md:hidden"
+          className="flex h-[calc(2.5rem+var(--wc-safe-top,0px))] shrink-0 items-center gap-2 border-b border-wc-default bg-wc-surface-header px-2 pt-[var(--wc-safe-top,0px)] md:hidden"
         >
           <Button
             data-testid="workspace-sidebar-toggle"
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="relative h-8 w-8"
             onClick={() => setMobileSidebarOpen(true)}
             title={t(strings.sessionSidebar.open)}
           >
             <Menu className="h-4 w-4" />
+            {sidebarUnreadCount > 0 && (
+              <span
+                data-testid="workspace-sidebar-toggle-unread"
+                className="absolute -end-1 -top-1 min-w-4 rounded-full bg-wc-accent px-1 text-[10px] font-semibold leading-4 text-black"
+              >
+                {sidebarUnreadCount > 99 ? "99+" : sidebarUnreadCount}
+              </span>
+            )}
           </Button>
           <div data-testid="workspace-sidebar-active-title" className="min-w-0 flex-1 truncate text-sm font-medium">
             {activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}

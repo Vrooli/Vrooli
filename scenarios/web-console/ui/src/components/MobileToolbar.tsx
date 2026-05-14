@@ -578,7 +578,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       {viewMode === "messages" ? (
         /* ── Messages mode: AI + image upload + voice mic ── */
         <div
-          className="flex items-center justify-end gap-0.5 px-1 py-1 touch-manipulation select-none"
+          data-testid="messages-toolbar-actions"
+          className="flex items-stretch gap-0.5 px-1 py-1 touch-manipulation select-none"
           onMouseDown={(e) => e.preventDefault()}
         >
           {onOpenAi && (
@@ -588,7 +589,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               onPointerDown={(e) => e.preventDefault()}
               onClick={onOpenAi}
               className={cn(
-                "shrink-0 rounded border p-1.5 transition active:bg-wc-accent-active touch-manipulation",
+                "flex min-w-0 flex-1 items-center justify-center rounded border p-1.5 transition active:bg-wc-accent-active touch-manipulation",
                 aiSuggestActive
                   ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
                   : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
@@ -604,7 +605,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               tabIndex={-1}
               onPointerDown={(e) => e.preventDefault()}
               onClick={onUploadImage}
-              className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+              className="flex min-w-0 flex-1 items-center justify-center rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
               title={t(strings.mobileToolbar.uploadImageTitle)}
             >
               <Image className="h-3.5 w-3.5" />
@@ -626,6 +627,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               onStop={onVoiceStop}
               onCancel={onVoiceCancel}
               onTtsStop={onTtsStop}
+              className="flex min-w-0 flex-1"
+              buttonClassName="flex w-full items-center justify-center"
             />
           )}
         </div>

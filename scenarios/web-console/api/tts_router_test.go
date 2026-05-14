@@ -9,6 +9,7 @@ import (
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
+	intworkspace "web-console/internal/workspace"
 )
 
 func newTTSTestServer() *Server {
@@ -20,7 +21,7 @@ func newTTSTestServer() *Server {
 		fanouts:         fanouts,
 		events:          events.NewLogger(100),
 		metrics:         metrics.New(),
-		workspace:       NewMemWorkspaceStore(),
+		workspace:       intworkspace.NewMemStore(),
 		conversations:   NewConversationStore(),
 		lastTTSBySource: make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc: make(map[string]ttsAckSnapshot),

@@ -33,10 +33,10 @@ type Service interface {
 // Snapshot is the transport-neutral capabilities view. BackendOptions
 // and DefaultBackend are zero-valued for liveness probes.
 type Snapshot struct {
-	Capabilities    []CapabilityState
-	Timestamp       string
-	BackendOptions  []BackendOption
-	DefaultBackend  string
+	Capabilities   []CapabilityState
+	Timestamp      string
+	BackendOptions []BackendOption
+	DefaultBackend string
 }
 
 // CapabilityState mirrors the proto CapabilityState message.

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"web-console/session"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,7 +9,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
+
+	"web-console/session"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -20,6 +20,8 @@ import (
 	"web-console/internal/metrics"
 	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
+	intsessions "web-console/internal/sessions"
+	intworkspace "web-console/internal/workspace"
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 )
@@ -37,8 +39,8 @@ func newTestServer() *Server {
 		aiChain:     NewAIProviderChain(),
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
-		idempotency: newIdempotencyCache(),
-		workspace:   NewMemWorkspaceStore(),
+		idempotency: intsessions.NewIdempotencyCache(),
+		workspace:   intworkspace.NewMemStore(),
 	}
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
@@ -59,8 +61,8 @@ func newFakeTestServer() *Server {
 		aiChain:     NewAIProviderChain(),
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
-		idempotency: newIdempotencyCache(),
-		workspace:   NewMemWorkspaceStore(),
+		idempotency: intsessions.NewIdempotencyCache(),
+		workspace:   intworkspace.NewMemStore(),
 	}
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
@@ -112,7 +114,7 @@ func TestHandleCreateSession_PTYSpawnFailed(t *testing.T) {
 		sessions:    newSessionManagerWithFactory(failingFactory),
 		events:      events.NewLogger(10),
 		metrics:     metrics.New(),
-		idempotency: newIdempotencyCache(),
+		idempotency: intsessions.NewIdempotencyCache(),
 	}
 
 	_, err := callCreate(t, srv, 0, 0, "")
@@ -481,65 +483,6 @@ func TestCreateSession_NoIdempotencyKey_CreatesTwoSessions(t *testing.T) {
 	}
 	for _, s := range sessions {
 		_ = srv.sessions.Delete(s.ID)
-	}
-}
-
-// [REQ:P0-003b] Idempotency cache: expired entries are cleaned up on Get
-func TestIdempotencyCache_TTLExpiry(t *testing.T) {
-	c := &idempotencyCache{
-		entries: make(map[string]idempotencyEntry),
-		ttl:     10 * time.Millisecond,
-	}
-
-	resp := SessionResponse{ID: "s1"}
-	c.Set("key1", resp)
-
-	got, ok := c.Get("key1")
-	if !ok || got.ID != "s1" {
-		t.Fatal("entry should be retrievable immediately after set")
-	}
-
-	time.Sleep(15 * time.Millisecond)
-
-	_, ok = c.Get("key1")
-	if ok {
-		t.Error("expired entry should not be returned by Get")
-	}
-
-	c.mu.Lock()
-	_, stillThere := c.entries["key1"]
-	c.mu.Unlock()
-	if stillThere {
-		t.Error("expired entry should be removed from cache map after Get")
-	}
-}
-
-// [REQ:P0-003b] Idempotency cache: eviction scan triggered when >100 entries
-func TestIdempotencyCache_EvictionScan(t *testing.T) {
-	c := &idempotencyCache{
-		entries: make(map[string]idempotencyEntry),
-		ttl:     time.Hour,
-	}
-
-	for i := 0; i < 100; i++ {
-		c.entries[fmt.Sprintf("expired-%d", i)] = idempotencyEntry{
-			expiresAt: time.Now().Add(-time.Minute),
-		}
-	}
-
-	c.Set("fresh-key", SessionResponse{ID: "fresh"})
-
-	c.mu.Lock()
-	count := len(c.entries)
-	c.mu.Unlock()
-
-	if count != 1 {
-		t.Errorf("expected 1 entry after eviction (fresh-key), got %d", count)
-	}
-
-	got, ok := c.Get("fresh-key")
-	if !ok || got.ID != "fresh" {
-		t.Error("fresh entry should survive eviction scan")
 	}
 }
 

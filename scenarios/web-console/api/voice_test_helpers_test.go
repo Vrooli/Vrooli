@@ -34,7 +34,7 @@ type voiceConnectIface interface {
 }
 
 func newVoiceConnectHandlerForServer(srv *Server) voiceConnectIface {
-	return voiceH.NewConnectHandler(voiceH.Deps{Service: newVoiceAdapter(srv)})
+	return voiceH.NewConnectHandler(voiceH.Deps{Service: &voiceH.Adapter{Backend: newVoiceServiceShim(srv)}})
 }
 
 func callVoiceTranscribe(t *testing.T, srv *Server, req *voicev1.TranscribeRequest) (string, error) {

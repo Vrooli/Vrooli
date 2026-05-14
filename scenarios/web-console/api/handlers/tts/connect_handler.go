@@ -36,11 +36,11 @@ func NewConnectHandler(d Deps) *connectHandler {
 // "tts_voice_list_failed", "tts_cache_missing_id", and "invalid_body".
 // Those collapse to a small set of Connect codes:
 var (
-	ErrNotFound          = errors.New("not found")
-	ErrInvalidArgument   = errors.New("invalid argument")
+	ErrNotFound           = errors.New("not found")
+	ErrInvalidArgument    = errors.New("invalid argument")
 	ErrFailedPrecondition = errors.New("failed precondition")
-	ErrUnavailable       = errors.New("tts unavailable")
-	ErrInternal          = errors.New("internal error")
+	ErrUnavailable        = errors.New("tts unavailable")
+	ErrInternal           = errors.New("internal error")
 )
 
 func (h *connectHandler) GetConfig(ctx context.Context, _ *connect.Request[ttsv1.GetConfigRequest]) (*connect.Response[ttsv1.GetConfigResponse], error) {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"web-console/session"
 	"context"
 	"net/url"
 	"os"
@@ -9,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"web-console/session"
 
 	"web-console/internal/config"
 )

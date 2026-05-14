@@ -1,12 +1,13 @@
 package main
 
 import (
-	"web-console/session"
 	"context"
 	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	"web-console/session"
 
 	"web-console/internal/events"
 

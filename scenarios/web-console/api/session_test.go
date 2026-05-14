@@ -292,4 +292,3 @@ func TestSubscribe_SnapshotIsSelfContained(t *testing.T) {
 		t.Fatalf("snapshot must start with alt-exit + full reset; got %q", sub.Snapshot[:16])
 	}
 }
-

@@ -24,6 +24,8 @@ import { useEffect } from "react";
  * |                     | or `0px` when keyboard is open     | rounded corners / home indicators.         |
  * |                     |                                    | Automatically set to `0px` when the        |
  * |                     |                                    | keyboard is open (it covers the bottom).   |
+ * | `--wc-safe-top`     | `env(safe-area-inset-top)`         | Top safe-area inset for devices with       |
+ * |                     |                                    | notches / dynamic islands.                 |
  *
  * ## Why NOT `100vh` or `h-screen`?
  *
@@ -108,6 +110,7 @@ export function useAppViewport(): void {
       const root = document.documentElement.style;
       root.setProperty("--wc-kb-height", `${kbHeight}px`);
       root.setProperty("--wc-app-height", `${vv.height}px`);
+      root.setProperty("--wc-safe-top", "env(safe-area-inset-top)");
       // When the keyboard is open it covers the bottom edge, so the safe-area
       // inset is irrelevant. When closed, use the real device inset.
       root.setProperty("--wc-safe-bottom", kbHeight > 0 ? "0px" : "env(safe-area-inset-bottom)");
@@ -159,6 +162,7 @@ export function useAppViewport(): void {
       for (const t of pollTimers) clearTimeout(t);
       document.documentElement.style.removeProperty("--wc-kb-height");
       document.documentElement.style.removeProperty("--wc-app-height");
+      document.documentElement.style.removeProperty("--wc-safe-top");
       document.documentElement.style.removeProperty("--wc-safe-bottom");
     };
   }, []);

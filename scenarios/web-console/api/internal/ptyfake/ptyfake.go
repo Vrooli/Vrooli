@@ -16,16 +16,16 @@ import (
 // FakePTY is a pipe-based PTY substitute. Use FakePTYWithOutput when you need
 // to simulate PTY stdout from tests.
 type FakePTY struct {
-	StdoutReader *io.PipeReader
-	StdinWriter  *io.PipeWriter
-	Mu           sync.Mutex
-	Cols         uint16
-	Rows         uint16
+	StdoutReader  *io.PipeReader
+	StdinWriter   *io.PipeWriter
+	Mu            sync.Mutex
+	Cols          uint16
+	Rows          uint16
 	CurrentDirVal string
-	Killed       bool
-	Closed       bool
-	ExitCodeVal  int
-	SetSizeCalls int
+	Killed        bool
+	Closed        bool
+	ExitCodeVal   int
+	SetSizeCalls  int
 }
 
 func (f *FakePTY) Read(p []byte) (int, error) { return f.StdoutReader.Read(p) }

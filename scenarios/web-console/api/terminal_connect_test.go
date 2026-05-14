@@ -19,7 +19,7 @@ import (
 func newTerminalConnectHandler(srv *Server) *terminalConnectHandlerHelper {
 	return &terminalConnectHandlerHelper{
 		Handler: terminalH.NewConnectHandler(terminalH.Deps{
-			Service: newTerminalAdapter(srv),
+			Service: &terminalH.Adapter{Manager: srv.sessions},
 		}),
 	}
 }

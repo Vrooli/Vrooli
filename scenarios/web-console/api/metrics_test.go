@@ -111,7 +111,7 @@ func TestMetricsService_Get(t *testing.T) {
 	srv.metrics.ActiveSessions.Add(1)
 	srv.metrics.ConnectionsTotal.Add(3)
 
-	h := metricsH.NewConnectHandler(metricsH.Deps{Service: newMetricsAdapter(srv)})
+	h := metricsH.NewConnectHandler(metricsH.Deps{Service: &metricsH.Adapter{Metrics: srv.metrics}})
 	resp, err := h.Get(context.Background(), connect.NewRequest(&metricsv1.GetRequest{}))
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)

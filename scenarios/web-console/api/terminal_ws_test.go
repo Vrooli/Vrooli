@@ -15,6 +15,8 @@ import (
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
+	intsessions "web-console/internal/sessions"
+	intworkspace "web-console/internal/workspace"
 )
 
 // wsURL converts an httptest.Server URL to a WebSocket URL.
@@ -73,7 +75,7 @@ func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 		aiChain:   NewAIProviderChain(),
 		shortcuts: NewShortcutProfileStore(),
 		aiConfig:  NewAIProviderConfigStore(),
-		workspace: NewMemWorkspaceStore(),
+		workspace: intworkspace.NewMemStore(),
 	}
 	deadSess, _ := sm.Create("/fake/shell", 80, 24, "", nil)
 	sessID := deadSess.ID
@@ -485,8 +487,8 @@ func setupWSServerWithPTY(t *testing.T) (*httptest.Server, string, *ptyfake.Fake
 		aiChain:     NewAIProviderChain(),
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
-		idempotency: newIdempotencyCache(),
-		workspace:   NewMemWorkspaceStore(),
+		idempotency: intsessions.NewIdempotencyCache(),
+		workspace:   intworkspace.NewMemStore(),
 	}
 	srv.setupRoutes()
 	ts := httptest.NewServer(srv.router)

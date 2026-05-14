@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 	"time"
+
+	intworkspace "web-console/internal/workspace"
 )
 
 // [REQ:P1-002a] Shortcut Profile Storage — interface compliance
@@ -10,12 +12,12 @@ import (
 
 // Compile-time interface compliance checks
 var (
-	_ ShortcutStore  = (*ShortcutProfileStore)(nil)
-	_ ShortcutStore  = (*SQLShortcutStore)(nil)
-	_ AIConfigStore  = (*AIProviderConfigStore)(nil)
-	_ AIConfigStore  = (*SQLAIConfigStore)(nil)
-	_ WorkspaceStore = (*MemWorkspaceStore)(nil)
-	_ WorkspaceStore = (*SQLWorkspaceStore)(nil)
+	_ ShortcutStore      = (*ShortcutProfileStore)(nil)
+	_ ShortcutStore      = (*SQLShortcutStore)(nil)
+	_ AIConfigStore      = (*AIProviderConfigStore)(nil)
+	_ AIConfigStore      = (*SQLAIConfigStore)(nil)
+	_ intworkspace.Store = (*intworkspace.MemStore)(nil)
+	_ intworkspace.Store = (*intworkspace.SQLStore)(nil)
 )
 
 // TestShortcutStoreInterface verifies both implementations satisfy the

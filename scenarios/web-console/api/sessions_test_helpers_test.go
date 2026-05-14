@@ -28,7 +28,16 @@ type sessionsConnectIface interface {
 }
 
 func newSessionsConnectHandlerForServer(srv *Server) sessionsConnectIface {
-	return sessionsH.NewConnectHandler(sessionsH.Deps{Service: newSessionsAdapter(srv)})
+	return sessionsH.NewConnectHandler(sessionsH.Deps{Service: &sessionsH.Adapter{
+		Manager:          srv.sessions,
+		Store:            srv.sessionStore,
+		Idempotency:      srv.idempotency,
+		Events:           srv.events,
+		Metrics:          srv.metrics,
+		Conversations:    srv.conversations,
+		CodexCheckpoints: srv.codexCheckpointStore,
+		CopyCodexHome:    copyCodexHome,
+	}})
 }
 
 // callCreate is a small wrapper that builds a CreateRequest from common

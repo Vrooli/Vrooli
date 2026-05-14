@@ -1,7 +1,6 @@
-package main
+package workspace
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -9,30 +8,29 @@ import (
 	"github.com/google/uuid"
 )
 
-// MemWorkspaceStore is an in-memory WorkspaceStore for unit tests.
-type MemWorkspaceStore struct {
+// MemStore is an in-memory Store implementation for unit tests.
+type MemStore struct {
 	mu     sync.RWMutex
-	panes  map[string]*WorkspacePane // keyed by session_id
-	groups map[string]*TabGroup      // keyed by group id
+	panes  map[string]*Pane
+	groups map[string]*Group
 }
 
-// NewMemWorkspaceStore creates an empty in-memory workspace store.
-func NewMemWorkspaceStore() *MemWorkspaceStore {
-	return &MemWorkspaceStore{
-		panes:  make(map[string]*WorkspacePane),
-		groups: make(map[string]*TabGroup),
+// NewMemStore returns an empty in-memory store.
+func NewMemStore() *MemStore {
+	return &MemStore{
+		panes:  make(map[string]*Pane),
+		groups: make(map[string]*Group),
 	}
 }
 
-func (m *MemWorkspaceStore) GetLayout() (*WorkspaceLayout, error) {
+func (m *MemStore) GetLayout() (Layout, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	panes := make([]*WorkspacePane, 0, len(m.panes))
+	panes := make([]Pane, 0, len(m.panes))
 	var activePaneID string
 	for _, p := range m.panes {
-		cp := *p
-		panes = append(panes, &cp)
+		panes = append(panes, *p)
 		if p.IsActive {
 			activePaneID = p.SessionID
 		}
@@ -41,46 +39,45 @@ func (m *MemWorkspaceStore) GetLayout() (*WorkspaceLayout, error) {
 		return panes[i].SortOrder < panes[j].SortOrder
 	})
 
-	groups := make([]*TabGroup, 0, len(m.groups))
+	groups := make([]Group, 0, len(m.groups))
 	for _, g := range m.groups {
-		cp := *g
-		groups = append(groups, &cp)
+		groups = append(groups, *g)
 	}
 	sort.Slice(groups, func(i, j int) bool {
 		return groups[i].SortOrder < groups[j].SortOrder
 	})
 
-	return &WorkspaceLayout{
+	return Layout{
 		ActivePane: activePaneID,
 		Panes:      panes,
 		Groups:     groups,
 	}, nil
 }
 
-func (m *MemWorkspaceStore) SavePaneOrder(activePaneID string, paneOrder []string) error {
+func (m *MemStore) SavePaneOrder(activePaneID string, paneOrder []string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	for _, p := range m.panes {
 		p.IsActive = false
 	}
+	now := FormatTime(time.Now())
 	for i, sid := range paneOrder {
 		if p, ok := m.panes[sid]; ok {
 			p.SortOrder = i
 			p.IsActive = sid == activePaneID
-			p.UpdatedAt = formatTime(time.Now())
+			p.UpdatedAt = now
 		}
 	}
 	return nil
 }
 
-func (m *MemWorkspaceStore) UpsertPane(pane *WorkspacePane) error {
+func (m *MemStore) UpsertPane(pane Pane) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	now := formatTime(time.Now())
+	now := FormatTime(time.Now())
 	if existing, ok := m.panes[pane.SessionID]; ok {
-		// Update mutable fields
 		existing.Name = pane.Name
 		existing.HeaderColor = pane.HeaderColor
 		existing.ThemeID = pane.ThemeID
@@ -89,42 +86,42 @@ func (m *MemWorkspaceStore) UpsertPane(pane *WorkspacePane) error {
 		existing.SortOrder = pane.SortOrder
 		existing.SupportsMessagesView = pane.SupportsMessagesView
 		existing.UpdatedAt = now
-	} else {
-		cp := *pane
-		if cp.CreatedAt == "" {
-			cp.CreatedAt = now
-		}
-		cp.UpdatedAt = now
-		if cp.Name == "" {
-			cp.Name = defaultPaneName
-		}
-		if cp.HeaderColor == "" {
-			cp.HeaderColor = defaultPaneHeaderColor
-		}
-		if cp.ThemeID == "" {
-			cp.ThemeID = defaultPaneThemeID
-		}
-		if cp.FontSize == 0 {
-			cp.FontSize = defaultPaneFontSize
-		}
-		m.panes[cp.SessionID] = &cp
+		return nil
 	}
+
+	cp := pane
+	if cp.CreatedAt == "" {
+		cp.CreatedAt = now
+	}
+	cp.UpdatedAt = now
+	if cp.Name == "" {
+		cp.Name = DefaultPaneName
+	}
+	if cp.HeaderColor == "" {
+		cp.HeaderColor = DefaultPaneHeaderColor
+	}
+	if cp.ThemeID == "" {
+		cp.ThemeID = DefaultPaneThemeID
+	}
+	if cp.FontSize == 0 {
+		cp.FontSize = DefaultPaneFontSize
+	}
+	m.panes[cp.SessionID] = &cp
 	return nil
 }
 
-func (m *MemWorkspaceStore) DeletePane(sessionID string) error {
+func (m *MemStore) DeletePane(sessionID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.panes, sessionID)
 	return nil
 }
 
-func (m *MemWorkspaceStore) CreateGroup(name, color string) (*TabGroup, error) {
+func (m *MemStore) CreateGroup(name, color string) (Group, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	now := formatTime(time.Now())
-	// Determine next sort_order
+	now := FormatTime(time.Now())
 	maxOrder := -1
 	for _, g := range m.groups {
 		if g.SortOrder > maxOrder {
@@ -132,7 +129,7 @@ func (m *MemWorkspaceStore) CreateGroup(name, color string) (*TabGroup, error) {
 		}
 	}
 
-	g := &TabGroup{
+	g := Group{
 		ID:        uuid.New().String(),
 		Name:      name,
 		Color:     color,
@@ -146,19 +143,18 @@ func (m *MemWorkspaceStore) CreateGroup(name, color string) (*TabGroup, error) {
 	if g.Color == "" {
 		g.Color = "#3b82f6"
 	}
-	m.groups[g.ID] = g
-
-	cp := *g
-	return &cp, nil
+	stored := g
+	m.groups[g.ID] = &stored
+	return g, nil
 }
 
-func (m *MemWorkspaceStore) UpdateGroup(id string, name *string, color *string, collapsed *bool) (*TabGroup, error) {
+func (m *MemStore) UpdateGroup(id string, name *string, color *string, collapsed *bool) (Group, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	g, ok := m.groups[id]
 	if !ok {
-		return nil, fmt.Errorf("group not found")
+		return Group{}, ErrGroupNotFound
 	}
 
 	if name != nil {
@@ -170,13 +166,12 @@ func (m *MemWorkspaceStore) UpdateGroup(id string, name *string, color *string, 
 	if collapsed != nil {
 		g.IsCollapsed = *collapsed
 	}
-	g.UpdatedAt = formatTime(time.Now())
+	g.UpdatedAt = FormatTime(time.Now())
 
-	cp := *g
-	return &cp, nil
+	return *g, nil
 }
 
-func (m *MemWorkspaceStore) DeleteGroup(id string) (bool, error) {
+func (m *MemStore) DeleteGroup(id string) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -185,11 +180,11 @@ func (m *MemWorkspaceStore) DeleteGroup(id string) (bool, error) {
 	}
 	delete(m.groups, id)
 
-	// Clear group_id on panes that referenced this group
+	now := FormatTime(time.Now())
 	for _, p := range m.panes {
 		if p.GroupID == id {
 			p.GroupID = ""
-			p.UpdatedAt = formatTime(time.Now())
+			p.UpdatedAt = now
 		}
 	}
 	return true, nil

@@ -1,10 +1,14 @@
 package main
 
-import "testing"
+import (
+	"testing"
 
-func TestSQLWorkspaceStore_GetLayout_Empty(t *testing.T) {
+	"web-console/internal/workspace"
+)
+
+func TestSQLStore_GetLayout_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLWorkspaceStore(db)
+	store := workspace.NewSQLStore(db)
 
 	layout, err := store.GetLayout()
 	if err != nil {
@@ -21,11 +25,11 @@ func TestSQLWorkspaceStore_GetLayout_Empty(t *testing.T) {
 	}
 }
 
-func TestSQLWorkspaceStore_UpsertAndGet(t *testing.T) {
+func TestSQLStore_UpsertAndGet(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLWorkspaceStore(db)
+	store := workspace.NewSQLStore(db)
 
-	pane := &WorkspacePane{
+	pane := workspace.Pane{
 		SessionID:   "sess-1",
 		Name:        "my-terminal",
 		HeaderColor: "#ff0000",
@@ -63,35 +67,33 @@ func TestSQLWorkspaceStore_UpsertAndGet(t *testing.T) {
 	}
 }
 
-func TestSQLWorkspaceStore_UpsertDefaults(t *testing.T) {
+func TestSQLStore_UpsertDefaults(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLWorkspaceStore(db)
+	store := workspace.NewSQLStore(db)
 
-	// Upsert with zero-value fields should get defaults
-	if err := store.UpsertPane(&WorkspacePane{SessionID: "sess-2"}); err != nil {
+	if err := store.UpsertPane(workspace.Pane{SessionID: "sess-2"}); err != nil {
 		t.Fatalf("UpsertPane: %v", err)
 	}
 
 	layout, _ := store.GetLayout()
 	p := layout.Panes[0]
-	if p.Name != defaultPaneName {
-		t.Errorf("expected default name %q, got %q", defaultPaneName, p.Name)
+	if p.Name != workspace.DefaultPaneName {
+		t.Errorf("expected default name %q, got %q", workspace.DefaultPaneName, p.Name)
 	}
-	if p.FontSize != defaultPaneFontSize {
-		t.Errorf("expected default font size %d, got %d", defaultPaneFontSize, p.FontSize)
+	if p.FontSize != workspace.DefaultPaneFontSize {
+		t.Errorf("expected default font size %d, got %d", workspace.DefaultPaneFontSize, p.FontSize)
 	}
 }
 
-func TestSQLWorkspaceStore_UpsertIdempotent(t *testing.T) {
+func TestSQLStore_UpsertIdempotent(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLWorkspaceStore(db)
+	store := workspace.NewSQLStore(db)
 
-	pane := &WorkspacePane{SessionID: "sess-3", Name: "first"}
+	pane := workspace.Pane{SessionID: "sess-3", Name: "first"}
 	if err := store.UpsertPane(pane); err != nil {
 		t.Fatalf("first upsert: %v", err)
 	}
 
-	// Update same pane
 	pane.Name = "updated"
 	if err := store.UpsertPane(pane); err != nil {
 		t.Fatalf("second upsert: %v", err)
@@ -106,11 +108,11 @@ func TestSQLWorkspaceStore_UpsertIdempotent(t *testing.T) {
 	}
 }
 
-func TestSQLWorkspaceStore_DeletePane(t *testing.T) {
+func TestSQLStore_DeletePane(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLWorkspaceStore(db)
+	store := workspace.NewSQLStore(db)
 
-	if err := store.UpsertPane(&WorkspacePane{SessionID: "sess-4"}); err != nil {
+	if err := store.UpsertPane(workspace.Pane{SessionID: "sess-4"}); err != nil {
 		t.Fatalf("UpsertPane: %v", err)
 	}
 	if err := store.DeletePane("sess-4"); err != nil {
@@ -122,23 +124,21 @@ func TestSQLWorkspaceStore_DeletePane(t *testing.T) {
 		t.Errorf("expected 0 panes after delete, got %d", len(layout.Panes))
 	}
 
-	// Delete non-existent is idempotent
 	if err := store.DeletePane("nonexistent"); err != nil {
 		t.Errorf("delete nonexistent should not error: %v", err)
 	}
 }
 
-func TestSQLWorkspaceStore_SavePaneOrder(t *testing.T) {
+func TestSQLStore_SavePaneOrder(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLWorkspaceStore(db)
+	store := workspace.NewSQLStore(db)
 
 	for _, sid := range []string{"a", "b", "c"} {
-		if err := store.UpsertPane(&WorkspacePane{SessionID: sid, SortOrder: 0}); err != nil {
+		if err := store.UpsertPane(workspace.Pane{SessionID: sid, SortOrder: 0}); err != nil {
 			t.Fatalf("UpsertPane %s: %v", sid, err)
 		}
 	}
 
-	// Reverse order, make "c" active
 	if err := store.SavePaneOrder("c", []string{"c", "b", "a"}); err != nil {
 		t.Fatalf("SavePaneOrder: %v", err)
 	}
@@ -150,7 +150,6 @@ func TestSQLWorkspaceStore_SavePaneOrder(t *testing.T) {
 	if len(layout.Panes) != 3 {
 		t.Fatalf("expected 3 panes, got %d", len(layout.Panes))
 	}
-	// Panes sorted by sort_order: c=0, b=1, a=2
 	if layout.Panes[0].SessionID != "c" {
 		t.Errorf("first pane: got %q, want %q", layout.Panes[0].SessionID, "c")
 	}
@@ -159,11 +158,10 @@ func TestSQLWorkspaceStore_SavePaneOrder(t *testing.T) {
 	}
 }
 
-func TestSQLWorkspaceStore_TabGroups(t *testing.T) {
+func TestSQLStore_TabGroups(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLWorkspaceStore(db)
+	store := workspace.NewSQLStore(db)
 
-	// Create group
 	g, err := store.CreateGroup("Dev", "#00ff00")
 	if err != nil {
 		t.Fatalf("CreateGroup: %v", err)
@@ -178,7 +176,6 @@ func TestSQLWorkspaceStore_TabGroups(t *testing.T) {
 		t.Error("expected non-empty ID")
 	}
 
-	// Create with defaults
 	g2, _ := store.CreateGroup("", "")
 	if g2.Name != "Group" {
 		t.Errorf("default name: got %q", g2.Name)
@@ -187,7 +184,6 @@ func TestSQLWorkspaceStore_TabGroups(t *testing.T) {
 		t.Errorf("second group sort_order: got %d, want 1", g2.SortOrder)
 	}
 
-	// Update group
 	newName := "Production"
 	collapsed := true
 	updated, err := store.UpdateGroup(g.ID, &newName, nil, &collapsed)
@@ -204,13 +200,10 @@ func TestSQLWorkspaceStore_TabGroups(t *testing.T) {
 		t.Errorf("color should be unchanged: got %q", updated.Color)
 	}
 
-	// Update non-existent group
-	_, err = store.UpdateGroup("nonexistent", &newName, nil, nil)
-	if err == nil {
+	if _, err := store.UpdateGroup("nonexistent", &newName, nil, nil); err == nil {
 		t.Error("expected error for non-existent group")
 	}
 
-	// Delete group
 	deleted, err := store.DeleteGroup(g.ID)
 	if err != nil {
 		t.Fatalf("DeleteGroup: %v", err)
@@ -219,20 +212,18 @@ func TestSQLWorkspaceStore_TabGroups(t *testing.T) {
 		t.Error("expected deleted=true")
 	}
 
-	// Delete non-existent
 	deleted, _ = store.DeleteGroup("nonexistent")
 	if deleted {
 		t.Error("expected deleted=false for non-existent group")
 	}
 }
 
-func TestSQLWorkspaceStore_GroupPaneRelation(t *testing.T) {
+func TestSQLStore_GroupPaneRelation(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLWorkspaceStore(db)
+	store := workspace.NewSQLStore(db)
 
-	// Create group then pane in that group
 	g, _ := store.CreateGroup("Test", "#0000ff")
-	if err := store.UpsertPane(&WorkspacePane{SessionID: "s1", GroupID: g.ID}); err != nil {
+	if err := store.UpsertPane(workspace.Pane{SessionID: "s1", GroupID: g.ID}); err != nil {
 		t.Fatalf("UpsertPane: %v", err)
 	}
 
@@ -241,7 +232,6 @@ func TestSQLWorkspaceStore_GroupPaneRelation(t *testing.T) {
 		t.Errorf("pane group_id: got %q, want %q", layout.Panes[0].GroupID, g.ID)
 	}
 
-	// Deleting group should set pane's group_id to empty
 	if _, err := store.DeleteGroup(g.ID); err != nil {
 		t.Fatalf("DeleteGroup: %v", err)
 	}
@@ -251,11 +241,11 @@ func TestSQLWorkspaceStore_GroupPaneRelation(t *testing.T) {
 	}
 }
 
-func TestSQLWorkspaceStore_UnicodeNames(t *testing.T) {
+func TestSQLStore_UnicodeNames(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLWorkspaceStore(db)
+	store := workspace.NewSQLStore(db)
 
-	if err := store.UpsertPane(&WorkspacePane{SessionID: "uni-1", Name: "터미널"}); err != nil {
+	if err := store.UpsertPane(workspace.Pane{SessionID: "uni-1", Name: "터미널"}); err != nil {
 		t.Fatalf("UpsertPane: %v", err)
 	}
 	layout, _ := store.GetLayout()

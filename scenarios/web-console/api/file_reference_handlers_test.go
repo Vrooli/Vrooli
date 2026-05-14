@@ -16,6 +16,8 @@ import (
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
+	intsessions "web-console/internal/sessions"
+	intworkspace "web-console/internal/workspace"
 )
 
 func TestSplitFileReferenceLine(t *testing.T) {
@@ -105,8 +107,8 @@ func TestConnect_ResolveFileReference_ProjectRootRelative(t *testing.T) {
 		aiChain:     NewAIProviderChain(),
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
-		idempotency: newIdempotencyCache(),
-		workspace:   NewMemWorkspaceStore(),
+		idempotency: intsessions.NewIdempotencyCache(),
+		workspace:   intworkspace.NewMemStore(),
 	}
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
@@ -150,8 +152,8 @@ func TestConnect_ResolveFileReference_SessionCwdPreferred(t *testing.T) {
 		aiChain:     NewAIProviderChain(),
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
-		idempotency: newIdempotencyCache(),
-		workspace:   NewMemWorkspaceStore(),
+		idempotency: intsessions.NewIdempotencyCache(),
+		workspace:   intworkspace.NewMemStore(),
 	}
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()

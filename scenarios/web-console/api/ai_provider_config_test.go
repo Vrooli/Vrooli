@@ -12,6 +12,7 @@ import (
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
+	intworkspace "web-console/internal/workspace"
 )
 
 // [REQ:P1-003a] Provider Configuration Storage - store tests
@@ -229,7 +230,7 @@ func TestGenerateWithConfig_DisabledProvider(t *testing.T) {
 		aiChain:   NewAIProviderChain(primary, fallback),
 		shortcuts: NewShortcutProfileStore(),
 		aiConfig:  NewAIProviderConfigStore(),
-		workspace: NewMemWorkspaceStore(),
+		workspace: intworkspace.NewMemStore(),
 	}
 
 	srv.aiConfig.UpdateConfig("ollama", false, 1, 30, 0)
