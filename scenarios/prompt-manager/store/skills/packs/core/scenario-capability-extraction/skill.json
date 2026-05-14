@@ -1,0 +1,30 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "scenario-capability-extraction",
+  "name": "Scenario Capability Extraction",
+  "description": "Methodology for extracting a mature product capability from one or more existing scenarios into a dedicated reusable Vrooli scenario with API, CLI, UI, docs, requirements, migration plan, and adoption contracts.",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "scenario",
+    "extraction",
+    "architecture",
+    "reuse"
+  ],
+  "topics": [
+    "feature extraction",
+    "capability extraction",
+    "shared scenario",
+    "scenario extraction",
+    "scenario migration"
+  ],
+  "icon": "git-branch-plus",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-05-14T00:00:00Z",
+  "updatedAt": "2026-05-14T00:00:00Z"
+}
