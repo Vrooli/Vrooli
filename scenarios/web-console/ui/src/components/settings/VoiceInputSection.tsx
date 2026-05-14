@@ -651,7 +651,7 @@ export default function VoiceInputSection() {
                       onChange={(event) => setVadSilenceTimeoutMs(Number(event.target.value))}
                       className="w-24 accent-wc-accent"
                     />
-                    <span className="w-9 text-right text-xs text-wc-text-muted">
+                    <span className="w-9 text-end text-xs text-wc-text-muted">
                       {t(strings.settings.voiceInputSection.secondsShort, { value: (vadSilenceTimeoutMs / 1000).toFixed(1) })}
                     </span>
                   </div>
@@ -808,7 +808,7 @@ export default function VoiceInputSection() {
                                 className="h-6 px-2 text-[10px]"
                                 onClick={stopWwRecording}
                               >
-                                <Square className="mr-1 h-3 w-3" />
+                                <Square className="me-1 h-3 w-3" />
                                 {t(strings.settings.voiceInputSection.stopSeconds, { seconds: wwRecordingSeconds })}
                               </Button>
                             ) : (
@@ -819,7 +819,7 @@ export default function VoiceInputSection() {
                                 onClick={() => void startWwRecording(i)}
                                 disabled={wwRecordingIdx !== null}
                               >
-                                <Mic className="mr-1 h-3 w-3" />
+                                <Mic className="me-1 h-3 w-3" />
                                 {t(strings.settings.voiceInputSection.record)}
                               </Button>
                             )}
@@ -847,7 +847,7 @@ export default function VoiceInputSection() {
                             }}
                             className="w-24 accent-wc-accent"
                           />
-                          <span className="w-10 text-right text-xs text-wc-text-muted">
+                          <span className="w-10 text-end text-xs text-wc-text-muted">
                             {useWorkspaceStore.getState().wakeWordThreshold.toFixed(2)}
                           </span>
                         </div>
@@ -926,7 +926,7 @@ export default function VoiceInputSection() {
                             onTouchStart={(e) => { e.preventDefault(); wakeWordTest.startRecording(); }}
                             onTouchEnd={(e) => { e.preventDefault(); wakeWordTest.stopRecording(); }}
                           >
-                            <Mic className="mr-1.5 h-3.5 w-3.5" />
+                            <Mic className="me-1.5 h-3.5 w-3.5" />
                             {wakeWordTest.state.status === "idle" || wakeWordTest.state.status === "result"
                               ? t(strings.settings.voiceInputSection.holdToTest)
                               : wakeWordTest.state.status === "recording"
@@ -994,7 +994,7 @@ export default function VoiceInputSection() {
                                       style={{ left: `${useWorkspaceStore.getState().wakeWordThreshold * 100}%` }}
                                     />
                                   </div>
-                                  <span className="w-10 text-right text-wc-text-faint">{attempt.score.toFixed(2)}</span>
+                                  <span className="w-10 text-end text-wc-text-faint">{attempt.score.toFixed(2)}</span>
                                 </div>
                               ))}
                             </div>
@@ -1019,7 +1019,7 @@ export default function VoiceInputSection() {
                           onChange={(event) => handleVsConfigChange({ segmentSilenceMs: Number(event.target.value) })}
                           className="w-24 accent-wc-accent"
                         />
-                        <span className="w-9 text-right text-xs text-wc-text-muted">
+                        <span className="w-9 text-end text-xs text-wc-text-muted">
                           {t(strings.settings.voiceInputSection.secondsShort, { value: (vsConfig.segmentSilenceMs / 1000).toFixed(1) })}
                         </span>
                       </div>
@@ -1162,7 +1162,7 @@ export default function VoiceInputSection() {
                     >
                       {profile?.display_name ?? id}
                       <button
-                        className="ml-0.5 text-wc-text-faint hover:text-wc-text-primary"
+                        className="ms-0.5 text-wc-text-faint hover:text-wc-text-primary"
                         title={t(strings.settings.voiceInputSection.removeProfileTitle, { name: profile?.display_name ?? id })}
                         onClick={() => void removeProfile(id)}
                       >
@@ -1213,7 +1213,7 @@ export default function VoiceInputSection() {
                   }}
                   className="w-24 accent-wc-accent"
                 />
-                <span className="w-10 text-right text-xs text-wc-text-muted">
+                <span className="w-10 text-end text-xs text-wc-text-muted">
                   {(speakerStatus?.config.threshold ?? 0.35).toFixed(2)}
                 </span>
               </div>
@@ -1248,7 +1248,7 @@ export default function VoiceInputSection() {
                   className="h-8 px-3 text-xs"
                   onClick={stopEnrollmentRecording}
                 >
-                  <Square className="mr-1 h-3.5 w-3.5" />
+                  <Square className="me-1 h-3.5 w-3.5" />
                   {t(strings.settings.voiceInputSection.stopSeconds, { seconds: enrollmentSeconds })}
                 </Button>
               ) : (
@@ -1263,7 +1263,7 @@ export default function VoiceInputSection() {
                   }}
                   disabled={speakerStatus?.capability !== "available" || !speakerStatus?.resourceReady || enrollmentState === "uploading"}
                 >
-                  <Mic className="mr-1 h-3.5 w-3.5" />
+                  <Mic className="me-1 h-3.5 w-3.5" />
                   {t(strings.settings.voiceInputSection.addVoiceProfile)}
                 </Button>
               )}
@@ -1305,7 +1305,7 @@ export default function VoiceInputSection() {
                           {profile.notes ? ` · ${profile.notes}` : ""}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <div className="flex items-center gap-1 shrink-0 ms-2">
                         {!isActive && (
                           <Button
                             variant="ghost"
@@ -1512,7 +1512,7 @@ export default function VoiceInputSection() {
             onClick={() => void requestMicPermission()}
             disabled={micRequesting}
           >
-            <Mic className="mr-1 h-3.5 w-3.5" />
+            <Mic className="me-1 h-3.5 w-3.5" />
             {micRequesting ? t(strings.settings.voiceInputSection.requesting) : t(strings.settings.voiceInputSection.allowMicrophone)}
           </Button>
         )}
@@ -1522,7 +1522,7 @@ export default function VoiceInputSection() {
         <SettingsCard className="space-y-3">
           <button
             data-testid="advanced-streaming-toggle"
-            className="flex w-full items-center gap-1 text-left text-[11px] font-semibold uppercase tracking-[0.22em] text-wc-text-muted"
+            className="flex w-full items-center gap-1 text-start text-[11px] font-semibold uppercase tracking-[0.22em] text-wc-text-muted"
             onClick={() => setAdvancedOpen(!advancedOpen)}
           >
             {advancedOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -1559,7 +1559,7 @@ export default function VoiceInputSection() {
                           onChange={(event) => handleVsConfigChange({ flushIntervalMs: Number(event.target.value) })}
                           className="w-24 accent-wc-accent"
                         />
-                        <span className="w-12 text-right text-xs text-wc-text-muted">{t(strings.settings.voiceInputSection.msSuffix, { value: vsConfig.flushIntervalMs })}</span>
+                        <span className="w-12 text-end text-xs text-wc-text-muted">{t(strings.settings.voiceInputSection.msSuffix, { value: vsConfig.flushIntervalMs })}</span>
                       </div>
                     )}
                   />
@@ -1579,7 +1579,7 @@ export default function VoiceInputSection() {
                           onChange={(event) => handleVsConfigChange({ minDeltaBytes: Number(event.target.value) })}
                           className="w-24 accent-wc-accent"
                         />
-                        <span className="w-12 text-right text-xs text-wc-text-muted">
+                        <span className="w-12 text-end text-xs text-wc-text-muted">
                           {t(strings.settings.voiceInputSection.kbSuffix, { value: (vsConfig.minDeltaBytes / 1024).toFixed(1) })}
                         </span>
                       </div>
@@ -1601,7 +1601,7 @@ export default function VoiceInputSection() {
                           onChange={(event) => handleVsConfigChange({ overlapBytes: Number(event.target.value) })}
                           className="w-24 accent-wc-accent"
                         />
-                        <span className="w-12 text-right text-xs text-wc-text-muted">
+                        <span className="w-12 text-end text-xs text-wc-text-muted">
                           {t(strings.settings.voiceInputSection.kbSuffix, { value: (vsConfig.overlapBytes / 1024).toFixed(1) })}
                         </span>
                       </div>
@@ -1615,7 +1615,7 @@ export default function VoiceInputSection() {
                     className="h-8 px-3 text-xs text-wc-text-faint"
                     onClick={() => void resetVsConfig()}
                   >
-                    <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                    <RotateCcw className="me-1 h-3.5 w-3.5" />
                     {t(strings.settings.voiceInputSection.resetDefaults)}
                   </Button>
                 </>

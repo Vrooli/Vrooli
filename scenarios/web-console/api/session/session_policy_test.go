@@ -4,11 +4,10 @@ import (
 	"testing"
 	"time"
 
-
 	"web-console/internal/events"
 	"web-console/internal/metrics"
-	"web-console/internal/ptyfake"
 	"web-console/internal/policy"
+	"web-console/internal/ptyfake"
 )
 
 // --- Policy validation tests ---
@@ -289,4 +288,3 @@ func TestExpirationSweeper_LoopFiresAndRemoves(t *testing.T) {
 		t.Errorf("expected 1 deletion metric, got %d", metrics.SessionsDeleted.Load())
 	}
 }
-

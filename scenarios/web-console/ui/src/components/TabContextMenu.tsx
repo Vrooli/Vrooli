@@ -96,7 +96,7 @@ export default function TabContextMenu({
           {showGroupSubmenu && (
             <div
               data-testid="tab-ctx-group-submenu"
-              className="absolute left-full top-0 ml-1 min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
+              className="absolute left-full top-0 ms-1 min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
               onPointerEnter={() => setShowGroupSubmenu(true)}
               onPointerLeave={() => setShowGroupSubmenu(false)}
             >

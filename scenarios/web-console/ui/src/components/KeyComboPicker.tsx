@@ -77,7 +77,7 @@ export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassN
       tabIndex={-1}
       onPointerDown={(e) => e.preventDefault()}
       onClick={() => handleSelect(combo)}
-      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition active:bg-wc-accent-active hover:bg-wc-surface-input"
+      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm transition active:bg-wc-accent-active hover:bg-wc-surface-input"
     >
       <span className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-0.5 font-mono text-xs text-wc-text-primary">
         {combo.keys}

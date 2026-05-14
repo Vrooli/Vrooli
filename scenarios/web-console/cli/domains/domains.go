@@ -9,6 +9,7 @@ import (
 	"web-console/cli/domains/session"
 	"web-console/cli/domains/settings"
 	"web-console/cli/domains/shortcuts"
+	"web-console/cli/domains/terminal"
 	"web-console/cli/domains/tts"
 	"web-console/cli/domains/voice"
 	"web-console/cli/domains/workspace"
@@ -31,6 +32,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		session.Register(core),
+		terminal.Register(core),
 		workspace.Register(core),
 		settings.Register(core),
 		shortcuts.Register(core),

@@ -283,13 +283,41 @@
     "eyebrow": "設定",
     "sidebarAria": "設定セクション",
     "tabs": {
-      "sessions": { "label": "セッション", "shortLabel": "セッション", "description": "開いているターミナル、ポリシー、順序、フォーカスを管理。" },
-      "workspace": { "label": "ワークスペース", "shortLabel": "ワークスペース", "description": "デスクトップとモバイル全体のレイアウトと動作。" },
-      "voiceInput": { "label": "音声入力", "shortLabel": "入力", "description": "音声認識、マイクアクセス、ストリーミング動作。" },
-      "voiceOutput": { "label": "音声出力", "shortLabel": "出力", "description": "TTSバックエンド選択、診断、自動読み上げ設定。" },
-      "shortcuts": { "label": "ショートカットプロファイル", "shortLabel": "ショートカット", "description": "新規ターミナル起動用の保存済みコマンドプリセット。" },
-      "newPaneDefaults": { "label": "新規ペインの既定値", "shortLabel": "既定値", "description": "新規ペイン作成時に適用される外観の既定値。" },
-      "integrations": { "label": "統合", "shortLabel": "統合", "description": "接続済みサービスとプロバイダー構成。" }
+      "sessions": {
+        "label": "セッション",
+        "shortLabel": "セッション",
+        "description": "開いているターミナル、ポリシー、順序、フォーカスを管理。"
+      },
+      "workspace": {
+        "label": "ワークスペース",
+        "shortLabel": "ワークスペース",
+        "description": "デスクトップとモバイル全体のレイアウトと動作。"
+      },
+      "voiceInput": {
+        "label": "音声入力",
+        "shortLabel": "入力",
+        "description": "音声認識、マイクアクセス、ストリーミング動作。"
+      },
+      "voiceOutput": {
+        "label": "音声出力",
+        "shortLabel": "出力",
+        "description": "TTSバックエンド選択、診断、自動読み上げ設定。"
+      },
+      "shortcuts": {
+        "label": "ショートカットプロファイル",
+        "shortLabel": "ショートカット",
+        "description": "新規ターミナル起動用の保存済みコマンドプリセット。"
+      },
+      "newPaneDefaults": {
+        "label": "新規ペインの既定値",
+        "shortLabel": "既定値",
+        "description": "新規ペイン作成時に適用される外観の既定値。"
+      },
+      "integrations": {
+        "label": "統合",
+        "shortLabel": "統合",
+        "description": "接続済みサービスとプロバイダー構成。"
+      }
     },
     "integrationsSection": {
       "eyebrow": "プロバイダー",
@@ -325,7 +353,11 @@
       "wakeLockActive": "画面はスリープしないように保たれています。",
       "wakeLockUnsupported": "お使いのブラウザーまたは接続はスクリーンウェイクロックをサポートしていません。代わりに動画ベースのフォールバックを使用します。",
       "wakeLockDenied": "スクリーンウェイクロックは拒否されました — 省電力モードの可能性があります。",
-      "wakeLockReleased": "スクリーンウェイクロックを再取得中…"
+      "wakeLockReleased": "スクリーンウェイクロックを再取得中…",
+      "localeLabel": "言語",
+      "localeHint": "UI の言語を設定します。右から左に書く言語はレイアウト方向が反転します。",
+      "localeSwitcherAria": "インターフェース言語を選択",
+      "localeToggleAria": "{{language}} に切り替え"
     },
     "sessionsSection": {
       "eyebrow": "ターミナルランタイム",

@@ -123,6 +123,10 @@
     "policy.error": {
       "testId": "policy-error",
       "selector": "[data-testid=\"policy-error\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
     }
   },
   "dynamicSelectors": {
@@ -359,6 +363,17 @@
       "params": [
         {
           "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
+    "locale.toggle": {
+      "description": "Locale switcher toggle button for a specific locale code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
           "type": "string"
         }
       ]

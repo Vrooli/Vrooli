@@ -12,7 +12,6 @@ import (
 	"web-console/internal/backend"
 	"web-console/internal/events"
 	"web-console/internal/policy"
-	"web-console/internal/pty"
 	"web-console/internal/sessionstore"
 )
 
@@ -222,8 +221,8 @@ func (a *sessionsAdapter) Recover(_ context.Context, in sessionsH.RecoverInput) 
 	})
 
 	cmd := buildResumeCommand(old)
-	if err := newSess.WriteInput([]byte(cmd), pty.KindPaste); err != nil {
-		log.Printf("recover[%s -> %s]: WriteInput: %v", oldID, newSess.ID, err)
+	if err := newSess.SendInput(session.InputText(cmd).AsPaste().WithSource("recover")); err != nil {
+		log.Printf("recover[%s -> %s]: SendInput: %v", oldID, newSess.ID, err)
 		return sessionsH.RecoverResult{}, fmt.Errorf("paste resume command: %v: %w", err, sessionsH.ErrInternal)
 	}
 

@@ -948,7 +948,7 @@ export default function Workspace() {
               disabled={isCreating}
               size="lg"
             >
-              <Plus className="mr-2 h-5 w-5" />
+              <Plus className="me-2 h-5 w-5" />
               {isCreating ? t(strings.workspace.creating) : t(strings.workspace.newTerminalButton)}
             </Button>
           </div>

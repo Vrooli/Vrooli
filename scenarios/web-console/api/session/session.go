@@ -106,17 +106,170 @@ type Session struct {
 	// untouched. See session_observer.go.
 	observersOnce sync.Once
 	observers     *observerRegistry
+
+	// keyMap is the active key-name → bytes mapping for SendInput when
+	// the variant is InputKeys. Nil means use DefaultKeyMap. Phase 4
+	// will let BackendDescriptor override this per-backend.
+	keyMap KeyMap
+
+	// lastFrameAt is the wall time of the most recent non-empty PTY
+	// output frame broadcast. Updated by broadcast() under s.mu;
+	// consumed by WaitIdle. Zero before the first frame.
+	lastFrameAt time.Time
+
+	// idleWaiters fans WaitIdle's "fresh frame arrived" notifications
+	// out to in-flight callers. Each WaitIdle owns one buffered
+	// channel; markFrame does a non-blocking send to every waiter.
+	idleWaiters []chan struct{}
 }
 
-// WriteInput delivers client-origin bytes to the PTY. Thread-safe —
-// the PTY reference may be swapped during tmux re-attach. The kind
-// parameter selects the delivery mechanism; see PTY.WriteInput and
-// pty.InputKind for details.
-func (s *Session) WriteInput(data []byte, kind pty.InputKind) error {
+// SendInput delivers a typed SessionInput to the PTY through the single
+// applyInput seam. Thread-safe — the PTY reference may be swapped during
+// tmux re-attach.
+//
+// SessionInput's payload (text / keys / raw bytes) is resolved to bytes
+// using the session's active KeyMap, then written through PTY.WriteInput
+// with the kind selected by InputMeta.IsPaste (paste → pty.KindPaste,
+// otherwise pty.KindKeystroke).
+func (s *Session) SendInput(in SessionInput) error {
+	data, err := in.resolveBytes(s.keyMap)
+	if err != nil {
+		return err
+	}
+	return s.applyInput(data, in.ptyKind())
+}
+
+// applyInput is the single PTY-write seam. All client-origin and
+// server-origin input flows through here so a future observer or
+// auditor only needs to wrap this one method.
+func (s *Session) applyInput(data []byte, kind pty.InputKind) error {
 	s.mu.Lock()
 	p := s.pty
 	s.mu.Unlock()
 	return p.WriteInput(data, kind)
+}
+
+// Screen returns a structured deep-copy of the active screen: cell
+// grid, cursor, dimensions, alt-buffer flag, and scrollback line count.
+// Independent of the emulator; callers may retain or mutate it freely.
+func (s *Session) Screen() terminal.ScreenView {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.emu.View()
+}
+
+// PlainText returns the active screen as UTF-8 text (trailing blanks
+// stripped, rows joined with '\n'). When includeScrollback is true,
+// scrollback lines (oldest first) are prepended.
+func (s *Session) PlainText(includeScrollback bool) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.emu.PlainText(includeScrollback)
+}
+
+// markFrame is called by broadcast (under s.mu) every time a non-empty
+// frame is delivered. It updates the last-frame timestamp and wakes any
+// goroutines waiting in WaitIdle so they can reset their quiet-window
+// timer.
+func (s *Session) markFrame() {
+	s.lastFrameAt = time.Now()
+	// Non-blocking nudge to any single waiter. Multiple concurrent
+	// WaitIdle callers each have their own buffered channel; we use a
+	// fan-out slice to wake them all.
+	for _, w := range s.idleWaiters {
+		select {
+		case w <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (s *Session) addIdleWaiter() chan struct{} {
+	ch := make(chan struct{}, 1)
+	s.idleWaiters = append(s.idleWaiters, ch)
+	return ch
+}
+
+func (s *Session) removeIdleWaiter(ch chan struct{}) {
+	for i, w := range s.idleWaiters {
+		if w == ch {
+			s.idleWaiters = append(s.idleWaiters[:i], s.idleWaiters[i+1:]...)
+			return
+		}
+	}
+}
+
+// WaitIdle blocks until the PTY produces no output for quietWindow, or
+// the timeout elapses, or the session exits, or ctx is done. The
+// returned (reason, waited) pair describes how the wait ended.
+//
+// reason is one of:
+//
+//	"idle"    — quietWindow elapsed with no output.
+//	"timeout" — overall deadline reached before reaching quietWindow.
+//	"exited"  — the underlying PTY exited.
+func (s *Session) WaitIdle(ctx context.Context, quietWindow, timeout time.Duration) (string, time.Duration, error) {
+	if quietWindow <= 0 {
+		quietWindow = 200 * time.Millisecond
+	}
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	start := time.Now()
+	deadline := start.Add(timeout)
+
+	s.mu.Lock()
+	notify := s.addIdleWaiter()
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.removeIdleWaiter(notify)
+		s.mu.Unlock()
+	}()
+
+	for {
+		s.mu.Lock()
+		exited := s.processExited
+		ref := s.lastFrameAt
+		s.mu.Unlock()
+
+		if exited {
+			return "exited", time.Since(start), nil
+		}
+		now := time.Now()
+		if now.After(deadline) {
+			return "timeout", time.Since(start), nil
+		}
+		if ref.IsZero() {
+			ref = start
+		}
+		quietElapsed := now.Sub(ref)
+		if quietElapsed >= quietWindow {
+			return "idle", time.Since(start), nil
+		}
+
+		// Sleep until the soonest of: quietWindow expiry, overall
+		// deadline, ctx cancellation, exit, or a fresh frame arrival.
+		wakeIn := quietWindow - quietElapsed
+		if d := time.Until(deadline); d < wakeIn {
+			wakeIn = d
+		}
+		if wakeIn <= 0 {
+			continue
+		}
+		timer := time.NewTimer(wakeIn)
+		select {
+		case <-timer.C:
+		case <-notify:
+			timer.Stop()
+		case <-ctx.Done():
+			timer.Stop()
+			return "", time.Since(start), ctx.Err()
+		case <-s.exitCh:
+			timer.Stop()
+			return "exited", time.Since(start), nil
+		}
+	}
 }
 
 // ProbeReady blocks until the PTY pipeline for this session is confirmed to

@@ -5,6 +5,7 @@ import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
+import LocaleSwitcher from "../LocaleSwitcher";
 
 const STATUS_HINT_KEYS = {
   active: strings.settings.workspaceSection.wakeLockActive,
@@ -61,7 +62,7 @@ export default function WorkspaceSection() {
                 className="h-8 px-3"
                 onClick={() => setDisplayMode("grid")}
               >
-                <LayoutGrid className="mr-1 h-3.5 w-3.5" />
+                <LayoutGrid className="me-1 h-3.5 w-3.5" />
                 {t(strings.settings.workspaceSection.grid)}
               </Button>
               <Button
@@ -71,7 +72,7 @@ export default function WorkspaceSection() {
                 className="h-8 px-3"
                 onClick={() => setDisplayMode("tabs")}
               >
-                <LayoutList className="mr-1 h-3.5 w-3.5" />
+                <LayoutList className="me-1 h-3.5 w-3.5" />
                 {t(strings.settings.workspaceSection.tabs)}
               </Button>
               <Button
@@ -81,7 +82,7 @@ export default function WorkspaceSection() {
                 className="h-8 px-3"
                 onClick={() => setDisplayMode("sidebar")}
               >
-                <PanelLeft className="mr-1 h-3.5 w-3.5" />
+                <PanelLeft className="me-1 h-3.5 w-3.5" />
                 {t(strings.settings.workspaceSection.sidebar)}
               </Button>
             </div>
@@ -128,6 +129,11 @@ export default function WorkspaceSection() {
             )}
           />
         )}
+        <SettingsRow
+          label={t(strings.settings.workspaceSection.localeLabel)}
+          hint={t(strings.settings.workspaceSection.localeHint)}
+          control={<LocaleSwitcher />}
+        />
         <SettingsRow
           label={t(strings.settings.workspaceSection.keepAwakeLabel)}
           hint={wakeLockHint}

@@ -119,7 +119,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
       ),
 
       blockquote: ({ children }: { children?: ReactNode }) => (
-        <blockquote className="border-l-4 border-wc-accent pl-4 my-3 italic text-wc-text-secondary">
+        <blockquote className="border-l-4 border-wc-accent ps-4 my-3 italic text-wc-text-secondary">
           {children}
         </blockquote>
       ),
@@ -135,7 +135,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         <thead className="bg-wc-surface-raised">{children}</thead>
       ),
       th: ({ children }: { children?: ReactNode }) => (
-        <th className="border border-wc-default px-4 py-2 text-left font-semibold align-top min-w-[8rem]">{children}</th>
+        <th className="border border-wc-default px-4 py-2 text-start font-semibold align-top min-w-[8rem]">{children}</th>
       ),
       td: ({ children }: { children?: ReactNode }) => (
         <td className="border border-wc-default px-4 py-2 align-top min-w-[8rem] [overflow-wrap:anywhere]">{children}</td>

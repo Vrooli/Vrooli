@@ -247,7 +247,7 @@ export default function TtsSettingsSection() {
               await loadTtsStatus();
             }}
           >
-            <RefreshCw className="mr-1 h-3.5 w-3.5" />
+            <RefreshCw className="me-1 h-3.5 w-3.5" />
             {t(strings.settings.voiceOutputSection.refresh)}
           </Button>
         </div>
@@ -360,7 +360,7 @@ export default function TtsSettingsSection() {
                   }}
                   className="w-24 accent-[rgb(var(--wc-accent))]"
                 />
-                <span className="w-7 text-right text-xs text-wc-text-muted">{kokoroSpeed.toFixed(1)}</span>
+                <span className="w-7 text-end text-xs text-wc-text-muted">{kokoroSpeed.toFixed(1)}</span>
               </div>
             )}
           />
@@ -505,7 +505,7 @@ export default function TtsSettingsSection() {
                   onChange={(event) => setTtsRate(parseFloat(event.target.value))}
                   className="w-24 accent-[rgb(var(--wc-accent))]"
                 />
-                <span className="w-7 text-right text-xs text-wc-text-muted">{ttsRate.toFixed(1)}</span>
+                <span className="w-7 text-end text-xs text-wc-text-muted">{ttsRate.toFixed(1)}</span>
               </div>
             )}
           />
@@ -525,7 +525,7 @@ export default function TtsSettingsSection() {
                   onChange={(event) => setTtsPitch(parseFloat(event.target.value))}
                   className="w-24 accent-[rgb(var(--wc-accent))]"
                 />
-                <span className="w-7 text-right text-xs text-wc-text-muted">{ttsPitch.toFixed(1)}</span>
+                <span className="w-7 text-end text-xs text-wc-text-muted">{ttsPitch.toFixed(1)}</span>
               </div>
             )}
           />

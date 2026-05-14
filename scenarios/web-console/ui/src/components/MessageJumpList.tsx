@@ -170,16 +170,16 @@ function NowPlayingHeader({
           type="button"
           data-testid="msg-jump-now-jump"
           onClick={onJumpToCurrent}
-          className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1 py-0.5 text-left transition hover:bg-wc-surface-input/60"
+          className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1 py-0.5 text-start transition hover:bg-wc-surface-input/60"
           aria-label={t(strings.messageJumpList.scrollToCurrent)}
         >
           <StatusIcon glyph={desc.glyph} />
           <span className="font-mono text-[11px] text-wc-text-faint">#{event.sequence}</span>
           <span className="text-[11px] font-medium text-wc-text-primary">{roleLabel}</span>
-          <span className="ml-1 truncate text-[11px] text-wc-text-muted">
+          <span className="ms-1 truncate text-[11px] text-wc-text-muted">
             {preview(event.text, 60)}
           </span>
-          <span className="ml-auto shrink-0 pl-1 text-[10px] text-wc-text-faint">
+          <span className="ml-auto shrink-0 ps-1 text-[10px] text-wc-text-faint">
             {formatRelativeTime(event.createdAt, now)}
           </span>
         </button>
@@ -272,7 +272,7 @@ function UserTurnHeader({
       data-role="user"
       onClick={onSelect}
       className={cn(
-        "flex min-h-[48px] w-full flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-left transition",
+        "flex min-h-[48px] w-full flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-start transition",
         isFocused
           ? "border-wc-accent/50 bg-wc-accent/15 text-wc-text-primary"
           : "border-wc-default/60 bg-wc-surface-input/40 text-wc-text-secondary hover:bg-wc-surface-input",
@@ -321,7 +321,7 @@ function AssistantRow({
       aria-current={desc.glyph === "playing" ? "true" : undefined}
       onClick={onSelect}
       className={cn(
-        "ml-4 flex min-h-[44px] w-auto flex-col items-start gap-0.5 rounded-lg px-2.5 py-2 text-left transition",
+        "ms-4 flex min-h-[44px] w-auto flex-col items-start gap-0.5 rounded-lg px-2.5 py-2 text-start transition",
         isFocused
           ? "bg-wc-accent/15 text-wc-text-primary"
           : "text-wc-text-secondary hover:bg-wc-surface-input/70 hover:text-wc-text-primary",
@@ -336,7 +336,7 @@ function AssistantRow({
         {event.summarized && (
           <span
             data-testid={`msg-jump-summarized-${event.id}`}
-            className="ml-1 rounded bg-amber-400/15 px-1 py-0.5 text-[9px] font-semibold uppercase text-amber-300"
+            className="ms-1 rounded bg-amber-400/15 px-1 py-0.5 text-[9px] font-semibold uppercase text-amber-300"
             title={t(strings.messageJumpList.summarizedBadge)}
           >
             S

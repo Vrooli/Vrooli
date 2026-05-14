@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"web-console/internal/pty"
+	"web-console/session"
 )
 
 // TestStandardBackend_ClaudeCodeActuallyStarts is the end-to-end regression
@@ -53,7 +53,7 @@ func TestStandardBackend_ClaudeCodeActuallyStarts(t *testing.T) {
 
 	// Exactly what the UI's Claude Code shortcut sends.
 	cmd := "claude --dangerously-skip-permissions\n"
-	if err := sess.WriteInput([]byte(cmd), pty.KindKeystroke); err != nil {
+	if err := sess.SendInput(session.InputText(cmd)); err != nil {
 		t.Fatalf("write shortcut: %v", err)
 	}
 
@@ -101,7 +101,7 @@ func TestStandardBackend_ClaudeCodeActuallyStarts(t *testing.T) {
 				// check, a static "frozen" render would pass.
 				sawBytes := out.Len()
 				t.Logf("interactive-UI render reached at %d bytes; probing input responsiveness", sawBytes)
-				if err := sess.WriteInput([]byte("z"), pty.KindKeystroke); err != nil {
+				if err := sess.SendInput(session.InputText("z")); err != nil {
 					t.Fatalf("write probe keystroke: %v", err)
 				}
 				probeDeadline := time.After(5 * time.Second)
@@ -175,7 +175,7 @@ func TestStandardBackend_StripsSyncModeFromClientStream(t *testing.T) {
 	sub := sess.Subscribe()
 	t.Cleanup(func() { sess.Unsubscribe(sub.OutputCh) })
 
-	if err := sess.WriteInput([]byte("claude --dangerously-skip-permissions\n"), pty.KindKeystroke); err != nil {
+	if err := sess.SendInput(session.InputText("claude --dangerously-skip-permissions\n")); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 

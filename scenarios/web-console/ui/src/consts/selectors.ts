@@ -327,6 +327,9 @@ const literalSelectors: LiteralSelectorTree = {
   policy: {
     error: 'policy-error',
   },
+  locale: {
+    switcher: 'locale-switcher',
+  },
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
@@ -455,6 +458,13 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       description: 'Terminal host element by session ID',
       selectorPattern: '[data-testid="terminal-pane"][data-session-id="${sessionId}"]',
       params: { sessionId: { type: 'string' } },
+    }),
+  },
+  locale: {
+    toggle: defineDynamicSelector({
+      description: 'Locale switcher toggle button for a specific locale code',
+      testIdPattern: 'locale-toggle-${code}',
+      params: { code: { type: 'string' } },
     }),
   },
   messages: {

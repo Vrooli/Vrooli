@@ -284,13 +284,41 @@
     "eyebrow": "الإعدادات",
     "sidebarAria": "أقسام الإعدادات",
     "tabs": {
-      "sessions": { "label": "الجلسات", "shortLabel": "الجلسات", "description": "إدارة الطرفيات المفتوحة والسياسات والترتيب والتركيز." },
-      "workspace": { "label": "مساحة العمل", "shortLabel": "مساحة العمل", "description": "التخطيط وسلوك مساحة العمل عبر سطح المكتب والجوال." },
-      "voiceInput": { "label": "الإدخال الصوتي", "shortLabel": "الإدخال", "description": "التعرف على الكلام والوصول إلى الميكروفون وسلوك البث." },
-      "voiceOutput": { "label": "الإخراج الصوتي", "shortLabel": "الإخراج", "description": "اختيار خلفية TTS والتشخيص وإعدادات النطق التلقائي." },
-      "shortcuts": { "label": "ملفات الاختصارات", "shortLabel": "الاختصارات", "description": "إعدادات أوامر محفوظة لإطلاق طرفيات جديدة." },
-      "newPaneDefaults": { "label": "افتراضيات اللوحة الجديدة", "shortLabel": "الافتراضيات", "description": "افتراضيات المظهر المطبقة عند إنشاء لوحات جديدة." },
-      "integrations": { "label": "التكاملات", "shortLabel": "التكاملات", "description": "الخدمات المتصلة وتكوين المزود." }
+      "sessions": {
+        "label": "الجلسات",
+        "shortLabel": "الجلسات",
+        "description": "إدارة الطرفيات المفتوحة والسياسات والترتيب والتركيز."
+      },
+      "workspace": {
+        "label": "مساحة العمل",
+        "shortLabel": "مساحة العمل",
+        "description": "التخطيط وسلوك مساحة العمل عبر سطح المكتب والجوال."
+      },
+      "voiceInput": {
+        "label": "الإدخال الصوتي",
+        "shortLabel": "الإدخال",
+        "description": "التعرف على الكلام والوصول إلى الميكروفون وسلوك البث."
+      },
+      "voiceOutput": {
+        "label": "الإخراج الصوتي",
+        "shortLabel": "الإخراج",
+        "description": "اختيار خلفية TTS والتشخيص وإعدادات النطق التلقائي."
+      },
+      "shortcuts": {
+        "label": "ملفات الاختصارات",
+        "shortLabel": "الاختصارات",
+        "description": "إعدادات أوامر محفوظة لإطلاق طرفيات جديدة."
+      },
+      "newPaneDefaults": {
+        "label": "افتراضيات اللوحة الجديدة",
+        "shortLabel": "الافتراضيات",
+        "description": "افتراضيات المظهر المطبقة عند إنشاء لوحات جديدة."
+      },
+      "integrations": {
+        "label": "التكاملات",
+        "shortLabel": "التكاملات",
+        "description": "الخدمات المتصلة وتكوين المزود."
+      }
     },
     "integrationsSection": {
       "eyebrow": "المزودون",
@@ -326,7 +354,11 @@
       "wakeLockActive": "الشاشة تُبقى نشطة.",
       "wakeLockUnsupported": "متصفحك أو اتصالك لا يدعم قفل تنبيه الشاشة. يُستخدم بديل قائم على الفيديو.",
       "wakeLockDenied": "تم رفض قفل تنبيه الشاشة — قد يكون جهازك في وضع توفير الطاقة.",
-      "wakeLockReleased": "جارٍ إعادة الحصول على قفل تنبيه الشاشة…"
+      "wakeLockReleased": "جارٍ إعادة الحصول على قفل تنبيه الشاشة…",
+      "localeLabel": "اللغة",
+      "localeHint": "يحدّد لغة الواجهة. اللغات التي تُكتب من اليمين إلى اليسار تعكس اتجاه التخطيط.",
+      "localeSwitcherAria": "اختيار لغة الواجهة",
+      "localeToggleAria": "التبديل إلى {{language}}"
     },
     "sessionsSection": {
       "eyebrow": "وقت تشغيل الطرفية",

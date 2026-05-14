@@ -134,7 +134,7 @@ function ShortcutEditor({
         className="mt-2 text-xs text-wc-text-faint"
         onClick={addEntry}
       >
-        <Plus className="mr-1 h-3 w-3" />
+        <Plus className="me-1 h-3 w-3" />
         {t(strings.settings.shortcutsSection.addShortcut)}
       </Button>
     </div>
@@ -237,7 +237,7 @@ export default function ShortcutProfilesSection() {
             className="h-8 px-3 text-xs"
             onClick={handleCreateProfile}
           >
-            <Plus className="mr-1 h-3 w-3" />
+            <Plus className="me-1 h-3 w-3" />
             {t(strings.settings.shortcutsSection.newProfile)}
           </Button>
         </div>

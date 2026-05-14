@@ -34,6 +34,10 @@ type Emulator struct {
 	inAlt      bool
 
 	parser *parser
+
+	// Control-event surface; lazily allocated by ControlEvents().
+	events        chan ControlEvent
+	droppedEvents uint64
 }
 
 // New returns an Emulator with the provided options. Zero values fall
@@ -202,6 +206,20 @@ func (e *Emulator) fullReset() {
 }
 
 func (e *Emulator) onCSI(private bool, params []int, final byte) {
+	// Surface terminal-query CSI sequences to observers. The emulator
+	// itself does not generate replies (that lives in ansi_responder).
+	// DA1 = `\x1b[c` (no params, non-private), DA3 = `\x1b[=c` (private),
+	// DECRQM 2026 = `\x1b[?2026$p` (private, final 'p').
+	if final == 'c' || final == 'p' {
+		paramsCopy := make([]int, len(params))
+		copy(paramsCopy, params)
+		e.emitControlEvent(ControlEvent{
+			Kind:    EventCSIQuery,
+			Private: private,
+			Params:  paramsCopy,
+			Final:   final,
+		})
+	}
 	getParam := func(i, def int) int {
 		if i < len(params) && params[i] > 0 {
 			return params[i]
@@ -383,6 +401,7 @@ func (e *Emulator) swapBuffer(toAlt bool, mode int) {
 		}
 		e.inAlt = true
 		e.cur = e.alt
+		e.emitControlEvent(ControlEvent{Kind: EventAltBufferEnter})
 		return
 	}
 	if !e.inAlt {
@@ -393,6 +412,7 @@ func (e *Emulator) swapBuffer(toAlt bool, mode int) {
 		e.cur = e.normal
 		e.inAlt = false
 		e.normal.restoreCursor()
+		e.emitControlEvent(ControlEvent{Kind: EventAltBufferExit})
 		return
 	}
 	if mode == 1047 {
@@ -400,6 +420,7 @@ func (e *Emulator) swapBuffer(toAlt bool, mode int) {
 	}
 	e.cur = e.normal
 	e.inAlt = false
+	e.emitControlEvent(ControlEvent{Kind: EventAltBufferExit})
 }
 
 // applySGR walks an SGR parameter list and updates the current pen.

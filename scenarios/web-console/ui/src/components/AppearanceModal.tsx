@@ -121,7 +121,7 @@ export default function AppearanceModal() {
                 className="w-full"
                 onClick={() => applyAppearanceToAll(sessionId)}
               >
-                <CopyCheck className="h-4 w-4 mr-2" />
+                <CopyCheck className="h-4 w-4 me-2" />
                 {t(strings.appearance.applyToAll)}
               </Button>
             </div>

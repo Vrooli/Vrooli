@@ -368,6 +368,10 @@ export const strings = {
       wakeLockUnsupported: "settings.workspaceSection.wakeLockUnsupported",
       wakeLockDenied: "settings.workspaceSection.wakeLockDenied",
       wakeLockReleased: "settings.workspaceSection.wakeLockReleased",
+      localeLabel: "settings.workspaceSection.localeLabel",
+      localeHint: "settings.workspaceSection.localeHint",
+      localeSwitcherAria: "settings.workspaceSection.localeSwitcherAria",
+      localeToggleAria: "settings.workspaceSection.localeToggleAria",
     },
     sessionsSection: {
       eyebrow: "settings.sessionsSection.eyebrow",

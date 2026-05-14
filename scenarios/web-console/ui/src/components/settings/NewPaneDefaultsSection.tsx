@@ -55,7 +55,7 @@ export default function NewPaneDefaultsSection() {
                 className="h-8 px-3"
                 onClick={() => setPlusButtonBehavior("launcher")}
               >
-                <LayoutList className="mr-1 h-3.5 w-3.5" />
+                <LayoutList className="me-1 h-3.5 w-3.5" />
                 {t(strings.settings.newPaneDefaultsSection.launcher)}
               </Button>
               <Button
@@ -65,7 +65,7 @@ export default function NewPaneDefaultsSection() {
                 className="h-8 px-3"
                 onClick={() => setPlusButtonBehavior("new-terminal")}
               >
-                <Terminal className="mr-1 h-3.5 w-3.5" />
+                <Terminal className="me-1 h-3.5 w-3.5" />
                 {t(strings.settings.newPaneDefaultsSection.emptyTerminal)}
               </Button>
             </div>

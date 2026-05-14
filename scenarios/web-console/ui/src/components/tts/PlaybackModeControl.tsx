@@ -152,7 +152,7 @@ export function PlaybackModeControl({
                 data-testid={`${testIdPrefix}-mode-option-original`}
                 onClick={handleSelectOriginal}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-wc-accent/10",
+                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-xs transition hover:bg-wc-accent/10",
                   !isSummarized ? "text-wc-accent" : "text-wc-text-muted",
                 )}
               >
@@ -175,7 +175,7 @@ export function PlaybackModeControl({
                   data-testid={`${testIdPrefix}-mode-option-${value}`}
                   onClick={() => handleSelectLevel(value)}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-amber-500/10",
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-xs transition hover:bg-amber-500/10",
                     isActive ? "text-amber-300" : "text-wc-text-muted",
                   )}
                 >

@@ -447,7 +447,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             type="button"
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => setPillOpen((v) => !v)}
-            className="flex items-center justify-between gap-2 text-left"
+            className="flex items-center justify-between gap-2 text-start"
             title={t(strings.mobileToolbar.showUnsentTitle)}
           >
             <span>
@@ -459,7 +459,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 );
                 if (oldest === null) return null;
                 const ageSec = Math.max(0, Math.floor((Date.now() - oldest) / 1000));
-                return <span className="ml-1 text-wc-text-muted">{t(strings.mobileToolbar.unsentOldest, { seconds: ageSec })}</span>;
+                return <span className="ms-1 text-wc-text-muted">{t(strings.mobileToolbar.unsentOldest, { seconds: ageSec })}</span>;
               })()}
             </span>
             <span className="text-wc-text-muted">{pillOpen ? "▾" : "▸"}</span>

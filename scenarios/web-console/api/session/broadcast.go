@@ -62,6 +62,7 @@ func (s *Session) broadcast(data []byte) {
 		s.lastAltBufferTransition = time.Now()
 	}
 	bctrace("broadcast", s.ID, fmt.Sprintf("clients=%d alt=%v", len(s.clients), s.inAltBuffer), data)
+	s.markFrame()
 	if len(s.clients) == 0 {
 		return
 	}

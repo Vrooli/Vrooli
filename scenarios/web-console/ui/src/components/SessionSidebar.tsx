@@ -147,7 +147,7 @@ export default function SessionSidebar({
               <button
                 key={`group-${group.id}`}
                 data-testid={`sidebar-group-${group.id}`}
-                className="mb-1 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-wc-text-secondary hover:bg-wc-surface-raised"
+                className="mb-1 flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-xs text-wc-text-secondary hover:bg-wc-surface-raised"
                 onClick={() => toggleGroupCollapsed(group.id)}
                 title={group.isCollapsed ? t(strings.tabBar.expandGroup, { name: group.name }) : t(strings.tabBar.collapseGroup, { name: group.name })}
               >
@@ -167,7 +167,7 @@ export default function SessionSidebar({
               tabIndex={0}
               data-testid={`sidebar-session-${pane.sessionId}`}
               className={cn(
-                "group relative mb-1 flex w-full items-start gap-2 rounded border px-2 py-2 text-left transition-colors",
+                "group relative mb-1 flex w-full items-start gap-2 rounded border px-2 py-2 text-start transition-colors",
                 "focus:outline-none focus-visible:ring-1 focus-visible:ring-wc-accent",
                 isActive
                   ? "border-wc-accent bg-wc-surface-raised text-wc-text-primary"
@@ -269,7 +269,7 @@ export default function SessionSidebar({
           onPointerCancel={plusHandlers.onPointerCancel}
           onContextMenu={plusHandlers.onContextMenu}
         >
-          <Plus className="mr-2 h-3.5 w-3.5" />
+          <Plus className="me-2 h-3.5 w-3.5" />
           {t(strings.workspace.newTerminalButton)}
         </Button>
         <Button
@@ -293,7 +293,7 @@ export default function SessionSidebar({
           ref={sidebarRef}
           data-testid="workspace-sidebar-shell"
           className={cn(
-            "relative hidden shrink-0 flex-col border-r border-wc-default bg-wc-surface-header md:flex",
+            "relative hidden shrink-0 flex-col border-e border-wc-default bg-wc-surface-header md:flex",
             isResizing && "select-none",
           )}
           style={{ width: size }}
@@ -301,7 +301,7 @@ export default function SessionSidebar({
           {sidebarContent}
           <div
             data-testid="workspace-sidebar-resize-handle"
-            className="absolute right-[-6px] top-0 z-20 h-full w-3 cursor-col-resize"
+            className="absolute end-[-6px] top-0 z-20 h-full w-3 cursor-col-resize"
             {...resizeHandleProps}
           >
             <div className="mx-auto h-full w-px bg-transparent transition-colors hover:bg-wc-accent" />
@@ -319,7 +319,7 @@ export default function SessionSidebar({
           />
           <aside
             data-testid="workspace-sidebar-shell"
-            className="absolute inset-y-0 left-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col border-r border-wc-default bg-wc-surface-header shadow-xl"
+            className="absolute inset-y-0 start-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col border-e border-wc-default bg-wc-surface-header shadow-xl"
           >
             {sidebarContent}
           </aside>

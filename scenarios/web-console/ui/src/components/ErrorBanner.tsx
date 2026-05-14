@@ -58,7 +58,7 @@ export default function ErrorBanner({
         </button>
       </div>
       {error.recovery && (
-        <p data-testid="error-recovery-hint" className="mt-1 text-xs text-wc-error-detail/70 pl-6">
+        <p data-testid="error-recovery-hint" className="mt-1 text-xs text-wc-error-detail/70 ps-6">
           {error.recovery}
         </p>
       )}

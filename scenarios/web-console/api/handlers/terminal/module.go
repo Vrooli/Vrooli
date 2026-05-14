@@ -13,27 +13,41 @@
 package terminal
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+
+	terminalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/terminal/terminal_v1connect"
 
 	"web-console/internal/module"
 )
 
-// Deps is the seam: caller supplies the two handler functions and the
-// Module wires them onto the canonical paths.
-type Deps struct {
+// LegacyDeps groups the REST-only handler functions (image upload and
+// xterm.js WebSocket bridge). They stay REST — multipart can't ride
+// Connect, and xterm.js needs a raw WS upgrade.
+type LegacyDeps struct {
 	Upload http.HandlerFunc
 	WS     http.HandlerFunc
 }
 
-// Module wires both terminal endpoints into the API router.
-func Module(deps Deps) module.Module {
+// Module wires the terminal domain (Connect-RPC TerminalService +
+// REST exceptions for upload/WS) into the API router.
+func Module(svc Service, legacy LegacyDeps, logger *log.Logger) module.Module {
+	if logger == nil {
+		logger = log.Default()
+	}
+	connectPath, connectHandler := terminalconnect.NewTerminalServiceHandler(NewConnectHandler(Deps{
+		Service: svc,
+		Logger:  logger,
+	}))
 	return module.Module{
 		Name: "terminal",
 		Mount: func(r *mux.Router) {
-			r.HandleFunc("/api/v1/sessions/{id}/upload", deps.Upload).Methods("POST")
-			r.HandleFunc("/api/v1/sessions/{id}/ws", deps.WS).Methods("GET")
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			r.HandleFunc("/api/v1/sessions/{id}/upload", legacy.Upload).Methods("POST")
+			r.HandleFunc("/api/v1/sessions/{id}/ws", legacy.WS).Methods("GET")
 		},
 		Endpoints: Endpoints,
 	}

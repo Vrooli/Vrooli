@@ -241,7 +241,7 @@ export default function SettingsModal({
                       role="tab"
                       aria-selected={isActive}
                       className={cn(
-                        "flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors",
+                        "flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-start transition-colors",
                         isActive
                           ? "bg-wc-surface-input text-wc-text-primary shadow-sm"
                           : "text-wc-text-muted hover:bg-wc-surface-input/60 hover:text-wc-text-secondary",

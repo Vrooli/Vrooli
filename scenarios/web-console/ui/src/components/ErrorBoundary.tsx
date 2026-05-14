@@ -35,7 +35,7 @@ function DefaultFallback({ region, message, onReset }: FallbackProps) {
       <p className="font-medium">{t(strings.errorBoundary.somethingWentWrong, { region })}</p>
       <p className="max-w-md text-center text-xs text-wc-error-detail/70">{message}</p>
       <Button variant="outline" size="sm" onClick={onReset} className="mt-2">
-        <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+        <RefreshCw className="me-1.5 h-3.5 w-3.5" />
         {t(strings.errorBoundary.tryAgain)}
       </Button>
     </div>

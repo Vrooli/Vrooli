@@ -285,13 +285,41 @@
     "eyebrow": "Settings",
     "sidebarAria": "Settings sections",
     "tabs": {
-      "sessions": { "label": "Sessions", "shortLabel": "Sessions", "description": "Manage open terminals, policies, order, and focus." },
-      "workspace": { "label": "Workspace", "shortLabel": "Workspace", "description": "Layout and workspace behavior across desktop and mobile." },
-      "voiceInput": { "label": "Voice Input", "shortLabel": "Input", "description": "Speech recognition, microphone access, and streaming behavior." },
-      "voiceOutput": { "label": "Voice Output", "shortLabel": "Output", "description": "TTS backend selection, diagnostics, and auto-speak settings." },
-      "shortcuts": { "label": "Shortcut Profiles", "shortLabel": "Shortcuts", "description": "Saved command presets for new terminal launches." },
-      "newPaneDefaults": { "label": "New Pane Defaults", "shortLabel": "Defaults", "description": "Appearance defaults applied when new panes are created." },
-      "integrations": { "label": "Integrations", "shortLabel": "Integrations", "description": "Connected services and provider configuration." }
+      "sessions": {
+        "label": "Sessions",
+        "shortLabel": "Sessions",
+        "description": "Manage open terminals, policies, order, and focus."
+      },
+      "workspace": {
+        "label": "Workspace",
+        "shortLabel": "Workspace",
+        "description": "Layout and workspace behavior across desktop and mobile."
+      },
+      "voiceInput": {
+        "label": "Voice Input",
+        "shortLabel": "Input",
+        "description": "Speech recognition, microphone access, and streaming behavior."
+      },
+      "voiceOutput": {
+        "label": "Voice Output",
+        "shortLabel": "Output",
+        "description": "TTS backend selection, diagnostics, and auto-speak settings."
+      },
+      "shortcuts": {
+        "label": "Shortcut Profiles",
+        "shortLabel": "Shortcuts",
+        "description": "Saved command presets for new terminal launches."
+      },
+      "newPaneDefaults": {
+        "label": "New Pane Defaults",
+        "shortLabel": "Defaults",
+        "description": "Appearance defaults applied when new panes are created."
+      },
+      "integrations": {
+        "label": "Integrations",
+        "shortLabel": "Integrations",
+        "description": "Connected services and provider configuration."
+      }
     },
     "integrationsSection": {
       "eyebrow": "Providers",
@@ -327,7 +355,11 @@
       "wakeLockActive": "Screen is being kept awake.",
       "wakeLockUnsupported": "Your browser or connection doesn't support screen wake lock. A video-based fallback is being used instead.",
       "wakeLockDenied": "Screen wake lock was denied — your device may be in power-save mode.",
-      "wakeLockReleased": "Re-acquiring screen wake lock…"
+      "wakeLockReleased": "Re-acquiring screen wake lock…",
+      "localeLabel": "Language",
+      "localeHint": "Sets the UI language. Right-to-left languages flip the layout direction.",
+      "localeSwitcherAria": "Select interface language",
+      "localeToggleAria": "Switch to {{language}}"
     },
     "sessionsSection": {
       "eyebrow": "Terminal Runtime",

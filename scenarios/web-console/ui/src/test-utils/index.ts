@@ -11,6 +11,7 @@ export {
 } from "./mocks";
 export type { MockTerminal } from "./mocks";
 export { createTestQueryClient, renderWithProviders } from "./render";
+export { expectNoA11yViolations } from "./a11y";
 export { asMockedClient, type MockedConnectClient } from "./mockConnectClient";
 
 export type {

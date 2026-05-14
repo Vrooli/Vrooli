@@ -27,7 +27,7 @@ export default function ThemePicker({
             type="button"
             data-testid={`${testIdPrefix}-theme-${theme.id}`}
             className={cn(
-              "rounded-lg border p-2 text-left transition-colors",
+              "rounded-lg border p-2 text-start transition-colors",
               currentThemeId === theme.id
                 ? "border-wc-accent ring-1 ring-wc-accent"
                 : "border-wc-default hover:border-wc-text-faint",
@@ -40,7 +40,7 @@ export default function ThemePicker({
             >
               <span>$ hello world</span>
               <span
-                className="inline-block ml-0.5 h-2.5 w-1 align-middle rounded-sm"
+                className="inline-block ms-0.5 h-2.5 w-1 align-middle rounded-sm"
                 style={{ backgroundColor: theme.colors.cursor }}
               />
             </div>

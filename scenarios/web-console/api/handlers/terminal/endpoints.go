@@ -14,6 +14,30 @@ import "web-console/internal/module"
 
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "terminal_get_screen",
+		Path:        "/vrooli.web_console.v1.terminal.TerminalService/GetScreen",
+		Method:      "POST",
+		Summary:     "Read the decoded screen of a session",
+		Description: "Connect-RPC. Returns the cell grid, cursor, alt-buffer flag, scrollback line count, and plain-text rendering of the active screen.",
+		Category:    "terminal",
+	},
+	{
+		ID:          "terminal_send_input",
+		Path:        "/vrooli.web_console.v1.terminal.TerminalService/SendInput",
+		Method:      "POST",
+		Summary:     "Send programmatic input to a session",
+		Description: "Connect-RPC. Accepts text, named keys (resolved via the active KeyMap), or raw bytes; routes through the single Session SendInput seam.",
+		Category:    "terminal",
+	},
+	{
+		ID:          "terminal_wait_idle",
+		Path:        "/vrooli.web_console.v1.terminal.TerminalService/WaitIdle",
+		Method:      "POST",
+		Summary:     "Block until a session is idle",
+		Description: "Connect-RPC. Blocks until the PTY has produced no output for quiet_window, or until timeout elapses, or until the session exits.",
+		Category:    "terminal",
+	},
+	{
 		ID:          "terminal_upload",
 		Path:        "/api/v1/sessions/{id}/upload",
 		Method:      "POST",

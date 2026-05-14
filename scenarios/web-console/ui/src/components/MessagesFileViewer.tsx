@@ -257,7 +257,7 @@ function CodeLinePreview({
             type="button"
             onClick={() => setWrap((prev) => !prev)}
             className={cn(
-              "ml-1 flex items-center gap-1 rounded px-1.5 py-1 text-[11px] transition hover:bg-wc-surface-input hover:text-wc-text-primary",
+              "ms-1 flex items-center gap-1 rounded px-1.5 py-1 text-[11px] transition hover:bg-wc-surface-input hover:text-wc-text-primary",
               wrap && "bg-wc-accent/15 text-wc-accent hover:bg-wc-accent/20 hover:text-wc-accent",
             )}
             aria-label={wrap ? t(strings.messagesFileViewer.disableWordWrap) : t(strings.messagesFileViewer.enableWordWrap)}
@@ -290,7 +290,7 @@ function CodeLinePreview({
             >
               <span
                 className={cn(
-                  "shrink-0 select-none text-right text-wc-text-faint/70 tabular-nums",
+                  "shrink-0 select-none text-end text-wc-text-faint/70 tabular-nums",
                   isHighlighted && "text-wc-accent",
                 )}
                 style={{ minWidth: gutterWidth, fontSize: `${Math.max(10, fontSize - 1)}px` }}

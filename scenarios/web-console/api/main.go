@@ -414,12 +414,13 @@ func (s *Server) setupRoutes() {
 	// Sessions domain (CRUD, recovery, policy) — Connect-RPC.
 	sessionsH.Module(newSessionsAdapter(s), nil).Mount(s.router)
 
-	// Terminal REST exceptions: WebSocket bridge ([REQ:P0-002b]) and
-	// multipart image upload for path injection.
-	terminalH.Module(terminalH.Deps{
+	// Terminal — Connect-RPC TerminalService (GetScreen, SendInput,
+	// WaitIdle) plus REST exceptions for the WebSocket bridge
+	// ([REQ:P0-002b]) and multipart image upload for path injection.
+	terminalH.Module(newTerminalAdapter(s), terminalH.LegacyDeps{
 		Upload: s.handleUpload,
 		WS:     s.handleTerminalWS,
-	}).Mount(s.router)
+	}, nil).Mount(s.router)
 
 	// Workspace domain (panes, groups, layout) — Connect-RPC.
 	workspaceH.Module(newWorkspaceAdapter(s), nil).Mount(s.router)

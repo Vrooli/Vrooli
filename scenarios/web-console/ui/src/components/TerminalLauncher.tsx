@@ -18,7 +18,7 @@ import type { BackendID, BackendOption, ExpirationPolicy, PolicyMode } from "../
 
 /** Shared class string for launcher option cards. */
 const optionCardClass =
-  "flex w-full items-center gap-3 rounded-md border border-wc-default bg-wc-surface-input px-4 py-3 text-left transition hover:border-wc-accent hover:bg-wc-surface-input/80 disabled:opacity-50";
+  "flex w-full items-center gap-3 rounded-md border border-wc-default bg-wc-surface-input px-4 py-3 text-start transition hover:border-wc-accent hover:bg-wc-surface-input/80 disabled:opacity-50";
 
 export interface LaunchOptions {
   command?: string;

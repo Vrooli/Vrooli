@@ -216,7 +216,7 @@ const MessageRow = memo(function MessageRow({
       ref={(node) => registerItem(index, node)}
       data-testid={`msg-card-${event.id}`}
       className={cn(
-        "border-b border-wc-default border-l-[3px] py-3 pl-3 pr-1 transition-colors",
+        "border-b border-wc-default border-l-[3px] py-3 ps-3 pe-1 transition-colors",
         accentColor,
         isFocused && "bg-wc-accent/5",
         isSearchFocused && "ring-1 ring-wc-accent/50 rounded-r-lg",
@@ -946,7 +946,7 @@ export default function MessagesPane({
           className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input"
           type="button"
         >
-          <ArrowDown className="mr-1.5 inline-block h-3.5 w-3.5" />
+          <ArrowDown className="me-1.5 inline-block h-3.5 w-3.5" />
           {t(strings.messagesPane.newMessages, { count: newMessageCount })}
         </button>
       )}

@@ -19,7 +19,6 @@ import (
 	"log"
 	"sync"
 	"web-console/internal/events"
-	"web-console/internal/pty"
 
 	"github.com/gorilla/websocket"
 )
@@ -57,11 +56,11 @@ func (s *Server) dispatchInputMessage(
 			s.metrics.StdinBeforeReadyTotal.Add(1)
 			log.Printf("ws[%s] stdin before session_ready — backend=%s", sessionID, sess.Backend)
 		}
-		kind := pty.KindKeystroke
+		in := session.InputText(msg.Data).WithSource("ws")
 		if msg.Kind == StdinKindPaste {
-			kind = pty.KindPaste
+			in = in.AsPaste()
 		}
-		writeErr := sess.WriteInput([]byte(msg.Data), kind)
+		writeErr := sess.SendInput(in)
 		ackMsg := TerminalMessage{Type: MsgTypeStdinAck, Seq: msg.Seq, Ok: writeErr == nil}
 		if writeErr != nil {
 			ackMsg.Data = writeErr.Error()

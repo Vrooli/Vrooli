@@ -12,7 +12,7 @@ interface ContextMenuBaseProps {
 
 /** Shared item class for context menu buttons. */
 export const contextMenuItemClass =
-  "w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-wc-text-primary hover:bg-white/10 transition-colors first:rounded-t-lg last:rounded-t-none last:rounded-b-lg";
+  "w-full flex items-center gap-2 text-start px-3 py-2 text-sm text-wc-text-primary hover:bg-white/10 transition-colors first:rounded-t-lg last:rounded-t-none last:rounded-b-lg";
 
 /**
  * Reusable context menu wrapper providing:

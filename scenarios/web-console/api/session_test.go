@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"web-console/internal/config"
-	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
+	"web-console/session"
 )
 
 // [REQ:P0-002a] PTY Session Backend
@@ -227,7 +227,7 @@ func TestSession_SubscribeAndBroadcast(t *testing.T) {
 	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write to stdin - the shell should echo something back
-	err = sess.WriteInput([]byte("echo hello\n"), pty.KindKeystroke)
+	err = sess.SendInput(session.InputText("echo hello\n"))
 	if err != nil {
 		t.Fatalf("WriteInput failed: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestSession_OfflineSnapshotIncludesPriorOutput(t *testing.T) {
 	}
 	defer func() { _ = sm.Delete(sess.ID) }()
 
-	if err := sess.WriteInput([]byte("echo offline_marker\n"), pty.KindKeystroke); err != nil {
+	if err := sess.SendInput(session.InputText("echo offline_marker\n")); err != nil {
 		t.Fatalf("WriteInput: %v", err)
 	}
 	time.Sleep(500 * time.Millisecond)

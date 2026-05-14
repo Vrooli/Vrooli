@@ -244,7 +244,7 @@ export default function SessionManagementSection({
             className="h-8 px-3 text-xs"
             onClick={resetLayout}
           >
-            <RotateCcw className="mr-1 h-3 w-3" />
+            <RotateCcw className="me-1 h-3 w-3" />
             {t(strings.settings.sessionsSection.resetLayout)}
           </Button>
         </div>
@@ -324,7 +324,7 @@ export default function SessionManagementSection({
                           />
                         ) : (
                           <button
-                            className="truncate text-left text-sm font-medium text-wc-text-secondary"
+                            className="truncate text-start text-sm font-medium text-wc-text-secondary"
                             onClick={() => {
                               setEditingName(pane.sessionId);
                               setEditValue(pane.name);
