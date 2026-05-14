@@ -82,6 +82,30 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				},
 				RunCtx: h.contentSet,
 			},
+			{
+				Name:        "versions",
+				Description: "List indexed versions for a component",
+				Args: cliapp.ArgSchema{
+					Positionals: []cliapp.Positional{
+						{Name: "component-id", Required: true, Description: "Component id"},
+					},
+					Flags: []cliapp.Flag{
+						{Name: "limit", Description: "Maximum number of rows"},
+					},
+				},
+				RunCtx: h.versions,
+			},
+			{
+				Name:        "show-version",
+				Description: "Read the source for a component version",
+				Args: cliapp.ArgSchema{
+					Positionals: []cliapp.Positional{
+						{Name: "component-id", Required: true, Description: "Component id"},
+						{Name: "version", Required: true, Description: "Version folder name"},
+					},
+				},
+				RunCtx: h.showVersion,
+			},
 		},
 	}
 }

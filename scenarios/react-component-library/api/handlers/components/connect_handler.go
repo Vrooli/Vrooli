@@ -100,6 +100,37 @@ func (h *connectHandler) GetComponentContent(ctx context.Context, req *connect.R
 	}), nil
 }
 
+func (h *connectHandler) ListComponentVersions(ctx context.Context, req *connect.Request[componentsv1.ListComponentVersionsRequest]) (*connect.Response[componentsv1.ListComponentVersionsResponse], error) {
+	rows, err := h.deps.Service.ListVersions(ctx, req.Msg.ComponentId, int(req.Msg.Limit))
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.ListComponentVersions(%q): %v", req.Msg.ComponentId, err)
+		}
+		return nil, connectErr
+	}
+	resp := &componentsv1.ListComponentVersionsResponse{Versions: make([]*componentsv1.ComponentVersion, 0, len(rows))}
+	for _, v := range rows {
+		resp.Versions = append(resp.Versions, versionToProto(v))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) GetComponentVersionContent(ctx context.Context, req *connect.Request[componentsv1.GetComponentVersionContentRequest]) (*connect.Response[componentsv1.GetComponentVersionContentResponse], error) {
+	v, err := h.deps.Service.GetVersion(ctx, req.Msg.ComponentId, req.Msg.Version)
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.GetComponentVersionContent(%q, %q): %v", req.Msg.ComponentId, req.Msg.Version, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&componentsv1.GetComponentVersionContentResponse{
+		Version: versionToProto(v),
+		Content: v.Content,
+	}), nil
+}
+
 func (h *connectHandler) UpdateComponentContent(ctx context.Context, req *connect.Request[componentsv1.UpdateComponentContentRequest]) (*connect.Response[componentsv1.UpdateComponentContentResponse], error) {
 	content, err := h.deps.Service.UpdateContent(ctx, req.Msg.Id, components.WriteContentInput{
 		Body:           req.Msg.Content,

@@ -45,21 +45,38 @@ func (h *connectHandler) ListAdoptions(ctx context.Context, req *connect.Request
 	return connect.NewResponse(resp), nil
 }
 
-func (h *connectHandler) CreateAdoption(ctx context.Context, req *connect.Request[adoptionsv1.CreateAdoptionRequest]) (*connect.Response[adoptionsv1.CreateAdoptionResponse], error) {
-	got, err := h.deps.Service.Create(ctx, adoptions.CreateInput{
-		ComponentID:    req.Msg.ComponentId,
-		Scenario:       req.Msg.Scenario,
-		AdoptedPath:    req.Msg.AdoptedPath,
-		AdoptedVersion: req.Msg.AdoptedVersion,
+func (h *connectHandler) ApplyAdoption(ctx context.Context, req *connect.Request[adoptionsv1.ApplyAdoptionRequest]) (*connect.Response[adoptionsv1.ApplyAdoptionResponse], error) {
+	got, writtenPath, err := h.deps.Service.Apply(ctx, adoptions.ApplyInput{
+		ComponentID:      req.Msg.ComponentId,
+		Scenario:         req.Msg.Scenario,
+		AdoptedPath:      req.Msg.AdoptedPath,
+		Version:          req.Msg.Version,
+		ConfirmOverwrite: req.Msg.ConfirmOverwrite,
 	})
 	if err != nil {
 		connectErr := adoptions.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
-			h.deps.Logger.Printf("adoptions.CreateAdoption: %v", err)
+			h.deps.Logger.Printf("adoptions.ApplyAdoption: %v", err)
 		}
 		return nil, connectErr
 	}
-	return connect.NewResponse(&adoptionsv1.CreateAdoptionResponse{Adoption: domainToProto(got)}), nil
+	return connect.NewResponse(&adoptionsv1.ApplyAdoptionResponse{Adoption: domainToProto(got), WrittenPath: writtenPath}), nil
+}
+
+func (h *connectHandler) ReapplyAdoption(ctx context.Context, req *connect.Request[adoptionsv1.ReapplyAdoptionRequest]) (*connect.Response[adoptionsv1.ReapplyAdoptionResponse], error) {
+	got, writtenPath, err := h.deps.Service.Reapply(ctx, adoptions.ReapplyInput{
+		ID:                    req.Msg.Id,
+		Version:               req.Msg.Version,
+		ConfirmLocalOverwrite: req.Msg.ConfirmLocalOverwrite,
+	})
+	if err != nil {
+		connectErr := adoptions.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("adoptions.ReapplyAdoption: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&adoptionsv1.ReapplyAdoptionResponse{Adoption: domainToProto(got), WrittenPath: writtenPath}), nil
 }
 
 func (h *connectHandler) DeleteAdoption(ctx context.Context, req *connect.Request[adoptionsv1.DeleteAdoptionRequest]) (*connect.Response[adoptionsv1.DeleteAdoptionResponse], error) {
@@ -80,11 +97,16 @@ func (h *connectHandler) RefreshAdoptions(ctx context.Context, req *connect.Requ
 		return nil, adoptions.ToConnectError(err)
 	}
 	resp := &adoptionsv1.RefreshAdoptionsResponse{
-		Adoptions: make([]*adoptionsv1.Adoption, 0, len(rows)),
-		Current:   int32(summary.Current),
-		Behind:    int32(summary.Behind),
-		Modified:  int32(summary.Modified),
-		Unknown:   int32(summary.Unknown),
+		Adoptions:         make([]*adoptionsv1.Adoption, 0, len(rows)),
+		LibraryCurrent:    int32(summary.LibraryCurrent),
+		LibraryBehind:     int32(summary.LibraryBehind),
+		LibraryDeprecated: int32(summary.LibraryDeprecated),
+		LibraryMissing:    int32(summary.LibraryMissing),
+		LibraryUnknown:    int32(summary.LibraryUnknown),
+		LocalClean:        int32(summary.LocalClean),
+		LocalModified:     int32(summary.LocalModified),
+		LocalMissing:      int32(summary.LocalMissing),
+		LocalUnknown:      int32(summary.LocalUnknown),
 	}
 	for _, a := range rows {
 		resp.Adoptions = append(resp.Adoptions, domainToProto(a))

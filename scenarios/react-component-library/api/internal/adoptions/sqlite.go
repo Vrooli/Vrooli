@@ -41,13 +41,50 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Adoption
 		return Adoption{}, ErrInvalidAdoption{Field: "adopted_path", Reason: "required"}
 	}
 	now := s.clock.Now().UTC()
-	id := uuid.NewString()
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		id = uuid.NewString()
+	}
 	if _, err := s.db.ExecContext(ctx, `
 INSERT INTO adoption_records
-  (id, component_id, library_id, scenario, adopted_path, adopted_version, adopted_snapshot_sha256, status, status_detail, created_at, refreshed_at, drift_backlog_ref)
-VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, '', '')
-`, id, in.ComponentID, in.LibraryID, in.Scenario, in.AdoptedPath, in.AdoptedVersion, in.AdoptedSnapshotSHA256, now.Format(timeFormat)); err != nil {
+  (id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, '')
+`, id, in.ComponentID, in.LibraryID, in.Scenario, in.AdoptedPath, in.AdoptedVersion, in.SourceSHA256, in.AdoptedSnapshotSHA256,
+		string(LibraryVersionStatusCurrent), string(LocalStatusClean), now.Format(timeFormat), now.Format(timeFormat)); err != nil {
 		return Adoption{}, fmt.Errorf("insert adoption: %w", err)
+	}
+	return s.Get(ctx, id)
+}
+
+func (s *sqliteRepository) UpdateAppliedSnapshot(ctx context.Context, in AppliedSnapshotUpdate) (Adoption, error) {
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return Adoption{}, ErrInvalidAdoption{Field: "id", Reason: "required"}
+	}
+	appliedAt := in.AppliedAt.UTC()
+	if appliedAt.IsZero() {
+		appliedAt = s.clock.Now().UTC()
+	}
+	res, err := s.db.ExecContext(ctx, `
+UPDATE adoption_records
+SET adopted_version = ?,
+    source_sha256 = ?,
+    adopted_snapshot_sha256 = ?,
+    library_version_status = ?,
+    local_status = ?,
+    status_detail = '',
+    refreshed_at = ?,
+    applied_at = ?,
+    drift_backlog_ref = ''
+WHERE id = ?
+`, in.AdoptedVersion, in.SourceSHA256, in.AdoptedSnapshotSHA256, string(LibraryVersionStatusCurrent), string(LocalStatusClean),
+		appliedAt.Format(timeFormat), appliedAt.Format(timeFormat), id)
+	if err != nil {
+		return Adoption{}, fmt.Errorf("update applied snapshot %q: %w", id, err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return Adoption{}, ErrAdoptionNotFound{ID: id}
 	}
 	return s.Get(ctx, id)
 }
@@ -87,7 +124,7 @@ func (s *sqliteRepository) List(ctx context.Context, q ListQuery) ([]Adoption, e
 	}
 	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
-SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, adopted_snapshot_sha256, status, status_detail, created_at, refreshed_at, drift_backlog_ref
+SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref
 FROM adoption_records
 %s
 ORDER BY created_at DESC, id ASC
@@ -135,9 +172,9 @@ func (s *sqliteRepository) ApplyRefresh(ctx context.Context, updates []RefreshUp
 	touched := 0
 	for _, u := range updates {
 		res, err := tx.ExecContext(ctx, `
-UPDATE adoption_records SET status = ?, status_detail = ?, refreshed_at = ?
+UPDATE adoption_records SET library_version_status = ?, local_status = ?, status_detail = ?, refreshed_at = ?
 WHERE id = ?
-`, string(u.Status), u.StatusDetail, u.RefreshedAt.UTC().Format(timeFormat), u.ID)
+`, string(u.LibraryVersionStatus), string(u.LocalStatus), u.StatusDetail, u.RefreshedAt.UTC().Format(timeFormat), u.ID)
 		if err != nil {
 			return touched, fmt.Errorf("apply refresh for %q: %w", u.ID, err)
 		}
@@ -164,7 +201,7 @@ WHERE id = ?
 }
 
 const selectAdoptionByIDSQL = `
-SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, adopted_snapshot_sha256, status, status_detail, created_at, refreshed_at, drift_backlog_ref
+SELECT id, component_id, library_id, scenario, adopted_path, adopted_version, source_sha256, adopted_snapshot_sha256, library_version_status, local_status, status_detail, created_at, refreshed_at, applied_at, drift_backlog_ref
 FROM adoption_records WHERE id = ?
 `
 
@@ -174,16 +211,19 @@ type rowScanner interface {
 
 func scanAdoption(s rowScanner) (Adoption, error) {
 	var (
-		a            Adoption
-		statusRaw    string
-		createdRaw   string
-		refreshedRaw string
+		a                Adoption
+		libraryStatusRaw string
+		localStatusRaw   string
+		createdRaw       string
+		refreshedRaw     string
+		appliedRaw       string
 	)
 	if err := s.Scan(&a.ID, &a.ComponentID, &a.LibraryID, &a.Scenario, &a.AdoptedPath, &a.AdoptedVersion,
-		&a.AdoptedSnapshotSHA256, &statusRaw, &a.StatusDetail, &createdRaw, &refreshedRaw, &a.DriftBacklogRef); err != nil {
+		&a.SourceSHA256, &a.AdoptedSnapshotSHA256, &libraryStatusRaw, &localStatusRaw, &a.StatusDetail, &createdRaw, &refreshedRaw, &appliedRaw, &a.DriftBacklogRef); err != nil {
 		return Adoption{}, err
 	}
-	a.Status = Status(statusRaw)
+	a.LibraryVersionStatus = LibraryVersionStatus(libraryStatusRaw)
+	a.LocalStatus = LocalStatus(localStatusRaw)
 	created, err := time.Parse(timeFormat, createdRaw)
 	if err != nil {
 		return Adoption{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)
@@ -195,6 +235,13 @@ func scanAdoption(s rowScanner) (Adoption, error) {
 			return Adoption{}, fmt.Errorf("parse refreshed_at %q: %w", refreshedRaw, err)
 		}
 		a.RefreshedAt = ref
+	}
+	if appliedRaw != "" {
+		applied, err := time.Parse(timeFormat, appliedRaw)
+		if err != nil {
+			return Adoption{}, fmt.Errorf("parse applied_at %q: %w", appliedRaw, err)
+		}
+		a.AppliedAt = applied
 	}
 	return a, nil
 }

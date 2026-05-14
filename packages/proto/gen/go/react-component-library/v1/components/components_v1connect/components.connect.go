@@ -51,6 +51,12 @@ const (
 	// ComponentsServiceUpdateComponentContentProcedure is the fully-qualified name of the
 	// ComponentsService's UpdateComponentContent RPC.
 	ComponentsServiceUpdateComponentContentProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentContent"
+	// ComponentsServiceListComponentVersionsProcedure is the fully-qualified name of the
+	// ComponentsService's ListComponentVersions RPC.
+	ComponentsServiceListComponentVersionsProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentVersions"
+	// ComponentsServiceGetComponentVersionContentProcedure is the fully-qualified name of the
+	// ComponentsService's GetComponentVersionContent RPC.
+	ComponentsServiceGetComponentVersionContentProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentVersionContent"
 )
 
 // ComponentsServiceClient is a client for the
@@ -62,6 +68,8 @@ type ComponentsServiceClient interface {
 	IndexComponents(context.Context, *connect.Request[components.IndexComponentsRequest]) (*connect.Response[components.IndexComponentsResponse], error)
 	GetComponentContent(context.Context, *connect.Request[components.GetComponentContentRequest]) (*connect.Response[components.GetComponentContentResponse], error)
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
+	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
+	GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error)
 }
 
 // NewComponentsServiceClient constructs a client for the
@@ -112,17 +120,31 @@ func NewComponentsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(componentsServiceMethods.ByName("UpdateComponentContent")),
 			connect.WithClientOptions(opts...),
 		),
+		listComponentVersions: connect.NewClient[components.ListComponentVersionsRequest, components.ListComponentVersionsResponse](
+			httpClient,
+			baseURL+ComponentsServiceListComponentVersionsProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("ListComponentVersions")),
+			connect.WithClientOptions(opts...),
+		),
+		getComponentVersionContent: connect.NewClient[components.GetComponentVersionContentRequest, components.GetComponentVersionContentResponse](
+			httpClient,
+			baseURL+ComponentsServiceGetComponentVersionContentProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("GetComponentVersionContent")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // componentsServiceClient implements ComponentsServiceClient.
 type componentsServiceClient struct {
-	listComponents          *connect.Client[components.ListComponentsRequest, components.ListComponentsResponse]
-	getComponent            *connect.Client[components.GetComponentRequest, components.GetComponentResponse]
-	getComponentByLibraryId *connect.Client[components.GetComponentByLibraryIdRequest, components.GetComponentByLibraryIdResponse]
-	indexComponents         *connect.Client[components.IndexComponentsRequest, components.IndexComponentsResponse]
-	getComponentContent     *connect.Client[components.GetComponentContentRequest, components.GetComponentContentResponse]
-	updateComponentContent  *connect.Client[components.UpdateComponentContentRequest, components.UpdateComponentContentResponse]
+	listComponents             *connect.Client[components.ListComponentsRequest, components.ListComponentsResponse]
+	getComponent               *connect.Client[components.GetComponentRequest, components.GetComponentResponse]
+	getComponentByLibraryId    *connect.Client[components.GetComponentByLibraryIdRequest, components.GetComponentByLibraryIdResponse]
+	indexComponents            *connect.Client[components.IndexComponentsRequest, components.IndexComponentsResponse]
+	getComponentContent        *connect.Client[components.GetComponentContentRequest, components.GetComponentContentResponse]
+	updateComponentContent     *connect.Client[components.UpdateComponentContentRequest, components.UpdateComponentContentResponse]
+	listComponentVersions      *connect.Client[components.ListComponentVersionsRequest, components.ListComponentVersionsResponse]
+	getComponentVersionContent *connect.Client[components.GetComponentVersionContentRequest, components.GetComponentVersionContentResponse]
 }
 
 // ListComponents calls
@@ -160,6 +182,18 @@ func (c *componentsServiceClient) UpdateComponentContent(ctx context.Context, re
 	return c.updateComponentContent.CallUnary(ctx, req)
 }
 
+// ListComponentVersions calls
+// vrooli.react_component_library.v1.components.ComponentsService.ListComponentVersions.
+func (c *componentsServiceClient) ListComponentVersions(ctx context.Context, req *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error) {
+	return c.listComponentVersions.CallUnary(ctx, req)
+}
+
+// GetComponentVersionContent calls
+// vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent.
+func (c *componentsServiceClient) GetComponentVersionContent(ctx context.Context, req *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error) {
+	return c.getComponentVersionContent.CallUnary(ctx, req)
+}
+
 // ComponentsServiceHandler is an implementation of the
 // vrooli.react_component_library.v1.components.ComponentsService service.
 type ComponentsServiceHandler interface {
@@ -169,6 +203,8 @@ type ComponentsServiceHandler interface {
 	IndexComponents(context.Context, *connect.Request[components.IndexComponentsRequest]) (*connect.Response[components.IndexComponentsResponse], error)
 	GetComponentContent(context.Context, *connect.Request[components.GetComponentContentRequest]) (*connect.Response[components.GetComponentContentResponse], error)
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
+	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
+	GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error)
 }
 
 // NewComponentsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -214,6 +250,18 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 		connect.WithSchema(componentsServiceMethods.ByName("UpdateComponentContent")),
 		connect.WithHandlerOptions(opts...),
 	)
+	componentsServiceListComponentVersionsHandler := connect.NewUnaryHandler(
+		ComponentsServiceListComponentVersionsProcedure,
+		svc.ListComponentVersions,
+		connect.WithSchema(componentsServiceMethods.ByName("ListComponentVersions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	componentsServiceGetComponentVersionContentHandler := connect.NewUnaryHandler(
+		ComponentsServiceGetComponentVersionContentProcedure,
+		svc.GetComponentVersionContent,
+		connect.WithSchema(componentsServiceMethods.ByName("GetComponentVersionContent")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.react_component_library.v1.components.ComponentsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ComponentsServiceListComponentsProcedure:
@@ -228,6 +276,10 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 			componentsServiceGetComponentContentHandler.ServeHTTP(w, r)
 		case ComponentsServiceUpdateComponentContentProcedure:
 			componentsServiceUpdateComponentContentHandler.ServeHTTP(w, r)
+		case ComponentsServiceListComponentVersionsProcedure:
+			componentsServiceListComponentVersionsHandler.ServeHTTP(w, r)
+		case ComponentsServiceGetComponentVersionContentProcedure:
+			componentsServiceGetComponentVersionContentHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -259,4 +311,12 @@ func (UnimplementedComponentsServiceHandler) GetComponentContent(context.Context
 
 func (UnimplementedComponentsServiceHandler) UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentContent is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.ListComponentVersions is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent is not implemented"))
 }

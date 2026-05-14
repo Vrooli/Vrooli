@@ -1,77 +1,41 @@
 # Data — React Component Library
 
-This document is the canonical data ownership and storage map for the
-scenario. Update it when domains add tables, files, blobs, external
-records, retention rules, migrations, imports, or exports.
-
-## Purpose Of This Document
-
-Use this document to answer:
-
-- What data does the scenario persist?
-- Which domain owns each data shape?
-- Where is the source of truth?
-- What is the retention/deletion story?
-- How are schema changes handled?
+This document is the canonical storage map for the scenario.
 
 ## Storage Overview
 
-The template default is embedded SQLite through `modernc.org/sqlite`.
-The lifecycle sets `SQLITE_PATH` through `.vrooli/service.json`, and
-the API applies schemas on startup through `api-core/database`.
-
-External storage resources should be introduced only when a real
-domain needs them. Document those decisions in
-[`INTEGRATIONS.md`](INTEGRATIONS.md) before editing
-`.vrooli/service.json`.
+React Component Library stores canonical component source in Git and
+uses SQLite as an indexed registry and adoption ledger.
 
 ## Data Ownership
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
+| Component manifests | components | `library/components/<slug>/component.json` | Git-tracked file | Until component is removed | Manifest owns `libraryId`, display metadata, tags, latest, draft, and deprecated versions. |
+| Component version source | components / versions | `library/components/<slug>/versions/<version>/*.tsx` plus indexed SQLite snapshot | Git-tracked file; SQLite stores content hash/content for stable reads | Released versions are immutable; drafts may change | Exactly one `.tsx` file per version folder in this phase. |
+| Component registry | components | SQLite `components` | Manifest indexer | Rebuilt by `components index` | Soft-referenced by other domains through component id/library id. |
+| Component versions | versions | SQLite `component_versions` | Manifest indexer | Rebuilt by `components index` | Stores status, source path, content, sha, and release timestamps. |
+| Adoption records | adoptions | SQLite `adoption_records` | Apply/reapply service | Until deleted | Tracks scenario/path, adopted version, source sha, snapshot sha, and drift statuses. |
+| Adopted component files | adoptions | Target scenario filesystem | Target scenario owns local edits after apply | Until scenario changes/deletes file | Files receive `@vrooliComponent*` provenance comments. |
+| Dependency declarations | deps | SQLite | Latest indexed version header `@deps` | Rebuilt by index | Used to validate adoption against target scenario `package.json`. |
 
 ## Schema Map
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
-| system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
+| `components` | components | `api/internal/components/schema.sql` | Registry list/get, apply lookup, preview |
+| `component_versions` | versions/components | `api/internal/components/schema.sql`, mirrored in `api/internal/versions/schema.sql` | Version browsing, apply/reapply, diffs |
+| `adoption_records` | adoptions | `api/internal/adoptions/schema.sql` | Apply/reapply/list/refresh |
+| `dep_declarations` | deps | `api/internal/deps/schema.sql` | Dependency validation |
 
-## Migrations And Compatibility
+## Migration Policy
 
-The generated template uses idempotent schema bootstrap. Domain schema
-files should use `CREATE TABLE IF NOT EXISTS` and live beside the code
-that interprets them.
-
-For production data migrations that need column drops, renames, or data
-backfills, add a scenario-specific migration plan here and update
-[`../internal/DECISIONS.md`](../internal/DECISIONS.md) with the tradeoff.
-
-## Import / Export
-
-| Path | Format | Owner | Status |
-|---|---|---|---|
-| None yet. | n/a | n/a | Add when product requirements include import/export. |
-
-## Retention And Deletion
-
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
-
-## Privacy Notes
-
-Generated template data is local development data. If a scenario stores
-personal, regulated, customer, financial, or sensitive business data,
-update this document and [`../internal/SECURITY.md`](../internal/SECURITY.md)
-before implementation expands.
+This scenario is still greenfield. Schema files are desired-state
+bootstrap files using `CREATE TABLE IF NOT EXISTS`; existing local dev
+SQLite data may be discarded while this model settles.
 
 ## Cross-References
 
-- [`DOMAINS.md`](DOMAINS.md) — data ownership by domain
-- [`INTEGRATIONS.md`](INTEGRATIONS.md) — external resources and scenarios
-- [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration
-- [`../internal/SECURITY.md`](../internal/SECURITY.md) — privacy/security posture
+- [`DOMAINS.md`](DOMAINS.md)
+- [`FLOWS.md`](FLOWS.md)
+- [`../reference/configuration.md`](../reference/configuration.md)

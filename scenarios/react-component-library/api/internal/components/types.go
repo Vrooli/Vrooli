@@ -1,8 +1,8 @@
 // Package components is the domain-scoped home for the component
-// registry — the indexed view of TSX files on disk that declare a
-// `@libraryId` header. Cross-cutting concerns (versions, adoptions,
-// deps, themes) live in sibling internal/<dom>/ packages and reference
-// components by ID with no hard FK.
+// registry — the indexed view of Git-tracked component manifests and
+// their explicit version folders. Cross-cutting concerns (versions,
+// adoptions, deps, themes) live in sibling internal/<dom>/ packages and
+// reference components by ID with no hard FK.
 //
 // Layering:
 //
@@ -13,8 +13,8 @@
 //
 // types.go owns the domain entity and typed sentinels. repository.go
 // owns the persistence seam. service.go owns application policy.
-// indexer.go walks the filesystem (via api-core/storage) and parses
-// the canonical header comment block.
+// indexer.go walks library/components/*/component.json and validates
+// the source-local version headers.
 package components
 
 import (
@@ -26,29 +26,85 @@ import (
 // The wire/proto type lives at the transport edge; this struct is the
 // only shape internal callers depend on.
 type Component struct {
-	ID          string
-	LibraryID   string
-	DisplayName string
-	Description string
-	SourcePath  string
-	Version     string
-	Tags        []string
-	IndexedAt   time.Time
-	UpdatedAt   time.Time
-	Headers     map[string]string
+	ID            string
+	LibraryID     string
+	Slug          string
+	DisplayName   string
+	Description   string
+	SourcePath    string
+	Version       string
+	LatestVersion string
+	DraftVersion  string
+	ManifestPath  string
+	Tags          []string
+	IndexedAt     time.Time
+	UpdatedAt     time.Time
+	Headers       map[string]string
 }
 
-// UpsertInput is the explicit DTO the indexer hands to the service.
-// Distinct from Component so the service owns ID assignment and
-// IndexedAt/UpdatedAt stamping (Repository.Upsert generates them).
+// ComponentVersionStatus classifies a version folder.
+type ComponentVersionStatus string
+
+const (
+	VersionStatusDraft      ComponentVersionStatus = "draft"
+	VersionStatusReleased   ComponentVersionStatus = "released"
+	VersionStatusDeprecated ComponentVersionStatus = "deprecated"
+	VersionStatusArchived   ComponentVersionStatus = "archived"
+)
+
+// ComponentVersion is the immutable/draft source artifact indexed for
+// a component version folder.
+type ComponentVersion struct {
+	ID            string
+	ComponentID   string
+	LibraryID     string
+	Version       string
+	Status        ComponentVersionStatus
+	SourcePath    string
+	Content       string
+	ContentSHA256 string
+	ChangelogMD   string
+	IndexedAt     time.Time
+	ReleasedAt    time.Time
+}
+
+// ComponentManifest is the explicit DTO the manifest indexer hands to
+// the service. Distinct from Component so the service owns ID
+// assignment and IndexedAt/UpdatedAt stamping.
+type ComponentManifest struct {
+	LibraryID          string
+	Slug               string
+	DisplayName        string
+	Description        string
+	ManifestPath       string
+	LatestVersion      string
+	DraftVersion       string
+	DeprecatedVersions []string
+	Tags               []string
+}
+
+// UpsertInput is retained as a convenience alias for older tests and
+// service callers inside this greenfield scenario. New index code uses
+// ComponentManifest directly.
 type UpsertInput struct {
-	LibraryID   string
-	DisplayName string
-	Description string
-	SourcePath  string
-	Version     string
-	Tags        []string
-	Headers     map[string]string
+	LibraryID     string
+	Slug          string
+	DisplayName   string
+	Description   string
+	ManifestPath  string
+	SourcePath    string
+	Version       string
+	LatestVersion string
+	DraftVersion  string
+	Tags          []string
+	Headers       map[string]string
+}
+
+// IndexManifestInput is the full registry payload for one component
+// manifest and all validated version folders.
+type IndexManifestInput struct {
+	Manifest ComponentManifest
+	Versions []ComponentVersion
 }
 
 // SearchQuery filters a List call. All fields optional.
@@ -81,10 +137,9 @@ func (e ErrComponentNotFound) Error() string {
 	return fmt.Sprintf("component %q not found", e.IDOrLibraryID)
 }
 
-// ErrInvalidHeader is returned by the indexer/service when a header
-// block fails to satisfy the @libraryId contract documented in the
-// scenario PRD. Field names the offending header field; Reason is a
-// human-safe explanation.
+// ErrInvalidHeader is returned by the indexer/service when a manifest
+// or source-local header fails validation. Field names the offending
+// field; Reason is a human-safe explanation.
 type ErrInvalidHeader struct {
 	SourcePath string
 	Field      string

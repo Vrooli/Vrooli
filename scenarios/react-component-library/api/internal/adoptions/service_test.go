@@ -39,6 +39,14 @@ func (f *fakeLibrary) GetContent(_ context.Context, id string) (components.Conte
 	return components.Content{Body: body, SHA256: hex.EncodeToString(sum[:])}, nil
 }
 
+func (f *fakeLibrary) GetVersion(_ context.Context, componentID, version string) (components.ComponentVersion, error) {
+	body, ok := f.body[componentID]
+	if !ok {
+		return components.ComponentVersion{}, components.ErrComponentNotFound{IDOrLibraryID: componentID + "@" + version}
+	}
+	return components.ComponentVersion{ComponentID: componentID, Version: version, Content: body, ContentSHA256: sha(body)}, nil
+}
+
 // fakeFiles is a minimal ScenarioFileReader keyed by "<scenario>::<path>".
 type fakeFiles struct {
 	bytes map[string][]byte
@@ -52,6 +60,19 @@ func (f *fakeFiles) Read(_ context.Context, scenario, p string) ([]byte, error) 
 	return b, nil
 }
 
+func (f *fakeFiles) Exists(_ context.Context, scenario, p string) (bool, error) {
+	_, ok := f.bytes[scenario+"::"+p]
+	return ok, nil
+}
+
+func (f *fakeFiles) Write(_ context.Context, scenario, p string, b []byte) (string, error) {
+	if f.bytes == nil {
+		f.bytes = map[string][]byte{}
+	}
+	f.bytes[scenario+"::"+p] = append([]byte(nil), b...)
+	return scenario + "/" + p, nil
+}
+
 func sha(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
@@ -63,7 +84,7 @@ func TestService_Refresh_StatusMatrix(t *testing.T) {
 	// Library: Button at v1.1.0 with current body "BODY-V11".
 	lib := &fakeLibrary{
 		byID: map[string]components.Component{
-			"cmp-btn": {ID: "cmp-btn", LibraryID: "rcl:Button", Version: "1.1.0"},
+			"cmp-btn":  {ID: "cmp-btn", LibraryID: "rcl:Button", Version: "1.1.0", LatestVersion: "1.1.0"},
 			"cmp-gone": {ID: "cmp-gone"}, // exists in repo
 		},
 		body: map[string]string{
@@ -79,9 +100,9 @@ func TestService_Refresh_StatusMatrix(t *testing.T) {
 	bodyV11 := "BODY-V11"
 	bodyEdited := "BODY-LOCAL-EDIT"
 	files := &fakeFiles{bytes: map[string][]byte{
-		"swarm-manager::a-current.tsx":  []byte(bodyV11),     // matches library
-		"swarm-manager::b-behind.tsx":   []byte(bodyV10),     // matches snapshot
-		"swarm-manager::c-modified.tsx": []byte(bodyEdited),  // diverged
+		"swarm-manager::a-current.tsx":  []byte(bodyV11),    // matches library
+		"swarm-manager::b-behind.tsx":   []byte(bodyV10),    // matches snapshot
+		"swarm-manager::c-modified.tsx": []byte(bodyEdited), // diverged
 		// d-unknown.tsx intentionally missing
 		// e-component-gone.tsx exists but component no longer in library
 		"swarm-manager::e-component-gone.tsx": []byte("anything"),
@@ -91,21 +112,31 @@ func TestService_Refresh_StatusMatrix(t *testing.T) {
 
 	// Seed adoption rows directly (Seed bypasses Create's gates).
 	rows := []adoptions.Adoption{
-		{ID: "row-current", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
+		{
+			ID: "row-current", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
 			Scenario: "swarm-manager", AdoptedPath: "a-current.tsx",
-			AdoptedVersion: "1.1.0", AdoptedSnapshotSHA256: sha(bodyV11)},
-		{ID: "row-behind", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
+			AdoptedVersion: "1.1.0", AdoptedSnapshotSHA256: sha(bodyV11),
+		},
+		{
+			ID: "row-behind", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
 			Scenario: "swarm-manager", AdoptedPath: "b-behind.tsx",
-			AdoptedVersion: "1.0.0", AdoptedSnapshotSHA256: sha(bodyV10)},
-		{ID: "row-modified", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
+			AdoptedVersion: "1.0.0", AdoptedSnapshotSHA256: sha(bodyV10),
+		},
+		{
+			ID: "row-modified", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
 			Scenario: "swarm-manager", AdoptedPath: "c-modified.tsx",
-			AdoptedVersion: "1.0.0", AdoptedSnapshotSHA256: sha(bodyV10)},
-		{ID: "row-unknown-missing", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
+			AdoptedVersion: "1.0.0", AdoptedSnapshotSHA256: sha(bodyV10),
+		},
+		{
+			ID: "row-unknown-missing", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
 			Scenario: "swarm-manager", AdoptedPath: "d-unknown.tsx",
-			AdoptedVersion: "1.0.0", AdoptedSnapshotSHA256: sha(bodyV10)},
-		{ID: "row-unknown-gone", ComponentID: "cmp-gone", LibraryID: "rcl:Removed",
+			AdoptedVersion: "1.0.0", AdoptedSnapshotSHA256: sha(bodyV10),
+		},
+		{
+			ID: "row-unknown-gone", ComponentID: "cmp-gone", LibraryID: "rcl:Removed",
 			Scenario: "swarm-manager", AdoptedPath: "e-component-gone.tsx",
-			AdoptedVersion: "0.1.0", AdoptedSnapshotSHA256: sha("anything")},
+			AdoptedVersion: "0.1.0", AdoptedSnapshotSHA256: sha("anything"),
+		},
 	}
 	for _, r := range rows {
 		r.CreatedAt = clk.Now()
@@ -121,16 +152,23 @@ func TestService_Refresh_StatusMatrix(t *testing.T) {
 	for _, a := range got {
 		byID[a.ID] = a
 	}
-	require.Equal(t, adoptions.StatusCurrent, byID["row-current"].Status)
-	require.Equal(t, adoptions.StatusBehind, byID["row-behind"].Status)
+	require.Equal(t, adoptions.LibraryVersionStatusCurrent, byID["row-current"].LibraryVersionStatus)
+	require.Equal(t, adoptions.LocalStatusClean, byID["row-current"].LocalStatus)
+	require.Equal(t, adoptions.LibraryVersionStatusBehind, byID["row-behind"].LibraryVersionStatus)
+	require.Equal(t, adoptions.LocalStatusClean, byID["row-behind"].LocalStatus)
 	require.Contains(t, byID["row-behind"].StatusDetail, "1.1.0")
-	require.Equal(t, adoptions.StatusModified, byID["row-modified"].Status)
-	require.Equal(t, adoptions.StatusUnknown, byID["row-unknown-missing"].Status)
+	require.Equal(t, adoptions.LocalStatusModified, byID["row-modified"].LocalStatus)
+	require.Equal(t, adoptions.LocalStatusMissing, byID["row-unknown-missing"].LocalStatus)
 	require.Contains(t, byID["row-unknown-missing"].StatusDetail, "missing")
-	require.Equal(t, adoptions.StatusUnknown, byID["row-unknown-gone"].Status)
+	require.Equal(t, adoptions.LibraryVersionStatusMissing, byID["row-unknown-gone"].LibraryVersionStatus)
 	require.Contains(t, byID["row-unknown-gone"].StatusDetail, "removed")
 
-	require.Equal(t, adoptions.RefreshSummary{Current: 1, Behind: 1, Modified: 1, Unknown: 2}, summary)
+	require.Equal(t, 1, summary.LibraryCurrent)
+	require.Equal(t, 3, summary.LibraryBehind)
+	require.Equal(t, 1, summary.LibraryMissing)
+	require.Equal(t, 2, summary.LocalClean)
+	require.Equal(t, 1, summary.LocalModified)
+	require.Equal(t, 1, summary.LocalMissing)
 
 	// Refresh wrote refreshed_at on every row.
 	for _, a := range got {
@@ -142,8 +180,8 @@ func TestService_Refresh_FilterByComponent(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	lib := &fakeLibrary{
 		byID: map[string]components.Component{
-			"cmp-a": {ID: "cmp-a", LibraryID: "x:A"},
-			"cmp-b": {ID: "cmp-b", LibraryID: "x:B"},
+			"cmp-a": {ID: "cmp-a", LibraryID: "x:A", Version: "1.0.0"},
+			"cmp-b": {ID: "cmp-b", LibraryID: "x:B", Version: "1.0.0"},
 		},
 		body: map[string]string{"cmp-a": "AA", "cmp-b": "BB"},
 	}
@@ -198,4 +236,70 @@ func TestService_Create_HashesSnapshotAndEchoesLibraryID(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "rcl:Button", a.LibraryID)
 	require.Equal(t, sha("ADOPTED-AT-CREATE"), a.AdoptedSnapshotSHA256)
+}
+
+func TestService_Apply_UsesSameIDInRecordAndProvenance(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp": {ID: "cmp", LibraryID: "rcl:Button", LatestVersion: "1.0.0"},
+		},
+		body: map[string]string{
+			"cmp": "// @vrooliComponent libraryId=rcl:Button version=1.0.0\nexport function Button() { return <button />; }\n",
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+
+	svc := adoptions.NewService(repo, lib, files, clk)
+	a, written, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+		ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "target/ui/src/Button.tsx", written)
+	require.NotEmpty(t, a.ID)
+
+	adopted := string(files.bytes["target::ui/src/Button.tsx"])
+	require.Contains(t, adopted, "@vrooliComponentAdoption")
+	require.Contains(t, adopted, "@vrooliComponentAdoption "+a.ID)
+	require.NotContains(t, adopted, "@vrooliComponent libraryId")
+	require.Equal(t, sha(adopted), a.AdoptedSnapshotSHA256)
+}
+
+func TestService_Reapply_PersistsNewVersionAndSnapshot(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	initial := "OLD"
+	repo.Seed(adoptions.Adoption{
+		ID: "adopt-1", ComponentID: "cmp", LibraryID: "rcl:Button", Scenario: "target", AdoptedPath: "Button.tsx",
+		AdoptedVersion: "1.0.0", SourceSHA256: sha(initial), AdoptedSnapshotSHA256: sha(initial),
+		LibraryVersionStatus: adoptions.LibraryVersionStatusBehind, LocalStatus: adoptions.LocalStatusClean,
+		DriftBacklogRef: "bug/drift",
+	})
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp": {ID: "cmp", LibraryID: "rcl:Button", LatestVersion: "1.1.0"},
+		},
+		body: map[string]string{
+			"cmp": "// @vrooliComponent libraryId=rcl:Button version=1.1.0\nNEW\n",
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{"target::Button.tsx": []byte(initial)}}
+	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+
+	svc := adoptions.NewService(repo, lib, files, clk)
+	a, _, err := svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: "adopt-1"})
+	require.NoError(t, err)
+
+	adopted := string(files.bytes["target::Button.tsx"])
+	require.Equal(t, "1.1.0", a.AdoptedVersion)
+	require.Equal(t, sha(adopted), a.AdoptedSnapshotSHA256)
+	require.Equal(t, adoptions.LibraryVersionStatusCurrent, a.LibraryVersionStatus)
+	require.Equal(t, adoptions.LocalStatusClean, a.LocalStatus)
+	require.Empty(t, a.StatusDetail)
+	require.Empty(t, a.DriftBacklogRef)
+
+	got, err := repo.Get(context.Background(), "adopt-1")
+	require.NoError(t, err)
+	require.Equal(t, "1.1.0", got.AdoptedVersion)
+	require.Equal(t, sha(adopted), got.AdoptedSnapshotSHA256)
 }

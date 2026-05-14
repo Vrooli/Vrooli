@@ -35,6 +35,9 @@ vi.mock("../../api/components", async (importOriginal) => {
   return { ...actual, ...makeComponentsMocks() };
 });
 
+// ThemeSwitcher (TH-003) only mounts after previewReady; nothing to
+// stub for these tests since they never reach that state.
+
 import { ComponentEditor } from "./ComponentEditor";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";

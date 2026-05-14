@@ -21,13 +21,13 @@ import (
 )
 
 type versionsService struct {
-	mu        sync.Mutex
-	listResp  *versionsv1.ListVersionsResponse
-	getResp   *versionsv1.GetVersionResponse
-	diffResp  *versionsv1.DiffVersionsResponse
-	listReqs  []*versionsv1.ListVersionsRequest
-	getReqs   []*versionsv1.GetVersionRequest
-	diffReqs  []*versionsv1.DiffVersionsRequest
+	mu       sync.Mutex
+	listResp *versionsv1.ListVersionsResponse
+	getResp  *versionsv1.GetVersionResponse
+	diffResp *versionsv1.DiffVersionsResponse
+	listReqs []*versionsv1.ListVersionsRequest
+	getReqs  []*versionsv1.GetVersionRequest
+	diffReqs []*versionsv1.DiffVersionsRequest
 }
 
 func (s *versionsService) ListVersions(_ context.Context, req *connect.Request[versionsv1.ListVersionsRequest]) (*connect.Response[versionsv1.ListVersionsResponse], error) {

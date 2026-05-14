@@ -19,10 +19,10 @@ import (
 )
 
 type previewService struct {
-	mu          sync.Mutex
-	bundleResp  *previewv1.GetPreviewBundleResponse
-	bundleErr   error
-	bundleReqs  []*previewv1.GetPreviewBundleRequest
+	mu         sync.Mutex
+	bundleResp *previewv1.GetPreviewBundleResponse
+	bundleErr  error
+	bundleReqs []*previewv1.GetPreviewBundleRequest
 }
 
 func (s *previewService) GetPreviewBundle(_ context.Context, req *connect.Request[previewv1.GetPreviewBundleRequest]) (*connect.Response[previewv1.GetPreviewBundleResponse], error) {

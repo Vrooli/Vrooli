@@ -44,7 +44,7 @@
     {
       "id": "DC-003",
       "title": "Adoption UI surfaces dep verdicts and blocks proceed on block",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "deps",
       "criticality": "P1",
@@ -53,8 +53,8 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
-          "notes": "Component test renders the modal against each verdict fixture and asserts proceed-button state."
+          "status": "complete",
+          "notes": "features/adoptions/CreateAdoptionDialog.test.tsx: OK enables confirm + dispatches createAdoption; BLOCK disables confirm and lists the failing dep; WARN requires the acknowledgment checkbox before confirm enables."
         }
       ]
     }

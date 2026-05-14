@@ -2,7 +2,8 @@ import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import {
   AdoptionSchema,
-  AdoptionStatus,
+  LibraryVersionStatus,
+  LocalStatus,
   ListAdoptionsResponseSchema,
   RefreshAdoptionsResponseSchema,
   type Adoption,
@@ -11,7 +12,7 @@ import {
 } from "@vrooli/proto-types/react-component-library/v1/adoptions/adoptions_pb";
 
 export type { Adoption, ListAdoptionsResponse, RefreshAdoptionsResponse };
-export { AdoptionStatus };
+export { LibraryVersionStatus, LocalStatus };
 
 export const makeAdoption = (
   overrides: MessageInitShape<typeof AdoptionSchema> = {},
@@ -23,7 +24,8 @@ export const makeAdoption = (
     scenario: "swarm-manager",
     adoptedPath: "ui/src/components/Button.tsx",
     adoptedVersion: "1.0.0",
-    status: AdoptionStatus.CURRENT,
+    libraryVersionStatus: LibraryVersionStatus.CURRENT,
+    localStatus: LocalStatus.CLEAN,
     statusDetail: "",
     createdAt: timestampFromDate(new Date("2026-05-12T00:00:00.000Z")),
     refreshedAt: timestampFromDate(new Date("2026-05-12T01:00:00.000Z")),
@@ -43,9 +45,14 @@ export const makeRefreshAdoptionsResponse = (
 ): RefreshAdoptionsResponse =>
   create(RefreshAdoptionsResponseSchema, {
     adoptions: [],
-    current: 0,
-    behind: 0,
-    modified: 0,
-    unknown: 0,
+    libraryCurrent: 0,
+    libraryBehind: 0,
+    libraryDeprecated: 0,
+    libraryMissing: 0,
+    libraryUnknown: 0,
+    localClean: 0,
+    localModified: 0,
+    localMissing: 0,
+    localUnknown: 0,
     ...overrides,
   });

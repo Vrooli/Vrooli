@@ -91,7 +91,7 @@ func buildDriftBacklogPayload(ev DriftEvent) (map[string]any, error) {
 	if libID == "" {
 		return nil, fmt.Errorf("drift event missing component identity")
 	}
-	statusLabel := string(ev.Status)
+	statusLabel := fmt.Sprintf("library=%s local=%s", ev.LibraryVersionStatus, ev.LocalStatus)
 	if statusLabel == "" {
 		statusLabel = "drift"
 	}

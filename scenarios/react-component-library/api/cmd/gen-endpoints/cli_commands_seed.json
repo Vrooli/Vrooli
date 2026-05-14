@@ -12,9 +12,14 @@
       "endpoint_id": "adoptions_list"
     },
     {
-      "name": "adoptions create",
-      "description": "Create an adoption record linking a library component to a scenario tree",
-      "endpoint_id": "adoptions_create"
+      "name": "adoptions apply",
+      "description": "Copy a component version into a target scenario and record the adoption",
+      "endpoint_id": "adoptions_apply"
+    },
+    {
+      "name": "adoptions reapply",
+      "description": "Overwrite an adoption from a selected library version",
+      "endpoint_id": "adoptions_reapply"
     },
     {
       "name": "adoptions delete",
@@ -55,6 +60,16 @@
       "name": "components content-set",
       "description": "Write a component's source file (use - to read from stdin)",
       "endpoint_id": "components_content_set"
+    },
+    {
+      "name": "components versions",
+      "description": "List indexed versions for a component",
+      "endpoint_id": "components_versions_list"
+    },
+    {
+      "name": "components show-version",
+      "description": "Read the source for a component version",
+      "endpoint_id": "components_version_content_get"
     },
     {
       "name": "deps list",

@@ -5,7 +5,8 @@ import { makeListAdoptionsResponse, makeRefreshAdoptionsResponse } from "./facto
 export interface AdoptionsMocks {
   adoptionsClient: {
     listAdoptions: ReturnType<typeof vi.fn>;
-    createAdoption: ReturnType<typeof vi.fn>;
+    applyAdoption: ReturnType<typeof vi.fn>;
+    reapplyAdoption: ReturnType<typeof vi.fn>;
     deleteAdoption: ReturnType<typeof vi.fn>;
     refreshAdoptions: ReturnType<typeof vi.fn>;
   };
@@ -14,7 +15,8 @@ export interface AdoptionsMocks {
 export const makeAdoptionsMocks = (): AdoptionsMocks => ({
   adoptionsClient: {
     listAdoptions: vi.fn().mockResolvedValue(makeListAdoptionsResponse()),
-    createAdoption: vi.fn().mockResolvedValue({ adoption: undefined }),
+    applyAdoption: vi.fn().mockResolvedValue({ adoption: undefined, writtenPath: "" }),
+    reapplyAdoption: vi.fn().mockResolvedValue({ adoption: undefined, writtenPath: "" }),
     deleteAdoption: vi.fn().mockResolvedValue({}),
     refreshAdoptions: vi.fn().mockResolvedValue(makeRefreshAdoptionsResponse()),
   },

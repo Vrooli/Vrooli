@@ -10,9 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
+
+	"github.com/google/uuid"
 )
 
 // defaultListLimit caps List rows when callers pass 0. Business
@@ -24,6 +27,8 @@ const defaultListLimit = 200
 // not belong in transport.
 type Service interface {
 	Create(ctx context.Context, in CreateInput) (Adoption, error)
+	Apply(ctx context.Context, in ApplyInput) (Adoption, string, error)
+	Reapply(ctx context.Context, in ReapplyInput) (Adoption, string, error)
 	List(ctx context.Context, q ListQuery) ([]Adoption, error)
 	Get(ctx context.Context, id string) (Adoption, error)
 	Delete(ctx context.Context, id string) error
@@ -33,10 +38,15 @@ type Service interface {
 // RefreshSummary is the counter rollup returned by Refresh — used by
 // CLI/UI to render a one-line outcome alongside the per-row table.
 type RefreshSummary struct {
-	Current  int
-	Behind   int
-	Modified int
-	Unknown  int
+	LibraryCurrent    int
+	LibraryBehind     int
+	LibraryDeprecated int
+	LibraryMissing    int
+	LibraryUnknown    int
+	LocalClean        int
+	LocalModified     int
+	LocalMissing      int
+	LocalUnknown      int
 }
 
 // LibraryReader is the components-side seam Refresh needs. Hides the
@@ -44,6 +54,7 @@ type RefreshSummary struct {
 type LibraryReader interface {
 	Get(ctx context.Context, id string) (components.Component, error)
 	GetContent(ctx context.Context, id string) (components.Content, error)
+	GetVersion(ctx context.Context, componentID, version string) (components.ComponentVersion, error)
 }
 
 // ScenarioFileReader is the target-scenario-tree seam Refresh uses to
@@ -51,6 +62,12 @@ type LibraryReader interface {
 // scenarios root with a path-traversal guard; tests inject a fake.
 type ScenarioFileReader interface {
 	Read(ctx context.Context, scenario, adoptedPath string) ([]byte, error)
+}
+
+type ScenarioFileWriter interface {
+	ScenarioFileReader
+	Exists(ctx context.Context, scenario, adoptedPath string) (bool, error)
+	Write(ctx context.Context, scenario, adoptedPath string, content []byte) (string, error)
 }
 
 // ErrAdoptedFileMissing is the typed sentinel ScenarioFileReader
@@ -68,7 +85,7 @@ func (e ErrAdoptedFileMissing) Error() string {
 type service struct {
 	repo     Repository
 	library  LibraryReader
-	files    ScenarioFileReader
+	files    ScenarioFileWriter
 	clock    clock.Clock
 	reporter DriftReporter
 	logger   *log.Logger
@@ -78,7 +95,7 @@ type service struct {
 // when the swarm-manager integration is disabled (e.g. tests that don't
 // exercise drift reporting); a nil reporter is treated as a no-op so
 // the rest of the Refresh path is unaffected.
-func NewService(repo Repository, lib LibraryReader, files ScenarioFileReader, clk clock.Clock) Service {
+func NewService(repo Repository, lib LibraryReader, files ScenarioFileWriter, clk clock.Clock) Service {
 	return &service{repo: repo, library: lib, files: files, clock: clk}
 }
 
@@ -112,15 +129,16 @@ type DriftReporter interface {
 // detects a fresh drift transition. Fields are flat so a CLI invoker
 // can format `--data` JSON without reaching back into the service.
 type DriftEvent struct {
-	AdoptionID     string
-	ComponentID    string
-	LibraryID      string
-	Scenario       string
-	AdoptedPath    string
-	AdoptedVersion string
-	LibraryVersion string
-	Status         Status
-	StatusDetail   string
+	AdoptionID           string
+	ComponentID          string
+	LibraryID            string
+	Scenario             string
+	AdoptedPath          string
+	AdoptedVersion       string
+	LibraryVersion       string
+	LibraryVersionStatus LibraryVersionStatus
+	LocalStatus          LocalStatus
+	StatusDetail         string
 }
 
 // DriftReport is the reporter's return shape. Ref is the
@@ -166,6 +184,109 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Adoption, error) 
 	return s.repo.Create(ctx, in)
 }
 
+func (s *service) Apply(ctx context.Context, in ApplyInput) (Adoption, string, error) {
+	in.ComponentID = strings.TrimSpace(in.ComponentID)
+	in.Scenario = strings.TrimSpace(in.Scenario)
+	in.AdoptedPath = strings.TrimSpace(in.AdoptedPath)
+	if in.ComponentID == "" {
+		return Adoption{}, "", ErrInvalidAdoption{Field: "component_id", Reason: "required"}
+	}
+	if in.Scenario == "" {
+		return Adoption{}, "", ErrInvalidAdoption{Field: "scenario", Reason: "required"}
+	}
+	if in.AdoptedPath == "" {
+		return Adoption{}, "", ErrInvalidAdoption{Field: "adopted_path", Reason: "required"}
+	}
+	cmp, err := s.library.Get(ctx, in.ComponentID)
+	if err != nil {
+		if errors.As(err, &components.ErrComponentNotFound{}) {
+			return Adoption{}, "", ErrInvalidAdoption{Field: "component_id", Reason: "no component with that id"}
+		}
+		return Adoption{}, "", err
+	}
+	version := strings.TrimSpace(in.Version)
+	if version == "" {
+		version = cmp.LatestVersion
+	}
+	if version == "" {
+		version = cmp.Version
+	}
+	if version == "" {
+		return Adoption{}, "", ErrInvalidAdoption{Field: "version", Reason: "component has no latest version"}
+	}
+	exists, err := s.files.Exists(ctx, in.Scenario, in.AdoptedPath)
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	if exists && !in.ConfirmOverwrite {
+		return Adoption{}, "", ErrInvalidAdoption{Field: "confirm_overwrite", Reason: "target file already exists"}
+	}
+	v, err := s.library.GetVersion(ctx, in.ComponentID, version)
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	adoptionID := uuid.NewString()
+	now := s.clock.Now().UTC()
+	body := formatProvenance(v, adoptionID, now) + stripSourceHeader(v.Content)
+	written, err := s.files.Write(ctx, in.Scenario, in.AdoptedPath, []byte(body))
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	a, err := s.repo.Create(ctx, CreateInput{
+		ID:          adoptionID,
+		ComponentID: cmp.ID, LibraryID: cmp.LibraryID, Scenario: in.Scenario, AdoptedPath: in.AdoptedPath,
+		AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: hashBytes([]byte(body)),
+	})
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	return a, written, nil
+}
+
+func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, string, error) {
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return Adoption{}, "", ErrInvalidAdoption{Field: "id", Reason: "required"}
+	}
+	row, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	_, localStatus, _ := s.computeStatus(ctx, row)
+	if localStatus == LocalStatusModified && !in.ConfirmLocalOverwrite {
+		return Adoption{}, "", ErrInvalidAdoption{Field: "confirm_local_overwrite", Reason: "adopted file has local modifications"}
+	}
+	version := strings.TrimSpace(in.Version)
+	if version == "" {
+		cmp, err := s.library.Get(ctx, row.ComponentID)
+		if err != nil {
+			return Adoption{}, "", err
+		}
+		version = firstNonEmpty(cmp.LatestVersion, cmp.Version, row.AdoptedVersion)
+	}
+	v, err := s.library.GetVersion(ctx, row.ComponentID, version)
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	now := s.clock.Now().UTC()
+	body := formatProvenance(v, row.ID, now) + stripSourceHeader(v.Content)
+	written, err := s.files.Write(ctx, row.Scenario, row.AdoptedPath, []byte(body))
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	updated, err := s.repo.UpdateAppliedSnapshot(ctx, AppliedSnapshotUpdate{
+		ID:                    row.ID,
+		AdoptedVersion:        version,
+		SourceSHA256:          v.ContentSHA256,
+		AdoptedSnapshotSHA256: hashBytes([]byte(body)),
+		AppliedAt:             now,
+	})
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	return updated, written, nil
+}
+
 func (s *service) List(ctx context.Context, q ListQuery) ([]Adoption, error) {
 	if q.Limit <= 0 {
 		q.Limit = defaultListLimit
@@ -190,12 +311,13 @@ func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, 
 	updates := make([]RefreshUpdate, 0, len(rows))
 	summary := RefreshSummary{}
 	for i, row := range rows {
-		status, detail := s.computeStatus(ctx, row)
-		rows[i].Status = status
+		libraryStatus, localStatus, detail := s.computeStatus(ctx, row)
+		rows[i].LibraryVersionStatus = libraryStatus
+		rows[i].LocalStatus = localStatus
 		rows[i].StatusDetail = detail
 		rows[i].RefreshedAt = now
 		update := RefreshUpdate{
-			ID: row.ID, Status: status, StatusDetail: detail, RefreshedAt: now,
+			ID: row.ID, LibraryVersionStatus: libraryStatus, LocalStatus: localStatus, StatusDetail: detail, RefreshedAt: now,
 		}
 		// Drift policy:
 		//   * status flips to behind/modified AND no backlog item filed
@@ -206,7 +328,7 @@ func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, 
 		//     swallowed.
 		if s.reporter != nil {
 			switch {
-			case (status == StatusBehind || status == StatusModified) && row.DriftBacklogRef == "":
+			case (libraryStatus == LibraryVersionStatusBehind || localStatus == LocalStatusModified) && row.DriftBacklogRef == "":
 				ev := s.buildDriftEvent(ctx, rows[i])
 				report, err := s.reporter.Report(ctx, ev)
 				if err != nil {
@@ -215,21 +337,33 @@ func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, 
 					update.DriftBacklogRef = ref
 					rows[i].DriftBacklogRef = ref
 				}
-			case status == StatusCurrent && row.DriftBacklogRef != "":
+			case libraryStatus == LibraryVersionStatusCurrent && localStatus == LocalStatusClean && row.DriftBacklogRef != "":
 				update.ClearDriftBacklogRef = true
 				rows[i].DriftBacklogRef = ""
 			}
 		}
 		updates = append(updates, update)
-		switch status {
-		case StatusCurrent:
-			summary.Current++
-		case StatusBehind:
-			summary.Behind++
-		case StatusModified:
-			summary.Modified++
-		case StatusUnknown:
-			summary.Unknown++
+		switch libraryStatus {
+		case LibraryVersionStatusCurrent:
+			summary.LibraryCurrent++
+		case LibraryVersionStatusBehind:
+			summary.LibraryBehind++
+		case LibraryVersionStatusDeprecated:
+			summary.LibraryDeprecated++
+		case LibraryVersionStatusMissing:
+			summary.LibraryMissing++
+		case LibraryVersionStatusUnknown:
+			summary.LibraryUnknown++
+		}
+		switch localStatus {
+		case LocalStatusClean:
+			summary.LocalClean++
+		case LocalStatusModified:
+			summary.LocalModified++
+		case LocalStatusMissing:
+			summary.LocalMissing++
+		case LocalStatusUnknown:
+			summary.LocalUnknown++
 		}
 	}
 	if _, err := s.repo.ApplyRefresh(ctx, updates); err != nil {
@@ -240,40 +374,34 @@ func (s *service) Refresh(ctx context.Context, componentID string) ([]Adoption, 
 
 // computeStatus is the AD-002 drift decision tree. Pure function of
 // the row + the two reader seams.
-func (s *service) computeStatus(ctx context.Context, row Adoption) (Status, string) {
+func (s *service) computeStatus(ctx context.Context, row Adoption) (LibraryVersionStatus, LocalStatus, string) {
 	cmp, err := s.library.Get(ctx, row.ComponentID)
 	if err != nil {
 		if errors.As(err, &components.ErrComponentNotFound{}) {
-			return StatusUnknown, "component removed from library"
+			return LibraryVersionStatusMissing, LocalStatusUnknown, "component removed from library"
 		}
-		return StatusUnknown, fmt.Sprintf("library lookup failed: %v", err)
+		return LibraryVersionStatusUnknown, LocalStatusUnknown, fmt.Sprintf("library lookup failed: %v", err)
 	}
 	adoptedBytes, err := s.files.Read(ctx, row.Scenario, row.AdoptedPath)
 	if err != nil {
 		var missing ErrAdoptedFileMissing
 		if errors.As(err, &missing) {
-			return StatusUnknown, "adopted file missing"
+			return libraryStatusFor(row, cmp), LocalStatusMissing, "adopted file missing"
 		}
-		return StatusUnknown, fmt.Sprintf("adopted file read failed: %v", err)
+		return libraryStatusFor(row, cmp), LocalStatusUnknown, fmt.Sprintf("adopted file read failed: %v", err)
 	}
 	adoptedSHA := hashBytes(adoptedBytes)
-	content, err := s.library.GetContent(ctx, row.ComponentID)
-	if err != nil {
-		return StatusUnknown, fmt.Sprintf("library content read failed: %v", err)
-	}
-	librarySHA := content.SHA256
-	if adoptedSHA == librarySHA {
-		// Bytes match the library's current snapshot. Even if
-		// adopted_version is stale, the copy is materially current.
-		return StatusCurrent, ""
-	}
+	localStatus := LocalStatusModified
+	detail := "adopted bytes diverge from applied snapshot"
 	if row.AdoptedSnapshotSHA256 != "" && adoptedSHA == row.AdoptedSnapshotSHA256 {
-		// Adopted bytes still look like the snapshot captured at
-		// create time; library has moved on without local edits.
-		detail := fmt.Sprintf("library at %s", emptyOrVersion(cmp.Version))
-		return StatusBehind, detail
+		localStatus = LocalStatusClean
+		detail = ""
 	}
-	return StatusModified, "adopted bytes diverge from any known snapshot"
+	libStatus := libraryStatusFor(row, cmp)
+	if libStatus == LibraryVersionStatusBehind {
+		detail = fmt.Sprintf("library at %s", emptyOrVersion(firstNonEmpty(cmp.LatestVersion, cmp.Version)))
+	}
+	return libStatus, localStatus, detail
 }
 
 // buildDriftEvent assembles the payload handed to the reporter. The
@@ -282,17 +410,18 @@ func (s *service) computeStatus(ctx context.Context, row Adoption) (Status, stri
 // event still goes out without a library version.
 func (s *service) buildDriftEvent(ctx context.Context, row Adoption) DriftEvent {
 	ev := DriftEvent{
-		AdoptionID:     row.ID,
-		ComponentID:    row.ComponentID,
-		LibraryID:      row.LibraryID,
-		Scenario:       row.Scenario,
-		AdoptedPath:    row.AdoptedPath,
-		AdoptedVersion: row.AdoptedVersion,
-		Status:         row.Status,
-		StatusDetail:   row.StatusDetail,
+		AdoptionID:           row.ID,
+		ComponentID:          row.ComponentID,
+		LibraryID:            row.LibraryID,
+		Scenario:             row.Scenario,
+		AdoptedPath:          row.AdoptedPath,
+		AdoptedVersion:       row.AdoptedVersion,
+		LibraryVersionStatus: row.LibraryVersionStatus,
+		LocalStatus:          row.LocalStatus,
+		StatusDetail:         row.StatusDetail,
 	}
 	if cmp, err := s.library.Get(ctx, row.ComponentID); err == nil {
-		ev.LibraryVersion = cmp.Version
+		ev.LibraryVersion = firstNonEmpty(cmp.LatestVersion, cmp.Version)
 		if ev.LibraryID == "" {
 			ev.LibraryID = cmp.LibraryID
 		}
@@ -335,11 +464,9 @@ func NewFSScenarioFileReader(root string) *FSScenarioFileReader {
 var _ ScenarioFileReader = (*FSScenarioFileReader)(nil)
 
 func (r *FSScenarioFileReader) Read(_ context.Context, scenario, adoptedPath string) ([]byte, error) {
-	base := filepath.Join(r.root, scenario)
-	cleaned := filepath.Clean(filepath.Join(base, adoptedPath))
-	rel, err := filepath.Rel(base, cleaned)
-	if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
-		return nil, fmt.Errorf("adopted_path %q escapes scenario root", adoptedPath)
+	cleaned, err := r.resolve(scenario, adoptedPath)
+	if err != nil {
+		return nil, err
 	}
 	bytes, err := os.ReadFile(cleaned)
 	if err != nil {
@@ -349,4 +476,99 @@ func (r *FSScenarioFileReader) Read(_ context.Context, scenario, adoptedPath str
 		return nil, fmt.Errorf("read adopted file %q: %w", cleaned, err)
 	}
 	return bytes, nil
+}
+
+func (r *FSScenarioFileReader) Exists(_ context.Context, scenario, adoptedPath string) (bool, error) {
+	cleaned, err := r.resolve(scenario, adoptedPath)
+	if err != nil {
+		return false, err
+	}
+	_, err = os.Stat(cleaned)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+func (r *FSScenarioFileReader) Write(_ context.Context, scenario, adoptedPath string, content []byte) (string, error) {
+	cleaned, err := r.resolve(scenario, adoptedPath)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(filepath.Dir(cleaned), 0o755); err != nil {
+		return "", fmt.Errorf("create adopted file dir: %w", err)
+	}
+	if err := os.WriteFile(cleaned, content, 0o600); err != nil {
+		return "", fmt.Errorf("write adopted file %q: %w", adoptedPath, err)
+	}
+	return cleaned, nil
+}
+
+func (r *FSScenarioFileReader) resolve(scenario, adoptedPath string) (string, error) {
+	base := filepath.Join(r.root, scenario)
+	cleaned := filepath.Clean(filepath.Join(base, adoptedPath))
+	rel, err := filepath.Rel(base, cleaned)
+	if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
+		return "", fmt.Errorf("adopted_path %q escapes scenario root", adoptedPath)
+	}
+	return cleaned, nil
+}
+
+func libraryStatusFor(row Adoption, cmp components.Component) LibraryVersionStatus {
+	latest := firstNonEmpty(cmp.LatestVersion, cmp.Version)
+	if row.AdoptedVersion == "" || latest == "" {
+		return LibraryVersionStatusUnknown
+	}
+	if row.AdoptedVersion == latest {
+		return LibraryVersionStatusCurrent
+	}
+	return LibraryVersionStatusBehind
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+func formatProvenance(v components.ComponentVersion, adoptionID string, appliedAt time.Time) string {
+	return fmt.Sprintf(`/**
+ * @vrooliComponentSource %s
+ * @vrooliComponentVersion %s
+ * @vrooliComponentAdoption %s
+ * @vrooliComponentAppliedAt %s
+ * @vrooliComponentSourceSha256 %s
+ *
+ * This file was copied from React Component Library. Local edits are allowed;
+ * run "react-component-library adoptions refresh" to inspect drift.
+ */
+`, v.LibraryID, v.Version, adoptionID, appliedAt.UTC().Format(time.RFC3339), v.ContentSHA256)
+}
+
+func stripSourceHeader(src string) string {
+	trimmed := strings.TrimLeft(src, "\ufeff \t\r\n")
+	if strings.HasPrefix(trimmed, "// @vrooliComponent") || strings.HasPrefix(trimmed, "// @libraryId") {
+		if end := strings.IndexByte(trimmed, '\n'); end >= 0 {
+			return strings.TrimLeft(trimmed[end+1:], "\r\n")
+		}
+		return ""
+	}
+	if !strings.HasPrefix(trimmed, "/**") {
+		return src
+	}
+	end := strings.Index(trimmed, "*/")
+	if end < 0 {
+		return src
+	}
+	body := trimmed[:end+2]
+	if !strings.Contains(body, "@libraryId") && !strings.Contains(body, "@vrooliComponent") {
+		return src
+	}
+	return strings.TrimLeft(trimmed[end+2:], "\r\n")
 }

@@ -20,8 +20,8 @@ import (
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
 	"react-component-library/handlers/adoptions"
-	"react-component-library/internal/clock"
 	internaladoptions "react-component-library/internal/adoptions"
+	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/testutil/db"
@@ -49,6 +49,20 @@ func (s *stubLibrary) GetContent(_ context.Context, id string) (components.Conte
 	return s.content, nil
 }
 
+func (s *stubLibrary) GetVersion(_ context.Context, componentID, version string) (components.ComponentVersion, error) {
+	if componentID != s.component.ID {
+		return components.ComponentVersion{}, components.ErrComponentNotFound{IDOrLibraryID: componentID + "@" + version}
+	}
+	return components.ComponentVersion{
+		ComponentID:   componentID,
+		LibraryID:     s.component.LibraryID,
+		Version:       version,
+		Content:       s.content.Body,
+		ContentSHA256: s.content.SHA256,
+		SourcePath:    "components/Button/versions/" + version + "/Button.tsx",
+	}, nil
+}
+
 func setupModule(t *testing.T) (*mux.Router, string, *stubLibrary) {
 	t.Helper()
 	d := db.NewSQLite(t)
@@ -58,7 +72,7 @@ func setupModule(t *testing.T) (*mux.Router, string, *stubLibrary) {
 	))
 	root := t.TempDir()
 	lib := &stubLibrary{
-		component: components.Component{ID: "cmp-btn", LibraryID: "rcl:Button", Version: "1.0.0"},
+		component: components.Component{ID: "cmp-btn", LibraryID: "rcl:Button", Version: "1.0.0", LatestVersion: "1.0.0"},
 		content:   components.Content{Body: "X", SHA256: sha256OfHandlerTests("X")},
 	}
 	m := adoptions.ModuleWithRoot(d, clock.System{}, lib, root, log.New(io.Discard, "", 0))
@@ -75,7 +89,7 @@ func sha256OfHandlerTests(s string) string {
 func TestModule_Shape(t *testing.T) {
 	r, _, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, adoptions.Endpoints, 4, "adoptions ships list, create, delete, refresh")
+	require.Len(t, adoptions.Endpoints, 5, "adoptions ships list, apply, reapply, delete, refresh")
 }
 
 func TestModule_CreateListRefreshDelete(t *testing.T) {
@@ -86,8 +100,8 @@ func TestModule_CreateListRefreshDelete(t *testing.T) {
 	require.NoError(t, os.MkdirAll(scenarioDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(scenarioDir, "Button.tsx"), []byte("X"), 0o600))
 
-	rw := callConnect(r, adoptionsconnect.AdoptionsServiceCreateAdoptionProcedure,
-		`{"component_id":"cmp-btn","scenario":"swarm-manager","adopted_path":"Button.tsx","adopted_version":"1.0.0"}`)
+	rw := callConnect(r, adoptionsconnect.AdoptionsServiceApplyAdoptionProcedure,
+		`{"component_id":"cmp-btn","scenario":"swarm-manager","adopted_path":"Button.tsx","version":"1.0.0","confirm_overwrite":true}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), "swarm-manager")
 
@@ -98,12 +112,13 @@ func TestModule_CreateListRefreshDelete(t *testing.T) {
 	rw = callConnect(r, adoptionsconnect.AdoptionsServiceRefreshAdoptionsProcedure, `{}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	// X matches the library content sha → current.
-	require.Contains(t, rw.Body.String(), "ADOPTION_STATUS_CURRENT")
+	require.Contains(t, rw.Body.String(), "LIBRARY_VERSION_STATUS_CURRENT")
+	require.Contains(t, rw.Body.String(), "LOCAL_STATUS_CLEAN")
 }
 
 func TestModule_CreateRejectsMissingComponent(t *testing.T) {
 	r, _, _ := setupModule(t)
-	rw := callConnect(r, adoptionsconnect.AdoptionsServiceCreateAdoptionProcedure,
+	rw := callConnect(r, adoptionsconnect.AdoptionsServiceApplyAdoptionProcedure,
 		`{"component_id":"nope","scenario":"x","adopted_path":"p.tsx"}`)
 	require.Equal(t, http.StatusBadRequest, rw.Code, rw.Body.String())
 }

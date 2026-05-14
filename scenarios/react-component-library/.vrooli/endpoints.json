@@ -35,25 +35,27 @@
       }
     },
     {
-      "id": "adoptions_create",
-      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/CreateAdoption",
+      "id": "adoptions_apply",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ApplyAdoption",
       "method": "POST",
-      "summary": "Create an adoption record",
-      "description": "Soft-links a library component to a copy of its source under a target scenario. Validates the component exists; captures a sha256 of the adopted file at create time for later drift comparison.",
+      "summary": "Apply a component to a scenario",
+      "description": "Copies a selected component version into a target scenario, stamps provenance, and records the adoption.",
       "category": "adoptions",
       "request": {
         "type": "object",
         "properties": {
           "adopted_path": "string",
-          "adopted_version": "string",
           "component_id": "string",
-          "scenario": "string"
+          "confirm_overwrite": "bool",
+          "scenario": "string",
+          "version": "string (optional)"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "adoption": "Adoption"
+          "adoption": "Adoption",
+          "written_path": "string"
         }
       },
       "errors": [
@@ -69,11 +71,57 @@
         }
       ],
       "cli_mapping": {
-        "command": "react-component-library adoptions create",
+        "command": "react-component-library adoptions apply",
         "args": [
           "<component_id>",
           "<scenario>",
           "<adopted_path>"
+        ]
+      }
+    },
+    {
+      "id": "adoptions_reapply",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReapplyAdoption",
+      "method": "POST",
+      "summary": "Reapply an adoption",
+      "description": "Overwrites an adopted file from a selected library version. Local modifications require explicit confirmation.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "confirm_local_overwrite": "bool",
+          "id": "string",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "written_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id or local edits without confirmation"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No adoption with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library adoptions reapply",
+        "args": [
+          "<id>"
         ]
       }
     },
@@ -117,7 +165,7 @@
       "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/RefreshAdoptions",
       "method": "POST",
       "summary": "Refresh drift status for adoption records",
-      "description": "Recomputes status (current / behind / modified / unknown) for every adoption record, or just those for a single component when component_id is supplied.",
+      "description": "Recomputes library-version and local-edit drift statuses for every adoption record, or just those for a single component when component_id is supplied.",
       "category": "adoptions",
       "request": {
         "type": "object",
@@ -129,10 +177,10 @@
         "type": "object",
         "properties": {
           "adoptions": "array<Adoption>",
-          "behind": "int32",
-          "current": "int32",
-          "modified": "int32",
-          "unknown": "int32"
+          "library_behind": "int32",
+          "library_current": "int32",
+          "local_clean": "int32",
+          "local_modified": "int32"
         }
       },
       "errors": [
@@ -377,6 +425,81 @@
         "args": [
           "<id>",
           "<file>"
+        ]
+      }
+    },
+    {
+      "id": "components_versions_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentVersions",
+      "method": "POST",
+      "summary": "List component versions",
+      "description": "Returns release and draft artifacts indexed from the component manifest's version folders.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "limit": "int32"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "versions": "array<ComponentVersion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components versions",
+        "args": [
+          "<component-id>"
+        ]
+      }
+    },
+    {
+      "id": "components_version_content_get",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentVersionContent",
+      "method": "POST",
+      "summary": "Read component version source",
+      "description": "Returns the indexed source body for a specific component version.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string",
+          "version": "ComponentVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component version with that component_id/version pair"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "react-component-library components show-version",
+        "args": [
+          "<component-id>",
+          "<version>"
         ]
       }
     },
@@ -782,9 +905,14 @@
       "endpoint_id": "adoptions_list"
     },
     {
-      "name": "adoptions create",
-      "description": "Create an adoption record linking a library component to a scenario tree",
-      "endpoint_id": "adoptions_create"
+      "name": "adoptions apply",
+      "description": "Copy a component version into a target scenario and record the adoption",
+      "endpoint_id": "adoptions_apply"
+    },
+    {
+      "name": "adoptions reapply",
+      "description": "Overwrite an adoption from a selected library version",
+      "endpoint_id": "adoptions_reapply"
     },
     {
       "name": "adoptions delete",
@@ -825,6 +953,16 @@
       "name": "components content-set",
       "description": "Write a component's source file (use - to read from stdin)",
       "endpoint_id": "components_content_set"
+    },
+    {
+      "name": "components versions",
+      "description": "List indexed versions for a component",
+      "endpoint_id": "components_versions_list"
+    },
+    {
+      "name": "components show-version",
+      "description": "Read the source for a component version",
+      "endpoint_id": "components_version_content_get"
     },
     {
       "name": "deps list",

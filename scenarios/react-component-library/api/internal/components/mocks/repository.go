@@ -26,7 +26,8 @@ import (
 type FakeRepository struct {
 	mu          sync.Mutex
 	items       map[string]components.Component // by ID
-	libToID     map[string]string                // library_id → id
+	versions    map[string]map[string]components.ComponentVersion
+	libToID     map[string]string // library_id → id
 	UpsertErr   error
 	GetErr      error
 	ListErr     error
@@ -40,9 +41,10 @@ type FakeRepository struct {
 
 func NewFakeRepository() *FakeRepository {
 	return &FakeRepository{
-		items:   map[string]components.Component{},
-		libToID: map[string]string{},
-		NowFn:   func() time.Time { return time.Now().UTC() },
+		items:    map[string]components.Component{},
+		versions: map[string]map[string]components.ComponentVersion{},
+		libToID:  map[string]string{},
+		NowFn:    func() time.Time { return time.Now().UTC() },
 	}
 }
 
@@ -65,18 +67,50 @@ func (f *FakeRepository) Upsert(ctx context.Context, in components.UpsertInput) 
 		f.libToID[in.LibraryID] = id
 	}
 	c := components.Component{
-		ID:          id,
-		LibraryID:   in.LibraryID,
-		DisplayName: in.DisplayName,
-		Description: in.Description,
-		SourcePath:  in.SourcePath,
-		Version:     in.Version,
-		Tags:        append([]string(nil), in.Tags...),
-		IndexedAt:   indexedAt,
-		UpdatedAt:   now,
-		Headers:     copyHeaders(in.Headers),
+		ID:            id,
+		LibraryID:     in.LibraryID,
+		Slug:          in.Slug,
+		DisplayName:   in.DisplayName,
+		Description:   in.Description,
+		SourcePath:    in.SourcePath,
+		Version:       in.Version,
+		LatestVersion: in.LatestVersion,
+		DraftVersion:  in.DraftVersion,
+		ManifestPath:  in.ManifestPath,
+		Tags:          append([]string(nil), in.Tags...),
+		IndexedAt:     indexedAt,
+		UpdatedAt:     now,
+		Headers:       copyHeaders(in.Headers),
 	}
 	f.items[id] = c
+	return c, nil
+}
+
+func (f *FakeRepository) UpsertManifest(ctx context.Context, in components.IndexManifestInput) (components.Component, error) {
+	c, err := f.Upsert(ctx, components.UpsertInput{
+		LibraryID: in.Manifest.LibraryID, Slug: in.Manifest.Slug, DisplayName: in.Manifest.DisplayName,
+		Description: in.Manifest.Description, ManifestPath: in.Manifest.ManifestPath,
+		Version: in.Manifest.LatestVersion, LatestVersion: in.Manifest.LatestVersion, DraftVersion: in.Manifest.DraftVersion,
+		Tags: in.Manifest.Tags,
+	})
+	if err != nil {
+		return components.Component{}, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.versions[c.ID] = map[string]components.ComponentVersion{}
+	for _, v := range in.Versions {
+		if v.ID == "" {
+			v.ID = uuid.NewString()
+		}
+		v.ComponentID = c.ID
+		v.LibraryID = c.LibraryID
+		f.versions[c.ID][v.Version] = v
+		if v.Version == c.LatestVersion {
+			c.SourcePath = v.SourcePath
+			f.items[c.ID] = c
+		}
+	}
 	return c, nil
 }
 
@@ -221,6 +255,28 @@ func (f *FakeRepository) DeleteMissing(ctx context.Context, keep []string) (int,
 		}
 	}
 	return deleted, nil
+}
+
+func (f *FakeRepository) ListVersions(ctx context.Context, componentID string, limit int) ([]components.ComponentVersion, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []components.ComponentVersion
+	for _, v := range f.versions[componentID] {
+		out = append(out, v)
+	}
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+func (f *FakeRepository) GetVersion(ctx context.Context, componentID, version string) (components.ComponentVersion, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if v, ok := f.versions[componentID][version]; ok {
+		return v, nil
+	}
+	return components.ComponentVersion{}, components.ErrComponentNotFound{IDOrLibraryID: componentID + "@" + version}
 }
 
 func copyHeaders(in map[string]string) map[string]string {

@@ -1,0 +1,159 @@
+import { type RefObject, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
+import { useTranslation } from "../../i18n";
+import { themesClient, type Theme } from "../../api/themes";
+import { errorMessage } from "../../lib/errorMessage";
+
+interface Props {
+  /** iframe whose harness will receive the rcl-theme-apply message. */
+  frameRef: RefObject<HTMLIFrameElement | null>;
+  /** Set true once the harness has posted "preview-ready"; we re-apply
+   *  the active theme on every reload so it survives save-driven nav. */
+  previewReady: boolean;
+}
+
+/**
+ * ThemeSwitcher — TH-003 surface.
+ *
+ * Lists built-in themes + lets the user load a scenario's
+ * DESIGN.md-derived theme. The chosen theme's normalized CSS-custom-
+ * property tokens are posted to the preview harness via
+ * `{type:"rcl-theme-apply", themeId, tokens}`. The harness child sets
+ * each token on :root so component CSS variables resolve to the new
+ * values immediately.
+ */
+export function ThemeSwitcher({ frameRef, previewReady }: Props) {
+  const { t } = useTranslation();
+  const [selection, setSelection] = useState("");
+  const [scenarioId, setScenarioId] = useState("");
+  const [activeTheme, setActiveTheme] = useState<Theme | null>(null);
+
+  const builtinsQuery = useQuery({
+    queryKey: ["themes", "builtin"],
+    queryFn: () => themesClient.listBuiltinThemes({}),
+    staleTime: Infinity,
+  });
+
+  const builtinThemeQuery = useQuery({
+    enabled: selection.startsWith("builtin:"),
+    queryKey: ["themes", "builtin", selection],
+    queryFn: () =>
+      themesClient.getBuiltinTheme({ id: selection.slice("builtin:".length) }),
+  });
+
+  const scenarioThemeQuery = useQuery({
+    enabled: selection.startsWith("scenario:"),
+    queryKey: ["themes", "scenario", selection],
+    queryFn: () =>
+      themesClient.getThemeFromScenario({
+        scenarioId: selection.slice("scenario:".length),
+      }),
+  });
+
+  useEffect(() => {
+    const theme =
+      builtinThemeQuery.data?.theme ?? scenarioThemeQuery.data?.theme ?? null;
+    setActiveTheme(theme);
+  }, [builtinThemeQuery.data, scenarioThemeQuery.data]);
+
+  // Re-apply the active theme on every (re)load — the harness JS state
+  // is wiped when the iframe reloads after a save, so we resend.
+  useEffect(() => {
+    if (!previewReady || !activeTheme) return;
+    const win = frameRef.current?.contentWindow;
+    if (!win) return;
+    win.postMessage(
+      {
+        type: "rcl-theme-apply",
+        themeId: activeTheme.id,
+        tokens: { ...activeTheme.tokens },
+      },
+      "*",
+    );
+  }, [previewReady, activeTheme, frameRef]);
+
+  const queryError = builtinThemeQuery.error ?? scenarioThemeQuery.error;
+  const loading = builtinThemeQuery.isLoading || scenarioThemeQuery.isLoading;
+
+  return (
+    <div
+      data-testid={selectors.components.themeSwitcher.root}
+      className="flex flex-wrap items-center gap-2 border-b border-white/5 bg-black/20 px-3 py-2 text-xs text-slate-300"
+    >
+      <label className="flex items-center gap-1.5">
+        <span className="text-slate-400">
+          {t(strings.components.themeSwitcher.label)}
+        </span>
+        <select
+          data-testid={selectors.components.themeSwitcher.select}
+          value={selection}
+          onChange={(e) => setSelection(e.target.value)}
+          className="rounded border border-white/10 bg-black/40 px-2 py-1 text-slate-100"
+        >
+          <option value="">{t(strings.components.themeSwitcher.noneOption)}</option>
+          <optgroup label={t(strings.components.themeSwitcher.builtinOptionGroup)}>
+            {(builtinsQuery.data?.themes ?? []).map((th) => (
+              <option key={th.id} value={`builtin:${th.id}`}>
+                {th.name || th.id}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+      </label>
+
+      <label className="flex items-center gap-1.5">
+        <span className="text-slate-400">
+          {t(strings.components.themeSwitcher.scenarioInputLabel)}
+        </span>
+        <Input
+          data-testid={selectors.components.themeSwitcher.scenarioInput}
+          value={scenarioId}
+          onChange={(e) => setScenarioId(e.target.value)}
+          placeholder={t(strings.components.themeSwitcher.scenarioInputPlaceholder)}
+          className="h-7 w-44"
+        />
+        <Button
+          data-testid={selectors.components.themeSwitcher.scenarioApply}
+          variant="outline"
+          className="h-7 px-3 text-xs"
+          disabled={!scenarioId.trim()}
+          onClick={() => setSelection(`scenario:${scenarioId.trim()}`)}
+        >
+          {t(strings.components.themeSwitcher.scenarioApply)}
+        </Button>
+      </label>
+
+      {loading && (
+        <span
+          data-testid={selectors.components.themeSwitcher.status}
+          className="text-slate-400"
+        >
+          {t(strings.components.themeSwitcher.loading)}
+        </span>
+      )}
+      {activeTheme && !loading && (
+        <span
+          data-testid={selectors.components.themeSwitcher.status}
+          className="text-emerald-300"
+        >
+          {t(strings.components.themeSwitcher.applied, {
+            name: activeTheme.name || activeTheme.id,
+          })}
+        </span>
+      )}
+      {queryError && (
+        <span
+          data-testid={selectors.components.themeSwitcher.error}
+          className="text-red-400"
+        >
+          {errorMessage(queryError, t)}
+        </span>
+      )}
+    </div>
+  );
+}

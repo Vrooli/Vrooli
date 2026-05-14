@@ -23,11 +23,12 @@ import (
 type adoptionsService struct {
 	mu          sync.Mutex
 	listResp    *adoptionsv1.ListAdoptionsResponse
-	createResp  *adoptionsv1.CreateAdoptionResponse
+	applyResp   *adoptionsv1.ApplyAdoptionResponse
+	reapplyResp *adoptionsv1.ReapplyAdoptionResponse
 	deleteResp  *adoptionsv1.DeleteAdoptionResponse
 	refreshResp *adoptionsv1.RefreshAdoptionsResponse
 	listReqs    []*adoptionsv1.ListAdoptionsRequest
-	createReqs  []*adoptionsv1.CreateAdoptionRequest
+	applyReqs   []*adoptionsv1.ApplyAdoptionRequest
 	refreshReqs []*adoptionsv1.RefreshAdoptionsRequest
 }
 
@@ -41,14 +42,21 @@ func (s *adoptionsService) ListAdoptions(_ context.Context, req *connect.Request
 	return connect.NewResponse(s.listResp), nil
 }
 
-func (s *adoptionsService) CreateAdoption(_ context.Context, req *connect.Request[adoptionsv1.CreateAdoptionRequest]) (*connect.Response[adoptionsv1.CreateAdoptionResponse], error) {
+func (s *adoptionsService) ApplyAdoption(_ context.Context, req *connect.Request[adoptionsv1.ApplyAdoptionRequest]) (*connect.Response[adoptionsv1.ApplyAdoptionResponse], error) {
 	s.mu.Lock()
-	s.createReqs = append(s.createReqs, req.Msg)
+	s.applyReqs = append(s.applyReqs, req.Msg)
 	s.mu.Unlock()
-	if s.createResp == nil {
-		s.createResp = &adoptionsv1.CreateAdoptionResponse{Adoption: sampleAdoption()}
+	if s.applyResp == nil {
+		s.applyResp = &adoptionsv1.ApplyAdoptionResponse{Adoption: sampleAdoption(), WrittenPath: "/tmp/Button.tsx"}
 	}
-	return connect.NewResponse(s.createResp), nil
+	return connect.NewResponse(s.applyResp), nil
+}
+
+func (s *adoptionsService) ReapplyAdoption(_ context.Context, _ *connect.Request[adoptionsv1.ReapplyAdoptionRequest]) (*connect.Response[adoptionsv1.ReapplyAdoptionResponse], error) {
+	if s.reapplyResp == nil {
+		s.reapplyResp = &adoptionsv1.ReapplyAdoptionResponse{Adoption: sampleAdoption(), WrittenPath: "/tmp/Button.tsx"}
+	}
+	return connect.NewResponse(s.reapplyResp), nil
 }
 
 func (s *adoptionsService) DeleteAdoption(_ context.Context, _ *connect.Request[adoptionsv1.DeleteAdoptionRequest]) (*connect.Response[adoptionsv1.DeleteAdoptionResponse], error) {
@@ -79,16 +87,17 @@ func connectAPI(t *testing.T, svc *adoptionsService) http.Handler {
 func sampleAdoption() *adoptionsv1.Adoption {
 	ts := timestamppb.New(time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC))
 	return &adoptionsv1.Adoption{
-		Id:             "ad-1",
-		ComponentId:    "cmp-btn",
-		LibraryId:      "rcl:Button",
-		Scenario:       "swarm-manager",
-		AdoptedPath:    "ui/Button.tsx",
-		AdoptedVersion: "1.0.0",
-		Status:         adoptionsv1.AdoptionStatus_ADOPTION_STATUS_BEHIND,
-		StatusDetail:   "library at 1.1.0",
-		CreatedAt:      ts,
-		RefreshedAt:    ts,
+		Id:                   "ad-1",
+		ComponentId:          "cmp-btn",
+		LibraryId:            "rcl:Button",
+		Scenario:             "swarm-manager",
+		AdoptedPath:          "ui/Button.tsx",
+		AdoptedVersion:       "1.0.0",
+		LibraryVersionStatus: adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_BEHIND,
+		LocalStatus:          adoptionsv1.LocalStatus_LOCAL_STATUS_CLEAN,
+		StatusDetail:         "library at 1.1.0",
+		CreatedAt:            ts,
+		RefreshedAt:          ts,
 	}
 }
 
@@ -120,32 +129,33 @@ func TestAdoptionsList_RejectsBadLimit(t *testing.T) {
 	require.Error(t, h.list(ctx))
 }
 
-func TestAdoptionsCreate_ForwardsPositionalsAndVersion(t *testing.T) {
+func TestAdoptionsApply_ForwardsPositionalsAndVersion(t *testing.T) {
 	svc := &adoptionsService{}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "component-id"}, {Name: "scenario"}, {Name: "adopted-path"}},
-		Flags:       []cliapp.Flag{{Name: "adopted-version"}},
+		Flags:       []cliapp.Flag{{Name: "version"}, {Name: "confirm-overwrite"}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{
 			"component-id": "cmp-btn",
 			"scenario":     "swarm-manager",
 			"adopted-path": "ui/Button.tsx",
 		},
-		Flags: map[string]string{"adopted-version": "1.0.0"},
+		Flags: map[string]string{"version": "1.0.0", "confirm-overwrite": "true"},
 	})
-	require.NoError(t, h.create(ctx))
-	require.Len(t, svc.createReqs, 1)
-	require.Equal(t, "cmp-btn", svc.createReqs[0].ComponentId)
-	require.Equal(t, "ui/Button.tsx", svc.createReqs[0].AdoptedPath)
-	require.Equal(t, "1.0.0", svc.createReqs[0].AdoptedVersion)
+	require.NoError(t, h.apply(ctx))
+	require.Len(t, svc.applyReqs, 1)
+	require.Equal(t, "cmp-btn", svc.applyReqs[0].ComponentId)
+	require.Equal(t, "ui/Button.tsx", svc.applyReqs[0].AdoptedPath)
+	require.Equal(t, "1.0.0", svc.applyReqs[0].Version)
+	require.True(t, svc.applyReqs[0].ConfirmOverwrite)
 }
 
 func TestAdoptionsRefresh_SummaryLineIncludesCounts(t *testing.T) {
 	svc := &adoptionsService{refreshResp: &adoptionsv1.RefreshAdoptionsResponse{
-		Adoptions: []*adoptionsv1.Adoption{sampleAdoption()},
-		Current:   2, Behind: 1, Modified: 0, Unknown: 1,
+		Adoptions:      []*adoptionsv1.Adoption{sampleAdoption()},
+		LibraryCurrent: 2, LibraryBehind: 1, LocalClean: 2, LocalModified: 0, LocalMissing: 1,
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
@@ -158,5 +168,5 @@ func TestAdoptionsRefresh_SummaryLineIncludesCounts(t *testing.T) {
 	body := out.String()
 	require.Contains(t, body, "current=2")
 	require.Contains(t, body, "behind=1")
-	require.Contains(t, body, "unknown=1")
+	require.Contains(t, body, "missing=1")
 }

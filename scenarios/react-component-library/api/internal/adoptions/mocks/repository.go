@@ -61,17 +61,52 @@ func (f *FakeRepository) Create(ctx context.Context, in adoptions.CreateInput) (
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		id = uuid.NewString()
+	}
 	a := adoptions.Adoption{
-		ID:                    uuid.NewString(),
+		ID:                    id,
 		ComponentID:           in.ComponentID,
 		LibraryID:             in.LibraryID,
 		Scenario:              in.Scenario,
 		AdoptedPath:           in.AdoptedPath,
 		AdoptedVersion:        in.AdoptedVersion,
+		SourceSHA256:          in.SourceSHA256,
 		AdoptedSnapshotSHA256: in.AdoptedSnapshotSHA256,
+		LibraryVersionStatus:  adoptions.LibraryVersionStatusCurrent,
+		LocalStatus:           adoptions.LocalStatusClean,
 		CreatedAt:             f.NowFn(),
+		AppliedAt:             f.NowFn(),
 	}
 	f.items[a.ID] = a
+	return a, nil
+}
+
+func (f *FakeRepository) UpdateAppliedSnapshot(_ context.Context, in adoptions.AppliedSnapshotUpdate) (adoptions.Adoption, error) {
+	if strings.TrimSpace(in.ID) == "" {
+		return adoptions.Adoption{}, adoptions.ErrInvalidAdoption{Field: "id", Reason: "required"}
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	a, ok := f.items[in.ID]
+	if !ok {
+		return adoptions.Adoption{}, adoptions.ErrAdoptionNotFound{ID: in.ID}
+	}
+	appliedAt := in.AppliedAt
+	if appliedAt.IsZero() {
+		appliedAt = f.NowFn()
+	}
+	a.AdoptedVersion = in.AdoptedVersion
+	a.SourceSHA256 = in.SourceSHA256
+	a.AdoptedSnapshotSHA256 = in.AdoptedSnapshotSHA256
+	a.LibraryVersionStatus = adoptions.LibraryVersionStatusCurrent
+	a.LocalStatus = adoptions.LocalStatusClean
+	a.StatusDetail = ""
+	a.RefreshedAt = appliedAt
+	a.AppliedAt = appliedAt
+	a.DriftBacklogRef = ""
+	f.items[in.ID] = a
 	return a, nil
 }
 
@@ -148,7 +183,8 @@ func (f *FakeRepository) ApplyRefresh(ctx context.Context, updates []adoptions.R
 		if !ok {
 			continue
 		}
-		a.Status = u.Status
+		a.LibraryVersionStatus = u.LibraryVersionStatus
+		a.LocalStatus = u.LocalStatus
 		a.StatusDetail = u.StatusDetail
 		a.RefreshedAt = u.RefreshedAt
 		switch {

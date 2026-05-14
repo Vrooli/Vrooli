@@ -15,8 +15,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // @stability stable
 //
 // Wire contract for the ComponentsService Connect-RPC service. The registry
-// catalogs TSX files on disk that declare a `@libraryId` JSDoc header. Index
-// is a server-side walk + upsert; the rest are reads.
+// catalogs Git-tracked component manifests under library/components/* and their
+// explicit version folders. Index is a server-side manifest walk + upsert; the
+// rest are reads.
 //
 // Consumed by:
 //   - API: handlers/components/connect_handler.go implements the generated
@@ -32,6 +33,8 @@ service ComponentsService {
   rpc IndexComponents(IndexComponentsRequest) returns (IndexComponentsResponse);
   rpc GetComponentContent(GetComponentContentRequest) returns (GetComponentContentResponse);
   rpc UpdateComponentContent(UpdateComponentContentRequest) returns (UpdateComponentContentResponse);
+  rpc ListComponentVersions(ListComponentVersionsRequest) returns (ListComponentVersionsResponse);
+  rpc GetComponentVersionContent(GetComponentVersionContentRequest) returns (GetComponentVersionContentResponse);
 }
 
 // Component is the canonical wire shape for a single indexed component.
@@ -39,7 +42,7 @@ message Component {
   // UUID assigned by the API on first index.
   string id = 1;
 
-  // Stable cross-scenario identifier parsed from the `@libraryId` header.
+  // Stable cross-scenario identifier from component.json.
   string library_id = 2;
 
   // Human-readable name (from `@displayName`, falls back to file basename).
@@ -48,10 +51,11 @@ message Component {
   // Short prose description (from `@description`).
   string description = 4;
 
-  // Path of the .tsx file relative to the configured source root.
+  // Path of the latest released .tsx file relative to the configured source
+  // root. Empty when no latest release has been published.
   string source_path = 5;
 
-  // Optional version string parsed from `@version`.
+  // Latest released version from component.json.latest.
   string version = 6;
 
   // Tag list parsed from `@tags` (JSON array or comma-separated).
@@ -67,6 +71,18 @@ message Component {
   // Echoed for transparency; UI may surface unknown fields. Empty when the
   // caller did not opt into header inclusion (List omits it; Get includes it).
   map<string, string> headers = 10;
+
+  // Component folder slug under library/components/.
+  string slug = 11;
+
+  // Path to component.json relative to the configured source root.
+  string manifest_path = 12;
+
+  // Explicit draft version from component.json.draft, if one exists.
+  string draft_version = 13;
+
+  // Explicit latest released version from component.json.latest.
+  string latest_version = 14;
 }
 
 // ListComponentsRequest filters the registry view.
@@ -121,13 +137,14 @@ message IndexComponentsRequest {
 
 // IndexComponentsResponse summarises the index pass.
 message IndexComponentsResponse {
-  // Total files visited by the walker.
+  // Total component manifests visited by the walker.
   int32 scanned = 1;
 
   // Files that produced a successful upsert.
   int32 indexed = 2;
 
-  // Files skipped because they had no `@libraryId` header (not an error).
+  // Manifests or version folders skipped because they are not component
+  // release inputs.
   int32 skipped = 3;
 
   // Rows deleted because their previously-indexed source file is gone.
@@ -185,4 +202,44 @@ message UpdateComponentContentResponse {
 
   // Echoed source_path of the file just written.
   string source_path = 2;
+}
+
+enum ComponentVersionStatus {
+  COMPONENT_VERSION_STATUS_UNSPECIFIED = 0;
+  COMPONENT_VERSION_STATUS_DRAFT = 1;
+  COMPONENT_VERSION_STATUS_RELEASED = 2;
+  COMPONENT_VERSION_STATUS_DEPRECATED = 3;
+  COMPONENT_VERSION_STATUS_ARCHIVED = 4;
+}
+
+message ComponentVersion {
+  string id = 1;
+  string component_id = 2;
+  string library_id = 3;
+  string version = 4;
+  ComponentVersionStatus status = 5;
+  string source_path = 6;
+  string content_sha256 = 7;
+  string changelog_md = 8;
+  google.protobuf.Timestamp indexed_at = 9;
+  google.protobuf.Timestamp released_at = 10;
+}
+
+message ListComponentVersionsRequest {
+  string component_id = 1;
+  int32 limit = 2;
+}
+
+message ListComponentVersionsResponse {
+  repeated ComponentVersion versions = 1;
+}
+
+message GetComponentVersionContentRequest {
+  string component_id = 1;
+  string version = 2;
+}
+
+message GetComponentVersionContentResponse {
+  ComponentVersion version = 1;
+  string content = 2;
 }

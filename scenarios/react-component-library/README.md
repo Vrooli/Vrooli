@@ -1,6 +1,7 @@
 # React Component Library
 
-Central UI for designing, previewing, editing, and tracking shared React UI components across Vrooli scenarios.
+Central UI/API/CLI for designing, previewing, versioning, applying, and
+tracking shared React UI components across Vrooli scenarios.
 
 This scenario was generated from the `react-vite` template and packages
 the standard full-stack Vrooli scenario shape:
@@ -22,8 +23,9 @@ the standard full-stack Vrooli scenario shape:
   coordinated through generated proto contracts.
 - Lifecycle metadata, Makefile entrypoints, health checks, endpoint
   metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
+- Domain-first API shape with component manifests, version artifacts,
+  adoption records, per-domain service/repository/schema/handler
+  modules, mocks, and tests.
 - SQLite by default. Add external resources to `.vrooli/service.json`
   only when this scenario actually needs them.
 - UI/CLI guardrails for i18n, accessibility, API base resolution,
@@ -41,10 +43,9 @@ the standard full-stack Vrooli scenario shape:
 The generated scaffold is intentionally not the product. When you build
 the real UX, treat these as **placeholders** to replace:
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
+- Any remaining template prose that mentions `notes` as product scope.
+- Placeholder copy in secondary docs that has not yet been aligned with
+  component/version/adoption workflows.
 
 Treat these as **durable seams** to preserve, even as you rewrite the
 visual layout:

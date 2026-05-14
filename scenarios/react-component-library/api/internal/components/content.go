@@ -54,8 +54,8 @@ type Content struct {
 
 // WriteContentInput carries everything Write needs.
 type WriteContentInput struct {
-	Body            string
-	ExpectedSHA256  string // empty = no optimistic-concurrency check
+	Body           string
+	ExpectedSHA256 string // empty = no optimistic-concurrency check
 }
 
 // FSContentStore is the production ContentStore backed by os.* on a

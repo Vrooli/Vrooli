@@ -1,0 +1,9 @@
+{
+  "libraryId": "react-component-library:Button",
+  "displayName": "Button",
+  "description": "Accessible action button with variant styling.",
+  "tags": ["form", "interactive"],
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

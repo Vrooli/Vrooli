@@ -4,10 +4,10 @@ import "testing"
 
 func TestClassify(t *testing.T) {
 	cases := []struct {
-		name      string
-		declared  string
-		target    string
-		wantKind  IssueKind
+		name     string
+		declared string
+		target   string
+		wantKind IssueKind
 	}{
 		{"wildcard", "*", "18.0.0", ""},
 		{"empty range", "", "18.0.0", ""},

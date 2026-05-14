@@ -67,9 +67,9 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func writeHarnessError(w http.ResponseWriter, logger *log.Logger, id string, err error) {
 	var (
-		notFound       components.ErrComponentNotFound
-		pathEscape     components.ErrPathEscape
-		bundleErr      preview.ErrBundle
+		notFound   components.ErrComponentNotFound
+		pathEscape components.ErrPathEscape
+		bundleErr  preview.ErrBundle
 	)
 	switch {
 	case errors.As(err, &notFound):
@@ -148,6 +148,34 @@ window.addEventListener("message", (ev) => {
   document.documentElement.style.colorScheme = cs === "system" ? "light dark" : cs;
   document.body.classList.toggle("dark", cs === "dark");
 });
+// Theme bridge (req TH-003): the host posts
+// {type:"rcl-theme-apply", themeId:"<id>", tokens:{"--color-primary":"#..."}}
+// and we set each token as a CSS custom property on :root so the
+// component re-styles immediately. Tokens with keys missing the
+// canonical "--" prefix are ignored.
+(() => {
+  let appliedTokens = [];
+  window.addEventListener("message", (ev) => {
+    const data = ev && ev.data;
+    if (!data || data.type !== "rcl-theme-apply") return;
+    const tokens = (data && data.tokens) || {};
+    // Clear tokens from a prior theme so switching never leaves stragglers.
+    for (const key of appliedTokens) {
+      document.documentElement.style.removeProperty(key);
+    }
+    appliedTokens = [];
+    for (const key of Object.keys(tokens)) {
+      if (typeof key !== "string" || !key.startsWith("--")) continue;
+      const val = tokens[key];
+      if (typeof val !== "string") continue;
+      document.documentElement.style.setProperty(key, val);
+      appliedTokens.push(key);
+    }
+    try {
+      parent.postMessage({ type: "rcl-theme-applied", themeId: data.themeId || "" }, "*");
+    } catch (e) {}
+  });
+})();
 // Inspector (req IS-001..003): minimal implementation of the
 // @vrooli/iframe-bridge INSPECT wire protocol. The host sends
 // {v:1,t:"INSPECT",cmd:"START"|"STOP"}; we reply with INSPECT_STATE,

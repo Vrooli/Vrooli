@@ -2,6 +2,8 @@ package components
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -11,11 +13,11 @@ import (
 	"strings"
 )
 
-// Indexer walks a configured filesystem root for *.tsx files,
-// parses the canonical `@libraryId` header comment block, and upserts
-// the result into the Repository. A final DeleteMissing call removes
-// rows whose source files no longer exist, so deleted files leave the
-// registry without manual intervention.
+// Indexer walks a configured filesystem root for component manifests
+// under components/*/component.json and upserts the manifest plus its
+// version folders into the Repository. A final DeleteMissing call
+// removes rows whose manifests no longer exist, so deleted components
+// leave the registry without manual intervention.
 //
 // The header contract (req CR-002, captured in PRD.md):
 //
@@ -29,9 +31,8 @@ import (
 //	 * @warning     DO NOT REMOVE THIS HEADER...
 //	 */
 //
-// Only `@libraryId` is required. Files without the header are ignored
-// (they're not library components). Files with a malformed header
-// return ErrInvalidHeader so the operator can fix and re-index.
+// component.json is the source of truth. Source-file headers are
+// validation hints for version, status, deps, and readability.
 // UpsertObserver is the post-upsert seam other domains hook into. The
 // indexer calls Observe after a successful repo.Upsert with the parsed
 // header fields, so cross-domain consumers (currently req 10's deps
@@ -68,18 +69,18 @@ func NewIndexer(repo Repository, root string, fsys fs.FS) *Indexer {
 
 // IndexResult summarizes one Run.
 type IndexResult struct {
-	Scanned   int
-	Indexed   int
-	Skipped   int
-	Deleted   int
-	Errors    []error
+	Scanned    int
+	Indexed    int
+	Skipped    int
+	Deleted    int
+	Errors     []error
 	LibraryIDs []string // upserted IDs in walk order — useful for tests
 }
 
-// Run walks the root, upserts every file with a valid header, and
-// returns a result. Files with malformed headers are recorded in
-// Errors but do not stop the walk — a single broken file should not
-// hide an otherwise healthy run.
+// Run walks the root, upserts every manifest with valid version folders,
+// and returns a result. Malformed manifests are recorded in Errors but
+// do not stop the walk — a single broken component should not hide an
+// otherwise healthy run.
 func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	var result IndexResult
 	if idx.fs == nil {
@@ -93,31 +94,16 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 		if d.IsDir() {
 			return nil
 		}
-		if !strings.HasSuffix(path, ".tsx") {
+		if filepath.Base(path) != "component.json" {
 			return nil
 		}
 		result.Scanned++
-		raw, readErr := fs.ReadFile(idx.fs, path)
-		if readErr != nil {
-			result.Errors = append(result.Errors, fmt.Errorf("read %s: %w", path, readErr))
-			return nil
-		}
-		header, ok := extractHeaderBlock(string(raw))
-		if !ok {
-			result.Skipped++
-			return nil
-		}
-		fields, perr := parseHeader(path, header)
+		in, fields, perr := idx.buildManifestInput(path)
 		if perr != nil {
 			result.Errors = append(result.Errors, perr)
 			return nil
 		}
-		in, perr := buildUpsertInput(path, fields)
-		if perr != nil {
-			result.Errors = append(result.Errors, perr)
-			return nil
-		}
-		comp, err := idx.repo.Upsert(ctx, in)
+		comp, err := idx.repo.UpsertManifest(ctx, in)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Errorf("upsert %s: %w", path, err))
 			return nil
@@ -129,7 +115,7 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 			}
 		}
 		result.Indexed++
-		result.LibraryIDs = append(result.LibraryIDs, in.LibraryID)
+		result.LibraryIDs = append(result.LibraryIDs, in.Manifest.LibraryID)
 		return nil
 	})
 	if walkErr != nil {
@@ -143,6 +129,136 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	result.Deleted = deleted
 
 	return result, nil
+}
+
+type manifestFile struct {
+	LibraryID          string   `json:"libraryId"`
+	DisplayName        string   `json:"displayName"`
+	Description        string   `json:"description"`
+	Tags               []string `json:"tags"`
+	Latest             string   `json:"latest"`
+	Draft              string   `json:"draft"`
+	DeprecatedVersions []string `json:"deprecatedVersions"`
+}
+
+func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[string]string, error) {
+	raw, err := fs.ReadFile(idx.fs, path)
+	if err != nil {
+		return IndexManifestInput{}, nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	var mf manifestFile
+	if err := json.Unmarshal(raw, &mf); err != nil {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "component.json", Reason: err.Error()}
+	}
+	slug := filepath.Base(filepath.Dir(path))
+	manifest := ComponentManifest{
+		LibraryID:          strings.TrimSpace(mf.LibraryID),
+		Slug:               slug,
+		DisplayName:        strings.TrimSpace(mf.DisplayName),
+		Description:        strings.TrimSpace(mf.Description),
+		ManifestPath:       filepath.ToSlash(path),
+		LatestVersion:      strings.TrimSpace(mf.Latest),
+		DraftVersion:       strings.TrimSpace(mf.Draft),
+		DeprecatedVersions: append([]string(nil), mf.DeprecatedVersions...),
+		Tags:               append([]string(nil), mf.Tags...),
+	}
+	if manifest.LibraryID == "" {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "libraryId", Reason: "required"}
+	}
+	if manifest.DisplayName == "" {
+		manifest.DisplayName = slug
+	}
+	if manifest.LatestVersion == "" {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "required"}
+	}
+	versionRoot := filepath.ToSlash(filepath.Join(filepath.Dir(path), "versions"))
+	entries, err := fs.ReadDir(idx.fs, versionRoot)
+	if err != nil {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "versions", Reason: err.Error()}
+	}
+	deprecated := map[string]bool{}
+	for _, v := range manifest.DeprecatedVersions {
+		deprecated[strings.TrimSpace(v)] = true
+	}
+	var versions []ComponentVersion
+	var latestFound bool
+	var draftFound bool
+	fieldsForDeps := map[string]string{"libraryId": manifest.LibraryID}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		version := strings.TrimSpace(entry.Name())
+		versionPath := filepath.ToSlash(filepath.Join(versionRoot, version))
+		files, err := fs.ReadDir(idx.fs, versionPath)
+		if err != nil {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: err.Error()}
+		}
+		var tsx []fs.DirEntry
+		for _, f := range files {
+			if !f.IsDir() && strings.HasSuffix(f.Name(), ".tsx") {
+				tsx = append(tsx, f)
+			}
+		}
+		if len(tsx) != 1 {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: "expected exactly one .tsx file"}
+		}
+		sourcePath := filepath.ToSlash(filepath.Join(versionPath, tsx[0].Name()))
+		src, err := fs.ReadFile(idx.fs, sourcePath)
+		if err != nil {
+			return IndexManifestInput{}, nil, fmt.Errorf("read %s: %w", sourcePath, err)
+		}
+		headers := map[string]string{}
+		if header, ok := extractHeaderBlock(string(src)); ok {
+			headers, err = parseHeader(sourcePath, header)
+			if err != nil {
+				return IndexManifestInput{}, nil, err
+			}
+			if hv := strings.TrimSpace(headers["version"]); hv != "" && hv != version {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: sourcePath, Field: "version", Reason: "does not match version folder"}
+			}
+			if hid := strings.TrimSpace(headers["libraryId"]); hid != "" && hid != manifest.LibraryID {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: sourcePath, Field: "libraryId", Reason: "does not match manifest"}
+			}
+		}
+		status := VersionStatusReleased
+		if strings.Contains(version, "-") {
+			status = VersionStatusDraft
+		}
+		if deprecated[version] {
+			status = VersionStatusDeprecated
+		}
+		if version == manifest.LatestVersion {
+			latestFound = true
+			if status != VersionStatusReleased {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "must point to a released non-deprecated version"}
+			}
+			for k, v := range headers {
+				fieldsForDeps[k] = v
+			}
+		}
+		if version == manifest.DraftVersion {
+			draftFound = true
+			if status != VersionStatusDraft {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "draft", Reason: "must point to a draft/pre-release version"}
+			}
+		}
+		versions = append(versions, ComponentVersion{
+			LibraryID:     manifest.LibraryID,
+			Version:       version,
+			Status:        status,
+			SourcePath:    sourcePath,
+			Content:       string(src),
+			ContentSHA256: digestBytes(src),
+		})
+	}
+	if !latestFound {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "version folder not found"}
+	}
+	if manifest.DraftVersion != "" && !draftFound {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "draft", Reason: "version folder not found"}
+	}
+	return IndexManifestInput{Manifest: manifest, Versions: versions}, fieldsForDeps, nil
 }
 
 // headerBlockRe captures the first /** … */ comment block in a file.
@@ -213,60 +329,7 @@ func parseHeader(path, body string) (map[string]string, error) {
 	return out, nil
 }
 
-// buildUpsertInput projects parsed header fields into an UpsertInput.
-// Unknown header fields are preserved in Headers for the registry
-// row so future filters can query without re-parsing files.
-func buildUpsertInput(path string, fields map[string]string) (UpsertInput, error) {
-	libraryID := strings.TrimSpace(fields["libraryId"])
-	if libraryID == "" {
-		return UpsertInput{}, ErrInvalidHeader{SourcePath: path, Field: "libraryId", Reason: "required"}
-	}
-	in := UpsertInput{
-		LibraryID:   libraryID,
-		DisplayName: fields["displayName"],
-		Description: fields["description"],
-		SourcePath:  filepath.ToSlash(path),
-		Version:     fields["version"],
-		Headers:     fields,
-	}
-	if raw, ok := fields["tags"]; ok && strings.TrimSpace(raw) != "" {
-		tags, err := parseTags(raw)
-		if err != nil {
-			return UpsertInput{}, ErrInvalidHeader{SourcePath: path, Field: "tags", Reason: err.Error()}
-		}
-		in.Tags = tags
-	}
-	return in, nil
-}
-
-// parseTags accepts either a JSON array (`["a","b"]`) or a comma-
-// separated bare list (`a, b`). Tags must be non-empty after trim and
-// contain no commas (the sqlite repo uses comma as the in-row
-// separator).
-func parseTags(raw string) ([]string, error) {
-	raw = strings.TrimSpace(raw)
-	if strings.HasPrefix(raw, "[") {
-		var arr []string
-		if err := json.Unmarshal([]byte(raw), &arr); err != nil {
-			return nil, fmt.Errorf("invalid JSON tag array: %w", err)
-		}
-		return validateTags(arr)
-	}
-	parts := strings.Split(raw, ",")
-	return validateTags(parts)
-}
-
-func validateTags(in []string) ([]string, error) {
-	out := make([]string, 0, len(in))
-	for _, t := range in {
-		t = strings.TrimSpace(t)
-		if t == "" {
-			continue
-		}
-		if strings.Contains(t, ",") {
-			return nil, fmt.Errorf("tag %q contains comma", t)
-		}
-		out = append(out, t)
-	}
-	return out, nil
+func digestBytes(b []byte) string {
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
 }

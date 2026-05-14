@@ -19,6 +19,9 @@ type Service interface {
 	GetByLibraryID(ctx context.Context, libraryID string) (Component, error)
 	List(ctx context.Context, q SearchQuery) ([]Component, error)
 	GetContent(ctx context.Context, id string) (Content, error)
+	ListVersions(ctx context.Context, componentID string, limit int) ([]ComponentVersion, error)
+	GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error)
+	GetVersionContent(ctx context.Context, componentID, version string) (Content, error)
 	UpdateContent(ctx context.Context, id string, in WriteContentInput) (Content, error)
 }
 
@@ -92,6 +95,22 @@ func (s *service) GetContent(ctx context.Context, id string) (Content, error) {
 		return Content{}, err
 	}
 	return s.content.Read(ctx, c)
+}
+
+func (s *service) ListVersions(ctx context.Context, componentID string, limit int) ([]ComponentVersion, error) {
+	return s.repo.ListVersions(ctx, componentID, limit)
+}
+
+func (s *service) GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error) {
+	return s.repo.GetVersion(ctx, componentID, version)
+}
+
+func (s *service) GetVersionContent(ctx context.Context, componentID, version string) (Content, error) {
+	v, err := s.repo.GetVersion(ctx, componentID, version)
+	if err != nil {
+		return Content{}, err
+	}
+	return Content{Body: v.Content, SourcePath: v.SourcePath, SHA256: v.ContentSHA256}, nil
 }
 
 func (s *service) UpdateContent(ctx context.Context, id string, in WriteContentInput) (Content, error) {

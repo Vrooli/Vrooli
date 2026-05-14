@@ -31,6 +31,7 @@ func TestSQLiteRepository_CreateAndGet(t *testing.T) {
 	ctx := context.Background()
 
 	a, err := repo.Create(ctx, adoptions.CreateInput{
+		ID:             "adopt-fixed",
 		ComponentID:    "cmp-1",
 		LibraryID:      "react-component-library:Button",
 		Scenario:       "swarm-manager",
@@ -38,9 +39,10 @@ func TestSQLiteRepository_CreateAndGet(t *testing.T) {
 		AdoptedVersion: "1.0.0",
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, a.ID)
+	require.Equal(t, "adopt-fixed", a.ID)
 	require.Equal(t, "cmp-1", a.ComponentID)
-	require.Equal(t, adoptions.StatusEmpty, a.Status)
+	require.Equal(t, adoptions.LibraryVersionStatusCurrent, a.LibraryVersionStatus)
+	require.Equal(t, adoptions.LocalStatusClean, a.LocalStatus)
 	require.False(t, a.CreatedAt.IsZero())
 	require.True(t, a.RefreshedAt.IsZero())
 
@@ -48,6 +50,32 @@ func TestSQLiteRepository_CreateAndGet(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, a.ID, got.ID)
 	require.Equal(t, "swarm-manager", got.Scenario)
+}
+
+func TestSQLiteRepository_UpdateAppliedSnapshot(t *testing.T) {
+	repo, clk := newAdoptionsDB(t)
+	ctx := context.Background()
+	a, err := repo.Create(ctx, adoptions.CreateInput{
+		ComponentID: "c", Scenario: "s", AdoptedPath: "p", AdoptedVersion: "1.0.0",
+		SourceSHA256: "old-source", AdoptedSnapshotSHA256: "old-snapshot",
+	})
+	require.NoError(t, err)
+
+	clk.Advance(2 * time.Second)
+	got, err := repo.UpdateAppliedSnapshot(ctx, adoptions.AppliedSnapshotUpdate{
+		ID:                    a.ID,
+		AdoptedVersion:        "1.1.0",
+		SourceSHA256:          "new-source",
+		AdoptedSnapshotSHA256: "new-snapshot",
+		AppliedAt:             clk.Now(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "1.1.0", got.AdoptedVersion)
+	require.Equal(t, "new-source", got.SourceSHA256)
+	require.Equal(t, "new-snapshot", got.AdoptedSnapshotSHA256)
+	require.Equal(t, adoptions.LibraryVersionStatusCurrent, got.LibraryVersionStatus)
+	require.Equal(t, adoptions.LocalStatusClean, got.LocalStatus)
+	require.Equal(t, got.AppliedAt, got.RefreshedAt)
 }
 
 func TestSQLiteRepository_CreateRejectsMissingFields(t *testing.T) {
@@ -122,17 +150,19 @@ func TestSQLiteRepository_DeleteAndApplyRefresh(t *testing.T) {
 
 	clk.Advance(2 * time.Second)
 	touched, err := repo.ApplyRefresh(ctx, []adoptions.RefreshUpdate{{
-		ID:           a.ID,
-		Status:       adoptions.StatusBehind,
-		StatusDetail: "library at 1.1.0",
-		RefreshedAt:  clk.Now(),
+		ID:                   a.ID,
+		LibraryVersionStatus: adoptions.LibraryVersionStatusBehind,
+		LocalStatus:          adoptions.LocalStatusClean,
+		StatusDetail:         "library at 1.1.0",
+		RefreshedAt:          clk.Now(),
 	}})
 	require.NoError(t, err)
 	require.Equal(t, 1, touched)
 
 	got, err := repo.Get(ctx, a.ID)
 	require.NoError(t, err)
-	require.Equal(t, adoptions.StatusBehind, got.Status)
+	require.Equal(t, adoptions.LibraryVersionStatusBehind, got.LibraryVersionStatus)
+	require.Equal(t, adoptions.LocalStatusClean, got.LocalStatus)
 	require.Equal(t, "library at 1.1.0", got.StatusDetail)
 	require.False(t, got.RefreshedAt.IsZero())
 

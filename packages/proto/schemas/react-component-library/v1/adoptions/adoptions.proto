@@ -29,27 +29,27 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 
 service AdoptionsService {
   rpc ListAdoptions(ListAdoptionsRequest) returns (ListAdoptionsResponse);
-  rpc CreateAdoption(CreateAdoptionRequest) returns (CreateAdoptionResponse);
+  rpc ApplyAdoption(ApplyAdoptionRequest) returns (ApplyAdoptionResponse);
+  rpc ReapplyAdoption(ReapplyAdoptionRequest) returns (ReapplyAdoptionResponse);
   rpc DeleteAdoption(DeleteAdoptionRequest) returns (DeleteAdoptionResponse);
   rpc RefreshAdoptions(RefreshAdoptionsRequest) returns (RefreshAdoptionsResponse);
 }
 
-// AdoptionStatus is the drift state computed by Refresh.
-enum AdoptionStatus {
-  ADOPTION_STATUS_UNSPECIFIED = 0;
-  // Adopted version matches the library version AND adopted bytes
-  // match the current library bytes.
-  ADOPTION_STATUS_CURRENT = 1;
-  // Adopted version is older than the library version; adopted bytes
-  // still look like the snapshot of the adopted version (clean copy).
-  ADOPTION_STATUS_BEHIND = 2;
-  // Adopted bytes diverge from the library bytes for the adopted
-  // version — local edits or unknown provenance.
-  ADOPTION_STATUS_MODIFIED = 3;
-  // Adopted_path does not exist on disk, or the component has been
-  // removed from the registry. Refresh stamps this and leaves the row
-  // for the operator to reconcile.
-  ADOPTION_STATUS_UNKNOWN = 4;
+enum LibraryVersionStatus {
+  LIBRARY_VERSION_STATUS_UNSPECIFIED = 0;
+  LIBRARY_VERSION_STATUS_CURRENT = 1;
+  LIBRARY_VERSION_STATUS_BEHIND = 2;
+  LIBRARY_VERSION_STATUS_DEPRECATED = 3;
+  LIBRARY_VERSION_STATUS_MISSING = 4;
+  LIBRARY_VERSION_STATUS_UNKNOWN = 5;
+}
+
+enum LocalStatus {
+  LOCAL_STATUS_UNSPECIFIED = 0;
+  LOCAL_STATUS_CLEAN = 1;
+  LOCAL_STATUS_MODIFIED = 2;
+  LOCAL_STATUS_MISSING = 3;
+  LOCAL_STATUS_UNKNOWN = 4;
 }
 
 message Adoption {
@@ -72,19 +72,23 @@ message Adoption {
   // the refresh service.
   string adopted_path = 5;
 
-  // Library version stamped on the adopted copy at create time.
+  // Library version stamped on the adopted copy at apply time.
   string adopted_version = 6;
 
-  // Drift status from the most recent Refresh. Empty until the first
-  // refresh runs.
-  AdoptionStatus status = 7;
+  // Version drift from the most recent Refresh.
+  LibraryVersionStatus library_version_status = 7;
 
-  // Notes attached by Refresh — e.g., the library version the row is
-  // behind by, or the path that was missing.
-  string status_detail = 8;
+  // Local edit drift from the most recent Refresh.
+  LocalStatus local_status = 8;
+
+  // Notes attached by Refresh, such as the newer version or missing path.
+  string status_detail = 11;
 
   google.protobuf.Timestamp created_at = 9;
   google.protobuf.Timestamp refreshed_at = 10;
+
+  string source_sha256 = 12;
+  string applied_at = 13;
 }
 
 message ListAdoptionsRequest {
@@ -100,7 +104,7 @@ message ListAdoptionsResponse {
   repeated Adoption adoptions = 1;
 }
 
-message CreateAdoptionRequest {
+message ApplyAdoptionRequest {
   // Required. Soft FK to components.id; server validates the
   // component exists at create time.
   string component_id = 1;
@@ -108,12 +112,28 @@ message CreateAdoptionRequest {
   string scenario = 2;
   // Required. Adopted path within the target scenario.
   string adopted_path = 3;
-  // Required. Library version stamped on the adopted copy.
-  string adopted_version = 4;
+  // Optional. Defaults to component.latest.
+  string version = 4;
+  // Required to overwrite an existing target file.
+  bool confirm_overwrite = 5;
 }
 
-message CreateAdoptionResponse {
+message ApplyAdoptionResponse {
   Adoption adoption = 1;
+  string written_path = 2;
+}
+
+message ReapplyAdoptionRequest {
+  string id = 1;
+  // Optional. Defaults to component.latest.
+  string version = 2;
+  // Required when the adopted target has local modifications.
+  bool confirm_local_overwrite = 3;
+}
+
+message ReapplyAdoptionResponse {
+  Adoption adoption = 1;
+  string written_path = 2;
 }
 
 message DeleteAdoptionRequest {
@@ -133,8 +153,13 @@ message RefreshAdoptionsResponse {
   // would return them.
   repeated Adoption adoptions = 1;
   // Summary counters for CLI/UI display.
-  int32 current = 2;
-  int32 behind = 3;
-  int32 modified = 4;
-  int32 unknown = 5;
+  int32 library_current = 2;
+  int32 library_behind = 3;
+  int32 library_deprecated = 4;
+  int32 library_missing = 5;
+  int32 library_unknown = 6;
+  int32 local_clean = 7;
+  int32 local_modified = 8;
+  int32 local_missing = 9;
+  int32 local_unknown = 10;
 }

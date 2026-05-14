@@ -2,8 +2,8 @@
 // @generated from file react-component-library/v1/components/components.proto (package vrooli.react_component_library.v1.components, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file react-component-library/v1/components/components.proto.
  */
 export const file_react_component_library_v1_components_components: GenFile = /*@__PURE__*/
-  fileDesc("CjZyZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jb21wb25lbnRzL2NvbXBvbmVudHMucHJvdG8SLHZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzIvECCglDb21wb25lbnQSCgoCaWQYASABKAkSEgoKbGlicmFyeV9pZBgCIAEoCRIUCgxkaXNwbGF5X25hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEwoLc291cmNlX3BhdGgYBSABKAkSDwoHdmVyc2lvbhgGIAEoCRIMCgR0YWdzGAcgAygJEi4KCmluZGV4ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wElUKB2hlYWRlcnMYCiADKAsyRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQuSGVhZGVyc0VudHJ5Gi4KDEhlYWRlcnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBImIKFUxpc3RDb21wb25lbnRzUmVxdWVzdBINCgVtYXRjaBgBIAEoCRILCgN0YWcYAiABKAkSDQoFbGltaXQYAyABKAUSDAoEdGFncxgEIAMoCRIQCghjYXRlZ29yeRgFIAEoCSJlChZMaXN0Q29tcG9uZW50c1Jlc3BvbnNlEksKCmNvbXBvbmVudHMYASADKAsyNy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQiIQoTR2V0Q29tcG9uZW50UmVxdWVzdBIKCgJpZBgBIAEoCSJiChRHZXRDb21wb25lbnRSZXNwb25zZRJKCgljb21wb25lbnQYASABKAsyNy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQiNAoeR2V0Q29tcG9uZW50QnlMaWJyYXJ5SWRSZXF1ZXN0EhIKCmxpYnJhcnlfaWQYASABKAkibQofR2V0Q29tcG9uZW50QnlMaWJyYXJ5SWRSZXNwb25zZRJKCgljb21wb25lbnQYASABKAsyNy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQiGAoWSW5kZXhDb21wb25lbnRzUmVxdWVzdCKCAQoXSW5kZXhDb21wb25lbnRzUmVzcG9uc2USDwoHc2Nhbm5lZBgBIAEoBRIPCgdpbmRleGVkGAIgASgFEg8KB3NraXBwZWQYAyABKAUSDwoHZGVsZXRlZBgEIAEoBRIOCgZlcnJvcnMYBSADKAkSEwoLbGlicmFyeV9pZHMYBiADKAkiKAoaR2V0Q29tcG9uZW50Q29udGVudFJlcXVlc3QSCgoCaWQYASABKAkiUwobR2V0Q29tcG9uZW50Q29udGVudFJlc3BvbnNlEg8KB2NvbnRlbnQYASABKAkSEwoLc291cmNlX3BhdGgYAiABKAkSDgoGc2hhMjU2GAMgASgJIlUKHVVwZGF0ZUNvbXBvbmVudENvbnRlbnRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2NvbnRlbnQYAiABKAkSFwoPZXhwZWN0ZWRfc2hhMjU2GAMgASgJIkUKHlVwZGF0ZUNvbXBvbmVudENvbnRlbnRSZXNwb25zZRIOCgZzaGEyNTYYASABKAkSEwoLc291cmNlX3BhdGgYAiABKAkyhggKEUNvbXBvbmVudHNTZXJ2aWNlEpsBCg5MaXN0Q29tcG9uZW50cxJDLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkxpc3RDb21wb25lbnRzUmVxdWVzdBpELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkxpc3RDb21wb25lbnRzUmVzcG9uc2USlQEKDEdldENvbXBvbmVudBJBLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkdldENvbXBvbmVudFJlcXVlc3QaQi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRSZXNwb25zZRK2AQoXR2V0Q29tcG9uZW50QnlMaWJyYXJ5SWQSTC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRCeUxpYnJhcnlJZFJlcXVlc3QaTS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRCeUxpYnJhcnlJZFJlc3BvbnNlEp4BCg9JbmRleENvbXBvbmVudHMSRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5JbmRleENvbXBvbmVudHNSZXF1ZXN0GkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuSW5kZXhDb21wb25lbnRzUmVzcG9uc2USqgEKE0dldENvbXBvbmVudENvbnRlbnQSSC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRDb250ZW50UmVxdWVzdBpJLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkdldENvbXBvbmVudENvbnRlbnRSZXNwb25zZRKzAQoWVXBkYXRlQ29tcG9uZW50Q29udGVudBJLLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLlVwZGF0ZUNvbXBvbmVudENvbnRlbnRSZXF1ZXN0GkwudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuVXBkYXRlQ29tcG9uZW50Q29udGVudFJlc3BvbnNlQmRaYmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcmVhY3QtY29tcG9uZW50LWxpYnJhcnkvdjEvY29tcG9uZW50cztjb21wb25lbnRzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CjZyZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9jb21wb25lbnRzL2NvbXBvbmVudHMucHJvdG8SLHZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzIsUDCglDb21wb25lbnQSCgoCaWQYASABKAkSEgoKbGlicmFyeV9pZBgCIAEoCRIUCgxkaXNwbGF5X25hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEwoLc291cmNlX3BhdGgYBSABKAkSDwoHdmVyc2lvbhgGIAEoCRIMCgR0YWdzGAcgAygJEi4KCmluZGV4ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wElUKB2hlYWRlcnMYCiADKAsyRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQuSGVhZGVyc0VudHJ5EgwKBHNsdWcYCyABKAkSFQoNbWFuaWZlc3RfcGF0aBgMIAEoCRIVCg1kcmFmdF92ZXJzaW9uGA0gASgJEhYKDmxhdGVzdF92ZXJzaW9uGA4gASgJGi4KDEhlYWRlcnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBImIKFUxpc3RDb21wb25lbnRzUmVxdWVzdBINCgVtYXRjaBgBIAEoCRILCgN0YWcYAiABKAkSDQoFbGltaXQYAyABKAUSDAoEdGFncxgEIAMoCRIQCghjYXRlZ29yeRgFIAEoCSJlChZMaXN0Q29tcG9uZW50c1Jlc3BvbnNlEksKCmNvbXBvbmVudHMYASADKAsyNy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQiIQoTR2V0Q29tcG9uZW50UmVxdWVzdBIKCgJpZBgBIAEoCSJiChRHZXRDb21wb25lbnRSZXNwb25zZRJKCgljb21wb25lbnQYASABKAsyNy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQiNAoeR2V0Q29tcG9uZW50QnlMaWJyYXJ5SWRSZXF1ZXN0EhIKCmxpYnJhcnlfaWQYASABKAkibQofR2V0Q29tcG9uZW50QnlMaWJyYXJ5SWRSZXNwb25zZRJKCgljb21wb25lbnQYASABKAsyNy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnQiGAoWSW5kZXhDb21wb25lbnRzUmVxdWVzdCKCAQoXSW5kZXhDb21wb25lbnRzUmVzcG9uc2USDwoHc2Nhbm5lZBgBIAEoBRIPCgdpbmRleGVkGAIgASgFEg8KB3NraXBwZWQYAyABKAUSDwoHZGVsZXRlZBgEIAEoBRIOCgZlcnJvcnMYBSADKAkSEwoLbGlicmFyeV9pZHMYBiADKAkiKAoaR2V0Q29tcG9uZW50Q29udGVudFJlcXVlc3QSCgoCaWQYASABKAkiUwobR2V0Q29tcG9uZW50Q29udGVudFJlc3BvbnNlEg8KB2NvbnRlbnQYASABKAkSEwoLc291cmNlX3BhdGgYAiABKAkSDgoGc2hhMjU2GAMgASgJIlUKHVVwZGF0ZUNvbXBvbmVudENvbnRlbnRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2NvbnRlbnQYAiABKAkSFwoPZXhwZWN0ZWRfc2hhMjU2GAMgASgJIkUKHlVwZGF0ZUNvbXBvbmVudENvbnRlbnRSZXNwb25zZRIOCgZzaGEyNTYYASABKAkSEwoLc291cmNlX3BhdGgYAiABKAki0wIKEENvbXBvbmVudFZlcnNpb24SCgoCaWQYASABKAkSFAoMY29tcG9uZW50X2lkGAIgASgJEhIKCmxpYnJhcnlfaWQYAyABKAkSDwoHdmVyc2lvbhgEIAEoCRJUCgZzdGF0dXMYBSABKA4yRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnRWZXJzaW9uU3RhdHVzEhMKC3NvdXJjZV9wYXRoGAYgASgJEhYKDmNvbnRlbnRfc2hhMjU2GAcgASgJEhQKDGNoYW5nZWxvZ19tZBgIIAEoCRIuCgppbmRleGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtyZWxlYXNlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiQwocTGlzdENvbXBvbmVudFZlcnNpb25zUmVxdWVzdBIUCgxjb21wb25lbnRfaWQYASABKAkSDQoFbGltaXQYAiABKAUicQodTGlzdENvbXBvbmVudFZlcnNpb25zUmVzcG9uc2USUAoIdmVyc2lvbnMYASADKAsyPi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5Db21wb25lbnRWZXJzaW9uIkoKIUdldENvbXBvbmVudFZlcnNpb25Db250ZW50UmVxdWVzdBIUCgxjb21wb25lbnRfaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoCSKGAQoiR2V0Q29tcG9uZW50VmVyc2lvbkNvbnRlbnRSZXNwb25zZRJPCgd2ZXJzaW9uGAEgASgLMj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuQ29tcG9uZW50VmVyc2lvbhIPCgdjb250ZW50GAIgASgJKt0BChZDb21wb25lbnRWZXJzaW9uU3RhdHVzEigKJENPTVBPTkVOVF9WRVJTSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEiIKHkNPTVBPTkVOVF9WRVJTSU9OX1NUQVRVU19EUkFGVBABEiUKIUNPTVBPTkVOVF9WRVJTSU9OX1NUQVRVU19SRUxFQVNFRBACEicKI0NPTVBPTkVOVF9WRVJTSU9OX1NUQVRVU19ERVBSRUNBVEVEEAMSJQohQ09NUE9ORU5UX1ZFUlNJT05fU1RBVFVTX0FSQ0hJVkVEEAQy+woKEUNvbXBvbmVudHNTZXJ2aWNlEpsBCg5MaXN0Q29tcG9uZW50cxJDLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkxpc3RDb21wb25lbnRzUmVxdWVzdBpELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkxpc3RDb21wb25lbnRzUmVzcG9uc2USlQEKDEdldENvbXBvbmVudBJBLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkdldENvbXBvbmVudFJlcXVlc3QaQi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRSZXNwb25zZRK2AQoXR2V0Q29tcG9uZW50QnlMaWJyYXJ5SWQSTC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRCeUxpYnJhcnlJZFJlcXVlc3QaTS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRCeUxpYnJhcnlJZFJlc3BvbnNlEp4BCg9JbmRleENvbXBvbmVudHMSRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5JbmRleENvbXBvbmVudHNSZXF1ZXN0GkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuSW5kZXhDb21wb25lbnRzUmVzcG9uc2USqgEKE0dldENvbXBvbmVudENvbnRlbnQSSC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5HZXRDb21wb25lbnRDb250ZW50UmVxdWVzdBpJLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLkdldENvbXBvbmVudENvbnRlbnRSZXNwb25zZRKzAQoWVXBkYXRlQ29tcG9uZW50Q29udGVudBJLLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5jb21wb25lbnRzLlVwZGF0ZUNvbXBvbmVudENvbnRlbnRSZXF1ZXN0GkwudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuVXBkYXRlQ29tcG9uZW50Q29udGVudFJlc3BvbnNlErABChVMaXN0Q29tcG9uZW50VmVyc2lvbnMSSi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuY29tcG9uZW50cy5MaXN0Q29tcG9uZW50VmVyc2lvbnNSZXF1ZXN0GksudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuTGlzdENvbXBvbmVudFZlcnNpb25zUmVzcG9uc2USvwEKGkdldENvbXBvbmVudFZlcnNpb25Db250ZW50Ek8udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50VmVyc2lvbkNvbnRlbnRSZXF1ZXN0GlAudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmNvbXBvbmVudHMuR2V0Q29tcG9uZW50VmVyc2lvbkNvbnRlbnRSZXNwb25zZUJkWmJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3JlYWN0LWNvbXBvbmVudC1saWJyYXJ5L3YxL2NvbXBvbmVudHM7Y29tcG9uZW50c192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * Component is the canonical wire shape for a single indexed component.
@@ -28,7 +28,7 @@ export type Component = Message<"vrooli.react_component_library.v1.components.Co
   id: string;
 
   /**
-   * Stable cross-scenario identifier parsed from the `@libraryId` header.
+   * Stable cross-scenario identifier from component.json.
    *
    * @generated from field: string library_id = 2;
    */
@@ -49,14 +49,15 @@ export type Component = Message<"vrooli.react_component_library.v1.components.Co
   description: string;
 
   /**
-   * Path of the .tsx file relative to the configured source root.
+   * Path of the latest released .tsx file relative to the configured source
+   * root. Empty when no latest release has been published.
    *
    * @generated from field: string source_path = 5;
    */
   sourcePath: string;
 
   /**
-   * Optional version string parsed from `@version`.
+   * Latest released version from component.json.latest.
    *
    * @generated from field: string version = 6;
    */
@@ -91,6 +92,34 @@ export type Component = Message<"vrooli.react_component_library.v1.components.Co
    * @generated from field: map<string, string> headers = 10;
    */
   headers: { [key: string]: string };
+
+  /**
+   * Component folder slug under library/components/.
+   *
+   * @generated from field: string slug = 11;
+   */
+  slug: string;
+
+  /**
+   * Path to component.json relative to the configured source root.
+   *
+   * @generated from field: string manifest_path = 12;
+   */
+  manifestPath: string;
+
+  /**
+   * Explicit draft version from component.json.draft, if one exists.
+   *
+   * @generated from field: string draft_version = 13;
+   */
+  draftVersion: string;
+
+  /**
+   * Explicit latest released version from component.json.latest.
+   *
+   * @generated from field: string latest_version = 14;
+   */
+  latestVersion: string;
 };
 
 /**
@@ -265,7 +294,7 @@ export const IndexComponentsRequestSchema: GenMessage<IndexComponentsRequest> = 
  */
 export type IndexComponentsResponse = Message<"vrooli.react_component_library.v1.components.IndexComponentsResponse"> & {
   /**
-   * Total files visited by the walker.
+   * Total component manifests visited by the walker.
    *
    * @generated from field: int32 scanned = 1;
    */
@@ -279,7 +308,8 @@ export type IndexComponentsResponse = Message<"vrooli.react_component_library.v1
   indexed: number;
 
   /**
-   * Files skipped because they had no `@libraryId` header (not an error).
+   * Manifests or version folders skipped because they are not component
+   * release inputs.
    *
    * @generated from field: int32 skipped = 3;
    */
@@ -439,6 +469,187 @@ export const UpdateComponentContentResponseSchema: GenMessage<UpdateComponentCon
   messageDesc(file_react_component_library_v1_components_components, 12);
 
 /**
+ * @generated from message vrooli.react_component_library.v1.components.ComponentVersion
+ */
+export type ComponentVersion = Message<"vrooli.react_component_library.v1.components.ComponentVersion"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string component_id = 2;
+   */
+  componentId: string;
+
+  /**
+   * @generated from field: string library_id = 3;
+   */
+  libraryId: string;
+
+  /**
+   * @generated from field: string version = 4;
+   */
+  version: string;
+
+  /**
+   * @generated from field: vrooli.react_component_library.v1.components.ComponentVersionStatus status = 5;
+   */
+  status: ComponentVersionStatus;
+
+  /**
+   * @generated from field: string source_path = 6;
+   */
+  sourcePath: string;
+
+  /**
+   * @generated from field: string content_sha256 = 7;
+   */
+  contentSha256: string;
+
+  /**
+   * @generated from field: string changelog_md = 8;
+   */
+  changelogMd: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp indexed_at = 9;
+   */
+  indexedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp released_at = 10;
+   */
+  releasedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.components.ComponentVersion.
+ * Use `create(ComponentVersionSchema)` to create a new message.
+ */
+export const ComponentVersionSchema: GenMessage<ComponentVersion> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_components_components, 13);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.components.ListComponentVersionsRequest
+ */
+export type ListComponentVersionsRequest = Message<"vrooli.react_component_library.v1.components.ListComponentVersionsRequest"> & {
+  /**
+   * @generated from field: string component_id = 1;
+   */
+  componentId: string;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.components.ListComponentVersionsRequest.
+ * Use `create(ListComponentVersionsRequestSchema)` to create a new message.
+ */
+export const ListComponentVersionsRequestSchema: GenMessage<ListComponentVersionsRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_components_components, 14);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.components.ListComponentVersionsResponse
+ */
+export type ListComponentVersionsResponse = Message<"vrooli.react_component_library.v1.components.ListComponentVersionsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.react_component_library.v1.components.ComponentVersion versions = 1;
+   */
+  versions: ComponentVersion[];
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.components.ListComponentVersionsResponse.
+ * Use `create(ListComponentVersionsResponseSchema)` to create a new message.
+ */
+export const ListComponentVersionsResponseSchema: GenMessage<ListComponentVersionsResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_components_components, 15);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.components.GetComponentVersionContentRequest
+ */
+export type GetComponentVersionContentRequest = Message<"vrooli.react_component_library.v1.components.GetComponentVersionContentRequest"> & {
+  /**
+   * @generated from field: string component_id = 1;
+   */
+  componentId: string;
+
+  /**
+   * @generated from field: string version = 2;
+   */
+  version: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.components.GetComponentVersionContentRequest.
+ * Use `create(GetComponentVersionContentRequestSchema)` to create a new message.
+ */
+export const GetComponentVersionContentRequestSchema: GenMessage<GetComponentVersionContentRequest> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_components_components, 16);
+
+/**
+ * @generated from message vrooli.react_component_library.v1.components.GetComponentVersionContentResponse
+ */
+export type GetComponentVersionContentResponse = Message<"vrooli.react_component_library.v1.components.GetComponentVersionContentResponse"> & {
+  /**
+   * @generated from field: vrooli.react_component_library.v1.components.ComponentVersion version = 1;
+   */
+  version?: ComponentVersion | undefined;
+
+  /**
+   * @generated from field: string content = 2;
+   */
+  content: string;
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.components.GetComponentVersionContentResponse.
+ * Use `create(GetComponentVersionContentResponseSchema)` to create a new message.
+ */
+export const GetComponentVersionContentResponseSchema: GenMessage<GetComponentVersionContentResponse> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_components_components, 17);
+
+/**
+ * @generated from enum vrooli.react_component_library.v1.components.ComponentVersionStatus
+ */
+export enum ComponentVersionStatus {
+  /**
+   * @generated from enum value: COMPONENT_VERSION_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: COMPONENT_VERSION_STATUS_DRAFT = 1;
+   */
+  DRAFT = 1,
+
+  /**
+   * @generated from enum value: COMPONENT_VERSION_STATUS_RELEASED = 2;
+   */
+  RELEASED = 2,
+
+  /**
+   * @generated from enum value: COMPONENT_VERSION_STATUS_DEPRECATED = 3;
+   */
+  DEPRECATED = 3,
+
+  /**
+   * @generated from enum value: COMPONENT_VERSION_STATUS_ARCHIVED = 4;
+   */
+  ARCHIVED = 4,
+}
+
+/**
+ * Describes the enum vrooli.react_component_library.v1.components.ComponentVersionStatus.
+ */
+export const ComponentVersionStatusSchema: GenEnum<ComponentVersionStatus> = /*@__PURE__*/
+  enumDesc(file_react_component_library_v1_components_components, 0);
+
+/**
  * @generated from service vrooli.react_component_library.v1.components.ComponentsService
  */
 export const ComponentsService: GenService<{
@@ -489,6 +700,22 @@ export const ComponentsService: GenService<{
     methodKind: "unary";
     input: typeof UpdateComponentContentRequestSchema;
     output: typeof UpdateComponentContentResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.components.ComponentsService.ListComponentVersions
+   */
+  listComponentVersions: {
+    methodKind: "unary";
+    input: typeof ListComponentVersionsRequestSchema;
+    output: typeof ListComponentVersionsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent
+   */
+  getComponentVersionContent: {
+    methodKind: "unary";
+    input: typeof GetComponentVersionContentRequestSchema;
+    output: typeof GetComponentVersionContentResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_react_component_library_v1_components_components, 0);

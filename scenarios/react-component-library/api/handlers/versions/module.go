@@ -94,4 +94,3 @@ func (r *adoptionResolver) ResolveAdoption(ctx context.Context, adoptionID strin
 	}
 	return string(bytes), nil
 }
-

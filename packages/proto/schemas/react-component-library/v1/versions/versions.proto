@@ -14,8 +14,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // @domain versions
 // @stability experimental
 //
-// Records a new row when a component save changes either the file
-// bytes or the `@version` header. Identical re-saves are no-ops.
+// Reads release artifacts indexed from component manifest version folders.
 // Diff is computed server-side as paired aligned rows so the UI can
 // render side-by-side without bundling a diff library.
 //
@@ -35,7 +34,7 @@ message Version {
   string id = 1;
   // Soft FK to components.id.
   string component_id = 2;
-  // Value of the `@version` header at record time.
+  string library_id = 7;
   string version = 3;
   // Hex sha256 of the recorded content.
   string content_sha256 = 4;
@@ -43,6 +42,9 @@ message Version {
   // on save"). Empty by default.
   string changelog_md = 5;
   google.protobuf.Timestamp recorded_at = 6;
+  string status = 8;
+  string source_path = 9;
+  google.protobuf.Timestamp released_at = 10;
 }
 
 message ListVersionsRequest {

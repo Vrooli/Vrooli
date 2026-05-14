@@ -30,7 +30,7 @@ func (s *sqliteRepository) SyncForComponent(ctx context.Context, in SyncInput) e
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(ctx, `DELETE FROM component_dep_declarations WHERE component_id = ?`, cid); err != nil {
 		return fmt.Errorf("clear existing deps: %w", err)
 	}

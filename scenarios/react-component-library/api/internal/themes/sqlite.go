@@ -43,9 +43,7 @@ func (s *sqliteRepository) GetBuiltin(ctx context.Context, id string) (Theme, er
 		return Theme{}, fmt.Errorf("theme id required")
 	}
 	row := s.db.QueryRowContext(ctx, `SELECT id, name, tokens_json FROM builtin_themes WHERE id = ?`, id)
-	var (
-		gotID, name, tokensJSON string
-	)
+	var gotID, name, tokensJSON string
 	if err := row.Scan(&gotID, &name, &tokensJSON); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Theme{}, ErrThemeNotFound{ID: id}

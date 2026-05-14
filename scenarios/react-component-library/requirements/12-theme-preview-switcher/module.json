@@ -44,7 +44,7 @@
     {
       "id": "TH-003",
       "title": "Preview harness mounts the selected theme as CSS custom properties before render",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "category": "theme",
       "criticality": "P1",
@@ -53,8 +53,8 @@
       "validation": [
         {
           "type": "automated",
-          "status": "planned",
-          "notes": "BAS flow `theme-switch-applies` confirms the preview reflects the theme change."
+          "status": "complete",
+          "notes": "handlers/preview/module_test.go::TestModule_HarnessHTML asserts the harness installs the rcl-theme-apply listener and uses documentElement.style.setProperty to apply each token. UI: features/components/ThemeSwitcher.test.tsx covers built-in selection + scenario-resolved Apply, verifying the host posts {type:rcl-theme-apply, themeId, tokens} with the expected token map."
         }
       ]
     }

@@ -92,8 +92,8 @@ type DiffResult struct {
 }
 
 type service struct {
-	repo       Repository
-	adoptions  AdoptionResolver // optional; nil disables adoption diff
+	repo      Repository
+	adoptions AdoptionResolver // optional; nil disables adoption diff
 }
 
 // NewService constructs a Service backed by repo. The optional

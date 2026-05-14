@@ -5,9 +5,13 @@ import "context"
 // Repository is the persistence seam the adoptions service depends on.
 // Production wires sqlite.go; tests wire mocks.FakeRepository.
 type Repository interface {
-	// Create inserts a new adoption row, generating ID + CreatedAt.
-	// The returned Adoption has Status==StatusEmpty until Refresh runs.
+	// Create inserts a new adoption row. The repository generates an
+	// ID only when the caller does not provide one.
 	Create(ctx context.Context, in CreateInput) (Adoption, error)
+
+	// UpdateAppliedSnapshot persists the library version/hash snapshot
+	// written by a reapply without changing ownership metadata.
+	UpdateAppliedSnapshot(ctx context.Context, in AppliedSnapshotUpdate) (Adoption, error)
 
 	// Get fetches an adoption by primary ID. Returns
 	// ErrAdoptionNotFound when no row matches.

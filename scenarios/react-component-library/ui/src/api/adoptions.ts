@@ -1,7 +1,8 @@
 import { createClient } from "@connectrpc/connect";
 import {
   AdoptionsService,
-  AdoptionStatus,
+  LibraryVersionStatus,
+  LocalStatus,
   type Adoption,
   type ListAdoptionsResponse,
   type RefreshAdoptionsResponse,
@@ -11,5 +12,5 @@ import { transport } from "./client";
 
 export const adoptionsClient = createClient(AdoptionsService, transport);
 
-export { AdoptionStatus };
+export { LibraryVersionStatus, LocalStatus };
 export type { Adoption, ListAdoptionsResponse, RefreshAdoptionsResponse };

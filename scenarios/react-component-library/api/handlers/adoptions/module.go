@@ -16,11 +16,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
-	"github.com/vrooli/api-core/storage"
 
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
@@ -103,32 +104,24 @@ func (l *componentsLibrary) GetContent(ctx context.Context, id string) (componen
 	return l.svc.GetContent(ctx, id)
 }
 
+func (l *componentsLibrary) GetVersion(ctx context.Context, componentID, version string) (components.ComponentVersion, error) {
+	return l.svc.GetVersion(ctx, componentID, version)
+}
+
 // defaultScenariosRoot resolves the on-disk root the adopted-file
 // reader walks. Override via ADOPTIONS_SCENARIOS_ROOT env. Default is
-// the repo's top-level `scenarios/` so adoption refresh can read
+// the repo's top-level `scenarios/` so apply/refresh can write and read
 // peer-scenario trees without extra wiring.
 func defaultScenariosRoot() (string, error) {
 	if path := strings.TrimSpace(os.Getenv("ADOPTIONS_SCENARIOS_ROOT")); path != "" {
 		return path, nil
 	}
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		return "", fmt.Errorf("storage resolver: %w", err)
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("resolve adoptions scenarios root: runtime caller unavailable")
 	}
-	path, err := resolver.Path(
-		storage.Options{ScenarioID: "react-component-library"},
-		storage.ClassData,
-		"adoptions-scenarios",
-	)
-	if err != nil {
-		return "", fmt.Errorf("resolve adoptions scenarios root: %w", err)
-	}
-	if err := os.MkdirAll(path, 0o755); err != nil {
-		return "", fmt.Errorf("create adoptions scenarios root: %w", err)
-	}
+	path := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", ".."))
+	path = filepath.Join(path, "scenarios")
 	return path, nil
 }
 
@@ -160,30 +153,53 @@ var Endpoints = []module.EndpointDescriptor{
 		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions list"},
 	},
 	{
-		ID:          "adoptions_create",
-		Path:        adoptionsconnect.AdoptionsServiceCreateAdoptionProcedure,
+		ID:          "adoptions_apply",
+		Path:        adoptionsconnect.AdoptionsServiceApplyAdoptionProcedure,
 		Method:      "POST",
-		Summary:     "Create an adoption record",
-		Description: "Soft-links a library component to a copy of its source under a target scenario. Validates the component exists; captures a sha256 of the adopted file at create time for later drift comparison.",
+		Summary:     "Apply a component to a scenario",
+		Description: "Copies a selected component version into a target scenario, stamps provenance, and records the adoption.",
 		Category:    "adoptions",
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"component_id":    "string",
-				"scenario":        "string",
-				"adopted_path":    "string",
-				"adopted_version": "string",
+				"component_id":      "string",
+				"scenario":          "string",
+				"adopted_path":      "string",
+				"version":           "string (optional)",
+				"confirm_overwrite": "bool",
 			},
 		},
 		Response: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"adoption": "Adoption"},
+			Properties: map[string]string{"adoption": "Adoption", "written_path": "string"},
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing required field or unknown component_id"},
 			{Status: 500, Code: "internal", Description: "Repository write failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions create", Args: []string{"<component_id>", "<scenario>", "<adopted_path>"}},
+		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions apply", Args: []string{"<component_id>", "<scenario>", "<adopted_path>"}},
+	},
+	{
+		ID:          "adoptions_reapply",
+		Path:        adoptionsconnect.AdoptionsServiceReapplyAdoptionProcedure,
+		Method:      "POST",
+		Summary:     "Reapply an adoption",
+		Description: "Overwrites an adopted file from a selected library version. Local modifications require explicit confirmation.",
+		Category:    "adoptions",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"id": "string", "version": "string (optional)", "confirm_local_overwrite": "bool"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"adoption": "Adoption", "written_path": "string"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing id or local edits without confirmation"},
+			{Status: 404, Code: "not_found", Description: "No adoption with that id"},
+			{Status: 500, Code: "internal", Description: "Repository or filesystem failure"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions reapply", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "adoptions_delete",
@@ -208,7 +224,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        adoptionsconnect.AdoptionsServiceRefreshAdoptionsProcedure,
 		Method:      "POST",
 		Summary:     "Refresh drift status for adoption records",
-		Description: "Recomputes status (current / behind / modified / unknown) for every adoption record, or just those for a single component when component_id is supplied.",
+		Description: "Recomputes library-version and local-edit drift statuses for every adoption record, or just those for a single component when component_id is supplied.",
 		Category:    "adoptions",
 		Request: &module.Schema{
 			Type:       "object",
@@ -217,11 +233,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"adoptions": "array<Adoption>",
-				"current":   "int32",
-				"behind":    "int32",
-				"modified":  "int32",
-				"unknown":   "int32",
+				"adoptions":       "array<Adoption>",
+				"library_current": "int32",
+				"library_behind":  "int32",
+				"local_clean":     "int32",
+				"local_modified":  "int32",
 			},
 		},
 		Errors: []module.ErrorDesc{

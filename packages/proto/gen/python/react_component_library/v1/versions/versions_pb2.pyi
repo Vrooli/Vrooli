@@ -24,20 +24,28 @@ DIFF_OP_ADD: DiffOp
 DIFF_OP_EMPTY: DiffOp
 
 class Version(_message.Message):
-    __slots__ = ("id", "component_id", "version", "content_sha256", "changelog_md", "recorded_at")
+    __slots__ = ("id", "component_id", "library_id", "version", "content_sha256", "changelog_md", "recorded_at", "status", "source_path", "released_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     CONTENT_SHA256_FIELD_NUMBER: _ClassVar[int]
     CHANGELOG_MD_FIELD_NUMBER: _ClassVar[int]
     RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    RELEASED_AT_FIELD_NUMBER: _ClassVar[int]
     id: str
     component_id: str
+    library_id: str
     version: str
     content_sha256: str
     changelog_md: str
     recorded_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., version: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    status: str
+    source_path: str
+    released_at: _timestamp_pb2.Timestamp
+    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., status: _Optional[str] = ..., source_path: _Optional[str] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ListVersionsRequest(_message.Message):
     __slots__ = ("component_id", "limit")

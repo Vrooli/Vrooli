@@ -136,11 +136,11 @@ func TestService_Diff_AdoptionSide(t *testing.T) {
 
 func TestParseVersionHeader(t *testing.T) {
 	cases := map[string]string{
-		"// @version 1.2.3":               "1.2.3",
-		" *  @version  2.0.0-alpha":       "2.0.0-alpha",
-		"no header here":                  "",
-		"prose @version 9.9.9 inline":     "9.9.9", // permissive: matches anywhere on a line
-		"/**\n * @version 0.1.0\n */":     "0.1.0",
+		"// @version 1.2.3":           "1.2.3",
+		" *  @version  2.0.0-alpha":   "2.0.0-alpha",
+		"no header here":              "",
+		"prose @version 9.9.9 inline": "9.9.9", // permissive: matches anywhere on a line
+		"/**\n * @version 0.1.0\n */": "0.1.0",
 	}
 	for input, want := range cases {
 		got := versions.ParseVersionHeader(strings.ReplaceAll(input, "\n", "\n"))

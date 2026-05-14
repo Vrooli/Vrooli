@@ -38,8 +38,81 @@ const timeFormat = time.RFC3339Nano
 const tagSep = ","
 
 func (s *sqliteRepository) Upsert(ctx context.Context, in UpsertInput) (Component, error) {
+	manifest := ComponentManifest{
+		LibraryID:     in.LibraryID,
+		Slug:          in.Slug,
+		DisplayName:   in.DisplayName,
+		Description:   in.Description,
+		ManifestPath:  in.ManifestPath,
+		LatestVersion: firstNonEmpty(in.LatestVersion, in.Version),
+		DraftVersion:  in.DraftVersion,
+		Tags:          in.Tags,
+	}
+	if manifest.Slug == "" {
+		manifest.Slug = slugFromLibraryID(in.LibraryID)
+	}
+	c, err := s.upsertComponent(ctx, manifest, in.SourcePath)
+	if err != nil {
+		return Component{}, err
+	}
+	if err := s.replaceHeaders(ctx, c.ID, in.Headers); err != nil {
+		return Component{}, err
+	}
+	return s.Get(ctx, c.ID)
+}
+
+func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestInput) (Component, error) {
+	if strings.TrimSpace(in.Manifest.LibraryID) == "" {
+		return Component{}, ErrInvalidHeader{SourcePath: in.Manifest.ManifestPath, Field: "libraryId", Reason: "required"}
+	}
+	sourcePath := ""
+	for _, v := range in.Versions {
+		if v.Version == in.Manifest.LatestVersion {
+			sourcePath = v.SourcePath
+			break
+		}
+	}
+	c, err := s.upsertComponent(ctx, in.Manifest, sourcePath)
+	if err != nil {
+		return Component{}, err
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_versions WHERE component_id = ?`, c.ID); err != nil {
+		return Component{}, fmt.Errorf("clear component versions for %q: %w", c.ID, err)
+	}
+	now := s.clock.Now().UTC()
+	for _, v := range in.Versions {
+		if v.ID == "" {
+			v.ID = uuid.NewString()
+		}
+		v.ComponentID = c.ID
+		v.LibraryID = c.LibraryID
+		if v.IndexedAt.IsZero() {
+			v.IndexedAt = now
+		}
+		if _, err := s.db.ExecContext(ctx, `
+INSERT INTO component_versions
+  (id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(component_id, version) DO UPDATE SET
+  library_id = excluded.library_id,
+  status = excluded.status,
+  source_path = excluded.source_path,
+  content = excluded.content,
+  content_sha256 = excluded.content_sha256,
+  changelog_md = excluded.changelog_md,
+  indexed_at = excluded.indexed_at,
+  released_at = excluded.released_at
+`, v.ID, v.ComponentID, v.LibraryID, v.Version, string(v.Status), v.SourcePath, v.Content, v.ContentSHA256,
+			v.ChangelogMD, v.IndexedAt.UTC().Format(timeFormat), formatOptionalTime(v.ReleasedAt)); err != nil {
+			return Component{}, fmt.Errorf("upsert component version %s@%s: %w", c.LibraryID, v.Version, err)
+		}
+	}
+	return s.Get(ctx, c.ID)
+}
+
+func (s *sqliteRepository) upsertComponent(ctx context.Context, in ComponentManifest, sourcePath string) (Component, error) {
 	if strings.TrimSpace(in.LibraryID) == "" {
-		return Component{}, ErrInvalidHeader{SourcePath: in.SourcePath, Field: "libraryId", Reason: "required"}
+		return Component{}, ErrInvalidHeader{SourcePath: in.ManifestPath, Field: "libraryId", Reason: "required"}
 	}
 	now := s.clock.Now().UTC()
 	tagsCol := strings.Join(in.Tags, tagSep)
@@ -56,34 +129,31 @@ func (s *sqliteRepository) Upsert(ctx context.Context, in UpsertInput) (Componen
 		indexedAt = now
 	}
 
+	slug := strings.TrimSpace(in.Slug)
+	if slug == "" {
+		slug = slugFromLibraryID(in.LibraryID)
+	}
+
 	if _, err := s.db.ExecContext(ctx, `
-INSERT INTO components (id, library_id, display_name, description, source_path, version, tags, indexed_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO components (id, library_id, slug, display_name, description, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(library_id) DO UPDATE SET
+  slug         = excluded.slug,
   display_name = excluded.display_name,
   description  = excluded.description,
   source_path  = excluded.source_path,
   version      = excluded.version,
+  latest_version = excluded.latest_version,
+  draft_version = excluded.draft_version,
+  manifest_path = excluded.manifest_path,
   tags         = excluded.tags,
   updated_at   = excluded.updated_at
 `,
-		id, in.LibraryID, in.DisplayName, in.Description, in.SourcePath, in.Version,
+		id, in.LibraryID, slug, in.DisplayName, in.Description, sourcePath, in.LatestVersion, in.LatestVersion, in.DraftVersion, in.ManifestPath,
 		tagsCol, indexedAt.Format(timeFormat), now.Format(timeFormat),
 	); err != nil {
 		return Component{}, fmt.Errorf("upsert component %q: %w", in.LibraryID, err)
 	}
-
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_headers WHERE component_id = ?`, id); err != nil {
-		return Component{}, fmt.Errorf("clear headers for %q: %w", id, err)
-	}
-	for field, value := range in.Headers {
-		if _, err := s.db.ExecContext(ctx, `
-INSERT INTO component_headers (component_id, field, value) VALUES (?, ?, ?)
-`, id, field, value); err != nil {
-			return Component{}, fmt.Errorf("insert header %s=%q for %q: %w", field, value, id, err)
-		}
-	}
-
 	return s.Get(ctx, id)
 }
 
@@ -156,9 +226,6 @@ func (s *sqliteRepository) List(ctx context.Context, q SearchQuery) ([]Component
 		clauses = append(clauses, "("+strings.Join(multiTagPredicates, " OR ")+")")
 	}
 	if cat := strings.TrimSpace(q.Category); cat != "" {
-		// Categories live in the parsed @category header. Use a
-		// correlated EXISTS so the predicate AND-composes cleanly with
-		// the others without inflating the main row count.
 		clauses = append(clauses, `EXISTS (
 		  SELECT 1 FROM component_headers ch
 		  WHERE ch.component_id = components.id
@@ -179,7 +246,7 @@ func (s *sqliteRepository) List(ctx context.Context, q SearchQuery) ([]Component
 		orderBy = "ORDER BY display_name COLLATE NOCASE ASC, library_id ASC"
 	}
 	query := fmt.Sprintf(`
-SELECT id, library_id, display_name, description, source_path, version, tags, indexed_at, updated_at
+SELECT id, library_id, slug, display_name, description, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
 FROM components
 %s
 %s
@@ -204,12 +271,40 @@ LIMIT ?
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate components: %w", err)
 	}
-	for i := range out {
-		if err := s.loadHeaders(ctx, &out[i]); err != nil {
-			return nil, err
+	return out, nil
+}
+
+func (s *sqliteRepository) replaceHeaders(ctx context.Context, componentID string, headers map[string]string) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_headers WHERE component_id = ?`, componentID); err != nil {
+		return fmt.Errorf("clear headers for %q: %w", componentID, err)
+	}
+	for field, value := range headers {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO component_headers (component_id, field, value) VALUES (?, ?, ?)`, componentID, field, value); err != nil {
+			return fmt.Errorf("insert header %s=%q for %q: %w", field, value, componentID, err)
 		}
 	}
-	return out, nil
+	return nil
+}
+
+func (s *sqliteRepository) loadHeaders(ctx context.Context, c *Component) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT field, value FROM component_headers WHERE component_id = ?`, c.ID)
+	if err != nil {
+		return fmt.Errorf("load headers for %q: %w", c.ID, err)
+	}
+	defer rows.Close()
+	headers := map[string]string{}
+	for rows.Next() {
+		var f, v string
+		if err := rows.Scan(&f, &v); err != nil {
+			return fmt.Errorf("scan header for %q: %w", c.ID, err)
+		}
+		headers[f] = v
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate headers for %q: %w", c.ID, err)
+	}
+	c.Headers = headers
+	return nil
 }
 
 func (s *sqliteRepository) DeleteMissing(ctx context.Context, keep []string) (int, error) {
@@ -236,34 +331,55 @@ func (s *sqliteRepository) DeleteMissing(ctx context.Context, keep []string) (in
 	return int(n), nil
 }
 
-func (s *sqliteRepository) loadHeaders(ctx context.Context, c *Component) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT field, value FROM component_headers WHERE component_id = ?`, c.ID)
+func (s *sqliteRepository) ListVersions(ctx context.Context, componentID string, limit int) ([]ComponentVersion, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx, `
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at
+FROM component_versions
+WHERE component_id = ?
+ORDER BY indexed_at DESC, version DESC
+LIMIT ?
+`, componentID, limit)
 	if err != nil {
-		return fmt.Errorf("load headers for %q: %w", c.ID, err)
+		return nil, fmt.Errorf("list component versions: %w", err)
 	}
 	defer rows.Close()
-	headers := map[string]string{}
+	var out []ComponentVersion
 	for rows.Next() {
-		var f, v string
-		if err := rows.Scan(&f, &v); err != nil {
-			return fmt.Errorf("scan header for %q: %w", c.ID, err)
+		v, err := scanComponentVersion(rows)
+		if err != nil {
+			return nil, err
 		}
-		headers[f] = v
+		out = append(out, v)
 	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterate headers for %q: %w", c.ID, err)
+	return out, rows.Err()
+}
+
+func (s *sqliteRepository) GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error) {
+	row := s.db.QueryRowContext(ctx, `
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at
+FROM component_versions
+WHERE component_id = ? AND version = ?
+`, componentID, version)
+	v, err := scanComponentVersion(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ComponentVersion{}, ErrComponentNotFound{IDOrLibraryID: componentID + "@" + version}
 	}
-	c.Headers = headers
-	return nil
+	if err != nil {
+		return ComponentVersion{}, fmt.Errorf("get component version: %w", err)
+	}
+	return v, nil
 }
 
 const (
 	selectComponentByIDSQL = `
-SELECT id, library_id, display_name, description, source_path, version, tags, indexed_at, updated_at
+SELECT id, library_id, slug, display_name, description, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
 FROM components WHERE id = ?
 `
 	selectComponentByLibraryIDSQL = `
-SELECT id, library_id, display_name, description, source_path, version, tags, indexed_at, updated_at
+SELECT id, library_id, slug, display_name, description, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
 FROM components WHERE library_id = ?
 `
 )
@@ -279,7 +395,7 @@ func scanComponent(s rowScanner) (Component, error) {
 		indexedRaw string
 		updatedRaw string
 	)
-	if err := s.Scan(&c.ID, &c.LibraryID, &c.DisplayName, &c.Description, &c.SourcePath, &c.Version, &tagsRaw, &indexedRaw, &updatedRaw); err != nil {
+	if err := s.Scan(&c.ID, &c.LibraryID, &c.Slug, &c.DisplayName, &c.Description, &c.SourcePath, &c.Version, &c.LatestVersion, &c.DraftVersion, &c.ManifestPath, &tagsRaw, &indexedRaw, &updatedRaw); err != nil {
 		return Component{}, err
 	}
 	if tagsRaw != "" {
@@ -296,4 +412,49 @@ func scanComponent(s rowScanner) (Component, error) {
 	c.IndexedAt = indexed
 	c.UpdatedAt = updated
 	return c, nil
+}
+
+func scanComponentVersion(s rowScanner) (ComponentVersion, error) {
+	var v ComponentVersion
+	var statusRaw, indexedRaw, releasedRaw string
+	if err := s.Scan(&v.ID, &v.ComponentID, &v.LibraryID, &v.Version, &statusRaw, &v.SourcePath, &v.Content, &v.ContentSHA256, &v.ChangelogMD, &indexedRaw, &releasedRaw); err != nil {
+		return ComponentVersion{}, err
+	}
+	v.Status = ComponentVersionStatus(statusRaw)
+	indexed, err := time.Parse(timeFormat, indexedRaw)
+	if err != nil {
+		return ComponentVersion{}, fmt.Errorf("parse indexed_at %q: %w", indexedRaw, err)
+	}
+	v.IndexedAt = indexed
+	if releasedRaw != "" {
+		released, err := time.Parse(timeFormat, releasedRaw)
+		if err != nil {
+			return ComponentVersion{}, fmt.Errorf("parse released_at %q: %w", releasedRaw, err)
+		}
+		v.ReleasedAt = released
+	}
+	return v, nil
+}
+
+func formatOptionalTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(timeFormat)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func slugFromLibraryID(libraryID string) string {
+	if _, slug, ok := strings.Cut(libraryID, ":"); ok && strings.TrimSpace(slug) != "" {
+		return strings.TrimSpace(slug)
+	}
+	return strings.TrimSpace(libraryID)
 }

@@ -15,6 +15,7 @@ import { useDeviceFilters } from "../../hooks/useDeviceFilters";
 import { errorMessage } from "../../lib/errorMessage";
 import { EmulatorChrome } from "./EmulatorChrome";
 import { InspectorPanel } from "./InspectorPanel";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 /**
  * Build the harness URL the iframe loads. The query param `v` is the
@@ -256,6 +257,9 @@ export function ComponentEditor({ id, libraryId, onClose }: ComponentEditorProps
                   : t(strings.components.editor.previewWaiting)}
               </span>
             </div>
+            {previewReady && (
+              <ThemeSwitcher frameRef={previewFrameRef} previewReady={previewReady} />
+            )}
             <div className="h-[440px]">
               <EmulatorChrome emulator={emulator} filters={filters}>
                 <iframe

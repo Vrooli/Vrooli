@@ -57,7 +57,7 @@ func TestService_Refresh_FilesDriftBacklogOnce(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	lib := &fakeLibrary{
 		byID: map[string]components.Component{
-			"cmp-btn": {ID: "cmp-btn", LibraryID: "rcl:Button", Version: "2.0.0"},
+			"cmp-btn": {ID: "cmp-btn", LibraryID: "rcl:Button", Version: "2.0.0", LatestVersion: "2.0.0"},
 		},
 		body: map[string]string{"cmp-btn": "BODY-V20"},
 	}
@@ -81,7 +81,7 @@ func TestService_Refresh_FilesDriftBacklogOnce(t *testing.T) {
 	// First refresh: status goes to behind, reporter fires.
 	rows, summary, err := svc.Refresh(context.Background(), "")
 	require.NoError(t, err)
-	require.Equal(t, 1, summary.Behind)
+	require.Equal(t, 1, summary.LibraryBehind)
 	require.Equal(t, 1, reporter.calls())
 	require.Equal(t, "fix/rcl-button-drift-swarm-manager", rows[0].DriftBacklogRef)
 	// Payload sanity: scenario + ids carried through.
@@ -90,7 +90,8 @@ func TestService_Refresh_FilesDriftBacklogOnce(t *testing.T) {
 	require.Equal(t, "swarm-manager", ev.Scenario)
 	require.Equal(t, "rcl:Button", ev.LibraryID)
 	require.Equal(t, "2.0.0", ev.LibraryVersion)
-	require.Equal(t, adoptions.StatusBehind, ev.Status)
+	require.Equal(t, adoptions.LibraryVersionStatusBehind, ev.LibraryVersionStatus)
+	require.Equal(t, adoptions.LocalStatusClean, ev.LocalStatus)
 
 	// Second refresh: still behind, but ref already stored → no fire.
 	_, _, err = svc.Refresh(context.Background(), "")
@@ -105,7 +106,7 @@ func TestService_Refresh_ClearsRefOnReturnToCurrent(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	lib := &fakeLibrary{
 		byID: map[string]components.Component{
-			"cmp-btn": {ID: "cmp-btn", LibraryID: "rcl:Button", Version: "1.0.0"},
+			"cmp-btn": {ID: "cmp-btn", LibraryID: "rcl:Button", Version: "1.0.0", LatestVersion: "1.0.0"},
 		},
 		body: map[string]string{"cmp-btn": "BODY-CURRENT"},
 	}
@@ -128,7 +129,7 @@ func TestService_Refresh_ClearsRefOnReturnToCurrent(t *testing.T) {
 
 	rows, summary, err := svc.Refresh(context.Background(), "")
 	require.NoError(t, err)
-	require.Equal(t, 1, summary.Current)
+	require.Equal(t, 1, summary.LibraryCurrent)
 	require.Equal(t, 0, reporter.calls())
 	require.Empty(t, rows[0].DriftBacklogRef)
 }
@@ -141,7 +142,7 @@ func TestService_Refresh_ReporterErrorDoesNotFailRefresh(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	lib := &fakeLibrary{
 		byID: map[string]components.Component{
-			"cmp-btn": {ID: "cmp-btn", LibraryID: "rcl:Button", Version: "2.0.0"},
+			"cmp-btn": {ID: "cmp-btn", LibraryID: "rcl:Button", Version: "2.0.0", LatestVersion: "2.0.0"},
 		},
 		body: map[string]string{"cmp-btn": "BODY-V20"},
 	}
@@ -153,8 +154,9 @@ func TestService_Refresh_ReporterErrorDoesNotFailRefresh(t *testing.T) {
 	repo.Seed(adoptions.Adoption{
 		ID: "row-1", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
 		Scenario: "swarm-manager", AdoptedPath: "adopted.tsx",
+		AdoptedVersion:        "1.0.0",
 		AdoptedSnapshotSHA256: sha256hex("BODY-V10"),
-		CreatedAt: clk.Now(),
+		CreatedAt:             clk.Now(),
 	})
 
 	reporter := &fakeReporter{err: errors.New("swarm-manager not available")}
@@ -163,7 +165,7 @@ func TestService_Refresh_ReporterErrorDoesNotFailRefresh(t *testing.T) {
 
 	rows, summary, err := svc.Refresh(context.Background(), "")
 	require.NoError(t, err)
-	require.Equal(t, 1, summary.Behind)
+	require.Equal(t, 1, summary.LibraryBehind)
 	require.Equal(t, 1, reporter.calls())
 	require.Empty(t, rows[0].DriftBacklogRef, "ref must stay empty so a future refresh can retry")
 }
@@ -194,7 +196,9 @@ func TestSwarmManagerCLIReporter_ShapesArgsAndParsesResponse(t *testing.T) {
 		AdoptionID: "row-1", ComponentID: "cmp", LibraryID: "rcl:Button",
 		Scenario: "swarm-manager", AdoptedPath: "ui/Button.tsx",
 		AdoptedVersion: "1.0.0", LibraryVersion: "2.0.0",
-		Status: adoptions.StatusBehind, StatusDetail: "library at 2.0.0",
+		LibraryVersionStatus: adoptions.LibraryVersionStatusBehind,
+		LocalStatus:          adoptions.LocalStatusClean,
+		StatusDetail:         "library at 2.0.0",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "fix/rcl-button-drift-swarm-manager", rep.Ref)

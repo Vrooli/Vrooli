@@ -29,8 +29,8 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				RunCtx: h.list,
 			},
 			{
-				Name:        "create",
-				Description: "Create an adoption record",
+				Name:        "apply",
+				Description: "Copy a component version into a target scenario and record the adoption",
 				Args: cliapp.ArgSchema{
 					Positionals: []cliapp.Positional{
 						{Name: "component-id", Required: true, Description: "Library component id"},
@@ -38,10 +38,25 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 						{Name: "adopted-path", Required: true, Description: "Path within the target scenario"},
 					},
 					Flags: []cliapp.Flag{
-						{Name: "adopted-version", Description: "Library version stamped on the adopted copy"},
+						{Name: "version", Description: "Library version to apply; defaults to latest"},
+						{Name: "confirm-overwrite", Description: "Set to true to overwrite an existing target file"},
 					},
 				},
-				RunCtx: h.create,
+				RunCtx: h.apply,
+			},
+			{
+				Name:        "reapply",
+				Description: "Overwrite an adoption from a library version",
+				Args: cliapp.ArgSchema{
+					Positionals: []cliapp.Positional{
+						{Name: "id", Required: true, Description: "Adoption record id"},
+					},
+					Flags: []cliapp.Flag{
+						{Name: "version", Description: "Library version to apply; defaults to latest"},
+						{Name: "confirm-local-overwrite", Description: "Set to true to overwrite local modifications"},
+					},
+				},
+				RunCtx: h.reapply,
 			},
 			{
 				Name:        "delete",

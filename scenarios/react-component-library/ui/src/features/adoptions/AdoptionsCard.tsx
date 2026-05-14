@@ -8,28 +8,30 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import {
   adoptionsClient,
-  AdoptionStatus,
+  LibraryVersionStatus,
+  LocalStatus,
   type Adoption,
 } from "../../api/adoptions";
 import { errorMessage } from "../../lib/errorMessage";
+import { CreateAdoptionDialog } from "./CreateAdoptionDialog";
 
 const STATUS_KEY: Record<number, string> = {
-  [AdoptionStatus.UNSPECIFIED]: "unspecified",
-  [AdoptionStatus.CURRENT]: "current",
-  [AdoptionStatus.BEHIND]: "behind",
-  [AdoptionStatus.MODIFIED]: "modified",
-  [AdoptionStatus.UNKNOWN]: "unknown",
+  [LibraryVersionStatus.UNSPECIFIED]: "unspecified",
+  [LibraryVersionStatus.CURRENT]: "current",
+  [LibraryVersionStatus.BEHIND]: "behind",
+  [LibraryVersionStatus.DEPRECATED]: "deprecated",
+  [LibraryVersionStatus.MISSING]: "missing",
+  [LibraryVersionStatus.UNKNOWN]: "unknown",
 };
 
-function statusLabelFor(status: AdoptionStatus, t: ReturnType<typeof useTranslation>["t"]): string {
+function statusLabelFor(status: LibraryVersionStatus, t: ReturnType<typeof useTranslation>["t"]): string {
   switch (status) {
-    case AdoptionStatus.CURRENT:
+    case LibraryVersionStatus.CURRENT:
       return t(strings.adoptions.status.current);
-    case AdoptionStatus.BEHIND:
+    case LibraryVersionStatus.BEHIND:
       return t(strings.adoptions.status.behind);
-    case AdoptionStatus.MODIFIED:
-      return t(strings.adoptions.status.modified);
-    case AdoptionStatus.UNKNOWN:
+    case LibraryVersionStatus.UNKNOWN:
+    case LibraryVersionStatus.MISSING:
       return t(strings.adoptions.status.unknown);
     default:
       return t(strings.adoptions.status.unspecified);
@@ -40,19 +42,35 @@ function statusLabelFor(status: AdoptionStatus, t: ReturnType<typeof useTranslat
 // explicit textual label. Critical for AD-003 a11y: status must convey
 // non-color information, so the badge also renders the localized word.
 const STATUS_CLASS: Record<number, string> = {
-  [AdoptionStatus.UNSPECIFIED]: "bg-slate-700 text-slate-200",
-  [AdoptionStatus.CURRENT]: "bg-emerald-700 text-emerald-100",
-  [AdoptionStatus.BEHIND]: "bg-amber-700 text-amber-100",
-  [AdoptionStatus.MODIFIED]: "bg-orange-700 text-orange-100",
-  [AdoptionStatus.UNKNOWN]: "bg-slate-600 text-slate-100",
+  [LibraryVersionStatus.UNSPECIFIED]: "bg-slate-700 text-slate-200",
+  [LibraryVersionStatus.CURRENT]: "bg-emerald-700 text-emerald-100",
+  [LibraryVersionStatus.BEHIND]: "bg-amber-700 text-amber-100",
+  [LibraryVersionStatus.DEPRECATED]: "bg-orange-700 text-orange-100",
+  [LibraryVersionStatus.MISSING]: "bg-slate-600 text-slate-100",
+  [LibraryVersionStatus.UNKNOWN]: "bg-slate-600 text-slate-100",
 };
 
-function statusKey(s: AdoptionStatus): string {
+const EMPTY_ADOPTIONS: Adoption[] = [];
+
+function statusKey(s: LibraryVersionStatus): string {
   return STATUS_KEY[s] ?? "unspecified";
 }
 
-function statusClass(s: AdoptionStatus): string {
-  return STATUS_CLASS[s] ?? STATUS_CLASS[AdoptionStatus.UNSPECIFIED]!;
+function statusClass(s: LibraryVersionStatus): string {
+  return STATUS_CLASS[s] ?? "bg-slate-700 text-slate-200";
+}
+
+function localStatusLabelFor(status: LocalStatus, t: ReturnType<typeof useTranslation>["t"]): string {
+  switch (status) {
+    case LocalStatus.MODIFIED:
+      return t(strings.adoptions.status.modified);
+    case LocalStatus.MISSING:
+      return t(strings.adoptions.status.missing);
+    case LocalStatus.UNKNOWN:
+      return t(strings.adoptions.status.unknown);
+    default:
+      return t(strings.adoptions.status.clean);
+  }
 }
 
 /**
@@ -64,6 +82,7 @@ export function AdoptionsCard() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [scenario, setScenario] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const adoptionsQuery = useQuery({
     queryKey: ["adoptions", { scenario }],
@@ -84,16 +103,16 @@ export function AdoptionsCard() {
     },
   });
 
-  const adoptions: Adoption[] = adoptionsQuery.data?.adoptions ?? [];
+  const adoptions = adoptionsQuery.data?.adoptions ?? EMPTY_ADOPTIONS;
 
   const summary = useMemo(() => {
     const acc = { current: 0, behind: 0, modified: 0, unknown: 0 };
     for (const a of adoptions) {
-      const k = statusKey(a.status as AdoptionStatus);
+      const k = statusKey(a.libraryVersionStatus);
       if (k === "current") acc.current++;
       else if (k === "behind") acc.behind++;
-      else if (k === "modified") acc.modified++;
       else if (k === "unknown") acc.unknown++;
+      if (a.localStatus === LocalStatus.MODIFIED) acc.modified++;
     }
     return acc;
   }, [adoptions]);
@@ -106,15 +125,24 @@ export function AdoptionsCard() {
     >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-medium text-slate-400">{t(strings.adoptions.title)}</h2>
-        <Button
-          data-testid={selectors.adoptions.refreshButton}
-          onClick={() => refreshMutation.mutate()}
-          disabled={refreshMutation.isPending}
-        >
-          {refreshMutation.isPending
-            ? t(strings.adoptions.refreshing)
-            : t(strings.adoptions.refreshAction)}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            data-testid={selectors.adoptions.createButton}
+            variant="outline"
+            onClick={() => setCreateOpen(true)}
+          >
+            {t(strings.adoptions.createAction)}
+          </Button>
+          <Button
+            data-testid={selectors.adoptions.refreshButton}
+            onClick={() => refreshMutation.mutate()}
+            disabled={refreshMutation.isPending}
+          >
+            {refreshMutation.isPending
+              ? t(strings.adoptions.refreshing)
+              : t(strings.adoptions.refreshAction)}
+          </Button>
+        </div>
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -151,7 +179,7 @@ export function AdoptionsCard() {
         </p>
       )}
 
-      {adoptionsQuery.data && adoptions.length === 0 && !adoptionsQuery.isLoading && (
+      {adoptions.length === 0 && !adoptionsQuery.isLoading && !adoptionsQuery.error && (
         <p data-testid={selectors.adoptions.empty} className="mt-3 text-slate-200">
           {t(strings.adoptions.empty)}
         </p>
@@ -170,8 +198,9 @@ export function AdoptionsCard() {
           </p>
           <ul data-testid={selectors.adoptions.list} className="mt-2 space-y-2 text-sm text-slate-200">
             {adoptions.map((a) => {
-              const status = a.status as AdoptionStatus;
+              const status = a.libraryVersionStatus;
               const statusLabel = statusLabelFor(status, t);
+              const localLabel = localStatusLabelFor(a.localStatus, t);
               return (
                 <li
                   key={a.id}
@@ -194,7 +223,7 @@ export function AdoptionsCard() {
                         statusClass(status)
                       }
                     >
-                      {statusLabel}
+                      {statusLabel} / {localLabel}
                     </span>
                   </div>
                   <div
@@ -249,6 +278,8 @@ export function AdoptionsCard() {
           </ul>
         </>
       )}
+
+      <CreateAdoptionDialog open={createOpen} onClose={() => setCreateOpen(false)} />
     </section>
   );
 }

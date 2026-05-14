@@ -25,16 +25,32 @@ func (f *fakeComponentsService) GetContent(ctx context.Context, id string) (comp
 func (f *fakeComponentsService) Upsert(context.Context, components.UpsertInput) (components.Component, error) {
 	panic("not called")
 }
+
 func (f *fakeComponentsService) Get(context.Context, string) (components.Component, error) {
 	panic("not called")
 }
+
 func (f *fakeComponentsService) GetByLibraryID(context.Context, string) (components.Component, error) {
 	panic("not called")
 }
+
 func (f *fakeComponentsService) List(context.Context, components.SearchQuery) ([]components.Component, error) {
 	panic("not called")
 }
+
 func (f *fakeComponentsService) UpdateContent(context.Context, string, components.WriteContentInput) (components.Content, error) {
+	panic("not called")
+}
+
+func (f *fakeComponentsService) ListVersions(context.Context, string, int) ([]components.ComponentVersion, error) {
+	panic("not called")
+}
+
+func (f *fakeComponentsService) GetVersion(context.Context, string, string) (components.ComponentVersion, error) {
+	panic("not called")
+}
+
+func (f *fakeComponentsService) GetVersionContent(context.Context, string, string) (components.Content, error) {
 	panic("not called")
 }
 

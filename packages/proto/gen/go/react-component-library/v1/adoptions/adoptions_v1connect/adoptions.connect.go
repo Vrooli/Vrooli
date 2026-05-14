@@ -36,9 +36,12 @@ const (
 	// AdoptionsServiceListAdoptionsProcedure is the fully-qualified name of the AdoptionsService's
 	// ListAdoptions RPC.
 	AdoptionsServiceListAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListAdoptions"
-	// AdoptionsServiceCreateAdoptionProcedure is the fully-qualified name of the AdoptionsService's
-	// CreateAdoption RPC.
-	AdoptionsServiceCreateAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/CreateAdoption"
+	// AdoptionsServiceApplyAdoptionProcedure is the fully-qualified name of the AdoptionsService's
+	// ApplyAdoption RPC.
+	AdoptionsServiceApplyAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ApplyAdoption"
+	// AdoptionsServiceReapplyAdoptionProcedure is the fully-qualified name of the AdoptionsService's
+	// ReapplyAdoption RPC.
+	AdoptionsServiceReapplyAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReapplyAdoption"
 	// AdoptionsServiceDeleteAdoptionProcedure is the fully-qualified name of the AdoptionsService's
 	// DeleteAdoption RPC.
 	AdoptionsServiceDeleteAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/DeleteAdoption"
@@ -51,7 +54,8 @@ const (
 // vrooli.react_component_library.v1.adoptions.AdoptionsService service.
 type AdoptionsServiceClient interface {
 	ListAdoptions(context.Context, *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error)
-	CreateAdoption(context.Context, *connect.Request[adoptions.CreateAdoptionRequest]) (*connect.Response[adoptions.CreateAdoptionResponse], error)
+	ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error)
+	ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error)
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
 	RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
 }
@@ -74,10 +78,16 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adoptionsServiceMethods.ByName("ListAdoptions")),
 			connect.WithClientOptions(opts...),
 		),
-		createAdoption: connect.NewClient[adoptions.CreateAdoptionRequest, adoptions.CreateAdoptionResponse](
+		applyAdoption: connect.NewClient[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse](
 			httpClient,
-			baseURL+AdoptionsServiceCreateAdoptionProcedure,
-			connect.WithSchema(adoptionsServiceMethods.ByName("CreateAdoption")),
+			baseURL+AdoptionsServiceApplyAdoptionProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("ApplyAdoption")),
+			connect.WithClientOptions(opts...),
+		),
+		reapplyAdoption: connect.NewClient[adoptions.ReapplyAdoptionRequest, adoptions.ReapplyAdoptionResponse](
+			httpClient,
+			baseURL+AdoptionsServiceReapplyAdoptionProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("ReapplyAdoption")),
 			connect.WithClientOptions(opts...),
 		),
 		deleteAdoption: connect.NewClient[adoptions.DeleteAdoptionRequest, adoptions.DeleteAdoptionResponse](
@@ -98,7 +108,8 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 // adoptionsServiceClient implements AdoptionsServiceClient.
 type adoptionsServiceClient struct {
 	listAdoptions    *connect.Client[adoptions.ListAdoptionsRequest, adoptions.ListAdoptionsResponse]
-	createAdoption   *connect.Client[adoptions.CreateAdoptionRequest, adoptions.CreateAdoptionResponse]
+	applyAdoption    *connect.Client[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse]
+	reapplyAdoption  *connect.Client[adoptions.ReapplyAdoptionRequest, adoptions.ReapplyAdoptionResponse]
 	deleteAdoption   *connect.Client[adoptions.DeleteAdoptionRequest, adoptions.DeleteAdoptionResponse]
 	refreshAdoptions *connect.Client[adoptions.RefreshAdoptionsRequest, adoptions.RefreshAdoptionsResponse]
 }
@@ -108,9 +119,15 @@ func (c *adoptionsServiceClient) ListAdoptions(ctx context.Context, req *connect
 	return c.listAdoptions.CallUnary(ctx, req)
 }
 
-// CreateAdoption calls vrooli.react_component_library.v1.adoptions.AdoptionsService.CreateAdoption.
-func (c *adoptionsServiceClient) CreateAdoption(ctx context.Context, req *connect.Request[adoptions.CreateAdoptionRequest]) (*connect.Response[adoptions.CreateAdoptionResponse], error) {
-	return c.createAdoption.CallUnary(ctx, req)
+// ApplyAdoption calls vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption.
+func (c *adoptionsServiceClient) ApplyAdoption(ctx context.Context, req *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error) {
+	return c.applyAdoption.CallUnary(ctx, req)
+}
+
+// ReapplyAdoption calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.ReapplyAdoption.
+func (c *adoptionsServiceClient) ReapplyAdoption(ctx context.Context, req *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error) {
+	return c.reapplyAdoption.CallUnary(ctx, req)
 }
 
 // DeleteAdoption calls vrooli.react_component_library.v1.adoptions.AdoptionsService.DeleteAdoption.
@@ -128,7 +145,8 @@ func (c *adoptionsServiceClient) RefreshAdoptions(ctx context.Context, req *conn
 // vrooli.react_component_library.v1.adoptions.AdoptionsService service.
 type AdoptionsServiceHandler interface {
 	ListAdoptions(context.Context, *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error)
-	CreateAdoption(context.Context, *connect.Request[adoptions.CreateAdoptionRequest]) (*connect.Response[adoptions.CreateAdoptionResponse], error)
+	ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error)
+	ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error)
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
 	RefreshAdoptions(context.Context, *connect.Request[adoptions.RefreshAdoptionsRequest]) (*connect.Response[adoptions.RefreshAdoptionsResponse], error)
 }
@@ -146,10 +164,16 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 		connect.WithSchema(adoptionsServiceMethods.ByName("ListAdoptions")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adoptionsServiceCreateAdoptionHandler := connect.NewUnaryHandler(
-		AdoptionsServiceCreateAdoptionProcedure,
-		svc.CreateAdoption,
-		connect.WithSchema(adoptionsServiceMethods.ByName("CreateAdoption")),
+	adoptionsServiceApplyAdoptionHandler := connect.NewUnaryHandler(
+		AdoptionsServiceApplyAdoptionProcedure,
+		svc.ApplyAdoption,
+		connect.WithSchema(adoptionsServiceMethods.ByName("ApplyAdoption")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adoptionsServiceReapplyAdoptionHandler := connect.NewUnaryHandler(
+		AdoptionsServiceReapplyAdoptionProcedure,
+		svc.ReapplyAdoption,
+		connect.WithSchema(adoptionsServiceMethods.ByName("ReapplyAdoption")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adoptionsServiceDeleteAdoptionHandler := connect.NewUnaryHandler(
@@ -168,8 +192,10 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case AdoptionsServiceListAdoptionsProcedure:
 			adoptionsServiceListAdoptionsHandler.ServeHTTP(w, r)
-		case AdoptionsServiceCreateAdoptionProcedure:
-			adoptionsServiceCreateAdoptionHandler.ServeHTTP(w, r)
+		case AdoptionsServiceApplyAdoptionProcedure:
+			adoptionsServiceApplyAdoptionHandler.ServeHTTP(w, r)
+		case AdoptionsServiceReapplyAdoptionProcedure:
+			adoptionsServiceReapplyAdoptionHandler.ServeHTTP(w, r)
 		case AdoptionsServiceDeleteAdoptionProcedure:
 			adoptionsServiceDeleteAdoptionHandler.ServeHTTP(w, r)
 		case AdoptionsServiceRefreshAdoptionsProcedure:
@@ -187,8 +213,12 @@ func (UnimplementedAdoptionsServiceHandler) ListAdoptions(context.Context, *conn
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions is not implemented"))
 }
 
-func (UnimplementedAdoptionsServiceHandler) CreateAdoption(context.Context, *connect.Request[adoptions.CreateAdoptionRequest]) (*connect.Response[adoptions.CreateAdoptionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.CreateAdoption is not implemented"))
+func (UnimplementedAdoptionsServiceHandler) ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption is not implemented"))
+}
+
+func (UnimplementedAdoptionsServiceHandler) ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ReapplyAdoption is not implemented"))
 }
 
 func (UnimplementedAdoptionsServiceHandler) DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error) {

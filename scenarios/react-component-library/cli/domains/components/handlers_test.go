@@ -26,23 +26,23 @@ import (
 // componentsService is a hand-written ComponentsServiceHandler used as a fake
 // API behind the Connect mux. Mirrors the notes-domain test stub shape.
 type componentsService struct {
-	mu              sync.Mutex
-	listResp        *componentsv1.ListComponentsResponse
-	getResp         *componentsv1.GetComponentResponse
-	byLibIDResp     *componentsv1.GetComponentByLibraryIdResponse
-	indexResp       *componentsv1.IndexComponentsResponse
-	contentGetResp  *componentsv1.GetComponentContentResponse
-	contentSetResp  *componentsv1.UpdateComponentContentResponse
-	listErr         error
-	getErr          error
-	byLibIDErr      error
-	indexErr        error
-	contentGetErr   error
-	contentSetErr   error
-	listReqs        []*componentsv1.ListComponentsRequest
-	getReqs         []string
-	byLibIDReqs     []string
-	contentSetReqs  []*componentsv1.UpdateComponentContentRequest
+	mu             sync.Mutex
+	listResp       *componentsv1.ListComponentsResponse
+	getResp        *componentsv1.GetComponentResponse
+	byLibIDResp    *componentsv1.GetComponentByLibraryIdResponse
+	indexResp      *componentsv1.IndexComponentsResponse
+	contentGetResp *componentsv1.GetComponentContentResponse
+	contentSetResp *componentsv1.UpdateComponentContentResponse
+	listErr        error
+	getErr         error
+	byLibIDErr     error
+	indexErr       error
+	contentGetErr  error
+	contentSetErr  error
+	listReqs       []*componentsv1.ListComponentsRequest
+	getReqs        []string
+	byLibIDReqs    []string
+	contentSetReqs []*componentsv1.UpdateComponentContentRequest
 }
 
 func (s *componentsService) ListComponents(_ context.Context, req *connect.Request[componentsv1.ListComponentsRequest]) (*connect.Response[componentsv1.ListComponentsResponse], error) {
@@ -115,6 +115,14 @@ func (s *componentsService) UpdateComponentContent(_ context.Context, req *conne
 		s.contentSetResp = &componentsv1.UpdateComponentContentResponse{}
 	}
 	return connect.NewResponse(s.contentSetResp), nil
+}
+
+func (s *componentsService) ListComponentVersions(_ context.Context, _ *connect.Request[componentsv1.ListComponentVersionsRequest]) (*connect.Response[componentsv1.ListComponentVersionsResponse], error) {
+	return connect.NewResponse(&componentsv1.ListComponentVersionsResponse{}), nil
+}
+
+func (s *componentsService) GetComponentVersionContent(_ context.Context, _ *connect.Request[componentsv1.GetComponentVersionContentRequest]) (*connect.Response[componentsv1.GetComponentVersionContentResponse], error) {
+	return connect.NewResponse(&componentsv1.GetComponentVersionContentResponse{}), nil
 }
 
 func connectAPI(t *testing.T, svc *componentsService) http.Handler {

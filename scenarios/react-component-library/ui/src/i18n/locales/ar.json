@@ -106,6 +106,17 @@
       "previewWaiting": "بانتظار أول طلاء…",
       "previewReady": "تم العرض"
     },
+    "themeSwitcher": {
+      "label": "السمة",
+      "noneOption": "بدون",
+      "scenarioOptionGroup": "من السيناريو",
+      "builtinOptionGroup": "مدمجة",
+      "scenarioInputLabel": "معرّف السيناريو",
+      "scenarioInputPlaceholder": "مثال: flow-verifier",
+      "scenarioApply": "تطبيق",
+      "loading": "جارٍ تحميل السمة…",
+      "applied": "تم تطبيق {{name}}"
+    },
     "emulator": {
       "label": "نطاق العرض",
       "presetLabel": "الإعداد المسبق",
@@ -165,10 +176,39 @@
     "refreshedAt": "آخر تحديث: {{when}}",
     "deleteAction": "حذف",
     "deleting": "جارٍ الحذف…",
+    "createAction": "تبنٍّ جديد",
+    "creating": "جارٍ الإنشاء…",
+    "create": {
+      "title": "تبنّي مكوّن",
+      "subtitle": "تحقّق من توافق التبعيات قبل تسجيل التبني.",
+      "componentIdLabel": "معرّف المكوّن",
+      "componentIdPlaceholder": "مثال: cmp-button",
+      "scenarioLabel": "السيناريو المستهدف",
+      "scenarioPlaceholder": "مثال: swarm-manager",
+      "adoptedPathLabel": "المسار المتبنّى",
+      "adoptedPathPlaceholder": "ui/src/components/Button.tsx",
+      "adoptedVersionLabel": "إصدار التبني",
+      "adoptedVersionPlaceholder": "1.0.0",
+      "confirmAction": "تبنٍّ",
+      "cancelAction": "إلغاء",
+      "validating": "يجري التحقّق من التبعيات…",
+      "verdictOk": "التبعيات تبدو سليمة.",
+      "verdictWarn": "تنبيه: عدم توافق في التبعيات.",
+      "verdictBlock": "يتعذّر التبني: تبعيات غير متوافقة.",
+      "ackLabel": "أفهم وأرغب بالمتابعة.",
+      "issueMissingDep": "{{name}} غير موجود في السيناريو المستهدف.",
+      "issueRangeDoesNotMatch": "{{name}} لا تتقاطع نطاقاته (المُعلَن {{declared}}, السيناريو {{scenario}}).",
+      "issueIncompatibleMajor": "{{name}} يحمل إصداراً رئيسياً غير متوافق (المُعلَن {{declared}}, السيناريو {{scenario}}).",
+      "issueUnparseableRange": "{{name}} النطاق المُعلَن {{declared}} غير قابل للتحليل.",
+      "issueUnparseableTarget": "{{name}} إصدار السيناريو {{scenario}} غير قابل للتحليل.",
+      "issueUnknown": "{{name}}: مشكلة تبعية ({{declared}} مقابل {{scenario}})."
+    },
     "status": {
       "current": "محدث",
       "behind": "متأخر",
       "modified": "مُعدّل",
+      "missing": "مفقود",
+      "clean": "نظيف",
       "unknown": "غير معروف",
       "unspecified": "بانتظار التحديث"
     }

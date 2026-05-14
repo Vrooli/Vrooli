@@ -20,11 +20,15 @@ import (
 type Version struct {
 	ID            string
 	ComponentID   string
+	LibraryID     string
 	Version       string
+	Status        string
+	SourcePath    string
 	Content       string
 	ContentSHA256 string
 	ChangelogMD   string
 	RecordedAt    time.Time
+	ReleasedAt    time.Time
 }
 
 // RecordInput is the DTO the recorder hands to the service. The

@@ -34,8 +34,8 @@ type Service interface {
 }
 
 type service struct {
-	repo  Repository
-	pkgs  PackageJSONReader
+	repo Repository
+	pkgs PackageJSONReader
 }
 
 // NewService constructs the production Service. pkgs may be nil for
@@ -125,11 +125,11 @@ func (s *service) ValidateAdoption(ctx context.Context, componentID, scenario st
 			continue
 		}
 		verdict.Issues = append(verdict.Issues, Issue{
-			DepName:        d.DepName,
-			DeclaredRange:  d.VersionRange,
+			DepName:         d.DepName,
+			DeclaredRange:   d.VersionRange,
 			ScenarioVersion: targetRange,
-			Kind:           kind,
-			Detail:         detail,
+			Kind:            kind,
+			Detail:          detail,
 		})
 	}
 

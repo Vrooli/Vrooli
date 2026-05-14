@@ -2,6 +2,7 @@ import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
@@ -9,8 +10,21 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ComponentVersionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    COMPONENT_VERSION_STATUS_UNSPECIFIED: _ClassVar[ComponentVersionStatus]
+    COMPONENT_VERSION_STATUS_DRAFT: _ClassVar[ComponentVersionStatus]
+    COMPONENT_VERSION_STATUS_RELEASED: _ClassVar[ComponentVersionStatus]
+    COMPONENT_VERSION_STATUS_DEPRECATED: _ClassVar[ComponentVersionStatus]
+    COMPONENT_VERSION_STATUS_ARCHIVED: _ClassVar[ComponentVersionStatus]
+COMPONENT_VERSION_STATUS_UNSPECIFIED: ComponentVersionStatus
+COMPONENT_VERSION_STATUS_DRAFT: ComponentVersionStatus
+COMPONENT_VERSION_STATUS_RELEASED: ComponentVersionStatus
+COMPONENT_VERSION_STATUS_DEPRECATED: ComponentVersionStatus
+COMPONENT_VERSION_STATUS_ARCHIVED: ComponentVersionStatus
+
 class Component(_message.Message):
-    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers")
+    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version")
     class HeadersEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -28,6 +42,10 @@ class Component(_message.Message):
     INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     HEADERS_FIELD_NUMBER: _ClassVar[int]
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_PATH_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    LATEST_VERSION_FIELD_NUMBER: _ClassVar[int]
     id: str
     library_id: str
     display_name: str
@@ -38,7 +56,11 @@ class Component(_message.Message):
     indexed_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
     headers: _containers.ScalarMap[str, str]
-    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    slug: str
+    manifest_path: str
+    draft_version: str
+    latest_version: str
+    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ...) -> None: ...
 
 class ListComponentsRequest(_message.Message):
     __slots__ = ("match", "tag", "limit", "tags", "category")
@@ -137,3 +159,57 @@ class UpdateComponentContentResponse(_message.Message):
     sha256: str
     source_path: str
     def __init__(self, sha256: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
+
+class ComponentVersion(_message.Message):
+    __slots__ = ("id", "component_id", "library_id", "version", "status", "source_path", "content_sha256", "changelog_md", "indexed_at", "released_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    CHANGELOG_MD_FIELD_NUMBER: _ClassVar[int]
+    INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
+    RELEASED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    component_id: str
+    library_id: str
+    version: str
+    status: ComponentVersionStatus
+    source_path: str
+    content_sha256: str
+    changelog_md: str
+    indexed_at: _timestamp_pb2.Timestamp
+    released_at: _timestamp_pb2.Timestamp
+    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., status: _Optional[_Union[ComponentVersionStatus, str]] = ..., source_path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ListComponentVersionsRequest(_message.Message):
+    __slots__ = ("component_id", "limit")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    limit: int
+    def __init__(self, component_id: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class ListComponentVersionsResponse(_message.Message):
+    __slots__ = ("versions",)
+    VERSIONS_FIELD_NUMBER: _ClassVar[int]
+    versions: _containers.RepeatedCompositeFieldContainer[ComponentVersion]
+    def __init__(self, versions: _Optional[_Iterable[_Union[ComponentVersion, _Mapping]]] = ...) -> None: ...
+
+class GetComponentVersionContentRequest(_message.Message):
+    __slots__ = ("component_id", "version")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    version: str
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
+
+class GetComponentVersionContentResponse(_message.Message):
+    __slots__ = ("version", "content")
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    version: ComponentVersion
+    content: str
+    def __init__(self, version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., content: _Optional[str] = ...) -> None: ...

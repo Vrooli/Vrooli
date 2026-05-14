@@ -102,6 +102,17 @@
       "previewWaiting": "初回描画を待機中…",
       "previewReady": "描画済み"
     },
+    "themeSwitcher": {
+      "label": "テーマ",
+      "noneOption": "なし",
+      "scenarioOptionGroup": "シナリオから",
+      "builtinOptionGroup": "ビルトイン",
+      "scenarioInputLabel": "シナリオID",
+      "scenarioInputPlaceholder": "例: flow-verifier",
+      "scenarioApply": "適用",
+      "loading": "テーマを読み込み中…",
+      "applied": "{{name}} を適用"
+    },
     "emulator": {
       "label": "ビューポート",
       "presetLabel": "プリセット",
@@ -161,10 +172,39 @@
     "refreshedAt": "更新: {{when}}",
     "deleteAction": "削除",
     "deleting": "削除中…",
+    "createAction": "新規採用",
+    "creating": "作成中…",
+    "create": {
+      "title": "コンポーネントを採用",
+      "subtitle": "採用記録の前に依存関係の互換性を確認します。",
+      "componentIdLabel": "コンポーネントID",
+      "componentIdPlaceholder": "例: cmp-button",
+      "scenarioLabel": "対象シナリオ",
+      "scenarioPlaceholder": "例: swarm-manager",
+      "adoptedPathLabel": "採用パス",
+      "adoptedPathPlaceholder": "ui/src/components/Button.tsx",
+      "adoptedVersionLabel": "採用バージョン",
+      "adoptedVersionPlaceholder": "1.0.0",
+      "confirmAction": "採用",
+      "cancelAction": "キャンセル",
+      "validating": "依存関係を確認中…",
+      "verdictOk": "依存関係に問題はありません。",
+      "verdictWarn": "注意: 依存関係に不一致があります。",
+      "verdictBlock": "採用できません: 依存関係が非互換です。",
+      "ackLabel": "理解した上で続行します。",
+      "issueMissingDep": "{{name}} は対象シナリオに存在しません。",
+      "issueRangeDoesNotMatch": "{{name}} の範囲が一致しません(宣言 {{declared}}, シナリオ {{scenario}})。",
+      "issueIncompatibleMajor": "{{name}} のメジャーバージョンが非互換です(宣言 {{declared}}, シナリオ {{scenario}})。",
+      "issueUnparseableRange": "{{name}} の宣言範囲 {{declared}} を解析できません。",
+      "issueUnparseableTarget": "{{name}} のシナリオ側バージョン {{scenario}} を解析できません。",
+      "issueUnknown": "{{name}}: 依存関係の問題({{declared}} vs {{scenario}})。"
+    },
     "status": {
       "current": "最新",
       "behind": "古い",
       "modified": "変更あり",
+      "missing": "見つかりません",
+      "clean": "未変更",
       "unknown": "不明",
       "unspecified": "更新待ち"
     }

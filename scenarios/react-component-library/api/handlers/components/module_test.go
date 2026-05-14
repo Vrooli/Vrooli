@@ -42,19 +42,18 @@ func setupModule(t *testing.T) (*mux.Router, string) {
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, components.Endpoints, 6, "components ships list, get, get-by-library-id, index, content get, content set")
+	require.Len(t, components.Endpoints, 8, "components ships list, get, get-by-library-id, index, content get/set, version list/get")
 }
 
 func TestModule_ContentRoundTrip(t *testing.T) {
 	r, root := setupModule(t)
 
-	require.NoError(t, os.WriteFile(filepath.Join(root, "Button.tsx"), []byte(`/**
+	writeButtonManifest(t, root, `/**
  * @libraryId react-component-library:Button
- * @displayName Button
- * @description Primary CTA.
+ * @version 1.0.0
  */
 export const Button = () => null;
-`), 0o600))
+`)
 
 	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
@@ -79,7 +78,7 @@ export const Button = () => null;
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"sha256"`)
 
-	written, err := os.ReadFile(filepath.Join(root, "Button.tsx"))
+	written, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "Button.tsx"))
 	require.NoError(t, err)
 	require.Contains(t, string(written), "// rewritten")
 }
@@ -87,15 +86,13 @@ export const Button = () => null;
 func TestModule_IndexThenList(t *testing.T) {
 	r, root := setupModule(t)
 
-	require.NoError(t, os.WriteFile(filepath.Join(root, "Button.tsx"), []byte(`/**
+	writeButtonManifest(t, root, `/**
  * @libraryId react-component-library:Button
- * @displayName Button
- * @description Primary CTA.
  * @version 1.0.0
  * @tags ["form"]
  */
 export const Button = () => null;
-`), 0o600))
+`)
 
 	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
@@ -109,6 +106,21 @@ export const Button = () => null;
 		`{"libraryId":"react-component-library:Button"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"displayName":"Button"`)
+}
+
+func writeButtonManifest(t *testing.T, root, source string) {
+	t.Helper()
+	dir := filepath.Join(root, "components", "Button")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "component.json"), []byte(`{
+  "libraryId": "react-component-library:Button",
+  "displayName": "Button",
+  "description": "Primary CTA.",
+  "tags": ["form"],
+  "latest": "1.0.0",
+  "deprecatedVersions": []
+}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", "Button.tsx"), []byte(source), 0o600))
 }
 
 func TestModule_GetReturnsNotFound(t *testing.T) {

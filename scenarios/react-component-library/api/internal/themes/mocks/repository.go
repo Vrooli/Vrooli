@@ -12,8 +12,8 @@ import (
 // FakeRepository satisfies themes.Repository for service and handler
 // tests.
 type FakeRepository struct {
-	mu       sync.Mutex
-	items    map[string]themes.Theme
+	mu        sync.Mutex
+	items     map[string]themes.Theme
 	UpsertErr error
 }
 

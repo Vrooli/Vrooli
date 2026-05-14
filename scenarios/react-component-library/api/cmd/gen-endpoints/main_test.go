@@ -19,7 +19,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
 		{Name: "adoptions list", Description: "List adoptions", EndpointID: "adoptions_list"},
-		{Name: "adoptions create", Description: "Create adoption", EndpointID: "adoptions_create"},
+		{Name: "adoptions apply", Description: "Apply adoption", EndpointID: "adoptions_apply"},
+		{Name: "adoptions reapply", Description: "Reapply adoption", EndpointID: "adoptions_reapply"},
 		{Name: "adoptions delete", Description: "Delete adoption", EndpointID: "adoptions_delete"},
 		{Name: "adoptions refresh", Description: "Refresh adoptions", EndpointID: "adoptions_refresh"},
 		{Name: "components index", Description: "Index components", EndpointID: "components_index"},
@@ -28,6 +29,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "components get-by-library-id", Description: "Get by libraryId", EndpointID: "components_get_by_library_id"},
 		{Name: "components content-get", Description: "Read content", EndpointID: "components_content_get"},
 		{Name: "components content-set", Description: "Write content", EndpointID: "components_content_set"},
+		{Name: "components versions", Description: "List component versions", EndpointID: "components_versions_list"},
+		{Name: "components show-version", Description: "Show component version", EndpointID: "components_version_content_get"},
 		{Name: "deps list", Description: "List declarations", EndpointID: "deps_list_declarations"},
 		{Name: "deps validate", Description: "Validate adoption", EndpointID: "deps_validate_adoption"},
 		{Name: "preview bundle", Description: "Bundle for preview", EndpointID: "preview_get_bundle"},
@@ -67,8 +70,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 20 {
-		t.Errorf("cli_commands count = %d, want 20", len(got.CLICommands))
+	if len(got.CLICommands) != 23 {
+		t.Errorf("cli_commands count = %d, want 23", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

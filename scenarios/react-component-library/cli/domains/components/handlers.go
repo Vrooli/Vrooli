@@ -153,9 +153,57 @@ func (h *handlers) contentGet(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no content response")
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary: []string{fmt.Sprintf("Read %s (sha256=%s).", resp.Msg.SourcePath, resp.Msg.Sha256)},
+		Summary:        []string{fmt.Sprintf("Read %s (sha256=%s).", resp.Msg.SourcePath, resp.Msg.Sha256)},
 		ResultsHeading: "Content",
-		Results: []string{resp.Msg.Content},
+		Results:        []string{resp.Msg.Content},
+	})
+}
+
+func (h *handlers) versions(ctx cliapp.RunContext) error {
+	componentID := ctx.Positional("component-id")
+	req := &componentsv1.ListComponentVersionsRequest{ComponentId: componentID}
+	if raw := ctx.Flag("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			return fmt.Errorf("--limit must be an integer (got %q)", raw)
+		}
+		req.Limit = int32(n)
+	}
+	resp, err := h.client.ListComponentVersions(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("list versions for component %q", componentID), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no versions response")
+	}
+	results := make([]string, 0, len(resp.Msg.Versions))
+	for _, v := range resp.Msg.Versions {
+		results = append(results, formatVersion(v))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d version(s).", len(resp.Msg.Versions))},
+		ResultsHeading: "Versions",
+		Results:        results,
+	})
+}
+
+func (h *handlers) showVersion(ctx cliapp.RunContext) error {
+	componentID := ctx.Positional("component-id")
+	version := ctx.Positional("version")
+	resp, err := h.client.GetComponentVersionContent(context.Background(), connect.NewRequest(&componentsv1.GetComponentVersionContentRequest{
+		ComponentId: componentID,
+		Version:     version,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("show version %q for component %q", version, componentID), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no version response")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Read %s.", resp.Msg.Version.SourcePath)},
+		ResultsHeading: "Content",
+		Results:        []string{resp.Msg.Content},
 	})
 }
 
@@ -217,4 +265,11 @@ func formatComponent(c *componentsv1.Component) string {
 		versionPart = " v" + c.Version
 	}
 	return fmt.Sprintf("%s — %s%s%s @ %s [indexed=%s]", c.LibraryId, c.DisplayName, versionPart, tagsPart, c.SourcePath, indexed)
+}
+
+func formatVersion(v *componentsv1.ComponentVersion) string {
+	if v == nil {
+		return "(nil)"
+	}
+	return fmt.Sprintf("%s — %s %s sha=%s @ %s", v.Id, v.Version, v.Status.String(), v.ContentSha256, v.SourcePath)
 }

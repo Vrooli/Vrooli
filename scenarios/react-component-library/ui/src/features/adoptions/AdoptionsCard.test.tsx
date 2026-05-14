@@ -4,7 +4,8 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
 import {
-  AdoptionStatus,
+  LibraryVersionStatus,
+  LocalStatus,
   makeAdoption,
   makeListAdoptionsResponse,
   makeRefreshAdoptionsResponse,
@@ -46,10 +47,10 @@ describe("AdoptionsCard", () => {
     vi.mocked(adoptionsClient.listAdoptions).mockResolvedValueOnce(
       makeListAdoptionsResponse({
         adoptions: [
-          makeAdoption({ id: "a", scenario: "swarm-manager", status: AdoptionStatus.CURRENT }),
-          makeAdoption({ id: "b", scenario: "flow-verifier", status: AdoptionStatus.BEHIND, statusDetail: "library at 1.1.0" }),
-          makeAdoption({ id: "c", scenario: "system-monitor", status: AdoptionStatus.MODIFIED }),
-          makeAdoption({ id: "d", scenario: "drift-smoke", status: AdoptionStatus.UNKNOWN }),
+          makeAdoption({ id: "a", scenario: "swarm-manager", libraryVersionStatus: LibraryVersionStatus.CURRENT, localStatus: LocalStatus.CLEAN }),
+          makeAdoption({ id: "b", scenario: "flow-verifier", libraryVersionStatus: LibraryVersionStatus.BEHIND, localStatus: LocalStatus.CLEAN, statusDetail: "library at 1.1.0" }),
+          makeAdoption({ id: "c", scenario: "system-monitor", libraryVersionStatus: LibraryVersionStatus.CURRENT, localStatus: LocalStatus.MODIFIED }),
+          makeAdoption({ id: "d", scenario: "drift-smoke", libraryVersionStatus: LibraryVersionStatus.UNKNOWN, localStatus: LocalStatus.UNKNOWN }),
         ],
       }),
     );
@@ -60,9 +61,9 @@ describe("AdoptionsCard", () => {
     });
 
     const statuses = screen.getAllByTestId(selectors.adoptions.itemStatus).map((n) => n.textContent);
-    expect(statuses).toEqual(["Current", "Behind", "Modified", "Unknown"]);
-    expect(screen.getByTestId(selectors.adoptions.summary).textContent).toContain("current: 1");
-    expect(screen.getByText("library at 1.1.0")).toBeInTheDocument();
+    expect(statuses).toEqual(["Current / Clean", "Behind / Clean", "Current / Modified", "Unknown / Unknown"]);
+    expect(screen.getByTestId(selectors.adoptions.summary).textContent).toContain("current: 2");
+    expect(screen.getByTestId(selectors.adoptions.itemStatusDetail)).toHaveTextContent("library at 1.1.0");
   });
 
   it("forwards the scenario filter to listAdoptions", async () => {
@@ -87,7 +88,7 @@ describe("AdoptionsCard", () => {
     const { adoptionsClient } = await import("../../api/adoptions");
     vi.mocked(adoptionsClient.listAdoptions).mockResolvedValue(makeListAdoptionsResponse());
     vi.mocked(adoptionsClient.refreshAdoptions).mockResolvedValueOnce(
-      makeRefreshAdoptionsResponse({ current: 1, behind: 2 }),
+      makeRefreshAdoptionsResponse({ libraryCurrent: 1, libraryBehind: 2 }),
     );
 
     const user = userEvent.setup();

@@ -15,11 +15,14 @@ CREATE TABLE IF NOT EXISTS adoption_records (
   scenario        TEXT NOT NULL,
   adopted_path    TEXT NOT NULL,
   adopted_version TEXT NOT NULL DEFAULT '',
+  source_sha256   TEXT NOT NULL DEFAULT '',
   adopted_snapshot_sha256 TEXT NOT NULL DEFAULT '',
-  status          TEXT NOT NULL DEFAULT '',
+  library_version_status TEXT NOT NULL DEFAULT '',
+  local_status    TEXT NOT NULL DEFAULT '',
   status_detail   TEXT NOT NULL DEFAULT '',
   created_at      TEXT NOT NULL,
   refreshed_at    TEXT NOT NULL DEFAULT '',
+  applied_at      TEXT NOT NULL DEFAULT '',
   -- drift_backlog_ref records the swarm-manager backlog item
   -- (`<kind>/<name>`) filed when this adoption first transitioned to
   -- behind/modified. Cleared back to '' when status returns to

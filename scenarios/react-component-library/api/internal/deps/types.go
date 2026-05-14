@@ -62,11 +62,11 @@ const (
 // Issue is one row in the verdict's findings — the UI renders these
 // in a table alongside the high-level Kind.
 type Issue struct {
-	DepName        string
-	DeclaredRange  string
+	DepName         string
+	DeclaredRange   string
 	ScenarioVersion string
-	Kind           IssueKind
-	Detail         string
+	Kind            IssueKind
+	Detail          string
 }
 
 // Severity returns the per-issue severity so the service can fold

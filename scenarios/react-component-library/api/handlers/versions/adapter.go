@@ -9,14 +9,21 @@ import (
 )
 
 func versionToProto(v versions.Version, _ bool) *versionsv1.Version {
-	return &versionsv1.Version{
+	out := &versionsv1.Version{
 		Id:            v.ID,
 		ComponentId:   v.ComponentID,
+		LibraryId:     v.LibraryID,
 		Version:       v.Version,
 		ContentSha256: v.ContentSHA256,
 		ChangelogMd:   v.ChangelogMD,
 		RecordedAt:    timestamppb.New(v.RecordedAt.UTC()),
+		Status:        v.Status,
+		SourcePath:    v.SourcePath,
 	}
+	if !v.ReleasedAt.IsZero() {
+		out.ReleasedAt = timestamppb.New(v.ReleasedAt.UTC())
+	}
+	return out
 }
 
 func diffToProto(d versions.DiffResult) *versionsv1.DiffVersionsResponse {

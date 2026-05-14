@@ -106,6 +106,17 @@
       "previewWaiting": "Waiting for first paint…",
       "previewReady": "Rendered"
     },
+    "themeSwitcher": {
+      "label": "Theme",
+      "noneOption": "None",
+      "scenarioOptionGroup": "From scenario",
+      "builtinOptionGroup": "Built-in",
+      "scenarioInputLabel": "Scenario id",
+      "scenarioInputPlaceholder": "e.g. flow-verifier",
+      "scenarioApply": "Apply",
+      "loading": "Loading theme…",
+      "applied": "Applied {{name}}"
+    },
     "emulator": {
       "label": "Viewport",
       "presetLabel": "Preset",
@@ -165,10 +176,39 @@
     "refreshedAt": "Refreshed {{when}}",
     "deleteAction": "Delete",
     "deleting": "Deleting…",
+    "createAction": "New adoption",
+    "creating": "Creating…",
+    "create": {
+      "title": "Adopt a component",
+      "subtitle": "Validate dependency compatibility before recording an adoption.",
+      "componentIdLabel": "Component id",
+      "componentIdPlaceholder": "e.g. cmp-button",
+      "scenarioLabel": "Target scenario",
+      "scenarioPlaceholder": "e.g. swarm-manager",
+      "adoptedPathLabel": "Adopted path",
+      "adoptedPathPlaceholder": "ui/src/components/Button.tsx",
+      "adoptedVersionLabel": "Adopted version",
+      "adoptedVersionPlaceholder": "1.0.0",
+      "confirmAction": "Adopt",
+      "cancelAction": "Cancel",
+      "validating": "Checking dependencies…",
+      "verdictOk": "Dependencies look good.",
+      "verdictWarn": "Heads-up: dependency mismatches detected.",
+      "verdictBlock": "Cannot adopt: incompatible dependencies.",
+      "ackLabel": "I understand and want to proceed anyway.",
+      "issueMissingDep": "{{name}} is not present in the target scenario.",
+      "issueRangeDoesNotMatch": "{{name}} ranges do not intersect (declared {{declared}}, scenario {{scenario}}).",
+      "issueIncompatibleMajor": "{{name}} has an incompatible major version (declared {{declared}}, scenario {{scenario}}).",
+      "issueUnparseableRange": "{{name}} declared range {{declared}} is unparseable.",
+      "issueUnparseableTarget": "{{name}} version {{scenario}} in the target scenario is unparseable.",
+      "issueUnknown": "{{name}}: dependency issue ({{declared}} vs {{scenario}})."
+    },
     "status": {
       "current": "Current",
       "behind": "Behind",
       "modified": "Modified",
+      "missing": "Missing",
+      "clean": "Clean",
       "unknown": "Unknown",
       "unspecified": "Pending refresh"
     }

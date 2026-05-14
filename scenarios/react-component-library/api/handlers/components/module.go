@@ -15,11 +15,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
-	"github.com/vrooli/api-core/storage"
 
 	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
 
@@ -100,28 +101,20 @@ func BuildService(db *sql.DB, clk clock.Clock, sourceRoot string) (components.Se
 }
 
 // defaultSourceRoot resolves the on-disk root the indexer walks.
-// Override via COMPONENT_SOURCE_ROOT env. Default lives under the
-// scenario's storage data class so re-running setup doesn't clobber it.
+// Override via COMPONENT_SOURCE_ROOT env. Default is the scenario's
+// Git-tracked library/ directory so component source is reviewed and
+// versioned with normal repo changes.
 func defaultSourceRoot() (string, error) {
 	if path := strings.TrimSpace(os.Getenv("COMPONENT_SOURCE_ROOT")); path != "" {
 		return path, nil
 	}
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		return "", fmt.Errorf("storage resolver: %w", err)
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("resolve components source root: runtime caller unavailable")
 	}
-	path, err := resolver.Path(
-		storage.Options{ScenarioID: "react-component-library"},
-		storage.ClassData,
-		"components",
-	)
+	path := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "library"))
+	err := os.MkdirAll(filepath.Join(path, "components"), 0o755)
 	if err != nil {
-		return "", fmt.Errorf("resolve components root: %w", err)
-	}
-	if err := os.MkdirAll(path, 0o755); err != nil {
 		return "", fmt.Errorf("create components root: %w", err)
 	}
 	return path, nil
@@ -277,5 +270,46 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Filesystem write failure"},
 		},
 		CLIMapping: &module.CLIMapping{Command: "react-component-library components content-set", Args: []string{"<id>", "<file>"}},
+	},
+	{
+		ID:          "components_versions_list",
+		Path:        componentsconnect.ComponentsServiceListComponentVersionsProcedure,
+		Method:      "POST",
+		Summary:     "List component versions",
+		Description: "Returns release and draft artifacts indexed from the component manifest's version folders.",
+		Category:    "components",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"component_id": "string", "limit": "int32"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"versions": "array<ComponentVersion>"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 500, Code: "internal", Description: "Repository read failure"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "react-component-library components versions", Args: []string{"<component-id>"}},
+	},
+	{
+		ID:          "components_version_content_get",
+		Path:        componentsconnect.ComponentsServiceGetComponentVersionContentProcedure,
+		Method:      "POST",
+		Summary:     "Read component version source",
+		Description: "Returns the indexed source body for a specific component version.",
+		Category:    "components",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"component_id": "string", "version": "string"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"version": "ComponentVersion", "content": "string"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No component version with that component_id/version pair"},
+			{Status: 500, Code: "internal", Description: "Repository read failure"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "react-component-library components show-version", Args: []string{"<component-id>", "<version>"}},
 	},
 }

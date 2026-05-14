@@ -29,8 +29,7 @@ import (
 
 const buttonTSX = `/**
  * @libraryId react-component-library:Button
- * @displayName Button
- * @description Primary CTA.
+ * @version 1.0.0
  */
 export const Button = () => <button>click</button>;
 `
@@ -68,7 +67,7 @@ func TestModule_Shape(t *testing.T) {
 func TestModule_BundleRoundTrip(t *testing.T) {
 	r, root := setupModule(t)
 
-	require.NoError(t, os.WriteFile(filepath.Join(root, "Button.tsx"), []byte(buttonTSX), 0o600))
+	writeButtonManifest(t, root, buttonTSX)
 
 	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
@@ -83,7 +82,7 @@ func TestModule_BundleRoundTrip(t *testing.T) {
 	body := rw.Body.String()
 	require.Contains(t, body, `"js":`)
 	require.Contains(t, body, `"sha256":`)
-	require.Contains(t, body, `"sourcePath":"Button.tsx"`)
+	require.Contains(t, body, `"sourcePath":"components/Button/versions/1.0.0/Button.tsx"`)
 }
 
 func TestModule_BundleNotFound(t *testing.T) {
@@ -94,7 +93,7 @@ func TestModule_BundleNotFound(t *testing.T) {
 
 func TestModule_HarnessHTML(t *testing.T) {
 	r, root := setupModule(t)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "Button.tsx"), []byte(buttonTSX), 0o600))
+	writeButtonManifest(t, root, buttonTSX)
 	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	rw = callConnect(r, componentsconnect.ComponentsServiceGetComponentByLibraryIdProcedure,
@@ -114,6 +113,11 @@ func TestModule_HarnessHTML(t *testing.T) {
 	require.Contains(t, body, `id="root"`)
 	// Cache-busting works because the inlined sha is unique per save.
 	require.Contains(t, body, `name="bundle-sha256"`)
+	// req TH-003: harness installs a theme-apply listener that sets
+	// each token as a CSS custom property on :root.
+	require.Contains(t, body, `rcl-theme-apply`)
+	require.Contains(t, body, `documentElement.style.setProperty`)
+	require.Contains(t, body, `rcl-theme-applied`)
 }
 
 func TestModule_HarnessNotFound(t *testing.T) {
@@ -129,11 +133,12 @@ func TestModule_HarnessBundleError(t *testing.T) {
 
 	// Component file passes the header gate but is syntactically broken,
 	// so the indexer succeeds and esbuild later rejects it.
-	require.NoError(t, os.WriteFile(filepath.Join(root, "Broken.tsx"), []byte(`/**
+	writeComponentManifest(t, root, "Broken", "react-component-library:Broken", `/**
  * @libraryId react-component-library:Broken
+ * @version 1.0.0
  */
 export const Broken = () => <div
-`), 0o600))
+`)
 	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	rw = callConnect(r, componentsconnect.ComponentsServiceGetComponentByLibraryIdProcedure,
@@ -159,6 +164,26 @@ func extractFirstID(t *testing.T, body string) string {
 	idEnd := strings.Index(body[idStart:], `"`)
 	require.NotEqual(t, -1, idEnd)
 	return body[idStart : idStart+idEnd]
+}
+
+func writeButtonManifest(t *testing.T, root, source string) {
+	t.Helper()
+	writeComponentManifest(t, root, "Button", "react-component-library:Button", source)
+}
+
+func writeComponentManifest(t *testing.T, root, slug, libraryID, source string) {
+	t.Helper()
+	dir := filepath.Join(root, "components", slug)
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "component.json"), []byte(`{
+  "libraryId": "`+libraryID+`",
+  "displayName": "`+slug+`",
+  "description": "",
+  "tags": [],
+  "latest": "1.0.0",
+  "deprecatedVersions": []
+}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", slug+".tsx"), []byte(source), 0o600))
 }
 
 func callConnect(r *mux.Router, path, body string) *httptest.ResponseRecorder {

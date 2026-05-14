@@ -58,30 +58,51 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		Results:        results,
 		RetrievalHints: []string{
 			"`adoptions refresh` — recompute drift status",
-			"`adoptions create <component-id> <scenario> <adopted-path>` — link a copy",
+			"`adoptions apply <component-id> <scenario> <adopted-path>` — copy a component into a scenario",
 		},
 	})
 }
 
-func (h *handlers) create(ctx cliapp.RunContext) error {
-	req := &adoptionsv1.CreateAdoptionRequest{
-		ComponentId:    ctx.Positional("component-id"),
-		Scenario:       ctx.Positional("scenario"),
-		AdoptedPath:    ctx.Positional("adopted-path"),
-		AdoptedVersion: ctx.Flag("adopted-version"),
+func (h *handlers) apply(ctx cliapp.RunContext) error {
+	req := &adoptionsv1.ApplyAdoptionRequest{
+		ComponentId:      ctx.Positional("component-id"),
+		Scenario:         ctx.Positional("scenario"),
+		AdoptedPath:      ctx.Positional("adopted-path"),
+		Version:          ctx.Flag("version"),
+		ConfirmOverwrite: ctx.Flag("confirm-overwrite") == "true",
 	}
-	resp, err := h.client.CreateAdoption(context.Background(), connect.NewRequest(req))
+	resp, err := h.client.ApplyAdoption(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("create adoption", err, nil)
+		return cliapp.WrapAPIError("apply adoption", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Adoption == nil {
 		return fmt.Errorf("server returned no adoption")
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Created adoption %s.", resp.Msg.Adoption.Id)},
+		Summary:        []string{fmt.Sprintf("Applied adoption %s to %s.", resp.Msg.Adoption.Id, resp.Msg.WrittenPath)},
 		ResultsHeading: "Adoption",
 		Results:        []string{formatAdoption(resp.Msg.Adoption)},
 		RetrievalHints: []string{"`adoptions refresh` — compute drift status now"},
+	})
+}
+
+func (h *handlers) reapply(ctx cliapp.RunContext) error {
+	req := &adoptionsv1.ReapplyAdoptionRequest{
+		Id:                    ctx.Positional("id"),
+		Version:               ctx.Flag("version"),
+		ConfirmLocalOverwrite: ctx.Flag("confirm-local-overwrite") == "true",
+	}
+	resp, err := h.client.ReapplyAdoption(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("reapply adoption", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Adoption == nil {
+		return fmt.Errorf("server returned no adoption")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Reapplied adoption %s to %s.", resp.Msg.Adoption.Id, resp.Msg.WrittenPath)},
+		ResultsHeading: "Adoption",
+		Results:        []string{formatAdoption(resp.Msg.Adoption)},
 	})
 }
 
@@ -109,8 +130,8 @@ func (h *handlers) refresh(ctx cliapp.RunContext) error {
 	for _, a := range resp.Msg.Adoptions {
 		results = append(results, formatAdoption(a))
 	}
-	summary := fmt.Sprintf("Refreshed %d adoption(s): current=%d behind=%d modified=%d unknown=%d.",
-		len(resp.Msg.Adoptions), resp.Msg.Current, resp.Msg.Behind, resp.Msg.Modified, resp.Msg.Unknown)
+	summary := fmt.Sprintf("Refreshed %d adoption(s): library current=%d behind=%d; local clean=%d modified=%d missing=%d.",
+		len(resp.Msg.Adoptions), resp.Msg.LibraryCurrent, resp.Msg.LibraryBehind, resp.Msg.LocalClean, resp.Msg.LocalModified, resp.Msg.LocalMissing)
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{summary},
 		ResultsHeading: "Adoptions",
@@ -126,7 +147,7 @@ func formatAdoption(a *adoptionsv1.Adoption) string {
 	if a.RefreshedAt != nil {
 		refreshed = a.RefreshedAt.AsTime().Format(time.RFC3339)
 	}
-	status := statusLabel(a.Status)
+	status := fmt.Sprintf("library=%s local=%s", libraryStatusLabel(a.LibraryVersionStatus), localStatusLabel(a.LocalStatus))
 	detail := ""
 	if a.StatusDetail != "" {
 		detail = " (" + a.StatusDetail + ")"
@@ -135,15 +156,31 @@ func formatAdoption(a *adoptionsv1.Adoption) string {
 		a.Id, a.Scenario, a.AdoptedPath, status, detail, a.AdoptedVersion, a.LibraryId, refreshed)
 }
 
-func statusLabel(s adoptionsv1.AdoptionStatus) string {
+func libraryStatusLabel(s adoptionsv1.LibraryVersionStatus) string {
 	switch s {
-	case adoptionsv1.AdoptionStatus_ADOPTION_STATUS_CURRENT:
+	case adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_CURRENT:
 		return "current"
-	case adoptionsv1.AdoptionStatus_ADOPTION_STATUS_BEHIND:
+	case adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_BEHIND:
 		return "behind"
-	case adoptionsv1.AdoptionStatus_ADOPTION_STATUS_MODIFIED:
+	case adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_DEPRECATED:
+		return "deprecated"
+	case adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_MISSING:
+		return "missing"
+	case adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_UNKNOWN:
+		return "unknown"
+	}
+	return "unknown"
+}
+
+func localStatusLabel(s adoptionsv1.LocalStatus) string {
+	switch s {
+	case adoptionsv1.LocalStatus_LOCAL_STATUS_CLEAN:
+		return "clean"
+	case adoptionsv1.LocalStatus_LOCAL_STATUS_MODIFIED:
 		return "modified"
-	case adoptionsv1.AdoptionStatus_ADOPTION_STATUS_UNKNOWN:
+	case adoptionsv1.LocalStatus_LOCAL_STATUS_MISSING:
+		return "missing"
+	case adoptionsv1.LocalStatus_LOCAL_STATUS_UNKNOWN:
 		return "unknown"
 	}
 	return "unknown"

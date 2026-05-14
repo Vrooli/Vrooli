@@ -35,9 +35,9 @@ func (s *sqliteRepository) Insert(ctx context.Context, v Version) (Version, erro
 	}
 	if _, err := s.db.ExecContext(ctx, `
 INSERT INTO component_versions
-  (id, component_id, version, content, content_sha256, changelog_md, recorded_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-`, v.ID, v.ComponentID, v.Version, v.Content, v.ContentSHA256, v.ChangelogMD, v.RecordedAt.UTC().Format(timeFormat)); err != nil {
+  (id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`, v.ID, v.ComponentID, v.LibraryID, v.Version, v.Status, v.SourcePath, v.Content, v.ContentSHA256, v.ChangelogMD, v.RecordedAt.UTC().Format(timeFormat), formatOptionalTime(v.ReleasedAt)); err != nil {
 		return Version{}, fmt.Errorf("insert version: %w", err)
 	}
 	return v, nil
@@ -45,10 +45,10 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 
 func (s *sqliteRepository) Latest(ctx context.Context, componentID string) (Version, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT id, component_id, version, content, content_sha256, changelog_md, recorded_at
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at
 FROM component_versions
 WHERE component_id = ?
-ORDER BY recorded_at DESC, id ASC
+ORDER BY indexed_at DESC, id ASC
 LIMIT 1
 `, componentID)
 	v, err := scanVersion(row)
@@ -67,10 +67,10 @@ func (s *sqliteRepository) List(ctx context.Context, q ListQuery) ([]Version, er
 		return nil, nil
 	}
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, component_id, version, content, content_sha256, changelog_md, recorded_at
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at
 FROM component_versions
 WHERE component_id = ?
-ORDER BY recorded_at DESC, id ASC
+ORDER BY indexed_at DESC, id ASC
 LIMIT ?
 `, q.ComponentID, limit)
 	if err != nil {
@@ -93,10 +93,10 @@ LIMIT ?
 
 func (s *sqliteRepository) Get(ctx context.Context, componentID, version string) (Version, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT id, component_id, version, content, content_sha256, changelog_md, recorded_at
+SELECT id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, released_at
 FROM component_versions
 WHERE component_id = ? AND version = ?
-ORDER BY recorded_at DESC, id ASC
+ORDER BY indexed_at DESC, id ASC
 LIMIT 1
 `, componentID, version)
 	v, err := scanVersion(row)
@@ -117,8 +117,9 @@ func scanVersion(s rowScanner) (Version, error) {
 	var (
 		v          Version
 		recordedAt string
+		releasedAt string
 	)
-	if err := s.Scan(&v.ID, &v.ComponentID, &v.Version, &v.Content, &v.ContentSHA256, &v.ChangelogMD, &recordedAt); err != nil {
+	if err := s.Scan(&v.ID, &v.ComponentID, &v.LibraryID, &v.Version, &v.Status, &v.SourcePath, &v.Content, &v.ContentSHA256, &v.ChangelogMD, &recordedAt, &releasedAt); err != nil {
 		return Version{}, err
 	}
 	t, err := time.Parse(timeFormat, recordedAt)
@@ -126,5 +127,19 @@ func scanVersion(s rowScanner) (Version, error) {
 		return Version{}, fmt.Errorf("parse recorded_at: %w", err)
 	}
 	v.RecordedAt = t
+	if releasedAt != "" {
+		rt, err := time.Parse(timeFormat, releasedAt)
+		if err != nil {
+			return Version{}, fmt.Errorf("parse released_at: %w", err)
+		}
+		v.ReleasedAt = rt
+	}
 	return v, nil
+}
+
+func formatOptionalTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(timeFormat)
 }

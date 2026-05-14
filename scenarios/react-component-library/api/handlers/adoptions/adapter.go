@@ -12,32 +12,53 @@ import (
 // shape the adoptions proto declares.
 func domainToProto(a adoptions.Adoption) *adoptionsv1.Adoption {
 	out := &adoptionsv1.Adoption{
-		Id:             a.ID,
-		ComponentId:    a.ComponentID,
-		LibraryId:      a.LibraryID,
-		Scenario:       a.Scenario,
-		AdoptedPath:    a.AdoptedPath,
-		AdoptedVersion: a.AdoptedVersion,
-		Status:         statusToProto(a.Status),
-		StatusDetail:   a.StatusDetail,
-		CreatedAt:      timestamppb.New(a.CreatedAt.UTC()),
+		Id:                   a.ID,
+		ComponentId:          a.ComponentID,
+		LibraryId:            a.LibraryID,
+		Scenario:             a.Scenario,
+		AdoptedPath:          a.AdoptedPath,
+		AdoptedVersion:       a.AdoptedVersion,
+		LibraryVersionStatus: libraryStatusToProto(a.LibraryVersionStatus),
+		LocalStatus:          localStatusToProto(a.LocalStatus),
+		StatusDetail:         a.StatusDetail,
+		CreatedAt:            timestamppb.New(a.CreatedAt.UTC()),
+		SourceSha256:         a.SourceSHA256,
 	}
 	if !a.RefreshedAt.IsZero() {
 		out.RefreshedAt = timestamppb.New(a.RefreshedAt.UTC())
 	}
+	if !a.AppliedAt.IsZero() {
+		out.AppliedAt = a.AppliedAt.UTC().Format("2006-01-02T15:04:05Z07:00")
+	}
 	return out
 }
 
-func statusToProto(s adoptions.Status) adoptionsv1.AdoptionStatus {
+func libraryStatusToProto(s adoptions.LibraryVersionStatus) adoptionsv1.LibraryVersionStatus {
 	switch s {
-	case adoptions.StatusCurrent:
-		return adoptionsv1.AdoptionStatus_ADOPTION_STATUS_CURRENT
-	case adoptions.StatusBehind:
-		return adoptionsv1.AdoptionStatus_ADOPTION_STATUS_BEHIND
-	case adoptions.StatusModified:
-		return adoptionsv1.AdoptionStatus_ADOPTION_STATUS_MODIFIED
-	case adoptions.StatusUnknown:
-		return adoptionsv1.AdoptionStatus_ADOPTION_STATUS_UNKNOWN
+	case adoptions.LibraryVersionStatusCurrent:
+		return adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_CURRENT
+	case adoptions.LibraryVersionStatusBehind:
+		return adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_BEHIND
+	case adoptions.LibraryVersionStatusDeprecated:
+		return adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_DEPRECATED
+	case adoptions.LibraryVersionStatusMissing:
+		return adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_MISSING
+	case adoptions.LibraryVersionStatusUnknown:
+		return adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_UNKNOWN
 	}
-	return adoptionsv1.AdoptionStatus_ADOPTION_STATUS_UNSPECIFIED
+	return adoptionsv1.LibraryVersionStatus_LIBRARY_VERSION_STATUS_UNSPECIFIED
+}
+
+func localStatusToProto(s adoptions.LocalStatus) adoptionsv1.LocalStatus {
+	switch s {
+	case adoptions.LocalStatusClean:
+		return adoptionsv1.LocalStatus_LOCAL_STATUS_CLEAN
+	case adoptions.LocalStatusModified:
+		return adoptionsv1.LocalStatus_LOCAL_STATUS_MODIFIED
+	case adoptions.LocalStatusMissing:
+		return adoptionsv1.LocalStatus_LOCAL_STATUS_MISSING
+	case adoptions.LocalStatusUnknown:
+		return adoptionsv1.LocalStatus_LOCAL_STATUS_UNKNOWN
+	}
+	return adoptionsv1.LocalStatus_LOCAL_STATUS_UNSPECIFIED
 }
