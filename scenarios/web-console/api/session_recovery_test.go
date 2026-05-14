@@ -8,6 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"web-console/internal/backend"
+	"web-console/internal/events"
+	"web-console/internal/metrics"
+	"web-console/internal/policy"
+	"web-console/internal/pty"
 	"web-console/terminal"
 )
 
@@ -20,8 +25,8 @@ func TestRecover_NoDetachedSessions(t *testing.T) {
 	useIsolatedTmuxSocket(t)
 
 	store := NewInMemorySessionStore()
-	reg := NewBackendRegistry()
-	sm := NewSessionManagerWithFactory(func(spec SessionLaunchSpec) (PTY, error) {
+	reg := backend.New()
+	sm := NewSessionManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	})
 
@@ -45,7 +50,7 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 	store := NewInMemorySessionStore()
 	_ = store.Save(SessionMetadata{
 		ID:             "dead-session",
-		Backend:        BackendPersistent,
+		Backend:        backend.Persistent,
 		Shell:          "/bin/bash",
 		Cols:           80,
 		Rows:           24,
@@ -55,7 +60,7 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 		AgentSessionID: "codex-uuid-123",
 	})
 
-	reg := NewBackendRegistry()
+	reg := backend.New()
 	sm := NewSessionManagerWithFactory(nil)
 
 	report := sm.Recover(store, reg)
@@ -99,7 +104,7 @@ func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
 	id := "reattach-test"
 	_ = store.Save(SessionMetadata{
 		ID:       id,
-		Backend:  BackendPersistent,
+		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
 		Cols:     80,
 		Rows:     24,
@@ -125,7 +130,7 @@ func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
 	}
 
 	sm := NewSessionManagerWithFactory(nil)
-	report := sm.Recover(store, NewBackendRegistry())
+	report := sm.Recover(store, backend.New())
 
 	if report.Recovered != 1 {
 		t.Errorf("expected 1 recovered, got %d", report.Recovered)
@@ -147,7 +152,7 @@ func TestRecover_StandardSessionsIgnored(t *testing.T) {
 	store := NewInMemorySessionStore()
 	_ = store.Save(SessionMetadata{
 		ID:       "standard-session",
-		Backend:  BackendStandard,
+		Backend:  backend.Standard,
 		Shell:    "/bin/bash",
 		Cols:     80,
 		Rows:     24,
@@ -155,7 +160,7 @@ func TestRecover_StandardSessionsIgnored(t *testing.T) {
 		Detached: false, // not detached
 	})
 
-	reg := NewBackendRegistry()
+	reg := backend.New()
 	sm := NewSessionManagerWithFactory(nil)
 
 	report := sm.Recover(store, reg)
@@ -188,7 +193,7 @@ func TestRecover_UsesConfiguredTmuxSocketIsolation(t *testing.T) {
 	}
 
 	sm := NewSessionManagerWithFactory(nil)
-	report := sm.Recover(NewInMemorySessionStore(), NewBackendRegistry())
+	report := sm.Recover(NewInMemorySessionStore(), backend.New())
 
 	if report.OrphanedTmux != 1 {
 		t.Fatalf("expected only the isolated test socket session to be treated as orphaned, got %d", report.OrphanedTmux)
@@ -210,12 +215,12 @@ func TestInMemorySessionStore_SaveAndGet(t *testing.T) {
 
 	meta := SessionMetadata{
 		ID:      "test-1",
-		Backend: BackendPersistent,
+		Backend: backend.Persistent,
 		Shell:   "/bin/bash",
 		Cols:    80,
 		Rows:    24,
-		Policy: ExpirationPolicy{
-			Mode: PolicyNever,
+		Policy: policy.Policy{
+			Mode: policy.Never,
 		},
 		Created:  time.Now(),
 		Detached: true,
@@ -229,8 +234,8 @@ func TestInMemorySessionStore_SaveAndGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if got.Backend != BackendPersistent {
-		t.Errorf("Backend = %q, want %q", got.Backend, BackendPersistent)
+	if got.Backend != backend.Persistent {
+		t.Errorf("Backend = %q, want %q", got.Backend, backend.Persistent)
 	}
 	if !got.Detached {
 		t.Error("expected Detached=true")
@@ -240,9 +245,9 @@ func TestInMemorySessionStore_SaveAndGet(t *testing.T) {
 func TestInMemorySessionStore_ListDetached(t *testing.T) {
 	store := NewInMemorySessionStore()
 
-	_ = store.Save(SessionMetadata{ID: "s1", Detached: true, Backend: BackendPersistent})
-	_ = store.Save(SessionMetadata{ID: "s2", Detached: false, Backend: BackendStandard})
-	_ = store.Save(SessionMetadata{ID: "s3", Detached: true, Backend: BackendPersistent})
+	_ = store.Save(SessionMetadata{ID: "s1", Detached: true, Backend: backend.Persistent})
+	_ = store.Save(SessionMetadata{ID: "s2", Detached: false, Backend: backend.Standard})
+	_ = store.Save(SessionMetadata{ID: "s3", Detached: true, Backend: backend.Persistent})
 
 	detached, err := store.ListDetached()
 	if err != nil {
@@ -281,16 +286,16 @@ func TestInMemorySessionStore_UpdatePolicy(t *testing.T) {
 
 	_ = store.Save(SessionMetadata{
 		ID:     "policy-test",
-		Policy: ExpirationPolicy{Mode: PolicyNever},
+		Policy: policy.Policy{Mode: policy.Never},
 	})
 
-	newPolicy := ExpirationPolicy{Mode: PolicyPreset, Duration: "1h"}
+	newPolicy := policy.Policy{Mode: policy.Preset, Duration: "1h"}
 	if err := store.UpdatePolicy("policy-test", newPolicy); err != nil {
 		t.Fatalf("UpdatePolicy: %v", err)
 	}
 
 	got, _ := store.Get("policy-test")
-	if got.Policy.Mode != PolicyPreset || got.Policy.Duration != "1h" {
+	if got.Policy.Mode != policy.Preset || got.Policy.Duration != "1h" {
 		t.Errorf("policy = %+v, want mode=preset duration=1h", got.Policy)
 	}
 }
@@ -304,7 +309,7 @@ func TestSession_ReadLoop_ExitsOnStandardBackend(t *testing.T) {
 	r, w := io.Pipe()
 	sess := &Session{
 		ID:      "std-test",
-		Backend: BackendStandard,
+		Backend: backend.Standard,
 		pty: &fakePTY{
 			stdoutReader: r,
 			stdinWriter:  w,
@@ -336,7 +341,7 @@ func TestSession_ReadLoop_ExitsOnStandardBackend(t *testing.T) {
 // --- Backend Selection in Create Tests ---
 
 func TestSessionManager_Create_DefaultBackend(t *testing.T) {
-	sm := NewSessionManagerWithFactory(func(spec SessionLaunchSpec) (PTY, error) {
+	sm := NewSessionManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	})
 
@@ -353,9 +358,9 @@ func TestSessionManager_Create_DefaultBackend(t *testing.T) {
 }
 
 func TestSessionManager_Create_WithRegistry_UnknownBackend(t *testing.T) {
-	reg := NewBackendRegistry()
-	reg.Register(BackendDescriptor{ID: BackendStandard, Available: true},
-		func(spec SessionLaunchSpec) (PTY, error) {
+	reg := backend.New()
+	reg.Register(backend.Descriptor{ID: backend.Standard, Available: true},
+		func(spec pty.LaunchSpec) (pty.PTY, error) {
 			return newFakePTYWithOutput(), nil
 		})
 
@@ -369,9 +374,9 @@ func TestSessionManager_Create_WithRegistry_UnknownBackend(t *testing.T) {
 }
 
 func TestSessionManager_Create_WithRegistry_UnavailableBackend(t *testing.T) {
-	reg := NewBackendRegistry()
-	reg.Register(BackendDescriptor{
-		ID:        BackendPersistent,
+	reg := backend.New()
+	reg.Register(backend.Descriptor{
+		ID:        backend.Persistent,
 		Available: false,
 		Reason:    "tmux not installed",
 	}, nil)
@@ -379,7 +384,7 @@ func TestSessionManager_Create_WithRegistry_UnavailableBackend(t *testing.T) {
 	sm := NewSessionManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 
-	_, err := sm.Create("", 80, 24, BackendPersistent, nil)
+	_, err := sm.Create("", 80, 24, backend.Persistent, nil)
 	if err == nil {
 		t.Fatal("expected error for unavailable backend")
 	}
@@ -387,12 +392,12 @@ func TestSessionManager_Create_WithRegistry_UnavailableBackend(t *testing.T) {
 
 func TestSessionManager_Create_WithRegistry_PersistsMetadata(t *testing.T) {
 	store := NewInMemorySessionStore()
-	reg := NewBackendRegistry()
-	reg.Register(BackendDescriptor{
-		ID:              BackendPersistent,
+	reg := backend.New()
+	reg.Register(backend.Descriptor{
+		ID:              backend.Persistent,
 		Available:       true,
 		SurvivesRestart: true,
-	}, func(spec SessionLaunchSpec) (PTY, error) {
+	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	})
 
@@ -400,14 +405,14 @@ func TestSessionManager_Create_WithRegistry_PersistsMetadata(t *testing.T) {
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, BackendPersistent, nil)
+	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	defer func() { _ = sm.Delete(sess.ID) }()
 
-	if sess.Backend != BackendPersistent {
-		t.Errorf("Backend = %q, want %q", sess.Backend, BackendPersistent)
+	if sess.Backend != backend.Persistent {
+		t.Errorf("Backend = %q, want %q", sess.Backend, backend.Persistent)
 	}
 
 	// Verify metadata was persisted
@@ -415,8 +420,8 @@ func TestSessionManager_Create_WithRegistry_PersistsMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("store.Get: %v", err)
 	}
-	if meta.Backend != BackendPersistent {
-		t.Errorf("stored Backend = %q, want %q", meta.Backend, BackendPersistent)
+	if meta.Backend != backend.Persistent {
+		t.Errorf("stored Backend = %q, want %q", meta.Backend, backend.Persistent)
 	}
 	if !meta.Detached {
 		t.Error("expected stored Detached=true for persistent backend")
@@ -425,12 +430,12 @@ func TestSessionManager_Create_WithRegistry_PersistsMetadata(t *testing.T) {
 
 func TestSessionManager_Create_StandardBackend_NotDetached(t *testing.T) {
 	store := NewInMemorySessionStore()
-	reg := NewBackendRegistry()
-	reg.Register(BackendDescriptor{
-		ID:              BackendStandard,
+	reg := backend.New()
+	reg.Register(backend.Descriptor{
+		ID:              backend.Standard,
 		Available:       true,
 		SurvivesRestart: false,
-	}, func(spec SessionLaunchSpec) (PTY, error) {
+	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	})
 
@@ -438,7 +443,7 @@ func TestSessionManager_Create_StandardBackend_NotDetached(t *testing.T) {
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, BackendStandard, nil)
+	sess, err := sm.Create("", 80, 24, backend.Standard, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -457,12 +462,12 @@ func TestSessionManager_Create_StandardBackend_NotDetached(t *testing.T) {
 
 func TestSessionManager_Shutdown_PreservesPersistentMetadata(t *testing.T) {
 	store := NewInMemorySessionStore()
-	reg := NewBackendRegistry()
-	reg.Register(BackendDescriptor{
-		ID:              BackendPersistent,
+	reg := backend.New()
+	reg.Register(backend.Descriptor{
+		ID:              backend.Persistent,
 		Available:       true,
 		SurvivesRestart: true,
-	}, func(spec SessionLaunchSpec) (PTY, error) {
+	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	})
 
@@ -470,7 +475,7 @@ func TestSessionManager_Shutdown_PreservesPersistentMetadata(t *testing.T) {
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, BackendPersistent, nil)
+	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -498,11 +503,11 @@ func TestSessionManager_Shutdown_PreservesPersistentMetadata(t *testing.T) {
 
 func TestSessionManager_Shutdown_DeletesStandardMetadata(t *testing.T) {
 	store := NewInMemorySessionStore()
-	reg := NewBackendRegistry()
-	reg.Register(BackendDescriptor{
-		ID:        BackendStandard,
+	reg := backend.New()
+	reg.Register(backend.Descriptor{
+		ID:        backend.Standard,
 		Available: true,
-	}, func(spec SessionLaunchSpec) (PTY, error) {
+	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	})
 
@@ -510,7 +515,7 @@ func TestSessionManager_Shutdown_DeletesStandardMetadata(t *testing.T) {
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, BackendStandard, nil)
+	sess, err := sm.Create("", 80, 24, backend.Standard, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -552,7 +557,7 @@ func TestSession_ReadLoop_RetriesReattachForPersistent(t *testing.T) {
 
 	sess := &Session{
 		ID:      "retry-test",
-		Backend: BackendPersistent,
+		Backend: backend.Persistent,
 		pty: &fakePTY{
 			stdoutReader: r,
 			stdinWriter:  w,
@@ -562,7 +567,7 @@ func TestSession_ReadLoop_RetriesReattachForPersistent(t *testing.T) {
 		ptyReadBuffer:       4096,
 		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
-		reattachFunc: func(sessionName string) (PTY, error) {
+		reattachFunc: func(sessionName string) (pty.PTY, error) {
 			mu.Lock()
 			attempts++
 			n := attempts
@@ -607,7 +612,7 @@ func TestSession_ReadLoop_SkipsRetriesWhenClosing(t *testing.T) {
 
 	sess := &Session{
 		ID:      "closing-test",
-		Backend: BackendPersistent,
+		Backend: backend.Persistent,
 		closing: true, // pre-set as closing
 		pty: &fakePTY{
 			stdoutReader: r,
@@ -618,7 +623,7 @@ func TestSession_ReadLoop_SkipsRetriesWhenClosing(t *testing.T) {
 		ptyReadBuffer:       4096,
 		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
-		reattachFunc: func(sessionName string) (PTY, error) {
+		reattachFunc: func(sessionName string) (pty.PTY, error) {
 			mu.Lock()
 			attempts++
 			mu.Unlock()
@@ -651,7 +656,7 @@ func TestRecover_PreservesSessionOnAttachFailure(t *testing.T) {
 	store := NewInMemorySessionStore()
 	_ = store.Save(SessionMetadata{
 		ID:       "stubborn-session",
-		Backend:  BackendPersistent,
+		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
 		Cols:     80,
 		Rows:     24,
@@ -665,11 +670,11 @@ func TestRecover_PreservesSessionOnAttachFailure(t *testing.T) {
 	sm.tmuxDiscoverFunc = func() ([]string, error) {
 		return []string{"stubborn-session"}, nil
 	}
-	sm.tmuxAttachFunc = func(sessionName string) (PTY, error) {
+	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		return nil, fmt.Errorf("simulated transient failure")
 	}
 
-	report := sm.Recover(store, NewBackendRegistry())
+	report := sm.Recover(store, backend.New())
 
 	// Metadata must be preserved (not deleted)
 	if _, err := store.Get("stubborn-session"); err != nil {
@@ -701,7 +706,7 @@ func TestRecover_RetriesAttachBeforeGivingUp(t *testing.T) {
 	store := NewInMemorySessionStore()
 	_ = store.Save(SessionMetadata{
 		ID:       "retry-recover",
-		Backend:  BackendPersistent,
+		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
 		Cols:     80,
 		Rows:     24,
@@ -717,7 +722,7 @@ func TestRecover_RetriesAttachBeforeGivingUp(t *testing.T) {
 	sm.tmuxDiscoverFunc = func() ([]string, error) {
 		return []string{"retry-recover"}, nil
 	}
-	sm.tmuxAttachFunc = func(sessionName string) (PTY, error) {
+	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		mu.Lock()
 		attempts++
 		n := attempts
@@ -728,7 +733,7 @@ func TestRecover_RetriesAttachBeforeGivingUp(t *testing.T) {
 		return newFakePTYWithOutput(), nil
 	}
 
-	report := sm.Recover(store, NewBackendRegistry())
+	report := sm.Recover(store, backend.New())
 
 	mu.Lock()
 	got := attempts
@@ -750,19 +755,19 @@ func TestRecover_RetriesAttachBeforeGivingUp(t *testing.T) {
 func TestSessionManager_Shutdown_SetsClosingBeforeClose(t *testing.T) {
 	// Verify the contract: Shutdown() must set the closing flag on persistent
 	// sessions BEFORE closing the PTY, so readLoop sees it and skips retries.
-	reg := NewBackendRegistry()
-	reg.Register(BackendDescriptor{
-		ID:              BackendPersistent,
+	reg := backend.New()
+	reg.Register(backend.Descriptor{
+		ID:              backend.Persistent,
 		Available:       true,
 		SurvivesRestart: true,
-	}, func(spec SessionLaunchSpec) (PTY, error) {
+	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	})
 
 	sm := NewSessionManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 
-	sess, err := sm.Create("", 80, 24, BackendPersistent, nil)
+	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -790,7 +795,7 @@ func TestRecoveryMetrics_Emitted(t *testing.T) {
 	store := NewInMemorySessionStore()
 	_ = store.Save(SessionMetadata{
 		ID:       "metrics-test",
-		Backend:  BackendPersistent,
+		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
 		Cols:     80,
 		Rows:     24,
@@ -798,8 +803,8 @@ func TestRecoveryMetrics_Emitted(t *testing.T) {
 		Detached: true,
 	})
 
-	metrics := NewMetrics()
-	events := NewEventLogger(100)
+	metrics := metrics.New()
+	events := events.NewLogger(100)
 
 	sm := NewSessionManagerWithFactory(nil)
 	sm.SetMetrics(metrics)
@@ -807,11 +812,11 @@ func TestRecoveryMetrics_Emitted(t *testing.T) {
 	sm.tmuxDiscoverFunc = func() ([]string, error) {
 		return []string{"metrics-test"}, nil
 	}
-	sm.tmuxAttachFunc = func(sessionName string) (PTY, error) {
+	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	}
 
-	report := sm.Recover(store, NewBackendRegistry())
+	report := sm.Recover(store, backend.New())
 
 	if report.Recovered != 1 {
 		t.Fatalf("Recovered = %d, want 1", report.Recovered)
@@ -838,22 +843,22 @@ func TestRecoveryMetrics_Emitted(t *testing.T) {
 
 func TestBackendRegistry_ResolveAutoBackend(t *testing.T) {
 	t.Run("persistent available", func(t *testing.T) {
-		reg := NewBackendRegistry()
-		reg.Register(BackendDescriptor{ID: BackendStandard, Available: true}, nil)
-		reg.Register(BackendDescriptor{ID: BackendPersistent, Available: true}, nil)
+		reg := backend.New()
+		reg.Register(backend.Descriptor{ID: backend.Standard, Available: true}, nil)
+		reg.Register(backend.Descriptor{ID: backend.Persistent, Available: true}, nil)
 
-		if got := reg.ResolveAutoBackend(); got != BackendPersistent {
-			t.Errorf("ResolveAutoBackend() = %q, want %q", got, BackendPersistent)
+		if got := reg.ResolveAuto(); got != backend.Persistent {
+			t.Errorf("ResolveAutoBackend() = %q, want %q", got, backend.Persistent)
 		}
 	})
 
 	t.Run("persistent unavailable", func(t *testing.T) {
-		reg := NewBackendRegistry()
-		reg.Register(BackendDescriptor{ID: BackendStandard, Available: true}, nil)
-		reg.Register(BackendDescriptor{ID: BackendPersistent, Available: false, Reason: "tmux not installed"}, nil)
+		reg := backend.New()
+		reg.Register(backend.Descriptor{ID: backend.Standard, Available: true}, nil)
+		reg.Register(backend.Descriptor{ID: backend.Persistent, Available: false, Reason: "tmux not installed"}, nil)
 
-		if got := reg.ResolveAutoBackend(); got != BackendStandard {
-			t.Errorf("ResolveAutoBackend() = %q, want %q", got, BackendStandard)
+		if got := reg.ResolveAuto(); got != backend.Standard {
+			t.Errorf("ResolveAutoBackend() = %q, want %q", got, backend.Standard)
 		}
 	})
 }
@@ -870,12 +875,12 @@ func TestAutoRemove_PreservesMetadata_PersistentSession_NormalOperation(t *testi
 	// then be killed on the next startup. The fix: always preserve
 	// persistent session metadata.
 	store := NewInMemorySessionStore()
-	reg := NewBackendRegistry()
-	reg.Register(BackendDescriptor{
-		ID:              BackendPersistent,
+	reg := backend.New()
+	reg.Register(backend.Descriptor{
+		ID:              backend.Persistent,
 		Available:       true,
 		SurvivesRestart: true,
-	}, func(spec SessionLaunchSpec) (PTY, error) {
+	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	})
 
@@ -883,7 +888,7 @@ func TestAutoRemove_PreservesMetadata_PersistentSession_NormalOperation(t *testi
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, BackendPersistent, nil)
+	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -924,11 +929,11 @@ func TestAutoRemove_DeletesMetadata_StandardSession_NormalOperation(t *testing.T
 	// Standard sessions should still have their metadata deleted when
 	// the readLoop exits, since they cannot be recovered.
 	store := NewInMemorySessionStore()
-	reg := NewBackendRegistry()
-	reg.Register(BackendDescriptor{
-		ID:        BackendStandard,
+	reg := backend.New()
+	reg.Register(backend.Descriptor{
+		ID:        backend.Standard,
 		Available: true,
-	}, func(spec SessionLaunchSpec) (PTY, error) {
+	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	})
 
@@ -936,7 +941,7 @@ func TestAutoRemove_DeletesMetadata_StandardSession_NormalOperation(t *testing.T
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, BackendStandard, nil)
+	sess, err := sm.Create("", 80, 24, backend.Standard, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -974,18 +979,18 @@ func TestReattachWatchdog_RecoversOrphanedSession(t *testing.T) {
 	store := NewInMemorySessionStore()
 	_ = store.Save(SessionMetadata{
 		ID:       "watchdog-test",
-		Backend:  BackendPersistent,
+		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
 		Cols:     80,
 		Rows:     24,
-		Policy:   ExpirationPolicy{Mode: PolicyNever},
+		Policy:   policy.Policy{Mode: policy.Never},
 		Created:  time.Now(),
 		Detached: true,
 	})
 
 	sm := NewSessionManagerWithFactory(nil)
 	sm.SetStore(store)
-	sm.tmuxAttachFunc = func(sessionName string) (PTY, error) {
+	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	}
 
@@ -997,8 +1002,8 @@ func TestReattachWatchdog_RecoversOrphanedSession(t *testing.T) {
 	if !ok {
 		t.Fatal("watchdog did not re-attach the orphaned session")
 	}
-	if sess.Backend != BackendPersistent {
-		t.Errorf("Backend = %q, want %q", sess.Backend, BackendPersistent)
+	if sess.Backend != backend.Persistent {
+		t.Errorf("Backend = %q, want %q", sess.Backend, backend.Persistent)
 	}
 	if !sess.recovered {
 		t.Error("expected recovered=true on re-attached session")
@@ -1014,7 +1019,7 @@ func TestReattachWatchdog_CleansUpWhenTmuxGone(t *testing.T) {
 	store := NewInMemorySessionStore()
 	_ = store.Save(SessionMetadata{
 		ID:       "gone-session",
-		Backend:  BackendPersistent,
+		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
 		Cols:     80,
 		Rows:     24,
@@ -1024,7 +1029,7 @@ func TestReattachWatchdog_CleansUpWhenTmuxGone(t *testing.T) {
 
 	sm := NewSessionManagerWithFactory(nil)
 	sm.SetStore(store)
-	sm.tmuxAttachFunc = func(sessionName string) (PTY, error) {
+	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		return nil, fmt.Errorf("tmux session gone")
 	}
 
@@ -1045,12 +1050,12 @@ func TestReattachWatchdog_SkipsActiveSession(t *testing.T) {
 	// When a session is already in the active map, the watchdog should
 	// skip it (not create a duplicate).
 	store := NewInMemorySessionStore()
-	reg := NewBackendRegistry()
-	reg.Register(BackendDescriptor{
-		ID:              BackendPersistent,
+	reg := backend.New()
+	reg.Register(backend.Descriptor{
+		ID:              backend.Persistent,
 		Available:       true,
 		SurvivesRestart: true,
-	}, func(spec SessionLaunchSpec) (PTY, error) {
+	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	})
 
@@ -1059,13 +1064,13 @@ func TestReattachWatchdog_SkipsActiveSession(t *testing.T) {
 	sm.SetStore(store)
 
 	attachCalls := 0
-	sm.tmuxAttachFunc = func(sessionName string) (PTY, error) {
+	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		attachCalls++
 		return newFakePTYWithOutput(), nil
 	}
 
 	// Create an active session
-	sess, err := sm.Create("", 80, 24, BackendPersistent, nil)
+	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -1086,7 +1091,7 @@ func TestReattachWatchdog_SkipsDuringShutdown(t *testing.T) {
 	store := NewInMemorySessionStore()
 	_ = store.Save(SessionMetadata{
 		ID:       "shutdown-skip",
-		Backend:  BackendPersistent,
+		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
 		Cols:     80,
 		Rows:     24,
@@ -1096,7 +1101,7 @@ func TestReattachWatchdog_SkipsDuringShutdown(t *testing.T) {
 
 	sm := NewSessionManagerWithFactory(nil)
 	sm.SetStore(store)
-	sm.tmuxAttachFunc = func(sessionName string) (PTY, error) {
+	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		t.Error("tmuxAttach should not be called during shutdown")
 		return newFakePTYWithOutput(), nil
 	}
@@ -1129,14 +1134,14 @@ func TestSession_ReadLoop_ClosesOldPTY_OnReattach(t *testing.T) {
 
 	sess := &Session{
 		ID:                  "fd-leak-test",
-		Backend:             BackendPersistent,
+		Backend:             backend.Persistent,
 		pty:                 oldPTY,
 		clients:             make(map[chan []byte]*ClientInfo),
 		exitCh:              make(chan struct{}),
 		ptyReadBuffer:       4096,
 		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
-		reattachFunc: func(sessionName string) (PTY, error) {
+		reattachFunc: func(sessionName string) (pty.PTY, error) {
 			// Return a new PTY that blocks on read
 			blockR, _ := io.Pipe()
 			return &fakePTY{stdoutReader: blockR}, nil

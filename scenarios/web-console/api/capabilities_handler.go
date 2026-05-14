@@ -6,6 +6,7 @@ import (
 	"time"
 
 	capabilitiesH "web-console/handlers/capabilities"
+	"web-console/internal/backend"
 )
 
 // capabilitiesAdapter bridges the in-process CapabilityRegistry +
@@ -64,7 +65,7 @@ func capsToTransport(in []CapabilityState) []capabilitiesH.CapabilityState {
 	return out
 }
 
-func backendsToTransport(in []BackendDescriptor) []capabilitiesH.BackendOption {
+func backendsToTransport(in []backend.Descriptor) []capabilitiesH.BackendOption {
 	out := make([]capabilitiesH.BackendOption, len(in))
 	for i, b := range in {
 		out[i] = capabilitiesH.BackendOption{

@@ -5,7 +5,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
+
+	"web-console/internal/config"
+	"web-console/internal/policy"
 )
 
 // Tests for extracted decision helpers and boundary conditions.
@@ -99,7 +101,7 @@ func TestIsSessionLimitReached_AtLimit(t *testing.T) {
 func TestResolveShell_WCDefaultShellTakesPriority(t *testing.T) {
 	t.Setenv("WC_DEFAULT_SHELL", "/usr/bin/fish")
 	t.Setenv("SHELL", "/bin/bash")
-	got := resolveShell()
+	got := config.ResolveShell()
 	if got != "/usr/bin/fish" {
 		t.Errorf("WC_DEFAULT_SHELL should win, got %s", got)
 	}
@@ -108,7 +110,7 @@ func TestResolveShell_WCDefaultShellTakesPriority(t *testing.T) {
 func TestResolveShell_FallsBackToSHELL(t *testing.T) {
 	t.Setenv("WC_DEFAULT_SHELL", "")
 	t.Setenv("SHELL", "/bin/zsh")
-	got := resolveShell()
+	got := config.ResolveShell()
 	if got != "/bin/zsh" {
 		t.Errorf("should fall back to $SHELL, got %s", got)
 	}
@@ -117,7 +119,7 @@ func TestResolveShell_FallsBackToSHELL(t *testing.T) {
 func TestResolveShell_FallsBackToBinSh(t *testing.T) {
 	t.Setenv("WC_DEFAULT_SHELL", "")
 	t.Setenv("SHELL", "")
-	got := resolveShell()
+	got := config.ResolveShell()
 	if got != "/bin/sh" {
 		t.Errorf("should fall back to /bin/sh, got %s", got)
 	}
@@ -196,25 +198,12 @@ func TestCustomDurationBoundaries(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := ExpirationPolicy{Mode: PolicyCustom, Duration: tt.dur}
-			err := ValidatePolicy(p)
+			p := policy.Policy{Mode: policy.Custom, Duration: tt.dur}
+			err := policy.Validate(p)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidatePolicy(%q) error=%v, wantErr=%v", tt.dur, err, tt.wantErr)
+				t.Errorf("policy.Validate(%q) error=%v, wantErr=%v", tt.dur, err, tt.wantErr)
 			}
 		})
-	}
-}
-
-// Verify custom duration constants are internally consistent
-func TestCustomDurationConstants(t *testing.T) {
-	if customDurationMin >= customDurationMax {
-		t.Errorf("min (%s) should be less than max (%s)", customDurationMin, customDurationMax)
-	}
-	if customDurationMin != time.Minute {
-		t.Errorf("customDurationMin should be 1m, got %s", customDurationMin)
-	}
-	if customDurationMax != 7*24*time.Hour {
-		t.Errorf("customDurationMax should be 168h, got %s", customDurationMax)
 	}
 }
 

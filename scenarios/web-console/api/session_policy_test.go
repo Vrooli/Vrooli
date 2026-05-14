@@ -5,30 +5,34 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+
+	"web-console/internal/events"
+	"web-console/internal/metrics"
+	"web-console/internal/policy"
 )
 
 // --- Policy validation tests ---
 
 // [REQ:P1-001a] Expiration Policy Engine — validation
 func TestValidatePolicy_Never(t *testing.T) {
-	p := ExpirationPolicy{Mode: PolicyNever}
-	if err := ValidatePolicy(p); err != nil {
+	p := policy.Policy{Mode: policy.Never}
+	if err := policy.Validate(p); err != nil {
 		t.Errorf("never policy should be valid: %v", err)
 	}
 }
 
 func TestValidatePolicy_PresetValid(t *testing.T) {
 	for _, dur := range []string{"1h", "8h", "24h"} {
-		p := ExpirationPolicy{Mode: PolicyPreset, Duration: dur}
-		if err := ValidatePolicy(p); err != nil {
+		p := policy.Policy{Mode: policy.Preset, Duration: dur}
+		if err := policy.Validate(p); err != nil {
 			t.Errorf("preset %s should be valid: %v", dur, err)
 		}
 	}
 }
 
 func TestValidatePolicy_PresetInvalid(t *testing.T) {
-	p := ExpirationPolicy{Mode: PolicyPreset, Duration: "2h"}
-	if err := ValidatePolicy(p); err == nil {
+	p := policy.Policy{Mode: policy.Preset, Duration: "2h"}
+	if err := policy.Validate(p); err == nil {
 		t.Error("preset 2h should be invalid")
 	}
 }
@@ -36,8 +40,8 @@ func TestValidatePolicy_PresetInvalid(t *testing.T) {
 func TestValidatePolicy_CustomValid(t *testing.T) {
 	valid := []string{"1m", "30m", "2h", "168h"}
 	for _, dur := range valid {
-		p := ExpirationPolicy{Mode: PolicyCustom, Duration: dur}
-		if err := ValidatePolicy(p); err != nil {
+		p := policy.Policy{Mode: policy.Custom, Duration: dur}
+		if err := policy.Validate(p); err != nil {
 			t.Errorf("custom %s should be valid: %v", dur, err)
 		}
 	}
@@ -55,8 +59,8 @@ func TestValidatePolicy_CustomInvalid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := ExpirationPolicy{Mode: PolicyCustom, Duration: tt.duration}
-			if err := ValidatePolicy(p); err == nil {
+			p := policy.Policy{Mode: policy.Custom, Duration: tt.duration}
+			if err := policy.Validate(p); err == nil {
 				t.Errorf("custom %q should be invalid", tt.duration)
 			}
 		})
@@ -64,8 +68,8 @@ func TestValidatePolicy_CustomInvalid(t *testing.T) {
 }
 
 func TestValidatePolicy_InvalidMode(t *testing.T) {
-	p := ExpirationPolicy{Mode: "bad"}
-	if err := ValidatePolicy(p); err == nil {
+	p := policy.Policy{Mode: "bad"}
+	if err := policy.Validate(p); err == nil {
 		t.Error("invalid mode should fail")
 	}
 }
@@ -76,18 +80,18 @@ func TestValidatePolicy_InvalidMode(t *testing.T) {
 func TestResolveTTL(t *testing.T) {
 	tests := []struct {
 		name     string
-		policy   ExpirationPolicy
+		policy   policy.Policy
 		expected time.Duration
 	}{
-		{"never", ExpirationPolicy{Mode: PolicyNever}, 0},
-		{"preset 1h", ExpirationPolicy{Mode: PolicyPreset, Duration: "1h"}, time.Hour},
-		{"preset 8h", ExpirationPolicy{Mode: PolicyPreset, Duration: "8h"}, 8 * time.Hour},
-		{"preset 24h", ExpirationPolicy{Mode: PolicyPreset, Duration: "24h"}, 24 * time.Hour},
-		{"custom 30m", ExpirationPolicy{Mode: PolicyCustom, Duration: "30m"}, 30 * time.Minute},
+		{"never", policy.Policy{Mode: policy.Never}, 0},
+		{"preset 1h", policy.Policy{Mode: policy.Preset, Duration: "1h"}, time.Hour},
+		{"preset 8h", policy.Policy{Mode: policy.Preset, Duration: "8h"}, 8 * time.Hour},
+		{"preset 24h", policy.Policy{Mode: policy.Preset, Duration: "24h"}, 24 * time.Hour},
+		{"custom 30m", policy.Policy{Mode: policy.Custom, Duration: "30m"}, 30 * time.Minute},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ResolveTTL(tt.policy)
+			got := policy.ResolveTTL(tt.policy)
 			if got != tt.expected {
 				t.Errorf("expected %v, got %v", tt.expected, got)
 			}
@@ -104,18 +108,18 @@ func TestIsExpired(t *testing.T) {
 	tests := []struct {
 		name      string
 		createdAt time.Time
-		policy    ExpirationPolicy
+		policy    policy.Policy
 		expired   bool
 	}{
-		{"never policy", now.Add(-100 * time.Hour), ExpirationPolicy{Mode: PolicyNever}, false},
-		{"preset not expired", now.Add(-30 * time.Minute), ExpirationPolicy{Mode: PolicyPreset, Duration: "1h"}, false},
-		{"preset expired", now.Add(-2 * time.Hour), ExpirationPolicy{Mode: PolicyPreset, Duration: "1h"}, true},
-		{"custom not expired", now.Add(-10 * time.Minute), ExpirationPolicy{Mode: PolicyCustom, Duration: "30m"}, false},
-		{"custom expired", now.Add(-40 * time.Minute), ExpirationPolicy{Mode: PolicyCustom, Duration: "30m"}, true},
+		{"never policy", now.Add(-100 * time.Hour), policy.Policy{Mode: policy.Never}, false},
+		{"preset not expired", now.Add(-30 * time.Minute), policy.Policy{Mode: policy.Preset, Duration: "1h"}, false},
+		{"preset expired", now.Add(-2 * time.Hour), policy.Policy{Mode: policy.Preset, Duration: "1h"}, true},
+		{"custom not expired", now.Add(-10 * time.Minute), policy.Policy{Mode: policy.Custom, Duration: "30m"}, false},
+		{"custom expired", now.Add(-40 * time.Minute), policy.Policy{Mode: policy.Custom, Duration: "30m"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsExpired(tt.createdAt, tt.policy)
+			got := policy.IsExpired(tt.createdAt, tt.policy)
 			if got != tt.expired {
 				t.Errorf("expected expired=%v, got %v", tt.expired, got)
 			}
@@ -125,12 +129,12 @@ func TestIsExpired(t *testing.T) {
 
 // [REQ:P1-001a] Policy evaluation performance (<10ms)
 func TestIsExpired_Performance(t *testing.T) {
-	policy := ExpirationPolicy{Mode: PolicyPreset, Duration: "1h"}
+	pol := policy.Policy{Mode: policy.Preset, Duration: "1h"}
 	created := time.Now().Add(-30 * time.Minute)
 
 	start := time.Now()
 	for i := 0; i < 10000; i++ {
-		IsExpired(created, policy)
+		policy.IsExpired(created, pol)
 	}
 	elapsed := time.Since(start)
 
@@ -153,14 +157,14 @@ func TestSession_GetSetPolicy(t *testing.T) {
 
 	// Default policy is never
 	p := sess.GetPolicy()
-	if p.Mode != PolicyNever {
+	if p.Mode != policy.Never {
 		t.Errorf("default policy should be never, got %s", p.Mode)
 	}
 
 	// Set a preset policy
-	sess.SetPolicy(ExpirationPolicy{Mode: PolicyPreset, Duration: "1h"})
+	sess.SetPolicy(policy.Policy{Mode: policy.Preset, Duration: "1h"})
 	p = sess.GetPolicy()
-	if p.Mode != PolicyPreset || p.Duration != "1h" {
+	if p.Mode != policy.Preset || p.Duration != "1h" {
 		t.Errorf("expected preset/1h, got %s/%s", p.Mode, p.Duration)
 	}
 }
@@ -180,7 +184,7 @@ func TestHandleGetPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPolicy: %v", err)
 	}
-	if view.GetPolicy().GetMode() != string(PolicyNever) {
+	if view.GetPolicy().GetMode() != string(policy.Never) {
 		t.Errorf("default should be never, got %s", view.GetPolicy().GetMode())
 	}
 	if view.GetHasExpiry() {
@@ -209,7 +213,7 @@ func TestHandleUpdatePolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdatePolicy: %v", err)
 	}
-	if view.GetPolicy().GetMode() != string(PolicyPreset) || view.GetPolicy().GetDuration() != "8h" {
+	if view.GetPolicy().GetMode() != string(policy.Preset) || view.GetPolicy().GetDuration() != "8h" {
 		t.Errorf("expected preset/8h, got %s/%s", view.GetPolicy().GetMode(), view.GetPolicy().GetDuration())
 	}
 	if !view.GetHasExpiry() {
@@ -250,7 +254,7 @@ func TestSessionResponse_IncludesPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if sess.GetPolicy().GetMode() != string(PolicyNever) {
+	if sess.GetPolicy().GetMode() != string(policy.Never) {
 		t.Errorf("new session should have never policy, got %s", sess.GetPolicy().GetMode())
 	}
 	_ = srv.sessions.Delete(sess.GetId())
@@ -271,8 +275,8 @@ func TestErrorCatalog_InvalidPolicy(t *testing.T) {
 
 func TestExpirationSweeper_RemovesExpiredSessions(t *testing.T) {
 	sm := NewSessionManagerWithFactory(newFakePTYFactory())
-	events := NewEventLogger(100)
-	metrics := NewMetrics()
+	events := events.NewLogger(100)
+	metrics := metrics.New()
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -280,7 +284,7 @@ func TestExpirationSweeper_RemovesExpiredSessions(t *testing.T) {
 	}
 
 	// Set a very short TTL and backdate creation
-	sess.SetPolicy(ExpirationPolicy{Mode: PolicyCustom, Duration: "1m"})
+	sess.SetPolicy(policy.Policy{Mode: policy.Custom, Duration: "1m"})
 	sess.mu.Lock()
 	sess.CreatedAt = time.Now().Add(-2 * time.Minute) // 2 minutes ago
 	sess.mu.Unlock()
@@ -296,8 +300,8 @@ func TestExpirationSweeper_RemovesExpiredSessions(t *testing.T) {
 
 func TestExpirationSweeper_KeepsNonExpiredSessions(t *testing.T) {
 	sm := NewSessionManagerWithFactory(newFakePTYFactory())
-	events := NewEventLogger(100)
-	metrics := NewMetrics()
+	events := events.NewLogger(100)
+	metrics := metrics.New()
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -318,8 +322,8 @@ func TestExpirationSweeper_KeepsNonExpiredSessions(t *testing.T) {
 // [REQ:P1-001a] Sweeper Start() is idempotent — calling twice does not start two goroutines
 func TestExpirationSweeper_StartIdempotent(t *testing.T) {
 	sm := NewSessionManagerWithFactory(newFakePTYFactory())
-	events := NewEventLogger(100)
-	metrics := NewMetrics()
+	events := events.NewLogger(100)
+	metrics := metrics.New()
 
 	sweeper := NewExpirationSweeper(sm, events, metrics)
 	sweeper.interval = 50 * time.Millisecond
@@ -350,8 +354,8 @@ func TestExpirationSweeper_StartIdempotent(t *testing.T) {
 // [REQ:P1-001a] Sweeper loop actually fires and removes expired sessions end-to-end
 func TestExpirationSweeper_LoopFiresAndRemoves(t *testing.T) {
 	sm := NewSessionManagerWithFactory(newFakePTYFactory())
-	events := NewEventLogger(100)
-	metrics := NewMetrics()
+	events := events.NewLogger(100)
+	metrics := metrics.New()
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -359,7 +363,7 @@ func TestExpirationSweeper_LoopFiresAndRemoves(t *testing.T) {
 	}
 
 	// Set a very short TTL and backdate creation
-	sess.SetPolicy(ExpirationPolicy{Mode: PolicyCustom, Duration: "1m"})
+	sess.SetPolicy(policy.Policy{Mode: policy.Custom, Duration: "1m"})
 	sess.mu.Lock()
 	sess.CreatedAt = time.Now().Add(-2 * time.Minute)
 	sess.mu.Unlock()
@@ -390,8 +394,8 @@ func TestExpirationSweeper_LoopFiresAndRemoves(t *testing.T) {
 
 // Verify the default policy mode on new sessions
 func TestDefaultPolicy(t *testing.T) {
-	p := DefaultPolicy()
-	if p.Mode != PolicyNever {
+	p := policy.Default()
+	if p.Mode != policy.Never {
 		t.Errorf("default policy should be never, got %s", p.Mode)
 	}
 	if p.Duration != "" {

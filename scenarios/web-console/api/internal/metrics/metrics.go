@@ -1,12 +1,18 @@
-package main
+// Package metrics owns the in-process operational counter struct for the
+// web-console API. Production wires a single *Metrics into server.Deps;
+// observers (readLoop, session lifecycle, AI/voice paths) increment counters
+// in place. The HTTP/Connect surface lives in handlers/metrics, which depends
+// on this package through a narrow Service interface — see
+// handlers/metrics/module.go.
+//
+// DOC: docs/concepts/ARCHITECTURE.md#observability
+// [REQ:P1-004b] Operational Metrics Collection
+package metrics
 
 import (
 	"sync/atomic"
 	"time"
 )
-
-// DOC: docs/concepts/ARCHITECTURE.md#observability
-// [REQ:P1-004b] Operational Metrics Collection
 
 // Metrics tracks operational counters for the web-console API.
 // All fields use atomic operations for lock-free concurrent access.
@@ -60,15 +66,17 @@ type Metrics struct {
 	StartTime time.Time
 }
 
-// NewMetrics creates a new metrics collector.
-func NewMetrics() *Metrics {
+// New creates a new metrics collector.
+func New() *Metrics {
 	return &Metrics{
 		StartTime: time.Now(),
 	}
 }
 
-// MetricsResponse is the JSON shape returned by the /api/v1/metrics endpoint.
-type MetricsResponse struct {
+// Response is the JSON-shaped point-in-time snapshot returned by Snapshot.
+// Mirrors the proto MetricsService.Get response, but lives here so server-side
+// adapters can produce it without crossing the package main boundary.
+type Response struct {
 	Sessions                   SessionMetrics    `json:"sessions"`
 	Connections                ConnectionMetrics `json:"connections"`
 	Messages                   MessageMetrics    `json:"messages"`
@@ -118,8 +126,8 @@ type RecoveryMetrics struct {
 }
 
 // Snapshot returns a point-in-time view of all metrics.
-func (m *Metrics) Snapshot() MetricsResponse {
-	return MetricsResponse{
+func (m *Metrics) Snapshot() Response {
+	return Response{
 		Sessions: SessionMetrics{
 			Created: m.SessionsCreated.Load(),
 			Deleted: m.SessionsDeleted.Load(),
@@ -153,5 +161,3 @@ func (m *Metrics) Snapshot() MetricsResponse {
 		Uptime:                     time.Since(m.StartTime).Truncate(time.Second).String(),
 	}
 }
-
-// The /api/v1/metrics HTTP surface lives in handlers/metrics.

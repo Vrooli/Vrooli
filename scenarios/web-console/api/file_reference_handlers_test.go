@@ -12,6 +12,9 @@ import (
 	"github.com/gorilla/mux"
 
 	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
+
+	"web-console/internal/events"
+	"web-console/internal/metrics"
 )
 
 func TestSplitFileReferenceLine(t *testing.T) {
@@ -96,8 +99,8 @@ func TestConnect_ResolveFileReference_ProjectRootRelative(t *testing.T) {
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    NewSessionManagerWithFactory(fakePTYFactory(fake)),
-		events:      NewEventLogger(100),
-		metrics:     NewMetrics(),
+		events:      events.NewLogger(100),
+		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
@@ -141,8 +144,8 @@ func TestConnect_ResolveFileReference_SessionCwdPreferred(t *testing.T) {
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    NewSessionManagerWithFactory(fakePTYFactory(fake)),
-		events:      NewEventLogger(100),
-		metrics:     NewMetrics(),
+		events:      events.NewLogger(100),
+		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),

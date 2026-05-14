@@ -18,6 +18,9 @@ package main
 import (
 	"sync"
 	"time"
+
+	"web-console/internal/backend"
+	"web-console/internal/policy"
 )
 
 // idempotencyEntry caches the result of a session creation keyed by
@@ -96,16 +99,16 @@ func normalizeAgentType(s string) AgentType {
 // idempotency cache and tests. The on-wire shape is now defined by the
 // SessionsService proto.
 type SessionResponse struct {
-	ID              string           `json:"id"`
-	Shell           string           `json:"shell"`
-	CreatedAt       string           `json:"created_at"`
-	Cols            int              `json:"cols"`
-	Rows            int              `json:"rows"`
-	Backend         BackendID        `json:"backend"`
-	SurvivesRestart bool             `json:"survives_restart"`
-	Policy          ExpirationPolicy `json:"policy"`
-	Busy            bool             `json:"busy"`
-	Recovered       bool             `json:"recovered,omitempty"`
+	ID              string        `json:"id"`
+	Shell           string        `json:"shell"`
+	CreatedAt       string        `json:"created_at"`
+	Cols            int           `json:"cols"`
+	Rows            int           `json:"rows"`
+	Backend         backend.ID    `json:"backend"`
+	SurvivesRestart bool          `json:"survives_restart"`
+	Policy          policy.Policy `json:"policy"`
+	Busy            bool          `json:"busy"`
+	Recovered       bool          `json:"recovered,omitempty"`
 }
 
 // sessionToResponse converts an internal Session to the historical JSON
@@ -118,7 +121,7 @@ func sessionToResponse(s *Session) SessionResponse {
 		Cols:            int(s.Cols),
 		Rows:            int(s.Rows),
 		Backend:         s.Backend,
-		SurvivesRestart: s.Backend == BackendPersistent,
+		SurvivesRestart: s.Backend == backend.Persistent,
 		Policy:          s.GetPolicy(),
 		Busy:            s.HasChildProcess(),
 		Recovered:       s.recovered,

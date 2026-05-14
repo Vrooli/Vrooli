@@ -17,6 +17,8 @@ package main
 import (
 	"fmt"
 	"time"
+
+	"web-console/internal/backend"
 )
 
 // pendingBufferMax is the maximum bytes of coalesced output retained
@@ -152,7 +154,7 @@ const altBufferSettleWindow = 5 * time.Second
 // buffer, on the persistent (tmux) backend, or within the cooldown
 // window. Must be called with s.mu held.
 func (s *Session) maybeSIGWINCHRecovery() {
-	if s.Backend == BackendPersistent {
+	if s.Backend == backend.Persistent {
 		return
 	}
 	if s.inAltBuffer {

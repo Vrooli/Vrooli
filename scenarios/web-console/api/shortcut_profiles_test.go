@@ -7,8 +7,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	shortcutsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shortcuts"
 	shortcutsH "web-console/handlers/shortcuts"
+
+	shortcutsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shortcuts"
 )
 
 // [REQ:P1-002a] Shortcut Profile Storage - store tests

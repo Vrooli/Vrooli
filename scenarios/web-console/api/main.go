@@ -31,6 +31,7 @@ import (
 	eventsH "web-console/handlers/events"
 	hooksH "web-console/handlers/hooks"
 	metricsH "web-console/handlers/metrics"
+
 	sessionsH "web-console/handlers/sessions"
 	settingsH "web-console/handlers/settings"
 	shortcutsH "web-console/handlers/shortcuts"
@@ -38,6 +39,10 @@ import (
 	ttsH "web-console/handlers/tts"
 	voiceH "web-console/handlers/voice"
 	workspaceH "web-console/handlers/workspace"
+	"web-console/internal/backend"
+	"web-console/internal/config"
+	"web-console/internal/events"
+	"web-console/internal/metrics"
 )
 
 // initSchema runs the idempotent schema and seed SQL against the database.
@@ -104,9 +109,9 @@ type Server struct {
 	db                            *sql.DB
 	router                        *mux.Router
 	sessions                      *SessionManager
-	events                        *EventLogger
-	metrics                       *Metrics
-	backendRegistry               *BackendRegistry
+	events                        *events.Logger
+	metrics                       *metrics.Metrics
+	backendRegistry               *backend.Registry
 	sessionStore                  SessionMetadataStore
 	aiChain                       *AIProviderChain
 	shortcuts                     ShortcutStore
@@ -239,8 +244,8 @@ func NewServer(db *sql.DB) *Server {
 	// Generate or load hook auth token for TTS hook validation
 	hookToken := loadOrCreateHookToken(resolveHookTokenPath())
 
-	events := NewEventLogger(1000)
-	metrics := NewMetrics()
+	eventLog := events.NewLogger(1000)
+	metrics := metrics.New()
 	sessions := NewSessionManager()
 
 	// Initialize backend registry and session metadata store
@@ -249,12 +254,12 @@ func NewServer(db *sql.DB) *Server {
 	sessions.SetRegistry(backendRegistry)
 	sessions.SetStore(sessionStore)
 	sessions.SetMetrics(metrics)
-	sessions.SetEvents(events)
+	sessions.SetEvents(eventLog)
 
 	// Resolve "auto" default backend now that the registry knows tmux availability.
 	if sessions.GetConfig().DefaultBackend == "auto" {
-		resolved := backendRegistry.ResolveAutoBackend()
-		sessions.SetConfigField(func(cfg *Config) { cfg.DefaultBackend = string(resolved) })
+		resolved := backendRegistry.ResolveAuto()
+		sessions.SetConfigField(func(cfg *config.Config) { cfg.DefaultBackend = string(resolved) })
 		log.Printf("default-backend: resolved 'auto' -> %q", resolved)
 	}
 
@@ -267,14 +272,14 @@ func NewServer(db *sql.DB) *Server {
 		db:                            db,
 		router:                        mux.NewRouter(),
 		sessions:                      sessions,
-		events:                        events,
+		events:                        eventLog,
 		metrics:                       metrics,
 		backendRegistry:               backendRegistry,
 		sessionStore:                  sessionStore,
 		aiChain:                       NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
 		shortcuts:                     NewSQLShortcutStore(db),
 		aiConfig:                      NewSQLAIConfigStore(db),
-		sweeper:                       NewExpirationSweeper(sessions, events, metrics),
+		sweeper:                       NewExpirationSweeper(sessions, eventLog, metrics),
 		idempotency:                   newIdempotencyCache(),
 		workspace:                     NewSQLWorkspaceStore(db),
 		voiceConfig:                   vc,

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"web-console/internal/backend"
+	"web-console/internal/policy"
 )
 
 // SessionStatus is the lifecycle status of a session row. Only Recover() and
@@ -32,11 +35,11 @@ const (
 // SessionMetadata holds persisted session state for restart recovery.
 type SessionMetadata struct {
 	ID       string
-	Backend  BackendID
+	Backend  backend.ID
 	Shell    string
 	Cols     uint16
 	Rows     uint16
-	Policy   ExpirationPolicy
+	Policy   policy.Policy
 	Created  time.Time
 	Detached bool // true if session uses a backend that survives restart
 
@@ -80,7 +83,7 @@ type SessionMetadataStore interface {
 	Get(id string) (SessionMetadata, error)
 	List() ([]SessionMetadata, error)
 	Delete(id string) error
-	UpdatePolicy(id string, policy ExpirationPolicy) error
+	UpdatePolicy(id string, pol policy.Policy) error
 	ListDetached() ([]SessionMetadata, error)
 
 	// Phase 1 additions:
@@ -187,9 +190,9 @@ func (s *SQLSessionStore) Delete(id string) error {
 	return err
 }
 
-func (s *SQLSessionStore) UpdatePolicy(id string, policy ExpirationPolicy) error {
+func (s *SQLSessionStore) UpdatePolicy(id string, pol policy.Policy) error {
 	_, err := s.db.Exec(`UPDATE sessions SET policy_mode = ?, policy_duration = ? WHERE id = ?`,
-		string(policy.Mode), policy.Duration, id)
+		string(pol.Mode), pol.Duration, id)
 	return err
 }
 
@@ -312,14 +315,14 @@ type scannable interface {
 func scanSessionMetadata(row scannable) (SessionMetadata, error) {
 	var meta SessionMetadata
 	var (
-		backend, policyMode, createdStr string
-		status, agentType               string
-		lastActivity, orphanedAt        string
-		policyDurationPtr               *string
-		detached                        int
+		backendID, policyMode, createdStr string
+		status, agentType                 string
+		lastActivity, orphanedAt          string
+		policyDurationPtr                 *string
+		detached                          int
 	)
 	err := row.Scan(
-		&meta.ID, &backend, &meta.Shell, &meta.Cols, &meta.Rows,
+		&meta.ID, &backendID, &meta.Shell, &meta.Cols, &meta.Rows,
 		&policyMode, &policyDurationPtr, &createdStr, &detached,
 		&status, &agentType, &meta.LaunchCommand, &meta.AgentSessionID,
 		&meta.CWD, &meta.LastRolloutPath,
@@ -328,8 +331,8 @@ func scanSessionMetadata(row scannable) (SessionMetadata, error) {
 	if err != nil {
 		return meta, fmt.Errorf("scan session metadata: %w", err)
 	}
-	meta.Backend = BackendID(backend)
-	meta.Policy.Mode = PolicyMode(policyMode)
+	meta.Backend = backend.ID(backendID)
+	meta.Policy.Mode = policy.Mode(policyMode)
 	if policyDurationPtr != nil {
 		meta.Policy.Duration = *policyDurationPtr
 	}
@@ -439,14 +442,14 @@ func (s *InMemorySessionStore) Delete(id string) error {
 	return nil
 }
 
-func (s *InMemorySessionStore) UpdatePolicy(id string, policy ExpirationPolicy) error {
+func (s *InMemorySessionStore) UpdatePolicy(id string, pol policy.Policy) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
 	if !ok {
 		return fmt.Errorf("session %s not found", id)
 	}
-	meta.Policy = policy
+	meta.Policy = pol
 	s.sessions[id] = meta
 	return nil
 }

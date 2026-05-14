@@ -9,6 +9,8 @@ import (
 	"connectrpc.com/connect"
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
+
+	"web-console/internal/backend"
 )
 
 // newRecoveryTestServer wires the in-memory store + fake PTY factory so the
@@ -27,7 +29,7 @@ func saveOrphan(t *testing.T, srv *Server, id string, agent AgentType, agentSess
 	t.Helper()
 	if err := srv.sessionStore.Save(SessionMetadata{
 		ID:             id,
-		Backend:        BackendPersistent,
+		Backend:        backend.Persistent,
 		Shell:          "/bin/bash",
 		Cols:           120,
 		Rows:           36,
@@ -141,7 +143,7 @@ func TestHandleRecover_RejectsLiveSession(t *testing.T) {
 	srv := newRecoveryTestServer(t)
 	if err := srv.sessionStore.Save(SessionMetadata{
 		ID:        "live-id",
-		Backend:   BackendPersistent,
+		Backend:   backend.Persistent,
 		Shell:     "/bin/bash",
 		Cols:      80,
 		Rows:      24,

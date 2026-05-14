@@ -25,16 +25,16 @@ func readUISource(t *testing.T, rel string) string {
 // bypass counter is surfaced on the /metrics JSON so operators can monitor
 // bypass volume without reading logs.
 func TestGreenfield_VoiceSkipVerificationCounterExposed(t *testing.T) {
-	data, err := os.ReadFile("metrics.go")
+	data, err := os.ReadFile("internal/metrics/metrics.go")
 	if err != nil {
-		t.Fatalf("read metrics.go: %v", err)
+		t.Fatalf("read internal/metrics/metrics.go: %v", err)
 	}
 	src := string(data)
 	if !strings.Contains(src, "VoiceSkipVerificationTotal") {
-		t.Error("metrics.go: VoiceSkipVerificationTotal field missing from Metrics struct")
+		t.Error("internal/metrics/metrics.go: VoiceSkipVerificationTotal field missing from Metrics struct")
 	}
 	if !strings.Contains(src, `"voice_skip_verification_total"`) {
-		t.Error("metrics.go: voice_skip_verification_total JSON tag missing from MetricsResponse")
+		t.Error("internal/metrics/metrics.go: voice_skip_verification_total JSON tag missing from Response")
 	}
 }
 

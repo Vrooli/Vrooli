@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
+	"web-console/internal/events"
 
 	"github.com/gorilla/websocket"
 )
@@ -64,7 +65,7 @@ const (
 )
 
 // StdinKind values discriminate keystroke input from paste payloads on
-// the wire. Must stay in sync with the UI's InputKind / TerminalMessage
+// the wire. Must stay in sync with the UI's pty.InputKind / TerminalMessage
 // kind field.
 const (
 	StdinKindKeystroke = "keystroke"
@@ -157,11 +158,11 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	// [REQ:P1-004a] Emit connection event
-	s.events.Emit(EventSessionConnected, sessionID, nil)
+	s.events.Emit(events.SessionConnected, sessionID, nil)
 	s.metrics.ConnectionsTotal.Add(1)
 	s.metrics.ActiveConnections.Add(1)
 	defer func() {
-		s.events.Emit(EventSessionDisconnected, sessionID, nil)
+		s.events.Emit(events.SessionDisconnected, sessionID, nil)
 		s.metrics.ActiveConnections.Add(-1)
 	}()
 

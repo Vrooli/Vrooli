@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"testing"
+	"web-console/internal/pty"
 )
 
 // --- tmuxPTY closed-state guard tests ---
@@ -12,7 +13,7 @@ import (
 func TestTmuxPTY_ReadAfterClose(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-read-after-close",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -42,7 +43,7 @@ func TestTmuxPTY_ReadAfterClose(t *testing.T) {
 func TestTmuxPTY_WriteAfterClose(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-write-after-close",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -61,7 +62,7 @@ func TestTmuxPTY_WriteAfterClose(t *testing.T) {
 	}
 
 	// WriteInput should return errPTYClosed, not panic
-	err = p.WriteInput([]byte("hello"), InputKindKeystroke)
+	err = p.WriteInput([]byte("hello"), pty.KindKeystroke)
 	if err != errPTYClosed {
 		t.Errorf("WriteInput after Close: got err=%v, want errPTYClosed", err)
 	}
@@ -70,7 +71,7 @@ func TestTmuxPTY_WriteAfterClose(t *testing.T) {
 func TestTmuxPTY_SetSizeAfterClose(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-setsize-after-close",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -98,7 +99,7 @@ func TestTmuxPTY_SetSizeAfterClose(t *testing.T) {
 func TestTmuxPTY_CloseIdempotent(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-close-idempotent",
 		Shell:     "/bin/sh",
 		Cols:      80,

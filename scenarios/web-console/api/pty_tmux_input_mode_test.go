@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"web-console/internal/pty"
 )
 
 // TestTmuxPTY_InCopyMode_InputReachesPane is the regression
@@ -17,7 +18,7 @@ import (
 // resumed reaching the pane (producing the "Ctrl+C unblocks it"
 // behavior the user observed).
 //
-// WriteInput(..., InputKindKeystroke) routes through
+// WriteInput(..., pty.KindKeystroke) routes through
 // `tmux send-keys -t <session> -l --`. The `-l` (literal) flag tells
 // tmux to deliver the bytes to the pane's stdin regardless of client
 // mode. This test asserts that: after entering copy-mode, both a
@@ -25,7 +26,7 @@ import (
 func TestTmuxPTY_InCopyMode_InputReachesPane(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-copy-mode-input",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -67,7 +68,7 @@ func TestTmuxPTY_InCopyMode_InputReachesPane(t *testing.T) {
 	// shell runs it.
 	const marker = "COPY_MODE_MARKER_ae3f71"
 	cmd := []byte("echo " + marker + "\n")
-	if err := p.WriteInput(cmd, InputKindKeystroke); err != nil {
+	if err := p.WriteInput(cmd, pty.KindKeystroke); err != nil {
 		t.Fatalf("WriteInput keystroke in copy-mode: %v", err)
 	}
 
@@ -86,7 +87,7 @@ func TestTmuxPTY_InCopyMode_InputReachesPane(t *testing.T) {
 	}
 	const pasteMarker = "PASTE_MARKER_ae3f71"
 	paste := []byte("echo " + pasteMarker + "\n")
-	if err := p.WriteInput(paste, InputKindPaste); err != nil {
+	if err := p.WriteInput(paste, pty.KindPaste); err != nil {
 		t.Fatalf("WriteInput paste in copy-mode: %v", err)
 	}
 	if !waitForPaneContent(t, sessionName, pasteMarker, 3*time.Second) {
@@ -124,7 +125,7 @@ func waitForPaneContent(t *testing.T, sessionName, want string, within time.Dura
 func TestTmuxPTY_WriteInput_LargeKeystroke_NoError(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-large-keystroke",
 		Shell:     "/bin/sh",
 		Cols:      200,
@@ -146,7 +147,7 @@ func TestTmuxPTY_WriteInput_LargeKeystroke_NoError(t *testing.T) {
 	// deliverKeystroke, triggering the paste-buffer fallback.
 	const payloadBytes = 200 * 1024
 	payload := bytes.Repeat([]byte("a"), payloadBytes)
-	if err := p.WriteInput(payload, InputKindKeystroke); err != nil {
+	if err := p.WriteInput(payload, pty.KindKeystroke); err != nil {
 		t.Fatalf("WriteInput 200 KB keystroke: %v", err)
 	}
 
@@ -206,7 +207,7 @@ func TestIsMouseTrackingSequence(t *testing.T) {
 func TestTmuxPTY_MouseWheelPreservesCopyMode(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-mouse-copy-mode",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -243,7 +244,7 @@ func TestTmuxPTY_MouseWheelPreservesCopyMode(t *testing.T) {
 	// flows directly to the tmux client via the attach PTY master
 	// and copy-mode is preserved.
 	wheelUp := []byte{0x1b, '[', '<', '6', '4', ';', '1', ';', '1', 'M'}
-	if err := p.WriteInput(wheelUp, InputKindKeystroke); err != nil {
+	if err := p.WriteInput(wheelUp, pty.KindKeystroke); err != nil {
 		t.Fatalf("WriteInput wheel-up: %v", err)
 	}
 
@@ -264,7 +265,7 @@ func TestTmuxPTY_MouseWheelPreservesCopyMode(t *testing.T) {
 func TestTmuxPTY_Paste_CleansUpBuffer(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-paste-buffer-cleanup",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -282,7 +283,7 @@ func TestTmuxPTY_Paste_CleansUpBuffer(t *testing.T) {
 
 	// Send three pastes in a row.
 	for i := 0; i < 3; i++ {
-		if err := p.WriteInput([]byte("echo ok\n"), InputKindPaste); err != nil {
+		if err := p.WriteInput([]byte("echo ok\n"), pty.KindPaste); err != nil {
 			t.Fatalf("paste %d: %v", i, err)
 		}
 	}

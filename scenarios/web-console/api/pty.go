@@ -10,78 +10,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/creack/pty/v2"
+	creackpty "github.com/creack/pty/v2"
+
+	"web-console/internal/config"
+	"web-console/internal/pty"
 )
-
-// InputKind discriminates keystroke input (one or more bytes originating
-// from the xterm keyboard / toolbar) from pasted input (a clipboard
-// payload, which may be large and may include control bytes that a
-// mode-sensitive multiplexer must not interpret as navigation commands).
-//
-// For the standard PTY the distinction is cosmetic: both paths end at
-// the same `ptmx.Write`. For the tmux-backed PTY the distinction is
-// load-bearing: keystrokes route through `tmux send-keys -l --` so tmux
-// delivers them literally to the pane regardless of whether the client
-// is in copy-mode / command-prompt / menu / prefix-pending, and pastes
-// route through `tmux load-buffer` + `paste-buffer -d` which auto-exits
-// copy-mode and atomically delivers the payload without byte-by-byte
-// mode interpretation.
-type InputKind uint8
-
-const (
-	// InputKindKeystroke is the default for ordinary terminal input.
-	InputKindKeystroke InputKind = iota
-	// InputKindPaste is used for clipboard paste payloads originating
-	// from the context menu, native paste capture, or touch long-press
-	// paste. Tmux routes these through paste-buffer.
-	InputKindPaste
-)
-
-// DOC: docs/internal/SEAMS.md#pty-factory-seam-api
-// PTY represents a pseudo-terminal process with read/write, resize, and
-// lifecycle control. The default implementation wraps creack/pty; tests can
-// substitute a pipe-based fake via PTYFactory.
-type PTY interface {
-	Read(p []byte) (int, error)
-	// WriteInput delivers client-origin bytes to the underlying process.
-	// The kind parameter selects the delivery mechanism: see InputKind.
-	// Returns a typed error on failure (backend-specific); callers map
-	// the error to a stdin_ack.reason.
-	WriteInput(data []byte, kind InputKind) error
-	SetSize(cols, rows uint16) error
-	Close() error
-	Kill() error
-	// ExitCode waits for the process to finish and returns its exit code.
-	// Call only after Read returns an error (process exited). Returns -1 if
-	// the exit code cannot be determined.
-	ExitCode() int
-	// HasChildProcess reports whether the shell process has any child
-	// processes running (e.g. a script, interactive program, etc.).
-	HasChildProcess() bool
-	// ProbeReady blocks until the PTY pipeline is confirmed to be accepting
-	// writes that will reach the underlying process. For synchronous
-	// backends (realPTY) this is a no-op; for async backends (tmuxPTY)
-	// this waits for the attach-session handshake to complete.
-	ProbeReady(ctx context.Context) error
-	// CurrentDir returns the PTY process's current working directory when it
-	// can be determined. Backends may fall back to their launch directory when
-	// live cwd discovery is unavailable.
-	CurrentDir(ctx context.Context) (string, error)
-}
-
-// SessionLaunchSpec contains the environment and execution parameters for a
-// newly created terminal session.
-type SessionLaunchSpec struct {
-	SessionID string
-	Shell     string
-	Cols      uint16
-	Rows      uint16
-	Env       map[string]string
-}
-
-// PTYFactory creates a PTY-backed process for the given launch spec.
-// Inject a custom factory into SessionManager for testing without real processes.
-type PTYFactory func(spec SessionLaunchSpec) (PTY, error)
 
 // realPTY wraps a creack/pty process.
 type realPTY struct {
@@ -94,14 +27,14 @@ func (p *realPTY) Read(buf []byte) (int, error) { return p.ptmx.Read(buf) }
 // WriteInput writes bytes directly to the PTY master. For the standard
 // (non-tmux) backend, keystroke and paste are indistinguishable at the
 // kernel level — they end up in the same pipe either way.
-func (p *realPTY) WriteInput(data []byte, _ InputKind) error {
+func (p *realPTY) WriteInput(data []byte, _ pty.InputKind) error {
 	_, err := p.ptmx.Write(data)
 	return err
 }
 func (p *realPTY) Close() error { return p.ptmx.Close() }
 
 func (p *realPTY) SetSize(cols, rows uint16) error {
-	return pty.Setsize(p.ptmx, &pty.Winsize{Rows: rows, Cols: cols})
+	return creackpty.Setsize(p.ptmx, &creackpty.Winsize{Rows: rows, Cols: cols})
 }
 
 func (p *realPTY) Kill() error {
@@ -128,9 +61,9 @@ func (p *realPTY) ProbeReady(_ context.Context) error { return nil }
 
 func (p *realPTY) CurrentDir(_ context.Context) (string, error) {
 	if p.cmd == nil || p.cmd.Process == nil {
-		cwd, err := filepath.Abs(resolveWorkingDir())
+		cwd, err := filepath.Abs(config.ResolveWorkingDir())
 		if err != nil {
-			return resolveWorkingDir(), nil
+			return config.ResolveWorkingDir(), nil
 		}
 		return cwd, nil
 	}
@@ -139,9 +72,9 @@ func (p *realPTY) CurrentDir(_ context.Context) (string, error) {
 	if err == nil && cwd != "" {
 		return filepath.Clean(cwd), nil
 	}
-	fallback, absErr := filepath.Abs(resolveWorkingDir())
+	fallback, absErr := filepath.Abs(config.ResolveWorkingDir())
 	if absErr != nil {
-		return resolveWorkingDir(), nil
+		return config.ResolveWorkingDir(), nil
 	}
 	return fallback, nil
 }
@@ -159,14 +92,14 @@ func (p *realPTY) HasChildProcess() bool {
 }
 
 // defaultPTYFactory starts a real shell process with a PTY.
-func defaultPTYFactory(spec SessionLaunchSpec) (PTY, error) {
+func defaultPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	cmd := exec.Command(spec.Shell)
 	// Filter Claude Code env vars first, then ensure TERM is set.
 	// This prevents nested session detection when users run `claude` in
 	// web-console terminals, even if the server was started from Claude Code.
 	cmd.Env = applySessionEnv(ensureTermEnv(filterServiceEnv(filterClaudeEnv(os.Environ()))), spec.Env)
-	cmd.Dir = resolveWorkingDir()
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: spec.Rows, Cols: spec.Cols})
+	cmd.Dir = config.ResolveWorkingDir()
+	ptmx, err := creackpty.StartWithSize(cmd, &creackpty.Winsize{Rows: spec.Rows, Cols: spec.Cols})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start PTY: %w", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	aiH "web-console/handlers/ai"
+	"web-console/internal/events"
 )
 
 // DOC: docs/concepts/ARCHITECTURE.md#ai-command-generation
@@ -79,7 +80,7 @@ func (a *aiAdapter) Generate(ctx context.Context, prompt, terminalContext string
 		return "", "", err
 	}
 	command := extractCommand(raw)
-	a.srv.events.Emit(EventAIGenerate, "", map[string]string{
+	a.srv.events.Emit(events.AIGenerate, "", map[string]string{
 		"provider": provider,
 		"prompt":   prompt,
 	})
@@ -97,7 +98,7 @@ func (a *aiAdapter) Suggest(ctx context.Context, prompt, terminalContext string)
 		return nil, "", err
 	}
 	commands := extractCommands(raw)
-	a.srv.events.Emit(EventAISuggest, "", map[string]string{
+	a.srv.events.Emit(events.AISuggest, "", map[string]string{
 		"provider": provider,
 		"prompt":   prompt,
 		"count":    fmt.Sprintf("%d", len(commands)),

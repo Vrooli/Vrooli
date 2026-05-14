@@ -7,8 +7,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/workspace"
 	workspaceH "web-console/handlers/workspace"
+
+	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/workspace"
 )
 
 // Workspace Connect-handler tests. The adapter in workspace_handlers.go

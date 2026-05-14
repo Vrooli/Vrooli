@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"web-console/internal/config"
 )
 
 const maxFilePreviewBytes int64 = 256 * 1024
@@ -52,9 +54,9 @@ func (s *Server) resolveFileReference(ctx context.Context, sess *Session, rawPat
 		return nil, newFileReferenceError("file_reference_invalid", "Referenced path is empty")
 	}
 
-	projectRoot, err := filepath.Abs(resolveWorkingDir())
+	projectRoot, err := filepath.Abs(config.ResolveWorkingDir())
 	if err != nil {
-		projectRoot = filepath.Clean(resolveWorkingDir())
+		projectRoot = filepath.Clean(config.ResolveWorkingDir())
 	}
 
 	liveCwd, cwdErr := sess.CurrentDir(ctx)
@@ -163,7 +165,7 @@ func normalizeFileReferencePath(raw string) (string, *int, error) {
 
 // stripWrappers removes surrounding backticks, ASCII/curly quotes, and matched
 // bracket-like wrappers that agents sometimes include around a path in prose
-// (`` `path` ``, "path", 'path', <path>, [path]). Only trims when the same
+// (“ `path` “, "path", 'path', <path>, [path]). Only trims when the same
 // character (or its match) appears on both ends so we don't eat real path
 // content.
 func stripWrappers(s string) string {

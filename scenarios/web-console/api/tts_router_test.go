@@ -5,14 +5,17 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"web-console/internal/events"
+	"web-console/internal/metrics"
 )
 
 func newTTSTestServer() *Server {
 	return &Server{
 		router:          mux.NewRouter(),
 		sessions:        NewSessionManagerWithFactory(newFakePTYFactory()),
-		events:          NewEventLogger(100),
-		metrics:         NewMetrics(),
+		events:          events.NewLogger(100),
+		metrics:         metrics.New(),
 		workspace:       NewMemWorkspaceStore(),
 		conversations:   NewConversationStore(),
 		lastTTSBySource: make(map[string]conversationAppendSnapshot),

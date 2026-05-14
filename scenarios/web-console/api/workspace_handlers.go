@@ -7,6 +7,7 @@ import (
 	"log"
 
 	workspaceH "web-console/handlers/workspace"
+	"web-console/internal/events"
 )
 
 // workspaceAdapter implements workspaceH.Service over the existing
@@ -36,7 +37,7 @@ func (a *workspaceAdapter) SaveLayout(activePane string, paneOrder []string) err
 	if err := a.srv.workspace.SavePaneOrder(activePane, paneOrder); err != nil {
 		return err
 	}
-	a.srv.events.Emit(EventWorkspaceLayoutUpdated, "", map[string]string{
+	a.srv.events.Emit(events.WorkspaceLayoutUpdated, "", map[string]string{
 		"active_pane": activePane,
 	})
 	return nil
@@ -93,7 +94,7 @@ func (a *workspaceAdapter) UpdatePane(req workspaceH.UpdatePaneRequest) (workspa
 		return workspaceH.Pane{}, err
 	}
 
-	a.srv.events.Emit(EventPaneUpdated, req.SessionID, map[string]string{
+	a.srv.events.Emit(events.PaneUpdated, req.SessionID, map[string]string{
 		"name": pane.Name,
 	})
 
@@ -111,7 +112,7 @@ func (a *workspaceAdapter) CreateGroup(name, color string) (workspaceH.Group, er
 	if err != nil {
 		return workspaceH.Group{}, err
 	}
-	a.srv.events.Emit(EventTabGroupCreated, "", map[string]string{
+	a.srv.events.Emit(events.TabGroupCreated, "", map[string]string{
 		"group_id": g.ID,
 		"name":     g.Name,
 	})
@@ -138,7 +139,7 @@ func (a *workspaceAdapter) UpdateGroup(req workspaceH.UpdateGroupRequest) (works
 		}
 		return workspaceH.Group{}, err
 	}
-	a.srv.events.Emit(EventTabGroupUpdated, "", map[string]string{
+	a.srv.events.Emit(events.TabGroupUpdated, "", map[string]string{
 		"group_id": g.ID,
 		"name":     g.Name,
 	})
@@ -151,7 +152,7 @@ func (a *workspaceAdapter) DeleteGroup(id string) {
 		log.Printf("workspace.DeleteGroup: %v", err)
 	}
 	if removed {
-		a.srv.events.Emit(EventTabGroupDeleted, "", map[string]string{
+		a.srv.events.Emit(events.TabGroupDeleted, "", map[string]string{
 			"group_id": id,
 		})
 	}

@@ -7,7 +7,7 @@ import (
 	eventsH "web-console/handlers/events"
 )
 
-// eventsAdapter bridges the in-process *EventLogger to
+// eventsAdapter bridges the in-process *events.Logger to
 // handlers/events.Service so the Connect handler can be mounted from
 // main without crossing a package boundary the wrong way.
 type eventsAdapter struct {

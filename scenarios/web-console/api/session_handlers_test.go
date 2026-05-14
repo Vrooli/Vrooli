@@ -14,6 +14,10 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 
+	"web-console/internal/events"
+	"web-console/internal/metrics"
+	"web-console/internal/pty"
+
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 )
 
@@ -23,8 +27,8 @@ func newTestServer() *Server {
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    NewSessionManager(),
-		events:      NewEventLogger(100),
-		metrics:     NewMetrics(),
+		events:      events.NewLogger(100),
+		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
@@ -43,8 +47,8 @@ func newFakeTestServer() *Server {
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    NewSessionManagerWithFactory(newFakePTYFactory()),
-		events:      NewEventLogger(100),
-		metrics:     NewMetrics(),
+		events:      events.NewLogger(100),
+		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
@@ -93,14 +97,14 @@ func TestHandleCreateSession_SessionLimit(t *testing.T) {
 }
 
 func TestHandleCreateSession_PTYSpawnFailed(t *testing.T) {
-	failingFactory := func(spec SessionLaunchSpec) (PTY, error) {
+	failingFactory := func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return nil, fmt.Errorf("shell not found: %s", spec.Shell)
 	}
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    NewSessionManagerWithFactory(failingFactory),
-		events:      NewEventLogger(10),
-		metrics:     NewMetrics(),
+		events:      events.NewLogger(10),
+		metrics:     metrics.New(),
 		idempotency: newIdempotencyCache(),
 	}
 

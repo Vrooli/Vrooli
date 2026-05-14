@@ -6,16 +6,17 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"web-console/internal/pty"
 )
 
 // TestBuildTmuxNewSessionArgs_InjectsSessionEnv locks in the invariant
-// that attribution env vars from SessionLaunchSpec.Env are rendered as
+// that attribution env vars from pty.LaunchSpec.Env are rendered as
 // `-e KEY=VAL` flags on `tmux new-session`. Without this, panes in
 // later sessions on a long-lived tmux server inherit the server's
 // frozen env (first session's WC_WEB_CONSOLE_SESSION_ID) and mid-session
 // `claude`/`codex` invocations get mis-attributed.
 func TestBuildTmuxNewSessionArgs_InjectsSessionEnv(t *testing.T) {
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "sess-b",
 		Shell:     "/bin/sh",
 		Cols:      120,
@@ -44,7 +45,7 @@ func TestBuildTmuxNewSessionArgs_InjectsSessionEnv(t *testing.T) {
 }
 
 func TestBuildTmuxNewSessionArgs_NoEnvIsUnchanged(t *testing.T) {
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "sess-empty",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -74,7 +75,7 @@ func TestBuildTmuxNewSessionArgs_NoEnvIsUnchanged(t *testing.T) {
 func TestTmuxPTYFactory_PropagatesSessionEnvIntoPane(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-env-propagation",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -120,7 +121,7 @@ func TestTmuxPTYFactory_PropagatesSessionEnvIntoPane(t *testing.T) {
 func TestTmuxPTYFactory_EnablesMouseMode(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-mouse-mode",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -154,7 +155,7 @@ func TestTmuxPTYFactory_EnablesMouseMode(t *testing.T) {
 func TestTmuxPTYFactory_SetsHistoryLimit(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-history-limit",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -191,7 +192,7 @@ func TestTmuxPTYFactory_UsesResolvedWorkingDir(t *testing.T) {
 	t.Setenv("PROJECT_ROOT", "")
 	t.Setenv("SCENARIO_DIR", "")
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-working-dir",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -225,7 +226,7 @@ func TestTmuxPTYFactory_UsesResolvedWorkingDir(t *testing.T) {
 func TestTmuxPTY_ProbeReady_HappyPath(t *testing.T) {
 	requireIsolatedTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-probe-ready",
 		Shell:     "/bin/sh",
 		Cols:      80,

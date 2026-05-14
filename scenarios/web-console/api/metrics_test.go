@@ -6,14 +6,18 @@ import (
 
 	"connectrpc.com/connect"
 
-	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics"
 	metricsH "web-console/handlers/metrics"
+
+	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics"
+
+	"web-console/internal/events"
+	"web-console/internal/metrics"
 )
 
 // [REQ:P1-004b] Operational Metrics Collection - metrics tests
 
 func TestMetrics_Snapshot_Defaults(t *testing.T) {
-	m := NewMetrics()
+	m := metrics.New()
 	snap := m.Snapshot()
 
 	if snap.Sessions.Created != 0 {
@@ -34,7 +38,7 @@ func TestMetrics_Snapshot_Defaults(t *testing.T) {
 }
 
 func TestMetrics_Snapshot_AfterOperations(t *testing.T) {
-	m := NewMetrics()
+	m := metrics.New()
 
 	m.SessionsCreated.Add(3)
 	m.SessionsDeleted.Add(1)
@@ -74,7 +78,7 @@ func TestMetrics_Snapshot_AfterOperations(t *testing.T) {
 }
 
 func TestMetrics_AtomicConcurrency(t *testing.T) {
-	m := NewMetrics()
+	m := metrics.New()
 	done := make(chan struct{})
 
 	for i := 0; i < 100; i++ {
@@ -129,7 +133,7 @@ func TestMetricsService_Get(t *testing.T) {
 
 // [REQ:P1-004b] Verify metrics overhead is negligible (<1ms per operation)
 func TestMetrics_PerformanceOverhead(t *testing.T) {
-	m := NewMetrics()
+	m := metrics.New()
 
 	start := testing.Benchmark(func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -154,10 +158,10 @@ func TestHandleCreateSession_EmitsEvent(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	events := srv.events.Recent(10)
+	evts := srv.events.Recent(10)
 	found := false
-	for _, evt := range events {
-		if evt.Type == EventSessionCreated {
+	for _, evt := range evts {
+		if evt.Type == events.SessionCreated {
 			found = true
 			if evt.Details["shell"] == "" {
 				t.Error("expected shell detail in session.created event")
@@ -194,10 +198,10 @@ func TestHandleDeleteSession_EmitsEvent(t *testing.T) {
 		t.Fatalf("delete: %v", err)
 	}
 
-	events := srv.events.Recent(10)
+	evts := srv.events.Recent(10)
 	found := false
-	for _, evt := range events {
-		if evt.Type == EventSessionDeleted && evt.SessionID == sess.ID {
+	for _, evt := range evts {
+		if evt.Type == events.SessionDeleted && evt.SessionID == sess.ID {
 			found = true
 			break
 		}

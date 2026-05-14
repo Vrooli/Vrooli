@@ -11,6 +11,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+
+	"web-console/internal/events"
+	"web-console/internal/metrics"
 )
 
 // wsURL converts an httptest.Server URL to a WebSocket URL.
@@ -64,8 +67,8 @@ func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 	deadSrv := &Server{
 		router:    mux.NewRouter(),
 		sessions:  sm,
-		events:    NewEventLogger(100),
-		metrics:   NewMetrics(),
+		events:    events.NewLogger(100),
+		metrics:   metrics.New(),
 		aiChain:   NewAIProviderChain(),
 		shortcuts: NewShortcutProfileStore(),
 		aiConfig:  NewAIProviderConfigStore(),
@@ -476,8 +479,8 @@ func setupWSServerWithPTY(t *testing.T) (*httptest.Server, string, *fakePTYWithO
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    sm,
-		events:      NewEventLogger(100),
-		metrics:     NewMetrics(),
+		events:      events.NewLogger(100),
+		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),

@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"web-console/internal/events"
+	"web-console/internal/metrics"
 )
 
 // TestCodexTailer_AttributesMidSessionRolloutToCorrectSession verifies that
@@ -32,8 +35,8 @@ func TestCodexTailer_AttributesMidSessionRolloutToCorrectSession(t *testing.T) {
 		router:        mux.NewRouter(),
 		sessions:      NewSessionManagerWithFactory(newFakePTYFactory()),
 		conversations: NewConversationStore(),
-		events:        NewEventLogger(100),
-		metrics:       NewMetrics(),
+		events:        events.NewLogger(100),
+		metrics:       metrics.New(),
 	}
 
 	sessA, err := srv.sessions.Create("", 80, 24, "", nil)

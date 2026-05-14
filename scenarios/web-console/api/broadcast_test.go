@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"web-console/internal/backend"
 	"web-console/terminal"
 )
 
@@ -153,7 +154,7 @@ func TestSIGWINCH_GatedByRecentAltTransition(t *testing.T) {
 // sessions never fire SIGWINCH recovery.
 func TestSIGWINCH_SkippedOnPersistentBackend(t *testing.T) {
 	s := newBroadcastSession(1)
-	s.Backend = BackendPersistent
+	s.Backend = backend.Persistent
 	before := s.lastSIGWINCHRecovery
 	s.mu.Lock()
 	s.maybeSIGWINCHRecovery()

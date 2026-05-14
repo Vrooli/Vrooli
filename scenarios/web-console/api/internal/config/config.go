@@ -1,4 +1,7 @@
-package main
+// Package config holds the web-console API's tunable levers.
+//
+// DOC: docs/reference/configuration.md#api-levers-environment-variables
+package config
 
 import (
 	"fmt"
@@ -7,7 +10,6 @@ import (
 	"strconv"
 )
 
-// DOC: docs/reference/configuration.md#api-levers-environment-variables
 // Config holds all tunable levers for the web-console API.
 // Each field maps to an environment variable with a sane default.
 // See docs/reference/configuration.md for full documentation.
@@ -19,13 +21,10 @@ type Config struct {
 	TerminalScrollbackLines int
 
 	// PTYReadBuffer is the byte size of the buffer used to read PTY output.
-	// Larger values reduce syscall overhead for high-throughput terminals;
-	// smaller values reduce per-session memory.
 	// Env: WC_PTY_READ_BUFFER | Default: 4096 | Range: 512–65536
 	PTYReadBuffer int
 
 	// WSBufferSize is the read and write buffer size for WebSocket connections.
-	// Larger buffers improve throughput for terminals with heavy output.
 	// Env: WC_WS_BUFFER_SIZE | Default: 4096 | Range: 512–65536
 	WSBufferSize int
 
@@ -42,50 +41,35 @@ type Config struct {
 	DefaultRows uint16
 
 	// DefaultShell is the shell binary to launch when no shell is requested.
-	// Falls back to $SHELL, then /bin/sh.
 	// Env: WC_DEFAULT_SHELL | Default: $SHELL or /bin/sh
 	DefaultShell string
 
 	// MaxSessions is the maximum number of concurrent PTY sessions allowed.
-	// Zero means unlimited. This is a safety guardrail to prevent resource
-	// exhaustion on constrained systems.
+	// Zero means unlimited.
 	// Env: WC_MAX_SESSIONS | Default: 0 (unlimited) | Range: 0–1000
 	MaxSessions int
 
 	// ClientChannelBuffer is the capacity of the per-client output channel.
-	// Higher values absorb output bursts from fast-producing PTYs before
-	// frame coalescing kicks in. With coalescing, frames are merged into a
-	// per-client pending buffer rather than dropped. When the pending
-	// buffer exceeds pendingBufferMax (broadcast.go), the oldest data is
-	// truncated; the next snapshot replay restores correct state.
 	// Env: WC_CLIENT_CHANNEL_BUFFER | Default: 256 | Range: 8–1024
 	ClientChannelBuffer int
 
 	// CoalesceNotifyThreshold is the number of coalesced output frames per
-	// client before a sync_warning notification is sent via the WebSocket.
-	// Lower values alert the user sooner; higher values reduce noise.
+	// client before a sync_warning notification is sent.
 	// Env: WC_COALESCE_NOTIFY_THRESHOLD | Default: 5 | Range: 1–1000
 	CoalesceNotifyThreshold int
 
 	// SIGWINCHCooldownMs is the minimum interval in milliseconds between
-	// SIGWINCH-based coalesce-trim recoveries per session. A cooldown
-	// prevents rapid trim events from storming the TUI with SIGWINCH
-	// while it is redrawing. The recovery path is also suppressed entirely
-	// while the PTY is in the alternate screen buffer; the cooldown only
-	// applies outside alt-buffer mode.
+	// SIGWINCH-based coalesce-trim recoveries per session.
 	// Env: WC_SIGWINCH_COOLDOWN_MS | Default: 1000 | Range: 0–30000
 	SIGWINCHCooldownMs int
 
 	// DefaultCWD is the working directory used for newly spawned shell sessions.
-	// Fallback chain:
-	//   WC_DEFAULT_CWD -> PROJECT_ROOT -> SCENARIO_DIR -> inferred scenario dir -> current process cwd
 	// Env: WC_DEFAULT_CWD | Default: derived from environment/runtime
 	DefaultCWD string
 
 	// DefaultBackend is the session backend used when the client does not
 	// specify one. "standard" uses a raw PTY; "persistent" uses tmux;
-	// "auto" (the default) resolves to "persistent" when tmux is available,
-	// falling back to "standard" otherwise. Resolved at server startup.
+	// "auto" (the default) resolves to "persistent" when tmux is available.
 	// CROSS-LANGUAGE COUPLING: Must match BackendID constants in backend_registry.go.
 	// Env: WC_DEFAULT_BACKEND | Default: "auto"
 	DefaultBackend string
@@ -100,8 +84,8 @@ type Config struct {
 	DefaultPolicyDuration string
 }
 
-// DefaultConfig returns the default configuration with all sane defaults.
-func DefaultConfig() Config {
+// Default returns the default configuration with all sane defaults.
+func Default() Config {
 	return Config{
 		TerminalScrollbackLines: 10_000,
 		PTYReadBuffer:           4096,
@@ -120,10 +104,10 @@ func DefaultConfig() Config {
 	}
 }
 
-// LoadConfig reads configuration from environment variables, falling back
-// to DefaultConfig values for anything not set or invalid.
-func LoadConfig() Config {
-	cfg := DefaultConfig()
+// Load reads configuration from environment variables, falling back
+// to Default() values for anything not set or invalid.
+func Load() Config {
+	cfg := Default()
 
 	cfg.TerminalScrollbackLines = envInt("WC_TERMINAL_SCROLLBACK_LINES", cfg.TerminalScrollbackLines, 100, 100_000)
 	cfg.PTYReadBuffer = envInt("WC_PTY_READ_BUFFER", cfg.PTYReadBuffer, 512, 65536)
@@ -151,12 +135,17 @@ func LoadConfig() Config {
 	return cfg
 }
 
-// resolveShell determines which shell binary to use. The full fallback chain
-// (from highest to lowest priority) is:
+// ResolveWorkingDir is the exported entry point for callers outside this
+// package that need the same working-directory resolution logic.
+func ResolveWorkingDir() string { return resolveWorkingDir() }
+
+// ResolveShell is the exported entry point for callers that need the same
+// shell-resolution logic.
+func ResolveShell() string { return resolveShell() }
+
+// resolveShell determines which shell binary to use:
 //
 //	WC_DEFAULT_SHELL  →  $SHELL  →  /bin/sh
-//
-// This is the single place where the "which shell to launch?" decision is made.
 func resolveShell() string {
 	if v := os.Getenv("WC_DEFAULT_SHELL"); v != "" {
 		return v
@@ -179,7 +168,6 @@ func inferScenarioDirFromWD(wd string) string {
 	if wd == "" {
 		return ""
 	}
-
 	cleaned := filepath.Clean(wd)
 	if filepath.Base(cleaned) == "api" {
 		parent := filepath.Dir(cleaned)
@@ -194,7 +182,6 @@ func inferProjectRootFromScenarioPath(path string) string {
 	if path == "" {
 		return ""
 	}
-
 	current := filepath.Clean(path)
 	for {
 		if filepath.Base(current) == "scenarios" {
@@ -204,7 +191,6 @@ func inferProjectRootFromScenarioPath(path string) string {
 			}
 			return ""
 		}
-
 		parent := filepath.Dir(current)
 		if parent == current {
 			return ""
@@ -215,10 +201,10 @@ func inferProjectRootFromScenarioPath(path string) string {
 
 // resolveWorkingDir determines the default PTY working directory.
 // Priority:
-//  1. WC_DEFAULT_CWD (explicit override)
-//  2. PROJECT_ROOT (workspace root for cross-device parity)
+//  1. WC_DEFAULT_CWD
+//  2. PROJECT_ROOT
 //  3. project root inferred from SCENARIO_DIR path
-//  4. SCENARIO_DIR (scenario lifecycle hint)
+//  4. SCENARIO_DIR
 //  5. project root inferred from current working directory path
 //  6. parent of cwd when running from scenario/api
 //  7. current process working directory

@@ -11,6 +11,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"web-console/internal/config"
+	"web-console/internal/pty"
 )
 
 // --- ensureTermEnv tests ---
@@ -300,7 +303,7 @@ type fakePTY struct {
 }
 
 func (f *fakePTY) Read(p []byte) (int, error) { return f.stdoutReader.Read(p) }
-func (f *fakePTY) WriteInput(data []byte, _ InputKind) error {
+func (f *fakePTY) WriteInput(data []byte, _ pty.InputKind) error {
 	_, err := f.stdinWriter.Write(data)
 	return err
 }
@@ -353,9 +356,9 @@ func (f *fakePTY) CurrentDir(_ context.Context) (string, error) {
 	if f.currentDir != "" {
 		return f.currentDir, nil
 	}
-	cwd, err := filepath.Abs(resolveWorkingDir())
+	cwd, err := filepath.Abs(config.ResolveWorkingDir())
 	if err != nil {
-		return resolveWorkingDir(), nil
+		return config.ResolveWorkingDir(), nil
 	}
 	return cwd, nil
 }
@@ -416,18 +419,18 @@ func (f *fakePTYWithOutput) Close() error {
 	return nil
 }
 
-// fakePTYFactory returns a PTYFactory that always returns the same PTY instance.
+// fakePTYFactory returns a pty.Factory that always returns the same PTY instance.
 // Use when a test needs to inspect or control the exact PTY a session uses.
-func fakePTYFactory(p PTY) PTYFactory {
-	return func(spec SessionLaunchSpec) (PTY, error) {
+func fakePTYFactory(p pty.PTY) pty.Factory {
+	return func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return p, nil
 	}
 }
 
-// newFakePTYFactory returns a PTYFactory that creates a fresh fakePTYWithOutput
+// newFakePTYFactory returns a pty.Factory that creates a fresh fakePTYWithOutput
 // for each session. Useful for tests that create multiple sessions.
-func newFakePTYFactory() PTYFactory {
-	return func(spec SessionLaunchSpec) (PTY, error) {
+func newFakePTYFactory() pty.Factory {
+	return func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return newFakePTYWithOutput(), nil
 	}
 }
@@ -492,8 +495,8 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 		t.Fatalf("write shared codex auth: %v", err)
 	}
 
-	var captured SessionLaunchSpec
-	sm := NewSessionManagerWithFactory(func(spec SessionLaunchSpec) (PTY, error) {
+	var captured pty.LaunchSpec
+	sm := NewSessionManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
 		captured = spec
 		return newFakePTYWithOutput(), nil
 	})

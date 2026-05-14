@@ -8,6 +8,9 @@ import (
 	"connectrpc.com/connect"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
+
+	"web-console/internal/events"
+	"web-console/internal/metrics"
 )
 
 // [REQ:P1-003a] Provider Configuration Storage - store tests
@@ -220,8 +223,8 @@ func TestGenerateWithConfig_DisabledProvider(t *testing.T) {
 
 	srv := &Server{
 		sessions:  NewSessionManagerWithFactory(newFakePTYFactory()),
-		events:    NewEventLogger(100),
-		metrics:   NewMetrics(),
+		events:    events.NewLogger(100),
+		metrics:   metrics.New(),
 		aiChain:   NewAIProviderChain(primary, fallback),
 		shortcuts: NewShortcutProfileStore(),
 		aiConfig:  NewAIProviderConfigStore(),

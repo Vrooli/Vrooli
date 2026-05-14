@@ -17,6 +17,8 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"web-console/internal/events"
+	"web-console/internal/pty"
 
 	"github.com/gorilla/websocket"
 )
@@ -54,9 +56,9 @@ func (s *Server) dispatchInputMessage(
 			s.metrics.StdinBeforeReadyTotal.Add(1)
 			log.Printf("ws[%s] stdin before session_ready — backend=%s", sessionID, sess.Backend)
 		}
-		kind := InputKindKeystroke
+		kind := pty.KindKeystroke
 		if msg.Kind == StdinKindPaste {
-			kind = InputKindPaste
+			kind = pty.KindPaste
 		}
 		writeErr := sess.WriteInput([]byte(msg.Data), kind)
 		ackMsg := TerminalMessage{Type: MsgTypeStdinAck, Seq: msg.Seq, Ok: writeErr == nil}
@@ -91,7 +93,7 @@ func (s *Server) dispatchInputMessage(
 			})
 			writeMu.Unlock()
 			// [REQ:P1-004a] Emit resize event
-			s.events.Emit(EventPaneResized, sessionID, map[string]string{
+			s.events.Emit(events.PaneResized, sessionID, map[string]string{
 				"cols": fmt.Sprintf("%d", msg.Cols),
 				"rows": fmt.Sprintf("%d", msg.Rows),
 			})

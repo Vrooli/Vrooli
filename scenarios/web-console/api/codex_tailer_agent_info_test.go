@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"web-console/internal/backend"
 )
 
 func TestCodexTailer_PopulatesAgentInfoOnFirstRollout(t *testing.T) {
@@ -15,7 +17,7 @@ func TestCodexTailer_PopulatesAgentInfoOnFirstRollout(t *testing.T) {
 	srv.sessions.SetStore(srv.sessionStore)
 	if err := srv.sessionStore.Save(SessionMetadata{
 		ID:       sess.ID,
-		Backend:  BackendPersistent,
+		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
 		Cols:     80,
 		Rows:     24,
@@ -83,7 +85,7 @@ func TestCodexTailer_AgentInfoIgnoresNonSessionMeta(t *testing.T) {
 	srv.sessions.SetStore(srv.sessionStore)
 	if err := srv.sessionStore.Save(SessionMetadata{
 		ID:       sess.ID,
-		Backend:  BackendPersistent,
+		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
 		Cols:     80,
 		Rows:     24,

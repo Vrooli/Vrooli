@@ -18,7 +18,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/creack/pty/v2"
+	creackpty "github.com/creack/pty/v2"
+
+	"web-console/internal/config"
+	"web-console/internal/pty"
 )
 
 // errPTYClosed is returned when I/O is attempted on a closed tmuxPTY.
@@ -68,7 +71,7 @@ func (p *tmuxPTY) Read(buf []byte) (int, error) {
 // the root cause of the long-standing "message is lost, Ctrl+C
 // unblocks it" bug.
 //
-//   - InputKindKeystroke: `tmux send-keys -t <session> -l -- <data>`.
+//   - pty.KindKeystroke: `tmux send-keys -t <session> -l -- <data>`.
 //     The `-l` (literal) flag tells tmux to deliver the bytes to the
 //     active pane's stdin verbatim, bypassing key-name lookup AND
 //     client-mode interpretation. This path handles arbitrary byte
@@ -80,7 +83,7 @@ func (p *tmuxPTY) Read(buf []byte) (int, error) {
 //     via send-keys would deliver them to the pane's shell, which
 //     does not understand them, and mobile scroll would silently
 //     break. See isMouseTrackingSequence.
-//   - InputKindPaste: `tmux load-buffer -b <buf> -` (piped stdin) then
+//   - pty.KindPaste: `tmux load-buffer -b <buf> -` (piped stdin) then
 //     `tmux paste-buffer -d -b <buf> -t <session>`. The `-d` flag
 //     deletes the buffer after paste so our per-session buffers don't
 //     accumulate. The buffer name is scoped per-session with a
@@ -88,7 +91,7 @@ func (p *tmuxPTY) Read(buf []byte) (int, error) {
 //
 // Both non-mouse branches surface tmux's stderr in the returned error
 // so the caller can forward it as stdin_ack.reason.
-func (p *tmuxPTY) WriteInput(data []byte, kind InputKind) error {
+func (p *tmuxPTY) WriteInput(data []byte, kind pty.InputKind) error {
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()
@@ -109,7 +112,7 @@ func (p *tmuxPTY) WriteInput(data []byte, kind InputKind) error {
 	// these. This preserves mobile scroll and desktop mouse-select in
 	// tmux-backed sessions. Paste payloads never qualify because the
 	// paste kind is only used for clipboard data, not xterm events.
-	if kind == InputKindKeystroke && isMouseTrackingSequence(data) {
+	if kind == pty.KindKeystroke && isMouseTrackingSequence(data) {
 		if _, err := ptmx.Write(data); err != nil {
 			return fmt.Errorf("tmux mouse passthrough write: %w", err)
 		}
@@ -117,7 +120,7 @@ func (p *tmuxPTY) WriteInput(data []byte, kind InputKind) error {
 	}
 
 	switch kind {
-	case InputKindPaste:
+	case pty.KindPaste:
 		return p.deliverPaste(sessionName, data)
 	default:
 		return p.deliverKeystroke(sessionName, data)
@@ -298,7 +301,7 @@ func (p *tmuxPTY) SetSize(cols, rows uint16) error {
 		return fmt.Errorf("tmux resize: %w", err)
 	}
 	// Also resize the local PTY so the attach process knows the new size
-	return pty.Setsize(p.ptmx, &pty.Winsize{Rows: rows, Cols: cols})
+	return creackpty.Setsize(p.ptmx, &creackpty.Winsize{Rows: rows, Cols: cols})
 }
 
 func (p *tmuxPTY) Close() error {
@@ -379,7 +382,7 @@ func (p *tmuxPTY) HasChildProcess() bool {
 // shells spawned later inside the session inherit them. This is the only
 // reliable way to get per-session env on a long-lived tmux server — the
 // server's own environment is frozen at first-session creation time.
-func buildTmuxNewSessionArgs(sessionName, workingDir string, spec SessionLaunchSpec) []string {
+func buildTmuxNewSessionArgs(sessionName, workingDir string, spec pty.LaunchSpec) []string {
 	args := []string{
 		"new-session", "-d",
 		"-s", sessionName,
@@ -401,7 +404,7 @@ func buildTmuxNewSessionArgs(sessionName, workingDir string, spec SessionLaunchS
 
 // buildSessionEnv constructs the filtered environment for a new session.
 // Used by both defaultPTYFactory and tmuxPTYFactory.
-func buildSessionEnv(spec SessionLaunchSpec) []string {
+func buildSessionEnv(spec pty.LaunchSpec) []string {
 	return applySessionEnv(
 		ensureTermEnv(
 			filterServiceEnv(
@@ -447,9 +450,9 @@ func tmuxCmdContext(ctx context.Context, args ...string) *exec.Cmd {
 }
 
 // tmuxPTYFactory creates a tmux-backed PTY for persistent sessions.
-func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
+func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	sessionName := tmuxSessionPrefix + spec.SessionID
-	workingDir := resolveWorkingDir()
+	workingDir := config.ResolveWorkingDir()
 
 	// 1. Create detached tmux session with the target shell.
 	// We use systemd-run --scope to launch the tmux new-session command in
@@ -551,7 +554,7 @@ func tmuxAttach(sessionName string) (*tmuxPTY, error) {
 	// type that supports basic operations like clear, so we ensure
 	// TERM=xterm-256color — matching what ensureTermEnv sets for shells.
 	attachCmd.Env = ensureTermEnv(os.Environ())
-	ptmx, err := pty.Start(attachCmd)
+	ptmx, err := creackpty.Start(attachCmd)
 	if err != nil {
 		return nil, fmt.Errorf("tmux attach %s: %w", sessionName, err)
 	}
@@ -564,7 +567,7 @@ func tmuxAttach(sessionName string) (*tmuxPTY, error) {
 
 // tmuxAttachAsPTY wraps tmuxAttach to return the PTY interface, matching
 // TmuxAttachFunc's signature so production code and tests use the same type.
-func tmuxAttachAsPTY(sessionName string) (PTY, error) {
+func tmuxAttachAsPTY(sessionName string) (pty.PTY, error) {
 	return tmuxAttach(sessionName)
 }
 

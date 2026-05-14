@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	settingsH "web-console/handlers/settings"
+	"web-console/internal/backend"
+	"web-console/internal/config"
+	"web-console/internal/policy"
 )
 
 // settingsAdapter satisfies handlers/settings.Service by translating
@@ -22,8 +25,8 @@ func newSettingsAdapter(s *Server) settingsH.Service {
 // callers (tests, sibling files) referenced it; not used on the wire
 // anymore. Remove once those callers migrate.
 type SessionDefaultsResponse struct {
-	DefaultBackend string            `json:"default_backend"`
-	DefaultPolicy  *ExpirationPolicy `json:"default_policy"`
+	DefaultBackend string         `json:"default_backend"`
+	DefaultPolicy  *policy.Policy `json:"default_policy"`
 }
 
 func (a *settingsAdapter) GetDefaults() settingsH.Defaults {
@@ -39,23 +42,23 @@ func (a *settingsAdapter) GetDefaults() settingsH.Defaults {
 
 func (a *settingsAdapter) UpdateDefaults(req settingsH.UpdateDefaultsRequest) (settingsH.Defaults, error) {
 	if req.DefaultBackend != nil {
-		bid := BackendID(*req.DefaultBackend)
+		bid := backend.ID(*req.DefaultBackend)
 		if _, ok := a.server.backendRegistry.Get(bid); !ok {
 			return settingsH.Defaults{}, fmt.Errorf("%w: unknown backend %q", settingsH.ErrInvalidArgument, *req.DefaultBackend)
 		}
-		a.server.sessions.SetConfigField(func(cfg *Config) {
+		a.server.sessions.SetConfigField(func(cfg *config.Config) {
 			cfg.DefaultBackend = *req.DefaultBackend
 		})
 	}
 	if req.DefaultPolicy != nil {
-		p := ExpirationPolicy{
-			Mode:     PolicyMode(req.DefaultPolicy.Mode),
+		p := policy.Policy{
+			Mode:     policy.Mode(req.DefaultPolicy.Mode),
 			Duration: req.DefaultPolicy.Duration,
 		}
-		if err := ValidatePolicy(p); err != nil {
+		if err := policy.Validate(p); err != nil {
 			return settingsH.Defaults{}, fmt.Errorf("%w: %s", settingsH.ErrInvalidArgument, err.Error())
 		}
-		a.server.sessions.SetConfigField(func(cfg *Config) {
+		a.server.sessions.SetConfigField(func(cfg *config.Config) {
 			cfg.DefaultPolicyMode = string(req.DefaultPolicy.Mode)
 			cfg.DefaultPolicyDuration = req.DefaultPolicy.Duration
 		})

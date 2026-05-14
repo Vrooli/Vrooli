@@ -5,8 +5,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
 	conversationH "web-console/handlers/conversation"
+
+	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
 )
 
 // conversationConnectIface is the test-only surface of the unexported

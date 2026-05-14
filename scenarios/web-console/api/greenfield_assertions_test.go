@@ -75,7 +75,7 @@ func TestGreenfield_NoRawPtmxWriteOutsidePTYFiles(t *testing.T) {
 // TestGreenfield_PTYInterfaceHasNoLegacyWrite enforces the greenfield
 // rule that the old PTY.Write method was deleted, not kept as a
 // compat alias. Every call site must go through WriteInput with an
-// explicit InputKind. Looks for the exact legacy signature in pty.go.
+// explicit pty.InputKind. Looks for the exact legacy signature in pty.go.
 func TestGreenfield_PTYInterfaceHasNoLegacyWrite(t *testing.T) {
 	b, err := os.ReadFile("pty.go")
 	if err != nil {

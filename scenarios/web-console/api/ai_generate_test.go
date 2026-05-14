@@ -8,8 +8,12 @@ import (
 
 	"connectrpc.com/connect"
 
-	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
 	aiH "web-console/handlers/ai"
+
+	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
+
+	"web-console/internal/events"
+	"web-console/internal/metrics"
 )
 
 // fakeAIProvider is a test double for AIProvider.
@@ -125,8 +129,8 @@ func newTestServerWithAI(providers ...AIProvider) *Server {
 	return &Server{
 		router:    nil,
 		sessions:  NewSessionManagerWithFactory(newFakePTYFactory()),
-		events:    NewEventLogger(100),
-		metrics:   NewMetrics(),
+		events:    events.NewLogger(100),
+		metrics:   metrics.New(),
 		aiChain:   NewAIProviderChain(providers...),
 		shortcuts: NewShortcutProfileStore(),
 		aiConfig:  NewAIProviderConfigStore(),

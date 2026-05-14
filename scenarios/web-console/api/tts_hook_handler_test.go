@@ -9,14 +9,17 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"web-console/internal/events"
+	"web-console/internal/metrics"
 )
 
 func newHookTestServer(token string) *Server {
 	return &Server{
 		router:        mux.NewRouter(),
 		sessions:      NewSessionManagerWithFactory(newFakePTYFactory()),
-		events:        NewEventLogger(100),
-		metrics:       NewMetrics(),
+		events:        events.NewLogger(100),
+		metrics:       metrics.New(),
 		workspace:     NewMemWorkspaceStore(),
 		hookAuthToken: token,
 		ttsConfig:     TTSConfig{AutoEnabled: true, Backend: "auto", KokoroVoice: "af_heart", KokoroSpeed: 1.0},

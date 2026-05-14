@@ -12,6 +12,8 @@ import (
 	"connectrpc.com/connect"
 
 	voicev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/voice"
+
+	"web-console/internal/metrics"
 )
 
 func serverWithCapability(available bool) *Server {
@@ -26,7 +28,7 @@ func serverWithCapability(available bool) *Server {
 		voiceConfig:    DefaultVoiceStreamConfig(),
 		whisperURL:     resolveWhisperURL(),
 		transcodeAudio: defaultTranscodeAudio,
-		metrics:        NewMetrics(),
+		metrics:        metrics.New(),
 	}
 }
 

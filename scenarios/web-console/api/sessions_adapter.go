@@ -8,6 +8,10 @@ import (
 	"time"
 
 	sessionsH "web-console/handlers/sessions"
+	"web-console/internal/backend"
+	"web-console/internal/events"
+	"web-console/internal/policy"
+	"web-console/internal/pty"
 )
 
 // sessionsAdapter implements sessionsH.Service against the server's
@@ -33,19 +37,19 @@ func (a *sessionsAdapter) Create(_ context.Context, in sessionsH.CreateInput) (s
 		}
 	}
 
-	var policyPtr *ExpirationPolicy
+	var policyPtr *policy.Policy
 	if in.HasPolicy {
-		p := ExpirationPolicy{
-			Mode:     PolicyMode(in.Policy.Mode),
+		p := policy.Policy{
+			Mode:     policy.Mode(in.Policy.Mode),
 			Duration: in.Policy.Duration,
 		}
-		if err := ValidatePolicy(p); err != nil {
+		if err := policy.Validate(p); err != nil {
 			return sessionsH.Session{}, fmt.Errorf("%w: %s", sessionsH.ErrInvalidArgument, err.Error())
 		}
 		policyPtr = &p
 	}
 
-	sess, err := srv.sessions.Create(in.Shell, uint16(in.Cols), uint16(in.Rows), BackendID(in.Backend), policyPtr)
+	sess, err := srv.sessions.Create(in.Shell, uint16(in.Cols), uint16(in.Rows), backend.ID(in.Backend), policyPtr)
 	if err != nil {
 		return sessionsH.Session{}, mapCreateError(err)
 	}
@@ -58,7 +62,7 @@ func (a *sessionsAdapter) Create(_ context.Context, in sessionsH.CreateInput) (s
 		})
 	}
 
-	srv.events.Emit(EventSessionCreated, sess.ID, map[string]string{
+	srv.events.Emit(events.SessionCreated, sess.ID, map[string]string{
 		"shell":   sess.Shell,
 		"cols":    fmt.Sprintf("%d", sess.Cols),
 		"rows":    fmt.Sprintf("%d", sess.Rows),
@@ -100,7 +104,7 @@ func (a *sessionsAdapter) Delete(_ context.Context, id string) error {
 		if srv.codexCheckpointStore != nil {
 			_ = srv.codexCheckpointStore.DeleteSession(id)
 		}
-		srv.events.Emit(EventSessionDeleted, id, nil)
+		srv.events.Emit(events.SessionDeleted, id, nil)
 		srv.metrics.SessionsDeleted.Add(1)
 		srv.metrics.ActiveSessions.Add(-1)
 	}
@@ -185,12 +189,12 @@ func (a *sessionsAdapter) Recover(_ context.Context, in sessionsH.RecoverInput) 
 		rows = 36
 	}
 	policy := old.Policy
-	newSess, err := srv.sessions.Create(old.Shell, cols, rows, BackendPersistent, &policy)
+	newSess, err := srv.sessions.Create(old.Shell, cols, rows, backend.Persistent, &policy)
 	if err != nil {
 		log.Printf("recover[%s]: create new session: %v", oldID, err)
 		return sessionsH.RecoverResult{}, mapCreateError(err)
 	}
-	srv.events.Emit(EventSessionCreated, newSess.ID, map[string]string{
+	srv.events.Emit(events.SessionCreated, newSess.ID, map[string]string{
 		"shell":     newSess.Shell,
 		"cols":      fmt.Sprintf("%d", newSess.Cols),
 		"rows":      fmt.Sprintf("%d", newSess.Rows),
@@ -216,7 +220,7 @@ func (a *sessionsAdapter) Recover(_ context.Context, in sessionsH.RecoverInput) 
 	})
 
 	cmd := buildResumeCommand(old)
-	if err := newSess.WriteInput([]byte(cmd), InputKindPaste); err != nil {
+	if err := newSess.WriteInput([]byte(cmd), pty.KindPaste); err != nil {
 		log.Printf("recover[%s -> %s]: WriteInput: %v", oldID, newSess.ID, err)
 		return sessionsH.RecoverResult{}, fmt.Errorf("paste resume command: %v: %w", err, sessionsH.ErrInternal)
 	}
@@ -236,7 +240,7 @@ func (a *sessionsAdapter) Recover(_ context.Context, in sessionsH.RecoverInput) 
 	if in.IdempotencyKey != "" {
 		srv.idempotency.Set("recover:"+oldID+":"+in.IdempotencyKey, SessionResponse{
 			ID:              res.NewSessionID,
-			Backend:         BackendPersistent,
+			Backend:         backend.Persistent,
 			SurvivesRestart: true,
 			Recovered:       true,
 		})
@@ -262,22 +266,22 @@ func (a *sessionsAdapter) UpdatePolicy(_ context.Context, id string, in sessions
 	if !ok {
 		return sessionsH.PolicyView{}, fmt.Errorf("session %q: %w", sanitizeID(id), sessionsH.ErrNotFound)
 	}
-	policy := ExpirationPolicy{Mode: PolicyMode(in.Mode), Duration: in.Duration}
-	if err := ValidatePolicy(policy); err != nil {
+	pol := policy.Policy{Mode: policy.Mode(in.Mode), Duration: in.Duration}
+	if err := policy.Validate(pol); err != nil {
 		return sessionsH.PolicyView{}, fmt.Errorf("%w: %s", sessionsH.ErrInvalidArgument, err.Error())
 	}
 	oldPolicy := sess.GetPolicy()
-	sess.SetPolicy(policy)
+	sess.SetPolicy(pol)
 	if srv.sessionStore != nil {
-		_ = srv.sessionStore.UpdatePolicy(sess.ID, policy)
+		_ = srv.sessionStore.UpdatePolicy(sess.ID, pol)
 	}
-	if oldPolicy.Mode != policy.Mode || oldPolicy.Duration != policy.Duration {
-		srv.events.Emit(EventSessionPolicyUpdate, sess.ID, map[string]string{
+	if oldPolicy.Mode != pol.Mode || oldPolicy.Duration != pol.Duration {
+		srv.events.Emit(events.SessionPolicyUpdate, sess.ID, map[string]string{
 			"mode":     in.Mode,
 			"duration": in.Duration,
 		})
 	}
-	return policyViewFor(sess, policy), nil
+	return policyViewFor(sess, pol), nil
 }
 
 // -----------------------------------------------------------------------------
@@ -335,12 +339,12 @@ func toHandlerRecoverable(m SessionMetadata) sessionsH.RecoverableSession {
 	return out
 }
 
-func policyViewFor(sess *Session, policy ExpirationPolicy) sessionsH.PolicyView {
+func policyViewFor(sess *Session, pol policy.Policy) sessionsH.PolicyView {
 	view := sessionsH.PolicyView{
 		SessionID: sess.ID,
-		Policy:    sessionsH.Policy{Mode: string(policy.Mode), Duration: policy.Duration},
+		Policy:    sessionsH.Policy{Mode: string(pol.Mode), Duration: pol.Duration},
 	}
-	ttl := ResolveTTL(policy)
+	ttl := policy.ResolveTTL(pol)
 	if ttl > 0 {
 		expiresAt := sess.CreatedAt.Add(ttl)
 		view.ExpiresAt = expiresAt.UTC().Format(time.RFC3339)

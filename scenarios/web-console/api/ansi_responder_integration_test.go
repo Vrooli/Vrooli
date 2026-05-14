@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"web-console/internal/pty"
 )
 
 // da1ProbeScript writes `\x1b[c` to stdout, waits up to 2 s for a reply on
@@ -109,7 +110,7 @@ func TestStandardBackend_AnswersDA1Probe(t *testing.T) {
 	const tag = "DA1_RESULT_d59e72"
 	probePath := writeProbe(t, da1ProbeScript(tag))
 
-	if err := sess.WriteInput([]byte("python3 -u "+probePath+"\n"), InputKindKeystroke); err != nil {
+	if err := sess.WriteInput([]byte("python3 -u "+probePath+"\n"), pty.KindKeystroke); err != nil {
 		t.Fatalf("write probe: %v", err)
 	}
 
@@ -182,7 +183,7 @@ sys.stdout.flush()
 
 	probePath := writeProbe(t, src)
 
-	if err := sess.WriteInput([]byte("python3 -u "+probePath+"\n"), InputKindKeystroke); err != nil {
+	if err := sess.WriteInput([]byte("python3 -u "+probePath+"\n"), pty.KindKeystroke); err != nil {
 		t.Fatalf("write probe: %v", err)
 	}
 
