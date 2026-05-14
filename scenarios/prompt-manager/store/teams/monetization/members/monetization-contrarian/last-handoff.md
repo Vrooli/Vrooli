@@ -1,27 +1,35 @@
 ### Proposals reviewed this heartbeat
-- 4 pending decisions, all from market-validator, all created 2026-04-28. 0 aged. Team queue 4/12 (normal mode); own-context 0/3.
+- 8 pending decisions: 5 market-validator, 3 contrarian framework-update.
+- Team queue 8/12. Owned-context pending 3/3, so no new `decision-rejection-proposed` or `framework-update` decisions created.
+- Stale scan: pending decisions from 2026-04-24 and 2026-04-28 are aged; no new seven-mode content flaw from age alone.
 
-### Passed cleanly (against the seven failure modes)
-- dec-1777406545371477289 (benchmark-update, BENCHMARKS.md gateway-pass-through-margin + Raycast refresh) — sources cited, dated, applicability=high.
-- dec-1777406561539481259 (financial-model-assumption-update, reframe Tier 1/2 unit-econ) — positioning-defensive, well-evidenced.
-- dec-1777406569817752756 (benchmark-update, populate Token pass-through margin subsection) — clean substance.
-- dec-1777406584829985287 (financial-model-assumption-update, tighten COGS framing) — clean substance.
+### Passed cleanly
+- dec-1777061056395576280: pricing-positioning revisit remains clean.
+- dec-1777406545371477289, dec-1777406569817752756: benchmark substance clean; procedural stacking remains unresolved.
+- dec-1777406561539481259, dec-1777406584829985287: COGS substance clean; author-response records prefer dec-1777406584829985287 as canonical.
 
 ### Challenge notes written
-- knw-1777411967764383009 — `challenge-report/dec-1777406584829985287`. Uncovered-flaw observation: stacks with dec-1777406561539481259 on the same Tier 1/2 COGS reframe; TEAM.md "Supersession over stacking (mandatory)" violation. Revision: market-validator should mark one superseded; recommend keeping ...259 as canonical.
-- knw-1777411976683535951 — `challenge-report/dec-1777406569817752756`. Uncovered-flaw observation: stacks with dec-1777406545371477289 on the BENCHMARKS.md "Token pass-through margin" subsection (both add OpenRouter); merge into one decision listing OpenRouter + Cursor + Raycast-refresh.
+- knw-1778707906534439262: `challenge-report/dec-1777411966568101643`
+- knw-1778707906605678717: `challenge-report/dec-1777411990523695137`
+- knw-1778707922562801449: `challenge-report/dec-1777411993624275085`
+
+All three flag the contrarian framework-update triplicate stack. Recommended canonical: dec-1777411993624275085.
+
+### Challenge resolution updates
+- knw-1778707906605098987: `challenge-resolution-record/dec-1777411966568101643`, open.
+- knw-1778707922563595850: `challenge-resolution-record/dec-1777411990523695137`, open.
+- knw-1778707922710010422: `challenge-resolution-record/dec-1777411993624275085`, open.
+- knw-1778707947543411794: `challenge-resolution-record/dec-1777406545371477289`, open benchmark stacking.
+- knw-1778707947697787162: `challenge-resolution-record/dec-1777406569817752756`, open benchmark stacking.
+- Existing financial-tracker records already mark the COGS stacking challenge as author-responded, preferring dec-1777406584829985287 canonical.
 
 ### Rejection recommendations raised
-- No rejection recommendations. Both stacking pairs trip only one (uncovered) flaw, not multiple of the seven named modes — below the rejection threshold.
+- None. Current accepted framework does not yet score queue-stacking as a named failure mode, and the substantive monetization proposals remain clean against the seven failure modes.
 
 ### Framework-update candidates
-- dec-1777411993624275085 — `framework-update`. Proposes adding "Decision queue stacking" as the 8th failure mode in contrarian's checklist (SOUL.md / AGENTS.md / RESPONSIBILITIES.md / HEARTBEAT.md), with concrete check criteria (same context + same target + redundant/competing recommendation, no supersedes link). Justification: pattern is now n=2 across distinct authors and heartbeats (operator's earlier rejection of dec-1777060904331053267 + today's two market-validator pairs). Cap: 1/1 used.
-
-### Aged decisions acted on
-- 0. All pending decisions created today.
+- No new candidate created due owned-context cap 3/3.
+- Existing framework-update proposals should be collapsed: retain dec-1777411993624275085 and supersede/merge dec-1777411966568101643 plus dec-1777411990523695137.
 
 ### Knowledge entries written
-- 3: `challenge-report/dec-1777406584829985287`, `challenge-report/dec-1777406569817752756`, `contrarian-scan-2026-04-28` (supersedes knw-1777325470578437026).
-
-### Mode
-- Normal (4/12 team ceiling; 0/3 own-context cap). Substance of all four market-validator proposals is sound; the recurring failure is queue hygiene, which the contrarian's own checklist doesn't currently catch — hence the framework-update.
+- 8 total: 3 challenge reports, 4 challenge-resolution records, 1 scan snapshot.
+- Scan snapshot: knw-1778707947696459101 `contrarian-scan-2026-05-13`.

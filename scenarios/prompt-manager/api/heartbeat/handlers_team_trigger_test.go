@@ -60,7 +60,7 @@ func TestTriggerTeam_TeamDisabled(t *testing.T) {
 
 func TestTriggerTeam_LeaderLedTargetsExplicitLead(t *testing.T) {
 	handlers, teamStore, _, relationStore := setupTeamTriggerTestHandlers(t)
-	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir())
+	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir(), nil)
 	ctx := context.Background()
 
 	if err := teamStore.Create(ctx, newLeaderLedSingleProcessTestTeam("team-sp", "Single Process Team", "lead")); err != nil {
@@ -107,7 +107,7 @@ func TestTriggerTeam_LeaderLedTargetsExplicitLead(t *testing.T) {
 
 func TestTriggerTeam_LeaderLedRequiresActiveLeadMembership(t *testing.T) {
 	handlers, teamStore, _, relationStore := setupTeamTriggerTestHandlers(t)
-	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir())
+	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir(), nil)
 	ctx := context.Background()
 
 	if err := teamStore.Create(ctx, newLeaderLedSingleProcessTestTeam("team-sp", "Single Process Team", "lead")); err != nil {
@@ -132,7 +132,7 @@ func TestTriggerTeam_LeaderLedRequiresActiveLeadMembership(t *testing.T) {
 
 func TestTriggerTeam_LeaderLedRequiresLeadHeartbeatConfig(t *testing.T) {
 	handlers, teamStore, _, relationStore := setupTeamTriggerTestHandlers(t)
-	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir())
+	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir(), nil)
 	ctx := context.Background()
 
 	if err := teamStore.Create(ctx, newLeaderLedSingleProcessTestTeam("team-sp", "Single Process Team", "lead")); err != nil {
@@ -252,7 +252,7 @@ func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 		t.Fatalf("set lead config: %v", err)
 	}
 	exec := &captureExecutor{}
-	teamExecStore := NewTeamExecutionStore(teamStore, exec, t.TempDir())
+	teamExecStore := NewTeamExecutionStore(teamStore, exec, t.TempDir(), nil)
 	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
 
@@ -280,7 +280,7 @@ func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 func TestTriggerTeam_IndependentTriggersConfiguredMembers(t *testing.T) {
 	handlers, teamStore, agentStore, relationStore := setupTeamTriggerTestHandlers(t)
 	ctx := context.Background()
-	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir())
+	handlers.teamExecStore = NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir(), nil)
 
 	if err := teamStore.Create(ctx, newIndependentTestTeam("team-independent", "Independent Team")); err != nil {
 		t.Fatalf("create team: %v", err)

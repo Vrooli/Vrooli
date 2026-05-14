@@ -167,6 +167,7 @@
   "POST /teams/{id}/heartbeats/{agentId}/trigger": {"status": "covered", "cli": "team heartbeat-trigger"},
   "POST /teams/{id}/trigger": {"status": "covered", "cli": "team trigger <id>"},
   "GET /teams/{id}/execution-status": {"status": "audit-pending", "reason": "No execution-status subcommand visible"},
+  "DELETE /teams/{id}/queue/running/{agentId}": {"status": "covered", "cli": "team queue-clear"},
   "GET /teams/{id}/heartbeats/logs": {"status": "audit-pending", "reason": "Team-wide log list — heartbeat-logs is per-agent"},
   "GET /teams/{id}/heartbeats/{agentId}/logs": {"status": "covered", "cli": "team heartbeat-logs"},
   "GET /teams/{id}/heartbeats/{agentId}/logs/{logId}": {"status": "audit-pending", "reason": "No single-log show subcommand visible"},

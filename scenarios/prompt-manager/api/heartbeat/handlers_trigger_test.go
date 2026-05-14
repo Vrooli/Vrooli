@@ -96,7 +96,7 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 	}
 
 	exec := &captureExecutor{}
-	teamExecStore := NewTeamExecutionStore(teamStore, exec, t.TempDir())
+	teamExecStore := NewTeamExecutionStore(teamStore, exec, t.TempDir(), nil)
 	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
 
@@ -158,7 +158,7 @@ func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
 	executor.OnComplete = func(_, _ string) {}
 
-	teamExecStore := NewTeamExecutionStore(teamStore, executor, t.TempDir())
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, t.TempDir(), nil)
 
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, registry, mockClient, teamExecStore)
 

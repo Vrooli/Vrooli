@@ -93,6 +93,13 @@ func (f *fakeContext) Delete(path string) error {
 	return f.record("DELETE", path, nil)
 }
 
+func (f *fakeContext) DeleteWithQuery(path string, _ url.Values, result interface{}) error {
+	if err := f.record("DELETE", path, nil); err != nil {
+		return err
+	}
+	return f.writeResult(result)
+}
+
 func (f *fakeContext) assertMethodPath(t *testing.T, method, path string) {
 	t.Helper()
 	if f.gotMethod != method {

@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "0 */4 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T12:00:00Z",
-    "endedAt": "2026-05-13T12:00:06Z",
-    "status": "failed",
-    "runId": "558f6c0c-4d0f-4bbc-8a11-742a7e942c13",
-    "logPath": "../store/teams/meta-optimization/members/friction-curator/logs/2026-05-13T12-00-00Z.log",
-    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
+    "startedAt": "2026-05-14T04:00:00Z",
+    "endedAt": "2026-05-14T04:01:15Z",
+    "status": "completed",
+    "runId": "7c846068-3d86-4c2a-aac1-a9b2755cff15",
+    "logPath": "../store/teams/meta-optimization/members/friction-curator/logs/2026-05-14T04-00-00Z.log"
   },
-  "revision": 154,
+  "revision": 166,
   "createdAt": "2026-05-03T00:00:00Z",
-  "updatedAt": "2026-05-13T12:00:06Z"
+  "updatedAt": "2026-05-14T04:01:16Z"
 }

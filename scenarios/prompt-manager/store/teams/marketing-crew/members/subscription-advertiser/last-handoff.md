@@ -1,23 +1,29 @@
 ### Coverage triage summary
-- Missing SKUs (deployed): 0 — `business` bundle is `active` lifecycle but pre-launch (zero shipped headliners, zero subscribers, no committed launch window). Not deployed per operating rule criterion.
-- Stale SKUs (deployed): 0
-- Imminent-release SKUs with launch window: 0 — no committed launch windows in CATALOG.md or catalog/base/business.md (rule 13 gate)
-- Fresh SKUs: 0 — only `business.json` and `oss-platform.json` exist; both `missing`. `oss-platform` is out-of-scope (oss-advertiser).
+- Missing deployed subscription SKUs: 0.
+- Stale deployed subscription SKUs: 0.
+- Imminent subscription SKUs with committed launch window: 0.
+- `business` remains pre-launch under rule 13: no accessible evidence of shipped deployable component or committed launch window.
+- `oss-platform` remains out-of-lane for subscription advertiser.
 
-### Drafts produced this heartbeat
-- no drafts this heartbeat (reason: zero deployed subscription SKUs, zero active subscription campaigns, zero committed launch windows — same gate as prior 3 runs)
+### Artifact requests reviewed
+- No accessible `artifact-request/subscription/*` entries.
+- No accessible publish-log entries; latest publisher snapshots still say `publish-log.jsonl` is empty.
+- Research evidence remains future positioning fuel, especially BYOK partial-boundary and subscription-as-convenience framing, but does not override launch/deployed-SKU gates.
+
+### Drafts produced
+- None. Reason: zero deployed subscription SKUs, zero active subscription campaigns, zero committed launch windows, and no open subscription artifact request.
 
 ### Coverage-gap decisions raised
-- none raised. `business.json` self-documents the rule-13 gate; publisher snapshot remains canonical "missing until ship or launch window" statement. Raising another decision would be queue churn with no fresher information.
+- None. No fresher coverage gap than the existing documented rule-13 gate.
 
 ### Capability-gap decisions raised
-- none raised (no drafting attempted, no scenario-tooling friction surfaced organically)
+- None. No drafting attempted, so no marketing-specific tooling blocker surfaced.
 
 ### Supersessions
-- none (zero pending decisions in owned contexts: `content-publish-proposal` subscription = 0, `coverage-gap` subscription = 0, `capability-gap` from me = 0)
+- None. Owned-context pending decisions for subscription advertiser: 0. Team queue has 1 pending OSS publish proposal, below ceiling.
 
 ### Knowledge entry written
-- topic: `subscription-ad-run-2026-04-27` (append-only, not supersedable) — id `knw-1777314652491102375`
+- `knw-1778697100202142252` on `subscription-ad-run/2026-05-13`.
 
-### Forward signal
-Unblocks on: (a) first business-bundle component (web-console, git-control-tower, agent-manager, workspace-sandbox, prompt-manager) reaching `shipped` + deployable, (b) operator committing a launch window in CATALOG.md / catalog/base/business.md, or (c) brand-manager opening an active subscription campaign with outstanding artifact slots. Until then, minimal run entries continue. Researcher's monetization-benchmark observations (Cursor credit-pricing, BYOK ~$40 threshold) remain positioning fuel ready for first subscription draft once the launch gate clears.
+### Friction / next check
+- This sandbox had no repo checkout files, so direct reads of docs and JSONL state were unavailable. I used `prompt-manager` decision/knowledge storage instead. Also, `prompt-manager team knowledge-add --by=...` is obsolete; attribution is automatic now. Treat both as one-off unless repeated next run.

@@ -24,6 +24,10 @@ type Context interface {
 
 	// Delete performs a DELETE request.
 	Delete(path string) error
+
+	// DeleteWithQuery performs a DELETE request with query parameters and
+	// decodes the response body into result (if non-nil).
+	DeleteWithQuery(path string, query url.Values, result interface{}) error
 }
 
 // Runtime adapts cli-core's ScenarioApp to the prompt-manager domain command
@@ -76,6 +80,16 @@ func (r Runtime) Put(path string, payload interface{}, result interface{}) error
 func (r Runtime) Delete(path string) error {
 	_, err := r.Core.Request("DELETE", path, nil, nil)
 	return err
+}
+
+// DeleteWithQuery performs a DELETE request with query parameters and
+// decodes the response body into result (if non-nil).
+func (r Runtime) DeleteWithQuery(path string, query url.Values, result interface{}) error {
+	body, err := r.Core.Request("DELETE", path, query, nil)
+	if err != nil {
+		return err
+	}
+	return decode(body, result)
 }
 
 func decode(body []byte, result interface{}) error {

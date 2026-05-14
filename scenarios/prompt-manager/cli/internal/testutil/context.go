@@ -110,6 +110,11 @@ func (c *Context) Delete(path string) error {
 	return c.record("DELETE", path, nil, nil, nil)
 }
 
+// DeleteWithQuery performs a fake DELETE with query parameters.
+func (c *Context) DeleteWithQuery(path string, query url.Values, result interface{}) error {
+	return c.record("DELETE", path, query, nil, result)
+}
+
 func (c *Context) record(method, path string, query url.Values, payload any, result interface{}) error {
 	c.t.Helper()
 	c.requests = append(c.requests, Request{

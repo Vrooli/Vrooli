@@ -49,6 +49,12 @@ func (f *fakeContext) Delete(path string) error {
 	return nil
 }
 
+func (f *fakeContext) DeleteWithQuery(path string, _ url.Values, result interface{}) error {
+	f.method = "DELETE"
+	f.path = path
+	return f.writeResult(result)
+}
+
 func (f *fakeContext) writeResult(result interface{}) error {
 	if result == nil || f.response == nil {
 		return nil

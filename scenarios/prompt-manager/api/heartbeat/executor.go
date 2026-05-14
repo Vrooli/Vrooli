@@ -26,6 +26,13 @@ type ExecutionResult struct {
 	Error     error
 }
 
+// TeamExecStoreRegistrar is the subset of TeamExecutionStore that Executor
+// needs to register a RunID for an in-flight running entry. Kept as an
+// interface so tests can inject a fake without depending on the full store.
+type TeamExecStoreRegistrar interface {
+	SetRunningRunID(teamID, agentID, runID string)
+}
+
 // Executor handles the actual execution of heartbeats
 type Executor struct {
 	teamStore        *store.FileTeamStore
@@ -35,7 +42,16 @@ type Executor struct {
 	promptBuilder    *PromptBuilder
 	runRegistry      *RunRegistry
 	handoffExtractor HandoffExtractor
+	teamExecStore    TeamExecStoreRegistrar
 	OnComplete       func(teamID, agentID string)
+}
+
+// SetTeamExecStore wires the team execution store so Execute can register
+// the agent-manager RunID against the team's running entry. Called from
+// main.go after both the executor and the store have been constructed
+// (they have a circular dependency at construction time).
+func (e *Executor) SetTeamExecStore(s TeamExecStoreRegistrar) {
+	e.teamExecStore = s
 }
 
 // NewExecutor creates a new heartbeat executor
@@ -206,6 +222,9 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	result.RunID = run.ID
 	config.LastExecution.RunID = run.ID
 	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
+	if e.teamExecStore != nil {
+		e.teamExecStore.SetRunningRunID(teamID, agentID, run.ID)
+	}
 	e.appendAttempt(context.Background(), &store.HeartbeatAttempt{
 		ID:         attemptID,
 		TeamID:     teamID,

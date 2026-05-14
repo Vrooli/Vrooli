@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "30 20 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T00:30:00Z",
-    "endedAt": "2026-05-13T00:32:21Z",
-    "status": "completed",
-    "runId": "4fcf2349-b9d9-458e-8610-52a8126e8ee2",
-    "logPath": "../store/teams/infra-health/members/infra-contrarian/logs/2026-05-13T00-30-00Z.log"
+    "startedAt": "2026-05-14T00:30:00Z",
+    "endedAt": "2026-05-14T00:30:06Z",
+    "status": "failed",
+    "runId": "c9ec78f7-a4ca-49ac-9b33-d4ca370e2ec6",
+    "logPath": "../store/teams/infra-health/members/infra-contrarian/logs/2026-05-14T00-30-00Z.log",
+    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
   },
-  "revision": 49,
+  "revision": 52,
   "createdAt": "2026-04-28T00:00:00Z",
-  "updatedAt": "2026-05-13T00:32:21Z"
+  "updatedAt": "2026-05-14T00:30:06Z"
 }

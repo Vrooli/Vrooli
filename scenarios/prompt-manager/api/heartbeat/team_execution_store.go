@@ -9,20 +9,23 @@ import (
 
 // TeamExecutionStore manages TeamExecutionContexts for all teams.
 type TeamExecutionStore struct {
-	mu         sync.RWMutex
-	contexts   map[string]*TeamExecutionContext
-	executor   HeartbeatExecutor
-	persistDir string
-	teamStore  *store.FileTeamStore
+	mu          sync.RWMutex
+	contexts    map[string]*TeamExecutionContext
+	executor    HeartbeatExecutor
+	persistDir  string
+	teamStore   *store.FileTeamStore
+	agentClient AgentClient
 }
 
 // NewTeamExecutionStore creates a new store for team execution contexts.
-func NewTeamExecutionStore(teamStore *store.FileTeamStore, executor HeartbeatExecutor, persistDir string) *TeamExecutionStore {
+// agentClient may be nil in tests that don't exercise Recover reconciliation.
+func NewTeamExecutionStore(teamStore *store.FileTeamStore, executor HeartbeatExecutor, persistDir string, agentClient AgentClient) *TeamExecutionStore {
 	return &TeamExecutionStore{
-		contexts:   make(map[string]*TeamExecutionContext),
-		executor:   executor,
-		persistDir: persistDir,
-		teamStore:  teamStore,
+		contexts:    make(map[string]*TeamExecutionContext),
+		executor:    executor,
+		persistDir:  persistDir,
+		teamStore:   teamStore,
+		agentClient: agentClient,
 	}
 }
 
@@ -43,9 +46,31 @@ func (s *TeamExecutionStore) GetOrCreate(teamID string) *TeamExecutionContext {
 		return ctx
 	}
 
-	ctx = newTeamExecutionContext(teamID, s.executor, s.persistDir)
+	ctx = newTeamExecutionContext(teamID, s.executor, s.persistDir, s.agentClient)
 	s.contexts[teamID] = ctx
 	return ctx
+}
+
+// SetRunningRunID routes a RunID update to the context for teamID.
+// No-op if no context exists yet for the team.
+func (s *TeamExecutionStore) SetRunningRunID(teamID, agentID, runID string) {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if !ok {
+		return
+	}
+	tec.SetRunningRunID(agentID, runID)
+}
+
+// ClearRunning clears a single running entry on the given team's context.
+// Returns ErrRunningEntryNotFound if the context or entry is missing.
+func (s *TeamExecutionStore) ClearRunning(ctx context.Context, teamID, agentID string, force bool) error {
+	tec, err := s.configureContext(ctx, teamID)
+	if err != nil {
+		return err
+	}
+	return tec.ClearRunning(ctx, agentID, force)
 }
 
 // Enqueue delegates to the team's execution context.
@@ -90,12 +115,13 @@ func (s *TeamExecutionStore) OnComplete(teamID, agentID string) {
 	tec.OnMemberComplete(agentID)
 }
 
-// Recover loads persisted queue state for all known teams from disk.
-func (s *TeamExecutionStore) Recover(_ context.Context) {
+// Recover loads persisted queue state for all known teams from disk and
+// reconciles each running entry against agent-manager via the per-context
+// AgentClient. See TeamExecutionContext.Recover for details.
+func (s *TeamExecutionStore) Recover(ctx context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Scan persist dir for team-queue-*.json files
 	entries, err := readDirSafe(s.persistDir)
 	if err != nil {
 		return
@@ -111,8 +137,8 @@ func (s *TeamExecutionStore) Recover(_ context.Context) {
 			continue
 		}
 
-		tec := newTeamExecutionContext(teamID, s.executor, s.persistDir)
-		tec.Recover()
+		tec := newTeamExecutionContext(teamID, s.executor, s.persistDir, s.agentClient)
+		tec.Recover(ctx)
 		s.contexts[teamID] = tec
 	}
 

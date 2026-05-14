@@ -6,14 +6,14 @@
   "enabled": true,
   "schedule": "0 19 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-12T23:00:00Z",
-    "endedAt": "2026-05-12T23:00:11Z",
+    "startedAt": "2026-05-13T23:00:00Z",
+    "endedAt": "2026-05-13T23:00:06Z",
     "status": "failed",
-    "runId": "f907e780-1824-4533-963e-6a57c590ef30",
-    "logPath": "../store/teams/meta-optimization/members/meta-contrarian/logs/2026-05-12T23-00-00Z.log",
-    "error": "=== Process Log (stderr) | Sandbox e419b6ab-0a3e-441a-96b5-769c7ea2e4e2 | Started 2026-05-12T19:00:00-04:00 ===\n\n\n=== Process Exited: code 1 signal 0 oom false | 2026-05-12T19:00:06-04:00 ===\n"
+    "runId": "5e89f186-66ce-4db8-ac92-addb7b15d878",
+    "logPath": "../store/teams/meta-optimization/members/meta-contrarian/logs/2026-05-13T23-00-00Z.log",
+    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
   },
-  "revision": 75,
+  "revision": 78,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-12T23:00:11Z"
+  "updatedAt": "2026-05-13T23:00:06Z"
 }

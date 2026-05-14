@@ -2944,3 +2944,38 @@ func (h *Handlers) PruneSharedState(w http.ResponseWriter, r *http.Request) {
 func generateID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
+
+// ClearTeamQueueRunning handles
+// DELETE /teams/{id}/queue/running/{agentId}[?force=true]
+// — removes a single running entry from the team's queue. By default refuses
+// if the backing agent-manager run is still active; pass ?force=true to
+// override (operator escape hatch for runs that agent-manager itself has
+// lost track of).
+func (h *Handlers) ClearTeamQueueRunning(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	agentID := vars["agentId"]
+
+	if h.teamExecStore == nil {
+		http.Error(w, "team execution store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	force := r.URL.Query().Get("force") == "true"
+	if err := h.teamExecStore.ClearRunning(ctx, teamID, agentID, force); err != nil {
+		switch {
+		case err == ErrRunningEntryNotFound:
+			http.Error(w, err.Error(), http.StatusNotFound)
+		case IsRunningStillActive(err):
+			http.Error(w, err.Error(), http.StatusConflict)
+		default:
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	status := h.teamExecStore.Status(teamID)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(status)
+}

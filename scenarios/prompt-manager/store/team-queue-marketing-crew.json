@@ -2,11 +2,6 @@
   "teamId": "marketing-crew",
   "queuePolicy": "bounded-parallel",
   "maxConcurrentRuns": 3,
-  "running": [
-    {
-      "AgentID": "researcher",
-      "ProfileKey": ""
-    }
-  ],
+  "running": [],
   "queue": null
 }

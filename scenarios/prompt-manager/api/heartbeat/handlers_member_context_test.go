@@ -129,7 +129,7 @@ func TestGetTeamExecutionStatus_Success(t *testing.T) {
 	}
 
 	exec := &captureExecutor{}
-	teamExecStore := NewTeamExecutionStore(teamStore, exec, storeDir)
+	teamExecStore := NewTeamExecutionStore(teamStore, exec, storeDir, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, nil, nil, nil, teamExecStore)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/execution-status", nil)

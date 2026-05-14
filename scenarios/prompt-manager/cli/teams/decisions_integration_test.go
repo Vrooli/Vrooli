@@ -90,6 +90,17 @@ func (c *httpContext) Delete(path string) error {
 	return c.do(http.MethodDelete, path, nil, nil)
 }
 
+func (c *httpContext) DeleteWithQuery(path string, query url.Values, result interface{}) error {
+	if len(query) > 0 {
+		sep := "?"
+		if strings.Contains(path, "?") {
+			sep = "&"
+		}
+		path = path + sep + query.Encode()
+	}
+	return c.do(http.MethodDelete, path, nil, result)
+}
+
 // decisionStore is a tiny in-memory mock of the API's decision store.
 type decisionStore struct {
 	mu        sync.Mutex

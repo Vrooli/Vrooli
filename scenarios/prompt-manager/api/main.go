@@ -12,10 +12,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
-
 	"prompt-manager/actions"
 	"prompt-manager/agents"
 	"prompt-manager/aisearch"
@@ -34,6 +30,9 @@ import (
 	"prompt-manager/topics"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -566,8 +565,10 @@ func main() {
 		fileStore.Teams().(*store.FileTeamStore),
 		heartbeatExecutor,
 		absStoreDir,
+		agentManagerClient,
 	)
 	heartbeatExecutor.OnComplete = teamExecStore.OnComplete
+	heartbeatExecutor.SetTeamExecStore(teamExecStore)
 	heartbeatScheduler := heartbeat.NewScheduler(
 		heartbeatExecutor,
 		agentManagerClient,
@@ -637,6 +638,7 @@ func main() {
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/trigger", heartbeatHandlers.TriggerHeartbeat).Methods("POST")
 	v1.HandleFunc("/teams/{id}/trigger", heartbeatHandlers.TriggerTeam).Methods("POST")
 	v1.HandleFunc("/teams/{id}/execution-status", heartbeatHandlers.GetTeamExecutionStatus).Methods("GET")
+	v1.HandleFunc("/teams/{id}/queue/running/{agentId}", heartbeatHandlers.ClearTeamQueueRunning).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/heartbeats/logs", heartbeatHandlers.ListTeamLogs).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs", heartbeatHandlers.ListLogs).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs/{logId}", heartbeatHandlers.GetLog).Methods("GET")

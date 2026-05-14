@@ -11,7 +11,7 @@ import (
 
 func TestEnqueueWhenIdle_StartsImmediately(t *testing.T) {
 	exec := &captureExecutor{}
-	ctx := newTeamExecutionContext("team-1", exec, t.TempDir())
+	ctx := newTeamExecutionContext("team-1", exec, t.TempDir(), nil)
 
 	result, err := ctx.Enqueue(context.Background(), "agent-1", "profile-1")
 	if err != nil {
@@ -35,7 +35,7 @@ func TestEnqueueWhenIdle_StartsImmediately(t *testing.T) {
 
 func TestEnqueueWhenActive_QueuesSuccessfully(t *testing.T) {
 	exec := &captureExecutor{}
-	ctx := newTeamExecutionContext("team-1", exec, t.TempDir())
+	ctx := newTeamExecutionContext("team-1", exec, t.TempDir(), nil)
 
 	// Start first agent
 	if _, err := ctx.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
@@ -65,7 +65,7 @@ func TestEnqueueWhenActive_QueuesSuccessfully(t *testing.T) {
 
 func TestEnqueueDuplicate_ReturnsError(t *testing.T) {
 	exec := &captureExecutor{}
-	ctx := newTeamExecutionContext("team-1", exec, t.TempDir())
+	ctx := newTeamExecutionContext("team-1", exec, t.TempDir(), nil)
 
 	// Start first agent
 	if _, err := ctx.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
@@ -96,7 +96,7 @@ func TestEnqueueDuplicate_ReturnsError(t *testing.T) {
 
 func TestDequeueNext_StartsNextMember(t *testing.T) {
 	exec := &captureExecutor{}
-	ctx := newTeamExecutionContext("team-1", exec, t.TempDir())
+	ctx := newTeamExecutionContext("team-1", exec, t.TempDir(), nil)
 
 	// Start agent-1, queue agent-2
 	if _, err := ctx.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
@@ -126,7 +126,7 @@ func TestDequeueNext_StartsNextMember(t *testing.T) {
 
 func TestDequeueNext_BecomesIdleWhenEmpty(t *testing.T) {
 	exec := &captureExecutor{}
-	ctx := newTeamExecutionContext("team-1", exec, t.TempDir())
+	ctx := newTeamExecutionContext("team-1", exec, t.TempDir(), nil)
 
 	// Start agent-1
 	if _, err := ctx.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
@@ -147,7 +147,7 @@ func TestDequeueNext_BecomesIdleWhenEmpty(t *testing.T) {
 
 func TestQueueOrderIsFIFO(t *testing.T) {
 	exec := &captureExecutor{}
-	ctx := newTeamExecutionContext("team-1", exec, t.TempDir())
+	ctx := newTeamExecutionContext("team-1", exec, t.TempDir(), nil)
 
 	// Start agent-1, queue agent-2, agent-3, agent-4
 	if _, err := ctx.Enqueue(context.Background(), "agent-1", "p"); err != nil {
@@ -189,12 +189,15 @@ func TestQueueOrderIsFIFO(t *testing.T) {
 func TestPersistAndRecover(t *testing.T) {
 	dir := t.TempDir()
 	exec := &captureExecutor{}
-	ctx := newTeamExecutionContext("team-1", exec, dir)
+	ctx := newTeamExecutionContext("team-1", exec, dir, nil)
 
 	// Start agent-1, queue agent-2, agent-3
 	if _, err := ctx.Enqueue(context.Background(), "agent-1", "profile-1"); err != nil {
 		t.Fatalf("enqueue agent-1: %v", err)
 	}
+	// Simulate Executor.Execute registering the run ID after CreateRun
+	// returns — otherwise Recover would drop the entry as stale.
+	ctx.SetRunningRunID("agent-1", "run-active")
 	if _, err := ctx.Enqueue(context.Background(), "agent-2", "profile-2"); err != nil {
 		t.Fatalf("enqueue agent-2: %v", err)
 	}
@@ -208,9 +211,12 @@ func TestPersistAndRecover(t *testing.T) {
 		t.Fatal("expected queue file to exist after enqueue")
 	}
 
-	// Create new context and recover
-	ctx2 := newTeamExecutionContext("team-1", exec, dir)
-	ctx2.Recover()
+	// Create new context and recover with a mock client that says the run
+	// is still alive (non-terminal).
+	client := newMockAgentClient().
+		WithGetRunResponse("run-active", &Run{ID: "run-active", Status: "RUN_STATUS_RUNNING"})
+	ctx2 := newTeamExecutionContext("team-1", exec, dir, client)
+	ctx2.Recover(context.Background())
 
 	status := ctx2.Status()
 	if len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-1" {
@@ -226,7 +232,7 @@ func TestPersistAndRecover(t *testing.T) {
 
 func TestStatus_ReflectsCurrentState(t *testing.T) {
 	exec := &captureExecutor{}
-	ctx := newTeamExecutionContext("team-1", exec, t.TempDir())
+	ctx := newTeamExecutionContext("team-1", exec, t.TempDir(), nil)
 
 	// Initially idle
 	status := ctx.Status()
@@ -266,16 +272,21 @@ func TestTeamExecutionStore_Recover(t *testing.T) {
 	exec := &captureExecutor{}
 
 	// Create some queue state manually
-	store1 := NewTeamExecutionStore(nil, exec, dir)
+	store1 := NewTeamExecutionStore(nil, exec, dir, nil)
 	if _, err := store1.Enqueue(context.Background(), "team-a", "agent-1", "p1"); err != nil {
 		t.Fatalf("enqueue team-a/agent-1: %v", err)
 	}
+	store1.SetRunningRunID("team-a", "agent-1", "run-a")
 	if _, err := store1.Enqueue(context.Background(), "team-b", "agent-2", "p2"); err != nil {
 		t.Fatalf("enqueue team-b/agent-2: %v", err)
 	}
+	store1.SetRunningRunID("team-b", "agent-2", "run-b")
 
-	// Create new store and recover
-	store2 := NewTeamExecutionStore(nil, exec, dir)
+	// Create new store and recover with a mock that keeps both runs alive.
+	client := newMockAgentClient().
+		WithGetRunResponse("run-a", &Run{ID: "run-a", Status: "RUN_STATUS_RUNNING"}).
+		WithGetRunResponse("run-b", &Run{ID: "run-b", Status: "RUN_STATUS_RUNNING"})
+	store2 := NewTeamExecutionStore(nil, exec, dir, client)
 	store2.Recover(context.Background())
 
 	statusA := store2.Status("team-a")
@@ -292,7 +303,7 @@ func TestTeamExecutionStore_Recover(t *testing.T) {
 // TestTeamExecutionStore_OnComplete routes completion to correct team.
 func TestTeamExecutionStore_OnComplete(t *testing.T) {
 	exec := &captureExecutor{}
-	store := NewTeamExecutionStore(nil, exec, t.TempDir())
+	store := NewTeamExecutionStore(nil, exec, t.TempDir(), nil)
 
 	// Enqueue agent on team-1
 	if _, err := store.Enqueue(context.Background(), "team-1", "agent-1", "p"); err != nil {
@@ -316,7 +327,7 @@ func TestTeamExecutionStore_OnComplete(t *testing.T) {
 // TestTeamExecutionStore_StatusUnknownTeam returns idle for unknown teams.
 func TestTeamExecutionStore_StatusUnknownTeam(t *testing.T) {
 	exec := &captureExecutor{}
-	store := NewTeamExecutionStore(nil, exec, t.TempDir())
+	store := NewTeamExecutionStore(nil, exec, t.TempDir(), nil)
 
 	status := store.Status("nonexistent")
 	if status.State != "idle" {
@@ -352,7 +363,7 @@ func TestEnqueue_ExecutorUsesDetachedContext(t *testing.T) {
 		},
 	}
 
-	tec := newTeamExecutionContext("team-1", wrapper, t.TempDir())
+	tec := newTeamExecutionContext("team-1", wrapper, t.TempDir(), nil)
 
 	// Create a context and cancel it immediately after Enqueue.
 	callerCtx, callerCancel := context.WithCancel(context.Background())
@@ -390,7 +401,7 @@ func TestEnqueue_ExecutorUsesDetachedContext(t *testing.T) {
 // set forever and blocking all future heartbeats for the team.
 func TestEnqueue_ExecuteFailure_ClearsRunningState(t *testing.T) {
 	exec := &failingExecutor{err: errForTest("creating run: profile not found")}
-	ctx := newTeamExecutionContext("team-1", exec, t.TempDir())
+	ctx := newTeamExecutionContext("team-1", exec, t.TempDir(), nil)
 
 	result, err := ctx.Enqueue(context.Background(), "agent-1", "profile-1")
 	if err != nil {

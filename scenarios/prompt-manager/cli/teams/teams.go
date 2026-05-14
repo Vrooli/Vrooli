@@ -668,6 +668,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHeartbeatTrigger(ctx, subArgs)
 	case "heartbeat-logs":
 		return cmdHeartbeatLogs(ctx, subArgs)
+	case "queue-clear":
+		return cmdQueueClear(ctx, subArgs)
 	case "responsibilities":
 		return cmdResponsibilities(ctx, subArgs)
 	case "heartbeat-instructions":
@@ -774,6 +776,7 @@ Heartbeat Commands:
   heartbeat-disable <team-id> <agent-id>      Disable heartbeat
   heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
   heartbeat-logs <team-id> <agent-id>         List execution logs
+  queue-clear <team-id> <agent-id>            Clear a stuck running entry from the team queue
 
 Member Document Commands:
   responsibilities <team-id> <agent-id>       Get/set RESPONSIBILITIES.md
@@ -1898,6 +1901,64 @@ func cmdHeartbeatLogs(ctx appctx.Context, args []string) error {
 	fmt.Println("Execution Logs:")
 	for _, log := range resp.Logs {
 		fmt.Printf("  %s\n", log.Filename)
+	}
+	return nil
+}
+
+// teamQueueStatus mirrors the heartbeat.TeamExecutionStatus shape returned
+// by GET /teams/{id}/execution-status and DELETE /teams/{id}/queue/running/{agentId}.
+type teamQueueStatus struct {
+	TeamID            string   `json:"teamId"`
+	State             string   `json:"state"`
+	RunningAgentIDs   []string `json:"runningAgentIds"`
+	Queue             []string `json:"queue"`
+	QueuePolicy       string   `json:"queuePolicy"`
+	MaxConcurrentRuns int      `json:"maxConcurrentRuns"`
+}
+
+func cmdQueueClear(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("queue-clear", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	force := fs.Bool("force", false, "Clear even if the backing run is still active in agent-manager")
+	yes := fs.Bool("yes", false, "Skip the confirmation prompt that --force triggers")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team queue-clear <team-id> <agent-id> [--force [--yes]]")
+	}
+	teamID := fs.Arg(0)
+	agentID := fs.Arg(1)
+
+	if *force && !*yes {
+		fmt.Fprintf(os.Stderr, "--force will clear the running entry even if the agent-manager run is still active.\nPass --yes to confirm. Refusing for safety.\n")
+		return fmt.Errorf("force without confirmation")
+	}
+
+	query := url.Values{}
+	if *force {
+		query.Set("force", "true")
+	}
+
+	var resp teamQueueStatus
+	if err := ctx.DeleteWithQuery(fmt.Sprintf("/teams/%s/queue/running/%s", teamID, agentID), query, &resp); err != nil {
+		return fmt.Errorf("failed to clear queue entry: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Cleared running entry %s/%s\n", teamID, agentID)
+	fmt.Printf("Team state: %s\n", resp.State)
+	if len(resp.RunningAgentIDs) > 0 {
+		fmt.Printf("Still running: %v\n", resp.RunningAgentIDs)
+	}
+	if len(resp.Queue) > 0 {
+		fmt.Printf("Queue: %v\n", resp.Queue)
 	}
 	return nil
 }

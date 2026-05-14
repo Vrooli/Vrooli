@@ -195,7 +195,7 @@ func TestSchedulerRoutesToTeamExecStore(t *testing.T) {
 			ProfileKey: "custom-profile",
 		},
 	}
-	teamExecStore := NewTeamExecutionStore(nil, exec, t.TempDir())
+	teamExecStore := NewTeamExecutionStore(nil, exec, t.TempDir(), nil)
 	scheduler := NewScheduler(exec, nil, configStore, teamExecStore)
 
 	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
@@ -220,7 +220,7 @@ func TestSchedulerHandlesMemberAlreadyQueued(t *testing.T) {
 			Schedule: "0 * * * *",
 		},
 	}
-	teamExecStore := NewTeamExecutionStore(nil, exec, t.TempDir())
+	teamExecStore := NewTeamExecutionStore(nil, exec, t.TempDir(), nil)
 	scheduler := NewScheduler(exec, nil, configStore, teamExecStore)
 
 	// First call should succeed
