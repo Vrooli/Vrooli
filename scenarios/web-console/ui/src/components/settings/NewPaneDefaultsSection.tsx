@@ -1,5 +1,7 @@
 import { LayoutList, Terminal } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
+import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
 import HeaderColorPicker from "../appearance/HeaderColorPicker";
 import ThemePicker from "../appearance/ThemePicker";
@@ -7,6 +9,7 @@ import FontSizeStepper from "../appearance/FontSizeStepper";
 import { SettingsCard, SettingsRow, SettingsSectionIntro } from "./primitives";
 
 export default function NewPaneDefaultsSection() {
+  const { t } = useTranslation();
   const defaultHeaderColor = useWorkspaceStore((state) => state.defaultHeaderColor);
   const defaultThemeId = useWorkspaceStore((state) => state.defaultThemeId);
   const defaultFontSize = useWorkspaceStore((state) => state.defaultFontSize);
@@ -19,9 +22,9 @@ export default function NewPaneDefaultsSection() {
   return (
     <div className="space-y-4">
       <SettingsSectionIntro
-        eyebrow="Appearance"
-        title="New pane defaults"
-        description="Set the baseline look for every new terminal pane without affecting existing sessions."
+        eyebrow={t(strings.settings.newPaneDefaultsSection.eyebrow)}
+        title={t(strings.settings.newPaneDefaultsSection.title)}
+        description={t(strings.settings.newPaneDefaultsSection.description)}
       />
 
       <SettingsCard className="space-y-5">
@@ -41,8 +44,8 @@ export default function NewPaneDefaultsSection() {
           testIdPrefix="defaults"
         />
         <SettingsRow
-          label="Plus button default"
-          hint="Quick-tap action. The other moves to long-press."
+          label={t(strings.settings.newPaneDefaultsSection.plusButtonLabel)}
+          hint={t(strings.settings.newPaneDefaultsSection.plusButtonHint)}
           control={(
             <div className="flex items-center gap-2">
               <Button
@@ -53,7 +56,7 @@ export default function NewPaneDefaultsSection() {
                 onClick={() => setPlusButtonBehavior("launcher")}
               >
                 <LayoutList className="mr-1 h-3.5 w-3.5" />
-                Launcher
+                {t(strings.settings.newPaneDefaultsSection.launcher)}
               </Button>
               <Button
                 data-testid="plus-behavior-new-terminal"
@@ -63,7 +66,7 @@ export default function NewPaneDefaultsSection() {
                 onClick={() => setPlusButtonBehavior("new-terminal")}
               >
                 <Terminal className="mr-1 h-3.5 w-3.5" />
-                Empty terminal
+                {t(strings.settings.newPaneDefaultsSection.emptyTerminal)}
               </Button>
             </div>
           )}

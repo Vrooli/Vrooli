@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"web-console/internal/sessionstore"
 )
 
 const (
@@ -264,8 +265,8 @@ func (ct *CodexTailer) captureAgentInfo(path, sessionID string) {
 	if meta.Type != "session_meta" || meta.Payload.ID == "" {
 		return
 	}
-	info := AgentInfo{
-		AgentType:       AgentTypeCodex,
+	info := sessionstore.AgentInfo{
+		AgentType:       sessionstore.AgentCodex,
 		AgentSessionID:  meta.Payload.ID,
 		CWD:             meta.Payload.CWD,
 		LastRolloutPath: path,

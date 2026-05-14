@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, fireEvent, screen } from "@testing-library/react";
 import { createRef } from "react";
 import MobileToolbar, { type MobileToolbarHandle } from "../components/MobileToolbar";
+import { i18n } from "../i18n";
 
 // Draft persistence wants a stable sessionId — pass a fixed one through props.
 function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> = {}) {
@@ -100,7 +101,11 @@ describe("MobileToolbar — send/ack flow", () => {
     expect(screen.getByTestId("send-status-queued")).toBeTruthy();
   });
 
-  it("renders N unsent pill when queue non-empty and hides when drained", () => {
+  it("renders N unsent pill when queue non-empty and hides when drained", async () => {
+    // Opt into the real `en` locale so the `{{count}}` interpolation in
+    // the unsent-pill heading renders an actual digit — cimode otherwise
+    // returns the raw key path with the token unsubstituted.
+    await i18n.changeLanguage("en");
     const { setSnapshot } = renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })) });
 
     expect(screen.queryByTestId("pending-input-pill")).toBeNull();

@@ -21,6 +21,7 @@ import (
 
 	"web-console/internal/backend"
 	"web-console/internal/policy"
+	"web-console/internal/sessionstore"
 )
 
 // idempotencyEntry caches the result of a session creation keyed by
@@ -79,19 +80,19 @@ func (c *idempotencyCache) Set(key string, resp SessionResponse) {
 }
 
 // normalizeAgentType maps a free-form string to one of the closed-set
-// AgentType values. Unrecognized inputs become AgentTypeNone (rather than
+// sessionstore.Agent values. Unrecognized inputs become sessionstore.AgentNone (rather than
 // erroring) so a future client that knows about a new agent kind can roll
 // forward without breaking older API builds.
-func normalizeAgentType(s string) AgentType {
-	switch AgentType(s) {
-	case AgentTypeCodex:
-		return AgentTypeCodex
-	case AgentTypeClaude:
-		return AgentTypeClaude
-	case AgentTypeNone:
-		return AgentTypeNone
+func normalizeAgentType(s string) sessionstore.Agent {
+	switch sessionstore.Agent(s) {
+	case sessionstore.AgentCodex:
+		return sessionstore.AgentCodex
+	case sessionstore.AgentClaude:
+		return sessionstore.AgentClaude
+	case sessionstore.AgentNone:
+		return sessionstore.AgentNone
 	default:
-		return AgentTypeNone
+		return sessionstore.AgentNone
 	}
 }
 

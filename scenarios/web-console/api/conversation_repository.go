@@ -537,6 +537,10 @@ func (r *InMemoryConversationRepository) ensureSessionLocked(sessionID string) *
 	return session
 }
 
+type scannable interface {
+	Scan(dest ...any) error
+}
+
 func scanConversationEvent(row scannable) (ConversationEvent, error) {
 	var event ConversationEvent
 	var role, createdAt string

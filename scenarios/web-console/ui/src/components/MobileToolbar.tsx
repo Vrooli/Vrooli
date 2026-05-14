@@ -2,7 +2,9 @@
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
 import { useCallback, useDeferredValue, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Image, SendHorizontal, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
+import { strings } from "../consts/strings";
 import type { GateResult, InputSource } from "./terminal/inputGate";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
@@ -174,6 +176,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   viewMode = "terminal",
   onSwitchToTerminal,
 }, ref) {
+  const { t } = useTranslation();
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
   const deferredInputValue = useDeferredValue(inputValue);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -445,10 +448,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => setPillOpen((v) => !v)}
             className="flex items-center justify-between gap-2 text-left"
-            title="Show unsent input details"
+            title={t(strings.mobileToolbar.showUnsentTitle)}
           >
             <span>
-              ⏳ {pendingInputEntries.length} unsent
+              ⏳ {t(strings.mobileToolbar.unsentCount, { count: pendingInputEntries.length })}
               {(() => {
                 const oldest = pendingInputEntries.reduce(
                   (min, e) => (min === null || e.addedAt < min ? e.addedAt : min),
@@ -456,7 +459,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 );
                 if (oldest === null) return null;
                 const ageSec = Math.max(0, Math.floor((Date.now() - oldest) / 1000));
-                return <span className="ml-1 text-wc-text-muted">(oldest {ageSec}s)</span>;
+                return <span className="ml-1 text-wc-text-muted">{t(strings.mobileToolbar.unsentOldest, { seconds: ageSec })}</span>;
               })()}
             </span>
             <span className="text-wc-text-muted">{pillOpen ? "▾" : "▸"}</span>
@@ -525,7 +528,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             autoCorrect="on"
             spellCheck={false}
             rows={1}
-            placeholder="Type command…"
+            placeholder={t(strings.mobileToolbar.placeholder)}
             className={cn(
               "min-w-0 resize-none rounded border border-wc-default bg-wc-surface-input px-2 py-1 text-base text-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
               "overflow-y-auto overflow-x-hidden",
@@ -537,17 +540,17 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           />
           {sendStatus === "queued" && (
             <span data-testid="send-status-queued" className="px-1 text-[10px] text-yellow-400">
-              Queued — connection lost. Input preserved.
+              {t(strings.mobileToolbar.statusQueued)}
             </span>
           )}
           {sendStatus === "sending" && (
             <span data-testid="send-status-sending" className="px-1 text-[10px] text-wc-text-muted">
-              Sending…
+              {t(strings.mobileToolbar.statusSending)}
             </span>
           )}
           {sendStatus === "failed" && (
             <span data-testid="send-status-failed" className="px-1 text-[10px] text-red-400">
-              Send failed — retry
+              {t(strings.mobileToolbar.statusFailed)}
             </span>
           )}
         </div>
@@ -558,7 +561,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           onPointerDown={(e) => e.preventDefault()}
           onClick={submitCommand}
           className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-          title="Send command"
+          title={t(strings.mobileToolbar.sendTitle)}
         >
           <SendHorizontal className="h-3.5 w-3.5" />
         </button>
@@ -590,7 +593,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                   ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
                   : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
               )}
-              title="AI Command"
+              title={t(strings.mobileToolbar.aiCommandTitle)}
             >
               <Sparkles className="h-3.5 w-3.5" />
             </button>
@@ -602,7 +605,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               onPointerDown={(e) => e.preventDefault()}
               onClick={onUploadImage}
               className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-              title="Upload image"
+              title={t(strings.mobileToolbar.uploadImageTitle)}
             >
               <Image className="h-3.5 w-3.5" />
             </button>
@@ -721,7 +724,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                     ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
                     : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
                 )}
-                title="AI Command"
+                title={t(strings.mobileToolbar.aiCommandTitle)}
               >
                 <Sparkles className="h-4 w-4" />
               </button>
@@ -733,7 +736,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 onPointerDown={(e) => e.preventDefault()}
                 onClick={onUploadImage}
                 className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-2 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-                title="Upload image"
+                title={t(strings.mobileToolbar.uploadImageTitle)}
               >
                 <Image className="h-4 w-4" />
               </button>
@@ -837,7 +840,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                   ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
                   : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
               )}
-              title="AI Command"
+              title={t(strings.mobileToolbar.aiCommandTitle)}
             >
               <Sparkles className="h-3.5 w-3.5" />
             </button>
@@ -849,7 +852,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               onPointerDown={(e) => e.preventDefault()}
               onClick={onUploadImage}
               className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-              title="Upload image"
+              title={t(strings.mobileToolbar.uploadImageTitle)}
             >
               <Image className="h-3.5 w-3.5" />
             </button>

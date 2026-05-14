@@ -2,8 +2,10 @@
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
 import { useState, useCallback, useEffect, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { MessageSquareText, Plus, Settings, TerminalSquare } from "lucide-react";
+import { Menu, MessageSquareText, Plus, Settings, TerminalSquare } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useVoiceInput } from "../hooks/useVoiceInput";
@@ -41,6 +43,7 @@ import AppearanceModal from "./AppearanceModal";
 import ConfirmCloseDialog from "./ConfirmCloseDialog";
 import WorkspacePaneShell from "./WorkspacePaneShell";
 import TabBar from "./TabBar";
+import SessionSidebar from "./SessionSidebar";
 import AudioPlayerBar from "./AudioPlayerBar";
 import SummarizeErrorBanner, { type SummarizeErrorState } from "./SummarizeErrorBanner";
 import EnableAudioBanner from "./EnableAudioBanner";
@@ -48,6 +51,9 @@ import RecoverableSessionsBanner from "./RecoverableSessionsBanner";
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
 import type { TTSPlaybackState } from "../hooks/tts/types";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
+import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
+import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
+import { useTabLikeNavigationShortcuts } from "../hooks/useTabLikeNavigationShortcuts";
 
 type ActiveResize = {
   axis: "column" | "row";
@@ -72,6 +78,7 @@ type ActiveArrangeDrag = { paneId: string; dropIndex: number };
  * [REQ:P0-001b] Independent Pane Session Lifecycle
  */
 export default function Workspace() {
+  const { t } = useTranslation();
   const {
     panes: sessionPanes,
     isHydrated,
@@ -116,6 +123,7 @@ export default function Workspace() {
     startMutedOnLoad: state.startMutedOnLoad,
     keepScreenAwake: state.keepScreenAwake,
     vadAutoStop: state.vadAutoStop,
+    groups: state.groups,
     addPane: state.addPane,
     removePane: state.removePane,
     setActivePane: state.setActivePane,
@@ -135,12 +143,14 @@ export default function Workspace() {
   const { syncActivePane, syncPaneUpdate } = useWorkspaceSync();
   const conversationState = useConversationStore(useShallow((state) => ({
     sessions: state.sessions,
+    viewModes: state.viewModes,
     setViewMode: state.setViewMode,
     clearSession: state.clearSession,
     activeViewMode: workspace.activePane ? (state.viewModes[workspace.activePane] ?? "terminal") : "terminal",
   })));
   const {
     sessions: conversationSessions,
+    viewModes: conversationViewModes,
     setViewMode: setConversationViewMode,
     clearSession: clearConversationSession,
     activeViewMode,
@@ -158,6 +168,7 @@ export default function Workspace() {
   }, []);
 
   const gridRef = useRef<HTMLDivElement>(null);
+  const sidebarLayoutRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
   useAppViewport();
@@ -167,6 +178,8 @@ export default function Workspace() {
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [lastVisitedBySession, setLastVisitedBySession] = useState<Record<string, string>>({});
 
   // Fetch session defaults on mount AND each time the launcher opens so
   // the dropdown shows the correct server default immediately.
@@ -192,6 +205,8 @@ export default function Workspace() {
     setActiveWorkspacePane(sessionId);
     syncActivePane(workspacePanes.map((pane) => pane.sessionId), sessionId);
   }, [setActiveWorkspacePane, syncActivePane, workspacePanes]);
+
+  const isTabLikeMode = isTabLikeDisplayMode(workspace.displayMode);
 
   // --- Mobile single-column layout ---
   const [isMobile, setIsMobile] = useState(
@@ -357,6 +372,22 @@ export default function Workspace() {
   const handleCancelClose = useCallback(() => {
     setPendingClose(null);
   }, []);
+
+  useTabLikeNavigationShortcuts({
+    enabled: isTabLikeMode,
+    panes: workspacePanes,
+    activePane: workspace.activePane,
+    onActivatePane: activatePane,
+    onClosePane: handleRequestClose,
+  });
+
+  useEffect(() => {
+    if (!workspace.activePane) return;
+    setLastVisitedBySession((prev) => ({
+      ...prev,
+      [workspace.activePane as string]: new Date().toISOString(),
+    }));
+  }, [workspace.activePane]);
 
   const handleExit = useCallback((sessionId: string) => {
     exitedSessionsRef.current.add(sessionId);
@@ -839,22 +870,22 @@ export default function Workspace() {
   // depth (error #185).  An epsilon of 1e-12 is far below any user-visible
   // precision while absorbing the ~1 ULP drift that normalization introduces.
   //
-  // Additionally, in "tabs" display mode the grid is never rendered, so
+  // Additionally, in tab-like display modes the grid is never rendered, so
   // fraction reconciliation is skipped entirely to avoid unnecessary store
   // writes.
   useEffect(() => {
-    if (workspace.displayMode === "tabs") return;
+    if (isTabLikeMode) return;
     if (!fractionsMatch(colFractions, workspace.columnFractions)) {
       workspace.setColumnFractions(colFractions);
     }
-  }, [colFractions, workspace]);
+  }, [colFractions, isTabLikeMode, workspace]);
 
   useEffect(() => {
-    if (workspace.displayMode === "tabs") return;
+    if (isTabLikeMode) return;
     if (!fractionsMatch(rowFractions, workspace.rowFractions)) {
       workspace.setRowFractions(rowFractions);
     }
-  }, [rowFractions, workspace]);
+  }, [isTabLikeMode, rowFractions, workspace]);
 
   const colTemplate = buildGridTrackTemplate(colFractions, SPLITTER_SIZE_PX);
   const rowTemplate = buildGridTrackTemplate(rowFractions, SPLITTER_SIZE_PX);
@@ -890,9 +921,9 @@ export default function Workspace() {
         />
         <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
-            <h1 className="text-2xl font-semibold mb-4">Web Console</h1>
+            <h1 className="text-2xl font-semibold mb-4">{t(strings.app.title)}</h1>
             <p className="text-wc-text-muted mb-6">
-              Browser terminal with PTY-backed sessions
+              {t(strings.workspace.tagline)}
             </p>
             {hydrationError && (
               <ErrorBanner
@@ -917,7 +948,7 @@ export default function Workspace() {
               size="lg"
             >
               <Plus className="mr-2 h-5 w-5" />
-              {isCreating ? "Creating..." : "New Terminal"}
+              {isCreating ? t(strings.workspace.creating) : t(strings.workspace.newTerminalButton)}
             </Button>
           </div>
         </div>
@@ -1024,6 +1055,19 @@ export default function Workspace() {
     );
   });
 
+  const navigationItems = buildWorkspaceNavigationItems({
+    panes: orderedPanes,
+    groups: workspace.groups ?? [],
+    activePane: workspace.activePane,
+    conversationSessions,
+    viewModes: conversationViewModes,
+    lastVisitedBySession,
+  });
+  const activeNavigationItem = navigationItems.find(
+    (item) => item.kind === "pane" && item.pane.sessionId === workspace.activePane,
+  );
+  const activeSidebarPane = activeNavigationItem?.kind === "pane" ? activeNavigationItem : null;
+
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
   // container; all descendants use flex to fill this height.
@@ -1035,7 +1079,7 @@ export default function Workspace() {
       {/* Floating toolbar — hidden on mobile tab mode where TabBar
        * already provides the plus button and we move settings there. */}
       <FloatingToolbar
-        hidden={isMobile && workspace.displayMode === "tabs"}
+        hidden={isMobile && isTabLikeMode}
         onOpenSettings={() => workspace.setSettingsModalOpen(true)}
         onOpenAi={() => workspace.setAiModalOpen(true)}
         onNewTerminal={() => handleLaunch()}
@@ -1120,7 +1164,7 @@ export default function Workspace() {
               size="icon"
               className="h-7 w-7 shrink-0 mx-1 self-center"
               onClick={() => workspace.setSettingsModalOpen(true)}
-              title="Settings"
+              title={t(strings.workspace.settingsTitle)}
             >
               <Settings className="h-4 w-4" />
             </Button>
@@ -1128,10 +1172,74 @@ export default function Workspace() {
         />
       )}
 
+      {workspace.displayMode === "sidebar" && (
+        <div
+          data-testid="workspace-sidebar-topbar"
+          className="flex h-10 shrink-0 items-center gap-2 border-b border-wc-default bg-wc-surface-header px-2 md:hidden"
+        >
+          <Button
+            data-testid="workspace-sidebar-toggle"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setMobileSidebarOpen(true)}
+            title={t(strings.sessionSidebar.open)}
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+          <div data-testid="workspace-sidebar-active-title" className="min-w-0 flex-1 truncate text-sm font-medium">
+            {activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
+          </div>
+          {activeSidebarPane && activeSidebarPane.unreadCount > 0 && (
+            <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
+              {activeSidebarPane.unreadCount}
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            disabled={isCreating}
+            onClick={() => handleLaunch()}
+            title={t(strings.floatingToolbar.terminalFirstTitle)}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => workspace.setSettingsModalOpen(true)}
+            title={t(strings.workspace.settingsTitle)}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {/* Main content area */}
-      {workspace.displayMode === "tabs" ? (
-        /* Tab mode: stacked panes with display:none for inactive */
-        <div className="relative flex-1 min-h-0 overflow-hidden">
+      {isTabLikeMode ? (
+        <div
+          ref={workspace.displayMode === "sidebar" ? sidebarLayoutRef : undefined}
+          className="flex flex-1 min-h-0 overflow-hidden"
+        >
+          {workspace.displayMode === "sidebar" && (
+            <SessionSidebar
+              items={navigationItems}
+              containerRef={sidebarLayoutRef}
+              isMobile={isMobile}
+              mobileOpen={mobileSidebarOpen}
+              isCreating={isCreating}
+              onCloseMobile={() => setMobileSidebarOpen(false)}
+              onActivatePane={activatePane}
+              onClosePane={handleRequestClose}
+              onNewTerminal={() => handleLaunch()}
+              onOpenLauncher={openLauncher}
+              onOpenSettings={() => workspace.setSettingsModalOpen(true)}
+            />
+          )}
+          {/* Tab-like modes: stacked panes with hidden inactive panes */}
+          <div className="relative flex-1 min-h-0 overflow-hidden">
           {/* Toggle between terminal and messages view.
            * Shows the icon for the view you'll switch TO (not the current view):
            *   • In terminal mode → show chat icon (click to switch to messages)
@@ -1147,7 +1255,7 @@ export default function Workspace() {
                     handlePaneToggleView(workspace.activePane, activeViewMode);
                   }
                 }}
-                title={activeViewMode === "terminal" ? "Switch to messages view" : "Switch to terminal view"}
+                title={activeViewMode === "terminal" ? t(strings.workspace.switchToMessagesTitle) : t(strings.workspace.switchToTerminalTitle)}
               >
                 {activeViewMode === "terminal"
                   ? <MessageSquareText className="h-3.5 w-3.5" />
@@ -1155,45 +1263,46 @@ export default function Workspace() {
               </button>
             </div>
           )}
-          {orderedPanes.map((paneMeta) => {
-            return (
-              <WorkspacePaneShell
-                key={paneMeta.sessionId}
-                paneMeta={paneMeta}
-                layoutMode="tabs"
-                isActive={paneMeta.sessionId === workspace.activePane}
-                isVisible={paneMeta.sessionId === workspace.activePane}
-                isTtsSpeaking={isTtsSpeaking && workspace.activePane === paneMeta.sessionId}
-                activeSpeakingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.activeEventId : null}
-                summarizeLevel={ttsPlaybackController.summarizeLevel}
-                summarizingEventId={ttsPlaybackController.summarizingEventId}
-                getSummarizeError={getPlaybackSummarizeError}
-                onClearSummarizeError={clearPlaybackSummarizeError}
-                onToggleSummarized={togglePanePlaybackVersion}
-                onChangeLevel={changePaneSummarizeLevel}
-                selectedVersionForEvent={getSelectedPlaybackVersion}
-                playbackState={ttsPlayback ?? FALLBACK_TTS_PLAYBACK}
-                onSetPlaybackRate={handleTtsSetPlaybackRate}
-                onSetVolume={handleTtsSetVolume}
-                onSetMuted={handleTtsSetMuted}
-                playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
-                onActivate={activatePane}
-                onRequestClose={handleRequestClose}
-                onToggleView={handlePaneToggleView}
-                onTerminalReady={handleTerminalReady}
-                onTerminalExit={handleExit}
-                onTerminalRef={registerTerminalRef}
-                onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
-                onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
-                onTtsSpeakingChange={handleTtsSpeakingChange}
-                onSpeakingEventChange={handlePaneTransportSpeakingEvent}
-                onSummarizeError={handlePaneSummarizeError}
-                onNeedsUnlock={handleNeedsUnlock}
-                onPlayFromHere={playPaneFromHere}
-                onPlayEvent={playPaneEvent}
-              />
-            );
-          })}
+            {orderedPanes.map((paneMeta) => {
+              return (
+                <WorkspacePaneShell
+                  key={paneMeta.sessionId}
+                  paneMeta={paneMeta}
+                  layoutMode="tabs"
+                  isActive={paneMeta.sessionId === workspace.activePane}
+                  isVisible={paneMeta.sessionId === workspace.activePane}
+                  isTtsSpeaking={isTtsSpeaking && workspace.activePane === paneMeta.sessionId}
+                  activeSpeakingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.activeEventId : null}
+                  summarizeLevel={ttsPlaybackController.summarizeLevel}
+                  summarizingEventId={ttsPlaybackController.summarizingEventId}
+                  getSummarizeError={getPlaybackSummarizeError}
+                  onClearSummarizeError={clearPlaybackSummarizeError}
+                  onToggleSummarized={togglePanePlaybackVersion}
+                  onChangeLevel={changePaneSummarizeLevel}
+                  selectedVersionForEvent={getSelectedPlaybackVersion}
+                  playbackState={ttsPlayback ?? FALLBACK_TTS_PLAYBACK}
+                  onSetPlaybackRate={handleTtsSetPlaybackRate}
+                  onSetVolume={handleTtsSetVolume}
+                  onSetMuted={handleTtsSetMuted}
+                  playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
+                  onActivate={activatePane}
+                  onRequestClose={handleRequestClose}
+                  onToggleView={handlePaneToggleView}
+                  onTerminalReady={handleTerminalReady}
+                  onTerminalExit={handleExit}
+                  onTerminalRef={registerTerminalRef}
+                  onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
+                  onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
+                  onTtsSpeakingChange={handleTtsSpeakingChange}
+                  onSpeakingEventChange={handlePaneTransportSpeakingEvent}
+                  onSummarizeError={handlePaneSummarizeError}
+                  onNeedsUnlock={handleNeedsUnlock}
+                  onPlayFromHere={playPaneFromHere}
+                  onPlayEvent={playPaneEvent}
+                />
+              );
+            })}
+          </div>
         </div>
       ) : (
         /* Grid mode: original grid layout with minimap */

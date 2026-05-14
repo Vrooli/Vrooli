@@ -1,7 +1,9 @@
 import { useCallback, type ChangeEvent } from "react";
 import { Volume2, VolumeX } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { TTSPlaybackCapabilities } from "../../hooks/tts/types";
 import { cn } from "../../lib/classnames";
+import { strings } from "../../consts/strings";
 import { getAccentClasses } from "./scrubStyles";
 
 const SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
@@ -38,6 +40,7 @@ export function AudioSettingsContent({
   onSetMuted,
   onSetPlaybackRate,
 }: AudioSettingsContentProps) {
+  const { t } = useTranslation();
   const handleVolumeChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       // Dragging the slider while muted auto-unmutes. Order matters: clear the
@@ -57,7 +60,7 @@ export function AudioSettingsContent({
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <label className="block text-[10px] font-medium uppercase tracking-wider text-wc-text-faint">
-              Volume
+              {t(strings.audioSettings.volume)}
             </label>
             {showMuteToggle && onSetMuted && (
               <button
@@ -68,12 +71,12 @@ export function AudioSettingsContent({
                   "flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider transition hover:bg-wc-accent/10",
                   isMuted ? "text-wc-accent" : "text-wc-text-muted",
                 )}
-                title={isMuted ? "Tap to unmute" : "Tap to mute"}
+                title={isMuted ? t(strings.audioSettings.unmuteTitle) : t(strings.audioSettings.muteTitle)}
                 aria-pressed={isMuted}
-                aria-label={isMuted ? "Unmute" : "Mute"}
+                aria-label={isMuted ? t(strings.audioSettings.unmuteAria) : t(strings.audioSettings.muteAria)}
               >
                 {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-                <span>{isMuted ? "Muted" : "Mute"}</span>
+                <span>{isMuted ? t(strings.audioSettings.muted) : t(strings.audioSettings.mute)}</span>
               </button>
             )}
           </div>
@@ -101,7 +104,7 @@ export function AudioSettingsContent({
       {capabilities.canAdjustSpeed && (
         <div className={cn(capabilities.canAdjustVolume && "border-t border-wc-default pt-3")}>
           <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-wc-text-faint">
-            Speed
+            {t(strings.audioSettings.speed)}
           </label>
           <div className="grid grid-cols-6 gap-1">
             {SPEED_PRESETS.map((rate) => {

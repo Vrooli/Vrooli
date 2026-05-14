@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { strings } from "../../consts/strings";
 import { AudioSettingsContent } from "../tts/AudioSettingsContent";
 import type { TTSPlaybackCapabilities } from "../../hooks/tts/types";
 
@@ -88,16 +89,16 @@ describe("AudioSettingsContent", () => {
     renderContent({ isMuted: false });
     const toggle = screen.getByTestId("x-mute-toggle");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
-    expect(toggle.getAttribute("aria-label")).toBe("Mute");
-    expect(toggle.textContent).toMatch(/Mute/);
+    expect(toggle.getAttribute("aria-label")).toBe(strings.audioSettings.muteAria);
+    expect(toggle.textContent).toContain(strings.audioSettings.mute);
   });
 
   it("renders mute toggle reflecting muted state", () => {
     renderContent({ isMuted: true });
     const toggle = screen.getByTestId("x-mute-toggle");
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    expect(toggle.getAttribute("aria-label")).toBe("Unmute");
-    expect(toggle.textContent).toMatch(/Muted/);
+    expect(toggle.getAttribute("aria-label")).toBe(strings.audioSettings.unmuteAria);
+    expect(toggle.textContent).toContain(strings.audioSettings.muted);
   });
 
   it("clicking the mute toggle calls onSetMuted with the negation", () => {

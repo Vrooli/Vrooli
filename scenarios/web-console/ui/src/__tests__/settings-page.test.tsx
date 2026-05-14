@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { Profile as ShortcutProfile } from "@vrooli/proto-types/web-console/v1/shortcuts/shortcuts_pb";
 import { asMockedClient } from "../test-utils";
+import { strings } from "../consts/strings";
 
 // [REQ:P1-002a] Shortcut Profile Management UI — exercises ShortcutsService
 // via the Connect-Web client. The domain module is mocked so tests assert
@@ -42,14 +43,14 @@ describe("ShortcutProfilesSection", () => {
   it("renders loading state initially", () => {
     shortcutsClient.listProfiles.mockReturnValue(new Promise(() => {}));
     render(<ShortcutProfilesSection />);
-    expect(screen.getByText("Loading...")).toBeTruthy();
+    expect(screen.getByText(strings.settings.shortcutsSection.loading)).toBeTruthy();
   });
 
   it("renders empty state when no profiles exist", async () => {
     shortcutsClient.listProfiles.mockResolvedValueOnce({ profiles: [] });
     render(<ShortcutProfilesSection />);
     await waitFor(() => {
-      expect(screen.getByText("No shortcut profiles configured")).toBeTruthy();
+      expect(screen.getByText(strings.settings.shortcutsSection.empty)).toBeTruthy();
     });
   });
 
@@ -137,7 +138,7 @@ describe("ShortcutProfilesSection", () => {
     render(<ShortcutProfilesSection />);
 
     await waitFor(() => {
-      expect(screen.getByText("No shortcut profiles configured")).toBeTruthy();
+      expect(screen.getByText(strings.settings.shortcutsSection.empty)).toBeTruthy();
     });
 
     fireEvent.click(screen.getByTestId("create-profile"));

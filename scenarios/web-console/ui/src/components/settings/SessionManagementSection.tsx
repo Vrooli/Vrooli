@@ -9,6 +9,8 @@ import {
   Timer,
   Trash2,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../../consts/strings";
 import { HEADER_COLORS } from "../../consts/config";
 import { BACKEND_OPTIONS } from "../../consts/backend-options";
 import { POLICY_OPTIONS, parsePolicySelection, policyKey } from "../../consts/policy-options";
@@ -63,6 +65,7 @@ function SessionPolicyControl({
 }
 
 function SessionDefaultsControl() {
+  const { t } = useTranslation();
   const [defaultBackend, setDefaultBackend] = useState<BackendID>("standard");
   const [defaultPolicyKey, setDefaultPolicyKey] = useState<string>("never");
   const [availableBackends, setAvailableBackends] = useState<BackendID[]>(["standard"]);
@@ -124,15 +127,15 @@ function SessionDefaultsControl() {
   return (
     <SettingsCard className="space-y-3">
       <div>
-        <div className="text-sm font-medium text-wc-text-secondary">Session Defaults</div>
+        <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.sessionsSection.defaultsTitle)}</div>
         <div className="text-[11px] text-wc-text-muted">
-          These defaults pre-populate the launch dialog. You can override per session.
+          {t(strings.settings.sessionsSection.defaultsHint)}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-4">
         {showBackendSelector && (
           <div className="flex items-center gap-2">
-            <label className="text-xs text-wc-text-secondary">Default backend:</label>
+            <label className="text-xs text-wc-text-secondary">{t(strings.settings.sessionsSection.defaultBackendLabel)}</label>
             <select
               data-testid="session-defaults-backend"
               className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
@@ -147,7 +150,7 @@ function SessionDefaultsControl() {
           </div>
         )}
         <div className="flex items-center gap-2">
-          <label className="text-xs text-wc-text-secondary">Default timeout:</label>
+          <label className="text-xs text-wc-text-secondary">{t(strings.settings.sessionsSection.defaultTimeoutLabel)}</label>
           <select
             data-testid="session-defaults-policy"
             className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
@@ -178,6 +181,7 @@ export default function SessionManagementSection({
   onDeleteSession,
   onRequestClose,
 }: SessionManagementSectionProps) {
+  const { t } = useTranslation();
   const panes = useWorkspaceStore((state) => state.panes);
   const movePaneToIndex = useWorkspaceStore((state) => state.movePaneToIndex);
   const setActivePane = useWorkspaceStore((state) => state.setActivePane);
@@ -218,9 +222,9 @@ export default function SessionManagementSection({
   return (
     <div className="space-y-4">
       <SettingsSectionIntro
-        eyebrow="Terminal Runtime"
-        title="Sessions"
-        description="Inspect active terminals, change expiration policies, reorder panes, and jump directly to the pane you need."
+        eyebrow={t(strings.settings.sessionsSection.eyebrow)}
+        title={t(strings.settings.sessionsSection.title)}
+        description={t(strings.settings.sessionsSection.description)}
       />
 
       <SessionDefaultsControl />
@@ -228,9 +232,9 @@ export default function SessionManagementSection({
       <SettingsCard className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-medium text-wc-text-secondary">Open terminals</div>
+            <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.sessionsSection.openTerminals)}</div>
             <div className="text-[11px] text-wc-text-muted">
-              Sessions are server-side processes. Panes are their workspace views.
+              {t(strings.settings.sessionsSection.openTerminalsHint)}
             </div>
           </div>
           <Button
@@ -241,7 +245,7 @@ export default function SessionManagementSection({
             onClick={resetLayout}
           >
             <RotateCcw className="mr-1 h-3 w-3" />
-            Reset layout
+            {t(strings.settings.sessionsSection.resetLayout)}
           </Button>
         </div>
 
@@ -256,7 +260,7 @@ export default function SessionManagementSection({
         )}
 
         {panes.length === 0 ? (
-          <div className="py-6 text-center text-xs text-wc-text-faint">No terminals open</div>
+          <div className="py-6 text-center text-xs text-wc-text-faint">{t(strings.settings.sessionsSection.noTerminalsOpen)}</div>
         ) : (
           <div className="space-y-3">
             {panes.map((pane, index) => {
@@ -285,7 +289,7 @@ export default function SessionManagementSection({
                               className="h-4 w-4 rounded-full border border-wc-default"
                               style={{ backgroundColor: "rgb(var(--wc-surface-input))" }}
                               onClick={() => setPaneColor(pane.sessionId, "transparent")}
-                              title="No color"
+                              title={t(strings.settings.sessionsSection.noColor)}
                             />
                             {HEADER_COLORS.map((color) => (
                               <button
@@ -325,7 +329,7 @@ export default function SessionManagementSection({
                               setEditingName(pane.sessionId);
                               setEditValue(pane.name);
                             }}
-                            title="Rename pane"
+                            title={t(strings.settings.sessionsSection.renamePane)}
                           >
                             {pane.name}
                           </button>
@@ -336,7 +340,7 @@ export default function SessionManagementSection({
                         <div className="flex items-center gap-3">
                           {session.backend === "persistent" && (
                             <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-300">
-                              Persistent
+                              {t(strings.settings.sessionsSection.persistent)}
                             </span>
                           )}
                           <SessionPolicyControl session={session} onPolicyChange={handlePolicyChange} />
@@ -352,7 +356,7 @@ export default function SessionManagementSection({
                         className="h-8 w-8"
                         disabled={index === 0}
                         onClick={() => movePaneToIndex(pane.sessionId, index - 1)}
-                        title="Move up"
+                        title={t(strings.settings.sessionsSection.moveUp)}
                       >
                         <ChevronUp className="h-3.5 w-3.5" />
                       </Button>
@@ -363,7 +367,7 @@ export default function SessionManagementSection({
                         className="h-8 w-8"
                         disabled={index === panes.length - 1}
                         onClick={() => movePaneToIndex(pane.sessionId, index + 1)}
-                        title="Move down"
+                        title={t(strings.settings.sessionsSection.moveDown)}
                       >
                         <ChevronDown className="h-3.5 w-3.5" />
                       </Button>
@@ -377,7 +381,7 @@ export default function SessionManagementSection({
                           syncActivePane(panes.map((entry) => entry.sessionId), pane.sessionId);
                           onRequestClose();
                         }}
-                        title="Focus pane"
+                        title={t(strings.settings.sessionsSection.focusPane)}
                       >
                         <Focus className="h-3.5 w-3.5" />
                       </Button>
@@ -387,7 +391,7 @@ export default function SessionManagementSection({
                         size="icon"
                         className="h-8 w-8"
                         onClick={() => onDeleteSession(pane.sessionId)}
-                        title="Terminate session"
+                        title={t(strings.settings.sessionsSection.terminateSession)}
                       >
                         <Trash2 className="h-3.5 w-3.5 text-wc-error-detail" />
                       </Button>

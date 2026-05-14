@@ -39,8 +39,7 @@ func (s *Server) appendConversationEvent(responseText, targetSessionID, source s
 		return result
 	}
 
-	sess, ok := s.sessions.Get(targetSessionID)
-	if !ok {
+	if _, ok := s.sessions.Get(targetSessionID); !ok {
 		result := conversationAppendFailure("conversation_target_missing", "The mapped terminal session is no longer available", source, targetSessionID)
 		s.recordLastTTSRouting(result)
 		return result
@@ -50,7 +49,9 @@ func (s *Server) appendConversationEvent(responseText, targetSessionID, source s
 	if result.Appended && !result.Duplicate {
 		// Send event to clients immediately so the text lands in the UI with
 		// no delay — audio is handled separately below.
-		sess.SendConversation(event)
+		if fanout := s.fanouts.Get(targetSessionID); fanout != nil {
+			fanout.Send(event)
+		}
 
 		cfg := s.getTTSSummarizeConfig()
 		shouldSummarize := s.ttsSummarizer != nil && cfg.Enabled && len(event.Text) >= cfg.CharThreshold
@@ -61,7 +62,7 @@ func (s *Server) appendConversationEvent(responseText, targetSessionID, source s
 			// failure). This closes the pre-cache race where audio was
 			// synthesized from the raw response and never invalidated.
 			go func(ev ConversationEvent) {
-				s.asyncSummarizeAndNotify(ev, targetSessionID, sess)
+				s.asyncSummarizeAndNotify(ev, targetSessionID)
 				updated, ok := s.conversations.GetEvent(targetSessionID, ev.ID)
 				if !ok {
 					updated = ev
@@ -83,14 +84,15 @@ func (s *Server) appendUserConversationEvent(promptText, targetSessionID, source
 		return conversationAppendFailure("conversation_target_missing", "No web-console terminal session was identified for this conversation event", source, "")
 	}
 
-	sess, ok := s.sessions.Get(targetSessionID)
-	if !ok {
+	if _, ok := s.sessions.Get(targetSessionID); !ok {
 		return conversationAppendFailure("conversation_target_missing", "The mapped terminal session is no longer available", source, targetSessionID)
 	}
 
 	event, result := s.conversations.AppendUserEvent(targetSessionID, source, promptText)
 	if result.Appended && !result.Duplicate {
-		sess.SendConversation(event)
+		if fanout := s.fanouts.Get(targetSessionID); fanout != nil {
+			fanout.Send(event)
+		}
 	}
 	return result
 }
@@ -100,7 +102,7 @@ func (s *Server) appendUserConversationEvent(promptText, targetSessionID, source
 // can display the summarized version without a page refresh. On success it
 // also evicts any cached TTS audio for this event so playback regenerates
 // from the summary rather than the original text.
-func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID string, sess *Session) {
+func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID string) {
 	if s.ttsSummarization == nil {
 		return
 	}
@@ -146,7 +148,9 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 		errEvent := event
 		errEvent.IsUpdate = true
 		errEvent.SummarizeError = summarizeErrorMessage(err)
-		sess.SendConversation(errEvent)
+		if fanout := s.fanouts.Get(sessionID); fanout != nil {
+			fanout.Send(errEvent)
+		}
 		return
 	}
 	logSummarizeResult("auto", cfg, event.ID, len(normalized), result, nil)
@@ -160,7 +164,9 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	event.SpeechParagraphs = newParagraphs
 	event.Summarized = true
 	event.IsUpdate = true
-	sess.SendConversation(event)
+	if fanout := s.fanouts.Get(sessionID); fanout != nil {
+		fanout.Send(event)
+	}
 }
 
 // logSummarizeResult emits the unified tts-summarize log line. It is shared by

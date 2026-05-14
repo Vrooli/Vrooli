@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
 	"web-console/internal/events"
 
 	"github.com/gorilla/websocket"
@@ -177,9 +178,16 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	wsGen := s.nextWSGen.Add(1)
 
 	// Subscribe to conversation side-channel for semantic assistant events.
-	conversationCh := sess.SubscribeConversation()
-	defer sess.UnsubscribeConversation(conversationCh)
-	conversationResyncCh := sess.ConversationResyncSignal(conversationCh)
+	fanout := s.fanouts.Get(sess.ID)
+	var (
+		conversationCh       chan ConversationEvent
+		conversationResyncCh <-chan struct{}
+	)
+	if fanout != nil {
+		conversationCh = fanout.Subscribe()
+		defer fanout.Unsubscribe(conversationCh)
+		conversationResyncCh = fanout.ResyncSignal(conversationCh)
+	}
 
 	// writeMu serializes WebSocket writes from the output forwarder goroutine
 	// and the inline input loop (which also writes pong/error responses).

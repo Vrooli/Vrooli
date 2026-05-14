@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Plus, Save, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsSectionIntro } from "./primitives";
 import type { Profile as ShortcutProfile } from "@vrooli/proto-types/web-console/v1/shortcuts/shortcuts_pb";
 import { shortcutsClient } from "../../api/shortcuts";
+import { strings } from "../../consts/strings";
 import { toErrorInfo } from "../../lib/errors";
 
 interface ShortcutDraft {
@@ -28,6 +30,7 @@ function ShortcutEditor({
   onSave: (draft: ProfileDraft) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<ShortcutDraft[]>(
     profile.shortcuts.map((s) => ({ label: s.label, command: s.command, description: s.description })),
   );
@@ -77,7 +80,7 @@ function ShortcutEditor({
                 onSave({ id: profile.id, scope: profile.scope, name, shortcuts: entries });
                 setDirty(false);
               }}
-              title="Save changes"
+              title={t(strings.settings.shortcutsSection.saveChanges)}
             >
               <Save className="h-3.5 w-3.5 text-green-400" />
             </Button>
@@ -88,7 +91,7 @@ function ShortcutEditor({
             size="icon"
             className="h-7 w-7"
             onClick={() => onDelete(profile.id)}
-            title="Delete profile"
+            title={t(strings.settings.shortcutsSection.deleteProfile)}
           >
             <Trash2 className="h-3.5 w-3.5 text-wc-text-faint hover:text-wc-error-detail" />
           </Button>
@@ -100,14 +103,14 @@ function ShortcutEditor({
           <div key={`${profile.id}-${index}`} className="flex items-center gap-2">
             <input
               data-testid={`entry-label-${profile.id}-${index}`}
-              placeholder="Label"
+              placeholder={t(strings.settings.shortcutsSection.labelPlaceholder)}
               className="min-w-0 flex-1 rounded-lg border border-wc-default bg-wc-surface-input px-2 py-1 text-xs text-wc-text-primary outline-none focus:border-wc-accent"
               value={entry.label}
               onChange={(event) => updateEntry(index, "label", event.target.value)}
             />
             <input
               data-testid={`entry-command-${profile.id}-${index}`}
-              placeholder="Command"
+              placeholder={t(strings.settings.shortcutsSection.commandPlaceholder)}
               className="min-w-0 flex-[1.5] rounded-lg border border-wc-default bg-wc-surface-input px-2 py-1 font-mono text-xs text-wc-text-primary outline-none focus:border-wc-accent"
               value={entry.command}
               onChange={(event) => updateEntry(index, "command", event.target.value)}
@@ -117,7 +120,7 @@ function ShortcutEditor({
               size="icon"
               className="h-7 w-7 shrink-0"
               onClick={() => removeEntry(index)}
-              title="Remove shortcut"
+              title={t(strings.settings.shortcutsSection.removeShortcut)}
             >
               <Trash2 className="h-3 w-3 text-wc-text-faint" />
             </Button>
@@ -132,13 +135,14 @@ function ShortcutEditor({
         onClick={addEntry}
       >
         <Plus className="mr-1 h-3 w-3" />
-        Add shortcut
+        {t(strings.settings.shortcutsSection.addShortcut)}
       </Button>
     </div>
   );
 }
 
 export default function ShortcutProfilesSection() {
+  const { t } = useTranslation();
   const [profiles, setProfiles] = useState<ShortcutProfile[]>([]);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -197,8 +201,8 @@ export default function ShortcutProfilesSection() {
       const resp = await shortcutsClient.upsertProfile({
         id: `profile-${Date.now()}`,
         scope: "workspace",
-        name: "New Profile",
-        shortcuts: [{ label: "List files", command: "ls -la", description: "" }],
+        name: t(strings.settings.shortcutsSection.newProfileName),
+        shortcuts: [{ label: t(strings.settings.shortcutsSection.defaultShortcutLabel), command: "ls -la", description: "" }],
       });
       if (!resp.profile) {
         throw new Error("upsertProfile: missing profile in response");
@@ -208,22 +212,22 @@ export default function ShortcutProfilesSection() {
     } catch (error) {
       setProfileError(toErrorInfo(error).message);
     }
-  }, []);
+  }, [t]);
 
   return (
     <div className="space-y-4">
       <SettingsSectionIntro
-        eyebrow="Command Presets"
-        title="Shortcut profiles"
-        description="Curate reusable launch commands so common tasks start in one click."
+        eyebrow={t(strings.settings.shortcutsSection.eyebrow)}
+        title={t(strings.settings.shortcutsSection.title)}
+        description={t(strings.settings.shortcutsSection.description)}
       />
 
       <SettingsCard className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-medium text-wc-text-secondary">Profiles</div>
+            <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.shortcutsSection.profilesTitle)}</div>
             <div className="text-[11px] text-wc-text-muted">
-              Launch templates for repeat terminal workflows.
+              {t(strings.settings.shortcutsSection.profilesHint)}
             </div>
           </div>
           <Button
@@ -234,7 +238,7 @@ export default function ShortcutProfilesSection() {
             onClick={handleCreateProfile}
           >
             <Plus className="mr-1 h-3 w-3" />
-            New profile
+            {t(strings.settings.shortcutsSection.newProfile)}
           </Button>
         </div>
 
@@ -249,10 +253,10 @@ export default function ShortcutProfilesSection() {
         )}
 
         {profileLoading ? (
-          <div className="py-4 text-center text-xs text-wc-text-faint">Loading...</div>
+          <div className="py-4 text-center text-xs text-wc-text-faint">{t(strings.settings.shortcutsSection.loading)}</div>
         ) : profiles.length === 0 ? (
           <div className="py-4 text-center text-xs text-wc-text-faint">
-            No shortcut profiles configured
+            {t(strings.settings.shortcutsSection.empty)}
           </div>
         ) : (
           <div className="space-y-3">

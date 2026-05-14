@@ -8,6 +8,7 @@ import (
 
 	"web-console/internal/config"
 	"web-console/internal/pty"
+	"web-console/internal/ptyfake"
 )
 
 // [REQ:P0-002a] PTY Session Backend
@@ -158,8 +159,8 @@ func TestSession_Resize(t *testing.T) {
 
 // [REQ:P0-002c] Last resize wins regardless of which client sent it
 func TestSession_Resize_LastWriterWins(t *testing.T) {
-	fake := newFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	fake := ptyfake.NewFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
 
 	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
@@ -191,8 +192,8 @@ func TestSession_Resize_LastWriterWins(t *testing.T) {
 
 // [REQ:P0-002c] PTY size unchanged when all clients disconnect
 func TestSession_NoClients_SizeUnchanged(t *testing.T) {
-	fake := newFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	fake := ptyfake.NewFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
 
 	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {

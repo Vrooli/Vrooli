@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import MessagesSearchDrawer from "../components/MessagesSearchDrawer";
+import { strings } from "../consts/strings";
+import { i18n } from "../i18n";
 
 const defaultProps = {
   open: true,
@@ -43,7 +45,8 @@ describe("MessagesSearchDrawer", () => {
     expect(defaultProps.onQueryChange).toHaveBeenCalledWith("hello");
   });
 
-  it("displays match count correctly", () => {
+  it("displays match count correctly", async () => {
+    await i18n.changeLanguage("en");
     render(
       <MessagesSearchDrawer
         {...defaultProps}
@@ -66,13 +69,13 @@ describe("MessagesSearchDrawer", () => {
       />,
     );
 
-    expect(screen.getByTestId("messages-search-match-count")).toHaveTextContent("No matches");
+    expect(screen.getByTestId("messages-search-match-count")).toHaveTextContent(strings.messagesSearch.noMatches);
   });
 
   it("shows 'Type to search' when query is empty", () => {
     render(<MessagesSearchDrawer {...defaultProps} query="" matchCount={0} />);
 
-    expect(screen.getByTestId("messages-search-match-count")).toHaveTextContent("Type to search");
+    expect(screen.getByTestId("messages-search-match-count")).toHaveTextContent(strings.messagesSearch.typeToSearch);
   });
 
   it("disables prev/next when query is empty", () => {

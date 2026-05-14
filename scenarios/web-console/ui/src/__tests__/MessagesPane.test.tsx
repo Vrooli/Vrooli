@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import MessagesPane from "../components/MessagesPane";
+import { strings } from "../consts/strings";
 import { useConversationStore } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../api/conversation";
@@ -189,7 +190,7 @@ describe("MessagesPane", () => {
     render(<MessagesPane {...defaultProps} />);
 
     expect(screen.queryByTestId(/msg-speak-/)).toBeNull();
-    expect(screen.getByText(/No conversation events/)).toBeInTheDocument();
+    expect(screen.getByText(strings.messagesPane.noEvents)).toBeInTheDocument();
   });
 
   it("user messages have no TTS controls", () => {

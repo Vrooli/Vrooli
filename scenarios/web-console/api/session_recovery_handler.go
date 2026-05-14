@@ -13,18 +13,19 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"web-console/internal/sessionstore"
 )
 
-func recoverabilityOf(m SessionMetadata) (bool, string) {
+func recoverabilityOf(m sessionstore.Metadata) (bool, string) {
 	switch m.AgentType {
-	case AgentTypeNone:
+	case sessionstore.AgentNone:
 		return false, "no agent identity recorded"
-	case AgentTypeClaude:
+	case sessionstore.AgentClaude:
 		if m.AgentSessionID == "" {
 			return false, "claude session id is required (resuming the wrong project is unsafe)"
 		}
 		return true, ""
-	case AgentTypeCodex:
+	case sessionstore.AgentCodex:
 		// Codex can resume by id OR fall back to --last given a copied home.
 		return true, ""
 	default:
@@ -35,14 +36,14 @@ func recoverabilityOf(m SessionMetadata) (bool, string) {
 // buildResumeCommand returns the literal string to paste into the new pane's
 // stdin. Includes a trailing newline so it executes immediately. Never
 // returns the empty string.
-func buildResumeCommand(m SessionMetadata) string {
+func buildResumeCommand(m sessionstore.Metadata) string {
 	switch m.AgentType {
-	case AgentTypeCodex:
+	case sessionstore.AgentCodex:
 		if m.AgentSessionID != "" {
 			return "codex --yolo resume " + m.AgentSessionID + "\n"
 		}
 		return "codex --yolo resume --last\n"
-	case AgentTypeClaude:
+	case sessionstore.AgentClaude:
 		// Caller has already checked AgentSessionID != "".
 		return "claude --resume " + m.AgentSessionID + " --dangerously-skip-permissions\n"
 	}

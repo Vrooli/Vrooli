@@ -11,6 +11,7 @@ import (
 
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
 )
 
 // TestCodexTailer_AttributesMidSessionRolloutToCorrectSession verifies that
@@ -33,7 +34,7 @@ func TestCodexTailer_AttributesMidSessionRolloutToCorrectSession(t *testing.T) {
 
 	srv := &Server{
 		router:        mux.NewRouter(),
-		sessions:      NewSessionManagerWithFactory(newFakePTYFactory()),
+		sessions:      NewSessionManagerWithFactory(ptyfake.NewFactory()),
 		conversations: NewConversationStore(),
 		events:        events.NewLogger(100),
 		metrics:       metrics.New(),

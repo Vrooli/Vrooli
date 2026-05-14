@@ -102,7 +102,7 @@ func (s *Session) readLoop() {
 				isClosing := s.closing
 				s.mu.Unlock()
 				if !isClosing {
-					sessionName := tmuxSessionPrefix + s.ID
+					sessionName := s.sessionPrefix + s.ID
 					reattached := false
 					for attempt := 0; attempt < tmuxReattachMaxRetries; attempt++ {
 						delay := tmuxReattachBaseDelay << attempt // 500ms, 1s, 2s

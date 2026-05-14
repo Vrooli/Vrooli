@@ -1,5 +1,7 @@
 import { Plus, Minus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { FONT_SIZE_MIN, FONT_SIZE_MAX } from "../../lib/fontSizeUtils";
+import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
 
 interface FontSizeStepperProps {
@@ -13,10 +15,11 @@ export default function FontSizeStepper({
   onChangeSize,
   testIdPrefix = "appearance",
 }: FontSizeStepperProps) {
+  const { t } = useTranslation();
   return (
     <section>
       <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
-        Font Size
+        {t(strings.appearance.fontSizeHeading)}
       </h3>
       <div className="flex items-center gap-1.5">
         <Button

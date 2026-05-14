@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { GripVertical, MessageSquareText, TerminalSquare, Palette, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { PaneViewMode } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
 
@@ -31,6 +33,7 @@ export default function TerminalHeader({
   onToggleView,
   onDragStart,
 }: TerminalHeaderProps) {
+  const { t } = useTranslation();
   const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
@@ -86,7 +89,7 @@ export default function TerminalHeader({
             movePaneToIndex(sessionId, idx + 1);
           }
         }}
-        aria-label={`Reorder ${name}`}
+        aria-label={t(strings.terminalHeader.reorderAria, { name })}
         aria-roledescription="drag handle"
       >
         <GripVertical className="h-3 w-3" />
@@ -117,7 +120,7 @@ export default function TerminalHeader({
             e.stopPropagation();
             startEditing();
           }}
-          title="Click to rename"
+          title={t(strings.terminalHeader.renameTitle)}
         >
           {name}
         </span>
@@ -138,7 +141,7 @@ export default function TerminalHeader({
             e.stopPropagation();
             onToggleView();
           }}
-          title={viewMode === "terminal" ? "Show messages" : "Show terminal"}
+          title={viewMode === "terminal" ? t(strings.terminalHeader.showMessages) : t(strings.terminalHeader.showTerminal)}
         >
           {viewMode === "terminal" ? <MessageSquareText className="h-3.5 w-3.5" /> : <TerminalSquare className="h-3.5 w-3.5" />}
         </button>
@@ -153,7 +156,7 @@ export default function TerminalHeader({
           e.stopPropagation();
           setAppearanceModalPane(sessionId);
         }}
-        title="Appearance settings"
+        title={t(strings.terminalHeader.appearanceTitle)}
       >
         <Palette className="h-3 w-3" />
       </button>
@@ -168,7 +171,7 @@ export default function TerminalHeader({
           e.stopPropagation();
           onClose();
         }}
-        title="Close terminal"
+        title={t(strings.terminalHeader.closeTitle)}
       >
         <X className="h-3 w-3" />
       </Button>

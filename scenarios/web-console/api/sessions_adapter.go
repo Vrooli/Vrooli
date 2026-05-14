@@ -12,6 +12,7 @@ import (
 	"web-console/internal/events"
 	"web-console/internal/policy"
 	"web-console/internal/pty"
+	"web-console/internal/sessionstore"
 )
 
 // sessionsAdapter implements sessionsH.Service against the server's
@@ -56,7 +57,7 @@ func (a *sessionsAdapter) Create(_ context.Context, in sessionsH.CreateInput) (s
 
 	if srv.sessionStore != nil && (in.LaunchCommand != "" || in.AgentType != "") {
 		agentType := normalizeAgentType(in.AgentType)
-		_ = srv.sessionStore.UpdateAgentInfo(sess.ID, AgentInfo{
+		_ = srv.sessionStore.UpdateAgentInfo(sess.ID, sessionstore.AgentInfo{
 			AgentType:     agentType,
 			LaunchCommand: in.LaunchCommand,
 		})
@@ -140,7 +141,7 @@ func (a *sessionsAdapter) DismissRecoverable(_ context.Context, id string) error
 	if err != nil {
 		return fmt.Errorf("no session row with id %q: %w", sanitizeID(id), sessionsH.ErrNotFound)
 	}
-	if meta.Status != SessionStatusAwaitingRecovery {
+	if meta.Status != sessionstore.StatusAwaitingRecovery {
 		return fmt.Errorf("session %q is in status %q, not awaiting_recovery: %w", sanitizeID(id), meta.Status, sessionsH.ErrFailedPrecondition)
 	}
 	if err := srv.sessionStore.MarkDismissed(id, ""); err != nil {
@@ -170,13 +171,13 @@ func (a *sessionsAdapter) Recover(_ context.Context, in sessionsH.RecoverInput) 
 	if err != nil {
 		return sessionsH.RecoverResult{}, fmt.Errorf("no session row with id %q: %w", sanitizeID(oldID), sessionsH.ErrNotFound)
 	}
-	if old.Status != SessionStatusAwaitingRecovery {
+	if old.Status != sessionstore.StatusAwaitingRecovery {
 		return sessionsH.RecoverResult{}, fmt.Errorf("session %q is in status %q, not awaiting_recovery: %w", sanitizeID(oldID), old.Status, sessionsH.ErrFailedPrecondition)
 	}
-	if old.AgentType == AgentTypeNone {
+	if old.AgentType == sessionstore.AgentNone {
 		return sessionsH.RecoverResult{}, fmt.Errorf("no agent identity recorded: %w", sessionsH.ErrFailedPrecondition)
 	}
-	if old.AgentType == AgentTypeClaude && old.AgentSessionID == "" {
+	if old.AgentType == sessionstore.AgentClaude && old.AgentSessionID == "" {
 		return sessionsH.RecoverResult{}, fmt.Errorf("claude session id is required: %w", sessionsH.ErrFailedPrecondition)
 	}
 
@@ -204,7 +205,7 @@ func (a *sessionsAdapter) Recover(_ context.Context, in sessionsH.RecoverInput) 
 	})
 
 	codexHomeCopied := false
-	if old.AgentType == AgentTypeCodex {
+	if old.AgentType == sessionstore.AgentCodex {
 		if err := copyCodexHome(oldID, newSess.ID); err != nil {
 			log.Printf("recover[%s -> %s]: copy codex home: %v", oldID, newSess.ID, err)
 			return sessionsH.RecoverResult{}, fmt.Errorf("copy codex home: %v: %w", err, sessionsH.ErrInternal)
@@ -212,7 +213,7 @@ func (a *sessionsAdapter) Recover(_ context.Context, in sessionsH.RecoverInput) 
 		codexHomeCopied = true
 	}
 
-	_ = srv.sessionStore.UpdateAgentInfo(newSess.ID, AgentInfo{
+	_ = srv.sessionStore.UpdateAgentInfo(newSess.ID, sessionstore.AgentInfo{
 		AgentType:      old.AgentType,
 		AgentSessionID: old.AgentSessionID,
 		LaunchCommand:  old.LaunchCommand,
@@ -319,7 +320,7 @@ func responseToHandlerSession(r SessionResponse) sessionsH.Session {
 	}
 }
 
-func toHandlerRecoverable(m SessionMetadata) sessionsH.RecoverableSession {
+func toHandlerRecoverable(m sessionstore.Metadata) sessionsH.RecoverableSession {
 	out := sessionsH.RecoverableSession{
 		ID:              m.ID,
 		Backend:         string(m.Backend),

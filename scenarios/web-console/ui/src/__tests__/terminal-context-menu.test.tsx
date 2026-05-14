@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import TerminalContextMenu from "../components/TerminalContextMenu";
+import { strings } from "../consts/strings";
+import { i18n } from "../i18n";
 
 type PasteResult = { status: "ok" } | { status: "failed"; reason: string };
 
@@ -71,7 +73,7 @@ describe("TerminalContextMenu", () => {
     expect(navigator.clipboard.readText).toHaveBeenCalled();
     expect(props.onPaste).toHaveBeenCalledWith("pasted text");
     // After settle, the button transitions to "Pasted" before close.
-    expect(screen.getByTestId("ctx-paste").textContent).toBe("Pasted");
+    expect(screen.getByTestId("ctx-paste").textContent).toBe(strings.terminalContextMenu.pasted);
     // Advance through the success-flash window; onClose fires.
     await act(async () => {
       vi.advanceTimersByTime(700);
@@ -81,6 +83,10 @@ describe("TerminalContextMenu", () => {
   });
 
   it("shows typed failure reason when onPaste resolves to failed", async () => {
+    // Opt into the real `en` locale so the {{reason}} token in the
+    // pasteFailed string actually gets interpolated. cimode would
+    // otherwise return the raw key path.
+    await i18n.changeLanguage("en");
     vi.useFakeTimers();
     const props = defaultProps();
     props.onPaste = vi.fn().mockResolvedValue({
@@ -115,7 +121,7 @@ describe("TerminalContextMenu", () => {
       await Promise.resolve();
     });
     const btn = screen.getByTestId("ctx-paste");
-    expect(btn.textContent).toBe("Pasting…");
+    expect(btn.textContent).toBe(strings.terminalContextMenu.pasting);
     expect(btn).toBeDisabled();
     expect(btn.getAttribute("data-paste-state")).toBe("pending");
   });
@@ -131,7 +137,7 @@ describe("TerminalContextMenu", () => {
     });
     expect(props.onPaste).not.toHaveBeenCalled();
     expect(screen.getByTestId("ctx-paste").textContent).toBe(
-      "Use Ctrl+V to paste",
+      strings.terminalContextMenu.useCtrlVHint,
     );
   });
 

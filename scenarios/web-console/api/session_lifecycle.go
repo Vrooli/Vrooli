@@ -9,6 +9,7 @@ import (
 
 	"web-console/internal/backend"
 	"web-console/internal/pty"
+	"web-console/internal/sessionstore"
 	"web-console/terminal"
 )
 
@@ -79,7 +80,7 @@ func (sm *SessionManager) Shutdown() {
 
 // Recover discovers surviving tmux sessions, matches them against persisted
 // metadata, and re-registers them. Called once at server startup.
-func (sm *SessionManager) Recover(store SessionMetadataStore, registry *backend.Registry) RecoveryReport {
+func (sm *SessionManager) Recover(store sessionstore.Store, registry *backend.Registry) RecoveryReport {
 	report := RecoveryReport{}
 
 	// 1. Load persisted metadata for detached sessions
@@ -88,7 +89,7 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *backend.
 		log.Printf("recovery: failed to list detached sessions: %v", err)
 		return report
 	}
-	metaMap := make(map[string]SessionMetadata, len(metaList))
+	metaMap := make(map[string]sessionstore.Metadata, len(metaList))
 	for _, m := range metaList {
 		metaMap[m.ID] = m
 	}
@@ -125,8 +126,8 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *backend.
 
 		// Re-apply tmux options (mouse mode, history limit) in case the options
 		// were set by an older version that didn't configure them.
-		sessionName := tmuxSessionPrefix + id
-		applyTmuxOptions(sessionName)
+		sessionName := sm.tmuxSessionPrefix + id
+		sm.applyTmuxOptionsFunc(sessionName)
 
 		// Re-attach to surviving tmux session with retries. A transient
 		// failure (tmux server briefly busy at startup) should not
@@ -173,15 +174,18 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *backend.
 			clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
 			sigwinchCooldown:        time.Duration(sm.cfg.SIGWINCHCooldownMs) * time.Millisecond,
-			conversationClients:     make(map[chan ConversationEvent]*conversationSubscriber),
 			recovered:               true,
 			reattachFunc:            sm.tmuxAttachFunc,
+			sessionPrefix:           sm.tmuxSessionPrefix,
 			metrics:                 sm.metrics,
 		}
 
 		sm.mu.Lock()
 		sm.sessions[id] = sess
 		sm.mu.Unlock()
+		if sm.onSessionCreate != nil {
+			sm.onSessionCreate(id)
+		}
 
 		go sess.readLoop()
 		go func(sessID string, bid backend.ID) {
@@ -190,12 +194,15 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *backend.
 			sm.mu.Lock()
 			delete(sm.sessions, sessID)
 			sm.mu.Unlock()
+			if sm.onSessionDelete != nil {
+				sm.onSessionDelete(sessID)
+			}
 			// Persistent sessions: preserve metadata for future recovery.
 			// Standard sessions: delete metadata (they cannot survive).
 			if sm.store != nil && bid != backend.Persistent {
 				_ = sm.store.Delete(sessID)
 			}
-			uploadDir := filepath.Join(resolveUploadDir(), sessID)
+			uploadDir := filepath.Join(sm.uploadDirFunc(), sessID)
 			if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 				log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)
 			}
@@ -215,8 +222,8 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *backend.
 
 	// 4. Kill orphaned tmux sessions (no metadata)
 	for id := range tmuxSet {
-		sessionName := tmuxSessionPrefix + id
-		_ = tmuxCmd("kill-session", "-t", sessionName).Run()
+		sessionName := sm.tmuxSessionPrefix + id
+		sm.killTmuxSessionFunc(sessionName)
 		report.OrphanedTmux++
 		log.Printf("recovery: killed orphaned tmux session %s", id)
 	}
@@ -305,7 +312,7 @@ func (sm *SessionManager) reattachOrphanedSessions() {
 			continue
 		}
 
-		sessionName := tmuxSessionPrefix + meta.ID
+		sessionName := sm.tmuxSessionPrefix + meta.ID
 		p, attachErr := sm.tmuxAttachFunc(sessionName)
 		if attachErr != nil {
 			// tmux session is gone — clean up stale metadata
@@ -330,9 +337,9 @@ func (sm *SessionManager) reattachOrphanedSessions() {
 			clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
 			sigwinchCooldown:        time.Duration(sm.cfg.SIGWINCHCooldownMs) * time.Millisecond,
-			conversationClients:     make(map[chan ConversationEvent]*conversationSubscriber),
 			recovered:               true,
 			reattachFunc:            sm.tmuxAttachFunc,
+			sessionPrefix:           sm.tmuxSessionPrefix,
 			metrics:                 sm.metrics,
 		}
 
@@ -345,6 +352,9 @@ func (sm *SessionManager) reattachOrphanedSessions() {
 		}
 		sm.sessions[meta.ID] = sess
 		sm.mu.Unlock()
+		if sm.onSessionCreate != nil {
+			sm.onSessionCreate(meta.ID)
+		}
 
 		go sess.readLoop()
 		go func(sessID string, bid backend.ID) {
@@ -353,10 +363,13 @@ func (sm *SessionManager) reattachOrphanedSessions() {
 			sm.mu.Lock()
 			delete(sm.sessions, sessID)
 			sm.mu.Unlock()
+			if sm.onSessionDelete != nil {
+				sm.onSessionDelete(sessID)
+			}
 			if sm.store != nil && bid != backend.Persistent {
 				_ = sm.store.Delete(sessID)
 			}
-			uploadDir := filepath.Join(resolveUploadDir(), sessID)
+			uploadDir := filepath.Join(sm.uploadDirFunc(), sessID)
 			if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 				log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)
 			}

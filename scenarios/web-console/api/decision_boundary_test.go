@@ -8,6 +8,7 @@ import (
 
 	"web-console/internal/config"
 	"web-console/internal/policy"
+	"web-console/internal/ptyfake"
 )
 
 // Tests for extracted decision helpers and boundary conditions.
@@ -22,7 +23,7 @@ import (
 // --- applySessionDefaults: zero-value substitution ---
 
 func TestApplySessionDefaults_AllZeros(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	shell, cols, rows := sm.applySessionDefaults("", 0, 0)
 	if shell == "" {
 		t.Error("shell should be filled with default")
@@ -36,7 +37,7 @@ func TestApplySessionDefaults_AllZeros(t *testing.T) {
 }
 
 func TestApplySessionDefaults_ExplicitValues(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	shell, cols, rows := sm.applySessionDefaults("/bin/zsh", 120, 40)
 	if shell != "/bin/zsh" {
 		t.Errorf("explicit shell should be preserved, got %s", shell)
@@ -50,7 +51,7 @@ func TestApplySessionDefaults_ExplicitValues(t *testing.T) {
 }
 
 func TestApplySessionDefaults_MixedZeroAndExplicit(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	shell, cols, rows := sm.applySessionDefaults("/bin/fish", 0, 40)
 	if shell != "/bin/fish" {
 		t.Error("explicit shell should be preserved")
@@ -66,7 +67,7 @@ func TestApplySessionDefaults_MixedZeroAndExplicit(t *testing.T) {
 // --- isSessionLimitReached: capacity decision ---
 
 func TestIsSessionLimitReached_Unlimited(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	sm.cfg.MaxSessions = 0
 	if sm.isSessionLimitReached() {
 		t.Error("MaxSessions=0 means unlimited, should never be reached")
@@ -74,7 +75,7 @@ func TestIsSessionLimitReached_Unlimited(t *testing.T) {
 }
 
 func TestIsSessionLimitReached_UnderLimit(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	sm.cfg.MaxSessions = 5
 	s, _ := sm.Create("", 0, 0, "", nil)
 	defer func() { _ = sm.Delete(s.ID) }()
@@ -84,7 +85,7 @@ func TestIsSessionLimitReached_UnderLimit(t *testing.T) {
 }
 
 func TestIsSessionLimitReached_AtLimit(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	sm.cfg.MaxSessions = 1
 	s, _ := sm.Create("", 0, 0, "", nil)
 	defer func() { _ = sm.Delete(s.ID) }()

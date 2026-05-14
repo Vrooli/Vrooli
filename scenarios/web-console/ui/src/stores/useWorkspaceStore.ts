@@ -14,7 +14,7 @@ export interface PaneMetadata {
   supportsMessagesView: boolean;
 }
 
-export type DisplayMode = "grid" | "tabs";
+export type DisplayMode = "grid" | "tabs" | "sidebar";
 export type ToolbarLayout = "compact" | "expanded";
 export type PlusButtonBehavior = "launcher" | "new-terminal";
 

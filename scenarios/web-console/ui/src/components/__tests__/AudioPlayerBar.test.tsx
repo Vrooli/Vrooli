@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { strings } from "../../consts/strings";
 import AudioPlayerBar from "../AudioPlayerBar";
 import type { AudioPlayerBarProps } from "../AudioPlayerBar";
 import type { TTSPlaybackCapabilities } from "../../hooks/tts/types";
@@ -200,7 +201,7 @@ describe("AudioPlayerBar", () => {
       onChangeLevel: vi.fn(),
     })} />);
     const ctrl = screen.getByTestId("tts-mode-control");
-    expect(ctrl.textContent).toMatch(/Heavy/);
+    expect(ctrl.textContent).toContain(strings.playbackMode.heavy);
   });
 
   it("renders mode control as 'Original' when not summarized but has original version", () => {
@@ -212,7 +213,7 @@ describe("AudioPlayerBar", () => {
       onChangeLevel: vi.fn(),
     })} />);
     const ctrl = screen.getByTestId("tts-mode-control");
-    expect(ctrl.textContent).toMatch(/Original/);
+    expect(ctrl.textContent).toContain(strings.playbackMode.original);
   });
 
   it("renders mode control as 'Summarize' when no summary exists but canSummarize", () => {
@@ -223,7 +224,7 @@ describe("AudioPlayerBar", () => {
       onChangeLevel: vi.fn(),
     })} />);
     const ctrl = screen.getByTestId("tts-mode-control");
-    expect(ctrl.textContent).toMatch(/Summarize/);
+    expect(ctrl.textContent).toContain(strings.playbackMode.summarize);
   });
 
   it("hides mode control when !hasOriginal && !canSummarize", () => {

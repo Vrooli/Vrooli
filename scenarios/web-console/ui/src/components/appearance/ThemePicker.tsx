@@ -1,5 +1,7 @@
+import { useTranslation } from "react-i18next";
 import { TERMINAL_THEMES } from "../../consts/config";
 import { cn } from "../../lib/classnames";
+import { strings } from "../../consts/strings";
 
 interface ThemePickerProps {
   currentThemeId: string;
@@ -12,10 +14,11 @@ export default function ThemePicker({
   onSelectTheme,
   testIdPrefix = "appearance",
 }: ThemePickerProps) {
+  const { t } = useTranslation();
   return (
     <section>
       <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
-        Terminal Theme
+        {t(strings.appearance.terminalThemeHeading)}
       </h3>
       <div className="grid grid-cols-2 gap-2">
         {Object.values(TERMINAL_THEMES).map((theme) => (

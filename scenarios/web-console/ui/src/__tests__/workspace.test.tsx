@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { forwardRef } from "react";
 import Workspace from "../components/Workspace";
+import { strings } from "../consts/strings";
 import type { SessionInfo } from "../api/sessions";
 
 // [REQ:P0-001a] Responsive Pane Grid Layout — layout rendering
@@ -69,7 +70,15 @@ vi.mock("../hooks/useWorkspaceSync", () => ({
 
 // Mock workspace store
 const mockStoreState = {
-  panes: [] as Array<{ sessionId: string; name: string; headerColor: string }>,
+  panes: [] as Array<{
+    sessionId: string;
+    name: string;
+    headerColor: string;
+    themeId?: string;
+    fontSize?: number;
+    groupId?: string | null;
+    supportsMessagesView?: boolean;
+  }>,
   columnFractions: [] as number[],
   rowFractions: [] as number[],
   activePane: null as string | null,
@@ -78,6 +87,7 @@ const mockStoreState = {
   displayMode: "grid",
   settingsModalOpen: false,
   aiModalOpen: false,
+  groups: [],
 };
 
 const mockStoreActions = {
@@ -195,7 +205,9 @@ describe("Workspace", () => {
     mockStoreState.rowFractions = [];
     mockStoreState.activePane = null;
     mockStoreState.isMinimapVisible = true;
+    mockStoreState.displayMode = "grid";
     mockStoreState.settingsModalOpen = false;
+    mockStoreState.groups = [];
     mockLaunchSession = vi.fn().mockResolvedValue(mockSession);
     mockRemovePane = vi.fn();
     mockClearError = vi.fn();
@@ -210,8 +222,8 @@ describe("Workspace", () => {
 
   it("renders empty state with 'New Terminal' button when no panes", () => {
     render(<Workspace />);
-    expect(screen.getByText("Web Console")).toBeTruthy();
-    expect(screen.getByText("Browser terminal with PTY-backed sessions")).toBeTruthy();
+    expect(screen.getByText(strings.app.title)).toBeTruthy();
+    expect(screen.getByText(strings.workspace.tagline)).toBeTruthy();
     expect(screen.getByTestId("new-terminal-button")).toBeTruthy();
   });
 
@@ -224,7 +236,7 @@ describe("Workspace", () => {
   it("shows 'Creating...' text when isCreating in empty state", () => {
     hookState.isCreating = true;
     render(<Workspace />);
-    expect(screen.getByText("Creating...")).toBeTruthy();
+    expect(screen.getByText(strings.workspace.creating)).toBeTruthy();
   });
 
   it("shows error banner in empty state when createError exists", () => {
@@ -319,5 +331,43 @@ describe("Workspace", () => {
     render(<Workspace />);
     expect(screen.getByTestId("mock-terminal-sess-test-001")).toBeTruthy();
     expect(screen.getByTestId("mock-terminal-sess-test-002")).toBeTruthy();
+  });
+
+  it("renders sidebar mode as tab-like stacked panes with desktop sidebar", () => {
+    const session2: SessionInfo = { ...mockSession, id: "sess-test-002" };
+    hookState.panes = [{ session: mockSession }, { session: session2 }];
+    mockStoreState.displayMode = "sidebar";
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+      { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: false },
+    ];
+
+    render(<Workspace />);
+
+    expect(screen.getByTestId("workspace-sidebar-shell")).toBeTruthy();
+    expect(screen.queryByTestId("tab-bar")).toBeNull();
+    expect(screen.queryByTestId("pane-grid")).toBeNull();
+    expect(screen.getByTestId(`tab-pane-${mockSession.id}`)).toBeTruthy();
+    expect(screen.getByTestId(`tab-pane-${session2.id}`)).toBeTruthy();
+  });
+
+  it("opens and closes the mobile sidebar drawer", () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.displayMode = "sidebar";
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+    ];
+
+    render(<Workspace />);
+    fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
+    expect(screen.getByTestId("workspace-sidebar-backdrop")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("workspace-sidebar-backdrop"));
+    expect(screen.queryByTestId("workspace-sidebar-backdrop")).toBeNull();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
   });
 });

@@ -15,6 +15,7 @@ import (
 
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
 )
 
 func TestSplitFileReferenceLine(t *testing.T) {
@@ -91,14 +92,14 @@ func TestConnect_ResolveFileReference_ProjectRootRelative(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	fake := newFakePTYWithOutput()
-	fake.currentDir = filepath.Join(root, "nested")
-	if err := os.MkdirAll(fake.currentDir, 0o755); err != nil {
+	fake := ptyfake.NewFakePTYWithOutput()
+	fake.CurrentDirVal = filepath.Join(root, "nested")
+	if err := os.MkdirAll(fake.CurrentDirVal, 0o755); err != nil {
 		t.Fatalf("mkdir nested: %v", err)
 	}
 	srv := &Server{
 		router:      mux.NewRouter(),
-		sessions:    NewSessionManagerWithFactory(fakePTYFactory(fake)),
+		sessions:    NewSessionManagerWithFactory(ptyfake.Factory(fake)),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),
@@ -139,11 +140,11 @@ func TestConnect_ResolveFileReference_SessionCwdPreferred(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	fake := newFakePTYWithOutput()
-	fake.currentDir = subdir
+	fake := ptyfake.NewFakePTYWithOutput()
+	fake.CurrentDirVal = subdir
 	srv := &Server{
 		router:      mux.NewRouter(),
-		sessions:    NewSessionManagerWithFactory(fakePTYFactory(fake)),
+		sessions:    NewSessionManagerWithFactory(ptyfake.Factory(fake)),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),

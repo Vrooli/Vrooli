@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { strings } from "../../consts/strings";
 import { PlaybackModeControl } from "../tts/PlaybackModeControl";
 
 function renderCtl(overrides?: Partial<Parameters<typeof PlaybackModeControl>[0]>) {
@@ -26,17 +27,17 @@ describe("PlaybackModeControl", () => {
 
   it("renders the active summary level label when isSummarized", () => {
     renderCtl({ isSummarized: true, hasOriginalVersion: true, currentLevel: "heavy" });
-    expect(screen.getByTestId("x-mode-control").textContent).toMatch(/Heavy/);
+    expect(screen.getByTestId("x-mode-control").textContent).toContain(strings.playbackMode.heavy);
   });
 
   it("renders 'Original' label when !isSummarized && hasOriginalVersion", () => {
     renderCtl({ isSummarized: false, hasOriginalVersion: true });
-    expect(screen.getByTestId("x-mode-control").textContent).toMatch(/Original/);
+    expect(screen.getByTestId("x-mode-control").textContent).toContain(strings.playbackMode.original);
   });
 
   it("renders 'Summarize' label when !hasOriginalVersion && canSummarize", () => {
     renderCtl({ isSummarized: false, hasOriginalVersion: false, canSummarize: true });
-    expect(screen.getByTestId("x-mode-control").textContent).toMatch(/Summarize/);
+    expect(screen.getByTestId("x-mode-control").textContent).toContain(strings.playbackMode.summarize);
   });
 
   it("opens dropdown with all level options + Original when clicked", () => {

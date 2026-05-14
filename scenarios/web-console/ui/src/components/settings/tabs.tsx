@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { useMemo } from "react";
 import {
   Blocks,
   Keyboard,
@@ -8,6 +9,8 @@ import {
   Volume2,
   Waves,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../../consts/strings";
 
 export const SETTINGS_TAB_IDS = [
   "sessions",
@@ -29,56 +32,67 @@ export interface SettingsTabDefinition {
   icon: typeof TerminalSquare;
 }
 
-export const SETTINGS_TABS: SettingsTabDefinition[] = [
-  {
-    id: "sessions",
-    label: "Sessions",
-    shortLabel: "Sessions",
-    description: "Manage open terminals, policies, order, and focus.",
-    icon: TerminalSquare,
+const TAB_ICONS: Record<SettingsTabId, typeof TerminalSquare> = {
+  sessions: TerminalSquare,
+  workspace: Settings2,
+  "voice-input": Waves,
+  "voice-output": Volume2,
+  shortcuts: Keyboard,
+  "new-pane-defaults": Blocks,
+  integrations: PlugZap,
+};
+
+const TAB_STRING_KEYS = {
+  sessions: {
+    label: strings.settings.tabs.sessions.label,
+    shortLabel: strings.settings.tabs.sessions.shortLabel,
+    description: strings.settings.tabs.sessions.description,
   },
-  {
-    id: "workspace",
-    label: "Workspace",
-    shortLabel: "Workspace",
-    description: "Layout and workspace behavior across desktop and mobile.",
-    icon: Settings2,
+  workspace: {
+    label: strings.settings.tabs.workspace.label,
+    shortLabel: strings.settings.tabs.workspace.shortLabel,
+    description: strings.settings.tabs.workspace.description,
   },
-  {
-    id: "voice-input",
-    label: "Voice Input",
-    shortLabel: "Input",
-    description: "Speech recognition, microphone access, and streaming behavior.",
-    icon: Waves,
+  "voice-input": {
+    label: strings.settings.tabs.voiceInput.label,
+    shortLabel: strings.settings.tabs.voiceInput.shortLabel,
+    description: strings.settings.tabs.voiceInput.description,
   },
-  {
-    id: "voice-output",
-    label: "Voice Output",
-    shortLabel: "Output",
-    description: "TTS backend selection, diagnostics, and auto-speak settings.",
-    icon: Volume2,
+  "voice-output": {
+    label: strings.settings.tabs.voiceOutput.label,
+    shortLabel: strings.settings.tabs.voiceOutput.shortLabel,
+    description: strings.settings.tabs.voiceOutput.description,
   },
-  {
-    id: "shortcuts",
-    label: "Shortcut Profiles",
-    shortLabel: "Shortcuts",
-    description: "Saved command presets for new terminal launches.",
-    icon: Keyboard,
+  shortcuts: {
+    label: strings.settings.tabs.shortcuts.label,
+    shortLabel: strings.settings.tabs.shortcuts.shortLabel,
+    description: strings.settings.tabs.shortcuts.description,
   },
-  {
-    id: "new-pane-defaults",
-    label: "New Pane Defaults",
-    shortLabel: "Defaults",
-    description: "Appearance defaults applied when new panes are created.",
-    icon: Blocks,
+  "new-pane-defaults": {
+    label: strings.settings.tabs.newPaneDefaults.label,
+    shortLabel: strings.settings.tabs.newPaneDefaults.shortLabel,
+    description: strings.settings.tabs.newPaneDefaults.description,
   },
-  {
-    id: "integrations",
-    label: "Integrations",
-    shortLabel: "Integrations",
-    description: "Connected services and provider configuration.",
-    icon: PlugZap,
+  integrations: {
+    label: strings.settings.tabs.integrations.label,
+    shortLabel: strings.settings.tabs.integrations.shortLabel,
+    description: strings.settings.tabs.integrations.description,
   },
-];
+} as const;
+
+export function useSettingsTabs(): SettingsTabDefinition[] {
+  const { t } = useTranslation();
+  return useMemo(
+    () =>
+      SETTINGS_TAB_IDS.map((id) => ({
+        id,
+        label: t(TAB_STRING_KEYS[id].label),
+        shortLabel: t(TAB_STRING_KEYS[id].shortLabel),
+        description: t(TAB_STRING_KEYS[id].description),
+        icon: TAB_ICONS[id],
+      })),
+    [t],
+  );
+}
 
 export const DEFAULT_SETTINGS_TAB: SettingsTabId = "workspace";

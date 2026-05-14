@@ -7,9 +7,10 @@ import (
 
 	"connectrpc.com/connect"
 
-	eventsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/events"
 	eventsH "web-console/handlers/events"
 	"web-console/internal/events"
+
+	eventsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/events"
 )
 
 // callEventsList invokes the EventsService.List Connect RPC directly

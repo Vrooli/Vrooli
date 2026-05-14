@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SessionManagementSection from "../components/settings/SessionManagementSection";
+import { strings } from "../consts/strings";
 import type { SessionInfo } from "../api/sessions";
 
 let mockUpdateSessionPolicy: ReturnType<typeof vi.fn>;
@@ -70,7 +71,7 @@ describe("SessionManagementSection", () => {
 
   it("shows empty state when no panes are open", () => {
     render(<SessionManagementSection sessions={[]} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
-    expect(screen.getByText("No terminals open")).toBeTruthy();
+    expect(screen.getByText(strings.settings.sessionsSection.noTerminalsOpen)).toBeTruthy();
   });
 
   it("renders pane list when panes exist", () => {

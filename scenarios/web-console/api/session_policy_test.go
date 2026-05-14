@@ -8,6 +8,7 @@ import (
 
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
 	"web-console/internal/policy"
 )
 
@@ -148,7 +149,7 @@ func TestIsExpired_Performance(t *testing.T) {
 // --- Session policy get/set ---
 
 func TestSession_GetSetPolicy(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -274,7 +275,7 @@ func TestErrorCatalog_InvalidPolicy(t *testing.T) {
 // --- Sweeper tests ---
 
 func TestExpirationSweeper_RemovesExpiredSessions(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	events := events.NewLogger(100)
 	metrics := metrics.New()
 
@@ -299,7 +300,7 @@ func TestExpirationSweeper_RemovesExpiredSessions(t *testing.T) {
 }
 
 func TestExpirationSweeper_KeepsNonExpiredSessions(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	events := events.NewLogger(100)
 	metrics := metrics.New()
 
@@ -321,7 +322,7 @@ func TestExpirationSweeper_KeepsNonExpiredSessions(t *testing.T) {
 
 // [REQ:P1-001a] Sweeper Start() is idempotent — calling twice does not start two goroutines
 func TestExpirationSweeper_StartIdempotent(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	events := events.NewLogger(100)
 	metrics := metrics.New()
 
@@ -353,7 +354,7 @@ func TestExpirationSweeper_StartIdempotent(t *testing.T) {
 
 // [REQ:P1-001a] Sweeper loop actually fires and removes expired sessions end-to-end
 func TestExpirationSweeper_LoopFiresAndRemoves(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	events := events.NewLogger(100)
 	metrics := metrics.New()
 

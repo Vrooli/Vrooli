@@ -2,7 +2,9 @@
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
 import { useState, useCallback, useEffect } from "react";
 import { Terminal, Zap, X, ChevronDown, ChevronRight, Info } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
+import { strings } from "../consts/strings";
 import { DEFAULT_SHORTCUTS, type ShortcutEntry } from "../consts/shortcuts";
 import { shortcutsClient } from "../api/shortcuts";
 import { BACKEND_OPTIONS } from "../consts/backend-options";
@@ -45,6 +47,7 @@ export default function TerminalLauncher({
   defaultPolicy,
   availableBackends,
 }: TerminalLauncherProps) {
+  const { t } = useTranslation();
   const [customCommand, setCustomCommand] = useState("");
   const [apiShortcuts, setApiShortcuts] = useState<ShortcutEntry[] | null>(null);
   const [selectedBackend, setSelectedBackend] = useState<BackendID>(defaultBackend);
@@ -135,7 +138,7 @@ export default function TerminalLauncher({
       <div className="mx-4 w-full max-w-md rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl">
         <div className="flex items-center justify-between border-b border-wc-default px-4 py-3">
           <h2 className="text-lg font-semibold text-wc-text-primary">
-            New Terminal
+            {t(strings.terminalLauncher.newTerminal)}
           </h2>
           <Button
             variant="ghost"
@@ -157,9 +160,9 @@ export default function TerminalLauncher({
           >
             <Terminal className="h-5 w-5 shrink-0 text-wc-accent" />
             <div>
-              <div className="font-medium text-wc-text-primary">Empty Shell</div>
+              <div className="font-medium text-wc-text-primary">{t(strings.terminalLauncher.emptyShell)}</div>
               <div className="text-sm text-wc-text-muted">
-                Start a new terminal session
+                {t(strings.terminalLauncher.emptyShellDescription)}
               </div>
             </div>
           </button>
@@ -168,7 +171,7 @@ export default function TerminalLauncher({
           {shortcuts.length > 0 && (
             <div className="space-y-2">
               <div className="px-1 text-xs font-medium uppercase tracking-wider text-wc-text-faint">
-                Shortcuts
+                {t(strings.terminalLauncher.shortcuts)}
               </div>
               {shortcuts.map((shortcut) => (
                 <button
@@ -195,7 +198,7 @@ export default function TerminalLauncher({
           {/* Custom command */}
           <div className="space-y-2">
             <div className="px-1 text-xs font-medium uppercase tracking-wider text-wc-text-faint">
-              Custom Command
+              {t(strings.terminalLauncher.customCommand)}
             </div>
             <div className="flex gap-2">
               <input
@@ -206,7 +209,7 @@ export default function TerminalLauncher({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleLaunchCustom();
                 }}
-                placeholder="Enter command..."
+                placeholder={t(strings.terminalLauncher.commandPlaceholder)}
                 className="flex-1 rounded-md border border-wc-default bg-wc-surface-input px-3 py-2 text-sm text-wc-text-primary placeholder:text-wc-text-faint focus:border-wc-accent focus:outline-none"
               />
               <Button
@@ -215,7 +218,7 @@ export default function TerminalLauncher({
                 onClick={handleLaunchCustom}
                 disabled={isCreating || !customCommand.trim()}
               >
-                Launch
+                {t(strings.terminalLauncher.launch)}
               </Button>
             </div>
           </div>
@@ -232,13 +235,13 @@ export default function TerminalLauncher({
               ) : (
                 <ChevronRight className="h-3 w-3" />
               )}
-              Session Options
+              {t(strings.terminalLauncher.sessionOptions)}
             </button>
             {optionsOpen && (
               <div className="space-y-2 rounded-md border border-wc-default bg-wc-surface-base/50 p-3">
                 {showBackendSelector && (
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-wc-text-secondary">Backend:</label>
+                    <label className="text-xs text-wc-text-secondary">{t(strings.terminalLauncher.backendLabel)}</label>
                     <select
                       data-testid="launcher-backend-select"
                       className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
@@ -254,7 +257,7 @@ export default function TerminalLauncher({
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-wc-text-secondary">Timeout:</label>
+                  <label className="text-xs text-wc-text-secondary">{t(strings.terminalLauncher.timeoutLabel)}</label>
                   <select
                     data-testid="launcher-timeout-select"
                     className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
@@ -271,7 +274,7 @@ export default function TerminalLauncher({
                 {selectedBackend === "persistent" && (
                   <div className="flex items-start gap-1.5 text-[11px] text-wc-text-faint">
                     <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                    <span>Persistent sessions survive web console restarts using tmux.</span>
+                    <span>{t(strings.terminalLauncher.persistentHint)}</span>
                   </div>
                 )}
               </div>
@@ -281,7 +284,7 @@ export default function TerminalLauncher({
 
         {isCreating && (
           <div className="border-t border-wc-default px-4 py-2 text-center text-sm text-wc-text-muted">
-            Creating session...
+            {t(strings.terminalLauncher.creating)}
           </div>
         )}
       </div>

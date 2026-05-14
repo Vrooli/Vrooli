@@ -39,10 +39,12 @@ import (
 	ttsH "web-console/handlers/tts"
 	voiceH "web-console/handlers/voice"
 	workspaceH "web-console/handlers/workspace"
+	"web-console/internal/audio"
 	"web-console/internal/backend"
 	"web-console/internal/config"
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	"web-console/internal/sessionstore"
 )
 
 // initSchema runs the idempotent schema and seed SQL against the database.
@@ -109,10 +111,11 @@ type Server struct {
 	db                            *sql.DB
 	router                        *mux.Router
 	sessions                      *SessionManager
+	fanouts                       *ConversationFanoutRegistry
 	events                        *events.Logger
 	metrics                       *metrics.Metrics
 	backendRegistry               *backend.Registry
-	sessionStore                  SessionMetadataStore
+	sessionStore                  sessionstore.Store
 	aiChain                       *AIProviderChain
 	shortcuts                     ShortcutStore
 	aiConfig                      AIConfigStore
@@ -247,10 +250,11 @@ func NewServer(db *sql.DB) *Server {
 	eventLog := events.NewLogger(1000)
 	metrics := metrics.New()
 	sessions := NewSessionManager()
+	fanouts := NewConversationFanoutRegistry().AttachToManager(sessions)
 
 	// Initialize backend registry and session metadata store
 	backendRegistry := InitDefaultRegistry()
-	sessionStore := NewSQLSessionStore(db)
+	sessionStore := sessionstore.NewSQL(db)
 	sessions.SetRegistry(backendRegistry)
 	sessions.SetStore(sessionStore)
 	sessions.SetMetrics(metrics)
@@ -272,6 +276,7 @@ func NewServer(db *sql.DB) *Server {
 		db:                            db,
 		router:                        mux.NewRouter(),
 		sessions:                      sessions,
+		fanouts:                       fanouts,
 		events:                        eventLog,
 		metrics:                       metrics,
 		backendRegistry:               backendRegistry,
@@ -299,7 +304,7 @@ func NewServer(db *sql.DB) *Server {
 		lastTTSBySource:               make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:               make(map[string]ttsAckSnapshot),
 		whisperURL:                    resolveWhisperURL(),
-		transcodeAudio:                defaultTranscodeAudio,
+		transcodeAudio:                audio.Transcode,
 	}
 	srv.systemContext = DiscoverSystemContext(DefaultLookPath)
 	log.Printf("system-context: os=%s/%s shell=%s tools-found=%d",

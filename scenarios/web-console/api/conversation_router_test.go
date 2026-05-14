@@ -112,7 +112,7 @@ func TestAsyncSummarizeAndNotify_EvictsCacheOnSuccess(t *testing.T) {
 		t.Fatal("event missing from store")
 	}
 
-	srv.asyncSummarizeAndNotify(event, sess.ID, sess)
+	srv.asyncSummarizeAndNotify(event, sess.ID)
 
 	// Cache for the raw audio must be gone.
 	rawKey := TTSCacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
@@ -144,7 +144,7 @@ func TestAsyncSummarizeAndNotify_PreservesCacheOnError(t *testing.T) {
 	event, _ := srv.conversations.GetEvent(sess.ID, eventID)
 	before := append([]string(nil), event.SpeechParagraphs...)
 
-	srv.asyncSummarizeAndNotify(event, sess.ID, sess)
+	srv.asyncSummarizeAndNotify(event, sess.ID)
 
 	// Cache must still hold the seeded raw audio — summary never succeeded.
 	rawKey := TTSCacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
@@ -173,7 +173,7 @@ func TestAsyncSummarizeAndNotify_PreservesCacheOnEmpty(t *testing.T) {
 	srv, sess, eventID, _ := newSummarizeTestServer(t, ollama)
 
 	event, _ := srv.conversations.GetEvent(sess.ID, eventID)
-	srv.asyncSummarizeAndNotify(event, sess.ID, sess)
+	srv.asyncSummarizeAndNotify(event, sess.ID)
 
 	rawKey := TTSCacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
 	if _, ok := srv.ttsCache.Get(rawKey); !ok {
@@ -255,15 +255,16 @@ func TestAsyncSummarizeAndNotify_EmitsErrorOnFailure(t *testing.T) {
 	srv, sess, eventID, _ := newSummarizeTestServer(t, ollama)
 
 	// Subscribe a client to observe the conversation_event_update on failure.
-	conversationCh := sess.SubscribeConversation()
-	defer sess.UnsubscribeConversation(conversationCh)
+	fanout := srv.fanouts.Get(sess.ID)
+	conversationCh := fanout.Subscribe()
+	defer fanout.Unsubscribe(conversationCh)
 
 	event, _ := srv.conversations.GetEvent(sess.ID, eventID)
 	// Drain any initial events (e.g., the append event) before the assertion.
 	for len(conversationCh) > 0 {
 		<-conversationCh
 	}
-	srv.asyncSummarizeAndNotify(event, sess.ID, sess)
+	srv.asyncSummarizeAndNotify(event, sess.ID)
 
 	select {
 	case emitted := <-conversationCh:

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils/render";
 import IntegrationsPanel from "../components/IntegrationsPanel";
+import { strings } from "../consts/strings";
+import { i18n } from "../i18n";
 import type { CapabilitiesResponse } from "../api/capabilities";
 
 vi.mock("@vrooli/api-base", () => ({
@@ -72,10 +74,11 @@ describe("IntegrationsPanel", () => {
   it("shows loading state while fetching", () => {
     mockFetchCapabilities.mockReturnValue(new Promise(() => {}));
     renderWithProviders(<IntegrationsPanel open={true} />);
-    expect(screen.getByText("Checking integrations...")).toBeTruthy();
+    expect(screen.getByText(strings.integrationsPanel.checking)).toBeTruthy();
   });
 
   it("shows error state when fetch fails", async () => {
+    await i18n.changeLanguage("en");
     mockFetchCapabilities.mockRejectedValue(new Error("Server error"));
     renderWithProviders(<IntegrationsPanel open={true} />);
 
@@ -97,6 +100,7 @@ describe("IntegrationsPanel", () => {
   });
 
   it("shows correct active count", async () => {
+    await i18n.changeLanguage("en");
     mockFetchCapabilities.mockResolvedValue(mockCapabilities);
     renderWithProviders(<IntegrationsPanel open={true} />);
 

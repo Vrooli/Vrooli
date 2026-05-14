@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
 import { ClipboardPaste, Copy, Image, TextSelect, Trash2, Volume2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
+import { strings } from "../consts/strings";
 
 /**
  * onPaste returns a thenable/promise that resolves when the pasted
@@ -63,6 +65,7 @@ export default function TerminalContextMenu({
   onSpeak,
   onClose,
 }: TerminalContextMenuProps) {
+  const { t } = useTranslation();
   const [pasteState, setPasteState] = useState<PasteUIState>({ kind: "idle" });
 
   const handlePaste = useCallback(async () => {
@@ -98,16 +101,16 @@ export default function TerminalContextMenu({
   const pasteLabel = (() => {
     switch (pasteState.kind) {
       case "pending":
-        return "Pasting…";
+        return t(strings.terminalContextMenu.pasting);
       case "succeeded":
-        return "Pasted";
+        return t(strings.terminalContextMenu.pasted);
       case "failed":
-        return `Paste failed: ${pasteState.reason}`;
+        return t(strings.terminalContextMenu.pasteFailed, { reason: pasteState.reason });
       case "clipboard_unavailable":
-        return "Use Ctrl+V to paste";
+        return t(strings.terminalContextMenu.useCtrlVHint);
       case "idle":
       default:
-        return "Paste";
+        return t(strings.terminalContextMenu.paste);
     }
   })();
   const pasteDisabled = pasteState.kind === "pending";
@@ -121,7 +124,7 @@ export default function TerminalContextMenu({
           onClick={onCopy}
         >
           <Copy className="h-4 w-4 shrink-0" />
-          Copy
+          {t(strings.terminalContextMenu.copy)}
         </button>
       )}
       {hasSelection && onSpeak && (
@@ -131,7 +134,7 @@ export default function TerminalContextMenu({
           onClick={onSpeak}
         >
           <Volume2 className="h-4 w-4 shrink-0" />
-          Speak
+          {t(strings.terminalContextMenu.speak)}
         </button>
       )}
       <button
@@ -151,7 +154,7 @@ export default function TerminalContextMenu({
           onClick={onUploadImage}
         >
           <Image className="h-4 w-4 shrink-0" />
-          Upload Image
+          {t(strings.terminalContextMenu.uploadImage)}
         </button>
       )}
       <button
@@ -160,7 +163,7 @@ export default function TerminalContextMenu({
         onClick={onSelectAll}
       >
         <TextSelect className="h-4 w-4 shrink-0" />
-        Select All
+        {t(strings.terminalContextMenu.selectAll)}
       </button>
       <button
         data-testid="ctx-clear"
@@ -168,7 +171,7 @@ export default function TerminalContextMenu({
         onClick={onClear}
       >
         <Trash2 className="h-4 w-4 shrink-0" />
-        Clear Terminal
+        {t(strings.terminalContextMenu.clearTerminal)}
       </button>
     </ContextMenuBase>
   );

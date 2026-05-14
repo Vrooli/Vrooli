@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
 import { useLongPress } from "../hooks/useLongPress";
+import { strings } from "../consts/strings";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { Button } from "./ui/button";
 import VoiceMicButton from "./VoiceMicButton";
@@ -91,6 +93,7 @@ export default function FloatingToolbar({
   isTtsSpeaking,
   onTtsStop,
 }: FloatingToolbarProps) {
+  const { t } = useTranslation();
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
   const [docked, setDocked] = useState<DockedEdge>(loadDockedEdge);
   const [animating, setAnimating] = useState(false);
@@ -193,7 +196,7 @@ export default function FloatingToolbar({
     <div
       data-testid="dock-tab"
       className="flex items-center justify-center shrink-0 px-1 py-1"
-      title="Tap to restore toolbar"
+      title={t(strings.floatingToolbar.tapToRestore)}
     >
       {docked === "left" ? (
         <ChevronRight className="h-4 w-4 text-wc-text-muted" />
@@ -217,7 +220,7 @@ export default function FloatingToolbar({
         size="icon"
         className="h-7 w-7"
         onClick={onOpenSettings}
-        title="Settings"
+        title={t(strings.floatingToolbar.settingsTitle)}
         tabIndex={docked ? -1 : undefined}
       >
         <Settings className="h-4 w-4" />
@@ -233,7 +236,7 @@ export default function FloatingToolbar({
         size="icon"
         className="h-7 w-7 hidden md:inline-flex"
         onClick={onOpenAi}
-        title="AI Command"
+        title={t(strings.floatingToolbar.aiCommandTitle)}
         tabIndex={docked ? -1 : undefined}
       >
         <Sparkles className="h-4 w-4" />
@@ -263,7 +266,7 @@ export default function FloatingToolbar({
         size="icon"
         className="h-7 w-7"
         disabled={isCreating}
-        title={plusButtonBehavior === "launcher" ? "Open launcher (long-press for empty terminal)" : "New terminal (long-press for launcher)"}
+        title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
         tabIndex={docked ? -1 : undefined}
         onPointerDown={plusHandlers.onPointerDown}
         onPointerUp={plusHandlers.onPointerUp}

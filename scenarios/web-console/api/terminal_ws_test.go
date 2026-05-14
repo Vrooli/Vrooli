@@ -14,6 +14,7 @@ import (
 
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
 )
 
 // wsURL converts an httptest.Server URL to a WebSocket URL.
@@ -62,8 +63,8 @@ func TestHandleTerminalWS_SessionNotFound(t *testing.T) {
 
 // [REQ:P0-002b] WebSocket I/O Streaming - exited session auto-removed returns 404
 func TestHandleTerminalWS_ExitedSession(t *testing.T) {
-	deadFake := newFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(deadFake))
+	deadFake := ptyfake.NewFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(ptyfake.Factory(deadFake))
 	deadSrv := &Server{
 		router:    mux.NewRouter(),
 		sessions:  sm,
@@ -78,7 +79,7 @@ func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 	sessID := deadSess.ID
 
 	// Close output pipe to simulate process exit; auto-removal cleans up the map
-	deadFake.outW.Close()
+	deadFake.OutW.Close()
 	time.Sleep(150 * time.Millisecond)
 
 	req := httptest.NewRequest("GET", "/api/v1/sessions/"+sessID+"/ws", nil)
@@ -472,10 +473,10 @@ func TestHandleTerminalWS_RepeatedConnectDisconnect(t *testing.T) {
 // setupWSServerWithPTY creates a test server whose single session uses a
 // controllable fake PTY. Returns the server, session ID, and the fake PTY
 // (so the test can inject output to build history).
-func setupWSServerWithPTY(t *testing.T) (*httptest.Server, string, *fakePTYWithOutput) {
+func setupWSServerWithPTY(t *testing.T) (*httptest.Server, string, *ptyfake.FakePTYWithOutput) {
 	t.Helper()
-	fake := newFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	fake := ptyfake.NewFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    sm,
@@ -546,7 +547,7 @@ func TestHandleTerminalWS_HistoryEnd_AfterHistory(t *testing.T) {
 	ts, sessID, fake := setupWSServerWithPTY(t)
 
 	// Write output so history is built up.
-	_, _ = fake.outW.Write([]byte("line 1\r\nline 2\r\n"))
+	_, _ = fake.OutW.Write([]byte("line 1\r\nline 2\r\n"))
 	time.Sleep(100 * time.Millisecond)
 
 	dialer := websocket.Dialer{}
@@ -585,7 +586,7 @@ func TestHandleTerminalWS_SnapshotPrecedesHistoryEnd(t *testing.T) {
 	ts, sessID, fake := setupWSServerWithPTY(t)
 	defer fake.Close()
 
-	_, _ = fake.outW.Write([]byte("snapshot replay marker"))
+	_, _ = fake.OutW.Write([]byte("snapshot replay marker"))
 	time.Sleep(100 * time.Millisecond)
 
 	dialer := websocket.Dialer{}
@@ -686,7 +687,7 @@ func TestHandleTerminalWS_ReconnectToSameSession(t *testing.T) {
 	skipHistoryEnd(t, conn1)
 
 	// Inject PTY output
-	_, _ = fake.outW.Write([]byte("hello from session"))
+	_, _ = fake.OutW.Write([]byte("hello from session"))
 	time.Sleep(100 * time.Millisecond)
 
 	// Read the output

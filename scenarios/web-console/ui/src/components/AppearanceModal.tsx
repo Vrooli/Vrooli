@@ -1,14 +1,17 @@
 import { useCallback } from "react";
 import { X, GripHorizontal, CopyCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import { DEFAULT_THEME_ID } from "../consts/config";
+import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 import HeaderColorPicker from "./appearance/HeaderColorPicker";
 import ThemePicker from "./appearance/ThemePicker";
 import FontSizeStepper from "./appearance/FontSizeStepper";
 
 export default function AppearanceModal() {
+  const { t } = useTranslation();
   const appearanceModalPane = useWorkspaceStore((s) => s.appearanceModalPane);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const panes = useWorkspaceStore((s) => s.panes);
@@ -78,7 +81,7 @@ export default function AppearanceModal() {
           <div className="flex items-center gap-2">
             <GripHorizontal className="h-4 w-4 text-wc-text-faint" />
             <h2 className="text-sm font-semibold text-wc-text-primary">
-              Appearance
+              {t(strings.appearance.title)}
             </h2>
           </div>
           <Button
@@ -119,7 +122,7 @@ export default function AppearanceModal() {
                 onClick={() => applyAppearanceToAll(sessionId)}
               >
                 <CopyCheck className="h-4 w-4 mr-2" />
-                Apply to all sessions
+                {t(strings.appearance.applyToAll)}
               </Button>
             </div>
           )}

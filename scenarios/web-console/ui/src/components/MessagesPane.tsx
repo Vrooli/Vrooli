@@ -1,5 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 import {
   ArrowDown,
   Check,
@@ -168,6 +170,7 @@ const MessageRow = memo(function MessageRow({
   onLinkClick,
   onFileReferenceClick,
 }: MessageRowProps) {
+  const { t } = useTranslation();
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [isTall, setIsTall] = useState(false);
   const audioButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -225,7 +228,7 @@ const MessageRow = memo(function MessageRow({
           data-testid={`msg-copy-${event.id}`}
           onClick={() => onCopy(event.id, event.text)}
           className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
-          title="Copy message"
+          title={t(strings.messagesPane.copyMessageTitle)}
           type="button"
         >
           {copiedEventId === event.id
@@ -239,7 +242,7 @@ const MessageRow = memo(function MessageRow({
               data-testid={`msg-speak-from-${event.id}`}
               onClick={() => onPlayFromHere(event.id)}
               className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
-              title="Read from here"
+              title={t(strings.messagesPane.readFromHereTitle)}
               type="button"
             >
               <Play className="h-3.5 w-3.5" />
@@ -262,7 +265,7 @@ const MessageRow = memo(function MessageRow({
                 setOpenPopoverId(isPopoverOpen ? null : event.id);
               }}
               className="rounded p-0.5 text-wc-text-faint transition hover:text-wc-text-muted hover:bg-wc-accent/10"
-              title="Play and open audio settings"
+              title={t(strings.messagesPane.playAudioSettingsTitle)}
               type="button"
             >
               <Volume2 className="h-3 w-3" />
@@ -279,7 +282,7 @@ const MessageRow = memo(function MessageRow({
                     <div className="mb-3 flex justify-center">
                       <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
                     </div>
-                    <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">Audio Settings</h3>
+                    <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">{t(strings.messagesPane.audioSettingsHeading)}</h3>
                     <AudioSettingsContent
                       testIdPrefix={`msg-${event.id}`}
                       volume={playbackState.volume}
@@ -305,7 +308,7 @@ const MessageRow = memo(function MessageRow({
                         className="mt-2 w-full rounded-lg bg-wc-surface-base px-3 py-2 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input"
                         onClick={() => onClearSummarizeError(event.id)}
                       >
-                        Dismiss error
+                        {t(strings.messagesPane.dismissError)}
                       </button>
                     )}
                   </div>
@@ -343,7 +346,7 @@ const MessageRow = memo(function MessageRow({
                         className="mt-2 w-full rounded-lg bg-wc-surface-base px-3 py-2 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input"
                         onClick={() => onClearSummarizeError(event.id)}
                       >
-                        Dismiss error
+                        {t(strings.messagesPane.dismissError)}
                       </button>
                     )}
                   </div>
@@ -380,7 +383,7 @@ const MessageRow = memo(function MessageRow({
           className="mt-1 text-xs text-wc-accent hover:text-wc-accent/80 transition-colors"
           type="button"
         >
-          {isExpanded ? "Show less" : "Show more"}
+          {isExpanded ? t(strings.messagesPane.showLess) : t(strings.messagesPane.showMore)}
         </button>
       )}
     </article>
@@ -422,6 +425,7 @@ export default function MessagesPane({
   onSetMuted,
   playbackFocusRequest,
 }: MessagesPaneProps) {
+  const { t } = useTranslation();
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
   const isMobile = useMediaQuery("(max-width: 767px)");
   const fontSize = useWorkspaceStore(
@@ -770,7 +774,7 @@ export default function MessagesPane({
       const resolved = await resolveFileReference(sessionId, href);
       setResolvedFile(resolved);
       if (!resolved.can_preview) {
-        setFileViewerError("This file type cannot be previewed in web console.");
+        setFileViewerError(t(strings.messagesPane.fileNotPreviewable));
         return;
       }
       const contentPath = resolved.line ? `${resolved.resolved_path}:${resolved.line}` : resolved.resolved_path;
@@ -782,12 +786,12 @@ export default function MessagesPane({
       } else if (err instanceof Error) {
         setFileViewerError(err.message);
       } else {
-        setFileViewerError("Failed to open file reference");
+        setFileViewerError(t(strings.messagesPane.fileOpenFailed));
       }
     } finally {
       setFileViewerLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, t]);
 
   const handleMarkdownLinkClick = useCallback((href: string, event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!looksLikeFileReference(href)) return;
@@ -812,7 +816,7 @@ export default function MessagesPane({
           data-testid="messages-search-btn"
           onClick={() => setSearchOpen(true)}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm"
-          title="Search messages"
+          title={t(strings.messagesPane.searchMessagesTitle)}
           type="button"
         >
           <Search className="h-3.5 w-3.5" />
@@ -823,7 +827,7 @@ export default function MessagesPane({
           onClick={() => setJumpListOpen((v) => !v)}
           disabled={events.length === 0}
           className="flex h-8 items-center gap-1 rounded-full border border-wc-default bg-wc-surface-raised/80 px-2.5 text-xs text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-          title="Jump to message"
+          title={t(strings.messagesPane.jumpToMessageTitle)}
           type="button"
         >
           <ChevronsUpDown className="h-3.5 w-3.5" />
@@ -835,7 +839,7 @@ export default function MessagesPane({
           onClick={handleNavUp}
           disabled={navIds.length === 0}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-          title={searchQuery ? "Previous match" : "Previous message"}
+          title={searchQuery ? t(strings.messagesPane.prevMatchTitle) : t(strings.messagesPane.prevMessageTitle)}
           type="button"
         >
           <ChevronUp className="h-3.5 w-3.5" />
@@ -845,7 +849,7 @@ export default function MessagesPane({
           onClick={handleNavDown}
           disabled={navIds.length === 0}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-          title={searchQuery ? "Next match" : "Next message"}
+          title={searchQuery ? t(strings.messagesPane.nextMatchTitle) : t(strings.messagesPane.nextMessageTitle)}
           type="button"
         >
           <ChevronDown className="h-3.5 w-3.5" />
@@ -855,7 +859,7 @@ export default function MessagesPane({
           onClick={handleRefresh}
           disabled={isRefreshing}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-60 disabled:pointer-events-none"
-          title="Refresh messages from server"
+          title={t(strings.messagesPane.refreshTitle)}
           type="button"
         >
           <RotateCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
@@ -888,7 +892,7 @@ export default function MessagesPane({
       <div ref={scrollContainerRef} className="relative min-h-0 flex-1 overflow-auto">
         {events.length === 0 ? (
           <div className="rounded-xl border border-dashed border-wc-default bg-wc-surface px-4 py-6 text-sm text-wc-text-muted">
-            No conversation events yet for this session.
+            {t(strings.messagesPane.noEvents)}
           </div>
         ) : (
           <div className="relative" style={{ height: `${totalSize}px` }}>
@@ -943,14 +947,14 @@ export default function MessagesPane({
           type="button"
         >
           <ArrowDown className="mr-1.5 inline-block h-3.5 w-3.5" />
-          {newMessageCount} new message{newMessageCount !== 1 ? "s" : ""}
+          {t(strings.messagesPane.newMessages, { count: newMessageCount })}
         </button>
       )}
 
       {newMessageCount === 0 && !isNearBottom && events.length > 0 && (
         <button
           data-testid="msg-jump-bottom"
-          aria-label="Jump to bottom"
+          aria-label={t(strings.messagesPane.jumpToBottomAria)}
           onClick={scrollToBottom}
           className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised/60 p-2 text-wc-text-secondary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input hover:text-wc-text-primary"
           type="button"

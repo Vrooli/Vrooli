@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { ShortcutEntry } from "../consts/shortcuts";
 import { asMockedClient } from "../test-utils";
+import { strings } from "../consts/strings";
 
 // [REQ:P0-006a] Terminal Launch Flow UI — component rendering & interactions
 // [REQ:P0-006b] Configurable Shortcut Entries — shortcut rendering and selection
@@ -46,7 +47,7 @@ describe("TerminalLauncher", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
-    expect(screen.getByText("New Terminal")).toBeTruthy();
+    expect(screen.getByText(strings.terminalLauncher.newTerminal)).toBeTruthy();
     expect(screen.getByTestId("terminal-launcher")).toBeTruthy();
   });
 
@@ -55,7 +56,7 @@ describe("TerminalLauncher", () => {
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
     expect(screen.getByTestId("launcher-empty-shell")).toBeTruthy();
-    expect(screen.getByText("Empty Shell")).toBeTruthy();
+    expect(screen.getByText(strings.terminalLauncher.emptyShell)).toBeTruthy();
   });
 
   it("calls onLaunch with undefined backend when default is unchanged so the server applies its configured default", () => {
@@ -135,7 +136,7 @@ describe("TerminalLauncher", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} isCreating />,
     );
-    expect(screen.getByText("Creating session...")).toBeTruthy();
+    expect(screen.getByText(strings.terminalLauncher.creating)).toBeTruthy();
   });
 
   it("disables all launch buttons when isCreating is true", () => {

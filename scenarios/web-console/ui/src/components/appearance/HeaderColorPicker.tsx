@@ -1,5 +1,7 @@
+import { useTranslation } from "react-i18next";
 import { HEADER_COLORS } from "../../consts/config";
 import { cn } from "../../lib/classnames";
+import { strings } from "../../consts/strings";
 
 interface HeaderColorPickerProps {
   currentColor: string;
@@ -12,10 +14,11 @@ export default function HeaderColorPicker({
   onSelectColor,
   testIdPrefix = "appearance",
 }: HeaderColorPickerProps) {
+  const { t } = useTranslation();
   return (
     <section>
       <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
-        Header Color
+        {t(strings.appearance.headerColorHeading)}
       </h3>
       <div className="flex flex-wrap gap-1.5">
         {/* Transparent option */}
@@ -28,7 +31,7 @@ export default function HeaderColorPicker({
           )}
           style={{ background: "rgb(var(--wc-surface-input))" }}
           onClick={() => onSelectColor("transparent")}
-          title="No color"
+          title={t(strings.appearance.noColorTitle)}
         />
         {HEADER_COLORS.map((color) => (
           <button

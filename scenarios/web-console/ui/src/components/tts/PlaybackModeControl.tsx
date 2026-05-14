@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/classnames";
+import { strings } from "../../consts/strings";
 
 export type SummarizationLevel = "light" | "moderate" | "heavy";
 
-const LEVEL_OPTIONS: { value: SummarizationLevel; label: string; hint: string }[] = [
-  { value: "light", label: "Light", hint: "~60% of original" },
-  { value: "moderate", label: "Moderate", hint: "~40% of original" },
-  { value: "heavy", label: "Heavy", hint: "2-3 sentences" },
-];
+const LEVEL_OPTIONS = [
+  { value: "light", labelKey: strings.playbackMode.light, hintKey: strings.playbackMode.lightHint },
+  { value: "moderate", labelKey: strings.playbackMode.moderate, hintKey: strings.playbackMode.moderateHint },
+  { value: "heavy", labelKey: strings.playbackMode.heavy, hintKey: strings.playbackMode.heavyHint },
+] as const satisfies readonly { value: SummarizationLevel; labelKey: string; hintKey: string }[];
 
 export interface PlaybackModeControlProps {
   testIdPrefix: string;
@@ -49,6 +51,7 @@ export function PlaybackModeControl({
   onToggleSummarized,
   onChangeLevel,
 }: PlaybackModeControlProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -76,17 +79,18 @@ export function PlaybackModeControl({
   // No control when there's neither a summary nor a way to get one.
   if (!hasOriginalVersion && !canSummarize) return null;
 
-  const currentLevelLabel = LEVEL_OPTIONS.find(({ value }) => value === currentLevel)?.label ?? "Summarized";
+  const currentLevelEntry = LEVEL_OPTIONS.find(({ value }) => value === currentLevel);
+  const currentLevelLabel = currentLevelEntry ? t(currentLevelEntry.labelKey) : t(strings.playbackMode.summarized);
   const label = isSummarized
     ? currentLevelLabel
     : hasOriginalVersion
-      ? "Original"
-      : "Summarize";
+      ? t(strings.playbackMode.original)
+      : t(strings.playbackMode.summarize);
   const title = isSummarized
-    ? `${currentLevelLabel} summary — click to switch`
+    ? t(strings.playbackMode.summaryTitle, { level: currentLevelLabel })
     : hasOriginalVersion
-      ? "Original — click to switch"
-      : "Click to summarize";
+      ? t(strings.playbackMode.originalTitle)
+      : t(strings.playbackMode.summarizeTitle);
 
   const handleSelectOriginal = () => {
     setOpen(false);
@@ -155,13 +159,13 @@ export function PlaybackModeControl({
                 <span className="flex h-3 w-3 items-center justify-center">
                   {!isSummarized && <Check className="h-3 w-3" />}
                 </span>
-                <span className="flex-1">Original</span>
+                <span className="flex-1">{t(strings.playbackMode.original)}</span>
               </button>
             )}
             {hasOriginalVersion && (
               <div className="my-1 h-px bg-wc-default" />
             )}
-            {LEVEL_OPTIONS.map(({ value, label: levelLabel, hint }) => {
+            {LEVEL_OPTIONS.map(({ value, labelKey, hintKey }) => {
               const isActive = isSummarized && value === currentLevel;
               return (
                 <button
@@ -178,8 +182,8 @@ export function PlaybackModeControl({
                   <span className="flex h-3 w-3 items-center justify-center">
                     {isActive && <Check className="h-3 w-3" />}
                   </span>
-                  <span className="flex-1">{levelLabel}</span>
-                  <span className="text-[10px] text-wc-text-faint">{hint}</span>
+                  <span className="flex-1">{t(labelKey)}</span>
+                  <span className="text-[10px] text-wc-text-faint">{t(hintKey)}</span>
                 </button>
               );
             })}

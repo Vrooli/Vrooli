@@ -280,6 +280,12 @@ const literalSelectors: LiteralSelectorTree = {
     paneGrid: 'pane-grid',
     newTerminalButton: 'new-terminal-button',
     paneContainer: 'terminal-pane-container',
+    sidebarShell: 'workspace-sidebar-shell',
+    sidebarToggle: 'workspace-sidebar-toggle',
+    sidebarBackdrop: 'workspace-sidebar-backdrop',
+    sidebarResizeHandle: 'workspace-sidebar-resize-handle',
+    sidebarTopbar: 'workspace-sidebar-topbar',
+    sidebarActiveTitle: 'workspace-sidebar-active-title',
   },
   terminal: {
     pane: 'terminal-pane',
@@ -359,6 +365,13 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     session: defineDynamicSelector({
       description: 'Session row in drawer',
       testIdPattern: 'drawer-session-${sessionId}',
+      params: { sessionId: { type: 'string' } },
+    }),
+  },
+  sidebar: {
+    session: defineDynamicSelector({
+      description: 'Session row in workspace sidebar',
+      testIdPattern: 'sidebar-session-${sessionId}',
       params: { sessionId: { type: 'string' } },
     }),
   },

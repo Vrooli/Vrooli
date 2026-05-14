@@ -11,6 +11,7 @@ import (
 
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
 )
 
 // [REQ:P1-003a] Provider Configuration Storage - store tests
@@ -222,7 +223,7 @@ func TestGenerateWithConfig_DisabledProvider(t *testing.T) {
 	fallback := &fakeAIProvider{name: "openrouter", result: "ls -la"}
 
 	srv := &Server{
-		sessions:  NewSessionManagerWithFactory(newFakePTYFactory()),
+		sessions:  NewSessionManagerWithFactory(ptyfake.NewFactory()),
 		events:    events.NewLogger(100),
 		metrics:   metrics.New(),
 		aiChain:   NewAIProviderChain(primary, fallback),

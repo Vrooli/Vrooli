@@ -2,11 +2,13 @@ package main
 
 import (
 	"testing"
+
+	"web-console/internal/ptyfake"
 )
 
 // [REQ:P1-001a] Session Policy Controls - max sessions enforcement
 func TestMaxSessions_Enforcement(t *testing.T) {
-	sm := NewSessionManagerWithFactory(newFakePTYFactory())
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	sm.cfg.MaxSessions = 2
 
 	s1, err := sm.Create("", 0, 0, "", nil)

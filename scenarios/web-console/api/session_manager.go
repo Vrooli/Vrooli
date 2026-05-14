@@ -15,6 +15,7 @@ import (
 	"web-console/internal/metrics"
 	"web-console/internal/policy"
 	"web-console/internal/pty"
+	"web-console/internal/sessionstore"
 	"web-console/terminal"
 
 	"github.com/google/uuid"
@@ -46,12 +47,34 @@ type SessionManager struct {
 	cfgMu        sync.RWMutex // protects cfg from concurrent read/write (session-defaults handler vs Create)
 	cfg          config.Config
 	registry     *backend.Registry
-	store        SessionMetadataStore
+	store        sessionstore.Store
 	shuttingDown bool // set by Shutdown(); prevents auto-remove from deleting persistent session metadata
 
-	// Seams for testability: injectable tmux operations.
-	tmuxAttachFunc   TmuxAttachFunc
-	tmuxDiscoverFunc TmuxDiscoverFunc
+	// Seams for testability: injectable tmux operations. After Session moves
+	// to its own sub-package these break the dependency on tmux helpers that
+	// live with the persistent backend.
+	tmuxAttachFunc       TmuxAttachFunc
+	tmuxDiscoverFunc     TmuxDiscoverFunc
+	applyTmuxOptionsFunc func(sessionName string)
+	killTmuxSessionFunc  func(sessionName string)
+	tmuxSessionPrefix    string
+
+	// uploadDirFunc resolves the per-session upload root. Defaults to
+	// resolveUploadDir; injectable so internal/session/ doesn't import the
+	// upload handler.
+	uploadDirFunc func() string
+
+	// envForSession returns the per-session environment variables to inject
+	// into the spawned PTY (CODEX_HOME etc). Set by package main; the
+	// session package does not know about backend-specific env keys.
+	envForSession func(sessionID string) map[string]string
+
+	// onSessionCreate/onSessionDelete are best-effort lifecycle hooks
+	// called after a session is added to or removed from the active map.
+	// Used by package main to manage the conversation fan-out registry
+	// without coupling the session package to ConversationEvent.
+	onSessionCreate func(sessionID string)
+	onSessionDelete func(sessionID string)
 
 	// Observability: optional metrics and event logger for session lifecycle.
 	metrics *metrics.Metrics
@@ -65,11 +88,16 @@ type SessionManager struct {
 // and configuration loaded from environment variables.
 func NewSessionManager() *SessionManager {
 	return &SessionManager{
-		sessions:         make(map[string]*Session),
-		ptyFactory:       defaultPTYFactory,
-		cfg:              config.Load(),
-		tmuxAttachFunc:   tmuxAttachAsPTY,
-		tmuxDiscoverFunc: DiscoverTmuxSessions,
+		sessions:             make(map[string]*Session),
+		ptyFactory:           defaultPTYFactory,
+		cfg:                  config.Load(),
+		tmuxAttachFunc:       tmuxAttachAsPTY,
+		tmuxDiscoverFunc:     DiscoverTmuxSessions,
+		applyTmuxOptionsFunc: applyTmuxOptions,
+		killTmuxSessionFunc:  func(name string) { _ = tmuxCmd("kill-session", "-t", name).Run() },
+		tmuxSessionPrefix:    tmuxSessionPrefix,
+		uploadDirFunc:        resolveUploadDir,
+		envForSession:        defaultSessionEnv,
 	}
 }
 
@@ -77,12 +105,26 @@ func NewSessionManager() *SessionManager {
 // Use this in tests to substitute a fake PTY implementation.
 func NewSessionManagerWithFactory(factory pty.Factory) *SessionManager {
 	return &SessionManager{
-		sessions:         make(map[string]*Session),
-		ptyFactory:       factory,
-		cfg:              config.Default(),
-		tmuxAttachFunc:   tmuxAttachAsPTY,
-		tmuxDiscoverFunc: DiscoverTmuxSessions,
+		sessions:             make(map[string]*Session),
+		ptyFactory:           factory,
+		cfg:                  config.Default(),
+		tmuxAttachFunc:       tmuxAttachAsPTY,
+		tmuxDiscoverFunc:     DiscoverTmuxSessions,
+		applyTmuxOptionsFunc: applyTmuxOptions,
+		killTmuxSessionFunc:  func(name string) { _ = tmuxCmd("kill-session", "-t", name).Run() },
+		tmuxSessionPrefix:    tmuxSessionPrefix,
+		uploadDirFunc:        resolveUploadDir,
+		envForSession:        defaultSessionEnv,
 	}
+}
+
+// SetLifecycleHooks registers callbacks invoked after a session is added to
+// or removed from the active map. Either may be nil. Used by package main to
+// keep the conversation fan-out registry in sync without coupling the session
+// package to ConversationEvent.
+func (sm *SessionManager) SetLifecycleHooks(onCreate, onDelete func(sessionID string)) {
+	sm.onSessionCreate = onCreate
+	sm.onSessionDelete = onDelete
 }
 
 // SetRegistry sets the backend registry for backend-aware session creation.
@@ -91,7 +133,7 @@ func (sm *SessionManager) SetRegistry(reg *backend.Registry) {
 }
 
 // SetStore sets the session metadata store for persistence.
-func (sm *SessionManager) SetStore(store SessionMetadataStore) {
+func (sm *SessionManager) SetStore(store sessionstore.Store) {
 	sm.store = store
 }
 
@@ -194,11 +236,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, bid backend.ID
 		Shell:     shell,
 		Cols:      cols,
 		Rows:      rows,
-		Env: map[string]string{
-			"WC_WEB_CONSOLE_SESSION_ID": sessionID,
-			"CODEX_HOME":                sessionCodexHome(sessionID),
-			"WC_CODEX_SESSIONS_DIR":     sessionCodexSessionsDir(sessionID),
-		},
+		Env:       sm.envForSession(sessionID),
 	}
 
 	p, err := factory(spec)
@@ -241,8 +279,8 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, bid backend.ID
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 		coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
 		sigwinchCooldown:        time.Duration(sm.cfg.SIGWINCHCooldownMs) * time.Millisecond,
-		conversationClients:     make(map[chan ConversationEvent]*conversationSubscriber),
 		reattachFunc:            sm.tmuxAttachFunc,
+		sessionPrefix:           sm.tmuxSessionPrefix,
 		metrics:                 sm.metrics,
 	}
 
@@ -250,10 +288,14 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, bid backend.ID
 	sm.sessions[sess.ID] = sess
 	sm.mu.Unlock()
 
+	if sm.onSessionCreate != nil {
+		sm.onSessionCreate(sess.ID)
+	}
+
 	// Persist metadata if store is configured
 	if sm.store != nil {
 		detached := bid == backend.Persistent
-		_ = sm.store.Save(SessionMetadata{
+		_ = sm.store.Save(sessionstore.Metadata{
 			ID:       sess.ID,
 			Backend:  bid,
 			Shell:    shell,
@@ -276,6 +318,9 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, bid backend.ID
 		sm.mu.Lock()
 		delete(sm.sessions, sess.ID)
 		sm.mu.Unlock()
+		if sm.onSessionDelete != nil {
+			sm.onSessionDelete(sess.ID)
+		}
 		// Persistent sessions: ALWAYS preserve metadata so recovery can
 		// re-attach on the next startup. The tmux session survives in its
 		// own systemd scope even when the attach process dies. Deleting
@@ -287,7 +332,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, bid backend.ID
 			_ = sm.store.Delete(sess.ID)
 		}
 		// Clean up session upload directory
-		uploadDir := filepath.Join(resolveUploadDir(), sess.ID)
+		uploadDir := filepath.Join(sm.uploadDirFunc(), sess.ID)
 		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 			log.Printf("session %s: failed to clean up upload dir: %v", sess.ID, err)
 		}
@@ -329,12 +374,15 @@ func (sm *SessionManager) Delete(id string) error {
 
 	_ = sess.pty.Kill()
 	_ = sess.pty.Close()
+	if sm.onSessionDelete != nil {
+		sm.onSessionDelete(id)
+	}
 	// Clean up persisted metadata
 	if sm.store != nil {
 		_ = sm.store.Delete(id)
 	}
 	// Clean up session upload directory
-	uploadDir := filepath.Join(resolveUploadDir(), id)
+	uploadDir := filepath.Join(sm.uploadDirFunc(), id)
 	if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 		log.Printf("session %s: failed to clean up upload dir on delete: %v", id, err)
 	}

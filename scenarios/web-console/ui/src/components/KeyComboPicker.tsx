@@ -1,8 +1,10 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Search, SquareSlash } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { KEY_COMBOS, CATEGORY_ORDER, filterCombos, type KeyCombo } from "../consts/key-combos";
 import { sendComboSequence } from "../lib/comboSequence";
+import { strings } from "../consts/strings";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { GateResult, InputSource } from "./terminal/inputGate";
 
@@ -19,6 +21,7 @@ interface KeyComboPickerProps {
 }
 
 export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassName }: KeyComboPickerProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -92,7 +95,7 @@ export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassN
         onPointerDown={(e) => e.preventDefault()}
         onClick={() => setOpen(true)}
         className={triggerClassName ?? "shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"}
-        title="Key combos"
+        title={t(strings.keyComboPicker.triggerTitle)}
       >
         <SquareSlash className="h-3.5 w-3.5" />
       </button>
@@ -129,7 +132,7 @@ export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassN
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search combos…"
+                  placeholder={t(strings.keyComboPicker.searchPlaceholder)}
                   className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary placeholder:text-wc-text-muted outline-none"
                 />
               </div>
@@ -140,7 +143,7 @@ export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassN
                 {recentItems.length > 0 && (
                   <div className="mb-2">
                     <h3 className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
-                      Recent
+                      {t(strings.keyComboPicker.recent)}
                     </h3>
                     {recentItems.map((c) => comboButton(c, "combo-recent"))}
                   </div>
@@ -162,7 +165,7 @@ export default function KeyComboPicker({ onInput, onFocusTerminal, triggerClassN
 
                 {filtered.length === 0 && (
                   <p className="px-2 py-4 text-center text-sm text-wc-text-muted">
-                    No combos match &ldquo;{searchQuery}&rdquo;
+                    {t(strings.keyComboPicker.noResults, { query: searchQuery })}
                   </p>
                 )}
               </div>

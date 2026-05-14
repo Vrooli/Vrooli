@@ -17,6 +17,7 @@ import (
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/pty"
+	"web-console/internal/ptyfake"
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 )
@@ -24,9 +25,11 @@ import (
 // newTestServer creates a Server with real PTY processes — use for
 // integration-style tests that need actual shell I/O.
 func newTestServer() *Server {
+	sm := NewSessionManager()
 	srv := &Server{
 		router:      mux.NewRouter(),
-		sessions:    NewSessionManager(),
+		sessions:    sm,
+		fanouts:     NewConversationFanoutRegistry().AttachToManager(sm),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),
@@ -44,9 +47,11 @@ func newTestServer() *Server {
 // newFakeTestServer creates a Server with pipe-backed fake PTYs — use for
 // fast, deterministic handler tests that don't need a real shell.
 func newFakeTestServer() *Server {
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 	srv := &Server{
 		router:      mux.NewRouter(),
-		sessions:    NewSessionManagerWithFactory(newFakePTYFactory()),
+		sessions:    sm,
+		fanouts:     NewConversationFanoutRegistry().AttachToManager(sm),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),
@@ -310,7 +315,7 @@ func TestSessionLimit_VariousLimits(t *testing.T) {
 	limits := []int{1, 3, 5, 10}
 	for _, limit := range limits {
 		t.Run(fmt.Sprintf("limit=%d", limit), func(t *testing.T) {
-			sm := NewSessionManagerWithFactory(newFakePTYFactory())
+			sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
 			sm.cfg.MaxSessions = limit
 
 			var sessions []*Session
@@ -561,5 +566,7 @@ func TestUpdatePolicy_Replay_EventOnlyOnChange(t *testing.T) {
 
 // guard: the proto type for CreateRequest is referenced so a removed field
 // breaks compilation.
-var _ = sessionsv1.CreateRequest{}
-var _ = context.Background
+var (
+	_ = sessionsv1.CreateRequest{}
+	_ = context.Background
+)

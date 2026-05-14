@@ -1,6 +1,8 @@
 // DOC: docs/internal/SEAMS.md#capability-registry-seam
 import { CheckCircle, AlertCircle, Circle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useCapabilities } from "../hooks/useCapabilities";
+import { strings } from "../consts/strings";
 import type { CapabilityState, CapabilityStatus } from "../api/capabilities";
 
 interface IntegrationsPanelProps {
@@ -74,12 +76,13 @@ function CapabilityCard({ cap }: { cap: CapabilityState }) {
 }
 
 export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
+  const { t } = useTranslation();
   const { data, isLoading, isError, error } = useCapabilities(open);
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <p className="text-[11px] text-wc-text-faint">Checking integrations...</p>
+        <p className="text-[11px] text-wc-text-faint">{t(strings.integrationsPanel.checking)}</p>
       </div>
     );
   }
@@ -87,7 +90,7 @@ export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
   if (isError) {
     return (
       <div className="space-y-4">
-        <p className="text-[11px] text-red-400">Failed to load integrations: {error.message}</p>
+        <p className="text-[11px] text-red-400">{t(strings.integrationsPanel.loadFailed, { message: error.message })}</p>
       </div>
     );
   }
@@ -99,12 +102,12 @@ export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
     <div className="space-y-3">
       <div className="flex items-center justify-between px-1">
         <span className="text-[11px] text-wc-text-faint">
-          {activeCount}/{capabilities.length} active
+          {t(strings.integrationsPanel.activeCount, { active: activeCount, total: capabilities.length })}
         </span>
       </div>
 
       {capabilities.length === 0 ? (
-        <p className="text-[11px] text-wc-text-faint">No integrations configured.</p>
+        <p className="text-[11px] text-wc-text-faint">{t(strings.integrationsPanel.noneConfigured)}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {capabilities.map((cap) => (

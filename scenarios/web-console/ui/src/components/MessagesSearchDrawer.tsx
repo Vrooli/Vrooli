@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 
 interface MessagesSearchDrawerProps {
   open: boolean;
@@ -30,6 +32,7 @@ export default function MessagesSearchDrawer({
   onPrevMatch,
   onNextMatch,
 }: MessagesSearchDrawerProps) {
+  const { t } = useTranslation();
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Auto-focus search input when opened, with keyboard dismiss delay
@@ -46,8 +49,10 @@ export default function MessagesSearchDrawer({
   if (!open) return null;
 
   const matchLabel = query
-    ? matchCount === 0 ? "No matches" : `${currentMatchIndex + 1} of ${matchCount}`
-    : "Type to search";
+    ? matchCount === 0
+      ? t(strings.messagesSearch.noMatches)
+      : t(strings.messagesSearch.matchCount, { current: currentMatchIndex + 1, total: matchCount })
+    : t(strings.messagesSearch.typeToSearch);
 
   return createPortal(
     <div
@@ -80,7 +85,7 @@ export default function MessagesSearchDrawer({
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Search messages…"
+            placeholder={t(strings.messagesSearch.placeholder)}
             className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary placeholder:text-wc-text-muted outline-none"
           />
 
@@ -98,7 +103,7 @@ export default function MessagesSearchDrawer({
             onClick={onPrevMatch}
             disabled={!query || matchCount === 0}
             className="rounded p-1 text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary disabled:opacity-30 disabled:pointer-events-none"
-            title="Previous match"
+            title={t(strings.messagesSearch.prevTitle)}
           >
             <ChevronUp className="h-4 w-4" />
           </button>
@@ -107,7 +112,7 @@ export default function MessagesSearchDrawer({
             onClick={onNextMatch}
             disabled={!query || matchCount === 0}
             className="rounded p-1 text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary disabled:opacity-30 disabled:pointer-events-none"
-            title="Next match"
+            title={t(strings.messagesSearch.nextTitle)}
           >
             <ChevronDown className="h-4 w-4" />
           </button>
@@ -115,7 +120,7 @@ export default function MessagesSearchDrawer({
             data-testid="messages-search-close"
             onClick={onClose}
             className="rounded p-1 text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-            title="Close search"
+            title={t(strings.messagesSearch.closeTitle)}
           >
             <X className="h-4 w-4" />
           </button>

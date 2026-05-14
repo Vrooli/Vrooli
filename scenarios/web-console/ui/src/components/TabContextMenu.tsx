@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { ChevronRight, ClipboardCopy, FolderPlus, FolderMinus, Palette, Pencil, Plus, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
+import { strings } from "../consts/strings";
 import type { TabGroupMeta } from "../stores/useWorkspaceStore";
 
 interface TabContextMenuProps {
@@ -34,6 +36,7 @@ export default function TabContextMenu({
   onClose,
   onDismiss,
 }: TabContextMenuProps) {
+  const { t } = useTranslation();
   const [showGroupSubmenu, setShowGroupSubmenu] = useState(false);
 
   const handleAction = (action: () => void) => {
@@ -50,7 +53,7 @@ export default function TabContextMenu({
         onClick={() => handleAction(onRename)}
       >
         <Pencil className="h-4 w-4 shrink-0" />
-        Rename
+        {t(strings.tabContextMenu.rename)}
       </button>
 
       {/* Customize appearance */}
@@ -60,7 +63,7 @@ export default function TabContextMenu({
         onClick={() => handleAction(onCustomize)}
       >
         <Palette className="h-4 w-4 shrink-0" />
-        Customize Appearance
+        {t(strings.tabContextMenu.customizeAppearance)}
       </button>
 
       {/* Divider */}
@@ -74,7 +77,7 @@ export default function TabContextMenu({
           onClick={() => handleAction(onRemoveFromGroup)}
         >
           <FolderMinus className="h-4 w-4 shrink-0" />
-          Remove from Group
+          {t(strings.tabContextMenu.removeFromGroup)}
         </button>
       ) : (
         <div className="relative">
@@ -86,7 +89,7 @@ export default function TabContextMenu({
             onClick={() => setShowGroupSubmenu((prev) => !prev)}
           >
             <FolderPlus className="h-4 w-4 shrink-0" />
-            Add to Group
+            {t(strings.tabContextMenu.addToGroup)}
             <ChevronRight className="h-3 w-3 ml-auto shrink-0" />
           </button>
 
@@ -117,7 +120,7 @@ export default function TabContextMenu({
                 onClick={() => handleAction(onCreateGroup)}
               >
                 <Plus className="h-4 w-4 shrink-0" />
-                New Group...
+                {t(strings.tabContextMenu.newGroup)}
               </button>
             </div>
           )}
@@ -134,7 +137,7 @@ export default function TabContextMenu({
         onClick={() => handleAction(() => onClose(sessionId))}
       >
         <X className="h-4 w-4 shrink-0" />
-        Close Tab
+        {t(strings.tabContextMenu.closeTab)}
       </button>
 
       {/* TEMP: remove after the terminal-output-duplication bug is fixed.
@@ -164,7 +167,7 @@ export default function TabContextMenu({
         }
       >
         <ClipboardCopy className="h-4 w-4 shrink-0" />
-        Copy debug log
+        {t(strings.tabContextMenu.copyDebugLog)}
       </button>
     </ContextMenuBase>
   );

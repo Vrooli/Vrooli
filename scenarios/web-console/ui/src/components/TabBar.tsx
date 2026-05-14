@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
+import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 import { useLongPress } from "../hooks/useLongPress";
 import TabContextMenu from "./TabContextMenu";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useConversationStore } from "../stores/useConversationStore";
+import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
 
 interface TabBarProps {
   panes: PaneMetadata[];
@@ -28,11 +31,11 @@ export default function TabBar({
   isCreating,
   trailingActions,
 }: TabBarProps) {
+  const { t } = useTranslation();
   const setActivePane = useWorkspaceStore((s) => s.setActivePane);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
   const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
-  const displayMode = useWorkspaceStore((s) => s.displayMode);
   const groups = useWorkspaceStore((s) => s.groups);
   const tabContextMenu = useWorkspaceStore((s) => s.tabContextMenu);
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
@@ -41,6 +44,7 @@ export default function TabBar({
   const addGroup = useWorkspaceStore((s) => s.addGroup);
   const updateGroup = useWorkspaceStore((s) => s.updateGroup);
   const conversationSessions = useConversationStore((s) => s.sessions);
+  const viewModes = useConversationStore((s) => s.viewModes);
   const { syncPaneOrder, syncActivePane, syncCreateGroup, syncPaneUpdate, syncUpdateGroup } = useWorkspaceSync();
 
   // Inline rename state for tabs
@@ -155,54 +159,6 @@ export default function TabBar({
     }
   }, [activePane]);
 
-  // Keyboard shortcuts for tab navigation (only in tabs mode)
-  useEffect(() => {
-    if (displayMode !== "tabs") return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeIdx = panes.findIndex((p) => p.sessionId === activePane);
-
-      // Ctrl+Tab / Ctrl+Shift+Tab - cycle tabs
-      if (e.ctrlKey && e.key === "Tab") {
-        e.preventDefault();
-        if (panes.length === 0) return;
-
-        const direction = e.shiftKey ? -1 : 1;
-        const nextIdx = (activeIdx + direction + panes.length) % panes.length;
-        const nextPane = panes[nextIdx];
-        if (nextPane) {
-          activatePane(nextPane.sessionId);
-        }
-        return;
-      }
-
-      // Ctrl+1-9 - jump to tab by index
-      if (e.ctrlKey && !e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) {
-        const idx = parseInt(e.key, 10) - 1;
-        if (idx < panes.length) {
-          e.preventDefault();
-          const targetPane = panes[idx];
-          if (targetPane) {
-            activatePane(targetPane.sessionId);
-          }
-        }
-        return;
-      }
-
-      // Ctrl+W - close active tab
-      if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key === "w") {
-        e.preventDefault();
-        if (activePane) {
-          onClosePane(activePane);
-        }
-        return;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [displayMode, panes, activePane, activatePane, onClosePane]);
-
   // Initiate actual drag once movement exceeds threshold
   const commitDrag = useCallback(
     (paneId: string, target: HTMLElement, pointerId: number) => {
@@ -291,34 +247,13 @@ export default function TabBar({
     setTabContextMenu({ sessionId, position: { x, y } });
   };
 
-  // Group tabs by their groupId, preserving the pane array order.
-  // Build a rendering list of: group labels (with collapse toggle) interleaved with tabs.
-  type RenderItem =
-    | { kind: "group-label"; group: (typeof groups)[0]; tabCount: number }
-    | { kind: "tab"; pane: PaneMetadata; globalIndex: number };
-
-  const renderItems: RenderItem[] = [];
   const groupMap = new Map(groups.map((g) => [g.id, g]));
-  let lastGroupId: string | null | undefined = undefined; // sentinel to detect group transitions
-
-  panes.forEach((pane, idx) => {
-    const gid = pane.groupId;
-
-    // Emit group label when entering a new group
-    if (gid && gid !== lastGroupId) {
-      const group = groupMap.get(gid);
-      if (group) {
-        const tabCount = panes.filter((p) => p.groupId === gid).length;
-        renderItems.push({ kind: "group-label", group, tabCount });
-      }
-    }
-    lastGroupId = gid;
-
-    // Collapsed group: skip individual tabs (the label shows the count)
-    const group = gid ? groupMap.get(gid) : undefined;
-    if (group?.isCollapsed) return;
-
-    renderItems.push({ kind: "tab", pane, globalIndex: idx });
+  const renderItems = buildWorkspaceNavigationItems({
+    panes,
+    groups,
+    activePane,
+    conversationSessions,
+    viewModes,
   });
 
   return (
@@ -340,7 +275,7 @@ export default function TabBar({
                 data-testid={`tab-group-${group.id}`}
                 className="flex items-center gap-1 px-2 text-xs shrink-0 border-r border-wc-default text-wc-text-secondary hover:bg-wc-surface-raised transition-colors"
                 onClick={() => toggleGroupCollapsed(group.id)}
-                title={group.isCollapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+                title={group.isCollapsed ? t(strings.tabBar.expandGroup, { name: group.name }) : t(strings.tabBar.collapseGroup, { name: group.name })}
               >
                 <span
                   className="h-2.5 w-2.5 rounded-full shrink-0"
@@ -375,19 +310,12 @@ export default function TabBar({
             );
           }
 
-          const { pane, globalIndex: idx } = item;
-          const isActive = pane.sessionId === activePane;
+          const { pane, globalIndex: idx, unreadCount } = item;
+          const isActive = item.isActive;
           const isBeingDragged = dragState?.paneId === pane.sessionId;
           const isDropTarget =
             isDragging && !isBeingDragged && dragState?.dropIndex === idx;
           const paneGroup = pane.groupId ? groupMap.get(pane.groupId) : undefined;
-          const supportsMessagesView = pane.supportsMessagesView;
-          const unreadCount = (() => {
-            if (!supportsMessagesView) return 0;
-            const session = conversationSessions[pane.sessionId];
-            if (!session) return 0;
-            return session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
-          })();
 
           return (
               <div
@@ -548,8 +476,8 @@ export default function TabBar({
                   e.stopPropagation();
                   onClosePane(pane.sessionId);
                 }}
-                title="Close tab"
-                aria-label={`Close ${pane.name}`}
+                title={t(strings.tabBar.closeTabTitle)}
+                aria-label={t(strings.tabBar.closeTabAria, { name: pane.name })}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -568,7 +496,7 @@ export default function TabBar({
         size="icon"
         className="h-7 w-7 shrink-0 mx-1 self-center"
         disabled={isCreating}
-        title={plusButtonBehavior === "launcher" ? "Open launcher (long-press for empty terminal)" : "New terminal (long-press for launcher)"}
+        title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
         onPointerDown={plusHandlers.onPointerDown}
         onPointerUp={plusHandlers.onPointerUp}
         onPointerCancel={plusHandlers.onPointerCancel}

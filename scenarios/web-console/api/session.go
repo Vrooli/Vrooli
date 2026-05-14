@@ -93,15 +93,12 @@ type Session struct {
 	// session. Defaults to tmuxAttach; injectable for testing.
 	reattachFunc TmuxAttachFunc
 
+	// sessionPrefix is the tmux session-name prefix used to map this
+	// Session's ID to its tmux session. Set by SessionManager at construction.
+	sessionPrefix string
+
 	// metrics is optional; when set, readLoop increments re-attach counters.
 	metrics *metrics.Metrics
-
-	// Conversation side-channel: fan-out of semantic assistant events to
-	// WebSocket clients subscribed to this terminal session.
-	conversationMu         sync.Mutex
-	conversationClients    map[chan ConversationEvent]*conversationSubscriber
-	conversationDropLogged bool  // true once any drop has been logged this session (kept for tests / first-drop detection)
-	conversationDropCount  int64 // total drops observed; included in log lines so missing sequences can be correlated
 
 	// Observer seam: non-client consumers (idle/prompt detectors, ANSI
 	// responder, adapter dispatchers) tap the PTY output stream here.

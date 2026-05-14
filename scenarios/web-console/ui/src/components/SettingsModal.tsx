@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentType } from "react";
 import { GripHorizontal, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { SessionInfo } from "../api/sessions";
 import { cn } from "../lib/classnames";
+import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 import IntegrationsSection from "./settings/IntegrationsSection";
 import NewPaneDefaultsSection from "./settings/NewPaneDefaultsSection";
@@ -14,7 +16,12 @@ import ShortcutProfilesSection from "./settings/ShortcutProfilesSection";
 import TtsSettingsSection from "./settings/TtsSettingsSection";
 import VoiceInputSection from "./settings/VoiceInputSection";
 import WorkspaceSection from "./settings/WorkspaceSection";
-import { DEFAULT_SETTINGS_TAB, SETTINGS_TABS, type SettingsTabId } from "./settings/tabs";
+import {
+  DEFAULT_SETTINGS_TAB,
+  SETTINGS_TAB_IDS,
+  useSettingsTabs,
+  type SettingsTabId,
+} from "./settings/tabs";
 
 const TAB_STORAGE_KEY = "wc-settings-active-tab";
 
@@ -22,7 +29,7 @@ function loadStoredTab(): SettingsTabId {
   if (typeof window === "undefined") return DEFAULT_SETTINGS_TAB;
   try {
     const raw = window.localStorage.getItem(TAB_STORAGE_KEY);
-    if (raw && SETTINGS_TABS.some((tab) => tab.id === raw)) {
+    if (raw && (SETTINGS_TAB_IDS as readonly string[]).includes(raw)) {
       return raw as SettingsTabId;
     }
   } catch {
@@ -66,10 +73,12 @@ export default function SettingsModal({
   sessions,
   onDeleteSession,
 }: SettingsModalProps) {
+  const { t } = useTranslation();
   const settingsModalOpen = useWorkspaceStore((state) => state.settingsModalOpen);
   const setSettingsModalOpen = useWorkspaceStore((state) => state.setSettingsModalOpen);
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [activeTab, setActiveTab] = useState<SettingsTabId>(loadStoredTab);
+  const settingsTabs = useSettingsTabs();
 
   const { elementRef, floatingStyle, pointerHandlers, handleClickCapture } =
     useDraggablePosition({
@@ -89,8 +98,8 @@ export default function SettingsModal({
   }, [activeTab]);
 
   const activeDefinition = useMemo(
-    () => SETTINGS_TABS.find((tab) => tab.id === activeTab) ?? SETTINGS_TABS[0],
-    [activeTab],
+    () => settingsTabs.find((tab) => tab.id === activeTab) ?? settingsTabs[0],
+    [activeTab, settingsTabs],
   );
   const Section = SECTION_COMPONENTS[activeTab];
 
@@ -151,10 +160,10 @@ export default function SettingsModal({
               {!isMobile && <GripHorizontal className="mt-0.5 h-4 w-4 text-wc-text-faint" />}
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-wc-text-muted">
-                  Settings
+                  {t(strings.settings.eyebrow)}
                 </div>
                 <h2 className="text-lg font-semibold text-wc-text-primary">
-                  {activeDefinition?.label ?? "Settings"}
+                  {activeDefinition?.label ?? t(strings.settings.title)}
                 </h2>
                 <p className="text-sm text-wc-text-faint">
                   {activeDefinition?.description}
@@ -180,7 +189,7 @@ export default function SettingsModal({
               className="flex shrink-0 gap-2 overflow-x-auto border-b border-wc-default px-4 py-3"
               role="tablist"
             >
-              {SETTINGS_TABS.map((tab) => {
+              {settingsTabs.map((tab) => {
                 const isActive = tab.id === activeTab;
                 const Icon = tab.icon;
                 return (
@@ -220,8 +229,8 @@ export default function SettingsModal({
               data-testid="settings-sidebar"
               className="w-[260px] shrink-0 border-r border-wc-default bg-wc-surface-base/50 p-3"
             >
-              <nav className="space-y-1" role="tablist" aria-label="Settings sections">
-                {SETTINGS_TABS.map((tab) => {
+              <nav className="space-y-1" role="tablist" aria-label={t(strings.settings.sidebarAria)}>
+                {settingsTabs.map((tab) => {
                   const isActive = tab.id === activeTab;
                   const Icon = tab.icon;
                   return (

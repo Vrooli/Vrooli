@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import TtsSettingsSection from "../components/settings/TtsSettingsSection";
+import { strings } from "../consts/strings";
 
 const mockStoreState: Record<string, unknown> = {
   ttsVoice: "",
@@ -123,7 +124,7 @@ describe("TtsSettingsSection", () => {
   async function renderSection() {
     render(<TtsSettingsSection />);
     await waitFor(() => {
-      expect(screen.getByText(/Claude hook:/)).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.claudeHookPrefix, { exact: false })).toBeTruthy();
     });
   }
 
@@ -163,11 +164,11 @@ describe("TtsSettingsSection", () => {
   it("renders structured hook diagnostics from TTS status", async () => {
     await renderSection();
     await waitFor(() => {
-      expect(screen.getByText(/Hook status code: hook_missing/)).toBeTruthy();
-      expect(screen.getByText(/Last Claude hook routing:/)).toBeTruthy();
-      expect(screen.getByText(/Last Claude terminal ack:/)).toBeTruthy();
-      expect(screen.getByText(/Last Codex tailer routing:/)).toBeTruthy();
-      expect(screen.getByText(/Last Codex terminal ack:/)).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.hookStatusCode, { exact: false })).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.lastHookRouting, { exact: false })).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.lastHookAck, { exact: false })).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.lastTailerRouting, { exact: false })).toBeTruthy();
+      expect(screen.getByText(strings.settings.voiceOutputSection.lastTailerAck, { exact: false })).toBeTruthy();
     });
   });
 });

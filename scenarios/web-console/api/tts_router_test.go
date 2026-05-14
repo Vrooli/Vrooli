@@ -8,12 +8,16 @@ import (
 
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
 )
 
 func newTTSTestServer() *Server {
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
+	fanouts := NewConversationFanoutRegistry().AttachToManager(sm)
 	return &Server{
 		router:          mux.NewRouter(),
-		sessions:        NewSessionManagerWithFactory(newFakePTYFactory()),
+		sessions:        sm,
+		fanouts:         fanouts,
 		events:          events.NewLogger(100),
 		metrics:         metrics.New(),
 		workspace:       NewMemWorkspaceStore(),
@@ -38,10 +42,11 @@ func TestAppendConversationEvent_TargetMissing(t *testing.T) {
 func TestAppendConversationEvent_RoutesToMappedSession(t *testing.T) {
 	srv := newTTSTestServer()
 
-	fake := newFakePTYWithOutput()
+	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv.sessions = sm
+	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -49,8 +54,9 @@ func TestAppendConversationEvent_RoutesToMappedSession(t *testing.T) {
 	}
 	defer func() { _ = sm.Delete(sess.ID) }()
 
-	eventCh := sess.SubscribeConversation()
-	defer sess.UnsubscribeConversation(eventCh)
+	fanout := srv.fanouts.Get(sess.ID)
+	eventCh := fanout.Subscribe()
+	defer fanout.Unsubscribe(eventCh)
 
 	result := srv.appendConversationEvent("The answer is 42", sess.ID, "test")
 	if !result.Appended {
@@ -79,10 +85,11 @@ func TestAppendConversationEvent_RoutesToMappedSession(t *testing.T) {
 func TestAppendConversationEvent_DeduplicatesByEventIdentity(t *testing.T) {
 	srv := newTTSTestServer()
 
-	fake := newFakePTYWithOutput()
+	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv.sessions = sm
+	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -90,8 +97,9 @@ func TestAppendConversationEvent_DeduplicatesByEventIdentity(t *testing.T) {
 	}
 	defer func() { _ = sm.Delete(sess.ID) }()
 
-	eventCh := sess.SubscribeConversation()
-	defer sess.UnsubscribeConversation(eventCh)
+	fanout := srv.fanouts.Get(sess.ID)
+	eventCh := fanout.Subscribe()
+	defer fanout.Unsubscribe(eventCh)
 
 	first := srv.appendConversationEvent("duplicate me", sess.ID, "test")
 	second := srv.appendConversationEvent("duplicate me", sess.ID, "test")

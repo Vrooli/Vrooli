@@ -12,12 +12,17 @@ import (
 
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
+	"web-console/internal/sessionstore"
 )
 
 func newHookTestServer(token string) *Server {
+	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
+	fanouts := NewConversationFanoutRegistry().AttachToManager(sm)
 	return &Server{
 		router:        mux.NewRouter(),
-		sessions:      NewSessionManagerWithFactory(newFakePTYFactory()),
+		sessions:      sm,
+		fanouts:       fanouts,
 		events:        events.NewLogger(100),
 		metrics:       metrics.New(),
 		workspace:     NewMemWorkspaceStore(),
@@ -112,10 +117,11 @@ func TestHandleHookStop_AnthropicPayloadShape(t *testing.T) {
 func TestHandleHookStop_RoutesToMappedTerminalSession(t *testing.T) {
 	srv := newHookTestServer("secret-token")
 
-	fake := newFakePTYWithOutput()
+	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv.sessions = sm
+	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
 	srv.conversations = NewConversationStore()
 
 	sess, err := sm.Create("", 80, 24, "", nil)
@@ -124,8 +130,9 @@ func TestHandleHookStop_RoutesToMappedTerminalSession(t *testing.T) {
 	}
 	defer func() { _ = sm.Delete(sess.ID) }()
 
-	eventCh := sess.SubscribeConversation()
-	defer sess.UnsubscribeConversation(eventCh)
+	fanout := srv.fanouts.Get(sess.ID)
+	eventCh := fanout.Subscribe()
+	defer fanout.Unsubscribe(eventCh)
 
 	body := strings.NewReader(`{"hook_event_name":"Stop","last_assistant_message":"hello from claude","session_id":"claude-session-123","web_console_session_id":"` + sess.ID + `"}`)
 	req := httptest.NewRequest("POST", "/api/v1/hooks/stop", body)
@@ -166,12 +173,12 @@ func TestHandleHookStop_RoutesToMappedTerminalSession(t *testing.T) {
 
 func TestHandleHookStop_PopulatesAgentInfoForRecovery(t *testing.T) {
 	srv := newHookTestServer("secret-token")
-	fake := newFakePTYWithOutput()
+	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv.sessions = sm
 	srv.conversations = NewConversationStore()
-	srv.sessionStore = NewInMemorySessionStore()
+	srv.sessionStore = sessionstore.NewInMemory()
 	sm.SetStore(srv.sessionStore)
 
 	sess, err := sm.Create("", 80, 24, "", nil)
@@ -194,7 +201,7 @@ func TestHandleHookStop_PopulatesAgentInfoForRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if got.AgentType != AgentTypeClaude {
+	if got.AgentType != sessionstore.AgentClaude {
 		t.Errorf("agent_type: got %q want claude", got.AgentType)
 	}
 	if got.AgentSessionID != "claude-uuid-from-hook" {

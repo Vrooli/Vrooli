@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { i18n } from "../i18n";
 import WorkspaceSection from "../components/settings/WorkspaceSection";
 
 const mockStoreState: Record<string, unknown> = {
@@ -25,10 +26,11 @@ vi.mock("../stores/useWakeLockStatus", () => ({
 }));
 
 describe("WorkspaceSection", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     mockStoreState.keepScreenAwake = true;
     mockWakeLockStatus = "active";
+    await i18n.changeLanguage("en");
   });
 
   it("renders keep-screen-awake toggle checked when enabled", () => {
@@ -49,6 +51,12 @@ describe("WorkspaceSection", () => {
     const toggle = screen.getByTestId("keep-screen-awake-toggle");
     fireEvent.click(toggle);
     expect(mockStoreState.setKeepScreenAwake).toHaveBeenCalledWith(false);
+  });
+
+  it("selects sidebar display mode", () => {
+    render(<WorkspaceSection />);
+    fireEvent.click(screen.getByTestId("display-mode-sidebar"));
+    expect(mockStoreState.setDisplayMode).toHaveBeenCalledWith("sidebar");
   });
 
   it("shows unsupported hint when wake lock API is not available", () => {

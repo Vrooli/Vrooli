@@ -14,6 +14,7 @@ import (
 
 	"web-console/internal/events"
 	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
 )
 
 // fakeAIProvider is a test double for AIProvider.
@@ -128,7 +129,7 @@ func TestAIProviderChainEmpty(t *testing.T) {
 func newTestServerWithAI(providers ...AIProvider) *Server {
 	return &Server{
 		router:    nil,
-		sessions:  NewSessionManagerWithFactory(newFakePTYFactory()),
+		sessions:  NewSessionManagerWithFactory(ptyfake.NewFactory()),
 		events:    events.NewLogger(100),
 		metrics:   metrics.New(),
 		aiChain:   NewAIProviderChain(providers...),

@@ -1,4 +1,9 @@
-package main
+// Package sessionstore persists web-console session metadata for restart
+// recovery. The Store interface is implemented by a SQL-backed store
+// (production) and an in-memory store (tests). Persistent-backend sessions
+// (tmux) are reattached on boot by reading the store; standard in-memory
+// sessions are not persisted.
+package sessionstore
 
 import (
 	"database/sql"
@@ -10,30 +15,30 @@ import (
 	"web-console/internal/policy"
 )
 
-// SessionStatus is the lifecycle status of a session row. Only Recover() and
-// the recovery endpoints transition status; everywhere else the row is
-// implicitly 'live'.
-type SessionStatus string
+// Status is the lifecycle status of a session row. Only Recover() and the
+// recovery endpoints transition status; everywhere else the row is
+// implicitly StatusLive.
+type Status string
 
 const (
-	SessionStatusLive             SessionStatus = "live"
-	SessionStatusAwaitingRecovery SessionStatus = "awaiting_recovery"
-	SessionStatusDismissed        SessionStatus = "dismissed"
+	StatusLive             Status = "live"
+	StatusAwaitingRecovery Status = "awaiting_recovery"
+	StatusDismissed        Status = "dismissed"
 )
 
-// AgentType is the closed set of agent kinds the recovery flow knows how to
+// Agent is the closed set of agent kinds the recovery flow knows how to
 // reattach. New runtimes require an explicit code change; the launch_command
 // string is never parsed at recovery time to derive type.
-type AgentType string
+type Agent string
 
 const (
-	AgentTypeNone   AgentType = "none"
-	AgentTypeCodex  AgentType = "codex"
-	AgentTypeClaude AgentType = "claude"
+	AgentNone   Agent = "none"
+	AgentCodex  Agent = "codex"
+	AgentClaude Agent = "claude"
 )
 
-// SessionMetadata holds persisted session state for restart recovery.
-type SessionMetadata struct {
+// Metadata holds persisted session state for restart recovery.
+type Metadata struct {
 	ID       string
 	Backend  backend.ID
 	Shell    string
@@ -41,27 +46,19 @@ type SessionMetadata struct {
 	Rows     uint16
 	Policy   policy.Policy
 	Created  time.Time
-	Detached bool // true if session uses a backend that survives restart
+	Detached bool
 
-	// Lifecycle/status (Phase 1 of persistent-session-recovery-hardening-plan).
-	Status SessionStatus
+	Status Status
 
-	// Agent identity, populated automatically as the agent runs. None of these
-	// are required for normal operation; they exist so a recovery flow can
-	// reattach the agent without grovelling rollout files.
-	AgentType       AgentType
+	AgentType       Agent
 	LaunchCommand   string
 	AgentSessionID  string
 	CWD             string
 	LastRolloutPath string
 
-	// Activity timestamps. Zero time = unknown. Stored as RFC3339 strings in
-	// the DB; empty string is the zero-value sentinel.
 	LastActivityAt time.Time
 	OrphanedAt     time.Time
 
-	// RecoveredInto is set on the orphan row when the recovery endpoint
-	// successfully spawns a fresh pane from it. Used for audit and idempotency.
 	RecoveredInto string
 }
 
@@ -69,7 +66,7 @@ type SessionMetadata struct {
 // claude hook, launch-command save) learns more about a session's agent
 // identity. Empty fields mean "leave unchanged".
 type AgentInfo struct {
-	AgentType       AgentType
+	AgentType       Agent
 	LaunchCommand   string
 	AgentSessionID  string
 	CWD             string
@@ -77,39 +74,38 @@ type AgentInfo struct {
 	LastActivityAt  time.Time
 }
 
-// SessionMetadataStore persists session metadata for restart recovery.
-type SessionMetadataStore interface {
-	Save(meta SessionMetadata) error
-	Get(id string) (SessionMetadata, error)
-	List() ([]SessionMetadata, error)
+// Store persists session metadata for restart recovery.
+type Store interface {
+	Save(meta Metadata) error
+	Get(id string) (Metadata, error)
+	List() ([]Metadata, error)
 	Delete(id string) error
 	UpdatePolicy(id string, pol policy.Policy) error
-	ListDetached() ([]SessionMetadata, error)
+	ListDetached() ([]Metadata, error)
 
-	// Phase 1 additions:
 	UpdateAgentInfo(id string, info AgentInfo) error
 	MarkOrphaned(id string, at time.Time) error
 	MarkLive(id string) error
 	MarkDismissed(id string, recoveredInto string) error
-	ListRecoverable() ([]SessionMetadata, error)
+	ListRecoverable() ([]Metadata, error)
 }
 
-// SQLSessionStore implements SessionMetadataStore using SQLite.
-type SQLSessionStore struct {
+// SQLStore implements Store using SQLite.
+type SQLStore struct {
 	db *sql.DB
 }
 
-// NewSQLSessionStore creates a new SQLite-backed session metadata store.
-func NewSQLSessionStore(db *sql.DB) *SQLSessionStore {
-	return &SQLSessionStore{db: db}
+// NewSQL creates a new SQLite-backed session metadata store.
+func NewSQL(db *sql.DB) *SQLStore {
+	return &SQLStore{db: db}
 }
 
-func (s *SQLSessionStore) Save(meta SessionMetadata) error {
+func (s *SQLStore) Save(meta Metadata) error {
 	if meta.Status == "" {
-		meta.Status = SessionStatusLive
+		meta.Status = StatusLive
 	}
 	if meta.AgentType == "" {
-		meta.AgentType = AgentTypeNone
+		meta.AgentType = AgentNone
 	}
 	_, err := s.db.Exec(`
 		INSERT OR REPLACE INTO sessions (
@@ -139,30 +135,27 @@ func (s *SQLSessionStore) Save(meta SessionMetadata) error {
 	return err
 }
 
-const sessionSelectColumns = `
+const selectColumns = `
 	id, backend, shell, cols, rows, policy_mode, policy_duration, created_at, detached,
 	status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
 	last_activity_at, orphaned_at, recovered_into`
 
-func (s *SQLSessionStore) Get(id string) (SessionMetadata, error) {
-	row := s.db.QueryRow(`SELECT `+sessionSelectColumns+` FROM sessions WHERE id = ?`, id)
-	return scanSessionMetadata(row)
+func (s *SQLStore) Get(id string) (Metadata, error) {
+	row := s.db.QueryRow(`SELECT `+selectColumns+` FROM sessions WHERE id = ?`, id)
+	return scanMetadata(row)
 }
 
-func (s *SQLSessionStore) List() ([]SessionMetadata, error) {
-	rows, err := s.db.Query(`SELECT ` + sessionSelectColumns + ` FROM sessions ORDER BY created_at DESC`)
+func (s *SQLStore) List() ([]Metadata, error) {
+	rows, err := s.db.Query(`SELECT ` + selectColumns + ` FROM sessions ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	return scanSessionMetadataRows(rows)
+	return scanMetadataRows(rows)
 }
 
-func (s *SQLSessionStore) ListDetached() ([]SessionMetadata, error) {
-	// Only sessions whose row is currently 'live' are eligible for tmux
-	// re-attach during Recover(). Awaiting-recovery rows are surfaced via
-	// ListRecoverable() and require explicit operator action.
-	rows, err := s.db.Query(`SELECT ` + sessionSelectColumns + `
+func (s *SQLStore) ListDetached() ([]Metadata, error) {
+	rows, err := s.db.Query(`SELECT ` + selectColumns + `
 		FROM sessions
 		WHERE detached = 1 AND status = 'live'
 		ORDER BY created_at DESC`)
@@ -170,11 +163,11 @@ func (s *SQLSessionStore) ListDetached() ([]SessionMetadata, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	return scanSessionMetadataRows(rows)
+	return scanMetadataRows(rows)
 }
 
-func (s *SQLSessionStore) ListRecoverable() ([]SessionMetadata, error) {
-	rows, err := s.db.Query(`SELECT ` + sessionSelectColumns + `
+func (s *SQLStore) ListRecoverable() ([]Metadata, error) {
+	rows, err := s.db.Query(`SELECT ` + selectColumns + `
 		FROM sessions
 		WHERE detached = 1 AND status = 'awaiting_recovery'
 		ORDER BY COALESCE(NULLIF(last_activity_at,''), created_at) DESC`)
@@ -182,26 +175,21 @@ func (s *SQLSessionStore) ListRecoverable() ([]SessionMetadata, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	return scanSessionMetadataRows(rows)
+	return scanMetadataRows(rows)
 }
 
-func (s *SQLSessionStore) Delete(id string) error {
+func (s *SQLStore) Delete(id string) error {
 	_, err := s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id)
 	return err
 }
 
-func (s *SQLSessionStore) UpdatePolicy(id string, pol policy.Policy) error {
+func (s *SQLStore) UpdatePolicy(id string, pol policy.Policy) error {
 	_, err := s.db.Exec(`UPDATE sessions SET policy_mode = ?, policy_duration = ? WHERE id = ?`,
 		string(pol.Mode), pol.Duration, id)
 	return err
 }
 
-func (s *SQLSessionStore) UpdateAgentInfo(id string, info AgentInfo) error {
-	// Build a partial UPDATE so callers can target individual fields; empty
-	// strings on AgentInfo mean "leave alone" for AgentType, AgentSessionID,
-	// CWD, LastRolloutPath, LaunchCommand. Zero time on LastActivityAt means
-	// the same. AgentType="" is treated as no-update; pass AgentTypeNone to
-	// explicitly clear it.
+func (s *SQLStore) UpdateAgentInfo(id string, info AgentInfo) error {
 	sets := []string{}
 	args := []interface{}{}
 	if info.AgentType != "" {
@@ -237,35 +225,35 @@ func (s *SQLSessionStore) UpdateAgentInfo(id string, info AgentInfo) error {
 	return err
 }
 
-func (s *SQLSessionStore) MarkOrphaned(id string, at time.Time) error {
+func (s *SQLStore) MarkOrphaned(id string, at time.Time) error {
 	_, err := s.db.Exec(`
 		UPDATE sessions
 		SET status = ?, orphaned_at = ?
 		WHERE id = ? AND detached = 1`,
-		string(SessionStatusAwaitingRecovery),
+		string(StatusAwaitingRecovery),
 		at.UTC().Format(time.RFC3339),
 		id,
 	)
 	return err
 }
 
-func (s *SQLSessionStore) MarkLive(id string) error {
+func (s *SQLStore) MarkLive(id string) error {
 	_, err := s.db.Exec(`
 		UPDATE sessions
 		SET status = ?, orphaned_at = ''
 		WHERE id = ?`,
-		string(SessionStatusLive),
+		string(StatusLive),
 		id,
 	)
 	return err
 }
 
-func (s *SQLSessionStore) MarkDismissed(id string, recoveredInto string) error {
+func (s *SQLStore) MarkDismissed(id string, recoveredInto string) error {
 	_, err := s.db.Exec(`
 		UPDATE sessions
 		SET status = ?, recovered_into = ?
 		WHERE id = ?`,
-		string(SessionStatusDismissed),
+		string(StatusDismissed),
 		recoveredInto,
 		id,
 	)
@@ -312,8 +300,8 @@ type scannable interface {
 	Scan(dest ...any) error
 }
 
-func scanSessionMetadata(row scannable) (SessionMetadata, error) {
-	var meta SessionMetadata
+func scanMetadata(row scannable) (Metadata, error) {
+	var meta Metadata
 	var (
 		backendID, policyMode, createdStr string
 		status, agentType                 string
@@ -339,24 +327,24 @@ func scanSessionMetadata(row scannable) (SessionMetadata, error) {
 	meta.Detached = detached == 1
 	meta.Created, _ = time.Parse(time.RFC3339, createdStr)
 	if status == "" {
-		meta.Status = SessionStatusLive
+		meta.Status = StatusLive
 	} else {
-		meta.Status = SessionStatus(status)
+		meta.Status = Status(status)
 	}
 	if agentType == "" {
-		meta.AgentType = AgentTypeNone
+		meta.AgentType = AgentNone
 	} else {
-		meta.AgentType = AgentType(agentType)
+		meta.AgentType = Agent(agentType)
 	}
 	meta.LastActivityAt = parseTimeOrZero(lastActivity)
 	meta.OrphanedAt = parseTimeOrZero(orphanedAt)
 	return meta, nil
 }
 
-func scanSessionMetadataRows(rows *sql.Rows) ([]SessionMetadata, error) {
-	var result []SessionMetadata
+func scanMetadataRows(rows *sql.Rows) ([]Metadata, error) {
+	var result []Metadata
 	for rows.Next() {
-		meta, err := scanSessionMetadata(rows)
+		meta, err := scanMetadata(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -365,84 +353,84 @@ func scanSessionMetadataRows(rows *sql.Rows) ([]SessionMetadata, error) {
 	return result, rows.Err()
 }
 
-// InMemorySessionStore implements SessionMetadataStore for testing.
-type InMemorySessionStore struct {
+// InMemoryStore implements Store for testing.
+type InMemoryStore struct {
 	mu       sync.Mutex
-	sessions map[string]SessionMetadata
+	sessions map[string]Metadata
 }
 
-// NewInMemorySessionStore creates an in-memory session metadata store.
-func NewInMemorySessionStore() *InMemorySessionStore {
-	return &InMemorySessionStore{
-		sessions: make(map[string]SessionMetadata),
+// NewInMemory creates an in-memory session metadata store.
+func NewInMemory() *InMemoryStore {
+	return &InMemoryStore{
+		sessions: make(map[string]Metadata),
 	}
 }
 
-func (s *InMemorySessionStore) Save(meta SessionMetadata) error {
+func (s *InMemoryStore) Save(meta Metadata) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if meta.Status == "" {
-		meta.Status = SessionStatusLive
+		meta.Status = StatusLive
 	}
 	if meta.AgentType == "" {
-		meta.AgentType = AgentTypeNone
+		meta.AgentType = AgentNone
 	}
 	s.sessions[meta.ID] = meta
 	return nil
 }
 
-func (s *InMemorySessionStore) Get(id string) (SessionMetadata, error) {
+func (s *InMemoryStore) Get(id string) (Metadata, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
 	if !ok {
-		return SessionMetadata{}, fmt.Errorf("session %s not found", id)
+		return Metadata{}, fmt.Errorf("session %s not found", id)
 	}
 	return meta, nil
 }
 
-func (s *InMemorySessionStore) List() ([]SessionMetadata, error) {
+func (s *InMemoryStore) List() ([]Metadata, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	result := make([]SessionMetadata, 0, len(s.sessions))
+	result := make([]Metadata, 0, len(s.sessions))
 	for _, meta := range s.sessions {
 		result = append(result, meta)
 	}
 	return result, nil
 }
 
-func (s *InMemorySessionStore) ListDetached() ([]SessionMetadata, error) {
+func (s *InMemoryStore) ListDetached() ([]Metadata, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var result []SessionMetadata
+	var result []Metadata
 	for _, meta := range s.sessions {
-		if meta.Detached && meta.Status == SessionStatusLive {
+		if meta.Detached && meta.Status == StatusLive {
 			result = append(result, meta)
 		}
 	}
 	return result, nil
 }
 
-func (s *InMemorySessionStore) ListRecoverable() ([]SessionMetadata, error) {
+func (s *InMemoryStore) ListRecoverable() ([]Metadata, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var result []SessionMetadata
+	var result []Metadata
 	for _, meta := range s.sessions {
-		if meta.Detached && meta.Status == SessionStatusAwaitingRecovery {
+		if meta.Detached && meta.Status == StatusAwaitingRecovery {
 			result = append(result, meta)
 		}
 	}
 	return result, nil
 }
 
-func (s *InMemorySessionStore) Delete(id string) error {
+func (s *InMemoryStore) Delete(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.sessions, id)
 	return nil
 }
 
-func (s *InMemorySessionStore) UpdatePolicy(id string, pol policy.Policy) error {
+func (s *InMemoryStore) UpdatePolicy(id string, pol policy.Policy) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
@@ -454,7 +442,7 @@ func (s *InMemorySessionStore) UpdatePolicy(id string, pol policy.Policy) error 
 	return nil
 }
 
-func (s *InMemorySessionStore) UpdateAgentInfo(id string, info AgentInfo) error {
+func (s *InMemoryStore) UpdateAgentInfo(id string, info AgentInfo) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
@@ -483,7 +471,7 @@ func (s *InMemorySessionStore) UpdateAgentInfo(id string, info AgentInfo) error 
 	return nil
 }
 
-func (s *InMemorySessionStore) MarkOrphaned(id string, at time.Time) error {
+func (s *InMemoryStore) MarkOrphaned(id string, at time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
@@ -493,33 +481,33 @@ func (s *InMemorySessionStore) MarkOrphaned(id string, at time.Time) error {
 	if !meta.Detached {
 		return nil
 	}
-	meta.Status = SessionStatusAwaitingRecovery
+	meta.Status = StatusAwaitingRecovery
 	meta.OrphanedAt = at
 	s.sessions[id] = meta
 	return nil
 }
 
-func (s *InMemorySessionStore) MarkLive(id string) error {
+func (s *InMemoryStore) MarkLive(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
 	if !ok {
 		return fmt.Errorf("session %s not found", id)
 	}
-	meta.Status = SessionStatusLive
+	meta.Status = StatusLive
 	meta.OrphanedAt = time.Time{}
 	s.sessions[id] = meta
 	return nil
 }
 
-func (s *InMemorySessionStore) MarkDismissed(id string, recoveredInto string) error {
+func (s *InMemoryStore) MarkDismissed(id string, recoveredInto string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
 	if !ok {
 		return fmt.Errorf("session %s not found", id)
 	}
-	meta.Status = SessionStatusDismissed
+	meta.Status = StatusDismissed
 	meta.RecoveredInto = recoveredInto
 	s.sessions[id] = meta
 	return nil

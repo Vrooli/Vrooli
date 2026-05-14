@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"web-console/internal/ptyfake"
 )
 
 func splitLines(data []byte) [][]byte {
@@ -48,10 +50,11 @@ func newCodexTailerTestServer(t *testing.T) (*Server, *Session) {
 	srv := newTTSTestServer()
 	srv.ttsConfig = TTSConfig{AutoEnabled: true}
 
-	fake := newFakePTYWithOutput()
+	fake := ptyfake.NewFakePTYWithOutput()
 	t.Cleanup(func() { _ = fake.Close() })
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv.sessions = sm
+	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -124,8 +127,9 @@ func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
 func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
 
-	eventCh := sess.SubscribeConversation()
-	defer sess.UnsubscribeConversation(eventCh)
+	fanout := srv.fanouts.Get(sess.ID)
+	eventCh := fanout.Subscribe()
+	defer fanout.Unsubscribe(eventCh)
 
 	ct := NewCodexTailer(srv)
 	ct.staleTimeout = 2 * time.Second

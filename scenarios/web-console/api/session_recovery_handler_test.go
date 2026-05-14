@@ -11,6 +11,7 @@ import (
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 
 	"web-console/internal/backend"
+	"web-console/internal/sessionstore"
 )
 
 // newRecoveryTestServer wires the in-memory store + fake PTY factory so the
@@ -20,14 +21,14 @@ func newRecoveryTestServer(t *testing.T) *Server {
 	t.Helper()
 	useIsolatedSessionState(t)
 	srv := newFakeTestServer()
-	srv.sessionStore = NewInMemorySessionStore()
+	srv.sessionStore = sessionstore.NewInMemory()
 	srv.sessions.SetStore(srv.sessionStore)
 	return srv
 }
 
-func saveOrphan(t *testing.T, srv *Server, id string, agent AgentType, agentSessionID string) {
+func saveOrphan(t *testing.T, srv *Server, id string, agent sessionstore.Agent, agentSessionID string) {
 	t.Helper()
-	if err := srv.sessionStore.Save(SessionMetadata{
+	if err := srv.sessionStore.Save(sessionstore.Metadata{
 		ID:             id,
 		Backend:        backend.Persistent,
 		Shell:          "/bin/bash",
@@ -35,7 +36,7 @@ func saveOrphan(t *testing.T, srv *Server, id string, agent AgentType, agentSess
 		Rows:           36,
 		Created:        time.Now().Add(-time.Hour),
 		Detached:       true,
-		Status:         SessionStatusAwaitingRecovery,
+		Status:         sessionstore.StatusAwaitingRecovery,
 		AgentType:      agent,
 		AgentSessionID: agentSessionID,
 		OrphanedAt:     time.Now().Add(-time.Minute),
@@ -73,10 +74,10 @@ func callDismissRecoverable(t *testing.T, srv *Server, id string) error {
 
 func TestHandleListRecoverable_OrdersByActivity(t *testing.T) {
 	srv := newRecoveryTestServer(t)
-	saveOrphan(t, srv, "older", AgentTypeCodex, "codex-1")
-	saveOrphan(t, srv, "newer", AgentTypeCodex, "codex-2")
-	_ = srv.sessionStore.UpdateAgentInfo("older", AgentInfo{LastActivityAt: time.Now().Add(-2 * time.Hour)})
-	_ = srv.sessionStore.UpdateAgentInfo("newer", AgentInfo{LastActivityAt: time.Now().Add(-5 * time.Minute)})
+	saveOrphan(t, srv, "older", sessionstore.AgentCodex, "codex-1")
+	saveOrphan(t, srv, "newer", sessionstore.AgentCodex, "codex-2")
+	_ = srv.sessionStore.UpdateAgentInfo("older", sessionstore.AgentInfo{LastActivityAt: time.Now().Add(-2 * time.Hour)})
+	_ = srv.sessionStore.UpdateAgentInfo("newer", sessionstore.AgentInfo{LastActivityAt: time.Now().Add(-5 * time.Minute)})
 
 	rows := callListRecoverable(t, srv)
 	// In-memory store does not enforce ordering; just check membership + recoverable flag.
@@ -92,7 +93,7 @@ func TestHandleListRecoverable_OrdersByActivity(t *testing.T) {
 
 func TestHandleRecover_Codex_HappyPath(t *testing.T) {
 	srv := newRecoveryTestServer(t)
-	saveOrphan(t, srv, "codex-old", AgentTypeCodex, "019d-codex-uuid")
+	saveOrphan(t, srv, "codex-old", sessionstore.AgentCodex, "019d-codex-uuid")
 
 	resp, err := callRecover(t, srv, "codex-old")
 	if err != nil {
@@ -108,7 +109,7 @@ func TestHandleRecover_Codex_HappyPath(t *testing.T) {
 		t.Errorf("CommandSent: got %q", resp.GetCommandSent())
 	}
 	old, _ := srv.sessionStore.Get("codex-old")
-	if old.Status != SessionStatusDismissed {
+	if old.Status != sessionstore.StatusDismissed {
 		t.Errorf("old row status: got %q", old.Status)
 	}
 	if old.RecoveredInto != resp.GetNewSessionId() {
@@ -118,7 +119,7 @@ func TestHandleRecover_Codex_HappyPath(t *testing.T) {
 
 func TestHandleRecover_Codex_NoSessionIDFallsBackToLast(t *testing.T) {
 	srv := newRecoveryTestServer(t)
-	saveOrphan(t, srv, "codex-bare", AgentTypeCodex, "")
+	saveOrphan(t, srv, "codex-bare", sessionstore.AgentCodex, "")
 
 	resp, err := callRecover(t, srv, "codex-bare")
 	if err != nil {
@@ -131,7 +132,7 @@ func TestHandleRecover_Codex_NoSessionIDFallsBackToLast(t *testing.T) {
 
 func TestHandleRecover_Claude_RequiresSessionID(t *testing.T) {
 	srv := newRecoveryTestServer(t)
-	saveOrphan(t, srv, "claude-bare", AgentTypeClaude, "")
+	saveOrphan(t, srv, "claude-bare", sessionstore.AgentClaude, "")
 
 	_, err := callRecover(t, srv, "claude-bare")
 	if got := connectCode(err); got != connect.CodeFailedPrecondition {
@@ -141,7 +142,7 @@ func TestHandleRecover_Claude_RequiresSessionID(t *testing.T) {
 
 func TestHandleRecover_RejectsLiveSession(t *testing.T) {
 	srv := newRecoveryTestServer(t)
-	if err := srv.sessionStore.Save(SessionMetadata{
+	if err := srv.sessionStore.Save(sessionstore.Metadata{
 		ID:        "live-id",
 		Backend:   backend.Persistent,
 		Shell:     "/bin/bash",
@@ -149,8 +150,8 @@ func TestHandleRecover_RejectsLiveSession(t *testing.T) {
 		Rows:      24,
 		Created:   time.Now(),
 		Detached:  true,
-		Status:    SessionStatusLive,
-		AgentType: AgentTypeCodex,
+		Status:    sessionstore.StatusLive,
+		AgentType: sessionstore.AgentCodex,
 	}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -171,20 +172,20 @@ func TestHandleRecover_NotFound(t *testing.T) {
 
 func TestHandleDismissRecoverable_TransitionsToDismissed(t *testing.T) {
 	srv := newRecoveryTestServer(t)
-	saveOrphan(t, srv, "drop-me", AgentTypeCodex, "x")
+	saveOrphan(t, srv, "drop-me", sessionstore.AgentCodex, "x")
 
 	if err := callDismissRecoverable(t, srv, "drop-me"); err != nil {
 		t.Fatalf("DismissRecoverable: %v", err)
 	}
 	got, _ := srv.sessionStore.Get("drop-me")
-	if got.Status != SessionStatusDismissed {
+	if got.Status != sessionstore.StatusDismissed {
 		t.Errorf("status: got %q", got.Status)
 	}
 }
 
 func TestCreateSession_PersistsLaunchCommandAndAgentType(t *testing.T) {
 	srv := newFakeTestServer()
-	srv.sessionStore = NewInMemorySessionStore()
+	srv.sessionStore = sessionstore.NewInMemory()
 	srv.sessions.SetStore(srv.sessionStore)
 
 	resp, err := newSessionsConnectHandlerForServer(srv).Create(context.Background(),
@@ -202,7 +203,7 @@ func TestCreateSession_PersistsLaunchCommandAndAgentType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if got.AgentType != AgentTypeCodex {
+	if got.AgentType != sessionstore.AgentCodex {
 		t.Errorf("agent_type: got %q", got.AgentType)
 	}
 	if got.LaunchCommand != "codex --yolo" {

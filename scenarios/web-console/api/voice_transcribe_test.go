@@ -13,6 +13,7 @@ import (
 
 	voicev1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/voice"
 
+	"web-console/internal/audio"
 	"web-console/internal/metrics"
 )
 
@@ -27,7 +28,7 @@ func serverWithCapability(available bool) *Server {
 		capabilities:   reg,
 		voiceConfig:    DefaultVoiceStreamConfig(),
 		whisperURL:     resolveWhisperURL(),
-		transcodeAudio: defaultTranscodeAudio,
+		transcodeAudio: audio.Transcode,
 		metrics:        metrics.New(),
 	}
 }

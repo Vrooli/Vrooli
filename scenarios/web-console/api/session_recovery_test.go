@@ -13,6 +13,8 @@ import (
 	"web-console/internal/metrics"
 	"web-console/internal/policy"
 	"web-console/internal/pty"
+	"web-console/internal/ptyfake"
+	"web-console/internal/sessionstore"
 	"web-console/terminal"
 )
 
@@ -24,10 +26,10 @@ func TestRecover_NoDetachedSessions(t *testing.T) {
 	useIsolatedSessionState(t)
 	useIsolatedTmuxSocket(t)
 
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 	reg := backend.New()
 	sm := NewSessionManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
 	report := sm.Recover(store, reg)
@@ -47,8 +49,8 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 	// and mark it awaiting_recovery so the recovery endpoints can reattach
 	// the agent on demand. Deleting the row strands the user's CODEX_HOME
 	// and conversation history with no DB pointer to find them.
-	store := NewInMemorySessionStore()
-	_ = store.Save(SessionMetadata{
+	store := sessionstore.NewInMemory()
+	_ = store.Save(sessionstore.Metadata{
 		ID:             "dead-session",
 		Backend:        backend.Persistent,
 		Shell:          "/bin/bash",
@@ -56,7 +58,7 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 		Rows:           24,
 		Created:        time.Now(),
 		Detached:       true,
-		AgentType:      AgentTypeCodex,
+		AgentType:      sessionstore.AgentCodex,
 		AgentSessionID: "codex-uuid-123",
 	})
 
@@ -79,7 +81,7 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected metadata to be preserved, got: %v", err)
 	}
-	if got.Status != SessionStatusAwaitingRecovery {
+	if got.Status != sessionstore.StatusAwaitingRecovery {
 		t.Errorf("expected status=awaiting_recovery, got %q", got.Status)
 	}
 	if got.OrphanedAt.IsZero() {
@@ -100,9 +102,9 @@ func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
 	// Simulate the case where a row was previously marked awaiting_recovery
 	// (tmux had died) and tmux comes back before recovery is invoked
 	// explicitly. Next Recover() should transition the row back to live.
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 	id := "reattach-test"
-	_ = store.Save(SessionMetadata{
+	_ = store.Save(sessionstore.Metadata{
 		ID:       id,
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -110,7 +112,7 @@ func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
 		Rows:     24,
 		Created:  time.Now().Add(-time.Hour),
 		Detached: true,
-		Status:   SessionStatusLive, // ListDetached requires live
+		Status:   sessionstore.StatusLive, // ListDetached requires live
 	})
 
 	// Create a real tmux session under the isolated socket so attach succeeds.
@@ -136,7 +138,7 @@ func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
 		t.Errorf("expected 1 recovered, got %d", report.Recovered)
 	}
 	got, _ := store.Get(id)
-	if got.Status != SessionStatusLive {
+	if got.Status != sessionstore.StatusLive {
 		t.Errorf("expected status=live after reattach, got %q", got.Status)
 	}
 	if !got.OrphanedAt.IsZero() {
@@ -149,8 +151,8 @@ func TestRecover_StandardSessionsIgnored(t *testing.T) {
 	useIsolatedTmuxSocket(t)
 
 	// Standard (non-detached) sessions should not appear in ListDetached
-	store := NewInMemorySessionStore()
-	_ = store.Save(SessionMetadata{
+	store := sessionstore.NewInMemory()
+	_ = store.Save(sessionstore.Metadata{
 		ID:       "standard-session",
 		Backend:  backend.Standard,
 		Shell:    "/bin/bash",
@@ -193,7 +195,7 @@ func TestRecover_UsesConfiguredTmuxSocketIsolation(t *testing.T) {
 	}
 
 	sm := NewSessionManagerWithFactory(nil)
-	report := sm.Recover(NewInMemorySessionStore(), backend.New())
+	report := sm.Recover(sessionstore.NewInMemory(), backend.New())
 
 	if report.OrphanedTmux != 1 {
 		t.Fatalf("expected only the isolated test socket session to be treated as orphaned, got %d", report.OrphanedTmux)
@@ -211,9 +213,9 @@ func TestRecover_UsesConfiguredTmuxSocketIsolation(t *testing.T) {
 // --- Session Store Tests ---
 
 func TestInMemorySessionStore_SaveAndGet(t *testing.T) {
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 
-	meta := SessionMetadata{
+	meta := sessionstore.Metadata{
 		ID:      "test-1",
 		Backend: backend.Persistent,
 		Shell:   "/bin/bash",
@@ -243,11 +245,11 @@ func TestInMemorySessionStore_SaveAndGet(t *testing.T) {
 }
 
 func TestInMemorySessionStore_ListDetached(t *testing.T) {
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 
-	_ = store.Save(SessionMetadata{ID: "s1", Detached: true, Backend: backend.Persistent})
-	_ = store.Save(SessionMetadata{ID: "s2", Detached: false, Backend: backend.Standard})
-	_ = store.Save(SessionMetadata{ID: "s3", Detached: true, Backend: backend.Persistent})
+	_ = store.Save(sessionstore.Metadata{ID: "s1", Detached: true, Backend: backend.Persistent})
+	_ = store.Save(sessionstore.Metadata{ID: "s2", Detached: false, Backend: backend.Standard})
+	_ = store.Save(sessionstore.Metadata{ID: "s3", Detached: true, Backend: backend.Persistent})
 
 	detached, err := store.ListDetached()
 	if err != nil {
@@ -267,9 +269,9 @@ func TestInMemorySessionStore_ListDetached(t *testing.T) {
 }
 
 func TestInMemorySessionStore_Delete(t *testing.T) {
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 
-	_ = store.Save(SessionMetadata{ID: "del-me", Detached: true})
+	_ = store.Save(sessionstore.Metadata{ID: "del-me", Detached: true})
 
 	if err := store.Delete("del-me"); err != nil {
 		t.Fatalf("Delete: %v", err)
@@ -282,9 +284,9 @@ func TestInMemorySessionStore_Delete(t *testing.T) {
 }
 
 func TestInMemorySessionStore_UpdatePolicy(t *testing.T) {
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 
-	_ = store.Save(SessionMetadata{
+	_ = store.Save(sessionstore.Metadata{
 		ID:     "policy-test",
 		Policy: policy.Policy{Mode: policy.Never},
 	})
@@ -310,15 +312,14 @@ func TestSession_ReadLoop_ExitsOnStandardBackend(t *testing.T) {
 	sess := &Session{
 		ID:      "std-test",
 		Backend: backend.Standard,
-		pty: &fakePTY{
-			stdoutReader: r,
-			stdinWriter:  w,
+		pty: &ptyfake.FakePTY{
+			StdoutReader: r,
+			StdinWriter:  w,
 		},
-		clients:             make(map[chan []byte]*ClientInfo),
-		exitCh:              make(chan struct{}),
-		ptyReadBuffer:       4096,
-		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
-		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
+		clients:       make(map[chan []byte]*ClientInfo),
+		exitCh:        make(chan struct{}),
+		ptyReadBuffer: 4096,
+		emu:           terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 	}
 
 	// Close the pipe to trigger readLoop exit
@@ -342,7 +343,7 @@ func TestSession_ReadLoop_ExitsOnStandardBackend(t *testing.T) {
 
 func TestSessionManager_Create_DefaultBackend(t *testing.T) {
 	sm := NewSessionManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
 	sess, err := sm.Create("", 80, 24, "", nil)
@@ -361,7 +362,7 @@ func TestSessionManager_Create_WithRegistry_UnknownBackend(t *testing.T) {
 	reg := backend.New()
 	reg.Register(backend.Descriptor{ID: backend.Standard, Available: true},
 		func(spec pty.LaunchSpec) (pty.PTY, error) {
-			return newFakePTYWithOutput(), nil
+			return ptyfake.NewFakePTYWithOutput(), nil
 		})
 
 	sm := NewSessionManagerWithFactory(nil)
@@ -391,14 +392,14 @@ func TestSessionManager_Create_WithRegistry_UnavailableBackend(t *testing.T) {
 }
 
 func TestSessionManager_Create_WithRegistry_PersistsMetadata(t *testing.T) {
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 	reg := backend.New()
 	reg.Register(backend.Descriptor{
 		ID:              backend.Persistent,
 		Available:       true,
 		SurvivesRestart: true,
 	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
 	sm := NewSessionManagerWithFactory(nil)
@@ -429,14 +430,14 @@ func TestSessionManager_Create_WithRegistry_PersistsMetadata(t *testing.T) {
 }
 
 func TestSessionManager_Create_StandardBackend_NotDetached(t *testing.T) {
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 	reg := backend.New()
 	reg.Register(backend.Descriptor{
 		ID:              backend.Standard,
 		Available:       true,
 		SurvivesRestart: false,
 	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
 	sm := NewSessionManagerWithFactory(nil)
@@ -461,14 +462,14 @@ func TestSessionManager_Create_StandardBackend_NotDetached(t *testing.T) {
 // --- Shutdown Tests ---
 
 func TestSessionManager_Shutdown_PreservesPersistentMetadata(t *testing.T) {
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 	reg := backend.New()
 	reg.Register(backend.Descriptor{
 		ID:              backend.Persistent,
 		Available:       true,
 		SurvivesRestart: true,
 	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
 	sm := NewSessionManagerWithFactory(nil)
@@ -502,13 +503,13 @@ func TestSessionManager_Shutdown_PreservesPersistentMetadata(t *testing.T) {
 }
 
 func TestSessionManager_Shutdown_DeletesStandardMetadata(t *testing.T) {
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 	reg := backend.New()
 	reg.Register(backend.Descriptor{
 		ID:        backend.Standard,
 		Available: true,
 	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
 	sm := NewSessionManagerWithFactory(nil)
@@ -558,15 +559,14 @@ func TestSession_ReadLoop_RetriesReattachForPersistent(t *testing.T) {
 	sess := &Session{
 		ID:      "retry-test",
 		Backend: backend.Persistent,
-		pty: &fakePTY{
-			stdoutReader: r,
-			stdinWriter:  w,
+		pty: &ptyfake.FakePTY{
+			StdoutReader: r,
+			StdinWriter:  w,
 		},
-		clients:             make(map[chan []byte]*ClientInfo),
-		exitCh:              make(chan struct{}),
-		ptyReadBuffer:       4096,
-		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
-		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
+		clients:       make(map[chan []byte]*ClientInfo),
+		exitCh:        make(chan struct{}),
+		ptyReadBuffer: 4096,
+		emu:           terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 		reattachFunc: func(sessionName string) (pty.PTY, error) {
 			mu.Lock()
 			attempts++
@@ -577,8 +577,8 @@ func TestSession_ReadLoop_RetriesReattachForPersistent(t *testing.T) {
 			}
 			// Final attempt succeeds — return a PTY that blocks on read
 			blockR, _ := io.Pipe()
-			return &fakePTY{
-				stdoutReader: blockR,
+			return &ptyfake.FakePTY{
+				StdoutReader: blockR,
 			}, nil
 		},
 	}
@@ -614,15 +614,14 @@ func TestSession_ReadLoop_SkipsRetriesWhenClosing(t *testing.T) {
 		ID:      "closing-test",
 		Backend: backend.Persistent,
 		closing: true, // pre-set as closing
-		pty: &fakePTY{
-			stdoutReader: r,
-			stdinWriter:  w,
+		pty: &ptyfake.FakePTY{
+			StdoutReader: r,
+			StdinWriter:  w,
 		},
-		clients:             make(map[chan []byte]*ClientInfo),
-		exitCh:              make(chan struct{}),
-		ptyReadBuffer:       4096,
-		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
-		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
+		clients:       make(map[chan []byte]*ClientInfo),
+		exitCh:        make(chan struct{}),
+		ptyReadBuffer: 4096,
+		emu:           terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 		reattachFunc: func(sessionName string) (pty.PTY, error) {
 			mu.Lock()
 			attempts++
@@ -653,8 +652,8 @@ func TestRecover_PreservesSessionOnAttachFailure(t *testing.T) {
 	// When tmuxAttach fails during recovery, the session metadata and
 	// tmux session should be preserved for future recovery attempts.
 	// Previous behavior: deleted metadata and killed the tmux session.
-	store := NewInMemorySessionStore()
-	_ = store.Save(SessionMetadata{
+	store := sessionstore.NewInMemory()
+	_ = store.Save(sessionstore.Metadata{
 		ID:       "stubborn-session",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -703,8 +702,8 @@ func TestRecover_PreservesSessionOnAttachFailure(t *testing.T) {
 
 func TestRecover_RetriesAttachBeforeGivingUp(t *testing.T) {
 	// Recovery should retry tmuxAttach before giving up.
-	store := NewInMemorySessionStore()
-	_ = store.Save(SessionMetadata{
+	store := sessionstore.NewInMemory()
+	_ = store.Save(sessionstore.Metadata{
 		ID:       "retry-recover",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -730,7 +729,7 @@ func TestRecover_RetriesAttachBeforeGivingUp(t *testing.T) {
 		if n <= 2 {
 			return nil, fmt.Errorf("transient failure %d", n)
 		}
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	}
 
 	report := sm.Recover(store, backend.New())
@@ -761,7 +760,7 @@ func TestSessionManager_Shutdown_SetsClosingBeforeClose(t *testing.T) {
 		Available:       true,
 		SurvivesRestart: true,
 	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
 	sm := NewSessionManagerWithFactory(nil)
@@ -792,8 +791,8 @@ func TestSessionManager_Shutdown_SetsClosingBeforeClose(t *testing.T) {
 
 func TestRecoveryMetrics_Emitted(t *testing.T) {
 	// Verify recovery emits metrics when a metrics collector is set.
-	store := NewInMemorySessionStore()
-	_ = store.Save(SessionMetadata{
+	store := sessionstore.NewInMemory()
+	_ = store.Save(sessionstore.Metadata{
 		ID:       "metrics-test",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -813,7 +812,7 @@ func TestRecoveryMetrics_Emitted(t *testing.T) {
 		return []string{"metrics-test"}, nil
 	}
 	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	}
 
 	report := sm.Recover(store, backend.New())
@@ -874,14 +873,14 @@ func TestAutoRemove_PreservesMetadata_PersistentSession_NormalOperation(t *testi
 	// deleted the metadata. This orphaned the tmux session, which would
 	// then be killed on the next startup. The fix: always preserve
 	// persistent session metadata.
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 	reg := backend.New()
 	reg.Register(backend.Descriptor{
 		ID:              backend.Persistent,
 		Available:       true,
 		SurvivesRestart: true,
 	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
 	sm := NewSessionManagerWithFactory(nil)
@@ -928,13 +927,13 @@ func TestAutoRemove_PreservesMetadata_PersistentSession_NormalOperation(t *testi
 func TestAutoRemove_DeletesMetadata_StandardSession_NormalOperation(t *testing.T) {
 	// Standard sessions should still have their metadata deleted when
 	// the readLoop exits, since they cannot be recovered.
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 	reg := backend.New()
 	reg.Register(backend.Descriptor{
 		ID:        backend.Standard,
 		Available: true,
 	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
 	sm := NewSessionManagerWithFactory(nil)
@@ -976,8 +975,8 @@ func TestAutoRemove_DeletesMetadata_StandardSession_NormalOperation(t *testing.T
 func TestReattachWatchdog_RecoversOrphanedSession(t *testing.T) {
 	// When a persistent session's metadata exists in the store but the
 	// session is not in the active map, the watchdog should re-attach it.
-	store := NewInMemorySessionStore()
-	_ = store.Save(SessionMetadata{
+	store := sessionstore.NewInMemory()
+	_ = store.Save(sessionstore.Metadata{
 		ID:       "watchdog-test",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -991,7 +990,7 @@ func TestReattachWatchdog_RecoversOrphanedSession(t *testing.T) {
 	sm := NewSessionManagerWithFactory(nil)
 	sm.SetStore(store)
 	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	}
 
 	// Run the watchdog scan directly (not via the ticker)
@@ -1016,8 +1015,8 @@ func TestReattachWatchdog_RecoversOrphanedSession(t *testing.T) {
 func TestReattachWatchdog_CleansUpWhenTmuxGone(t *testing.T) {
 	// When the tmux session is gone (attach fails), the watchdog should
 	// clean up the stale metadata.
-	store := NewInMemorySessionStore()
-	_ = store.Save(SessionMetadata{
+	store := sessionstore.NewInMemory()
+	_ = store.Save(sessionstore.Metadata{
 		ID:       "gone-session",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -1049,14 +1048,14 @@ func TestReattachWatchdog_CleansUpWhenTmuxGone(t *testing.T) {
 func TestReattachWatchdog_SkipsActiveSession(t *testing.T) {
 	// When a session is already in the active map, the watchdog should
 	// skip it (not create a duplicate).
-	store := NewInMemorySessionStore()
+	store := sessionstore.NewInMemory()
 	reg := backend.New()
 	reg.Register(backend.Descriptor{
 		ID:              backend.Persistent,
 		Available:       true,
 		SurvivesRestart: true,
 	}, func(spec pty.LaunchSpec) (pty.PTY, error) {
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
 	sm := NewSessionManagerWithFactory(nil)
@@ -1066,7 +1065,7 @@ func TestReattachWatchdog_SkipsActiveSession(t *testing.T) {
 	attachCalls := 0
 	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		attachCalls++
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	}
 
 	// Create an active session
@@ -1088,8 +1087,8 @@ func TestReattachWatchdog_SkipsActiveSession(t *testing.T) {
 }
 
 func TestReattachWatchdog_SkipsDuringShutdown(t *testing.T) {
-	store := NewInMemorySessionStore()
-	_ = store.Save(SessionMetadata{
+	store := sessionstore.NewInMemory()
+	_ = store.Save(sessionstore.Metadata{
 		ID:       "shutdown-skip",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -1103,7 +1102,7 @@ func TestReattachWatchdog_SkipsDuringShutdown(t *testing.T) {
 	sm.SetStore(store)
 	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		t.Error("tmuxAttach should not be called during shutdown")
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	}
 
 	// Simulate shutdown state
@@ -1127,24 +1126,23 @@ func TestSession_ReadLoop_ClosesOldPTY_OnReattach(t *testing.T) {
 	r, w := io.Pipe()
 	w.Close() // trigger immediate read error
 
-	oldPTY := &fakePTY{
-		stdoutReader: r,
-		stdinWriter:  w,
+	oldPTY := &ptyfake.FakePTY{
+		StdoutReader: r,
+		StdinWriter:  w,
 	}
 
 	sess := &Session{
-		ID:                  "fd-leak-test",
-		Backend:             backend.Persistent,
-		pty:                 oldPTY,
-		clients:             make(map[chan []byte]*ClientInfo),
-		exitCh:              make(chan struct{}),
-		ptyReadBuffer:       4096,
-		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
-		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
+		ID:            "fd-leak-test",
+		Backend:       backend.Persistent,
+		pty:           oldPTY,
+		clients:       make(map[chan []byte]*ClientInfo),
+		exitCh:        make(chan struct{}),
+		ptyReadBuffer: 4096,
+		emu:           terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 		reattachFunc: func(sessionName string) (pty.PTY, error) {
 			// Return a new PTY that blocks on read
 			blockR, _ := io.Pipe()
-			return &fakePTY{stdoutReader: blockR}, nil
+			return &ptyfake.FakePTY{StdoutReader: blockR}, nil
 		},
 	}
 
@@ -1153,9 +1151,9 @@ func TestSession_ReadLoop_ClosesOldPTY_OnReattach(t *testing.T) {
 	// Wait for re-attach to complete (retries: 500ms + potentially more)
 	time.Sleep(5 * time.Second)
 
-	oldPTY.mu.Lock()
-	wasClosed := oldPTY.closed
-	oldPTY.mu.Unlock()
+	oldPTY.Mu.Lock()
+	wasClosed := oldPTY.Closed
+	oldPTY.Mu.Unlock()
 
 	if !wasClosed {
 		t.Error("old PTY was not closed after successful re-attach (fd leak)")

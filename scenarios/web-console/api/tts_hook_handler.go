@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"time"
+	"web-console/internal/sessionstore"
 )
 
 type hookStopRequest struct {
@@ -42,8 +43,8 @@ func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
 	// `claude --resume <agent_session_id>` against the right project. The
 	// payload's session_id is Claude's own session UUID.
 	if result.Appended && req.WebConsoleSessionID != "" && req.SessionIDSnake != "" && s.sessionStore != nil {
-		_ = s.sessionStore.UpdateAgentInfo(req.WebConsoleSessionID, AgentInfo{
-			AgentType:      AgentTypeClaude,
+		_ = s.sessionStore.UpdateAgentInfo(req.WebConsoleSessionID, sessionstore.AgentInfo{
+			AgentType:      sessionstore.AgentClaude,
 			AgentSessionID: req.SessionIDSnake,
 			CWD:            req.CWD,
 			LastActivityAt: time.Now(),
