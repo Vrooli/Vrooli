@@ -1,13 +1,17 @@
 package main
 
-import "sync"
+import (
+	"sync"
+
+	"web-console/session"
+)
 
 // ConversationFanoutRegistry owns the per-session conversation event
-// fan-outs. SessionManager invokes Create/Delete via lifecycle hooks; readers
+// fan-outs. session.Manager invokes Create/Delete via lifecycle hooks; readers
 // (conversation router, terminal WS, hook handlers) look up the fanout for a
 // session by id.
 //
-// Lives in package main so SessionManager (which moves to its own sub-package)
+// Lives in package main so session.Manager (which moves to its own sub-package)
 // can stay decoupled from ConversationEvent.
 type ConversationFanoutRegistry struct {
 	mu      sync.RWMutex
@@ -53,7 +57,7 @@ func (r *ConversationFanoutRegistry) Get(sessionID string) *ConversationFanout {
 
 // AttachToManager installs lifecycle hooks on sm so the registry stays in
 // sync with the session set. Returns the registry for fluent wiring.
-func (r *ConversationFanoutRegistry) AttachToManager(sm *SessionManager) *ConversationFanoutRegistry {
+func (r *ConversationFanoutRegistry) AttachToManager(sm *session.Manager) *ConversationFanoutRegistry {
 	sm.SetLifecycleHooks(r.Create, r.Delete)
 	return r
 }

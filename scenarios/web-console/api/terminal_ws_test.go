@@ -64,7 +64,7 @@ func TestHandleTerminalWS_SessionNotFound(t *testing.T) {
 // [REQ:P0-002b] WebSocket I/O Streaming - exited session auto-removed returns 404
 func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 	deadFake := ptyfake.NewFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(deadFake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(deadFake))
 	deadSrv := &Server{
 		router:    mux.NewRouter(),
 		sessions:  sm,
@@ -476,7 +476,7 @@ func TestHandleTerminalWS_RepeatedConnectDisconnect(t *testing.T) {
 func setupWSServerWithPTY(t *testing.T) (*httptest.Server, string, *ptyfake.FakePTYWithOutput) {
 	t.Helper()
 	fake := ptyfake.NewFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    sm,

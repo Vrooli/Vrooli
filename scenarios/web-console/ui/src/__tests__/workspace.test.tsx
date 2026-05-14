@@ -88,6 +88,7 @@ const mockStoreState = {
   settingsModalOpen: false,
   aiModalOpen: false,
   groups: [],
+  plusButtonBehavior: "launcher",
 };
 
 const mockStoreActions = {
@@ -208,6 +209,7 @@ describe("Workspace", () => {
     mockStoreState.displayMode = "grid";
     mockStoreState.settingsModalOpen = false;
     mockStoreState.groups = [];
+    mockStoreState.plusButtonBehavior = "launcher";
     mockLaunchSession = vi.fn().mockResolvedValue(mockSession);
     mockRemovePane = vi.fn();
     mockClearError = vi.fn();

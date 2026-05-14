@@ -1,6 +1,7 @@
 package main
 
 import (
+	"web-console/session"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -62,7 +63,7 @@ func TestAppendUserConversationEvent_UnknownSession(t *testing.T) {
 
 // newSummarizeTestServer wires up the server fields exercised by
 // asyncSummarizeAndNotify and the on-demand summarize handler.
-func newSummarizeTestServer(t *testing.T, ollama *httptest.Server) (*Server, *Session, string, string) {
+func newSummarizeTestServer(t *testing.T, ollama *httptest.Server) (*Server, *session.Session, string, string) {
 	t.Helper()
 	srv := newFakeTestServer()
 	srv.conversations = NewConversationStore()

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 
 // [REQ:P0-002a] PTY Session Backend
 func TestSessionManager_Create(t *testing.T) {
-	sm := NewSessionManager()
+	sm := newSessionManager()
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -37,7 +36,7 @@ func TestSessionManager_Create(t *testing.T) {
 
 // [REQ:P0-002a] PTY Session Backend - concurrent sessions
 func TestSessionManager_ConcurrentSessions(t *testing.T) {
-	sm := NewSessionManager()
+	sm := newSessionManager()
 
 	s1, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -63,7 +62,7 @@ func TestSessionManager_ConcurrentSessions(t *testing.T) {
 
 // [REQ:P0-003a] Session Persistence Store - list returns all active
 func TestSessionManager_List(t *testing.T) {
-	sm := NewSessionManager()
+	sm := newSessionManager()
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -86,7 +85,7 @@ func TestSessionManager_List(t *testing.T) {
 
 // [REQ:P0-002a] PTY Session Backend - Get
 func TestSessionManager_Get(t *testing.T) {
-	sm := NewSessionManager()
+	sm := newSessionManager()
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -110,7 +109,7 @@ func TestSessionManager_Get(t *testing.T) {
 
 // [REQ:P0-002a] PTY Session Backend - Delete cleanup
 func TestSessionManager_Delete(t *testing.T) {
-	sm := NewSessionManager()
+	sm := newSessionManager()
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -135,7 +134,7 @@ func TestSessionManager_Delete(t *testing.T) {
 
 // [REQ:P0-002c] Terminal Resize Handling — last writer wins
 func TestSession_Resize(t *testing.T) {
-	sm := NewSessionManager()
+	sm := newSessionManager()
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -160,7 +159,7 @@ func TestSession_Resize(t *testing.T) {
 // [REQ:P0-002c] Last resize wins regardless of which client sent it
 func TestSession_Resize_LastWriterWins(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
 	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
@@ -193,7 +192,7 @@ func TestSession_Resize_LastWriterWins(t *testing.T) {
 // [REQ:P0-002c] PTY size unchanged when all clients disconnect
 func TestSession_NoClients_SizeUnchanged(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
 	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
@@ -216,7 +215,7 @@ func TestSession_NoClients_SizeUnchanged(t *testing.T) {
 
 // [REQ:P0-002b] WebSocket I/O Streaming - Subscribe/broadcast
 func TestSession_SubscribeAndBroadcast(t *testing.T) {
-	sm := NewSessionManager()
+	sm := newSessionManager()
 
 	sess, err := sm.Create("/bin/sh", 80, 24, "", nil)
 	if err != nil {
@@ -255,7 +254,7 @@ func TestDefaultConfig_Shell(t *testing.T) {
 // replay path: bytes broadcast while no client is subscribed must appear
 // in the snapshot returned by a later Subscribe().
 func TestSession_OfflineSnapshotIncludesPriorOutput(t *testing.T) {
-	sm := NewSessionManager()
+	sm := newSessionManager()
 	sess, err := sm.Create("/bin/sh", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -278,7 +277,7 @@ func TestSession_OfflineSnapshotIncludesPriorOutput(t *testing.T) {
 // session's snapshot is non-empty (it carries the reset prologue and
 // blank-screen rows) but contains no user-visible content.
 func TestSubscribe_SnapshotIsSelfContained(t *testing.T) {
-	sm := NewSessionManager()
+	sm := newSessionManager()
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -294,32 +293,3 @@ func TestSubscribe_SnapshotIsSelfContained(t *testing.T) {
 	}
 }
 
-// TestSubscribe_SnapshotPrecedesLiveFrames verifies the contract that
-// no live frame can sneak between Subscribe()'s snapshot capture and
-// channel registration. After Subscribe returns, broadcasting a frame
-// delivers it on OutputCh; the snapshot reflects state strictly before
-// that frame.
-func TestSubscribe_SnapshotPrecedesLiveFrames(t *testing.T) {
-	s := newBroadcastSession(4)
-	s.broadcast([]byte("before-subscribe\r\n"))
-	sub := SubscribeResult{}
-	s.mu.Lock()
-	sub.Snapshot = s.emu.Snapshot()
-	ch := make(chan []byte, 4)
-	s.clients[ch] = &ClientInfo{NotifyCh: make(chan int, 1)}
-	sub.OutputCh = ch
-	s.mu.Unlock()
-
-	if !bytes.Contains(sub.Snapshot, []byte("before-subscribe")) {
-		t.Fatalf("snapshot missing pre-subscribe output: %q", sub.Snapshot)
-	}
-	s.broadcast([]byte("after-subscribe"))
-	select {
-	case got := <-sub.OutputCh:
-		if !strings.Contains(string(got), "after-subscribe") {
-			t.Fatalf("unexpected live frame: %q", got)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("missed live frame")
-	}
-}

@@ -112,17 +112,17 @@ describe("VoiceMicButton", () => {
 
   it("shows recording title when recording", () => {
     render(<VoiceMicButton {...defaults} isRecording />);
-    expect(screen.getByTestId("voice-mic-btn").title).toBe("Recording... tap to stop");
+    expect(screen.getByTestId("voice-mic-btn").title).toBe("voiceMicButton.recording");
   });
 
   it("shows transcribing title when transcribing", () => {
     render(<VoiceMicButton {...defaults} isTranscribing />);
-    expect(screen.getByTestId("voice-mic-btn").title).toBe("Transcribing... tap to cancel");
+    expect(screen.getByTestId("voice-mic-btn").title).toBe("voiceMicButton.transcribing");
   });
 
   it("includes backend in idle title", () => {
     render(<VoiceMicButton {...defaults} backend="whisper" />);
-    expect(screen.getByTestId("voice-mic-btn").title).toContain("Whisper");
+    expect(screen.getByTestId("voice-mic-btn").title).toBe("voiceMicButton.tapToSpeakWithBackend");
   });
 
   // --- Pointer interaction (intent-based) ---
@@ -197,7 +197,7 @@ describe("VoiceMicButton", () => {
 
   it("shows preparing title when preparing", () => {
     render(<VoiceMicButton {...defaults} isPreparing />);
-    expect(screen.getByTestId("voice-mic-btn").title).toBe("Preparing...");
+    expect(screen.getByTestId("voice-mic-btn").title).toBe("voiceMicButton.preparing");
   });
 
   it("blocks pointer events during preparing", () => {
@@ -263,6 +263,6 @@ describe("VoiceMicButton", () => {
   it("shows cancel hint in title when transcribing", () => {
     render(<VoiceMicButton {...defaults} isTranscribing />);
     const btn = screen.getByTestId("voice-mic-btn");
-    expect(btn.title).toContain("cancel");
+    expect(btn.title).toBe("voiceMicButton.transcribing");
   });
 });

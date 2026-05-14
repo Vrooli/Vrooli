@@ -16,6 +16,7 @@ package main
 // mounted by sessionsH.Module() in main.go.
 
 import (
+	"web-console/session"
 	"sync"
 	"time"
 
@@ -114,7 +115,7 @@ type SessionResponse struct {
 
 // sessionToResponse converts an internal Session to the historical JSON
 // shape. [REQ:P1-001a] Includes expiration policy in response.
-func sessionToResponse(s *Session) SessionResponse {
+func sessionToResponse(s *session.Session) SessionResponse {
 	return SessionResponse{
 		ID:              s.ID,
 		Shell:           s.Shell,
@@ -125,6 +126,6 @@ func sessionToResponse(s *Session) SessionResponse {
 		SurvivesRestart: s.Backend == backend.Persistent,
 		Policy:          s.GetPolicy(),
 		Busy:            s.HasChildProcess(),
-		Recovered:       s.recovered,
+		Recovered:       s.Recovered(),
 	}
 }

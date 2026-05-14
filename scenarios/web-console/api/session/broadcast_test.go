@@ -1,7 +1,8 @@
-package main
+package session
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"time"
 
@@ -161,5 +162,35 @@ func TestSIGWINCH_SkippedOnPersistentBackend(t *testing.T) {
 	s.mu.Unlock()
 	if s.lastSIGWINCHRecovery != before {
 		t.Errorf("maybeSIGWINCHRecovery fired on persistent backend")
+	}
+}
+
+// TestSubscribe_SnapshotPrecedesLiveFrames verifies the contract that
+// no live frame can sneak between Subscribe()'s snapshot capture and
+// channel registration. After Subscribe returns, broadcasting a frame
+// delivers it on OutputCh; the snapshot reflects state strictly before
+// that frame.
+func TestSubscribe_SnapshotPrecedesLiveFrames(t *testing.T) {
+	s := newBroadcastSession(4)
+	s.broadcast([]byte("before-subscribe\r\n"))
+	sub := SubscribeResult{}
+	s.mu.Lock()
+	sub.Snapshot = s.emu.Snapshot()
+	ch := make(chan []byte, 4)
+	s.clients[ch] = &ClientInfo{NotifyCh: make(chan int, 1)}
+	sub.OutputCh = ch
+	s.mu.Unlock()
+
+	if !bytes.Contains(sub.Snapshot, []byte("before-subscribe")) {
+		t.Fatalf("snapshot missing pre-subscribe output: %q", sub.Snapshot)
+	}
+	s.broadcast([]byte("after-subscribe"))
+	select {
+	case got := <-sub.OutputCh:
+		if !strings.Contains(string(got), "after-subscribe") {
+			t.Fatalf("unexpected live frame: %q", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("missed live frame")
 	}
 }

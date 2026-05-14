@@ -63,7 +63,7 @@ describe("WorkspaceMinimap", () => {
     render(<WorkspaceMinimap scrollRef={ref} rowCount={3} />);
     const rail = screen.getByRole("slider");
     expect(rail).toBeTruthy();
-    expect(rail.getAttribute("aria-label")).toBe("Scroll position");
+    expect(rail.getAttribute("aria-label")).toBe("workspaceMinimap.scrollPosition");
     expect(rail.getAttribute("aria-valuemin")).toBe("0");
     expect(rail.getAttribute("aria-valuemax")).toBe("100");
   });

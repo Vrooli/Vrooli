@@ -1,6 +1,7 @@
 package main
 
 import (
+	"web-console/session"
 	"context"
 	"net/url"
 	"os"
@@ -45,7 +46,7 @@ func newFileReferenceError(code, message string) error {
 	return &fileReferenceError{code: code, message: message}
 }
 
-func (s *Server) resolveFileReference(ctx context.Context, sess *Session, rawPath string) (*fileReferenceResolution, error) {
+func (s *Server) resolveFileReference(ctx context.Context, sess *session.Session, rawPath string) (*fileReferenceResolution, error) {
 	inputPath, line, normalizeErr := normalizeFileReferencePath(rawPath)
 	if normalizeErr != nil {
 		return nil, normalizeErr

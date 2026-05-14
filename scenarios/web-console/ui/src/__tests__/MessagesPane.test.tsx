@@ -289,7 +289,7 @@ describe("MessagesPane", () => {
     await waitFor(() => {
       expect(screen.getAllByText("example.ts").length).toBeGreaterThan(0);
       expect(screen.getByText("/tmp/example.ts")).toBeInTheDocument();
-      expect(screen.getByText("line 12")).toBeInTheDocument();
+      expect(screen.getByText("messagesFileViewer.linePrefix")).toBeInTheDocument();
       expect(screen.getByText("const x = 1;")).toBeInTheDocument();
     });
     expect(mockResolveFileReference).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12");
@@ -305,7 +305,7 @@ describe("MessagesPane", () => {
     fireEvent.click(screen.getByTestId("mock-markdown-link"));
 
     await waitFor(() => {
-      expect(screen.getByText("File preview unavailable")).toBeInTheDocument();
+      expect(screen.getByText("messagesFileViewer.unavailable")).toBeInTheDocument();
       expect(screen.getByText("Referenced file was not found")).toBeInTheDocument();
     });
   });

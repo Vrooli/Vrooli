@@ -1,9 +1,11 @@
 import { useCallback, useRef, useState, type CSSProperties, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { Pause, Play, Volume2, VolumeX, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { TTSPlaybackCapabilities } from "../hooks/tts/types";
 import type { ConversationEvent } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { AudioSettingsContent } from "./tts/AudioSettingsContent";
 import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
@@ -92,6 +94,7 @@ export default function AudioPlayerBar({
   onToggleSummarized,
   onChangeLevel,
 }: AudioPlayerBarProps) {
+  const { t } = useTranslation();
   const [showPopover, setShowPopover] = useState(false);
   const [showMessageSelector, setShowMessageSelector] = useState(false);
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -164,7 +167,7 @@ export default function AudioPlayerBar({
           "shrink-0 rounded p-1 transition hover:bg-wc-accent/10",
           !capabilities.canPause && "opacity-40 cursor-not-allowed",
         )}
-        title={isPaused ? "Resume" : "Pause"}
+        title={isPaused ? t(strings.audioPlayerBar.resume) : t(strings.audioPlayerBar.pause)}
       >
         {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
       </button>
@@ -182,10 +185,10 @@ export default function AudioPlayerBar({
             onJumpToCurrentMessage?.();
           }}
           className="inline-flex shrink-0 items-center gap-1 rounded-md bg-wc-surface-base px-1.5 py-1 text-[11px] font-medium text-wc-text-muted ring-1 ring-wc-default transition hover:bg-wc-surface-input"
-          title={messageSelectorEvents?.length && onSelectMessage ? "Select message" : "Jump to current message"}
+          title={messageSelectorEvents?.length && onSelectMessage ? t(strings.audioPlayerBar.selectMessage) : t(strings.audioPlayerBar.jumpToCurrentMessage)}
         >
           <span>{currentMessageLabel}</span>
-          {hasQueuedNext && <span className="text-[10px] text-amber-300">next</span>}
+          {hasQueuedNext && <span className="text-[10px] text-amber-300">{t(strings.audioPlayerBar.nextBadge)}</span>}
         </button>
       )}
 
@@ -222,7 +225,7 @@ export default function AudioPlayerBar({
         step={0.1}
         disabled={!scrubEnabled}
         onChange={handleScrubChange}
-        aria-label="Seek"
+        aria-label={t(strings.audioPlayerBar.seekAriaLabel)}
         className={getScrubClasses({
           isSummarized,
           enabled: scrubEnabled,
@@ -248,7 +251,7 @@ export default function AudioPlayerBar({
             else setShowPopover((prev) => !prev);
           }}
           className="shrink-0 rounded p-1 transition hover:bg-wc-accent/10"
-          title={isMuted ? "Unmute" : "Audio settings"}
+          title={isMuted ? t(strings.audioPlayerBar.unmute) : t(strings.audioPlayerBar.audioSettings)}
         >
           {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
@@ -258,7 +261,7 @@ export default function AudioPlayerBar({
         data-testid="tts-dismiss"
         onClick={onDismiss}
         className="shrink-0 rounded p-1 text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
-        title="Close playback"
+        title={t(strings.audioPlayerBar.closePlayback)}
       >
         <X className="h-4 w-4" />
       </button>
@@ -280,7 +283,7 @@ export default function AudioPlayerBar({
               <div className="mb-3 flex justify-center">
                 <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
               </div>
-              <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">Audio Settings</h3>
+              <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">{t(strings.audioPlayerBar.audioSettingsHeading)}</h3>
               <AudioSettingsContent
                 testIdPrefix="tts"
                 volume={volume}

@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"errors"
@@ -38,9 +38,9 @@ var (
 	ErrBackendUnknown = errors.New("unknown backend")
 )
 
-// SessionManager tracks all active terminal sessions.
+// Manager tracks all active terminal sessions.
 // [REQ:P0-002a] PTY Session Backend
-type SessionManager struct {
+type Manager struct {
 	mu           sync.RWMutex
 	sessions     map[string]*Session
 	ptyFactory   pty.Factory
@@ -84,71 +84,90 @@ type SessionManager struct {
 	reattachStopCh chan struct{}
 }
 
-// NewSessionManager creates a new session manager with the default PTY factory
-// and configuration loaded from environment variables.
-func NewSessionManager() *SessionManager {
-	return &SessionManager{
+// NewManager returns a Manager with the configured PTY factory and
+// configuration wired in plus nil-safe no-op defaults for the optional
+// integration hooks (tmux, upload-dir, per-session env). Production callers
+// (package main) overwrite the defaults via the Set* methods; tests can use
+// the bare manager directly because the defaults won't panic.
+func NewManager(factory pty.Factory, cfg config.Config) *Manager {
+	return &Manager{
 		sessions:             make(map[string]*Session),
-		ptyFactory:           defaultPTYFactory,
-		cfg:                  config.Load(),
-		tmuxAttachFunc:       tmuxAttachAsPTY,
-		tmuxDiscoverFunc:     DiscoverTmuxSessions,
-		applyTmuxOptionsFunc: applyTmuxOptions,
-		killTmuxSessionFunc:  func(name string) { _ = tmuxCmd("kill-session", "-t", name).Run() },
-		tmuxSessionPrefix:    tmuxSessionPrefix,
-		uploadDirFunc:        resolveUploadDir,
-		envForSession:        defaultSessionEnv,
+		ptyFactory:           factory,
+		cfg:                  cfg,
+		uploadDirFunc:        func() string { return "" },
+		envForSession:        func(string) map[string]string { return nil },
+		tmuxDiscoverFunc:     func() ([]string, error) { return nil, nil },
+		tmuxAttachFunc:       func(string) (pty.PTY, error) { return nil, nil },
+		applyTmuxOptionsFunc: func(string) {},
+		killTmuxSessionFunc:  func(string) {},
 	}
 }
 
-// NewSessionManagerWithFactory creates a session manager with a custom PTY factory.
-// Use this in tests to substitute a fake PTY implementation.
-func NewSessionManagerWithFactory(factory pty.Factory) *SessionManager {
-	return &SessionManager{
-		sessions:             make(map[string]*Session),
-		ptyFactory:           factory,
-		cfg:                  config.Default(),
-		tmuxAttachFunc:       tmuxAttachAsPTY,
-		tmuxDiscoverFunc:     DiscoverTmuxSessions,
-		applyTmuxOptionsFunc: applyTmuxOptions,
-		killTmuxSessionFunc:  func(name string) { _ = tmuxCmd("kill-session", "-t", name).Run() },
-		tmuxSessionPrefix:    tmuxSessionPrefix,
-		uploadDirFunc:        resolveUploadDir,
-		envForSession:        defaultSessionEnv,
-	}
+// NewManagerWithFactory is a convenience for tests: returns a bare Manager
+// with the given factory and config.Default() applied. Tmux hooks remain nil;
+// callers that exercise tmux paths must call SetTmuxHooks.
+func NewManagerWithFactory(factory pty.Factory) *Manager {
+	return NewManager(factory, config.Default())
+}
+
+// SetTmuxHooks installs the tmux integration callbacks. Called by package
+// main during server startup; tests substitute fakes here when exercising
+// recovery or re-attach paths.
+func (sm *Manager) SetTmuxHooks(
+	attach TmuxAttachFunc,
+	discover TmuxDiscoverFunc,
+	applyOptions func(sessionName string),
+	killSession func(sessionName string),
+	prefix string,
+) {
+	sm.tmuxAttachFunc = attach
+	sm.tmuxDiscoverFunc = discover
+	sm.applyTmuxOptionsFunc = applyOptions
+	sm.killTmuxSessionFunc = killSession
+	sm.tmuxSessionPrefix = prefix
+}
+
+// SetUploadDirFunc registers the per-session upload-root resolver. Required
+// before Create or Recover; nil defeats upload cleanup on session exit.
+func (sm *Manager) SetUploadDirFunc(fn func() string) { sm.uploadDirFunc = fn }
+
+// SetEnvForSessionFunc registers the per-session environment-variable builder
+// (CODEX_HOME, etc.). Called once at startup by package main.
+func (sm *Manager) SetEnvForSessionFunc(fn func(sessionID string) map[string]string) {
+	sm.envForSession = fn
 }
 
 // SetLifecycleHooks registers callbacks invoked after a session is added to
 // or removed from the active map. Either may be nil. Used by package main to
 // keep the conversation fan-out registry in sync without coupling the session
 // package to ConversationEvent.
-func (sm *SessionManager) SetLifecycleHooks(onCreate, onDelete func(sessionID string)) {
+func (sm *Manager) SetLifecycleHooks(onCreate, onDelete func(sessionID string)) {
 	sm.onSessionCreate = onCreate
 	sm.onSessionDelete = onDelete
 }
 
 // SetRegistry sets the backend registry for backend-aware session creation.
-func (sm *SessionManager) SetRegistry(reg *backend.Registry) {
+func (sm *Manager) SetRegistry(reg *backend.Registry) {
 	sm.registry = reg
 }
 
 // SetStore sets the session metadata store for persistence.
-func (sm *SessionManager) SetStore(store sessionstore.Store) {
+func (sm *Manager) SetStore(store sessionstore.Store) {
 	sm.store = store
 }
 
 // SetMetrics sets the metrics collector for session lifecycle counters.
-func (sm *SessionManager) SetMetrics(m *metrics.Metrics) {
+func (sm *Manager) SetMetrics(m *metrics.Metrics) {
 	sm.metrics = m
 }
 
 // SetEvents sets the event logger for structured session lifecycle events.
-func (sm *SessionManager) SetEvents(el *events.Logger) {
+func (sm *Manager) SetEvents(el *events.Logger) {
 	sm.events = el
 }
 
 // GetConfig returns a snapshot of the current configuration. Thread-safe.
-func (sm *SessionManager) GetConfig() config.Config {
+func (sm *Manager) GetConfig() config.Config {
 	sm.cfgMu.RLock()
 	defer sm.cfgMu.RUnlock()
 	return sm.cfg
@@ -156,7 +175,7 @@ func (sm *SessionManager) GetConfig() config.Config {
 
 // SetConfigField updates a mutable config field under the write lock.
 // Only use for fields that can change at runtime (default backend/policy).
-func (sm *SessionManager) SetConfigField(fn func(cfg *config.Config)) {
+func (sm *Manager) SetConfigField(fn func(cfg *config.Config)) {
 	sm.cfgMu.Lock()
 	defer sm.cfgMu.Unlock()
 	fn(&sm.cfg)
@@ -164,7 +183,7 @@ func (sm *SessionManager) SetConfigField(fn func(cfg *config.Config)) {
 
 // applySessionDefaults fills in zero-valued parameters with configured defaults.
 // The convention is: zero/empty from the caller means "use server default".
-func (sm *SessionManager) applySessionDefaults(shell string, cols, rows uint16) (string, uint16, uint16) {
+func (sm *Manager) applySessionDefaults(shell string, cols, rows uint16) (string, uint16, uint16) {
 	sm.cfgMu.RLock()
 	defer sm.cfgMu.RUnlock()
 	if shell == "" {
@@ -181,7 +200,7 @@ func (sm *SessionManager) applySessionDefaults(shell string, cols, rows uint16) 
 
 // isSessionLimitReached decides whether a new session should be rejected based
 // on the configured MaxSessions cap. A cap of 0 means unlimited.
-func (sm *SessionManager) isSessionLimitReached() bool {
+func (sm *Manager) isSessionLimitReached() bool {
 	if sm.cfg.MaxSessions <= 0 {
 		return false
 	}
@@ -193,7 +212,7 @@ func (sm *SessionManager) isSessionLimitReached() bool {
 
 // Create starts a new shell session with a PTY.
 // [REQ:P0-002a] PTY Session Backend
-func (sm *SessionManager) Create(shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy) (*Session, error) {
+func (sm *Manager) Create(shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy) (*Session, error) {
 	shell, cols, rows = sm.applySessionDefaults(shell, cols, rows)
 
 	// Resolve backend (read default under lock to avoid data race with settings handler)
@@ -342,7 +361,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, bid backend.ID
 }
 
 // Get returns a session by ID.
-func (sm *SessionManager) Get(id string) (*Session, bool) {
+func (sm *Manager) Get(id string) (*Session, bool) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 	sess, ok := sm.sessions[id]
@@ -351,7 +370,7 @@ func (sm *SessionManager) Get(id string) (*Session, bool) {
 
 // List returns all active sessions.
 // [REQ:P0-003a] Session Persistence Store
-func (sm *SessionManager) List() []*Session {
+func (sm *Manager) List() []*Session {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 	result := make([]*Session, 0, len(sm.sessions))
@@ -362,7 +381,7 @@ func (sm *SessionManager) List() []*Session {
 }
 
 // Delete terminates a session and cleans up resources.
-func (sm *SessionManager) Delete(id string) error {
+func (sm *Manager) Delete(id string) error {
 	sm.mu.Lock()
 	sess, ok := sm.sessions[id]
 	if !ok {

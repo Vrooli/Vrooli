@@ -1,6 +1,7 @@
 package main
 
 import (
+	"web-console/session"
 	"bytes"
 	"fmt"
 	"os"
@@ -55,7 +56,7 @@ func writeProbe(t *testing.T, src string) string {
 
 // readUntil consumes output from sub until `needle` appears or the deadline
 // expires. Returns the accumulated buffer.
-func readUntil(t *testing.T, sub SubscribeResult, needle string, timeout time.Duration) string {
+func readUntil(t *testing.T, sub session.SubscribeResult, needle string, timeout time.Duration) string {
 	t.Helper()
 	var out bytes.Buffer
 	deadline := time.After(timeout)
@@ -97,7 +98,7 @@ func TestStandardBackend_AnswersDA1Probe(t *testing.T) {
 		t.Skip("bash not found; skipping DA1 probe integration test")
 	}
 
-	sm := NewSessionManager()
+	sm := newSessionManager()
 	sess, err := sm.Create("/bin/bash", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
@@ -147,7 +148,7 @@ func TestStandardBackend_AnswersClaudeStartupProbeSequence(t *testing.T) {
 		t.Skip("bash not found")
 	}
 
-	sm := NewSessionManager()
+	sm := newSessionManager()
 	sess, err := sm.Create("/bin/bash", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)

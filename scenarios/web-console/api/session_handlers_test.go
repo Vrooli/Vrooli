@@ -1,6 +1,7 @@
 package main
 
 import (
+	"web-console/session"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 
+	"web-console/internal/config"
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/pty"
@@ -25,7 +27,7 @@ import (
 // newTestServer creates a Server with real PTY processes — use for
 // integration-style tests that need actual shell I/O.
 func newTestServer() *Server {
-	sm := NewSessionManager()
+	sm := newSessionManager()
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    sm,
@@ -47,7 +49,7 @@ func newTestServer() *Server {
 // newFakeTestServer creates a Server with pipe-backed fake PTYs — use for
 // fast, deterministic handler tests that don't need a real shell.
 func newFakeTestServer() *Server {
-	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
+	sm := newSessionManagerWithFactory(ptyfake.NewFactory())
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    sm,
@@ -87,7 +89,7 @@ func TestHandleCreateSession(t *testing.T) {
 
 func TestHandleCreateSession_SessionLimit(t *testing.T) {
 	srv := newFakeTestServer()
-	srv.sessions.cfg.MaxSessions = 1
+	srv.sessions.SetConfigField(func(c *config.Config) { c.MaxSessions = 1 })
 
 	s1, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -107,7 +109,7 @@ func TestHandleCreateSession_PTYSpawnFailed(t *testing.T) {
 	}
 	srv := &Server{
 		router:      mux.NewRouter(),
-		sessions:    NewSessionManagerWithFactory(failingFactory),
+		sessions:    newSessionManagerWithFactory(failingFactory),
 		events:      events.NewLogger(10),
 		metrics:     metrics.New(),
 		idempotency: newIdempotencyCache(),
@@ -139,14 +141,14 @@ func TestHandleDeleteSession_NotFound_Idempotent(t *testing.T) {
 }
 
 func TestSentinelErrors(t *testing.T) {
-	limitErr := fmt.Errorf("%w (%d)", ErrSessionLimitReached, 5)
-	if !errors.Is(limitErr, ErrSessionLimitReached) {
-		t.Error("wrapped ErrSessionLimitReached should be detectable via errors.Is")
+	limitErr := fmt.Errorf("%w (%d)", session.ErrSessionLimitReached, 5)
+	if !errors.Is(limitErr, session.ErrSessionLimitReached) {
+		t.Error("wrapped session.ErrSessionLimitReached should be detectable via errors.Is")
 	}
 
-	ptyErr := fmt.Errorf("%w: some detail", ErrPTYSpawnFailed)
-	if !errors.Is(ptyErr, ErrPTYSpawnFailed) {
-		t.Error("wrapped ErrPTYSpawnFailed should be detectable via errors.Is")
+	ptyErr := fmt.Errorf("%w: some detail", session.ErrPTYSpawnFailed)
+	if !errors.Is(ptyErr, session.ErrPTYSpawnFailed) {
+		t.Error("wrapped session.ErrPTYSpawnFailed should be detectable via errors.Is")
 	}
 }
 
@@ -315,10 +317,10 @@ func TestSessionLimit_VariousLimits(t *testing.T) {
 	limits := []int{1, 3, 5, 10}
 	for _, limit := range limits {
 		t.Run(fmt.Sprintf("limit=%d", limit), func(t *testing.T) {
-			sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
-			sm.cfg.MaxSessions = limit
+			sm := newSessionManagerWithFactory(ptyfake.NewFactory())
+			sm.SetConfigField(func(c *config.Config) { c.MaxSessions = limit })
 
-			var sessions []*Session
+			var sessions []*session.Session
 			for i := 0; i < limit; i++ {
 				s, err := sm.Create("", 0, 0, "", nil)
 				if err != nil {

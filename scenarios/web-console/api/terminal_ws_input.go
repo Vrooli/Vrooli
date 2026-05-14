@@ -12,6 +12,7 @@ package main
 // (screaming architecture) and §8.2 (input kind/reason wire contract).
 
 import (
+	"web-console/session"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,7 +42,7 @@ type inputDispatchResult struct {
 func (s *Server) dispatchInputMessage(
 	conn *websocket.Conn,
 	writeMu *sync.Mutex,
-	sess *Session,
+	sess *session.Session,
 	sessionID string,
 	msg TerminalMessage,
 	sessionReady bool,

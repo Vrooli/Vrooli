@@ -2,8 +2,10 @@
 // [REQ:P0-005b] AI Input UI Component
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Sparkles, Send, Copy, Play, Loader2, AlertCircle, X, GripHorizontal } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 import { generateAICommand } from "../api/ai";
+import { strings } from "../consts/strings";
 import { toErrorInfo } from "../lib/errors";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
@@ -16,6 +18,7 @@ import { useDraggablePosition } from "../hooks/useDraggablePosition";
  * [REQ:P0-005b] AI Input UI Component
  */
 export default function AiInput({ onExecute }: { onExecute: (command: string) => void }) {
+  const { t } = useTranslation();
   const aiModalOpen = useWorkspaceStore((s) => s.aiModalOpen);
   const setAiModalOpen = useWorkspaceStore((s) => s.setAiModalOpen);
   const activePane = useWorkspaceStore((s) => s.activePane);
@@ -161,7 +164,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
             <GripHorizontal className="h-4 w-4 text-wc-text-faint" />
             <Sparkles className="h-4 w-4 text-wc-accent" />
             <h2 className="text-sm font-semibold text-wc-text-primary">
-              AI Command
+              {t(strings.aiInput.heading)}
             </h2>
           </div>
           <Button
@@ -183,7 +186,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
               data-testid="ai-input-prompt"
               type="text"
               className="flex-1 rounded border border-wc-default bg-wc-surface-input px-2 py-1.5 text-sm text-wc-text-primary placeholder:text-wc-text-faint outline-none focus:border-wc-accent"
-              placeholder="Describe a command..."
+              placeholder={t(strings.aiInput.promptPlaceholder)}
               value={prompt}
               onChange={(e) => {
                 setPrompt(e.target.value);
@@ -202,7 +205,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
               className="h-7 w-7"
               onClick={handleGenerate}
               disabled={isLoading || !prompt.trim()}
-              title="Generate command"
+              title={t(strings.aiInput.generateTitle)}
             >
               {isLoading ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -226,7 +229,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
               </code>
               {provider && (
                 <span className="text-[10px] text-wc-text-faint shrink-0">
-                  via {provider}
+                  {t(strings.aiInput.viaProvider, { provider })}
                 </span>
               )}
               <Button
@@ -235,7 +238,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
                 size="icon"
                 className="h-6 w-6 shrink-0"
                 onClick={handleCopy}
-                title="Copy command"
+                title={t(strings.aiInput.copyTitle)}
               >
                 <Copy className="h-3 w-3" />
               </Button>
@@ -246,7 +249,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
                 className="h-6 w-6 shrink-0"
                 onClick={handleExecute}
                 disabled={!hasActiveTerminal}
-                title={hasActiveTerminal ? "Execute in terminal" : "No active terminal"}
+                title={hasActiveTerminal ? t(strings.aiInput.executeTitle) : t(strings.aiInput.noActiveTerminal)}
               >
                 <Play className="h-3 w-3" />
               </Button>

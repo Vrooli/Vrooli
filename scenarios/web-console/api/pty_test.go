@@ -360,7 +360,7 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 	}
 
 	var captured pty.LaunchSpec
-	sm := NewSessionManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
+	sm := newSessionManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
 		captured = spec
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
@@ -449,7 +449,7 @@ func TestFakePTY_CreateAndGet(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
 
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 	sess, err := sm.Create("/fake/shell", 100, 50, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -477,7 +477,7 @@ func TestFakePTY_CreateAndGet(t *testing.T) {
 // [REQ:P0-002b] WebSocket I/O Streaming - broadcast via fake PTY
 func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
 	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
@@ -510,7 +510,7 @@ func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
 // [REQ:P0-003b] Reconnect State Restoration — snapshot replay via fake PTY.
 func TestFakePTY_OfflineSnapshot(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
 	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
@@ -537,7 +537,7 @@ func TestFakePTY_Resize(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
 
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -567,7 +567,7 @@ func TestFakePTY_Resize(t *testing.T) {
 // [REQ:P0-002a] PTY Session Backend - delete calls Kill + Close on PTY
 func TestFakePTY_DeleteCleanup(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
 	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
@@ -593,7 +593,7 @@ func TestFakePTY_DeleteCleanup(t *testing.T) {
 // [REQ:P0-002b] WebSocket I/O Streaming - exit code forwarding via fake PTY
 func TestFakePTY_ExitCodeForwarding(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
 	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
@@ -618,7 +618,7 @@ func TestFakePTY_ExitCodeForwarding(t *testing.T) {
 // [REQ:P0-002a] PTY Session Backend - exit signal via fake PTY
 func TestFakePTY_ExitSignal(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
 	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
 	if err != nil {
@@ -639,7 +639,7 @@ func TestFakePTY_ExitSignal(t *testing.T) {
 		t.Error("session should be dead after PTY close")
 	}
 
-	// SessionManager should auto-remove the session
+	// session.Manager should auto-remove the session
 	time.Sleep(50 * time.Millisecond)
 	_, ok := sm.Get(sess.ID)
 	if ok {

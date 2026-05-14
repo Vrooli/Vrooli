@@ -1,21 +1,27 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 import { lazy, Suspense, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { fetchHealth } from "./api/health";
 import { HEALTH_RETRY_COUNT, HEALTH_RETRY_DELAY_MS } from "./consts/config";
+import { strings } from "./consts/strings";
 import { Button } from "./components/ui/button";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { AlertTriangle, X } from "lucide-react";
 
 const Workspace = lazy(() => import("./components/Workspace"));
 
-const PageFallback = () => (
-  <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-muted">
-    Loading...
-  </div>
-);
+const PageFallback = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-muted">
+      {t(strings.app.loading)}
+    </div>
+  );
+};
 
 export default function App() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [dismissed, setDismissed] = useState(false);
   const healthQuery = useQuery({
@@ -41,7 +47,7 @@ export default function App() {
         >
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="flex-1">
-            Unable to reach the API — showing cached data
+            {t(strings.app.connectionBanner.message)}
           </span>
           <Button
             data-testid="health-retry-button"
@@ -54,13 +60,13 @@ export default function App() {
             }}
             disabled={isFetching}
           >
-            {isFetching ? "Retrying..." : "Retry"}
+            {isFetching ? t(strings.app.connectionBanner.retrying) : t(strings.app.connectionBanner.retry)}
           </Button>
           <button
             data-testid="connection-banner-dismiss"
             onClick={() => setDismissed(true)}
             className="shrink-0 p-0.5 hover:text-red-100"
-            aria-label="Dismiss"
+            aria-label={t(strings.app.connectionBanner.dismissAriaLabel)}
             type="button"
           >
             <X className="h-3.5 w-3.5" />

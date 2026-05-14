@@ -1,6 +1,7 @@
 package main
 
 import (
+	"web-console/session"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -110,7 +111,7 @@ func isDuplicateColumnError(err error) bool {
 type Server struct {
 	db                            *sql.DB
 	router                        *mux.Router
-	sessions                      *SessionManager
+	sessions                      *session.Manager
 	fanouts                       *ConversationFanoutRegistry
 	events                        *events.Logger
 	metrics                       *metrics.Metrics
@@ -119,7 +120,7 @@ type Server struct {
 	aiChain                       *AIProviderChain
 	shortcuts                     ShortcutStore
 	aiConfig                      AIConfigStore
-	sweeper                       *ExpirationSweeper
+	sweeper                       *session.ExpirationSweeper
 	idempotency                   *idempotencyCache // replay-safe session creation
 	capabilities                  *CapabilityRegistry
 	workspace                     WorkspaceStore
@@ -249,7 +250,7 @@ func NewServer(db *sql.DB) *Server {
 
 	eventLog := events.NewLogger(1000)
 	metrics := metrics.New()
-	sessions := NewSessionManager()
+	sessions := newSessionManager()
 	fanouts := NewConversationFanoutRegistry().AttachToManager(sessions)
 
 	// Initialize backend registry and session metadata store
@@ -284,7 +285,7 @@ func NewServer(db *sql.DB) *Server {
 		aiChain:                       NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
 		shortcuts:                     NewSQLShortcutStore(db),
 		aiConfig:                      NewSQLAIConfigStore(db),
-		sweeper:                       NewExpirationSweeper(sessions, eventLog, metrics),
+		sweeper:                       session.NewExpirationSweeper(sessions, eventLog, metrics),
 		idempotency:                   newIdempotencyCache(),
 		workspace:                     NewSQLWorkspaceStore(db),
 		voiceConfig:                   vc,

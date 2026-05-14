@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"log"
@@ -14,7 +14,7 @@ import (
 
 // ExpirationSweeper periodically checks sessions for expiration and removes expired ones.
 type ExpirationSweeper struct {
-	sessions *SessionManager
+	sessions *Manager
 	events   *events.Logger
 	metrics  *metrics.Metrics
 	interval time.Duration
@@ -24,7 +24,7 @@ type ExpirationSweeper struct {
 }
 
 // NewExpirationSweeper creates a sweeper that checks for expired sessions.
-func NewExpirationSweeper(sm *SessionManager, events *events.Logger, metrics *metrics.Metrics) *ExpirationSweeper {
+func NewExpirationSweeper(sm *Manager, events *events.Logger, metrics *metrics.Metrics) *ExpirationSweeper {
 	return &ExpirationSweeper{
 		sessions: sm,
 		events:   events,

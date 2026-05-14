@@ -1,6 +1,7 @@
 package main
 
 import (
+	"web-console/session"
 	"context"
 	"errors"
 	"fmt"
@@ -16,7 +17,7 @@ import (
 )
 
 // sessionsAdapter implements sessionsH.Service against the server's
-// SessionManager, SessionStore, policy resolver, and recovery flow.
+// session.Manager, SessionStore, policy resolver, and recovery flow.
 type sessionsAdapter struct {
 	srv *Server
 }
@@ -291,13 +292,13 @@ func (a *sessionsAdapter) UpdatePolicy(_ context.Context, id string, in sessions
 
 func mapCreateError(err error) error {
 	switch {
-	case errors.Is(err, ErrSessionLimitReached):
+	case errors.Is(err, session.ErrSessionLimitReached):
 		return fmt.Errorf("%w: %v", sessionsH.ErrResourceExhausted, err)
-	case errors.Is(err, ErrBackendUnavailable):
+	case errors.Is(err, session.ErrBackendUnavailable):
 		return fmt.Errorf("%w: %v", sessionsH.ErrUnavailable, err)
-	case errors.Is(err, ErrBackendUnknown):
+	case errors.Is(err, session.ErrBackendUnknown):
 		return fmt.Errorf("%w: %v", sessionsH.ErrInvalidArgument, err)
-	case errors.Is(err, ErrPTYSpawnFailed):
+	case errors.Is(err, session.ErrPTYSpawnFailed):
 		// Match the legacy "do not leak internal PTY details" behavior.
 		return fmt.Errorf("%w: failed to start terminal process", sessionsH.ErrInternal)
 	default:
@@ -340,7 +341,7 @@ func toHandlerRecoverable(m sessionstore.Metadata) sessionsH.RecoverableSession 
 	return out
 }
 
-func policyViewFor(sess *Session, pol policy.Policy) sessionsH.PolicyView {
+func policyViewFor(sess *session.Session, pol policy.Policy) sessionsH.PolicyView {
 	view := sessionsH.PolicyView{
 		SessionID: sess.ID,
 		Policy:    sessionsH.Policy{Mode: string(pol.Mode), Duration: pol.Duration},

@@ -5,6 +5,8 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 import { useTerminalSession } from "../hooks/terminal/useTerminalSession";
 import type { GateResult, InputSource } from "./terminal/inputGate";
 import { TERMINAL_SCROLLBACK_LINES } from "../lib/terminalConfig";
@@ -154,6 +156,7 @@ export interface TerminalPaneHandle {
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
   function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onSummarizeError, onNeedsUnlock }, ref) {
+    const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
     // Last cols/rows actually sent to the server. Used to suppress
@@ -797,7 +800,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       >
         {uploading && (
           <div data-testid="upload-overlay" className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 text-sm text-white">
-            Uploading image…
+            {t(strings.terminalPane.uploadingImage)}
           </div>
         )}
         {uploadError && (

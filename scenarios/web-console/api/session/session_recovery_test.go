@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"fmt"
@@ -28,7 +28,7 @@ func TestRecover_NoDetachedSessions(t *testing.T) {
 
 	store := sessionstore.NewInMemory()
 	reg := backend.New()
-	sm := NewSessionManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
+	sm := NewManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
@@ -63,7 +63,7 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 	})
 
 	reg := backend.New()
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 
 	report := sm.Recover(store, reg)
 
@@ -131,7 +131,8 @@ func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
 		t.Fatalf("MarkLive: %v", err)
 	}
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
+	setupRealTmuxHooks(t, sm)
 	report := sm.Recover(store, backend.New())
 
 	if report.Recovered != 1 {
@@ -163,7 +164,7 @@ func TestRecover_StandardSessionsIgnored(t *testing.T) {
 	})
 
 	reg := backend.New()
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 
 	report := sm.Recover(store, reg)
 
@@ -194,7 +195,8 @@ func TestRecover_UsesConfiguredTmuxSocketIsolation(t *testing.T) {
 		t.Fatalf("create isolated test tmux session: %v", err)
 	}
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
+	setupRealTmuxHooks(t, sm)
 	report := sm.Recover(sessionstore.NewInMemory(), backend.New())
 
 	if report.OrphanedTmux != 1 {
@@ -342,7 +344,7 @@ func TestSession_ReadLoop_ExitsOnStandardBackend(t *testing.T) {
 // --- Backend Selection in Create Tests ---
 
 func TestSessionManager_Create_DefaultBackend(t *testing.T) {
-	sm := NewSessionManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
+	sm := NewManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
@@ -365,7 +367,7 @@ func TestSessionManager_Create_WithRegistry_UnknownBackend(t *testing.T) {
 			return ptyfake.NewFakePTYWithOutput(), nil
 		})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 
 	_, err := sm.Create("", 80, 24, "nonexistent", nil)
@@ -382,7 +384,7 @@ func TestSessionManager_Create_WithRegistry_UnavailableBackend(t *testing.T) {
 		Reason:    "tmux not installed",
 	}, nil)
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 
 	_, err := sm.Create("", 80, 24, backend.Persistent, nil)
@@ -402,7 +404,7 @@ func TestSessionManager_Create_WithRegistry_PersistsMetadata(t *testing.T) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
@@ -440,7 +442,7 @@ func TestSessionManager_Create_StandardBackend_NotDetached(t *testing.T) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
@@ -472,7 +474,7 @@ func TestSessionManager_Shutdown_PreservesPersistentMetadata(t *testing.T) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
@@ -512,7 +514,7 @@ func TestSessionManager_Shutdown_DeletesStandardMetadata(t *testing.T) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
@@ -665,7 +667,7 @@ func TestRecover_PreservesSessionOnAttachFailure(t *testing.T) {
 
 	killedSessions := map[string]bool{}
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.tmuxDiscoverFunc = func() ([]string, error) {
 		return []string{"stubborn-session"}, nil
 	}
@@ -716,7 +718,7 @@ func TestRecover_RetriesAttachBeforeGivingUp(t *testing.T) {
 	var mu sync.Mutex
 	attempts := 0
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetStore(store)
 	sm.tmuxDiscoverFunc = func() ([]string, error) {
 		return []string{"retry-recover"}, nil
@@ -763,7 +765,7 @@ func TestSessionManager_Shutdown_SetsClosingBeforeClose(t *testing.T) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 
 	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
@@ -805,7 +807,7 @@ func TestRecoveryMetrics_Emitted(t *testing.T) {
 	metrics := metrics.New()
 	events := events.NewLogger(100)
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetMetrics(metrics)
 	sm.SetEvents(events)
 	sm.tmuxDiscoverFunc = func() ([]string, error) {
@@ -883,7 +885,7 @@ func TestAutoRemove_PreservesMetadata_PersistentSession_NormalOperation(t *testi
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
@@ -936,7 +938,7 @@ func TestAutoRemove_DeletesMetadata_StandardSession_NormalOperation(t *testing.T
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
@@ -987,7 +989,7 @@ func TestReattachWatchdog_RecoversOrphanedSession(t *testing.T) {
 		Detached: true,
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetStore(store)
 	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		return ptyfake.NewFakePTYWithOutput(), nil
@@ -1026,7 +1028,7 @@ func TestReattachWatchdog_CleansUpWhenTmuxGone(t *testing.T) {
 		Detached: true,
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetStore(store)
 	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		return nil, fmt.Errorf("tmux session gone")
@@ -1058,7 +1060,7 @@ func TestReattachWatchdog_SkipsActiveSession(t *testing.T) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
@@ -1098,7 +1100,7 @@ func TestReattachWatchdog_SkipsDuringShutdown(t *testing.T) {
 		Detached: true,
 	})
 
-	sm := NewSessionManagerWithFactory(nil)
+	sm := NewManagerWithFactory(nil)
 	sm.SetStore(store)
 	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		t.Error("tmuxAttach should not be called during shutdown")

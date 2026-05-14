@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { generateAISuggestions } from "../api/ai";
+import { strings } from "../consts/strings";
 import { toErrorInfo } from "../lib/errors";
 
 const DEBOUNCE_MS = 600;
@@ -20,6 +22,7 @@ interface AiSuggestBarProps {
  * and shows 1–3 tappable command suggestions after a debounce.
  */
 export default function AiSuggestBar({ inputText, onExecute, onClose: _onClose }: AiSuggestBarProps) {
+  const { t } = useTranslation();
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [provider, setProvider] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -94,14 +97,14 @@ export default function AiSuggestBar({ inputText, onExecute, onClose: _onClose }
 
       {isEmpty && (
         <span className="flex-1 text-xs text-wc-text-muted truncate">
-          Type a command description…
+          {t(strings.aiSuggestBar.empty)}
         </span>
       )}
 
       {!isEmpty && isLoading && (
         <div className="flex flex-1 items-center gap-1.5">
           <Loader2 className="h-3 w-3 animate-spin text-wc-text-muted" />
-          <span className="text-xs text-wc-text-muted">Generating…</span>
+          <span className="text-xs text-wc-text-muted">{t(strings.aiSuggestBar.generating)}</span>
         </div>
       )}
 
@@ -129,7 +132,7 @@ export default function AiSuggestBar({ inputText, onExecute, onClose: _onClose }
           ))}
           {provider && (
             <span className="shrink-0 text-[10px] text-wc-text-faint">
-              via {provider}
+              {t(strings.aiSuggestBar.viaProvider, { provider })}
             </span>
           )}
         </div>
@@ -137,7 +140,7 @@ export default function AiSuggestBar({ inputText, onExecute, onClose: _onClose }
 
       {!isEmpty && !isLoading && !error && suggestions.length === 0 && (
         <span className="flex-1 text-xs text-wc-text-muted truncate">
-          No suggestions
+          {t(strings.aiSuggestBar.noSuggestions)}
         </span>
       )}
     </div>

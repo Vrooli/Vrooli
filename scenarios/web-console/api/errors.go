@@ -1,6 +1,7 @@
 package main
 
 import (
+	"web-console/session"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -428,7 +429,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 // lookupSession extracts the {id} path variable, looks up the session, and
 // writes a "session_not_found" error if it doesn't exist. Returns nil when
 // the session was not found (callers should return immediately).
-func (s *Server) lookupSession(w http.ResponseWriter, r *http.Request) *Session {
+func (s *Server) lookupSession(w http.ResponseWriter, r *http.Request) *session.Session {
 	id := mux.Vars(r)["id"]
 	sess, ok := s.sessions.Get(id)
 	if !ok {

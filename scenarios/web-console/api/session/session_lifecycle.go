@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ const reattachWatchdogInterval = 30 * time.Second
 // Shutdown gracefully detaches from all persistent (tmux) sessions without
 // killing them, so they survive for recovery on the next startup. Standard
 // sessions are killed. Must be called before closing the database.
-func (sm *SessionManager) Shutdown() {
+func (sm *Manager) Shutdown() {
 	sm.mu.Lock()
 	sm.shuttingDown = true
 	// Snapshot sessions under lock; iterate outside lock to avoid holding
@@ -80,7 +80,7 @@ func (sm *SessionManager) Shutdown() {
 
 // Recover discovers surviving tmux sessions, matches them against persisted
 // metadata, and re-registers them. Called once at server startup.
-func (sm *SessionManager) Recover(store sessionstore.Store, registry *backend.Registry) RecoveryReport {
+func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry) RecoveryReport {
 	report := RecoveryReport{}
 
 	// 1. Load persisted metadata for detached sessions
@@ -254,7 +254,7 @@ func (sm *SessionManager) Recover(store sessionstore.Store, registry *backend.Re
 // This handles the case where a transient failure kills the attach process
 // during normal operation — the session recovers without requiring a full
 // server restart.
-func (sm *SessionManager) StartReattachWatchdog() {
+func (sm *Manager) StartReattachWatchdog() {
 	sm.mu.Lock()
 	if sm.reattachStopCh != nil {
 		sm.mu.Unlock()
@@ -267,7 +267,7 @@ func (sm *SessionManager) StartReattachWatchdog() {
 }
 
 // StopReattachWatchdog terminates the background re-attach watchdog.
-func (sm *SessionManager) StopReattachWatchdog() {
+func (sm *Manager) StopReattachWatchdog() {
 	sm.mu.Lock()
 	if sm.reattachStopCh != nil {
 		close(sm.reattachStopCh)
@@ -276,7 +276,7 @@ func (sm *SessionManager) StopReattachWatchdog() {
 	sm.mu.Unlock()
 }
 
-func (sm *SessionManager) reattachWatchdogLoop() {
+func (sm *Manager) reattachWatchdogLoop() {
 	ticker := time.NewTicker(reattachWatchdogInterval)
 	defer ticker.Stop()
 	for {
@@ -293,7 +293,7 @@ func (sm *SessionManager) reattachWatchdogLoop() {
 // store but no corresponding entry in the active sessions map, and attempts
 // to re-attach them. This is a lightweight version of Recover that runs
 // during normal operation.
-func (sm *SessionManager) reattachOrphanedSessions() {
+func (sm *Manager) reattachOrphanedSessions() {
 	if sm.store == nil {
 		return
 	}

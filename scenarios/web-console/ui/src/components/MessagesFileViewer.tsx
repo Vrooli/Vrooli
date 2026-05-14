@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Copy, Loader2, Minus, Plus, WrapText, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { MarkdownRenderer } from "./markdown";
+import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import {
   getLanguageFromPath,
@@ -29,6 +31,7 @@ export default function MessagesFileViewer({
   content,
   onClose,
 }: MessagesFileViewerProps) {
+  const { t } = useTranslation();
   const targetLine = content?.line ?? resolved?.line ?? null;
   const displayPath = content?.path ?? resolved?.resolved_path ?? requestedPath ?? "";
   const [copied, setCopied] = useState(false);
@@ -40,10 +43,10 @@ export default function MessagesFileViewer({
   };
   const basename = useMemo(() => {
     const fullPath = content?.path ?? resolved?.resolved_path ?? requestedPath ?? "";
-    if (!fullPath) return "File preview";
+    if (!fullPath) return t(strings.messagesFileViewer.filePreviewFallback);
     const parts = fullPath.split(/[\\/]/);
     return parts[parts.length - 1] || fullPath;
-  }, [content?.path, requestedPath, resolved?.resolved_path]);
+  }, [content?.path, requestedPath, resolved?.resolved_path, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -69,22 +72,22 @@ export default function MessagesFileViewer({
               type="button"
               onClick={onClose}
               className="shrink-0 rounded-full p-1.5 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-              aria-label="Close file preview"
+              aria-label={t(strings.messagesFileViewer.closeAriaLabel)}
             >
               <X className="h-4 w-4" />
             </button>
           </div>
           <div className="mt-1 flex items-center gap-1.5">
             <p className="min-w-0 flex-1 truncate text-xs text-wc-text-muted">
-              {displayPath || "Loading file..."}
+              {displayPath || t(strings.messagesFileViewer.loadingFile)}
             </p>
             {displayPath && (
               <button
                 type="button"
                 onClick={copyPath}
                 className="shrink-0 rounded p-1 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-                aria-label={copied ? "Copied" : "Copy path"}
-                title={copied ? "Copied" : "Copy path"}
+                aria-label={copied ? t(strings.messagesFileViewer.copied) : t(strings.messagesFileViewer.copyPath)}
+                title={copied ? t(strings.messagesFileViewer.copied) : t(strings.messagesFileViewer.copyPath)}
               >
                 {copied ? (
                   <Check className="h-3.5 w-3.5 text-green-400" />
@@ -108,7 +111,7 @@ export default function MessagesFileViewer({
               )}
               {targetLine && (
                 <span className="rounded-full border border-wc-default px-2 py-0.5">
-                  line {targetLine}
+                  {t(strings.messagesFileViewer.linePrefix, { line: targetLine })}
                 </span>
               )}
             </div>
@@ -119,7 +122,7 @@ export default function MessagesFileViewer({
           {loading && (
             <div className="flex h-full items-center justify-center gap-2 text-wc-text-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading file preview…</span>
+              <span>{t(strings.messagesFileViewer.loadingPreview)}</span>
             </div>
           )}
 
@@ -128,11 +131,11 @@ export default function MessagesFileViewer({
               <div className="mx-auto max-w-2xl rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
                 <div className="mb-2 flex items-center gap-2 font-medium">
                   <AlertTriangle className="h-4 w-4" />
-                  <span>File preview unavailable</span>
+                  <span>{t(strings.messagesFileViewer.unavailable)}</span>
                 </div>
                 <p>{error}</p>
                 {requestedPath && (
-                  <p className="mt-2 break-all text-xs text-red-200/80">Requested: {requestedPath}</p>
+                  <p className="mt-2 break-all text-xs text-red-200/80">{t(strings.messagesFileViewer.requestedPrefix, { path: requestedPath })}</p>
                 )}
               </div>
             </div>
@@ -171,6 +174,7 @@ function CodeLinePreview({
   path: string;
   highlightLine: number | null;
 }) {
+  const { t } = useTranslation();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const lineRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const plainLines = useMemo(() => content.split("\n"), [content]);
@@ -225,15 +229,15 @@ function CodeLinePreview({
     <div className="flex h-full flex-col bg-[#0d1117]">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-wc-default/60 bg-wc-surface-base px-3 py-1.5 text-xs text-wc-text-muted">
         <span className="truncate font-mono text-[11px] uppercase tracking-wide">
-          {language ?? "plaintext"} · {lineCount} lines
+          {language ?? t(strings.messagesFileViewer.plaintext)} · {t(strings.messagesFileViewer.linesSuffix, { count: lineCount })}
         </span>
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             onClick={() => adjustFont(-1)}
             className="rounded p-1 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary disabled:opacity-40"
-            aria-label="Decrease font size"
-            title="Decrease font size"
+            aria-label={t(strings.messagesFileViewer.decreaseFontSize)}
+            title={t(strings.messagesFileViewer.decreaseFontSize)}
             disabled={fontSize <= MIN_FONT_SIZE}
           >
             <Minus className="h-3.5 w-3.5" />
@@ -243,8 +247,8 @@ function CodeLinePreview({
             type="button"
             onClick={() => adjustFont(1)}
             className="rounded p-1 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary disabled:opacity-40"
-            aria-label="Increase font size"
-            title="Increase font size"
+            aria-label={t(strings.messagesFileViewer.increaseFontSize)}
+            title={t(strings.messagesFileViewer.increaseFontSize)}
             disabled={fontSize >= MAX_FONT_SIZE}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -256,12 +260,12 @@ function CodeLinePreview({
               "ml-1 flex items-center gap-1 rounded px-1.5 py-1 text-[11px] transition hover:bg-wc-surface-input hover:text-wc-text-primary",
               wrap && "bg-wc-accent/15 text-wc-accent hover:bg-wc-accent/20 hover:text-wc-accent",
             )}
-            aria-label={wrap ? "Disable word wrap" : "Enable word wrap"}
+            aria-label={wrap ? t(strings.messagesFileViewer.disableWordWrap) : t(strings.messagesFileViewer.enableWordWrap)}
             aria-pressed={wrap}
-            title={wrap ? "Disable word wrap" : "Enable word wrap"}
+            title={wrap ? t(strings.messagesFileViewer.disableWordWrap) : t(strings.messagesFileViewer.enableWordWrap)}
           >
             <WrapText className="h-3.5 w-3.5" />
-            <span>Wrap</span>
+            <span>{t(strings.messagesFileViewer.wrap)}</span>
           </button>
         </div>
       </div>

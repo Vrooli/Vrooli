@@ -566,7 +566,7 @@ func tmuxAttach(sessionName string) (*tmuxPTY, error) {
 }
 
 // tmuxAttachAsPTY wraps tmuxAttach to return the PTY interface, matching
-// TmuxAttachFunc's signature so production code and tests use the same type.
+// session.TmuxAttachFunc's signature so production code and tests use the same type.
 func tmuxAttachAsPTY(sessionName string) (pty.PTY, error) {
 	return tmuxAttach(sessionName)
 }

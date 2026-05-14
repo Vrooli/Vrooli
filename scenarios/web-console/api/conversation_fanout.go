@@ -6,7 +6,7 @@ import (
 )
 
 // defaultSessionEnv returns the per-session environment variables injected
-// into the spawned PTY. Wired into SessionManager.envForSession by both
+// into the spawned PTY. Wired into session.Manager.envForSession by both
 // constructors; tests can override the field for hermetic spawning.
 func defaultSessionEnv(sessionID string) map[string]string {
 	return map[string]string{
@@ -31,8 +31,8 @@ type conversationSubscriber struct {
 }
 
 // ConversationFanout owns the per-session conversation event fan-out. One
-// instance per Session, created by SessionManager alongside the session and
-// retrieved via SessionManager.ConversationFanout.
+// instance per Session, created by session.Manager alongside the session and
+// retrieved via session.Manager.ConversationFanout.
 //
 // Extracted from Session so that session lifecycle/IO can move into the
 // internal/session/ sub-package without dragging the conversation event

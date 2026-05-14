@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"context"
@@ -94,7 +94,7 @@ type Session struct {
 	reattachFunc TmuxAttachFunc
 
 	// sessionPrefix is the tmux session-name prefix used to map this
-	// Session's ID to its tmux session. Set by SessionManager at construction.
+	// Session's ID to its tmux session. Set by Manager at construction.
 	sessionPrefix string
 
 	// metrics is optional; when set, readLoop increments re-attach counters.
@@ -242,4 +242,13 @@ func (s *Session) HasChildProcess() bool {
 		return false
 	}
 	return s.pty.HasChildProcess()
+}
+
+// Recovered reports whether this session was restored from a surviving tmux
+// session on server startup. The flag is consumed by handlers to inform
+// clients that a snapshot may differ from the in-progress live state.
+func (s *Session) Recovered() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.recovered
 }

@@ -9,8 +9,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Pause, Play, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { ConversationEvent } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { getScrubClasses } from "./tts/scrubStyles";
 import {
@@ -124,6 +126,7 @@ function NowPlayingHeader({
   now: Date;
   onJumpToCurrent: () => void;
 }) {
+  const { t } = useTranslation();
   const handleScrub = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       onSeek?.(Number(e.target.value));
@@ -138,13 +141,17 @@ function NowPlayingHeader({
         data-state="idle"
         className="px-3 py-2 text-[11px] text-wc-text-faint"
       >
-        No active playback
+        {t(strings.messageJumpList.noActivePlayback)}
       </div>
     );
   }
 
   const desc = statusGlyphFor(event);
-  const roleLabel = event.role === "user" ? "You" : event.source === "claude_hook" ? "Claude" : "Codex";
+  const roleLabel = event.role === "user"
+    ? t(strings.messageJumpList.roleYou)
+    : event.source === "claude_hook"
+      ? t(strings.messageJumpList.roleClaude)
+      : t(strings.messageJumpList.roleCodex);
   const seekable = duration > 0 && !!onSeek;
 
   return (
@@ -155,7 +162,7 @@ function NowPlayingHeader({
           data-testid="msg-jump-now-playpause"
           onClick={() => (isPaused ? onResume?.() : onPause?.())}
           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wc-surface-input text-wc-text-primary transition hover:bg-wc-accent/20"
-          aria-label={isPaused ? "Resume" : "Pause"}
+          aria-label={isPaused ? t(strings.messageJumpList.resume) : t(strings.messageJumpList.pause)}
         >
           {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
         </button>
@@ -164,7 +171,7 @@ function NowPlayingHeader({
           data-testid="msg-jump-now-jump"
           onClick={onJumpToCurrent}
           className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1 py-0.5 text-left transition hover:bg-wc-surface-input/60"
-          aria-label="Scroll to currently playing message"
+          aria-label={t(strings.messageJumpList.scrollToCurrent)}
         >
           <StatusIcon glyph={desc.glyph} />
           <span className="font-mono text-[11px] text-wc-text-faint">#{event.sequence}</span>
@@ -186,7 +193,7 @@ function NowPlayingHeader({
         step={0.1}
         disabled={!seekable}
         onChange={handleScrub}
-        aria-label="Seek currently playing message"
+        aria-label={t(strings.messageJumpList.seekCurrent)}
         className={getScrubClasses({
           isSummarized,
           enabled: seekable,
@@ -204,16 +211,17 @@ function FilterChips({
   filter: FilterMode;
   onChange: (next: FilterMode) => void;
 }) {
+  const { t } = useTranslation();
   const chips: { id: FilterMode; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "unheard", label: "Unheard" },
-    { id: "failed", label: "Failed" },
+    { id: "all", label: t(strings.messageJumpList.filterAll) },
+    { id: "unheard", label: t(strings.messageJumpList.filterUnheard) },
+    { id: "failed", label: t(strings.messageJumpList.filterFailed) },
   ];
   return (
     <div
       data-testid="msg-jump-filters"
       role="radiogroup"
-      aria-label="Filter messages"
+      aria-label={t(strings.messageJumpList.filterAriaLabel)}
       className="flex items-center gap-1 px-3 pb-2"
     >
       {chips.map((chip) => {
@@ -255,6 +263,7 @@ function UserTurnHeader({
   onSelect: () => void;
   now: Date;
 }) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
@@ -271,7 +280,7 @@ function UserTurnHeader({
       )}
     >
       <span className="flex w-full items-center gap-2 text-[11px]">
-        <span className="font-semibold text-wc-text-primary">You</span>
+        <span className="font-semibold text-wc-text-primary">{t(strings.messageJumpList.roleYou)}</span>
         <span className="text-wc-text-faint">{formatRelativeTime(event.createdAt, now)}</span>
         <span className="ml-auto font-mono text-wc-text-faint">#{event.sequence}</span>
       </span>
@@ -297,8 +306,11 @@ function AssistantRow({
   onSelect: () => void;
   now: Date;
 }) {
+  const { t } = useTranslation();
   const desc = statusGlyphFor(event);
-  const roleLabel = event.source === "claude_hook" ? "Claude" : "Codex";
+  const roleLabel = event.source === "claude_hook"
+    ? t(strings.messageJumpList.roleClaude)
+    : t(strings.messageJumpList.roleCodex);
   return (
     <button
       type="button"
@@ -325,7 +337,7 @@ function AssistantRow({
           <span
             data-testid={`msg-jump-summarized-${event.id}`}
             className="ml-1 rounded bg-amber-400/15 px-1 py-0.5 text-[9px] font-semibold uppercase text-amber-300"
-            title="Summarized version"
+            title={t(strings.messageJumpList.summarizedBadge)}
           >
             S
           </span>
@@ -335,7 +347,7 @@ function AssistantRow({
             data-testid={`msg-jump-next-${event.id}`}
             className="ml-auto inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-300"
           >
-            ⏭ next
+            {t(strings.messageJumpList.nextBadge)}
           </span>
         )}
       </span>
@@ -361,6 +373,7 @@ export default function MessageJumpList({
   onSeek,
   hasQueuedNext = false,
 }: MessageJumpListProps) {
+  const { t } = useTranslation();
   const isMobile = useMediaQuery("(max-width: 767px)");
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef(new Map<string, HTMLElement>());
@@ -481,12 +494,12 @@ export default function MessageJumpList({
       {/* Title + close */}
       <div className="flex shrink-0 items-center justify-between px-3 pt-1 pb-1">
         <span className="text-[11px] font-medium uppercase tracking-wider text-wc-text-faint">
-          Jump to message
+          {t(strings.messageJumpList.title)}
         </span>
         <button
           onClick={onClose}
           className="rounded p-1 text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-          aria-label="Close jump list"
+          aria-label={t(strings.messageJumpList.closeAriaLabel)}
           type="button"
         >
           <X className="h-3.5 w-3.5" />
@@ -510,7 +523,7 @@ export default function MessageJumpList({
 
       {visibleEvents.length === 0 ? (
         <div className="px-3 py-8 text-center text-xs text-wc-text-faint">
-          {filter === "all" ? "No messages" : "No matching messages"}
+          {filter === "all" ? t(strings.messageJumpList.noMessages) : t(strings.messageJumpList.noMatchingMessages)}
         </div>
       ) : (
         <div

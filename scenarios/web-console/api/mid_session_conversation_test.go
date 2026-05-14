@@ -34,7 +34,7 @@ func TestCodexTailer_AttributesMidSessionRolloutToCorrectSession(t *testing.T) {
 
 	srv := &Server{
 		router:        mux.NewRouter(),
-		sessions:      NewSessionManagerWithFactory(ptyfake.NewFactory()),
+		sessions:      newSessionManagerWithFactory(ptyfake.NewFactory()),
 		conversations: NewConversationStore(),
 		events:        events.NewLogger(100),
 		metrics:       metrics.New(),

@@ -223,7 +223,7 @@ func TestGenerateWithConfig_DisabledProvider(t *testing.T) {
 	fallback := &fakeAIProvider{name: "openrouter", result: "ls -la"}
 
 	srv := &Server{
-		sessions:  NewSessionManagerWithFactory(ptyfake.NewFactory()),
+		sessions:  newSessionManagerWithFactory(ptyfake.NewFactory()),
 		events:    events.NewLogger(100),
 		metrics:   metrics.New(),
 		aiChain:   NewAIProviderChain(primary, fallback),

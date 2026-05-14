@@ -61,13 +61,13 @@ describe("AudioPlayerBar", () => {
   it("renders pause icon when not paused", () => {
     render(<AudioPlayerBar {...makeProps({ isPaused: false })} />);
     const btn = screen.getByTestId("tts-play-pause");
-    expect(btn.getAttribute("title")).toBe("Pause");
+    expect(btn.getAttribute("title")).toBe("audioPlayerBar.pause");
   });
 
   it("renders play icon when paused", () => {
     render(<AudioPlayerBar {...makeProps({ isPaused: true })} />);
     const btn = screen.getByTestId("tts-play-pause");
-    expect(btn.getAttribute("title")).toBe("Resume");
+    expect(btn.getAttribute("title")).toBe("audioPlayerBar.resume");
   });
 
   it("clicking play/pause toggle calls onPause when playing", () => {
@@ -359,12 +359,12 @@ describe("AudioPlayerBar", () => {
 
   it("renders muted icon when isMuted=true", () => {
     render(<AudioPlayerBar {...makeProps({ isMuted: true })} />);
-    expect(screen.getByTestId("tts-audio-button").getAttribute("title")).toBe("Unmute");
+    expect(screen.getByTestId("tts-audio-button").getAttribute("title")).toBe("audioPlayerBar.unmute");
   });
 
   it("renders unmuted icon when isMuted=false (regardless of volume)", () => {
     render(<AudioPlayerBar {...makeProps({ isMuted: false, volume: 0 })} />);
-    expect(screen.getByTestId("tts-audio-button").getAttribute("title")).toBe("Audio settings");
+    expect(screen.getByTestId("tts-audio-button").getAttribute("title")).toBe("audioPlayerBar.audioSettings");
   });
 
   it("clicking the audio button while muted calls onSetMuted(false) and does NOT open the popover", () => {

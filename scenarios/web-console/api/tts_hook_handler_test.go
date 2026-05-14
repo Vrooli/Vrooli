@@ -17,7 +17,7 @@ import (
 )
 
 func newHookTestServer(token string) *Server {
-	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
+	sm := newSessionManagerWithFactory(ptyfake.NewFactory())
 	fanouts := NewConversationFanoutRegistry().AttachToManager(sm)
 	return &Server{
 		router:        mux.NewRouter(),
@@ -119,7 +119,7 @@ func TestHandleHookStop_RoutesToMappedTerminalSession(t *testing.T) {
 
 	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv.sessions = sm
 	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
 	srv.conversations = NewConversationStore()
@@ -175,7 +175,7 @@ func TestHandleHookStop_PopulatesAgentInfoForRecovery(t *testing.T) {
 	srv := newHookTestServer("secret-token")
 	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv.sessions = sm
 	srv.conversations = NewConversationStore()
 	srv.sessionStore = sessionstore.NewInMemory()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"web-console/session"
 	"bytes"
 	"encoding/json"
 	"os"
@@ -45,14 +46,14 @@ func writeRolloutLine(t *testing.T, f *os.File, lineType string, payload interfa
 	}
 }
 
-func newCodexTailerTestServer(t *testing.T) (*Server, *Session) {
+func newCodexTailerTestServer(t *testing.T) (*Server, *session.Session) {
 	t.Helper()
 	srv := newTTSTestServer()
 	srv.ttsConfig = TTSConfig{AutoEnabled: true}
 
 	fake := ptyfake.NewFakePTYWithOutput()
 	t.Cleanup(func() { _ = fake.Close() })
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv.sessions = sm
 	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
 

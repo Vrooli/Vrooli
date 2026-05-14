@@ -16,7 +16,7 @@ import (
 // (maybeSIGWINCHRecovery) since the method was moved there in the
 // decomposition phase.
 func TestGreenfield_NoRawSetSizeOutsideGatedPaths(t *testing.T) {
-	for _, file := range []string{"session.go", "broadcast.go"} {
+	for _, file := range []string{"session/session.go", "session/broadcast.go"} {
 		data, err := os.ReadFile(file)
 		if err != nil {
 			t.Fatalf("read %s: %v", file, err)

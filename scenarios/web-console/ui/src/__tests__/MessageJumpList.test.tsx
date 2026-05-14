@@ -96,7 +96,7 @@ describe("MessageJumpList", () => {
 
   it("shows empty state when no events", () => {
     render(<MessageJumpList events={[]} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    expect(screen.getByText("No messages")).toBeInTheDocument();
+    expect(screen.getByText("messageJumpList.noMessages")).toBeInTheDocument();
   });
 
   it("Escape key calls onClose", () => {

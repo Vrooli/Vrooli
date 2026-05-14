@@ -99,7 +99,7 @@ func TestConnect_ResolveFileReference_ProjectRootRelative(t *testing.T) {
 	}
 	srv := &Server{
 		router:      mux.NewRouter(),
-		sessions:    NewSessionManagerWithFactory(ptyfake.Factory(fake)),
+		sessions:    newSessionManagerWithFactory(ptyfake.Factory(fake)),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),
@@ -144,7 +144,7 @@ func TestConnect_ResolveFileReference_SessionCwdPreferred(t *testing.T) {
 	fake.CurrentDirVal = subdir
 	srv := &Server{
 		router:      mux.NewRouter(),
-		sessions:    NewSessionManagerWithFactory(ptyfake.Factory(fake)),
+		sessions:    newSessionManagerWithFactory(ptyfake.Factory(fake)),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
 		aiChain:     NewAIProviderChain(),

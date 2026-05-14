@@ -124,6 +124,7 @@ export default function Workspace() {
     keepScreenAwake: state.keepScreenAwake,
     vadAutoStop: state.vadAutoStop,
     groups: state.groups,
+    plusButtonBehavior: state.plusButtonBehavior,
     addPane: state.addPane,
     removePane: state.removePane,
     setActivePane: state.setActivePane,
@@ -1200,8 +1201,14 @@ export default function Workspace() {
             size="icon"
             className="h-8 w-8"
             disabled={isCreating}
-            onClick={() => handleLaunch()}
-            title={t(strings.floatingToolbar.terminalFirstTitle)}
+            onClick={() => {
+              if (workspace.plusButtonBehavior === "launcher") {
+                openLauncher();
+              } else {
+                handleLaunch();
+              }
+            }}
+            title={workspace.plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
           >
             <Plus className="h-4 w-4" />
           </Button>

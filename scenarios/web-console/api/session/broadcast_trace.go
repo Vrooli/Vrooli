@@ -1,4 +1,4 @@
-package main
+package session
 
 // broadcast_trace.go: opt-in broadcast fingerprint logging for diagnosing
 // client-visible output duplication without browser devtools.

@@ -8,94 +8,12 @@ import (
 
 	"web-console/internal/config"
 	"web-console/internal/policy"
-	"web-console/internal/ptyfake"
 )
 
 // Tests for extracted decision helpers and boundary conditions.
-// These validate that decision points are correctly classified and
-// that edge cases at decision boundaries behave as intended.
-
-// classifyCreateError tests moved to sessions_adapter_test.go: the Connect
-// handler maps session creation sentinels via mapCreateError + handler-level
-// sentinels (ErrResourceExhausted, ErrInternal, ErrUnavailable,
-// ErrInvalidArgument).
-
-// --- applySessionDefaults: zero-value substitution ---
-
-func TestApplySessionDefaults_AllZeros(t *testing.T) {
-	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
-	shell, cols, rows := sm.applySessionDefaults("", 0, 0)
-	if shell == "" {
-		t.Error("shell should be filled with default")
-	}
-	if cols == 0 {
-		t.Error("cols should be filled with default")
-	}
-	if rows == 0 {
-		t.Error("rows should be filled with default")
-	}
-}
-
-func TestApplySessionDefaults_ExplicitValues(t *testing.T) {
-	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
-	shell, cols, rows := sm.applySessionDefaults("/bin/zsh", 120, 40)
-	if shell != "/bin/zsh" {
-		t.Errorf("explicit shell should be preserved, got %s", shell)
-	}
-	if cols != 120 {
-		t.Errorf("explicit cols should be preserved, got %d", cols)
-	}
-	if rows != 40 {
-		t.Errorf("explicit rows should be preserved, got %d", rows)
-	}
-}
-
-func TestApplySessionDefaults_MixedZeroAndExplicit(t *testing.T) {
-	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
-	shell, cols, rows := sm.applySessionDefaults("/bin/fish", 0, 40)
-	if shell != "/bin/fish" {
-		t.Error("explicit shell should be preserved")
-	}
-	if cols == 0 {
-		t.Error("zero cols should be replaced with default")
-	}
-	if rows != 40 {
-		t.Error("explicit rows should be preserved")
-	}
-}
-
-// --- isSessionLimitReached: capacity decision ---
-
-func TestIsSessionLimitReached_Unlimited(t *testing.T) {
-	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
-	sm.cfg.MaxSessions = 0
-	if sm.isSessionLimitReached() {
-		t.Error("MaxSessions=0 means unlimited, should never be reached")
-	}
-}
-
-func TestIsSessionLimitReached_UnderLimit(t *testing.T) {
-	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
-	sm.cfg.MaxSessions = 5
-	s, _ := sm.Create("", 0, 0, "", nil)
-	defer func() { _ = sm.Delete(s.ID) }()
-	if sm.isSessionLimitReached() {
-		t.Error("1 session with limit 5 should not be reached")
-	}
-}
-
-func TestIsSessionLimitReached_AtLimit(t *testing.T) {
-	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
-	sm.cfg.MaxSessions = 1
-	s, _ := sm.Create("", 0, 0, "", nil)
-	defer func() { _ = sm.Delete(s.ID) }()
-	if !sm.isSessionLimitReached() {
-		t.Error("1 session with limit 1 should be reached")
-	}
-}
-
-// PolicyView (HasExpiry+ExpiresAt+TTLSeconds) presence is covered by the
-// policy round-trip tests in session_policy_test.go.
+// Manager-private boundary tests (applySessionDefaults, isSessionLimitReached,
+// MaxSessions enforcement) live alongside the implementation in
+// session/internal_test.go.
 
 // --- resolveShell: fallback chain ---
 

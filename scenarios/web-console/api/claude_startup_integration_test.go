@@ -41,7 +41,7 @@ func TestStandardBackend_ClaudeCodeActuallyStarts(t *testing.T) {
 		t.Skipf("no Claude credentials at %s — skipping e2e start test", credPath)
 	}
 
-	sm := NewSessionManager()
+	sm := newSessionManager()
 	sess, err := sm.Create("/bin/bash", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
@@ -165,7 +165,7 @@ func TestStandardBackend_StripsSyncModeFromClientStream(t *testing.T) {
 		t.Skip("no Claude credentials — skipping")
 	}
 
-	sm := NewSessionManager()
+	sm := newSessionManager()
 	sess, err := sm.Create("/bin/bash", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)

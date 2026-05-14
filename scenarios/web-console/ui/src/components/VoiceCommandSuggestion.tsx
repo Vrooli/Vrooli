@@ -1,5 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Check, X, Mic } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 import type { CommandSuggestion } from "../hooks/voice/types";
 
 /** Auto-dismiss timeout for unacted command suggestions. */
@@ -18,6 +20,7 @@ export default function VoiceCommandSuggestion({
   onConfirm,
   onDismiss,
 }: VoiceCommandSuggestionProps) {
+  const { t } = useTranslation();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-dismiss after timeout
@@ -56,7 +59,7 @@ export default function VoiceCommandSuggestion({
         onPointerDown={(e) => e.preventDefault()}
         onClick={handleConfirm}
         className="shrink-0 rounded border border-green-500/40 bg-green-500/10 p-1.5 text-green-400 transition active:bg-green-500/25 touch-manipulation"
-        title="Execute command"
+        title={t(strings.voiceCommandSuggestion.executeTitle)}
       >
         <Check className="h-3.5 w-3.5" />
       </button>
@@ -66,7 +69,7 @@ export default function VoiceCommandSuggestion({
         onPointerDown={(e) => e.preventDefault()}
         onClick={handleDismiss}
         className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-        title="Dismiss"
+        title={t(strings.voiceCommandSuggestion.dismissTitle)}
       >
         <X className="h-3.5 w-3.5" />
       </button>

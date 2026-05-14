@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"log"
@@ -26,7 +26,7 @@ const (
 //  1. Flushes any buffered UTF-8 remainder
 //  2. Marks the session as exited
 //  3. Closes all client channels (triggering "exit" messages in WS handlers)
-//  4. Signals exitCh so the SessionManager can clean up
+//  4. Signals exitCh so the Manager can clean up
 //
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 func (s *Session) readLoop() {
@@ -69,7 +69,7 @@ func (s *Session) readLoop() {
 			//
 			// Phase 3 migrates this inline call to a registered Observer.
 			if s.Backend != backend.Persistent {
-				if reply := generateAnsiResponses(data); len(reply) > 0 {
+				if reply := AnsiResponderFunc(data); len(reply) > 0 {
 					// Server-origin reply; deliver as keystroke. For the
 					// standard backend this is just a pipe write.
 					if werr := p.WriteInput(reply, pty.KindKeystroke); werr != nil {

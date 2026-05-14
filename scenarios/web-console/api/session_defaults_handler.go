@@ -11,7 +11,7 @@ import (
 
 // settingsAdapter satisfies handlers/settings.Service by translating
 // between the transport-neutral Defaults shape and the live
-// SessionManager + backendRegistry state on the Server.
+// session.Manager + backendRegistry state on the Server.
 type settingsAdapter struct {
 	server *Server
 }

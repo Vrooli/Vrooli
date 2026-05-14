@@ -1,4 +1,4 @@
-package main
+package session
 
 // broadcast.go: Output fan-out, per-client delivery, coalesce-on-slow-client,
 // pending-buffer trim, and SIGWINCH-based recovery when a trim happens.
@@ -26,10 +26,10 @@ import (
 // snapshot replay restores correct state.
 const pendingBufferMax = 1 << 20 // 1 MiB
 
-// historyChunkSize is the maximum bytes per WebSocket frame when
+// HistoryChunkSize is the maximum bytes per WebSocket frame when
 // streaming the snapshot or draining the pending buffer. Smaller chunks
 // prevent browser UI freezes on large initial replays.
-const historyChunkSize = 64 * 1024
+const HistoryChunkSize = 64 * 1024
 
 // ClientInfo tracks per-client broadcast flow control for a subscribed
 // WebSocket connection. When the client's output channel is full, incoming
@@ -47,7 +47,7 @@ type ClientInfo struct {
 // frame to all connected WebSocket clients. Slow clients have frames
 // coalesced into a pending buffer instead of being dropped.
 func (s *Session) broadcast(data []byte) {
-	data = sanitizeForClient(data)
+	data = SanitizeForClientFunc(data)
 	if len(data) == 0 {
 		return
 	}
@@ -108,7 +108,7 @@ func (s *Session) notifyIfThreshold(info *ClientInfo) {
 
 // FlushPending drains any coalesced output for the given client channel.
 // The WebSocket output forwarder calls this after each successful write
-// to resume normal per-frame delivery. Data is chunked at historyChunkSize
+// to resume normal per-frame delivery. Data is chunked at HistoryChunkSize
 // to prevent browser UI freezes from single large WebSocket messages.
 // DOC: docs/internal/SEAMS.md#3-domain--session-lifecycle
 func (s *Session) FlushPending(ch chan []byte) {
@@ -119,7 +119,7 @@ func (s *Session) FlushPending(ch chan []byte) {
 		return
 	}
 	for len(info.pending) > 0 {
-		end := historyChunkSize
+		end := HistoryChunkSize
 		if end > len(info.pending) {
 			end = len(info.pending)
 		}

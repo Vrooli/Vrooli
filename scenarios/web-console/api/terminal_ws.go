@@ -1,6 +1,7 @@
 package main
 
 import (
+	"web-console/session"
 	"context"
 	"log"
 	"net/http"
@@ -145,8 +146,8 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	upgrader := websocket.Upgrader{
-		ReadBufferSize:  s.sessions.cfg.WSBufferSize,
-		WriteBufferSize: s.sessions.cfg.WSBufferSize,
+		ReadBufferSize:  s.sessions.GetConfig().WSBufferSize,
+		WriteBufferSize: s.sessions.GetConfig().WSBufferSize,
 		CheckOrigin: func(r *http.Request) bool {
 			return true // Origin validation handled by parent proxy
 		},
@@ -219,11 +220,11 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 
 		// Stream the self-contained ANSI snapshot first so the client
 		// reproduces the current (screen, alt-buffer, scrollback) triple
-		// before any live frame arrives. Chunked at historyChunkSize so
+		// before any live frame arrives. Chunked at session.HistoryChunkSize so
 		// no single JSON message stalls the renderer.
 		writeMu.Lock()
-		for off := 0; off < len(sub.Snapshot); off += historyChunkSize {
-			end := off + historyChunkSize
+		for off := 0; off < len(sub.Snapshot); off += session.HistoryChunkSize {
+			end := off + session.HistoryChunkSize
 			if end > len(sub.Snapshot) {
 				end = len(sub.Snapshot)
 			}

@@ -129,7 +129,7 @@ func TestAIProviderChainEmpty(t *testing.T) {
 func newTestServerWithAI(providers ...AIProvider) *Server {
 	return &Server{
 		router:    nil,
-		sessions:  NewSessionManagerWithFactory(ptyfake.NewFactory()),
+		sessions:  newSessionManagerWithFactory(ptyfake.NewFactory()),
 		events:    events.NewLogger(100),
 		metrics:   metrics.New(),
 		aiChain:   NewAIProviderChain(providers...),

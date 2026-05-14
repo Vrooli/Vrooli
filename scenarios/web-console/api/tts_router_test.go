@@ -12,7 +12,7 @@ import (
 )
 
 func newTTSTestServer() *Server {
-	sm := NewSessionManagerWithFactory(ptyfake.NewFactory())
+	sm := newSessionManagerWithFactory(ptyfake.NewFactory())
 	fanouts := NewConversationFanoutRegistry().AttachToManager(sm)
 	return &Server{
 		router:          mux.NewRouter(),
@@ -44,7 +44,7 @@ func TestAppendConversationEvent_RoutesToMappedSession(t *testing.T) {
 
 	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv.sessions = sm
 	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
 
@@ -87,7 +87,7 @@ func TestAppendConversationEvent_DeduplicatesByEventIdentity(t *testing.T) {
 
 	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
-	sm := NewSessionManagerWithFactory(ptyfake.Factory(fake))
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 	srv.sessions = sm
 	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { MessageSquareText, Plus, Settings, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
@@ -48,11 +48,15 @@ export default function SessionSidebar({
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
   const groups = useWorkspaceStore((s) => s.groups);
   const addGroup = useWorkspaceStore((s) => s.addGroup);
+  const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
   const setPaneGroup = useWorkspaceStore((s) => s.setPaneGroup);
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
   const { syncCreateGroup, syncPaneUpdate } = useWorkspaceSync();
+  const [editingPaneId, setEditingPaneId] = useState<string | null>(null);
+  const [editingPaneName, setEditingPaneName] = useState("");
+  const editingInputRef = useRef<HTMLInputElement>(null);
 
   const { size, isResizing, resizeHandleProps } = useResizablePanel({
     containerRef,
@@ -72,6 +76,27 @@ export default function SessionSidebar({
 
   const paneItems = items.filter((item) => item.kind === "pane");
   const totalUnread = paneItems.reduce((sum, item) => sum + item.unreadCount, 0);
+
+  useEffect(() => {
+    if (!editingPaneId) return;
+    editingInputRef.current?.focus();
+    editingInputRef.current?.select();
+  }, [editingPaneId]);
+
+  const startRename = useCallback((sessionId: string, currentName: string) => {
+    setEditingPaneId(sessionId);
+    setEditingPaneName(currentName);
+  }, []);
+
+  const commitRename = useCallback(() => {
+    if (editingPaneId && editingPaneName.trim()) {
+      const trimmed = editingPaneName.trim();
+      renamePaneById(editingPaneId, trimmed);
+      syncPaneUpdate(editingPaneId, { name: trimmed });
+    }
+    setEditingPaneId(null);
+    setEditingPaneName("");
+  }, [editingPaneId, editingPaneName, renamePaneById, syncPaneUpdate]);
 
   const activate = useCallback((sessionId: string) => {
     onActivatePane(sessionId);
@@ -165,9 +190,29 @@ export default function SessionSidebar({
               )}
               <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium" title={pane.name}>
-                    {pane.name}
-                  </span>
+                  {editingPaneId === pane.sessionId ? (
+                    <input
+                      ref={editingInputRef}
+                      data-testid={`sidebar-rename-input-${pane.sessionId}`}
+                      className="min-w-0 flex-1 rounded bg-wc-surface-input px-1 text-sm font-medium text-wc-text-primary outline-none ring-1 ring-wc-accent"
+                      value={editingPaneName}
+                      onChange={(event) => setEditingPaneName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") commitRename();
+                        if (event.key === "Escape") {
+                          setEditingPaneId(null);
+                          setEditingPaneName("");
+                        }
+                        event.stopPropagation();
+                      }}
+                      onBlur={commitRename}
+                      onClick={(event) => event.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium" title={pane.name}>
+                      {pane.name}
+                    </span>
+                  )}
                   {unreadCount > 0 && (
                     <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
                       {unreadCount}
@@ -290,7 +335,10 @@ export default function SessionSidebar({
             sessionId={tabContextMenu.sessionId}
             currentGroupId={paneItem.pane.groupId}
             groups={groups}
-            onRename={() => setTabContextMenu(null)}
+            onRename={() => {
+              startRename(paneItem.pane.sessionId, paneItem.pane.name);
+              setTabContextMenu(null);
+            }}
             onCustomize={() => setAppearanceModalPane(tabContextMenu.sessionId)}
             onAddToGroup={(groupId) => {
               setPaneGroup(tabContextMenu.sessionId, groupId);

@@ -1,6 +1,8 @@
 import { memo, useRef, useLayoutEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Mic, Loader2, AlertCircle, Volume2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import type { StartRecordingOpts } from "../hooks/useVoiceInput";
 
@@ -107,6 +109,7 @@ function VoiceMicButtonInner({
   className: wrapperClassName,
   buttonClassName,
 }: VoiceMicButtonProps) {
+  const { t } = useTranslation();
   /** True when the mic is actively capturing (either one-shot or persistent). */
   const isMicActive = isRecording || isListening;
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -196,20 +199,26 @@ function VoiceMicButtonInner({
         )}
         title={
           isPreparing
-            ? "Preparing..."
+            ? t(strings.voiceMicButton.preparing)
             : isPassive
-              ? "Listening for wake word... tap to stop"
+              ? t(strings.voiceMicButton.passiveListening)
               : isListening
-                ? "Listening... tap to stop"
+                ? t(strings.voiceMicButton.listening)
               : isRecording
-                ? "Recording... tap to stop"
+                ? t(strings.voiceMicButton.recording)
                 : isTranscribing
-                  ? "Transcribing... tap to cancel"
+                  ? t(strings.voiceMicButton.transcribing)
                   : showTtsSpeaking
-                    ? "Speaking... tap to stop"
+                    ? t(strings.voiceMicButton.speaking)
                     : hasError
-                      ? `Voice error: ${error}`
-                      : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`
+                      ? t(strings.voiceMicButton.error, { error })
+                      : backend
+                        ? t(strings.voiceMicButton.tapToSpeakWithBackend, {
+                            backend: backend === "whisper"
+                              ? t(strings.voiceMicButton.backendWhisper)
+                              : t(strings.voiceMicButton.backendBrowser),
+                          })
+                        : t(strings.voiceMicButton.tapToSpeak)
         }
       >
         {/* Audio level fill -- rises from bottom. Cyan for listening, red for recording. */}
