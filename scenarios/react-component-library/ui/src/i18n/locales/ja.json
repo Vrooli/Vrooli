@@ -2,8 +2,6 @@
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: React Component Library のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
     "title": "React Component Library",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。",
     "brand": "コンポーネントライブラリ",
     "brandInitials": "RC"
   },
@@ -97,7 +95,6 @@
       "dirty": "未保存の変更",
       "sha": "sha256 {{sha}}",
       "saved": "保存しました。",
-      "noSelection": "一覧からコンポーネントを選択してください。",
       "previewHeading": "ライブプレビュー",
       "previewWaiting": "初回描画を待機中…",
       "previewReady": "描画済み"
@@ -105,7 +102,6 @@
     "themeSwitcher": {
       "label": "テーマ",
       "noneOption": "なし",
-      "scenarioOptionGroup": "シナリオから",
       "builtinOptionGroup": "ビルトイン",
       "scenarioInputLabel": "シナリオID",
       "scenarioInputPlaceholder": "例: flow-verifier",
@@ -114,10 +110,8 @@
       "applied": "{{name}} を適用"
     },
     "emulator": {
-      "label": "ビューポート",
       "presetLabel": "プリセット",
       "dimensions": "{{width}} × {{height}}",
-      "zoomLabel": "ズーム",
       "zoomValue": "{{percent}}%",
       "zoomIn": "ズームイン",
       "zoomOut": "ズームアウト",
@@ -149,12 +143,8 @@
       "statusActive": "プレビュー内の要素をクリック",
       "statusReady": "要素を選択しました",
       "empty": "まだ要素が選択されていません。",
-      "selectorLabel": "セレクタ",
-      "tagLabel": "タグ",
       "rectLabel": "{{w}}×{{h}} @ ({{x}}, {{y}})",
-      "textLabel": "テキスト",
-      "breadcrumbLabel": "親要素の経路",
-      "ancestorDepth": "深さ {{n}}"
+      "breadcrumbLabel": "親要素の経路"
     }
   },
   "adoptions": {
@@ -217,7 +207,6 @@
     "recordedAt": "記録: {{when}}",
     "shaLabel": "sha256 {{sha}}",
     "versionLabel": "v{{version}}",
-    "diffAction": "差分",
     "diff": {
       "title": "差分",
       "fromLabel": "比較元",

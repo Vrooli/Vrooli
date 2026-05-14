@@ -17,6 +17,8 @@ interface VersionsCardProps {
   componentId: string;
 }
 
+const EMPTY_VERSIONS: Version[] = [];
+
 /**
  * VersionsCard renders the version-history list for one component and
  * a built-in diff viewer that picks two versions (or one version and
@@ -38,7 +40,7 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
     mutationFn: () => versionsClient.diffVersions({ componentId, from, to }),
   });
 
-  const versions: Version[] = versionsQuery.data?.versions ?? [];
+  const versions: Version[] = versionsQuery.data?.versions ?? EMPTY_VERSIONS;
   const diff = diffMutation.data;
 
   const versionOptions = useMemo(
@@ -71,7 +73,7 @@ export function VersionsCard({ componentId }: VersionsCardProps) {
           {errorMessage(versionsQuery.error, t)}
         </p>
       )}
-      {versionsQuery.data && versions.length === 0 && !versionsQuery.isLoading && (
+      {!versionsQuery.isLoading && versions.length === 0 && (
         <p data-testid={selectors.versions.empty} className="mt-3 text-slate-200">
           {t(strings.versions.empty)}
         </p>

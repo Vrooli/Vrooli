@@ -14,8 +14,6 @@
 export const strings = {
   app: {
     title: "app.title",
-    eyebrow: "app.eyebrow",
-    description: "app.description",
     brand: "app.brand",
     brandInitials: "app.brandInitials",
   },
@@ -113,7 +111,6 @@ export const strings = {
       dirty: "components.editor.dirty",
       sha: "components.editor.sha",
       saved: "components.editor.saved",
-      noSelection: "components.editor.noSelection",
       previewHeading: "components.editor.previewHeading",
       previewWaiting: "components.editor.previewWaiting",
       previewReady: "components.editor.previewReady",
@@ -121,7 +118,6 @@ export const strings = {
     themeSwitcher: {
       label: "components.themeSwitcher.label",
       noneOption: "components.themeSwitcher.noneOption",
-      scenarioOptionGroup: "components.themeSwitcher.scenarioOptionGroup",
       builtinOptionGroup: "components.themeSwitcher.builtinOptionGroup",
       scenarioInputLabel: "components.themeSwitcher.scenarioInputLabel",
       scenarioInputPlaceholder: "components.themeSwitcher.scenarioInputPlaceholder",
@@ -130,10 +126,8 @@ export const strings = {
       applied: "components.themeSwitcher.applied",
     },
     emulator: {
-      label: "components.emulator.label",
       presetLabel: "components.emulator.presetLabel",
       dimensions: "components.emulator.dimensions",
-      zoomLabel: "components.emulator.zoomLabel",
       zoomValue: "components.emulator.zoomValue",
       zoomIn: "components.emulator.zoomIn",
       zoomOut: "components.emulator.zoomOut",
@@ -165,12 +159,8 @@ export const strings = {
       statusActive: "components.inspector.statusActive",
       statusReady: "components.inspector.statusReady",
       empty: "components.inspector.empty",
-      selectorLabel: "components.inspector.selectorLabel",
-      tagLabel: "components.inspector.tagLabel",
       rectLabel: "components.inspector.rectLabel",
-      textLabel: "components.inspector.textLabel",
       breadcrumbLabel: "components.inspector.breadcrumbLabel",
-      ancestorDepth: "components.inspector.ancestorDepth",
     },
   },
   adoptions: {
@@ -233,7 +223,6 @@ export const strings = {
     recordedAt: "versions.recordedAt",
     shaLabel: "versions.shaLabel",
     versionLabel: "versions.versionLabel",
-    diffAction: "versions.diffAction",
     diff: {
       title: "versions.diff.title",
       fromLabel: "versions.diff.fromLabel",

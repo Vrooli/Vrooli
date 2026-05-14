@@ -54,7 +54,7 @@ describe("EmulatorChrome", () => {
   it("switching preset updates dimensions display", async () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness />);
-    const select = screen.getByTestId(selectors.components.emulator.presetSelect) as HTMLSelectElement;
+    const select = screen.getByTestId<HTMLSelectElement>(selectors.components.emulator.presetSelect);
     await user.selectOptions(select, "iphone-se");
     expect(screen.getByTestId(selectors.components.emulator.dimensions).textContent).toContain(
       "375",
@@ -85,7 +85,7 @@ describe("EmulatorChrome", () => {
       "390",
     );
     await user.click(screen.getByTestId(selectors.components.emulator.rotate));
-    const dims = screen.getByTestId(selectors.components.emulator.dimensions).textContent ?? "";
+    const dims = screen.getByTestId(selectors.components.emulator.dimensions).textContent;
     expect(dims).toContain("844");
     expect(dims.indexOf("844")).toBeLessThan(dims.indexOf("390"));
   });
@@ -101,7 +101,7 @@ describe("EmulatorChrome", () => {
     await user.click(screen.getByTestId(selectors.components.emulator.rotate));
     await user.click(screen.getByTestId(selectors.components.emulator.reset));
     expect(
-      (screen.getByTestId(selectors.components.emulator.presetSelect) as HTMLSelectElement).value,
+      screen.getByTestId<HTMLSelectElement>(selectors.components.emulator.presetSelect).value,
     ).toBe("desktop-1280");
     expect(screen.getByTestId(selectors.components.emulator.zoomValue).textContent).toBe("100%");
   });
@@ -121,9 +121,9 @@ describe("EmulatorChrome", () => {
     renderWithProviders(<FiltersHarness />);
     const viewport = screen.getByTestId(selectors.components.emulator.viewport);
     expect(viewport.style.filter || "").toBe("");
-    const select = screen.getByTestId(
+    const select = screen.getByTestId<HTMLSelectElement>(
       selectors.components.emulator.visionFilterSelect,
-    ) as HTMLSelectElement;
+    );
     await user.selectOptions(select, "protanopia");
     expect(viewport.style.filter).toContain("url(#rcl-vision-protanopia)");
   });
@@ -135,9 +135,9 @@ describe("EmulatorChrome", () => {
       screen.getByTestId(selectors.components.emulator.visionFilterSelect),
       "deuteranopia",
     );
-    const slider = screen.getByTestId(
+    const slider = screen.getByTestId<HTMLInputElement>(
       selectors.components.emulator.blurSlider,
-    ) as HTMLInputElement;
+    );
     fireEvent.change(slider, { target: { value: "4" } });
     const viewport = screen.getByTestId(selectors.components.emulator.viewport);
     expect(viewport.style.filter).toContain("url(#rcl-vision-deuteranopia)");
@@ -150,9 +150,9 @@ describe("EmulatorChrome", () => {
   it("color-scheme select reflects the chosen option", async () => {
     const user = userEvent.setup();
     renderWithProviders(<FiltersHarness />);
-    const select = screen.getByTestId(
+    const select = screen.getByTestId<HTMLSelectElement>(
       selectors.components.emulator.colorSchemeSelect,
-    ) as HTMLSelectElement;
+    );
     expect(select.value).toBe("system");
     await user.selectOptions(select, "dark");
     expect(select.value).toBe("dark");

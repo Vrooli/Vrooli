@@ -136,7 +136,7 @@ export function ComponentsCard() {
         </p>
       )}
 
-      {componentsQuery.data && components.length === 0 && !componentsQuery.isLoading && (
+      {!componentsQuery.isLoading && components.length === 0 && (
         <p data-testid={selectors.components.empty} className="mt-3 text-slate-200">
           {t(strings.components.empty)}
         </p>

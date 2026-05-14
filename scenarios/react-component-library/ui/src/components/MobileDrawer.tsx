@@ -1,6 +1,7 @@
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode } from "react";
 import { X } from "lucide-react";
 
+import { useMobileDrawerShortcuts } from "../hooks/useMobileDrawerShortcuts";
 import { useTranslation } from "../i18n";
 
 interface Props {
@@ -11,15 +12,7 @@ interface Props {
 
 export function MobileDrawer({ open, onClose, children }: Props) {
   const { t } = useTranslation();
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  useMobileDrawerShortcuts({ open, onClose });
 
   if (!open) return null;
 

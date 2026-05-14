@@ -22,7 +22,7 @@ export function DashboardPage() {
     staleTime: 30_000,
   });
 
-  const count = data?.components?.length ?? 0;
+  const count = data?.components.length ?? 0;
 
   return (
     <div data-testid="dashboard-page" className="flex flex-col gap-6">

@@ -71,7 +71,7 @@ describe("ComponentEditor", () => {
       );
     });
     await waitFor(() => {
-      expect((screen.getByTestId("monaco-stub") as HTMLTextAreaElement).value).toBe(
+      expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toBe(
         "// real content\n",
       );
     });
@@ -99,7 +99,7 @@ describe("ComponentEditor", () => {
       expect(saveBtn).toBeDisabled();
     });
 
-    const stub = screen.getByTestId("monaco-stub") as HTMLTextAreaElement;
+    const stub = screen.getByTestId<HTMLTextAreaElement>("monaco-stub");
     await user.clear(stub);
     await user.type(stub, "v2");
 
@@ -135,7 +135,7 @@ describe("ComponentEditor", () => {
       <ComponentEditor id="cmp-7" libraryId="lib:Iframe" onClose={() => {}} />,
     );
 
-    const frame = (await screen.findByTestId(selectors.components.editor.previewFrame)) as HTMLIFrameElement;
+    const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
     expect(frame.getAttribute("src")).toContain("/preview/cmp-7/harness.html");
     await waitFor(() => {
       expect(frame.getAttribute("src")).toContain("v=sha-pre");
@@ -158,16 +158,21 @@ describe("ComponentEditor", () => {
       <ComponentEditor id="cmp-8" libraryId="lib:Reload" onClose={() => {}} />,
     );
 
-    const frame = (await screen.findByTestId(selectors.components.editor.previewFrame)) as HTMLIFrameElement;
-    expect(frame.getAttribute("src")).toContain("v=sha-pre");
+    await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+    await waitFor(() => {
+      expect(
+        screen.getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame).getAttribute("src"),
+      ).toContain("v=sha-pre");
+    });
 
-    const stub = screen.getByTestId("monaco-stub") as HTMLTextAreaElement;
+    const stub = screen.getByTestId<HTMLTextAreaElement>("monaco-stub");
     await user.clear(stub);
     await user.type(stub, "v2");
     await user.click(screen.getByTestId(selectors.components.editor.saveButton));
 
     await waitFor(() => {
-      const post = (screen.getByTestId(selectors.components.editor.previewFrame) as HTMLIFrameElement)
+      const post = screen
+        .getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame)
         .getAttribute("src");
       expect(post).toContain("v=sha-post");
     });

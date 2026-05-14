@@ -2,8 +2,6 @@
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like React Component Library are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "React Component Library",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.",
     "brand": "Component Library",
     "brandInitials": "RC"
   },
@@ -101,7 +99,6 @@
       "dirty": "Unsaved changes",
       "sha": "sha256 {{sha}}",
       "saved": "Saved.",
-      "noSelection": "Select a component from the list to edit.",
       "previewHeading": "Live preview",
       "previewWaiting": "Waiting for first paint…",
       "previewReady": "Rendered"
@@ -109,7 +106,6 @@
     "themeSwitcher": {
       "label": "Theme",
       "noneOption": "None",
-      "scenarioOptionGroup": "From scenario",
       "builtinOptionGroup": "Built-in",
       "scenarioInputLabel": "Scenario id",
       "scenarioInputPlaceholder": "e.g. flow-verifier",
@@ -118,10 +114,8 @@
       "applied": "Applied {{name}}"
     },
     "emulator": {
-      "label": "Viewport",
       "presetLabel": "Preset",
       "dimensions": "{{width}} × {{height}}",
-      "zoomLabel": "Zoom",
       "zoomValue": "{{percent}}%",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
@@ -153,12 +147,8 @@
       "statusActive": "Click an element in the preview",
       "statusReady": "Element selected",
       "empty": "No element selected yet.",
-      "selectorLabel": "Selector",
-      "tagLabel": "Tag",
       "rectLabel": "{{w}}×{{h}} @ ({{x}}, {{y}})",
-      "textLabel": "Text",
-      "breadcrumbLabel": "Ancestor path",
-      "ancestorDepth": "depth {{n}}"
+      "breadcrumbLabel": "Ancestor path"
     }
   },
   "adoptions": {
@@ -221,7 +211,6 @@
     "recordedAt": "Recorded {{when}}",
     "shaLabel": "sha256 {{sha}}",
     "versionLabel": "v{{version}}",
-    "diffAction": "Diff",
     "diff": {
       "title": "Diff",
       "fromLabel": "From",

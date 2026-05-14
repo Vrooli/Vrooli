@@ -59,7 +59,7 @@ describe("VersionsCard", () => {
     expect(items).toHaveLength(2);
     expect(items[0]?.textContent ?? "").toContain("v1.0.0");
     expect(items[1]?.textContent ?? "").toContain("v1.0.1");
-    const shas = screen.getAllByTestId(selectors.versions.itemSha).map((n) => n.textContent ?? "");
+    const shas = screen.getAllByTestId(selectors.versions.itemSha).map((n) => n.textContent);
     expect(shas[0] ?? "").toContain("aaa111bbb222");
     expect(shas[1] ?? "").toContain("ddd333eee444");
   });
@@ -122,7 +122,7 @@ describe("VersionsCard", () => {
       from: "1.0.0",
       to: "1.0.1",
     });
-    const summary = screen.getByTestId(selectors.versions.diff.summary).textContent ?? "";
+    const summary = screen.getByTestId(selectors.versions.diff.summary).textContent;
     expect(summary).toContain("+1");
     expect(summary).toContain("-1");
     expect(screen.getAllByTestId(selectors.versions.diff.row)).toHaveLength(3);

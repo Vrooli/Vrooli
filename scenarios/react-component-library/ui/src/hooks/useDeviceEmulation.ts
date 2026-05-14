@@ -54,7 +54,7 @@ const sanitize = (raw: unknown): EmulatorState => {
   const r = raw as Partial<EmulatorState>;
   const preset = DEVICE_PRESETS.find((p) => p.id === r.presetId);
   return {
-    presetId: (preset?.id ?? DEFAULT_PRESET_ID) as DevicePresetId,
+    presetId: preset?.id ?? DEFAULT_PRESET_ID,
     zoom: typeof r.zoom === "number" ? clampZoom(r.zoom) : 1,
     isRotated: Boolean(r.isRotated),
   };

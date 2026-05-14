@@ -68,7 +68,7 @@ describe("ComponentDetailPage", () => {
       expect(screen.getByTestId("component-detail-page")).toBeInTheDocument();
     });
     await waitFor(() => {
-      expect((screen.getByTestId("monaco-stub") as HTMLTextAreaElement).value).toBe("// hi");
+      expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toBe("// hi");
     });
   });
 });

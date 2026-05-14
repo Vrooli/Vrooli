@@ -54,7 +54,9 @@ export function ComponentDetailPage() {
       <ComponentEditor
         id={data.component.id}
         libraryId={data.component.libraryId || data.component.id}
-        onClose={() => navigate("/components")}
+        onClose={() => {
+          void navigate("/components");
+        }}
       />
       <VersionsCard componentId={data.component.id} />
     </div>

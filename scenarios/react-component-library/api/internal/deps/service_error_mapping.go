@@ -2,6 +2,7 @@ package deps
 
 import (
 	"errors"
+	"strings"
 
 	"connectrpc.com/connect"
 )
@@ -20,6 +21,9 @@ func ToConnectError(err error) error {
 	var pkgMissing ErrScenarioPackageJSONMissing
 	if errors.As(err, &pkgMissing) {
 		return connect.NewError(connect.CodeNotFound, pkgMissing)
+	}
+	if strings.Contains(err.Error(), "required") {
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewError(connect.CodeInternal, err)
 }

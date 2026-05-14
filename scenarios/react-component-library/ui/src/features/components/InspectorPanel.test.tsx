@@ -32,7 +32,7 @@ describe("InspectorPanel", () => {
   it("shows empty state and idle status by default", () => {
     renderWithProviders(<InspectorPanel inspector={makeInspector()} />);
     expect(screen.getByTestId(selectors.components.inspector.empty)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.components.inspector.statusBadge).textContent ?? "").toContain("Idle");
+    expect(screen.getByTestId(selectors.components.inspector.statusBadge).textContent).toContain("Idle");
   });
 
   it("toggle button calls startInspect when idle, stopInspect when active", async () => {
@@ -91,11 +91,11 @@ describe("InspectorPanel", () => {
     expect(crumbs).toHaveLength(3);
     expect(crumbs[0]?.textContent).toContain("div.shell");
     expect(crumbs[2]?.textContent).toContain("#submit");
-    expect(screen.getByTestId(selectors.components.inspector.statusBadge).textContent ?? "").toContain("selected");
+    expect(screen.getByTestId(selectors.components.inspector.statusBadge).textContent).toContain("selected");
   });
 
   it("shows active status when inspector is active", () => {
     renderWithProviders(<InspectorPanel inspector={makeInspector({ active: true })} />);
-    expect(screen.getByTestId(selectors.components.inspector.statusBadge).textContent ?? "").toContain("Click");
+    expect(screen.getByTestId(selectors.components.inspector.statusBadge).textContent).toContain("Click");
   });
 });

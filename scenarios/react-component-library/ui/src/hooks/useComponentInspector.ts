@@ -66,6 +66,21 @@ const initial: InspectState = {
   lastReason: null,
 };
 
+const isLastReason = (value: unknown): value is InspectState["lastReason"] =>
+  value === "start" || value === "stop" || value === "cancel" || value === "complete" || value === null;
+
+const isInspectPayload = (value: unknown): value is InspectPayload => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<InspectPayload>;
+  return (
+    !!candidate.meta &&
+    typeof candidate.meta === "object" &&
+    (candidate.rect === null || typeof candidate.rect === "object") &&
+    Array.isArray(candidate.ancestors) &&
+    typeof candidate.selectedAncestorIndex === "number"
+  );
+};
+
 export interface UseComponentInspectorReturn extends InspectState {
   startInspect: () => boolean;
   stopInspect: () => boolean;
@@ -88,17 +103,20 @@ export function useComponentInspector(
           setState((s) => ({
             ...s,
             active: !!d.active,
-            lastReason: (d.reason as InspectState["lastReason"]) ?? s.lastReason,
+            lastReason: isLastReason(d.reason) ? d.reason : s.lastReason,
             hover: d.active ? s.hover : null,
           }));
           return;
         case "INSPECT_HOVER":
-          setState((s) => ({ ...s, hover: (d.payload as InspectPayload) ?? null }));
+          setState((s) => ({
+            ...s,
+            hover: isInspectPayload(d.payload) ? d.payload : null,
+          }));
           return;
         case "INSPECT_RESULT":
           setState((s) => ({
             ...s,
-            result: (d.payload as InspectPayload) ?? null,
+            result: isInspectPayload(d.payload) ? d.payload : null,
             hover: null,
             active: false,
             lastReason: "complete",
