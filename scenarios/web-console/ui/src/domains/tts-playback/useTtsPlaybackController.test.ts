@@ -2,6 +2,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTtsPlaybackController } from "./useTtsPlaybackController";
 import type { ConversationEvent } from "../../api/conversation";
+import { useTtsPlaybackIntentStore } from "./store";
 
 const { mockGetConfig, mockSummarizeEvent, mockUpdateConfig } = vi.hoisted(() => ({
   mockGetConfig: vi.fn(),
@@ -16,6 +17,7 @@ vi.mock("../../api/tts", () => ({
 
 vi.mock("../../api/conversation", () => ({
   summarizeEvent: mockSummarizeEvent,
+  updateConversationCursor: vi.fn().mockResolvedValue({ lastSeenSequence: 0, lastListenedSequence: 0 }),
 }));
 
 function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequence: number }): ConversationEvent {
@@ -37,6 +39,11 @@ function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequenc
 describe("useTtsPlaybackController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
+    useTtsPlaybackIntentStore.setState({
+      playbackIntent: "continuous",
+      selectedTarget: null,
+    });
     mockGetConfig.mockResolvedValue({ level: "moderate" });
     mockUpdateConfig.mockResolvedValue({ level: "moderate" });
   });
@@ -105,7 +112,7 @@ describe("useTtsPlaybackController", () => {
         "sess-1",
         "Original 2",
         ["Summarized 2"],
-        { eventId: "e2", version: "active" },
+        { eventId: "e2", version: "active", initiatedBy: "manual" },
       );
     });
   });
@@ -163,8 +170,111 @@ describe("useTtsPlaybackController", () => {
         "sess-1",
         "Message 2",
         ["Original 2"],
-        { eventId: "e2", version: "original" },
+        { eventId: "e2", version: "original", initiatedBy: "manual" },
       );
     });
+  });
+
+  it("blocks incoming assistant auto-play while user intent is paused", async () => {
+    useTtsPlaybackIntentStore.setState({ playbackIntent: "paused" });
+    const event = makeEvent({ id: "e-paused", sequence: 3 });
+    const sessions = { "sess-1": { events: [event] } };
+    const speakText = vi.fn().mockResolvedValue("browser");
+
+    const { result } = renderHook(() => useTtsPlaybackController({
+      conversationSessions: sessions,
+      activePaneId: "sess-1",
+      autoTtsEnabled: true,
+      audioState: { playback: null, isSpeaking: false },
+      setViewMode: vi.fn(),
+      speakText,
+      stopPlayback: vi.fn(),
+      applySummarizeResult: vi.fn(),
+      onSummarizeFailed: vi.fn(),
+      onSummarizeSucceeded: vi.fn(),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.summarizeLevel).toBe("moderate");
+    });
+
+    act(() => {
+      result.current.handleIncomingEvent("sess-1", event, vi.fn());
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(speakText).not.toHaveBeenCalled();
+    expect(useTtsPlaybackIntentStore.getState().selectedTarget).toBeNull();
+  });
+
+  it("auto-plays an incoming active-pane assistant event when intent is continuous", async () => {
+    const event = makeEvent({ id: "e-live", sequence: 4, summarized: true });
+    const sessions = { "sess-1": { events: [event] } };
+    const speakText = vi.fn().mockResolvedValue("browser");
+    const ack = vi.fn();
+
+    const { result } = renderHook(() => useTtsPlaybackController({
+      conversationSessions: sessions,
+      activePaneId: "sess-1",
+      autoTtsEnabled: true,
+      audioState: { playback: null, isSpeaking: false },
+      setViewMode: vi.fn(),
+      speakText,
+      stopPlayback: vi.fn(),
+      applySummarizeResult: vi.fn(),
+      onSummarizeFailed: vi.fn(),
+      onSummarizeSucceeded: vi.fn(),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.summarizeLevel).toBe("moderate");
+    });
+
+    act(() => {
+      result.current.handleIncomingEvent("sess-1", event, ack);
+    });
+
+    await waitFor(() => {
+      expect(speakText).toHaveBeenCalledWith(
+        "sess-1",
+        event.text,
+        event.speechParagraphs,
+        { eventId: "e-live", version: "active", initiatedBy: "auto" },
+      );
+    });
+    expect(ack).toHaveBeenCalledWith("playback_started");
+  });
+
+  it("does not replace replay target for inactive-pane incoming events", async () => {
+    const priorTarget = { sessionId: "sess-1", eventId: "prior" };
+    useTtsPlaybackIntentStore.setState({ selectedTarget: priorTarget });
+    const event = makeEvent({ id: "inactive", sequence: 5 });
+    const sessions = { "sess-1": { events: [event] } };
+    const speakText = vi.fn().mockResolvedValue("browser");
+
+    const { result } = renderHook(() => useTtsPlaybackController({
+      conversationSessions: sessions,
+      activePaneId: "other-pane",
+      autoTtsEnabled: true,
+      audioState: { playback: null, isSpeaking: false },
+      setViewMode: vi.fn(),
+      speakText,
+      stopPlayback: vi.fn(),
+      applySummarizeResult: vi.fn(),
+      onSummarizeFailed: vi.fn(),
+      onSummarizeSucceeded: vi.fn(),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.summarizeLevel).toBe("moderate");
+    });
+
+    act(() => {
+      result.current.handleIncomingEvent("sess-1", event, vi.fn());
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(speakText).not.toHaveBeenCalled();
+    expect(useTtsPlaybackIntentStore.getState().selectedTarget).toEqual(priorTarget);
   });
 });

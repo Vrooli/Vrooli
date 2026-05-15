@@ -1,5 +1,5 @@
 import type { ConversationEvent } from "../../api/conversation";
-import type { PlaybackEventContext, PlaybackQueueEntry, PlaybackTarget, PlaybackVersion, SessionPlaybackControllerState } from "./types";
+import type { PlaybackEventContext, PlaybackIntent, PlaybackQueueEntry, PlaybackTarget, PlaybackVersion, SessionPlaybackControllerState } from "./types";
 
 export function playbackEventKey(sessionId: string, eventId: string): string {
   return `${sessionId}:${eventId}`;
@@ -70,6 +70,7 @@ export function buildPlaybackContext(
   sessions: Record<string, { events: ConversationEvent[] } | undefined>,
   state: SessionPlaybackControllerState,
   currentTarget: PlaybackTarget | null,
+  intent: PlaybackIntent,
 ): PlaybackEventContext | null {
   const event = findConversationEvent(sessions, currentTarget);
   if (!currentTarget || !event) return null;
@@ -80,5 +81,50 @@ export function buildPlaybackContext(
     version,
     queueLabel: buildQueueLabel(state, event),
     hasQueuedNext: state.queueEntries.length > 0 && state.queueIndex < state.queueEntries.length - 1,
+    intent,
   };
+}
+
+export function shouldAutoPlayIncomingEvent(args: {
+  autoTtsEnabled: boolean;
+  playbackIntent: PlaybackIntent;
+  activePaneId: string | null;
+  sessionId: string;
+  event: ConversationEvent;
+  isSpeaking: boolean;
+}): boolean {
+  return args.autoTtsEnabled
+    && args.playbackIntent === "continuous"
+    && args.activePaneId === args.sessionId
+    && args.event.role === "assistant"
+    && !args.isSpeaking;
+}
+
+export function shouldShowPlaybackBar(args: {
+  autoTtsEnabled: boolean;
+  activePaneId: string | null;
+  context: PlaybackEventContext | null;
+}): boolean {
+  return Boolean(
+    args.autoTtsEnabled
+    && args.context?.event
+    && args.context.sessionId
+    && args.activePaneId === args.context.sessionId,
+  );
+}
+
+export function nextIntentAfterUserPlay(): PlaybackIntent {
+  return "continuous";
+}
+
+export function nextIntentAfterUserPause(): PlaybackIntent {
+  return "paused";
+}
+
+export function nextIntentAfterUserStop(): PlaybackIntent {
+  return "stopped";
+}
+
+export function nextIntentAfterNaturalCompletion(intent: PlaybackIntent): PlaybackIntent {
+  return intent === "continuous" ? "continuous" : intent;
 }

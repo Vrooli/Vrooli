@@ -112,7 +112,7 @@ function VoiceMicButtonInner({
   const { t } = useTranslation();
   /** True when the mic is actively capturing (either one-shot or persistent). */
   const isMicActive = isRecording || isListening;
-  const btnRef = useRef<HTMLButtonElement>(null);
+  const [buttonEl, setButtonEl] = useState<HTMLButtonElement | null>(null);
   const pressStartRef = useRef(0);
   /** Tracks the intent of the current pointer interaction to avoid stale-closure races. */
   const pressIntentRef = useRef<"start" | "stop" | "cancel" | "none">("none");
@@ -173,7 +173,7 @@ function VoiceMicButtonInner({
   return (
     <div className={cn("relative shrink-0", wrapperClassName)}>
       <button
-        ref={btnRef}
+        ref={setButtonEl}
         data-testid="voice-mic-btn"
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
@@ -247,10 +247,10 @@ function VoiceMicButtonInner({
           <Mic className="h-3.5 w-3.5 relative" />
         )}
       </button>
-      {hasError && btnRef.current && (
-        <ErrorTooltip anchor={btnRef.current} text={error as string} />
+      {hasError && buttonEl && (
+        <ErrorTooltip anchor={buttonEl} text={error as string} />
       )}
-      {isMicActive && partialTranscript && btnRef.current && (
+      {isMicActive && partialTranscript && buttonEl && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 max-w-[200px] rounded border border-wc-default bg-wc-surface-raised px-2 py-1 text-[10px] text-wc-text-secondary shadow-lg pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">
           {partialTranscript}
         </div>

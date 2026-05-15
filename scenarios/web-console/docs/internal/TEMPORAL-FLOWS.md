@@ -6,7 +6,7 @@
 
 | Flow ID | Domain | Risk | Model Status | Source of Truth | Tests | Remaining Gaps |
 |---|---|---|---|---|---|---|
-| `web-console.playback-transport.ui` | `tts-playback` | High — pause/resume + queue advancement bugs reported by users | L5 (Quint-checked) | `ui/src/domains/tts-playback/flow/flow.json` + `transition.ts` | `flow.test.ts` (formal replay), `useTtsPlaybackController.test.ts` | None known. Within-event paragraph concatenation still routes through `Kokoro.speakSequence`; the removed event-iterating for-loop in `TerminalPane` never produced cross-event continuous audio — just chained per-event audio elements |
+| `web-console.playback-transport.ui` | `tts-playback` | High — pause/resume + queue advancement bugs reported by users | L5 transport, L3 intent | `ui/src/domains/tts-playback/flow/flow.json`, `transition.ts`, `store.ts`, `useTtsPlaybackController.ts` | `flow.test.ts` (formal replay), `useTtsPlaybackController.test.ts`, `workspace-tts-replay-bar.test.tsx`, `terminal-pane-tts-stop.test.tsx` | Transport is formalized. Persistent user intent is reducer/hook tested but not yet represented in `flow.json`. |
 
 ## Unmodeled Candidates
 
@@ -22,10 +22,12 @@
 | Flow ID | Spec Type | Generated Artifacts | Drift Check | Status |
 |---|---|---|---|---|
 | `web-console.playback-transport.ui` | `flow.json` (schemaVersion 6) | `flow/generated/{model.qnt,runtime.ts,replay.helper.ts,artifact.json}` | `flow-verifier verify check` + vitest replay of all named traces | adopted |
+| `web-console.playback-intent.ui` | TypeScript helpers + persisted Zustand store | N/A | Vitest helper/controller/component regression tests | adopted, not formalized |
 
 ## Audit Notes
 
 - **2026-05-13** — Initial L5 adoption of `web-console.playback-transport.ui`. Quint check passes (TypeOK, IllegalTransitionsPreserveState, PausedSwallowsAutoAdvance, StaleCompletionIsIgnored). Vitest replay green. Wired into `useTtsPlaybackController` to fix user-reported "pause auto-advances to next message" and "pause then play elsewhere" races. Stale-completion guarding via `loadId` carried in event payloads, mirroring the notes template's `attempt-id` pattern.
+- **2026-05-15** — Frontend TTS auto-play policy moved out of `TerminalPane` and into `useTtsPlaybackController`. The controller now owns persisted `playbackIntent` (`continuous`, `paused`, `stopped`), selected target, incoming assistant auto-play decisions, and listened-cursor commits after natural completion. The playback bar has no close/collapse presentation state; when auto-TTS is enabled, visibility derives from a valid active/replay target. `TerminalPane` appends conversation events, sends received/seen acks, and exposes provider controls only. Remaining gap: intent is documented and tested in TypeScript, but not yet in the formal flow model.
 
 ## Async Operation Inventory
 

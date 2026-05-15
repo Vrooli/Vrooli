@@ -40,6 +40,7 @@ interface SessionContextPickerProps {
   selected: SessionContextOption[];
   onApply: (items: SessionContextOption[]) => void;
   currentSessionId?: string;
+  initialType?: AgentSessionContextType | null;
 }
 
 export function SessionContextPicker({
@@ -57,6 +58,7 @@ function SessionContextPickerContent({
   selected,
   onApply,
   currentSessionId,
+  initialType,
 }: SessionContextPickerProps) {
   const allowedTypes = useMemo(() => allowedContextTypesForKind(sessionKind), [sessionKind]);
   const [activeType, setActiveType] = useState<AgentSessionContextType>(allowedTypes[0] ?? "initiative");
@@ -86,7 +88,11 @@ function SessionContextPickerContent({
   useEffect(() => {
     if (!isOpen) return;
     setDraft(selected);
-    setActiveType((current) => (allowedTypes.includes(current) ? current : allowedTypes[0] ?? "initiative"));
+    setActiveType((current) => {
+      if (initialType && allowedTypes.includes(initialType)) return initialType;
+      return allowedTypes.includes(current) ? current : allowedTypes[0] ?? "initiative";
+    });
+    setQuery("");
     void fetchBacklog();
     void fetchInitiatives();
     void fetchCaptures();
@@ -94,7 +100,7 @@ function SessionContextPickerContent({
     void refreshActivities(false);
     void fetchScenarios();
     void fetchSessions({ limit: 100 });
-  }, [allowedTypes, fetchBacklog, fetchCaptures, fetchExecutions, fetchInitiatives, fetchScenarios, fetchSessions, isOpen, refreshActivities, selected]);
+  }, [allowedTypes, fetchBacklog, fetchCaptures, fetchExecutions, fetchInitiatives, fetchScenarios, fetchSessions, initialType, isOpen, refreshActivities, selected]);
 
   const optionsByType = useMemo<Record<AgentSessionContextType, SessionContextOption[]>>(() => ({
     backlog_item: backlogItems.map(backlogOption),

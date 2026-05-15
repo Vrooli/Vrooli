@@ -35,7 +35,6 @@ function makeProps(overrides?: Partial<AudioPlayerBarProps>): AudioPlayerBarProp
     onSetPlaybackRate: vi.fn(),
     onSetVolume: vi.fn(),
     onSetMuted: vi.fn(),
-    onDismiss: vi.fn(),
     ...overrides,
   };
 }
@@ -84,13 +83,9 @@ describe("AudioPlayerBar", () => {
     expect(props.onResume).toHaveBeenCalledTimes(1);
   });
 
-  it("dismiss button always visible and calls onDismiss", () => {
-    const props = makeProps();
-    render(<AudioPlayerBar {...props} />);
-    const dismissBtn = screen.getByTestId("tts-dismiss");
-    expect(dismissBtn).toBeInTheDocument();
-    fireEvent.click(dismissBtn);
-    expect(props.onDismiss).toHaveBeenCalledTimes(1);
+  it("does not render a dismiss control", () => {
+    render(<AudioPlayerBar {...makeProps()} />);
+    expect(screen.queryByTestId("tts-dismiss")).toBeNull();
   });
 
   it("scrub bar reflects currentTime and changing it calls onSeek", () => {

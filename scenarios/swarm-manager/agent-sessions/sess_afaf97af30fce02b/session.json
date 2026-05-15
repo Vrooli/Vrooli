@@ -1,0 +1,15 @@
+{
+  "id": "sess_afaf97af30fce02b",
+  "title": "Manage Swarm operations",
+  "kind": "swarm_operations",
+  "status": "running",
+  "skill_id": "swarm-manager-operations-session",
+  "task_id": "1f15030a-a5b9-462c-8bef-1b23e1b7ab7c",
+  "run_id": "5d6db58d-8e73-4d09-9442-52f37f6ce916",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-05-15T21:59:15Z",
+  "updated_at": "2026-05-15T22:00:06Z",
+  "created_by": {
+    "type": "operator"
+  }
+}

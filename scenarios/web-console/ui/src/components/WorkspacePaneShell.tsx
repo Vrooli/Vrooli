@@ -47,6 +47,11 @@ interface WorkspacePaneShellProps {
   onVoiceStop?: () => void;
   onTtsSpeakingChange: (sessionId: string, speaking: boolean) => void;
   onSpeakingEventChange: (sessionId: string, eventId: string | null) => void;
+  onConversationEventReceived: (
+    sessionId: string,
+    event: ConversationEvent,
+    sendAck: (stage: string, message?: string, backend?: string) => void,
+  ) => void;
   onSummarizeError: (sessionId: string, eventId: string, message: string) => void;
   onNeedsUnlock: (payload: { sessionId: string; enable: () => Promise<boolean> } | null) => void;
   onPlayFromHere: (sessionId: string, eventId: string) => void;
@@ -88,6 +93,7 @@ function WorkspacePaneShell({
   onVoiceStop,
   onTtsSpeakingChange,
   onSpeakingEventChange,
+  onConversationEventReceived,
   onSummarizeError,
   onNeedsUnlock,
   onPlayFromHere,
@@ -186,6 +192,7 @@ function WorkspacePaneShell({
             onVoiceStop={onVoiceStop}
             onTtsSpeakingChange={(speaking) => onTtsSpeakingChange(sessionId, speaking)}
             onSpeakingEventChange={(eventId) => onSpeakingEventChange(sessionId, eventId)}
+            onConversationEventReceived={onConversationEventReceived}
             onSummarizeError={(eventId, message) => onSummarizeError(sessionId, eventId, message)}
             onNeedsUnlock={onNeedsUnlock}
             ref={(handle) => onTerminalRef(sessionId, handle)}

@@ -1,13 +1,7 @@
 /**
- * Regression test for the TTS stop-retry-loop bug.
- *
- * Root cause: when the user stops TTS mid-playback, `speakParagraphs`
- * resolves without advancing `lastListenedSequence`. The pending-events
- * effect re-fires (because `isSpeaking` flipped to false) and finds the
- * same "unlistened" event, replaying it in an infinite loop.
- *
- * Fix: `stopTts()` now advances the cursor past all current assistant
- * events so the pending-events effect finds nothing to replay.
+ * Regression tests for stop semantics. Stop is now a playback-intent action
+ * owned by the controller; TerminalPane must stop the provider without marking
+ * assistant messages as listened.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, cleanup } from "@testing-library/react";
@@ -144,90 +138,55 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     cleanup();
   });
 
-  it("stopTts advances lastListenedSequence so the pending-events effect does not retry", async () => {
-    // speakParagraphs returns a promise that never resolves (simulates ongoing playback)
-    let rejectSpeak: ((reason?: unknown) => void) | undefined;
-    mockSpeakParagraphs.mockImplementation(
-      () => new Promise<string | undefined>((_, reject) => { rejectSpeak = reject; }),
-    );
-
+  it("stopTts stops provider playback without advancing lastListenedSequence", async () => {
     const ref = createRef<TerminalPaneHandle>();
     render(<TerminalPane ref={ref} sessionId={SESSION_ID} />);
 
-    // Wait for conversation session hydration (catches API error → empty state)
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
 
-    // Fire a conversation event — this starts TTS playback via handleConversationEvent.
-    // Because speakParagraphs never resolves, the cursor won't be advanced by normal flow.
     const ack = vi.fn();
-    // Don't await — the handler is blocked on speakParagraphs
-    let handlerDone = false;
     await act(async () => {
-      void (async () => {
-        await capturedHandler?.({
-          id: "evt-stop-1", source: "claude_hook", role: "assistant",
-          sequence: 42, text: "Stop me", speechParagraphs: ["Stop me"],
-        }, ack);
-        handlerDone = true;
-      })();
-      await new Promise((r) => setTimeout(r, 10));
+      await capturedHandler?.({
+        id: "evt-stop-1", source: "claude_hook", role: "assistant",
+        sequence: 42, text: "Stop me", speechParagraphs: ["Stop me"],
+      }, ack);
     });
 
-    // Let the handler start executing up to the await speakParagraphs
-    expect(mockSpeakParagraphs).toHaveBeenCalledTimes(1);
-    expect(handlerDone).toBe(false); // Still awaiting speakParagraphs
-
-    // User clicks Stop — this should advance cursor past sequence 42
     await act(async () => {
       ref.current?.stopTts();
     });
 
-    // Verify cursor was advanced
     const session = useConversationStore.getState().sessions[SESSION_ID];
     expect(session).toBeDefined();
-    expect(session?.cursor.lastListenedSequence).toBeGreaterThanOrEqual(42);
-
-    // Reject the pending speakParagraphs to unblock handleConversationEvent
-    rejectSpeak?.(new DOMException("The operation was aborted.", "AbortError"));
-    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
-
-    // speakParagraphs should NOT have been called again (no retry loop)
-    expect(mockSpeakParagraphs).toHaveBeenCalledTimes(1);
+    expect(session?.cursor.lastListenedSequence).toBe(0);
+    expect(mockStop).toHaveBeenCalledTimes(1);
+    expect(mockSpeakParagraphs).not.toHaveBeenCalled();
+    expect(ack).toHaveBeenCalledWith("received");
   });
 
-  it("stopTts skips multiple pending events, not just the current one", async () => {
-    // speakParagraphs resolves immediately for initial events, then blocks
-    let callCount = 0;
-    mockSpeakParagraphs.mockImplementation(() => {
-      callCount++;
-      if (callCount <= 2) return Promise.resolve("browser");
-      return new Promise<string | undefined>(() => {}); // block on 3rd
-    });
-
+  it("stopTts leaves multiple assistant events unlistened instead of skipping them", async () => {
     const ref = createRef<TerminalPaneHandle>();
     render(<TerminalPane ref={ref} sessionId={SESSION_ID} />);
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
 
-    // Send 3 events — first 2 resolve, 3rd blocks
     const ack = vi.fn();
     for (let i = 1; i <= 3; i++) {
       await act(async () => {
-        void capturedHandler?.({
+        await capturedHandler?.({
           id: `evt-multi-${i}`, source: "claude_hook", role: "assistant",
           sequence: 100 + i, text: `Message ${i}`, speechParagraphs: [`Message ${i}`],
         }, ack);
-        await new Promise((r) => setTimeout(r, 10));
       });
     }
 
-    // Stop all TTS
     await act(async () => {
       ref.current?.stopTts();
     });
 
-    // Cursor should be at sequence 103 (the highest assistant event)
     const session = useConversationStore.getState().sessions[SESSION_ID];
-    expect(session?.cursor.lastListenedSequence).toBeGreaterThanOrEqual(103);
+    expect(session?.cursor.lastSeenSequence).toBeGreaterThanOrEqual(103);
+    expect(session?.cursor.lastListenedSequence).toBe(0);
+    expect(mockSpeakParagraphs).not.toHaveBeenCalled();
   });
 
   it("manual playback paths auto-unmute before speaking or resuming", async () => {
@@ -247,5 +206,20 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     });
     expect(mockSetMuted).toHaveBeenLastCalledWith(false);
     expect(mockResume).toHaveBeenCalledTimes(1);
+  });
+
+  it("auto playback preserves the current muted state", async () => {
+    mockSpeakParagraphs.mockResolvedValue("browser");
+
+    const ref = createRef<TerminalPaneHandle>();
+    render(<TerminalPane ref={ref} sessionId={SESSION_ID} />);
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+
+    act(() => {
+      void ref.current?.speakText("Auto", ["Auto"], { eventId: "evt-auto", version: "active", initiatedBy: "auto" });
+    });
+
+    expect(mockSetMuted).not.toHaveBeenCalledWith(false);
+    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Auto"], { eventId: "evt-auto", version: "active", initiatedBy: "auto" });
   });
 });

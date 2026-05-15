@@ -3,6 +3,7 @@ import { getTTSSummarizeConfig, updateTTSSummarizeConfig } from "../../api/tts";
 import { summarizeEvent, type ConversationEvent } from "../../api/conversation";
 import type { SummarizationLevel } from "../../components/tts/PlaybackModeControl";
 import type {
+  IncomingPlaybackAck,
   PlaybackEventContext,
   PlaybackFocusRequest,
   PlaybackQueueEntry,
@@ -16,7 +17,16 @@ import {
   playbackEventKey,
   resolvePlaybackParagraphs,
   resolvePlaybackVersion,
+  nextIntentAfterNaturalCompletion,
+  nextIntentAfterUserPause,
+  nextIntentAfterUserPlay,
+  nextIntentAfterUserStop,
+  shouldAutoPlayIncomingEvent,
+  shouldShowPlaybackBar,
 } from "./utils";
+import { updateConversationCursor } from "../../api/conversation";
+import { useConversationStore } from "../../stores/useConversationStore";
+import { useTtsPlaybackIntentStore } from "./store";
 import {
   buildPlayNextEvent,
   initialPlaybackTransportState,
@@ -29,8 +39,8 @@ import {
 //
 // Transport state (loading/playing/paused/idle/error + queue) is owned by the
 // PlaybackTransport state machine in ./flow/transition. The non-transport
-// surfaces — version preference, summarization status, focus requests, replay
-// dismissal — remain plain hook state because they are not temporal logic.
+// surfaces — version preference, summarization status, and focus requests —
+// remain plain hook state because they are not temporal logic.
 // See docs/internal/TEMPORAL-FLOWS.md and flow/flow.json for the contract.
 
 interface ConversationSessionLike {
@@ -45,7 +55,6 @@ type AuxState = Pick<
   | "summarizingEventId"
   | "summarizeErrors"
   | "focusRequest"
-  | "replayDismissed"
 >;
 
 const INITIAL_AUX: AuxState = {
@@ -55,7 +64,6 @@ const INITIAL_AUX: AuxState = {
   summarizingEventId: null,
   summarizeErrors: {},
   focusRequest: null,
-  replayDismissed: false,
 };
 
 interface UseTtsPlaybackControllerOptions {
@@ -64,7 +72,7 @@ interface UseTtsPlaybackControllerOptions {
   autoTtsEnabled: boolean;
   audioState: SessionPlaybackAudioState;
   setViewMode: (sessionId: string, mode: "terminal" | "messages") => void;
-  speakText: (sessionId: string, text: string, paragraphs: string[], opts: { eventId: string; version: PlaybackVersion }) => void;
+  speakText: (sessionId: string, text: string, paragraphs: string[], opts: { eventId: string; version: PlaybackVersion; initiatedBy: "auto" | "manual" }) => Promise<string | undefined>;
   stopPlayback: (targetId?: string) => void;
   applySummarizeResult: (sessionId: string, eventId: string, speechParagraphs: string[]) => void;
   onSummarizeFailed?: (sessionId: string, eventId: string, message: string) => void;
@@ -113,6 +121,10 @@ export function useTtsPlaybackController({
 }: UseTtsPlaybackControllerOptions): SessionPlaybackController {
   const [aux, setAux] = useState<AuxState>(INITIAL_AUX);
   const [smState, smDispatchRaw] = useReducer(transitionPlaybackTransport, initialPlaybackTransportState);
+  const playbackIntent = useTtsPlaybackIntentStore((state) => state.playbackIntent);
+  const persistedTarget = useTtsPlaybackIntentStore((state) => state.selectedTarget);
+  const setPlaybackIntent = useTtsPlaybackIntentStore((state) => state.setPlaybackIntent);
+  const setPersistedTarget = useTtsPlaybackIntentStore((state) => state.setSelectedTarget);
 
   const smStateRef = useRef(smState);
   smStateRef.current = smState;
@@ -120,6 +132,9 @@ export function useTtsPlaybackController({
   conversationSessionsRef.current = conversationSessions;
   const auxRef = useRef(aux);
   auxRef.current = aux;
+  const playbackIntentRef = useRef(playbackIntent);
+  playbackIntentRef.current = playbackIntent;
+  const lastStartedEventRef = useRef<{ sessionId: string; eventId: string } | null>(null);
 
   const smDispatch = useCallback((event: PlaybackTransportEvent) => {
     smDispatchRaw(event);
@@ -205,6 +220,18 @@ export function useTtsPlaybackController({
     };
   }, [applySummarizeResult, onSummarizeFailed, onSummarizeSucceeded]);
 
+  const persistListened = useCallback((sessionId: string, event: ConversationEvent) => {
+    const cursor = { lastListenedSequence: event.sequence, lastSeenSequence: event.sequence };
+    useConversationStore.getState().updateCursor(sessionId, cursor);
+    void updateConversationCursor(sessionId, cursor)
+      .then((updated) => {
+        useConversationStore.getState().updateCursor(sessionId, updated);
+      })
+      .catch(() => {
+        // Best effort: retain the optimistic local cursor.
+      });
+  }, []);
+
   // Begin playing a queue (single-event or multi-event) starting at startIndex.
   // Drives the SM through play → loading, awaits ensurePlaybackData, then
   // dispatches loadResolved + invokes speakText. Stale completions (from a
@@ -228,7 +255,8 @@ export function useTtsPlaybackController({
       queue,
       queueIndex: startIndex,
     });
-    setAux((prev) => ({ ...prev, replayDismissed: false }));
+    setPlaybackIntent(nextIntentAfterUserPlay());
+    setPersistedTarget({ sessionId, eventId });
     stopPlayback(sessionId);
     void ensurePlaybackData(sessionId, event, auxRef.current.preferredVersion).then(({ text, paragraphs, version }) => {
       const current = smStateRef.current;
@@ -237,7 +265,8 @@ export function useTtsPlaybackController({
         return;
       }
       smDispatch({ type: "loadResolved", loadId });
-      speakText(sessionId, text, paragraphs, { eventId, version });
+      lastStartedEventRef.current = { sessionId, eventId };
+      void speakText(sessionId, text, paragraphs, { eventId, version, initiatedBy: "manual" });
     }).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : "Playback prep failed";
       const current = smStateRef.current;
@@ -245,7 +274,7 @@ export function useTtsPlaybackController({
         smDispatch({ type: "loadFailed", loadId, message });
       }
     });
-  }, [ensurePlaybackData, getEvent, smDispatch, speakText, stopPlayback]);
+  }, [ensurePlaybackData, getEvent, setPersistedTarget, setPlaybackIntent, smDispatch, speakText, stopPlayback]);
 
   const playEvent = useCallback((sessionId: string, eventId: string) => {
     beginQueue(sessionId, [eventId], 0);
@@ -294,6 +323,12 @@ export function useTtsPlaybackController({
       if (current.status === "playing") {
         const endedEventId = current.eventId;
         smDispatch({ type: "trackEnded", eventId: endedEventId });
+        setPlaybackIntent(nextIntentAfterNaturalCompletion(playbackIntentRef.current));
+        const endedEvent = getEvent(current.sessionId, endedEventId);
+        if (endedEvent) {
+          persistListened(current.sessionId, endedEvent);
+          setPersistedTarget({ sessionId: current.sessionId, eventId: endedEventId });
+        }
         const nextEvent = buildPlayNextEvent(current, generateLoadId());
         if (nextEvent && nextEvent.type === "play") {
           // Dispatch + drive side effects via beginQueue's path
@@ -301,7 +336,7 @@ export function useTtsPlaybackController({
         }
       }
     }
-  }, [audioState.isSpeaking, audioState.playback?.isPaused, beginQueue, smDispatch]);
+  }, [audioState.isSpeaking, audioState.playback?.isPaused, beginQueue, getEvent, persistListened, setPersistedTarget, setPlaybackIntent, smDispatch]);
 
   const toggleVersion = useCallback((sessionId: string, eventId: string, useSummarized: boolean) => {
     const event = getEvent(sessionId, eventId);
@@ -313,7 +348,8 @@ export function useTtsPlaybackController({
       && current.status !== "error"
       && current.sessionId === sessionId
       && current.eventId === eventId;
-    if (!isCurrentTarget) return;
+    const isPersistedTarget = persistedTarget?.sessionId === sessionId && persistedTarget.eventId === eventId;
+    if (!isCurrentTarget && !isPersistedTarget) return;
     // Toggle is fast-path: paragraphs are already available on the event, so
     // there is no async data prep. Drive the SM through play → loadResolved
     // synchronously so the UI re-renders in playing state on the same tick
@@ -330,9 +366,11 @@ export function useTtsPlaybackController({
     });
     stopPlayback(sessionId);
     smDispatch({ type: "loadResolved", loadId });
-    setAux((prev) => ({ ...prev, replayDismissed: false }));
-    speakText(sessionId, event.text, paragraphs, { eventId, version });
-  }, [getEvent, smDispatch, speakText, stopPlayback, updateVersionPreference]);
+    setPlaybackIntent(nextIntentAfterUserPlay());
+    setPersistedTarget({ sessionId, eventId });
+    lastStartedEventRef.current = { sessionId, eventId };
+    void speakText(sessionId, event.text, paragraphs, { eventId, version, initiatedBy: "manual" });
+  }, [getEvent, persistedTarget, setPersistedTarget, setPlaybackIntent, smDispatch, speakText, stopPlayback, updateVersionPreference]);
 
   const changeSummarizeLevel = useCallback((sessionId: string, eventId: string, level: SummarizationLevel) => {
     const event = getEvent(sessionId, eventId);
@@ -397,6 +435,60 @@ export function useTtsPlaybackController({
   // queue authority lives in the SM. It still acts as a fallback to seed the
   // SM when audio playback originates outside the controller (e.g. live
   // assistant streaming begins speaking before the user hits play).
+  const handleIncomingEvent = useCallback((sessionId: string, event: ConversationEvent, sendAck: IncomingPlaybackAck) => {
+    if (event.role !== "assistant") return;
+    if (!shouldAutoPlayIncomingEvent({
+      autoTtsEnabled,
+      playbackIntent: playbackIntentRef.current,
+      activePaneId,
+      sessionId,
+      event,
+      isSpeaking: audioState.isSpeaking,
+    })) {
+      return;
+    }
+    setPersistedTarget({ sessionId, eventId: event.id });
+    const loadId = generateLoadId();
+    smDispatch({
+      type: "play",
+      sessionId,
+      eventId: event.id,
+      loadId,
+      queue: [event.id],
+      queueIndex: 0,
+    });
+    stopPlayback(sessionId);
+    void ensurePlaybackData(sessionId, event, auxRef.current.preferredVersion)
+      .then(({ text, paragraphs, version }) => {
+        const current = smStateRef.current;
+        if (current.status !== "loading" || current.loadId !== loadId) return;
+        smDispatch({ type: "loadResolved", loadId });
+        lastStartedEventRef.current = { sessionId, eventId: event.id };
+        sendAck("playback_started");
+        return speakText(sessionId, text, paragraphs, { eventId: event.id, version, initiatedBy: "auto" });
+      })
+      .then((usedBackend) => {
+        const current = smStateRef.current;
+        if (!usedBackend || current.status !== "playing" || current.sessionId !== sessionId || current.eventId !== event.id) {
+          if (!usedBackend) {
+            sendAck("playback_failed", "TTS provider not ready");
+          }
+          return;
+        }
+        sendAck("playback_succeeded", undefined, usedBackend);
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "Speech failed";
+        const current = smStateRef.current;
+        if (current.status === "loading" && current.loadId === loadId) {
+          smDispatch({ type: "loadFailed", loadId, message });
+        } else if (current.status === "playing" && current.sessionId === sessionId && current.eventId === event.id) {
+          smDispatch({ type: "playbackError", message });
+        }
+        sendAck("playback_failed", message);
+      });
+  }, [activePaneId, audioState.isSpeaking, autoTtsEnabled, ensurePlaybackData, setPersistedTarget, smDispatch, speakText, stopPlayback]);
+
   const handleTransportEventStart = useCallback((sessionId: string, eventId: string | null) => {
     if (!eventId) return;
     const current = smStateRef.current;
@@ -405,9 +497,9 @@ export function useTtsPlaybackController({
       && current.sessionId === sessionId
       && current.queue.includes(eventId);
     if (!alreadyTracked) {
-      beginQueue(sessionId, [eventId], 0);
+      setPersistedTarget({ sessionId, eventId });
     }
-  }, [beginQueue]);
+  }, [setPersistedTarget]);
 
   // No-op kept for API parity: the SM observes audioState.isSpeaking directly
   // to synthesize trackEnded, so this callback no longer needs to drive state.
@@ -424,13 +516,33 @@ export function useTtsPlaybackController({
     });
   }, []);
 
-  const dismissBar = useCallback((paneId: string | null, isSpeaking: boolean) => {
-    if (isSpeaking && paneId) {
-      stopPlayback(paneId);
+  const pausePlayback = useCallback((sessionId: string | null) => {
+    setPlaybackIntent(nextIntentAfterUserPause());
+    if (sessionId) {
+      // The provider pause is invoked by Workspace; this records durable intent.
+      setPersistedTarget(smStateRef.current.status === "idle" ? persistedTarget : { sessionId, eventId: smStateRef.current.eventId });
     }
+    smDispatch({ type: "pause" });
+  }, [persistedTarget, setPersistedTarget, setPlaybackIntent, smDispatch]);
+
+  const resumePlayback = useCallback((sessionId: string | null) => {
+    setPlaybackIntent(nextIntentAfterUserPlay());
+    if (sessionId) {
+      const current = smStateRef.current;
+      if (current.status === "paused") {
+        smDispatch({ type: "resume" });
+        return;
+      }
+      const target = current.status === "idle" ? persistedTarget : { sessionId: current.sessionId, eventId: current.eventId };
+      if (target) beginQueue(target.sessionId, [target.eventId], 0);
+    }
+  }, [beginQueue, persistedTarget, setPlaybackIntent, smDispatch]);
+
+  const stopPlaybackWithIntent = useCallback((sessionId: string | null) => {
+    setPlaybackIntent(nextIntentAfterUserStop());
+    if (sessionId) stopPlayback(sessionId);
     smDispatch({ type: "stop" });
-    setAux((prev) => ({ ...prev, replayDismissed: true }));
-  }, [smDispatch, stopPlayback]);
+  }, [setPlaybackIntent, smDispatch, stopPlayback]);
 
   const focusCurrentEvent = useCallback((paneId: string | null) => {
     const current = smStateRef.current;
@@ -450,7 +562,7 @@ export function useTtsPlaybackController({
   const derivedState = useMemo<SessionPlaybackControllerState>(() => {
     const queueInfo = queueEntriesFromState(smState, conversationSessions, aux.selectedVersions, aux.preferredVersion);
     const target = smState.status === "idle"
-      ? null
+      ? persistedTarget
       : { sessionId: smState.sessionId, eventId: smState.eventId };
     const activeTarget = (smState.status === "playing" || smState.status === "loading") ? target : null;
     return {
@@ -465,35 +577,22 @@ export function useTtsPlaybackController({
       summarizingEventId: aux.summarizingEventId,
       summarizeErrors: aux.summarizeErrors,
       focusRequest: aux.focusRequest,
-      replayDismissed: aux.replayDismissed,
     };
-  }, [aux, conversationSessions, smState]);
+  }, [aux, conversationSessions, persistedTarget, smState]);
 
   const barContext = useMemo<PlaybackEventContext | null>(() => {
     const target = derivedState.activeTarget ?? derivedState.replayTarget;
-    return buildPlaybackContext(conversationSessions, derivedState, target);
-  }, [conversationSessions, derivedState]);
+    return buildPlaybackContext(conversationSessions, derivedState, target, playbackIntent);
+  }, [conversationSessions, derivedState, playbackIntent]);
 
   const buildBarContextSelector = useCallback((
     paneId: string | null,
     autoEnabled: boolean,
-    currentAudioState: SessionPlaybackAudioState,
+    _currentAudioState: SessionPlaybackAudioState,
   ) => {
-    if (!barContext?.event || !barContext.sessionId) return null;
-    if (paneId !== barContext.sessionId) return null;
-    if (currentAudioState.isSpeaking) return barContext;
-    if (!autoEnabled || derivedState.replayDismissed) return null;
+    if (!shouldShowPlaybackBar({ autoTtsEnabled: autoEnabled, activePaneId: paneId, context: barContext })) return null;
     return barContext;
-  }, [barContext, derivedState.replayDismissed]);
-
-  // When auto-tts becomes available again on the active pane, surface the
-  // bar by clearing the dismiss flag. Mirrors prior controller behaviour.
-  useEffect(() => {
-    if (!autoTtsEnabled || audioState.isSpeaking) return;
-    if (activePaneId && derivedState.replayTarget?.sessionId === activePaneId) return;
-    if (!derivedState.replayTarget) return;
-    setAux((prev) => (prev.replayDismissed ? { ...prev, replayDismissed: false } : prev));
-  }, [activePaneId, audioState.isSpeaking, autoTtsEnabled, derivedState.replayTarget]);
+  }, [barContext]);
 
   const activeEventId = smState.status === "playing" || smState.status === "loading"
     ? smState.eventId
@@ -513,10 +612,13 @@ export function useTtsPlaybackController({
     setVersionPreference: updateVersionPreference,
     toggleVersion,
     changeSummarizeLevel,
+    handleIncomingEvent,
     handleTransportEventStart,
     handleTransportStopped,
+    pausePlayback,
+    resumePlayback,
+    stopPlayback: stopPlaybackWithIntent,
     buildBarContext: buildBarContextSelector,
-    dismissBar,
     focusCurrentEvent,
   };
 }

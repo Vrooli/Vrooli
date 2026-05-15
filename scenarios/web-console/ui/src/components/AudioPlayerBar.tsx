@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type CSSProperties, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
-import { Pause, Play, Volume2, VolumeX, X } from "lucide-react";
+import { Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TTSPlaybackCapabilities } from "../hooks/tts/types";
 import type { ConversationEvent } from "../api/conversation";
@@ -40,7 +40,6 @@ export interface AudioPlayerBarProps {
   onSetPlaybackRate: (rate: number) => void;
   onSetVolume: (level: number) => void;
   onSetMuted: (next: boolean) => void;
-  onDismiss: () => void;
   onJumpToCurrentMessage?: () => void;
   onSelectMessage?: (eventId: string) => void;
   /** Called when the user wants to switch to the original (unsummarized) version. */
@@ -88,7 +87,6 @@ export default function AudioPlayerBar({
   onSetPlaybackRate,
   onSetVolume,
   onSetMuted,
-  onDismiss,
   onJumpToCurrentMessage,
   onSelectMessage,
   onToggleSummarized,
@@ -256,15 +254,6 @@ export default function AudioPlayerBar({
           {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
       )}
-
-      <button
-        data-testid="tts-dismiss"
-        onClick={onDismiss}
-        className="shrink-0 rounded p-1 text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
-        title={t(strings.audioPlayerBar.closePlayback)}
-      >
-        <X className="h-4 w-4" />
-      </button>
 
       {/* Popover / bottom sheet — always rendered via portal to escape terminal touch handlers */}
       {showPopover && createPortal(

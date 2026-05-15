@@ -62,7 +62,7 @@ enforce:
 **Owner**: `ui/src/components/`
 - [CODE: ui/src/components/Workspace.tsx] — **Stable core**: pane grid layout, header, empty-state UI. Delegates all session logic to `useSessionManager` hook.
 - [CODE: ui/src/components/ErrorBanner.tsx] — **Volatile edge**: reusable error display with category/recovery/retry. Single place to change error UX.
-- [CODE: ui/src/components/TerminalPane.tsx] — xterm.js rendering plus pane-local conversation consumption (active-pane auto-TTS, seen/listened cursor advancement). Exposes `speakText`/`speakSequence` via TerminalPaneHandle for MessagesPane TTS delegation
+- [CODE: ui/src/components/TerminalPane.tsx] — xterm.js rendering plus pane-local conversation ingestion, received/seen acknowledgements, and provider control plumbing. It does not own auto-TTS policy or listened-cursor commits.
 - [CODE: ui/src/components/MessagesPane.tsx] — semantic messages rendering with per-message TTS controls (read-from-here, read-one, stop); delegates TTS execution to TerminalPane via Workspace callbacks; never owns TTS provider directly
 - [CODE: ui/src/components/TerminalLauncher.tsx] — Modal UI for session creation and shortcut selection (reads shortcuts from [CODE: ui/src/consts/shortcuts.ts])
 - [CODE: ui/src/components/SessionDrawer.tsx] — Sidebar with session list and delete controls
@@ -658,15 +658,15 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 
 ### Hook Delivery Chain
 
-**Path**: `tts-hooks.sh` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` → `handleHookStop` / `CodexTailer` → `routeTTSCandidate` → `SendTTS` → WebSocket `tts_candidate` side-channel → UI `useTerminalSession` `onTTSCandidate` → terminal-visible correlation → `useTextToSpeech.speakParagraphs` → WebSocket `tts_ack`
+**Path**: `tts-hooks.sh` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` / `CodexTailer` → conversation append/fan-out → WebSocket `conversation_event` → UI `useTerminalSession` → `TerminalPane` append + received/seen ack → `useTtsPlaybackController.handleIncomingEvent` → `TerminalPaneHandle.speakText` → `useTextToSpeech.speakParagraphs` → conversation playback ack/cursor update
 
 **Seam points**:
 1. `tts-hooks.sh` ↔ `claude-code` resource: scenario declares desired hook; resource owns settings-path resolution, JSON merge, and idempotent healing
 2. Claude Stop hook ↔ API: HTTP POST with `X-Hook-Token` auth header
 3. `routeTTSCandidate` ↔ source adapters: backend routing only accepts explicit terminal ownership; it does not infer from PTY output
-4. `SendTTS` ↔ WebSocket: buffered candidate fan-out (non-blocking, drops on full)
-5. `useTerminalSession` ↔ `TerminalPane`: client receives `tts_candidate` and emits `tts_ack`
-6. `TerminalPane` ↔ xterm.js buffer: rendered terminal text is the source of truth for correlation
+4. Conversation store/fan-out ↔ WebSocket: normalized events broadcast to session subscribers
+5. `useTerminalSession` ↔ `TerminalPane`: client receives `conversation_event` and emits delivery/playback acknowledgements
+6. `TerminalPane` ↔ `useTtsPlaybackController`: TerminalPane owns provider plumbing; controller owns auto-play intent, queue, selected target, and listened commits
 7. `useTextToSpeech` ↔ `TTSProvider`: injectable Kokoro/Browser implementations
 
 **Testing**: `tts_hook_handler_test.go` covers Claude session mapping. `tts_router_test.go` covers candidate routing/dedup. `codex_tailer_test.go` includes an E2E test from rollout file → owning terminal candidate. `mid_session_conversation_test.go` locks in that attribution holds for sessions started as plain shells (no shortcut) and that unattributed payloads cannot bleed into other sessions. User-facing contract: [guides/CONVERSATION_TRACKING.md](../guides/CONVERSATION_TRACKING.md).
@@ -676,7 +676,7 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 1. **Claude Code Hook** (`tts-hooks.sh` → `claude-code` reconcile → `claude-stop-hook.sh` → `handleHookStop`): Active push. Claude Code fires a Stop hook after each response. Web-console now uses a command hook instead of a raw HTTP hook so the terminal environment can inject `WC_WEB_CONSOLE_SESSION_ID` directly into the payload. Claude keeps its native shared `~/.claude` session storage unchanged, so sign-in and onboarding state are preserved.
 2. **CodexTailer** (`codex_tailer.go`): Passive poll. Watches each terminal session's dedicated `CODEX_HOME/sessions/` tree and extracts assistant text. Each terminal gets a prepared `CODEX_HOME` overlay: shared auth/config is symlinked from `~/.codex`, while rollout/session data remains terminal-owned. Rollout ownership is therefore explicit from the filesystem path, not inferred from text.
 
-Both paths converge at `routeTTSCandidate()` which gates on: `autoEnabled`, explicit target session ownership, and **dedup check**. Browser-side correlation happens later against the rendered xterm buffer, and the client reports outcomes back via `tts_ack`. `/api/v1/tts/status` exposes both backend routing and client acknowledgment state.
+Both paths converge as normalized conversation events. Frontend auto-play is gated by `autoTtsEnabled`, active pane ownership, assistant role, and persisted playback intent. The client reports delivery and playback outcomes over conversation-event acknowledgements.
 
 **Dedup cache** (`ttsDedup` in `tts_router.go`): routing uses a time-bounded event-identity cache keyed from `source + session + cleaned text`. Entries expire after `ttsDedupTTL` (30s). The `ttl` field is injectable for testing.
 

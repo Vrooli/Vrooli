@@ -3,6 +3,7 @@ import type { SummarizationLevel } from "../../components/tts/PlaybackModeContro
 import type { TTSPlaybackState } from "../../hooks/tts/types";
 
 export type PlaybackVersion = "active" | "original";
+export type PlaybackIntent = "continuous" | "paused" | "stopped";
 
 export interface PlaybackQueueEntry {
   eventId: string;
@@ -26,6 +27,7 @@ export interface PlaybackEventContext {
   version: PlaybackVersion;
   queueLabel: string | null;
   hasQueuedNext: boolean;
+  intent: PlaybackIntent;
 }
 
 export interface SessionPlaybackAudioState {
@@ -45,7 +47,10 @@ export interface SessionPlaybackControllerState {
   summarizingEventId: string | null;
   summarizeErrors: Record<string, string>;
   focusRequest: PlaybackFocusRequest | null;
-  replayDismissed: boolean;
+}
+
+export interface IncomingPlaybackAck {
+  (stage: string, message?: string, backend?: string): void;
 }
 
 export interface SessionPlaybackController {
@@ -61,13 +66,16 @@ export interface SessionPlaybackController {
   setVersionPreference: (sessionId: string, eventId: string, version: PlaybackVersion) => void;
   toggleVersion: (sessionId: string, eventId: string, useSummarized: boolean) => void;
   changeSummarizeLevel: (sessionId: string, eventId: string, level: SummarizationLevel) => void;
+  handleIncomingEvent: (sessionId: string, event: ConversationEvent, sendAck: IncomingPlaybackAck) => void;
   handleTransportEventStart: (sessionId: string, eventId: string | null) => void;
   handleTransportStopped: () => void;
+  pausePlayback: (sessionId: string | null) => void;
+  resumePlayback: (sessionId: string | null) => void;
+  stopPlayback: (sessionId: string | null) => void;
   buildBarContext: (
     activePaneId: string | null,
     autoTtsEnabled: boolean,
     audioState: SessionPlaybackAudioState,
   ) => PlaybackEventContext | null;
-  dismissBar: (activePaneId: string | null, isSpeaking: boolean) => void;
   focusCurrentEvent: (activePaneId: string | null) => void;
 }

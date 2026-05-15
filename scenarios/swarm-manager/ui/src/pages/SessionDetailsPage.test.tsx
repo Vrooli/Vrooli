@@ -14,13 +14,18 @@ const storeMock = vi.hoisted(() => {
     isMutating: false,
     isRefreshing: false,
     loadSession: vi.fn(),
+    startSession: vi.fn(),
     continueSession: vi.fn(),
+    uploadSessionAttachments: vi.fn().mockResolvedValue([]),
     refreshSession: vi.fn(),
     cancelSession: vi.fn(),
     deleteSession: vi.fn(),
     applyProposal: vi.fn(),
+    fetchSessions: vi.fn().mockResolvedValue(undefined),
   };
   let state: Record<string, unknown> = { ...initialState };
+  const makeUseStore = (storeState: Record<string, unknown>) =>
+    (selector: (value: Record<string, unknown>) => unknown) => selector(storeState);
   const useAgentSessionStore = Object.assign(
     (selector: (value: Record<string, unknown>) => unknown) => selector(state),
     {
@@ -32,12 +37,30 @@ const storeMock = vi.hoisted(() => {
       },
     },
   );
-  return { initialState, useAgentSessionStore };
+  return {
+    initialState,
+    useAgentSessionStore,
+    useBacklogStore: makeUseStore({
+      fetchBacklog: vi.fn().mockResolvedValue(undefined),
+      items: [{ kind: "execute", name: "starter-item", title: "Starter item", status: "new" }],
+    }),
+    useInitiativeStore: makeUseStore({ fetchInitiatives: vi.fn().mockResolvedValue(undefined), items: [] }),
+    useCaptureStore: makeUseStore({ fetchCaptures: vi.fn().mockResolvedValue(undefined), captures: [] }),
+    useExecutionStore: makeUseStore({ fetchExecutions: vi.fn().mockResolvedValue(undefined), items: [] }),
+    useAgentActivitiesStore: makeUseStore({ refreshActivities: vi.fn().mockResolvedValue(undefined), activities: [] }),
+    useScenariosStore: makeUseStore({ fetchScenarios: vi.fn().mockResolvedValue(undefined), scenarios: [] }),
+  };
 });
 
 vi.mock("../stores", () => ({
   agentSessionStoreInitialState: storeMock.initialState,
   useAgentSessionStore: storeMock.useAgentSessionStore,
+  useBacklogStore: storeMock.useBacklogStore,
+  useInitiativeStore: storeMock.useInitiativeStore,
+  useCaptureStore: storeMock.useCaptureStore,
+  useExecutionStore: storeMock.useExecutionStore,
+  useAgentActivitiesStore: storeMock.useAgentActivitiesStore,
+  useScenariosStore: storeMock.useScenariosStore,
 }));
 
 vi.mock("@vrooli/api-base", () => ({
@@ -101,6 +124,18 @@ const SESSION: AgentSession = {
       createdAt: "2026-05-01T12:11:00Z",
     },
   ],
+};
+
+const DRAFT_SESSION: AgentSession = {
+  ...SESSION,
+  id: "sess_draft",
+  title: "Draft planning session",
+  status: "draft",
+  taskId: undefined,
+  runId: undefined,
+  messages: [],
+  proposals: [],
+  artifacts: [],
 };
 
 function renderPage(initialPath = "/sessions/sess_meta") {
@@ -233,6 +268,41 @@ describe("SessionDetailsPage", () => {
     await waitFor(() => {
       expect(continueSession).toHaveBeenCalledWith({ sessionId: "sess_meta", message: "Next step" });
     });
+  });
+
+  it("shows starter suggestions for draft sessions and starts with the selected ready prompt", async () => {
+    const startSession = vi.fn().mockResolvedValue({ ...DRAFT_SESSION, status: "running", runId: "run-draft" });
+    storeMock.useAgentSessionStore.setState({ sessions: [DRAFT_SESSION], startSession });
+
+    renderPage("/sessions/sess_draft");
+
+    expect(screen.getByTestId("agent-session-starter-suggestions")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Turn this idea into initiatives and backlog items/i }));
+
+    expect(screen.getByTestId("agent-session-composer")).toHaveValue("Turn this idea into initiatives and backlog items.");
+
+    fireEvent.keyDown(screen.getByTestId("agent-session-composer"), { key: "Enter", ctrlKey: true });
+
+    await waitFor(() => {
+      expect(startSession).toHaveBeenCalledWith({
+        sessionId: "sess_draft",
+        message: "Turn this idea into initiatives and backlog items.",
+      });
+    });
+  });
+
+  it("opens the context picker to the required tab for guided starter suggestions", async () => {
+    storeMock.useAgentSessionStore.setState({
+      sessions: [{ ...DRAFT_SESSION, kind: "swarm_operations", title: "Operations draft" }],
+    });
+
+    renderPage("/sessions/sess_draft");
+
+    await userEvent.click(screen.getByRole("button", { name: /Help me drain workshop decisions for a backlog item/i }));
+
+    expect(screen.getByTestId("session-context-picker")).toBeInTheDocument();
+    expect(screen.getByTestId("session-context-tab-backlog_item")).toHaveAttribute("data-state", "active");
   });
 
   it("restores the composer draft and shows an alert when send fails", async () => {

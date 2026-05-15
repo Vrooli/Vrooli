@@ -156,6 +156,8 @@ export const literalSelectors = {
     contextAttachButton: "session-context-attach",
     messageContextChips: "session-message-context-chips",
     messageImageThumbnails: "session-message-image-thumbnails",
+    starterSuggestions: "agent-session-starter-suggestions",
+    starterSuggestion: "agent-session-starter-suggestion",
   },
   // Inline question stepper selectors
   questionStepper: {

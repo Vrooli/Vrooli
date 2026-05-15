@@ -371,8 +371,8 @@ export function useSessionManager() {
   );
 
   const speakTextOnPane = useCallback(
-    (sessionId: string, text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original" }) => {
-      terminalRefs.current.get(sessionId)?.speakText(text, paragraphs, opts);
+    (sessionId: string, text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original"; initiatedBy?: "auto" | "manual" }) => {
+      return terminalRefs.current.get(sessionId)?.speakText(text, paragraphs, opts) ?? Promise.resolve(undefined);
     },
     [],
   );

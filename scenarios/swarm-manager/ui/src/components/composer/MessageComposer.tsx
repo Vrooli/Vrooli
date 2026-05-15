@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { Database, ImagePlus, Loader2, MessageSquarePlus, SendHorizontal } from "lucide-react";
 import { useAutoResizeTextarea } from "../../hooks/useAutoResizeTextarea";
@@ -34,6 +34,7 @@ interface MessageComposerProps {
   onRemoveContext?: (type: AgentSessionContextType, ref: string) => void;
   onOpenForm?: (draftText: string) => void;
   canSubmit?: boolean;
+  imagePickerRequestKey?: number;
 }
 
 export function MessageComposer({
@@ -59,6 +60,7 @@ export function MessageComposer({
   onRemoveContext,
   onOpenForm,
   canSubmit,
+  imagePickerRequestKey = 0,
 }: MessageComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,6 +68,11 @@ export function MessageComposer({
 
   const computedCanSubmit = canSubmit ?? Boolean(value.trim() || attachments.length > 0 || contextItems.length > 0);
   const submitDisabled = !computedCanSubmit || disabled || isSubmitting;
+
+  useEffect(() => {
+    if (imagePickerRequestKey <= 0 || disabled || isSubmitting) return;
+    fileInputRef.current?.click();
+  }, [disabled, imagePickerRequestKey, isSubmitting]);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {

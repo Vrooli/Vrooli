@@ -13,6 +13,7 @@ import type { TerminalPaneHandle } from "../components/TerminalPane";
 import type { ConversationEvent } from "../api/conversation";
 import { apiBaseMock } from "../test-utils";
 import Workspace from "../components/Workspace";
+import { useTtsPlaybackIntentStore } from "../domains/tts-playback/store";
 
 // ── Hoisted shared state (accessible inside vi.mock factories) ──
 const {
@@ -178,7 +179,6 @@ vi.mock("../components/TerminalHeader", () => ({
 vi.mock("../components/AudioPlayerBar", () => ({
   default: vi.fn(({
     onResume,
-    onDismiss,
     isSummarized,
     onToggleSummarized,
     currentLevel,
@@ -186,7 +186,6 @@ vi.mock("../components/AudioPlayerBar", () => ({
     hasQueuedNext,
   }: {
     onResume: () => void;
-    onDismiss: () => void;
     isSummarized?: boolean;
     onToggleSummarized?: (useSummarized: boolean) => void;
     currentLevel?: "light" | "moderate" | "heavy";
@@ -195,7 +194,6 @@ vi.mock("../components/AudioPlayerBar", () => ({
   }) => (
     <div data-testid="audio-player-bar">
       <button data-testid="replay-resume" onClick={onResume}>Resume</button>
-      <button data-testid="replay-dismiss" onClick={onDismiss}>Dismiss</button>
       <span data-testid="tts-mode-control">
         {isSummarized
           ? (currentLevel === "light" ? "Light" : currentLevel === "heavy" ? "Heavy" : "Moderate")
@@ -295,6 +293,11 @@ async function renderWorkspace() {
 describe("Workspace TTS replay bar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
+    useTtsPlaybackIntentStore.setState({
+      playbackIntent: "continuous",
+      selectedTarget: null,
+    });
     mockStoreState.autoTtsEnabled = false;
     mockStoreState.activePane = null;
     mockStoreState.panes = [];
@@ -365,7 +368,7 @@ describe("Workspace TTS replay bar", () => {
     expect(screen.getByTestId("tts-has-next").textContent).toBe("false");
   });
 
-  it("hides audio player bar after TTS stops when auto-TTS is disabled", async () => {
+  it("does not show the replay bar after TTS stops when auto-TTS is disabled", async () => {
     setupPaneState();
     mockStoreState.autoTtsEnabled = false;
 
@@ -380,7 +383,6 @@ describe("Workspace TTS replay bar", () => {
       captured.onTtsSpeakingChange?.(false);
     });
 
-    // Bar should be hidden
     expect(screen.queryByTestId("audio-player-bar")).toBeNull();
   });
 
@@ -406,7 +408,7 @@ describe("Workspace TTS replay bar", () => {
         SESSION_ID,
         testEvent.text,
         testEvent.speechParagraphs,
-        { eventId: testEvent.id, version: "active" },
+        { eventId: testEvent.id, version: "active", initiatedBy: "manual" },
       );
     });
   });
@@ -449,11 +451,11 @@ describe("Workspace TTS replay bar", () => {
       SESSION_ID,
       summarizedEvent.text,
       summarizedEvent.originalSpeechParagraphs,
-      { eventId: summarizedEvent.id, version: "original" },
+      { eventId: summarizedEvent.id, version: "original", initiatedBy: "manual" },
     );
   });
 
-  it("dismiss button in replay mode hides the bar", async () => {
+  it("does not render dismiss or compact playback controls", async () => {
     setupPaneState();
     mockStoreState.autoTtsEnabled = true;
 
@@ -469,9 +471,7 @@ describe("Workspace TTS replay bar", () => {
     });
 
     expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
-
-    // Press dismiss in replay mode → hides bar
-    fireEvent.click(screen.getByTestId("replay-dismiss"));
-    expect(screen.queryByTestId("audio-player-bar")).toBeNull();
+    expect(screen.queryByTestId("replay-dismiss")).toBeNull();
+    expect(screen.queryByTestId("tts-compact-control")).toBeNull();
   });
 });

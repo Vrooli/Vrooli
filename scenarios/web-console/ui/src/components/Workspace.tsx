@@ -580,9 +580,6 @@ export default function Workspace() {
     });
   }, []);
   const isTtsSpeaking = workspace.activePane ? ttsSpeakingPanes.has(workspace.activePane) : false;
-  const handleTtsStop = useCallback(() => {
-    stopActiveTts(workspace.activePane ?? undefined);
-  }, [workspace.activePane, stopActiveTts]);
 
   // ── TTS playback state polling for AudioPlayerBar ──
   //
@@ -599,12 +596,12 @@ export default function Workspace() {
   // For very short TTS messages the audio can finish before the first
   // poll ever fires, meaning the bar never appears at all.
   //
-  // Fix: the AudioPlayerBar now renders whenever `isTtsSpeaking` is
-  // true, using `FALLBACK_TTS_PLAYBACK` when the poll hasn't returned
-  // yet.  The fallback has sensible defaults (not paused, no duration,
-  // playbackRate 1, volume 1) and exposes all capabilities so every
-  // control is visible — the real provider values replace it within the
-  // first poll tick.
+  // Fix: when auto-TTS is enabled, the AudioPlayerBar renders whenever
+  // `isTtsSpeaking` is true, using `FALLBACK_TTS_PLAYBACK` when the poll
+  // hasn't returned yet. The fallback has sensible defaults (not paused,
+  // no duration, playbackRate 1, volume 1) and exposes all capabilities
+  // so every control is visible — the real provider values replace it
+  // within the first poll tick.
   const FALLBACK_TTS_PLAYBACK: TTSPlaybackState = {
     currentTime: 0,
     duration: null,
@@ -724,7 +721,7 @@ export default function Workspace() {
     audioState: { playback: ttsPlayback, isSpeaking: isTtsSpeaking },
     setViewMode: setConversationViewMode,
     speakText: (sessionId, text, paragraphs, opts) => {
-      speakTextOnPane(sessionId, text, paragraphs, opts);
+      return speakTextOnPane(sessionId, text, paragraphs, opts);
     },
     stopPlayback: stopActiveTts,
     applySummarizeResult,
@@ -741,6 +738,10 @@ export default function Workspace() {
   const togglePanePlaybackVersion = ttsPlaybackController.toggleVersion;
   const changePaneSummarizeLevel = ttsPlaybackController.changeSummarizeLevel;
   const playbackFocusRequest = ttsPlaybackController.focusRequest;
+  const handleConversationEventReceived = ttsPlaybackController.handleIncomingEvent;
+  const handleTtsStop = useCallback(() => {
+    ttsPlaybackController.stopPlayback(workspace.activePane);
+  }, [ttsPlaybackController, workspace.activePane]);
 
   const handlePaneToggleView = useCallback((sessionId: string, viewMode: PaneViewMode) => {
     setConversationViewMode(sessionId, viewMode === "terminal" ? "messages" : "terminal");
@@ -906,6 +907,14 @@ export default function Workspace() {
     : Math.max(MIN_ROW_PX, window.innerHeight);
   const rowSplittersHeight = Math.max(0, layout.rows - 1) * SPLITTER_SIZE_PX;
   const minimumGridHeightPx = (viewportPaneHeight * layout.rows) + rowSplittersHeight;
+  const sidebarHeaderPressGesture = usePressGesture<string>({
+    longPressMs: SIDEBAR_HEADER_LONG_PRESS_MS,
+    moveThresholdPx: SIDEBAR_HEADER_PRESS_MOVE_THRESHOLD,
+    onTap: () => {},
+    onLongPress: (sessionId, point) => {
+      workspace.setTabContextMenu({ sessionId, position: { x: point.x, y: point.y } });
+    },
+  });
 
   // While session hydration is in flight, show a loading screen to prevent
   // the empty state ("New Terminal" button) from flashing before we know
@@ -1055,6 +1064,7 @@ export default function Workspace() {
         onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
         onTtsSpeakingChange={handleTtsSpeakingChange}
         onSpeakingEventChange={handlePaneTransportSpeakingEvent}
+        onConversationEventReceived={handleConversationEventReceived}
         onSummarizeError={handlePaneSummarizeError}
         onNeedsUnlock={handleNeedsUnlock}
         onPlayFromHere={playPaneFromHere}
@@ -1076,14 +1086,6 @@ export default function Workspace() {
   );
   const activeSidebarPane = activeNavigationItem?.kind === "pane" ? activeNavigationItem : null;
   const sidebarUnreadCount = countWorkspaceUnreadMessages(orderedPanes, conversationSessions);
-  const sidebarHeaderPressGesture = usePressGesture<string>({
-    longPressMs: SIDEBAR_HEADER_LONG_PRESS_MS,
-    moveThresholdPx: SIDEBAR_HEADER_PRESS_MOVE_THRESHOLD,
-    onTap: () => {},
-    onLongPress: (sessionId, point) => {
-      workspace.setTabContextMenu({ sessionId, position: { x: point.x, y: point.y } });
-    },
-  });
 
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
@@ -1333,6 +1335,7 @@ export default function Workspace() {
                   onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
                   onTtsSpeakingChange={handleTtsSpeakingChange}
                   onSpeakingEventChange={handlePaneTransportSpeakingEvent}
+                  onConversationEventReceived={handleConversationEventReceived}
                   onSummarizeError={handlePaneSummarizeError}
                   onNeedsUnlock={handleNeedsUnlock}
                   onPlayFromHere={playPaneFromHere}
@@ -1376,17 +1379,18 @@ export default function Workspace() {
 
       {/* Bottom bar */}
       <div className="relative z-10 shrink-0">
-        {/* TTS player bar — visible when audio is playing OR when auto-TTS
-         * is enabled and there is a previous response available to replay.
+        {/* TTS player bar — visible only when auto-TTS is enabled and there
+         * is active playback or a previous response available to replay.
          *
          * When actively speaking, the bar shows live playback state (polled
          * at 100 ms).  When idle with a replayable event, it shows a
          * "stopped" state where the play button triggers a replay.
          *
-         * Uses isTtsSpeaking as the primary gate so the bar always appears
-         * the instant audio starts.  ttsPlayback is populated by polling;
-         * if the first poll hasn't fired yet we fall back to
-         * FALLBACK_TTS_PLAYBACK (see comment above the polling effect). */}
+         * Uses isTtsSpeaking plus controller context so the bar appears
+         * the instant eligible auto-TTS audio starts. ttsPlayback is
+         * populated by polling; if the first poll hasn't fired yet we
+         * fall back to FALLBACK_TTS_PLAYBACK (see comment above the
+         * polling effect). */}
         {(() => {
           const pb = isTtsSpeaking
             ? (ttsPlayback ?? FALLBACK_TTS_PLAYBACK)
@@ -1420,15 +1424,20 @@ export default function Workspace() {
               currentMessageId={activeEvent.id}
               messageSelectorEvents={conversationSessions[context.sessionId]?.events ?? []}
               hasQueuedNext={context.hasQueuedNext}
-              onPause={handleTtsPause}
+              onPause={() => {
+                ttsPlaybackController.pausePlayback(context.sessionId);
+                handleTtsPause();
+              }}
               onResume={isReplayMode ? () => {
-                ttsPlaybackController.playEvent(context.sessionId as string, activeEvent.id);
-              } : handleTtsResume}
+                ttsPlaybackController.resumePlayback(context.sessionId);
+              } : () => {
+                ttsPlaybackController.resumePlayback(context.sessionId);
+                handleTtsResume();
+              }}
               onSeek={handleTtsSeek}
               onSetPlaybackRate={handleTtsSetPlaybackRate}
               onSetVolume={handleTtsSetVolume}
               onSetMuted={handleTtsSetMuted}
-              onDismiss={() => ttsPlaybackController.dismissBar(workspace.activePane, isTtsSpeaking)}
               onSelectMessage={(eventId) => {
                 ttsPlaybackController.playEvent(context.sessionId as string, eventId);
               }}

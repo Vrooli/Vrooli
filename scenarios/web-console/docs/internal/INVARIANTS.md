@@ -37,6 +37,9 @@ state-mutating operations in the web-console scenario.
 | Refresh sessions | `SessionsPage.tsx:refresh` | **Yes** | Generation counter discards stale responses. |
 | Save profile | `SettingsPage.tsx:handleSave` | **Yes** | Server upsert is idempotent. On error, refetches server state. |
 | Delete profile | `SettingsPage.tsx:handleDelete` | **Yes** | Server delete is idempotent. On error, refetches server state. |
+| TTS incoming event auto-play | `useTtsPlaybackController.ts:handleIncomingEvent` | **Yes** | Stable event id + current transport target prevent replay storms; `playbackIntent=paused/stopped` blocks automatic playback without mutating `lastListenedSequence`. |
+| TTS stop/pause | `Workspace.tsx`, `TerminalPane.tsx`, `useTtsPlaybackController.ts` | **Yes** | User pause/stop persists local playback intent and stops/pauses provider state. It does not mark assistant events listened. |
+| TTS natural completion | `useTtsPlaybackController.ts` | **Yes** | Listened cursor advances only when provider speaking transitions from playing to ended for the current event. Stale completion after stop/pause/new play is ignored by transport state/load id. |
 
 ## Idempotency Keys
 
@@ -53,6 +56,18 @@ The cache uses opportunistic eviction (triggered when size > 100 entries).
 - **POST /sessions with idempotency key**: Safe to retry within TTL window (5 min). Returns cached response.
 - **POST /sessions without key**: NOT safe to retry blindly. Creates a new session each time.
 - **POST /ai/generate**: NOT safe to retry without user intent. Calls external APIs, emits events.
+- **TTS incoming assistant event**: Safe to receive again; duplicate events are ignored by `useConversationStore.appendEvent`, and playback is controlled by persisted intent plus current target state.
+
+## TTS Playback Intent Invariants
+
+| Invariant | Enforcement | Location |
+|-----------|-------------|----------|
+| User pause blocks future automatic playback | Incoming assistant events check `playbackIntent` before speaking | `ui/src/domains/tts-playback/utils.ts`, `useTtsPlaybackController.ts` |
+| Natural completion keeps continuous intent | Completion does not convert `continuous` to paused/stopped | `useTtsPlaybackController.ts` |
+| Stop/pause never means listened | `TerminalPane.stopTts()` no longer advances `lastListenedSequence`; controller commits listened only on natural completion | `TerminalPane.tsx`, `useTtsPlaybackController.ts` |
+| Playback controls are not dismissible | The TTS playback bar has no close/collapse state; visibility is derived from auto-TTS setting plus a valid active/replay target | `Workspace.tsx`, `AudioPlayerBar.tsx`, `store.ts` |
+| Inactive pane messages do not speak | Incoming auto-play requires `activePaneId === sessionId` | `utils.ts` |
+| Auto playback respects muted state | Provider `speakText` only force-unmutes manual playback; incoming auto playback preserves the current mute/start-muted setting | `TerminalPane.tsx`, `useTtsPlaybackController.ts` |
 
 ## Unsafe Operations (Intentionally Non-Idempotent)
 

@@ -99,6 +99,11 @@ interface TerminalPaneProps {
    * produced by the backend; eventId identifies the affected event.
    */
   onSummarizeError?: (eventId: string, message: string) => void;
+  onConversationEventReceived?: (
+    sessionId: string,
+    event: ConversationEvent,
+    sendAck: (stage: string, message?: string, backend?: string) => void,
+  ) => void;
   /**
    * Called when auto-TTS playback is rejected by the browser's autoplay
    * policy and no user gesture has unlocked the audio element yet. Pass
@@ -124,7 +129,7 @@ export interface TerminalPaneHandle {
   /** Stop TTS playback for this pane. */
   stopTts: () => void;
   /** Stop current TTS, then speak a single text (optionally pre-chunked). */
-  speakText: (text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original" }) => void;
+  speakText: (text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original"; initiatedBy?: "auto" | "manual" }) => Promise<string | undefined>;
   /** Pause TTS playback. */
   pauseTts: () => void;
   /** Resume paused TTS playback. */
@@ -155,7 +160,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onSummarizeError, onNeedsUnlock }, ref) {
+  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onSummarizeError, onNeedsUnlock, onConversationEventReceived }, ref) {
     const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
@@ -166,10 +171,6 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // to every mounted TerminalPane and emits identical resizes for
     // each one — visible as a `resize_noop` storm in api logs.
     const lastSentSizeRef = useRef<{ cols: number; rows: number } | null>(null);
-    const livePlaybackEventRef = useRef<string | null>(null);
-    const playbackRequestIdRef = useRef(0);
-    /** Ref to latest conversationEvents so imperative handle avoids dep churn. */
-    const conversationEventsRef = useRef<ConversationEvent[]>(EMPTY_CONVERSATION_EVENTS);
     const [terminal, setTerminal] = useState<Terminal | null>(null);
 
     // Per-pane selectors with fallbacks for old persisted data
@@ -207,7 +208,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       setPlaybackRate: ttsSetPlaybackRate, setVolume: ttsSetVolume,
       setMuted: ttsSetMuted,
       getPlaybackState: ttsGetPlaybackState,
-      supported: ttsSupported, backend, isSpeaking: ttsSpeaking,
+      supported: ttsSupported, isSpeaking: ttsSpeaking,
       needsUnlock, unlockAudio,
     } = useTextToSpeech(ttsSettings, {
       source: "terminal_auto",
@@ -219,33 +220,22 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // inline arrow prop changes identity on every Workspace render.
     const onTtsSpeakingChangeRef = useRef(onTtsSpeakingChange);
     onTtsSpeakingChangeRef.current = onTtsSpeakingChange;
-    // Mirror needsUnlock into a ref so handleConversationEvent can bail
-    // without adding needsUnlock to its (already large) dep list.
-    const needsUnlockRef = useRef(needsUnlock);
-    needsUnlockRef.current = needsUnlock;
-    // Track events whose auto-playback failed so re-renders (pending-events
-    // effect re-firing on state churn) don't retry them in a tight loop.
-    // An explicit user action (Enable-Audio click, manual replay) is the
-    // only way to re-attempt a failed event.
-    const failedEventIdsRef = useRef<Set<string>>(new Set());
     useEffect(() => {
       onTtsSpeakingChangeRef.current?.(ttsSpeaking);
     }, [ttsSpeaking]);
 
-    const autoTtsEnabled = useWorkspaceStore((s) => s.autoTtsEnabled);
     const activePane = useWorkspaceStore((s) => s.activePane);
     const { appendConversationEvent, persistCursor } = useConversationSession(sessionId);
     const updateEvent = useConversationStore((state) => state.updateEvent);
     const conversationSession = useConversationStore((state) => state.sessions[sessionId]);
     const conversationEvents = conversationSession?.events ?? EMPTY_CONVERSATION_EVENTS;
-    conversationEventsRef.current = conversationEvents;
     const conversationCursor = conversationSession?.cursor ?? EMPTY_CONVERSATION_CURSOR;
 
     const handleConversationEvent = useCallback(async (
       event: { id: string; source: string; role: "assistant" | "user"; text: string; speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean; createdAt?: string; sequence: number },
       sendAck: (stage: string, message?: string, backend?: string) => void,
     ) => {
-      appendConversationEvent({
+      const conversationEvent = {
         id: event.id,
         sessionId,
         source: event.source,
@@ -259,56 +249,23 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         deliveryState: "received",
         ttsState: "idle",
         consumptionState: "unseen",
-      } satisfies ConversationEvent);
+      } satisfies ConversationEvent;
+      appendConversationEvent(conversationEvent);
       sendAck("received");
       const isActivePane = activePane === sessionId;
       if (isActivePane) {
         void persistCursor({ lastSeenSequence: event.sequence });
         sendAck("seen");
       }
-      if (!autoTtsEnabled || !isActivePane || event.role !== "assistant") {
+      if (event.role !== "assistant") {
         return;
       }
       if (!ttsSupported) {
         sendAck("rejected", "No TTS backend is available in this tab");
         return;
       }
-      if (needsUnlockRef.current) {
-        // Audio is blocked by the browser autoplay policy. Retrying would
-        // just fail the same way and churn the banner; wait for the user
-        // to click Enable voice, which replays pending events on success.
-        sendAck("rejected", "Audio not unlocked — waiting on user gesture");
-        return;
-      }
-      // New event arrivals always get a fresh shot — clear any prior
-      // failure state so explicit-action retries don't surprise-skip.
-      failedEventIdsRef.current.delete(event.id);
-      livePlaybackEventRef.current = event.id;
-      onSpeakingEventChange?.(event.id);
-      ttsStop();
-      const paragraphs = ensureSpeechChunks(event.speechParagraphs ?? [event.text]);
-      sendAck("playback_started", undefined, backend);
-      try {
-        const usedBackend = await speakParagraphs(paragraphs, { eventId: event.id });
-        if (!usedBackend) {
-          // TTS provider wasn't ready or paragraphs were empty — don't mark as listened
-          failedEventIdsRef.current.add(event.id);
-          sendAck("playback_failed", "TTS provider not ready", backend);
-          return;
-        }
-        sendAck("playback_succeeded", undefined, usedBackend);
-        await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Speech failed";
-        failedEventIdsRef.current.add(event.id);
-        sendAck("playback_failed", message, backend);
-      } finally {
-        if (livePlaybackEventRef.current === event.id) {
-          livePlaybackEventRef.current = null;
-          onSpeakingEventChange?.(null);
-        }
-      }
-    }, [activePane, appendConversationEvent, autoTtsEnabled, backend, onSpeakingEventChange, persistCursor, sessionId, speakParagraphs, ttsStop, ttsSupported]);
+      onConversationEventReceived?.(sessionId, conversationEvent, sendAck);
+    }, [activePane, appendConversationEvent, onConversationEventReceived, persistCursor, sessionId, ttsSupported]);
 
     const handleConversationEventUpdate = useCallback((eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean; summarizeError?: string }) => {
       if (patch.summarizeError) {
@@ -331,59 +288,6 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       }
     }, [activePane, conversationCursor.lastSeenSequence, conversationEvents, persistCursor, sessionId]);
 
-    // Play any assistant events that the user has not listened to yet.
-    // Shared by the catch-up effect and the Enable-Audio replay path. Reads
-    // the latest events via the ref to stay independent of the consuming
-    // effect's dependency list.
-    const playPendingAssistantEvents = useCallback(async (cancelSignal?: { cancelled: boolean }) => {
-      const pending = conversationEventsRef.current.filter((event) =>
-        event.role === "assistant"
-        && event.sequence > conversationCursor.lastListenedSequence
-        && event.id !== livePlaybackEventRef.current
-        && !failedEventIdsRef.current.has(event.id),
-      );
-      if (pending.length === 0) return;
-      for (const event of pending) {
-        if (cancelSignal?.cancelled) return;
-        livePlaybackEventRef.current = event.id;
-        onSpeakingEventChange?.(event.id);
-        const paragraphs = ensureSpeechChunks(event.speechParagraphs ?? [event.text]);
-        try {
-          const usedBackend = await speakParagraphs(paragraphs, { eventId: event.id });
-          if (!usedBackend) {
-            // Provider wasn't ready or paragraphs were empty — mark failed so
-            // we don't retry until the user takes an explicit action.
-            failedEventIdsRef.current.add(event.id);
-            return;
-          }
-          await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
-        } catch {
-          failedEventIdsRef.current.add(event.id);
-          return;
-        } finally {
-          if (livePlaybackEventRef.current === event.id) {
-            livePlaybackEventRef.current = null;
-            onSpeakingEventChange?.(null);
-          }
-        }
-      }
-    }, [conversationCursor.lastListenedSequence, onSpeakingEventChange, persistCursor, speakParagraphs]);
-
-    useEffect(() => {
-      if (activePane !== sessionId || !autoTtsEnabled || !ttsSupported) return;
-      if (ttsSpeaking) return;
-      // Don't retry while audio is blocked by autoplay policy. The
-      // `needsUnlock → false` transition (triggered by a successful
-      // gesture-unlock or banner click) will drop this guard on the next
-      // render and let the replay happen exactly once.
-      if (needsUnlock) return;
-      const signal = { cancelled: false };
-      void playPendingAssistantEvents(signal);
-      return () => {
-        signal.cancelled = true;
-      };
-    }, [activePane, autoTtsEnabled, conversationEvents, needsUnlock, playPendingAssistantEvents, sessionId, ttsSpeaking, ttsSupported]);
-
     // Bridge needsUnlock → parent. When unlock is required we hand the parent
     // an `enable` callback that unlocks + replays pending events on success.
     // Pass `null` to clear when the condition resolves.
@@ -396,16 +300,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       }
       const enable = async (): Promise<boolean> => {
         const ok = await unlockAudio();
-        if (ok) {
-          // Explicit user action — drop any cached failure markers so
-          // previously-failed events are retried fresh.
-          failedEventIdsRef.current.clear();
-          await playPendingAssistantEvents();
-        }
         return ok;
       };
       onNeedsUnlockRef.current?.({ sessionId, enable });
-    }, [needsUnlock, sessionId, unlockAudio, playPendingAssistantEvents]);
+    }, [needsUnlock, sessionId, unlockAudio]);
 
     // Delegate all WebSocket protocol handling to the session hook
     const { submitInput, sendResize, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot } = useTerminalSession({
@@ -435,29 +333,18 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       submitInput,
       focus: () => terminal?.focus(),
       stopTts: () => {
-        playbackRequestIdRef.current += 1;
         ttsStop();
-        // Advance cursor past all current assistant events to prevent the
-        // pending-events effect from re-triggering the same (or subsequent)
-        // events after the user explicitly stopped playback.
-        const events = conversationEventsRef.current;
-        const lastAssistantSeq = events.reduce(
-          (max, e) => (e.role === "assistant" && e.sequence > max ? e.sequence : max),
-          0,
-        );
-        if (lastAssistantSeq > 0) {
-          void persistCursor({ lastListenedSequence: lastAssistantSeq, lastSeenSequence: lastAssistantSeq });
-        }
-        if (livePlaybackEventRef.current) {
-          livePlaybackEventRef.current = null;
-          onSpeakingEventChange?.(null);
-        }
+        onSpeakingEventChange?.(null);
       },
-      speakText: (text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original" }) => {
-        playbackRequestIdRef.current += 1;
-        ttsSetMuted(false);
+      speakText: (text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original"; initiatedBy?: "auto" | "manual" }) => {
+        if (opts?.initiatedBy !== "auto") {
+          ttsSetMuted(false);
+        }
         ttsStop();
-        void speakParagraphs(ensureSpeechChunks(paragraphs ?? [text]), opts);
+        onSpeakingEventChange?.(opts?.eventId ?? null);
+        return speakParagraphs(ensureSpeechChunks(paragraphs ?? [text]), opts).finally(() => {
+          onSpeakingEventChange?.(null);
+        });
       },
       pauseTts: ttsPause,
       resumeTts: () => {
@@ -472,7 +359,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       subscribeInputSettled,
       subscribePendingInput,
       getPendingInputSnapshot,
-    }), [submitInput, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsSetMuted, ttsGetPlaybackState, persistCursor, onSpeakingEventChange, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot]);
+    }), [submitInput, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsSetMuted, ttsGetPlaybackState, onSpeakingEventChange, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot]);
 
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
