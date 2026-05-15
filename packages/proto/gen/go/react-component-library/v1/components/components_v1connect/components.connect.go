@@ -45,6 +45,15 @@ const (
 	// ComponentsServiceIndexComponentsProcedure is the fully-qualified name of the ComponentsService's
 	// IndexComponents RPC.
 	ComponentsServiceIndexComponentsProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/IndexComponents"
+	// ComponentsServiceInitializeComponentProcedure is the fully-qualified name of the
+	// ComponentsService's InitializeComponent RPC.
+	ComponentsServiceInitializeComponentProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/InitializeComponent"
+	// ComponentsServiceCreateComponentVersionProcedure is the fully-qualified name of the
+	// ComponentsService's CreateComponentVersion RPC.
+	ComponentsServiceCreateComponentVersionProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/CreateComponentVersion"
+	// ComponentsServiceUpdateComponentManifestProcedure is the fully-qualified name of the
+	// ComponentsService's UpdateComponentManifest RPC.
+	ComponentsServiceUpdateComponentManifestProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentManifest"
 	// ComponentsServiceGetComponentContentProcedure is the fully-qualified name of the
 	// ComponentsService's GetComponentContent RPC.
 	ComponentsServiceGetComponentContentProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent"
@@ -66,6 +75,9 @@ type ComponentsServiceClient interface {
 	GetComponent(context.Context, *connect.Request[components.GetComponentRequest]) (*connect.Response[components.GetComponentResponse], error)
 	GetComponentByLibraryId(context.Context, *connect.Request[components.GetComponentByLibraryIdRequest]) (*connect.Response[components.GetComponentByLibraryIdResponse], error)
 	IndexComponents(context.Context, *connect.Request[components.IndexComponentsRequest]) (*connect.Response[components.IndexComponentsResponse], error)
+	InitializeComponent(context.Context, *connect.Request[components.InitializeComponentRequest]) (*connect.Response[components.InitializeComponentResponse], error)
+	CreateComponentVersion(context.Context, *connect.Request[components.CreateComponentVersionRequest]) (*connect.Response[components.CreateComponentVersionResponse], error)
+	UpdateComponentManifest(context.Context, *connect.Request[components.UpdateComponentManifestRequest]) (*connect.Response[components.UpdateComponentManifestResponse], error)
 	GetComponentContent(context.Context, *connect.Request[components.GetComponentContentRequest]) (*connect.Response[components.GetComponentContentResponse], error)
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
@@ -108,6 +120,24 @@ func NewComponentsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(componentsServiceMethods.ByName("IndexComponents")),
 			connect.WithClientOptions(opts...),
 		),
+		initializeComponent: connect.NewClient[components.InitializeComponentRequest, components.InitializeComponentResponse](
+			httpClient,
+			baseURL+ComponentsServiceInitializeComponentProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("InitializeComponent")),
+			connect.WithClientOptions(opts...),
+		),
+		createComponentVersion: connect.NewClient[components.CreateComponentVersionRequest, components.CreateComponentVersionResponse](
+			httpClient,
+			baseURL+ComponentsServiceCreateComponentVersionProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("CreateComponentVersion")),
+			connect.WithClientOptions(opts...),
+		),
+		updateComponentManifest: connect.NewClient[components.UpdateComponentManifestRequest, components.UpdateComponentManifestResponse](
+			httpClient,
+			baseURL+ComponentsServiceUpdateComponentManifestProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("UpdateComponentManifest")),
+			connect.WithClientOptions(opts...),
+		),
 		getComponentContent: connect.NewClient[components.GetComponentContentRequest, components.GetComponentContentResponse](
 			httpClient,
 			baseURL+ComponentsServiceGetComponentContentProcedure,
@@ -141,6 +171,9 @@ type componentsServiceClient struct {
 	getComponent               *connect.Client[components.GetComponentRequest, components.GetComponentResponse]
 	getComponentByLibraryId    *connect.Client[components.GetComponentByLibraryIdRequest, components.GetComponentByLibraryIdResponse]
 	indexComponents            *connect.Client[components.IndexComponentsRequest, components.IndexComponentsResponse]
+	initializeComponent        *connect.Client[components.InitializeComponentRequest, components.InitializeComponentResponse]
+	createComponentVersion     *connect.Client[components.CreateComponentVersionRequest, components.CreateComponentVersionResponse]
+	updateComponentManifest    *connect.Client[components.UpdateComponentManifestRequest, components.UpdateComponentManifestResponse]
 	getComponentContent        *connect.Client[components.GetComponentContentRequest, components.GetComponentContentResponse]
 	updateComponentContent     *connect.Client[components.UpdateComponentContentRequest, components.UpdateComponentContentResponse]
 	listComponentVersions      *connect.Client[components.ListComponentVersionsRequest, components.ListComponentVersionsResponse]
@@ -168,6 +201,24 @@ func (c *componentsServiceClient) GetComponentByLibraryId(ctx context.Context, r
 // vrooli.react_component_library.v1.components.ComponentsService.IndexComponents.
 func (c *componentsServiceClient) IndexComponents(ctx context.Context, req *connect.Request[components.IndexComponentsRequest]) (*connect.Response[components.IndexComponentsResponse], error) {
 	return c.indexComponents.CallUnary(ctx, req)
+}
+
+// InitializeComponent calls
+// vrooli.react_component_library.v1.components.ComponentsService.InitializeComponent.
+func (c *componentsServiceClient) InitializeComponent(ctx context.Context, req *connect.Request[components.InitializeComponentRequest]) (*connect.Response[components.InitializeComponentResponse], error) {
+	return c.initializeComponent.CallUnary(ctx, req)
+}
+
+// CreateComponentVersion calls
+// vrooli.react_component_library.v1.components.ComponentsService.CreateComponentVersion.
+func (c *componentsServiceClient) CreateComponentVersion(ctx context.Context, req *connect.Request[components.CreateComponentVersionRequest]) (*connect.Response[components.CreateComponentVersionResponse], error) {
+	return c.createComponentVersion.CallUnary(ctx, req)
+}
+
+// UpdateComponentManifest calls
+// vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentManifest.
+func (c *componentsServiceClient) UpdateComponentManifest(ctx context.Context, req *connect.Request[components.UpdateComponentManifestRequest]) (*connect.Response[components.UpdateComponentManifestResponse], error) {
+	return c.updateComponentManifest.CallUnary(ctx, req)
 }
 
 // GetComponentContent calls
@@ -201,6 +252,9 @@ type ComponentsServiceHandler interface {
 	GetComponent(context.Context, *connect.Request[components.GetComponentRequest]) (*connect.Response[components.GetComponentResponse], error)
 	GetComponentByLibraryId(context.Context, *connect.Request[components.GetComponentByLibraryIdRequest]) (*connect.Response[components.GetComponentByLibraryIdResponse], error)
 	IndexComponents(context.Context, *connect.Request[components.IndexComponentsRequest]) (*connect.Response[components.IndexComponentsResponse], error)
+	InitializeComponent(context.Context, *connect.Request[components.InitializeComponentRequest]) (*connect.Response[components.InitializeComponentResponse], error)
+	CreateComponentVersion(context.Context, *connect.Request[components.CreateComponentVersionRequest]) (*connect.Response[components.CreateComponentVersionResponse], error)
+	UpdateComponentManifest(context.Context, *connect.Request[components.UpdateComponentManifestRequest]) (*connect.Response[components.UpdateComponentManifestResponse], error)
 	GetComponentContent(context.Context, *connect.Request[components.GetComponentContentRequest]) (*connect.Response[components.GetComponentContentResponse], error)
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
@@ -238,6 +292,24 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 		connect.WithSchema(componentsServiceMethods.ByName("IndexComponents")),
 		connect.WithHandlerOptions(opts...),
 	)
+	componentsServiceInitializeComponentHandler := connect.NewUnaryHandler(
+		ComponentsServiceInitializeComponentProcedure,
+		svc.InitializeComponent,
+		connect.WithSchema(componentsServiceMethods.ByName("InitializeComponent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	componentsServiceCreateComponentVersionHandler := connect.NewUnaryHandler(
+		ComponentsServiceCreateComponentVersionProcedure,
+		svc.CreateComponentVersion,
+		connect.WithSchema(componentsServiceMethods.ByName("CreateComponentVersion")),
+		connect.WithHandlerOptions(opts...),
+	)
+	componentsServiceUpdateComponentManifestHandler := connect.NewUnaryHandler(
+		ComponentsServiceUpdateComponentManifestProcedure,
+		svc.UpdateComponentManifest,
+		connect.WithSchema(componentsServiceMethods.ByName("UpdateComponentManifest")),
+		connect.WithHandlerOptions(opts...),
+	)
 	componentsServiceGetComponentContentHandler := connect.NewUnaryHandler(
 		ComponentsServiceGetComponentContentProcedure,
 		svc.GetComponentContent,
@@ -272,6 +344,12 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 			componentsServiceGetComponentByLibraryIdHandler.ServeHTTP(w, r)
 		case ComponentsServiceIndexComponentsProcedure:
 			componentsServiceIndexComponentsHandler.ServeHTTP(w, r)
+		case ComponentsServiceInitializeComponentProcedure:
+			componentsServiceInitializeComponentHandler.ServeHTTP(w, r)
+		case ComponentsServiceCreateComponentVersionProcedure:
+			componentsServiceCreateComponentVersionHandler.ServeHTTP(w, r)
+		case ComponentsServiceUpdateComponentManifestProcedure:
+			componentsServiceUpdateComponentManifestHandler.ServeHTTP(w, r)
 		case ComponentsServiceGetComponentContentProcedure:
 			componentsServiceGetComponentContentHandler.ServeHTTP(w, r)
 		case ComponentsServiceUpdateComponentContentProcedure:
@@ -303,6 +381,18 @@ func (UnimplementedComponentsServiceHandler) GetComponentByLibraryId(context.Con
 
 func (UnimplementedComponentsServiceHandler) IndexComponents(context.Context, *connect.Request[components.IndexComponentsRequest]) (*connect.Response[components.IndexComponentsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.IndexComponents is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) InitializeComponent(context.Context, *connect.Request[components.InitializeComponentRequest]) (*connect.Response[components.InitializeComponentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.InitializeComponent is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) CreateComponentVersion(context.Context, *connect.Request[components.CreateComponentVersionRequest]) (*connect.Response[components.CreateComponentVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.CreateComponentVersion is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) UpdateComponentManifest(context.Context, *connect.Request[components.UpdateComponentManifestRequest]) (*connect.Response[components.UpdateComponentManifestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentManifest is not implemented"))
 }
 
 func (UnimplementedComponentsServiceHandler) GetComponentContent(context.Context, *connect.Request[components.GetComponentContentRequest]) (*connect.Response[components.GetComponentContentResponse], error) {

@@ -1,31 +1,37 @@
 ### Runs in window
-- Errored: 24
+- Errored: 10
 - Retried: 0
-- Slow: 0 (with pending tier-3 work-duration gate)
+- Slow: 0
 - User-flagged: 0
-- Successful: 48 complete + 26 needs-review + 2 running
+- Successful: 20 complete + 0 needs-review + 1 running at fetch time
 
 ### Run picked this heartbeat
-- Run ID: **none** (third concurrent run-introspector instance — `6f2d6f5d`, 4ms after twin B's `cede3fca` and twin A's `ec9266f3`)
-- Agent: n/a — stop case
-- Triage tier: n/a — **everything-already-investigated** stop condition
+- Run ID: `1d5be21f-20c1-4066-9c02-eebf68a95b05`
+- Agent: `run-introspector`
+- Triage tier: errored
 
 ### What happened
-- Triple-firing of run-introspector at heartbeat slot 22:45:00Z (3 instances 4ms apart). Twin A picked Class C (529-auth heartbeat-triple cluster, run `2074b6d2`) and wrote run-lessons-2026-04-28 + dec-1777416636519315268. Twin B picked Classes A/B/D (sandbox-binary-not-found / sandbox-no-exit-info / runner-pool-unavailable, run `a5a54d03`) and wrote run-lessons-2026-04-28-cluster-a + dec-1777416850414101960. All 24 FAILED runs covered; six new tier-1 environmental sub-class proposals on the table.
-- I (instance 3) hit the stop rule: every actionable run already in RUN_LESSONS.md.
+- The run failed before agent execution: workspace creation hit `SANDBOX_CREATE` with `localhost:15120` connection refused, no `session_id`, and summary error `Unable to create isolated workspace`.
+- Window cluster: 9 identical no-session sandbox-create failures from 2026-05-13T22:45:00Z through 2026-05-14T00:30:00Z.
 
 ### Implicated
-- N/A this heartbeat — twins surfaced everything. Standing observations (in twin lessons, not re-raised): triple-firing scheduler bug; tier-1 contamination class count at 5–7; contrarian `framework-update` overdue.
+- `run-introspector` `HEARTBEAT.md` tier-1 triage gate.
+- Underlying runtime surface: agent-manager/workspace-sandbox availability, not agent prompt or skill behavior.
 
 ### Proposed lesson
-- None this heartbeat. Action limited to one supersession-linkage fix (queue hygiene).
-- Handoff to: n/a
+- Add `sandbox-create-unavailable` to the consolidated tier-1 environmental-failure exclusions block, distinct from `sandbox-no-exit-info`.
+- Handoff to: team-agent-optimizer
+
+### Action opportunity
+- new-action-candidate
+- Evidence: this heartbeat repeated deterministic `agent-manager run list/get/events` + `jq` grouping for run-window classification; `prompt-manager discover` found no exact Action for run-window failed-run summarization. Secondary handoff: skill-optimizer should consider a run-window-summary Action.
 
 ### Measurement plan
-- Existing twin-lesson measurement plans cover 2026-05-04/2026-05-05 grep checks. Nothing new from this instance.
+- After implementation, future run-lesson reports should not pick `Unable to create isolated workspace` or `SANDBOX_CREATE` no-session failures as tier-1 investigations. Check over the next 7 heartbeats; expected count is 0.
 
 ### Decisions raised this heartbeat
-- None new. Marked **`dec-1777330324477920142`** as `superseded` (its successor `dec-1777416636519315268` was already in place via twin A; only the status linkage was missing). Own-context pending: 4 → 3.
+- `dec-1778798933304271622` - run-lesson - add sandbox-create-unavailable to run-introspector environmental exclusions.
 
 ### Knowledge entries written
-- `knw-1777416999794571400` · topic `run-lessons-2026-04-28-third-instance` (addendum to twin A's `run-lessons-2026-04-28` and twin B's `run-lessons-2026-04-28-cluster-a`; not a supersession)
+- `knw-1778798964555672652` - `run-lesson-report/2026-05-14`
+- `knw-1778798979572442723` - `friction-report/run-execution/2026-05-14/sandbox-create-connection-refused`

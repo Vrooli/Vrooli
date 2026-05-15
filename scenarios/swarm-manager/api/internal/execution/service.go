@@ -467,8 +467,15 @@ func (s *Service) Get(ctx context.Context, executionID string) (Record, error) {
 // List returns executions ordered by created_at descending.
 func (s *Service) List(ctx context.Context, filters ListFilters) ([]Record, error) {
 	_ = s.ProcessActiveExecutions(ctx)
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	return s.ListSnapshot(ctx, filters)
+}
+
+// ListSnapshot returns executions from the persisted store without polling
+// agent-manager or draining pending work. Use this for read-only aggregate
+// projections where freshness is provided by the regular execution poller and
+// graph invalidation events; blocking those projections on remote run-state
+// refresh makes unrelated UI surfaces slow to open.
+func (s *Service) ListSnapshot(_ context.Context, filters ListFilters) ([]Record, error) {
 	records, err := s.store.Load()
 	if err != nil {
 		return nil, err

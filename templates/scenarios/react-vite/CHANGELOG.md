@@ -76,6 +76,37 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 1.0.1 — 2026-05-14
+
+Adds baseline PWA install metadata and placeholder icons to generated
+React/Vite scenarios.
+
+### Added
+- `ui/public/site.webmanifest` with standalone display mode, relative
+  `start_url`/`scope`, theme/background colors, and maskable icon
+  declarations.
+- Generic placeholder PNGs for `apple-icon-180.png`,
+  `favicon-196.png`, `manifest-icon-192.maskable.png`, and
+  `manifest-icon-512.maskable.png`.
+- Mobile install metadata in `ui/index.html`, including manifest,
+  Apple touch icon, theme color, and iOS standalone-mode tags.
+
+### Changed
+- `README.md` and `docs/START-HERE.md` now call out the seeded PWA
+  branding surface as durable scaffolding that should be replaced with
+  scenario-specific branding when available.
+
+### Migration (for agents updating older scenarios)
+- [ ] Add a web app manifest under `ui/public/site.webmanifest` using
+      relative `start_url` and `scope` values so root tunnels and proxied
+      paths both resolve correctly.
+- [ ] Add PNG app icons for Apple touch, favicon, and 192/512 maskable
+      manifest icons. Use scenario-specific artwork when available;
+      otherwise use a neutral placeholder and document that Brand Manager
+      should replace it later.
+- [ ] Add the manifest, icon, theme-color, and iOS standalone meta tags
+      to `ui/index.html`, then rebuild the UI bundle.
+
 ## 1.0.0 — 2026-05-12
 
 First versioned release. Establishes the template's contract with

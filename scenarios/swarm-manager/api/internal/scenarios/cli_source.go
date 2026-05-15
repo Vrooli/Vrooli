@@ -3,6 +3,8 @@ package scenarios
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -39,6 +41,14 @@ type CLIProvider struct {
 	includePorts bool
 }
 
+// DirectoryProvider lists scenarios directly from the local scenarios
+// directory. It intentionally avoids lifecycle/status checks; graph topology
+// projections use it when they only need stable scenario identity for target
+// context.
+type DirectoryProvider struct {
+	scenariosDir string
+}
+
 // NewCLIProvider creates a CLI-backed scenario source.
 func NewCLIProvider(timeout time.Duration) *CLIProvider {
 	return NewCLIProviderWithOptions(CLIProviderOptions{
@@ -59,6 +69,11 @@ func NewCLIProviderWithOptions(options CLIProviderOptions) *CLIProvider {
 		timeout:      timeout,
 		includePorts: options.IncludePorts,
 	}
+}
+
+// NewDirectoryProvider creates a filesystem-backed scenario source.
+func NewDirectoryProvider(scenariosDir string) *DirectoryProvider {
+	return &DirectoryProvider{scenariosDir: strings.TrimSpace(scenariosDir)}
 }
 
 // List retrieves scenarios using `vrooli scenario list --json`, optionally
@@ -91,6 +106,37 @@ func (p *CLIProvider) List(ctx context.Context) ([]ScenarioSource, error) {
 		})
 	}
 
+	return scenarios, nil
+}
+
+// List retrieves scenario identities from directories that contain a Vrooli
+// scenario service contract.
+func (p *DirectoryProvider) List(_ context.Context) ([]ScenarioSource, error) {
+	root := p.scenariosDir
+	if root == "" {
+		root = "scenarios"
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+
+	scenarios := make([]ScenarioSource, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := strings.TrimSpace(entry.Name())
+		path := filepath.Join(root, name)
+		if _, err := os.Stat(filepath.Join(path, ".vrooli", "service.json")); err != nil {
+			continue
+		}
+		scenarios = append(scenarios, ScenarioSource{
+			Name:   name,
+			Path:   path,
+			Status: "available",
+		})
+	}
 	return scenarios, nil
 }
 

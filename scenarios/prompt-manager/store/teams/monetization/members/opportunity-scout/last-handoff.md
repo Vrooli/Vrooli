@@ -1,22 +1,25 @@
 ### Signal scanned this heartbeat
-Reviewed full `docs/monetization/` canon (CATALOG, STRATEGY, business bundle, 3 existing add-ons, REVENUE_LINES, new `flipping.md`, scenario-sku-map.json), prior `opportunities.jsonl` (6 entries from 2026-04-23, all <1 wk old), recent monetization-team knowledge (catalog-snapshot 2026-04-27 with Agent Sandbox Audit Foundation 0→2/5; ledger still pending-operator; contrarian quiet), and director-swarm vision-walk knowledge from walk #4 (TikTok home-inspector signal, regtech-intel-substrate, homelab-app-scenario-seeding research method, marketplace-bidding bookmark, walk-#4 process-feedback). Scenarios inventory at 97. First scan with substantive operator-vision-walk signal (prior was all self-generated).
+Opportunity inbox was empty. Read recent monetization knowledge, migrated opportunity pool, 2026-05-13 contrarian scan, 2026-05-14 financial snapshot, and director-swarm prep refresh. Local checkout was empty, so `docs/monetization/*` could not be read directly; relied on member context, team charter, prior scout-scan, and migrated pool entries.
+
+External scan covered MCP/agent registries, MCP security research, home-inspection privacy/data-resale chatter, and homelab/self-hosted app-store surfaces. Key sources included `mcpapp.net/store`, `skillful.sh`, `arxiv.org/abs/2603.23802`, `arxiv.org/abs/2603.21642`, `arxiv.org/abs/2602.19514`, `apps.umbrel.com`, `homeio.app`, `homelabarr.com`, Spectora/HomeGauge pages, and recent Reddit home-inspection/self-hosted discussions.
 
 ### Ideas captured this heartbeat
-4 entries appended to `opportunities.jsonl`:
-- **Family bundle (third base bundle)** — sku-candidate (new-base-bundle)
-- **Regulatory + competitive intelligence add-on (business)** — addon-candidate
-- **Home-inspection vertical (dual-audience)** — sku-candidate (new-base-bundle)
-- **Compliance-attestation done-for-you (Vanta-clone services pilot)** — services-line-candidate
+3 entries added to `monetization/opportunity/*`:
+- **MCP / agent registry discovery channel** — channel-candidate, `skill-registries`, feeds subscription. ID: `knw-1778785393369472113`.
+- **Agent connector security add-on (business)** — addon-candidate distinct from AI quality/red-team; focuses on MCP/skill/tool vetting. ID: `knw-1778785393369651153`.
+- **Homelab / self-hosted app-store channel** — channel-candidate for family-bundle discovery through Umbrel/Homeio/HomelabARR/self-hosted communities. ID: `knw-1778785393528783428`.
 
-### Ideas proposed for promotion (decisions raised)
-No ideas strong enough for direct promotion. All 4 have prerequisite triggers unmet (BAS hardening, regulatory-intel/competitive-intel scenarios don't yet exist, business-bundle subscriber thresholds, operator's explicit "second-similar-signal" criterion on home-inspection, operator-time-available for compliance-attestation pilot). Operator's explicit "not-initiative-ready" notes on regtech and home-inspection honored — kept pool-only.
+### Ideas proposed for promotion
+No decisions raised. Full triggers did not fire. Home-inspection now has a likely second-similar-signal from public 2026 data/privacy chatter, but BAS/regulatory-intel prerequisites and operator’s base-bundle-vs-addon decision remain unmet.
 
 ### Pool snapshot
-- Total candidates in pool: 10
-- Candidates with fireable triggers (operator should review): 0
-- Candidates stale >6 months: 0 (oldest is 2026-04-23, 4 days)
+- Total candidates in pool: 13
+- New candidates this heartbeat: 3
+- Candidates with full fireable triggers: 0
+- Partial trigger: home-inspection second-similar-signal likely met
+- Stale >6 months: 0
+- Opportunity inbox after scan: empty
+- Monetization pending queue observed: 8
 
 ### Knowledge entry written
-- topic: `scout-scan-2026-04-27` (id: `knw-1777316575721036096`, supersedes `knw-1776971053255400793`)
-
-Team queue: 0 pending (well under 12-decision ceiling). Own-context cap: 0 of 3 catalog-promotion decisions pending. Honesty flags applied: all TAMs and capability-reuse marks are estimates; revisit-triggers are concrete and tied to measurable conditions (sub thresholds, scenario shipping status, second-signal criteria, operator-confirmation gates). Two of the four new entries have non-self-generated signal sources (operator-vision-walk knowledge entries) — first time the pool has externally-grounded candidates.
+- `scout-scan/2026-05-14` written as `knw-1778785431402981013`.

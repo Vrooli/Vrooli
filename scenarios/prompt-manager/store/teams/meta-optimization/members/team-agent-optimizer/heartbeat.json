@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "30 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T22:30:00Z",
-    "endedAt": "2026-05-13T22:30:06Z",
-    "status": "failed",
-    "runId": "8af8f650-195d-4c9d-ab68-b7b048019b1c",
-    "logPath": "../store/teams/meta-optimization/members/team-agent-optimizer/logs/2026-05-13T22-30-00Z.log",
-    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
+    "startedAt": "2026-05-14T22:30:00Z",
+    "endedAt": "2026-05-14T22:33:26Z",
+    "status": "completed",
+    "runId": "505bd329-80e1-4ba2-9b38-b537f2cc27a2",
+    "logPath": "../store/teams/meta-optimization/members/team-agent-optimizer/logs/2026-05-14T22-30-00Z.log"
   },
-  "revision": 18,
+  "revision": 21,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-13T22:30:06Z"
+  "updatedAt": "2026-05-14T22:33:27Z"
 }

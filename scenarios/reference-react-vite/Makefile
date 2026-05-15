@@ -90,6 +90,15 @@ setup: ## Run scenario setup lifecycle
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"
 
+orient: ## Show generated-scenario orientation progress
+	@vrooli scenario orient "$(SCENARIO_NAME)"
+
+navigation: ## Validate + verify + reconcile ui/flow/navigation.json and emit routes.generated.ts
+	@cd $(CURDIR)/../flow-verifier/api && go run ./cmd/navigation-self-check \
+		--contract $(CURDIR)/ui/flow/navigation.json \
+		--scenario $(CURDIR) \
+		--emit
+
 # Development shortcuts
 run: start
 dev: start

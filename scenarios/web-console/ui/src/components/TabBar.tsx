@@ -6,6 +6,7 @@ import { cn } from "../lib/classnames";
 import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 import { useLongPress } from "../hooks/useLongPress";
+import { usePressGesture } from "../hooks/usePressGesture";
 import TabContextMenu from "./TabContextMenu";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useConversationStore } from "../stores/useConversationStore";
@@ -106,14 +107,6 @@ export default function TabBar({
     }
   }, [editingGroupId]);
 
-  // Long-press detection for opening context menu on tabs.
-  // The timer sets longPressReady; the menu only opens on pointerUp
-  // so that drag gestures take priority over long-press.
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFired = useRef(false);
-  const longPressReady = useRef(false);
-  const longPressPaneId = useRef<string | null>(null);
-
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
   const plusHandlers = useLongPress({
     onPress: plusButtonBehavior === "launcher" ? onOpenLauncher : onNewTerminal,
@@ -136,9 +129,9 @@ export default function TabBar({
     y: number;
     pointerId: number;
     target: HTMLElement;
-    allowReorder: boolean;
   } | null>(null);
   const suppressPointerUpActivationRef = useRef(false);
+  const mouseActivatedPaneRef = useRef<string | null>(null);
 
   /** Movement threshold (px) before a pointer-down becomes a drag. */
   const DRAG_THRESHOLD = 5;
@@ -147,6 +140,22 @@ export default function TabBar({
     setActivePane(sessionId);
     syncActivePane(useWorkspaceStore.getState().panes.map((p) => p.sessionId), sessionId);
   }, [setActivePane, syncActivePane]);
+
+  /** Open the tab context menu at the given position. */
+  const openContextMenu = useCallback((sessionId: string, x: number, y: number) => {
+    setTabContextMenu({ sessionId, position: { x, y } });
+  }, [setTabContextMenu]);
+
+  const tabPressGesture = usePressGesture<string>({
+    longPressMs: 500,
+    moveThresholdPx: DRAG_THRESHOLD,
+    onTap: (sessionId) => {
+      activatePane(sessionId);
+    },
+    onLongPress: (sessionId, point) => {
+      openContextMenu(sessionId, point.x, point.y);
+    },
+  });
 
   // Auto-scroll active tab into view
   useEffect(() => {
@@ -162,14 +171,6 @@ export default function TabBar({
   // Initiate actual drag once movement exceeds threshold
   const commitDrag = useCallback(
     (paneId: string, target: HTMLElement, pointerId: number) => {
-      // Cancel any pending long-press when drag starts
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
-      longPressReady.current = false;
-      longPressPaneId.current = null;
-
       const idx = panes.findIndex((p) => p.sessionId === paneId);
       if (idx === -1) return;
       target.setPointerCapture(pointerId);
@@ -188,16 +189,7 @@ export default function TabBar({
         const dy = e.clientY - pending.y;
         if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
           suppressPointerUpActivationRef.current = true;
-          if (pending.allowReorder) {
-            commitDrag(pending.paneId, pending.target, pending.pointerId);
-          } else {
-            if (longPressTimer.current) {
-              clearTimeout(longPressTimer.current);
-              longPressTimer.current = null;
-            }
-            longPressReady.current = false;
-            longPressPaneId.current = null;
-          }
+          commitDrag(pending.paneId, pending.target, pending.pointerId);
           dragStartRef.current = null;
         }
         return;
@@ -241,11 +233,6 @@ export default function TabBar({
   }, [dragState, movePaneToIndex, syncPaneOrder, commitDrag]);
 
   const isDragging = dragState !== null;
-
-  /** Open the tab context menu at the given position. */
-  const openContextMenu = (sessionId: string, x: number, y: number) => {
-    setTabContextMenu({ sessionId, position: { x, y } });
-  };
 
   const groupMap = new Map(groups.map((g) => [g.id, g]));
   const renderItems = buildWorkspaceNavigationItems({
@@ -341,6 +328,13 @@ export default function TabBar({
                   : undefined
               }
               onClick={() => {
+                if (tabPressGesture.shouldSuppressClick(pane.sessionId)) {
+                  return;
+                }
+                if (mouseActivatedPaneRef.current === pane.sessionId) {
+                  mouseActivatedPaneRef.current = null;
+                  return;
+                }
                 // Suppress click if a drag just completed
                 if (isDragging) return;
                 activatePane(pane.sessionId);
@@ -353,15 +347,7 @@ export default function TabBar({
                   }
                 }
               }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (longPressTimer.current) {
-                  clearTimeout(longPressTimer.current);
-                  longPressTimer.current = null;
-                }
-                longPressFired.current = true;
-                openContextMenu(pane.sessionId, e.clientX, e.clientY);
-              }}
+              onContextMenu={tabPressGesture.getGestureHandlers(pane.sessionId).onContextMenu}
               onPointerDown={(e) => {
                 suppressPointerUpActivationRef.current = false;
                 // Left-click on mouse: start tracking for drag threshold
@@ -372,62 +358,26 @@ export default function TabBar({
                     y: e.clientY,
                     pointerId: e.pointerId,
                     target: e.currentTarget as HTMLElement,
-                    allowReorder: true,
                   };
                   return;
                 }
-                // Start long-press timer for touch/pen.
-                // Sets longPressReady flag; context menu opens on pointerUp so
-                // swipe gestures can cancel the long-press without reordering.
-                if (e.pointerType !== "mouse" && e.button === 0) {
-                  longPressFired.current = false;
-                  longPressReady.current = false;
-                  longPressPaneId.current = pane.sessionId;
-                  dragStartRef.current = {
-                    paneId: pane.sessionId,
-                    x: e.clientX,
-                    y: e.clientY,
-                    pointerId: e.pointerId,
-                    target: e.currentTarget as HTMLElement,
-                    allowReorder: false,
-                  };
-                  longPressTimer.current = setTimeout(() => {
-                    longPressReady.current = true;
-                  }, 500);
-                }
+                tabPressGesture.getGestureHandlers(pane.sessionId).onPointerDown(e);
               }}
               onPointerUp={(e) => {
                 const suppressActivation = suppressPointerUpActivationRef.current;
                 suppressPointerUpActivationRef.current = false;
-                if (longPressTimer.current) {
-                  clearTimeout(longPressTimer.current);
-                  longPressTimer.current = null;
-                }
-                // Long-press ready + no drag: open context menu on touch-up
-                if (longPressReady.current && !isDragging && longPressPaneId.current) {
-                  longPressFired.current = true;
-                  longPressReady.current = false;
-                  openContextMenu(longPressPaneId.current, e.clientX, e.clientY);
-                  longPressPaneId.current = null;
-                  return;
-                }
-                longPressReady.current = false;
-                longPressPaneId.current = null;
+                if (e.pointerType !== "mouse") return;
                 // Activate tab immediately on pointer-up rather than waiting
                 // for onClick, which mobile browsers may delay or suppress
                 // when the element is inside a scrollable container.
-                if (!longPressFired.current && !isDragging && !suppressActivation) {
+                if (!isDragging && !suppressActivation) {
+                  mouseActivatedPaneRef.current = pane.sessionId;
                   activatePane(pane.sessionId);
                 }
               }}
               onPointerCancel={() => {
                 suppressPointerUpActivationRef.current = false;
-                if (longPressTimer.current) {
-                  clearTimeout(longPressTimer.current);
-                  longPressTimer.current = null;
-                }
-                longPressReady.current = false;
-                longPressPaneId.current = null;
+                tabPressGesture.reset();
                 dragStartRef.current = null;
               }}
             >

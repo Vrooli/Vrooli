@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -64,6 +65,35 @@ func (s stubCompleteness) Scores(_ context.Context) (map[string]int, error) {
 		return map[string]int{}, nil
 	}
 	return s.scores, nil
+}
+
+func TestDirectoryProviderListUsesLocalScenarioContracts(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	for _, name := range []string{"alpha", "beta"} {
+		serviceDir := filepath.Join(root, name, ".vrooli")
+		if err := os.MkdirAll(serviceDir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", serviceDir, err)
+		}
+		if err := os.WriteFile(filepath.Join(serviceDir, "service.json"), []byte("{}"), 0o644); err != nil {
+			t.Fatalf("write service.json: %v", err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(root, "scratch"), 0o755); err != nil {
+		t.Fatalf("mkdir scratch: %v", err)
+	}
+
+	got, err := NewDirectoryProvider(root).List(context.Background())
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("scenario count = %d, want 2: %+v", len(got), got)
+	}
+	if got[0].Name != "alpha" || got[0].Status != "available" || got[1].Name != "beta" || got[1].Status != "available" {
+		t.Fatalf("unexpected scenarios: %+v", got)
+	}
 }
 
 type stubLifecycle struct {

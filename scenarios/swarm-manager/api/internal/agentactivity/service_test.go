@@ -18,6 +18,7 @@ type stubAgentService struct {
 	initiativeSpawnRes   agentmanager.RunResult
 	initiativeSpawnErr   error
 	runStates            map[string]agentmanager.RunState
+	runStateCalls        int
 	stopErr              error
 	continueErr          error
 	continueRuns         []string
@@ -60,6 +61,7 @@ func (s *stubAgentService) SpawnInitiative(_ context.Context, req agentmanager.I
 }
 
 func (s *stubAgentService) GetRunState(_ context.Context, runID string) (agentmanager.RunState, error) {
+	s.runStateCalls++
 	state, ok := s.runStates[runID]
 	if !ok {
 		return agentmanager.RunState{}, errors.New("run state not found")
@@ -104,6 +106,42 @@ func newTestServiceWithLanePolicy(t *testing.T, raw *stubAgentService, policy La
 		AgentService: raw,
 		LanePolicy:   policy,
 	})
+}
+
+func TestListSnapshotDoesNotRefreshRunState(t *testing.T) {
+	t.Parallel()
+
+	agent := &stubAgentService{
+		enabled: true,
+		runStates: map[string]agentmanager.RunState{
+			"run-1": {Status: "completed", FinishedAt: "2026-05-14T00:00:00Z"},
+		},
+	}
+	svc := newTestService(t, agent)
+	if err := svc.store.Save([]Record{{
+		ActivityID: "act-1",
+		OwnerType:  OwnerBacklog,
+		OwnerKind:  "execute",
+		OwnerName:  "slow-graph",
+		Status:     StatusRunning,
+		RunID:      "run-1",
+	}}); err != nil {
+		t.Fatalf("save activity: %v", err)
+	}
+
+	records, err := svc.ListSnapshot(context.Background(), ListFilters{ActiveOnly: true})
+	if err != nil {
+		t.Fatalf("ListSnapshot: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("ListSnapshot returned %d records, want 1", len(records))
+	}
+	if records[0].Status != StatusRunning {
+		t.Fatalf("snapshot status = %q, want persisted running", records[0].Status)
+	}
+	if agent.runStateCalls != 0 {
+		t.Fatalf("ListSnapshot called GetRunState %d times, want 0", agent.runStateCalls)
+	}
 }
 
 func TestServiceSpawnBacklogCreatesTrackedActivity(t *testing.T) {

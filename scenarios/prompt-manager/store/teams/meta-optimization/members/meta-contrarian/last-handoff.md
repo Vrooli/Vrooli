@@ -1,27 +1,48 @@
-### Proposals reviewed this heartbeat
-- 7 (2 carry-over + 5 new)
+### Pending decisions reviewed
+- 9
 
-### Passed cleanly
-- `dec-1777156591536785033` (team-agent-optimizer · agent-improvement · run-introspector tier-3 work-duration) — carry-over, no new info, still clean.
-- `dec-1777330180871528504` (run-introspector · run-lesson · tier-1 silent-stall extension) — carry-over, still clean.
-- `dec-1777414037655179064` (toolchain-validator · toolchain-violation · 36-violation false-negative correction) — direct file-read evidence (ui/tsconfig.json, ui/package.json line 9/12, .vrooli/testing.json absence of strict flags, missing api/.golangci.yml + cli/.golangci.yml) + git log empty for 3+ days on relevant files. Concrete remediation order with measurable per-rule deltas. Properly supersedes dec-1777327401931026247. In-lane (cause-investigation explicitly held back). Clears all seven modes. *Queue-discipline observation*: paired with sibling dec-1777413982143394103 superseding the same prior — sibling should be marked superseded by this one (not a failure-mode hit; covered in challenge note).
-- `dec-1777414066604011410` (toolchain-validator · capability-gap · scenario-auditor scan instability) — concrete delta (36/24/24/36 across four scans on unchanged source); distinct from accepted dec-1777068259096417622 (which is about missing surfaces, this is about unreliability of an existing one); coordinates rather than supersedes; explicit measurement plan ("three back-to-back scans on the same commit hash should agree on violation count within ±1"); in-lane; root-cause investigation explicitly held to ecosystem-manager; restraint on tool-runtime ambient observations (CLI auto-resolution failure, tidiness-manager 'Files scanned: 0') — held pending recurrence per prior policy. Clears all seven.
-- `dec-1777416636519315268` (run-introspector · run-lesson · supersedes dec-1777330324477920142, 5xx-broad refinement) — concrete miss (run 2074b6d2 with empty run.error_message but 529 in RUN_EVENT_TYPE_ERROR.details.result_text); 9-of-29 cluster baseline + measurement plan (7-HB grep); pattern-simplification reasoning sound (status code is the signal, status text is over-engineering); event-source-widening reasoning sound (run.error_message is empty/populated nondeterministically across runs); proper supersession discipline (`supersedes` field set); shared "terminal error resolution" preamble proposal benefits all three pending tier-1 exclusions; out-of-lane concerns (9-round retry storm, scheduler triple-firing) explicitly held back. Clears all seven.
-- `dec-1777416850414101960` (run-introspector · run-lesson · extends consolidated tier-1 block with 3 sub-classes) — concrete cluster (15 of 24 FAILED runs in window covered by Classes A+B+D); each sub-class has a mechanically inspectable predicate; baseline + delta + measurement; in-lane (root causes for binary path / SSE Flusher / runner pool sizing explicitly held to scenario-qa); proper consolidation framing rather than three separate decisions; 1-of-2 cap discipline maintained (second decision deliberately not raised). Clears all seven. *Twin-context observation*: this decision and dec-1777416636519315268 were created by two of three concurrently-fired run-introspector heartbeats — additive on adjacent topics, not duplicate; not a failure-mode hit, but visibly the scheduler's triple-fire problem manifesting in this team's queue. Out of meta-lane.
+### Clean proposals
+- `dec-1777330180871528504`
+- `dec-1777414037655179064`
+- `dec-1777414066604011410`
+- `dec-1777416636519315268`
+- `dec-1777416850414101960`
+- `dec-1778796166725303185`
+- `dec-1778797938232697845`
+- `dec-1778798933304271622`
 
 ### Challenge notes written
-- `challenge-report/dec-1777413982143394103` (knw-1777417402930439034) — **failure mode 4 flagged + queue-discipline (stacking) violation**. Decision frames the situation as "REGRESSED: was 24, +12" but its sibling dec-1777414037655179064 (raised 55 seconds later by the same author) provides direct file-read + git-log evidence the 24-violation report was a false-negative and no commits touched the relevant files in 3+ days. Acting on this decision's "re-apply the cleanup" recommendation sends the operator searching for a state-loss event that never occurred. Additionally a TEAM.md guardrail violation: both pending decisions supersede dec-1777327401931026247, which "Supersession over stacking (mandatory)" forbids. Revision that would pass: mark dec-1777413982143394103 superseded by dec-1777414037655179064; the actionable substance (9 Highs need first-applying) survives in the corrected-framing version.
-- `challenge-report/dec-1777414037655179064` (knw-1777417415953772562) — all seven modes cleared individually with detailed per-mode notes; queue-discipline observation attached for operator visibility (sibling stacking issue) so the vision walk sees the pair together.
+- `dec-1777156591536785033`: Mode 4 - exact edit target is stale; it quotes a `Slow` line no longer present in current run-introspector prompt surfaces.
 
-### Rejection recommendations raised
-- None. dec-1777413982143394103 hits mode 4 alone (single-mode hit) plus a queue-discipline issue that isn't part of the seven modes. Single-mode hit doesn't meet the bar for `decision-rejection-proposed` (cap is "fails multiple modes"). The corrective action is supersession, not rejection — and the toolchain-validator member should land that on its next heartbeat after seeing the challenge note. If the sibling is still un-superseded a heartbeat from now, I'll revisit.
+### Challenge resolution updates
+- `dec-1777156591536785033`: open - revision requested to retarget the valid work-duration lesson to current `Required Loop` step 2 or `RESPONSIBILITIES.md` Triage Standard.
+- `dec-1777414037655179064`: resolved - prior clean-pass report has no remaining open issue after sibling supersession.
+- `dec-1777413982143394103`: resolved - stale regression-frame sibling was superseded by `dec-1777414037655179064`.
 
-### Framework-update candidates
-- **None — and explicitly retiring the standing watch on "tier-signal-contamination."** dec-1777416636519315268 and dec-1777416850414101960 both note (in their rationales) that the count of distinct tier-1 environmental sub-classes is now seven and "framework-update for tier-signal-contamination as a standing failure mode is now overdue by three heartbeats." My last heartbeat held a watch criterion: "if a 5th tier-contamination class surfaces *and* team-agent-optimizer has not consolidated by then, I will revisit." That criterion is met. **I am still declining, and explicitly retiring the watch.** Re-running my last heartbeat's reasoning against fresh evidence: the seven failure modes evaluate **proposal hygiene** (baseline, evidence, in-lane, supersession discipline). Each tier-1 sub-class proposal individually clears all seven (concrete cluster, measurement plan, in-lane). The actual structural problem is **flow** — team-agent-optimizer has accumulated 3 pending tier-1 exclusion decisions plus the prior tier-3 work-duration edit, and run-introspector is producing them faster than they're being implemented. Adding "tier-signal-contamination" as failure mode 8 would (a) import a domain-specific run-introspector triage concern into a cross-cutting framework that skill-optimizer/team-agent-optimizer can't apply, and (b) target the wrong layer — the consolidation work is already specified inside the proposals; what's missing is operator action to accept them. The right intervention is operator processing of the existing queue, not a framework expansion. Watch-item retired; declining future requests on the same theme unless proposal hygiene itself drifts.
-- **Stacking-detection** (the queue-discipline violation in dec-1777413982143394103/dec-1777414037655179064) is also NOT a framework-update candidate. Stacking is already a TEAM.md operating rule ("Supersession over stacking (mandatory)") — not a missing rule. Adding it as failure mode 8 would duplicate an existing guardrail in a different mechanism, which is itself a sprawl-shaped framework error.
+### Action proposal checks
+- `dec-1777156591536785033`: not Action-related
+- `dec-1777330180871528504`: not Action-related
+- `dec-1777414037655179064`: not Action-related
+- `dec-1777414066604011410`: not Action-related
+- `dec-1777416636519315268`: not Action-related
+- `dec-1777416850414101960`: not Action-related
+- `dec-1778796166725303185`: not Action-related
+- `dec-1778797938232697845`: not Action-related
+- `dec-1778798933304271622`: not Action-related; contains future Action-candidate watch only
 
-### Aged decisions handled (>14 heartbeats)
-- No aged decisions in queue. Oldest is dec-1777156591536785033 from 2026-04-25 (3 days old).
+### Stale-decision scan
+- `dec-1777156591536785033`: still relevant - lesson valid, but challenged for stale edit target.
+- `dec-1777330180871528504`: still relevant - no silent-stall exclusion is present in current run-introspector prompt.
+- `dec-1777414037655179064`: still relevant - May 14 scan was dirty-tree and not comparable, so no clean-resolution evidence.
+- `dec-1777414066604011410`: still relevant - scan comparability remains weak; May 14 added raw-vs-printed severity mismatch.
+- `dec-1777416636519315268`: still relevant - no 5xx terminal-error exclusion is present in current run-introspector prompt.
+- `dec-1777416850414101960`: still relevant - no sandbox/no-exit/runner-pool exclusions are present in current run-introspector prompt.
+
+### Decisions raised this heartbeat
+- None. Single-mode challenge only; no rejection or framework-update warranted.
 
 ### Knowledge entries written
-- 2 challenge notes (knw-1777417402930439034, knw-1777417415953772562). Both attached to the toolchain-validator stacking pair.
+- `knw-1778799778521722099` - `challenge-report/dec-1777156591536785033`
+- `knw-1778799809334967897` - `challenge-resolution-record/dec-1777156591536785033`
+- `knw-1778799809178039970` - `challenge-resolution-record/dec-1777414037655179064`
+- `knw-1778799809335329708` - `challenge-resolution-record/dec-1777413982143394103`

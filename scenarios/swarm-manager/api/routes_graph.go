@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"path/filepath"
 
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/scenarios"
@@ -23,16 +24,14 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) *graph.Materializer {
 		Initiative: graph.NewInitiativeAdapter(s.initStore),
 		Capture:    graph.NewCaptureAdapter(scenarioRoot),
 		Scenario: graph.NewScenarioSourceAdapter(
-			scenarios.NewCLIProviderWithOptions(scenarios.CLIProviderOptions{
-				IncludePorts: false,
-			}),
+			scenarios.NewDirectoryProvider(filepath.Dir(scenarioRoot)),
 		),
 	}
 	if s.executionSvc != nil {
 		projCfg.Execution = graph.NewExecutionAdapter(s.executionSvc)
 	}
 	if s.agentActivitySvc != nil {
-		projCfg.Activity = s.agentActivitySvc
+		projCfg.Activity = graph.NewAgentActivityAdapter(s.agentActivitySvc)
 	}
 	projSvc := graph.NewProjectionService(projCfg)
 	s.graphProjection = projSvc

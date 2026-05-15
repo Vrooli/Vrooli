@@ -497,11 +497,38 @@ describe("Workspace", () => {
 
     render(<Workspace />);
     fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
-    fireEvent.pointerUp(screen.getByTestId(`sidebar-session-${session2.id}`), { pointerType: "touch" });
+    const row = screen.getByTestId(`sidebar-session-${session2.id}`);
+    fireEvent.pointerDown(row, { pointerType: "touch", pointerId: 1, button: 0, clientX: 24, clientY: 120 });
+    fireEvent.pointerUp(window, { pointerType: "touch", pointerId: 1, clientX: 24, clientY: 120 });
 
     expect(mockStoreActions.setActivePane).toHaveBeenCalledTimes(1);
     expect(mockStoreActions.setActivePane).toHaveBeenCalledWith(session2.id);
     expect(screen.queryByTestId("workspace-sidebar-backdrop")).toBeNull();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+  });
+
+  it("does not activate or close the mobile sidebar when a touch moves like a swipe", () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+    const session2: SessionInfo = { ...mockSession, id: "sess-test-002" };
+    hookState.panes = [{ session: mockSession }, { session: session2 }];
+    mockStoreState.displayMode = "sidebar";
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+      { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: false },
+    ];
+
+    render(<Workspace />);
+    fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
+    const row = screen.getByTestId(`sidebar-session-${session2.id}`);
+    fireEvent.pointerDown(row, { pointerType: "touch", pointerId: 1, button: 0, clientX: 24, clientY: 120 });
+    fireEvent.pointerMove(window, { pointerType: "touch", pointerId: 1, clientX: 24, clientY: 180 });
+    fireEvent.pointerUp(window, { pointerType: "touch", pointerId: 1, clientX: 24, clientY: 180 });
+    fireEvent.click(row);
+
+    expect(mockStoreActions.setActivePane).not.toHaveBeenCalled();
+    expect(screen.getByTestId("workspace-sidebar-backdrop")).toBeTruthy();
     Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
   });
 
@@ -521,9 +548,9 @@ describe("Workspace", () => {
     render(<Workspace />);
     fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
     const row = screen.getByTestId(`sidebar-session-${session2.id}`);
-    fireEvent.pointerDown(row, { pointerType: "touch", button: 0, clientX: 24, clientY: 120 });
+    fireEvent.pointerDown(row, { pointerType: "touch", pointerId: 1, button: 0, clientX: 24, clientY: 120 });
     vi.advanceTimersByTime(500);
-    fireEvent.pointerUp(row, { pointerType: "touch", button: 0, clientX: 24, clientY: 120 });
+    fireEvent.pointerUp(window, { pointerType: "touch", pointerId: 1, clientX: 24, clientY: 120 });
 
     expect(mockStoreActions.setActivePane).not.toHaveBeenCalled();
     expect(mockStoreActions.setTabContextMenu).toHaveBeenCalledWith({

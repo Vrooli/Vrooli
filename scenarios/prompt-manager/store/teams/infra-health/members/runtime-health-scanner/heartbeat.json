@@ -6,14 +6,14 @@
   "enabled": true,
   "schedule": "30 19 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T23:30:00Z",
-    "endedAt": "2026-05-13T23:30:06Z",
+    "startedAt": "2026-05-14T23:30:00Z",
+    "endedAt": "2026-05-14T23:32:01Z",
     "status": "failed",
-    "runId": "3339c376-fe17-44ad-ae4b-8b1e72ae929e",
-    "logPath": "../store/teams/infra-health/members/runtime-health-scanner/logs/2026-05-13T23-30-00Z.log",
-    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
+    "runId": "a1e81c1e-19f6-4e55-a20a-d9914da269fd",
+    "logPath": "../store/teams/infra-health/members/runtime-health-scanner/logs/2026-05-14T23-30-00Z.log",
+    "error": "sandbox error during no_exit_info: sandbox process ended without exit info"
   },
-  "revision": 52,
+  "revision": 55,
   "createdAt": "2026-04-28T00:00:00Z",
-  "updatedAt": "2026-05-13T23:30:06Z"
+  "updatedAt": "2026-05-14T23:32:02Z"
 }

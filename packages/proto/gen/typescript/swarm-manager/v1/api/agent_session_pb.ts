@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/agent_session.proto.
  */
 export const file_swarm_manager_v1_api_agent_session: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2FwaS9hZ2VudF9zZXNzaW9uLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIrcCChhMaXN0QWdlbnRTZXNzaW9uc1JlcXVlc3QSSAoEa2luZBgBIAEoCUI1ukgycjBSAFISbWV0YV9vcmNoZXN0cmF0aW9uUhhvcGVyYXRpbmdfbW9kZV9hdXRob3JpbmdIAIgBARJ+CgZzdGF0dXMYAiABKAlCabpIZnJkUgBSBWRyYWZ0UghzdGFydGluZ1IHcnVubmluZ1IQd2FpdGluZ19mb3JfdXNlclIOcHJvcG9zYWxfcmVhZHlSCGFwcGx5aW5nUghjb21wbGV0ZVIGZmFpbGVkUghjYW5jZWxlZEgBiAEBEhMKC2FjdGl2ZV9vbmx5GAMgASgIEh4KBWxpbWl0GAQgASgFQgq6SAcaBRjIASgASAKIAQFCBwoFX2tpbmRCCQoHX3N0YXR1c0IICgZfbGltaXQiTQoZTGlzdEFnZW50U2Vzc2lvbnNSZXNwb25zZRIwCghzZXNzaW9ucxgBIAMoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uIjUKFkdldEFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASJKChdHZXRBZ2VudFNlc3Npb25SZXNwb25zZRIvCgdzZXNzaW9uGAEgASgLMh4uc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb24iwAEKGUNyZWF0ZUFnZW50U2Vzc2lvblJlcXVlc3QSQQoEa2luZBgBIAEoCUIzukgwci5SEm1ldGFfb3JjaGVzdHJhdGlvblIYb3BlcmF0aW5nX21vZGVfYXV0aG9yaW5nEhYKBXRpdGxlGAIgASgJQge6SARyAhABEiAKD2luaXRpYWxfbWVzc2FnZRgDIAEoCUIHukgEcgIQARIXCgppbml0aWF0aXZlGAQgASgJSACIAQFCDQoLX2luaXRpYXRpdmUiTQoaQ3JlYXRlQWdlbnRTZXNzaW9uUmVzcG9uc2USLwoHc2Vzc2lvbhgBIAEoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uImwKG0NvbnRpbnVlQWdlbnRTZXNzaW9uUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABEhgKB21lc3NhZ2UYAiABKAlCB7pIBHICEAESFgoOYXR0YWNobWVudF9pZHMYAyADKAkiTwocQ29udGludWVBZ2VudFNlc3Npb25SZXNwb25zZRIvCgdzZXNzaW9uGAEgASgLMh4uc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb24iOQoaUmVmcmVzaEFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASJOChtSZWZyZXNoQWdlbnRTZXNzaW9uUmVzcG9uc2USLwoHc2Vzc2lvbhgBIAEoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uIjgKGUNhbmNlbEFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASJNChpDYW5jZWxBZ2VudFNlc3Npb25SZXNwb25zZRIvCgdzZXNzaW9uGAEgASgLMh4uc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb24iOAoZRGVsZXRlQWdlbnRTZXNzaW9uUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABIjAKGkRlbGV0ZUFnZW50U2Vzc2lvblJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkiXQogQXBwbHlBZ2VudFNlc3Npb25Qcm9wb3NhbFJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIcCgtwcm9wb3NhbF9pZBgCIAEoCUIHukgEcgIQASKPAQohQXBwbHlBZ2VudFNlc3Npb25Qcm9wb3NhbFJlc3BvbnNlEi8KB3Nlc3Npb24YASABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbhI5CglhcnRpZmFjdHMYAiADKAsyJi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbkFydGlmYWN0Ij8KIExpc3RBZ2VudFNlc3Npb25BcnRpZmFjdHNSZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAEiXgohTGlzdEFnZW50U2Vzc2lvbkFydGlmYWN0c1Jlc3BvbnNlEjkKCWFydGlmYWN0cxgBIAMoCzImLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQXJ0aWZhY3QixgEKG0dldEFydGlmYWN0c0J5RW50aXR5UmVxdWVzdBKJAQoNYXJ0aWZhY3RfdHlwZRgBIAEoCUJyukhvcm1SDGJhY2tsb2dfaXRlbVIKaW5pdGlhdGl2ZVIXb3BlcmF0aW5nX21vZGVfcHJvcG9zYWxSGW9wZXJhdGluZ19tb2RlX2RlZmluaXRpb25SB2NhcHR1cmVSBGZpbGVSDmFnZW50X2FjdGl2aXR5EhsKCmVudGl0eV9yZWYYAiABKAlCB7pIBHICEAEiWQocR2V0QXJ0aWZhY3RzQnlFbnRpdHlSZXNwb25zZRI5CglhcnRpZmFjdHMYASADKAsyJi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbkFydGlmYWN0QklaR2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_swarm_manager_v1_domain_agent_session]);
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2FwaS9hZ2VudF9zZXNzaW9uLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIrcCChhMaXN0QWdlbnRTZXNzaW9uc1JlcXVlc3QSSAoEa2luZBgBIAEoCUI1ukgycjBSAFISbWV0YV9vcmNoZXN0cmF0aW9uUhhvcGVyYXRpbmdfbW9kZV9hdXRob3JpbmdIAIgBARJ+CgZzdGF0dXMYAiABKAlCabpIZnJkUgBSBWRyYWZ0UghzdGFydGluZ1IHcnVubmluZ1IQd2FpdGluZ19mb3JfdXNlclIOcHJvcG9zYWxfcmVhZHlSCGFwcGx5aW5nUghjb21wbGV0ZVIGZmFpbGVkUghjYW5jZWxlZEgBiAEBEhMKC2FjdGl2ZV9vbmx5GAMgASgIEh4KBWxpbWl0GAQgASgFQgq6SAcaBRjIASgASAKIAQFCBwoFX2tpbmRCCQoHX3N0YXR1c0IICgZfbGltaXQiTQoZTGlzdEFnZW50U2Vzc2lvbnNSZXNwb25zZRIwCghzZXNzaW9ucxgBIAMoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uIjUKFkdldEFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASJKChdHZXRBZ2VudFNlc3Npb25SZXNwb25zZRIvCgdzZXNzaW9uGAEgASgLMh4uc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb24ipAEKGUNyZWF0ZUFnZW50U2Vzc2lvblJlcXVlc3QSQQoEa2luZBgBIAEoCUIzukgwci5SEm1ldGFfb3JjaGVzdHJhdGlvblIYb3BlcmF0aW5nX21vZGVfYXV0aG9yaW5nEhYKBXRpdGxlGAIgASgJQge6SARyAhABEhcKCmluaXRpYXRpdmUYBCABKAlIAIgBAUINCgtfaW5pdGlhdGl2ZUoECAMQBCJNChpDcmVhdGVBZ2VudFNlc3Npb25SZXNwb25zZRIvCgdzZXNzaW9uGAEgASgLMh4uc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb24iaQoYU3RhcnRBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAESGAoHbWVzc2FnZRgCIAEoCUIHukgEcgIQARIWCg5hdHRhY2htZW50X2lkcxgDIAMoCSJMChlTdGFydEFnZW50U2Vzc2lvblJlc3BvbnNlEi8KB3Nlc3Npb24YASABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbiJsChtDb250aW51ZUFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIYCgdtZXNzYWdlGAIgASgJQge6SARyAhABEhYKDmF0dGFjaG1lbnRfaWRzGAMgAygJIk8KHENvbnRpbnVlQWdlbnRTZXNzaW9uUmVzcG9uc2USLwoHc2Vzc2lvbhgBIAEoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uIpYBCh1MaXN0QWdlbnRTZXNzaW9uRXZlbnRzUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABEhsKDmFmdGVyX3NlcXVlbmNlGAIgASgDSACIAQESHgoFbGltaXQYAyABKAVCCrpIBxoFGOgHKAFIAYgBAUIRCg9fYWZ0ZXJfc2VxdWVuY2VCCAoGX2xpbWl0IvoCChRBZ2VudFNlc3Npb25SdW5FdmVudBIKCgJpZBgBIAEoCRIOCgZydW5faWQYAiABKAkSEAoIc2VxdWVuY2UYAyABKAMSEgoKY3JlYXRlZF9hdBgEIAEoCRISCgpldmVudF90eXBlGAUgASgJEgwKBHJvbGUYBiABKAkSDwoHY29udGVudBgHIAEoCRIRCgl0b29sX25hbWUYCCABKAkSFAoMdG9vbF9jYWxsX2lkGAkgASgJEg0KBWlucHV0GAogASgJEg4KBm91dHB1dBgLIAEoCRINCgVlcnJvchgMIAEoCRIOCgZzdGF0dXMYDSABKAkSFwoPcHJldmlvdXNfc3RhdHVzGA4gASgJEhYKDnByb2dyZXNzX3BoYXNlGA8gASgJEhgKEHByb2dyZXNzX3BlcmNlbnQYECABKAUSGAoQcHJvZ3Jlc3NfbWVzc2FnZRgRIAEoCRIPCgdzdW1tYXJ5GBIgASgJEhAKCHJhd19qc29uGBMgASgJIocBCh5MaXN0QWdlbnRTZXNzaW9uRXZlbnRzUmVzcG9uc2USNgoGZXZlbnRzGAEgAygLMiYuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25SdW5FdmVudBIQCghoYXNfbW9yZRgCIAEoCBIbChNuZXh0X2FmdGVyX3NlcXVlbmNlGAMgASgDIjkKGlJlZnJlc2hBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAEiTgobUmVmcmVzaEFnZW50U2Vzc2lvblJlc3BvbnNlEi8KB3Nlc3Npb24YASABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbiI4ChlDYW5jZWxBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAEiTQoaQ2FuY2VsQWdlbnRTZXNzaW9uUmVzcG9uc2USLwoHc2Vzc2lvbhgBIAEoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uIjgKGURlbGV0ZUFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASIwChpEZWxldGVBZ2VudFNlc3Npb25SZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJIl0KIEFwcGx5QWdlbnRTZXNzaW9uUHJvcG9zYWxSZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAESHAoLcHJvcG9zYWxfaWQYAiABKAlCB7pIBHICEAEijwEKIUFwcGx5QWdlbnRTZXNzaW9uUHJvcG9zYWxSZXNwb25zZRIvCgdzZXNzaW9uGAEgASgLMh4uc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb24SOQoJYXJ0aWZhY3RzGAIgAygLMiYuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25BcnRpZmFjdCI/CiBMaXN0QWdlbnRTZXNzaW9uQXJ0aWZhY3RzUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABIl4KIUxpc3RBZ2VudFNlc3Npb25BcnRpZmFjdHNSZXNwb25zZRI5CglhcnRpZmFjdHMYASADKAsyJi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbkFydGlmYWN0IsYBChtHZXRBcnRpZmFjdHNCeUVudGl0eVJlcXVlc3QSiQEKDWFydGlmYWN0X3R5cGUYASABKAlCcrpIb3JtUgxiYWNrbG9nX2l0ZW1SCmluaXRpYXRpdmVSF29wZXJhdGluZ19tb2RlX3Byb3Bvc2FsUhlvcGVyYXRpbmdfbW9kZV9kZWZpbml0aW9uUgdjYXB0dXJlUgRmaWxlUg5hZ2VudF9hY3Rpdml0eRIbCgplbnRpdHlfcmVmGAIgASgJQge6SARyAhABIlkKHEdldEFydGlmYWN0c0J5RW50aXR5UmVzcG9uc2USOQoJYXJ0aWZhY3RzGAEgAygLMiYuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25BcnRpZmFjdEJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_agent_session]);
 
 /**
  * ListAgentSessionsRequest filters the session sidebar list.
@@ -117,7 +117,7 @@ export const GetAgentSessionResponseSchema: GenMessage<GetAgentSessionResponse> 
   messageDesc(file_swarm_manager_v1_api_agent_session, 3);
 
 /**
- * CreateAgentSessionRequest starts a new typed session.
+ * CreateAgentSessionRequest creates a pre-spawn typed draft session.
  *
  * @generated from message swarm_manager.v1.CreateAgentSessionRequest
  */
@@ -136,13 +136,6 @@ export type CreateAgentSessionRequest = Message<"swarm_manager.v1.CreateAgentSes
    * @generated from field: string title = 2;
    */
   title: string;
-
-  /**
-   * Initial operator prompt.
-   *
-   * @generated from field: string initial_message = 3;
-   */
-  initialMessage: string;
 
   /**
    * Optional related initiative name.
@@ -179,6 +172,55 @@ export const CreateAgentSessionResponseSchema: GenMessage<CreateAgentSessionResp
   messageDesc(file_swarm_manager_v1_api_agent_session, 5);
 
 /**
+ * StartAgentSessionRequest sends the first real operator prompt and spawns
+ * the Agent Manager run for a draft session.
+ *
+ * @generated from message swarm_manager.v1.StartAgentSessionRequest
+ */
+export type StartAgentSessionRequest = Message<"swarm_manager.v1.StartAgentSessionRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
+
+  /**
+   * @generated from field: repeated string attachment_ids = 3;
+   */
+  attachmentIds: string[];
+};
+
+/**
+ * Describes the message swarm_manager.v1.StartAgentSessionRequest.
+ * Use `create(StartAgentSessionRequestSchema)` to create a new message.
+ */
+export const StartAgentSessionRequestSchema: GenMessage<StartAgentSessionRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_agent_session, 6);
+
+/**
+ * StartAgentSessionResponse returns the spawned session.
+ *
+ * @generated from message swarm_manager.v1.StartAgentSessionResponse
+ */
+export type StartAgentSessionResponse = Message<"swarm_manager.v1.StartAgentSessionResponse"> & {
+  /**
+   * @generated from field: swarm_manager.v1.AgentSession session = 1;
+   */
+  session?: AgentSession | undefined;
+};
+
+/**
+ * Describes the message swarm_manager.v1.StartAgentSessionResponse.
+ * Use `create(StartAgentSessionResponseSchema)` to create a new message.
+ */
+export const StartAgentSessionResponseSchema: GenMessage<StartAgentSessionResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_agent_session, 7);
+
+/**
  * ContinueAgentSessionRequest appends a user message and continues the run.
  *
  * @generated from message swarm_manager.v1.ContinueAgentSessionRequest
@@ -205,7 +247,7 @@ export type ContinueAgentSessionRequest = Message<"swarm_manager.v1.ContinueAgen
  * Use `create(ContinueAgentSessionRequestSchema)` to create a new message.
  */
 export const ContinueAgentSessionRequestSchema: GenMessage<ContinueAgentSessionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 6);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 8);
 
 /**
  * ContinueAgentSessionResponse returns the updated session.
@@ -224,7 +266,175 @@ export type ContinueAgentSessionResponse = Message<"swarm_manager.v1.ContinueAge
  * Use `create(ContinueAgentSessionResponseSchema)` to create a new message.
  */
 export const ContinueAgentSessionResponseSchema: GenMessage<ContinueAgentSessionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 7);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 9);
+
+/**
+ * ListAgentSessionEventsRequest reads Agent Manager run events through Swarm
+ * Manager session ownership.
+ *
+ * @generated from message swarm_manager.v1.ListAgentSessionEventsRequest
+ */
+export type ListAgentSessionEventsRequest = Message<"swarm_manager.v1.ListAgentSessionEventsRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: optional int64 after_sequence = 2;
+   */
+  afterSequence?: bigint | undefined;
+
+  /**
+   * @generated from field: optional int32 limit = 3;
+   */
+  limit?: number | undefined;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ListAgentSessionEventsRequest.
+ * Use `create(ListAgentSessionEventsRequestSchema)` to create a new message.
+ */
+export const ListAgentSessionEventsRequestSchema: GenMessage<ListAgentSessionEventsRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_agent_session, 10);
+
+/**
+ * AgentSessionRunEvent is the bounded session-owned timeline event shape.
+ *
+ * @generated from message swarm_manager.v1.AgentSessionRunEvent
+ */
+export type AgentSessionRunEvent = Message<"swarm_manager.v1.AgentSessionRunEvent"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: int64 sequence = 3;
+   */
+  sequence: bigint;
+
+  /**
+   * @generated from field: string created_at = 4;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string event_type = 5;
+   */
+  eventType: string;
+
+  /**
+   * @generated from field: string role = 6;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string content = 7;
+   */
+  content: string;
+
+  /**
+   * @generated from field: string tool_name = 8;
+   */
+  toolName: string;
+
+  /**
+   * @generated from field: string tool_call_id = 9;
+   */
+  toolCallId: string;
+
+  /**
+   * @generated from field: string input = 10;
+   */
+  input: string;
+
+  /**
+   * @generated from field: string output = 11;
+   */
+  output: string;
+
+  /**
+   * @generated from field: string error = 12;
+   */
+  error: string;
+
+  /**
+   * @generated from field: string status = 13;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string previous_status = 14;
+   */
+  previousStatus: string;
+
+  /**
+   * @generated from field: string progress_phase = 15;
+   */
+  progressPhase: string;
+
+  /**
+   * @generated from field: int32 progress_percent = 16;
+   */
+  progressPercent: number;
+
+  /**
+   * @generated from field: string progress_message = 17;
+   */
+  progressMessage: string;
+
+  /**
+   * @generated from field: string summary = 18;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string raw_json = 19;
+   */
+  rawJson: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.AgentSessionRunEvent.
+ * Use `create(AgentSessionRunEventSchema)` to create a new message.
+ */
+export const AgentSessionRunEventSchema: GenMessage<AgentSessionRunEvent> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_agent_session, 11);
+
+/**
+ * ListAgentSessionEventsResponse returns bounded Agent Manager run events.
+ *
+ * @generated from message swarm_manager.v1.ListAgentSessionEventsResponse
+ */
+export type ListAgentSessionEventsResponse = Message<"swarm_manager.v1.ListAgentSessionEventsResponse"> & {
+  /**
+   * @generated from field: repeated swarm_manager.v1.AgentSessionRunEvent events = 1;
+   */
+  events: AgentSessionRunEvent[];
+
+  /**
+   * @generated from field: bool has_more = 2;
+   */
+  hasMore: boolean;
+
+  /**
+   * @generated from field: int64 next_after_sequence = 3;
+   */
+  nextAfterSequence: bigint;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ListAgentSessionEventsResponse.
+ * Use `create(ListAgentSessionEventsResponseSchema)` to create a new message.
+ */
+export const ListAgentSessionEventsResponseSchema: GenMessage<ListAgentSessionEventsResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_agent_session, 12);
 
 /**
  * RefreshAgentSessionRequest refreshes session state from Agent Manager.
@@ -243,7 +453,7 @@ export type RefreshAgentSessionRequest = Message<"swarm_manager.v1.RefreshAgentS
  * Use `create(RefreshAgentSessionRequestSchema)` to create a new message.
  */
 export const RefreshAgentSessionRequestSchema: GenMessage<RefreshAgentSessionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 8);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 13);
 
 /**
  * RefreshAgentSessionResponse returns the refreshed session.
@@ -262,7 +472,7 @@ export type RefreshAgentSessionResponse = Message<"swarm_manager.v1.RefreshAgent
  * Use `create(RefreshAgentSessionResponseSchema)` to create a new message.
  */
 export const RefreshAgentSessionResponseSchema: GenMessage<RefreshAgentSessionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 9);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 14);
 
 /**
  * CancelAgentSessionRequest cancels a running session.
@@ -281,7 +491,7 @@ export type CancelAgentSessionRequest = Message<"swarm_manager.v1.CancelAgentSes
  * Use `create(CancelAgentSessionRequestSchema)` to create a new message.
  */
 export const CancelAgentSessionRequestSchema: GenMessage<CancelAgentSessionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 10);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 15);
 
 /**
  * CancelAgentSessionResponse returns the canceled session.
@@ -300,7 +510,7 @@ export type CancelAgentSessionResponse = Message<"swarm_manager.v1.CancelAgentSe
  * Use `create(CancelAgentSessionResponseSchema)` to create a new message.
  */
 export const CancelAgentSessionResponseSchema: GenMessage<CancelAgentSessionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 11);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 16);
 
 /**
  * DeleteAgentSessionRequest permanently removes a session-owned record.
@@ -319,7 +529,7 @@ export type DeleteAgentSessionRequest = Message<"swarm_manager.v1.DeleteAgentSes
  * Use `create(DeleteAgentSessionRequestSchema)` to create a new message.
  */
 export const DeleteAgentSessionRequestSchema: GenMessage<DeleteAgentSessionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 12);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 17);
 
 /**
  * DeleteAgentSessionResponse returns the deleted session ID.
@@ -338,7 +548,7 @@ export type DeleteAgentSessionResponse = Message<"swarm_manager.v1.DeleteAgentSe
  * Use `create(DeleteAgentSessionResponseSchema)` to create a new message.
  */
 export const DeleteAgentSessionResponseSchema: GenMessage<DeleteAgentSessionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 13);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 18);
 
 /**
  * ApplyAgentSessionProposalRequest applies an approved proposal.
@@ -362,7 +572,7 @@ export type ApplyAgentSessionProposalRequest = Message<"swarm_manager.v1.ApplyAg
  * Use `create(ApplyAgentSessionProposalRequestSchema)` to create a new message.
  */
 export const ApplyAgentSessionProposalRequestSchema: GenMessage<ApplyAgentSessionProposalRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 14);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 19);
 
 /**
  * ApplyAgentSessionProposalResponse returns updated session state and artifacts.
@@ -386,7 +596,7 @@ export type ApplyAgentSessionProposalResponse = Message<"swarm_manager.v1.ApplyA
  * Use `create(ApplyAgentSessionProposalResponseSchema)` to create a new message.
  */
 export const ApplyAgentSessionProposalResponseSchema: GenMessage<ApplyAgentSessionProposalResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 15);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 20);
 
 /**
  * ListAgentSessionArtifactsRequest filters artifacts for one session.
@@ -405,7 +615,7 @@ export type ListAgentSessionArtifactsRequest = Message<"swarm_manager.v1.ListAge
  * Use `create(ListAgentSessionArtifactsRequestSchema)` to create a new message.
  */
 export const ListAgentSessionArtifactsRequestSchema: GenMessage<ListAgentSessionArtifactsRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 16);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 21);
 
 /**
  * ListAgentSessionArtifactsResponse returns artifact links for one session.
@@ -424,7 +634,7 @@ export type ListAgentSessionArtifactsResponse = Message<"swarm_manager.v1.ListAg
  * Use `create(ListAgentSessionArtifactsResponseSchema)` to create a new message.
  */
 export const ListAgentSessionArtifactsResponseSchema: GenMessage<ListAgentSessionArtifactsResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 17);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 22);
 
 /**
  * GetArtifactsByEntityRequest finds session links for an entity.
@@ -453,7 +663,7 @@ export type GetArtifactsByEntityRequest = Message<"swarm_manager.v1.GetArtifacts
  * Use `create(GetArtifactsByEntityRequestSchema)` to create a new message.
  */
 export const GetArtifactsByEntityRequestSchema: GenMessage<GetArtifactsByEntityRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 18);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 23);
 
 /**
  * GetArtifactsByEntityResponse returns artifact links for one entity.
@@ -472,5 +682,5 @@ export type GetArtifactsByEntityResponse = Message<"swarm_manager.v1.GetArtifact
  * Use `create(GetArtifactsByEntityResponseSchema)` to create a new message.
  */
 export const GetArtifactsByEntityResponseSchema: GenMessage<GetArtifactsByEntityResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 19);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 24);
 

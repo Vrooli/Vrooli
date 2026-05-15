@@ -1,30 +1,40 @@
 ### Pending decisions
-- 1 pending: `dec-1777318386116434321` OSS dev-log post #1.
+- 5 pending after this run:
+  - `dec-1777318386116434321` OSS dev-log post #1 publish proposal.
+  - `dec-1778787137208717804` OSS evidence-path capability gap.
+  - `dec-1778790757599330605` audience-update for OSS contributor first-run cognitive cost.
+  - `dec-1778792544571542833` rejection proposed for stale `dec-1777318386116434321`.
+  - `dec-1778792544572466080` rejection/amendment proposed for `dec-1778790757599330605`.
+- Owned-context pending is now 2 rejection proposals. Next contrarian heartbeat should skip new owned-context decisions if this reaches 3.
 
 ### Proposals scored
-- Scored 1 pending proposal using available storage evidence only.
-- No concrete failure-mode hit found. Prior clean 12-mode scoring still stands, but direct draft/doc verification was unavailable because the checkout is empty.
+- Scored 3 pre-existing pending proposals using prompt-manager storage only.
+- `dec-1777318386116434321`: no concrete marketing anti-pattern hit found, but stale hygiene now warrants rejection unless operator accepts immediately.
+- `dec-1778787137208717804`: passes as a concrete capability-gap; no challenge.
+- `dec-1778790757599330605`: evidence and honesty posture are useful, but fails typed-observation promotion hygiene.
 
 ### Challenge notes written
-- None. No concrete challenge hit.
+- `knw-1778792515097179988` for `challenge-report/dec-1778790757599330605`.
 
 ### Challenge resolution updates
-- None. No open challenge record to update.
+- `knw-1778792515253217521` for `challenge-resolution-record/dec-1778790757599330605`, state `open`.
 
 ### Aging scan
-- Wrote `knw-1778706105464572596` to `aging-scan-note/dec-1777318386116434321`.
-- Outcome: still relevant; no supersession or aged-out rejection proposed this run.
-- Next heartbeat should re-check operator/vision-walk resolution first. If still pending, reconsider whether the >14-heartbeat stale rule should move from still-relevant note to rejection proposal.
+- `knw-1778792515253585309` for `aging-scan-note/dec-1777318386116434321`.
+- Outcome changed from prior still-relevant note to stale-rejection proposal because the decision remains unresolved from 2026-04-27 and evidence access is now degraded.
 
 ### Rejections raised
-- None.
+- `dec-1778792544571542833`: reject stale `dec-1777318386116434321` unless operator accepts immediately from stored evidence.
+- `dec-1778792544572466080`: reject or require amendment of `dec-1778790757599330605` before acceptance.
 
 ### Framework updates
-- None.
+- None. No new failure class observed outside the current framework and heartbeat-specific typed-promotion rule.
 
 ### Supersessions
-- None. No pending owned-context `decision-rejection-proposed` or `framework-update` decisions.
+- None.
 
 ### Knowledge entries written
-- `knw-1778706105464572596` aging scan note.
-- `knw-1778706126690971408` local friction signal: empty checkout forced storage-only verification. Attempted `report-friction` routing to `meta-optimization`, but cross-team `knowledge-add` failed with `team_mismatch`; local entry preserves the signal for forwarding.
+- `knw-1778792515097179988` challenge report.
+- `knw-1778792515253217521` challenge resolution record.
+- `knw-1778792515253585309` aging scan note.
+- `knw-1778792553048307040` friction signal: `knowledge-add` rejects `--by`, while `decision-add` requires it.

@@ -10,6 +10,12 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ComponentVersionIntent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    COMPONENT_VERSION_INTENT_UNSPECIFIED: _ClassVar[ComponentVersionIntent]
+    COMPONENT_VERSION_INTENT_DRAFT: _ClassVar[ComponentVersionIntent]
+    COMPONENT_VERSION_INTENT_RELEASE: _ClassVar[ComponentVersionIntent]
+
 class ComponentVersionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     COMPONENT_VERSION_STATUS_UNSPECIFIED: _ClassVar[ComponentVersionStatus]
@@ -17,6 +23,9 @@ class ComponentVersionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COMPONENT_VERSION_STATUS_RELEASED: _ClassVar[ComponentVersionStatus]
     COMPONENT_VERSION_STATUS_DEPRECATED: _ClassVar[ComponentVersionStatus]
     COMPONENT_VERSION_STATUS_ARCHIVED: _ClassVar[ComponentVersionStatus]
+COMPONENT_VERSION_INTENT_UNSPECIFIED: ComponentVersionIntent
+COMPONENT_VERSION_INTENT_DRAFT: ComponentVersionIntent
+COMPONENT_VERSION_INTENT_RELEASE: ComponentVersionIntent
 COMPONENT_VERSION_STATUS_UNSPECIFIED: ComponentVersionStatus
 COMPONENT_VERSION_STATUS_DRAFT: ComponentVersionStatus
 COMPONENT_VERSION_STATUS_RELEASED: ComponentVersionStatus
@@ -125,6 +134,88 @@ class IndexComponentsResponse(_message.Message):
     errors: _containers.RepeatedScalarFieldContainer[str]
     library_ids: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, scanned: _Optional[int] = ..., indexed: _Optional[int] = ..., skipped: _Optional[int] = ..., deleted: _Optional[int] = ..., errors: _Optional[_Iterable[str]] = ..., library_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class InitializeComponentRequest(_message.Message):
+    __slots__ = ("library_id", "slug", "display_name", "description", "tags", "initial_version", "file_name", "initial_source")
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
+    INITIAL_VERSION_FIELD_NUMBER: _ClassVar[int]
+    FILE_NAME_FIELD_NUMBER: _ClassVar[int]
+    INITIAL_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    library_id: str
+    slug: str
+    display_name: str
+    description: str
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    initial_version: str
+    file_name: str
+    initial_source: str
+    def __init__(self, library_id: _Optional[str] = ..., slug: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., initial_version: _Optional[str] = ..., file_name: _Optional[str] = ..., initial_source: _Optional[str] = ...) -> None: ...
+
+class InitializeComponentResponse(_message.Message):
+    __slots__ = ("component", "manifest_path", "source_path")
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    component: Component
+    manifest_path: str
+    source_path: str
+    def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., manifest_path: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
+
+class CreateComponentVersionRequest(_message.Message):
+    __slots__ = ("component_id", "version", "from_version", "intent", "file_name", "source", "changelog_md")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    FROM_VERSION_FIELD_NUMBER: _ClassVar[int]
+    INTENT_FIELD_NUMBER: _ClassVar[int]
+    FILE_NAME_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    CHANGELOG_MD_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    version: str
+    from_version: str
+    intent: ComponentVersionIntent
+    file_name: str
+    source: str
+    changelog_md: str
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., from_version: _Optional[str] = ..., intent: _Optional[_Union[ComponentVersionIntent, str]] = ..., file_name: _Optional[str] = ..., source: _Optional[str] = ..., changelog_md: _Optional[str] = ...) -> None: ...
+
+class CreateComponentVersionResponse(_message.Message):
+    __slots__ = ("component", "version", "source_path")
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    component: Component
+    version: ComponentVersion
+    source_path: str
+    def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., source_path: _Optional[str] = ...) -> None: ...
+
+class UpdateComponentManifestRequest(_message.Message):
+    __slots__ = ("component_id", "display_name", "description", "tags", "latest_version", "draft_version", "deprecated_versions")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
+    LATEST_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DEPRECATED_VERSIONS_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    display_name: str
+    description: str
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    latest_version: str
+    draft_version: str
+    deprecated_versions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, component_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., latest_version: _Optional[str] = ..., draft_version: _Optional[str] = ..., deprecated_versions: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class UpdateComponentManifestResponse(_message.Message):
+    __slots__ = ("component",)
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    component: Component
+    def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ...) -> None: ...
 
 class GetComponentContentRequest(_message.Message):
     __slots__ = ("id",)

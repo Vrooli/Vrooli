@@ -322,6 +322,18 @@ func (s *Service) List(ctx context.Context, filters ListFilters) ([]Record, erro
 	if err := s.refreshActiveLocked(ctx); err != nil {
 		return nil, err
 	}
+	return s.listSnapshot(filters)
+}
+
+// ListSnapshot returns activity records from the persisted store without
+// polling agent-manager. Graph projections use this snapshot path so opening
+// the graph does not block on live run-state checks; the normal List endpoint
+// keeps the refresh behavior for operators explicitly viewing activity state.
+func (s *Service) ListSnapshot(_ context.Context, filters ListFilters) ([]Record, error) {
+	return s.listSnapshot(filters)
+}
+
+func (s *Service) listSnapshot(filters ListFilters) ([]Record, error) {
 	records, err := s.store.Load()
 	if err != nil {
 		return nil, err

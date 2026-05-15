@@ -39,18 +39,32 @@ class GetAgentSessionResponse(_message.Message):
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
 
 class CreateAgentSessionRequest(_message.Message):
-    __slots__ = ("kind", "title", "initial_message", "initiative")
+    __slots__ = ("kind", "title", "initiative")
     KIND_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
-    INITIAL_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     INITIATIVE_FIELD_NUMBER: _ClassVar[int]
     kind: str
     title: str
-    initial_message: str
     initiative: str
-    def __init__(self, kind: _Optional[str] = ..., title: _Optional[str] = ..., initial_message: _Optional[str] = ..., initiative: _Optional[str] = ...) -> None: ...
+    def __init__(self, kind: _Optional[str] = ..., title: _Optional[str] = ..., initiative: _Optional[str] = ...) -> None: ...
 
 class CreateAgentSessionResponse(_message.Message):
+    __slots__ = ("session",)
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    session: _agent_session_pb2.AgentSession
+    def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
+
+class StartAgentSessionRequest(_message.Message):
+    __slots__ = ("session_id", "message", "attachment_ids")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    message: str
+    attachment_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class StartAgentSessionResponse(_message.Message):
     __slots__ = ("session",)
     SESSION_FIELD_NUMBER: _ClassVar[int]
     session: _agent_session_pb2.AgentSession
@@ -71,6 +85,68 @@ class ContinueAgentSessionResponse(_message.Message):
     SESSION_FIELD_NUMBER: _ClassVar[int]
     session: _agent_session_pb2.AgentSession
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
+
+class ListAgentSessionEventsRequest(_message.Message):
+    __slots__ = ("session_id", "after_sequence", "limit")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    AFTER_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    after_sequence: int
+    limit: int
+    def __init__(self, session_id: _Optional[str] = ..., after_sequence: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class AgentSessionRunEvent(_message.Message):
+    __slots__ = ("id", "run_id", "sequence", "created_at", "event_type", "role", "content", "tool_name", "tool_call_id", "input", "output", "error", "status", "previous_status", "progress_phase", "progress_percent", "progress_message", "summary", "raw_json")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    EVENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    TOOL_NAME_FIELD_NUMBER: _ClassVar[int]
+    TOOL_CALL_ID_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_STATUS_FIELD_NUMBER: _ClassVar[int]
+    PROGRESS_PHASE_FIELD_NUMBER: _ClassVar[int]
+    PROGRESS_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    PROGRESS_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    RAW_JSON_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    run_id: str
+    sequence: int
+    created_at: str
+    event_type: str
+    role: str
+    content: str
+    tool_name: str
+    tool_call_id: str
+    input: str
+    output: str
+    error: str
+    status: str
+    previous_status: str
+    progress_phase: str
+    progress_percent: int
+    progress_message: str
+    summary: str
+    raw_json: str
+    def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., sequence: _Optional[int] = ..., created_at: _Optional[str] = ..., event_type: _Optional[str] = ..., role: _Optional[str] = ..., content: _Optional[str] = ..., tool_name: _Optional[str] = ..., tool_call_id: _Optional[str] = ..., input: _Optional[str] = ..., output: _Optional[str] = ..., error: _Optional[str] = ..., status: _Optional[str] = ..., previous_status: _Optional[str] = ..., progress_phase: _Optional[str] = ..., progress_percent: _Optional[int] = ..., progress_message: _Optional[str] = ..., summary: _Optional[str] = ..., raw_json: _Optional[str] = ...) -> None: ...
+
+class ListAgentSessionEventsResponse(_message.Message):
+    __slots__ = ("events", "has_more", "next_after_sequence")
+    EVENTS_FIELD_NUMBER: _ClassVar[int]
+    HAS_MORE_FIELD_NUMBER: _ClassVar[int]
+    NEXT_AFTER_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    events: _containers.RepeatedCompositeFieldContainer[AgentSessionRunEvent]
+    has_more: bool
+    next_after_sequence: int
+    def __init__(self, events: _Optional[_Iterable[_Union[AgentSessionRunEvent, _Mapping]]] = ..., has_more: _Optional[bool] = ..., next_after_sequence: _Optional[int] = ...) -> None: ...
 
 class RefreshAgentSessionRequest(_message.Message):
     __slots__ = ("session_id",)

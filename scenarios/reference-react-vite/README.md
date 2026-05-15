@@ -49,6 +49,33 @@ This is **NOT** a product. It exists solely as a ground-truth test bed for:
 cd scenarios/reference-react-vite && make start
 ```
 
+## Navigation contract
+
+`ui/flow/navigation.json` is the single source of truth for this template's URL
+surface, layout containers (top nav bar, bottom nav, hamburger drawer, user-menu
+popover, auth footer), affordances, and reachability invariants. The spec is
+validated, verified, and reconciled with the React code by flow-verifier; the
+URL constants in `ui/src/routes.generated.ts` are emitted from the same spec.
+
+```bash
+make navigation        # validate + verify + reconcile + emit routes.generated.ts
+```
+
+### Template example surfaces — review on generation
+
+When generating a new scenario from this template, replace the following
+illustrative surfaces with real product content (or remove them outright):
+
+- **Auth context (`src/contexts/AppContext.tsx`)** — client-only `auth` /
+  `role` / `feature_beta` toggles for demoing the gating predicates. Swap for a
+  real auth provider before shipping.
+- **Login + Forgot-password pages** — placeholder forms, no credentials wired.
+- **`/admin/users`, `/beta`** — illustrative role / feature-flag gated routes.
+- **Settings sub-pages** (`/settings/{display,notifications,about}`) — stub
+  copy only; replace with real preferences UI.
+- **Responsive containers** in `src/components/Layout.tsx` (TopNavBar,
+  BottomNav, HamburgerMenu, UserMenu) — kept generic; swap branded markup in.
+
 ## Related
 
 - [development-toolchain-validator](../development-toolchain-validator/README.md) — Validates this reference against steer skills

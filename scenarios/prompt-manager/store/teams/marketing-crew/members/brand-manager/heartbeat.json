@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "0 15 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T19:00:00Z",
-    "endedAt": "2026-05-13T19:00:06Z",
-    "status": "failed",
-    "runId": "3ae5d32b-72fa-468c-bd6e-50d6cdedf0f2",
-    "logPath": "../store/teams/marketing-crew/members/brand-manager/logs/2026-05-13T19-00-00Z.log",
-    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
+    "startedAt": "2026-05-14T19:00:00Z",
+    "endedAt": "2026-05-14T19:03:16Z",
+    "status": "completed",
+    "runId": "cfb731e4-5c74-49c7-bb28-7a4b4ef1a80c",
+    "logPath": "../store/teams/marketing-crew/members/brand-manager/logs/2026-05-14T19-00-00Z.log"
   },
-  "revision": 80,
+  "revision": 83,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-13T19:00:06Z"
+  "updatedAt": "2026-05-14T19:03:17Z"
 }

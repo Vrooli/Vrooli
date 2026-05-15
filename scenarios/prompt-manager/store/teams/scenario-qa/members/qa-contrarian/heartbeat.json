@@ -6,14 +6,14 @@
   "enabled": true,
   "schedule": "30 19 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T23:30:00Z",
-    "endedAt": "2026-05-13T23:30:06Z",
+    "startedAt": "2026-05-14T23:30:00Z",
+    "endedAt": "2026-05-14T23:32:01Z",
     "status": "failed",
-    "runId": "c07e1c58-4708-48c6-87b7-b4e45a522cae",
-    "logPath": "../store/teams/scenario-qa/members/qa-contrarian/logs/2026-05-13T23-30-00Z.log",
-    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
+    "runId": "6491566e-0eff-40dd-8cd2-f15969cb3230",
+    "logPath": "../store/teams/scenario-qa/members/qa-contrarian/logs/2026-05-14T23-30-00Z.log",
+    "error": "sandbox error during no_exit_info: sandbox process ended without exit info"
   },
-  "revision": 40,
+  "revision": 43,
   "createdAt": "2026-05-03T00:00:00Z",
-  "updatedAt": "2026-05-13T23:30:06Z"
+  "updatedAt": "2026-05-14T23:32:02Z"
 }

@@ -99,6 +99,9 @@ UX & branding:
 - Accessibility bar:
 - Voice and messaging:
 - Branding hooks:
+- PWA install surface: keep the seeded `ui/public/site.webmanifest`,
+  `apple-icon-180.png`, `favicon-196.png`, and maskable manifest icons
+  valid; replace the generic icons when final product branding exists.
 EOF
 ```
 

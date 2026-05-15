@@ -1,25 +1,48 @@
-### Scan summary this heartbeat
-- New observations appended to audience-scans.jsonl: 4 (plus 1 null-signal entry from prior in-run researcher earlier this heartbeat, for total file count = 5)
-- Scopes covered: audience 0 / competitor 2 / trend 0 / monetization-benchmark-adjacent 2 (+ 1 prior meta-capability null-signal entry)
+### Inputs reviewed
+- Research README: unavailable in declared checkout; workspace at `merged` was empty.
+- Used generated heartbeat context, prior handoff, `decision-list`, `knowledge-list`, and located real working state at `/home/matthalloran8/Vrooli/.../audience-scans.jsonl`.
+- Research inbox: empty.
+
+### Scan summary
+- Ran proactive web baseline scan.
+- Appended 1 working-state event to `audience-scans.jsonl`: `as-1778790790000000001`.
+- Wrote 4 knowledge entries.
+
+### Routed signals
+- `audience-scan/2026-05-14`: `knw-1778790738538661401`
+- `workflow-scan/agent-production-ops-over-orchestration`: `knw-1778790738538730161`
+- `competitor-record/visual-agent-builder-distribution-2026-05-14`: `knw-1778790738679966041`
+- `monetization-benchmark-adjacent-record/ai-coding-agent-pricing-2026-seat-vs-byok`: `knw-1778790738679497841`
+
+Sources used:
+- https://localaimaster.com/blog/ai-agent-frameworks-comparison
+- https://agentsindex.ai/blog/crewai-vs-langgraph
+- https://deepyard.dev/compare/dify-vs-flowise
+- https://www.techplained.com/ai-coding-agent-pricing
+- https://www.reddit.com/r/aiagents/comments/1slzz3u/whats_your_agent_stack_in_2026_comparing/
 
 ### Convergence candidates
-- No convergence candidates this heartbeat. This is the first heartbeat with content scans; convergence analysis requires ≥3 converging scans across prior heartbeats. Forward watchlist: BYOK-vs-subscription $40 threshold (candidate for `indie-dev` persona revision if it recurs); CrewAI 20-line onboarding anchor (candidate for `oss-contributor` persona revision if it recurs).
+- CrewAI / low-friction onboarding anchor reached 3 scan clusters: prior 2026-04-24, prior 2026-04-26, and new 2026-05-14 scan. This supports oss-contributor first-run cognitive-cost guidance.
+- Visual-builder dominance remains a watchlist item, not a decision: repeat signal exists, but still unresolved whether Vrooli should treat code-first as a gap or differentiator.
 
-### Audience-update raised
-- None raised (reason: no convergence possible on first content-scan heartbeat — `audience-update` requires ≥3 converging scans).
+### Decisions raised
+- Raised `dec-1778790757599330605`: audience-update to add oss-contributor onboarding-bar / first-run cognitive-cost principle.
+- No hook, channel, post-type, or capability-gap decision raised.
+
+### Skill or capability gaps
+- No new gap raised.
+- Empty checkout friction persists, but already represented by `knw-1778706126690971408` and related recent evidence. This run found the actual working-state file under `/home/matthalloran8/Vrooli/...`, so the audience scan append was completed.
 
 ### Cross-team entries written
-- `monetization-benchmark-adjacent-record/dev-tool-pricing-credit-model` (knw-1777062783356547283): Cursor credit-model tiers + per-model request economics. Sources: costbench.com, vantage.sh, nxcode.io.
-- `monetization-benchmark-adjacent-record/byok-vs-subscription-threshold` (knw-1777062797398752073): BYOK (Cline, Aider) vs subscription decision-frame at ~$40/mo API spend. Sources: morphllm.com, awesomeagents.ai.
-
-### Capability-gap raised
-- None raised this heartbeat (prior in-run researcher already raised `capability-gap` earlier this heartbeat; I confirm its scope narrows from "no scanning" to "no structured-tracking" and append notebook note at `docs/marketing/notebook/AUDIENCE_OBSERVATIONS.md#2026-04-24 — WebSearch provides baseline, not structured, scanning` rather than stacking a new decision).
+- `monetization-benchmark-adjacent-record/ai-coding-agent-pricing-2026-seat-vs-byok`: corrected pricing entry after shell dollar-sign expansion issue.
 
 ### Supersessions
-- None. Prior capability-gap remains valid; my content scans don't supersede the null-signal entry (both are historical time-series).
+- None.
 
 ### Knowledge entry written
-- topic: `audience-scan-2026-04-24` (knw-1777062828361770337) — supersedes: null (first snapshot).
+- Primary snapshot: `knw-1778790738538661401` on `audience-scan/2026-05-14`.
+- Supporting entries: workflow, competitor, and benchmark-adjacent listed above.
 
 ### Pending-telemetry note
-- All engagement, reach, and audience-size metrics remain `pending-telemetry` — no fabricated numbers in any scan entry or cross-team knowledge entry this heartbeat.
+- All engagement, reach, audience-size, install, activation, retention, and conversion metrics remain `pending-telemetry`.
+- Public star/pricing figures are source-reported and should be reverified before canonical external copy.

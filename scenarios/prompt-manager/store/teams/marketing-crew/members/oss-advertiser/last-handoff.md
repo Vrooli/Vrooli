@@ -1,29 +1,31 @@
-### Data-source health
-- git-control-tower: healthy (4.2h)
-- agent-manager: healthy (4.3h)
-- swarm-manager: healthy (1.6h, freshly restarted)
-- app-issue-tracker: healthy (4.2h)
-- All four x-dev-log inputs operable. No gap raised.
+### Source-system health
+- Could not verify health for `git-control-tower`, `agent-manager`, `swarm-manager`, or `app-issue-tracker`.
+- `vrooli scenario status <scenario>` fails for all four with: `read runtime registry schema version: unable to open database file (14)`.
+- Workspace checkout is empty again; no repo files available for direct mining.
 
-### Mining summary
-- Period mined: 2026-04-27T19:30Z → 2026-04-28T19:30Z (~24h, 13 commits inspected).
-- Story arcs scored: 4 (sandboxing auto-approval p1-p6 — high; swarm-manager routing rewrite + initiative agents p9 — continuation; web-console p16 — below threshold solo; vision-walk feedback p4-p7 — internal canon merges, not a public arc).
-- Selected for drafting: 0 (deliberate hold, not stop-condition triggered).
+### Artifact requests reviewed
+- No `artifact-request/oss/*` entries found.
+- No `publish-log/*` entries found; latest coverage snapshots still say publish-log is empty.
+- Latest accessible coverage remains 2026-04-28: `business` and `oss-platform` missing; `oss-platform` awaits first artifact.
 
-### OSS coverage state
-- Last dev log: never (publish-log.jsonl empty).
-- Last long-form narrative: never.
-- Last contributor-oriented post: never.
-- Staleest channel: all (`oss-platform.json` status=missing since 2026-04-24 init).
+### Story arcs considered
+- No new shipped-work arcs mined because both checkout and live health path are blocked.
+- Last viable queued arc remains 2026-04-28 sandboxing auto-approval p1-p6 for post #2, but only after post #1 resolves and evidence path is healthy.
 
-### Drafts produced this heartbeat
-- No drafts this heartbeat. Reason: queue stewardship — post #1 (`dec-1777318386116434321`) is still pending operator review and is the canonical first-publish anchor that validates the post-2026-04-27 dev-log canon. Drafting post #2 now would (a) speculate on post #1's still-unset previous_post_url, (b) re-invest in first-mention introductions before audience has seen post #1's, (c) double rework cost if post #1 is rejected and canon iterates again. Sandboxing auto-approval p1-p6 is queued for post #2 once post #1 publishes.
+### Drafts produced
+- 0 drafts.
+- No `campaign-drafts.jsonl` append: no draft, and file unavailable in empty checkout.
 
-### Coverage-gap / capability-gap raised
-- None raised. Coverage-gap suppressed per HEARTBEAT step 7 (in-flight draft `dec-1777318386116434321` addresses the missing-coverage condition). Capability-gap not triggered (data sources healthy, 0 drafts attempted, no friction).
+### Coverage or capability gaps
+- Coverage-gap not raised: pending post #1 proposal `dec-1777318386116434321` still addresses missing `oss-platform` coverage.
+- Capability-gap raised: `dec-1778787137208717804` for restoring reliable OSS advertiser evidence-path access.
+- Attempted `report-bug` cross-team write to `scenario-qa`, but it failed with `team_mismatch`; recorded that in the ad-run entry.
 
 ### Supersessions
-- None. Own pending queue (1 decision, fresh from yesterday on the post-canon contract) is not obsolete; no fresher take available.
+- None.
+- `dec-1777318386116434321` remains relevant and pending; no newer draft or publish-log exists.
 
 ### Knowledge entry written
-- topic: `oss-ad-run-2026-04-28` (append-only, no `supersedes`) — id `knw-1777404792673292153`. Documents hold rationale, sandboxing arc queued for post #2, swarm-manager routing/initiative-mode arc queued for post #3, new canon infrastructure to internalize before next draft (`post-types/dev-log.md` + 7 `post-techniques/*` files merged via vision-walk feedback p5-p7), and the structural-signal escalation path if post #1 is rejected again at vision walk #5.
+- `knw-1778787163539586440` on `oss-ad-run/2026-05-14`.
+
+Next run should first check whether `dec-1777318386116434321` resolved, then whether `dec-1778787137208717804` resolved or the environment is healthy. If both post #1 is published and evidence access is restored, draft post #2 from sandboxing auto-approval with prior-post linkage.

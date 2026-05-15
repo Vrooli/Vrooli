@@ -1,22 +1,37 @@
 ### Docs scanned
-- `docs/meta-optimization/{README,CONVERSION_PLAYBOOK,DEPRECATION_POLICY,REFERENCE_SCENARIOS}.md`
-- `shared/{RUN_LESSONS,SKILL_AUDIT,AGENT_AUDIT,TOOLCHAIN_SCAN,PROGRAMMATIC_CONVERSION_QUEUE,DEPRECATION_QUEUE}.md`
+- `docs/agent-system/README.md`
+- `docs/agent-system/PROMOTION_LADDER.md`
+- `docs/meta-optimization/README.md`
+- `docs/meta-optimization/operating/OPERATING_MODEL.md`
+- Shared: `RUN_LESSONS.md`, `TOOLCHAIN_AUDIT.md`, `SKILL_AUDIT.md`, `AGENT_AUDIT.md`, `TEAM_AUDIT.md`, `ACTION_AUDIT.md`, `ACTION_CONVERSION_QUEUE.md`, `DEPRECATION_QUEUE.md`, `PROGRAMMATIC_CONVERSION_QUEUE.md`
 
 ### Entries reviewed this heartbeat
-- 4 living-notebook files + 6 shared artifacts. Material deltas vs 2026-04-26 scan: RUN_LESSONS +3 entries (tier-1 environmental sub-classes 4 → 7); 2026-04-28 supersession dec-1777330324477920142 → dec-1777416636519315268 + additive dec-1777416850414101960 consolidating gates; SKILL_AUDIT +3 rows (all no-action); 4 new contrarian challenge-notes on toolchain-validator stack.
+- 13 docs/shared artifacts
+- Recent typed feeds: 80 knowledge entries and 28 decision entries, narrowed to 5 candidate families
 
 ### Promotion candidates
-- **Tier-1 environmental-failure exclusion ladder → standalone reference skill.** Criterion 1 MET (5 RUN_LESSONS entries / 7 sub-classes). Criterion 2 NOT MET (block is actively growing today, 3 new sub-classes added). My own 2026-04-26 threshold ("5+ classes + ladder unmaintainable") half-met: classes ≥5, but ladder is consolidating cleanly into one bullet list via dec-1777416636519315268 + dec-1777416850414101960. Consolidation IS the in-lane permanent-structure answer; a separate skill on top would duplicate. **Not ripe** — would trip mode 3 (premature) + mode 4 (churn). Watch: 8th sub-class within next 3 HB OR ladder fragments → reconsider as `run-triage environmental-classes` reference skill; owning implementer skill-optimizer.
-- **Tier-signal-contamination framework-update overdue.** RUN_LESSONS calls this overdue by 3 HB. Tempting promotion: team-structure-change to contrarian HEARTBEAT.md. **Not ripe** — trips mode 6 (scope creep); contrarian's lane is judging framework-updates, mine is doc-debt promotion. Correction to my 2026-04-26 handoff: meta-contrarian has NOT formally declined — only 5 challenge-notes exist (none on tier-contamination). Operator review at vision walk is the correct venue.
-- **Verify-current-relevance pattern.** Still single-member occurrence (dec-1777243253201299661 on team-agent-optimizer only). Criterion 1 still NOT MET. Carry watch.
-- **scenario-auditor non-determinism.** Single-heartbeat occurrence today. Watch.
-- Skill-audit no-action streak (4 of last 5 visits cite mode-1+4) — discipline working as intended; not debt.
+- Tier-signal/environmental-failure contamination: repeated criterion MET; stability NOT MET. New `sandbox-create-unavailable` class landed on 2026-05-14, and related run-introspector decision has an open stale-target challenge. Direction if stable later: PoR or skill guidance; owner: team-agent-optimizer/run-introspector.
+- Reference-pattern-fitness: already promoted via accepted `dec-1777904907866928140`; no second similar lens yet, so no further promotion.
+- Placeholder/stale agent-index storage hygiene: active 2026-05-14 evidence, but not stable for 7 heartbeats; owning lane already raised `dec-1778797938232697845`.
+- Toolchain fallback-trio workaround: repeated and aged, but already covered by accepted `dec-1777068259096417622`; wait for implementation before retirement.
+- Skill-audit no-action streak: stable non-promotion signal; anti-polish discipline is working.
+
+### Classifier
+- Truth: none ripe
+- Judgment: none ripe
+- Execution: none ripe
+- Implementation: none new
+- Missing capability: none new from debt-curator
+- Unripe typed evidence: 5 candidate families
 
 ### Retirement candidates
-- None. DTV validate/report still not shipped; PROGRAMMATIC_CONVERSION_QUEUE Completed=(none); DEPRECATION_QUEUE Archived=(none); REFERENCE_SCENARIOS secondaries=(none); CONVERSION_PLAYBOOK Patterns/Anti-patterns + DEPRECATION_POLICY Edge cases still empty.
+- No entries ripe for retirement.
+- `PROGRAMMATIC_CONVERSION_QUEUE.md` is already retired in favor of `ACTION_CONVERSION_QUEUE.md`; no new proposal needed.
+- DTV validate/report and structured test-genie output still have not shipped, so fallback-trio prose remains live.
 
 ### Decision raised this heartbeat
-- **None.** Read-write mode (7 pending < 12; 0 own-context < 2). Declined on merit: highest-signal pattern is being addressed in-lane via consolidation; parallel promotion would trip mode 3 + 4. Framework-update-overdue is contrarian's lane (mode 6).
+- None. Highest-volume pattern changed today; highest-age workaround is already covered by an accepted capability-gap.
 
 ### Knowledge entries written
-- `debt-scan-2026-04-28` (knw-1777418309023070485) — supersedes `debt-scan-2026-04-26` (knw-1777245467332704606).
+- `debt-scan/2026-05-14` — `knw-1778800672728814476`
+- `friction-report/recurring-workaround/2026-05-14/toolchain-fallback-manual-aggregation` — `knw-1778800646160911401`

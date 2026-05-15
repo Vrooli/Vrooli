@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/initiatives"
 )
@@ -120,5 +121,28 @@ func NewExecutionAdapter(svc *execution.Service) *executionAdapter {
 }
 
 func (a *executionAdapter) List(ctx context.Context, filters execution.ListFilters) ([]execution.Record, error) {
-	return a.svc.List(ctx, filters)
+	return a.svc.ListSnapshot(ctx, filters)
+}
+
+// agentActivityAdapter bridges agentactivity.Service to graph projections
+// without triggering live agent-manager polling on graph load.
+type agentActivityAdapter struct {
+	svc *agentactivity.Service
+}
+
+// NewAgentActivityAdapter creates an AgentActivityLister backed by an
+// agentactivity.Service snapshot.
+func NewAgentActivityAdapter(svc *agentactivity.Service) *agentActivityAdapter {
+	return &agentActivityAdapter{svc: svc}
+}
+
+func (a *agentActivityAdapter) List(ctx context.Context, filters agentactivity.ListFilters) ([]agentactivity.Record, error) {
+	return a.svc.ListSnapshot(ctx, filters)
+}
+
+func (a *agentActivityAdapter) IsAvailable(ctx context.Context) bool {
+	// Avoid a remote health probe in the graph projection. The operations
+	// graph should load from local state; dedicated agent endpoints own live
+	// availability checks.
+	return a.svc.IsEnabled()
 }

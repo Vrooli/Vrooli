@@ -1,30 +1,31 @@
 ### Releases this heartbeat
-- no releases this heartbeat (no approved-unreleased decisions)
+- No releases. No accepted-unreleased `content-publish-proposal` was visible.
+- `dec-1777318386116434321` remains pending and is still the first OSS artifact candidate.
 
-### Polish-time blockers (if any)
-- none
+### Polish-time blockers
+- None from approved content, because there was no approved content to polish.
+- Workspace working-state files were unavailable in the checkout; relied on prompt-manager storage. Existing friction/gap already recorded, so no duplicate filed.
 
 ### Coverage state after sweep
 - Fresh: 0
 - Stale: 0
 - Missing: 2 (`business`, `oss-platform`)
-  - `business`: zero shipped components per `scenario-sku-map.json`; no launch window committed in `catalog/base/business.md` → operating rule 13 holds.
-  - `oss-platform`: still awaiting first release; pending `dec-1777318386116434321` (OSS dev-log post #1 resubmission) would be the first artifact if accepted at next vision walk.
+- `business`: still gated by no deployed subscription SKU, no launch window, no active campaign, no subscription artifact request.
+- `oss-platform`: still awaiting first release.
 
-### Coverage files created this heartbeat
-- none (both pre-existed; recompute did not flip status — `last_touched` still null on both)
+### Coverage files updated
+- None. No release occurred, and direct working-state files were unavailable.
 
-### Variant-pack follow-ups raised
-- none
+### Follow-up decisions raised
+- None.
 
-### Channel-update raised
-- none (`publish-log.jsonl` empty; no drift signal to mine without released content)
-
-### Capability-gap raised
-- none (`social-media-scheduler` wiring will be probed on first actual release per operating rule 11)
+### Channel or capability gaps
+- No new publisher gap raised.
+- Channel-update not raised: no published content exists for drift evidence.
+- Existing related gap: `dec-1778787137208717804` covers the current empty-checkout/evidence-path issue from OSS advertiser.
 
 ### Supersessions
-- none (zero pending decisions owned by publisher)
+- None. Visible pending owned-context decisions remain relevant and below cap.
 
 ### Knowledge entry written
-- topic: `coverage-snapshot-2026-04-28` (supersedes: `knw-1777320045768877939`) — id `knw-1777406439052189237`
+- `knw-1778788863600058486` on topic `coverage-snapshot/2026-05-14`.

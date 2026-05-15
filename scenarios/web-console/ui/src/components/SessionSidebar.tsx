@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { MessageSquareText, Plus, Settings, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import type { WorkspaceNavigationItem } from "../lib/workspaceNavigation";
 import { useLongPress } from "../hooks/useLongPress";
+import { usePressGesture } from "../hooks/usePressGesture";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
@@ -60,12 +61,6 @@ export default function SessionSidebar({
   const [editingPaneId, setEditingPaneId] = useState<string | null>(null);
   const [editingPaneName, setEditingPaneName] = useState("");
   const editingInputRef = useRef<HTMLInputElement>(null);
-  const touchActivatedPaneRef = useRef<string | null>(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressReadyRef = useRef(false);
-  const longPressPaneIdRef = useRef<string | null>(null);
-  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
-  const longPressPointRef = useRef<{ x: number; y: number } | null>(null);
 
   const { size, isResizing, resizeHandleProps } = useResizablePanel({
     containerRef,
@@ -86,24 +81,11 @@ export default function SessionSidebar({
   const paneItems = items.filter((item) => item.kind === "pane");
   const totalUnread = paneItems.reduce((sum, item) => sum + item.unreadCount, 0);
 
-  const clearLongPress = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    longPressReadyRef.current = false;
-    longPressPaneIdRef.current = null;
-    longPressStartRef.current = null;
-    longPressPointRef.current = null;
-  }, []);
-
   useEffect(() => {
     if (!editingPaneId) return;
     editingInputRef.current?.focus();
     editingInputRef.current?.select();
   }, [editingPaneId]);
-
-  useEffect(() => clearLongPress, [clearLongPress]);
 
   const startRename = useCallback((sessionId: string, currentName: string) => {
     setEditingPaneId(sessionId);
@@ -129,44 +111,16 @@ export default function SessionSidebar({
     setTabContextMenu({ sessionId, position: { x, y } });
   }, [setTabContextMenu]);
 
-  const handlePanePointerDown = useCallback((event: ReactPointerEvent, sessionId: string) => {
-    if (event.pointerType === "mouse" || event.button !== 0) return;
-    clearLongPress();
-    longPressPaneIdRef.current = sessionId;
-    longPressStartRef.current = { x: event.clientX, y: event.clientY };
-    longPressPointRef.current = { x: event.clientX, y: event.clientY };
-    longPressTimerRef.current = setTimeout(() => {
-      longPressReadyRef.current = true;
-      longPressTimerRef.current = null;
-    }, SIDEBAR_LONG_PRESS_MS);
-  }, [clearLongPress]);
-
-  const handlePanePointerMove = useCallback((event: ReactPointerEvent) => {
-    const start = longPressStartRef.current;
-    if (!start) return;
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    longPressPointRef.current = { x: event.clientX, y: event.clientY };
-    if (Math.sqrt(dx * dx + dy * dy) > SIDEBAR_PRESS_MOVE_THRESHOLD) {
-      clearLongPress();
-    }
-  }, [clearLongPress]);
-
-  const handlePanePointerUp = useCallback((event: ReactPointerEvent, sessionId: string) => {
-    if (event.pointerType === "mouse") return;
-    event.preventDefault();
-    touchActivatedPaneRef.current = sessionId;
-
-    const shouldOpenMenu = longPressReadyRef.current && longPressPaneIdRef.current === sessionId;
-    const point = longPressPointRef.current ?? { x: event.clientX, y: event.clientY };
-    clearLongPress();
-
-    if (shouldOpenMenu) {
+  const panePressGesture = usePressGesture<string>({
+    longPressMs: SIDEBAR_LONG_PRESS_MS,
+    moveThresholdPx: SIDEBAR_PRESS_MOVE_THRESHOLD,
+    onTap: (sessionId) => {
+      activate(sessionId);
+    },
+    onLongPress: (sessionId, point) => {
       openContextMenu(sessionId, point.x, point.y);
-      return;
-    }
-    activate(sessionId);
-  }, [activate, clearLongPress, openContextMenu]);
+    },
+  });
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -179,7 +133,7 @@ export default function SessionSidebar({
 
   const sidebarContent = (
     <>
-      <div className="flex h-11 items-center gap-2 border-b border-wc-default px-3">
+      <div className="flex h-11 select-none items-center gap-2 border-b border-wc-default px-3">
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-wc-text-primary">
             {t(strings.sessionSidebar.title)}
@@ -228,7 +182,7 @@ export default function SessionSidebar({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 select-none overflow-y-auto p-2">
         {items.map((item) => {
           if (item.kind === "group-label") {
             const { group, tabCount } = item;
@@ -261,7 +215,7 @@ export default function SessionSidebar({
                     <input
                       ref={editingInputRef}
                       data-testid={`sidebar-rename-input-${pane.sessionId}`}
-                      className="min-w-0 flex-1 rounded bg-wc-surface-input px-1 text-sm font-medium text-wc-text-primary outline-none ring-1 ring-wc-accent"
+                      className="min-w-0 flex-1 select-text rounded bg-wc-surface-input px-1 text-sm font-medium text-wc-text-primary outline-none ring-1 ring-wc-accent"
                       value={editingPaneName}
                       onChange={(event) => setEditingPaneName(event.target.value)}
                       onKeyDown={(event) => {
@@ -326,13 +280,9 @@ export default function SessionSidebar({
                   type="button"
                   data-testid={`sidebar-session-${pane.sessionId}`}
                   className="flex min-w-0 flex-1 items-start gap-2 rounded px-2 py-2 text-start focus:outline-none focus-visible:ring-1 focus-visible:ring-wc-accent"
-                  onPointerDown={(event) => handlePanePointerDown(event, pane.sessionId)}
-                  onPointerMove={handlePanePointerMove}
-                  onPointerUp={(event) => handlePanePointerUp(event, pane.sessionId)}
-                  onPointerCancel={clearLongPress}
+                  {...panePressGesture.getGestureHandlers(pane.sessionId)}
                   onClick={() => {
-                    if (touchActivatedPaneRef.current === pane.sessionId) {
-                      touchActivatedPaneRef.current = null;
+                    if (panePressGesture.shouldSuppressClick(pane.sessionId)) {
                       return;
                     }
                     activate(pane.sessionId);

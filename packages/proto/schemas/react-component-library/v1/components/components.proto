@@ -31,6 +31,9 @@ service ComponentsService {
   rpc GetComponent(GetComponentRequest) returns (GetComponentResponse);
   rpc GetComponentByLibraryId(GetComponentByLibraryIdRequest) returns (GetComponentByLibraryIdResponse);
   rpc IndexComponents(IndexComponentsRequest) returns (IndexComponentsResponse);
+  rpc InitializeComponent(InitializeComponentRequest) returns (InitializeComponentResponse);
+  rpc CreateComponentVersion(CreateComponentVersionRequest) returns (CreateComponentVersionResponse);
+  rpc UpdateComponentManifest(UpdateComponentManifestRequest) returns (UpdateComponentManifestResponse);
   rpc GetComponentContent(GetComponentContentRequest) returns (GetComponentContentResponse);
   rpc UpdateComponentContent(UpdateComponentContentRequest) returns (UpdateComponentContentResponse);
   rpc ListComponentVersions(ListComponentVersionsRequest) returns (ListComponentVersionsResponse);
@@ -155,6 +158,59 @@ message IndexComponentsResponse {
 
   // Library IDs successfully indexed in this pass, in walk order.
   repeated string library_ids = 6;
+}
+
+message InitializeComponentRequest {
+  string library_id = 1;
+  string slug = 2;
+  string display_name = 3;
+  string description = 4;
+  repeated string tags = 5;
+  string initial_version = 6;
+  string file_name = 7;
+  string initial_source = 8;
+}
+
+message InitializeComponentResponse {
+  Component component = 1;
+  string manifest_path = 2;
+  string source_path = 3;
+}
+
+enum ComponentVersionIntent {
+  COMPONENT_VERSION_INTENT_UNSPECIFIED = 0;
+  COMPONENT_VERSION_INTENT_DRAFT = 1;
+  COMPONENT_VERSION_INTENT_RELEASE = 2;
+}
+
+message CreateComponentVersionRequest {
+  string component_id = 1;
+  string version = 2;
+  string from_version = 3;
+  ComponentVersionIntent intent = 4;
+  string file_name = 5;
+  string source = 6;
+  string changelog_md = 7;
+}
+
+message CreateComponentVersionResponse {
+  Component component = 1;
+  ComponentVersion version = 2;
+  string source_path = 3;
+}
+
+message UpdateComponentManifestRequest {
+  string component_id = 1;
+  string display_name = 2;
+  string description = 3;
+  repeated string tags = 4;
+  string latest_version = 5;
+  string draft_version = 6;
+  repeated string deprecated_versions = 7;
+}
+
+message UpdateComponentManifestResponse {
+  Component component = 1;
 }
 
 // GetComponentContentRequest reads the on-disk source file backing a

@@ -38,6 +38,52 @@ func (s *stubAgentService) SpawnBacklog(_ context.Context, _ agentmanager.Backlo
 	return agentmanager.RunResult{TaskID: "task-1", RunID: "run-1"}, nil
 }
 
+type snapshotAgentService struct {
+	stubAgentService
+	runStateCalls int
+}
+
+func (s *snapshotAgentService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
+	s.runStateCalls++
+	return agentmanager.RunState{Status: "completed", FinishedAt: "2026-05-14T00:00:00Z"}, nil
+}
+
+func TestListSnapshotDoesNotProcessActiveExecutions(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	agent := &snapshotAgentService{}
+	svc := NewService(ServiceConfig{
+		RootDir:      root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		AgentService: agent,
+	})
+	if err := svc.store.Save([]Record{{
+		ExecutionID: "exec-1",
+		BacklogKind: "execute",
+		BacklogName: "slow-graph",
+		Status:      StatusRunning,
+		RunID:       "run-1",
+		CreatedAt:   "2026-05-14T00:00:00Z",
+	}}); err != nil {
+		t.Fatalf("save executions: %v", err)
+	}
+
+	records, err := svc.ListSnapshot(context.Background(), ListFilters{})
+	if err != nil {
+		t.Fatalf("ListSnapshot: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("ListSnapshot returned %d records, want 1", len(records))
+	}
+	if records[0].Status != StatusRunning {
+		t.Fatalf("snapshot status = %q, want persisted running", records[0].Status)
+	}
+	if agent.runStateCalls != 0 {
+		t.Fatalf("ListSnapshot called GetRunState %d times, want 0", agent.runStateCalls)
+	}
+}
+
 func TestQueueAndStartManualExecution(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "idea", "test-idea", map[string]any{

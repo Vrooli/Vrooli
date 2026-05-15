@@ -1,41 +1,28 @@
 // DOC: docs/internal/UNIT_TEST_ARCHITECTURE.md#ui-test-utilities
-// Custom render function that includes application providers
+// Custom render function that includes application providers.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, RenderOptions } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ReactElement } from 'react';
+import { AppContextProvider, type AuthState, type Role } from '../contexts/AppContext';
 
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   queryClient?: QueryClient;
   initialEntries?: string[];
+  auth?: AuthState;
+  role?: Role;
+  featureBeta?: boolean;
 }
 
-/**
- * Creates a fresh QueryClient configured for testing.
- * Disables retries and garbage collection for deterministic tests.
- */
 export function createTestQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
-      queries: {
-        retry: false,
-        gcTime: 0,
-        staleTime: 0,
-      },
-      mutations: {
-        retry: false,
-      },
+      queries: { retry: false, gcTime: 0, staleTime: 0 },
+      mutations: { retry: false },
     },
   });
 }
 
-/**
- * Renders a component with all application providers.
- * Use this instead of render() from @testing-library/react.
- *
- * @param ui - The React element to render
- * @param options - Custom render options including queryClient and initialEntries for routing
- */
 export function renderWithProviders(
   ui: ReactElement,
   options: CustomRenderOptions = {}
@@ -43,6 +30,9 @@ export function renderWithProviders(
   const {
     queryClient = createTestQueryClient(),
     initialEntries = ['/'],
+    auth = 'logged_in',
+    role = 'viewer',
+    featureBeta = false,
     ...renderOptions
   } = options;
 
@@ -50,7 +40,13 @@ export function renderWithProviders(
     return (
       <MemoryRouter initialEntries={initialEntries}>
         <QueryClientProvider client={queryClient}>
-          {children}
+          <AppContextProvider
+            initialAuth={auth}
+            initialRole={role}
+            initialFeatureBeta={featureBeta}
+          >
+            {children}
+          </AppContextProvider>
         </QueryClientProvider>
       </MemoryRouter>
     );

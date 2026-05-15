@@ -41,14 +41,15 @@ describe('Layout', () => {
 
     it('renders the navigation', () => {
       renderWithProviders(<Layout />);
-      expect(screen.getByTestId('main-nav')).toBeInTheDocument();
+      expect(screen.getByTestId('top-nav-bar')).toBeInTheDocument();
     });
 
     it('renders navigation links', () => {
       renderWithProviders(<Layout />);
-      expect(screen.getByTestId('nav-dashboard')).toBeInTheDocument();
-      expect(screen.getByTestId('nav-tasks')).toBeInTheDocument();
-      expect(screen.getByTestId('nav-projects')).toBeInTheDocument();
+      expect(screen.getByTestId('top-nav-dashboard')).toBeInTheDocument();
+      expect(screen.getByTestId('top-nav-tasks')).toBeInTheDocument();
+      expect(screen.getByTestId('top-nav-projects')).toBeInTheDocument();
+      expect(screen.getByTestId('top-nav-settings')).toBeInTheDocument();
     });
 
     it('renders the health indicator', () => {

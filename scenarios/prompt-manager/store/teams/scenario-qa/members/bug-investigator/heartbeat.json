@@ -6,13 +6,12 @@
   "enabled": true,
   "schedule": "0 */4 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-14T04:00:00Z",
-    "endedAt": "2026-05-14T04:00:26Z",
-    "status": "completed",
-    "runId": "a9eaf526-8761-441a-9be1-6f30132f4352",
-    "logPath": "../store/teams/scenario-qa/members/bug-investigator/logs/2026-05-14T04-00-00Z.log"
+    "startedAt": "2026-05-15T00:00:00Z",
+    "status": "running",
+    "runId": "1a40ccef-c2df-458d-a1f7-8cbd28f9108f",
+    "logPath": "../store/teams/scenario-qa/members/bug-investigator/logs/2026-05-15T00-00-00Z.log"
   },
-  "revision": 202,
+  "revision": 210,
   "createdAt": "2026-05-03T00:00:00Z",
-  "updatedAt": "2026-05-14T04:00:26Z"
+  "updatedAt": "2026-05-15T00:00:01Z"
 }

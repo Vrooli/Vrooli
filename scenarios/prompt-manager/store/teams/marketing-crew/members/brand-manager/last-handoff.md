@@ -1,25 +1,41 @@
-### Notebook state
-- `VIDEO_WORKAROUNDS.md`: 0 entries
-- `POSTING_WORKAROUNDS.md`: 0 entries
-- `AUDIENCE_OBSERVATIONS.md`: 3 entries (2026-04-24 researcher-tooling-null, 2026-04-24 WebSearch-baseline, 2026-04-27 bundle-as-subscription-savings/homelab)
-- `CAMPAIGN_LESSONS.md`: 0 entries
-- `DEV_LOG_CRAFT.md`: 1 entry (2026-04-26 agent-manager-outage workaround)
-- Trend vs last heartbeat: **stable** (4 → 4). Prior 2-heartbeat growth streak halted; no 3+ alarm threshold reached.
+### Typed observation scan
+- `marketing-craft-observation/*`: 0 unrouted entries. No drainage actions needed.
+- Evidence mode this run was storage-only: workspace checkout is empty. Existing friction is already recorded at `knw-1778706126690971408`; I did not duplicate it.
 
-### Promotions proposed
-- no promotion-eligible entries this heartbeat. AUDIENCE_OBSERVATIONS at 3 entries but covering 3 distinct topics, not 3 independent examples of one pattern. DEV_LOG_CRAFT at 1 entry; revisit-after-6 marker not fired. Bundle-savings entry self-declared ≥3 converging signals threshold; currently at 1.
+### Promotion candidates
+- None.
+- `AUDIENCE_OBSERVATIONS`: still 3 distinct topics, not 3 examples of one pattern.
+- Bundle-as-subscription-savings remains 1 of >=3 required signals.
+- `DEV_LOG_CRAFT`: still 1 entry.
 
-### Retirements proposed
-- no retirement candidates this heartbeat. DEV_LOG_CRAFT agent-manager-outage entry: agent-manager visibly restored per `cd-2026-04-27-vrooli-firstdevlog-runners-resilience` ("all four x-dev-log data sources healthy"; restart-and-recover layer shipped via commit `721000754a`), but the entry's own revisit marker requires **3 consecutive healthy oss-advertiser runs** — currently at 1. Defer to ≥3.
+### Retirement candidates
+- None.
+- Researcher tooling entries still wait on competitive-intel/scanning capability shipping.
+- Agent-manager outage workaround has healthy evidence from 2026-04-27 and 2026-04-28, but not 3 consecutive healthy oss-advertiser heartbeat days yet.
 
 ### Drift flags
-- canon and practice **alignment status: insufficient sample**. Post-canon drafts now n=2 (`cd-2026-04-26-...-p8`, `cd-2026-04-27-vrooli-firstdevlog-runners-resilience`); publish-log still empty. Both drafts visibly satisfy STRATEGY.md principles (agent-protagonist, first-publish intro burden, essay-shape, hook-vs-body asymmetry, what→why, inter-post linkage). Drift-scan resumes systematic judgment at n≥3.
+- None.
+- Post-canon draft sample remains effectively n=2; no published artifacts visible. No systematic drift trigger.
 
-### Campaign-launch / brand-guideline proposals
-- none. Narrative-canon trigger gate evaluated: (a) no in-window acceptances affecting positioning; (b) no SKU/launch-window; (c) n=2 insufficient for drift; (d) no notebook entry reached promotion threshold targeting narrative-canon; (e) **partial trigger** — operator has uncommitted edits to `docs/marketing/strategy/STRATEGY.md`, `post-techniques/*`, `post-types/README.md` and two new `post-techniques/*.md` files. This is operator-direct curation (their lane per operating rule 2), not a request for my proposal — observe-only. Brand-canon proposals also skipped to avoid competing edits.
+### Campaign signals
+- Subscription: no deployed SKU, no launch window, no active campaign, no artifact request.
+- OSS: `dec-1777318386116434321` remains the active first-publish proposal. Aging note says still relevant; no brand-manager supersession.
+
+### Artifact requests queued
+- None.
+
+### Decisions raised
+- None. Owned-context pending count: 0. Team pending count: 1.
 
 ### Supersessions
-- none (zero pending decisions in owned contexts: `campaign-launch-proposal`, `brand-guideline-update`, `notebook-promotion`, `notebook-retirement`).
+- None.
 
 ### Knowledge entry written
-- topic: `brand-snapshot-2026-04-28` — id `knw-1777402901929814806` (supersedes: `knw-1777316485029033589`).
+- `brand-snapshot/2026-05-14`: `knw-1778785378265054860`.
+
+### Next first checks
+- Re-check `dec-1777318386116434321` resolution.
+- If accepted and published, watch for publisher to initialize `oss-platform` coverage and for OSS post #2 to use the sandboxing auto-approval arc.
+- If still pending again, stale-decision hygiene may matter, but only act from brand-manager if it creates brand/campaign drift.
+- If a third healthy oss-advertiser run appears after 2026-04-28, re-evaluate `DEV_LOG_CRAFT` retirement.
+- If business bundle gets a shipped/deployable component or launch window, campaign and narrative-canon gates reopen.

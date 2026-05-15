@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "30 15 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T19:30:00Z",
-    "endedAt": "2026-05-13T19:30:06Z",
-    "status": "failed",
-    "runId": "9078a5ff-fd68-4e29-8a42-2c2a9b9745c1",
-    "logPath": "../store/teams/marketing-crew/members/oss-advertiser/logs/2026-05-13T19-30-00Z.log",
-    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
+    "startedAt": "2026-05-14T19:30:00Z",
+    "endedAt": "2026-05-14T19:33:01Z",
+    "status": "completed",
+    "runId": "ac548849-8166-47f3-9cea-c17b6b6b6da7",
+    "logPath": "../store/teams/marketing-crew/members/oss-advertiser/logs/2026-05-14T19-30-00Z.log"
   },
-  "revision": 73,
+  "revision": 76,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-13T19:30:06Z"
+  "updatedAt": "2026-05-14T19:33:02Z"
 }

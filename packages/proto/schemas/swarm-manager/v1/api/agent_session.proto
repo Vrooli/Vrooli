@@ -74,8 +74,10 @@ message GetAgentSessionResponse {
   AgentSession session = 1;
 }
 
-// CreateAgentSessionRequest starts a new typed session.
+// CreateAgentSessionRequest creates a pre-spawn typed draft session.
 message CreateAgentSessionRequest {
+  reserved 3;
+
   // Session kind.
   // @constraint one of: meta_orchestration, operating_mode_authoring
   string kind = 1 [(buf.validate.field).string = {
@@ -88,15 +90,25 @@ message CreateAgentSessionRequest {
   // Human-readable title.
   string title = 2 [(buf.validate.field).string.min_len = 1];
 
-  // Initial operator prompt.
-  string initial_message = 3 [(buf.validate.field).string.min_len = 1];
-
   // Optional related initiative name.
   optional string initiative = 4;
 }
 
 // CreateAgentSessionResponse returns the created session.
 message CreateAgentSessionResponse {
+  AgentSession session = 1;
+}
+
+// StartAgentSessionRequest sends the first real operator prompt and spawns
+// the Agent Manager run for a draft session.
+message StartAgentSessionRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+  string message = 2 [(buf.validate.field).string.min_len = 1];
+  repeated string attachment_ids = 3;
+}
+
+// StartAgentSessionResponse returns the spawned session.
+message StartAgentSessionResponse {
   AgentSession session = 1;
 }
 
@@ -110,6 +122,47 @@ message ContinueAgentSessionRequest {
 // ContinueAgentSessionResponse returns the updated session.
 message ContinueAgentSessionResponse {
   AgentSession session = 1;
+}
+
+// ListAgentSessionEventsRequest reads Agent Manager run events through Swarm
+// Manager session ownership.
+message ListAgentSessionEventsRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional int64 after_sequence = 2;
+  optional int32 limit = 3 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 1000
+  }];
+}
+
+// AgentSessionRunEvent is the bounded session-owned timeline event shape.
+message AgentSessionRunEvent {
+  string id = 1;
+  string run_id = 2;
+  int64 sequence = 3;
+  string created_at = 4;
+  string event_type = 5;
+  string role = 6;
+  string content = 7;
+  string tool_name = 8;
+  string tool_call_id = 9;
+  string input = 10;
+  string output = 11;
+  string error = 12;
+  string status = 13;
+  string previous_status = 14;
+  string progress_phase = 15;
+  int32 progress_percent = 16;
+  string progress_message = 17;
+  string summary = 18;
+  string raw_json = 19;
+}
+
+// ListAgentSessionEventsResponse returns bounded Agent Manager run events.
+message ListAgentSessionEventsResponse {
+  repeated AgentSessionRunEvent events = 1;
+  bool has_more = 2;
+  int64 next_after_sequence = 3;
 }
 
 // RefreshAgentSessionRequest refreshes session state from Agent Manager.

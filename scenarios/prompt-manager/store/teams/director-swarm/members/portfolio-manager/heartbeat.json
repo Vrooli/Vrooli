@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "16 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T22:16:00Z",
-    "endedAt": "2026-05-13T22:16:06Z",
-    "status": "failed",
-    "runId": "f1f7bece-d4b0-45ae-a2e2-f09b9acf82be",
-    "logPath": "../store/teams/director-swarm/members/portfolio-manager/logs/2026-05-13T22-16-00Z.log",
-    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
+    "startedAt": "2026-05-14T22:16:00Z",
+    "endedAt": "2026-05-14T22:20:56Z",
+    "status": "completed",
+    "runId": "0cf788e1-38bc-4910-9ad6-e9c5e17f20d6",
+    "logPath": "../store/teams/director-swarm/members/portfolio-manager/logs/2026-05-14T22-16-00Z.log"
   },
-  "revision": 87,
+  "revision": 90,
   "createdAt": "2026-04-09T19:58:09Z",
-  "updatedAt": "2026-05-13T22:16:06Z"
+  "updatedAt": "2026-05-14T22:20:57Z"
 }

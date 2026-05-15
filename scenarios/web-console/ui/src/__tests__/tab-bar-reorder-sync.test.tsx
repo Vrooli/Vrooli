@@ -145,6 +145,46 @@ describe("TabBar reorder sync", () => {
     expect(mockSaveWorkspaceLayout).not.toHaveBeenCalled();
   });
 
+  it("opens the tab context menu on touch long press without activating", () => {
+    useWorkspaceStore.setState({ activePane: "b" });
+
+    render(
+      <TabBar
+        panes={useWorkspaceStore.getState().panes}
+        activePane="b"
+        onNewTerminal={vi.fn()}
+        onOpenLauncher={vi.fn()}
+        onClosePane={vi.fn()}
+      />,
+    );
+
+    const tabA = screen.getByTestId("tab-a");
+    fireEvent.pointerDown(tabA, {
+      button: 0,
+      pointerType: "touch",
+      clientX: 50,
+      clientY: 10,
+      pointerId: 1,
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    fireEvent.pointerUp(window, {
+      pointerType: "touch",
+      clientX: 50,
+      clientY: 10,
+      pointerId: 1,
+    });
+
+    expect(useWorkspaceStore.getState().activePane).toBe("b");
+    expect(useWorkspaceStore.getState().tabContextMenu).toEqual({
+      sessionId: "a",
+      position: { x: 50, y: 10 },
+    });
+  });
+
   it("persists active pane when the user switches tabs", () => {
     render(
       <TabBar
