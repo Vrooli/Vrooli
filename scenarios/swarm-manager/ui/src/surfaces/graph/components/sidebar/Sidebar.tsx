@@ -27,6 +27,7 @@ import { OperatingModesTab } from "./OperatingModesTab";
 import { ExecutionsTab } from "./ExecutionsTab";
 import { SessionsTab } from "./SessionsTab";
 import type { FeedItem } from "../../../../lib/feed";
+import { useSidebarSelection } from "./useSidebarSelection";
 
 interface SidebarProps {
   feed: FeedItem[];
@@ -74,12 +75,13 @@ export function Sidebar({
     (tab: SidebarTab) => dispatch({ type: "SET_TAB", tab }),
     [dispatch],
   );
+  const { activeTab } = state;
+  const selection = useSidebarSelection(activeTab);
+  const showSelectionControls = !aiMode && selection.selectable;
 
   if (sidebarCollapsed) {
     return null;
   }
-
-  const { activeTab } = state;
 
   return (
     <>
@@ -121,12 +123,51 @@ export function Sidebar({
             className="h-8 text-[16px] md:text-sm"
             data-testid="sidebar-search"
           />
-          <SearchModeToggle
-            mode={state.searchMode}
-            onChange={handleSearchModeChange}
-            aiAvailable={aiAvailable}
-            unavailableReason={aiSearchStatus.status?.message ?? aiSearchStatus.error ?? undefined}
-          />
+          <div className="flex min-h-7 flex-wrap items-center justify-between gap-2" data-testid="sidebar-search-control-row">
+            <SearchModeToggle
+              mode={state.searchMode}
+              onChange={handleSearchModeChange}
+              aiAvailable={aiAvailable}
+              unavailableReason={aiSearchStatus.status?.message ?? aiSearchStatus.error ?? undefined}
+            />
+            {showSelectionControls && (
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 text-xs" data-testid="sidebar-selection-controls">
+                {selection.selectionMode ? (
+                  <>
+                    <span className="whitespace-nowrap text-slate-400" data-testid="sidebar-selected-count">
+                      {selection.selectedCount} selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={selection.selectAllVisible}
+                      disabled={selection.visibleIds.length === 0}
+                      className="rounded border border-slate-700/60 px-2 py-1 text-slate-300 hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      data-testid="sidebar-select-all-visible"
+                    >
+                      Select all visible
+                    </button>
+                    <button
+                      type="button"
+                      onClick={selection.cancelSelection}
+                      className="rounded border border-slate-700/60 px-2 py-1 text-slate-300 hover:border-slate-500 hover:bg-slate-800"
+                      data-testid="sidebar-cancel-selection"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={selection.toggleMode}
+                    className="rounded border border-slate-700/60 px-2 py-1 text-slate-300 hover:border-slate-500 hover:bg-slate-800"
+                    data-testid="sidebar-select-mode"
+                  >
+                    Select
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Tabs — hidden in AI mode since AI search spans all entities */}
@@ -172,6 +213,10 @@ export function Sidebar({
                   sort={state.sorts.backlog}
                   onItemClick={onItemClick}
                   onClearSearch={clearSearch}
+                  selectionMode={selection.selectionMode}
+                  selectedIds={selection.selectedIds}
+                  onToggleSelection={selection.toggleItem}
+                  onVisibleIdsChange={selection.pruneToVisible}
                 />
               )}
               {activeTab === "captures" && (
@@ -181,6 +226,10 @@ export function Sidebar({
                   sort={state.sorts.captures}
                   onItemClick={onItemClick}
                   onClearSearch={clearSearch}
+                  selectionMode={selection.selectionMode}
+                  selectedIds={selection.selectedIds}
+                  onToggleSelection={selection.toggleItem}
+                  onVisibleIdsChange={selection.pruneToVisible}
                 />
               )}
               {activeTab === "initiatives" && (
@@ -190,6 +239,10 @@ export function Sidebar({
                   sort={state.sorts.initiatives}
                   onItemClick={onItemClick}
                   onClearSearch={clearSearch}
+                  selectionMode={selection.selectionMode}
+                  selectedIds={selection.selectedIds}
+                  onToggleSelection={selection.toggleItem}
+                  onVisibleIdsChange={selection.pruneToVisible}
                 />
               )}
               {activeTab === "operatingModes" && (
@@ -206,6 +259,10 @@ export function Sidebar({
                   sort={state.sorts.executions}
                   onItemClick={onItemClick}
                   onClearSearch={clearSearch}
+                  selectionMode={selection.selectionMode}
+                  selectedIds={selection.selectedIds}
+                  onToggleSelection={selection.toggleItem}
+                  onVisibleIdsChange={selection.pruneToVisible}
                 />
               )}
               {activeTab === "sessions" && (
@@ -215,6 +272,10 @@ export function Sidebar({
                   sort={state.sorts.sessions}
                   onOpenSession={onOpenAgentSession}
                   onClearSearch={clearSearch}
+                  selectionMode={selection.selectionMode}
+                  selectedIds={selection.selectedIds}
+                  onToggleSelection={selection.toggleItem}
+                  onVisibleIdsChange={selection.pruneToVisible}
                 />
               )}
             </>

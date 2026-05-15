@@ -5,19 +5,22 @@
  * from the sidebar without leaving the graph view.
  */
 
-import { memo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare } from "lucide-react";
+import { Loader2, MessageSquare, Trash2 } from "lucide-react";
 import { useCaptureStore } from "../../../../stores";
 import { CaptureCard } from "../../../../components/capture/capture-card";
 import { BacklogFormDialog } from "../../../../components/backlog/backlog-form-dialog";
 import { backlogService } from "../../../../services/backlog-service";
+import { captureService } from "../../../../services/capture-service";
 import { useBacklogStore } from "../../../../stores";
 import { matchesSearch } from "./useSidebarSearch";
 import type { Capture, BacklogFormValues } from "../../../../types";
 import type { CaptureFilters, SortConfig } from "./types";
 import { captureDetailPath } from "../../../../app/routes/route-paths";
 import { SidebarEmptyState } from "./SidebarEmptyState";
+import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
+import { runBulkAction, summarizeBulkOutcomes, type BulkOutcome } from "./bulk-actions";
 
 interface CapturesTabProps {
   searchQuery: string;
@@ -25,6 +28,10 @@ interface CapturesTabProps {
   sort: SortConfig;
   onItemClick: (nodeId: string) => void;
   onClearSearch?: () => void;
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelection?: (id: string) => void;
+  onVisibleIdsChange?: (ids: string[]) => void;
 }
 
 function applyFilters(items: Capture[], filters: CaptureFilters): Capture[] {
@@ -52,7 +59,21 @@ function applySort(items: Capture[], sort: SortConfig): Capture[] {
   return sorted;
 }
 
-function CapturesTabImpl({ searchQuery, filters, sort, onItemClick: _onItemClick, onClearSearch }: CapturesTabProps) {
+function captureSelectionId(capture: Capture): string {
+  return `capture:${capture.id}`;
+}
+
+function CapturesTabImpl({
+  searchQuery,
+  filters,
+  sort,
+  onItemClick: _onItemClick,
+  onClearSearch,
+  selectionMode = false,
+  selectedIds = new Set<string>(),
+  onToggleSelection,
+  onVisibleIdsChange,
+}: CapturesTabProps) {
   const navigate = useNavigate();
   const captures = useCaptureStore((s) => s.captures);
   const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
@@ -67,6 +88,13 @@ function CapturesTabImpl({ searchQuery, filters, sort, onItemClick: _onItemClick
     filtered = filtered.filter((c) => matchesSearch(searchQuery, c.text));
   }
   const sorted = applySort(filtered, sort);
+  useEffect(() => {
+    onVisibleIdsChange?.(sorted.map(captureSelectionId));
+  }, [onVisibleIdsChange, sorted]);
+  const selectedCaptures = useMemo(
+    () => sorted.filter((capture) => selectedIds.has(captureSelectionId(capture))),
+    [selectedIds, sorted],
+  );
 
   const handleEditItem = (prefill: BacklogFormValues) => {
     setEditPrefill(prefill);
@@ -105,15 +133,45 @@ function CapturesTabImpl({ searchQuery, filters, sort, onItemClick: _onItemClick
 
   return (
     <>
+      {selectionMode && <CaptureBulkActions selectedCaptures={selectedCaptures} />}
       <div className="space-y-1.5">
         {sorted.map((capture) => (
-          <CaptureCard
+          <div
             key={capture.id}
-            capture={capture}
-            onEditItem={handleEditItem}
+            role="button"
+            tabIndex={0}
             onClick={() => navigate(captureDetailPath(capture.id))}
-            className="rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5"
-          />
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                navigate(captureDetailPath(capture.id));
+              }
+            }}
+            className="w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
+            data-testid="sidebar-capture-item"
+          >
+            <div className="flex items-start gap-2">
+              {selectionMode && (
+                <input
+                  type="checkbox"
+                  aria-label={`${selectedIds.has(captureSelectionId(capture)) ? "Deselect" : "Select"} ${capture.text.slice(0, 40)}`}
+                  checked={selectedIds.has(captureSelectionId(capture))}
+                  onClick={(event) => event.stopPropagation()}
+                  onChange={(event) => {
+                    event.stopPropagation();
+                    onToggleSelection?.(captureSelectionId(capture));
+                  }}
+                  className="mt-1"
+                />
+              )}
+              <CaptureCard
+                capture={capture}
+                onEditItem={handleEditItem}
+                onClick={() => navigate(captureDetailPath(capture.id))}
+                className="min-w-0 flex-1 border-0 bg-transparent p-0"
+              />
+            </div>
+          </div>
         ))}
       </div>
 
@@ -134,3 +192,81 @@ function CapturesTabImpl({ searchQuery, filters, sort, onItemClick: _onItemClick
 }
 
 export const CapturesTab = memo(CapturesTabImpl);
+
+function CaptureBulkActions({ selectedCaptures }: { selectedCaptures: Capture[] }) {
+  const fetchCaptures = useCaptureStore((s) => s.fetchCaptures);
+  const removeCapture = useCaptureStore((s) => s.removeCapture);
+  const updateCapture = useCaptureStore((s) => s.updateCapture);
+  const [action, setAction] = useState<"classify" | "delete">("classify");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [outcomes, setOutcomes] = useState<BulkOutcome[]>([]);
+
+  const eligible = action === "classify"
+    ? selectedCaptures.filter((capture) => capture.status !== "classifying")
+    : selectedCaptures;
+
+  const execute = async () => {
+    setRunning(true);
+    setSummary(null);
+    setOutcomes([]);
+    try {
+      const next = await runBulkAction(eligible, {
+        getId: captureSelectionId,
+        getLabel: (capture) => capture.text.slice(0, 48) || capture.id,
+        run: async (capture) => {
+          if (action === "classify") {
+            await captureService.classify(capture.id);
+            updateCapture(capture.id, { status: "classifying", classification: null });
+          } else {
+            await captureService.remove(capture.id);
+            removeCapture(capture.id);
+          }
+        },
+      });
+      setOutcomes(next);
+      setSummary(summarizeBulkOutcomes(next));
+      await fetchCaptures({ force: true });
+    } finally {
+      setRunning(false);
+      setConfirmDelete(false);
+    }
+  };
+
+  const failed = outcomes.filter((outcome) => outcome.status === "failed");
+
+  return (
+    <div className="mb-2 rounded-lg border border-slate-800 bg-slate-900/70 p-2" data-testid="sidebar-capture-bulk-actions">
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={action} onChange={(event) => setAction(event.target.value as "classify" | "delete")} className="h-8 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200" aria-label="Capture bulk action">
+          <option value="classify">Retry classification</option>
+          <option value="delete">Delete selected</option>
+        </select>
+        <button
+          type="button"
+          disabled={selectedCaptures.length === 0 || eligible.length === 0 || running}
+          onClick={() => {
+            if (action === "delete") setConfirmDelete(true);
+            else void execute();
+          }}
+          className="inline-flex h-8 items-center gap-1.5 rounded border border-cyan-500/40 bg-cyan-500/10 px-2 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : action === "delete" ? <Trash2 className="h-3.5 w-3.5" /> : null}
+          Apply
+        </button>
+      </div>
+      <div className="mt-1.5 text-[11px] text-slate-500">{eligible.length} eligible{summary ? ` - ${summary}` : ""}</div>
+      {failed.length > 0 && <div className="mt-1 text-[11px] text-red-300">{failed.map((outcome) => <div key={outcome.id}>{outcome.label}: {outcome.message}</div>)}</div>}
+      <ConfirmDialog
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => void execute()}
+        title="Delete selected captures"
+        description={`Delete ${eligible.length} selected capture${eligible.length === 1 ? "" : "s"}? This cannot be undone.`}
+        confirmLabel="Delete selected"
+        isLoading={running}
+      />
+    </div>
+  );
+}

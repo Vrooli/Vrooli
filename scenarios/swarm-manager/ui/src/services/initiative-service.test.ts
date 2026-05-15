@@ -136,6 +136,17 @@ describe("Initiative Service", () => {
     expect(result.initiative.acceptanceCriteria).toEqual(["System passes review"]);
   });
 
+  it("archives and unarchives initiatives through the archive endpoint", async () => {
+    vi.mocked(mockApiClient.patch).mockResolvedValue({});
+    vi.mocked(mockApiClient.delete).mockResolvedValue(undefined);
+
+    await service.archiveItem("my-initiative");
+    await service.unarchiveItem("my-initiative");
+
+    expect(mockApiClient.patch).toHaveBeenCalledWith("/initiatives/my-initiative/archive-item", {});
+    expect(mockApiClient.delete).toHaveBeenCalledWith("/initiatives/my-initiative/archive-item");
+  });
+
   it("propagates errors", async () => {
     vi.mocked(mockApiClient.get).mockRejectedValue(new Error("Network error"));
     await expect(service.get("bad")).rejects.toThrow("Network error");

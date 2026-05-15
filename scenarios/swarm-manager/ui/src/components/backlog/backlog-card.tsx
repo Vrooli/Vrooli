@@ -99,7 +99,7 @@ function BacklogCardImpl({
   onSnooze,
 }: BacklogCardProps) {
   const hasActiveStepper = itemActions.showDecisionStepper && (pendingQuestions?.length ?? 0) > 0 && !isStepperCompleted;
-  const showBatchCheckbox = batchMode && (itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled) && !itemActions.blocked;
+  const showBatchCheckbox = batchMode;
   const deliverableLabel = item.kind === "research" ? "conclusion" : "plan";
   const KindIcon = BACKLOG_KIND_ICONS[item.kind];
   const hasPrimaryActionRow = (
@@ -127,6 +127,7 @@ function BacklogCardImpl({
               type="checkbox"
               aria-label={`Select backlog item ${item.title}`}
               checked={isSelected}
+              aria-checked={isSelected}
               onClick={(event) => event.stopPropagation()}
               onChange={(event) => {
                 event.stopPropagation();

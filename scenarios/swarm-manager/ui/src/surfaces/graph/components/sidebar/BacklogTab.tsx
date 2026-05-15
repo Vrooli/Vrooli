@@ -9,7 +9,7 @@ import { Profiler, memo, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useNavigate } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { onProfilerRender } from "../../../../lib/profiler";
-import { ListTodo } from "lucide-react";
+import { Download, ListTodo, Loader2 } from "lucide-react";
 import { useBacklogStore } from "../../../../stores";
 import { useSnoozedKeys } from "../../../../stores/snooze-store";
 import { getItemActions } from "../../../../lib";
@@ -31,6 +31,8 @@ import type { ReadinessIndicatorData } from "../../../../lib/maturity";
 import type { StepperCompletionResult } from "../../../../components/backlog/inline-question-stepper";
 import { backlogDetailPath } from "../../../../app/routes/route-paths";
 import { SidebarEmptyState } from "./SidebarEmptyState";
+import { backlogService } from "../../../../services";
+import { runBulkAction, summarizeBulkOutcomes, failedOutcomeIds, type BulkOutcome } from "./bulk-actions";
 
 interface PlanValidationSummary {
   passed: boolean;
@@ -59,6 +61,10 @@ interface BacklogTabProps {
   sort: SortConfig;
   onItemClick: (nodeId: string) => void;
   onClearSearch?: () => void;
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelection?: (id: string) => void;
+  onVisibleIdsChange?: (ids: string[]) => void;
 }
 
 function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogItem[] {
@@ -91,7 +97,21 @@ function hasActiveFilters(filters: BacklogFilters): boolean {
   return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null || filters.showArchived || filters.validationStatus !== "";
 }
 
-function BacklogTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch }: BacklogTabProps) {
+function backlogSelectionId(item: BacklogItem): string {
+  return `backlog:${item.kind}/${item.name}`;
+}
+
+function BacklogTabImpl({
+  searchQuery,
+  filters,
+  sort,
+  onItemClick,
+  onClearSearch,
+  selectionMode = false,
+  selectedIds = new Set<string>(),
+  onToggleSelection,
+  onVisibleIdsChange,
+}: BacklogTabProps) {
   const navigate = useNavigate();
   const items = useBacklogStore((s) => s.items);
   const blockingMap = useBacklogStore((s) => s.blockingMap);
@@ -150,6 +170,15 @@ function BacklogTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch
     return sortBacklogItems(next, buildBacklogCompareFn(sort, unblockingMap), items);
   }, [items, filters, searchQuery, sort, snoozedKeys, unblockingMap]);
 
+  useEffect(() => {
+    onVisibleIdsChange?.(sorted.map(backlogSelectionId));
+  }, [onVisibleIdsChange, sorted]);
+
+  const selectedItems = useMemo(
+    () => sorted.filter((item) => selectedIds.has(backlogSelectionId(item))),
+    [selectedIds, sorted],
+  );
+
   const handleCloseRunModal = useCallback(() => setRunModalTarget(undefined), []);
   const handleRunModalSuccess = useCallback(() => {
     setRunModalTarget(undefined);
@@ -178,6 +207,12 @@ function BacklogTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch
 
   return (
     <>
+      {selectionMode && (
+        <BacklogBulkActions
+          selectedItems={selectedItems}
+        />
+      )}
+
       <Profiler id="VirtualizedBacklogList" onRender={onProfilerRender}>
         <VirtualizedBacklogList
           sorted={sorted}
@@ -195,6 +230,9 @@ function BacklogTabImpl({ searchQuery, filters, sort, onItemClick, onClearSearch
           pendingStatusKey={pendingStatusKey}
           handleStepperCompleted={handleStepperCompleted}
           onItemClick={onItemClick}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onToggleSelection={onToggleSelection}
         />
       </Profiler>
 
@@ -264,6 +302,9 @@ interface VirtualizedBacklogListProps {
   pendingStatusKey: string | null;
   handleStepperCompleted: (itemKey: string, item: BacklogItem, result: StepperCompletionResult) => void;
   onItemClick: (nodeId: string) => void;
+  selectionMode: boolean;
+  selectedIds: Set<string>;
+  onToggleSelection?: (id: string) => void;
 }
 
 function VirtualizedBacklogList({
@@ -282,6 +323,9 @@ function VirtualizedBacklogList({
   pendingStatusKey,
   handleStepperCompleted,
   onItemClick,
+  selectionMode,
+  selectedIds,
+  onToggleSelection,
 }: VirtualizedBacklogListProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
@@ -350,6 +394,9 @@ function VirtualizedBacklogList({
               runningLabel={activeRunLabels.get(itemKey)}
               handleStepperCompleted={handleStepperCompleted}
               onItemClick={onItemClick}
+              selectionMode={selectionMode}
+              selected={selectedIds.has(backlogSelectionId(item))}
+              onToggleSelection={onToggleSelection}
             />
           </div>
         );
@@ -381,9 +428,10 @@ interface BacklogRowProps {
   runningLabel: string | undefined;
   handleStepperCompleted: (itemKey: string, item: BacklogItem, result: StepperCompletionResult) => void;
   onItemClick: (nodeId: string) => void;
+  selectionMode: boolean;
+  selected: boolean;
+  onToggleSelection?: (id: string) => void;
 }
-
-const NOOP_TOGGLE_SELECTION = () => {};
 
 const BacklogRow = memo(function BacklogRow({
   item,
@@ -403,8 +451,12 @@ const BacklogRow = memo(function BacklogRow({
   runningLabel,
   handleStepperCompleted,
   onItemClick,
+  selectionMode,
+  selected,
+  onToggleSelection,
 }: BacklogRowProps) {
   const itemKey = `${item.kind}/${item.name}`;
+  const selectionId = backlogSelectionId(item);
   const nodeId = useMemo(() => buildBacklogNodeId(item.kind, item.name), [item.kind, item.name]);
   const hasPendingDecisions = (pendingQuestions?.length ?? 0) > 0;
   const itemActions = useMemo(
@@ -442,9 +494,9 @@ const BacklogRow = memo(function BacklogRow({
         isStepperCompleted={isStepperCompleted}
         transitionResult={transitionResult}
         onStepperCompleted={handleStepperCompletedForItem}
-        batchMode={false}
-        isSelected={false}
-        onToggleSelection={NOOP_TOGGLE_SELECTION}
+        batchMode={selectionMode}
+        isSelected={selected}
+        onToggleSelection={() => onToggleSelection?.(selectionId)}
         onRun={callbacks.onRun}
         onArchive={callbacks.onArchive}
         onFollowUp={callbacks.onFollowUp}
@@ -461,3 +513,247 @@ const BacklogRow = memo(function BacklogRow({
     </button>
   );
 });
+
+type BacklogBulkAction =
+  | "archive"
+  | "unarchive"
+  | "status"
+  | "priority"
+  | "assign-initiative"
+  | "detach-initiative"
+  | "add-tags"
+  | "remove-tags"
+  | "run"
+  | "export";
+
+const BACKLOG_STATUSES: BacklogItem["status"][] = [
+  "backlog",
+  "researching",
+  "ready",
+  "queued",
+  "in_progress",
+  "in_review",
+  "review_pending",
+  "completed",
+  "failed",
+  "needs_followup",
+];
+
+function BacklogBulkActions({
+  selectedItems,
+}: {
+  selectedItems: BacklogItem[];
+}) {
+  const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
+  const [action, setAction] = useState<BacklogBulkAction>("archive");
+  const [status, setStatus] = useState<BacklogItem["status"]>("ready");
+  const [priority, setPriority] = useState(5);
+  const [initiative, setInitiative] = useState("");
+  const [tags, setTags] = useState("");
+  const [runMode, setRunMode] = useState<"manual" | "yolo">("manual");
+  const [operation, setOperation] = useState<"generator" | "improver">("generator");
+  const [pendingConfirm, setPendingConfirm] = useState<BacklogBulkAction | null>(null);
+  const [running, setRunning] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [outcomes, setOutcomes] = useState<BulkOutcome[]>([]);
+
+  const eligibleItems = useMemo(() => {
+    switch (action) {
+      case "archive":
+        return selectedItems.filter((item) => item.archivedAt == null);
+      case "unarchive":
+        return selectedItems.filter((item) => item.archivedAt != null);
+      case "run":
+        return selectedItems.filter((item) => item.status === "backlog" || item.status === "researching" || item.status === "ready");
+      default:
+        return selectedItems;
+    }
+  }, [action, selectedItems]);
+
+  const skippedCount = selectedItems.length - eligibleItems.length;
+  const tagList = tags.split(",").map((tag) => tag.trim()).filter(Boolean);
+
+  const actionLabel = {
+    archive: "Archive selected",
+    unarchive: "Unarchive selected",
+    status: "Change status",
+    priority: "Set priority",
+    "assign-initiative": "Assign initiative",
+    "detach-initiative": "Detach initiative",
+    "add-tags": "Add tags",
+    "remove-tags": "Remove tags",
+    run: "Run selected",
+    export: "Export selected",
+  }[action];
+
+  const execute = useCallback(async () => {
+    if (selectedItems.length === 0 || running) return;
+    setRunning(true);
+    setSummary(null);
+    setOutcomes([]);
+    try {
+      if (action === "export") {
+        const blob = await backlogService.exportItems({
+          names: selectedItems.map((item) => item.name),
+          kinds: Array.from(new Set(selectedItems.map((item) => item.kind))),
+          includePrd: true,
+          includeRequirements: true,
+          includeClarifyQuestions: true,
+          includeSuggestions: true,
+          includeNotes: true,
+        });
+        const href = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = href;
+        link.download = "swarm-manager-backlog-selection.zip";
+        link.click();
+        URL.revokeObjectURL(href);
+        const next = selectedItems.map((item) => ({
+          id: backlogSelectionId(item),
+          label: item.title,
+          status: "success" as const,
+        }));
+        setOutcomes(next);
+        setSummary(summarizeBulkOutcomes(next));
+        return;
+      }
+
+      const next = await runBulkAction(eligibleItems, {
+        getId: backlogSelectionId,
+        getLabel: (item) => item.title,
+        run: (item) => {
+          switch (action) {
+            case "archive":
+              return backlogService.archiveItem(item.kind, item.name);
+            case "unarchive":
+              return backlogService.unarchiveItem(item.kind, item.name);
+            case "status":
+              return backlogService.update(item.kind, item.name, { status });
+            case "priority":
+              return backlogService.update(item.kind, item.name, { priority });
+            case "assign-initiative":
+              return backlogService.update(item.kind, item.name, { initiative: initiative.trim() });
+            case "detach-initiative":
+              return backlogService.update(item.kind, item.name, { initiative: "" });
+            case "add-tags":
+              return backlogService.update(item.kind, item.name, { tags: Array.from(new Set([...(item.tags ?? []), ...tagList])) });
+            case "remove-tags":
+              return backlogService.update(item.kind, item.name, { tags: (item.tags ?? []).filter((tag) => !tagList.includes(tag)) });
+            case "run":
+              return backlogService.queue(item.kind, item.name, { mode: runMode, operation, confirm: true });
+            default:
+              return Promise.resolve();
+          }
+        },
+      });
+      const skipped: BulkOutcome[] = skippedCount > 0
+        ? selectedItems
+            .filter((item) => !eligibleItems.includes(item))
+            .map((item) => ({
+              id: backlogSelectionId(item),
+              label: item.title,
+              status: "skipped" as const,
+              message: "Not eligible for this action",
+            }))
+        : [];
+      const allOutcomes = [...next, ...skipped];
+      setOutcomes(allOutcomes);
+      setSummary(summarizeBulkOutcomes(allOutcomes));
+      await fetchBacklog({ force: true });
+    } finally {
+      setRunning(false);
+      setPendingConfirm(null);
+    }
+  }, [action, eligibleItems, fetchBacklog, initiative, operation, priority, runMode, running, selectedItems, skippedCount, status, tagList]);
+
+  const needsText = action === "assign-initiative" || action === "add-tags" || action === "remove-tags";
+  const disabled = selectedItems.length === 0
+    || running
+    || eligibleItems.length === 0
+    || (needsText && (action === "assign-initiative" ? initiative.trim() === "" : tagList.length === 0));
+  const requiresConfirm = action === "archive" || action === "unarchive" || action === "run";
+  const failedIds = failedOutcomeIds(outcomes);
+
+  return (
+    <div className="mb-2 rounded-lg border border-slate-800 bg-slate-900/70 p-2" data-testid="sidebar-backlog-bulk-actions">
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={action}
+          onChange={(event) => setAction(event.target.value as BacklogBulkAction)}
+          className="h-8 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200"
+          aria-label="Bulk action"
+        >
+          <option value="archive">Archive selected</option>
+          <option value="unarchive">Unarchive selected</option>
+          <option value="status">Change status</option>
+          <option value="priority">Set priority</option>
+          <option value="assign-initiative">Assign initiative</option>
+          <option value="detach-initiative">Detach initiative</option>
+          <option value="add-tags">Add tags</option>
+          <option value="remove-tags">Remove tags</option>
+          <option value="run">Run selected</option>
+          <option value="export">Export selected</option>
+        </select>
+        {action === "status" && (
+          <select value={status} onChange={(event) => setStatus(event.target.value as BacklogItem["status"])} className="h-8 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200" aria-label="Status">
+            {BACKLOG_STATUSES.map((option) => <option key={option} value={option}>{option.replace(/_/g, " ")}</option>)}
+          </select>
+        )}
+        {action === "priority" && (
+          <input type="number" min={1} max={10} value={priority} onChange={(event) => setPriority(Math.max(1, Math.min(10, Number(event.target.value || 1))))} className="h-8 w-16 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200" aria-label="Priority" />
+        )}
+        {action === "assign-initiative" && (
+          <input value={initiative} onChange={(event) => setInitiative(event.target.value)} placeholder="initiative-name" className="h-8 min-w-0 flex-1 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200 placeholder:text-slate-500" aria-label="Initiative name" />
+        )}
+        {(action === "add-tags" || action === "remove-tags") && (
+          <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="tags, comma separated" className="h-8 min-w-0 flex-1 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200 placeholder:text-slate-500" aria-label="Tags" />
+        )}
+        {action === "run" && (
+          <>
+            <select value={runMode} onChange={(event) => setRunMode(event.target.value as "manual" | "yolo")} className="h-8 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200" aria-label="Run mode">
+              <option value="manual">Manual</option>
+              <option value="yolo">YOLO</option>
+            </select>
+            <select value={operation} onChange={(event) => setOperation(event.target.value as "generator" | "improver")} className="h-8 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200" aria-label="Operation">
+              <option value="generator">Generator</option>
+              <option value="improver">Improver</option>
+            </select>
+          </>
+        )}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => {
+            if (requiresConfirm) setPendingConfirm(action);
+            else void execute();
+          }}
+          className="inline-flex h-8 items-center gap-1.5 rounded border border-cyan-500/40 bg-cyan-500/10 px-2 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : action === "export" ? <Download className="h-3.5 w-3.5" /> : null}
+          Apply
+        </button>
+      </div>
+      <div className="mt-1.5 text-[11px] text-slate-500">
+        {eligibleItems.length} eligible{skippedCount > 0 ? `, ${skippedCount} skipped` : ""}
+        {summary ? ` - ${summary}` : ""}
+      </div>
+      {outcomes.some((outcome) => outcome.status === "failed") && (
+        <div className="mt-1 max-h-20 overflow-y-auto text-[11px] text-red-300">
+          {[...failedIds].map((id) => {
+            const outcome = outcomes.find((entry) => entry.id === id);
+            return outcome ? <div key={id}>{outcome.label}: {outcome.message}</div> : null;
+          })}
+        </div>
+      )}
+      <ConfirmDialog
+        isOpen={pendingConfirm !== null}
+        onClose={() => setPendingConfirm(null)}
+        onConfirm={() => void execute()}
+        title={actionLabel}
+        description={`${actionLabel} will affect ${eligibleItems.length} selected backlog item${eligibleItems.length === 1 ? "" : "s"}.${skippedCount > 0 ? ` ${skippedCount} item${skippedCount === 1 ? "" : "s"} will be skipped.` : ""}`}
+        confirmLabel={actionLabel}
+        isLoading={running}
+      />
+    </div>
+  );
+}

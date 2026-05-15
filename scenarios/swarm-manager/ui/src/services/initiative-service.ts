@@ -124,6 +124,8 @@ export interface IInitiativeService {
   listFiles(name: string): Promise<TreeFile[]>;
   getFileContent(name: string, path: string): Promise<string>;
   updateNote(name: string, note: string): Promise<InitiativeWithRollup>;
+  archiveItem(name: string): Promise<void>;
+  unarchiveItem(name: string): Promise<void>;
   updateMetadata(name: string, patch: {
     acceptanceCriteria?: string[];
   }): Promise<InitiativeWithRollup>;
@@ -159,6 +161,14 @@ export function createInitiativeService(
         { note },
       );
       return normalizeItem(raw as { initiative?: Record<string, unknown>; rollup?: RawRollup });
+    },
+
+    async archiveItem(name: string): Promise<void> {
+      await apiClient.patch<unknown>(API_ENDPOINTS.initiativeArchiveItem(name), {});
+    },
+
+    async unarchiveItem(name: string): Promise<void> {
+      await apiClient.delete<unknown>(API_ENDPOINTS.initiativeArchiveItem(name));
     },
 
     async updateMetadata(name: string, patch: {
