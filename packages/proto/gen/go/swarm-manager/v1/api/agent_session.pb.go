@@ -27,7 +27,7 @@ const (
 type ListAgentSessionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional session kind filter.
-	// @constraint one of: empty, meta_orchestration, operating_mode_authoring
+	// @constraint one of: empty, meta_orchestration, operating_mode_authoring, swarm_operations
 	Kind *string `protobuf:"bytes,1,opt,name=kind,proto3,oneof" json:"kind,omitempty"`
 	// Optional session status filter.
 	// @constraint one of: empty, draft, starting, running, waiting_for_user, proposal_ready, applying, complete, failed, canceled
@@ -237,12 +237,10 @@ func (x *GetAgentSessionResponse) GetSession() *domain.AgentSession {
 type CreateAgentSessionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Session kind.
-	// @constraint one of: meta_orchestration, operating_mode_authoring
+	// @constraint one of: meta_orchestration, operating_mode_authoring, swarm_operations
 	Kind string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
 	// Human-readable title.
-	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	// Optional related initiative name.
-	Initiative    *string `protobuf:"bytes,4,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	Title         string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -287,13 +285,6 @@ func (x *CreateAgentSessionRequest) GetKind() string {
 func (x *CreateAgentSessionRequest) GetTitle() string {
 	if x != nil {
 		return x.Title
-	}
-	return ""
-}
-
-func (x *CreateAgentSessionRequest) GetInitiative() string {
-	if x != nil && x.Initiative != nil {
-		return *x.Initiative
 	}
 	return ""
 }
@@ -346,10 +337,11 @@ func (x *CreateAgentSessionResponse) GetSession() *domain.AgentSession {
 // StartAgentSessionRequest sends the first real operator prompt and spawns
 // the Agent Manager run for a draft session.
 type StartAgentSessionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	AttachmentIds []string               `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	SessionId     string                    `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Message       string                    `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	AttachmentIds []string                  `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
+	ContextRefs   []*AgentSessionContextRef `protobuf:"bytes,4,rep,name=context_refs,json=contextRefs,proto3" json:"context_refs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -405,6 +397,13 @@ func (x *StartAgentSessionRequest) GetAttachmentIds() []string {
 	return nil
 }
 
+func (x *StartAgentSessionRequest) GetContextRefs() []*AgentSessionContextRef {
+	if x != nil {
+		return x.ContextRefs
+	}
+	return nil
+}
+
 // StartAgentSessionResponse returns the spawned session.
 type StartAgentSessionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -452,10 +451,11 @@ func (x *StartAgentSessionResponse) GetSession() *domain.AgentSession {
 
 // ContinueAgentSessionRequest appends a user message and continues the run.
 type ContinueAgentSessionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	AttachmentIds []string               `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	SessionId     string                    `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Message       string                    `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	AttachmentIds []string                  `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
+	ContextRefs   []*AgentSessionContextRef `protobuf:"bytes,4,rep,name=context_refs,json=contextRefs,proto3" json:"context_refs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -511,6 +511,13 @@ func (x *ContinueAgentSessionRequest) GetAttachmentIds() []string {
 	return nil
 }
 
+func (x *ContinueAgentSessionRequest) GetContextRefs() []*AgentSessionContextRef {
+	if x != nil {
+		return x.ContextRefs
+	}
+	return nil
+}
+
 // ContinueAgentSessionResponse returns the updated session.
 type ContinueAgentSessionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -556,6 +563,108 @@ func (x *ContinueAgentSessionResponse) GetSession() *domain.AgentSession {
 	return nil
 }
 
+// AgentSessionContextRef identifies an existing Swarm Manager record selected
+// as context for a single session message.
+type AgentSessionContextRef struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Context type.
+	// @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session
+	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	// Stable entity reference.
+	Ref           string `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentSessionContextRef) Reset() {
+	*x = AgentSessionContextRef{}
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSessionContextRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSessionContextRef) ProtoMessage() {}
+
+func (x *AgentSessionContextRef) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSessionContextRef.ProtoReflect.Descriptor instead.
+func (*AgentSessionContextRef) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AgentSessionContextRef) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *AgentSessionContextRef) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+// UploadAgentSessionAttachmentsResponse returns uploaded session attachments.
+type UploadAgentSessionAttachmentsResponse struct {
+	state         protoimpl.MessageState           `protogen:"open.v1"`
+	Attachments   []*domain.AgentSessionAttachment `protobuf:"bytes,1,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadAgentSessionAttachmentsResponse) Reset() {
+	*x = UploadAgentSessionAttachmentsResponse{}
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadAgentSessionAttachmentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadAgentSessionAttachmentsResponse) ProtoMessage() {}
+
+func (x *UploadAgentSessionAttachmentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadAgentSessionAttachmentsResponse.ProtoReflect.Descriptor instead.
+func (*UploadAgentSessionAttachmentsResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UploadAgentSessionAttachmentsResponse) GetAttachments() []*domain.AgentSessionAttachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
 // ListAgentSessionEventsRequest reads Agent Manager run events through Swarm
 // Manager session ownership.
 type ListAgentSessionEventsRequest struct {
@@ -569,7 +678,7 @@ type ListAgentSessionEventsRequest struct {
 
 func (x *ListAgentSessionEventsRequest) Reset() {
 	*x = ListAgentSessionEventsRequest{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[10]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -581,7 +690,7 @@ func (x *ListAgentSessionEventsRequest) String() string {
 func (*ListAgentSessionEventsRequest) ProtoMessage() {}
 
 func (x *ListAgentSessionEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[10]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -594,7 +703,7 @@ func (x *ListAgentSessionEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAgentSessionEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListAgentSessionEventsRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{10}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListAgentSessionEventsRequest) GetSessionId() string {
@@ -646,7 +755,7 @@ type AgentSessionRunEvent struct {
 
 func (x *AgentSessionRunEvent) Reset() {
 	*x = AgentSessionRunEvent{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[11]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -658,7 +767,7 @@ func (x *AgentSessionRunEvent) String() string {
 func (*AgentSessionRunEvent) ProtoMessage() {}
 
 func (x *AgentSessionRunEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[11]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -671,7 +780,7 @@ func (x *AgentSessionRunEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentSessionRunEvent.ProtoReflect.Descriptor instead.
 func (*AgentSessionRunEvent) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{11}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *AgentSessionRunEvent) GetId() string {
@@ -819,7 +928,7 @@ type ListAgentSessionEventsResponse struct {
 
 func (x *ListAgentSessionEventsResponse) Reset() {
 	*x = ListAgentSessionEventsResponse{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[12]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -831,7 +940,7 @@ func (x *ListAgentSessionEventsResponse) String() string {
 func (*ListAgentSessionEventsResponse) ProtoMessage() {}
 
 func (x *ListAgentSessionEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[12]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -844,7 +953,7 @@ func (x *ListAgentSessionEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAgentSessionEventsResponse.ProtoReflect.Descriptor instead.
 func (*ListAgentSessionEventsResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{12}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListAgentSessionEventsResponse) GetEvents() []*AgentSessionRunEvent {
@@ -878,7 +987,7 @@ type RefreshAgentSessionRequest struct {
 
 func (x *RefreshAgentSessionRequest) Reset() {
 	*x = RefreshAgentSessionRequest{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[13]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -890,7 +999,7 @@ func (x *RefreshAgentSessionRequest) String() string {
 func (*RefreshAgentSessionRequest) ProtoMessage() {}
 
 func (x *RefreshAgentSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[13]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -903,7 +1012,7 @@ func (x *RefreshAgentSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshAgentSessionRequest.ProtoReflect.Descriptor instead.
 func (*RefreshAgentSessionRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{13}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RefreshAgentSessionRequest) GetSessionId() string {
@@ -923,7 +1032,7 @@ type RefreshAgentSessionResponse struct {
 
 func (x *RefreshAgentSessionResponse) Reset() {
 	*x = RefreshAgentSessionResponse{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[14]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -935,7 +1044,7 @@ func (x *RefreshAgentSessionResponse) String() string {
 func (*RefreshAgentSessionResponse) ProtoMessage() {}
 
 func (x *RefreshAgentSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[14]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -948,7 +1057,7 @@ func (x *RefreshAgentSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshAgentSessionResponse.ProtoReflect.Descriptor instead.
 func (*RefreshAgentSessionResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{14}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RefreshAgentSessionResponse) GetSession() *domain.AgentSession {
@@ -968,7 +1077,7 @@ type CancelAgentSessionRequest struct {
 
 func (x *CancelAgentSessionRequest) Reset() {
 	*x = CancelAgentSessionRequest{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[15]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -980,7 +1089,7 @@ func (x *CancelAgentSessionRequest) String() string {
 func (*CancelAgentSessionRequest) ProtoMessage() {}
 
 func (x *CancelAgentSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[15]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -993,7 +1102,7 @@ func (x *CancelAgentSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelAgentSessionRequest.ProtoReflect.Descriptor instead.
 func (*CancelAgentSessionRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{15}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CancelAgentSessionRequest) GetSessionId() string {
@@ -1013,7 +1122,7 @@ type CancelAgentSessionResponse struct {
 
 func (x *CancelAgentSessionResponse) Reset() {
 	*x = CancelAgentSessionResponse{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[16]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1025,7 +1134,7 @@ func (x *CancelAgentSessionResponse) String() string {
 func (*CancelAgentSessionResponse) ProtoMessage() {}
 
 func (x *CancelAgentSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[16]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1038,7 +1147,7 @@ func (x *CancelAgentSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelAgentSessionResponse.ProtoReflect.Descriptor instead.
 func (*CancelAgentSessionResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{16}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CancelAgentSessionResponse) GetSession() *domain.AgentSession {
@@ -1058,7 +1167,7 @@ type DeleteAgentSessionRequest struct {
 
 func (x *DeleteAgentSessionRequest) Reset() {
 	*x = DeleteAgentSessionRequest{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[17]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1070,7 +1179,7 @@ func (x *DeleteAgentSessionRequest) String() string {
 func (*DeleteAgentSessionRequest) ProtoMessage() {}
 
 func (x *DeleteAgentSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[17]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1083,7 +1192,7 @@ func (x *DeleteAgentSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAgentSessionRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAgentSessionRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{17}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DeleteAgentSessionRequest) GetSessionId() string {
@@ -1103,7 +1212,7 @@ type DeleteAgentSessionResponse struct {
 
 func (x *DeleteAgentSessionResponse) Reset() {
 	*x = DeleteAgentSessionResponse{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[18]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1115,7 +1224,7 @@ func (x *DeleteAgentSessionResponse) String() string {
 func (*DeleteAgentSessionResponse) ProtoMessage() {}
 
 func (x *DeleteAgentSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[18]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1128,7 +1237,7 @@ func (x *DeleteAgentSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAgentSessionResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAgentSessionResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{18}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DeleteAgentSessionResponse) GetSessionId() string {
@@ -1149,7 +1258,7 @@ type ApplyAgentSessionProposalRequest struct {
 
 func (x *ApplyAgentSessionProposalRequest) Reset() {
 	*x = ApplyAgentSessionProposalRequest{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[19]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1161,7 +1270,7 @@ func (x *ApplyAgentSessionProposalRequest) String() string {
 func (*ApplyAgentSessionProposalRequest) ProtoMessage() {}
 
 func (x *ApplyAgentSessionProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[19]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1174,7 +1283,7 @@ func (x *ApplyAgentSessionProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyAgentSessionProposalRequest.ProtoReflect.Descriptor instead.
 func (*ApplyAgentSessionProposalRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{19}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ApplyAgentSessionProposalRequest) GetSessionId() string {
@@ -1202,7 +1311,7 @@ type ApplyAgentSessionProposalResponse struct {
 
 func (x *ApplyAgentSessionProposalResponse) Reset() {
 	*x = ApplyAgentSessionProposalResponse{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[20]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1214,7 +1323,7 @@ func (x *ApplyAgentSessionProposalResponse) String() string {
 func (*ApplyAgentSessionProposalResponse) ProtoMessage() {}
 
 func (x *ApplyAgentSessionProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[20]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1227,7 +1336,7 @@ func (x *ApplyAgentSessionProposalResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ApplyAgentSessionProposalResponse.ProtoReflect.Descriptor instead.
 func (*ApplyAgentSessionProposalResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{20}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ApplyAgentSessionProposalResponse) GetSession() *domain.AgentSession {
@@ -1254,7 +1363,7 @@ type ListAgentSessionArtifactsRequest struct {
 
 func (x *ListAgentSessionArtifactsRequest) Reset() {
 	*x = ListAgentSessionArtifactsRequest{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[21]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1266,7 +1375,7 @@ func (x *ListAgentSessionArtifactsRequest) String() string {
 func (*ListAgentSessionArtifactsRequest) ProtoMessage() {}
 
 func (x *ListAgentSessionArtifactsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[21]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1279,7 +1388,7 @@ func (x *ListAgentSessionArtifactsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAgentSessionArtifactsRequest.ProtoReflect.Descriptor instead.
 func (*ListAgentSessionArtifactsRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{21}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ListAgentSessionArtifactsRequest) GetSessionId() string {
@@ -1299,7 +1408,7 @@ type ListAgentSessionArtifactsResponse struct {
 
 func (x *ListAgentSessionArtifactsResponse) Reset() {
 	*x = ListAgentSessionArtifactsResponse{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[22]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1311,7 +1420,7 @@ func (x *ListAgentSessionArtifactsResponse) String() string {
 func (*ListAgentSessionArtifactsResponse) ProtoMessage() {}
 
 func (x *ListAgentSessionArtifactsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[22]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1324,7 +1433,7 @@ func (x *ListAgentSessionArtifactsResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ListAgentSessionArtifactsResponse.ProtoReflect.Descriptor instead.
 func (*ListAgentSessionArtifactsResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{22}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ListAgentSessionArtifactsResponse) GetArtifacts() []*domain.AgentSessionArtifact {
@@ -1348,7 +1457,7 @@ type GetArtifactsByEntityRequest struct {
 
 func (x *GetArtifactsByEntityRequest) Reset() {
 	*x = GetArtifactsByEntityRequest{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[23]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1360,7 +1469,7 @@ func (x *GetArtifactsByEntityRequest) String() string {
 func (*GetArtifactsByEntityRequest) ProtoMessage() {}
 
 func (x *GetArtifactsByEntityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[23]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1373,7 +1482,7 @@ func (x *GetArtifactsByEntityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetArtifactsByEntityRequest.ProtoReflect.Descriptor instead.
 func (*GetArtifactsByEntityRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{23}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetArtifactsByEntityRequest) GetArtifactType() string {
@@ -1400,7 +1509,7 @@ type GetArtifactsByEntityResponse struct {
 
 func (x *GetArtifactsByEntityResponse) Reset() {
 	*x = GetArtifactsByEntityResponse{}
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[24]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1412,7 +1521,7 @@ func (x *GetArtifactsByEntityResponse) String() string {
 func (*GetArtifactsByEntityResponse) ProtoMessage() {}
 
 func (x *GetArtifactsByEntityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[24]
+	mi := &file_swarm_manager_v1_api_agent_session_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1425,7 +1534,7 @@ func (x *GetArtifactsByEntityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetArtifactsByEntityResponse.ProtoReflect.Descriptor instead.
 func (*GetArtifactsByEntityResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{24}
+	return file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetArtifactsByEntityResponse) GetArtifacts() []*domain.AgentSessionArtifact {
@@ -1439,9 +1548,9 @@ var File_swarm_manager_v1_api_agent_session_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/api/agent_session.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\"\xd9\x02\n" +
-	"\x18ListAgentSessionsRequest\x12N\n" +
-	"\x04kind\x18\x01 \x01(\tB5\xbaH2r0R\x00R\x12meta_orchestrationR\x18operating_mode_authoringH\x00R\x04kind\x88\x01\x01\x12\x86\x01\n" +
+	"(swarm-manager/v1/api/agent_session.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\"\xeb\x02\n" +
+	"\x18ListAgentSessionsRequest\x12`\n" +
+	"\x04kind\x18\x01 \x01(\tBG\xbaHDrBR\x00R\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsH\x00R\x04kind\x88\x01\x01\x12\x86\x01\n" +
 	"\x06status\x18\x02 \x01(\tBi\xbaHfrdR\x00R\x05draftR\bstartingR\arunningR\x10waiting_for_userR\x0eproposal_readyR\bapplyingR\bcompleteR\x06failedR\bcanceledH\x01R\x06status\x88\x01\x01\x12\x1f\n" +
 	"\vactive_only\x18\x03 \x01(\bR\n" +
 	"activeOnly\x12%\n" +
@@ -1456,30 +1565,34 @@ const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"S\n" +
 	"\x17GetAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xbd\x01\n" +
-	"\x19CreateAgentSessionRequest\x12G\n" +
-	"\x04kind\x18\x01 \x01(\tB3\xbaH0r.R\x12meta_orchestrationR\x18operating_mode_authoringR\x04kind\x12\x1d\n" +
-	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12#\n" +
-	"\n" +
-	"initiative\x18\x04 \x01(\tH\x00R\n" +
-	"initiative\x88\x01\x01B\r\n" +
-	"\v_initiativeJ\x04\b\x03\x10\x04\"V\n" +
+	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xa1\x01\n" +
+	"\x19CreateAgentSessionRequest\x12Y\n" +
+	"\x04kind\x18\x01 \x01(\tBE\xbaHBr@R\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsR\x04kind\x12\x1d\n" +
+	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05titleJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"V\n" +
 	"\x1aCreateAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\x8c\x01\n" +
+	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xd0\x01\n" +
 	"\x18StartAgentSessionRequest\x12&\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12!\n" +
-	"\amessage\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessage\x12%\n" +
-	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\"U\n" +
+	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12%\n" +
+	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12K\n" +
+	"\fcontext_refs\x18\x04 \x03(\v2(.swarm_manager.v1.AgentSessionContextRefR\vcontextRefs\"U\n" +
 	"\x19StartAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\x8f\x01\n" +
+	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xd3\x01\n" +
 	"\x1bContinueAgentSessionRequest\x12&\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12!\n" +
-	"\amessage\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessage\x12%\n" +
-	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\"X\n" +
+	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12%\n" +
+	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12K\n" +
+	"\fcontext_refs\x18\x04 \x03(\v2(.swarm_manager.v1.AgentSessionContextRefR\vcontextRefs\"X\n" +
 	"\x1cContinueAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xb7\x01\n" +
+	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xaf\x01\n" +
+	"\x16AgentSessionContextRef\x12z\n" +
+	"\x04type\x18\x01 \x01(\tBf\xbaHcraR\fbacklog_itemR\n" +
+	"initiativeR\acaptureR\texecutionR\x0eagent_activityR\bscenarioR\x0eoperating_modeR\asessionR\x04type\x12\x19\n" +
+	"\x03ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\"s\n" +
+	"%UploadAgentSessionAttachmentsResponse\x12J\n" +
+	"\vattachments\x18\x01 \x03(\v2(.swarm_manager.v1.AgentSessionAttachmentR\vattachments\"\xb7\x01\n" +
 	"\x1dListAgentSessionEventsRequest\x12&\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12*\n" +
@@ -1565,54 +1678,60 @@ func file_swarm_manager_v1_api_agent_session_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_agent_session_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_agent_session_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_swarm_manager_v1_api_agent_session_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_swarm_manager_v1_api_agent_session_proto_goTypes = []any{
-	(*ListAgentSessionsRequest)(nil),          // 0: swarm_manager.v1.ListAgentSessionsRequest
-	(*ListAgentSessionsResponse)(nil),         // 1: swarm_manager.v1.ListAgentSessionsResponse
-	(*GetAgentSessionRequest)(nil),            // 2: swarm_manager.v1.GetAgentSessionRequest
-	(*GetAgentSessionResponse)(nil),           // 3: swarm_manager.v1.GetAgentSessionResponse
-	(*CreateAgentSessionRequest)(nil),         // 4: swarm_manager.v1.CreateAgentSessionRequest
-	(*CreateAgentSessionResponse)(nil),        // 5: swarm_manager.v1.CreateAgentSessionResponse
-	(*StartAgentSessionRequest)(nil),          // 6: swarm_manager.v1.StartAgentSessionRequest
-	(*StartAgentSessionResponse)(nil),         // 7: swarm_manager.v1.StartAgentSessionResponse
-	(*ContinueAgentSessionRequest)(nil),       // 8: swarm_manager.v1.ContinueAgentSessionRequest
-	(*ContinueAgentSessionResponse)(nil),      // 9: swarm_manager.v1.ContinueAgentSessionResponse
-	(*ListAgentSessionEventsRequest)(nil),     // 10: swarm_manager.v1.ListAgentSessionEventsRequest
-	(*AgentSessionRunEvent)(nil),              // 11: swarm_manager.v1.AgentSessionRunEvent
-	(*ListAgentSessionEventsResponse)(nil),    // 12: swarm_manager.v1.ListAgentSessionEventsResponse
-	(*RefreshAgentSessionRequest)(nil),        // 13: swarm_manager.v1.RefreshAgentSessionRequest
-	(*RefreshAgentSessionResponse)(nil),       // 14: swarm_manager.v1.RefreshAgentSessionResponse
-	(*CancelAgentSessionRequest)(nil),         // 15: swarm_manager.v1.CancelAgentSessionRequest
-	(*CancelAgentSessionResponse)(nil),        // 16: swarm_manager.v1.CancelAgentSessionResponse
-	(*DeleteAgentSessionRequest)(nil),         // 17: swarm_manager.v1.DeleteAgentSessionRequest
-	(*DeleteAgentSessionResponse)(nil),        // 18: swarm_manager.v1.DeleteAgentSessionResponse
-	(*ApplyAgentSessionProposalRequest)(nil),  // 19: swarm_manager.v1.ApplyAgentSessionProposalRequest
-	(*ApplyAgentSessionProposalResponse)(nil), // 20: swarm_manager.v1.ApplyAgentSessionProposalResponse
-	(*ListAgentSessionArtifactsRequest)(nil),  // 21: swarm_manager.v1.ListAgentSessionArtifactsRequest
-	(*ListAgentSessionArtifactsResponse)(nil), // 22: swarm_manager.v1.ListAgentSessionArtifactsResponse
-	(*GetArtifactsByEntityRequest)(nil),       // 23: swarm_manager.v1.GetArtifactsByEntityRequest
-	(*GetArtifactsByEntityResponse)(nil),      // 24: swarm_manager.v1.GetArtifactsByEntityResponse
-	(*domain.AgentSession)(nil),               // 25: swarm_manager.v1.AgentSession
-	(*domain.AgentSessionArtifact)(nil),       // 26: swarm_manager.v1.AgentSessionArtifact
+	(*ListAgentSessionsRequest)(nil),              // 0: swarm_manager.v1.ListAgentSessionsRequest
+	(*ListAgentSessionsResponse)(nil),             // 1: swarm_manager.v1.ListAgentSessionsResponse
+	(*GetAgentSessionRequest)(nil),                // 2: swarm_manager.v1.GetAgentSessionRequest
+	(*GetAgentSessionResponse)(nil),               // 3: swarm_manager.v1.GetAgentSessionResponse
+	(*CreateAgentSessionRequest)(nil),             // 4: swarm_manager.v1.CreateAgentSessionRequest
+	(*CreateAgentSessionResponse)(nil),            // 5: swarm_manager.v1.CreateAgentSessionResponse
+	(*StartAgentSessionRequest)(nil),              // 6: swarm_manager.v1.StartAgentSessionRequest
+	(*StartAgentSessionResponse)(nil),             // 7: swarm_manager.v1.StartAgentSessionResponse
+	(*ContinueAgentSessionRequest)(nil),           // 8: swarm_manager.v1.ContinueAgentSessionRequest
+	(*ContinueAgentSessionResponse)(nil),          // 9: swarm_manager.v1.ContinueAgentSessionResponse
+	(*AgentSessionContextRef)(nil),                // 10: swarm_manager.v1.AgentSessionContextRef
+	(*UploadAgentSessionAttachmentsResponse)(nil), // 11: swarm_manager.v1.UploadAgentSessionAttachmentsResponse
+	(*ListAgentSessionEventsRequest)(nil),         // 12: swarm_manager.v1.ListAgentSessionEventsRequest
+	(*AgentSessionRunEvent)(nil),                  // 13: swarm_manager.v1.AgentSessionRunEvent
+	(*ListAgentSessionEventsResponse)(nil),        // 14: swarm_manager.v1.ListAgentSessionEventsResponse
+	(*RefreshAgentSessionRequest)(nil),            // 15: swarm_manager.v1.RefreshAgentSessionRequest
+	(*RefreshAgentSessionResponse)(nil),           // 16: swarm_manager.v1.RefreshAgentSessionResponse
+	(*CancelAgentSessionRequest)(nil),             // 17: swarm_manager.v1.CancelAgentSessionRequest
+	(*CancelAgentSessionResponse)(nil),            // 18: swarm_manager.v1.CancelAgentSessionResponse
+	(*DeleteAgentSessionRequest)(nil),             // 19: swarm_manager.v1.DeleteAgentSessionRequest
+	(*DeleteAgentSessionResponse)(nil),            // 20: swarm_manager.v1.DeleteAgentSessionResponse
+	(*ApplyAgentSessionProposalRequest)(nil),      // 21: swarm_manager.v1.ApplyAgentSessionProposalRequest
+	(*ApplyAgentSessionProposalResponse)(nil),     // 22: swarm_manager.v1.ApplyAgentSessionProposalResponse
+	(*ListAgentSessionArtifactsRequest)(nil),      // 23: swarm_manager.v1.ListAgentSessionArtifactsRequest
+	(*ListAgentSessionArtifactsResponse)(nil),     // 24: swarm_manager.v1.ListAgentSessionArtifactsResponse
+	(*GetArtifactsByEntityRequest)(nil),           // 25: swarm_manager.v1.GetArtifactsByEntityRequest
+	(*GetArtifactsByEntityResponse)(nil),          // 26: swarm_manager.v1.GetArtifactsByEntityResponse
+	(*domain.AgentSession)(nil),                   // 27: swarm_manager.v1.AgentSession
+	(*domain.AgentSessionAttachment)(nil),         // 28: swarm_manager.v1.AgentSessionAttachment
+	(*domain.AgentSessionArtifact)(nil),           // 29: swarm_manager.v1.AgentSessionArtifact
 }
 var file_swarm_manager_v1_api_agent_session_proto_depIdxs = []int32{
-	25, // 0: swarm_manager.v1.ListAgentSessionsResponse.sessions:type_name -> swarm_manager.v1.AgentSession
-	25, // 1: swarm_manager.v1.GetAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	25, // 2: swarm_manager.v1.CreateAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	25, // 3: swarm_manager.v1.StartAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	25, // 4: swarm_manager.v1.ContinueAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	11, // 5: swarm_manager.v1.ListAgentSessionEventsResponse.events:type_name -> swarm_manager.v1.AgentSessionRunEvent
-	25, // 6: swarm_manager.v1.RefreshAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	25, // 7: swarm_manager.v1.CancelAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
-	25, // 8: swarm_manager.v1.ApplyAgentSessionProposalResponse.session:type_name -> swarm_manager.v1.AgentSession
-	26, // 9: swarm_manager.v1.ApplyAgentSessionProposalResponse.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
-	26, // 10: swarm_manager.v1.ListAgentSessionArtifactsResponse.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
-	26, // 11: swarm_manager.v1.GetArtifactsByEntityResponse.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	27, // 0: swarm_manager.v1.ListAgentSessionsResponse.sessions:type_name -> swarm_manager.v1.AgentSession
+	27, // 1: swarm_manager.v1.GetAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
+	27, // 2: swarm_manager.v1.CreateAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
+	10, // 3: swarm_manager.v1.StartAgentSessionRequest.context_refs:type_name -> swarm_manager.v1.AgentSessionContextRef
+	27, // 4: swarm_manager.v1.StartAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
+	10, // 5: swarm_manager.v1.ContinueAgentSessionRequest.context_refs:type_name -> swarm_manager.v1.AgentSessionContextRef
+	27, // 6: swarm_manager.v1.ContinueAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
+	28, // 7: swarm_manager.v1.UploadAgentSessionAttachmentsResponse.attachments:type_name -> swarm_manager.v1.AgentSessionAttachment
+	13, // 8: swarm_manager.v1.ListAgentSessionEventsResponse.events:type_name -> swarm_manager.v1.AgentSessionRunEvent
+	27, // 9: swarm_manager.v1.RefreshAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
+	27, // 10: swarm_manager.v1.CancelAgentSessionResponse.session:type_name -> swarm_manager.v1.AgentSession
+	27, // 11: swarm_manager.v1.ApplyAgentSessionProposalResponse.session:type_name -> swarm_manager.v1.AgentSession
+	29, // 12: swarm_manager.v1.ApplyAgentSessionProposalResponse.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
+	29, // 13: swarm_manager.v1.ListAgentSessionArtifactsResponse.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
+	29, // 14: swarm_manager.v1.GetArtifactsByEntityResponse.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_agent_session_proto_init() }
@@ -1621,15 +1740,14 @@ func file_swarm_manager_v1_api_agent_session_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_api_agent_session_proto_msgTypes[0].OneofWrappers = []any{}
-	file_swarm_manager_v1_api_agent_session_proto_msgTypes[4].OneofWrappers = []any{}
-	file_swarm_manager_v1_api_agent_session_proto_msgTypes[10].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_agent_session_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_agent_session_proto_rawDesc), len(file_swarm_manager_v1_api_agent_session_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

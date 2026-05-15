@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/agent_session.proto.
  */
 export const file_swarm_manager_v1_domain_agent_session: GenFile = /*@__PURE__*/
-  fileDesc("Citzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9hZ2VudF9zZXNzaW9uLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxItYCChdBZ2VudFNlc3Npb25BdHRyaWJ1dGlvbhIkCgR0eXBlGAEgASgJQha6SBNyEVIIb3BlcmF0b3JSBWFnZW50EhMKBnJ1bl9pZBgCIAEoCUgAiAEBEhQKB3Rhc2tfaWQYAyABKAlIAYgBARIYCgtwcm9maWxlX2tleRgEIAEoCUgCiAEBEhcKCnNlc3Npb25faWQYBSABKAlIA4gBARJQCgxzZXNzaW9uX2tpbmQYBiABKAlCNbpIMnIwUgBSEm1ldGFfb3JjaGVzdHJhdGlvblIYb3BlcmF0aW5nX21vZGVfYXV0aG9yaW5nSASIAQESEwoGc291cmNlGAcgASgJSAWIAQFCCQoHX3J1bl9pZEIKCghfdGFza19pZEIOCgxfcHJvZmlsZV9rZXlCDQoLX3Nlc3Npb25faWRCDwoNX3Nlc3Npb25fa2luZEIJCgdfc291cmNlIp4BChNBZ2VudFNlc3Npb25NZXNzYWdlEhMKAmlkGAEgASgJQge6SARyAhABEiwKBHJvbGUYAiABKAlCHrpIG3IZUgR1c2VyUglhc3Npc3RhbnRSBnN5c3RlbRIPCgdjb250ZW50GAMgASgJEhsKCmNyZWF0ZWRfYXQYBCABKAlCB7pIBHICEAESFgoOYXR0YWNobWVudF9pZHMYBSADKAkiwgEKFkFnZW50U2Vzc2lvbkF0dGFjaG1lbnQSEwoCaWQYASABKAlCB7pIBHICEAESGQoIZmlsZW5hbWUYAiABKAlCB7pIBHICEAESGQoMY29udGVudF90eXBlGAMgASgJSACIAQESIAoKc2l6ZV9ieXRlcxgEIAEoA0IHukgEIgIoAEgBiAEBEhsKCmNyZWF0ZWRfYXQYBSABKAlCB7pIBHICEAFCDwoNX2NvbnRlbnRfdHlwZUINCgtfc2l6ZV9ieXRlcyKkAwoUQWdlbnRTZXNzaW9uUHJvcG9zYWwSEwoCaWQYASABKAlCB7pIBHICEAESYwoEa2luZBgCIAEoCUJVukhSclBSFGJhY2tsb2dfYmF0Y2hfaW1wb3J0UhRvcGVyYXRpbmdfbW9kZV9kcmFmdFIib3BlcmF0aW5nX21vZGVfaW1wbGVtZW50YXRpb25fcGxhbhJKCgZzdGF0dXMYAyABKAlCOrpIN3I1UgVkcmFmdFIFcmVhZHlSB2FwcGxpZWRSCHJlamVjdGVkUgpzdXBlcnNlZGVkUgZmYWlsZWQSGAoHc3VtbWFyeRgEIAEoCUIHukgEcgIQARIdCgxwYXlsb2FkX2pzb24YBSABKAlCB7pIBHICEAESGwoKY3JlYXRlZF9hdBgGIAEoCUIHukgEcgIQARIbCgp1cGRhdGVkX2F0GAcgASgJQge6SARyAhABEkMKC2F0dHJpYnV0aW9uGAggASgLMikuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25BdHRyaWJ1dGlvbkgAiAEBQg4KDF9hdHRyaWJ1dGlvbiLrBAoUQWdlbnRTZXNzaW9uQXJ0aWZhY3QSEwoCaWQYASABKAlCB7pIBHICEAESGwoKc2Vzc2lvbl9pZBgCIAEoCUIHukgEcgIQARKJAQoNYXJ0aWZhY3RfdHlwZRgDIAEoCUJyukhvcm1SDGJhY2tsb2dfaXRlbVIKaW5pdGlhdGl2ZVIXb3BlcmF0aW5nX21vZGVfcHJvcG9zYWxSGW9wZXJhdGluZ19tb2RlX2RlZmluaXRpb25SB2NhcHR1cmVSBGZpbGVSDmFnZW50X2FjdGl2aXR5EkIKBmFjdGlvbhgEIAEoCUIyukgvci1SCHByb3Bvc2VkUgdjcmVhdGVkUgd1cGRhdGVkUgdkZWxldGVkUgZsaW5rZWQSGwoKZW50aXR5X3JlZhgFIAEoCUIHukgEcgIQARISCgV0aXRsZRgGIAEoCUgAiAEBEhgKC3Byb3Bvc2FsX2lkGAcgASgJSAGIAQESGAoLYWN0aXZpdHlfaWQYCCABKAlIAogBARITCgZydW5faWQYCSABKAlIA4gBARIcCg9tdXRhdGlvbl9zb3VyY2UYCiABKAlIBIgBARJDCgthdHRyaWJ1dGlvbhgLIAEoCzIpLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQXR0cmlidXRpb25IBYgBARIbCgpjcmVhdGVkX2F0GAwgASgJQge6SARyAhABQggKBl90aXRsZUIOCgxfcHJvcG9zYWxfaWRCDgoMX2FjdGl2aXR5X2lkQgkKB19ydW5faWRCEgoQX211dGF0aW9uX3NvdXJjZUIOCgxfYXR0cmlidXRpb24i6gUKDEFnZW50U2Vzc2lvbhITCgJpZBgBIAEoCUIHukgEcgIQARIWCgV0aXRsZRgCIAEoCUIHukgEcgIQARJBCgRraW5kGAMgASgJQjO6SDByLlISbWV0YV9vcmNoZXN0cmF0aW9uUhhvcGVyYXRpbmdfbW9kZV9hdXRob3JpbmcSdwoGc3RhdHVzGAQgASgJQme6SGRyYlIFZHJhZnRSCHN0YXJ0aW5nUgdydW5uaW5nUhB3YWl0aW5nX2Zvcl91c2VyUg5wcm9wb3NhbF9yZWFkeVIIYXBwbHlpbmdSCGNvbXBsZXRlUgZmYWlsZWRSCGNhbmNlbGVkEhkKCHNraWxsX2lkGAUgASgJQge6SARyAhABEhQKB3Rhc2tfaWQYBiABKAlIAIgBARITCgZydW5faWQYByABKAlIAYgBARIYCgtwcm9maWxlX2tleRgIIAEoCUgCiAEBEhsKDmZhaWx1cmVfcmVhc29uGAkgASgJSAOIAQESGwoKY3JlYXRlZF9hdBgKIAEoCUIHukgEcgIQARIbCgp1cGRhdGVkX2F0GAsgASgJQge6SARyAhABEjcKCG1lc3NhZ2VzGAwgAygLMiUuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25NZXNzYWdlEjkKCXByb3Bvc2FscxgNIAMoCzImLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uUHJvcG9zYWwSOQoJYXJ0aWZhY3RzGA4gAygLMiYuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25BcnRpZmFjdBJCCgpjcmVhdGVkX2J5GA8gASgLMikuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25BdHRyaWJ1dGlvbkgEiAEBQgoKCF90YXNrX2lkQgkKB19ydW5faWRCDgoMX3Byb2ZpbGVfa2V5QhEKD19mYWlsdXJlX3JlYXNvbkINCgtfY3JlYXRlZF9ieUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("Citzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9hZ2VudF9zZXNzaW9uLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIugCChdBZ2VudFNlc3Npb25BdHRyaWJ1dGlvbhIkCgR0eXBlGAEgASgJQha6SBNyEVIIb3BlcmF0b3JSBWFnZW50EhMKBnJ1bl9pZBgCIAEoCUgAiAEBEhQKB3Rhc2tfaWQYAyABKAlIAYgBARIYCgtwcm9maWxlX2tleRgEIAEoCUgCiAEBEhcKCnNlc3Npb25faWQYBSABKAlIA4gBARJiCgxzZXNzaW9uX2tpbmQYBiABKAlCR7pIRHJCUgBSEm1ldGFfb3JjaGVzdHJhdGlvblIYb3BlcmF0aW5nX21vZGVfYXV0aG9yaW5nUhBzd2FybV9vcGVyYXRpb25zSASIAQESEwoGc291cmNlGAcgASgJSAWIAQFCCQoHX3J1bl9pZEIKCghfdGFza19pZEIOCgxfcHJvZmlsZV9rZXlCDQoLX3Nlc3Npb25faWRCDwoNX3Nlc3Npb25fa2luZEIJCgdfc291cmNlItoBChNBZ2VudFNlc3Npb25NZXNzYWdlEhMKAmlkGAEgASgJQge6SARyAhABEiwKBHJvbGUYAiABKAlCHrpIG3IZUgR1c2VyUglhc3Npc3RhbnRSBnN5c3RlbRIPCgdjb250ZW50GAMgASgJEhsKCmNyZWF0ZWRfYXQYBCABKAlCB7pIBHICEAESFgoOYXR0YWNobWVudF9pZHMYBSADKAkSOgoHY29udGV4dBgGIAMoCzIpLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQ29udGV4dEl0ZW0ivAIKF0FnZW50U2Vzc2lvbkNvbnRleHRJdGVtEnQKBHR5cGUYASABKAlCZrpIY3JhUgxiYWNrbG9nX2l0ZW1SCmluaXRpYXRpdmVSB2NhcHR1cmVSCWV4ZWN1dGlvblIOYWdlbnRfYWN0aXZpdHlSCHNjZW5hcmlvUg5vcGVyYXRpbmdfbW9kZVIHc2Vzc2lvbhIUCgNyZWYYAiABKAlCB7pIBHICEAESFgoFdGl0bGUYAyABKAlCB7pIBHICEAESDwoHc3VtbWFyeRgEIAEoCRIUCgdub2RlX2lkGAUgASgJSACIAQESGgoNbWV0YWRhdGFfanNvbhgGIAEoCUgBiAEBEhwKC3NlbGVjdGVkX2F0GAcgASgJQge6SARyAhABQgoKCF9ub2RlX2lkQhAKDl9tZXRhZGF0YV9qc29uIsIBChZBZ2VudFNlc3Npb25BdHRhY2htZW50EhMKAmlkGAEgASgJQge6SARyAhABEhkKCGZpbGVuYW1lGAIgASgJQge6SARyAhABEhkKDGNvbnRlbnRfdHlwZRgDIAEoCUgAiAEBEiAKCnNpemVfYnl0ZXMYBCABKANCB7pIBCICKABIAYgBARIbCgpjcmVhdGVkX2F0GAUgASgJQge6SARyAhABQg8KDV9jb250ZW50X3R5cGVCDQoLX3NpemVfYnl0ZXMipAMKFEFnZW50U2Vzc2lvblByb3Bvc2FsEhMKAmlkGAEgASgJQge6SARyAhABEmMKBGtpbmQYAiABKAlCVbpIUnJQUhRiYWNrbG9nX2JhdGNoX2ltcG9ydFIUb3BlcmF0aW5nX21vZGVfZHJhZnRSIm9wZXJhdGluZ19tb2RlX2ltcGxlbWVudGF0aW9uX3BsYW4SSgoGc3RhdHVzGAMgASgJQjq6SDdyNVIFZHJhZnRSBXJlYWR5UgdhcHBsaWVkUghyZWplY3RlZFIKc3VwZXJzZWRlZFIGZmFpbGVkEhgKB3N1bW1hcnkYBCABKAlCB7pIBHICEAESHQoMcGF5bG9hZF9qc29uGAUgASgJQge6SARyAhABEhsKCmNyZWF0ZWRfYXQYBiABKAlCB7pIBHICEAESGwoKdXBkYXRlZF9hdBgHIAEoCUIHukgEcgIQARJDCgthdHRyaWJ1dGlvbhgIIAEoCzIpLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQXR0cmlidXRpb25IAIgBAUIOCgxfYXR0cmlidXRpb24i6wQKFEFnZW50U2Vzc2lvbkFydGlmYWN0EhMKAmlkGAEgASgJQge6SARyAhABEhsKCnNlc3Npb25faWQYAiABKAlCB7pIBHICEAESiQEKDWFydGlmYWN0X3R5cGUYAyABKAlCcrpIb3JtUgxiYWNrbG9nX2l0ZW1SCmluaXRpYXRpdmVSF29wZXJhdGluZ19tb2RlX3Byb3Bvc2FsUhlvcGVyYXRpbmdfbW9kZV9kZWZpbml0aW9uUgdjYXB0dXJlUgRmaWxlUg5hZ2VudF9hY3Rpdml0eRJCCgZhY3Rpb24YBCABKAlCMrpIL3ItUghwcm9wb3NlZFIHY3JlYXRlZFIHdXBkYXRlZFIHZGVsZXRlZFIGbGlua2VkEhsKCmVudGl0eV9yZWYYBSABKAlCB7pIBHICEAESEgoFdGl0bGUYBiABKAlIAIgBARIYCgtwcm9wb3NhbF9pZBgHIAEoCUgBiAEBEhgKC2FjdGl2aXR5X2lkGAggASgJSAKIAQESEwoGcnVuX2lkGAkgASgJSAOIAQESHAoPbXV0YXRpb25fc291cmNlGAogASgJSASIAQESQwoLYXR0cmlidXRpb24YCyABKAsyKS5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbkF0dHJpYnV0aW9uSAWIAQESGwoKY3JlYXRlZF9hdBgMIAEoCUIHukgEcgIQAUIICgZfdGl0bGVCDgoMX3Byb3Bvc2FsX2lkQg4KDF9hY3Rpdml0eV9pZEIJCgdfcnVuX2lkQhIKEF9tdXRhdGlvbl9zb3VyY2VCDgoMX2F0dHJpYnV0aW9uIrsGCgxBZ2VudFNlc3Npb24SEwoCaWQYASABKAlCB7pIBHICEAESFgoFdGl0bGUYAiABKAlCB7pIBHICEAESUwoEa2luZBgDIAEoCUJFukhCckBSEm1ldGFfb3JjaGVzdHJhdGlvblIYb3BlcmF0aW5nX21vZGVfYXV0aG9yaW5nUhBzd2FybV9vcGVyYXRpb25zEncKBnN0YXR1cxgEIAEoCUJnukhkcmJSBWRyYWZ0UghzdGFydGluZ1IHcnVubmluZ1IQd2FpdGluZ19mb3JfdXNlclIOcHJvcG9zYWxfcmVhZHlSCGFwcGx5aW5nUghjb21wbGV0ZVIGZmFpbGVkUghjYW5jZWxlZBIZCghza2lsbF9pZBgFIAEoCUIHukgEcgIQARIUCgd0YXNrX2lkGAYgASgJSACIAQESEwoGcnVuX2lkGAcgASgJSAGIAQESGAoLcHJvZmlsZV9rZXkYCCABKAlIAogBARIbCg5mYWlsdXJlX3JlYXNvbhgJIAEoCUgDiAEBEhsKCmNyZWF0ZWRfYXQYCiABKAlCB7pIBHICEAESGwoKdXBkYXRlZF9hdBgLIAEoCUIHukgEcgIQARI3CghtZXNzYWdlcxgMIAMoCzIlLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uTWVzc2FnZRI5Cglwcm9wb3NhbHMYDSADKAsyJi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvblByb3Bvc2FsEjkKCWFydGlmYWN0cxgOIAMoCzImLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQXJ0aWZhY3QSQgoKY3JlYXRlZF9ieRgPIAEoCzIpLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQXR0cmlidXRpb25IBIgBARI9CgthdHRhY2htZW50cxgQIAMoCzIoLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQXR0YWNobWVudEIKCghfdGFza19pZEIJCgdfcnVuX2lkQg4KDF9wcm9maWxlX2tleUIRCg9fZmFpbHVyZV9yZWFzb25CDQoLX2NyZWF0ZWRfYnlCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * AgentSessionAttribution captures the verified actor that created or changed
@@ -58,7 +58,7 @@ export type AgentSessionAttribution = Message<"swarm_manager.v1.AgentSessionAttr
 
   /**
    * Swarm Manager session kind when the run belongs to a session.
-   * @constraint one of: empty, meta_orchestration, operating_mode_authoring
+   * @constraint one of: empty, meta_orchestration, operating_mode_authoring, swarm_operations
    *
    * @generated from field: optional string session_kind = 6;
    */
@@ -121,6 +121,13 @@ export type AgentSessionMessage = Message<"swarm_manager.v1.AgentSessionMessage"
    * @generated from field: repeated string attachment_ids = 5;
    */
   attachmentIds: string[];
+
+  /**
+   * Server-resolved context snapshots attached to this turn.
+   *
+   * @generated from field: repeated swarm_manager.v1.AgentSessionContextItem context = 6;
+   */
+  context: AgentSessionContextItem[];
 };
 
 /**
@@ -129,6 +136,72 @@ export type AgentSessionMessage = Message<"swarm_manager.v1.AgentSessionMessage"
  */
 export const AgentSessionMessageSchema: GenMessage<AgentSessionMessage> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_agent_session, 1);
+
+/**
+ * AgentSessionContextItem is a bounded server-resolved snapshot of an existing
+ * Swarm Manager record attached to a single session message.
+ *
+ * @generated from message swarm_manager.v1.AgentSessionContextItem
+ */
+export type AgentSessionContextItem = Message<"swarm_manager.v1.AgentSessionContextItem"> & {
+  /**
+   * Context type.
+   * @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session
+   *
+   * @generated from field: string type = 1;
+   */
+  type: string;
+
+  /**
+   * Stable entity reference.
+   *
+   * @generated from field: string ref = 2;
+   */
+  ref: string;
+
+  /**
+   * Server-resolved display title.
+   *
+   * @generated from field: string title = 3;
+   */
+  title: string;
+
+  /**
+   * Bounded server-resolved summary.
+   *
+   * @generated from field: string summary = 4;
+   */
+  summary: string;
+
+  /**
+   * Optional graph/detail routing hint.
+   *
+   * @generated from field: optional string node_id = 5;
+   */
+  nodeId?: string | undefined;
+
+  /**
+   * Optional bounded JSON metadata with small display/prompt facts.
+   *
+   * @generated from field: optional string metadata_json = 6;
+   */
+  metadataJson?: string | undefined;
+
+  /**
+   * RFC3339 timestamp for when the ref was selected/resolved.
+   * @format rfc3339
+   *
+   * @generated from field: string selected_at = 7;
+   */
+  selectedAt: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.AgentSessionContextItem.
+ * Use `create(AgentSessionContextItemSchema)` to create a new message.
+ */
+export const AgentSessionContextItemSchema: GenMessage<AgentSessionContextItem> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_agent_session, 2);
 
 /**
  * AgentSessionAttachment describes an uploaded or generated attachment.
@@ -178,7 +251,7 @@ export type AgentSessionAttachment = Message<"swarm_manager.v1.AgentSessionAttac
  * Use `create(AgentSessionAttachmentSchema)` to create a new message.
  */
 export const AgentSessionAttachmentSchema: GenMessage<AgentSessionAttachment> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_agent_session, 2);
+  messageDesc(file_swarm_manager_v1_domain_agent_session, 3);
 
 /**
  * AgentSessionProposal is a machine-validated draft produced by a session.
@@ -252,7 +325,7 @@ export type AgentSessionProposal = Message<"swarm_manager.v1.AgentSessionProposa
  * Use `create(AgentSessionProposalSchema)` to create a new message.
  */
 export const AgentSessionProposalSchema: GenMessage<AgentSessionProposal> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_agent_session, 3);
+  messageDesc(file_swarm_manager_v1_domain_agent_session, 4);
 
 /**
  * AgentSessionArtifact links a session to a proposed or applied artifact.
@@ -353,7 +426,7 @@ export type AgentSessionArtifact = Message<"swarm_manager.v1.AgentSessionArtifac
  * Use `create(AgentSessionArtifactSchema)` to create a new message.
  */
 export const AgentSessionArtifactSchema: GenMessage<AgentSessionArtifact> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_agent_session, 4);
+  messageDesc(file_swarm_manager_v1_domain_agent_session, 5);
 
 /**
  * AgentSession stores the indexable session snapshot. Messages, proposals,
@@ -378,7 +451,7 @@ export type AgentSession = Message<"swarm_manager.v1.AgentSession"> & {
 
   /**
    * Session kind.
-   * @constraint one of: meta_orchestration, operating_mode_authoring
+   * @constraint one of: meta_orchestration, operating_mode_authoring, swarm_operations
    *
    * @generated from field: string kind = 3;
    */
@@ -470,6 +543,13 @@ export type AgentSession = Message<"swarm_manager.v1.AgentSession"> & {
    * @generated from field: optional swarm_manager.v1.AgentSessionAttribution created_by = 15;
    */
   createdBy?: AgentSessionAttribution | undefined;
+
+  /**
+   * Uploaded or generated attachments owned by this session.
+   *
+   * @generated from field: repeated swarm_manager.v1.AgentSessionAttachment attachments = 16;
+   */
+  attachments: AgentSessionAttachment[];
 };
 
 /**
@@ -477,5 +557,5 @@ export type AgentSession = Message<"swarm_manager.v1.AgentSession"> & {
  * Use `create(AgentSessionSchema)` to create a new message.
  */
 export const AgentSessionSchema: GenMessage<AgentSession> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_agent_session, 5);
+  messageDesc(file_swarm_manager_v1_domain_agent_session, 6);
 

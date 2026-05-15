@@ -39,14 +39,12 @@ class GetAgentSessionResponse(_message.Message):
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
 
 class CreateAgentSessionRequest(_message.Message):
-    __slots__ = ("kind", "title", "initiative")
+    __slots__ = ("kind", "title")
     KIND_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
-    INITIATIVE_FIELD_NUMBER: _ClassVar[int]
     kind: str
     title: str
-    initiative: str
-    def __init__(self, kind: _Optional[str] = ..., title: _Optional[str] = ..., initiative: _Optional[str] = ...) -> None: ...
+    def __init__(self, kind: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
 
 class CreateAgentSessionResponse(_message.Message):
     __slots__ = ("session",)
@@ -55,14 +53,16 @@ class CreateAgentSessionResponse(_message.Message):
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
 
 class StartAgentSessionRequest(_message.Message):
-    __slots__ = ("session_id", "message", "attachment_ids")
+    __slots__ = ("session_id", "message", "attachment_ids", "context_refs")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_REFS_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     message: str
     attachment_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    context_refs: _containers.RepeatedCompositeFieldContainer[AgentSessionContextRef]
+    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ..., context_refs: _Optional[_Iterable[_Union[AgentSessionContextRef, _Mapping]]] = ...) -> None: ...
 
 class StartAgentSessionResponse(_message.Message):
     __slots__ = ("session",)
@@ -71,20 +71,36 @@ class StartAgentSessionResponse(_message.Message):
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
 
 class ContinueAgentSessionRequest(_message.Message):
-    __slots__ = ("session_id", "message", "attachment_ids")
+    __slots__ = ("session_id", "message", "attachment_ids", "context_refs")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_REFS_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     message: str
     attachment_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    context_refs: _containers.RepeatedCompositeFieldContainer[AgentSessionContextRef]
+    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ..., context_refs: _Optional[_Iterable[_Union[AgentSessionContextRef, _Mapping]]] = ...) -> None: ...
 
 class ContinueAgentSessionResponse(_message.Message):
     __slots__ = ("session",)
     SESSION_FIELD_NUMBER: _ClassVar[int]
     session: _agent_session_pb2.AgentSession
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
+
+class AgentSessionContextRef(_message.Message):
+    __slots__ = ("type", "ref")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    type: str
+    ref: str
+    def __init__(self, type: _Optional[str] = ..., ref: _Optional[str] = ...) -> None: ...
+
+class UploadAgentSessionAttachmentsResponse(_message.Message):
+    __slots__ = ("attachments",)
+    ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
+    attachments: _containers.RepeatedCompositeFieldContainer[_agent_session_pb2.AgentSessionAttachment]
+    def __init__(self, attachments: _Optional[_Iterable[_Union[_agent_session_pb2.AgentSessionAttachment, _Mapping]]] = ...) -> None: ...
 
 class ListAgentSessionEventsRequest(_message.Message):
     __slots__ = ("session_id", "after_sequence", "limit")

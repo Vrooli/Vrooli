@@ -47,12 +47,13 @@ message AgentSessionAttribution {
   optional string session_id = 5;
 
   // Swarm Manager session kind when the run belongs to a session.
-  // @constraint one of: empty, meta_orchestration, operating_mode_authoring
+  // @constraint one of: empty, meta_orchestration, operating_mode_authoring, swarm_operations
   optional string session_kind = 6 [(buf.validate.field).string = {
     in: [
       "",
       "meta_orchestration",
-      "operating_mode_authoring"
+      "operating_mode_authoring",
+      "swarm_operations"
     ]
   }];
 
@@ -84,6 +85,47 @@ message AgentSessionMessage {
 
   // Optional attachment IDs associated with this turn.
   repeated string attachment_ids = 5;
+
+  // Server-resolved context snapshots attached to this turn.
+  repeated AgentSessionContextItem context = 6;
+}
+
+// AgentSessionContextItem is a bounded server-resolved snapshot of an existing
+// Swarm Manager record attached to a single session message.
+message AgentSessionContextItem {
+  // Context type.
+  // @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session
+  string type = 1 [(buf.validate.field).string = {
+    in: [
+      "backlog_item",
+      "initiative",
+      "capture",
+      "execution",
+      "agent_activity",
+      "scenario",
+      "operating_mode",
+      "session"
+    ]
+  }];
+
+  // Stable entity reference.
+  string ref = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Server-resolved display title.
+  string title = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Bounded server-resolved summary.
+  string summary = 4;
+
+  // Optional graph/detail routing hint.
+  optional string node_id = 5;
+
+  // Optional bounded JSON metadata with small display/prompt facts.
+  optional string metadata_json = 6;
+
+  // RFC3339 timestamp for when the ref was selected/resolved.
+  // @format rfc3339
+  string selected_at = 7 [(buf.validate.field).string.min_len = 1];
 }
 
 // AgentSessionAttachment describes an uploaded or generated attachment.
@@ -221,11 +263,12 @@ message AgentSession {
   string title = 2 [(buf.validate.field).string.min_len = 1];
 
   // Session kind.
-  // @constraint one of: meta_orchestration, operating_mode_authoring
+  // @constraint one of: meta_orchestration, operating_mode_authoring, swarm_operations
   string kind = 3 [(buf.validate.field).string = {
     in: [
       "meta_orchestration",
-      "operating_mode_authoring"
+      "operating_mode_authoring",
+      "swarm_operations"
     ]
   }];
 
@@ -279,4 +322,7 @@ message AgentSession {
 
   // Initial creator attribution.
   optional AgentSessionAttribution created_by = 15;
+
+  // Uploaded or generated attachments owned by this session.
+  repeated AgentSessionAttachment attachments = 16;
 }

@@ -23,12 +23,13 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // ListAgentSessionsRequest filters the session sidebar list.
 message ListAgentSessionsRequest {
   // Optional session kind filter.
-  // @constraint one of: empty, meta_orchestration, operating_mode_authoring
+  // @constraint one of: empty, meta_orchestration, operating_mode_authoring, swarm_operations
   optional string kind = 1 [(buf.validate.field).string = {
     in: [
       "",
       "meta_orchestration",
-      "operating_mode_authoring"
+      "operating_mode_authoring",
+      "swarm_operations"
     ]
   }];
 
@@ -76,22 +77,20 @@ message GetAgentSessionResponse {
 
 // CreateAgentSessionRequest creates a pre-spawn typed draft session.
 message CreateAgentSessionRequest {
-  reserved 3;
+  reserved 3, 4;
 
   // Session kind.
-  // @constraint one of: meta_orchestration, operating_mode_authoring
+  // @constraint one of: meta_orchestration, operating_mode_authoring, swarm_operations
   string kind = 1 [(buf.validate.field).string = {
     in: [
       "meta_orchestration",
-      "operating_mode_authoring"
+      "operating_mode_authoring",
+      "swarm_operations"
     ]
   }];
 
   // Human-readable title.
   string title = 2 [(buf.validate.field).string.min_len = 1];
-
-  // Optional related initiative name.
-  optional string initiative = 4;
 }
 
 // CreateAgentSessionResponse returns the created session.
@@ -103,8 +102,9 @@ message CreateAgentSessionResponse {
 // the Agent Manager run for a draft session.
 message StartAgentSessionRequest {
   string session_id = 1 [(buf.validate.field).string.min_len = 1];
-  string message = 2 [(buf.validate.field).string.min_len = 1];
+  string message = 2;
   repeated string attachment_ids = 3;
+  repeated AgentSessionContextRef context_refs = 4;
 }
 
 // StartAgentSessionResponse returns the spawned session.
@@ -115,13 +115,41 @@ message StartAgentSessionResponse {
 // ContinueAgentSessionRequest appends a user message and continues the run.
 message ContinueAgentSessionRequest {
   string session_id = 1 [(buf.validate.field).string.min_len = 1];
-  string message = 2 [(buf.validate.field).string.min_len = 1];
+  string message = 2;
   repeated string attachment_ids = 3;
+  repeated AgentSessionContextRef context_refs = 4;
 }
 
 // ContinueAgentSessionResponse returns the updated session.
 message ContinueAgentSessionResponse {
   AgentSession session = 1;
+}
+
+// AgentSessionContextRef identifies an existing Swarm Manager record selected
+// as context for a single session message.
+message AgentSessionContextRef {
+  // Context type.
+  // @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session
+  string type = 1 [(buf.validate.field).string = {
+    in: [
+      "backlog_item",
+      "initiative",
+      "capture",
+      "execution",
+      "agent_activity",
+      "scenario",
+      "operating_mode",
+      "session"
+    ]
+  }];
+
+  // Stable entity reference.
+  string ref = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// UploadAgentSessionAttachmentsResponse returns uploaded session attachments.
+message UploadAgentSessionAttachmentsResponse {
+  repeated AgentSessionAttachment attachments = 1;
 }
 
 // ListAgentSessionEventsRequest reads Agent Manager run events through Swarm
