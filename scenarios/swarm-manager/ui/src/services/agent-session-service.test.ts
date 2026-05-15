@@ -102,6 +102,7 @@ describe("agent-session-service", () => {
       session_id: "sess_1",
       message: "Draft it.",
       attachment_ids: ["att-0"],
+      context_refs: [],
     });
 
     await service.continue({
@@ -113,6 +114,7 @@ describe("agent-session-service", () => {
       session_id: "sess_1",
       message: "Continue.",
       attachment_ids: ["att-1"],
+      context_refs: [],
     });
   });
 

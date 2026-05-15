@@ -78,6 +78,69 @@ func TestServiceStartSpawnsSessionWithFirstMessageEnvironmentAndActivitySpec(t *
 	}
 }
 
+func TestServiceStartStoresResolvedContextAndAddsItToPrompt(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+	svc := newTestService(t, spawner)
+	svc.SetContextResolver(fakeContextResolver{})
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  KindMetaOrchestration,
+		Title: "Plan quality gates",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	session, err := svc.Start(context.Background(), ContinueRequest{
+		SessionID: draft.ID,
+		Message:   "Plan this work.",
+		ContextRefs: []ContextRef{
+			{Type: ContextInitiative, Ref: "quality-gates"},
+			{Type: ContextInitiative, Ref: "quality-gates"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if len(session.Messages) != 1 || len(session.Messages[0].Context) != 1 {
+		t.Fatalf("message context = %+v", session.Messages)
+	}
+	if session.Messages[0].Context[0].SelectedAt != testTimestamp {
+		t.Fatalf("selected_at = %q, want %q", session.Messages[0].Context[0].SelectedAt, testTimestamp)
+	}
+	if !strings.Contains(spawner.spawnReq.Prompt, "Attached context:") ||
+		!strings.Contains(spawner.spawnReq.Prompt, "[initiative] Quality Gates (quality-gates)") ||
+		!strings.Contains(spawner.spawnReq.Prompt, "Operator message:\nPlan this work.") {
+		t.Fatalf("prompt did not include context before operator message:\n%s", spawner.spawnReq.Prompt)
+	}
+}
+
+func TestServiceStartRejectsContextOverKindCaps(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	svc := newTestService(t, &fakeSessionSpawner{})
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  KindOperatingModeAuthoring,
+		Title: "Author mode",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	refs := make([]ContextRef, 0, 9)
+	for i := 0; i < 9; i++ {
+		refs = append(refs, ContextRef{Type: ContextBacklogItem, Ref: "idea/item-" + string(rune('a'+i))})
+	}
+	if _, err := svc.Start(context.Background(), ContinueRequest{
+		SessionID:   draft.ID,
+		Message:     "Plan.",
+		ContextRefs: refs,
+	}); err == nil {
+		t.Fatal("Start() error = nil, want cap validation")
+	}
+}
+
 func TestServiceStartSwarmOperationsUsesOperationsSkillAndPurpose(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
@@ -337,6 +400,54 @@ func TestServiceDeleteTerminalSessionDoesNotStopRun(t *testing.T) {
 	}
 }
 
+func TestServiceUploadAttachmentsStoresSessionOwnedImages(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	svc := newTestService(t, &fakeSessionSpawner{})
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  KindMetaOrchestration,
+		Title: "Plan",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	attachments, err := svc.UploadAttachments(context.Background(), draft.ID, []AttachmentUpload{{
+		Filename:    "screenshot.png",
+		ContentType: "image/png",
+		SizeBytes:   4,
+		Reader:      strings.NewReader("data"),
+	}})
+	if err != nil {
+		t.Fatalf("UploadAttachments() error = %v", err)
+	}
+	if len(attachments) != 1 || attachments[0].ID == "" || attachments[0].ContentType != "image/png" {
+		t.Fatalf("attachments = %+v", attachments)
+	}
+	loaded, err := svc.Get(context.Background(), draft.ID)
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if len(loaded.Attachments) != 1 || loaded.Attachments[0].Filename != "screenshot.png" {
+		t.Fatalf("stored attachments = %+v", loaded.Attachments)
+	}
+	path, _, err := svc.AttachmentPath(draft.ID, attachments[0].ID)
+	if err != nil {
+		t.Fatalf("AttachmentPath() error = %v", err)
+	}
+	if !strings.HasSuffix(path, "screenshot.png") {
+		t.Fatalf("attachment path = %q", path)
+	}
+	if _, err := svc.UploadAttachments(context.Background(), draft.ID, []AttachmentUpload{{
+		Filename:    "notes.txt",
+		ContentType: "text/plain",
+		SizeBytes:   4,
+		Reader:      strings.NewReader("data"),
+	}}); err == nil {
+		t.Fatal("UploadAttachments() text/plain error = nil, want validation")
+	}
+}
+
 func TestServiceApplyBacklogBatchImportProposalUsesSessionAttribution(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
@@ -558,6 +669,21 @@ func mustStruct(t *testing.T, fields map[string]any) *structpb.Struct {
 type fakeBacklogBatchApplier struct {
 	payloadJSON string
 	provenance  identity.Provenance
+}
+
+type fakeContextResolver struct{}
+
+func (fakeContextResolver) ResolveSessionMessageContext(_ context.Context, refs []ContextRef, _ ContextLimits) ([]ContextItem, error) {
+	items := make([]ContextItem, 0, len(refs))
+	for _, ref := range refs {
+		items = append(items, ContextItem{
+			Type:    ref.Type,
+			Ref:     ref.Ref,
+			Title:   "Quality Gates",
+			Summary: "Tighten quality gates.",
+		})
+	}
+	return items, nil
 }
 
 func (f *fakeBacklogBatchApplier) ApplyAgentSessionBacklogBatchImport(_ context.Context, payloadJSON string, prov identity.Provenance) ([]Artifact, error) {

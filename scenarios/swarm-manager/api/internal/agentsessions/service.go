@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -61,11 +63,16 @@ type BacklogBatchApplier interface {
 	ApplyAgentSessionBacklogBatchImport(ctx context.Context, payloadJSON string, prov identity.Provenance) ([]Artifact, error)
 }
 
+type ContextResolver interface {
+	ResolveSessionMessageContext(ctx context.Context, refs []ContextRef, limits ContextLimits) ([]ContextItem, error)
+}
+
 type Service struct {
 	store               Store
 	spawner             SessionSpawner
 	eventReader         RunEventReader
 	backlogBatchApplier BacklogBatchApplier
+	contextResolver     ContextResolver
 	eventLogger         EventLogger
 	projectRoot         string
 	profileKey          string
@@ -76,21 +83,36 @@ type ServiceConfig struct {
 	Spawner             SessionSpawner
 	EventReader         RunEventReader
 	BacklogBatchApplier BacklogBatchApplier
+	ContextResolver     ContextResolver
 	EventLogger         EventLogger
 	ProjectRoot         string
 	ProfileKey          string
 }
 
 type CreateRequest struct {
-	Kind       Kind
-	Title      string
-	Initiative string
+	Kind  Kind
+	Title string
 }
 
 type ContinueRequest struct {
 	SessionID     string
 	Message       string
 	AttachmentIDs []string
+	ContextRefs   []ContextRef
+}
+
+type ContextLimits struct {
+	Kind            Kind
+	MaxTotal        int
+	MaxPerType      map[ContextType]int
+	MaxSummaryRunes int
+}
+
+type AttachmentUpload struct {
+	Filename    string
+	ContentType string
+	SizeBytes   int64
+	Reader      io.Reader
 }
 
 type ListEventsRequest struct {
@@ -147,6 +169,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		spawner:             cfg.Spawner,
 		eventReader:         cfg.EventReader,
 		backlogBatchApplier: cfg.BacklogBatchApplier,
+		contextResolver:     cfg.ContextResolver,
 		eventLogger:         cfg.EventLogger,
 		projectRoot:         cfg.ProjectRoot,
 		profileKey:          cfg.ProfileKey,
@@ -155,6 +178,10 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 
 func (s *Service) SetBacklogBatchApplier(applier BacklogBatchApplier) {
 	s.backlogBatchApplier = applier
+}
+
+func (s *Service) SetContextResolver(resolver ContextResolver) {
+	s.contextResolver = resolver
 }
 
 func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error) {
@@ -187,8 +214,8 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Session, error
 
 func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, error) {
 	messageText := strings.TrimSpace(req.Message)
-	if messageText == "" {
-		return Session{}, apierr.BadRequest("message is required")
+	if messageText == "" && len(req.AttachmentIDs) == 0 && len(req.ContextRefs) == 0 {
+		return Session{}, apierr.BadRequest("message, attachment, or context is required")
 	}
 	session, err := s.store.LoadSession(strings.TrimSpace(req.SessionID))
 	if err != nil {
@@ -200,6 +227,10 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 	if s.spawner == nil {
 		return Session{}, apierr.Unavailable("agent session spawning is unavailable")
 	}
+	contextItems, err := s.resolveMessageContext(ctx, session, req.ContextRefs)
+	if err != nil {
+		return Session{}, err
+	}
 
 	now := nowRFC3339()
 	userMessage := Message{
@@ -208,6 +239,7 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 		Content:       messageText,
 		CreatedAt:     now,
 		AttachmentIDs: append([]string(nil), req.AttachmentIDs...),
+		Context:       contextItems,
 	}
 	if err := s.store.AppendMessage(session.ID, userMessage); err != nil {
 		return Session{}, err
@@ -223,7 +255,7 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 		Kind:        string(session.Kind),
 		Title:       session.Title,
 		Description: messageText,
-		Prompt:      buildInitialPrompt(session, messageText, ""),
+		Prompt:      buildInitialPrompt(session, userMessage, sessionAttachmentsByID(session, req.AttachmentIDs)),
 		ScopePath:   ".",
 		ProjectRoot: s.projectRoot,
 		CreatedBy:   sessionCreatedBy(session),
@@ -289,8 +321,8 @@ func (s *Service) Get(_ context.Context, sessionID string) (Session, error) {
 
 func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, error) {
 	messageText := strings.TrimSpace(req.Message)
-	if messageText == "" {
-		return Session{}, apierr.BadRequest("message is required")
+	if messageText == "" && len(req.AttachmentIDs) == 0 && len(req.ContextRefs) == 0 {
+		return Session{}, apierr.BadRequest("message, attachment, or context is required")
 	}
 	session, err := s.store.LoadSession(strings.TrimSpace(req.SessionID))
 	if err != nil {
@@ -302,6 +334,10 @@ func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, e
 	if s.spawner == nil {
 		return Session{}, apierr.Unavailable("agent session continuation is unavailable")
 	}
+	contextItems, err := s.resolveMessageContext(ctx, session, req.ContextRefs)
+	if err != nil {
+		return Session{}, err
+	}
 
 	now := nowRFC3339()
 	message := Message{
@@ -309,6 +345,7 @@ func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, e
 		Role:          MessageRoleUser,
 		Content:       messageText,
 		AttachmentIDs: append([]string(nil), req.AttachmentIDs...),
+		Context:       contextItems,
 		CreatedAt:     now,
 	}
 	if err := s.store.AppendMessage(session.ID, message); err != nil {
@@ -321,7 +358,7 @@ func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, e
 	}
 
 	activityCtx := agentactivity.WithSpec(ctx, sessionActivitySpec(session, agentactivity.InteractionContinue))
-	if err := s.spawner.ContinueRun(activityCtx, session.RunID, messageText); err != nil {
+	if err := s.spawner.ContinueRun(activityCtx, session.RunID, buildContinuationPrompt(message, sessionAttachmentsByID(session, req.AttachmentIDs))); err != nil {
 		session.Status = StatusFailed
 		session.FailureReason = err.Error()
 		session.UpdatedAt = nowRFC3339()
@@ -331,6 +368,51 @@ func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, e
 	}
 	s.emitContinued(session)
 	return s.store.LoadSession(session.ID)
+}
+
+func (s *Service) UploadAttachments(_ context.Context, sessionID string, uploads []AttachmentUpload) ([]Attachment, error) {
+	if len(uploads) == 0 {
+		return []Attachment{}, nil
+	}
+	if len(uploads) > 6 {
+		return nil, apierr.BadRequest("no more than 6 image attachments are allowed per message")
+	}
+	if _, err := s.store.LoadSession(strings.TrimSpace(sessionID)); err != nil {
+		return nil, mapStoreError(err)
+	}
+	attachments := make([]Attachment, 0, len(uploads))
+	for _, upload := range uploads {
+		mediaType, _, _ := mime.ParseMediaType(upload.ContentType)
+		if !allowedSessionImageTypes[mediaType] {
+			return nil, apierr.BadRequest("unsupported file type: %s", mediaType)
+		}
+		if upload.Reader == nil {
+			return nil, apierr.BadRequest("attachment file is required")
+		}
+		attachment := Attachment{
+			ID:          "att_" + idgen.Generate(),
+			Filename:    strings.TrimSpace(upload.Filename),
+			ContentType: mediaType,
+			SizeBytes:   upload.SizeBytes,
+			CreatedAt:   nowRFC3339(),
+		}
+		if attachment.Filename == "" {
+			attachment.Filename = "unnamed"
+		}
+		if err := s.store.SaveAttachment(sessionID, attachment, upload.Reader); err != nil {
+			return nil, err
+		}
+		attachments = append(attachments, attachment)
+	}
+	return attachments, nil
+}
+
+func (s *Service) AttachmentPath(sessionID string, attachmentID string) (string, Attachment, error) {
+	path, attachment, err := s.store.AttachmentPath(strings.TrimSpace(sessionID), strings.TrimSpace(attachmentID))
+	if err != nil {
+		return "", Attachment{}, mapStoreError(err)
+	}
+	return path, attachment, nil
 }
 
 func (s *Service) ListEvents(ctx context.Context, req ListEventsRequest) (ListEventsResult, error) {
@@ -741,17 +823,179 @@ func sessionEnvironment(session Session) map[string]string {
 	}
 }
 
-func buildInitialPrompt(session Session, initialMessage, initiative string) string {
+var allowedSessionImageTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
+}
+
+func (s *Service) resolveMessageContext(ctx context.Context, session Session, refs []ContextRef) ([]ContextItem, error) {
+	normalized, err := normalizeContextRefs(session.Kind, refs)
+	if err != nil {
+		return nil, err
+	}
+	if len(normalized) == 0 {
+		return nil, nil
+	}
+	if s.contextResolver == nil {
+		return nil, apierr.Unavailable("agent session context resolution is unavailable")
+	}
+	items, err := s.contextResolver.ResolveSessionMessageContext(ctx, normalized, contextLimitsForKind(session.Kind))
+	if err != nil {
+		return nil, err
+	}
+	now := nowRFC3339()
+	for i := range items {
+		if items[i].SelectedAt == "" {
+			items[i].SelectedAt = now
+		}
+		items[i].Summary = truncateRunes(strings.TrimSpace(items[i].Summary), contextLimitsForKind(session.Kind).MaxSummaryRunes)
+	}
+	return items, nil
+}
+
+func normalizeContextRefs(kind Kind, refs []ContextRef) ([]ContextRef, error) {
+	limits := contextLimitsForKind(kind)
+	if len(refs) > limits.MaxTotal {
+		return nil, apierr.BadRequest("no more than %d context items are allowed for %s sessions", limits.MaxTotal, kind)
+	}
+	seen := make(map[string]struct{}, len(refs))
+	counts := make(map[ContextType]int)
+	normalized := make([]ContextRef, 0, len(refs))
+	for _, ref := range refs {
+		contextType := ContextType(strings.TrimSpace(string(ref.Type)))
+		value := strings.TrimSpace(ref.Ref)
+		if !IsKnownContextType(contextType) {
+			return nil, apierr.BadRequest("context type is invalid")
+		}
+		if value == "" {
+			return nil, apierr.BadRequest("context ref is required")
+		}
+		if max, ok := limits.MaxPerType[contextType]; !ok || max <= 0 {
+			return nil, apierr.BadRequest("context type %q is not allowed for %s sessions", contextType, kind)
+		}
+		key := string(contextType) + "\x00" + value
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		counts[contextType]++
+		if counts[contextType] > limits.MaxPerType[contextType] {
+			return nil, apierr.BadRequest("too many %s context items; max is %d", contextType, limits.MaxPerType[contextType])
+		}
+		normalized = append(normalized, ContextRef{Type: contextType, Ref: value})
+	}
+	if len(normalized) > limits.MaxTotal {
+		return nil, apierr.BadRequest("no more than %d context items are allowed for %s sessions", limits.MaxTotal, kind)
+	}
+	return normalized, nil
+}
+
+func contextLimitsForKind(kind Kind) ContextLimits {
+	common := map[ContextType]int{
+		ContextBacklogItem:   8,
+		ContextInitiative:    4,
+		ContextCapture:       4,
+		ContextExecution:     6,
+		ContextAgentActivity: 6,
+		ContextScenario:      3,
+		ContextOperatingMode: 3,
+		ContextSession:       2,
+	}
+	switch kind {
+	case KindOperatingModeAuthoring:
+		return ContextLimits{Kind: kind, MaxTotal: 8, MaxPerType: common, MaxSummaryRunes: 1200}
+	default:
+		return ContextLimits{Kind: kind, MaxTotal: 12, MaxPerType: common, MaxSummaryRunes: 1200}
+	}
+}
+
+func sessionAttachmentsByID(session Session, attachmentIDs []string) []Attachment {
+	if len(attachmentIDs) == 0 || len(session.Attachments) == 0 {
+		return nil
+	}
+	wanted := make(map[string]struct{}, len(attachmentIDs))
+	for _, id := range attachmentIDs {
+		wanted[strings.TrimSpace(id)] = struct{}{}
+	}
+	var attachments []Attachment
+	for _, attachment := range session.Attachments {
+		if _, ok := wanted[attachment.ID]; ok {
+			attachments = append(attachments, attachment)
+		}
+	}
+	return attachments
+}
+
+func buildInitialPrompt(session Session, message Message, attachments []Attachment) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "You are running a Swarm Manager %s agent session.\n\n", session.Kind)
 	fmt.Fprintf(&b, "Use the Prompt Manager skill `%s` as your operating guide.\n", session.SkillID)
 	fmt.Fprintf(&b, "Session ID: %s\n", session.ID)
-	if trimmed := strings.TrimSpace(initiative); trimmed != "" {
-		fmt.Fprintf(&b, "Related initiative: %s\n", trimmed)
-	}
+	writeMessageContext(&b, message.Context)
+	writeMessageAttachments(&b, attachments)
 	b.WriteString("\nOperator message:\n")
-	b.WriteString(strings.TrimSpace(initialMessage))
+	writeOperatorMessage(&b, message.Content)
 	return b.String()
+}
+
+func buildContinuationPrompt(message Message, attachments []Attachment) string {
+	if len(message.Context) == 0 && len(attachments) == 0 {
+		return strings.TrimSpace(message.Content)
+	}
+	var b strings.Builder
+	writeMessageContext(&b, message.Context)
+	writeMessageAttachments(&b, attachments)
+	b.WriteString("\nOperator message:\n")
+	writeOperatorMessage(&b, message.Content)
+	return b.String()
+}
+
+func writeMessageContext(b *strings.Builder, contextItems []ContextItem) {
+	if len(contextItems) == 0 {
+		return
+	}
+	b.WriteString("\nAttached context:\n")
+	for i, item := range contextItems {
+		fmt.Fprintf(b, "%d. [%s] %s (%s)\n", i+1, item.Type, item.Title, item.Ref)
+		if strings.TrimSpace(item.MetadataJSON) != "" {
+			fmt.Fprintf(b, "   Metadata: %s\n", strings.TrimSpace(item.MetadataJSON))
+		}
+		if strings.TrimSpace(item.Summary) != "" {
+			fmt.Fprintf(b, "   Summary: %s\n", strings.TrimSpace(item.Summary))
+		}
+	}
+}
+
+func writeMessageAttachments(b *strings.Builder, attachments []Attachment) {
+	if len(attachments) == 0 {
+		return
+	}
+	b.WriteString("\nAttached images:\n")
+	for _, attachment := range attachments {
+		fmt.Fprintf(b, "- %s: %s (%s)\n", attachment.ID, attachment.Filename, attachment.ContentType)
+	}
+}
+
+func writeOperatorMessage(b *strings.Builder, content string) {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		b.WriteString("(no text supplied)")
+		return
+	}
+	b.WriteString(trimmed)
+}
+
+func truncateRunes(value string, max int) string {
+	if max <= 0 {
+		return value
+	}
+	runes := []rune(value)
+	if len(runes) <= max {
+		return value
+	}
+	return string(runes[:max])
 }
 
 const maxRunEventFieldBytes = 6000

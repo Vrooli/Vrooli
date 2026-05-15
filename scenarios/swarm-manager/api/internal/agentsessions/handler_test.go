@@ -56,9 +56,8 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 	NewHandler(svc).RegisterRoutes(router)
 
 	createBody := marshalAgentSessionProto(t, &apipb.CreateAgentSessionRequest{
-		Kind:       string(KindSwarmOperations),
-		Title:      "Manage Swarm operations",
-		Initiative: proto.String("mode-authoring"),
+		Kind:  string(KindSwarmOperations),
+		Title: "Manage Swarm operations",
 	})
 	createRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions", createBody)
 	if createRec.Code != http.StatusCreated {

@@ -8,7 +8,7 @@ import {
   type ListAgentSessionEventsResult,
   type ListAgentSessionsFilters,
 } from "../services/agent-session-service";
-import type { AgentSession, AgentSessionArtifact } from "../types";
+import type { AgentSession, AgentSessionAttachment, AgentSessionArtifact } from "../types";
 import {
   clearStorage,
   fetchWithRetry,
@@ -47,6 +47,7 @@ interface AgentSessionStoreState {
   createSession: (args: CreateAgentSessionArgs) => Promise<AgentSession>;
   startSession: (args: ContinueAgentSessionArgs) => Promise<AgentSession>;
   continueSession: (args: ContinueAgentSessionArgs) => Promise<AgentSession>;
+  uploadSessionAttachments: (sessionId: string, files: File[]) => Promise<AgentSessionAttachment[]>;
   listSessionEvents: (args: ListAgentSessionEventsArgs) => Promise<ListAgentSessionEventsResult>;
   refreshSession: (sessionId: string) => Promise<AgentSession>;
   cancelSession: (sessionId: string) => Promise<AgentSession>;
@@ -181,6 +182,31 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
     } catch (error) {
       set({
         error: error instanceof Error ? error : new Error("Unable to continue agent session."),
+        isMutating: false,
+      });
+      throw error;
+    }
+  },
+
+  uploadSessionAttachments: async (sessionId, files): Promise<AgentSessionAttachment[]> => {
+    set({ isMutating: true, error: null });
+    try {
+      const attachments = await service.uploadAttachments(sessionId, files);
+      set((state) => ({
+        sessions: state.sessions.map((session) =>
+          session.id === sessionId
+            ? {
+                ...session,
+                attachments: mergeAttachments(session.attachments ?? [], attachments),
+              }
+            : session,
+        ),
+        isMutating: false,
+      }));
+      return attachments;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error : new Error("Unable to upload session attachments."),
         isMutating: false,
       });
       throw error;
@@ -322,6 +348,17 @@ function sortSessions(sessions: AgentSession[]): AgentSession[] {
     if (first === second) return b.id.localeCompare(a.id);
     return second - first;
   });
+}
+
+function mergeAttachments(existing: AgentSessionAttachment[] = [], incoming: AgentSessionAttachment[]): AgentSessionAttachment[] {
+  const byId = new Map<string, AgentSessionAttachment>();
+  for (const attachment of existing) {
+    byId.set(attachment.id, attachment);
+  }
+  for (const attachment of incoming) {
+    byId.set(attachment.id, attachment);
+  }
+  return Array.from(byId.values());
 }
 
 function filterArtifactsByDeletedSession(

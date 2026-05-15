@@ -65,6 +65,9 @@ export const API_ENDPOINTS = {
   agentActivityById: (activityId: string) => `/agent-activities/${activityId}`,
   agentSessions: "/agent-sessions",
   agentSessionById: (sessionId: string) => `/agent-sessions/${sessionId}`,
+  agentSessionAttachments: (sessionId: string) => `/agent-sessions/${sessionId}/attachments`,
+  agentSessionAttachment: (sessionId: string, attachmentId: string) =>
+    `/agent-sessions/${sessionId}/attachments/${attachmentId}`,
   agentSessionStart: (sessionId: string) => `/agent-sessions/${sessionId}/start`,
   agentSessionContinue: (sessionId: string) => `/agent-sessions/${sessionId}/continue`,
   agentSessionEvents: (sessionId: string) => `/agent-sessions/${sessionId}/events`,

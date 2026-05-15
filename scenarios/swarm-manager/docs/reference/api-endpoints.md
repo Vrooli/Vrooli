@@ -28,19 +28,51 @@ Valid `kind` values are `meta_orchestration`, `swarm_operations`, and
 
 `POST /api/v1/agent-sessions/{session_id}/start`
 
-Starts a draft session with the first real operator prompt. This is the only
-path that turns a draft into an Agent Manager run.
+Starts a draft session with the first real operator message. This is the only
+path that turns a draft into an Agent Manager run. A start request must include
+at least one of `message`, `attachment_ids`, or `context_refs`.
 
 ```json
 {
   "message": "Here is the context to plan...",
-  "attachment_ids": []
+  "attachment_ids": ["att_abc123"],
+  "context_refs": [
+    { "type": "initiative", "id": "desktop-release-governance" },
+    { "type": "backlog_item", "id": "fix/auth-bug" }
+  ]
 }
 ```
 
 `POST /api/v1/agent-sessions/{session_id}/continue`
 
-Appends a follow-up message after the session has a run.
+Appends a follow-up message after the session has a run. The request shape
+matches start and supports text, session-owned image attachment IDs, typed
+context refs, or a combination.
+
+`POST /api/v1/agent-sessions/{session_id}/attachments`
+
+Uploads image files owned by the session. Use multipart form data with one or
+more `files` parts. The response returns attachment records that can be
+referenced by `start` or `continue`.
+
+```json
+{
+  "attachments": [
+    {
+      "id": "att_abc123",
+      "filename": "whiteboard.png",
+      "content_type": "image/png",
+      "size_bytes": "42121",
+      "created_at": "2026-05-15T14:30:00Z"
+    }
+  ]
+}
+```
+
+`GET /api/v1/agent-sessions/{session_id}/attachments/{attachment_id}`
+
+Streams a session-owned uploaded image. Attachments are deleted with the owning
+session.
 
 `GET /api/v1/agent-sessions/{session_id}/events?after_sequence=0&limit=100`
 

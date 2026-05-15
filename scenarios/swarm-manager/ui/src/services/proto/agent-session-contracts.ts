@@ -2,6 +2,8 @@ import type {
   AgentSession,
   AgentSessionArtifact,
   AgentSessionAttribution,
+  AgentSessionAttachment,
+  AgentSessionContextItem,
   AgentSessionMessage,
   AgentSessionProposal,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/agent_session_pb";
@@ -18,18 +20,23 @@ import {
   ListAgentSessionsResponseSchema,
   RefreshAgentSessionResponseSchema,
   StartAgentSessionResponseSchema,
+  UploadAgentSessionAttachmentsResponseSchema,
   type AgentSessionRunEvent,
 } from "@vrooli/proto-types/swarm-manager/v1/api/agent_session_pb";
 import type {
   AgentSession as AgentSessionDomain,
   AgentSessionArtifact as AgentSessionArtifactDomain,
+  AgentSessionAttachment as AgentSessionAttachmentDomain,
   AgentSessionAttribution as AgentSessionAttributionDomain,
+  AgentSessionContextItem as AgentSessionContextItemDomain,
+  AgentSessionContextType,
   AgentSessionKind,
   AgentSessionMessage as AgentSessionMessageDomain,
   AgentSessionProposal as AgentSessionProposalDomain,
   AgentSessionRunEvent as AgentSessionRunEventDomain,
   AgentSessionStatus,
 } from "../../types";
+import { API_ENDPOINTS } from "../../lib/api-endpoints";
 import { createProtoSchema } from "./shared";
 
 const sessionKinds = new Set<string>(["meta_orchestration", "operating_mode_authoring", "swarm_operations"]);
@@ -45,6 +52,16 @@ const sessionStatuses = new Set<string>([
   "canceled",
 ]);
 const messageRoles = new Set<string>(["user", "assistant", "system"]);
+const contextTypes = new Set<string>([
+  "backlog_item",
+  "initiative",
+  "capture",
+  "execution",
+  "agent_activity",
+  "scenario",
+  "operating_mode",
+  "session",
+]);
 const proposalKinds = new Set<string>([
   "backlog_batch_import",
   "operating_mode_draft",
@@ -132,6 +149,10 @@ export const getArtifactsByEntityResponseSchema = createProtoSchema(
   GetArtifactsByEntityResponseSchema,
   "agent session artifacts by entity"
 );
+export const uploadAgentSessionAttachmentsResponseSchema = createProtoSchema(
+  UploadAgentSessionAttachmentsResponseSchema,
+  "agent session attachment upload"
+);
 
 export function mapProtoAgentSession(protoSession: AgentSession): AgentSessionDomain {
   return {
@@ -149,6 +170,10 @@ export function mapProtoAgentSession(protoSession: AgentSession): AgentSessionDo
     messages: protoSession.messages?.map(mapProtoAgentSessionMessage) ?? [],
     proposals: protoSession.proposals?.map(mapProtoAgentSessionProposal) ?? [],
     artifacts: protoSession.artifacts?.map(mapProtoAgentSessionArtifact) ?? [],
+    attachments: protoSession.attachments?.map((attachment) => ({
+      ...mapProtoAgentSessionAttachment(attachment),
+      url: API_ENDPOINTS.agentSessionAttachment(protoSession.id ?? "", attachment.id ?? ""),
+    })) ?? [],
     ...(protoSession.createdBy ? { createdBy: mapProtoAgentSessionAttribution(protoSession.createdBy) } : {}),
   };
 }
@@ -160,6 +185,29 @@ export function mapProtoAgentSessionMessage(message: AgentSessionMessage): Agent
     content: message.content ?? "",
     createdAt: message.createdAt ?? "",
     attachmentIds: message.attachmentIds ?? [],
+    context: message.context?.map(mapProtoAgentSessionContextItem) ?? [],
+  };
+}
+
+export function mapProtoAgentSessionContextItem(item: AgentSessionContextItem): AgentSessionContextItemDomain {
+  return {
+    type: contextTypes.has(item.type) ? (item.type as AgentSessionContextType) : "capture",
+    ref: item.ref ?? "",
+    title: item.title ?? "",
+    summary: item.summary ?? "",
+    ...(item.nodeId ? { nodeId: item.nodeId } : {}),
+    ...(item.metadataJson ? { metadataJson: item.metadataJson } : {}),
+    selectedAt: item.selectedAt ?? "",
+  };
+}
+
+export function mapProtoAgentSessionAttachment(attachment: AgentSessionAttachment): AgentSessionAttachmentDomain {
+  return {
+    id: attachment.id ?? "",
+    filename: attachment.filename ?? "",
+    ...(attachment.contentType ? { contentType: attachment.contentType } : {}),
+    ...(attachment.sizeBytes !== undefined ? { sizeBytes: attachment.sizeBytes } : {}),
+    createdAt: attachment.createdAt ?? "",
   };
 }
 

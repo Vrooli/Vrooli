@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,10 +18,11 @@ import (
 var ErrNotFound = errors.New("agent session not found")
 
 const (
-	sessionFileName   = "session.json"
-	messagesFileName  = "messages.jsonl"
-	artifactsFileName = "artifacts.jsonl"
-	proposalsDirName  = "proposals"
+	sessionFileName    = "session.json"
+	messagesFileName   = "messages.jsonl"
+	artifactsFileName  = "artifacts.jsonl"
+	attachmentsDirName = "attachments"
+	proposalsDirName   = "proposals"
 )
 
 type Store interface {
@@ -35,6 +37,8 @@ type Store interface {
 	AppendArtifacts(sessionID string, artifacts []Artifact) error
 	ListArtifacts(sessionID string) ([]Artifact, error)
 	ListArtifactsByEntity(artifactType ArtifactType, entityRef string) ([]Artifact, error)
+	SaveAttachment(sessionID string, attachment Attachment, reader io.Reader) error
+	AttachmentPath(sessionID string, attachmentID string) (string, Attachment, error)
 }
 
 type ListFilters struct {
@@ -282,6 +286,65 @@ func (s *FileStore) ListArtifactsByEntity(artifactType ArtifactType, entityRef s
 	return matches, nil
 }
 
+func (s *FileStore) SaveAttachment(sessionID string, attachment Attachment, reader io.Reader) error {
+	if err := attachment.Validate(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, err := s.loadSessionLocked(sessionID)
+	if err != nil {
+		return err
+	}
+	for _, existing := range session.Attachments {
+		if existing.ID == attachment.ID {
+			return validationError("attachment already exists")
+		}
+	}
+	dir := filepath.Join(s.sessionDir(session.ID), attachmentsDirName, attachment.ID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, sanitizeAttachmentFilename(attachment.Filename))
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(file, reader); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	session.Attachments = append(session.Attachments, attachment)
+	session.UpdatedAt = attachment.CreatedAt
+	return s.saveSessionLocked(session)
+}
+
+func (s *FileStore) AttachmentPath(sessionID string, attachmentID string) (string, Attachment, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, err := s.loadSessionLocked(sessionID)
+	if err != nil {
+		return "", Attachment{}, err
+	}
+	safeAttachmentID, err := safeAttachmentID(attachmentID)
+	if err != nil {
+		return "", Attachment{}, err
+	}
+	for _, attachment := range session.Attachments {
+		if attachment.ID != safeAttachmentID {
+			continue
+		}
+		path := filepath.Join(s.sessionDir(session.ID), attachmentsDirName, attachment.ID, sanitizeAttachmentFilename(attachment.Filename))
+		return path, attachment, nil
+	}
+	return "", Attachment{}, fmt.Errorf("%w: %s", ErrNotFound, safeAttachmentID)
+}
+
 func (s *FileStore) saveSessionLocked(session Session) error {
 	session = snapshotOnly(session)
 	if err := session.Validate(); err != nil {
@@ -389,6 +452,33 @@ func snapshotOnly(session Session) Session {
 	session.Proposals = nil
 	session.Artifacts = nil
 	return session
+}
+
+func safeAttachmentID(attachmentID string) (string, error) {
+	trimmed := strings.TrimSpace(attachmentID)
+	if trimmed == "" {
+		return "", validationError("attachment_id is required")
+	}
+	if !strings.HasPrefix(trimmed, "att_") {
+		return "", validationError("attachment_id must start with att_")
+	}
+	if trimmed == "." || trimmed == ".." || strings.Contains(trimmed, "/") || strings.Contains(trimmed, "\\") {
+		return "", validationError("attachment_id is invalid")
+	}
+	if filepath.Clean(trimmed) != trimmed {
+		return "", validationError("attachment_id is invalid")
+	}
+	return trimmed, nil
+}
+
+func sanitizeAttachmentFilename(name string) string {
+	name = filepath.Base(strings.TrimSpace(name))
+	replacer := strings.NewReplacer("..", "_", "/", "_", "\\", "_", "\x00", "_")
+	name = replacer.Replace(name)
+	if name == "" || name == "." {
+		return "unnamed"
+	}
+	return name
 }
 
 func matchesListFilters(session Session, filters ListFilters) bool {

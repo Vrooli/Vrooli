@@ -4,8 +4,10 @@ import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { buildQueryString } from "../lib/query-utils";
 import type {
   AgentSession,
+  AgentSessionAttachment,
   AgentSessionArtifact,
   AgentSessionArtifactType,
+  AgentSessionContextRef,
   AgentSessionKind,
   AgentSessionRunEvent,
   AgentSessionStatus,
@@ -22,12 +24,14 @@ import {
   listAgentSessionArtifactsResponseSchema,
   listAgentSessionsResponseSchema,
   mapProtoAgentSession,
+  mapProtoAgentSessionAttachment,
   mapProtoAgentSessionArtifact,
   mapProtoAgentSessionRunEvent,
   parseProtoResponse,
   refreshAgentSessionResponseSchema,
   requireProtoField,
   startAgentSessionResponseSchema,
+  uploadAgentSessionAttachmentsResponseSchema,
 } from "./proto-contracts";
 
 export interface ListAgentSessionsFilters {
@@ -40,13 +44,13 @@ export interface ListAgentSessionsFilters {
 export interface CreateAgentSessionArgs {
   kind: AgentSessionKind;
   title: string;
-  initiative?: string;
 }
 
 export interface ContinueAgentSessionArgs {
   sessionId: string;
   message: string;
   attachmentIds?: string[];
+  contextRefs?: AgentSessionContextRef[];
 }
 
 export interface ApplyAgentSessionProposalResult {
@@ -72,6 +76,7 @@ export interface IAgentSessionService {
   create(args: CreateAgentSessionArgs): Promise<AgentSession>;
   start(args: ContinueAgentSessionArgs): Promise<AgentSession>;
   continue(args: ContinueAgentSessionArgs): Promise<AgentSession>;
+  uploadAttachments(sessionId: string, files: File[]): Promise<AgentSessionAttachment[]>;
   listEvents(args: ListAgentSessionEventsArgs): Promise<ListAgentSessionEventsResult>;
   refresh(sessionId: string): Promise<AgentSession>;
   cancel(sessionId: string): Promise<AgentSession>;
@@ -105,7 +110,6 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
       const data = await apiClient.post<unknown>(API_ENDPOINTS.agentSessions, {
         kind: args.kind,
         title: args.title,
-        ...(args.initiative ? { initiative: args.initiative } : {}),
       });
       const parsed = parseProtoResponse(createAgentSessionResponseSchema, data, "agent session create");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
@@ -116,6 +120,7 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
         session_id: args.sessionId,
         message: args.message,
         attachment_ids: args.attachmentIds ?? [],
+        context_refs: args.contextRefs ?? [],
       });
       const parsed = parseProtoResponse(startAgentSessionResponseSchema, data, "agent session start");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
@@ -126,9 +131,24 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
         session_id: args.sessionId,
         message: args.message,
         attachment_ids: args.attachmentIds ?? [],
+        context_refs: args.contextRefs ?? [],
       });
       const parsed = parseProtoResponse(continueAgentSessionResponseSchema, data, "agent session continue");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
+    },
+
+    async uploadAttachments(sessionId: string, files: File[]): Promise<AgentSessionAttachment[]> {
+      if (files.length === 0) return [];
+      const form = new FormData();
+      for (const file of files) {
+        form.append("files", file);
+      }
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.agentSessionAttachments(sessionId), form);
+      const parsed = parseProtoResponse(uploadAgentSessionAttachmentsResponseSchema, data, "agent session attachment upload");
+      return parsed.attachments.map((attachment) => ({
+        ...mapProtoAgentSessionAttachment(attachment),
+        url: API_ENDPOINTS.agentSessionAttachment(sessionId, attachment.id),
+      }));
     },
 
     async listEvents(args: ListAgentSessionEventsArgs): Promise<ListAgentSessionEventsResult> {

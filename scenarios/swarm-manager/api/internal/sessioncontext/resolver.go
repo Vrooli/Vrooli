@@ -1,0 +1,224 @@
+// Package sessioncontext resolves composer-selected Swarm Manager records into
+// bounded agent-session message context snapshots.
+package sessioncontext
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"swarm-manager/internal/agentsessions"
+)
+
+type Resolver struct {
+	scenarioRoot string
+	scenariosDir string
+	sessionStore agentsessions.Store
+}
+
+func NewResolver(scenarioRoot, scenariosDir string, sessionStore agentsessions.Store) *Resolver {
+	return &Resolver{
+		scenarioRoot: scenarioRoot,
+		scenariosDir: scenariosDir,
+		sessionStore: sessionStore,
+	}
+}
+
+func (r *Resolver) ResolveSessionMessageContext(_ context.Context, refs []agentsessions.ContextRef, limits agentsessions.ContextLimits) ([]agentsessions.ContextItem, error) {
+	items := make([]agentsessions.ContextItem, 0, len(refs))
+	for _, ref := range refs {
+		item, err := r.resolve(ref, limits)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func (r *Resolver) resolve(ref agentsessions.ContextRef, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	switch ref.Type {
+	case agentsessions.ContextBacklogItem:
+		return r.resolveBacklogItem(ref.Ref, limits)
+	case agentsessions.ContextInitiative:
+		return r.resolveJSONFile(ref, filepath.Join(r.scenarioRoot, "initiatives", ref.Ref, "initiative.json"), "initiative", "initiative/"+ref.Ref, limits)
+	case agentsessions.ContextCapture:
+		return r.resolveJSONFile(ref, filepath.Join(r.scenarioRoot, "captures", ref.Ref, "capture.json"), "capture", "capture/"+ref.Ref, limits)
+	case agentsessions.ContextScenario:
+		return r.resolveScenario(ref.Ref, limits)
+	case agentsessions.ContextSession:
+		return r.resolveSession(ref.Ref, limits)
+	case agentsessions.ContextExecution:
+		return r.resolveJSONFile(ref, filepath.Join(r.scenarioRoot, "executions", ref.Ref, "execution.json"), "execution", "execution-record/"+ref.Ref, limits)
+	case agentsessions.ContextAgentActivity:
+		return r.resolveJSONListEntry(ref, filepath.Join(r.scenarioRoot, "state", "agent-activities.json"), "activity_id", "agent activity", "agent-activity/"+ref.Ref, limits)
+	case agentsessions.ContextOperatingMode:
+		return agentsessions.ContextItem{
+			Type:    ref.Type,
+			Ref:     ref.Ref,
+			Title:   titleFromRef(ref.Ref),
+			Summary: "Operating mode selected by the operator: " + ref.Ref,
+			NodeID:  "operatingMode/" + ref.Ref,
+		}, nil
+	default:
+		return agentsessions.ContextItem{}, fmt.Errorf("%w: unsupported context type", agentsessions.ErrValidation)
+	}
+}
+
+func (r *Resolver) resolveBacklogItem(ref string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	parts := strings.SplitN(ref, "/", 2)
+	if len(parts) != 2 {
+		return agentsessions.ContextItem{}, fmt.Errorf("%w: backlog item ref must be kind/name", agentsessions.ErrValidation)
+	}
+	path := filepath.Join(r.scenarioRoot, "backlog", parts[0], parts[1], "spec.json")
+	return r.resolveJSONFile(agentsessions.ContextRef{Type: agentsessions.ContextBacklogItem, Ref: ref}, path, "backlog item", "backlog-item/"+ref, limits)
+}
+
+func (r *Resolver) resolveScenario(ref string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	for _, name := range []string{"scenario.json", "service.json"} {
+		item, err := r.resolveJSONFile(agentsessions.ContextRef{Type: agentsessions.ContextScenario, Ref: ref}, filepath.Join(r.scenariosDir, ref, name), "scenario", "scenario/"+ref, limits)
+		if err == nil {
+			return item, nil
+		}
+	}
+	return agentsessions.ContextItem{}, fmt.Errorf("%w: scenario context %q not found", agentsessions.ErrValidation, ref)
+}
+
+func (r *Resolver) resolveSession(ref string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	if r.sessionStore == nil {
+		return agentsessions.ContextItem{}, fmt.Errorf("%w: session context is unavailable", agentsessions.ErrValidation)
+	}
+	session, err := r.sessionStore.LoadSession(ref)
+	if err != nil {
+		return agentsessions.ContextItem{}, err
+	}
+	summary := fmt.Sprintf("Kind: %s. Status: %s. Messages: %d. Proposals: %d. Artifacts: %d.", session.Kind, session.Status, len(session.Messages), len(session.Proposals), len(session.Artifacts))
+	if len(session.Messages) > 0 {
+		last := session.Messages[len(session.Messages)-1]
+		if strings.TrimSpace(last.Content) != "" {
+			summary += " Last message: " + truncate(last.Content, limits.MaxSummaryRunes/2)
+		}
+	}
+	return agentsessions.ContextItem{
+		Type:    agentsessions.ContextSession,
+		Ref:     ref,
+		Title:   session.Title,
+		Summary: truncate(summary, limits.MaxSummaryRunes),
+		NodeID:  "/sessions/" + ref,
+	}, nil
+}
+
+func (r *Resolver) resolveJSONFile(ref agentsessions.ContextRef, path, label, nodeID string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	var payload map[string]any
+	if err := readJSON(path, &payload); err != nil {
+		return agentsessions.ContextItem{}, fmt.Errorf("%w: %s context %q not found", agentsessions.ErrValidation, label, ref.Ref)
+	}
+	return itemFromMap(ref, payload, nodeID, limits), nil
+}
+
+func (r *Resolver) resolveJSONListEntry(ref agentsessions.ContextRef, path, idField, label, nodeID string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	var payload []map[string]any
+	if err := readJSON(path, &payload); err != nil {
+		return agentsessions.ContextItem{}, fmt.Errorf("%w: %s context %q not found", agentsessions.ErrValidation, label, ref.Ref)
+	}
+	for _, entry := range payload {
+		if stringValue(entry, idField) == ref.Ref || stringValue(entry, "id") == ref.Ref {
+			return itemFromMap(ref, entry, nodeID, limits), nil
+		}
+	}
+	return agentsessions.ContextItem{}, fmt.Errorf("%w: %s context %q not found", agentsessions.ErrValidation, label, ref.Ref)
+}
+
+func itemFromMap(ref agentsessions.ContextRef, payload map[string]any, nodeID string, limits agentsessions.ContextLimits) agentsessions.ContextItem {
+	title := firstString(payload, "title", "name", "id", "text")
+	if title == "" {
+		title = titleFromRef(ref.Ref)
+	}
+	summary := firstString(payload, "description", "summary", "text", "note", "status")
+	if summary == "" {
+		summary = compactJSON(payload)
+	}
+	metadata := map[string]any{}
+	for _, key := range []string{"status", "kind", "priority", "mode", "initiative", "updated", "created"} {
+		if value, ok := payload[key]; ok {
+			metadata[key] = value
+		}
+	}
+	metadataJSON := ""
+	if len(metadata) > 0 {
+		data, err := json.Marshal(metadata)
+		if err == nil {
+			metadataJSON = string(data)
+		}
+	}
+	return agentsessions.ContextItem{
+		Type:         ref.Type,
+		Ref:          ref.Ref,
+		Title:        truncate(title, 160),
+		Summary:      truncate(summary, limits.MaxSummaryRunes),
+		NodeID:       nodeID,
+		MetadataJSON: metadataJSON,
+	}
+}
+
+func readJSON(path string, out any) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, out)
+}
+
+func firstString(payload map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(stringValue(payload, key)); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func stringValue(payload map[string]any, key string) string {
+	value, ok := payload[key]
+	if !ok {
+		return ""
+	}
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case float64:
+		return fmt.Sprintf("%.0f", typed)
+	default:
+		return ""
+	}
+}
+
+func compactJSON(payload map[string]any) string {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func titleFromRef(ref string) string {
+	title := strings.ReplaceAll(ref, "-", " ")
+	title = strings.ReplaceAll(title, "_", " ")
+	title = strings.ReplaceAll(title, "/", " / ")
+	return strings.TrimSpace(title)
+}
+
+func truncate(value string, max int) string {
+	value = strings.TrimSpace(value)
+	if max <= 0 {
+		return value
+	}
+	runes := []rune(value)
+	if len(runes) <= max {
+		return value
+	}
+	return string(runes[:max])
+}

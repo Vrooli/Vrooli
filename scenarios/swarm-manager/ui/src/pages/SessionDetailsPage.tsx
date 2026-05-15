@@ -4,7 +4,7 @@
  * Owns route/data orchestration and assembles session-specific components.
  */
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlertCircle, Bot, MoreVertical, PanelRightOpen, RefreshCw, Square, Trash2 } from "lucide-react";
@@ -22,6 +22,9 @@ import { SessionInspector } from "../components/session/SessionInspector";
 import { SessionMetadata } from "../components/session/SessionMetadata";
 import { SessionProposalList } from "../components/session/SessionProposalList";
 import { SessionSectionTabs, type SessionSectionValue } from "../components/session/SessionSectionTabs";
+import { useComposerImageAttachments } from "../components/composer/useComposerImageAttachments";
+import { optionsToRefs } from "../components/session/context/session-context-options";
+import type { SessionContextOption } from "../components/session/context/session-context-refs";
 import { ActionMenu, ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
 import { nodeIdForSessionArtifact } from "../components/session/session-artifact-routing";
 import {
@@ -54,6 +57,7 @@ export function SessionDetailsPage() {
   const loadSession = useAgentSessionStore((s) => s.loadSession);
   const startSession = useAgentSessionStore((s) => s.startSession);
   const continueSession = useAgentSessionStore((s) => s.continueSession);
+  const uploadSessionAttachments = useAgentSessionStore((s) => s.uploadSessionAttachments ?? (() => Promise.resolve([])));
   const refreshSession = useAgentSessionStore((s) => s.refreshSession);
   const cancelSession = useAgentSessionStore((s) => s.cancelSession);
   const deleteSession = useAgentSessionStore((s) => s.deleteSession);
@@ -74,28 +78,69 @@ export function SessionDetailsPage() {
   const { events, isLoading: eventsLoading, error: eventsError, refreshEvents } = useAgentSessionEvents(session);
 
   const [draft, setDraft] = useState("");
+  const [pendingContext, setPendingContext] = useState<SessionContextOption[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<SessionSectionValue>("conversation");
+  const sessionDraftKey = sessionId ? `swarm-session-draft:${sessionId}` : "swarm-session-draft:unknown";
+  const sessionAttachments = useComposerImageAttachments(sessionId ? `swarm-session-attachments:${sessionId}` : "swarm-session-attachments:unknown");
+
+  useEffect(() => {
+    try {
+      setDraft(localStorage.getItem(sessionDraftKey) ?? "");
+    } catch {
+      setDraft("");
+    }
+    setPendingContext([]);
+  }, [sessionDraftKey]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        if (draft) {
+          localStorage.setItem(sessionDraftKey, draft);
+        } else {
+          localStorage.removeItem(sessionDraftKey);
+        }
+      } catch {
+        // ignore storage failures
+      }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [draft, sessionDraftKey]);
 
   const handleSend = useCallback(async () => {
-    if (!session || !draft.trim()) return;
+    if (!session || (!draft.trim() && sessionAttachments.attachments.length === 0 && pendingContext.length === 0)) return;
     const message = draft.trim();
+    const context = pendingContext;
     setDraft("");
+    setPendingContext([]);
     setLocalError(null);
     try {
+      const uploaded = await uploadSessionAttachments(session.id, sessionAttachments.getFiles());
+      const attachmentIds = uploaded.map((attachment) => attachment.id);
+      const contextRefs = optionsToRefs(context);
+      const sendArgs = {
+        sessionId: session.id,
+        message,
+        ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
+        ...(contextRefs.length > 0 ? { contextRefs } : {}),
+      };
       if (session.status === "draft") {
-        await startSession({ sessionId: session.id, message });
+        await startSession(sendArgs);
       } else {
-        await continueSession({ sessionId: session.id, message });
+        await continueSession(sendArgs);
       }
+      sessionAttachments.clearAll();
+      try { localStorage.removeItem(sessionDraftKey); } catch { /* ignore */ }
     } catch (err) {
       setDraft(message);
+      setPendingContext(context);
       setLocalError(err instanceof Error ? err.message : "Unable to send session message.");
     }
-  }, [continueSession, draft, session, startSession]);
+  }, [continueSession, draft, pendingContext, session, sessionAttachments, sessionDraftKey, startSession, uploadSessionAttachments]);
 
   const handleRefresh = useCallback(async () => {
     if (!session) return;
@@ -332,6 +377,13 @@ export function SessionDetailsPage() {
                 isWaitingForAgent={isWaitingForAgent}
                 sessionKind={session.kind}
                 sessionStatus={session.status}
+                sessionId={session.id}
+                attachments={session.attachments ?? []}
+                pendingAttachments={sessionAttachments.attachments}
+                onAttachFiles={(files) => files.forEach(sessionAttachments.addFile)}
+                onRemovePendingAttachment={sessionAttachments.removeFile}
+                pendingContext={pendingContext}
+                onPendingContextChange={setPendingContext}
                 variant="mobile"
               />
             )}
@@ -351,6 +403,13 @@ export function SessionDetailsPage() {
               isWaitingForAgent={isWaitingForAgent}
               sessionKind={session.kind}
               sessionStatus={session.status}
+              sessionId={session.id}
+              attachments={session.attachments ?? []}
+              pendingAttachments={sessionAttachments.attachments}
+              onAttachFiles={(files) => files.forEach(sessionAttachments.addFile)}
+              onRemovePendingAttachment={sessionAttachments.removeFile}
+              pendingContext={pendingContext}
+              onPendingContextChange={setPendingContext}
             />
             <SessionInspector
               containerRef={desktopLayoutRef}

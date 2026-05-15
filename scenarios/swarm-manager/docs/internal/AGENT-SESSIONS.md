@@ -32,6 +32,43 @@ GET /api/v1/agent-sessions/{session_id}/events?after_sequence=<n>&limit=<n>
 
 Draft sessions and other no-run sessions return an empty event list. Active sessions proxy the session-owned Agent Manager run events and expose a bounded timeline shape for messages, tool calls, tool results, status/progress, errors, compaction, and a safe fallback for unknown event types. Large tool payload fields are truncated at the Swarm Manager API boundary.
 
+## Message Context And Attachments
+
+Session context is attached at message time from the session detail composer.
+The picker is not a pre-session dialog: the same draft session can start with
+plain text, images, typed context refs, or any combination of the three, and
+follow-up messages use the same composer controls.
+
+Supported context ref types are closed at the API boundary:
+
+| Type | Purpose |
+|---|---|
+| `backlog_item` | Attach an existing backlog item summary and planning state. |
+| `initiative` | Attach initiative metadata and rollup context. |
+| `capture` | Attach a captured note or classified input. |
+| `execution` | Attach an execution-control record. |
+| `agent_activity` | Attach tracked Agent Manager activity. |
+| `scenario` | Attach scenario status and metadata. |
+| `operating_mode` | Attach an operating-mode recommendation or definition reference. |
+| `session` | Attach another Agent Session summary for continuity. |
+
+The UI sends refs as `{type, id}` values. The API resolves those refs into
+bounded `AgentSessionContextItem` snapshots before appending the operator
+message and before building the Agent Manager prompt. Agents receive the
+resolved context, not raw UI store records.
+
+Image attachments are uploaded to the session before the message is sent:
+
+```text
+POST /api/v1/agent-sessions/{session_id}/attachments
+GET  /api/v1/agent-sessions/{session_id}/attachments/{attachment_id}
+```
+
+Only image uploads are accepted for session messages. Attachment files are
+stored below the owning session folder, referenced from `session.json`, and
+linked to individual messages by attachment ID. Deleting a session removes its
+attachments with the rest of the session-owned storage.
+
 ## Supported Kinds
 
 Initial session kinds are closed at the contract boundary:
@@ -107,6 +144,12 @@ The graph bottom action launcher owns session creation:
 
 All agent-session launchers create a draft and route to the session detail surface immediately. They do not send canned bootstrap prompts. The composer placeholder is kind-specific, and the first submitted message starts the run.
 
+The session detail composer reuses the shared message composer used by Quick
+Capture for text entry, image previews, keyboard submit behavior, and attachment
+deduplication. Session details adds the context picker button and pending
+context chip tray on top of the shared composer so first messages and follow-up
+messages behave consistently.
+
 The graph sidebar owns session history through the `Sessions` tab. Selecting a session opens the session detail panel rather than navigating to a dedicated Sessions page.
 
 Entity attribution chips can reopen the related session when `created_by.session_id` is present. Non-session provenance should fall back to agent or operator display text.
@@ -124,6 +167,8 @@ agent-sessions/
       <proposal_id>.json
     artifacts.jsonl
     attachments/
+      <attachment_id>/
+        <safe_filename>
 ```
 
 `session.json` is the indexable snapshot. Messages and artifacts are append-only JSONL so long-running conversations keep an auditable transcript.

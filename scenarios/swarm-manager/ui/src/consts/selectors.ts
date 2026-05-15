@@ -143,6 +143,20 @@ export const literalSelectors = {
     itemEditButton: "capture-item-edit-button",
     itemDismissButton: "capture-item-dismiss-button",
   },
+  agentSessions: {
+    composer: "agent-session-composer",
+    composerImageAttach: "agent-session-composer-attach",
+    composerContextAttach: "agent-session-composer-context",
+    composerImagePreviewRemove: "attachment-preview-remove",
+    contextPicker: "session-context-picker",
+    contextSearch: "session-context-search",
+    contextEntityList: "session-context-entity-list",
+    contextRow: "session-context-row",
+    contextSelectedTray: "session-context-selected-tray",
+    contextAttachButton: "session-context-attach",
+    messageContextChips: "session-message-context-chips",
+    messageImageThumbnails: "session-message-image-thumbnails",
+  },
   // Inline question stepper selectors
   questionStepper: {
     container: "question-stepper",

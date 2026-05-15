@@ -48,13 +48,49 @@ func AttributionToProto(attr Attribution) *domainpb.AgentSessionAttribution {
 }
 
 func messageToProto(message Message) *domainpb.AgentSessionMessage {
-	return &domainpb.AgentSessionMessage{
+	msg := &domainpb.AgentSessionMessage{
 		Id:            message.ID,
 		Role:          string(message.Role),
 		Content:       message.Content,
 		CreatedAt:     message.CreatedAt,
 		AttachmentIds: append([]string(nil), message.AttachmentIDs...),
 	}
+	for _, item := range message.Context {
+		msg.Context = append(msg.Context, contextItemToProto(item))
+	}
+	return msg
+}
+
+func contextItemToProto(item ContextItem) *domainpb.AgentSessionContextItem {
+	msg := &domainpb.AgentSessionContextItem{
+		Type:       string(item.Type),
+		Ref:        item.Ref,
+		Title:      item.Title,
+		Summary:    item.Summary,
+		SelectedAt: item.SelectedAt,
+	}
+	if item.NodeID != "" {
+		msg.NodeId = proto.String(item.NodeID)
+	}
+	if item.MetadataJSON != "" {
+		msg.MetadataJson = proto.String(item.MetadataJSON)
+	}
+	return msg
+}
+
+func attachmentToProto(attachment Attachment) *domainpb.AgentSessionAttachment {
+	msg := &domainpb.AgentSessionAttachment{
+		Id:        attachment.ID,
+		Filename:  attachment.Filename,
+		CreatedAt: attachment.CreatedAt,
+	}
+	if attachment.ContentType != "" {
+		msg.ContentType = proto.String(attachment.ContentType)
+	}
+	if attachment.SizeBytes >= 0 {
+		msg.SizeBytes = proto.Int64(attachment.SizeBytes)
+	}
+	return msg
 }
 
 func proposalToProto(proposal Proposal) *domainpb.AgentSessionProposal {
@@ -160,6 +196,9 @@ func SessionToProto(session Session) *domainpb.AgentSession {
 	}
 	for _, artifact := range session.Artifacts {
 		msg.Artifacts = append(msg.Artifacts, artifactToProto(artifact))
+	}
+	for _, attachment := range session.Attachments {
+		msg.Attachments = append(msg.Attachments, attachmentToProto(attachment))
 	}
 	return msg
 }

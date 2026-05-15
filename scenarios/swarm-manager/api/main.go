@@ -43,6 +43,7 @@ import (
 	"swarm-manager/internal/review"
 	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/scenarios"
+	"swarm-manager/internal/sessioncontext"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/stats"
 
@@ -322,8 +323,9 @@ func (s *Server) registerAgentManagerRoutes() {
 }
 
 func (s *Server) registerAgentSessionRoutes(scenarioRoot string) {
+	sessionStore := agentsessions.NewFileStore(scenarioRoot)
 	svc, err := agentsessions.NewService(agentsessions.ServiceConfig{
-		Store:       agentsessions.NewFileStore(scenarioRoot),
+		Store:       sessionStore,
 		Spawner:     s.requireTrackedAgentService(),
 		EventLogger: s.emitter,
 		ProjectRoot: filepath.Dir(filepath.Dir(scenarioRoot)),
@@ -332,6 +334,7 @@ func (s *Server) registerAgentSessionRoutes(scenarioRoot string) {
 	if err != nil {
 		panic(err)
 	}
+	svc.SetContextResolver(sessioncontext.NewResolver(scenarioRoot, filepath.Dir(scenarioRoot), sessionStore))
 	s.agentSessionSvc = svc
 	agentsessions.NewHandler(svc).RegisterRoutes(s.router)
 }

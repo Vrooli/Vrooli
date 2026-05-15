@@ -6,6 +6,8 @@ import type {
   AgentSession as ProtoAgentSession,
   AgentSessionArtifact as ProtoAgentSessionArtifact,
   AgentSessionAttribution as ProtoAgentSessionAttribution,
+  AgentSessionAttachment as ProtoAgentSessionAttachment,
+  AgentSessionContextItem as ProtoAgentSessionContextItem,
   AgentSessionMessage as ProtoAgentSessionMessage,
   AgentSessionProposal as ProtoAgentSessionProposal,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/agent_session_pb";
@@ -26,6 +28,16 @@ export type AgentSessionStatus =
   | "canceled";
 
 export type AgentSessionMessageRole = "user" | "assistant" | "system";
+
+export type AgentSessionContextType =
+  | "backlog_item"
+  | "initiative"
+  | "capture"
+  | "execution"
+  | "agent_activity"
+  | "scenario"
+  | "operating_mode"
+  | "session";
 
 export type AgentSessionProposalKind =
   | "backlog_batch_import"
@@ -64,8 +76,22 @@ export type AgentSessionAttribution = Omit<
   sessionKind?: AgentSessionKind;
 };
 
-export type AgentSessionMessage = Omit<ProtoMessage<ProtoAgentSessionMessage>, "role"> & {
+export type AgentSessionContextItem = Omit<ProtoMessage<ProtoAgentSessionContextItem>, "type"> & {
+  type: AgentSessionContextType;
+};
+
+export interface AgentSessionContextRef {
+  type: AgentSessionContextType;
+  ref: string;
+}
+
+export type AgentSessionAttachment = ProtoMessage<ProtoAgentSessionAttachment> & {
+  url?: string;
+};
+
+export type AgentSessionMessage = Omit<ProtoMessage<ProtoAgentSessionMessage>, "role" | "context"> & {
   role: AgentSessionMessageRole;
+  context?: AgentSessionContextItem[];
 };
 
 export type AgentSessionProposal = Omit<
@@ -88,13 +114,14 @@ export type AgentSessionArtifact = Omit<
 
 export type AgentSession = Omit<
   ProtoMessage<ProtoAgentSession>,
-  "kind" | "status" | "messages" | "proposals" | "artifacts" | "createdBy"
+  "kind" | "status" | "messages" | "proposals" | "artifacts" | "attachments" | "createdBy"
 > & {
   kind: AgentSessionKind;
   status: AgentSessionStatus;
   messages: AgentSessionMessage[];
   proposals: AgentSessionProposal[];
   artifacts: AgentSessionArtifact[];
+  attachments?: AgentSessionAttachment[];
   createdBy?: AgentSessionAttribution;
 };
 

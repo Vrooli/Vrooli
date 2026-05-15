@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { AgentSessionContextItem } from "../../types";
 
 export type ChatRole = "user" | "assistant" | "system";
 
@@ -10,6 +11,7 @@ export interface ChatMessageView {
   content: string;
   createdAt?: string;
   attachmentIds?: string[];
+  context?: AgentSessionContextItem[];
 }
 
 export type ChatMessageRenderSlot = (message: ChatMessageView) => ReactNode;

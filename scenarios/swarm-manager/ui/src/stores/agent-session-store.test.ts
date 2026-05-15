@@ -52,6 +52,7 @@ describe("agent-session-store", () => {
       create: vi.fn().mockResolvedValue(SESSION_A),
       start: vi.fn().mockResolvedValue({ ...SESSION_A, messages: [{ id: "msg-0", role: "user", content: "Start", createdAt: "2026-05-01T12:00:00Z", attachmentIds: [] }] }),
       continue: vi.fn().mockResolvedValue({ ...SESSION_A, messages: [{ id: "msg-1", role: "user", content: "Hi", createdAt: "2026-05-01T12:00:00Z", attachmentIds: [] }] }),
+      uploadAttachments: vi.fn().mockResolvedValue([]),
       listEvents: vi.fn().mockResolvedValue({ events: [], hasMore: false, nextAfterSequence: 0n }),
       refresh: vi.fn().mockResolvedValue({ ...SESSION_A, status: "waiting_for_user" }),
       cancel: vi.fn().mockResolvedValue({ ...SESSION_A, status: "canceled" }),

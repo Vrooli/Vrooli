@@ -81,6 +81,19 @@ const (
 	ArtifactActionLinked   ArtifactAction = "linked"
 )
 
+type ContextType string
+
+const (
+	ContextBacklogItem   ContextType = "backlog_item"
+	ContextInitiative    ContextType = "initiative"
+	ContextCapture       ContextType = "capture"
+	ContextExecution     ContextType = "execution"
+	ContextAgentActivity ContextType = "agent_activity"
+	ContextScenario      ContextType = "scenario"
+	ContextOperatingMode ContextType = "operating_mode"
+	ContextSession       ContextType = "session"
+)
+
 type AttributionType string
 
 const (
@@ -101,11 +114,12 @@ type Attribution struct {
 }
 
 type Message struct {
-	ID            string      `json:"id"`
-	Role          MessageRole `json:"role"`
-	Content       string      `json:"content"`
-	CreatedAt     string      `json:"created_at"`
-	AttachmentIDs []string    `json:"attachment_ids,omitempty"`
+	ID            string        `json:"id"`
+	Role          MessageRole   `json:"role"`
+	Content       string        `json:"content"`
+	CreatedAt     string        `json:"created_at"`
+	AttachmentIDs []string      `json:"attachment_ids,omitempty"`
+	Context       []ContextItem `json:"context,omitempty"`
 }
 
 type Attachment struct {
@@ -114,6 +128,21 @@ type Attachment struct {
 	ContentType string `json:"content_type,omitempty"`
 	SizeBytes   int64  `json:"size_bytes,omitempty"`
 	CreatedAt   string `json:"created_at"`
+}
+
+type ContextRef struct {
+	Type ContextType `json:"type"`
+	Ref  string      `json:"ref"`
+}
+
+type ContextItem struct {
+	Type         ContextType `json:"type"`
+	Ref          string      `json:"ref"`
+	Title        string      `json:"title"`
+	Summary      string      `json:"summary"`
+	NodeID       string      `json:"node_id,omitempty"`
+	MetadataJSON string      `json:"metadata_json,omitempty"`
+	SelectedAt   string      `json:"selected_at"`
 }
 
 type Proposal struct {
@@ -158,6 +187,7 @@ type Session struct {
 	Proposals     []Proposal   `json:"proposals,omitempty"`
 	Artifacts     []Artifact   `json:"artifacts,omitempty"`
 	CreatedBy     *Attribution `json:"created_by,omitempty"`
+	Attachments   []Attachment `json:"attachments,omitempty"`
 }
 
 func (s Session) Validate() error {
@@ -202,6 +232,11 @@ func (s Session) Validate() error {
 			return fmt.Errorf("%w: artifacts[%d]: %v", ErrValidation, i, err)
 		}
 	}
+	for i := range s.Attachments {
+		if err := s.Attachments[i].Validate(); err != nil {
+			return fmt.Errorf("%w: attachments[%d]: %v", ErrValidation, i, err)
+		}
+	}
 	return nil
 }
 
@@ -212,7 +247,41 @@ func (m Message) Validate() error {
 	if !IsKnownMessageRole(m.Role) {
 		return validationError("role is invalid")
 	}
+	for i := range m.Context {
+		if err := m.Context[i].Validate(); err != nil {
+			return fmt.Errorf("%w: context[%d]: %v", ErrValidation, i, err)
+		}
+	}
 	return validateRFC3339("created_at", m.CreatedAt)
+}
+
+func (a Attachment) Validate() error {
+	if strings.TrimSpace(a.ID) == "" {
+		return validationError("id is required")
+	}
+	if strings.TrimSpace(a.Filename) == "" {
+		return validationError("filename is required")
+	}
+	if a.SizeBytes < 0 {
+		return validationError("size_bytes must be zero or greater")
+	}
+	return validateRFC3339("created_at", a.CreatedAt)
+}
+
+func (c ContextItem) Validate() error {
+	if !IsKnownContextType(c.Type) {
+		return validationError("context type is invalid")
+	}
+	if strings.TrimSpace(c.Ref) == "" {
+		return validationError("context ref is required")
+	}
+	if strings.TrimSpace(c.Title) == "" {
+		return validationError("context title is required")
+	}
+	if strings.TrimSpace(c.MetadataJSON) != "" && !json.Valid([]byte(c.MetadataJSON)) {
+		return validationError("context metadata_json must be valid JSON")
+	}
+	return validateRFC3339("selected_at", c.SelectedAt)
 }
 
 func (p Proposal) Validate() error {
@@ -349,6 +418,16 @@ func IsKnownArtifactAction(action ArtifactAction) bool {
 	switch action {
 	case ArtifactActionProposed, ArtifactActionCreated, ArtifactActionUpdated,
 		ArtifactActionDeleted, ArtifactActionLinked:
+		return true
+	default:
+		return false
+	}
+}
+
+func IsKnownContextType(contextType ContextType) bool {
+	switch contextType {
+	case ContextBacklogItem, ContextInitiative, ContextCapture, ContextExecution,
+		ContextAgentActivity, ContextScenario, ContextOperatingMode, ContextSession:
 		return true
 	default:
 		return false

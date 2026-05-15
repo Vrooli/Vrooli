@@ -19,6 +19,7 @@ export function SessionMetadata({ session, variant = "panel" }: SessionMetadataP
   const runUrl = useAgentRunUrl(session.runId);
   const taskUrl = useAgentTaskUrl(session.taskId);
   const profileUrl = useAgentProfileUrl(session.profileKey);
+  const contextCount = session.messages.reduce((count, message) => count + (message.context?.length ?? 0), 0);
 
   return (
     <section className={cn(variant === "panel" && "rounded-lg border border-white/10 bg-slate-950/30 p-3")} data-testid="agent-session-details">
@@ -29,6 +30,8 @@ export function SessionMetadata({ session, variant = "panel" }: SessionMetadataP
         <RunDetail label="Run" value={session.runId} href={runUrl} testId="agent-session-run-link" />
         <RunDetail label="Task" value={session.taskId} href={taskUrl} testId="agent-session-task-link" />
         <RunDetail label="Profile" value={session.profileKey} href={profileUrl} testId="agent-session-profile-link" />
+        <RunDetail label="Context" value={contextCount > 0 ? String(contextCount) : undefined} />
+        <RunDetail label="Images" value={(session.attachments?.length ?? 0) > 0 ? String(session.attachments?.length) : undefined} />
         <RunDetail label="Created" value={formatRelativeTime(session.createdAt)} />
       </dl>
     </section>

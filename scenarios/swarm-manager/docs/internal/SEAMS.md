@@ -135,6 +135,20 @@ and page assembly only.
   `draft` session. `POST /api/v1/agent-sessions/{session_id}/start` is the only
   path that turns the first real operator message into an Agent Manager spawn.
   Subsequent sends continue through `/continue`.
+- **Composer reuse boundary**: `ui/src/components/composer/MessageComposer.tsx`
+  owns shared text entry, keyboard submit, image preview, and attach controls
+  for Quick Capture and Agent Session details. Quick Capture remains capture
+  domain orchestration. `SessionDetailsPage` remains session orchestration and
+  layers session context picking on top of the shared composer.
+- **Message context boundary**: `SessionContextPicker` sends typed refs only.
+  The API-owned `agentsessions.ContextResolver` resolves refs into bounded
+  context snapshots before messages are persisted and prompts are built. UI
+  store objects are never treated as trusted prompt payloads.
+- **Session attachment boundary**: session image uploads flow through
+  `POST /api/v1/agent-sessions/{session_id}/attachments`. Uploaded files are
+  stored under the session folder, exposed only through the session attachment
+  GET endpoint, and linked to messages by ID. Session deletion removes
+  session-owned uploads but does not touch external artifacts.
 - **Run-event reader seam**: `agentsessions.Service` depends on a narrow
   `RunEventReader` interface and serves
   `GET /api/v1/agent-sessions/{session_id}/events` from session ownership.

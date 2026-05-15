@@ -25,6 +25,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions", h.Create).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Get).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Delete).Methods(http.MethodDelete)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/attachments", h.UploadAttachments).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/attachments/{attachment_id}", h.GetAttachment).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/start", h.Start).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/continue", h.Continue).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/events", h.ListEvents).Methods(http.MethodGet)
@@ -79,9 +81,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Kind:  Kind(req.Kind),
 		Title: req.Title,
 	}
-	if req.Initiative != nil {
-		createReq.Initiative = req.GetInitiative()
-	}
 	session, err := h.service.Create(r.Context(), createReq)
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] create", err)
@@ -106,6 +105,7 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		SessionID:     req.SessionId,
 		Message:       req.Message,
 		AttachmentIDs: req.AttachmentIds,
+		ContextRefs:   contextRefsFromProto(req.ContextRefs),
 	})
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] start", err)
@@ -130,6 +130,7 @@ func (h *Handler) Continue(w http.ResponseWriter, r *http.Request) {
 		SessionID:     req.SessionId,
 		Message:       req.Message,
 		AttachmentIDs: req.AttachmentIds,
+		ContextRefs:   contextRefsFromProto(req.ContextRefs),
 	})
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] continue", err)
@@ -138,6 +139,78 @@ func (h *Handler) Continue(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSON(w, &apipb.ContinueAgentSessionResponse{Session: SessionToProto(session)}); err != nil {
 		apierr.MapError(w, "[agent-sessions] continue", apierr.Internal("failed to encode response"))
 	}
+}
+
+func (h *Handler) UploadAttachments(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(24 << 20); err != nil {
+		apierr.MapError(w, "[agent-sessions] upload-attachments", apierr.BadRequest("invalid multipart form"))
+		return
+	}
+	files := r.MultipartForm.File["files"]
+	uploads := make([]AttachmentUpload, 0, len(files))
+	opened := make([]interface{ Close() error }, 0, len(files))
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			for _, closeable := range opened {
+				_ = closeable.Close()
+			}
+			apierr.MapError(w, "[agent-sessions] upload-attachments", apierr.Internal("failed to read uploaded file"))
+			return
+		}
+		opened = append(opened, file)
+		uploads = append(uploads, AttachmentUpload{
+			Filename:    fileHeader.Filename,
+			ContentType: fileHeader.Header.Get("Content-Type"),
+			SizeBytes:   fileHeader.Size,
+			Reader:      file,
+		})
+	}
+	attachments, err := h.service.UploadAttachments(r.Context(), mux.Vars(r)["session_id"], uploads)
+	for _, closeable := range opened {
+		_ = closeable.Close()
+	}
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] upload-attachments", err)
+		return
+	}
+	resp := &apipb.UploadAgentSessionAttachmentsResponse{}
+	for _, attachment := range attachments {
+		resp.Attachments = append(resp.Attachments, attachmentToProto(attachment))
+	}
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
+		apierr.MapError(w, "[agent-sessions] upload-attachments", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) GetAttachment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	path, attachment, err := h.service.AttachmentPath(vars["session_id"], vars["attachment_id"])
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] attachment", err)
+		return
+	}
+	if attachment.ContentType != "" {
+		w.Header().Set("Content-Type", attachment.ContentType)
+	}
+	http.ServeFile(w, r, path)
+}
+
+func contextRefsFromProto(refs []*apipb.AgentSessionContextRef) []ContextRef {
+	if len(refs) == 0 {
+		return nil
+	}
+	result := make([]ContextRef, 0, len(refs))
+	for _, ref := range refs {
+		if ref == nil {
+			continue
+		}
+		result = append(result, ContextRef{
+			Type: ContextType(ref.Type),
+			Ref:  ref.Ref,
+		})
+	}
+	return result
 }
 
 func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request) {
