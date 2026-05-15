@@ -1,7 +1,11 @@
-import { NavLink } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { GaugeCircle, GitBranch, Library, Settings as SettingsIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
+import {
+  type BottomNavItem,
+  BottomNav,
+} from "../../../library/components/BottomNav/versions/1.0.0/BottomNav";
 import { useTranslation } from "../i18n";
 
 interface Item {
@@ -14,6 +18,8 @@ interface Item {
 
 export function MobileNav() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const items: Item[] = [
     {
       to: "/",
@@ -41,32 +47,31 @@ export function MobileNav() {
       testid: "mobile-nav-settings",
     },
   ];
+  const isActiveRoute = (item: Item) =>
+    item.end
+      ? location.pathname === item.to
+      : location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
+  const bottomNavItems: BottomNavItem[] = items.map((item) => ({
+    id: item.to,
+    href: item.to,
+    label: item.label,
+    icon: item.icon,
+    active: isActiveRoute(item),
+    testId: item.testid,
+  }));
+  const handleSelect = (item: BottomNavItem, event: MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
+    if (!item.href) return;
+    event.preventDefault();
+    void navigate(item.href);
+  };
 
   return (
-    <nav
-      data-testid="mobile-nav"
-      aria-label={t("nav.bottomLabel", { defaultValue: "Primary" })}
-      className="pb-safe fixed inset-x-0 bottom-0 z-30 flex border-t border-app-border bg-app-surface md:hidden"
-    >
-      {items.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.end}
-          data-testid={item.testid}
-          className={({ isActive }) =>
-            [
-              "touch-target flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs",
-              isActive
-                ? "text-app-primary"
-                : "text-app-muted-foreground hover:text-app-foreground",
-            ].join(" ")
-          }
-        >
-          {item.icon}
-          <span>{item.label}</span>
-        </NavLink>
-      ))}
-    </nav>
+    <BottomNav
+      items={bottomNavItems}
+      label={t("nav.bottomLabel", { defaultValue: "Primary" })}
+      testId="mobile-nav"
+      onItemSelect={handleSelect}
+      className="mobile-nav"
+    />
   );
 }

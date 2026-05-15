@@ -85,7 +85,7 @@ export function SessionConversation({
         isWaiting={!isDraft && isWaitingForAgent}
         emptyLabel={isDraft ? "Start with the real context you want the agent to use." : "No messages recorded yet."}
         accent="cyan"
-        className={cn("p-3", variant === "mobile" && "px-1 pb-32")}
+        className={cn("p-3", variant === "mobile" && "px-3 pb-40")}
         testId="agent-session-messages"
         getMessageMeta={(message) => (
           <>
@@ -100,7 +100,7 @@ export function SessionConversation({
       <div
         className={cn(
           "border-t border-white/10 p-3",
-          variant === "mobile" && "fixed inset-x-0 bottom-0 z-40 bg-slate-950/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur",
+          variant === "mobile" && "fixed inset-x-0 bottom-0 z-40 bg-slate-950/95 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pl-[calc(1rem+env(safe-area-inset-left))] pr-[calc(1rem+env(safe-area-inset-right))] pt-2 backdrop-blur",
         )}
       >
         <MessageComposer

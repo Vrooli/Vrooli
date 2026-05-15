@@ -6,14 +6,14 @@
   "enabled": true,
   "schedule": "0 3 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T07:00:00Z",
-    "endedAt": "2026-05-13T07:00:06Z",
+    "startedAt": "2026-05-15T07:00:00Z",
+    "endedAt": "2026-05-15T07:00:06Z",
     "status": "failed",
-    "runId": "2ff09499-b445-40a7-84a7-226fb166333e",
-    "logPath": "../store/teams/scenario-qa/members/quality-auditor/logs/2026-05-13T07-00-00Z.log",
+    "runId": "23488712-9a30-40ae-890e-626ce81d1050",
+    "logPath": "../store/teams/scenario-qa/members/quality-auditor/logs/2026-05-15T07-00-00Z.log",
     "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
   },
-  "revision": 33,
+  "revision": 36,
   "createdAt": "2026-04-07T00:00:00Z",
-  "updatedAt": "2026-05-13T07:00:06Z"
+  "updatedAt": "2026-05-15T07:00:06Z"
 }

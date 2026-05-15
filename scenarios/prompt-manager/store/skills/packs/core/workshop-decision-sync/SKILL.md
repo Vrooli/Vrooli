@@ -19,10 +19,39 @@ Do not use this skill for:
 - prompt-manager team decisions such as morning-vision-walk phases
 - creating or restructuring backlog items
 - brainstorming entirely new initiatives
+- portfolio or initiative-wide progress triage
+- choosing, switching, or running Swarm Manager operating modes
+
+This skill may be used directly by the operator or invoked as a focused decision-drain routine by a broader Swarm Manager operations session. In either case, its authority is the same: walk through live workshop decisions and persist only the operator's explicit answers.
 
 ---
 
-### 2. Operating Principle
+### 2. Caller Contract
+
+When another skill or session invokes this skill, the caller may provide optional scope:
+
+- `initiative`: drain only decisions for one initiative
+- `kind` + `name`: drain only one backlog item
+- `max_decisions`: stop after this many live decisions are answered, skipped, or clarified
+
+If no scope is provided, use the staged handoff plus live queue priority order.
+
+Caller responsibilities:
+- decide whether decision-draining is the right next operator workflow
+- perform portfolio, initiative, or operating-mode analysis before or after this skill runs
+- handle any follow-up signals returned by this skill
+
+This skill's responsibilities:
+- revalidate staged briefs against the live queue
+- present one scoped workshop decision at a time
+- persist answers through the workshop-save contract
+- return a concise completion handoff to the caller/operator
+
+Do not let caller scope expand the mutation surface. A scoped invocation may reduce which decisions are shown; it must not allow backlog restructuring, initiative metadata changes, mode switches, phase starts, queueing, or proposal application.
+
+---
+
+### 3. Operating Principle
 
 This is an operator-decision surface, not an autonomous decision-maker.
 
@@ -41,11 +70,16 @@ Forbidden actions:
 - choosing an option on the operator's behalf
 - creating, deleting, or reprioritizing backlog items
 - modifying initiative metadata
+- switching initiative operating modes
+- starting, refreshing, canceling, completing, or reconciling operating-mode rounds
+- applying backlog-sync proposals
 - running actions outside the answer / skip / clarify-spawn surface
+
+If decision triage reveals that an item is stale, mis-scoped, blocked by a mode mismatch, or likely better handled through an initiative operating mode, capture that as a follow-up signal in the completion handoff. Do not act on it inside this skill.
 
 ---
 
-### 3. Required Inputs
+### 4. Required Inputs
 
 Start by reading the staged handoff:
 
@@ -59,11 +93,19 @@ Then fetch live queue state:
 swarm-manager backlog pending-questions --source workshop --json
 ```
 
+If the caller supplied scope, apply it to the live queue before presenting decisions:
+
+```bash
+swarm-manager backlog pending-questions --source workshop --initiative <initiative> --json
+```
+
+For item scope, fetch the live queue and filter to the exact `kind` and `name`. The live queue is authoritative; the staged handoff only enriches matching decisions.
+
 Do not trust the handoff blindly. Treat it as a performance optimization, not as the source of truth.
 
 ---
 
-### 4. Freshness Rules
+### 5. Freshness Rules
 
 For each staged brief:
 
@@ -79,11 +121,25 @@ If the handoff is missing or every staged brief is stale, say so explicitly and 
 - Tell the operator: `The staged handoff is missing or stale. I’m doing lazy prep now, about 60 seconds.`
 - Use the live pending-questions output directly.
 - Limit lazy prep to 5-8 decisions.
+- If caller scope is narrower than the staged handoff, prefer scoped live decisions over unscoped staged briefs.
 - Continue the session; never fail closed just because the handoff is stale.
 
 ---
 
-### 5. Session Structure
+### 6. Bounded Drain Rules
+
+This skill should support both open-ended and bounded drains:
+
+- open-ended: continue until no scoped live decisions remain or the operator stops
+- initiative-bounded: drain only decisions under one initiative
+- item-bounded: drain only decisions under one backlog item
+- count-bounded: stop after `max_decisions` live decisions have been answered, skipped, or sent to clarification
+
+When a bound is reached, stop cleanly and report remaining live decisions in the completion handoff. Do not silently continue into another initiative or item just because staged briefs are available.
+
+---
+
+### 7. Session Structure
 
 Walk the operator through decisions grouped by:
 
@@ -106,7 +162,7 @@ Do not repeat those summaries on every decision inside the same item.
 
 ---
 
-### 6. Conversation Pattern
+### 8. Conversation Pattern
 
 For each decision:
 
@@ -127,7 +183,7 @@ Do not overtalk. This skill is for quick operator throughput.
 
 ---
 
-### 7. Persisting an Answer
+### 9. Persisting an Answer
 
 When the operator chooses an option:
 
@@ -156,7 +212,7 @@ If save fails:
 
 ---
 
-### 8. Async Clarification Flow
+### 10. Async Clarification Flow
 
 If the operator asks something the brief cannot already answer:
 
@@ -175,7 +231,7 @@ On a later prep run, the resolved thread's `LatestImpact.ContextNote` should be 
 
 ---
 
-### 9. Skip Rules
+### 11. Skip Rules
 
 Support these operator commands exactly:
 
@@ -190,22 +246,56 @@ After any skip, state what is being skipped and move on without argument.
 
 ---
 
-### 10. Completion
+### 12. Completion
 
 At the end of the session:
 
 - report how many decisions were answered
+- report how many decisions were skipped
 - report any items or initiatives skipped
 - report any clarifications spawned
+- report how many staged briefs were dropped as stale, if known
+- report how many live decisions remain in the active scope, if known
+- report notable follow-up signals for the caller/operator
 - do not create follow-up work automatically
 
 If no valid live decisions remain after freshness checks, say so plainly:
 
 `There are no live open workshop decisions to walk through right now.`
 
+When invoked by a broader operations session, end with a compact handoff in this shape:
+
+```json
+{
+  "skill": "workshop-decision-sync",
+  "scope": {
+    "initiative": null,
+    "kind": null,
+    "name": null,
+    "max_decisions": null
+  },
+  "answered_decisions": 0,
+  "skipped_decisions": 0,
+  "skipped_items": [],
+  "skipped_initiatives": [],
+  "clarifications_spawned": [],
+  "stale_briefs_dropped": 0,
+  "remaining_live_decisions": 0,
+  "notable_followup_signals": []
+}
+```
+
+Use `notable_followup_signals` only for observations the caller may need, such as:
+- decision triage suggests the backlog item is stale or mis-scoped
+- multiple decisions point to the same unresolved initiative-level question
+- the operator repeatedly skips an initiative
+- the item appears better suited to initiative-level operating-mode work
+
+Do not turn these signals into actions inside this skill.
+
 ---
 
-### 11. Quality Bar
+### 13. Quality Bar
 
 This skill should feel like a professional operator workflow:
 

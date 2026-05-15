@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "0 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-14T18:00:00Z",
-    "endedAt": "2026-05-14T18:04:21Z",
-    "status": "completed",
-    "runId": "0840f296-6ec8-4ce7-971e-475d45540ed1",
-    "logPath": "../store/teams/monetization/members/financial-tracker/logs/2026-05-14T18-00-00Z.log"
+    "startedAt": "2026-05-15T18:00:00Z",
+    "endedAt": "2026-05-15T18:00:06Z",
+    "status": "failed",
+    "runId": "45e3133f-0399-4320-b9ee-d582b28d8674",
+    "logPath": "../store/teams/monetization/members/financial-tracker/logs/2026-05-15T18-00-00Z.log",
+    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
   },
-  "revision": 72,
+  "revision": 75,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-05-14T18:04:22Z"
+  "updatedAt": "2026-05-15T18:00:07Z"
 }

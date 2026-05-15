@@ -60,6 +60,7 @@
   },
   "include": [
     "src",
+    "../library/components/BottomNav/versions/1.0.0/BottomNav.tsx",
     "../library/components/SidebarShell/versions/1.0.0/SidebarShell.tsx"
   ],
   "references": [{ "path": "./tsconfig.node.json" }]

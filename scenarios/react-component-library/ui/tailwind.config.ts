@@ -6,7 +6,7 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{ts,tsx}",
-    "../library/components/SidebarShell/versions/1.0.0/SidebarShell.tsx"
+    "../library/components/*/versions/*/*.{ts,tsx}"
   ],
   theme: {
     screens: APP_SCREENS,

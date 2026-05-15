@@ -6,12 +6,13 @@
   "enabled": true,
   "schedule": "0 */4 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-15T00:00:00Z",
-    "status": "running",
-    "runId": "34914c59-3564-4136-95ee-2aa826219286",
-    "logPath": "../store/teams/meta-optimization/members/friction-curator/logs/2026-05-15T00-00-00Z.log"
+    "startedAt": "2026-05-15T16:00:00Z",
+    "endedAt": "2026-05-15T16:00:56Z",
+    "status": "completed",
+    "runId": "725efc0f-81fb-4383-a94f-e058badfd555",
+    "logPath": "../store/teams/meta-optimization/members/friction-curator/logs/2026-05-15T16-00-00Z.log"
   },
-  "revision": 174,
+  "revision": 187,
   "createdAt": "2026-05-03T00:00:00Z",
-  "updatedAt": "2026-05-15T00:00:01Z"
+  "updatedAt": "2026-05-15T16:00:57Z"
 }

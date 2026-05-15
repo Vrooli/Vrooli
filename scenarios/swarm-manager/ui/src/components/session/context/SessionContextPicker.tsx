@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Dialog } from "../../ui/dialog";
+import { BottomSheet } from "../../ui/bottom-sheet";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
+import { CompactTabBar } from "../../ui/compact-tab-bar";
 import { cn } from "../../../lib/utils";
 import { selectors } from "../../../consts/selectors";
 import { initiativeModeService } from "../../../services";
@@ -142,78 +142,21 @@ function SessionContextPickerContent({
     setDraft((items) => items.filter((item) => !(item.type === type && item.ref === ref)));
   };
 
+  const activeTypeItems = filteredOptions;
+
   return (
-    <Dialog
+    <BottomSheet
       isOpen={isOpen}
       onClose={onClose}
       title="Attach context"
-      maxWidth="max-w-3xl"
-      className="p-4 sm:p-5"
-      testId={selectors.agentSessions.contextPicker}
-    >
-      <div className="space-y-3">
-        <ContextChipTray items={draft} onRemove={remove} testId={selectors.agentSessions.contextSelectedTray} />
-
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search context..."
-            className="pl-9"
-            data-testid={selectors.agentSessions.contextSearch}
-          />
-        </div>
-
-        <Tabs value={activeType} onValueChange={(value) => setActiveType(value as AgentSessionContextType)}>
-          <TabsList className="max-w-full justify-start overflow-x-auto">
-            {allowedTypes.map((type) => (
-              <TabsTrigger key={type} value={type} data-testid={`session-context-tab-${type}`}>
-                {CONTEXT_TYPE_LABELS[type]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          {allowedTypes.map((type) => (
-            <TabsContent key={type} value={type} className="mt-3">
-              <div className="max-h-[42vh] space-y-1 overflow-y-auto pr-1" data-testid={selectors.agentSessions.contextEntityList}>
-                {filteredOptions.length > 0 ? (
-                  filteredOptions.map((option) => {
-                    const checked = selectedKeys.has(contextKey(option.type, option.ref));
-                    return (
-                      <button
-                        key={contextKey(option.type, option.ref)}
-                        type="button"
-                        onClick={() => toggle(option)}
-                        className={cn(
-                          "flex w-full items-start gap-3 rounded border px-3 py-2 text-left transition-colors",
-                          checked
-                            ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-50"
-                            : "border-white/10 bg-slate-950/40 text-slate-200 hover:border-white/20 hover:bg-slate-800/70",
-                        )}
-                        data-testid={selectors.agentSessions.contextRow}
-                      >
-                        <span className={cn("mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border", checked ? "border-cyan-400 bg-cyan-400 text-slate-950" : "border-slate-600")}>
-                          {checked && <Check className="h-3 w-3" />}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">{option.title}</span>
-                          <span className="block truncate text-xs text-slate-400">{option.subtitle || option.ref}</span>
-                        </span>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="rounded border border-white/10 bg-slate-950/40 px-3 py-8 text-center text-sm text-slate-500">
-                    No matching context.
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          ))}
-        </Tabs>
-
-        <div className="flex flex-col gap-2 border-t border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-slate-400">{capMessage || `${draft.length}/${totalCap} context items selected.`}</p>
+      description="Select existing work to include with this message."
+      className="!max-w-3xl border-slate-700/80 bg-slate-900"
+      contentClassName="px-0 py-0"
+      footer={
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className={cn("text-xs", capMessage ? "text-amber-300" : "text-slate-400")}>
+            {capMessage || `${draft.length}/${totalCap} context items selected.`}
+          </p>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
             <Button
@@ -228,7 +171,84 @@ function SessionContextPickerContent({
             </Button>
           </div>
         </div>
+      }
+      data-testid={selectors.agentSessions.contextPicker}
+    >
+      <div className="flex min-h-0 flex-col">
+        <div className="space-y-3 border-b border-white/10 px-4 py-3">
+          <ContextChipTray
+            items={draft}
+            onRemove={remove}
+            className="max-h-24"
+            testId={selectors.agentSessions.contextSelectedTray}
+          />
+
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search context..."
+              className="h-10 border-slate-700 bg-slate-950/70 pl-9 text-slate-100 placeholder:text-slate-500"
+              data-testid={selectors.agentSessions.contextSearch}
+            />
+          </div>
+        </div>
+
+        <CompactTabBar
+          items={allowedTypes.map((type) => ({
+            value: type,
+            label: CONTEXT_TYPE_LABELS[type],
+            count: optionsByType[type]?.length ?? 0,
+          }))}
+          activeValue={activeType}
+          onValueChange={setActiveType}
+          aria-label="Context types"
+          className="border-b border-white/10 px-1"
+          tabTestIdPrefix="session-context-tab"
+        />
+
+        <div className="max-h-[52vh] overflow-y-auto px-3 py-3 sm:max-h-[48vh]" data-testid={selectors.agentSessions.contextEntityList}>
+          {activeTypeItems.length > 0 ? (
+            <div className="space-y-1.5">
+              {activeTypeItems.map((option) => {
+                const checked = selectedKeys.has(contextKey(option.type, option.ref));
+                return (
+                  <button
+                    key={contextKey(option.type, option.ref)}
+                    type="button"
+                    onClick={() => toggle(option)}
+                    className={cn(
+                      "flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors",
+                      checked
+                        ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-50"
+                        : "border-slate-800 bg-slate-950/45 text-slate-200 hover:border-slate-700 hover:bg-slate-800/55",
+                    )}
+                    data-testid={selectors.agentSessions.contextRow}
+                  >
+                    <span
+                      className={cn(
+                        "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
+                        checked ? "border-cyan-300 bg-cyan-300 text-slate-950" : "border-slate-600 bg-slate-900",
+                      )}
+                    >
+                      {checked && <Check className="h-3.5 w-3.5" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium leading-5">{option.title}</span>
+                      <span className="block truncate text-xs leading-5 text-slate-400">{option.subtitle || option.ref}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-md border border-dashed border-slate-700 bg-slate-950/40 px-3 py-10 text-center text-sm text-slate-500">
+              No matching context.
+            </div>
+          )}
+        </div>
       </div>
-    </Dialog>
+    </BottomSheet>
   );
 }

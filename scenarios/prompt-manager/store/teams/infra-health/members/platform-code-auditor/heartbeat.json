@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "0 20 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-14T00:00:00Z",
-    "endedAt": "2026-05-14T00:00:06Z",
-    "status": "failed",
-    "runId": "a96a2596-629e-43b1-9eed-e0b3f19755bb",
-    "logPath": "../store/teams/infra-health/members/platform-code-auditor/logs/2026-05-14T00-00-00Z.log",
-    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
+    "startedAt": "2026-05-15T00:00:00Z",
+    "endedAt": "2026-05-15T00:03:16Z",
+    "status": "completed",
+    "runId": "e31101da-6d81-40d3-90fd-8433391a3027",
+    "logPath": "../store/teams/infra-health/members/platform-code-auditor/logs/2026-05-15T00-00-00Z.log"
   },
-  "revision": 51,
+  "revision": 54,
   "createdAt": "2026-04-28T00:00:00Z",
-  "updatedAt": "2026-05-14T00:00:06Z"
+  "updatedAt": "2026-05-15T00:03:17Z"
 }
