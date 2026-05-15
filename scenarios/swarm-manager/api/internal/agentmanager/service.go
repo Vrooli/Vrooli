@@ -820,6 +820,8 @@ func buildSessionTitle(kind, sessionID string) string {
 		return "Meta-orchestration: " + label
 	case "operating_mode_authoring":
 		return "Operating mode authoring: " + label
+	case "swarm_operations":
+		return "Swarm operations: " + label
 	default:
 		return "Agent session: " + label
 	}

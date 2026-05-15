@@ -85,14 +85,12 @@ describe("agent-session-service", () => {
     vi.mocked(mockApiClient.post).mockResolvedValue({ session: SESSION_RESPONSE });
 
     await service.create({
-      kind: "operating_mode_authoring",
-      title: "Author mode",
-      initiative: "mode-work",
+      kind: "swarm_operations",
+      title: "Manage Swarm operations",
     });
     expect(mockApiClient.post).toHaveBeenCalledWith("/agent-sessions", {
-      kind: "operating_mode_authoring",
-      title: "Author mode",
-      initiative: "mode-work",
+      kind: "swarm_operations",
+      title: "Manage Swarm operations",
     });
 
     await service.start({

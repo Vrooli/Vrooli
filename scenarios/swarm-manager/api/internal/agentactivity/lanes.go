@@ -75,6 +75,7 @@ var purposeLane = map[Purpose]Lane{
 	PurposeInitiativeReview:       LaneReview,
 	PurposeMetaOrchestration:      LaneInvestigate,
 	PurposeOperatingModeAuthoring: LaneInvestigate,
+	PurposeSwarmOperations:        LaneInvestigate,
 }
 
 // allRegisteredPurposes mirrors the Purpose constants in types.go. It is
@@ -99,6 +100,7 @@ var allRegisteredPurposes = []Purpose{
 	PurposeInitiativeReview,
 	PurposeMetaOrchestration,
 	PurposeOperatingModeAuthoring,
+	PurposeSwarmOperations,
 }
 
 func init() {

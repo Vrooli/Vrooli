@@ -14,7 +14,9 @@
     "chore/qa-scenario-to-desktop-standards-setup-20260407",
     "execute/qa-deployment-manager-code-quality-20260407",
     "execute/qa-scenario-to-desktop-code-quality-20260407",
+    "fix/qa-deployment-manager-standards-focus-visible-20260515",
     "fix/qa-deployment-manager-tests-20260407",
+    "fix/qa-deployment-manager-visual-baseline-20260515",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407",
     "research/desktop-release-control-plane-audit"
@@ -33,5 +35,5 @@
     "audit"
   ],
   "title": "Audit Remaining Non Mobile Operable Deployment Actions",
-  "updated": "2026-04-09T13:14:04Z"
+  "updated": "2026-05-15T04:07:37Z"
 }

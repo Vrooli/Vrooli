@@ -37,6 +37,13 @@ import { GraphWorkspaceHUD } from "./GraphWorkspaceHUD";
 import { GraphActionLauncher } from "./GraphActionLauncher";
 import { commandPostPath, sessionDetailPath } from "../../../app/routes/route-paths";
 import { useAppShell } from "../../../app/shell/AppShellContext";
+import type { AgentSessionKind } from "../../../types";
+
+const SESSION_CREATE_TITLES: Record<AgentSessionKind, string> = {
+  meta_orchestration: "Plan work with agent",
+  operating_mode_authoring: "Author operating mode",
+  swarm_operations: "Manage Swarm operations",
+};
 
 export function GraphWorkspace() {
   const navigate = useNavigate();
@@ -107,16 +114,15 @@ export function GraphWorkspace() {
   });
 
   const handleCreateAgentSession = useCallback(
-    async (kind: "meta_orchestration" | "operating_mode_authoring") => {
+    async (kind: AgentSessionKind) => {
       if (isCreatingSession) return;
       setLauncherError(null);
       setLauncherStatus("Starting session...");
       setShowCapturePanel(false);
-      const isAuthoring = kind === "operating_mode_authoring";
       try {
         const session = await createSession({
           kind,
-          title: isAuthoring ? "Author operating mode" : "Plan work with agent",
+          title: SESSION_CREATE_TITLES[kind],
         });
         navigate(sessionDetailPath(session.id));
       } catch (error) {
@@ -172,6 +178,7 @@ export function GraphWorkspace() {
             setShowCapturePanel((prev) => !prev);
           }}
           onPlanWork={() => void handleCreateAgentSession("meta_orchestration")}
+          onManageSwarm={() => void handleCreateAgentSession("swarm_operations")}
           onAuthorOperatingMode={() => void handleCreateAgentSession("operating_mode_authoring")}
         />
 

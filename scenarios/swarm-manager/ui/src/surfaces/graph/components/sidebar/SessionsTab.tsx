@@ -3,7 +3,7 @@
  */
 
 import { memo } from "react";
-import { Bot, GitPullRequestArrow, Layers3, MessageSquareMore, Workflow } from "lucide-react";
+import { Bot, Gauge, GitPullRequestArrow, Layers3, MessageSquareMore, Workflow } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../../../lib/utils";
 import { formatRelativeTime } from "../../../../lib/format-utils";
@@ -38,11 +38,13 @@ const STATUS_COLORS: Record<AgentSession["status"], string> = {
 const KIND_LABELS: Record<AgentSession["kind"], string> = {
   meta_orchestration: "Plan work",
   operating_mode_authoring: "Author mode",
+  swarm_operations: "Swarm operations",
 };
 
 const KIND_ICONS = {
   meta_orchestration: Workflow,
   operating_mode_authoring: GitPullRequestArrow,
+  swarm_operations: Gauge,
 };
 
 function SessionsTabImpl({ searchQuery, filters, sort, onOpenSession, onClearSearch }: SessionsTabProps) {
@@ -89,7 +91,7 @@ function SessionsTabImpl({ searchQuery, filters, sort, onOpenSession, onClearSea
       <SidebarEmptyState
         icon={MessageSquareMore}
         title={title}
-        hint={hasFilters ? undefined : "Plan-work and authoring conversations show up here once started."}
+        hint={hasFilters ? undefined : "Plan-work, operations, and authoring conversations show up here once started."}
         query={searchQuery}
         onClearSearch={onClearSearch}
       />

@@ -16,10 +16,13 @@ This document captures the canonical Swarm Manager API shapes that matter for ba
 Creates a typed draft session. It does not spawn Agent Manager and does not
 append a message.
 
+Valid `kind` values are `meta_orchestration`, `swarm_operations`, and
+`operating_mode_authoring`.
+
 ```json
 {
-  "kind": "meta_orchestration",
-  "title": "Plan work with agent"
+  "kind": "swarm_operations",
+  "title": "Manage Swarm operations"
 }
 ```
 

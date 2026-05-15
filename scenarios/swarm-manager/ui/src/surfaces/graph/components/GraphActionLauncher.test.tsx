@@ -3,22 +3,28 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { GraphActionLauncher } from "./GraphActionLauncher";
 
 describe("GraphActionLauncher", () => {
-  it("opens a compact menu and dispatches launcher actions", () => {
+  it("opens a slide-up action sheet and dispatches launcher actions", () => {
     const onQuickCapture = vi.fn();
     const onPlanWork = vi.fn();
+    const onManageSwarm = vi.fn();
     const onAuthorOperatingMode = vi.fn();
 
     render(
       <GraphActionLauncher
         onQuickCapture={onQuickCapture}
         onPlanWork={onPlanWork}
+        onManageSwarm={onManageSwarm}
         onAuthorOperatingMode={onAuthorOperatingMode}
       />,
     );
 
     fireEvent.click(screen.getByTestId("graph-action-fab"));
 
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(screen.getByText("Capture a note, task, dependency, or relationship without starting an agent session.")).toBeInTheDocument();
+    expect(screen.getByText("Review progress, pending decisions, priorities, and whether initiatives should use backlog or operating modes.")).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("menuitem", { name: "Quick Capture" }));
     expect(onQuickCapture).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).toBeNull();
@@ -26,6 +32,10 @@ describe("GraphActionLauncher", () => {
     fireEvent.click(screen.getByTestId("graph-action-fab"));
     fireEvent.click(screen.getByRole("menuitem", { name: "Plan Work With Agent" }));
     expect(onPlanWork).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTestId("graph-action-fab"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Manage Swarm" }));
+    expect(onManageSwarm).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByTestId("graph-action-fab"));
     fireEvent.click(screen.getByRole("menuitem", { name: "Author Operating Mode" }));
@@ -39,6 +49,7 @@ describe("GraphActionLauncher", () => {
         status="Starting session..."
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}
+        onManageSwarm={vi.fn()}
         onAuthorOperatingMode={vi.fn()}
       />,
     );
@@ -49,6 +60,7 @@ describe("GraphActionLauncher", () => {
 
     expect(screen.getByRole("menuitem", { name: "Quick Capture" })).toBeEnabled();
     expect(screen.getByRole("menuitem", { name: "Plan Work With Agent" })).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: "Manage Swarm" })).toBeDisabled();
     expect(screen.getByRole("menuitem", { name: "Author Operating Mode" })).toBeDisabled();
   });
 
@@ -61,6 +73,7 @@ describe("GraphActionLauncher", () => {
         onDismissError={onDismissError}
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}
+        onManageSwarm={vi.fn()}
         onAuthorOperatingMode={vi.fn()}
       />,
     );
@@ -76,6 +89,7 @@ describe("GraphActionLauncher", () => {
       <GraphActionLauncher
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}
+        onManageSwarm={vi.fn()}
         onAuthorOperatingMode={vi.fn()}
       />,
     );
@@ -83,7 +97,7 @@ describe("GraphActionLauncher", () => {
     fireEvent.click(screen.getByTestId("graph-action-fab"));
     expect(screen.getByRole("menu")).toBeInTheDocument();
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("menu")).toBeNull();
   });
 });

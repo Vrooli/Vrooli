@@ -7,7 +7,8 @@
   "created": "2026-04-09T17:33:13Z",
   "depends_on": [
     "execute/agent-manager-sandbox-auto-apply-defaults",
-    "execute/gct-committed-ai-provenance-history"
+    "execute/gct-committed-ai-provenance-history",
+    "fix/qa-git-control-tower-tests-playbook-schema-20260515"
   ],
   "description": "## Goal\n\nDesign a first-class undo story for the new default model where sandboxed runs auto-apply accepted changes immediately.\n\n## Why this matters\n\nIf the platform wants sandboxing to be the default and wants accepted changes to land automatically even on failed runs, operators need a trustworthy way to inspect and undo those changes later. That undo story should build on provenance rather than destructive git operations.\n\n## Questions this item must resolve\n\n- What is the canonical unit of undo: a full run, a selected subset of files from a run, or both?\n- How should undo behave before commit vs after commit?\n- How should the system handle partial overlap, mixed provenance, merge conflicts, or files touched by multiple runs?\n- Where should operators initiate undo: Git Control Tower, workspace-sandbox APIs, or both?\n- How should undo itself be recorded so the system keeps an audit trail of who reverted what and why?\n\n## Expected deliverables\n\n1. A design for run-based undo/revert built on provenance and applied-change history.\n2. Clear separation between safe revert-by-run workflows and forbidden destructive git history rewrites.\n3. API and data-model recommendations for representing undo operations and their audit trail.\n4. UX guidance for exposing undo in Git Control Tower without making provenance ambiguous.\n\n## Key references\n\n- `scenarios/workspace-sandbox/api/internal/types/types.go`\n- `scenarios/workspace-sandbox/api/internal/repository/sandbox_repo.go`\n- `scenarios/git-control-tower/**`\n- `scenarios/agent-manager/**`",
   "effort": "M",
@@ -23,5 +24,5 @@
     "design"
   ],
   "title": "Design run-level undo and revert for auto-applied sandbox changes",
-  "updated": "2026-04-09T17:33:13Z"
+  "updated": "2026-05-15T04:07:15Z"
 }

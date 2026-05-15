@@ -104,7 +104,7 @@ function normalizeAttribution(raw?: RawAttribution): AgentSessionAttribution | u
     ...(raw.taskId ?? raw.task_id ? { taskId: raw.taskId ?? raw.task_id } : {}),
     ...(raw.profileKey ?? raw.profile_key ? { profileKey: raw.profileKey ?? raw.profile_key } : {}),
     ...(raw.sessionId ?? raw.session_id ? { sessionId: raw.sessionId ?? raw.session_id } : {}),
-    ...(sessionKind === "meta_orchestration" || sessionKind === "operating_mode_authoring" ? { sessionKind } : {}),
+    ...(sessionKind === "meta_orchestration" || sessionKind === "operating_mode_authoring" || sessionKind === "swarm_operations" ? { sessionKind } : {}),
     ...(raw.source ? { source: raw.source } : {}),
   };
 }

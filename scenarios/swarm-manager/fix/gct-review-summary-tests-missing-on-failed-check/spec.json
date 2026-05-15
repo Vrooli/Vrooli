@@ -5,11 +5,14 @@
   ],
   "created": "2026-05-14T16:04:53Z",
   "created_by": {
-    "type": "agent",
+    "profile_key": "prompt-manager-heartbeat",
     "run_id": "699d79af-e181-4b60-a256-d346535ccb60",
     "task_id": "e1388e6d-455c-43ed-a05b-c710bcb54fca",
-    "profile_key": "prompt-manager-heartbeat"
+    "type": "agent"
   },
+  "depends_on": [
+    "fix/qa-git-control-tower-tests-playbook-schema-20260515"
+  ],
   "description": "Bug investigation from scenario-qa bug-inbox/data-shape-mismatch/gct-prompt-manager-tests-missing. Repro: `git-control-tower review run prompt-manager --json` produced `checks.tests = failed` for job 07c2f59d-4126-4130-8e49-328ef157a09b, but `summary.dimensions` omitted `tests`, leaving downstream readiness agents without failure evidence. Root cause: `executeReviewRun` records per-check outcomes in `ReviewJobStatus.Checks`, but after checks finish it calls `buildReviewSummary`, which rebuilds dimensions from current downstream service availability and latest listable executions. `fetchTestsDimension` returns nil when test-genie is unavailable and otherwise depends on `ListExecutions`; it does not consume the failed check status or the ExecuteSuite error. Because `ReviewDimensions.Tests` has `json:\"tests,omitempty\"`, a nil tests dimension disappears from JSON even though the tests check failed. Fix target: when a requested check fails, the completed review summary should include an actionable tests dimension or equivalent structured failure detail, and `dimensionStatuses.tests` should not be `skipped` for a failed requested tests check. Add a regression test covering a failed tests check with no listable test-genie execution or unavailable summary-time test-genie. Key files: scenarios/git-control-tower/api/review_handler.go, review_handler_dimensions.go, review_model.go, review_readiness.go, and existing review handler/store tests.",
   "kind": "fix",
   "name": "gct-review-summary-tests-missing-on-failed-check",
@@ -23,5 +26,5 @@
     "data-shape"
   ],
   "title": "Keep failed GCT test checks actionable in review summaries",
-  "updated": "2026-05-14T16:04:53Z"
+  "updated": "2026-05-15T04:07:07Z"
 }

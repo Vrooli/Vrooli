@@ -6,7 +6,8 @@
   "created": "2026-04-06T18:43:38Z",
   "depends_on": [
     "execute/gct-security-review-tab",
-    "execute/qa-git-control-tower-code-quality-20260408"
+    "execute/qa-git-control-tower-code-quality-20260408",
+    "fix/qa-git-control-tower-tests-playbook-schema-20260515"
   ],
   "description": "Add per-check-type gating settings to Git Control Tower: security, PII, and code quality each configurable as Required (blocks commit until pass, with emergency override), Advisory (warnings shown but commit allowed), or Disabled. Runs the same review logic as the review panel but scoped to staged files. Aggregate results displayed inline in the commit panel. Settings persisted in GCT configuration.",
   "effort": "M",
@@ -17,5 +18,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Commit gating settings (required/advisory/disabled) with staged-file scanning",
-  "updated": "2026-04-09T13:06:28Z"
+  "updated": "2026-05-15T04:07:18Z"
 }

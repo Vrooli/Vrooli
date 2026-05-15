@@ -145,7 +145,9 @@ and page assembly only.
   inspector tabs, proposals, artifacts, metadata, and artifact-to-node routing.
 - **Graph start boundary**: graph action orchestration remains in
   `GraphWorkspace`; `GraphActionLauncher` receives status/error props and does
-  not call stores or routes directly.
+  not call stores or routes directly. The launcher exposes typed session starts
+  for `meta_orchestration`, `swarm_operations`, and
+  `operating_mode_authoring`; each routes through the same draft-session seam.
 - **Layout seam**: the desktop session inspector uses `useResizablePanel` with
   left-edge resizing and persisted width. Mobile uses the existing Radix Tabs
   primitive for top-level session sections.
@@ -161,6 +163,27 @@ and page assembly only.
 
 Testing locks the seam with focused chat, session page, artifact routing,
 resize-hook, and graph launcher component tests.
+
+### Agent Session Kind Boundary
+
+Agent session kinds are closed at the proto/API/UI contract boundary. Adding a
+kind requires coordinated updates across:
+
+- `packages/proto/schemas/swarm-manager/v1/domain/agent_session.proto`
+- `packages/proto/schemas/swarm-manager/v1/api/agent_session.proto`
+- `packages/proto/schemas/swarm-manager/v1/domain/agent_activity.proto`
+- `api/internal/agentsessions` kind validation and skill mapping
+- `api/internal/agentactivity` purpose constants and lane mapping
+- `ui/src/types`, `ui/src/services/proto`, session labels, filters, and launcher
+- `docs/internal/AGENT-SESSIONS.md`
+
+Current session-kind mapping:
+
+| Kind | Skill | Activity purpose | Lane | Mutation boundary |
+|---|---|---|---|---|
+| `meta_orchestration` | `swarm-manager-meta-orchestrator` | `meta_orchestration` | investigate | May produce typed backlog batch proposals that Swarm Manager applies after operator approval. |
+| `swarm_operations` | `swarm-manager-operations-session` | `swarm_operations` | investigate | Advisory in v1. Uses existing audited UI/API/CLI flows and delegates decision drain to `workshop-decision-sync`. |
+| `operating_mode_authoring` | `swarm-manager-operating-mode-authoring` | `operating_mode_authoring` | investigate | May produce typed operating-mode draft and implementation-plan proposals. |
 
 ### Graph Projection Boundary
 

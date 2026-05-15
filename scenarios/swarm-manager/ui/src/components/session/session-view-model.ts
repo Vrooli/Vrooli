@@ -1,4 +1,4 @@
-import { GitPullRequestArrow, Workflow } from "lucide-react";
+import { Gauge, GitPullRequestArrow, Workflow } from "lucide-react";
 import type { AgentSession, AgentSessionArtifact, AgentSessionProposal } from "../../types";
 
 export type SessionInspectorSection = "events" | "proposals" | "artifacts" | "details";
@@ -6,11 +6,13 @@ export type SessionInspectorSection = "events" | "proposals" | "artifacts" | "de
 export const SESSION_KIND_LABELS: Record<AgentSession["kind"], string> = {
   meta_orchestration: "Plan work",
   operating_mode_authoring: "Author operating mode",
+  swarm_operations: "Swarm operations",
 };
 
 export const SESSION_KIND_ICONS = {
   meta_orchestration: Workflow,
   operating_mode_authoring: GitPullRequestArrow,
+  swarm_operations: Gauge,
 };
 
 export const TERMINAL_SESSION_STATUSES = new Set<AgentSession["status"]>(["complete", "failed", "canceled"]);

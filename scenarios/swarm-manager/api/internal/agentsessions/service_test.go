@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,6 +75,40 @@ func TestServiceStartSpawnsSessionWithFirstMessageEnvironmentAndActivitySpec(t *
 	}
 	if len(session.Messages) != 1 || session.Messages[0].Content != "Plan this work." {
 		t.Fatalf("messages = %+v", session.Messages)
+	}
+}
+
+func TestServiceStartSwarmOperationsUsesOperationsSkillAndPurpose(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+	svc := newTestService(t, spawner)
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  KindSwarmOperations,
+		Title: "Manage Swarm operations",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	session, err := svc.Start(context.Background(), ContinueRequest{
+		SessionID: draft.ID,
+		Message:   "What should I unblock next?",
+	})
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if session.Kind != KindSwarmOperations || session.SkillID != SkillSwarmOperations {
+		t.Fatalf("session kind/skill = %q/%q", session.Kind, session.SkillID)
+	}
+	if spawner.spawnSpec.Purpose != agentactivity.PurposeSwarmOperations {
+		t.Fatalf("spawn purpose = %q, want %q", spawner.spawnSpec.Purpose, agentactivity.PurposeSwarmOperations)
+	}
+	if spawner.spawnSpec.Metadata["skill_id"] != SkillSwarmOperations {
+		t.Fatalf("skill metadata = %q", spawner.spawnSpec.Metadata["skill_id"])
+	}
+	if !strings.Contains(spawner.spawnReq.Prompt, "swarm-manager-operations-session") {
+		t.Fatalf("initial prompt did not reference operations skill: %s", spawner.spawnReq.Prompt)
 	}
 }
 

@@ -25,7 +25,9 @@ const SESSION_A: AgentSession = {
 const SESSION_B: AgentSession = {
   ...SESSION_A,
   id: "sess_b",
-  title: "Plan B",
+  title: "Manage Swarm",
+  kind: "swarm_operations",
+  skillId: "swarm-manager-operations-session",
   status: "complete",
   updatedAt: "2026-05-01T13:00:00Z",
 };
@@ -109,10 +111,13 @@ describe("agent-session-store", () => {
     expect(useAgentSessionStore.getState().sessions.map((s) => s.id)).toContain("sess_a");
 
     await useAgentSessionStore.getState().createSession({
-      kind: "meta_orchestration",
-      title: "Plan",
+      kind: "swarm_operations",
+      title: "Manage Swarm operations",
     });
-    expect(service.create).toHaveBeenCalled();
+    expect(service.create).toHaveBeenCalledWith({
+      kind: "swarm_operations",
+      title: "Manage Swarm operations",
+    });
 
     const started = await useAgentSessionStore.getState().startSession({
       sessionId: "sess_a",

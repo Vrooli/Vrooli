@@ -1,6 +1,6 @@
 # Agent Sessions
 
-Agent Sessions are durable Swarm Manager-owned conversations with Agent Manager runs. They are used for workflows that need more context and iteration than Quick Capture, such as meta-orchestration and operating-mode authoring.
+Agent Sessions are durable Swarm Manager-owned conversations with Agent Manager runs. They are used for workflows that need more context and iteration than Quick Capture, such as meta-orchestration, Swarm operations, and operating-mode authoring.
 
 ## Lifecycle
 
@@ -39,6 +39,7 @@ Initial session kinds are closed at the contract boundary:
 | Kind | Skill | Purpose |
 |---|---|---|
 | `meta_orchestration` | `swarm-manager-meta-orchestrator` | Conversational planning that can propose multiple initiatives and backlog items in one audited apply action. |
+| `swarm_operations` | `swarm-manager-operations-session` | Conversational operations coordination for initiative progress, pending decisions, run review, and operating-mode recommendations. It routes decision draining to `workshop-decision-sync` and keeps mutations operator-gated. |
 | `operating_mode_authoring` | `swarm-manager-operating-mode-authoring` | Conversational operating-mode proposal work, followed by proposal-backed implementation planning. |
 
 Adding a kind should mean adding a skill mapping, prompt builder behavior if needed, allowed proposal kinds, tests, stats expectations, and docs. Do not add an untyped generic chat mode to bypass those contracts.
@@ -101,9 +102,10 @@ The graph bottom action launcher owns session creation:
 
 - Quick Capture opens the existing one-shot capture panel.
 - Plan Work With Agent creates a `meta_orchestration` session.
+- Manage Swarm creates a `swarm_operations` session.
 - Author Operating Mode creates an `operating_mode_authoring` session.
 
-Both agent-session launchers create a draft and route to the session detail surface immediately. They do not send canned bootstrap prompts. The composer placeholder is kind-specific, and the first submitted message starts the run.
+All agent-session launchers create a draft and route to the session detail surface immediately. They do not send canned bootstrap prompts. The composer placeholder is kind-specific, and the first submitted message starts the run.
 
 The graph sidebar owns session history through the `Sessions` tab. Selecting a session opens the session detail panel rather than navigating to a dedicated Sessions page.
 
@@ -131,5 +133,6 @@ agent-sessions/
 - Keep session-owned Agent Manager work under `agentactivity.OwnerSession`.
 - Keep mutation attribution service-owned and API-owned.
 - Add proposal kinds only when they have a typed validation and apply policy.
+- Keep `swarm_operations` advisory in v1: use existing UI/API/CLI flows for state changes, and add typed proposal kinds only after review/apply semantics are designed.
 - Update `SEAMS.md`, stats tests, UI contract mappers, and this document when adding a new session kind or artifact type.
 - Prefer extending shared proposal/apply seams over introducing mode-specific UI or handler branches.

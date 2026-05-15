@@ -47,7 +47,7 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 | **Dependency** | Directed edge between backlog items (`depends_on` field in spec.json) | N/A (structural, validated on write) | [CODE: api/internal/depgraph/graph.go] |
 | **Execution Run** | Governed execution-control record linked to backlog work | `pending` -> `scheduled` -> `running` -> `completed`/`failed`/`canceled` | [CODE: ui/src/types/domain.ts#ExecutionRecord] |
 | **Agent Activity** | Durable record for one tracked AgentManager interaction (`spawn` or `continue`) across backlog, scenario, capture, and session flows | `pending` -> `starting`/`running`/`needs_review` -> `complete`/`failed`/`cancelled` | [CODE: ui/src/types/domain.ts#AgentActivity] |
-| **Agent Session** | Durable typed conversation for meta-orchestration and operating-mode authoring, with proposals, artifacts, and verified attribution | `starting` -> `running` -> `waiting_for_user`/`proposal_ready` -> `complete`/`failed`/`canceled` | [DOC: docs/internal/AGENT-SESSIONS.md] |
+| **Agent Session** | Durable typed conversation for meta-orchestration, Swarm operations, and operating-mode authoring, with proposals, artifacts, and verified attribution | `starting` -> `running` -> `waiting_for_user`/`proposal_ready` -> `complete`/`failed`/`canceled` | [DOC: docs/internal/AGENT-SESSIONS.md] |
 | **Scenario** | Runtime scenario in the Vrooli ecosystem | `running`, `stopped`, `error`, `unknown` | [CODE: ui/src/types/domain.ts#Scenario] |
 
 ### Initiatives
@@ -97,7 +97,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
    ```
    Graph launcher -> agent session -> Agent Manager run -> proposal -> API-owned apply -> artifact attribution
    ```
-   Agent Sessions support longer conversational planning and authoring flows inside Swarm Manager. Meta-orchestration sessions can create multiple initiatives and backlog items through the batch apply seam. Operating-mode authoring sessions can accept mode proposal drafts and create implementation work without letting the chat agent mutate operating-mode code directly. See [DOC: docs/internal/AGENT-SESSIONS.md].
+   Agent Sessions support longer conversational planning, operations, and authoring flows inside Swarm Manager. Meta-orchestration sessions can create multiple initiatives and backlog items through the batch apply seam. Swarm operations sessions review initiative progress, pending decisions, and mode-fit recommendations while routing state changes through existing operator-gated seams. Operating-mode authoring sessions can accept mode proposal drafts and create implementation work without letting the chat agent mutate operating-mode code directly. See [DOC: docs/internal/AGENT-SESSIONS.md].
 
 7. **UI route navigation**
    ```

@@ -4,7 +4,8 @@
   ],
   "created": "2026-04-06T18:43:38Z",
   "depends_on": [
-    "execute/qa-git-control-tower-code-quality-20260408"
+    "execute/qa-git-control-tower-code-quality-20260408",
+    "fix/qa-git-control-tower-tests-playbook-schema-20260515"
   ],
   "description": "Design GitHub API integration for Git Control Tower: evaluate go-github library, define client interface for full mockability (all GitHub calls behind interface), auth strategy (GitHub PAT vs app token vs existing SSH key infrastructure — SSH handles git transport, API calls need token-based auth), mock testing architecture (interface-based DI, zero real GitHub API calls in tests), what PR metadata to surface, how review panel results can feed into PR descriptions. Token storage in existing credentials system.",
   "effort": "M",
@@ -15,5 +16,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Design GitHub client interface, auth strategy, and mock testing architecture",
-  "updated": "2026-04-09T13:06:28Z"
+  "updated": "2026-05-15T04:06:58Z"
 }

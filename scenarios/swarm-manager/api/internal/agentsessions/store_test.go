@@ -116,8 +116,8 @@ func TestFileStoreListFiltersAndLimit(t *testing.T) {
 	first := validStoredSession("sess_first")
 	first.UpdatedAt = "2026-05-01T12:00:00Z"
 	second := validStoredSession("sess_second")
-	second.Kind = KindOperatingModeAuthoring
-	second.SkillID = SkillOperatingModeAuthoring
+	second.Kind = KindSwarmOperations
+	second.SkillID = SkillSwarmOperations
 	second.Status = StatusComplete
 	second.UpdatedAt = "2026-05-01T13:00:00Z"
 	for _, session := range []Session{first, second} {

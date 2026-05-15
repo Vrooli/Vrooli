@@ -6,7 +6,9 @@
   "created": "2026-03-30T18:01:13Z",
   "depends_on": [
     "execute/qa-deployment-manager-code-quality-20260407",
-    "fix/qa-deployment-manager-tests-20260407"
+    "fix/qa-deployment-manager-standards-focus-visible-20260515",
+    "fix/qa-deployment-manager-tests-20260407",
+    "fix/qa-deployment-manager-visual-baseline-20260515"
   ],
   "description": "The terms \"entitlement\" (LPBS download gating for paid users) and \"approval\" (deployment-manager release gating for platform quality) are used in overlapping contexts, creating confusion about which system controls what. Add a terminology section to the desktop release system contract and update inline code comments in `download_hosting.go` (entitlement) and `approvals_handler.go` (approval) to cross-reference the distinction.\n\nSource: research/desktop-release-control-plane-audit conclusion — Finding 9 gap #5.",
   "effort": "XS",
@@ -22,5 +24,5 @@
     "terminology"
   ],
   "title": "Clarify entitlement vs approval terminology in desktop release documentation",
-  "updated": "2026-04-07T22:13:30Z"
+  "updated": "2026-05-15T04:07:44Z"
 }

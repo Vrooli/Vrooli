@@ -32,7 +32,7 @@ import type {
 } from "../../types";
 import { createProtoSchema } from "./shared";
 
-const sessionKinds = new Set<string>(["meta_orchestration", "operating_mode_authoring"]);
+const sessionKinds = new Set<string>(["meta_orchestration", "operating_mode_authoring", "swarm_operations"]);
 const sessionStatuses = new Set<string>([
   "draft",
   "starting",

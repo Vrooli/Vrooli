@@ -6,7 +6,9 @@
   "created": "2026-03-30T18:01:13Z",
   "depends_on": [
     "execute/qa-deployment-manager-code-quality-20260407",
-    "fix/qa-deployment-manager-tests-20260407"
+    "fix/qa-deployment-manager-standards-focus-visible-20260515",
+    "fix/qa-deployment-manager-tests-20260407",
+    "fix/qa-deployment-manager-visual-baseline-20260515"
   ],
   "description": "Currently, rolling back a desktop release requires manually calling LPBS `set-current` with a prior artifact ID — a multi-step process that requires knowing the artifact ID and having admin credentials. Add `POST /api/v1/rollback` to deployment-manager that: (1) looks up the prior artifact for the specified app/platform/channel via LPBS, (2) calls LPBS to promote it, (3) records the rollback event in the deployments table.\n\nSource: research/desktop-release-control-plane-audit conclusion — Finding 9 gap #3.",
   "effort": "M",
@@ -21,5 +23,5 @@
     "rollback"
   ],
   "title": "Add rollback API for desktop releases",
-  "updated": "2026-04-07T22:13:30Z"
+  "updated": "2026-05-15T04:07:31Z"
 }

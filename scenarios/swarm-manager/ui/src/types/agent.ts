@@ -68,7 +68,8 @@ export type AgentActivityPurpose =
   | "feedback_continue"
   | "initiative_review"
   | "meta_orchestration"
-  | "operating_mode_authoring";
+  | "operating_mode_authoring"
+  | "swarm_operations";
 
 /**
  * Exhaustive array of all AgentActivityPurpose values.
@@ -92,6 +93,7 @@ export const AGENT_ACTIVITY_PURPOSES = [
   "initiative_review",
   "meta_orchestration",
   "operating_mode_authoring",
+  "swarm_operations",
 ] as const satisfies readonly AgentActivityPurpose[];
 
 export type AgentActivityInteractionType = "spawn" | "continue";

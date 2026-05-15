@@ -31,9 +31,7 @@ export function SessionConversation({
 }: SessionConversationProps) {
   const isDraft = sessionStatus === "draft";
   const placeholder = isDraft
-    ? sessionKind === "operating_mode_authoring"
-      ? "Describe the recurring agent workflow you want to author..."
-      : "Describe what you want to plan..."
+    ? draftPlaceholderForKind(sessionKind)
     : "Continue this session...";
 
   const sortedMessages = useMemo(
@@ -95,4 +93,16 @@ export function SessionConversation({
       </div>
     </section>
   );
+}
+
+function draftPlaceholderForKind(kind: AgentSessionKind): string {
+  switch (kind) {
+    case "operating_mode_authoring":
+      return "Describe the recurring agent workflow you want to author...";
+    case "swarm_operations":
+      return "Ask what to review, unblock, decide, or move forward in Swarm Manager...";
+    case "meta_orchestration":
+    default:
+      return "Describe what you want to plan...";
+  }
 }

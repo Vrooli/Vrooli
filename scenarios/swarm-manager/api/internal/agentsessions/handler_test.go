@@ -56,8 +56,8 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 	NewHandler(svc).RegisterRoutes(router)
 
 	createBody := marshalAgentSessionProto(t, &apipb.CreateAgentSessionRequest{
-		Kind:       string(KindOperatingModeAuthoring),
-		Title:      "Author mode",
+		Kind:       string(KindSwarmOperations),
+		Title:      "Manage Swarm operations",
 		Initiative: proto.String("mode-authoring"),
 	})
 	createRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions", createBody)
@@ -74,7 +74,7 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 		t.Fatalf("created session should be draft without run: %+v", createResp.GetSession())
 	}
 
-	listRec := serveAgentSessionRequest(router, http.MethodGet, "/api/v1/agent-sessions?kind=operating_mode_authoring&active_only=true&limit=10", nil)
+	listRec := serveAgentSessionRequest(router, http.MethodGet, "/api/v1/agent-sessions?kind=swarm_operations&active_only=true&limit=10", nil)
 	if listRec.Code != http.StatusOK {
 		t.Fatalf("list status = %d, body = %s", listRec.Code, listRec.Body.String())
 	}

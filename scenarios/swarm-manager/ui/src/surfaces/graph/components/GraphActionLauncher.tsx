@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
-import { GitPullRequestArrow, Loader2, MessageSquarePlus, Plus, Workflow, X } from "lucide-react";
+import { Gauge, GitPullRequestArrow, Loader2, MessageSquarePlus, Plus, Workflow, X } from "lucide-react";
+import { BottomSheet } from "../../../components/ui/bottom-sheet";
 import { FloatingActionButton } from "../../../components/ui/floating-action-button";
-import { useGlobalKeyDown } from "../../../hooks/useGlobalKeyDown";
 import { cn } from "../../../lib/utils";
 
 interface GraphActionLauncherProps {
@@ -12,6 +12,7 @@ interface GraphActionLauncherProps {
   onDismissError?: () => void;
   onQuickCapture: () => void;
   onPlanWork: () => void;
+  onManageSwarm: () => void;
   onAuthorOperatingMode: () => void;
 }
 
@@ -22,29 +23,10 @@ export function GraphActionLauncher({
   onDismissError,
   onQuickCapture,
   onPlanWork,
+  onManageSwarm,
   onAuthorOperatingMode,
 }: GraphActionLauncherProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useGlobalKeyDown((event) => {
-    if (event.key === "Escape") setIsOpen(false);
-  }, { enabled: isOpen });
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isOpen]);
 
   const runAction = (action: () => void) => {
     setIsOpen(false);
@@ -52,24 +34,45 @@ export function GraphActionLauncher({
   };
 
   return (
-    <div ref={menuRef} className="fixed bottom-[calc(3rem+env(safe-area-inset-bottom))] right-4 z-30" data-testid="graph-action-launcher">
-      {isOpen && (
-        <div
-          className="mb-3 w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-white/10 bg-slate-900/95 p-1.5 shadow-2xl backdrop-blur-sm"
-          role="menu"
-          aria-label="Create"
-          data-testid="graph-action-menu"
-        >
-          <LauncherItem icon={<MessageSquarePlus className="h-4 w-4" />} label="Quick Capture" onClick={() => runAction(onQuickCapture)} />
-          <LauncherItem icon={<Workflow className="h-4 w-4" />} label="Plan Work With Agent" onClick={() => runAction(onPlanWork)} disabled={isBusy} />
+    <div className="fixed bottom-[calc(3rem+env(safe-area-inset-bottom))] right-4 z-30" data-testid="graph-action-launcher">
+      <BottomSheet
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Quick Capture"
+        description="Choose how to capture, plan, or move Swarm Manager work forward."
+        contentClassName="px-0 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
+        data-testid="graph-action-menu"
+      >
+        <div role="menu" aria-label="Create">
           <LauncherItem
-            icon={<GitPullRequestArrow className="h-4 w-4" />}
+            icon={<MessageSquarePlus className="h-5 w-5" />}
+            label="Quick Capture"
+            description="Capture a note, task, dependency, or relationship without starting an agent session."
+            onClick={() => runAction(onQuickCapture)}
+          />
+          <LauncherItem
+            icon={<Workflow className="h-5 w-5" />}
+            label="Plan Work With Agent"
+            description="Start a planning session for drafting initiatives, backlog items, and approval-ready work plans."
+            onClick={() => runAction(onPlanWork)}
+            disabled={isBusy}
+          />
+          <LauncherItem
+            icon={<Gauge className="h-5 w-5" />}
+            label="Manage Swarm"
+            description="Review progress, pending decisions, priorities, and whether initiatives should use backlog or operating modes."
+            onClick={() => runAction(onManageSwarm)}
+            disabled={isBusy}
+          />
+          <LauncherItem
+            icon={<GitPullRequestArrow className="h-5 w-5" />}
             label="Author Operating Mode"
+            description="Create or refine the operating-mode loop that guides agentic work on an initiative."
             onClick={() => runAction(onAuthorOperatingMode)}
             disabled={isBusy}
           />
         </div>
-      )}
+      </BottomSheet>
 
       {(status || error) && (
         <div className="mb-3 w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-white/10 bg-slate-900/95 p-2 text-xs shadow-2xl backdrop-blur-sm">
@@ -111,11 +114,13 @@ export function GraphActionLauncher({
 function LauncherItem({
   icon,
   label,
+  description,
   onClick,
   disabled,
 }: {
   icon: ReactNode;
   label: string;
+  description: string;
   onClick: () => void;
   disabled?: boolean;
 }) {
@@ -123,12 +128,16 @@ function LauncherItem({
     <button
       type="button"
       role="menuitem"
+      aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40 disabled:pointer-events-none disabled:opacity-50"
+      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-500/40 disabled:pointer-events-none disabled:opacity-50"
     >
-      <span className="shrink-0 text-cyan-300">{icon}</span>
-      <span className="min-w-0 truncate">{label}</span>
+      <span className="mt-0.5 shrink-0 text-cyan-300">{icon}</span>
+      <span className="min-w-0">
+        <span className="block text-base font-medium leading-5 text-slate-100">{label}</span>
+        <span className="mt-1 block text-sm leading-5 text-slate-400">{description}</span>
+      </span>
     </button>
   );
 }

@@ -24,6 +24,7 @@ import (
 const (
 	SkillMetaOrchestrator       = "swarm-manager-meta-orchestrator"
 	SkillOperatingModeAuthoring = "swarm-manager-operating-mode-authoring"
+	SkillSwarmOperations        = "swarm-manager-operations-session"
 
 	EnvSessionID   = "VROOLI_SWARM_MANAGER_SESSION_ID"
 	EnvSessionKind = "VROOLI_SWARM_MANAGER_SESSION_KIND"
@@ -725,6 +726,8 @@ func skillIDForKind(kind Kind) string {
 		return SkillMetaOrchestrator
 	case KindOperatingModeAuthoring:
 		return SkillOperatingModeAuthoring
+	case KindSwarmOperations:
+		return SkillSwarmOperations
 	default:
 		return ""
 	}

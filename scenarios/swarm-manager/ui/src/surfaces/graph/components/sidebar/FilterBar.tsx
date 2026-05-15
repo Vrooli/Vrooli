@@ -103,6 +103,7 @@ const EXECUTION_MODES = ["manual", "yolo"] as const;
 const SESSION_STATUSES = ["starting", "running", "waiting_for_user", "proposal_ready", "applying", "complete", "failed", "canceled"] as const;
 const SESSION_KINDS = [
   { value: "meta_orchestration", label: "Plan work" },
+  { value: "swarm_operations", label: "Operations" },
   { value: "operating_mode_authoring", label: "Author modes" },
 ] as const;
 

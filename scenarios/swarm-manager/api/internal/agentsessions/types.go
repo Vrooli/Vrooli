@@ -15,6 +15,7 @@ type Kind string
 const (
 	KindMetaOrchestration      Kind = "meta_orchestration"
 	KindOperatingModeAuthoring Kind = "operating_mode_authoring"
+	KindSwarmOperations        Kind = "swarm_operations"
 )
 
 type Status string
@@ -167,7 +168,7 @@ func (s Session) Validate() error {
 		return validationError("title is required")
 	}
 	if !IsKnownKind(s.Kind) {
-		return validationError("kind must be meta_orchestration or operating_mode_authoring")
+		return validationError("kind must be meta_orchestration, operating_mode_authoring, or swarm_operations")
 	}
 	if !IsKnownStatus(s.Status) {
 		return validationError("status is invalid")
@@ -289,7 +290,7 @@ func (a Attribution) Validate() error {
 
 func IsKnownKind(kind Kind) bool {
 	switch kind {
-	case KindMetaOrchestration, KindOperatingModeAuthoring:
+	case KindMetaOrchestration, KindOperatingModeAuthoring, KindSwarmOperations:
 		return true
 	default:
 		return false

@@ -11,7 +11,9 @@
     "execute/qa-deployment-manager-code-quality-20260407",
     "execute/qa-scenario-to-desktop-code-quality-20260407",
     "execute/vrooli-emulator-remote-node-backend",
-    "fix/qa-deployment-manager-tests-20260407"
+    "fix/qa-deployment-manager-standards-focus-visible-20260515",
+    "fix/qa-deployment-manager-tests-20260407",
+    "fix/qa-deployment-manager-visual-baseline-20260515"
   ],
   "description": "Add the first real-device validation flow over the bridge for macOS hardware.\n\nThe finished flow should let deployment and emulator surfaces request a validation session on a trusted remote Mac, run the sanity check there, and feed the result back into the same approval and review path used for desktop releases.",
   "effort": "L",
@@ -27,5 +29,5 @@
     "validation"
   ],
   "title": "Add MacOS Real Device Validation Over Bridge",
-  "updated": "2026-04-23T03:48:04Z"
+  "updated": "2026-05-15T04:07:45Z"
 }

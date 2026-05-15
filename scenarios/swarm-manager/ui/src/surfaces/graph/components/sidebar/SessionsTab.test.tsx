@@ -74,21 +74,35 @@ const AUTHORING_SESSION: AgentSession = {
   ],
 };
 
+const OPERATIONS_SESSION: AgentSession = {
+  ...META_SESSION,
+  id: "sess_ops",
+  title: "Manage stalled initiatives",
+  kind: "swarm_operations",
+  status: "waiting_for_user",
+  skillId: "swarm-manager-operations-session",
+  taskId: "task-ops",
+  runId: "run-ops",
+  updatedAt: "2026-05-01T12:30:00Z",
+};
+
 describe("SessionsTab", () => {
   beforeEach(() => {
     navigateMock.mockReset();
     useAgentSessionStore.setState({
       ...agentSessionStoreInitialState,
-      sessions: [META_SESSION, AUTHORING_SESSION],
+      sessions: [META_SESSION, AUTHORING_SESSION, OPERATIONS_SESSION],
       status: "success",
     });
   });
 
   it("filters by active sessions, kind, proposals, and applied artifacts", () => {
-    expect(applySessionFilters([META_SESSION, AUTHORING_SESSION], { ...BASE_FILTERS, activeOnly: true })).toHaveLength(2);
-    expect(applySessionFilters([META_SESSION, AUTHORING_SESSION], { ...BASE_FILTERS, kinds: ["meta_orchestration"] })).toEqual([META_SESSION]);
-    expect(applySessionFilters([META_SESSION, AUTHORING_SESSION], { ...BASE_FILTERS, hasProposals: true })).toEqual([AUTHORING_SESSION]);
-    expect(applySessionFilters([META_SESSION, AUTHORING_SESSION], { ...BASE_FILTERS, hasAppliedArtifacts: true })).toEqual([AUTHORING_SESSION]);
+    const sessions = [META_SESSION, AUTHORING_SESSION, OPERATIONS_SESSION];
+    expect(applySessionFilters(sessions, { ...BASE_FILTERS, activeOnly: true })).toHaveLength(3);
+    expect(applySessionFilters(sessions, { ...BASE_FILTERS, kinds: ["meta_orchestration"] })).toEqual([META_SESSION]);
+    expect(applySessionFilters(sessions, { ...BASE_FILTERS, kinds: ["swarm_operations"] })).toEqual([OPERATIONS_SESSION]);
+    expect(applySessionFilters(sessions, { ...BASE_FILTERS, hasProposals: true })).toEqual([AUTHORING_SESSION]);
+    expect(applySessionFilters(sessions, { ...BASE_FILTERS, hasAppliedArtifacts: true })).toEqual([AUTHORING_SESSION]);
   });
 
   it("sorts sessions by recency and alphabetically", () => {
@@ -106,6 +120,8 @@ describe("SessionsTab", () => {
     const onOpenSession = vi.fn();
     render(<SessionsTab searchQuery="" filters={BASE_FILTERS} sort={RECENCY_SORT} onOpenSession={onOpenSession} />);
 
+    expect(screen.getByText("Manage stalled initiatives")).toBeInTheDocument();
+    expect(screen.getByText("Swarm operations")).toBeInTheDocument();
     expect(screen.getByText("Author phased execution mode")).toBeInTheDocument();
     expect(screen.getByText("Plan quality work")).toBeInTheDocument();
 

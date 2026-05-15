@@ -12,7 +12,7 @@ import type {
 import type { AgentSessionRunEvent as ProtoAgentSessionRunEvent } from "@vrooli/proto-types/swarm-manager/v1/api/agent_session_pb";
 import type { ProtoMessage } from "./shared";
 
-export type AgentSessionKind = "meta_orchestration" | "operating_mode_authoring";
+export type AgentSessionKind = "meta_orchestration" | "operating_mode_authoring" | "swarm_operations";
 
 export type AgentSessionStatus =
   | "draft"
