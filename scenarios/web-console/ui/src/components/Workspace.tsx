@@ -13,6 +13,7 @@ import { useAppViewport } from "../hooks/useAppViewport";
 import { useTouchControls } from "../hooks/useTouchControls";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
+import { usePressGesture } from "../hooks/usePressGesture";
 import { useWakeLockStatus } from "../stores/useWakeLockStatus";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import {
@@ -65,6 +66,9 @@ type ActiveResize = {
 };
 
 type ActiveArrangeDrag = { paneId: string; dropIndex: number };
+
+const SIDEBAR_HEADER_LONG_PRESS_MS = 500;
+const SIDEBAR_HEADER_PRESS_MOVE_THRESHOLD = 8;
 
 /**
  * ── STABLE CORE: Pane layout and control wiring. ──
@@ -135,6 +139,7 @@ export default function Workspace() {
     setSettingsModalOpen: state.setSettingsModalOpen,
     setAiModalOpen: state.setAiModalOpen,
     setAiSuggestActive: state.setAiSuggestActive,
+    setTabContextMenu: state.setTabContextMenu,
   })));
   const workspacePanes = workspace.panes;
   const activeWorkspacePane = workspace.activePane;
@@ -1071,6 +1076,14 @@ export default function Workspace() {
   );
   const activeSidebarPane = activeNavigationItem?.kind === "pane" ? activeNavigationItem : null;
   const sidebarUnreadCount = countWorkspaceUnreadMessages(orderedPanes, conversationSessions);
+  const sidebarHeaderPressGesture = usePressGesture<string>({
+    longPressMs: SIDEBAR_HEADER_LONG_PRESS_MS,
+    moveThresholdPx: SIDEBAR_HEADER_PRESS_MOVE_THRESHOLD,
+    onTap: () => {},
+    onLongPress: (sessionId, point) => {
+      workspace.setTabContextMenu({ sessionId, position: { x: point.x, y: point.y } });
+    },
+  });
 
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
@@ -1199,7 +1212,14 @@ export default function Workspace() {
               </span>
             )}
           </Button>
-          <div data-testid="workspace-sidebar-active-title" className="min-w-0 flex-1 truncate text-sm font-medium">
+          <div
+            data-testid="workspace-sidebar-active-title"
+            className="min-w-0 flex-1 select-none truncate text-sm font-medium touch-manipulation"
+            title={activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
+            {...(activeSidebarPane
+              ? sidebarHeaderPressGesture.getGestureHandlers(activeSidebarPane.pane.sessionId)
+              : {})}
+          >
             {activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
           </div>
           {activeSidebarPane && activeSidebarPane.unreadCount > 0 && (

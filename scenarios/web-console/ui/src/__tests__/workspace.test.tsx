@@ -562,6 +562,35 @@ describe("Workspace", () => {
     vi.useRealTimers();
   });
 
+  it("opens the tab context menu on mobile sidebar header title long press", () => {
+    vi.useFakeTimers();
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+    const session2: SessionInfo = { ...mockSession, id: "sess-test-002" };
+    hookState.panes = [{ session: mockSession }, { session: session2 }];
+    mockStoreState.displayMode = "sidebar";
+    mockStoreState.activePane = session2.id;
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+      { sessionId: session2.id, name: "Secondary", headerColor: "transparent", supportsMessagesView: false },
+    ];
+
+    render(<Workspace />);
+    const title = screen.getByTestId("workspace-sidebar-active-title");
+    expect(title.className).toContain("select-none");
+    fireEvent.pointerDown(title, { pointerType: "touch", pointerId: 1, button: 0, clientX: 120, clientY: 24 });
+    vi.advanceTimersByTime(500);
+    fireEvent.pointerUp(window, { pointerType: "touch", pointerId: 1, clientX: 120, clientY: 24 });
+
+    expect(mockStoreActions.setTabContextMenu).toHaveBeenCalledWith({
+      sessionId: session2.id,
+      position: { x: 120, y: 24 },
+    });
+    expect(mockStoreActions.setActivePane).not.toHaveBeenCalled();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+    vi.useRealTimers();
+  });
+
   it("opens the tab context menu on sidebar right click", () => {
     const session2: SessionInfo = { ...mockSession, id: "sess-test-002" };
     hookState.panes = [{ session: mockSession }, { session: session2 }];
