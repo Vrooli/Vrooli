@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -158,11 +159,38 @@ func main() {
 		nil,
 	)
 	ttsCache := inttts.NewCache(64 * 1024 * 1024) // 64 MiB content-addressable cache
-	_ = ttsCache                                  // Wired into tts.Service via Deps in a follow-up
+	kokoroURL := envOr("AUDIO_KOKORO_URL", "http://localhost:8880")
+	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: kokoroURL}
+	ttsCfg := inttts.DefaultConfig()
+	ttsSummCfg := inttts.DefaultSummarizeConfig()
 	ttsSvc := inttts.NewService(inttts.Deps{
-		Logger: logger,
+		Logger:                 logger,
+		GetConfig:              func() inttts.Config { return ttsCfg },
+		SetConfig:              func(c inttts.Config) { ttsCfg = c },
+		PersistConfig:          func(inttts.Config) error { return nil },
+		GetSummarizeConfig:     func() inttts.SummarizeConfig { return ttsSummCfg },
+		SetSummarizeConfig:     func(c inttts.SummarizeConfig) { ttsSummCfg = c },
+		PersistSummarizeConfig: func(inttts.SummarizeConfig) error { return nil },
 		KokoroCapability: func(ctx context.Context) (string, string) {
 			return "available", "Kokoro (Local)"
+		},
+		SynthesizeAudio: func(ctx context.Context, in inttts.SynthesizeInput) (io.ReadCloser, string, error) {
+			return kokoroSynth.Synthesize(ctx, inttts.SynthesizeRequest{
+				Input:          in.Input,
+				Voice:          in.Voice,
+				ResponseFormat: in.ResponseFormat,
+				Speed:          in.Speed,
+			})
+		},
+		GetCache: func(key inttts.CacheKey) (inttts.SynthesizeResult, bool) {
+			out, ok := ttsCache.Get(key)
+			if !ok {
+				return inttts.SynthesizeResult{}, false
+			}
+			return inttts.SynthesizeResult{Audio: out.Audio, ContentType: out.ContentType}, true
+		},
+		PutCache: func(key inttts.CacheKey, audio []byte, ct string) {
+			ttsCache.Put(key, audio, ct)
 		},
 	})
 	ollamaSummarizer := inttts.NewSummarizer(envOr("AUDIO_OLLAMA_URL", "http://localhost:11434"))

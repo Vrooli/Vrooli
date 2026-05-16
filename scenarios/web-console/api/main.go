@@ -422,19 +422,31 @@ func NewServer(db *sql.DB) *Server {
 	)
 	srv.sttPort = audioports.LocalSpeechToText{Backend: srv.voice}
 
-	// audio-tools adoption (Phase H):
-	// When AUDIO_TOOLS_URL is set, switch the audioports to the Remote*
-	// adapters so STT / TTS / SpeechTextProcessor calls go to audio-tools
-	// instead of the in-tree local stack. Phase I's flag-day commit removes
-	// the Local* path entirely after a soak; until then we honor the env
-	// override so adoption can be staged.
-	if audioToolsURL := strings.TrimSpace(os.Getenv("AUDIO_TOOLS_URL")); audioToolsURL != "" {
-		atClient, err := audiotoolsint.New(
-			audiotoolsint.EnvResolver{EnvVar: "AUDIO_TOOLS_URL", Default: audioToolsURL},
-			audiotoolsint.Policy{Required: false},
-		)
+	// audio-tools adoption (Phase H/I soak):
+	// Default behavior: resolve audio-tools via api-core/discovery from the
+	// service-manifest dependency declared in .vrooli/service.json. This
+	// activates the cross-scenario path automatically when audio-tools is
+	// running. Overrides:
+	//   - AUDIO_TOOLS_URL  → pin to an explicit URL (dev/test override)
+	//   - AUDIO_TOOLS_DISABLE=1 → force the in-tree Local* stack (kill-switch
+	//     for the soak window; removed when Phase I9 flips required→true)
+	if strings.TrimSpace(os.Getenv("AUDIO_TOOLS_DISABLE")) == "1" {
+		log.Printf("audio-tools adoption: disabled via AUDIO_TOOLS_DISABLE=1; using in-tree local stack")
+	} else {
+		var resolver audiotoolsint.URLResolver
+		if explicit := strings.TrimSpace(os.Getenv("AUDIO_TOOLS_URL")); explicit != "" {
+			resolver = audiotoolsint.EnvResolver{EnvVar: "AUDIO_TOOLS_URL", Default: explicit}
+		} else {
+			resolver = &audiotoolsint.CachedResolver{
+				Inner: audiotoolsint.ScenarioResolver{Slug: "audio-tools"},
+				TTL:   30 * time.Second,
+			}
+		}
+		atClient, err := audiotoolsint.New(resolver, audiotoolsint.Policy{Required: false})
 		if err != nil {
 			log.Printf("audio-tools adoption: client init failed, falling back to local audio stack: %v", err)
+		} else if !atClient.Resolved() {
+			log.Printf("audio-tools adoption: audio-tools not running at startup; keeping local stack (set AUDIO_TOOLS_URL or start the scenario to switch)")
 		} else {
 			srv.sttPort = &audioports.RemoteSpeechToText{Client: atClient}
 			srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}

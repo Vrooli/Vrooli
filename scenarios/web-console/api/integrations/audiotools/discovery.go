@@ -7,7 +7,32 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
 )
+
+// ScenarioResolver resolves the audio-tools base URL via api-core/discovery,
+// which consults the running lifecycle to find the audio-tools API port.
+// Used in production when the audio-tools scenario is declared as a
+// dependency in .vrooli/service.json.
+type ScenarioResolver struct {
+	Slug    string        // scenario slug, e.g., "audio-tools"
+	Timeout time.Duration // per-resolve timeout (default 5s)
+}
+
+func (r ScenarioResolver) Resolve() (string, error) {
+	timeout := r.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	slug := r.Slug
+	if slug == "" {
+		slug = "audio-tools"
+	}
+	return discovery.ResolveScenarioURLDefault(ctx, slug)
+}
 
 // EnvResolver resolves the audio-tools base URL from an environment variable.
 // Used in development and tests. Production deployments use the
