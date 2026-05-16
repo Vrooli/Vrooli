@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -23,6 +24,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	apihealth "github.com/vrooli/api-core/health"
 )
 
 func TestServer_handleGetSuiteRequestSuccess(t *testing.T) {
@@ -516,16 +518,28 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 
+	body := rec.Body.Bytes()
 	var payload map[string]interface{}
-	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&payload); err != nil {
 		t.Fatalf("decode health payload: %v", err)
 	}
 	if payload["status"] != "healthy" {
 		t.Fatalf("expected healthy status, got %v", payload["status"])
 	}
+	var standard apihealth.Response
+	if err := json.Unmarshal(body, &standard); err != nil {
+		t.Fatalf("health payload must decode as api-core health response: %v", err)
+	}
+	if dep, ok := standard.Dependencies["database"]; !ok || !dep.Connected {
+		t.Fatalf("expected standard connected database dependency, got %#v", standard.Dependencies)
+	}
 	deps, ok := payload["dependencies"].(map[string]interface{})
-	if !ok || deps["database"] != "connected" {
+	if !ok {
 		t.Fatalf("expected database dependency, got %#v", deps)
+	}
+	dbDep, ok := deps["database"].(map[string]interface{})
+	if !ok || dbDep["connected"] != true {
+		t.Fatalf("expected connected database dependency, got %#v", deps["database"])
 	}
 	operations, ok := payload["operations"].(map[string]interface{})
 	if !ok {
@@ -587,9 +601,13 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 	if payload["status"] != "unhealthy" {
 		t.Fatalf("expected unhealthy status, got %v", payload["status"])
 	}
-	deps := payload["dependencies"].(map[string]interface{})
-	if deps["database"] != "disconnected" {
-		t.Fatalf("expected disconnected dependency, got %#v", deps)
+	deps, ok := payload["dependencies"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected dependencies payload, got %#v", payload["dependencies"])
+	}
+	dbDep, ok := deps["database"].(map[string]interface{})
+	if !ok || dbDep["connected"] != false {
+		t.Fatalf("expected disconnected database dependency, got %#v", deps["database"])
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet mock expectations: %v", err)

@@ -5,20 +5,21 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/queue"
-	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"
-	dbStatus := "connected"
+	dbConnected := true
 
 	if err := s.db.PingContext(r.Context()); err != nil {
 		status = "unhealthy"
-		dbStatus = "disconnected"
+		dbConnected = false
 	}
 
 	operations := map[string]interface{}{}
@@ -43,8 +44,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"version":   "1.0.0",
 		"readiness": status == "healthy",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
+		"dependencies": map[string]map[string]bool{
+			"database": {
+				"connected": dbConnected,
+			},
 		},
 		"operations": operations,
 	}

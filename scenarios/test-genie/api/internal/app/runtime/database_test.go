@@ -5,9 +5,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"testing"
+
 	"test-genie/internal/storage/sqlfiles"
 	"test-genie/internal/storage/sqlitedb"
-	"testing"
 
 	_ "modernc.org/sqlite"
 )
@@ -100,6 +101,13 @@ func TestApplySchemaCreatesTablesAndOptionalSeed(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected seeded suite request to exist, got count=%d", count)
+	}
+	var status string
+	if err := db.QueryRow(`SELECT status FROM suite_requests WHERE id = ?`, "00000000-0000-0000-0000-000000000001").Scan(&status); err != nil {
+		t.Fatalf("load seeded suite request status: %v", err)
+	}
+	if status != "completed" {
+		t.Fatalf("expected preview seed to be completed, got %q", status)
 	}
 }
 

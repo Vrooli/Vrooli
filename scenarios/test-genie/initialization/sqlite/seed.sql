@@ -14,7 +14,10 @@ INSERT INTO suite_requests (
     '["unit","integration"]',
     95,
     'normal',
-    'queued',
+    'completed',
     'Initial suite request seeded for dashboard previews',
     NULL
-) ON CONFLICT(id) DO NOTHING;
+) ON CONFLICT(id) DO UPDATE SET
+    status = 'completed',
+    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+WHERE suite_requests.status IN ('queued', 'delegated');
