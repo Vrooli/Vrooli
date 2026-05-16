@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.usage;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage;usage_v1";
+
+// =============================================================================
+// USAGE DOMAIN — per-operation accounting and provider distribution.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain usage
+// @stability stable
+//
+// Records every operation that flowed through a provider chain. Usage rows
+// are written by the async usage reporter (3 retries 500ms/1s/2s, idempotent
+// by OperationID).
+// =============================================================================
+
+service UsageService {
+  rpc ListRecent(ListRecentRequest) returns (ListRecentResponse);
+  rpc GetSummary(GetSummaryRequest) returns (GetSummaryResponse);
+}
+
+message UsageRow {
+  string operation_id = 1;            // UUID, idempotency key
+  string emitted_at = 2;              // RFC3339
+  string capability = 3;              // "stt" | "tts" | "summarize" | "audio"
+  string operation = 4;               // "transcribe" | "synthesize" | "summarize" | "transcode" | ...
+  string provider_tier = 5;
+  string provider_id = 6;
+  string model_id = 7;
+  double latency_ms = 8;
+  int32 credits_charged = 9;
+  int32 prompt_tokens = 10;
+  int32 output_tokens = 11;
+  double audio_duration_seconds = 12;
+  string error = 13;                  // empty when success
+  string fallback_reason = 14;        // when a higher-tier provider was skipped
+  string user_identity = 15;
+}
+
+message ListRecentRequest {
+  // Either since_seconds (lookback) or after_emitted_at (cursor).
+  int64 since_seconds = 1;
+  string after_emitted_at = 2;
+  int32 limit = 3;                    // default 100, max 1000
+  string capability = 4;              // optional filter
+  string provider_tier = 5;
+}
+
+message ListRecentResponse {
+  repeated UsageRow rows = 1;
+}
+
+message ProviderDistribution {
+  string provider_tier = 1;
+  string provider_id = 2;
+  int64 count = 3;
+  int64 credits_total = 4;
+  double avg_latency_ms = 5;
+}
+
+message FallbackReason {
+  string reason = 1;
+  int64 count = 2;
+}
+
+message Summary {
+  string since = 1;                   // RFC3339
+  string until = 2;
+  int64 operations_total = 3;
+  int64 credits_total = 4;
+  repeated ProviderDistribution distribution = 5;
+  repeated FallbackReason fallback_reasons = 6;
+  int64 error_count = 7;
+}
+
+message GetSummaryRequest {
+  int64 since_seconds = 1;
+  string capability = 2;
+}
+
+message GetSummaryResponse {
+  Summary summary = 1;
+}

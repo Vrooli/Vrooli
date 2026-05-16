@@ -1,0 +1,283 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.stt;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt;stt_v1";
+
+// =============================================================================
+// STT DOMAIN — speech-to-text (transcription), voice stream config,
+//              wake-word template, and speaker verification.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain stt
+// @stability stable
+//
+// Provider routing: BYOK -> Vrooli/LPBS -> Local (fixed precedence).
+// ErrInsufficientCredits from the Vrooli tier short-circuits and does NOT
+// fall through to Local. Per-request credentials travel in metadata headers:
+//   X-Audio-BYOK-Provider, X-Audio-BYOK-Key, X-Audio-LPBS-Token,
+//   X-Audio-User-Identity.
+//
+// REST exception:
+//   POST /api/v1/voice/transcribe (RESTReason: multipart_upload) parses
+//   multipart form-data and calls the same Transcribe handler.
+//
+// The browser-voice WebSocket transport at /api/v1/voice/stream is documented
+// in session.proto + SEAMS.md; it is a TransportReason: websocket_transport
+// endpoint, not a REST exception.
+// =============================================================================
+
+service STTService {
+  rpc Transcribe(TranscribeRequest) returns (TranscribeResponse);
+
+  rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
+  rpc UpdateStreamConfig(UpdateStreamConfigRequest) returns (UpdateStreamConfigResponse);
+
+  rpc GetWakeWordConfig(GetWakeWordConfigRequest) returns (GetWakeWordConfigResponse);
+  rpc UpdateWakeWordTemplate(UpdateWakeWordTemplateRequest) returns (UpdateWakeWordTemplateResponse);
+  rpc DeleteWakeWordTemplate(DeleteWakeWordTemplateRequest) returns (DeleteWakeWordTemplateResponse);
+
+  rpc GetSpeakerConfig(GetSpeakerConfigRequest) returns (GetSpeakerConfigResponse);
+  rpc UpdateSpeakerConfig(UpdateSpeakerConfigRequest) returns (UpdateSpeakerConfigResponse);
+  rpc GetSpeakerStatus(GetSpeakerStatusRequest) returns (GetSpeakerStatusResponse);
+  rpc ListSpeakerProfiles(ListSpeakerProfilesRequest) returns (ListSpeakerProfilesResponse);
+  rpc EnrollSpeakerProfile(EnrollSpeakerProfileRequest) returns (EnrollSpeakerProfileResponse);
+  rpc ClearSpeakerProfileBinding(ClearSpeakerProfileBindingRequest) returns (ClearSpeakerProfileBindingResponse);
+  rpc RemoveSpeakerProfile(RemoveSpeakerProfileRequest) returns (RemoveSpeakerProfileResponse);
+  rpc DeleteSpeakerProfile(DeleteSpeakerProfileRequest) returns (DeleteSpeakerProfileResponse);
+}
+
+// -----------------------------------------------------------------------------
+// Transcribe
+// -----------------------------------------------------------------------------
+
+message TranscribeRequest {
+  bytes audio = 1;
+  string format = 2;                   // "wav" | "mp3" | "flac" | "ogg" | "webm" | ...
+  string language = 3;                 // empty = provider auto-detect
+  bool skip_speaker_verification = 4;
+  string initial_prompt = 5;           // optional Whisper-style prompt
+}
+
+message TranscribeResponse {
+  string text = 1;
+  string detected_language = 2;
+  double duration_seconds = 3;
+
+  // Provider trace surface. provider_tier in {"byok","vrooli","local"};
+  // model_id is the concrete model identifier the provider used.
+  string provider_tier = 4;
+  string provider_id = 5;
+  string model_id = 6;
+  double latency_ms = 7;
+}
+
+// -----------------------------------------------------------------------------
+// Stream config
+// -----------------------------------------------------------------------------
+
+message StreamConfig {
+  int32 flush_interval_ms = 1;
+  int32 min_delta_bytes = 2;
+  int32 overlap_bytes = 3;
+  bool persistent_mode = 4;
+  bool wake_word_enabled = 5;
+  double wake_word_threshold = 6;
+  int32 segment_silence_ms = 7;
+}
+
+message GetStreamConfigRequest {}
+
+message GetStreamConfigResponse {
+  StreamConfig config = 1;
+}
+
+message UpdateStreamConfigRequest {
+  int32 flush_interval_ms = 1;
+  bool has_flush_interval_ms = 2;
+  int32 min_delta_bytes = 3;
+  bool has_min_delta_bytes = 4;
+  int32 overlap_bytes = 5;
+  bool has_overlap_bytes = 6;
+  bool persistent_mode = 7;
+  bool has_persistent_mode = 8;
+  bool wake_word_enabled = 9;
+  bool has_wake_word_enabled = 10;
+  double wake_word_threshold = 11;
+  bool has_wake_word_threshold = 12;
+  int32 segment_silence_ms = 13;
+  bool has_segment_silence_ms = 14;
+}
+
+message UpdateStreamConfigResponse {
+  StreamConfig config = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Wake word
+// -----------------------------------------------------------------------------
+
+message WakeWordConfig {
+  bool configured = 1;
+  // template_json is the raw WakeWordTemplate JSON payload (samples,
+  // label, threshold, updatedAt). Shape is owned by the UI wakeword engine.
+  string template_json = 2;
+}
+
+message GetWakeWordConfigRequest {}
+
+message GetWakeWordConfigResponse {
+  WakeWordConfig config = 1;
+}
+
+message UpdateWakeWordTemplateRequest {
+  string template_json = 1;
+}
+
+message UpdateWakeWordTemplateResponse {
+  WakeWordConfig config = 1;
+}
+
+message DeleteWakeWordTemplateRequest {}
+
+message DeleteWakeWordTemplateResponse {
+  WakeWordConfig config = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Speaker verification
+// -----------------------------------------------------------------------------
+
+message SpeakerConfig {
+  bool enabled = 1;
+  repeated string profile_ids = 2;
+  double threshold = 3;
+  string mode = 4;                     // "off" | "filter" | "advisory"
+  string reject_behavior = 5;          // "drop" | "show-muted"
+  bool fallback_without_verification = 6;
+  bool extraction_enabled = 7;
+}
+
+message GetSpeakerConfigRequest {}
+
+message GetSpeakerConfigResponse {
+  SpeakerConfig config = 1;
+}
+
+message UpdateSpeakerConfigRequest {
+  bool enabled = 1;
+  bool has_enabled = 2;
+  repeated string profile_ids = 3;
+  bool has_profile_ids = 4;
+  double threshold = 5;
+  bool has_threshold = 6;
+  string mode = 7;
+  bool has_mode = 8;
+  string reject_behavior = 9;
+  bool has_reject_behavior = 10;
+  bool fallback_without_verification = 11;
+  bool has_fallback_without_verification = 12;
+  bool extraction_enabled = 13;
+  bool has_extraction_enabled = 14;
+}
+
+message UpdateSpeakerConfigResponse {
+  SpeakerConfig config = 1;
+}
+
+message SpeakerProfile {
+  string id = 1;
+  string display_name = 2;
+  string created_at = 3;
+  string updated_at = 4;
+  string model_name = 5;
+  int32 embedding_dim = 6;
+  int32 sample_rate = 7;
+  double enrollment_audio_seconds = 8;
+  string notes = 9;
+}
+
+message SpeakerResourceInfo {
+  string backend = 1;
+  string model = 2;
+  string device = 3;
+  int32 sample_rate = 4;
+  string version = 5;
+  int32 embedding_dim = 6;
+}
+
+message SpeakerStatus {
+  SpeakerConfig config = 1;
+  string capability = 2;
+  string capability_label = 3;
+  bool resource_ready = 4;
+  bool profile_configured = 5;
+  bool profile_exists = 6;
+  int32 profile_count = 7;
+  repeated SpeakerProfile profiles = 8;
+  SpeakerResourceInfo info = 9;
+  string checked_at = 10;
+}
+
+message GetSpeakerStatusRequest {}
+
+message GetSpeakerStatusResponse {
+  SpeakerStatus status = 1;
+}
+
+message ListSpeakerProfilesRequest {}
+
+message ListSpeakerProfilesResponse {
+  repeated SpeakerProfile profiles = 1;
+  int32 count = 2;
+}
+
+message SpeakerEnrollment {
+  string profile_id = 1;
+  string display_name = 2;
+  int32 embedding_dim = 3;
+  int32 sample_rate = 4;
+  double enrollment_audio_seconds = 5;
+  string model_name = 6;
+  string created_at = 7;
+}
+
+message EnrollSpeakerProfileRequest {
+  bytes audio = 1;
+  string format = 2;
+  string profile_id = 3;
+  string display_name = 4;
+  string notes = 5;
+  bool add_to_active = 6;
+  bool has_add_to_active = 7;
+  bool enable = 8;
+  bool has_enable = 9;
+}
+
+message EnrollSpeakerProfileResponse {
+  SpeakerEnrollment enrollment = 1;
+  SpeakerConfig config = 2;
+}
+
+message ClearSpeakerProfileBindingRequest {}
+
+message ClearSpeakerProfileBindingResponse {
+  SpeakerConfig config = 1;
+}
+
+message RemoveSpeakerProfileRequest {
+  string profile_id = 1;
+}
+
+message RemoveSpeakerProfileResponse {
+  SpeakerConfig config = 1;
+}
+
+message DeleteSpeakerProfileRequest {
+  string profile_id = 1;
+}
+
+message DeleteSpeakerProfileResponse {
+  SpeakerConfig config = 1;
+}

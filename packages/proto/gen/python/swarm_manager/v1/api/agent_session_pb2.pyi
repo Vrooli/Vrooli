@@ -98,6 +98,20 @@ class AgentSessionContextRef(_message.Message):
     ref: str
     def __init__(self, type: _Optional[str] = ..., ref: _Optional[str] = ...) -> None: ...
 
+class GetAgentSessionStartupBriefRequest(_message.Message):
+    __slots__ = ("session_id", "refresh")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    REFRESH_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    refresh: bool
+    def __init__(self, session_id: _Optional[str] = ..., refresh: _Optional[bool] = ...) -> None: ...
+
+class GetAgentSessionStartupBriefResponse(_message.Message):
+    __slots__ = ("brief",)
+    BRIEF_FIELD_NUMBER: _ClassVar[int]
+    brief: _agent_session_pb2.AgentSessionContextItem
+    def __init__(self, brief: _Optional[_Union[_agent_session_pb2.AgentSessionContextItem, _Mapping]] = ...) -> None: ...
+
 class UploadAgentSessionAttachmentsResponse(_message.Message):
     __slots__ = ("attachments",)
     ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]

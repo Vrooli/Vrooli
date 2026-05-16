@@ -1,0 +1,94 @@
+package byok
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+
+	"audio-tools/internal/ai/ttschain"
+)
+
+// ElevenLabsTTS calls ElevenLabs' text-to-speech endpoint.
+type ElevenLabsTTS struct {
+	BaseURL    string
+	HTTPClient *http.Client
+}
+
+func NewElevenLabsTTS() *ElevenLabsTTS {
+	return &ElevenLabsTTS{
+		BaseURL:    "https://api.elevenlabs.io",
+		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+	}
+}
+
+func (a *ElevenLabsTTS) ID() string    { return "elevenlabs" }
+func (a *ElevenLabsTTS) Model() string { return "eleven_multilingual_v2" }
+
+func (a *ElevenLabsTTS) IsAvailable(ctx context.Context, key string) bool { return key != "" }
+
+// canonicalToElevenVoiceID returns the ElevenLabs voice_id for a canonical
+// voice. Public ElevenLabs IDs are stable; users override via voice_overrides.
+func canonicalToElevenVoiceID(canonical string, overrides map[string]string) string {
+	if v, ok := overrides["byok:elevenlabs"]; ok && v != "" {
+		return v
+	}
+	switch canonical {
+	case "voice.feminine.warm":
+		return "EXAVITQu4vr4xnSDxMaL" // "Bella" public ID
+	case "voice.feminine.neutral":
+		return "21m00Tcm4TlvDq8ikWAM" // "Rachel"
+	case "voice.masculine.warm":
+		return "ErXwobaYiN019PkySvjV" // "Antoni"
+	case "voice.masculine.neutral":
+		return "29vD33N1CtxCmqQRPOHJ" // "Drew"
+	case "voice.neutral.default":
+		return "21m00Tcm4TlvDq8ikWAM" // "Rachel"
+	}
+	return "21m00Tcm4TlvDq8ikWAM"
+}
+
+func (a *ElevenLabsTTS) Synthesize(ctx context.Context, key string, req ttschain.Request) (*ttschain.Result, error) {
+	if key == "" {
+		return nil, fmt.Errorf("elevenlabs: missing API key")
+	}
+	voiceID := canonicalToElevenVoiceID(req.Voice, req.VoiceOverrides)
+	payload, _ := json.Marshal(map[string]any{
+		"text":     req.Text,
+		"model_id": "eleven_multilingual_v2",
+	})
+	endpoint := fmt.Sprintf("%s/v1/text-to-speech/%s", a.BaseURL, voiceID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("xi-api-key", key)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "audio/mpeg")
+
+	start := time.Now()
+	resp, err := a.HTTPClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("elevenlabs: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		raw, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("elevenlabs: HTTP %d: %s", resp.StatusCode, truncate(string(raw), 256))
+	}
+	audio, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return &ttschain.Result{
+		Audio:       audio,
+		ContentType: "audio/mpeg",
+		ModelID:     "eleven_multilingual_v2",
+		VoiceUsed:   voiceID,
+		Latency:     time.Since(start),
+	}, nil
+}

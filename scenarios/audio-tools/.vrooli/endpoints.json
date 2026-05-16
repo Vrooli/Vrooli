@@ -1,0 +1,466 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "audio-tools status"
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operational liveness/readiness probe; load balancers and `curl` must reach it without a Connect client."
+      }
+    },
+    {
+      "id": "audio.transcode",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Transcode",
+      "method": "POST",
+      "summary": "Transcode audio (Connect-RPC)",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.transcode_multipart",
+      "path": "/api/v1/audio/transcode",
+      "method": "POST",
+      "summary": "Multipart audio transcode",
+      "description": "",
+      "category": "audio",
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Audio bytes via multipart form-data."
+      }
+    },
+    {
+      "id": "audio.trim",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Trim",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.merge",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Merge",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.split",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Split",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.fade",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Fade",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.volume",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Volume",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.normalize",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Normalize",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.extract_metadata",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/ExtractMetadata",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "session.open",
+      "path": "/vrooli.audio_tools.v1.session.SessionService/OpenSession",
+      "method": "POST",
+      "summary": "Open a voice session",
+      "description": "",
+      "category": "session"
+    },
+    {
+      "id": "session.close",
+      "path": "/vrooli.audio_tools.v1.session.SessionService/CloseSession",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "session"
+    },
+    {
+      "id": "session.send_text",
+      "path": "/vrooli.audio_tools.v1.session.SessionService/SendText",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "session"
+    },
+    {
+      "id": "session.send_cancel",
+      "path": "/vrooli.audio_tools.v1.session.SessionService/SendCancel",
+      "method": "POST",
+      "summary": "Explicit barge-in",
+      "description": "",
+      "category": "session"
+    },
+    {
+      "id": "session.subscribe",
+      "path": "/vrooli.audio_tools.v1.session.SessionService/Subscribe",
+      "method": "POST",
+      "summary": "Server-streaming session events",
+      "description": "",
+      "category": "session"
+    },
+    {
+      "id": "settings.get_provider_config",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/GetProviderConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.update_provider_config",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/UpdateProviderConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.list_byok_credentials",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/ListBYOKCredentials",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.upsert_byok_credential",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/UpsertBYOKCredential",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.delete_byok_credential",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/DeleteBYOKCredential",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.get_voice_overrides",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/GetVoiceOverrides",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.set_voice_override",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/SetVoiceOverride",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "stt.transcribe",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/Transcribe",
+      "method": "POST",
+      "summary": "Transcribe audio via STT provider chain (Connect-RPC)",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.transcribe_multipart",
+      "path": "/api/v1/voice/transcribe",
+      "method": "POST",
+      "summary": "Multipart upload variant of Transcribe",
+      "description": "",
+      "category": "stt",
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Audio bytes via multipart form-data; payload would not encode efficiently inline through proto JSON."
+      }
+    },
+    {
+      "id": "stt.stream_ws",
+      "path": "/api/v1/voice/stream",
+      "method": "GET",
+      "summary": "Browser-voice WebSocket transport",
+      "description": "",
+      "category": "stt",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "WebSocket transport — see docs/internal/SEAMS.md. Will move to TransportReason: websocket_transport when template constant lands (R-PROTO)."
+      }
+    },
+    {
+      "id": "stt.get_stream_config",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/GetStreamConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.update_stream_config",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/UpdateStreamConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.get_wakeword_config",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/GetWakeWordConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.update_wakeword_template",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/UpdateWakeWordTemplate",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.delete_wakeword_template",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/DeleteWakeWordTemplate",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.get_speaker_config",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/GetSpeakerConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.update_speaker_config",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/UpdateSpeakerConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.get_speaker_status",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/GetSpeakerStatus",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.list_speaker_profiles",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/ListSpeakerProfiles",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.enroll_speaker_profile",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/EnrollSpeakerProfile",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.clear_speaker_profile_binding",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/ClearSpeakerProfileBinding",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.remove_speaker_profile",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/RemoveSpeakerProfile",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.delete_speaker_profile",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/DeleteSpeakerProfile",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "summarize.summarize",
+      "path": "/vrooli.audio_tools.v1.summarize.SummarizeService/Summarize",
+      "method": "POST",
+      "summary": "Summarize text via the summarization provider chain",
+      "description": "",
+      "category": "summarize"
+    },
+    {
+      "id": "tts.synthesize",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/Synthesize",
+      "method": "POST",
+      "summary": "Synthesize speech audio via the TTS provider chain",
+      "description": "BYOK -> Vrooli -> Local. Audio bytes returned inline; voice_overrides and event_id cache controls supported.",
+      "category": "tts"
+    },
+    {
+      "id": "tts.list_voices",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/ListVoices",
+      "method": "POST",
+      "summary": "List canonical voices",
+      "description": "Returns the five canonical voice IDs with their human labels.",
+      "category": "tts"
+    },
+    {
+      "id": "tts.get_cache",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/GetCache",
+      "method": "POST",
+      "summary": "Look up cached TTS audio",
+      "description": "Direct content-addressable lookup via content_hash, OR event_id-based lookup for consumer glue.",
+      "category": "tts"
+    },
+    {
+      "id": "tts.get_config",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/GetConfig",
+      "method": "POST",
+      "summary": "Read TTS default config",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "tts.update_config",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/UpdateConfig",
+      "method": "POST",
+      "summary": "Update TTS default config",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "tts.get_status",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/GetStatus",
+      "method": "POST",
+      "summary": "TTS service status snapshot",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "tts.record_playback_event",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/RecordPlaybackEvent",
+      "method": "POST",
+      "summary": "Consumer playback ack",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "tts.normalize_for_speech",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/NormalizeForSpeech",
+      "method": "POST",
+      "summary": "Normalize text for TTS",
+      "description": "Pure helper. Consumers call this across the scenario boundary; no shared packages.",
+      "category": "tts"
+    },
+    {
+      "id": "tts.split_paragraphs",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/SplitParagraphs",
+      "method": "POST",
+      "summary": "Split long text into speech-sized paragraphs",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "usage.list_recent",
+      "path": "/vrooli.audio_tools.v1.usage.UsageService/ListRecent",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "usage"
+    },
+    {
+      "id": "usage.get_summary",
+      "path": "/vrooli.audio_tools.v1.usage.UsageService/GetSummary",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "usage"
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "notes list",
+      "description": "List all notes (newest-first, default limit 100)",
+      "endpoint_id": "notes_list"
+    },
+    {
+      "name": "notes create",
+      "description": "Create a note (--title TITLE [--body BODY])",
+      "endpoint_id": "notes_create"
+    },
+    {
+      "name": "notes get",
+      "description": "Get a note by id",
+      "endpoint_id": "notes_get"
+    },
+    {
+      "name": "notes attach",
+      "description": "Upload an attachment for a note (--file PATH)",
+      "endpoint_id": "notes_attach"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.summarize;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize;summarize_v1";
+
+// =============================================================================
+// SUMMARIZE DOMAIN — long-text summarization for the TTS pipeline and
+//                    general-purpose summarization consumers.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain summarize
+// @stability stable
+//
+// Provider routing: BYOK -> Vrooli/LPBS -> Local. Local backed by Ollama;
+// BYOK starter adapter is openrouter; Vrooli routes through LPBS chat with
+// `Operation: audio.summarize` metadata.
+// =============================================================================
+
+service SummarizeService {
+  rpc Summarize(SummarizeRequest) returns (SummarizeResponse);
+}
+
+message SummarizeRequest {
+  string text = 1;
+  string level = 2;                   // "light" | "moderate" | "heavy"
+  string model = 3;                   // optional override
+  int32 timeout_seconds = 4;
+}
+
+message SummarizeResponse {
+  string text = 1;
+  int32 prompt_tokens = 2;
+  int32 output_tokens = 3;
+  string provider_tier = 4;
+  string provider_id = 5;
+  string model_id = 6;
+  double latency_ms = 7;
+}

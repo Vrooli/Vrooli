@@ -5,7 +5,7 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { AgentSession, AgentSessionArtifact, AgentSessionAttachment } from "../domain/agent_session_pb";
+import type { AgentSession, AgentSessionArtifact, AgentSessionAttachment, AgentSessionContextItem } from "../domain/agent_session_pb";
 import { file_swarm_manager_v1_domain_agent_session } from "../domain/agent_session_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/agent_session.proto.
  */
 export const file_swarm_manager_v1_api_agent_session: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2FwaS9hZ2VudF9zZXNzaW9uLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIskCChhMaXN0QWdlbnRTZXNzaW9uc1JlcXVlc3QSWgoEa2luZBgBIAEoCUJHukhEckJSAFISbWV0YV9vcmNoZXN0cmF0aW9uUhhvcGVyYXRpbmdfbW9kZV9hdXRob3JpbmdSEHN3YXJtX29wZXJhdGlvbnNIAIgBARJ+CgZzdGF0dXMYAiABKAlCabpIZnJkUgBSBWRyYWZ0UghzdGFydGluZ1IHcnVubmluZ1IQd2FpdGluZ19mb3JfdXNlclIOcHJvcG9zYWxfcmVhZHlSCGFwcGx5aW5nUghjb21wbGV0ZVIGZmFpbGVkUghjYW5jZWxlZEgBiAEBEhMKC2FjdGl2ZV9vbmx5GAMgASgIEh4KBWxpbWl0GAQgASgFQgq6SAcaBRjIASgASAKIAQFCBwoFX2tpbmRCCQoHX3N0YXR1c0IICgZfbGltaXQiTQoZTGlzdEFnZW50U2Vzc2lvbnNSZXNwb25zZRIwCghzZXNzaW9ucxgBIAMoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uIjUKFkdldEFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASJKChdHZXRBZ2VudFNlc3Npb25SZXNwb25zZRIvCgdzZXNzaW9uGAEgASgLMh4uc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb24ilAEKGUNyZWF0ZUFnZW50U2Vzc2lvblJlcXVlc3QSUwoEa2luZBgBIAEoCUJFukhCckBSEm1ldGFfb3JjaGVzdHJhdGlvblIYb3BlcmF0aW5nX21vZGVfYXV0aG9yaW5nUhBzd2FybV9vcGVyYXRpb25zEhYKBXRpdGxlGAIgASgJQge6SARyAhABSgQIAxAESgQIBBAFIk0KGkNyZWF0ZUFnZW50U2Vzc2lvblJlc3BvbnNlEi8KB3Nlc3Npb24YASABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbiLyAQoYU3RhcnRBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAESDwoHbWVzc2FnZRgCIAEoCRIWCg5hdHRhY2htZW50X2lkcxgDIAMoCRI+Cgxjb250ZXh0X3JlZnMYBCADKAsyKC5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbkNvbnRleHRSZWYSOAoTYXV0b19jb250ZXh0X3BvbGljeRgFIAEoCUIWukgTchFSAFIHZGVmYXVsdFIEbm9uZUgAiAEBQhYKFF9hdXRvX2NvbnRleHRfcG9saWN5IkwKGVN0YXJ0QWdlbnRTZXNzaW9uUmVzcG9uc2USLwoHc2Vzc2lvbhgBIAEoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uIqMBChtDb250aW51ZUFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIPCgdtZXNzYWdlGAIgASgJEhYKDmF0dGFjaG1lbnRfaWRzGAMgAygJEj4KDGNvbnRleHRfcmVmcxgEIAMoCzIoLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQ29udGV4dFJlZiJPChxDb250aW51ZUFnZW50U2Vzc2lvblJlc3BvbnNlEi8KB3Nlc3Npb24YASABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbiK6AQoWQWdlbnRTZXNzaW9uQ29udGV4dFJlZhKJAQoEdHlwZRgBIAEoCUJ7ukh4cnZSDGJhY2tsb2dfaXRlbVIKaW5pdGlhdGl2ZVIHY2FwdHVyZVIJZXhlY3V0aW9uUg5hZ2VudF9hY3Rpdml0eVIIc2NlbmFyaW9SDm9wZXJhdGluZ19tb2RlUgdzZXNzaW9uUhNvcGVyYXRpb25zX2JyaWVmaW5nEhQKA3JlZhgCIAEoCUIHukgEcgIQASJmCiVVcGxvYWRBZ2VudFNlc3Npb25BdHRhY2htZW50c1Jlc3BvbnNlEj0KC2F0dGFjaG1lbnRzGAEgAygLMiguc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25BdHRhY2htZW50IpYBCh1MaXN0QWdlbnRTZXNzaW9uRXZlbnRzUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABEhsKDmFmdGVyX3NlcXVlbmNlGAIgASgDSACIAQESHgoFbGltaXQYAyABKAVCCrpIBxoFGOgHKAFIAYgBAUIRCg9fYWZ0ZXJfc2VxdWVuY2VCCAoGX2xpbWl0IvoCChRBZ2VudFNlc3Npb25SdW5FdmVudBIKCgJpZBgBIAEoCRIOCgZydW5faWQYAiABKAkSEAoIc2VxdWVuY2UYAyABKAMSEgoKY3JlYXRlZF9hdBgEIAEoCRISCgpldmVudF90eXBlGAUgASgJEgwKBHJvbGUYBiABKAkSDwoHY29udGVudBgHIAEoCRIRCgl0b29sX25hbWUYCCABKAkSFAoMdG9vbF9jYWxsX2lkGAkgASgJEg0KBWlucHV0GAogASgJEg4KBm91dHB1dBgLIAEoCRINCgVlcnJvchgMIAEoCRIOCgZzdGF0dXMYDSABKAkSFwoPcHJldmlvdXNfc3RhdHVzGA4gASgJEhYKDnByb2dyZXNzX3BoYXNlGA8gASgJEhgKEHByb2dyZXNzX3BlcmNlbnQYECABKAUSGAoQcHJvZ3Jlc3NfbWVzc2FnZRgRIAEoCRIPCgdzdW1tYXJ5GBIgASgJEhAKCHJhd19qc29uGBMgASgJIocBCh5MaXN0QWdlbnRTZXNzaW9uRXZlbnRzUmVzcG9uc2USNgoGZXZlbnRzGAEgAygLMiYuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25SdW5FdmVudBIQCghoYXNfbW9yZRgCIAEoCBIbChNuZXh0X2FmdGVyX3NlcXVlbmNlGAMgASgDIjkKGlJlZnJlc2hBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAEiTgobUmVmcmVzaEFnZW50U2Vzc2lvblJlc3BvbnNlEi8KB3Nlc3Npb24YASABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbiI4ChlDYW5jZWxBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAEiTQoaQ2FuY2VsQWdlbnRTZXNzaW9uUmVzcG9uc2USLwoHc2Vzc2lvbhgBIAEoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uIjgKGURlbGV0ZUFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASIwChpEZWxldGVBZ2VudFNlc3Npb25SZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJIl0KIEFwcGx5QWdlbnRTZXNzaW9uUHJvcG9zYWxSZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAESHAoLcHJvcG9zYWxfaWQYAiABKAlCB7pIBHICEAEijwEKIUFwcGx5QWdlbnRTZXNzaW9uUHJvcG9zYWxSZXNwb25zZRIvCgdzZXNzaW9uGAEgASgLMh4uc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb24SOQoJYXJ0aWZhY3RzGAIgAygLMiYuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25BcnRpZmFjdCI/CiBMaXN0QWdlbnRTZXNzaW9uQXJ0aWZhY3RzUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABIl4KIUxpc3RBZ2VudFNlc3Npb25BcnRpZmFjdHNSZXNwb25zZRI5CglhcnRpZmFjdHMYASADKAsyJi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbkFydGlmYWN0IsYBChtHZXRBcnRpZmFjdHNCeUVudGl0eVJlcXVlc3QSiQEKDWFydGlmYWN0X3R5cGUYASABKAlCcrpIb3JtUgxiYWNrbG9nX2l0ZW1SCmluaXRpYXRpdmVSF29wZXJhdGluZ19tb2RlX3Byb3Bvc2FsUhlvcGVyYXRpbmdfbW9kZV9kZWZpbml0aW9uUgdjYXB0dXJlUgRmaWxlUg5hZ2VudF9hY3Rpdml0eRIbCgplbnRpdHlfcmVmGAIgASgJQge6SARyAhABIlkKHEdldEFydGlmYWN0c0J5RW50aXR5UmVzcG9uc2USOQoJYXJ0aWZhY3RzGAEgAygLMiYuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25BcnRpZmFjdEJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_agent_session]);
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2FwaS9hZ2VudF9zZXNzaW9uLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIskCChhMaXN0QWdlbnRTZXNzaW9uc1JlcXVlc3QSWgoEa2luZBgBIAEoCUJHukhEckJSAFISbWV0YV9vcmNoZXN0cmF0aW9uUhhvcGVyYXRpbmdfbW9kZV9hdXRob3JpbmdSEHN3YXJtX29wZXJhdGlvbnNIAIgBARJ+CgZzdGF0dXMYAiABKAlCabpIZnJkUgBSBWRyYWZ0UghzdGFydGluZ1IHcnVubmluZ1IQd2FpdGluZ19mb3JfdXNlclIOcHJvcG9zYWxfcmVhZHlSCGFwcGx5aW5nUghjb21wbGV0ZVIGZmFpbGVkUghjYW5jZWxlZEgBiAEBEhMKC2FjdGl2ZV9vbmx5GAMgASgIEh4KBWxpbWl0GAQgASgFQgq6SAcaBRjIASgASAKIAQFCBwoFX2tpbmRCCQoHX3N0YXR1c0IICgZfbGltaXQiTQoZTGlzdEFnZW50U2Vzc2lvbnNSZXNwb25zZRIwCghzZXNzaW9ucxgBIAMoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uIjUKFkdldEFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASJKChdHZXRBZ2VudFNlc3Npb25SZXNwb25zZRIvCgdzZXNzaW9uGAEgASgLMh4uc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb24ilAEKGUNyZWF0ZUFnZW50U2Vzc2lvblJlcXVlc3QSUwoEa2luZBgBIAEoCUJFukhCckBSEm1ldGFfb3JjaGVzdHJhdGlvblIYb3BlcmF0aW5nX21vZGVfYXV0aG9yaW5nUhBzd2FybV9vcGVyYXRpb25zEhYKBXRpdGxlGAIgASgJQge6SARyAhABSgQIAxAESgQIBBAFIk0KGkNyZWF0ZUFnZW50U2Vzc2lvblJlc3BvbnNlEi8KB3Nlc3Npb24YASABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbiLyAQoYU3RhcnRBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAESDwoHbWVzc2FnZRgCIAEoCRIWCg5hdHRhY2htZW50X2lkcxgDIAMoCRI+Cgxjb250ZXh0X3JlZnMYBCADKAsyKC5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbkNvbnRleHRSZWYSOAoTYXV0b19jb250ZXh0X3BvbGljeRgFIAEoCUIWukgTchFSAFIHZGVmYXVsdFIEbm9uZUgAiAEBQhYKFF9hdXRvX2NvbnRleHRfcG9saWN5IkwKGVN0YXJ0QWdlbnRTZXNzaW9uUmVzcG9uc2USLwoHc2Vzc2lvbhgBIAEoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uIqMBChtDb250aW51ZUFnZW50U2Vzc2lvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIPCgdtZXNzYWdlGAIgASgJEhYKDmF0dGFjaG1lbnRfaWRzGAMgAygJEj4KDGNvbnRleHRfcmVmcxgEIAMoCzIoLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQ29udGV4dFJlZiJPChxDb250aW51ZUFnZW50U2Vzc2lvblJlc3BvbnNlEi8KB3Nlc3Npb24YASABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbiLMAQoWQWdlbnRTZXNzaW9uQ29udGV4dFJlZhKbAQoEdHlwZRgBIAEoCUKMAbpIiAFyhQFSDGJhY2tsb2dfaXRlbVIKaW5pdGlhdGl2ZVIHY2FwdHVyZVIJZXhlY3V0aW9uUg5hZ2VudF9hY3Rpdml0eVIIc2NlbmFyaW9SDm9wZXJhdGluZ19tb2RlUgdzZXNzaW9uUhNvcGVyYXRpb25zX2JyaWVmaW5nUg1zdGFydHVwX2JyaWVmEhQKA3JlZhgCIAEoCUIHukgEcgIQASJSCiJHZXRBZ2VudFNlc3Npb25TdGFydHVwQnJpZWZSZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAESDwoHcmVmcmVzaBgCIAEoCCJfCiNHZXRBZ2VudFNlc3Npb25TdGFydHVwQnJpZWZSZXNwb25zZRI4CgVicmllZhgBIAEoCzIpLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQ29udGV4dEl0ZW0iZgolVXBsb2FkQWdlbnRTZXNzaW9uQXR0YWNobWVudHNSZXNwb25zZRI9CgthdHRhY2htZW50cxgBIAMoCzIoLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQXR0YWNobWVudCKWAQodTGlzdEFnZW50U2Vzc2lvbkV2ZW50c1JlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIbCg5hZnRlcl9zZXF1ZW5jZRgCIAEoA0gAiAEBEh4KBWxpbWl0GAMgASgFQgq6SAcaBRjoBygBSAGIAQFCEQoPX2FmdGVyX3NlcXVlbmNlQggKBl9saW1pdCL6AgoUQWdlbnRTZXNzaW9uUnVuRXZlbnQSCgoCaWQYASABKAkSDgoGcnVuX2lkGAIgASgJEhAKCHNlcXVlbmNlGAMgASgDEhIKCmNyZWF0ZWRfYXQYBCABKAkSEgoKZXZlbnRfdHlwZRgFIAEoCRIMCgRyb2xlGAYgASgJEg8KB2NvbnRlbnQYByABKAkSEQoJdG9vbF9uYW1lGAggASgJEhQKDHRvb2xfY2FsbF9pZBgJIAEoCRINCgVpbnB1dBgKIAEoCRIOCgZvdXRwdXQYCyABKAkSDQoFZXJyb3IYDCABKAkSDgoGc3RhdHVzGA0gASgJEhcKD3ByZXZpb3VzX3N0YXR1cxgOIAEoCRIWCg5wcm9ncmVzc19waGFzZRgPIAEoCRIYChBwcm9ncmVzc19wZXJjZW50GBAgASgFEhgKEHByb2dyZXNzX21lc3NhZ2UYESABKAkSDwoHc3VtbWFyeRgSIAEoCRIQCghyYXdfanNvbhgTIAEoCSKHAQoeTGlzdEFnZW50U2Vzc2lvbkV2ZW50c1Jlc3BvbnNlEjYKBmV2ZW50cxgBIAMoCzImLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uUnVuRXZlbnQSEAoIaGFzX21vcmUYAiABKAgSGwoTbmV4dF9hZnRlcl9zZXF1ZW5jZRgDIAEoAyI5ChpSZWZyZXNoQWdlbnRTZXNzaW9uUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABIk4KG1JlZnJlc2hBZ2VudFNlc3Npb25SZXNwb25zZRIvCgdzZXNzaW9uGAEgASgLMh4uc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb24iOAoZQ2FuY2VsQWdlbnRTZXNzaW9uUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABIk0KGkNhbmNlbEFnZW50U2Vzc2lvblJlc3BvbnNlEi8KB3Nlc3Npb24YASABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLkFnZW50U2Vzc2lvbiI4ChlEZWxldGVBZ2VudFNlc3Npb25SZXF1ZXN0EhsKCnNlc3Npb25faWQYASABKAlCB7pIBHICEAEiMAoaRGVsZXRlQWdlbnRTZXNzaW9uUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCSJdCiBBcHBseUFnZW50U2Vzc2lvblByb3Bvc2FsUmVxdWVzdBIbCgpzZXNzaW9uX2lkGAEgASgJQge6SARyAhABEhwKC3Byb3Bvc2FsX2lkGAIgASgJQge6SARyAhABIo8BCiFBcHBseUFnZW50U2Vzc2lvblByb3Bvc2FsUmVzcG9uc2USLwoHc2Vzc2lvbhgBIAEoCzIeLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uEjkKCWFydGlmYWN0cxgCIAMoCzImLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQXJ0aWZhY3QiPwogTGlzdEFnZW50U2Vzc2lvbkFydGlmYWN0c1JlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQASJeCiFMaXN0QWdlbnRTZXNzaW9uQXJ0aWZhY3RzUmVzcG9uc2USOQoJYXJ0aWZhY3RzGAEgAygLMiYuc3dhcm1fbWFuYWdlci52MS5BZ2VudFNlc3Npb25BcnRpZmFjdCLGAQobR2V0QXJ0aWZhY3RzQnlFbnRpdHlSZXF1ZXN0EokBCg1hcnRpZmFjdF90eXBlGAEgASgJQnK6SG9ybVIMYmFja2xvZ19pdGVtUgppbml0aWF0aXZlUhdvcGVyYXRpbmdfbW9kZV9wcm9wb3NhbFIZb3BlcmF0aW5nX21vZGVfZGVmaW5pdGlvblIHY2FwdHVyZVIEZmlsZVIOYWdlbnRfYWN0aXZpdHkSGwoKZW50aXR5X3JlZhgCIAEoCUIHukgEcgIQASJZChxHZXRBcnRpZmFjdHNCeUVudGl0eVJlc3BvbnNlEjkKCWFydGlmYWN0cxgBIAMoCzImLnN3YXJtX21hbmFnZXIudjEuQWdlbnRTZXNzaW9uQXJ0aWZhY3RCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_agent_session]);
 
 /**
  * ListAgentSessionsRequest filters the session sidebar list.
@@ -288,7 +288,7 @@ export const ContinueAgentSessionResponseSchema: GenMessage<ContinueAgentSession
 export type AgentSessionContextRef = Message<"swarm_manager.v1.AgentSessionContextRef"> & {
   /**
    * Context type.
-   * @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing
+   * @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief
    *
    * @generated from field: string type = 1;
    */
@@ -310,6 +310,52 @@ export const AgentSessionContextRefSchema: GenMessage<AgentSessionContextRef> = 
   messageDesc(file_swarm_manager_v1_api_agent_session, 10);
 
 /**
+ * GetAgentSessionStartupBriefRequest returns the bounded startup context that
+ * should be attached to a draft session before the first agent run starts.
+ *
+ * @generated from message swarm_manager.v1.GetAgentSessionStartupBriefRequest
+ */
+export type GetAgentSessionStartupBriefRequest = Message<"swarm_manager.v1.GetAgentSessionStartupBriefRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: bool refresh = 2;
+   */
+  refresh: boolean;
+};
+
+/**
+ * Describes the message swarm_manager.v1.GetAgentSessionStartupBriefRequest.
+ * Use `create(GetAgentSessionStartupBriefRequestSchema)` to create a new message.
+ */
+export const GetAgentSessionStartupBriefRequestSchema: GenMessage<GetAgentSessionStartupBriefRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_agent_session, 11);
+
+/**
+ * GetAgentSessionStartupBriefResponse returns one server-resolved startup
+ * context item. The item type is startup_brief and the metadata_json field
+ * carries kind, freshness, source counts, and drill-down commands.
+ *
+ * @generated from message swarm_manager.v1.GetAgentSessionStartupBriefResponse
+ */
+export type GetAgentSessionStartupBriefResponse = Message<"swarm_manager.v1.GetAgentSessionStartupBriefResponse"> & {
+  /**
+   * @generated from field: swarm_manager.v1.AgentSessionContextItem brief = 1;
+   */
+  brief?: AgentSessionContextItem | undefined;
+};
+
+/**
+ * Describes the message swarm_manager.v1.GetAgentSessionStartupBriefResponse.
+ * Use `create(GetAgentSessionStartupBriefResponseSchema)` to create a new message.
+ */
+export const GetAgentSessionStartupBriefResponseSchema: GenMessage<GetAgentSessionStartupBriefResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_agent_session, 12);
+
+/**
  * UploadAgentSessionAttachmentsResponse returns uploaded session attachments.
  *
  * @generated from message swarm_manager.v1.UploadAgentSessionAttachmentsResponse
@@ -326,7 +372,7 @@ export type UploadAgentSessionAttachmentsResponse = Message<"swarm_manager.v1.Up
  * Use `create(UploadAgentSessionAttachmentsResponseSchema)` to create a new message.
  */
 export const UploadAgentSessionAttachmentsResponseSchema: GenMessage<UploadAgentSessionAttachmentsResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 11);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 13);
 
 /**
  * ListAgentSessionEventsRequest reads Agent Manager run events through Swarm
@@ -356,7 +402,7 @@ export type ListAgentSessionEventsRequest = Message<"swarm_manager.v1.ListAgentS
  * Use `create(ListAgentSessionEventsRequestSchema)` to create a new message.
  */
 export const ListAgentSessionEventsRequestSchema: GenMessage<ListAgentSessionEventsRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 12);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 14);
 
 /**
  * AgentSessionRunEvent is the bounded session-owned timeline event shape.
@@ -465,7 +511,7 @@ export type AgentSessionRunEvent = Message<"swarm_manager.v1.AgentSessionRunEven
  * Use `create(AgentSessionRunEventSchema)` to create a new message.
  */
 export const AgentSessionRunEventSchema: GenMessage<AgentSessionRunEvent> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 13);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 15);
 
 /**
  * ListAgentSessionEventsResponse returns bounded Agent Manager run events.
@@ -494,7 +540,7 @@ export type ListAgentSessionEventsResponse = Message<"swarm_manager.v1.ListAgent
  * Use `create(ListAgentSessionEventsResponseSchema)` to create a new message.
  */
 export const ListAgentSessionEventsResponseSchema: GenMessage<ListAgentSessionEventsResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 14);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 16);
 
 /**
  * RefreshAgentSessionRequest refreshes session state from Agent Manager.
@@ -513,7 +559,7 @@ export type RefreshAgentSessionRequest = Message<"swarm_manager.v1.RefreshAgentS
  * Use `create(RefreshAgentSessionRequestSchema)` to create a new message.
  */
 export const RefreshAgentSessionRequestSchema: GenMessage<RefreshAgentSessionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 15);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 17);
 
 /**
  * RefreshAgentSessionResponse returns the refreshed session.
@@ -532,7 +578,7 @@ export type RefreshAgentSessionResponse = Message<"swarm_manager.v1.RefreshAgent
  * Use `create(RefreshAgentSessionResponseSchema)` to create a new message.
  */
 export const RefreshAgentSessionResponseSchema: GenMessage<RefreshAgentSessionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 16);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 18);
 
 /**
  * CancelAgentSessionRequest cancels a running session.
@@ -551,7 +597,7 @@ export type CancelAgentSessionRequest = Message<"swarm_manager.v1.CancelAgentSes
  * Use `create(CancelAgentSessionRequestSchema)` to create a new message.
  */
 export const CancelAgentSessionRequestSchema: GenMessage<CancelAgentSessionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 17);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 19);
 
 /**
  * CancelAgentSessionResponse returns the canceled session.
@@ -570,7 +616,7 @@ export type CancelAgentSessionResponse = Message<"swarm_manager.v1.CancelAgentSe
  * Use `create(CancelAgentSessionResponseSchema)` to create a new message.
  */
 export const CancelAgentSessionResponseSchema: GenMessage<CancelAgentSessionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 18);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 20);
 
 /**
  * DeleteAgentSessionRequest permanently removes a session-owned record.
@@ -589,7 +635,7 @@ export type DeleteAgentSessionRequest = Message<"swarm_manager.v1.DeleteAgentSes
  * Use `create(DeleteAgentSessionRequestSchema)` to create a new message.
  */
 export const DeleteAgentSessionRequestSchema: GenMessage<DeleteAgentSessionRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 19);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 21);
 
 /**
  * DeleteAgentSessionResponse returns the deleted session ID.
@@ -608,7 +654,7 @@ export type DeleteAgentSessionResponse = Message<"swarm_manager.v1.DeleteAgentSe
  * Use `create(DeleteAgentSessionResponseSchema)` to create a new message.
  */
 export const DeleteAgentSessionResponseSchema: GenMessage<DeleteAgentSessionResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 20);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 22);
 
 /**
  * ApplyAgentSessionProposalRequest applies an approved proposal.
@@ -632,7 +678,7 @@ export type ApplyAgentSessionProposalRequest = Message<"swarm_manager.v1.ApplyAg
  * Use `create(ApplyAgentSessionProposalRequestSchema)` to create a new message.
  */
 export const ApplyAgentSessionProposalRequestSchema: GenMessage<ApplyAgentSessionProposalRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 21);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 23);
 
 /**
  * ApplyAgentSessionProposalResponse returns updated session state and artifacts.
@@ -656,7 +702,7 @@ export type ApplyAgentSessionProposalResponse = Message<"swarm_manager.v1.ApplyA
  * Use `create(ApplyAgentSessionProposalResponseSchema)` to create a new message.
  */
 export const ApplyAgentSessionProposalResponseSchema: GenMessage<ApplyAgentSessionProposalResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 22);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 24);
 
 /**
  * ListAgentSessionArtifactsRequest filters artifacts for one session.
@@ -675,7 +721,7 @@ export type ListAgentSessionArtifactsRequest = Message<"swarm_manager.v1.ListAge
  * Use `create(ListAgentSessionArtifactsRequestSchema)` to create a new message.
  */
 export const ListAgentSessionArtifactsRequestSchema: GenMessage<ListAgentSessionArtifactsRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 23);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 25);
 
 /**
  * ListAgentSessionArtifactsResponse returns artifact links for one session.
@@ -694,7 +740,7 @@ export type ListAgentSessionArtifactsResponse = Message<"swarm_manager.v1.ListAg
  * Use `create(ListAgentSessionArtifactsResponseSchema)` to create a new message.
  */
 export const ListAgentSessionArtifactsResponseSchema: GenMessage<ListAgentSessionArtifactsResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 24);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 26);
 
 /**
  * GetArtifactsByEntityRequest finds session links for an entity.
@@ -723,7 +769,7 @@ export type GetArtifactsByEntityRequest = Message<"swarm_manager.v1.GetArtifacts
  * Use `create(GetArtifactsByEntityRequestSchema)` to create a new message.
  */
 export const GetArtifactsByEntityRequestSchema: GenMessage<GetArtifactsByEntityRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 25);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 27);
 
 /**
  * GetArtifactsByEntityResponse returns artifact links for one entity.
@@ -742,5 +788,5 @@ export type GetArtifactsByEntityResponse = Message<"swarm_manager.v1.GetArtifact
  * Use `create(GetArtifactsByEntityResponseSchema)` to create a new message.
  */
 export const GetArtifactsByEntityResponseSchema: GenMessage<GetArtifactsByEntityResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_agent_session, 26);
+  messageDesc(file_swarm_manager_v1_api_agent_session, 28);
 

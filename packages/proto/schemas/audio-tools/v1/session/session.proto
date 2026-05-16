@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.session;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session;session_v1";
+
+// =============================================================================
+// SESSION DOMAIN — voice-session abstraction.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain session
+// @stability stable
+//
+// A voice-session is a duplex audio interaction: audio in -> transcript
+// events; text in -> TTS audio out. Multiple observer subscribers may attach
+// to the same session and receive transcript deltas, assistant deltas, VAD
+// signals, tool events, and barge-in cancels. Concrete transports plug in
+// below the session boundary:
+//   - browser-voice: WebSocket at /api/v1/voice/stream
+//     (TransportReason: websocket_transport)
+//   - (future) twilio-voice, sip-webrtc, etc.
+//
+// Barge-in semantics: a VAD-detected user-speech event during in-flight TTS
+// cancels TTS at the transport AND emits an upstream Cancel event.
+// =============================================================================
+
+service SessionService {
+  rpc OpenSession(OpenSessionRequest) returns (OpenSessionResponse);
+  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
+
+  // Push TTS-out text into an open session. Session decides barge-in and
+  // routes through the configured TTS chain.
+  rpc SendText(SendTextRequest) returns (SendTextResponse);
+
+  // Explicit cancel (e.g., user pressed stop).
+  rpc SendCancel(SendCancelRequest) returns (SendCancelResponse);
+
+  // Server-streaming subscription to a session's event bus. Multiple
+  // concurrent subscribers per session are supported.
+  rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
+}
+
+message OpenSessionRequest {
+  string transport = 1;               // "browser-voice", "fake", ...
+  // Optional pre-configured TTS voice + STT language for the session.
+  string voice = 2;
+  string language = 3;
+}
+
+message OpenSessionResponse {
+  string session_id = 1;
+  string transport = 2;
+}
+
+message CloseSessionRequest {
+  string session_id = 1;
+  string reason = 2;
+}
+
+message CloseSessionResponse {}
+
+message SendTextRequest {
+  string session_id = 1;
+  string text = 2;
+  bool cancel_inflight = 3;           // false = queue, true = barge-in
+}
+
+message SendTextResponse {
+  string event_id = 1;
+}
+
+message SendCancelRequest {
+  string session_id = 1;
+  string reason = 2;
+}
+
+message SendCancelResponse {}
+
+message SubscribeRequest {
+  string session_id = 1;
+  // Optional resume cursor; empty = start at "now".
+  string from_event_id = 2;
+}
+
+// SubscribeResponse carries one typed SessionEvent per server-streamed frame.
+message SubscribeResponse {
+  SessionEvent event = 1;
+}
+
+// SessionEvent is the typed union over the session's pub/sub event bus.
+message SessionEvent {
+  string event_id = 1;
+  string session_id = 2;
+  string emitted_at = 3;
+
+  oneof payload {
+    TranscriptDelta transcript_delta = 10;
+    TranscriptFinal transcript_final = 11;
+    AssistantDelta assistant_delta = 12;
+    AssistantFinal assistant_final = 13;
+    VadEvent vad = 14;
+    ToolEvent tool = 15;
+    BargeInCancel barge_in_cancel = 16;
+    SessionClosed closed = 17;
+  }
+}
+
+message TranscriptDelta {
+  string text = 1;
+  double from_seconds = 2;
+  double to_seconds = 3;
+}
+
+message TranscriptFinal {
+  string text = 1;
+  double duration_seconds = 2;
+  bool speaker_verified = 3;
+}
+
+message AssistantDelta {
+  string text = 1;
+}
+
+message AssistantFinal {
+  string text = 1;
+  // True when this final segment had audio synthesized.
+  bool had_audio = 2;
+}
+
+message VadEvent {
+  string state = 1;                   // "speech_start" | "speech_end"
+}
+
+message ToolEvent {
+  string name = 1;
+  string payload_json = 2;
+}
+
+message BargeInCancel {
+  string reason = 1;                  // "vad" | "explicit"
+  string canceled_event_id = 2;
+}
+
+message SessionClosed {
+  string reason = 1;
+}

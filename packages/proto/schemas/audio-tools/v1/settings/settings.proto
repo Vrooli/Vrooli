@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.settings;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings;settings_v1";
+
+// =============================================================================
+// SETTINGS DOMAIN — provider routing configuration, BYOK credential storage,
+//                   canonical voice overrides.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain settings
+// @stability stable
+//
+// BYOK credentials are stored locally in audio-tools state scope (single
+// tenant, P0). Writes go through proto with the BYOK key carried as a typed
+// `oneof` so the JSON boundary can redact it explicitly. Reads NEVER include
+// the key; consumers see a redacted display fingerprint only.
+// =============================================================================
+
+service SettingsService {
+  rpc GetProviderConfig(GetProviderConfigRequest) returns (GetProviderConfigResponse);
+  rpc UpdateProviderConfig(UpdateProviderConfigRequest) returns (UpdateProviderConfigResponse);
+
+  rpc ListBYOKCredentials(ListBYOKCredentialsRequest) returns (ListBYOKCredentialsResponse);
+  rpc UpsertBYOKCredential(UpsertBYOKCredentialRequest) returns (UpsertBYOKCredentialResponse);
+  rpc DeleteBYOKCredential(DeleteBYOKCredentialRequest) returns (DeleteBYOKCredentialResponse);
+
+  rpc GetVoiceOverrides(GetVoiceOverridesRequest) returns (GetVoiceOverridesResponse);
+  rpc SetVoiceOverride(SetVoiceOverrideRequest) returns (SetVoiceOverrideResponse);
+}
+
+// -----------------------------------------------------------------------------
+// Provider config (per-instance defaults; per-tier flags + URLs)
+// -----------------------------------------------------------------------------
+
+message ProviderConfig {
+  bool byok_enabled = 1;
+  bool vrooli_enabled = 2;
+  bool local_enabled = 3;
+
+  string whisper_url = 10;
+  string kokoro_url = 11;
+  string ollama_url = 12;
+  string lpbs_base_url = 13;
+  string lpbs_app_bundle_key = 14;
+
+  int32 avail_ttl_byok_seconds = 20;
+  int32 avail_ttl_vrooli_seconds = 21;
+}
+
+message GetProviderConfigRequest {}
+message GetProviderConfigResponse { ProviderConfig config = 1; }
+
+message UpdateProviderConfigRequest {
+  bool byok_enabled = 1;
+  bool has_byok_enabled = 2;
+  bool vrooli_enabled = 3;
+  bool has_vrooli_enabled = 4;
+  bool local_enabled = 5;
+  bool has_local_enabled = 6;
+
+  string whisper_url = 10;
+  bool has_whisper_url = 11;
+  string kokoro_url = 12;
+  bool has_kokoro_url = 13;
+  string ollama_url = 14;
+  bool has_ollama_url = 15;
+  string lpbs_base_url = 16;
+  bool has_lpbs_base_url = 17;
+  string lpbs_app_bundle_key = 18;
+  bool has_lpbs_app_bundle_key = 19;
+
+  int32 avail_ttl_byok_seconds = 20;
+  bool has_avail_ttl_byok_seconds = 21;
+  int32 avail_ttl_vrooli_seconds = 22;
+  bool has_avail_ttl_vrooli_seconds = 23;
+}
+
+message UpdateProviderConfigResponse { ProviderConfig config = 1; }
+
+// -----------------------------------------------------------------------------
+// BYOK credential storage
+// -----------------------------------------------------------------------------
+
+message BYOKCredentialSummary {
+  string provider_id = 1;             // "openai-whisper", "deepgram", ...
+  string capability = 2;              // "stt" | "tts" | "summarize"
+  string fingerprint = 3;             // redacted display, e.g., "sk-***abcd"
+  string created_at = 4;
+  string last_used_at = 5;
+}
+
+message ListBYOKCredentialsRequest {}
+
+message ListBYOKCredentialsResponse {
+  repeated BYOKCredentialSummary credentials = 1;
+}
+
+message UpsertBYOKCredentialRequest {
+  string provider_id = 1;
+  string capability = 2;
+  // The secret payload. Treated as opaque by the proto JSON boundary;
+  // serializers MUST redact this field in logs and error reports.
+  oneof secret {
+    string api_key = 10;
+    // Future: oneof entries for OAuth refresh tokens, JWT, etc.
+  }
+}
+
+message UpsertBYOKCredentialResponse {
+  BYOKCredentialSummary credential = 1;
+}
+
+message DeleteBYOKCredentialRequest {
+  string provider_id = 1;
+  string capability = 2;
+}
+
+message DeleteBYOKCredentialResponse {}
+
+// -----------------------------------------------------------------------------
+// Voice overrides
+// -----------------------------------------------------------------------------
+
+message VoiceOverride {
+  string canonical_voice = 1;         // "voice.feminine.warm"
+  string tier_provider = 2;           // "byok:elevenlabs", "local:kokoro"
+  string adapter_voice = 3;           // backend voice name override
+}
+
+message GetVoiceOverridesRequest {}
+message GetVoiceOverridesResponse { repeated VoiceOverride overrides = 1; }
+
+message SetVoiceOverrideRequest {
+  VoiceOverride override = 1;
+  // If adapter_voice is empty, the override is deleted.
+}
+message SetVoiceOverrideResponse { repeated VoiceOverride overrides = 1; }
