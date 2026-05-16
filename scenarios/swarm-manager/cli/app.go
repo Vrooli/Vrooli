@@ -85,6 +85,7 @@ func (a *App) Run(args []string) error {
 func (a *App) dependencies() support.Dependencies {
 	return support.Dependencies{
 		Overview:                        a.cmdOverview,
+		PortfolioBrief:                  a.cmdPortfolioBrief,
 		MigrateWorkshop:                 a.cmdMigrateWorkshop,
 		AISearchStatus:                  a.cmdAISearchStatus,
 		AISearchQuery:                   a.cmdAISearchSearch(""),
@@ -160,6 +161,7 @@ func (a *App) dependencies() support.Dependencies {
 		InitiativesList:                 a.cmdInitiativesList,
 		InitiativesGet:                  a.cmdInitiativesGet,
 		InitiativesContext:              a.cmdInitiativesContext,
+		InitiativesCandidates:           a.cmdInitiativesCandidates,
 		InitiativesCreate:               a.cmdInitiativesCreate,
 		InitiativesUpdate:               a.cmdInitiativesUpdate,
 		InitiativesDelete:               a.cmdInitiativesDelete,
@@ -193,6 +195,7 @@ func (a *App) dependencies() support.Dependencies {
 		InitiativesGraphShow:            a.cmdInitiativesGraphShow,
 		OperatingModeList:               a.cmdOperatingModeList,
 		OperatingModeGet:                a.cmdOperatingModeGet,
+		OperatingModeBrief:              a.cmdOperatingModeBrief,
 		OperatingModeSet:                a.cmdOperatingModeSet,
 		CapturesList:                    a.cmdCapturesList,
 		CapturesCreate:                  a.cmdCapturesCreate,
@@ -206,6 +209,7 @@ func (a *App) dependencies() support.Dependencies {
 		OperationsBrief:                 a.cmdOperationsBrief,
 		SessionsList:                    a.cmdSessionsList,
 		SessionsGet:                     a.cmdSessionsGet,
+		SessionsStartupBrief:            a.cmdSessionsStartupBrief,
 		SessionsDelete:                  a.cmdSessionsDelete,
 		StatsSummary:                    a.cmdStatsSummary,
 		StatsThroughput:                 a.cmdStatsThroughput,

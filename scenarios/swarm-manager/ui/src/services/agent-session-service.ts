@@ -7,6 +7,7 @@ import type {
   AgentSessionAttachment,
   AgentSessionArtifact,
   AgentSessionArtifactType,
+  AgentSessionContextItem,
   AgentSessionContextRef,
   AgentSessionKind,
   AgentSessionRunEvent,
@@ -19,6 +20,7 @@ import {
   createAgentSessionResponseSchema,
   deleteAgentSessionResponseSchema,
   getAgentSessionResponseSchema,
+  getAgentSessionStartupBriefResponseSchema,
   getArtifactsByEntityResponseSchema,
   listAgentSessionEventsResponseSchema,
   listAgentSessionArtifactsResponseSchema,
@@ -26,6 +28,7 @@ import {
   mapProtoAgentSession,
   mapProtoAgentSessionAttachment,
   mapProtoAgentSessionArtifact,
+  mapProtoAgentSessionContextItem,
   mapProtoAgentSessionRunEvent,
   parseProtoResponse,
   refreshAgentSessionResponseSchema,
@@ -74,6 +77,7 @@ export interface ListAgentSessionEventsResult {
 export interface IAgentSessionService {
   list(filters?: ListAgentSessionsFilters): Promise<AgentSession[]>;
   get(sessionId: string): Promise<AgentSession>;
+  getStartupBrief(sessionId: string, refresh?: boolean): Promise<AgentSessionContextItem>;
   create(args: CreateAgentSessionArgs): Promise<AgentSession>;
   start(args: ContinueAgentSessionArgs): Promise<AgentSession>;
   continue(args: ContinueAgentSessionArgs): Promise<AgentSession>;
@@ -105,6 +109,14 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
       const data = await apiClient.get<unknown>(API_ENDPOINTS.agentSessionById(sessionId));
       const parsed = parseProtoResponse(getAgentSessionResponseSchema, data, "agent session");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
+    },
+
+    async getStartupBrief(sessionId: string, refresh = false): Promise<AgentSessionContextItem> {
+      const data = refresh
+        ? await apiClient.post<unknown>(API_ENDPOINTS.agentSessionStartupBrief(sessionId), {})
+        : await apiClient.get<unknown>(API_ENDPOINTS.agentSessionStartupBrief(sessionId));
+      const parsed = parseProtoResponse(getAgentSessionStartupBriefResponseSchema, data, "agent session startup brief");
+      return mapProtoAgentSessionContextItem(requireProtoField(parsed.brief, "startup brief"));
     },
 
     async create(args: CreateAgentSessionArgs): Promise<AgentSession> {

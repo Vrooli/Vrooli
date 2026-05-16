@@ -49,6 +49,13 @@ describe("agent-session-store", () => {
     service = {
       list: vi.fn().mockResolvedValue([SESSION_A, SESSION_B]),
       get: vi.fn().mockResolvedValue(SESSION_A),
+      getStartupBrief: vi.fn().mockResolvedValue({
+        type: "startup_brief",
+        ref: "startup_brief/meta_orchestration",
+        title: "Startup brief",
+        summary: "Use this first.",
+        selectedAt: "2026-05-01T12:00:00Z",
+      }),
       create: vi.fn().mockResolvedValue(SESSION_A),
       start: vi.fn().mockResolvedValue({ ...SESSION_A, messages: [{ id: "msg-0", role: "user", content: "Start", createdAt: "2026-05-01T12:00:00Z", attachmentIds: [] }] }),
       continue: vi.fn().mockResolvedValue({ ...SESSION_A, messages: [{ id: "msg-1", role: "user", content: "Hi", createdAt: "2026-05-01T12:00:00Z", attachmentIds: [] }] }),

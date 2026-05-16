@@ -2053,7 +2053,7 @@ The Operations Center page (UI), `/api/v1/operations` (HTTP), and any future fan
 
 **Testing at the seam**: `operations/aggregator_test.go` covers window pushdown, lane math, queue counting, recently-finished partitioning, round join (matched + orphan), filter composition (`lane`, `status+q`), max-window clamping, runtime computation for active vs finished records, error propagation, and required-config validation. `operations/handler_test.go` covers default/custom/clamped windows, malformed-window rejection, lane-list filters in both `lane=` and `lane[]=` forms, status filter, q search, and the full ISO-8601 grammar. There is no separate stats-engine test; the stats path is `lane_utilization_by_kind` (already covered in P2) and is intentionally not the source of truth for the live operations view.
 
-### Operations Briefing (added 2026-05-16)
+### Startup Briefs And Operations Briefing (updated 2026-05-16)
 
 `GET /api/v1/operations/brief`, `swarm-manager operations brief`, and
 `operations_briefing/latest` session context all read through
@@ -2070,16 +2070,26 @@ build the core operations aggregate remains an API error. `FileDirectorHandoffRe
 is the production handoff reader and bounds excerpts before they reach prompts.
 
 **Session context**: `sessioncontext.Resolver` resolves only the canonical
-`operations_briefing/latest` ref. `agentsessions.Service.Start` injects that ref
-by default for `swarm_operations` sessions when a context resolver exists, and
-skips it when `auto_context_policy` is `none`. Other session kinds do not get
-the briefing automatically.
+`operations_briefing/latest` ref and the kind-specific `startup_brief/<kind>`
+refs ([CODE: api/internal/sessioncontext/startup_brief.go]). Startup briefs are
+the agent-session startup seam: Swarm Operations reuses `BriefingBuilder`,
+Meta-Orchestration builds a bounded portfolio/backlog snapshot, and
+Operating-Mode Authoring builds a bounded mode-catalog snapshot. The same
+resolver backs `/api/v1/agent-sessions/{id}/startup-brief`,
+`/api/v1/portfolio/brief`, `/api/v1/initiatives/candidates`, and
+`/api/v1/operating-modes/brief`; CLI commands are thin wrappers over these
+API surfaces.
+
+`agentsessions.Service.Start` injects the correct `startup_brief/<kind>` ref by
+default for every session kind when a startup-brief resolver exists, and skips
+it when `auto_context_policy` is `none` or an equivalent explicit startup
+context is already attached.
 
 **Testing at the seam**: `operations/briefing_test.go` pins bounded enrichment,
 warnings for optional sources, recommended actions, and drill-down commands.
-`agentsessions/service_test.go` pins default injection, opt-out, prompt
-placement, and dedupe behavior through context normalization. UI service tests
-pin briefing normalization and the `operations/brief` endpoint path.
+`agentsessions/service_test.go` pins startup-brief default injection, opt-out,
+prompt placement, and dedupe behavior through context normalization. UI service
+tests pin startup brief attachment and the draft-session refresh path.
 
 ### Operations Center UI (added 2026-05-02)
 

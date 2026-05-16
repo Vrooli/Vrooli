@@ -31,10 +31,11 @@ Valid `kind` values are `meta_orchestration`, `swarm_operations`, and
 Starts a draft session with the first real operator message. This is the only
 path that turns a draft into an Agent Manager run. A start request must include
 at least one of `message`, `attachment_ids`, or `context_refs`.
-For `swarm_operations` sessions, the default auto-context policy attaches
-`operations_briefing/latest` unless the request sets
-`"auto_context_policy": "none"` or already includes an explicit
-`operations_briefing` ref.
+By default, starting any session kind attaches the kind-specific
+`startup_brief/<kind>` context unless the request sets
+`"auto_context_policy": "none"` or already includes an equivalent startup
+context. `swarm_operations` also accepts the legacy direct
+`operations_briefing/latest` context.
 
 ```json
 {
@@ -42,7 +43,7 @@ For `swarm_operations` sessions, the default auto-context policy attaches
   "attachment_ids": ["att_abc123"],
   "auto_context_policy": "default",
   "context_refs": [
-    { "type": "operations_briefing", "ref": "operations_briefing/latest" },
+    { "type": "startup_brief", "ref": "startup_brief/swarm_operations" },
     { "type": "initiative", "ref": "desktop-release-governance" },
     { "type": "backlog_item", "ref": "fix/auth-bug" }
   ]

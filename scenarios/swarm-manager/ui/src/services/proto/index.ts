@@ -64,6 +64,7 @@ export {
 export {
   listAgentSessionsResponseSchema,
   getAgentSessionResponseSchema,
+  getAgentSessionStartupBriefResponseSchema,
   createAgentSessionResponseSchema,
   startAgentSessionResponseSchema,
   continueAgentSessionResponseSchema,

@@ -14,6 +14,7 @@ import {
   CreateAgentSessionResponseSchema,
   DeleteAgentSessionResponseSchema,
   GetAgentSessionResponseSchema,
+  GetAgentSessionStartupBriefResponseSchema,
   GetArtifactsByEntityResponseSchema,
   ListAgentSessionEventsResponseSchema,
   ListAgentSessionArtifactsResponseSchema,
@@ -61,6 +62,8 @@ const contextTypes = new Set<string>([
   "scenario",
   "operating_mode",
   "session",
+  "operations_briefing",
+  "startup_brief",
 ]);
 const proposalKinds = new Set<string>([
   "backlog_batch_import",
@@ -108,6 +111,10 @@ export const listAgentSessionsResponseSchema = createProtoSchema(
 export const getAgentSessionResponseSchema = createProtoSchema(
   GetAgentSessionResponseSchema,
   "agent session"
+);
+export const getAgentSessionStartupBriefResponseSchema = createProtoSchema(
+  GetAgentSessionStartupBriefResponseSchema,
+  "agent session startup brief"
 );
 export const createAgentSessionResponseSchema = createProtoSchema(
   CreateAgentSessionResponseSchema,

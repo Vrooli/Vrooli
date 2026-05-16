@@ -67,6 +67,10 @@ type ContextResolver interface {
 	ResolveSessionMessageContext(ctx context.Context, refs []ContextRef, limits ContextLimits) ([]ContextItem, error)
 }
 
+type StartupBriefResolver interface {
+	ResolveSessionStartupBrief(ctx context.Context, kind Kind, limits ContextLimits) (ContextItem, error)
+}
+
 type Service struct {
 	store               Store
 	spawner             SessionSpawner
@@ -228,7 +232,7 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 	if s.spawner == nil {
 		return Session{}, apierr.Unavailable("agent session spawning is unavailable")
 	}
-	contextItems, err := s.resolveMessageContext(ctx, session, refsWithAutoContext(session.Kind, req.ContextRefs, req.AutoContextPolicy, s.contextResolver != nil))
+	contextItems, err := s.resolveMessageContext(ctx, session, refsWithAutoContext(session.Kind, req.ContextRefs, req.AutoContextPolicy, s.startupBriefResolverAvailable()))
 	if err != nil {
 		return Session{}, err
 	}
@@ -318,6 +322,26 @@ func (s *Service) Get(_ context.Context, sessionID string) (Session, error) {
 		return Session{}, mapStoreError(err)
 	}
 	return session, nil
+}
+
+func (s *Service) StartupBrief(ctx context.Context, sessionID string) (ContextItem, error) {
+	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+	if err != nil {
+		return ContextItem{}, mapStoreError(err)
+	}
+	resolver, ok := s.startupBriefResolver()
+	if !ok {
+		return ContextItem{}, apierr.Unavailable("agent session startup brief is unavailable")
+	}
+	item, err := resolver.ResolveSessionStartupBrief(ctx, session.Kind, contextLimitsForKind(session.Kind))
+	if err != nil {
+		return ContextItem{}, err
+	}
+	if item.SelectedAt == "" {
+		item.SelectedAt = nowRFC3339()
+	}
+	item.Summary = truncateRunes(strings.TrimSpace(item.Summary), contextLimitsForKind(session.Kind).MaxSummaryRunes)
+	return item, nil
 }
 
 func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, error) {
@@ -904,6 +928,7 @@ func contextLimitsForKind(kind Kind) ContextLimits {
 		ContextOperatingMode:      3,
 		ContextSession:            2,
 		ContextOperationsBriefing: 1,
+		ContextStartupBrief:       1,
 	}
 	switch kind {
 	case KindOperatingModeAuthoring:
@@ -914,15 +939,32 @@ func contextLimitsForKind(kind Kind) ContextLimits {
 }
 
 func refsWithAutoContext(kind Kind, refs []ContextRef, policy AutoContextPolicy, resolverAvailable bool) []ContextRef {
-	if kind != KindSwarmOperations || policy == AutoContextNone || !resolverAvailable {
+	if policy == AutoContextNone || !resolverAvailable {
+		return refs
+	}
+	startupRef := StartupBriefRefForKind(kind)
+	if startupRef == "" {
 		return refs
 	}
 	for _, ref := range refs {
-		if ref.Type == ContextOperationsBriefing {
+		if ref.Type == ContextStartupBrief || (kind == KindSwarmOperations && ref.Type == ContextOperationsBriefing) {
 			return refs
 		}
 	}
-	return append([]ContextRef{{Type: ContextOperationsBriefing, Ref: OperationsBriefingLatestRef}}, refs...)
+	return append([]ContextRef{{Type: ContextStartupBrief, Ref: startupRef}}, refs...)
+}
+
+func (s *Service) startupBriefResolverAvailable() bool {
+	_, ok := s.startupBriefResolver()
+	return ok
+}
+
+func (s *Service) startupBriefResolver() (StartupBriefResolver, bool) {
+	if s.contextResolver == nil {
+		return nil, false
+	}
+	resolver, ok := s.contextResolver.(StartupBriefResolver)
+	return resolver, ok
 }
 
 func sessionAttachmentsByID(session Session, attachmentIDs []string) []Attachment {
@@ -947,6 +989,9 @@ func buildInitialPrompt(session Session, message Message, attachments []Attachme
 	fmt.Fprintf(&b, "You are running a Swarm Manager %s agent session.\n\n", session.Kind)
 	fmt.Fprintf(&b, "Use the Prompt Manager skill `%s` as your operating guide.\n", session.SkillID)
 	fmt.Fprintf(&b, "Session ID: %s\n", session.ID)
+	if hasContextType(message.Context, ContextStartupBrief) {
+		b.WriteString("Startup brief context is attached below. For broad status, planning, or authoring questions, answer from this brief first and run at most one targeted refresh/drill-down command before the first useful answer.\n")
+	}
 	if hasContextType(message.Context, ContextOperationsBriefing) {
 		b.WriteString("Operations briefing context is attached below. Answer broad status questions from it before doing exploratory reads.\n")
 	}

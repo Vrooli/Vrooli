@@ -175,46 +175,50 @@ func TestServiceStartSwarmOperationsUsesOperationsSkillAndPurpose(t *testing.T) 
 	}
 }
 
-func TestServiceStartSwarmOperationsInjectsOperationsBriefingContextByDefault(t *testing.T) {
+func TestServiceStartInjectsStartupBriefContextByDefault(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
 
-	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
-	svc := newTestService(t, spawner)
-	svc.SetContextResolver(fakeContextResolver{})
-	draft, err := svc.Create(context.Background(), CreateRequest{
-		Kind:  KindSwarmOperations,
-		Title: "Manage Swarm operations",
-	})
-	if err != nil {
-		t.Fatalf("Create() error = %v", err)
-	}
-	session, err := svc.Start(context.Background(), ContinueRequest{
-		SessionID: draft.ID,
-		Message:   "What is the current status?",
-	})
-	if err != nil {
-		t.Fatalf("Start() error = %v", err)
-	}
-	if len(session.Messages) != 1 || len(session.Messages[0].Context) != 1 {
-		t.Fatalf("context = %+v", session.Messages)
-	}
-	item := session.Messages[0].Context[0]
-	if item.Type != ContextOperationsBriefing || item.Ref != OperationsBriefingLatestRef {
-		t.Fatalf("context item = %+v, want operations briefing latest", item)
-	}
-	if !strings.Contains(spawner.spawnReq.Prompt, "Operations briefing context is attached below") {
-		t.Fatalf("prompt missing operations briefing instruction:\n%s", spawner.spawnReq.Prompt)
+	for _, kind := range []Kind{KindSwarmOperations, KindMetaOrchestration, KindOperatingModeAuthoring} {
+		t.Run(string(kind), func(t *testing.T) {
+			spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+			svc := newTestService(t, spawner)
+			svc.SetContextResolver(fakeStartupContextResolver{})
+			draft, err := svc.Create(context.Background(), CreateRequest{
+				Kind:  kind,
+				Title: "Manage session",
+			})
+			if err != nil {
+				t.Fatalf("Create() error = %v", err)
+			}
+			session, err := svc.Start(context.Background(), ContinueRequest{
+				SessionID: draft.ID,
+				Message:   "What is the current status?",
+			})
+			if err != nil {
+				t.Fatalf("Start() error = %v", err)
+			}
+			if len(session.Messages) != 1 || len(session.Messages[0].Context) != 1 {
+				t.Fatalf("context = %+v", session.Messages)
+			}
+			item := session.Messages[0].Context[0]
+			if item.Type != ContextStartupBrief || item.Ref != StartupBriefRefForKind(kind) {
+				t.Fatalf("context item = %+v, want startup brief", item)
+			}
+			if !strings.Contains(spawner.spawnReq.Prompt, "Startup brief context is attached below") {
+				t.Fatalf("prompt missing startup brief instruction:\n%s", spawner.spawnReq.Prompt)
+			}
+		})
 	}
 }
 
-func TestServiceStartSwarmOperationsSkipsOperationsBriefingWhenAutoContextNone(t *testing.T) {
+func TestServiceStartSkipsStartupBriefWhenAutoContextNone(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
 
 	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
 	svc := newTestService(t, spawner)
-	svc.SetContextResolver(fakeContextResolver{})
+	svc.SetContextResolver(fakeStartupContextResolver{})
 	draft, err := svc.Create(context.Background(), CreateRequest{
 		Kind:  KindSwarmOperations,
 		Title: "Manage Swarm operations",
@@ -792,6 +796,19 @@ func (fakeContextResolver) ResolveSessionMessageContext(_ context.Context, refs 
 		})
 	}
 	return items, nil
+}
+
+type fakeStartupContextResolver struct {
+	fakeContextResolver
+}
+
+func (fakeStartupContextResolver) ResolveSessionStartupBrief(_ context.Context, kind Kind, _ ContextLimits) (ContextItem, error) {
+	return ContextItem{
+		Type:    ContextStartupBrief,
+		Ref:     StartupBriefRefForKind(kind),
+		Title:   "Startup Brief",
+		Summary: "Use this brief first.",
+	}, nil
 }
 
 func (f *fakeBacklogBatchApplier) ApplyAgentSessionBacklogBatchImport(_ context.Context, payloadJSON string, prov identity.Provenance) ([]Artifact, error) {

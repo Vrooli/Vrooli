@@ -54,6 +54,8 @@ function labelForContextType(type: AgentSessionContextType): string {
       return "Mode";
     case "operations_briefing":
       return "Briefing";
+    case "startup_brief":
+      return "Startup";
     default:
       return type.replace(/_/g, " ");
   }

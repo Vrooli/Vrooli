@@ -119,6 +119,7 @@ func (a *App) cmdBacklogPendingQuestions(args []string) error {
 	sourceFlag := fs.String("source", "workshop", "Question source: workshop, review, or all")
 	limitFlag := fs.Int("limit", 0, "Maximum number of backlog items to return (0 = unlimited)")
 	initiativeFlag := fs.String("initiative", "", "Restrict to backlog items in the given initiative")
+	briefFlag := fs.Bool("brief", false, "Return a small agent-oriented pending-question brief")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -141,6 +142,9 @@ func (a *App) cmdBacklogPendingQuestions(args []string) error {
 	}
 	if initiative := strings.TrimSpace(*initiativeFlag); initiative != "" {
 		query.Set("initiative", initiative)
+	}
+	if *briefFlag && *limitFlag == 0 {
+		query.Set("limit", "8")
 	}
 
 	body, err := a.core.Get("/backlog/pending-questions", query)

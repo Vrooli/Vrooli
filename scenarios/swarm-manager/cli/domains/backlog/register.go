@@ -12,7 +12,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		Description: "Backlog item management",
 		Subcommands: []cliapp.Command{
 			support.APICommand("list", "List backlog items [--kind KIND]", deps.BacklogList),
-			support.APICommand("pending-questions", "List pending workshop/review questions [--source workshop|review|all] [--limit N] [--initiative NAME]", deps.BacklogPendingQuestions),
+			support.APICommand("pending-questions", "List pending workshop/review questions [--source workshop|review|all] [--limit N] [--initiative NAME] [--brief]", deps.BacklogPendingQuestions),
 			support.APICommand("get", "Get full backlog item details (--kind KIND --name NAME)", deps.BacklogGet),
 			support.APICommand("create", "Create a backlog item (--data JSON)", deps.BacklogCreate),
 			support.APICommand("update", "Update a backlog item (--kind KIND --name NAME --data JSON)", deps.BacklogUpdate),

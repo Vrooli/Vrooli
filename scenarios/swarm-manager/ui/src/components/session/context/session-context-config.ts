@@ -10,6 +10,7 @@ export const CONTEXT_TYPE_LABELS: Record<AgentSessionContextType, string> = {
   operating_mode: "Modes",
   session: "Sessions",
   operations_briefing: "Briefing",
+  startup_brief: "Startup",
 };
 
 export const CONTEXT_TYPE_CAPS: Record<AgentSessionContextType, number> = {
@@ -22,17 +23,18 @@ export const CONTEXT_TYPE_CAPS: Record<AgentSessionContextType, number> = {
   operating_mode: 3,
   session: 2,
   operations_briefing: 1,
+  startup_brief: 1,
 };
 
 export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSessionContextType[] {
   switch (kind) {
     case "operating_mode_authoring":
-      return ["operating_mode", "initiative", "backlog_item", "execution", "agent_activity", "capture"];
+      return ["startup_brief", "operating_mode", "initiative", "backlog_item", "execution", "agent_activity", "capture"];
     case "swarm_operations":
-      return ["operations_briefing", "initiative", "backlog_item", "execution", "agent_activity", "capture", "session"];
+      return ["startup_brief", "operations_briefing", "initiative", "backlog_item", "execution", "agent_activity", "capture", "session"];
     case "meta_orchestration":
     default:
-      return ["initiative", "backlog_item", "capture", "scenario", "session"];
+      return ["startup_brief", "initiative", "backlog_item", "capture", "scenario", "session"];
   }
 }
 

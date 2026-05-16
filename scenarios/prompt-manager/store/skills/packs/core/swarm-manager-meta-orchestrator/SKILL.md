@@ -9,6 +9,26 @@ This skill supports long, iterative planning before creation. If the user wants 
 **Required reading:**
 - `prompt-manager skill read swarm-manager-backlog-tools`
 
+## Startup Routine
+
+1. First inspect attached `startup_brief` context. For Meta-Orchestration it is the bounded portfolio brief: initiative counts, backlog status pressure, high-priority candidates, recommended next actions, and drill-down commands.
+2. If no startup brief is attached or the metadata is stale for the request, refresh once with:
+
+   ```bash
+   swarm-manager sessions startup-brief --id "$VROOLI_SWARM_MANAGER_SESSION_ID" --refresh --json
+   ```
+
+   If no session ID is available, use `swarm-manager portfolio brief --json`.
+3. For broad prompts such as "inspect existing Swarm context first" or "what should we plan next?", answer from the portfolio brief first. Run at most one targeted command before the first useful answer, such as:
+
+   ```bash
+   swarm-manager initiatives candidates --purpose next-action --json
+   swarm-manager backlog pending-questions --brief --json
+   ```
+
+4. Do not run `swarm-manager overview --json` before the first answer unless the operator explicitly asks for a deep overview. Treat it as a drill-down, not startup.
+5. Read required docs and inspect code only when the plan touches a specific scenario/API/CLI/skill or when the brief identifies a candidate that needs detailed validation.
+
 ## Related Skills
 
 - `swarm-manager-initiative-context` — how to load an initiative's members, upstream, and downstream in one call. Required reading for any sub-step that needs to understand what's already in an initiative or adjust it post-research.

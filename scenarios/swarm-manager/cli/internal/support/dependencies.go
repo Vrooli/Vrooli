@@ -6,6 +6,7 @@ type CommandFunc func(args []string) error
 
 type Dependencies struct {
 	Overview                CommandFunc
+	PortfolioBrief          CommandFunc
 	MigrateWorkshop         CommandFunc
 	BacklogList             CommandFunc
 	BacklogPendingQuestions CommandFunc
@@ -74,6 +75,7 @@ type Dependencies struct {
 	InitiativesList         CommandFunc
 	InitiativesGet          CommandFunc
 	InitiativesContext      CommandFunc
+	InitiativesCandidates   CommandFunc
 	InitiativesCreate       CommandFunc
 	InitiativesUpdate       CommandFunc
 	InitiativesDelete       CommandFunc
@@ -121,6 +123,7 @@ type Dependencies struct {
 	OperationsBrief       CommandFunc
 	SessionsList          CommandFunc
 	SessionsGet           CommandFunc
+	SessionsStartupBrief  CommandFunc
 	SessionsDelete        CommandFunc
 	StatsSummary          CommandFunc
 	StatsThroughput       CommandFunc
@@ -137,9 +140,10 @@ type Dependencies struct {
 	BacklogSearchAI       CommandFunc
 	InitiativesSearchAI   CommandFunc
 	// Top-level operating-mode catalog CLI (see cmd_operating_mode.go).
-	OperatingModeList CommandFunc
-	OperatingModeGet  CommandFunc
-	OperatingModeSet  CommandFunc
+	OperatingModeList  CommandFunc
+	OperatingModeGet   CommandFunc
+	OperatingModeBrief CommandFunc
+	OperatingModeSet   CommandFunc
 }
 
 func APICommand(name, description string, run CommandFunc) cliapp.Command {

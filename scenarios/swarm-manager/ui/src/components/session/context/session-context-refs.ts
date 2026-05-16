@@ -118,6 +118,16 @@ export function operationsBriefingOption(): SessionContextOption {
   };
 }
 
+export function startupBriefOption(kind: string, title = "Startup brief", generatedAt?: string): SessionContextOption {
+  return {
+    type: "startup_brief",
+    ref: `startup_brief/${kind}`,
+    title,
+    subtitle: generatedAt ? `Generated ${generatedAt}` : "Brief-first context and drill-down commands",
+    nodeId: kind === "swarm_operations" ? "/operations" : kind === "operating_mode_authoring" ? "/operating-modes" : "/initiatives",
+  };
+}
+
 export function contextKey(type: AgentSessionContextType, ref: string): string {
   return `${type}:${ref}`;
 }

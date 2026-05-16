@@ -51,11 +51,26 @@ Supported context ref types are closed at the API boundary:
 | `scenario` | Attach scenario status and metadata. |
 | `operating_mode` | Attach an operating-mode recommendation or definition reference. |
 | `session` | Attach another Agent Session summary for continuity. |
+| `startup_brief` | Attach the kind-specific startup packet used to answer broad first prompts quickly. |
+| `operations_briefing` | Attach the current operations briefing directly for operations drill-downs. |
 
 The UI sends refs as `{type, id}` values. The API resolves those refs into
 bounded `AgentSessionContextItem` snapshots before appending the operator
 message and before building the Agent Manager prompt. Agents receive the
 resolved context, not raw UI store records.
+
+Draft sessions can fetch a startup brief before the first message without
+starting an Agent Manager run:
+
+```text
+GET  /api/v1/agent-sessions/{session_id}/startup-brief
+POST /api/v1/agent-sessions/{session_id}/startup-brief
+```
+
+The resolved brief is attached as `startup_brief/<kind>` by default on start
+unless the request sets `"auto_context_policy": "none"` or supplies an
+equivalent explicit startup context. This is the fast path for broad prompts
+such as current status, existing context inspection, and mode classification.
 
 Image attachments are uploaded to the session before the message is sent:
 

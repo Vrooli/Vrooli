@@ -65,6 +65,12 @@ func (r *Resolver) resolve(ctx context.Context, ref agentsessions.ContextRef, li
 		return r.resolveSession(ref.Ref, limits)
 	case agentsessions.ContextOperationsBriefing:
 		return r.resolveOperationsBriefing(ctx, ref.Ref, limits)
+	case agentsessions.ContextStartupBrief:
+		kind, err := kindForStartupBriefRef(ref.Ref)
+		if err != nil {
+			return agentsessions.ContextItem{}, err
+		}
+		return r.ResolveSessionStartupBrief(ctx, kind, limits)
 	case agentsessions.ContextExecution:
 		return r.resolveJSONFile(ref, filepath.Join(r.scenarioRoot, "executions", ref.Ref, "execution.json"), "execution", "execution-record/"+ref.Ref, limits)
 	case agentsessions.ContextAgentActivity:

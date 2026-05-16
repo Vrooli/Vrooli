@@ -38,7 +38,8 @@ export type AgentSessionContextType =
   | "scenario"
   | "operating_mode"
   | "session"
-  | "operations_briefing";
+  | "operations_briefing"
+  | "startup_brief";
 
 export type AgentSessionProposalKind =
   | "backlog_batch_import"

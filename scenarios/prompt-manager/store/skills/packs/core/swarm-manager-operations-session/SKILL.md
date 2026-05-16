@@ -44,31 +44,32 @@ Keep the operator's attention on the smallest set of choices that will move the 
 
 ## Startup Routine
 
-1. First inspect attached `operations_briefing` context. It is the canonical bounded current-state packet for broad operations questions.
-2. If no `operations_briefing` context is attached, or if its `generated_at` metadata is stale for the operator's question, refresh it with:
+1. First inspect attached `startup_brief` context. For Swarm Operations it wraps the current operations briefing plus freshness, recommended actions, and drill-down commands. Treat it as the canonical bounded current-state packet for broad operations questions.
+2. If no `startup_brief` or `operations_briefing` context is attached, or if its `generated_at` metadata is stale for the operator's question, refresh it with:
 
    ```bash
-   swarm-manager operations brief --json
+   swarm-manager sessions startup-brief --id "$VROOLI_SWARM_MANAGER_SESSION_ID" --refresh --json
    ```
 
+   If no session ID is available, use `swarm-manager operations brief --json`.
 3. For broad prompts such as "what is the current status?", answer from the briefing first. Name any drill-downs explicitly instead of doing them automatically.
-4. Use the briefing's `drill_down_commands` and `recommended_next_actions` before inventing new discovery commands. Common commands:
+4. First-response budget: before the first useful answer, use the attached brief and at most one targeted refresh or drill-down command. Do not run `swarm-manager overview --json` before the first answer unless the operator explicitly asks for a deep overview.
+5. Use the briefing's `drill_down_commands` and `recommended_next_actions` before inventing new discovery commands. Common commands:
 
    ```bash
    swarm-manager operations list --json
-   swarm-manager overview --json
    swarm-manager stats sessions --json
    ```
 
-5. Read the required docs only when the operator asks for workflow design, policy rationale, or a decision that the briefing cannot answer.
-6. Drill into initiatives, modes, backlog items, active runs, decisions, or stats only when the briefing identifies them as relevant or when the operator asks for detail.
-7. Identify the top operational bottlenecks:
+6. Read the required docs only when the operator asks for workflow design, policy rationale, or a decision that the briefing cannot answer.
+7. Drill into initiatives, modes, backlog items, active runs, decisions, or stats only when the briefing identifies them as relevant or when the operator asks for detail.
+8. Identify the top operational bottlenecks:
    - pending workshop decisions
    - active runs needing review
    - initiatives in the wrong operating mode for their work shape
    - high-priority initiatives with no recent progress
    - failed/canceled work that needs operator attention
-8. Present a concise recommendation:
+9. Present a concise recommendation:
    - what matters most
    - why it matters
    - the next operator choice

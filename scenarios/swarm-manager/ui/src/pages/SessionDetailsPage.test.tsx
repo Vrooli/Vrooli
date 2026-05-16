@@ -288,6 +288,8 @@ describe("SessionDetailsPage", () => {
       expect(startSession).toHaveBeenCalledWith({
         sessionId: "sess_draft",
         message: "Turn this idea into initiatives and backlog items.",
+        contextRefs: [{ type: "startup_brief", ref: "startup_brief/meta_orchestration" }],
+        autoContextPolicy: "none",
       });
     });
   });

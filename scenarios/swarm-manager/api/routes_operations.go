@@ -50,8 +50,10 @@ func (s *Server) registerOperationsRoutes() {
 	handler := operations.NewHandler(aggregator)
 	handler.SetBriefingBuilder(briefingBuilder)
 	handler.RegisterRoutes(s.router)
+	contextResolver := sessioncontext.NewResolver(s.scenarioRoot, filepath.Dir(s.scenarioRoot), s.agentSessionStore, briefingBuilder)
+	sessioncontext.NewHandler(contextResolver).RegisterRoutes(s.router)
 	if s.agentSessionSvc != nil {
-		s.agentSessionSvc.SetContextResolver(sessioncontext.NewResolver(s.scenarioRoot, filepath.Dir(s.scenarioRoot), s.agentSessionStore, briefingBuilder))
+		s.agentSessionSvc.SetContextResolver(contextResolver)
 	}
 
 	// Bulk-stop reuses the same agentActivitySvc as both Stopper and

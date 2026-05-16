@@ -23,6 +23,20 @@ type cliAgentSessionResponse struct {
 	Session cliAgentSession `json:"session"`
 }
 
+type cliAgentSessionContextItem struct {
+	Type         string `json:"type"`
+	Ref          string `json:"ref"`
+	Title        string `json:"title"`
+	Summary      string `json:"summary"`
+	NodeID       string `json:"node_id,omitempty"`
+	MetadataJSON string `json:"metadata_json,omitempty"`
+	SelectedAt   string `json:"selected_at"`
+}
+
+type cliAgentSessionStartupBriefResponse struct {
+	Brief cliAgentSessionContextItem `json:"brief"`
+}
+
 type cliListAgentSessionsResponse struct {
 	Sessions []cliAgentSession `json:"sessions"`
 }
@@ -132,6 +146,52 @@ func (a *App) cmdSessionsGet(args []string) error {
 	fmt.Printf("  Updated: %s\n", session.UpdatedAt)
 	printCommandListSection("Next Steps", []string{
 		cliCommand("sessions", "delete", "--id", session.ID, "--yes"),
+	})
+	return nil
+}
+
+func (a *App) cmdSessionsStartupBrief(args []string) error {
+	fs := flag.NewFlagSet("sessions startup-brief", flag.ContinueOnError)
+	idFlag := fs.String("id", "", "Session ID")
+	refreshFlag := fs.Bool("refresh", false, "Regenerate the brief")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *idFlag); err != nil {
+		return fmt.Errorf("usage: sessions startup-brief --id ID [--refresh] [--json]\n\n%s", err)
+	}
+	id := strings.TrimSpace(*idFlag)
+	method := "GET"
+	if *refreshFlag {
+		method = "POST"
+	}
+	body, err := a.core.Request(method, "/agent-sessions/"+id+"/startup-brief", nil, nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	response, err := decodeResponse[cliAgentSessionStartupBriefResponse](body)
+	if err != nil {
+		return err
+	}
+	brief := response.Brief
+	printSection("Startup Brief")
+	fmt.Printf("  %s\n", brief.Title)
+	fmt.Printf("  Ref: %s\n", brief.Ref)
+	if brief.SelectedAt != "" {
+		fmt.Printf("  Generated: %s\n", brief.SelectedAt)
+	}
+	printSection("Summary")
+	for _, line := range strings.Split(strings.TrimSpace(brief.Summary), "\n") {
+		if strings.TrimSpace(line) != "" {
+			fmt.Printf("  %s\n", line)
+		}
+	}
+	printCommandListSection("Drill Down", []string{
+		cliCommand("sessions", "startup-brief", "--id", id, "--refresh", "--json"),
 	})
 	return nil
 }

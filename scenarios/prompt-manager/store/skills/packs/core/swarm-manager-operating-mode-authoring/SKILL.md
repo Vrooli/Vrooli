@@ -23,6 +23,26 @@ Also read:
 - `scenarios/swarm-manager/api/internal/operatingmode/definition_builder.go`
 - `scenarios/swarm-manager/api/internal/operatingmode/synthetic_mode_test.go`
 
+## Startup Routine
+
+1. First inspect attached `startup_brief` context. For Operating Mode Authoring it summarizes registered modes, decision metadata, scope/run strategies, phase counts, and authoring drill-down commands.
+2. If no startup brief is attached or the operator asks about the latest catalog, refresh once with:
+
+   ```bash
+   swarm-manager sessions startup-brief --id "$VROOLI_SWARM_MANAGER_SESSION_ID" --refresh --json
+   ```
+
+   If no session ID is available, use `swarm-manager operating-mode brief --json`.
+3. For broad classification prompts, compare against the startup brief before reading mode files or docs. Recommend an existing mode unless the workflow needs a distinct phase graph, artifact contract, audit policy, metrics semantics, or backlog reconciliation behavior.
+4. First-response budget: before the first useful answer, use the attached brief and at most one targeted catalog/detail command:
+
+   ```bash
+   swarm-manager operating-mode list --json
+   swarm-manager operating-mode get --mode <mode> --json
+   ```
+
+5. Treat the required reading list below as conditional after classification. Read it before producing an implementation plan, code changes, registry edits, prompt skill changes, or detailed authoring rationale; do not front-load all of it for a simple "does this need a mode?" question.
+
 ## Scope
 
 In scope:

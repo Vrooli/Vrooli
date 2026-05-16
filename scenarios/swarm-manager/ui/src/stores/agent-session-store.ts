@@ -8,7 +8,7 @@ import {
   type ListAgentSessionEventsResult,
   type ListAgentSessionsFilters,
 } from "../services/agent-session-service";
-import type { AgentSession, AgentSessionAttachment, AgentSessionArtifact } from "../types";
+import type { AgentSession, AgentSessionAttachment, AgentSessionArtifact, AgentSessionContextItem } from "../types";
 import {
   clearStorage,
   fetchWithRetry,
@@ -44,6 +44,7 @@ interface AgentSessionStoreState {
   lastFetchedAt: number | null;
   fetchSessions: (filters?: ListAgentSessionsFilters, options?: { force?: boolean }) => Promise<void>;
   loadSession: (sessionId: string) => Promise<AgentSession>;
+  loadStartupBrief: (sessionId: string, refresh?: boolean) => Promise<AgentSessionContextItem>;
   createSession: (args: CreateAgentSessionArgs) => Promise<AgentSession>;
   startSession: (args: ContinueAgentSessionArgs) => Promise<AgentSession>;
   continueSession: (args: ContinueAgentSessionArgs) => Promise<AgentSession>;
@@ -132,6 +133,10 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
       });
       throw error;
     }
+  },
+
+  loadStartupBrief: async (sessionId, refresh = false): Promise<AgentSessionContextItem> => {
+    return service.getStartupBrief(sessionId, refresh);
   },
 
   createSession: async (args): Promise<AgentSession> => {

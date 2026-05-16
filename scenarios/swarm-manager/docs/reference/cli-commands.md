@@ -4,6 +4,22 @@ This document captures the canonical Swarm Manager CLI flows for backlog import 
 
 ## Operations
 
+Use startup briefs as the fastest first-answer packet for agent sessions:
+
+```bash
+swarm-manager sessions startup-brief --id sess_123 --json
+swarm-manager sessions startup-brief --id sess_123 --refresh --json
+swarm-manager portfolio brief --json
+swarm-manager initiatives candidates --purpose next-action --json
+swarm-manager operating-mode brief --json
+swarm-manager backlog pending-questions --brief --json
+```
+
+These commands return bounded context packets with summaries, source counts,
+freshness metadata, recommended next actions, and drill-down commands. They are
+for startup and routing; use the detailed commands only after the brief points
+to a specific scope.
+
 Use the operations briefing as the fastest current-status packet for agents and
 operators:
 

@@ -24,7 +24,7 @@ import { SessionProposalList } from "../components/session/SessionProposalList";
 import { SessionSectionTabs, type SessionSectionValue } from "../components/session/SessionSectionTabs";
 import { useComposerImageAttachments } from "../components/composer/useComposerImageAttachments";
 import { optionsToRefs } from "../components/session/context/session-context-options";
-import { operationsBriefingOption, type SessionContextOption } from "../components/session/context/session-context-refs";
+import { startupBriefOption, type SessionContextOption } from "../components/session/context/session-context-refs";
 import { ActionMenu, ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
 import { nodeIdForSessionArtifact } from "../components/session/session-artifact-routing";
 import {
@@ -55,6 +55,7 @@ export function SessionDetailsPage() {
     s.sessions.find((session) => session.id === sessionId),
   );
   const loadSession = useAgentSessionStore((s) => s.loadSession);
+  const loadStartupBrief = useAgentSessionStore((s) => s.loadStartupBrief);
   const startSession = useAgentSessionStore((s) => s.startSession);
   const continueSession = useAgentSessionStore((s) => s.continueSession);
   const uploadSessionAttachments = useAgentSessionStore((s) => s.uploadSessionAttachments ?? (() => Promise.resolve([])));
@@ -75,6 +76,12 @@ export function SessionDetailsPage() {
   });
 
   const session: AgentSession | undefined = storeSession ?? fetchedSession;
+  const startupBriefQuery = useQuery({
+    queryKey: ["session-startup-brief", session?.id, session?.kind],
+    queryFn: () => loadStartupBrief(session?.id ?? ""),
+    enabled: Boolean(session?.id && session.status === "draft"),
+    staleTime: 60_000,
+  });
   const { events, isLoading: eventsLoading, error: eventsError, refreshEvents } = useAgentSessionEvents(session);
 
   const [draft, setDraft] = useState("");
@@ -93,8 +100,20 @@ export function SessionDetailsPage() {
     } catch {
       setDraft("");
     }
-    setPendingContext(session?.kind === "swarm_operations" && session.status === "draft" ? [operationsBriefingOption()] : []);
-  }, [session?.kind, session?.status, sessionDraftKey]);
+    setPendingContext(session?.status === "draft" ? [startupBriefOption(session.kind)] : []);
+  }, [session?.id, session?.kind, session?.status, sessionDraftKey]);
+
+  useEffect(() => {
+    if (!session || session.status !== "draft" || !startupBriefQuery.data) return;
+    const brief = startupBriefQuery.data;
+    setPendingContext((current) => {
+      const withoutStartupBrief = current.filter((item) => item.type !== "startup_brief");
+      return [
+        startupBriefOption(session.kind, brief.title, brief.selectedAt),
+        ...withoutStartupBrief,
+      ];
+    });
+  }, [session, startupBriefQuery.data]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -122,13 +141,13 @@ export function SessionDetailsPage() {
       const uploaded = await uploadSessionAttachments(session.id, sessionAttachments.getFiles());
       const attachmentIds = uploaded.map((attachment) => attachment.id);
       const contextRefs = optionsToRefs(context);
-      const hasOperationsBriefing = contextRefs.some((ref) => ref.type === "operations_briefing");
+      const hasAutoStartupContext = contextRefs.some((ref) => ref.type === "startup_brief" || ref.type === "operations_briefing");
       const sendArgs = {
         sessionId: session.id,
         message,
         ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
         ...(contextRefs.length > 0 ? { contextRefs } : {}),
-        ...(session.status === "draft" && session.kind === "swarm_operations" && !hasOperationsBriefing ? { autoContextPolicy: "none" as const } : {}),
+        ...(session.status === "draft" && hasAutoStartupContext ? { autoContextPolicy: "none" as const } : {}),
       };
       if (session.status === "draft") {
         await startSession(sendArgs);
@@ -153,6 +172,21 @@ export function SessionDetailsPage() {
       setLocalError(err instanceof Error ? err.message : "Unable to refresh session.");
     }
   }, [refreshSession, session]);
+
+  const handleRefreshStartupBrief = useCallback(async () => {
+    if (!session || session.status !== "draft") return;
+    setLocalError(null);
+    try {
+      const brief = await loadStartupBrief(session.id, true);
+      setPendingContext((current) => [
+        startupBriefOption(session.kind, brief.title, brief.selectedAt),
+        ...current.filter((item) => item.type !== "startup_brief"),
+      ]);
+      await startupBriefQuery.refetch();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Unable to refresh startup brief.");
+    }
+  }, [loadStartupBrief, session, startupBriefQuery]);
 
   const handleCancel = useCallback(async () => {
     if (!session) return;
@@ -256,6 +290,14 @@ export function SessionDetailsPage() {
   ];
 
   const mobileActionItems: ActionMenuItem[] = [
+    ...(session.status === "draft" ? [{
+      label: "Refresh brief",
+      icon: <RefreshCw />,
+      onSelect: () => void handleRefreshStartupBrief(),
+      disabled: isMutating || startupBriefQuery.isFetching,
+      loading: startupBriefQuery.isFetching,
+      testId: "session-startup-brief-refresh",
+    }] : []),
     {
       label: "Refresh",
       icon: <RefreshCw />,
@@ -300,6 +342,18 @@ export function SessionDetailsPage() {
             <Button variant="ghost" size="sm" onClick={() => setInspectorCollapsed(false)} data-testid="session-inspector-header-expand">
               <PanelRightOpen className="mr-1.5 h-3.5 w-3.5" />
               Inspector
+            </Button>
+          )}
+          {session.status === "draft" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void handleRefreshStartupBrief()}
+              disabled={isMutating || startupBriefQuery.isFetching}
+              data-testid="session-startup-brief-refresh"
+            >
+              <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", startupBriefQuery.isFetching && "animate-spin")} />
+              Brief
             </Button>
           )}
           <Button variant="ghost" size="sm" onClick={() => void handleRefresh()} disabled={isMutating || isRefreshing} data-testid="session-refresh">

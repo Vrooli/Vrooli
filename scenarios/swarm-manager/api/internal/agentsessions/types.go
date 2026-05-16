@@ -93,9 +93,16 @@ const (
 	ContextOperatingMode      ContextType = "operating_mode"
 	ContextSession            ContextType = "session"
 	ContextOperationsBriefing ContextType = "operations_briefing"
+	ContextStartupBrief       ContextType = "startup_brief"
 )
 
 const OperationsBriefingLatestRef = "operations_briefing/latest"
+
+const (
+	StartupBriefMetaOrchestrationRef      = "startup_brief/meta_orchestration"
+	StartupBriefOperatingModeAuthoringRef = "startup_brief/operating_mode_authoring"
+	StartupBriefSwarmOperationsRef        = "startup_brief/swarm_operations"
+)
 
 type AutoContextPolicy string
 
@@ -437,10 +444,23 @@ func IsKnownArtifactAction(action ArtifactAction) bool {
 func IsKnownContextType(contextType ContextType) bool {
 	switch contextType {
 	case ContextBacklogItem, ContextInitiative, ContextCapture, ContextExecution,
-		ContextAgentActivity, ContextScenario, ContextOperatingMode, ContextSession, ContextOperationsBriefing:
+		ContextAgentActivity, ContextScenario, ContextOperatingMode, ContextSession, ContextOperationsBriefing, ContextStartupBrief:
 		return true
 	default:
 		return false
+	}
+}
+
+func StartupBriefRefForKind(kind Kind) string {
+	switch kind {
+	case KindMetaOrchestration:
+		return StartupBriefMetaOrchestrationRef
+	case KindOperatingModeAuthoring:
+		return StartupBriefOperatingModeAuthoringRef
+	case KindSwarmOperations:
+		return StartupBriefSwarmOperationsRef
+	default:
+		return ""
 	}
 }
 

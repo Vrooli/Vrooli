@@ -25,6 +25,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions", h.Create).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Get).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Delete).Methods(http.MethodDelete)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/startup-brief", h.StartupBrief).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/attachments", h.UploadAttachments).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/attachments/{attachment_id}", h.GetAttachment).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/start", h.Start).Methods(http.MethodPost)
@@ -35,6 +36,17 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/apply", h.ApplyProposal).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/artifacts", h.ListArtifacts).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/artifacts/by-entity", h.GetArtifactsByEntity).Methods(http.MethodGet)
+}
+
+func (h *Handler) StartupBrief(w http.ResponseWriter, r *http.Request) {
+	brief, err := h.service.StartupBrief(r.Context(), mux.Vars(r)["session_id"])
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] startup-brief", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, &apipb.GetAgentSessionStartupBriefResponse{Brief: contextItemToProto(brief)}); err != nil {
+		apierr.MapError(w, "[agent-sessions] startup-brief", apierr.Internal("failed to encode response"))
+	}
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {

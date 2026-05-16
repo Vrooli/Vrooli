@@ -31,6 +31,7 @@ import {
   operationsBriefingOption,
   scenarioOption,
   sessionOption,
+  startupBriefOption,
   type SessionContextOption,
 } from "./session-context-refs";
 
@@ -113,7 +114,8 @@ function SessionContextPickerContent({
     operating_mode: (modesQuery.data?.modes ?? []).map(operatingModeOption).filter((mode) => mode.ref),
     session: sessions.filter((session) => session.id !== currentSessionId).map(sessionOption),
     operations_briefing: [operationsBriefingOption()],
-  }), [activities, backlogItems, captures, currentSessionId, executions, initiatives, modesQuery.data?.modes, scenarios, sessions]);
+    startup_brief: [startupBriefOption(sessionKind)],
+  }), [activities, backlogItems, captures, currentSessionId, executions, initiatives, modesQuery.data?.modes, scenarios, sessionKind, sessions]);
 
   const selectedKeys = useMemo(() => new Set(draft.map((item) => contextKey(item.type, item.ref))), [draft]);
   const filteredOptions = useMemo(() => {
