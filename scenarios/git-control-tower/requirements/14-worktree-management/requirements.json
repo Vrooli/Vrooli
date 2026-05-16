@@ -1,7 +1,7 @@
 {
   "_metadata": {
-    "description": "OT-P2-002 Worktree management",
-    "last_updated": "2025-12-16"
+    "description": "OT-P2-002 Worktree management — Tiers 1 + 2 (proto+Connect)",
+    "last_updated": "2026-05-16"
   },
   "requirements": [
     {
@@ -9,9 +9,40 @@
       "category": "operational_target.p2",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "title": "Worktree management",
-      "description": "List, create, and manage git worktrees via API",
-      "status": "pending",
-      "validation": []
+      "description": "List, create, and manage git worktrees via the WorktreeService Connect-RPC surface; expose worktree identity through RepoService.GetRepoStatus; cross-link branch list with checked_out_in_worktree.",
+      "status": "implemented",
+      "validation": [
+        {
+          "id": "GCT-OT-P2-002-V1",
+          "title": "Worktree domain layer is seam-tested",
+          "evidence": "scenarios/git-control-tower/api/internal/worktree/service_test.go covers List, Get, Identify, ClaimedBranches, Create (existing/new-branch/detached), Remove (refuses main, propagates NotFound, dispatches force), Lock/Unlock/Move/Prune through FakeInspector and FakeMutator. NO real git is invoked."
+        },
+        {
+          "id": "GCT-OT-P2-002-V2",
+          "title": "WorktreeService Connect handler is exercised via httptest",
+          "evidence": "scenarios/git-control-tower/api/handlers/worktree/connect_handler_test.go stands up an httptest.Server with FakeInspector/FakeMutator and asserts every RPC, including dry-run header behavior and InvalidArgument / NotFound code mapping."
+        },
+        {
+          "id": "GCT-OT-P2-002-V3",
+          "title": "RepoService.GetRepoStatus exposes worktree identity (Tier 1)",
+          "evidence": "scenarios/git-control-tower/api/handlers/repo/connect_handler_test.go and internal/repo/service_test.go cover linked-worktree, main-worktree, detached, and InvalidArgument cases against FakeInspector."
+        },
+        {
+          "id": "GCT-OT-P2-002-V4",
+          "title": "Branch list cross-link populates checked_out_in_worktree",
+          "evidence": "scenarios/git-control-tower/api/branch_worktree_test.go exercises enrichBranchesWithWorktreeClaims with a stubbed claimedBranchesFn — no real git."
+        },
+        {
+          "id": "GCT-OT-P2-002-V5",
+          "title": "CLI worktree command group hits Connect-RPC only",
+          "evidence": "scenarios/git-control-tower/cli/domains/worktree/handlers_test.go substitutes the WorktreeServiceClient seam (clientFactory) with a fakeClient and covers list/get/create/remove/lock/unlock/move/prune flag plumbing."
+        },
+        {
+          "id": "GCT-OT-P2-002-V6",
+          "title": "Porcelain parser handles main/linked/detached/locked/prunable",
+          "evidence": "scenarios/git-control-tower/api/internal/worktree/parse_test.go tests parsePorcelain against fixed strings; no real git."
+        }
+      ]
     }
   ]
 }

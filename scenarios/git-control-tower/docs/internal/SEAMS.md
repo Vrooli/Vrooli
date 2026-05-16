@@ -216,10 +216,39 @@ Guardrails:
 - Tests that need API responses should use `mockFetchJson`, `jsonResponse`, or `textResponse` unless they are specifically asserting raw fetch wiring.
 - Mobile/desktop tests should use the viewport helpers instead of mutating globals inline.
 
+## Worktree Domain Seams
+
+The worktree domain is the first proto+Connect-RPC domain in GCT. Two
+narrow seams replace direct `git worktree ...` invocations everywhere a
+caller needs worktree-shaped data or mutation:
+
+| Seam | Declaration | Production Impl | Test Double | Why it exists |
+|---|---|---|---|---|
+| `worktree.Inspector` | `api/internal/worktree/inspector.go` | `gitInspector` in `api/internal/worktree/git_impl.go` | `mocks.FakeInspector` in `api/internal/worktree/mocks/inspector.go` | Read-side worktree state (list, identify path, claimed branches). Test doubles wire it everywhere — handlers, repo service, branch enrichment — so NO real git is invoked in tests. |
+| `worktree.Mutator` | `api/internal/worktree/mutator.go` | `gitMutator` in `api/internal/worktree/git_impl.go` | `mocks.FakeMutator` in `api/internal/worktree/mocks/mutator.go` | Write-side worktree operations (add/remove/lock/unlock/move/prune). Service-layer validation refuses unsafe operations (e.g. remove main) before the Mutator is ever invoked. |
+| Branch-list enrichment | `claimedBranchesFn` in `api/branch_handler.go` | Lazy `newWorktreeInspector().ClaimedBranches` | Test-time override (see `branch_worktree_test.go`) | Lets REST `/api/v1/repo/branches` populate `checked_out_in_worktree` without touching git in tests. Errors are intentionally swallowed; empty string is the unclaimed sentinel. |
+| CLI client factory | `clientFactory` in `cli/domains/worktree/handlers.go` | `cliapp.NewConnectHTTPClient` + `worktreeconnect.NewWorktreeServiceClient` | Test `fakeClient` (see `handlers_test.go`) | Substitutes the entire WorktreeService client so CLI command flag-plumbing tests need no network or git. |
+
+Compile-time satisfaction: every production and fake impl carries a
+`var _ worktree.Inspector = (*X)(nil)` / `var _ worktree.Mutator = ...`
+assertion. Renaming a seam method fails the build everywhere it must.
+
+Connect-RPC mount point: `api/connect_wiring.go::mountConnectHandlers`.
+The new WorktreeService and RepoService handlers register through
+`api-core/connectx.RegisterServices`; existing flat-package REST handlers
+are untouched.
+
+Hard rule for this domain: **tests NEVER invoke real `git`**. The
+production seam impls are only reachable at runtime. If you find
+yourself reaching for a real-git integration test, add another
+table-driven case against `FakeInspector` / `FakeMutator` instead.
+
 ## Verification Checklist
 
 When adding new behavior, verify:
 - Git operations go through `GitRunner`.
+- Worktree operations go through `worktree.Inspector` / `worktree.Mutator` — never `exec.Command("git", "worktree", ...)` outside the production seam impls in `internal/worktree/git_impl.go`.
+- Tests of worktree-aware code substitute `FakeInspector` / `FakeMutator` and never invoke real git.
 - Precommit command execution goes through `CommandRunner`.
 - Commit-check history goes through `CommitCheckRecorder` / `CommitCheckReader`.
 - Workspace-sandbox operations go through `WorkspaceSandboxAPI`.

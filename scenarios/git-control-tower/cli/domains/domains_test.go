@@ -4,8 +4,8 @@ import "testing"
 
 func TestSubcommandGroupsRegistersExpectedDomains(t *testing.T) {
 	groups := SubcommandGroups(nil)
-	if len(groups) != 4 {
-		t.Fatalf("SubcommandGroups() returned %d groups, want 4", len(groups))
+	if len(groups) != 5 {
+		t.Fatalf("SubcommandGroups() returned %d groups, want 5", len(groups))
 	}
 
 	got := make(map[string]int, len(groups))
@@ -17,10 +17,11 @@ func TestSubcommandGroupsRegistersExpectedDomains(t *testing.T) {
 	}
 
 	want := map[string]int{
-		"repo":   6,
-		"branch": 4,
-		"review": 3,
-		"audit":  1,
+		"repo":     6,
+		"branch":   4,
+		"worktree": 8,
+		"review":   3,
+		"audit":    1,
 	}
 	for name, count := range want {
 		if got[name] != count {

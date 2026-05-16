@@ -72,14 +72,40 @@ through OT-P0-008). All P0 items have at least an initial implementation
 
 ### Future / expansion
 
-- [REQ: OT-P2-002] **Worktree management** — list, create, manage git
-  worktrees via API.
+- [REQ: OT-P2-002] **Worktree management** — Tiers 1 + 2 SHIPPED as the
+  first proto+Connect-RPC domain in GCT (2026-05-16). See
+  [Worktree Connect surface](#worktree-connect-surface) below.
 - [REQ: OT-P2-003] **Stash operations** — save, apply, drop stashes
   programmatically.
 
 See [docs/internal/PROBLEMS.md](../internal/PROBLEMS.md#deferred-ideas)
 for additional deferred ideas (multi-repo support, real-time WebSocket
 updates).
+
+## Worktree Connect surface
+
+The worktree domain is the first proto+Connect-RPC domain in GCT. It
+ships alongside (not replacing) the existing flat-package REST API and
+acts as the seed pattern for future incremental migration of other
+domains.
+
+| Domain | Service | Methods | Transport | Maturity |
+|---|---|---|---|---|
+| `worktree` | `WorktreeService` | `ListWorktrees`, `GetWorktree`, `CreateWorktree`, `RemoveWorktree`, `LockWorktree`, `UnlockWorktree`, `MoveWorktree`, `PruneWorktrees` | Connect-RPC | L3 (proto+Connect end to end with dry-run support) |
+| `repo` | `RepoService` | `GetRepoStatus` (Tier-1 worktree identity fields only) | Connect-RPC | L3 (greenfield Connect; legacy REST `/api/v1/repo/status` continues to serve other consumers) |
+
+Source paths:
+
+- proto: `packages/proto/schemas/git-control-tower/v1/{worktree,repo}/`
+- API: `scenarios/git-control-tower/api/handlers/{worktree,repo}/`, `scenarios/git-control-tower/api/internal/{worktree,repo}/`
+- CLI: `scenarios/git-control-tower/cli/domains/worktree/`
+- Mount: `scenarios/git-control-tower/api/connect_wiring.go::mountConnectHandlers`
+
+Branch cross-link: REST `GET /api/v1/repo/branches` now includes a
+`checked_out_in_worktree` field per local branch. Field is populated via
+the `claimedBranchesFn` test seam in `api/branch_handler.go`, which
+defaults to `worktree.Inspector.ClaimedBranches` in production and is
+override-able in tests so the existing branch flow never hits real git.
 
 ## Cross-references
 

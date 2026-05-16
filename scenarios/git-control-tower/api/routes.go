@@ -132,4 +132,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/ssh/keys/public", ssh.HandleGetPublicKey(s.sshDeps)).Methods("POST")
 	s.router.HandleFunc("/api/v1/ssh/keys/test", ssh.HandleTestConnection(s.sshDeps)).Methods("POST")
 	s.router.HandleFunc("/api/v1/ssh/keys", ssh.HandleDeleteKey(s.sshDeps)).Methods("DELETE")
+
+	// Connect-RPC handlers (proto-first surface). Worktree is the first
+	// proto+Connect domain in GCT; see api/connect_wiring.go.
+	s.mountConnectHandlers()
 }

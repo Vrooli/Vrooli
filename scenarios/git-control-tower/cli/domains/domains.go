@@ -9,6 +9,7 @@ import (
 	"git-control-tower/cli/domains/branch"
 	"git-control-tower/cli/domains/repo"
 	"git-control-tower/cli/domains/review"
+	"git-control-tower/cli/domains/worktree"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -22,6 +23,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		repo.Register(core),
 		branch.Register(core),
+		worktree.Register(core),
 		review.Register(core),
 		audit.Register(core),
 	}
