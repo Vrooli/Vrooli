@@ -31,7 +31,6 @@
     "listening": "リスニング中... タップで停止",
     "recording": "録音中... タップで停止",
     "transcribing": "文字起こし中... タップでキャンセル",
-    "speaking": "発話中... タップで停止",
     "error": "音声エラー: {{error}}",
     "tapToSpeak": "タップして話す",
     "tapToSpeakWithBackend": "タップして話す ({{backend}})",

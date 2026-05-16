@@ -32,6 +32,20 @@ export type VoiceState = "idle" | "preparing" | "passive" | "recording" | "liste
  *  stays active with segment-boundary detection until manually stopped. */
 export type VoiceMode = "one-shot" | "persistent";
 
+export type VoiceActivityPhase = "idle" | "calibrating" | "waiting-for-speech" | "speech" | "silence";
+
+export interface VoiceActivitySnapshot {
+  phase: VoiceActivityPhase;
+  audioLevel: number;
+  rms: number;
+  speechThreshold: number;
+  silenceThreshold: number;
+  silenceElapsedMs: number;
+  silenceTimeoutMs: number;
+  autoStopProgress: number;
+  autoStopVisible: boolean;
+}
+
 /** Tracks a single speech segment within a persistent voice session. */
 export interface VoiceSegment {
   text: string;
@@ -94,6 +108,8 @@ export interface VoiceInputState {
   error: string | null;
   /** 0-1 audio level from the microphone while recording */
   audioLevel: number;
+  /** UI-safe VAD snapshot derived from the same sample as audioLevel. */
+  voiceActivity: VoiceActivitySnapshot;
   /** Transient notice shown when falling back to a different backend. */
   fallbackNotice: string | null;
   /** Partial transcript from streaming transcription. */

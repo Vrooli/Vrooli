@@ -7,6 +7,8 @@
 | Flow ID | Domain | Risk | Model Status | Source of Truth | Tests | Remaining Gaps |
 |---|---|---|---|---|---|---|
 | `web-console.playback-transport.ui` | `tts-playback` | High — pause/resume + queue advancement bugs reported by users | L5 transport, L3 intent | `ui/src/domains/tts-playback/flow/flow.json`, `transition.ts`, `store.ts`, `useTtsPlaybackController.ts` | `flow.test.ts` (formal replay), `useTtsPlaybackController.test.ts`, `workspace-tts-replay-bar.test.tsx`, `terminal-pane-tts-stop.test.tsx` | Transport is formalized. Persistent user intent is reducer/hook tested but not yet represented in `flow.json`. |
+| `web-console.voice-capture.ui` | `voice-input` | Medium — user-facing recording lifecycle has async provider startup, cancellation, auto-stop, and transcribing grace windows | L3 | `ui/src/hooks/useVoiceInput.ts`, `ui/src/components/VoiceMicButton.tsx` | `useVoiceInput.test.ts`, `audioCueContract.test.ts`, `voice-mic-button.test.tsx` | Provider startup and cue pairing are covered; full capture flow is not yet declaratively specified. |
+| `web-console.voice-activity-autostop.ui` | `voice-input` | Medium — VAD auto-stop can surprise users and the visual level can drift if UI state is not derived from the same sample as VAD | L3 | `ui/src/hooks/voice/vad.ts`, `ui/src/hooks/voice/activity.ts`, `ui/src/hooks/useVoiceInput.ts` | `vad.test.ts`, `activity.test.ts`, `voice-mic-button.test.tsx` | Not formalized. Future work can promote the activity snapshot to a declarative spec if more VAD UI states are added. |
 
 ## Unmodeled Candidates
 
@@ -28,6 +30,7 @@
 
 - **2026-05-13** — Initial L5 adoption of `web-console.playback-transport.ui`. Quint check passes (TypeOK, IllegalTransitionsPreserveState, PausedSwallowsAutoAdvance, StaleCompletionIsIgnored). Vitest replay green. Wired into `useTtsPlaybackController` to fix user-reported "pause auto-advances to next message" and "pause then play elsewhere" races. Stale-completion guarding via `loadId` carried in event payloads, mirroring the notes template's `attempt-id` pattern.
 - **2026-05-15** — Frontend TTS auto-play policy moved out of `TerminalPane` and into `useTtsPlaybackController`. The controller now owns persisted `playbackIntent` (`continuous`, `paused`, `stopped`), selected target, incoming assistant auto-play decisions, and listened-cursor commits after natural completion. The playback bar has no close/collapse presentation state; when auto-TTS is enabled, visibility derives from a valid active/replay target. `TerminalPane` appends conversation events, sends received/seen acks, and exposes provider controls only. Remaining gap: intent is documented and tested in TypeScript, but not yet in the formal flow model.
+- **2026-05-15** — Mic button presentation was separated from TTS playback presentation. `VoiceMicButton` no longer renders speaker/green playback state; TTS speaking state is interaction-only so starting voice input can stop active playback before recording. `useVoiceInput` now exposes a `voiceActivity` snapshot built from the same audio-analysis sample that drives VAD, and `VoiceMicButton` renders the one-shot silence auto-stop countdown as a circular ring only after the configured visual grace.
 
 ## Async Operation Inventory
 

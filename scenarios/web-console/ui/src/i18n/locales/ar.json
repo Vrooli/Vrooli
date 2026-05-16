@@ -31,7 +31,6 @@
     "listening": "جارٍ الاستماع... انقر للإيقاف",
     "recording": "جارٍ التسجيل... انقر للإيقاف",
     "transcribing": "جارٍ التحويل إلى نص... انقر للإلغاء",
-    "speaking": "جارٍ النطق... انقر للإيقاف",
     "error": "خطأ صوتي: {{error}}",
     "tapToSpeak": "انقر للتحدث",
     "tapToSpeakWithBackend": "انقر للتحدث ({{backend}})",

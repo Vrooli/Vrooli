@@ -20,6 +20,7 @@ import { fetchCapabilities, getCapabilitiesLivenessSnapshot, refreshCapabilities
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { createAudioFilterChain } from "./voice/audioUtils";
 import { playRecordingStartCue, playRecordingStopCue } from "./voice/audioCues";
+import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "./voice/activity";
 import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "./voice/vad";
 import { getSharedAudioContext, ensureAudioContextOnGesture, installAudioContextKeepalive, teardownAudioContextKeepalive } from "./voice/sharedAudioContext";
 import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "./voice/micReadiness";
@@ -45,11 +46,12 @@ import type {
 } from "./voice/types";
 
 // Re-export public types and utilities for consumers and tests
-export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, VoiceRejection, LastTurnAudio, CommandSuggestion, StartRecordingOpts } from "./voice/types";
+export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, VoiceRejection, LastTurnAudio, CommandSuggestion, StartRecordingOpts, VoiceActivitySnapshot, VoiceActivityPhase } from "./voice/types";
 export { WHISPER_FAILED_SENTINEL, CAP_CHECK_FAIL_THRESHOLD, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "./voice/types";
 export { createAudioFilterChain } from "./voice/audioUtils";
 export type { VadState, VadRefs, VadAction, CachedNoiseFloor } from "./voice/vad";
 export { VAD_DEFAULT_SILENCE_TIMEOUT_MS, VAD_DEFAULT_SEGMENT_SILENCE_MS, VAD_FLOOR_CACHE_MAX_AGE_MS, createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, computeSlidingNoiseFloor, vadTick } from "./voice/vad";
+export { buildVoiceActivitySnapshot, VAD_AUTO_STOP_VISUAL_GRACE_MS } from "./voice/activity";
 export { getSharedAudioContext, ensureAudioContextOnGesture, closeSharedAudioContext } from "./voice/sharedAudioContext";
 
 const INITIAL_STATE: VoiceInputState = {
@@ -58,6 +60,7 @@ const INITIAL_STATE: VoiceInputState = {
   voiceState: "idle",
   error: null,
   audioLevel: 0,
+  voiceActivity: IDLE_VOICE_ACTIVITY,
   fallbackNotice: null,
   partialTranscript: "",
   voiceMode: "one-shot",
@@ -146,7 +149,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const rafRef = useRef<number>(0);
   const lastTickRef = useRef(0);
   const audioLevelRef = useRef(0);
-  const levelSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** Guard against zombie RAF ticks. When stopLevelMonitor() is called from
    *  inside the tick callback (e.g. VAD-triggered stop), the tick function
    *  must not reschedule itself. Without this, requestAnimationFrame(tick)
@@ -357,12 +359,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       /** Counts non-throttled ticks in this session for early diagnostic logging. */
       let tickCount = 0;
 
-      // Sync audioLevel ref -> React state at 10 Hz (100ms).
-      levelSyncRef.current = setInterval(() => {
-        const l = audioLevelRef.current;
-        setState((s) => (Math.abs(s.audioLevel - l) < 0.01 ? s : { ...s, audioLevel: l }));
-      }, 100);
-
       const tick = () => {
         // Zombie guard: if stopLevelMonitor was called (e.g. VAD-triggered
         // stop from within this tick), do NOT reschedule. Without this,
@@ -384,7 +380,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           sum += v * v;
         }
         const rms = Math.sqrt(sum / data.length);
-        audioLevelRef.current = Math.min(1, rms * 4);
+        const audioLevel = Math.min(1, rms * 4);
+        audioLevelRef.current = audioLevel;
 
         // Log first 5 non-throttled ticks + every 150th tick (~10s) for diagnostics
         tickCount++;
@@ -396,9 +393,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         }
 
         // VAD check
+        const vadNow = Date.now();
         if (vadActiveRef.current) {
           const prevState = vadRef.current.state;
-          const result = vadTick(vadRef.current, rms, Date.now(), vadSilenceTimeoutRef.current);
+          const result = vadTick(vadRef.current, rms, vadNow, vadSilenceTimeoutRef.current);
           if (vadRef.current.state !== prevState) {
             console.debug("[voice] VAD:", prevState, "\u2192", vadRef.current.state,
               "rms=" + rms.toFixed(3), "speechThresh=" + vadRef.current.speechThreshold.toFixed(3));
@@ -425,7 +423,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
             }
           } else if (result === "stop") {
             console.info("[voice] S%d VAD stop: silenceElapsed=%dms, timeout=%dms, rms=%.4f, speechThresh=%.4f, silenceThresh=%.4f",
-              sessionCountRef.current, Date.now() - vadRef.current.silenceStart,
+              sessionCountRef.current, vadNow - vadRef.current.silenceStart,
               vadSilenceTimeoutRef.current, rms,
               vadRef.current.speechThreshold, vadRef.current.silenceThreshold);
             // In one-shot mode, stop recording as usual.
@@ -442,18 +440,36 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
               }
               // Reset VAD to wait for new speech — prevents repeated "stop" cascade
               vadRef.current.state = "waitingForSpeech";
-              vadRef.current.recordingStart = Date.now();
+              vadRef.current.recordingStart = vadNow;
               vadRef.current.segmentBoundaryEmitted = false;
             }
           } else if (result === "no-speech") {
             console.info("[voice] S%d VAD no-speech after %dms, rms=%.4f",
-              sessionCountRef.current, Date.now() - vadRef.current.recordingStart, rms);
+              sessionCountRef.current, vadNow - vadRef.current.recordingStart, rms);
             vadActiveRef.current = false;
             vadRef.current.state = "idle";
             stopRecordingRef.current?.();
             setState((s) => ({ ...s, error: "No speech detected" }));
           }
         }
+
+        if (!levelMonitorActiveRef.current) return;
+
+        const voiceActivity = buildVoiceActivitySnapshot({
+          vadActive: vadActiveRef.current,
+          vad: vadRef.current,
+          rms,
+          audioLevel,
+          nowMs: vadNow,
+          silenceTimeoutMs: vadSilenceTimeoutRef.current,
+          voiceMode: persistentModeRef.current ? "persistent" : "one-shot",
+        });
+        setState((s) => {
+          if (Math.abs(s.audioLevel - audioLevel) < 0.01 && voiceActivitySnapshotsEqual(s.voiceActivity, voiceActivity)) {
+            return s;
+          }
+          return { ...s, audioLevel, voiceActivity };
+        });
 
         rafRef.current = requestAnimationFrame(tick);
       };
@@ -468,10 +484,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     cancelAnimationFrame(rafRef.current);
     rafRef.current = 0;
     lastTickRef.current = 0;
-    if (levelSyncRef.current) {
-      clearInterval(levelSyncRef.current);
-      levelSyncRef.current = null;
-    }
     audioLevelRef.current = 0;
     analyserRef.current = null;
     // Disconnect all audio nodes to prevent zombie node accumulation
@@ -479,7 +491,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       try { node.disconnect(); } catch { /* already disconnected */ }
     }
     audioNodesRef.current = [];
-    setState((s) => (s.audioLevel === 0 ? s : { ...s, audioLevel: 0 }));
+    setState((s) => (s.audioLevel === 0 && voiceActivitySnapshotsEqual(s.voiceActivity, IDLE_VOICE_ACTIVITY)
+      ? s
+      : { ...s, audioLevel: 0, voiceActivity: IDLE_VOICE_ACTIVITY }));
     // Install the keepalive oscillator now that the mic stream is gone, so
     // Chrome's renderer doesn't idle before the next recording starts (which
     // would leave AnalyserNodes returning rms=0 and trip premature VAD stops).
@@ -849,6 +863,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           voiceState: "idle",
           error: null,
           audioLevel: 0,
+          voiceActivity: IDLE_VOICE_ACTIVITY,
           partialTranscript: "",
           segments: [],
         }));
@@ -902,6 +917,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
               voiceState: "idle",
               error: null,
               audioLevel: 0,
+              voiceActivity: IDLE_VOICE_ACTIVITY,
               backend: "web-speech",
               fallbackNotice: "Whisper unavailable \u2014 using browser speech recognition",
             }));
@@ -916,11 +932,12 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
             voiceState: "idle",
             error: "Transcription failed",
             audioLevel: 0,
+            voiceActivity: IDLE_VOICE_ACTIVITY,
           }));
           return;
         }
 
-        setState((s) => ({ ...s, voiceState: "idle", error, audioLevel: 0 }));
+        setState((s) => ({ ...s, voiceState: "idle", error, audioLevel: 0, voiceActivity: IDLE_VOICE_ACTIVITY }));
       };
       if (provider.onPartial !== undefined) {
         provider.onPartial = (text) => {
@@ -1032,6 +1049,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
             ...s,
             voiceState: "idle",
             audioLevel: 0,
+            voiceActivity: IDLE_VOICE_ACTIVITY,
             partialTranscript: "",
             segments: [],
           }));
@@ -1096,6 +1114,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         ...s,
         voiceState: state.backend === "whisper" ? "transcribing" : "idle",
         audioLevel: 0,
+        voiceActivity: IDLE_VOICE_ACTIVITY,
         partialTranscript: "",
       }));
     } else {
@@ -1103,6 +1122,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         ...s,
         voiceState: state.backend === "whisper" ? "transcribing" : "idle",
         audioLevel: 0,
+        voiceActivity: IDLE_VOICE_ACTIVITY,
         partialTranscript: "",
       }));
     }
@@ -1145,6 +1165,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       voiceState: "idle",
       error: null,
       audioLevel: 0,
+      voiceActivity: IDLE_VOICE_ACTIVITY,
       partialTranscript: "",
       segments: [],
       commandSuggestion: null,

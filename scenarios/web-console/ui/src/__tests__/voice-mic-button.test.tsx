@@ -82,6 +82,29 @@ describe("VoiceMicButton", () => {
     expect(fill?.style.height).toBe("50%");
   });
 
+  it("uses the voice activity level when provided", () => {
+    render(
+      <VoiceMicButton
+        {...defaults}
+        isRecording
+        audioLevel={0.1}
+        voiceActivity={{
+          phase: "speech",
+          audioLevel: 0.7,
+          rms: 0.2,
+          speechThreshold: 0.06,
+          silenceThreshold: 0.02,
+          silenceElapsedMs: 0,
+          silenceTimeoutMs: 2000,
+          autoStopProgress: 0,
+          autoStopVisible: false,
+        }}
+      />,
+    );
+    const fill = screen.getByTestId("voice-mic-btn").querySelector("span");
+    expect(fill?.style.height).toBe("70%");
+  });
+
   it("hides audio level fill when not recording", () => {
     render(<VoiceMicButton {...defaults} audioLevel={0.5} />);
     const btn = screen.getByTestId("voice-mic-btn");
@@ -125,12 +148,35 @@ describe("VoiceMicButton", () => {
     expect(screen.getByTestId("voice-mic-btn").title).toBe("voiceMicButton.tapToSpeakWithBackend");
   });
 
+  it("does not present TTS speaking as mic button state", () => {
+    render(<VoiceMicButton {...defaults} isTtsSpeaking />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    expect(btn.className).toContain("border-wc-default");
+    expect(btn.className).not.toContain("border-green-500");
+    expect(btn.title).toBe("voiceMicButton.tapToSpeak");
+  });
+
+  it("shows voice error state even if TTS is speaking", () => {
+    render(<VoiceMicButton {...defaults} isTtsSpeaking error="Test error" />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    expect(btn.className).toContain("border-amber-500");
+    expect(btn.title).toBe("voiceMicButton.error");
+  });
+
   // --- Pointer interaction (intent-based) ---
 
   it("calls onStart on pointerDown when idle", () => {
     render(<VoiceMicButton {...defaults} />);
     const btn = screen.getByTestId("voice-mic-btn");
     fireEvent.pointerDown(btn);
+    expect(onStart).toHaveBeenCalledWith({ vadEnabled: true });
+  });
+
+  it("stops TTS before starting voice input when idle", () => {
+    const onTtsStop = vi.fn();
+    render(<VoiceMicButton {...defaults} isTtsSpeaking onTtsStop={onTtsStop} />);
+    fireEvent.pointerDown(screen.getByTestId("voice-mic-btn"));
+    expect(onTtsStop).toHaveBeenCalledTimes(1);
     expect(onStart).toHaveBeenCalledWith({ vadEnabled: true });
   });
 
@@ -198,6 +244,48 @@ describe("VoiceMicButton", () => {
   it("shows preparing title when preparing", () => {
     render(<VoiceMicButton {...defaults} isPreparing />);
     expect(screen.getByTestId("voice-mic-btn").title).toBe("voiceMicButton.preparing");
+  });
+
+  it("shows auto-stop ring during one-shot silence after grace", () => {
+    render(
+      <VoiceMicButton
+        {...defaults}
+        isRecording
+        voiceActivity={{
+          phase: "silence",
+          audioLevel: 0.02,
+          rms: 0.005,
+          speechThreshold: 0.06,
+          silenceThreshold: 0.02,
+          silenceElapsedMs: 1000,
+          silenceTimeoutMs: 2000,
+          autoStopProgress: 0.5,
+          autoStopVisible: true,
+        }}
+      />,
+    );
+    const ring = screen.getByTestId("voice-auto-stop-ring");
+    const circle = ring.querySelector("circle");
+    expect(circle?.getAttribute("stroke-dashoffset")).toBe(String(2 * Math.PI * 18 * 0.5));
+  });
+
+  it("hides auto-stop ring before silence grace and in persistent listening", () => {
+    const silent = {
+      phase: "silence" as const,
+      audioLevel: 0.02,
+      rms: 0.005,
+      speechThreshold: 0.06,
+      silenceThreshold: 0.02,
+      silenceElapsedMs: 200,
+      silenceTimeoutMs: 2000,
+      autoStopProgress: 0.1,
+      autoStopVisible: false,
+    };
+    const { rerender } = render(<VoiceMicButton {...defaults} isRecording voiceActivity={silent} />);
+    expect(screen.queryByTestId("voice-auto-stop-ring")).toBeNull();
+
+    rerender(<VoiceMicButton {...defaults} isListening voiceActivity={{ ...silent, autoStopVisible: true }} />);
+    expect(screen.queryByTestId("voice-auto-stop-ring")).toBeNull();
   });
 
   it("blocks pointer events during preparing", () => {

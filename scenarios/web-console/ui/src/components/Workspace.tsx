@@ -564,9 +564,9 @@ export default function Workspace() {
     });
   }, [voiceInput.voiceState, isMobile, workspace.activePane, focusActiveTerminal]);
 
-  // --- TTS speaking indicator ---
-  // Track which panes are currently speaking so we can show a visual indicator
-  // on the mic button. We only care about the active pane's speaking state.
+  // --- TTS speaking state ---
+  // Track which panes are currently speaking so voice input can stop active TTS
+  // before recording. Playback presentation belongs to the audio bar.
   const [ttsSpeakingPanes, setTtsSpeakingPanes] = useState<Set<string>>(new Set());
   const handleTtsSpeakingChange = useCallback((sessionId: string, speaking: boolean) => {
     setTtsSpeakingPanes(prev => {
@@ -1111,6 +1111,7 @@ export default function Workspace() {
         voiceTranscribing={voiceInput.isTranscribing}
         voiceError={voiceInput.error}
         voiceLevel={voiceInput.audioLevel}
+        voiceActivity={voiceInput.voiceActivity}
         voicePartialTranscript={voiceInput.partialTranscript}
         voiceBackend={voiceInput.backend}
         onVoiceStart={handleVoiceStart}
@@ -1467,6 +1468,7 @@ export default function Workspace() {
           voiceTranscribing={voiceInput.isTranscribing}
           voiceError={voiceInput.error}
           voiceLevel={voiceInput.audioLevel}
+          voiceActivity={voiceInput.voiceActivity}
           voicePartialTranscript={voiceInput.partialTranscript}
           voiceBackend={voiceInput.backend}
           onVoiceStart={handleVoiceStart}

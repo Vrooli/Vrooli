@@ -31,7 +31,6 @@
     "listening": "Listening... tap to stop",
     "recording": "Recording... tap to stop",
     "transcribing": "Transcribing... tap to cancel",
-    "speaking": "Speaking... tap to stop",
     "error": "Voice error: {{error}}",
     "tapToSpeak": "Tap to speak",
     "tapToSpeakWithBackend": "Tap to speak ({{backend}})",

@@ -12,7 +12,7 @@ import KeyComboPicker from "./KeyComboPicker";
 import VoiceMicButton from "./VoiceMicButton";
 import VoiceCommandSuggestion from "./VoiceCommandSuggestion";
 import AiSuggestBar from "./AiSuggestBar";
-import type { StartRecordingOpts } from "../hooks/useVoiceInput";
+import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
 import type { CommandSuggestion } from "../hooks/voice/types";
 import { slugify } from "../lib/slugify";
 import { useDraftPersistence } from "../hooks/useDraftPersistence";
@@ -115,6 +115,7 @@ interface MobileToolbarProps {
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
+  voiceActivity?: VoiceActivitySnapshot;
   voicePartialTranscript?: string;
   voiceBackend?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
@@ -159,6 +160,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voiceTranscribing,
   voiceError,
   voiceLevel,
+  voiceActivity,
   voicePartialTranscript,
   voiceBackend,
   onVoiceStart,
@@ -620,6 +622,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               isTranscribing={voiceTranscribing ?? false}
               error={voiceError ?? null}
               audioLevel={voiceLevel}
+              voiceActivity={voiceActivity}
               partialTranscript={voicePartialTranscript}
               backend={voiceBackend}
               isTtsSpeaking={isTtsSpeaking}
@@ -757,6 +760,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 isTranscribing={voiceTranscribing ?? false}
                 error={voiceError ?? null}
                 audioLevel={voiceLevel}
+                voiceActivity={voiceActivity}
                 partialTranscript={voicePartialTranscript}
                 backend={voiceBackend}
                 isTtsSpeaking={isTtsSpeaking}
@@ -869,6 +873,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               isTranscribing={voiceTranscribing ?? false}
               error={voiceError ?? null}
               audioLevel={voiceLevel}
+              voiceActivity={voiceActivity}
               partialTranscript={voicePartialTranscript}
               backend={voiceBackend}
               isTtsSpeaking={isTtsSpeaking}

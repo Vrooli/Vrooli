@@ -8,7 +8,7 @@ import { strings } from "../consts/strings";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { Button } from "./ui/button";
 import VoiceMicButton from "./VoiceMicButton";
-import type { StartRecordingOpts } from "../hooks/useVoiceInput";
+import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
 import { readSafeAreaInsets } from "../lib/safeArea";
 
 /** Minimum fling speed (px/s) to trigger a dock */
@@ -61,6 +61,7 @@ interface FloatingToolbarProps {
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
+  voiceActivity?: VoiceActivitySnapshot;
   voicePartialTranscript?: string;
   voiceBackend?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
@@ -86,6 +87,7 @@ export default function FloatingToolbar({
   voiceTranscribing,
   voiceError,
   voiceLevel = 0,
+  voiceActivity,
   voicePartialTranscript,
   voiceBackend,
   onVoiceStart,
@@ -252,6 +254,7 @@ export default function FloatingToolbar({
           isTranscribing={voiceTranscribing ?? false}
           error={voiceError ?? null}
           audioLevel={voiceLevel}
+          voiceActivity={voiceActivity}
           partialTranscript={voicePartialTranscript}
           backend={voiceBackend}
           isTtsSpeaking={isTtsSpeaking}

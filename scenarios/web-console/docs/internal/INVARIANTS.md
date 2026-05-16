@@ -69,6 +69,16 @@ The cache uses opportunistic eviction (triggered when size > 100 entries).
 | Inactive pane messages do not speak | Incoming auto-play requires `activePaneId === sessionId` | `utils.ts` |
 | Auto playback respects muted state | Provider `speakText` only force-unmutes manual playback; incoming auto playback preserves the current mute/start-muted setting | `TerminalPane.tsx`, `useTtsPlaybackController.ts` |
 
+## Voice Input UI Invariants
+
+| Invariant | Enforcement | Location |
+|-----------|-------------|----------|
+| Mic button presentation is voice-input only | TTS speaking state never changes the mic icon, title, color, or error visibility; playback state is shown by the TTS bar | `VoiceMicButton.tsx`, `AudioPlayerBar.tsx` |
+| Starting voice input may stop active TTS, but only as an interaction side effect | `isTtsSpeaking`/`onTtsStop` are used before `onStart`; no presentation branch depends on TTS state | `VoiceMicButton.tsx`, `Workspace.tsx` |
+| Audio level and VAD UI state share one sample source | `useVoiceInput` computes `audioLevel` and `voiceActivity` from the same audio-analysis tick after `vadTick` runs | `useVoiceInput.ts`, `voice/activity.ts` |
+| Auto-stop countdown is VAD-derived | The circular ring is visible only for one-shot `watchingSilence` after the visual grace; persistent listening does not show the one-shot stop ring | `voice/activity.ts`, `VoiceMicButton.tsx` |
+| Stop/cancel/error teardown clears voice activity | Teardown paths reset both `audioLevel` and `voiceActivity` to idle | `useVoiceInput.ts` |
+
 ## Unsafe Operations (Intentionally Non-Idempotent)
 
 1. **AI generation** — Each call hits external LLM providers, which return non-deterministic results.

@@ -1,10 +1,10 @@
 import { memo, useRef, useLayoutEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Mic, Loader2, AlertCircle, Volume2 } from "lucide-react";
+import { Mic, Loader2, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
-import type { StartRecordingOpts } from "../hooks/useVoiceInput";
+import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
 
 /** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
 const LONG_PRESS_MS = 300;
@@ -17,6 +17,7 @@ const LONG_PRESS_MS = 300;
  * pending transcript.
  */
 const TRANSCRIBING_GRACE_MS = 400;
+const AUTO_STOP_RING_CIRCUMFERENCE = 2 * Math.PI * 18;
 
 interface VoiceMicButtonProps {
   supported: boolean;
@@ -30,18 +31,20 @@ interface VoiceMicButtonProps {
   error: string | null;
   /** 0-1 audio level for live mic visualization */
   audioLevel?: number;
+  /** VAD-derived snapshot used for the auto-stop countdown visualization. */
+  voiceActivity?: VoiceActivitySnapshot;
   /** Live partial transcript from streaming transcription. */
   partialTranscript?: string;
   /** Active voice backend, shown in tooltip for diagnostics. */
   backend?: string;
-  /** Whether TTS is currently playing audio. */
+  /** Interaction-only flag: starting voice input should stop active TTS first. */
   isTtsSpeaking?: boolean;
   onStart: (opts?: StartRecordingOpts) => void;
   onStop: () => void;
   onCancel?: () => void;
   /** Exit passive wake word mode. */
   onExitPassive?: () => void;
-  /** Stop TTS playback when tapped during speaking. */
+  /** Stop active TTS before starting voice input. Does not affect presentation. */
   onTtsStop?: () => void;
   /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
   className?: string;
@@ -98,6 +101,7 @@ function VoiceMicButtonInner({
   isTranscribing,
   error,
   audioLevel = 0,
+  voiceActivity,
   partialTranscript,
   backend,
   isTtsSpeaking = false,
@@ -167,8 +171,13 @@ function VoiceMicButtonInner({
   if (!supported) return null;
 
   const isIdle = !isMicActive && !isPassive && !isTranscribing && !isPreparing;
-  const hasError = error !== null && isIdle && !isTtsSpeaking;
-  const showTtsSpeaking = isTtsSpeaking && isIdle;
+  const hasError = error !== null && isIdle;
+  const liveAudioLevel = voiceActivity?.audioLevel ?? audioLevel;
+  const autoStopProgress = Math.max(0, Math.min(1, voiceActivity?.autoStopProgress ?? 0));
+  const showAutoStopRing = isRecording
+    && voiceActivity?.phase === "silence"
+    && voiceActivity.autoStopVisible
+    && voiceActivity.silenceTimeoutMs > 0;
 
   return (
     <div className={cn("relative shrink-0", wrapperClassName)}>
@@ -191,11 +200,9 @@ function VoiceMicButtonInner({
                 ? "border-red-500 bg-red-500/20 text-red-400"
                 : isTranscribing
                   ? "border-blue-500 bg-blue-500/20 text-blue-400"
-                  : showTtsSpeaking
-                    ? "border-green-500 bg-green-500/20 text-green-400"
-                    : hasError
-                      ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                      : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+                  : hasError
+                    ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                    : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
         )}
         title={
           isPreparing
@@ -208,17 +215,15 @@ function VoiceMicButtonInner({
                 ? t(strings.voiceMicButton.recording)
                 : isTranscribing
                   ? t(strings.voiceMicButton.transcribing)
-                  : showTtsSpeaking
-                    ? t(strings.voiceMicButton.speaking)
-                    : hasError
-                      ? t(strings.voiceMicButton.error, { error })
-                      : backend
-                        ? t(strings.voiceMicButton.tapToSpeakWithBackend, {
-                            backend: backend === "whisper"
-                              ? t(strings.voiceMicButton.backendWhisper)
-                              : t(strings.voiceMicButton.backendBrowser),
-                          })
-                        : t(strings.voiceMicButton.tapToSpeak)
+                  : hasError
+                    ? t(strings.voiceMicButton.error, { error })
+                    : backend
+                      ? t(strings.voiceMicButton.tapToSpeakWithBackend, {
+                          backend: backend === "whisper"
+                            ? t(strings.voiceMicButton.backendWhisper)
+                            : t(strings.voiceMicButton.backendBrowser),
+                        })
+                      : t(strings.voiceMicButton.tapToSpeak)
         }
       >
         {/* Audio level fill -- rises from bottom. Cyan for listening, red for recording. */}
@@ -228,8 +233,29 @@ function VoiceMicButtonInner({
               "absolute inset-x-0 bottom-0 rounded-[inherit] transition-[height] duration-75",
               isListening ? "bg-cyan-500/30" : "bg-red-500/30",
             )}
-            style={{ height: `${Math.round(audioLevel * 100)}%` }}
+            style={{ height: `${Math.round(liveAudioLevel * 100)}%` }}
           />
+        )}
+        {showAutoStopRing && (
+          <svg
+            aria-hidden="true"
+            data-testid="voice-auto-stop-ring"
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 aspect-square h-[calc(100%-4px)] min-h-6 max-h-8 -translate-x-1/2 -translate-y-1/2 -rotate-90 overflow-visible"
+            viewBox="0 0 44 44"
+          >
+            <circle
+              cx="22"
+              cy="22"
+              r="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              className="text-amber-300/80"
+              strokeDasharray={AUTO_STOP_RING_CIRCUMFERENCE}
+              strokeDashoffset={AUTO_STOP_RING_CIRCUMFERENCE * (1 - autoStopProgress)}
+              strokeLinecap="round"
+            />
+          </svg>
         )}
         {isPreparing ? (
           <Mic className="h-3.5 w-3.5 animate-pulse relative" />
@@ -239,8 +265,6 @@ function VoiceMicButtonInner({
           <Mic className="h-3.5 w-3.5 animate-pulse relative" />
         ) : isTranscribing ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin relative" />
-        ) : showTtsSpeaking ? (
-          <Volume2 className="h-3.5 w-3.5 animate-pulse relative" />
         ) : hasError ? (
           <AlertCircle className="h-3.5 w-3.5 relative" />
         ) : (

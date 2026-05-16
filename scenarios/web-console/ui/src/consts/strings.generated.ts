@@ -43,7 +43,6 @@ export const strings = {
     listening: "voiceMicButton.listening",
     recording: "voiceMicButton.recording",
     transcribing: "voiceMicButton.transcribing",
-    speaking: "voiceMicButton.speaking",
     error: "voiceMicButton.error",
     tapToSpeak: "voiceMicButton.tapToSpeak",
     tapToSpeakWithBackend: "voiceMicButton.tapToSpeakWithBackend",
