@@ -44,6 +44,7 @@ import (
 	intai "web-console/internal/ai"
 	"web-console/internal/audio"
 	"web-console/internal/audioports"
+	audiotoolsint "web-console/integrations/audiotools"
 	"web-console/internal/backend"
 	"web-console/internal/capabilities"
 	"web-console/internal/config"
@@ -420,6 +421,27 @@ func NewServer(db *sql.DB) *Server {
 		audio.Transcode,
 	)
 	srv.sttPort = audioports.LocalSpeechToText{Backend: srv.voice}
+
+	// audio-tools adoption (Phase H):
+	// When AUDIO_TOOLS_URL is set, switch the audioports to the Remote*
+	// adapters so STT / TTS / SpeechTextProcessor calls go to audio-tools
+	// instead of the in-tree local stack. Phase I's flag-day commit removes
+	// the Local* path entirely after a soak; until then we honor the env
+	// override so adoption can be staged.
+	if audioToolsURL := strings.TrimSpace(os.Getenv("AUDIO_TOOLS_URL")); audioToolsURL != "" {
+		atClient, err := audiotoolsint.New(
+			audiotoolsint.EnvResolver{EnvVar: "AUDIO_TOOLS_URL", Default: audioToolsURL},
+			audiotoolsint.Policy{Required: false},
+		)
+		if err != nil {
+			log.Printf("audio-tools adoption: client init failed, falling back to local audio stack: %v", err)
+		} else {
+			srv.sttPort = &audioports.RemoteSpeechToText{Client: atClient}
+			srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}
+			srv.speechProcessor = &audioports.RemoteSpeechTextProcessor{Client: atClient}
+			log.Printf("audio-tools adoption: STT/TTS/processor wired to %s", atClient.BaseURL())
+		}
+	}
 
 	srv.sweeper.Start()
 	sessions.StartReattachWatchdog()

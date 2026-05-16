@@ -280,6 +280,14 @@
           "qwen3:4b"
         ]
       }
+    },
+    "scenarios": {
+      "audio-tools": {
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Shared audio capabilities (STT, TTS, summarization, audio processing). web-console adopts audio-tools as the canonical owner of these capabilities; the local internal/{tts,voice,audio} stacks are retained only until Phase H deletion.",
+        "degraded_behavior": "Audio features (voice input, TTS playback) degrade with a visible 'audio degraded' UI state when audio-tools is unreachable. After Phase I9 flag-day, this flips to required:true and web-console fails fast on startup."
+      }
     }
   },
   "notes": {
