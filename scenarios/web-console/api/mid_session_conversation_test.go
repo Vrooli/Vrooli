@@ -14,6 +14,30 @@ import (
 	"web-console/internal/ptyfake"
 )
 
+// newHookTestServer returns a minimally-wired Server suitable for testing
+// the Claude Stop hook + conversation routing path. Replaces the old helper
+// that lived in the deleted tts_hook_handler_test.go.
+func newHookTestServer(token string) *Server {
+	sm := newSessionManagerWithFactory(ptyfake.NewFactory())
+	srv := &Server{
+		router:          mux.NewRouter(),
+		sessions:        sm,
+		events:          events.NewLogger(100),
+		metrics:         metrics.New(),
+		hookAuthToken:   token,
+		conversations:   NewConversationStore(),
+		lastTTSBySource: map[string]conversationAppendSnapshot{},
+		lastTTSAckBySrc: map[string]ttsAckSnapshot{},
+		ttsHookConfigState: hookConfigState{
+			cfg:  DefaultTTSHookConfig(),
+			path: filepath.Join(os.TempDir(), "tts-hook-config-test.json"),
+		},
+		summarizeAutoPolicy: defaultSummarizeAutoPolicy(),
+	}
+	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
+	return srv
+}
+
 // TestCodexTailer_AttributesMidSessionRolloutToCorrectSession verifies that
 // when a user starts a plain shell session and later runs `codex` inside it
 // (as opposed to launching via the shortcut), the tailer picks up the

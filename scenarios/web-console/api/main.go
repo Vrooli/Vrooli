@@ -38,11 +38,8 @@ import (
 	settingsH "web-console/handlers/settings"
 	shortcutsH "web-console/handlers/shortcuts"
 	terminalH "web-console/handlers/terminal"
-	ttsH "web-console/handlers/tts"
-	voiceH "web-console/handlers/voice"
 	workspaceH "web-console/handlers/workspace"
 	intai "web-console/internal/ai"
-	"web-console/internal/audio"
 	"web-console/internal/audioports"
 	audiotoolsint "web-console/integrations/audiotools"
 	"web-console/internal/backend"
@@ -52,8 +49,6 @@ import (
 	"web-console/internal/metrics"
 	intsessions "web-console/internal/sessions"
 	"web-console/internal/sessionstore"
-	inttts "web-console/internal/tts"
-	intvoice "web-console/internal/voice"
 	intworkspace "web-console/internal/workspace"
 )
 
@@ -117,6 +112,17 @@ func isDuplicateColumnError(err error) bool {
 
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // Server wires the HTTP router, database connection, and session manager.
+//
+// Audio fields: speechProcessor, sttPort, ttsPort and summarizer are audio
+// capability ports backed by the audio-tools scenario in production; tests
+// substitute via the Set* methods. audio-tools is a required dependency
+// declared in .vrooli/service.json — the lifecycle ensures it is running
+// before web-console boots. All voice/TTS synthesis, summarization, voice
+// listing, and cache logic lives in audio-tools. The web-console-side state
+// is limited to: the small Claude-hook routing diagnostics
+// (lastTTS* fields), the Claude-hook auto/backend/startMuted preference
+// triple (ttsHookConfigState), and the auto-summarize policy cache
+// (summarizeAutoPolicy*).
 type Server struct {
 	db                   *sql.DB
 	router               *mux.Router
@@ -134,28 +140,21 @@ type Server struct {
 	idempotency          *intsessions.IdempotencyCache // replay-safe session creation
 	capabilities         *capabilities.Registry
 	workspace            intworkspace.Store
-	voice                *intvoice.Service
-	ttsConfigMu          sync.RWMutex
-	ttsConfig            inttts.Config
-	ttsConfigPath        string
-	ttsSummarizer        *inttts.Summarizer
-	ttsSummarizeMu       sync.RWMutex
-	ttsSummarizeConfig   inttts.SummarizeConfig
-	ttsSummarizePath     string
-	ttsSummarization     *inttts.SummarizationService
 	hookAuthToken        string
 	codexTailer          *CodexTailer
 	codexCheckpointStore CodexCheckpointStore
-	ttsCache             *inttts.Cache
-	// speechProcessor, sttPort, ttsPort are the audio capability ports backed
-	// by the audio-tools scenario (RemoteSpeechToText / RemoteTextToSpeech /
-	// RemoteSpeechTextProcessor in production; tests substitute via the
-	// Set* methods). audio-tools is a required dependency declared in
-	// .vrooli/service.json — the lifecycle ensures it is running before
-	// web-console boots.
+
+	// Audio ports — all backed by audio-tools in production.
 	speechProcessor audioports.SpeechTextProcessor
 	sttPort         audioports.SpeechToText
 	ttsPort         audioports.TextToSpeech
+	summarizer      audioports.Summarizer
+
+	// Hook routing diagnostics + auto-config (web-console-internal).
+	ttsHookConfigState    hookConfigState
+	summarizeAutoPolicyMu sync.RWMutex
+	summarizeAutoPolicy   SummarizeAutoPolicy
+
 	conversations   *ConversationStore
 	ttsStatusMu     sync.RWMutex
 	lastTTSRouting  *ConversationAppendResult
@@ -172,6 +171,27 @@ type Server struct {
 	// to the client in session_ready. Clients use it as the wsGen write
 	// barrier on pending-ack re-enqueue (see useStdinAck).
 	nextWSGen atomic.Int64
+}
+
+// getSummarizeAutoPolicy returns the cached auto-summarize policy. The
+// canonical config lives in audio-tools; web-console caches the subset the
+// auto path needs (enabled + char threshold + level + timeout) so the
+// router doesn't make a Connect call on every assistant event.
+func (s *Server) getSummarizeAutoPolicy() SummarizeAutoPolicy {
+	s.summarizeAutoPolicyMu.RLock()
+	defer s.summarizeAutoPolicyMu.RUnlock()
+	if s.summarizeAutoPolicy.CharThreshold == 0 && !s.summarizeAutoPolicy.Enabled {
+		return defaultSummarizeAutoPolicy()
+	}
+	return s.summarizeAutoPolicy
+}
+
+// SetSummarizeAutoPolicy updates the cached policy. Production wiring polls
+// audio-tools' GetSummarizeConfig on a slow schedule; tests inject directly.
+func (s *Server) SetSummarizeAutoPolicy(p SummarizeAutoPolicy) {
+	s.summarizeAutoPolicyMu.Lock()
+	defer s.summarizeAutoPolicyMu.Unlock()
+	s.summarizeAutoPolicy = p
 }
 
 type conversationAppendSnapshot struct {
@@ -200,58 +220,19 @@ func NewServer(db *sql.DB) *Server {
 		log.Fatalf("Schema initialization failed: %v", err)
 	}
 
-	// Resolve voice config path via api-core/storage (mutable state outside deploy dir).
-	vcPath := resolveVoiceConfigPath()
-	vc, err := intvoice.LoadConfig(vcPath)
+	// Load the small Claude-hook routing preference triple (auto/backend/
+	// startMuted). Voice/speed/summarize knobs live in audio-tools — fetched
+	// lazily by the UI via @audio-tools/embed, not loaded here.
+	hookCfgPath := resolveTTSHookConfigPath()
+	hookCfg, err := loadTTSHookConfig(hookCfgPath)
 	if err != nil {
-		log.Printf("voice-config: using defaults: %v", err)
-		vc = intvoice.DefaultConfig()
+		log.Printf("tts-hook-config: using defaults: %v", err)
+		hookCfg = DefaultTTSHookConfig()
 	}
-	log.Printf("voice-config: loaded: flush=%dms delta=%d overlap=%d",
-		vc.FlushIntervalMs, vc.MinDeltaBytes, vc.OverlapBytes)
+	log.Printf("tts-hook-config: loaded: autoEnabled=%v backend=%s startMuted=%v",
+		hookCfg.AutoEnabled, hookCfg.Backend, hookCfg.StartMuted)
 
-	wwPath := resolveWakeWordTemplatePath()
-	wwTmpl, err := intvoice.LoadWakeWordTemplate(wwPath)
-	if err != nil {
-		log.Printf("wakeword: load failed (starting unconfigured): %v", err)
-	} else if wwTmpl != nil {
-		log.Printf("wakeword: loaded template: label=%q samples=%d", wwTmpl.Label, len(wwTmpl.Samples))
-	}
-
-	speakerVerificationPath := resolveSpeakerVerificationConfigPath()
-	speakerVerificationCfg, err := intvoice.LoadSpeakerConfig(speakerVerificationPath)
-	if err != nil {
-		log.Printf("speaker-verification-config: using defaults: %v", err)
-		speakerVerificationCfg = intvoice.DefaultSpeakerConfig()
-	}
-	log.Printf(
-		"speaker-verification-config: loaded: enabled=%v profiles=%v threshold=%.2f mode=%s",
-		speakerVerificationCfg.Enabled,
-		speakerVerificationCfg.ProfileIDs,
-		speakerVerificationCfg.Threshold,
-		speakerVerificationCfg.Mode,
-	)
-
-	// Resolve TTS config path
-	ttsPath := resolveTTSConfigPath()
-	ttsCfg, err := inttts.LoadConfig(ttsPath)
-	if err != nil {
-		log.Printf("tts-config: using defaults: %v", err)
-		ttsCfg = inttts.DefaultConfig()
-	}
-	log.Printf("tts-config: loaded: autoEnabled=%v", ttsCfg.AutoEnabled)
-
-	// Resolve TTS summarize config path
-	ttsSummarizePath := resolveTTSSummarizeConfigPath()
-	ttsSummarizeCfg, err := inttts.LoadSummarizeConfig(ttsSummarizePath)
-	if err != nil {
-		log.Printf("tts-summarize-config: using defaults: %v", err)
-		ttsSummarizeCfg = inttts.DefaultSummarizeConfig()
-	}
-	log.Printf("tts-summarize-config: loaded: enabled=%v threshold=%d level=%s model=%s",
-		ttsSummarizeCfg.Enabled, ttsSummarizeCfg.CharThreshold, ttsSummarizeCfg.Level, ttsSummarizeCfg.Model)
-
-	// Generate or load hook auth token for TTS hook validation
+	// Generate or load hook auth token for Claude Stop hook validation.
 	hookToken := loadOrCreateHookToken(resolveHookTokenPath())
 
 	eventLog := events.NewLogger(1000)
@@ -294,12 +275,12 @@ func NewServer(db *sql.DB) *Server {
 		sweeper:              session.NewExpirationSweeper(sessions, eventLog, metrics),
 		idempotency:          intsessions.NewIdempotencyCache(),
 		workspace:            intworkspace.NewSQLStore(db),
-		ttsConfig:            ttsCfg,
-		ttsConfigPath:        ttsPath,
-		ttsSummarizeConfig:   ttsSummarizeCfg,
-		ttsSummarizePath:     ttsSummarizePath,
 		hookAuthToken:        hookToken,
-		ttsCache:             inttts.NewCache(100 * 1024 * 1024), // 100MB
+		ttsHookConfigState: hookConfigState{
+			cfg:  hookCfg,
+			path: hookCfgPath,
+		},
+		summarizeAutoPolicy:  defaultSummarizeAutoPolicy(),
 		codexCheckpointStore: NewSQLCodexCheckpointStore(db),
 		conversations:        NewConversationStoreWithRepository(NewSQLConversationRepository(db)),
 		lastTTSBySource:      make(map[string]conversationAppendSnapshot),
@@ -312,27 +293,10 @@ func NewServer(db *sql.DB) *Server {
 		srv.systemContext.Shell, intai.CountFoundTools(srv.systemContext.Tools))
 	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, srv.systemContext, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 
-	whisperURL := getEnvOrDefault("WHISPER_URL", "http://localhost:8090")
 	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")
-	speakerVerificationURL := getEnvOrDefault("SPEAKER_VERIFICATION_URL", "http://localhost:8891")
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
 
-	srv.ttsSummarizer = inttts.NewSummarizer(ollamaURL)
-	srv.ttsSummarization = inttts.NewSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
-	speakerClient := &intvoice.SpeakerClient{
-		BaseURL: speakerVerificationURL,
-		Client:  &http.Client{Timeout: 5 * time.Second},
-	}
-
 	checkers := map[string]capabilities.Checker{
-		"whisper-stt": &capabilities.WhisperChecker{
-			BaseURL: whisperURL,
-			Client:  &http.Client{Timeout: 10 * time.Second},
-		},
-		"speaker-verification": &capabilities.ResourceChecker{
-			URL:    speakerVerificationURL + "/ready",
-			Client: &http.Client{Timeout: 5 * time.Second},
-		},
 		"ollama": &capabilities.OllamaChecker{
 			BaseURL: ollamaURL,
 			Client:  &http.Client{Timeout: 5 * time.Second},
@@ -341,26 +305,16 @@ func NewServer(db *sql.DB) *Server {
 			APIKey: openrouterKey,
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
-		// Connected scenarios. Each DependencyScenario entry in capabilities.Known
-		// needs a checker so the integrations UI can render real status. These
-		// shell out to the Vrooli CLI rather than calling another scenario's API
-		// directly — see project_wrap_not_use_principle.
+		// Connected scenarios. Each DependencyScenario entry in
+		// capabilities.Known needs a checker so the integrations UI can
+		// render real status. These shell out to the Vrooli CLI rather than
+		// calling another scenario's API directly — see
+		// project_wrap_not_use_principle. audio-tools owns Whisper / Kokoro /
+		// speaker-verification end-to-end.
 		"audio-tools": &capabilities.ScenarioChecker{Slug: "audio-tools"},
 	}
 	srv.capabilities = capabilities.NewRegistry(capabilities.Known, checkers, 30*time.Second)
-	// Register lightweight liveness-only checkers for fast pre-recording checks.
-	// These use GET-only health checks (no test transcription/synthesis).
-	// kokoro-tts is owned by audio-tools — web-console probes the
-	// audio-tools scenario for TTS instead.
 	srv.capabilities.SetLivenessCheckers(map[string]capabilities.Checker{
-		"whisper-stt": &capabilities.ResourceChecker{
-			URL:    whisperURL + "/",
-			Client: &http.Client{Timeout: 5 * time.Second},
-		},
-		"speaker-verification": &capabilities.ResourceChecker{
-			URL:    speakerVerificationURL + "/health",
-			Client: &http.Client{Timeout: 5 * time.Second},
-		},
 		"ollama": &capabilities.ResourceChecker{
 			URL:    ollamaURL + "/api/tags",
 			Client: &http.Client{Timeout: 5 * time.Second},
@@ -368,8 +322,6 @@ func NewServer(db *sql.DB) *Server {
 		"openrouter": &capabilities.OpenRouterChecker{
 			APIKey: openrouterKey,
 		},
-		// Same checker as the full pass — `vrooli scenario status` is already
-		// fast and never blocks on a heavy probe.
 		"audio-tools": &capabilities.ScenarioChecker{Slug: "audio-tools"},
 	})
 	// Warm capability cache so the first /capabilities request returns instantly.
@@ -380,22 +332,10 @@ func NewServer(db *sql.DB) *Server {
 		log.Println("capabilities: initial check complete")
 	}()
 
-	srv.voice = intvoice.NewService(
-		vc, vcPath,
-		wwTmpl, wwPath,
-		speakerVerificationCfg, speakerVerificationPath,
-		speakerClient,
-		srv.capabilities,
-		&srv.metrics.VoiceSkipVerificationTotal,
-		whisperURL+"/asr?output=json",
-		&http.Client{Timeout: 30 * time.Second},
-		audio.Transcode,
-	)
-
 	// audio-tools is a required dependency (.vrooli/service.json). Resolve
 	// it once at startup and wire the audioports.Remote* adapters; the
-	// lifecycle ensures it is running before web-console boots. AUDIO_TOOLS_URL
-	// pins to an explicit URL for dev/test override.
+	// lifecycle ensures it is running before web-console boots.
+	// AUDIO_TOOLS_URL pins to an explicit URL for dev/test override.
 	var atResolver audiotoolsint.URLResolver
 	if explicit := strings.TrimSpace(os.Getenv("AUDIO_TOOLS_URL")); explicit != "" {
 		atResolver = audiotoolsint.EnvResolver{EnvVar: "AUDIO_TOOLS_URL", Default: explicit}
@@ -412,14 +352,7 @@ func NewServer(db *sql.DB) *Server {
 	srv.sttPort = &audioports.RemoteSpeechToText{Client: atClient}
 	srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}
 	srv.speechProcessor = &audioports.RemoteSpeechTextProcessor{Client: atClient}
-	// Repoint summarization through audio-tools' SummarizeService. The
-	// SummarizationService's cooldown / inflight-dedup / classify-empty
-	// behaviour is preserved; only the model call swaps to the remote
-	// provider chain (BYOK -> Vrooli/LPBS -> Local).
-	srv.ttsSummarization = inttts.NewSummarizationService(
-		&remoteSummarizerAdapter{remote: &audioports.RemoteSummarizer{Client: atClient}},
-		srv.getTTSSummarizeConfig,
-	)
+	srv.summarizer = &audioports.RemoteSummarizer{Client: atClient}
 	log.Printf("audio-tools adoption: STT/TTS/processor/summarize wired to %s", atClient.BaseURL())
 
 	srv.sweeper.Start()
@@ -490,27 +423,24 @@ func (s *Server) setupRoutes() {
 	// Events — Connect-RPC EventsService [REQ:P1-004a]
 	eventsH.Module(&eventsH.Adapter{Logger: s.events}, nil).Mount(s.router)
 
-	// Voice input capabilities
+	// Capabilities — Connect-RPC.
 	capabilitiesH.Module(&capabilitiesH.Adapter{
 		Registry:        s.capabilities,
 		BackendRegistry: s.backendRegistry,
 		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
 	}, nil).Mount(s.router)
-	// Voice — Connect-RPC module replaces the 14 legacy REST handlers
-	// (transcribe, stream config, wake word, speaker config/status/profiles).
-	voiceH.Module(&voiceH.Adapter{Backend: s.voice}, nil).Mount(s.router)
-	// Voice stream WS — REST exception (raw audio frames over WebSocket).
-	voiceH.StreamModule(s.voice.HandleStreamWS).Mount(s.router)
 
-	// Hooks — REST webhook receivers (Claude Code CLI dictates wire shape)
+	// Hooks — REST webhook receivers (Claude Code CLI dictates wire shape).
 	hooksH.Module(hooksH.Deps{
 		Stop:         s.handleHookStop,
 		PromptSubmit: s.handleHookPromptSubmit,
 	}).Mount(s.router)
 
-	// TTS — Connect-RPC module replaces the legacy nine REST handlers
-	// (config/status/events, summarize config, synthesize/cache/voices).
-	ttsH.Module(newTTSAdapter(s), nil).Mount(s.router)
+	// TTS hook routing diagnostics + auto/backend/startMuted preference triple.
+	// REST exception per RESTReasonHostHookGlue — this is web-console-internal
+	// Claude-hook glue and never crosses scenario boundaries. All audio
+	// synthesis flows through Connect against audio-tools (via @audio-tools/embed).
+	s.registerTTSHookRoutes()
 }
 
 // Handler returns the router wrapped with CORS and panic-recovery middleware.
@@ -618,22 +548,6 @@ func resolveSQLiteDSN() string {
 		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
 		dbPath,
 	)
-}
-
-func resolveVoiceConfigPath() string {
-	return mustResolveScenarioStoragePath(storage.ClassState, "voice-config.json")
-}
-
-func resolveWakeWordTemplatePath() string {
-	return mustResolveScenarioStoragePath(storage.ClassState, "wakeword-template.json")
-}
-
-func resolveSpeakerVerificationConfigPath() string {
-	return mustResolveScenarioStoragePath(storage.ClassState, "speaker-verification-config.json")
-}
-
-func resolveTTSConfigPath() string {
-	return mustResolveScenarioStoragePath(storage.ClassState, "tts-config.json")
 }
 
 func resolveHookTokenPath() string {

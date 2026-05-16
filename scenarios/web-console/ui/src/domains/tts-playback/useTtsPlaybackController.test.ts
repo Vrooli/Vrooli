@@ -10,10 +10,14 @@ const { mockGetConfig, mockSummarizeEvent, mockUpdateConfig } = vi.hoisted(() =>
   mockUpdateConfig: vi.fn(),
 }));
 
-vi.mock("../../api/tts", () => ({
-  getTTSSummarizeConfig: mockGetConfig,
-  updateTTSSummarizeConfig: mockUpdateConfig,
-}));
+vi.mock("@audio-tools/embed", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@audio-tools/embed")>();
+  return {
+    ...actual,
+    getTTSSummarizeConfig: mockGetConfig,
+    updateTTSSummarizeConfig: mockUpdateConfig,
+  };
+});
 
 vi.mock("../../api/conversation", () => ({
   summarizeEvent: mockSummarizeEvent,

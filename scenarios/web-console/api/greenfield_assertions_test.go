@@ -402,15 +402,14 @@ func TestGreenfield_TTSReusableCoreNotInPackageMain(t *testing.T) {
 }
 
 // TestGreenfield_InternalAudioDomainsDoNotImportHandlers enforces the
-// dependency direction required for audio-tools extraction: internal/voice,
-// internal/tts, internal/audio, and internal/audioports must not import any
-// web-console/handlers/* package. Handlers depend on internal domain types
-// via alias; the reverse direction would re-couple the domain to the
-// transport.
+// dependency direction required for audio-tools extraction: the remaining
+// internal audio packages (internal/audio, internal/audioports) must not
+// import any web-console/handlers/* package. Handlers depend on internal
+// domain types via alias; the reverse direction would re-couple the domain
+// to the transport. internal/voice and internal/tts are gone — the audio-
+// tools adoption made web-console own neither.
 func TestGreenfield_InternalAudioDomainsDoNotImportHandlers(t *testing.T) {
 	internalDirs := []string{
-		"internal/voice",
-		"internal/tts",
 		"internal/audio",
 		"internal/audioports",
 	}
@@ -431,6 +430,75 @@ func TestGreenfield_InternalAudioDomainsDoNotImportHandlers(t *testing.T) {
 			}
 			if m := handlerImport.Find(b); m != nil {
 				t.Errorf("%s imports %s — internal audio domains must not depend on handler packages", path, string(m))
+			}
+		}
+	}
+}
+
+// TestGreenfield_NoAudioPackagesInWebConsole locks in the audio-tools
+// adoption. After the cutover the following packages must never reappear:
+//
+//   - web-console/internal/voice (Whisper / wake word / speaker verification)
+//   - web-console/internal/tts (Kokoro / summarizer / cache / chunker / normalizer)
+//   - web-console/handlers/voice / handlers/tts (REST/Connect TTS+voice handlers)
+//   - @vrooli/proto-types/web-console/v1/voice / .../v1/tts (the proto schemas)
+//
+// All audio synthesis, voice listing, summarization, transcription,
+// speaker-verification, and wake-word lives in audio-tools now. Web-console
+// reaches it through audioports.Remote* adapters + @audio-tools/embed.
+func TestGreenfield_NoAudioPackagesInWebConsole(t *testing.T) {
+	deletedDirs := []string{
+		"internal/voice",
+		"internal/tts",
+		"handlers/voice",
+		"handlers/tts",
+	}
+	for _, dir := range deletedDirs {
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			t.Errorf("%s reappeared — audio-tools adoption removed it; all audio flows through audioports.Remote*", dir)
+		}
+	}
+
+	forbiddenImports := []*regexp.Regexp{
+		regexp.MustCompile(`"web-console/internal/voice"`),
+		regexp.MustCompile(`"web-console/internal/tts"`),
+		regexp.MustCompile(`"web-console/handlers/voice"`),
+		regexp.MustCompile(`"web-console/handlers/tts"`),
+		regexp.MustCompile(`"github\.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/voice"`),
+		regexp.MustCompile(`"github\.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/tts"`),
+	}
+	checkFile := func(path string) {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return
+		}
+		for _, re := range forbiddenImports {
+			if loc := re.FindIndex(b); loc != nil {
+				t.Errorf("%s imports forbidden audio package %s — must use audioports.* adapters instead", path, re.String())
+			}
+		}
+	}
+	rootFiles, err := filepath.Glob("*.go")
+	if err == nil {
+		for _, f := range rootFiles {
+			if f == "greenfield_assertions_test.go" {
+				continue
+			}
+			checkFile(f)
+		}
+	}
+	internalDirs, err := os.ReadDir("internal")
+	if err == nil {
+		for _, e := range internalDirs {
+			if !e.IsDir() {
+				continue
+			}
+			subFiles, err := filepath.Glob(filepath.Join("internal", e.Name(), "*.go"))
+			if err != nil {
+				continue
+			}
+			for _, f := range subFiles {
+				checkFile(f)
 			}
 		}
 	}

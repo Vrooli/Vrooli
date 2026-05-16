@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	inttts "web-console/internal/tts"
+	"web-console/internal/audioports"
 )
 
 // ConversationDispatcher publishes trusted assistant and user conversation
@@ -36,6 +36,31 @@ type TTSClientAck struct {
 	Stage     string `json:"stage"`
 	Backend   string `json:"backend,omitempty"`
 	Message   string `json:"message,omitempty"`
+}
+
+// SummarizeConfig is the narrow auto-summarize tunable web-console reads to
+// decide whether to call audio-tools' Summarize RPC for long assistant
+// messages. The full TTSSummarizeConfig (with `model`, `enabled`, `level`,
+// etc.) lives in audio-tools; we cache only the fields the auto-path needs.
+//
+// CharThreshold == 0 disables auto-summarize (matches the audio-tools
+// SummarizeConfig.charThreshold default semantics).
+type SummarizeAutoPolicy struct {
+	Enabled        bool
+	CharThreshold  int
+	Level          string
+	TimeoutSeconds int
+}
+
+// defaultSummarizeAutoPolicy is the conservative default applied when the
+// audio-tools Summarize knobs haven't been fetched yet.
+func defaultSummarizeAutoPolicy() SummarizeAutoPolicy {
+	return SummarizeAutoPolicy{
+		Enabled:        false,
+		CharThreshold:  500,
+		Level:          "moderate",
+		TimeoutSeconds: 120,
+	}
 }
 
 func conversationAppendFailure(code, reason, source, sessionID string) ConversationAppendResult {
@@ -73,24 +98,14 @@ func (s *Server) AppendAssistant(responseText, targetSessionID, source string) C
 			fanout.Send(event)
 		}
 
-		cfg := s.getTTSSummarizeConfig()
-		shouldSummarize := s.ttsSummarizer != nil && cfg.Enabled && len(event.Text) >= cfg.CharThreshold
+		policy := s.getSummarizeAutoPolicy()
+		shouldSummarize := s.summarizer != nil && policy.Enabled && len(event.Text) >= policy.CharThreshold
 		if shouldSummarize {
-			// Summarize-first path: wait for summarization to finish before
-			// pre-synthesizing audio, so the cached audio matches whatever
-			// paragraphs end up on the event (summary on success, original on
-			// failure). This closes the pre-cache race where audio was
-			// synthesized from the raw response and never invalidated.
+			// Summarize-first path: wait for the audio-tools Summarize call
+			// to finish before notifying clients of the summarized version.
 			go func(ev ConversationEvent) {
-				s.asyncSummarizeAndNotify(ev, targetSessionID)
-				updated, ok := s.conversations.GetEvent(targetSessionID, ev.ID)
-				if !ok {
-					updated = ev
-				}
-				s.preSynthesizeTTS(updated, targetSessionID)
+				s.asyncSummarizeAndNotify(ev, targetSessionID, policy)
 			}(event)
-		} else {
-			go s.preSynthesizeTTS(event, targetSessionID)
 		}
 	}
 	s.recordLastTTSRouting(result)
@@ -118,70 +133,57 @@ func (s *Server) AppendUser(promptText, targetSessionID, source string) Conversa
 	return result
 }
 
-// asyncSummarizeAndNotify runs summarization in a goroutine and, on success,
-// sends a conversation_event_update to all subscribed clients so the frontend
-// can display the summarized version without a page refresh. On success it
-// also evicts any cached TTS audio for this event so playback regenerates
-// from the summary rather than the original text.
-func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID string) {
-	if s.ttsSummarization == nil {
+// asyncSummarizeAndNotify calls audio-tools' Summarize RPC and, on success,
+// sends a conversation_event_update so the frontend displays the summarized
+// version without a refresh. Cooldown/inflight-dedup are audio-tools'
+// concern now; the remote tier handles backpressure. On failure we surface
+// a one-off error event with the failure message.
+func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID string, policy SummarizeAutoPolicy) {
+	if s.summarizer == nil {
 		return
 	}
-
-	cfg := s.getTTSSummarizeConfig()
-	if !cfg.Enabled {
+	if !policy.Enabled || len(event.Text) < policy.CharThreshold {
+		logSummarizeSkipped("auto", policy, event.ID, len(event.Text),
+			fmt.Sprintf("text length %d < threshold %d", len(event.Text), policy.CharThreshold))
 		return
 	}
-
-	if len(event.Text) < cfg.CharThreshold {
-		logSummarizeSkipped("auto", cfg, event.ID, len(event.Text),
-			fmt.Sprintf("text length %d < threshold %d", len(event.Text), cfg.CharThreshold))
-		return
-	}
-
 	if strings.TrimSpace(event.Text) == "" {
-		logSummarizeSkipped("auto", cfg, event.ID, len(event.Text), "event text is empty")
+		logSummarizeSkipped("auto", policy, event.ID, len(event.Text), "event text is empty")
 		return
 	}
 
-	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
+	timeout := time.Duration(policy.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
 		timeout = 120 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// Normalization happens inside SummarizationService.run; passing raw text
-	// avoids the double-normalize wart.
-	result, err := s.ttsSummarization.Summarize(ctx, inttts.SummarizeRequest{
-		EventID: event.ID,
-		Path:    "auto",
-		Text:    event.Text,
+	out, err := s.summarizer.Summarize(ctx, audioports.SummarizeInput{
+		Text:           event.Text,
+		Level:          policy.Level,
+		TimeoutSeconds: policy.TimeoutSeconds,
 	})
 	if err != nil {
-		if err == inttts.ErrSummarizeCoolingDown {
-			logSummarizeSkipped("auto", cfg, event.ID, len(event.Text), err.Error())
-			return
-		}
-		logSummarizeResult("auto", cfg, event.ID, len(event.Text), result, err)
-		// Notify connected clients so they can surface a persistent banner
-		// with a retry affordance. Reuse the event payload (paragraphs are
-		// unchanged) and mark it as an update carrying the error string.
+		logSummarizeResult("auto", policy, event.ID, len(event.Text), out, err)
 		errEvent := event
 		errEvent.IsUpdate = true
-		errEvent.SummarizeError = inttts.SummarizeErrorMessage(err)
+		errEvent.SummarizeError = summarizeErrorMessage(err)
 		if fanout := s.fanouts.Get(sessionID); fanout != nil {
 			fanout.Send(errEvent)
 		}
 		return
 	}
-	logSummarizeResult("auto", cfg, event.ID, len(event.Text), result, nil)
+	logSummarizeResult("auto", policy, event.ID, len(event.Text), out, nil)
 
-	newParagraphs := result.Paragraphs
+	// audio-tools returns a flat summary; re-split into paragraphs for
+	// pleasant rendering. Empty input → no update emitted.
+	newParagraphs := splitIntoSpeechParagraphs(out.Text)
+	if len(newParagraphs) == 0 {
+		return
+	}
 	s.conversations.UpdateSpeechParagraphs(sessionID, event.ID, newParagraphs)
-	s.invalidateTTSCacheForEvent(event.ID)
 
-	// Send update event so connected clients can display the summary.
 	event.OriginalSpeechParagraphs = event.SpeechParagraphs
 	event.SpeechParagraphs = newParagraphs
 	event.Summarized = true
@@ -191,40 +193,62 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	}
 }
 
-// logSummarizeResult emits the unified tts-summarize log line. It is shared by
+// splitIntoSpeechParagraphs is the local, dependency-free fallback for
+// breaking a summarized blob into paragraphs. audio-tools owns the canonical
+// normalize/split pipeline (see RemoteSpeechTextProcessor); this helper is
+// only used post-summarize where the remote call has already happened.
+func splitIntoSpeechParagraphs(text string) []string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+	raw := strings.Split(text, "\n\n")
+	out := make([]string, 0, len(raw))
+	for _, p := range raw {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	if len(out) == 0 {
+		return []string{text}
+	}
+	return out
+}
+
+// summarizeErrorMessage normalizes the audio-tools transport error into a
+// short UI-facing string. The legacy inttts.SummarizeErrorMessage classified
+// Ollama-specific failure modes; the remote tier collapses them into a
+// single user-visible "summarization failed" with the wire detail.
+func summarizeErrorMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	if msg == "" {
+		return "Summarization failed"
+	}
+	return "Summarization failed: " + msg
+}
+
+// logSummarizeResult emits the unified tts-summarize log line. Shared by
 // the auto (append) and on-demand code paths so a single grep surfaces both.
-// Diagnostic fields (done_reason / eval_count / raw length) are appended on
-// failure so budget-exhausted truncation is distinguishable from a real empty
-// response without re-running the request.
-func logSummarizeResult(path string, cfg inttts.SummarizeConfig, eventID string, inChars int, result inttts.SummarizeResult, err error) {
-	outChars := len(result.Summary)
+func logSummarizeResult(path string, policy SummarizeAutoPolicy, eventID string, inChars int, out audioports.SummarizeOutput, err error) {
+	outChars := len(out.Text)
 	ratio := 0.0
 	if inChars > 0 {
 		ratio = float64(outChars) / float64(inChars)
 	}
 	if err != nil {
-		log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=%d ratio=%.2f ms=%d done_reason=%s eval=%d raw=%d error=%v",
-			path, eventID, cfg.Model, cfg.Level, inChars, outChars, ratio, result.ElapsedMs,
-			safeDoneReason(result.DoneReason), result.EvalCount, result.RawLen, err)
+		log.Printf("tts-summarize: path=%s event=%s level=%s in=%d out=%d ratio=%.2f tier=%s model=%s error=%v",
+			path, eventID, policy.Level, inChars, outChars, ratio, out.ProviderTier, out.ModelID, err)
 		return
 	}
-	log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=%d ratio=%.2f ms=%d done_reason=%s eval=%d",
-		path, eventID, cfg.Model, cfg.Level, inChars, outChars, ratio, result.ElapsedMs,
-		safeDoneReason(result.DoneReason), result.EvalCount)
-}
-
-// safeDoneReason returns "-" when Ollama didn't emit one (e.g. request
-// failed before the response was parsed) so the log line never has an empty
-// value that would confuse a grep.
-func safeDoneReason(r string) string {
-	if r == "" {
-		return "-"
-	}
-	return r
+	log.Printf("tts-summarize: path=%s event=%s level=%s in=%d out=%d ratio=%.2f tier=%s model=%s ms=%d",
+		path, eventID, policy.Level, inChars, outChars, ratio, out.ProviderTier, out.ModelID, out.Latency.Milliseconds())
 }
 
 // logSummarizeSkipped records the no-op reason in the same grep-friendly shape.
-func logSummarizeSkipped(path string, cfg inttts.SummarizeConfig, eventID string, inChars int, reason string) {
-	log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=0 ratio=0.00 ms=0 skipped=%q",
-		path, eventID, cfg.Model, cfg.Level, inChars, reason)
+func logSummarizeSkipped(path string, policy SummarizeAutoPolicy, eventID string, inChars int, reason string) {
+	log.Printf("tts-summarize: path=%s event=%s level=%s in=%d out=0 ratio=0.00 skipped=%q",
+		path, eventID, policy.Level, inChars, reason)
 }

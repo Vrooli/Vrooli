@@ -8,9 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
+
 	"web-console/backends/codex"
+	intevents "web-console/internal/events"
+	intmetrics "web-console/internal/metrics"
 	"web-console/internal/ptyfake"
-	inttts "web-console/internal/tts"
 	"web-console/session"
 )
 
@@ -50,13 +53,23 @@ func writeRolloutLine(t *testing.T, f *os.File, lineType string, payload interfa
 
 func newCodexTailerTestServer(t *testing.T) (*Server, *session.Session) {
 	t.Helper()
-	srv := newTTSTestServer()
-	srv.ttsConfig = inttts.Config{AutoEnabled: true}
-
 	fake := ptyfake.NewFakePTYWithOutput()
 	t.Cleanup(func() { _ = fake.Close() })
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
-	srv.sessions = sm
+	srv := &Server{
+		router:          mux.NewRouter(),
+		sessions:        sm,
+		events:          intevents.NewLogger(100),
+		metrics:         intmetrics.New(),
+		conversations:   NewConversationStore(),
+		lastTTSBySource: map[string]conversationAppendSnapshot{},
+		lastTTSAckBySrc: map[string]ttsAckSnapshot{},
+		ttsHookConfigState: hookConfigState{
+			cfg:  TTSHookConfig{AutoEnabled: true, Backend: "auto"},
+			path: filepath.Join(t.TempDir(), "tts-hook-config.json"),
+		},
+		summarizeAutoPolicy: defaultSummarizeAutoPolicy(),
+	}
 	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
 
 	sess, err := sm.Create("", 80, 24, "", nil)

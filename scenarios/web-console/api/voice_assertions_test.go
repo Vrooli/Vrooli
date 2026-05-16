@@ -21,6 +21,20 @@ func readUISource(t *testing.T, rel string) string {
 	return string(data)
 }
 
+// readEmbedSource reads a source file from the @audio-tools/embed package
+// that ships the audio hooks/components web-console adopts. The hooks/voice
+// and hooks/tts trees moved out of web-console as part of the audio-tools
+// adoption — the contract assertions follow them.
+func readEmbedSource(t *testing.T, rel string) string {
+	t.Helper()
+	path := filepath.Join("..", "..", "audio-tools", "embed", "src", rel)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(data)
+}
+
 // TestGreenfield_VoiceSkipVerificationCounterExposed enforces that the
 // bypass counter is surfaced on the /metrics JSON so operators can monitor
 // bypass volume without reading logs.
@@ -51,7 +65,7 @@ func TestGreenfield_UIRejectionContractIntact(t *testing.T) {
 		t.Error("useVoiceInput.ts: speakerNotice reintroduced — field removed in favor of rejectedAudio")
 	}
 
-	types := readUISource(t, "hooks/voice/types.ts")
+	types := readEmbedSource(t, "hooks/voice/types.ts")
 	if !regexp.MustCompile(`getLastTurnAudio\s*\(\s*\)\s*:\s*LastTurnAudio\s*\|\s*null`).MatchString(types) {
 		t.Error("types.ts: VoiceProvider must declare getLastTurnAudio(): LastTurnAudio | null")
 	}
@@ -73,9 +87,9 @@ func TestGreenfield_UIRejectionContractIntact(t *testing.T) {
 		t.Error("Workspace.tsx: VoiceRejectionBanner render missing")
 	}
 
-	api := readUISource(t, "api/voice.ts")
-	if !strings.Contains(api, "export async function transcribeAudioBypassFilter") {
-		t.Error("api/voice.ts: transcribeAudioBypassFilter function missing")
+	api := readEmbedSource(t, "api/voice.ts")
+	if !strings.Contains(api, "transcribeAudioBypassFilter") {
+		t.Error("embed api/voice.ts: transcribeAudioBypassFilter function missing")
 	}
 
 	for _, path := range []string{
@@ -83,7 +97,7 @@ func TestGreenfield_UIRejectionContractIntact(t *testing.T) {
 		"hooks/voice/VoiceStreamProvider.ts",
 		"hooks/voice/WebSpeechProvider.ts",
 	} {
-		src := readUISource(t, path)
+		src := readEmbedSource(t, path)
 		if !regexp.MustCompile(`getLastTurnAudio\s*\(`).MatchString(src) {
 			t.Errorf("%s: must implement getLastTurnAudio()", path)
 		}

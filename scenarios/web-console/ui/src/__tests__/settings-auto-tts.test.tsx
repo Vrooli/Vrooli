@@ -14,6 +14,8 @@ const mockStoreState: Record<string, unknown> = {
   setAutoTtsEnabled: vi.fn(),
   ttsBackendPreference: "auto",
   setTtsBackendPreference: vi.fn(),
+  startMutedOnLoad: false,
+  setStartMutedOnLoad: vi.fn(),
   kokoroVoice: "af_heart",
   setKokoroVoice: vi.fn(),
   kokoroSpeed: 1.0,
@@ -24,61 +26,92 @@ vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector: (state: Record<string, unknown>) => unknown) => selector(mockStoreState),
 }));
 
-const mockUpdateTTSConfig = vi.fn((patch?: Partial<{
+// Mock the new split-of-concerns sources:
+//   - hook config / routing status / playback events → ../api/ttsHook
+//     (web-console-internal REST against /api/v1/tts-hook/*).
+//   - voice/speed/summarize knobs → @audio-tools/embed (calls audio-tools).
+const mockUpdateHookConfig = vi.fn((patch?: Partial<{
   autoEnabled: boolean;
   backend: "auto" | "kokoro" | "browser";
-  kokoroVoice: string;
-  kokoroSpeed: number;
+  startMuted: boolean;
 }>) => Promise.resolve({
-  autoEnabled: patch?.autoEnabled ?? true,
+  autoEnabled: patch?.autoEnabled ?? false,
   backend: patch?.backend ?? "auto",
-  kokoroVoice: patch?.kokoroVoice ?? "af_heart",
-  kokoroSpeed: patch?.kokoroSpeed ?? 1.0,
+  startMuted: patch?.startMuted ?? false,
 }));
 
-vi.mock("../api/tts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../api/tts")>();
+vi.mock("../api/ttsHook", () => ({
+  getTTSHookStatus: vi.fn().mockResolvedValue({
+    config: { autoEnabled: false, backend: "auto", startMuted: false },
+    hookRegistered: false,
+    hookCode: "hook_missing",
+    hookReason: "Claude Stop hook is not registered in project settings",
+    lastHookRouting: {
+      appended: false,
+      code: "tts_target_missing",
+      reason: "No terminal session was available for TTS routing",
+      source: "claude_hook",
+    },
+    lastTailerRouting: {
+      appended: false,
+      code: "tts_target_missing",
+      reason: "No terminal session was available for TTS routing",
+      source: "codex_tailer",
+    },
+    lastHookAck: {
+      eventId: "evt-1",
+      source: "claude_hook",
+      sessionId: "s1",
+      stage: "rejected",
+      message: "Assistant text did not match the rendered terminal buffer",
+    },
+    lastTailerAck: {
+      eventId: "evt-2",
+      source: "codex_tailer",
+      sessionId: "s2",
+      stage: "playback_succeeded",
+      backend: "browser",
+    },
+    audioToolsCapabilityLabel: "resource is not responding",
+  }),
+  updateTTSHookConfig: vi.fn((patch: Parameters<typeof mockUpdateHookConfig>[0]) => mockUpdateHookConfig(patch)),
+  recordTTSPlaybackEvent: vi.fn().mockResolvedValue(undefined),
+  recordTTSHookAck: vi.fn().mockResolvedValue(undefined),
+}));
+
+const mockUpdateVoiceConfig = vi.fn((patch?: Partial<{
+  defaultVoice: string;
+  defaultSpeed: number;
+}>) => Promise.resolve({
+  defaultVoice: patch?.defaultVoice ?? "af_heart",
+  defaultSpeed: patch?.defaultSpeed ?? 1.0,
+  defaultResponseFormat: "mp3",
+}));
+
+vi.mock("@audio-tools/embed", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@audio-tools/embed")>();
   return {
     ...actual,
-    getTTSStatus: vi.fn().mockResolvedValue({
-      config: {
-        autoEnabled: false,
-        backend: "auto",
-        kokoroVoice: "af_heart",
-        kokoroSpeed: 1.0,
-      },
-      hookRegistered: false,
-      hookCode: "hook_missing",
-      hookReason: "Claude Stop hook is not registered in project settings",
-      lastHookRouting: {
-        routed: false,
-        code: "tts_target_missing",
-        reason: "No terminal session was available for TTS routing",
-        source: "claude_hook",
-      },
-      lastTailerRouting: {
-        routed: false,
-        code: "tts_target_missing",
-        reason: "No terminal session was available for TTS routing",
-        source: "codex_tailer",
-      },
-      lastHookAck: {
-        eventId: "evt-1",
-        source: "claude_hook",
-        sessionId: "s1",
-        stage: "rejected",
-        message: "Assistant text did not match the rendered terminal buffer",
-      },
-      lastTailerAck: {
-        eventId: "evt-2",
-        source: "codex_tailer",
-        sessionId: "s2",
-        stage: "playback_succeeded",
-        backend: "browser",
-      },
-      kokoroCapabilityLabel: "resource is not responding",
+    getTTSConfig: vi.fn().mockResolvedValue({
+      defaultVoice: "af_heart",
+      defaultSpeed: 1.0,
+      defaultResponseFormat: "mp3",
     }),
-    updateTTSConfig: vi.fn((...args: unknown[]) => mockUpdateTTSConfig(args[0] as Parameters<typeof mockUpdateTTSConfig>[0])),
+    updateTTSConfig: vi.fn((patch: Parameters<typeof mockUpdateVoiceConfig>[0]) => mockUpdateVoiceConfig(patch)),
+    getTTSSummarizeConfig: vi.fn().mockResolvedValue({
+      enabled: false,
+      charThreshold: 500,
+      level: "moderate",
+      model: "qwen3:1.7b",
+      timeoutSeconds: 30,
+    }),
+    updateTTSSummarizeConfig: vi.fn().mockResolvedValue({
+      enabled: false,
+      charThreshold: 500,
+      level: "moderate",
+      model: "qwen3:1.7b",
+      timeoutSeconds: 30,
+    }),
   };
 });
 
@@ -119,6 +152,7 @@ describe("TtsSettingsSection", () => {
     mockStoreState.autoTtsEnabled = false;
     mockStoreState.ttsBackendPreference = "auto";
     mockStoreState.kokoroSpeed = 1.0;
+    mockStoreState.startMutedOnLoad = false;
   });
 
   async function renderSection() {
@@ -133,31 +167,31 @@ describe("TtsSettingsSection", () => {
     expect(screen.getByTestId("auto-tts-toggle").getAttribute("aria-checked")).toBe("false");
   });
 
-  it("clicking toggle updates store and calls updateTTSConfig", async () => {
+  it("clicking toggle updates store and persists via tts-hook config endpoint", async () => {
     await renderSection();
     fireEvent.click(screen.getByTestId("auto-tts-toggle"));
     expect(mockStoreState.setAutoTtsEnabled).toHaveBeenCalledWith(true);
     await waitFor(() => {
-      expect(mockUpdateTTSConfig).toHaveBeenCalledWith({ autoEnabled: true });
+      expect(mockUpdateHookConfig).toHaveBeenCalledWith({ autoEnabled: true });
     });
   });
 
-  it("changing backend preference persists to the API", async () => {
+  it("changing backend preference persists via tts-hook config endpoint", async () => {
     await renderSection();
     fireEvent.change(screen.getByTestId("tts-backend-select"), { target: { value: "kokoro" } });
     expect(mockStoreState.setTtsBackendPreference).toHaveBeenCalledWith("kokoro");
     await waitFor(() => {
-      expect(mockUpdateTTSConfig).toHaveBeenCalledWith({ backend: "kokoro" });
+      expect(mockUpdateHookConfig).toHaveBeenCalledWith({ backend: "kokoro" });
     });
   });
 
-  it("changing kokoro speed persists to the API", async () => {
+  it("changing kokoro speed persists to audio-tools via updateTTSConfig", async () => {
     mockStoreState.ttsBackendPreference = "kokoro";
     await renderSection();
     fireEvent.change(screen.getByTestId("kokoro-speed-slider"), { target: { value: "1.6" } });
     expect(mockStoreState.setKokoroSpeed).toHaveBeenCalledWith(1.6);
     await waitFor(() => {
-      expect(mockUpdateTTSConfig).toHaveBeenCalledWith({ kokoroSpeed: 1.6 });
+      expect(mockUpdateVoiceConfig).toHaveBeenCalledWith({ defaultSpeed: 1.6 });
     });
   });
 

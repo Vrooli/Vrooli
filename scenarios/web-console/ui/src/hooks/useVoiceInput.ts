@@ -15,25 +15,25 @@
 // and the provider is initializing.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getVoiceStreamConfig, transcribeAudioBypassFilter, getWakeWordConfig } from "../api/voice";
+import { getVoiceStreamConfig, transcribeAudioBypassFilter, getWakeWordConfig } from "@audio-tools/embed";
 import { fetchCapabilities, getCapabilitiesLivenessSnapshot, refreshCapabilitiesLiveness } from "../api/capabilities";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import { createAudioFilterChain } from "./voice/audioUtils";
-import { playRecordingStartCue, playRecordingStopCue } from "./voice/audioCues";
-import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "./voice/activity";
-import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "./voice/vad";
-import { getSharedAudioContext, ensureAudioContextOnGesture, installAudioContextKeepalive, teardownAudioContextKeepalive } from "./voice/sharedAudioContext";
-import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "./voice/micReadiness";
-import { VoiceStreamProvider } from "./voice/VoiceStreamProvider";
-import { WhisperProvider } from "./voice/WhisperProvider";
-import { WebSpeechProvider } from "./voice/WebSpeechProvider";
+import { createAudioFilterChain } from "@audio-tools/embed";
+import { playRecordingStartCue, playRecordingStopCue } from "@audio-tools/embed";
+import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "@audio-tools/embed";
+import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "@audio-tools/embed";
+import { getSharedAudioContext, ensureAudioContextOnGesture, installAudioContextKeepalive, teardownAudioContextKeepalive } from "@audio-tools/embed";
+import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "@audio-tools/embed";
+import { VoiceStreamProvider } from "@audio-tools/embed";
+import { WhisperProvider } from "@audio-tools/embed";
+import { WebSpeechProvider } from "@audio-tools/embed";
 import { parseCommandDirect } from "./voice/commandParser";
-import { createWakeWordEngine, PassiveListener } from "./voice/wakeword";
-import type { WakeWordEngine, WakeWordTemplate } from "./voice/wakeword";
+import { createWakeWordEngine, PassiveListener } from "@audio-tools/embed";
+import type { WakeWordEngine, WakeWordTemplate } from "@audio-tools/embed";
 import {
   CAP_CHECK_FAIL_THRESHOLD,
   WHISPER_FAILED_SENTINEL,
-} from "./voice/types";
+} from "@audio-tools/embed";
 import type {
   TranscriptionProvider,
   VoiceBackend,
@@ -43,16 +43,16 @@ import type {
   VoiceRejection,
   CommandSuggestion,
   StartRecordingOpts,
-} from "./voice/types";
+} from "@audio-tools/embed";
 
 // Re-export public types and utilities for consumers and tests
-export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, VoiceRejection, LastTurnAudio, CommandSuggestion, StartRecordingOpts, VoiceActivitySnapshot, VoiceActivityPhase } from "./voice/types";
-export { WHISPER_FAILED_SENTINEL, CAP_CHECK_FAIL_THRESHOLD, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "./voice/types";
-export { createAudioFilterChain } from "./voice/audioUtils";
-export type { VadState, VadRefs, VadAction, CachedNoiseFloor } from "./voice/vad";
-export { VAD_DEFAULT_SILENCE_TIMEOUT_MS, VAD_DEFAULT_SEGMENT_SILENCE_MS, VAD_FLOOR_CACHE_MAX_AGE_MS, createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, computeSlidingNoiseFloor, vadTick } from "./voice/vad";
-export { buildVoiceActivitySnapshot, VAD_AUTO_STOP_VISUAL_GRACE_MS } from "./voice/activity";
-export { getSharedAudioContext, ensureAudioContextOnGesture, closeSharedAudioContext } from "./voice/sharedAudioContext";
+export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, VoiceRejection, LastTurnAudio, CommandSuggestion, StartRecordingOpts, VoiceActivitySnapshot, VoiceActivityPhase } from "@audio-tools/embed";
+export { WHISPER_FAILED_SENTINEL, CAP_CHECK_FAIL_THRESHOLD, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "@audio-tools/embed";
+export { createAudioFilterChain } from "@audio-tools/embed";
+export type { VadState, VadRefs, VadAction, CachedNoiseFloor } from "@audio-tools/embed";
+export { VAD_DEFAULT_SILENCE_TIMEOUT_MS, VAD_DEFAULT_SEGMENT_SILENCE_MS, VAD_FLOOR_CACHE_MAX_AGE_MS, createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, computeSlidingNoiseFloor, vadTick } from "@audio-tools/embed";
+export { buildVoiceActivitySnapshot, VAD_AUTO_STOP_VISUAL_GRACE_MS } from "@audio-tools/embed";
+export { getSharedAudioContext, ensureAudioContextOnGesture, closeSharedAudioContext } from "@audio-tools/embed";
 
 const INITIAL_STATE: VoiceInputState = {
   supported: false,

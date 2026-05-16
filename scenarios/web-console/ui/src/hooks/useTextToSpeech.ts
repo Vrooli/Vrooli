@@ -1,10 +1,14 @@
 // DOC: docs/internal/SEAMS.md#tts-provider-seam
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchCachedTTS, getTTSVoices, reportTTSEvent } from "../api/tts";
+import { fetchCachedTTS, getTTSVoices, synthesizeTTS } from "@audio-tools/embed";
+// Playback events flow to web-console's own /api/v1/tts-hook/playback —
+// playback success/failure is a web-console concern (it informs the Claude
+// hook routing UI), not an audio-tools concern.
+import { recordTTSPlaybackEvent } from "../api/ttsHook";
 import { fetchCapabilitiesLivenessCached, _resetCapabilitiesCache } from "../api/capabilities";
-import type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider, TTSVoiceInfo } from "./tts/types";
-import { KokoroProvider } from "./tts/KokoroProvider";
-import { BrowserTTSProvider } from "./tts/BrowserTTSProvider";
+import type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider, TTSVoiceInfo } from "@audio-tools/embed";
+import { KokoroProvider } from "@audio-tools/embed";
+import { BrowserTTSProvider } from "@audio-tools/embed";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 
 export interface TTSSettings {
@@ -129,7 +133,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
 
   const emitEvent = useCallback((stage: string, backend: TTSBackend, message?: string) => {
     if (!diagnostics?.source) return;
-    void reportTTSEvent({
+    void recordTTSPlaybackEvent({
       source: diagnostics.source,
       sessionId: diagnostics.sessionId,
       stage,
@@ -339,7 +343,9 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         );
 
         if (!cancelled && kokoro) {
-          const provider = new KokoroProvider();
+          // Inject synthesizeTTS pulled through the embed package barrel so
+          // vi.mock("@audio-tools/embed", …) in tests intercepts the call.
+          const provider = new KokoroProvider({ synthesize: synthesizeTTS });
           backendRef.current = "kokoro";
           providerRef.current = provider;
           activeProviderRef.current = provider;

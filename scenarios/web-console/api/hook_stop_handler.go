@@ -7,6 +7,9 @@ import (
 	"web-console/internal/sessionstore"
 )
 
+// hookStopRequest mirrors the Claude Code CLI Stop-hook payload. Both the
+// snake_case (`session_id`) and camelCase (`assistantResponse`) variants are
+// accepted because Claude has shipped both shapes across versions.
 type hookStopRequest struct {
 	AssistantResponse    string `json:"assistantResponse"`
 	LastAssistantMessage string `json:"last_assistant_message"`
@@ -23,6 +26,9 @@ func (r hookStopRequest) assistantText() string {
 	return r.AssistantResponse
 }
 
+// handleHookStop is the Claude Code Stop-hook receiver. The hook fires every
+// time Claude finishes a tool/turn; the assistant text is routed into the
+// owning terminal session's conversation log so the UI can render + read it.
 func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("X-Hook-Token")
 	if token == "" || token != s.hookAuthToken {
@@ -39,10 +45,9 @@ func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result := s.AppendAssistant(assistantText, req.WebConsoleSessionID, "claude_hook")
-	// Phase 3 (recovery hardening): persist agent identity from the hook
-	// payload so the recovery flow can later issue
-	// `claude --resume <agent_session_id>` against the right project. The
-	// payload's session_id is Claude's own session UUID.
+	// Persist agent identity from the hook payload so the recovery flow can
+	// later issue `claude --resume <agent_session_id>` against the right
+	// project. The payload's session_id is Claude's own session UUID.
 	if result.Appended && req.WebConsoleSessionID != "" && req.SessionIDSnake != "" && s.sessionStore != nil {
 		_ = s.sessionStore.UpdateAgentInfo(req.WebConsoleSessionID, sessionstore.AgentInfo{
 			AgentType:      sessionstore.AgentClaude,

@@ -51,22 +51,6 @@ type Checker interface {
 // (tests do); production wiring in main.go uses this value.
 var Known = []Def{
 	{
-		ID:             "whisper-stt",
-		Name:           "Whisper STT",
-		Description:    "Speech-to-text transcription via Whisper (web-console local voice path)",
-		DependencyKind: DependencyResource,
-		DependencySlug: "whisper",
-		Features:       []string{"voice-input", "voice-streaming"},
-	},
-	{
-		ID:             "speaker-verification",
-		Name:           "Speaker Verification",
-		Description:    "Local speaker verification for enrolled voice filtering",
-		DependencyKind: DependencyResource,
-		DependencySlug: "speaker-verification",
-		Features:       []string{"voice-speaker-verification", "voice-enrollment"},
-	},
-	{
 		ID:             "ollama",
 		Name:           "Ollama",
 		Description:    "Local LLM inference for AI command generation",

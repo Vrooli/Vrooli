@@ -51,15 +51,23 @@ vi.mock("../api/capabilities", () => ({
   fetchCapabilitiesLivenessCached: (...args: unknown[]) => _mockFetchCaps(...args) as unknown,
   _resetCapabilitiesCache: vi.fn(),
 }));
-vi.mock("../api/tts", () => ({
-  fetchCachedTTS: vi.fn(),
-  getTTSVoices: vi.fn(),
-  synthesizeTTS: vi.fn(),
-  reportTTSEvent: vi.fn(),
+vi.mock("@audio-tools/embed", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@audio-tools/embed")>();
+  return {
+    ...actual,
+    fetchCachedTTS: vi.fn(),
+    getTTSVoices: vi.fn(),
+    synthesizeTTS: vi.fn(),
+  };
+});
+
+vi.mock("../api/ttsHook", () => ({
+  recordTTSPlaybackEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
+
 import { fetchCapabilitiesLiveness } from "../api/capabilities";
-import { fetchCachedTTS, getTTSVoices, synthesizeTTS } from "../api/tts";
+import { fetchCachedTTS, getTTSVoices, synthesizeTTS } from "@audio-tools/embed";
 import { useTextToSpeech, type TTSSettings } from "../hooks/useTextToSpeech";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 

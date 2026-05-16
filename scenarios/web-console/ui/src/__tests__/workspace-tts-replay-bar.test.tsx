@@ -239,10 +239,14 @@ vi.mock("../hooks/useImageUpload", () => ({
 vi.mock("../api/uploads", () => ({
   uploadFile: vi.fn(),
 }));
-vi.mock("../api/tts", () => ({
-  getTTSSummarizeConfig: vi.fn().mockResolvedValue({ enabled: false, charThreshold: 500, level: "moderate", model: "qwen3:1.7b", timeoutSeconds: 30 }),
-  updateTTSSummarizeConfig: vi.fn().mockResolvedValue({ enabled: false, charThreshold: 500, level: "moderate", model: "qwen3:1.7b", timeoutSeconds: 30 }),
-}));
+vi.mock("@audio-tools/embed", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@audio-tools/embed")>();
+  return {
+    ...actual,
+    getTTSSummarizeConfig: vi.fn().mockResolvedValue({ enabled: false, charThreshold: 500, level: "moderate", model: "qwen3:1.7b", timeoutSeconds: 30 }),
+    updateTTSSummarizeConfig: vi.fn().mockResolvedValue({ enabled: false, charThreshold: 500, level: "moderate", model: "qwen3:1.7b", timeoutSeconds: 30 }),
+  };
+});
 vi.mock("../api/sessions", async () => {
   const actual = await vi.importActual<typeof import("../api/sessions")>("../api/sessions");
   return { ...actual, getSession: vi.fn() };

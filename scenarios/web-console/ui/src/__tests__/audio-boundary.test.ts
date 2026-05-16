@@ -108,10 +108,10 @@ describe("frontend audio adoption boundary", () => {
     ).toEqual([]);
   });
 
-  it("the adoption surface file exists and re-exports a non-empty set", () => {
+  it("the adoption surface file exists and re-exports from @audio-tools/embed", () => {
     const indexPath = join(ADOPTION_SURFACE, "index.ts");
     const text = readFileSync(indexPath, "utf8");
-    // Must re-export from the underlying subtrees today (pre-extraction).
-    expect(text).toMatch(/from\s+["']\.\.\/\.\.\/hooks\/(voice|tts)\//);
+    // Post-extraction: the seam re-exports the audio-tools embed package.
+    expect(text).toMatch(/from\s+["']@audio-tools\/embed["']/);
   });
 });

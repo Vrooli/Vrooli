@@ -1,6 +1,28 @@
 # Web Console — Seams & Responsibility Boundaries
 
-Last updated: 2026-04-24
+Last updated: 2026-05-16
+
+> **Audio adoption (2026-05-16):** `internal/voice/`, `internal/tts/`,
+> `handlers/voice/`, `handlers/tts/`, and the `web-console/v1/voice` +
+> `web-console/v1/tts` protos have all been deleted. Every audio capability
+> (STT, TTS synthesis, voice listing, summarization, speaker verification,
+> wake word) lives in the **audio-tools** scenario and is consumed via:
+>
+> - Backend: `internal/audioports.Remote*` adapters (RemoteSpeechToText,
+>   RemoteTextToSpeech, RemoteSpeechTextProcessor, RemoteSummarizer)
+>   wrapping the audio-tools Connect clients.
+> - Frontend: `@audio-tools/embed` (pnpm file: link from
+>   `scenarios/audio-tools/embed/`).
+>
+> The web-console-internal `tts_hook_status.go` REST endpoints
+> (`/api/v1/tts-hook/{status,config,ack,playback}`) cover only Claude
+> project-settings hook routing diagnostics + the auto/backend/startMuted
+> preference triple. They are an enumerated REST exception
+> (RESTReasonHostHookGlue) and never cross scenario boundaries.
+>
+> The legacy seam descriptions below referring to `internal/voice/*` or
+> `internal/tts/*` paths are kept as a historical record while the
+> documentation is rewritten; the code paths themselves no longer exist.
 
 ## Input delivery (refactored 2026-04-24)
 

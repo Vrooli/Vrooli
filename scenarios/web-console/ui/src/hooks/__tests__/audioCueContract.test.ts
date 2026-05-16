@@ -19,82 +19,58 @@ vi.mock("@vrooli/api-base", () => apiBaseMock());
 // Mock the audio cues module so we can track calls without actual audio
 const startCueSpy = vi.fn();
 const stopCueSpy = vi.fn();
-vi.mock("../voice/audioCues", () => ({
-  playRecordingStartCue: startCueSpy,
-  playRecordingStopCue: stopCueSpy,
-}));
 
-// Mock sharedAudioContext — no real AudioContext in jsdom
-vi.mock("../voice/sharedAudioContext", () => ({
-  getSharedAudioContext: () => ({
-    state: "running",
-    createMediaStreamSource: () => ({
-      connect: vi.fn(),
-      disconnect: vi.fn(),
+// Single consolidated mock for the @audio-tools/embed surface. vi.mock
+// overwrites duplicates so the previous one-mock-per-concern split (audio
+// cues, shared audio context, mic readiness, VAD, wake-word) is fused here.
+vi.mock("@audio-tools/embed", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@audio-tools/embed")>();
+  return {
+    ...actual,
+    playRecordingStartCue: startCueSpy,
+    playRecordingStopCue: stopCueSpy,
+    getSharedAudioContext: () => ({
+      state: "running",
+      createMediaStreamSource: () => ({ connect: vi.fn(), disconnect: vi.fn() }),
+      createBiquadFilter: () => ({ type: "lowpass", frequency: { value: 0 }, Q: { value: 0 }, connect: vi.fn(), disconnect: vi.fn() }),
+      createMediaStreamDestination: () => ({ stream: mockStream(), connect: vi.fn(), disconnect: vi.fn() }),
+      createAnalyser: () => ({ fftSize: 0, frequencyBinCount: 64, getByteFrequencyData: vi.fn(), getByteTimeDomainData: vi.fn(), connect: vi.fn(), disconnect: vi.fn() }),
+      createGain: () => ({ gain: { value: 1 }, connect: vi.fn(), disconnect: vi.fn() }),
+      destination: { connect: vi.fn(), disconnect: vi.fn() },
+      resume: vi.fn().mockResolvedValue(undefined),
     }),
-    createBiquadFilter: () => ({
-      type: "lowpass",
-      frequency: { value: 0 },
-      Q: { value: 0 },
-      connect: vi.fn(),
-      disconnect: vi.fn(),
+    ensureAudioContextOnGesture: vi.fn(),
+    closeSharedAudioContext: vi.fn(),
+    installAudioContextKeepalive: vi.fn(),
+    teardownAudioContextKeepalive: vi.fn(),
+    acquireStream: vi.fn().mockResolvedValue(mockStream()),
+    releaseStream: vi.fn(),
+    getStream: vi.fn().mockReturnValue(null),
+    isStreamAlive: vi.fn().mockReturnValue(false),
+    installVisibilityHandler: vi.fn().mockReturnValue(() => {}),
+    _resetMicReadiness: vi.fn(),
+    createVadRefs: () => ({ state: "idle", silenceThreshold: 0, speechThreshold: 0, cachedFloorBaseline: null }),
+    createVadRefsFromCache: vi.fn(),
+    extractCacheableFloor: vi.fn().mockReturnValue({ silenceThreshold: 0.01, speechThreshold: 0.02, timestamp: Date.now() }),
+    saveNoiseFloorCache: vi.fn(),
+    loadNoiseFloorCache: vi.fn().mockReturnValue(null),
+    vadTick: vi.fn().mockReturnValue(null),
+    VAD_FLOOR_CACHE_MAX_AGE_MS: 86400000,
+    createWakeWordEngine: vi.fn(),
+    PassiveListener: vi.fn(),
+    // API surface — useVoiceInput calls these at mount via the embed lazy
+    // client; intercept so tests don't hit the network.
+    getVoiceStreamConfig: vi.fn().mockResolvedValue({
+      flushIntervalMs: 0, minDeltaBytes: 0, overlapBytes: 0,
+      persistentMode: false, wakeWordEnabled: false, wakeWordThreshold: 0, segmentSilenceMs: 0,
     }),
-    createMediaStreamDestination: () => ({
-      stream: mockStream(),
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-    }),
-    createAnalyser: () => ({
-      fftSize: 0,
-      frequencyBinCount: 64,
-      getByteFrequencyData: vi.fn(),
-      getByteTimeDomainData: vi.fn(),
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-    }),
-    createGain: () => ({
-      gain: { value: 1 },
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-    }),
-    destination: {
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-    },
-    resume: vi.fn().mockResolvedValue(undefined),
-  }),
-  ensureAudioContextOnGesture: vi.fn(),
-  closeSharedAudioContext: vi.fn(),
-  installAudioContextKeepalive: vi.fn(),
-  teardownAudioContextKeepalive: vi.fn(),
-}));
-
-// Mock micReadiness — no real streams in jsdom
-vi.mock("../voice/micReadiness", () => ({
-  acquireStream: vi.fn().mockResolvedValue(mockStream()),
-  releaseStream: vi.fn(),
-  getStream: vi.fn().mockReturnValue(null),
-  isStreamAlive: vi.fn().mockReturnValue(false),
-  installVisibilityHandler: vi.fn().mockReturnValue(() => {}),
-  _resetMicReadiness: vi.fn(),
-}));
-
-// Mock VAD — skip calibration complexity
-vi.mock("../voice/vad", () => ({
-  createVadRefs: () => ({ state: "idle", silenceThreshold: 0, speechThreshold: 0, cachedFloorBaseline: null }),
-  createVadRefsFromCache: vi.fn(),
-  extractCacheableFloor: vi.fn().mockReturnValue({ silenceThreshold: 0.01, speechThreshold: 0.02, timestamp: Date.now() }),
-  saveNoiseFloorCache: vi.fn(),
-  loadNoiseFloorCache: vi.fn().mockReturnValue(null),
-  vadTick: vi.fn().mockReturnValue(null),
-  VAD_FLOOR_CACHE_MAX_AGE_MS: 86400000,
-}));
-
-// Mock wakeword — not relevant for cue tests
-vi.mock("../voice/wakeword", () => ({
-  createWakeWordEngine: vi.fn(),
-  PassiveListener: vi.fn(),
-}));
+    getWakeWordConfig: vi.fn().mockResolvedValue({ configured: false, template: null }),
+    transcribeAudioBypassFilter: vi.fn().mockResolvedValue(""),
+    transcribeAudio: vi.fn().mockResolvedValue(""),
+    transcribeAudioWithRetry: vi.fn().mockResolvedValue(""),
+    buildVoiceStreamWsUrl: vi.fn().mockReturnValue("ws://localhost:0"),
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Helpers

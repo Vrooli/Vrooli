@@ -31,8 +31,6 @@ import (
 	settingsH "web-console/handlers/settings"
 	shortcutsH "web-console/handlers/shortcuts"
 	terminalH "web-console/handlers/terminal"
-	ttsH "web-console/handlers/tts"
-	voiceH "web-console/handlers/voice"
 	workspaceH "web-console/handlers/workspace"
 )
 
@@ -53,8 +51,6 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, settingsH.Endpoints...)
 	out = append(out, shortcutsH.Endpoints...)
 	out = append(out, terminalH.Endpoints...)
-	out = append(out, ttsH.Endpoints...)
-	out = append(out, voiceH.Endpoints...)
 	out = append(out, workspaceH.Endpoints...)
 	return out
 }

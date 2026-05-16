@@ -65,16 +65,6 @@
         "develop"
       ],
       "notes": "Web console falls back to the standard PTY backend when tmux is unavailable"
-    },
-    {
-      "name": "ffmpeg",
-      "required": false,
-      "reason": "Preprocess uploaded and streamed audio into Whisper-friendly WAV during voice transcription flows",
-      "when": [
-        "setup",
-        "develop"
-      ],
-      "notes": "Voice transcription falls back to raw audio when ffmpeg is unavailable"
     }
   ],
   "lifecycle": {
@@ -242,7 +232,7 @@
   },
   "capabilities": {
     "offline_capable": false,
-    "offline_limitations": "AI features require Ollama (local) or OpenRouter (cloud); voice features require Whisper/Kokoro servers",
+    "offline_limitations": "AI features require Ollama (local) or OpenRouter (cloud); audio features are owned by audio-tools",
     "ai_providers": [
       "ollama",
       "openrouter"
@@ -252,22 +242,6 @@
   },
   "dependencies": {
     "resources": {
-      "kokoro": {
-        "type": "kokoro",
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Text-to-speech synthesis for voice output",
-        "degraded_behavior": "Voice output is unavailable"
-      },
-      "whisper": {
-        "type": "whisper",
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Speech-to-text transcription for voice input",
-        "degraded_behavior": "Voice input is unavailable"
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,
@@ -285,7 +259,7 @@
       "audio-tools": {
         "required": true,
         "startup_policy": "try_start",
-        "description": "Shared audio capabilities (TTS synthesis + speech-text normalization). web-console's TTS Connect handler proxies through audioports.Remote* to audio-tools. STT (voice transcription) is still served locally via internal/voice → Whisper until a follow-up adoption pass routes it through audioports too.",
+        "description": "All audio capabilities (TTS synthesis, voice listing, summarization, STT/transcription, speaker verification, wake word) flow through audio-tools via audioports.Remote* and @audio-tools/embed. web-console contains zero audio synthesis or transcription code.",
         "degraded_behavior": "Required at startup — web-console fails fast if audio-tools is not reachable on boot."
       }
     }

@@ -9,7 +9,7 @@ import (
 	"unicode/utf8"
 
 	conversationH "web-console/handlers/conversation"
-	inttts "web-console/internal/tts"
+	"web-console/internal/audioports"
 )
 
 // conversationAdapter implements conversationH.Service against the server's
@@ -71,9 +71,9 @@ func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eve
 	if _, ok := a.srv.sessions.Get(sessionID); !ok {
 		return conversationH.SummarizeResult{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
-	if a.srv.ttsSummarization == nil {
+	if a.srv.summarizer == nil {
 		return conversationH.SummarizeResult{
-			Error: "Summarizer not available — Ollama may not be running",
+			Error: "Summarizer not available — audio-tools is not reachable",
 		}, nil
 	}
 
@@ -92,41 +92,44 @@ func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eve
 		return conversationH.SummarizeResult{}, fmt.Errorf("only assistant events can be summarized: %w", conversationH.ErrInvalidArgument)
 	}
 
-	cfg := a.srv.getTTSSummarizeConfig()
+	policy := a.srv.getSummarizeAutoPolicy()
 	if strings.TrimSpace(event.Text) == "" {
 		return conversationH.SummarizeResult{
 			Error: "Event text is empty",
 		}, nil
 	}
 
-	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
+	timeout := time.Duration(policy.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
 		timeout = 120 * time.Second
 	}
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Normalization happens inside SummarizationService.run; passing raw text
-	// avoids the double-normalize wart.
-	result, err := a.srv.ttsSummarization.Summarize(cctx, inttts.SummarizeRequest{
-		EventID: eventID,
-		Path:    "on-demand",
-		Text:    event.Text,
+	out, err := a.srv.summarizer.Summarize(cctx, audioports.SummarizeInput{
+		Text:           event.Text,
+		Level:          policy.Level,
+		TimeoutSeconds: policy.TimeoutSeconds,
 	})
 	if err != nil {
-		logSummarizeResult("on-demand", cfg, eventID, len(event.Text), result, err)
+		logSummarizeResult("on-demand", policy, eventID, len(event.Text), out, err)
 		return conversationH.SummarizeResult{
-			Error: inttts.SummarizeErrorMessage(err),
+			Error: summarizeErrorMessage(err),
 		}, nil
 	}
-	logSummarizeResult("on-demand", cfg, eventID, len(event.Text), result, nil)
+	logSummarizeResult("on-demand", policy, eventID, len(event.Text), out, nil)
 
-	a.srv.conversations.UpdateSpeechParagraphs(sessionID, eventID, result.Paragraphs)
-	a.srv.invalidateTTSCacheForEvent(eventID)
+	newParagraphs := splitIntoSpeechParagraphs(out.Text)
+	if len(newParagraphs) == 0 {
+		return conversationH.SummarizeResult{
+			Error: "Summarization returned empty content",
+		}, nil
+	}
+	a.srv.conversations.UpdateSpeechParagraphs(sessionID, eventID, newParagraphs)
 
 	return conversationH.SummarizeResult{
 		Summarized:       true,
-		SpeechParagraphs: result.Paragraphs,
+		SpeechParagraphs: newParagraphs,
 	}, nil
 }
 

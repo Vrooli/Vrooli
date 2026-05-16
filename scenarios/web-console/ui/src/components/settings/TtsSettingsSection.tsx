@@ -5,10 +5,28 @@ import { Button } from "../ui/button";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { strings } from "../../consts/strings";
 import { toErrorInfo } from "../../lib/errors";
-import { getTTSStatus, getTTSSummarizeConfig, updateTTSSummarizeConfig, updateTTSConfig } from "../../api/tts";
-import type { TTSSummarizeConfig } from "../../api/tts";
+import {
+  getTTSConfig,
+  getTTSSummarizeConfig,
+  updateTTSConfig,
+  updateTTSSummarizeConfig,
+  type TTSSummarizeConfig,
+} from "@audio-tools/embed";
+import { getTTSHookStatus, updateTTSHookConfig } from "../../api/ttsHook";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
+
+// TtsSettingsSection split-of-concerns:
+//   - voice / speed / response-format / summarization knobs → @audio-tools/embed
+//     (the audio-tools scenario owns the canonical TTSConfig + summarize knobs).
+//   - autoEnabled / backend preference / startMuted / Claude-hook routing
+//     status → web-console-internal /api/v1/tts-hook/* (Claude-hook routing
+//     is a web-console concern, not an audio-tools concern, as is the
+//     workspace-store preference triple).
+//
+// audio-tools' TTSConfig exposes defaultVoice / defaultSpeed; the UI maps
+// kokoroVoice <-> defaultVoice and kokoroSpeed <-> defaultSpeed for backward
+// compatibility with the workspace-store fields and the existing test seams.
 
 export default function TtsSettingsSection() {
   const { t } = useTranslation();
@@ -45,7 +63,7 @@ export default function TtsSettingsSection() {
   const [testState, setTestState] = useState<"idle" | "running" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState<string | null>(null);
 
-  // Summarization config state
+  // Summarization config — sourced from audio-tools via @audio-tools/embed.
   const [summarizeConfig, setSummarizeConfig] = useState<TTSSummarizeConfig | null>(null);
   const [summarizeError, setSummarizeError] = useState<string | null>(null);
 
@@ -87,32 +105,37 @@ export default function TtsSettingsSection() {
     setStatusLoading(true);
     setStatusError(null);
     try {
-      const status = await getTTSStatus();
-      setAutoTtsEnabled(status.config.autoEnabled);
-      setTtsBackendPreference(status.config.backend);
-      setKokoroVoice(status.config.kokoroVoice);
-      setKokoroSpeed(status.config.kokoroSpeed);
-      setHookRegistered(status.hookRegistered);
-      setHookCode(status.hookCode ?? null);
-      setHookReason(status.hookReason);
-      setHookSettingsPath(status.hookSettingsPath ?? null);
-      setKokoroCapabilityLabel(status.kokoroCapabilityLabel ?? null);
-      setLastHookRoutingSummary(status.lastHookRouting
-        ? `${status.lastHookRouting.appended ? t(strings.settings.voiceOutputSection.appended) : t(strings.settings.voiceOutputSection.skipped)}: ${status.lastHookRouting.reason}`
+      const [hookStatus, voiceCfg] = await Promise.all([
+        getTTSHookStatus(),
+        getTTSConfig().catch(() => null),
+      ]);
+      setAutoTtsEnabled(hookStatus.config.autoEnabled);
+      setTtsBackendPreference(hookStatus.config.backend);
+      setStartMutedOnLoad(hookStatus.config.startMuted);
+      if (voiceCfg) {
+        if (voiceCfg.defaultVoice) setKokoroVoice(voiceCfg.defaultVoice);
+        if (voiceCfg.defaultSpeed > 0) setKokoroSpeed(voiceCfg.defaultSpeed);
+      }
+      setHookRegistered(hookStatus.hookRegistered);
+      setHookCode(hookStatus.hookCode ?? null);
+      setHookReason(hookStatus.hookReason);
+      setHookSettingsPath(hookStatus.hookSettingsPath ?? null);
+      setKokoroCapabilityLabel(hookStatus.audioToolsCapabilityLabel ?? null);
+      setLastHookRoutingSummary(hookStatus.lastHookRouting
+        ? `${hookStatus.lastHookRouting.appended ? t(strings.settings.voiceOutputSection.appended) : t(strings.settings.voiceOutputSection.skipped)}: ${hookStatus.lastHookRouting.reason}`
         : null);
-      setLastTailerRoutingSummary(status.lastTailerRouting
-        ? `${status.lastTailerRouting.appended ? t(strings.settings.voiceOutputSection.appended) : t(strings.settings.voiceOutputSection.skipped)}: ${status.lastTailerRouting.reason}`
+      setLastTailerRoutingSummary(hookStatus.lastTailerRouting
+        ? `${hookStatus.lastTailerRouting.appended ? t(strings.settings.voiceOutputSection.appended) : t(strings.settings.voiceOutputSection.skipped)}: ${hookStatus.lastTailerRouting.reason}`
         : null);
-      setLastHookAckSummary(status.lastHookAck
-        ? `${status.lastHookAck.stage}${status.lastHookAck.backend ? ` via ${status.lastHookAck.backend}` : ""}${status.lastHookAck.message ? `: ${status.lastHookAck.message}` : ""}`
+      setLastHookAckSummary(hookStatus.lastHookAck
+        ? `${hookStatus.lastHookAck.stage}${hookStatus.lastHookAck.backend ? ` via ${hookStatus.lastHookAck.backend}` : ""}${hookStatus.lastHookAck.message ? `: ${hookStatus.lastHookAck.message}` : ""}`
         : null);
-      setLastTailerAckSummary(status.lastTailerAck
-        ? `${status.lastTailerAck.stage}${status.lastTailerAck.backend ? ` via ${status.lastTailerAck.backend}` : ""}${status.lastTailerAck.message ? `: ${status.lastTailerAck.message}` : ""}`
+      setLastTailerAckSummary(hookStatus.lastTailerAck
+        ? `${hookStatus.lastTailerAck.stage}${hookStatus.lastTailerAck.backend ? ` via ${hookStatus.lastTailerAck.backend}` : ""}${hookStatus.lastTailerAck.message ? `: ${hookStatus.lastTailerAck.message}` : ""}`
         : null);
-      setLastPlaybackSummary(status.lastPlaybackEvent
-        ? `${status.lastPlaybackEvent.stage}${status.lastPlaybackEvent.backend ? ` via ${status.lastPlaybackEvent.backend}` : ""}${status.lastPlaybackEvent.message ? `: ${status.lastPlaybackEvent.message}` : ""}`
+      setLastPlaybackSummary(hookStatus.lastPlaybackEvent
+        ? `${hookStatus.lastPlaybackEvent.stage}${hookStatus.lastPlaybackEvent.backend ? ` via ${hookStatus.lastPlaybackEvent.backend}` : ""}${hookStatus.lastPlaybackEvent.message ? `: ${hookStatus.lastPlaybackEvent.message}` : ""}`
         : null);
-      // Load summarization config alongside TTS status
       try {
         const sumCfg = await getTTSSummarizeConfig();
         setSummarizeConfig(sumCfg);
@@ -124,26 +147,37 @@ export default function TtsSettingsSection() {
     } finally {
       setStatusLoading(false);
     }
-  }, [setAutoTtsEnabled, setKokoroSpeed, setKokoroVoice, setTtsBackendPreference, t]);
+  }, [setAutoTtsEnabled, setKokoroSpeed, setKokoroVoice, setStartMutedOnLoad, setTtsBackendPreference, t]);
 
   useEffect(() => {
     void loadTtsStatus();
   }, [loadTtsStatus]);
 
-  const persistTtsConfig = useCallback(async (patch: Parameters<typeof updateTTSConfig>[0]) => {
+  const persistHookConfig = useCallback(async (patch: { autoEnabled?: boolean; backend?: "auto" | "kokoro" | "browser"; startMuted?: boolean }) => {
     setSaveError(null);
     try {
-      const updated = await updateTTSConfig(patch);
+      const updated = await updateTTSHookConfig(patch);
       setAutoTtsEnabled(updated.autoEnabled);
       setTtsBackendPreference(updated.backend);
-      setKokoroVoice(updated.kokoroVoice);
-      setKokoroSpeed(updated.kokoroSpeed);
+      setStartMutedOnLoad(updated.startMuted);
       await refresh();
       await loadTtsStatus();
     } catch (persistError) {
       setSaveError(toErrorInfo(persistError).message);
     }
-  }, [loadTtsStatus, refresh, setAutoTtsEnabled, setKokoroSpeed, setKokoroVoice, setTtsBackendPreference]);
+  }, [loadTtsStatus, refresh, setAutoTtsEnabled, setStartMutedOnLoad, setTtsBackendPreference]);
+
+  const persistVoiceConfig = useCallback(async (patch: { defaultVoice?: string; defaultSpeed?: number }) => {
+    setSaveError(null);
+    try {
+      const updated = await updateTTSConfig(patch);
+      if (updated.defaultVoice) setKokoroVoice(updated.defaultVoice);
+      if (updated.defaultSpeed > 0) setKokoroSpeed(updated.defaultSpeed);
+      await refresh();
+    } catch (persistError) {
+      setSaveError(toErrorInfo(persistError).message);
+    }
+  }, [refresh, setKokoroSpeed, setKokoroVoice]);
 
   const runTtsTest = useCallback(async () => {
     setTestState("running");
@@ -192,7 +226,7 @@ export default function TtsSettingsSection() {
               onChange={(event) => {
                 const next = event.target.value as "auto" | "kokoro" | "browser";
                 setTtsBackendPreference(next);
-                void persistTtsConfig({ backend: next });
+                void persistHookConfig({ backend: next });
               }}
             >
               <option value="auto">{t(strings.settings.voiceOutputSection.backendPreferenceAutoOption)}</option>
@@ -212,7 +246,7 @@ export default function TtsSettingsSection() {
               onClick={() => {
                 const next = !autoTtsEnabled;
                 setAutoTtsEnabled(next);
-                void persistTtsConfig({ autoEnabled: next });
+                void persistHookConfig({ autoEnabled: next });
               }}
             />
           )}
@@ -225,7 +259,11 @@ export default function TtsSettingsSection() {
             <SettingsToggle
               testId="start-muted-toggle"
               checked={startMutedOnLoad}
-              onClick={() => setStartMutedOnLoad(!startMutedOnLoad)}
+              onClick={() => {
+                const next = !startMutedOnLoad;
+                setStartMutedOnLoad(next);
+                void persistHookConfig({ startMuted: next });
+              }}
             />
           )}
         />
@@ -331,7 +369,7 @@ export default function TtsSettingsSection() {
                 onChange={(event) => {
                   const next = event.target.value;
                   setKokoroVoice(next);
-                  void persistTtsConfig({ kokoroVoice: next });
+                  void persistVoiceConfig({ defaultVoice: next });
                 }}
               >
                 {ttsVoices.map((voice) => (
@@ -356,7 +394,7 @@ export default function TtsSettingsSection() {
                   onChange={(event) => {
                     const next = parseFloat(event.target.value);
                     setKokoroSpeed(next);
-                    void persistTtsConfig({ kokoroSpeed: next });
+                    void persistVoiceConfig({ defaultSpeed: next });
                   }}
                   className="w-24 accent-[rgb(var(--wc-accent))]"
                 />
@@ -367,7 +405,7 @@ export default function TtsSettingsSection() {
         </SettingsCard>
       )}
 
-      {/* Summarization settings */}
+      {/* Summarization — sourced from / persisted to audio-tools via @audio-tools/embed. */}
       <SettingsSectionIntro
         eyebrow={t(strings.settings.voiceOutputSection.summarizationEyebrow)}
         title={t(strings.settings.voiceOutputSection.summarizationTitle)}
