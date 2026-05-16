@@ -8,13 +8,23 @@
     "app-foreground": "var(--color-foreground)",
     "app-muted-foreground": "var(--color-muted-foreground)",
     "app-border": "var(--color-border)",
+    "app-border-strong": "var(--color-border-strong)",
     "app-primary": "var(--color-primary)",
     "app-primary-foreground": "var(--color-primary-foreground)",
     "app-accent": "var(--color-accent)",
+    "app-accent-foreground": "var(--color-accent-foreground)",
     "app-success": "var(--color-success)",
+    "app-success-foreground": "var(--color-success-foreground)",
+    "app-success-soft": "var(--color-success-soft)",
     "app-danger": "var(--color-danger)",
+    "app-danger-foreground": "var(--color-danger-foreground)",
+    "app-danger-soft": "var(--color-danger-soft)",
     "app-warning": "var(--color-warning)",
+    "app-warning-foreground": "var(--color-warning-foreground)",
+    "app-warning-soft": "var(--color-warning-soft)",
     "app-info": "var(--color-info)",
+    "app-info-foreground": "var(--color-info-foreground)",
+    "app-info-soft": "var(--color-info-soft)",
     "app-focus": "var(--color-focus)"
   },
   "borderRadius": {
@@ -29,7 +39,9 @@
   },
   "spacing": {
     "touch": "var(--touch-target)",
-    "sidebar": "var(--sidebar-width)"
+    "sidebar": "var(--sidebar-width)",
+    "topbar": "var(--topbar-height)",
+    "mobile-nav": "var(--mobile-nav-height)"
   },
   "minWidth": {
     "touch": "var(--touch-target)",
@@ -37,5 +49,11 @@
   },
   "maxWidth": {
     "sidebar": "var(--sidebar-max-width)"
+  },
+  "zIndex": {
+    "sticky": "30",
+    "drawer": "40",
+    "modal": "50",
+    "toast": "60"
   }
 }

@@ -1,16 +1,20 @@
+import type { JSX } from "react";
+
 export interface MicReadinessIndicatorProps {
   state: "unknown" | "granted" | "denied" | "prompt";
+  /** Caller-supplied labels per state (translated). */
+  labels?: Partial<Record<MicReadinessIndicatorProps["state"], string>>;
 }
 
+const DEFAULT_LABELS: Record<MicReadinessIndicatorProps["state"], string> = {
+  granted: "Microphone ready",
+  denied: "Microphone denied",
+  prompt: "Microphone permission required",
+  unknown: "Microphone status unknown",
+};
+
 export function MicReadinessIndicator(props: MicReadinessIndicatorProps): JSX.Element {
-  const label =
-    props.state === "granted"
-      ? "Microphone ready"
-      : props.state === "denied"
-      ? "Microphone denied"
-      : props.state === "prompt"
-      ? "Microphone permission required"
-      : "Microphone status unknown";
+  const label = props.labels?.[props.state] ?? DEFAULT_LABELS[props.state];
   return (
     <span
       role="status"

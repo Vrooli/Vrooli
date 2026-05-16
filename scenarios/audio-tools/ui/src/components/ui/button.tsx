@@ -3,23 +3,26 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-control text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60",
+  "inline-flex items-center justify-center gap-2 rounded-control text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus/60 disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       variant: {
         default: "bg-app-primary text-app-primary-foreground hover:brightness-95",
-        outline: "border border-app-border text-app-foreground hover:bg-app-surface-muted"
+        outline: "border border-app-border bg-app-surface text-app-foreground hover:bg-app-surface-muted",
+        ghost: "bg-transparent text-app-foreground hover:bg-app-surface-muted",
+        subtle: "bg-app-surface-muted text-app-foreground hover:bg-app-surface-muted/70",
+        destructive: "bg-app-danger text-app-danger-foreground hover:brightness-95",
+        link: "text-app-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-11 px-5",
-        sm: "h-9 px-4"
-      }
+        default: "h-10 px-4",
+        sm: "h-8 px-3 text-xs",
+        lg: "h-12 px-6 text-base",
+        icon: "h-9 w-9 p-0",
+      },
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default"
-    }
-  }
+    defaultVariants: { variant: "default", size: "default" },
+  },
 );
 
 export interface ButtonProps
@@ -30,6 +33,7 @@ export interface ButtonProps
 
 export function Button({ className, variant, size, asChild = false, ...props }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
-
   return <Comp className={cn(buttonVariants({ variant, size, className }))} {...props} />;
 }
+
+export { buttonVariants };

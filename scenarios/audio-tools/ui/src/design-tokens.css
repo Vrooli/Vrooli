@@ -1,22 +1,32 @@
 :root {
   --color-background: #f8fafc;
-  --color-shell: #020617;
+  --color-shell: #f1f5f9;
   --color-surface: #ffffff;
   --color-surface-muted: #f1f5f9;
   --color-surface-raised: #ffffff;
   --color-foreground: #0f172a;
   --color-muted-foreground: #64748b;
-  --color-border: #cbd5e1;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
   --color-primary: #2563eb;
   --color-primary-foreground: #ffffff;
   --color-accent: #0891b2;
+  --color-accent-foreground: #ffffff;
   --color-success: #16a34a;
+  --color-success-foreground: #ffffff;
+  --color-success-soft: #dcfce7;
   --color-danger: #dc2626;
+  --color-danger-foreground: #ffffff;
+  --color-danger-soft: #fee2e2;
   --color-warning: #d97706;
+  --color-warning-foreground: #ffffff;
+  --color-warning-soft: #fef3c7;
   --color-info: #0284c7;
+  --color-info-foreground: #ffffff;
+  --color-info-soft: #e0f2fe;
   --color-focus: #2563eb;
-  --scrollbar-thumb: #94a3b8;
-  --scrollbar-thumb-hover: #64748b;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
   --radius-control: 0.375rem;
   --radius-panel: 0.5rem;
   --radius-sheet: 1rem;
@@ -25,14 +35,15 @@
   --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
   --spacing-unit: 0.25rem;
   --touch-target: 44px;
-  --sidebar-width: 20rem;
-  --sidebar-min-width: 16.25rem;
-  --sidebar-max-width: 30rem;
+  --sidebar-width: 16rem;
+  --sidebar-min-width: 12rem;
+  --sidebar-max-width: 24rem;
+  --topbar-height: 3.25rem;
+  --mobile-nav-height: 3.75rem;
   color-scheme: light;
 }
 
-:root[data-resolved-theme="dark"],
-.dark {
+:root[data-resolved-theme="dark"] {
   --color-background: #020617;
   --color-shell: #020617;
   --color-surface: #0f172a;
@@ -40,42 +51,28 @@
   --color-surface-raised: #172033;
   --color-foreground: #f8fafc;
   --color-muted-foreground: #94a3b8;
-  --color-border: #334155;
+  --color-border: #1e293b;
+  --color-border-strong: #334155;
   --color-primary: #60a5fa;
   --color-primary-foreground: #020617;
   --color-accent: #22d3ee;
+  --color-accent-foreground: #020617;
   --color-success: #22c55e;
+  --color-success-foreground: #052e16;
+  --color-success-soft: #052e16;
   --color-danger: #f87171;
+  --color-danger-foreground: #450a0a;
+  --color-danger-soft: #450a0a;
   --color-warning: #f59e0b;
+  --color-warning-foreground: #422006;
+  --color-warning-soft: #422006;
   --color-info: #38bdf8;
+  --color-info-foreground: #082f49;
+  --color-info-soft: #082f49;
   --color-focus: #60a5fa;
-  --scrollbar-thumb: #475569;
-  --scrollbar-thumb-hover: #64748b;
+  --scrollbar-thumb: #334155;
+  --scrollbar-thumb-hover: #475569;
   color-scheme: dark;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-resolved-theme="light"]) {
-    --color-background: #020617;
-    --color-shell: #020617;
-    --color-surface: #0f172a;
-    --color-surface-muted: #1e293b;
-    --color-surface-raised: #172033;
-    --color-foreground: #f8fafc;
-    --color-muted-foreground: #94a3b8;
-    --color-border: #334155;
-    --color-primary: #60a5fa;
-    --color-primary-foreground: #020617;
-    --color-accent: #22d3ee;
-    --color-success: #22c55e;
-    --color-danger: #f87171;
-    --color-warning: #f59e0b;
-    --color-info: #38bdf8;
-    --color-focus: #60a5fa;
-    --scrollbar-thumb: #475569;
-    --scrollbar-thumb-hover: #64748b;
-    color-scheme: dark;
-  }
 }
 
 * {

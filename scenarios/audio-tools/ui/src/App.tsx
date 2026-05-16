@@ -1,23 +1,62 @@
+import { lazy, Suspense } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { getProxyInfo } from "@vrooli/api-base";
 import { AppShell } from "./components/AppShell";
-import { HealthCard } from "./features/health/HealthCard";
-import { ConfigurationConsole } from "./features/configuration/ConfigurationConsole";
-import { DiagnosticsWorkbench } from "./features/diagnostics/DiagnosticsWorkbench";
-import { UsageDashboard } from "./features/usage/UsageDashboard";
-import { DocsViewer } from "./features/docs/DocsViewer";
+import { PreferencesProvider } from "./hooks/usePreferences";
+import { useTranslation } from "./i18n";
+import { strings } from "./consts/strings";
 
-/**
- * audio-tools UI composition. The four P0 archetype features are rendered
- * directly under the AppShell; future iterations replace this flat
- * composition with a router (sidebar + per-archetype pages).
- */
+const OverviewPage = lazy(() => import("./features/overview/OverviewPage").then((m) => ({ default: m.OverviewPage })));
+const DiagnosticsPage = lazy(() => import("./features/diagnostics/DiagnosticsPage").then((m) => ({ default: m.DiagnosticsPage })));
+const ConfigurationPage = lazy(() => import("./features/configuration/ConfigurationPage").then((m) => ({ default: m.ConfigurationPage })));
+const VoicesPage = lazy(() => import("./features/voices/VoicesPage").then((m) => ({ default: m.VoicesPage })));
+const UsagePage = lazy(() => import("./features/usage/UsagePage").then((m) => ({ default: m.UsagePage })));
+const DocsPage = lazy(() => import("./features/docs/DocsPage").then((m) => ({ default: m.DocsPage })));
+const NotFoundPage = lazy(() => import("./features/not-found/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
+
+function getRouterBasename(): string {
+  const info = getProxyInfo();
+  const path = info?.primary.path ?? info?.basePath;
+  if (!path) return "";
+  return path.replace(/\/+$/, "");
+}
+
 export default function App() {
+  const basename = getRouterBasename();
   return (
-    <AppShell>
-      <HealthCard />
-      <ConfigurationConsole />
-      <DiagnosticsWorkbench />
-      <UsageDashboard />
-      <DocsViewer />
-    </AppShell>
+    <PreferencesProvider>
+      <BrowserRouter basename={basename}>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route index element={<OverviewPage />} />
+              <Route path="diagnostics" element={<DiagnosticsPage />} />
+              <Route path="configuration" element={<ConfigurationPage />} />
+              <Route path="voices" element={<VoicesPage />} />
+              <Route path="usage" element={<UsagePage />} />
+              <Route path="docs" element={<DocsPage />} />
+              <Route path="overview" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </PreferencesProvider>
+  );
+}
+
+function RouteFallback() {
+  const { t } = useTranslation();
+  return (
+    <div
+      role="status"
+      aria-label={t(strings.common.loading)}
+      className="flex h-screen items-center justify-center text-sm text-app-muted-foreground"
+    >
+      <span
+        aria-hidden="true"
+        className="h-6 w-6 animate-spin rounded-full border-2 border-app-border border-t-app-primary"
+      />
+    </div>
   );
 }

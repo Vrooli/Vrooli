@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { JSX } from "react";
 
 export interface VoiceInputButtonProps {
   /** Called with the final transcript when STT completes. */
@@ -19,6 +20,8 @@ export interface VoiceInputButtonProps {
   mode?: "push-to-talk" | "wake-word";
   /** Optional ARIA label override. */
   ariaLabel?: string;
+  /** Optional listening-state label override. */
+  listeningLabel?: string;
 }
 
 /**
@@ -37,7 +40,7 @@ export function VoiceInputButton(props: VoiceInputButtonProps): JSX.Element {
       onClick={() => setListening((v) => !v)}
       className="audio-tools-embed-voice-input-button"
     >
-      {listening ? "Listening…" : "🎙"}
+      {listening ? (props.listeningLabel ?? "Listening…") : "🎙"}
     </button>
   );
 }

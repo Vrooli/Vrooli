@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import type { JSX } from "react";
 
 export interface AudioPlayerBarProps {
   /** Direct audio URL (e.g., audio-tools cache hit) — takes precedence over audioBytes. */
@@ -44,6 +45,10 @@ export function AudioPlayerBar(props: AudioPlayerBarProps): JSX.Element {
     if (props.speed && props.speed > 0) el.playbackRate = props.speed;
   }, [props.speed]);
 
+  // Synthesized TTS output has no captions track; consumers add subtitles
+  // upstream when they know the source language. This is the documented
+  // exception for audio-tools' embed surface.
+  /* eslint-disable jsx-a11y/media-has-caption */
   return (
     <audio
       ref={audioRef}
@@ -55,4 +60,5 @@ export function AudioPlayerBar(props: AudioPlayerBarProps): JSX.Element {
       className="audio-tools-embed-audio-player-bar"
     />
   );
+  /* eslint-enable jsx-a11y/media-has-caption */
 }
