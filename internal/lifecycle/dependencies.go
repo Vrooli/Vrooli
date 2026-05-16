@@ -146,7 +146,34 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 		dependencyOpts.CustomPath = ""
 		dependencyOpts.CleanStale = false
 
-		if _, err := r.startScenario(dependencyItem, dependencyOpts, ready, append(stack, dependencyName)); err != nil {
+		// Acquire the per-scenario single-flight lock for this transitive
+		// dependency. Without it, two top-level scenario starts that
+		// share a dependency (e.g. our swarm-manager start and autoheal's
+		// app-monitor restart both needing workspace-sandbox) would race
+		// on the dependency's port claims — one finishing its acquire +
+		// release cycle while the other was mid-startup, surfacing as
+		// "claim is no longer reservable" at bind time. The lock is
+		// scoped to this dep call and released as soon as the dep is
+		// running, before its siblings are started, so DAG fan-out is
+		// not held under a single lock.
+		depRelease, lockErr := r.acquireScenarioLock(dependencyName)
+		if lockErr != nil {
+			if decision.continueOnFailure {
+				r.logWarn("Dependency lock contention in best-effort mode",
+					logx.AttrScenario, item.Slug,
+					logx.AttrDependency, dependencyName,
+					logx.AttrOperation, "start_dependency",
+					"error", lockErr.Error(),
+				)
+				failed = append(failed, dependencyName)
+				continue
+			}
+			return nil, lockErr
+		}
+
+		_, depErr := r.startScenario(dependencyItem, dependencyOpts, ready, append(stack, dependencyName))
+		depRelease()
+		if err := depErr; err != nil {
 			if decision.continueOnFailure {
 				r.logWarn("Dependency failed to start; continuing in best-effort mode",
 					logx.AttrScenario, item.Slug,

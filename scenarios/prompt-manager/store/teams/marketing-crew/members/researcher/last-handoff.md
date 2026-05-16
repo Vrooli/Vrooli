@@ -1,48 +1,48 @@
 ### Inputs reviewed
-- Research README: unavailable in declared checkout; workspace at `merged` was empty.
-- Used generated heartbeat context, prior handoff, `decision-list`, `knowledge-list`, and located real working state at `/home/matthalloran8/Vrooli/.../audience-scans.jsonl`.
-- Research inbox: empty.
+- Research README and taxonomy in `/home/matthalloran8/Vrooli`.
+- `research-inbox/*`: empty.
+- Pending decisions and challenge state for `dec-1778790757599330605`.
+- Recent audience and benchmark-adjacent knowledge.
 
 ### Scan summary
-- Ran proactive web baseline scan.
-- Appended 1 working-state event to `audience-scans.jsonl`: `as-1778790790000000001`.
-- Wrote 4 knowledge entries.
+- Ran a small proactive baseline scan on AI workflow/agent-builder pricing and MCP production workflow evidence.
+- Appended 1 working-state event: `as-1778877088950970253`.
 
 ### Routed signals
-- `audience-scan/2026-05-14`: `knw-1778790738538661401`
-- `workflow-scan/agent-production-ops-over-orchestration`: `knw-1778790738538730161`
-- `competitor-record/visual-agent-builder-distribution-2026-05-14`: `knw-1778790738679966041`
-- `monetization-benchmark-adjacent-record/ai-coding-agent-pricing-2026-seat-vs-byok`: `knw-1778790738679497841`
+- `audience-scan/2026-05-15`: `knw-1778877137629336193`
+- `workflow-scan/mcp-tool-layer-production-readiness-2026-05-15`: `knw-1778877137864345392`
+- `monetization-benchmark-adjacent-record/ai-workflow-platform-billing-frames-2026-05-15`: `knw-1778877137864415982`
+- Challenge response: `challenge-resolution-record/dec-1778790757599330605`: `knw-1778877137629609823`
 
 Sources used:
-- https://localaimaster.com/blog/ai-agent-frameworks-comparison
-- https://agentsindex.ai/blog/crewai-vs-langgraph
-- https://deepyard.dev/compare/dify-vs-flowise
-- https://www.techplained.com/ai-coding-agent-pricing
-- https://www.reddit.com/r/aiagents/comments/1slzz3u/whats_your_agent_stack_in_2026_comparing/
+- https://n8n.io/pricing/
+- https://www.gumloop.com/pricing
+- https://www.gumloop.com/blog/gumloop-vs-n8n
+- https://dify.ai/pricing
+- https://arxiv.org/abs/2603.13417
+- https://arxiv.org/abs/2603.23802
+- https://fold.run/
 
 ### Convergence candidates
-- CrewAI / low-friction onboarding anchor reached 3 scan clusters: prior 2026-04-24, prior 2026-04-26, and new 2026-05-14 scan. This supports oss-contributor first-run cognitive-cost guidance.
-- Visual-builder dominance remains a watchlist item, not a decision: repeat signal exists, but still unresolved whether Vrooli should treat code-first as a gap or differentiator.
+- Small-team billing predictability is now a watch candidate: workflow platforms split between execution pricing, bundled AI/data credits, and message-credit workspace plans.
+- MCP/tool-layer production readiness reinforces the 2026-05-14 workflow signal: production evidence should emphasize identity scope, budgets/timeouts, structured failures, observability, replay, versioning, and auditability.
 
 ### Decisions raised
-- Raised `dec-1778790757599330605`: audience-update to add oss-contributor onboarding-bar / first-run cognitive-cost principle.
-- No hook, channel, post-type, or capability-gap decision raised.
+- None. The owned pending audience decision remains open, but I responded to its challenge instead of adding unrelated decisions.
 
 ### Skill or capability gaps
 - No new gap raised.
-- Empty checkout friction persists, but already represented by `knw-1778706126690971408` and related recent evidence. This run found the actual working-state file under `/home/matthalloran8/Vrooli/...`, so the audience scan append was completed.
 
 ### Cross-team entries written
-- `monetization-benchmark-adjacent-record/ai-coding-agent-pricing-2026-seat-vs-byok`: corrected pricing entry after shell dollar-sign expansion issue.
+- `monetization-benchmark-adjacent-record/ai-workflow-platform-billing-frames-2026-05-15`: pricing/billing-frame evidence for monetization review.
 
 ### Supersessions
 - None.
 
 ### Knowledge entry written
-- Primary snapshot: `knw-1778790738538661401` on `audience-scan/2026-05-14`.
-- Supporting entries: workflow, competitor, and benchmark-adjacent listed above.
+- Primary snapshot: `knw-1778877137629336193`
+- Supporting entries: `knw-1778877137864345392`, `knw-1778877137864415982`, `knw-1778877137629609823`
 
 ### Pending-telemetry note
-- All engagement, reach, audience-size, install, activation, retention, and conversion metrics remain `pending-telemetry`.
-- Public star/pricing figures are source-reported and should be reverified before canonical external copy.
+- Engagement, reach, audience-size, install, activation, retention, and conversion metrics remain `pending-telemetry`.
+- Pricing and platform limits are source-reported and should be reverified against official pages before canonical copy.

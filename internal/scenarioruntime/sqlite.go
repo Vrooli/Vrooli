@@ -277,11 +277,18 @@ func (s *SQLiteStore) BindPortClaim(ctx context.Context, claimID string) (PortCl
 	now := s.now()
 	var out PortClaim
 	err := s.withTx(ctx, func(tx *sql.Tx) error {
+		// Restrict the UPDATE to rows still in `reserved`. If the row's
+		// status was flipped to `expired`, `released`, or `bound` by
+		// another path between acquire and bind, the UPDATE matches zero
+		// rows and we return a typed error instead of blowing past the
+		// partial unique index `(port, bind_host) WHERE status IN
+		// ('reserved','bound')` — which would otherwise re-add this row
+		// to the index and collide with whatever active row replaced it.
 		result, err := tx.ExecContext(ctx, `
 UPDATE runtime_port_claims
 SET status = ?, updated_at = ?, expires_at = NULL, last_bound_at = ?
-WHERE claim_id = ?`,
-			ClaimStatusBound, formatTime(now), formatTime(now), claimID)
+WHERE claim_id = ? AND status = ?`,
+			ClaimStatusBound, formatTime(now), formatTime(now), claimID, ClaimStatusReserved)
 		if err != nil {
 			return fmt.Errorf("bind runtime port claim: %w", err)
 		}
@@ -290,7 +297,11 @@ WHERE claim_id = ?`,
 			return fmt.Errorf("inspect runtime port claim bind: %w", err)
 		}
 		if affected == 0 {
-			return ErrNotFound
+			existing, err := getPortClaimTx(ctx, tx, claimID)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("%w: claim %s status=%s", ErrClaimNotReservable, claimID, existing.Status)
 		}
 		out, err = getPortClaimTx(ctx, tx, claimID)
 		return err

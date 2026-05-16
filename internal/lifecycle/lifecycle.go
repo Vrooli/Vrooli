@@ -316,6 +316,19 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 }
 
 func (r *Runner) Start(name string, opts StartOptions) (Result, error) {
+	release, err := r.acquireScenarioLock(name)
+	if err != nil {
+		r.logError("Scenario start blocked by concurrent invocation", err, logx.AttrScenario, name)
+		return Result{}, err
+	}
+	defer release()
+	return r.startLocked(name, opts)
+}
+
+// startLocked is the lock-free body of Start. Callers must already hold the
+// per-scenario advisory lock for `name` (acquireScenarioLock). Used by Start
+// and Restart to avoid double-acquiring the lock from the same goroutine.
+func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
 	r.progressf("starting %s...", name)
 	r.logInfo("Scenario start requested",
 		logx.AttrScenario, name,
@@ -419,14 +432,14 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 				AlreadyRunning:     true,
 			}, nil
 		}
-		if err := r.Stop(item.Slug, StopOptions{}); err != nil {
+		if err := r.stopLocked(item.Slug, StopOptions{}); err != nil {
 			return Result{}, err
 		}
 		deps.sleep(1 * time.Second)
 	} else if registryView.Present {
 		// Stale or non-authoritative registry instance exists; clean it up
 		// before starting fresh so leftover claims do not collide.
-		if err := r.Stop(item.Slug, StopOptions{}); err != nil {
+		if err := r.stopLocked(item.Slug, StopOptions{}); err != nil {
 			return Result{}, err
 		}
 		deps.sleep(1 * time.Second)
@@ -565,6 +578,19 @@ func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, runtimeSessi
 }
 
 func (r *Runner) Stop(name string, opts StopOptions) error {
+	release, err := r.acquireScenarioLock(name)
+	if err != nil {
+		r.logError("Scenario stop blocked by concurrent invocation", err, logx.AttrScenario, name)
+		return err
+	}
+	defer release()
+	return r.stopLocked(name, opts)
+}
+
+// stopLocked is the lock-free body of Stop. Callers must already hold the
+// per-scenario advisory lock. Used internally by startScenario (which is
+// itself called under the Start/Restart lock) and by Restart.
+func (r *Runner) stopLocked(name string, opts StopOptions) error {
 	r.progressf("stopping %s...", name)
 	r.logInfo("Scenario stop requested", logx.AttrScenario, name)
 	if err := r.cleanupScenarioRuntime(name, opts.CustomPath, true); err != nil {
@@ -669,9 +695,15 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, customPath string, inc
 }
 
 func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
+	release, err := r.acquireScenarioLock(name)
+	if err != nil {
+		r.logError("Scenario restart blocked by concurrent invocation", err, logx.AttrScenario, name)
+		return Result{}, err
+	}
+	defer release()
 	deps := r.runtimeDeps()
 	r.logInfo("Scenario restart requested", logx.AttrScenario, name)
-	if err := r.Stop(name, StopOptions{}); err != nil {
+	if err := r.stopLocked(name, StopOptions{}); err != nil {
 		r.logError("Scenario restart failed during stop", err, logx.AttrScenario, name)
 		return Result{}, err
 	}
@@ -679,7 +711,7 @@ func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 	opts.ForceSetup = true
 	opts.ForceSetupScenario = name
 	opts.Operation = "restart"
-	result, err := r.Start(name, opts)
+	result, err := r.startLocked(name, opts)
 	if err != nil {
 		r.logError("Scenario restart failed during start", err, logx.AttrScenario, name)
 		return Result{}, err

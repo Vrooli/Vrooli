@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "0 15 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-14T19:00:00Z",
-    "endedAt": "2026-05-14T19:03:16Z",
+    "startedAt": "2026-05-15T19:00:00Z",
+    "endedAt": "2026-05-15T19:01:31Z",
     "status": "completed",
-    "runId": "cfb731e4-5c74-49c7-bb28-7a4b4ef1a80c",
-    "logPath": "../store/teams/marketing-crew/members/brand-manager/logs/2026-05-14T19-00-00Z.log"
+    "runId": "bce0b98a-95c0-40d0-bd5f-dab731886feb",
+    "logPath": "../store/teams/marketing-crew/members/brand-manager/logs/2026-05-15T19-00-00Z.log"
   },
-  "revision": 83,
+  "revision": 86,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-14T19:03:17Z"
+  "updatedAt": "2026-05-15T19:01:32Z"
 }

@@ -1,6 +1,6 @@
-- New pending decision: `dec-1778797170919215163` by portfolio-manager. It recommends promoting `design-language-foundation` to next workshop-authoring priority while holding `hosted-cloud-tier-foundation` and `web-console-readiness`.
-- Existing pending decision still open: `dec-1777312920606447957` social-media-scheduler, operator-raised. Coverage check found no existing social/scheduler/publish initiative; related standalone items exist but do not cover the scenario.
-- Velocity is now a real concern: stats show 0 completions for the weeks of 2026-04-29, 2026-05-06, and 2026-05-13. Re-check first next heartbeat.
-- GCT cluster still flat: AI provenance 0/2, commit-linking 0/3, GitHub integration 0/5, merge/conflicts 0/4, release pipeline 0/2, pre-commit security 1/5. `execute/qa-git-control-tower-code-quality-20260408` is still failed and blocks multiple GCT items, but `execute/gct-pending-ai-provenance-hardening` is unblocked, so no GCT-specific decision was raised this heartbeat.
-- Edge drift still below escalation threshold: 7 missing_explicit + 28 possibly_stale. Do not re-raise expected `web-console-readiness -> continuous-audio-platform`.
-- Storage friction: generated Storage Map still says to use `knowledge-add --by`; CLI rejects `--by` as removed. Retried successfully with `--caller-note`. Attempted to file report-friction to `meta-optimization`, but CLI/API rejected cross-team write with `team_mismatch`.
+- New pending decision: `dec-1778883472874563187` by portfolio-manager. It recommends promoting/running `fix/qa-git-control-tower-tests-playbook-schema-20260515` and `execute/qa-git-control-tower-code-quality-20260408` before dependent GCT feature work.
+- Existing pending decision still open: `dec-1778797170919215163` on prioritizing `design-language-foundation` workshop authoring.
+- Deferred operator proposal still open: `dec-1777312920606447957` social-media-scheduler. Coverage re-check on 2026-05-15 found 0 initiatives, 0 orphan items, and no scenario backlog items.
+- Velocity remains the first thing to re-check next heartbeat: stats show 0 completions for weeks ending 2026-04-30, 2026-05-07, and 2026-05-14; 18 items created in last 7d.
+- GCT bottleneck sharpened: new playbook schema fix now appears across GCT dependencies, alongside the older failed code-quality item.
+- Storage friction persists: Storage Map says `knowledge-add --by`, but CLI requires `--caller-note`; `decision-add` still requires `--by`.

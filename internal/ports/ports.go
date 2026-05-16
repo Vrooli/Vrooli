@@ -727,8 +727,21 @@ func classifyStuckInstance(instance scenarioruntime.Instance, currentBootID stri
 	if instance.OwnerPID != nil && *instance.OwnerPID > 0 && !pidIsRunning(*instance.OwnerPID) {
 		return "owner_pid_dead", true
 	}
+	// Heartbeat-only staleness is no longer sufficient: scenarios with
+	// long-running setup/develop phases (e.g. web-console's UI build at
+	// 4400+ vite modules) routinely run past the 30s heartbeat TTL while
+	// the owning process is still alive and making forward progress.
+	// Preempting in that window kills in-flight builds and surfaces as
+	// "generation is stale" / bind UNIQUE constraint errors. Require an
+	// additional corroborating signal — owner_pid known-dead, status
+	// non-active, or boot mismatch — before classifying as stale. A
+	// missing owner_pid combined with an expired heartbeat is treated as
+	// stale because the supervisor is supposed to populate owner_pid
+	// once it has heartbeated at least once.
 	if instance.HeartbeatDeadlineAt != nil && !instance.HeartbeatDeadlineAt.After(now) {
-		return "heartbeat_expired", true
+		if instance.OwnerPID == nil || *instance.OwnerPID <= 0 {
+			return "heartbeat_expired_no_owner", true
+		}
 	}
 	return "", false
 }

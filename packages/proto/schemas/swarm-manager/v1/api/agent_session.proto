@@ -105,6 +105,15 @@ message StartAgentSessionRequest {
   string message = 2;
   repeated string attachment_ids = 3;
   repeated AgentSessionContextRef context_refs = 4;
+  // Auto context policy.
+  // @constraint one of: empty, default, none
+  optional string auto_context_policy = 5 [(buf.validate.field).string = {
+    in: [
+      "",
+      "default",
+      "none"
+    ]
+  }];
 }
 
 // StartAgentSessionResponse returns the spawned session.
@@ -129,7 +138,7 @@ message ContinueAgentSessionResponse {
 // as context for a single session message.
 message AgentSessionContextRef {
   // Context type.
-  // @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session
+  // @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing
   string type = 1 [(buf.validate.field).string = {
     in: [
       "backlog_item",
@@ -139,7 +148,8 @@ message AgentSessionContextRef {
       "agent_activity",
       "scenario",
       "operating_mode",
-      "session"
+      "session",
+      "operations_briefing"
     ]
   }];
 

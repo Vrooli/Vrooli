@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "30 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T18:30:00Z",
-    "endedAt": "2026-05-13T18:31:51Z",
-    "status": "completed",
-    "runId": "541dca0f-7a0b-421f-a5f0-21bb6cca3e81",
-    "logPath": "../store/teams/marketing-crew/members/subscription-advertiser/logs/2026-05-13T18-30-00Z.log"
+    "startedAt": "2026-05-15T18:30:00Z",
+    "endedAt": "2026-05-15T18:30:06Z",
+    "status": "failed",
+    "runId": "b969d9cb-c1f6-4850-bf8e-154467810a19",
+    "logPath": "../store/teams/marketing-crew/members/subscription-advertiser/logs/2026-05-15T18-30-00Z.log",
+    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
   },
-  "revision": 74,
+  "revision": 77,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-13T18:31:51Z"
+  "updatedAt": "2026-05-15T18:30:07Z"
 }

@@ -81,11 +81,25 @@ func ReconcileRuntime(in ReconcileInput) ReconcileResult {
 	if in.Instance.HostBootID != in.CurrentBootID {
 		return result.fail(ReconcileStaleInstance, "instance was written by a previous host boot")
 	}
-	if in.Instance.Status == StatusStarting && in.Instance.HeartbeatDeadlineAt != nil && !in.Instance.HeartbeatDeadlineAt.After(in.Now) {
-		return result.fail(ReconcileStaleInstance, "starting lease heartbeat deadline has expired")
-	}
-	if in.Instance.Status == StatusRunning && in.Instance.SupervisorID != "" && in.Instance.HeartbeatDeadlineAt != nil && !in.Instance.HeartbeatDeadlineAt.After(in.Now) {
-		return result.fail(ReconcileStaleInstance, "supervised running lease heartbeat deadline has expired")
+	// Heartbeat-only staleness is no longer sufficient: long-running setup
+	// or develop phases (e.g. web-console's UI build at 4400+ vite modules)
+	// routinely run past the 30s heartbeat TTL while the owner process is
+	// still alive and making forward progress. Treating those as stale
+	// caused parallel-restart invocations and on-demand reapers to release
+	// in-flight startup's port claims, surfacing as bind UNIQUE/"claim is
+	// no longer reservable" errors. Require corroborating evidence — owner
+	// PID known-dead or missing — before classifying as stale. This
+	// mirrors the conservative classifier used by ports.preemptFixedPortConflict.
+	if in.Instance.HeartbeatDeadlineAt != nil && !in.Instance.HeartbeatDeadlineAt.After(in.Now) &&
+		isOwnerKnownDead(in.Instance.OwnerPID, in.Processes) {
+		switch in.Instance.Status {
+		case StatusStarting:
+			return result.fail(ReconcileStaleInstance, "starting lease heartbeat deadline has expired (owner pid known-dead)")
+		case StatusRunning:
+			if in.Instance.SupervisorID != "" {
+				return result.fail(ReconcileStaleInstance, "supervised running lease heartbeat deadline has expired (owner pid known-dead)")
+			}
+		}
 	}
 
 	deadKnownRefs, liveKnownRefs := processRefEvidence(in)
@@ -192,6 +206,25 @@ func reconcileClaims(claims []PortClaim, authoritative bool, reason string) []Re
 		})
 	}
 	return out
+}
+
+// isOwnerKnownDead returns true only when the input.Processes map has
+// positive evidence that the owner PID is no longer running. Absence of
+// evidence is NOT enough: the orchestrator/runner PID typically has no
+// process_ref entry, so the Processes map will not contain it, and we
+// must NOT treat that absence as a stale signal — doing so caused the
+// in-flight-startup release bug. Boot mismatch and dead known refs
+// remain separate stale signals upstream of this check.
+func isOwnerKnownDead(ownerPID *int, processes map[string]ProcessEvidence) bool {
+	if ownerPID == nil || *ownerPID <= 0 {
+		return true
+	}
+	key := fmt.Sprintf("%d", *ownerPID)
+	evidence, ok := processes[key]
+	if !ok || !evidence.Known {
+		return false
+	}
+	return !evidence.Running
 }
 
 func processRefEvidence(in ReconcileInput) (deadKnown int, liveKnown int) {

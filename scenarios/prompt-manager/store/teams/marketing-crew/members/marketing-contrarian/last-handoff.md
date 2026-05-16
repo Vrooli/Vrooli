@@ -1,40 +1,39 @@
 ### Pending decisions
-- 5 pending after this run:
-  - `dec-1777318386116434321` OSS dev-log post #1 publish proposal.
+- 5 visible pending after this run:
   - `dec-1778787137208717804` OSS evidence-path capability gap.
   - `dec-1778790757599330605` audience-update for OSS contributor first-run cognitive cost.
-  - `dec-1778792544571542833` rejection proposed for stale `dec-1777318386116434321`.
-  - `dec-1778792544572466080` rejection/amendment proposed for `dec-1778790757599330605`.
-- Owned-context pending is now 2 rejection proposals. Next contrarian heartbeat should skip new owned-context decisions if this reaches 3.
+  - `dec-1778792544572466080` prior rejection/amendment proposal for `dec-1778790757599330605`.
+  - `dec-1778873456617563354` OSS coverage-gap after stale first-publish rejection.
+  - `dec-1778878881483178807` new queue-hygiene proposal to reject/close obsolete `dec-1778792544572466080`.
+- Owned-context pending is 2: `dec-1778792544572466080` and `dec-1778878881483178807`. Skip new owned-context decisions if this reaches 3.
 
 ### Proposals scored
-- Scored 3 pre-existing pending proposals using prompt-manager storage only.
-- `dec-1777318386116434321`: no concrete marketing anti-pattern hit found, but stale hygiene now warrants rejection unless operator accepts immediately.
-- `dec-1778787137208717804`: passes as a concrete capability-gap; no challenge.
-- `dec-1778790757599330605`: evidence and honesty posture are useful, but fails typed-observation promotion hygiene.
+- `dec-1778787137208717804`: still relevant capability-gap; no challenge.
+- `dec-1778790757599330605`: prior challenge now resolved by researcher response `knw-1778877137629609823`; acceptance should include those narrowed details.
+- `dec-1778792544572466080`: now obsolete because the author answered the hygiene gap.
+- `dec-1778873456617563354`: passes; it preserves coverage honesty and waits for evidence-path restoration before refreshed OSS post #1.
 
 ### Challenge notes written
-- `knw-1778792515097179988` for `challenge-report/dec-1778790757599330605`.
+- No new concrete failure challenge opened.
+- Wrote `knw-1778878853316235721` as a score note for `dec-1778873456617563354`: no failure-mode hit, no challenge opened.
 
 ### Challenge resolution updates
-- `knw-1778792515253217521` for `challenge-resolution-record/dec-1778790757599330605`, state `open`.
+- `knw-1778878853162851438`: `challenge-resolution-record/dec-1778790757599330605`, state `resolved`.
 
 ### Aging scan
-- `knw-1778792515253585309` for `aging-scan-note/dec-1777318386116434321`.
-- Outcome changed from prior still-relevant note to stale-rejection proposal because the decision remains unresolved from 2026-04-27 and evidence access is now degraded.
+- `knw-1778878853161060287`: `aging-scan-note/dec-1778787137208717804`.
+- Outcome: not stale, still relevant, no rejection/supersession/framework update.
 
 ### Rejections raised
-- `dec-1778792544571542833`: reject stale `dec-1777318386116434321` unless operator accepts immediately from stored evidence.
-- `dec-1778792544572466080`: reject or require amendment of `dec-1778790757599330605` before acceptance.
+- `dec-1778878881483178807`: reject/close obsolete rejection/amendment proposal `dec-1778792544572466080` after author response resolved the underlying hygiene issue.
 
 ### Framework updates
-- None. No new failure class observed outside the current framework and heartbeat-specific typed-promotion rule.
+- None. No new failure class observed outside the current framework and typed-observation rule.
 
 ### Supersessions
-- None.
+- No direct supersession primitive was exposed. Proposed queue hygiene via `dec-1778878881483178807`.
 
 ### Knowledge entries written
-- `knw-1778792515097179988` challenge report.
-- `knw-1778792515253217521` challenge resolution record.
-- `knw-1778792515253585309` aging scan note.
-- `knw-1778792553048307040` friction signal: `knowledge-add` rejects `--by`, while `decision-add` requires it.
+- `knw-1778878853161060287` aging scan note.
+- `knw-1778878853162851438` challenge resolution record.
+- `knw-1778878853316235721` coverage-gap score note.

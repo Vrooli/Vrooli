@@ -241,6 +241,7 @@ func registryRuntimeDetails(manifest scenario.ServiceManifest, instance scenario
 		PortBindings: bindings,
 		ProcessInfo:  append([]process.Record(nil), records...),
 		Health:       registryHealthStatus(health),
+		HealthError:  health.Error,
 	}
 }
 

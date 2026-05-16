@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/operations.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// OPERATIONS API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports operations
+// @stability beta
+//
+// HTTP API contracts for Swarm Manager operations status and agent-session
+// briefing packets.
+//
+// =============================================================================
+
+message GetOperationsBriefingRequest {
+  // ISO-8601 PT duration, for example PT3H. Empty means server default.
+  optional string window = 1 [(buf.validate.field).string.max_len = 32];
+}
+
+message GetOperationsBriefingResponse {
+  OperationsBriefing briefing = 1;
+}

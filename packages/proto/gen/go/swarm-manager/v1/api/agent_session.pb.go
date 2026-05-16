@@ -342,8 +342,11 @@ type StartAgentSessionRequest struct {
 	Message       string                    `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	AttachmentIds []string                  `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
 	ContextRefs   []*AgentSessionContextRef `protobuf:"bytes,4,rep,name=context_refs,json=contextRefs,proto3" json:"context_refs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Auto context policy.
+	// @constraint one of: empty, default, none
+	AutoContextPolicy *string `protobuf:"bytes,5,opt,name=auto_context_policy,json=autoContextPolicy,proto3,oneof" json:"auto_context_policy,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *StartAgentSessionRequest) Reset() {
@@ -402,6 +405,13 @@ func (x *StartAgentSessionRequest) GetContextRefs() []*AgentSessionContextRef {
 		return x.ContextRefs
 	}
 	return nil
+}
+
+func (x *StartAgentSessionRequest) GetAutoContextPolicy() string {
+	if x != nil && x.AutoContextPolicy != nil {
+		return *x.AutoContextPolicy
+	}
+	return ""
 }
 
 // StartAgentSessionResponse returns the spawned session.
@@ -568,7 +578,7 @@ func (x *ContinueAgentSessionResponse) GetSession() *domain.AgentSession {
 type AgentSessionContextRef struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Context type.
-	// @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session
+	// @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing
 	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	// Stable entity reference.
 	Ref           string `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
@@ -1570,13 +1580,15 @@ const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\x04kind\x18\x01 \x01(\tBE\xbaHBr@R\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsR\x04kind\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05titleJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"V\n" +
 	"\x1aCreateAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xd0\x01\n" +
+	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xb5\x02\n" +
 	"\x18StartAgentSessionRequest\x12&\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12%\n" +
 	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12K\n" +
-	"\fcontext_refs\x18\x04 \x03(\v2(.swarm_manager.v1.AgentSessionContextRefR\vcontextRefs\"U\n" +
+	"\fcontext_refs\x18\x04 \x03(\v2(.swarm_manager.v1.AgentSessionContextRefR\vcontextRefs\x12K\n" +
+	"\x13auto_context_policy\x18\x05 \x01(\tB\x16\xbaH\x13r\x11R\x00R\adefaultR\x04noneH\x00R\x11autoContextPolicy\x88\x01\x01B\x16\n" +
+	"\x14_auto_context_policy\"U\n" +
 	"\x19StartAgentSessionResponse\x128\n" +
 	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xd3\x01\n" +
 	"\x1bContinueAgentSessionRequest\x12&\n" +
@@ -1586,10 +1598,10 @@ const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12K\n" +
 	"\fcontext_refs\x18\x04 \x03(\v2(.swarm_manager.v1.AgentSessionContextRefR\vcontextRefs\"X\n" +
 	"\x1cContinueAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xaf\x01\n" +
-	"\x16AgentSessionContextRef\x12z\n" +
-	"\x04type\x18\x01 \x01(\tBf\xbaHcraR\fbacklog_itemR\n" +
-	"initiativeR\acaptureR\texecutionR\x0eagent_activityR\bscenarioR\x0eoperating_modeR\asessionR\x04type\x12\x19\n" +
+	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xc5\x01\n" +
+	"\x16AgentSessionContextRef\x12\x8f\x01\n" +
+	"\x04type\x18\x01 \x01(\tB{\xbaHxrvR\fbacklog_itemR\n" +
+	"initiativeR\acaptureR\texecutionR\x0eagent_activityR\bscenarioR\x0eoperating_modeR\asessionR\x13operations_briefingR\x04type\x12\x19\n" +
 	"\x03ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\"s\n" +
 	"%UploadAgentSessionAttachmentsResponse\x12J\n" +
 	"\vattachments\x18\x01 \x03(\v2(.swarm_manager.v1.AgentSessionAttachmentR\vattachments\"\xb7\x01\n" +
@@ -1740,6 +1752,7 @@ func file_swarm_manager_v1_api_agent_session_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_api_agent_session_proto_msgTypes[0].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_agent_session_proto_msgTypes[6].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_agent_session_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

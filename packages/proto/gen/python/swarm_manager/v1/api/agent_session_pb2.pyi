@@ -53,16 +53,18 @@ class CreateAgentSessionResponse(_message.Message):
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
 
 class StartAgentSessionRequest(_message.Message):
-    __slots__ = ("session_id", "message", "attachment_ids", "context_refs")
+    __slots__ = ("session_id", "message", "attachment_ids", "context_refs", "auto_context_policy")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_REFS_FIELD_NUMBER: _ClassVar[int]
+    AUTO_CONTEXT_POLICY_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     message: str
     attachment_ids: _containers.RepeatedScalarFieldContainer[str]
     context_refs: _containers.RepeatedCompositeFieldContainer[AgentSessionContextRef]
-    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ..., context_refs: _Optional[_Iterable[_Union[AgentSessionContextRef, _Mapping]]] = ...) -> None: ...
+    auto_context_policy: str
+    def __init__(self, session_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ..., context_refs: _Optional[_Iterable[_Union[AgentSessionContextRef, _Mapping]]] = ..., auto_context_policy: _Optional[str] = ...) -> None: ...
 
 class StartAgentSessionResponse(_message.Message):
     __slots__ = ("session",)

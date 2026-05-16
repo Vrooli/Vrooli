@@ -223,7 +223,7 @@ func (x *AgentSessionMessage) GetContext() []*AgentSessionContextItem {
 type AgentSessionContextItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Context type.
-	// @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session
+	// @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing
 	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	// Stable entity reference.
 	Ref string `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
@@ -880,10 +880,10 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12%\n" +
 	"\x0eattachment_ids\x18\x05 \x03(\tR\rattachmentIds\x12C\n" +
-	"\acontext\x18\x06 \x03(\v2).swarm_manager.v1.AgentSessionContextItemR\acontext\"\xf9\x02\n" +
-	"\x17AgentSessionContextItem\x12z\n" +
-	"\x04type\x18\x01 \x01(\tBf\xbaHcraR\fbacklog_itemR\n" +
-	"initiativeR\acaptureR\texecutionR\x0eagent_activityR\bscenarioR\x0eoperating_modeR\asessionR\x04type\x12\x19\n" +
+	"\acontext\x18\x06 \x03(\v2).swarm_manager.v1.AgentSessionContextItemR\acontext\"\x8f\x03\n" +
+	"\x17AgentSessionContextItem\x12\x8f\x01\n" +
+	"\x04type\x18\x01 \x01(\tB{\xbaHxrvR\fbacklog_itemR\n" +
+	"initiativeR\acaptureR\texecutionR\x0eagent_activityR\bscenarioR\x0eoperating_modeR\asessionR\x13operations_briefingR\x04type\x12\x19\n" +
 	"\x03ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\x12\x1d\n" +
 	"\x05title\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12\x18\n" +
 	"\asummary\x18\x04 \x01(\tR\asummary\x12\x1c\n" +

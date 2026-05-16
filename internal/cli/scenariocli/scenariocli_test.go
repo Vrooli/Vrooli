@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/process"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 )
@@ -19,12 +20,13 @@ func TestRenderStatusResponseHumanSingleIncludesScenarioHeader(t *testing.T) {
 	resp := StatusResponse{
 		Single: &StatusSingleOutput{
 			Scenario: StatusItemOutput{
-				Name:      "alpha",
-				Status:    "running",
-				Health:    "healthy",
-				Processes: 1,
-				Runtime:   "2m",
-				Ports:     map[string]int{"API_PORT": 18080},
+				Name:        "alpha",
+				Status:      "running",
+				Health:      "healthy",
+				HealthError: "api_endpoint: invalid health response schema",
+				Processes:   1,
+				Runtime:     "2m",
+				Ports:       map[string]int{"API_PORT": 18080},
 			},
 			Info: InfoScenarioData{
 				Name:        "alpha",
@@ -49,7 +51,7 @@ func TestRenderStatusResponseHumanSingleIncludesScenarioHeader(t *testing.T) {
 		t.Fatalf("RenderStatusResponse: %v", err)
 	}
 	output := stdout.String()
-	for _, want := range []string{"Scenario: alpha", "Status: running", "Health: healthy", "Processes:", "start-api pid=1234"} {
+	for _, want := range []string{"Scenario: alpha", "Status: running", "Health: healthy", "Health error: api_endpoint: invalid health response schema", "Processes:", "start-api pid=1234"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("missing %q in output:\n%s", want, output)
 		}
@@ -771,6 +773,30 @@ func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
 	})
 	if !strings.Contains(statusOut.String(), "Health: running") || !strings.Contains(statusOut.String(), "Processes:") {
 		t.Fatalf("scenario status output = %s", statusOut.String())
+	}
+}
+
+func TestBuildStatusDetailIncludesHealthError(t *testing.T) {
+	detail := orchestrator.Detail{
+		Scenario: scenariomodel.Scenario{
+			Slug: "alpha",
+			Manifest: scenariomodel.ServiceManifest{
+				Service: scenariomodel.ServiceMetadata{Name: "alpha"},
+			},
+		},
+		Details: scenariomodel.RuntimeDetails{
+			Status:      "running",
+			Health:      "unhealthy",
+			HealthError: "api_endpoint: invalid health response schema",
+		},
+	}
+
+	status := BuildStatusDetail(detail)
+	if status.Health != "unhealthy" {
+		t.Fatalf("Health = %v, want unhealthy", status.Health)
+	}
+	if status.HealthError != "api_endpoint: invalid health response schema" {
+		t.Fatalf("HealthError = %q", status.HealthError)
 	}
 }
 

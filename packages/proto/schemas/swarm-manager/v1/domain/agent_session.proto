@@ -94,7 +94,7 @@ message AgentSessionMessage {
 // Swarm Manager record attached to a single session message.
 message AgentSessionContextItem {
   // Context type.
-  // @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session
+  // @constraint one of: backlog_item, initiative, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing
   string type = 1 [(buf.validate.field).string = {
     in: [
       "backlog_item",
@@ -104,7 +104,8 @@ message AgentSessionContextItem {
       "agent_activity",
       "scenario",
       "operating_mode",
-      "session"
+      "session",
+      "operations_briefing"
     ]
   }];
 

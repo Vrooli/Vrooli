@@ -6,14 +6,14 @@
   "enabled": true,
   "schedule": "30 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-13T18:30:00Z",
-    "endedAt": "2026-05-13T18:33:40Z",
+    "startedAt": "2026-05-15T18:30:00Z",
+    "endedAt": "2026-05-15T18:30:06Z",
     "status": "failed",
-    "runId": "b0cb956a-0d61-422a-b98d-9893e3babbd5",
-    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-05-13T18-30-00Z.log",
-    "error": "agent-manager unreachable after 4 attempts: resolve agent-manager url: api-core discovery command_failed scenario=\"agent-manager\" port=\"API_PORT\" output=\"Runtime error: no running runtime ports found for scenario \\\"agent-manager\\\"\\nStart the scenario before querying runtime ports\" err=exit status 1"
+    "runId": "62e2e5b2-b677-4531-b392-8d70609a2bc3",
+    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-05-15T18-30-00Z.log",
+    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
   },
-  "revision": 74,
+  "revision": 77,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-05-13T18:33:44Z"
+  "updatedAt": "2026-05-15T18:30:07Z"
 }

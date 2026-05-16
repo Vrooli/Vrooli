@@ -54,6 +54,7 @@ type StatusItemOutput struct {
 	Ports        map[string]int   `json:"ports"`
 	PortBindings []ListPortOutput `json:"port_bindings,omitempty"`
 	Health       any              `json:"health_status"`
+	HealthError  string           `json:"health_error,omitempty"`
 }
 
 type InfoOutput struct {
@@ -89,6 +90,7 @@ type InfoRuntimeData struct {
 	Ports       map[string]int   `json:"ports"`
 	ProcessInfo []process.Record `json:"process_records"`
 	ListPorts   []ListPortOutput `json:"list_ports"`
+	HealthError string           `json:"health_error,omitempty"`
 }
 
 type StatusSingleOutput struct {
@@ -195,6 +197,7 @@ func BuildStatusDetail(detail orchestrator.Detail) StatusItemOutput {
 		Ports:        CopyIntMap(detail.Details.Ports),
 		PortBindings: RuntimePortOutputs(detail.Details.PortBindings),
 		Health:       health,
+		HealthError:  detail.Details.HealthError,
 	}
 }
 
@@ -228,6 +231,7 @@ func BuildRuntimeData(manifest scenariomodel.ServiceManifest, runtime process.Sc
 		Ports:       CopyIntMap(details.Ports),
 		ProcessInfo: CopyProcessRecords(details.ProcessInfo),
 		ListPorts:   RuntimePortOutputs(details.PortBindings),
+		HealthError: details.HealthError,
 	}
 }
 
@@ -650,6 +654,9 @@ func WriteStatusHuman(w io.Writer, output StatusSingleOutput) {
 	_, _ = fmt.Fprintf(w, "Status: %s\n", status.Status)
 	if output.Scenario.Health != nil {
 		_, _ = fmt.Fprintf(w, "Health: %v\n", output.Scenario.Health)
+	}
+	if output.Scenario.HealthError != "" {
+		_, _ = fmt.Fprintf(w, "Health error: %s\n", output.Scenario.HealthError)
 	}
 	if info.Description != "" {
 		_, _ = fmt.Fprintf(w, "Description: %s\n", info.Description)

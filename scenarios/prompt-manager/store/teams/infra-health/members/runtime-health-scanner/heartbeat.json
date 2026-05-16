@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "30 19 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-14T23:30:00Z",
-    "endedAt": "2026-05-14T23:32:01Z",
-    "status": "failed",
-    "runId": "a1e81c1e-19f6-4e55-a20a-d9914da269fd",
-    "logPath": "../store/teams/infra-health/members/runtime-health-scanner/logs/2026-05-14T23-30-00Z.log",
-    "error": "sandbox error during no_exit_info: sandbox process ended without exit info"
+    "startedAt": "2026-05-15T23:30:00Z",
+    "endedAt": "2026-05-15T23:34:26Z",
+    "status": "completed",
+    "runId": "1cd57234-cdea-492a-b8c4-f9c7a54bdf2f",
+    "logPath": "../store/teams/infra-health/members/runtime-health-scanner/logs/2026-05-15T23-30-00Z.log"
   },
-  "revision": 55,
+  "revision": 58,
   "createdAt": "2026-04-28T00:00:00Z",
-  "updatedAt": "2026-05-14T23:32:02Z"
+  "updatedAt": "2026-05-15T23:34:27Z"
 }

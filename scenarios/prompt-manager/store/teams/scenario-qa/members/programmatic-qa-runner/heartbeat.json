@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "0 */6 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-15T16:00:00Z",
-    "endedAt": "2026-05-15T16:05:25Z",
-    "status": "failed",
-    "runId": "7eb75153-8d3e-4759-8634-7688ded74b92",
-    "logPath": "../store/teams/scenario-qa/members/programmatic-qa-runner/logs/2026-05-15T16-00-00Z.log",
-    "error": "agent-manager unreachable after 4 attempts: resolve agent-manager url: api-core discovery command_failed scenario=\"agent-manager\" port=\"API_PORT\" output=\"Runtime error: no running runtime ports found for scenario \\\"agent-manager\\\"\\nStart the scenario before querying runtime ports\" err=exit status 1"
+    "startedAt": "2026-05-16T10:00:00Z",
+    "endedAt": "2026-05-16T10:09:16Z",
+    "status": "completed",
+    "runId": "41cc6945-c1c1-436d-98d3-9907ed1ff236",
+    "logPath": "../store/teams/scenario-qa/members/programmatic-qa-runner/logs/2026-05-16T10-00-00Z.log"
   },
-  "revision": 155,
+  "revision": 164,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-05-15T16:05:30Z"
+  "updatedAt": "2026-05-16T10:09:17Z"
 }

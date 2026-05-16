@@ -39,6 +39,7 @@ type RuntimeDetails struct {
 	PortBindings []RuntimePortBinding `json:"port_bindings,omitempty"`
 	ProcessInfo  []process.Record     `json:"process_info,omitempty"`
 	Health       string               `json:"health_status,omitempty"`
+	HealthError  string               `json:"health_error,omitempty"`
 }
 
 func DescribeRuntime(manifest ServiceManifest, runtime process.ScenarioRuntime) RuntimeDetails {

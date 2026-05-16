@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "30 19 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-14T23:30:00Z",
-    "endedAt": "2026-05-14T23:32:01Z",
-    "status": "failed",
-    "runId": "6491566e-0eff-40dd-8cd2-f15969cb3230",
-    "logPath": "../store/teams/scenario-qa/members/qa-contrarian/logs/2026-05-14T23-30-00Z.log",
-    "error": "sandbox error during no_exit_info: sandbox process ended without exit info"
+    "startedAt": "2026-05-15T23:30:00Z",
+    "endedAt": "2026-05-15T23:32:31Z",
+    "status": "completed",
+    "runId": "5b7895e9-f480-41c8-8719-dbf7083972bf",
+    "logPath": "../store/teams/scenario-qa/members/qa-contrarian/logs/2026-05-15T23-30-00Z.log"
   },
-  "revision": 43,
+  "revision": 46,
   "createdAt": "2026-05-03T00:00:00Z",
-  "updatedAt": "2026-05-14T23:32:02Z"
+  "updatedAt": "2026-05-15T23:32:32Z"
 }

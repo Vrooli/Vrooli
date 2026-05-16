@@ -60,6 +60,12 @@ var (
 	ErrNotFound            = errors.New("scenario runtime record not found")
 	ErrStaleGeneration     = errors.New("scenario runtime generation is stale")
 	ErrActiveClaimConflict = errors.New("active scenario runtime port claim already exists")
+	// ErrClaimNotReservable signals that BindPortClaim found the row but
+	// its status was no longer 'reserved' — typically because another
+	// process expired or released it between acquire and bind. Surfacing
+	// this as a typed error lets the lifecycle layer treat "lost the
+	// lease" cleanly instead of failing with a raw SQLite UNIQUE error.
+	ErrClaimNotReservable = errors.New("scenario runtime port claim is no longer reservable")
 )
 
 func ActiveInstanceStatuses() []string {

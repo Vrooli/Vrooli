@@ -5,21 +5,21 @@
 None.
 
 ### Investigation closed this heartbeat
-None; no inbox entry to drain.
+None; no inbox entry was available to drain.
 
 ### Technique applied
-None. `scientific-debugging` skill was read for readiness, but not applied because there was no bug entry.
+None. I did not load or apply `scientific-debugging` because there was no bug report to investigate.
 
 ### Action taken
 No storage changes.
 
 ### Backlog item / decision created
-None. Current pending owned-context decisions:
-- `dec-1778788973084288635` for GCT review API-base polling.
-- `dec-1778803454094270523` for GCT dependency capability/base resolution and zero-count test summaries.
+None. Current pending owned bug-resolution decisions:
+- `dec-1778788973084288635`
+- `dec-1778803454094270523`
 
 ### Capability-gap raised
-None. Current pending `capability-gap` decisions for `scenario-qa`: none.
+None. `capability-gap` pending list returned no decisions.
 
 ### Surface for technique graduation
-None. Note: referenced PoR doc paths were not present in this workspace checkout, but the `scientific-debugging` skill was available through `prompt-manager skill read`.
+None.

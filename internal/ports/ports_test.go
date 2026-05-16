@@ -973,6 +973,81 @@ func (f *fakePreempter) StopScenario(_ context.Context, scenarioName string) err
 	return f.stopErr
 }
 
+// TestClassifyStuckInstanceLivePIDWithStaleHeartbeatIsNotStale regresses
+// the long-build-window false-positive: web-console's setup/develop phase
+// routinely runs past the 30s heartbeat TTL while the owner process is
+// alive and making forward progress. Heartbeat-only staleness used to
+// classify these as stale, which caused parallel-restart invocations to
+// preempt each other's in-flight builds.
+func TestClassifyStuckInstanceLivePIDWithStaleHeartbeatIsNotStale(t *testing.T) {
+	now := time.Date(2026, 5, 15, 20, 45, 0, 0, time.UTC)
+	expired := now.Add(-30 * time.Second)
+	livePID := 12345
+	instance := scenarioruntime.Instance{
+		InstanceID:          "inst-build",
+		Scenario:            "web-console",
+		Status:              scenarioruntime.StatusStarting,
+		OwnerPID:            &livePID,
+		HostBootID:          "boot-a",
+		HeartbeatDeadlineAt: &expired,
+	}
+	kind, stale := classifyStuckInstance(instance, "boot-a", func(int) bool { return true }, now)
+	if stale {
+		t.Fatalf("live PID + stale heartbeat must not classify as stale; got kind=%q stale=true", kind)
+	}
+}
+
+func TestClassifyStuckInstanceDeadPIDIsStale(t *testing.T) {
+	now := time.Date(2026, 5, 15, 20, 45, 0, 0, time.UTC)
+	deadPID := 99999
+	instance := scenarioruntime.Instance{
+		InstanceID: "inst-dead",
+		Scenario:   "web-console",
+		Status:     scenarioruntime.StatusStarting,
+		OwnerPID:   &deadPID,
+		HostBootID: "boot-a",
+	}
+	kind, stale := classifyStuckInstance(instance, "boot-a", func(int) bool { return false }, now)
+	if !stale || kind != "owner_pid_dead" {
+		t.Fatalf("dead PID must classify as stale (owner_pid_dead); got kind=%q stale=%v", kind, stale)
+	}
+}
+
+func TestClassifyStuckInstanceMissingPIDWithStaleHeartbeatIsStale(t *testing.T) {
+	// A heartbeat that has expired AND the supervisor never recorded an
+	// owner_pid indicates a broken startup — the agent dropped before it
+	// could even claim a process group. Treat as stale.
+	now := time.Date(2026, 5, 15, 20, 45, 0, 0, time.UTC)
+	expired := now.Add(-time.Minute)
+	instance := scenarioruntime.Instance{
+		InstanceID:          "inst-no-pid",
+		Scenario:            "web-console",
+		Status:              scenarioruntime.StatusStarting,
+		HostBootID:          "boot-a",
+		HeartbeatDeadlineAt: &expired,
+	}
+	kind, stale := classifyStuckInstance(instance, "boot-a", func(int) bool { return true }, now)
+	if !stale || kind != "heartbeat_expired_no_owner" {
+		t.Fatalf("expired heartbeat + missing PID must classify as stale; got kind=%q stale=%v", kind, stale)
+	}
+}
+
+func TestClassifyStuckInstanceBootMismatchTrumpsLivePID(t *testing.T) {
+	now := time.Date(2026, 5, 15, 20, 45, 0, 0, time.UTC)
+	livePID := 12345
+	instance := scenarioruntime.Instance{
+		InstanceID: "inst-pre-reboot",
+		Scenario:   "web-console",
+		Status:     scenarioruntime.StatusStarting,
+		OwnerPID:   &livePID,
+		HostBootID: "boot-pre-reboot",
+	}
+	kind, stale := classifyStuckInstance(instance, "boot-post-reboot", func(int) bool { return true }, now)
+	if !stale || kind != "boot_id_mismatch" {
+		t.Fatalf("boot mismatch must classify as stale regardless of pid; got kind=%q stale=%v", kind, stale)
+	}
+}
+
 // TestAcquireFixedPortPreemptsStaleSameScenarioClaim regresses the original
 // web-console bug: a stuck-stopping claim for the same scenario must not
 // block its own restart. The reaper inside acquireRuntimePortClaim should

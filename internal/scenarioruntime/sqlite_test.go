@@ -296,6 +296,133 @@ func TestSQLiteStoreBindsAndReleasesActiveClaimsForInstance(t *testing.T) {
 	}
 }
 
+func TestBindPortClaimRejectsExpiredClaimWithTypedError(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 15, 20, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, PortClaim{
+		ClaimID:    "claim-alpha-api",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "api",
+		EnvVar:     "API_PORT",
+		Port:       16383,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	// Another path expires the reserved claim (e.g. TTL elapsed during
+	// the long develop phase, or the preemption reaper acted on it).
+	if _, err := store.ExpirePortClaim(ctx, "claim-alpha-api"); err != nil {
+		t.Fatalf("ExpirePortClaim: %v", err)
+	}
+
+	_, err = store.BindPortClaim(ctx, "claim-alpha-api")
+	if err == nil {
+		t.Fatalf("BindPortClaim: expected error, got nil")
+	}
+	if !errors.Is(err, ErrClaimNotReservable) {
+		t.Fatalf("expected ErrClaimNotReservable, got %v", err)
+	}
+}
+
+func TestBindPortClaimRejectsReleasedClaimWithTypedError(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 15, 20, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, PortClaim{
+		ClaimID:    "claim-alpha-api",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "api",
+		EnvVar:     "API_PORT",
+		Port:       16383,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+	if _, err := store.ReleasePortClaim(ctx, "claim-alpha-api"); err != nil {
+		t.Fatalf("ReleasePortClaim: %v", err)
+	}
+	_, err = store.BindPortClaim(ctx, "claim-alpha-api")
+	if err == nil || !errors.Is(err, ErrClaimNotReservable) {
+		t.Fatalf("expected ErrClaimNotReservable, got %v", err)
+	}
+}
+
+func TestBindPortClaimDoesNotConflictWhenAnotherActiveRowExists(t *testing.T) {
+	// Regression for the original web-console bind UNIQUE-constraint
+	// failure. After our reserved row is moved out of the partial index
+	// (by expiry or release), another instance can legitimately acquire
+	// a fresh reserved row on the same (port, bind_host). When the
+	// original instance later reaches BindPortClaim, it must NOT clobber
+	// the partial index — it must fail cleanly with ErrClaimNotReservable.
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 15, 20, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+	a, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-a", Scenario: "web-console"})
+	if err != nil {
+		t.Fatalf("CreateInstance a: %v", err)
+	}
+	b, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-b", Scenario: "web-console"})
+	if err != nil {
+		t.Fatalf("CreateInstance b: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, PortClaim{
+		ClaimID:    "claim-a",
+		InstanceID: a.InstanceID,
+		Scenario:   a.Scenario,
+		PortName:   "api",
+		EnvVar:     "API_PORT",
+		Port:       16383,
+	}); err != nil {
+		t.Fatalf("acquire a: %v", err)
+	}
+	// Inst-A's reserved row is expired by some path (TTL or preemption).
+	if _, err := store.ExpirePortClaim(ctx, "claim-a"); err != nil {
+		t.Fatalf("expire a: %v", err)
+	}
+	// Inst-B legitimately acquires the same port now that A's row is no
+	// longer in the partial unique index.
+	if _, err := store.AcquirePortClaim(ctx, PortClaim{
+		ClaimID:    "claim-b",
+		InstanceID: b.InstanceID,
+		Scenario:   b.Scenario,
+		PortName:   "api",
+		EnvVar:     "API_PORT",
+		Port:       16383,
+	}); err != nil {
+		t.Fatalf("acquire b: %v", err)
+	}
+	// Inst-A's lifecycle reaches bindPorts. Without the status guard
+	// this would try to re-add (16383, 127.0.0.1) to the partial unique
+	// index and surface as a raw UNIQUE-constraint SQLite error. With
+	// the guard it surfaces cleanly.
+	_, err = store.BindPortClaim(ctx, "claim-a")
+	if err == nil {
+		t.Fatalf("BindPortClaim on expired claim should fail")
+	}
+	if !errors.Is(err, ErrClaimNotReservable) {
+		t.Fatalf("expected ErrClaimNotReservable, got %v", err)
+	}
+	// And inst-B's bind still succeeds, proving the partial index is
+	// intact.
+	bound, err := store.BindPortClaim(ctx, "claim-b")
+	if err != nil {
+		t.Fatalf("BindPortClaim b: %v", err)
+	}
+	if bound.Status != ClaimStatusBound {
+		t.Fatalf("bound.Status = %s, want bound", bound.Status)
+	}
+}
+
 func TestSQLiteStoreUpdatesPortClaimListenerEvidence(t *testing.T) {
 	ctx := context.Background()
 	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
