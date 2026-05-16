@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-emulator/**"
+  ],
+  "created": "2026-05-15T22:05:51Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "079c2d0a-600b-442f-b9a6-8d39c2c805f7",
+    "task_id": "5c5cce38-54e2-44eb-84b2-31bc32724f80",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "GCT readiness for vrooli-emulator is yellow from job 1df564fe-514a-46ce-ac66-15b1c4eb6730 on 2026-05-15T22:03:46Z. Visual dimension is available but screenshotCount=0, so readiness cannot prove the UI renders without blank states or overlap. Success target: git-control-tower review summary vrooli-emulator reports visual green with screenshotCount greater than 0 and non-stale latest capture after representative UI screenshots are captured.",
+  "kind": "fix",
+  "name": "qa-vrooli-emulator-visual-baseline-20260515",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "vrooli-emulator",
+    "visual"
+  ],
+  "title": "Capture vrooli-emulator visual readiness baseline",
+  "updated": "2026-05-15T22:05:51Z"
+}

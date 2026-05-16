@@ -51,6 +51,7 @@ export interface ContinueAgentSessionArgs {
   message: string;
   attachmentIds?: string[];
   contextRefs?: AgentSessionContextRef[];
+  autoContextPolicy?: "default" | "none";
 }
 
 export interface ApplyAgentSessionProposalResult {
@@ -116,12 +117,16 @@ export function createAgentSessionService(apiClient: IApiClient = defaultApiClie
     },
 
     async start(args: ContinueAgentSessionArgs): Promise<AgentSession> {
-      const data = await apiClient.post<unknown>(API_ENDPOINTS.agentSessionStart(args.sessionId), {
+      const body: Record<string, unknown> = {
         session_id: args.sessionId,
         message: args.message,
         attachment_ids: args.attachmentIds ?? [],
         context_refs: args.contextRefs ?? [],
-      });
+      };
+      if (args.autoContextPolicy) {
+        body.auto_context_policy = args.autoContextPolicy;
+      }
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.agentSessionStart(args.sessionId), body);
       const parsed = parseProtoResponse(startAgentSessionResponseSchema, data, "agent session start");
       return mapProtoAgentSession(requireProtoField(parsed.session, "agent session"));
     },

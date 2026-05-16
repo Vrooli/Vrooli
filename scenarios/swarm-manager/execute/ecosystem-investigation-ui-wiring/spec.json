@@ -4,6 +4,10 @@
     "scenarios/ecosystem-manager/ui/**"
   ],
   "created": "2026-03-26T20:54:35Z",
+  "depends_on": [
+    "fix/qa-ecosystem-manager-standards-structure-focus-20260516",
+    "fix/qa-ecosystem-manager-tests-playbooks-business-20260516"
+  ],
   "description": "## Goal\n\nWire up the ecosystem-manager UI to spawn agent-manager investigations when a task execution fails. The agent-manager investigation framework already exists (depth-based: quick/standard/deep, structured markdown output, apply-fixes workflow) — this item adds the missing UI trigger in ecosystem-manager.\n\n## Current State\n\n### What exists in agent-manager:\n- `scenarios/agent-manager/api/internal/domain/investigation.go` — InvestigationSettings, depth levels, context flags\n- `scenarios/agent-manager/api/internal/orchestration/investigation.go` — CreateInvestigationRun(), CreateInvestigationApplyRun()\n- Depth-based attachment strategy: quick (overview + events), standard (+ diffs), deep (+ historical context)\n- Two-stage workflow: investigation agent analyzes → apply agent implements fixes\n\n### What's missing in ecosystem-manager:\n- No UI button/action to trigger investigation from a failed task\n- No way to view investigation results in ecosystem-manager context\n- No linking between failed execution and investigation run\n\n## Implementation\n\n### Task Detail View\n- Add \"Investigate\" button on failed task executions\n- Depth selector (quick/standard/deep) with sensible default\n- Optional user context input (\"What did you notice?\")\n- Trigger calls agent-manager's investigation API\n\n### Investigation Results View\n- Display investigation report (categorization, findings, recommendations) in ecosystem-manager\n- Link back to the specific failed execution\n- Show \"Apply Fixes\" action when recommendations include actionable changes\n\n### Execution History Integration\n- Track investigation run IDs in execution history\n- Show investigation status badge on failed executions (investigated/not investigated)\n\n## Key References\n\n- Agent-manager investigation: `scenarios/agent-manager/api/internal/orchestration/investigation.go`\n- Ecosystem-manager execution UI: `scenarios/ecosystem-manager/ui/`\n- Ecosystem-manager execution manager: `scenarios/ecosystem-manager/api/pkg/queue/execution_manager.go`",
   "effort": "M",
   "initiative": "ecosystem-intelligence-loop",
@@ -13,5 +17,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Add UI in Ecosystem-Manager to Spawn Agent-Manager Investigations from Failed Tasks",
-  "updated": "2026-03-26T20:54:35Z"
+  "updated": "2026-05-16T10:06:40Z"
 }

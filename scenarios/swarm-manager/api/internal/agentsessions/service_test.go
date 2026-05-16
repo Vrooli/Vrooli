@@ -175,6 +175,66 @@ func TestServiceStartSwarmOperationsUsesOperationsSkillAndPurpose(t *testing.T) 
 	}
 }
 
+func TestServiceStartSwarmOperationsInjectsOperationsBriefingContextByDefault(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+	svc := newTestService(t, spawner)
+	svc.SetContextResolver(fakeContextResolver{})
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  KindSwarmOperations,
+		Title: "Manage Swarm operations",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	session, err := svc.Start(context.Background(), ContinueRequest{
+		SessionID: draft.ID,
+		Message:   "What is the current status?",
+	})
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if len(session.Messages) != 1 || len(session.Messages[0].Context) != 1 {
+		t.Fatalf("context = %+v", session.Messages)
+	}
+	item := session.Messages[0].Context[0]
+	if item.Type != ContextOperationsBriefing || item.Ref != OperationsBriefingLatestRef {
+		t.Fatalf("context item = %+v, want operations briefing latest", item)
+	}
+	if !strings.Contains(spawner.spawnReq.Prompt, "Operations briefing context is attached below") {
+		t.Fatalf("prompt missing operations briefing instruction:\n%s", spawner.spawnReq.Prompt)
+	}
+}
+
+func TestServiceStartSwarmOperationsSkipsOperationsBriefingWhenAutoContextNone(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+	svc := newTestService(t, spawner)
+	svc.SetContextResolver(fakeContextResolver{})
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  KindSwarmOperations,
+		Title: "Manage Swarm operations",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	session, err := svc.Start(context.Background(), ContinueRequest{
+		SessionID:         draft.ID,
+		Message:           "What is the current status?",
+		AutoContextPolicy: AutoContextNone,
+	})
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if len(session.Messages) != 1 || len(session.Messages[0].Context) != 0 {
+		t.Fatalf("context = %+v, want none", session.Messages)
+	}
+}
+
 func TestServiceContinueAppendsMessageAndUsesTrackedContinuation(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
@@ -342,6 +402,54 @@ func TestServiceListEventsReturnsEmptyForDraftAndMapsRunEvents(t *testing.T) {
 	}
 	if result.NextAfterSequence != 7 {
 		t.Fatalf("next sequence = %d, want 7", result.NextAfterSequence)
+	}
+}
+
+func TestServiceListEventsSanitizesHTMLErrorPages(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	const cloudflareHTML = `<!DOCTYPE html><html><head><title>itsagitime.com | 502: Bad gateway</title></head><body><div id="cf-wrapper">cloudflare</div></body></html>`
+
+	spawner := &fakeSessionSpawner{
+		events: []*agentdomainpb.RunEvent{
+			{
+				Id:        "evt-html",
+				RunId:     "run-1",
+				Sequence:  18,
+				EventType: agentdomainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT,
+				Timestamp: timestamppb.New(time.Date(2026, 5, 15, 22, 0, 0, 0, time.UTC)),
+				Data: &agentdomainpb.RunEvent_ToolResult{ToolResult: &agentdomainpb.ToolResultEventData{
+					ToolName: "Fetch",
+					Output:   cloudflareHTML,
+				}},
+			},
+		},
+	}
+	svc := newTestService(t, spawner)
+	draft, err := svc.Create(context.Background(), CreateRequest{
+		Kind:  KindSwarmOperations,
+		Title: "Manage Swarm operations",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	started, err := svc.Start(context.Background(), ContinueRequest{SessionID: draft.ID, Message: "Check the tunnel."})
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	result, err := svc.ListEvents(context.Background(), ListEventsRequest{SessionID: started.ID})
+	if err != nil {
+		t.Fatalf("ListEvents() error = %v", err)
+	}
+	if len(result.Events) != 1 {
+		t.Fatalf("events = %+v", result.Events)
+	}
+	if strings.Contains(result.Events[0].Output, "<!DOCTYPE html>") || strings.Contains(result.Events[0].Output, "cf-wrapper") {
+		t.Fatalf("raw HTML leaked into event output: %q", result.Events[0].Output)
+	}
+	if result.Events[0].Output != "Upstream tunnel returned an HTML 502 Bad Gateway page. The target service may be unavailable or timed out." {
+		t.Fatalf("unexpected sanitized output: %q", result.Events[0].Output)
 	}
 }
 

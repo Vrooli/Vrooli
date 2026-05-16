@@ -10,6 +10,8 @@
     "chore/qa-prompt-manager-tidiness-20260407",
     "fix/qa-prompt-manager-standards-structure-20260407",
     "fix/qa-prompt-manager-tests-20260407",
+    "fix/qa-vrooli-bridge-standards-foundation-20260515",
+    "fix/qa-vrooli-bridge-visual-baseline-20260515",
     "research/legacy-vrooli-bridge-signal-extraction"
   ],
   "description": "Define the new bridge from first principles as trusted Vrooli-to-Vrooli collaboration between machines.\n\nThe specification should cover:\n- node identity and trust establishment\n- permission and capability model\n- request-response versus long-running task/session behavior\n- observability and debugging expectations\n- failure handling and reconnection\n- the first concrete use case: remote validation and emulator transport\n- how the bridge remains general enough for future trusted cross-server collaboration beyond validation",
@@ -26,5 +28,5 @@
     "greenfield"
   ],
   "title": "Define The Greenfield Bridge From First Principles",
-  "updated": "2026-04-23T03:48:04Z"
+  "updated": "2026-05-15T22:08:40Z"
 }

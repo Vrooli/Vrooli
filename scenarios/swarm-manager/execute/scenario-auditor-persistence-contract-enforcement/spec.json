@@ -8,7 +8,8 @@
   ],
   "created": "2026-04-22T03:16:42Z",
   "depends_on": [
-    "research/backup-contract-defaults-and-exceptions-design"
+    "research/backup-contract-defaults-and-exceptions-design",
+    "fix/qa-scenario-auditor-gct-requirements-targets-tests-20260516"
   ],
   "description": "Extend scenario-auditor so storage drift becomes visible before backup-manager work lands. This should strengthen repo-local runtime storage detection, flag undeclared durable exceptions, and add explicit audit signals for scenarios and resources that still bypass the canonical storage seams or required backup metadata once the contract exists.",
   "effort": "M",
@@ -19,5 +20,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Enforce persistence and backup contract compliance in scenario-auditor",
-  "updated": "2026-04-22T03:16:42Z"
+  "updated": "2026-05-16T16:05:15Z"
 }

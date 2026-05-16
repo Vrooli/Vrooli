@@ -84,14 +84,24 @@ const (
 type ContextType string
 
 const (
-	ContextBacklogItem   ContextType = "backlog_item"
-	ContextInitiative    ContextType = "initiative"
-	ContextCapture       ContextType = "capture"
-	ContextExecution     ContextType = "execution"
-	ContextAgentActivity ContextType = "agent_activity"
-	ContextScenario      ContextType = "scenario"
-	ContextOperatingMode ContextType = "operating_mode"
-	ContextSession       ContextType = "session"
+	ContextBacklogItem        ContextType = "backlog_item"
+	ContextInitiative         ContextType = "initiative"
+	ContextCapture            ContextType = "capture"
+	ContextExecution          ContextType = "execution"
+	ContextAgentActivity      ContextType = "agent_activity"
+	ContextScenario           ContextType = "scenario"
+	ContextOperatingMode      ContextType = "operating_mode"
+	ContextSession            ContextType = "session"
+	ContextOperationsBriefing ContextType = "operations_briefing"
+)
+
+const OperationsBriefingLatestRef = "operations_briefing/latest"
+
+type AutoContextPolicy string
+
+const (
+	AutoContextDefault AutoContextPolicy = "default"
+	AutoContextNone    AutoContextPolicy = "none"
 )
 
 type AttributionType string
@@ -427,7 +437,7 @@ func IsKnownArtifactAction(action ArtifactAction) bool {
 func IsKnownContextType(contextType ContextType) bool {
 	switch contextType {
 	case ContextBacklogItem, ContextInitiative, ContextCapture, ContextExecution,
-		ContextAgentActivity, ContextScenario, ContextOperatingMode, ContextSession:
+		ContextAgentActivity, ContextScenario, ContextOperatingMode, ContextSession, ContextOperationsBriefing:
 		return true
 	default:
 		return false

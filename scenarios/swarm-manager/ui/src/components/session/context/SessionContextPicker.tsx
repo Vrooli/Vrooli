@@ -28,6 +28,7 @@ import {
   executionOption,
   initiativeOption,
   operatingModeOption,
+  operationsBriefingOption,
   scenarioOption,
   sessionOption,
   type SessionContextOption,
@@ -111,6 +112,7 @@ function SessionContextPickerContent({
     scenario: scenarios.map(scenarioOption),
     operating_mode: (modesQuery.data?.modes ?? []).map(operatingModeOption).filter((mode) => mode.ref),
     session: sessions.filter((session) => session.id !== currentSessionId).map(sessionOption),
+    operations_briefing: [operationsBriefingOption()],
   }), [activities, backlogItems, captures, currentSessionId, executions, initiatives, modesQuery.data?.modes, scenarios, sessions]);
 
   const selectedKeys = useMemo(() => new Set(draft.map((item) => contextKey(item.type, item.ref))), [draft]);

@@ -5,7 +5,10 @@
   ],
   "created": "2026-04-22T17:27:36Z",
   "depends_on": [
-    "execute/tool-authoring-go-toolkit"
+    "execute/tool-authoring-go-toolkit",
+    "fix/qa-agent-manager-standards-focus-visible-20260516",
+    "fix/qa-agent-manager-tests-lint-20260516",
+    "fix/qa-agent-manager-visual-baseline-20260516"
   ],
   "description": "## Goal\n\nDogfood the toolkit from `execute/tool-authoring-go-toolkit` by converting the existing hand-written tool implementations in `agent-manager` and `scenario-to-cloud` to use it. This is the proof that the toolkit actually reduces boilerplate and fits real usage; without this step, the toolkit is unvalidated.\n\n## Expected Work\n\n- Convert `scenarios/agent-manager/api/internal/toolregistry/*` tools to the new toolkit.\n- Convert `scenarios/scenario-to-cloud/api/toolregistry/*` tools to the new toolkit.\n- Relocate to canonical `api/tools/` per the research decision.\n- Keep `/api/v1/tools` output byte-equivalent (or document the diff).\n\n## Acceptance\n\n- Both scenarios expose identical tool manifests via `/api/v1/tools` to what they did before migration.\n- Line count for tool definitions is reduced significantly per the research target.\n- All existing tests still pass.",
   "effort": "M",
@@ -16,5 +19,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Migrate agent-manager and scenario-to-cloud tools to the new toolkit",
-  "updated": "2026-04-22T17:27:36Z"
+  "updated": "2026-05-16T04:09:55Z"
 }

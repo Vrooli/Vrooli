@@ -143,6 +143,7 @@ export const API_ENDPOINTS = {
   stats: "/stats",
   health: "/health",
   operations: "/operations",
+  operationsBrief: "/operations/brief",
   operationsBulkStop: "/operations/bulk-stop",
   // Review evidence endpoints
   reviewRounds: (kind: string, name: string) => `/backlog/${kind}/${name}/review`,

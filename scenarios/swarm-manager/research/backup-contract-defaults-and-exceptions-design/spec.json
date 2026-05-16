@@ -10,7 +10,9 @@
   ],
   "created": "2026-04-22T03:16:42Z",
   "depends_on": [
-    "research/platform-persistence-surface-audit"
+    "research/platform-persistence-surface-audit",
+    "fix/qa-data-backup-manager-standards-requirements-20260516",
+    "fix/qa-data-backup-manager-visual-baseline-20260516"
   ],
   "description": "Define the manifest-level backup contract for scenarios and resources. The design should default backup behavior from canonical storage classes and resource dependency types, specify when config/data/state/cache/logs are included or excluded, and define the minimal declarative override mechanism for true exceptions. The outcome must explicitly forbid hardcoded per-scenario and per-resource branches inside data-backup-manager itself.",
   "effort": "M",
@@ -21,5 +23,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Design backup defaults and exception contracts",
-  "updated": "2026-04-22T03:16:42Z"
+  "updated": "2026-05-16T04:09:47Z"
 }

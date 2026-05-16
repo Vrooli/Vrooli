@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/command-center/**"
+  ],
+  "created": "2026-05-15T22:05:51Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "079c2d0a-600b-442f-b9a6-8d39c2c805f7",
+    "task_id": "5c5cce38-54e2-44eb-84b2-31bc32724f80",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "GCT readiness for command-center is yellow from job 0065e5f4-962f-40b7-9bad-8ad6df2240f1 on 2026-05-15T22:04:52Z. Standards reported 4 blocking violations, 17 warnings, 21 total. Top critical findings: api/main.go missing ScenarioName in preflight config, missing required Makefile, and requirements/index.json P0 targets missing linked requirements. The tests dimension also failed its standards phase because standards violations exceed fail_on=high with highest=critical. Success target: standards blockingViolations=0; api/main.go preflight config includes ScenarioName command-center; required Makefile exists; P0/P1 requirements are linked. Rerun git-control-tower review run command-center --details=10 --json.",
+  "kind": "fix",
+  "name": "qa-command-center-standards-preflight-requirements-20260515",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "command-center",
+    "standards",
+    "preflight",
+    "requirements"
+  ],
+  "title": "Fix command-center preflight and requirements standards blockers",
+  "updated": "2026-05-15T22:05:51Z"
+}

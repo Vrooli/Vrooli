@@ -9,7 +9,9 @@
   ],
   "created": "2026-04-22T03:16:42Z",
   "depends_on": [
-    "execute/data-backup-manager-manifest-driven-discovery"
+    "execute/data-backup-manager-manifest-driven-discovery",
+    "fix/qa-data-backup-manager-standards-requirements-20260516",
+    "fix/qa-data-backup-manager-visual-baseline-20260516"
   ],
   "description": "Add the actual backup execution layer for canonical resources and destination targets. This should cover resource adapters for the infrastructure stores that need managed backup behavior, plus operator-selectable destinations such as local archive paths, attached storage, and S3-compatible buckets. The implementation should stay declarative and adapter-based rather than accumulating hardcoded scenario logic.",
   "effort": "XL",
@@ -20,5 +22,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Implement resource adapters and backup targets in Data Backup Manager",
-  "updated": "2026-04-22T03:16:42Z"
+  "updated": "2026-05-16T04:09:49Z"
 }

@@ -5,7 +5,10 @@
   "created": "2026-04-22T17:27:36Z",
   "depends_on": [
     "research/unified-retrieval-index-design",
-    "execute/agent-inbox-qdrant-retrieval-index"
+    "execute/agent-inbox-qdrant-retrieval-index",
+    "fix/qa-agent-inbox-standards-storage-20260516",
+    "fix/qa-agent-inbox-tests-performance-playbook-20260516",
+    "fix/qa-agent-inbox-visual-baseline-20260516"
   ],
   "description": "## Goal\n\nA held-out eval set + harness that measures recall@K on surface routing. Runs in CI so retrieval quality does not silently regress as the index schema or embedding model changes.\n\n## Expected Work\n\n- Eval set per research (pairs of user message + correct surface id).\n- Harness that runs every commit touching retrieval code or descriptors.\n- Report: recall@1, recall@3, recall@10. Category breakdowns (tool vs CLI command vs widget).\n- CI gate: fail if recall drops below a configurable threshold.\n- Surface a human-readable report.\n\n## Acceptance\n\n- Baseline numbers established against v1 index.\n- CI gate fires on a deliberately bad change.\n- Report is actionable (identifies which surfaces regressed).",
   "effort": "M",
@@ -16,5 +19,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Ship a retrieval routing-eval harness with CI regression gate",
-  "updated": "2026-04-22T17:27:36Z"
+  "updated": "2026-05-16T04:10:00Z"
 }

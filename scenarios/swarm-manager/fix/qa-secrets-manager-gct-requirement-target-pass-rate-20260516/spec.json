@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/secrets-manager/**"
+  ],
+  "created": "2026-05-16T16:03:37Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "911b55fa-7330-4978-870f-1c15afd5d11c",
+    "task_id": "d4066efa-ccf3-4485-b10b-38639c58478a",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Fresh GCT completeness recalculation on 2026-05-16T16:02:13Z classified secrets-manager as foundation_laid with score 37. Evidence: requirement pass rate is 16/33 = 48.48% for 10/20 quality points; operational target pass rate is 16/33 = 48.48% for 7/15 quality points. GCT also flagged ungrouped_operational_targets with 3 targets, 25% one-to-one requirement mapping vs max recommended 15%, penalty 3. Recommendations include increasing requirement pass rate to 90%+, increasing operational target pass rate to 90%+, and grouping related requirements under shared PRD operational targets. Success target: rerun `vrooli scenario completeness score get secrets-manager --json`; requirement_pass_rate.rate and target_pass_rate.rate are \u003e=0.9, ungrouped_operational_targets is cleared or below threshold in validation analysis, and the score improves out of foundation_laid.",
+  "kind": "fix",
+  "name": "qa-secrets-manager-gct-requirement-target-pass-rate-20260516",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "secrets-manager",
+    "gct",
+    "requirements",
+    "targets"
+  ],
+  "title": "Raise secrets-manager requirement and operational target pass rates",
+  "updated": "2026-05-16T16:03:37Z"
+}

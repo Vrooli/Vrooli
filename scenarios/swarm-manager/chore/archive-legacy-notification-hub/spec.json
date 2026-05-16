@@ -5,7 +5,10 @@
   ],
   "created": "2026-04-04T22:36:30Z",
   "depends_on": [
-    "research/notification-hub-signal-extraction"
+    "research/notification-hub-signal-extraction",
+    "fix/qa-notification-hub-standards-structure-api-base-20260516",
+    "fix/qa-notification-hub-tests-docs-smoke-playbooks-business-20260516",
+    "fix/qa-notification-hub-visual-baseline-20260516"
   ],
   "description": "Remove old scenarios/notification-hub/ after signal extraction is complete. Clean up any references to the legacy scenario in other scenarios, docs, or configuration files. The greenfield replacement will occupy the same scenario slug.",
   "effort": "S",
@@ -16,5 +19,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Archive And Remove Legacy Notification Hub Scenario",
-  "updated": "2026-04-04T22:36:30Z"
+  "updated": "2026-05-16T10:06:58Z"
 }

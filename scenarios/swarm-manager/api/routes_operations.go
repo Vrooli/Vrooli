@@ -2,8 +2,10 @@ package main
 
 import (
 	"log"
+	"path/filepath"
 
 	"swarm-manager/internal/operations"
+	"swarm-manager/internal/sessioncontext"
 )
 
 // registerOperationsRoutes wires the Operations Center HTTP surface:
@@ -35,7 +37,22 @@ func (s *Server) registerOperationsRoutes() {
 	if err != nil {
 		log.Fatalf("operations: failed to build Aggregator: %v", err)
 	}
-	operations.NewHandler(aggregator).RegisterRoutes(s.router)
+	projectRoot := filepath.Dir(filepath.Dir(s.scenarioRoot))
+	briefingBuilder, err := operations.NewBriefingBuilder(operations.BriefingBuilderConfig{
+		Aggregator: aggregator,
+		Overview:   s.overviewSvc,
+		Stats:      s.statsEngine,
+		Handoffs:   operations.FileDirectorHandoffReader{ProjectRoot: projectRoot},
+	})
+	if err != nil {
+		log.Fatalf("operations: failed to build BriefingBuilder: %v", err)
+	}
+	handler := operations.NewHandler(aggregator)
+	handler.SetBriefingBuilder(briefingBuilder)
+	handler.RegisterRoutes(s.router)
+	if s.agentSessionSvc != nil {
+		s.agentSessionSvc.SetContextResolver(sessioncontext.NewResolver(s.scenarioRoot, filepath.Dir(s.scenarioRoot), s.agentSessionStore, briefingBuilder))
+	}
 
 	// Bulk-stop reuses the same agentActivitySvc as both Stopper and
 	// ActivityLister: StopRun cancels a single run end-to-end (manager

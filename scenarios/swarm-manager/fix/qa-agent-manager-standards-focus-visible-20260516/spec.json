@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-manager/**"
+  ],
+  "created": "2026-05-16T04:06:27Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "b41e3f3c-31fd-4e43-be7a-93d657f52367",
+    "task_id": "f5df4542-f4e5-4874-a709-fd4f21445e1c",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "GCT readiness for agent-manager is yellow from job ac94dc89-88cd-41e8-8bd9-1056f2064612 on 2026-05-16T04:03:22Z. Standards reported blockingViolations=0, warnings=47, totalViolations=47. All top violations are Missing focus-visible styles, including ui/src/components/ApplyInvestigationModal.tsx, AttachmentPreview.tsx, ContextAttachmentModal.tsx, DiffViewer.tsx, and InvestigateModal.tsx. Success target: standards warnings are reduced from 47 to 0 or to only justified non-focus findings, with interactive elements using focus-visible:ring-2 focus-visible:outline-none or data-spatial-focus styling. Rerun git-control-tower review run agent-manager --json.",
+  "kind": "fix",
+  "name": "qa-agent-manager-standards-focus-visible-20260516",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "agent-manager",
+    "standards",
+    "focus-visible"
+  ],
+  "title": "Add focus-visible coverage to agent-manager UI interactions",
+  "updated": "2026-05-16T04:06:27Z"
+}

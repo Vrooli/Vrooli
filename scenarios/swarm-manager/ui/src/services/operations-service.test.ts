@@ -242,6 +242,50 @@ describe("createOperationsService.fetchOperations", () => {
   });
 });
 
+describe("createOperationsService.fetchBriefing", () => {
+  it("normalizes the briefing response and calls the brief endpoint", async () => {
+    const seen: string[] = [];
+    const client = fakeClient((path) => {
+      seen.push(path);
+      return {
+        generated_at: "2026-05-16T00:00:00Z",
+        freshness_seconds: 0,
+        window_seconds: 10800,
+        summary: {
+          active_activity_count: 2,
+          recently_finished_count: 1,
+          queue_depth: 2,
+          max_queue_depth: 50,
+          saturated_lanes: ["execute"],
+          active_lane_count_by_lane: { execute: 2 },
+          total_backlog_items: 42,
+          active_initiatives: 7,
+          blocked_items: 1,
+          active_sessions: 3,
+        },
+        active_work: [{ activity_id: "a-1", owner_type: "backlog", owner_name: "ship", purpose: "process", status: "running", requested_at: "2026-05-16T00:00:00Z" }],
+        needs_attention: [{ id: "lane/execute", severity: "medium", reason: "lane_saturated", title: "Execute lane is saturated", command: "swarm-manager operations list --lane execute" }],
+        recent_completions: [],
+        director_handoffs: [{ source_path: "handoff.md", title: "portfolio", observed_at: "2026-05-16T00:00:00Z", excerpt: "handoff" }],
+        recommended_next_actions: [{ id: "review", label: "Review", reason: "attention", command: "swarm-manager operations list" }],
+        drill_down_commands: [{ label: "Refresh", command: "swarm-manager operations brief --json" }],
+        warnings: ["optional source unavailable"],
+      };
+    });
+
+    const briefing = await createOperationsService(client).fetchBriefing!({ windowSeconds: 3600 });
+
+    expect(seen).toEqual(["/operations/brief?window=PT1H"]);
+    expect(briefing.summary.activeActivityCount).toBe(2);
+    expect(briefing.summary.saturatedLanes).toEqual(["execute"]);
+    expect(briefing.activeWork[0]?.activityId).toBe("a-1");
+    expect(briefing.needsAttention[0]?.command).toBe("swarm-manager operations list --lane execute");
+    expect(briefing.directorHandoffs[0]?.sourcePath).toBe("handoff.md");
+    expect(briefing.drillDownCommands[0]?.command).toBe("swarm-manager operations brief --json");
+    expect(briefing.warnings).toEqual(["optional source unavailable"]);
+  });
+});
+
 describe("createOperationsService.bulkStop", () => {
   const successResponse = {
     outcomes: [

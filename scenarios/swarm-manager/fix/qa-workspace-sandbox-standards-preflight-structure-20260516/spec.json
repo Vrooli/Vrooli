@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/workspace-sandbox/**"
+  ],
+  "created": "2026-05-16T10:04:16Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "41cc6945-c1c1-436d-98d3-9907ed1ff236",
+    "task_id": "5507978a-0013-457a-8dd9-9de6e5f6d693",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "GCT readiness for workspace-sandbox is yellow from job f2cddfb4-d920-47d1-bcc1-f493caf4b82d on 2026-05-16T10:03:08Z. Standards reported blockingViolations=2, warnings=36, totalViolations=38. Critical findings are missing preflight check in api/cmd/workspace-sandbox-launcher/main.go:13 and missing required Makefile. Top warnings include Missing focus-visible styles in CommitPendingDialog.tsx, CreateSandboxDialog.tsx, and DiffViewer.tsx. Tests failed only the standards phase, so this item is the actionable test gate too. Success target: standards blockingViolations=0 and the tests dimension no longer fails standards. Rerun git-control-tower review run workspace-sandbox --json.",
+  "kind": "fix",
+  "name": "qa-workspace-sandbox-standards-preflight-structure-20260516",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "workspace-sandbox",
+    "standards",
+    "preflight"
+  ],
+  "title": "Fix workspace-sandbox preflight and required structure standards",
+  "updated": "2026-05-16T10:04:16Z"
+}

@@ -46,7 +46,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		filters.ActiveOnly = active
 	}
 
-	items, err := h.service.List(r.Context(), filters)
+	items, err := h.service.ListSnapshot(r.Context(), filters)
 	if err != nil {
 		apierr.MapError(w, "[agent-activity] list", apierr.Internal("failed to list agent activities"))
 		return

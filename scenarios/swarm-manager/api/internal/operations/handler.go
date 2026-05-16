@@ -16,11 +16,16 @@ import (
 // Handler exposes the operations aggregate over HTTP.
 type Handler struct {
 	aggregator *Aggregator
+	briefing   *BriefingBuilder
 }
 
 // NewHandler returns a Handler bound to the given aggregator.
 func NewHandler(aggregator *Aggregator) *Handler {
 	return &Handler{aggregator: aggregator}
+}
+
+func (h *Handler) SetBriefingBuilder(builder *BriefingBuilder) {
+	h.briefing = builder
 }
 
 // RegisterRoutes wires the operations endpoints onto the given router.
@@ -29,6 +34,7 @@ func NewHandler(aggregator *Aggregator) *Handler {
 // /api/v1/operations/bulk-stop lands in P7b.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/operations", h.Get).Methods("GET")
+	r.HandleFunc("/api/v1/operations/brief", h.GetBriefing).Methods("GET")
 }
 
 // Get parses query-string filters and returns the aggregated view.
@@ -61,6 +67,32 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 
 	if err := httputil.JSON(w, view); err != nil {
 		apierr.MapError(w, "[operations] get", apierr.Internal("failed to encode operations response"))
+	}
+}
+
+func (h *Handler) GetBriefing(w http.ResponseWriter, r *http.Request) {
+	if h.briefing == nil {
+		apierr.MapError(w, "[operations] brief", apierr.Unavailable("operations briefing is unavailable"))
+		return
+	}
+	filters, derr := h.parseFilters(r)
+	if derr != nil {
+		apierr.MapError(w, "[operations] brief", derr)
+		return
+	}
+	filters.Statuses = nil
+	filters.Lanes = nil
+	filters.Modes = nil
+	filters.OwnerTypes = nil
+	filters.Q = ""
+
+	briefing, err := h.briefing.Build(r.Context(), filters)
+	if err != nil {
+		apierr.MapError(w, "[operations] brief", apierr.Internal("failed to build operations briefing: %v", err))
+		return
+	}
+	if err := httputil.JSON(w, briefing); err != nil {
+		apierr.MapError(w, "[operations] brief", apierr.Internal("failed to encode operations briefing"))
 	}
 }
 

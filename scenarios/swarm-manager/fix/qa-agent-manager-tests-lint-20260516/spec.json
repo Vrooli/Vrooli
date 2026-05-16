@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-manager/**"
+  ],
+  "created": "2026-05-16T04:06:35Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "b41e3f3c-31fd-4e43-be7a-93d657f52367",
+    "task_id": "f5df4542-f4e5-4874-a709-fd4f21445e1c",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "GCT readiness for agent-manager is yellow from job ac94dc89-88cd-41e8-8bd9-1056f2064612 on 2026-05-16T04:03:22Z. Tests reported total=11, passedCount=10, failedCount=1. The only failing phase was lint with error lint validation failed and remediation to fix lint/type issues and configure lint handlers for unmatched components. Success target: tests passed=true with total=11, passedCount=11, failedCount=0 and lint/type validation passes. Rerun git-control-tower review run agent-manager --json.",
+  "kind": "fix",
+  "name": "qa-agent-manager-tests-lint-20260516",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "agent-manager",
+    "tests",
+    "lint"
+  ],
+  "title": "Fix agent-manager GCT lint failure",
+  "updated": "2026-05-16T04:06:35Z"
+}

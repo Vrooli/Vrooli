@@ -1,0 +1,29 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-emulator/**"
+  ],
+  "created": "2026-05-15T22:05:51Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "079c2d0a-600b-442f-b9a6-8d39c2c805f7",
+    "task_id": "5c5cce38-54e2-44eb-84b2-31bc32724f80",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "depends_on": [
+    "fix/qa-vrooli-emulator-standards-requirements-20260515"
+  ],
+  "description": "GCT readiness for vrooli-emulator is yellow from job 1df564fe-514a-46ce-ac66-15b1c4eb6730 on 2026-05-15T22:03:46Z. Tests reported total=11, passedCount=7, failedCount=4. Failing phases were structure (schema validation failed for 1 file), standards (covered by companion standards item), lint (lint validation failed), and business (no requirement modules found; remediation says run vrooli scenario requirements init). Success target: tests passed=true with total=11, passedCount=11, failedCount=0; lint/type validation passes; business requirement modules exist and link P0/P1 targets. Rerun git-control-tower review run vrooli-emulator --details=10 --json.",
+  "kind": "fix",
+  "name": "qa-vrooli-emulator-tests-lint-business-20260515",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "vrooli-emulator",
+    "tests",
+    "lint",
+    "business"
+  ],
+  "title": "Fix vrooli-emulator concrete GCT test failures",
+  "updated": "2026-05-15T22:05:51Z"
+}

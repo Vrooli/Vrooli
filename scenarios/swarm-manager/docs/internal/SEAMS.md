@@ -2053,6 +2053,34 @@ The Operations Center page (UI), `/api/v1/operations` (HTTP), and any future fan
 
 **Testing at the seam**: `operations/aggregator_test.go` covers window pushdown, lane math, queue counting, recently-finished partitioning, round join (matched + orphan), filter composition (`lane`, `status+q`), max-window clamping, runtime computation for active vs finished records, error propagation, and required-config validation. `operations/handler_test.go` covers default/custom/clamped windows, malformed-window rejection, lane-list filters in both `lane=` and `lane[]=` forms, status filter, q search, and the full ISO-8601 grammar. There is no separate stats-engine test; the stats path is `lane_utilization_by_kind` (already covered in P2) and is intentionally not the source of truth for the live operations view.
 
+### Operations Briefing (added 2026-05-16)
+
+`GET /api/v1/operations/brief`, `swarm-manager operations brief`, and
+`operations_briefing/latest` session context all read through
+`operations.BriefingBuilder` ([CODE: api/internal/operations/briefing.go]).
+The builder is the consumer-owned seam that composes the existing
+`OperationsView` with overview, stats, and director-swarm handoff readers into
+one deterministic bounded packet. Handlers, CLI commands, UI services, and
+prompt skills must not recompute this packet independently.
+
+**Seams**: `BriefingBuilder` requires the operations `Aggregator` and accepts
+optional `OverviewReader`, `StatsReader`, and `DirectorHandoffReader`
+interfaces. Optional source failures become briefing `warnings`; failure to
+build the core operations aggregate remains an API error. `FileDirectorHandoffReader`
+is the production handoff reader and bounds excerpts before they reach prompts.
+
+**Session context**: `sessioncontext.Resolver` resolves only the canonical
+`operations_briefing/latest` ref. `agentsessions.Service.Start` injects that ref
+by default for `swarm_operations` sessions when a context resolver exists, and
+skips it when `auto_context_policy` is `none`. Other session kinds do not get
+the briefing automatically.
+
+**Testing at the seam**: `operations/briefing_test.go` pins bounded enrichment,
+warnings for optional sources, recommended actions, and drill-down commands.
+`agentsessions/service_test.go` pins default injection, opt-out, prompt
+placement, and dedupe behavior through context normalization. UI service tests
+pin briefing normalization and the `operations/brief` endpoint path.
+
 ### Operations Center UI (added 2026-05-02)
 
 The `/operations` route ([CODE: ui/src/pages/OperationsCenterPage.tsx]) is the only UI consumer of the Operations Aggregate seam in v1; future fan-in surfaces (e.g. a sidebar trigger badge in P8) reach the same data through the same store. The page composes three layout pieces (`OpsHeader`, `OpsFilterBar`, `OpsBody`) over one Zustand store ([CODE: ui/src/stores/operations-store.ts]) that owns the latest `OperationsView`, the active filters, the view-mode toggle, and a selection set reserved for P7b's bulk actions.

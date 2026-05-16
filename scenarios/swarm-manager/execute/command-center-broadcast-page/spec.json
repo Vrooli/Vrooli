@@ -4,8 +4,11 @@
   ],
   "created": "2026-04-08T03:51:30Z",
   "depends_on": [
+    "execute/command-center-api-aggregator",
     "execute/command-center-theming-engine",
-    "execute/command-center-api-aggregator"
+    "fix/qa-command-center-standards-preflight-requirements-20260515",
+    "fix/qa-command-center-tests-playbook-lint-20260515",
+    "fix/qa-command-center-visual-baseline-20260515"
   ],
   "description": "Build the \"Broadcast\" dashboard — marketing, growth, and audience metrics. This dashboard has the most gaps — it will start mostly aspirational and fill in as marketing team tooling matures.\n\n**Theme: Signal Tower**\nElectric purple and magenta on dark background. Radiating wave animations from a central broadcast point. Social platform icons subtly integrated. Conversion funnel as luminous narrowing beam. Visitor counts as flowing particles. Conveys reach and energy.\n\n**Metrics — Available Now (dataSource: live, ~40% coverage):**\n- LPBS analytics: total visitors (distinct sessions), total downloads\n- Conversion rate by variant (A/B testing performance)\n- Per-variant breakdown: views, CTA clicks, conversions, downloads, scroll depth\n- Top CTAs with click-through rates\n- Time-windowed analytics (7/30/90 day)\n- Feedback volume by type (refund/bug/feature/general)\n- User registration trends (users.created_at)\n\n**Metrics — Ideal/Future (dataSource: gap):**\n- Social media follower counts (Twitter/X, LinkedIn, Instagram, YouTube) — from social-media-scheduler team\n- Post engagement metrics (likes, shares, comments per platform)\n- Optimal posting time analysis\n- SEO metrics: keyword rankings, organic traffic, domain authority — from seo-optimizer team\n- Funnel conversion rates per step — from funnel-builder team\n- Campaign performance: which campaigns drove which conversions — from campaign-content-studio team\n- Email open/click rates\n- Content production velocity (pieces per week)\n- Brand consistency scores across scenarios — from brand-manager team\n- Referral source breakdown (organic/social/paid/direct)\n- CAC (customer acquisition cost)\n- Video view-through rates — from video-studio team (planned)\n\n**Note:** The gap tracking system makes the high gap ratio a feature, not a bug — each gap is a signal for what to build next.\n\n**Layout concept:** Central funnel visualization (visitors → clicks → conversions → downloads). Social platform cards around perimeter. Campaign performance timeline. SEO health indicators. Content calendar heatmap.",
   "effort": "L",
@@ -16,5 +19,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Build Broadcast dashboard — marketing and growth with Signal Tower theme",
-  "updated": "2026-04-09T03:36:07Z"
+  "updated": "2026-05-15T22:08:22Z"
 }

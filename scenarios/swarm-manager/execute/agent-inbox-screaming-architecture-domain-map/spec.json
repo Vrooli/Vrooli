@@ -1,0 +1,34 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-inbox/docs/**",
+    "scenarios/agent-inbox/api/**",
+    "scenarios/agent-inbox/ui/src/**",
+    "scenarios/agent-inbox/cli/**"
+  ],
+  "created": "2026-05-16T07:03:23Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "fe6572a7-02b2-43c5-b749-92980b48a740",
+    "task_id": "868782d0-3626-4685-ab7d-bb08376c93a9",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "depends_on": [
+    "fix/qa-agent-inbox-standards-storage-20260516",
+    "fix/qa-agent-inbox-tests-performance-playbook-20260516",
+    "fix/qa-agent-inbox-visual-baseline-20260516"
+  ],
+  "description": "Quality audit 2026-05-16 using screaming-architecture-audit found Agent Inbox no longer has a durable architecture map that matches its code shape. The scenario README names the product mental model as inbox + dispatcher + chat timeline, but there is no docs/concepts/ARCHITECTURE.md or docs/internal/ARCHITECTURE.md. Existing docs/SEAMS.md focuses on async tool tracking and still describes domain as api/domain plus api/services types, while the current code has broader domains spread through generic buckets: API handlers include chat, message branching, labels, settings, templates, tools, skills, usage, uploads, async status, AI streaming, and agent mode; services include completion, async tracker, prompt sync, templates, storage, skill suggestion, tool registry, tool persistence, model registry, and reconciliation; UI has many product concepts under generic components/chat, components/settings, hooks, and lib API files. This makes future changes harder to place and encourages more behavior to land in services/hooks by locality rather than by product ownership.\n\nDraft plan: (1) add a stable architecture document for agent-inbox that names the real product domains such as inbox/chat timeline, dispatch/tool execution, agent mode/run attachment, labels/organization, templates/skills, settings/model/tool configuration, attachments/storage, async operations, search/usage, and scenario integration; (2) map each domain to current API/UI/CLI/test source paths without moving code in the first pass; (3) update docs/SEAMS.md so its responsibility zones reflect current domains and note where generic packages are intentional infrastructure versus domain-owned implementation; (4) add docs/PROBLEMS.md entries for concrete follow-up moves, for example splitting api/services by domain and introducing UI feature/domain folders only where the map shows repeated ownership confusion; (5) after docs are aligned, perform one small structural relocation or package split with tests if a high-confidence domain boundary is obvious.\n\nAcceptance: the scenario has a durable architecture doc with domain map, shared infrastructure map, maturity-by-surface notes, and links to seams/problems; docs/SEAMS.md no longer describes the whole domain layer as api/domain plus api/services types only; future agents can answer where to add a chat, tool-dispatch, template, settings, or agent-mode change from docs alone; no broad behavior rewrite is required in this item. Suggested skills: screaming-architecture-audit, boundary-of-responsibility-enforcement, cognitive-load-reduction.",
+  "effort": "M",
+  "kind": "execute",
+  "name": "agent-inbox-screaming-architecture-domain-map",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "quality-audit",
+    "agent-inbox",
+    "architecture",
+    "screaming-architecture"
+  ],
+  "title": "Clarify Agent Inbox domain-owned architecture map",
+  "updated": "2026-05-16T07:03:23Z"
+}

@@ -105,6 +105,19 @@ describe("agent-session-service", () => {
       context_refs: [],
     });
 
+    await service.start({
+      sessionId: "sess_1",
+      message: "No briefing.",
+      autoContextPolicy: "none",
+    });
+    expect(mockApiClient.post).toHaveBeenLastCalledWith("/agent-sessions/sess_1/start", {
+      session_id: "sess_1",
+      message: "No briefing.",
+      attachment_ids: [],
+      context_refs: [],
+      auto_context_policy: "none",
+    });
+
     await service.continue({
       sessionId: "sess_1",
       message: "Continue.",

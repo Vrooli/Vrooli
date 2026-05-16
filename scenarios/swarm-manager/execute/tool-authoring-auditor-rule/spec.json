@@ -4,7 +4,8 @@
   ],
   "created": "2026-04-22T17:27:36Z",
   "depends_on": [
-    "execute/tool-authoring-migrate-existing"
+    "execute/tool-authoring-migrate-existing",
+    "fix/qa-scenario-auditor-gct-requirements-targets-tests-20260516"
   ],
   "description": "## Goal\n\nAdd a scenario-auditor rule that compares the declared tools in `api/tools/` against the runtime `/api/v1/tools` manifest. Drift fails.\n\n## Expected Work\n\n- New rule in `scenarios/scenario-auditor/api/rules/` that:\n  - Discovers the scenario's `api/tools/` directory (if present).\n  - Parses declared tool names/metadata from source.\n  - Fetches `/api/v1/tools` from the running scenario.\n  - Reports mismatches (declared-but-not-exposed, exposed-but-not-declared, field drift).\n- The rule is informational (not a failure) for scenarios with no `api/tools/` — we are not forcing every scenario to expose tools.\n\n## Acceptance\n\n- Passes cleanly against the two migrated scenarios (`agent-manager`, `scenario-to-cloud`).\n- Produces an actionable diff when intentionally broken.",
   "effort": "S",
@@ -15,5 +16,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Add scenario-auditor rule for tool declaration vs. runtime drift",
-  "updated": "2026-04-22T17:27:36Z"
+  "updated": "2026-05-16T16:05:15Z"
 }

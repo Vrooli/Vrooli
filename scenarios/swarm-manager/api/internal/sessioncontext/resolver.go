@@ -9,28 +9,40 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"swarm-manager/internal/agentsessions"
+	"swarm-manager/internal/operations"
 )
 
 type Resolver struct {
 	scenarioRoot string
 	scenariosDir string
 	sessionStore agentsessions.Store
+	briefings    operationsBriefingBuilder
 }
 
-func NewResolver(scenarioRoot, scenariosDir string, sessionStore agentsessions.Store) *Resolver {
+type operationsBriefingBuilder interface {
+	Build(ctx context.Context, filters operations.Filters) (*operations.OperationsBriefing, error)
+}
+
+func NewResolver(scenarioRoot, scenariosDir string, sessionStore agentsessions.Store, briefings ...operationsBriefingBuilder) *Resolver {
+	var briefingBuilder operationsBriefingBuilder
+	if len(briefings) > 0 {
+		briefingBuilder = briefings[0]
+	}
 	return &Resolver{
 		scenarioRoot: scenarioRoot,
 		scenariosDir: scenariosDir,
 		sessionStore: sessionStore,
+		briefings:    briefingBuilder,
 	}
 }
 
-func (r *Resolver) ResolveSessionMessageContext(_ context.Context, refs []agentsessions.ContextRef, limits agentsessions.ContextLimits) ([]agentsessions.ContextItem, error) {
+func (r *Resolver) ResolveSessionMessageContext(ctx context.Context, refs []agentsessions.ContextRef, limits agentsessions.ContextLimits) ([]agentsessions.ContextItem, error) {
 	items := make([]agentsessions.ContextItem, 0, len(refs))
 	for _, ref := range refs {
-		item, err := r.resolve(ref, limits)
+		item, err := r.resolve(ctx, ref, limits)
 		if err != nil {
 			return nil, err
 		}
@@ -39,7 +51,7 @@ func (r *Resolver) ResolveSessionMessageContext(_ context.Context, refs []agents
 	return items, nil
 }
 
-func (r *Resolver) resolve(ref agentsessions.ContextRef, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+func (r *Resolver) resolve(ctx context.Context, ref agentsessions.ContextRef, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
 	switch ref.Type {
 	case agentsessions.ContextBacklogItem:
 		return r.resolveBacklogItem(ref.Ref, limits)
@@ -51,6 +63,8 @@ func (r *Resolver) resolve(ref agentsessions.ContextRef, limits agentsessions.Co
 		return r.resolveScenario(ref.Ref, limits)
 	case agentsessions.ContextSession:
 		return r.resolveSession(ref.Ref, limits)
+	case agentsessions.ContextOperationsBriefing:
+		return r.resolveOperationsBriefing(ctx, ref.Ref, limits)
 	case agentsessions.ContextExecution:
 		return r.resolveJSONFile(ref, filepath.Join(r.scenarioRoot, "executions", ref.Ref, "execution.json"), "execution", "execution-record/"+ref.Ref, limits)
 	case agentsessions.ContextAgentActivity:
@@ -66,6 +80,101 @@ func (r *Resolver) resolve(ref agentsessions.ContextRef, limits agentsessions.Co
 	default:
 		return agentsessions.ContextItem{}, fmt.Errorf("%w: unsupported context type", agentsessions.ErrValidation)
 	}
+}
+
+func (r *Resolver) resolveOperationsBriefing(ctx context.Context, ref string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	if strings.TrimSpace(ref) != agentsessions.OperationsBriefingLatestRef {
+		return agentsessions.ContextItem{}, fmt.Errorf("%w: operations briefing ref must be %s", agentsessions.ErrValidation, agentsessions.OperationsBriefingLatestRef)
+	}
+	if r.briefings == nil {
+		return agentsessions.ContextItem{}, fmt.Errorf("%w: operations briefing context is unavailable", agentsessions.ErrValidation)
+	}
+	briefing, err := r.briefings.Build(ctx, operations.Filters{})
+	if err != nil {
+		return agentsessions.ContextItem{}, err
+	}
+	metadata := map[string]any{
+		"generated_at":          briefing.GeneratedAt.Format(time.RFC3339),
+		"window_seconds":        briefing.WindowSeconds,
+		"active_activity_count": briefing.Summary.ActiveActivityCount,
+		"needs_attention_count": len(briefing.NeedsAttention),
+	}
+	data, _ := json.Marshal(metadata)
+	return agentsessions.ContextItem{
+		Type:         agentsessions.ContextOperationsBriefing,
+		Ref:          agentsessions.OperationsBriefingLatestRef,
+		Title:        "Current operations briefing",
+		Summary:      truncate(formatOperationsBriefingSummary(briefing), limits.MaxSummaryRunes),
+		NodeID:       "/operations",
+		MetadataJSON: string(data),
+	}, nil
+}
+
+func formatOperationsBriefingSummary(briefing *operations.OperationsBriefing) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Generated: %s. Window: %ds. Active: %d. Recently finished: %d. Queue: %d/%d. Active initiatives: %d. Blocked items: %d. Active sessions: %d.\n",
+		briefing.GeneratedAt.Format(time.RFC3339),
+		briefing.WindowSeconds,
+		briefing.Summary.ActiveActivityCount,
+		briefing.Summary.RecentlyFinishedCount,
+		briefing.Summary.QueueDepth,
+		briefing.Summary.MaxQueueDepth,
+		briefing.Summary.ActiveInitiatives,
+		briefing.Summary.BlockedItems,
+		briefing.Summary.ActiveSessions,
+	)
+	if len(briefing.Summary.SaturatedLanes) > 0 {
+		fmt.Fprintf(&b, "Saturated lanes: %s.\n", strings.Join(briefing.Summary.SaturatedLanes, ", "))
+	}
+	if len(briefing.NeedsAttention) > 0 {
+		b.WriteString("Needs attention:\n")
+		for _, item := range briefing.NeedsAttention {
+			fmt.Fprintf(&b, "- %s [%s]: %s", item.Title, item.Severity, item.Reason)
+			if item.Command != "" {
+				fmt.Fprintf(&b, " (%s)", item.Command)
+			}
+			b.WriteString("\n")
+		}
+	}
+	if len(briefing.ActiveWork) > 0 {
+		b.WriteString("Active work:\n")
+		for _, item := range briefing.ActiveWork {
+			fmt.Fprintf(&b, "- %s [%s/%s] %s", firstNonEmpty(item.OwnerTitle, item.OwnerName, item.ActivityID), item.Lane, item.Status, firstNonEmpty(item.RunID, item.ActivityID))
+			if item.Mode != "" || item.Phase != "" {
+				fmt.Fprintf(&b, " mode=%s phase=%s", item.Mode, item.Phase)
+			}
+			b.WriteString("\n")
+		}
+	}
+	if len(briefing.RecommendedNextActions) > 0 {
+		b.WriteString("Recommended next actions:\n")
+		for _, action := range briefing.RecommendedNextActions {
+			fmt.Fprintf(&b, "- %s: %s", action.Label, action.Reason)
+			if action.Command != "" {
+				fmt.Fprintf(&b, " (%s)", action.Command)
+			}
+			b.WriteString("\n")
+		}
+	}
+	if len(briefing.DrillDownCommands) > 0 {
+		b.WriteString("Drill-down commands:\n")
+		for _, command := range briefing.DrillDownCommands {
+			fmt.Fprintf(&b, "- %s: %s\n", command.Label, command.Command)
+		}
+	}
+	if len(briefing.Warnings) > 0 {
+		fmt.Fprintf(&b, "Warnings: %s.\n", strings.Join(briefing.Warnings, "; "))
+	}
+	return b.String()
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func (r *Resolver) resolveBacklogItem(ref string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {

@@ -4,7 +4,10 @@
   ],
   "created": "2026-04-22T17:27:36Z",
   "depends_on": [
-    "execute/agent-inbox-qdrant-retrieval-index"
+    "execute/agent-inbox-qdrant-retrieval-index",
+    "fix/qa-agent-inbox-standards-storage-20260516",
+    "fix/qa-agent-inbox-tests-performance-playbook-20260516",
+    "fix/qa-agent-inbox-visual-baseline-20260516"
   ],
   "description": "## Goal\n\nThe three always-available meta-tools that let the agent pull surfaces on demand at negligible token cost (3 small tool defs instead of dumping every scenario's tools into context).\n\n## Expected Work\n\n- Implement `search_tools(query)`, `search_commands(query)`, `search_widgets(query)` per research JSON-Schema.\n- Wire them into the default prompt for auto-mode chats.\n- Query the unified index.\n- Return result payloads rich enough for the agent to decide whether to invoke.\n- Track token-cost and call frequency as observability signals.\n\n## Acceptance\n\n- Agent can discover and invoke a previously-unsurfaced tool by calling one of the three meta-tools.\n- Token cost of the three meta-tools in context is bounded and measurable.",
   "effort": "M",
@@ -15,5 +18,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Ship `search_tools` / `search_commands` / `search_widgets` meta-tools",
-  "updated": "2026-04-22T17:27:36Z"
+  "updated": "2026-05-16T04:09:52Z"
 }

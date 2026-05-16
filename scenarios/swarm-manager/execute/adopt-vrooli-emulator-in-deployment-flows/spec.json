@@ -13,7 +13,10 @@
     "execute/vrooli-emulator-linux-first",
     "fix/qa-deployment-manager-standards-focus-visible-20260515",
     "fix/qa-deployment-manager-tests-20260407",
-    "fix/qa-deployment-manager-visual-baseline-20260515"
+    "fix/qa-deployment-manager-visual-baseline-20260515",
+    "fix/qa-vrooli-emulator-standards-requirements-20260515",
+    "fix/qa-vrooli-emulator-tests-lint-business-20260515",
+    "fix/qa-vrooli-emulator-visual-baseline-20260515"
   ],
   "description": "Adopt the dedicated emulator service in scenario-to-desktop and deployment-manager so those scenarios stop directly owning the shared live-desktop validation stack wherever reasonable.\n\nThe goal is to preserve human-gated sanity checks while consolidating emulator behavior into one shared service that can later grow beyond Linux.",
   "effort": "L",
@@ -29,5 +32,5 @@
     "integration"
   ],
   "title": "Adopt The Emulator Service In Deployment Flows",
-  "updated": "2026-05-15T04:07:36Z"
+  "updated": "2026-05-15T22:08:09Z"
 }

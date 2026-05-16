@@ -6,6 +6,8 @@
   "created": "2026-04-22T18:33:52Z",
   "depends_on": [
     "fix/qa-prompt-manager-standards-20260514",
+    "fix/qa-vrooli-bridge-standards-foundation-20260515",
+    "fix/qa-vrooli-bridge-visual-baseline-20260515",
     "research/vrooli-bridge-verification-integration"
   ],
   "description": "Implement the triage → bridge integration per research/vrooli-bridge-verification-integration. Adds a verification step to the triage team's disposition flow, runs PR patches and scenario proposals through the isolated install, and feeds results back into disposition + typed evidence.",
@@ -17,5 +19,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Wire contribution-triage team to vrooli-bridge verification runtime",
-  "updated": "2026-05-14T22:07:36Z"
+  "updated": "2026-05-15T22:08:38Z"
 }

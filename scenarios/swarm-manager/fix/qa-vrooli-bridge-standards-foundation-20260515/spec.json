@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-bridge/**"
+  ],
+  "created": "2026-05-15T22:06:16Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "079c2d0a-600b-442f-b9a6-8d39c2c805f7",
+    "task_id": "5c5cce38-54e2-44eb-84b2-31bc32724f80",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "GCT readiness for vrooli-bridge is red from job c2ef8e70-439f-441d-9ab2-96ed71b3c5e1 on 2026-05-15T22:02:40Z. Standards reported 4 blocking violations, 9 warnings, 13 total. Top critical findings: missing required Makefile, ui/package.json missing @vrooli/api-base, ui/package.json missing @vrooli/iframe-bridge, and requirements/index.json P0 targets missing linked requirements. Success target: standards blockingViolations=0; required Makefile exists; UI dependencies include @vrooli/api-base and @vrooli/iframe-bridge; P0/P1 requirements are linked. Rerun git-control-tower review run vrooli-bridge --details=10 --json.",
+  "kind": "fix",
+  "name": "qa-vrooli-bridge-standards-foundation-20260515",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "vrooli-bridge",
+    "standards",
+    "requirements",
+    "dependencies"
+  ],
+  "title": "Fix vrooli-bridge required structure, bridge dependencies, and requirements standards",
+  "updated": "2026-05-15T22:06:16Z"
+}

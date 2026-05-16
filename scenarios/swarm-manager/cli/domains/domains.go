@@ -10,6 +10,7 @@ import (
 	"swarm-manager/cli/domains/initiatives"
 	"swarm-manager/cli/domains/migration"
 	operatingmodecli "swarm-manager/cli/domains/operatingmode"
+	"swarm-manager/cli/domains/operations"
 	"swarm-manager/cli/domains/prompts"
 	"swarm-manager/cli/domains/queue"
 	"swarm-manager/cli/domains/scenarios"
@@ -40,6 +41,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		operatingmodecli.Register(deps),
 		captures.Register(deps),
 		agentmanager.Register(deps),
+		operations.Register(deps),
 		sessions.Register(deps),
 		stats.Register(deps),
 		aisearch.Register(deps),

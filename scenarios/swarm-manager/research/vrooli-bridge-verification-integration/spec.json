@@ -3,6 +3,10 @@
     "scenarios/vrooli-bridge/**"
   ],
   "created": "2026-04-22T18:33:52Z",
+  "depends_on": [
+    "fix/qa-vrooli-bridge-standards-foundation-20260515",
+    "fix/qa-vrooli-bridge-visual-baseline-20260515"
+  ],
   "description": "Design how the contribution-triage team uses vrooli-bridge to safely run incoming PR patches and scenario proposals on an isolated install before approving them. Covers: how the triage team requests a verification run, how the isolated install is reset between runs, what test suite runs against the candidate change, how results feed back to the triage team's disposition decision, and how this interacts with the plan-of-record learning loop (verified-fail cases become strong rejection signals).\n\nDeliverable: conclusion.md with the verification contract and a sequence diagram for triage → bridge → verdict.",
   "effort": "M",
   "initiative": "contribution-verification-isolated",
@@ -12,5 +16,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Design vrooli-bridge integration for inbound contribution verification",
-  "updated": "2026-04-22T18:33:52Z"
+  "updated": "2026-05-15T22:08:42Z"
 }

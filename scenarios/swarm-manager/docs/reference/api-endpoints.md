@@ -31,14 +31,20 @@ Valid `kind` values are `meta_orchestration`, `swarm_operations`, and
 Starts a draft session with the first real operator message. This is the only
 path that turns a draft into an Agent Manager run. A start request must include
 at least one of `message`, `attachment_ids`, or `context_refs`.
+For `swarm_operations` sessions, the default auto-context policy attaches
+`operations_briefing/latest` unless the request sets
+`"auto_context_policy": "none"` or already includes an explicit
+`operations_briefing` ref.
 
 ```json
 {
   "message": "Here is the context to plan...",
   "attachment_ids": ["att_abc123"],
+  "auto_context_policy": "default",
   "context_refs": [
-    { "type": "initiative", "id": "desktop-release-governance" },
-    { "type": "backlog_item", "id": "fix/auth-bug" }
+    { "type": "operations_briefing", "ref": "operations_briefing/latest" },
+    { "type": "initiative", "ref": "desktop-release-governance" },
+    { "type": "backlog_item", "ref": "fix/auth-bug" }
   ]
 }
 ```
@@ -79,6 +85,39 @@ session.
 Returns bounded session-owned Agent Manager run events. Draft/no-run sessions
 return `events: []`. Tool inputs/outputs and raw fallbacks are truncated by the
 API boundary.
+
+## Operations
+
+`GET /api/v1/operations`
+
+Returns the live operations aggregate: lane utilization, queue depth, active
+activities, recently finished activities, `generated_at`, and the effective
+`window_seconds`.
+
+Query parameters:
+- `window`: ISO-8601 PT duration, default `PT3H`, max `PT24H`
+- `status`, `lane`, `mode`, `owner_type`: repeatable filters
+- `q`: substring search over owner title/name and run ID
+
+`GET /api/v1/operations/brief`
+
+Returns the bounded operations briefing contract used by CLI, UI, and
+`swarm_operations` agent-session prompt context. The response is generated on
+demand from current operations, overview, stats, and director-handoff sources.
+Optional source failures appear in `warnings`; core operations aggregation
+failure returns an API error.
+
+Response fields:
+- `generated_at`, `freshness_seconds`, `window_seconds`
+- `summary`: active/recent counts, queue depth, saturated lanes, backlog,
+  initiative, blocked-item, and active-session counts
+- `active_work`: top bounded active activity rows
+- `needs_attention`: failed, review-needed, saturated, or queue-pressure items
+- `recent_completions`: top bounded recent completions
+- `director_handoffs`: bounded excerpts from director-swarm handoffs
+- `recommended_next_actions` and `drill_down_commands`: deterministic command
+  and UI hints
+- `warnings`: stale/missing optional source notes
 
 ## Backlog Create
 

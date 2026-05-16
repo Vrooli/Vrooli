@@ -25,6 +25,12 @@ import type {
   BulkStopResponse,
   LaneStatus,
   OperationsFilters,
+  OperationsBriefing,
+  OperationsBriefingAttentionItem,
+  OperationsBriefingSummary,
+  OperationsDirectorHandoff,
+  OperationsDrillDownCommand,
+  OperationsRecommendedAction,
   OperationsView,
   QueueStatus,
 } from "../types/operations";
@@ -108,6 +114,95 @@ function normalizeView(raw: unknown): OperationsView {
     recentlyFinished: Array.isArray(finished) ? finished.map(normalizeActivity) : [],
     generatedAt: stringValue(view.generated_at ?? view.generatedAt),
     windowSeconds: numberValue(view.window_seconds ?? view.windowSeconds),
+  };
+}
+
+function normalizeBriefingSummary(raw: unknown): OperationsBriefingSummary {
+  const summary = recordValue(raw);
+  const laneCounts = recordValue(summary.active_lane_count_by_lane ?? summary.activeLaneCountByLane);
+  const saturatedLanes = summary.saturated_lanes ?? summary.saturatedLanes;
+  return {
+    activeActivityCount: numberValue(summary.active_activity_count ?? summary.activeActivityCount),
+    recentlyFinishedCount: numberValue(summary.recently_finished_count ?? summary.recentlyFinishedCount),
+    queueDepth: numberValue(summary.queue_depth ?? summary.queueDepth),
+    maxQueueDepth: numberValue(summary.max_queue_depth ?? summary.maxQueueDepth),
+    saturatedLanes: Array.isArray(saturatedLanes)
+      ? saturatedLanes.filter((value): value is string => typeof value === "string")
+      : [],
+    activeLaneCountByLane: Object.fromEntries(
+      Object.entries(laneCounts).filter((entry): entry is [string, number] => typeof entry[1] === "number"),
+    ),
+    totalBacklogItems: numberValue(summary.total_backlog_items ?? summary.totalBacklogItems),
+    activeInitiatives: numberValue(summary.active_initiatives ?? summary.activeInitiatives),
+    blockedItems: numberValue(summary.blocked_items ?? summary.blockedItems),
+    activeSessions: numberValue(summary.active_sessions ?? summary.activeSessions),
+  };
+}
+
+function normalizeAttentionItem(raw: unknown): OperationsBriefingAttentionItem {
+  const item = recordValue(raw);
+  return {
+    id: stringValue(item.id),
+    severity: stringValue(item.severity),
+    reason: stringValue(item.reason),
+    title: stringValue(item.title),
+    status: stringValue(item.status, "") || undefined,
+    lane: stringValue(item.lane, "") || undefined,
+    ref: stringValue(item.ref, "") || undefined,
+    command: stringValue(item.command, "") || undefined,
+  };
+}
+
+function normalizeHandoff(raw: unknown): OperationsDirectorHandoff {
+  const item = recordValue(raw);
+  return {
+    sourcePath: stringValue(item.source_path ?? item.sourcePath),
+    title: stringValue(item.title),
+    observedAt: stringValue(item.observed_at ?? item.observedAt, "") || undefined,
+    excerpt: stringValue(item.excerpt),
+  };
+}
+
+function normalizeRecommendedAction(raw: unknown): OperationsRecommendedAction {
+  const item = recordValue(raw);
+  return {
+    id: stringValue(item.id),
+    label: stringValue(item.label),
+    reason: stringValue(item.reason),
+    command: stringValue(item.command, "") || undefined,
+    uiPath: stringValue(item.ui_path ?? item.uiPath, "") || undefined,
+  };
+}
+
+function normalizeDrillDownCommand(raw: unknown): OperationsDrillDownCommand {
+  const item = recordValue(raw);
+  return {
+    label: stringValue(item.label),
+    command: stringValue(item.command),
+  };
+}
+
+function normalizeBriefing(raw: unknown): OperationsBriefing {
+  const briefing = recordValue(raw);
+  const activeWork = briefing.active_work ?? briefing.activeWork;
+  const recent = briefing.recent_completions ?? briefing.recentCompletions;
+  const attention = briefing.needs_attention ?? briefing.needsAttention;
+  const handoffs = briefing.director_handoffs ?? briefing.directorHandoffs;
+  const actions = briefing.recommended_next_actions ?? briefing.recommendedNextActions;
+  const commands = briefing.drill_down_commands ?? briefing.drillDownCommands;
+  const warnings = briefing.warnings;
+  return {
+    generatedAt: stringValue(briefing.generated_at ?? briefing.generatedAt),
+    freshnessSeconds: numberValue(briefing.freshness_seconds ?? briefing.freshnessSeconds),
+    windowSeconds: numberValue(briefing.window_seconds ?? briefing.windowSeconds),
+    summary: normalizeBriefingSummary(briefing.summary),
+    activeWork: Array.isArray(activeWork) ? activeWork.map(normalizeActivity) : [],
+    needsAttention: Array.isArray(attention) ? attention.map(normalizeAttentionItem) : [],
+    recentCompletions: Array.isArray(recent) ? recent.map(normalizeActivity) : [],
+    directorHandoffs: Array.isArray(handoffs) ? handoffs.map(normalizeHandoff) : [],
+    recommendedNextActions: Array.isArray(actions) ? actions.map(normalizeRecommendedAction) : [],
+    drillDownCommands: Array.isArray(commands) ? commands.map(normalizeDrillDownCommand) : [],
+    warnings: Array.isArray(warnings) ? warnings.filter((value): value is string => typeof value === "string") : [],
   };
 }
 
@@ -206,6 +301,7 @@ function serializeBulkRequest(req: BulkStopRequest): Record<string, unknown> {
 
 export interface IOperationsService {
   fetchOperations(filters?: OperationsFilters): Promise<OperationsView>;
+  fetchBriefing?(filters?: Pick<OperationsFilters, "windowSeconds">): Promise<OperationsBriefing>;
   bulkStop(request: BulkStopRequest): Promise<BulkStopResponse>;
 }
 
@@ -217,6 +313,11 @@ export function createOperationsService(
       const suffix = buildOperationsQuery(filters);
       const raw = await apiClient.get<unknown>(`${API_ENDPOINTS.operations}${suffix}`);
       return normalizeView(raw);
+    },
+    async fetchBriefing(filters?: Pick<OperationsFilters, "windowSeconds">): Promise<OperationsBriefing> {
+      const suffix = buildOperationsQuery(filters);
+      const raw = await apiClient.get<unknown>(`${API_ENDPOINTS.operationsBrief}${suffix}`);
+      return normalizeBriefing(raw);
     },
     async bulkStop(request: BulkStopRequest): Promise<BulkStopResponse> {
       const body = serializeBulkRequest(request);

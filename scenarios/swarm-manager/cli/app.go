@@ -202,6 +202,8 @@ func (a *App) dependencies() support.Dependencies {
 		AgentManagerStatus:              a.cmdAgentManagerStatus,
 		AgentManagerRunGet:              a.cmdAgentManagerRunGet,
 		AgentManagerRunStop:             a.cmdAgentManagerRunStop,
+		OperationsList:                  a.cmdOperationsList,
+		OperationsBrief:                 a.cmdOperationsBrief,
 		SessionsList:                    a.cmdSessionsList,
 		SessionsGet:                     a.cmdSessionsGet,
 		SessionsDelete:                  a.cmdSessionsDelete,

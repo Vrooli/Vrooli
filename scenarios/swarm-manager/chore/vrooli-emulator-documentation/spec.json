@@ -7,7 +7,10 @@
   "created": "2026-04-17T16:10:54Z",
   "depends_on": [
     "execute/scaffold-vrooli-emulator-scenario",
-    "execute/vrooli-emulator-standalone-ui"
+    "execute/vrooli-emulator-standalone-ui",
+    "fix/qa-vrooli-emulator-standards-requirements-20260515",
+    "fix/qa-vrooli-emulator-tests-lint-business-20260515",
+    "fix/qa-vrooli-emulator-visual-baseline-20260515"
   ],
   "description": "Document the `/api/v1/sessions/` API contract (including `headless: true` and required `app_path`), the iframe embed / `/embedded/emulator/external-url` protocol, and the operator CLI surface. This is the reference future consumers (deployment-manager visual validation, additional scenarios) should read before integrating.",
   "effort": "S",
@@ -21,5 +24,5 @@
     "docs"
   ],
   "title": "Document vrooli-emulator API, embed protocol, and launch contract",
-  "updated": "2026-04-19T13:55:02Z"
+  "updated": "2026-05-15T22:08:08Z"
 }

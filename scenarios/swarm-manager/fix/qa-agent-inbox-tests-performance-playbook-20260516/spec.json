@@ -1,0 +1,29 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-inbox/**"
+  ],
+  "created": "2026-05-16T04:06:09Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "b41e3f3c-31fd-4e43-be7a-93d657f52367",
+    "task_id": "f5df4542-f4e5-4874-a709-fd4f21445e1c",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "depends_on": [
+    "fix/qa-agent-inbox-standards-storage-20260516"
+  ],
+  "description": "GCT readiness for agent-inbox is yellow from job 6d6c4951-f25e-4d05-8564-5d84f5631be6 on 2026-05-16T04:05:04Z. Tests reported total=11, passedCount=8, failedCount=3. Failing phases: standards, performance, and playbooks. Standards is covered by companion item fix/qa-agent-inbox-standards-storage-20260516. Performance failed page home below threshold. Playbook bas/cases/01-inbox-list/ui/read-unread-toggle.json failed in phase wait, execution 34e47c99-b79b-445e-accc-4c42524ccea1, node assert-unread-indicator, step 8 assert, because the expected element was not visible. Success target: tests passed=true with total=11, passedCount=11, failedCount=0; home performance meets configured threshold; read-unread toggle playbook reaches visible unread indicator. Rerun git-control-tower review run agent-inbox --json.",
+  "kind": "fix",
+  "name": "qa-agent-inbox-tests-performance-playbook-20260516",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "agent-inbox",
+    "tests",
+    "performance",
+    "playbooks"
+  ],
+  "title": "Fix agent-inbox GCT performance and inbox playbook failures",
+  "updated": "2026-05-16T04:06:09Z"
+}

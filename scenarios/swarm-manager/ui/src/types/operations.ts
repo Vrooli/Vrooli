@@ -112,6 +112,64 @@ export interface OperationsView {
   windowSeconds: number;
 }
 
+export interface OperationsBriefingSummary {
+  activeActivityCount: number;
+  recentlyFinishedCount: number;
+  queueDepth: number;
+  maxQueueDepth: number;
+  saturatedLanes: string[];
+  activeLaneCountByLane: Record<string, number>;
+  totalBacklogItems: number;
+  activeInitiatives: number;
+  blockedItems: number;
+  activeSessions: number;
+}
+
+export interface OperationsBriefingAttentionItem {
+  id: string;
+  severity: string;
+  reason: string;
+  title: string;
+  status?: string;
+  lane?: string;
+  ref?: string;
+  command?: string;
+}
+
+export interface OperationsDirectorHandoff {
+  sourcePath: string;
+  title: string;
+  observedAt?: string;
+  excerpt: string;
+}
+
+export interface OperationsRecommendedAction {
+  id: string;
+  label: string;
+  reason: string;
+  command?: string;
+  uiPath?: string;
+}
+
+export interface OperationsDrillDownCommand {
+  label: string;
+  command: string;
+}
+
+export interface OperationsBriefing {
+  generatedAt: string;
+  freshnessSeconds: number;
+  windowSeconds: number;
+  summary: OperationsBriefingSummary;
+  activeWork: ActivityRow[];
+  needsAttention: OperationsBriefingAttentionItem[];
+  recentCompletions: ActivityRow[];
+  directorHandoffs: OperationsDirectorHandoff[];
+  recommendedNextActions: OperationsRecommendedAction[];
+  drillDownCommands: OperationsDrillDownCommand[];
+  warnings: string[];
+}
+
 /**
  * Optional filter payload accepted by `fetchOperations`. Empty arrays and
  * empty strings are dropped before the query string is built so they do

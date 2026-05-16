@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "scenarios/data-backup-manager/**"
+  ],
+  "created": "2026-05-16T04:07:05Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "b41e3f3c-31fd-4e43-be7a-93d657f52367",
+    "task_id": "f5df4542-f4e5-4874-a709-fd4f21445e1c",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "GCT readiness for data-backup-manager is red from job 002fdd45-bd55-4661-890b-6f9507b83eb5 on 2026-05-16T04:03:19Z. Visual dimension is available but screenshotCount=0, so readiness cannot prove the backup manager UI renders without blank states or overlap. Success target: git-control-tower review summary data-backup-manager reports visual green with screenshotCount greater than 0 and non-stale latest capture after representative UI screenshots are captured. Rerun git-control-tower review run data-backup-manager --json.",
+  "kind": "fix",
+  "name": "qa-data-backup-manager-visual-baseline-20260516",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "data-backup-manager",
+    "visual"
+  ],
+  "title": "Capture data-backup-manager visual readiness baseline",
+  "updated": "2026-05-16T04:07:05Z"
+}

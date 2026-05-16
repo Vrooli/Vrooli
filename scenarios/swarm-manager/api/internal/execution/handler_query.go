@@ -24,7 +24,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		CreatedFrom: strings.TrimSpace(r.URL.Query().Get("created_from")),
 		CreatedTo:   strings.TrimSpace(r.URL.Query().Get("created_to")),
 	}
-	items, err := h.service.List(r.Context(), filters)
+	items, err := h.service.ListSnapshot(r.Context(), filters)
 	if err != nil {
 		apierr.MapError(w, "[execution] list", err)
 		return

@@ -1,6 +1,6 @@
 {
   "initiative": "command-center-dashboards",
-  "generated_at": "2026-04-24T01:47:55Z",
+  "generated_at": "2026-05-15T22:08:30Z",
   "nodes": [
     {
       "id": "execute/command-center-mission-control-page",
@@ -66,12 +66,7 @@
   "edges": [
     {
       "from": "execute/command-center-panorama-page",
-      "to": "execute/command-center-mission-control-page",
-      "kind": "depends_on"
-    },
-    {
-      "from": "execute/command-center-panorama-page",
-      "to": "execute/command-center-hive-page",
+      "to": "execute/command-center-broadcast-page",
       "kind": "depends_on"
     },
     {
@@ -81,12 +76,17 @@
     },
     {
       "from": "execute/command-center-panorama-page",
+      "to": "execute/command-center-hive-page",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/command-center-panorama-page",
       "to": "execute/command-center-ledger-page",
       "kind": "depends_on"
     },
     {
       "from": "execute/command-center-panorama-page",
-      "to": "execute/command-center-broadcast-page",
+      "to": "execute/command-center-mission-control-page",
       "kind": "depends_on"
     }
   ]

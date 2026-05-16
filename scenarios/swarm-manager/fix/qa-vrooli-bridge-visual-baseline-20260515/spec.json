@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-bridge/**"
+  ],
+  "created": "2026-05-15T22:06:17Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "079c2d0a-600b-442f-b9a6-8d39c2c805f7",
+    "task_id": "5c5cce38-54e2-44eb-84b2-31bc32724f80",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "GCT readiness for vrooli-bridge is red from job c2ef8e70-439f-441d-9ab2-96ed71b3c5e1 on 2026-05-15T22:02:40Z. Visual dimension is available but screenshotCount=0, so readiness cannot prove the UI renders without blank states or overlap. Success target: git-control-tower review summary vrooli-bridge reports visual green with screenshotCount greater than 0 and non-stale latest capture after representative UI screenshots are captured.",
+  "kind": "fix",
+  "name": "qa-vrooli-bridge-visual-baseline-20260515",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "vrooli-bridge",
+    "visual"
+  ],
+  "title": "Capture vrooli-bridge visual readiness baseline",
+  "updated": "2026-05-15T22:06:17Z"
+}

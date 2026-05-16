@@ -232,7 +232,7 @@ export class ApiClient implements IApiClient {
             if (parsed.details !== undefined) details = parsed.details;
           } catch { /* not JSON; keep raw text */ }
         }
-        const message = detail || `Request failed with status ${res.status}`;
+        const message = normalizeErrorDetail(detail, res.status);
         throw new ApiError("http", message, { status: res.status, code, details });
       }
 
@@ -333,3 +333,27 @@ export const DEFAULT_API_BASE = resolveApiBase({ appendSuffix: true });
  * Most application code should use this unless testing or using a custom base URL.
  */
 export const defaultApiClient: IApiClient = createApiClient(DEFAULT_API_BASE);
+
+function normalizeErrorDetail(detail: string, status: number): string {
+  const trimmed = detail.trim();
+  if (!trimmed) {
+    return `Request failed with status ${status}`;
+  }
+
+  if (looksLikeHtmlError(trimmed)) {
+    if (/cloudflare|cf-error|cf-wrapper/i.test(trimmed)) {
+      return `The Vrooli tunnel returned ${status}. The upstream service may be unavailable or timed out.`;
+    }
+    return `The server returned an HTML error page with status ${status}.`;
+  }
+
+  return trimmed;
+}
+
+function looksLikeHtmlError(value: string): boolean {
+  return (
+    /^<!doctype\s+html/i.test(value) ||
+    /^<html[\s>]/i.test(value) ||
+    /<title>[^<]*(bad gateway|service unavailable|gateway timeout|error\s+5\d\d)[^<]*<\/title>/i.test(value)
+  );
+}

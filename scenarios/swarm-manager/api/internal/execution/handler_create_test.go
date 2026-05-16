@@ -9,7 +9,10 @@ import (
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/testutil"
 	"swarm-manager/internal/testutil/mocks"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
@@ -45,5 +48,42 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "check agent-manager health/logs and retry") {
 		t.Fatalf("expected remediation message, got %q", rec.Body.String())
+	}
+}
+
+func TestList_UsesSnapshotWithoutRefreshingRunState(t *testing.T) {
+	root := t.TempDir()
+	agent := &snapshotAgentService{}
+	service := NewService(ServiceConfig{
+		RootDir:      root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		AgentService: agent,
+	})
+	if err := service.store.Save([]Record{{
+		ExecutionID: "exec-1",
+		BacklogKind: "idea",
+		BacklogName: "slow-read",
+		Status:      StatusRunning,
+		RunID:       "run-1",
+		Mode:        ModeYOLO,
+		CreatedAt:   "2026-05-14T00:00:00Z",
+		UpdatedAt:   "2026-05-14T00:00:00Z",
+	}}); err != nil {
+		t.Fatalf("save executions: %v", err)
+	}
+	handler := NewHandlerFromService(service)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/execution", nil)
+	rec := httptest.NewRecorder()
+
+	handler.List(rec, req)
+
+	testutil.AssertStatusOK(t, rec)
+	resp := testutil.DecodeProtoJSON(t, rec, &apipb.ListExecutionResponse{})
+	if len(resp.GetItems()) != 1 {
+		t.Fatalf("expected 1 execution, got %d", len(resp.GetItems()))
+	}
+	if agent.runStateCalls != 0 {
+		t.Fatalf("list handler refreshed run state %d times, want snapshot-only read", agent.runStateCalls)
 	}
 }

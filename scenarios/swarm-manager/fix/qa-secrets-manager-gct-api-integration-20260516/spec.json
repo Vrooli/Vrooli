@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/secrets-manager/**"
+  ],
+  "created": "2026-05-16T16:03:37Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "911b55fa-7330-4978-870f-1c15afd5d11c",
+    "task_id": "d4066efa-ccf3-4485-b10b-38639c58478a",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Fresh GCT completeness recalculation on 2026-05-16T16:02:13Z classified secrets-manager as foundation_laid with score 37 after a 17-point validation penalty. The UI API integration subscore is 0 because metrics report api_endpoints=1 and api_beyond_health=0; GCT recommendation priority 1 was to integrate UI with API endpoints beyond /health. Related quality evidence: requirements 16/33 passing, targets 16/33 passing, tests 2/3 passing, UI score 18/25. Success target: rerun `vrooli scenario completeness score calculate secrets-manager --json` then `vrooli scenario completeness score get secrets-manager --json`; ui.api_integration.endpoint_count is nonzero beyond health, api_beyond_health \u003e 0, the API integration recommendation disappears or drops below blocking priority, and score improves out of the current 37 foundation_laid state.",
+  "kind": "fix",
+  "name": "qa-secrets-manager-gct-api-integration-20260516",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "secrets-manager",
+    "gct",
+    "api-integration"
+  ],
+  "title": "Wire secrets-manager UI to non-health API endpoints for GCT readiness",
+  "updated": "2026-05-16T16:03:37Z"
+}

@@ -102,10 +102,11 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session, err := h.service.Start(r.Context(), ContinueRequest{
-		SessionID:     req.SessionId,
-		Message:       req.Message,
-		AttachmentIDs: req.AttachmentIds,
-		ContextRefs:   contextRefsFromProto(req.ContextRefs),
+		SessionID:         req.SessionId,
+		Message:           req.Message,
+		AttachmentIDs:     req.AttachmentIds,
+		ContextRefs:       contextRefsFromProto(req.ContextRefs),
+		AutoContextPolicy: AutoContextPolicy(req.GetAutoContextPolicy()),
 	})
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] start", err)

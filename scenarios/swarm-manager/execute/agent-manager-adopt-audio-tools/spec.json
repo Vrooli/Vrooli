@@ -4,7 +4,10 @@
   ],
   "created": "2026-03-26T20:54:35Z",
   "depends_on": [
-    "execute/audio-tools-greenfield-scenario"
+    "execute/audio-tools-greenfield-scenario",
+    "fix/qa-agent-manager-standards-focus-visible-20260516",
+    "fix/qa-agent-manager-tests-lint-20260516",
+    "fix/qa-agent-manager-visual-baseline-20260516"
   ],
   "description": "## Goal\n\nAdd audio capabilities to agent-manager so the user can monitor and interact with agent runs via voice.\n\n## Scope\n\n### Voice Input\n- Adopt audio-tools voice input components in agent-manager UI\n- Support voice commands for common agent-manager operations (stop run, investigate, view status)\n\n### TTS Output\n- Adopt audio-tools TTS for reading agent run status updates, investigation summaries, and error reports\n- Support summarization for verbose agent outputs\n\n### Configuration\n- Add audio settings section to agent-manager settings\n- Pass provider preferences through to audio-tools\n\n## Key Considerations\n\n- Agent-manager's audio use case is monitoring agent health and responding to issues while mobile\n- TTS should be able to read investigation reports and run summaries in a concise, actionable way\n- Lower priority than web-console and swarm-manager adoption since agent-manager interaction is less frequent during walks",
   "effort": "M",
@@ -15,5 +18,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Integrate Audio-Tools into Agent-Manager UI",
-  "updated": "2026-03-26T20:54:35Z"
+  "updated": "2026-05-16T04:10:02Z"
 }

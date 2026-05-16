@@ -7,7 +7,10 @@
   "depends_on": [
     "execute/qa-git-control-tower-code-quality-20260408",
     "execute/secrets-manager-pii-scanner",
-    "fix/qa-git-control-tower-tests-playbook-schema-20260515"
+    "fix/qa-git-control-tower-tests-playbook-schema-20260515",
+    "fix/qa-secrets-manager-gct-api-integration-20260516",
+    "fix/qa-secrets-manager-gct-validation-automation-20260516",
+    "fix/qa-secrets-manager-gct-requirement-target-pass-rate-20260516"
   ],
   "description": "Integrate Secrets Manager as a new review dimension in Git Control Tower's review panel. Add ReviewSecurityClient interface in review_deps.go following the same pattern as tidiness-manager, test-genie, and scenario-auditor integrations. Add Security tab to ScenarioReviewPanel showing vulnerabilities, risk scores, and PII findings. Register via capabilities map and API core discovery. Scan scope must cover ALL code (scenarios, resources, shared locations, project-level files), not just scenario-bucketed code.",
   "effort": "M",
@@ -18,5 +21,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Add Security tab to GCT review panel via Secrets Manager integration",
-  "updated": "2026-05-15T04:07:10Z"
+  "updated": "2026-05-16T16:05:28Z"
 }

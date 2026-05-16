@@ -2,6 +2,33 @@
 
 This document captures the canonical Swarm Manager CLI flows for backlog import and initiative management.
 
+## Operations
+
+Use the operations briefing as the fastest current-status packet for agents and
+operators:
+
+```bash
+swarm-manager operations brief
+swarm-manager operations brief --json
+swarm-manager operations brief --window PT1H --json
+```
+
+Human output summarizes counts, attention items, active work, next actions, and
+warnings. JSON output preserves the `GET /api/v1/operations/brief` response
+shape for prompt context and automation.
+
+Use the live operations list for drill-down and filtering:
+
+```bash
+swarm-manager operations list --json
+swarm-manager operations list --lane execute --status running
+swarm-manager operations list --owner-type initiative --q desktop-release
+```
+
+Filters encode directly to the API query parameters: `window`, repeatable
+`status`, repeatable `lane`, repeatable `mode`, repeatable `owner_type`, and
+`q`.
+
 ## Backlog Create
 
 ```bash

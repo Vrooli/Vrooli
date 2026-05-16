@@ -23,7 +23,10 @@
     "fix/qa-lpbs-tests-playbooks-20260514",
     "fix/qa-prompt-manager-standards-20260514",
     "fix/qa-prompt-manager-standards-structure-20260407",
-    "fix/qa-prompt-manager-tests-20260407"
+    "fix/qa-prompt-manager-tests-20260407",
+    "fix/qa-vrooli-emulator-standards-requirements-20260515",
+    "fix/qa-vrooli-emulator-tests-lint-business-20260515",
+    "fix/qa-vrooli-emulator-visual-baseline-20260515"
   ],
   "description": "Add end-to-end regression coverage for the monetized desktop release flow.\n\nThe suite should cover, as current infrastructure allows:\n- approval gating\n- visual validation and review linkage\n- LPBS artifact publication and promotion\n- real update-flow regression checks, including startup check behavior, download, and ready-to-restart state\n- cross-platform launch sanity checks for macOS and Windows\n- emulator-driven smoke coverage before human approval\n- evidence handoff that supports the final human gating step\n\nThe purpose is to catch release regressions before paid desktop bundles ship.",
   "effort": "L",
@@ -40,5 +43,5 @@
     "regression"
   ],
   "title": "Build The Desktop Release Regression Suite",
-  "updated": "2026-05-15T04:07:32Z"
+  "updated": "2026-05-15T22:08:12Z"
 }

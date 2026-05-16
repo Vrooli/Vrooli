@@ -7,7 +7,12 @@
   "created": "2026-04-09T17:33:13Z",
   "depends_on": [
     "fix/qa-git-control-tower-tests-playbook-schema-20260515",
-    "research/run-level-undo-and-revert-design"
+    "research/run-level-undo-and-revert-design",
+    "fix/qa-agent-manager-standards-focus-visible-20260516",
+    "fix/qa-agent-manager-tests-lint-20260516",
+    "fix/qa-agent-manager-visual-baseline-20260516",
+    "fix/qa-workspace-sandbox-standards-preflight-structure-20260516",
+    "fix/qa-workspace-sandbox-visual-baseline-20260516"
   ],
   "description": "## Goal\n\nImplement the run-level undo/revert workflow designed in `research/run-level-undo-and-revert-design` so operators can safely back out accepted sandbox changes after the default auto-apply rollout.\n\n## Scope\n\nThis work should focus on provenance-based undo of agent-linked changes rather than history-rewriting git operations. The first usable version can prioritize the safest and most deterministic cases, as long as the product is explicit about its limits.\n\n## Required outcomes\n\n- Operators can identify a run and trigger a revert/undo flow for the changes attributed to it.\n- The workflow is auditable: the platform records that a revert happened, who initiated it, and which run/file history it affected.\n- The UX makes it clear when a revert is exact, when it is partial, and when human intervention is required.\n- The feature integrates cleanly with Git Control Tower, since that is where operators are already reviewing AI-originated changes.\n\n## Expected deliverables\n\n1. API and data-layer support for creating revert operations from run provenance.\n2. Git Control Tower UI for selecting and applying supported revert actions.\n3. Tests for common and edge-case revert scenarios, especially mixed-provenance files.\n4. Audit logging so run-level undo strengthens rather than weakens traceability.\n\n## Key references\n\n- `scenarios/workspace-sandbox/**`\n- `scenarios/git-control-tower/**`\n- `scenarios/agent-manager/**`",
   "effort": "L",
@@ -23,5 +28,5 @@
     "implementation"
   ],
   "title": "Implement operator-facing undo and revert for run-linked changes",
-  "updated": "2026-05-15T04:07:19Z"
+  "updated": "2026-05-16T10:06:54Z"
 }

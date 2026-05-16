@@ -1,0 +1,29 @@
+{
+  "acceptance_allow": [
+    "scenarios/ecosystem-manager/**"
+  ],
+  "created": "2026-05-16T10:04:16Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "41cc6945-c1c1-436d-98d3-9907ed1ff236",
+    "task_id": "5507978a-0013-457a-8dd9-9de6e5f6d693",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "depends_on": [
+    "fix/qa-ecosystem-manager-standards-structure-focus-20260516"
+  ],
+  "description": "GCT readiness for ecosystem-manager is yellow from job 9d36d806-b28d-48ec-a6d0-47642e8ae5cf on 2026-05-16T10:02:33Z. Tests reported total=11, passedCount=8, failedCount=3. Failing phases were standards, playbooks, and business. Playbooks failed because bas/registry.json was missing; business failed because no requirement modules were found. Success target: tests passed=true with total=11, passedCount=11, failedCount=0 after registry and requirements are restored and companion standards gate is green. Rerun git-control-tower review run ecosystem-manager --json.",
+  "kind": "fix",
+  "name": "qa-ecosystem-manager-tests-playbooks-business-20260516",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "ecosystem-manager",
+    "tests",
+    "playbooks",
+    "business"
+  ],
+  "title": "Fix ecosystem-manager GCT playbook and business test failures",
+  "updated": "2026-05-16T10:04:16Z"
+}

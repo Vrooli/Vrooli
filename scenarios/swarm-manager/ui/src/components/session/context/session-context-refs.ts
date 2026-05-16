@@ -108,6 +108,16 @@ export function sessionOption(session: AgentSession): SessionContextOption {
   };
 }
 
+export function operationsBriefingOption(): SessionContextOption {
+  return {
+    type: "operations_briefing",
+    ref: "operations_briefing/latest",
+    title: "Current operations briefing",
+    subtitle: "Active work, attention items, handoffs, and drill-down commands",
+    nodeId: "/operations",
+  };
+}
+
 export function contextKey(type: AgentSessionContextType, ref: string): string {
   return `${type}:${ref}`;
 }

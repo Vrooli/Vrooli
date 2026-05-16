@@ -38,6 +38,87 @@ type OperationsView struct {
 	WindowSeconds int `json:"window_seconds"`
 }
 
+// OperationsBriefing is the bounded status packet attached to operations
+// agent-session prompts and returned from GET /api/v1/operations/brief.
+type OperationsBriefing struct {
+	GeneratedAt            time.Time                   `json:"generated_at"`
+	FreshnessSeconds       int                         `json:"freshness_seconds"`
+	WindowSeconds          int                         `json:"window_seconds"`
+	Summary                OperationsBriefingSummary   `json:"summary"`
+	ActiveWork             []BriefingActivity          `json:"active_work"`
+	NeedsAttention         []BriefingAttentionItem     `json:"needs_attention"`
+	RecentCompletions      []BriefingActivity          `json:"recent_completions"`
+	DirectorHandoffs       []DirectorHandoff           `json:"director_handoffs"`
+	RecommendedNextActions []BriefingRecommendedAction `json:"recommended_next_actions"`
+	DrillDownCommands      []BriefingDrillDownCommand  `json:"drill_down_commands"`
+	Warnings               []string                    `json:"warnings"`
+}
+
+type OperationsBriefingSummary struct {
+	ActiveActivityCount   int            `json:"active_activity_count"`
+	RecentlyFinishedCount int            `json:"recently_finished_count"`
+	QueueDepth            int            `json:"queue_depth"`
+	MaxQueueDepth         int            `json:"max_queue_depth"`
+	SaturatedLanes        []string       `json:"saturated_lanes"`
+	ActiveLaneCountByLane map[string]int `json:"active_lane_count_by_lane"`
+	TotalBacklogItems     int            `json:"total_backlog_items"`
+	ActiveInitiatives     int            `json:"active_initiatives"`
+	BlockedItems          int            `json:"blocked_items"`
+	ActiveSessions        int            `json:"active_sessions"`
+}
+
+type BriefingActivity struct {
+	ActivityID     string `json:"activity_id"`
+	RunID          string `json:"run_id,omitempty"`
+	OwnerType      string `json:"owner_type"`
+	OwnerKind      string `json:"owner_kind,omitempty"`
+	OwnerName      string `json:"owner_name"`
+	OwnerTitle     string `json:"owner_title,omitempty"`
+	Lane           string `json:"lane,omitempty"`
+	Status         string `json:"status"`
+	Purpose        string `json:"purpose"`
+	Mode           string `json:"mode,omitempty"`
+	Phase          string `json:"phase,omitempty"`
+	Round          int    `json:"round,omitempty"`
+	InitiativeName string `json:"initiative_name,omitempty"`
+	RequestedAt    string `json:"requested_at"`
+	StartedAt      string `json:"started_at,omitempty"`
+	FinishedAt     string `json:"finished_at,omitempty"`
+	RuntimeSeconds int64  `json:"runtime_seconds,omitempty"`
+	FailureReason  string `json:"failure_reason,omitempty"`
+}
+
+type BriefingAttentionItem struct {
+	ID       string `json:"id"`
+	Severity string `json:"severity"`
+	Reason   string `json:"reason"`
+	Title    string `json:"title"`
+	Status   string `json:"status,omitempty"`
+	Lane     string `json:"lane,omitempty"`
+	Ref      string `json:"ref,omitempty"`
+	Command  string `json:"command,omitempty"`
+}
+
+type DirectorHandoff struct {
+	SourcePath string `json:"source_path"`
+	Title      string `json:"title"`
+	ObservedAt string `json:"observed_at,omitempty"`
+	Excerpt    string `json:"excerpt"`
+}
+
+type BriefingRecommendedAction struct {
+	ID      string `json:"id"`
+	Label   string `json:"label"`
+	Reason  string `json:"reason"`
+	Command string `json:"command,omitempty"`
+	UIPath  string `json:"ui_path,omitempty"`
+}
+
+type BriefingDrillDownCommand struct {
+	Label   string `json:"label"`
+	Command string `json:"command"`
+}
+
 // LaneStatus mirrors execution.LaneStatus but is materialized via the
 // agentactivity lane reader so the operations aggregator and governance
 // status agree without an extra round-trip. Capacity comes from the

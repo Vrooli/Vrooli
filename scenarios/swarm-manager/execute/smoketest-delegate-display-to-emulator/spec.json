@@ -5,8 +5,11 @@
   ],
   "created": "2026-04-17T16:10:54Z",
   "depends_on": [
+    "execute/emulator-acceptance-tests-phase-1",
     "execute/scaffold-vrooli-emulator-scenario",
-    "execute/emulator-acceptance-tests-phase-1"
+    "fix/qa-vrooli-emulator-standards-requirements-20260515",
+    "fix/qa-vrooli-emulator-tests-lint-business-20260515",
+    "fix/qa-vrooli-emulator-visual-baseline-20260515"
   ],
   "description": "Replace `RequiresHeadlessWrapper()` and the `xvfb-run -a` wrapping in scenario-to-desktop's smoketest with an emulator client call. Flow: create headless session, propagate the returned DISPLAY into the test command's env, destroy the session on completion. After this lands, scenario-to-desktop has zero remaining xvfb-run / procmetrics dependencies. See research/emulator-extraction-and-service-plan conclusion Findings 6 and 10.",
   "effort": "M",
@@ -22,5 +25,5 @@
     "phase-3"
   ],
   "title": "Migrate smoketest display management to vrooli-emulator",
-  "updated": "2026-04-17T16:10:54Z"
+  "updated": "2026-05-15T22:08:15Z"
 }

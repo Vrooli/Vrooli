@@ -60,12 +60,14 @@ type Server struct {
 	agentSvc            *agentmanager.AgentService
 	agentActivitySvc    *agentactivity.Service
 	agentSessionSvc     *agentsessions.Service
+	agentSessionStore   agentsessions.Store
 	settingsStore       *settings.Store
 	backlogHandler      *backlog.Handler
 	capturesHandler     *captures.Handler
 	scenariosHandler    *scenarios.Handler
 	initStore           *initiatives.Store
 	initiativeService   *initiatives.Service
+	overviewSvc         *overview.Service
 	executionSvc        *execution.Service
 	executionHandler    *execution.Handler
 	operatingModeSvc    *operatingmode.Service
@@ -89,6 +91,14 @@ type Server struct {
 	aiSearchSyncLoop    *aisearch.SyncLoop
 	aiSearchStopChan    chan struct{}
 	feedbackSweeperStop chan struct{}
+}
+
+type executionSnapshotLister struct {
+	svc *execution.Service
+}
+
+func (l executionSnapshotLister) List(ctx context.Context, filters execution.ListFilters) ([]execution.Record, error) {
+	return l.svc.ListSnapshot(ctx, filters)
 }
 
 // NewServer initializes routes using the default scenario root resolved from
@@ -172,7 +182,7 @@ func (s *Server) setupRoutes() {
 	s.scenariosHandler.SetBacklogLister(backlogHandler.Store())
 	s.scenariosHandler.SetInitiativesLister(initService)
 	if execSvc != nil {
-		s.scenariosHandler.SetExecutionLister(execSvc)
+		s.scenariosHandler.SetExecutionLister(executionSnapshotLister{svc: execSvc})
 	}
 
 	// --- Read-only surfaces ---
@@ -273,6 +283,7 @@ func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initSer
 	overviewSvc := overview.NewService(backlogHandler.Store(), initService)
 	overviewHandler := overview.NewHandler(overviewSvc)
 	overviewHandler.RegisterRoutes(s.router)
+	s.overviewSvc = overviewSvc
 	return overviewSvc
 }
 
@@ -336,6 +347,7 @@ func (s *Server) registerAgentSessionRoutes(scenarioRoot string) {
 	}
 	svc.SetContextResolver(sessioncontext.NewResolver(scenarioRoot, filepath.Dir(scenarioRoot), sessionStore))
 	s.agentSessionSvc = svc
+	s.agentSessionStore = sessionStore
 	agentsessions.NewHandler(svc).RegisterRoutes(s.router)
 }
 

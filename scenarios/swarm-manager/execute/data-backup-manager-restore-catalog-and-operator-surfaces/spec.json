@@ -5,7 +5,9 @@
   ],
   "created": "2026-04-22T03:16:42Z",
   "depends_on": [
-    "execute/data-backup-manager-resource-adapters-and-targets"
+    "execute/data-backup-manager-resource-adapters-and-targets",
+    "fix/qa-data-backup-manager-standards-requirements-20260516",
+    "fix/qa-data-backup-manager-visual-baseline-20260516"
   ],
   "description": "Implement the restore-side operator workflow: backup catalogs, integrity verification, restore ordering, destination selection, dry-run safety checks, and operator-facing API/CLI/UI surfaces. The end state should give self-hosted Vrooli operators a credible answer for full-system recovery after disk loss, machine migration, or major operator error.",
   "effort": "XL",
@@ -16,5 +18,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Build restore catalog and operator surfaces for Data Backup Manager",
-  "updated": "2026-04-22T03:16:42Z"
+  "updated": "2026-05-16T04:09:56Z"
 }

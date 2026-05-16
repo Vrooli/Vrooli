@@ -95,10 +95,11 @@ type CreateRequest struct {
 }
 
 type ContinueRequest struct {
-	SessionID     string
-	Message       string
-	AttachmentIDs []string
-	ContextRefs   []ContextRef
+	SessionID         string
+	Message           string
+	AttachmentIDs     []string
+	ContextRefs       []ContextRef
+	AutoContextPolicy AutoContextPolicy
 }
 
 type ContextLimits struct {
@@ -227,7 +228,7 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 	if s.spawner == nil {
 		return Session{}, apierr.Unavailable("agent session spawning is unavailable")
 	}
-	contextItems, err := s.resolveMessageContext(ctx, session, req.ContextRefs)
+	contextItems, err := s.resolveMessageContext(ctx, session, refsWithAutoContext(session.Kind, req.ContextRefs, req.AutoContextPolicy, s.contextResolver != nil))
 	if err != nil {
 		return Session{}, err
 	}
@@ -894,14 +895,15 @@ func normalizeContextRefs(kind Kind, refs []ContextRef) ([]ContextRef, error) {
 
 func contextLimitsForKind(kind Kind) ContextLimits {
 	common := map[ContextType]int{
-		ContextBacklogItem:   8,
-		ContextInitiative:    4,
-		ContextCapture:       4,
-		ContextExecution:     6,
-		ContextAgentActivity: 6,
-		ContextScenario:      3,
-		ContextOperatingMode: 3,
-		ContextSession:       2,
+		ContextBacklogItem:        8,
+		ContextInitiative:         4,
+		ContextCapture:            4,
+		ContextExecution:          6,
+		ContextAgentActivity:      6,
+		ContextScenario:           3,
+		ContextOperatingMode:      3,
+		ContextSession:            2,
+		ContextOperationsBriefing: 1,
 	}
 	switch kind {
 	case KindOperatingModeAuthoring:
@@ -909,6 +911,18 @@ func contextLimitsForKind(kind Kind) ContextLimits {
 	default:
 		return ContextLimits{Kind: kind, MaxTotal: 12, MaxPerType: common, MaxSummaryRunes: 1200}
 	}
+}
+
+func refsWithAutoContext(kind Kind, refs []ContextRef, policy AutoContextPolicy, resolverAvailable bool) []ContextRef {
+	if kind != KindSwarmOperations || policy == AutoContextNone || !resolverAvailable {
+		return refs
+	}
+	for _, ref := range refs {
+		if ref.Type == ContextOperationsBriefing {
+			return refs
+		}
+	}
+	return append([]ContextRef{{Type: ContextOperationsBriefing, Ref: OperationsBriefingLatestRef}}, refs...)
 }
 
 func sessionAttachmentsByID(session Session, attachmentIDs []string) []Attachment {
@@ -933,11 +947,23 @@ func buildInitialPrompt(session Session, message Message, attachments []Attachme
 	fmt.Fprintf(&b, "You are running a Swarm Manager %s agent session.\n\n", session.Kind)
 	fmt.Fprintf(&b, "Use the Prompt Manager skill `%s` as your operating guide.\n", session.SkillID)
 	fmt.Fprintf(&b, "Session ID: %s\n", session.ID)
+	if hasContextType(message.Context, ContextOperationsBriefing) {
+		b.WriteString("Operations briefing context is attached below. Answer broad status questions from it before doing exploratory reads.\n")
+	}
 	writeMessageContext(&b, message.Context)
 	writeMessageAttachments(&b, attachments)
 	b.WriteString("\nOperator message:\n")
 	writeOperatorMessage(&b, message.Content)
 	return b.String()
+}
+
+func hasContextType(items []ContextItem, target ContextType) bool {
+	for _, item := range items {
+		if item.Type == target {
+			return true
+		}
+	}
+	return false
 }
 
 func buildContinuationPrompt(message Message, attachments []Attachment) string {
@@ -1016,47 +1042,47 @@ func mapRunEvent(event *agentdomainpb.RunEvent) RunEvent {
 	switch data := event.GetData().(type) {
 	case *agentdomainpb.RunEvent_Message:
 		mapped.Role = strings.TrimSpace(data.Message.GetRole())
-		mapped.Content = boundedText(data.Message.GetContent())
+		mapped.Content = boundedRunEventText(data.Message.GetContent())
 	case *agentdomainpb.RunEvent_ToolCall:
 		mapped.ToolName = strings.TrimSpace(data.ToolCall.GetToolName())
 		mapped.ToolCallID = strings.TrimSpace(data.ToolCall.GetToolCallId())
-		mapped.Input = boundedText(structJSON(data.ToolCall.GetInput()))
+		mapped.Input = boundedRunEventText(structJSON(data.ToolCall.GetInput()))
 	case *agentdomainpb.RunEvent_ToolResult:
 		mapped.ToolName = strings.TrimSpace(data.ToolResult.GetToolName())
 		mapped.ToolCallID = strings.TrimSpace(data.ToolResult.GetToolCallId())
-		mapped.Output = boundedText(data.ToolResult.GetOutput())
-		mapped.Error = boundedText(data.ToolResult.GetError())
+		mapped.Output = boundedRunEventText(data.ToolResult.GetOutput())
+		mapped.Error = boundedRunEventText(data.ToolResult.GetError())
 	case *agentdomainpb.RunEvent_Status:
 		mapped.PreviousStatus = strings.TrimSpace(data.Status.GetOldStatus())
 		mapped.Status = strings.TrimSpace(data.Status.GetNewStatus())
-		mapped.Summary = boundedText(data.Status.GetReason())
+		mapped.Summary = boundedRunEventText(data.Status.GetReason())
 	case *agentdomainpb.RunEvent_Error:
-		mapped.Error = boundedText(data.Error.GetMessage())
+		mapped.Error = boundedRunEventText(data.Error.GetMessage())
 		if code := strings.TrimSpace(data.Error.GetCode()); code != "" {
 			mapped.Status = code
 		}
-		mapped.RawJSON = boundedText(structJSON(data.Error.GetDetails()))
+		mapped.RawJSON = boundedRunEventText(structJSON(data.Error.GetDetails()))
 	case *agentdomainpb.RunEvent_Progress:
 		mapped.ProgressPhase = strings.TrimSpace(data.Progress.GetPhase().String())
 		mapped.ProgressPercent = data.Progress.GetPercentComplete()
-		mapped.ProgressMessage = boundedText(data.Progress.GetCurrentAction())
+		mapped.ProgressMessage = boundedRunEventText(data.Progress.GetCurrentAction())
 	case *agentdomainpb.RunEvent_Compaction:
-		mapped.Summary = boundedText(data.Compaction.GetSummary())
-		mapped.ProgressMessage = boundedText(data.Compaction.GetTrigger())
+		mapped.Summary = boundedRunEventText(data.Compaction.GetSummary())
+		mapped.ProgressMessage = boundedRunEventText(data.Compaction.GetTrigger())
 	case *agentdomainpb.RunEvent_Log:
-		mapped.Summary = boundedText(data.Log.GetMessage())
+		mapped.Summary = boundedRunEventText(data.Log.GetMessage())
 		mapped.Status = strings.TrimSpace(data.Log.GetLevel())
 	case *agentdomainpb.RunEvent_Metric:
-		mapped.Summary = boundedText(data.Metric.GetName())
+		mapped.Summary = boundedRunEventText(data.Metric.GetName())
 	case *agentdomainpb.RunEvent_Artifact:
-		mapped.Summary = boundedText(data.Artifact.GetPath())
+		mapped.Summary = boundedRunEventText(data.Artifact.GetPath())
 	case *agentdomainpb.RunEvent_Cost:
-		mapped.Summary = boundedText(fmt.Sprintf("$%.4f", data.Cost.GetTotalCostUsd()))
+		mapped.Summary = boundedRunEventText(fmt.Sprintf("$%.4f", data.Cost.GetTotalCostUsd()))
 	case *agentdomainpb.RunEvent_RateLimit:
-		mapped.Error = boundedText(data.RateLimit.GetMessage())
+		mapped.Error = boundedRunEventText(data.RateLimit.GetMessage())
 		mapped.Status = strings.TrimSpace(data.RateLimit.GetLimitType())
 	default:
-		mapped.RawJSON = boundedText(protoMessageJSON(event))
+		mapped.RawJSON = boundedRunEventText(protoMessageJSON(event))
 	}
 	return mapped
 }
@@ -1105,12 +1131,39 @@ func protoMessageJSON(value interface{ ProtoReflect() protoreflect.Message }) st
 	return string(data)
 }
 
-func boundedText(value string) string {
+func boundedRunEventText(value string) string {
 	value = strings.TrimSpace(value)
+	if normalized, ok := normalizeHTMLErrorPage(value); ok {
+		value = normalized
+	}
 	if len(value) <= maxRunEventFieldBytes {
 		return value
 	}
 	return value[:maxRunEventFieldBytes] + "\n[truncated]"
+}
+
+func normalizeHTMLErrorPage(value string) (string, bool) {
+	lower := strings.ToLower(strings.TrimSpace(value))
+	if lower == "" {
+		return "", false
+	}
+	if !strings.HasPrefix(lower, "<!doctype html") &&
+		!strings.HasPrefix(lower, "<html") &&
+		!strings.Contains(lower, "<title>") {
+		return "", false
+	}
+	if strings.Contains(lower, "cloudflare") ||
+		strings.Contains(lower, "cf-error") ||
+		strings.Contains(lower, "bad gateway") ||
+		strings.Contains(lower, "502") {
+		return "Upstream tunnel returned an HTML 502 Bad Gateway page. The target service may be unavailable or timed out.", true
+	}
+	if strings.Contains(lower, "gateway timeout") ||
+		strings.Contains(lower, "service unavailable") ||
+		strings.Contains(lower, "error 5") {
+		return "Upstream service returned an HTML 5xx error page.", true
+	}
+	return "", false
 }
 
 func sessionActivitySpec(session Session, interaction agentactivity.InteractionType) agentactivity.Spec {

@@ -3,6 +3,10 @@
     "scenarios/swarm-manager/api/**"
   ],
   "created": "2026-04-22T04:29:54Z",
+  "depends_on": [
+    "fix/qa-ecosystem-manager-standards-structure-focus-20260516",
+    "fix/qa-ecosystem-manager-tests-playbooks-business-20260516"
+  ],
   "description": "Ensure approved option images survive into the handoff package so ecosystem-manager executors see them as visual targets. When an idea backlog item is processed and handoff/manifest.json is generated, resolve any workshop option image_url values (including local file paths) into persistent references stored alongside the handoff. Executor agents then have both the textual plan and the visual target. Automated test: process an idea with image-bearing decisions, verify manifest.json has the image references and that the files exist in the handoff directory.",
   "effort": "S",
   "initiative": "decision-visual-grounding-propagation",
@@ -12,5 +16,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Propagate decision-option images through ecosystem-manager handoff",
-  "updated": "2026-04-22T04:29:54Z"
+  "updated": "2026-05-16T10:06:38Z"
 }

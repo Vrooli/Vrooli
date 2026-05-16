@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/ecosystem-manager/**"
+  ],
+  "created": "2026-05-16T10:04:15Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "41cc6945-c1c1-436d-98d3-9907ed1ff236",
+    "task_id": "5507978a-0013-457a-8dd9-9de6e5f6d693",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "GCT readiness for ecosystem-manager is yellow from job 9d36d806-b28d-48ec-a6d0-47642e8ae5cf on 2026-05-16T10:02:33Z. Standards reported blockingViolations=1, warnings=78, totalViolations=79. Top critical finding is missing required Makefile. Top warning examples are Missing focus-visible styles in ui/src/components/insights/SuggestionCard.tsx, ui/src/components/kanban/KanbanColumn.tsx, TaskCardFooter.tsx, and TaskCardHeader.tsx. Success target: standards blockingViolations=0 and focus-visible warnings are remediated or reduced to only justified non-focus findings. Rerun git-control-tower review run ecosystem-manager --json.",
+  "kind": "fix",
+  "name": "qa-ecosystem-manager-standards-structure-focus-20260516",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "ecosystem-manager",
+    "standards",
+    "focus-visible"
+  ],
+  "title": "Fix ecosystem-manager required structure and focus-visible standards",
+  "updated": "2026-05-16T10:04:15Z"
+}

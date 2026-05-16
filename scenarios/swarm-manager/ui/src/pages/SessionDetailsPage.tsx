@@ -24,7 +24,7 @@ import { SessionProposalList } from "../components/session/SessionProposalList";
 import { SessionSectionTabs, type SessionSectionValue } from "../components/session/SessionSectionTabs";
 import { useComposerImageAttachments } from "../components/composer/useComposerImageAttachments";
 import { optionsToRefs } from "../components/session/context/session-context-options";
-import type { SessionContextOption } from "../components/session/context/session-context-refs";
+import { operationsBriefingOption, type SessionContextOption } from "../components/session/context/session-context-refs";
 import { ActionMenu, ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
 import { nodeIdForSessionArtifact } from "../components/session/session-artifact-routing";
 import {
@@ -93,8 +93,8 @@ export function SessionDetailsPage() {
     } catch {
       setDraft("");
     }
-    setPendingContext([]);
-  }, [sessionDraftKey]);
+    setPendingContext(session?.kind === "swarm_operations" && session.status === "draft" ? [operationsBriefingOption()] : []);
+  }, [session?.kind, session?.status, sessionDraftKey]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -122,11 +122,13 @@ export function SessionDetailsPage() {
       const uploaded = await uploadSessionAttachments(session.id, sessionAttachments.getFiles());
       const attachmentIds = uploaded.map((attachment) => attachment.id);
       const contextRefs = optionsToRefs(context);
+      const hasOperationsBriefing = contextRefs.some((ref) => ref.type === "operations_briefing");
       const sendArgs = {
         sessionId: session.id,
         message,
         ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
         ...(contextRefs.length > 0 ? { contextRefs } : {}),
+        ...(session.status === "draft" && session.kind === "swarm_operations" && !hasOperationsBriefing ? { autoContextPolicy: "none" as const } : {}),
       };
       if (session.status === "draft") {
         await startSession(sendArgs);

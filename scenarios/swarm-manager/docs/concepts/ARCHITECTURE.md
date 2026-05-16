@@ -97,7 +97,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
    ```
    Graph launcher -> draft agent session -> composer message + context/images -> Agent Manager run -> proposal -> API-owned apply -> artifact attribution
    ```
-   Agent Sessions support longer conversational planning, operations, and authoring flows inside Swarm Manager. Session details uses the shared composer also used by Quick Capture, with session-only context chips for existing backlog items, initiatives, captures, executions, agent activity, scenarios, operating modes, and prior sessions. Message context is resolved by the API before it reaches Agent Manager, and uploaded images are stored as session-owned attachments. Meta-orchestration sessions can create multiple initiatives and backlog items through the batch apply seam. Swarm operations sessions review initiative progress, pending decisions, and mode-fit recommendations while routing state changes through existing operator-gated seams. Operating-mode authoring sessions can accept mode proposal drafts and create implementation work without letting the chat agent mutate operating-mode code directly. See [DOC: docs/internal/AGENT-SESSIONS.md].
+   Agent Sessions support longer conversational planning, operations, and authoring flows inside Swarm Manager. Session details uses the shared composer also used by Quick Capture, with session-only context chips for existing backlog items, initiatives, captures, executions, agent activity, scenarios, operating modes, prior sessions, and the current operations briefing. Message context is resolved by the API before it reaches Agent Manager, and uploaded images are stored as session-owned attachments. Meta-orchestration sessions can create multiple initiatives and backlog items through the batch apply seam. Swarm operations sessions receive a bounded `operations_briefing/latest` context by default, answer broad current-status questions from that packet first, then drill down through the operations/overview/stats commands only when needed. Operating-mode authoring sessions can accept mode proposal drafts and create implementation work without letting the chat agent mutate operating-mode code directly. See [DOC: docs/internal/AGENT-SESSIONS.md].
 
 7. **UI route navigation**
    ```
@@ -261,6 +261,7 @@ api/internal/
 - `/api/v1/backlog/batch/queue` - batch queue (topologically sorted, dependency-aware)
 - `/api/v1/initiatives/*` - initiative CRUD with rollup status from member items
 - `/api/v1/overview` - aggregated view (backlog, initiatives, dependency graph, summary stats)
+- `/api/v1/operations/brief` - bounded current operations briefing for CLI, UI, and Swarm operations session prompts
 - `/api/v1/graph?lens=topology|flow|operations[&focus_node_id=...]` - graph projection with lens-specific filtering and optional focus-based drill-down
 - `/ws/graph` - graph invalidation and node pulse websocket
 - `/api/v1/captures/*` - capture CRUD and AI classification

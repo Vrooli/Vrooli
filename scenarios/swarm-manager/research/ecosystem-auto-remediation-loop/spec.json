@@ -6,7 +6,12 @@
   "created": "2026-03-26T20:54:35Z",
   "depends_on": [
     "execute/ecosystem-investigation-ui-wiring",
-    "execute/ecosystem-git-control-tower-integration"
+    "execute/ecosystem-git-control-tower-integration",
+    "fix/qa-agent-manager-standards-focus-visible-20260516",
+    "fix/qa-agent-manager-tests-lint-20260516",
+    "fix/qa-agent-manager-visual-baseline-20260516",
+    "fix/qa-ecosystem-manager-standards-structure-focus-20260516",
+    "fix/qa-ecosystem-manager-tests-playbooks-business-20260516"
   ],
   "description": "## Context\n\nCurrently, when an investigation produces recommendations (prompt changes, code fixes, configuration updates), a human must decide whether to apply them. The goal is to explore whether and how the ecosystem-manager can automatically apply low-risk recommendations and feed them back into the next loop iteration.\n\n## Research Goals\n\n1. **Classify recommendation risk levels:**\n   - Which recommendation types are safe to auto-apply? (e.g., timeout increases, prompt clarifications)\n   - Which require human approval? (e.g., code changes, architecture modifications)\n   - What confidence threshold should trigger auto-application?\n\n2. **Define the remediation loop:**\n   - Investigation produces recommendations → ecosystem-manager evaluates risk → auto-apply low-risk changes → next iteration uses updated config/prompts → measure improvement\n   - How to prevent infinite remediation loops (fix breaks something → investigate → fix → breaks again)\n   - Circuit breaker patterns (max consecutive auto-remediations)\n\n3. **Study the existing apply-fixes workflow in agent-manager:**\n   - `CreateInvestigationApplyRun()` already exists\n   - How does it verify fixes? What's the success rate?\n   - Can it be triggered programmatically from ecosystem-manager?\n\n4. **Design the feedback mechanism:**\n   - How does the next iteration know what was remediated?\n   - How to measure whether the remediation actually helped (comparing pre/post health snapshots)\n\n## Deliverables\n\n- Risk classification taxonomy for recommendation types\n- Remediation loop architecture with circuit breakers\n- Auto-apply criteria and confidence thresholds\n- Integration design with existing investigation framework",
   "effort": "M",
@@ -17,5 +22,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Research Automatic Application of Investigation Recommendations Back Into the Loop",
-  "updated": "2026-03-26T20:54:35Z"
+  "updated": "2026-05-16T10:06:47Z"
 }
