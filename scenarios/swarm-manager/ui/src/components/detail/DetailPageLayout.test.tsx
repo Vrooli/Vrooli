@@ -40,6 +40,16 @@ describe("DetailPageLayout", () => {
     expect(screen.getByTestId("test-body")).toBeInTheDocument();
   });
 
+  it("applies body class overrides", () => {
+    render(
+      <DetailPageLayout header={<div>Header</div>} bodyClassName="test-body-class">
+        <div data-testid="test-body">Body</div>
+      </DetailPageLayout>,
+    );
+
+    expect(screen.getByTestId("test-body").parentElement).toHaveClass("test-body-class");
+  });
+
   it("does not render FAB on desktop", () => {
     render(
       <DetailPageLayout

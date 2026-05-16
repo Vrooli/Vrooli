@@ -16,6 +16,7 @@ interface SessionInspectorProps {
   defaultSection: SessionInspectorSection;
   isCollapsed: boolean;
   onCollapsedChange: (isCollapsed: boolean) => void;
+  presentation?: "card" | "pane";
 }
 
 export function SessionInspector({
@@ -24,6 +25,7 @@ export function SessionInspector({
   defaultSection,
   isCollapsed,
   onCollapsedChange,
+  presentation = "card",
 }: SessionInspectorProps) {
   const inspectorRef = useRef<HTMLElement>(null);
   const [activeSection, setActiveSection] = useState<SessionInspectorSection>(defaultSection);
@@ -61,7 +63,8 @@ export function SessionInspector({
       <div
         {...resizeHandleProps}
         className={cn(
-          "my-1 w-1.5 shrink-0 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-cyan-500/30",
+          "w-1.5 shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-cyan-500/30",
+          presentation === "card" && "my-1 rounded-full",
           isResizing && "bg-cyan-500/40",
         )}
         data-testid="session-inspector-resize-handle"
@@ -69,7 +72,11 @@ export function SessionInspector({
       <aside
         ref={inspectorRef}
         style={{ width: size }}
-        className="flex min-h-0 shrink-0 flex-col rounded-lg border border-white/10 bg-slate-950/30 p-3"
+        className={cn(
+          "flex min-h-0 shrink-0 flex-col bg-slate-950/30",
+          presentation === "card" && "rounded-lg border border-white/10 p-3",
+          presentation === "pane" && "h-full border-l border-white/10 p-3",
+        )}
         data-testid="session-inspector"
       >
         <div className="mb-3 flex items-center justify-between gap-2">

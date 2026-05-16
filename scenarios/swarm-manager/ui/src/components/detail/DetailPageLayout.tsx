@@ -25,6 +25,7 @@ export interface DetailPageLayoutProps {
   /** Title for the mobile actions sheet. */
   mobileActionsTitle?: string;
   className?: string;
+  bodyClassName?: string;
 }
 
 export function DetailPageLayout({
@@ -33,6 +34,7 @@ export function DetailPageLayout({
   mobileActions,
   mobileActionsTitle = "Actions",
   className,
+  bodyClassName,
 }: DetailPageLayoutProps) {
   const isMobile = useIsMobile();
   const [showActionsSheet, setShowActionsSheet] = useState(false);
@@ -48,7 +50,7 @@ export function DetailPageLayout({
       </div>
 
       {/* Page body */}
-      <div className="flex-1 px-2 py-3 md:px-6 md:py-6">
+      <div className={cn("flex-1 px-2 py-3 md:px-6 md:py-6", bodyClassName)}>
         {children}
       </div>
 

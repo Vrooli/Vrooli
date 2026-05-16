@@ -38,6 +38,7 @@ interface SessionConversationProps {
   pendingContext: SessionContextOption[];
   onPendingContextChange: (items: SessionContextOption[]) => void;
   variant?: "desktop" | "mobile";
+  desktopPresentation?: "card" | "pane";
 }
 
 export function SessionConversation({
@@ -57,6 +58,7 @@ export function SessionConversation({
   pendingContext,
   onPendingContextChange,
   variant = "desktop",
+  desktopPresentation = "card",
 }: SessionConversationProps) {
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [contextPickerInitialType, setContextPickerInitialType] = useState<AgentSessionContextType | null>(null);
@@ -94,7 +96,8 @@ export function SessionConversation({
     <section
       className={cn(
         "flex min-h-0 flex-1 flex-col",
-        variant === "desktop" && "rounded-lg border border-white/10 bg-slate-950/30",
+        variant === "desktop" && desktopPresentation === "card" && "rounded-lg border border-white/10 bg-slate-950/30",
+        variant === "desktop" && desktopPresentation === "pane" && "h-full border-r border-white/10 bg-slate-950/30",
       )}
       data-testid="agent-session-conversation"
     >

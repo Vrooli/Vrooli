@@ -411,9 +411,10 @@ export function SessionDetailsPage() {
           }
         />
       }
-      className="min-h-screen"
+      className="min-h-screen md:h-screen md:min-h-0 md:overflow-hidden"
+      bodyClassName="md:min-h-0 md:overflow-hidden md:px-0 md:py-0"
     >
-      <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-3">
+      <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-3 md:max-w-none md:gap-0">
         {(localError || error?.message) && (
           <div className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200" role="alert">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -449,7 +450,7 @@ export function SessionDetailsPage() {
             {mobileSection === "details" && detailContent("plain")}
           </div>
         ) : (
-          <div ref={desktopLayoutRef} className="flex min-h-[min(72vh,calc(100vh-10rem))] gap-3" data-testid="session-desktop-layout">
+          <div ref={desktopLayoutRef} className="flex min-h-0 flex-1" data-testid="session-desktop-layout">
             <SessionConversation
               messages={session.messages}
               draft={draft}
@@ -466,6 +467,7 @@ export function SessionDetailsPage() {
               onRemovePendingAttachment={sessionAttachments.removeFile}
               pendingContext={pendingContext}
               onPendingContextChange={setPendingContext}
+              desktopPresentation="pane"
             />
             <SessionInspector
               containerRef={desktopLayoutRef}
@@ -473,6 +475,7 @@ export function SessionDetailsPage() {
               defaultSection={defaultInspectorSection}
               isCollapsed={inspectorCollapsed}
               onCollapsedChange={setInspectorCollapsed}
+              presentation="pane"
             />
           </div>
         )}

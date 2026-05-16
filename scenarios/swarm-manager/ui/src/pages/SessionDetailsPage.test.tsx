@@ -218,6 +218,25 @@ describe("SessionDetailsPage", () => {
     expect(screen.getByTestId("session-inspector")).toBeInTheDocument();
   });
 
+  it("uses edge-to-edge independently scrollable desktop panes", () => {
+    renderPage();
+
+    const layout = screen.getByTestId("detail-page-layout");
+    const desktopLayout = screen.getByTestId("session-desktop-layout");
+    const conversation = screen.getByTestId("agent-session-conversation");
+    const messages = screen.getByTestId("agent-session-messages");
+    const inspector = screen.getByTestId("session-inspector");
+
+    expect(layout).toHaveClass("md:h-screen", "md:overflow-hidden");
+    expect(desktopLayout).toHaveClass("flex-1", "min-h-0");
+    expect(conversation).toHaveClass("h-full", "border-r");
+    expect(conversation).not.toHaveClass("rounded-lg");
+    expect(messages).toHaveClass("overflow-y-auto");
+    expect(inspector).toHaveClass("h-full", "border-l");
+    expect(inspector).not.toHaveClass("rounded-lg");
+    expect(screen.getByTestId("session-inspector-resize-handle")).toHaveAttribute("role", "separator");
+  });
+
   it("defaults the desktop inspector to proposals when a proposal is ready", () => {
     renderPage();
 
