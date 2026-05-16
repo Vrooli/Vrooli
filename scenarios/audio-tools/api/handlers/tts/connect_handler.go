@@ -1,13 +1,4 @@
 // Package tts hosts the TTSService Connect-RPC handler.
-//
-// Routes proto calls into the TTS provider chain (BYOK -> Vrooli -> Local)
-// for Synthesize, into the canonical voice catalog for ListVoices, and into
-// the content-addressable cache for GetCache. Cross-cutting normalization
-// and paragraph splitting are exposed as pure-function RPCs that consumers
-// (notably web-console) call across the scenario boundary.
-//
-// Unimplemented methods inherit the generated Unimplemented embed and return
-// connect.CodeUnimplemented until the corresponding phase lands.
 package tts
 
 import (
@@ -21,28 +12,30 @@ import (
 
 	"audio-tools/internal/ai/ttschain"
 	intsumm "audio-tools/internal/ai/summarizechain"
+	"audio-tools/internal/store"
 	inttts "audio-tools/internal/tts"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
-	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
 )
 
 // Deps wires the seams the TTS handler needs.
 type Deps struct {
 	Chain          *ttschain.Chain
-	SummarizeChain *intsumm.Chain // for the normalize/paragraph helpers (future)
+	SummarizeChain *intsumm.Chain
 	TTSService     *inttts.Service
 	Logger         *log.Logger
+	Cache          *inttts.Cache
+	ConfigStore    *store.TTSConfigStore
+	Playback       *store.PlaybackStore
 }
 
 type connectHandler struct {
-	ttsconnect.UnimplementedTTSServiceHandler
 	deps Deps
 }
 
 // NewConnectHandler constructs a Connect handler. The Chain is required for
-// Synthesize; other methods degrade to Unimplemented when their seams are
-// not configured.
+// Synthesize; admin methods (config/status/cache/playback) bind to their
+// respective stores via the corresponding Deps fields.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()

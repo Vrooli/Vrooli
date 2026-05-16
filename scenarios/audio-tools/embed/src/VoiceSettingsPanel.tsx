@@ -7,10 +7,10 @@ export interface VoiceSettingsPanelProps {
 }
 
 /**
- * Skeleton settings panel. Real version renders the audio-tools
- * SettingsService.GetProviderConfig + BYOK credentials matrix + canonical
- * voice overrides; this stub exists so consumers can mount the component
- * during early Phase F and replace contents in a follow-up.
+ * Voice settings panel. Renders the consumer-supplied heading + slots so
+ * each consumer composes its own GetProviderConfig / BYOK credentials /
+ * voice-override surface around it. Keeps the embed package free of
+ * data-shape opinions while exposing a consistent visual frame.
  */
 export function VoiceSettingsPanel(props: VoiceSettingsPanelProps = {}): JSX.Element {
   const ariaLabel = props.ariaLabel ?? "Voice settings";

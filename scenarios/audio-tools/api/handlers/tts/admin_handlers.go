@@ -1,0 +1,157 @@
+package tts
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"connectrpc.com/connect"
+	"github.com/google/uuid"
+
+	"audio-tools/internal/store"
+	inttts "audio-tools/internal/tts"
+
+	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
+)
+
+// GetCache looks up audio bytes previously synthesized for the given
+// (event_id, voice, speed, version) tuple. Content-hash-only lookups
+// return a clean miss since the in-process cache is keyed by event id.
+func (h *connectHandler) GetCache(_ context.Context, req *connect.Request[ttsv1.GetCacheRequest]) (*connect.Response[ttsv1.GetCacheResponse], error) {
+	if h.deps.Cache == nil || req.Msg.GetEventId() == "" {
+		return connect.NewResponse(&ttsv1.GetCacheResponse{Hit: false}), nil
+	}
+	key := inttts.CacheKey{
+		EventID: req.Msg.GetEventId(),
+		Voice:   req.Msg.GetVoice(),
+		Speed:   req.Msg.GetSpeed(),
+		Version: req.Msg.GetVersion(),
+	}
+	if key.Version == "" {
+		key.Version = "active"
+	}
+	entry, ok := h.deps.Cache.Get(key)
+	if !ok {
+		return connect.NewResponse(&ttsv1.GetCacheResponse{Hit: false}), nil
+	}
+	return connect.NewResponse(&ttsv1.GetCacheResponse{
+		Audio: entry.Audio, ContentType: entry.ContentType,
+		ContentHash: req.Msg.GetContentHash(), Hit: true,
+	}), nil
+}
+
+func (h *connectHandler) GetConfig(ctx context.Context, _ *connect.Request[ttsv1.GetConfigRequest]) (*connect.Response[ttsv1.GetConfigResponse], error) {
+	cfg, summ := h.loadConfig(ctx)
+	return connect.NewResponse(&ttsv1.GetConfigResponse{Config: configToProto(cfg, summ)}), nil
+}
+
+func (h *connectHandler) UpdateConfig(ctx context.Context, req *connect.Request[ttsv1.UpdateConfigRequest]) (*connect.Response[ttsv1.UpdateConfigResponse], error) {
+	cfg, summ := h.loadConfig(ctx)
+	m := req.Msg
+	if m.GetHasAutoEnabled() {
+		cfg.AutoEnabled = m.GetAutoEnabled()
+	}
+	if m.GetHasDefaultVoice() {
+		cfg.KokoroVoice = m.GetDefaultVoice()
+	}
+	if m.GetHasDefaultSpeed() {
+		cfg.KokoroSpeed = m.GetDefaultSpeed()
+	}
+	if m.GetHasDefaultResponseFormat() {
+		cfg.Backend = m.GetDefaultResponseFormat()
+	}
+	if m.GetHasSummarizeEnabled() {
+		summ.Enabled = m.GetSummarizeEnabled()
+	}
+	if m.GetHasSummarizeCharThreshold() {
+		summ.CharThreshold = int(m.GetSummarizeCharThreshold())
+	}
+	if m.GetHasSummarizeLevel() {
+		summ.Level = m.GetSummarizeLevel()
+	}
+	if m.GetHasSummarizeModel() {
+		summ.Model = m.GetSummarizeModel()
+	}
+	if m.GetHasSummarizeTimeoutSeconds() {
+		summ.TimeoutSeconds = int(m.GetSummarizeTimeoutSeconds())
+	}
+	if h.deps.ConfigStore != nil {
+		raw, _ := json.Marshal(cfg)
+		summRaw, _ := json.Marshal(summ)
+		if err := h.deps.ConfigStore.Set(ctx, string(raw), string(summRaw)); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	return connect.NewResponse(&ttsv1.UpdateConfigResponse{Config: configToProto(cfg, summ)}), nil
+}
+
+func (h *connectHandler) GetStatus(ctx context.Context, _ *connect.Request[ttsv1.GetStatusRequest]) (*connect.Response[ttsv1.GetStatusResponse], error) {
+	cfg, summ := h.loadConfig(ctx)
+	avail := []*ttsv1.ProviderAvailability{}
+	if h.deps.Chain != nil {
+		p := h.deps.Chain.Probe(ctx)
+		ts := time.Now().UTC().Format(time.RFC3339)
+		avail = []*ttsv1.ProviderAvailability{
+			{Tier: "local", Available: p.Local, CheckedAt: ts, ProviderId: "kokoro"},
+			{Tier: "byok", Available: p.BYOK, CheckedAt: ts},
+			{Tier: "vrooli", Available: p.Vrooli, CheckedAt: ts},
+		}
+	}
+	capLabel := "unavailable"
+	if len(avail) > 0 && avail[0].Available {
+		capLabel = "available"
+	}
+	return connect.NewResponse(&ttsv1.GetStatusResponse{Status: &ttsv1.Status{
+		Config:          configToProto(cfg, summ),
+		Availability:    avail,
+		Capability:      capLabel,
+		CapabilityLabel: "TTS (Local Kokoro)",
+	}}), nil
+}
+
+func (h *connectHandler) RecordPlaybackEvent(ctx context.Context, req *connect.Request[ttsv1.RecordPlaybackEventRequest]) (*connect.Response[ttsv1.RecordPlaybackEventResponse], error) {
+	if h.deps.Playback == nil {
+		return connect.NewResponse(&ttsv1.RecordPlaybackEventResponse{Status: "noop"}), nil
+	}
+	ev := req.Msg.GetEvent()
+	id := ev.GetEventId()
+	if id == "" {
+		id = uuid.NewString()
+	}
+	if err := h.deps.Playback.Insert(ctx, store.PlaybackEvent{
+		EventID: id, Kind: ev.GetStage(), Voice: ev.GetBackend(),
+	}); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&ttsv1.RecordPlaybackEventResponse{Status: "recorded"}), nil
+}
+
+// loadConfig prefers the persisted config; falls back to defaults.
+func (h *connectHandler) loadConfig(ctx context.Context) (inttts.Config, inttts.SummarizeConfig) {
+	cfg := inttts.DefaultConfig()
+	summ := inttts.DefaultSummarizeConfig()
+	if h.deps.ConfigStore == nil {
+		return cfg, summ
+	}
+	rawCfg, rawSumm, ok, err := h.deps.ConfigStore.Get(ctx)
+	if err != nil || !ok {
+		return cfg, summ
+	}
+	_ = json.Unmarshal([]byte(rawCfg), &cfg)
+	_ = json.Unmarshal([]byte(rawSumm), &summ)
+	return cfg, summ
+}
+
+func configToProto(c inttts.Config, s inttts.SummarizeConfig) *ttsv1.Config {
+	return &ttsv1.Config{
+		AutoEnabled:             c.AutoEnabled,
+		DefaultVoice:            c.KokoroVoice,
+		DefaultSpeed:            c.KokoroSpeed,
+		DefaultResponseFormat:   c.Backend,
+		SummarizeEnabled:        s.Enabled,
+		SummarizeCharThreshold:  int32(s.CharThreshold),
+		SummarizeLevel:          s.Level,
+		SummarizeModel:          s.Model,
+		SummarizeTimeoutSeconds: int32(s.TimeoutSeconds),
+	}
+}

@@ -9,20 +9,22 @@ import (
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/store"
 	intvoice "audio-tools/internal/voice"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
-	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 )
 
 type Deps struct {
-	Chain   *sttchain.Chain
-	Voice   *intvoice.Service
-	Logger  *log.Logger
+	Chain        *sttchain.Chain
+	Voice        *intvoice.Service
+	Logger       *log.Logger
+	StreamConfig *store.STTStreamConfigStore
+	Wakeword     *store.WakeWordStore
+	Speaker      *store.SpeakerStore
 }
 
 type connectHandler struct {
-	sttconnect.UnimplementedSTTServiceHandler
 	deps Deps
 }
 

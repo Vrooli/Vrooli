@@ -6,6 +6,7 @@ import { PageHeader } from "../../components/composites/PageHeader";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { LoadingRows } from "../../components/composites/LoadingRows";
 import { getVoiceOverrides } from "../../services/settings";
+import { getStatus } from "../../services/tts";
 import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
 
@@ -19,15 +20,19 @@ const CANONICAL_VOICES = [
 
 const ADAPTERS = ["local:kokoro", "byok:openai-tts", "byok:elevenlabs"];
 
-const LOCAL_RESOURCES = [
-  { id: "whisper", role: "STT" },
-  { id: "kokoro", role: "TTS" },
-  { id: "ollama", role: "Summarize" },
-];
-
 export function VoicesPage() {
   const { t } = useTranslation();
   const overrides = useQuery({ queryKey: ["settings", "voices"], queryFn: getVoiceOverrides });
+  const ttsStatus = useQuery({ queryKey: ["tts", "status"], queryFn: getStatus, refetchInterval: 30_000 });
+
+  const probes = ttsStatus.data?.ok
+    ? ttsStatus.data.data.availability.map((a) => ({
+        id: a.providerId || a.tier,
+        role: a.tier.toUpperCase(),
+        tone: a.available ? ("success" as const) : ("danger" as const),
+        label: a.available ? t(strings.status.ok) : t(strings.status.offline),
+      }))
+    : [];
 
   const overrideFor = (canonical: string, adapter: string) => {
     if (!overrides.data?.ok) return undefined;
@@ -83,18 +88,22 @@ export function VoicesPage() {
         description={t(strings.voices.localHealthDescription)}
       >
         <ul className="flex flex-col gap-2 text-sm">
-          {LOCAL_RESOURCES.map((r) => (
-            <li
-              key={r.id}
-              className="flex items-center justify-between rounded-control border border-app-border bg-app-surface-muted px-3 py-2"
-            >
-              <span className="flex items-center gap-2">
-                <span className="font-mono text-xs">{r.id}</span>
-                <span className="text-xs text-app-muted-foreground">{r.role}</span>
-              </span>
-              <StatusDot tone="neutral" label={t(strings.status.probePending)} />
-            </li>
-          ))}
+          {probes.length === 0 ? (
+            <li className="text-xs text-app-muted-foreground">{t(strings.common.loading)}</li>
+          ) : (
+            probes.map((r) => (
+              <li
+                key={r.id}
+                className="flex items-center justify-between rounded-control border border-app-border bg-app-surface-muted px-3 py-2"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-xs">{r.id}</span>
+                  <span className="text-xs text-app-muted-foreground">{r.role}</span>
+                </span>
+                <StatusDot tone={r.tone} label={r.label} />
+              </li>
+            ))
+          )}
         </ul>
         <p className="mt-3 text-xs text-app-muted-foreground">{t(strings.voices.localHealthFollowUp)}</p>
       </Panel>

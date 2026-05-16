@@ -13,6 +13,13 @@
 | `session.Session` pub/sub | Concrete | `internal/session/session.go` | `internal/transports/browser`, `handlers/session` |
 | Browser-voice WS | Concrete | `internal/transports/browser/ws_handler.go` | `main.go` route mount |
 | `audiotools.URLResolver` (consumer-side) | Interface | `scenarios/web-console/api/integrations/audiotools/discovery.go` | `audiotools.Client.refresh()` |
+| `store.{ProviderConfig,BYOK,VoiceOverride,Usage,Wakeword,Speaker,STTStreamConfig,TTSConfig,Playback}Store` | Concrete (sql) | `internal/store/*.go` | every admin handler (settings/usage/stt/tts) |
+| `byokstore.Store` / `byokstore.Encryptor` | Concrete | `internal/byokstore/{store,encryptor,fingerprint}.go` | `handlers/settings` and (planned) chain BYOK resolver |
+| `usagereport.Recorder` | Interface | `internal/usagereport/recorder.go` | `handlers/summarize` (other chain-adjacent handlers wired as they land) |
+| `chains.Coordinator` | Concrete | `internal/ai/chains/chains.go` | `handlers/settings` UpdateProviderConfig — live chain Reconfigure |
+| `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Concrete | `internal/ai/{stt,tts,summarize}chain/chain.go` | `handlers/tts` GetStatus + `cli/domains/diagnose` |
+| `stt.MultipartTranscribeHandler` / `audio.multipartTranscodeHandler` | Concrete | `handlers/{stt,audio}/` | UI multipart upload paths |
+| `stt.StreamWSHandler` | Concrete | `handlers/stt/stream_ws.go` | mounts `/api/v1/voice/stream` over `voice.Service.HandleStreamWS` |
 
 ## Cross-scenario boundaries
 

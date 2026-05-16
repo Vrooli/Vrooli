@@ -32,12 +32,13 @@ describe("@audio-tools/embed surface", () => {
     expect(client.summarize).toBeDefined();
   });
 
-  it("throws when no baseUrl is configured and window.__AUDIO_TOOLS_URL__ is unset", () => {
+  it("falls back to a sentinel base URL when window.__AUDIO_TOOLS_URL__ is unset", () => {
     const original = (globalThis as { window?: { __AUDIO_TOOLS_URL__?: string } }).window?.__AUDIO_TOOLS_URL__;
     if (typeof window !== "undefined") {
       delete window.__AUDIO_TOOLS_URL__;
     }
-    expect(() => createAudioToolsClient()).toThrow(/no audio-tools base URL configured/);
+    const client = createAudioToolsClient();
+    expect(client.baseUrl).toBe("http://localhost:0");
     if (typeof original === "string" && typeof window !== "undefined") {
       window.__AUDIO_TOOLS_URL__ = original;
     }

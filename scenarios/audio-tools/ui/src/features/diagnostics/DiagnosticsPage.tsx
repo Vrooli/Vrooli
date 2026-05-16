@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { Panel } from "../../components/ui/panel";
 import { Button } from "../../components/ui/button";
@@ -10,6 +10,7 @@ import { Badge } from "../../components/ui/badge";
 import { PageHeader } from "../../components/composites/PageHeader";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { summarize, transcribe, type ProviderTrace } from "../../services/diagnostics";
+import { synthesize, listVoices } from "../../services/tts";
 import type { ApiError } from "../../api/client";
 import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
@@ -41,9 +42,9 @@ export function DiagnosticsPage() {
         >
           {(active) => {
             if (active === "transcribe") return <TranscribeTryIt onTrace={(tr) => recordTrace("stt", tr)} />;
-            if (active === "synthesize") return <SynthesizeStub />;
+            if (active === "synthesize") return <SynthesizeTryIt onTrace={(tr) => recordTrace("tts", tr)} />;
             if (active === "summarize") return <SummarizeTryIt onTrace={(tr) => recordTrace("summarize", tr)} />;
-            if (active === "transcode") return <TranscodeStub />;
+            if (active === "transcode") return <TranscodeTryIt />;
             return null;
           }}
         </Tabs>
@@ -171,20 +172,119 @@ function SummarizeTryIt({ onTrace }: { onTrace: (t: ProviderTrace) => void }) {
   );
 }
 
-function SynthesizeStub() {
+function SynthesizeTryIt({ onTrace }: { onTrace: (t: ProviderTrace) => void }) {
   const { t } = useTranslation();
+  const [text, setText] = useState("");
+  const [voice, setVoice] = useState("voice.feminine.warm");
+  const [voices, setVoices] = useState<{ id: string; name: string }[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string>("");
+  const [error, setError] = useState<ApiError | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listVoices().then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data.length > 0) setVoices(r.data);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const run = async () => {
+    if (!text.trim()) return;
+    setBusy(true);
+    setError(null);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    const r = await synthesize(text, voice, 1.0, "wav");
+    setBusy(false);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    const buf = r.data.audio.slice().buffer;
+    const blob = new Blob([buf], { type: r.data.contentType || "audio/wav" });
+    setAudioUrl(URL.createObjectURL(blob));
+    onTrace({ providerTier: r.data.providerTier, providerId: r.data.providerId, modelId: r.data.modelId, latencyMs: r.data.latencyMs });
+  };
+
   return (
     <Panel title={t(strings.diagnostics.synthesizeTitle)} description={t(strings.diagnostics.synthesizeDescription)}>
-      <p className="text-sm text-app-muted-foreground">{t(strings.diagnostics.synthesizeFollowUp)}</p>
+      <div className="flex flex-col gap-3">
+        <Textarea value={text} onChange={(e) => setText(e.currentTarget.value)} rows={4} placeholder="Type text to synthesize…" />
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+            Voice
+            <Select value={voice} onChange={(e) => setVoice(e.currentTarget.value)} className="w-56">
+              {(voices.length ? voices : [{ id: voice, name: voice }]).map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </Select>
+          </label>
+          <Button onClick={() => void run()} disabled={!text.trim() || busy}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+            Synthesize
+          </Button>
+        </div>
+        {error ? <ApiErrorState error={error} /> : null}
+        {audioUrl ? <audio controls src={audioUrl} className="w-full" /> : null}
+      </div>
     </Panel>
   );
 }
 
-function TranscodeStub() {
+function TranscodeTryIt() {
   const { t } = useTranslation();
+  const [file, setFile] = useState<File | null>(null);
+  const [format, setFormat] = useState("wav");
+  const [busy, setBusy] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState<string>("");
+  const [error, setError] = useState<string>("");
+
+  const run = async () => {
+    if (!file) return;
+    setBusy(true);
+    setError("");
+    if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    const fd = new FormData();
+    fd.append("audio", file);
+    fd.append("output_format", format);
+    const { uploadFile } = await import("../../api/client");
+    const res = await uploadFile("/api/v1/audio/transcode", fd);
+    setBusy(false);
+    if (!res.ok) {
+      setError(`Transcode failed (${res.status})`);
+      return;
+    }
+    const blob = await res.blob();
+    setDownloadUrl(URL.createObjectURL(blob));
+  };
+
   return (
     <Panel title={t(strings.diagnostics.transcodeTitle)} description={t(strings.diagnostics.transcodeDescription)}>
-      <p className="text-sm text-app-muted-foreground">{t(strings.diagnostics.transcodeFollowUp)}</p>
+      <div className="flex flex-col gap-3">
+        <Input type="file" accept="audio/*" onChange={(e) => setFile(e.currentTarget.files?.[0] ?? null)} />
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+            Output format
+            <Select value={format} onChange={(e) => setFormat(e.currentTarget.value)} className="w-32">
+              <option value="wav">wav</option>
+              <option value="mp3">mp3</option>
+              <option value="flac">flac</option>
+              <option value="ogg">ogg</option>
+            </Select>
+          </label>
+          <Button onClick={() => void run()} disabled={!file || busy}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+            Transcode
+          </Button>
+        </div>
+        {error ? <p className="text-sm text-app-danger">{error}</p> : null}
+        {downloadUrl ? (
+          <a href={downloadUrl} download={`transcoded.${format}`} className="text-sm text-app-primary underline">
+            Download transcoded file
+          </a>
+        ) : null}
+      </div>
     </Panel>
   );
 }

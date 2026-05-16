@@ -25,10 +25,10 @@ export interface VoiceInputButtonProps {
 }
 
 /**
- * Generalized mic button. P0 skeleton: clicking toggles a "listening" state
- * via the consumer's wired-in STT hook (passed via context in a follow-up
- * iteration). The full streaming pipeline integration lands when this
- * package starts re-exporting the ported web-console VoiceStreamProvider.
+ * Generalized mic button. Clicking toggles the local "listening" state and
+ * notifies callers via the `onToggle` callback; the actual STT pipeline is
+ * provided by the consumer (typically the re-exported VoiceStreamProvider
+ * from this package). The button stays unopinionated about transport.
  */
 export function VoiceInputButton(props: VoiceInputButtonProps): JSX.Element {
   const [listening, setListening] = useState(false);

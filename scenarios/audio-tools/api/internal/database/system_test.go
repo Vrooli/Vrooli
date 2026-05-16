@@ -14,20 +14,25 @@ import (
 	localdb "audio-tools/internal/database"
 )
 
-// TestSystemSchema_IsEmpty is a deliberate tripwire. The system file
-// ships empty by intent — if a future agent adds a CREATE TABLE here
-// instead of creating a domain package, this test fails and forces a
-// "yes, this is a genuinely cross-cutting concern" decision. Update the
-// test (or the comment) when the first real entry lands.
-//
-// Lives here (not under a per-domain test) because the system home is
-// owned by this package; the tripwire belongs with its subject.
-func TestSystemSchema_IsEmpty(t *testing.T) {
-	got := strings.TrimSpace(stripComments(localdb.SystemSchema()))
-	if got != "" {
-		t.Fatalf("system.sql is meant to be empty by default; got:\n%s\n\n"+
-			"If this is an intentional cross-cutting addition, update this test.",
-			got)
+// TestSystemSchema_DeclaresCoreTables guards the canonical table set.
+// system.sql owns the full audio-tools schema; per-domain handlers
+// keep Schema() empty and route I/O through internal/store/*.
+func TestSystemSchema_DeclaresCoreTables(t *testing.T) {
+	got := stripComments(localdb.SystemSchema())
+	for _, want := range []string{
+		"byok_credentials",
+		"provider_config",
+		"voice_overrides",
+		"usage_rows",
+		"wakeword_templates",
+		"speaker_profiles",
+		"stt_stream_config",
+		"tts_config",
+		"playback_events",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("system.sql missing table %q", want)
+		}
 	}
 }
 

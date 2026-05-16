@@ -16,8 +16,7 @@ func TestTranscode_Success(t *testing.T) {
 		t.Skip("ffmpeg not available")
 	}
 
-	// Generate a tiny valid WAV as input (1 sample of silence).
-	// WAV header for 16kHz mono 16-bit PCM, 2 bytes of data.
+	// Tiny valid WAV: 16 kHz mono 16-bit PCM, 1 sample of silence.
 	wavHeader := []byte{
 		'R', 'I', 'F', 'F',
 		38, 0, 0, 0,
@@ -47,18 +46,15 @@ func TestTranscode_Success(t *testing.T) {
 	}
 }
 
+// TestTranscode_InvalidInput verifies the greenfield contract: invalid
+// audio surfaces as an error, never as a silent passthrough.
 func TestTranscode_InvalidInput(t *testing.T) {
 	if !ffmpegOnPath() {
 		t.Skip("ffmpeg not available")
 	}
-
-	garbage := []byte("not valid audio at all")
-	output, err := Transcode(context.Background(), garbage)
+	_, err := Transcode(context.Background(), []byte("not valid audio at all"))
 	if err == nil {
-		t.Error("expected error for invalid audio input")
-	}
-	if &output[0] != &garbage[0] {
-		t.Error("expected original audio returned on error (graceful fallback)")
+		t.Fatal("expected error for invalid audio input")
 	}
 }
 
@@ -66,16 +62,10 @@ func TestTranscode_ContextCanceled(t *testing.T) {
 	if !ffmpegOnPath() {
 		t.Skip("ffmpeg not available")
 	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-
-	input := []byte("some audio")
-	output, err := Transcode(ctx, input)
+	_, err := Transcode(ctx, []byte("some audio"))
 	if err == nil {
-		t.Error("expected error for canceled context")
-	}
-	if &output[0] != &input[0] {
-		t.Error("expected original audio returned on context cancellation")
+		t.Fatal("expected error for canceled context")
 	}
 }

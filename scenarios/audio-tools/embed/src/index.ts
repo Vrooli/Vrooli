@@ -9,9 +9,10 @@
 // props (`onTranscript`, `commandHandler`, `audioUrl | audioBytes`) and never
 // reference terminal panes, conversation cursors, or session IDs.
 //
-// Status: skeleton surface during Phase F rollout. Concrete components will
-// be ported from web-console hooks/components in follow-up sessions, then
-// generalized (terminal-input gates removed, callback props introduced).
+// The package ships the full adoptable component set plus the audio-tools
+// API client; consumers compose them against their own data flow. Each
+// component takes generic callback props (`onTranscript`, `commandHandler`,
+// `audioUrl | audioBytes`) and never references terminal panes or session ids.
 
 export { VoiceInputButton } from "./VoiceInputButton";
 export { AudioPlayerBar } from "./AudioPlayerBar";
@@ -44,3 +45,79 @@ export type {
   CreateAudioToolsClientOptions,
   AudioToolsProviderProps,
 } from "./client";
+
+// =============================================================================
+// Voice (STT) capability surface — full re-export from the ported modules.
+// `export *` keeps the surface comprehensive so consumer scenarios can pull
+// any provider/utility without poking into deep paths.
+// =============================================================================
+
+export * from "./hooks/voice/types";
+export * from "./hooks/voice/audioUtils";
+export * from "./hooks/voice/audioCues";
+export * from "./hooks/voice/activity";
+export * from "./hooks/voice/vad";
+export * from "./hooks/voice/sharedAudioContext";
+export * from "./hooks/voice/micReadiness";
+export { VoiceStreamProvider } from "./hooks/voice/VoiceStreamProvider";
+export { WhisperProvider } from "./hooks/voice/WhisperProvider";
+export { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
+export * from "./hooks/voice/wakeword";
+
+// =============================================================================
+// TTS capability surface
+// =============================================================================
+
+export * from "./hooks/tts/types";
+export { KokoroProvider } from "./hooks/tts/KokoroProvider";
+export { BrowserTTSProvider } from "./hooks/tts/BrowserTTSProvider";
+
+// =============================================================================
+// API surfaces (audio-only operations bound to audio-tools)
+// =============================================================================
+
+export {
+  createTtsApi,
+  useTtsApi,
+  synthesizeTTS,
+  fetchCachedTTS,
+  getTTSVoices,
+  getTTSConfig,
+  updateTTSConfig,
+  getTTSSummarizeConfig,
+  updateTTSSummarizeConfig,
+  reportTTSEvent,
+} from "./api/tts";
+export type { TTSConfig, TTSSummarizeConfig, TTSVoiceInfo, TTSPlaybackEvent } from "./api/tts";
+
+export {
+  createVoiceApi,
+  useVoiceApi,
+  buildVoiceStreamWsUrl,
+  transcribeAudio,
+  transcribeAudioBypassFilter,
+  transcribeAudioWithRetry,
+  getVoiceStreamConfig,
+  updateVoiceStreamConfig,
+  getWakeWordConfig,
+  updateWakeWordConfig,
+  deleteWakeWordConfig,
+  getSpeakerVerificationConfig,
+  updateSpeakerVerificationConfig,
+  getSpeakerVerificationStatus,
+  listSpeakerVerificationProfiles,
+  enrollSpeakerVerificationProfile,
+  clearSpeakerVerificationProfile,
+  removeSpeakerVerificationProfile,
+  deleteSpeakerVerificationProfile,
+} from "./api/voice";
+export type {
+  VoiceStreamConfig,
+  WakeWordConfig,
+  SpeakerVerificationConfig,
+  SpeakerVerificationProfile,
+  SpeakerVerificationInfo,
+  SpeakerVerificationStatusResponse,
+  SpeakerVerificationEnrollmentResponse,
+  SpeakerVerificationEnrollResult,
+} from "./api/voice";

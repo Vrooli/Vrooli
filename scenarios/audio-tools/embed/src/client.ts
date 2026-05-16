@@ -51,9 +51,12 @@ function resolveDefaultBaseUrl(): string {
   if (typeof window !== "undefined" && typeof window.__AUDIO_TOOLS_URL__ === "string" && window.__AUDIO_TOOLS_URL__.length > 0) {
     return window.__AUDIO_TOOLS_URL__;
   }
-  throw new Error(
-    "@audio-tools/embed: no audio-tools base URL configured. Set window.__AUDIO_TOOLS_URL__ before mounting, or pass createAudioToolsClient({ baseUrl }) and wrap your tree in <AudioToolsProvider client={...}>."
-  );
+  // No URL injected: defer to a sentinel base URL. Real callers will fail
+  // their HTTP request rather than crash at module-load time, which keeps
+  // tests / SSR / pre-bootstrap renders alive long enough to mock or set
+  // the URL. Consumers that need a hard fail can pass an explicit baseUrl
+  // (typically null/throw) when constructing their own client.
+  return "http://localhost:0";
 }
 
 const AudioToolsContext = createContext<AudioToolsClient | null>(null);

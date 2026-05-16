@@ -79,6 +79,15 @@
       "range": "20000-24999"
     }
   },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Transcode arbitrary audio uploads into Whisper-friendly formats during STT processing",
+      "when": ["setup", "develop"],
+      "notes": "Audio transcoding falls back to passing raw audio when ffmpeg is unavailable"
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -210,10 +219,11 @@
   },
   "dependencies": {
     "resources": {
-      "whisper":  { "required": false, "notes": "Local STT tier" },
-      "kokoro":   { "required": false, "notes": "Local TTS tier" },
-      "ollama":   { "required": false, "notes": "Local summarize tier" },
-      "postgres": { "required": false, "notes": "Optional usage history backend; sqlite is default" }
+      "whisper":              { "required": false, "notes": "Local STT tier" },
+      "kokoro":               { "required": false, "notes": "Local TTS tier" },
+      "speaker-verification": { "required": false, "notes": "Speaker enrollment + verification gate for the streaming STT path" },
+      "ollama":               { "required": false, "notes": "Local summarize tier" },
+      "postgres":             { "required": false, "notes": "Optional usage history backend; sqlite is default" }
     },
     "scenarios": {
       "landing-page-business-suite": {

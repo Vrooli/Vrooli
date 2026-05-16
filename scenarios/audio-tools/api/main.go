@@ -10,10 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"audio-tools/internal/ai/chains"
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/byok"
+	"audio-tools/internal/byokstore"
+	"audio-tools/internal/store"
+	"audio-tools/internal/usagereport"
 	"sync/atomic"
 
 	"audio-tools/internal/capabilities"
@@ -233,16 +237,85 @@ func main() {
 
 	sessionRegistry := intsession.NewRegistry()
 
+	// --- persistence-backed stores ---
+	providerStore := store.NewProviderConfigStore(db, store.ProviderConfig{
+		BYOKEnabled:         enableBYOK,
+		VrooliEnabled:       enableVrooli,
+		LocalEnabled:        enableLocal,
+		WhisperURL:          envOr("AUDIO_WHISPER_URL", "http://localhost:8090"),
+		KokoroURL:           kokoroURL,
+		OllamaURL:           envOr("AUDIO_OLLAMA_URL", "http://localhost:11434"),
+		LPBSBaseURL:         envOr("AUDIO_LPBS_BASE_URL", ""),
+		LPBSAppBundleKey:    envOr("AUDIO_LPBS_APP_BUNDLE_KEY", ""),
+		AvailTTLBYOKSeconds: int32(ttlByOK / time.Second),
+		AvailTTLVrooliSecs:  int32(ttlVrooli / time.Second),
+	})
+	voiceOverrideStore := store.NewVoiceOverrideStore(db)
+	byokRepo := store.NewBYOKStore(db)
+	usageStore := store.NewUsageStore(db)
+	wakewordStore := store.NewWakeWordStore(db)
+	speakerStore := store.NewSpeakerStore(db)
+	sttStreamStore := store.NewSTTStreamConfigStore(db)
+	ttsConfigStore := store.NewTTSConfigStore(db)
+	playbackStore := store.NewPlaybackStore(db)
+
+	keyPath := envOr("AUDIO_TOOLS_DB_KEY_PATH", "")
+	if keyPath == "" {
+		keyPath = filepath.Join(os.TempDir(), "audio-tools-key")
+	}
+	key, err := byokstore.LoadOrCreateKey(keyPath)
+	if err != nil {
+		log.Fatalf("byok key init failed: %v", err)
+	}
+	encryptor, err := byokstore.NewEncryptor(key)
+	if err != nil {
+		log.Fatalf("byok encryptor: %v", err)
+	}
+	byokStore := byokstore.New(encryptor, byokRepo)
+
+	coordinator := &chains.Coordinator{STT: sttChain, TTS: ttsChain, Summarize: summChain}
+
+	// Async usage reporter — chains enqueue rows after each call.
+	usageRecorder := usagereport.New(usageStore, logger)
+
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "audio-tools-api", "1.0.0"),
 		audioH.Module(logger),
 		sessionH.Module(sessionRegistry, logger),
-		settingsH.Module(logger),
-		sttH.Module(sttChain, voiceSvc, logger),
-		summarizeH.Module(summChain, logger),
-		ttsH.Module(ttsChain, summChain, ttsSvc, logger),
-		usageH.Module(logger),
+		settingsH.Module(settingsH.Deps{
+			Logger:         logger,
+			ProviderConfig: providerStore,
+			BYOK:           byokStore,
+			VoiceOverrides: voiceOverrideStore,
+			Coordinator:    coordinator,
+		}),
+		sttH.Module(sttH.Deps{
+			Chain:        sttChain,
+			Voice:        voiceSvc,
+			Logger:       logger,
+			StreamConfig: sttStreamStore,
+			Wakeword:     wakewordStore,
+			Speaker:      speakerStore,
+		}),
+		summarizeH.Module(
+			summChain,
+			func() inttts.SummarizeConfig { return ttsSummCfg },
+			func(c inttts.SummarizeConfig) { ttsSummCfg = c },
+			logger,
+			usageRecorder,
+		),
+		ttsH.Module(ttsH.Deps{
+			Chain:          ttsChain,
+			SummarizeChain: summChain,
+			TTSService:     ttsSvc,
+			Logger:         logger,
+			Cache:          ttsCache,
+			ConfigStore:    ttsConfigStore,
+			Playback:       playbackStore,
+		}),
+		usageH.Module(usageH.Deps{Logger: logger, Store: usageStore}),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

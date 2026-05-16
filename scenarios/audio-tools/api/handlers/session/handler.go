@@ -1,17 +1,14 @@
 // Package session hosts the SessionService Connect-RPC handler.
-//
-// Wires SessionService methods to the internal/session pub/sub core.
-// OpenSession / CloseSession / SendCancel are implemented end-to-end;
-// SendText and Subscribe are stubbed pending the browser-voice transport
-// integration follow-up.
 package session
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	"audio-tools/internal/module"
 	intsession "audio-tools/internal/session"
@@ -29,7 +26,6 @@ type Deps struct {
 }
 
 type connectHandler struct {
-	sessconnect.UnimplementedSessionServiceHandler
 	deps Deps
 }
 
@@ -77,10 +73,114 @@ func (h *connectHandler) SendCancel(ctx context.Context, req *connect.Request[se
 	return connect.NewResponse(&sessv1.SendCancelResponse{}), nil
 }
 
-// SendText: stub until TTS-out streaming through session lands. Future
-// implementation drives the chosen transport's TTS pipeline.
+// SendText fans an assistant message out to every subscriber by
+// emitting AssistantDelta + AssistantFinal events. The session pipeline
+// owns any actual TTS-out audio; this handler only crosses the
+// session-boundary text in -> event-stream surface.
 func (h *connectHandler) SendText(ctx context.Context, req *connect.Request[sessv1.SendTextRequest]) (*connect.Response[sessv1.SendTextResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("session.SendText: TTS-out streaming through session is a follow-up after browser-voice transport-pipeline integration"))
+	s, err := h.deps.Registry.Get(req.Msg.SessionId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	text := req.Msg.Text
+	if text == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("text required"))
+	}
+	s.EmitEvent(intsession.SessionEvent{
+		EventID:        uuid.NewString(),
+		SessionID:      s.ID(),
+		Type:           intsession.EventAssistantDelta,
+		EmittedAt:      time.Now(),
+		AssistantDelta: &intsession.AssistantDelta{Text: text},
+	})
+	s.EmitEvent(intsession.SessionEvent{
+		EventID:        uuid.NewString(),
+		SessionID:      s.ID(),
+		Type:           intsession.EventAssistantFinal,
+		EmittedAt:      time.Now(),
+		AssistantFinal: &intsession.AssistantFinal{Text: text, HadAudio: false},
+	})
+	return connect.NewResponse(&sessv1.SendTextResponse{}), nil
+}
+
+// Subscribe streams session events to the client until the session
+// closes or the client disconnects.
+func (h *connectHandler) Subscribe(ctx context.Context, req *connect.Request[sessv1.SubscribeRequest], stream *connect.ServerStream[sessv1.SubscribeResponse]) error {
+	s, err := h.deps.Registry.Get(req.Msg.SessionId)
+	if err != nil {
+		return connect.NewError(connect.CodeNotFound, err)
+	}
+	_, ch, err := s.Subscribe(ctx, 64)
+	if err != nil {
+		return connect.NewError(connect.CodeResourceExhausted, err)
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case ev, ok := <-ch:
+			if !ok {
+				return nil
+			}
+			pe := toProto(ev)
+			if pe == nil {
+				continue
+			}
+			if err := stream.Send(&sessv1.SubscribeResponse{Event: pe}); err != nil {
+				return err
+			}
+			if ev.Type == intsession.EventClosed {
+				return nil
+			}
+		}
+	}
+}
+
+func toProto(ev intsession.SessionEvent) *sessv1.SessionEvent {
+	out := &sessv1.SessionEvent{
+		EventId:   ev.EventID,
+		SessionId: ev.SessionID,
+		EmittedAt: ev.EmittedAt.UTC().Format(time.RFC3339Nano),
+	}
+	switch ev.Type {
+	case intsession.EventTranscriptDelta:
+		if ev.TranscriptDelta != nil {
+			out.Payload = &sessv1.SessionEvent_TranscriptDelta{TranscriptDelta: &sessv1.TranscriptDelta{
+				Text: ev.TranscriptDelta.Text, FromSeconds: ev.TranscriptDelta.FromSeconds, ToSeconds: ev.TranscriptDelta.ToSeconds,
+			}}
+		}
+	case intsession.EventTranscriptFinal:
+		if ev.TranscriptFinal != nil {
+			out.Payload = &sessv1.SessionEvent_TranscriptFinal{TranscriptFinal: &sessv1.TranscriptFinal{
+				Text: ev.TranscriptFinal.Text, DurationSeconds: ev.TranscriptFinal.DurationSeconds, SpeakerVerified: ev.TranscriptFinal.SpeakerVerified,
+			}}
+		}
+	case intsession.EventAssistantDelta:
+		if ev.AssistantDelta != nil {
+			out.Payload = &sessv1.SessionEvent_AssistantDelta{AssistantDelta: &sessv1.AssistantDelta{Text: ev.AssistantDelta.Text}}
+		}
+	case intsession.EventAssistantFinal:
+		if ev.AssistantFinal != nil {
+			out.Payload = &sessv1.SessionEvent_AssistantFinal{AssistantFinal: &sessv1.AssistantFinal{Text: ev.AssistantFinal.Text, HadAudio: ev.AssistantFinal.HadAudio}}
+		}
+	case intsession.EventVAD:
+		if ev.VAD != nil {
+			out.Payload = &sessv1.SessionEvent_Vad{Vad: &sessv1.VadEvent{State: string(ev.VAD.State)}}
+		}
+	case intsession.EventTool:
+		if ev.Tool != nil {
+			out.Payload = &sessv1.SessionEvent_Tool{Tool: &sessv1.ToolEvent{Name: ev.Tool.Name, PayloadJson: ev.Tool.PayloadJSON}}
+		}
+	case intsession.EventBargeInCancel:
+		if ev.BargeInCancel != nil {
+			out.Payload = &sessv1.SessionEvent_BargeInCancel{BargeInCancel: &sessv1.BargeInCancel{Reason: string(ev.BargeInCancel.Reason), CanceledEventId: ev.BargeInCancel.CanceledEventID}}
+		}
+	case intsession.EventClosed:
+		if ev.Closed != nil {
+			out.Payload = &sessv1.SessionEvent_Closed{Closed: &sessv1.SessionClosed{Reason: ev.Closed.Reason}}
+		}
+	}
+	return out
 }
 
 var Endpoints = []module.EndpointDescriptor{
@@ -95,11 +195,11 @@ func Module(registry *intsession.Registry, logger *log.Logger) module.Module {
 	if logger == nil {
 		logger = log.Default()
 	}
-	connectPath, connectHandler := sessconnect.NewSessionServiceHandler(NewConnectHandler(Deps{Registry: registry, Logger: logger}))
+	connectPath, h := sessconnect.NewSessionServiceHandler(NewConnectHandler(Deps{Registry: registry, Logger: logger}))
 	return module.Module{
 		Name: "session",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})
 		},
 		Endpoints: Endpoints,
 	}

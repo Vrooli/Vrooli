@@ -114,6 +114,42 @@ func (c *Chain) Execute(ctx context.Context, req Request) (*Result, error) {
 	return nil, ErrAllProvidersFailed
 }
 
+// Reconfigure swaps the runtime toggles + TTLs without dropping
+// in-flight requests. Per-tier availability caches are invalidated so
+// the new flags take effect immediately on the next call.
+func (c *Chain) Reconfigure(enableBYOK, enableVrooli, enableLocal bool, ttlBYOK, ttlVrooli time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.enableBYOK = enableBYOK
+	c.enableVrooli = enableVrooli
+	c.enableLocal = enableLocal
+	if ttlBYOK > 0 {
+		c.availTTLByOK = ttlBYOK
+	}
+	if ttlVrooli > 0 {
+		c.availTTLVrooli = ttlVrooli
+	}
+	c.byokOK = cachedAvail{}
+	c.vrooliOK = cachedAvail{}
+	c.localOK = cachedAvail{}
+}
+
+// Probe returns the current per-tier availability snapshot for the
+// diagnostic surface (CLI + UI). Probes are short-lived but fresh.
+type ProbeResult struct {
+	Local  bool
+	BYOK   bool
+	Vrooli bool
+}
+
+func (c *Chain) Probe(ctx context.Context) ProbeResult {
+	return ProbeResult{
+		Local:  c.enableLocal && c.local != nil && c.local.IsAvailable(ctx),
+		BYOK:   c.enableBYOK && c.byok != nil && c.byok.IsAvailable(ctx),
+		Vrooli: c.enableVrooli && c.vrooli != nil && c.vrooli.IsAvailable(ctx),
+	}
+}
+
 func (c *Chain) availFor(ctx context.Context, tier ProviderTier) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()

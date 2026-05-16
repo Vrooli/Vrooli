@@ -10,7 +10,7 @@ work lands, not while work is still speculative.
 
 | Date | Author | Status | Notes |
 |---|---|---|---|
-| _No progress entries yet._ |  |  |  |
+| 2026-05-16 | claude | done | Full feature completion sweep: persistence (system.sql + internal/store), BYOK AES-GCM crypto, SettingsService end-to-end, async usage reporter, STT admin handlers (stream config/wakeword/speaker), TTS config/status/cache/playback, ffmpeg-backed audio ops (transcode/trim/merge/split/fade/volume/normalize/metadata) with multipart route, SessionService SendText + Subscribe streaming + WS bridge, UI try-its (synthesize+transcode), Configuration edit forms, real Voices probes, CLI settings/usage groups + real diagnose, embed stub-text cleanup. Zero Unimplemented embeds in handlers/. |
 
 ## Entry Template
 

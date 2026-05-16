@@ -1,11 +1,9 @@
 package stt
 
 import (
-	"log"
+	"net/http"
 
-	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/module"
-	intvoice "audio-tools/internal/voice"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -13,19 +11,14 @@ import (
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 )
 
-func Module(chain *sttchain.Chain, voice *intvoice.Service, logger *log.Logger) module.Module {
-	if logger == nil {
-		logger = log.Default()
-	}
-	connectPath, connectHandler := sttconnect.NewSTTServiceHandler(NewConnectHandler(Deps{
-		Chain:  chain,
-		Voice:  voice,
-		Logger: logger,
-	}))
+func Module(d Deps) module.Module {
+	connectPath, h := sttconnect.NewSTTServiceHandler(NewConnectHandler(d))
 	return module.Module{
 		Name: "stt",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})
+			r.Handle("/api/v1/voice/transcribe", MultipartTranscribeHandler(d.Chain)).Methods(http.MethodPost)
+			r.Handle("/api/v1/voice/stream", StreamWSHandler(d.Voice)).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
 	}
