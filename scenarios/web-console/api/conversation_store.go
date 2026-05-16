@@ -162,21 +162,22 @@ type ConversationStore struct {
 	repository ConversationRepository
 	dedup      *conversationDedup
 	// processor is the audio capability port for speech-shaped paragraph
-	// splitting. Defaulted to audioports.LocalSpeechTextProcessor{} via the
-	// speechProcessor() accessor below so tests and the in-memory constructor
-	// don't have to wire it explicitly.
+	// splitting. Defaulted to audioports.PassthroughSpeechTextProcessor{} via
+	// the speechProcessor() accessor below so tests and the in-memory
+	// constructor don't have to wire it explicitly. Production wires the
+	// audioports.RemoteSpeechTextProcessor backed by audio-tools.
 	processor audioports.SpeechTextProcessor
 }
 
-// SetSpeechProcessor lets package main inject the active port. The default
-// LocalSpeechTextProcessor remains in use until called.
+// SetSpeechProcessor lets package main inject the active port. The passthrough
+// default remains in use until called.
 func (s *ConversationStore) SetSpeechProcessor(p audioports.SpeechTextProcessor) {
 	s.processor = p
 }
 
 func (s *ConversationStore) speechProcessor() audioports.SpeechTextProcessor {
 	if s.processor == nil {
-		return audioports.LocalSpeechTextProcessor{}
+		return audioports.PassthroughSpeechTextProcessor{}
 	}
 	return s.processor
 }

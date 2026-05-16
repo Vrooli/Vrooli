@@ -83,3 +83,16 @@ type SpeechTextProcessor interface {
 	NormalizeForSpeech(text string) string
 	SplitIntoParagraphs(text string) []string
 }
+
+// PassthroughSpeechTextProcessor is a no-op SpeechTextProcessor for tests
+// and the in-memory ConversationStore default. Production wiring replaces
+// it with RemoteSpeechTextProcessor backed by audio-tools.
+type PassthroughSpeechTextProcessor struct{}
+
+func (PassthroughSpeechTextProcessor) NormalizeForSpeech(text string) string { return text }
+func (PassthroughSpeechTextProcessor) SplitIntoParagraphs(text string) []string {
+	if text == "" {
+		return nil
+	}
+	return []string{text}
+}

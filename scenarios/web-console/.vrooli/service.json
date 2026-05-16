@@ -283,10 +283,10 @@
     },
     "scenarios": {
       "audio-tools": {
-        "required": false,
+        "required": true,
         "startup_policy": "try_start",
-        "description": "Shared audio capabilities (STT, TTS, summarization, audio processing). web-console adopts audio-tools as the canonical owner of these capabilities; the local internal/{tts,voice,audio} stacks are retained only until Phase H deletion.",
-        "degraded_behavior": "Audio features (voice input, TTS playback) degrade with a visible 'audio degraded' UI state when audio-tools is unreachable. After Phase I9 flag-day, this flips to required:true and web-console fails fast on startup."
+        "description": "Shared audio capabilities (TTS synthesis + speech-text normalization). web-console's TTS Connect handler proxies through audioports.Remote* to audio-tools. STT (voice transcription) is still served locally via internal/voice → Whisper until a follow-up adoption pass routes it through audioports too.",
+        "degraded_behavior": "Required at startup — web-console fails fast if audio-tools is not reachable on boot."
       }
     }
   },

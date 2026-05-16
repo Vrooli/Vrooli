@@ -74,6 +74,7 @@ func (s *Server) synthesizeParagraphs(ctx context.Context, paragraphs []string, 
 		if len(p) == 0 {
 			continue
 		}
+		const maxSynthesizeInputLength = 5000 // matches internal/tts.maxSynthesizeInputLength
 		if len(p) > maxSynthesizeInputLength {
 			p = p[:maxSynthesizeInputLength]
 		}

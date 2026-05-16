@@ -485,16 +485,11 @@ func TestGreenfield_OrchestrationRoutesThroughAudioPorts(t *testing.T) {
 func TestGreenfield_OrchestrationGoesThroughAudioPorts(t *testing.T) {
 	forbidden := []*regexp.Regexp{
 		regexp.MustCompile(`\bs\.voiceService\.Transcribe\b`),
-		regexp.MustCompile(`\bs\.ttsSynthesizer\.Synthesize\b`),
-		regexp.MustCompile(`\bs\.ttsVoiceLister\.ListVoices\b`),
 		regexp.MustCompile(`internal/voice\.Service\.Transcribe`),
-		regexp.MustCompile(`internal/tts\.KokoroSynthesizer`),
-		regexp.MustCompile(`internal/tts\.KokoroVoiceLister`),
 	}
-	// main.go is exempt: it constructs the LocalSpeechToText /
-	// LocalTextToSpeech adapters from the raw provider fields. Local* adapters
-	// themselves live under internal/audioports/ and are not matched by this
-	// package-main glob.
+	// main.go is exempt: it constructs the audioports.Remote* adapters from
+	// the audio-tools integration client and is the single seam where the
+	// underlying provider is named.
 	exempt := map[string]bool{
 		"main.go":                       true,
 		"greenfield_assertions_test.go": true,

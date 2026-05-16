@@ -53,7 +53,7 @@ var Known = []Def{
 	{
 		ID:             "whisper-stt",
 		Name:           "Whisper STT",
-		Description:    "Speech-to-text transcription via Whisper",
+		Description:    "Speech-to-text transcription via Whisper (web-console local voice path)",
 		DependencyKind: DependencyResource,
 		DependencySlug: "whisper",
 		Features:       []string{"voice-input", "voice-streaming"},
@@ -65,14 +65,6 @@ var Known = []Def{
 		DependencyKind: DependencyResource,
 		DependencySlug: "speaker-verification",
 		Features:       []string{"voice-speaker-verification", "voice-enrollment"},
-	},
-	{
-		ID:             "kokoro-tts",
-		Name:           "Kokoro TTS",
-		Description:    "Text-to-speech synthesis via Kokoro",
-		DependencyKind: DependencyResource,
-		DependencySlug: "kokoro",
-		Features:       []string{"voice-output"},
 	},
 	{
 		ID:             "ollama",

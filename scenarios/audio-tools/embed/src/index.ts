@@ -24,3 +24,23 @@ export { TtsSettingsPanel } from "./TtsSettingsPanel";
 
 export type { VoiceInputButtonProps } from "./VoiceInputButton";
 export type { AudioPlayerBarProps } from "./AudioPlayerBar";
+export type { EnableAudioBannerProps } from "./EnableAudioBanner";
+export type { MicReadinessIndicatorProps } from "./MicReadinessIndicator";
+export type { VoiceRejectionBannerProps } from "./VoiceRejectionBanner";
+export type { VoiceCommandSuggestionProps } from "./VoiceCommandSuggestion";
+export type { VoiceSettingsPanelProps } from "./VoiceSettingsPanel";
+export type { TtsSettingsPanelProps } from "./TtsSettingsPanel";
+
+// Connect client + React context for consumers that want to call audio-tools
+// RPCs (Transcribe, Synthesize, Summarize) from custom UI alongside the
+// adoptable components.
+export {
+  createAudioToolsClient,
+  AudioToolsProvider,
+  useAudioToolsClient,
+} from "./client";
+export type {
+  AudioToolsClient,
+  CreateAudioToolsClientOptions,
+  AudioToolsProviderProps,
+} from "./client";

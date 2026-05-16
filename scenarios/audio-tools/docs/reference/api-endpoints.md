@@ -6,7 +6,7 @@
 
 | Service | Path prefix | Methods | Handler |
 |---|---|---|---|
-| `STTService` | `/vrooli.audio_tools.v1.stt.STTService/*` | Transcribe, GetStreamConfig, UpdateStreamConfig, GetWakeWordConfig, UpdateWakeWordTemplate, DeleteWakeWordTemplate, GetSpeakerConfig, UpdateSpeakerConfig, GetSpeakerStatus, ListSpeakerProfiles, EnrollSpeakerProfile, ClearSpeakerProfileBinding, RemoveSpeakerProfile, DeleteSpeakerProfile | `handlers/stt` |
+| `STTService` | `/vrooli.audio_tools.v1.stt.STTService/*` | Transcribe, TranscribeStream (bidi), GetStreamConfig, UpdateStreamConfig, GetWakeWordConfig, UpdateWakeWordTemplate, DeleteWakeWordTemplate, GetSpeakerConfig, UpdateSpeakerConfig, GetSpeakerStatus, ListSpeakerProfiles, EnrollSpeakerProfile, ClearSpeakerProfileBinding, RemoveSpeakerProfile, DeleteSpeakerProfile | `handlers/stt` |
 | `TTSService` | `/vrooli.audio_tools.v1.tts.TTSService/*` | Synthesize, ListVoices, GetCache, GetConfig, UpdateConfig, GetStatus, RecordPlaybackEvent, NormalizeForSpeech, SplitParagraphs | `handlers/tts` |
 | `SummarizeService` | `/vrooli.audio_tools.v1.summarize.SummarizeService/*` | Summarize | `handlers/summarize` |
 | `AudioProcessingService` | `/vrooli.audio_tools.v1.audio.AudioProcessingService/*` | Transcode, Trim, Merge, Split, Fade, Volume, Normalize, ExtractMetadata | `handlers/audio` |

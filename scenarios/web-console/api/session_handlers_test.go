@@ -49,7 +49,7 @@ func newTestServer() *Server {
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
 	srv.ttsSummarization = inttts.NewSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
-	srv.speechProcessor = audioports.LocalSpeechTextProcessor{}
+	srv.speechProcessor = audioports.PassthroughSpeechTextProcessor{}
 	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, nil, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 	return srv
 }
@@ -73,7 +73,7 @@ func newFakeTestServer() *Server {
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
 	srv.ttsSummarization = inttts.NewSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
-	srv.speechProcessor = audioports.LocalSpeechTextProcessor{}
+	srv.speechProcessor = audioports.PassthroughSpeechTextProcessor{}
 	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, nil, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 	return srv
 }

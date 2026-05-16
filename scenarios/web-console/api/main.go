@@ -147,21 +147,13 @@ type Server struct {
 	codexTailer          *CodexTailer
 	codexCheckpointStore CodexCheckpointStore
 	ttsCache             *inttts.Cache
-	ttsSynthesizer       TTSSynthesizer
-	ttsVoiceLister       TTSVoiceLister
-	// speechProcessor is the audio capability port for the markdown-to-speech
-	// text pipeline (normalize + paragraph split). Set to
-	// audioports.LocalSpeechTextProcessor{} in production; tests can substitute.
-	// The port abstraction is what audio-tools will eventually implement
-	// remotely; conversation/TTS orchestration code routes through this rather
-	// than calling internal/tts functions directly.
+	// speechProcessor, sttPort, ttsPort are the audio capability ports backed
+	// by the audio-tools scenario (RemoteSpeechToText / RemoteTextToSpeech /
+	// RemoteSpeechTextProcessor in production; tests substitute via the
+	// Set* methods). audio-tools is a required dependency declared in
+	// .vrooli/service.json — the lifecycle ensures it is running before
+	// web-console boots.
 	speechProcessor audioports.SpeechTextProcessor
-	// sttPort and ttsPort are the audio capability ports for transcription and
-	// speech synthesis. Set to audioports.LocalSpeechToText{} /
-	// audioports.LocalTextToSpeech{} in production; tests can substitute via
-	// SetSpeechToText / SetTextToSpeech. Orchestration callers route through
-	// these so the audio-tools scenario can later replace the local adapters
-	// with a remote-call implementation without touching package main glue.
 	sttPort         audioports.SpeechToText
 	ttsPort         audioports.TextToSpeech
 	conversations   *ConversationStore
@@ -312,7 +304,7 @@ func NewServer(db *sql.DB) *Server {
 		conversations:        NewConversationStoreWithRepository(NewSQLConversationRepository(db)),
 		lastTTSBySource:      make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:      make(map[string]ttsAckSnapshot),
-		speechProcessor:      audioports.LocalSpeechTextProcessor{},
+		speechProcessor:      audioports.PassthroughSpeechTextProcessor{},
 	}
 	srv.systemContext = intai.DiscoverSystemContext(intai.DefaultLookPath)
 	log.Printf("system-context: os=%s/%s shell=%s tools-found=%d",
@@ -321,7 +313,6 @@ func NewServer(db *sql.DB) *Server {
 	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, srv.systemContext, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 
 	whisperURL := getEnvOrDefault("WHISPER_URL", "http://localhost:8090")
-	kokoroURL := getEnvOrDefault("KOKORO_URL", "http://localhost:8880")
 	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")
 	speakerVerificationURL := getEnvOrDefault("SPEAKER_VERIFICATION_URL", "http://localhost:8891")
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
@@ -342,11 +333,6 @@ func NewServer(db *sql.DB) *Server {
 			URL:    speakerVerificationURL + "/ready",
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
-		"kokoro-tts": &capabilities.KokoroChecker{
-			BaseURL:       kokoroURL,
-			Client:        &http.Client{Timeout: 10 * time.Second},
-			ContainerName: "kokoro",
-		},
 		"ollama": &capabilities.OllamaChecker{
 			BaseURL: ollamaURL,
 			Client:  &http.Client{Timeout: 5 * time.Second},
@@ -362,21 +348,10 @@ func NewServer(db *sql.DB) *Server {
 		"audio-tools": &capabilities.ScenarioChecker{Slug: "audio-tools"},
 	}
 	srv.capabilities = capabilities.NewRegistry(capabilities.Known, checkers, 30*time.Second)
-	srv.ttsSynthesizer = &KokoroSynthesizer{
-		BaseURL: kokoroURL,
-		Client:  &http.Client{Timeout: 30 * time.Second},
-	}
-	srv.ttsVoiceLister = &KokoroVoiceLister{
-		BaseURL: kokoroURL,
-		Client:  &http.Client{Timeout: 5 * time.Second},
-	}
-	srv.ttsPort = audioports.LocalTextToSpeech{
-		Synthesizer: srv.ttsSynthesizer,
-		VoiceLister: srv.ttsVoiceLister,
-		Cache:       srv.ttsCache,
-	}
 	// Register lightweight liveness-only checkers for fast pre-recording checks.
 	// These use GET-only health checks (no test transcription/synthesis).
+	// kokoro-tts is owned by audio-tools — web-console probes the
+	// audio-tools scenario for TTS instead.
 	srv.capabilities.SetLivenessCheckers(map[string]capabilities.Checker{
 		"whisper-stt": &capabilities.ResourceChecker{
 			URL:    whisperURL + "/",
@@ -384,10 +359,6 @@ func NewServer(db *sql.DB) *Server {
 		},
 		"speaker-verification": &capabilities.ResourceChecker{
 			URL:    speakerVerificationURL + "/health",
-			Client: &http.Client{Timeout: 5 * time.Second},
-		},
-		"kokoro-tts": &capabilities.ResourceChecker{
-			URL:    kokoroURL + "/v1/audio/voices",
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
 		"ollama": &capabilities.ResourceChecker{
@@ -420,40 +391,36 @@ func NewServer(db *sql.DB) *Server {
 		&http.Client{Timeout: 30 * time.Second},
 		audio.Transcode,
 	)
-	srv.sttPort = audioports.LocalSpeechToText{Backend: srv.voice}
 
-	// audio-tools adoption (Phase H/I soak):
-	// Default behavior: resolve audio-tools via api-core/discovery from the
-	// service-manifest dependency declared in .vrooli/service.json. This
-	// activates the cross-scenario path automatically when audio-tools is
-	// running. Overrides:
-	//   - AUDIO_TOOLS_URL  → pin to an explicit URL (dev/test override)
-	//   - AUDIO_TOOLS_DISABLE=1 → force the in-tree Local* stack (kill-switch
-	//     for the soak window; removed when Phase I9 flips required→true)
-	if strings.TrimSpace(os.Getenv("AUDIO_TOOLS_DISABLE")) == "1" {
-		log.Printf("audio-tools adoption: disabled via AUDIO_TOOLS_DISABLE=1; using in-tree local stack")
+	// audio-tools is a required dependency (.vrooli/service.json). Resolve
+	// it once at startup and wire the audioports.Remote* adapters; the
+	// lifecycle ensures it is running before web-console boots. AUDIO_TOOLS_URL
+	// pins to an explicit URL for dev/test override.
+	var atResolver audiotoolsint.URLResolver
+	if explicit := strings.TrimSpace(os.Getenv("AUDIO_TOOLS_URL")); explicit != "" {
+		atResolver = audiotoolsint.EnvResolver{EnvVar: "AUDIO_TOOLS_URL", Default: explicit}
 	} else {
-		var resolver audiotoolsint.URLResolver
-		if explicit := strings.TrimSpace(os.Getenv("AUDIO_TOOLS_URL")); explicit != "" {
-			resolver = audiotoolsint.EnvResolver{EnvVar: "AUDIO_TOOLS_URL", Default: explicit}
-		} else {
-			resolver = &audiotoolsint.CachedResolver{
-				Inner: audiotoolsint.ScenarioResolver{Slug: "audio-tools"},
-				TTL:   30 * time.Second,
-			}
-		}
-		atClient, err := audiotoolsint.New(resolver, audiotoolsint.Policy{Required: false})
-		if err != nil {
-			log.Printf("audio-tools adoption: client init failed, falling back to local audio stack: %v", err)
-		} else if !atClient.Resolved() {
-			log.Printf("audio-tools adoption: audio-tools not running at startup; keeping local stack (set AUDIO_TOOLS_URL or start the scenario to switch)")
-		} else {
-			srv.sttPort = &audioports.RemoteSpeechToText{Client: atClient}
-			srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}
-			srv.speechProcessor = &audioports.RemoteSpeechTextProcessor{Client: atClient}
-			log.Printf("audio-tools adoption: STT/TTS/processor wired to %s", atClient.BaseURL())
+		atResolver = &audiotoolsint.CachedResolver{
+			Inner: audiotoolsint.ScenarioResolver{Slug: "audio-tools"},
+			TTL:   30 * time.Second,
 		}
 	}
+	atClient, err := audiotoolsint.New(atResolver, audiotoolsint.Policy{Required: true})
+	if err != nil {
+		log.Fatalf("audio-tools adoption: required dependency not reachable: %v", err)
+	}
+	srv.sttPort = &audioports.RemoteSpeechToText{Client: atClient}
+	srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}
+	srv.speechProcessor = &audioports.RemoteSpeechTextProcessor{Client: atClient}
+	// Repoint summarization through audio-tools' SummarizeService. The
+	// SummarizationService's cooldown / inflight-dedup / classify-empty
+	// behaviour is preserved; only the model call swaps to the remote
+	// provider chain (BYOK -> Vrooli/LPBS -> Local).
+	srv.ttsSummarization = inttts.NewSummarizationService(
+		&remoteSummarizerAdapter{remote: &audioports.RemoteSummarizer{Client: atClient}},
+		srv.getTTSSummarizeConfig,
+	)
+	log.Printf("audio-tools adoption: STT/TTS/processor/summarize wired to %s", atClient.BaseURL())
 
 	srv.sweeper.Start()
 	sessions.StartReattachWatchdog()
@@ -564,13 +531,15 @@ func (s *Server) Handler() http.Handler {
 }
 
 // SetSpeechToText substitutes the SpeechToText port. Tests use this to inject
-// fakes; production wiring sets a LocalSpeechToText in NewServer.
+// fakes; production wires the audioports.RemoteSpeechToText backed by
+// audio-tools in NewServer.
 func (s *Server) SetSpeechToText(p audioports.SpeechToText) {
 	s.sttPort = p
 }
 
 // SetTextToSpeech substitutes the TextToSpeech port. Tests use this to inject
-// fakes; production wiring sets a LocalTextToSpeech in NewServer.
+// fakes; production wires the audioports.RemoteTextToSpeech backed by
+// audio-tools in NewServer.
 func (s *Server) SetTextToSpeech(p audioports.TextToSpeech) {
 	s.ttsPort = p
 }

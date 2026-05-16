@@ -60,10 +60,20 @@ type summarizeFuture struct {
 	err    error
 }
 
-// SummarizationService coordinates Ollama summarization with cooldown,
-// inflight deduplication, and empty-summary classification.
+// SummarizerBackend is the narrow seam SummarizationService consumes for the
+// model call. *Summarizer satisfies it; an audio-tools-backed adapter
+// (web-console main wiring) does too — that swap is the audio-tools adoption
+// surface for summarization.
+type SummarizerBackend interface {
+	Summarize(ctx context.Context, text, model, level string) (SummarizerResponse, error)
+}
+
+// SummarizationService coordinates remote summarization with cooldown,
+// inflight deduplication, and empty-summary classification. The backend may
+// be a local *Summarizer (legacy local Ollama path) or a remote
+// audio-tools-backed adapter (audio-tools adoption path).
 type SummarizationService struct {
-	summarizer *Summarizer
+	summarizer SummarizerBackend
 	getConfig  func() SummarizeConfig
 	sem        chan struct{}
 
@@ -73,8 +83,9 @@ type SummarizationService struct {
 }
 
 // NewSummarizationService constructs a service backed by the given summarizer
-// and config accessor.
-func NewSummarizationService(summarizer *Summarizer, getConfig func() SummarizeConfig) *SummarizationService {
+// and config accessor. Accepts any SummarizerBackend — the concrete
+// *Summarizer or an audio-tools adapter wired in main.go.
+func NewSummarizationService(summarizer SummarizerBackend, getConfig func() SummarizeConfig) *SummarizationService {
 	return &SummarizationService{
 		summarizer:  summarizer,
 		getConfig:   getConfig,

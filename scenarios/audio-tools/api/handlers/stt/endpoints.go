@@ -9,6 +9,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Category: "stt",
 	},
 	{
+		ID: "stt.transcribe_stream", Path: "/vrooli.audio_tools.v1.stt.STTService/TranscribeStream",
+		Method: "POST", Summary: "Bidi-stream Connect mirror of /api/v1/voice/stream for non-browser consumers",
+		Category: "stt",
+	},
+	{
 		ID: "stt.transcribe_multipart", Path: "/api/v1/voice/transcribe",
 		Method: "POST", Summary: "Multipart upload variant of Transcribe",
 		Category:       "stt",

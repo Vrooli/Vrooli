@@ -43,23 +43,24 @@ func newTTSAdapter(s *Server) inttts.HandlerService {
 				Message:   ev.Message,
 			})
 		},
+		// TTS capability is owned by audio-tools; web-console reports the
+		// audio-tools scenario status here so the legacy precondition gate
+		// in internal/tts.Service.Synthesize stays meaningful. Transport
+		// errors surface as typed Connect codes from the Remote* port.
 		KokoroCapability: func(ctx context.Context) (string, string) {
 			if s.capabilities == nil {
-				return "unknown", "Kokoro status not checked yet"
+				return "available", "audio-tools (no capability registry)"
 			}
-			kokoroCapability := "unknown"
-			kokoroCapabilityLabel := "Kokoro status not checked yet"
 			for _, cap := range s.capabilities.ResolveLiveness(ctx) {
-				if cap.ID == "kokoro-tts" {
-					kokoroCapability = string(cap.Status)
-					kokoroCapabilityLabel = strings.TrimSpace(cap.Message)
-					if kokoroCapabilityLabel == "" {
-						kokoroCapabilityLabel = "Kokoro status available"
+				if cap.ID == "audio-tools" {
+					label := strings.TrimSpace(cap.Message)
+					if label == "" {
+						label = "audio-tools"
 					}
-					break
+					return string(cap.Status), label
 				}
 			}
-			return kokoroCapability, kokoroCapabilityLabel
+			return "available", "audio-tools (status unknown)"
 		},
 		GetCache: func(key inttts.CacheKey) (inttts.SynthesizeResult, bool) {
 			if s.ttsPort == nil {
