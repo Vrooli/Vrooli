@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.repo;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo;repo_v1";
+
+// =============================================================================
+// REPO DOMAIN — repository status (Connect-RPC surface)
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain repo
+// @stability beta
+//
+// RepoService is the Connect-RPC landing surface for repo identity and
+// status. In Tier 1 it only exposes GetRepoStatus, focused on worktree-
+// awareness fields. Pre-existing REST `/api/v1/repo/status` continues to
+// serve legacy consumers; this Connect surface is the seed for future
+// incremental migration of other repo endpoints.
+//
+// Testing rule: NEVER invoke real git commands. All paths exercise the
+// worktree.Inspector seam with fakes from internal/worktree/mocks/.
+// =============================================================================
+
+service RepoService {
+  rpc GetRepoStatus(GetRepoStatusRequest) returns (GetRepoStatusResponse);
+}
+
+message GetRepoStatusRequest {
+  // Absolute path on disk; may be a main or linked worktree of the repo.
+  string repo_path = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// WorktreeIdentity captures the Tier-1 passive-awareness fields about
+// where the repo_path actually points.
+message WorktreeIdentity {
+  // True when repo_path is a linked worktree (not the main worktree).
+  bool is_linked_worktree = 1;
+
+  // Common repo root (the main `.git` directory's parent). Same value
+  // for all worktrees of one repository.
+  string common_repo_root = 2;
+
+  // Short name of the current worktree (last path segment).
+  string worktree_name = 3;
+
+  // Commit hash currently checked out in this worktree.
+  string worktree_head = 4;
+
+  // Total number of worktrees registered for this repo (main + linked).
+  int32 linked_worktree_count = 5;
+}
+
+message GetRepoStatusResponse {
+  // Currently-active branch (empty when detached HEAD).
+  string branch = 1;
+
+  // True when HEAD is detached.
+  bool detached = 2;
+
+  // Worktree identity fields (Tier 1 passive awareness).
+  WorktreeIdentity worktree = 3;
+}

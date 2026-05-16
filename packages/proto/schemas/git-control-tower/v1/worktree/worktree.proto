@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.worktree;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree;worktree_v1";
+
+// =============================================================================
+// WORKTREE DOMAIN — git worktree management
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain worktree
+// @stability beta
+//
+// Wire contract for the WorktreeService Connect-RPC service. Worktree is
+// the first proto+Connect-RPC domain in git-control-tower; future domains
+// (branch, commit, etc.) follow the same shape during incremental
+// template migration.
+//
+// Consumed by:
+//   - API: handlers/worktree implements WorktreeServiceHandler.
+//   - UI:  ui/src/api/worktree.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/worktree calls the generated Connect-Go client.
+//
+// Testing rule: NEVER invoke real `git worktree` commands in tests.
+// All paths exercise the worktree.Inspector / worktree.Mutator seams
+// with fakes from internal/worktree/mocks/.
+// =============================================================================
+
+service WorktreeService {
+  rpc ListWorktrees(ListWorktreesRequest) returns (ListWorktreesResponse);
+  rpc GetWorktree(GetWorktreeRequest) returns (GetWorktreeResponse);
+  rpc CreateWorktree(CreateWorktreeRequest) returns (CreateWorktreeResponse);
+  rpc RemoveWorktree(RemoveWorktreeRequest) returns (RemoveWorktreeResponse);
+  rpc LockWorktree(LockWorktreeRequest) returns (LockWorktreeResponse);
+  rpc UnlockWorktree(UnlockWorktreeRequest) returns (UnlockWorktreeResponse);
+  rpc MoveWorktree(MoveWorktreeRequest) returns (MoveWorktreeResponse);
+  rpc PruneWorktrees(PruneWorktreesRequest) returns (PruneWorktreesResponse);
+}
+
+// Worktree is the canonical wire shape for one git worktree (main or linked).
+message Worktree {
+  // Absolute filesystem path to the worktree root.
+  string path = 1;
+
+  // Short name derived from the worktree path (last segment); convenience for UI.
+  string name = 2;
+
+  // Commit hash currently checked out (40-char SHA, or empty for fresh worktree).
+  string head_commit = 3;
+
+  // Branch checked out in this worktree. Empty when `detached` is true.
+  string branch = 4;
+
+  // True when the worktree HEAD is detached (no branch).
+  bool detached = 5;
+
+  // True when the worktree is locked via `git worktree lock`.
+  bool locked = 6;
+
+  // Human-readable reason supplied to `git worktree lock`. Empty when not locked.
+  string lock_reason = 7;
+
+  // True when git considers this worktree prunable (working tree gone, etc.).
+  bool prunable = 8;
+
+  // Human-readable reason from `git worktree list --porcelain` `prunable` line.
+  string prunable_reason = 9;
+
+  // True when this is the primary worktree (not a linked worktree).
+  bool is_main = 10;
+}
+
+message ListWorktreesRequest {
+  // Absolute path to any worktree of the target repo; the service
+  // resolves the common repo root and lists all worktrees.
+  string repo_path = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ListWorktreesResponse {
+  repeated Worktree worktrees = 1;
+}
+
+message GetWorktreeRequest {
+  string repo_path = 1 [(buf.validate.field).string.min_len = 1];
+  // Path of the worktree to fetch; matches Worktree.path exactly.
+  string worktree_path = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetWorktreeResponse {
+  Worktree worktree = 1;
+}
+
+// NewBranchSpec describes a `worktree add -b <name> <path> [<start>]` invocation.
+message NewBranchSpec {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional start point (commit, branch, tag). Empty defaults to HEAD.
+  string start_point = 2;
+}
+
+message CreateWorktreeRequest {
+  string repo_path = 1 [(buf.validate.field).string.min_len = 1];
+  // Absolute path where the new worktree should be created.
+  string new_worktree_path = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Exactly one of the following must be set.
+  oneof source {
+    // Check out an existing branch into the new worktree.
+    string existing_branch = 3;
+    // Create a new branch and check it out.
+    NewBranchSpec new_branch = 4;
+    // Create the worktree with a detached HEAD at the given commit.
+    string commit = 5;
+  }
+
+  // Pass --force to git (override safety checks).
+  bool force = 6;
+  // Pass --track when creating a new branch.
+  bool track = 7;
+}
+
+message CreateWorktreeResponse {
+  Worktree worktree = 1;
+  // True when the request was a dry-run; no state was changed on the server.
+  bool dry_run = 2;
+}
+
+message RemoveWorktreeRequest {
+  string repo_path = 1 [(buf.validate.field).string.min_len = 1];
+  string worktree_path = 2 [(buf.validate.field).string.min_len = 1];
+  bool force = 3;
+}
+
+message RemoveWorktreeResponse {
+  bool dry_run = 1;
+}
+
+message LockWorktreeRequest {
+  string repo_path = 1 [(buf.validate.field).string.min_len = 1];
+  string worktree_path = 2 [(buf.validate.field).string.min_len = 1];
+  // Human-readable reason for the lock.
+  string reason = 3;
+}
+
+message LockWorktreeResponse {
+  Worktree worktree = 1;
+  bool dry_run = 2;
+}
+
+message UnlockWorktreeRequest {
+  string repo_path = 1 [(buf.validate.field).string.min_len = 1];
+  string worktree_path = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message UnlockWorktreeResponse {
+  Worktree worktree = 1;
+  bool dry_run = 2;
+}
+
+message MoveWorktreeRequest {
+  string repo_path = 1 [(buf.validate.field).string.min_len = 1];
+  string worktree_path = 2 [(buf.validate.field).string.min_len = 1];
+  string new_worktree_path = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message MoveWorktreeResponse {
+  Worktree worktree = 1;
+  bool dry_run = 2;
+}
+
+message PruneWorktreesRequest {
+  string repo_path = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional human-readable reason logged with the action.
+  string reason = 2;
+  // Pass --dry-run to git (in addition to the server-level dry-run header).
+  bool report_only = 3;
+}
+
+message PruneWorktreesResponse {
+  // Paths git pruned (or would prune in dry-run mode).
+  repeated string pruned_paths = 1;
+  bool dry_run = 2;
+}
+
