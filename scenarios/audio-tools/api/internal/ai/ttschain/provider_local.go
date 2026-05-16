@@ -60,6 +60,14 @@ func (p *LocalProvider) Synthesize(ctx context.Context, req Request) (*Result, e
 
 func (p *LocalProvider) Model() string { return "kokoro" }
 
+// StreamingCapability for Local Kokoro is false today; Phase D upgrades
+// this to true once incremental synthesis is wired.
+func (p *LocalProvider) StreamingCapability() bool { return false }
+
+func (p *LocalProvider) SynthesizeStreaming(_ context.Context, _ Request) (<-chan AudioFrame, error) {
+	return nil, nil
+}
+
 // resolveLocalVoice maps canonical voice IDs to Kokoro voice names using the
 // shared canonical voice catalog. Overrides keyed "local:kokoro-local" win.
 func resolveLocalVoice(canonical string, overrides map[string]string) string {

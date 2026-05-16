@@ -8,6 +8,19 @@ import "./styles.css";
 initIframeBridgeChild();
 initSpatialNav();
 
+// Audio-tools' own UI calls its own API. Setting the global before any
+// @audio-tools/embed module loads ensures the embed's lazy singleton
+// targets this scenario's own origin rather than the http://localhost:0
+// sentinel. Embed consumers may still override with <AudioToolsProvider>.
+declare global {
+  interface Window {
+    __AUDIO_TOOLS_URL__?: string;
+  }
+}
+if (typeof window !== "undefined" && !window.__AUDIO_TOOLS_URL__) {
+  window.__AUDIO_TOOLS_URL__ = window.location.origin;
+}
+
 const rootEl = document.getElementById("root");
 if (!rootEl) {
   throw new Error("Missing #root element in index.html");

@@ -30,6 +30,14 @@ func (a *OpenAITTS) Model() string { return "tts-1" }
 
 func (a *OpenAITTS) IsAvailable(ctx context.Context, key string) bool { return key != "" }
 
+// StreamingCapability — OpenAI TTS HTTP endpoint is unary; streaming
+// goes through the Realtime API (out of scope here).
+func (a *OpenAITTS) StreamingCapability() bool { return false }
+
+func (a *OpenAITTS) SynthesizeStreaming(_ context.Context, _ string, _ ttschain.Request) (<-chan ttschain.AudioFrame, error) {
+	return nil, nil
+}
+
 // canonicalToOpenAIVoice maps canonical voice IDs to OpenAI voice names.
 // Overrides keyed "byok:openai-tts" win.
 func canonicalToOpenAIVoice(canonical string, overrides map[string]string) string {

@@ -43,6 +43,56 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
+// SynthesizeStream routes through the TTS provider chain's streaming
+// path. When no tier declares streaming, the chain falls back to the
+// unary Execute() and emits a single is_final=true frame — the wire
+// shape is identical so consumers code against a stream uniformly.
+func (h *connectHandler) SynthesizeStream(ctx context.Context, req *connect.Request[ttsv1.SynthesizeRequest], stream *connect.ServerStream[ttsv1.AudioFrame]) error {
+	if h.deps.Chain == nil {
+		return connect.NewError(connect.CodeUnavailable, fmt.Errorf("tts chain not configured"))
+	}
+	creds := extractCreds(req.Header())
+	chainReq := ttschain.Request{
+		Text:           req.Msg.Text,
+		Voice:          req.Msg.Voice,
+		VoiceOverrides: req.Msg.VoiceOverrides,
+		Speed:          req.Msg.Speed,
+		ResponseFormat: req.Msg.ResponseFormat,
+		BYOKProvider:   creds.byokProvider,
+		BYOKKey:        creds.byokKey,
+		LPBSToken:      creds.lpbsToken,
+		UserIdentity:   creds.userIdentity,
+		EventID:        req.Msg.EventId,
+		Version:        req.Msg.Version,
+	}
+	frames, err := h.deps.Chain.Stream(ctx, chainReq)
+	if err != nil {
+		return mapChainError(err)
+	}
+	for frame := range frames {
+		if frame.Err != nil {
+			return mapChainError(frame.Err)
+		}
+		msg := &ttsv1.AudioFrame{
+			Audio:       frame.Audio,
+			ContentType: frame.ContentType,
+			IsFinal:     frame.IsFinal,
+		}
+		if frame.IsFinal {
+			msg.ProviderTier = string(frame.Tier)
+			msg.ProviderId = frame.ProviderID
+			msg.ModelId = frame.ModelID
+			msg.VoiceUsed = frame.VoiceUsed
+			msg.LatencyMs = float64(frame.Latency.Milliseconds())
+			msg.ContentHash = frame.ContentHash
+		}
+		if err := stream.Send(msg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Synthesize routes through the TTS provider chain.
 func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[ttsv1.SynthesizeRequest]) (*connect.Response[ttsv1.SynthesizeResponse], error) {
 	if h.deps.Chain == nil {

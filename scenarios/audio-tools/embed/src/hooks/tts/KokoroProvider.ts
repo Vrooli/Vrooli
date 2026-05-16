@@ -1,5 +1,23 @@
 import type { TTSPlaybackCapabilities, TTSPlaybackProgressCallback, TTSPlaybackState, TTSProvider, TTSSpeakOptions } from "./types";
-import { synthesizeTTS } from "../../api/tts";
+import * as ttsApi from "../../api/tts";
+
+export type KokoroSynthesizeFn = (
+  input: string,
+  voice?: string,
+  speed?: number,
+  signal?: AbortSignal,
+) => Promise<Blob>;
+
+export interface KokoroProviderOptions {
+  /**
+   * Override the synthesize implementation. Consumer test environments
+   * that can't intercept the embed package barrel (vi.mock on
+   * "@audio-tools/embed" doesn't reach embed-internal relative imports)
+   * should pass their own mock here. Defaults to the live audio-tools
+   * Connect client wired to window.__AUDIO_TOOLS_URL__.
+   */
+  synthesize?: KokoroSynthesizeFn;
+}
 
 /**
  * TTS provider backed by the Kokoro synthesis API.
@@ -37,7 +55,11 @@ export class KokoroProvider implements TTSProvider {
     canAdjustVolume: true,
   };
 
-  constructor() {
+  private readonly synthesize: KokoroSynthesizeFn;
+
+  constructor(options: KokoroProviderOptions = {}) {
+    this.synthesize = options.synthesize ?? ((input, voice, speed, signal) =>
+      ttsApi.synthesizeTTS(input, voice, speed, signal));
     this.audio = new Audio();
     this.audio.addEventListener("timeupdate", this.handleTimeUpdate);
     this.audio.addEventListener("ended", this.handleEnded);
@@ -88,7 +110,7 @@ export class KokoroProvider implements TTSProvider {
     const signal = this.abortController.signal;
 
     try {
-      const blob = await synthesizeTTS(text, opts?.voice, opts?.rate, signal);
+      const blob = await this.synthesize(text, opts?.voice, opts?.rate, signal);
       this.throwIfAborted(signal);
 
       // Kokoro returns 0-byte audio for non-speakable input (e.g. "---",
@@ -141,7 +163,7 @@ export class KokoroProvider implements TTSProvider {
       // Synthesize all segments sequentially (preserves order, respects abort)
       const blobs: Blob[] = [];
       for (const text of texts) {
-        const blob = await synthesizeTTS(text, opts?.voice, opts?.rate, signal);
+        const blob = await this.synthesize(text, opts?.voice, opts?.rate, signal);
         this.throwIfAborted(signal);
         if (blob.size > 0) blobs.push(blob);
       }

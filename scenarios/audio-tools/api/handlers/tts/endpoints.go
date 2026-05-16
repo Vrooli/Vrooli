@@ -16,6 +16,14 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "tts",
 	},
 	{
+		ID:          "tts.synthesize_stream",
+		Path:        "/vrooli.audio_tools.v1.tts.TTSService/SynthesizeStream",
+		Method:      "POST",
+		Summary:     "Stream synthesized audio frames via the TTS provider chain",
+		Description: "Server-streaming variant of Synthesize. Streaming-capable providers (future) emit incremental frames; non-streaming providers emit a single is_final=true frame with the full audio. Provider trace fields are populated only on the final frame.",
+		Category:    "tts",
+	},
+	{
 		ID:          "tts.list_voices",
 		Path:        "/vrooli.audio_tools.v1.tts.TTSService/ListVoices",
 		Method:      "POST",

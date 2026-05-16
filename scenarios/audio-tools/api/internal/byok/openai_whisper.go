@@ -34,6 +34,16 @@ func (a *OpenAIWhisperSTT) IsAvailable(ctx context.Context, key string) bool {
 	return key != ""
 }
 
+// StreamingCapability — OpenAI whisper-1 is HTTP-only; native streaming
+// goes through the separate OpenAI Realtime API (registered as a
+// distinct "openai-realtime" adapter in Phase E). This adapter declines
+// streaming.
+func (a *OpenAIWhisperSTT) StreamingCapability() bool { return false }
+
+func (a *OpenAIWhisperSTT) TranscribeStreaming(_ context.Context, _ string, _ sttchain.StreamStart, _ <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
+	return nil, nil
+}
+
 func (a *OpenAIWhisperSTT) Transcribe(ctx context.Context, key string, req sttchain.Request) (*sttchain.Result, error) {
 	if key == "" {
 		return nil, fmt.Errorf("openai-whisper: missing API key")

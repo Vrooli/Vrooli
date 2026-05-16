@@ -150,6 +150,116 @@ func (c *Chain) Probe(ctx context.Context) ProbeResult {
 	}
 }
 
+// Stream runs a streaming transcription session through the chain.
+// It negotiates a streaming-capable tier at stream-start (BYOK -> Vrooli
+// -> Local precedence, filtered by StreamingCapability()=true). When no
+// streaming-capable tier accepts, the chain falls back to the buffered
+// unary path: it drains `chunks`, concatenates the audio bytes, runs
+// Execute() with the buffered audio, and emits a synthetic Segment +
+// Done event sequence so consumers see a consistent event shape.
+//
+// The locked tier is reported on the final Done event. Mid-stream
+// failover is explicitly out of scope (see plan §5 Out of scope).
+//
+// The returned channel is closed by Stream after emitting the final
+// Done event. The caller must drain it; abandoning it without context
+// cancellation will leak the streaming goroutine.
+func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
+	// Try BYOK first if a key is present and the tier is enabled.
+	if c.enableBYOK && start.BYOKKey != "" && c.byok != nil && c.availFor(ctx, TierBYOK) {
+		if c.byok.StreamingCapability() {
+			out, err := c.byok.TranscribeStreaming(ctx, start, chunks)
+			if err != nil {
+				// Hard errors from adapter selection are terminal.
+				if errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider) {
+					return nil, err
+				}
+				// Fall through to next tier on transport errors.
+			} else if out != nil {
+				return out, nil
+			}
+		}
+	}
+
+	// Vrooli tier (declared non-streaming today; kept for symmetry).
+	if c.enableVrooli && start.LPBSToken != "" && c.vrooli != nil && c.availFor(ctx, TierVrooli) && c.vrooli.StreamingCapability() {
+		out, err := c.vrooli.TranscribeStreaming(ctx, start, chunks)
+		if err == nil && out != nil {
+			return out, nil
+		}
+	}
+
+	// Local tier.
+	if c.enableLocal && c.local != nil && c.availFor(ctx, TierLocal) && c.local.StreamingCapability() {
+		out, err := c.local.TranscribeStreaming(ctx, start, chunks)
+		if err == nil && out != nil {
+			return out, nil
+		}
+	}
+
+	// Fallback: buffered unary mode. Drain the channel, concatenate the
+	// bytes, and run the unary chain. Emit one Segment + one Done event.
+	return c.bufferedFallback(ctx, start, chunks), nil
+}
+
+// bufferedFallback consumes the chunks channel, runs the unary chain on
+// the concatenated audio, and emits a single Segment + Done event.
+// Stamps DoneEvent.FellBackToUnary=true so consumers can identify the
+// degraded path.
+func (c *Chain) bufferedFallback(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) <-chan StreamEvent {
+	out := make(chan StreamEvent, 4)
+	go func() {
+		defer close(out)
+		var buf []byte
+		for {
+			select {
+			case <-ctx.Done():
+				out <- StreamEvent{Kind: StreamEventError, Error: ctx.Err()}
+				return
+			case ch, ok := <-chunks:
+				if !ok {
+					goto run
+				}
+				buf = append(buf, ch.Audio...)
+			}
+		}
+	run:
+		req := Request{
+			Audio:                   buf,
+			Language:                start.Language,
+			InitialPrompt:           start.InitialPrompt,
+			SkipSpeakerVerification: start.SkipSpeakerVerification,
+			BYOKProvider:            start.BYOKProvider,
+			BYOKKey:                 start.BYOKKey,
+			LPBSToken:               start.LPBSToken,
+			UserIdentity:            start.UserIdentity,
+		}
+		res, err := c.Execute(ctx, req)
+		if err != nil {
+			out <- StreamEvent{Kind: StreamEventError, Error: err}
+			out <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{FellBackToUnary: true}}
+			return
+		}
+		out <- StreamEvent{Kind: StreamEventSegment, Segment: &SegmentEvent{
+			Text:             res.Text,
+			DetectedLanguage: res.DetectedLanguage,
+			ProviderTier:     res.Tier,
+			ProviderID:       res.ProviderID,
+			ModelID:          res.ModelID,
+			LatencyMs:        float64(res.Latency.Milliseconds()),
+		}}
+		out <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
+			FinalText:       res.Text,
+			LockedTier:      res.Tier,
+			ProviderID:      res.ProviderID,
+			ModelID:         res.ModelID,
+			LatencyMs:       float64(res.Latency.Milliseconds()),
+			FellBackToUnary: true,
+		}}
+	}()
+	return out
+}
+
 func (c *Chain) availFor(ctx context.Context, tier ProviderTier) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()

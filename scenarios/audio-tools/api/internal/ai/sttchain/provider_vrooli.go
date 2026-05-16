@@ -61,3 +61,14 @@ func (p *VrooliProvider) Model() string {
 	}
 	return p.client.Model()
 }
+
+// StreamingCapability reports the Vrooli tier as non-streaming-capable
+// today; LPBS audio-gateway streaming endpoints are tracked under PRD
+// OT-P2-002 (out of scope for this plan).
+func (p *VrooliProvider) StreamingCapability() bool { return false }
+
+// TranscribeStreaming declines streaming on the Vrooli tier. The chain
+// falls through to the next tier or to buffered mode.
+func (p *VrooliProvider) TranscribeStreaming(_ context.Context, _ StreamStart, _ <-chan AudioChunk) (<-chan StreamEvent, error) {
+	return nil, nil
+}

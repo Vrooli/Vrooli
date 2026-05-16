@@ -20,6 +20,10 @@
 | `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Concrete | `internal/ai/{stt,tts,summarize}chain/chain.go` | `handlers/tts` GetStatus + `cli/domains/diagnose` |
 | `stt.MultipartTranscribeHandler` / `audio.multipartTranscodeHandler` | Concrete | `handlers/{stt,audio}/` | UI multipart upload paths |
 | `stt.StreamWSHandler` | Concrete | `handlers/stt/stream_ws.go` | mounts `/api/v1/voice/stream` over `voice.Service.HandleStreamWS` |
+| `stt.Segmenter` | Concrete (planned) | `internal/stt/segmenter/` | WS handler + Connect bidi handler (one impl, two transports) |
+| `stt.StrategySelector` | Concrete (planned) | `internal/stt/selector.go` | `stt.Segmenter` at session start |
+| `stt.StreamingStrategy` | Interface (planned) | `internal/stt/strategy/{vad_segment,overlap_agree,passthrough}.go` | `stt.StrategySelector` |
+| `sttchain.ProviderTraits` | Struct (planned, replaces `StreamingCapability() bool`) | `internal/ai/sttchain/interface.go` | `stt.StrategySelector` |
 
 ## Cross-scenario boundaries
 
@@ -437,6 +441,89 @@ Connect service metadata plus each handler module's
 The CI drift check (`make endpoints && git diff --exit-code
 .vrooli/endpoints.json`) fails the build if step 4 was skipped, with
 an actionable diff showing exactly which entries diverged.
+
+## Streaming chain seams (audio-tools-web-console-restoration plan)
+
+### `sttchain.Provider.TranscribeStreaming` / `StreamingCapability`
+- **Owner:** `api/internal/ai/sttchain/interface.go`.
+- **Production wires:** `LocalProvider`, `BYOKProvider`, `VrooliProvider`
+  return `false`/`(nil,nil)` today; native streaming implementations
+  land in plan Phases D (Local segmenter) and E (Deepgram WS, OpenAI
+  Realtime). The chain's `Stream()` method calls these to negotiate a
+  streaming-capable tier; if none accepts, it falls back to a buffered
+  unary mode that emits a synthetic Segment + Done event pair with
+  `DoneEvent.FellBackToUnary=true`.
+- **Test substitutes:** in-process fake `Provider` defined per-test
+  (see `chain_stream_test.go`); `goleak.VerifyNone(t)` guards every
+  streaming test.
+
+### `ttschain.Provider.SynthesizeStreaming` / `StreamingCapability`
+- **Owner:** `api/internal/ai/ttschain/interface.go`.
+- Mirrors the STT shape. The chain's `Stream()` falls back to a single
+  `AudioFrame{IsFinal=true}` carrying the full unary audio when no tier
+  declares streaming. Connect handler in `handlers/tts/connect_handler.go::SynthesizeStream`
+  forwards frames as they arrive.
+
+### `stt.Segmenter` (transport-free streaming orchestrator)
+- **Owner:** `api/internal/stt/segmenter/segmenter.go` (planned —
+  see [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md)).
+- **Production wires:** constructed once per streaming session by both
+  the browser WS handler (`internal/transports/browser/ws_handler.go`)
+  and the Connect bidi handler
+  (`handlers/stt/transcribe_stream.go`). Owns the session lifecycle,
+  the chunk-in/event-out channel pair, observer fanout to
+  `session.Registry`, and the cancellation/barge-in fan-out into TTS.
+- **Test substitutes:** in-process fakes feed a canned audio channel
+  and assert the emitted event sequence; parity test runs the same
+  WAV through both transports' Segmenter wiring and asserts equivalent
+  event projections.
+
+### `stt.StrategySelector` (decision boundary)
+- **Owner:** `api/internal/stt/selector.go` (planned).
+- **Production wires:** called by the Segmenter at session start.
+  Consumes the provider chain's negotiated tier, the operator's
+  `StreamConfig` levers, and each provider's `ProviderTraits` to
+  return a concrete `StreamingStrategy` bound to the chosen
+  `sttchain.Provider`. The strategy × provider compatibility matrix
+  lives here and only here.
+- **Test substitutes:** table-driven tests assert that every
+  (strategy, provider) cell from the matrix in
+  [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md#strategy--provider-compatibility)
+  either picks the documented strategy or returns the documented
+  typed error.
+
+### `stt.StreamingStrategy` (technique-axis interface)
+- **Owner:** `api/internal/stt/strategy/` (planned). Concrete
+  implementations: `vad_segment.go`, `overlap_agree.go`,
+  `passthrough.go`.
+- **Production wires:** strategies are stateless orchestrators
+  constructed per session by `StrategySelector`. Each consumes the
+  audio-chunk channel and emits typed `sttchain.StreamEvent` values;
+  the Segmenter translates them to wire events.
+- **Test substitutes:** strategies are tested with fake `Provider`
+  instances; matrix tests cover provider error injection, VAD
+  boundary detection, LocalAgreement commit logic, and Passthrough
+  vendor-event translation independently.
+
+### `sttchain.ProviderTraits` (capability declaration)
+- **Owner:** `api/internal/ai/sttchain/interface.go`. Today's
+  `StreamingCapability() bool` becomes the `Stream` bit on a typed
+  `ProviderTraits` struct; a new `Batch` bit is added (always `true`
+  for existing providers; future native-streaming-only adapters may
+  set it `false`).
+- **Production wires:** read by `StrategySelector` to filter the
+  strategy matrix. Each provider declares its traits once at
+  construction time; no runtime probing.
+- **Test substitutes:** trait variants are table-driven inputs to the
+  selector tests above; no fake needed.
+
+### Web-console audio-tools URL discovery
+- **Boundary:** `handlers/discovery` in web-console serves
+  `DiscoveryService.GetAudioToolsEndpoint`. The browser bootstrap reads
+  this once and writes `window.__AUDIO_TOOLS_URL__` before React mounts;
+  AudioToolsProvider then constructs the @audio-tools/embed client.
+- **Why:** prevents client-side composition of scenario URLs (mirrors
+  the `feedback_scenario_url_resolution` rule).
 
 ## Cross-references
 

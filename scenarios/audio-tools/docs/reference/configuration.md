@@ -169,6 +169,37 @@ If none of these resolve, the command exits with an actionable error
 ("API not available — try `--auto-start` or `vrooli scenario start
 audio-tools`").
 
+## Streaming STT control surface
+
+The streaming STT pipeline ([`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md))
+exposes five operator-tunable levers. They are read once per
+streaming session by `StrategySelector` and apply to both transports
+(browser WS, Connect bidi). The defaults match the pre-extraction
+web-console behavior — operators only adjust them to trade latency,
+CPU, or quality.
+
+| Lever | Type | Default | Range | Audience | Trade-off |
+|---|---|---|---|---|---|
+| `stt.streaming_mode` | enum: `auto`, `off` | `auto` | — | operator | `off` forces a single batch `Transcribe` at `StreamEnd` — cheapest, no partials. `auto` selects the best (strategy, provider) pair for the negotiated tier. |
+| `stt.strategy_preference` | enum: `auto`, `vad`, `overlap` | `auto` | — | operator | `vad` = silence-bounded segments; lower CPU, segment-only events. `overlap` = sliding-window LocalAgreement; higher CPU on Local Whisper, live partials, lower end-of-utterance latency. Ignored for native-streaming providers (Deepgram, Azure, Google, future LPBS). `auto` picks per-provider defaults. |
+| `stt.vad_silence_ms` | integer | `700` | `200–3000` | operator | Silence window that closes a VAD segment. Lower = snappier but may chop natural pauses; higher = preserves long sentences, increases end-of-segment latency. Only meaningful when `VADSegmentStrategy` is active. |
+| `stt.overlap_window_ms` | integer | `2000` | `1000–5000` | operator | Sliding window size for `OverlapAgreeStrategy`. Bigger = better agreement, more CPU per partial. Only meaningful for Local Whisper + `overlap`. |
+| `stt.overlap_commit_runs` | integer | `2` | `2–4` | operator | How many consecutive sliding-window runs must agree on a prefix before it commits from `Partial` → `Segment`. Higher = more stable text, longer commit latency. |
+
+Lever rules (per [control-surface-tunable-levers-design]):
+
+- All five have safe defaults that produce working behavior.
+- All five are monotonic where applicable — increasing a value moves
+  the system in one consistent direction (more CPU, more latency, more
+  stable text, …).
+- The selector refuses incompatible combinations via the matrix in
+  [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md#strategy--provider-compatibility);
+  forbidden pairs raise a typed error at session start rather than
+  degrading silently.
+- Setting these levers does NOT pick a provider — provider tier
+  precedence remains the fixed BYOK → Vrooli → Local order defined in
+  the PRD.
+
 ## Test/CI configuration
 
 | File | Owns |

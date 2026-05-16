@@ -12,6 +12,16 @@ type BYOKAdapter interface {
 	Transcribe(ctx context.Context, key string, req Request) (*Result, error)
 	IsAvailable(ctx context.Context, key string) bool
 	Model() string
+
+	// StreamingCapability reports whether the adapter can stream natively
+	// (e.g. Deepgram WS, OpenAI Realtime). Adapters that return false are
+	// skipped during stream-start negotiation.
+	StreamingCapability() bool
+
+	// TranscribeStreaming opens a streaming session. The contract mirrors
+	// Provider.TranscribeStreaming. Adapters returning StreamingCapability=
+	// false must return (nil, nil) here.
+	TranscribeStreaming(ctx context.Context, key string, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error)
 }
 
 // BYOKProvider routes per-request to the adapter named by req.BYOKProvider.
@@ -53,3 +63,40 @@ func (p *BYOKProvider) Transcribe(ctx context.Context, req Request) (*Result, er
 }
 
 func (p *BYOKProvider) Model() string { return "byok-dispatched" }
+
+// StreamingCapability reports the BYOK tier as streaming-capable when at
+// least one registered adapter declares streaming support. The actual
+// per-request capability is gated by the adapter selected by
+// req.BYOKProvider.
+func (p *BYOKProvider) StreamingCapability() bool {
+	if p == nil {
+		return false
+	}
+	for _, a := range p.registry {
+		if a != nil && a.StreamingCapability() {
+			return true
+		}
+	}
+	return false
+}
+
+// TranscribeStreaming dispatches to the per-provider streaming adapter.
+// Returns ErrUnknownBYOKProvider when the adapter is not registered;
+// returns (nil, nil) when the resolved adapter declined streaming so the
+// chain falls back to the next tier or unary mode.
+func (p *BYOKProvider) TranscribeStreaming(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
+	if start.BYOKKey == "" {
+		return nil, fmt.Errorf("audio-tools/sttchain: BYOK key required")
+	}
+	if start.BYOKProvider == "" {
+		return nil, ErrMissingBYOKProvider
+	}
+	adapter, ok := p.registry[start.BYOKProvider]
+	if !ok {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownBYOKProvider, start.BYOKProvider)
+	}
+	if !adapter.StreamingCapability() {
+		return nil, nil
+	}
+	return adapter.TranscribeStreaming(ctx, start.BYOKKey, start, chunks)
+}

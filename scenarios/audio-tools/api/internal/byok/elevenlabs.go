@@ -30,6 +30,15 @@ func (a *ElevenLabsTTS) Model() string { return "eleven_multilingual_v2" }
 
 func (a *ElevenLabsTTS) IsAvailable(ctx context.Context, key string) bool { return key != "" }
 
+// StreamingCapability — ElevenLabs supports streaming WS but it is
+// declared out of scope for this plan; return false so the chain
+// negotiates a streaming-capable peer first.
+func (a *ElevenLabsTTS) StreamingCapability() bool { return false }
+
+func (a *ElevenLabsTTS) SynthesizeStreaming(_ context.Context, _ string, _ ttschain.Request) (<-chan ttschain.AudioFrame, error) {
+	return nil, nil
+}
+
 // canonicalToElevenVoiceID returns the ElevenLabs voice_id for a canonical
 // voice. Public ElevenLabs IDs are stable; users override via voice_overrides.
 func canonicalToElevenVoiceID(canonical string, overrides map[string]string) string {

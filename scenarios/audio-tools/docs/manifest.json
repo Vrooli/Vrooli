@@ -221,6 +221,34 @@
       ]
     },
     {
+      "id": "domains",
+      "title": "Domain Deep-Dives",
+      "icon": "layers",
+      "description": "Architecture detail for individual product domains that would overload DOMAINS.md",
+      "purpose": "Capture per-domain architecture diagrams, decision boundaries, and seam topology when the central domain map would lose signal.",
+      "extensionPolicy": "Create one subdirectory per domain only when DOMAINS.md cannot carry the depth. Each deep-dive must cross-reference SEAMS.md, DECISIONS.md, and the relevant proto schema.",
+      "documents": [
+        {
+          "path": "domains/stt/streaming-pipeline.md",
+          "docType": "domain-deep-dive",
+          "title": "STT Streaming Pipeline",
+          "aliases": ["streaming-stt", "transcribe-stream", "voice-stream"],
+          "description": "Strategy-vs-provider decoupling, capability matrix, and Segmenter / StrategySelector / StreamingStrategy seam topology for streaming speech-to-text",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["streaming-stt-architecture", "strategy-selector", "segmenter"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "ownerSkills": ["decision-boundary-extraction", "boundary-of-responsibility-enforcement", "control-surface-tunable-levers-design"],
+          "validation": {
+            "requiredHeadings": ["Two Axes, One Pipeline", "Current Architecture (as of 2026-05-16)", "Target Architecture", "Strategy × Provider Compatibility", "Decision Boundary: StrategySelector", "Strategy Interface", "Why decouple? — and what it costs", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredLinks": ["../../internal/SEAMS.md", "../../internal/DECISIONS.md", "../../internal/PROBLEMS.md", "../../reference/configuration.md"]
+          }
+        }
+      ]
+    },
+    {
       "id": "business",
       "title": "Business",
       "icon": "briefcase",
@@ -594,7 +622,7 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "business", "operations", "guides", "reference"],
+    "primary": ["getting-started", "concepts", "domains", "business", "operations", "guides", "reference"],
     "secondary": ["internal"]
   }
 }

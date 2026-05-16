@@ -10,6 +10,9 @@ type BYOKAdapter interface {
 	Synthesize(ctx context.Context, key string, req Request) (*Result, error)
 	IsAvailable(ctx context.Context, key string) bool
 	Model() string
+
+	StreamingCapability() bool
+	SynthesizeStreaming(ctx context.Context, key string, req Request) (<-chan AudioFrame, error)
 }
 
 type BYOKProvider struct {
@@ -48,3 +51,32 @@ func (p *BYOKProvider) Synthesize(ctx context.Context, req Request) (*Result, er
 }
 
 func (p *BYOKProvider) Model() string { return "byok-dispatched" }
+
+func (p *BYOKProvider) StreamingCapability() bool {
+	if p == nil {
+		return false
+	}
+	for _, a := range p.registry {
+		if a != nil && a.StreamingCapability() {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *BYOKProvider) SynthesizeStreaming(ctx context.Context, req Request) (<-chan AudioFrame, error) {
+	if req.BYOKKey == "" {
+		return nil, fmt.Errorf("audio-tools/ttschain: BYOK key required")
+	}
+	if req.BYOKProvider == "" {
+		return nil, ErrMissingBYOKProvider
+	}
+	adapter, ok := p.registry[req.BYOKProvider]
+	if !ok {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownBYOKProvider, req.BYOKProvider)
+	}
+	if !adapter.StreamingCapability() {
+		return nil, nil
+	}
+	return adapter.SynthesizeStreaming(ctx, req.BYOKKey, req)
+}

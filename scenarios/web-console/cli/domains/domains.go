@@ -10,8 +10,6 @@ import (
 	"web-console/cli/domains/settings"
 	"web-console/cli/domains/shortcuts"
 	"web-console/cli/domains/terminal"
-	"web-console/cli/domains/tts"
-	"web-console/cli/domains/voice"
 	"web-console/cli/domains/workspace"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -38,7 +36,5 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		shortcuts.Register(core),
 		ai.Register(core),
 		conversation.Register(core),
-		voice.Register(core),
-		tts.Register(core),
 	}
 }

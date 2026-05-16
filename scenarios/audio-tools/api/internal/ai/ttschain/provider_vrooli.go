@@ -53,3 +53,12 @@ func (p *VrooliProvider) Model() string {
 	}
 	return p.client.Model()
 }
+
+// StreamingCapability — LPBS audio-gateway streaming (PRD OT-P2-002)
+// is out of scope here. Declared false; chain skips this tier during
+// stream-start negotiation.
+func (p *VrooliProvider) StreamingCapability() bool { return false }
+
+func (p *VrooliProvider) SynthesizeStreaming(_ context.Context, _ Request) (<-chan AudioFrame, error) {
+	return nil, nil
+}

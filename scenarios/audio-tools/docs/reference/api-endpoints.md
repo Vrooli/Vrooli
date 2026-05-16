@@ -7,7 +7,7 @@
 | Service | Path prefix | Methods | Handler |
 |---|---|---|---|
 | `STTService` | `/vrooli.audio_tools.v1.stt.STTService/*` | Transcribe, TranscribeStream (bidi), GetStreamConfig, UpdateStreamConfig, GetWakeWordConfig, UpdateWakeWordTemplate, DeleteWakeWordTemplate, GetSpeakerConfig, UpdateSpeakerConfig, GetSpeakerStatus, ListSpeakerProfiles, EnrollSpeakerProfile, ClearSpeakerProfileBinding, RemoveSpeakerProfile, DeleteSpeakerProfile | `handlers/stt` |
-| `TTSService` | `/vrooli.audio_tools.v1.tts.TTSService/*` | Synthesize, ListVoices, GetCache, GetConfig, UpdateConfig, GetStatus, RecordPlaybackEvent, NormalizeForSpeech, SplitParagraphs | `handlers/tts` |
+| `TTSService` | `/vrooli.audio_tools.v1.tts.TTSService/*` | Synthesize, SynthesizeStream (server-stream), ListVoices, GetCache, GetConfig, UpdateConfig, GetStatus, RecordPlaybackEvent, NormalizeForSpeech, SplitParagraphs | `handlers/tts` |
 | `SummarizeService` | `/vrooli.audio_tools.v1.summarize.SummarizeService/*` | Summarize | `handlers/summarize` |
 | `AudioProcessingService` | `/vrooli.audio_tools.v1.audio.AudioProcessingService/*` | Transcode, Trim, Merge, Split, Fade, Volume, Normalize, ExtractMetadata | `handlers/audio` |
 | `SessionService` | `/vrooli.audio_tools.v1.session.SessionService/*` | OpenSession, CloseSession, SendText, SendCancel, Subscribe (server-streaming) | `handlers/session` |
@@ -189,6 +189,36 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
 Defined in `packages/proto/schemas/audio-tools/v1/notes/notes.proto`.
 
 ---
+
+## Streaming endpoints
+
+The STT and TTS services expose streaming variants that route through
+the provider chain's streaming path:
+
+### `STTService.TranscribeStream` (bidi-stream)
+Client sends `StreamStart { language, initial_prompt, skip_speaker_verification }`,
+then a sequence of `audio_chunk` messages, then `StreamEnd`. Server emits
+events from the chain's `Stream()` channel in one of six shapes:
+`StreamPartial`, `StreamSegment`, `StreamWakeWord`, `StreamSpeakerRejection`,
+`StreamError`, `StreamDone`. The final `StreamDone` carries the locked
+tier + provider ID + latency, and `fell_back_to_unary=true` when no
+streaming-capable provider accepted the session.
+
+### `TTSService.SynthesizeStream` (server-stream)
+Same request shape as `Synthesize`. Server emits `AudioFrame` messages;
+intermediate frames carry only `audio`+`content_type`, the final frame
+(`is_final=true`) additionally carries the provider trace.
+Non-streaming providers emit a single `is_final=true` frame with the
+full audio bytes — wire-equivalent to a unary call wrapped in a stream.
+
+### Provider tier negotiation
+Stream-start tier negotiation honors BYOK → Vrooli → Local precedence,
+filtered by adapter `StreamingCapability()`. Provider selection locks
+on the first audio chunk; mid-stream failover is intentionally out of
+scope (no reconnection or replay; the session ends on a transport error
+with `StreamError`). Adapters that declare `StreamingCapability=false`
+are eligible for streaming only when the chain falls back to the
+buffered unary path.
 
 ## Adding a new endpoint
 

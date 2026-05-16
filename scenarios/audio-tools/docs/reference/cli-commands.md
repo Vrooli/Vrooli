@@ -8,7 +8,9 @@
 |---|---|---|
 | `audio-tools status` | Health probe (provided by cli-core's StandardScenarioApp) | `GET /health` |
 | `audio-tools voice transcribe --file PATH [--language EN] [--format FMT]` | Transcribe an audio file | `STTService.Transcribe` |
+| `audio-tools voice transcribe-stream --file PATH [--language EN] [--chunk-bytes N]` | Stream-transcribe a file (one event per line) | `STTService.TranscribeStream` |
 | `audio-tools tts synthesize --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Synthesize speech audio | `TTSService.Synthesize` |
+| `audio-tools tts synthesize-stream --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Stream-synthesize speech (writes frames to --out as they arrive) | `TTSService.SynthesizeStream` |
 | `audio-tools tts voices` | List canonical voices | `TTSService.ListVoices` |
 | `audio-tools summarize text --text TEXT [--level light\|moderate\|heavy]` | Summarize text | `SummarizeService.Summarize` |
 | `audio-tools audio transcode --input PATH --output PATH` | Transcode to WAV | `AudioProcessingService.Transcode` |

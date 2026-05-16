@@ -54,6 +54,36 @@ type Provider interface {
 	IsAvailable(ctx context.Context) bool
 	Synthesize(ctx context.Context, req Request) (*Result, error)
 	Model() string
+
+	// StreamingCapability reports whether this provider can stream
+	// audio frames natively (true) or only via the unary-wrapped
+	// fallback (false). The streaming chain selects providers based on
+	// this flag plus tier precedence.
+	StreamingCapability() bool
+
+	// SynthesizeStreaming runs a streaming synthesis session. Emits
+	// AudioFrame values; the final frame has IsFinal=true and carries
+	// the trace fields. Returning a nil channel + nil error means the
+	// provider declined streaming (caller falls through to next tier).
+	SynthesizeStreaming(ctx context.Context, req Request) (<-chan AudioFrame, error)
+}
+
+// AudioFrame is one frame in a streaming synthesis response. The final
+// frame has IsFinal=true and the trace fields populated; intermediate
+// frames leave trace fields zero.
+type AudioFrame struct {
+	Audio       []byte
+	ContentType string
+	IsFinal     bool
+
+	// Trace populated on the final frame:
+	Tier        ProviderTier
+	ProviderID  string
+	ModelID     string
+	VoiceUsed   string
+	Latency     time.Duration
+	ContentHash string
+	Err         error // populated when IsFinal=true and the stream errored.
 }
 
 var (

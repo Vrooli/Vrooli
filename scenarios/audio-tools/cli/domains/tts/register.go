@@ -28,6 +28,20 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				RunCtx: h.synthesize,
 			},
 			{
+				Name:        "synthesize-stream",
+				Description: "Stream-synthesize speech audio (writes frames to --out as they arrive)",
+				Args: cliapp.ArgSchema{
+					Flags: []cliapp.Flag{
+						{Name: "text", Required: true, Description: "Text to synthesize"},
+						{Name: "voice", Description: "Canonical voice id (default voice.neutral.default)"},
+						{Name: "speed", Description: "Playback speed (default 1.0)"},
+						{Name: "format", Description: "Output format mp3|wav|opus|flac (default mp3)"},
+						{Name: "out", Description: "Output file path (default stdout)"},
+					},
+				},
+				RunCtx: h.synthesizeStream,
+			},
+			{
 				Name:        "voices",
 				Description: "List canonical voices",
 				RunCtx:      h.voices,

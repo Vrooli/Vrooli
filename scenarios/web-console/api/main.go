@@ -30,6 +30,7 @@ import (
 	aiH "web-console/handlers/ai"
 	capabilitiesH "web-console/handlers/capabilities"
 	conversationH "web-console/handlers/conversation"
+	discoveryH "web-console/handlers/discovery"
 	eventsH "web-console/handlers/events"
 	hooksH "web-console/handlers/hooks"
 	metricsH "web-console/handlers/metrics"
@@ -149,6 +150,10 @@ type Server struct {
 	sttPort         audioports.SpeechToText
 	ttsPort         audioports.TextToSpeech
 	summarizer      audioports.Summarizer
+
+	// audioToolsResolver is the live audio-tools URL resolver, kept on
+	// the server so the discovery handler can re-query it per request.
+	audioToolsResolver audiotoolsint.URLResolver
 
 	// Hook routing diagnostics + auto-config (web-console-internal).
 	ttsHookConfigState    hookConfigState
@@ -353,6 +358,7 @@ func NewServer(db *sql.DB) *Server {
 	srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}
 	srv.speechProcessor = &audioports.RemoteSpeechTextProcessor{Client: atClient}
 	srv.summarizer = &audioports.RemoteSummarizer{Client: atClient}
+	srv.audioToolsResolver = atResolver
 	log.Printf("audio-tools adoption: STT/TTS/processor/summarize wired to %s", atClient.BaseURL())
 
 	srv.sweeper.Start()
@@ -429,6 +435,11 @@ func (s *Server) setupRoutes() {
 		BackendRegistry: s.backendRegistry,
 		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
 	}, nil).Mount(s.router)
+
+	// Discovery — exposes resolved scenario endpoint URLs (currently
+	// just audio-tools) to the browser so the UI never composes
+	// scenario URLs client-side.
+	discoveryH.Module(newAudioToolsResolverAdapter(s), nil).Mount(s.router)
 
 	// Hooks — REST webhook receivers (Claude Code CLI dictates wire shape).
 	hooksH.Module(hooksH.Deps{

@@ -122,6 +122,69 @@ func (c *Chain) Probe(ctx context.Context) ProbeResult {
 	}
 }
 
+// Stream runs a streaming synthesis session through the chain.
+// Tier negotiation mirrors Execute()'s BYOK->Vrooli->Local precedence,
+// filtered by StreamingCapability()=true. When no streaming-capable
+// tier accepts, the chain falls back to Execute() and emits a single
+// is_final=true frame carrying the full audio bytes.
+//
+// The returned channel is closed after the final frame. Caller must
+// drain it; abandoning it without context cancellation will leak the
+// streaming goroutine.
+func (c *Chain) Stream(ctx context.Context, req Request) (<-chan AudioFrame, error) {
+	if c.enableBYOK && req.BYOKKey != "" && c.byok != nil && c.availFor(ctx, TierBYOK) {
+		if c.byok.StreamingCapability() {
+			out, err := c.byok.SynthesizeStreaming(ctx, req)
+			if err != nil {
+				if errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider) {
+					return nil, err
+				}
+			} else if out != nil {
+				return out, nil
+			}
+		}
+	}
+	if c.enableVrooli && req.LPBSToken != "" && c.vrooli != nil && c.availFor(ctx, TierVrooli) && c.vrooli.StreamingCapability() {
+		out, err := c.vrooli.SynthesizeStreaming(ctx, req)
+		if err == nil && out != nil {
+			return out, nil
+		}
+	}
+	if c.enableLocal && c.local != nil && c.local.IsAvailable(ctx) && c.local.StreamingCapability() {
+		out, err := c.local.SynthesizeStreaming(ctx, req)
+		if err == nil && out != nil {
+			return out, nil
+		}
+	}
+	return c.bufferedFallback(ctx, req), nil
+}
+
+// bufferedFallback runs Execute() once and emits a single is_final=true
+// frame carrying the full audio. Used when no tier declares streaming.
+func (c *Chain) bufferedFallback(ctx context.Context, req Request) <-chan AudioFrame {
+	out := make(chan AudioFrame, 1)
+	go func() {
+		defer close(out)
+		res, err := c.Execute(ctx, req)
+		if err != nil {
+			out <- AudioFrame{IsFinal: true, Err: err}
+			return
+		}
+		out <- AudioFrame{
+			Audio:       res.Audio,
+			ContentType: res.ContentType,
+			IsFinal:     true,
+			Tier:        res.Tier,
+			ProviderID:  res.ProviderID,
+			ModelID:     res.ModelID,
+			VoiceUsed:   res.VoiceUsed,
+			Latency:     res.Latency,
+			ContentHash: res.ContentHash,
+		}
+	}()
+	return out
+}
+
 func (c *Chain) availFor(ctx context.Context, tier ProviderTier) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()

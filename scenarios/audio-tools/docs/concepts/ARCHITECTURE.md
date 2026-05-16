@@ -200,6 +200,18 @@ Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later
 grounded by Knowledge Observatory validation.
 
+## Streaming Pipelines (STT)
+
+The unary `Transcribe` path follows the standard scenario shape above:
+proto → handler → domain → provider chain → storage. The **streaming**
+STT path is a layered orchestration that needs its own diagrams and
+compatibility matrix; see
+[`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md)
+for the full architecture (current vs. target, strategy vs. provider
+decoupling, capability table). The seams it introduces — `Segmenter`,
+`StrategySelector`, `StreamingStrategy` — are registered in
+[`../internal/SEAMS.md`](../internal/SEAMS.md#streaming-chain-seams-audio-tools-web-console-restoration-plan).
+
 ## Intentional Deviations
 
 Record deviations from the template or from Vrooli scenario standards

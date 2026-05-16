@@ -31,6 +31,16 @@ func (a *DeepgramSTT) Model() string { return "nova-2" }
 
 func (a *DeepgramSTT) IsAvailable(ctx context.Context, key string) bool { return key != "" }
 
+// StreamingCapability — Deepgram natively supports streaming via WSS.
+// The streaming TranscribeStreaming implementation lands in Phase E.
+// This file declares the capability surface so the interface satisfies
+// the new sttchain.BYOKAdapter contract.
+func (a *DeepgramSTT) StreamingCapability() bool { return false }
+
+func (a *DeepgramSTT) TranscribeStreaming(_ context.Context, _ string, _ sttchain.StreamStart, _ <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
+	return nil, nil
+}
+
 func (a *DeepgramSTT) Transcribe(ctx context.Context, key string, req sttchain.Request) (*sttchain.Result, error) {
 	if key == "" {
 		return nil, fmt.Errorf("deepgram: missing API key")
