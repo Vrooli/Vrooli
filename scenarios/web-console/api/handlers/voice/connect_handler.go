@@ -30,17 +30,6 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
-// Sentinel errors mapped via classify(). The legacy handlers used catalog
-// codes "voice_unavailable", "speaker_verification_unavailable",
-// "invalid_body", "voice_transcribe_failed", "speaker_enrollment_failed",
-// "speaker_profile_remove_failed", "speaker_delete_failed". Those collapse
-// to a small set of Connect codes.
-var (
-	ErrInvalidArgument = errors.New("invalid argument")
-	ErrUnavailable     = errors.New("voice unavailable")
-	ErrInternal        = errors.New("internal error")
-)
-
 func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[voicev1.TranscribeRequest]) (*connect.Response[voicev1.TranscribeResponse], error) {
 	in := TranscribeInput{
 		Audio:                   req.Msg.GetAudio(),

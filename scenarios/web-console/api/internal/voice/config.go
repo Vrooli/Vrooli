@@ -1,7 +1,8 @@
 // Package voice owns the voice-domain state and behaviour: stream config,
 // wake-word templates, speaker-verification config and resource client,
 // the Whisper transcribe pipeline, and the streaming WebSocket handler.
-// The exported Service type implements web-console/handlers/voice.Backend.
+// The exported Service type implements the Backend seam (see types.go); the
+// Adapter (handler_adapter.go) is the production HandlerService implementation.
 package voice
 
 import (

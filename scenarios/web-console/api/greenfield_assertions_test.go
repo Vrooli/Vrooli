@@ -330,6 +330,198 @@ func TestGreenfield_VoiceDomainNotInPackageMain(t *testing.T) {
 	}
 }
 
+// TestGreenfield_TTSReusableCoreNotInPackageMain enforces that reusable TTS
+// text-processing primitives live under api/internal/tts, not in package
+// main. Extraction-prep work moved NormalizeTextForSpeech,
+// SplitIntoSpeechParagraphs, and TTSMaxChunkLength into the internal package
+// so the future audio-tools scenario can own them without taking
+// web-console-specific glue along for the ride.
+func TestGreenfield_TTSReusableCoreNotInPackageMain(t *testing.T) {
+	// Files whose entire content moved into internal/tts. tts_cache.go
+	// remains in package main but holds only Server-method orchestration
+	// glue (invalidate / preSynthesize / synthesizeParagraphs).
+	forbiddenFiles := []string{
+		"tts_normalizer.go",
+		"tts_chunker.go",
+		"tts_summarizer.go",
+		"tts_summarization_service.go",
+		"tts_summarize_config.go",
+	}
+	for _, f := range forbiddenFiles {
+		if _, err := os.Stat(f); err == nil {
+			t.Errorf("%s reappeared in package main — reusable TTS core belongs in internal/tts", f)
+		}
+	}
+
+	// Definitions of these symbols must only appear in internal/tts. Their
+	// references from package main go through `inttts.*`, so the `func `
+	// prefix here scopes the check to definitions.
+	forbiddenDefinitions := []string{
+		`func NormalizeTextForSpeech\(`,
+		`func SplitIntoSpeechParagraphs\(`,
+		`const TTSMaxChunkLength`,
+		`type TTSCache `,
+		`type TTSCacheKey `,
+		`type TTSCacheEntry `,
+		`func NewTTSCache\(`,
+		`type TTSSummarizer `,
+		`func NewTTSSummarizer\(`,
+		`type TTSSummarizationService `,
+		`func NewTTSSummarizationService\(`,
+		`type TTSConfig `,
+		`type TTSSummarizeConfig `,
+		`func DefaultTTSConfig\(`,
+		`func DefaultTTSSummarizeConfig\(`,
+		`func loadTTSConfig\(`,
+		`func saveTTSConfig\(`,
+		`func loadTTSSummarizeConfig\(`,
+		`func saveTTSSummarizeConfig\(`,
+	}
+	res := make([]*regexp.Regexp, len(forbiddenDefinitions))
+	for i, p := range forbiddenDefinitions {
+		res[i] = regexp.MustCompile(p)
+	}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatalf("glob: %v", err)
+	}
+	for _, f := range files {
+		if f == "greenfield_assertions_test.go" {
+			continue
+		}
+		b, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		for i, re := range res {
+			if re.Match(b) {
+				t.Errorf("%s defines %q — definition must live in internal/tts", f, forbiddenDefinitions[i])
+			}
+		}
+	}
+}
+
+// TestGreenfield_InternalAudioDomainsDoNotImportHandlers enforces the
+// dependency direction required for audio-tools extraction: internal/voice,
+// internal/tts, internal/audio, and internal/audioports must not import any
+// web-console/handlers/* package. Handlers depend on internal domain types
+// via alias; the reverse direction would re-couple the domain to the
+// transport.
+func TestGreenfield_InternalAudioDomainsDoNotImportHandlers(t *testing.T) {
+	internalDirs := []string{
+		"internal/voice",
+		"internal/tts",
+		"internal/audio",
+		"internal/audioports",
+	}
+	handlerImport := regexp.MustCompile(`"web-console/handlers/[^"]+"`)
+	for _, dir := range internalDirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("read %s: %v", dir, err)
+		}
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") {
+				continue
+			}
+			path := filepath.Join(dir, e.Name())
+			b, err := os.ReadFile(path)
+			if err != nil {
+				continue
+			}
+			if m := handlerImport.Find(b); m != nil {
+				t.Errorf("%s imports %s — internal audio domains must not depend on handler packages", path, string(m))
+			}
+		}
+	}
+}
+
+// TestGreenfield_OrchestrationRoutesThroughAudioPorts ensures the
+// conversation/TTS orchestration sites in package main do NOT call the raw
+// internal/tts text-pipeline functions directly — they must go through the
+// audioports.SpeechTextProcessor seam so a future audio-tools-backed
+// implementation can be swapped in without touching orchestration.
+//
+// The check looks for `inttts.NormalizeTextForSpeech(` and
+// `inttts.SplitIntoSpeechParagraphs(` in package-main .go files (excluding
+// the audioports local adapter and any test). If they reappear, the seam
+// has been bypassed.
+func TestGreenfield_OrchestrationRoutesThroughAudioPorts(t *testing.T) {
+	forbidden := []*regexp.Regexp{
+		regexp.MustCompile(`\binttts\.NormalizeTextForSpeech\(`),
+		regexp.MustCompile(`\binttts\.SplitIntoSpeechParagraphs\(`),
+	}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatalf("glob: %v", err)
+	}
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		b, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		for _, re := range forbidden {
+			if loc := re.FindIndex(b); loc != nil {
+				t.Errorf("%s calls %s directly — must route through audioports.SpeechTextProcessor instead", f, re.String())
+			}
+		}
+	}
+}
+
+// TestGreenfield_OrchestrationGoesThroughAudioPorts enforces that
+// orchestration files in package main do NOT call the raw STT/TTS provider
+// surfaces directly — they must go through audioports.SpeechToText /
+// audioports.TextToSpeech so the future audio-tools client can be swapped in
+// without touching orchestration glue.
+//
+// The summarize pipeline (SummarizationService / SummarizeRequest /
+// SummarizeResult / SummarizeErrorMessage / ErrSummarizeCoolingDown) is
+// explicitly NOT routed through audioports in this pass — see
+// docs/internal/PROBLEMS.md §10. This assertion therefore scopes to STT/TTS
+// provider symbols and never to summarize symbols.
+func TestGreenfield_OrchestrationGoesThroughAudioPorts(t *testing.T) {
+	forbidden := []*regexp.Regexp{
+		regexp.MustCompile(`\bs\.voiceService\.Transcribe\b`),
+		regexp.MustCompile(`\bs\.ttsSynthesizer\.Synthesize\b`),
+		regexp.MustCompile(`\bs\.ttsVoiceLister\.ListVoices\b`),
+		regexp.MustCompile(`internal/voice\.Service\.Transcribe`),
+		regexp.MustCompile(`internal/tts\.KokoroSynthesizer`),
+		regexp.MustCompile(`internal/tts\.KokoroVoiceLister`),
+	}
+	// main.go is exempt: it constructs the LocalSpeechToText /
+	// LocalTextToSpeech adapters from the raw provider fields. Local* adapters
+	// themselves live under internal/audioports/ and are not matched by this
+	// package-main glob.
+	exempt := map[string]bool{
+		"main.go":                       true,
+		"greenfield_assertions_test.go": true,
+	}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatalf("glob: %v", err)
+	}
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		if exempt[f] {
+			continue
+		}
+		b, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		for _, re := range forbidden {
+			if loc := re.FindIndex(b); loc != nil {
+				t.Errorf("%s references provider-direct symbol %s — must route through audioports.SpeechToText/TextToSpeech instead", f, re.String())
+			}
+		}
+	}
+}
+
 // TestGreenfield_NoLegacyHistorySymbols enforces that the deleted
 // raw-byte history protocol stays deleted. New code must use the
 // snapshot-replay flow through terminal.Emulator.

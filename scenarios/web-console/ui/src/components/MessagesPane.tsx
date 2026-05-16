@@ -35,7 +35,7 @@ import MessagesSearchDrawer from "./MessagesSearchDrawer";
 import MessageJumpList from "./MessageJumpList";
 import { AudioSettingsContent } from "./tts/AudioSettingsContent";
 import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
-import type { TTSPlaybackState } from "../hooks/tts/types";
+import type { TTSPlaybackState } from "../domains/audio";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
 import MessagesFileViewer from "./MessagesFileViewer";
 

@@ -18,7 +18,7 @@
 import { useCallback } from "react";
 import { AlertTriangle, X, RotateCcw, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { VoiceRejection } from "../hooks/voice/types";
+import type { VoiceRejection } from "../domains/audio";
 import { strings } from "../consts/strings";
 
 interface VoiceRejectionBannerProps {

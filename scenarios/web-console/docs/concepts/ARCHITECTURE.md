@@ -165,6 +165,56 @@ All API errors return structured JSON with `code`, `category`, `recovery`, and `
 
 Client-side [CODE: ui/src/lib/api.ts#APIError] parses these into typed errors. The [CODE: ui/src/components/ErrorBanner.tsx] component renders recovery hints and retry buttons based on error metadata.
 
+## Audio Ownership Map
+
+Web-console currently bundles two distinct concerns: **reusable audio capability behavior** (STT, TTS, normalization, summarization, transcoding, provider mechanics) and **web-console-specific conversation/terminal glue** (auto-TTS trigger policy, listened-cursor, conversation fan-out, hook attribution). The future `scenarios/audio-tools` greenfield item will take ownership of the reusable capability layer; web-console will adopt it as a consumer.
+
+This section is the contract between today's code and that future split. It is referenced by [Connected Scenarios Registry](#connected-scenarios-registry) and the audio-extraction prep plan.
+
+### Backend Ownership
+
+| Layer | Today's location | Future ownership | Notes |
+|---|---|---|---|
+| Reusable STT (transcribe, stream WS, VAD, speaker verification) | `api/internal/voice/` | `audio-tools` | Whisper, language passthrough, hallucination filter, segment finalization, speaker accept/reject/advisory |
+| Reusable TTS core (synthesize, voices, normalize, paragraph split, chunk) | `api/internal/tts/` | `audio-tools` | Kokoro client today; provider routing belongs to audio-tools |
+| Audio processing (transcode) | `api/internal/audio/transcode.go` | `audio-tools` | ffmpeg wrapper; resampling and codec policy migrate with it |
+| Capability ports (consumer-facing interfaces) | `api/internal/audioports/` | **web-console** | Stays as the adoption boundary; future audio-tools client implements these |
+| Conversation auto-TTS trigger policy | `api/conversation_router.go`, `api/conversation_store.go` | **web-console** | Decides *when* to ask for audio for which session/event |
+| TTS cache (pre-synthesis, event invalidation) | `api/tts_cache.go` | Split — provider-level cache to audio-tools; conversation-event eviction stays in web-console | `eventID`-keyed invalidation is conversation glue; raw audio caching is capability behavior |
+| TTS summarization service (cooldown, inflight dedupe) | `api/tts_summarization_service.go` | `audio-tools` | Pure summarizer + service; orchestration trigger stays in web-console |
+| Hook attribution (Claude Stop hook, Codex tailer → ConversationEvent) | `api/tts_hook_handler.go`, `api/codex_tailer.go` | **web-console** | Per-session attribution is not an audio concern |
+| Playback ack / status snapshots | `api/tts_playback.go` | **web-console** | Tied to conversation cursor semantics |
+| Connect-RPC transport (handlers/voice, handlers/tts) | `api/handlers/{voice,tts}/` | **web-console** until adoption | Becomes a thin client of audio-tools after adoption |
+
+### Frontend Ownership
+
+| Layer | Today's location | Future ownership | Notes |
+|---|---|---|---|
+| Audio adoption boundary (re-export surface) | `ui/src/domains/audio/` | **web-console** | Single import path orchestration code uses; pointed at in-tree hooks today, swapped to audio-tools client at adoption time |
+| Mic capture, VAD, audio context, provider mechanics (Whisper/VoiceStream/WebSpeech/Kokoro/browser-TTS) | `ui/src/hooks/voice/**`, `ui/src/hooks/tts/**` | `audio-tools` | Reusable across any audio-consuming scenario |
+| `useVoiceInput`, `useTextToSpeech` hook orchestration | `ui/src/hooks/use*.ts` | Split — generic readiness/lifecycle to audio-tools; terminal-input-gate wiring stays | See [`ui/src/domains/audio/README.md`](../../ui/src/domains/audio/README.md) for the per-file classification |
+| `tts-playback` controller (listened-cursor, auto-TTS policy) | `ui/src/domains/tts-playback/` | **web-console** | Conversation-cursor state machine is web-console concern |
+| Terminal voice command targeting + transcript injection | `ui/src/components/terminal/**`, `VoiceMicButton.tsx` | **web-console** | Routes to active pane through `TerminalInputGate` |
+| Settings panels (`VoiceInputSection`, `TtsSettingsSection`) | `ui/src/components/settings/` | Split — generic capability controls to audio-tools; terminal-input integration toggles stay | Today bundled; future "show what audio-tools provides" panel lives in [`IntegrationsPanel`](../../ui/src/components/IntegrationsPanel.tsx) |
+
+### Connected Scenarios Registry
+
+The single source of truth for "which other scenarios does web-console integrate with" is `api/internal/capabilities/registry.go`. Each entry declares:
+
+- `DependencyKind` — `DependencyResource` (local resource) or `DependencyScenario` (another scenario).
+- The features it unlocks (used by [CODE: api/internal/capabilities/checkers.go] to gate behavior).
+- The probe used to detect availability (`vrooli scenario status <slug>` for scenarios).
+
+`audio-tools` is registered today as a `DependencyScenario` with the 9 feature keys it will unlock when shipped. The probe shells out via the Vrooli CLI (per the [wrap-not-use principle](../../../../docs/concepts/principles/wrap-not-use.md)) and returns "not yet available" until the scenario exists.
+
+The Integrations settings tab renders this registry as two grouped subsections: **Connected Scenarios** (other Vrooli scenarios this one depends on) and **Local Resources** (Ollama/Whisper/Kokoro/Postgres/Redis). When audio-tools ships, no registry change is required — the existing checker starts returning `available`, and the dependent feature gates flip on automatically.
+
+### Capability Ports — Adoption Seam
+
+[CODE: api/internal/audioports/ports.go] declares `SpeechToText`, `TextToSpeech`, and `SpeechTextProcessor`. Conversation, terminal, and hook orchestration code talks **only** to these ports — never directly to `internal/voice`, `internal/tts`, or Kokoro/Whisper/Ollama clients. The local implementation (in package main wiring) is backed by today's `internal/*` packages; the future audio-tools implementation will be backed by an HTTP/Connect/WebSocket client. Adoption is then a single wiring change.
+
+Greenfield assertion tests in [CODE: api/greenfield_assertions_test.go] lock the rule against regression.
+
 ## Key Design Decisions
 
 | Decision | Rationale |

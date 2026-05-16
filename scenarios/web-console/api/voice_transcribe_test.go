@@ -39,6 +39,7 @@ func serverWithCapability(available bool) *Server {
 		reg,
 		&m.VoiceSkipVerificationTotal,
 		intvoice.ResolveWhisperURL(),
+		nil,
 		audio.Transcode,
 	)
 	return srv

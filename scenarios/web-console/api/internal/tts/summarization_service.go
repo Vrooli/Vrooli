@@ -1,4 +1,4 @@
-package main
+package tts
 
 import (
 	"context"
@@ -10,39 +10,43 @@ import (
 )
 
 const (
-	defaultTTSSummarizeConcurrency = 2
-	autoSummarizeFailureCooldown   = 30 * time.Second
+	defaultSummarizeConcurrency  = 2
+	autoSummarizeFailureCooldown = 30 * time.Second
 )
 
-var errTTSSummarizeCoolingDown = errors.New("summarization cooling down after a recent failure")
+// ErrSummarizeCoolingDown is returned by SummarizationService.Summarize when
+// the auto path is in backoff after a recent failure.
+var ErrSummarizeCoolingDown = errors.New("summarization cooling down after a recent failure")
 
-// errSummarizeBudgetInThink / errSummarizeTruncated / errSummarizeEmptyAfterStrip
-// / errSummarizeTrulyEmpty are the four categorized empty-result sentinels used
+// ErrSummarizeBudgetInThink / ErrSummarizeTruncated / ErrSummarizeEmptyAfterStrip
+// / ErrSummarizeTrulyEmpty are the four categorized empty-result sentinels used
 // by the service and error-message helpers. Each names a distinct failure mode
 // so logs and user-facing banners can say something actionable.
 var (
-	errSummarizeBudgetInThink   = summarizeError("budget exhausted inside <think>")
-	errSummarizeTruncated       = summarizeError("response truncated (done_reason=length)")
-	errSummarizeEmptyAfterStrip = summarizeError("empty after stripping <think> block")
-	errSummarizeTrulyEmpty      = summarizeError("truly empty response from model")
+	ErrSummarizeBudgetInThink   = summarizeError("budget exhausted inside <think>")
+	ErrSummarizeTruncated       = summarizeError("response truncated (done_reason=length)")
+	ErrSummarizeEmptyAfterStrip = summarizeError("empty after stripping <think> block")
+	ErrSummarizeTrulyEmpty      = summarizeError("truly empty response from model")
 )
 
 type summarizeError string
 
 func (e summarizeError) Error() string { return string(e) }
 
-type TTSSummarizeRequest struct {
+// SummarizeRequest is the input to SummarizationService.Summarize.
+type SummarizeRequest struct {
 	EventID string
 	Path    string
 	Text    string
 }
 
-type TTSSummarizeResult struct {
+// SummarizeResult carries the summary and diagnostic fields.
+type SummarizeResult struct {
 	Summary    string
 	Paragraphs []string
-	Config     TTSSummarizeConfig
+	Config     SummarizeConfig
 	ElapsedMs  int64
-	// Diagnostics carried from the underlying TTSSummarizer response so the
+	// Diagnostics carried from the underlying Summarizer response so the
 	// unified tts-summarize log line can distinguish real empty responses from
 	// token-budget-exhausted truncation.
 	DoneReason string
@@ -50,50 +54,54 @@ type TTSSummarizeResult struct {
 	RawLen     int
 }
 
-type ttsSummarizeFuture struct {
+type summarizeFuture struct {
 	done   chan struct{}
-	result TTSSummarizeResult
+	result SummarizeResult
 	err    error
 }
 
-type TTSSummarizationService struct {
-	summarizer *TTSSummarizer
-	getConfig  func() TTSSummarizeConfig
+// SummarizationService coordinates Ollama summarization with cooldown,
+// inflight deduplication, and empty-summary classification.
+type SummarizationService struct {
+	summarizer *Summarizer
+	getConfig  func() SummarizeConfig
 	sem        chan struct{}
 
 	mu          sync.Mutex
-	inflight    map[string]*ttsSummarizeFuture
+	inflight    map[string]*summarizeFuture
 	autoBackoff map[string]time.Time
 }
 
-func NewTTSSummarizationService(summarizer *TTSSummarizer, getConfig func() TTSSummarizeConfig) *TTSSummarizationService {
-	return &TTSSummarizationService{
+// NewSummarizationService constructs a service backed by the given summarizer
+// and config accessor.
+func NewSummarizationService(summarizer *Summarizer, getConfig func() SummarizeConfig) *SummarizationService {
+	return &SummarizationService{
 		summarizer:  summarizer,
 		getConfig:   getConfig,
-		sem:         make(chan struct{}, defaultTTSSummarizeConcurrency),
-		inflight:    make(map[string]*ttsSummarizeFuture),
+		sem:         make(chan struct{}, defaultSummarizeConcurrency),
+		inflight:    make(map[string]*summarizeFuture),
 		autoBackoff: make(map[string]time.Time),
 	}
 }
 
-func (s *TTSSummarizationService) Summarize(ctx context.Context, req TTSSummarizeRequest) (TTSSummarizeResult, error) {
+func (s *SummarizationService) Summarize(ctx context.Context, req SummarizeRequest) (SummarizeResult, error) {
 	if s == nil || s.summarizer == nil {
-		return TTSSummarizeResult{}, errors.New("summarizer unavailable")
+		return SummarizeResult{}, errors.New("summarizer unavailable")
 	}
 
 	cfg := s.getConfig()
 	if req.Path == "auto" {
 		if blocked := s.autoBackoffUntil(req.EventID); !blocked.IsZero() && time.Now().Before(blocked) {
-			return TTSSummarizeResult{Config: cfg}, errTTSSummarizeCoolingDown
+			return SummarizeResult{Config: cfg}, ErrSummarizeCoolingDown
 		}
 	}
 
 	s.mu.Lock()
 	if future, ok := s.inflight[req.EventID]; ok {
 		s.mu.Unlock()
-		return waitForTTSSummarizeFuture(ctx, future)
+		return waitForSummarizeFuture(ctx, future)
 	}
-	future := &ttsSummarizeFuture{done: make(chan struct{})}
+	future := &summarizeFuture{done: make(chan struct{})}
 	s.inflight[req.EventID] = future
 	s.mu.Unlock()
 
@@ -114,7 +122,7 @@ func (s *TTSSummarizationService) Summarize(ctx context.Context, req TTSSummariz
 	return result, err
 }
 
-func (s *TTSSummarizationService) autoBackoffUntil(eventID string) time.Time {
+func (s *SummarizationService) autoBackoffUntil(eventID string) time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	until := s.autoBackoff[eventID]
@@ -125,17 +133,21 @@ func (s *TTSSummarizationService) autoBackoffUntil(eventID string) time.Time {
 	return until
 }
 
-func (s *TTSSummarizationService) run(ctx context.Context, req TTSSummarizeRequest, cfg TTSSummarizeConfig) (TTSSummarizeResult, error) {
+func (s *SummarizationService) run(ctx context.Context, req SummarizeRequest, cfg SummarizeConfig) (SummarizeResult, error) {
 	select {
 	case s.sem <- struct{}{}:
 	case <-ctx.Done():
-		return TTSSummarizeResult{Config: cfg}, ctx.Err()
+		return SummarizeResult{Config: cfg}, ctx.Err()
 	}
 	defer func() { <-s.sem }()
 
+	// Same-package call — no port indirection needed here. The port lives at
+	// the consumer (audioports) for callers that want to swap out the entire
+	// speech-text pipeline; inside this package we are the canonical
+	// implementation and call directly.
 	normalized := NormalizeTextForSpeech(req.Text)
 	if strings.TrimSpace(normalized) == "" {
-		return TTSSummarizeResult{Config: cfg}, errors.New("normalized text is empty")
+		return SummarizeResult{Config: cfg}, errors.New("normalized text is empty")
 	}
 
 	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
@@ -149,7 +161,7 @@ func (s *TTSSummarizationService) run(ctx context.Context, req TTSSummarizeReque
 	resp, err := s.summarizer.Summarize(runCtx, normalized, cfg.Model, cfg.Level)
 	elapsedMs := time.Since(started).Milliseconds()
 	if err != nil {
-		return TTSSummarizeResult{
+		return SummarizeResult{
 			Config:     cfg,
 			ElapsedMs:  elapsedMs,
 			DoneReason: resp.DoneReason,
@@ -159,7 +171,7 @@ func (s *TTSSummarizationService) run(ctx context.Context, req TTSSummarizeReque
 	}
 
 	summary := strings.TrimSpace(resp.Content)
-	result := TTSSummarizeResult{
+	result := SummarizeResult{
 		Config:     cfg,
 		ElapsedMs:  elapsedMs,
 		DoneReason: resp.DoneReason,
@@ -178,7 +190,7 @@ func (s *TTSSummarizationService) run(ctx context.Context, req TTSSummarizeReque
 // classifyEmptySummary picks the most descriptive sentinel error for an empty
 // result so the unified error message and metrics can tell apart token-budget
 // starvation from an actually-empty model response.
-func classifyEmptySummary(resp TTSSummarizerResponse) error {
+func classifyEmptySummary(resp SummarizerResponse) error {
 	raw := resp.RawContent
 	startsInThink := strings.HasPrefix(raw, "<think>")
 	hadThinkBlock := strings.Contains(raw, "<think>")
@@ -186,21 +198,21 @@ func classifyEmptySummary(resp TTSSummarizerResponse) error {
 
 	switch {
 	case truncated && startsInThink:
-		return errSummarizeBudgetInThink
+		return ErrSummarizeBudgetInThink
 	case truncated:
-		return errSummarizeTruncated
+		return ErrSummarizeTruncated
 	case hadThinkBlock:
 		// Closed think block but no content after strip.
-		return errSummarizeEmptyAfterStrip
+		return ErrSummarizeEmptyAfterStrip
 	default:
-		return errSummarizeTrulyEmpty
+		return ErrSummarizeTrulyEmpty
 	}
 }
 
-func waitForTTSSummarizeFuture(ctx context.Context, future *ttsSummarizeFuture) (TTSSummarizeResult, error) {
+func waitForSummarizeFuture(ctx context.Context, future *summarizeFuture) (SummarizeResult, error) {
 	select {
 	case <-ctx.Done():
-		return TTSSummarizeResult{}, ctx.Err()
+		return SummarizeResult{}, ctx.Err()
 	case <-future.done:
 		return future.result, future.err
 	}
@@ -213,19 +225,20 @@ func isDeadlineExceededError(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "context deadline exceeded")
 }
 
-func summarizeErrorMessage(err error) string {
+// SummarizeErrorMessage maps service errors to user-facing strings.
+func SummarizeErrorMessage(err error) string {
 	switch {
 	case err == nil:
 		return ""
-	case errors.Is(err, errSummarizeBudgetInThink):
+	case errors.Is(err, ErrSummarizeBudgetInThink):
 		return "Model spent its entire token budget on internal reasoning. Try a shorter input or a non-reasoning model."
-	case errors.Is(err, errSummarizeTruncated):
+	case errors.Is(err, ErrSummarizeTruncated):
 		return "Model response was truncated before producing a summary. Increase the token budget or try a smaller level."
-	case errors.Is(err, errSummarizeEmptyAfterStrip):
+	case errors.Is(err, ErrSummarizeEmptyAfterStrip):
 		return "Model produced only reasoning, no summary. Try a different model."
-	case errors.Is(err, errSummarizeTrulyEmpty):
+	case errors.Is(err, ErrSummarizeTrulyEmpty):
 		return "Summarizer returned empty response."
-	case errors.Is(err, errTTSSummarizeCoolingDown):
+	case errors.Is(err, ErrSummarizeCoolingDown):
 		return "Summarization is cooling down after a recent timeout"
 	case isDeadlineExceededError(err):
 		return "Summarization timed out before Ollama returned a result"

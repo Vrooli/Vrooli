@@ -43,6 +43,7 @@ import (
 	workspaceH "web-console/handlers/workspace"
 	intai "web-console/internal/ai"
 	"web-console/internal/audio"
+	"web-console/internal/audioports"
 	"web-console/internal/backend"
 	"web-console/internal/capabilities"
 	"web-console/internal/config"
@@ -50,6 +51,7 @@ import (
 	"web-console/internal/metrics"
 	intsessions "web-console/internal/sessions"
 	"web-console/internal/sessionstore"
+	inttts "web-console/internal/tts"
 	intvoice "web-console/internal/voice"
 	intworkspace "web-console/internal/workspace"
 )
@@ -115,48 +117,63 @@ func isDuplicateColumnError(err error) bool {
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // Server wires the HTTP router, database connection, and session manager.
 type Server struct {
-	db                            *sql.DB
-	router                        *mux.Router
-	sessions                      *session.Manager
-	fanouts                       *ConversationFanoutRegistry
-	events                        *events.Logger
-	metrics                       *metrics.Metrics
-	backendRegistry               *backend.Registry
-	sessionStore                  sessionstore.Store
-	aiChain                       *intai.Chain
-	shortcuts                     ShortcutStore
-	aiConfig                      intai.ConfigStore
-	ai                            *intai.Service
-	sweeper                       *session.ExpirationSweeper
-	idempotency                   *intsessions.IdempotencyCache // replay-safe session creation
-	capabilities                  *capabilities.Registry
-	workspace                     intworkspace.Store
-	voice                         *intvoice.Service
-	ttsConfigMu                   sync.RWMutex
-	ttsConfig                     TTSConfig
-	ttsConfigPath                 string
-	ttsSummarizer                 *TTSSummarizer
-	ttsSummarizeMu                sync.RWMutex
-	ttsSummarizeConfig            TTSSummarizeConfig
-	ttsSummarizePath              string
-	ttsSummarization              *TTSSummarizationService
-	hookAuthToken                 string
-	codexTailer                   *CodexTailer
-	codexCheckpointStore          CodexCheckpointStore
-	ttsCache                      *TTSCache
-	ttsSynthesizer                TTSSynthesizer
-	ttsVoiceLister                TTSVoiceLister
-	conversations                 *ConversationStore
-	ttsStatusMu                   sync.RWMutex
-	lastTTSRouting                *ConversationAppendResult
-	lastTTSAt                     time.Time
-	lastTTSBySource               map[string]conversationAppendSnapshot
-	lastTTSAck                    *TTSClientAck
-	lastTTSAckAt                  time.Time
-	lastTTSAckBySrc               map[string]ttsAckSnapshot
-	lastTTSPlayback               *TTSPlaybackEvent
-	lastTTSPlayAt                 time.Time
-	systemContext                 *intai.SystemContext
+	db                   *sql.DB
+	router               *mux.Router
+	sessions             *session.Manager
+	fanouts              *ConversationFanoutRegistry
+	events               *events.Logger
+	metrics              *metrics.Metrics
+	backendRegistry      *backend.Registry
+	sessionStore         sessionstore.Store
+	aiChain              *intai.Chain
+	shortcuts            ShortcutStore
+	aiConfig             intai.ConfigStore
+	ai                   *intai.Service
+	sweeper              *session.ExpirationSweeper
+	idempotency          *intsessions.IdempotencyCache // replay-safe session creation
+	capabilities         *capabilities.Registry
+	workspace            intworkspace.Store
+	voice                *intvoice.Service
+	ttsConfigMu          sync.RWMutex
+	ttsConfig            inttts.Config
+	ttsConfigPath        string
+	ttsSummarizer        *inttts.Summarizer
+	ttsSummarizeMu       sync.RWMutex
+	ttsSummarizeConfig   inttts.SummarizeConfig
+	ttsSummarizePath     string
+	ttsSummarization     *inttts.SummarizationService
+	hookAuthToken        string
+	codexTailer          *CodexTailer
+	codexCheckpointStore CodexCheckpointStore
+	ttsCache             *inttts.Cache
+	ttsSynthesizer       TTSSynthesizer
+	ttsVoiceLister       TTSVoiceLister
+	// speechProcessor is the audio capability port for the markdown-to-speech
+	// text pipeline (normalize + paragraph split). Set to
+	// audioports.LocalSpeechTextProcessor{} in production; tests can substitute.
+	// The port abstraction is what audio-tools will eventually implement
+	// remotely; conversation/TTS orchestration code routes through this rather
+	// than calling internal/tts functions directly.
+	speechProcessor audioports.SpeechTextProcessor
+	// sttPort and ttsPort are the audio capability ports for transcription and
+	// speech synthesis. Set to audioports.LocalSpeechToText{} /
+	// audioports.LocalTextToSpeech{} in production; tests can substitute via
+	// SetSpeechToText / SetTextToSpeech. Orchestration callers route through
+	// these so the audio-tools scenario can later replace the local adapters
+	// with a remote-call implementation without touching package main glue.
+	sttPort         audioports.SpeechToText
+	ttsPort         audioports.TextToSpeech
+	conversations   *ConversationStore
+	ttsStatusMu     sync.RWMutex
+	lastTTSRouting  *ConversationAppendResult
+	lastTTSAt       time.Time
+	lastTTSBySource map[string]conversationAppendSnapshot
+	lastTTSAck      *TTSClientAck
+	lastTTSAckAt    time.Time
+	lastTTSAckBySrc map[string]ttsAckSnapshot
+	lastTTSPlayback *TTSPlaybackEvent
+	lastTTSPlayAt   time.Time
+	systemContext   *intai.SystemContext
 	// nextWSGen is a monotonically increasing generation counter; each
 	// new terminal WebSocket connection gets a fresh Gen that is echoed
 	// to the client in session_ready. Clients use it as the wsGen write
@@ -224,19 +241,19 @@ func NewServer(db *sql.DB) *Server {
 
 	// Resolve TTS config path
 	ttsPath := resolveTTSConfigPath()
-	ttsCfg, err := loadTTSConfig(ttsPath)
+	ttsCfg, err := inttts.LoadConfig(ttsPath)
 	if err != nil {
 		log.Printf("tts-config: using defaults: %v", err)
-		ttsCfg = DefaultTTSConfig()
+		ttsCfg = inttts.DefaultConfig()
 	}
 	log.Printf("tts-config: loaded: autoEnabled=%v", ttsCfg.AutoEnabled)
 
 	// Resolve TTS summarize config path
 	ttsSummarizePath := resolveTTSSummarizeConfigPath()
-	ttsSummarizeCfg, err := loadTTSSummarizeConfig(ttsSummarizePath)
+	ttsSummarizeCfg, err := inttts.LoadSummarizeConfig(ttsSummarizePath)
 	if err != nil {
 		log.Printf("tts-summarize-config: using defaults: %v", err)
-		ttsSummarizeCfg = DefaultTTSSummarizeConfig()
+		ttsSummarizeCfg = inttts.DefaultSummarizeConfig()
 	}
 	log.Printf("tts-summarize-config: loaded: enabled=%v threshold=%d level=%s model=%s",
 		ttsSummarizeCfg.Enabled, ttsSummarizeCfg.CharThreshold, ttsSummarizeCfg.Level, ttsSummarizeCfg.Model)
@@ -270,30 +287,31 @@ func NewServer(db *sql.DB) *Server {
 		report.Recovered, report.AwaitingRecovery, report.OrphanedTmux)
 
 	srv := &Server{
-		db:                            db,
-		router:                        mux.NewRouter(),
-		sessions:                      sessions,
-		fanouts:                       fanouts,
-		events:                        eventLog,
-		metrics:                       metrics,
-		backendRegistry:               backendRegistry,
-		sessionStore:                  sessionStore,
-		aiChain:                       intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider()),
-		shortcuts:                     NewSQLShortcutStore(db),
-		aiConfig:                      intai.NewSQLConfigStore(db),
-		sweeper:                       session.NewExpirationSweeper(sessions, eventLog, metrics),
-		idempotency:                   intsessions.NewIdempotencyCache(),
-		workspace:                     intworkspace.NewSQLStore(db),
-		ttsConfig:                     ttsCfg,
-		ttsConfigPath:                 ttsPath,
-		ttsSummarizeConfig:            ttsSummarizeCfg,
-		ttsSummarizePath:              ttsSummarizePath,
-		hookAuthToken:                 hookToken,
-		ttsCache:                      NewTTSCache(100 * 1024 * 1024), // 100MB
-		codexCheckpointStore:          NewSQLCodexCheckpointStore(db),
-		conversations:                 NewConversationStoreWithRepository(NewSQLConversationRepository(db)),
-		lastTTSBySource:               make(map[string]conversationAppendSnapshot),
-		lastTTSAckBySrc:               make(map[string]ttsAckSnapshot),
+		db:                   db,
+		router:               mux.NewRouter(),
+		sessions:             sessions,
+		fanouts:              fanouts,
+		events:               eventLog,
+		metrics:              metrics,
+		backendRegistry:      backendRegistry,
+		sessionStore:         sessionStore,
+		aiChain:              intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider()),
+		shortcuts:            NewSQLShortcutStore(db),
+		aiConfig:             intai.NewSQLConfigStore(db),
+		sweeper:              session.NewExpirationSweeper(sessions, eventLog, metrics),
+		idempotency:          intsessions.NewIdempotencyCache(),
+		workspace:            intworkspace.NewSQLStore(db),
+		ttsConfig:            ttsCfg,
+		ttsConfigPath:        ttsPath,
+		ttsSummarizeConfig:   ttsSummarizeCfg,
+		ttsSummarizePath:     ttsSummarizePath,
+		hookAuthToken:        hookToken,
+		ttsCache:             inttts.NewCache(100 * 1024 * 1024), // 100MB
+		codexCheckpointStore: NewSQLCodexCheckpointStore(db),
+		conversations:        NewConversationStoreWithRepository(NewSQLConversationRepository(db)),
+		lastTTSBySource:      make(map[string]conversationAppendSnapshot),
+		lastTTSAckBySrc:      make(map[string]ttsAckSnapshot),
+		speechProcessor:      audioports.LocalSpeechTextProcessor{},
 	}
 	srv.systemContext = intai.DiscoverSystemContext(intai.DefaultLookPath)
 	log.Printf("system-context: os=%s/%s shell=%s tools-found=%d",
@@ -307,8 +325,8 @@ func NewServer(db *sql.DB) *Server {
 	speakerVerificationURL := getEnvOrDefault("SPEAKER_VERIFICATION_URL", "http://localhost:8891")
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
 
-	srv.ttsSummarizer = NewTTSSummarizer(ollamaURL)
-	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	srv.ttsSummarizer = inttts.NewSummarizer(ollamaURL)
+	srv.ttsSummarization = inttts.NewSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
 	speakerClient := &intvoice.SpeakerClient{
 		BaseURL: speakerVerificationURL,
 		Client:  &http.Client{Timeout: 5 * time.Second},
@@ -336,6 +354,11 @@ func NewServer(db *sql.DB) *Server {
 			APIKey: openrouterKey,
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
+		// Connected scenarios. Each DependencyScenario entry in capabilities.Known
+		// needs a checker so the integrations UI can render real status. These
+		// shell out to the Vrooli CLI rather than calling another scenario's API
+		// directly — see project_wrap_not_use_principle.
+		"audio-tools": &capabilities.ScenarioChecker{Slug: "audio-tools"},
 	}
 	srv.capabilities = capabilities.NewRegistry(capabilities.Known, checkers, 30*time.Second)
 	srv.ttsSynthesizer = &KokoroSynthesizer{
@@ -345,6 +368,11 @@ func NewServer(db *sql.DB) *Server {
 	srv.ttsVoiceLister = &KokoroVoiceLister{
 		BaseURL: kokoroURL,
 		Client:  &http.Client{Timeout: 5 * time.Second},
+	}
+	srv.ttsPort = audioports.LocalTextToSpeech{
+		Synthesizer: srv.ttsSynthesizer,
+		VoiceLister: srv.ttsVoiceLister,
+		Cache:       srv.ttsCache,
 	}
 	// Register lightweight liveness-only checkers for fast pre-recording checks.
 	// These use GET-only health checks (no test transcription/synthesis).
@@ -368,6 +396,9 @@ func NewServer(db *sql.DB) *Server {
 		"openrouter": &capabilities.OpenRouterChecker{
 			APIKey: openrouterKey,
 		},
+		// Same checker as the full pass — `vrooli scenario status` is already
+		// fast and never blocks on a heavy probe.
+		"audio-tools": &capabilities.ScenarioChecker{Slug: "audio-tools"},
 	})
 	// Warm capability cache so the first /capabilities request returns instantly.
 	go func() {
@@ -384,9 +415,11 @@ func NewServer(db *sql.DB) *Server {
 		speakerClient,
 		srv.capabilities,
 		&srv.metrics.VoiceSkipVerificationTotal,
-		intvoice.ResolveWhisperURL(),
+		whisperURL+"/asr?output=json",
+		&http.Client{Timeout: 30 * time.Second},
 		audio.Transcode,
 	)
+	srv.sttPort = audioports.LocalSpeechToText{Backend: srv.voice}
 
 	srv.sweeper.Start()
 	sessions.StartReattachWatchdog()
@@ -494,6 +527,18 @@ func (s *Server) Handler() http.Handler {
 		handlers.AllowedHeaders([]string{"Content-Type", "X-Request-ID"}),
 	)
 	return handlers.RecoveryHandler()(cors(s.router))
+}
+
+// SetSpeechToText substitutes the SpeechToText port. Tests use this to inject
+// fakes; production wiring sets a LocalSpeechToText in NewServer.
+func (s *Server) SetSpeechToText(p audioports.SpeechToText) {
+	s.sttPort = p
+}
+
+// SetTextToSpeech substitutes the TextToSpeech port. Tests use this to inject
+// fakes; production wiring sets a LocalTextToSpeech in NewServer.
+func (s *Server) SetTextToSpeech(p audioports.TextToSpeech) {
+	s.ttsPort = p
 }
 
 type contextKey string

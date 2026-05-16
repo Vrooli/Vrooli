@@ -45,3 +45,218 @@ Sessions with default never-expire policy could accumulate unbounded transcript 
 **Remaining gaps:**
 - No BAS mobile viewport workflow yet for floating toolbar key/chord behavior.
 - Playbooks phase currently blocks on BAS startup when browser-automation-studio dependencies are unavailable (e2e workflows present but cannot execute).
+
+## 10. Audio Extraction Prep — Deferred Sub-Phases (2026-05-16)
+
+Active initiative: `swarm-manager/initiatives/continuous-audio-platform`. The
+plan at `/home/matthalloran8/.vrooli/plans/web-console-audio-extraction-prep-for-audio-tools.md`
+defines 8 phases. The 2026-05-16 implementation pass completed:
+
+- **Phase 0** (baseline) — focused voice/TTS tests green.
+- **Phase 2 (partial)** — `NormalizeTextForSpeech`, `SplitIntoSpeechParagraphs`,
+  `TTSMaxChunkLength` and their tests now live in `api/internal/tts`. The
+  `inttts.*` qualifier is the new call shape for `package main` consumers
+  (`conversation_router.go`, `conversation_adapter.go`, `conversation_store.go`,
+  `tts_summarization_service.go`).
+- **Phase 3** — voice domain dependency direction inverted. Handler types,
+  Service interface, Backend interface, and the production Adapter all live in
+  `api/internal/voice` (`types.go`, `handler_adapter.go`). `handlers/voice/module.go`
+  is now a thin re-export shim; `handlers/voice/adapter.go` deleted. Exit
+  criterion verified: `rg 'web-console/handlers/voice|voiceH\\.' internal/voice
+  --type go` → zero hits.
+- **Phase 5 (partial)** — `TestGreenfield_TTSReusableCoreNotInPackageMain` and
+  `TestGreenfield_InternalAudioDomainsDoNotImportHandlers` added to
+  `api/greenfield_assertions_test.go`. They lock the boundary against
+  regression.
+
+The following sub-phases are deferred and **must be completed before the
+`scenarios/audio-tools` greenfield item can land cleanly**:
+
+- **Phase 2 (remaining) — DONE 2026-05-16.** All reusable TTS core types and
+  functions have moved into `api/internal/tts`:
+  - `Cache`, `CacheKey`, `CacheEntry`, `CacheStats`, `NewCache`,
+    `cacheKeyHash` live in `internal/tts/cache.go`.
+  - `Summarizer`, `SummarizerResponse`, `NewSummarizer`, `StripThinkTags`,
+    `summarizeSystemPrompts`, `summarizeTokenBudget` live in
+    `internal/tts/summarizer.go`.
+  - `SummarizationService`, `SummarizeRequest`, `SummarizeResult`,
+    `NewSummarizationService`, sentinel errors `ErrSummarizeCoolingDown`,
+    `ErrSummarizeBudgetInThink`, `ErrSummarizeTruncated`,
+    `ErrSummarizeEmptyAfterStrip`, `ErrSummarizeTrulyEmpty`,
+    `SummarizeErrorMessage`, `classifyEmptySummary` live in
+    `internal/tts/summarization_service.go`. The previous
+    `audioports.SpeechTextProcessor` indirection inside the service is gone;
+    the service calls `NormalizeTextForSpeech` / `SplitIntoSpeechParagraphs`
+    directly (same package — no port needed). The port abstraction at the
+    consumer (conversation/store) layer is unchanged.
+  - `DefaultConfig`, `ConfigPatch.Apply`, `LoadConfig`, `SaveConfig` live in
+    `internal/tts/config.go` (the `Config` and `ConfigPatch` types
+    pre-existed in `types.go`).
+  - `DefaultSummarizeConfig`, `SummarizeConfigPatch.Apply`,
+    `LoadSummarizeConfig`, `SaveSummarizeConfig`,
+    `MinSummarizeTimeoutSeconds`, `DefaultSummarizeTimeoutSeconds`,
+    `MaxSummarizeTimeoutSeconds` live in `internal/tts/summarize_config.go`.
+  - Pure-logic tests moved alongside: `cache_test.go`, `config_test.go`,
+    `summarize_config_test.go`, `summarizer_test.go`,
+    `summarization_service_test.go` all under `internal/tts`.
+  - Server-tied glue stays in `package main`: `tts_cache.go` keeps
+    `invalidateTTSCacheForEvent`, `preSynthesizeTTS`,
+    `synthesizeParagraphs`; `tts_config.go` keeps `getTTSConfig`/
+    `setTTSConfig`/`getTTSSummarizeConfig`/`setTTSSummarizeConfig`/
+    `resolveTTSSummarizeConfigPath`. The `Server` fields now type-hold
+    `inttts.Config`, `inttts.SummarizeConfig`, `inttts.Cache`,
+    `inttts.Summarizer`, `inttts.SummarizationService` directly — no
+    aliases.
+  - `greenfield_assertions_test.go::TestGreenfield_TTSReusableCoreNotInPackageMain`
+    locks the boundary against regression for the moved files and the
+    type/function definitions.
+- **Phase 4 (extension) — DONE 2026-05-16.** `LocalSpeechToText` and
+  `LocalTextToSpeech` adapters now live under `internal/audioports/`
+  (`local_stt.go`, `local_tts.go`) and are wired by `NewServer` into
+  `Server.sttPort` / `Server.ttsPort`. `SetSpeechToText` / `SetTextToSpeech`
+  setters let tests substitute fakes. Orchestration callsites in
+  `tts_adapter.go` (Synthesize / ListVoices / GetCache) and
+  `tts_cache.go::synthesizeParagraphs` / `preSynthesizeTTS` route through
+  `s.ttsPort`; cache writes in the on-demand path still go via
+  `s.ttsCache.Put` because the conversation-event-keyed cache is web-console
+  glue (per the Phase 8 dossier). The greenfield assertion
+  `TestGreenfield_OrchestrationGoesThroughAudioPorts` in
+  `greenfield_assertions_test.go` locks the boundary: package-main files
+  (other than `main.go` which constructs the local adapters) must not
+  reference `s.voiceService.Transcribe`, `s.ttsSynthesizer.Synthesize`,
+  `s.ttsVoiceLister.ListVoices`, `internal/voice.Service.Transcribe`,
+  `internal/tts.KokoroSynthesizer`, or `internal/tts.KokoroVoiceLister`. The
+  summarize pipeline (`SummarizationService`, `SummarizeRequest`,
+  `SummarizeResult`, `SummarizeErrorMessage`, `ErrSummarizeCoolingDown`) is
+  explicitly NOT routed through audioports in this pass — that port shape
+  remains an open audio-tools-shared-contract question (see Phase 8
+  dossier). Also resolved the orchestration-level double-normalize wart:
+  `conversation_router.go::asyncSummarizeAndNotify` and
+  `conversation_adapter.go::SummarizeEvent` now pass `event.Text` directly
+  to `ttsSummarization.Summarize`, since normalization is a property of the
+  summarize pipeline (handled inside `SummarizationService.run`).
+- **Phase 6 (extension) — DONE 2026-05-16.** All UI consumers now import
+  audio capability surface through `ui/src/domains/audio` rather than
+  reaching directly into `hooks/voice/**` / `hooks/tts/**`. 16 consumer
+  files migrated (Workspace, TerminalPane, WorkspacePaneShell, MessagesPane,
+  MobileToolbar, VoiceRejectionBanner, VoiceCommandSuggestion, AudioPlayerBar,
+  tts/AudioSettingsContent, settings/VoiceInputSection, api/voice.ts,
+  domains/tts-playback/types.ts, and five `__tests__/*` consumer tests).
+  Added re-exports to `ui/src/domains/audio/index.ts`: `CommandSuggestion`,
+  `VoiceRejection` (voice types), `TTSPlaybackState`, `TTSPlaybackCapabilities`
+  (tts types), and the reusable wake-word surface (`createWakeWordEngine`,
+  `MIN_ENROLLMENT_SAMPLES`, `MAX_ENROLLMENT_SAMPLES`, `AudioFeatures`,
+  `WakeWordTemplate`, `useWakeWordTest`). Web-console-specific paths
+  (`hooks/voice/commands`, `commandParser`, `audioCues`, `activity`,
+  `useVoiceInput`, `useTextToSpeech`) deliberately stay direct per README
+  classification. Boundary locked by
+  `ui/src/__tests__/audio-boundary.test.ts`, which walks `src/**/*.{ts,tsx}`,
+  skips the adoption surface / underlying hooks / test files, and flags any
+  `from "...hooks/voice/...|hooks/tts/..."` import outside the documented
+  web-console-specific allowlist. Verification: `pnpm type-check`,
+  `pnpm test -- --run` (116/116 batches pass, including the new boundary
+  test), and `pnpm build` all clean.
+- **Phase 7 — DONE 2026-05-16.** `ARCHITECTURE.md` now has an "Audio
+  Ownership Map" section with backend/frontend ownership tables, the
+  Connected Scenarios Registry contract, and the capability-port adoption
+  seam description. DOMAINS.md and SEAMS.md already covered earlier in the
+  pass.
+- **Connected scenarios registry — DONE 2026-05-16.** `audio-tools` is now
+  declared in `capabilities.Known` with `DependencyKind: DependencyScenario`;
+  `ScenarioChecker` probes via `vrooli scenario status <slug>`; the
+  Integrations settings tab renders a "Connected Scenarios" subsection
+  separate from "Local Resources". When `scenarios/audio-tools` ships, no
+  registry change is required — the existing checker will start returning
+  `available` automatically.
+- **Phase 8 — DOSSIER BELOW 2026-05-16.** Source dossier captured inline (next
+  subsection) since in-repo edits to
+  `swarm-manager/execute/audio-tools-greenfield-scenario/plan.md` were not
+  authorized in this pass. Promote into that plan when the audio-tools
+  greenfield item is picked up.
+
+### Phase 8 Dossier — input for `audio-tools-greenfield-scenario`
+
+**Source inventory — files to port into audio-tools (reusable capability core):**
+
+Backend:
+- `api/internal/voice/transcribe.go` — Whisper HTTP proxy, language passthrough, hallucination filter (deduplicate identical repeated outputs).
+- `api/internal/voice/stream_ws.go` — streaming transcription, partials, segment finals, final retranscription, cancellation, VAD boundaries.
+- `api/internal/voice/speaker.go` + `speaker_client.go` + `speaker_config.go` — speaker verification accept/reject/advisory/fallback decisions.
+- `api/internal/voice/wakeword.go`, `config.go` — wake-word config and voice config schema.
+- `api/internal/audio/transcode.go` — ffmpeg-backed transcode primitives.
+- `api/internal/tts/` — entire package: `kokoro_synthesize.go`, `kokoro_voices.go`, `normalizer.go`, `chunker.go`, `service.go`, `types.go`.
+- `api/tts_cache.go` — `TTSCache`, `TTSCacheKey`, `cacheKeyHash`, LRU + eviction (event-keyed `Evict()` is a thin convenience over key prefix — provider-level cache is the reusable part).
+- `api/tts_summarizer.go` — Ollama-backed `TTSSummarizer`, `summarizeSystemPrompts`, `summarizeTokenBudget`, `stripThinkTags`.
+- `api/tts_summarization_service.go` — `TTSSummarizationService` with cooldown, inflight dedupe, empty-summary classification, timeout/error sentinels.
+- `api/tts_config.go`, `api/tts_summarize_config.go` — config schemas + load/save (atomic JSON write).
+
+Frontend:
+- `ui/src/hooks/voice/**` — capture readiness, VAD utilities, provider mechanics (Whisper/VoiceStream/WebSpeech).
+- `ui/src/hooks/tts/**` — Kokoro provider, browser TTS provider, cache playback controls, unlock primitive.
+- `ui/src/hooks/useVoiceInput.ts`, `useTextToSpeech.ts` — split: lifecycle/readiness portion is reusable; terminal-input-gate wiring stays.
+- See [`ui/src/domains/audio/README.md`](../../ui/src/domains/audio/README.md) for the authoritative per-file classification.
+
+**Files that stay in web-console (consumer integration glue — do NOT port):**
+
+- `api/conversation_router.go`, `api/conversation_store.go`, `api/conversation_adapter.go` — auto-TTS trigger policy, listened-cursor, fan-out.
+- `api/tts_hook_handler.go` — Claude Stop hook attribution.
+- `api/codex_tailer.go` — Codex rollout tailer.
+- `api/tts_playback.go` — playback ack / status snapshots tied to conversation cursor.
+- `api/terminal_ws_input.go` — terminal-input-gate routing.
+- `api/internal/audioports/` — adoption boundary lives in the consumer; audio-tools provides an implementation.
+- `ui/src/domains/tts-playback/**` — conversation-cursor state machine.
+- `ui/src/components/VoiceMicButton.tsx`, `VoiceCommandSuggestion.tsx`, `VoiceRejectionBanner.tsx` — terminal-target UX (the underlying capture primitive is reusable; the targeting policy is not).
+
+**P0 behavior currently proven by web-console tests (must be replicated in audio-tools):**
+
+- Transcribe: language passthrough, hallucination filter, speaker verification bypass via flag, gating by speaker verification result.
+- Stream WS: partials emitted while listening, segment-final on VAD boundary, final retranscription on stop, cancellation, speaker advisory/reject flows.
+- Transcode: passthrough when no resample needed, ffmpeg invocation arg shape.
+- TTS config & summarize config: load returns defaults when file missing, atomic save, patch-apply semantics, timeout clamp on load.
+- TTS service: synthesize via Kokoro, voice list, Kokoro availability gating, invalid-args rejection, cache hit/miss, cache eviction by `eventID`.
+- Normalization/chunking: `NormalizeTextForSpeech`, `SplitIntoSpeechParagraphs` for code blocks, tables, diagrams, lists.
+- Summarizer + service: cooldown after timeout, inflight dedupe by `EventID`, `<think>` stripping, four-way empty-summary classification (budget-in-think / truncated / empty-after-strip / truly-empty), timeout clamp.
+
+**Contract decisions already settled by `audio-provider-routing-contract`:**
+
+- Provider precedence is BYOK → Vrooli/LPBS → Local. Web-console does not implement this — audio-tools owns it.
+- `ErrInsufficientCredits` short-circuits without falling through providers (BYOK/LPBS fail-fast).
+- Canonical voice mapping is owned by audio-tools (provider-specific voice IDs map to canonical names).
+- LPBS usage reporting and credit metering are not web-console concerns.
+
+**Tests that should be ported or rewritten in audio-tools:**
+
+- `api/voice_transcribe_test.go` → audio-tools STT service tests (drop the speaker-verification bypass cases that exercise web-console env-flag wiring).
+- `api/internal/voice/stream_ws_test.go` (if present) → audio-tools streaming-STT tests.
+- `api/internal/audio/transcode_test.go` → audio-tools transcoder tests.
+- `api/internal/tts/service_test.go`, `chunker_test.go`, `normalizer_test.go` → audio-tools TTS tests.
+- `api/tts_cache_test.go` → split: provider-level cache tests to audio-tools; conversation-eviction tests stay in web-console.
+- `api/tts_summarizer_test.go`, `tts_summarization_service_test.go` → audio-tools summarization tests.
+- `api/tts_config_test.go`, `api/tts_summarize_config_test.go` → audio-tools config tests.
+
+Tests that **stay** in web-console: `tts_hook_handler_test.go`, `tts_router_test.go` (conversation routing), `conversation_*_test.go` (auto-TTS trigger, listened cursor).
+
+**Open questions for `audio-tools-shared-scenario-contract`:**
+
+- Should `EventID` survive across the audio-tools boundary, or does audio-tools take an opaque cache key from the consumer? (Web-console invalidates by `EventID` today on conversation summarization.)
+- Is the `SpeechTextProcessor` port worth exposing remotely, or do consumers just call `Synthesize` and let audio-tools normalize/split internally?
+- Streaming STT transport: WebSocket-only, or Connect-streaming as the canonical surface with WebSocket as a browser-friendly mapping?
+- Speaker verification: separate Connect service or a `Transcribe` request flag?
+- Does audio-tools own the `qwen3:4b` summarization model choice, or does the consumer pass model preference?
+- Whose responsibility is the unlock-on-user-gesture primitive for browser TTS — audio-tools-provided component, or web-console-owned?
+
+**Adoption checklist for `web-console-adopt-audio-tools` (depends on this dossier):**
+
+1. Replace `audioports.LocalSpeechTextProcessor` with `audioports.AudioToolsProcessor` (HTTP/Connect client).
+2. Replace `Server.ttsSynthesizer` wiring (currently `internal/tts.NewKokoroSynthesizer`) with an audio-tools-backed `TextToSpeech` port.
+3. Replace `Server.voiceService` wiring with an audio-tools-backed `SpeechToText` port.
+4. Delete `api/internal/voice/`, `api/internal/audio/`, `api/internal/tts/` (or shrink to thin pass-through adapters if any web-console-specific behavior remains).
+5. Update `capabilities.Known["audio-tools"]` checker — already wired; ScenarioChecker starts returning `available` automatically.
+6. UI: change `ui/src/domains/audio/index.ts` re-exports from `hooks/voice/**` / `hooks/tts/**` to the audio-tools client; delete `ui/src/hooks/voice/**` and `ui/src/hooks/tts/**`.
+7. Migrate remaining UI consumers (Workspace, TerminalPane, settings) to import from `domains/audio` (deferred ratchet — see Phase 6 extension below).
+
+Preexisting failing tests not caused by this work:
+- `TestDocsManifestResolves` and `TestDocsNoStaleOldPaths` reference removed
+  doc paths (`DESIGN.md`, `concepts/FLOWS.md`, `internal/PROGRESS.md`, etc.).
+  Stale `docs/manifest.json` and `docs/START-HERE.md`; unrelated to audio
+  extraction prep.

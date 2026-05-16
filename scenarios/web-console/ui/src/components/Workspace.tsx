@@ -51,7 +51,7 @@ import SummarizeErrorBanner, { type SummarizeErrorState } from "./SummarizeError
 import EnableAudioBanner from "./EnableAudioBanner";
 import RecoverableSessionsBanner from "./RecoverableSessionsBanner";
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
-import type { TTSPlaybackState } from "../hooks/tts/types";
+import type { TTSPlaybackState } from "../domains/audio";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
 import { buildWorkspaceNavigationItems, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";

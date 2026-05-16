@@ -1,6 +1,6 @@
 import type { ConversationEvent } from "../../api/conversation";
 import type { SummarizationLevel } from "../../components/tts/PlaybackModeControl";
-import type { TTSPlaybackState } from "../../hooks/tts/types";
+import type { TTSPlaybackState } from "../audio";
 
 export type PlaybackVersion = "active" | "original";
 export type PlaybackIntent = "continuous" | "paused" | "stopped";

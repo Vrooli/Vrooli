@@ -1,4 +1,4 @@
-package main
+package tts
 
 import (
 	"bytes"
@@ -10,15 +10,15 @@ import (
 	"strings"
 )
 
-// TTSSummarizer calls Ollama to summarize text for TTS consumption.
-type TTSSummarizer struct {
+// Summarizer calls Ollama to summarize text for TTS consumption.
+type Summarizer struct {
 	BaseURL string
 	Client  *http.Client
 }
 
-// NewTTSSummarizer creates a summarizer that talks to the Ollama /api/chat endpoint.
-func NewTTSSummarizer(baseURL string) *TTSSummarizer {
-	return &TTSSummarizer{
+// NewSummarizer creates a summarizer that talks to the Ollama /api/chat endpoint.
+func NewSummarizer(baseURL string) *Summarizer {
+	return &Summarizer{
 		BaseURL: baseURL,
 		Client:  &http.Client{},
 	}
@@ -61,9 +61,9 @@ func summarizeTokenBudget(level string, inputChars int) int {
 	}
 }
 
-// TTSSummarizerResponse carries the answer plus the diagnostic signals we need
+// SummarizerResponse carries the answer plus the diagnostic signals we need
 // to distinguish a real empty response from a truncated/stripped one.
-type TTSSummarizerResponse struct {
+type SummarizerResponse struct {
 	// Content is the final post-strip, trimmed summary. May be empty — callers
 	// must inspect RawContent/DoneReason to classify the failure.
 	Content string
@@ -80,9 +80,9 @@ type TTSSummarizerResponse struct {
 // returns the stripped summary plus diagnostic fields. We pass `think: false`
 // at the request top level so reasoning models (qwen3 family) skip their
 // <think> block entirely — otherwise the reasoning alone blows past our
-// num_predict budget, Ollama truncates mid-thought, and stripThinkTags wipes
+// num_predict budget, Ollama truncates mid-thought, and StripThinkTags wipes
 // the unclosed block leaving an empty summary.
-func (s *TTSSummarizer) Summarize(ctx context.Context, text, model, level string) (TTSSummarizerResponse, error) {
+func (s *Summarizer) Summarize(ctx context.Context, text, model, level string) (SummarizerResponse, error) {
 	systemPrompt, ok := summarizeSystemPrompts[level]
 	if !ok {
 		systemPrompt = summarizeSystemPrompts["moderate"]
@@ -103,24 +103,24 @@ func (s *TTSSummarizer) Summarize(ctx context.Context, text, model, level string
 	}
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		return TTSSummarizerResponse{}, fmt.Errorf("marshal request: %w", err)
+		return SummarizerResponse{}, fmt.Errorf("marshal request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.BaseURL+"/api/chat", bytes.NewReader(jsonBody))
 	if err != nil {
-		return TTSSummarizerResponse{}, fmt.Errorf("create request: %w", err)
+		return SummarizerResponse{}, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := s.Client.Do(req)
 	if err != nil {
-		return TTSSummarizerResponse{}, fmt.Errorf("request failed: %w", err)
+		return SummarizerResponse{}, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return TTSSummarizerResponse{}, fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(respBody))
+		return SummarizerResponse{}, fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result struct {
@@ -131,21 +131,21 @@ func (s *TTSSummarizer) Summarize(ctx context.Context, text, model, level string
 		EvalCount  int    `json:"eval_count"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return TTSSummarizerResponse{}, fmt.Errorf("decode response: %w", err)
+		return SummarizerResponse{}, fmt.Errorf("decode response: %w", err)
 	}
 
 	raw := strings.TrimSpace(result.Message.Content)
-	return TTSSummarizerResponse{
-		Content:    stripThinkTags(raw),
+	return SummarizerResponse{
+		Content:    StripThinkTags(raw),
 		RawContent: raw,
 		DoneReason: result.DoneReason,
 		EvalCount:  result.EvalCount,
 	}, nil
 }
 
-// stripThinkTags removes <think>...</think> blocks that reasoning models
+// StripThinkTags removes <think>...</think> blocks that reasoning models
 // (e.g. qwen3) emit before their actual answer.
-func stripThinkTags(s string) string {
+func StripThinkTags(s string) string {
 	for {
 		start := strings.Index(s, "<think>")
 		if start < 0 {

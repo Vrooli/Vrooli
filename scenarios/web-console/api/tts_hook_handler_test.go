@@ -14,6 +14,7 @@ import (
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
 	"web-console/internal/sessionstore"
+	inttts "web-console/internal/tts"
 	intworkspace "web-console/internal/workspace"
 )
 
@@ -28,7 +29,7 @@ func newHookTestServer(token string) *Server {
 		metrics:       metrics.New(),
 		workspace:     intworkspace.NewMemStore(),
 		hookAuthToken: token,
-		ttsConfig:     TTSConfig{AutoEnabled: true, Backend: "auto", KokoroVoice: "af_heart", KokoroSpeed: 1.0},
+		ttsConfig:     inttts.Config{AutoEnabled: true, Backend: "auto", KokoroVoice: "af_heart", KokoroSpeed: 1.0},
 	}
 }
 

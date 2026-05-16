@@ -2,156 +2,13 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
-	"io"
 	"log"
-	"sync"
 	"time"
+
+	"web-console/internal/audioports"
+	inttts "web-console/internal/tts"
 )
-
-// TTSCacheKey identifies a cached TTS audio entry.
-type TTSCacheKey struct {
-	EventID string
-	Voice   string
-	Speed   float64
-	Version string // "active" | "original"
-}
-
-// cacheKeyHash returns a deterministic string hash for map storage.
-func cacheKeyHash(k TTSCacheKey) string {
-	raw := fmt.Sprintf("%s|%s|%.4f|%s", k.EventID, k.Voice, k.Speed, k.Version)
-	sum := sha256.Sum256([]byte(raw))
-	return fmt.Sprintf("%x", sum[:16])
-}
-
-// TTSCacheEntry holds cached audio data.
-type TTSCacheEntry struct {
-	Audio       []byte
-	ContentType string
-	CreatedAt   time.Time
-	eventID     string // for reverse lookup during eviction
-}
-
-// TTSCacheStats provides observability into cache state.
-type TTSCacheStats struct {
-	EntryCount int
-	TotalBytes int
-	MaxBytes   int
-}
-
-// TTSCache is an in-memory LRU audio cache for pre-synthesized TTS.
-type TTSCache struct {
-	mu       sync.RWMutex
-	entries  map[string]*TTSCacheEntry
-	order    []string // LRU order: oldest first
-	maxSize  int
-	currSize int
-}
-
-// NewTTSCache creates a cache with the given maximum size in bytes.
-func NewTTSCache(maxSizeBytes int) *TTSCache {
-	return &TTSCache{
-		entries: make(map[string]*TTSCacheEntry),
-		maxSize: maxSizeBytes,
-	}
-}
-
-// Get retrieves a cached entry. Returns nil, false on miss.
-func (c *TTSCache) Get(key TTSCacheKey) (*TTSCacheEntry, bool) {
-	hash := cacheKeyHash(key)
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	entry, ok := c.entries[hash]
-	return entry, ok
-}
-
-// Put stores audio in the cache, evicting oldest entries if necessary.
-func (c *TTSCache) Put(key TTSCacheKey, audio []byte, contentType string) {
-	hash := cacheKeyHash(key)
-	size := len(audio)
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	// If this single entry exceeds max size, don't cache it.
-	if size > c.maxSize {
-		return
-	}
-
-	// Remove existing entry with this key if present (update case).
-	if existing, ok := c.entries[hash]; ok {
-		c.currSize -= len(existing.Audio)
-		delete(c.entries, hash)
-		c.removeFromOrder(hash)
-	}
-
-	// Evict oldest entries until there's room.
-	for c.currSize+size > c.maxSize && len(c.order) > 0 {
-		c.evictOldest()
-	}
-
-	c.entries[hash] = &TTSCacheEntry{
-		Audio:       audio,
-		ContentType: contentType,
-		CreatedAt:   time.Now(),
-		eventID:     key.EventID,
-	}
-	c.order = append(c.order, hash)
-	c.currSize += size
-}
-
-// Evict removes all cached entries for a given event ID (all versions/voices).
-func (c *TTSCache) Evict(eventID string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	var toRemove []string
-	for hash, entry := range c.entries {
-		if entry.eventID == eventID {
-			toRemove = append(toRemove, hash)
-		}
-	}
-	for _, hash := range toRemove {
-		if entry, ok := c.entries[hash]; ok {
-			c.currSize -= len(entry.Audio)
-			delete(c.entries, hash)
-			c.removeFromOrder(hash)
-		}
-	}
-}
-
-// Stats returns current cache statistics.
-func (c *TTSCache) Stats() TTSCacheStats {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return TTSCacheStats{
-		EntryCount: len(c.entries),
-		TotalBytes: c.currSize,
-		MaxBytes:   c.maxSize,
-	}
-}
-
-func (c *TTSCache) evictOldest() {
-	if len(c.order) == 0 {
-		return
-	}
-	oldest := c.order[0]
-	c.order = c.order[1:]
-	if entry, ok := c.entries[oldest]; ok {
-		c.currSize -= len(entry.Audio)
-		delete(c.entries, oldest)
-	}
-}
-
-func (c *TTSCache) removeFromOrder(hash string) {
-	for i, h := range c.order {
-		if h == hash {
-			c.order = append(c.order[:i], c.order[i+1:]...)
-			return
-		}
-	}
-}
 
 // invalidateTTSCacheForEvent removes every cached audio variant (voice, speed,
 // version) for a given event. Used after summarization replaces an event's
@@ -166,7 +23,7 @@ func (s *Server) invalidateTTSCacheForEvent(eventID string) {
 // preSynthesizeTTS asynchronously synthesizes TTS audio for an assistant event
 // and stores it in the cache for instant playback on tab switch.
 func (s *Server) preSynthesizeTTS(event ConversationEvent, sessionID string) {
-	if s.ttsSynthesizer == nil || s.ttsCache == nil {
+	if s.ttsPort == nil || s.ttsCache == nil {
 		return
 	}
 	if event.Role != ConversationRoleAssistant {
@@ -195,7 +52,7 @@ func (s *Server) preSynthesizeTTS(event ConversationEvent, sessionID string) {
 		return
 	}
 
-	key := TTSCacheKey{
+	key := inttts.CacheKey{
 		EventID: event.ID,
 		Voice:   voice,
 		Speed:   speed,
@@ -221,28 +78,20 @@ func (s *Server) synthesizeParagraphs(ctx context.Context, paragraphs []string, 
 			p = p[:maxSynthesizeInputLength]
 		}
 
-		req := SynthesizeRequest{
+		res, err := s.ttsPort.Synthesize(ctx, audioports.TTSRequest{
 			Input:          p,
 			Voice:          voice,
 			ResponseFormat: "mp3",
 			Speed:          speed,
-		}
-
-		body, ct, err := s.ttsSynthesizer.Synthesize(ctx, req)
+		})
 		if err != nil {
 			return nil, "", fmt.Errorf("synthesize paragraph: %w", err)
 		}
 
-		data, err := io.ReadAll(body)
-		body.Close()
-		if err != nil {
-			return nil, "", fmt.Errorf("read synthesis response: %w", err)
-		}
-
-		if len(data) > 0 {
-			combined = append(combined, data...)
+		if len(res.Audio) > 0 {
+			combined = append(combined, res.Audio...)
 			if contentType == "" {
-				contentType = ct
+				contentType = res.ContentType
 			}
 		}
 	}
@@ -253,6 +102,3 @@ func (s *Server) synthesizeParagraphs(ctx context.Context, paragraphs []string, 
 
 	return combined, contentType, nil
 }
-
-// HTTP handler for /api/v1/tts/cache/{eventId} moved to handlers/tts.
-// The cache-lookup logic now lives in tts_adapter.go's GetCache.

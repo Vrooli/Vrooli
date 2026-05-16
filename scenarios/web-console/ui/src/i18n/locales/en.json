@@ -225,7 +225,12 @@
     "checking": "Checking integrations...",
     "loadFailed": "Failed to load integrations: {{message}}",
     "activeCount": "{{active}}/{{total}} active",
-    "noneConfigured": "No integrations configured."
+    "noneConfigured": "No integrations configured.",
+    "connectedScenariosHeading": "Connected Scenarios",
+    "connectedScenariosDescription": "Other Vrooli scenarios this web console can adopt. Features below are gated on the scenario being installed and running.",
+    "localResourcesHeading": "Local Resources",
+    "localResourcesDescription": "Local services (Whisper, Kokoro, Ollama, OpenRouter) the console uses directly today. As connected scenarios mature, these collapse into the scenarios that wrap them.",
+    "scenarioNotYetAvailable": "Not yet available"
   },
   "terminalHeader": {
     "renameTitle": "Click to rename",

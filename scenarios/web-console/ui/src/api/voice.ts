@@ -10,7 +10,7 @@ import { VoiceService } from "@vrooli/proto-types/web-console/v1/voice/voice_pb"
 
 import type { CapabilityStatus } from "./capabilities";
 import { transport } from "./client";
-import type { WakeWordTemplate } from "../hooks/voice/wakeword/types";
+import type { WakeWordTemplate } from "../domains/audio";
 
 export const voiceClient = createClient(VoiceService, transport);
 

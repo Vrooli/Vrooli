@@ -13,6 +13,8 @@ import (
 	"connectrpc.com/connect"
 
 	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
+
+	inttts "web-console/internal/tts"
 )
 
 func callSummarizeEvent(t *testing.T, srv *Server, sessID, eventID string) *conversationv1.SummarizeEventResponse {
@@ -68,10 +70,10 @@ func newSummarizeTestServer(t *testing.T, ollama *httptest.Server) (*Server, *se
 	t.Helper()
 	srv := newFakeTestServer()
 	srv.conversations = NewConversationStore()
-	srv.ttsCache = NewTTSCache(1024 * 1024)
-	srv.ttsSummarizer = NewTTSSummarizer(ollama.URL)
-	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
-	srv.ttsSummarizeConfig = TTSSummarizeConfig{
+	srv.ttsCache = inttts.NewCache(1024 * 1024)
+	srv.ttsSummarizer = inttts.NewSummarizer(ollama.URL)
+	srv.ttsSummarization = inttts.NewSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	srv.ttsSummarizeConfig = inttts.SummarizeConfig{
 		Enabled:        true,
 		CharThreshold:  20,
 		Level:          "moderate",
@@ -92,7 +94,7 @@ func newSummarizeTestServer(t *testing.T, ollama *httptest.Server) (*Server, *se
 	}
 
 	// Seed the cache as if pre-synthesis already ran against the raw text.
-	rawKey := TTSCacheKey{EventID: event.ID, Voice: "af_heart", Speed: 1.0, Version: "active"}
+	rawKey := inttts.CacheKey{EventID: event.ID, Voice: "af_heart", Speed: 1.0, Version: "active"}
 	srv.ttsCache.Put(rawKey, []byte("raw-audio"), "audio/mpeg")
 
 	return srv, sess, event.ID, longText
@@ -117,7 +119,7 @@ func TestAsyncSummarizeAndNotify_EvictsCacheOnSuccess(t *testing.T) {
 	srv.asyncSummarizeAndNotify(event, sess.ID)
 
 	// Cache for the raw audio must be gone.
-	rawKey := TTSCacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
+	rawKey := inttts.CacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
 	if _, ok := srv.ttsCache.Get(rawKey); ok {
 		t.Error("expected raw-text cache entry to be evicted after summarization")
 	}
@@ -149,7 +151,7 @@ func TestAsyncSummarizeAndNotify_PreservesCacheOnError(t *testing.T) {
 	srv.asyncSummarizeAndNotify(event, sess.ID)
 
 	// Cache must still hold the seeded raw audio — summary never succeeded.
-	rawKey := TTSCacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
+	rawKey := inttts.CacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
 	if _, ok := srv.ttsCache.Get(rawKey); !ok {
 		t.Error("raw-text cache entry should survive when summarization fails")
 	}
@@ -177,7 +179,7 @@ func TestAsyncSummarizeAndNotify_PreservesCacheOnEmpty(t *testing.T) {
 	event, _ := srv.conversations.GetEvent(sess.ID, eventID)
 	srv.asyncSummarizeAndNotify(event, sess.ID)
 
-	rawKey := TTSCacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
+	rawKey := inttts.CacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
 	if _, ok := srv.ttsCache.Get(rawKey); !ok {
 		t.Error("empty summary should not evict the cache")
 	}
@@ -199,7 +201,7 @@ func TestHandleSummarizeEvent_EvictsCache(t *testing.T) {
 
 	callSummarizeEvent(t, srv, sess.ID, eventID)
 
-	rawKey := TTSCacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
+	rawKey := inttts.CacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
 	if _, ok := srv.ttsCache.Get(rawKey); ok {
 		t.Error("on-demand summarize should evict the raw-text cache entry")
 	}
@@ -294,7 +296,7 @@ func TestHandleSummarizeEvent_FailurePreservesCache(t *testing.T) {
 
 	callSummarizeEvent(t, srv, sess.ID, eventID)
 
-	rawKey := TTSCacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
+	rawKey := inttts.CacheKey{EventID: eventID, Voice: "af_heart", Speed: 1.0, Version: "active"}
 	if _, ok := srv.ttsCache.Get(rawKey); !ok {
 		t.Error("on-demand failure must not evict the cache")
 	}

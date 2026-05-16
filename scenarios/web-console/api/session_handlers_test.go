@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	intai "web-console/internal/ai"
+	"web-console/internal/audioports"
 
 	"web-console/session"
 
@@ -23,6 +24,7 @@ import (
 	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
 	intsessions "web-console/internal/sessions"
+	inttts "web-console/internal/tts"
 	intworkspace "web-console/internal/workspace"
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
@@ -46,7 +48,8 @@ func newTestServer() *Server {
 	}
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
-	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	srv.ttsSummarization = inttts.NewSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	srv.speechProcessor = audioports.LocalSpeechTextProcessor{}
 	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, nil, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 	return srv
 }
@@ -69,7 +72,8 @@ func newFakeTestServer() *Server {
 	}
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
-	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	srv.ttsSummarization = inttts.NewSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	srv.speechProcessor = audioports.LocalSpeechTextProcessor{}
 	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, nil, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 	return srv
 }

@@ -13,7 +13,7 @@ import VoiceMicButton from "./VoiceMicButton";
 import VoiceCommandSuggestion from "./VoiceCommandSuggestion";
 import AiSuggestBar from "./AiSuggestBar";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
-import type { CommandSuggestion } from "../hooks/voice/types";
+import type { CommandSuggestion } from "../domains/audio";
 import { slugify } from "../lib/slugify";
 import { useDraftPersistence } from "../hooks/useDraftPersistence";
 import { useHoldRepeat } from "../hooks/useHoldRepeat";

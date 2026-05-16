@@ -90,6 +90,30 @@ var Known = []Def{
 		DependencySlug: "openrouter",
 		Features:       []string{"ai-command-generation"},
 	},
+	// Connected scenarios — the single source of truth for cross-scenario
+	// integrations web-console expects to discover and adopt. Each entry
+	// declares what features it would unlock once available. The local Whisper
+	// and Kokoro resource entries above remain registered during the
+	// audio-tools extraction prep; they collapse to the audio-tools entry
+	// after web-console adopts audio-tools.
+	{
+		ID:             "audio-tools",
+		Name:           "Audio Tools",
+		Description:    "Shared audio capability scenario: STT, TTS, summarization, provider routing, BYOK/LPBS/local tiers, adoptable UI",
+		DependencyKind: DependencyScenario,
+		DependencySlug: "audio-tools",
+		Features: []string{
+			"voice-input",
+			"voice-streaming",
+			"voice-speaker-verification",
+			"voice-enrollment",
+			"voice-output",
+			"tts-summarization",
+			"tts-cache",
+			"tts-paragraph-split",
+			"audio-provider-routing",
+		},
+	},
 }
 
 type Registry struct {

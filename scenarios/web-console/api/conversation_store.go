@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"web-console/internal/audioports"
 	"web-console/terminal"
 )
 
@@ -160,6 +161,24 @@ func (d *conversationDedup) remember(key, eventID string) {
 type ConversationStore struct {
 	repository ConversationRepository
 	dedup      *conversationDedup
+	// processor is the audio capability port for speech-shaped paragraph
+	// splitting. Defaulted to audioports.LocalSpeechTextProcessor{} via the
+	// speechProcessor() accessor below so tests and the in-memory constructor
+	// don't have to wire it explicitly.
+	processor audioports.SpeechTextProcessor
+}
+
+// SetSpeechProcessor lets package main inject the active port. The default
+// LocalSpeechTextProcessor remains in use until called.
+func (s *ConversationStore) SetSpeechProcessor(p audioports.SpeechTextProcessor) {
+	s.processor = p
+}
+
+func (s *ConversationStore) speechProcessor() audioports.SpeechTextProcessor {
+	if s.processor == nil {
+		return audioports.LocalSpeechTextProcessor{}
+	}
+	return s.processor
 }
 
 func NewConversationStore() *ConversationStore {
@@ -228,7 +247,7 @@ func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string)
 		Source:           source,
 		Role:             ConversationRoleAssistant,
 		Text:             cleanText,
-		SpeechParagraphs: SplitIntoSpeechParagraphs(cleanText),
+		SpeechParagraphs: s.speechProcessor().SplitIntoParagraphs(cleanText),
 		CreatedAt:        time.Now().UTC(),
 		DeliveryState:    ConversationDeliveryPending,
 		TTSState:         ConversationTTSIdle,

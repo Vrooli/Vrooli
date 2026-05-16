@@ -19,6 +19,14 @@ const (
 	MaxSpeakerEnrollmentAudioSize = 20 << 20
 )
 
+// seam: HTTPDoer sends outbound transcription requests. Production wires an
+// *http.Client from main.go; tests can provide a fake or httptest client.
+type HTTPDoer interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+var _ HTTPDoer = (*http.Client)(nil)
+
 // ResolveWhisperURL returns the Whisper ASR endpoint URL from WHISPER_URL env
 // var with a sensible default for cross-platform portability.
 func ResolveWhisperURL() string {
@@ -39,6 +47,7 @@ func ResolveWhisperURL() string {
 func TranscribeBytes(
 	ctx context.Context,
 	whisperURL string,
+	httpClient HTTPDoer,
 	transcode func(context.Context, []byte) ([]byte, error),
 	audio []byte,
 	language string,
@@ -90,7 +99,10 @@ func TranscribeBytes(
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	resp, err := http.DefaultClient.Do(req)
+	if httpClient == nil {
+		return "", fmt.Errorf("voice transcription HTTP client is not configured")
+	}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", err
 	}

@@ -6,6 +6,8 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	inttts "web-console/internal/tts"
 )
 
 // ConversationDispatcher publishes trusted assistant and user conversation
@@ -137,9 +139,8 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 		return
 	}
 
-	normalized := NormalizeTextForSpeech(event.Text)
-	if strings.TrimSpace(normalized) == "" {
-		logSummarizeSkipped("auto", cfg, event.ID, len(event.Text), "normalized text is empty")
+	if strings.TrimSpace(event.Text) == "" {
+		logSummarizeSkipped("auto", cfg, event.ID, len(event.Text), "event text is empty")
 		return
 	}
 
@@ -150,29 +151,31 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	result, err := s.ttsSummarization.Summarize(ctx, TTSSummarizeRequest{
+	// Normalization happens inside SummarizationService.run; passing raw text
+	// avoids the double-normalize wart.
+	result, err := s.ttsSummarization.Summarize(ctx, inttts.SummarizeRequest{
 		EventID: event.ID,
 		Path:    "auto",
-		Text:    normalized,
+		Text:    event.Text,
 	})
 	if err != nil {
-		if err == errTTSSummarizeCoolingDown {
-			logSummarizeSkipped("auto", cfg, event.ID, len(normalized), err.Error())
+		if err == inttts.ErrSummarizeCoolingDown {
+			logSummarizeSkipped("auto", cfg, event.ID, len(event.Text), err.Error())
 			return
 		}
-		logSummarizeResult("auto", cfg, event.ID, len(normalized), result, err)
+		logSummarizeResult("auto", cfg, event.ID, len(event.Text), result, err)
 		// Notify connected clients so they can surface a persistent banner
 		// with a retry affordance. Reuse the event payload (paragraphs are
 		// unchanged) and mark it as an update carrying the error string.
 		errEvent := event
 		errEvent.IsUpdate = true
-		errEvent.SummarizeError = summarizeErrorMessage(err)
+		errEvent.SummarizeError = inttts.SummarizeErrorMessage(err)
 		if fanout := s.fanouts.Get(sessionID); fanout != nil {
 			fanout.Send(errEvent)
 		}
 		return
 	}
-	logSummarizeResult("auto", cfg, event.ID, len(normalized), result, nil)
+	logSummarizeResult("auto", cfg, event.ID, len(event.Text), result, nil)
 
 	newParagraphs := result.Paragraphs
 	s.conversations.UpdateSpeechParagraphs(sessionID, event.ID, newParagraphs)
@@ -193,7 +196,7 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 // Diagnostic fields (done_reason / eval_count / raw length) are appended on
 // failure so budget-exhausted truncation is distinguishable from a real empty
 // response without re-running the request.
-func logSummarizeResult(path string, cfg TTSSummarizeConfig, eventID string, inChars int, result TTSSummarizeResult, err error) {
+func logSummarizeResult(path string, cfg inttts.SummarizeConfig, eventID string, inChars int, result inttts.SummarizeResult, err error) {
 	outChars := len(result.Summary)
 	ratio := 0.0
 	if inChars > 0 {
@@ -221,7 +224,7 @@ func safeDoneReason(r string) string {
 }
 
 // logSummarizeSkipped records the no-op reason in the same grep-friendly shape.
-func logSummarizeSkipped(path string, cfg TTSSummarizeConfig, eventID string, inChars int, reason string) {
+func logSummarizeSkipped(path string, cfg inttts.SummarizeConfig, eventID string, inChars int, reason string) {
 	log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=0 ratio=0.00 ms=0 skipped=%q",
 		path, eventID, cfg.Model, cfg.Level, inChars, reason)
 }

@@ -3,7 +3,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import VoiceRejectionBanner from "../VoiceRejectionBanner";
-import type { VoiceRejection } from "../../hooks/voice/types";
+import type { VoiceRejection } from "../../domains/audio";
 import { strings } from "../../consts/strings";
 import { i18n } from "../../i18n";
 

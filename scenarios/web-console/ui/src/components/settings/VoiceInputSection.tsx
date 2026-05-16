@@ -40,10 +40,10 @@ import {
   createWakeWordEngine,
   MIN_ENROLLMENT_SAMPLES,
   MAX_ENROLLMENT_SAMPLES,
+  useWakeWordTest,
   type AudioFeatures,
   type WakeWordTemplate,
-} from "../../hooks/voice/wakeword";
-import { useWakeWordTest } from "../../hooks/voice/wakeword/useWakeWordTest";
+} from "../../domains/audio";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";

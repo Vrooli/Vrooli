@@ -5,7 +5,7 @@ import { strings } from "../consts/strings";
 import { useConversationStore } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../api/conversation";
-import type { TTSPlaybackState } from "../hooks/tts/types";
+import type { TTSPlaybackState } from "../domains/audio";
 
 vi.mock("../hooks/useConversationSession", () => ({
   refreshConversationSession: vi.fn().mockResolvedValue(undefined),

@@ -9,6 +9,8 @@ import (
 	"connectrpc.com/connect"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/tts"
+
+	inttts "web-console/internal/tts"
 )
 
 // Deps wires the seams the Connect TTS handler needs.
@@ -36,11 +38,11 @@ func NewConnectHandler(d Deps) *connectHandler {
 // "tts_voice_list_failed", "tts_cache_missing_id", and "invalid_body".
 // Those collapse to a small set of Connect codes:
 var (
-	ErrNotFound           = errors.New("not found")
-	ErrInvalidArgument    = errors.New("invalid argument")
-	ErrFailedPrecondition = errors.New("failed precondition")
-	ErrUnavailable        = errors.New("tts unavailable")
-	ErrInternal           = errors.New("internal error")
+	ErrNotFound           = inttts.ErrNotFound
+	ErrInvalidArgument    = inttts.ErrInvalidArgument
+	ErrFailedPrecondition = inttts.ErrFailedPrecondition
+	ErrUnavailable        = inttts.ErrUnavailable
+	ErrInternal           = inttts.ErrInternal
 )
 
 func (h *connectHandler) GetConfig(ctx context.Context, _ *connect.Request[ttsv1.GetConfigRequest]) (*connect.Response[ttsv1.GetConfigResponse], error) {

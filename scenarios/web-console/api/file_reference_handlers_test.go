@@ -19,6 +19,7 @@ import (
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
 	intsessions "web-console/internal/sessions"
+	inttts "web-console/internal/tts"
 	intworkspace "web-console/internal/workspace"
 )
 
@@ -114,7 +115,7 @@ func TestConnect_ResolveFileReference_ProjectRootRelative(t *testing.T) {
 	}
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
-	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	srv.ttsSummarization = inttts.NewSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
 	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
@@ -159,7 +160,7 @@ func TestConnect_ResolveFileReference_SessionCwdPreferred(t *testing.T) {
 	}
 	srv.conversations = NewConversationStore()
 	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
-	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	srv.ttsSummarization = inttts.NewSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
 
 	sess, err := srv.sessions.Create("", 80, 24, "", nil)
 	if err != nil {

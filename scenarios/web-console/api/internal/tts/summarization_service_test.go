@@ -1,4 +1,4 @@
-package main
+package tts
 
 import (
 	"errors"
@@ -7,45 +7,44 @@ import (
 )
 
 // TestClassifyEmptySummary pins the four failure categories the service
-// distinguishes when the model returns no usable content. The sentinels drive
-// both the human-facing banner message and the tts-summarize log line.
+// distinguishes when the model returns no usable content.
 func TestClassifyEmptySummary(t *testing.T) {
 	cases := []struct {
 		name string
-		resp TTSSummarizerResponse
+		resp SummarizerResponse
 		want error
 	}{
 		{
 			name: "budget exhausted inside unclosed think block",
-			resp: TTSSummarizerResponse{
+			resp: SummarizerResponse{
 				RawContent: "<think>\nOkay, let me think about this",
 				DoneReason: "length",
 			},
-			want: errSummarizeBudgetInThink,
+			want: ErrSummarizeBudgetInThink,
 		},
 		{
 			name: "truncated after think block closed but no summary",
-			resp: TTSSummarizerResponse{
+			resp: SummarizerResponse{
 				RawContent: "some answer beginning",
 				DoneReason: "length",
 			},
-			want: errSummarizeTruncated,
+			want: ErrSummarizeTruncated,
 		},
 		{
 			name: "stop reason but think block consumed everything",
-			resp: TTSSummarizerResponse{
+			resp: SummarizerResponse{
 				RawContent: "<think>\nreasoning\n</think>\n",
 				DoneReason: "stop",
 			},
-			want: errSummarizeEmptyAfterStrip,
+			want: ErrSummarizeEmptyAfterStrip,
 		},
 		{
 			name: "model returned truly empty",
-			resp: TTSSummarizerResponse{
+			resp: SummarizerResponse{
 				RawContent: "",
 				DoneReason: "stop",
 			},
-			want: errSummarizeTrulyEmpty,
+			want: ErrSummarizeTrulyEmpty,
 		},
 	}
 
@@ -59,22 +58,20 @@ func TestClassifyEmptySummary(t *testing.T) {
 	}
 }
 
-// TestSummarizeErrorMessage_Categories ensures every categorized sentinel maps
-// to an actionable user-facing string (no "unknown error" fall-through).
 func TestSummarizeErrorMessage_Categories(t *testing.T) {
 	cases := []struct {
 		err          error
 		wantContains string
 	}{
-		{errSummarizeBudgetInThink, "reasoning"},
-		{errSummarizeTruncated, "truncated"},
-		{errSummarizeEmptyAfterStrip, "only reasoning"},
-		{errSummarizeTrulyEmpty, "empty response"},
+		{ErrSummarizeBudgetInThink, "reasoning"},
+		{ErrSummarizeTruncated, "truncated"},
+		{ErrSummarizeEmptyAfterStrip, "only reasoning"},
+		{ErrSummarizeTrulyEmpty, "empty response"},
 	}
 	for _, tc := range cases {
-		msg := summarizeErrorMessage(tc.err)
+		msg := SummarizeErrorMessage(tc.err)
 		if !strings.Contains(strings.ToLower(msg), strings.ToLower(tc.wantContains)) {
-			t.Errorf("summarizeErrorMessage(%v) = %q, should contain %q", tc.err, msg, tc.wantContains)
+			t.Errorf("SummarizeErrorMessage(%v) = %q, should contain %q", tc.err, msg, tc.wantContains)
 		}
 	}
 }

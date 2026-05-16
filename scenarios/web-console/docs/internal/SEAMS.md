@@ -361,13 +361,13 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 **Benefits**: All wake word detection runs client-side (no audio leaves the browser during passive mode). The `WakeWordEngine` interface is the replacement seam — swapping to neural embeddings requires only a new class implementing the same interface and updating `createWakeWordEngine()`.
 
 ### Voice Segment Boundary Seam (API)
-**File**: `api/voice_stream_ws.go`
+**File**: `api/internal/voice/stream_ws.go`
 **Purpose**: Segment-final transcription runs in a goroutine separate from the partial ticker, allowing high-quality retranscription without blocking streaming partials.
 
 | Component | Production | Test |
 |-----------|-----------|------|
 | Segment boundary channel | Receives from WebSocket input loop | Can be directly sent to in tests |
-| Segment-final goroutine | Calls Whisper with transcoded audio | Mockable via `transcribeBytes` |
+| Segment-final goroutine | Calls Whisper with transcoded audio | Mockable via injected `HTTPDoer` + transcode function |
 
 **Benefits**: Segment finals are decoupled from the partial transcription loop, so each can be tested independently.
 
@@ -447,27 +447,28 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 **Key invariant**: Active recording is NEVER interrupted by visibility changes. The visibility handler checks `isRecordingActive()` and no-ops if true.
 
 ### Audio Transcoding Seam (API)
-**File**: `api/audio_transcode.go`
+**File**: `api/internal/audio/transcode.go`
 **Purpose**: Decouple audio format conversion from transcription handlers for testable preprocessing.
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `transcodeAudio` package var | `defaultTranscodeAudio` → ffmpeg stdin/stdout pipe (16kHz mono WAV) | No-op passthrough or tracking function via `t.Cleanup` |
-| `checkFfmpeg` | `sync.Once` + `exec.LookPath` caches ffmpeg availability | Implicitly controlled by `transcodeAudio` override |
+| `audio.Transcode` | ffmpeg stdin/stdout pipe (16kHz mono WAV) | `voice.Service.SetTranscode(...)` with no-op passthrough or tracking function |
+| ffmpeg lookup | `sync.Once` + `exec.LookPath` caches ffmpeg availability | Implicitly controlled by the injected transcode function |
 
-**Benefits**: Audio preprocessing can be tested without ffmpeg installed. Both batch (`handleVoiceTranscribe`) and streaming (`transcribeBytes`) paths share the same seam. Graceful fallback to raw audio when ffmpeg is unavailable or transcoding fails.
+**Benefits**: Audio preprocessing can be tested without ffmpeg installed. Both batch (`Voice.Transcribe`) and streaming (`HandleStreamWS`) paths share the same seam. Graceful fallback to raw audio when ffmpeg is unavailable or transcoding fails.
 
 ### Voice Stream WebSocket Seam (API)
-**File**: `api/voice_stream_ws.go`
+**File**: `api/internal/voice/stream_ws.go`
 **Purpose**: Decouple streaming transcription from the Whisper service for testable WebSocket behavior.
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `whisperURL` package var | Points to `localhost:8090/asr?output=json` | Swapped to `httptest.NewServer` URL via `t.Cleanup` defer |
-| `transcribeBytes(ctx, audio, language, transcode, initialPrompt)` | Optionally transcodes via `transcodeAudio`, then calls Whisper; appends `initial_prompt` to URL when non-empty | Uses mock Whisper handler to verify payload size, language, and URL params |
-| `transcode` parameter | `true` for final transcription (ffmpeg WAV), `false` for partials (raw WebM) | Track `transcodeAudio` call count per WS lifecycle — 0 for partials, 1 for final |
-| `transcodeAudio` package var | `defaultTranscodeAudio` → ffmpeg 16kHz mono WAV | No-op passthrough via `t.Cleanup` in `setupVoiceWSServer` |
-| `VoiceStreamConfig` on `Server` | Runtime-configurable struct with `FlushIntervalMs`, `MinDeltaBytes`, `OverlapBytes`. Read once per session (snapshot pattern). Backed by the scenario `api-core/storage` state path. | Tests set config via `srv.setVoiceConfig(VoiceStreamConfig{...})` before dialing WS. Each test gets its own `srv` — no cleanup needed. |
+| `voice.HTTPDoer` | `*http.Client` passed from `api/main.go` into `voice.NewService` | Fake/httptest client through `Service.SetHTTPClient(...)` |
+| `whisperURL` service field | Resolved from `WHISPER_URL` at startup | Swapped to `httptest.NewServer` URL with `Service.SetWhisperURL(...)` |
+| `TranscribeBytes(ctx, url, httpClient, transcode, audio, language, doTranscode, initialPrompt)` | Optionally transcodes via the injected function, then calls Whisper through `HTTPDoer`; appends `initial_prompt` to URL when non-empty | Uses mock Whisper handler to verify payload size, language, and URL params |
+| `transcode` parameter | `true` for final transcription (ffmpeg WAV), `false` for partials (raw WebM) | Track injected transcode call count per WS lifecycle — 0 for partials, 1 for final |
+| `transcode` service field | `audio.Transcode` → ffmpeg 16kHz mono WAV | No-op passthrough via `Service.SetTranscode(...)` |
+| `voice.Config` on `voice.Service` | Runtime-configurable struct with `FlushIntervalMs`, `MinDeltaBytes`, `OverlapBytes`. Read once per session (snapshot pattern). Backed by the scenario `api-core/storage` state path. | Tests set config on the service before dialing WS. Each test gets its own `srv` — no cleanup needed. |
 | `VoiceStreamConfig` GET/PUT API | `GET /api/v1/voice/config` returns current config. `PUT /api/v1/voice/config` partial-updates, validates, persists to disk. | `TestHandleGetVoiceConfig`, `TestHandleUpdateVoiceConfig_*` use `httptest.NewRecorder` with `voiceConfigTestServer` helper. |
 | `firstTick` eager bypass | On the first ticker tick, bypasses `MinDeltaBytes` gate to reduce perceived latency for the initial partial | `TestVoiceStreamWS_EagerFirstPartial` verifies sub-MinDeltaBytes audio triggers on first tick |
 | Delta offset tracking | `lastPartialOffset` advances per tick; only new bytes (`buf[offset:]`) sent to Whisper | `trackingWhisperHandler` records payload sizes — each partial ≈ delta size, not full buffer |
@@ -639,15 +640,20 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 
 ### Backend Seams
 
-**`TTSSynthesizer` interface** (`tts_synthesize.go`):
-- Production: `KokoroSynthesizer` — proxies to Kokoro-FastAPI `/v1/audio/speech`
-- Test: Mock returning `io.ReadCloser` with test audio bytes
-- Injected via `Server.ttsSynthesizer` field
+**Internal TTS service boundary** (`api/internal/tts/types.go`, `api/internal/tts/service.go`, wired by `api/tts_adapter.go`):
+- Production: `internal/tts.Service` implements `internal/tts.HandlerService`; `handlers/tts` aliases that contract for Connect-RPC, and `newTTSAdapter(*Server)` adapts current web-console config stores, status callbacks, capability lookup, cache, synthesizer, and voice lister into `internal/tts.Deps`.
+- Purpose: TTS config validation, summarize config validation, status assembly, synthesis normalization, cache lookup, and voice listing behavior live outside `package main`.
+- Test: `api/internal/tts/service_test.go` covers core service behavior directly; handler tests still drive the Connect handler contract.
 
-**`TTSVoiceLister` interface** (`tts_voices.go`):
-- Production: `KokoroVoiceLister` — proxies to Kokoro-FastAPI `/v1/audio/voices`
+**`TTSSynthesizer` interface** (`api/internal/tts/kokoro_synthesize.go`, aliased by `api/tts_synthesize.go`):
+- Production: `internal/tts.KokoroSynthesizer` — proxies to Kokoro-FastAPI `/v1/audio/speech`
+- Test: Mock returning `io.ReadCloser` with test audio bytes
+- Injected through `internal/tts.Deps.SynthesizeAudio`
+
+**`TTSVoiceLister` interface** (`api/internal/tts/kokoro_voices.go`, aliased by `api/tts_voices.go`):
+- Production: `internal/tts.KokoroVoiceLister` — proxies to Kokoro-FastAPI `/v1/audio/voices`
 - Test: Mock returning `[]TTSVoice` slice
-- Injected via `Server.ttsVoiceLister` field
+- Injected through `internal/tts.Deps.ListVoiceCatalog`
 
 ### Capability Gating
 
@@ -989,3 +995,172 @@ The API uses a hybrid organization:
 3. **No Prometheus/OpenTelemetry** — Metrics are JSON-only poll. External observability integration is a future concern.
 4. ~~**WebSocket reconnect**~~ — **Resolved**: Auto-reconnect with exponential backoff + visibility-aware deferral in `useTerminalSession`.
 5. **Session delete from UI** — No confirmation feedback beyond the session disappearing from the list. Low priority.
+
+## Audio Extraction Prep — Domain Boundary Seams (2026-05-16)
+
+These rows capture the audio-tools extraction-prep state. Each row identifies a
+seam currently in `web-console/api/internal/{voice,tts,audio}`. Future
+`scenarios/audio-tools` will own implementations behind the same interfaces;
+the future web-console adopter will swap the local implementations for
+`audio-tools` clients without touching orchestration code.
+
+### TTS HandlerService Seam (API)
+- **File**: [CODE: scenarios/web-console/api/internal/tts/types.go]
+- **Interface**: `inttts.HandlerService` — Connect-RPC TTS handler depends on
+  this. Production impl is `inttts.Service` constructed via `newTTSAdapter` in
+  `api/tts_adapter.go`.
+- **Test substitution**: pass a fake `HandlerService` to
+  `handlers/tts.NewConnectHandler` — `handlers/tts/connect_handler_test.go`
+  patterns apply.
+- **Maturity**: Stable. Phase 4 will add a `TextToSpeech` *capability* port on
+  top to decouple orchestration from this transport-shaped contract.
+
+### TTS Synthesizer / VoiceLister Seam (API)
+- **Files**: [CODE: scenarios/web-console/api/internal/tts/service.go],
+  [CODE: scenarios/web-console/api/internal/tts/kokoro_synthesize.go]
+- **Interface**: `Deps.SynthesizeAudio`, `Deps.ListVoiceCatalog` —
+  function-pointer seams the Service uses for synthesis and voice enumeration.
+- **Production impl**: `KokoroSynthesizer.Synthesize`,
+  `KokoroVoiceLister.ListVoices`, wired through `tts_adapter.go`.
+- **Test substitution**: in-package tests construct `inttts.Deps` with
+  closures.
+- **Maturity**: Stable. Future audio-tools will provide the
+  synthesize/list-voices HTTP/Connect clients behind the same Deps shape.
+
+### TTS Text Pipeline Seam (API)
+- **Files**: [CODE: scenarios/web-console/api/internal/tts/normalizer.go],
+  [CODE: scenarios/web-console/api/internal/tts/chunker.go]
+- **Functions**: `NormalizeTextForSpeech`, `SplitIntoSpeechParagraphs`,
+  `TTSMaxChunkLength`. Pure functions, no Server state.
+- **Callers**: `conversation_router.go`, `conversation_adapter.go`,
+  `conversation_store.go`, `tts_summarization_service.go` — all via the
+  `inttts.` package qualifier.
+- **Boundary enforced by**: `TestGreenfield_TTSReusableCoreNotInPackageMain`.
+- **Maturity**: Stable; ready for verbatim extraction into audio-tools.
+
+### Voice HandlerService Seam (API)
+- **File**: [CODE: scenarios/web-console/api/internal/voice/types.go]
+- **Interface**: `intvoice.HandlerService` — Connect-RPC Voice handler depends
+  on this. Production impl is `intvoice.Adapter`, wrapping a `Backend`
+  (`intvoice.Service` in production).
+- **Test substitution**: pass a fake `HandlerService` to
+  `handlers/voice.NewConnectHandler`; or pass a fake `Backend` to
+  `intvoice.Adapter{}` for higher-fidelity orchestration tests.
+- **Maturity**: Stable as of 2026-05-16 Phase 3 inversion. Previously these
+  types lived in `handlers/voice` and `internal/voice` imported the handler
+  package — that direction has been reversed.
+
+### Voice Backend (Storage/State) Seam (API)
+- **Files**: [CODE: scenarios/web-console/api/internal/voice/types.go],
+  [CODE: scenarios/web-console/api/internal/voice/service.go]
+- **Interface**: `intvoice.Backend` — the Adapter's storage/state seam
+  covering Whisper capability checks, speaker evaluation, stream/speaker/
+  wakeword config persistence, and the speaker resource client.
+- **Production impl**: `intvoice.Service` — owns config paths, in-memory
+  state, the `SpeakerClient`, and the Whisper `HTTPDoer`.
+- **Test substitution**: fakes implement the 22 Backend methods; see existing
+  speaker_extraction tests and `voice_test_helpers_test.go` patterns.
+
+### Audio Transcoder Seam (API)
+- **File**: [CODE: scenarios/web-console/api/internal/audio/transcode.go]
+- **Function**: `Transcode(ctx, audio) ([]byte, error)` — invokes ffmpeg.
+  Passed into `intvoice.NewService` as the `transcode` callback so the WS
+  pipeline can swap it for a passthrough in tests.
+- **Maturity**: Stable. Audio-tools will eventually own this; current shape is
+  already extraction-ready.
+
+### Boundary Enforcement Tests (API)
+- **File**: [CODE: scenarios/web-console/api/greenfield_assertions_test.go]
+- **Tests**:
+  - `TestGreenfield_TTSReusableCoreNotInPackageMain` — reusable TTS text
+    primitives must live in internal/tts.
+  - `TestGreenfield_InternalAudioDomainsDoNotImportHandlers` —
+    internal/{voice,tts,audio} cannot import handlers/*.
+- These are intentional ratchets: passing them is the precondition for
+  audio-tools scenario generation.
+
+### Audio Capability Port Seam (API)
+- **Files**: [CODE: scenarios/web-console/api/internal/audioports/ports.go],
+  [CODE: scenarios/web-console/api/internal/audioports/local_processor.go]
+- **Interfaces**: `SpeechToText`, `TextToSpeech`, `SpeechTextProcessor`. These
+  are web-console-owned capability ports — the abstraction conversation /
+  terminal / TTS orchestration depends on. Local production implementation
+  (`LocalSpeechTextProcessor`) is backed by `internal/tts`; the future
+  audio-tools client will implement the same interfaces and slot in without
+  touching orchestration code.
+- **Wired into**: `Server.speechProcessor` (main.go), `ConversationStore.processor`,
+  `TTSSummarizationService.processor`. Each has a `SetSpeechProcessor` setter
+  and a default-bound `speechProcessor()` accessor so tests don't have to
+  inject explicitly.
+- **Boundary enforced by**:
+  `TestGreenfield_OrchestrationRoutesThroughAudioPorts` — package-main `.go`
+  files cannot call `inttts.NormalizeTextForSpeech(` /
+  `inttts.SplitIntoSpeechParagraphs(` directly. Reads must go through the
+  port.
+- **Maturity**: Stable for the text pipeline (`SpeechTextProcessor`).
+  `SpeechToText` and `TextToSpeech` are declared but the orchestration sites
+  for Transcribe/Synthesize/ListVoices still call internal services directly
+  through `tts_adapter.go`. Routing those through the ports is a follow-up
+  pass scoped in PROBLEMS.md §10.
+
+### Frontend Audio Adoption Boundary Seam (UI)
+- **Files**: [CODE: scenarios/web-console/ui/src/domains/audio/index.ts],
+  [CODE: scenarios/web-console/ui/src/domains/audio/README.md]
+- **Purpose**: The UI mirror of `internal/audioports`. The re-export surface
+  is the only path consumer modules should use when reaching for reusable
+  audio capability code (`VoiceStreamProvider`, `WhisperProvider`,
+  `WebSpeechProvider`, VAD, audio filter chain, shared AudioContext,
+  `KokoroProvider`, `BrowserTTSProvider`, `TranscriptionProvider`/`TTSProvider`
+  type contracts).
+- **Migration**: When audio-tools ships its UI surface, redirecting these
+  re-exports is the only edit needed; consumer imports across `Workspace`,
+  `TerminalPane`, terminal input gate, and the settings sections stay stable.
+- **Classification of web-console-specific (non-extractable) UI** is recorded
+  in the README: voice-command parser, audio cues / recording activity,
+  `useVoiceInput` orchestrator, `useTextToSpeech` orchestrator,
+  `tts-playback` controller, mic button / rejection banner /
+  command-suggestion components, and the audio player bar tied to the
+  conversation cursor.
+- **Maturity**: Stable as a documented boundary; no behaviour change
+  shipped. Migrating consumer imports to use `domains/audio` rather than
+  reaching into `hooks/voice/**`/`hooks/tts/**` directly is a follow-up
+  ratchet (recorded in PROBLEMS.md §10).
+
+### Connected Scenarios Registry Seam (API + UI)
+- **API file**: [CODE: scenarios/web-console/api/internal/capabilities/registry.go]
+- **Checker file**: [CODE: scenarios/web-console/api/internal/capabilities/checkers.go]
+  (`ScenarioChecker`)
+- **UI file**: [CODE: scenarios/web-console/ui/src/components/IntegrationsPanel.tsx]
+- **Purpose**: Single source of truth for which other Vrooli scenarios this
+  web console adopts. Each `capabilities.Def` with `DependencyKind ==
+  DependencyScenario` is a declared integration; the static catalogue lives in
+  `capabilities.Known` so a single edit there registers a scenario across the
+  capabilities Connect-RPC response, the Integrations settings panel, and any
+  future feature gate.
+- **Runtime probe**: `ScenarioChecker.Check` shells out to `vrooli scenario
+  status <slug> --json` and classifies the result. The `Run` field is the
+  command-runner seam — tests substitute a closure. Following the
+  wrap-not-use principle, web-console never calls another scenario's API
+  directly; the CLI is the contract.
+- **UI behaviour**: `IntegrationsPanel` groups entries by `dependencyKind`.
+  Scenario integrations render in the "Connected Scenarios" subsection with a
+  "Not yet available" badge when the scenario is missing/stopped. Resource
+  capabilities (Whisper, Kokoro, Ollama, OpenRouter) render in a separate
+  "Local Resources" subsection — they collapse into a scenario once the
+  scenario that wraps them is adopted.
+- **Audio-tools entry**: registered today with `slug: "audio-tools"`. Its
+  features list is the contract the future `scenarios/audio-tools` will fill:
+  `voice-input`, `voice-streaming`, `voice-speaker-verification`,
+  `voice-enrollment`, `voice-output`, `tts-summarization`, `tts-cache`,
+  `tts-paragraph-split`, `audio-provider-routing`. The local Whisper /
+  Kokoro / speaker-verification entries remain registered alongside it during
+  extraction prep; they will be removed once web-console adopts audio-tools.
+- **Test files**:
+  [CODE: scenarios/web-console/api/internal/capabilities/scenario_checker_test.go]
+  (5 cases — healthy / stopped / CLI missing / no slug / unknown status);
+  [CODE: scenarios/web-console/ui/src/__tests__/integrations-panel.test.tsx]
+  (existing UI tests cover the grouping render path).
+- **Maturity**: Stable. Future enrichment (e.g. audio-tools self-reporting
+  *which* provider — Whisper vs cloud API — it's currently using) lands by
+  extending `Def`/`State` or by a follow-up RPC; the current shape leaves
+  room without re-plumbing the panel.

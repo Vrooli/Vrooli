@@ -32,6 +32,7 @@ func newVoiceOnlyServer(caps *capabilities.Registry) *Server {
 		&m.VoiceSkipVerificationTotal,
 		intvoice.ResolveWhisperURL(),
 		nil,
+		nil,
 	)
 	return srv
 }

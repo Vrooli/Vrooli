@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"web-console/internal/audioports"
 	"web-console/internal/capabilities"
 )
 
@@ -27,6 +28,11 @@ func (m *mockVoiceLister) ListVoices(_ context.Context) ([]TTSVoice, error) {
 func newVoicesTestServer(lister TTSVoiceLister, capAvailable bool) *Server {
 	srv := newFakeTestServer()
 	srv.ttsVoiceLister = lister
+	srv.ttsPort = audioports.LocalTextToSpeech{
+		Synthesizer: srv.ttsSynthesizer,
+		VoiceLister: lister,
+		Cache:       srv.ttsCache,
+	}
 
 	checker := &fakeChecker{status: capabilities.StatusUnavailable, message: "down"}
 	if capAvailable {
@@ -83,6 +89,7 @@ func TestHandleTTSVoices_OnListerError(t *testing.T) {
 func TestHandleTTSVoices_NilLister(t *testing.T) {
 	srv := newVoicesTestServer(nil, true)
 	srv.ttsVoiceLister = nil
+	srv.ttsPort = nil
 
 	_, err := callTTSVoices(t, srv)
 	if connectCode(err) == connect.CodeUnknown {

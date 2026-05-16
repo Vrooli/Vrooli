@@ -178,6 +178,18 @@ are historical and will collapse into proper RPCs on migration —
 `RemoveSpeaker` and `DeleteSpeaker` with body args. No REST exception
 needed; the legacy URL shapes go away.
 
+**Extraction destination (2026-05-16):** STT, streaming transcription, VAD
+events, wake-word, and speaker verification primitives are planned for
+extraction into the future `scenarios/audio-tools` scenario per the
+`continuous-audio-platform` initiative. As of 2026-05-16 the domain owns:
+`api/internal/voice/types.go` (HandlerService, Backend, transport shapes),
+`api/internal/voice/handler_adapter.go` (validation + orchestration), and
+`api/internal/voice/service.go` (state + persistence + Whisper client +
+SpeakerClient). `handlers/voice` is now transport-only (re-exports +
+Connect-RPC). Web-console will keep voice-command resolution, transcript
+insertion gates, and active-pane routing after extraction; everything else
+moves to audio-tools.
+
 ---
 
 ### `tts` — text-to-speech (Kokoro backend)
@@ -196,6 +208,20 @@ needed; the legacy URL shapes go away.
 can carry `bytes` payloads, so these stay Connect — no REST exception.
 If we later expose direct browser `<audio src="…">` consumption, that
 becomes a separate REST asset endpoint with `third_party_shape`.
+
+**Extraction destination (2026-05-16):** TTS synthesis, voice catalog,
+text normalization, paragraph splitting, summarization, and caching are
+planned for extraction into `scenarios/audio-tools`. As of 2026-05-16,
+`api/internal/tts/` owns: `types.go` (HandlerService, Config, Status,
+Synth/Cache/Voice DTOs), `service.go` (HandlerService impl backed by
+function-pointer `Deps`), `kokoro_synthesize.go`, `kokoro_voices.go`,
+`normalizer.go` (`NormalizeTextForSpeech`), `chunker.go`
+(`SplitIntoSpeechParagraphs`, `TTSMaxChunkLength`). Web-console retains
+hook routing, terminal/conversation attribution, playback ack storage,
+auto-TTS trigger policy. The cache/summarizer/config persistence
+files in `package main` (`tts_cache.go`, `tts_summarizer.go`,
+`tts_summarization_service.go`, `tts_config.go`, `tts_summarize_config.go`)
+are scheduled for the next extraction-prep pass — see PROBLEMS.md §10.
 
 ---
 

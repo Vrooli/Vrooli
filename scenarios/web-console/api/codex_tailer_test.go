@@ -10,6 +10,7 @@ import (
 
 	"web-console/backends/codex"
 	"web-console/internal/ptyfake"
+	inttts "web-console/internal/tts"
 	"web-console/session"
 )
 
@@ -50,7 +51,7 @@ func writeRolloutLine(t *testing.T, f *os.File, lineType string, payload interfa
 func newCodexTailerTestServer(t *testing.T) (*Server, *session.Session) {
 	t.Helper()
 	srv := newTTSTestServer()
-	srv.ttsConfig = TTSConfig{AutoEnabled: true}
+	srv.ttsConfig = inttts.Config{AutoEnabled: true}
 
 	fake := ptyfake.NewFakePTYWithOutput()
 	t.Cleanup(func() { _ = fake.Close() })

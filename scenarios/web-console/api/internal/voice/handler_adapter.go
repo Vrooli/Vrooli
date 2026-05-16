@@ -2,6 +2,7 @@ package voice
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -9,70 +10,11 @@ import (
 	"web-console/internal/capabilities"
 )
 
-// Audio size limits enforced at the transport layer. The constants are
-// duplicated here (also in package main) intentionally: this package owns
-// its own transport-level contract and shouldn't import main.
-const (
-	maxAudioSize                  = 10 << 20 // 10 MB
-	maxSpeakerEnrollmentAudioSize = 20 << 20 // 20 MB
-)
-
-// SpeakerDecision is the transport-friendly view of the speaker-verification
-// gate's outcome. Package main's evaluator returns a richer internal struct;
-// the Deps shim converts it to this shape.
-type SpeakerDecision struct {
-	Enabled      bool
-	Applied      bool
-	Allowed      bool
-	Matched      bool
-	ProfileID    string
-	Score        float64
-	Threshold    float64
-	Mode         string
-	ErrorMessage string
-}
-
-// Backend is the seam the Adapter depends on. Methods speak in transport-
-// neutral voice-package types; package main provides the shim that
-// converts internal storage types and resource clients into these.
-type Backend interface {
-	// Capability and metrics
-	WhisperAvailable(ctx context.Context) bool
-	IncrSkipVerification()
-	SpeakerCapability(ctx context.Context) (status string, label string)
-
-	// Transcribe path
-	EvaluateSpeaker(ctx context.Context, audio []byte) SpeakerDecision
-	FormatSpeakerDecisionError(d SpeakerDecision) string
-	Transcribe(ctx context.Context, audio []byte, language string) (string, error)
-	IsWhisperHallucination(text string) bool
-
-	// Stream config (validation + persistence happens inside Save*)
-	GetStreamConfig() StreamConfig
-	SaveStreamConfig(c StreamConfig) error
-
-	// Wake word
-	GetWakeWord() WakeWordConfig
-	SetWakeWord(templateJSON string) (WakeWordConfig, error)
-	ClearWakeWord() error
-
-	// Speaker config (validation + persistence happens inside Save*)
-	GetSpeakerConfig() SpeakerConfig
-	SaveSpeakerConfig(c SpeakerConfig) error
-	DefaultSpeakerThreshold() float64
-	DefaultSpeakerProfileID() string
-
-	// Speaker resource client
-	SpeakerClientConfigured() bool
-	SpeakerReady(ctx context.Context) bool
-	ListSpeakerProfiles(ctx context.Context) ([]SpeakerProfile, int, error)
-	SpeakerInfo(ctx context.Context) (SpeakerResourceInfo, bool)
-	EnrollSpeaker(ctx context.Context, audio []byte, profileID, displayName, notes string) (SpeakerEnrollment, error)
-	DeleteSpeakerBackend(ctx context.Context, profileID string) error
-}
-
-// Adapter is the production Service implementation. Constructed in
-// api/main.go with a typed Deps and passed to Module.
+// Adapter is the production HandlerService implementation. Constructed in
+// api/main.go with a Backend and passed to handlers/voice.Module.
+//
+// seam: HandlerService — wraps Backend so transport sees domain-validated,
+// orchestration-complete responses.
 type Adapter struct {
 	Backend Backend
 	Logger  *log.Logger
@@ -96,8 +38,8 @@ func (a *Adapter) Transcribe(ctx context.Context, in TranscribeInput) (string, e
 	if len(in.Audio) == 0 {
 		return "", fmt.Errorf("%w: audio is required", ErrInvalidArgument)
 	}
-	if len(in.Audio) > maxAudioSize {
-		return "", fmt.Errorf("%w: audio exceeds %d bytes", ErrInvalidArgument, maxAudioSize)
+	if len(in.Audio) > MaxAudioSize {
+		return "", fmt.Errorf("%w: audio exceeds %d bytes", ErrInvalidArgument, MaxAudioSize)
 	}
 
 	if in.SkipSpeakerVerification {
@@ -139,11 +81,11 @@ func (a *Adapter) Transcribe(ctx context.Context, in TranscribeInput) (string, e
 // Stream config
 // -----------------------------------------------------------------------------
 
-func (a *Adapter) GetStreamConfig(_ context.Context) (StreamConfig, error) {
+func (a *Adapter) GetStreamConfig(_ context.Context) (Config, error) {
 	return a.Backend.GetStreamConfig(), nil
 }
 
-func (a *Adapter) UpdateStreamConfig(_ context.Context, patch StreamConfigPatch) (StreamConfig, error) {
+func (a *Adapter) UpdateStreamConfig(_ context.Context, patch ConfigPatch) (Config, error) {
 	current := a.Backend.GetStreamConfig()
 	if patch.FlushIntervalMs != nil {
 		current.FlushIntervalMs = *patch.FlushIntervalMs
@@ -167,7 +109,7 @@ func (a *Adapter) UpdateStreamConfig(_ context.Context, patch StreamConfigPatch)
 		current.SegmentSilenceMs = *patch.SegmentSilenceMs
 	}
 	if err := a.Backend.SaveStreamConfig(current); err != nil {
-		return StreamConfig{}, err
+		return Config{}, err
 	}
 	a.logger().Printf("voice-config: updated: flush=%dms delta=%d overlap=%d",
 		current.FlushIntervalMs, current.MinDeltaBytes, current.OverlapBytes)
@@ -299,8 +241,8 @@ func (a *Adapter) EnrollSpeakerProfile(ctx context.Context, in EnrollInput) (Spe
 	if !a.Backend.SpeakerClientConfigured() {
 		return SpeakerEnrollment{}, SpeakerConfig{}, fmt.Errorf("%w: speaker verification resource is not configured", ErrUnavailable)
 	}
-	if len(in.Audio) > maxSpeakerEnrollmentAudioSize {
-		return SpeakerEnrollment{}, SpeakerConfig{}, fmt.Errorf("%w: audio exceeds %d bytes", ErrInvalidArgument, maxSpeakerEnrollmentAudioSize)
+	if len(in.Audio) > MaxSpeakerEnrollmentAudioSize {
+		return SpeakerEnrollment{}, SpeakerConfig{}, fmt.Errorf("%w: audio exceeds %d bytes", ErrInvalidArgument, MaxSpeakerEnrollmentAudioSize)
 	}
 
 	profileID := in.ProfileID
@@ -394,21 +336,19 @@ func (a *Adapter) DeleteSpeakerProfile(ctx context.Context, profileID string) (S
 	return cfg, nil
 }
 
-func containsString(s []string, target string) bool {
-	for _, v := range s {
-		if v == target {
-			return true
-		}
+// Marshal helper for wake word transport — owned here so Backend impls can
+// return a fully-formed WakeWordConfig without re-implementing the JSON dance.
+func WakeWordToTransport(tmpl *WakeWordTemplate) WakeWordConfig {
+	if tmpl == nil {
+		return WakeWordConfig{Configured: false}
 	}
-	return false
+	data, err := json.Marshal(tmpl)
+	if err != nil {
+		log.Printf("wakeword: marshal failed: %v", err)
+		return WakeWordConfig{Configured: true}
+	}
+	return WakeWordConfig{Configured: true, TemplateJSON: string(data)}
 }
 
-func removeString(s []string, target string) []string {
-	out := s[:0]
-	for _, v := range s {
-		if v != target {
-			out = append(out, v)
-		}
-	}
-	return out
-}
+// Compile-time assertions.
+var _ HandlerService = (*Adapter)(nil)

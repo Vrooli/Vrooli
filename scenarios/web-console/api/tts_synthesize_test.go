@@ -12,7 +12,9 @@ import (
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/tts"
 
+	"web-console/internal/audioports"
 	"web-console/internal/capabilities"
+	inttts "web-console/internal/tts"
 )
 
 // mockSynthesizer implements TTSSynthesizer for testing.
@@ -32,7 +34,12 @@ func (m *mockSynthesizer) Synthesize(_ context.Context, _ SynthesizeRequest) (io
 func newSynthesizeTestServer(synth TTSSynthesizer, capAvailable bool) *Server {
 	srv := newFakeTestServer()
 	srv.ttsSynthesizer = synth
-	srv.ttsConfig = DefaultTTSConfig()
+	srv.ttsPort = audioports.LocalTextToSpeech{
+		Synthesizer: synth,
+		VoiceLister: srv.ttsVoiceLister,
+		Cache:       srv.ttsCache,
+	}
+	srv.ttsConfig = inttts.DefaultConfig()
 
 	checker := &fakeChecker{status: capabilities.StatusUnavailable, message: "down"}
 	if capAvailable {
@@ -135,6 +142,7 @@ func TestHandleTTSSynthesize_InvalidFormat(t *testing.T) {
 func TestHandleTTSSynthesize_NilSynthesizer(t *testing.T) {
 	srv := newSynthesizeTestServer(nil, true)
 	srv.ttsSynthesizer = nil
+	srv.ttsPort = nil
 
 	_, err := callTTSSynthesize(t, srv, &ttsv1.SynthesizeRequest{Input: "Hello"})
 	if connectCode(err) == connect.CodeUnknown {

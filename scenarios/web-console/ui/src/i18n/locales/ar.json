@@ -224,7 +224,12 @@
     "checking": "جارٍ فحص التكاملات...",
     "loadFailed": "فشل تحميل التكاملات: {{message}}",
     "activeCount": "{{active}}/{{total}} نشط",
-    "noneConfigured": "لم تُعدَّ أي تكاملات."
+    "noneConfigured": "لم تُعدَّ أي تكاملات.",
+    "connectedScenariosHeading": "السيناريوهات المتصلة",
+    "connectedScenariosDescription": "سيناريوهات Vrooli الأخرى التي يمكن لوحدة التحكم هذه استخدامها. تعتمد الميزات أدناه على تثبيت السيناريو وتشغيله.",
+    "localResourcesHeading": "الموارد المحلية",
+    "localResourcesDescription": "الخدمات المحلية (Whisper وKokoro وOllama وOpenRouter) التي تستخدمها وحدة التحكم مباشرة حاليًا. بمجرد نضوج السيناريوهات المتصلة، تنطوي هذه الموارد ضمنها.",
+    "scenarioNotYetAvailable": "غير متاح بعد"
   },
   "terminalHeader": {
     "renameTitle": "انقر لإعادة التسمية",

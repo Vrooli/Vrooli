@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	conversationH "web-console/handlers/conversation"
+	inttts "web-console/internal/tts"
 )
 
 // conversationAdapter implements conversationH.Service against the server's
@@ -92,10 +93,9 @@ func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eve
 	}
 
 	cfg := a.srv.getTTSSummarizeConfig()
-	normalized := NormalizeTextForSpeech(event.Text)
-	if strings.TrimSpace(normalized) == "" {
+	if strings.TrimSpace(event.Text) == "" {
 		return conversationH.SummarizeResult{
-			Error: "Event text is empty after normalization",
+			Error: "Event text is empty",
 		}, nil
 	}
 
@@ -106,18 +106,20 @@ func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eve
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	result, err := a.srv.ttsSummarization.Summarize(cctx, TTSSummarizeRequest{
+	// Normalization happens inside SummarizationService.run; passing raw text
+	// avoids the double-normalize wart.
+	result, err := a.srv.ttsSummarization.Summarize(cctx, inttts.SummarizeRequest{
 		EventID: eventID,
 		Path:    "on-demand",
-		Text:    normalized,
+		Text:    event.Text,
 	})
 	if err != nil {
-		logSummarizeResult("on-demand", cfg, eventID, len(normalized), result, err)
+		logSummarizeResult("on-demand", cfg, eventID, len(event.Text), result, err)
 		return conversationH.SummarizeResult{
-			Error: summarizeErrorMessage(err),
+			Error: inttts.SummarizeErrorMessage(err),
 		}, nil
 	}
-	logSummarizeResult("on-demand", cfg, eventID, len(normalized), result, nil)
+	logSummarizeResult("on-demand", cfg, eventID, len(event.Text), result, nil)
 
 	a.srv.conversations.UpdateSpeechParagraphs(sessionID, eventID, result.Paragraphs)
 	a.srv.invalidateTTSCacheForEvent(eventID)

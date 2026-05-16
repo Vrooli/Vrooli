@@ -238,6 +238,11 @@ export const strings = {
     loadFailed: "integrationsPanel.loadFailed",
     activeCount: "integrationsPanel.activeCount",
     noneConfigured: "integrationsPanel.noneConfigured",
+    connectedScenariosHeading: "integrationsPanel.connectedScenariosHeading",
+    connectedScenariosDescription: "integrationsPanel.connectedScenariosDescription",
+    localResourcesHeading: "integrationsPanel.localResourcesHeading",
+    localResourcesDescription: "integrationsPanel.localResourcesDescription",
+    scenarioNotYetAvailable: "integrationsPanel.scenarioNotYetAvailable",
   },
   terminalHeader: {
     renameTitle: "terminalHeader.renameTitle",
