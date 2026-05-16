@@ -4,13 +4,37 @@
       "testId": "autoheal-dashboard",
       "selector": "[data-testid=\"autoheal-dashboard\"]"
     },
+    "shell.header": {
+      "testId": "autoheal-shell-header",
+      "selector": "[data-testid=\"autoheal-shell-header\"]"
+    },
+    "shell.nav": {
+      "testId": "autoheal-shell-nav",
+      "selector": "[data-testid=\"autoheal-shell-nav\"]"
+    },
+    "shell.content": {
+      "testId": "autoheal-shell-content",
+      "selector": "[data-testid=\"autoheal-shell-content\"]"
+    },
     "runTickButton": {
       "testId": "autoheal-run-tick-button",
       "selector": "[data-testid=\"autoheal-run-tick-button\"]"
     },
+    "runTickButtonDesktop": {
+      "testId": "autoheal-run-tick-button-desktop",
+      "selector": "[data-testid=\"autoheal-run-tick-button-desktop\"]"
+    },
+    "settingsButton": {
+      "testId": "autoheal-settings-button",
+      "selector": "[data-testid=\"autoheal-settings-button\"]"
+    },
     "checkCard": {
       "testId": "autoheal-check-card",
       "selector": "[data-testid=\"autoheal-check-card\"]"
+    },
+    "summary.grid": {
+      "testId": "autoheal-summary-grid",
+      "selector": "[data-testid=\"autoheal-summary-grid\"]"
     },
     "summary.total": {
       "testId": "autoheal-summary-total",
@@ -31,6 +55,58 @@
     "platform": {
       "testId": "autoheal-platform-info",
       "selector": "[data-testid=\"autoheal-platform-info\"]"
+    },
+    "eventsTimeline": {
+      "testId": "autoheal-events-timeline",
+      "selector": "[data-testid=\"autoheal-events-timeline\"]"
+    },
+    "uptimeStats": {
+      "testId": "autoheal-uptime-stats",
+      "selector": "[data-testid=\"autoheal-uptime-stats\"]"
+    },
+    "checkHistory": {
+      "testId": "autoheal-check-history",
+      "selector": "[data-testid=\"autoheal-check-history\"]"
+    },
+    "tabs.dashboard": {
+      "testId": "autoheal-tab-dashboard",
+      "selector": "[data-testid=\"autoheal-tab-dashboard\"]"
+    },
+    "tabs.trends": {
+      "testId": "autoheal-tab-trends",
+      "selector": "[data-testid=\"autoheal-tab-trends\"]"
+    },
+    "tabs.timeline": {
+      "testId": "autoheal-tab-timeline",
+      "selector": "[data-testid=\"autoheal-tab-timeline\"]"
+    },
+    "tabs.incidents": {
+      "testId": "autoheal-tab-incidents",
+      "selector": "[data-testid=\"autoheal-tab-incidents\"]"
+    },
+    "tabs.docs": {
+      "testId": "autoheal-tab-docs",
+      "selector": "[data-testid=\"autoheal-tab-docs\"]"
+    },
+    "trends.page": {
+      "testId": "autoheal-trends-page",
+      "selector": "[data-testid=\"autoheal-trends-page\"]"
+    },
+    "trends.chart": {
+      "testId": "autoheal-trends-chart",
+      "selector": "[data-testid=\"autoheal-trends-chart\"]"
+    },
+    "trends.checkGrid": {
+      "testId": "autoheal-trends-check-grid",
+      "selector": "[data-testid=\"autoheal-trends-check-grid\"]"
+    },
+    "systemProtection": {
+      "testId": "autoheal-system-protection",
+      "selector": "[data-testid=\"autoheal-system-protection\"]"
+    },
+    "systemProtectionCompact": {
+      "testId": "autoheal-system-protection-compact",
+      "selector": "[data-testid=\"autoheal-system-protection-compact\"]"
     }
   },
   "dynamicSelectors": {}

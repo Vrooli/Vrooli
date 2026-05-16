@@ -14,16 +14,16 @@ function StatusSparklineImpl({ statuses, maxBars = 12, barHeight = 16 }: StatusS
   const displayStatuses = statuses.slice(0, maxBars);
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex min-w-0 items-center gap-0.5">
       {displayStatuses.map((status, idx) => (
         <div
           key={idx}
           className={`w-1.5 rounded-sm transition-all ${
             status === "ok"
-              ? "bg-emerald-500"
+              ? "bg-accent-success"
               : status === "warning"
-              ? "bg-amber-500"
-              : "bg-red-500"
+              ? "bg-accent-warning"
+              : "bg-accent-danger"
           }`}
           style={{
             height: barHeight,
@@ -32,7 +32,7 @@ function StatusSparklineImpl({ statuses, maxBars = 12, barHeight = 16 }: StatusS
         />
       ))}
       {displayStatuses.length === 0 && (
-        <span className="text-xs text-slate-500">No data</span>
+        <span className="text-xs text-text-muted">No data</span>
       )}
     </div>
   );

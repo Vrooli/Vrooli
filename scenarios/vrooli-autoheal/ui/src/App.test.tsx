@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import * as api from './lib/api';
+import { selectors } from './consts/selectors';
 import {
   createCheckHistoryResponse,
   createCheckInfo,
@@ -188,7 +189,7 @@ describe('App', () => {
     renderWithProviders(<App />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('settings-button')).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.settingsButton)).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: /enable auto refresh|disable auto refresh/i }),
       ).not.toBeInTheDocument();
@@ -201,7 +202,8 @@ describe('App', () => {
     renderWithProviders(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Run Tick')).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.runTickButton)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.runTickButtonDesktop)).toHaveTextContent('Run Tick');
     });
   });
 
@@ -236,7 +238,7 @@ describe('App', () => {
       expect(screen.getByText('Run Tick')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /run tick/i }));
+    fireEvent.click(screen.getByTestId(selectors.runTickButton));
 
     await waitFor(() => {
       expect(screen.getByText('A health check cycle is already running.')).toBeInTheDocument();
@@ -276,7 +278,7 @@ describe('App', () => {
     });
   });
 
-  it('[REQ:UI-RESPONSIVE-001] renders with responsive grid layout', async () => {
+  it('[REQ:UI-RESPONSIVE-001] renders shell and summary content in a mobile-safe layout contract', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
@@ -285,9 +287,33 @@ describe('App', () => {
       expect(screen.getByText('Vrooli Autoheal')).toBeInTheDocument();
     }, { timeout: 2000 });
 
-    // Verify responsive container exists with min-h-screen (responsive) class
-    const container = screen.getByTestId('autoheal-dashboard');
-    expect(container).toHaveClass('min-h-screen');
+    const container = screen.getByTestId(selectors.dashboard);
+    const header = screen.getByTestId(selectors.shell.header);
+    const content = screen.getByTestId(selectors.shell.content);
+    const summaryGrid = screen.getByTestId(selectors.summary.grid);
+
+    expect(container).toHaveClass('min-h-screen', 'overflow-x-hidden');
+    expect(header).toHaveClass('sticky', 'top-0');
+    expect(content).toHaveClass('min-w-0');
+    expect(summaryGrid).toHaveClass('grid-cols-2', 'md:grid-cols-4');
+    expect(summaryGrid.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+  });
+
+  it('[REQ:UI-RESPONSIVE-001] keeps all primary tabs in the selector registry and scrollable shell nav', async () => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
+
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.shell.nav)).toBeInTheDocument();
+    }, { timeout: 2000 });
+
+    expect(screen.getByTestId(selectors.shell.nav)).toHaveClass('overflow-x-auto');
+    expect(screen.getByTestId(selectors.tabs.dashboard)).toHaveTextContent('Dashboard');
+    expect(screen.getByTestId(selectors.tabs.trends)).toHaveTextContent('Trends');
+    expect(screen.getByTestId(selectors.tabs.timeline)).toHaveTextContent('Timeline');
+    expect(screen.getByTestId(selectors.tabs.incidents)).toHaveTextContent('Incidents');
+    expect(screen.getByTestId(selectors.tabs.docs)).toHaveTextContent('Docs');
   });
 
   it('[REQ:UI-EVENTS-001] shows events timeline section', async () => {

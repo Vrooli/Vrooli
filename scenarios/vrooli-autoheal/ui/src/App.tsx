@@ -2,14 +2,15 @@
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:UI-REFRESH-001] [REQ:UI-RESPONSIVE-001]
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, BookOpen, Clock, LayoutDashboard, Loader2, Play, RefreshCw, Settings, Shield, ShieldAlert, TrendingUp } from "lucide-react";
-import { Badge, Button, Card } from "./shared/ui/primitives";
-import { TabTrigger } from "./shared/ui/composites";
+import { AlertCircle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { Card } from "./shared/ui/primitives";
+import { AppShell, Notice, NoticeTitle } from "./shared/ui/composites";
 import { APIError, fetchStatus, groupChecksByStatus, runTick, sortChecksForDisplay, statusToEmoji } from "./lib/api";
-import { selectors } from "./consts/selectors";
 import { CheckDetailModal, ErrorDisplay, ReactErrorBoundary, SettingsDialog } from "./shared/components";
 import { useCheckMetadata } from "./shared/contexts/CheckMetadataContext";
 import { DashboardSurface, type CollapsedGroups, type EnrichedCheck } from "./surfaces/dashboard";
+import { useActiveTab } from "./hooks/useActiveTab";
+import { useTickNotice, type TickNoticeTone } from "./hooks/useTickNotice";
 
 const TrendsSurface = lazy(async () => import("./surfaces/trends").then((module) => ({ default: module.TrendsSurface })));
 const IncidentsSurface = lazy(async () => import("./surfaces/incidents").then((module) => ({ default: module.IncidentsSurface })));
@@ -18,24 +19,6 @@ const DocsSurface = lazy(async () => import("./surfaces/docs").then((module) => 
 
 const AUTO_REFRESH_INTERVAL = 30000;
 const EMPTY_METADATA_MAP = new Map<string, never>();
-
-type TabType = "dashboard" | "trends" | "timeline" | "incidents" | "docs";
-type TickNoticeTone = "info" | "success" | "warning" | "danger";
-
-interface TickNotice {
-  tone: TickNoticeTone;
-  message: string;
-  detail?: string;
-}
-
-function getTabFromHash(): TabType {
-  const hash = window.location.hash.slice(1);
-  if (hash === "trends") return "trends";
-  if (hash === "timeline") return "timeline";
-  if (hash === "incidents") return "incidents";
-  if (hash === "docs" || hash.startsWith("docs?")) return "docs";
-  return "dashboard";
-}
 
 function loadCollapsedState(): CollapsedGroups {
   try {
@@ -72,17 +55,12 @@ function loadCollapsedState(): CollapsedGroups {
 
 export default function App() {
   const queryClient = useQueryClient();
-  const tabSelectors = selectors.tabs ?? {
-    dashboard: "autoheal-tab-dashboard",
-    trends: "autoheal-tab-trends",
-    docs: "autoheal-tab-docs",
-  };
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>(getTabFromHash);
+  const { activeTab, handleTabChange } = useActiveTab();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<CollapsedGroups>(loadCollapsedState);
   const [selectedCheckId, setSelectedCheckId] = useState<string | null>(null);
-  const [tickNotice, setTickNotice] = useState<TickNotice | null>(null);
+  const { tickNotice, setTickNotice } = useTickNotice();
   const metadataContext = useCheckMetadata();
   const checksMetadata = metadataContext.checks ?? [];
   const checksMetadataMap = metadataContext.metadataMap ?? EMPTY_METADATA_MAP;
@@ -93,19 +71,6 @@ export default function App() {
       localStorage.setItem("autoheal-collapsed-groups", JSON.stringify(next));
       return next;
     });
-  }, []);
-
-  const handleTabChange = useCallback((tab: TabType) => {
-    setActiveTab(tab);
-    window.location.hash = tab === "dashboard" ? "" : tab;
-  }, []);
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      setActiveTab(getTabFromHash());
-    };
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -170,14 +135,6 @@ export default function App() {
     },
   });
 
-  useEffect(() => {
-    if (!tickNotice) {
-      return;
-    }
-    const timer = window.setTimeout(() => setTickNotice(null), 6000);
-    return () => window.clearTimeout(timer);
-  }, [tickNotice]);
-
   const enrichedChecks: EnrichedCheck[] = useMemo(() => {
     const checks = data?.checks || [];
     return checks.map((check) => {
@@ -238,124 +195,29 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-base text-text-primary" data-testid={selectors.dashboard}>
-      <header className="sticky top-0 z-10 border-b border-border-default/70 bg-surface-elevated/70 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-3">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <Shield className="shrink-0 text-accent-primary" size={24} />
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold sm:text-xl">Vrooli Autoheal</h1>
-              <p className="hidden text-xs text-text-muted sm:block">Self-healing infrastructure supervisor</p>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setSettingsOpen(true)}
-              data-testid="settings-button"
-              title="Open settings"
-              aria-label="Open settings"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={() => tickMutation.mutate()}
-              disabled={isTickRunning}
-              data-testid={selectors.runTickButton}
-              className="px-2 sm:px-4"
-              aria-label="Run Tick"
-            >
-              {isTickRunning ? (
-                <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
-              ) : (
-                <Play className="h-4 w-4 sm:mr-2" />
-              )}
-              <span className="hidden sm:inline">Run Tick</span>
-            </Button>
-            {data?.tickRunning ? <Badge tone="info">Tick Running</Badge> : null}
-          </div>
-        </div>
-
-        <div className="mx-auto max-w-6xl px-4">
-          <nav className="flex gap-1 overflow-x-auto">
-            <TabTrigger
-              onClick={() => handleTabChange("dashboard")}
-              active={activeTab === "dashboard"}
-              data-testid={tabSelectors.dashboard}
-              className="shrink-0"
-            >
-              <LayoutDashboard size={16} />
-              Dashboard
-            </TabTrigger>
-            <TabTrigger
-              onClick={() => handleTabChange("trends")}
-              active={activeTab === "trends"}
-              data-testid={tabSelectors.trends}
-              className="shrink-0"
-            >
-              <TrendingUp size={16} />
-              Trends
-            </TabTrigger>
-            <TabTrigger
-              onClick={() => handleTabChange("timeline")}
-              active={activeTab === "timeline"}
-              className="shrink-0"
-            >
-              <Clock size={16} />
-              Timeline
-            </TabTrigger>
-            <TabTrigger
-              onClick={() => handleTabChange("incidents")}
-              active={activeTab === "incidents"}
-              className="shrink-0"
-            >
-              <ShieldAlert size={16} />
-              Incidents
-            </TabTrigger>
-            <TabTrigger
-              onClick={() => handleTabChange("docs")}
-              active={activeTab === "docs"}
-              data-testid={tabSelectors.docs}
-              className="shrink-0"
-            >
-              <BookOpen size={16} />
-              Docs
-            </TabTrigger>
-          </nav>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-4 py-4 sm:py-6">
+    <AppShell
+      activeTab={activeTab}
+      isTickRunning={isTickRunning}
+      onOpenSettings={() => setSettingsOpen(true)}
+      onRunTick={() => tickMutation.mutate()}
+      onTabChange={handleTabChange}
+    >
         {isTickRunning ? (
-          <Card className="mb-4 border-accent-primary/40 bg-accent-primary/10 p-3">
+          <Notice tone="info" className="mb-3 sm:mb-4">
             <div className="flex items-start gap-2 text-sm">
               <Loader2 className="mt-0.5 h-4 w-4 animate-spin text-accent-primary" />
               <div>
-                <p className="font-medium text-text-primary">Health check cycle is currently running.</p>
+                <NoticeTitle tone="neutral">Health check cycle is currently running.</NoticeTitle>
                 <p className="text-text-muted">
                   This may be from the loop, another user action, or a manual API/CLI tick.
                 </p>
               </div>
             </div>
-          </Card>
+          </Notice>
         ) : null}
 
         {tickNotice ? (
-          <Card
-            className={`mb-4 p-3 ${
-              tickNotice.tone === "success"
-                ? "border-accent-success/40 bg-accent-success/10"
-                : tickNotice.tone === "warning"
-                  ? "border-accent-warning/40 bg-accent-warning/10"
-                  : tickNotice.tone === "danger"
-                    ? "border-accent-danger/40 bg-accent-danger/10"
-                    : "border-accent-primary/40 bg-accent-primary/10"
-            }`}
-          >
+          <Notice tone={tickNotice.tone} className="mb-3 sm:mb-4">
             <div className="flex items-start gap-2 text-sm">
               {tickNotice.tone === "success" ? (
                 <CheckCircle2 className="mt-0.5 h-4 w-4 text-accent-success" />
@@ -367,11 +229,11 @@ export default function App() {
                 <Loader2 className="mt-0.5 h-4 w-4 animate-spin text-accent-primary" />
               )}
               <div>
-                <p className="font-medium text-text-primary">{tickNotice.message}</p>
+                <NoticeTitle tone={noticeTitleTone(tickNotice.tone)}>{tickNotice.message}</NoticeTitle>
                 {tickNotice.detail ? <p className="text-text-muted">{tickNotice.detail}</p> : null}
               </div>
             </div>
-          </Card>
+          </Notice>
         ) : null}
 
         {activeTab === "dashboard" ? (
@@ -414,7 +276,6 @@ export default function App() {
             </Suspense>
           </ReactErrorBoundary>
         )}
-      </main>
 
       <SettingsDialog
         isOpen={settingsOpen}
@@ -431,6 +292,10 @@ export default function App() {
           />
         </ReactErrorBoundary>
       )}
-    </div>
+    </AppShell>
   );
+}
+
+function noticeTitleTone(tone: TickNoticeTone) {
+  return tone === "info" ? "neutral" : tone;
 }

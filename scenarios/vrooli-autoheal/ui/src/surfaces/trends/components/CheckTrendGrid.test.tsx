@@ -62,8 +62,8 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
 
       // Default sort is uptime ascending, so 50% appears before 95%.
       const uptimeElements = screen.getAllByText(/\d+%/);
-      expect(uptimeElements[0]).toHaveClass("text-red-400"); // 50% is < 90
-      expect(uptimeElements[1]).toHaveClass("text-amber-400"); // 95% is >= 90, but < 99
+      expect(uptimeElements[0]).toHaveClass("text-accent-danger"); // 50% is < 90
+      expect(uptimeElements[1]).toHaveClass("text-accent-warning"); // 95% is >= 90, but < 99
     });
 
     it("calls onCheckClick when row is clicked", () => {

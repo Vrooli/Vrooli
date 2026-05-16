@@ -78,11 +78,11 @@ export function PlatformInfo({ platform }: PlatformInfoProps) {
                   {cap.monitored !== undefined && (
                     <>
                       {cap.monitored ? (
-                        <CheckCircle size={12} className="text-emerald-400" />
+                        <CheckCircle size={12} className="text-accent-success" />
                       ) : (
-                        <Circle size={12} className="text-slate-600" />
+                        <Circle size={12} className="text-text-muted/50" />
                       )}
-                      <span className={cap.monitored ? "text-emerald-400" : "text-text-muted/80"}>
+                      <span className={cap.monitored ? "text-accent-success" : "text-text-muted/80"}>
                         {cap.monitored ? "Monitored" : "Available"}
                       </span>
                     </>

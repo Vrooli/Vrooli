@@ -2,6 +2,7 @@ import { Activity, AlertCircle, AlertTriangle, CheckCircle, ChevronDown, Chevron
 import { memo, Profiler } from "react";
 import { CheckCard, EventsTimeline, PlatformInfo, SummaryCard, SystemProtection, UptimeStats } from "./components";
 import { Card } from "../../shared/ui/primitives";
+import { selectors } from "../../consts/selectors";
 import type { CheckCategory, HealthResult, StatusResponse } from "../../lib/api";
 import { onProfilerRender } from "../../lib/profiler";
 
@@ -76,17 +77,17 @@ const CheckGroupSection = memo(function CheckGroupSection({
     <div className="space-y-1.5 sm:space-y-2">
       <button
         onClick={() => onToggleGroup(group)}
-        className={`flex w-full flex-wrap items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium transition-colors ${config.headerClass}`}
+        className={`flex min-w-0 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium transition-colors ${config.headerClass}`}
       >
         {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-        <Icon size={16} />
-        <span>{config.title}</span>
+        <Icon size={16} className="shrink-0" />
+        <span className="min-w-0 truncate">{config.title}</span>
         <span className={`ml-auto text-xs font-normal ${config.countClass}`}>
           {checks.length} {checks.length === 1 ? "check" : "checks"}
         </span>
       </button>
       {!collapsed && (
-        <div className="rounded-lg border border-border-default/70 bg-surface-elevated/40 divide-y divide-border-default/70 sm:space-y-2 sm:divide-y-0 sm:border-none sm:bg-transparent">
+        <div className="min-w-0 rounded-lg border border-border-default/70 bg-surface-elevated/40 divide-y divide-border-default/70 sm:space-y-2 sm:divide-y-0 sm:border-none sm:bg-transparent">
           {checks.map((check) => (
             <CheckCard
               key={check.checkId}
@@ -132,7 +133,10 @@ function DashboardSurfaceImpl({
 }: DashboardSurfaceProps) {
   return (
     <div className="min-w-0">
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:mb-6 sm:gap-4 md:grid-cols-4">
+      <div
+        className="mb-5 grid min-w-0 grid-cols-2 gap-3 sm:mb-6 sm:gap-4 md:grid-cols-4"
+        data-testid={selectors.summary.grid}
+      >
         <SummaryCard
           title="Total Checks"
           value={data?.summary.total || 0}

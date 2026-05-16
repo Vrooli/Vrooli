@@ -5,6 +5,7 @@ import { memo, useCallback } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { ActionButtons, StatusIcon } from "../../../shared/components";
 import { Card } from "../../../shared/ui/primitives";
+import { Notice } from "../../../shared/ui/composites";
 import { type HealthResult, type SubCheck, type CheckCategory } from "../../../lib/api";
 import { selectors } from "../../../consts/selectors";
 import { formatRelativeTime } from "../../../lib/utils";
@@ -73,7 +74,7 @@ function CheckCardImpl({ check, onInfoClick, mobileListItem = false }: CheckCard
       tabIndex={onInfoClick ? 0 : undefined}
       onKeyDown={handleCardKeyDown}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         <StatusIcon status={check.status} />
         <div className="flex-1 min-w-0">
           {/* Header row: Title + Info icon + timing info */}
@@ -142,12 +143,12 @@ function CheckCardImpl({ check, onInfoClick, mobileListItem = false }: CheckCard
           </div>
 
           {/* Importance notice - shown when status is not ok */}
-          {isNonOk && check.importance && (
-            <div className="mt-2 flex items-start gap-2 rounded border border-accent-warning/30 bg-accent-warning/10 p-2">
+          {isNonOk && check.importance ? (
+            <Notice tone="warning" className="mt-2 flex min-w-0 items-start gap-2 p-2">
               <AlertTriangle size={14} className="mt-0.5 shrink-0 text-accent-warning" />
               <p className="min-w-0 flex-1 break-words text-xs text-accent-warning">{check.importance}</p>
-            </div>
-          )}
+            </Notice>
+          ) : null}
 
           {/* Sub-checks - displayed as structured checklist */}
           {hasSubChecks && (

@@ -35,6 +35,12 @@ type SortDirection = "asc" | "desc";
 const EMPTY_STATUSES: HealthStatus[] = [];
 const TREND_VISIBLE_STEP = 100;
 
+function getUptimeTextClass(uptimePercent: number) {
+  if (uptimePercent >= 99) return "text-accent-success";
+  if (uptimePercent >= 90) return "text-accent-warning";
+  return "text-accent-danger";
+}
+
 const SortableHeader = memo(function SortableHeader({
   label,
   sortKey,
@@ -124,30 +130,24 @@ const CheckTrendRow = memo(function CheckTrendRow({
 
       <td className="py-2 px-2 text-right">
         <span
-          className={`text-sm font-medium ${
-            trend.uptimePercent >= 99
-              ? "text-emerald-400"
-              : trend.uptimePercent >= 90
-              ? "text-amber-400"
-              : "text-red-400"
-          }`}
+          className={`text-sm font-medium ${getUptimeTextClass(trend.uptimePercent)}`}
         >
           {trend.uptimePercent.toFixed(0)}%
         </span>
       </td>
 
       <td className="py-2 px-2 text-right">
-        <span className="text-sm text-emerald-400">{trend.ok}</span>
+        <span className="text-sm text-accent-success">{trend.ok}</span>
       </td>
 
       <td className="py-2 px-2 text-right">
-        <span className={`text-sm ${trend.warning > 0 ? "text-amber-400" : "text-text-muted/60"}`}>
+        <span className={`text-sm ${trend.warning > 0 ? "text-accent-warning" : "text-text-muted/60"}`}>
           {trend.warning}
         </span>
       </td>
 
       <td className="py-2 px-2 text-right">
-        <span className={`text-sm ${trend.critical > 0 ? "text-red-400" : "text-text-muted/60"}`}>
+        <span className={`text-sm ${trend.critical > 0 ? "text-accent-danger" : "text-text-muted/60"}`}>
           {trend.critical}
         </span>
       </td>

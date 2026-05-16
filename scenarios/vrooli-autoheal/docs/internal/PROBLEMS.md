@@ -52,6 +52,20 @@ _None at initialization_
 
 ## UX Issues
 
+### 2026-05-15: App-shell overlap and mobile overflow regression fix
+
+#### Fixed in this pass
+- Replaced the dense inline header/tab implementation with an explicit app-shell layout contract so header, navigation, and main content have stable ownership and selector-backed landmarks.
+- Added mobile layout regression coverage for shell/header/content ordering, summary-grid responsiveness, selector-backed tabs, and browser-level bounding-box validation at 390px, 360px, and desktop widths.
+- Removed the visible horizontal overflow seen in the mobile dashboard by tightening root overflow containment, dashboard summary-card sizing, health-group containers, and variable-length check-card callouts.
+- Migrated high-traffic tick notices and check-card importance callouts to the shared `Notice` composite, reducing one-off callout styling in the dashboard path.
+- Moved additional shared status visuals (`StatusIcon`, `StatusSparkline`, `ActionHistory`, action result icons) onto semantic theme tokens instead of raw palette classes.
+
+#### Remaining UX debt
+- The tab rail is touch-scrollable on very narrow screens; a future pass could add a compact overflow affordance or segmented menu if users miss offscreen tabs.
+- `SystemProtection.tsx` and `CheckDetailModal.tsx` remain high-density components and should still be split by responsibility in a follow-up architecture pass.
+- The comprehensive scenario runner still depends on healthy external orchestration (`test-genie` + runtime URL discovery); this pass records its environment failure separately from the UI gates.
+
 ### 2026-02-18: Header clarity + mobile health-check list pass
 
 #### Fixed in this pass
