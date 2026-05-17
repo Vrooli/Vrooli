@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Loader2, Play, RotateCcw } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Panel } from "../../components/ui/panel";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { StatusDot } from "../../components/ui/status-dot";
+import { cn } from "../../lib/utils";
 import {
   getLastSuiteRun,
   runSuite,
@@ -20,14 +20,15 @@ import type { ProviderTrace } from "../../services/diagnostics";
 interface SuiteCardProps {
   /** Forward each step's trace into the right-rail timeline. */
   onTrace?: (capability: string, trace: ProviderTrace) => void;
+  /** Click a tile — page may scroll to / highlight a capability panel. */
+  onTileClick?: (capability: SuiteCapability, failed: boolean) => void;
 }
 
 const SUITE_CAPABILITIES: SuiteCapability[] = ["stt", "tts", "summarize", "transcode"];
 
-export function SuiteCard({ onTrace }: SuiteCardProps) {
+export function SuiteCard({ onTrace, onTileClick }: SuiteCardProps) {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const [logOpen, setLogOpen] = useState(false);
 
   const lastQuery = useQuery({ queryKey: ["diagnostics", "last"], queryFn: getLastSuiteRun });
 
@@ -35,8 +36,6 @@ export function SuiteCard({ onTrace }: SuiteCardProps) {
     mutationFn: () => runSuite([]),
     onSuccess: (result) => {
       if (result.ok) {
-        // Replay traces into the right-rail timeline so suite-driven calls
-        // appear alongside ad-hoc per-capability invocations.
         if (onTrace) {
           for (const step of result.data.steps) {
             if (step.providerTier || step.providerId) {
@@ -62,13 +61,98 @@ export function SuiteCard({ onTrace }: SuiteCardProps) {
 
   const busy = runMutation.isPending;
   const everRan = !!liveRun && liveRun.runId !== "";
+  // Auto-expand the step log whenever overall ≠ pass so failures are visible
+  // without an extra click. User can still collapse manually.
+  const autoOpen = everRan && liveRun!.overall !== "pass";
+  const [logOpenOverride, setLogOpenOverride] = useState<boolean | null>(null);
+  const logOpen = logOpenOverride ?? autoOpen;
 
   return (
-    <Panel
-      title={t(strings.diagnostics.suite.title)}
-      description={t(strings.diagnostics.suite.description)}
-      actions={
-        <Button onClick={() => runMutation.mutate()} disabled={busy} data-testid="suite-run">
+    <section
+      className="rounded-panel border border-app-border bg-app-surface text-app-foreground"
+      aria-label={t(strings.diagnostics.suite.title)}
+    >
+      <OverallStrip
+        run={liveRun}
+        busy={busy}
+        everRan={everRan}
+        onRun={() => runMutation.mutate()}
+      />
+
+      <div className="grid gap-2 border-t border-app-border p-3 sm:grid-cols-2 lg:grid-cols-4">
+        {SUITE_CAPABILITIES.map((cap) => (
+          <CapabilityTile
+            key={cap}
+            capability={cap}
+            step={findStep(liveRun, cap)}
+            busy={busy}
+            onClick={onTileClick}
+          />
+        ))}
+      </div>
+
+      <details
+        open={logOpen}
+        onToggle={(e) => setLogOpenOverride((e.currentTarget as HTMLDetailsElement).open)}
+        className="border-t border-app-border bg-app-surface-muted"
+      >
+        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-app-muted-foreground select-none">
+          {logOpen
+            ? t(strings.diagnostics.suite.logToggleClose)
+            : t(strings.diagnostics.suite.logToggleOpen)}
+        </summary>
+        <StepLog run={liveRun} />
+      </details>
+
+      {runMutation.data && !runMutation.data.ok ? (
+        <p className="border-t border-app-border px-3 py-2 text-sm text-app-danger">
+          {t(strings.diagnostics.suite.runFailed, { message: runMutation.data.error.message })}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function OverallStrip({
+  run,
+  busy,
+  everRan,
+  onRun,
+}: {
+  run: SuiteRun | null;
+  busy: boolean;
+  everRan: boolean;
+  onRun: () => void;
+}) {
+  const { t } = useTranslation();
+  const tone = overallTone(run?.overall ?? "never");
+  const label = overallLabel(t, run?.overall ?? "never");
+  const finishedAt = everRan ? new Date(run!.finishedAtUnixMs) : null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-3 py-3">
+      <StatusDot tone={tone} label={label} pulse={busy} />
+      {everRan ? (
+        <>
+          <Badge variant="neutral">{run!.passCount}/{run!.totalCount}</Badge>
+          <span
+            className="hidden text-xs text-app-muted-foreground sm:inline"
+            title={finishedAt!.toLocaleString()}
+            data-testid="suite-last-run"
+          >
+            {t(strings.diagnostics.suite.lastRunLabel, {
+              relative: relativeTime(t, finishedAt!),
+              absolute: finishedAt!.toLocaleString(),
+            })}
+          </span>
+        </>
+      ) : (
+        <span className="text-xs text-app-muted-foreground">
+          {t(strings.diagnostics.suite.lastRunNever)}
+        </span>
+      )}
+      <div className="ml-auto">
+        <Button onClick={onRun} disabled={busy} data-testid="suite-run">
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           ) : everRan ? (
@@ -82,72 +166,42 @@ export function SuiteCard({ onTrace }: SuiteCardProps) {
               ? t(strings.diagnostics.suite.rerunAction)
               : t(strings.diagnostics.suite.runAction)}
         </Button>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <OverallRow run={liveRun} busy={busy} />
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {SUITE_CAPABILITIES.map((cap) => (
-            <CapabilityTile key={cap} capability={cap} step={findStep(liveRun, cap)} busy={busy} />
-          ))}
-        </div>
-        <details
-          open={logOpen}
-          onToggle={(e) => setLogOpen((e.currentTarget as HTMLDetailsElement).open)}
-          className="rounded-control border border-app-border bg-app-surface-muted"
-        >
-          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-app-muted-foreground select-none">
-            {logOpen
-              ? t(strings.diagnostics.suite.logToggleClose)
-              : t(strings.diagnostics.suite.logToggleOpen)}
-          </summary>
-          <StepLog run={liveRun} />
-        </details>
-        {runMutation.data && !runMutation.data.ok ? (
-          <p className="text-sm text-app-danger">
-            {t(strings.diagnostics.suite.runFailed, { message: runMutation.data.error.message })}
-          </p>
-        ) : null}
       </div>
-    </Panel>
-  );
-}
-
-function OverallRow({ run, busy }: { run: SuiteRun | null; busy: boolean }) {
-  const { t } = useTranslation();
-  const tone = overallTone(run?.overall ?? "never");
-  const label = overallLabel(t, run?.overall ?? "never");
-  if (!run || !run.runId) {
-    return (
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        <StatusDot tone={tone} label={label} pulse={busy} />
-        <span className="text-app-muted-foreground">{t(strings.diagnostics.suite.lastRunNever)}</span>
-      </div>
-    );
-  }
-  const finishedAt = new Date(run.finishedAtUnixMs);
-  return (
-    <div className="flex flex-wrap items-center gap-3 text-sm">
-      <StatusDot tone={tone} label={label} pulse={busy} />
-      <span className="text-app-muted-foreground" data-testid="suite-last-run">
-        {t(strings.diagnostics.suite.lastRunLabel, {
-          relative: relativeTime(t, finishedAt),
-          absolute: finishedAt.toLocaleString(),
-        })}
-      </span>
-      <Badge variant="neutral">{run.passCount}/{run.totalCount}</Badge>
     </div>
   );
 }
 
-function CapabilityTile({ capability, step, busy }: { capability: SuiteCapability; step?: SuiteStep; busy: boolean }) {
+function CapabilityTile({
+  capability,
+  step,
+  busy,
+  onClick,
+}: {
+  capability: SuiteCapability;
+  step?: SuiteStep;
+  busy: boolean;
+  onClick?: (capability: SuiteCapability, failed: boolean) => void;
+}) {
   const { t } = useTranslation();
   const tone = tileTone(step, busy);
   const status = tileStatus(t, step, busy);
+  const failed = !!step && !step.ok;
+  const interactive = !!onClick;
   return (
-    <div
-      className="flex flex-col gap-1 rounded-control border border-app-border bg-app-surface px-3 py-2"
+    <button
+      type="button"
+      onClick={interactive ? () => onClick!(capability, failed) : undefined}
+      disabled={!interactive}
+      className={cn(
+        "flex flex-col gap-1 rounded-control border bg-app-surface px-3 py-2 text-left transition",
+        failed
+          ? "border-app-danger border-l-4 border-l-app-danger"
+          : "border-app-border",
+        interactive && "hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus",
+        !interactive && "cursor-default",
+      )}
       data-testid={`suite-tile-${capability}`}
+      aria-label={`${capabilityLabel(t, capability)} — ${status}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-semibold text-app-foreground">{capabilityLabel(t, capability)}</span>
@@ -164,10 +218,12 @@ function CapabilityTile({ capability, step, busy }: { capability: SuiteCapabilit
             <span>{t(strings.diagnostics.suite.tileLatencyMs, { ms: Math.round(step.latencyMs) })}</span>
           </span>
         ) : (
-          <span>{errorCodeLabel(t, step.errorCode) || step.errorMessage || "—"}</span>
+          <span className="text-app-danger">
+            {errorCodeLabel(t, step.errorCode) || step.errorMessage || "—"}
+          </span>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 

@@ -201,6 +201,12 @@ export const strings = {
       logStatusOK: "diagnostics.suite.logStatusOK",
       logStatusFail: "diagnostics.suite.logStatusFail",
       runFailed: "diagnostics.suite.runFailed",
+      traceFilterTitle: "diagnostics.suite.traceFilterTitle",
+      traceFilterAll: "diagnostics.suite.traceFilterAll",
+      traceFilterSTT: "diagnostics.suite.traceFilterSTT",
+      traceFilterTTS: "diagnostics.suite.traceFilterTTS",
+      traceFilterSummarize: "diagnostics.suite.traceFilterSummarize",
+      traceFilterTranscode: "diagnostics.suite.traceFilterTranscode",
     },
   },
   usage: {

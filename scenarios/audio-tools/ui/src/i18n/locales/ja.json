@@ -188,7 +188,13 @@
       "logEntry": "{{capability}} — {{status}} ({{latencyMs}} ms)",
       "logStatusOK": "OK",
       "logStatusFail": "FAIL",
-      "runFailed": "Failed to start suite: {{message}}"
+      "runFailed": "Failed to start suite: {{message}}",
+      "traceFilterTitle": "Filter traces",
+      "traceFilterAll": "All",
+      "traceFilterSTT": "STT",
+      "traceFilterTTS": "TTS",
+      "traceFilterSummarize": "Summarize",
+      "traceFilterTranscode": "Transcode"
     }
   },
   "usage": {

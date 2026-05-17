@@ -92,7 +92,8 @@ describe("DiagnosticsPage", () => {
   it("renders the page header and the SuiteCard above the per-capability panels", async () => {
     renderWithProviders(<DiagnosticsPage />);
     expect(await screen.findByText(strings.diagnostics.title)).toBeInTheDocument();
-    expect(screen.getByText(strings.diagnostics.suite.title)).toBeInTheDocument();
+    // SuiteCard now renders as a label-only strip; assert via aria-label + run button.
+    expect(screen.getByLabelText(strings.diagnostics.suite.title)).toBeInTheDocument();
     expect(screen.getByTestId("suite-run")).toBeInTheDocument();
   });
 
