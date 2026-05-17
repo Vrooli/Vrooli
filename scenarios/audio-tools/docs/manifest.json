@@ -1154,6 +1154,27 @@
       "extensionPolicy": "Add a guide when a user, operator, developer, or agent needs step-by-step instructions for a recurring task.",
       "documents": [
         {
+          "path": "guides/adopting-audio-tools.md",
+          "docType": "guide",
+          "title": "Adopting Audio Tools",
+          "aliases": [
+            "adopt",
+            "consumer-guide",
+            "audio-integration"
+          ],
+          "description": "Canonical procedure a new scenario follows to adopt audio-tools: declare dependency, wire API-side integration adapter, copy audio-integration/ folder into UI, mount provider, write adapters around generic core hooks.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "adoption",
+            "audio-integration-copy-paste"
+          ],
+          "maturity": "active",
+          "completion": "required"
+        },
+        {
           "path": "guides/troubleshooting.md",
           "docType": "troubleshooting",
           "title": "Troubleshooting",

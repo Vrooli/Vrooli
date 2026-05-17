@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	sessionH "audio-tools/handlers/session"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	intsession "audio-tools/internal/session"
 
 	sessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session"
@@ -22,7 +24,7 @@ import (
 func newServer(t *testing.T) (sessconnect.SessionServiceClient, *intsession.Registry) {
 	t.Helper()
 	reg := intsession.NewRegistry()
-	mod := sessionH.Module(reg, nil, nil)
+	mod := sessionH.Module(reg, logx.Std{}, clock.System{})
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)

@@ -19,11 +19,12 @@ func (h *connectHandler) Merge(ctx context.Context, req *connect.Request[audiov1
 	fmts := make([]string, 0, len(req.Msg.Sources))
 	for _, s := range req.Msg.Sources {
 		bs = append(bs, s.Audio)
-		fmts = append(fmts, s.Format)
+		fmts = append(fmts, audioFormatString(s.GetFormat()))
 	}
-	out, err := intaudio.Merge(ctx, bs, fmts, req.Msg.OutputFormat, req.Msg.CrossfadeSeconds)
+	outFmt := audioFormatString(req.Msg.GetOutputFormat())
+	out, err := intaudio.Merge(ctx, bs, fmts, outFmt, req.Msg.CrossfadeSeconds)
 	if err != nil {
 		return nil, mapAudioErr(err)
 	}
-	return connect.NewResponse(&audiov1.MergeResponse{Audio: out, ContentType: contentTypeFor(req.Msg.OutputFormat)}), nil
+	return connect.NewResponse(&audiov1.MergeResponse{Audio: out, ContentType: contentTypeFor(outFmt)}), nil
 }

@@ -42,7 +42,7 @@ export class BrowserTTSProvider implements TTSProvider {
       utterance.onerror = (e) => {
         this._isSpeaking = false;
         this._isPaused = false;
-        reject(new Error((e as SpeechSynthesisErrorEvent).error ?? "Speech synthesis failed"));
+        reject(new Error(e.error));
       };
       window.speechSynthesis.speak(utterance);
     });
@@ -62,8 +62,8 @@ export class BrowserTTSProvider implements TTSProvider {
     this.stop();
   }
 
-  async unlock(_force = false): Promise<boolean> {
-    return true;
+  unlock(_force = false): Promise<boolean> {
+    return Promise.resolve(true);
   }
 
   isUnlocked(): boolean {

@@ -19,9 +19,9 @@ type FakeBYOK struct {
 	StreamFn     func(ctx context.Context, key string, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error)
 }
 
-func (f *FakeBYOK) ID() string                                  { return f.IDStr }
-func (f *FakeBYOK) IsAvailable(context.Context, string) bool    { return f.Available }
-func (f *FakeBYOK) Model() string                               { return "fake-model" }
+func (f *FakeBYOK) ID() string                               { return f.IDStr }
+func (f *FakeBYOK) IsAvailable(context.Context, string) bool { return f.Available }
+func (f *FakeBYOK) Model() string                            { return "fake-model" }
 func (f *FakeBYOK) Transcribe(ctx context.Context, key string, req sttchain.Request) (*sttchain.Result, error) {
 	if f.TranscribeFn != nil {
 		return f.TranscribeFn(ctx, key, req)

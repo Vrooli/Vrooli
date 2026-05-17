@@ -12,6 +12,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "audio-tools/internal/database"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
 	"audio-tools/internal/testutil/db"
 )
@@ -27,7 +28,7 @@ func TestAsyncRecorder_EnqueueAndDrain(t *testing.T) {
 	d := newSchemaDB(t)
 	repo := store.NewUsageStore(d)
 	var buf bytes.Buffer
-	r := New(repo, log.New(&buf, "", 0))
+	r := New(repo, logx.Std{L: log.New(&buf, "", 0)})
 	t.Cleanup(r.Close)
 
 	row := store.UsageRow{
@@ -51,7 +52,7 @@ func TestAsyncRecorder_EnqueueAndDrain(t *testing.T) {
 func TestAsyncRecorder_RecordSync(t *testing.T) {
 	d := newSchemaDB(t)
 	repo := store.NewUsageStore(d)
-	r := New(repo, log.New(&bytes.Buffer{}, "", 0))
+	r := New(repo, logx.Std{L: log.New(&bytes.Buffer{}, "", 0)})
 	t.Cleanup(r.Close)
 
 	row := store.UsageRow{
@@ -74,7 +75,7 @@ func TestAsyncRecorder_BoundedDropNewest(t *testing.T) {
 	var buf bytes.Buffer
 	r := &AsyncRecorder{
 		repo:    nil, // unused — drain never runs in this test
-		logger:  log.New(&buf, "", 0),
+		logger:  logx.Std{L: log.New(&buf, "", 0)},
 		queue:   make(chan store.UsageRow, QueueCapacity),
 		retries: []time.Duration{},
 	}
@@ -102,7 +103,7 @@ func TestAsyncRecorder_BoundedDropNewest(t *testing.T) {
 func TestAsyncRecorder_CloseDrainsPending(t *testing.T) {
 	d := newSchemaDB(t)
 	repo := store.NewUsageStore(d)
-	r := New(repo, log.New(&bytes.Buffer{}, "", 0))
+	r := New(repo, logx.Std{L: log.New(&bytes.Buffer{}, "", 0)})
 
 	for i := 0; i < 10; i++ {
 		r.Enqueue(store.UsageRow{

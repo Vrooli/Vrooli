@@ -15,6 +15,8 @@ import (
 	"audio-tools/internal/ai/ttschain"
 	ttsmocks "audio-tools/internal/ai/ttschain/mocks"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
 	"audio-tools/internal/testutil/db"
@@ -32,6 +34,12 @@ import (
 
 func newServer2(t *testing.T, deps ttsH.Deps) ttsconnect.TTSServiceClient {
 	t.Helper()
+	if deps.Logger == nil {
+		deps.Logger = logx.Std{}
+	}
+	if deps.Clock == nil {
+		deps.Clock = clock.System{}
+	}
 	mod := ttsH.Module(deps)
 	r := mux.NewRouter()
 	mod.Mount(r)

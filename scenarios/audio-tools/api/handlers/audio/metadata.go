@@ -25,7 +25,7 @@ func (h *connectHandler) ExtractMetadata(ctx context.Context, req *connect.Reque
 			Channels:        m.Channels,
 			Bitrate:         m.Bitrate,
 			Codec:           m.Codec,
-			Format:          m.Format,
+			Format:          audioFormatFromString(m.Format),
 			Tags:            m.Tags,
 		},
 	}), nil

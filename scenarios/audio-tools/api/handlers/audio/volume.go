@@ -14,9 +14,15 @@ func (h *connectHandler) Volume(ctx context.Context, req *connect.Request[audiov
 	if err := requireBytes(req.Msg.Audio); err != nil {
 		return nil, err
 	}
-	out, err := intaudio.Volume(ctx, req.Msg.Audio, req.Msg.Format, req.Msg.GainDb, req.Msg.OutputFormat)
+	inFmt := audioFormatString(req.Msg.GetFormat())
+	outFmt := audioFormatString(req.Msg.GetOutputFormat())
+	out, err := intaudio.Volume(ctx, req.Msg.Audio, inFmt, req.Msg.GainDb, outFmt)
 	if err != nil {
 		return nil, mapAudioErr(err)
 	}
-	return connect.NewResponse(&audiov1.VolumeResponse{Audio: out, ContentType: contentTypeFor(req.Msg.OutputFormat)}), nil
+	ct := outFmt
+	if ct == "" {
+		ct = inFmt
+	}
+	return connect.NewResponse(&audiov1.VolumeResponse{Audio: out, ContentType: contentTypeFor(ct)}), nil
 }

@@ -9,7 +9,7 @@
 
 import { ProviderTier, AudioFormat, ResponseFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 import { SpeakerMode, RejectBehavior, StreamingMode, StrategyPreference } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
-import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
+import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 
 export function providerTierLabel(t: ProviderTier | undefined): string {
@@ -164,7 +164,7 @@ export function summarizeLevelFromString(s: string | undefined): SummarizeLevel 
 export function timestampToISO(ts: Timestamp | string | undefined): string {
   if (!ts) return "";
   if (typeof ts === "string") return ts;
-  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : Number(ts.seconds ?? 0);
-  const nanos = Number(ts.nanos ?? 0);
+  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : ts.seconds;
+  const nanos = ts.nanos;
   return new Date(seconds * 1000 + Math.floor(nanos / 1_000_000)).toISOString();
 }

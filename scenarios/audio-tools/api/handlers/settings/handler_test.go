@@ -16,6 +16,7 @@ import (
 	settingsH "audio-tools/handlers/settings"
 	"audio-tools/internal/byokstore"
 	localdb "audio-tools/internal/database"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
 	"audio-tools/internal/testutil/db"
 
@@ -37,6 +38,7 @@ func newServer(t *testing.T) (string, settconnect.SettingsServiceClient) {
 		ProviderConfig: store.NewProviderConfigStore(d, store.ProviderConfig{BYOKEnabled: true, LocalEnabled: true, AvailTTLBYOKSeconds: 300, AvailTTLVrooliSecs: 30}),
 		BYOK:           byokstore.New(enc, store.NewBYOKStore(d)),
 		VoiceOverrides: store.NewVoiceOverrideStore(d),
+		Logger:         logx.Std{},
 	})
 	r := mux.NewRouter()
 	m.Mount(r)

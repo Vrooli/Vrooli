@@ -15,7 +15,6 @@ import (
 type req struct {
 	BYOKKey  string
 	VrooliOK string
-	wantErr  error
 }
 
 type resp struct {
@@ -92,12 +91,12 @@ func TestCoordinator_Execute_Precedence(t *testing.T) {
 		{
 			name: "local_when_no_creds",
 			opts: tiered.Options[req, *resp]{
-				BYOK:        tier("byok", true, nil),
-				Vrooli:      tier("vrooli", true, nil),
-				Local:       tier("local", true, nil),
-				EnableBYOK:  true,
+				BYOK:         tier("byok", true, nil),
+				Vrooli:       tier("vrooli", true, nil),
+				Local:        tier("local", true, nil),
+				EnableBYOK:   true,
 				EnableVrooli: true,
-				EnableLocal: true,
+				EnableLocal:  true,
 			},
 			req:      req{},
 			wantTier: "local",
@@ -105,9 +104,9 @@ func TestCoordinator_Execute_Precedence(t *testing.T) {
 		{
 			name: "byok_terminal_does_not_fall_through",
 			opts: tiered.Options[req, *resp]{
-				BYOK:        tier("byok", true, errUnknownBYOK),
-				Vrooli:      tier("vrooli", true, nil),
-				EnableBYOK:  true,
+				BYOK:         tier("byok", true, errUnknownBYOK),
+				Vrooli:       tier("vrooli", true, nil),
+				EnableBYOK:   true,
 				EnableVrooli: true,
 			},
 			req:       req{BYOKKey: "k", VrooliOK: "t"},
@@ -116,8 +115,8 @@ func TestCoordinator_Execute_Precedence(t *testing.T) {
 		{
 			name: "vrooli_insufficient_credits_short_circuits",
 			opts: tiered.Options[req, *resp]{
-				Vrooli:      tier("vrooli", true, errInsufficientCredits),
-				Local:       tier("local", true, nil),
+				Vrooli:       tier("vrooli", true, errInsufficientCredits),
+				Local:        tier("local", true, nil),
 				EnableVrooli: true, EnableLocal: true,
 			},
 			req:       req{VrooliOK: "t"},
@@ -126,9 +125,9 @@ func TestCoordinator_Execute_Precedence(t *testing.T) {
 		{
 			name: "transport_error_falls_through_to_next_tier",
 			opts: tiered.Options[req, *resp]{
-				BYOK:        tier("byok", true, errors.New("transport")),
-				Vrooli:      tier("vrooli", true, nil),
-				EnableBYOK:  true,
+				BYOK:         tier("byok", true, errors.New("transport")),
+				Vrooli:       tier("vrooli", true, nil),
+				EnableBYOK:   true,
 				EnableVrooli: true,
 			},
 			req:      req{BYOKKey: "k", VrooliOK: "t"},
@@ -137,9 +136,9 @@ func TestCoordinator_Execute_Precedence(t *testing.T) {
 		{
 			name: "unavailable_tier_skipped",
 			opts: tiered.Options[req, *resp]{
-				BYOK:        tier("byok", false, nil),
-				Vrooli:      tier("vrooli", true, nil),
-				EnableBYOK:  true,
+				BYOK:         tier("byok", false, nil),
+				Vrooli:       tier("vrooli", true, nil),
+				EnableBYOK:   true,
 				EnableVrooli: true,
 			},
 			req:      req{BYOKKey: "k", VrooliOK: "t"},
@@ -156,9 +155,9 @@ func TestCoordinator_Execute_Precedence(t *testing.T) {
 		{
 			name: "all_errored_returns_last_err",
 			opts: tiered.Options[req, *resp]{
-				BYOK:        tier("byok", true, errors.New("byokfail")),
-				Vrooli:      tier("vrooli", true, errors.New("vroolifail")),
-				EnableBYOK:  true,
+				BYOK:         tier("byok", true, errors.New("byokfail")),
+				Vrooli:       tier("vrooli", true, errors.New("vroolifail")),
+				EnableBYOK:   true,
 				EnableVrooli: true,
 			},
 			req: req{BYOKKey: "k", VrooliOK: "t"},

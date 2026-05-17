@@ -36,4 +36,11 @@ export function Button({ className, variant, size, asChild = false, ...props }: 
   return <Comp className={cn(buttonVariants({ variant, size, className }))} {...props} />;
 }
 
+// `buttonVariants` is the cva instance the <Button> component uses to
+// compute its class names. It is intentionally exported from the same
+// module so consumers (Link-styled-as-button, asChild slots, etc.) can
+// reuse the exact same variant table without indirection. The Fast
+// Refresh limitation is acceptable: edits to this file remount Button
+// users, which is fine for a primitive design-token boundary.
+// eslint-disable-next-line react-refresh/only-export-components
 export { buttonVariants };

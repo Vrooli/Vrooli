@@ -8,8 +8,8 @@ import { tryCall, type Result } from "./result";
 function timestampToISO(ts: Timestamp | string | undefined): string {
   if (!ts) return "";
   if (typeof ts === "string") return ts;
-  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : Number(ts.seconds ?? 0);
-  const nanos = Number(ts.nanos ?? 0);
+  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : ts.seconds;
+  const nanos = ts.nanos;
   return new Date(seconds * 1000 + Math.floor(nanos / 1_000_000)).toISOString();
 }
 
@@ -116,7 +116,7 @@ export async function updateProviderConfig(input: UpdateProviderConfigInput): Pr
       resp = await client.updateProviderConfig({
         updateMask: create(FieldMaskSchema, { paths }),
         config: cfg,
-      } as Parameters<typeof client.updateProviderConfig>[0]);
+      });
     } catch (e) {
       throw normalizeConnectError(e);
     }

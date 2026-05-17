@@ -24,7 +24,7 @@ import (
 // exercises the early-return guard path.
 func TestStreamWS_UpgradeRejectedWithoutChain(t *testing.T) {
 	r := mux.NewRouter()
-	r.Handle("/api/v1/voice/stream", StreamWSHandler(Deps{Logx: &mocks.FakeLogger{}})).Methods(http.MethodGet)
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(Deps{Logger: &mocks.FakeLogger{}})).Methods(http.MethodGet)
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
 
@@ -39,7 +39,7 @@ func TestStreamWS_UpgradeRejectedWithoutChain(t *testing.T) {
 // record the upgrade-failed line.
 func TestStreamWS_LoggerCapturesUpgradeFailure(t *testing.T) {
 	logger := &mocks.FakeLogger{}
-	deps := Deps{Logx: logger}
+	deps := Deps{Logger: logger}
 	r := mux.NewRouter()
 	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
 	srv := httptest.NewServer(r)
@@ -67,7 +67,7 @@ func newNoProviderDeps(t *testing.T) Deps {
 	return Deps{
 		Chain:    chain,
 		Selector: sttpkg.NewSelector(chain),
-		Logx:     &mocks.FakeLogger{},
+		Logger:   &mocks.FakeLogger{},
 	}
 }
 

@@ -27,6 +27,7 @@ import (
 	"audio-tools/internal/clock"
 	diagcore "audio-tools/internal/diagnostics"
 	"audio-tools/internal/httpc"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/server"
 	intsession "audio-tools/internal/session"
 	sttpkg "audio-tools/internal/stt"
@@ -66,7 +67,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		return nil, nil, fmt.Errorf("open db: %w", err)
 	}
 
-	logger := log.Default()
+	logger := logx.Std{L: log.Default()}
 
 	// Capability singletons (Local providers).
 	capsRegistry := capabilities.NewRegistry(nil, nil, 30*time.Second)
@@ -117,7 +118,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	summarizer := intsumm.NewSummarizer(env.OllamaURL, httpc.DefaultDoer())
 
 	byokRegistries := byok.NewRegistries()
-	chs := BuildChains(env, voiceSvc, ttsSvc, summarizer, byokRegistries)
+	chs := BuildChains(env, voiceSvc, ttsSvc, summarizer, byokRegistries, logger)
 
 	stores, err := BuildStores(db, env)
 	if err != nil {
@@ -138,11 +139,12 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, capsRegistry, "audio-tools-api", "1.0.0"),
-		hsH.Module(capsRegistry, logger),
+		hsH.Module(hsH.Deps{Registry: capsRegistry, Logger: logger, Clock: clock.System{}}),
 		plH.Module(plH.Deps{
 			Registry:   capsRegistry,
 			Controller: capabilities.NewCLIController(),
 			Logger:     logger,
+			Clock:      clock.System{},
 		}),
 		audioH.Module(logger),
 		sessionH.Module(sessionRegistry, logger, clock.System{}),

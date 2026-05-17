@@ -17,6 +17,7 @@ import (
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
 	diagcore "audio-tools/internal/diagnostics"
+	"audio-tools/internal/testutil/mocks"
 
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	diagconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics/diagnostics_v1connect"
@@ -51,7 +52,7 @@ func (s *tcExec) Transcode(_ context.Context, _ []byte, _ string) ([]byte, error
 
 func newSuiteClient(t *testing.T, orch *diagcore.Orchestrator) diagconnect.DiagnosticsServiceClient {
 	t.Helper()
-	mod := diagH.Module(orch, nil)
+	mod := diagH.Module(orch, &mocks.FakeLogger{})
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)

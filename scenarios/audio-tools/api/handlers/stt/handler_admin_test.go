@@ -17,7 +17,9 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
+	"audio-tools/internal/clock"
 	localdb "audio-tools/internal/database"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
 	"audio-tools/internal/testutil/db"
 
@@ -28,9 +30,14 @@ import (
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 )
 
-
 func newSTTClient(t *testing.T, d Deps) sttconnect.STTAdminServiceClient {
 	t.Helper()
+	if d.Logger == nil {
+		d.Logger = logx.Std{}
+	}
+	if d.Clock == nil {
+		d.Clock = clock.System{}
+	}
 	mod := Module(d)
 	r := mux.NewRouter()
 	mod.Mount(r)
@@ -41,6 +48,12 @@ func newSTTClient(t *testing.T, d Deps) sttconnect.STTAdminServiceClient {
 
 func newSTTRuntimeClient(t *testing.T, d Deps) sttconnect.STTServiceClient {
 	t.Helper()
+	if d.Logger == nil {
+		d.Logger = logx.Std{}
+	}
+	if d.Clock == nil {
+		d.Clock = clock.System{}
+	}
 	mod := Module(d)
 	r := mux.NewRouter()
 	mod.Mount(r)
@@ -274,14 +287,14 @@ func TestClearSpeakerProfileBinding(t *testing.T) {
 	require.Empty(t, res.Msg.GetConfig().GetProfileIds())
 }
 
-func TestRemoveSpeakerProfile(t *testing.T) {
+func TestUnbindSpeakerProfile(t *testing.T) {
 	resetSpeakerCfg()
 	t.Cleanup(resetSpeakerCfg)
 	speakerCfgMu.Lock()
 	speakerCfg.ProfileIDs = []string{"a", "b", "c"}
 	speakerCfgMu.Unlock()
 	c := newSTTClient(t, Deps{})
-	res, err := c.RemoveSpeakerProfile(context.Background(), connect.NewRequest(&sttv1.RemoveSpeakerProfileRequest{ProfileId: "b"}))
+	res, err := c.UnbindSpeakerProfile(context.Background(), connect.NewRequest(&sttv1.UnbindSpeakerProfileRequest{ProfileId: "b"}))
 	require.NoError(t, err)
 	require.NotContains(t, res.Msg.GetConfig().GetProfileIds(), "b")
 }

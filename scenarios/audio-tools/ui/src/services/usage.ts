@@ -23,8 +23,8 @@ function providerTierLabel(t: ProviderTier): string {
 
 function timestampToISO(ts: Timestamp | undefined): string {
   if (!ts) return "";
-  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : Number(ts.seconds ?? 0);
-  const nanos = Number(ts.nanos ?? 0);
+  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : ts.seconds;
+  const nanos = ts.nanos;
   return new Date(seconds * 1000 + Math.floor(nanos / 1_000_000)).toISOString();
 }
 

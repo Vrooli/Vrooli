@@ -87,7 +87,7 @@ func (h *connectHandler) ClearSpeakerProfileBinding(_ context.Context, _ *connec
 	return connect.NewResponse(&sttv1.ClearSpeakerProfileBindingResponse{Config: cfg.toProto()}), nil
 }
 
-func (h *connectHandler) RemoveSpeakerProfile(_ context.Context, req *connect.Request[sttv1.RemoveSpeakerProfileRequest]) (*connect.Response[sttv1.RemoveSpeakerProfileResponse], error) {
+func (h *connectHandler) UnbindSpeakerProfile(_ context.Context, req *connect.Request[sttv1.UnbindSpeakerProfileRequest]) (*connect.Response[sttv1.UnbindSpeakerProfileResponse], error) {
 	id := req.Msg.GetProfileId()
 	speakerCfgMu.Lock()
 	out := speakerCfg.ProfileIDs[:0]
@@ -99,7 +99,7 @@ func (h *connectHandler) RemoveSpeakerProfile(_ context.Context, req *connect.Re
 	speakerCfg.ProfileIDs = out
 	cfg := speakerCfg
 	speakerCfgMu.Unlock()
-	return connect.NewResponse(&sttv1.RemoveSpeakerProfileResponse{Config: cfg.toProto()}), nil
+	return connect.NewResponse(&sttv1.UnbindSpeakerProfileResponse{Config: cfg.toProto()}), nil
 }
 
 func (h *connectHandler) DeleteSpeakerProfile(ctx context.Context, req *connect.Request[sttv1.DeleteSpeakerProfileRequest]) (*connect.Response[sttv1.DeleteSpeakerProfileResponse], error) {

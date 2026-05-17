@@ -16,7 +16,7 @@ import {
 } from "./protomap";
 import type { Config as TTSConfigMsg } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
 import type { SummarizeConfig as SummarizeConfigMsg } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
-import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
+import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
 
 export interface TTSVoiceInfo {
   id: string;
@@ -143,7 +143,7 @@ export function createTtsApi(client: AudioToolsClient) {
       const resp = await client.tts.updateConfig({
         updateMask: create(FieldMaskSchema, { paths }),
         config: cfg,
-      } as Parameters<typeof client.tts.updateConfig>[0]);
+      });
       return decodeTTSConfig(resp.config);
     },
 
@@ -163,7 +163,7 @@ export function createTtsApi(client: AudioToolsClient) {
       const resp = await client.summarize.updateSummarizeConfig({
         updateMask: create(FieldMaskSchema, { paths }),
         config: cfg,
-      } as Parameters<typeof client.summarize.updateSummarizeConfig>[0]);
+      });
       return decodeSummarizeConfig(resp.config);
     },
 

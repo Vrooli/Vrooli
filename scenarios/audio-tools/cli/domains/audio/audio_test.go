@@ -17,6 +17,7 @@ import (
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
 	audioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio/audio_v1connect"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 
 	"audio-tools/cli/internal/testutil"
 )
@@ -56,7 +57,7 @@ func TestTranscodeHappyPath(t *testing.T) {
 	app := mountAudio(t, &fakeAudio{
 		transcode: func(req *audiov1.TranscodeRequest) (*audiov1.TranscodeResponse, error) {
 			require.Equal(t, []byte("RAW-BYTES"), req.GetAudio())
-			require.Equal(t, "wav", req.GetOutputFormat())
+			require.Equal(t, commonv1.AudioFormat_AUDIO_FORMAT_WAV, req.GetOutputFormat())
 			return &audiov1.TranscodeResponse{
 				Audio:       []byte("WAV-OK"),
 				ContentType: "audio/wav",

@@ -3,12 +3,10 @@ package session
 import (
 	"context"
 	"errors"
-	"log"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/protomap"
 	intsession "audio-tools/internal/session"
 
@@ -19,12 +17,14 @@ type connectHandler struct {
 	deps Deps
 }
 
+// NewConnectHandler builds the Connect handler. All Deps seams
+// (Logger, Clock) are required; nil values panic.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("session.NewConnectHandler requires Deps.Logger")
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		panic("session.NewConnectHandler requires Deps.Clock")
 	}
 	return &connectHandler{deps: d}
 }

@@ -72,6 +72,93 @@
       }
     },
     {
+      "id": "provider_lifecycle.list_local_providers",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/ListLocalProviders",
+      "method": "POST",
+      "summary": "List local-tier providers, their process_state, and supported lifecycle actions",
+      "description": "",
+      "category": "provider_lifecycle",
+      "cli_mapping": {
+        "command": "audio-tools provider list"
+      }
+    },
+    {
+      "id": "provider_lifecycle.start_provider",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/StartProvider",
+      "method": "POST",
+      "summary": "Start a local provider (wraps `vrooli resource start <slug>`); honors X-Dry-Run",
+      "description": "",
+      "category": "provider_lifecycle",
+      "cli_mapping": {
+        "command": "audio-tools provider start",
+        "args": [
+          "<provider-id>",
+          "[--dry-run]"
+        ]
+      }
+    },
+    {
+      "id": "provider_lifecycle.stop_provider",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/StopProvider",
+      "method": "POST",
+      "summary": "Stop a local provider (wraps `vrooli resource stop <slug>`); honors X-Dry-Run",
+      "description": "",
+      "category": "provider_lifecycle",
+      "cli_mapping": {
+        "command": "audio-tools provider stop",
+        "args": [
+          "<provider-id>",
+          "[--dry-run]"
+        ]
+      }
+    },
+    {
+      "id": "provider_lifecycle.restart_provider",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/RestartProvider",
+      "method": "POST",
+      "summary": "Restart a local provider (wraps `vrooli resource restart <slug>`); honors X-Dry-Run",
+      "description": "",
+      "category": "provider_lifecycle",
+      "cli_mapping": {
+        "command": "audio-tools provider restart",
+        "args": [
+          "<provider-id>",
+          "[--dry-run]"
+        ]
+      }
+    },
+    {
+      "id": "provider_lifecycle.pull_model",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/PullModel",
+      "method": "POST",
+      "summary": "Pull a model on the ollama provider; honors X-Dry-Run",
+      "description": "",
+      "category": "provider_lifecycle",
+      "cli_mapping": {
+        "command": "audio-tools provider pull-model",
+        "args": [
+          "<model-name>",
+          "[--dry-run]"
+        ]
+      }
+    },
+    {
+      "id": "provider_lifecycle.get_provider_logs",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/GetProviderLogs",
+      "method": "POST",
+      "summary": "Stream stdout/stderr lines from a local provider's backing resource",
+      "description": "",
+      "category": "provider_lifecycle",
+      "cli_mapping": {
+        "command": "audio-tools provider logs",
+        "args": [
+          "<provider-id>",
+          "[--follow]",
+          "[--tail N]"
+        ]
+      }
+    },
+    {
       "id": "audio.transcode",
       "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Transcode",
       "method": "POST",
@@ -409,8 +496,8 @@
       "category": "stt"
     },
     {
-      "id": "stt.remove_speaker_profile",
-      "path": "/vrooli.audio_tools.v1.stt.STTService/RemoveSpeakerProfile",
+      "id": "stt.unbind_speaker_profile",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/UnbindSpeakerProfile",
       "method": "POST",
       "summary": "",
       "description": "",
@@ -590,6 +677,36 @@
       "name": "health watch",
       "description": "Stream per-capability provider-health events until Ctrl-C",
       "endpoint_id": "health_status.stream_provider_health"
+    },
+    {
+      "name": "provider list",
+      "description": "List local-tier providers with their current process_state and supported actions",
+      "endpoint_id": "provider_lifecycle.list_local_providers"
+    },
+    {
+      "name": "provider start",
+      "description": "Start a local provider (wraps `vrooli resource start <slug>`); use --dry-run to preview",
+      "endpoint_id": "provider_lifecycle.start_provider"
+    },
+    {
+      "name": "provider stop",
+      "description": "Stop a local provider (wraps `vrooli resource stop <slug>`); use --dry-run to preview",
+      "endpoint_id": "provider_lifecycle.stop_provider"
+    },
+    {
+      "name": "provider restart",
+      "description": "Restart a local provider (wraps `vrooli resource restart <slug>`); use --dry-run to preview",
+      "endpoint_id": "provider_lifecycle.restart_provider"
+    },
+    {
+      "name": "provider pull-model",
+      "description": "Pull a model on the ollama provider (ollama-only); use --dry-run to preview",
+      "endpoint_id": "provider_lifecycle.pull_model"
+    },
+    {
+      "name": "provider logs",
+      "description": "Stream stdout/stderr lines from a local provider's backing resource",
+      "endpoint_id": "provider_lifecycle.get_provider_logs"
     }
   ]
 }

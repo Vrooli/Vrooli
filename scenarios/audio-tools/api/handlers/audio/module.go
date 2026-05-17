@@ -2,9 +2,9 @@
 package audio
 
 import (
-	"log"
 	"net/http"
 
+	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 
 	"github.com/gorilla/mux"
@@ -14,12 +14,14 @@ import (
 )
 
 type Deps struct {
-	Logger *log.Logger
+	Logger logx.Logger
 }
 
-func Module(logger *log.Logger) modulekit.Module {
+// Module returns the audio domain's contribution to the API. logger is
+// required; a nil value panics so a forgotten wire-up surfaces at boot.
+func Module(logger logx.Logger) modulekit.Module {
 	if logger == nil {
-		logger = log.Default()
+		panic("audio.Module requires logger")
 	}
 	connectPath, h := audioconnect.NewAudioProcessingServiceHandler(NewConnectHandler(Deps{Logger: logger}))
 	return modulekit.Module{

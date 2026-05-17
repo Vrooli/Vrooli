@@ -11,6 +11,7 @@ import (
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
 	audioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio/audio_v1connect"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 )
 
 type handlers struct {
@@ -34,7 +35,7 @@ func (h *handlers) transcode(ctx cliapp.RunContext) error {
 	}
 	resp, err := h.client.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{
 		Audio:        data,
-		OutputFormat: "wav",
+		OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_WAV,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("transcode", err, nil)

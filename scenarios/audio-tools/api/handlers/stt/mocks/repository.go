@@ -37,6 +37,7 @@ func (f *FakeWakeword) Upsert(_ context.Context, t store.WakeWordTemplate) error
 	f.Items[t.ID] = t
 	return nil
 }
+
 func (f *FakeWakeword) Delete(_ context.Context, id string) (bool, error) {
 	if f.DeleteErr != nil {
 		return false, f.DeleteErr
@@ -45,6 +46,7 @@ func (f *FakeWakeword) Delete(_ context.Context, id string) (bool, error) {
 	delete(f.Items, id)
 	return ok, nil
 }
+
 func (f *FakeWakeword) Get(_ context.Context, id string) (store.WakeWordTemplate, bool, error) {
 	if f.GetErr != nil {
 		return store.WakeWordTemplate{}, false, f.GetErr
@@ -52,6 +54,7 @@ func (f *FakeWakeword) Get(_ context.Context, id string) (store.WakeWordTemplate
 	t, ok := f.Items[id]
 	return t, ok, nil
 }
+
 func (f *FakeWakeword) List(context.Context) ([]store.WakeWordTemplate, error) {
 	if f.ListErr != nil {
 		return nil, f.ListErr
@@ -80,6 +83,7 @@ func (f *FakeSpeaker) Upsert(_ context.Context, p store.SpeakerProfile) error {
 	f.Items[p.ID] = p
 	return nil
 }
+
 func (f *FakeSpeaker) Delete(_ context.Context, id string) (bool, error) {
 	if f.DeleteErr != nil {
 		return false, f.DeleteErr
@@ -88,6 +92,7 @@ func (f *FakeSpeaker) Delete(_ context.Context, id string) (bool, error) {
 	delete(f.Items, id)
 	return ok, nil
 }
+
 func (f *FakeSpeaker) List(context.Context) ([]store.SpeakerProfile, error) {
 	if f.ListErr != nil {
 		return nil, f.ListErr

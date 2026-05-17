@@ -34,6 +34,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 	{ID: "stt.list_speaker_profiles", Path: "/vrooli.audio_tools.v1.stt.STTService/ListSpeakerProfiles", Method: "POST", Category: "stt"},
 	{ID: "stt.enroll_speaker_profile", Path: "/vrooli.audio_tools.v1.stt.STTService/EnrollSpeakerProfile", Method: "POST", Category: "stt"},
 	{ID: "stt.clear_speaker_profile_binding", Path: "/vrooli.audio_tools.v1.stt.STTService/ClearSpeakerProfileBinding", Method: "POST", Category: "stt"},
-	{ID: "stt.remove_speaker_profile", Path: "/vrooli.audio_tools.v1.stt.STTService/RemoveSpeakerProfile", Method: "POST", Category: "stt"},
+	{ID: "stt.unbind_speaker_profile", Path: "/vrooli.audio_tools.v1.stt.STTAdminService/UnbindSpeakerProfile", Method: "POST", Category: "stt"},
 	{ID: "stt.delete_speaker_profile", Path: "/vrooli.audio_tools.v1.stt.STTService/DeleteSpeakerProfile", Method: "POST", Category: "stt"},
 }

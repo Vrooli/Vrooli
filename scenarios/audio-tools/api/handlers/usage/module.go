@@ -2,9 +2,8 @@
 package usage
 
 import (
-	"log"
-
 	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 
 	"github.com/gorilla/mux"
@@ -14,17 +13,17 @@ import (
 )
 
 type Deps struct {
-	Logger *log.Logger
+	Logger logx.Logger
 	Clock  clock.Clock
 	Store  Repository
 }
 
 func Module(d Deps) modulekit.Module {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("usage.Module requires Deps.Logger")
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		panic("usage.Module requires Deps.Clock")
 	}
 	connectPath, h := usageconnect.NewUsageServiceHandler(NewConnectHandler(d))
 	return modulekit.Module{

@@ -7,16 +7,16 @@ import (
 
 	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 )
 
-// Chain composes Local + BYOK + Vrooli providers under the fixed precedence
-// BYOK -> Vrooli -> Local. ErrInsufficientCredits from Vrooli short-circuits.
-//
-// Unary Execute + Reconfigure + Probe + availability caching are delegated
-// to *tiered.Coordinator. Streaming (Stream, StreamCandidates) lives in
-// stream.go because it touches per-provider Traits.
+// Chain composes Local + BYOK + Vrooli providers under the fixed
+// precedence BYOK -> Vrooli -> Local. Unary Execute, Reconfigure, Probe,
+// Eligible, and availability caching are inherited from the embedded
+// *tiered.Coordinator; streaming (Stream, StreamCandidates) lives in
+// stream.go and reaches the typed provider pointers directly.
 type Chain struct {
-	coord *tiered.Coordinator[Request, *Result]
+	*tiered.Coordinator[Request, *Result]
 
 	local  *LocalProvider
 	byok   *BYOKProvider
@@ -36,45 +36,56 @@ type Options struct {
 	AvailTTLByOK   time.Duration
 	AvailTTLVrooli time.Duration
 
-	// Clock is the wall-clock seam used for availability-cache TTL
-	// comparisons. Defaults to clock.System{}.
 	Clock clock.Clock
+
+	// Logx, when set, receives a structured `event=tier_fallback` line
+	// each time a request is served from a tier other than the first-
+	// priority tier. Nil disables the chain-level log; per-request
+	// callbacks attached via tiered.WithOnFallback still fire.
+	Logx logx.Logger
 }
 
 func NewChain(opts Options) *Chain {
 	c := &Chain{local: opts.Local, byok: opts.BYOK, vrooli: opts.Vrooli}
-	c.coord = tiered.NewCoordinator(tiered.Options[Request, *Result]{
-		BYOK:         byokTier(opts.BYOK),
-		Vrooli:       vrooliTier(opts.Vrooli),
-		Local:        localTier(opts.Local),
+	c.Coordinator = tiered.NewChainFromSet(tiered.ProviderSet[Request, *Result]{
+		BYOK:       sttTier(c.byok),
+		Vrooli:     sttTier(c.vrooli),
+		Local:      sttTier(c.local),
+		Route:      routeFn,
+		IsTerminal: terminalFn,
+		AllFailed:  ErrAllProvidersFailed,
+	}, tiered.ChainOptions{
 		EnableBYOK:   opts.EnableBYOK,
 		EnableVrooli: opts.EnableVrooli,
 		EnableLocal:  opts.EnableLocal,
 		TTLByOK:      opts.AvailTTLByOK,
 		TTLVrooli:    opts.AvailTTLVrooli,
-		Route:        routeFn,
-		IsTerminal:   terminalFn,
-		AllFailed:    ErrAllProvidersFailed,
 		Clock:        opts.Clock,
+		OnFallback:   fallbackLogger("stt", opts.Logx),
 	})
 	return c
 }
 
-func byokTier(p *BYOKProvider) *tiered.Tier[Request, *Result] {
-	if p == nil {
+// fallbackLogger returns a tiered.OnFallback hook that emits a structured
+// log line tagged with the given capability. Returns nil when lg is nil
+// so the coordinator skips invocation entirely.
+func fallbackLogger(capability string, lg logx.Logger) func(ctx context.Context, ev tiered.FallbackEvent) {
+	if lg == nil {
 		return nil
 	}
-	return &tiered.Tier[Request, *Result]{Execute: p.Transcribe, IsAvailable: p.IsAvailable}
-}
-
-func vrooliTier(p *VrooliProvider) *tiered.Tier[Request, *Result] {
-	if p == nil {
-		return nil
+	return func(_ context.Context, ev tiered.FallbackEvent) {
+		lg.Printf("event=tier_fallback capability=%s from_tier=%s to_tier=%s reason=%q",
+			capability, ev.From.String(), ev.To.String(), ev.Reason)
 	}
-	return &tiered.Tier[Request, *Result]{Execute: p.Transcribe, IsAvailable: p.IsAvailable}
 }
 
-func localTier(p *LocalProvider) *tiered.Tier[Request, *Result] {
+// sttTier wraps a concrete provider as a tiered.Tier. The pointer-shaped
+// type parameter avoids the interface-typed-nil pitfall (a typed-nil
+// *BYOKProvider would otherwise become a non-nil Provider interface).
+func sttTier[T any, P interface {
+	*T
+	Provider
+}](p P) *tiered.Tier[Request, *Result] {
 	if p == nil {
 		return nil
 	}
@@ -99,26 +110,4 @@ func terminalFn(slot tiered.Slot, err error) bool {
 		return errors.Is(err, ErrInsufficientCredits)
 	}
 	return false
-}
-
-// Execute runs the request through the chain.
-func (c *Chain) Execute(ctx context.Context, req Request) (*Result, error) {
-	return c.coord.Execute(ctx, req)
-}
-
-// Reconfigure swaps runtime toggles + TTLs; invalidates availability caches.
-func (c *Chain) Reconfigure(enableBYOK, enableVrooli, enableLocal bool, ttlBYOK, ttlVrooli time.Duration) {
-	c.coord.Reconfigure(enableBYOK, enableVrooli, enableLocal, ttlBYOK, ttlVrooli)
-}
-
-// ProbeResult is the per-tier availability snapshot.
-type ProbeResult struct {
-	Local  bool
-	BYOK   bool
-	Vrooli bool
-}
-
-func (c *Chain) Probe(ctx context.Context) ProbeResult {
-	r := c.coord.Probe(ctx)
-	return ProbeResult{Local: r.Local, BYOK: r.BYOK, Vrooli: r.Vrooli}
 }

@@ -14,9 +14,16 @@ func (h *connectHandler) Normalize(ctx context.Context, req *connect.Request[aud
 	if err := requireBytes(req.Msg.Audio); err != nil {
 		return nil, err
 	}
-	out, err := intaudio.Normalize(ctx, req.Msg.Audio, req.Msg.Format, req.Msg.Method, req.Msg.TargetLufs, req.Msg.OutputFormat)
+	inFmt := audioFormatString(req.Msg.GetFormat())
+	outFmt := audioFormatString(req.Msg.GetOutputFormat())
+	method := normalizationMethodString(req.Msg.GetMethod())
+	out, err := intaudio.Normalize(ctx, req.Msg.Audio, inFmt, method, req.Msg.TargetLufs, outFmt)
 	if err != nil {
 		return nil, mapAudioErr(err)
 	}
-	return connect.NewResponse(&audiov1.NormalizeResponse{Audio: out, ContentType: contentTypeFor(req.Msg.OutputFormat), MeasuredLufs: req.Msg.TargetLufs}), nil
+	ct := outFmt
+	if ct == "" {
+		ct = inFmt
+	}
+	return connect.NewResponse(&audiov1.NormalizeResponse{Audio: out, ContentType: contentTypeFor(ct), MeasuredLufs: req.Msg.TargetLufs}), nil
 }

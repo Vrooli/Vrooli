@@ -1,8 +1,6 @@
 package server_test
 
 import (
-	"io"
-	"log"
 	"net/http"
 	"testing"
 
@@ -10,6 +8,7 @@ import (
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
 	"audio-tools/internal/testutil/httpx"
+	"audio-tools/internal/testutil/mocks"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -85,13 +84,19 @@ func TestServer_HandlerNotNil(t *testing.T) {
 
 func TestServer_NewRequiresClock(t *testing.T) {
 	require.PanicsWithValue(t, "server.New requires Deps.Clock", func() {
-		server.New(server.Deps{Logger: log.New(io.Discard, "", 0)})
+		server.New(server.Deps{Logger: &mocks.FakeLogger{}})
+	})
+}
+
+func TestServer_NewRequiresLogger(t *testing.T) {
+	require.PanicsWithValue(t, "server.New requires Deps.Logger", func() {
+		server.New(server.Deps{Clock: clock.System{}})
 	})
 }
 
 func newTestDeps() server.Deps {
 	return server.Deps{
 		Clock:  clock.System{},
-		Logger: log.New(io.Discard, "", 0),
+		Logger: &mocks.FakeLogger{},
 	}
 }

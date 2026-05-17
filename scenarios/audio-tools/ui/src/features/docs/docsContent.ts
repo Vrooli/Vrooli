@@ -9,13 +9,13 @@ const rawRoot = import.meta.glob("../../../../*.md", {
   query: "?raw",
   import: "default",
   eager: true,
-}) as Record<string, string>;
+});
 
 const rawTree = import.meta.glob("../../../../docs/**/*.md", {
   query: "?raw",
   import: "default",
   eager: true,
-}) as Record<string, string>;
+});
 
 function normaliseKey(key: string): string | null {
   if (!key.startsWith(SCENARIO_ROOT_PREFIX)) return null;
@@ -23,7 +23,7 @@ function normaliseKey(key: string): string | null {
 }
 
 const docs: Record<string, string> = {};
-for (const source of [rawRoot, rawTree]) {
+for (const source of [rawRoot, rawTree] as Record<string, string>[]) {
   for (const [key, value] of Object.entries(source)) {
     const normalised = normaliseKey(key);
     if (!normalised) continue;

@@ -413,6 +413,41 @@ When adding or changing a Level 5 state/event:
    failures via the generated formal replay fixture interface.
 5. Run `make temporal-models` before the regular scenario tests.
 
+### Logger seam adoption (handler template)
+
+Every handler (`handlers/<domain>/`) declares `Logger logx.Logger` as a
+required field on `Deps`. There is **no** `if d.Logger == nil { d.Logger = log.Default() }` fallback — passing a nil logger is a programming
+error and the handler will panic on first emit. Production wires
+`logx.Std{L: log.Default()}` from `internal/bootstrap`; tests pass
+`mocks.NewFakeLogger()` and assert on `Entries()`:
+
+```go
+// handlers/provider_lifecycle/connect_handler_test.go
+fakeLogger := mocks.NewFakeLogger()
+fakeClock := mocks.NewFakeClock(time.Date(2026, 5, 17, 12, 0, 0, 0, time.UTC))
+h := provider_lifecycle.NewConnectHandler(provider_lifecycle.Deps{
+    Registry:   reg,
+    Controller: &capmocks.FakeController{StartErr: errors.New("kaboom")},
+    Logger:     fakeLogger,
+    Clock:      fakeClock,
+})
+_, err := h.StartProvider(ctx, connect.NewRequest(&plv1.StartProviderRequest{ProviderId: "whisper-stt"}))
+require.Error(t, err)
+require.Contains(t, strings.Join(fakeLogger.Entries(), "\n"), "StartProvider failed")
+```
+
+The same pattern applies to `Clock`: required field, `mocks.FakeClock`
+in tests, exact RFC3339 string assertions on response `GeneratedAt`
+fields. Both `time.Now()` and `log.Default()` callsites are forbidden
+outside `internal/{clock,logx,bootstrap}/` and `main.go` — drift gates
+in §10 of the test-architecture plan and `scripts/check_coverage.sh`
+enforce this.
+
+When the test only needs to silence log output (not assert on it),
+`logx.Std{L: log.New(io.Discard, "", 0)}` is the canonical no-op
+production logger. Reach for `FakeLogger` only when the assertion is
+"the handler logged X on this error path."
+
 ### Buffer-backed logger pattern
 
 The production `*log.Logger` shouldn't write to stderr during tests —

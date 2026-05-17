@@ -132,6 +132,54 @@ through `audio-tools health show` (default human table) and
 All cross-component reads go through Connect — never through the REST
 probe.
 
+### Provider lifecycle actions (`provider_lifecycle` domain)
+
+`vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService` is
+the operator-facing surface for starting, stopping, restarting, and
+pulling models on the four local-tier providers audio-tools owns
+(`whisper-stt`, `kokoro-tts`, `speaker-verification`, `ollama`). It
+wraps `vrooli resource <verb> <slug>` through the
+`capabilities.ResourceController` seam (production:
+`capabilities.CLIController` resolved once at startup;
+`CodeUnavailable` when the `vrooli` binary is not on PATH). Mutating
+RPCs honor the canonical `X-Dry-Run: true` request header. After a
+successful mutation, the handler kicks `Registry.ResolveForce` in a
+background goroutine so the next `GetProviderHealth` reflects the new
+process state without waiting for TTL. `PullModel` is allowed only on
+`ollama`; other provider IDs return `CodeFailedPrecondition`. Log
+streaming uses Connect server-streaming. The UI `/status` page renders
+the action buttons advertised by `ListLocalProviders.supported_actions`
+and opens a `LogsDrawer` for `View logs`. The CLI mirrors the surface
+under `audio-tools provider {list,start,stop,restart,pull-model,logs}`.
+
+### Silent-fallback observability (`x-audio-tools-fallback` header)
+
+When the STT, TTS, or Summarize chain serves a response from a tier
+OTHER than the user's first-priority (first-eligible) tier — for
+example, BYOK fails with `provider_unavailable` and Vrooli picks up
+the request — the API emits two signals:
+
+1. A structured log line `event=tier_fallback capability=<stt|tts|summarize>
+   from_tier=<byok|vrooli|local> to_tier=<…> reason="<error class>"`
+   from the chain layer. Wired at construction time via the chain
+   `Options.Logx` field consumed by `fallbackLogger()` in each chain
+   package.
+2. A Connect response header `x-audio-tools-fallback:
+   from=<tier>;to=<tier>;reason=<code>`. The chain layer fires its
+   per-request hook through `tiered.WithOnFallback(ctx, …)`; the
+   Connect handler closes over the `connect.Response` and sets the
+   header. No proto contract change: this is metadata, not a typed
+   field. The chain-fallback seam lives in
+   `internal/ai/chains/tiered/{tiered.go,context.go}`.
+
+UI consumption is in `ui/src/api/fallbackInterceptor.ts`. The Connect
+interceptor reads the header, derives the capability from the response
+service typeName, debounces at one toast per capability per 60 seconds,
+and pushes through the minimal `Toaster` primitive in
+`components/ui/toast.tsx`. Toast bodies deep-link to
+`/status#<capability>`; `CapabilityRow` carries a matching DOM `id`
+so the anchor scrolls to the affected row.
+
 REST is allowed only for four enumerated reasons, defined as
 `RESTReason` constants in `api/internal/module/module.go`:
 
@@ -239,14 +287,19 @@ rg 'time\.Now\(\)|os\.Getenv|http\.DefaultClient|log\.Printf|slog\.Default' \
    -g '!httpc/**' -g '!envx/**' -g '!logx/**' -g '!bootstrap/**' \
    | grep -v '^[^:]*://'
 
-# L4 — coverage floors per package
+# L3 (handler axis) — also expected to be empty post 2026-05-17 follow-up plan
+rg -n 'log\.Default\(\)' . -g '!*_test.go' -g '!internal/bootstrap/**' -g '!internal/logx/**' -g '!main.go'
+rg -n 'time\.Now\(\)' handlers/ -g '!*_test.go'
+
+# L4 — coverage floors per package (now under -race)
 bash scripts/check_coverage.sh
 
 # L5 — seam registry / docs cross-reference
 go test ./internal/testutil/ -run TestSeamRegistry -count=1
+go test ./internal/testutil/ -run TestNoProductionImports -count=1
 
-# Hygiene — no inline test fakes, no time.Sleep in tests
-grep -rn '^type \(fake\|mock\|stub\)\w\+ struct' --include='*_test.go' .
+# Hygiene — no inline test fakes (uppercase or lowercase), no time.Sleep in tests
+grep -rn '^type \(fake\|mock\|stub\|Fake\|Mock\|Stub\)\w\+ struct' --include='*_test.go' .
 grep -rn 'time\.Sleep(' --include='*_test.go' . | grep -v testutil/mocks/clock_test.go
 ```
 

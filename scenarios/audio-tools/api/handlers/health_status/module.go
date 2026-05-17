@@ -6,9 +6,9 @@
 package health_status
 
 import (
-	"log"
-
 	"audio-tools/internal/capabilities"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 
 	"github.com/gorilla/mux"
@@ -17,18 +17,18 @@ import (
 	hsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status/health_status_v1connect"
 )
 
-// Deps wires the handler. Registry is required.
+// Deps wires the handler. All fields are required; production wires
+// `clock.System{}` + `logx.Std{...}` in main.go / bootstrap, tests wire
+// mocks.FakeClock / mocks.FakeLogger.
 type Deps struct {
 	Registry *capabilities.Registry
-	Logger   *log.Logger
+	Logger   logx.Logger
+	Clock    clock.Clock
 }
 
 // Module returns the health_status module contribution.
-func Module(reg *capabilities.Registry, logger *log.Logger) modulekit.Module {
-	if logger == nil {
-		logger = log.Default()
-	}
-	connectPath, h := hsconnect.NewHealthStatusServiceHandler(NewConnectHandler(Deps{Registry: reg, Logger: logger}))
+func Module(d Deps) modulekit.Module {
+	connectPath, h := hsconnect.NewHealthStatusServiceHandler(NewConnectHandler(d))
 	return modulekit.Module{
 		Name: "health_status",
 		Mount: func(r *mux.Router) {

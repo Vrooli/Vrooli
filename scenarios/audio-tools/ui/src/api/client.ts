@@ -3,17 +3,28 @@ import {
   fromJson,
   type JsonValue,
 } from "@bufbuild/protobuf";
-import { resolveApiBase, buildApiUrl, createScenarioConnectTransport } from "@vrooli/api-base";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 import {
   ErrorEnvelopeSchema,
   type ErrorEnvelope,
 } from "@vrooli/proto-types/audio-tools/v1/errors/errors_pb";
 
+import { createFallbackInterceptor } from "./fallbackInterceptor";
+
 export const API_BASE = resolveApiBase();
 const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 
-export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });
+// Connect transport wired with the fallback-observability interceptor.
+// We construct the transport directly here (instead of using the shared
+// createScenarioConnectTransport helper) because that helper does not yet
+// expose an interceptors hook; the rest of the configuration is identical.
+export const transport = createConnectTransport({
+  baseUrl: API_BASE,
+  interceptors: [createFallbackInterceptor()],
+});
+
 
 /**
  * Typed error thrown when the API returns a non-2xx response. The

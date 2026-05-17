@@ -10,10 +10,10 @@
 package server
 
 import (
-	"log"
 	"net/http"
 
 	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/middleware"
 	"audio-tools/internal/modulekit"
 
@@ -23,15 +23,11 @@ import (
 
 // Deps holds the cross-cutting interfaces the Server depends on
 // regardless of which modules are mounted. Production wires concrete
-// implementations (clock.System{}, log.Default()) in main.go; tests
-// wire fakes from internal/testutil/mocks.
-//
-// Per-domain dependencies (database handle, repository services,
-// pingers) live inside each module's constructor — Deps is intentionally
-// limited to what the middleware stack reads.
+// implementations (clock.System{}, logx.Std{...}) in main.go; tests
+// wire fakes from internal/testutil/mocks. Both fields are required.
 type Deps struct {
 	Clock  clock.Clock
-	Logger *log.Logger
+	Logger logx.Logger
 }
 
 // Server is the wired HTTP application: cross-cutting deps + router
@@ -44,19 +40,19 @@ type Server struct {
 }
 
 // New builds a Server with logging middleware applied and every module's
-// Mount invoked. Logger defaults to log.Default() if nil; Clock has no
-// default and is required so the logging middleware never hides its time seam.
+// Mount invoked. Both Deps.Clock and Deps.Logger are required; nil
+// panics so a forgotten wire-up surfaces at boot, not at request-time.
 //
 // The handler test in handlers/health/handler_test.go reproduces a
 // stripped-down version of the middleware composition; if you add
 // cross-cutting middleware here, mirror it in the test or move the
 // composition into a shared helper.
 func New(d Deps, modules ...modulekit.Module) *Server {
-	if d.Logger == nil {
-		d.Logger = log.Default()
-	}
 	if d.Clock == nil {
 		panic("server.New requires Deps.Clock")
+	}
+	if d.Logger == nil {
+		panic("server.New requires Deps.Logger")
 	}
 	s := &Server{deps: d, router: mux.NewRouter()}
 	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))

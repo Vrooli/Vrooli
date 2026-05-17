@@ -29,10 +29,10 @@ func defaultSpeakerCfg() speakerCfgDoc {
 
 func (d speakerCfgDoc) toProto() *sttv1.SpeakerConfig {
 	return &sttv1.SpeakerConfig{
-		Enabled:    d.Enabled,
-		ProfileIds: d.ProfileIDs,
-		Threshold:  d.Threshold,
-		Mode:       protomap.SpeakerModeToProto(d.Mode),
+		Enabled:                     d.Enabled,
+		ProfileIds:                  d.ProfileIDs,
+		Threshold:                   d.Threshold,
+		Mode:                        protomap.SpeakerModeToProto(d.Mode),
 		RejectBehavior:              protomap.RejectBehaviorToProto(d.RejectBehavior),
 		FallbackWithoutVerification: d.FallbackWithoutVerification,
 		ExtractionEnabled:           d.ExtractionEnabled,

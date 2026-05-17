@@ -138,10 +138,11 @@ export function installVisibilityHandler(opts: {
         console.info("[voice] Visibility: tab hidden, releasing mic tracks");
         releaseStream();
       }
-    } else if (document.visibilityState === "visible") {
+    } else {
+      // document.visibilityState === "visible"
       if (opts.isLowLatencyEnabled() && !opts.isRecordingActive()) {
         console.info("[voice] Visibility: tab visible, re-acquiring mic (low-latency=true)");
-        acquireStream().catch((err) => {
+        acquireStream().catch((err: unknown) => {
           console.warn("[voice] Visibility: failed to re-acquire mic:", err);
         });
       }

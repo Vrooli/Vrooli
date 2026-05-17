@@ -106,6 +106,12 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
 }
 
+// The `usePreferences` hook lives in the same file as the
+// `PreferencesProvider` component on purpose: the hook is the canonical
+// consumer of the provider's context. Splitting them would force two
+// imports for every call site of one primitive. HMR for this file is
+// acceptable to break.
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePreferences(): PreferencesContextValue {
   const ctx = React.useContext(PreferencesContext);
   if (!ctx) {

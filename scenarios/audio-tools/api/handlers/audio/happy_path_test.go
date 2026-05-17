@@ -16,9 +16,11 @@ import (
 
 	intaudio "audio-tools/internal/audio"
 	audiomocks "audio-tools/internal/audio/mocks"
+	"audio-tools/internal/testutil/mocks"
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
 	audioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio/audio_v1connect"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 )
 
 // withRunner swaps the package-level Runner and seeds the ffmpeg/ffprobe
@@ -36,7 +38,7 @@ func withRunner(t *testing.T, r intaudio.Runner) {
 
 func newAudioClient(t *testing.T) audioconnect.AudioProcessingServiceClient {
 	t.Helper()
-	mod := Module(nil)
+	mod := Module(&mocks.FakeLogger{})
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)
@@ -48,7 +50,7 @@ func TestTranscode_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("ENCODED"), nil))
 	c := newAudioClient(t)
 	res, err := c.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{
-		Audio: []byte("RAW"), OutputFormat: "mp3", SampleRate: 16000, Channels: 1, Bitrate: 128000,
+		Audio: []byte("RAW"), OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_MP3, SampleRate: 16000, Channels: 1, Bitrate: 128000,
 	}))
 	require.NoError(t, err)
 	require.Equal(t, []byte("ENCODED"), res.Msg.GetAudio())
@@ -75,7 +77,7 @@ func TestTrim_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("TRIM"), nil))
 	c := newAudioClient(t)
 	res, err := c.Trim(context.Background(), connect.NewRequest(&audiov1.TrimRequest{
-		Audio: []byte("X"), Format: "wav", StartSeconds: 1, EndSeconds: 5,
+		Audio: []byte("X"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV, StartSeconds: 1, EndSeconds: 5,
 	}))
 	require.NoError(t, err)
 	require.Equal(t, []byte("TRIM"), res.Msg.GetAudio())
@@ -85,7 +87,7 @@ func TestFade_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("FADE"), nil))
 	c := newAudioClient(t)
 	res, err := c.Fade(context.Background(), connect.NewRequest(&audiov1.FadeRequest{
-		Audio: []byte("X"), Format: "wav", FadeInSeconds: 0.5, FadeOutSeconds: 0.5, OutputFormat: "mp3",
+		Audio: []byte("X"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV, FadeInSeconds: 0.5, FadeOutSeconds: 0.5, OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_MP3,
 	}))
 	require.NoError(t, err)
 	require.Equal(t, []byte("FADE"), res.Msg.GetAudio())
@@ -96,7 +98,7 @@ func TestVolume_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("VOL"), nil))
 	c := newAudioClient(t)
 	res, err := c.Volume(context.Background(), connect.NewRequest(&audiov1.VolumeRequest{
-		Audio: []byte("X"), Format: "wav", GainDb: -3, OutputFormat: "flac",
+		Audio: []byte("X"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV, GainDb: -3, OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_FLAC,
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "audio/flac", res.Msg.GetContentType())
@@ -107,7 +109,11 @@ func TestNormalize_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("NORM"), nil))
 	c := newAudioClient(t)
 	res, err := c.Normalize(context.Background(), connect.NewRequest(&audiov1.NormalizeRequest{
-		Audio: []byte("X"), Format: "wav", Method: "peak", TargetLufs: -14, OutputFormat: "wav",
+		Audio:        []byte("X"),
+		Format:       commonv1.AudioFormat_AUDIO_FORMAT_WAV,
+		Method:       audiov1.NormalizationMethod_NORMALIZATION_METHOD_PEAK,
+		TargetLufs:   -14,
+		OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_WAV,
 	}))
 	require.NoError(t, err)
 	require.Equal(t, float64(-14), res.Msg.GetMeasuredLufs())
@@ -126,10 +132,10 @@ func TestMerge_HappyPath(t *testing.T) {
 	c := newAudioClient(t)
 	res, err := c.Merge(context.Background(), connect.NewRequest(&audiov1.MergeRequest{
 		Sources: []*audiov1.MergeSource{
-			{Audio: []byte("A"), Format: "wav"},
-			{Audio: []byte("B"), Format: "wav"},
+			{Audio: []byte("A"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV},
+			{Audio: []byte("B"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV},
 		},
-		OutputFormat: "mp3",
+		OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_MP3,
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "audio/mpeg", res.Msg.GetContentType())
@@ -140,7 +146,7 @@ func TestSplit_HappyPath(t *testing.T) {
 	withRunner(t, audiomocks.NewFakeRunner([]byte("CHUNK"), nil))
 	c := newAudioClient(t)
 	res, err := c.Split(context.Background(), connect.NewRequest(&audiov1.SplitRequest{
-		Audio: []byte("LONG"), Format: "wav", ChunkSeconds: 1.0, OutputFormat: "wav",
+		Audio: []byte("LONG"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV, ChunkSeconds: 1.0, OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_WAV,
 	}))
 	// Split may succeed or fail depending on whether ffprobe is wired
 	// for the fake. We accept both as long as we don't panic.

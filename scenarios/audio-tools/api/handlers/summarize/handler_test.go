@@ -17,6 +17,8 @@ import (
 	"audio-tools/internal/ai/summarizechain"
 	summocks "audio-tools/internal/ai/summarizechain/mocks"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	intsumm "audio-tools/internal/summarize"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
@@ -36,7 +38,7 @@ func newServer(t *testing.T, chain *summarizechain.Chain) summconnect.SummarizeS
 		mu.Lock()
 		defer mu.Unlock()
 		cfg = c
-	}, nil, nil, nil)
+	}, logx.Std{}, clock.System{}, nil)
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)

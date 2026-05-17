@@ -6,9 +6,9 @@
 package provider_lifecycle
 
 import (
-	"log"
-
 	"audio-tools/internal/capabilities"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 
 	"github.com/gorilla/mux"
@@ -21,18 +21,17 @@ import (
 // ListLocalProviders process_state derivation and for cache-busting
 // after successful mutations. Controller is required for the actual
 // lifecycle shell-outs; in production it is *capabilities.CLIController,
-// in tests it is a recording fake.
+// in tests it is mocks.FakeController. Logger and Clock are required
+// seams (logx.Logger, clock.Clock) with no fallback.
 type Deps struct {
 	Registry   *capabilities.Registry
 	Controller capabilities.ResourceController
-	Logger     *log.Logger
+	Logger     logx.Logger
+	Clock      clock.Clock
 }
 
 // Module returns the provider_lifecycle module contribution.
 func Module(d Deps) modulekit.Module {
-	if d.Logger == nil {
-		d.Logger = log.Default()
-	}
 	connectPath, h := plconnect.NewProviderLifecycleServiceHandler(NewConnectHandler(d))
 	return modulekit.Module{
 		Name: "provider_lifecycle",

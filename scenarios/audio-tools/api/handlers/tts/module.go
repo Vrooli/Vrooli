@@ -1,11 +1,10 @@
 package tts
 
 import (
-	"log"
-
 	intsumm "audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	inttts "audio-tools/internal/tts"
 
@@ -20,18 +19,17 @@ type Deps struct {
 	Chain          *ttschain.Chain
 	SummarizeChain *intsumm.Chain
 	TTSService     *inttts.Service
-	Logger         *log.Logger
+	Logger         logx.Logger
 	Clock          clock.Clock
 	Cache          *inttts.Cache
 	ConfigStore    TTSConfigRepository
 	Playback       PlaybackRepository
 }
 
-// Module returns the TTS domain's contribution to the API.
+// Module returns the TTS domain's contribution to the API. Deps.Logger
+// and Deps.Clock are required seams; nil values panic via the
+// NewConnectHandler check.
 func Module(d Deps) modulekit.Module {
-	if d.Clock == nil {
-		d.Clock = clock.System{}
-	}
 	connectPath, h := ttsconnect.NewTTSServiceHandler(NewConnectHandler(d))
 	return modulekit.Module{
 		Name: "tts",

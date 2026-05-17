@@ -373,7 +373,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         this.totalBytesSent += e.data.size;
         // Keep a copy for HTTP fallback in case streaming fails entirely.
         this.allChunks.push(e.data);
-        e.data.arrayBuffer().then((buf) => {
+        void e.data.arrayBuffer().then((buf) => {
           // Capture a local reference: the turn may have ended (and the WS
           // reassigned) between when this microtask was queued and when it
           // runs. Reading this.ws twice across the check + send would race.

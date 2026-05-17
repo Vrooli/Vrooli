@@ -3,8 +3,6 @@ package provider_lifecycle_test
 import (
 	"context"
 	"errors"
-	"io"
-	"log"
 	"strings"
 	"testing"
 	"time"
@@ -14,64 +12,15 @@ import (
 
 	"audio-tools/handlers/provider_lifecycle"
 	"audio-tools/internal/capabilities"
-	"audio-tools/internal/capabilities/mocks"
+	capmocks "audio-tools/internal/capabilities/mocks"
+	"audio-tools/internal/testutil/mocks"
 
 	plv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/provider_lifecycle"
 )
 
-// recordingController is a thin in-test ResourceController. We keep it
-// scoped to this test file (the FakeController in
-// internal/capabilities/lifecycle_test.go is _test.go, so it isn't
-// importable from other packages).
-type recordingController struct {
-	startCalls   []string
-	stopCalls    []string
-	restartCalls []string
-	pullCalls    []string
-	logsCalls    []struct {
-		slug   string
-		follow bool
-		tail   int
-	}
-	startErr error
-	logsErr  error
-	pullErr  error
-	logsBody string
-}
-
-func (r *recordingController) Start(_ context.Context, slug string) error {
-	r.startCalls = append(r.startCalls, slug)
-	return r.startErr
-}
-func (r *recordingController) Stop(_ context.Context, slug string) error {
-	r.stopCalls = append(r.stopCalls, slug)
-	return nil
-}
-func (r *recordingController) Restart(_ context.Context, slug string) error {
-	r.restartCalls = append(r.restartCalls, slug)
-	return nil
-}
-func (r *recordingController) Logs(_ context.Context, slug string, follow bool, tail int) (io.ReadCloser, error) {
-	r.logsCalls = append(r.logsCalls, struct {
-		slug   string
-		follow bool
-		tail   int
-	}{slug, follow, tail})
-	if r.logsErr != nil {
-		return nil, r.logsErr
-	}
-	body := r.logsBody
-	if body == "" {
-		body = "line-1\nline-2\n"
-	}
-	return io.NopCloser(strings.NewReader(body)), nil
-}
-func (r *recordingController) PullModel(_ context.Context, model string) error {
-	r.pullCalls = append(r.pullCalls, model)
-	return r.pullErr
-}
-
-var _ capabilities.ResourceController = (*recordingController)(nil)
+// canonicalNow is the fixed fake clock value every test pins so log
+// timestamps and TsUnixMs assertions read deterministically.
+var canonicalNow = time.Date(2026, 5, 17, 12, 0, 0, 0, time.UTC)
 
 func testDefs() []capabilities.Def {
 	return []capabilities.Def{
@@ -83,28 +32,30 @@ func testDefs() []capabilities.Def {
 	}
 }
 
-func newHandler(t *testing.T, ctrl capabilities.ResourceController, checkers map[string]capabilities.Checker) (*provider_lifecycle.Deps, *capabilities.Registry) {
+func newHandlerHarness(t *testing.T, ctrl capabilities.ResourceController, checkers map[string]capabilities.Checker) (*provider_lifecycle.Deps, *capabilities.Registry, *mocks.FakeLogger) {
 	t.Helper()
 	if checkers == nil {
 		checkers = map[string]capabilities.Checker{}
 	}
 	reg := capabilities.NewRegistry(testDefs(), checkers, time.Minute)
+	logger := mocks.NewFakeLogger()
 	deps := &provider_lifecycle.Deps{
 		Registry:   reg,
 		Controller: ctrl,
-		Logger:     log.New(io.Discard, "", 0),
+		Logger:     logger,
+		Clock:      mocks.NewFakeClock(canonicalNow),
 	}
-	return deps, reg
+	return deps, reg, logger
 }
 
 func TestListLocalProviders_ShapeAndOrder(t *testing.T) {
 	checkers := map[string]capabilities.Checker{
-		"whisper-stt":          mocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
-		"kokoro-tts":           mocks.NewFakeChecker(capabilities.StatusUnavailable, "down"),
-		"speaker-verification": mocks.NewFakeChecker(capabilities.StatusUnknown, ""),
-		"ollama":               mocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
+		"whisper-stt":          capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
+		"kokoro-tts":           capmocks.NewFakeChecker(capabilities.StatusUnavailable, "down"),
+		"speaker-verification": capmocks.NewFakeChecker(capabilities.StatusUnknown, ""),
+		"ollama":               capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
 	}
-	deps, _ := newHandler(t, &recordingController{}, checkers)
+	deps, _, _ := newHandlerHarness(t, &capmocks.FakeController{}, checkers)
 	h := provider_lifecycle.NewConnectHandler(*deps)
 
 	resp, err := h.ListLocalProviders(context.Background(), connect.NewRequest(&plv1.ListLocalProvidersRequest{}))
@@ -135,27 +86,26 @@ func TestListLocalProviders_ShapeAndOrder(t *testing.T) {
 }
 
 func TestStartProvider_InvokesControllerOnce(t *testing.T) {
-	ctrl := &recordingController{}
-	deps, reg := newHandler(t, ctrl, nil)
+	ctrl := &capmocks.FakeController{}
+	deps, reg, _ := newHandlerHarness(t, ctrl, nil)
 	h := provider_lifecycle.NewConnectHandler(*deps)
 
 	resp, err := h.StartProvider(context.Background(), connect.NewRequest(&plv1.StartProviderRequest{ProviderId: "whisper-stt"}))
 	require.NoError(t, err)
 	require.Equal(t, "whisper-stt", resp.Msg.GetProviderId())
 	require.False(t, resp.Msg.GetDryRun())
-	require.Equal(t, []string{"whisper"}, ctrl.startCalls)
+	require.Equal(t, []string{"whisper"}, ctrl.StartCalls)
 
 	// ResolveForce kicks asynchronously; give it a moment.
 	require.Eventually(t, func() bool {
 		states := reg.Resolve(context.Background())
-		// Resolve from the cache; the goroutine should have written by now.
 		return len(states) > 0
 	}, 500*time.Millisecond, 25*time.Millisecond)
 }
 
 func TestStartProvider_DryRunSkipsController(t *testing.T) {
-	ctrl := &recordingController{}
-	deps, _ := newHandler(t, ctrl, nil)
+	ctrl := &capmocks.FakeController{}
+	deps, _, _ := newHandlerHarness(t, ctrl, nil)
 	h := provider_lifecycle.NewConnectHandler(*deps)
 
 	req := connect.NewRequest(&plv1.StartProviderRequest{ProviderId: "whisper-stt"})
@@ -165,12 +115,12 @@ func TestStartProvider_DryRunSkipsController(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, resp.Msg.GetDryRun(), "dry_run must be true")
 	require.Equal(t, "dry run; no action taken", resp.Msg.GetMessage())
-	require.Empty(t, ctrl.startCalls, "controller MUST NOT be invoked under X-Dry-Run")
+	require.Empty(t, ctrl.StartCalls, "controller MUST NOT be invoked under X-Dry-Run")
 }
 
 func TestStartProvider_UnknownProviderReturnsNotFound(t *testing.T) {
-	ctrl := &recordingController{}
-	deps, _ := newHandler(t, ctrl, nil)
+	ctrl := &capmocks.FakeController{}
+	deps, _, _ := newHandlerHarness(t, ctrl, nil)
 	h := provider_lifecycle.NewConnectHandler(*deps)
 
 	_, err := h.StartProvider(context.Background(), connect.NewRequest(&plv1.StartProviderRequest{ProviderId: "bogus"}))
@@ -181,8 +131,8 @@ func TestStartProvider_UnknownProviderReturnsNotFound(t *testing.T) {
 }
 
 func TestStartProvider_NonLocalProviderReturnsFailedPrecondition(t *testing.T) {
-	ctrl := &recordingController{}
-	deps, _ := newHandler(t, ctrl, nil)
+	ctrl := &capmocks.FakeController{}
+	deps, _, _ := newHandlerHarness(t, ctrl, nil)
 	h := provider_lifecycle.NewConnectHandler(*deps)
 
 	_, err := h.StartProvider(context.Background(), connect.NewRequest(&plv1.StartProviderRequest{ProviderId: "openrouter"}))
@@ -193,8 +143,8 @@ func TestStartProvider_NonLocalProviderReturnsFailedPrecondition(t *testing.T) {
 }
 
 func TestStartProvider_ControllerUnavailableReturnsUnavailable(t *testing.T) {
-	ctrl := &recordingController{startErr: capabilities.ErrControllerUnavailable}
-	deps, _ := newHandler(t, ctrl, nil)
+	ctrl := &capmocks.FakeController{StartErr: capabilities.ErrControllerUnavailable}
+	deps, _, _ := newHandlerHarness(t, ctrl, nil)
 	h := provider_lifecycle.NewConnectHandler(*deps)
 
 	_, err := h.StartProvider(context.Background(), connect.NewRequest(&plv1.StartProviderRequest{ProviderId: "whisper-stt"}))
@@ -204,9 +154,34 @@ func TestStartProvider_ControllerUnavailableReturnsUnavailable(t *testing.T) {
 	require.Equal(t, connect.CodeUnavailable, connErr.Code())
 }
 
+// TestStartProvider_InternalErrorLogged is the new log-line assertion
+// covering the error path: an arbitrary controller failure must surface
+// as Internal AND be emitted through the logger seam.
+func TestStartProvider_InternalErrorLogged(t *testing.T) {
+	ctrl := &capmocks.FakeController{StartErr: errors.New("boom: backend exploded")}
+	deps, _, logger := newHandlerHarness(t, ctrl, nil)
+	h := provider_lifecycle.NewConnectHandler(*deps)
+
+	_, err := h.StartProvider(context.Background(), connect.NewRequest(&plv1.StartProviderRequest{ProviderId: "whisper-stt"}))
+	require.Error(t, err)
+	var connErr *connect.Error
+	require.True(t, errors.As(err, &connErr))
+	require.Equal(t, connect.CodeInternal, connErr.Code())
+
+	entries := logger.Entries()
+	var matched bool
+	for _, e := range entries {
+		if contains(e, "provider_lifecycle StartProvider failed") && contains(e, "boom: backend exploded") {
+			matched = true
+			break
+		}
+	}
+	require.True(t, matched, "expected an error log line for StartProvider; got %v", entries)
+}
+
 func TestPullModel_NonOllamaReturnsFailedPrecondition(t *testing.T) {
-	ctrl := &recordingController{}
-	deps, _ := newHandler(t, ctrl, nil)
+	ctrl := &capmocks.FakeController{}
+	deps, _, _ := newHandlerHarness(t, ctrl, nil)
 	h := provider_lifecycle.NewConnectHandler(*deps)
 
 	_, err := h.PullModel(context.Background(), connect.NewRequest(&plv1.PullModelRequest{ProviderId: "whisper-stt", ModelName: "phi3"}))
@@ -214,23 +189,23 @@ func TestPullModel_NonOllamaReturnsFailedPrecondition(t *testing.T) {
 	var connErr *connect.Error
 	require.True(t, errors.As(err, &connErr))
 	require.Equal(t, connect.CodeFailedPrecondition, connErr.Code())
-	require.Empty(t, ctrl.pullCalls, "controller MUST NOT be invoked for non-ollama")
+	require.Empty(t, ctrl.PullCalls, "controller MUST NOT be invoked for non-ollama")
 }
 
 func TestPullModel_OllamaInvokesController(t *testing.T) {
-	ctrl := &recordingController{}
-	deps, _ := newHandler(t, ctrl, nil)
+	ctrl := &capmocks.FakeController{}
+	deps, _, _ := newHandlerHarness(t, ctrl, nil)
 	h := provider_lifecycle.NewConnectHandler(*deps)
 
 	resp, err := h.PullModel(context.Background(), connect.NewRequest(&plv1.PullModelRequest{ProviderId: "ollama", ModelName: "phi3"}))
 	require.NoError(t, err)
 	require.Equal(t, "phi3", resp.Msg.GetModelName())
-	require.Equal(t, []string{"phi3"}, ctrl.pullCalls)
+	require.Equal(t, []string{"phi3"}, ctrl.PullCalls)
 }
 
 func TestPullModel_DryRunSkipsController(t *testing.T) {
-	ctrl := &recordingController{}
-	deps, _ := newHandler(t, ctrl, nil)
+	ctrl := &capmocks.FakeController{}
+	deps, _, _ := newHandlerHarness(t, ctrl, nil)
 	h := provider_lifecycle.NewConnectHandler(*deps)
 
 	req := connect.NewRequest(&plv1.PullModelRequest{ProviderId: "ollama", ModelName: "phi3"})
@@ -238,19 +213,21 @@ func TestPullModel_DryRunSkipsController(t *testing.T) {
 	resp, err := h.PullModel(context.Background(), req)
 	require.NoError(t, err)
 	require.True(t, resp.Msg.GetDryRun())
-	require.Empty(t, ctrl.pullCalls)
+	require.Empty(t, ctrl.PullCalls)
 }
 
 func TestStop_Restart_InvokeController(t *testing.T) {
-	ctrl := &recordingController{}
-	deps, _ := newHandler(t, ctrl, nil)
+	ctrl := &capmocks.FakeController{}
+	deps, _, _ := newHandlerHarness(t, ctrl, nil)
 	h := provider_lifecycle.NewConnectHandler(*deps)
 
 	_, err := h.StopProvider(context.Background(), connect.NewRequest(&plv1.StopProviderRequest{ProviderId: "ollama"}))
 	require.NoError(t, err)
-	require.Equal(t, []string{"ollama"}, ctrl.stopCalls)
+	require.Equal(t, []string{"ollama"}, ctrl.StopCalls)
 
 	_, err = h.RestartProvider(context.Background(), connect.NewRequest(&plv1.RestartProviderRequest{ProviderId: "kokoro-tts"}))
 	require.NoError(t, err)
-	require.Equal(t, []string{"kokoro"}, ctrl.restartCalls)
+	require.Equal(t, []string{"kokoro"}, ctrl.RestartCalls)
 }
+
+func contains(haystack, needle string) bool { return strings.Contains(haystack, needle) }

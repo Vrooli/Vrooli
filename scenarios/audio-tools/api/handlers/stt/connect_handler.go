@@ -4,10 +4,10 @@ package stt
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"connectrpc.com/connect"
 
+	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/clock"
@@ -23,9 +23,8 @@ type Deps struct {
 	Chain        *sttchain.Chain
 	Selector     *sttpkg.Selector
 	Voice        *sttpipeline.Service
-	Logger       *log.Logger
+	Logger       logx.Logger
 	Clock        clock.Clock
-	Logx         logx.Logger
 	StreamConfig STTStreamConfigRepository
 	Wakeword     WakewordRepository
 	Speaker      SpeakerRepository
@@ -35,15 +34,14 @@ type connectHandler struct {
 	deps Deps
 }
 
+// NewConnectHandler builds the Connect handler. Deps.Logger and
+// Deps.Clock are required seams; nil values panic.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("stt.NewConnectHandler requires Deps.Logger")
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
-	}
-	if d.Logx == nil {
-		d.Logx = logx.Std{}
+		panic("stt.NewConnectHandler requires Deps.Clock")
 	}
 	return &connectHandler{deps: d}
 }
@@ -64,11 +62,16 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 		LPBSToken:               env.LPBSToken,
 		UserIdentity:            env.UserIdentity,
 	}
+	resp := connect.NewResponse(&sttv1.TranscribeResponse{})
+	ctx = tiered.WithOnFallback(ctx, func(ev tiered.FallbackEvent) {
+		resp.Header().Set("x-audio-tools-fallback",
+			fmt.Sprintf("from=%s;to=%s;reason=%s", ev.From.String(), ev.To.String(), ev.Reason))
+	})
 	res, err := h.deps.Chain.Execute(ctx, chainReq)
 	if err != nil {
 		return nil, mapChainError(err)
 	}
-	return connect.NewResponse(&sttv1.TranscribeResponse{
+	resp.Msg = &sttv1.TranscribeResponse{
 		Text:             res.Text,
 		DetectedLanguage: res.DetectedLanguage,
 		DurationSeconds:  res.DurationSeconds,
@@ -76,7 +79,8 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 		ProviderId:       res.ProviderID,
 		ModelId:          res.ModelID,
 		LatencyMs:        float64(res.Latency.Milliseconds()),
-	}), nil
+	}
+	return resp, nil
 }
 
 func mapChainError(err error) error {

@@ -3,7 +3,6 @@ package health_status
 import (
 	"context"
 	"errors"
-	"log"
 	"time"
 
 	"connectrpc.com/connect"
@@ -22,11 +21,9 @@ type connectHandler struct {
 	deps Deps
 }
 
-// NewConnectHandler builds the Connect handler.
+// NewConnectHandler builds the Connect handler. Deps.Registry,
+// Deps.Logger, and Deps.Clock are all required; no fallbacks.
 func NewConnectHandler(d Deps) *connectHandler {
-	if d.Logger == nil {
-		d.Logger = log.Default()
-	}
 	return &connectHandler{deps: d}
 }
 
@@ -37,7 +34,7 @@ func (h *connectHandler) GetProviderHealth(ctx context.Context, _ *connect.Reque
 	states := h.deps.Registry.Resolve(ctx)
 	resp := &hsv1.GetProviderHealthResponse{
 		Capabilities:    buildCapabilities(states),
-		GeneratedAt:     time.Now().UTC().Format(time.RFC3339),
+		GeneratedAt:     h.deps.Clock.Now().UTC().Format(time.RFC3339),
 		CacheTtlSeconds: ttlSeconds(h.deps.Registry.CacheTTL()),
 	}
 	return connect.NewResponse(resp), nil
@@ -50,7 +47,7 @@ func (h *connectHandler) RefreshProviderHealth(ctx context.Context, _ *connect.R
 	states := h.deps.Registry.ResolveForce(ctx)
 	resp := &hsv1.RefreshProviderHealthResponse{
 		Capabilities:    buildCapabilities(states),
-		GeneratedAt:     time.Now().UTC().Format(time.RFC3339),
+		GeneratedAt:     h.deps.Clock.Now().UTC().Format(time.RFC3339),
 		CacheTtlSeconds: ttlSeconds(h.deps.Registry.CacheTTL()),
 	}
 	return connect.NewResponse(resp), nil
@@ -74,7 +71,7 @@ func (h *connectHandler) StreamProviderHealth(ctx context.Context, _ *connect.Re
 		case <-t.C:
 			states := h.deps.Registry.Resolve(ctx)
 			event := &hsv1.ProviderHealthEvent{
-				GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+				GeneratedAt:  h.deps.Clock.Now().UTC().Format(time.RFC3339),
 				Capabilities: buildCapabilities(states),
 			}
 			if err := stream.Send(event); err != nil {

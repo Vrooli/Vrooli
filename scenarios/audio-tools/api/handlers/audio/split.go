@@ -14,7 +14,7 @@ func (h *connectHandler) Split(ctx context.Context, req *connect.Request[audiov1
 	if err := requireBytes(req.Msg.Audio); err != nil {
 		return nil, err
 	}
-	chunks, err := intaudio.Split(ctx, req.Msg.Audio, req.Msg.Format, req.Msg.ChunkSeconds, req.Msg.BoundariesSeconds, req.Msg.OutputFormat)
+	chunks, err := intaudio.Split(ctx, req.Msg.Audio, audioFormatString(req.Msg.GetFormat()), req.Msg.ChunkSeconds, req.Msg.BoundariesSeconds, audioFormatString(req.Msg.GetOutputFormat()))
 	if err != nil {
 		return nil, mapAudioErr(err)
 	}

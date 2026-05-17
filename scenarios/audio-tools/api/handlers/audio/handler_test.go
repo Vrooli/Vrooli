@@ -10,13 +10,15 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 
+	"audio-tools/internal/testutil/mocks"
+
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
 	audioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio/audio_v1connect"
 )
 
 func newClient(t *testing.T) audioconnect.AudioProcessingServiceClient {
 	t.Helper()
-	mod := Module(nil)
+	mod := Module(&mocks.FakeLogger{})
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)

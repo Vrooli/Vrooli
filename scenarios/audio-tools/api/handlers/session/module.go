@@ -2,9 +2,8 @@
 package session
 
 import (
-	"log"
-
 	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	intsession "audio-tools/internal/session"
 
@@ -16,16 +15,16 @@ import (
 
 type Deps struct {
 	Registry *intsession.Registry
-	Logger   *log.Logger
+	Logger   logx.Logger
 	Clock    clock.Clock
 }
 
-func Module(registry *intsession.Registry, logger *log.Logger, clk clock.Clock) modulekit.Module {
+func Module(registry *intsession.Registry, logger logx.Logger, clk clock.Clock) modulekit.Module {
 	if logger == nil {
-		logger = log.Default()
+		panic("session.Module requires logger")
 	}
 	if clk == nil {
-		clk = clock.System{}
+		panic("session.Module requires clock")
 	}
 	connectPath, h := sessconnect.NewSessionServiceHandler(NewConnectHandler(Deps{Registry: registry, Logger: logger, Clock: clk}))
 	return modulekit.Module{

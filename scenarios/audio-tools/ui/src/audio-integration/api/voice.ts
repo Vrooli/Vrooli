@@ -105,7 +105,7 @@ function blobFormat(b: Blob): string {
   if (mime.includes("mp3") || mime.includes("mpeg")) return "mp3";
   if (mime.includes("ogg")) return "ogg";
   if (mime.includes("flac")) return "flac";
-  return mime.split(";")[0]?.split("/")?.[1] ?? "webm";
+  return mime.split(";")[0]?.split("/")[1] ?? "webm";
 }
 
 function decodeStreamConfig(c: StreamConfigMsg | undefined): VoiceStreamConfig {
@@ -128,13 +128,13 @@ function decodeWakeWord(cfg: WakeWordConfigMsg | undefined): WakeWordConfig {
     template = {
       label: tmpl.label,
       threshold: tmpl.threshold,
-      samples: (tmpl.samples ?? []).map((s) => ({
+      samples: tmpl.samples.map((s) => ({
         audio: s.audio,
         format: s.format,
         sampleRateHz: s.sampleRateHz,
       })) as unknown as WakeWordTemplate["samples"],
       updatedAt: timestampToISO(tmpl.updatedAt),
-    } as unknown as WakeWordTemplate;
+    };
   }
   return { configured, template };
 }
@@ -217,7 +217,7 @@ export function createVoiceApi(client: AudioToolsClient) {
     },
 
     async getVoiceStreamConfig(): Promise<VoiceStreamConfig> {
-      const resp = await client.stt.getStreamConfig({});
+      const resp = await client.sttAdmin.getStreamConfig({});
       return decodeStreamConfig(resp.config);
     },
 
@@ -231,15 +231,15 @@ export function createVoiceApi(client: AudioToolsClient) {
       if (patch.wakeWordEnabled !== undefined) { cfg.wakeWordEnabled = patch.wakeWordEnabled; paths.push("wake_word_enabled"); }
       if (patch.wakeWordThreshold !== undefined) { cfg.wakeWordThreshold = patch.wakeWordThreshold; paths.push("wake_word_threshold"); }
       if (patch.segmentSilenceMs !== undefined) { cfg.segmentSilenceMs = patch.segmentSilenceMs; paths.push("segment_silence_ms"); }
-      const resp = await client.stt.updateStreamConfig({
+      const resp = await client.sttAdmin.updateStreamConfig({
         updateMask: create(FieldMaskSchema, { paths }),
         config: cfg,
-      } as Parameters<typeof client.stt.updateStreamConfig>[0]);
+      });
       return decodeStreamConfig(resp.config);
     },
 
     async getWakeWordConfig(): Promise<WakeWordConfig> {
-      const resp = await client.stt.getWakeWordConfig({});
+      const resp = await client.sttAdmin.getWakeWordConfig({});
       return decodeWakeWord(resp.config);
     },
 
@@ -248,19 +248,19 @@ export function createVoiceApi(client: AudioToolsClient) {
       // of {audio, format, sampleRateHz} samples that are already
       // compatible with the proto message; the proto generator
       // accepts a plain object init.
-      const resp = await client.stt.updateWakeWordTemplate({
+      const resp = await client.sttAdmin.updateWakeWordTemplate({
         template: template as unknown as WakeWordTemplateMsg,
-      } as Parameters<typeof client.stt.updateWakeWordTemplate>[0]);
+      });
       return decodeWakeWord(resp.config);
     },
 
     async deleteWakeWordConfig(): Promise<WakeWordConfig> {
-      const resp = await client.stt.deleteWakeWordTemplate({});
+      const resp = await client.sttAdmin.deleteWakeWordTemplate({});
       return decodeWakeWord(resp.config);
     },
 
     async getSpeakerVerificationConfig(): Promise<SpeakerVerificationConfig> {
-      const resp = await client.stt.getSpeakerConfig({});
+      const resp = await client.sttAdmin.getSpeakerConfig({});
       return decodeSpeakerConfig(resp.config);
     },
 
@@ -275,15 +275,15 @@ export function createVoiceApi(client: AudioToolsClient) {
       if (patch.mode !== undefined) { cfg.mode = speakerModeFromString(patch.mode); paths.push("mode"); }
       if (patch.rejectBehavior !== undefined) { cfg.rejectBehavior = rejectBehaviorFromString(patch.rejectBehavior); paths.push("reject_behavior"); }
       if (patch.fallbackWithoutVerification !== undefined) { cfg.fallbackWithoutVerification = patch.fallbackWithoutVerification; paths.push("fallback_without_verification"); }
-      const resp = await client.stt.updateSpeakerConfig({
+      const resp = await client.sttAdmin.updateSpeakerConfig({
         updateMask: create(FieldMaskSchema, { paths }),
         config: cfg,
-      } as Parameters<typeof client.stt.updateSpeakerConfig>[0]);
+      });
       return decodeSpeakerConfig(resp.config);
     },
 
     async getSpeakerVerificationStatus(): Promise<SpeakerVerificationStatusResponse> {
-      const resp = await client.stt.getSpeakerStatus({});
+      const resp = await client.sttAdmin.getSpeakerStatus({});
       const st = resp.status;
       if (!st) throw new Error("speaker status response missing status field");
       return {
@@ -294,7 +294,7 @@ export function createVoiceApi(client: AudioToolsClient) {
         profileConfigured: st.profileConfigured,
         profileExists: st.profileExists,
         profileCount: st.profileCount,
-        profiles: st.profiles?.map(decodeSpeakerProfile),
+        profiles: st.profiles.map(decodeSpeakerProfile),
         info: st.info
           ? {
               backend: st.info.backend,
@@ -310,7 +310,7 @@ export function createVoiceApi(client: AudioToolsClient) {
     },
 
     async listSpeakerVerificationProfiles(): Promise<SpeakerVerificationProfile[]> {
-      const resp = await client.stt.listSpeakerProfiles({});
+      const resp = await client.sttAdmin.listSpeakerProfiles({});
       return resp.profiles.map(decodeSpeakerProfile);
     },
 
@@ -331,8 +331,8 @@ export function createVoiceApi(client: AudioToolsClient) {
       };
       if (args.addToActive !== undefined) req.addToActive = args.addToActive;
       if (args.enable !== undefined) req.enable = args.enable;
-      const resp = await client.stt.enrollSpeakerProfile(
-        req as Parameters<typeof client.stt.enrollSpeakerProfile>[0],
+      const resp = await client.sttAdmin.enrollSpeakerProfile(
+        req,
       );
       const en = resp.enrollment;
       return {
@@ -350,17 +350,17 @@ export function createVoiceApi(client: AudioToolsClient) {
     },
 
     async clearSpeakerVerificationProfile(): Promise<SpeakerVerificationConfig> {
-      const resp = await client.stt.clearSpeakerProfileBinding({});
+      const resp = await client.sttAdmin.clearSpeakerProfileBinding({});
       return decodeSpeakerConfig(resp.config);
     },
 
     async removeSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> {
-      const resp = await client.stt.removeSpeakerProfile({ profileId });
+      const resp = await client.sttAdmin.unbindSpeakerProfile({ profileId });
       return decodeSpeakerConfig(resp.config);
     },
 
     async deleteSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> {
-      const resp = await client.stt.deleteSpeakerProfile({ profileId });
+      const resp = await client.sttAdmin.deleteSpeakerProfile({ profileId });
       return decodeSpeakerConfig(resp.config);
     },
   };

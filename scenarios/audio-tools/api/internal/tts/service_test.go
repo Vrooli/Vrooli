@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"audio-tools/internal/logx"
 )
 
 func testDeps() Deps {
@@ -55,7 +57,7 @@ func testDeps() Deps {
 		ListVoiceCatalog: func(context.Context) ([]Voice, error) {
 			return []Voice{{ID: "af_heart", Name: "Heart"}}, nil
 		},
-		Logger: log.New(io.Discard, "", 0),
+		Logger: logx.Std{L: log.New(io.Discard, "", 0)},
 	}
 }
 

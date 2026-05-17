@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"audio-tools/internal/logx"
 	"audio-tools/internal/middleware"
 	"audio-tools/internal/testutil/mocks"
 
@@ -27,7 +28,7 @@ func TestLoggingMiddleware_LogsDuration(t *testing.T) {
 	buf := &bytes.Buffer{}
 	logger := log.New(buf, "", 0)
 
-	mw := middleware.NewLoggingMiddleware(clk, logger)
+	mw := middleware.NewLoggingMiddleware(clk, logx.Std{L: logger})
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		clk.Advance(150 * time.Millisecond) // simulate work
 		w.WriteHeader(http.StatusOK)
@@ -43,19 +44,12 @@ func TestLoggingMiddleware_LogsDuration(t *testing.T) {
 	require.Contains(t, buf.String(), "150ms", "deterministic duration must appear (150 * time.Millisecond)")
 }
 
-// TestLoggingMiddleware_NilLoggerDefaults verifies the nil-logger
-// fallback documented on NewLoggingMiddleware. Production callers
-// always pass a logger; this guard exists for the case where a
-// scenario forgets to wire it during early bring-up.
-func TestLoggingMiddleware_NilLoggerDefaults(t *testing.T) {
+// TestLoggingMiddleware_NilLoggerPanics asserts the documented contract:
+// a nil logger panics at construction so a forgotten wire-up surfaces at
+// boot rather than silently swallowing log lines.
+func TestLoggingMiddleware_NilLoggerPanics(t *testing.T) {
 	clk := mocks.NewFakeClock(time.Time{})
-	mw := middleware.NewLoggingMiddleware(clk, nil)
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/probe", nil)
-	require.NotPanics(t, func() { handler.ServeHTTP(rec, req) })
-	require.Equal(t, http.StatusOK, rec.Code)
+	require.Panics(t, func() {
+		middleware.NewLoggingMiddleware(clk, nil)
+	})
 }

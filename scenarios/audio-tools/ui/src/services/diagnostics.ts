@@ -5,8 +5,7 @@ import {
   DiagnosticsService,
   SuiteOverall_Status,
 } from "@vrooli/proto-types/audio-tools/v1/diagnostics/diagnostics_pb";
-import { SummarizeService } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
-import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
+import { SummarizeService, SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
 import { transport, uploadFile } from "../api/client";
 import { tryCall, type Result } from "./result";
 import { normalizeConnectError } from "./settings";
@@ -196,7 +195,7 @@ function shapeRun(run: {
       providerId: s.providerId,
       modelId: s.modelId,
       latencyMs: s.latencyMs,
-      details: s.details ?? {},
+      details: s.details,
     })),
   };
 }

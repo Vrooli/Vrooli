@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"time"
+
+	"audio-tools/internal/logx"
 )
 
 const (
@@ -50,21 +51,24 @@ type Deps struct {
 	PutCache         func(CacheKey, []byte, string)
 	ListVoiceCatalog func(context.Context) ([]Voice, error)
 
-	Logger *log.Logger
+	Logger logx.Logger
 }
 
 type Service struct {
 	deps Deps
 }
 
+// NewService constructs a TTS Service. Deps.Logger is required (no
+// fallback); a nil value panics so a forgotten wire-up surfaces at
+// boot, not at request-time.
 func NewService(d Deps) *Service {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("tts.NewService requires Deps.Logger")
 	}
 	return &Service{deps: d}
 }
 
-func (s *Service) logger() *log.Logger { return s.deps.Logger }
+func (s *Service) logger() logx.Logger { return s.deps.Logger }
 
 func (s *Service) GetConfig(_ context.Context) (Config, error) {
 	return s.deps.GetConfig(), nil

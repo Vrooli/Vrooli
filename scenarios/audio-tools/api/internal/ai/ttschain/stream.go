@@ -14,7 +14,7 @@ import (
 //
 // The returned channel is closed after the final frame.
 func (c *Chain) Stream(ctx context.Context, req Request) (<-chan AudioFrame, error) {
-	if c.byok != nil && c.coord.Eligible(ctx, tiered.SlotBYOK, req) && c.byok.StreamingCapability() {
+	if c.byok != nil && c.Eligible(ctx, tiered.SlotBYOK, req) && c.byok.StreamingCapability() {
 		out, err := c.byok.SynthesizeStreaming(ctx, req)
 		if err != nil {
 			if errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider) {
@@ -24,13 +24,13 @@ func (c *Chain) Stream(ctx context.Context, req Request) (<-chan AudioFrame, err
 			return out, nil
 		}
 	}
-	if c.vrooli != nil && c.coord.Eligible(ctx, tiered.SlotVrooli, req) && c.vrooli.StreamingCapability() {
+	if c.vrooli != nil && c.Eligible(ctx, tiered.SlotVrooli, req) && c.vrooli.StreamingCapability() {
 		out, err := c.vrooli.SynthesizeStreaming(ctx, req)
 		if err == nil && out != nil {
 			return out, nil
 		}
 	}
-	if c.local != nil && c.coord.Eligible(ctx, tiered.SlotLocal, req) && c.local.StreamingCapability() {
+	if c.local != nil && c.Eligible(ctx, tiered.SlotLocal, req) && c.local.StreamingCapability() {
 		out, err := c.local.SynthesizeStreaming(ctx, req)
 		if err == nil && out != nil {
 			return out, nil

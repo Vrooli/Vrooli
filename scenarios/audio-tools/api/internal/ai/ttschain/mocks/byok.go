@@ -11,12 +11,12 @@ import (
 // Available; Result drives the canned Synthesize response, or
 // SynthesizeFn for per-call control. Streaming is off by default.
 type FakeBYOK struct {
-	IDStr       string
-	Available   bool
-	Result      *ttschain.Result
-	Err         error
+	IDStr        string
+	Available    bool
+	Result       *ttschain.Result
+	Err          error
 	SynthesizeFn func(ctx context.Context, key string, req ttschain.Request) (*ttschain.Result, error)
-	Streaming   bool
+	Streaming    bool
 }
 
 func (f *FakeBYOK) ID() string                               { return f.IDStr }

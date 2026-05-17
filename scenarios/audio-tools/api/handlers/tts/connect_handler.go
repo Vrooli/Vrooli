@@ -4,13 +4,12 @@ package tts
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"connectrpc.com/connect"
 
+	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/byok/envelope"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/text/normalizer"
 
@@ -23,13 +22,14 @@ type connectHandler struct {
 
 // NewConnectHandler constructs a Connect handler. The Chain is required for
 // Synthesize; admin methods (config/status/cache/playback) bind to their
-// respective stores via the corresponding Deps fields.
+// respective stores via the corresponding Deps fields. Deps.Logger and
+// Deps.Clock are required seams (no fallback); nil values panic.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("tts.NewConnectHandler requires Deps.Logger")
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		panic("tts.NewConnectHandler requires Deps.Clock")
 	}
 	return &connectHandler{deps: d}
 }
@@ -121,11 +121,16 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 		EventID:        req.Msg.EventId,
 		Version:        req.Msg.Version,
 	}
+	resp := connect.NewResponse(&ttsv1.SynthesizeResponse{})
+	ctx = tiered.WithOnFallback(ctx, func(ev tiered.FallbackEvent) {
+		resp.Header().Set("x-audio-tools-fallback",
+			fmt.Sprintf("from=%s;to=%s;reason=%s", ev.From.String(), ev.To.String(), ev.Reason))
+	})
 	res, err := h.deps.Chain.Execute(ctx, chainReq)
 	if err != nil {
 		return nil, mapChainError(err)
 	}
-	return connect.NewResponse(&ttsv1.SynthesizeResponse{
+	resp.Msg = &ttsv1.SynthesizeResponse{
 		Audio:        res.Audio,
 		ContentType:  res.ContentType,
 		ContentHash:  res.ContentHash,
@@ -134,7 +139,8 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 		ModelId:      res.ModelID,
 		VoiceUsed:    res.VoiceUsed,
 		LatencyMs:    float64(res.Latency.Milliseconds()),
-	}), nil
+	}
+	return resp, nil
 }
 
 // ListVoices returns the canonical voice catalog. Until internal/tts/voice_catalog.go

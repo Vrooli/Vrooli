@@ -69,7 +69,9 @@ func passRun() *diagv1.RunSuiteResult {
 
 func TestRun_HumanOutputShowsOverallAndSteps(t *testing.T) {
 	app := mount(t, &fakeSvc{
-		runFn:  func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) { return &diagv1.RunSuiteResponse{Run: passRun()}, nil },
+		runFn: func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) {
+			return &diagv1.RunSuiteResponse{Run: passRun()}, nil
+		},
 		lastFn: func() (*diagv1.GetLastRunResponse, error) { return &diagv1.GetLastRunResponse{}, nil },
 	})
 	h := newHandlers(app)
@@ -85,7 +87,9 @@ func TestRun_HumanOutputShowsOverallAndSteps(t *testing.T) {
 
 func TestRun_JSONOutputDeserializes(t *testing.T) {
 	app := mount(t, &fakeSvc{
-		runFn:  func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) { return &diagv1.RunSuiteResponse{Run: passRun()}, nil },
+		runFn: func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) {
+			return &diagv1.RunSuiteResponse{Run: passRun()}, nil
+		},
 		lastFn: func() (*diagv1.GetLastRunResponse, error) { return &diagv1.GetLastRunResponse{}, nil },
 	})
 	h := newHandlers(app)
@@ -115,7 +119,9 @@ func TestRun_CapabilityFilterForwarded(t *testing.T) {
 
 func TestRun_CapabilityFilterRejectsUnknown(t *testing.T) {
 	app := mount(t, &fakeSvc{
-		runFn:  func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) { return &diagv1.RunSuiteResponse{Run: passRun()}, nil },
+		runFn: func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) {
+			return &diagv1.RunSuiteResponse{Run: passRun()}, nil
+		},
 		lastFn: func() (*diagv1.GetLastRunResponse, error) { return &diagv1.GetLastRunResponse{}, nil },
 	})
 	h := newHandlers(app)
@@ -129,7 +135,9 @@ func TestRun_CapabilityFilterRejectsUnknown(t *testing.T) {
 
 func TestLast_NeverRunSentinel(t *testing.T) {
 	app := mount(t, &fakeSvc{
-		runFn:  func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) { return &diagv1.RunSuiteResponse{Run: passRun()}, nil },
+		runFn: func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) {
+			return &diagv1.RunSuiteResponse{Run: passRun()}, nil
+		},
 		lastFn: func() (*diagv1.GetLastRunResponse, error) {
 			return &diagv1.GetLastRunResponse{Run: &diagv1.RunSuiteResult{Overall: &diagv1.SuiteOverall{Status: diagv1.SuiteOverall_STATUS_NEVER}}}, nil
 		},

@@ -290,7 +290,8 @@ export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs
     return null;
   }
 
-  if (vad.state === "watchingSilence") {
+  // vad.state === "watchingSilence" (only remaining branch in the state machine)
+  {
     if (rms > vad.speechThreshold) {
       vad.state = "speechDetected";
       return null;

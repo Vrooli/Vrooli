@@ -10,6 +10,8 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/stt/segmenter/testaudio"
 
@@ -70,6 +72,8 @@ func runConnectBidi(t *testing.T, audio []byte) []eventProjection {
 	connectPath, h := sttconnect.NewSTTServiceHandler(NewConnectHandler(Deps{
 		Chain:    chain,
 		Selector: selector,
+		Logger:   logx.Std{},
+		Clock:    clock.System{},
 	}))
 	mux := http.NewServeMux()
 	mux.Handle(connectPath, h)

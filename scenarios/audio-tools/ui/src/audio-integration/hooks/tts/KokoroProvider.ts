@@ -126,11 +126,11 @@ export class KokoroProvider implements TTSProvider {
       return await new Promise<void>((resolve, reject) => {
         this.playbackResolve = resolve;
         this.playbackReject = reject;
-        this.audio.play().catch((err) => {
+        this.audio.play().catch((err: unknown) => {
           this.playbackResolve = null;
           this.playbackReject = null;
           this.cleanup();
-          reject(err);
+          reject(err instanceof Error ? err : new Error(String(err)));
         });
       });
     } catch (err) {
@@ -183,11 +183,11 @@ export class KokoroProvider implements TTSProvider {
       return await new Promise<void>((resolve, reject) => {
         this.playbackResolve = resolve;
         this.playbackReject = reject;
-        this.audio.play().catch((err) => {
+        this.audio.play().catch((err: unknown) => {
           this.playbackResolve = null;
           this.playbackReject = null;
           this.cleanup();
-          reject(err);
+          reject(err instanceof Error ? err : new Error(String(err)));
         });
       });
     } catch (err) {
@@ -218,11 +218,11 @@ export class KokoroProvider implements TTSProvider {
     return new Promise<void>((resolve, reject) => {
       this.playbackResolve = resolve;
       this.playbackReject = reject;
-      this.audio.play().catch((err) => {
+      this.audio.play().catch((err: unknown) => {
         this.playbackResolve = null;
         this.playbackReject = null;
         this.cleanup();
-        reject(err);
+        reject(err instanceof Error ? err : new Error(String(err)));
       });
     });
   }

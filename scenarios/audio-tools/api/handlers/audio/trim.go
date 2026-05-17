@@ -14,9 +14,10 @@ func (h *connectHandler) Trim(ctx context.Context, req *connect.Request[audiov1.
 	if err := requireBytes(req.Msg.Audio); err != nil {
 		return nil, err
 	}
-	out, err := intaudio.Trim(ctx, req.Msg.Audio, req.Msg.Format, req.Msg.StartSeconds, req.Msg.EndSeconds, "")
+	inFmt := audioFormatString(req.Msg.GetFormat())
+	out, err := intaudio.Trim(ctx, req.Msg.Audio, inFmt, req.Msg.StartSeconds, req.Msg.EndSeconds, "")
 	if err != nil {
 		return nil, mapAudioErr(err)
 	}
-	return connect.NewResponse(&audiov1.TrimResponse{Audio: out, ContentType: contentTypeFor(req.Msg.Format)}), nil
+	return connect.NewResponse(&audiov1.TrimResponse{Audio: out, ContentType: contentTypeFor(inFmt)}), nil
 }

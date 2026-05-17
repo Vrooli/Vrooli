@@ -13,6 +13,7 @@ import (
 	"audio-tools/internal/capabilities"
 	capmocks "audio-tools/internal/capabilities/mocks"
 	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
 	"audio-tools/internal/testutil/assertx"
@@ -97,7 +98,7 @@ func TestHealthHandler(t *testing.T) {
 				},
 			}
 			srv := server.New(
-				server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+				server.Deps{Clock: clock.System{}, Logger: logx.Std{L: log.New(io.Discard, "", 0)}},
 				mod,
 			)
 			live := httpx.NewLiveServer(t, srv)
@@ -151,7 +152,7 @@ func TestHealthHandler_ProvidersDownDoesNotFlipReadiness(t *testing.T) {
 		Mount: func(r *mux.Router) { r.HandleFunc("/health", h).Methods(http.MethodGet) },
 	}
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+		server.Deps{Clock: clock.System{}, Logger: logx.Std{L: log.New(io.Discard, "", 0)}},
 		mod,
 	)
 	live := httpx.NewLiveServer(t, srv)

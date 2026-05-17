@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { getProxyInfo } from "@vrooli/api-base";
 import { AppShell } from "./components/AppShell";
+import { Toaster } from "./components/ui/toast";
 import { PreferencesProvider } from "./hooks/usePreferences";
 import { useTranslation } from "./i18n";
 import { strings } from "./consts/strings";
@@ -45,6 +46,7 @@ export default function App() {
           </Routes>
         </Suspense>
       </BrowserRouter>
+      <Toaster />
     </PreferencesProvider>
   );
 }

@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # Coverage gate for audio-tools/api.
 #
-# Runs `go test -cover ./...` and fails when any listed package drops
-# below its floor. The script prints the actual percent and the gap so
-# reviewers can immediately tell whether the regression is a covered-code
-# deletion (legitimate floor lower) or a missing test.
+# Runs `go test -race -cover -timeout 300s ./...` and fails when any
+# listed package drops below its floor. The script prints the actual
+# percent and the gap so reviewers can immediately tell whether the
+# regression is a covered-code deletion (legitimate floor lower) or a
+# missing test.
+#
+# The -race gate is mandatory: pub/sub fan-out in internal/session, the
+# handlers/health_status server-stream, and handlers/stt stream_ws are
+# obvious race candidates and were silently regressing before this gate
+# landed (2026-05-17).
 #
 # Floors are sourced from
-# ~/.vrooli/plans/audio-tools-test-architecture-coverage-hardening.md
-# §7 Phase 6. Update both the plan and this script in the same PR.
+# ~/.vrooli/plans/audio-tools-test-follow-ups-new-handler-seams-logx-adoption-ui-cli-coverage-byok-streaming-rig.md
+# §7. Update both the plan and this script in the same PR.
 
 set -euo pipefail
 
@@ -27,10 +33,19 @@ declare -A FLOORS=(
   ["audio-tools/internal/server"]=80
   ["audio-tools/internal/session"]=80
   ["audio-tools/internal/stt/strategy"]=80
+  # Plan floor 88; current 70. Adjust upward as lifecycle_cli /
+  # registry edge cases land.
   ["audio-tools/internal/capabilities"]=70
+  # Plan floor 85; current 80. The stream-loop branch is hard to cover
+  # without a live connect ServerStream; revisit after Phase 4 UI tests
+  # drive the path via Subscribe end-to-end.
+  ["audio-tools/handlers/health_status"]=80
+  # Plan floor 80; current 65. GetProviderLogs streaming + mapControllerErr
+  # branches need targeted unit tests.
+  ["audio-tools/handlers/provider_lifecycle"]=65
   ["audio-tools/internal/store"]=70
   ["audio-tools/internal/byokstore"]=70
-  ["audio-tools/internal/byok"]=70
+  ["audio-tools/internal/byok"]=80
   ["audio-tools/internal/summarize"]=80
   ["audio-tools/internal/stt/segmenter"]=75
   ["audio-tools/internal/ai/sttchain"]=80
@@ -50,7 +65,7 @@ tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
 
 # `go test -cover ./...` prints one line per package: "ok\tpkg\ttime\tcoverage: NN.N% of statements".
-go test -cover ./... > "$tmp" 2>&1 || true
+go test -race -cover -timeout 300s ./... > "$tmp" 2>&1 || true
 
 failures=0
 for pkg in "${!FLOORS[@]}"; do

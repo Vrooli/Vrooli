@@ -272,6 +272,19 @@ are caught by the smoke-test phase of `vrooli scenario test`.
 **Refs:** plan [audio-tools-test-architecture-lift §3 Symptom 1];
 streaming-decoupling plan in [`PRD/`](../PRD/).
 
+**Resolved 2026-05-17 (Deepgram only):** The vendor-WS rig at
+`internal/testutil/vendorws/` now drives three new
+`internal/byok/deepgram_test.go` cases — happy-path (partial + final
+frames), mid-stream 1011 close, and context-cancel cleanup — through
+the injectable `DeepgramSTT.StreamEndpoint`. Package coverage:
+`internal/byok` 87% (floor raised 70 → 80). OpenAI Whisper still
+declares `StreamingCapability() bool { return false }` and
+`TranscribeStreaming` returns `(nil, nil)`; the streaming-decoupling
+plan's Phase E will land the real adapter and the matching
+vendorws-driven tests in the same diff. Per plan
+`audio-tools-test-follow-ups-new-handler-seams-logx-adoption-ui-cli-coverage-byok-streaming-rig.md`
+Phase 6.
+
 ### Handler `time.Now()` and `log.Printf` bypasses (Phase 2 / Phase 6 deferred)
 
 **Symptom:** Five handler files still call `time.Now()` directly
@@ -294,6 +307,20 @@ mechanical refactor across the listed files.
 
 **Refs:** plan [audio-tools-test-architecture-lift §3 Symptoms 3, 4]
 (Phase 2 + Phase 6 carry-over).
+
+**Resolved 2026-05-17:** Every handler `Deps` now declares
+`Logger logx.Logger` and (where time is read) `Clock clock.Clock` as
+required fields — no `if x == nil { ... }` fallbacks. The two new
+handlers (`handlers/health_status`, `handlers/provider_lifecycle`)
+were wired through the seam from inception; the remaining ten handler
+packages and three `internal/` shims (`middleware`, `tts/service`,
+`usagereport/recorder`, plus `internal/server`) were converted in the
+same pass. Drift gate: `rg -n 'log\.Default\(\)' scenarios/audio-tools/api/ -g '!*_test.go' -g '!internal/bootstrap/**' -g '!internal/logx/**' -g '!main.go'` returns empty;
+`rg -n 'time\.Now\(\)' scenarios/audio-tools/api/handlers/ -g '!*_test.go'` returns empty. Tests substitute `mocks.FakeClock` +
+`mocks.FakeLogger`; the two new handlers assert exact RFC3339
+timestamps and at least one log line per error path. Per plan
+`audio-tools-test-follow-ups-new-handler-seams-logx-adoption-ui-cli-coverage-byok-streaming-rig.md`
+Phases 1–2.
 
 ### BYOK + LPBS client `*http.Client` direct construction (Phase 1 deferred)
 

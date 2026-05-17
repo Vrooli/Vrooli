@@ -3,8 +3,6 @@ package health_status_test
 import (
 	"context"
 	"errors"
-	"io"
-	"log"
 	"testing"
 	"time"
 
@@ -13,12 +11,18 @@ import (
 
 	"audio-tools/handlers/health_status"
 	"audio-tools/internal/capabilities"
-	"audio-tools/internal/capabilities/mocks"
+	capmocks "audio-tools/internal/capabilities/mocks"
+	"audio-tools/internal/testutil/mocks"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
 )
+
+// canonicalNow is the deterministic time every test uses so timestamp
+// assertions read as a single shared constant rather than per-test
+// magic numbers.
+var canonicalNow = time.Date(2026, 5, 17, 12, 0, 0, 0, time.UTC)
 
 // testDefs mirrors a representative slice of capabilities.Known so the
 // handler tests exercise the mapping table without depending on the
@@ -34,21 +38,23 @@ func testDefs() []capabilities.Def {
 	}
 }
 
-func newHandler(t *testing.T, checkers map[string]capabilities.Checker, ttl time.Duration) (*health_status.Deps, *capabilities.Registry) {
+func newHandlerHarness(t *testing.T, checkers map[string]capabilities.Checker, ttl time.Duration) (*health_status.Deps, *capabilities.Registry, *mocks.FakeClock, *mocks.FakeLogger) {
 	t.Helper()
 	reg := capabilities.NewRegistry(testDefs(), checkers, ttl)
-	deps := &health_status.Deps{Registry: reg, Logger: log.New(io.Discard, "", 0)}
-	return deps, reg
+	clk := mocks.NewFakeClock(canonicalNow)
+	logger := mocks.NewFakeLogger()
+	deps := &health_status.Deps{Registry: reg, Logger: logger, Clock: clk}
+	return deps, reg, clk, logger
 }
 
 func TestGetProviderHealth_GroupsByCapabilityAndSkipsRollup(t *testing.T) {
 	checkers := map[string]capabilities.Checker{
-		"whisper-stt": mocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
-		"kokoro-tts":  mocks.NewFakeChecker(capabilities.StatusUnavailable, "kokoro is not responding"),
-		"ollama":      mocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
-		"openrouter":  mocks.NewFakeChecker(capabilities.StatusUnavailable, "no creds"),
+		"whisper-stt": capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
+		"kokoro-tts":  capmocks.NewFakeChecker(capabilities.StatusUnavailable, "kokoro is not responding"),
+		"ollama":      capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
+		"openrouter":  capmocks.NewFakeChecker(capabilities.StatusUnavailable, "no creds"),
 	}
-	deps, _ := newHandler(t, checkers, time.Minute)
+	deps, _, _, _ := newHandlerHarness(t, checkers, time.Minute)
 	h := health_status.NewConnectHandler(*deps)
 
 	resp, err := h.GetProviderHealth(context.Background(), connect.NewRequest(&hsv1.GetProviderHealthRequest{}))
@@ -92,14 +98,17 @@ func TestGetProviderHealth_GroupsByCapabilityAndSkipsRollup(t *testing.T) {
 	require.Equal(t, hsv1.State_STATE_UNAVAILABLE, tiers[commonv1.ProviderTier_PROVIDER_TIER_BYOK])
 	require.Equal(t, hsv1.State_STATE_AVAILABLE, summ.GetEffectiveState())
 
-	require.NotEmpty(t, resp.Msg.GetGeneratedAt())
+	// Exact-timestamp assertion: handler must read clock.Now() (not
+	// time.Now()) — substituting an empty string would slip past a
+	// "non-empty" check, so we pin the canonical fake time.
+	require.Equal(t, canonicalNow.UTC().Format(time.RFC3339), resp.Msg.GetGeneratedAt())
 	require.Equal(t, int32(60), resp.Msg.GetCacheTtlSeconds())
 }
 
-func TestRefreshProviderHealth_BustsCache(t *testing.T) {
-	whisper := mocks.NewFakeChecker(capabilities.StatusAvailable, "ok")
+func TestRefreshProviderHealth_BustsCacheAndUsesFakeClock(t *testing.T) {
+	whisper := capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok")
 	checkers := map[string]capabilities.Checker{"whisper-stt": whisper}
-	deps, _ := newHandler(t, checkers, time.Hour)
+	deps, _, clk, _ := newHandlerHarness(t, checkers, time.Hour)
 	h := health_status.NewConnectHandler(*deps)
 
 	// Warm the cache.
@@ -107,19 +116,23 @@ func TestRefreshProviderHealth_BustsCache(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(1), whisper.CallCount())
 
-	// Cached read.
-	_, err = h.GetProviderHealth(context.Background(), connect.NewRequest(&hsv1.GetProviderHealthRequest{}))
-	require.NoError(t, err)
-	require.Equal(t, int64(1), whisper.CallCount())
-
-	// Force.
-	_, err = h.RefreshProviderHealth(context.Background(), connect.NewRequest(&hsv1.RefreshProviderHealthRequest{}))
+	// Advance the fake clock between calls; Refresh should report the
+	// advanced time, proving the handler reads h.deps.Clock.Now() not
+	// time.Now().
+	clk.Advance(7 * time.Second)
+	resp, err := h.RefreshProviderHealth(context.Background(), connect.NewRequest(&hsv1.RefreshProviderHealthRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, int64(2), whisper.CallCount(), "RefreshProviderHealth must bypass cache")
+	require.Equal(t, canonicalNow.Add(7*time.Second).UTC().Format(time.RFC3339), resp.Msg.GetGeneratedAt())
 }
 
 func TestHandlerWithoutRegistryReturnsUnavailable(t *testing.T) {
-	h := health_status.NewConnectHandler(health_status.Deps{Registry: nil, Logger: log.New(io.Discard, "", 0)})
+	logger := mocks.NewFakeLogger()
+	h := health_status.NewConnectHandler(health_status.Deps{
+		Registry: nil,
+		Logger:   logger,
+		Clock:    mocks.NewFakeClock(canonicalNow),
+	})
 	_, err := h.GetProviderHealth(context.Background(), connect.NewRequest(&hsv1.GetProviderHealthRequest{}))
 	var connErr *connect.Error
 	require.True(t, errors.As(err, &connErr))
@@ -128,16 +141,9 @@ func TestHandlerWithoutRegistryReturnsUnavailable(t *testing.T) {
 
 func TestStreamProviderHealth_ClosesOnCtxCancel(t *testing.T) {
 	checkers := map[string]capabilities.Checker{
-		"whisper-stt": mocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
+		"whisper-stt": capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
 	}
-	deps, _ := newHandler(t, checkers, time.Minute)
-	_ = deps
-
-	// We can't easily build a *connect.ServerStream from outside the
-	// generated code, so this test verifies cancellation propagates by
-	// running StreamProviderHealth in a goroutine with a context that
-	// is cancelled almost immediately. The function must return nil
-	// without panicking once the ctx is done.
+	deps, _, _, _ := newHandlerHarness(t, checkers, time.Minute)
 	h := health_status.NewConnectHandler(*deps)
 
 	ctx, cancel := context.WithCancel(context.Background())

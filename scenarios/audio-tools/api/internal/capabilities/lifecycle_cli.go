@@ -90,7 +90,7 @@ func (c *CLIController) Logs(ctx context.Context, slug string, follow bool, tail
 	if err != nil {
 		return nil, fmt.Errorf("stdout pipe: %w", err)
 	}
-	cmd.Stderr = cmd.Stdout.(io.Writer) // best-effort merge
+	cmd.Stderr = cmd.Stdout // best-effort merge of stderr into stdout pipe
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start vrooli resource logs: %w", err)
 	}

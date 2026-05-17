@@ -97,3 +97,18 @@ export type {
   SpeakerVerificationEnrollmentResponse,
   SpeakerVerificationEnrollResult,
 } from "./api/voice";
+
+// =============================================================================
+// Generic, scenario-agnostic core React hooks.
+// =============================================================================
+
+export { useVoiceCore } from "./hooks/useVoiceCore";
+export type { UseVoiceCoreOptions, VoiceCapabilityProbe } from "./hooks/useVoiceCore";
+
+export { useTextToSpeechCore } from "./hooks/useTextToSpeechCore";
+export type {
+  UseTextToSpeechCoreOptions,
+  TTSCoreSpeakSettings,
+  TTSCoreState,
+  TTSCorePlaybackEvent,
+} from "./hooks/useTextToSpeechCore";

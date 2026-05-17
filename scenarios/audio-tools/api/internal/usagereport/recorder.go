@@ -7,11 +7,11 @@ package usagereport
 
 import (
 	"context"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
 )
 
@@ -53,7 +53,7 @@ type Recorder interface {
 // AsyncRecorder writes through a buffered channel.
 type AsyncRecorder struct {
 	repo          *store.UsageStore
-	logger        *log.Logger
+	logger        logx.Logger
 	queue         chan store.UsageRow
 	wg            sync.WaitGroup
 	retries       []time.Duration
@@ -61,10 +61,12 @@ type AsyncRecorder struct {
 	enqueuedTotal atomic.Uint64
 }
 
-// New returns an AsyncRecorder running a single drain goroutine.
-func New(repo *store.UsageStore, logger *log.Logger) *AsyncRecorder {
+// New returns an AsyncRecorder running a single drain goroutine. logger
+// is required (logx.Logger); a nil value panics so a forgotten
+// wire-up never silently drops the drop/retry telemetry.
+func New(repo *store.UsageStore, logger logx.Logger) *AsyncRecorder {
 	if logger == nil {
-		logger = log.Default()
+		panic("usagereport.New requires logger")
 	}
 	r := &AsyncRecorder{
 		repo:    repo,

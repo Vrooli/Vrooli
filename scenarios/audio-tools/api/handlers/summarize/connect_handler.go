@@ -4,15 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
+	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/byok/envelope"
-	"audio-tools/internal/clock"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
@@ -24,12 +23,14 @@ type connectHandler struct {
 	deps Deps
 }
 
+// NewConnectHandler builds the Connect handler. All Deps seams
+// (Logger, Clock) are required; nil values panic.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("summarize.NewConnectHandler requires Deps.Logger")
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		panic("summarize.NewConnectHandler requires Deps.Clock")
 	}
 	return &connectHandler{deps: d}
 }
@@ -56,6 +57,11 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 		opID = uuid.NewString()
 	}
 	start := h.now()
+	resp := connect.NewResponse(&summv1.SummarizeResponse{})
+	ctx = tiered.WithOnFallback(ctx, func(ev tiered.FallbackEvent) {
+		resp.Header().Set("x-audio-tools-fallback",
+			fmt.Sprintf("from=%s;to=%s;reason=%s", ev.From.String(), ev.To.String(), ev.Reason))
+	})
 	res, err := h.deps.Chain.Execute(ctx, chainReq)
 	row := store.UsageRow{
 		OperationID:  opID,
@@ -80,7 +86,7 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 	if h.deps.Usage != nil {
 		h.deps.Usage.Enqueue(row)
 	}
-	return connect.NewResponse(&summv1.SummarizeResponse{
+	resp.Msg = &summv1.SummarizeResponse{
 		Text:         res.Text,
 		PromptTokens: int32(res.PromptTokens),
 		OutputTokens: int32(res.OutputTokens),
@@ -88,7 +94,8 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 		ProviderId:   res.ProviderID,
 		ModelId:      res.ModelID,
 		LatencyMs:    float64(res.Latency.Milliseconds()),
-	}), nil
+	}
+	return resp, nil
 }
 
 func (h *connectHandler) GetSummarizeConfig(_ context.Context, _ *connect.Request[summv1.GetSummarizeConfigRequest]) (*connect.Response[summv1.GetSummarizeConfigResponse], error) {

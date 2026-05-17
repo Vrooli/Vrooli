@@ -8,6 +8,7 @@ import (
 	"context"
 	"time"
 
+	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
@@ -24,9 +25,9 @@ type Config struct {
 
 // Probe is the union of per-chain Probe results.
 type Probe struct {
-	STT       sttchain.ProbeResult
-	TTS       ttschain.ProbeResult
-	Summarize summarizechain.ProbeResult
+	STT       tiered.ProbeResult
+	TTS       tiered.ProbeResult
+	Summarize tiered.ProbeResult
 }
 
 // Coordinator owns the three chains.

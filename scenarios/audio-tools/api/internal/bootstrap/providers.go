@@ -6,6 +6,7 @@ import (
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/byok"
+	"audio-tools/internal/logx"
 	sttpipeline "audio-tools/internal/stt/pipeline"
 	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
@@ -28,6 +29,7 @@ func BuildChains(
 	ttsSvc *inttts.Service,
 	summarizer *intsumm.Summarizer,
 	byokRegistries byok.Registries,
+	logger logx.Logger,
 ) Chains {
 	stt := sttchain.NewChain(sttchain.Options{
 		Local:          sttchain.NewLocalProvider(voiceSvc),
@@ -37,6 +39,7 @@ func BuildChains(
 		EnableVrooli:   env.EnableVrooli,
 		AvailTTLByOK:   env.AvailTTLBYOK,
 		AvailTTLVrooli: env.AvailTTLVrooli,
+		Logx:           logger,
 	})
 	tts := ttschain.NewChain(ttschain.Options{
 		Local:          ttschain.NewLocalProvider(ttsSvc),
@@ -46,6 +49,7 @@ func BuildChains(
 		EnableVrooli:   env.EnableVrooli,
 		AvailTTLByOK:   env.AvailTTLBYOK,
 		AvailTTLVrooli: env.AvailTTLVrooli,
+		Logx:           logger,
 	})
 	summ := summarizechain.NewChain(summarizechain.Options{
 		Local:          summarizechain.NewLocalProvider(summarizer, env.SummarizeDefaultModel),
@@ -55,6 +59,7 @@ func BuildChains(
 		EnableVrooli:   env.EnableVrooli,
 		AvailTTLByOK:   env.AvailTTLBYOK,
 		AvailTTLVrooli: env.AvailTTLVrooli,
+		Logx:           logger,
 	})
 	return Chains{
 		STT:         stt,

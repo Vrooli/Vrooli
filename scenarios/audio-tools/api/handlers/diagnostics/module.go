@@ -5,9 +5,8 @@
 package diagnostics
 
 import (
-	"log"
-
 	"audio-tools/internal/diagnostics"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 
 	"github.com/gorilla/mux"
@@ -19,13 +18,13 @@ import (
 // Deps wires the handler. Orchestrator is required.
 type Deps struct {
 	Orchestrator *diagnostics.Orchestrator
-	Logger       *log.Logger
+	Logger       logx.Logger
 }
 
 // Module returns the diagnostics module contribution.
-func Module(orch *diagnostics.Orchestrator, logger *log.Logger) modulekit.Module {
+func Module(orch *diagnostics.Orchestrator, logger logx.Logger) modulekit.Module {
 	if logger == nil {
-		logger = log.Default()
+		panic("diagnostics.Module requires logger")
 	}
 	connectPath, h := diagconnect.NewDiagnosticsServiceHandler(NewConnectHandler(Deps{Orchestrator: orch, Logger: logger}))
 	return modulekit.Module{

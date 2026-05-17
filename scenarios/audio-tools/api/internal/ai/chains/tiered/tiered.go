@@ -26,6 +26,32 @@ const (
 	SlotLocal
 )
 
+// String returns the canonical lowercase tier name ("byok", "vrooli", "local")
+// used in fallback events, logs, and the x-audio-tools-fallback header.
+func (s Slot) String() string {
+	switch s {
+	case SlotBYOK:
+		return "byok"
+	case SlotVrooli:
+		return "vrooli"
+	case SlotLocal:
+		return "local"
+	}
+	return "unknown"
+}
+
+// FallbackEvent is emitted when a request is served from a tier OTHER than
+// the user's first-priority (first-eligible) tier. From identifies the
+// first-priority tier that was attempted but failed/declined; To identifies
+// the tier that ultimately succeeded; Reason is a short error class string
+// extracted from the From-tier error (e.g. "provider_unavailable", or the
+// underlying error.Error() if no class is known).
+type FallbackEvent struct {
+	From   Slot
+	To     Slot
+	Reason string
+}
+
 // Tier wraps the per-tier execute + availability functions.
 type Tier[Req, Resp any] struct {
 	Execute     func(ctx context.Context, req Req) (Resp, error)
@@ -61,6 +87,13 @@ type Options[Req, Resp any] struct {
 
 	// Clock seam for TTL comparisons. Defaults to clock.System{}.
 	Clock clock.Clock
+
+	// OnFallback, when non-nil, is invoked whenever Execute returns a
+	// successful result from a tier OTHER than the first-eligible tier
+	// for the request. The callback is also invoked when a per-request
+	// callback is set in the context via WithOnFallback — both fire.
+	// Invocation is synchronous; do not block.
+	OnFallback func(ctx context.Context, ev FallbackEvent)
 }
 
 // Coordinator orchestrates execution across BYOK -> Vrooli -> Local.
@@ -72,6 +105,7 @@ type Coordinator[Req, Resp any] struct {
 	route      func(slot Slot, req Req) bool
 	isTerminal func(slot Slot, err error) bool
 	allFailed  error
+	onFallback func(ctx context.Context, ev FallbackEvent)
 
 	clk clock.Clock
 
@@ -121,6 +155,7 @@ func NewCoordinator[Req, Resp any](opts Options[Req, Resp]) *Coordinator[Req, Re
 		route:        opts.Route,
 		isTerminal:   opts.IsTerminal,
 		allFailed:    opts.AllFailed,
+		onFallback:   opts.OnFallback,
 		clk:          opts.Clock,
 	}
 }
@@ -132,16 +167,35 @@ func (c *Coordinator[Req, Resp]) Execute(ctx context.Context, req Req) (Resp, er
 	var zero Resp
 	var lastErr error
 
+	// Track the first-eligible (first-priority) tier and the reason the
+	// chain had to skip past it. Used to emit a fallback event when a
+	// lower-priority tier succeeds.
+	var (
+		firstSlot   Slot
+		firstReason string
+		haveFirst   bool
+	)
+
 	for _, slot := range []Slot{SlotBYOK, SlotVrooli, SlotLocal} {
 		if !c.Eligible(ctx, slot, req) {
 			continue
 		}
+		if !haveFirst {
+			firstSlot = slot
+			haveFirst = true
+		}
 		r, err := c.tier(slot).Execute(ctx, req)
 		if err == nil {
+			if haveFirst && slot != firstSlot {
+				c.emitFallback(ctx, FallbackEvent{From: firstSlot, To: slot, Reason: firstReason})
+			}
 			return r, nil
 		}
 		if c.isTerminal(slot, err) {
 			return zero, err
+		}
+		if slot == firstSlot && firstReason == "" {
+			firstReason = classifyReason(err)
 		}
 		lastErr = err
 	}
@@ -150,6 +204,27 @@ func (c *Coordinator[Req, Resp]) Execute(ctx context.Context, req Req) (Resp, er
 		return zero, lastErr
 	}
 	return zero, c.allFailed
+}
+
+// emitFallback fires the per-coordinator and per-request OnFallback hooks,
+// in that order. Safe to call with nil callbacks.
+func (c *Coordinator[Req, Resp]) emitFallback(ctx context.Context, ev FallbackEvent) {
+	if c.onFallback != nil {
+		c.onFallback(ctx, ev)
+	}
+	if cb := onFallbackFromContext(ctx); cb != nil {
+		cb(ev)
+	}
+}
+
+// classifyReason maps an error to a short stable code used as the
+// `reason` field in fallback events. Currently a best-effort string;
+// callers that need typed reasons should wrap their errors with codes.
+func classifyReason(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 // Eligible reports whether the given tier should be tried for this

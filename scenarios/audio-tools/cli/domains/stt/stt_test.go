@@ -24,6 +24,7 @@ import (
 
 type fakeSvc struct {
 	sttconnect.UnimplementedSTTServiceHandler
+	sttconnect.UnimplementedSTTAdminServiceHandler
 	transcribe func(*sttv1.TranscribeRequest) (*sttv1.TranscribeResponse, error)
 	getCfg     func() (*sttv1.StreamConfig, error)
 }
@@ -44,11 +45,13 @@ func (f *fakeSvc) GetStreamConfig(_ context.Context, _ *connect.Request[sttv1.Ge
 	return connect.NewResponse(&sttv1.GetStreamConfigResponse{Config: cfg}), nil
 }
 
-func mountSTT(t *testing.T, svc sttconnect.STTServiceHandler) *cliapp.ScenarioApp {
+func mountSTT(t *testing.T, svc *fakeSvc) *cliapp.ScenarioApp {
 	t.Helper()
-	path, h := sttconnect.NewSTTServiceHandler(svc)
+	runtimePath, runtimeHandler := sttconnect.NewSTTServiceHandler(svc)
+	adminPath, adminHandler := sttconnect.NewSTTAdminServiceHandler(svc)
 	mux := http.NewServeMux()
-	mux.Handle(path, h)
+	mux.Handle(runtimePath, runtimeHandler)
+	mux.Handle(adminPath, adminHandler)
 	return testutil.NewTestApp(t, mux)
 }
 

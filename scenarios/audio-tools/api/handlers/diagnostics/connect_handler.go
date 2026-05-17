@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"connectrpc.com/connect"
 
@@ -20,10 +19,11 @@ type connectHandler struct {
 	deps Deps
 }
 
-// NewConnectHandler builds the Connect handler.
+// NewConnectHandler builds the Connect handler. Deps.Logger is
+// required (logx.Logger); a nil value panics.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("diagnostics.NewConnectHandler requires Deps.Logger")
 	}
 	return &connectHandler{deps: d}
 }

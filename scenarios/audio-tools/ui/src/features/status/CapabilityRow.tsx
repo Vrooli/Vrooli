@@ -7,32 +7,52 @@ import {
 import { Badge } from "../../components/ui/badge";
 import { Card } from "../../components/ui/card";
 import { ProviderTierBadge } from "./ProviderTierBadge";
+import { useTranslation } from "../../i18n";
+import { strings } from "../../consts/strings";
 
-function capabilityLabel(c: Capability): string {
+// capabilitySlug doubles as the DOM id for scroll anchors (e.g. /status#stt).
+function capabilitySlug(c: Capability): string {
   switch (c) {
     case Capability.STT:
-      return "Speech → Text";
+      return "stt";
     case Capability.TTS:
-      return "Text → Speech";
+      return "tts";
     case Capability.SUMMARIZE:
-      return "Summarize";
+      return "summarize";
     case Capability.TRANSCODE:
-      return "Transcode";
+      return "transcode";
     default:
-      return "Unknown";
+      return "unknown";
   }
 }
 
-function stateLabel(s: State): string {
+type TFn = ReturnType<typeof useTranslation>["t"];
+
+function capabilityLabel(t: TFn, c: Capability): string {
+  switch (c) {
+    case Capability.STT:
+      return t(strings.status.capabilityLabelSTT);
+    case Capability.TTS:
+      return t(strings.status.capabilityLabelTTS);
+    case Capability.SUMMARIZE:
+      return t(strings.status.capabilityLabelSummarize);
+    case Capability.TRANSCODE:
+      return t(strings.status.capabilityLabelTranscode);
+    default:
+      return t(strings.status.capabilityLabelUnknown);
+  }
+}
+
+function stateLabel(t: TFn, s: State): string {
   switch (s) {
     case State.AVAILABLE:
-      return "Available";
+      return t(strings.status.stateAvailable);
     case State.UNAVAILABLE:
-      return "Unavailable";
+      return t(strings.status.stateUnavailable);
     case State.UNKNOWN:
-      return "Unknown";
+      return t(strings.status.stateUnknown);
     default:
-      return "—";
+      return t(strings.status.stateDash);
   }
 }
 
@@ -49,45 +69,63 @@ function stateVariant(s: State): "success" | "danger" | "warning" | "neutral" {
   }
 }
 
-function ProviderCard({ provider }: { provider: ProviderHealth }) {
+function ProviderCard({
+  provider,
+  renderActions,
+}: {
+  provider: ProviderHealth;
+  renderActions?: (providerId: string) => React.ReactNode;
+}) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium text-app-foreground">{provider.providerId}</span>
-        <Badge variant={stateVariant(provider.state)}>{stateLabel(provider.state)}</Badge>
+        <Badge variant={stateVariant(provider.state)}>{stateLabel(t, provider.state)}</Badge>
       </div>
       <div className="flex items-center gap-2 text-xs text-app-muted-foreground">
         <ProviderTierBadge tier={provider.tier} />
-        {provider.lastCheckedAt && <span>Checked {provider.lastCheckedAt}</span>}
+        {provider.lastCheckedAt && <span>{t(strings.status.checkedAt, { when: provider.lastCheckedAt })}</span>}
       </div>
       {provider.errorMessage && (
         <p className="text-xs text-app-danger">{provider.errorMessage}</p>
       )}
+      {renderActions?.(provider.providerId)}
     </div>
   );
 }
 
 interface CapabilityRowProps {
   capability: CapabilityHealth;
+  // Render-prop slot for per-provider lifecycle action buttons. The
+  // status page passes a function that consults ListLocalProviders to
+  // decide which buttons to show; non-local providers return null and
+  // render no controls.
+  renderProviderActions?: (providerId: string) => React.ReactNode;
 }
 
-export function CapabilityRow({ capability }: CapabilityRowProps) {
+export function CapabilityRow({ capability, renderProviderActions }: CapabilityRowProps) {
+  const { t } = useTranslation();
   return (
-    <Card className="flex flex-col gap-3 p-4">
+    <Card id={capabilitySlug(capability.capability)} className="flex flex-col gap-3 p-4 scroll-mt-20">
       <header className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-app-foreground">
-          {capabilityLabel(capability.capability)}
+          {capabilityLabel(t, capability.capability)}
         </h2>
         <Badge variant={stateVariant(capability.effectiveState)}>
-          {stateLabel(capability.effectiveState)}
+          {stateLabel(t, capability.effectiveState)}
         </Badge>
       </header>
       {capability.providers.length === 0 ? (
-        <p className="text-sm text-app-muted-foreground">No providers registered.</p>
+        <p className="text-sm text-app-muted-foreground">{t(strings.status.noProviders)}</p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
           {capability.providers.map((p) => (
-            <ProviderCard key={`${capability.capability}-${p.providerId}`} provider={p} />
+            <ProviderCard
+              key={`${capability.capability}-${p.providerId}`}
+              provider={p}
+              renderActions={renderProviderActions}
+            />
           ))}
         </div>
       )}

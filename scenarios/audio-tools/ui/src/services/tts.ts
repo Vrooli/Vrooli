@@ -1,5 +1,6 @@
 import { createClient } from "@connectrpc/connect";
 import { ProviderTier, ResponseFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
+import { State } from "@vrooli/proto-types/audio-tools/v1/health_status/health_status_pb";
 import { TTSService } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
 import { transport } from "../api/client";
 import { tryCall, type Result } from "./result";
@@ -87,7 +88,7 @@ export async function getStatus(): Promise<Result<TtsStatus>> {
     return {
       capability: s.capability,
       capabilityLabel: s.capabilityLabel,
-      availability: s.availability.map((a) => ({ tier: providerTierLabel(a.tier), providerId: a.providerId, available: a.available })),
+      availability: s.availability.map((a) => ({ tier: providerTierLabel(a.tier), providerId: a.providerId, available: a.state === State.AVAILABLE })),
     };
   });
 }

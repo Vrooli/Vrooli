@@ -16,11 +16,15 @@ import (
 	"audio-tools/internal/httpc"
 )
 
-// DeepgramSTT calls Deepgram's /v1/listen endpoint.
+// DeepgramSTT calls Deepgram's /v1/listen endpoint. StreamEndpoint, if
+// set, overrides the default wss://api.deepgram.com URL used by
+// TranscribeStreaming — tests inject a vendorws.NewDeepgramServer URL
+// (rewritten ws:// → http://) so the real vendor is never dialed.
 type DeepgramSTT struct {
-	Endpoint string
-	Doer     httpc.Doer
-	Clock    clock.Clock
+	Endpoint       string
+	StreamEndpoint string
+	Doer           httpc.Doer
+	Clock          clock.Clock
 }
 
 func NewDeepgramSTT() *DeepgramSTT {
@@ -72,7 +76,11 @@ func (a *DeepgramSTT) TranscribeStreaming(ctx context.Context, key string, start
 	hdr := http.Header{}
 	hdr.Set("Authorization", "Token "+key)
 	dialer := websocket.DefaultDialer
-	conn, _, err := dialer.DialContext(ctx, deepgramStreamURL(start.Language), hdr)
+	streamURL := a.StreamEndpoint
+	if streamURL == "" {
+		streamURL = deepgramStreamURL(start.Language)
+	}
+	conn, _, err := dialer.DialContext(ctx, streamURL, hdr)
 	if err != nil {
 		return nil, fmt.Errorf("deepgram: ws dial: %w", err)
 	}

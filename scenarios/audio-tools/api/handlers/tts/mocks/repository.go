@@ -33,6 +33,7 @@ func (f *FakePlayback) Insert(_ context.Context, e store.PlaybackEvent) error {
 	f.Events = append(f.Events, e)
 	return nil
 }
+
 func (f *FakePlayback) List(_ context.Context, _ int) ([]store.PlaybackEvent, error) {
 	return f.Events, f.ListErr
 }

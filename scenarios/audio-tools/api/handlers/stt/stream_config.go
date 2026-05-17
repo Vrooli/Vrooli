@@ -95,18 +95,18 @@ func (h *connectHandler) GetStreamConfig(ctx context.Context, _ *connect.Request
 }
 
 var streamConfigAllowedPaths = map[string]struct{}{
-	"flush_interval_ms":    {},
-	"min_delta_bytes":      {},
-	"overlap_bytes":        {},
-	"persistent_mode":      {},
-	"wake_word_enabled":    {},
-	"wake_word_threshold":  {},
-	"segment_silence_ms":   {},
-	"streaming_mode":       {},
-	"strategy_preference":  {},
-	"vad_silence_ms":       {},
-	"overlap_window_ms":    {},
-	"overlap_commit_runs":  {},
+	"flush_interval_ms":   {},
+	"min_delta_bytes":     {},
+	"overlap_bytes":       {},
+	"persistent_mode":     {},
+	"wake_word_enabled":   {},
+	"wake_word_threshold": {},
+	"segment_silence_ms":  {},
+	"streaming_mode":      {},
+	"strategy_preference": {},
+	"vad_silence_ms":      {},
+	"overlap_window_ms":   {},
+	"overlap_commit_runs": {},
 }
 
 func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Request[sttv1.UpdateStreamConfigRequest]) (*connect.Response[sttv1.UpdateStreamConfigResponse], error) {

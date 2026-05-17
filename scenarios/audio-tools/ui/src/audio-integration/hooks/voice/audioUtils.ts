@@ -147,7 +147,7 @@ export class AudioRingBuffer {
  * Downsample audio from `fromRate` to `toRate` using linear interpolation.
  * Used to convert AudioContext's native rate (typically 48kHz) to 16kHz for MFCC.
  */
-export function downsample(buffer: Float32Array<ArrayBufferLike>, fromRate: number, toRate: number): Float32Array {
+export function downsample(buffer: Float32Array, fromRate: number, toRate: number): Float32Array {
   if (fromRate === toRate) return buffer;
   if (toRate > fromRate) throw new Error(`Cannot upsample: ${fromRate} -> ${toRate}`);
 
@@ -198,11 +198,15 @@ export function createPassiveCapturePipeline(
 
   // ScriptProcessorNode (deprecated but universally supported) for PCM capture.
   // Buffer size 4096 at 48kHz = ~85ms per callback — low overhead.
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- AudioWorklet not yet wired; ScriptProcessor kept for broad browser support
   const processor = ctx.createScriptProcessor(4096, 1, 1);
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- ScriptProcessor onaudioprocess API; replaced when AudioWorklet lands
   processor.onaudioprocess = (e: AudioProcessingEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- AudioProcessingEvent.inputBuffer; matches deprecated ScriptProcessor above
     const input = e.inputBuffer.getChannelData(0);
     ringBuffer.write(input);
     // Pass-through to keep the node alive (output must be connected)
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- AudioProcessingEvent.outputBuffer; matches deprecated ScriptProcessor above
     const output = e.outputBuffer.getChannelData(0);
     output.set(input);
   };

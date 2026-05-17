@@ -4,17 +4,28 @@
 // audio-tools. Consumers must construct a client explicitly and mount it
 // via <AudioToolsProvider client={...}>; there are no window globals and
 // no zero-config fallback.
+//
+// react-refresh/only-export-components is disabled file-wide: this module
+// intentionally co-locates the provider component with the create-client
+// factory, the context hooks, and a module-level active-client registry
+// used by sibling api/*.ts modules. Splitting them into separate files
+// would force every adopter (this is the canonical copy-paste reference)
+// to wire two imports for one capability. HMR for this file is
+// acceptable to break; consumers wrap their tree once at boot.
+/* eslint-disable react-refresh/only-export-components */
 
 import { createClient, type Client, type Transport } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createContext, createElement, useContext, type ReactNode } from "react";
 
 import { STTService } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
+import { STTAdminService } from "@vrooli/proto-types/audio-tools/v1/stt/stt_admin_pb";
 import { SummarizeService } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
 import { TTSService } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
 
 export interface AudioToolsClient {
   stt: Client<typeof STTService>;
+  sttAdmin: Client<typeof STTAdminService>;
   tts: Client<typeof TTSService>;
   summarize: Client<typeof SummarizeService>;
   baseUrl: string;
@@ -32,6 +43,7 @@ export function createAudioToolsClient(options: CreateAudioToolsClientOptions): 
   const transport = options.transport ?? createConnectTransport({ baseUrl });
   return {
     stt: createClient(STTService, transport),
+    sttAdmin: createClient(STTAdminService, transport),
     tts: createClient(TTSService, transport),
     summarize: createClient(SummarizeService, transport),
     baseUrl,

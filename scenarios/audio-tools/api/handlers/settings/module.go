@@ -2,9 +2,8 @@
 package settings
 
 import (
-	"log"
-
 	"audio-tools/internal/ai/chains"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 
 	"github.com/gorilla/mux"
@@ -14,7 +13,7 @@ import (
 )
 
 type Deps struct {
-	Logger         *log.Logger
+	Logger         logx.Logger
 	ProviderConfig ProviderConfigRepository
 	BYOK           BYOKRepository
 	VoiceOverrides VoiceOverridesRepository
@@ -33,7 +32,7 @@ var Endpoints = []modulekit.EndpointDescriptor{
 
 func Module(d Deps) modulekit.Module {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("settings.Module requires Deps.Logger")
 	}
 	connectPath, h := settconnect.NewSettingsServiceHandler(NewConnectHandler(d))
 	return modulekit.Module{

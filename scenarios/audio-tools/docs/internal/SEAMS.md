@@ -29,9 +29,10 @@
 | `usagereport.Recorder` | Interface | `internal/usagereport/recorder.go` (local SQLite write path for the UsageService dashboard) | `handlers/summarize` (other chain-adjacent handlers wired as they land) |
 | `lpbs.RemoteReporter` | Concrete | `integrations/lpbs/remote_reporter.go` (remote LPBS hop; flag-off until the gateway lands) | wired into `main.go` once the LPBS gateway ships |
 | `chains.Coordinator` | Concrete | `internal/ai/chains/chains.go` | `handlers/settings` UpdateProviderConfig — live chain Reconfigure |
-| `chains/tiered.Coordinator[Req,Resp]` | Generic | `internal/ai/chains/tiered/tiered.go` | embedded by each of `sttchain.Chain`, `ttschain.Chain`, `summarizechain.Chain` — owns BYOK->Vrooli->Local routing, availability cache, Reconfigure, Probe |
-| `chains/tiered.Tier[Req,Resp]` | Struct (function fields) | `internal/ai/chains/tiered/tiered.go` | per-chain `byokTier`/`vrooliTier`/`localTier` adapters wrap concrete provider methods |
-| `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Concrete | `internal/ai/{stt,tts,summarize}chain/chain.go` | `handlers/tts` GetStatus + `cli/domains/settings` (`settings providers`) |
+| `chains/tiered.Coordinator[Req,Resp]` | Generic | `internal/ai/chains/tiered/tiered.go` | embedded into each of `sttchain.Chain`, `ttschain.Chain`, `summarizechain.Chain` (method promotion) — owns BYOK->Vrooli->Local routing, availability cache, Reconfigure, Probe, Eligible |
+| `chains/tiered.ProviderSet[Req,Resp]` + `chains/tiered.NewChainFromSet` | Generic | `internal/ai/chains/tiered/set.go` | per-chain `NewChain` describes its domain via one declarative ProviderSet literal (tiers + Route + IsTerminal + AllFailed) and hands it to NewChainFromSet — replaces the duplicated Coordinator-wiring boilerplate that lived in each chain.go |
+| `chains/tiered.Tier[Req,Resp]` | Struct (function fields) | `internal/ai/chains/tiered/tiered.go` | per-chain `sttTier`/`ttsTier`/`sumTier` generic helpers (pointer-shaped type param to dodge typed-nil-in-interface) wrap concrete provider methods |
+| `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Inherited from embedded `*tiered.Coordinator` | `internal/ai/chains/tiered/tiered.go` | `handlers/tts` GetStatus + `cli/domains/settings` (`settings providers`) — returns `tiered.ProbeResult` |
 | `stt.MultipartTranscribeHandler` / `audio.multipartTranscodeHandler` | Concrete | `handlers/{stt,audio}/` | UI multipart upload paths |
 | `audio.Runner` + `audio.DefaultRunner` + `audio.SetFfmpegAvailableForTest` | Interface + var + test seam | `internal/audio/transcode.go` | `handlers/audio` unit tests substitute a fake Runner and seed ffmpeg presence so happy-path / error branches run without an ffmpeg binary on PATH |
 | `stt.StreamWSHandler` | Concrete | `handlers/stt/stream_ws.go` | mounts `/api/v1/voice/stream` over `voice.Service.HandleStreamWS` |
@@ -39,6 +40,8 @@
 | `stt.StrategySelector` | Concrete | `internal/stt/selector.go` | `stt.Segmenter` at session start |
 | `stt.StreamingStrategy` | Interface | `internal/stt/strategy/{vad_segment,overlap_agree,passthrough}.go` | `stt.StrategySelector` |
 | `sttchain.ProviderTraits` | Struct (replaces `StreamingCapability() bool`) | `internal/ai/sttchain/interface.go` | `stt.StrategySelector` |
+| `capabilities.ResourceController` | Interface | `internal/capabilities/lifecycle.go` (production impl: `CLIController` in `lifecycle_cli.go` shells out to `vrooli resource …`) | `handlers/provider_lifecycle/connect_handler.go` — single chokepoint for lifecycle shell-outs; tests substitute recording fakes |
+| `capabilities.Registry.ResolveForce` | Concrete (additive) | `internal/capabilities/registry.go` | `handlers/health_status` (RefreshProviderHealth) and `handlers/provider_lifecycle` (post-mutation cache-bust) |
 
 ## Cross-scenario boundaries
 
@@ -155,9 +158,10 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Structured log emission from domain code |
 | **Interface** | `internal/logx/logger.go::Logger` (`Printf(format, args...)`) |
-| **Production wiring** | `main.go` constructs `logx.Std{L: log.Default()}` and threads it through every domain that emits log lines (httpx error envelope, stt pipeline, summarize service). |
-| **Test fake** | `internal/testutil/mocks::FakeLogger` (records every Printf call, exposes `Entries()` snapshot). |
+| **Production wiring** | `main.go` / `internal/bootstrap` constructs `logx.Std{L: log.Default()}` once and threads it via `Deps.Logger` into every handler (`handlers/{audio,diagnostics,health_status,provider_lifecycle,session,settings,stt,summarize,tts,usage}/`) and the three `internal/` shims (`middleware`, `tts/service`, `usagereport/recorder`). `Deps.Logger` is a required field — no `nil` fallback. |
+| **Test fake** | `internal/testutil/mocks::FakeLogger` (records every Printf call, exposes `Entries()` snapshot, `Reset()` between sub-tests). |
 | **Why it exists** | Domain code calling `log.Printf` directly writes to a process-global default logger — tests can't capture or assert on those lines without redirecting stderr. The seam allows assertions like "the pipeline logged exactly one warning containing 'whisper unreachable'" without global state. |
+| **Drift gate** | `rg -n 'log\.Default\(\)' scenarios/audio-tools/api/ -g '!*_test.go' -g '!internal/bootstrap/**' -g '!internal/logx/**' -g '!main.go'` must return empty. |
 
 ### Pinger (database reachability)
 

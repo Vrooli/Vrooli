@@ -9,10 +9,10 @@ import (
 
 // FakeBYOK satisfies summarizechain.BYOKAdapter.
 type FakeBYOK struct {
-	IDStr      string
-	Available  bool
-	Result     *summarizechain.Result
-	Err        error
+	IDStr       string
+	Available   bool
+	Result      *summarizechain.Result
+	Err         error
 	SummarizeFn func(ctx context.Context, key string, req summarizechain.Request) (*summarizechain.Result, error)
 }
 

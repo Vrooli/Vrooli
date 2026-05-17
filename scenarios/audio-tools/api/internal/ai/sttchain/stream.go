@@ -17,13 +17,13 @@ import (
 func (c *Chain) StreamCandidates(ctx context.Context, start StreamStart) []Provider {
 	out := make([]Provider, 0, 3)
 	req := Request{BYOKKey: start.BYOKKey, LPBSToken: start.LPBSToken}
-	if c.byok != nil && c.coord.Eligible(ctx, tiered.SlotBYOK, req) {
+	if c.byok != nil && c.Eligible(ctx, tiered.SlotBYOK, req) {
 		out = append(out, c.byok)
 	}
-	if c.vrooli != nil && c.coord.Eligible(ctx, tiered.SlotVrooli, req) {
+	if c.vrooli != nil && c.Eligible(ctx, tiered.SlotVrooli, req) {
 		out = append(out, c.vrooli)
 	}
-	if c.local != nil && c.coord.Eligible(ctx, tiered.SlotLocal, req) {
+	if c.local != nil && c.Eligible(ctx, tiered.SlotLocal, req) {
 		out = append(out, c.local)
 	}
 	return out
@@ -39,7 +39,7 @@ func (c *Chain) StreamCandidates(ctx context.Context, start StreamStart) []Provi
 func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
 	req := Request{BYOKKey: start.BYOKKey, LPBSToken: start.LPBSToken}
 
-	if c.byok != nil && c.coord.Eligible(ctx, tiered.SlotBYOK, req) && c.byok.Traits().Stream {
+	if c.byok != nil && c.Eligible(ctx, tiered.SlotBYOK, req) && c.byok.Traits().Stream {
 		out, err := c.byok.TranscribeStreaming(ctx, start, chunks)
 		if err != nil {
 			if errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider) {
@@ -49,13 +49,13 @@ func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan Aud
 			return out, nil
 		}
 	}
-	if c.vrooli != nil && c.coord.Eligible(ctx, tiered.SlotVrooli, req) && c.vrooli.Traits().Stream {
+	if c.vrooli != nil && c.Eligible(ctx, tiered.SlotVrooli, req) && c.vrooli.Traits().Stream {
 		out, err := c.vrooli.TranscribeStreaming(ctx, start, chunks)
 		if err == nil && out != nil {
 			return out, nil
 		}
 	}
-	if c.local != nil && c.coord.Eligible(ctx, tiered.SlotLocal, req) && c.local.Traits().Stream {
+	if c.local != nil && c.Eligible(ctx, tiered.SlotLocal, req) && c.local.Traits().Stream {
 		out, err := c.local.TranscribeStreaming(ctx, start, chunks)
 		if err == nil && out != nil {
 			return out, nil

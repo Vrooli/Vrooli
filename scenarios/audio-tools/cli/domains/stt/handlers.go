@@ -21,6 +21,7 @@ import (
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client sttconnect.STTServiceClient
+	admin  sttconnect.STTAdminServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -28,6 +29,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{
 		core:   core,
 		client: sttconnect.NewSTTServiceClient(httpClient, baseURL),
+		admin:  sttconnect.NewSTTAdminServiceClient(httpClient, baseURL),
 	}
 }
 
@@ -229,7 +231,7 @@ func (h *handlers) transcribeStream(ctx cliapp.RunContext) error {
 // docs/reference/configuration.md. The display format is
 // human-friendly per feedback_cli_default_human_output.
 func (h *handlers) streamConfigGet(ctx cliapp.RunContext) error {
-	resp, err := h.client.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
+	resp, err := h.admin.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
 	if err != nil {
 		return cliapp.WrapAPIError("get-stream-config", err, nil)
 	}
@@ -302,7 +304,7 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 	if len(mask.Paths) == 0 {
 		return fmt.Errorf("at least one of --streaming-mode, --strategy-preference, --vad-silence-ms, --overlap-window-ms, --overlap-commit-runs must be set")
 	}
-	resp, err := h.client.UpdateStreamConfig(context.Background(), connect.NewRequest(&sttv1.UpdateStreamConfigRequest{
+	resp, err := h.admin.UpdateStreamConfig(context.Background(), connect.NewRequest(&sttv1.UpdateStreamConfigRequest{
 		UpdateMask: mask,
 		Config:     cfg,
 	}))

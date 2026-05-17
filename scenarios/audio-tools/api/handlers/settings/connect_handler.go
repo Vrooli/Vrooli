@@ -1,17 +1,13 @@
 // Package settings hosts the SettingsService Connect-RPC handler.
 package settings
 
-import (
-	"log"
-)
-
 type connectHandler struct{ deps Deps }
 
-// NewConnectHandler returns the live Connect handler. Caller is
-// responsible for wiring the dependencies.
+// NewConnectHandler returns the live Connect handler. Deps.Logger is
+// required; a nil value panics.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("settings.NewConnectHandler requires Deps.Logger")
 	}
 	return &connectHandler{deps: d}
 }

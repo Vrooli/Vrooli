@@ -60,7 +60,7 @@ func StreamWSHandler(d Deps) http.Handler {
 		}
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			d.Logx.Printf("voice-ws: upgrade failed: %v", err)
+			d.Logger.Printf("voice-ws: upgrade failed: %v", err)
 			return
 		}
 		defer conn.Close()

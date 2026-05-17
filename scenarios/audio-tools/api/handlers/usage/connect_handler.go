@@ -3,11 +3,9 @@ package usage
 import (
 	"context"
 	"errors"
-	"log"
 
 	"connectrpc.com/connect"
 
-	"audio-tools/internal/clock"
 	"audio-tools/internal/protomap"
 
 	usagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage"
@@ -15,12 +13,14 @@ import (
 
 type connectHandler struct{ deps Deps }
 
+// NewConnectHandler builds the Connect handler. Deps.Logger and
+// Deps.Clock are required seams; nil values panic.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("usage.NewConnectHandler requires Deps.Logger")
 	}
 	if d.Clock == nil {
-		d.Clock = clock.System{}
+		panic("usage.NewConnectHandler requires Deps.Clock")
 	}
 	return &connectHandler{deps: d}
 }

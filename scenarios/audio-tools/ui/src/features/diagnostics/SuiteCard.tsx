@@ -63,7 +63,7 @@ export function SuiteCard({ onTrace, onTileClick }: SuiteCardProps) {
   const everRan = !!liveRun && liveRun.runId !== "";
   // Auto-expand the step log whenever overall ≠ pass so failures are visible
   // without an extra click. User can still collapse manually.
-  const autoOpen = everRan && liveRun!.overall !== "pass";
+  const autoOpen = everRan && liveRun.overall !== "pass";
   const [logOpenOverride, setLogOpenOverride] = useState<boolean | null>(null);
   const logOpen = logOpenOverride ?? autoOpen;
 
@@ -93,7 +93,7 @@ export function SuiteCard({ onTrace, onTileClick }: SuiteCardProps) {
 
       <details
         open={logOpen}
-        onToggle={(e) => setLogOpenOverride((e.currentTarget as HTMLDetailsElement).open)}
+        onToggle={(e) => setLogOpenOverride((e.currentTarget).open)}
         className="border-t border-app-border bg-app-surface-muted"
       >
         <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-app-muted-foreground select-none">
@@ -127,22 +127,22 @@ function OverallStrip({
   const { t } = useTranslation();
   const tone = overallTone(run?.overall ?? "never");
   const label = overallLabel(t, run?.overall ?? "never");
-  const finishedAt = everRan ? new Date(run!.finishedAtUnixMs) : null;
+  const finishedAt = everRan && run ? new Date(run.finishedAtUnixMs) : null;
 
   return (
     <div className="flex flex-wrap items-center gap-3 px-3 py-3">
       <StatusDot tone={tone} label={label} pulse={busy} />
-      {everRan ? (
+      {everRan && run && finishedAt ? (
         <>
-          <Badge variant="neutral">{run!.passCount}/{run!.totalCount}</Badge>
+          <Badge variant="neutral">{run.passCount}/{run.totalCount}</Badge>
           <span
             className="hidden text-xs text-app-muted-foreground sm:inline"
-            title={finishedAt!.toLocaleString()}
+            title={finishedAt.toLocaleString()}
             data-testid="suite-last-run"
           >
             {t(strings.diagnostics.suite.lastRunLabel, {
-              relative: relativeTime(t, finishedAt!),
-              absolute: finishedAt!.toLocaleString(),
+              relative: relativeTime(t, finishedAt),
+              absolute: finishedAt.toLocaleString(),
             })}
           </span>
         </>
@@ -190,7 +190,7 @@ function CapabilityTile({
   return (
     <button
       type="button"
-      onClick={interactive ? () => onClick!(capability, failed) : undefined}
+      onClick={interactive ? () => onClick(capability, failed) : undefined}
       disabled={!interactive}
       className={cn(
         "flex flex-col gap-1 rounded-control border bg-app-surface px-3 py-2 text-left transition",

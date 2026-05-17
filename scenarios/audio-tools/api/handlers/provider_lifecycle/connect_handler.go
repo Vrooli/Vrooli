@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"time"
 
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/capabilities"
+	"audio-tools/internal/logx"
 
 	plv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/provider_lifecycle"
 )
@@ -45,11 +45,9 @@ type connectHandler struct {
 	deps Deps
 }
 
-// NewConnectHandler builds the Connect handler.
+// NewConnectHandler builds the Connect handler. All Deps fields are
+// required; no fallbacks.
 func NewConnectHandler(d Deps) *connectHandler {
-	if d.Logger == nil {
-		d.Logger = log.Default()
-	}
 	return &connectHandler{deps: d}
 }
 
@@ -188,9 +186,9 @@ func (h *connectHandler) GetProviderLogs(ctx context.Context, req *connect.Reque
 		}
 		line := scanner.Text()
 		if err := stream.Send(&plv1.LogLine{
-			Line:       line,
-			TsUnixMs:   time.Now().UnixMilli(),
-			Stream:     plv1.LogStream_LOG_STREAM_STDOUT,
+			Line:     line,
+			TsUnixMs: h.deps.Clock.Now().UnixMilli(),
+			Stream:   plv1.LogStream_LOG_STREAM_STDOUT,
 		}); err != nil {
 			return err
 		}
@@ -278,7 +276,7 @@ func isDryRun(h interface{ Get(string) string }) bool {
 // logIdempotency emits a best-effort log line carrying the
 // Idempotency-Key header. Phase 2 does NOT dedup; this is observability
 // only. TODO(phase3): wire a real dedup store.
-func logIdempotency(logger *log.Logger, op, target string, h interface{ Get(string) string }) {
+func logIdempotency(logger logx.Logger, op, target string, h interface{ Get(string) string }) {
 	if key := h.Get("Idempotency-Key"); key != "" {
 		logger.Printf("provider_lifecycle %s idempotency_key=%q target=%q (best-effort; no dedup yet)", op, key, target)
 	}

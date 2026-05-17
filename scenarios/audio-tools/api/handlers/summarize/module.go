@@ -2,10 +2,9 @@
 package summarize
 
 import (
-	"log"
-
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	intsumm "audio-tools/internal/summarize"
 	"audio-tools/internal/usagereport"
@@ -18,19 +17,19 @@ import (
 
 type Deps struct {
 	Chain              *summarizechain.Chain
-	Logger             *log.Logger
+	Logger             logx.Logger
 	Clock              clock.Clock
 	GetSummarizeConfig func() intsumm.SummarizeConfig
 	SetSummarizeConfig func(intsumm.SummarizeConfig)
 	Usage              usagereport.Recorder
 }
 
-func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), logger *log.Logger, clk clock.Clock, usage usagereport.Recorder) modulekit.Module {
+func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), logger logx.Logger, clk clock.Clock, usage usagereport.Recorder) modulekit.Module {
 	if logger == nil {
-		logger = log.Default()
+		panic("summarize.Module requires logger")
 	}
 	if clk == nil {
-		clk = clock.System{}
+		panic("summarize.Module requires clock")
 	}
 	connectPath, connectHandler := summconnect.NewSummarizeServiceHandler(NewConnectHandler(Deps{
 		Chain:              chain,
