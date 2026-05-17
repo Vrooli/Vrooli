@@ -62,10 +62,13 @@ func (p *VrooliProvider) Model() string {
 	return p.client.Model()
 }
 
-// StreamingCapability reports the Vrooli tier as non-streaming-capable
-// today; LPBS audio-gateway streaming endpoints are tracked under PRD
-// OT-P2-002 (out of scope for this plan).
-func (p *VrooliProvider) StreamingCapability() bool { return false }
+// Traits reports the Vrooli tier as batch-only today; LPBS audio-gateway
+// streaming endpoints are tracked under PRD OT-P2-002 (out of scope for
+// this plan). When that lands, Stream flips to true with
+// Strategies=[passthrough].
+func (p *VrooliProvider) Traits() ProviderTraits {
+	return ProviderTraits{Batch: true, Stream: false}
+}
 
 // TranscribeStreaming declines streaming on the Vrooli tier. The chain
 // falls through to the next tier or to buffered mode.

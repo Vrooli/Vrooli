@@ -10,6 +10,7 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/store"
+	sttpkg "audio-tools/internal/stt"
 	intvoice "audio-tools/internal/voice"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -17,6 +18,7 @@ import (
 
 type Deps struct {
 	Chain        *sttchain.Chain
+	Selector     *sttpkg.Selector
 	Voice        *intvoice.Service
 	Logger       *log.Logger
 	StreamConfig *store.STTStreamConfigStore
@@ -72,6 +74,10 @@ func mapChainError(err error) error {
 	case sttchain.ErrUnknownBYOKProvider, sttchain.ErrMissingBYOKProvider:
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	case sttchain.ErrAllProvidersFailed:
+		return connect.NewError(connect.CodeUnavailable, err)
+	case sttpkg.ErrIncompatibleStrategyProvider, sttpkg.ErrStreamingDisabled:
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case sttpkg.ErrNoEligibleProvider:
 		return connect.NewError(connect.CodeUnavailable, err)
 	}
 	return connect.NewError(connect.CodeInternal, err)

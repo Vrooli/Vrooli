@@ -12,6 +12,7 @@ import (
 
 	"audio-tools/internal/ai/chains"
 	"audio-tools/internal/ai/sttchain"
+	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/byok"
@@ -293,6 +294,7 @@ func main() {
 		}),
 		sttH.Module(sttH.Deps{
 			Chain:        sttChain,
+			Selector:     sttpkg.NewSelector(sttChain),
 			Voice:        voiceSvc,
 			Logger:       logger,
 			StreamConfig: sttStreamStore,

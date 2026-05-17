@@ -20,6 +20,44 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 
 service SummarizeService {
   rpc Summarize(SummarizeRequest) returns (SummarizeResponse);
+
+  // Persisted summarizer-config surface for consumer scenarios that want to
+  // surface "enable summarization for TTS, length threshold X chars, level Y"
+  // toggles in their settings UI. Persistence lives on the audio-tools side
+  // so multiple consumer scenarios share one canonical configuration.
+  rpc GetSummarizeConfig(GetSummarizeConfigRequest) returns (GetSummarizeConfigResponse);
+  rpc UpdateSummarizeConfig(UpdateSummarizeConfigRequest) returns (UpdateSummarizeConfigResponse);
+}
+
+message SummarizeConfig {
+  bool enabled = 1;
+  int32 char_threshold = 2;
+  string level = 3;             // "light" | "moderate" | "heavy"
+  string model = 4;
+  int32 timeout_seconds = 5;
+}
+
+message GetSummarizeConfigRequest {}
+
+message GetSummarizeConfigResponse {
+  SummarizeConfig config = 1;
+}
+
+message UpdateSummarizeConfigRequest {
+  bool enabled = 1;
+  bool has_enabled = 2;
+  int32 char_threshold = 3;
+  bool has_char_threshold = 4;
+  string level = 5;
+  bool has_level = 6;
+  string model = 7;
+  bool has_model = 8;
+  int32 timeout_seconds = 9;
+  bool has_timeout_seconds = 10;
+}
+
+message UpdateSummarizeConfigResponse {
+  SummarizeConfig config = 1;
 }
 
 message SummarizeRequest {

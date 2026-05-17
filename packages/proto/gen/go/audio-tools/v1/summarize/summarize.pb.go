@@ -21,6 +21,322 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type SummarizeConfig struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Enabled        bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CharThreshold  int32                  `protobuf:"varint,2,opt,name=char_threshold,json=charThreshold,proto3" json:"char_threshold,omitempty"`
+	Level          string                 `protobuf:"bytes,3,opt,name=level,proto3" json:"level,omitempty"` // "light" | "moderate" | "heavy"
+	Model          string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
+	TimeoutSeconds int32                  `protobuf:"varint,5,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SummarizeConfig) Reset() {
+	*x = SummarizeConfig{}
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SummarizeConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SummarizeConfig) ProtoMessage() {}
+
+func (x *SummarizeConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SummarizeConfig.ProtoReflect.Descriptor instead.
+func (*SummarizeConfig) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SummarizeConfig) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *SummarizeConfig) GetCharThreshold() int32 {
+	if x != nil {
+		return x.CharThreshold
+	}
+	return 0
+}
+
+func (x *SummarizeConfig) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *SummarizeConfig) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *SummarizeConfig) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+type GetSummarizeConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSummarizeConfigRequest) Reset() {
+	*x = GetSummarizeConfigRequest{}
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSummarizeConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSummarizeConfigRequest) ProtoMessage() {}
+
+func (x *GetSummarizeConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSummarizeConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetSummarizeConfigRequest) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP(), []int{1}
+}
+
+type GetSummarizeConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *SummarizeConfig       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSummarizeConfigResponse) Reset() {
+	*x = GetSummarizeConfigResponse{}
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSummarizeConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSummarizeConfigResponse) ProtoMessage() {}
+
+func (x *GetSummarizeConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSummarizeConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetSummarizeConfigResponse) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetSummarizeConfigResponse) GetConfig() *SummarizeConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateSummarizeConfigRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Enabled           bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	HasEnabled        bool                   `protobuf:"varint,2,opt,name=has_enabled,json=hasEnabled,proto3" json:"has_enabled,omitempty"`
+	CharThreshold     int32                  `protobuf:"varint,3,opt,name=char_threshold,json=charThreshold,proto3" json:"char_threshold,omitempty"`
+	HasCharThreshold  bool                   `protobuf:"varint,4,opt,name=has_char_threshold,json=hasCharThreshold,proto3" json:"has_char_threshold,omitempty"`
+	Level             string                 `protobuf:"bytes,5,opt,name=level,proto3" json:"level,omitempty"`
+	HasLevel          bool                   `protobuf:"varint,6,opt,name=has_level,json=hasLevel,proto3" json:"has_level,omitempty"`
+	Model             string                 `protobuf:"bytes,7,opt,name=model,proto3" json:"model,omitempty"`
+	HasModel          bool                   `protobuf:"varint,8,opt,name=has_model,json=hasModel,proto3" json:"has_model,omitempty"`
+	TimeoutSeconds    int32                  `protobuf:"varint,9,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	HasTimeoutSeconds bool                   `protobuf:"varint,10,opt,name=has_timeout_seconds,json=hasTimeoutSeconds,proto3" json:"has_timeout_seconds,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UpdateSummarizeConfigRequest) Reset() {
+	*x = UpdateSummarizeConfigRequest{}
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateSummarizeConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateSummarizeConfigRequest) ProtoMessage() {}
+
+func (x *UpdateSummarizeConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateSummarizeConfigRequest.ProtoReflect.Descriptor instead.
+func (*UpdateSummarizeConfigRequest) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *UpdateSummarizeConfigRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *UpdateSummarizeConfigRequest) GetHasEnabled() bool {
+	if x != nil {
+		return x.HasEnabled
+	}
+	return false
+}
+
+func (x *UpdateSummarizeConfigRequest) GetCharThreshold() int32 {
+	if x != nil {
+		return x.CharThreshold
+	}
+	return 0
+}
+
+func (x *UpdateSummarizeConfigRequest) GetHasCharThreshold() bool {
+	if x != nil {
+		return x.HasCharThreshold
+	}
+	return false
+}
+
+func (x *UpdateSummarizeConfigRequest) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *UpdateSummarizeConfigRequest) GetHasLevel() bool {
+	if x != nil {
+		return x.HasLevel
+	}
+	return false
+}
+
+func (x *UpdateSummarizeConfigRequest) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *UpdateSummarizeConfigRequest) GetHasModel() bool {
+	if x != nil {
+		return x.HasModel
+	}
+	return false
+}
+
+func (x *UpdateSummarizeConfigRequest) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+func (x *UpdateSummarizeConfigRequest) GetHasTimeoutSeconds() bool {
+	if x != nil {
+		return x.HasTimeoutSeconds
+	}
+	return false
+}
+
+type UpdateSummarizeConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *SummarizeConfig       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateSummarizeConfigResponse) Reset() {
+	*x = UpdateSummarizeConfigResponse{}
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateSummarizeConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateSummarizeConfigResponse) ProtoMessage() {}
+
+func (x *UpdateSummarizeConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateSummarizeConfigResponse.ProtoReflect.Descriptor instead.
+func (*UpdateSummarizeConfigResponse) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *UpdateSummarizeConfigResponse) GetConfig() *SummarizeConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
 type SummarizeRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Text           string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
@@ -33,7 +349,7 @@ type SummarizeRequest struct {
 
 func (x *SummarizeRequest) Reset() {
 	*x = SummarizeRequest{}
-	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[0]
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +361,7 @@ func (x *SummarizeRequest) String() string {
 func (*SummarizeRequest) ProtoMessage() {}
 
 func (x *SummarizeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[0]
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +374,7 @@ func (x *SummarizeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SummarizeRequest.ProtoReflect.Descriptor instead.
 func (*SummarizeRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP(), []int{0}
+	return file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SummarizeRequest) GetText() string {
@@ -104,7 +420,7 @@ type SummarizeResponse struct {
 
 func (x *SummarizeResponse) Reset() {
 	*x = SummarizeResponse{}
-	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[1]
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -116,7 +432,7 @@ func (x *SummarizeResponse) String() string {
 func (*SummarizeResponse) ProtoMessage() {}
 
 func (x *SummarizeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[1]
+	mi := &file_audio_tools_v1_summarize_summarize_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -129,7 +445,7 @@ func (x *SummarizeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SummarizeResponse.ProtoReflect.Descriptor instead.
 func (*SummarizeResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP(), []int{1}
+	return file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SummarizeResponse) GetText() string {
@@ -185,7 +501,31 @@ var File_audio_tools_v1_summarize_summarize_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_summarize_summarize_proto_rawDesc = "" +
 	"\n" +
-	"(audio-tools/v1/summarize/summarize.proto\x12\x1fvrooli.audio_tools.v1.summarize\"{\n" +
+	"(audio-tools/v1/summarize/summarize.proto\x12\x1fvrooli.audio_tools.v1.summarize\"\xa7\x01\n" +
+	"\x0fSummarizeConfig\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12%\n" +
+	"\x0echar_threshold\x18\x02 \x01(\x05R\rcharThreshold\x12\x14\n" +
+	"\x05level\x18\x03 \x01(\tR\x05level\x12\x14\n" +
+	"\x05model\x18\x04 \x01(\tR\x05model\x12'\n" +
+	"\x0ftimeout_seconds\x18\x05 \x01(\x05R\x0etimeoutSeconds\"\x1b\n" +
+	"\x19GetSummarizeConfigRequest\"f\n" +
+	"\x1aGetSummarizeConfigResponse\x12H\n" +
+	"\x06config\x18\x01 \x01(\v20.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06config\"\xed\x02\n" +
+	"\x1cUpdateSummarizeConfigRequest\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1f\n" +
+	"\vhas_enabled\x18\x02 \x01(\bR\n" +
+	"hasEnabled\x12%\n" +
+	"\x0echar_threshold\x18\x03 \x01(\x05R\rcharThreshold\x12,\n" +
+	"\x12has_char_threshold\x18\x04 \x01(\bR\x10hasCharThreshold\x12\x14\n" +
+	"\x05level\x18\x05 \x01(\tR\x05level\x12\x1b\n" +
+	"\thas_level\x18\x06 \x01(\bR\bhasLevel\x12\x14\n" +
+	"\x05model\x18\a \x01(\tR\x05model\x12\x1b\n" +
+	"\thas_model\x18\b \x01(\bR\bhasModel\x12'\n" +
+	"\x0ftimeout_seconds\x18\t \x01(\x05R\x0etimeoutSeconds\x12.\n" +
+	"\x13has_timeout_seconds\x18\n" +
+	" \x01(\bR\x11hasTimeoutSeconds\"i\n" +
+	"\x1dUpdateSummarizeConfigResponse\x12H\n" +
+	"\x06config\x18\x01 \x01(\v20.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06config\"{\n" +
 	"\x10SummarizeRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x14\n" +
 	"\x05level\x18\x02 \x01(\tR\x05level\x12\x14\n" +
@@ -200,9 +540,11 @@ const file_audio_tools_v1_summarize_summarize_proto_rawDesc = "" +
 	"providerId\x12\x19\n" +
 	"\bmodel_id\x18\x06 \x01(\tR\amodelId\x12\x1d\n" +
 	"\n" +
-	"latency_ms\x18\a \x01(\x01R\tlatencyMs2\x86\x01\n" +
+	"latency_ms\x18\a \x01(\x01R\tlatencyMs2\xaf\x03\n" +
 	"\x10SummarizeService\x12r\n" +
-	"\tSummarize\x121.vrooli.audio_tools.v1.summarize.SummarizeRequest\x1a2.vrooli.audio_tools.v1.summarize.SummarizeResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize;summarize_v1b\x06proto3"
+	"\tSummarize\x121.vrooli.audio_tools.v1.summarize.SummarizeRequest\x1a2.vrooli.audio_tools.v1.summarize.SummarizeResponse\x12\x8d\x01\n" +
+	"\x12GetSummarizeConfig\x12:.vrooli.audio_tools.v1.summarize.GetSummarizeConfigRequest\x1a;.vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse\x12\x96\x01\n" +
+	"\x15UpdateSummarizeConfig\x12=.vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest\x1a>.vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize;summarize_v1b\x06proto3"
 
 var (
 	file_audio_tools_v1_summarize_summarize_proto_rawDescOnce sync.Once
@@ -216,19 +558,30 @@ func file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP() []byte {
 	return file_audio_tools_v1_summarize_summarize_proto_rawDescData
 }
 
-var file_audio_tools_v1_summarize_summarize_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_audio_tools_v1_summarize_summarize_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_audio_tools_v1_summarize_summarize_proto_goTypes = []any{
-	(*SummarizeRequest)(nil),  // 0: vrooli.audio_tools.v1.summarize.SummarizeRequest
-	(*SummarizeResponse)(nil), // 1: vrooli.audio_tools.v1.summarize.SummarizeResponse
+	(*SummarizeConfig)(nil),               // 0: vrooli.audio_tools.v1.summarize.SummarizeConfig
+	(*GetSummarizeConfigRequest)(nil),     // 1: vrooli.audio_tools.v1.summarize.GetSummarizeConfigRequest
+	(*GetSummarizeConfigResponse)(nil),    // 2: vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse
+	(*UpdateSummarizeConfigRequest)(nil),  // 3: vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest
+	(*UpdateSummarizeConfigResponse)(nil), // 4: vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse
+	(*SummarizeRequest)(nil),              // 5: vrooli.audio_tools.v1.summarize.SummarizeRequest
+	(*SummarizeResponse)(nil),             // 6: vrooli.audio_tools.v1.summarize.SummarizeResponse
 }
 var file_audio_tools_v1_summarize_summarize_proto_depIdxs = []int32{
-	0, // 0: vrooli.audio_tools.v1.summarize.SummarizeService.Summarize:input_type -> vrooli.audio_tools.v1.summarize.SummarizeRequest
-	1, // 1: vrooli.audio_tools.v1.summarize.SummarizeService.Summarize:output_type -> vrooli.audio_tools.v1.summarize.SummarizeResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse.config:type_name -> vrooli.audio_tools.v1.summarize.SummarizeConfig
+	0, // 1: vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse.config:type_name -> vrooli.audio_tools.v1.summarize.SummarizeConfig
+	5, // 2: vrooli.audio_tools.v1.summarize.SummarizeService.Summarize:input_type -> vrooli.audio_tools.v1.summarize.SummarizeRequest
+	1, // 3: vrooli.audio_tools.v1.summarize.SummarizeService.GetSummarizeConfig:input_type -> vrooli.audio_tools.v1.summarize.GetSummarizeConfigRequest
+	3, // 4: vrooli.audio_tools.v1.summarize.SummarizeService.UpdateSummarizeConfig:input_type -> vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest
+	6, // 5: vrooli.audio_tools.v1.summarize.SummarizeService.Summarize:output_type -> vrooli.audio_tools.v1.summarize.SummarizeResponse
+	2, // 6: vrooli.audio_tools.v1.summarize.SummarizeService.GetSummarizeConfig:output_type -> vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse
+	4, // 7: vrooli.audio_tools.v1.summarize.SummarizeService.UpdateSummarizeConfig:output_type -> vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_summarize_summarize_proto_init() }
@@ -242,7 +595,7 @@ func file_audio_tools_v1_summarize_summarize_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_summarize_summarize_proto_rawDesc), len(file_audio_tools_v1_summarize_summarize_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

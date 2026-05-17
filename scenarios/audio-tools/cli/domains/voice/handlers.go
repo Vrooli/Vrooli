@@ -145,3 +145,96 @@ func (h *handlers) transcribeStream(ctx cliapp.RunContext) error {
 	}
 	return lastErr
 }
+
+// streamConfigGet prints the resolved StreamConfig, including the five
+// streaming-pipeline operator levers documented in
+// docs/reference/configuration.md. The display format is
+// human-friendly per feedback_cli_default_human_output.
+func (h *handlers) streamConfigGet(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get-stream-config", err, nil)
+	}
+	cfg := resp.Msg.GetConfig()
+	if cfg == nil {
+		return fmt.Errorf("server returned no stream config")
+	}
+	fmt.Fprintf(ctx.Stdout(), "Streaming STT pipeline:\n")
+	fmt.Fprintf(ctx.Stdout(), "  streaming_mode       = %s\n", orDefault(cfg.GetStreamingMode(), "auto"))
+	fmt.Fprintf(ctx.Stdout(), "  strategy_preference  = %s\n", orDefault(cfg.GetStrategyPreference(), "auto"))
+	fmt.Fprintf(ctx.Stdout(), "  vad_silence_ms       = %d\n", intOrDefault(cfg.GetVadSilenceMs(), 700))
+	fmt.Fprintf(ctx.Stdout(), "  overlap_window_ms    = %d\n", intOrDefault(cfg.GetOverlapWindowMs(), 2000))
+	fmt.Fprintf(ctx.Stdout(), "  overlap_commit_runs  = %d\n", intOrDefault(cfg.GetOverlapCommitRuns(), 2))
+	fmt.Fprintf(ctx.Stdout(), "Legacy partial-window fields (still used by browser WS):\n")
+	fmt.Fprintf(ctx.Stdout(), "  flush_interval_ms    = %d\n", cfg.GetFlushIntervalMs())
+	fmt.Fprintf(ctx.Stdout(), "  min_delta_bytes      = %d\n", cfg.GetMinDeltaBytes())
+	fmt.Fprintf(ctx.Stdout(), "  overlap_bytes        = %d\n", cfg.GetOverlapBytes())
+	fmt.Fprintf(ctx.Stdout(), "  segment_silence_ms   = %d\n", cfg.GetSegmentSilenceMs())
+	return nil
+}
+
+// streamConfigSet mutates the persisted StreamConfig. Each provided
+// flag is sent with its corresponding has_ field set; omitted flags
+// leave the persisted value untouched. The server enforces the
+// documented ranges and returns InvalidArgument on a forbidden value.
+func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
+	req := &sttv1.UpdateStreamConfigRequest{}
+	if v := ctx.Flag("streaming-mode"); v != "" {
+		req.StreamingMode = v
+		req.HasStreamingMode = true
+	}
+	if v := ctx.Flag("strategy-preference"); v != "" {
+		req.StrategyPreference = v
+		req.HasStrategyPreference = true
+	}
+	if v := ctx.Flag("vad-silence-ms"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("--vad-silence-ms must be integer: %q", v)
+		}
+		req.VadSilenceMs = int32(n)
+		req.HasVadSilenceMs = true
+	}
+	if v := ctx.Flag("overlap-window-ms"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("--overlap-window-ms must be integer: %q", v)
+		}
+		req.OverlapWindowMs = int32(n)
+		req.HasOverlapWindowMs = true
+	}
+	if v := ctx.Flag("overlap-commit-runs"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("--overlap-commit-runs must be integer: %q", v)
+		}
+		req.OverlapCommitRuns = int32(n)
+		req.HasOverlapCommitRuns = true
+	}
+	resp, err := h.client.UpdateStreamConfig(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("update-stream-config", err, nil)
+	}
+	cfg := resp.Msg.GetConfig()
+	fmt.Fprintf(ctx.Stdout(), "Updated. Resolved streaming STT pipeline:\n")
+	fmt.Fprintf(ctx.Stdout(), "  streaming_mode       = %s\n", orDefault(cfg.GetStreamingMode(), "auto"))
+	fmt.Fprintf(ctx.Stdout(), "  strategy_preference  = %s\n", orDefault(cfg.GetStrategyPreference(), "auto"))
+	fmt.Fprintf(ctx.Stdout(), "  vad_silence_ms       = %d\n", intOrDefault(cfg.GetVadSilenceMs(), 700))
+	fmt.Fprintf(ctx.Stdout(), "  overlap_window_ms    = %d\n", intOrDefault(cfg.GetOverlapWindowMs(), 2000))
+	fmt.Fprintf(ctx.Stdout(), "  overlap_commit_runs  = %d\n", intOrDefault(cfg.GetOverlapCommitRuns(), 2))
+	return nil
+}
+
+func orDefault(v, def string) string {
+	if v == "" {
+		return def
+	}
+	return v
+}
+
+func intOrDefault(v, def int32) int32 {
+	if v == 0 {
+		return def
+	}
+	return v
+}

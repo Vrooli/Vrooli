@@ -36,12 +36,24 @@ const (
 	// SummarizeServiceSummarizeProcedure is the fully-qualified name of the SummarizeService's
 	// Summarize RPC.
 	SummarizeServiceSummarizeProcedure = "/vrooli.audio_tools.v1.summarize.SummarizeService/Summarize"
+	// SummarizeServiceGetSummarizeConfigProcedure is the fully-qualified name of the SummarizeService's
+	// GetSummarizeConfig RPC.
+	SummarizeServiceGetSummarizeConfigProcedure = "/vrooli.audio_tools.v1.summarize.SummarizeService/GetSummarizeConfig"
+	// SummarizeServiceUpdateSummarizeConfigProcedure is the fully-qualified name of the
+	// SummarizeService's UpdateSummarizeConfig RPC.
+	SummarizeServiceUpdateSummarizeConfigProcedure = "/vrooli.audio_tools.v1.summarize.SummarizeService/UpdateSummarizeConfig"
 )
 
 // SummarizeServiceClient is a client for the vrooli.audio_tools.v1.summarize.SummarizeService
 // service.
 type SummarizeServiceClient interface {
 	Summarize(context.Context, *connect.Request[summarize.SummarizeRequest]) (*connect.Response[summarize.SummarizeResponse], error)
+	// Persisted summarizer-config surface for consumer scenarios that want to
+	// surface "enable summarization for TTS, length threshold X chars, level Y"
+	// toggles in their settings UI. Persistence lives on the audio-tools side
+	// so multiple consumer scenarios share one canonical configuration.
+	GetSummarizeConfig(context.Context, *connect.Request[summarize.GetSummarizeConfigRequest]) (*connect.Response[summarize.GetSummarizeConfigResponse], error)
+	UpdateSummarizeConfig(context.Context, *connect.Request[summarize.UpdateSummarizeConfigRequest]) (*connect.Response[summarize.UpdateSummarizeConfigResponse], error)
 }
 
 // NewSummarizeServiceClient constructs a client for the
@@ -62,12 +74,26 @@ func NewSummarizeServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(summarizeServiceMethods.ByName("Summarize")),
 			connect.WithClientOptions(opts...),
 		),
+		getSummarizeConfig: connect.NewClient[summarize.GetSummarizeConfigRequest, summarize.GetSummarizeConfigResponse](
+			httpClient,
+			baseURL+SummarizeServiceGetSummarizeConfigProcedure,
+			connect.WithSchema(summarizeServiceMethods.ByName("GetSummarizeConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		updateSummarizeConfig: connect.NewClient[summarize.UpdateSummarizeConfigRequest, summarize.UpdateSummarizeConfigResponse](
+			httpClient,
+			baseURL+SummarizeServiceUpdateSummarizeConfigProcedure,
+			connect.WithSchema(summarizeServiceMethods.ByName("UpdateSummarizeConfig")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // summarizeServiceClient implements SummarizeServiceClient.
 type summarizeServiceClient struct {
-	summarize *connect.Client[summarize.SummarizeRequest, summarize.SummarizeResponse]
+	summarize             *connect.Client[summarize.SummarizeRequest, summarize.SummarizeResponse]
+	getSummarizeConfig    *connect.Client[summarize.GetSummarizeConfigRequest, summarize.GetSummarizeConfigResponse]
+	updateSummarizeConfig *connect.Client[summarize.UpdateSummarizeConfigRequest, summarize.UpdateSummarizeConfigResponse]
 }
 
 // Summarize calls vrooli.audio_tools.v1.summarize.SummarizeService.Summarize.
@@ -75,10 +101,27 @@ func (c *summarizeServiceClient) Summarize(ctx context.Context, req *connect.Req
 	return c.summarize.CallUnary(ctx, req)
 }
 
+// GetSummarizeConfig calls vrooli.audio_tools.v1.summarize.SummarizeService.GetSummarizeConfig.
+func (c *summarizeServiceClient) GetSummarizeConfig(ctx context.Context, req *connect.Request[summarize.GetSummarizeConfigRequest]) (*connect.Response[summarize.GetSummarizeConfigResponse], error) {
+	return c.getSummarizeConfig.CallUnary(ctx, req)
+}
+
+// UpdateSummarizeConfig calls
+// vrooli.audio_tools.v1.summarize.SummarizeService.UpdateSummarizeConfig.
+func (c *summarizeServiceClient) UpdateSummarizeConfig(ctx context.Context, req *connect.Request[summarize.UpdateSummarizeConfigRequest]) (*connect.Response[summarize.UpdateSummarizeConfigResponse], error) {
+	return c.updateSummarizeConfig.CallUnary(ctx, req)
+}
+
 // SummarizeServiceHandler is an implementation of the
 // vrooli.audio_tools.v1.summarize.SummarizeService service.
 type SummarizeServiceHandler interface {
 	Summarize(context.Context, *connect.Request[summarize.SummarizeRequest]) (*connect.Response[summarize.SummarizeResponse], error)
+	// Persisted summarizer-config surface for consumer scenarios that want to
+	// surface "enable summarization for TTS, length threshold X chars, level Y"
+	// toggles in their settings UI. Persistence lives on the audio-tools side
+	// so multiple consumer scenarios share one canonical configuration.
+	GetSummarizeConfig(context.Context, *connect.Request[summarize.GetSummarizeConfigRequest]) (*connect.Response[summarize.GetSummarizeConfigResponse], error)
+	UpdateSummarizeConfig(context.Context, *connect.Request[summarize.UpdateSummarizeConfigRequest]) (*connect.Response[summarize.UpdateSummarizeConfigResponse], error)
 }
 
 // NewSummarizeServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -94,10 +137,26 @@ func NewSummarizeServiceHandler(svc SummarizeServiceHandler, opts ...connect.Han
 		connect.WithSchema(summarizeServiceMethods.ByName("Summarize")),
 		connect.WithHandlerOptions(opts...),
 	)
+	summarizeServiceGetSummarizeConfigHandler := connect.NewUnaryHandler(
+		SummarizeServiceGetSummarizeConfigProcedure,
+		svc.GetSummarizeConfig,
+		connect.WithSchema(summarizeServiceMethods.ByName("GetSummarizeConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	summarizeServiceUpdateSummarizeConfigHandler := connect.NewUnaryHandler(
+		SummarizeServiceUpdateSummarizeConfigProcedure,
+		svc.UpdateSummarizeConfig,
+		connect.WithSchema(summarizeServiceMethods.ByName("UpdateSummarizeConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.audio_tools.v1.summarize.SummarizeService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SummarizeServiceSummarizeProcedure:
 			summarizeServiceSummarizeHandler.ServeHTTP(w, r)
+		case SummarizeServiceGetSummarizeConfigProcedure:
+			summarizeServiceGetSummarizeConfigHandler.ServeHTTP(w, r)
+		case SummarizeServiceUpdateSummarizeConfigProcedure:
+			summarizeServiceUpdateSummarizeConfigHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -109,4 +168,12 @@ type UnimplementedSummarizeServiceHandler struct{}
 
 func (UnimplementedSummarizeServiceHandler) Summarize(context.Context, *connect.Request[summarize.SummarizeRequest]) (*connect.Response[summarize.SummarizeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.summarize.SummarizeService.Summarize is not implemented"))
+}
+
+func (UnimplementedSummarizeServiceHandler) GetSummarizeConfig(context.Context, *connect.Request[summarize.GetSummarizeConfigRequest]) (*connect.Response[summarize.GetSummarizeConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.summarize.SummarizeService.GetSummarizeConfig is not implemented"))
+}
+
+func (UnimplementedSummarizeServiceHandler) UpdateSummarizeConfig(context.Context, *connect.Request[summarize.UpdateSummarizeConfigRequest]) (*connect.Response[summarize.UpdateSummarizeConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.summarize.SummarizeService.UpdateSummarizeConfig is not implemented"))
 }

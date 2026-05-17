@@ -35,6 +35,25 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				},
 				RunCtx: h.transcribeStream,
 			},
+			{
+				Name:        "stream-config",
+				Description: "Show the resolved streaming STT configuration (5 operator levers + legacy partial-window fields).",
+				RunCtx:      h.streamConfigGet,
+			},
+			{
+				Name:        "stream-config-set",
+				Description: "Update one or more streaming STT levers. Only provided flags are mutated.",
+				Args: cliapp.ArgSchema{
+					Flags: []cliapp.Flag{
+						{Name: "streaming-mode", Description: "auto|off — master switch (default auto)"},
+						{Name: "strategy-preference", Description: "auto|vad|overlap|passthrough — strategy hint (default auto)"},
+						{Name: "vad-silence-ms", Description: "VAD silence window in ms; range 200–3000 (default 700)"},
+						{Name: "overlap-window-ms", Description: "Sliding-window size for overlap-and-agree; range 1000–5000 (default 2000)"},
+						{Name: "overlap-commit-runs", Description: "Consecutive agreeing runs to commit a prefix; range 2–4 (default 2)"},
+					},
+				},
+				RunCtx: h.streamConfigSet,
+			},
 		},
 	}
 }

@@ -17,9 +17,39 @@ import (
 	"github.com/google/uuid"
 
 	"audio-tools/internal/store"
+	sttpkg "audio-tools/internal/stt"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
+
+// resolveStreamPipelineConfig loads the persisted StreamConfig and
+// projects the streaming-pipeline lever subset into the selector's
+// StreamConfig shape, falling back to documented defaults when fields
+// are missing. The TranscribeStream handler calls this once per
+// session and passes the result to Segmenter.Run.
+func (h *connectHandler) resolveStreamPipelineConfig(ctx context.Context) sttpkg.StreamConfig {
+	d, err := h.loadStreamCfg(ctx)
+	if err != nil {
+		return sttpkg.Defaults()
+	}
+	cfg := sttpkg.Defaults()
+	if d.StreamingMode != "" {
+		cfg.Mode = sttpkg.StreamingMode(d.StreamingMode)
+	}
+	if d.StrategyPreference != "" {
+		cfg.StrategyPreference = sttpkg.StrategyPreference(d.StrategyPreference)
+	}
+	if d.VadSilenceMs != 0 {
+		cfg.VADSilenceMs = int(d.VadSilenceMs)
+	}
+	if d.OverlapWindowMs != 0 {
+		cfg.OverlapWindowMs = int(d.OverlapWindowMs)
+	}
+	if d.OverlapCommitRuns != 0 {
+		cfg.OverlapCommitRuns = int(d.OverlapCommitRuns)
+	}
+	return cfg
+}
 
 // streamCfgDoc is the on-disk representation of StreamConfig. The
 // struct mirrors the proto field set so the JSON column round-trips
@@ -32,6 +62,14 @@ type streamCfgDoc struct {
 	WakeWordEnabled   bool    `json:"wake_word_enabled"`
 	WakeWordThreshold float64 `json:"wake_word_threshold"`
 	SegmentSilenceMs  int32   `json:"segment_silence_ms"`
+
+	// Streaming-pipeline operator levers — see
+	// scenarios/audio-tools/docs/reference/configuration.md#streaming-stt-control-surface.
+	StreamingMode      string `json:"streaming_mode"`
+	StrategyPreference string `json:"strategy_preference"`
+	VadSilenceMs       int32  `json:"vad_silence_ms"`
+	OverlapWindowMs    int32  `json:"overlap_window_ms"`
+	OverlapCommitRuns  int32  `json:"overlap_commit_runs"`
 }
 
 func (d streamCfgDoc) toProto() *sttv1.StreamConfig {
@@ -39,7 +77,12 @@ func (d streamCfgDoc) toProto() *sttv1.StreamConfig {
 		FlushIntervalMs: d.FlushIntervalMs, MinDeltaBytes: d.MinDeltaBytes,
 		OverlapBytes: d.OverlapBytes, PersistentMode: d.PersistentMode,
 		WakeWordEnabled: d.WakeWordEnabled, WakeWordThreshold: d.WakeWordThreshold,
-		SegmentSilenceMs: d.SegmentSilenceMs,
+		SegmentSilenceMs:   d.SegmentSilenceMs,
+		StreamingMode:      d.StreamingMode,
+		StrategyPreference: d.StrategyPreference,
+		VadSilenceMs:       d.VadSilenceMs,
+		OverlapWindowMs:    d.OverlapWindowMs,
+		OverlapCommitRuns:  d.OverlapCommitRuns,
 	}
 }
 
@@ -47,8 +90,42 @@ func defaultStreamCfg() streamCfgDoc {
 	return streamCfgDoc{
 		FlushIntervalMs: 250, MinDeltaBytes: 16384, OverlapBytes: 2048,
 		PersistentMode: false, WakeWordEnabled: false, WakeWordThreshold: 0.6,
-		SegmentSilenceMs: 800,
+		SegmentSilenceMs:   800,
+		StreamingMode:      "auto",
+		StrategyPreference: "auto",
+		VadSilenceMs:       700,
+		OverlapWindowMs:    2000,
+		OverlapCommitRuns:  2,
 	}
+}
+
+// validateStreamingLevers checks the five streaming-pipeline lever
+// fields against the ranges documented in
+// docs/reference/configuration.md#streaming-stt-control-surface. The
+// caller must invoke this before persisting; values out of range are
+// refused with CodeInvalidArgument rather than silently clamped, so
+// operators see misconfiguration at write time.
+func validateStreamingLevers(d streamCfgDoc) error {
+	switch d.StreamingMode {
+	case "", "auto", "off":
+	default:
+		return fmt.Errorf("streaming_mode must be \"auto\" or \"off\", got %q", d.StreamingMode)
+	}
+	switch d.StrategyPreference {
+	case "", "auto", "vad", "overlap", "passthrough":
+	default:
+		return fmt.Errorf("strategy_preference must be one of auto|vad|overlap|passthrough, got %q", d.StrategyPreference)
+	}
+	if d.VadSilenceMs != 0 && (d.VadSilenceMs < 200 || d.VadSilenceMs > 3000) {
+		return fmt.Errorf("vad_silence_ms must be in [200, 3000], got %d", d.VadSilenceMs)
+	}
+	if d.OverlapWindowMs != 0 && (d.OverlapWindowMs < 1000 || d.OverlapWindowMs > 5000) {
+		return fmt.Errorf("overlap_window_ms must be in [1000, 5000], got %d", d.OverlapWindowMs)
+	}
+	if d.OverlapCommitRuns != 0 && (d.OverlapCommitRuns < 2 || d.OverlapCommitRuns > 4) {
+		return fmt.Errorf("overlap_commit_runs must be in [2, 4], got %d", d.OverlapCommitRuns)
+	}
+	return nil
 }
 
 func (h *connectHandler) loadStreamCfg(ctx context.Context) (streamCfgDoc, error) {
@@ -103,6 +180,24 @@ func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Re
 	}
 	if m.GetHasSegmentSilenceMs() {
 		d.SegmentSilenceMs = m.GetSegmentSilenceMs()
+	}
+	if m.GetHasStreamingMode() {
+		d.StreamingMode = m.GetStreamingMode()
+	}
+	if m.GetHasStrategyPreference() {
+		d.StrategyPreference = m.GetStrategyPreference()
+	}
+	if m.GetHasVadSilenceMs() {
+		d.VadSilenceMs = m.GetVadSilenceMs()
+	}
+	if m.GetHasOverlapWindowMs() {
+		d.OverlapWindowMs = m.GetOverlapWindowMs()
+	}
+	if m.GetHasOverlapCommitRuns() {
+		d.OverlapCommitRuns = m.GetOverlapCommitRuns()
+	}
+	if err := validateStreamingLevers(d); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if h.deps.StreamConfig != nil {
 		raw, _ := json.Marshal(d)

@@ -31,6 +31,14 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 service STTService {
   rpc Transcribe(TranscribeRequest) returns (TranscribeResponse);
 
+  // TranscribeStream is the Connect bidi-stream equivalent of the
+  // /api/v1/voice/stream WebSocket transport. It exists so non-browser
+  // consumers (other scenarios, CLIs) can call streaming STT through the
+  // same Connect-RPC surface as Transcribe. The browser path still uses
+  // the WebSocket transport for ecosystem-tooling reasons (recorded in
+  // SEAMS.md as TransportReason: websocket_transport).
+  rpc TranscribeStream(stream TranscribeStreamRequest) returns (stream TranscribeStreamEvent);
+
   rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
   rpc UpdateStreamConfig(UpdateStreamConfigRequest) returns (UpdateStreamConfigResponse);
 
@@ -85,6 +93,23 @@ message StreamConfig {
   bool wake_word_enabled = 5;
   double wake_word_threshold = 6;
   int32 segment_silence_ms = 7;
+
+  // Streaming-pipeline operator levers (see
+  // scenarios/audio-tools/docs/reference/configuration.md#streaming-stt-control-surface).
+  // streaming_mode: "auto" | "off". Empty defaults to "auto".
+  string streaming_mode = 8;
+  // strategy_preference: "auto" | "vad" | "overlap" | "passthrough".
+  // Empty defaults to "auto".
+  string strategy_preference = 9;
+  // vad_silence_ms: silence window that closes a VAD-segment.
+  // Range 200..3000; 0 defaults to 700.
+  int32 vad_silence_ms = 10;
+  // overlap_window_ms: sliding-window size for OverlapAgreeStrategy.
+  // Range 1000..5000; 0 defaults to 2000.
+  int32 overlap_window_ms = 11;
+  // overlap_commit_runs: consecutive agreeing runs to commit a prefix.
+  // Range 2..4; 0 defaults to 2.
+  int32 overlap_commit_runs = 12;
 }
 
 message GetStreamConfigRequest {}
@@ -108,6 +133,16 @@ message UpdateStreamConfigRequest {
   bool has_wake_word_threshold = 12;
   int32 segment_silence_ms = 13;
   bool has_segment_silence_ms = 14;
+  string streaming_mode = 15;
+  bool has_streaming_mode = 16;
+  string strategy_preference = 17;
+  bool has_strategy_preference = 18;
+  int32 vad_silence_ms = 19;
+  bool has_vad_silence_ms = 20;
+  int32 overlap_window_ms = 21;
+  bool has_overlap_window_ms = 22;
+  int32 overlap_commit_runs = 23;
+  bool has_overlap_commit_runs = 24;
 }
 
 message UpdateStreamConfigResponse {
@@ -280,4 +315,80 @@ message DeleteSpeakerProfileRequest {
 
 message DeleteSpeakerProfileResponse {
   SpeakerConfig config = 1;
+}
+
+// -----------------------------------------------------------------------------
+// TranscribeStream — Connect bidi mirror of the /api/v1/voice/stream WS.
+// The browser still uses the WS transport (TransportReason: websocket_transport).
+// This RPC is the cross-scenario / non-browser path.
+// -----------------------------------------------------------------------------
+
+message TranscribeStreamRequest {
+  oneof payload {
+    StreamStart start = 1;
+    bytes audio_chunk = 2;
+    StreamEnd end = 3;
+  }
+}
+
+message StreamStart {
+  StreamConfig config = 1;
+  string language = 2;
+  string initial_prompt = 3;
+  bool skip_speaker_verification = 4;
+}
+
+message StreamEnd {}
+
+message TranscribeStreamEvent {
+  oneof event {
+    StreamSegment segment = 1;
+    StreamPartial partial = 2;
+    StreamWakeWord wake_word = 3;
+    StreamSpeakerRejection speaker_rejection = 4;
+    StreamError error = 5;
+    StreamDone done = 6;
+  }
+}
+
+message StreamSegment {
+  string text = 1;
+  int64 start_ms = 2;
+  int64 end_ms = 3;
+  string detected_language = 4;
+  string provider_tier = 5;
+  string model_id = 6;
+  double latency_ms = 7;
+}
+
+message StreamPartial {
+  string text = 1;
+}
+
+message StreamWakeWord {
+  double score = 1;
+  string sample_id = 2;
+}
+
+message StreamSpeakerRejection {
+  string reason = 1;
+  bool fallback_used = 2;
+}
+
+message StreamError {
+  string code = 1;
+  string message = 2;
+}
+
+message StreamDone {
+  string final_text = 1;
+  // Locked tier for the session and trace fields populated by the
+  // streaming chain on completion. fell_back_to_unary is true when no
+  // streaming-capable adapter accepted the stream-start and the chain
+  // fell back to running the full buffer through the unary path.
+  string provider_tier = 2;
+  string provider_id = 3;
+  string model_id = 4;
+  double latency_ms = 5;
+  bool fell_back_to_unary = 6;
 }

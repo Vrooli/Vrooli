@@ -77,9 +77,11 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `internal/voice/stream_ws.go`, `handlers/stt/stream_ws.go`, plan Phase F.
 
-### 2026-05-16 — Strategy and provider axes are fused in the streaming path
+### 2026-05-16 — Strategy and provider axes are fused in the streaming path (RESOLVED)
 
-**Symptom:** Adding a second streaming technique (e.g., overlap-and-agree for local Whisper) or a new BYOK adapter that needs a different technique (e.g., Deepgram passthrough vs. OpenAI Whisper API VAD-segment) currently requires either forking `voice.Service` or duplicating VAD logic inside each provider. Operators have no lever for the quality/latency tradeoff — the technique is implicit in the provider choice.
+**Resolution:** Closed by the streaming-STT decoupling plan landing 2026-05-16. `Segmenter` + `StrategySelector` are the single decision boundary; `ProviderTraits{Batch, Stream, Strategies}` replaces the old `StreamingCapability() bool`; `VADSegmentStrategy`, `OverlapAgree`, `Passthrough`, and `BufferedFallback` are the four strategies; the compatibility matrix is enforced in `internal/stt/selector.go` and tested in `selector_test.go`.
+
+**Symptom (historical):** Adding a second streaming technique (e.g., overlap-and-agree for local Whisper) or a new BYOK adapter that needs a different technique (e.g., Deepgram passthrough vs. OpenAI Whisper API VAD-segment) currently requires either forking `voice.Service` or duplicating VAD logic inside each provider. Operators have no lever for the quality/latency tradeoff — the technique is implicit in the provider choice.
 
 **Root cause:** `voice.Service.HandleStreamWS` hard-codes VAD + wake-word + speaker-verify + local-Whisper-batch as one fused pipeline; `sttchain.Provider` carries `StreamingCapability()`/`TranscribeStreaming` but no `ProviderTraits` capability struct, so the strategy decision has no inputs and no explicit home. The "which technique?" question is answered implicitly across multiple files.
 
@@ -91,9 +93,11 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md), `internal/voice/`, `internal/ai/sttchain/interface.go`, `handlers/stt/transcribe_stream.go`.
 
-### 2026-05-16 — Two transports, no parity test
+### 2026-05-16 — Two transports, no parity test (RESOLVED)
 
-**Symptom:** The browser WS path (`/api/v1/voice/stream`) and the Connect bidi path (`STTService.TranscribeStream`) reach STT through different code (`voice.Service.HandleStreamWS` vs. `Chain.Execute` accumulator). They will silently drift — a fix in one will not propagate to the other, and the proto contract claims they emit equivalent event streams.
+**Resolution:** Closed by the streaming-STT decoupling plan landing 2026-05-16. Both transports now go through `Segmenter` + `StrategySelector`; `handlers/stt/parity_connect_test.go::TestStreamingParity_ConnectBidi` drives the Connect bidi handler over an HTTP/2 httptest server and asserts event-sequence parity vs. the direct Segmenter path. WS-path parity remains pending until the browser sends raw PCM (see new entry below).
+
+**Symptom (historical):** The browser WS path (`/api/v1/voice/stream`) and the Connect bidi path (`STTService.TranscribeStream`) reach STT through different code (`voice.Service.HandleStreamWS` vs. `Chain.Execute` accumulator). They will silently drift — a fix in one will not propagate to the other, and the proto contract claims they emit equivalent event streams.
 
 **Root cause:** No transport-agnostic Segmenter exists yet; each transport owns its own audio-handling code. No test feeds the same audio through both paths and asserts equivalent event projections.
 
@@ -104,6 +108,20 @@ Use this shape so entries are scannable. Append newest at the bottom.
 **Owner:** unassigned.
 
 **Refs:** `internal/transports/browser/ws_handler.go`, `handlers/stt/transcribe_stream.go`, [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md).
+
+### 2026-05-16 — Browser WebM partial-decoding regression after HandleStreamWS deletion
+
+**Symptom:** Browsers using MediaRecorder send WebM/Opus-framed audio over `/api/v1/voice/stream`. The legacy `voice.Service.HandleStreamWS` extracted the WebM init segment and prepended it to each sub-stream slice so Whisper could decode mid-stream chunks; live partials and segment-final transcriptions worked against the WebM stream. The new `Segmenter` + strategy pipeline expects raw 16-bit PCM at 16 kHz on the chunks channel. Until the browser-side embed is updated to emit PCM (e.g. via WebAudio + AudioWorklet), only `BufferedFallback` produces a correct final transcript (Whisper decodes the complete WebM file at end-of-stream); `VADSegmentStrategy` and `OverlapAgree` will fail to decode mid-stream WebM slices and emit no useful partials.
+
+**Root cause:** The streaming-STT decoupling plan made the strategy axis transport-agnostic — strategies see only the AudioChunk type, which is documented as raw PCM. WebM init handling was deleted along with `HandleStreamWS` because it is a browser-transport concern, not a strategy concern.
+
+**Workaround:** Set `stt.streaming_mode=off` (or accept the auto-mode's BufferedFallback when no PCM-providing transport is wired) so the browser at least gets a correct final transcript via the buffered path.
+
+**Real fix:** Update `@audio-tools/embed` (or the browser WS upgrade in `handlers/stt/stream_ws.go`) to transcode WebM/Opus → PCM before the bytes reach the strategy. Cleanest path: AudioWorklet in the embed emits PCM frames directly. Alternative: ffmpeg-wasm or a Go-side WebM demuxer at the WS boundary.
+
+**Owner:** unassigned.
+
+**Refs:** `handlers/stt/stream_ws.go`, `internal/voice/stream_ws.go` (placeholder header), `internal/stt/strategy/vad_segment.go`, `scenarios/audio-tools/embed/`.
 
 ### 2026-05-16 — WS endpoint tag still `ops_probe`
 

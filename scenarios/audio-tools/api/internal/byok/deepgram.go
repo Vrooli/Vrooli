@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/gorilla/websocket"
+
 	"audio-tools/internal/ai/sttchain"
 )
 
@@ -32,13 +34,113 @@ func (a *DeepgramSTT) Model() string { return "nova-2" }
 func (a *DeepgramSTT) IsAvailable(ctx context.Context, key string) bool { return key != "" }
 
 // StreamingCapability — Deepgram natively supports streaming via WSS.
-// The streaming TranscribeStreaming implementation lands in Phase E.
-// This file declares the capability surface so the interface satisfies
-// the new sttchain.BYOKAdapter contract.
-func (a *DeepgramSTT) StreamingCapability() bool { return false }
+// The streaming TranscribeStreaming implementation below opens a WS to
+// wss://api.deepgram.com/v1/listen and translates each "Results"
+// message to a StreamEvent (Partial for is_final=false, Segment for
+// is_final=true). A terminal Done event is emitted when the WS closes.
+func (a *DeepgramSTT) StreamingCapability() bool { return true }
 
-func (a *DeepgramSTT) TranscribeStreaming(_ context.Context, _ string, _ sttchain.StreamStart, _ <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
-	return nil, nil
+// deepgramStreamURL builds the wss URL for Deepgram's streaming API.
+// Defaults: linear16 PCM @ 16 kHz mono (matches Whisper's preferred
+// input shape and the audio-tools internal contract).
+func deepgramStreamURL(language string) string {
+	u := url.URL{Scheme: "wss", Host: "api.deepgram.com", Path: "/v1/listen"}
+	q := u.Query()
+	q.Set("model", "nova-2")
+	q.Set("smart_format", "true")
+	q.Set("encoding", "linear16")
+	q.Set("sample_rate", "16000")
+	q.Set("channels", "1")
+	if language != "" {
+		q.Set("language", language)
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+// TranscribeStreaming opens a WS to Deepgram, forwards inbound chunks
+// as binary frames, and translates "Results" JSON messages back to
+// StreamEvents. The returned channel is closed when the vendor WS
+// closes or ctx fires.
+func (a *DeepgramSTT) TranscribeStreaming(ctx context.Context, key string, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
+	if key == "" {
+		return nil, fmt.Errorf("deepgram: missing API key")
+	}
+	hdr := http.Header{}
+	hdr.Set("Authorization", "Token "+key)
+	dialer := websocket.DefaultDialer
+	conn, _, err := dialer.DialContext(ctx, deepgramStreamURL(start.Language), hdr)
+	if err != nil {
+		return nil, fmt.Errorf("deepgram: ws dial: %w", err)
+	}
+
+	events := make(chan sttchain.StreamEvent, 16)
+	// Pump chunks → vendor WS as binary frames.
+	go func() {
+		defer func() {
+			_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"CloseStream"}`))
+		}()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ch, ok := <-chunks:
+				if !ok {
+					return
+				}
+				if err := conn.WriteMessage(websocket.BinaryMessage, ch.Audio); err != nil {
+					return
+				}
+			}
+		}
+	}()
+	// Reader: vendor WS → events channel.
+	go func() {
+		defer close(events)
+		defer conn.Close()
+		var finalText string
+		for {
+			_, data, err := conn.ReadMessage()
+			if err != nil {
+				events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{
+					FinalText: finalText, ProviderID: "deepgram", ModelID: "nova-2",
+				}}
+				return
+			}
+			var msg struct {
+				Type    string `json:"type"`
+				IsFinal bool   `json:"is_final"`
+				Channel struct {
+					Alternatives []struct {
+						Transcript string  `json:"transcript"`
+						Confidence float64 `json:"confidence"`
+					} `json:"alternatives"`
+				} `json:"channel"`
+			}
+			if err := json.Unmarshal(data, &msg); err != nil {
+				continue
+			}
+			if msg.Type != "Results" || len(msg.Channel.Alternatives) == 0 {
+				continue
+			}
+			text := msg.Channel.Alternatives[0].Transcript
+			if text == "" {
+				continue
+			}
+			if msg.IsFinal {
+				finalText += " " + text
+				events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
+					Text:         text,
+					ProviderTier: sttchain.TierBYOK,
+					ProviderID:   "deepgram",
+					ModelID:      "nova-2",
+				}}
+			} else {
+				events <- sttchain.StreamEvent{Kind: sttchain.StreamEventPartial, Partial: &sttchain.PartialEvent{Text: text}}
+			}
+		}
+	}()
+	return events, nil
 }
 
 func (a *DeepgramSTT) Transcribe(ctx context.Context, key string, req sttchain.Request) (*sttchain.Result, error) {

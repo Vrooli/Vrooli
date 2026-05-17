@@ -29,6 +29,13 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 
 service TTSService {
   rpc Synthesize(SynthesizeRequest) returns (SynthesizeResponse);
+  // SynthesizeStream returns audio as a server-stream of AudioFrame
+  // messages. Adapters that declare StreamingCapability=true emit
+  // multiple frames as synthesis progresses (so the player can start
+  // playback before the full clip is rendered). Adapters that cannot
+  // stream natively emit a single is_final=true frame with the full
+  // audio bytes — semantically equivalent to Synthesize.
+  rpc SynthesizeStream(SynthesizeRequest) returns (stream AudioFrame);
   rpc ListVoices(ListVoicesRequest) returns (ListVoicesResponse);
   rpc GetCache(GetCacheRequest) returns (GetCacheResponse);
 
@@ -73,6 +80,23 @@ message SynthesizeResponse {
   string model_id = 6;
   string voice_used = 7;              // resolved backend voice name
   double latency_ms = 8;
+}
+
+// AudioFrame is one frame in a server-streamed Synthesize response.
+// Provider trace fields are populated on the final frame (is_final=true)
+// only; intermediate frames leave them empty.
+message AudioFrame {
+  bytes audio = 1;
+  string content_type = 2;
+  bool is_final = 3;
+
+  // Trace populated on the final frame:
+  string provider_tier = 4;
+  string provider_id = 5;
+  string model_id = 6;
+  string voice_used = 7;
+  double latency_ms = 8;
+  string content_hash = 9;
 }
 
 // -----------------------------------------------------------------------------

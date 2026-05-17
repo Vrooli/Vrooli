@@ -142,6 +142,31 @@ type ProbeResult struct {
 	Vrooli bool
 }
 
+// StreamCandidates returns the precedence-ordered list of providers
+// eligible for a streaming session given the per-request StreamStart
+// (BYOK key presence, LPBS token presence) and the chain's enable
+// flags + cached availability. It does NOT filter by Traits().Stream;
+// the StrategySelector applies that filter once it knows which
+// strategy is being negotiated. A provider that is available but only
+// batch-capable is a valid candidate for a batch-driven strategy
+// (VAD-segment, overlap-and-agree).
+//
+// Returned slice is freshly allocated each call so callers can mutate
+// it without aliasing chain state.
+func (c *Chain) StreamCandidates(ctx context.Context, start StreamStart) []Provider {
+	out := make([]Provider, 0, 3)
+	if c.enableBYOK && start.BYOKKey != "" && c.byok != nil && c.availFor(ctx, TierBYOK) {
+		out = append(out, c.byok)
+	}
+	if c.enableVrooli && start.LPBSToken != "" && c.vrooli != nil && c.availFor(ctx, TierVrooli) {
+		out = append(out, c.vrooli)
+	}
+	if c.enableLocal && c.local != nil && c.availFor(ctx, TierLocal) {
+		out = append(out, c.local)
+	}
+	return out
+}
+
 func (c *Chain) Probe(ctx context.Context) ProbeResult {
 	return ProbeResult{
 		Local:  c.enableLocal && c.local != nil && c.local.IsAvailable(ctx),
@@ -152,11 +177,16 @@ func (c *Chain) Probe(ctx context.Context) ProbeResult {
 
 // Stream runs a streaming transcription session through the chain.
 // It negotiates a streaming-capable tier at stream-start (BYOK -> Vrooli
-// -> Local precedence, filtered by StreamingCapability()=true). When no
+// -> Local precedence, filtered by Traits().Stream=true). When no
 // streaming-capable tier accepts, the chain falls back to the buffered
 // unary path: it drains `chunks`, concatenates the audio bytes, runs
 // Execute() with the buffered audio, and emits a synthetic Segment +
 // Done event sequence so consumers see a consistent event shape.
+//
+// Deprecated by the StrategySelector pipeline: Phase C/D replace direct
+// callers with internal/stt/segmenter.Segmenter, which routes through
+// the selector instead of this method. This entry point survives until
+// both transports are rewired.
 //
 // The locked tier is reported on the final Done event. Mid-stream
 // failover is explicitly out of scope (see plan §5 Out of scope).
@@ -167,7 +197,7 @@ func (c *Chain) Probe(ctx context.Context) ProbeResult {
 func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
 	// Try BYOK first if a key is present and the tier is enabled.
 	if c.enableBYOK && start.BYOKKey != "" && c.byok != nil && c.availFor(ctx, TierBYOK) {
-		if c.byok.StreamingCapability() {
+		if c.byok.Traits().Stream {
 			out, err := c.byok.TranscribeStreaming(ctx, start, chunks)
 			if err != nil {
 				// Hard errors from adapter selection are terminal.
@@ -182,7 +212,7 @@ func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan Aud
 	}
 
 	// Vrooli tier (declared non-streaming today; kept for symmetry).
-	if c.enableVrooli && start.LPBSToken != "" && c.vrooli != nil && c.availFor(ctx, TierVrooli) && c.vrooli.StreamingCapability() {
+	if c.enableVrooli && start.LPBSToken != "" && c.vrooli != nil && c.availFor(ctx, TierVrooli) && c.vrooli.Traits().Stream {
 		out, err := c.vrooli.TranscribeStreaming(ctx, start, chunks)
 		if err == nil && out != nil {
 			return out, nil
@@ -190,7 +220,7 @@ func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan Aud
 	}
 
 	// Local tier.
-	if c.enableLocal && c.local != nil && c.availFor(ctx, TierLocal) && c.local.StreamingCapability() {
+	if c.enableLocal && c.local != nil && c.availFor(ctx, TierLocal) && c.local.Traits().Stream {
 		out, err := c.local.TranscribeStreaming(ctx, start, chunks)
 		if err == nil && out != nil {
 			return out, nil

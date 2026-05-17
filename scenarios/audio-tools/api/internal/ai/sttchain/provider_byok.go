@@ -64,20 +64,29 @@ func (p *BYOKProvider) Transcribe(ctx context.Context, req Request) (*Result, er
 
 func (p *BYOKProvider) Model() string { return "byok-dispatched" }
 
-// StreamingCapability reports the BYOK tier as streaming-capable when at
-// least one registered adapter declares streaming support. The actual
-// per-request capability is gated by the adapter selected by
-// req.BYOKProvider.
-func (p *BYOKProvider) StreamingCapability() bool {
+// Traits reports the BYOK tier as streaming-capable when at least one
+// registered adapter declares streaming support. The actual per-request
+// capability is gated by the adapter selected by req.BYOKProvider; the
+// selector resolves Provider-level traits at session start and the
+// per-adapter dispatch happens inside TranscribeStreaming. Strategies
+// is left empty so the selector applies the global compatibility
+// matrix per the resolved adapter shape.
+func (p *BYOKProvider) Traits() ProviderTraits {
 	if p == nil {
-		return false
+		return ProviderTraits{}
 	}
+	stream := false
 	for _, a := range p.registry {
 		if a != nil && a.StreamingCapability() {
-			return true
+			stream = true
+			break
 		}
 	}
-	return false
+	strategies := []StrategyKind{StrategyVADSegment, StrategyBuffered}
+	if stream {
+		strategies = append(strategies, StrategyPassthrough)
+	}
+	return ProviderTraits{Batch: true, Stream: stream, Strategies: strategies}
 }
 
 // TranscribeStreaming dispatches to the per-provider streaming adapter.

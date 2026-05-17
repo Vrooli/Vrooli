@@ -22,7 +22,9 @@ type fakeStreamProvider struct {
 func (p *fakeStreamProvider) Type() ProviderTier                                   { return p.tier }
 func (p *fakeStreamProvider) IsAvailable(context.Context) bool                     { return p.available }
 func (p *fakeStreamProvider) Model() string                                        { return "fake" }
-func (p *fakeStreamProvider) StreamingCapability() bool                            { return p.streaming }
+func (p *fakeStreamProvider) Traits() ProviderTraits {
+	return ProviderTraits{Batch: true, Stream: p.streaming}
+}
 func (p *fakeStreamProvider) Transcribe(ctx context.Context, req Request) (*Result, error) {
 	if p.transcribeFn != nil {
 		return p.transcribeFn(ctx, req)

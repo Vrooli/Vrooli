@@ -18,7 +18,7 @@ func Module(d Deps) module.Module {
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})
 			r.Handle("/api/v1/voice/transcribe", MultipartTranscribeHandler(d.Chain)).Methods(http.MethodPost)
-			r.Handle("/api/v1/voice/stream", StreamWSHandler(d.Voice)).Methods(http.MethodGet)
+			r.Handle("/api/v1/voice/stream", StreamWSHandler(d)).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
 	}

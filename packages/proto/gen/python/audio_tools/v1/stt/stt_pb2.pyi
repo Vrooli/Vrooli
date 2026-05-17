@@ -39,7 +39,7 @@ class TranscribeResponse(_message.Message):
     def __init__(self, text: _Optional[str] = ..., detected_language: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., provider_tier: _Optional[str] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
 
 class StreamConfig(_message.Message):
-    __slots__ = ("flush_interval_ms", "min_delta_bytes", "overlap_bytes", "persistent_mode", "wake_word_enabled", "wake_word_threshold", "segment_silence_ms")
+    __slots__ = ("flush_interval_ms", "min_delta_bytes", "overlap_bytes", "persistent_mode", "wake_word_enabled", "wake_word_threshold", "segment_silence_ms", "streaming_mode", "strategy_preference", "vad_silence_ms", "overlap_window_ms", "overlap_commit_runs")
     FLUSH_INTERVAL_MS_FIELD_NUMBER: _ClassVar[int]
     MIN_DELTA_BYTES_FIELD_NUMBER: _ClassVar[int]
     OVERLAP_BYTES_FIELD_NUMBER: _ClassVar[int]
@@ -47,6 +47,11 @@ class StreamConfig(_message.Message):
     WAKE_WORD_ENABLED_FIELD_NUMBER: _ClassVar[int]
     WAKE_WORD_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
     SEGMENT_SILENCE_MS_FIELD_NUMBER: _ClassVar[int]
+    STREAMING_MODE_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_PREFERENCE_FIELD_NUMBER: _ClassVar[int]
+    VAD_SILENCE_MS_FIELD_NUMBER: _ClassVar[int]
+    OVERLAP_WINDOW_MS_FIELD_NUMBER: _ClassVar[int]
+    OVERLAP_COMMIT_RUNS_FIELD_NUMBER: _ClassVar[int]
     flush_interval_ms: int
     min_delta_bytes: int
     overlap_bytes: int
@@ -54,7 +59,12 @@ class StreamConfig(_message.Message):
     wake_word_enabled: bool
     wake_word_threshold: float
     segment_silence_ms: int
-    def __init__(self, flush_interval_ms: _Optional[int] = ..., min_delta_bytes: _Optional[int] = ..., overlap_bytes: _Optional[int] = ..., persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., segment_silence_ms: _Optional[int] = ...) -> None: ...
+    streaming_mode: str
+    strategy_preference: str
+    vad_silence_ms: int
+    overlap_window_ms: int
+    overlap_commit_runs: int
+    def __init__(self, flush_interval_ms: _Optional[int] = ..., min_delta_bytes: _Optional[int] = ..., overlap_bytes: _Optional[int] = ..., persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., segment_silence_ms: _Optional[int] = ..., streaming_mode: _Optional[str] = ..., strategy_preference: _Optional[str] = ..., vad_silence_ms: _Optional[int] = ..., overlap_window_ms: _Optional[int] = ..., overlap_commit_runs: _Optional[int] = ...) -> None: ...
 
 class GetStreamConfigRequest(_message.Message):
     __slots__ = ()
@@ -67,7 +77,7 @@ class GetStreamConfigResponse(_message.Message):
     def __init__(self, config: _Optional[_Union[StreamConfig, _Mapping]] = ...) -> None: ...
 
 class UpdateStreamConfigRequest(_message.Message):
-    __slots__ = ("flush_interval_ms", "has_flush_interval_ms", "min_delta_bytes", "has_min_delta_bytes", "overlap_bytes", "has_overlap_bytes", "persistent_mode", "has_persistent_mode", "wake_word_enabled", "has_wake_word_enabled", "wake_word_threshold", "has_wake_word_threshold", "segment_silence_ms", "has_segment_silence_ms")
+    __slots__ = ("flush_interval_ms", "has_flush_interval_ms", "min_delta_bytes", "has_min_delta_bytes", "overlap_bytes", "has_overlap_bytes", "persistent_mode", "has_persistent_mode", "wake_word_enabled", "has_wake_word_enabled", "wake_word_threshold", "has_wake_word_threshold", "segment_silence_ms", "has_segment_silence_ms", "streaming_mode", "has_streaming_mode", "strategy_preference", "has_strategy_preference", "vad_silence_ms", "has_vad_silence_ms", "overlap_window_ms", "has_overlap_window_ms", "overlap_commit_runs", "has_overlap_commit_runs")
     FLUSH_INTERVAL_MS_FIELD_NUMBER: _ClassVar[int]
     HAS_FLUSH_INTERVAL_MS_FIELD_NUMBER: _ClassVar[int]
     MIN_DELTA_BYTES_FIELD_NUMBER: _ClassVar[int]
@@ -82,6 +92,16 @@ class UpdateStreamConfigRequest(_message.Message):
     HAS_WAKE_WORD_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
     SEGMENT_SILENCE_MS_FIELD_NUMBER: _ClassVar[int]
     HAS_SEGMENT_SILENCE_MS_FIELD_NUMBER: _ClassVar[int]
+    STREAMING_MODE_FIELD_NUMBER: _ClassVar[int]
+    HAS_STREAMING_MODE_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_PREFERENCE_FIELD_NUMBER: _ClassVar[int]
+    HAS_STRATEGY_PREFERENCE_FIELD_NUMBER: _ClassVar[int]
+    VAD_SILENCE_MS_FIELD_NUMBER: _ClassVar[int]
+    HAS_VAD_SILENCE_MS_FIELD_NUMBER: _ClassVar[int]
+    OVERLAP_WINDOW_MS_FIELD_NUMBER: _ClassVar[int]
+    HAS_OVERLAP_WINDOW_MS_FIELD_NUMBER: _ClassVar[int]
+    OVERLAP_COMMIT_RUNS_FIELD_NUMBER: _ClassVar[int]
+    HAS_OVERLAP_COMMIT_RUNS_FIELD_NUMBER: _ClassVar[int]
     flush_interval_ms: int
     has_flush_interval_ms: bool
     min_delta_bytes: int
@@ -96,7 +116,17 @@ class UpdateStreamConfigRequest(_message.Message):
     has_wake_word_threshold: bool
     segment_silence_ms: int
     has_segment_silence_ms: bool
-    def __init__(self, flush_interval_ms: _Optional[int] = ..., has_flush_interval_ms: _Optional[bool] = ..., min_delta_bytes: _Optional[int] = ..., has_min_delta_bytes: _Optional[bool] = ..., overlap_bytes: _Optional[int] = ..., has_overlap_bytes: _Optional[bool] = ..., persistent_mode: _Optional[bool] = ..., has_persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., has_wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., has_wake_word_threshold: _Optional[bool] = ..., segment_silence_ms: _Optional[int] = ..., has_segment_silence_ms: _Optional[bool] = ...) -> None: ...
+    streaming_mode: str
+    has_streaming_mode: bool
+    strategy_preference: str
+    has_strategy_preference: bool
+    vad_silence_ms: int
+    has_vad_silence_ms: bool
+    overlap_window_ms: int
+    has_overlap_window_ms: bool
+    overlap_commit_runs: int
+    has_overlap_commit_runs: bool
+    def __init__(self, flush_interval_ms: _Optional[int] = ..., has_flush_interval_ms: _Optional[bool] = ..., min_delta_bytes: _Optional[int] = ..., has_min_delta_bytes: _Optional[bool] = ..., overlap_bytes: _Optional[int] = ..., has_overlap_bytes: _Optional[bool] = ..., persistent_mode: _Optional[bool] = ..., has_persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., has_wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., has_wake_word_threshold: _Optional[bool] = ..., segment_silence_ms: _Optional[int] = ..., has_segment_silence_ms: _Optional[bool] = ..., streaming_mode: _Optional[str] = ..., has_streaming_mode: _Optional[bool] = ..., strategy_preference: _Optional[str] = ..., has_strategy_preference: _Optional[bool] = ..., vad_silence_ms: _Optional[int] = ..., has_vad_silence_ms: _Optional[bool] = ..., overlap_window_ms: _Optional[int] = ..., has_overlap_window_ms: _Optional[bool] = ..., overlap_commit_runs: _Optional[int] = ..., has_overlap_commit_runs: _Optional[bool] = ...) -> None: ...
 
 class UpdateStreamConfigResponse(_message.Message):
     __slots__ = ("config",)
@@ -375,3 +405,109 @@ class DeleteSpeakerProfileResponse(_message.Message):
     CONFIG_FIELD_NUMBER: _ClassVar[int]
     config: SpeakerConfig
     def __init__(self, config: _Optional[_Union[SpeakerConfig, _Mapping]] = ...) -> None: ...
+
+class TranscribeStreamRequest(_message.Message):
+    __slots__ = ("start", "audio_chunk", "end")
+    START_FIELD_NUMBER: _ClassVar[int]
+    AUDIO_CHUNK_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    start: StreamStart
+    audio_chunk: bytes
+    end: StreamEnd
+    def __init__(self, start: _Optional[_Union[StreamStart, _Mapping]] = ..., audio_chunk: _Optional[bytes] = ..., end: _Optional[_Union[StreamEnd, _Mapping]] = ...) -> None: ...
+
+class StreamStart(_message.Message):
+    __slots__ = ("config", "language", "initial_prompt", "skip_speaker_verification")
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    LANGUAGE_FIELD_NUMBER: _ClassVar[int]
+    INITIAL_PROMPT_FIELD_NUMBER: _ClassVar[int]
+    SKIP_SPEAKER_VERIFICATION_FIELD_NUMBER: _ClassVar[int]
+    config: StreamConfig
+    language: str
+    initial_prompt: str
+    skip_speaker_verification: bool
+    def __init__(self, config: _Optional[_Union[StreamConfig, _Mapping]] = ..., language: _Optional[str] = ..., initial_prompt: _Optional[str] = ..., skip_speaker_verification: _Optional[bool] = ...) -> None: ...
+
+class StreamEnd(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class TranscribeStreamEvent(_message.Message):
+    __slots__ = ("segment", "partial", "wake_word", "speaker_rejection", "error", "done")
+    SEGMENT_FIELD_NUMBER: _ClassVar[int]
+    PARTIAL_FIELD_NUMBER: _ClassVar[int]
+    WAKE_WORD_FIELD_NUMBER: _ClassVar[int]
+    SPEAKER_REJECTION_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    DONE_FIELD_NUMBER: _ClassVar[int]
+    segment: StreamSegment
+    partial: StreamPartial
+    wake_word: StreamWakeWord
+    speaker_rejection: StreamSpeakerRejection
+    error: StreamError
+    done: StreamDone
+    def __init__(self, segment: _Optional[_Union[StreamSegment, _Mapping]] = ..., partial: _Optional[_Union[StreamPartial, _Mapping]] = ..., wake_word: _Optional[_Union[StreamWakeWord, _Mapping]] = ..., speaker_rejection: _Optional[_Union[StreamSpeakerRejection, _Mapping]] = ..., error: _Optional[_Union[StreamError, _Mapping]] = ..., done: _Optional[_Union[StreamDone, _Mapping]] = ...) -> None: ...
+
+class StreamSegment(_message.Message):
+    __slots__ = ("text", "start_ms", "end_ms", "detected_language", "provider_tier", "model_id", "latency_ms")
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    START_MS_FIELD_NUMBER: _ClassVar[int]
+    END_MS_FIELD_NUMBER: _ClassVar[int]
+    DETECTED_LANGUAGE_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_TIER_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    text: str
+    start_ms: int
+    end_ms: int
+    detected_language: str
+    provider_tier: str
+    model_id: str
+    latency_ms: float
+    def __init__(self, text: _Optional[str] = ..., start_ms: _Optional[int] = ..., end_ms: _Optional[int] = ..., detected_language: _Optional[str] = ..., provider_tier: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
+
+class StreamPartial(_message.Message):
+    __slots__ = ("text",)
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    text: str
+    def __init__(self, text: _Optional[str] = ...) -> None: ...
+
+class StreamWakeWord(_message.Message):
+    __slots__ = ("score", "sample_id")
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_ID_FIELD_NUMBER: _ClassVar[int]
+    score: float
+    sample_id: str
+    def __init__(self, score: _Optional[float] = ..., sample_id: _Optional[str] = ...) -> None: ...
+
+class StreamSpeakerRejection(_message.Message):
+    __slots__ = ("reason", "fallback_used")
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_USED_FIELD_NUMBER: _ClassVar[int]
+    reason: str
+    fallback_used: bool
+    def __init__(self, reason: _Optional[str] = ..., fallback_used: _Optional[bool] = ...) -> None: ...
+
+class StreamError(_message.Message):
+    __slots__ = ("code", "message")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    message: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class StreamDone(_message.Message):
+    __slots__ = ("final_text", "provider_tier", "provider_id", "model_id", "latency_ms", "fell_back_to_unary")
+    FINAL_TEXT_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_TIER_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    FELL_BACK_TO_UNARY_FIELD_NUMBER: _ClassVar[int]
+    final_text: str
+    provider_tier: str
+    provider_id: str
+    model_id: str
+    latency_ms: float
+    fell_back_to_unary: bool
+    def __init__(self, final_text: _Optional[str] = ..., provider_tier: _Optional[str] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., fell_back_to_unary: _Optional[bool] = ...) -> None: ...

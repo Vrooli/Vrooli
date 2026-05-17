@@ -35,6 +35,9 @@ const (
 const (
 	// TTSServiceSynthesizeProcedure is the fully-qualified name of the TTSService's Synthesize RPC.
 	TTSServiceSynthesizeProcedure = "/vrooli.audio_tools.v1.tts.TTSService/Synthesize"
+	// TTSServiceSynthesizeStreamProcedure is the fully-qualified name of the TTSService's
+	// SynthesizeStream RPC.
+	TTSServiceSynthesizeStreamProcedure = "/vrooli.audio_tools.v1.tts.TTSService/SynthesizeStream"
 	// TTSServiceListVoicesProcedure is the fully-qualified name of the TTSService's ListVoices RPC.
 	TTSServiceListVoicesProcedure = "/vrooli.audio_tools.v1.tts.TTSService/ListVoices"
 	// TTSServiceGetCacheProcedure is the fully-qualified name of the TTSService's GetCache RPC.
@@ -59,6 +62,13 @@ const (
 // TTSServiceClient is a client for the vrooli.audio_tools.v1.tts.TTSService service.
 type TTSServiceClient interface {
 	Synthesize(context.Context, *connect.Request[tts.SynthesizeRequest]) (*connect.Response[tts.SynthesizeResponse], error)
+	// SynthesizeStream returns audio as a server-stream of AudioFrame
+	// messages. Adapters that declare StreamingCapability=true emit
+	// multiple frames as synthesis progresses (so the player can start
+	// playback before the full clip is rendered). Adapters that cannot
+	// stream natively emit a single is_final=true frame with the full
+	// audio bytes — semantically equivalent to Synthesize.
+	SynthesizeStream(context.Context, *connect.Request[tts.SynthesizeRequest]) (*connect.ServerStreamForClient[tts.AudioFrame], error)
 	ListVoices(context.Context, *connect.Request[tts.ListVoicesRequest]) (*connect.Response[tts.ListVoicesResponse], error)
 	GetCache(context.Context, *connect.Request[tts.GetCacheRequest]) (*connect.Response[tts.GetCacheResponse], error)
 	GetConfig(context.Context, *connect.Request[tts.GetConfigRequest]) (*connect.Response[tts.GetConfigResponse], error)
@@ -87,6 +97,12 @@ func NewTTSServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			httpClient,
 			baseURL+TTSServiceSynthesizeProcedure,
 			connect.WithSchema(tTSServiceMethods.ByName("Synthesize")),
+			connect.WithClientOptions(opts...),
+		),
+		synthesizeStream: connect.NewClient[tts.SynthesizeRequest, tts.AudioFrame](
+			httpClient,
+			baseURL+TTSServiceSynthesizeStreamProcedure,
+			connect.WithSchema(tTSServiceMethods.ByName("SynthesizeStream")),
 			connect.WithClientOptions(opts...),
 		),
 		listVoices: connect.NewClient[tts.ListVoicesRequest, tts.ListVoicesResponse](
@@ -143,6 +159,7 @@ func NewTTSServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 // tTSServiceClient implements TTSServiceClient.
 type tTSServiceClient struct {
 	synthesize          *connect.Client[tts.SynthesizeRequest, tts.SynthesizeResponse]
+	synthesizeStream    *connect.Client[tts.SynthesizeRequest, tts.AudioFrame]
 	listVoices          *connect.Client[tts.ListVoicesRequest, tts.ListVoicesResponse]
 	getCache            *connect.Client[tts.GetCacheRequest, tts.GetCacheResponse]
 	getConfig           *connect.Client[tts.GetConfigRequest, tts.GetConfigResponse]
@@ -156,6 +173,11 @@ type tTSServiceClient struct {
 // Synthesize calls vrooli.audio_tools.v1.tts.TTSService.Synthesize.
 func (c *tTSServiceClient) Synthesize(ctx context.Context, req *connect.Request[tts.SynthesizeRequest]) (*connect.Response[tts.SynthesizeResponse], error) {
 	return c.synthesize.CallUnary(ctx, req)
+}
+
+// SynthesizeStream calls vrooli.audio_tools.v1.tts.TTSService.SynthesizeStream.
+func (c *tTSServiceClient) SynthesizeStream(ctx context.Context, req *connect.Request[tts.SynthesizeRequest]) (*connect.ServerStreamForClient[tts.AudioFrame], error) {
+	return c.synthesizeStream.CallServerStream(ctx, req)
 }
 
 // ListVoices calls vrooli.audio_tools.v1.tts.TTSService.ListVoices.
@@ -201,6 +223,13 @@ func (c *tTSServiceClient) SplitParagraphs(ctx context.Context, req *connect.Req
 // TTSServiceHandler is an implementation of the vrooli.audio_tools.v1.tts.TTSService service.
 type TTSServiceHandler interface {
 	Synthesize(context.Context, *connect.Request[tts.SynthesizeRequest]) (*connect.Response[tts.SynthesizeResponse], error)
+	// SynthesizeStream returns audio as a server-stream of AudioFrame
+	// messages. Adapters that declare StreamingCapability=true emit
+	// multiple frames as synthesis progresses (so the player can start
+	// playback before the full clip is rendered). Adapters that cannot
+	// stream natively emit a single is_final=true frame with the full
+	// audio bytes — semantically equivalent to Synthesize.
+	SynthesizeStream(context.Context, *connect.Request[tts.SynthesizeRequest], *connect.ServerStream[tts.AudioFrame]) error
 	ListVoices(context.Context, *connect.Request[tts.ListVoicesRequest]) (*connect.Response[tts.ListVoicesResponse], error)
 	GetCache(context.Context, *connect.Request[tts.GetCacheRequest]) (*connect.Response[tts.GetCacheResponse], error)
 	GetConfig(context.Context, *connect.Request[tts.GetConfigRequest]) (*connect.Response[tts.GetConfigResponse], error)
@@ -225,6 +254,12 @@ func NewTTSServiceHandler(svc TTSServiceHandler, opts ...connect.HandlerOption) 
 		TTSServiceSynthesizeProcedure,
 		svc.Synthesize,
 		connect.WithSchema(tTSServiceMethods.ByName("Synthesize")),
+		connect.WithHandlerOptions(opts...),
+	)
+	tTSServiceSynthesizeStreamHandler := connect.NewServerStreamHandler(
+		TTSServiceSynthesizeStreamProcedure,
+		svc.SynthesizeStream,
+		connect.WithSchema(tTSServiceMethods.ByName("SynthesizeStream")),
 		connect.WithHandlerOptions(opts...),
 	)
 	tTSServiceListVoicesHandler := connect.NewUnaryHandler(
@@ -279,6 +314,8 @@ func NewTTSServiceHandler(svc TTSServiceHandler, opts ...connect.HandlerOption) 
 		switch r.URL.Path {
 		case TTSServiceSynthesizeProcedure:
 			tTSServiceSynthesizeHandler.ServeHTTP(w, r)
+		case TTSServiceSynthesizeStreamProcedure:
+			tTSServiceSynthesizeStreamHandler.ServeHTTP(w, r)
 		case TTSServiceListVoicesProcedure:
 			tTSServiceListVoicesHandler.ServeHTTP(w, r)
 		case TTSServiceGetCacheProcedure:
@@ -306,6 +343,10 @@ type UnimplementedTTSServiceHandler struct{}
 
 func (UnimplementedTTSServiceHandler) Synthesize(context.Context, *connect.Request[tts.SynthesizeRequest]) (*connect.Response[tts.SynthesizeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.tts.TTSService.Synthesize is not implemented"))
+}
+
+func (UnimplementedTTSServiceHandler) SynthesizeStream(context.Context, *connect.Request[tts.SynthesizeRequest], *connect.ServerStream[tts.AudioFrame]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.tts.TTSService.SynthesizeStream is not implemented"))
 }
 
 func (UnimplementedTTSServiceHandler) ListVoices(context.Context, *connect.Request[tts.ListVoicesRequest]) (*connect.Response[tts.ListVoicesResponse], error) {

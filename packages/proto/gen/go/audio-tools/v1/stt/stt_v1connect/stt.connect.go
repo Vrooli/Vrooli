@@ -35,6 +35,9 @@ const (
 const (
 	// STTServiceTranscribeProcedure is the fully-qualified name of the STTService's Transcribe RPC.
 	STTServiceTranscribeProcedure = "/vrooli.audio_tools.v1.stt.STTService/Transcribe"
+	// STTServiceTranscribeStreamProcedure is the fully-qualified name of the STTService's
+	// TranscribeStream RPC.
+	STTServiceTranscribeStreamProcedure = "/vrooli.audio_tools.v1.stt.STTService/TranscribeStream"
 	// STTServiceGetStreamConfigProcedure is the fully-qualified name of the STTService's
 	// GetStreamConfig RPC.
 	STTServiceGetStreamConfigProcedure = "/vrooli.audio_tools.v1.stt.STTService/GetStreamConfig"
@@ -79,6 +82,13 @@ const (
 // STTServiceClient is a client for the vrooli.audio_tools.v1.stt.STTService service.
 type STTServiceClient interface {
 	Transcribe(context.Context, *connect.Request[stt.TranscribeRequest]) (*connect.Response[stt.TranscribeResponse], error)
+	// TranscribeStream is the Connect bidi-stream equivalent of the
+	// /api/v1/voice/stream WebSocket transport. It exists so non-browser
+	// consumers (other scenarios, CLIs) can call streaming STT through the
+	// same Connect-RPC surface as Transcribe. The browser path still uses
+	// the WebSocket transport for ecosystem-tooling reasons (recorded in
+	// SEAMS.md as TransportReason: websocket_transport).
+	TranscribeStream(context.Context) *connect.BidiStreamForClient[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent]
 	GetStreamConfig(context.Context, *connect.Request[stt.GetStreamConfigRequest]) (*connect.Response[stt.GetStreamConfigResponse], error)
 	UpdateStreamConfig(context.Context, *connect.Request[stt.UpdateStreamConfigRequest]) (*connect.Response[stt.UpdateStreamConfigResponse], error)
 	GetWakeWordConfig(context.Context, *connect.Request[stt.GetWakeWordConfigRequest]) (*connect.Response[stt.GetWakeWordConfigResponse], error)
@@ -109,6 +119,12 @@ func NewSTTServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			httpClient,
 			baseURL+STTServiceTranscribeProcedure,
 			connect.WithSchema(sTTServiceMethods.ByName("Transcribe")),
+			connect.WithClientOptions(opts...),
+		),
+		transcribeStream: connect.NewClient[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent](
+			httpClient,
+			baseURL+STTServiceTranscribeStreamProcedure,
+			connect.WithSchema(sTTServiceMethods.ByName("TranscribeStream")),
 			connect.WithClientOptions(opts...),
 		),
 		getStreamConfig: connect.NewClient[stt.GetStreamConfigRequest, stt.GetStreamConfigResponse](
@@ -195,6 +211,7 @@ func NewSTTServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 // sTTServiceClient implements STTServiceClient.
 type sTTServiceClient struct {
 	transcribe                 *connect.Client[stt.TranscribeRequest, stt.TranscribeResponse]
+	transcribeStream           *connect.Client[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent]
 	getStreamConfig            *connect.Client[stt.GetStreamConfigRequest, stt.GetStreamConfigResponse]
 	updateStreamConfig         *connect.Client[stt.UpdateStreamConfigRequest, stt.UpdateStreamConfigResponse]
 	getWakeWordConfig          *connect.Client[stt.GetWakeWordConfigRequest, stt.GetWakeWordConfigResponse]
@@ -213,6 +230,11 @@ type sTTServiceClient struct {
 // Transcribe calls vrooli.audio_tools.v1.stt.STTService.Transcribe.
 func (c *sTTServiceClient) Transcribe(ctx context.Context, req *connect.Request[stt.TranscribeRequest]) (*connect.Response[stt.TranscribeResponse], error) {
 	return c.transcribe.CallUnary(ctx, req)
+}
+
+// TranscribeStream calls vrooli.audio_tools.v1.stt.STTService.TranscribeStream.
+func (c *sTTServiceClient) TranscribeStream(ctx context.Context) *connect.BidiStreamForClient[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent] {
+	return c.transcribeStream.CallBidiStream(ctx)
 }
 
 // GetStreamConfig calls vrooli.audio_tools.v1.stt.STTService.GetStreamConfig.
@@ -283,6 +305,13 @@ func (c *sTTServiceClient) DeleteSpeakerProfile(ctx context.Context, req *connec
 // STTServiceHandler is an implementation of the vrooli.audio_tools.v1.stt.STTService service.
 type STTServiceHandler interface {
 	Transcribe(context.Context, *connect.Request[stt.TranscribeRequest]) (*connect.Response[stt.TranscribeResponse], error)
+	// TranscribeStream is the Connect bidi-stream equivalent of the
+	// /api/v1/voice/stream WebSocket transport. It exists so non-browser
+	// consumers (other scenarios, CLIs) can call streaming STT through the
+	// same Connect-RPC surface as Transcribe. The browser path still uses
+	// the WebSocket transport for ecosystem-tooling reasons (recorded in
+	// SEAMS.md as TransportReason: websocket_transport).
+	TranscribeStream(context.Context, *connect.BidiStream[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent]) error
 	GetStreamConfig(context.Context, *connect.Request[stt.GetStreamConfigRequest]) (*connect.Response[stt.GetStreamConfigResponse], error)
 	UpdateStreamConfig(context.Context, *connect.Request[stt.UpdateStreamConfigRequest]) (*connect.Response[stt.UpdateStreamConfigResponse], error)
 	GetWakeWordConfig(context.Context, *connect.Request[stt.GetWakeWordConfigRequest]) (*connect.Response[stt.GetWakeWordConfigResponse], error)
@@ -309,6 +338,12 @@ func NewSTTServiceHandler(svc STTServiceHandler, opts ...connect.HandlerOption) 
 		STTServiceTranscribeProcedure,
 		svc.Transcribe,
 		connect.WithSchema(sTTServiceMethods.ByName("Transcribe")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sTTServiceTranscribeStreamHandler := connect.NewBidiStreamHandler(
+		STTServiceTranscribeStreamProcedure,
+		svc.TranscribeStream,
+		connect.WithSchema(sTTServiceMethods.ByName("TranscribeStream")),
 		connect.WithHandlerOptions(opts...),
 	)
 	sTTServiceGetStreamConfigHandler := connect.NewUnaryHandler(
@@ -393,6 +428,8 @@ func NewSTTServiceHandler(svc STTServiceHandler, opts ...connect.HandlerOption) 
 		switch r.URL.Path {
 		case STTServiceTranscribeProcedure:
 			sTTServiceTranscribeHandler.ServeHTTP(w, r)
+		case STTServiceTranscribeStreamProcedure:
+			sTTServiceTranscribeStreamHandler.ServeHTTP(w, r)
 		case STTServiceGetStreamConfigProcedure:
 			sTTServiceGetStreamConfigHandler.ServeHTTP(w, r)
 		case STTServiceUpdateStreamConfigProcedure:
@@ -430,6 +467,10 @@ type UnimplementedSTTServiceHandler struct{}
 
 func (UnimplementedSTTServiceHandler) Transcribe(context.Context, *connect.Request[stt.TranscribeRequest]) (*connect.Response[stt.TranscribeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTService.Transcribe is not implemented"))
+}
+
+func (UnimplementedSTTServiceHandler) TranscribeStream(context.Context, *connect.BidiStream[stt.TranscribeStreamRequest, stt.TranscribeStreamEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.stt.STTService.TranscribeStream is not implemented"))
 }
 
 func (UnimplementedSTTServiceHandler) GetStreamConfig(context.Context, *connect.Request[stt.GetStreamConfigRequest]) (*connect.Response[stt.GetStreamConfigResponse], error) {

@@ -50,16 +50,21 @@ func (p *LocalProvider) Transcribe(ctx context.Context, req Request) (*Result, e
 
 func (p *LocalProvider) Model() string { return "whisper-large-v3" }
 
-// StreamingCapability reports the LocalProvider as streaming-capable;
-// Phase D wires the existing internal/voice segmenter behind the
-// TranscribeStreaming entry point. Until Phase D lands the actual
-// streaming implementation, this method returns false so the chain
-// falls back to unary execution.
-func (p *LocalProvider) StreamingCapability() bool { return false }
+// Traits reports the LocalProvider as a batch-only provider. The
+// streaming surface is provided externally by VADSegmentStrategy or
+// OverlapAgreeStrategy calling Transcribe per segment/window.
+func (p *LocalProvider) Traits() ProviderTraits {
+	return ProviderTraits{
+		Batch:      true,
+		Stream:     false,
+		Strategies: []StrategyKind{StrategyVADSegment, StrategyOverlapAgree, StrategyBuffered},
+	}
+}
 
-// TranscribeStreaming is wired by Phase D against the internal/voice
-// segmenter pipeline. Returning a nil channel + nil error here tells
-// the chain "this provider declines streaming; please buffer-then-execute".
+// TranscribeStreaming on the LocalProvider always declines native
+// streaming. The chain's selector pairs this provider with a batch
+// strategy (VAD-segment or overlap-and-agree) that drives Transcribe
+// per segment.
 func (p *LocalProvider) TranscribeStreaming(_ context.Context, _ StreamStart, _ <-chan AudioChunk) (<-chan StreamEvent, error) {
 	return nil, nil
 }

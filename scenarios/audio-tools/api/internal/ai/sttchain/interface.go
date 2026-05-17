@@ -52,6 +52,59 @@ type Result struct {
 	Latency          time.Duration
 }
 
+// StrategyKind identifies a streaming strategy. The StrategySelector
+// uses these constants both to enumerate the global compatibility matrix
+// and to interpret the optional per-provider whitelist in ProviderTraits.
+type StrategyKind string
+
+const (
+	// StrategyVADSegment chunks the input by silence-bounded VAD segments
+	// and calls Provider.Transcribe once per segment. Suitable for
+	// batch-only providers and the Local Whisper tier.
+	StrategyVADSegment StrategyKind = "vad_segment"
+	// StrategyOverlapAgree runs sliding overlapping windows over the
+	// input, committing prefixes that agree across consecutive runs
+	// (LocalAgreement; Macháček et al. 2023). Quality upgrade for
+	// batch-only local providers.
+	StrategyOverlapAgree StrategyKind = "overlap_agree"
+	// StrategyPassthrough forwards chunks directly to a native-streaming
+	// provider and translates its event stream back. Used for providers
+	// like Deepgram, Azure, Google, and future LPBS streaming.
+	StrategyPassthrough StrategyKind = "passthrough"
+	// StrategyBuffered drains the input, runs a single batch call at end,
+	// and emits one Segment + Done. The selector picks this when
+	// streaming_mode=off or when no eligible (strategy, provider) pair
+	// exists for the negotiated session.
+	StrategyBuffered StrategyKind = "buffered_fallback"
+)
+
+// ProviderTraits is the capability struct read once at stream-start by
+// the StrategySelector. It replaces the older boolean
+// StreamingCapability() seam: a provider that declares Stream=true
+// implements TranscribeStreaming natively; one with Batch=true
+// implements Transcribe. The Strategies whitelist, when non-empty,
+// narrows which strategies the selector may pair with this provider —
+// empty means "the selector decides per the global default matrix."
+type ProviderTraits struct {
+	Batch      bool
+	Stream     bool
+	Strategies []StrategyKind
+}
+
+// Supports reports whether the provider declares the given strategy in
+// its whitelist (or accepts any strategy when the whitelist is empty).
+func (t ProviderTraits) Supports(k StrategyKind) bool {
+	if len(t.Strategies) == 0 {
+		return true
+	}
+	for _, s := range t.Strategies {
+		if s == k {
+			return true
+		}
+	}
+	return false
+}
+
 // Provider is the interface implemented by Local/BYOK/Vrooli tiers.
 //
 // Each concrete provider is short-lived (constructed per-request from a
@@ -63,12 +116,10 @@ type Provider interface {
 	Transcribe(ctx context.Context, req Request) (*Result, error)
 	Model() string
 
-	// StreamingCapability reports whether this provider can stream
-	// transcription events natively (true) or only via the buffered
-	// fall-back (false). The streaming chain filters by this flag at
-	// stream-start tier negotiation; providers that return false are
-	// only selected when no streaming-capable tier is available.
-	StreamingCapability() bool
+	// Traits reports the provider's streaming capabilities and the
+	// optional strategy whitelist. The StrategySelector reads this once
+	// at session start; providers must not mutate it across calls.
+	Traits() ProviderTraits
 
 	// TranscribeStreaming runs a streaming transcription session.
 	// Implementations:
@@ -78,7 +129,7 @@ type Provider interface {
 	// Returning a nil channel + non-nil error means stream-start was
 	// rejected (provider not eligible); the chain falls through to the
 	// next tier or to buffered mode. Returning a nil channel + nil error
-	// is reserved for adapters that declare StreamingCapability=false.
+	// is reserved for adapters whose Traits().Stream is false.
 	TranscribeStreaming(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error)
 }
 

@@ -51,6 +51,28 @@ class SynthesizeResponse(_message.Message):
     latency_ms: float
     def __init__(self, audio: _Optional[bytes] = ..., content_type: _Optional[str] = ..., content_hash: _Optional[str] = ..., provider_tier: _Optional[str] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., voice_used: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
 
+class AudioFrame(_message.Message):
+    __slots__ = ("audio", "content_type", "is_final", "provider_tier", "provider_id", "model_id", "voice_used", "latency_ms", "content_hash")
+    AUDIO_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    IS_FINAL_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_TIER_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    VOICE_USED_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    audio: bytes
+    content_type: str
+    is_final: bool
+    provider_tier: str
+    provider_id: str
+    model_id: str
+    voice_used: str
+    latency_ms: float
+    content_hash: str
+    def __init__(self, audio: _Optional[bytes] = ..., content_type: _Optional[str] = ..., is_final: _Optional[bool] = ..., provider_tier: _Optional[str] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., voice_used: _Optional[str] = ..., latency_ms: _Optional[float] = ..., content_hash: _Optional[str] = ...) -> None: ...
+
 class Voice(_message.Message):
     __slots__ = ("id", "name", "description", "adapter_mappings")
     class AdapterMappingsEntry(_message.Message):

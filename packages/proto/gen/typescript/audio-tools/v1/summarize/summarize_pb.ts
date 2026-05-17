@@ -10,7 +10,155 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file audio-tools/v1/summarize/summarize.proto.
  */
 export const file_audio_tools_v1_summarize_summarize: GenFile = /*@__PURE__*/
-  fileDesc("CihhdWRpby10b29scy92MS9zdW1tYXJpemUvc3VtbWFyaXplLnByb3RvEh92cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplIlcKEFN1bW1hcml6ZVJlcXVlc3QSDAoEdGV4dBgBIAEoCRINCgVsZXZlbBgCIAEoCRINCgVtb2RlbBgDIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYBCABKAUioQEKEVN1bW1hcml6ZVJlc3BvbnNlEgwKBHRleHQYASABKAkSFQoNcHJvbXB0X3Rva2VucxgCIAEoBRIVCg1vdXRwdXRfdG9rZW5zGAMgASgFEhUKDXByb3ZpZGVyX3RpZXIYBCABKAkSEwoLcHJvdmlkZXJfaWQYBSABKAkSEAoIbW9kZWxfaWQYBiABKAkSEgoKbGF0ZW5jeV9tcxgHIAEoATKGAQoQU3VtbWFyaXplU2VydmljZRJyCglTdW1tYXJpemUSMS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplLlN1bW1hcml6ZVJlcXVlc3QaMi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplLlN1bW1hcml6ZVJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXVkaW8tdG9vbHMvdjEvc3VtbWFyaXplO3N1bW1hcml6ZV92MWIGcHJvdG8z");
+  fileDesc("CihhdWRpby10b29scy92MS9zdW1tYXJpemUvc3VtbWFyaXplLnByb3RvEh92cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplInEKD1N1bW1hcml6ZUNvbmZpZxIPCgdlbmFibGVkGAEgASgIEhYKDmNoYXJfdGhyZXNob2xkGAIgASgFEg0KBWxldmVsGAMgASgJEg0KBW1vZGVsGAQgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoBSIbChlHZXRTdW1tYXJpemVDb25maWdSZXF1ZXN0Il4KGkdldFN1bW1hcml6ZUNvbmZpZ1Jlc3BvbnNlEkAKBmNvbmZpZxgBIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnIvIBChxVcGRhdGVTdW1tYXJpemVDb25maWdSZXF1ZXN0Eg8KB2VuYWJsZWQYASABKAgSEwoLaGFzX2VuYWJsZWQYAiABKAgSFgoOY2hhcl90aHJlc2hvbGQYAyABKAUSGgoSaGFzX2NoYXJfdGhyZXNob2xkGAQgASgIEg0KBWxldmVsGAUgASgJEhEKCWhhc19sZXZlbBgGIAEoCBINCgVtb2RlbBgHIAEoCRIRCgloYXNfbW9kZWwYCCABKAgSFwoPdGltZW91dF9zZWNvbmRzGAkgASgFEhsKE2hhc190aW1lb3V0X3NlY29uZHMYCiABKAgiYQodVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVzcG9uc2USQAoGY29uZmlnGAEgASgLMjAudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVDb25maWciVwoQU3VtbWFyaXplUmVxdWVzdBIMCgR0ZXh0GAEgASgJEg0KBWxldmVsGAIgASgJEg0KBW1vZGVsGAMgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBSKhAQoRU3VtbWFyaXplUmVzcG9uc2USDAoEdGV4dBgBIAEoCRIVCg1wcm9tcHRfdG9rZW5zGAIgASgFEhUKDW91dHB1dF90b2tlbnMYAyABKAUSFQoNcHJvdmlkZXJfdGllchgEIAEoCRITCgtwcm92aWRlcl9pZBgFIAEoCRIQCghtb2RlbF9pZBgGIAEoCRISCgpsYXRlbmN5X21zGAcgASgBMq8DChBTdW1tYXJpemVTZXJ2aWNlEnIKCVN1bW1hcml6ZRIxLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplUmVxdWVzdBoyLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplUmVzcG9uc2USjQEKEkdldFN1bW1hcml6ZUNvbmZpZxI6LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuR2V0U3VtbWFyaXplQ29uZmlnUmVxdWVzdBo7LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuR2V0U3VtbWFyaXplQ29uZmlnUmVzcG9uc2USlgEKFVVwZGF0ZVN1bW1hcml6ZUNvbmZpZxI9LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVxdWVzdBo+LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9zdW1tYXJpemU7c3VtbWFyaXplX3YxYgZwcm90bzM");
+
+/**
+ * @generated from message vrooli.audio_tools.v1.summarize.SummarizeConfig
+ */
+export type SummarizeConfig = Message<"vrooli.audio_tools.v1.summarize.SummarizeConfig"> & {
+  /**
+   * @generated from field: bool enabled = 1;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: int32 char_threshold = 2;
+   */
+  charThreshold: number;
+
+  /**
+   * "light" | "moderate" | "heavy"
+   *
+   * @generated from field: string level = 3;
+   */
+  level: string;
+
+  /**
+   * @generated from field: string model = 4;
+   */
+  model: string;
+
+  /**
+   * @generated from field: int32 timeout_seconds = 5;
+   */
+  timeoutSeconds: number;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.summarize.SummarizeConfig.
+ * Use `create(SummarizeConfigSchema)` to create a new message.
+ */
+export const SummarizeConfigSchema: GenMessage<SummarizeConfig> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_summarize_summarize, 0);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.summarize.GetSummarizeConfigRequest
+ */
+export type GetSummarizeConfigRequest = Message<"vrooli.audio_tools.v1.summarize.GetSummarizeConfigRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.summarize.GetSummarizeConfigRequest.
+ * Use `create(GetSummarizeConfigRequestSchema)` to create a new message.
+ */
+export const GetSummarizeConfigRequestSchema: GenMessage<GetSummarizeConfigRequest> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_summarize_summarize, 1);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse
+ */
+export type GetSummarizeConfigResponse = Message<"vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse"> & {
+  /**
+   * @generated from field: vrooli.audio_tools.v1.summarize.SummarizeConfig config = 1;
+   */
+  config?: SummarizeConfig | undefined;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse.
+ * Use `create(GetSummarizeConfigResponseSchema)` to create a new message.
+ */
+export const GetSummarizeConfigResponseSchema: GenMessage<GetSummarizeConfigResponse> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_summarize_summarize, 2);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest
+ */
+export type UpdateSummarizeConfigRequest = Message<"vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest"> & {
+  /**
+   * @generated from field: bool enabled = 1;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: bool has_enabled = 2;
+   */
+  hasEnabled: boolean;
+
+  /**
+   * @generated from field: int32 char_threshold = 3;
+   */
+  charThreshold: number;
+
+  /**
+   * @generated from field: bool has_char_threshold = 4;
+   */
+  hasCharThreshold: boolean;
+
+  /**
+   * @generated from field: string level = 5;
+   */
+  level: string;
+
+  /**
+   * @generated from field: bool has_level = 6;
+   */
+  hasLevel: boolean;
+
+  /**
+   * @generated from field: string model = 7;
+   */
+  model: string;
+
+  /**
+   * @generated from field: bool has_model = 8;
+   */
+  hasModel: boolean;
+
+  /**
+   * @generated from field: int32 timeout_seconds = 9;
+   */
+  timeoutSeconds: number;
+
+  /**
+   * @generated from field: bool has_timeout_seconds = 10;
+   */
+  hasTimeoutSeconds: boolean;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest.
+ * Use `create(UpdateSummarizeConfigRequestSchema)` to create a new message.
+ */
+export const UpdateSummarizeConfigRequestSchema: GenMessage<UpdateSummarizeConfigRequest> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_summarize_summarize, 3);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse
+ */
+export type UpdateSummarizeConfigResponse = Message<"vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse"> & {
+  /**
+   * @generated from field: vrooli.audio_tools.v1.summarize.SummarizeConfig config = 1;
+   */
+  config?: SummarizeConfig | undefined;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse.
+ * Use `create(UpdateSummarizeConfigResponseSchema)` to create a new message.
+ */
+export const UpdateSummarizeConfigResponseSchema: GenMessage<UpdateSummarizeConfigResponse> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_summarize_summarize, 4);
 
 /**
  * @generated from message vrooli.audio_tools.v1.summarize.SummarizeRequest
@@ -46,7 +194,7 @@ export type SummarizeRequest = Message<"vrooli.audio_tools.v1.summarize.Summariz
  * Use `create(SummarizeRequestSchema)` to create a new message.
  */
 export const SummarizeRequestSchema: GenMessage<SummarizeRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_summarize_summarize, 0);
+  messageDesc(file_audio_tools_v1_summarize_summarize, 5);
 
 /**
  * @generated from message vrooli.audio_tools.v1.summarize.SummarizeResponse
@@ -93,7 +241,7 @@ export type SummarizeResponse = Message<"vrooli.audio_tools.v1.summarize.Summari
  * Use `create(SummarizeResponseSchema)` to create a new message.
  */
 export const SummarizeResponseSchema: GenMessage<SummarizeResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_summarize_summarize, 1);
+  messageDesc(file_audio_tools_v1_summarize_summarize, 6);
 
 /**
  * @generated from service vrooli.audio_tools.v1.summarize.SummarizeService
@@ -106,6 +254,27 @@ export const SummarizeService: GenService<{
     methodKind: "unary";
     input: typeof SummarizeRequestSchema;
     output: typeof SummarizeResponseSchema;
+  },
+  /**
+   * Persisted summarizer-config surface for consumer scenarios that want to
+   * surface "enable summarization for TTS, length threshold X chars, level Y"
+   * toggles in their settings UI. Persistence lives on the audio-tools side
+   * so multiple consumer scenarios share one canonical configuration.
+   *
+   * @generated from rpc vrooli.audio_tools.v1.summarize.SummarizeService.GetSummarizeConfig
+   */
+  getSummarizeConfig: {
+    methodKind: "unary";
+    input: typeof GetSummarizeConfigRequestSchema;
+    output: typeof GetSummarizeConfigResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.audio_tools.v1.summarize.SummarizeService.UpdateSummarizeConfig
+   */
+  updateSummarizeConfig: {
+    methodKind: "unary";
+    input: typeof UpdateSummarizeConfigRequestSchema;
+    output: typeof UpdateSummarizeConfigResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_audio_tools_v1_summarize_summarize, 0);
