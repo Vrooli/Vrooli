@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, Square } from "lucide-react";
-import { VoiceStreamProvider, MicReadinessIndicator } from "@audio-tools/embed";
+import { VoiceStreamProvider, MicReadinessIndicator } from "../../audio-integration";
 import { Button } from "../../components/ui/button";
 import type { ProviderTrace } from "../../services/diagnostics";
 import { useTranslation } from "../../i18n";
@@ -12,7 +12,7 @@ interface Props {
 }
 
 // LiveTry streams audio via WebSocket through VoiceStreamProvider — the
-// same path consumer scenarios adopt via @audio-tools/embed. The lazy
+// same path consumer scenarios adopt by copying audio-integration/. The lazy
 // construction is deliberate: SSR and the first render must never touch
 // MediaRecorder / AudioContext.
 export function LiveTry({ onTrace }: Props) {

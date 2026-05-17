@@ -17,7 +17,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
-	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
+	summarizev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
 )
 
 // -----------------------------------------------------------------------------
@@ -234,26 +234,26 @@ func StrategyPreferenceFromProto(p sttv1.StrategyPreference) string {
 // TTS / Summarize enums
 // -----------------------------------------------------------------------------
 
-func SummarizeLevelToProto(s string) ttsv1.SummarizeLevel {
+func SummarizeLevelToProto(s string) summarizev1.SummarizeLevel {
 	switch s {
 	case "light":
-		return ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT
+		return summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT
 	case "moderate":
-		return ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE
+		return summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE
 	case "heavy":
-		return ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY
+		return summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY
 	default:
-		return ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_UNSPECIFIED
+		return summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_UNSPECIFIED
 	}
 }
 
-func SummarizeLevelFromProto(l ttsv1.SummarizeLevel) string {
+func SummarizeLevelFromProto(l summarizev1.SummarizeLevel) string {
 	switch l {
-	case ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT:
+	case summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT:
 		return "light"
-	case ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE:
+	case summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE:
 		return "moderate"
-	case ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY:
+	case summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY:
 		return "heavy"
 	default:
 		return ""

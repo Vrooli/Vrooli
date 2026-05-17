@@ -20,6 +20,8 @@ import (
 	audioH "audio-tools/handlers/audio"
 	diagH "audio-tools/handlers/diagnostics"
 	healthH "audio-tools/handlers/health"
+	hsH "audio-tools/handlers/health_status"
+	plH "audio-tools/handlers/provider_lifecycle"
 	sessionH "audio-tools/handlers/session"
 	settingsH "audio-tools/handlers/settings"
 	sttH "audio-tools/handlers/stt"
@@ -30,6 +32,8 @@ import (
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
+	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	plv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/provider_lifecycle"
 	sessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session"
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -43,6 +47,8 @@ import (
 func AllEndpoints() []modulekit.EndpointDescriptor {
 	out := make([]modulekit.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, hsH.Endpoints...)
+	out = append(out, plH.Endpoints...)
 	out = append(out, audioH.Endpoints...)
 	out = append(out, diagH.Endpoints...)
 	out = append(out, sessionH.Endpoints...)
@@ -67,6 +73,8 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "audio", File: audiov1.File_audio_tools_v1_audio_audio_proto},
 		{Module: "diagnostics", File: diagv1.File_audio_tools_v1_diagnostics_diagnostics_proto},
+		{Module: "health_status", File: hsv1.File_audio_tools_v1_health_status_health_status_proto},
+		{Module: "provider_lifecycle", File: plv1.File_audio_tools_v1_provider_lifecycle_provider_lifecycle_proto},
 		{Module: "session", File: sessv1.File_audio_tools_v1_session_session_proto},
 		{Module: "settings", File: settv1.File_audio_tools_v1_settings_settings_proto},
 		{Module: "stt", File: sttv1.File_audio_tools_v1_stt_stt_proto},
@@ -82,6 +90,8 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(hsH.Schema),
+		apidb.SchemaProviderFunc(plH.Schema),
 		apidb.SchemaProviderFunc(audioH.Schema),
 		apidb.SchemaProviderFunc(diagH.Schema),
 		apidb.SchemaProviderFunc(sessionH.Schema),

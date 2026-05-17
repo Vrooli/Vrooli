@@ -29,7 +29,7 @@ func TestSummarizer_Summarize(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewSummarizer(ts.URL)
+	s := NewSummarizer(ts.URL, ts.Client())
 	result, err := s.Summarize(context.Background(), "long text input", "test-model", "light")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -54,7 +54,7 @@ func TestSummarizer_UnknownLevel(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewSummarizer(ts.URL)
+	s := NewSummarizer(ts.URL, ts.Client())
 	_, err := s.Summarize(context.Background(), "text", "model", "unknown_level")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -83,7 +83,7 @@ func TestSummarizer_EachLevel(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			s := NewSummarizer(ts.URL)
+			s := NewSummarizer(ts.URL, ts.Client())
 			_, err := s.Summarize(context.Background(), "text", "model", level)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -99,7 +99,7 @@ func TestSummarizer_ServerError(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewSummarizer(ts.URL)
+	s := NewSummarizer(ts.URL, ts.Client())
 	_, err := s.Summarize(context.Background(), "text", "model", "moderate")
 	if err == nil {
 		t.Error("expected error for 500 response")
@@ -136,7 +136,7 @@ func TestSummarizer_StripsThinkTags(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewSummarizer(ts.URL)
+	s := NewSummarizer(ts.URL, ts.Client())
 	result, err := s.Summarize(context.Background(), "text", "qwen3:1.7b", "moderate")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -167,7 +167,7 @@ func TestSummarizer_SendsTokenAndTemperatureOptions(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			s := NewSummarizer(ts.URL)
+			s := NewSummarizer(ts.URL, ts.Client())
 			if _, err := s.Summarize(context.Background(), tc.inputText, "m", tc.level); err != nil {
 				t.Fatalf("summarize: %v", err)
 			}
@@ -229,7 +229,7 @@ func TestSummarizer_SendsThinkFalse(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewSummarizer(ts.URL)
+	s := NewSummarizer(ts.URL, ts.Client())
 	if _, err := s.Summarize(context.Background(), "text", "qwen3:1.7b", "moderate"); err != nil {
 		t.Fatalf("summarize: %v", err)
 	}
@@ -254,7 +254,7 @@ func TestSummarizer_ReturnsDiagnostics(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s := NewSummarizer(ts.URL)
+	s := NewSummarizer(ts.URL, ts.Client())
 	result, err := s.Summarize(context.Background(), "text", "qwen3:1.7b", "moderate")
 	if err != nil {
 		t.Fatalf("summarize: %v", err)
@@ -290,7 +290,7 @@ func TestSummarizer_Timeout(t *testing.T) {
 	defer ts.Close()
 	defer close(release)
 
-	s := NewSummarizer(ts.URL)
+	s := NewSummarizer(ts.URL, ts.Client())
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 

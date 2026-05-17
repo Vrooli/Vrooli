@@ -3,34 +3,20 @@ package summarizechain
 import (
 	"context"
 	"errors"
-	"sync"
 	"time"
 
+	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/clock"
 )
 
+// Chain composes BYOK -> Vrooli -> Local summarization providers.
+// Routing, caching, and Reconfigure delegate to *tiered.Coordinator.
 type Chain struct {
+	coord *tiered.Coordinator[Request, *Result]
+
 	local  *LocalProvider
 	byok   *BYOKProvider
 	vrooli *VrooliProvider
-
-	enableLocal  bool
-	enableBYOK   bool
-	enableVrooli bool
-
-	availTTLByOK   time.Duration
-	availTTLVrooli time.Duration
-
-	clk clock.Clock
-
-	mu       sync.Mutex
-	byokOK   cachedAvail
-	vrooliOK cachedAvail
-}
-
-type cachedAvail struct {
-	value     bool
-	checkedAt time.Time
 }
 
 type Options struct {
@@ -50,74 +36,75 @@ type Options struct {
 }
 
 func NewChain(opts Options) *Chain {
-	if opts.AvailTTLByOK == 0 {
-		opts.AvailTTLByOK = 5 * time.Minute
+	c := &Chain{
+		local:  opts.Local,
+		byok:   opts.BYOK,
+		vrooli: opts.Vrooli,
 	}
-	if opts.AvailTTLVrooli == 0 {
-		opts.AvailTTLVrooli = 30 * time.Second
+	c.coord = tiered.NewCoordinator(tiered.Options[Request, *Result]{
+		BYOK:         byokTier(opts.BYOK),
+		Vrooli:       vrooliTier(opts.Vrooli),
+		Local:        localTier(opts.Local),
+		EnableBYOK:   opts.EnableBYOK,
+		EnableVrooli: opts.EnableVrooli,
+		EnableLocal:  opts.EnableLocal,
+		TTLByOK:      opts.AvailTTLByOK,
+		TTLVrooli:    opts.AvailTTLVrooli,
+		Route:        routeFn,
+		IsTerminal:   terminalFn,
+		AllFailed:    ErrAllProvidersFailed,
+		Clock:        opts.Clock,
+	})
+	return c
+}
+
+func byokTier(p *BYOKProvider) *tiered.Tier[Request, *Result] {
+	if p == nil {
+		return nil
 	}
-	clk := opts.Clock
-	if clk == nil {
-		clk = clock.System{}
+	return &tiered.Tier[Request, *Result]{Execute: p.Summarize, IsAvailable: p.IsAvailable}
+}
+
+func vrooliTier(p *VrooliProvider) *tiered.Tier[Request, *Result] {
+	if p == nil {
+		return nil
 	}
-	return &Chain{
-		local: opts.Local, byok: opts.BYOK, vrooli: opts.Vrooli,
-		enableLocal: opts.EnableLocal, enableBYOK: opts.EnableBYOK, enableVrooli: opts.EnableVrooli,
-		availTTLByOK: opts.AvailTTLByOK, availTTLVrooli: opts.AvailTTLVrooli,
-		clk: clk,
+	return &tiered.Tier[Request, *Result]{Execute: p.Summarize, IsAvailable: p.IsAvailable}
+}
+
+func localTier(p *LocalProvider) *tiered.Tier[Request, *Result] {
+	if p == nil {
+		return nil
 	}
+	return &tiered.Tier[Request, *Result]{Execute: p.Summarize, IsAvailable: p.IsAvailable}
+}
+
+func routeFn(slot tiered.Slot, req Request) bool {
+	switch slot {
+	case tiered.SlotBYOK:
+		return req.BYOKKey != ""
+	case tiered.SlotVrooli:
+		return req.LPBSToken != ""
+	}
+	return true
+}
+
+func terminalFn(slot tiered.Slot, err error) bool {
+	switch slot {
+	case tiered.SlotBYOK:
+		return errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider)
+	case tiered.SlotVrooli:
+		return errors.Is(err, ErrInsufficientCredits)
+	}
+	return false
 }
 
 func (c *Chain) Execute(ctx context.Context, req Request) (*Result, error) {
-	var lastErr error
-	if c.enableBYOK && req.BYOKKey != "" && c.byok != nil && c.availFor(ctx, TierBYOK) {
-		res, err := c.byok.Summarize(ctx, req)
-		if err == nil {
-			return res, nil
-		}
-		if errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider) {
-			return nil, err
-		}
-		lastErr = err
-	}
-	if c.enableVrooli && req.LPBSToken != "" && c.vrooli != nil && c.availFor(ctx, TierVrooli) {
-		res, err := c.vrooli.Summarize(ctx, req)
-		if err == nil {
-			return res, nil
-		}
-		if errors.Is(err, ErrInsufficientCredits) {
-			return nil, err
-		}
-		lastErr = err
-	}
-	if c.enableLocal && c.local != nil && c.local.IsAvailable(ctx) {
-		res, err := c.local.Summarize(ctx, req)
-		if err == nil {
-			return res, nil
-		}
-		lastErr = err
-	}
-	if lastErr != nil {
-		return nil, lastErr
-	}
-	return nil, ErrAllProvidersFailed
+	return c.coord.Execute(ctx, req)
 }
 
-// Reconfigure swaps toggles + TTLs at runtime; invalidates availability caches.
 func (c *Chain) Reconfigure(enableBYOK, enableVrooli, enableLocal bool, ttlBYOK, ttlVrooli time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.enableBYOK = enableBYOK
-	c.enableVrooli = enableVrooli
-	c.enableLocal = enableLocal
-	if ttlBYOK > 0 {
-		c.availTTLByOK = ttlBYOK
-	}
-	if ttlVrooli > 0 {
-		c.availTTLVrooli = ttlVrooli
-	}
-	c.byokOK = cachedAvail{}
-	c.vrooliOK = cachedAvail{}
+	c.coord.Reconfigure(enableBYOK, enableVrooli, enableLocal, ttlBYOK, ttlVrooli)
 }
 
 type ProbeResult struct {
@@ -127,34 +114,6 @@ type ProbeResult struct {
 }
 
 func (c *Chain) Probe(ctx context.Context) ProbeResult {
-	return ProbeResult{
-		Local:  c.enableLocal && c.local != nil && c.local.IsAvailable(ctx),
-		BYOK:   c.enableBYOK && c.byok != nil && c.byok.IsAvailable(ctx),
-		Vrooli: c.enableVrooli && c.vrooli != nil && c.vrooli.IsAvailable(ctx),
-	}
-}
-
-func (c *Chain) availFor(ctx context.Context, tier ProviderTier) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	clk := c.clk
-	if clk == nil {
-		clk = clock.System{}
-	}
-	now := clk.Now()
-	switch tier {
-	case TierBYOK:
-		if !c.byokOK.checkedAt.IsZero() && now.Sub(c.byokOK.checkedAt) < c.availTTLByOK {
-			return c.byokOK.value
-		}
-		c.byokOK = cachedAvail{value: c.byok != nil && c.byok.IsAvailable(ctx), checkedAt: now}
-		return c.byokOK.value
-	case TierVrooli:
-		if !c.vrooliOK.checkedAt.IsZero() && now.Sub(c.vrooliOK.checkedAt) < c.availTTLVrooli {
-			return c.vrooliOK.value
-		}
-		c.vrooliOK = cachedAvail{value: c.vrooli != nil && c.vrooli.IsAvailable(ctx), checkedAt: now}
-		return c.vrooliOK.value
-	}
-	return false
+	r := c.coord.Probe(ctx)
+	return ProbeResult{Local: r.Local, BYOK: r.BYOK, Vrooli: r.Vrooli}
 }

@@ -10,7 +10,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
-	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
+	summarizev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
 
 	"audio-tools/internal/protomap"
 )
@@ -161,10 +161,10 @@ func TestStrategyPreference_Roundtrip(t *testing.T) {
 }
 
 func TestSummarizeLevel_Roundtrip(t *testing.T) {
-	pairs := map[string]ttsv1.SummarizeLevel{
-		"light":    ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT,
-		"moderate": ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE,
-		"heavy":    ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY,
+	pairs := map[string]summarizev1.SummarizeLevel{
+		"light":    summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT,
+		"moderate": summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE,
+		"heavy":    summarizev1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY,
 	}
 	for s, p := range pairs {
 		if protomap.SummarizeLevelToProto(s) != p {

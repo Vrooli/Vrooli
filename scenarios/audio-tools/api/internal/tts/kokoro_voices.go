@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
+
+	"audio-tools/internal/httpc"
 )
 
 // seam: VoiceLister is the voice-catalog seam (SEAMS.md row
@@ -20,7 +21,7 @@ type VoiceLister interface {
 // KokoroVoiceLister fetches available voices from a Kokoro-FastAPI instance.
 type KokoroVoiceLister struct {
 	BaseURL string
-	Client  *http.Client
+	Doer    httpc.Doer
 }
 
 func (k *KokoroVoiceLister) ListVoices(ctx context.Context) ([]Voice, error) {
@@ -29,11 +30,7 @@ func (k *KokoroVoiceLister) ListVoices(ctx context.Context) ([]Voice, error) {
 		return nil, err
 	}
 
-	client := k.Client
-	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second}
-	}
-	resp, err := client.Do(req)
+	resp, err := k.Doer.Do(req)
 	if err != nil {
 		return nil, err
 	}

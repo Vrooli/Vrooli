@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Mic, Square } from "lucide-react";
-import { MicReadinessIndicator } from "@audio-tools/embed";
+import { MicReadinessIndicator } from "../../audio-integration";
 import { Button } from "../../components/ui/button";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { transcribe, type ProviderTrace } from "../../services/diagnostics";

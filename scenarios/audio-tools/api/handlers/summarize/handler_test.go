@@ -22,7 +22,6 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	summv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
 	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
-	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 )
 
 func newServer(t *testing.T, chain *summarizechain.Chain) summconnect.SummarizeServiceClient {
@@ -54,7 +53,7 @@ func TestSummarize_HappyPathViaVrooli(t *testing.T) {
 		}),
 	})
 	c := newServer(t, chain)
-	req := connect.NewRequest(&summv1.SummarizeRequest{Text: "long text", Level: ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE})
+	req := connect.NewRequest(&summv1.SummarizeRequest{Text: "long text", Level: summv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE})
 	req.Header().Set(envelope.HeaderLPBSToken, "tok")
 	res, err := c.Summarize(context.Background(), req)
 	require.NoError(t, err)
@@ -72,7 +71,7 @@ func TestSummarize_InsufficientCreditsMapsToResourceExhausted(t *testing.T) {
 		}),
 	})
 	c := newServer(t, chain)
-	req := connect.NewRequest(&summv1.SummarizeRequest{Text: "x", Level: ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT})
+	req := connect.NewRequest(&summv1.SummarizeRequest{Text: "x", Level: summv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT})
 	req.Header().Set(envelope.HeaderLPBSToken, "tok")
 	_, err := c.Summarize(context.Background(), req)
 	require.Error(t, err)
@@ -87,7 +86,7 @@ func TestSummarize_MissingBYOKProviderMapsToInvalidArgument(t *testing.T) {
 		}),
 	})
 	c := newServer(t, chain)
-	req := connect.NewRequest(&summv1.SummarizeRequest{Text: "x", Level: ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT})
+	req := connect.NewRequest(&summv1.SummarizeRequest{Text: "x", Level: summv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT})
 	// Set BYOK key but no provider — chain returns ErrMissingBYOKProvider.
 	req.Header().Set(envelope.HeaderKey, "sk-1")
 	_, err := c.Summarize(context.Background(), req)
@@ -114,15 +113,15 @@ func TestSummarize_ConfigGetSetRoundTrip(t *testing.T) {
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"enabled", "level"}},
 		Config: &summv1.SummarizeConfig{
 			Enabled: false,
-			Level:   ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY,
+			Level:   summv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY,
 		},
 	}))
 	require.NoError(t, err)
 	require.False(t, upd.Msg.GetConfig().GetEnabled())
-	require.Equal(t, ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY, upd.Msg.GetConfig().GetLevel())
+	require.Equal(t, summv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY, upd.Msg.GetConfig().GetLevel())
 
 	got, err := c.GetSummarizeConfig(ctx, connect.NewRequest(&summv1.GetSummarizeConfigRequest{}))
 	require.NoError(t, err)
 	require.False(t, got.Msg.GetConfig().GetEnabled())
-	require.Equal(t, ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY, got.Msg.GetConfig().GetLevel())
+	require.Equal(t, summv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY, got.Msg.GetConfig().GetLevel())
 }

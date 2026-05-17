@@ -7,7 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
+
+	"audio-tools/internal/httpc"
 )
 
 // seam: Synthesizer is the local-TTS engine seam (SEAMS.md row
@@ -30,7 +31,7 @@ type SynthesizeRequest struct {
 // KokoroSynthesizer proxies synthesis requests to a Kokoro-FastAPI instance.
 type KokoroSynthesizer struct {
 	BaseURL string
-	Client  *http.Client
+	Doer    httpc.Doer
 }
 
 func (k *KokoroSynthesizer) Synthesize(ctx context.Context, req SynthesizeRequest) (io.ReadCloser, string, error) {
@@ -59,15 +60,7 @@ func (k *KokoroSynthesizer) Synthesize(ctx context.Context, req SynthesizeReques
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	// Production constructors set k.Client to a timeout-bounded
-	// *http.Client; this fallback is for accidental zero-value Kokoro
-	// structs in tests. A dedicated httpc.Doer field would require
-	// wider seam changes across the kokoro construction path.
-	client := k.Client
-	if client == nil {
-		client = &http.Client{Timeout: 120 * time.Second}
-	}
-	resp, err := client.Do(httpReq)
+	resp, err := k.Doer.Do(httpReq)
 	if err != nil {
 		return nil, "", err
 	}

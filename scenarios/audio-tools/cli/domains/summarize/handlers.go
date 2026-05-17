@@ -11,7 +11,6 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	summv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
 	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
-	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 )
 
 func providerTierLabel(t commonv1.ProviderTier) string {
@@ -40,16 +39,16 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func summarizeLevelFromFlag(s string) ttsv1.SummarizeLevel {
+func summarizeLevelFromFlag(s string) summv1.SummarizeLevel {
 	switch s {
 	case "light":
-		return ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT
+		return summv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT
 	case "moderate", "":
-		return ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE
+		return summv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE
 	case "heavy":
-		return ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY
+		return summv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY
 	default:
-		return ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_UNSPECIFIED
+		return summv1.SummarizeLevel_SUMMARIZE_LEVEL_UNSPECIFIED
 	}
 }
 

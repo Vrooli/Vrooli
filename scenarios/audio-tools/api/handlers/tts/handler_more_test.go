@@ -101,31 +101,24 @@ func TestTTS_UpdateConfig_PersistsAndReturns(t *testing.T) {
 	res, err := c.UpdateConfig(context.Background(), connect.NewRequest(&ttsv1.UpdateConfigRequest{
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{
 			"auto_enabled", "default_voice", "default_speed", "default_response_format",
-			"summarize_enabled", "summarize_char_threshold", "summarize_level",
-			"summarize_model", "summarize_timeout_seconds",
 		}},
 		Config: &ttsv1.Config{
-			AutoEnabled:             true,
-			DefaultVoice:            "voice.masculine.warm",
-			DefaultSpeed:            1.25,
-			DefaultResponseFormat:   commonv1.ResponseFormat_RESPONSE_FORMAT_MP3,
-			SummarizeEnabled:        true,
-			SummarizeCharThreshold:  1024,
-			SummarizeLevel:          ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE,
-			SummarizeModel:          "haiku",
-			SummarizeTimeoutSeconds: 30,
+			AutoEnabled:           true,
+			DefaultVoice:          "voice.masculine.warm",
+			DefaultSpeed:          1.25,
+			DefaultResponseFormat: commonv1.ResponseFormat_RESPONSE_FORMAT_MP3,
 		},
 	}))
 	require.NoError(t, err)
 	require.True(t, res.Msg.GetConfig().GetAutoEnabled())
 	require.Equal(t, "voice.masculine.warm", res.Msg.GetConfig().GetDefaultVoice())
-	require.Equal(t, ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE, res.Msg.GetConfig().GetSummarizeLevel())
+	require.Equal(t, 1.25, res.Msg.GetConfig().GetDefaultSpeed())
 
 	// Round-trip — GetConfig should return the persisted values.
 	got, err := c.GetConfig(context.Background(), connect.NewRequest(&ttsv1.GetConfigRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, "voice.masculine.warm", got.Msg.GetConfig().GetDefaultVoice())
-	require.Equal(t, int32(1024), got.Msg.GetConfig().GetSummarizeCharThreshold())
+	require.Equal(t, 1.25, got.Msg.GetConfig().GetDefaultSpeed())
 }
 
 func TestTTS_GetStatus_AvailableWithChain(t *testing.T) {

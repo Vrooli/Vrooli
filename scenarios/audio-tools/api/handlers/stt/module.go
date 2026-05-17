@@ -12,11 +12,16 @@ import (
 )
 
 func Module(d Deps) modulekit.Module {
-	connectPath, h := sttconnect.NewSTTServiceHandler(NewConnectHandler(d))
+	h := NewConnectHandler(d)
+	runtimePath, runtimeHandler := sttconnect.NewSTTServiceHandler(h)
+	adminPath, adminHandler := sttconnect.NewSTTAdminServiceHandler(h)
 	return modulekit.Module{
 		Name: "stt",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})
+			connectx.RegisterServices(r,
+				connectx.ServiceMount{Path: runtimePath, Handler: runtimeHandler},
+				connectx.ServiceMount{Path: adminPath, Handler: adminHandler},
+			)
 			r.Handle("/api/v1/voice/transcribe", MultipartTranscribeHandler(d.Chain)).Methods(http.MethodPost)
 			r.Handle("/api/v1/voice/stream", StreamWSHandler(d)).Methods(http.MethodGet)
 		},

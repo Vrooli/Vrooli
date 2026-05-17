@@ -17,7 +17,7 @@ import (
 func mkServiceRuntime(t *testing.T, handler http.HandlerFunc) *SummarizationService {
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
-	s := NewSummarizer(srv.URL)
+	s := NewSummarizer(srv.URL, srv.Client())
 	cfg := DefaultSummarizeConfig()
 	cfg.Level = "moderate"
 	cfg.Model = "qwen3"
@@ -63,7 +63,7 @@ func TestSummarizationService_AutoBackoffPath(t *testing.T) {
 	t.Cleanup(srv.Close)
 	cfg := DefaultSummarizeConfig()
 	cfg.TimeoutSeconds = 1
-	svc := NewSummarizationServiceWith(NewSummarizer(srv.URL), func() SummarizeConfig { return cfg }, clk)
+	svc := NewSummarizationServiceWith(NewSummarizer(srv.URL, srv.Client()), func() SummarizeConfig { return cfg }, clk)
 	_, _ = svc.Summarize(context.Background(), SummarizeRequest{EventID: "e3", Path: "auto", Text: "hi"})
 	_, _ = svc.Summarize(context.Background(), SummarizeRequest{EventID: "e3", Path: "auto", Text: "hi"})
 }

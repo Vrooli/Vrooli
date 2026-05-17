@@ -3,38 +3,24 @@ package sttchain
 import (
 	"context"
 	"errors"
-	"sync"
 	"time"
 
+	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/clock"
 )
 
 // Chain composes Local + BYOK + Vrooli providers under the fixed precedence
 // BYOK -> Vrooli -> Local. ErrInsufficientCredits from Vrooli short-circuits.
+//
+// Unary Execute + Reconfigure + Probe + availability caching are delegated
+// to *tiered.Coordinator. Streaming (Stream, StreamCandidates) lives in
+// stream.go because it touches per-provider Traits.
 type Chain struct {
+	coord *tiered.Coordinator[Request, *Result]
+
 	local  *LocalProvider
 	byok   *BYOKProvider
 	vrooli *VrooliProvider
-
-	enableLocal  bool
-	enableBYOK   bool
-	enableVrooli bool
-
-	// per-tier availability cache
-	availTTLByOK   time.Duration
-	availTTLVrooli time.Duration
-
-	clk clock.Clock
-
-	mu       sync.Mutex
-	byokOK   cachedAvail
-	vrooliOK cachedAvail
-	localOK  cachedAvail
-}
-
-type cachedAvail struct {
-	value     bool
-	checkedAt time.Time
 }
 
 // Options configures a chain.
@@ -51,283 +37,88 @@ type Options struct {
 	AvailTTLVrooli time.Duration
 
 	// Clock is the wall-clock seam used for availability-cache TTL
-	// comparisons. Defaults to clock.System{}; tests pass a FakeClock to
-	// pin TTL expiry without sleeping.
+	// comparisons. Defaults to clock.System{}.
 	Clock clock.Clock
 }
 
 func NewChain(opts Options) *Chain {
-	if opts.AvailTTLByOK == 0 {
-		opts.AvailTTLByOK = 5 * time.Minute
+	c := &Chain{local: opts.Local, byok: opts.BYOK, vrooli: opts.Vrooli}
+	c.coord = tiered.NewCoordinator(tiered.Options[Request, *Result]{
+		BYOK:         byokTier(opts.BYOK),
+		Vrooli:       vrooliTier(opts.Vrooli),
+		Local:        localTier(opts.Local),
+		EnableBYOK:   opts.EnableBYOK,
+		EnableVrooli: opts.EnableVrooli,
+		EnableLocal:  opts.EnableLocal,
+		TTLByOK:      opts.AvailTTLByOK,
+		TTLVrooli:    opts.AvailTTLVrooli,
+		Route:        routeFn,
+		IsTerminal:   terminalFn,
+		AllFailed:    ErrAllProvidersFailed,
+		Clock:        opts.Clock,
+	})
+	return c
+}
+
+func byokTier(p *BYOKProvider) *tiered.Tier[Request, *Result] {
+	if p == nil {
+		return nil
 	}
-	if opts.AvailTTLVrooli == 0 {
-		opts.AvailTTLVrooli = 30 * time.Second
+	return &tiered.Tier[Request, *Result]{Execute: p.Transcribe, IsAvailable: p.IsAvailable}
+}
+
+func vrooliTier(p *VrooliProvider) *tiered.Tier[Request, *Result] {
+	if p == nil {
+		return nil
 	}
-	clk := opts.Clock
-	if clk == nil {
-		clk = clock.System{}
+	return &tiered.Tier[Request, *Result]{Execute: p.Transcribe, IsAvailable: p.IsAvailable}
+}
+
+func localTier(p *LocalProvider) *tiered.Tier[Request, *Result] {
+	if p == nil {
+		return nil
 	}
-	return &Chain{
-		local:          opts.Local,
-		byok:           opts.BYOK,
-		vrooli:         opts.Vrooli,
-		enableLocal:    opts.EnableLocal,
-		enableBYOK:     opts.EnableBYOK,
-		enableVrooli:   opts.EnableVrooli,
-		availTTLByOK:   opts.AvailTTLByOK,
-		availTTLVrooli: opts.AvailTTLVrooli,
-		clk:            clk,
+	return &tiered.Tier[Request, *Result]{Execute: p.Transcribe, IsAvailable: p.IsAvailable}
+}
+
+func routeFn(slot tiered.Slot, req Request) bool {
+	switch slot {
+	case tiered.SlotBYOK:
+		return req.BYOKKey != ""
+	case tiered.SlotVrooli:
+		return req.LPBSToken != ""
 	}
+	return true
+}
+
+func terminalFn(slot tiered.Slot, err error) bool {
+	switch slot {
+	case tiered.SlotBYOK:
+		return errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider)
+	case tiered.SlotVrooli:
+		return errors.Is(err, ErrInsufficientCredits)
+	}
+	return false
 }
 
 // Execute runs the request through the chain.
 func (c *Chain) Execute(ctx context.Context, req Request) (*Result, error) {
-	var lastErr error
-
-	if c.enableBYOK && req.BYOKKey != "" {
-		if c.byok != nil && c.availFor(ctx, TierBYOK) {
-			res, err := c.byok.Transcribe(ctx, req)
-			if err == nil {
-				return res, nil
-			}
-			// Provider-resolution errors are terminal — no silent fallback.
-			if errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider) {
-				return nil, err
-			}
-			lastErr = err
-		}
-	}
-
-	if c.enableVrooli && req.LPBSToken != "" {
-		if c.vrooli != nil && c.availFor(ctx, TierVrooli) {
-			res, err := c.vrooli.Transcribe(ctx, req)
-			if err == nil {
-				return res, nil
-			}
-			if errors.Is(err, ErrInsufficientCredits) {
-				// Hard short-circuit: do NOT fall through to Local.
-				return nil, err
-			}
-			lastErr = err
-		}
-	}
-
-	if c.enableLocal && c.local != nil {
-		if c.availFor(ctx, TierLocal) {
-			res, err := c.local.Transcribe(ctx, req)
-			if err == nil {
-				return res, nil
-			}
-			lastErr = err
-		}
-	}
-
-	if lastErr != nil {
-		return nil, lastErr
-	}
-	return nil, ErrAllProvidersFailed
+	return c.coord.Execute(ctx, req)
 }
 
-// Reconfigure swaps the runtime toggles + TTLs without dropping
-// in-flight requests. Per-tier availability caches are invalidated so
-// the new flags take effect immediately on the next call.
+// Reconfigure swaps runtime toggles + TTLs; invalidates availability caches.
 func (c *Chain) Reconfigure(enableBYOK, enableVrooli, enableLocal bool, ttlBYOK, ttlVrooli time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.enableBYOK = enableBYOK
-	c.enableVrooli = enableVrooli
-	c.enableLocal = enableLocal
-	if ttlBYOK > 0 {
-		c.availTTLByOK = ttlBYOK
-	}
-	if ttlVrooli > 0 {
-		c.availTTLVrooli = ttlVrooli
-	}
-	c.byokOK = cachedAvail{}
-	c.vrooliOK = cachedAvail{}
-	c.localOK = cachedAvail{}
+	c.coord.Reconfigure(enableBYOK, enableVrooli, enableLocal, ttlBYOK, ttlVrooli)
 }
 
-// Probe returns the current per-tier availability snapshot for the
-// diagnostic surface (CLI + UI). Probes are short-lived but fresh.
+// ProbeResult is the per-tier availability snapshot.
 type ProbeResult struct {
 	Local  bool
 	BYOK   bool
 	Vrooli bool
 }
 
-// StreamCandidates returns the precedence-ordered list of providers
-// eligible for a streaming session given the per-request StreamStart
-// (BYOK key presence, LPBS token presence) and the chain's enable
-// flags + cached availability. It does NOT filter by Traits().Stream;
-// the StrategySelector applies that filter once it knows which
-// strategy is being negotiated. A provider that is available but only
-// batch-capable is a valid candidate for a batch-driven strategy
-// (VAD-segment, overlap-and-agree).
-//
-// Returned slice is freshly allocated each call so callers can mutate
-// it without aliasing chain state.
-func (c *Chain) StreamCandidates(ctx context.Context, start StreamStart) []Provider {
-	out := make([]Provider, 0, 3)
-	if c.enableBYOK && start.BYOKKey != "" && c.byok != nil && c.availFor(ctx, TierBYOK) {
-		out = append(out, c.byok)
-	}
-	if c.enableVrooli && start.LPBSToken != "" && c.vrooli != nil && c.availFor(ctx, TierVrooli) {
-		out = append(out, c.vrooli)
-	}
-	if c.enableLocal && c.local != nil && c.availFor(ctx, TierLocal) {
-		out = append(out, c.local)
-	}
-	return out
-}
-
 func (c *Chain) Probe(ctx context.Context) ProbeResult {
-	return ProbeResult{
-		Local:  c.enableLocal && c.local != nil && c.local.IsAvailable(ctx),
-		BYOK:   c.enableBYOK && c.byok != nil && c.byok.IsAvailable(ctx),
-		Vrooli: c.enableVrooli && c.vrooli != nil && c.vrooli.IsAvailable(ctx),
-	}
-}
-
-// Stream runs a streaming transcription session through the chain.
-// It negotiates a streaming-capable tier at stream-start (BYOK -> Vrooli
-// -> Local precedence, filtered by Traits().Stream=true). When no
-// streaming-capable tier accepts, the chain falls back to the buffered
-// unary path: it drains `chunks`, concatenates the audio bytes, runs
-// Execute() with the buffered audio, and emits a synthetic Segment +
-// Done event sequence so consumers see a consistent event shape.
-//
-// Deprecated by the StrategySelector pipeline: Phase C/D replace direct
-// callers with internal/stt/segmenter.Segmenter, which routes through
-// the selector instead of this method. This entry point survives until
-// both transports are rewired.
-//
-// The locked tier is reported on the final Done event. Mid-stream
-// failover is explicitly out of scope (see plan §5 Out of scope).
-//
-// The returned channel is closed by Stream after emitting the final
-// Done event. The caller must drain it; abandoning it without context
-// cancellation will leak the streaming goroutine.
-func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
-	// Try BYOK first if a key is present and the tier is enabled.
-	if c.enableBYOK && start.BYOKKey != "" && c.byok != nil && c.availFor(ctx, TierBYOK) {
-		if c.byok.Traits().Stream {
-			out, err := c.byok.TranscribeStreaming(ctx, start, chunks)
-			if err != nil {
-				// Hard errors from adapter selection are terminal.
-				if errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider) {
-					return nil, err
-				}
-				// Fall through to next tier on transport errors.
-			} else if out != nil {
-				return out, nil
-			}
-		}
-	}
-
-	// Vrooli tier (declared non-streaming today; kept for symmetry).
-	if c.enableVrooli && start.LPBSToken != "" && c.vrooli != nil && c.availFor(ctx, TierVrooli) && c.vrooli.Traits().Stream {
-		out, err := c.vrooli.TranscribeStreaming(ctx, start, chunks)
-		if err == nil && out != nil {
-			return out, nil
-		}
-	}
-
-	// Local tier.
-	if c.enableLocal && c.local != nil && c.availFor(ctx, TierLocal) && c.local.Traits().Stream {
-		out, err := c.local.TranscribeStreaming(ctx, start, chunks)
-		if err == nil && out != nil {
-			return out, nil
-		}
-	}
-
-	// Fallback: buffered unary mode. Drain the channel, concatenate the
-	// bytes, and run the unary chain. Emit one Segment + one Done event.
-	return c.bufferedFallback(ctx, start, chunks), nil
-}
-
-// bufferedFallback consumes the chunks channel, runs the unary chain on
-// the concatenated audio, and emits a single Segment + Done event.
-// Stamps DoneEvent.FellBackToUnary=true so consumers can identify the
-// degraded path.
-func (c *Chain) bufferedFallback(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) <-chan StreamEvent {
-	out := make(chan StreamEvent, 4)
-	go func() {
-		defer close(out)
-		var buf []byte
-		for {
-			select {
-			case <-ctx.Done():
-				out <- StreamEvent{Kind: StreamEventError, Error: ctx.Err()}
-				return
-			case ch, ok := <-chunks:
-				if !ok {
-					goto run
-				}
-				buf = append(buf, ch.Audio...)
-			}
-		}
-	run:
-		req := Request{
-			Audio:                   buf,
-			Language:                start.Language,
-			InitialPrompt:           start.InitialPrompt,
-			SkipSpeakerVerification: start.SkipSpeakerVerification,
-			BYOKProvider:            start.BYOKProvider,
-			BYOKKey:                 start.BYOKKey,
-			LPBSToken:               start.LPBSToken,
-			UserIdentity:            start.UserIdentity,
-		}
-		res, err := c.Execute(ctx, req)
-		if err != nil {
-			out <- StreamEvent{Kind: StreamEventError, Error: err}
-			out <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{FellBackToUnary: true}}
-			return
-		}
-		out <- StreamEvent{Kind: StreamEventSegment, Segment: &SegmentEvent{
-			Text:             res.Text,
-			DetectedLanguage: res.DetectedLanguage,
-			ProviderTier:     res.Tier,
-			ProviderID:       res.ProviderID,
-			ModelID:          res.ModelID,
-			LatencyMs:        float64(res.Latency.Milliseconds()),
-		}}
-		out <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
-			FinalText:       res.Text,
-			LockedTier:      res.Tier,
-			ProviderID:      res.ProviderID,
-			ModelID:         res.ModelID,
-			LatencyMs:       float64(res.Latency.Milliseconds()),
-			FellBackToUnary: true,
-		}}
-	}()
-	return out
-}
-
-func (c *Chain) availFor(ctx context.Context, tier ProviderTier) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	clk := c.clk
-	if clk == nil {
-		clk = clock.System{}
-	}
-	now := clk.Now()
-	switch tier {
-	case TierBYOK:
-		if now.Sub(c.byokOK.checkedAt) < c.availTTLByOK && !c.byokOK.checkedAt.IsZero() {
-			return c.byokOK.value
-		}
-		c.byokOK = cachedAvail{value: c.byok != nil && c.byok.IsAvailable(ctx), checkedAt: now}
-		return c.byokOK.value
-	case TierVrooli:
-		if now.Sub(c.vrooliOK.checkedAt) < c.availTTLVrooli && !c.vrooliOK.checkedAt.IsZero() {
-			return c.vrooliOK.value
-		}
-		c.vrooliOK = cachedAvail{value: c.vrooli != nil && c.vrooli.IsAvailable(ctx), checkedAt: now}
-		return c.vrooliOK.value
-	case TierLocal:
-		// Local availability is cheap — probe each time for fresh signal.
-		return c.local != nil && c.local.IsAvailable(ctx)
-	}
-	return false
+	r := c.coord.Probe(ctx)
+	return ProbeResult{Local: r.Local, BYOK: r.BYOK, Vrooli: r.Vrooli}
 }

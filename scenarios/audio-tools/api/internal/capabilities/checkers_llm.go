@@ -3,28 +3,24 @@ package capabilities
 import (
 	"context"
 	"net/http"
-	"time"
+
+	"audio-tools/internal/httpc"
 )
 
 // OllamaChecker verifies that Ollama is running by hitting its /api/tags
 // endpoint.
 type OllamaChecker struct {
 	BaseURL string
-	Client  *http.Client
+	Doer    httpc.Doer
 }
 
 func (c *OllamaChecker) Check(ctx context.Context) (Status, string) {
-	client := c.Client
-	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Second}
-	}
-
 	req, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/api/tags", nil)
 	if err != nil {
 		return StatusUnavailable, "failed to create request: " + err.Error()
 	}
 
-	resp, err := client.Do(req)
+	resp, err := c.Doer.Do(req)
 	if err != nil {
 		return StatusUnavailable, "Ollama is not responding"
 	}
@@ -41,17 +37,12 @@ func (c *OllamaChecker) Check(ctx context.Context) (Status, string) {
 type OpenRouterChecker struct {
 	APIKey  string
 	BaseURL string
-	Client  *http.Client
+	Doer    httpc.Doer
 }
 
 func (c *OpenRouterChecker) Check(ctx context.Context) (Status, string) {
 	if c.APIKey == "" {
 		return StatusUnavailable, "OPENROUTER_API_KEY not configured"
-	}
-
-	client := c.Client
-	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Second}
 	}
 
 	baseURL := c.BaseURL
@@ -65,7 +56,7 @@ func (c *OpenRouterChecker) Check(ctx context.Context) (Status, string) {
 	}
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 
-	resp, err := client.Do(req)
+	resp, err := c.Doer.Do(req)
 	if err != nil {
 		return StatusUnavailable, "OpenRouter is not reachable"
 	}

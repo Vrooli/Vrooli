@@ -165,6 +165,8 @@ a migration handoff with a planned retirement path back into
 
 **Refs:** plan §G2; `api/handlers/stt/stream_ws.go`.
 
+**Resolved 2026-05-17:** `api/handlers/stt/stream_ws_test.go` now covers handshake + terminal Done, abrupt client close, and server-context cancel using a `newNoProviderDeps` rig (real Chain+Selector with no providers → BufferedFallback emits a terminal sequence). Per plan `audio-tools-test-quality-coverage-and-seam-hardening.md` §Phase 3.
+
 ### 2026-05-17 — No cross-domain integration test
 
 **Symptom:** Transcribe → summarize → synthesize is exercised only by per-handler unit tests; a regression in the cross-domain seam (chain wiring, normalizer ownership) would not fail a single test.
@@ -178,6 +180,8 @@ a migration handoff with a planned retirement path back into
 **Owner:** unassigned.
 
 **Refs:** plan §G3; `api/internal/testutil/`.
+
+**Resolved 2026-05-17:** `api/tests/integration/cross_domain_test.go` exercises the transcribe → summarize → synthesize sequence via per-chain fakes from `internal/diagnostics/mocks/` (hoisted in the same plan). Covers happy path, summarize-failure short-circuit, and empty-audio TTS branch. Per plan `audio-tools-test-quality-coverage-and-seam-hardening.md` §Phase 4.
 
 ### 2026-05-17 — Pre-existing standards drift not in cleanup scope
 
@@ -315,6 +319,16 @@ payload-shape tests alongside the existing httptest wire-format tests.
 **Refs:** plan [audio-tools-test-architecture-lift §3 Symptom 2]
 (Phase 1 carry-over).
 
+**Resolved 2026-05-17:** The remaining `&http.Client{}` callsites
+(`internal/tts/kokoro_{synthesize,voices}.go`,
+`internal/summarize/summarizer.go`,
+`internal/capabilities/checkers{,_audio,_llm}.go`,
+`internal/stt/pipeline/{speaker_client,service}.go`) now accept
+`httpc.Doer` as a required field/parameter; BYOK + LPBS clients were
+migrated in the predecessor pass. Production wires
+`httpc.DefaultDoer()` from `internal/bootstrap`. Per plan
+`audio-tools-test-quality-coverage-and-seam-hardening.md` §Phase 1.
+
 ### Consumer-side `store.*Repository` seams (Phase 5 deferred)
 
 **Symptom:** Admin handlers in `handlers/{settings,usage,tts,stt}/`
@@ -337,6 +351,13 @@ co-located `mocks/repository.go` fakes.
 
 **Refs:** plan [audio-tools-test-architecture-lift §3 Symptom 7]
 (Phase 5 carry-over).
+
+**Resolved 2026-05-17:** Per-handler `Repository` interfaces with
+`var _ Repository = (*store.X)(nil)` checks now live in
+`handlers/{settings,usage,tts,stt}/repository.go`; co-located
+`handlers/*/mocks/` fakes are wired in their existing handler tests.
+Per plan `audio-tools-test-quality-coverage-and-seam-hardening.md`
+§Phase 5.
 
 ## Cross-references
 

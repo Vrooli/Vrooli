@@ -117,6 +117,21 @@ Use Connect-RPC by default:
 - CLI to API for proto-typed payloads,
 - API to API / inter-scenario calls with Vrooli-owned protos.
 
+### Standing health visibility (`health_status` domain)
+
+`vrooli.audio_tools.v1.health_status.HealthStatusService` is the typed
+contract for per-capability provider availability. It mirrors the
+in-process `capabilities.Registry` rollup; the existing `/health` REST
+endpoint stays as an ops-probe (now with a non-Critical `providers`
+dependency so load balancers see degradation without losing readiness).
+The UI `/status` page consumes `GetProviderHealth` through React Query
+keyed on `["healthStatus","providers"]` with a polling interval driven
+by the response's `cache_ttl_seconds`; the CLI exposes the same data
+through `audio-tools health show` (default human table) and
+`audio-tools health watch` (server-streaming `StreamProviderHealth`).
+All cross-component reads go through Connect — never through the REST
+probe.
+
 REST is allowed only for four enumerated reasons, defined as
 `RESTReason` constants in `api/internal/module/module.go`:
 

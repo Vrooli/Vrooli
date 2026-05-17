@@ -52,6 +52,7 @@ export const strings = {
   nav: {
     overview: "nav.overview",
     diagnostics: "nav.diagnostics",
+    status: "nav.status",
     configure: "nav.configure",
     voices: "nav.voices",
     usage: "nav.usage",

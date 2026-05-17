@@ -23,6 +23,14 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "status", Description: "Health check", EndpointID: "health"},
 		{Name: "diagnostics run", Description: "Run capability suite", EndpointID: "diagnostics.run_suite"},
 		{Name: "diagnostics last", Description: "Show last run", EndpointID: "diagnostics.get_last_run"},
+		{Name: "health show", Description: "Provider health rollup", EndpointID: "health_status.get_provider_health"},
+		{Name: "health watch", Description: "Stream provider-health events", EndpointID: "health_status.stream_provider_health"},
+		{Name: "provider list", Description: "List local providers", EndpointID: "provider_lifecycle.list_local_providers"},
+		{Name: "provider start", Description: "Start local provider", EndpointID: "provider_lifecycle.start_provider"},
+		{Name: "provider stop", Description: "Stop local provider", EndpointID: "provider_lifecycle.stop_provider"},
+		{Name: "provider restart", Description: "Restart local provider", EndpointID: "provider_lifecycle.restart_provider"},
+		{Name: "provider pull-model", Description: "Pull model on ollama", EndpointID: "provider_lifecycle.pull_model"},
+		{Name: "provider logs", Description: "Stream provider logs", EndpointID: "provider_lifecycle.get_provider_logs"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -53,8 +61,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 3 {
-		t.Errorf("cli_commands count = %d, want 3", len(got.CLICommands))
+	if len(got.CLICommands) != 11 {
+		t.Errorf("cli_commands count = %d, want 11", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

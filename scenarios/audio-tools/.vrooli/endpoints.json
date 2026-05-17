@@ -32,6 +32,46 @@
       }
     },
     {
+      "id": "health_status.get_provider_health",
+      "path": "/vrooli.audio_tools.v1.health_status.HealthStatusService/GetProviderHealth",
+      "method": "POST",
+      "summary": "Return the cached per-capability provider-health rollup",
+      "description": "",
+      "category": "health_status",
+      "cli_mapping": {
+        "command": "audio-tools health show",
+        "args": [
+          "[--json]"
+        ]
+      }
+    },
+    {
+      "id": "health_status.refresh_provider_health",
+      "path": "/vrooli.audio_tools.v1.health_status.HealthStatusService/RefreshProviderHealth",
+      "method": "POST",
+      "summary": "Re-run every provider checker and return the fresh rollup",
+      "description": "",
+      "category": "health_status",
+      "cli_mapping": {
+        "command": "audio-tools health show",
+        "args": [
+          "--refresh",
+          "[--json]"
+        ]
+      }
+    },
+    {
+      "id": "health_status.stream_provider_health",
+      "path": "/vrooli.audio_tools.v1.health_status.HealthStatusService/StreamProviderHealth",
+      "method": "POST",
+      "summary": "Server-streaming feed of provider-health rollups (one event per registry tick)",
+      "description": "",
+      "category": "health_status",
+      "cli_mapping": {
+        "command": "audio-tools health watch"
+      }
+    },
+    {
       "id": "audio.transcode",
       "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Transcode",
       "method": "POST",
@@ -540,6 +580,16 @@
       "name": "diagnostics last",
       "description": "Show the most recent diagnostics suite result",
       "endpoint_id": "diagnostics.get_last_run"
+    },
+    {
+      "name": "health show",
+      "description": "Show per-capability provider health (default human table; --json for proto JSON; --refresh to bypass cache)",
+      "endpoint_id": "health_status.get_provider_health"
+    },
+    {
+      "name": "health watch",
+      "description": "Stream per-capability provider-health events until Ctrl-C",
+      "endpoint_id": "health_status.stream_provider_health"
     }
   ]
 }

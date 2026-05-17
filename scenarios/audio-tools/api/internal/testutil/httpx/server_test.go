@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"audio-tools/handlers/health"
+	"audio-tools/internal/capabilities"
 	"audio-tools/internal/clock"
 	"audio-tools/internal/server"
 	"audio-tools/internal/testutil/mocks"
@@ -75,7 +76,7 @@ func TestNewLiveServer_NormalisesPathPrefix(t *testing.T) {
 // under test; the module choice is incidental.
 func newHarnessServer(t *testing.T, service string) *server.Server {
 	t.Helper()
-	mod := health.Module(&mocks.FakePinger{}, service, "0.0.1")
+	mod := health.Module(&mocks.FakePinger{}, capabilities.NewRegistry(nil, nil, 0), service, "0.0.1")
 	return server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
 		mod,

@@ -16,8 +16,8 @@ import (
 )
 
 // Voice streaming WS message types. These match the wire shape the
-// browser embed (@audio-tools/embed) consumes; transport adapters
-// must not change them without coordinating with that package.
+// browser audio-integration consumes; transport adapters must not
+// change them without coordinating with that copy-paste reference.
 const (
 	wsMsgPartial         = "partial"
 	wsMsgFinal           = "final"
@@ -39,7 +39,7 @@ type wsMessage struct {
 // StreamWSHandler is the browser-voice WebSocket transport. It opens
 // the connection, hands off to the Segmenter, and translates the
 // transport-free StreamEvent stream into the JSON wire shape the
-// @audio-tools/embed package expects.
+// audio-integration UI module expects.
 //
 // Construction takes the same dependency bundle as the Connect handler
 // so both transports share one Chain + Selector and cannot drift.

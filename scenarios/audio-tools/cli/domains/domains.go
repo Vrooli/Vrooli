@@ -3,6 +3,8 @@ package domains
 import (
 	"audio-tools/cli/domains/audio"
 	"audio-tools/cli/domains/diagnostics"
+	"audio-tools/cli/domains/health"
+	"audio-tools/cli/domains/provider"
 	"audio-tools/cli/domains/settings"
 	"audio-tools/cli/domains/stt"
 	"audio-tools/cli/domains/summarize"
@@ -30,5 +32,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		settings.Register(core),
 		usage.Register(core),
 		diagnostics.Register(core),
+		health.Register(core),
+		provider.Register(core),
 	}
 }

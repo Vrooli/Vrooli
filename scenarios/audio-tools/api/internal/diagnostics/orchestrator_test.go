@@ -10,63 +10,26 @@ import (
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/diagnostics"
+	"audio-tools/internal/diagnostics/mocks"
 )
 
-type stubSTT struct {
-	res  *sttchain.Result
-	err  error
-	call int
+func okSTT() *mocks.STT {
+	return &mocks.STT{Res: &sttchain.Result{Text: "hello", Tier: sttchain.TierLocal, ProviderID: "whisper", ModelID: "base", Latency: 12 * time.Millisecond}}
 }
 
-func (s *stubSTT) Execute(_ context.Context, _ sttchain.Request) (*sttchain.Result, error) {
-	s.call++
-	return s.res, s.err
+func okTTS() *mocks.TTS {
+	return &mocks.TTS{Res: &ttschain.Result{Audio: []byte("RIFF"), ContentType: "audio/wav", Tier: ttschain.TierLocal, ProviderID: "kokoro", ModelID: "v1", Latency: 14 * time.Millisecond}}
 }
 
-type stubTTS struct {
-	res *ttschain.Result
-	err error
+func okSumm() *mocks.Summ {
+	return &mocks.Summ{Res: &summarizechain.Result{Text: "tldr", Tier: summarizechain.TierLocal, ProviderID: "ollama", ModelID: "llama3", Latency: 17 * time.Millisecond}}
 }
 
-func (s *stubTTS) Execute(_ context.Context, _ ttschain.Request) (*ttschain.Result, error) {
-	return s.res, s.err
+func okTranscode() *mocks.Transcode {
+	return &mocks.Transcode{Out: make([]byte, 1024)}
 }
 
-type stubSumm struct {
-	res *summarizechain.Result
-	err error
-}
-
-func (s *stubSumm) Execute(_ context.Context, _ summarizechain.Request) (*summarizechain.Result, error) {
-	return s.res, s.err
-}
-
-type stubTranscode struct {
-	out []byte
-	err error
-}
-
-func (s *stubTranscode) Transcode(_ context.Context, _ []byte, _ string) ([]byte, error) {
-	return s.out, s.err
-}
-
-func okSTT() *stubSTT {
-	return &stubSTT{res: &sttchain.Result{Text: "hello", Tier: sttchain.TierLocal, ProviderID: "whisper", ModelID: "base", Latency: 12 * time.Millisecond}}
-}
-
-func okTTS() *stubTTS {
-	return &stubTTS{res: &ttschain.Result{Audio: []byte("RIFF"), ContentType: "audio/wav", Tier: ttschain.TierLocal, ProviderID: "kokoro", ModelID: "v1", Latency: 14 * time.Millisecond}}
-}
-
-func okSumm() *stubSumm {
-	return &stubSumm{res: &summarizechain.Result{Text: "tldr", Tier: summarizechain.TierLocal, ProviderID: "ollama", ModelID: "llama3", Latency: 17 * time.Millisecond}}
-}
-
-func okTranscode() *stubTranscode {
-	return &stubTranscode{out: make([]byte, 1024)}
-}
-
-func newOrch(s *stubSTT, ts *stubTTS, su *stubSumm, tc *stubTranscode) *diagnostics.Orchestrator {
+func newOrch(s *mocks.STT, ts *mocks.TTS, su *mocks.Summ, tc *mocks.Transcode) *diagnostics.Orchestrator {
 	return diagnostics.New(diagnostics.Deps{
 		STT:       s,
 		TTS:       ts,
@@ -96,7 +59,7 @@ func TestRunSuite_AllPass(t *testing.T) {
 }
 
 func TestRunSuite_Partial_STTProviderUnavailable(t *testing.T) {
-	stt := &stubSTT{err: sttchain.ErrAllProvidersFailed}
+	stt := &mocks.STT{Err: sttchain.ErrAllProvidersFailed}
 	o := newOrch(stt, okTTS(), okSumm(), okTranscode())
 	run, err := o.RunSuite(context.Background(), nil)
 	if err != nil {
@@ -121,10 +84,10 @@ func TestRunSuite_Partial_STTProviderUnavailable(t *testing.T) {
 
 func TestRunSuite_AllFail(t *testing.T) {
 	o := newOrch(
-		&stubSTT{err: errors.New("stt boom")},
-		&stubTTS{err: errors.New("tts boom")},
-		&stubSumm{err: errors.New("summ boom")},
-		&stubTranscode{err: errors.New("ffmpeg boom")},
+		&mocks.STT{Err: errors.New("stt boom")},
+		&mocks.TTS{Err: errors.New("tts boom")},
+		&mocks.Summ{Err: errors.New("summ boom")},
+		&mocks.Transcode{Err: errors.New("ffmpeg boom")},
 	)
 	run, err := o.RunSuite(context.Background(), nil)
 	if err != nil {
@@ -151,8 +114,8 @@ func TestRunSuite_CapabilityFilter(t *testing.T) {
 	if len(run.Steps) != 1 || run.Steps[0].Capability != diagnostics.CapabilityTTS {
 		t.Fatalf("expected only TTS step, got %+v", run.Steps)
 	}
-	if stt.call != 0 {
-		t.Errorf("STT should not have been called, but call count is %d", stt.call)
+	if stt.Calls != 0 {
+		t.Errorf("STT should not have been called, but call count is %d", stt.Calls)
 	}
 }
 

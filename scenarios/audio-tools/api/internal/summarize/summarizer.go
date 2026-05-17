@@ -8,19 +8,21 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"audio-tools/internal/httpc"
 )
 
 // Summarizer calls Ollama to summarize text for TTS consumption.
 type Summarizer struct {
 	BaseURL string
-	Client  *http.Client
+	Doer    httpc.Doer
 }
 
 // NewSummarizer creates a summarizer that talks to the Ollama /api/chat endpoint.
-func NewSummarizer(baseURL string) *Summarizer {
+func NewSummarizer(baseURL string, doer httpc.Doer) *Summarizer {
 	return &Summarizer{
 		BaseURL: baseURL,
-		Client:  &http.Client{},
+		Doer:    doer,
 	}
 }
 
@@ -112,7 +114,7 @@ func (s *Summarizer) Summarize(ctx context.Context, text, model, level string) (
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := s.Client.Do(req)
+	resp, err := s.Doer.Do(req)
 	if err != nil {
 		return SummarizerResponse{}, fmt.Errorf("request failed: %w", err)
 	}

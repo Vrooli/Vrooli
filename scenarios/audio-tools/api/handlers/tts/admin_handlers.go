@@ -11,7 +11,6 @@ import (
 
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
-	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -44,24 +43,19 @@ func (h *connectHandler) GetCache(_ context.Context, req *connect.Request[ttsv1.
 }
 
 func (h *connectHandler) GetConfig(ctx context.Context, _ *connect.Request[ttsv1.GetConfigRequest]) (*connect.Response[ttsv1.GetConfigResponse], error) {
-	cfg, summ := h.loadConfig(ctx)
-	return connect.NewResponse(&ttsv1.GetConfigResponse{Config: configToProto(cfg, summ)}), nil
+	cfg := h.loadConfig(ctx)
+	return connect.NewResponse(&ttsv1.GetConfigResponse{Config: configToProto(cfg)}), nil
 }
 
 var ttsConfigAllowedPaths = map[string]struct{}{
-	"auto_enabled":              {},
-	"default_voice":             {},
-	"default_speed":             {},
-	"default_response_format":   {},
-	"summarize_enabled":         {},
-	"summarize_char_threshold":  {},
-	"summarize_level":           {},
-	"summarize_model":           {},
-	"summarize_timeout_seconds": {},
+	"auto_enabled":            {},
+	"default_voice":           {},
+	"default_speed":           {},
+	"default_response_format": {},
 }
 
 func (h *connectHandler) UpdateConfig(ctx context.Context, req *connect.Request[ttsv1.UpdateConfigRequest]) (*connect.Response[ttsv1.UpdateConfigResponse], error) {
-	cfg, summ := h.loadConfig(ctx)
+	cfg := h.loadConfig(ctx)
 	mask := req.Msg.GetUpdateMask()
 	if mask == nil || len(mask.GetPaths()) == 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("update_mask required"))
@@ -82,33 +76,20 @@ func (h *connectHandler) UpdateConfig(ctx context.Context, req *connect.Request[
 	if protomap.MaskHas(mask, "default_response_format") {
 		cfg.Backend = protomap.ResponseFormatFromProto(p.GetDefaultResponseFormat())
 	}
-	if protomap.MaskHas(mask, "summarize_enabled") {
-		summ.Enabled = p.GetSummarizeEnabled()
-	}
-	if protomap.MaskHas(mask, "summarize_char_threshold") {
-		summ.CharThreshold = int(p.GetSummarizeCharThreshold())
-	}
-	if protomap.MaskHas(mask, "summarize_level") {
-		summ.Level = protomap.SummarizeLevelFromProto(p.GetSummarizeLevel())
-	}
-	if protomap.MaskHas(mask, "summarize_model") {
-		summ.Model = p.GetSummarizeModel()
-	}
-	if protomap.MaskHas(mask, "summarize_timeout_seconds") {
-		summ.TimeoutSeconds = int(p.GetSummarizeTimeoutSeconds())
-	}
 	if h.deps.ConfigStore != nil {
 		raw, _ := json.Marshal(cfg)
-		summRaw, _ := json.Marshal(summ)
-		if err := h.deps.ConfigStore.Set(ctx, string(raw), string(summRaw)); err != nil {
+		// Preserve existing summarize-config blob untouched; SummarizeService
+		// owns it now.
+		_, existingSumm, _, _ := h.deps.ConfigStore.Get(ctx)
+		if err := h.deps.ConfigStore.Set(ctx, string(raw), existingSumm); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}
-	return connect.NewResponse(&ttsv1.UpdateConfigResponse{Config: configToProto(cfg, summ)}), nil
+	return connect.NewResponse(&ttsv1.UpdateConfigResponse{Config: configToProto(cfg)}), nil
 }
 
 func (h *connectHandler) GetStatus(ctx context.Context, _ *connect.Request[ttsv1.GetStatusRequest]) (*connect.Response[ttsv1.GetStatusResponse], error) {
-	cfg, summ := h.loadConfig(ctx)
+	cfg := h.loadConfig(ctx)
 	avail := []*ttsv1.ProviderAvailability{}
 	if h.deps.Chain != nil {
 		p := h.deps.Chain.Probe(ctx)
@@ -124,7 +105,7 @@ func (h *connectHandler) GetStatus(ctx context.Context, _ *connect.Request[ttsv1
 		capLabel = "available"
 	}
 	return connect.NewResponse(&ttsv1.GetStatusResponse{Status: &ttsv1.Status{
-		Config:          configToProto(cfg, summ),
+		Config:          configToProto(cfg),
 		Availability:    avail,
 		Capability:      capLabel,
 		CapabilityLabel: "TTS (Local Kokoro)",
@@ -149,17 +130,15 @@ func (h *connectHandler) RecordPlaybackEvent(ctx context.Context, req *connect.R
 }
 
 // loadConfig prefers the persisted config; falls back to defaults.
-func (h *connectHandler) loadConfig(ctx context.Context) (inttts.Config, intsumm.SummarizeConfig) {
+func (h *connectHandler) loadConfig(ctx context.Context) inttts.Config {
 	cfg := inttts.DefaultConfig()
-	summ := intsumm.DefaultSummarizeConfig()
 	if h.deps.ConfigStore == nil {
-		return cfg, summ
+		return cfg
 	}
-	rawCfg, rawSumm, ok, err := h.deps.ConfigStore.Get(ctx)
+	rawCfg, _, ok, err := h.deps.ConfigStore.Get(ctx)
 	if err != nil || !ok {
-		return cfg, summ
+		return cfg
 	}
 	_ = json.Unmarshal([]byte(rawCfg), &cfg)
-	_ = json.Unmarshal([]byte(rawSumm), &summ)
-	return cfg, summ
+	return cfg
 }

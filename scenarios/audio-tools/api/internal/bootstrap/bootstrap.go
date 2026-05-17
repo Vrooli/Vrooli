@@ -12,6 +12,8 @@ import (
 	audioH "audio-tools/handlers/audio"
 	diagH "audio-tools/handlers/diagnostics"
 	healthH "audio-tools/handlers/health"
+	hsH "audio-tools/handlers/health_status"
+	plH "audio-tools/handlers/provider_lifecycle"
 	sessionH "audio-tools/handlers/session"
 	settingsH "audio-tools/handlers/settings"
 	sttH "audio-tools/handlers/stt"
@@ -24,6 +26,7 @@ import (
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/clock"
 	diagcore "audio-tools/internal/diagnostics"
+	"audio-tools/internal/httpc"
 	"audio-tools/internal/server"
 	intsession "audio-tools/internal/session"
 	sttpkg "audio-tools/internal/stt"
@@ -80,7 +83,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	)
 
 	ttsCache := inttts.NewCache(64 * 1024 * 1024)
-	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: env.KokoroURL}
+	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: env.KokoroURL, Doer: httpc.DefaultDoer()}
 	ttsCfg := inttts.DefaultConfig()
 	summCfg := intsumm.DefaultSummarizeConfig()
 	ttsSvc := inttts.NewService(inttts.Deps{
@@ -111,7 +114,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		},
 	})
 
-	summarizer := intsumm.NewSummarizer(env.OllamaURL)
+	summarizer := intsumm.NewSummarizer(env.OllamaURL, httpc.DefaultDoer())
 
 	byokRegistries := byok.NewRegistries()
 	chs := BuildChains(env, voiceSvc, ttsSvc, summarizer, byokRegistries)
@@ -134,7 +137,13 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
-		healthH.Module(db, "audio-tools-api", "1.0.0"),
+		healthH.Module(db, capsRegistry, "audio-tools-api", "1.0.0"),
+		hsH.Module(capsRegistry, logger),
+		plH.Module(plH.Deps{
+			Registry:   capsRegistry,
+			Controller: capabilities.NewCLIController(),
+			Logger:     logger,
+		}),
 		audioH.Module(logger),
 		sessionH.Module(sessionRegistry, logger, clock.System{}),
 		settingsH.Module(settingsH.Deps{

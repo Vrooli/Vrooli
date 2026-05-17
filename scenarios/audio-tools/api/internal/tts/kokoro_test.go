@@ -14,7 +14,7 @@ func TestKokoroVoiceLister_ListAsArray(t *testing.T) {
 		_, _ = w.Write([]byte(`[{"id":"af_bella","name":"Bella"}]`))
 	}))
 	defer srv.Close()
-	k := &KokoroVoiceLister{BaseURL: srv.URL}
+	k := &KokoroVoiceLister{BaseURL: srv.URL, Doer: srv.Client()}
 	voices, err := k.ListVoices(context.Background())
 	require.NoError(t, err)
 	require.Len(t, voices, 1)
@@ -26,7 +26,7 @@ func TestKokoroVoiceLister_ListAsStrings(t *testing.T) {
 		_, _ = w.Write([]byte(`["af_bella","af_sarah"]`))
 	}))
 	defer srv.Close()
-	k := &KokoroVoiceLister{BaseURL: srv.URL}
+	k := &KokoroVoiceLister{BaseURL: srv.URL, Doer: srv.Client()}
 	voices, err := k.ListVoices(context.Background())
 	require.NoError(t, err)
 	require.Len(t, voices, 2)
@@ -37,7 +37,7 @@ func TestKokoroVoiceLister_ListAsMap(t *testing.T) {
 		_, _ = w.Write([]byte(`{"af_bella":{}}`))
 	}))
 	defer srv.Close()
-	k := &KokoroVoiceLister{BaseURL: srv.URL}
+	k := &KokoroVoiceLister{BaseURL: srv.URL, Doer: srv.Client()}
 	voices, err := k.ListVoices(context.Background())
 	require.NoError(t, err)
 	require.Len(t, voices, 1)
@@ -48,7 +48,7 @@ func TestKokoroVoiceLister_Unrecognized(t *testing.T) {
 		_, _ = w.Write([]byte(`123`))
 	}))
 	defer srv.Close()
-	k := &KokoroVoiceLister{BaseURL: srv.URL}
+	k := &KokoroVoiceLister{BaseURL: srv.URL, Doer: srv.Client()}
 	_, err := k.ListVoices(context.Background())
 	require.Error(t, err)
 }
@@ -65,7 +65,7 @@ func TestKokoroSynthesizer_HappyPath(t *testing.T) {
 		_, _ = w.Write([]byte("audio"))
 	}))
 	defer srv.Close()
-	k := &KokoroSynthesizer{BaseURL: srv.URL}
+	k := &KokoroSynthesizer{BaseURL: srv.URL, Doer: srv.Client()}
 	body, ct, err := k.Synthesize(context.Background(), SynthesizeRequest{Input: "hi", Voice: "af_bella", ResponseFormat: "wav"})
 	require.NoError(t, err)
 	require.Equal(t, "audio/wav", ct)
@@ -77,7 +77,7 @@ func TestKokoroSynthesizer_ServerError(t *testing.T) {
 		http.Error(w, "fail", http.StatusInternalServerError)
 	}))
 	defer srv.Close()
-	k := &KokoroSynthesizer{BaseURL: srv.URL}
+	k := &KokoroSynthesizer{BaseURL: srv.URL, Doer: srv.Client()}
 	_, _, err := k.Synthesize(context.Background(), SynthesizeRequest{Input: "hi", Voice: "v", ResponseFormat: "wav"})
 	require.Error(t, err)
 }

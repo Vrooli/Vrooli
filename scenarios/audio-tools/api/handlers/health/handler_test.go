@@ -7,8 +7,11 @@ import (
 	"log"
 	"net/http"
 	"testing"
+	"time"
 
 	"audio-tools/handlers/health"
+	"audio-tools/internal/capabilities"
+	capmocks "audio-tools/internal/capabilities/mocks"
 	"audio-tools/internal/clock"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
@@ -74,10 +77,18 @@ func TestHealthHandler(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
+			reg := capabilities.NewRegistry(
+				[]capabilities.Def{{ID: "whisper-stt", DependencyKind: capabilities.DependencyResource, DependencySlug: "whisper"}},
+				map[string]capabilities.Checker{
+					"whisper-stt": capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
+				},
+				time.Minute,
+			)
 			h := health.NewHandler(health.Deps{
-				Pinger:  pinger,
-				Service: "react-vite-test",
-				Version: "1.0.0",
+				Pinger:   pinger,
+				Registry: reg,
+				Service:  "react-vite-test",
+				Version:  "1.0.0",
 			})
 			mod := modulekit.Module{
 				Name: "health",
@@ -108,6 +119,50 @@ func TestHealthHandler(t *testing.T) {
 			}
 
 			require.Equal(t, int64(1), pinger.Calls.Load(), "Pinger.PingContext call count")
+
+			// Providers dep must always appear when a Registry is wired,
+			// independent of the database state. It is non-Critical: an
+			// unavailable provider must NOT flip readiness.
+			providers, ok := got.Dependencies["providers"]
+			require.True(t, ok, "response.dependencies must include 'providers'; got %v", got.Dependencies)
+			require.True(t, providers.Connected, "providers dep should be connected when registry has no unavailable providers")
 		})
 	}
+}
+
+// TestHealthHandler_ProvidersDownDoesNotFlipReadiness asserts that an
+// unavailable provider degrades dependencies["providers"] but does NOT
+// flip readiness (the providers dep is registered as non-Critical).
+func TestHealthHandler_ProvidersDownDoesNotFlipReadiness(t *testing.T) {
+	pinger := &mocks.FakePinger{}
+	reg := capabilities.NewRegistry(
+		[]capabilities.Def{
+			{ID: "whisper-stt", DependencyKind: capabilities.DependencyResource, DependencySlug: "whisper"},
+			{ID: "audio-tools", DependencyKind: capabilities.DependencyScenario, DependencySlug: "audio-tools"},
+		},
+		map[string]capabilities.Checker{
+			"whisper-stt": capmocks.NewFakeChecker(capabilities.StatusUnavailable, "down"),
+		},
+		time.Minute,
+	)
+	h := health.NewHandler(health.Deps{Pinger: pinger, Registry: reg, Service: "react-vite-test", Version: "1.0.0"})
+	mod := modulekit.Module{
+		Name:  "health",
+		Mount: func(r *mux.Router) { r.HandleFunc("/health", h).Methods(http.MethodGet) },
+	}
+	srv := server.New(
+		server.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+		mod,
+	)
+	live := httpx.NewLiveServer(t, srv)
+
+	resp, body := live.Do(t, http.MethodGet, "/health", nil)
+	assertx.AssertStatus(t, resp, http.StatusOK)
+
+	got := assertx.MustUnmarshalProto[healthv1.Response](t, body)
+	require.True(t, got.Readiness, "providers being down must NOT flip readiness (non-Critical)")
+	providers, ok := got.Dependencies["providers"]
+	require.True(t, ok)
+	require.False(t, providers.Connected)
+	require.Contains(t, fmt.Sprint(providers.Error), "whisper-stt")
 }

@@ -10,7 +10,8 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
-	"time"
+
+	"audio-tools/internal/httpc"
 )
 
 // WhisperChecker verifies that Whisper can actually transcribe audio by
@@ -19,7 +20,7 @@ import (
 // is broken (e.g. model not loaded, ffmpeg issues).
 type WhisperChecker struct {
 	BaseURL string
-	Client  *http.Client
+	Doer    httpc.Doer
 }
 
 // generateSilentWAV builds a minimal 16kHz mono 16-bit PCM WAV file
@@ -53,16 +54,11 @@ func generateSilentWAV() []byte {
 }
 
 func (c *WhisperChecker) Check(ctx context.Context) (Status, string) {
-	client := c.Client
-	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
-	}
-
 	liveReq, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/", nil)
 	if err != nil {
 		return StatusUnavailable, "failed to create request: " + err.Error()
 	}
-	liveResp, err := client.Do(liveReq)
+	liveResp, err := c.Doer.Do(liveReq)
 	if err != nil {
 		return StatusUnavailable, "resource is not responding"
 	}
@@ -96,7 +92,7 @@ func (c *WhisperChecker) Check(ctx context.Context) (Status, string) {
 	}
 	asrReq.Header.Set("Content-Type", writer.FormDataContentType())
 
-	asrResp, err := client.Do(asrReq)
+	asrResp, err := c.Doer.Do(asrReq)
 	if err != nil {
 		return StatusUnavailable, "transcription request failed: " + err.Error()
 	}
@@ -121,7 +117,7 @@ func (c *WhisperChecker) Check(ctx context.Context) (Status, string) {
 // catches cases where the voices endpoint responds but synthesis is broken.
 type KokoroChecker struct {
 	BaseURL       string
-	Client        *http.Client
+	Doer          httpc.Doer
 	ContainerName string
 	InspectState  func(ctx context.Context, containerName string) (exists bool, running bool, err error)
 }
@@ -138,16 +134,11 @@ func inspectDockerContainerState(ctx context.Context, containerName string) (exi
 }
 
 func (c *KokoroChecker) Check(ctx context.Context) (Status, string) {
-	client := c.Client
-	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
-	}
-
 	liveReq, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/v1/audio/voices", nil)
 	if err != nil {
 		return StatusUnavailable, "failed to create request: " + err.Error()
 	}
-	liveResp, err := client.Do(liveReq)
+	liveResp, err := c.Doer.Do(liveReq)
 	if err != nil {
 		inspectState := c.InspectState
 		if inspectState == nil {
@@ -179,7 +170,7 @@ func (c *KokoroChecker) Check(ctx context.Context) (Status, string) {
 	}
 	synthReq.Header.Set("Content-Type", "application/json")
 
-	synthResp, err := client.Do(synthReq)
+	synthResp, err := c.Doer.Do(synthReq)
 	if err != nil {
 		return StatusUnavailable, "synthesis request failed: " + err.Error()
 	}

@@ -3,7 +3,8 @@ package capabilities
 import (
 	"context"
 	"net/http"
-	"time"
+
+	"audio-tools/internal/httpc"
 )
 
 // ResourceChecker is the generic HTTP-probe Checker used for resources whose
@@ -11,8 +12,8 @@ import (
 // base predicate that more specialised checkers (Whisper, Kokoro, Ollama,
 // OpenRouter, ScenarioChecker) extend.
 type ResourceChecker struct {
-	URL    string
-	Client *http.Client
+	URL  string
+	Doer httpc.Doer
 }
 
 func (c *ResourceChecker) Check(ctx context.Context) (Status, string) {
@@ -21,12 +22,7 @@ func (c *ResourceChecker) Check(ctx context.Context) (Status, string) {
 		return StatusUnavailable, "failed to create request: " + err.Error()
 	}
 
-	client := c.Client
-	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Second}
-	}
-
-	resp, err := client.Do(req)
+	resp, err := c.Doer.Do(req)
 	if err != nil {
 		return StatusUnavailable, "resource is not responding"
 	}

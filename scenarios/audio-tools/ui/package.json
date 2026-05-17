@@ -18,7 +18,6 @@
     "strings:check": "node scripts/gen-strings.mjs --check"
   },
   "dependencies": {
-    "@audio-tools/embed": "file:../embed",
     "@bufbuild/protobuf": "^2.10.1",
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.1",

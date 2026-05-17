@@ -8,6 +8,7 @@ import { strings } from "./consts/strings";
 
 const OverviewPage = lazy(() => import("./features/overview/OverviewPage").then((m) => ({ default: m.OverviewPage })));
 const DiagnosticsPage = lazy(() => import("./features/diagnostics/DiagnosticsPage").then((m) => ({ default: m.DiagnosticsPage })));
+const StatusPage = lazy(() => import("./features/status/StatusPage").then((m) => ({ default: m.StatusPage })));
 const ConfigurationPage = lazy(() => import("./features/configuration/ConfigurationPage").then((m) => ({ default: m.ConfigurationPage })));
 const VoicesPage = lazy(() => import("./features/voices/VoicesPage").then((m) => ({ default: m.VoicesPage })));
 const UsagePage = lazy(() => import("./features/usage/UsagePage").then((m) => ({ default: m.UsagePage })));
@@ -32,6 +33,7 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route index element={<OverviewPage />} />
               <Route path="diagnostics" element={<DiagnosticsPage />} />
+              <Route path="status" element={<StatusPage />} />
               <Route path="configuration" element={<ConfigurationPage />} />
               <Route path="voices" element={<VoicesPage />} />
               <Route path="usage" element={<UsagePage />} />

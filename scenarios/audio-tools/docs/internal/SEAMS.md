@@ -29,6 +29,8 @@
 | `usagereport.Recorder` | Interface | `internal/usagereport/recorder.go` (local SQLite write path for the UsageService dashboard) | `handlers/summarize` (other chain-adjacent handlers wired as they land) |
 | `lpbs.RemoteReporter` | Concrete | `integrations/lpbs/remote_reporter.go` (remote LPBS hop; flag-off until the gateway lands) | wired into `main.go` once the LPBS gateway ships |
 | `chains.Coordinator` | Concrete | `internal/ai/chains/chains.go` | `handlers/settings` UpdateProviderConfig — live chain Reconfigure |
+| `chains/tiered.Coordinator[Req,Resp]` | Generic | `internal/ai/chains/tiered/tiered.go` | embedded by each of `sttchain.Chain`, `ttschain.Chain`, `summarizechain.Chain` — owns BYOK->Vrooli->Local routing, availability cache, Reconfigure, Probe |
+| `chains/tiered.Tier[Req,Resp]` | Struct (function fields) | `internal/ai/chains/tiered/tiered.go` | per-chain `byokTier`/`vrooliTier`/`localTier` adapters wrap concrete provider methods |
 | `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Concrete | `internal/ai/{stt,tts,summarize}chain/chain.go` | `handlers/tts` GetStatus + `cli/domains/settings` (`settings providers`) |
 | `stt.MultipartTranscribeHandler` / `audio.multipartTranscodeHandler` | Concrete | `handlers/{stt,audio}/` | UI multipart upload paths |
 | `audio.Runner` + `audio.DefaultRunner` + `audio.SetFfmpegAvailableForTest` | Interface + var + test seam | `internal/audio/transcode.go` | `handlers/audio` unit tests substitute a fake Runner and seed ffmpeg presence so happy-path / error branches run without an ffmpeg binary on PATH |

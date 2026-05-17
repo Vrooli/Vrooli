@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/logx"
@@ -75,13 +73,6 @@ func NewService(
 	httpClient HTTPDoer,
 	transcode func(context.Context, []byte) ([]byte, error),
 ) *Service {
-	if httpClient == nil {
-		// Production callers always pass a configured *http.Client; this
-		// fallback is for accidental nil deps in tests. A dedicated
-		// httpc.Doer field would require wider seam changes across the
-		// service construction path.
-		httpClient = &http.Client{Timeout: 60 * time.Second}
-	}
 	return &Service{
 		config:          cfg,
 		configPath:      cfgPath,

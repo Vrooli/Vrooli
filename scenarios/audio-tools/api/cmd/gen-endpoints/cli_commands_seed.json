@@ -35,6 +35,46 @@
       "name": "diagnostics last",
       "description": "Show the most recent diagnostics suite result",
       "endpoint_id": "diagnostics.get_last_run"
+    },
+    {
+      "name": "health show",
+      "description": "Show per-capability provider health (default human table; --json for proto JSON; --refresh to bypass cache)",
+      "endpoint_id": "health_status.get_provider_health"
+    },
+    {
+      "name": "health watch",
+      "description": "Stream per-capability provider-health events until Ctrl-C",
+      "endpoint_id": "health_status.stream_provider_health"
+    },
+    {
+      "name": "provider list",
+      "description": "List local-tier providers with their current process_state and supported actions",
+      "endpoint_id": "provider_lifecycle.list_local_providers"
+    },
+    {
+      "name": "provider start",
+      "description": "Start a local provider (wraps `vrooli resource start <slug>`); use --dry-run to preview",
+      "endpoint_id": "provider_lifecycle.start_provider"
+    },
+    {
+      "name": "provider stop",
+      "description": "Stop a local provider (wraps `vrooli resource stop <slug>`); use --dry-run to preview",
+      "endpoint_id": "provider_lifecycle.stop_provider"
+    },
+    {
+      "name": "provider restart",
+      "description": "Restart a local provider (wraps `vrooli resource restart <slug>`); use --dry-run to preview",
+      "endpoint_id": "provider_lifecycle.restart_provider"
+    },
+    {
+      "name": "provider pull-model",
+      "description": "Pull a model on the ollama provider (ollama-only); use --dry-run to preview",
+      "endpoint_id": "provider_lifecycle.pull_model"
+    },
+    {
+      "name": "provider logs",
+      "description": "Stream stdout/stderr lines from a local provider's backing resource",
+      "endpoint_id": "provider_lifecycle.get_provider_logs"
     }
   ]
 }

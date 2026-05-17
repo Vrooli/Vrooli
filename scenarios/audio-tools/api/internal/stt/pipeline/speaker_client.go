@@ -9,7 +9,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
-	"time"
+
+	"audio-tools/internal/httpc"
 )
 
 type SpeakerProfile struct {
@@ -78,14 +79,7 @@ type SpeakerExtractionResult struct {
 // SpeakerClient is the HTTP client for the speaker-verification resource.
 type SpeakerClient struct {
 	BaseURL string
-	Client  *http.Client
-}
-
-func (c *SpeakerClient) httpClient() *http.Client {
-	if c.Client != nil {
-		return c.Client
-	}
-	return &http.Client{Timeout: 5 * time.Second}
+	Doer    httpc.Doer
 }
 
 func (c *SpeakerClient) endpoint(path string) string {
@@ -97,7 +91,7 @@ func (c *SpeakerClient) getJSON(ctx context.Context, path string, out any) error
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
-	resp, err := c.httpClient().Do(req)
+	resp, err := c.Doer.Do(req)
 	if err != nil {
 		return err
 	}
@@ -112,7 +106,7 @@ func (c *SpeakerClient) getJSON(ctx context.Context, path string, out any) error
 }
 
 func (c *SpeakerClient) doJSON(req *http.Request, out any) error {
-	resp, err := c.httpClient().Do(req)
+	resp, err := c.Doer.Do(req)
 	if err != nil {
 		return err
 	}
@@ -262,7 +256,7 @@ func (c *SpeakerClient) Extract(
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	resp, err := c.httpClient().Do(req)
+	resp, err := c.Doer.Do(req)
 	if err != nil {
 		return SpeakerExtractionResult{}, err
 	}
@@ -299,7 +293,7 @@ func (c *SpeakerClient) DeleteProfile(ctx context.Context, profileID string) err
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
-	resp, err := c.httpClient().Do(req)
+	resp, err := c.Doer.Do(req)
 	if err != nil {
 		return err
 	}

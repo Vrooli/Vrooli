@@ -131,6 +131,41 @@ func TestRegistry_ResolveLiveness(t *testing.T) {
 	})
 }
 
+func TestRegistry_ResolveForce(t *testing.T) {
+	// A long TTL would normally cause Resolve to return cached values
+	// after the first call. ResolveForce must bust the cache regardless.
+	checker := mocks.NewFakeChecker(capabilities.StatusAvailable, "ok")
+	defs := []capabilities.Def{{ID: "cap-y", Name: "Cap Y"}}
+	checkers := map[string]capabilities.Checker{"cap-y": checker}
+
+	reg := capabilities.NewRegistry(defs, checkers, time.Hour)
+
+	reg.Resolve(context.Background())
+	if got := checker.CallCount(); got != 1 {
+		t.Fatalf("after first Resolve: calls = %d, want 1", got)
+	}
+
+	reg.Resolve(context.Background())
+	if got := checker.CallCount(); got != 1 {
+		t.Fatalf("after second Resolve (cached): calls = %d, want 1", got)
+	}
+
+	states := reg.ResolveForce(context.Background())
+	if got := checker.CallCount(); got != 2 {
+		t.Errorf("after ResolveForce: calls = %d, want 2 (cache should be busted)", got)
+	}
+	if len(states) != 1 || states[0].Status != capabilities.StatusAvailable {
+		t.Errorf("unexpected ResolveForce result: %+v", states)
+	}
+
+	// And the freshly-forced value should now be cached for the next
+	// (TTL-respecting) Resolve.
+	reg.Resolve(context.Background())
+	if got := checker.CallCount(); got != 2 {
+		t.Errorf("Resolve after ResolveForce should hit cache: calls = %d, want 2", got)
+	}
+}
+
 func TestRegistry_IsAvailable(t *testing.T) {
 	defs := []capabilities.Def{
 		{ID: "avail", Name: "Available"},

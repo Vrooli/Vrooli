@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestResourceChecker_Healthy(t *testing.T) {
@@ -15,7 +16,7 @@ func TestResourceChecker_Healthy(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	checker := &ResourceChecker{URL: srv.URL}
+	checker := &ResourceChecker{URL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusAvailable {
@@ -33,8 +34,8 @@ func TestResourceChecker_Redirect(t *testing.T) {
 	defer srv.Close()
 
 	checker := &ResourceChecker{
-		URL:    srv.URL,
-		Client: &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+		URL:  srv.URL,
+		Doer: &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	status, msg := checker.Check(context.Background())
 
@@ -52,7 +53,7 @@ func TestResourceChecker_Unavailable(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	checker := &ResourceChecker{URL: srv.URL}
+	checker := &ResourceChecker{URL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -68,7 +69,7 @@ func TestResourceChecker_ConnectionRefused(t *testing.T) {
 	url := srv.URL
 	srv.Close()
 
-	checker := &ResourceChecker{URL: url}
+	checker := &ResourceChecker{URL: url, Doer: &http.Client{Timeout: time.Second}}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -103,7 +104,7 @@ func TestWhisperChecker_HealthyAndTranscribes(t *testing.T) {
 	srv := fakeWhisperServer(t, http.StatusOK, map[string]string{"text": ""})
 	defer srv.Close()
 
-	checker := &WhisperChecker{BaseURL: srv.URL}
+	checker := &WhisperChecker{BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusAvailable {
@@ -118,7 +119,7 @@ func TestWhisperChecker_LiveButTranscriptionFails(t *testing.T) {
 	srv := fakeWhisperServer(t, http.StatusInternalServerError, nil)
 	defer srv.Close()
 
-	checker := &WhisperChecker{BaseURL: srv.URL}
+	checker := &WhisperChecker{BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -142,7 +143,7 @@ func TestWhisperChecker_LiveButInvalidJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	checker := &WhisperChecker{BaseURL: srv.URL}
+	checker := &WhisperChecker{BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -158,7 +159,7 @@ func TestWhisperChecker_ConnectionRefused(t *testing.T) {
 	url := srv.URL
 	srv.Close()
 
-	checker := &WhisperChecker{BaseURL: url}
+	checker := &WhisperChecker{BaseURL: url, Doer: &http.Client{Timeout: time.Second}}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -191,7 +192,7 @@ func TestKokoroChecker_Available(t *testing.T) {
 	srv := fakeKokoroServer(t, http.StatusOK, http.StatusOK, []byte("fake-audio-bytes"))
 	defer srv.Close()
 
-	checker := &KokoroChecker{BaseURL: srv.URL}
+	checker := &KokoroChecker{BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusAvailable {
@@ -206,7 +207,7 @@ func TestKokoroChecker_VoicesDown(t *testing.T) {
 	srv := fakeKokoroServer(t, http.StatusInternalServerError, http.StatusOK, nil)
 	defer srv.Close()
 
-	checker := &KokoroChecker{BaseURL: srv.URL}
+	checker := &KokoroChecker{BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -221,7 +222,7 @@ func TestKokoroChecker_SynthesisFails(t *testing.T) {
 	srv := fakeKokoroServer(t, http.StatusOK, http.StatusInternalServerError, nil)
 	defer srv.Close()
 
-	checker := &KokoroChecker{BaseURL: srv.URL}
+	checker := &KokoroChecker{BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -236,7 +237,7 @@ func TestKokoroChecker_EmptyAudio(t *testing.T) {
 	srv := fakeKokoroServer(t, http.StatusOK, http.StatusOK, []byte("ab"))
 	defer srv.Close()
 
-	checker := &KokoroChecker{BaseURL: srv.URL}
+	checker := &KokoroChecker{BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -253,7 +254,7 @@ func TestKokoroChecker_ConnectionRefused(t *testing.T) {
 	srv.Close()
 
 	checker := &KokoroChecker{
-		BaseURL: url,
+		BaseURL: url, Doer: &http.Client{Timeout: time.Second},
 		InspectState: func(context.Context, string) (bool, bool, error) {
 			return true, true, nil
 		},
@@ -274,7 +275,7 @@ func TestKokoroChecker_NotInstalled(t *testing.T) {
 	srv.Close()
 
 	checker := &KokoroChecker{
-		BaseURL: url,
+		BaseURL: url, Doer: &http.Client{Timeout: time.Second},
 		InspectState: func(context.Context, string) (bool, bool, error) {
 			return false, false, nil
 		},
@@ -295,7 +296,7 @@ func TestKokoroChecker_Stopped(t *testing.T) {
 	srv.Close()
 
 	checker := &KokoroChecker{
-		BaseURL: url,
+		BaseURL: url, Doer: &http.Client{Timeout: time.Second},
 		InspectState: func(context.Context, string) (bool, bool, error) {
 			return true, false, nil
 		},
@@ -320,7 +321,7 @@ func TestOllamaChecker_Available(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	checker := &OllamaChecker{BaseURL: srv.URL}
+	checker := &OllamaChecker{BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusAvailable {
@@ -337,7 +338,7 @@ func TestOllamaChecker_Unavailable(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	checker := &OllamaChecker{BaseURL: srv.URL}
+	checker := &OllamaChecker{BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -353,7 +354,7 @@ func TestOllamaChecker_ConnectionRefused(t *testing.T) {
 	url := srv.URL
 	srv.Close()
 
-	checker := &OllamaChecker{BaseURL: url}
+	checker := &OllamaChecker{BaseURL: url, Doer: &http.Client{Timeout: time.Second}}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -386,7 +387,7 @@ func TestOpenRouterChecker_ValidKey(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	checker := &OpenRouterChecker{APIKey: "test-key", BaseURL: srv.URL}
+	checker := &OpenRouterChecker{APIKey: "test-key", BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusAvailable {
@@ -403,7 +404,7 @@ func TestOpenRouterChecker_InvalidKey(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	checker := &OpenRouterChecker{APIKey: "bad-key", BaseURL: srv.URL}
+	checker := &OpenRouterChecker{APIKey: "bad-key", BaseURL: srv.URL, Doer: srv.Client()}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -419,7 +420,7 @@ func TestOpenRouterChecker_ConnectionRefused(t *testing.T) {
 	url := srv.URL
 	srv.Close()
 
-	checker := &OpenRouterChecker{APIKey: "some-key", BaseURL: url}
+	checker := &OpenRouterChecker{APIKey: "some-key", BaseURL: url, Doer: &http.Client{Timeout: time.Second}}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {

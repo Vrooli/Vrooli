@@ -8,23 +8,17 @@ import (
 
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/protomap"
-	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 )
 
-func configToProto(c inttts.Config, s intsumm.SummarizeConfig) *ttsv1.Config {
+func configToProto(c inttts.Config) *ttsv1.Config {
 	return &ttsv1.Config{
-		AutoEnabled:             c.AutoEnabled,
-		DefaultVoice:            c.KokoroVoice,
-		DefaultSpeed:            c.KokoroSpeed,
-		DefaultResponseFormat:   protomap.ResponseFormatToProto(c.Backend),
-		SummarizeEnabled:        s.Enabled,
-		SummarizeCharThreshold:  int32(s.CharThreshold),
-		SummarizeLevel:          protomap.SummarizeLevelToProto(s.Level),
-		SummarizeModel:          s.Model,
-		SummarizeTimeoutSeconds: int32(s.TimeoutSeconds),
+		AutoEnabled:           c.AutoEnabled,
+		DefaultVoice:          c.KokoroVoice,
+		DefaultSpeed:          c.KokoroSpeed,
+		DefaultResponseFormat: protomap.ResponseFormatToProto(c.Backend),
 	}
 }
 

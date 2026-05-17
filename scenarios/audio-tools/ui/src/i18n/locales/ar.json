@@ -40,6 +40,7 @@
   "nav": {
     "overview": "Overview",
     "diagnostics": "Diagnostics",
+    "status": "Status",
     "configure": "Configure",
     "voices": "Voices",
     "usage": "Usage",

@@ -23,12 +23,23 @@ import (
 
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 )
 
 
-func newSTTClient(t *testing.T, d Deps) sttconnect.STTServiceClient {
+func newSTTClient(t *testing.T, d Deps) sttconnect.STTAdminServiceClient {
+	t.Helper()
+	mod := Module(d)
+	r := mux.NewRouter()
+	mod.Mount(r)
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+	return sttconnect.NewSTTAdminServiceClient(http.DefaultClient, srv.URL)
+}
+
+func newSTTRuntimeClient(t *testing.T, d Deps) sttconnect.STTServiceClient {
 	t.Helper()
 	mod := Module(d)
 	r := mux.NewRouter()
@@ -138,8 +149,8 @@ func TestMapChainError_Codes(t *testing.T) {
 // ----- Transcribe (no chain) -------------------------------------
 
 func TestTranscribe_NoChainMapsToUnavailable(t *testing.T) {
-	c := newSTTClient(t, Deps{})
-	_, err := c.Transcribe(context.Background(), connect.NewRequest(&sttv1.TranscribeRequest{Audio: []byte("X")}))
+	c := newSTTRuntimeClient(t, Deps{})
+	_, err := c.Transcribe(context.Background(), connect.NewRequest(&sttv1.TranscribeRequest{Audio: []byte("X"), Format: commonv1.AudioFormat_AUDIO_FORMAT_WAV}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
 }

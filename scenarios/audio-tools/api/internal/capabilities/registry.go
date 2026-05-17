@@ -208,6 +208,40 @@ func (r *Registry) Resolve(ctx context.Context) []State {
 	return result
 }
 
+// ResolveForce mirrors Resolve but always re-runs every checker and
+// rewrites the cache, ignoring the TTL. Used by RefreshProviderHealth
+// and by Phase-2 lifecycle actions to surface state-transitions
+// immediately rather than waiting for the next TTL boundary.
+func (r *Registry) ResolveForce(ctx context.Context) []State {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := r.now().UTC()
+	states := make([]State, len(r.defs))
+	for i, def := range r.defs {
+		state := State{
+			Def:       def,
+			Status:    StatusUnknown,
+			CheckedAt: now.Format(time.RFC3339),
+		}
+		if checker, ok := r.checkers[def.ID]; ok {
+			state.Status, state.Message = checker.Check(ctx)
+		}
+		states[i] = state
+	}
+
+	r.cached = states
+	r.cachedAt = now
+
+	result := make([]State, len(states))
+	copy(result, states)
+	return result
+}
+
+// CacheTTL returns the registry's configured TTL. Handlers that drive
+// client refresh intervals from the TTL read it through this getter.
+func (r *Registry) CacheTTL() time.Duration { return r.cacheTTL }
+
 // ResolveLiveness returns capability states using fast liveness-only checks.
 // If the full-check cache is still fresh, it returns that directly (no extra
 // work). When the cache is stale, it uses lightweight liveness checkers instead

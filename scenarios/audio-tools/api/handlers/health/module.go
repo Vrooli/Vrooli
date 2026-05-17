@@ -3,6 +3,7 @@ package health
 import (
 	"net/http"
 
+	"audio-tools/internal/capabilities"
 	"audio-tools/internal/database"
 	"audio-tools/internal/modulekit"
 
@@ -15,8 +16,12 @@ import (
 // probe convention infrastructure (LB, Kubernetes) reaches for;
 // /api/v1/health is what API clients use so they only have to know
 // one base path.
-func Module(pinger database.Pinger, service, version string) modulekit.Module {
-	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version})
+//
+// `reg` may be nil — the providers dependency is only registered when
+// a capabilities.Registry is supplied. This keeps the test path
+// (and other minimal embeds) free of the registry dep.
+func Module(pinger database.Pinger, reg *capabilities.Registry, service, version string) modulekit.Module {
+	h := NewHandler(Deps{Pinger: pinger, Registry: reg, Service: service, Version: version})
 	return modulekit.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {

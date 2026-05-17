@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+import { AudioToolsProvider, createAudioToolsClient } from "./audio-integration";
 import "./styles.css";
 
 // INTEROP-CRITICAL: only init the iframe bridge when actually embedded.
@@ -16,18 +17,12 @@ if (typeof window !== "undefined" && window.parent !== window) {
 // modes so gamepad navigation works in the dev UI too.
 initSpatialNav();
 
-// Audio-tools' own UI calls its own API. Setting the global before any
-// @audio-tools/embed module loads ensures the embed's lazy singleton
-// targets this scenario's own origin rather than the http://localhost:0
-// sentinel. Embed consumers may still override with <AudioToolsProvider>.
-declare global {
-  interface Window {
-    __AUDIO_TOOLS_URL__?: string;
-  }
-}
-if (typeof window !== "undefined" && !window.__AUDIO_TOOLS_URL__) {
-  window.__AUDIO_TOOLS_URL__ = window.location.origin;
-}
+// Audio-tools' own UI calls its own API. Build a client targeting this
+// scenario's own origin and mount the provider before any audio-integration
+// hook fires.
+const audioToolsClient = createAudioToolsClient({
+  baseUrl: typeof window !== "undefined" ? window.location.origin : "http://localhost:0",
+});
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {
@@ -60,7 +55,9 @@ async function bootstrap() {
               inner <Profiler> boundaries around heavy subtrees as needed; do
               not remove this one. */}
           <React.Profiler id="App" onRender={onProfilerRender}>
-            <App />
+            <AudioToolsProvider client={audioToolsClient}>
+              <App />
+            </AudioToolsProvider>
           </React.Profiler>
         </ErrorBoundary>
       </QueryClientProvider>
