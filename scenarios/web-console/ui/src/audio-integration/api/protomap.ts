@@ -1,15 +1,24 @@
 // Shared proto<->legacy-string translators for audio-integration.
 //
-// The embed package's public surface (VoiceStreamConfig,
-// SpeakerVerificationConfig, etc.) uses plain string-typed fields for
-// historical reasons. Now that the audio-tools wire shape uses typed
-// enums + google.protobuf.Timestamp, the API client layer translates
-// at the boundary so the rest of the embed code (hooks, components)
-// stays string-typed and consumers see no churn.
+// Every enum in this file is web-console-owned (proto schema:
+// packages/proto/schemas/web-console/v1/audio_common). The UI never
+// imports proto types from audio-tools — those crossings happen
+// server-side via internal/audioports.
+//
+// The embed package's public surface uses plain string-typed fields for
+// historical reasons; the API client layer translates at the boundary.
 
-import { ProviderTier, AudioFormat, ResponseFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
-import { SpeakerMode, RejectBehavior, StreamingMode, StrategyPreference } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
-import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
+import {
+  AudioFormat,
+  ProviderTier,
+  RejectBehavior,
+  ResponseFormat,
+  SpeakerCapability,
+  SpeakerMode,
+  StreamingMode,
+  StrategyPreference,
+  SummarizeLevel,
+} from "@vrooli/proto-types/web-console/v1/audio_common/audio_common_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 
 export function providerTierLabel(t: ProviderTier | undefined): string {
@@ -158,6 +167,21 @@ export function summarizeLevelFromString(s: string | undefined): SummarizeLevel 
       return SummarizeLevel.HEAVY;
     default:
       return SummarizeLevel.UNSPECIFIED;
+  }
+}
+
+export function speakerCapabilityLabel(c: SpeakerCapability | undefined): string {
+  switch (c) {
+    case SpeakerCapability.AVAILABLE:
+      return "available";
+    case SpeakerCapability.DEGRADED:
+      return "degraded";
+    case SpeakerCapability.UNAVAILABLE:
+      return "unavailable";
+    case SpeakerCapability.UNINITIALIZED:
+      return "uninitialized";
+    default:
+      return "unknown";
   }
 }
 

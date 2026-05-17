@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/app-monitor/**"
+  ],
+  "created": "2026-05-16T22:02:46Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "f5bd6e0a-5429-4670-be3f-387f9a2bd5bf",
+    "task_id": "e5c4acea-3801-4fda-9411-e36dc204c552",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Fresh GCT completeness recalculation on 2026-05-16T22:01:39Z classified app-monitor as foundation_laid with score 33 after a 23-point validation penalty. The highest-severity validation issue is ungrouped_operational_targets: 19 targets, 100% 1:1 requirement mapping, penalty 10. Quality evidence also shows only 7/19 requirements and 7/19 targets passing. This suggests the requirement/target model is not grouped around PRD-level operational outcomes. Success target: rerun `vrooli scenario completeness score calculate app-monitor --json`, `vrooli scenario completeness score validation app-monitor --json`, and `vrooli scenario completeness score get app-monitor --json`; ungrouped_operational_targets is gone or below the 15% recommended threshold, requirements and targets are grouped under cohesive business capabilities, requirement_pass_rate and target_pass_rate improve from 7/19, and score improves from 33.",
+  "kind": "fix",
+  "name": "qa-app-monitor-gct-requirement-target-decomposition-20260516",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "app-monitor",
+    "gct",
+    "requirements",
+    "targets"
+  ],
+  "title": "Decompose app-monitor operational targets for GCT readiness",
+  "updated": "2026-05-16T22:02:46Z"
+}

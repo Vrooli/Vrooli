@@ -1,0 +1,27 @@
+{
+  "acceptance_allow": [
+    "scenarios/browser-automation-studio/**"
+  ],
+  "created": "2026-05-17T04:04:18Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "afc03951-1b8c-4e43-9d32-b3d90acf5d49",
+    "task_id": "30cb78e9-77f9-48e7-9e2a-33bd902cec8f",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Fresh GCT completeness recalculation on 2026-05-17T04:02:10Z classified browser-automation-studio as foundation_laid with score 38 after an 8-point validation penalty. Quality evidence: requirements 1/63 passing (1.6%), operational targets 1/31 passing (3.2%), tests 6/9 passing (66.7%). GCT recommendations prioritize increasing test pass rate, requirement pass rate, and operational target pass rate to 90%+. Success target: rerun `vrooli scenario completeness score calculate browser-automation-studio` and `vrooli scenario completeness score get browser-automation-studio --json`; requirement, target, and test pass rates reach at least 90%, and score improves from 38 foundation_laid.",
+  "kind": "fix",
+  "name": "qa-browser-automation-studio-gct-requirement-target-pass-rate-20260517",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "browser-automation-studio",
+    "gct",
+    "requirements",
+    "targets",
+    "tests"
+  ],
+  "title": "Raise browser-automation-studio requirement, target, and test pass rates for GCT readiness",
+  "updated": "2026-05-17T04:04:18Z"
+}

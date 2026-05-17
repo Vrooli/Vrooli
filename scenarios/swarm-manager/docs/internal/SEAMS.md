@@ -2140,3 +2140,37 @@ The `/operations?view=by-phase` board ([CODE: ui/src/components/operations/views
 **Confirmation surfaces.** "Stop selected" opens a `<ConfirmDialog>` with a per-run count in title and confirm label; "Stop all running" opens a separate dialog that requires the operator to type `STOP ALL` exactly (`confirmationText` pattern) — a wider blast radius warrants a wider confirmation surface. Both surface the same `OpsBulkActions` outcome panel above the action buttons; operators dismiss it with the inline X or by issuing another stop.
 
 **Testing at the seam**: `api/internal/operations/bulk_stop_test.go` (19 tests) pins serial cancellation, partial-failure surface, run-id dedupe / trim / cap, malformed-JSON rejection, mutual exclusion, lane / status filter validation, filter newest-first ordering, and missing-run-ID skip. `ui/src/services/operations-service.test.ts` extends to cover camelCase ↔ snake_case round-trip for both request modes plus the response normalization. `ui/src/stores/operations-store.test.ts` pins optimistic state lifecycle, post-call refresh dispatch, error-path preservation of selection, and the early-exit on empty selection. `ui/src/components/operations/OpsBulkActions.test.tsx` pins button enablement / count display, the `STOP ALL` typed-confirm gate, the outcome panel rendering after a stop resolves, and the selection-change visibility transitions.
+
+### Audio Tools Discovery Boundary
+
+*Added: 2026-05-17*
+
+**Files:**
+- `api/handlers/discovery/handler.go` — Connect-RPC `DiscoveryService.GetAudioToolsEndpoint`.
+- `api/discovery_adapter.go` — bridges `audiotools.URLResolver` (no-ctx) to the handler's `AudioToolsResolver` interface.
+- `api/integrations/audiotools/{client.go,discovery.go,contracts.go}` — verbatim copy from web-console; used only to satisfy the resolver. swarm-manager API never calls STT/TTS/summarize.
+- `ui/src/audio-integration/` — verbatim copy from web-console. **Treat as immutable.** Fix the canonical copy first, then re-sync both consumers.
+- `ui/src/api/discovery.ts` — UI Connect client for `DiscoveryService`.
+- `ui/src/main.tsx` — async bootstrap that resolves the endpoint and wraps `<App />` in `<AudioToolsProvider>`.
+
+**Test seam:**
+- Server: `discovery.AudioToolsResolver` interface accepts any `Resolve(ctx) (string, error)` fake.
+- Browser: `setActiveAudioToolsClientForTesting(...)` from `audio-integration` plus `setAudioPrefs(...)` from `hooks/useAudioPrefs.ts`.
+
+**Why a seam:** The browser must never compose scenario URLs itself
+(see `feedback_scenario_url_resolution.md`). The discovery RPC is the
+only path through which the audio-tools base URL reaches the UI.
+
+### Agent message TTS / mic-input composer prop
+
+*Added: 2026-05-17*
+
+**Files:**
+- `ui/src/components/composer/MicButton.tsx` — wraps `useVoiceCore`; emits transcripts via `onTranscript`.
+- `ui/src/components/composer/MessageComposer.tsx` — accepts optional `onTranscript?: (text: string) => void`; mic button renders only when supplied.
+- `ui/src/components/chat/ChatMessageBubble.tsx` — accepts optional `speak?: ChatMessageSpeakController` and exposes a Speak button on assistant role.
+- `ui/src/components/chat/ChatThread.tsx` — owns the singleton `useAgentMessageTTS` and auto-speak loop; passes the controller down to bubbles.
+
+**Test seam:** `ChatMessageSpeakController` is a plain interface; the
+audio bubble test injects a fake controller and asserts `speak()` /
+`stop()` calls without touching the audio-integration core.

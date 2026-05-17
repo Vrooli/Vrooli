@@ -69,8 +69,10 @@ type Options[Req, Resp any] struct {
 	EnableVrooli bool
 	EnableLocal  bool
 
-	// TTLs for the per-tier availability cache. Local is probed every
-	// call (cheap, no cache); BYOK/Vrooli are cached.
+	// TTLs for the per-tier availability cache. BYOK and Vrooli are
+	// cached because their IsAvailable probes hit paid/remote providers.
+	// Local is never pre-probed during Execute — the actual call is the
+	// source of truth (see Coordinator.available).
 	TTLByOK   time.Duration
 	TTLVrooli time.Duration
 
@@ -315,8 +317,15 @@ func (c *Coordinator[Req, Resp]) available(ctx context.Context, slot Slot) bool 
 	}
 	switch slot {
 	case SlotLocal:
-		// Cheap probe; matches pre-consolidation ttschain/summarizechain.
-		return t.IsAvailable(ctx)
+		// Local is never pre-probed: the actual Execute call is the
+		// source of truth. A pre-probe adds a separate failure mode
+		// (e.g. a stale capability checker disagreeing with reality)
+		// that masks the underlying provider error as
+		// ErrAllProvidersFailed with 0 ms latency. The real call is
+		// free locally, so just attempt it and surface whatever the
+		// provider returns. Tier.IsAvailable is still consulted by
+		// Probe() for the health-status surface.
+		return true
 	case SlotBYOK:
 		return c.cachedAvailability(ctx, t, &c.byokAvail, c.ttlByOK)
 	case SlotVrooli:

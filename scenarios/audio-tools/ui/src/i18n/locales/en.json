@@ -82,7 +82,45 @@
     "configure": "Configure",
     "voices": "Voices",
     "usage": "Usage",
-    "docs": "Docs"
+    "docs": "Docs",
+    "speakerVerification": "Speaker Verification",
+    "wakeWord": "Wake Word",
+    "streamConfig": "Stream Config"
+  },
+  "speakerAdmin": {
+    "pageTitle": "Speaker Verification",
+    "pageDescription": "Manage enrolled speaker profiles and verification mode for the STT pipeline.",
+    "capabilityAvailable": "Available",
+    "capabilityDegraded": "Degraded",
+    "capabilityUnavailable": "Unavailable",
+    "capabilityUninitialized": "Uninitialized",
+    "capabilityUnknown": "Unknown",
+    "configEnabled": "Verification enabled",
+    "configThreshold": "Acceptance threshold",
+    "configMode": "Mode",
+    "configRejectBehavior": "Reject behavior",
+    "modeOff": "Off (pass everything)",
+    "modeFilter": "Filter (drop unverified)",
+    "modeAdvisory": "Advisory (flag, do not drop)",
+    "rejectDrop": "Drop",
+    "rejectShowMuted": "Show muted",
+    "profilesTitle": "Enrolled profiles",
+    "profilesEmpty": "No profiles enrolled yet.",
+    "unbindButton": "Unbind",
+    "deleteButton": "Delete",
+    "thresholdHelp": "Score required for a transcript to pass (0–1).",
+    "saveChanges": "Save changes",
+    "savedToast": "Configuration saved.",
+    "errorToast": "Could not save configuration."
+  },
+  "wakeWordAdmin": {
+    "pageTitle": "Wake Word",
+    "pageDescription": "Manage the wake-word template used by the streaming STT pipeline.",
+    "noTemplate": "No wake-word template is currently configured."
+  },
+  "streamConfigAdmin": {
+    "pageTitle": "Stream Config",
+    "pageDescription": "Tune the streaming STT pipeline parameters."
   },
   "overview": {
     "openDiagnostics": "Open Diagnostics",

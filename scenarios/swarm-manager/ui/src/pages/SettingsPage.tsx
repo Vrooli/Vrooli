@@ -22,6 +22,7 @@ import { GeneralTab } from "../components/settings/GeneralTab";
 import { ExecutionTab } from "../components/settings/ExecutionTab";
 import { WorkshopTab } from "../components/settings/WorkshopTab";
 import { ReviewTab } from "../components/settings/ReviewTab";
+import { AudioTab } from "../components/settings/AudioTab";
 import { selectors } from "../consts/selectors";
 import { applyTheme, defaultQueryOptions } from "../lib";
 import { settingsService } from "../services";
@@ -215,6 +216,7 @@ export function SettingsPage() {
           <TabsTrigger value="execution" data-testid={selectors.settings.tabExecution}>Execution</TabsTrigger>
           <TabsTrigger value="workshop" data-testid={selectors.settings.tabWorkshop}>Workshop</TabsTrigger>
           <TabsTrigger value="review" data-testid={selectors.settings.tabReview}>Review</TabsTrigger>
+          <TabsTrigger value="audio" data-testid={selectors.settings.tabAudio}>Audio</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -231,6 +233,10 @@ export function SettingsPage() {
 
         <TabsContent value="review">
           <ReviewTab form={form} patch={patch} />
+        </TabsContent>
+
+        <TabsContent value="audio">
+          <AudioTab />
         </TabsContent>
       </Tabs>
 

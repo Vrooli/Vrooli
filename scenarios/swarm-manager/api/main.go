@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/handlers/discovery"
+	"swarm-manager/integrations/audiotools"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/agentsessions"
@@ -91,6 +93,7 @@ type Server struct {
 	aiSearchSyncLoop    *aisearch.SyncLoop
 	aiSearchStopChan    chan struct{}
 	feedbackSweeperStop chan struct{}
+	audioToolsResolver  audiotools.URLResolver
 }
 
 type executionSnapshotLister struct {
@@ -140,6 +143,7 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		feedbackSweeperStop: make(chan struct{}),
 		scenarioRoot:        scenarioRoot,
 		promptClient:        promptClient,
+		audioToolsResolver:  resolveAudioToolsResolver(),
 	}
 	// initEventLog must run before setupRoutes so that route registration
 	// captures a non-nil s.emitter. Constructors like registerFeedbackRoutes
@@ -162,6 +166,7 @@ func (s *Server) setupRoutes() {
 
 	// --- Infrastructure ---
 	s.registerHealthRoutes()
+	s.registerDiscoveryRoutes()
 	s.registerSettingsRoutes(scenarioRoot)      // Must be before backlog/execution (they depend on settings store)
 	s.registerAgentActivityRoutes(scenarioRoot) // Must be before backlog/execution (they depend on agent activity)
 	s.registerScenarioRoutes(scenariosDir)
@@ -241,6 +246,13 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 	handler.RegisterRoutes(s.router)
 	s.aiSearchSvc = svc
 	s.aiSearchReconciler = reconciler
+}
+
+// registerDiscoveryRoutes mounts the Connect-RPC DiscoveryService. The
+// service is currently the only Connect-RPC surface in swarm-manager;
+// see docs/internal/PROBLEMS.md for the residual REST drift.
+func (s *Server) registerDiscoveryRoutes() {
+	discovery.RegisterRoutes(s.router, newAudioToolsResolverAdapter(s), nil)
 }
 
 func (s *Server) registerHealthRoutes() {

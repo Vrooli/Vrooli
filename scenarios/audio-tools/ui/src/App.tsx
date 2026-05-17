@@ -15,6 +15,9 @@ const VoicesPage = lazy(() => import("./features/voices/VoicesPage").then((m) =>
 const UsagePage = lazy(() => import("./features/usage/UsagePage").then((m) => ({ default: m.UsagePage })));
 const DocsPage = lazy(() => import("./features/docs/DocsPage").then((m) => ({ default: m.DocsPage })));
 const DocViewerPage = lazy(() => import("./features/docs/DocViewerPage").then((m) => ({ default: m.DocViewerPage })));
+const SpeakerVerificationPage = lazy(() => import("./features/admin/SpeakerVerificationPage").then((m) => ({ default: m.SpeakerVerificationPage })));
+const WakeWordPage = lazy(() => import("./features/admin/WakeWordPage").then((m) => ({ default: m.WakeWordPage })));
+const StreamConfigPage = lazy(() => import("./features/admin/StreamConfigPage").then((m) => ({ default: m.StreamConfigPage })));
 const NotFoundPage = lazy(() => import("./features/not-found/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 
 function getRouterBasename(): string {
@@ -40,6 +43,9 @@ export default function App() {
               <Route path="usage" element={<UsagePage />} />
               <Route path="docs" element={<DocsPage />} />
               <Route path="docs/*" element={<DocViewerPage />} />
+              <Route path="admin/speaker-verification" element={<SpeakerVerificationPage />} />
+              <Route path="admin/wake-word" element={<WakeWordPage />} />
+              <Route path="admin/stream-config" element={<StreamConfigPage />} />
               <Route path="overview" element={<Navigate to="/" replace />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>

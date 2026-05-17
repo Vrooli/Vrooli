@@ -1,15 +1,10 @@
 import { AlertCircle } from "lucide-react";
 
-import { useAudioToolsUnavailableReason as useReasonFromContext } from "../audio-integration";
-
 /**
- * AudioUnavailableBanner renders when discovery reported audio-tools is
- * unreachable. The `reason` token is supplied via <AudioToolsProvider
- * unavailableReason={...}> in main.tsx and consumed here through context.
- *
- * Consumers should mount this in voice-eligible regions (workspace
- * voice-input area, TTS playback bar) so a user clicking the disabled
- * voice control sees why it's disabled instead of a silent no-op.
+ * AudioUnavailableBanner renders when audio-tools is unreachable.
+ * Consumers query web-console's health endpoint and pass the resulting
+ * dependency-status token in via `reason`. This component is purely
+ * presentational; it does not subscribe to any source on its own.
  */
 export interface AudioUnavailableBannerProps {
   reason?: string;
@@ -39,12 +34,4 @@ export function AudioUnavailableBanner({ reason, className }: AudioUnavailableBa
       <span>{message}</span>
     </div>
   );
-}
-
-/**
- * Hook-level convenience: returns the current unavailable-reason snapshot
- * from <AudioToolsProvider>, or undefined when audio-tools is available.
- */
-export function useAudioToolsUnavailableReason(): string | undefined {
-  return useReasonFromContext();
 }

@@ -1,26 +1,36 @@
 // Voice (STT) API client for audio-integration.
 //
-// Binds to audio-tools' STTService Connect handler and exposes a hook-
-// shaped voice operation surface for consumer scenarios. WebSocket URL
-// construction reads baseUrl from the active AudioToolsClient registered
-// via <AudioToolsProvider>.
+// Calls web-console's own AudioAdminService + AudioRuntimeService via
+// the same-origin Connect transport. The UI never talks to audio-tools
+// directly — web-console's API owns the inter-scenario hop.
 
 import { create } from "@bufbuild/protobuf";
+import { createClient as createConnectClient } from "@connectrpc/connect";
 import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
 
-import { getActiveAudioToolsClient, useAudioToolsClient, type AudioToolsClient } from "../client";
+import { transport, API_BASE } from "../../api/client";
 import type { WakeWordTemplate } from "../hooks/voice/wakeword/types";
 import {
   audioFormatFromString,
   rejectBehaviorFromString,
   rejectBehaviorLabel,
+  speakerCapabilityLabel,
   speakerModeFromString,
   speakerModeLabel,
   timestampToISO,
 } from "./protomap";
 
-import type { SpeakerConfig, SpeakerProfile, StreamConfig as StreamConfigMsg, WakeWordConfig as WakeWordConfigMsg, WakeWordTemplate as WakeWordTemplateMsg } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
+import { AudioAdminService } from "@vrooli/proto-types/web-console/v1/audio_admin/audio_admin_pb";
+import { AudioRuntimeService } from "@vrooli/proto-types/web-console/v1/audio_runtime/audio_runtime_pb";
+import type {
+  SpeakerConfig,
+  SpeakerProfile,
+  StreamConfig as StreamConfigMsg,
+  WakeWordConfig as WakeWordConfigMsg,
+  WakeWordTemplate as WakeWordTemplateMsg,
+} from "@vrooli/proto-types/web-console/v1/audio_admin/audio_admin_pb";
 
+// Stable shape consumers already use; unchanged.
 export interface VoiceStreamConfig {
   flushIntervalMs: number;
   minDeltaBytes: number;
@@ -93,6 +103,10 @@ export interface SpeakerVerificationEnrollResult {
   enrollment: SpeakerVerificationEnrollmentResponse;
   config: SpeakerVerificationConfig;
 }
+
+// Web-console Connect clients, mounted same-origin via the shared transport.
+export const audioAdminClient = createConnectClient(AudioAdminService, transport);
+export const audioRuntimeClient = createConnectClient(AudioRuntimeService, transport);
 
 async function blobToBytes(b: Blob): Promise<Uint8Array> {
   return new Uint8Array(await b.arrayBuffer());
@@ -170,243 +184,194 @@ function apiBaseToWsBase(apiBase: string): string {
   return apiBase;
 }
 
-export function createVoiceApi(client: AudioToolsClient) {
-  const api = {
-    buildVoiceStreamWsUrl(language?: string): string {
-      const wsBase = apiBaseToWsBase(client.baseUrl.replace(/\/$/, ""));
-      const url = `${wsBase}/api/v1/voice/stream`;
-      if (language) return `${url}?language=${encodeURIComponent(language)}`;
-      return url;
-    },
+/**
+ * Build the WebSocket URL for voice streaming. Same-origin — points at
+ * web-console's API, which proxies the upstream WebSocket to audio-tools
+ * server-side (Phase E of the UI↔own-API migration).
+ */
+export function buildVoiceStreamWsUrl(language?: string): string {
+  const wsBase = apiBaseToWsBase(API_BASE.replace(/\/$/, ""));
+  const url = `${wsBase}/api/v1/voice/stream`;
+  if (language) return `${url}?language=${encodeURIComponent(language)}`;
+  return url;
+}
 
-    async transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {
-      const resp = await client.stt.transcribe({
-        audio: await blobToBytes(audioBlob),
-        format: audioFormatFromString(blobFormat(audioBlob)),
-        language: language ?? "",
-        skipSpeakerVerification: false,
-        initialPrompt: "",
-      });
-      return resp.text;
-    },
+export async function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {
+  const resp = await audioRuntimeClient.transcribe({
+    audio: await blobToBytes(audioBlob),
+    format: audioFormatFromString(blobFormat(audioBlob)),
+    language: language ?? "",
+    skipSpeakerVerification: false,
+    initialPrompt: "",
+  });
+  return resp.text;
+}
 
-    async transcribeAudioBypassFilter(audioBlob: Blob, language?: string): Promise<string> {
-      const resp = await client.stt.transcribe({
-        audio: await blobToBytes(audioBlob),
-        format: audioFormatFromString(blobFormat(audioBlob)),
-        language: language ?? "",
-        skipSpeakerVerification: true,
-        initialPrompt: "",
-      });
-      return resp.text;
-    },
+export async function transcribeAudioBypassFilter(audioBlob: Blob, language?: string): Promise<string> {
+  const resp = await audioRuntimeClient.transcribe({
+    audio: await blobToBytes(audioBlob),
+    format: audioFormatFromString(blobFormat(audioBlob)),
+    language: language ?? "",
+    skipSpeakerVerification: true,
+    initialPrompt: "",
+  });
+  return resp.text;
+}
 
-    async transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> {
-      let lastError: unknown;
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-          return await api.transcribeAudio(audioBlob, language);
-        } catch (err) {
-          lastError = err;
-          if (attempt < maxAttempts - 1) {
-            await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
-          }
-        }
+export async function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await transcribeAudio(audioBlob, language);
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts - 1) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
       }
-      throw lastError;
-    },
-
-    async getVoiceStreamConfig(): Promise<VoiceStreamConfig> {
-      const resp = await client.sttAdmin.getStreamConfig({});
-      return decodeStreamConfig(resp.config);
-    },
-
-    async updateVoiceStreamConfig(patch: Partial<VoiceStreamConfig>): Promise<VoiceStreamConfig> {
-      const paths: string[] = [];
-      const cfg: Record<string, unknown> = {};
-      if (patch.flushIntervalMs !== undefined) { cfg.flushIntervalMs = patch.flushIntervalMs; paths.push("flush_interval_ms"); }
-      if (patch.minDeltaBytes !== undefined) { cfg.minDeltaBytes = patch.minDeltaBytes; paths.push("min_delta_bytes"); }
-      if (patch.overlapBytes !== undefined) { cfg.overlapBytes = patch.overlapBytes; paths.push("overlap_bytes"); }
-      if (patch.persistentMode !== undefined) { cfg.persistentMode = patch.persistentMode; paths.push("persistent_mode"); }
-      if (patch.wakeWordEnabled !== undefined) { cfg.wakeWordEnabled = patch.wakeWordEnabled; paths.push("wake_word_enabled"); }
-      if (patch.wakeWordThreshold !== undefined) { cfg.wakeWordThreshold = patch.wakeWordThreshold; paths.push("wake_word_threshold"); }
-      if (patch.segmentSilenceMs !== undefined) { cfg.segmentSilenceMs = patch.segmentSilenceMs; paths.push("segment_silence_ms"); }
-      const resp = await client.sttAdmin.updateStreamConfig({
-        updateMask: create(FieldMaskSchema, { paths }),
-        config: cfg,
-      });
-      return decodeStreamConfig(resp.config);
-    },
-
-    async getWakeWordConfig(): Promise<WakeWordConfig> {
-      const resp = await client.sttAdmin.getWakeWordConfig({});
-      return decodeWakeWord(resp.config);
-    },
-
-    async updateWakeWordConfig(template: WakeWordTemplate): Promise<WakeWordConfig> {
-      // The embed-side WakeWordTemplate domain shape carries an array
-      // of {audio, format, sampleRateHz} samples that are already
-      // compatible with the proto message; the proto generator
-      // accepts a plain object init.
-      const resp = await client.sttAdmin.updateWakeWordTemplate({
-        template: template as unknown as WakeWordTemplateMsg,
-      });
-      return decodeWakeWord(resp.config);
-    },
-
-    async deleteWakeWordConfig(): Promise<WakeWordConfig> {
-      const resp = await client.sttAdmin.deleteWakeWordTemplate({});
-      return decodeWakeWord(resp.config);
-    },
-
-    async getSpeakerVerificationConfig(): Promise<SpeakerVerificationConfig> {
-      const resp = await client.sttAdmin.getSpeakerConfig({});
-      return decodeSpeakerConfig(resp.config);
-    },
-
-    async updateSpeakerVerificationConfig(
-      patch: Partial<SpeakerVerificationConfig>,
-    ): Promise<SpeakerVerificationConfig> {
-      const paths: string[] = [];
-      const cfg: Record<string, unknown> = {};
-      if (patch.enabled !== undefined) { cfg.enabled = patch.enabled; paths.push("enabled"); }
-      if (patch.profileIds !== undefined) { cfg.profileIds = patch.profileIds; paths.push("profile_ids"); }
-      if (patch.threshold !== undefined) { cfg.threshold = patch.threshold; paths.push("threshold"); }
-      if (patch.mode !== undefined) { cfg.mode = speakerModeFromString(patch.mode); paths.push("mode"); }
-      if (patch.rejectBehavior !== undefined) { cfg.rejectBehavior = rejectBehaviorFromString(patch.rejectBehavior); paths.push("reject_behavior"); }
-      if (patch.fallbackWithoutVerification !== undefined) { cfg.fallbackWithoutVerification = patch.fallbackWithoutVerification; paths.push("fallback_without_verification"); }
-      const resp = await client.sttAdmin.updateSpeakerConfig({
-        updateMask: create(FieldMaskSchema, { paths }),
-        config: cfg,
-      });
-      return decodeSpeakerConfig(resp.config);
-    },
-
-    async getSpeakerVerificationStatus(): Promise<SpeakerVerificationStatusResponse> {
-      const resp = await client.sttAdmin.getSpeakerStatus({});
-      const st = resp.status;
-      if (!st) throw new Error("speaker status response missing status field");
-      return {
-        config: decodeSpeakerConfig(st.config),
-        capability: st.capability,
-        capabilityLabel: st.capabilityLabel || undefined,
-        resourceReady: st.resourceReady,
-        profileConfigured: st.profileConfigured,
-        profileExists: st.profileExists,
-        profileCount: st.profileCount,
-        profiles: st.profiles.map(decodeSpeakerProfile),
-        info: st.info
-          ? {
-              backend: st.info.backend,
-              model: st.info.model,
-              device: st.info.device,
-              sample_rate: st.info.sampleRate,
-              version: st.info.version,
-              embedding_dim: st.info.embeddingDim,
-            }
-          : undefined,
-        checkedAt: timestampToISO(st.checkedAt),
-      };
-    },
-
-    async listSpeakerVerificationProfiles(): Promise<SpeakerVerificationProfile[]> {
-      const resp = await client.sttAdmin.listSpeakerProfiles({});
-      return resp.profiles.map(decodeSpeakerProfile);
-    },
-
-    async enrollSpeakerVerificationProfile(args: {
-      audioBlob: Blob;
-      profileId?: string;
-      displayName?: string;
-      notes?: string;
-      addToActive?: boolean;
-      enable?: boolean;
-    }): Promise<SpeakerVerificationEnrollResult> {
-      const req: Record<string, unknown> = {
-        audio: await blobToBytes(args.audioBlob),
-        format: audioFormatFromString(blobFormat(args.audioBlob)),
-        profileId: args.profileId ?? "",
-        displayName: args.displayName ?? "",
-        notes: args.notes ?? "",
-      };
-      if (args.addToActive !== undefined) req.addToActive = args.addToActive;
-      if (args.enable !== undefined) req.enable = args.enable;
-      const resp = await client.sttAdmin.enrollSpeakerProfile(
-        req,
-      );
-      const en = resp.enrollment;
-      return {
-        enrollment: {
-          profile_id: en?.profileId ?? "",
-          display_name: en?.displayName ?? "",
-          embedding_dim: en?.embeddingDim ?? 0,
-          sample_rate: en?.sampleRate ?? 0,
-          enrollment_audio_seconds: en?.enrollmentAudioSeconds ?? 0,
-          model_name: en?.modelName ?? "",
-          created_at: timestampToISO(en?.createdAt),
-        },
-        config: decodeSpeakerConfig(resp.config),
-      };
-    },
-
-    async clearSpeakerVerificationProfile(): Promise<SpeakerVerificationConfig> {
-      const resp = await client.sttAdmin.clearSpeakerProfileBinding({});
-      return decodeSpeakerConfig(resp.config);
-    },
-
-    async removeSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> {
-      const resp = await client.sttAdmin.unbindSpeakerProfile({ profileId });
-      return decodeSpeakerConfig(resp.config);
-    },
-
-    async deleteSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> {
-      const resp = await client.sttAdmin.deleteSpeakerProfile({ profileId });
-      return decodeSpeakerConfig(resp.config);
-    },
-  };
-  return api;
-}
-
-/** Convenience hook: pulls the active client from context and binds Voice ops. */
-export function useVoiceApi() {
-  return createVoiceApi(useAudioToolsClient());
-}
-
-// Module-level singleton bound to whichever AudioToolsClient is currently
-// registered via <AudioToolsProvider>. Cached per client identity so that
-// switching clients (e.g. in tests) rebinds the api surface.
-let _lazyClient: AudioToolsClient | null = null;
-let _lazyApi: ReturnType<typeof createVoiceApi> | null = null;
-function lazy() {
-  const client = getActiveAudioToolsClient();
-  if (_lazyApi === null || _lazyClient !== client) {
-    _lazyClient = client;
-    _lazyApi = createVoiceApi(client);
+    }
   }
-  return _lazyApi;
+  throw lastError;
 }
 
-export function buildVoiceStreamWsUrl(language?: string): string { return lazy().buildVoiceStreamWsUrl(language); }
-export function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> { return lazy().transcribeAudio(audioBlob, language); }
-export function transcribeAudioBypassFilter(audioBlob: Blob, language?: string): Promise<string> { return lazy().transcribeAudioBypassFilter(audioBlob, language); }
-export function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> { return lazy().transcribeAudioWithRetry(audioBlob, maxAttempts, language); }
-export function getVoiceStreamConfig(): Promise<VoiceStreamConfig> { return lazy().getVoiceStreamConfig(); }
-export function updateVoiceStreamConfig(patch: Partial<VoiceStreamConfig>): Promise<VoiceStreamConfig> { return lazy().updateVoiceStreamConfig(patch); }
-export function getWakeWordConfig(): Promise<WakeWordConfig> { return lazy().getWakeWordConfig(); }
-export function updateWakeWordConfig(template: WakeWordTemplate): Promise<WakeWordConfig> { return lazy().updateWakeWordConfig(template); }
-export function deleteWakeWordConfig(): Promise<WakeWordConfig> { return lazy().deleteWakeWordConfig(); }
-export function getSpeakerVerificationConfig(): Promise<SpeakerVerificationConfig> { return lazy().getSpeakerVerificationConfig(); }
-export function updateSpeakerVerificationConfig(patch: Partial<SpeakerVerificationConfig>): Promise<SpeakerVerificationConfig> { return lazy().updateSpeakerVerificationConfig(patch); }
-export function getSpeakerVerificationStatus(): Promise<SpeakerVerificationStatusResponse> { return lazy().getSpeakerVerificationStatus(); }
-export function listSpeakerVerificationProfiles(): Promise<SpeakerVerificationProfile[]> { return lazy().listSpeakerVerificationProfiles(); }
-export function enrollSpeakerVerificationProfile(args: {
+export async function getVoiceStreamConfig(): Promise<VoiceStreamConfig> {
+  const resp = await audioAdminClient.getStreamConfig({});
+  return decodeStreamConfig(resp.config);
+}
+
+export async function updateVoiceStreamConfig(patch: Partial<VoiceStreamConfig>): Promise<VoiceStreamConfig> {
+  const paths: string[] = [];
+  const cfg: Record<string, unknown> = {};
+  if (patch.flushIntervalMs !== undefined) { cfg.flushIntervalMs = patch.flushIntervalMs; paths.push("flush_interval_ms"); }
+  if (patch.minDeltaBytes !== undefined) { cfg.minDeltaBytes = patch.minDeltaBytes; paths.push("min_delta_bytes"); }
+  if (patch.overlapBytes !== undefined) { cfg.overlapBytes = patch.overlapBytes; paths.push("overlap_bytes"); }
+  if (patch.persistentMode !== undefined) { cfg.persistentMode = patch.persistentMode; paths.push("persistent_mode"); }
+  if (patch.wakeWordEnabled !== undefined) { cfg.wakeWordEnabled = patch.wakeWordEnabled; paths.push("wake_word_enabled"); }
+  if (patch.wakeWordThreshold !== undefined) { cfg.wakeWordThreshold = patch.wakeWordThreshold; paths.push("wake_word_threshold"); }
+  if (patch.segmentSilenceMs !== undefined) { cfg.segmentSilenceMs = patch.segmentSilenceMs; paths.push("segment_silence_ms"); }
+  const resp = await audioAdminClient.updateStreamConfig({
+    updateMask: create(FieldMaskSchema, { paths }),
+    config: cfg,
+  });
+  return decodeStreamConfig(resp.config);
+}
+
+export async function getWakeWordConfig(): Promise<WakeWordConfig> {
+  const resp = await audioAdminClient.getWakeWordConfig({});
+  return decodeWakeWord(resp.config);
+}
+
+export async function updateWakeWordConfig(template: WakeWordTemplate): Promise<WakeWordConfig> {
+  const resp = await audioAdminClient.updateWakeWordTemplate({
+    template: template as unknown as WakeWordTemplateMsg,
+  });
+  return decodeWakeWord(resp.config);
+}
+
+export async function deleteWakeWordConfig(): Promise<WakeWordConfig> {
+  const resp = await audioAdminClient.deleteWakeWordTemplate({});
+  return decodeWakeWord(resp.config);
+}
+
+export async function getSpeakerVerificationConfig(): Promise<SpeakerVerificationConfig> {
+  const resp = await audioAdminClient.getSpeakerConfig({});
+  return decodeSpeakerConfig(resp.config);
+}
+
+export async function updateSpeakerVerificationConfig(
+  patch: Partial<SpeakerVerificationConfig>,
+): Promise<SpeakerVerificationConfig> {
+  const paths: string[] = [];
+  const cfg: Record<string, unknown> = {};
+  if (patch.enabled !== undefined) { cfg.enabled = patch.enabled; paths.push("enabled"); }
+  if (patch.profileIds !== undefined) { cfg.profileIds = patch.profileIds; paths.push("profile_ids"); }
+  if (patch.threshold !== undefined) { cfg.threshold = patch.threshold; paths.push("threshold"); }
+  if (patch.mode !== undefined) { cfg.mode = speakerModeFromString(patch.mode); paths.push("mode"); }
+  if (patch.rejectBehavior !== undefined) { cfg.rejectBehavior = rejectBehaviorFromString(patch.rejectBehavior); paths.push("reject_behavior"); }
+  if (patch.fallbackWithoutVerification !== undefined) { cfg.fallbackWithoutVerification = patch.fallbackWithoutVerification; paths.push("fallback_without_verification"); }
+  const resp = await audioAdminClient.updateSpeakerConfig({
+    updateMask: create(FieldMaskSchema, { paths }),
+    config: cfg,
+  });
+  return decodeSpeakerConfig(resp.config);
+}
+
+export async function getSpeakerVerificationStatus(): Promise<SpeakerVerificationStatusResponse> {
+  const resp = await audioAdminClient.getSpeakerStatus({});
+  const st = resp.status;
+  if (!st) throw new Error("speaker status response missing status field");
+  return {
+    config: decodeSpeakerConfig(st.config),
+    capability: speakerCapabilityLabel(st.capability),
+    capabilityLabel: st.capabilityLabel || undefined,
+    resourceReady: st.resourceReady,
+    profileConfigured: st.profileConfigured,
+    profileExists: st.profileExists,
+    profileCount: st.profileCount,
+    profiles: st.profiles.map(decodeSpeakerProfile),
+    info: st.info
+      ? {
+          backend: st.info.backend,
+          model: st.info.model,
+          device: st.info.device,
+          sample_rate: st.info.sampleRate,
+          version: st.info.version,
+          embedding_dim: st.info.embeddingDim,
+        }
+      : undefined,
+    checkedAt: timestampToISO(st.checkedAt),
+  };
+}
+
+export async function listSpeakerVerificationProfiles(): Promise<SpeakerVerificationProfile[]> {
+  const resp = await audioAdminClient.listSpeakerProfiles({});
+  return resp.profiles.map(decodeSpeakerProfile);
+}
+
+export async function enrollSpeakerVerificationProfile(args: {
   audioBlob: Blob;
   profileId?: string;
   displayName?: string;
   notes?: string;
   addToActive?: boolean;
   enable?: boolean;
-}): Promise<SpeakerVerificationEnrollResult> { return lazy().enrollSpeakerVerificationProfile(args); }
-export function clearSpeakerVerificationProfile(): Promise<SpeakerVerificationConfig> { return lazy().clearSpeakerVerificationProfile(); }
-export function removeSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> { return lazy().removeSpeakerVerificationProfile(profileId); }
-export function deleteSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> { return lazy().deleteSpeakerVerificationProfile(profileId); }
+}): Promise<SpeakerVerificationEnrollResult> {
+  const req: Record<string, unknown> = {
+    audio: await blobToBytes(args.audioBlob),
+    format: audioFormatFromString(blobFormat(args.audioBlob)),
+    profileId: args.profileId ?? "",
+    displayName: args.displayName ?? "",
+    notes: args.notes ?? "",
+  };
+  if (args.addToActive !== undefined) req.addToActive = args.addToActive;
+  if (args.enable !== undefined) req.enable = args.enable;
+  const resp = await audioAdminClient.enrollSpeakerProfile(req);
+  const en = resp.enrollment;
+  return {
+    enrollment: {
+      profile_id: en?.profileId ?? "",
+      display_name: en?.displayName ?? "",
+      embedding_dim: en?.embeddingDim ?? 0,
+      sample_rate: en?.sampleRate ?? 0,
+      enrollment_audio_seconds: en?.enrollmentAudioSeconds ?? 0,
+      model_name: en?.modelName ?? "",
+      created_at: timestampToISO(en?.createdAt),
+    },
+    config: decodeSpeakerConfig(resp.config),
+  };
+}
+
+export async function clearSpeakerVerificationProfile(): Promise<SpeakerVerificationConfig> {
+  const resp = await audioAdminClient.clearSpeakerProfileBinding({});
+  return decodeSpeakerConfig(resp.config);
+}
+
+export async function removeSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> {
+  const resp = await audioAdminClient.unbindSpeakerProfile({ profileId });
+  return decodeSpeakerConfig(resp.config);
+}
+
+export async function deleteSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> {
+  const resp = await audioAdminClient.deleteSpeakerProfile({ profileId });
+  return decodeSpeakerConfig(resp.config);
+}
+

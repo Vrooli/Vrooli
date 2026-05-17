@@ -272,6 +272,17 @@ api/internal/
 - `/api/v1/agent-activities/*` - tracked agent activity history and active runtime telemetry
 - `/api/v1/prompts/*` - prompt catalog, skill CRUD, versions, revert, preview, simulate
 - `/api/v1/agent-manager/status` - agent-manager availability
+- `/vrooli.swarm_manager.v1.discovery.DiscoveryService/GetAudioToolsEndpoint` - **Connect-RPC**; resolves audio-tools' base URL for the browser. The only Connect-RPC surface in swarm-manager today; remaining REST domains tracked in `docs/internal/PROBLEMS.md`.
+
+### Audio capability (via audio-tools)
+
+Voice input in `MessageComposer` (Session Details + Quick Capture) and
+agent-message TTS in `ChatThread` flow through the `audio-tools`
+scenario via the discovery endpoint above. The browser builds an
+`AudioToolsClient` against the resolved base URL at boot, then the
+copy-paste `ui/src/audio-integration/` module owns all STT / TTS /
+summarize calls. swarm-manager contains zero audio synthesis or
+transcription code. See `docs/internal/SEAMS.md` for the seam map.
 
 ## Meta-Orchestrator Skill
 

@@ -1,0 +1,27 @@
+{
+  "acceptance_allow": [
+    "scenarios/audio-tools/**"
+  ],
+  "created": "2026-05-16T22:02:46Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "f5bd6e0a-5429-4670-be3f-387f9a2bd5bf",
+    "task_id": "e5c4acea-3801-4fda-9411-e36dc204c552",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Fresh GCT completeness recalculation on 2026-05-16T22:01:23Z classified audio-tools as early_stage with score 15 after a 10-point validation penalty. Evidence: requirements 0/1 passing, operational targets 0/1 passing, tests 0/0, coverage 2/15, quantity 0/10, and validation_analysis flagged missing_test_automation because 100% of validations are manual. GCT recommendations were to increase test pass rate, requirement pass rate, operational target pass rate, and add tests to reach a healthy test-to-requirement ratio. Success target: rerun `vrooli scenario completeness score calculate audio-tools --json` and `vrooli scenario completeness score get audio-tools --json`; classification improves out of early_stage, requirement_pass_rate/target_pass_rate/test_pass_rate reach at least 90%, validation_analysis.has_issues is false or the missing_test_automation issue is gone, and score materially improves from 15.",
+  "kind": "fix",
+  "name": "qa-audio-tools-gct-requirements-targets-automation-20260516",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "audio-tools",
+    "gct",
+    "requirements",
+    "targets",
+    "tests"
+  ],
+  "title": "Raise audio-tools GCT requirement, target, and automation readiness",
+  "updated": "2026-05-16T22:02:46Z"
+}

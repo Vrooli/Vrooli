@@ -6,19 +6,17 @@ import { fileURLToPath } from "node:url";
 /**
  * Audio adoption boundary guard.
  *
- * `src/audio-integration/` is the canonical copy-paste reference for the
- * audio-tools integration surface (Connect client, provider hooks, API
- * wrappers). It is duplicated verbatim from
- * `scenarios/audio-tools/ui/src/audio-integration/` — no cross-scenario
- * import. Every consumer in this UI must import from `audio-integration`
- * rather than reaching across to the audio-tools scenario or the legacy
- * `@audio-tools/embed` package.
+ * `src/audio-integration/` is web-console's audio surface. After the
+ * "UI↔own-API only" migration, this folder calls web-console's own
+ * AudioAdminService + AudioRuntimeService via the same-origin Connect
+ * transport. It does NOT import from `@vrooli/proto-types/audio-tools/*`,
+ * `@audio-tools/embed`, or any other foreign-scenario audio package.
  */
 
 const THIS_FILE: string = fileURLToPath(import.meta.url);
 const SRC_ROOT: string = resolve(THIS_FILE, "..", "..");
 
-const ADOPTION_SURFACE = join(SRC_ROOT, "audio-integration");
+const AUDIO_SURFACE = join(SRC_ROOT, "audio-integration");
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -38,14 +36,13 @@ const IMPORT_RE = /\bfrom\s+["']([^"']+)["']/g;
 
 describe("frontend audio adoption boundary", () => {
   it("the audio-integration folder exists with the expected entry points", () => {
-    expect(existsSync(ADOPTION_SURFACE)).toBe(true);
-    expect(existsSync(join(ADOPTION_SURFACE, "index.ts"))).toBe(true);
-    expect(existsSync(join(ADOPTION_SURFACE, "client.tsx"))).toBe(true);
-    expect(existsSync(join(ADOPTION_SURFACE, "api"))).toBe(true);
-    expect(existsSync(join(ADOPTION_SURFACE, "hooks"))).toBe(true);
+    expect(existsSync(AUDIO_SURFACE)).toBe(true);
+    expect(existsSync(join(AUDIO_SURFACE, "index.ts"))).toBe(true);
+    expect(existsSync(join(AUDIO_SURFACE, "api"))).toBe(true);
+    expect(existsSync(join(AUDIO_SURFACE, "hooks"))).toBe(true);
   });
 
-  it("no file imports from @audio-tools/embed (retired)", () => {
+  it("no UI file imports from foreign-scenario audio packages", () => {
     const files = walk(SRC_ROOT);
     const violations: { file: string; spec: string }[] = [];
 
@@ -56,7 +53,11 @@ describe("frontend audio adoption boundary", () => {
       while ((match = IMPORT_RE.exec(text)) !== null) {
         const spec = match[1];
         if (typeof spec !== "string") continue;
-        if (spec === "@audio-tools/embed" || spec.startsWith("@audio-tools/embed/")) {
+        if (
+          spec === "@audio-tools/embed" ||
+          spec.startsWith("@audio-tools/embed/") ||
+          spec.startsWith("@vrooli/proto-types/audio-tools/")
+        ) {
           violations.push({ file, spec });
         }
       }
@@ -64,8 +65,8 @@ describe("frontend audio adoption boundary", () => {
 
     expect(
       violations,
-      "The @audio-tools/embed package has been retired. Import from " +
-        "`audio-integration` (the local copy-paste reference) instead. " +
+      "UI must not import audio-tools proto types or @audio-tools/embed. " +
+        "Use web-console's own audio_admin / audio_runtime proto types instead. " +
         "Offenders:\n" +
         violations.map((v) => `  ${v.file}\n    -> "${v.spec}"`).join("\n"),
     ).toEqual([]);

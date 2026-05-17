@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"audio-tools/cli/domains"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -36,6 +38,13 @@ func NewApp() (*App, error) {
 		AllowAnonymous:   true,
 		CommandGroups:    domains.CommandGroups,
 		SubcommandGroups: domains.SubcommandGroups,
+		// Summarize via the qwen3 reasoning model routinely takes
+		// 30-90s on CPU because the model emits several hundred tokens
+		// of <think> reasoning before the answer (see
+		// internal/summarize). 30s (cli-core default) is shorter than
+		// the server-side DefaultSummarizeTimeoutSeconds=120s and was
+		// the first thing to time out for real summarize calls.
+		DefaultHTTPTimeout: 180 * time.Second,
 	})
 	if err != nil {
 		return nil, err

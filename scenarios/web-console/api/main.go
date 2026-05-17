@@ -30,8 +30,9 @@ import (
 	aiH "web-console/handlers/ai"
 	capabilitiesH "web-console/handlers/capabilities"
 	conversationH "web-console/handlers/conversation"
-	discoveryH "web-console/handlers/discovery"
 	eventsH "web-console/handlers/events"
+	audioAdminH "web-console/handlers/audio_admin"
+	audioRuntimeH "web-console/handlers/audio_runtime"
 	hooksH "web-console/handlers/hooks"
 	metricsH "web-console/handlers/metrics"
 
@@ -151,8 +152,18 @@ type Server struct {
 	ttsPort         audioports.TextToSpeech
 	summarizer      audioports.Summarizer
 
+	// Admin / runtime ports backing the audio_admin + audio_runtime
+	// handlers that web-console exposes to its own UI. All same-origin
+	// from the UI; these ports delegate to audio-tools.
+	streamConfigAdmin    audioports.StreamConfigAdmin
+	wakeWordAdmin        audioports.WakeWordAdmin
+	speakerAdmin         audioports.SpeakerAdmin
+	ttsConfigAdmin       audioports.TTSConfigAdmin
+	summarizeConfigAdmin audioports.SummarizeConfigAdmin
+	playbackRecorder     audioports.PlaybackEventRecorder
+
 	// audioToolsResolver is the live audio-tools URL resolver, kept on
-	// the server so the discovery handler can re-query it per request.
+	// the server so consumers can re-query it (e.g. health probes).
 	audioToolsResolver audiotoolsint.URLResolver
 
 	// Hook routing diagnostics + auto-config (web-console-internal).
@@ -358,8 +369,14 @@ func NewServer(db *sql.DB) *Server {
 	srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}
 	srv.speechProcessor = &audioports.RemoteSpeechTextProcessor{Client: atClient}
 	srv.summarizer = &audioports.RemoteSummarizer{Client: atClient}
+	srv.streamConfigAdmin = &audioports.RemoteStreamConfigAdmin{Client: atClient}
+	srv.wakeWordAdmin = &audioports.RemoteWakeWordAdmin{Client: atClient}
+	srv.speakerAdmin = &audioports.RemoteSpeakerAdmin{Client: atClient}
+	srv.ttsConfigAdmin = &audioports.RemoteTTSConfigAdmin{Client: atClient}
+	srv.summarizeConfigAdmin = &audioports.RemoteSummarizeConfigAdmin{Client: atClient}
+	srv.playbackRecorder = &audioports.RemotePlaybackEventRecorder{Client: atClient}
 	srv.audioToolsResolver = atResolver
-	log.Printf("audio-tools adoption: STT/TTS/processor/summarize wired to %s", atClient.BaseURL())
+	log.Printf("audio-tools adoption: STT/TTS/processor/summarize + admin/runtime ports wired to %s", atClient.BaseURL())
 
 	srv.sweeper.Start()
 	sessions.StartReattachWatchdog()
@@ -436,10 +453,29 @@ func (s *Server) setupRoutes() {
 		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
 	}, nil).Mount(s.router)
 
-	// Discovery — exposes resolved scenario endpoint URLs (currently
-	// just audio-tools) to the browser so the UI never composes
-	// scenario URLs client-side.
-	discoveryH.Module(newAudioToolsResolverAdapter(s), nil).Mount(s.router)
+	// Audio admin / runtime — UI talks same-origin to web-console; the
+	// handlers delegate to internal/audioports.* which proxies to
+	// audio-tools server-side. The browser never sees audio-tools' host.
+	audioAdminH.Module(audioAdminH.Deps{
+		StreamConfig:    s.streamConfigAdmin,
+		WakeWord:        s.wakeWordAdmin,
+		Speaker:         s.speakerAdmin,
+		TTSConfig:       s.ttsConfigAdmin,
+		SummarizeConfig: s.summarizeConfigAdmin,
+	}).Mount(s.router)
+	audioRuntimeH.Module(audioRuntimeH.Deps{
+		STT:      s.sttPort,
+		TTS:      s.ttsPort,
+		Playback: s.playbackRecorder,
+		Summ:     s.summarizer,
+	}).Mount(s.router)
+
+	// Voice streaming WebSocket proxy. Browser opens ws(s)://<web-console>/api/v1/voice/stream;
+	// web-console proxies to audio-tools server-side. interoperability rule:
+	// the UI never sees audio-tools' host.
+	if s.audioToolsResolver != nil {
+		s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver))
+	}
 
 	// Hooks — REST webhook receivers (Claude Code CLI dictates wire shape).
 	hooksH.Module(hooksH.Deps{

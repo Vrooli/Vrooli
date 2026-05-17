@@ -1,28 +1,11 @@
-// audio-integration — canonical copy-paste reference for adopters of
-// audio-tools.
+// audio-integration — web-console's audio surface.
 //
-// This folder exists verbatim in audio-tools/ui (canonical) and is copied
-// byte-for-byte into each consumer scenario (e.g. web-console). There is
-// no cross-scenario import path; each scenario owns its own copy. See
-// README.md.
+// Calls are made via the same-origin Connect transport to web-console's
+// own AudioAdminService and AudioRuntimeService. The browser never sees
+// audio-tools' host; web-console's API owns the inter-scenario hop.
 
 export { MicReadinessIndicator } from "./MicReadinessIndicator";
 export type { MicReadinessIndicatorProps } from "./MicReadinessIndicator";
-
-// Connect client + React context for consumers calling audio-tools RPCs.
-export {
-  createAudioToolsClient,
-  AudioToolsProvider,
-  useAudioToolsClient,
-  useAudioToolsUnavailableReason,
-  getActiveAudioToolsClient,
-  setActiveAudioToolsClientForTesting,
-} from "./client";
-export type {
-  AudioToolsClient,
-  CreateAudioToolsClientOptions,
-  AudioToolsProviderProps,
-} from "./client";
 
 // =============================================================================
 // Voice (STT) capability surface.
@@ -49,12 +32,10 @@ export { KokoroProvider } from "./hooks/tts/KokoroProvider";
 export { BrowserTTSProvider } from "./hooks/tts/BrowserTTSProvider";
 
 // =============================================================================
-// API surfaces (audio-only operations bound to audio-tools).
+// API surfaces (audio operations against web-console's own API).
 // =============================================================================
 
 export {
-  createTtsApi,
-  useTtsApi,
   synthesizeTTS,
   fetchCachedTTS,
   getTTSVoices,
@@ -67,8 +48,6 @@ export {
 export type { TTSConfig, TTSSummarizeConfig, TTSVoiceInfo, TTSPlaybackEvent } from "./api/tts";
 
 export {
-  createVoiceApi,
-  useVoiceApi,
   buildVoiceStreamWsUrl,
   transcribeAudio,
   transcribeAudioBypassFilter,

@@ -250,6 +250,13 @@
         "required": false,
         "startup_policy": "try_start",
         "description": "Post-execution code review and readiness validation"
+      },
+      "audio-tools": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "STT (mic input in MessageComposer + QuickCapture) and TTS (assistant message playback in Session Details) flow through audio-tools via the audio-integration UI module and the discovery Connect handler. swarm-manager contains zero audio synthesis/transcription code.",
+        "degraded_behavior": "If audio-tools is unreachable, the discovery handler returns available:false; the UI hides the mic button and renders an unavailable banner in the Audio settings tab. The API still boots."
       }
     }
   },

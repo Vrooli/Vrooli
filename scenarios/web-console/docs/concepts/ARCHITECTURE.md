@@ -215,6 +215,39 @@ The Integrations settings tab renders this registry as two grouped subsections: 
 
 Greenfield assertion tests in [CODE: api/greenfield_assertions_test.go] lock the rule against regression.
 
+### UI ↔ own-API only (audio_admin + audio_runtime)
+
+The browser only ever talks to web-console's own API. The audio surface
+the UI calls is web-console-owned:
+
+- `AudioAdminService` — speaker config + status + profiles, wake-word
+  config + template lifecycle, stream-config, TTS config, summarize
+  config. Proto schema in
+  [`packages/proto/schemas/web-console/v1/audio_admin/`](../../../../packages/proto/schemas/web-console/v1/audio_admin/);
+  handler in [CODE: api/handlers/audio_admin/].
+- `AudioRuntimeService` — per-utterance Transcribe, Synthesize,
+  ListVoices, GetTTSCache, Summarize, RecordPlaybackEvent. Proto
+  schema in
+  [`packages/proto/schemas/web-console/v1/audio_runtime/`](../../../../packages/proto/schemas/web-console/v1/audio_runtime/);
+  handler in [CODE: api/handlers/audio_runtime/].
+
+Both handlers delegate to `internal/audioports` Remote* adapters
+(`RemoteSpeakerAdmin`, `RemoteWakeWordAdmin`, `RemoteStreamConfigAdmin`,
+`RemoteTTSConfigAdmin`, `RemoteSummarizeConfigAdmin`,
+`RemotePlaybackEventRecorder`) that call audio-tools server-side via
+Connect-RPC, re-resolving the audio-tools URL on transport failure.
+
+Voice streaming WebSocket: `/api/v1/voice/stream` is a transparent WS
+reverse proxy ([CODE: api/voice_stream_proxy.go]) — same browser URL,
+web-console-mediated upstream dial to audio-tools. CORS is never
+required on audio-tools because the browser never originates a
+cross-origin request against it.
+
+The boundary test
+[`scenarios/web-console/ui/src/__tests__/audio-boundary.test.ts`](../../ui/src/__tests__/audio-boundary.test.ts)
+asserts no UI file imports `@vrooli/proto-types/audio-tools/*` or the
+retired `@audio-tools/embed` package.
+
 ## Key Design Decisions
 
 | Decision | Rationale |

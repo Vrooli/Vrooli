@@ -96,3 +96,84 @@ func (PassthroughSpeechTextProcessor) SplitIntoParagraphs(text string) []string 
 	}
 	return []string{text}
 }
+
+// -----------------------------------------------------------------------------
+// Admin ports (added Phase B of "UI↔own-API only" rollout).
+//
+// These mirror audio-tools' STTAdminService surface but expose typed
+// domain structs from contracts.go so handler/test code never imports an
+// audio-tools proto package. Remote* implementations live in
+// remote_*_admin.go.
+// -----------------------------------------------------------------------------
+
+// FieldMask is the path-list update mask shared by every Update* admin
+// method. Empty mask is invalid (handlers reject InvalidArgument).
+type FieldMask struct {
+	Paths []string
+}
+
+// StreamConfigAdmin owns the StreamConfig CRUD surface.
+type StreamConfigAdmin interface {
+	GetStreamConfig(ctx context.Context) (StreamConfig, error)
+	UpdateStreamConfig(ctx context.Context, mask FieldMask, cfg StreamConfig) (StreamConfig, error)
+}
+
+// WakeWordAdmin owns the wake-word template surface.
+type WakeWordAdmin interface {
+	GetWakeWordConfig(ctx context.Context) (WakeWordConfig, error)
+	UpdateWakeWordTemplate(ctx context.Context, t WakeWordTemplate) (WakeWordConfig, error)
+	DeleteWakeWordTemplate(ctx context.Context) (WakeWordConfig, error)
+}
+
+// SpeakerAdmin owns speaker-verification config + profile lifecycle.
+type SpeakerAdmin interface {
+	GetSpeakerConfig(ctx context.Context) (SpeakerConfig, error)
+	UpdateSpeakerConfig(ctx context.Context, mask FieldMask, cfg SpeakerConfig) (SpeakerConfig, error)
+	GetSpeakerStatus(ctx context.Context) (SpeakerStatus, error)
+	ListSpeakerProfiles(ctx context.Context) ([]SpeakerProfile, error)
+	EnrollSpeakerProfile(ctx context.Context, in EnrollSpeakerInput) (SpeakerEnrollResult, error)
+	ClearSpeakerProfileBinding(ctx context.Context) (SpeakerConfig, error)
+	UnbindSpeakerProfile(ctx context.Context, profileID string) (SpeakerConfig, error)
+	DeleteSpeakerProfile(ctx context.Context, profileID string) (SpeakerConfig, error)
+}
+
+// EnrollSpeakerInput is the EnrollSpeakerProfile request shape.
+// AddToActive / Enable are tri-state (nil = unset).
+type EnrollSpeakerInput struct {
+	Audio       []byte
+	Format      AudioFormat
+	ProfileID   string
+	DisplayName string
+	Notes       string
+	AddToActive *bool
+	Enable      *bool
+}
+
+// TTSConfigAdmin owns the audio-tools TTS Config surface.
+type TTSConfigAdmin interface {
+	GetTTSConfig(ctx context.Context) (TTSConfig, error)
+	UpdateTTSConfig(ctx context.Context, mask FieldMask, cfg TTSConfig) (TTSConfig, error)
+}
+
+// SummarizeConfigAdmin owns the SummarizeConfig surface (separate from the
+// per-call Summarizer above).
+type SummarizeConfigAdmin interface {
+	GetSummarizeConfig(ctx context.Context) (SummarizeConfig, error)
+	UpdateSummarizeConfig(ctx context.Context, mask FieldMask, cfg SummarizeConfig) (SummarizeConfig, error)
+}
+
+// PlaybackEventRecorder forwards UI-emitted TTS playback events
+// (start/stop/error) to audio-tools' RecordPlaybackEvent RPC.
+type PlaybackEventRecorder interface {
+	RecordPlaybackEvent(ctx context.Context, ev PlaybackEvent) error
+}
+
+// PlaybackEvent mirrors audio-tools' PlaybackEvent message.
+type PlaybackEvent struct {
+	Source    string
+	Stage     string
+	Backend   string
+	SessionID string
+	Message   string
+	EventID   string
+}

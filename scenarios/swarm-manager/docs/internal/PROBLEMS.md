@@ -561,3 +561,44 @@ The codebase demonstrates strong React stability practices:
 ---
 
 *Last updated: 2026-01-28 (Phase 27: React Stability Audit)*
+
+---
+
+## API transport drift: Discovery is the only Connect-RPC domain
+
+*Added: 2026-05-17 (audio-tools adoption)*
+
+When swarm-manager adopted audio-tools, a new Connect-RPC `DiscoveryService`
+was added so the browser can resolve audio-tools' base URL server-side. It
+is mounted alongside the existing gorilla/mux REST surface in
+`api/main.go` via `discovery.RegisterRoutes(...)`.
+
+This makes swarm-manager's API L1-mixed: every other domain (backlog,
+captures, initiatives, execution, settings, review, graph, search,
+operations, agent-sessions, agent-activity) still speaks REST + JSON.
+That violates `feedback_proto_connect_always.md` ("Every scenario API
+domain uses proto + Connect-RPC").
+
+**Follow-up:** Plan a per-domain migration to Connect-RPC, prioritizing
+read-heavy surfaces first (overview, backlog list, scenarios list).
+Each domain should land its own proto schema under
+`packages/proto/schemas/swarm-manager/v1/<domain>/` and replace its
+`RegisterRoutes(...)` REST handler with a Connect handler module
+mounted via `api-core/connectx`.
+
+## Audio: auto-speak pref is in localStorage, not Settings proto
+
+*Added: 2026-05-17 (audio-tools adoption)*
+
+The swarm-manager-local "auto-speak agent replies" preference is
+persisted in `localStorage` (key `swarm-manager:audio-prefs:v1`) rather
+than as a field on the unified `Settings` proto. This is intentional
+for the initial slice — adding a proto field would require
+regenerating all three gen trees and updating settings.go / settings
+adapter / SettingsTab patch paths. Voice / speed / summarize knobs are
+already shared via audio-tools' own settings API so no swarm-manager-
+side proto change is needed for the audio-tools-owned settings.
+
+**Follow-up:** When a richer client-side preferences slice is
+introduced (Zustand persist or similar), migrate this pref or
+formalise it as `Settings.audio.autoSpeak`.

@@ -29,7 +29,7 @@
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-013 | Adoption Management UI | Lists connected scenarios + integration health.
-- [~] OT-P1-014 | Streaming WS transport | Partial transcripts, segment finals, barge-in, speaker verification gating end-to-end. **Status (2026-05-16):** proto + chain streaming interface + bidi Connect handler + CLI commands shipped (Phases A/B/C/F-partial/H of audio-tools-web-console-restoration plan). Buffered fallback emits Segment + Done. Native partials (Phase D), BYOK streaming adapters (Phase E), and WS-handler chain rewire (Phase F second half) deferred — see `docs/internal/PROBLEMS.md`.
+- [~] OT-P1-014 | Streaming WS transport | Partial transcripts, segment finals, barge-in, speaker verification gating end-to-end. **Status (2026-05-17):** proto + chain streaming interface + bidi Connect handler + CLI commands shipped (Phases A/B/C/F-partial/H of audio-tools-web-console-restoration plan). Buffered fallback emits Segment + Done. Standalone admin UI for speaker verification + wake-word + stream-config now ships in this scenario's UI (`features/admin/`). Native partials (Phase D), BYOK streaming adapters (Phase E), and WS-handler chain rewire (Phase F second half) deferred — see `docs/internal/PROBLEMS.md`.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Twilio media-stream transport (covered by `execute/audio-tools-twilio-media-stream-transport`).

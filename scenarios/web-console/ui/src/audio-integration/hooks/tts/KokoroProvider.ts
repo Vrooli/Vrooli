@@ -11,8 +11,8 @@ export type KokoroSynthesizeFn = (
 export interface KokoroProviderOptions {
   /**
    * Override the synthesize implementation. Tests pass their own mock
-   * here. Defaults to the live audio-tools Connect client resolved via
-   * the active AudioToolsProvider.
+   * here. Defaults to the web-console AudioRuntimeService same-origin
+   * Connect client.
    */
   synthesize?: KokoroSynthesizeFn;
 }

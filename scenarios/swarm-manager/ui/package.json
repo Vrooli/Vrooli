@@ -17,6 +17,8 @@
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0",
     "@bufbuild/protovalidate": "^1.1.1",
+    "@connectrpc/connect": "^2.1.1",
+    "@connectrpc/connect-web": "^2.1.1",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.13",

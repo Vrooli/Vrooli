@@ -175,6 +175,190 @@
       }
     },
     {
+      "id": "audio_admin_get_stream_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetStreamConfig",
+      "method": "POST",
+      "summary": "Get STT stream config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_update_stream_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateStreamConfig",
+      "method": "POST",
+      "summary": "Update STT stream config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_get_wake_word_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetWakeWordConfig",
+      "method": "POST",
+      "summary": "Get wake-word config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_update_wake_word_template",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateWakeWordTemplate",
+      "method": "POST",
+      "summary": "Update wake-word template",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_delete_wake_word_template",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/DeleteWakeWordTemplate",
+      "method": "POST",
+      "summary": "Delete wake-word template",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_get_speaker_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetSpeakerConfig",
+      "method": "POST",
+      "summary": "Get speaker-verification config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_update_speaker_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateSpeakerConfig",
+      "method": "POST",
+      "summary": "Update speaker-verification config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_get_speaker_status",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetSpeakerStatus",
+      "method": "POST",
+      "summary": "Get speaker-verification status",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_list_speaker_profiles",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/ListSpeakerProfiles",
+      "method": "POST",
+      "summary": "List speaker profiles",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_enroll_speaker_profile",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/EnrollSpeakerProfile",
+      "method": "POST",
+      "summary": "Enroll a new speaker profile",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_clear_speaker_profile_binding",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/ClearSpeakerProfileBinding",
+      "method": "POST",
+      "summary": "Clear all active speaker-profile bindings",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_unbind_speaker_profile",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UnbindSpeakerProfile",
+      "method": "POST",
+      "summary": "Unbind a single speaker profile",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_delete_speaker_profile",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/DeleteSpeakerProfile",
+      "method": "POST",
+      "summary": "Delete a speaker profile permanently",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_get_tts_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetTTSConfig",
+      "method": "POST",
+      "summary": "Get TTS default config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_update_tts_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateTTSConfig",
+      "method": "POST",
+      "summary": "Update TTS default config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_get_summarize_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetSummarizeConfig",
+      "method": "POST",
+      "summary": "Get TTS summarize config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_update_summarize_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateSummarizeConfig",
+      "method": "POST",
+      "summary": "Update TTS summarize config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_runtime_transcribe",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/Transcribe",
+      "method": "POST",
+      "summary": "Transcribe audio (batch)",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "audio_runtime_synthesize",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/Synthesize",
+      "method": "POST",
+      "summary": "Synthesize speech from text",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "audio_runtime_list_voices",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/ListVoices",
+      "method": "POST",
+      "summary": "List TTS voices",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "audio_runtime_get_tts_cache",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/GetTTSCache",
+      "method": "POST",
+      "summary": "Fetch cached TTS audio",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "audio_runtime_record_playback_event",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/RecordPlaybackEvent",
+      "method": "POST",
+      "summary": "Record TTS playback event",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "audio_runtime_summarize",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/Summarize",
+      "method": "POST",
+      "summary": "Summarize long text",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
       "id": "capabilities_get",
       "path": "/vrooli.web_console.v1.capabilities.CapabilitiesService/Get",
       "method": "POST",
@@ -884,6 +1068,30 @@
       }
     },
     {
+      "id": "terminal_get_screen",
+      "path": "/vrooli.web_console.v1.terminal.TerminalService/GetScreen",
+      "method": "POST",
+      "summary": "Read the decoded screen of a session",
+      "description": "Connect-RPC. Returns the cell grid, cursor, alt-buffer flag, scrollback line count, and plain-text rendering of the active screen.",
+      "category": "terminal"
+    },
+    {
+      "id": "terminal_send_input",
+      "path": "/vrooli.web_console.v1.terminal.TerminalService/SendInput",
+      "method": "POST",
+      "summary": "Send programmatic input to a session",
+      "description": "Connect-RPC. Accepts text, named keys (resolved via the active KeyMap), or raw bytes; routes through the single Session SendInput seam.",
+      "category": "terminal"
+    },
+    {
+      "id": "terminal_wait_idle",
+      "path": "/vrooli.web_console.v1.terminal.TerminalService/WaitIdle",
+      "method": "POST",
+      "summary": "Block until a session is idle",
+      "description": "Connect-RPC. Blocks until the PTY has produced no output for quiet_window, or until timeout elapses, or until the session exits.",
+      "category": "terminal"
+    },
+    {
       "id": "terminal_upload",
       "path": "/api/v1/sessions/{id}/upload",
       "method": "POST",
@@ -905,566 +1113,6 @@
       "rest_exception": {
         "reason": "ops_probe",
         "note": "xterm.js requires a raw WebSocket upgrade — Connect-RPC cannot express that handshake. Stays REST until a Connect server-streaming RPC replaces it."
-      }
-    },
-    {
-      "id": "tts_config_get",
-      "path": "/vrooli.web_console.v1.tts.TTSService/GetConfig",
-      "method": "POST",
-      "summary": "Get TTS config",
-      "description": "Returns the active auto-TTS configuration (backend, voice, speed).",
-      "category": "tts",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "Config"
-        }
-      },
-      "cli_mapping": {
-        "command": "web-console tts config-get"
-      }
-    },
-    {
-      "id": "tts_config_update",
-      "path": "/vrooli.web_console.v1.tts.TTSService/UpdateConfig",
-      "method": "POST",
-      "summary": "Update TTS config",
-      "description": "Applies a partial update. Each field has a paired has_* flag indicating intent to set.",
-      "category": "tts",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "Config"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Bad backend, voice, or speed"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console tts config-set",
-        "args": [
-          "--body-file"
-        ]
-      }
-    },
-    {
-      "id": "tts_status",
-      "path": "/vrooli.web_console.v1.tts.TTSService/GetStatus",
-      "method": "POST",
-      "summary": "Get TTS runtime status",
-      "description": "Returns the live TTS snapshot: config, hook state, last routing/ack/playback per source, and the Kokoro capability label.",
-      "category": "tts",
-      "response": {
-        "type": "object",
-        "properties": {
-          "status": "Status"
-        }
-      },
-      "cli_mapping": {
-        "command": "web-console tts status"
-      }
-    },
-    {
-      "id": "tts_event_record",
-      "path": "/vrooli.web_console.v1.tts.TTSService/RecordPlaybackEvent",
-      "method": "POST",
-      "summary": "Record a TTS playback event",
-      "description": "UI clients post playback lifecycle events (start/end/error per source/backend).",
-      "category": "tts",
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing source or stage"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console tts event",
-        "args": [
-          "--body-file"
-        ]
-      }
-    },
-    {
-      "id": "tts_summarize_config_get",
-      "path": "/vrooli.web_console.v1.tts.TTSService/GetSummarizeConfig",
-      "method": "POST",
-      "summary": "Get TTS summarization config",
-      "description": "Returns the long-response summarization config (threshold, level, model, timeout).",
-      "category": "tts",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "SummarizeConfig"
-        }
-      },
-      "cli_mapping": {
-        "command": "web-console tts summarize-config-get"
-      }
-    },
-    {
-      "id": "tts_summarize_config_update",
-      "path": "/vrooli.web_console.v1.tts.TTSService/UpdateSummarizeConfig",
-      "method": "POST",
-      "summary": "Update TTS summarization config",
-      "description": "Applies a partial update. has_* flags signal intent to set per field.",
-      "category": "tts",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "SummarizeConfig"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Invalid level, threshold, timeout, or empty model"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console tts summarize-config-set",
-        "args": [
-          "--body-file"
-        ]
-      }
-    },
-    {
-      "id": "tts_synthesize",
-      "path": "/vrooli.web_console.v1.tts.TTSService/Synthesize",
-      "method": "POST",
-      "summary": "Synthesize text to audio (returns audio bytes)",
-      "description": "Proxies to the Kokoro backend. event_id + version trigger cache-on-write.",
-      "category": "tts",
-      "response": {
-        "type": "object",
-        "properties": {
-          "audio": "bytes",
-          "content_type": "string"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing/too-long input, or invalid response_format"
-        },
-        {
-          "status": 503,
-          "code": "unavailable",
-          "description": "Kokoro TTS not available"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console tts synthesize",
-        "args": [
-          "--body-file"
-        ]
-      }
-    },
-    {
-      "id": "tts_cache_get",
-      "path": "/vrooli.web_console.v1.tts.TTSService/GetCache",
-      "method": "POST",
-      "summary": "Fetch cached TTS audio for an event",
-      "description": "Returns cached audio bytes for (event_id, voice, speed, version). Defaults to version=active.",
-      "category": "tts",
-      "response": {
-        "type": "object",
-        "properties": {
-          "audio": "bytes",
-          "content_type": "string"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing event_id"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No cached audio for this event"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console tts cache-get",
-        "args": [
-          "--event-id"
-        ]
-      }
-    },
-    {
-      "id": "tts_voices",
-      "path": "/vrooli.web_console.v1.tts.TTSService/ListVoices",
-      "method": "POST",
-      "summary": "List available TTS voices",
-      "description": "Returns the list of voice IDs known to the Kokoro backend.",
-      "category": "tts",
-      "response": {
-        "type": "object",
-        "properties": {
-          "voices": "[]Voice"
-        }
-      },
-      "errors": [
-        {
-          "status": 503,
-          "code": "unavailable",
-          "description": "Kokoro TTS not available"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console tts voices"
-      }
-    },
-    {
-      "id": "voice_transcribe",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/Transcribe",
-      "method": "POST",
-      "summary": "Transcribe audio bytes via Whisper",
-      "description": "Returns the transcribed text. Honors the server-side speaker-verification gate unless skip_speaker_verification is true.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "text": "string"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or unreadable audio"
-        },
-        {
-          "status": 503,
-          "code": "unavailable",
-          "description": "Whisper not available"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console voice transcribe",
-        "args": [
-          "--audio-file"
-        ]
-      }
-    },
-    {
-      "id": "voice_config_get",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/GetStreamConfig",
-      "method": "POST",
-      "summary": "Get voice stream config",
-      "description": "Returns the voice streaming pipeline tuning (flush, delta, overlap, persistent mode, wake-word knobs).",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "StreamConfig"
-        }
-      },
-      "cli_mapping": {
-        "command": "web-console voice config-get"
-      }
-    },
-    {
-      "id": "voice_config_update",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/UpdateStreamConfig",
-      "method": "POST",
-      "summary": "Update voice stream config",
-      "description": "Applies a partial update. has_* flags signal intent to set per field.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "StreamConfig"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Field out of range"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console voice config-set",
-        "args": [
-          "--body-file"
-        ]
-      }
-    },
-    {
-      "id": "voice_wakeword_get",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/GetWakeWordConfig",
-      "method": "POST",
-      "summary": "Get wake word config",
-      "description": "Returns the wake-word configuration. template_json is empty when configured=false.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "WakeWordConfig"
-        }
-      },
-      "cli_mapping": {
-        "command": "web-console voice wakeword-get"
-      }
-    },
-    {
-      "id": "voice_wakeword_update",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/UpdateWakeWordTemplate",
-      "method": "POST",
-      "summary": "Upload/update a wake word template",
-      "description": "Validates and persists the WakeWordTemplate JSON payload (samples, label, threshold).",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "WakeWordConfig"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Bad sample count, threshold, or kind"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console voice wakeword-set",
-        "args": [
-          "--body-file"
-        ]
-      }
-    },
-    {
-      "id": "voice_wakeword_delete",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/DeleteWakeWordTemplate",
-      "method": "POST",
-      "summary": "Delete the wake word template",
-      "description": "Clears the stored wake-word template.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "WakeWordConfig"
-        }
-      },
-      "cli_mapping": {
-        "command": "web-console voice wakeword-delete"
-      }
-    },
-    {
-      "id": "voice_speaker_config_get",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/GetSpeakerConfig",
-      "method": "POST",
-      "summary": "Get speaker verification config",
-      "description": "Returns the speaker-verification gate config.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "SpeakerConfig"
-        }
-      },
-      "cli_mapping": {
-        "command": "web-console voice speaker-config-get"
-      }
-    },
-    {
-      "id": "voice_speaker_config_update",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/UpdateSpeakerConfig",
-      "method": "POST",
-      "summary": "Update speaker verification config",
-      "description": "Applies a partial update. has_* flags signal intent per field.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "SpeakerConfig"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Bad threshold/mode/reject_behavior, or enabled without profiles"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console voice speaker-config-set",
-        "args": [
-          "--body-file"
-        ]
-      }
-    },
-    {
-      "id": "voice_speaker_status",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/GetSpeakerStatus",
-      "method": "POST",
-      "summary": "Get speaker verification status",
-      "description": "Returns capability state, resource readiness, profile count, and the active config.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "status": "SpeakerStatus"
-        }
-      },
-      "cli_mapping": {
-        "command": "web-console voice speaker-status"
-      }
-    },
-    {
-      "id": "voice_speaker_profiles",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/ListSpeakerProfiles",
-      "method": "POST",
-      "summary": "List speaker verification profiles",
-      "description": "Returns the profiles known to the speaker-verification resource.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int",
-          "profiles": "[]SpeakerProfile"
-        }
-      },
-      "errors": [
-        {
-          "status": 503,
-          "code": "unavailable",
-          "description": "Speaker verification not configured"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console voice speaker-profiles"
-      }
-    },
-    {
-      "id": "voice_speaker_enroll",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/EnrollSpeakerProfile",
-      "method": "POST",
-      "summary": "Enroll a speaker profile",
-      "description": "Enrolls a new profile from audio bytes. Optionally activates it and enables the gate.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "SpeakerConfig",
-          "enrollment": "SpeakerEnrollment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing audio"
-        },
-        {
-          "status": 503,
-          "code": "unavailable",
-          "description": "Speaker verification not configured"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console voice speaker-enroll",
-        "args": [
-          "--audio-file"
-        ]
-      }
-    },
-    {
-      "id": "voice_speaker_clear",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/ClearSpeakerProfileBinding",
-      "method": "POST",
-      "summary": "Clear the bound speaker profile",
-      "description": "Disables the gate and clears active profile IDs.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "SpeakerConfig"
-        }
-      },
-      "cli_mapping": {
-        "command": "web-console voice speaker-clear"
-      }
-    },
-    {
-      "id": "voice_speaker_remove",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/RemoveSpeakerProfile",
-      "method": "POST",
-      "summary": "Remove a speaker profile from the active list",
-      "description": "Drops the profile ID from the active list; does not delete from the speaker-verification resource.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "SpeakerConfig"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing profile_id"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console voice speaker-remove",
-        "args": [
-          "--profile-id"
-        ]
-      }
-    },
-    {
-      "id": "voice_speaker_delete",
-      "path": "/vrooli.web_console.v1.voice.VoiceService/DeleteSpeakerProfile",
-      "method": "POST",
-      "summary": "Hard-delete a speaker profile",
-      "description": "Deletes the profile from the speaker-verification resource AND drops it from the active list.",
-      "category": "voice",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "SpeakerConfig"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing profile_id"
-        },
-        {
-          "status": 503,
-          "code": "unavailable",
-          "description": "Speaker verification not configured"
-        }
-      ],
-      "cli_mapping": {
-        "command": "web-console voice speaker-delete",
-        "args": [
-          "--profile-id"
-        ]
-      }
-    },
-    {
-      "id": "voice_stream",
-      "path": "/api/v1/voice/stream",
-      "method": "GET",
-      "summary": "Voice streaming WebSocket",
-      "description": "Bi-directional WebSocket carrying microphone audio frames upstream and partial/final transcripts plus wake-word and speaker-verification events downstream.",
-      "category": "voice",
-      "rest_exception": {
-        "reason": "ops_probe",
-        "note": "Browser microphones stream raw audio over a WebSocket upgrade. Migration to Connect server-streaming is deferred to the final streams phase."
       }
     },
     {

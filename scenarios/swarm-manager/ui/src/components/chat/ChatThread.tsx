@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { useAgentMessageTTS } from "../../hooks/useAgentMessageTTS";
+import { useAudioPrefs } from "../../hooks/useAudioPrefs";
 import type { ChatAccent, ChatMessageRenderSlot, ChatMessageView } from "./chat-types";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 
@@ -32,10 +34,33 @@ export function ChatThread({
   testId,
 }: ChatThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const tts = useAgentMessageTTS();
+  const [audioPrefs] = useAudioPrefs();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
   }, [messages.length, isWaiting]);
+
+  // Auto-speak: only fire for assistant messages that arrive AFTER the
+  // thread first mounts, and never re-speak the same id on re-render.
+  // mountedAt freezes the lower bound; spokenIds.current dedupes across
+  // remounts of the same message id.
+  const mountedAtRef = useRef(messages.length);
+  const spokenIdsRef = useRef<Set<string>>(new Set(messages.slice(0, mountedAtRef.current).map((m) => m.id)));
+
+  useEffect(() => {
+    if (!audioPrefs.autoSpeak || tts.unavailable) return;
+    for (let i = mountedAtRef.current; i < messages.length; i++) {
+      const m = messages[i];
+      if (!m || m.role !== "assistant") continue;
+      if (spokenIdsRef.current.has(m.id)) continue;
+      if (!m.content.trim()) continue;
+      spokenIdsRef.current.add(m.id);
+      tts.speak(m.id, m.content);
+      break; // Speak one new arrival per effect run; older ones queued naturally.
+    }
+    mountedAtRef.current = messages.length;
+  }, [messages, audioPrefs.autoSpeak, tts]);
 
   return (
     <div className={cn("min-h-0 flex-1 space-y-3 overflow-y-auto", className)} data-testid={testId}>
@@ -47,6 +72,7 @@ export function ChatThread({
             accent={accent}
             getMessageMeta={getMessageMeta}
             renderAttachmentPreview={renderAttachmentPreview}
+            speak={tts}
           />
         ))
       ) : (

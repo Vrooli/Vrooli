@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/knowledge-observatory/**"
+  ],
+  "created": "2026-05-17T04:03:47Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "afc03951-1b8c-4e43-9d32-b3d90acf5d49",
+    "task_id": "30cb78e9-77f9-48e7-9e2a-33bd902cec8f",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Fresh GCT completeness recalculation on 2026-05-17T04:01:54Z classified knowledge-observatory as functional_incomplete with score 52 after a 17-point validation penalty. Test evidence: tests 3/3 passing but only 3 tests for 44 requirements, test_coverage_ratio 0.068, depth avg 1.0, and recommendations to add more tests and reach optimal 2:1 test-to-requirement ratio. Validation issues: monolithic_test_files flagged 3 files, worst offender api/metrics_test.go shared by KO-P0-002 and KO-QM-001 through KO-QM-005; superficial_test_implementation flagged 5 files: api/search_performance_test.go, api/graph_api_test.go, api/graph_performance_test.go, api/api_contract_test.go, api/cors_test.go. Success target: rerun GCT calculate/get/validation; monolithic_test_files and superficial_test_implementation disappear or drop below warning thresholds, tests.count increases with focused automated validations, coverage/depth improve from 0.068/1.0, and score improves from 52.",
+  "kind": "fix",
+  "name": "qa-knowledge-observatory-gct-test-depth-20260517",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "knowledge-observatory",
+    "gct",
+    "tests",
+    "automation"
+  ],
+  "title": "Replace knowledge-observatory broad and superficial GCT validations with focused tests",
+  "updated": "2026-05-17T04:03:47Z"
+}

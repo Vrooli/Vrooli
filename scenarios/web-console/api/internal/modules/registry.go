@@ -21,6 +21,8 @@ import (
 	"web-console/internal/module"
 
 	aiH "web-console/handlers/ai"
+	audioAdminH "web-console/handlers/audio_admin"
+	audioRuntimeH "web-console/handlers/audio_runtime"
 	capabilitiesH "web-console/handlers/capabilities"
 	conversationH "web-console/handlers/conversation"
 	eventsH "web-console/handlers/events"
@@ -42,6 +44,8 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, aiH.Endpoints...)
+	out = append(out, audioAdminH.Endpoints...)
+	out = append(out, audioRuntimeH.Endpoints...)
 	out = append(out, capabilitiesH.Endpoints...)
 	out = append(out, conversationH.Endpoints...)
 	out = append(out, eventsH.Endpoints...)

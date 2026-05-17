@@ -29,6 +29,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
+import { AudioToolsProvider, createAudioToolsClient } from "./audio-integration";
+import { fetchAudioToolsDiscovery } from "./api/discovery";
 import "./styles.css";
 
 const queryClient = new QueryClient();
@@ -94,14 +96,41 @@ const ensureSEO = () => {
 
 ensureSEO();
 
+// AUDIO-TOOLS DISCOVERY: resolve audio-tools' base URL via the
+// swarm-manager backend BEFORE React mounts so AudioToolsProvider
+// wires the client against the right host. A discovery failure mounts
+// the provider with a sentinel base URL ("http://localhost:0") + a
+// stable unavailableReason so consumer hooks render typed errors and
+// the Audio settings tab can surface a banner.
+async function bootstrapAudioTools(): Promise<{ baseUrl: string; unavailableReason: string }> {
+  try {
+    const ep = await fetchAudioToolsDiscovery();
+    if (ep.available && ep.baseUrl) {
+      return { baseUrl: ep.baseUrl, unavailableReason: "" };
+    }
+    return { baseUrl: "", unavailableReason: ep.unavailableReason || "discovery_failed" };
+  } catch {
+    return { baseUrl: "", unavailableReason: "discovery_failed" };
+  }
+}
+
 const rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error("Root element not found - check index.html has <div id=\"root\"></div>");
 }
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </React.StrictMode>
-);
+
+void bootstrapAudioTools().then(({ baseUrl, unavailableReason }) => {
+  const audioToolsClient = createAudioToolsClient({
+    baseUrl: baseUrl || "http://localhost:0",
+  });
+
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <AudioToolsProvider client={audioToolsClient} unavailableReason={unavailableReason || undefined}>
+          <App />
+        </AudioToolsProvider>
+      </QueryClientProvider>
+    </React.StrictMode>
+  );
+});

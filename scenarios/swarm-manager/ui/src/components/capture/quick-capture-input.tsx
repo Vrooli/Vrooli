@@ -115,6 +115,7 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
             : undefined
         }
         canSubmit={Boolean(canSubmit)}
+        onTranscript={(transcribed) => setText((prev) => (prev ? prev.trimEnd() + " " : "") + transcribed)}
       />
 
       {submitError ? (

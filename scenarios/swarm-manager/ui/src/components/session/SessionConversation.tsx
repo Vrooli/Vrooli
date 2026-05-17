@@ -156,6 +156,7 @@ export function SessionConversation({
           onRemoveContext={(type, ref) => onPendingContextChange(pendingContext.filter((item) => !(item.type === type && item.ref === ref)))}
           canSubmit={Boolean(draft.trim() || pendingAttachments.length > 0 || pendingContext.length > 0)}
           imagePickerRequestKey={imagePickerRequestKey}
+          onTranscript={(text) => onDraftChange((draft ? draft.trimEnd() + " " : "") + text)}
         />
         <SessionContextPicker
           isOpen={contextPickerOpen}

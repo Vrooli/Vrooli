@@ -260,6 +260,60 @@ func TestCoordinator_Probe_BypassesCache(t *testing.T) {
 	require.Equal(t, 2, probes)
 }
 
+// TestCoordinator_Execute_LocalNotPreProbed asserts the principled
+// behaviour that Local's Execute is invoked even when IsAvailable
+// reports false. The real call is the source of truth — pre-probing
+// Local would re-introduce the audio-tools diagnostic bug where a stale
+// capability checker masked a working Whisper as
+// ErrAllProvidersFailed.
+func TestCoordinator_Execute_LocalNotPreProbed(t *testing.T) {
+	executes := 0
+	probes := 0
+	local := &tiered.Tier[req, *resp]{
+		Execute: func(_ context.Context, _ req) (*resp, error) {
+			executes++
+			return &resp{Tier: "local"}, nil
+		},
+		IsAvailable: func(context.Context) bool {
+			probes++
+			return false // pretend the cheap probe says "down"
+		},
+	}
+	c := tiered.NewCoordinator(tiered.Options[req, *resp]{
+		Local:       local,
+		EnableLocal: true,
+		Route:       defaultRoute,
+		AllFailed:   errAllFailed,
+	})
+	r, err := c.Execute(context.Background(), req{})
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	require.Equal(t, "local", r.Tier)
+	require.Equal(t, 1, executes, "Local Execute must be attempted")
+	require.Equal(t, 0, probes, "Local IsAvailable must not gate Execute")
+}
+
+// TestCoordinator_Execute_LocalErrorPropagates ensures the real Local
+// error surfaces as lastErr instead of being flattened to AllFailed.
+// This is what restores informative messages to the diagnostic UI when
+// Whisper is genuinely down.
+func TestCoordinator_Execute_LocalErrorPropagates(t *testing.T) {
+	wantErr := errors.New("connection refused")
+	local := &tiered.Tier[req, *resp]{
+		Execute:     func(context.Context, req) (*resp, error) { return nil, wantErr },
+		IsAvailable: func(context.Context) bool { return false },
+	}
+	c := tiered.NewCoordinator(tiered.Options[req, *resp]{
+		Local:       local,
+		EnableLocal: true,
+		Route:       defaultRoute,
+		AllFailed:   errAllFailed,
+	})
+	_, err := c.Execute(context.Background(), req{})
+	require.ErrorIs(t, err, wantErr)
+	require.NotErrorIs(t, err, errAllFailed)
+}
+
 func TestCoordinator_Eligible(t *testing.T) {
 	byok := tier("byok", true, nil)
 	c := tiered.NewCoordinator(tiered.Options[req, *resp]{
@@ -270,4 +324,15 @@ func TestCoordinator_Eligible(t *testing.T) {
 	require.True(t, c.Eligible(context.Background(), tiered.SlotBYOK, req{BYOKKey: "k"}))
 	require.False(t, c.Eligible(context.Background(), tiered.SlotBYOK, req{}), "no BYOK key -> route false")
 	require.False(t, c.Eligible(context.Background(), tiered.SlotVrooli, req{VrooliOK: "t"}), "Vrooli slot not configured")
+
+	// Local is eligible whenever it's enabled, configured, and routed —
+	// IsAvailable is not consulted (the call itself is the test).
+	local := tier("local", false, nil) // IsAvailable=false on purpose
+	c2 := tiered.NewCoordinator(tiered.Options[req, *resp]{
+		Local: local, EnableLocal: true,
+		Route:     defaultRoute,
+		AllFailed: errAllFailed,
+	})
+	require.True(t, c2.Eligible(context.Background(), tiered.SlotLocal, req{}),
+		"Local must be eligible regardless of IsAvailable")
 }

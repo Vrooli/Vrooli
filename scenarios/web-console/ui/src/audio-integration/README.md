@@ -1,34 +1,39 @@
 # audio-integration
 
-Canonical copy-paste reference for scenarios that consume audio-tools (STT,
-TTS, summarization) from a React UI.
+Web-console's audio surface. Talks **only** to web-console's own API
+(same-origin Connect transport) — never to audio-tools directly.
 
-This folder is the **source of truth**. It also exists verbatim under
-`scenarios/web-console/ui/src/audio-integration/`. Other adopters copy it
-byte-for-byte into `<their-scenario>/ui/src/audio-integration/`.
+## Architecture
 
-## Adoption
+```
+                  same-origin (Connect-Web)
+audio-integration ───────────────────────────▶ web-console API
+                                                    │
+                                                    │ Connect-RPC (server↔server)
+                                                    ▼
+                                               audio-tools API
+```
 
-1. Declare a dependency on the `audio-tools` scenario in your
-   `.vrooli/service.json`.
-2. Add a discovery endpoint to your API that returns audio-tools' base URL
-   (use `api-core/discovery.ResolveScenarioURLDefault`).
-3. Copy this folder verbatim into your UI: `<scenario>/ui/src/audio-integration/`.
-4. At UI bootstrap, fetch the discovery endpoint, build a client, and mount
-   the provider:
+The browser never sees audio-tools' host. Web-console's API owns the
+inter-scenario hop through `internal/audioports.Remote*` adapters.
 
-   ```tsx
-   const client = createAudioToolsClient({ baseUrl });
-   <AudioToolsProvider client={client} unavailableReason={reasonOrUndefined}>
-     <App />
-   </AudioToolsProvider>
-   ```
+## What lives here
 
-5. Inside React components, use `useAudioToolsClient()` and the exported
-   hooks/providers (e.g. `VoiceStreamProvider`, `KokoroProvider`).
+- `api/voice.ts`, `api/tts.ts` — Connect clients for web-console's
+  `AudioAdminService` + `AudioRuntimeService`, plus the type-shaped
+  wrappers consumers import.
+- `api/protomap.ts` — boundary translators between the legacy
+  string-typed embed surface and the web-console-owned proto enums
+  (`AudioFormat`, `SpeakerMode`, `RejectBehavior`, etc.).
+- `hooks/voice/*`, `hooks/tts/*` — the embed-style voice + TTS hooks
+  (VAD, wakeword, providers) that consumers use directly.
+- `index.ts` — public re-exports for the rest of the web-console UI.
 
-## Rules
+## Hard rule
 
-- **No cross-scenario imports.** This folder is duplicated, not shared.
-- **No window globals.** All wiring flows through React context.
-- **No no-arg `createAudioToolsClient()`.** The `baseUrl` is required.
+The boundary test `src/__tests__/audio-boundary.test.ts` enforces that
+**no file under `src/`** imports `@vrooli/proto-types/audio-tools/*` or
+the retired `@audio-tools/embed` package. New audio surfaces should be
+added to web-console's `audio_admin` / `audio_runtime` proto schemas
+(in `packages/proto/schemas/web-console/v1/`) and exposed by the
+matching handler in `scenarios/web-console/api/handlers/`.

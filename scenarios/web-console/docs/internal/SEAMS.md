@@ -1186,3 +1186,29 @@ the future web-console adopter will swap the local implementations for
   *which* provider — Whisper vs cloud API — it's currently using) lands by
   extending `Def`/`State` or by a follow-up RPC; the current shape leaves
   room without re-plumbing the panel.
+
+### Audio admin / runtime ports (API)
+
+- **Where**: [CODE: api/internal/audioports/ports.go] (interfaces),
+  [CODE: api/internal/audioports/contracts.go] (proto ↔ domain mappers
+  + typed enums), `remote_*.go` (Remote* adapters: speaker / wake-word
+  / stream-config / tts-config / summarize-config / playback-event).
+- **Seam**: every handler in `handlers/audio_admin` and
+  `handlers/audio_runtime` accepts these interfaces as `Deps`; tests
+  pass small fakes. See
+  [CODE: api/handlers/audio_admin/connect_handler_test.go] and
+  [CODE: api/handlers/audio_runtime/connect_handler_test.go].
+- **Boundary rule**: handlers consume only audioports domain types.
+  audio-tools proto types never cross the handler boundary;
+  `contracts.go` is the single conversion point.
+
+### Voice WS reverse proxy (API)
+
+- **Where**: [CODE: api/voice_stream_proxy.go] — registered at
+  `/api/v1/voice/stream`.
+- **What it does**: opens a same-origin WebSocket to the browser,
+  dials audio-tools' upstream WS, and bridges frames both directions.
+  The browser never sees audio-tools' host; web-console owns the
+  scenario-URL resolution + re-resolution.
+- **Seam**: takes an `audiotoolsint.URLResolver` so tests can inject
+  a fake-upstream URL.

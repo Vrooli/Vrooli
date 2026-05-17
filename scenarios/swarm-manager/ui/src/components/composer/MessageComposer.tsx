@@ -7,6 +7,7 @@ import { cn } from "../../lib/utils";
 import type { AgentSessionContextType } from "../../types";
 import { AttachmentPreviewTray } from "./AttachmentPreviewTray";
 import { ContextChipTray, type ComposerContextChip } from "./ContextChipTray";
+import { MicButton } from "./MicButton";
 
 const MAX_TEXTAREA_HEIGHT = 104;
 const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/gif,image/webp";
@@ -35,6 +36,8 @@ interface MessageComposerProps {
   onOpenForm?: (draftText: string) => void;
   canSubmit?: boolean;
   imagePickerRequestKey?: number;
+  onTranscript?: (text: string) => void;
+  micTestId?: string;
 }
 
 export function MessageComposer({
@@ -61,6 +64,8 @@ export function MessageComposer({
   onOpenForm,
   canSubmit,
   imagePickerRequestKey = 0,
+  onTranscript,
+  micTestId,
 }: MessageComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -124,6 +129,14 @@ export function MessageComposer({
           className="min-h-[2.5rem] w-full resize-none bg-transparent text-base text-slate-200 placeholder-slate-500 outline-none disabled:opacity-50"
           data-testid={inputTestId ?? testId}
         />
+
+        {onTranscript && (
+          <MicButton
+            onTranscript={onTranscript}
+            disabled={disabled || isSubmitting}
+            testId={micTestId ?? (testId ? `${testId}-mic` : undefined)}
+          />
+        )}
 
         {onOpenContextPicker && (
           <button

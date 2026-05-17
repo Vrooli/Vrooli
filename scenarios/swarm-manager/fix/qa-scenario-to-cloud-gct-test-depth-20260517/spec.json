@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/scenario-to-cloud/**"
+  ],
+  "created": "2026-05-17T04:04:18Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "afc03951-1b8c-4e43-9d32-b3d90acf5d49",
+    "task_id": "30cb78e9-77f9-48e7-9e2a-33bd902cec8f",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Fresh GCT completeness recalculation on 2026-05-17T04:02:02Z classified scenario-to-cloud as functional_incomplete with score 41 after an 8-point validation penalty. Test evidence: tests 3/3 passing but only 3 tests for 13 requirements, test_coverage_ratio 0.231, depth avg 1.0, and recommendations to add more tests and reach optimal 2:1 test-to-requirement ratio. Validation issues: monolithic_test_files flagged cli/main_test.go as shared by STC-P0-001, STC-P0-002, STC-P0-003, and STC-P0-006; superficial_test_implementation flagged requirements/08-p1-targets/module.json for STC-P1-001 and STC-P1-002. Success target: rerun GCT calculate/get/validation; monolithic_test_files and superficial_test_implementation disappear or drop below warning thresholds, tests.count increases with focused automated validations, coverage/depth improve from 0.231/1.0, and score improves from 41.",
+  "kind": "fix",
+  "name": "qa-scenario-to-cloud-gct-test-depth-20260517",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "scenario-to-cloud",
+    "gct",
+    "tests",
+    "automation"
+  ],
+  "title": "Replace scenario-to-cloud broad and superficial validations with focused tests",
+  "updated": "2026-05-17T04:04:18Z"
+}

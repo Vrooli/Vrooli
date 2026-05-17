@@ -292,6 +292,12 @@ export const literalSelectors = {
     tabExecution: "settings-tab-execution",
     tabWorkshop: "settings-tab-workshop",
     tabReview: "settings-tab-review",
+    tabAudio: "settings-tab-audio",
+    audioAutoSpeak: "settings-audio-auto-speak",
+    audioVoice: "settings-audio-voice",
+    audioSpeed: "settings-audio-speed",
+    audioSummarize: "settings-audio-summarize",
+    audioUnavailableBanner: "settings-audio-unavailable",
     saveButton: "settings-save",
   },
   // Execution list page selectors

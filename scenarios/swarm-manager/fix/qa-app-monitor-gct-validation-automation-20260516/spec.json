@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/app-monitor/**"
+  ],
+  "created": "2026-05-16T22:02:46Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "f5bd6e0a-5429-4670-be3f-387f9a2bd5bf",
+    "task_id": "e5c4acea-3801-4fda-9411-e36dc204c552",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Fresh GCT completeness recalculation on 2026-05-16T22:01:39Z classified app-monitor as foundation_laid with score 33 after a 23-point validation penalty. Automation-specific evidence: tests 3/6 passing, missing_test_automation flagged 12 manual validations with 60% manual ratio and 6 completed requirements still manual, and monolithic_test_files flagged ui/src/components/views/HomeView.tsx as validating AM-P0-001, AM-P0-002, AM-P0-004, and AM-P1-005 in one file. GCT recommendations were to increase test pass rate to 90%+ and add more tests. Success target: rerun `vrooli scenario completeness score calculate app-monitor --json`, `vrooli scenario completeness score validation app-monitor --json`, and `vrooli scenario completeness score get app-monitor --json`; missing_test_automation and monolithic_test_files disappear or drop below warning thresholds, test_pass_rate improves from 3/6 to at least 90%, tests.count increases with focused automated API/UI/e2e validations, and score improves from 33.",
+  "kind": "fix",
+  "name": "qa-app-monitor-gct-validation-automation-20260516",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "app-monitor",
+    "gct",
+    "tests",
+    "automation"
+  ],
+  "title": "Replace app-monitor manual and monolithic validations with focused automation",
+  "updated": "2026-05-16T22:02:46Z"
+}

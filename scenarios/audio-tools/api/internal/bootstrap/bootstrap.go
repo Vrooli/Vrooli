@@ -88,7 +88,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		nil,
 		capsRegistry,
 		skipVerifyCount,
-		env.WhisperURL,
+		env.WhisperURL+"/asr?output=json",
 		doer, nil,
 	)
 
