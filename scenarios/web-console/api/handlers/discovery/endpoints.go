@@ -12,7 +12,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        discoveryconnect.DiscoveryServiceGetAudioToolsEndpointProcedure,
 		Method:      "POST",
 		Summary:     "Resolve audio-tools base URL for the browser",
-		Description: "Returns the audio-tools HTTP + WebSocket base URLs as resolved by the server-side api-core/discovery. Browsers consume this at boot to populate window.__AUDIO_TOOLS_URL__ instead of composing the URL themselves.",
+		Description: "Returns the audio-tools HTTP + WebSocket base URLs as resolved by the server-side api-core/discovery. Browsers consume this at boot to construct the AudioToolsProvider client instead of composing the URL themselves.",
 		Category:    "discovery",
 		Response: &module.Schema{
 			Type: "object",

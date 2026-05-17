@@ -1,7 +1,7 @@
 import { useCallback, type ChangeEvent } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { TTSPlaybackCapabilities } from "../../domains/audio";
+import type { TTSPlaybackCapabilities } from "../../audio-integration";
 import { cn } from "../../lib/classnames";
 import { strings } from "../../consts/strings";
 import { getAccentClasses } from "./scrubStyles";

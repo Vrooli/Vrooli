@@ -16,19 +16,125 @@ import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
-// Mock the audio cues module so we can track calls without actual audio
-const startCueSpy = vi.fn();
-const stopCueSpy = vi.fn();
+// Capabilities surface is consumed by the web-console useVoiceInput adapter
+// (via the audio-integration core's capabilityCheck hook). Mock the four
+// entry points the adapter calls so tests don't hit the real Connect-RPC
+// transport. Individual tests can override `mockCapabilities()` to set the
+// resolved value via `globalThis.fetch` — that mock is honored too because
+// fetchCapabilities falls back to it when the synchronous snapshot is null.
+const fetchCapabilitiesMock = vi.fn().mockResolvedValue({
+  capabilities: [{ id: "whisper-stt", status: "unavailable", features: [] }],
+  timestamp: new Date().toISOString(),
+});
+const refreshCapabilitiesLivenessMock = vi.fn().mockResolvedValue(undefined);
+const getCapabilitiesLivenessSnapshotMock = vi.fn(() => null);
+vi.mock("../../api/capabilities", () => ({
+  fetchCapabilities: fetchCapabilitiesMock,
+  fetchCapabilitiesLiveness: fetchCapabilitiesMock,
+  fetchCapabilitiesLivenessCached: fetchCapabilitiesMock,
+  refreshCapabilitiesLiveness: refreshCapabilitiesLivenessMock,
+  getCapabilitiesLivenessSnapshot: getCapabilitiesLivenessSnapshotMock,
+  _resetCapabilitiesCache: vi.fn(),
+}));
 
-// Single consolidated mock for the @audio-tools/embed surface. vi.mock
-// overwrites duplicates so the previous one-mock-per-concern split (audio
-// cues, shared audio context, mic readiness, VAD, wake-word) is fused here.
-vi.mock("@audio-tools/embed", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@audio-tools/embed")>();
+// Mock the audio cues module so we can track calls without actual audio.
+// useVoiceCore (inside audio-integration) imports cues via "../index" — the
+// barrel mock does not intercept those internal imports, so we also mock the
+// underlying audioCues / sharedAudioContext / micReadiness / vad source
+// files directly. Spy instances are hoisted via vi.hoisted so they're safe
+// to reference inside the lifted vi.mock factories.
+const audioHoisted = vi.hoisted(() => ({
+  startCue: vi.fn(),
+  stopCue: vi.fn(),
+  createAudioContextStub: () => ({
+    state: "running",
+    createMediaStreamSource: () => ({ connect: () => {}, disconnect: () => {} }),
+    createBiquadFilter: () => ({ type: "lowpass", frequency: { value: 0 }, Q: { value: 0 }, connect: () => {}, disconnect: () => {} }),
+    createAnalyser: () => ({ fftSize: 0, frequencyBinCount: 64, getByteFrequencyData: () => {}, getByteTimeDomainData: () => {}, connect: () => {}, disconnect: () => {} }),
+    createGain: () => ({ gain: { value: 1 }, connect: () => {}, disconnect: () => {} }),
+    destination: { connect: () => {}, disconnect: () => {} },
+    resume: () => Promise.resolve(),
+  }),
+}));
+const startCueSpy = audioHoisted.startCue;
+const stopCueSpy = audioHoisted.stopCue;
+vi.mock("../../audio-integration/hooks/voice/audioCues", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../audio-integration/hooks/voice/audioCues")>();
   return {
     ...actual,
-    playRecordingStartCue: startCueSpy,
-    playRecordingStopCue: stopCueSpy,
+    playRecordingStartCue: audioHoisted.startCue,
+    playRecordingStopCue: audioHoisted.stopCue,
+  };
+});
+vi.mock("../../audio-integration/hooks/voice/sharedAudioContext", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../audio-integration/hooks/voice/sharedAudioContext")>();
+  return {
+    ...actual,
+    getSharedAudioContext: () => audioHoisted.createAudioContextStub(),
+    ensureAudioContextOnGesture: vi.fn(),
+    closeSharedAudioContext: vi.fn(),
+    installAudioContextKeepalive: vi.fn(),
+    teardownAudioContextKeepalive: vi.fn(),
+  };
+});
+vi.mock("../../audio-integration/hooks/voice/micReadiness", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../audio-integration/hooks/voice/micReadiness")>();
+  return {
+    ...actual,
+    acquireStream: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn(), readyState: "live" }], getAudioTracks: () => [{ stop: vi.fn(), readyState: "live" }] }),
+    releaseStream: vi.fn(),
+    getStream: vi.fn().mockReturnValue(null),
+    isStreamAlive: vi.fn().mockReturnValue(false),
+    installVisibilityHandler: vi.fn().mockReturnValue(() => {}),
+    _resetMicReadiness: vi.fn(),
+  };
+});
+vi.mock("../../audio-integration/hooks/voice/vad", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../audio-integration/hooks/voice/vad")>();
+  return {
+    ...actual,
+    createVadRefs: () => ({ state: "idle", silenceThreshold: 0, speechThreshold: 0, cachedFloorBaseline: null }),
+    createVadRefsFromCache: vi.fn(),
+    extractCacheableFloor: vi.fn().mockReturnValue({ silenceThreshold: 0.01, speechThreshold: 0.02, timestamp: Date.now() }),
+    saveNoiseFloorCache: vi.fn(),
+    loadNoiseFloorCache: vi.fn().mockReturnValue(null),
+    vadTick: vi.fn().mockReturnValue(null),
+    VAD_FLOOR_CACHE_MAX_AGE_MS: 86400000,
+  };
+});
+vi.mock("../../audio-integration/api/voice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../audio-integration/api/voice")>();
+  return {
+    ...actual,
+    getVoiceStreamConfig: vi.fn().mockResolvedValue({
+      flushIntervalMs: 0, minDeltaBytes: 0, overlapBytes: 0,
+      persistentMode: false, wakeWordEnabled: false, wakeWordThreshold: 0, segmentSilenceMs: 0,
+    }),
+    getWakeWordConfig: vi.fn().mockResolvedValue({ configured: false, template: null }),
+    transcribeAudioBypassFilter: vi.fn().mockResolvedValue(""),
+    transcribeAudio: vi.fn().mockResolvedValue(""),
+    transcribeAudioWithRetry: vi.fn().mockResolvedValue(""),
+    buildVoiceStreamWsUrl: vi.fn().mockReturnValue("ws://localhost:0"),
+  };
+});
+vi.mock("../../audio-integration/hooks/voice/wakeword", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../audio-integration/hooks/voice/wakeword")>();
+  return {
+    ...actual,
+    createWakeWordEngine: vi.fn(),
+    PassiveListener: vi.fn(),
+  };
+});
+
+// Single consolidated mock for the audio-integration surface. vi.mock
+// overwrites duplicates so the previous one-mock-per-concern split (audio
+// cues, shared audio context, mic readiness, VAD, wake-word) is fused here.
+vi.mock("../../audio-integration", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../audio-integration")>();
+  return {
+    ...actual,
+    playRecordingStartCue: audioHoisted.startCue,
+    playRecordingStopCue: audioHoisted.stopCue,
     getSharedAudioContext: () => ({
       state: "running",
       createMediaStreamSource: () => ({ connect: vi.fn(), disconnect: vi.fn() }),
@@ -91,19 +197,21 @@ function mockStream(): MediaStream {
 
 function mockCapabilities(whisperAvailable: boolean, streaming = false) {
   const features = streaming ? ["voice-streaming"] : [];
+  const resp = {
+    capabilities: [
+      {
+        id: "whisper-stt",
+        status: whisperAvailable ? "available" : "unavailable",
+        features,
+      },
+    ],
+    timestamp: new Date().toISOString(),
+  };
+  fetchCapabilitiesMock.mockResolvedValue(resp);
+  refreshCapabilitiesLivenessMock.mockResolvedValue(resp);
   globalThis.fetch = vi.fn().mockResolvedValue({
     ok: true,
-    json: () =>
-      Promise.resolve({
-        capabilities: [
-          {
-            id: "whisper-stt",
-            status: whisperAvailable ? "available" : "unavailable",
-            features,
-          },
-        ],
-        timestamp: new Date().toISOString(),
-      }),
+    json: () => Promise.resolve(resp),
   }) as typeof fetch;
 }
 

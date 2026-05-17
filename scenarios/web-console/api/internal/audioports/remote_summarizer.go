@@ -8,8 +8,36 @@ import (
 
 	"web-console/integrations/audiotools"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	summv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
 )
+
+// summarizeLevelFromString maps human level strings to proto enum.
+func summarizeLevelFromString(s string) summv1.SummarizeLevel {
+	switch s {
+	case "light":
+		return summv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT
+	case "moderate":
+		return summv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE
+	case "heavy":
+		return summv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY
+	default:
+		return summv1.SummarizeLevel_SUMMARIZE_LEVEL_UNSPECIFIED
+	}
+}
+
+func providerTierToString(t commonv1.ProviderTier) string {
+	switch t {
+	case commonv1.ProviderTier_PROVIDER_TIER_BYOK:
+		return "byok"
+	case commonv1.ProviderTier_PROVIDER_TIER_VROOLI:
+		return "vrooli"
+	case commonv1.ProviderTier_PROVIDER_TIER_LOCAL:
+		return "local"
+	default:
+		return ""
+	}
+}
 
 // Summarizer is the narrow port web-console talks to for long-message
 // summarization on the TTS pipeline. The local implementation in
@@ -60,7 +88,7 @@ func (r *RemoteSummarizer) Summarize(ctx context.Context, in SummarizeInput) (Su
 	}
 	req := connect.NewRequest(&summv1.SummarizeRequest{
 		Text:           in.Text,
-		Level:          in.Level,
+		Level:          summarizeLevelFromString(in.Level),
 		Model:          in.Model,
 		TimeoutSeconds: int32(in.TimeoutSeconds),
 	})
@@ -81,7 +109,7 @@ func (r *RemoteSummarizer) Summarize(ctx context.Context, in SummarizeInput) (Su
 		Text:         resp.Msg.Text,
 		PromptTokens: int(resp.Msg.PromptTokens),
 		OutputTokens: int(resp.Msg.OutputTokens),
-		ProviderTier: resp.Msg.ProviderTier,
+		ProviderTier: providerTierToString(resp.Msg.ProviderTier),
 		ProviderID:   resp.Msg.ProviderId,
 		ModelID:      resp.Msg.ModelId,
 		Latency:      time.Duration(resp.Msg.LatencyMs) * time.Millisecond,

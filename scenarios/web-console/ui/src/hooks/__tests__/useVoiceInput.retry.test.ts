@@ -16,8 +16,8 @@ vi.mock("../../api/capabilities", () => ({
   getCapabilitiesLivenessSnapshot: vi.fn().mockReturnValue(null),
   refreshCapabilitiesLiveness: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("@audio-tools/embed", async () => {
-  const actual = await vi.importActual<typeof import("@audio-tools/embed")>("@audio-tools/embed");
+vi.mock("../../audio-integration", async () => {
+  const actual = await vi.importActual<typeof import("../../audio-integration")>("../../audio-integration");
   return {
     ...actual,
     transcribeAudioBypassFilter: vi.fn(),
@@ -93,7 +93,7 @@ describe("useVoiceInput rejection + retry", () => {
    * retryWithoutFilter without a rejection is a no-op.
    */
   it("retryWithoutFilter is a no-op when rejectedAudio is null", async () => {
-    const api = await import("@audio-tools/embed");
+    const api = await import("../../audio-integration");
     const onTranscript = vi.fn();
     const { useVoiceInput } = await import("../useVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
@@ -145,7 +145,7 @@ describe("useVoiceInput rejection + retry", () => {
   });
 
   it("module surface exports transcribeAudioBypassFilter", async () => {
-    const api = await import("@audio-tools/embed");
+    const api = await import("../../audio-integration");
     expect(api).toHaveProperty("transcribeAudioBypassFilter");
     expect(typeof api.transcribeAudioBypassFilter).toBe("function");
   });

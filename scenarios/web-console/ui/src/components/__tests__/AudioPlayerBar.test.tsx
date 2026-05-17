@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { strings } from "../../consts/strings";
 import AudioPlayerBar from "../AudioPlayerBar";
 import type { AudioPlayerBarProps } from "../AudioPlayerBar";
-import type { TTSPlaybackCapabilities } from "../../domains/audio";
+import type { TTSPlaybackCapabilities } from "../../audio-integration";
 import type { ConversationEvent } from "../../api/conversation";
 
 const fullCapabilities: TTSPlaybackCapabilities = {

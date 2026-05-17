@@ -8,8 +8,24 @@ import (
 
 	"web-console/integrations/audiotools"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 )
+
+func responseFormatFromString(s string) commonv1.ResponseFormat {
+	switch s {
+	case "mp3":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_MP3
+	case "wav":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_WAV
+	case "flac":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_FLAC
+	case "opus":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_OPUS
+	default:
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_UNSPECIFIED
+	}
+}
 
 // RemoteTextToSpeech implements TextToSpeech against the audio-tools service.
 //
@@ -34,7 +50,7 @@ func (r *RemoteTextToSpeech) Synthesize(ctx context.Context, in TTSRequest) (TTS
 		Text:           in.Input,
 		Voice:          in.Voice,
 		Speed:          in.Speed,
-		ResponseFormat: in.ResponseFormat,
+		ResponseFormat: responseFormatFromString(in.ResponseFormat),
 		EventId:        in.EventID,
 		Version:        in.Version,
 	})

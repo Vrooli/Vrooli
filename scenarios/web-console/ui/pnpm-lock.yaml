@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@audio-tools/embed':
-        specifier: file:../../audio-tools/embed
-        version: file:../../audio-tools/embed(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@bufbuild/protobuf':
         specifier: ^2.10.1
         version: 2.12.0
@@ -190,12 +187,6 @@ packages:
 
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
-
-  '@audio-tools/embed@file:../../audio-tools/embed':
-    resolution: {directory: ../../audio-tools/embed, type: directory}
-    peerDependencies:
-      react: ^18
-      react-dom: ^18
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -3683,15 +3674,6 @@ snapshots:
       lru-cache: 11.2.6
 
   '@asamuzakjp/nwsapi@2.3.9': {}
-
-  '@audio-tools/embed@file:../../audio-tools/embed(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      '@bufbuild/protobuf': 2.12.0
-      '@connectrpc/connect': 2.1.1(@bufbuild/protobuf@2.12.0)
-      '@connectrpc/connect-web': 2.1.1(@bufbuild/protobuf@2.12.0)(@connectrpc/connect@2.1.1(@bufbuild/protobuf@2.12.0))
-      '@vrooli/proto-types': file:../../../packages/proto/gen/typescript
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
 
   '@babel/code-frame@7.29.0':
     dependencies:

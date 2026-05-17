@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { Check, X, Mic } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
-import type { CommandSuggestion } from "../domains/audio";
+import type { CommandSuggestion } from "../audio-integration";
 
 /** Auto-dismiss timeout for unacted command suggestions. */
 const AUTO_DISMISS_MS = 5000;

@@ -11,13 +11,13 @@ import {
   updateTTSConfig,
   updateTTSSummarizeConfig,
   type TTSSummarizeConfig,
-} from "@audio-tools/embed";
+} from "../../audio-integration";
 import { getTTSHookStatus, updateTTSHookConfig } from "../../api/ttsHook";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
 
 // TtsSettingsSection split-of-concerns:
-//   - voice / speed / response-format / summarization knobs → @audio-tools/embed
+//   - voice / speed / response-format / summarization knobs → audio-integration
 //     (the audio-tools scenario owns the canonical TTSConfig + summarize knobs).
 //   - autoEnabled / backend preference / startMuted / Claude-hook routing
 //     status → web-console-internal /api/v1/tts-hook/* (Claude-hook routing
@@ -63,7 +63,7 @@ export default function TtsSettingsSection() {
   const [testState, setTestState] = useState<"idle" | "running" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState<string | null>(null);
 
-  // Summarization config — sourced from audio-tools via @audio-tools/embed.
+  // Summarization config — sourced from audio-tools via audio-integration.
   const [summarizeConfig, setSummarizeConfig] = useState<TTSSummarizeConfig | null>(null);
   const [summarizeError, setSummarizeError] = useState<string | null>(null);
 
@@ -405,7 +405,7 @@ export default function TtsSettingsSection() {
         </SettingsCard>
       )}
 
-      {/* Summarization — sourced from / persisted to audio-tools via @audio-tools/embed. */}
+      {/* Summarization — sourced from / persisted to audio-tools via audio-integration. */}
       <SettingsSectionIntro
         eyebrow={t(strings.settings.voiceOutputSection.summarizationEyebrow)}
         title={t(strings.settings.voiceOutputSection.summarizationTitle)}

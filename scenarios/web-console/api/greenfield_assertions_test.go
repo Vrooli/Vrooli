@@ -445,7 +445,7 @@ func TestGreenfield_InternalAudioDomainsDoNotImportHandlers(t *testing.T) {
 //
 // All audio synthesis, voice listing, summarization, transcription,
 // speaker-verification, and wake-word lives in audio-tools now. Web-console
-// reaches it through audioports.Remote* adapters + @audio-tools/embed.
+// reaches it through audioports.Remote* adapters + the local audio-integration UI module.
 func TestGreenfield_NoAudioPackagesInWebConsole(t *testing.T) {
 	deletedDirs := []string{
 		"internal/voice",

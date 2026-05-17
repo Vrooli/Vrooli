@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { getTTSSummarizeConfig, updateTTSSummarizeConfig } from "@audio-tools/embed";
+import { getTTSSummarizeConfig, updateTTSSummarizeConfig } from "../../audio-integration";
 import { summarizeEvent, type ConversationEvent } from "../../api/conversation";
 import type { SummarizationLevel } from "../../components/tts/PlaybackModeControl";
 import type {

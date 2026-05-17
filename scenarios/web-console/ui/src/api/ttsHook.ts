@@ -1,9 +1,9 @@
 // Claude-hook / Codex-tailer TTS routing state — a web-console-internal
-// concern that does NOT belong in @audio-tools/embed (audio-tools knows
+// concern that does NOT belong in audio-integration (audio-tools knows
 // nothing about Claude project settings or the Codex rollout tailer).
 //
 // All audio synthesis, voice listing, and summarize knobs go through
-// @audio-tools/embed; this module exposes only the web-console-specific
+// audio-integration; this module exposes only the web-console-specific
 // glue: routing status, ack ingestion, playback-event ingestion, and the
 // auto/backend/startMuted preference triple.
 

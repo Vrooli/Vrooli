@@ -18,6 +18,7 @@ import (
 	"web-console/integrations/audiotools"
 	"web-console/internal/audioports"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -43,7 +44,7 @@ func (f *fakeSTT) Transcribe(ctx context.Context, req *connect.Request[sttv1.Tra
 	}
 	return connect.NewResponse(&sttv1.TranscribeResponse{
 		Text:         text,
-		ProviderTier: "local",
+		ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL,
 		ProviderId:   "fake",
 		ModelId:      "fake-model",
 	}), nil
@@ -70,7 +71,7 @@ func (f *fakeTTS) Synthesize(ctx context.Context, req *connect.Request[ttsv1.Syn
 	return connect.NewResponse(&ttsv1.SynthesizeResponse{
 		Audio:        audio,
 		ContentType:  "audio/mpeg",
-		ProviderTier: "local",
+		ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL,
 		ProviderId:   "fake",
 		ModelId:      "fake-tts",
 		VoiceUsed:    req.Msg.Voice,

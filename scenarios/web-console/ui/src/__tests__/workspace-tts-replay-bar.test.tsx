@@ -239,8 +239,8 @@ vi.mock("../hooks/useImageUpload", () => ({
 vi.mock("../api/uploads", () => ({
   uploadFile: vi.fn(),
 }));
-vi.mock("@audio-tools/embed", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@audio-tools/embed")>();
+vi.mock("../audio-integration", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../audio-integration")>();
   return {
     ...actual,
     getTTSSummarizeConfig: vi.fn().mockResolvedValue({ enabled: false, charThreshold: 500, level: "moderate", model: "qwen3:1.7b", timeoutSeconds: 30 }),

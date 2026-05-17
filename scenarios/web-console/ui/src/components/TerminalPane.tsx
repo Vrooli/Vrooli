@@ -22,7 +22,7 @@ import { useMobileBackspaceRepeat } from "../hooks/useMobileBackspaceRepeat";
 import { useConversationSession } from "../hooks/useConversationSession";
 import { useConversationStore } from "../stores/useConversationStore";
 import type { ConversationEvent } from "../api/conversation";
-import type { TTSPlaybackState } from "../domains/audio";
+import type { TTSPlaybackState } from "../audio-integration";
 
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
 const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;

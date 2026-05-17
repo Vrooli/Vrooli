@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { strings } from "../../consts/strings";
 import { AudioSettingsContent } from "../tts/AudioSettingsContent";
-import type { TTSPlaybackCapabilities } from "../../domains/audio";
+import type { TTSPlaybackCapabilities } from "../../audio-integration";
 
 const fullCapabilities: TTSPlaybackCapabilities = {
   canPause: true,

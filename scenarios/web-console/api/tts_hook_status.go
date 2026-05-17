@@ -16,7 +16,7 @@ import (
 // the matching RESTReasonHostHookGlue rationale.
 //
 // All audio synthesis, voice listing, summarize knobs flow through audio-tools
-// via @audio-tools/embed; this file knows nothing about them.
+// via the audio-integration UI module; this file knows nothing about them.
 
 // ttsRoutingResultDTO mirrors ConversationAppendResult on the wire.
 type ttsRoutingResultDTO struct {

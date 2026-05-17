@@ -227,7 +227,7 @@ func NewServer(db *sql.DB) *Server {
 
 	// Load the small Claude-hook routing preference triple (auto/backend/
 	// startMuted). Voice/speed/summarize knobs live in audio-tools — fetched
-	// lazily by the UI via @audio-tools/embed, not loaded here.
+	// lazily by the UI via the audio-integration module, not loaded here.
 	hookCfgPath := resolveTTSHookConfigPath()
 	hookCfg, err := loadTTSHookConfig(hookCfgPath)
 	if err != nil {
@@ -450,7 +450,7 @@ func (s *Server) setupRoutes() {
 	// TTS hook routing diagnostics + auto/backend/startMuted preference triple.
 	// REST exception per RESTReasonHostHookGlue — this is web-console-internal
 	// Claude-hook glue and never crosses scenario boundaries. All audio
-	// synthesis flows through Connect against audio-tools (via @audio-tools/embed).
+	// synthesis flows through Connect against audio-tools (via audio-integration).
 	s.registerTTSHookRoutes()
 }
 

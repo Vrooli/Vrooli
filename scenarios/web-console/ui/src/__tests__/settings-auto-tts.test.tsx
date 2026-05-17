@@ -29,7 +29,7 @@ vi.mock("../stores/useWorkspaceStore", () => ({
 // Mock the new split-of-concerns sources:
 //   - hook config / routing status / playback events → ../api/ttsHook
 //     (web-console-internal REST against /api/v1/tts-hook/*).
-//   - voice/speed/summarize knobs → @audio-tools/embed (calls audio-tools).
+//   - voice/speed/summarize knobs → ../audio-integration (calls audio-tools).
 const mockUpdateHookConfig = vi.fn((patch?: Partial<{
   autoEnabled: boolean;
   backend: "auto" | "kokoro" | "browser";
@@ -88,8 +88,8 @@ const mockUpdateVoiceConfig = vi.fn((patch?: Partial<{
   defaultResponseFormat: "mp3",
 }));
 
-vi.mock("@audio-tools/embed", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@audio-tools/embed")>();
+vi.mock("../audio-integration", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../audio-integration")>();
   return {
     ...actual,
     getTTSConfig: vi.fn().mockResolvedValue({

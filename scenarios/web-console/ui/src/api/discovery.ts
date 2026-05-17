@@ -14,9 +14,9 @@ export interface AudioToolsEndpoint {
 
 /**
  * Resolve the audio-tools base URL via the web-console backend.
- * Browsers must call this at boot and write the result into
- * window.__AUDIO_TOOLS_URL__ / window.__AUDIO_TOOLS_WS_URL__ before the
- * @audio-tools/embed client constructs its lazy singleton.
+ * Browsers call this at boot and pass the resolved baseUrl to
+ * createAudioToolsClient({ baseUrl }), then mount <AudioToolsProvider
+ * client={...} unavailableReason={...}> at app root.
  *
  * Throws only on transport-level failures; an unreachable audio-tools
  * comes back as {available:false, unavailableReason:"<token>"}.

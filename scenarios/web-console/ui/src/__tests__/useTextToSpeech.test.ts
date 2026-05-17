@@ -51,13 +51,33 @@ vi.mock("../api/capabilities", () => ({
   fetchCapabilitiesLivenessCached: (...args: unknown[]) => _mockFetchCaps(...args) as unknown,
   _resetCapabilitiesCache: vi.fn(),
 }));
-vi.mock("@audio-tools/embed", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@audio-tools/embed")>();
+// The core hooks inside audio-integration import the TTS API helpers from
+// the barrel via "../index". Vitest's mock of "../audio-integration"
+// intercepts the test's own imports of that barrel, but does NOT intercept
+// the barrel-relative imports from sibling files inside the same package.
+// Share a single set of vi.fn() instances across both mocks so a single
+// mockResolvedValue() call satisfies both code paths.
+const sharedTTSMocks = vi.hoisted(() => ({
+  fetchCachedTTS: vi.fn(),
+  getTTSVoices: vi.fn(),
+  synthesizeTTS: vi.fn(),
+}));
+vi.mock("../audio-integration", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../audio-integration")>();
   return {
     ...actual,
-    fetchCachedTTS: vi.fn(),
-    getTTSVoices: vi.fn(),
-    synthesizeTTS: vi.fn(),
+    fetchCachedTTS: sharedTTSMocks.fetchCachedTTS,
+    getTTSVoices: sharedTTSMocks.getTTSVoices,
+    synthesizeTTS: sharedTTSMocks.synthesizeTTS,
+  };
+});
+vi.mock("../audio-integration/api/tts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../audio-integration/api/tts")>();
+  return {
+    ...actual,
+    fetchCachedTTS: sharedTTSMocks.fetchCachedTTS,
+    getTTSVoices: sharedTTSMocks.getTTSVoices,
+    synthesizeTTS: sharedTTSMocks.synthesizeTTS,
   };
 });
 
@@ -67,7 +87,7 @@ vi.mock("../api/ttsHook", () => ({
 
 
 import { fetchCapabilitiesLiveness } from "../api/capabilities";
-import { fetchCachedTTS, getTTSVoices, synthesizeTTS } from "@audio-tools/embed";
+import { fetchCachedTTS, getTTSVoices, synthesizeTTS } from "../audio-integration";
 import { useTextToSpeech, type TTSSettings } from "../hooks/useTextToSpeech";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 

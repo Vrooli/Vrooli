@@ -33,7 +33,7 @@ import {
   type SpeakerVerificationStatusResponse,
   type VoiceStreamConfig,
   type WakeWordConfig,
-} from "@audio-tools/embed";
+} from "../../audio-integration";
 import { fetchCapabilities, type CapabilityState } from "../../api/capabilities";
 import { VOICE_COMMANDS } from "../../hooks/voice/commands";
 import {
@@ -43,7 +43,7 @@ import {
   useWakeWordTest,
   type AudioFeatures,
   type WakeWordTemplate,
-} from "../../domains/audio";
+} from "../../audio-integration";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";

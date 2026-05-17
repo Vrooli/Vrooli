@@ -8,6 +8,7 @@ import (
 
 	"web-console/integrations/audiotools"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
 
@@ -34,7 +35,7 @@ func (r *RemoteSpeechToText) Transcribe(ctx context.Context, audio []byte, opts 
 	}
 	req := connect.NewRequest(&sttv1.TranscribeRequest{
 		Audio:                   audio,
-		Format:                  "wav",
+		Format:                  commonv1.AudioFormat_AUDIO_FORMAT_WAV,
 		Language:                opts.Language,
 		SkipSpeakerVerification: opts.SkipSpeakerVerification,
 		InitialPrompt:           opts.InitialPrompt,

@@ -2,7 +2,7 @@ import { memo, useCallback, type CSSProperties, type PointerEvent as ReactPointe
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
 import type { PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
-import type { TTSPlaybackState } from "../domains/audio";
+import type { TTSPlaybackState } from "../audio-integration";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
 import type { ConversationEvent } from "../api/conversation";
 import type { TerminalPaneHandle } from "./TerminalPane";

@@ -10,8 +10,8 @@ const { mockGetConfig, mockSummarizeEvent, mockUpdateConfig } = vi.hoisted(() =>
   mockUpdateConfig: vi.fn(),
 }));
 
-vi.mock("@audio-tools/embed", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@audio-tools/embed")>();
+vi.mock("../../audio-integration", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../audio-integration")>();
   return {
     ...actual,
     getTTSSummarizeConfig: mockGetConfig,
