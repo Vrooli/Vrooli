@@ -39,10 +39,12 @@ func newServer(t *testing.T, chain *summarizechain.Chain) summconnect.SummarizeS
 	var mu sync.Mutex
 	cfg := intsumm.DefaultSummarizeConfig()
 	mod := summH.Module(chain, func() intsumm.SummarizeConfig {
-		mu.Lock(); defer mu.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 		return cfg
 	}, func(c intsumm.SummarizeConfig) {
-		mu.Lock(); defer mu.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 		cfg = c
 	}, nil, nil)
 	r := mux.NewRouter()
@@ -89,15 +91,16 @@ func TestSummarize_InsufficientCreditsMapsToResourceExhausted(t *testing.T) {
 // stubBYOK is a registry-resident BYOKAdapter under test control.
 type stubBYOK struct{ id string }
 
-func (s *stubBYOK) ID() string                                  { return s.id }
-func (s *stubBYOK) Model() string                               { return "stub" }
-func (s *stubBYOK) IsAvailable(context.Context, string) bool    { return true }
+func (s *stubBYOK) ID() string                               { return s.id }
+func (s *stubBYOK) Model() string                            { return "stub" }
+func (s *stubBYOK) IsAvailable(context.Context, string) bool { return true }
 func (s *stubBYOK) Summarize(context.Context, string, summarizechain.Request) (*summarizechain.Result, error) {
 	return &summarizechain.Result{Text: "byok"}, nil
 }
 
 func TestSummarize_MissingBYOKProviderMapsToInvalidArgument(t *testing.T) {
-	chain := summarizechain.NewChain(summarizechain.Options{EnableBYOK: true,
+	chain := summarizechain.NewChain(summarizechain.Options{
+		EnableBYOK: true,
 		BYOK: summarizechain.NewBYOKProvider(map[string]summarizechain.BYOKAdapter{
 			"openrouter": &stubBYOK{id: "openrouter"},
 		}),

@@ -25,11 +25,11 @@ const (
 
 // Request is the per-call input to the chain.
 type Request struct {
-	Audio                    []byte
-	Format                   string
-	Language                 string
-	SkipSpeakerVerification  bool
-	InitialPrompt            string
+	Audio                   []byte
+	Format                  string
+	Language                string
+	SkipSpeakerVerification bool
+	InitialPrompt           string
 
 	// Per-request creds carried via headers and injected by the handler interceptor.
 	BYOKProvider string
@@ -137,10 +137,10 @@ type Provider interface {
 // Carried out-of-band so the provider can negotiate format/language
 // before any audio arrives.
 type StreamStart struct {
-	Language               string
-	InitialPrompt          string
+	Language                string
+	InitialPrompt           string
 	SkipSpeakerVerification bool
-	SampleRate             int32  // 0 = adapter default
+	SampleRate              int32 // 0 = adapter default
 	// Per-request creds (same shape as Request) so streaming sessions
 	// can carry BYOK/LPBS credentials without piggy-backing on Request.
 	BYOKProvider string
@@ -208,12 +208,12 @@ type SpeakerRejectionEvent struct {
 }
 
 type DoneEvent struct {
-	FinalText        string
-	LockedTier       ProviderTier
-	ProviderID       string
-	ModelID          string
-	LatencyMs        float64
-	FellBackToUnary  bool
+	FinalText       string
+	LockedTier      ProviderTier
+	ProviderID      string
+	ModelID         string
+	LatencyMs       float64
+	FellBackToUnary bool
 }
 
 // ErrInsufficientCredits is returned by the Vrooli provider when LPBS reports

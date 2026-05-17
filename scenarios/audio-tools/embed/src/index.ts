@@ -5,7 +5,7 @@
 //
 //   import { VoiceInputButton, AudioPlayerBar } from "@audio-tools/embed";
 //
-// Components here are web-console-agnostic: they accept generic callback
+// Components here are consumer-agnostic: they accept generic callback
 // props (`onTranscript`, `commandHandler`, `audioUrl | audioBytes`) and never
 // reference terminal panes, conversation cursors, or session IDs.
 //

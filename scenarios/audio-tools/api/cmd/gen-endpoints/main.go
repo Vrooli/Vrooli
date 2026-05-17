@@ -54,10 +54,10 @@ type seedFile struct {
 }
 
 type manifest struct {
-	Schema      string                      `json:"$schema"`
-	Version     string                      `json:"version"`
+	Schema      string                         `json:"$schema"`
+	Version     string                         `json:"version"`
 	Endpoints   []modulekit.EndpointDescriptor `json:"endpoints"`
-	CLICommands []CLICommand                `json:"cli_commands"`
+	CLICommands []CLICommand                   `json:"cli_commands"`
 }
 
 func main() {

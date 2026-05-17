@@ -10,8 +10,7 @@ import (
 
 // LocalProvider wraps tts.Service.Synthesize (Kokoro backend).
 type LocalProvider struct {
-	svc           *tts.Service
-	capabilityKey string
+	svc *tts.Service
 }
 
 func NewLocalProvider(svc *tts.Service) *LocalProvider {

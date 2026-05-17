@@ -159,7 +159,7 @@ func StreamWSHandler(d Deps) http.Handler {
 		writeJSON(wsMessage{Type: wsMsgFinal, Text: finalText})
 		writeJSON(wsMessage{Type: wsMsgDone})
 
-		_ = <-runErr
+		<-runErr
 		select {
 		case <-readerErr:
 		default:

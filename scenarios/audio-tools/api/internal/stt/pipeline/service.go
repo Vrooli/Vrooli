@@ -291,15 +291,7 @@ func (s *Service) EnrollSpeaker(ctx context.Context, audio []byte, profileID, di
 	if err != nil {
 		return SpeakerEnrollment{}, err
 	}
-	return SpeakerEnrollment{
-		ProfileID:              enrollment.ProfileID,
-		DisplayName:            enrollment.DisplayName,
-		EmbeddingDim:           enrollment.EmbeddingDim,
-		SampleRate:             enrollment.SampleRate,
-		EnrollmentAudioSeconds: enrollment.EnrollmentAudioSeconds,
-		ModelName:              enrollment.ModelName,
-		CreatedAt:              enrollment.CreatedAt,
-	}, nil
+	return SpeakerEnrollment(enrollment), nil
 }
 
 func (s *Service) DeleteSpeakerBackend(ctx context.Context, profileID string) error {
@@ -308,4 +300,3 @@ func (s *Service) DeleteSpeakerBackend(ctx context.Context, profileID string) er
 	}
 	return s.speakerClient.DeleteProfile(ctx, profileID)
 }
-

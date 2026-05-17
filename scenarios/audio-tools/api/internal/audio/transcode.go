@@ -17,9 +17,9 @@ import (
 var ErrFFmpegMissing = errors.New("audio: ffmpeg not installed")
 
 var (
-	ffmpegOnce      sync.Once
-	ffmpegAvailable bool
-	ffprobeOnce     sync.Once
+	ffmpegOnce       sync.Once
+	ffmpegAvailable  bool
+	ffprobeOnce      sync.Once
 	ffprobeAvailable bool
 )
 
@@ -66,6 +66,27 @@ func (execRunner) Run(ctx context.Context, name string, stdin []byte, args ...st
 // Volume/etc. call. Tests overwrite it (via t.Cleanup) to substitute a
 // fake without touching the real ffmpeg binary.
 var DefaultRunner Runner = execRunner{}
+
+// SetFfmpegAvailableForTest seeds the package-private ffmpeg/ffprobe
+// presence cache. Tests in other packages can use this together with
+// swapping DefaultRunner to exercise runFfmpeg/runFfprobe paths without
+// requiring the binaries on $PATH. Returns a restorer the caller must
+// invoke (typically via t.Cleanup) to put the cache back; the package
+// is greenfield and never auto-rolls-back the cell.
+//
+// This is the documented seam referenced from docs/internal/SEAMS.md
+// under "audio handler tests".
+func SetFfmpegAvailableForTest(ffmpeg, ffprobe bool) func() {
+	ffmpegOnce.Do(func() {})
+	ffprobeOnce.Do(func() {})
+	prevFfmpeg, prevFfprobe := ffmpegAvailable, ffprobeAvailable
+	ffmpegAvailable = ffmpeg
+	ffprobeAvailable = ffprobe
+	return func() {
+		ffmpegAvailable = prevFfmpeg
+		ffprobeAvailable = prevFfprobe
+	}
+}
 
 // runFfmpeg runs ffmpeg with the given args; stdin is the input payload.
 // Returns stdout (the transformed audio) or an error joining the exit

@@ -17,12 +17,6 @@ const (
 	maxTTSSpeed              = 4.0
 )
 
-var validSummarizeLevels = map[string]bool{
-	"light":    true,
-	"moderate": true,
-	"heavy":    true,
-}
-
 var formatContentTypes = map[string]struct{}{
 	"mp3":  {},
 	"wav":  {},

@@ -129,9 +129,9 @@ func Probe(ctx context.Context, audio []byte) (Metadata, error) {
 			CodecName  string `json:"codec_name"`
 		} `json:"streams"`
 		Format struct {
-			Duration string            `json:"duration"`
-			FormatName string          `json:"format_name"`
-			BitRate    string          `json:"bit_rate"`
+			Duration   string            `json:"duration"`
+			FormatName string            `json:"format_name"`
+			BitRate    string            `json:"bit_rate"`
 			Tags       map[string]string `json:"tags"`
 		} `json:"format"`
 	}

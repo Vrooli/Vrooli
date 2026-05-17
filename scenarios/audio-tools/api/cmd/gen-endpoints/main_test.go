@@ -34,10 +34,10 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	}
 
 	var got struct {
-		Schema      string                      `json:"$schema"`
-		Version     string                      `json:"version"`
+		Schema      string                         `json:"$schema"`
+		Version     string                         `json:"version"`
 		Endpoints   []modulekit.EndpointDescriptor `json:"endpoints"`
-		CLICommands []CLICommand                `json:"cli_commands"`
+		CLICommands []CLICommand                   `json:"cli_commands"`
 	}
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("unmarshal output: %v\nbody=%s", err, string(data))

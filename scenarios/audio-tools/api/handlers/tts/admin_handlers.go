@@ -142,17 +142,3 @@ func (h *connectHandler) loadConfig(ctx context.Context) (inttts.Config, intsumm
 	_ = json.Unmarshal([]byte(rawSumm), &summ)
 	return cfg, summ
 }
-
-func configToProto(c inttts.Config, s intsumm.SummarizeConfig) *ttsv1.Config {
-	return &ttsv1.Config{
-		AutoEnabled:             c.AutoEnabled,
-		DefaultVoice:            c.KokoroVoice,
-		DefaultSpeed:            c.KokoroSpeed,
-		DefaultResponseFormat:   c.Backend,
-		SummarizeEnabled:        s.Enabled,
-		SummarizeCharThreshold:  int32(s.CharThreshold),
-		SummarizeLevel:          s.Level,
-		SummarizeModel:          s.Model,
-		SummarizeTimeoutSeconds: int32(s.TimeoutSeconds),
-	}
-}

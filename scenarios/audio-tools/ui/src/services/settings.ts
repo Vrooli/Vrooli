@@ -123,7 +123,7 @@ export async function updateProviderConfig(input: UpdateProviderConfigInput): Pr
     }
     let resp;
     try {
-      resp = await client.updateProviderConfig(req as never);
+      resp = await client.updateProviderConfig(req);
     } catch (e) {
       throw normalizeConnectError(e);
     }
@@ -147,7 +147,10 @@ export async function upsertByokCredential(providerId: string, capability: strin
     } catch (e) {
       throw normalizeConnectError(e);
     }
-    const c = resp.credential!;
+    const c = resp.credential;
+    if (!c) {
+      throw new Error("upsertBYOKCredential returned no credential");
+    }
     return { providerId: c.providerId, capability: c.capability, fingerprint: c.fingerprint, createdAt: c.createdAt };
   });
 }

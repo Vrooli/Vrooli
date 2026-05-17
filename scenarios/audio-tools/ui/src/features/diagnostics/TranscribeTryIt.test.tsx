@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
 import { TranscribeTryIt } from "./TranscribeTryIt";
+import { strings } from "../../consts/strings";
 
 // VoiceStreamProvider pulls in MediaRecorder + WebSocket on construction.
 // Stub the embed module so the unit test focuses on the three-mode UX
@@ -45,38 +46,37 @@ beforeEach(() => {
 describe("TranscribeTryIt", () => {
   it("defaults to Live mode and shows a Start button", () => {
     renderWithProviders(<TranscribeTryIt onTrace={() => {}} />);
-    expect(screen.getByRole("button", { name: /Start live transcription/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: strings.diagnostics.liveStart })).toBeInTheDocument();
   });
 
   it("switches to One-shot mode and exposes a Record button", async () => {
     renderWithProviders(<TranscribeTryIt onTrace={() => {}} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: /One-shot/i }));
-    expect(screen.getByRole("button", { name: /Record/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: strings.diagnostics.tabOneshot }));
+    expect(screen.getByRole("button", { name: strings.diagnostics.oneshotRecord })).toBeInTheDocument();
   });
 
   it("switches to File mode and exposes a file input + Transcribe button", async () => {
     renderWithProviders(<TranscribeTryIt onTrace={() => {}} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: /^File$/i }));
-    // Input is rendered with aria-label="Audio file" from the existing i18n key.
-    expect(screen.getByLabelText(/audioFileLabel/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: strings.diagnostics.tabFile }));
+    expect(screen.getByLabelText(strings.diagnostics.audioFileLabel)).toBeInTheDocument();
     // Transcribe button stays disabled until a file is selected.
-    expect(screen.getByRole("button", { name: /transcribeAction/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: strings.diagnostics.transcribeAction })).toBeDisabled();
   });
 
   it("uploads a file and renders the final transcript + emits a trace", async () => {
     const onTrace = vi.fn();
     renderWithProviders(<TranscribeTryIt onTrace={onTrace} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: /^File$/i }));
+    await user.click(screen.getByRole("tab", { name: strings.diagnostics.tabFile }));
 
     const file = new File(["dummy"], "sample.wav", { type: "audio/wav" });
-    const input = screen.getByLabelText(/audioFileLabel/i) as HTMLInputElement;
+    const input = screen.getByLabelText(strings.diagnostics.audioFileLabel);
     await user.upload(input, file);
 
-    await user.click(screen.getByRole("button", { name: /transcribeAction/i }));
-    expect(await screen.findByText("hello world")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: strings.diagnostics.transcribeAction }));
+    expect(await screen.findByText(/hello world/)).toBeInTheDocument();
     expect(onTrace).toHaveBeenCalledWith(
       expect.objectContaining({ providerTier: "local", providerId: "whisper" }),
     );

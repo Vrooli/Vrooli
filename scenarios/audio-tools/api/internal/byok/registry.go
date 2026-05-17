@@ -30,8 +30,8 @@ func NewRegistries() Registries {
 			"deepgram":       NewDeepgramSTT(),
 		},
 		TTS: map[string]ttschain.BYOKAdapter{
-			"openai-tts":  NewOpenAITTS(),
-			"elevenlabs":  NewElevenLabsTTS(),
+			"openai-tts": NewOpenAITTS(),
+			"elevenlabs": NewElevenLabsTTS(),
 		},
 		Summarize: map[string]summarizechain.BYOKAdapter{
 			"openrouter": NewOpenRouterSummarize(),

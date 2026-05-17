@@ -1,10 +1,9 @@
 // TTS API client for @audio-tools/embed.
 //
-// This is the audio-tools-facing subset of what web-console's api/tts.ts
-// historically owned. Consumer-scenario-specific concerns (conversation
-// routing, hook ack, status snapshots tied to web-console internals) stay
-// in the consumer; this module exposes only the audio operations
-// audio-tools' TTSService + SummarizeService support.
+// Exposes the audio operations audio-tools' TTSService + SummarizeService
+// support. Consumer-scenario-specific concerns (conversation routing,
+// hook ack, status snapshots tied to consumer internals) stay in the
+// consumer; this module deliberately ships only the audio surface.
 
 import { useAudioToolsClient, type AudioToolsClient } from "../client";
 
@@ -172,9 +171,9 @@ export function useTtsApi() {
 }
 
 // Lazy module-level singleton bound to the default client (window.__AUDIO_TOOLS_URL__).
-// The hooks ported from web-console expect free-function imports like
-// `synthesizeTTS(...)`. The singleton resolves on first call so consumers
-// that wire their own <AudioToolsProvider> can do so before any audio call.
+// Hooks in this package use free-function imports like `synthesizeTTS(...)`;
+// the singleton resolves on first call so consumers that wire their own
+// <AudioToolsProvider> can do so before any audio call.
 import { createAudioToolsClient } from "../client";
 let _lazyApi: ReturnType<typeof createTtsApi> | null = null;
 function lazy() {

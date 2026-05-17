@@ -12,6 +12,8 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
+	// modernc.org/sqlite registers the pure-Go sqlite driver under the
+	// "sqlite" name; api-core's database.Connect resolves it by driver name.
 	_ "modernc.org/sqlite"
 )
 

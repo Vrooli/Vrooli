@@ -1,4 +1,3 @@
-// Package usage hosts the UsageService Connect-RPC handler.
 package usage
 
 import (
@@ -7,21 +6,10 @@ import (
 	"log"
 	"time"
 
-	"audio-tools/internal/modulekit"
-	"audio-tools/internal/store"
-
 	"connectrpc.com/connect"
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/connectx"
 
 	usagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage"
-	usageconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage/usage_v1connect"
 )
-
-type Deps struct {
-	Logger *log.Logger
-	Store  *store.UsageStore
-}
 
 type connectHandler struct{ deps Deps }
 
@@ -31,27 +19,6 @@ func NewConnectHandler(d Deps) *connectHandler {
 	}
 	return &connectHandler{deps: d}
 }
-
-var Endpoints = []modulekit.EndpointDescriptor{
-	{ID: "usage.list_recent", Path: "/vrooli.audio_tools.v1.usage.UsageService/ListRecent", Method: "POST", Category: "usage"},
-	{ID: "usage.get_summary", Path: "/vrooli.audio_tools.v1.usage.UsageService/GetSummary", Method: "POST", Category: "usage"},
-}
-
-func Module(d Deps) modulekit.Module {
-	if d.Logger == nil {
-		d.Logger = log.Default()
-	}
-	connectPath, h := usageconnect.NewUsageServiceHandler(NewConnectHandler(d))
-	return modulekit.Module{
-		Name: "usage",
-		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})
-		},
-		Endpoints: Endpoints,
-	}
-}
-
-func Schema() string { return "" }
 
 func (h *connectHandler) ListRecent(ctx context.Context, req *connect.Request[usagev1.ListRecentRequest]) (*connect.Response[usagev1.ListRecentResponse], error) {
 	if h.deps.Store == nil {
@@ -96,31 +63,4 @@ func (h *connectHandler) GetSummary(ctx context.Context, req *connect.Request[us
 		out.FallbackReasons = append(out.FallbackReasons, &usagev1.FallbackReason{Reason: f.Reason, Count: f.Count})
 	}
 	return connect.NewResponse(&usagev1.GetSummaryResponse{Summary: out}), nil
-}
-
-func resolveSince(sinceSeconds int64) time.Time {
-	if sinceSeconds <= 0 {
-		sinceSeconds = 86400
-	}
-	return time.Now().UTC().Add(-time.Duration(sinceSeconds) * time.Second)
-}
-
-func rowToProto(r store.UsageRow) *usagev1.UsageRow {
-	return &usagev1.UsageRow{
-		OperationId:          r.OperationID,
-		EmittedAt:            r.EmittedAt.UTC().Format(time.RFC3339Nano),
-		Capability:           r.Capability,
-		Operation:            r.Operation,
-		ProviderTier:         r.ProviderTier,
-		ProviderId:           r.ProviderID,
-		ModelId:              r.ModelID,
-		LatencyMs:            r.LatencyMs,
-		CreditsCharged:       r.CreditsCharged,
-		PromptTokens:         r.PromptTokens,
-		OutputTokens:         r.OutputTokens,
-		AudioDurationSeconds: r.AudioDurationSeconds,
-		Error:                r.Error,
-		FallbackReason:       r.FallbackReason,
-		UserIdentity:         r.UserIdentity,
-	}
 }

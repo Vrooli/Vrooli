@@ -65,9 +65,9 @@ func (o *OverlapAgree) Run(
 	}
 
 	var buf []byte
-	cursor := 0          // start offset of next window to transcribe
-	committed := ""      // prefix already emitted as Segments
-	var recent []string  // last (CommitRuns-1) full-window transcripts for agreement
+	cursor := 0         // start offset of next window to transcribe
+	committed := ""     // prefix already emitted as Segments
+	var recent []string // last (CommitRuns-1) full-window transcripts for agreement
 	var lastTier sttchain.ProviderTier
 	var lastProviderID, lastModelID string
 	var totalLatencyMs float64

@@ -1,8 +1,9 @@
 // Package capabilities models the capability registry: the set of optional
-// resources (Whisper, Kokoro, Ollama, etc.) the web-console can use and
-// whether each is currently reachable. The HTTP transport lives in
+// resources (Whisper, Kokoro, Ollama, etc.) audio-tools can route through
+// and whether each is currently reachable. The HTTP transport lives in
 // handlers/capabilities; this package owns the in-process state and the
-// Checker contract.
+// Checker contract. Consumer scenarios (e.g., web-console) read the
+// registry via the public API to decide which voice features to enable.
 package capabilities
 
 import (
@@ -46,9 +47,9 @@ type Checker interface {
 	Check(ctx context.Context) (Status, string)
 }
 
-// Known is the built-in capability catalogue that ships with the
-// web-console scenario. Callers may pass a different slice to NewRegistry
-// (tests do); production wiring in main.go uses this value.
+// Known is the built-in capability catalogue that audio-tools advertises
+// to consumers. Callers may pass a different slice to NewRegistry (tests
+// do); production wiring in main.go uses this value.
 var Known = []Def{
 	{
 		ID:             "whisper-stt",
@@ -91,11 +92,12 @@ var Known = []Def{
 		Features:       []string{"ai-command-generation"},
 	},
 	// Connected scenarios — the single source of truth for cross-scenario
-	// integrations web-console expects to discover and adopt. Each entry
-	// declares what features it would unlock once available. The local Whisper
-	// and Kokoro resource entries above remain registered during the
-	// audio-tools extraction prep; they collapse to the audio-tools entry
-	// after web-console adopts audio-tools.
+	// integrations audio-tools publishes for consumers to discover and
+	// adopt. Each entry declares what features it would unlock once
+	// available. The local Whisper and Kokoro resource entries above remain
+	// registered for direct-dependency consumers; downstream scenarios that
+	// adopt audio-tools wholesale resolve those features via the audio-tools
+	// entry instead.
 	{
 		ID:             "audio-tools",
 		Name:           "Audio Tools",

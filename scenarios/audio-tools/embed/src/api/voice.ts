@@ -1,8 +1,9 @@
 // Voice (STT) API client for @audio-tools/embed.
 //
-// Mirrors the operation surface of web-console's api/voice.ts but binds to
-// audio-tools' STTService Connect handler. WebSocket URL construction uses
-// audio-tools' base URL injected via window.__AUDIO_TOOLS_URL__.
+// Binds to audio-tools' STTService Connect handler and exposes a hook-
+// shaped voice operation surface for consumer scenarios. WebSocket URL
+// construction uses audio-tools' base URL injected via
+// window.__AUDIO_TOOLS_URL__.
 
 import { useAudioToolsClient, type AudioToolsClient } from "../client";
 import type { WakeWordTemplate } from "../hooks/voice/wakeword/types";

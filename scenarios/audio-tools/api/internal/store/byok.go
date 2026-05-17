@@ -111,9 +111,9 @@ type scanRow interface {
 
 func scanCredential(r scanRow) (BYOKCredential, error) {
 	var (
-		c            BYOKCredential
-		createdAt    string
-		lastUsedAt   sql.NullString
+		c          BYOKCredential
+		createdAt  string
+		lastUsedAt sql.NullString
 	)
 	if err := r.Scan(&c.ProviderID, &c.Capability, &c.SecretKind, &c.Cipher, &c.Fingerprint, &createdAt, &lastUsedAt); err != nil {
 		return BYOKCredential{}, err

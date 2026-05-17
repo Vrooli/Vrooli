@@ -67,7 +67,7 @@ func muLawEncode(sample int16) uint8 {
 	}
 	sample += bias
 	exponent := uint8(7)
-	for mask := int16(0x4000); (sample & mask) == 0 && exponent > 0; mask >>= 1 {
+	for mask := int16(0x4000); (sample&mask) == 0 && exponent > 0; mask >>= 1 {
 		exponent--
 	}
 	mantissa := uint8((sample >> (exponent + 3)) & 0x0F)

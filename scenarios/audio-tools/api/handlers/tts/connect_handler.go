@@ -3,33 +3,17 @@ package tts
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"log"
 
 	"connectrpc.com/connect"
 
-	intsumm "audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/byok/envelope"
-	"audio-tools/internal/store"
 	"audio-tools/internal/text/normalizer"
-	inttts "audio-tools/internal/tts"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 )
-
-// Deps wires the seams the TTS handler needs.
-type Deps struct {
-	Chain          *ttschain.Chain
-	SummarizeChain *intsumm.Chain
-	TTSService     *inttts.Service
-	Logger         *log.Logger
-	Cache          *inttts.Cache
-	ConfigStore    *store.TTSConfigStore
-	Playback       *store.PlaybackStore
-}
 
 type connectHandler struct {
 	deps Deps
@@ -157,24 +141,4 @@ func (h *connectHandler) NormalizeForSpeech(ctx context.Context, req *connect.Re
 func (h *connectHandler) SplitParagraphs(ctx context.Context, req *connect.Request[ttsv1.SplitParagraphsRequest]) (*connect.Response[ttsv1.SplitParagraphsResponse], error) {
 	paragraphs := normalizer.SplitIntoSpeechParagraphs(req.Msg.Text)
 	return connect.NewResponse(&ttsv1.SplitParagraphsResponse{Paragraphs: paragraphs}), nil
-}
-
-func mapChainError(err error) error {
-	switch {
-	case err == ttschain.ErrInsufficientCredits:
-		return connect.NewError(connect.CodeResourceExhausted, err)
-	case err == ttschain.ErrUnknownBYOKProvider, err == ttschain.ErrMissingBYOKProvider:
-		return connect.NewError(connect.CodeInvalidArgument, err)
-	case err == ttschain.ErrAllProvidersFailed:
-		return connect.NewError(connect.CodeUnavailable, err)
-	}
-	return connect.NewError(connect.CodeInternal, err)
-}
-
-// stableContentHash is a helper used by future cache implementations to
-// derive the content-addressable cache key.
-func stableContentHash(voice string, speed float64, format string, text string) string {
-	h := sha256.New()
-	fmt.Fprintf(h, "%s|%f|%s|%s", voice, speed, format, text)
-	return hex.EncodeToString(h.Sum(nil))
 }

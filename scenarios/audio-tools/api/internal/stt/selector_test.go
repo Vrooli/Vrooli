@@ -13,13 +13,14 @@ type fakeProvider struct {
 	traits sttchain.ProviderTraits
 }
 
-func (p *fakeProvider) Type() sttchain.ProviderTier            { return p.tier }
-func (p *fakeProvider) IsAvailable(context.Context) bool       { return true }
-func (p *fakeProvider) Model() string                          { return "fake" }
-func (p *fakeProvider) Traits() sttchain.ProviderTraits        { return p.traits }
+func (p *fakeProvider) Type() sttchain.ProviderTier      { return p.tier }
+func (p *fakeProvider) IsAvailable(context.Context) bool { return true }
+func (p *fakeProvider) Model() string                    { return "fake" }
+func (p *fakeProvider) Traits() sttchain.ProviderTraits  { return p.traits }
 func (p *fakeProvider) Transcribe(context.Context, sttchain.Request) (*sttchain.Result, error) {
 	return &sttchain.Result{Text: "x", Tier: p.tier, Latency: time.Millisecond}, nil
 }
+
 func (p *fakeProvider) TranscribeStreaming(context.Context, sttchain.StreamStart, <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
 	return nil, nil
 }
@@ -38,12 +39,12 @@ func TestSelectorMatrix(t *testing.T) {
 	sel := NewSelector(&fakeExec{})
 
 	cases := []struct {
-		name      string
-		traits    sttchain.ProviderTraits
-		pref      StrategyPreference
-		mode      StreamingMode
-		wantKind  sttchain.StrategyKind
-		wantErr   error
+		name     string
+		traits   sttchain.ProviderTraits
+		pref     StrategyPreference
+		mode     StreamingMode
+		wantKind sttchain.StrategyKind
+		wantErr  error
 	}{
 		{
 			name:     "auto local batch -> vad_segment",

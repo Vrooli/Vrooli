@@ -45,15 +45,15 @@ type SessionEvent struct {
 }
 
 type TranscriptDelta struct {
-	Text         string
-	FromSeconds  float64
-	ToSeconds    float64
+	Text        string
+	FromSeconds float64
+	ToSeconds   float64
 }
 
 type TranscriptFinal struct {
-	Text             string
-	DurationSeconds  float64
-	SpeakerVerified  bool
+	Text            string
+	DurationSeconds float64
+	SpeakerVerified bool
 }
 
 type AssistantDelta struct {
@@ -91,8 +91,8 @@ const (
 )
 
 type BargeInCancel struct {
-	Reason           BargeInReason
-	CanceledEventID  string
+	Reason          BargeInReason
+	CanceledEventID string
 }
 
 type SessionClosed struct {

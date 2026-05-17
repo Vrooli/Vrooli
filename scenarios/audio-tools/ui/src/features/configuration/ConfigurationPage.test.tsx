@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
 import { makeApiError } from "../../api/client";
+import { strings } from "../../consts/strings";
 
 vi.mock("../../services/settings", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../services/settings")>();
@@ -59,15 +60,15 @@ afterEach(() => {
 describe("ConfigurationPage", () => {
   it("renders happy data with tier flags and credentials table", async () => {
     renderWithProviders(<ConfigurationPage />);
-    expect(await screen.findByText("config.title")).toBeInTheDocument();
-    expect(await screen.findByText("openai-tts")).toBeInTheDocument();
-    expect(screen.getByText("fp_abc123")).toBeInTheDocument();
+    expect(await screen.findByText(strings.config.title)).toBeInTheDocument();
+    expect(await screen.findByText(/openai-tts/)).toBeInTheDocument();
+    expect(screen.getByText(/fp_abc123/)).toBeInTheDocument();
   });
 
   it("renders empty state for BYOK credentials", async () => {
     vi.mocked(listByokCredentials).mockResolvedValue({ ok: true, data: [] });
     renderWithProviders(<ConfigurationPage />);
-    expect(await screen.findByText("config.byokEmpty")).toBeInTheDocument();
+    expect(await screen.findByText(strings.config.byokEmpty)).toBeInTheDocument();
   });
 
   it("renders error state when provider config fails", async () => {
@@ -82,11 +83,11 @@ describe("ConfigurationPage", () => {
   it("submits a new BYOK credential through upsertByokCredential exactly once", async () => {
     const user = userEvent.setup();
     renderWithProviders(<ConfigurationPage />);
-    await screen.findByText("openai-tts");
+    await screen.findByText(/openai-tts/);
 
-    await user.type(screen.getByPlaceholderText("openai-tts"), "elevenlabs");
-    await user.type(screen.getByPlaceholderText("sk-…"), "sk-test");
-    await user.click(screen.getByRole("button", { name: /Add credential/i }));
+    await user.type(screen.getByPlaceholderText(strings.config.providerPlaceholder), "elevenlabs");
+    await user.type(screen.getByPlaceholderText(strings.config.apiKeyPlaceholder), "sk-test");
+    await user.click(screen.getByRole("button", { name: strings.config.addCredential }));
 
     await waitFor(() => {
       expect(vi.mocked(upsertByokCredential)).toHaveBeenCalledTimes(1);

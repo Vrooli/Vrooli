@@ -3,40 +3,9 @@ package sttchain
 import (
 	"context"
 	"testing"
-	"time"
 
 	"go.uber.org/goleak"
 )
-
-// fakeStreamProvider is a Provider whose streaming/availability/Transcribe
-// behaviors are controlled by the test. It satisfies the full Provider
-// interface so it can stand in for Local/BYOK/Vrooli in narrow tests.
-type fakeStreamProvider struct {
-	tier         ProviderTier
-	available    bool
-	streaming    bool
-	transcribeFn func(context.Context, Request) (*Result, error)
-	streamFn     func(context.Context, StreamStart, <-chan AudioChunk) (<-chan StreamEvent, error)
-}
-
-func (p *fakeStreamProvider) Type() ProviderTier                                   { return p.tier }
-func (p *fakeStreamProvider) IsAvailable(context.Context) bool                     { return p.available }
-func (p *fakeStreamProvider) Model() string                                        { return "fake" }
-func (p *fakeStreamProvider) Traits() ProviderTraits {
-	return ProviderTraits{Batch: true, Stream: p.streaming}
-}
-func (p *fakeStreamProvider) Transcribe(ctx context.Context, req Request) (*Result, error) {
-	if p.transcribeFn != nil {
-		return p.transcribeFn(ctx, req)
-	}
-	return &Result{Text: "buffered", Tier: p.tier, ProviderID: "fake", ModelID: "fake", Latency: 1 * time.Millisecond}, nil
-}
-func (p *fakeStreamProvider) TranscribeStreaming(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
-	if p.streamFn != nil {
-		return p.streamFn(ctx, start, chunks)
-	}
-	return nil, nil
-}
 
 // TestStream_BufferedFallback_NoStreamingCapableProvider verifies that
 // the chain falls back to Execute()+synthetic events when nothing can

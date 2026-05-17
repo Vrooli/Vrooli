@@ -3,6 +3,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 
 import { renderWithProviders } from "../../test-utils";
 import { makeApiError } from "../../api/client";
+import { strings } from "../../consts/strings";
 
 vi.mock("../../services/settings", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../services/settings")>();
@@ -49,9 +50,9 @@ afterEach(() => {
 describe("VoicesPage", () => {
   it("renders happy data: matrix, adapter override, and availability probes", async () => {
     renderWithProviders(<VoicesPage />);
-    expect(await screen.findByText("voices.title")).toBeInTheDocument();
-    expect(await screen.findByText("af_heart")).toBeInTheDocument();
-    expect(screen.getByText("kokoro")).toBeInTheDocument();
+    expect(await screen.findByText(strings.voices.title)).toBeInTheDocument();
+    expect(await screen.findByText(/af_heart/)).toBeInTheDocument();
+    expect(screen.getAllByText(/kokoro/).length).toBeGreaterThan(0);
   });
 
   it("renders empty/default placeholders when there are no overrides", async () => {
@@ -60,7 +61,7 @@ describe("VoicesPage", () => {
     // All matrix cells fall back to the "default" placeholder when no
     // override matches the (canonical, adapter) tuple.
     await waitFor(() => {
-      expect(screen.getAllByText("common.default").length).toBeGreaterThan(0);
+      expect(screen.getAllByText(strings.common.default).length).toBeGreaterThan(0);
     });
   });
 

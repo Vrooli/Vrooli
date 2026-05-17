@@ -9,14 +9,14 @@ import (
 )
 
 type fakeBYOK struct {
-	id          string
-	available   bool
+	id           string
+	available    bool
 	synthesizeFn func(ctx context.Context, key string, req Request) (*Result, error)
 }
 
-func (f *fakeBYOK) ID() string                                 { return f.id }
-func (f *fakeBYOK) IsAvailable(context.Context, string) bool   { return f.available }
-func (f *fakeBYOK) Model() string                              { return "fake-model" }
+func (f *fakeBYOK) ID() string                               { return f.id }
+func (f *fakeBYOK) IsAvailable(context.Context, string) bool { return f.available }
+func (f *fakeBYOK) Model() string                            { return "fake-model" }
 func (f *fakeBYOK) Synthesize(ctx context.Context, key string, req Request) (*Result, error) {
 	if f.synthesizeFn != nil {
 		return f.synthesizeFn(ctx, key, req)
@@ -45,11 +45,11 @@ func (c *fakeVrooliClient) Synthesize(ctx context.Context, token, identity strin
 func TestChain_Execute_PrecedenceAndShortCircuits(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
-		name     string
-		opts     Options
-		req      Request
+		name      string
+		opts      Options
+		req       Request
 		wantAudio string
-		wantErr  error
+		wantErr   error
 	}{
 		{
 			name: "byok_wins_when_key_present",
@@ -89,7 +89,7 @@ func TestChain_Execute_PrecedenceAndShortCircuits(t *testing.T) {
 			name: "unknown_byok_provider_terminates",
 			opts: Options{
 				EnableBYOK: true,
-				BYOK:      NewBYOKProvider(map[string]BYOKAdapter{"el": &fakeBYOK{id: "el", available: true}}),
+				BYOK:       NewBYOKProvider(map[string]BYOKAdapter{"el": &fakeBYOK{id: "el", available: true}}),
 			},
 			req:     Request{Text: "x", BYOKProvider: "missing", BYOKKey: "sk"},
 			wantErr: ErrUnknownBYOKProvider,
@@ -98,7 +98,7 @@ func TestChain_Execute_PrecedenceAndShortCircuits(t *testing.T) {
 			name: "missing_byok_provider_terminates",
 			opts: Options{
 				EnableBYOK: true,
-				BYOK:      NewBYOKProvider(map[string]BYOKAdapter{"el": &fakeBYOK{id: "el", available: true}}),
+				BYOK:       NewBYOKProvider(map[string]BYOKAdapter{"el": &fakeBYOK{id: "el", available: true}}),
 			},
 			req:     Request{Text: "x", BYOKKey: "sk"},
 			wantErr: ErrMissingBYOKProvider,

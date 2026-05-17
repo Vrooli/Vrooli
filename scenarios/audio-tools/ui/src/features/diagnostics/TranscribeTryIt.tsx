@@ -7,18 +7,22 @@ type MicPermission = "unknown" | "granted" | "denied" | "prompt";
 function useMicPermission(): MicPermission {
   const [state, setState] = useState<MicPermission>("unknown");
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.permissions || typeof navigator.permissions.query !== "function") {
+    // TS lib.dom types `navigator.permissions` as always defined, but older
+    // mobile WebViews (and jsdom in tests) omit it entirely. Keep the
+    // runtime guard even though TS thinks it is always truthy.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!navigator.permissions || typeof navigator.permissions.query !== "function") {
       return;
     }
     let cancelled = false;
     // The "microphone" PermissionName is widely supported in evergreen
     // browsers; cast through unknown for TS lib coverage gaps.
     void navigator.permissions
-      .query({ name: "microphone" as PermissionName })
+      .query({ name: "microphone" })
       .then((status) => {
         if (cancelled) return;
-        setState(status.state as MicPermission);
-        status.onchange = () => setState(status.state as MicPermission);
+        setState(status.state);
+        status.onchange = () => setState(status.state);
       })
       .catch(() => {
         // Browser does not expose the microphone permission descriptor.
@@ -48,8 +52,9 @@ interface Props {
  * Three-mode Transcribe try-it:
  *
  *   - live    : streams audio via WebSocket through VoiceStreamProvider
- *               (same code path web-console uses for voice input).
- *               Renders running partials and the final transcript.
+ *               (the same streaming chain consumer scenarios adopt via
+ *               @audio-tools/embed). Renders running partials and the
+ *               final transcript.
  *   - oneshot : single short recording via MediaRecorder, uploaded
  *               through the multipart REST endpoint (the declared
  *               multipart_upload REST exception). Exercises the unary
@@ -71,11 +76,11 @@ export function TranscribeTryIt({ onTrace }: Props) {
       description={t(strings.diagnostics.transcribeDescription)}
     >
       <Tabs
-        ariaLabel="Transcribe mode"
+        ariaLabel={t(strings.diagnostics.tablistTranscribeMode)}
         items={[
-          { value: "live", label: "Live mic" },
-          { value: "oneshot", label: "One-shot" },
-          { value: "file", label: "File" },
+          { value: "live", label: t(strings.diagnostics.tabLiveMic) },
+          { value: "oneshot", label: t(strings.diagnostics.tabOneshot) },
+          { value: "file", label: t(strings.diagnostics.tabFile) },
         ]}
         defaultValue="live"
       >
@@ -92,6 +97,7 @@ export function TranscribeTryIt({ onTrace }: Props) {
 /* ------------------------------- Live mode ------------------------------ */
 
 function LiveTry({ onTrace }: Props) {
+  const { t } = useTranslation();
   const providerRef = useRef<VoiceStreamProvider | null>(null);
   const [recording, setRecording] = useState(false);
   const [partial, setPartial] = useState("");
@@ -140,7 +146,7 @@ function LiveTry({ onTrace }: Props) {
       await ensureProvider().start();
       setRecording(true);
     } catch (e) {
-      setError((e as Error).message || "Failed to start recording.");
+      setError((e as Error).message || t(strings.diagnostics.liveStartFailed));
     }
   };
 
@@ -156,12 +162,12 @@ function LiveTry({ onTrace }: Props) {
           {recording ? (
             <>
               <Square className="h-4 w-4" aria-hidden="true" />
-              Stop
+              {t(strings.diagnostics.liveStop)}
             </>
           ) : (
             <>
               <Mic className="h-4 w-4" aria-hidden="true" />
-              Start live transcription
+              {t(strings.diagnostics.liveStart)}
             </>
           )}
         </Button>
@@ -170,13 +176,13 @@ function LiveTry({ onTrace }: Props) {
       {error ? <p className="text-sm text-app-danger">{error}</p> : null}
       {partial ? (
         <div className="rounded-control border border-app-border bg-app-surface-muted/60 p-3 text-sm italic opacity-80">
-          <p className="mb-1 text-xs uppercase tracking-wide text-app-muted-foreground">Partial</p>
+          <p className="mb-1 text-xs uppercase tracking-wide text-app-muted-foreground">{t(strings.diagnostics.partialLabel)}</p>
           <p className="whitespace-pre-wrap">{partial}</p>
         </div>
       ) : null}
       {finalText ? (
         <div className="rounded-control border border-app-border bg-app-surface-muted p-3 text-sm">
-          <p className="mb-1 text-xs uppercase tracking-wide text-app-muted-foreground">Final</p>
+          <p className="mb-1 text-xs uppercase tracking-wide text-app-muted-foreground">{t(strings.diagnostics.finalLabel)}</p>
           <p className="whitespace-pre-wrap font-mono text-sm">{finalText}</p>
         </div>
       ) : null}
@@ -187,6 +193,7 @@ function LiveTry({ onTrace }: Props) {
 /* ------------------------------ One-shot mode ---------------------------- */
 
 function OneshotTry({ onTrace }: Props) {
+  const { t } = useTranslation();
   const mediaRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -221,7 +228,7 @@ function OneshotTry({ onTrace }: Props) {
       mediaRef.current = mr;
       setRecording(true);
     } catch (e) {
-      setError((e as Error).message || "Microphone permission denied.");
+      setError((e as Error).message || t(strings.diagnostics.micPermissionDenied));
     }
   };
 
@@ -246,24 +253,24 @@ function OneshotTry({ onTrace }: Props) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-app-muted-foreground">
-        Records a short clip, then uploads via multipart REST to exercise the unary STT chain.
+        {t(strings.diagnostics.oneshotHint)}
       </p>
       <div className="flex items-center gap-3">
         <Button onClick={() => (recording ? stop() : void start())} disabled={busy} aria-pressed={recording}>
           {recording ? (
             <>
               <Square className="h-4 w-4" aria-hidden="true" />
-              Stop &amp; transcribe
+              {t(strings.diagnostics.oneshotStopUpload)}
             </>
           ) : busy ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              Uploading
+              {t(strings.diagnostics.oneshotUploading)}
             </>
           ) : (
             <>
               <Mic className="h-4 w-4" aria-hidden="true" />
-              Record
+              {t(strings.diagnostics.oneshotRecord)}
             </>
           )}
         </Button>
@@ -278,7 +285,7 @@ function OneshotTry({ onTrace }: Props) {
       ) : null}
       {result ? (
         <div className="rounded-control border border-app-border bg-app-surface-muted p-3 text-sm">
-          <p className="mb-1 text-xs uppercase tracking-wide text-app-muted-foreground">Final</p>
+          <p className="mb-1 text-xs uppercase tracking-wide text-app-muted-foreground">{t(strings.diagnostics.finalLabel)}</p>
           <p className="whitespace-pre-wrap font-mono text-sm">{result}</p>
         </div>
       ) : null}

@@ -148,4 +148,3 @@ func (h *connectHandler) TranscribeStream(
 	}
 	return nil
 }
-

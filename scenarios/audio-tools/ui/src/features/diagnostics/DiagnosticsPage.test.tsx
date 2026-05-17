@@ -3,6 +3,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
+import { strings } from "../../consts/strings";
 
 // TranscribeTryIt pulls in VoiceStreamProvider + MediaRecorder on construct.
 // DiagnosticsPage tests focus on the page-level shell + the other three
@@ -58,16 +59,16 @@ afterEach(() => {
 describe("DiagnosticsPage", () => {
   it("renders the page header and a tablist for the four try-its", async () => {
     renderWithProviders(<DiagnosticsPage />);
-    expect(await screen.findByText("diagnostics.title")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "diagnostics.tabTranscribe" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "diagnostics.tabSynthesize" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "diagnostics.tabSummarize" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "diagnostics.tabTranscode" })).toBeInTheDocument();
+    expect(await screen.findByText(strings.diagnostics.title)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: strings.diagnostics.tabTranscribe })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: strings.diagnostics.tabSynthesize })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: strings.diagnostics.tabSummarize })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: strings.diagnostics.tabTranscode })).toBeInTheDocument();
   });
 
   it("renders the empty provider-trace state on first mount", async () => {
     renderWithProviders(<DiagnosticsPage />);
-    expect(await screen.findByText("diagnostics.traceEmpty")).toBeInTheDocument();
+    expect(await screen.findByText(strings.diagnostics.traceEmpty)).toBeInTheDocument();
   });
 
   it("renders an error envelope when summarize fails", async () => {
@@ -77,9 +78,9 @@ describe("DiagnosticsPage", () => {
     });
     const user = userEvent.setup();
     renderWithProviders(<DiagnosticsPage />);
-    await user.click(screen.getByRole("tab", { name: "diagnostics.tabSummarize" }));
+    await user.click(screen.getByRole("tab", { name: strings.diagnostics.tabSummarize }));
     await user.type(
-      screen.getByLabelText("diagnostics.summarizeInputLabel"),
+      screen.getByLabelText(strings.diagnostics.summarizeInputLabel),
       "text to summarize",
     );
     await user.click(screen.getByRole("button", { name: /diagnostics\.summarizeAction/i }));
@@ -89,9 +90,9 @@ describe("DiagnosticsPage", () => {
   it("calls summarize() exactly once when the primary CTA is invoked with text", async () => {
     const user = userEvent.setup();
     renderWithProviders(<DiagnosticsPage />);
-    await user.click(screen.getByRole("tab", { name: "diagnostics.tabSummarize" }));
+    await user.click(screen.getByRole("tab", { name: strings.diagnostics.tabSummarize }));
     await user.type(
-      screen.getByLabelText("diagnostics.summarizeInputLabel"),
+      screen.getByLabelText(strings.diagnostics.summarizeInputLabel),
       "hello world",
     );
     await user.click(screen.getByRole("button", { name: /diagnostics\.summarizeAction/i }));

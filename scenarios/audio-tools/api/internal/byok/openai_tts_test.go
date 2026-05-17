@@ -25,12 +25,12 @@ func TestOpenAITTSContract(t *testing.T) {
 
 func TestCanonicalToOpenAIVoice(t *testing.T) {
 	cases := map[string]string{
-		"voice.feminine.warm":    "shimmer",
-		"voice.feminine.neutral": "nova",
-		"voice.masculine.warm":   "onyx",
-		"voice.masculine.neutral":"echo",
-		"voice.neutral.default":  "alloy",
-		"unknown":                "alloy",
+		"voice.feminine.warm":     "shimmer",
+		"voice.feminine.neutral":  "nova",
+		"voice.masculine.warm":    "onyx",
+		"voice.masculine.neutral": "echo",
+		"voice.neutral.default":   "alloy",
+		"unknown":                 "alloy",
 	}
 	for in, want := range cases {
 		if got := canonicalToOpenAIVoice(in, nil); got != want {
@@ -44,12 +44,12 @@ func TestCanonicalToOpenAIVoice(t *testing.T) {
 
 func TestClampSpeed(t *testing.T) {
 	cases := map[float64]float64{
-		0:    1.0,
-		-1:   1.0,
-		0.1:  0.25,
-		1.0:  1.0,
-		2.0:  2.0,
-		5.0:  4.0,
+		0:   1.0,
+		-1:  1.0,
+		0.1: 0.25,
+		1.0: 1.0,
+		2.0: 2.0,
+		5.0: 4.0,
 	}
 	for in, want := range cases {
 		if got := clampSpeed(in); got != want {

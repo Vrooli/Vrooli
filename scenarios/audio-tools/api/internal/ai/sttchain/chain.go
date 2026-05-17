@@ -22,10 +22,10 @@ type Chain struct {
 	availTTLByOK   time.Duration
 	availTTLVrooli time.Duration
 
-	mu          sync.Mutex
-	byokOK      cachedAvail
-	vrooliOK    cachedAvail
-	localOK     cachedAvail
+	mu       sync.Mutex
+	byokOK   cachedAvail
+	vrooliOK cachedAvail
+	localOK  cachedAvail
 }
 
 type cachedAvail struct {

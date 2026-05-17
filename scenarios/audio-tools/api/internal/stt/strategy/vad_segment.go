@@ -63,10 +63,10 @@ func (v *VADSegmenter) Run(
 	}
 
 	var buf []byte
-	segStart := 0       // offset in buf where the current segment begins
-	nextFrame := 0      // offset of the next frame to evaluate
-	silentFrames := 0   // consecutive silent frames observed
-	hasVoiced := false  // any voiced frame seen in the current segment
+	segStart := 0      // offset in buf where the current segment begins
+	nextFrame := 0     // offset of the next frame to evaluate
+	silentFrames := 0  // consecutive silent frames observed
+	hasVoiced := false // any voiced frame seen in the current segment
 
 	var lastTier sttchain.ProviderTier
 	var lastProviderID, lastModelID string

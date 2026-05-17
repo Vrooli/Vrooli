@@ -231,6 +231,197 @@ The generated package paths follow `packages/proto/gen/go/audio-tools/v1/<domain
 After a rename, run `go mod tidy` from the affected module (`api/`
 and `cli/`) so the import paths resolve.
 
+## Audio capture and providers
+
+These entries are specific to audio-tools (mic, browser audio formats,
+streaming, BYOK). For deeper architectural background, follow the
+cross-reference into `internal/PROBLEMS.md`.
+
+### Mic permission denied
+
+**Symptom:** The voice panel will not start recording. The
+`MicReadinessIndicator` component renders with `data-state="denied"`
+and the label "Microphone denied". The browser may also show a struck-
+through microphone icon in the address bar. In the JavaScript console
+you will see a `NotAllowedError` from `navigator.mediaDevices.getUserMedia`.
+
+**Diagnosis:** The browser is gating mic access. Common causes:
+
+- The user clicked **Block** when first prompted (the choice is sticky
+  per origin).
+- The page is being served over plain HTTP from a non-localhost origin
+  (browsers only expose `getUserMedia` on secure contexts).
+- An OS-level permission (Windows, macOS, GNOME, KDE) is denying the
+  browser itself from accessing the mic.
+
+`MicReadinessIndicator` reports the four `PermissionState` values
+returned by the Permissions API: `granted`, `denied`, `prompt`, and
+`unknown` (the API is unavailable or threw). If you see `prompt`, the
+browser will ask the next time the user clicks record; if you see
+`denied`, the user must reset the site permission manually.
+
+**Fix:**
+
+- **Chrome / Edge:** click the lock or "tune" icon in the address bar,
+  open **Site settings**, set **Microphone** to **Allow**, then
+  reload.
+- **Firefox:** click the lock icon, expand **Connection secure**, then
+  use **Clear permissions and reset** for the site (or open
+  `about:preferences#privacy` → **Permissions** → **Microphone** →
+  **Settings**).
+- **Safari:** open **Safari → Settings → Websites → Microphone**,
+  switch the entry for this origin to **Allow**, then reload.
+- **OS check:** confirm the browser itself has mic access in the OS
+  privacy panel (System Settings on macOS, Settings → Privacy on
+  Windows, `gnome-control-center sound` on Linux).
+
+After a successful grant, the indicator transitions to `granted` /
+"Microphone ready" without a page reload.
+
+### Browser audio format mismatch (WebM/Opus vs PCM)
+
+**Symptom:** The browser successfully captures audio and uploads it,
+but transcription either fails with a decode error or returns garbage
+text. In DevTools → **Network**, the request to
+`/api/v1/voice/stream` (WebSocket) or the streaming Connect RPC shows
+binary frames whose first bytes are `1A 45 DF A3` (the EBML / WebM
+magic) instead of a raw PCM payload.
+
+**Diagnosis:** The audio-tools streaming endpoint expects **raw 16-bit
+PCM at 16 kHz**. The `MediaRecorder` API in browsers emits
+**WebM/Opus** by default. Sending WebM into the streaming path makes
+mid-stream slices undecodable by the strategy layer, because the
+strategy never sees the WebM init segment. This is the same root cause
+documented in `internal/PROBLEMS.md` under
+"Browser WebM partial-decoding regression after HandleStreamWS deletion".
+
+To confirm in DevTools:
+
+1. Open the **Network** tab, filter for `voice/stream` or the
+   streaming RPC.
+2. Click the request, open the **Messages** tab (WS) or **Payload**
+   tab (Connect).
+3. Inspect the first outbound binary frame. If it begins with
+   `1A 45 DF A3`, the client is sending WebM. PCM frames have no
+   magic — they look like raw little-endian int16 samples.
+
+**Fix:** the multipart upload path decodes WebM/Opus correctly because
+the server has the full container before it starts. Until the embed
+emits PCM directly, use the unary transcription endpoint
+(multipart upload of the captured `Blob`) instead of the streaming
+path. From the CLI:
+
+```bash
+audio-tools transcribe ./capture.webm
+```
+
+From the UI, prefer the "Upload audio" affordance over "Live
+transcription". The buffered path returns a correct final transcript
+in every case.
+
+### Zero-partial streaming (no live transcripts)
+
+**Symptom:** A streaming transcription session connects and completes
+successfully, but only the **final** transcript ever arrives. No
+interim "partial" events render in the UI. The unary / buffered path
+returns the same final text correctly.
+
+**Diagnosis:** Streaming providers are declared on the wire but not
+implemented yet. `chain.Stream` falls back to the buffered unary path
+in every case, so the `DoneEvent.FellBackToUnary` flag is set to
+`true` and no partials are emitted. See `internal/PROBLEMS.md` entry
+**"Streaming providers declared but not implemented"** for the full
+explanation and the planned fix.
+
+**Fix:** use the unary path explicitly until streaming partials land.
+
+- **UI:** select **Upload audio** (or any non-streaming variant) in
+  the voice panel.
+- **CLI:** use `audio-tools transcribe <file>` — it already targets
+  the unary endpoint.
+- **Embed integrators:** call `transcribe()` (unary) instead of
+  `transcribeStream()` until the embed signals streaming readiness.
+
+There is no functional gap — every consumer still sees the final
+transcript — only the latency benefit of live partials is missing.
+
+### WebSocket handler not chain-routed
+
+**Symptom:** Browser voice input over `GET /api/v1/voice/stream`
+works and returns a final transcript, but provider trace fields
+(`provider`, `provider_attempts`, fallback reason, etc.) are missing
+from the resulting event metadata. BYOK keys set in the configuration
+UI are silently ignored on this transport, even though they work for
+the unary RPC.
+
+**Diagnosis:** The WebSocket handler still routes through the legacy
+`voice.Service.HandleStreamWS` direct path instead of the
+`sttchain` provider chain. Only the Connect bidi RPC currently goes
+through the chain, so only that transport sees BYOK / Vrooli tier
+routing and trace metadata. This is `internal/PROBLEMS.md` entry
+**"WS handler not yet chain-routed"**.
+
+**Fix:** for any session where you need BYOK routing, fallback trace
+metadata, or Vrooli-tier providers, drive the streaming Connect RPC
+(`STTService.TranscribeStream`) instead of the WebSocket path. The
+browser voice panel will be migrated to the chain-routed WS path in a
+follow-up; until then, use the Connect transport from non-browser
+clients.
+
+### Provider BYOK missing or invalid key
+
+**Symptom:** STT or TTS calls that should use a BYOK provider fall back
+to the local provider (or to Vrooli tier, depending on configuration)
+and the response metadata shows the requested provider was skipped.
+Server logs contain a "byok envelope incomplete" or "byok credential
+not found" message. From a browser tab, the request to the Connect
+RPC is missing the `X-Audio-BYOK-Provider` and `X-Audio-BYOK-Key`
+headers; or they are present but the key is rejected upstream
+(`401`/`403` from the third-party API surfaces as a chain fallback).
+
+**Diagnosis:** The BYOK envelope is built from four headers that
+travel together on every Connect, multipart, and bidi request:
+
+| Header | Purpose |
+|---|---|
+| `X-Audio-BYOK-Provider` | Which adapter to use (e.g. `openai`, `deepgram`, `elevenlabs`). |
+| `X-Audio-BYOK-Key` | The user's API key for that provider. |
+| `X-Audio-LPBS-Token` | Optional LPBS-issued token for tiered routing. |
+| `X-Audio-User-Identity` | Caller identity for per-user accounting. |
+
+If `Provider` or `Key` is missing or empty, the envelope is treated as
+absent and the chain falls back to the next provider in its preference
+order. If the key is present but the upstream provider rejects it,
+you will see a `401`/`403` in the server log followed by a chain
+fallback.
+
+**Fix:** set the keys through the configuration UI rather than
+patching headers by hand.
+
+1. Open the audio-tools UI and navigate to **Settings → Providers**
+   (the Voice Settings panel in the embed exposes the same surface).
+2. Pick the provider (OpenAI, Deepgram, ElevenLabs, OpenRouter, etc.)
+   and paste the API key. The UI calls
+   `SettingsService.UpsertBYOKCredential`, which persists the
+   credential and starts attaching the envelope headers to subsequent
+   requests automatically.
+3. Re-issue the transcription or synthesis request. Confirm in
+   DevTools → **Network** that the request now carries
+   `X-Audio-BYOK-Provider` and `X-Audio-BYOK-Key`. The response
+   metadata should name the BYOK provider instead of the local
+   fallback.
+
+To verify from the CLI:
+
+```bash
+audio-tools settings list-byok
+audio-tools diagnose providers
+```
+
+A stored credential that still produces a fallback usually means the
+upstream key has been revoked or is missing required scopes — rotate
+the key in the third-party dashboard and re-upsert it.
+
 ## When to add a new entry here
 
 Add to this guide if:

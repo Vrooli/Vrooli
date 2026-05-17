@@ -19,9 +19,9 @@ import (
 )
 
 type stubTTSVrooli struct {
-	available    bool
-	res          *ttschain.Result
-	err          error
+	available bool
+	res       *ttschain.Result
+	err       error
 }
 
 func (s *stubTTSVrooli) IsAvailable(context.Context) bool { return s.available }

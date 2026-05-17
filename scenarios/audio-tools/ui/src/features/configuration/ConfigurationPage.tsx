@@ -95,15 +95,15 @@ export function ConfigurationPage() {
             <div className="flex flex-wrap gap-2 px-4 py-3">
               <Button size="sm" variant="outline" disabled={updateMut.isPending}
                 onClick={() => provider.data.ok && updateMut.mutate({ byokEnabled: !provider.data.data.byokEnabled })}>
-                Toggle BYOK
+                {t(strings.config.toggleByok)}
               </Button>
               <Button size="sm" variant="outline" disabled={updateMut.isPending}
                 onClick={() => provider.data.ok && updateMut.mutate({ vrooliEnabled: !provider.data.data.vrooliEnabled })}>
-                Toggle Vrooli
+                {t(strings.config.toggleVrooli)}
               </Button>
               <Button size="sm" variant="outline" disabled={updateMut.isPending}
                 onClick={() => provider.data.ok && updateMut.mutate({ localEnabled: !provider.data.data.localEnabled })}>
-                Toggle Local
+                {t(strings.config.toggleLocal)}
               </Button>
             </div>
           </div>
@@ -141,7 +141,7 @@ export function ConfigurationPage() {
                       <TD className="text-xs text-app-muted-foreground">{c.createdAt || t(strings.common.dash)}</TD>
                       <TD>
                         <Button size="sm" variant="ghost" onClick={() => deleteMut.mutate({ providerId: c.providerId, capability: c.capability })}>
-                          Delete
+                          {t(strings.config.deleteAction)}
                         </Button>
                       </TD>
                     </TR>
@@ -158,27 +158,28 @@ export function ConfigurationPage() {
                 setByokForm({ ...byokForm, apiKey: "" });
               }}
             >
-              <label className="flex flex-col gap-1 text-xs">
-                Provider
-                <Input value={byokForm.providerId} onChange={(e) => setByokForm({ ...byokForm, providerId: e.currentTarget.value })} placeholder="openai-tts" />
+              <label htmlFor="byok-provider" className="flex flex-col gap-1 text-xs">
+                {t(strings.config.providerFieldLabel)}
+                <Input id="byok-provider" value={byokForm.providerId} onChange={(e) => setByokForm({ ...byokForm, providerId: e.currentTarget.value })} placeholder={t(strings.config.providerPlaceholder)} />
               </label>
-              <label className="flex flex-col gap-1 text-xs">
-                Capability
+              <label htmlFor="byok-capability" className="flex flex-col gap-1 text-xs">
+                {t(strings.config.capabilityFieldLabel)}
                 <select
+                  id="byok-capability"
                   className="rounded-control border border-app-border bg-app-surface px-2 py-1"
                   value={byokForm.capability}
                   onChange={(e) => setByokForm({ ...byokForm, capability: e.currentTarget.value })}
                 >
-                  <option value="stt">stt</option>
-                  <option value="tts">tts</option>
-                  <option value="summarize">summarize</option>
+                  <option value="stt">{t(strings.config.capabilityStt)}</option>
+                  <option value="tts">{t(strings.config.capabilityTts)}</option>
+                  <option value="summarize">{t(strings.config.capabilitySummarize)}</option>
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-xs flex-1 min-w-[180px]">
-                API Key
-                <Input type="password" value={byokForm.apiKey} onChange={(e) => setByokForm({ ...byokForm, apiKey: e.currentTarget.value })} placeholder="sk-…" />
+              <label htmlFor="byok-apikey" className="flex flex-col gap-1 text-xs flex-1 min-w-[180px]">
+                {t(strings.config.apiKeyFieldLabel)}
+                <Input id="byok-apikey" type="password" value={byokForm.apiKey} onChange={(e) => setByokForm({ ...byokForm, apiKey: e.currentTarget.value })} placeholder={t(strings.config.apiKeyPlaceholder)} />
               </label>
-              <Button type="submit" disabled={upsertMut.isPending || !byokForm.providerId || !byokForm.apiKey}>Add credential</Button>
+              <Button type="submit" disabled={upsertMut.isPending || !byokForm.providerId || !byokForm.apiKey}>{t(strings.config.addCredential)}</Button>
             </form>
           </div>
         ) : null}

@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import { renderWithProviders, makeHealthResponse } from "../../test-utils";
 import { makeApiError } from "../../api/client";
+import { strings } from "../../consts/strings";
 
 vi.mock("../../api/health", () => ({
   fetchHealth: vi.fn(),
@@ -67,14 +68,14 @@ function render() {
 describe("OverviewPage", () => {
   it("renders happy data: header, summary cards, and the recent operation row", async () => {
     render();
-    expect(await screen.findByText("app.title")).toBeInTheDocument();
-    expect(await screen.findByText("transcribe")).toBeInTheDocument();
+    expect(await screen.findByText(strings.app.title)).toBeInTheDocument();
+    expect(await screen.findByText(/transcribe/)).toBeInTheDocument();
   });
 
   it("renders empty state when there are no recent operations", async () => {
     vi.mocked(listRecent).mockResolvedValue({ ok: true, data: [] });
     render();
-    expect(await screen.findByText("overview.noOperations")).toBeInTheDocument();
+    expect(await screen.findByText(strings.overview.noOperations)).toBeInTheDocument();
   });
 
   it("renders error state when listRecent fails", async () => {

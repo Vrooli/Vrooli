@@ -245,6 +245,125 @@
             "forbiddenPlaceholders": ["[TODO]"],
             "requiredLinks": ["../../internal/SEAMS.md", "../../internal/DECISIONS.md", "../../internal/PROBLEMS.md", "../../reference/configuration.md"]
           }
+        },
+        {
+          "path": "domains/tts/synthesis-pipeline.md",
+          "docType": "domain-deep-dive",
+          "title": "TTS Synthesis Pipeline",
+          "aliases": ["tts-chain", "synthesize", "tts-pipeline"],
+          "description": "TTS provider chain (BYOK → Vrooli/LPBS → Local Kokoro), streaming negotiation, voice resolution, and buffered fallback",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["tts-chain-architecture", "tts-streaming-fallback", "voice-resolution"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Purpose", "Inputs", "Outputs", "Internal Chain", "Seams", "Failure Modes", "Capacity Notes", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredLinks": ["../../internal/SEAMS.md", "../../internal/DECISIONS.md", "../../internal/PROBLEMS.md", "../../reference/configuration.md"]
+          }
+        },
+        {
+          "path": "domains/summarize/chain.md",
+          "docType": "domain-deep-dive",
+          "title": "Summarize Provider Chain",
+          "aliases": ["summarize-chain", "summarization", "openrouter-summarize"],
+          "description": "Summarization provider chain (BYOK OpenRouter → Vrooli/LPBS → Local Ollama), level-prompt mapping, and usage-row emission",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["summarize-chain-architecture", "summarize-byok"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Purpose", "Inputs", "Outputs", "Internal Chain", "Seams", "Failure Modes", "Capacity Notes", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredLinks": ["../../internal/SEAMS.md", "../../internal/DECISIONS.md", "../../internal/PROBLEMS.md", "../../reference/configuration.md"]
+          }
+        },
+        {
+          "path": "domains/audio/transformations.md",
+          "docType": "domain-deep-dive",
+          "title": "Audio Transformations",
+          "aliases": ["audio-ops", "ffmpeg", "transcode-trim-merge"],
+          "description": "ffmpeg-backed audio operations (transcode, trim, fade, volume, normalize, split, merge, metadata), Runner seam, and multipart REST exception",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["audio-ops-architecture", "ffmpeg-runner-seam"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Purpose", "Inputs", "Outputs", "Internal Chain", "Seams", "Failure Modes", "Capacity Notes", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredLinks": ["../../internal/SEAMS.md", "../../internal/DECISIONS.md", "../../internal/PROBLEMS.md", "../../reference/configuration.md"]
+          }
+        },
+        {
+          "path": "domains/session/ephemeral-pubsub.md",
+          "docType": "domain-deep-dive",
+          "title": "Session Ephemeral Pub/Sub",
+          "aliases": ["session", "voice-session", "session-events"],
+          "description": "Voice-session abstraction: multi-observer pub/sub with drop-on-backpressure fanout, barge-in coordination, and transport-pluggable boundary",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["session-architecture", "barge-in", "session-events"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Purpose", "Inputs", "Outputs", "Internal Chain", "Seams", "Failure Modes", "Capacity Notes", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredLinks": ["../../internal/SEAMS.md", "../../internal/DECISIONS.md", "../../internal/PROBLEMS.md", "../../reference/configuration.md"]
+          }
+        },
+        {
+          "path": "domains/settings/byok-and-voice-overrides.md",
+          "docType": "domain-deep-dive",
+          "title": "Settings: BYOK, Voice Overrides, Provider Config",
+          "aliases": ["settings", "byok-store", "voice-overrides", "provider-config"],
+          "description": "Persisted configuration surface: encrypted BYOK credentials, canonical-to-adapter voice overrides, and provider-routing flags pushed into chains via Coordinator.Reconfigure",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["byok-storage", "voice-override-resolution", "provider-routing-config"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Purpose", "Inputs", "Outputs", "Internal Chain", "Seams", "Failure Modes", "Capacity Notes", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredLinks": ["../../internal/SEAMS.md", "../../internal/DECISIONS.md", "../../internal/PROBLEMS.md", "../../reference/configuration.md"]
+          }
+        },
+        {
+          "path": "domains/usage/reporting.md",
+          "docType": "domain-deep-dive",
+          "title": "Usage Reporting",
+          "aliases": ["usage", "usage-recorder", "usage-summary"],
+          "description": "Async usage-row pipeline with bounded queue, drop-newest policy, retry ladder, and idempotent inserts; UsageService read surface (ListRecent / GetSummary)",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["usage-recorder-architecture", "usage-aggregation"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Purpose", "Inputs", "Outputs", "Internal Chain", "Seams", "Failure Modes", "Capacity Notes", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredLinks": ["../../internal/SEAMS.md", "../../internal/DECISIONS.md", "../../internal/PROBLEMS.md", "../../reference/configuration.md"]
+          }
+        },
+        {
+          "path": "domains/health/checks.md",
+          "docType": "domain-deep-dive",
+          "title": "Health Checks and Capability Matrix",
+          "aliases": ["health", "capabilities", "capability-matrix"],
+          "description": "/health endpoint (database Pinger seam) and capability registry (Known catalogue, full vs liveness checkers, cache TTL) consumed by downstream scenarios",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["health-endpoint", "capability-registry", "liveness-vs-full"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "deployable"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Purpose", "Inputs", "Outputs", "Internal Chain", "Seams", "Failure Modes", "Capacity Notes", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredLinks": ["../../internal/SEAMS.md", "../../internal/DECISIONS.md", "../../internal/PROBLEMS.md", "../../reference/configuration.md"]
+          }
         }
       ]
     },
@@ -370,7 +489,7 @@
           "docType": "troubleshooting",
           "title": "Troubleshooting",
           "aliases": ["troubleshoot", "common-failures"],
-          "description": "Common issues and fixes for any scenario built from this template",
+          "description": "Common issues and fixes — generic template lifecycle plus audio-tools-specific surfaces (mic permissions, browser audio formats, streaming, BYOK)",
           "audience": ["users", "operators", "developers", "agents"],
           "canonicalFor": ["troubleshooting", "common-failures"],
           "maturity": "active",

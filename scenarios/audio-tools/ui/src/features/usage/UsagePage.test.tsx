@@ -3,6 +3,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 
 import { renderWithProviders } from "../../test-utils";
 import { makeApiError } from "../../api/client";
+import { strings } from "../../consts/strings";
 
 vi.mock("../../services/usage", () => ({
   getSummary: vi.fn(),
@@ -60,10 +61,10 @@ afterEach(() => {
 describe("UsagePage", () => {
   it("renders happy data: stats, distribution rows, and recent operations", async () => {
     renderWithProviders(<UsagePage />);
-    expect(await screen.findByText("usage.title")).toBeInTheDocument();
-    expect(await screen.findByText("local · whisper")).toBeInTheDocument();
-    expect(screen.getByText("byok · openai")).toBeInTheDocument();
-    expect(screen.getByText("transcribe")).toBeInTheDocument();
+    expect(await screen.findByText(strings.usage.title)).toBeInTheDocument();
+    expect(await screen.findByText(/local · whisper/)).toBeInTheDocument();
+    expect(screen.getByText(/byok · openai/)).toBeInTheDocument();
+    expect(screen.getByText(/transcribe/)).toBeInTheDocument();
   });
 
   it("renders empty state when summary and recent are both empty", async () => {
@@ -73,8 +74,8 @@ describe("UsagePage", () => {
     });
     vi.mocked(listRecent).mockResolvedValue({ ok: true, data: [] });
     renderWithProviders(<UsagePage />);
-    expect(await screen.findByText("usage.noUsage")).toBeInTheDocument();
-    expect(await screen.findByText("usage.recentEmpty")).toBeInTheDocument();
+    expect(await screen.findByText(strings.usage.noUsage)).toBeInTheDocument();
+    expect(await screen.findByText(strings.usage.recentEmpty)).toBeInTheDocument();
   });
 
   it("renders error state when getSummary fails", async () => {

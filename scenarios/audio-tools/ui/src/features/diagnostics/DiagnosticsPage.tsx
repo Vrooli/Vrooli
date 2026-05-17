@@ -161,11 +161,11 @@ function SynthesizeTryIt({ onTrace }: { onTrace: (t: ProviderTrace) => void }) {
   return (
     <Panel title={t(strings.diagnostics.synthesizeTitle)} description={t(strings.diagnostics.synthesizeDescription)}>
       <div className="flex flex-col gap-3">
-        <Textarea value={text} onChange={(e) => setText(e.currentTarget.value)} rows={4} placeholder="Type text to synthesize…" />
+        <Textarea value={text} onChange={(e) => setText(e.currentTarget.value)} rows={4} placeholder={t(strings.diagnostics.synthesizeTextPlaceholder)} />
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
-            Voice
-            <Select value={voice} onChange={(e) => setVoice(e.currentTarget.value)} className="w-56">
+          <label htmlFor="synthesize-voice" className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+            {t(strings.diagnostics.synthesizeVoiceLabel)}
+            <Select id="synthesize-voice" value={voice} onChange={(e) => setVoice(e.currentTarget.value)} className="w-56">
               {(voices.length ? voices : [{ id: voice, name: voice }]).map((v) => (
                 <option key={v.id} value={v.id}>{v.name}</option>
               ))}
@@ -173,11 +173,19 @@ function SynthesizeTryIt({ onTrace }: { onTrace: (t: ProviderTrace) => void }) {
           </label>
           <Button onClick={() => void run()} disabled={!text.trim() || busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
-            Synthesize
+            {t(strings.diagnostics.synthesizeAction)}
           </Button>
         </div>
         {error ? <ApiErrorState error={error} /> : null}
-        {audioUrl ? <audio controls src={audioUrl} className="w-full" /> : null}
+        {audioUrl ? (
+          // The TTS output is generated speech with no separate caption
+          // source available; provide an empty captions track to satisfy
+          // jsx-a11y/media-has-caption (consumer scenarios that need real
+          // captions can pass a track via a future prop).
+          <audio controls src={audioUrl} className="w-full">
+            <track kind="captions" />
+          </audio>
+        ) : null}
       </div>
     </Panel>
   );
@@ -203,7 +211,7 @@ function TranscodeTryIt() {
     const res = await uploadFile("/api/v1/audio/transcode", fd);
     setBusy(false);
     if (!res.ok) {
-      setError(`Transcode failed (${res.status})`);
+      setError(t(strings.diagnostics.transcodeFailed, { status: res.status }));
       return;
     }
     const blob = await res.blob();
@@ -213,26 +221,26 @@ function TranscodeTryIt() {
   return (
     <Panel title={t(strings.diagnostics.transcodeTitle)} description={t(strings.diagnostics.transcodeDescription)}>
       <div className="flex flex-col gap-3">
-        <Input type="file" accept="audio/*" onChange={(e) => setFile(e.currentTarget.files?.[0] ?? null)} />
+        <Input type="file" accept="audio/*" onChange={(e) => setFile(e.currentTarget.files?.[0] ?? null)} aria-label={t(strings.diagnostics.audioFileLabel)} />
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
-            Output format
-            <Select value={format} onChange={(e) => setFormat(e.currentTarget.value)} className="w-32">
-              <option value="wav">wav</option>
-              <option value="mp3">mp3</option>
-              <option value="flac">flac</option>
-              <option value="ogg">ogg</option>
+          <label htmlFor="transcode-format" className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+            {t(strings.diagnostics.transcodeOutputFormatLabel)}
+            <Select id="transcode-format" value={format} onChange={(e) => setFormat(e.currentTarget.value)} className="w-32">
+              <option value="wav">{t(strings.diagnostics.formatWav)}</option>
+              <option value="mp3">{t(strings.diagnostics.formatMp3)}</option>
+              <option value="flac">{t(strings.diagnostics.formatFlac)}</option>
+              <option value="ogg">{t(strings.diagnostics.formatOgg)}</option>
             </Select>
           </label>
           <Button onClick={() => void run()} disabled={!file || busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
-            Transcode
+            {t(strings.diagnostics.transcodeAction)}
           </Button>
         </div>
         {error ? <p className="text-sm text-app-danger">{error}</p> : null}
         {downloadUrl ? (
           <a href={downloadUrl} download={`transcoded.${format}`} className="text-sm text-app-primary underline">
-            Download transcoded file
+            {t(strings.diagnostics.transcodeDownload)}
           </a>
         ) : null}
       </div>

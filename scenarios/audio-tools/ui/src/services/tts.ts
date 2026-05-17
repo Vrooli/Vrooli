@@ -19,7 +19,7 @@ export async function synthesize(text: string, voice: string, speed = 1.0, forma
   return tryCall(async () => {
     let resp;
     try {
-      resp = await client.synthesize({ text, voice, speed, responseFormat: format } as never);
+      resp = await client.synthesize({ text, voice, speed, responseFormat: format });
     } catch (e) {
       throw normalizeConnectError(e);
     }
@@ -60,7 +60,10 @@ export async function getStatus(): Promise<Result<TtsStatus>> {
     } catch (e) {
       throw normalizeConnectError(e);
     }
-    const s = resp.status!;
+    const s = resp.status;
+    if (!s) {
+      throw new Error("getStatus returned no status");
+    }
     return {
       capability: s.capability,
       capabilityLabel: s.capabilityLabel,

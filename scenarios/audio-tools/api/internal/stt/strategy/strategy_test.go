@@ -15,17 +15,17 @@ import (
 // fakeProvider satisfies sttchain.Provider with test-controllable
 // Transcribe and TranscribeStreaming behaviour.
 type fakeProvider struct {
-	tier        sttchain.ProviderTier
-	calls       int
-	transcribe  func(ctx context.Context, req sttchain.Request) (*sttchain.Result, error)
-	stream      func(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error)
-	traits      sttchain.ProviderTraits
+	tier       sttchain.ProviderTier
+	calls      int
+	transcribe func(ctx context.Context, req sttchain.Request) (*sttchain.Result, error)
+	stream     func(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error)
+	traits     sttchain.ProviderTraits
 }
 
-func (f *fakeProvider) Type() sttchain.ProviderTier             { return f.tier }
-func (f *fakeProvider) IsAvailable(context.Context) bool        { return true }
-func (f *fakeProvider) Model() string                           { return "fake" }
-func (f *fakeProvider) Traits() sttchain.ProviderTraits         { return f.traits }
+func (f *fakeProvider) Type() sttchain.ProviderTier      { return f.tier }
+func (f *fakeProvider) IsAvailable(context.Context) bool { return true }
+func (f *fakeProvider) Model() string                    { return "fake" }
+func (f *fakeProvider) Traits() sttchain.ProviderTraits  { return f.traits }
 func (f *fakeProvider) Transcribe(ctx context.Context, req sttchain.Request) (*sttchain.Result, error) {
 	f.calls++
 	if f.transcribe != nil {
@@ -33,6 +33,7 @@ func (f *fakeProvider) Transcribe(ctx context.Context, req sttchain.Request) (*s
 	}
 	return &sttchain.Result{Text: "ok", Tier: f.tier, ProviderID: "fake", ModelID: "fake-1", Latency: time.Millisecond}, nil
 }
+
 func (f *fakeProvider) TranscribeStreaming(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
 	if f.stream != nil {
 		return f.stream(ctx, start, chunks)

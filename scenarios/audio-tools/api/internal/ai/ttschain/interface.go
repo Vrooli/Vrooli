@@ -20,10 +20,10 @@ const (
 
 type Request struct {
 	Text           string
-	Voice          string             // canonical id, e.g., "voice.feminine.warm"
-	VoiceOverrides map[string]string  // keyed by "tier:provider-id"
+	Voice          string            // canonical id, e.g., "voice.feminine.warm"
+	VoiceOverrides map[string]string // keyed by "tier:provider-id"
 	Speed          float64
-	ResponseFormat string             // "mp3" | "wav" | "opus" | "flac"
+	ResponseFormat string // "mp3" | "wav" | "opus" | "flac"
 
 	BYOKProvider string
 	BYOKKey      string
@@ -39,14 +39,14 @@ type Request struct {
 }
 
 type Result struct {
-	Audio        []byte
-	ContentType  string
-	ContentHash  string
-	Tier         ProviderTier
-	ProviderID   string
-	ModelID      string
-	VoiceUsed    string
-	Latency      time.Duration
+	Audio       []byte
+	ContentType string
+	ContentHash string
+	Tier        ProviderTier
+	ProviderID  string
+	ModelID     string
+	VoiceUsed   string
+	Latency     time.Duration
 }
 
 type Provider interface {
@@ -87,9 +87,9 @@ type AudioFrame struct {
 }
 
 var (
-	ErrInsufficientCredits  = errors.New("audio-tools: insufficient credits for Vrooli tier")
-	ErrAllProvidersFailed   = errors.New("audio-tools: all providers failed")
-	ErrUnknownBYOKProvider  = errors.New("audio-tools: unknown BYOK provider")
-	ErrMissingBYOKProvider  = errors.New("audio-tools: BYOK key set without BYOK provider")
+	ErrInsufficientCredits   = errors.New("audio-tools: insufficient credits for Vrooli tier")
+	ErrAllProvidersFailed    = errors.New("audio-tools: all providers failed")
+	ErrUnknownBYOKProvider   = errors.New("audio-tools: unknown BYOK provider")
+	ErrMissingBYOKProvider   = errors.New("audio-tools: BYOK key set without BYOK provider")
 	ErrUnknownCanonicalVoice = errors.New("audio-tools: canonical voice has no mapping for active adapter")
 )

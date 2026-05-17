@@ -16,9 +16,9 @@ type fakeBYOK struct {
 	summarizeFn func(ctx context.Context, key string, req Request) (*Result, error)
 }
 
-func (f *fakeBYOK) ID() string                                 { return f.id }
-func (f *fakeBYOK) IsAvailable(context.Context, string) bool   { return f.available }
-func (f *fakeBYOK) Model() string                              { return "fake-model" }
+func (f *fakeBYOK) ID() string                               { return f.id }
+func (f *fakeBYOK) IsAvailable(context.Context, string) bool { return f.available }
+func (f *fakeBYOK) Model() string                            { return "fake-model" }
 func (f *fakeBYOK) Summarize(ctx context.Context, key string, req Request) (*Result, error) {
 	if f.summarizeFn != nil {
 		return f.summarizeFn(ctx, key, req)
@@ -89,7 +89,7 @@ func TestChain_Execute_PrecedenceAndShortCircuits(t *testing.T) {
 			name: "unknown_byok_provider_terminates",
 			opts: Options{
 				EnableBYOK: true,
-				BYOK:      NewBYOKProvider(map[string]BYOKAdapter{"other": &fakeBYOK{id: "other", available: true}}),
+				BYOK:       NewBYOKProvider(map[string]BYOKAdapter{"other": &fakeBYOK{id: "other", available: true}}),
 			},
 			req:     Request{Text: "hi", BYOKProvider: "nope", BYOKKey: "sk-1"},
 			wantErr: ErrUnknownBYOKProvider,
@@ -98,7 +98,7 @@ func TestChain_Execute_PrecedenceAndShortCircuits(t *testing.T) {
 			name: "missing_byok_provider_terminates",
 			opts: Options{
 				EnableBYOK: true,
-				BYOK:      NewBYOKProvider(map[string]BYOKAdapter{"openrouter": &fakeBYOK{id: "openrouter", available: true}}),
+				BYOK:       NewBYOKProvider(map[string]BYOKAdapter{"openrouter": &fakeBYOK{id: "openrouter", available: true}}),
 			},
 			req:     Request{Text: "hi", BYOKKey: "sk-1"},
 			wantErr: ErrMissingBYOKProvider,

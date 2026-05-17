@@ -31,11 +31,11 @@ type Session struct {
 
 	createdAt time.Time
 
-	mu          sync.RWMutex
-	observers   map[string]chan SessionEvent
-	closed      atomic.Bool
-	cancelHook  func(reason BargeInReason, eventID string)
-	inflightID  atomic.Value // string
+	mu         sync.RWMutex
+	observers  map[string]chan SessionEvent
+	closed     atomic.Bool
+	cancelHook func(reason BargeInReason, eventID string)
+	inflightID atomic.Value // string
 }
 
 // Options configures a new session.

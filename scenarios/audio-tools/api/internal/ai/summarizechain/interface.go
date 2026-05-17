@@ -21,8 +21,8 @@ const (
 
 type Request struct {
 	Text           string
-	Level          string             // "light" | "moderate" | "heavy"
-	Model          string             // optional override
+	Level          string // "light" | "moderate" | "heavy"
+	Model          string // optional override
 	TimeoutSeconds int
 
 	BYOKProvider string
