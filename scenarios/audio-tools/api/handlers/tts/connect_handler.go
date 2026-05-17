@@ -6,11 +6,13 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/protomap"
+	"audio-tools/internal/store"
 	"audio-tools/internal/text/normalizer"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -121,14 +123,37 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 		EventID:        req.Msg.EventId,
 		Version:        req.Msg.Version,
 	}
+	opID := req.Header().Get("X-Audio-Operation-ID")
+	if opID == "" {
+		opID = uuid.NewString()
+	}
+	start := h.deps.Clock.Now()
 	resp := connect.NewResponse(&ttsv1.SynthesizeResponse{})
 	ctx = tiered.WithOnFallback(ctx, func(ev tiered.FallbackEvent) {
 		resp.Header().Set("x-audio-tools-fallback",
 			fmt.Sprintf("from=%s;to=%s;reason=%s", ev.From.String(), ev.To.String(), ev.Reason))
 	})
 	res, err := h.deps.Chain.Execute(ctx, chainReq)
+	row := store.UsageRow{
+		OperationID:  opID,
+		EmittedAt:    h.deps.Clock.Now().UTC(),
+		Capability:   "tts",
+		Operation:    "synthesize",
+		LatencyMs:    float64(h.deps.Clock.Now().Sub(start).Milliseconds()),
+		UserIdentity: chainReq.UserIdentity,
+	}
 	if err != nil {
+		row.Error = err.Error()
+		if h.deps.Usage != nil {
+			h.deps.Usage.Enqueue(row)
+		}
 		return nil, mapChainError(err)
+	}
+	row.ProviderTier = string(res.Tier)
+	row.ProviderID = res.ProviderID
+	row.ModelID = res.ModelID
+	if h.deps.Usage != nil {
+		h.deps.Usage.Enqueue(row)
 	}
 	resp.Msg = &ttsv1.SynthesizeResponse{
 		Audio:        res.Audio,

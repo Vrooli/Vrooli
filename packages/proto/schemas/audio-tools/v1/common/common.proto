@@ -16,6 +16,30 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 // the same semantics across stt/tts/summarize/session/settings/usage. Each
 // has an explicit `*_UNSPECIFIED = 0` first value so the wire shape is
 // proto3-safe (zero value is meaningful as "absent").
+//
+// -----------------------------------------------------------------------------
+// Enum-ownership convention (audio-tools v1)
+// -----------------------------------------------------------------------------
+//
+// Global / cross-domain enums (ProviderTier, AudioFormat, ResponseFormat)
+// live in THIS file. They model values referenced by 2+ domains
+// (stt/tts/summarize/audio/usage/...). Add a new global enum here only
+// when the same semantics already exist in or are about to enter a
+// second domain — until then, keep the enum in its owning domain proto.
+//
+// Domain-specific enums (e.g., stt.SpeakerMode, stt.StreamingMode,
+// audio.NormalizationMethod, health_status.State) live in the owning
+// domain's .proto file. They are never lifted to common.proto unless
+// they cross domain boundaries.
+//
+// Capability values (STT / TTS / SUMMARIZE / TRANSCODE) live in
+// diagnostics.proto because they were originally introduced there and
+// the diagnostics domain owns the canonical list.
+//
+// Rule of thumb: freeform `string` fields modelling a closed set of
+// values are a smell. Prefer a typed enum. If the closed set crosses
+// domains, the enum belongs here; otherwise it belongs in the domain
+// .proto. Either way: never `string`.
 // =============================================================================
 
 // ProviderTier identifies which routing tier handled a request. Fixed
@@ -38,6 +62,7 @@ enum AudioFormat {
   AUDIO_FORMAT_OGG = 4;
   AUDIO_FORMAT_WEBM = 5;
   AUDIO_FORMAT_OPUS = 6;
+  AUDIO_FORMAT_AAC = 7;
 }
 
 // ResponseFormat constrains TTS-synthesis output formats. The set is

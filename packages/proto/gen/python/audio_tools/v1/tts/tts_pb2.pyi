@@ -1,27 +1,14 @@
-import datetime
-
+from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf import field_mask_pb2 as _field_mask_pb2
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from audio_tools.v1.common import common_pb2 as _common_pb2
+from audio_tools.v1.health_status import health_status_pb2 as _health_status_pb2
 from google.protobuf.internal import containers as _containers
-from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
-
-class SummarizeLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    SUMMARIZE_LEVEL_UNSPECIFIED: _ClassVar[SummarizeLevel]
-    SUMMARIZE_LEVEL_LIGHT: _ClassVar[SummarizeLevel]
-    SUMMARIZE_LEVEL_MODERATE: _ClassVar[SummarizeLevel]
-    SUMMARIZE_LEVEL_HEAVY: _ClassVar[SummarizeLevel]
-SUMMARIZE_LEVEL_UNSPECIFIED: SummarizeLevel
-SUMMARIZE_LEVEL_LIGHT: SummarizeLevel
-SUMMARIZE_LEVEL_MODERATE: SummarizeLevel
-SUMMARIZE_LEVEL_HEAVY: SummarizeLevel
 
 class AdapterMapping(_message.Message):
     __slots__ = ("tier", "provider_id", "backend_voice_id")
@@ -144,26 +131,16 @@ class GetCacheResponse(_message.Message):
     def __init__(self, audio: _Optional[bytes] = ..., content_type: _Optional[str] = ..., content_hash: _Optional[str] = ..., hit: _Optional[bool] = ...) -> None: ...
 
 class Config(_message.Message):
-    __slots__ = ("auto_enabled", "default_voice", "default_speed", "default_response_format", "summarize_enabled", "summarize_char_threshold", "summarize_level", "summarize_model", "summarize_timeout_seconds")
+    __slots__ = ("auto_enabled", "default_voice", "default_speed", "default_response_format")
     AUTO_ENABLED_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_VOICE_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_SPEED_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_RESPONSE_FORMAT_FIELD_NUMBER: _ClassVar[int]
-    SUMMARIZE_ENABLED_FIELD_NUMBER: _ClassVar[int]
-    SUMMARIZE_CHAR_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
-    SUMMARIZE_LEVEL_FIELD_NUMBER: _ClassVar[int]
-    SUMMARIZE_MODEL_FIELD_NUMBER: _ClassVar[int]
-    SUMMARIZE_TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
     auto_enabled: bool
     default_voice: str
     default_speed: float
     default_response_format: _common_pb2.ResponseFormat
-    summarize_enabled: bool
-    summarize_char_threshold: int
-    summarize_level: SummarizeLevel
-    summarize_model: str
-    summarize_timeout_seconds: int
-    def __init__(self, auto_enabled: _Optional[bool] = ..., default_voice: _Optional[str] = ..., default_speed: _Optional[float] = ..., default_response_format: _Optional[_Union[_common_pb2.ResponseFormat, str]] = ..., summarize_enabled: _Optional[bool] = ..., summarize_char_threshold: _Optional[int] = ..., summarize_level: _Optional[_Union[SummarizeLevel, str]] = ..., summarize_model: _Optional[str] = ..., summarize_timeout_seconds: _Optional[int] = ...) -> None: ...
+    def __init__(self, auto_enabled: _Optional[bool] = ..., default_voice: _Optional[str] = ..., default_speed: _Optional[float] = ..., default_response_format: _Optional[_Union[_common_pb2.ResponseFormat, str]] = ...) -> None: ...
 
 class GetConfigRequest(_message.Message):
     __slots__ = ()
@@ -189,20 +166,6 @@ class UpdateConfigResponse(_message.Message):
     config: Config
     def __init__(self, config: _Optional[_Union[Config, _Mapping]] = ...) -> None: ...
 
-class ProviderAvailability(_message.Message):
-    __slots__ = ("tier", "provider_id", "available", "error", "checked_at")
-    TIER_FIELD_NUMBER: _ClassVar[int]
-    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
-    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
-    ERROR_FIELD_NUMBER: _ClassVar[int]
-    CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
-    tier: _common_pb2.ProviderTier
-    provider_id: str
-    available: bool
-    error: str
-    checked_at: _timestamp_pb2.Timestamp
-    def __init__(self, tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., available: _Optional[bool] = ..., error: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
 class Status(_message.Message):
     __slots__ = ("config", "availability", "capability", "capability_label")
     CONFIG_FIELD_NUMBER: _ClassVar[int]
@@ -210,10 +173,10 @@ class Status(_message.Message):
     CAPABILITY_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_LABEL_FIELD_NUMBER: _ClassVar[int]
     config: Config
-    availability: _containers.RepeatedCompositeFieldContainer[ProviderAvailability]
+    availability: _containers.RepeatedCompositeFieldContainer[_health_status_pb2.ProviderHealth]
     capability: str
     capability_label: str
-    def __init__(self, config: _Optional[_Union[Config, _Mapping]] = ..., availability: _Optional[_Iterable[_Union[ProviderAvailability, _Mapping]]] = ..., capability: _Optional[str] = ..., capability_label: _Optional[str] = ...) -> None: ...
+    def __init__(self, config: _Optional[_Union[Config, _Mapping]] = ..., availability: _Optional[_Iterable[_Union[_health_status_pb2.ProviderHealth, _Mapping]]] = ..., capability: _Optional[str] = ..., capability_label: _Optional[str] = ...) -> None: ...
 
 class GetStatusRequest(_message.Message):
     __slots__ = ()

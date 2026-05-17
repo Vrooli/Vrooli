@@ -69,8 +69,17 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 
 	logger := logx.Std{L: log.Default()}
 
-	// Capability singletons (Local providers).
-	capsRegistry := capabilities.NewRegistry(nil, nil, 30*time.Second)
+	// Capability singletons (Local providers). The registry must be wired
+	// with concrete checkers — otherwise IsAvailable returns false for
+	// every capability and the STT/TTS/Summarize chains report "all
+	// providers failed" even when the underlying resources are healthy.
+	doer := httpc.DefaultDoer()
+	capsCheckers := map[string]capabilities.Checker{
+		"whisper-stt": &capabilities.WhisperChecker{BaseURL: env.WhisperURL, Doer: doer},
+		"kokoro-tts":  &capabilities.KokoroChecker{BaseURL: env.KokoroURL, Doer: doer},
+		"ollama":      &capabilities.OllamaChecker{BaseURL: env.OllamaURL, Doer: doer},
+	}
+	capsRegistry := capabilities.NewRegistry(capabilities.Known, capsCheckers, 30*time.Second)
 	skipVerifyCount := &atomic.Int64{}
 	voiceSvc := sttpipeline.NewService(
 		sttpipeline.Config{},
@@ -80,7 +89,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		capsRegistry,
 		skipVerifyCount,
 		env.WhisperURL,
-		nil, nil,
+		doer, nil,
 	)
 
 	ttsCache := inttts.NewCache(64 * 1024 * 1024)
@@ -134,6 +143,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		TTS:       chs.TTS,
 		Summarize: chs.Summarize,
 		Transcode: ffmpegTranscoder{},
+		Usage:     usageRecorder,
 	})
 
 	srv := server.New(
@@ -161,6 +171,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			Voice:        voiceSvc,
 			Logger:       logger,
 			Clock:        clock.System{},
+			Usage:        usageRecorder,
 			StreamConfig: stores.STTStream,
 			Wakeword:     stores.Wakeword,
 			Speaker:      stores.Speaker,
@@ -179,6 +190,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			TTSService:     ttsSvc,
 			Logger:         logger,
 			Clock:          clock.System{},
+			Usage:          usageRecorder,
 			Cache:          ttsCache,
 			ConfigStore:    stores.TTSConfig,
 			Playback:       stores.Playback,

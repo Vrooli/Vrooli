@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.stt;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 import "audio-tools/v1/common/common.proto";
@@ -32,6 +33,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 // endpoint, not a REST exception.
 // =============================================================================
 
+// STTService is the runtime transcription surface. Administrative
+// endpoints (stream/wake-word/speaker config + speaker-profile CRUD)
+// live on STTAdminService in stt_admin.proto so the runtime client
+// surface stays minimal.
 service STTService {
   rpc Transcribe(TranscribeRequest) returns (TranscribeResponse);
 
@@ -42,22 +47,6 @@ service STTService {
   // the WebSocket transport for ecosystem-tooling reasons (recorded in
   // SEAMS.md as TransportReason: websocket_transport).
   rpc TranscribeStream(stream TranscribeStreamRequest) returns (stream TranscribeStreamEvent);
-
-  rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
-  rpc UpdateStreamConfig(UpdateStreamConfigRequest) returns (UpdateStreamConfigResponse);
-
-  rpc GetWakeWordConfig(GetWakeWordConfigRequest) returns (GetWakeWordConfigResponse);
-  rpc UpdateWakeWordTemplate(UpdateWakeWordTemplateRequest) returns (UpdateWakeWordTemplateResponse);
-  rpc DeleteWakeWordTemplate(DeleteWakeWordTemplateRequest) returns (DeleteWakeWordTemplateResponse);
-
-  rpc GetSpeakerConfig(GetSpeakerConfigRequest) returns (GetSpeakerConfigResponse);
-  rpc UpdateSpeakerConfig(UpdateSpeakerConfigRequest) returns (UpdateSpeakerConfigResponse);
-  rpc GetSpeakerStatus(GetSpeakerStatusRequest) returns (GetSpeakerStatusResponse);
-  rpc ListSpeakerProfiles(ListSpeakerProfilesRequest) returns (ListSpeakerProfilesResponse);
-  rpc EnrollSpeakerProfile(EnrollSpeakerProfileRequest) returns (EnrollSpeakerProfileResponse);
-  rpc ClearSpeakerProfileBinding(ClearSpeakerProfileBindingRequest) returns (ClearSpeakerProfileBindingResponse);
-  rpc RemoveSpeakerProfile(RemoveSpeakerProfileRequest) returns (RemoveSpeakerProfileResponse);
-  rpc DeleteSpeakerProfile(DeleteSpeakerProfileRequest) returns (DeleteSpeakerProfileResponse);
 }
 
 // -----------------------------------------------------------------------------
@@ -107,8 +96,10 @@ enum StrategyPreference {
 // -----------------------------------------------------------------------------
 
 message TranscribeRequest {
-  bytes audio = 1;
-  vrooli.audio_tools.v1.common.AudioFormat format = 2;
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
+    (buf.validate.field).enum.not_in = 0
+  ];
   string language = 3;                 // empty = provider auto-detect
   bool skip_speaker_verification = 4;
   string initial_prompt = 5;           // optional Whisper-style prompt
@@ -146,13 +137,13 @@ message StreamConfig {
   StrategyPreference strategy_preference = 9;
   // vad_silence_ms: silence window that closes a VAD-segment.
   // Range 200..3000; 0 defaults to 700.
-  int32 vad_silence_ms = 10;
+  int32 vad_silence_ms = 10 [(buf.validate.field).int32 = { gte: 0, lte: 3000 }];
   // overlap_window_ms: sliding-window size for OverlapAgreeStrategy.
   // Range 1000..5000; 0 defaults to 2000.
-  int32 overlap_window_ms = 11;
+  int32 overlap_window_ms = 11 [(buf.validate.field).int32 = { gte: 0, lte: 5000 }];
   // overlap_commit_runs: consecutive agreeing runs to commit a prefix.
   // Range 2..4; 0 defaults to 2.
-  int32 overlap_commit_runs = 12;
+  int32 overlap_commit_runs = 12 [(buf.validate.field).int32 = { gte: 0, lte: 4 }];
 }
 
 message GetStreamConfigRequest {}
@@ -313,10 +304,12 @@ message SpeakerEnrollment {
 // optional tri-state flags (`add_to_active`, `enable`) use proto3
 // `optional` rather than has_X partners.
 message EnrollSpeakerProfileRequest {
-  bytes audio = 1;
-  vrooli.audio_tools.v1.common.AudioFormat format = 2;
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [
+    (buf.validate.field).enum.not_in = 0
+  ];
   string profile_id = 3;
-  string display_name = 4;
+  string display_name = 4 [(buf.validate.field).string.min_len = 1];
   string notes = 5;
   optional bool add_to_active = 6;
   optional bool enable = 7;
@@ -327,22 +320,35 @@ message EnrollSpeakerProfileResponse {
   SpeakerConfig config = 2;
 }
 
+// ClearSpeakerProfileBinding clears ALL active profile bindings in the
+// speaker config. Profiles themselves remain in the speaker store; only
+// the active-binding list is emptied. The single-profile equivalent is
+// UnbindSpeakerProfile.
 message ClearSpeakerProfileBindingRequest {}
 
 message ClearSpeakerProfileBindingResponse {
   SpeakerConfig config = 1;
 }
 
-message RemoveSpeakerProfileRequest {
-  string profile_id = 1;
+// UnbindSpeakerProfileRequest removes a single profile_id from the
+// active SpeakerConfig.profile_ids list. The profile itself is NOT
+// deleted from the speaker store and can be re-bound later. Use
+// DeleteSpeakerProfile to purge the profile from the store.
+message UnbindSpeakerProfileRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
-message RemoveSpeakerProfileResponse {
+message UnbindSpeakerProfileResponse {
   SpeakerConfig config = 1;
 }
 
+// DeleteSpeakerProfileRequest permanently deletes a profile from the
+// speaker store and removes it from the active config. Requires a
+// configured speaker store (FailedPrecondition otherwise). To merely
+// unbind a profile without losing the enrollment, use
+// UnbindSpeakerProfile.
 message DeleteSpeakerProfileRequest {
-  string profile_id = 1;
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
 message DeleteSpeakerProfileResponse {

@@ -63,6 +63,12 @@ func summarizeTokenBudget(level string, inputChars int) int {
 	}
 }
 
+// reasoningHeadroomTokens is the extra num_predict budget reserved for
+// reasoning-model think blocks. qwen3's chat template prefills "<think>\n"
+// into the prompt, so the response starts inside the think block; without
+// headroom the model gets truncated mid-thought and never emits the answer.
+const reasoningHeadroomTokens = 2048
+
 // SummarizerResponse carries the answer plus the diagnostic signals we need
 // to distinguish a real empty response from a truncated/stripped one.
 type SummarizerResponse struct {
@@ -90,6 +96,14 @@ func (s *Summarizer) Summarize(ctx context.Context, text, model, level string) (
 		systemPrompt = summarizeSystemPrompts["moderate"]
 	}
 
+	// qwen3's chat template prefills "<|im_start|>assistant\n<think>\n"
+	// before the model generates, so the response *starts inside* the
+	// think block — the opening tag is in the prompt, not in the output.
+	// We therefore (a) reserve extra num_predict headroom for the think
+	// block so the model has room to finish reasoning AND emit the
+	// answer (see reasoningHeadroomTokens), and (b) StripThinkTags
+	// handles the "leading </think>" shape. Neither /no_think nor
+	// `think: false` actually suppresses reasoning on current qwen3 builds.
 	body := map[string]any{
 		"model": model,
 		"messages": []map[string]string{
@@ -99,7 +113,7 @@ func (s *Summarizer) Summarize(ctx context.Context, text, model, level string) (
 		"stream": false,
 		"think":  false,
 		"options": map[string]any{
-			"num_predict": summarizeTokenBudget(level, len(text)),
+			"num_predict": summarizeTokenBudget(level, len(text)) + reasoningHeadroomTokens,
 			"temperature": 0.2,
 		},
 	}
@@ -147,7 +161,18 @@ func (s *Summarizer) Summarize(ctx context.Context, text, model, level string) (
 
 // StripThinkTags removes <think>...</think> blocks that reasoning models
 // (e.g. qwen3) emit before their actual answer.
+//
+// qwen3's chat template prefills "<think>\n" into the prompt, so the
+// generated content frequently *starts inside* the think block — there
+// is a closing </think> but no opening <think>. We treat any text
+// before the first </think> as reasoning to strip.
 func StripThinkTags(s string) string {
+	if firstClose := strings.Index(s, "</think>"); firstClose >= 0 {
+		firstOpen := strings.Index(s, "<think>")
+		if firstOpen < 0 || firstOpen > firstClose {
+			s = s[firstClose+len("</think>"):]
+		}
+	}
 	for {
 		start := strings.Index(s, "<think>")
 		if start < 0 {

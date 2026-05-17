@@ -1,10 +1,24 @@
+from buf.validate import validate_pb2 as _validate_pb2
+from audio_tools.v1.common import common_pb2 as _common_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class NormalizationMethod(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NORMALIZATION_METHOD_UNSPECIFIED: _ClassVar[NormalizationMethod]
+    NORMALIZATION_METHOD_EBU_R128: _ClassVar[NormalizationMethod]
+    NORMALIZATION_METHOD_RMS: _ClassVar[NormalizationMethod]
+    NORMALIZATION_METHOD_PEAK: _ClassVar[NormalizationMethod]
+NORMALIZATION_METHOD_UNSPECIFIED: NormalizationMethod
+NORMALIZATION_METHOD_EBU_R128: NormalizationMethod
+NORMALIZATION_METHOD_RMS: NormalizationMethod
+NORMALIZATION_METHOD_PEAK: NormalizationMethod
 
 class TranscodeRequest(_message.Message):
     __slots__ = ("audio", "input_format", "output_format", "sample_rate", "channels", "bitrate")
@@ -15,12 +29,12 @@ class TranscodeRequest(_message.Message):
     CHANNELS_FIELD_NUMBER: _ClassVar[int]
     BITRATE_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
-    input_format: str
-    output_format: str
+    input_format: _common_pb2.AudioFormat
+    output_format: _common_pb2.AudioFormat
     sample_rate: int
     channels: int
     bitrate: int
-    def __init__(self, audio: _Optional[bytes] = ..., input_format: _Optional[str] = ..., output_format: _Optional[str] = ..., sample_rate: _Optional[int] = ..., channels: _Optional[int] = ..., bitrate: _Optional[int] = ...) -> None: ...
+    def __init__(self, audio: _Optional[bytes] = ..., input_format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., output_format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., sample_rate: _Optional[int] = ..., channels: _Optional[int] = ..., bitrate: _Optional[int] = ...) -> None: ...
 
 class TranscodeResponse(_message.Message):
     __slots__ = ("audio", "content_type", "duration_seconds")
@@ -39,10 +53,10 @@ class TrimRequest(_message.Message):
     START_SECONDS_FIELD_NUMBER: _ClassVar[int]
     END_SECONDS_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
-    format: str
+    format: _common_pb2.AudioFormat
     start_seconds: float
     end_seconds: float
-    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[str] = ..., start_seconds: _Optional[float] = ..., end_seconds: _Optional[float] = ...) -> None: ...
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., start_seconds: _Optional[float] = ..., end_seconds: _Optional[float] = ...) -> None: ...
 
 class TrimResponse(_message.Message):
     __slots__ = ("audio", "content_type", "duration_seconds")
@@ -59,8 +73,8 @@ class MergeSource(_message.Message):
     AUDIO_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
-    format: str
-    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[str] = ...) -> None: ...
+    format: _common_pb2.AudioFormat
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ...) -> None: ...
 
 class MergeRequest(_message.Message):
     __slots__ = ("sources", "output_format", "crossfade_seconds")
@@ -68,9 +82,9 @@ class MergeRequest(_message.Message):
     OUTPUT_FORMAT_FIELD_NUMBER: _ClassVar[int]
     CROSSFADE_SECONDS_FIELD_NUMBER: _ClassVar[int]
     sources: _containers.RepeatedCompositeFieldContainer[MergeSource]
-    output_format: str
+    output_format: _common_pb2.AudioFormat
     crossfade_seconds: float
-    def __init__(self, sources: _Optional[_Iterable[_Union[MergeSource, _Mapping]]] = ..., output_format: _Optional[str] = ..., crossfade_seconds: _Optional[float] = ...) -> None: ...
+    def __init__(self, sources: _Optional[_Iterable[_Union[MergeSource, _Mapping]]] = ..., output_format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., crossfade_seconds: _Optional[float] = ...) -> None: ...
 
 class MergeResponse(_message.Message):
     __slots__ = ("audio", "content_type", "duration_seconds")
@@ -90,11 +104,11 @@ class SplitRequest(_message.Message):
     BOUNDARIES_SECONDS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FORMAT_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
-    format: str
+    format: _common_pb2.AudioFormat
     chunk_seconds: float
     boundaries_seconds: _containers.RepeatedScalarFieldContainer[float]
-    output_format: str
-    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[str] = ..., chunk_seconds: _Optional[float] = ..., boundaries_seconds: _Optional[_Iterable[float]] = ..., output_format: _Optional[str] = ...) -> None: ...
+    output_format: _common_pb2.AudioFormat
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., chunk_seconds: _Optional[float] = ..., boundaries_seconds: _Optional[_Iterable[float]] = ..., output_format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ...) -> None: ...
 
 class SplitChunk(_message.Message):
     __slots__ = ("audio", "content_type", "start_seconds", "duration_seconds")
@@ -122,11 +136,11 @@ class FadeRequest(_message.Message):
     FADE_OUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FORMAT_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
-    format: str
+    format: _common_pb2.AudioFormat
     fade_in_seconds: float
     fade_out_seconds: float
-    output_format: str
-    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[str] = ..., fade_in_seconds: _Optional[float] = ..., fade_out_seconds: _Optional[float] = ..., output_format: _Optional[str] = ...) -> None: ...
+    output_format: _common_pb2.AudioFormat
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., fade_in_seconds: _Optional[float] = ..., fade_out_seconds: _Optional[float] = ..., output_format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ...) -> None: ...
 
 class FadeResponse(_message.Message):
     __slots__ = ("audio", "content_type")
@@ -143,10 +157,10 @@ class VolumeRequest(_message.Message):
     GAIN_DB_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FORMAT_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
-    format: str
+    format: _common_pb2.AudioFormat
     gain_db: float
-    output_format: str
-    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[str] = ..., gain_db: _Optional[float] = ..., output_format: _Optional[str] = ...) -> None: ...
+    output_format: _common_pb2.AudioFormat
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., gain_db: _Optional[float] = ..., output_format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ...) -> None: ...
 
 class VolumeResponse(_message.Message):
     __slots__ = ("audio", "content_type")
@@ -164,11 +178,11 @@ class NormalizeRequest(_message.Message):
     TARGET_LUFS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FORMAT_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
-    format: str
-    method: str
+    format: _common_pb2.AudioFormat
+    method: NormalizationMethod
     target_lufs: float
-    output_format: str
-    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[str] = ..., method: _Optional[str] = ..., target_lufs: _Optional[float] = ..., output_format: _Optional[str] = ...) -> None: ...
+    output_format: _common_pb2.AudioFormat
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., method: _Optional[_Union[NormalizationMethod, str]] = ..., target_lufs: _Optional[float] = ..., output_format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ...) -> None: ...
 
 class NormalizeResponse(_message.Message):
     __slots__ = ("audio", "content_type", "measured_lufs")
@@ -201,17 +215,17 @@ class AudioMetadata(_message.Message):
     channels: int
     bitrate: int
     codec: str
-    format: str
+    format: _common_pb2.AudioFormat
     tags: _containers.ScalarMap[str, str]
-    def __init__(self, duration_seconds: _Optional[float] = ..., sample_rate: _Optional[int] = ..., channels: _Optional[int] = ..., bitrate: _Optional[int] = ..., codec: _Optional[str] = ..., format: _Optional[str] = ..., tags: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    def __init__(self, duration_seconds: _Optional[float] = ..., sample_rate: _Optional[int] = ..., channels: _Optional[int] = ..., bitrate: _Optional[int] = ..., codec: _Optional[str] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., tags: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class ExtractMetadataRequest(_message.Message):
     __slots__ = ("audio", "format")
     AUDIO_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
-    format: str
-    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[str] = ...) -> None: ...
+    format: _common_pb2.AudioFormat
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ...) -> None: ...
 
 class ExtractMetadataResponse(_message.Message):
     __slots__ = ("metadata",)

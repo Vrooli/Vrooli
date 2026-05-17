@@ -1,12 +1,24 @@
+from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf import field_mask_pb2 as _field_mask_pb2
 from audio_tools.v1.common import common_pb2 as _common_pb2
-from audio_tools.v1.tts import tts_pb2 as _tts_pb2
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class SummarizeLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SUMMARIZE_LEVEL_UNSPECIFIED: _ClassVar[SummarizeLevel]
+    SUMMARIZE_LEVEL_LIGHT: _ClassVar[SummarizeLevel]
+    SUMMARIZE_LEVEL_MODERATE: _ClassVar[SummarizeLevel]
+    SUMMARIZE_LEVEL_HEAVY: _ClassVar[SummarizeLevel]
+SUMMARIZE_LEVEL_UNSPECIFIED: SummarizeLevel
+SUMMARIZE_LEVEL_LIGHT: SummarizeLevel
+SUMMARIZE_LEVEL_MODERATE: SummarizeLevel
+SUMMARIZE_LEVEL_HEAVY: SummarizeLevel
 
 class SummarizeConfig(_message.Message):
     __slots__ = ("enabled", "char_threshold", "level", "model", "timeout_seconds")
@@ -17,10 +29,10 @@ class SummarizeConfig(_message.Message):
     TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
     enabled: bool
     char_threshold: int
-    level: _tts_pb2.SummarizeLevel
+    level: SummarizeLevel
     model: str
     timeout_seconds: int
-    def __init__(self, enabled: _Optional[bool] = ..., char_threshold: _Optional[int] = ..., level: _Optional[_Union[_tts_pb2.SummarizeLevel, str]] = ..., model: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+    def __init__(self, enabled: _Optional[bool] = ..., char_threshold: _Optional[int] = ..., level: _Optional[_Union[SummarizeLevel, str]] = ..., model: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
 
 class GetSummarizeConfigRequest(_message.Message):
     __slots__ = ()
@@ -53,10 +65,10 @@ class SummarizeRequest(_message.Message):
     MODEL_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
     text: str
-    level: _tts_pb2.SummarizeLevel
+    level: SummarizeLevel
     model: str
     timeout_seconds: int
-    def __init__(self, text: _Optional[str] = ..., level: _Optional[_Union[_tts_pb2.SummarizeLevel, str]] = ..., model: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+    def __init__(self, text: _Optional[str] = ..., level: _Optional[_Union[SummarizeLevel, str]] = ..., model: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
 
 class SummarizeResponse(_message.Message):
     __slots__ = ("text", "prompt_tokens", "output_tokens", "provider_tier", "provider_id", "model_id", "latency_ms")

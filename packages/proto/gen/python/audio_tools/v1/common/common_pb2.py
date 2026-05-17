@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"audio-tools/v1/common/common.proto\x12\x1cvrooli.audio_tools.v1.common*x\n\x0cProviderTier\x12\x1d\n\x19PROVIDER_TIER_UNSPECIFIED\x10\x00\x12\x17\n\x13PROVIDER_TIER_LOCAL\x10\x01\x12\x16\n\x12PROVIDER_TIER_BYOK\x10\x02\x12\x18\n\x14PROVIDER_TIER_VROOLI\x10\x03*\xb2\x01\n\x0b\x41udioFormat\x12\x1c\n\x18\x41UDIO_FORMAT_UNSPECIFIED\x10\x00\x12\x14\n\x10\x41UDIO_FORMAT_WAV\x10\x01\x12\x14\n\x10\x41UDIO_FORMAT_MP3\x10\x02\x12\x15\n\x11\x41UDIO_FORMAT_FLAC\x10\x03\x12\x14\n\x10\x41UDIO_FORMAT_OGG\x10\x04\x12\x15\n\x11\x41UDIO_FORMAT_WEBM\x10\x05\x12\x15\n\x11\x41UDIO_FORMAT_OPUS\x10\x06*\x97\x01\n\x0eResponseFormat\x12\x1f\n\x1bRESPONSE_FORMAT_UNSPECIFIED\x10\x00\x12\x17\n\x13RESPONSE_FORMAT_MP3\x10\x01\x12\x17\n\x13RESPONSE_FORMAT_WAV\x10\x02\x12\x18\n\x14RESPONSE_FORMAT_OPUS\x10\x03\x12\x18\n\x14RESPONSE_FORMAT_FLAC\x10\x04\x42PZNgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common;common_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"audio-tools/v1/common/common.proto\x12\x1cvrooli.audio_tools.v1.common*x\n\x0cProviderTier\x12\x1d\n\x19PROVIDER_TIER_UNSPECIFIED\x10\x00\x12\x17\n\x13PROVIDER_TIER_LOCAL\x10\x01\x12\x16\n\x12PROVIDER_TIER_BYOK\x10\x02\x12\x18\n\x14PROVIDER_TIER_VROOLI\x10\x03*\xc8\x01\n\x0b\x41udioFormat\x12\x1c\n\x18\x41UDIO_FORMAT_UNSPECIFIED\x10\x00\x12\x14\n\x10\x41UDIO_FORMAT_WAV\x10\x01\x12\x14\n\x10\x41UDIO_FORMAT_MP3\x10\x02\x12\x15\n\x11\x41UDIO_FORMAT_FLAC\x10\x03\x12\x14\n\x10\x41UDIO_FORMAT_OGG\x10\x04\x12\x15\n\x11\x41UDIO_FORMAT_WEBM\x10\x05\x12\x15\n\x11\x41UDIO_FORMAT_OPUS\x10\x06\x12\x14\n\x10\x41UDIO_FORMAT_AAC\x10\x07*\x97\x01\n\x0eResponseFormat\x12\x1f\n\x1bRESPONSE_FORMAT_UNSPECIFIED\x10\x00\x12\x17\n\x13RESPONSE_FORMAT_MP3\x10\x01\x12\x17\n\x13RESPONSE_FORMAT_WAV\x10\x02\x12\x18\n\x14RESPONSE_FORMAT_OPUS\x10\x03\x12\x18\n\x14RESPONSE_FORMAT_FLAC\x10\x04\x42PZNgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common;common_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,7 +35,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PROVIDERTIER']._serialized_start=68
   _globals['_PROVIDERTIER']._serialized_end=188
   _globals['_AUDIOFORMAT']._serialized_start=191
-  _globals['_AUDIOFORMAT']._serialized_end=369
-  _globals['_RESPONSEFORMAT']._serialized_start=372
-  _globals['_RESPONSEFORMAT']._serialized_end=523
+  _globals['_AUDIOFORMAT']._serialized_end=391
+  _globals['_RESPONSEFORMAT']._serialized_start=394
+  _globals['_RESPONSEFORMAT']._serialized_end=545
 # @@protoc_insertion_point(module_scope)

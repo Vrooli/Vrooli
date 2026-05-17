@@ -2,21 +2,20 @@
 // @generated from file audio-tools/v1/summarize/summarize.proto (package vrooli.audio_tools.v1.summarize, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { FieldMask } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_field_mask } from "@bufbuild/protobuf/wkt";
 import type { ProviderTier } from "../common/common_pb";
 import { file_audio_tools_v1_common_common } from "../common/common_pb";
-import type { SummarizeLevel } from "../tts/tts_pb";
-import { file_audio_tools_v1_tts_tts } from "../tts/tts_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file audio-tools/v1/summarize/summarize.proto.
  */
 export const file_audio_tools_v1_summarize_summarize: GenFile = /*@__PURE__*/
-  fileDesc("CihhdWRpby10b29scy92MS9zdW1tYXJpemUvc3VtbWFyaXplLnByb3RvEh92cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplIpwBCg9TdW1tYXJpemVDb25maWcSDwoHZW5hYmxlZBgBIAEoCBIWCg5jaGFyX3RocmVzaG9sZBgCIAEoBRI4CgVsZXZlbBgDIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS50dHMuU3VtbWFyaXplTGV2ZWwSDQoFbW9kZWwYBCABKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgFIhsKGUdldFN1bW1hcml6ZUNvbmZpZ1JlcXVlc3QiXgoaR2V0U3VtbWFyaXplQ29uZmlnUmVzcG9uc2USQAoGY29uZmlnGAEgASgLMjAudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVDb25maWcikQEKHFVwZGF0ZVN1bW1hcml6ZUNvbmZpZ1JlcXVlc3QSLwoLdXBkYXRlX21hc2sYASABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEkAKBmNvbmZpZxgCIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnImEKHVVwZGF0ZVN1bW1hcml6ZUNvbmZpZ1Jlc3BvbnNlEkAKBmNvbmZpZxgBIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnIoIBChBTdW1tYXJpemVSZXF1ZXN0EgwKBHRleHQYASABKAkSOAoFbGV2ZWwYAiABKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEudHRzLlN1bW1hcml6ZUxldmVsEg0KBW1vZGVsGAMgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBSLNAQoRU3VtbWFyaXplUmVzcG9uc2USDAoEdGV4dBgBIAEoCRIVCg1wcm9tcHRfdG9rZW5zGAIgASgFEhUKDW91dHB1dF90b2tlbnMYAyABKAUSQQoNcHJvdmlkZXJfdGllchgEIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uUHJvdmlkZXJUaWVyEhMKC3Byb3ZpZGVyX2lkGAUgASgJEhAKCG1vZGVsX2lkGAYgASgJEhIKCmxhdGVuY3lfbXMYByABKAEyrwMKEFN1bW1hcml6ZVNlcnZpY2UScgoJU3VtbWFyaXplEjEudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVSZXF1ZXN0GjIudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVSZXNwb25zZRKNAQoSR2V0U3VtbWFyaXplQ29uZmlnEjoudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5HZXRTdW1tYXJpemVDb25maWdSZXF1ZXN0GjsudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5HZXRTdW1tYXJpemVDb25maWdSZXNwb25zZRKWAQoVVXBkYXRlU3VtbWFyaXplQ29uZmlnEj0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5VcGRhdGVTdW1tYXJpemVDb25maWdSZXF1ZXN0Gj4udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5VcGRhdGVTdW1tYXJpemVDb25maWdSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL3N1bW1hcml6ZTtzdW1tYXJpemVfdjFiBnByb3RvMw", [file_google_protobuf_field_mask, file_audio_tools_v1_common_common, file_audio_tools_v1_tts_tts]);
+  fileDesc("CihhdWRpby10b29scy92MS9zdW1tYXJpemUvc3VtbWFyaXplLnByb3RvEh92cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplIqIBCg9TdW1tYXJpemVDb25maWcSDwoHZW5hYmxlZBgBIAEoCBIWCg5jaGFyX3RocmVzaG9sZBgCIAEoBRI+CgVsZXZlbBgDIAEoDjIvLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplTGV2ZWwSDQoFbW9kZWwYBCABKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgFIhsKGUdldFN1bW1hcml6ZUNvbmZpZ1JlcXVlc3QiXgoaR2V0U3VtbWFyaXplQ29uZmlnUmVzcG9uc2USQAoGY29uZmlnGAEgASgLMjAudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVDb25maWcikQEKHFVwZGF0ZVN1bW1hcml6ZUNvbmZpZ1JlcXVlc3QSLwoLdXBkYXRlX21hc2sYASABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEkAKBmNvbmZpZxgCIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnImEKHVVwZGF0ZVN1bW1hcml6ZUNvbmZpZ1Jlc3BvbnNlEkAKBmNvbmZpZxgBIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnIp0BChBTdW1tYXJpemVSZXF1ZXN0EhUKBHRleHQYASABKAlCB7pIBHICEAESPgoFbGV2ZWwYAiABKA4yLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplLlN1bW1hcml6ZUxldmVsEg0KBW1vZGVsGAMgASgJEiMKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBUIKukgHGgUY2AQoACLNAQoRU3VtbWFyaXplUmVzcG9uc2USDAoEdGV4dBgBIAEoCRIVCg1wcm9tcHRfdG9rZW5zGAIgASgFEhUKDW91dHB1dF90b2tlbnMYAyABKAUSQQoNcHJvdmlkZXJfdGllchgEIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uUHJvdmlkZXJUaWVyEhMKC3Byb3ZpZGVyX2lkGAUgASgJEhAKCG1vZGVsX2lkGAYgASgJEhIKCmxhdGVuY3lfbXMYByABKAEqhQEKDlN1bW1hcml6ZUxldmVsEh8KG1NVTU1BUklaRV9MRVZFTF9VTlNQRUNJRklFRBAAEhkKFVNVTU1BUklaRV9MRVZFTF9MSUdIVBABEhwKGFNVTU1BUklaRV9MRVZFTF9NT0RFUkFURRACEhkKFVNVTU1BUklaRV9MRVZFTF9IRUFWWRADMq8DChBTdW1tYXJpemVTZXJ2aWNlEnIKCVN1bW1hcml6ZRIxLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplUmVxdWVzdBoyLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplUmVzcG9uc2USjQEKEkdldFN1bW1hcml6ZUNvbmZpZxI6LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuR2V0U3VtbWFyaXplQ29uZmlnUmVxdWVzdBo7LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuR2V0U3VtbWFyaXplQ29uZmlnUmVzcG9uc2USlgEKFVVwZGF0ZVN1bW1hcml6ZUNvbmZpZxI9LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVxdWVzdBo+LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9zdW1tYXJpemU7c3VtbWFyaXplX3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_audio_tools_v1_common_common]);
 
 /**
  * @generated from message vrooli.audio_tools.v1.summarize.SummarizeConfig
@@ -33,7 +32,7 @@ export type SummarizeConfig = Message<"vrooli.audio_tools.v1.summarize.Summarize
   charThreshold: number;
 
   /**
-   * @generated from field: vrooli.audio_tools.v1.tts.SummarizeLevel level = 3;
+   * @generated from field: vrooli.audio_tools.v1.summarize.SummarizeLevel level = 3;
    */
   level: SummarizeLevel;
 
@@ -139,7 +138,7 @@ export type SummarizeRequest = Message<"vrooli.audio_tools.v1.summarize.Summariz
   text: string;
 
   /**
-   * @generated from field: vrooli.audio_tools.v1.tts.SummarizeLevel level = 2;
+   * @generated from field: vrooli.audio_tools.v1.summarize.SummarizeLevel level = 2;
    */
   level: SummarizeLevel;
 
@@ -209,6 +208,41 @@ export type SummarizeResponse = Message<"vrooli.audio_tools.v1.summarize.Summari
  */
 export const SummarizeResponseSchema: GenMessage<SummarizeResponse> = /*@__PURE__*/
   messageDesc(file_audio_tools_v1_summarize_summarize, 6);
+
+/**
+ * SummarizeLevel selects how aggressively the summarizer rewrites the
+ * input. LIGHT preserves wording; MODERATE rewrites for flow; HEAVY
+ * produces a short paraphrase.
+ *
+ * @generated from enum vrooli.audio_tools.v1.summarize.SummarizeLevel
+ */
+export enum SummarizeLevel {
+  /**
+   * @generated from enum value: SUMMARIZE_LEVEL_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SUMMARIZE_LEVEL_LIGHT = 1;
+   */
+  LIGHT = 1,
+
+  /**
+   * @generated from enum value: SUMMARIZE_LEVEL_MODERATE = 2;
+   */
+  MODERATE = 2,
+
+  /**
+   * @generated from enum value: SUMMARIZE_LEVEL_HEAVY = 3;
+   */
+  HEAVY = 3,
+}
+
+/**
+ * Describes the enum vrooli.audio_tools.v1.summarize.SummarizeLevel.
+ */
+export const SummarizeLevelSchema: GenEnum<SummarizeLevel> = /*@__PURE__*/
+  enumDesc(file_audio_tools_v1_summarize_summarize, 0);
 
 /**
  * @generated from service vrooli.audio_tools.v1.summarize.SummarizeService

@@ -1,5 +1,6 @@
 import datetime
 
+from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf import field_mask_pb2 as _field_mask_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from audio_tools.v1.common import common_pb2 as _common_pb2
@@ -380,13 +381,13 @@ class ClearSpeakerProfileBindingResponse(_message.Message):
     config: SpeakerConfig
     def __init__(self, config: _Optional[_Union[SpeakerConfig, _Mapping]] = ...) -> None: ...
 
-class RemoveSpeakerProfileRequest(_message.Message):
+class UnbindSpeakerProfileRequest(_message.Message):
     __slots__ = ("profile_id",)
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     profile_id: str
     def __init__(self, profile_id: _Optional[str] = ...) -> None: ...
 
-class RemoveSpeakerProfileResponse(_message.Message):
+class UnbindSpeakerProfileResponse(_message.Message):
     __slots__ = ("config",)
     CONFIG_FIELD_NUMBER: _ClassVar[int]
     config: SpeakerConfig

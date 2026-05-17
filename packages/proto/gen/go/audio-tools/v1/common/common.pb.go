@@ -88,6 +88,7 @@ const (
 	AudioFormat_AUDIO_FORMAT_OGG         AudioFormat = 4
 	AudioFormat_AUDIO_FORMAT_WEBM        AudioFormat = 5
 	AudioFormat_AUDIO_FORMAT_OPUS        AudioFormat = 6
+	AudioFormat_AUDIO_FORMAT_AAC         AudioFormat = 7
 )
 
 // Enum value maps for AudioFormat.
@@ -100,6 +101,7 @@ var (
 		4: "AUDIO_FORMAT_OGG",
 		5: "AUDIO_FORMAT_WEBM",
 		6: "AUDIO_FORMAT_OPUS",
+		7: "AUDIO_FORMAT_AAC",
 	}
 	AudioFormat_value = map[string]int32{
 		"AUDIO_FORMAT_UNSPECIFIED": 0,
@@ -109,6 +111,7 @@ var (
 		"AUDIO_FORMAT_OGG":         4,
 		"AUDIO_FORMAT_WEBM":        5,
 		"AUDIO_FORMAT_OPUS":        6,
+		"AUDIO_FORMAT_AAC":         7,
 	}
 )
 
@@ -206,7 +209,7 @@ const file_audio_tools_v1_common_common_proto_rawDesc = "" +
 	"\x19PROVIDER_TIER_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13PROVIDER_TIER_LOCAL\x10\x01\x12\x16\n" +
 	"\x12PROVIDER_TIER_BYOK\x10\x02\x12\x18\n" +
-	"\x14PROVIDER_TIER_VROOLI\x10\x03*\xb2\x01\n" +
+	"\x14PROVIDER_TIER_VROOLI\x10\x03*\xc8\x01\n" +
 	"\vAudioFormat\x12\x1c\n" +
 	"\x18AUDIO_FORMAT_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10AUDIO_FORMAT_WAV\x10\x01\x12\x14\n" +
@@ -214,7 +217,8 @@ const file_audio_tools_v1_common_common_proto_rawDesc = "" +
 	"\x11AUDIO_FORMAT_FLAC\x10\x03\x12\x14\n" +
 	"\x10AUDIO_FORMAT_OGG\x10\x04\x12\x15\n" +
 	"\x11AUDIO_FORMAT_WEBM\x10\x05\x12\x15\n" +
-	"\x11AUDIO_FORMAT_OPUS\x10\x06*\x97\x01\n" +
+	"\x11AUDIO_FORMAT_OPUS\x10\x06\x12\x14\n" +
+	"\x10AUDIO_FORMAT_AAC\x10\a*\x97\x01\n" +
 	"\x0eResponseFormat\x12\x1f\n" +
 	"\x1bRESPONSE_FORMAT_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13RESPONSE_FORMAT_MP3\x10\x01\x12\x17\n" +

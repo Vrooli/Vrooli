@@ -115,6 +115,7 @@ func TestStripThinkTags(t *testing.T) {
 		{"unclosed tag", "<think>partial reasoning", ""},
 		{"multiple blocks", "<think>a</think>first<think>b</think>second", "firstsecond"},
 		{"empty think", "<think></think>answer", "answer"},
+		{"prefilled think (qwen3)", "reasoning text without opener\n</think>\nactual answer", "actual answer"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -181,7 +182,7 @@ func TestSummarizer_SendsTokenAndTemperatureOptions(t *testing.T) {
 				t.Errorf("expected temperature=0.2, got %v", opts["temperature"])
 			}
 			numPredict, _ := opts["num_predict"].(float64)
-			want := summarizeTokenBudget(tc.level, len(tc.inputText))
+			want := summarizeTokenBudget(tc.level, len(tc.inputText)) + reasoningHeadroomTokens
 			if int(numPredict) != want {
 				t.Errorf("num_predict: got %v, want %d", opts["num_predict"], want)
 			}

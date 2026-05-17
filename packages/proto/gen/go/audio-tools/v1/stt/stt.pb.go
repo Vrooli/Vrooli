@@ -7,6 +7,7 @@
 package stt_v1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	common "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -2151,6 +2152,10 @@ func (x *EnrollSpeakerProfileResponse) GetConfig() *SpeakerConfig {
 	return nil
 }
 
+// ClearSpeakerProfileBinding clears ALL active profile bindings in the
+// speaker config. Profiles themselves remain in the speaker store; only
+// the active-binding list is emptied. The single-profile equivalent is
+// UnbindSpeakerProfile.
 type ClearSpeakerProfileBindingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2231,27 +2236,31 @@ func (x *ClearSpeakerProfileBindingResponse) GetConfig() *SpeakerConfig {
 	return nil
 }
 
-type RemoveSpeakerProfileRequest struct {
+// UnbindSpeakerProfileRequest removes a single profile_id from the
+// active SpeakerConfig.profile_ids list. The profile itself is NOT
+// deleted from the speaker store and can be re-bound later. Use
+// DeleteSpeakerProfile to purge the profile from the store.
+type UnbindSpeakerProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProfileId     string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RemoveSpeakerProfileRequest) Reset() {
-	*x = RemoveSpeakerProfileRequest{}
+func (x *UnbindSpeakerProfileRequest) Reset() {
+	*x = UnbindSpeakerProfileRequest{}
 	mi := &file_audio_tools_v1_stt_stt_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RemoveSpeakerProfileRequest) String() string {
+func (x *UnbindSpeakerProfileRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RemoveSpeakerProfileRequest) ProtoMessage() {}
+func (*UnbindSpeakerProfileRequest) ProtoMessage() {}
 
-func (x *RemoveSpeakerProfileRequest) ProtoReflect() protoreflect.Message {
+func (x *UnbindSpeakerProfileRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_audio_tools_v1_stt_stt_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2263,39 +2272,39 @@ func (x *RemoveSpeakerProfileRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RemoveSpeakerProfileRequest.ProtoReflect.Descriptor instead.
-func (*RemoveSpeakerProfileRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UnbindSpeakerProfileRequest.ProtoReflect.Descriptor instead.
+func (*UnbindSpeakerProfileRequest) Descriptor() ([]byte, []int) {
 	return file_audio_tools_v1_stt_stt_proto_rawDescGZIP(), []int{33}
 }
 
-func (x *RemoveSpeakerProfileRequest) GetProfileId() string {
+func (x *UnbindSpeakerProfileRequest) GetProfileId() string {
 	if x != nil {
 		return x.ProfileId
 	}
 	return ""
 }
 
-type RemoveSpeakerProfileResponse struct {
+type UnbindSpeakerProfileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Config        *SpeakerConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RemoveSpeakerProfileResponse) Reset() {
-	*x = RemoveSpeakerProfileResponse{}
+func (x *UnbindSpeakerProfileResponse) Reset() {
+	*x = UnbindSpeakerProfileResponse{}
 	mi := &file_audio_tools_v1_stt_stt_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RemoveSpeakerProfileResponse) String() string {
+func (x *UnbindSpeakerProfileResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RemoveSpeakerProfileResponse) ProtoMessage() {}
+func (*UnbindSpeakerProfileResponse) ProtoMessage() {}
 
-func (x *RemoveSpeakerProfileResponse) ProtoReflect() protoreflect.Message {
+func (x *UnbindSpeakerProfileResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_audio_tools_v1_stt_stt_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2307,18 +2316,23 @@ func (x *RemoveSpeakerProfileResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RemoveSpeakerProfileResponse.ProtoReflect.Descriptor instead.
-func (*RemoveSpeakerProfileResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use UnbindSpeakerProfileResponse.ProtoReflect.Descriptor instead.
+func (*UnbindSpeakerProfileResponse) Descriptor() ([]byte, []int) {
 	return file_audio_tools_v1_stt_stt_proto_rawDescGZIP(), []int{34}
 }
 
-func (x *RemoveSpeakerProfileResponse) GetConfig() *SpeakerConfig {
+func (x *UnbindSpeakerProfileResponse) GetConfig() *SpeakerConfig {
 	if x != nil {
 		return x.Config
 	}
 	return nil
 }
 
+// DeleteSpeakerProfileRequest permanently deletes a profile from the
+// speaker store and removes it from the active config. Requires a
+// configured speaker store (FailedPrecondition otherwise). To merely
+// unbind a profile without losing the enrollment, use
+// UnbindSpeakerProfile.
 type DeleteSpeakerProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProfileId     string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
@@ -3139,10 +3153,10 @@ var File_audio_tools_v1_stt_stt_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\n" +
-	"\x1caudio-tools/v1/stt/stt.proto\x12\x19vrooli.audio_tools.v1.stt\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"audio-tools/v1/common/common.proto\"\xeb\x01\n" +
-	"\x11TranscribeRequest\x12\x14\n" +
-	"\x05audio\x18\x01 \x01(\fR\x05audio\x12A\n" +
-	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatR\x06format\x12\x1a\n" +
+	"\x1caudio-tools/v1/stt/stt.proto\x12\x19vrooli.audio_tools.v1.stt\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"audio-tools/v1/common/common.proto\"\xfe\x01\n" +
+	"\x11TranscribeRequest\x12\x1d\n" +
+	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12K\n" +
+	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\x12\x1a\n" +
 	"\blanguage\x18\x03 \x01(\tR\blanguage\x12:\n" +
 	"\x19skip_speaker_verification\x18\x04 \x01(\bR\x17skipSpeakerVerification\x12%\n" +
 	"\x0einitial_prompt\x18\x05 \x01(\tR\rinitialPrompt\"\xac\x02\n" +
@@ -3155,7 +3169,7 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"providerId\x12\x19\n" +
 	"\bmodel_id\x18\x06 \x01(\tR\amodelId\x12\x1d\n" +
 	"\n" +
-	"latency_ms\x18\a \x01(\x01R\tlatencyMs\"\xed\x04\n" +
+	"latency_ms\x18\a \x01(\x01R\tlatencyMs\"\x90\x05\n" +
 	"\fStreamConfig\x12*\n" +
 	"\x11flush_interval_ms\x18\x01 \x01(\x05R\x0fflushIntervalMs\x12&\n" +
 	"\x0fmin_delta_bytes\x18\x02 \x01(\x05R\rminDeltaBytes\x12#\n" +
@@ -3165,11 +3179,13 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\x13wake_word_threshold\x18\x06 \x01(\x01R\x11wakeWordThreshold\x12,\n" +
 	"\x12segment_silence_ms\x18\a \x01(\x05R\x10segmentSilenceMs\x12O\n" +
 	"\x0estreaming_mode\x18\b \x01(\x0e2(.vrooli.audio_tools.v1.stt.StreamingModeR\rstreamingMode\x12^\n" +
-	"\x13strategy_preference\x18\t \x01(\x0e2-.vrooli.audio_tools.v1.stt.StrategyPreferenceR\x12strategyPreference\x12$\n" +
+	"\x13strategy_preference\x18\t \x01(\x0e2-.vrooli.audio_tools.v1.stt.StrategyPreferenceR\x12strategyPreference\x120\n" +
 	"\x0evad_silence_ms\x18\n" +
-	" \x01(\x05R\fvadSilenceMs\x12*\n" +
-	"\x11overlap_window_ms\x18\v \x01(\x05R\x0foverlapWindowMs\x12.\n" +
-	"\x13overlap_commit_runs\x18\f \x01(\x05R\x11overlapCommitRuns\"\x18\n" +
+	" \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xb8\x17(\x00R\fvadSilenceMs\x126\n" +
+	"\x11overlap_window_ms\x18\v \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x88'(\x00R\x0foverlapWindowMs\x129\n" +
+	"\x13overlap_commit_runs\x18\f \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x04(\x00R\x11overlapCommitRuns\"\x18\n" +
 	"\x16GetStreamConfigRequest\"Z\n" +
 	"\x17GetStreamConfigResponse\x12?\n" +
 	"\x06config\x18\x01 \x01(\v2'.vrooli.audio_tools.v1.stt.StreamConfigR\x06config\"\x99\x01\n" +
@@ -3277,13 +3293,13 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\n" +
 	"model_name\x18\x06 \x01(\tR\tmodelName\x129\n" +
 	"\n" +
-	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xb1\x02\n" +
-	"\x1bEnrollSpeakerProfileRequest\x12\x14\n" +
-	"\x05audio\x18\x01 \x01(\fR\x05audio\x12A\n" +
-	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatR\x06format\x12\x1d\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xcd\x02\n" +
+	"\x1bEnrollSpeakerProfileRequest\x12\x1d\n" +
+	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12K\n" +
+	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\x12\x1d\n" +
 	"\n" +
-	"profile_id\x18\x03 \x01(\tR\tprofileId\x12!\n" +
-	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12\x14\n" +
+	"profile_id\x18\x03 \x01(\tR\tprofileId\x12*\n" +
+	"\fdisplay_name\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdisplayName\x12\x14\n" +
 	"\x05notes\x18\x05 \x01(\tR\x05notes\x12'\n" +
 	"\radd_to_active\x18\x06 \x01(\bH\x00R\vaddToActive\x88\x01\x01\x12\x1b\n" +
 	"\x06enable\x18\a \x01(\bH\x01R\x06enable\x88\x01\x01B\x10\n" +
@@ -3296,15 +3312,15 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\x06config\x18\x02 \x01(\v2(.vrooli.audio_tools.v1.stt.SpeakerConfigR\x06config\"#\n" +
 	"!ClearSpeakerProfileBindingRequest\"f\n" +
 	"\"ClearSpeakerProfileBindingResponse\x12@\n" +
-	"\x06config\x18\x01 \x01(\v2(.vrooli.audio_tools.v1.stt.SpeakerConfigR\x06config\"<\n" +
-	"\x1bRemoveSpeakerProfileRequest\x12\x1d\n" +
+	"\x06config\x18\x01 \x01(\v2(.vrooli.audio_tools.v1.stt.SpeakerConfigR\x06config\"E\n" +
+	"\x1bUnbindSpeakerProfileRequest\x12&\n" +
 	"\n" +
-	"profile_id\x18\x01 \x01(\tR\tprofileId\"`\n" +
-	"\x1cRemoveSpeakerProfileResponse\x12@\n" +
-	"\x06config\x18\x01 \x01(\v2(.vrooli.audio_tools.v1.stt.SpeakerConfigR\x06config\"<\n" +
-	"\x1bDeleteSpeakerProfileRequest\x12\x1d\n" +
+	"profile_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tprofileId\"`\n" +
+	"\x1cUnbindSpeakerProfileResponse\x12@\n" +
+	"\x06config\x18\x01 \x01(\v2(.vrooli.audio_tools.v1.stt.SpeakerConfigR\x06config\"E\n" +
+	"\x1bDeleteSpeakerProfileRequest\x12&\n" +
 	"\n" +
-	"profile_id\x18\x01 \x01(\tR\tprofileId\"`\n" +
+	"profile_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tprofileId\"`\n" +
 	"\x1cDeleteSpeakerProfileResponse\x12@\n" +
 	"\x06config\x18\x01 \x01(\v2(.vrooli.audio_tools.v1.stt.SpeakerConfigR\x06config\"\xc1\x01\n" +
 	"\x17TranscribeStreamRequest\x12>\n" +
@@ -3376,25 +3392,12 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\x18STRATEGY_PREFERENCE_AUTO\x10\x01\x12\x1b\n" +
 	"\x17STRATEGY_PREFERENCE_VAD\x10\x02\x12\x1f\n" +
 	"\x1bSTRATEGY_PREFERENCE_OVERLAP\x10\x03\x12#\n" +
-	"\x1fSTRATEGY_PREFERENCE_PASSTHROUGH\x10\x042\xd5\x0f\n" +
+	"\x1fSTRATEGY_PREFERENCE_PASSTHROUGH\x10\x042\xf5\x01\n" +
 	"\n" +
 	"STTService\x12i\n" +
 	"\n" +
 	"Transcribe\x12,.vrooli.audio_tools.v1.stt.TranscribeRequest\x1a-.vrooli.audio_tools.v1.stt.TranscribeResponse\x12|\n" +
-	"\x10TranscribeStream\x122.vrooli.audio_tools.v1.stt.TranscribeStreamRequest\x1a0.vrooli.audio_tools.v1.stt.TranscribeStreamEvent(\x010\x01\x12x\n" +
-	"\x0fGetStreamConfig\x121.vrooli.audio_tools.v1.stt.GetStreamConfigRequest\x1a2.vrooli.audio_tools.v1.stt.GetStreamConfigResponse\x12\x81\x01\n" +
-	"\x12UpdateStreamConfig\x124.vrooli.audio_tools.v1.stt.UpdateStreamConfigRequest\x1a5.vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse\x12~\n" +
-	"\x11GetWakeWordConfig\x123.vrooli.audio_tools.v1.stt.GetWakeWordConfigRequest\x1a4.vrooli.audio_tools.v1.stt.GetWakeWordConfigResponse\x12\x8d\x01\n" +
-	"\x16UpdateWakeWordTemplate\x128.vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateRequest\x1a9.vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateResponse\x12\x8d\x01\n" +
-	"\x16DeleteWakeWordTemplate\x128.vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateRequest\x1a9.vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateResponse\x12{\n" +
-	"\x10GetSpeakerConfig\x122.vrooli.audio_tools.v1.stt.GetSpeakerConfigRequest\x1a3.vrooli.audio_tools.v1.stt.GetSpeakerConfigResponse\x12\x84\x01\n" +
-	"\x13UpdateSpeakerConfig\x125.vrooli.audio_tools.v1.stt.UpdateSpeakerConfigRequest\x1a6.vrooli.audio_tools.v1.stt.UpdateSpeakerConfigResponse\x12{\n" +
-	"\x10GetSpeakerStatus\x122.vrooli.audio_tools.v1.stt.GetSpeakerStatusRequest\x1a3.vrooli.audio_tools.v1.stt.GetSpeakerStatusResponse\x12\x84\x01\n" +
-	"\x13ListSpeakerProfiles\x125.vrooli.audio_tools.v1.stt.ListSpeakerProfilesRequest\x1a6.vrooli.audio_tools.v1.stt.ListSpeakerProfilesResponse\x12\x87\x01\n" +
-	"\x14EnrollSpeakerProfile\x126.vrooli.audio_tools.v1.stt.EnrollSpeakerProfileRequest\x1a7.vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse\x12\x99\x01\n" +
-	"\x1aClearSpeakerProfileBinding\x12<.vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingRequest\x1a=.vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse\x12\x87\x01\n" +
-	"\x14RemoveSpeakerProfile\x126.vrooli.audio_tools.v1.stt.RemoveSpeakerProfileRequest\x1a7.vrooli.audio_tools.v1.stt.RemoveSpeakerProfileResponse\x12\x87\x01\n" +
-	"\x14DeleteSpeakerProfile\x126.vrooli.audio_tools.v1.stt.DeleteSpeakerProfileRequest\x1a7.vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponseBJZHgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt;stt_v1b\x06proto3"
+	"\x10TranscribeStream\x122.vrooli.audio_tools.v1.stt.TranscribeStreamRequest\x1a0.vrooli.audio_tools.v1.stt.TranscribeStreamEvent(\x010\x01BJZHgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt;stt_v1b\x06proto3"
 
 var (
 	file_audio_tools_v1_stt_stt_proto_rawDescOnce sync.Once
@@ -3448,8 +3451,8 @@ var file_audio_tools_v1_stt_stt_proto_goTypes = []any{
 	(*EnrollSpeakerProfileResponse)(nil),       // 34: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse
 	(*ClearSpeakerProfileBindingRequest)(nil),  // 35: vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingRequest
 	(*ClearSpeakerProfileBindingResponse)(nil), // 36: vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse
-	(*RemoveSpeakerProfileRequest)(nil),        // 37: vrooli.audio_tools.v1.stt.RemoveSpeakerProfileRequest
-	(*RemoveSpeakerProfileResponse)(nil),       // 38: vrooli.audio_tools.v1.stt.RemoveSpeakerProfileResponse
+	(*UnbindSpeakerProfileRequest)(nil),        // 37: vrooli.audio_tools.v1.stt.UnbindSpeakerProfileRequest
+	(*UnbindSpeakerProfileResponse)(nil),       // 38: vrooli.audio_tools.v1.stt.UnbindSpeakerProfileResponse
 	(*DeleteSpeakerProfileRequest)(nil),        // 39: vrooli.audio_tools.v1.stt.DeleteSpeakerProfileRequest
 	(*DeleteSpeakerProfileResponse)(nil),       // 40: vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse
 	(*TranscribeStreamRequest)(nil),            // 41: vrooli.audio_tools.v1.stt.TranscribeStreamRequest
@@ -3503,7 +3506,7 @@ var file_audio_tools_v1_stt_stt_proto_depIdxs = []int32{
 	32, // 32: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse.enrollment:type_name -> vrooli.audio_tools.v1.stt.SpeakerEnrollment
 	20, // 33: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
 	20, // 34: vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	20, // 35: vrooli.audio_tools.v1.stt.RemoveSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
+	20, // 35: vrooli.audio_tools.v1.stt.UnbindSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
 	20, // 36: vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
 	42, // 37: vrooli.audio_tools.v1.stt.TranscribeStreamRequest.start:type_name -> vrooli.audio_tools.v1.stt.StreamStart
 	43, // 38: vrooli.audio_tools.v1.stt.TranscribeStreamRequest.end:type_name -> vrooli.audio_tools.v1.stt.StreamEnd
@@ -3518,36 +3521,10 @@ var file_audio_tools_v1_stt_stt_proto_depIdxs = []int32{
 	52, // 47: vrooli.audio_tools.v1.stt.StreamDone.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
 	4,  // 48: vrooli.audio_tools.v1.stt.STTService.Transcribe:input_type -> vrooli.audio_tools.v1.stt.TranscribeRequest
 	41, // 49: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:input_type -> vrooli.audio_tools.v1.stt.TranscribeStreamRequest
-	7,  // 50: vrooli.audio_tools.v1.stt.STTService.GetStreamConfig:input_type -> vrooli.audio_tools.v1.stt.GetStreamConfigRequest
-	9,  // 51: vrooli.audio_tools.v1.stt.STTService.UpdateStreamConfig:input_type -> vrooli.audio_tools.v1.stt.UpdateStreamConfigRequest
-	14, // 52: vrooli.audio_tools.v1.stt.STTService.GetWakeWordConfig:input_type -> vrooli.audio_tools.v1.stt.GetWakeWordConfigRequest
-	16, // 53: vrooli.audio_tools.v1.stt.STTService.UpdateWakeWordTemplate:input_type -> vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateRequest
-	18, // 54: vrooli.audio_tools.v1.stt.STTService.DeleteWakeWordTemplate:input_type -> vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateRequest
-	21, // 55: vrooli.audio_tools.v1.stt.STTService.GetSpeakerConfig:input_type -> vrooli.audio_tools.v1.stt.GetSpeakerConfigRequest
-	23, // 56: vrooli.audio_tools.v1.stt.STTService.UpdateSpeakerConfig:input_type -> vrooli.audio_tools.v1.stt.UpdateSpeakerConfigRequest
-	28, // 57: vrooli.audio_tools.v1.stt.STTService.GetSpeakerStatus:input_type -> vrooli.audio_tools.v1.stt.GetSpeakerStatusRequest
-	30, // 58: vrooli.audio_tools.v1.stt.STTService.ListSpeakerProfiles:input_type -> vrooli.audio_tools.v1.stt.ListSpeakerProfilesRequest
-	33, // 59: vrooli.audio_tools.v1.stt.STTService.EnrollSpeakerProfile:input_type -> vrooli.audio_tools.v1.stt.EnrollSpeakerProfileRequest
-	35, // 60: vrooli.audio_tools.v1.stt.STTService.ClearSpeakerProfileBinding:input_type -> vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingRequest
-	37, // 61: vrooli.audio_tools.v1.stt.STTService.RemoveSpeakerProfile:input_type -> vrooli.audio_tools.v1.stt.RemoveSpeakerProfileRequest
-	39, // 62: vrooli.audio_tools.v1.stt.STTService.DeleteSpeakerProfile:input_type -> vrooli.audio_tools.v1.stt.DeleteSpeakerProfileRequest
-	5,  // 63: vrooli.audio_tools.v1.stt.STTService.Transcribe:output_type -> vrooli.audio_tools.v1.stt.TranscribeResponse
-	44, // 64: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:output_type -> vrooli.audio_tools.v1.stt.TranscribeStreamEvent
-	8,  // 65: vrooli.audio_tools.v1.stt.STTService.GetStreamConfig:output_type -> vrooli.audio_tools.v1.stt.GetStreamConfigResponse
-	10, // 66: vrooli.audio_tools.v1.stt.STTService.UpdateStreamConfig:output_type -> vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse
-	15, // 67: vrooli.audio_tools.v1.stt.STTService.GetWakeWordConfig:output_type -> vrooli.audio_tools.v1.stt.GetWakeWordConfigResponse
-	17, // 68: vrooli.audio_tools.v1.stt.STTService.UpdateWakeWordTemplate:output_type -> vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateResponse
-	19, // 69: vrooli.audio_tools.v1.stt.STTService.DeleteWakeWordTemplate:output_type -> vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateResponse
-	22, // 70: vrooli.audio_tools.v1.stt.STTService.GetSpeakerConfig:output_type -> vrooli.audio_tools.v1.stt.GetSpeakerConfigResponse
-	24, // 71: vrooli.audio_tools.v1.stt.STTService.UpdateSpeakerConfig:output_type -> vrooli.audio_tools.v1.stt.UpdateSpeakerConfigResponse
-	29, // 72: vrooli.audio_tools.v1.stt.STTService.GetSpeakerStatus:output_type -> vrooli.audio_tools.v1.stt.GetSpeakerStatusResponse
-	31, // 73: vrooli.audio_tools.v1.stt.STTService.ListSpeakerProfiles:output_type -> vrooli.audio_tools.v1.stt.ListSpeakerProfilesResponse
-	34, // 74: vrooli.audio_tools.v1.stt.STTService.EnrollSpeakerProfile:output_type -> vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse
-	36, // 75: vrooli.audio_tools.v1.stt.STTService.ClearSpeakerProfileBinding:output_type -> vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse
-	38, // 76: vrooli.audio_tools.v1.stt.STTService.RemoveSpeakerProfile:output_type -> vrooli.audio_tools.v1.stt.RemoveSpeakerProfileResponse
-	40, // 77: vrooli.audio_tools.v1.stt.STTService.DeleteSpeakerProfile:output_type -> vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse
-	63, // [63:78] is the sub-list for method output_type
-	48, // [48:63] is the sub-list for method input_type
+	5,  // 50: vrooli.audio_tools.v1.stt.STTService.Transcribe:output_type -> vrooli.audio_tools.v1.stt.TranscribeResponse
+	44, // 51: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:output_type -> vrooli.audio_tools.v1.stt.TranscribeStreamEvent
+	50, // [50:52] is the sub-list for method output_type
+	48, // [48:50] is the sub-list for method input_type
 	48, // [48:48] is the sub-list for extension type_name
 	48, // [48:48] is the sub-list for extension extendee
 	0,  // [0:48] is the sub-list for field type_name

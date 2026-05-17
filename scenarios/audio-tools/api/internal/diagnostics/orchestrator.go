@@ -19,6 +19,8 @@ import (
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/clock"
 	"audio-tools/internal/diagnostics/fixtures"
+	"audio-tools/internal/store"
+	"audio-tools/internal/usagereport"
 
 	"github.com/google/uuid"
 )
@@ -109,6 +111,10 @@ type Deps struct {
 	Store          LastRunStore
 	Clock          clock.Clock
 	PerStepTimeout time.Duration
+	// Usage, when non-nil, receives one row per executed step tagged
+	// operation="diagnostics" so operator probes show up alongside real
+	// traffic in the Usage page. Optional — nil disables recording.
+	Usage usagereport.Recorder
 	// NewRunID is overridable for deterministic tests; defaults to uuid.NewString.
 	NewRunID func() string
 }
@@ -167,7 +173,9 @@ func (o *Orchestrator) runOnce(ctx context.Context, caps []Capability) Run {
 		Steps:     make([]StepResult, 0, len(caps)),
 	}
 	for _, c := range caps {
-		run.Steps = append(run.Steps, o.runStep(ctx, c))
+		step := o.runStep(ctx, c)
+		run.Steps = append(run.Steps, step)
+		o.recordUsage(run.ID, step)
 	}
 	run.FinishedAt = o.deps.Clock.Now()
 	run.TotalCount = len(run.Steps)
@@ -298,6 +306,47 @@ func (o *Orchestrator) runTranscode(ctx context.Context, started time.Time) Step
 	res.ProviderID = "ffmpeg"
 	res.Details["output_bytes"] = fmt.Sprintf("%d", len(out))
 	return res
+}
+
+// recordUsage emits one UsageRow per diagnostic step so operator probes
+// are visible in the Usage page alongside real traffic. Rows are tagged
+// operation="diagnostics" + capability=<step> so callers can filter.
+// Skipped steps (Usage nil, or capability unmapped) are no-ops.
+func (o *Orchestrator) recordUsage(runID string, step StepResult) {
+	if o.deps.Usage == nil {
+		return
+	}
+	capability := ""
+	switch step.Capability {
+	case CapabilitySTT:
+		capability = "stt"
+	case CapabilityTTS:
+		capability = "tts"
+	case CapabilitySummarize:
+		capability = "summarize"
+	case CapabilityTranscode:
+		capability = "audio"
+	default:
+		return
+	}
+	row := store.UsageRow{
+		OperationID:  runID + ":" + string(step.Capability),
+		EmittedAt:    step.FinishedAt.UTC(),
+		Capability:   capability,
+		Operation:    "diagnostics",
+		ProviderTier: step.ProviderTier,
+		ProviderID:   step.ProviderID,
+		ModelID:      step.ModelID,
+		LatencyMs:    step.LatencyMs,
+	}
+	if !step.OK {
+		if step.ErrorMessage != "" {
+			row.Error = step.ErrorMessage
+		} else {
+			row.Error = step.ErrorCode
+		}
+	}
+	o.deps.Usage.Enqueue(row)
 }
 
 func finishUnavailable(res StepResult, now time.Time) StepResult {

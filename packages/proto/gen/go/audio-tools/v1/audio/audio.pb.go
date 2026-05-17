@@ -7,6 +7,8 @@
 package audio_v1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	common "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -21,14 +23,71 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// NormalizationMethod selects the loudness-normalization algorithm used
+// by the ffmpeg `loudnorm` / `volume` filter chain.
+//
+// EBU_R128 is the default (broadcast-loudness standard). RMS and PEAK
+// are simpler alternatives kept for clients that prefer them.
+type NormalizationMethod int32
+
+const (
+	NormalizationMethod_NORMALIZATION_METHOD_UNSPECIFIED NormalizationMethod = 0
+	NormalizationMethod_NORMALIZATION_METHOD_EBU_R128    NormalizationMethod = 1
+	NormalizationMethod_NORMALIZATION_METHOD_RMS         NormalizationMethod = 2
+	NormalizationMethod_NORMALIZATION_METHOD_PEAK        NormalizationMethod = 3
+)
+
+// Enum value maps for NormalizationMethod.
+var (
+	NormalizationMethod_name = map[int32]string{
+		0: "NORMALIZATION_METHOD_UNSPECIFIED",
+		1: "NORMALIZATION_METHOD_EBU_R128",
+		2: "NORMALIZATION_METHOD_RMS",
+		3: "NORMALIZATION_METHOD_PEAK",
+	}
+	NormalizationMethod_value = map[string]int32{
+		"NORMALIZATION_METHOD_UNSPECIFIED": 0,
+		"NORMALIZATION_METHOD_EBU_R128":    1,
+		"NORMALIZATION_METHOD_RMS":         2,
+		"NORMALIZATION_METHOD_PEAK":        3,
+	}
+)
+
+func (x NormalizationMethod) Enum() *NormalizationMethod {
+	p := new(NormalizationMethod)
+	*p = x
+	return p
+}
+
+func (x NormalizationMethod) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NormalizationMethod) Descriptor() protoreflect.EnumDescriptor {
+	return file_audio_tools_v1_audio_audio_proto_enumTypes[0].Descriptor()
+}
+
+func (NormalizationMethod) Type() protoreflect.EnumType {
+	return &file_audio_tools_v1_audio_audio_proto_enumTypes[0]
+}
+
+func (x NormalizationMethod) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use NormalizationMethod.Descriptor instead.
+func (NormalizationMethod) EnumDescriptor() ([]byte, []int) {
+	return file_audio_tools_v1_audio_audio_proto_rawDescGZIP(), []int{0}
+}
+
 type TranscodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Audio         []byte                 `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"`
-	InputFormat   string                 `protobuf:"bytes,2,opt,name=input_format,json=inputFormat,proto3" json:"input_format,omitempty"`
-	OutputFormat  string                 `protobuf:"bytes,3,opt,name=output_format,json=outputFormat,proto3" json:"output_format,omitempty"` // "wav" | "mp3" | "flac" | "aac" | "ogg"
-	SampleRate    int32                  `protobuf:"varint,4,opt,name=sample_rate,json=sampleRate,proto3" json:"sample_rate,omitempty"`      // 0 = passthrough
-	Channels      int32                  `protobuf:"varint,5,opt,name=channels,proto3" json:"channels,omitempty"`                            // 0 = passthrough
-	Bitrate       int32                  `protobuf:"varint,6,opt,name=bitrate,proto3" json:"bitrate,omitempty"`                              // bps; 0 = format default
+	InputFormat   common.AudioFormat     `protobuf:"varint,2,opt,name=input_format,json=inputFormat,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"input_format,omitempty"`
+	OutputFormat  common.AudioFormat     `protobuf:"varint,3,opt,name=output_format,json=outputFormat,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"output_format,omitempty"`
+	SampleRate    int32                  `protobuf:"varint,4,opt,name=sample_rate,json=sampleRate,proto3" json:"sample_rate,omitempty"` // 0 = passthrough
+	Channels      int32                  `protobuf:"varint,5,opt,name=channels,proto3" json:"channels,omitempty"`                       // 0 = passthrough
+	Bitrate       int32                  `protobuf:"varint,6,opt,name=bitrate,proto3" json:"bitrate,omitempty"`                         // bps; 0 = format default
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -70,18 +129,18 @@ func (x *TranscodeRequest) GetAudio() []byte {
 	return nil
 }
 
-func (x *TranscodeRequest) GetInputFormat() string {
+func (x *TranscodeRequest) GetInputFormat() common.AudioFormat {
 	if x != nil {
 		return x.InputFormat
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
-func (x *TranscodeRequest) GetOutputFormat() string {
+func (x *TranscodeRequest) GetOutputFormat() common.AudioFormat {
 	if x != nil {
 		return x.OutputFormat
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 func (x *TranscodeRequest) GetSampleRate() int32 {
@@ -168,7 +227,7 @@ func (x *TranscodeResponse) GetDurationSeconds() float64 {
 type TrimRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Audio         []byte                 `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"`
-	Format        string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	Format        common.AudioFormat     `protobuf:"varint,2,opt,name=format,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"format,omitempty"`
 	StartSeconds  float64                `protobuf:"fixed64,3,opt,name=start_seconds,json=startSeconds,proto3" json:"start_seconds,omitempty"`
 	EndSeconds    float64                `protobuf:"fixed64,4,opt,name=end_seconds,json=endSeconds,proto3" json:"end_seconds,omitempty"` // 0 = end-of-file
 	unknownFields protoimpl.UnknownFields
@@ -212,11 +271,11 @@ func (x *TrimRequest) GetAudio() []byte {
 	return nil
 }
 
-func (x *TrimRequest) GetFormat() string {
+func (x *TrimRequest) GetFormat() common.AudioFormat {
 	if x != nil {
 		return x.Format
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 func (x *TrimRequest) GetStartSeconds() float64 {
@@ -296,7 +355,7 @@ func (x *TrimResponse) GetDurationSeconds() float64 {
 type MergeSource struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Audio         []byte                 `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"`
-	Format        string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	Format        common.AudioFormat     `protobuf:"varint,2,opt,name=format,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"format,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -338,17 +397,17 @@ func (x *MergeSource) GetAudio() []byte {
 	return nil
 }
 
-func (x *MergeSource) GetFormat() string {
+func (x *MergeSource) GetFormat() common.AudioFormat {
 	if x != nil {
 		return x.Format
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 type MergeRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Sources          []*MergeSource         `protobuf:"bytes,1,rep,name=sources,proto3" json:"sources,omitempty"`
-	OutputFormat     string                 `protobuf:"bytes,2,opt,name=output_format,json=outputFormat,proto3" json:"output_format,omitempty"`
+	OutputFormat     common.AudioFormat     `protobuf:"varint,2,opt,name=output_format,json=outputFormat,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"output_format,omitempty"`
 	CrossfadeSeconds float64                `protobuf:"fixed64,3,opt,name=crossfade_seconds,json=crossfadeSeconds,proto3" json:"crossfade_seconds,omitempty"` // 0 = hard concat
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -391,11 +450,11 @@ func (x *MergeRequest) GetSources() []*MergeSource {
 	return nil
 }
 
-func (x *MergeRequest) GetOutputFormat() string {
+func (x *MergeRequest) GetOutputFormat() common.AudioFormat {
 	if x != nil {
 		return x.OutputFormat
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 func (x *MergeRequest) GetCrossfadeSeconds() float64 {
@@ -468,11 +527,11 @@ func (x *MergeResponse) GetDurationSeconds() float64 {
 type SplitRequest struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Audio  []byte                 `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"`
-	Format string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	Format common.AudioFormat     `protobuf:"varint,2,opt,name=format,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"format,omitempty"`
 	// Either equal chunks (chunk_seconds > 0) OR explicit boundaries.
-	ChunkSeconds      float64   `protobuf:"fixed64,3,opt,name=chunk_seconds,json=chunkSeconds,proto3" json:"chunk_seconds,omitempty"`
-	BoundariesSeconds []float64 `protobuf:"fixed64,4,rep,packed,name=boundaries_seconds,json=boundariesSeconds,proto3" json:"boundaries_seconds,omitempty"`
-	OutputFormat      string    `protobuf:"bytes,5,opt,name=output_format,json=outputFormat,proto3" json:"output_format,omitempty"`
+	ChunkSeconds      float64            `protobuf:"fixed64,3,opt,name=chunk_seconds,json=chunkSeconds,proto3" json:"chunk_seconds,omitempty"`
+	BoundariesSeconds []float64          `protobuf:"fixed64,4,rep,packed,name=boundaries_seconds,json=boundariesSeconds,proto3" json:"boundaries_seconds,omitempty"`
+	OutputFormat      common.AudioFormat `protobuf:"varint,5,opt,name=output_format,json=outputFormat,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"output_format,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -514,11 +573,11 @@ func (x *SplitRequest) GetAudio() []byte {
 	return nil
 }
 
-func (x *SplitRequest) GetFormat() string {
+func (x *SplitRequest) GetFormat() common.AudioFormat {
 	if x != nil {
 		return x.Format
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 func (x *SplitRequest) GetChunkSeconds() float64 {
@@ -535,11 +594,11 @@ func (x *SplitRequest) GetBoundariesSeconds() []float64 {
 	return nil
 }
 
-func (x *SplitRequest) GetOutputFormat() string {
+func (x *SplitRequest) GetOutputFormat() common.AudioFormat {
 	if x != nil {
 		return x.OutputFormat
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 type SplitChunk struct {
@@ -657,10 +716,10 @@ func (x *SplitResponse) GetChunks() []*SplitChunk {
 type FadeRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Audio          []byte                 `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"`
-	Format         string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	Format         common.AudioFormat     `protobuf:"varint,2,opt,name=format,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"format,omitempty"`
 	FadeInSeconds  float64                `protobuf:"fixed64,3,opt,name=fade_in_seconds,json=fadeInSeconds,proto3" json:"fade_in_seconds,omitempty"`
 	FadeOutSeconds float64                `protobuf:"fixed64,4,opt,name=fade_out_seconds,json=fadeOutSeconds,proto3" json:"fade_out_seconds,omitempty"`
-	OutputFormat   string                 `protobuf:"bytes,5,opt,name=output_format,json=outputFormat,proto3" json:"output_format,omitempty"`
+	OutputFormat   common.AudioFormat     `protobuf:"varint,5,opt,name=output_format,json=outputFormat,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"output_format,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -702,11 +761,11 @@ func (x *FadeRequest) GetAudio() []byte {
 	return nil
 }
 
-func (x *FadeRequest) GetFormat() string {
+func (x *FadeRequest) GetFormat() common.AudioFormat {
 	if x != nil {
 		return x.Format
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 func (x *FadeRequest) GetFadeInSeconds() float64 {
@@ -723,11 +782,11 @@ func (x *FadeRequest) GetFadeOutSeconds() float64 {
 	return 0
 }
 
-func (x *FadeRequest) GetOutputFormat() string {
+func (x *FadeRequest) GetOutputFormat() common.AudioFormat {
 	if x != nil {
 		return x.OutputFormat
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 type FadeResponse struct {
@@ -785,9 +844,9 @@ func (x *FadeResponse) GetContentType() string {
 type VolumeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Audio         []byte                 `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"`
-	Format        string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	Format        common.AudioFormat     `protobuf:"varint,2,opt,name=format,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"format,omitempty"`
 	GainDb        float64                `protobuf:"fixed64,3,opt,name=gain_db,json=gainDb,proto3" json:"gain_db,omitempty"`
-	OutputFormat  string                 `protobuf:"bytes,4,opt,name=output_format,json=outputFormat,proto3" json:"output_format,omitempty"`
+	OutputFormat  common.AudioFormat     `protobuf:"varint,4,opt,name=output_format,json=outputFormat,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"output_format,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -829,11 +888,11 @@ func (x *VolumeRequest) GetAudio() []byte {
 	return nil
 }
 
-func (x *VolumeRequest) GetFormat() string {
+func (x *VolumeRequest) GetFormat() common.AudioFormat {
 	if x != nil {
 		return x.Format
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 func (x *VolumeRequest) GetGainDb() float64 {
@@ -843,11 +902,11 @@ func (x *VolumeRequest) GetGainDb() float64 {
 	return 0
 }
 
-func (x *VolumeRequest) GetOutputFormat() string {
+func (x *VolumeRequest) GetOutputFormat() common.AudioFormat {
 	if x != nil {
 		return x.OutputFormat
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 type VolumeResponse struct {
@@ -905,11 +964,11 @@ func (x *VolumeResponse) GetContentType() string {
 type NormalizeRequest struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Audio  []byte                 `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"`
-	Format string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
-	// EBU R128 by default. "rms" and "peak" alternatives also accepted.
-	Method        string  `protobuf:"bytes,3,opt,name=method,proto3" json:"method,omitempty"`
-	TargetLufs    float64 `protobuf:"fixed64,4,opt,name=target_lufs,json=targetLufs,proto3" json:"target_lufs,omitempty"`
-	OutputFormat  string  `protobuf:"bytes,5,opt,name=output_format,json=outputFormat,proto3" json:"output_format,omitempty"`
+	Format common.AudioFormat     `protobuf:"varint,2,opt,name=format,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"format,omitempty"`
+	// NORMALIZATION_METHOD_UNSPECIFIED is treated as EBU_R128 by the server.
+	Method        NormalizationMethod `protobuf:"varint,3,opt,name=method,proto3,enum=vrooli.audio_tools.v1.audio.NormalizationMethod" json:"method,omitempty"`
+	TargetLufs    float64             `protobuf:"fixed64,4,opt,name=target_lufs,json=targetLufs,proto3" json:"target_lufs,omitempty"`
+	OutputFormat  common.AudioFormat  `protobuf:"varint,5,opt,name=output_format,json=outputFormat,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"output_format,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -951,18 +1010,18 @@ func (x *NormalizeRequest) GetAudio() []byte {
 	return nil
 }
 
-func (x *NormalizeRequest) GetFormat() string {
+func (x *NormalizeRequest) GetFormat() common.AudioFormat {
 	if x != nil {
 		return x.Format
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
-func (x *NormalizeRequest) GetMethod() string {
+func (x *NormalizeRequest) GetMethod() NormalizationMethod {
 	if x != nil {
 		return x.Method
 	}
-	return ""
+	return NormalizationMethod_NORMALIZATION_METHOD_UNSPECIFIED
 }
 
 func (x *NormalizeRequest) GetTargetLufs() float64 {
@@ -972,11 +1031,11 @@ func (x *NormalizeRequest) GetTargetLufs() float64 {
 	return 0
 }
 
-func (x *NormalizeRequest) GetOutputFormat() string {
+func (x *NormalizeRequest) GetOutputFormat() common.AudioFormat {
 	if x != nil {
 		return x.OutputFormat
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 type NormalizeResponse struct {
@@ -1045,11 +1104,15 @@ type AudioMetadata struct {
 	SampleRate      int32                  `protobuf:"varint,2,opt,name=sample_rate,json=sampleRate,proto3" json:"sample_rate,omitempty"`
 	Channels        int32                  `protobuf:"varint,3,opt,name=channels,proto3" json:"channels,omitempty"`
 	Bitrate         int32                  `protobuf:"varint,4,opt,name=bitrate,proto3" json:"bitrate,omitempty"`
-	Codec           string                 `protobuf:"bytes,5,opt,name=codec,proto3" json:"codec,omitempty"`
-	Format          string                 `protobuf:"bytes,6,opt,name=format,proto3" json:"format,omitempty"`
-	Tags            map[string]string      `protobuf:"bytes,7,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// ffmpeg-reported codec short-name (e.g., "pcm_s16le", "mp3", "aac",
+	// "vorbis", "opus"). Stays a free-form string because the ffmpeg codec
+	// namespace is open-ended and not 1:1 with AudioFormat (which models
+	// container shapes carried on the wire).
+	Codec         string             `protobuf:"bytes,5,opt,name=codec,proto3" json:"codec,omitempty"`
+	Format        common.AudioFormat `protobuf:"varint,6,opt,name=format,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"format,omitempty"`
+	Tags          map[string]string  `protobuf:"bytes,7,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AudioMetadata) Reset() {
@@ -1117,11 +1180,11 @@ func (x *AudioMetadata) GetCodec() string {
 	return ""
 }
 
-func (x *AudioMetadata) GetFormat() string {
+func (x *AudioMetadata) GetFormat() common.AudioFormat {
 	if x != nil {
 		return x.Format
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 func (x *AudioMetadata) GetTags() map[string]string {
@@ -1134,7 +1197,7 @@ func (x *AudioMetadata) GetTags() map[string]string {
 type ExtractMetadataRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Audio         []byte                 `protobuf:"bytes,1,opt,name=audio,proto3" json:"audio,omitempty"`
-	Format        string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	Format        common.AudioFormat     `protobuf:"varint,2,opt,name=format,proto3,enum=vrooli.audio_tools.v1.common.AudioFormat" json:"format,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1176,11 +1239,11 @@ func (x *ExtractMetadataRequest) GetAudio() []byte {
 	return nil
 }
 
-func (x *ExtractMetadataRequest) GetFormat() string {
+func (x *ExtractMetadataRequest) GetFormat() common.AudioFormat {
 	if x != nil {
 		return x.Format
 	}
-	return ""
+	return common.AudioFormat(0)
 }
 
 type ExtractMetadataResponse struct {
@@ -1231,11 +1294,11 @@ var File_audio_tools_v1_audio_audio_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_audio_audio_proto_rawDesc = "" +
 	"\n" +
-	" audio-tools/v1/audio/audio.proto\x12\x1bvrooli.audio_tools.v1.audio\"\xc7\x01\n" +
-	"\x10TranscodeRequest\x12\x14\n" +
-	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
-	"\finput_format\x18\x02 \x01(\tR\vinputFormat\x12#\n" +
-	"\routput_format\x18\x03 \x01(\tR\foutputFormat\x12\x1f\n" +
+	" audio-tools/v1/audio/audio.proto\x12\x1bvrooli.audio_tools.v1.audio\x1a\x1bbuf/validate/validate.proto\x1a\"audio-tools/v1/common/common.proto\"\xb0\x02\n" +
+	"\x10TranscodeRequest\x12\x1d\n" +
+	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12L\n" +
+	"\finput_format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatR\vinputFormat\x12X\n" +
+	"\routput_format\x18\x03 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\foutputFormat\x12\x1f\n" +
 	"\vsample_rate\x18\x04 \x01(\x05R\n" +
 	"sampleRate\x12\x1a\n" +
 	"\bchannels\x18\x05 \x01(\x05R\bchannels\x12\x18\n" +
@@ -1243,34 +1306,34 @@ const file_audio_tools_v1_audio_audio_proto_rawDesc = "" +
 	"\x11TranscodeResponse\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12)\n" +
-	"\x10duration_seconds\x18\x03 \x01(\x01R\x0fdurationSeconds\"\x81\x01\n" +
-	"\vTrimRequest\x12\x14\n" +
-	"\x05audio\x18\x01 \x01(\fR\x05audio\x12\x16\n" +
-	"\x06format\x18\x02 \x01(\tR\x06format\x12#\n" +
+	"\x10duration_seconds\x18\x03 \x01(\x01R\x0fdurationSeconds\"\xbf\x01\n" +
+	"\vTrimRequest\x12\x1d\n" +
+	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12K\n" +
+	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\x12#\n" +
 	"\rstart_seconds\x18\x03 \x01(\x01R\fstartSeconds\x12\x1f\n" +
 	"\vend_seconds\x18\x04 \x01(\x01R\n" +
 	"endSeconds\"r\n" +
 	"\fTrimResponse\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12)\n" +
-	"\x10duration_seconds\x18\x03 \x01(\x01R\x0fdurationSeconds\";\n" +
-	"\vMergeSource\x12\x14\n" +
-	"\x05audio\x18\x01 \x01(\fR\x05audio\x12\x16\n" +
-	"\x06format\x18\x02 \x01(\tR\x06format\"\xa4\x01\n" +
+	"\x10duration_seconds\x18\x03 \x01(\x01R\x0fdurationSeconds\"y\n" +
+	"\vMergeSource\x12\x1d\n" +
+	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12K\n" +
+	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\"\xd9\x01\n" +
 	"\fMergeRequest\x12B\n" +
-	"\asources\x18\x01 \x03(\v2(.vrooli.audio_tools.v1.audio.MergeSourceR\asources\x12#\n" +
-	"\routput_format\x18\x02 \x01(\tR\foutputFormat\x12+\n" +
+	"\asources\x18\x01 \x03(\v2(.vrooli.audio_tools.v1.audio.MergeSourceR\asources\x12X\n" +
+	"\routput_format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\foutputFormat\x12+\n" +
 	"\x11crossfade_seconds\x18\x03 \x01(\x01R\x10crossfadeSeconds\"s\n" +
 	"\rMergeResponse\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12)\n" +
-	"\x10duration_seconds\x18\x03 \x01(\x01R\x0fdurationSeconds\"\xb5\x01\n" +
-	"\fSplitRequest\x12\x14\n" +
-	"\x05audio\x18\x01 \x01(\fR\x05audio\x12\x16\n" +
-	"\x06format\x18\x02 \x01(\tR\x06format\x12#\n" +
+	"\x10duration_seconds\x18\x03 \x01(\x01R\x0fdurationSeconds\"\x9e\x02\n" +
+	"\fSplitRequest\x12\x1d\n" +
+	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12K\n" +
+	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\x12#\n" +
 	"\rchunk_seconds\x18\x03 \x01(\x01R\fchunkSeconds\x12-\n" +
-	"\x12boundaries_seconds\x18\x04 \x03(\x01R\x11boundariesSeconds\x12#\n" +
-	"\routput_format\x18\x05 \x01(\tR\foutputFormat\"\x95\x01\n" +
+	"\x12boundaries_seconds\x18\x04 \x03(\x01R\x11boundariesSeconds\x12N\n" +
+	"\routput_format\x18\x05 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatR\foutputFormat\"\x95\x01\n" +
 	"\n" +
 	"SplitChunk\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
@@ -1278,52 +1341,57 @@ const file_audio_tools_v1_audio_audio_proto_rawDesc = "" +
 	"\rstart_seconds\x18\x03 \x01(\x01R\fstartSeconds\x12)\n" +
 	"\x10duration_seconds\x18\x04 \x01(\x01R\x0fdurationSeconds\"P\n" +
 	"\rSplitResponse\x12?\n" +
-	"\x06chunks\x18\x01 \x03(\v2'.vrooli.audio_tools.v1.audio.SplitChunkR\x06chunks\"\xb2\x01\n" +
-	"\vFadeRequest\x12\x14\n" +
-	"\x05audio\x18\x01 \x01(\fR\x05audio\x12\x16\n" +
-	"\x06format\x18\x02 \x01(\tR\x06format\x12&\n" +
+	"\x06chunks\x18\x01 \x03(\v2'.vrooli.audio_tools.v1.audio.SplitChunkR\x06chunks\"\x9b\x02\n" +
+	"\vFadeRequest\x12\x1d\n" +
+	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12K\n" +
+	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\x12&\n" +
 	"\x0ffade_in_seconds\x18\x03 \x01(\x01R\rfadeInSeconds\x12(\n" +
-	"\x10fade_out_seconds\x18\x04 \x01(\x01R\x0efadeOutSeconds\x12#\n" +
-	"\routput_format\x18\x05 \x01(\tR\foutputFormat\"G\n" +
+	"\x10fade_out_seconds\x18\x04 \x01(\x01R\x0efadeOutSeconds\x12N\n" +
+	"\routput_format\x18\x05 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatR\foutputFormat\"G\n" +
 	"\fFadeResponse\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
-	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\"{\n" +
-	"\rVolumeRequest\x12\x14\n" +
-	"\x05audio\x18\x01 \x01(\fR\x05audio\x12\x16\n" +
-	"\x06format\x18\x02 \x01(\tR\x06format\x12\x17\n" +
-	"\again_db\x18\x03 \x01(\x01R\x06gainDb\x12#\n" +
-	"\routput_format\x18\x04 \x01(\tR\foutputFormat\"I\n" +
+	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\"\xe4\x01\n" +
+	"\rVolumeRequest\x12\x1d\n" +
+	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12K\n" +
+	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\x12\x17\n" +
+	"\again_db\x18\x03 \x01(\x01R\x06gainDb\x12N\n" +
+	"\routput_format\x18\x04 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatR\foutputFormat\"I\n" +
 	"\x0eVolumeResponse\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
-	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\"\x9e\x01\n" +
-	"\x10NormalizeRequest\x12\x14\n" +
-	"\x05audio\x18\x01 \x01(\fR\x05audio\x12\x16\n" +
-	"\x06format\x18\x02 \x01(\tR\x06format\x12\x16\n" +
-	"\x06method\x18\x03 \x01(\tR\x06method\x12\x1f\n" +
+	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\"\xb9\x02\n" +
+	"\x10NormalizeRequest\x12\x1d\n" +
+	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12K\n" +
+	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\x12H\n" +
+	"\x06method\x18\x03 \x01(\x0e20.vrooli.audio_tools.v1.audio.NormalizationMethodR\x06method\x12\x1f\n" +
 	"\vtarget_lufs\x18\x04 \x01(\x01R\n" +
-	"targetLufs\x12#\n" +
-	"\routput_format\x18\x05 \x01(\tR\foutputFormat\"q\n" +
+	"targetLufs\x12N\n" +
+	"\routput_format\x18\x05 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatR\foutputFormat\"q\n" +
 	"\x11NormalizeResponse\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12#\n" +
-	"\rmeasured_lufs\x18\x03 \x01(\x01R\fmeasuredLufs\"\xc2\x02\n" +
+	"\rmeasured_lufs\x18\x03 \x01(\x01R\fmeasuredLufs\"\xed\x02\n" +
 	"\rAudioMetadata\x12)\n" +
 	"\x10duration_seconds\x18\x01 \x01(\x01R\x0fdurationSeconds\x12\x1f\n" +
 	"\vsample_rate\x18\x02 \x01(\x05R\n" +
 	"sampleRate\x12\x1a\n" +
 	"\bchannels\x18\x03 \x01(\x05R\bchannels\x12\x18\n" +
 	"\abitrate\x18\x04 \x01(\x05R\abitrate\x12\x14\n" +
-	"\x05codec\x18\x05 \x01(\tR\x05codec\x12\x16\n" +
-	"\x06format\x18\x06 \x01(\tR\x06format\x12H\n" +
+	"\x05codec\x18\x05 \x01(\tR\x05codec\x12A\n" +
+	"\x06format\x18\x06 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatR\x06format\x12H\n" +
 	"\x04tags\x18\a \x03(\v24.vrooli.audio_tools.v1.audio.AudioMetadata.TagsEntryR\x04tags\x1a7\n" +
 	"\tTagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"F\n" +
-	"\x16ExtractMetadataRequest\x12\x14\n" +
-	"\x05audio\x18\x01 \x01(\fR\x05audio\x12\x16\n" +
-	"\x06format\x18\x02 \x01(\tR\x06format\"a\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x84\x01\n" +
+	"\x16ExtractMetadataRequest\x12\x1d\n" +
+	"\x05audio\x18\x01 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x05audio\x12K\n" +
+	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\"a\n" +
 	"\x17ExtractMetadataResponse\x12F\n" +
-	"\bmetadata\x18\x01 \x01(\v2*.vrooli.audio_tools.v1.audio.AudioMetadataR\bmetadata2\xcb\x06\n" +
+	"\bmetadata\x18\x01 \x01(\v2*.vrooli.audio_tools.v1.audio.AudioMetadataR\bmetadata*\x9b\x01\n" +
+	"\x13NormalizationMethod\x12$\n" +
+	" NORMALIZATION_METHOD_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dNORMALIZATION_METHOD_EBU_R128\x10\x01\x12\x1c\n" +
+	"\x18NORMALIZATION_METHOD_RMS\x10\x02\x12\x1d\n" +
+	"\x19NORMALIZATION_METHOD_PEAK\x10\x032\xcb\x06\n" +
 	"\x16AudioProcessingService\x12j\n" +
 	"\tTranscode\x12-.vrooli.audio_tools.v1.audio.TranscodeRequest\x1a..vrooli.audio_tools.v1.audio.TranscodeResponse\x12[\n" +
 	"\x04Trim\x12(.vrooli.audio_tools.v1.audio.TrimRequest\x1a).vrooli.audio_tools.v1.audio.TrimResponse\x12^\n" +
@@ -1346,55 +1414,74 @@ func file_audio_tools_v1_audio_audio_proto_rawDescGZIP() []byte {
 	return file_audio_tools_v1_audio_audio_proto_rawDescData
 }
 
+var file_audio_tools_v1_audio_audio_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_audio_tools_v1_audio_audio_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_audio_tools_v1_audio_audio_proto_goTypes = []any{
-	(*TranscodeRequest)(nil),        // 0: vrooli.audio_tools.v1.audio.TranscodeRequest
-	(*TranscodeResponse)(nil),       // 1: vrooli.audio_tools.v1.audio.TranscodeResponse
-	(*TrimRequest)(nil),             // 2: vrooli.audio_tools.v1.audio.TrimRequest
-	(*TrimResponse)(nil),            // 3: vrooli.audio_tools.v1.audio.TrimResponse
-	(*MergeSource)(nil),             // 4: vrooli.audio_tools.v1.audio.MergeSource
-	(*MergeRequest)(nil),            // 5: vrooli.audio_tools.v1.audio.MergeRequest
-	(*MergeResponse)(nil),           // 6: vrooli.audio_tools.v1.audio.MergeResponse
-	(*SplitRequest)(nil),            // 7: vrooli.audio_tools.v1.audio.SplitRequest
-	(*SplitChunk)(nil),              // 8: vrooli.audio_tools.v1.audio.SplitChunk
-	(*SplitResponse)(nil),           // 9: vrooli.audio_tools.v1.audio.SplitResponse
-	(*FadeRequest)(nil),             // 10: vrooli.audio_tools.v1.audio.FadeRequest
-	(*FadeResponse)(nil),            // 11: vrooli.audio_tools.v1.audio.FadeResponse
-	(*VolumeRequest)(nil),           // 12: vrooli.audio_tools.v1.audio.VolumeRequest
-	(*VolumeResponse)(nil),          // 13: vrooli.audio_tools.v1.audio.VolumeResponse
-	(*NormalizeRequest)(nil),        // 14: vrooli.audio_tools.v1.audio.NormalizeRequest
-	(*NormalizeResponse)(nil),       // 15: vrooli.audio_tools.v1.audio.NormalizeResponse
-	(*AudioMetadata)(nil),           // 16: vrooli.audio_tools.v1.audio.AudioMetadata
-	(*ExtractMetadataRequest)(nil),  // 17: vrooli.audio_tools.v1.audio.ExtractMetadataRequest
-	(*ExtractMetadataResponse)(nil), // 18: vrooli.audio_tools.v1.audio.ExtractMetadataResponse
-	nil,                             // 19: vrooli.audio_tools.v1.audio.AudioMetadata.TagsEntry
+	(NormalizationMethod)(0),        // 0: vrooli.audio_tools.v1.audio.NormalizationMethod
+	(*TranscodeRequest)(nil),        // 1: vrooli.audio_tools.v1.audio.TranscodeRequest
+	(*TranscodeResponse)(nil),       // 2: vrooli.audio_tools.v1.audio.TranscodeResponse
+	(*TrimRequest)(nil),             // 3: vrooli.audio_tools.v1.audio.TrimRequest
+	(*TrimResponse)(nil),            // 4: vrooli.audio_tools.v1.audio.TrimResponse
+	(*MergeSource)(nil),             // 5: vrooli.audio_tools.v1.audio.MergeSource
+	(*MergeRequest)(nil),            // 6: vrooli.audio_tools.v1.audio.MergeRequest
+	(*MergeResponse)(nil),           // 7: vrooli.audio_tools.v1.audio.MergeResponse
+	(*SplitRequest)(nil),            // 8: vrooli.audio_tools.v1.audio.SplitRequest
+	(*SplitChunk)(nil),              // 9: vrooli.audio_tools.v1.audio.SplitChunk
+	(*SplitResponse)(nil),           // 10: vrooli.audio_tools.v1.audio.SplitResponse
+	(*FadeRequest)(nil),             // 11: vrooli.audio_tools.v1.audio.FadeRequest
+	(*FadeResponse)(nil),            // 12: vrooli.audio_tools.v1.audio.FadeResponse
+	(*VolumeRequest)(nil),           // 13: vrooli.audio_tools.v1.audio.VolumeRequest
+	(*VolumeResponse)(nil),          // 14: vrooli.audio_tools.v1.audio.VolumeResponse
+	(*NormalizeRequest)(nil),        // 15: vrooli.audio_tools.v1.audio.NormalizeRequest
+	(*NormalizeResponse)(nil),       // 16: vrooli.audio_tools.v1.audio.NormalizeResponse
+	(*AudioMetadata)(nil),           // 17: vrooli.audio_tools.v1.audio.AudioMetadata
+	(*ExtractMetadataRequest)(nil),  // 18: vrooli.audio_tools.v1.audio.ExtractMetadataRequest
+	(*ExtractMetadataResponse)(nil), // 19: vrooli.audio_tools.v1.audio.ExtractMetadataResponse
+	nil,                             // 20: vrooli.audio_tools.v1.audio.AudioMetadata.TagsEntry
+	(common.AudioFormat)(0),         // 21: vrooli.audio_tools.v1.common.AudioFormat
 }
 var file_audio_tools_v1_audio_audio_proto_depIdxs = []int32{
-	4,  // 0: vrooli.audio_tools.v1.audio.MergeRequest.sources:type_name -> vrooli.audio_tools.v1.audio.MergeSource
-	8,  // 1: vrooli.audio_tools.v1.audio.SplitResponse.chunks:type_name -> vrooli.audio_tools.v1.audio.SplitChunk
-	19, // 2: vrooli.audio_tools.v1.audio.AudioMetadata.tags:type_name -> vrooli.audio_tools.v1.audio.AudioMetadata.TagsEntry
-	16, // 3: vrooli.audio_tools.v1.audio.ExtractMetadataResponse.metadata:type_name -> vrooli.audio_tools.v1.audio.AudioMetadata
-	0,  // 4: vrooli.audio_tools.v1.audio.AudioProcessingService.Transcode:input_type -> vrooli.audio_tools.v1.audio.TranscodeRequest
-	2,  // 5: vrooli.audio_tools.v1.audio.AudioProcessingService.Trim:input_type -> vrooli.audio_tools.v1.audio.TrimRequest
-	5,  // 6: vrooli.audio_tools.v1.audio.AudioProcessingService.Merge:input_type -> vrooli.audio_tools.v1.audio.MergeRequest
-	7,  // 7: vrooli.audio_tools.v1.audio.AudioProcessingService.Split:input_type -> vrooli.audio_tools.v1.audio.SplitRequest
-	10, // 8: vrooli.audio_tools.v1.audio.AudioProcessingService.Fade:input_type -> vrooli.audio_tools.v1.audio.FadeRequest
-	12, // 9: vrooli.audio_tools.v1.audio.AudioProcessingService.Volume:input_type -> vrooli.audio_tools.v1.audio.VolumeRequest
-	14, // 10: vrooli.audio_tools.v1.audio.AudioProcessingService.Normalize:input_type -> vrooli.audio_tools.v1.audio.NormalizeRequest
-	17, // 11: vrooli.audio_tools.v1.audio.AudioProcessingService.ExtractMetadata:input_type -> vrooli.audio_tools.v1.audio.ExtractMetadataRequest
-	1,  // 12: vrooli.audio_tools.v1.audio.AudioProcessingService.Transcode:output_type -> vrooli.audio_tools.v1.audio.TranscodeResponse
-	3,  // 13: vrooli.audio_tools.v1.audio.AudioProcessingService.Trim:output_type -> vrooli.audio_tools.v1.audio.TrimResponse
-	6,  // 14: vrooli.audio_tools.v1.audio.AudioProcessingService.Merge:output_type -> vrooli.audio_tools.v1.audio.MergeResponse
-	9,  // 15: vrooli.audio_tools.v1.audio.AudioProcessingService.Split:output_type -> vrooli.audio_tools.v1.audio.SplitResponse
-	11, // 16: vrooli.audio_tools.v1.audio.AudioProcessingService.Fade:output_type -> vrooli.audio_tools.v1.audio.FadeResponse
-	13, // 17: vrooli.audio_tools.v1.audio.AudioProcessingService.Volume:output_type -> vrooli.audio_tools.v1.audio.VolumeResponse
-	15, // 18: vrooli.audio_tools.v1.audio.AudioProcessingService.Normalize:output_type -> vrooli.audio_tools.v1.audio.NormalizeResponse
-	18, // 19: vrooli.audio_tools.v1.audio.AudioProcessingService.ExtractMetadata:output_type -> vrooli.audio_tools.v1.audio.ExtractMetadataResponse
-	12, // [12:20] is the sub-list for method output_type
-	4,  // [4:12] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	21, // 0: vrooli.audio_tools.v1.audio.TranscodeRequest.input_format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	21, // 1: vrooli.audio_tools.v1.audio.TranscodeRequest.output_format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	21, // 2: vrooli.audio_tools.v1.audio.TrimRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	21, // 3: vrooli.audio_tools.v1.audio.MergeSource.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	5,  // 4: vrooli.audio_tools.v1.audio.MergeRequest.sources:type_name -> vrooli.audio_tools.v1.audio.MergeSource
+	21, // 5: vrooli.audio_tools.v1.audio.MergeRequest.output_format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	21, // 6: vrooli.audio_tools.v1.audio.SplitRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	21, // 7: vrooli.audio_tools.v1.audio.SplitRequest.output_format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	9,  // 8: vrooli.audio_tools.v1.audio.SplitResponse.chunks:type_name -> vrooli.audio_tools.v1.audio.SplitChunk
+	21, // 9: vrooli.audio_tools.v1.audio.FadeRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	21, // 10: vrooli.audio_tools.v1.audio.FadeRequest.output_format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	21, // 11: vrooli.audio_tools.v1.audio.VolumeRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	21, // 12: vrooli.audio_tools.v1.audio.VolumeRequest.output_format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	21, // 13: vrooli.audio_tools.v1.audio.NormalizeRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	0,  // 14: vrooli.audio_tools.v1.audio.NormalizeRequest.method:type_name -> vrooli.audio_tools.v1.audio.NormalizationMethod
+	21, // 15: vrooli.audio_tools.v1.audio.NormalizeRequest.output_format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	21, // 16: vrooli.audio_tools.v1.audio.AudioMetadata.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	20, // 17: vrooli.audio_tools.v1.audio.AudioMetadata.tags:type_name -> vrooli.audio_tools.v1.audio.AudioMetadata.TagsEntry
+	21, // 18: vrooli.audio_tools.v1.audio.ExtractMetadataRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	17, // 19: vrooli.audio_tools.v1.audio.ExtractMetadataResponse.metadata:type_name -> vrooli.audio_tools.v1.audio.AudioMetadata
+	1,  // 20: vrooli.audio_tools.v1.audio.AudioProcessingService.Transcode:input_type -> vrooli.audio_tools.v1.audio.TranscodeRequest
+	3,  // 21: vrooli.audio_tools.v1.audio.AudioProcessingService.Trim:input_type -> vrooli.audio_tools.v1.audio.TrimRequest
+	6,  // 22: vrooli.audio_tools.v1.audio.AudioProcessingService.Merge:input_type -> vrooli.audio_tools.v1.audio.MergeRequest
+	8,  // 23: vrooli.audio_tools.v1.audio.AudioProcessingService.Split:input_type -> vrooli.audio_tools.v1.audio.SplitRequest
+	11, // 24: vrooli.audio_tools.v1.audio.AudioProcessingService.Fade:input_type -> vrooli.audio_tools.v1.audio.FadeRequest
+	13, // 25: vrooli.audio_tools.v1.audio.AudioProcessingService.Volume:input_type -> vrooli.audio_tools.v1.audio.VolumeRequest
+	15, // 26: vrooli.audio_tools.v1.audio.AudioProcessingService.Normalize:input_type -> vrooli.audio_tools.v1.audio.NormalizeRequest
+	18, // 27: vrooli.audio_tools.v1.audio.AudioProcessingService.ExtractMetadata:input_type -> vrooli.audio_tools.v1.audio.ExtractMetadataRequest
+	2,  // 28: vrooli.audio_tools.v1.audio.AudioProcessingService.Transcode:output_type -> vrooli.audio_tools.v1.audio.TranscodeResponse
+	4,  // 29: vrooli.audio_tools.v1.audio.AudioProcessingService.Trim:output_type -> vrooli.audio_tools.v1.audio.TrimResponse
+	7,  // 30: vrooli.audio_tools.v1.audio.AudioProcessingService.Merge:output_type -> vrooli.audio_tools.v1.audio.MergeResponse
+	10, // 31: vrooli.audio_tools.v1.audio.AudioProcessingService.Split:output_type -> vrooli.audio_tools.v1.audio.SplitResponse
+	12, // 32: vrooli.audio_tools.v1.audio.AudioProcessingService.Fade:output_type -> vrooli.audio_tools.v1.audio.FadeResponse
+	14, // 33: vrooli.audio_tools.v1.audio.AudioProcessingService.Volume:output_type -> vrooli.audio_tools.v1.audio.VolumeResponse
+	16, // 34: vrooli.audio_tools.v1.audio.AudioProcessingService.Normalize:output_type -> vrooli.audio_tools.v1.audio.NormalizeResponse
+	19, // 35: vrooli.audio_tools.v1.audio.AudioProcessingService.ExtractMetadata:output_type -> vrooli.audio_tools.v1.audio.ExtractMetadataResponse
+	28, // [28:36] is the sub-list for method output_type
+	20, // [20:28] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_audio_audio_proto_init() }
@@ -1407,13 +1494,14 @@ func file_audio_tools_v1_audio_audio_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_audio_audio_proto_rawDesc), len(file_audio_tools_v1_audio_audio_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_audio_tools_v1_audio_audio_proto_goTypes,
 		DependencyIndexes: file_audio_tools_v1_audio_audio_proto_depIdxs,
+		EnumInfos:         file_audio_tools_v1_audio_audio_proto_enumTypes,
 		MessageInfos:      file_audio_tools_v1_audio_audio_proto_msgTypes,
 	}.Build()
 	File_audio_tools_v1_audio_audio_proto = out.File

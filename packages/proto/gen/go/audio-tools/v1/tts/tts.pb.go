@@ -7,11 +7,12 @@
 package tts_v1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	common "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
+	health_status "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -23,61 +24,6 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
-
-// SummarizeLevel selects how aggressively the TTS-summarize stage
-// rewrites the input. LIGHT preserves wording; MODERATE rewrites for
-// flow; HEAVY produces a short paraphrase.
-type SummarizeLevel int32
-
-const (
-	SummarizeLevel_SUMMARIZE_LEVEL_UNSPECIFIED SummarizeLevel = 0
-	SummarizeLevel_SUMMARIZE_LEVEL_LIGHT       SummarizeLevel = 1
-	SummarizeLevel_SUMMARIZE_LEVEL_MODERATE    SummarizeLevel = 2
-	SummarizeLevel_SUMMARIZE_LEVEL_HEAVY       SummarizeLevel = 3
-)
-
-// Enum value maps for SummarizeLevel.
-var (
-	SummarizeLevel_name = map[int32]string{
-		0: "SUMMARIZE_LEVEL_UNSPECIFIED",
-		1: "SUMMARIZE_LEVEL_LIGHT",
-		2: "SUMMARIZE_LEVEL_MODERATE",
-		3: "SUMMARIZE_LEVEL_HEAVY",
-	}
-	SummarizeLevel_value = map[string]int32{
-		"SUMMARIZE_LEVEL_UNSPECIFIED": 0,
-		"SUMMARIZE_LEVEL_LIGHT":       1,
-		"SUMMARIZE_LEVEL_MODERATE":    2,
-		"SUMMARIZE_LEVEL_HEAVY":       3,
-	}
-)
-
-func (x SummarizeLevel) Enum() *SummarizeLevel {
-	p := new(SummarizeLevel)
-	*p = x
-	return p
-}
-
-func (x SummarizeLevel) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (SummarizeLevel) Descriptor() protoreflect.EnumDescriptor {
-	return file_audio_tools_v1_tts_tts_proto_enumTypes[0].Descriptor()
-}
-
-func (SummarizeLevel) Type() protoreflect.EnumType {
-	return &file_audio_tools_v1_tts_tts_proto_enumTypes[0]
-}
-
-func (x SummarizeLevel) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use SummarizeLevel.Descriptor instead.
-func (SummarizeLevel) EnumDescriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{0}
-}
 
 // AdapterMapping pins a canonical voice id to a concrete backend voice
 // for a specific (tier, provider_id) pair. Replaces the legacy
@@ -147,11 +93,13 @@ type SynthesizeRequest struct {
 	Text  string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
 	// Canonical voice ID (e.g., "voice.feminine.warm"). The active adapter
 	// resolves this to a backend voice name via the catalog + voice_overrides.
+	// Empty string = use server default.
 	Voice string `protobuf:"bytes,2,opt,name=voice,proto3" json:"voice,omitempty"`
 	// Per-call overrides. Wins over the canonical mapping for the matching
 	// (tier, provider_id) pair.
-	VoiceOverrides []*AdapterMapping     `protobuf:"bytes,3,rep,name=voice_overrides,json=voiceOverrides,proto3" json:"voice_overrides,omitempty"`
-	Speed          float64               `protobuf:"fixed64,4,opt,name=speed,proto3" json:"speed,omitempty"` // 0.5–4.0
+	VoiceOverrides []*AdapterMapping `protobuf:"bytes,3,rep,name=voice_overrides,json=voiceOverrides,proto3" json:"voice_overrides,omitempty"`
+	// 0.5–4.0 when set; 0 = use server default.
+	Speed          float64               `protobuf:"fixed64,4,opt,name=speed,proto3" json:"speed,omitempty"`
 	ResponseFormat common.ResponseFormat `protobuf:"varint,5,opt,name=response_format,json=responseFormat,proto3,enum=vrooli.audio_tools.v1.common.ResponseFormat" json:"response_format,omitempty"`
 	// Optional cache control. When event_id is set, the server stores the
 	// synthesized audio under a content-addressable + event index.
@@ -761,14 +709,8 @@ type Config struct {
 	DefaultVoice          string                 `protobuf:"bytes,2,opt,name=default_voice,json=defaultVoice,proto3" json:"default_voice,omitempty"` // canonical voice id
 	DefaultSpeed          float64                `protobuf:"fixed64,3,opt,name=default_speed,json=defaultSpeed,proto3" json:"default_speed,omitempty"`
 	DefaultResponseFormat common.ResponseFormat  `protobuf:"varint,4,opt,name=default_response_format,json=defaultResponseFormat,proto3,enum=vrooli.audio_tools.v1.common.ResponseFormat" json:"default_response_format,omitempty"`
-	// Summarization thresholds for the long-text path.
-	SummarizeEnabled        bool           `protobuf:"varint,5,opt,name=summarize_enabled,json=summarizeEnabled,proto3" json:"summarize_enabled,omitempty"`
-	SummarizeCharThreshold  int32          `protobuf:"varint,6,opt,name=summarize_char_threshold,json=summarizeCharThreshold,proto3" json:"summarize_char_threshold,omitempty"`
-	SummarizeLevel          SummarizeLevel `protobuf:"varint,7,opt,name=summarize_level,json=summarizeLevel,proto3,enum=vrooli.audio_tools.v1.tts.SummarizeLevel" json:"summarize_level,omitempty"`
-	SummarizeModel          string         `protobuf:"bytes,8,opt,name=summarize_model,json=summarizeModel,proto3" json:"summarize_model,omitempty"`
-	SummarizeTimeoutSeconds int32          `protobuf:"varint,9,opt,name=summarize_timeout_seconds,json=summarizeTimeoutSeconds,proto3" json:"summarize_timeout_seconds,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Config) Reset() {
@@ -827,41 +769,6 @@ func (x *Config) GetDefaultResponseFormat() common.ResponseFormat {
 		return x.DefaultResponseFormat
 	}
 	return common.ResponseFormat(0)
-}
-
-func (x *Config) GetSummarizeEnabled() bool {
-	if x != nil {
-		return x.SummarizeEnabled
-	}
-	return false
-}
-
-func (x *Config) GetSummarizeCharThreshold() int32 {
-	if x != nil {
-		return x.SummarizeCharThreshold
-	}
-	return 0
-}
-
-func (x *Config) GetSummarizeLevel() SummarizeLevel {
-	if x != nil {
-		return x.SummarizeLevel
-	}
-	return SummarizeLevel_SUMMARIZE_LEVEL_UNSPECIFIED
-}
-
-func (x *Config) GetSummarizeModel() string {
-	if x != nil {
-		return x.SummarizeModel
-	}
-	return ""
-}
-
-func (x *Config) GetSummarizeTimeoutSeconds() int32 {
-	if x != nil {
-		return x.SummarizeTimeoutSeconds
-	}
-	return 0
 }
 
 type GetConfigRequest struct {
@@ -1044,95 +951,25 @@ func (x *UpdateConfigResponse) GetConfig() *Config {
 	return nil
 }
 
-type ProviderAvailability struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tier          common.ProviderTier    `protobuf:"varint,1,opt,name=tier,proto3,enum=vrooli.audio_tools.v1.common.ProviderTier" json:"tier,omitempty"`
-	ProviderId    string                 `protobuf:"bytes,2,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	Available     bool                   `protobuf:"varint,3,opt,name=available,proto3" json:"available,omitempty"`
-	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
-	CheckedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ProviderAvailability) Reset() {
-	*x = ProviderAvailability{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ProviderAvailability) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ProviderAvailability) ProtoMessage() {}
-
-func (x *ProviderAvailability) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ProviderAvailability.ProtoReflect.Descriptor instead.
-func (*ProviderAvailability) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *ProviderAvailability) GetTier() common.ProviderTier {
-	if x != nil {
-		return x.Tier
-	}
-	return common.ProviderTier(0)
-}
-
-func (x *ProviderAvailability) GetProviderId() string {
-	if x != nil {
-		return x.ProviderId
-	}
-	return ""
-}
-
-func (x *ProviderAvailability) GetAvailable() bool {
-	if x != nil {
-		return x.Available
-	}
-	return false
-}
-
-func (x *ProviderAvailability) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
-}
-
-func (x *ProviderAvailability) GetCheckedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CheckedAt
-	}
-	return nil
-}
-
+// Status is the TTS-domain snapshot of "what the chain looks like right
+// now". The per-provider availability list is modeled as a slice of
+// health_status.ProviderHealth so the shape is identical to the canonical
+// HealthStatusService surface — consumers that already render
+// ProviderHealth can reuse the same code. The capability field on each
+// ProviderHealth is always CAPABILITY_TTS here.
 type Status struct {
-	state           protoimpl.MessageState  `protogen:"open.v1"`
-	Config          *Config                 `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
-	Availability    []*ProviderAvailability `protobuf:"bytes,2,rep,name=availability,proto3" json:"availability,omitempty"`
-	Capability      string                  `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`
-	CapabilityLabel string                  `protobuf:"bytes,4,opt,name=capability_label,json=capabilityLabel,proto3" json:"capability_label,omitempty"`
+	state           protoimpl.MessageState          `protogen:"open.v1"`
+	Config          *Config                         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	Availability    []*health_status.ProviderHealth `protobuf:"bytes,2,rep,name=availability,proto3" json:"availability,omitempty"`
+	Capability      string                          `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`
+	CapabilityLabel string                          `protobuf:"bytes,4,opt,name=capability_label,json=capabilityLabel,proto3" json:"capability_label,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Status) Reset() {
 	*x = Status{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[15]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1144,7 +981,7 @@ func (x *Status) String() string {
 func (*Status) ProtoMessage() {}
 
 func (x *Status) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[15]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1157,7 +994,7 @@ func (x *Status) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Status.ProtoReflect.Descriptor instead.
 func (*Status) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{15}
+	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Status) GetConfig() *Config {
@@ -1167,7 +1004,7 @@ func (x *Status) GetConfig() *Config {
 	return nil
 }
 
-func (x *Status) GetAvailability() []*ProviderAvailability {
+func (x *Status) GetAvailability() []*health_status.ProviderHealth {
 	if x != nil {
 		return x.Availability
 	}
@@ -1196,7 +1033,7 @@ type GetStatusRequest struct {
 
 func (x *GetStatusRequest) Reset() {
 	*x = GetStatusRequest{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[16]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1208,7 +1045,7 @@ func (x *GetStatusRequest) String() string {
 func (*GetStatusRequest) ProtoMessage() {}
 
 func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[16]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1221,7 +1058,7 @@ func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetStatusRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{16}
+	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{15}
 }
 
 type GetStatusResponse struct {
@@ -1233,7 +1070,7 @@ type GetStatusResponse struct {
 
 func (x *GetStatusResponse) Reset() {
 	*x = GetStatusResponse{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[17]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1245,7 +1082,7 @@ func (x *GetStatusResponse) String() string {
 func (*GetStatusResponse) ProtoMessage() {}
 
 func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[17]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1258,7 +1095,7 @@ func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetStatusResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{17}
+	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetStatusResponse) GetStatus() *Status {
@@ -1282,7 +1119,7 @@ type PlaybackEvent struct {
 
 func (x *PlaybackEvent) Reset() {
 	*x = PlaybackEvent{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[18]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1294,7 +1131,7 @@ func (x *PlaybackEvent) String() string {
 func (*PlaybackEvent) ProtoMessage() {}
 
 func (x *PlaybackEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[18]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1307,7 +1144,7 @@ func (x *PlaybackEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaybackEvent.ProtoReflect.Descriptor instead.
 func (*PlaybackEvent) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{18}
+	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PlaybackEvent) GetSource() string {
@@ -1361,7 +1198,7 @@ type RecordPlaybackEventRequest struct {
 
 func (x *RecordPlaybackEventRequest) Reset() {
 	*x = RecordPlaybackEventRequest{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[19]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1373,7 +1210,7 @@ func (x *RecordPlaybackEventRequest) String() string {
 func (*RecordPlaybackEventRequest) ProtoMessage() {}
 
 func (x *RecordPlaybackEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[19]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1386,7 +1223,7 @@ func (x *RecordPlaybackEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordPlaybackEventRequest.ProtoReflect.Descriptor instead.
 func (*RecordPlaybackEventRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{19}
+	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RecordPlaybackEventRequest) GetEvent() *PlaybackEvent {
@@ -1405,7 +1242,7 @@ type RecordPlaybackEventResponse struct {
 
 func (x *RecordPlaybackEventResponse) Reset() {
 	*x = RecordPlaybackEventResponse{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[20]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1417,7 +1254,7 @@ func (x *RecordPlaybackEventResponse) String() string {
 func (*RecordPlaybackEventResponse) ProtoMessage() {}
 
 func (x *RecordPlaybackEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[20]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1430,7 +1267,7 @@ func (x *RecordPlaybackEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordPlaybackEventResponse.ProtoReflect.Descriptor instead.
 func (*RecordPlaybackEventResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{20}
+	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RecordPlaybackEventResponse) GetStatus() string {
@@ -1452,7 +1289,7 @@ type NormalizeForSpeechRequest struct {
 
 func (x *NormalizeForSpeechRequest) Reset() {
 	*x = NormalizeForSpeechRequest{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[21]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1464,7 +1301,7 @@ func (x *NormalizeForSpeechRequest) String() string {
 func (*NormalizeForSpeechRequest) ProtoMessage() {}
 
 func (x *NormalizeForSpeechRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[21]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1477,7 +1314,7 @@ func (x *NormalizeForSpeechRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NormalizeForSpeechRequest.ProtoReflect.Descriptor instead.
 func (*NormalizeForSpeechRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{21}
+	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *NormalizeForSpeechRequest) GetText() string {
@@ -1503,7 +1340,7 @@ type NormalizeForSpeechResponse struct {
 
 func (x *NormalizeForSpeechResponse) Reset() {
 	*x = NormalizeForSpeechResponse{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[22]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1515,7 +1352,7 @@ func (x *NormalizeForSpeechResponse) String() string {
 func (*NormalizeForSpeechResponse) ProtoMessage() {}
 
 func (x *NormalizeForSpeechResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[22]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1528,7 +1365,7 @@ func (x *NormalizeForSpeechResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NormalizeForSpeechResponse.ProtoReflect.Descriptor instead.
 func (*NormalizeForSpeechResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{22}
+	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *NormalizeForSpeechResponse) GetText() string {
@@ -1549,7 +1386,7 @@ type SplitParagraphsRequest struct {
 
 func (x *SplitParagraphsRequest) Reset() {
 	*x = SplitParagraphsRequest{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[23]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1561,7 +1398,7 @@ func (x *SplitParagraphsRequest) String() string {
 func (*SplitParagraphsRequest) ProtoMessage() {}
 
 func (x *SplitParagraphsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[23]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1574,7 +1411,7 @@ func (x *SplitParagraphsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SplitParagraphsRequest.ProtoReflect.Descriptor instead.
 func (*SplitParagraphsRequest) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{23}
+	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *SplitParagraphsRequest) GetText() string {
@@ -1600,7 +1437,7 @@ type SplitParagraphsResponse struct {
 
 func (x *SplitParagraphsResponse) Reset() {
 	*x = SplitParagraphsResponse{}
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[24]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1612,7 +1449,7 @@ func (x *SplitParagraphsResponse) String() string {
 func (*SplitParagraphsResponse) ProtoMessage() {}
 
 func (x *SplitParagraphsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[24]
+	mi := &file_audio_tools_v1_tts_tts_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1625,7 +1462,7 @@ func (x *SplitParagraphsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SplitParagraphsResponse.ProtoReflect.Descriptor instead.
 func (*SplitParagraphsResponse) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{24}
+	return file_audio_tools_v1_tts_tts_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *SplitParagraphsResponse) GetParagraphs() []string {
@@ -1639,17 +1476,18 @@ var File_audio_tools_v1_tts_tts_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_tts_tts_proto_rawDesc = "" +
 	"\n" +
-	"\x1caudio-tools/v1/tts/tts.proto\x12\x19vrooli.audio_tools.v1.tts\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"audio-tools/v1/common/common.proto\"\x9b\x01\n" +
+	"\x1caudio-tools/v1/tts/tts.proto\x12\x19vrooli.audio_tools.v1.tts\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\"audio-tools/v1/common/common.proto\x1a0audio-tools/v1/health_status/health_status.proto\"\x9b\x01\n" +
 	"\x0eAdapterMapping\x12>\n" +
 	"\x04tier\x18\x01 \x01(\x0e2*.vrooli.audio_tools.v1.common.ProviderTierR\x04tier\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
 	"providerId\x12(\n" +
-	"\x10backend_voice_id\x18\x03 \x01(\tR\x0ebackendVoiceId\"\xb3\x02\n" +
-	"\x11SynthesizeRequest\x12\x12\n" +
-	"\x04text\x18\x01 \x01(\tR\x04text\x12\x14\n" +
+	"\x10backend_voice_id\x18\x03 \x01(\tR\x0ebackendVoiceId\"\xba\x03\n" +
+	"\x11SynthesizeRequest\x12\x1b\n" +
+	"\x04text\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04text\x12\x14\n" +
 	"\x05voice\x18\x02 \x01(\tR\x05voice\x12R\n" +
-	"\x0fvoice_overrides\x18\x03 \x03(\v2).vrooli.audio_tools.v1.tts.AdapterMappingR\x0evoiceOverrides\x12\x14\n" +
-	"\x05speed\x18\x04 \x01(\x01R\x05speed\x12U\n" +
+	"\x0fvoice_overrides\x18\x03 \x03(\v2).vrooli.audio_tools.v1.tts.AdapterMappingR\x0evoiceOverrides\x12\x91\x01\n" +
+	"\x05speed\x18\x04 \x01(\x01B{\xbaHx\xba\x01u\n" +
+	"\x1atts.synthesize.speed.range\x12*speed must be 0 (default) or in [0.5, 4.0]\x1a+this == 0.0 || (this >= 0.5 && this <= 4.0)R\x05speed\x12U\n" +
 	"\x0fresponse_format\x18\x05 \x01(\x0e2,.vrooli.audio_tools.v1.common.ResponseFormatR\x0eresponseFormat\x12\x19\n" +
 	"\bevent_id\x18\x06 \x01(\tR\aeventId\x12\x18\n" +
 	"\aversion\x18\a \x01(\tR\aversion\"\xbb\x02\n" +
@@ -1698,17 +1536,13 @@ const file_audio_tools_v1_tts_tts_proto_rawDesc = "" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12!\n" +
 	"\fcontent_hash\x18\x03 \x01(\tR\vcontentHash\x12\x10\n" +
-	"\x03hit\x18\x04 \x01(\bR\x03hit\"\xfb\x03\n" +
+	"\x03hit\x18\x04 \x01(\bR\x03hit\"\xe3\x02\n" +
 	"\x06Config\x12!\n" +
 	"\fauto_enabled\x18\x01 \x01(\bR\vautoEnabled\x12#\n" +
 	"\rdefault_voice\x18\x02 \x01(\tR\fdefaultVoice\x12#\n" +
 	"\rdefault_speed\x18\x03 \x01(\x01R\fdefaultSpeed\x12d\n" +
-	"\x17default_response_format\x18\x04 \x01(\x0e2,.vrooli.audio_tools.v1.common.ResponseFormatR\x15defaultResponseFormat\x12+\n" +
-	"\x11summarize_enabled\x18\x05 \x01(\bR\x10summarizeEnabled\x128\n" +
-	"\x18summarize_char_threshold\x18\x06 \x01(\x05R\x16summarizeCharThreshold\x12R\n" +
-	"\x0fsummarize_level\x18\a \x01(\x0e2).vrooli.audio_tools.v1.tts.SummarizeLevelR\x0esummarizeLevel\x12'\n" +
-	"\x0fsummarize_model\x18\b \x01(\tR\x0esummarizeModel\x12:\n" +
-	"\x19summarize_timeout_seconds\x18\t \x01(\x05R\x17summarizeTimeoutSeconds\"\x12\n" +
+	"\x17default_response_format\x18\x04 \x01(\x0e2,.vrooli.audio_tools.v1.common.ResponseFormatR\x15defaultResponseFormatJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"R\x11summarize_enabledR\x18summarize_char_thresholdR\x0fsummarize_levelR\x0fsummarize_modelR\x19summarize_timeout_seconds\"\x12\n" +
 	"\x10GetConfigRequest\"N\n" +
 	"\x11GetConfigResponse\x129\n" +
 	"\x06config\x18\x01 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\"\x8d\x01\n" +
@@ -1717,18 +1551,10 @@ const file_audio_tools_v1_tts_tts_proto_rawDesc = "" +
 	"updateMask\x129\n" +
 	"\x06config\x18\x02 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\"Q\n" +
 	"\x14UpdateConfigResponse\x129\n" +
-	"\x06config\x18\x01 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\"\xe6\x01\n" +
-	"\x14ProviderAvailability\x12>\n" +
-	"\x04tier\x18\x01 \x01(\x0e2*.vrooli.audio_tools.v1.common.ProviderTierR\x04tier\x12\x1f\n" +
-	"\vprovider_id\x18\x02 \x01(\tR\n" +
-	"providerId\x12\x1c\n" +
-	"\tavailable\x18\x03 \x01(\bR\tavailable\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error\x129\n" +
-	"\n" +
-	"checked_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\"\xe3\x01\n" +
+	"\x06config\x18\x01 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\"\xe7\x01\n" +
 	"\x06Status\x129\n" +
-	"\x06config\x18\x01 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\x12S\n" +
-	"\favailability\x18\x02 \x03(\v2/.vrooli.audio_tools.v1.tts.ProviderAvailabilityR\favailability\x12\x1e\n" +
+	"\x06config\x18\x01 \x01(\v2!.vrooli.audio_tools.v1.tts.ConfigR\x06config\x12W\n" +
+	"\favailability\x18\x02 \x03(\v23.vrooli.audio_tools.v1.health_status.ProviderHealthR\favailability\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x03 \x01(\tR\n" +
 	"capability\x12)\n" +
@@ -1759,12 +1585,7 @@ const file_audio_tools_v1_tts_tts_proto_rawDesc = "" +
 	"\x17SplitParagraphsResponse\x12\x1e\n" +
 	"\n" +
 	"paragraphs\x18\x01 \x03(\tR\n" +
-	"paragraphs*\x85\x01\n" +
-	"\x0eSummarizeLevel\x12\x1f\n" +
-	"\x1bSUMMARIZE_LEVEL_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15SUMMARIZE_LEVEL_LIGHT\x10\x01\x12\x1c\n" +
-	"\x18SUMMARIZE_LEVEL_MODERATE\x10\x02\x12\x19\n" +
-	"\x15SUMMARIZE_LEVEL_HEAVY\x10\x032\xf8\b\n" +
+	"paragraphs2\xf8\b\n" +
 	"\n" +
 	"TTSService\x12i\n" +
 	"\n" +
@@ -1792,86 +1613,80 @@ func file_audio_tools_v1_tts_tts_proto_rawDescGZIP() []byte {
 	return file_audio_tools_v1_tts_tts_proto_rawDescData
 }
 
-var file_audio_tools_v1_tts_tts_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_audio_tools_v1_tts_tts_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_audio_tools_v1_tts_tts_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_audio_tools_v1_tts_tts_proto_goTypes = []any{
-	(SummarizeLevel)(0),                 // 0: vrooli.audio_tools.v1.tts.SummarizeLevel
-	(*AdapterMapping)(nil),              // 1: vrooli.audio_tools.v1.tts.AdapterMapping
-	(*SynthesizeRequest)(nil),           // 2: vrooli.audio_tools.v1.tts.SynthesizeRequest
-	(*SynthesizeResponse)(nil),          // 3: vrooli.audio_tools.v1.tts.SynthesizeResponse
-	(*AudioFrame)(nil),                  // 4: vrooli.audio_tools.v1.tts.AudioFrame
-	(*Voice)(nil),                       // 5: vrooli.audio_tools.v1.tts.Voice
-	(*ListVoicesRequest)(nil),           // 6: vrooli.audio_tools.v1.tts.ListVoicesRequest
-	(*ListVoicesResponse)(nil),          // 7: vrooli.audio_tools.v1.tts.ListVoicesResponse
-	(*GetCacheRequest)(nil),             // 8: vrooli.audio_tools.v1.tts.GetCacheRequest
-	(*GetCacheResponse)(nil),            // 9: vrooli.audio_tools.v1.tts.GetCacheResponse
-	(*Config)(nil),                      // 10: vrooli.audio_tools.v1.tts.Config
-	(*GetConfigRequest)(nil),            // 11: vrooli.audio_tools.v1.tts.GetConfigRequest
-	(*GetConfigResponse)(nil),           // 12: vrooli.audio_tools.v1.tts.GetConfigResponse
-	(*UpdateConfigRequest)(nil),         // 13: vrooli.audio_tools.v1.tts.UpdateConfigRequest
-	(*UpdateConfigResponse)(nil),        // 14: vrooli.audio_tools.v1.tts.UpdateConfigResponse
-	(*ProviderAvailability)(nil),        // 15: vrooli.audio_tools.v1.tts.ProviderAvailability
-	(*Status)(nil),                      // 16: vrooli.audio_tools.v1.tts.Status
-	(*GetStatusRequest)(nil),            // 17: vrooli.audio_tools.v1.tts.GetStatusRequest
-	(*GetStatusResponse)(nil),           // 18: vrooli.audio_tools.v1.tts.GetStatusResponse
-	(*PlaybackEvent)(nil),               // 19: vrooli.audio_tools.v1.tts.PlaybackEvent
-	(*RecordPlaybackEventRequest)(nil),  // 20: vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest
-	(*RecordPlaybackEventResponse)(nil), // 21: vrooli.audio_tools.v1.tts.RecordPlaybackEventResponse
-	(*NormalizeForSpeechRequest)(nil),   // 22: vrooli.audio_tools.v1.tts.NormalizeForSpeechRequest
-	(*NormalizeForSpeechResponse)(nil),  // 23: vrooli.audio_tools.v1.tts.NormalizeForSpeechResponse
-	(*SplitParagraphsRequest)(nil),      // 24: vrooli.audio_tools.v1.tts.SplitParagraphsRequest
-	(*SplitParagraphsResponse)(nil),     // 25: vrooli.audio_tools.v1.tts.SplitParagraphsResponse
-	(common.ProviderTier)(0),            // 26: vrooli.audio_tools.v1.common.ProviderTier
-	(common.ResponseFormat)(0),          // 27: vrooli.audio_tools.v1.common.ResponseFormat
-	(*fieldmaskpb.FieldMask)(nil),       // 28: google.protobuf.FieldMask
-	(*timestamppb.Timestamp)(nil),       // 29: google.protobuf.Timestamp
+	(*AdapterMapping)(nil),               // 0: vrooli.audio_tools.v1.tts.AdapterMapping
+	(*SynthesizeRequest)(nil),            // 1: vrooli.audio_tools.v1.tts.SynthesizeRequest
+	(*SynthesizeResponse)(nil),           // 2: vrooli.audio_tools.v1.tts.SynthesizeResponse
+	(*AudioFrame)(nil),                   // 3: vrooli.audio_tools.v1.tts.AudioFrame
+	(*Voice)(nil),                        // 4: vrooli.audio_tools.v1.tts.Voice
+	(*ListVoicesRequest)(nil),            // 5: vrooli.audio_tools.v1.tts.ListVoicesRequest
+	(*ListVoicesResponse)(nil),           // 6: vrooli.audio_tools.v1.tts.ListVoicesResponse
+	(*GetCacheRequest)(nil),              // 7: vrooli.audio_tools.v1.tts.GetCacheRequest
+	(*GetCacheResponse)(nil),             // 8: vrooli.audio_tools.v1.tts.GetCacheResponse
+	(*Config)(nil),                       // 9: vrooli.audio_tools.v1.tts.Config
+	(*GetConfigRequest)(nil),             // 10: vrooli.audio_tools.v1.tts.GetConfigRequest
+	(*GetConfigResponse)(nil),            // 11: vrooli.audio_tools.v1.tts.GetConfigResponse
+	(*UpdateConfigRequest)(nil),          // 12: vrooli.audio_tools.v1.tts.UpdateConfigRequest
+	(*UpdateConfigResponse)(nil),         // 13: vrooli.audio_tools.v1.tts.UpdateConfigResponse
+	(*Status)(nil),                       // 14: vrooli.audio_tools.v1.tts.Status
+	(*GetStatusRequest)(nil),             // 15: vrooli.audio_tools.v1.tts.GetStatusRequest
+	(*GetStatusResponse)(nil),            // 16: vrooli.audio_tools.v1.tts.GetStatusResponse
+	(*PlaybackEvent)(nil),                // 17: vrooli.audio_tools.v1.tts.PlaybackEvent
+	(*RecordPlaybackEventRequest)(nil),   // 18: vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest
+	(*RecordPlaybackEventResponse)(nil),  // 19: vrooli.audio_tools.v1.tts.RecordPlaybackEventResponse
+	(*NormalizeForSpeechRequest)(nil),    // 20: vrooli.audio_tools.v1.tts.NormalizeForSpeechRequest
+	(*NormalizeForSpeechResponse)(nil),   // 21: vrooli.audio_tools.v1.tts.NormalizeForSpeechResponse
+	(*SplitParagraphsRequest)(nil),       // 22: vrooli.audio_tools.v1.tts.SplitParagraphsRequest
+	(*SplitParagraphsResponse)(nil),      // 23: vrooli.audio_tools.v1.tts.SplitParagraphsResponse
+	(common.ProviderTier)(0),             // 24: vrooli.audio_tools.v1.common.ProviderTier
+	(common.ResponseFormat)(0),           // 25: vrooli.audio_tools.v1.common.ResponseFormat
+	(*fieldmaskpb.FieldMask)(nil),        // 26: google.protobuf.FieldMask
+	(*health_status.ProviderHealth)(nil), // 27: vrooli.audio_tools.v1.health_status.ProviderHealth
 }
 var file_audio_tools_v1_tts_tts_proto_depIdxs = []int32{
-	26, // 0: vrooli.audio_tools.v1.tts.AdapterMapping.tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	1,  // 1: vrooli.audio_tools.v1.tts.SynthesizeRequest.voice_overrides:type_name -> vrooli.audio_tools.v1.tts.AdapterMapping
-	27, // 2: vrooli.audio_tools.v1.tts.SynthesizeRequest.response_format:type_name -> vrooli.audio_tools.v1.common.ResponseFormat
-	26, // 3: vrooli.audio_tools.v1.tts.SynthesizeResponse.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	26, // 4: vrooli.audio_tools.v1.tts.AudioFrame.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	1,  // 5: vrooli.audio_tools.v1.tts.Voice.adapter_mappings:type_name -> vrooli.audio_tools.v1.tts.AdapterMapping
-	5,  // 6: vrooli.audio_tools.v1.tts.ListVoicesResponse.voices:type_name -> vrooli.audio_tools.v1.tts.Voice
-	27, // 7: vrooli.audio_tools.v1.tts.GetCacheRequest.response_format:type_name -> vrooli.audio_tools.v1.common.ResponseFormat
-	27, // 8: vrooli.audio_tools.v1.tts.Config.default_response_format:type_name -> vrooli.audio_tools.v1.common.ResponseFormat
-	0,  // 9: vrooli.audio_tools.v1.tts.Config.summarize_level:type_name -> vrooli.audio_tools.v1.tts.SummarizeLevel
-	10, // 10: vrooli.audio_tools.v1.tts.GetConfigResponse.config:type_name -> vrooli.audio_tools.v1.tts.Config
-	28, // 11: vrooli.audio_tools.v1.tts.UpdateConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
-	10, // 12: vrooli.audio_tools.v1.tts.UpdateConfigRequest.config:type_name -> vrooli.audio_tools.v1.tts.Config
-	10, // 13: vrooli.audio_tools.v1.tts.UpdateConfigResponse.config:type_name -> vrooli.audio_tools.v1.tts.Config
-	26, // 14: vrooli.audio_tools.v1.tts.ProviderAvailability.tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	29, // 15: vrooli.audio_tools.v1.tts.ProviderAvailability.checked_at:type_name -> google.protobuf.Timestamp
-	10, // 16: vrooli.audio_tools.v1.tts.Status.config:type_name -> vrooli.audio_tools.v1.tts.Config
-	15, // 17: vrooli.audio_tools.v1.tts.Status.availability:type_name -> vrooli.audio_tools.v1.tts.ProviderAvailability
-	16, // 18: vrooli.audio_tools.v1.tts.GetStatusResponse.status:type_name -> vrooli.audio_tools.v1.tts.Status
-	19, // 19: vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest.event:type_name -> vrooli.audio_tools.v1.tts.PlaybackEvent
-	2,  // 20: vrooli.audio_tools.v1.tts.TTSService.Synthesize:input_type -> vrooli.audio_tools.v1.tts.SynthesizeRequest
-	2,  // 21: vrooli.audio_tools.v1.tts.TTSService.SynthesizeStream:input_type -> vrooli.audio_tools.v1.tts.SynthesizeRequest
-	6,  // 22: vrooli.audio_tools.v1.tts.TTSService.ListVoices:input_type -> vrooli.audio_tools.v1.tts.ListVoicesRequest
-	8,  // 23: vrooli.audio_tools.v1.tts.TTSService.GetCache:input_type -> vrooli.audio_tools.v1.tts.GetCacheRequest
-	11, // 24: vrooli.audio_tools.v1.tts.TTSService.GetConfig:input_type -> vrooli.audio_tools.v1.tts.GetConfigRequest
-	13, // 25: vrooli.audio_tools.v1.tts.TTSService.UpdateConfig:input_type -> vrooli.audio_tools.v1.tts.UpdateConfigRequest
-	17, // 26: vrooli.audio_tools.v1.tts.TTSService.GetStatus:input_type -> vrooli.audio_tools.v1.tts.GetStatusRequest
-	20, // 27: vrooli.audio_tools.v1.tts.TTSService.RecordPlaybackEvent:input_type -> vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest
-	22, // 28: vrooli.audio_tools.v1.tts.TTSService.NormalizeForSpeech:input_type -> vrooli.audio_tools.v1.tts.NormalizeForSpeechRequest
-	24, // 29: vrooli.audio_tools.v1.tts.TTSService.SplitParagraphs:input_type -> vrooli.audio_tools.v1.tts.SplitParagraphsRequest
-	3,  // 30: vrooli.audio_tools.v1.tts.TTSService.Synthesize:output_type -> vrooli.audio_tools.v1.tts.SynthesizeResponse
-	4,  // 31: vrooli.audio_tools.v1.tts.TTSService.SynthesizeStream:output_type -> vrooli.audio_tools.v1.tts.AudioFrame
-	7,  // 32: vrooli.audio_tools.v1.tts.TTSService.ListVoices:output_type -> vrooli.audio_tools.v1.tts.ListVoicesResponse
-	9,  // 33: vrooli.audio_tools.v1.tts.TTSService.GetCache:output_type -> vrooli.audio_tools.v1.tts.GetCacheResponse
-	12, // 34: vrooli.audio_tools.v1.tts.TTSService.GetConfig:output_type -> vrooli.audio_tools.v1.tts.GetConfigResponse
-	14, // 35: vrooli.audio_tools.v1.tts.TTSService.UpdateConfig:output_type -> vrooli.audio_tools.v1.tts.UpdateConfigResponse
-	18, // 36: vrooli.audio_tools.v1.tts.TTSService.GetStatus:output_type -> vrooli.audio_tools.v1.tts.GetStatusResponse
-	21, // 37: vrooli.audio_tools.v1.tts.TTSService.RecordPlaybackEvent:output_type -> vrooli.audio_tools.v1.tts.RecordPlaybackEventResponse
-	23, // 38: vrooli.audio_tools.v1.tts.TTSService.NormalizeForSpeech:output_type -> vrooli.audio_tools.v1.tts.NormalizeForSpeechResponse
-	25, // 39: vrooli.audio_tools.v1.tts.TTSService.SplitParagraphs:output_type -> vrooli.audio_tools.v1.tts.SplitParagraphsResponse
-	30, // [30:40] is the sub-list for method output_type
-	20, // [20:30] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	24, // 0: vrooli.audio_tools.v1.tts.AdapterMapping.tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	0,  // 1: vrooli.audio_tools.v1.tts.SynthesizeRequest.voice_overrides:type_name -> vrooli.audio_tools.v1.tts.AdapterMapping
+	25, // 2: vrooli.audio_tools.v1.tts.SynthesizeRequest.response_format:type_name -> vrooli.audio_tools.v1.common.ResponseFormat
+	24, // 3: vrooli.audio_tools.v1.tts.SynthesizeResponse.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	24, // 4: vrooli.audio_tools.v1.tts.AudioFrame.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	0,  // 5: vrooli.audio_tools.v1.tts.Voice.adapter_mappings:type_name -> vrooli.audio_tools.v1.tts.AdapterMapping
+	4,  // 6: vrooli.audio_tools.v1.tts.ListVoicesResponse.voices:type_name -> vrooli.audio_tools.v1.tts.Voice
+	25, // 7: vrooli.audio_tools.v1.tts.GetCacheRequest.response_format:type_name -> vrooli.audio_tools.v1.common.ResponseFormat
+	25, // 8: vrooli.audio_tools.v1.tts.Config.default_response_format:type_name -> vrooli.audio_tools.v1.common.ResponseFormat
+	9,  // 9: vrooli.audio_tools.v1.tts.GetConfigResponse.config:type_name -> vrooli.audio_tools.v1.tts.Config
+	26, // 10: vrooli.audio_tools.v1.tts.UpdateConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	9,  // 11: vrooli.audio_tools.v1.tts.UpdateConfigRequest.config:type_name -> vrooli.audio_tools.v1.tts.Config
+	9,  // 12: vrooli.audio_tools.v1.tts.UpdateConfigResponse.config:type_name -> vrooli.audio_tools.v1.tts.Config
+	9,  // 13: vrooli.audio_tools.v1.tts.Status.config:type_name -> vrooli.audio_tools.v1.tts.Config
+	27, // 14: vrooli.audio_tools.v1.tts.Status.availability:type_name -> vrooli.audio_tools.v1.health_status.ProviderHealth
+	14, // 15: vrooli.audio_tools.v1.tts.GetStatusResponse.status:type_name -> vrooli.audio_tools.v1.tts.Status
+	17, // 16: vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest.event:type_name -> vrooli.audio_tools.v1.tts.PlaybackEvent
+	1,  // 17: vrooli.audio_tools.v1.tts.TTSService.Synthesize:input_type -> vrooli.audio_tools.v1.tts.SynthesizeRequest
+	1,  // 18: vrooli.audio_tools.v1.tts.TTSService.SynthesizeStream:input_type -> vrooli.audio_tools.v1.tts.SynthesizeRequest
+	5,  // 19: vrooli.audio_tools.v1.tts.TTSService.ListVoices:input_type -> vrooli.audio_tools.v1.tts.ListVoicesRequest
+	7,  // 20: vrooli.audio_tools.v1.tts.TTSService.GetCache:input_type -> vrooli.audio_tools.v1.tts.GetCacheRequest
+	10, // 21: vrooli.audio_tools.v1.tts.TTSService.GetConfig:input_type -> vrooli.audio_tools.v1.tts.GetConfigRequest
+	12, // 22: vrooli.audio_tools.v1.tts.TTSService.UpdateConfig:input_type -> vrooli.audio_tools.v1.tts.UpdateConfigRequest
+	15, // 23: vrooli.audio_tools.v1.tts.TTSService.GetStatus:input_type -> vrooli.audio_tools.v1.tts.GetStatusRequest
+	18, // 24: vrooli.audio_tools.v1.tts.TTSService.RecordPlaybackEvent:input_type -> vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest
+	20, // 25: vrooli.audio_tools.v1.tts.TTSService.NormalizeForSpeech:input_type -> vrooli.audio_tools.v1.tts.NormalizeForSpeechRequest
+	22, // 26: vrooli.audio_tools.v1.tts.TTSService.SplitParagraphs:input_type -> vrooli.audio_tools.v1.tts.SplitParagraphsRequest
+	2,  // 27: vrooli.audio_tools.v1.tts.TTSService.Synthesize:output_type -> vrooli.audio_tools.v1.tts.SynthesizeResponse
+	3,  // 28: vrooli.audio_tools.v1.tts.TTSService.SynthesizeStream:output_type -> vrooli.audio_tools.v1.tts.AudioFrame
+	6,  // 29: vrooli.audio_tools.v1.tts.TTSService.ListVoices:output_type -> vrooli.audio_tools.v1.tts.ListVoicesResponse
+	8,  // 30: vrooli.audio_tools.v1.tts.TTSService.GetCache:output_type -> vrooli.audio_tools.v1.tts.GetCacheResponse
+	11, // 31: vrooli.audio_tools.v1.tts.TTSService.GetConfig:output_type -> vrooli.audio_tools.v1.tts.GetConfigResponse
+	13, // 32: vrooli.audio_tools.v1.tts.TTSService.UpdateConfig:output_type -> vrooli.audio_tools.v1.tts.UpdateConfigResponse
+	16, // 33: vrooli.audio_tools.v1.tts.TTSService.GetStatus:output_type -> vrooli.audio_tools.v1.tts.GetStatusResponse
+	19, // 34: vrooli.audio_tools.v1.tts.TTSService.RecordPlaybackEvent:output_type -> vrooli.audio_tools.v1.tts.RecordPlaybackEventResponse
+	21, // 35: vrooli.audio_tools.v1.tts.TTSService.NormalizeForSpeech:output_type -> vrooli.audio_tools.v1.tts.NormalizeForSpeechResponse
+	23, // 36: vrooli.audio_tools.v1.tts.TTSService.SplitParagraphs:output_type -> vrooli.audio_tools.v1.tts.SplitParagraphsResponse
+	27, // [27:37] is the sub-list for method output_type
+	17, // [17:27] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_tts_tts_proto_init() }
@@ -1884,14 +1699,13 @@ func file_audio_tools_v1_tts_tts_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_tts_tts_proto_rawDesc), len(file_audio_tools_v1_tts_tts_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   25,
+			NumEnums:      0,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_audio_tools_v1_tts_tts_proto_goTypes,
 		DependencyIndexes: file_audio_tools_v1_tts_tts_proto_depIdxs,
-		EnumInfos:         file_audio_tools_v1_tts_tts_proto_enumTypes,
 		MessageInfos:      file_audio_tools_v1_tts_tts_proto_msgTypes,
 	}.Build()
 	File_audio_tools_v1_tts_tts_proto = out.File

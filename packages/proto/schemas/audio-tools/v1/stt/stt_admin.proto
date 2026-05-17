@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.stt;
+
+import "audio-tools/v1/stt/stt.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt;stt_v1";
+
+// =============================================================================
+// STT ADMIN DOMAIN — administrative endpoints split out of STTService so the
+//                    runtime client surface (Transcribe / TranscribeStream)
+//                    stays minimal.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain stt
+// @stability stable
+//
+// Messages (StreamConfig, WakeWordTemplate, SpeakerConfig, SpeakerProfile,
+// SpeakerEnrollment, etc.) are owned by stt.proto so the runtime
+// TranscribeStream surface (which references StreamConfig from
+// StreamStart) does not have to import this file. This file only adds the
+// admin service and its request/response wrappers; everything else is
+// imported from stt.proto.
+// =============================================================================
+
+service STTAdminService {
+  rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
+  rpc UpdateStreamConfig(UpdateStreamConfigRequest) returns (UpdateStreamConfigResponse);
+
+  rpc GetWakeWordConfig(GetWakeWordConfigRequest) returns (GetWakeWordConfigResponse);
+  rpc UpdateWakeWordTemplate(UpdateWakeWordTemplateRequest) returns (UpdateWakeWordTemplateResponse);
+  rpc DeleteWakeWordTemplate(DeleteWakeWordTemplateRequest) returns (DeleteWakeWordTemplateResponse);
+
+  rpc GetSpeakerConfig(GetSpeakerConfigRequest) returns (GetSpeakerConfigResponse);
+  rpc UpdateSpeakerConfig(UpdateSpeakerConfigRequest) returns (UpdateSpeakerConfigResponse);
+  rpc GetSpeakerStatus(GetSpeakerStatusRequest) returns (GetSpeakerStatusResponse);
+  rpc ListSpeakerProfiles(ListSpeakerProfilesRequest) returns (ListSpeakerProfilesResponse);
+  rpc EnrollSpeakerProfile(EnrollSpeakerProfileRequest) returns (EnrollSpeakerProfileResponse);
+  // ClearSpeakerProfileBinding clears all active profile bindings in
+  // SpeakerConfig (profiles themselves remain in the store).
+  rpc ClearSpeakerProfileBinding(ClearSpeakerProfileBindingRequest) returns (ClearSpeakerProfileBindingResponse);
+  // UnbindSpeakerProfile removes one profile from the active bindings
+  // without deleting it from the speaker store. Pair with
+  // DeleteSpeakerProfile when you want a hard delete.
+  rpc UnbindSpeakerProfile(UnbindSpeakerProfileRequest) returns (UnbindSpeakerProfileResponse);
+  // DeleteSpeakerProfile permanently removes the profile from the
+  // speaker store and unbinds it. Requires a configured speaker store.
+  rpc DeleteSpeakerProfile(DeleteSpeakerProfileRequest) returns (DeleteSpeakerProfileResponse);
+}

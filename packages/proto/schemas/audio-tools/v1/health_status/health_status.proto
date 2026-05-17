@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.health_status;
+
+import "audio-tools/v1/common/common.proto";
+import "audio-tools/v1/diagnostics/diagnostics.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status;health_status_v1";
+
+// =============================================================================
+// HEALTH_STATUS DOMAIN — standing provider-health visibility.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain health_status
+// @stability stable
+//
+// HealthStatusService publishes the per-capability, per-provider rollup
+// computed by the in-process capabilities.Registry. The existing
+// /health REST endpoint stays as an ops probe; this Connect surface is
+// the typed contract consumers (web-console, audio-tools UI, the CLI)
+// use to render standing health beyond a single liveness boolean.
+//
+// Reuses vrooli.audio_tools.v1.common.ProviderTier and
+// vrooli.audio_tools.v1.diagnostics.Capability — do not redefine.
+// =============================================================================
+
+service HealthStatusService {
+  // GetProviderHealth returns the cached rollup. Latency is bounded by
+  // the registry's TTL; consumers wanting a fresh check call
+  // RefreshProviderHealth.
+  rpc GetProviderHealth(GetProviderHealthRequest) returns (GetProviderHealthResponse);
+
+  // RefreshProviderHealth bypasses the cache and re-runs every checker
+  // before returning the same shape as GetProviderHealth.
+  rpc RefreshProviderHealth(RefreshProviderHealthRequest) returns (RefreshProviderHealthResponse);
+
+  // StreamProviderHealth emits one ProviderHealthEvent per tick (the
+  // registry TTL clamped at a 5s minimum). Closes on context cancel.
+  rpc StreamProviderHealth(StreamProviderHealthRequest) returns (stream ProviderHealthEvent);
+}
+
+// State is the per-provider availability flag. UNKNOWN means no checker
+// has reported yet (or the registry has no checker for this provider);
+// AVAILABLE/UNAVAILABLE follow the last checker observation.
+enum State {
+  STATE_UNSPECIFIED = 0;
+  STATE_AVAILABLE = 1;
+  STATE_UNAVAILABLE = 2;
+  STATE_UNKNOWN = 3;
+}
+
+message ProviderHealth {
+  vrooli.audio_tools.v1.diagnostics.Capability capability = 1;
+  vrooli.audio_tools.v1.common.ProviderTier tier = 2;
+  // Stable id from api/internal/capabilities.Known[].ID (e.g.
+  // "whisper-stt", "kokoro-tts", "ollama", "openrouter"). Never the
+  // resource slug — see internal/capabilities/mapping.go.
+  string provider_id = 3;
+  State state = 4;
+  // RFC3339 timestamp of the most recent observation.
+  string last_checked_at = 5;
+  // Last observed checker latency, in milliseconds. Zero when the
+  // registry has not yet recorded latency.
+  double latency_ms = 6;
+  // Stable machine code (e.g. "provider_unavailable"). Empty when the
+  // provider is AVAILABLE.
+  string error_code = 7;
+  // Human-readable message; mirrors the checker output.
+  string error_message = 8;
+  // True iff this provider is currently the live serving tier for its
+  // capability. Reserved for Phase-2 routing visibility; Phase-1
+  // implementations leave this false.
+  bool serving = 9;
+}
+
+message CapabilityHealth {
+  vrooli.audio_tools.v1.diagnostics.Capability capability = 1;
+  repeated ProviderHealth providers = 2;
+  // Effective rollup: AVAILABLE if any provider AVAILABLE, else
+  // UNAVAILABLE if any UNAVAILABLE, else UNKNOWN.
+  State effective_state = 3;
+}
+
+message GetProviderHealthRequest {}
+
+message GetProviderHealthResponse {
+  repeated CapabilityHealth capabilities = 1;
+  // RFC3339 timestamp identifying when the rollup was computed.
+  string generated_at = 2;
+  // Registry cache TTL, in seconds. Clients drive their polling
+  // interval from this value (typically cache_ttl_seconds / 2).
+  int32 cache_ttl_seconds = 3;
+}
+
+message RefreshProviderHealthRequest {}
+
+message RefreshProviderHealthResponse {
+  repeated CapabilityHealth capabilities = 1;
+  string generated_at = 2;
+  int32 cache_ttl_seconds = 3;
+}
+
+message StreamProviderHealthRequest {}
+
+message ProviderHealthEvent {
+  string generated_at = 1;
+  repeated CapabilityHealth capabilities = 2;
+}

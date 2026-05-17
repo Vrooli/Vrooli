@@ -2,15 +2,18 @@
 // @generated from file audio-tools/v1/audio/audio.proto (package vrooli.audio_tools.v1.audio, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
+import type { AudioFormat } from "../common/common_pb";
+import { file_audio_tools_v1_common_common } from "../common/common_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file audio-tools/v1/audio/audio.proto.
  */
 export const file_audio_tools_v1_audio_audio: GenFile = /*@__PURE__*/
-  fileDesc("CiBhdWRpby10b29scy92MS9hdWRpby9hdWRpby5wcm90bxIbdnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvIoYBChBUcmFuc2NvZGVSZXF1ZXN0Eg0KBWF1ZGlvGAEgASgMEhQKDGlucHV0X2Zvcm1hdBgCIAEoCRIVCg1vdXRwdXRfZm9ybWF0GAMgASgJEhMKC3NhbXBsZV9yYXRlGAQgASgFEhAKCGNoYW5uZWxzGAUgASgFEg8KB2JpdHJhdGUYBiABKAUiUgoRVHJhbnNjb2RlUmVzcG9uc2USDQoFYXVkaW8YASABKAwSFAoMY29udGVudF90eXBlGAIgASgJEhgKEGR1cmF0aW9uX3NlY29uZHMYAyABKAEiWAoLVHJpbVJlcXVlc3QSDQoFYXVkaW8YASABKAwSDgoGZm9ybWF0GAIgASgJEhUKDXN0YXJ0X3NlY29uZHMYAyABKAESEwoLZW5kX3NlY29uZHMYBCABKAEiTQoMVHJpbVJlc3BvbnNlEg0KBWF1ZGlvGAEgASgMEhQKDGNvbnRlbnRfdHlwZRgCIAEoCRIYChBkdXJhdGlvbl9zZWNvbmRzGAMgASgBIiwKC01lcmdlU291cmNlEg0KBWF1ZGlvGAEgASgMEg4KBmZvcm1hdBgCIAEoCSJ7CgxNZXJnZVJlcXVlc3QSOQoHc291cmNlcxgBIAMoCzIoLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5NZXJnZVNvdXJjZRIVCg1vdXRwdXRfZm9ybWF0GAIgASgJEhkKEWNyb3NzZmFkZV9zZWNvbmRzGAMgASgBIk4KDU1lcmdlUmVzcG9uc2USDQoFYXVkaW8YASABKAwSFAoMY29udGVudF90eXBlGAIgASgJEhgKEGR1cmF0aW9uX3NlY29uZHMYAyABKAEidwoMU3BsaXRSZXF1ZXN0Eg0KBWF1ZGlvGAEgASgMEg4KBmZvcm1hdBgCIAEoCRIVCg1jaHVua19zZWNvbmRzGAMgASgBEhoKEmJvdW5kYXJpZXNfc2Vjb25kcxgEIAMoARIVCg1vdXRwdXRfZm9ybWF0GAUgASgJImIKClNwbGl0Q2h1bmsSDQoFYXVkaW8YASABKAwSFAoMY29udGVudF90eXBlGAIgASgJEhUKDXN0YXJ0X3NlY29uZHMYAyABKAESGAoQZHVyYXRpb25fc2Vjb25kcxgEIAEoASJICg1TcGxpdFJlc3BvbnNlEjcKBmNodW5rcxgBIAMoCzInLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5TcGxpdENodW5rInYKC0ZhZGVSZXF1ZXN0Eg0KBWF1ZGlvGAEgASgMEg4KBmZvcm1hdBgCIAEoCRIXCg9mYWRlX2luX3NlY29uZHMYAyABKAESGAoQZmFkZV9vdXRfc2Vjb25kcxgEIAEoARIVCg1vdXRwdXRfZm9ybWF0GAUgASgJIjMKDEZhZGVSZXNwb25zZRINCgVhdWRpbxgBIAEoDBIUCgxjb250ZW50X3R5cGUYAiABKAkiVgoNVm9sdW1lUmVxdWVzdBINCgVhdWRpbxgBIAEoDBIOCgZmb3JtYXQYAiABKAkSDwoHZ2Fpbl9kYhgDIAEoARIVCg1vdXRwdXRfZm9ybWF0GAQgASgJIjUKDlZvbHVtZVJlc3BvbnNlEg0KBWF1ZGlvGAEgASgMEhQKDGNvbnRlbnRfdHlwZRgCIAEoCSJtChBOb3JtYWxpemVSZXF1ZXN0Eg0KBWF1ZGlvGAEgASgMEg4KBmZvcm1hdBgCIAEoCRIOCgZtZXRob2QYAyABKAkSEwoLdGFyZ2V0X2x1ZnMYBCABKAESFQoNb3V0cHV0X2Zvcm1hdBgFIAEoCSJPChFOb3JtYWxpemVSZXNwb25zZRINCgVhdWRpbxgBIAEoDBIUCgxjb250ZW50X3R5cGUYAiABKAkSFQoNbWVhc3VyZWRfbHVmcxgDIAEoASLxAQoNQXVkaW9NZXRhZGF0YRIYChBkdXJhdGlvbl9zZWNvbmRzGAEgASgBEhMKC3NhbXBsZV9yYXRlGAIgASgFEhAKCGNoYW5uZWxzGAMgASgFEg8KB2JpdHJhdGUYBCABKAUSDQoFY29kZWMYBSABKAkSDgoGZm9ybWF0GAYgASgJEkIKBHRhZ3MYByADKAsyNC52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uQXVkaW9NZXRhZGF0YS5UYWdzRW50cnkaKwoJVGFnc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiNwoWRXh0cmFjdE1ldGFkYXRhUmVxdWVzdBINCgVhdWRpbxgBIAEoDBIOCgZmb3JtYXQYAiABKAkiVwoXRXh0cmFjdE1ldGFkYXRhUmVzcG9uc2USPAoIbWV0YWRhdGEYASABKAsyKi52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uQXVkaW9NZXRhZGF0YTLLBgoWQXVkaW9Qcm9jZXNzaW5nU2VydmljZRJqCglUcmFuc2NvZGUSLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uVHJhbnNjb2RlUmVxdWVzdBouLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5UcmFuc2NvZGVSZXNwb25zZRJbCgRUcmltEigudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvLlRyaW1SZXF1ZXN0GikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvLlRyaW1SZXNwb25zZRJeCgVNZXJnZRIpLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5NZXJnZVJlcXVlc3QaKi52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uTWVyZ2VSZXNwb25zZRJeCgVTcGxpdBIpLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5TcGxpdFJlcXVlc3QaKi52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uU3BsaXRSZXNwb25zZRJbCgRGYWRlEigudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvLkZhZGVSZXF1ZXN0GikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvLkZhZGVSZXNwb25zZRJhCgZWb2x1bWUSKi52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uVm9sdW1lUmVxdWVzdBorLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5Wb2x1bWVSZXNwb25zZRJqCglOb3JtYWxpemUSLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uTm9ybWFsaXplUmVxdWVzdBouLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5Ob3JtYWxpemVSZXNwb25zZRJ8Cg9FeHRyYWN0TWV0YWRhdGESMy52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uRXh0cmFjdE1ldGFkYXRhUmVxdWVzdBo0LnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5FeHRyYWN0TWV0YWRhdGFSZXNwb25zZUJOWkxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL2F1ZGlvO2F1ZGlvX3YxYgZwcm90bzM");
+  fileDesc("CiBhdWRpby10b29scy92MS9hdWRpby9hdWRpby5wcm90bxIbdnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvIu8BChBUcmFuc2NvZGVSZXF1ZXN0EhYKBWF1ZGlvGAEgASgMQge6SAR6AhABEj8KDGlucHV0X2Zvcm1hdBgCIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uQXVkaW9Gb3JtYXQSSgoNb3V0cHV0X2Zvcm1hdBgDIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uQXVkaW9Gb3JtYXRCCLpIBYIBAiAAEhMKC3NhbXBsZV9yYXRlGAQgASgFEhAKCGNoYW5uZWxzGAUgASgFEg8KB2JpdHJhdGUYBiABKAUiUgoRVHJhbnNjb2RlUmVzcG9uc2USDQoFYXVkaW8YASABKAwSFAoMY29udGVudF90eXBlGAIgASgJEhgKEGR1cmF0aW9uX3NlY29uZHMYAyABKAEilgEKC1RyaW1SZXF1ZXN0EhYKBWF1ZGlvGAEgASgMQge6SAR6AhABEkMKBmZvcm1hdBgCIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uQXVkaW9Gb3JtYXRCCLpIBYIBAiAAEhUKDXN0YXJ0X3NlY29uZHMYAyABKAESEwoLZW5kX3NlY29uZHMYBCABKAEiTQoMVHJpbVJlc3BvbnNlEg0KBWF1ZGlvGAEgASgMEhQKDGNvbnRlbnRfdHlwZRgCIAEoCRIYChBkdXJhdGlvbl9zZWNvbmRzGAMgASgBImoKC01lcmdlU291cmNlEhYKBWF1ZGlvGAEgASgMQge6SAR6AhABEkMKBmZvcm1hdBgCIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uQXVkaW9Gb3JtYXRCCLpIBYIBAiAAIrABCgxNZXJnZVJlcXVlc3QSOQoHc291cmNlcxgBIAMoCzIoLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5NZXJnZVNvdXJjZRJKCg1vdXRwdXRfZm9ybWF0GAIgASgOMikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvbW1vbi5BdWRpb0Zvcm1hdEIIukgFggECIAASGQoRY3Jvc3NmYWRlX3NlY29uZHMYAyABKAEiTgoNTWVyZ2VSZXNwb25zZRINCgVhdWRpbxgBIAEoDBIUCgxjb250ZW50X3R5cGUYAiABKAkSGAoQZHVyYXRpb25fc2Vjb25kcxgDIAEoASLgAQoMU3BsaXRSZXF1ZXN0EhYKBWF1ZGlvGAEgASgMQge6SAR6AhABEkMKBmZvcm1hdBgCIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uQXVkaW9Gb3JtYXRCCLpIBYIBAiAAEhUKDWNodW5rX3NlY29uZHMYAyABKAESGgoSYm91bmRhcmllc19zZWNvbmRzGAQgAygBEkAKDW91dHB1dF9mb3JtYXQYBSABKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLkF1ZGlvRm9ybWF0ImIKClNwbGl0Q2h1bmsSDQoFYXVkaW8YASABKAwSFAoMY29udGVudF90eXBlGAIgASgJEhUKDXN0YXJ0X3NlY29uZHMYAyABKAESGAoQZHVyYXRpb25fc2Vjb25kcxgEIAEoASJICg1TcGxpdFJlc3BvbnNlEjcKBmNodW5rcxgBIAMoCzInLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5TcGxpdENodW5rIt8BCgtGYWRlUmVxdWVzdBIWCgVhdWRpbxgBIAEoDEIHukgEegIQARJDCgZmb3JtYXQYAiABKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLkF1ZGlvRm9ybWF0Qgi6SAWCAQIgABIXCg9mYWRlX2luX3NlY29uZHMYAyABKAESGAoQZmFkZV9vdXRfc2Vjb25kcxgEIAEoARJACg1vdXRwdXRfZm9ybWF0GAUgASgOMikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvbW1vbi5BdWRpb0Zvcm1hdCIzCgxGYWRlUmVzcG9uc2USDQoFYXVkaW8YASABKAwSFAoMY29udGVudF90eXBlGAIgASgJIr8BCg1Wb2x1bWVSZXF1ZXN0EhYKBWF1ZGlvGAEgASgMQge6SAR6AhABEkMKBmZvcm1hdBgCIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uQXVkaW9Gb3JtYXRCCLpIBYIBAiAAEg8KB2dhaW5fZGIYAyABKAESQAoNb3V0cHV0X2Zvcm1hdBgEIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uQXVkaW9Gb3JtYXQiNQoOVm9sdW1lUmVzcG9uc2USDQoFYXVkaW8YASABKAwSFAoMY29udGVudF90eXBlGAIgASgJIogCChBOb3JtYWxpemVSZXF1ZXN0EhYKBWF1ZGlvGAEgASgMQge6SAR6AhABEkMKBmZvcm1hdBgCIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uQXVkaW9Gb3JtYXRCCLpIBYIBAiAAEkAKBm1ldGhvZBgDIAEoDjIwLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5Ob3JtYWxpemF0aW9uTWV0aG9kEhMKC3RhcmdldF9sdWZzGAQgASgBEkAKDW91dHB1dF9mb3JtYXQYBSABKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLkF1ZGlvRm9ybWF0Ik8KEU5vcm1hbGl6ZVJlc3BvbnNlEg0KBWF1ZGlvGAEgASgMEhQKDGNvbnRlbnRfdHlwZRgCIAEoCRIVCg1tZWFzdXJlZF9sdWZzGAMgASgBIpwCCg1BdWRpb01ldGFkYXRhEhgKEGR1cmF0aW9uX3NlY29uZHMYASABKAESEwoLc2FtcGxlX3JhdGUYAiABKAUSEAoIY2hhbm5lbHMYAyABKAUSDwoHYml0cmF0ZRgEIAEoBRINCgVjb2RlYxgFIAEoCRI5CgZmb3JtYXQYBiABKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLkF1ZGlvRm9ybWF0EkIKBHRhZ3MYByADKAsyNC52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uQXVkaW9NZXRhZGF0YS5UYWdzRW50cnkaKwoJVGFnc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEidQoWRXh0cmFjdE1ldGFkYXRhUmVxdWVzdBIWCgVhdWRpbxgBIAEoDEIHukgEegIQARJDCgZmb3JtYXQYAiABKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uLkF1ZGlvRm9ybWF0Qgi6SAWCAQIgACJXChdFeHRyYWN0TWV0YWRhdGFSZXNwb25zZRI8CghtZXRhZGF0YRgBIAEoCzIqLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5BdWRpb01ldGFkYXRhKpsBChNOb3JtYWxpemF0aW9uTWV0aG9kEiQKIE5PUk1BTElaQVRJT05fTUVUSE9EX1VOU1BFQ0lGSUVEEAASIQodTk9STUFMSVpBVElPTl9NRVRIT0RfRUJVX1IxMjgQARIcChhOT1JNQUxJWkFUSU9OX01FVEhPRF9STVMQAhIdChlOT1JNQUxJWkFUSU9OX01FVEhPRF9QRUFLEAMyywYKFkF1ZGlvUHJvY2Vzc2luZ1NlcnZpY2USagoJVHJhbnNjb2RlEi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvLlRyYW5zY29kZVJlcXVlc3QaLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uVHJhbnNjb2RlUmVzcG9uc2USWwoEVHJpbRIoLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5UcmltUmVxdWVzdBopLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5UcmltUmVzcG9uc2USXgoFTWVyZ2USKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uTWVyZ2VSZXF1ZXN0GioudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvLk1lcmdlUmVzcG9uc2USXgoFU3BsaXQSKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uU3BsaXRSZXF1ZXN0GioudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvLlNwbGl0UmVzcG9uc2USWwoERmFkZRIoLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5GYWRlUmVxdWVzdBopLnZyb29saS5hdWRpb190b29scy52MS5hdWRpby5GYWRlUmVzcG9uc2USYQoGVm9sdW1lEioudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvLlZvbHVtZVJlcXVlc3QaKy52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uVm9sdW1lUmVzcG9uc2USagoJTm9ybWFsaXplEi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvLk5vcm1hbGl6ZVJlcXVlc3QaLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uTm9ybWFsaXplUmVzcG9uc2USfAoPRXh0cmFjdE1ldGFkYXRhEjMudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmF1ZGlvLkV4dHJhY3RNZXRhZGF0YVJlcXVlc3QaNC52cm9vbGkuYXVkaW9fdG9vbHMudjEuYXVkaW8uRXh0cmFjdE1ldGFkYXRhUmVzcG9uc2VCTlpMZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9hdWRpbzthdWRpb192MWIGcHJvdG8z", [file_buf_validate_validate, file_audio_tools_v1_common_common]);
 
 /**
  * @generated from message vrooli.audio_tools.v1.audio.TranscodeRequest
@@ -22,16 +25,14 @@ export type TranscodeRequest = Message<"vrooli.audio_tools.v1.audio.TranscodeReq
   audio: Uint8Array;
 
   /**
-   * @generated from field: string input_format = 2;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat input_format = 2;
    */
-  inputFormat: string;
+  inputFormat: AudioFormat;
 
   /**
-   * "wav" | "mp3" | "flac" | "aac" | "ogg"
-   *
-   * @generated from field: string output_format = 3;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat output_format = 3;
    */
-  outputFormat: string;
+  outputFormat: AudioFormat;
 
   /**
    * 0 = passthrough
@@ -99,9 +100,9 @@ export type TrimRequest = Message<"vrooli.audio_tools.v1.audio.TrimRequest"> & {
   audio: Uint8Array;
 
   /**
-   * @generated from field: string format = 2;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat format = 2;
    */
-  format: string;
+  format: AudioFormat;
 
   /**
    * @generated from field: double start_seconds = 3;
@@ -160,9 +161,9 @@ export type MergeSource = Message<"vrooli.audio_tools.v1.audio.MergeSource"> & {
   audio: Uint8Array;
 
   /**
-   * @generated from field: string format = 2;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat format = 2;
    */
-  format: string;
+  format: AudioFormat;
 };
 
 /**
@@ -182,9 +183,9 @@ export type MergeRequest = Message<"vrooli.audio_tools.v1.audio.MergeRequest"> &
   sources: MergeSource[];
 
   /**
-   * @generated from field: string output_format = 2;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat output_format = 2;
    */
-  outputFormat: string;
+  outputFormat: AudioFormat;
 
   /**
    * 0 = hard concat
@@ -238,9 +239,9 @@ export type SplitRequest = Message<"vrooli.audio_tools.v1.audio.SplitRequest"> &
   audio: Uint8Array;
 
   /**
-   * @generated from field: string format = 2;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat format = 2;
    */
-  format: string;
+  format: AudioFormat;
 
   /**
    * Either equal chunks (chunk_seconds > 0) OR explicit boundaries.
@@ -255,9 +256,9 @@ export type SplitRequest = Message<"vrooli.audio_tools.v1.audio.SplitRequest"> &
   boundariesSeconds: number[];
 
   /**
-   * @generated from field: string output_format = 5;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat output_format = 5;
    */
-  outputFormat: string;
+  outputFormat: AudioFormat;
 };
 
 /**
@@ -326,9 +327,9 @@ export type FadeRequest = Message<"vrooli.audio_tools.v1.audio.FadeRequest"> & {
   audio: Uint8Array;
 
   /**
-   * @generated from field: string format = 2;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat format = 2;
    */
-  format: string;
+  format: AudioFormat;
 
   /**
    * @generated from field: double fade_in_seconds = 3;
@@ -341,9 +342,9 @@ export type FadeRequest = Message<"vrooli.audio_tools.v1.audio.FadeRequest"> & {
   fadeOutSeconds: number;
 
   /**
-   * @generated from field: string output_format = 5;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat output_format = 5;
    */
-  outputFormat: string;
+  outputFormat: AudioFormat;
 };
 
 /**
@@ -385,9 +386,9 @@ export type VolumeRequest = Message<"vrooli.audio_tools.v1.audio.VolumeRequest">
   audio: Uint8Array;
 
   /**
-   * @generated from field: string format = 2;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat format = 2;
    */
-  format: string;
+  format: AudioFormat;
 
   /**
    * @generated from field: double gain_db = 3;
@@ -395,9 +396,9 @@ export type VolumeRequest = Message<"vrooli.audio_tools.v1.audio.VolumeRequest">
   gainDb: number;
 
   /**
-   * @generated from field: string output_format = 4;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat output_format = 4;
    */
-  outputFormat: string;
+  outputFormat: AudioFormat;
 };
 
 /**
@@ -439,16 +440,16 @@ export type NormalizeRequest = Message<"vrooli.audio_tools.v1.audio.NormalizeReq
   audio: Uint8Array;
 
   /**
-   * @generated from field: string format = 2;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat format = 2;
    */
-  format: string;
+  format: AudioFormat;
 
   /**
-   * EBU R128 by default. "rms" and "peak" alternatives also accepted.
+   * NORMALIZATION_METHOD_UNSPECIFIED is treated as EBU_R128 by the server.
    *
-   * @generated from field: string method = 3;
+   * @generated from field: vrooli.audio_tools.v1.audio.NormalizationMethod method = 3;
    */
-  method: string;
+  method: NormalizationMethod;
 
   /**
    * @generated from field: double target_lufs = 4;
@@ -456,9 +457,9 @@ export type NormalizeRequest = Message<"vrooli.audio_tools.v1.audio.NormalizeReq
   targetLufs: number;
 
   /**
-   * @generated from field: string output_format = 5;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat output_format = 5;
    */
-  outputFormat: string;
+  outputFormat: AudioFormat;
 };
 
 /**
@@ -520,14 +521,19 @@ export type AudioMetadata = Message<"vrooli.audio_tools.v1.audio.AudioMetadata">
   bitrate: number;
 
   /**
+   * ffmpeg-reported codec short-name (e.g., "pcm_s16le", "mp3", "aac",
+   * "vorbis", "opus"). Stays a free-form string because the ffmpeg codec
+   * namespace is open-ended and not 1:1 with AudioFormat (which models
+   * container shapes carried on the wire).
+   *
    * @generated from field: string codec = 5;
    */
   codec: string;
 
   /**
-   * @generated from field: string format = 6;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat format = 6;
    */
-  format: string;
+  format: AudioFormat;
 
   /**
    * @generated from field: map<string, string> tags = 7;
@@ -552,9 +558,9 @@ export type ExtractMetadataRequest = Message<"vrooli.audio_tools.v1.audio.Extrac
   audio: Uint8Array;
 
   /**
-   * @generated from field: string format = 2;
+   * @generated from field: vrooli.audio_tools.v1.common.AudioFormat format = 2;
    */
-  format: string;
+  format: AudioFormat;
 };
 
 /**
@@ -580,6 +586,43 @@ export type ExtractMetadataResponse = Message<"vrooli.audio_tools.v1.audio.Extra
  */
 export const ExtractMetadataResponseSchema: GenMessage<ExtractMetadataResponse> = /*@__PURE__*/
   messageDesc(file_audio_tools_v1_audio_audio, 18);
+
+/**
+ * NormalizationMethod selects the loudness-normalization algorithm used
+ * by the ffmpeg `loudnorm` / `volume` filter chain.
+ *
+ * EBU_R128 is the default (broadcast-loudness standard). RMS and PEAK
+ * are simpler alternatives kept for clients that prefer them.
+ *
+ * @generated from enum vrooli.audio_tools.v1.audio.NormalizationMethod
+ */
+export enum NormalizationMethod {
+  /**
+   * @generated from enum value: NORMALIZATION_METHOD_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: NORMALIZATION_METHOD_EBU_R128 = 1;
+   */
+  EBU_R128 = 1,
+
+  /**
+   * @generated from enum value: NORMALIZATION_METHOD_RMS = 2;
+   */
+  RMS = 2,
+
+  /**
+   * @generated from enum value: NORMALIZATION_METHOD_PEAK = 3;
+   */
+  PEAK = 3,
+}
+
+/**
+ * Describes the enum vrooli.audio_tools.v1.audio.NormalizationMethod.
+ */
+export const NormalizationMethodSchema: GenEnum<NormalizationMethod> = /*@__PURE__*/
+  enumDesc(file_audio_tools_v1_audio_audio, 0);
 
 /**
  * @generated from service vrooli.audio_tools.v1.audio.AudioProcessingService

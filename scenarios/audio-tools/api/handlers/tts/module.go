@@ -7,6 +7,7 @@ import (
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	inttts "audio-tools/internal/tts"
+	"audio-tools/internal/usagereport"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -21,6 +22,7 @@ type Deps struct {
 	TTSService     *inttts.Service
 	Logger         logx.Logger
 	Clock          clock.Clock
+	Usage          usagereport.Recorder
 	Cache          *inttts.Cache
 	ConfigStore    TTSConfigRepository
 	Playback       PlaybackRepository

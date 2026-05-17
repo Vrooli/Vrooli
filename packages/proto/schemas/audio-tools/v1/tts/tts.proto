@@ -2,9 +2,10 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.tts;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
-import "google/protobuf/timestamp.proto";
 import "audio-tools/v1/common/common.proto";
+import "audio-tools/v1/health_status/health_status.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts;tts_v1";
 
@@ -60,20 +61,6 @@ service TTSService {
 }
 
 // -----------------------------------------------------------------------------
-// Typed enums (replace prior freeform string fields).
-// -----------------------------------------------------------------------------
-
-// SummarizeLevel selects how aggressively the TTS-summarize stage
-// rewrites the input. LIGHT preserves wording; MODERATE rewrites for
-// flow; HEAVY produces a short paraphrase.
-enum SummarizeLevel {
-  SUMMARIZE_LEVEL_UNSPECIFIED = 0;
-  SUMMARIZE_LEVEL_LIGHT = 1;
-  SUMMARIZE_LEVEL_MODERATE = 2;
-  SUMMARIZE_LEVEL_HEAVY = 3;
-}
-
-// -----------------------------------------------------------------------------
 // Voice catalog typed shapes
 // -----------------------------------------------------------------------------
 
@@ -91,14 +78,20 @@ message AdapterMapping {
 // -----------------------------------------------------------------------------
 
 message SynthesizeRequest {
-  string text = 1;
+  string text = 1 [(buf.validate.field).string.min_len = 1];
   // Canonical voice ID (e.g., "voice.feminine.warm"). The active adapter
   // resolves this to a backend voice name via the catalog + voice_overrides.
+  // Empty string = use server default.
   string voice = 2;
   // Per-call overrides. Wins over the canonical mapping for the matching
   // (tier, provider_id) pair.
   repeated AdapterMapping voice_overrides = 3;
-  double speed = 4;                   // 0.5–4.0
+  // 0.5–4.0 when set; 0 = use server default.
+  double speed = 4 [(buf.validate.field).cel = {
+    id: "tts.synthesize.speed.range",
+    message: "speed must be 0 (default) or in [0.5, 4.0]",
+    expression: "this == 0.0 || (this >= 0.5 && this <= 4.0)"
+  }];
   vrooli.audio_tools.v1.common.ResponseFormat response_format = 5;
   // Optional cache control. When event_id is set, the server stores the
   // synthesized audio under a content-addressable + event index.
@@ -183,12 +176,12 @@ message Config {
   string default_voice = 2;           // canonical voice id
   double default_speed = 3;
   vrooli.audio_tools.v1.common.ResponseFormat default_response_format = 4;
-  // Summarization thresholds for the long-text path.
-  bool summarize_enabled = 5;
-  int32 summarize_char_threshold = 6;
-  SummarizeLevel summarize_level = 7;
-  string summarize_model = 8;
-  int32 summarize_timeout_seconds = 9;
+  // Summarize config has migrated to SummarizeService.SummarizeConfig
+  // (audio-tools/v1/summarize/summarize.proto). Consumers should call
+  // SummarizeService.GetSummarizeConfig / UpdateSummarizeConfig.
+  reserved 5, 6, 7, 8, 9;
+  reserved "summarize_enabled", "summarize_char_threshold",
+           "summarize_level", "summarize_model", "summarize_timeout_seconds";
 }
 
 message GetConfigRequest {}
@@ -214,17 +207,15 @@ message UpdateConfigResponse {
 // Status + playback ack
 // -----------------------------------------------------------------------------
 
-message ProviderAvailability {
-  vrooli.audio_tools.v1.common.ProviderTier tier = 1;
-  string provider_id = 2;
-  bool available = 3;
-  string error = 4;
-  google.protobuf.Timestamp checked_at = 5;
-}
-
+// Status is the TTS-domain snapshot of "what the chain looks like right
+// now". The per-provider availability list is modeled as a slice of
+// health_status.ProviderHealth so the shape is identical to the canonical
+// HealthStatusService surface — consumers that already render
+// ProviderHealth can reuse the same code. The capability field on each
+// ProviderHealth is always CAPABILITY_TTS here.
 message Status {
   Config config = 1;
-  repeated ProviderAvailability availability = 2;
+  repeated vrooli.audio_tools.v1.health_status.ProviderHealth availability = 2;
   string capability = 3;
   string capability_label = 4;
 }
