@@ -17,7 +17,7 @@
 | `AUDIO_LPBS_APP_BUNDLE_KEY` | `audio-tools` | LPBS app-bundle key for usage attribution. |
 | `AUDIO_AVAIL_TTL_BYOK` | `5m` | BYOK availability cache TTL. |
 | `AUDIO_AVAIL_TTL_VROOLI` | `30s` | Vrooli availability cache TTL. |
-| `AUDIO_SUMMARIZE_DEFAULT_MODEL` | `qwen3:4b` | Local summarize default model. |
+| `AUDIO_SUMMARIZE_DEFAULT_MODEL` | `llama3.2:3b` | Local summarize default model. Empty or known reasoning defaults are coerced to the safe fallback at startup. |
 
 ## Service manifest (`.vrooli/service.json`)
 
@@ -199,6 +199,27 @@ Lever rules (per [control-surface-tunable-levers-design]):
 - Setting these levers does NOT pick a provider — provider tier
   precedence remains the fixed BYOK → Vrooli → Local order defined in
   the PRD.
+
+## Summarize model policy
+
+The local summarize provider uses Ollama. Model selection is centralized in
+`api/internal/summarize/model_policy.go` and surfaced through
+`SummarizeService.ListSummarizeModels`.
+
+Current policy:
+
+- Default fallback: `llama3.2:3b`.
+- Recommended non-reasoning candidates: `gemma3:4b`, `gemma3n:e2b`,
+  `llama3.2:3b`, `llama3.2:1b`, `qwen2.5:3b`, `phi4-mini:3.8b`.
+- Reasoning models such as `qwen3:*` and `deepseek-r1:*` are marked
+  non-default because they are slower and often spend output budget on
+  internal reasoning.
+- `/api/tags` is the installed-model source. Missing recommended models are
+  returned with `ollama pull <model>` commands; audio-tools does not pull
+  models automatically.
+- Startup/env stale-config protection coerces empty or known unsafe reasoning
+  stored defaults back to `llama3.2:3b`. Explicit runtime updates are accepted
+  so operators can benchmark non-default models deliberately.
 
 ## Test/CI configuration
 

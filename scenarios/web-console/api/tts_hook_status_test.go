@@ -137,8 +137,8 @@ func TestTTSHookStatus_POSTAck_RecordsState(t *testing.T) {
 func TestTTSHookStatus_POSTPlayback_RecordsState(t *testing.T) {
 	srv := minimalHookServer(t)
 	body, _ := json.Marshal(ttsPlaybackEventDTO{
-		Source: "settings_test",
-		Stage:  "success",
+		Source:  "settings_test",
+		Stage:   "success",
 		Backend: "browser",
 	})
 	rr := httptest.NewRecorder()

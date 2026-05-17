@@ -8,6 +8,9 @@
 
 export { MicReadinessIndicator } from "./MicReadinessIndicator";
 export type { MicReadinessIndicatorProps } from "./MicReadinessIndicator";
+export { useVoiceConfigStore } from "./hooks/useVoiceConfigStore";
+export type { VoiceConfigState } from "./hooks/useVoiceConfigStore";
+export { useHydrateVoiceConfig } from "./hooks/useHydrateVoiceConfig";
 
 // Connect client + React context for consumers calling audio-tools RPCs.
 export {

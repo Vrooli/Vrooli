@@ -165,6 +165,27 @@ describe("AudioPlayerBar", () => {
     expect(btn).toBeDisabled();
   });
 
+  it("shows a stable loading state while playback is preparing", () => {
+    const props = makeProps({ isLoading: true, currentMessageLabel: "#1" });
+    render(<AudioPlayerBar {...props} />);
+
+    const bar = screen.getByTestId("audio-player-bar");
+    const btn = screen.getByTestId("tts-play-pause");
+    expect(bar.getAttribute("data-loading")).toBe("true");
+    expect(btn).toBeDisabled();
+    expect(screen.getByTestId("tts-playback-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("tts-message-loading")).toBeInTheDocument();
+
+    fireEvent.click(btn);
+    expect(props.onPause).not.toHaveBeenCalled();
+  });
+
+  it("shows loading feedback inside the audio popover", () => {
+    render(<AudioPlayerBar {...makeProps({ isLoading: true })} />);
+    fireEvent.click(screen.getByTestId("tts-audio-button"));
+    expect(screen.getByTestId("tts-audio-loading")).toBeInTheDocument();
+  });
+
   // --- De-escalated summarized mode ---
 
   it("does NOT render a standalone summarized badge", () => {

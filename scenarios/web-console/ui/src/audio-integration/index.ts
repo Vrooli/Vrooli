@@ -42,10 +42,11 @@ export {
   getTTSConfig,
   updateTTSConfig,
   getTTSSummarizeConfig,
+  listTTSSummarizeModels,
   updateTTSSummarizeConfig,
   reportTTSEvent,
 } from "./api/tts";
-export type { TTSConfig, TTSSummarizeConfig, TTSVoiceInfo, TTSPlaybackEvent } from "./api/tts";
+export type { TTSConfig, TTSSummarizeConfig, TTSSummarizeModel, TTSVoiceInfo, TTSPlaybackEvent } from "./api/tts";
 
 export {
   buildVoiceStreamWsUrl,

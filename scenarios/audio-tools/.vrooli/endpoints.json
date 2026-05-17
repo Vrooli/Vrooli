@@ -536,6 +536,14 @@
       "category": "summarize"
     },
     {
+      "id": "summarize.list_models",
+      "path": "/vrooli.audio_tools.v1.summarize.SummarizeService/ListSummarizeModels",
+      "method": "POST",
+      "summary": "List local and recommended summarizer models",
+      "description": "",
+      "category": "summarize"
+    },
+    {
       "id": "tts.synthesize",
       "path": "/vrooli.audio_tools.v1.tts.TTSService/Synthesize",
       "method": "POST",

@@ -121,6 +121,158 @@ describe("useTtsPlaybackController", () => {
     });
   });
 
+  it("surfaces loading state while playback prep is unresolved", async () => {
+    const event = makeEvent({ id: "e-loading", sequence: 9, summarized: false });
+    const sessions = { "sess-1": { events: [event] } };
+    let releaseSummarize: ((value: { summarized: boolean; speechParagraphs: string[] }) => void) | null = null;
+    mockSummarizeEvent.mockImplementation(() => new Promise((resolve) => {
+      releaseSummarize = resolve;
+    }));
+    const speakText = vi.fn().mockResolvedValue("browser");
+
+    const { result } = renderHook(() => useTtsPlaybackController({
+      conversationSessions: sessions,
+      activePaneId: "sess-1",
+      autoTtsEnabled: true,
+      audioState: { playback: null, isSpeaking: false },
+      setViewMode: vi.fn(),
+      speakText,
+      stopPlayback: vi.fn(),
+      applySummarizeResult: vi.fn(),
+      onSummarizeFailed: vi.fn(),
+      onSummarizeSucceeded: vi.fn(),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.summarizeLevel).toBe("moderate");
+    });
+
+    act(() => {
+      result.current.playEvent("sess-1", "e-loading");
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadingEventId).toBe("e-loading");
+    });
+
+    await act(async () => {
+      releaseSummarize?.({ summarized: true, speechParagraphs: ["Summary"] });
+      await Promise.resolve();
+    });
+  });
+
+  it("normalizes unavailable summarize transport failures for the banner", async () => {
+    const event = makeEvent({ id: "e-fail", sequence: 10, text: "Original" });
+    const sessions = { "sess-1": { events: [event] } };
+    const onSummarizeFailed = vi.fn();
+    const speakText = vi.fn().mockResolvedValue("browser");
+    mockSummarizeEvent.mockRejectedValue(new Error("[unavailable] HTTP 502"));
+
+    const { result } = renderHook(() => useTtsPlaybackController({
+      conversationSessions: sessions,
+      activePaneId: "sess-1",
+      autoTtsEnabled: true,
+      audioState: { playback: null, isSpeaking: false },
+      setViewMode: vi.fn(),
+      speakText,
+      stopPlayback: vi.fn(),
+      applySummarizeResult: vi.fn(),
+      onSummarizeFailed,
+      onSummarizeSucceeded: vi.fn(),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.summarizeLevel).toBe("moderate");
+    });
+
+    act(() => {
+      result.current.playEvent("sess-1", "e-fail");
+    });
+
+    await waitFor(() => {
+      expect(onSummarizeFailed).toHaveBeenCalledWith(
+        "sess-1",
+        "e-fail",
+        expect.stringContaining("audio-tools is unavailable"),
+      );
+    });
+    expect(onSummarizeFailed.mock.calls[0]?.[2]).not.toContain("[unavailable] HTTP 502");
+  });
+
+  it("normalizes summarize timeout failures separately from availability", async () => {
+    const event = makeEvent({ id: "e-timeout", sequence: 10, text: "Original" });
+    const sessions = { "sess-1": { events: [event] } };
+    const onSummarizeFailed = vi.fn();
+    mockSummarizeEvent.mockRejectedValue(new Error("[deadline_exceeded] timeout"));
+
+    const { result } = renderHook(() => useTtsPlaybackController({
+      conversationSessions: sessions,
+      activePaneId: "sess-1",
+      autoTtsEnabled: true,
+      audioState: { playback: null, isSpeaking: false },
+      setViewMode: vi.fn(),
+      speakText: vi.fn().mockResolvedValue("browser"),
+      stopPlayback: vi.fn(),
+      applySummarizeResult: vi.fn(),
+      onSummarizeFailed,
+      onSummarizeSucceeded: vi.fn(),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.summarizeLevel).toBe("moderate");
+    });
+
+    act(() => {
+      result.current.playEvent("sess-1", "e-timeout");
+    });
+
+    await waitFor(() => {
+      expect(onSummarizeFailed).toHaveBeenCalledWith(
+        "sess-1",
+        "e-timeout",
+        expect.stringContaining("timed out"),
+      );
+    });
+    expect(onSummarizeFailed.mock.calls[0]?.[2]).not.toContain("audio-tools is unavailable");
+  });
+
+  it("normalizes missing summarize model failures separately from availability", async () => {
+    const event = makeEvent({ id: "e-missing-model", sequence: 10, text: "Original" });
+    const sessions = { "sess-1": { events: [event] } };
+    const onSummarizeFailed = vi.fn();
+    mockSummarizeEvent.mockRejectedValue(new Error("[failed_precondition] summarize model is not installed"));
+
+    const { result } = renderHook(() => useTtsPlaybackController({
+      conversationSessions: sessions,
+      activePaneId: "sess-1",
+      autoTtsEnabled: true,
+      audioState: { playback: null, isSpeaking: false },
+      setViewMode: vi.fn(),
+      speakText: vi.fn().mockResolvedValue("browser"),
+      stopPlayback: vi.fn(),
+      applySummarizeResult: vi.fn(),
+      onSummarizeFailed,
+      onSummarizeSucceeded: vi.fn(),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.summarizeLevel).toBe("moderate");
+    });
+
+    act(() => {
+      result.current.playEvent("sess-1", "e-missing-model");
+    });
+
+    await waitFor(() => {
+      expect(onSummarizeFailed).toHaveBeenCalledWith(
+        "sess-1",
+        "e-missing-model",
+        expect.stringContaining("model is not installed"),
+      );
+    });
+    expect(onSummarizeFailed.mock.calls[0]?.[2]).not.toContain("audio-tools is unavailable");
+  });
+
   it("carries original-mode preference across messages", async () => {
     const sessions = {
       "sess-1": {

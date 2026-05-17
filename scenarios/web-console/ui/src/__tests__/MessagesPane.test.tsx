@@ -165,6 +165,15 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("audio-popover-e1")).toBeInTheDocument();
   });
 
+  it("shows loading feedback on the active message audio control", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world", speechParagraphs: ["Hello world"] })]);
+    render(<MessagesPane {...defaultProps} loadingEventId="e1" />);
+
+    expect(screen.getByTestId("msg-audio-loading-e1")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-audio-e1")).toBeDisabled();
+    expect(screen.getByTestId("msg-speak-from-e1")).toBeDisabled();
+  });
+
   it("active speaking event shows TTS accent border", () => {
     seedEvents([
       makeEvent({ id: "e1", sequence: 1 }),

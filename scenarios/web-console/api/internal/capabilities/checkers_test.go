@@ -82,7 +82,6 @@ func TestResourceChecker_ConnectionRefused(t *testing.T) {
 // (audio-tools owns Whisper + Kokoro end-to-end now). Resource liveness
 // is exercised via the audio-tools scenario's own checker tests.
 
-
 func TestOllamaChecker_Available(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/tags" {

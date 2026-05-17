@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"audio-tools/internal/envx"
 	"audio-tools/internal/logx"
@@ -60,13 +61,7 @@ func DefaultSummarizeConfig() SummarizeConfig {
 // caller substitute the env reader. Production wires envx.OS{}; tests
 // wire mocks.FakeEnv to assert which keys the config reads.
 func DefaultSummarizeConfigWith(env envx.Reader) SummarizeConfig {
-	model := env.Get("WC_TTS_SUMMARIZE_MODEL")
-	if model == "" {
-		// qwen3:4b follows length/budget instructions much more reliably than
-		// qwen3:1.7b. Users on memory-constrained boxes can set
-		// WC_TTS_SUMMARIZE_MODEL to downshift.
-		model = "qwen3:4b"
-	}
+	model := CoerceUnsafeStoredModel(env.Get("WC_TTS_SUMMARIZE_MODEL"), nil).Model
 	return SummarizeConfig{
 		Enabled:        true,
 		CharThreshold:  500,
@@ -88,7 +83,11 @@ func (p SummarizeConfigPatch) Apply(base SummarizeConfig) SummarizeConfig {
 		base.Level = *p.Level
 	}
 	if p.Model != nil {
-		base.Model = *p.Model
+		if strings.TrimSpace(*p.Model) == "" {
+			base.Model = DefaultSummarizeModel
+		} else {
+			base.Model = strings.TrimSpace(*p.Model)
+		}
 	}
 	if p.TimeoutSeconds != nil {
 		base.TimeoutSeconds = *p.TimeoutSeconds
@@ -131,12 +130,9 @@ func LoadSummarizeConfig(path string) (SummarizeConfig, error) {
 	if cfg.Model == "" {
 		cfg.Model = DefaultSummarizeConfig().Model
 	}
-	// Clamp to a realistic floor. Reasoning models (qwen3 family) emit
-	// hundreds of <think>…</think> tokens before their actual answer, so
-	// anything under ~15 s is a near-guaranteed timeout on CPU inference for
-	// non-trivial inputs. We clamp silently on load so stale configs don't
-	// silently break the feature after a model change or the user picking a
-	// reasoning-capable default.
+	cfg.Model = CoerceUnsafeStoredModel(cfg.Model, nil).Model
+	// Clamp to a realistic floor so stale configs do not silently break the
+	// feature after a model or timeout change.
 	if cfg.TimeoutSeconds < MinSummarizeTimeoutSeconds {
 		cfg.TimeoutSeconds = DefaultSummarizeTimeoutSeconds
 	}

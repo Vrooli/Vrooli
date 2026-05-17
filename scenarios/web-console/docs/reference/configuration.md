@@ -107,6 +107,36 @@ The toolbar component accepts `visible` and `onInput` props. Keys can be customi
 
 ---
 
+## Audio Summarization
+
+Web Console reads and updates TTS summarization through its own
+`AudioAdminService`, which forwards to `audio-tools` `SummarizeService`.
+Operators should use Settings -> Voice Output -> Summarization rather than
+editing JSON by hand.
+
+| Lever | Default | Safe range / values | Impact |
+|-------|---------|---------------------|--------|
+| Enabled | `true` | on/off | Enables automatic summarization before TTS for long assistant messages. |
+| Character threshold | `500` | 100-10,000 in UI | Messages shorter than this are spoken as-is. Higher values reduce summarizer calls. |
+| Level | `moderate` | `light`, `moderate`, `heavy` | Controls how aggressively audio-tools shortens speech text. |
+| Model | `llama3.2:3b` fallback | installed Ollama model from the settings picker | Local Ollama model used by the summarize provider. The picker shows installed, missing, recommended, and reasoning models. |
+| Timeout seconds | `120` | 15-300 in UI | Per-summary deadline. It must stay below web-console's 150s audio-tools call timeout and audio-tools' 180s HTTP write timeout. |
+
+Model defaults are policy-driven, not release-hype-driven. The catalog
+currently recommends fast non-reasoning local candidates (`gemma3:4b`,
+`gemma3n:e2b`, `llama3.2:3b`, `llama3.2:1b`, `qwen2.5:3b`,
+`phi4-mini:3.8b`) and marks reasoning models (`qwen3:*`,
+`deepseek-r1:*`) as unsuitable for default TTS summaries. Missing recommended
+models show an `ollama pull <model>` command; Web Console never pulls models
+automatically.
+
+The default remains `llama3.2:3b` until a locally installed newer candidate
+beats it on both latency and summary quality. If summarization fails, the UI
+distinguishes audio-tools unreachable, deadline exceeded, and selected model
+not installed.
+
+---
+
 ## What Is NOT Exposed (and Why)
 
 These internal details are intentionally kept as implementation constants:

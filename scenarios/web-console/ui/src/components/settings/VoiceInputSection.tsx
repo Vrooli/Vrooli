@@ -57,7 +57,7 @@ export default function VoiceInputSection() {
   const vadAutoStop = useWorkspaceStore((state) => state.vadAutoStop);
   const setVadAutoStop = useWorkspaceStore((state) => state.setVadAutoStop);
   const vadSilenceTimeoutMs = useWorkspaceStore((state) => state.vadSilenceTimeoutMs);
-  const setVadSilenceTimeoutMs = useWorkspaceStore((state) => state.setVadSilenceTimeoutMs);
+  const setStoreVadSilenceTimeoutMs = useWorkspaceStore((state) => state.setVadSilenceTimeoutMs);
   const voiceLanguage = useWorkspaceStore((state) => state.voiceLanguage);
   const setVoiceLanguage = useWorkspaceStore((state) => state.setVoiceLanguage);
   const setStorePersistentMode = useWorkspaceStore((state) => state.setPersistentMode);
@@ -303,9 +303,13 @@ export default function VoiceInputSection() {
         setVsConfig(config);
         // Hydrate workspace store from backend config so useVoiceInput picks up
         // persisted values without waiting for the user to toggle settings.
+        // vad_silence_ms is the authoritative VAD knob; fall back to the
+        // legacy segment_silence_ms only if it's unset on the server.
         setStorePersistentMode(config.persistentMode);
         setStoreWakeWordEnabled(config.wakeWordEnabled ?? false);
-        setStoreSegmentSilenceMs(config.segmentSilenceMs || 1500);
+        const silenceMs = config.vadSilenceMs > 0 ? config.vadSilenceMs : (config.segmentSilenceMs || 1500);
+        setStoreSegmentSilenceMs(silenceMs);
+        setStoreVadSilenceTimeoutMs(silenceMs);
       }
     } catch (error) {
       if (!signal?.cancelled) {
@@ -316,7 +320,7 @@ export default function VoiceInputSection() {
         setVsConfigLoading(false);
       }
     }
-  }, [setStorePersistentMode, setStoreWakeWordEnabled, setStoreSegmentSilenceMs]);
+  }, [setStorePersistentMode, setStoreWakeWordEnabled, setStoreSegmentSilenceMs, setStoreVadSilenceTimeoutMs]);
 
   const loadSpeakerStatus = useCallback(async (signal?: { cancelled: boolean }) => {
     setSpeakerLoading(true);
@@ -360,10 +364,17 @@ export default function VoiceInputSection() {
 
   const handleVsConfigChange = useCallback((patch: Partial<VoiceStreamConfig>) => {
     setVsConfig((current) => (current ? { ...current, ...patch } : null));
-    // Update workspace store immediately for reactive consumers (useVoiceInput)
+    // Update workspace store immediately for reactive consumers (useVoiceInput).
+    // Both vadSilenceMs and segmentSilenceMs patches map onto the same two
+    // store fields: the silence-timeout slider, the segment-silence slider,
+    // and the server's vad_silence_ms collapse to a single source of truth.
     if (patch.persistentMode !== undefined) setStorePersistentMode(patch.persistentMode);
     if (patch.wakeWordEnabled !== undefined) setStoreWakeWordEnabled(patch.wakeWordEnabled);
-    if (patch.segmentSilenceMs !== undefined) setStoreSegmentSilenceMs(patch.segmentSilenceMs);
+    const silenceMs = patch.vadSilenceMs ?? patch.segmentSilenceMs;
+    if (silenceMs !== undefined) {
+      setStoreSegmentSilenceMs(silenceMs);
+      setStoreVadSilenceTimeoutMs(silenceMs);
+    }
     // Debounce the backend write
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
@@ -377,7 +388,7 @@ export default function VoiceInputSection() {
         setVsConfigError(toErrorInfo(error).message);
       }
     }, 500);
-  }, [setStorePersistentMode, setStoreWakeWordEnabled, setStoreSegmentSilenceMs]);
+  }, [setStorePersistentMode, setStoreWakeWordEnabled, setStoreSegmentSilenceMs, setStoreVadSilenceTimeoutMs]);
 
   const saveWakeWord = useCallback(async () => {
     const samples = wwSamplesRef.current.filter((s): s is AudioFeatures => s !== null);
@@ -644,12 +655,16 @@ export default function VoiceInputSection() {
                     <input
                       data-testid="vad-silence-timeout-slider"
                       type="range"
-                      min={1000}
-                      max={5000}
-                      step={250}
+                      min={200}
+                      max={3000}
+                      step={100}
                       value={vadSilenceTimeoutMs}
-                      onChange={(event) => setVadSilenceTimeoutMs(Number(event.target.value))}
-                      className="w-24 accent-wc-accent"
+                      // Write-through: audio-tools' stt_stream_config.vad_silence_ms
+                      // is the single source of truth. Range matches the
+                      // server-side validation [200, 3000] in stream_config.go.
+                      onChange={(event) => handleVsConfigChange({ vadSilenceMs: Number(event.target.value) })}
+                      disabled={!vsConfig || vsConfigLoading}
+                      className="w-24 accent-wc-accent disabled:opacity-50"
                     />
                     <span className="w-9 text-end text-xs text-wc-text-muted">
                       {t(strings.settings.voiceInputSection.secondsShort, { value: (vadSilenceTimeoutMs / 1000).toFixed(1) })}
@@ -1012,15 +1027,20 @@ export default function VoiceInputSection() {
                         <input
                           data-testid="segment-silence-slider"
                           type="range"
-                          min={800}
+                          min={200}
                           max={3000}
                           step={100}
-                          value={vsConfig.segmentSilenceMs}
-                          onChange={(event) => handleVsConfigChange({ segmentSilenceMs: Number(event.target.value) })}
-                          className="w-24 accent-wc-accent"
+                          // Reads from vad_silence_ms (with legacy fall-back),
+                          // writes to vad_silence_ms. Both this slider and
+                          // the silence-timeout slider above map to the same
+                          // server field — they are two UI views on one knob.
+                          value={vsConfig.vadSilenceMs > 0 ? vsConfig.vadSilenceMs : vsConfig.segmentSilenceMs}
+                          onChange={(event) => handleVsConfigChange({ vadSilenceMs: Number(event.target.value) })}
+                          disabled={vsConfigLoading}
+                          className="w-24 accent-wc-accent disabled:opacity-50"
                         />
                         <span className="w-9 text-end text-xs text-wc-text-muted">
-                          {t(strings.settings.voiceInputSection.secondsShort, { value: (vsConfig.segmentSilenceMs / 1000).toFixed(1) })}
+                          {t(strings.settings.voiceInputSection.secondsShort, { value: ((vsConfig.vadSilenceMs > 0 ? vsConfig.vadSilenceMs : vsConfig.segmentSilenceMs) / 1000).toFixed(1) })}
                         </span>
                       </div>
                     )}

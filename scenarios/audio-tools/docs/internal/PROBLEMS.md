@@ -159,6 +159,31 @@ a migration handoff with a planned retirement path back into
 
 **Workaround:** Manual UI smoke after restart confirms handshake + echo. Connect-RPC bidi `TranscribeStream` is covered end-to-end and shares the segmenter + strategy path, so most regressions surface there.
 
+### 2026-05-17 — Summarize default awaits newer-model local benchmark
+
+**Symptom:** The summarize catalog includes newer research-backed candidates
+(`gemma3:4b`, `gemma3n:e2b`, `phi4-mini:3.8b`), but the default remains
+`llama3.2:3b`.
+
+**Root cause:** The target machine has Ollama 0.11.7 and installed
+`llama3.2:3b`, `llama3.2:1b`, `qwen2.5:3b`, `mistral:latest`, `qwen3:*`,
+and `deepseek-r1:8b`, but not Gemma 3, Gemma 3n, or Phi-4 Mini. The system
+must not pull large model artifacts without explicit operator approval.
+
+**Workaround:** Use the web-console model picker. Missing recommended models
+show `ollama pull <model>` commands for manual installation.
+
+**Real fix:** After an operator installs candidates, benchmark them against
+representative assistant-output fixtures. Change the default only if a
+non-reasoning candidate beats `llama3.2:3b` on latency and preserves key facts
+without prompt leakage or visible reasoning.
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/summarize/model_policy.go`,
+`api/internal/summarize/model_policy_test.go`,
+`packages/proto/schemas/audio-tools/v1/summarize/summarize.proto`.
+
 **Real fix:** Hoist a `handlers/stt/mocks/ws.go` helper and add `stream_ws_test.go` with the four scenarios from plan §G2 (`audio-tools-post-extraction-cleanup-professionalization.md`).
 
 **Owner:** unassigned.

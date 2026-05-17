@@ -1041,6 +1041,7 @@ export default function Workspace() {
         isDropTarget={isDropTarget}
         isTtsSpeaking={isTtsSpeaking && workspace.activePane === paneMeta.sessionId}
         activeSpeakingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.activeEventId : null}
+        loadingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.loadingEventId : null}
         summarizeLevel={ttsPlaybackController.summarizeLevel}
         summarizingEventId={ttsPlaybackController.summarizingEventId}
         getSummarizeError={getPlaybackSummarizeError}
@@ -1314,6 +1315,7 @@ export default function Workspace() {
                   isVisible={paneMeta.sessionId === workspace.activePane}
                   isTtsSpeaking={isTtsSpeaking && workspace.activePane === paneMeta.sessionId}
                   activeSpeakingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.activeEventId : null}
+                  loadingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.loadingEventId : null}
                   summarizeLevel={ttsPlaybackController.summarizeLevel}
                   summarizingEventId={ttsPlaybackController.summarizingEventId}
                   getSummarizeError={getPlaybackSummarizeError}
@@ -1420,6 +1422,7 @@ export default function Workspace() {
               hasOriginalVersion={hasOriginal}
               canSummarize={canRequestSummarize}
               isSummarizing={ttsPlaybackController.summarizingEventId === activeEvent.id}
+              isLoading={ttsPlaybackController.loadingEventId === activeEvent.id}
               currentLevel={ttsPlaybackController.summarizeLevel}
               currentMessageLabel={context.queueLabel}
               currentMessageId={activeEvent.id}

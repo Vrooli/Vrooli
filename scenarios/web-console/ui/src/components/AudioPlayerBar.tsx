@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type CSSProperties, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
-import { Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Loader2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TTSPlaybackCapabilities } from "../audio-integration";
 import type { ConversationEvent } from "../api/conversation";
@@ -28,6 +28,8 @@ export interface AudioPlayerBarProps {
   canSummarize?: boolean;
   /** Whether a summarization request is in progress. */
   isSummarizing?: boolean;
+  /** Whether playback data or synthesized audio is being prepared. */
+  isLoading?: boolean;
   /** Current global summarization level. */
   currentLevel?: SummarizationLevel;
   currentMessageLabel?: string | null;
@@ -76,6 +78,7 @@ export default function AudioPlayerBar({
   hasOriginalVersion = false,
   canSummarize = false,
   isSummarizing = false,
+  isLoading = false,
   currentLevel = "moderate",
   currentMessageLabel = null,
   currentMessageId = null,
@@ -143,6 +146,7 @@ export default function AudioPlayerBar({
   return (
     <div
       data-testid="audio-player-bar"
+      data-loading={isLoading ? "true" : "false"}
       className="flex items-center gap-1.5 border-t border-wc-default bg-wc-surface-raised py-1.5 ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] text-wc-text-primary animate-in slide-in-from-bottom-2 duration-200"
     >
       <PlaybackModeControl
@@ -160,14 +164,18 @@ export default function AudioPlayerBar({
       <button
         data-testid="tts-play-pause"
         onClick={handlePlayPause}
-        disabled={!capabilities.canPause}
+        disabled={isLoading || !capabilities.canPause}
         className={cn(
           "shrink-0 rounded p-1 transition hover:bg-wc-accent/10",
-          !capabilities.canPause && "opacity-40 cursor-not-allowed",
+          isLoading && "cursor-wait text-wc-accent",
+          (isLoading || !capabilities.canPause) && "opacity-60",
+          !isLoading && !capabilities.canPause && "cursor-not-allowed",
         )}
-        title={isPaused ? t(strings.audioPlayerBar.resume) : t(strings.audioPlayerBar.pause)}
+        title={isLoading ? t(strings.app.loading) : isPaused ? t(strings.audioPlayerBar.resume) : t(strings.audioPlayerBar.pause)}
       >
-        {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+        {isLoading
+          ? <Loader2 data-testid="tts-playback-loading" className="h-4 w-4 animate-spin" />
+          : isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
       </button>
 
       {currentMessageLabel && (
@@ -187,6 +195,7 @@ export default function AudioPlayerBar({
         >
           <span>{currentMessageLabel}</span>
           {hasQueuedNext && <span className="text-[10px] text-amber-300">{t(strings.audioPlayerBar.nextBadge)}</span>}
+          {isLoading && <Loader2 data-testid="tts-message-loading" className="h-3 w-3 animate-spin text-wc-accent" />}
         </button>
       )}
 
@@ -284,6 +293,12 @@ export default function AudioPlayerBar({
                 onSetMuted={onSetMuted}
                 onSetPlaybackRate={onSetPlaybackRate}
               />
+              {isLoading && (
+                <div data-testid="tts-audio-loading" className="mt-3 flex items-center gap-2 rounded-lg bg-wc-surface-base px-3 py-2 text-xs text-wc-text-muted">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" />
+                  <span>{t(strings.app.loading)}</span>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -309,6 +324,12 @@ export default function AudioPlayerBar({
                 onSetMuted={onSetMuted}
                 onSetPlaybackRate={onSetPlaybackRate}
               />
+              {isLoading && (
+                <div data-testid="tts-audio-loading" className="mt-3 flex items-center gap-2 rounded-lg bg-wc-surface-base px-3 py-2 text-xs text-wc-text-muted">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" />
+                  <span>{t(strings.app.loading)}</span>
+                </div>
+              )}
             </div>
           </>
         ),

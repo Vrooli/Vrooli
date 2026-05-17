@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
+	"web-console/integrations/audiotools"
 	"web-console/internal/audioports"
 )
 
@@ -222,6 +224,15 @@ func splitIntoSpeechParagraphs(text string) []string {
 func summarizeErrorMessage(err error) string {
 	if err == nil {
 		return ""
+	}
+	if errors.Is(err, audiotools.ErrTimeout) {
+		return "Summarization timed out before audio-tools returned a result. Try again or increase the summarize timeout in voice settings."
+	}
+	if errors.Is(err, audiotools.ErrUnavailable) {
+		return "Summarization failed: audio-tools is unavailable. Check that audio-tools and its Ollama summarizer are running."
+	}
+	if errors.Is(err, audiotools.ErrFailedPrecondition) {
+		return "Summarization failed: selected Ollama summarizer model is not installed. Choose an installed model in voice settings or run the shown ollama pull command."
 	}
 	msg := err.Error()
 	if msg == "" {

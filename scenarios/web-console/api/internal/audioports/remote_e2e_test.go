@@ -28,9 +28,9 @@ import (
 // fakeSTT implements the generated STTServiceHandler.
 type fakeSTT struct {
 	sttconnect.UnimplementedSTTServiceHandler
-	mu        sync.Mutex
+	mu          sync.Mutex
 	transcripts []string
-	lastReq   *sttv1.TranscribeRequest
+	lastReq     *sttv1.TranscribeRequest
 }
 
 func (f *fakeSTT) Transcribe(ctx context.Context, req *connect.Request[sttv1.TranscribeRequest]) (*connect.Response[sttv1.TranscribeResponse], error) {
@@ -53,10 +53,10 @@ func (f *fakeSTT) Transcribe(ctx context.Context, req *connect.Request[sttv1.Tra
 // fakeTTS implements the generated TTSServiceHandler.
 type fakeTTS struct {
 	ttsconnect.UnimplementedTTSServiceHandler
-	mu       sync.Mutex
-	audio    []byte
-	lastReq  *ttsv1.SynthesizeRequest
-	normCalls int
+	mu         sync.Mutex
+	audio      []byte
+	lastReq    *ttsv1.SynthesizeRequest
+	normCalls  int
 	splitCalls int
 }
 
@@ -195,8 +195,8 @@ func TestNormalizeError_MapsConnectCodes(t *testing.T) {
 		expected error
 	}{
 		{connect.CodeUnavailable, audiotools.ErrUnavailable},
-		{connect.CodeDeadlineExceeded, audiotools.ErrUnavailable},
-		{connect.CodeFailedPrecondition, audiotools.ErrUnavailable},
+		{connect.CodeDeadlineExceeded, audiotools.ErrTimeout},
+		{connect.CodeFailedPrecondition, audiotools.ErrFailedPrecondition},
 		{connect.CodeResourceExhausted, audiotools.ErrInsufficientCredits},
 		{connect.CodeInvalidArgument, audiotools.ErrInvalidArgument},
 	}

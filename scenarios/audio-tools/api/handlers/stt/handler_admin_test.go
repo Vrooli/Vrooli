@@ -402,8 +402,16 @@ func TestStreamConfig_UpdateRoundTrip(t *testing.T) {
 
 	get, err := c.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
 	require.NoError(t, err)
-	require.Equal(t, int32(300), get.Msg.GetConfig().GetFlushIntervalMs())
-	require.Equal(t, sttv1.StrategyPreference_STRATEGY_PREFERENCE_VAD, get.Msg.GetConfig().GetStrategyPreference())
+	cfg := get.Msg.GetConfig()
+	require.Equal(t, int32(300), cfg.GetFlushIntervalMs())
+	// The five advanced fields are the single source of truth for client-side
+	// streaming VAD timing — see scenarios/audio-tools/docs/domains/stt/
+	// streaming-pipeline.md. Round-tripping them through SQLite must be lossless.
+	require.Equal(t, sttv1.StreamingMode_STREAMING_MODE_AUTO, cfg.GetStreamingMode())
+	require.Equal(t, sttv1.StrategyPreference_STRATEGY_PREFERENCE_VAD, cfg.GetStrategyPreference())
+	require.Equal(t, int32(700), cfg.GetVadSilenceMs())
+	require.Equal(t, int32(2000), cfg.GetOverlapWindowMs())
+	require.Equal(t, int32(2), cfg.GetOverlapCommitRuns())
 }
 
 func TestStreamConfig_UpdateRejectsUnknownMaskPath(t *testing.T) {

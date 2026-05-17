@@ -2,6 +2,8 @@ package capabilities
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"audio-tools/internal/httpc"
@@ -12,6 +14,8 @@ import (
 type OllamaChecker struct {
 	BaseURL string
 	Doer    httpc.Doer
+	Model   string
+	ModelFn func() string
 }
 
 func (c *OllamaChecker) Check(ctx context.Context) (Status, string) {
@@ -24,10 +28,30 @@ func (c *OllamaChecker) Check(ctx context.Context) (Status, string) {
 	if err != nil {
 		return StatusUnavailable, "Ollama is not responding"
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
+	model := c.Model
+	if c.ModelFn != nil {
+		model = c.ModelFn()
+	}
+	if resp.StatusCode == http.StatusOK && model == "" {
 		return StatusAvailable, "Ollama is running"
+	}
+	if resp.StatusCode == http.StatusOK {
+		var tags struct {
+			Models []struct {
+				Name string `json:"name"`
+			} `json:"models"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
+			return StatusUnavailable, "Ollama tags response is not valid JSON"
+		}
+		for _, candidate := range tags.Models {
+			if candidate.Name == model {
+				return StatusAvailable, fmt.Sprintf("Ollama is running and summarize model %q is available", model)
+			}
+		}
+		return StatusUnavailable, fmt.Sprintf("Ollama is running but summarize model %q is not installed", model)
 	}
 
 	return StatusUnavailable, "Ollama returned unexpected status"

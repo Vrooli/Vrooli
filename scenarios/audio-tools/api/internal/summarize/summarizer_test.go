@@ -3,6 +3,7 @@ package summarize
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -106,6 +107,20 @@ func TestSummarizer_ServerError(t *testing.T) {
 	}
 }
 
+func TestSummarizer_ModelNotInstalled(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"model \"missing:latest\" not found, try pulling it first"}`))
+	}))
+	defer ts.Close()
+
+	s := NewSummarizer(ts.URL, ts.Client())
+	_, err := s.Summarize(context.Background(), "text", "missing:latest", "moderate")
+	if !errors.Is(err, ErrSummarizeModelNotInstalled) {
+		t.Fatalf("error = %v, want ErrSummarizeModelNotInstalled", err)
+	}
+}
+
 func TestStripThinkTags(t *testing.T) {
 	tests := []struct {
 		name, input, want string
@@ -169,7 +184,7 @@ func TestSummarizer_SendsTokenAndTemperatureOptions(t *testing.T) {
 			defer ts.Close()
 
 			s := NewSummarizer(ts.URL, ts.Client())
-			if _, err := s.Summarize(context.Background(), tc.inputText, "m", tc.level); err != nil {
+			if _, err := s.Summarize(context.Background(), tc.inputText, "llama3.2:1b", tc.level); err != nil {
 				t.Fatalf("summarize: %v", err)
 			}
 
@@ -182,12 +197,45 @@ func TestSummarizer_SendsTokenAndTemperatureOptions(t *testing.T) {
 				t.Errorf("expected temperature=0.2, got %v", opts["temperature"])
 			}
 			numPredict, _ := opts["num_predict"].(float64)
-			want := summarizeTokenBudget(tc.level, len(tc.inputText)) + reasoningHeadroomTokens
+			want := summarizeTokenBudget(tc.level, len(tc.inputText))
 			if int(numPredict) != want {
 				t.Errorf("num_predict: got %v, want %d", opts["num_predict"], want)
 			}
 			if numPredict <= 0 {
 				t.Errorf("num_predict must be positive, got %v", opts["num_predict"])
+			}
+		})
+	}
+}
+
+func TestSummarizer_AddsReasoningHeadroomOnlyForReasoningModels(t *testing.T) {
+	cases := []struct {
+		model string
+		want  int
+	}{
+		{"llama3.2:1b", summarizeTokenBudget("moderate", len("hello"))},
+		{"qwen3:4b", summarizeTokenBudget("moderate", len("hello")) + reasoningHeadroomTokens},
+		{"deepseek-r1:8b", summarizeTokenBudget("moderate", len("hello")) + reasoningHeadroomTokens},
+	}
+	for _, tc := range cases {
+		t.Run(tc.model, func(t *testing.T) {
+			var captured map[string]any
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_ = json.NewDecoder(r.Body).Decode(&captured)
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"message": map[string]string{"content": "ok"},
+				})
+			}))
+			defer ts.Close()
+
+			s := NewSummarizer(ts.URL, ts.Client())
+			if _, err := s.Summarize(context.Background(), "hello", tc.model, "moderate"); err != nil {
+				t.Fatalf("summarize: %v", err)
+			}
+			opts := captured["options"].(map[string]any)
+			numPredict, _ := opts["num_predict"].(float64)
+			if int(numPredict) != tc.want {
+				t.Errorf("num_predict: got %v, want %d", opts["num_predict"], tc.want)
 			}
 		})
 	}
@@ -202,8 +250,8 @@ func TestSummarizeTokenBudget_LevelShape(t *testing.T) {
 	}
 
 	smallModerate := summarizeTokenBudget("moderate", 10)
-	if smallModerate != 60 {
-		t.Errorf("moderate floor: got %d, want 60", smallModerate)
+	if smallModerate != 90 {
+		t.Errorf("moderate floor: got %d, want 90", smallModerate)
 	}
 	largeModerate := summarizeTokenBudget("moderate", 10000)
 	if largeModerate <= smallModerate {

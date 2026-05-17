@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 
 	"audio-tools/internal/httpc"
 )
+
+var ErrSummarizeModelNotInstalled = errors.New("summarize model is not installed")
 
 // Summarizer calls Ollama to summarize text for TTS consumption.
 type Summarizer struct {
@@ -56,17 +59,16 @@ func summarizeTokenBudget(level string, inputChars int) int {
 		return budget
 	default: // moderate and unknown
 		budget := inputTokens * 35 / 100
-		if budget < 60 {
-			return 60
+		if budget < 90 {
+			return 90
 		}
 		return budget
 	}
 }
 
-// reasoningHeadroomTokens is the extra num_predict budget reserved for
-// reasoning-model think blocks. qwen3's chat template prefills "<think>\n"
-// into the prompt, so the response starts inside the think block; without
-// headroom the model gets truncated mid-thought and never emits the answer.
+// reasoningHeadroomTokens is extra num_predict budget reserved only when an
+// operator explicitly chooses a reasoning model. The default summarizer model
+// is non-reasoning, so normal TTS summaries stay fast and tightly bounded.
 const reasoningHeadroomTokens = 2048
 
 // SummarizerResponse carries the answer plus the diagnostic signals we need
@@ -95,15 +97,14 @@ func (s *Summarizer) Summarize(ctx context.Context, text, model, level string) (
 	if !ok {
 		systemPrompt = summarizeSystemPrompts["moderate"]
 	}
+	numPredict := summarizeTokenBudget(level, len(text))
+	if isReasoningModel(model) {
+		numPredict += reasoningHeadroomTokens
+	}
 
-	// qwen3's chat template prefills "<|im_start|>assistant\n<think>\n"
-	// before the model generates, so the response *starts inside* the
-	// think block — the opening tag is in the prompt, not in the output.
-	// We therefore (a) reserve extra num_predict headroom for the think
-	// block so the model has room to finish reasoning AND emit the
-	// answer (see reasoningHeadroomTokens), and (b) StripThinkTags
-	// handles the "leading </think>" shape. Neither /no_think nor
-	// `think: false` actually suppresses reasoning on current qwen3 builds.
+	// Reasoning models may still emit <think> blocks despite think:false.
+	// Keep stripping support for explicit overrides, but default configs use
+	// non-reasoning models so normal summaries do not pay this latency cost.
 	body := map[string]any{
 		"model": model,
 		"messages": []map[string]string{
@@ -113,7 +114,7 @@ func (s *Summarizer) Summarize(ctx context.Context, text, model, level string) (
 		"stream": false,
 		"think":  false,
 		"options": map[string]any{
-			"num_predict": summarizeTokenBudget(level, len(text)) + reasoningHeadroomTokens,
+			"num_predict": numPredict,
 			"temperature": 0.2,
 		},
 	}
@@ -136,6 +137,9 @@ func (s *Summarizer) Summarize(ctx context.Context, text, model, level string) (
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		if resp.StatusCode == http.StatusNotFound && looksLikeMissingOllamaModel(string(respBody)) {
+			return SummarizerResponse{}, fmt.Errorf("%w: %s", ErrSummarizeModelNotInstalled, string(respBody))
+		}
 		return SummarizerResponse{}, fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
@@ -157,6 +161,16 @@ func (s *Summarizer) Summarize(ctx context.Context, text, model, level string) (
 		DoneReason: result.DoneReason,
 		EvalCount:  result.EvalCount,
 	}, nil
+}
+
+func isReasoningModel(model string) bool {
+	return IsReasoningModel(model)
+}
+
+func looksLikeMissingOllamaModel(body string) bool {
+	body = strings.ToLower(body)
+	return strings.Contains(body, "model") &&
+		(strings.Contains(body, "not found") || strings.Contains(body, "pull"))
 }
 
 // StripThinkTags removes <think>...</think> blocks that reasoning models

@@ -15,6 +15,7 @@ import {
 } from "./protomap";
 import type { TTSConfig as TTSConfigMsg } from "@vrooli/proto-types/web-console/v1/audio_admin/audio_admin_pb";
 import type { SummarizeConfig as SummarizeConfigMsg } from "@vrooli/proto-types/web-console/v1/audio_admin/audio_admin_pb";
+import type { SummarizeModel as SummarizeModelMsg } from "@vrooli/proto-types/web-console/v1/audio_admin/audio_admin_pb";
 import { SummarizeLevel } from "@vrooli/proto-types/web-console/v1/audio_common/audio_common_pb";
 
 export interface TTSVoiceInfo {
@@ -43,6 +44,21 @@ export interface TTSSummarizeConfig {
   level: "light" | "moderate" | "heavy";
   model: string;
   timeoutSeconds: number;
+}
+
+export interface TTSSummarizeModel {
+  id: string;
+  displayName: string;
+  installed: boolean;
+  recommended: boolean;
+  defaultEligible: boolean;
+  reasoning: boolean;
+  statusLabel: string;
+  pullCommand: string;
+  sizeBytes: bigint;
+  parameterSize: string;
+  sourceUrl: string;
+  notes: string;
 }
 
 const TTS_SYNTHESIS_TIMEOUT_MS = 30_000;
@@ -76,6 +92,23 @@ function decodeSummarizeConfig(c: SummarizeConfigMsg | undefined): TTSSummarizeC
     level: summarizeLevelLabel(c?.level),
     model: c?.model ?? "",
     timeoutSeconds: c?.timeoutSeconds ?? 0,
+  };
+}
+
+function decodeSummarizeModel(m: SummarizeModelMsg): TTSSummarizeModel {
+  return {
+    id: m.id,
+    displayName: m.displayName || m.id,
+    installed: m.installed,
+    recommended: m.recommended,
+    defaultEligible: m.defaultEligible,
+    reasoning: m.reasoning,
+    statusLabel: m.statusLabel,
+    pullCommand: m.pullCommand,
+    sizeBytes: m.sizeBytes,
+    parameterSize: m.parameterSize,
+    sourceUrl: m.sourceUrl,
+    notes: m.notes,
   };
 }
 
@@ -147,6 +180,11 @@ export async function updateTTSConfig(patch: Partial<TTSConfig>): Promise<TTSCon
 export async function getTTSSummarizeConfig(): Promise<TTSSummarizeConfig> {
   const resp = await audioAdminClient.getSummarizeConfig({});
   return decodeSummarizeConfig(resp.config);
+}
+
+export async function listTTSSummarizeModels(): Promise<TTSSummarizeModel[]> {
+  const resp = await audioAdminClient.listSummarizeModels({});
+  return resp.models.map(decodeSummarizeModel);
 }
 
 export async function updateTTSSummarizeConfig(patch: Partial<TTSSummarizeConfig>): Promise<TTSSummarizeConfig> {

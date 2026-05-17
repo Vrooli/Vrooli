@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	intsumm "audio-tools/internal/summarize"
 )
 
 // Bool parses a boolean env var with conventional truthy/falsy spellings.
@@ -74,7 +76,7 @@ func Load() Env {
 		OllamaURL:             Or("AUDIO_OLLAMA_URL", "http://localhost:11434"),
 		LPBSBaseURL:           Or("AUDIO_LPBS_BASE_URL", ""),
 		LPBSAppBundleKey:      Or("AUDIO_LPBS_APP_BUNDLE_KEY", ""),
-		SummarizeDefaultModel: Or("AUDIO_SUMMARIZE_DEFAULT_MODEL", "qwen3:4b"),
+		SummarizeDefaultModel: intsumm.CoerceUnsafeStoredModel(Or("AUDIO_SUMMARIZE_DEFAULT_MODEL", intsumm.DefaultSummarizeModel), nil).Model,
 		AvailTTLBYOK:          Duration("AUDIO_AVAIL_TTL_BYOK", 5*time.Minute),
 		AvailTTLVrooli:        Duration("AUDIO_AVAIL_TTL_VROOLI", 30*time.Second),
 		EnableBYOK:            Bool("AUDIO_AI_ENABLE_BYOK", true),

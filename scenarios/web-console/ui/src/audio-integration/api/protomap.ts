@@ -157,6 +157,36 @@ export function strategyPreferenceFromString(s: string | undefined): StrategyPre
   }
 }
 
+export type StreamingModeLabel = "unspecified" | "auto" | "off";
+
+export function streamingModeLabel(m: StreamingMode | undefined): StreamingModeLabel {
+  switch (m) {
+    case StreamingMode.AUTO:
+      return "auto";
+    case StreamingMode.OFF:
+      return "off";
+    default:
+      return "unspecified";
+  }
+}
+
+export type StrategyPreferenceLabel = "unspecified" | "auto" | "vad" | "overlap" | "passthrough";
+
+export function strategyPreferenceLabel(p: StrategyPreference | undefined): StrategyPreferenceLabel {
+  switch (p) {
+    case StrategyPreference.AUTO:
+      return "auto";
+    case StrategyPreference.VAD:
+      return "vad";
+    case StrategyPreference.OVERLAP:
+      return "overlap";
+    case StrategyPreference.PASSTHROUGH:
+      return "passthrough";
+    default:
+      return "unspecified";
+  }
+}
+
 export function summarizeLevelFromString(s: string | undefined): SummarizeLevel {
   switch (s) {
     case "light":

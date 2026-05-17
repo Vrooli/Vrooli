@@ -251,3 +251,20 @@ func summarizeConfigToProto(s audioports.SummarizeConfig) *audioadminv1.Summariz
 		TimeoutSeconds: s.TimeoutSeconds,
 	}
 }
+
+func summarizeModelToProto(m audioports.SummarizeModel) *audioadminv1.SummarizeModel {
+	return &audioadminv1.SummarizeModel{
+		Id:              m.ID,
+		DisplayName:     m.DisplayName,
+		Installed:       m.Installed,
+		Recommended:     m.Recommended,
+		DefaultEligible: m.DefaultEligible,
+		Reasoning:       m.Reasoning,
+		StatusLabel:     m.StatusLabel,
+		PullCommand:     m.PullCommand,
+		SizeBytes:       m.SizeBytes,
+		ParameterSize:   m.ParameterSize,
+		SourceUrl:       m.SourceURL,
+		Notes:           m.Notes,
+	}
+}

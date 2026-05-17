@@ -311,6 +311,14 @@
       "category": "audio_admin"
     },
     {
+      "id": "audio_admin_list_summarize_models",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/ListSummarizeModels",
+      "method": "POST",
+      "summary": "List TTS summarize models",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
       "id": "audio_runtime_transcribe",
       "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/Transcribe",
       "method": "POST",

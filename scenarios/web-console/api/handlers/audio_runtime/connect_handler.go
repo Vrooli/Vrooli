@@ -43,8 +43,12 @@ func mapErr(err error) error {
 	switch {
 	case err == nil:
 		return nil
+	case errors.Is(err, audiotools.ErrTimeout):
+		return connect.NewError(connect.CodeDeadlineExceeded, err)
 	case errors.Is(err, audiotools.ErrUnavailable):
 		return connect.NewError(connect.CodeUnavailable, err)
+	case errors.Is(err, audiotools.ErrFailedPrecondition):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, audiotools.ErrInsufficientCredits):
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	case errors.Is(err, audiotools.ErrInvalidArgument):

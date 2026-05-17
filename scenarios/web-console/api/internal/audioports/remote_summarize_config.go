@@ -95,3 +95,23 @@ func (r *RemoteSummarizeConfigAdmin) UpdateSummarizeConfig(ctx context.Context, 
 	}
 	return summarizeConfigFromProto(resp.Msg.Config), nil
 }
+
+func (r *RemoteSummarizeConfigAdmin) ListSummarizeModels(ctx context.Context) ([]SummarizeModel, error) {
+	if err := r.ensure(); err != nil {
+		return nil, err
+	}
+	req := connect.NewRequest(&summv1.ListSummarizeModelsRequest{})
+	r.attach(req, ctx)
+	resp, err := r.Client.Summarize.ListSummarizeModels(ctx, req)
+	if err != nil {
+		return nil, r.handleErr(err)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, errors.New("audiotools: empty list_summarize_models response")
+	}
+	out := make([]SummarizeModel, 0, len(resp.Msg.Models))
+	for _, model := range resp.Msg.Models {
+		out = append(out, summarizeModelFromProto(model))
+	}
+	return out, nil
+}

@@ -307,6 +307,21 @@ type SummarizeConfig struct {
 	TimeoutSeconds int32
 }
 
+type SummarizeModel struct {
+	ID              string
+	DisplayName     string
+	Installed       bool
+	Recommended     bool
+	DefaultEligible bool
+	Reasoning       bool
+	StatusLabel     string
+	PullCommand     string
+	SizeBytes       int64
+	ParameterSize   string
+	SourceURL       string
+	Notes           string
+}
+
 // -----------------------------------------------------------------------------
 // Proto <-> domain mappers
 // -----------------------------------------------------------------------------
@@ -509,6 +524,26 @@ func summarizeConfigFromProto(p *summv1.SummarizeConfig) SummarizeConfig {
 		Level:          summarizeLevelFromProto(p.Level),
 		Model:          p.Model,
 		TimeoutSeconds: p.TimeoutSeconds,
+	}
+}
+
+func summarizeModelFromProto(p *summv1.SummarizeModel) SummarizeModel {
+	if p == nil {
+		return SummarizeModel{}
+	}
+	return SummarizeModel{
+		ID:              p.Id,
+		DisplayName:     p.DisplayName,
+		Installed:       p.Installed,
+		Recommended:     p.Recommended,
+		DefaultEligible: p.DefaultEligible,
+		Reasoning:       p.Reasoning,
+		StatusLabel:     p.StatusLabel,
+		PullCommand:     p.PullCommand,
+		SizeBytes:       p.SizeBytes,
+		ParameterSize:   p.ParameterSize,
+		SourceURL:       p.SourceUrl,
+		Notes:           p.Notes,
 	}
 }
 

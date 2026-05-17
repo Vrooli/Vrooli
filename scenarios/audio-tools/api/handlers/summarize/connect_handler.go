@@ -151,3 +151,20 @@ func (h *connectHandler) UpdateSummarizeConfig(_ context.Context, req *connect.R
 	h.deps.SetSummarizeConfig(updated)
 	return connect.NewResponse(&summv1.UpdateSummarizeConfigResponse{Config: toProtoSummarizeConfig(updated)}), nil
 }
+
+func (h *connectHandler) ListSummarizeModels(ctx context.Context, _ *connect.Request[summv1.ListSummarizeModelsRequest]) (*connect.Response[summv1.ListSummarizeModelsResponse], error) {
+	if h.deps.ListSummarizeModels == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("summarize model catalog accessor not configured"))
+	}
+	models, err := h.deps.ListSummarizeModels(ctx)
+	if err != nil {
+		// Return the recommended catalog even when Ollama is down so settings UI
+		// can still explain which models are missing and how to install them.
+		h.deps.Logger.Printf("summarize-models: local ollama list unavailable: %v", err)
+	}
+	out := make([]*summv1.SummarizeModel, 0, len(models))
+	for _, model := range models {
+		out = append(out, toProtoSummarizeModel(model))
+	}
+	return connect.NewResponse(&summv1.ListSummarizeModelsResponse{Models: out}), nil
+}

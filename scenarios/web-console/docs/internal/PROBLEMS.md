@@ -12,9 +12,25 @@ Floating keyboard toolbar behavior varies across mobile browsers (Safari iOS, Ch
 
 While single-user bounds concurrency, rapid terminal output from multiple panes could create write contention on the SQLite transcript table. WAL mode mitigates but may need monitoring.
 
-## 4. AI Provider Timeout Tuning
+## 4. AI Provider Timeout and Summarize Model Selection
 
-Ollama timeout before OpenRouter fallback needs empirical tuning. Too short = unnecessary fallbacks; too long = poor UX when Ollama is down.
+**PARTIALLY RESOLVED** (2026-05-17): The TTS summarize path now separates
+audio-tools unreachable, deadline exceeded, and selected Ollama model missing.
+Model selection is exposed in Voice Output settings through a catalog returned
+by audio-tools. The catalog marks recommended, installed, missing,
+default-eligible, and reasoning models, and reasoning models are excluded from
+default selection.
+
+Current default: `llama3.2:3b`, because it is installed locally and was
+validated as a fast non-reasoning fallback. Research-backed candidates
+(`gemma3:4b`, `gemma3n:e2b`, `phi4-mini:3.8b`) remain uninstalled on the
+target machine as of 2026-05-17, so they are visible as recommended missing
+models with `ollama pull` commands instead of being silently selected.
+
+Remaining gap: run a local benchmark after explicitly installing newer
+candidates. The default should change only if a candidate beats
+`llama3.2:3b` on latency and preserves summary quality without visible
+reasoning/prompt leakage.
 
 ## 5. Standards: Setup Steps Configuration (MEDIUM)
 

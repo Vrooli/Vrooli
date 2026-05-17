@@ -24,6 +24,27 @@ Last updated: 2026-05-16
 > `internal/tts/*` paths are kept as a historical record while the
 > documentation is rewritten; the code paths themselves no longer exist.
 
+## Audio Summarize Model Catalog (added 2026-05-17)
+
+**Owner boundary:** audio-tools owns summarize model policy, catalog metadata,
+Ollama `/api/tags` inspection, and persisted summarize config. Web Console
+owns only the same-origin admin surface and settings UI.
+
+- Audio-tools API: `SummarizeService.ListSummarizeModels` returns known
+  recommended candidates merged with locally installed Ollama models.
+- Web-console API: `AudioAdminService.ListSummarizeModels` mirrors the shape
+  with web-console-owned proto messages. UI code imports only
+  `@vrooli/proto-types/web-console/*`.
+- Backend adapter: `api/internal/audioports.RemoteSummarizeConfigAdmin`
+  forwards config and catalog calls. `connect.CodeFailedPrecondition` maps to
+  `audiotools.ErrFailedPrecondition` so a missing selected model does not look
+  like global audio-tools downtime.
+- UI hook: `ui/src/components/settings/useSummarizeSettings.ts` owns load,
+  save, model-list, and error state for the settings surface.
+
+Key invariant: model install/pull operations are operator actions outside this
+seam. The UI may show `ollama pull <model>` but must not run it.
+
 ## Input delivery (refactored 2026-04-24)
 
 Terminal input now flows through a kind-discriminated path. See

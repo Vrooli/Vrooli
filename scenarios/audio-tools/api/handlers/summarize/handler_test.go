@@ -38,12 +38,23 @@ func newServer(t *testing.T, chain *summarizechain.Chain) summconnect.SummarizeS
 		mu.Lock()
 		defer mu.Unlock()
 		cfg = c
+	}, func(context.Context) ([]intsumm.SummarizeModelInfo, error) {
+		return intsumm.MergeSummarizeModels([]intsumm.OllamaModel{{Name: intsumm.DefaultSummarizeModel}}), nil
 	}, logx.Std{}, clock.System{}, nil)
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
 	return summconnect.NewSummarizeServiceClient(http.DefaultClient, srv.URL)
+}
+
+func TestSummarize_ListModelsReturnsCatalog(t *testing.T) {
+	c := newServer(t, nil)
+	res, err := c.ListSummarizeModels(context.Background(), connect.NewRequest(&summv1.ListSummarizeModelsRequest{}))
+	require.NoError(t, err)
+	require.NotEmpty(t, res.Msg.GetModels())
+	require.Equal(t, intsumm.DefaultSummarizeModel, res.Msg.GetModels()[0].GetId())
+	require.True(t, res.Msg.GetModels()[0].GetInstalled())
 }
 
 func TestSummarize_HappyPathViaVrooli(t *testing.T) {

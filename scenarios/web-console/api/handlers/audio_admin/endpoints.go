@@ -128,4 +128,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:  "Update TTS summarize config",
 		Category: "audio_admin",
 	},
+	{
+		ID:       "audio_admin_list_summarize_models",
+		Path:     audioadminconnect.AudioAdminServiceListSummarizeModelsProcedure,
+		Method:   "POST",
+		Summary:  "List TTS summarize models",
+		Category: "audio_admin",
+	},
 }

@@ -24,6 +24,7 @@ interface WorkspacePaneShellProps {
   isVisible?: boolean;
   isTtsSpeaking: boolean;
   activeSpeakingEventId: string | null;
+  loadingEventId: string | null;
   summarizeLevel: SummarizationLevel;
   summarizingEventId: string | null;
   getSummarizeError: (eventId: string) => string | null;
@@ -70,6 +71,7 @@ function WorkspacePaneShell({
   isVisible = true,
   isTtsSpeaking,
   activeSpeakingEventId,
+  loadingEventId,
   summarizeLevel,
   summarizingEventId,
   getSummarizeError,
@@ -205,6 +207,7 @@ function WorkspacePaneShell({
               onPlayFromHere={handlePlayFromHere}
               onPlayEvent={handlePlayEvent}
               activeSpeakingEventId={activeSpeakingEventId}
+              loadingEventId={loadingEventId}
               isTtsSpeaking={isTtsSpeaking}
               summarizeLevel={summarizeLevel}
               selectedVersionForEvent={resolveSelectedVersion}
@@ -238,6 +241,7 @@ export default memo(WorkspacePaneShell, (prev, next) => (
   && prev.isVisible === next.isVisible
   && prev.isTtsSpeaking === next.isTtsSpeaking
   && prev.activeSpeakingEventId === next.activeSpeakingEventId
+  && prev.loadingEventId === next.loadingEventId
   && prev.summarizeLevel === next.summarizeLevel
   && prev.summarizingEventId === next.summarizingEventId
   && prev.playbackState === next.playbackState

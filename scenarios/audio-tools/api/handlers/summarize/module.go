@@ -2,6 +2,8 @@
 package summarize
 
 import (
+	"context"
+
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
@@ -16,15 +18,16 @@ import (
 )
 
 type Deps struct {
-	Chain              *summarizechain.Chain
-	Logger             logx.Logger
-	Clock              clock.Clock
-	GetSummarizeConfig func() intsumm.SummarizeConfig
-	SetSummarizeConfig func(intsumm.SummarizeConfig)
-	Usage              usagereport.Recorder
+	Chain               *summarizechain.Chain
+	Logger              logx.Logger
+	Clock               clock.Clock
+	GetSummarizeConfig  func() intsumm.SummarizeConfig
+	SetSummarizeConfig  func(intsumm.SummarizeConfig)
+	ListSummarizeModels func(context.Context) ([]intsumm.SummarizeModelInfo, error)
+	Usage               usagereport.Recorder
 }
 
-func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), logger logx.Logger, clk clock.Clock, usage usagereport.Recorder) modulekit.Module {
+func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), logger logx.Logger, clk clock.Clock, usage usagereport.Recorder) modulekit.Module {
 	if logger == nil {
 		panic("summarize.Module requires logger")
 	}
@@ -32,12 +35,13 @@ func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, 
 		panic("summarize.Module requires clock")
 	}
 	connectPath, connectHandler := summconnect.NewSummarizeServiceHandler(NewConnectHandler(Deps{
-		Chain:              chain,
-		Logger:             logger,
-		Clock:              clk,
-		GetSummarizeConfig: getCfg,
-		SetSummarizeConfig: setCfg,
-		Usage:              usage,
+		Chain:               chain,
+		Logger:              logger,
+		Clock:               clk,
+		GetSummarizeConfig:  getCfg,
+		SetSummarizeConfig:  setCfg,
+		ListSummarizeModels: listModels,
+		Usage:               usage,
 	}))
 	return modulekit.Module{
 		Name: "summarize",
@@ -64,6 +68,11 @@ var Endpoints = []modulekit.EndpointDescriptor{
 	{
 		ID: "summarize.update_config", Path: "/vrooli.audio_tools.v1.summarize.SummarizeService/UpdateSummarizeConfig",
 		Method: "POST", Summary: "Update the persisted summarizer configuration",
+		Category: "summarize",
+	},
+	{
+		ID: "summarize.list_models", Path: "/vrooli.audio_tools.v1.summarize.SummarizeService/ListSummarizeModels",
+		Method: "POST", Summary: "List local and recommended summarizer models",
 		Category: "summarize",
 	},
 }

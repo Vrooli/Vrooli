@@ -74,10 +74,14 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	// every capability and the STT/TTS/Summarize chains report "all
 	// providers failed" even when the underlying resources are healthy.
 	doer := httpc.DefaultDoer()
+	summCfg := intsumm.DefaultSummarizeConfig()
+	summCfg.Model = env.SummarizeDefaultModel
 	capsCheckers := map[string]capabilities.Checker{
 		"whisper-stt": &capabilities.WhisperChecker{BaseURL: env.WhisperURL, Doer: doer},
 		"kokoro-tts":  &capabilities.KokoroChecker{BaseURL: env.KokoroURL, Doer: doer},
-		"ollama":      &capabilities.OllamaChecker{BaseURL: env.OllamaURL, Doer: doer},
+		"ollama": &capabilities.OllamaChecker{BaseURL: env.OllamaURL, Doer: doer, ModelFn: func() string {
+			return summCfg.Model
+		}},
 	}
 	capsRegistry := capabilities.NewRegistry(capabilities.Known, capsCheckers, 30*time.Second)
 	skipVerifyCount := &atomic.Int64{}
@@ -95,7 +99,6 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	ttsCache := inttts.NewCache(64 * 1024 * 1024)
 	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: env.KokoroURL, Doer: httpc.DefaultDoer()}
 	ttsCfg := inttts.DefaultConfig()
-	summCfg := intsumm.DefaultSummarizeConfig()
 	ttsSvc := inttts.NewService(inttts.Deps{
 		Logger:        logger,
 		GetConfig:     func() inttts.Config { return ttsCfg },
@@ -180,6 +183,9 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			chs.Summarize,
 			func() intsumm.SummarizeConfig { return summCfg },
 			func(c intsumm.SummarizeConfig) { summCfg = c },
+			func(ctx context.Context) ([]intsumm.SummarizeModelInfo, error) {
+				return intsumm.ListSummarizeModels(ctx, env.OllamaURL, doer)
+			},
 			logger,
 			clock.System{},
 			usageRecorder,

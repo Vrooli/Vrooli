@@ -160,6 +160,7 @@ type TTSConfigAdmin interface {
 type SummarizeConfigAdmin interface {
 	GetSummarizeConfig(ctx context.Context) (SummarizeConfig, error)
 	UpdateSummarizeConfig(ctx context.Context, mask FieldMask, cfg SummarizeConfig) (SummarizeConfig, error)
+	ListSummarizeModels(ctx context.Context) ([]SummarizeModel, error)
 }
 
 // PlaybackEventRecorder forwards UI-emitted TTS playback events

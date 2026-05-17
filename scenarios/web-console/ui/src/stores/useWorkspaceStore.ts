@@ -336,7 +336,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 13,
+      version: 14,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -393,6 +393,14 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 13) {
           state.startMutedOnLoad ??= true;
         }
+        if (version < 14) {
+          // VAD timing is now server-sourced from audio-tools'
+          // stt_stream_config.vad_silence_ms. Drop any per-browser
+          // overrides so the next hydrate wins on first paint after
+          // upgrade — see useVoiceInput.ts hydration loop.
+          delete state.vadSilenceTimeoutMs;
+          delete state.segmentSilenceMs;
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -404,12 +412,13 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         voiceEnabled: state.voiceEnabled,
         voiceShortcut: state.voiceShortcut,
         vadAutoStop: state.vadAutoStop,
-        vadSilenceTimeoutMs: state.vadSilenceTimeoutMs,
+        // vadSilenceTimeoutMs intentionally NOT persisted —
+        // hydrated from audio-tools stt_stream_config on each mount.
         voiceLanguage: state.voiceLanguage,
         persistentMode: state.persistentMode,
         wakeWordEnabled: state.wakeWordEnabled,
         wakeWordThreshold: state.wakeWordThreshold,
-        segmentSilenceMs: state.segmentSilenceMs,
+        // segmentSilenceMs intentionally NOT persisted (same reason).
         ttsVoice: state.ttsVoice,
         ttsRate: state.ttsRate,
         ttsPitch: state.ttsPitch,

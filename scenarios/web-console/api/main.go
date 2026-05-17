@@ -28,11 +28,11 @@ import (
 	_ "modernc.org/sqlite"
 
 	aiH "web-console/handlers/ai"
+	audioAdminH "web-console/handlers/audio_admin"
+	audioRuntimeH "web-console/handlers/audio_runtime"
 	capabilitiesH "web-console/handlers/capabilities"
 	conversationH "web-console/handlers/conversation"
 	eventsH "web-console/handlers/events"
-	audioAdminH "web-console/handlers/audio_admin"
-	audioRuntimeH "web-console/handlers/audio_runtime"
 	hooksH "web-console/handlers/hooks"
 	metricsH "web-console/handlers/metrics"
 
@@ -41,9 +41,9 @@ import (
 	shortcutsH "web-console/handlers/shortcuts"
 	terminalH "web-console/handlers/terminal"
 	workspaceH "web-console/handlers/workspace"
+	audiotoolsint "web-console/integrations/audiotools"
 	intai "web-console/internal/ai"
 	"web-console/internal/audioports"
-	audiotoolsint "web-console/integrations/audiotools"
 	"web-console/internal/backend"
 	"web-console/internal/capabilities"
 	"web-console/internal/config"
@@ -277,21 +277,21 @@ func NewServer(db *sql.DB) *Server {
 		report.Recovered, report.AwaitingRecovery, report.OrphanedTmux)
 
 	srv := &Server{
-		db:                   db,
-		router:               mux.NewRouter(),
-		sessions:             sessions,
-		fanouts:              fanouts,
-		events:               eventLog,
-		metrics:              metrics,
-		backendRegistry:      backendRegistry,
-		sessionStore:         sessionStore,
-		aiChain:              intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider()),
-		shortcuts:            NewSQLShortcutStore(db),
-		aiConfig:             intai.NewSQLConfigStore(db),
-		sweeper:              session.NewExpirationSweeper(sessions, eventLog, metrics),
-		idempotency:          intsessions.NewIdempotencyCache(),
-		workspace:            intworkspace.NewSQLStore(db),
-		hookAuthToken:        hookToken,
+		db:              db,
+		router:          mux.NewRouter(),
+		sessions:        sessions,
+		fanouts:         fanouts,
+		events:          eventLog,
+		metrics:         metrics,
+		backendRegistry: backendRegistry,
+		sessionStore:    sessionStore,
+		aiChain:         intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider()),
+		shortcuts:       NewSQLShortcutStore(db),
+		aiConfig:        intai.NewSQLConfigStore(db),
+		sweeper:         session.NewExpirationSweeper(sessions, eventLog, metrics),
+		idempotency:     intsessions.NewIdempotencyCache(),
+		workspace:       intworkspace.NewSQLStore(db),
+		hookAuthToken:   hookToken,
 		ttsHookConfigState: hookConfigState{
 			cfg:  hookCfg,
 			path: hookCfgPath,
@@ -361,7 +361,10 @@ func NewServer(db *sql.DB) *Server {
 			TTL:   30 * time.Second,
 		}
 	}
-	atClient, err := audiotoolsint.New(atResolver, audiotoolsint.Policy{Required: true})
+	atClient, err := audiotoolsint.New(atResolver, audiotoolsint.Policy{
+		Required:       true,
+		PerCallTimeout: 150 * time.Second,
+	})
 	if err != nil {
 		log.Fatalf("audio-tools adoption: required dependency not reachable: %v", err)
 	}

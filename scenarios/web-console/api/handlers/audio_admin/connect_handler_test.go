@@ -18,16 +18,16 @@ import (
 
 // fakeSpeakerAdmin captures calls and returns canned data.
 type fakeSpeakerAdmin struct {
-	cfg              audioports.SpeakerConfig
-	status           audioports.SpeakerStatus
-	profiles         []audioports.SpeakerProfile
-	enroll           audioports.SpeakerEnrollResult
-	lastUpdateMask   audioports.FieldMask
-	lastUpdateCfg    audioports.SpeakerConfig
-	lastUnbindID     string
-	lastDeleteID     string
-	lastEnrollInput  audioports.EnrollSpeakerInput
-	getConfigErr     error
+	cfg             audioports.SpeakerConfig
+	status          audioports.SpeakerStatus
+	profiles        []audioports.SpeakerProfile
+	enroll          audioports.SpeakerEnrollResult
+	lastUpdateMask  audioports.FieldMask
+	lastUpdateCfg   audioports.SpeakerConfig
+	lastUnbindID    string
+	lastDeleteID    string
+	lastEnrollInput audioports.EnrollSpeakerInput
+	getConfigErr    error
 }
 
 func (f *fakeSpeakerAdmin) GetSpeakerConfig(_ context.Context) (audioports.SpeakerConfig, error) {
@@ -36,28 +36,35 @@ func (f *fakeSpeakerAdmin) GetSpeakerConfig(_ context.Context) (audioports.Speak
 	}
 	return f.cfg, nil
 }
+
 func (f *fakeSpeakerAdmin) UpdateSpeakerConfig(_ context.Context, mask audioports.FieldMask, cfg audioports.SpeakerConfig) (audioports.SpeakerConfig, error) {
 	f.lastUpdateMask = mask
 	f.lastUpdateCfg = cfg
 	return cfg, nil
 }
+
 func (f *fakeSpeakerAdmin) GetSpeakerStatus(_ context.Context) (audioports.SpeakerStatus, error) {
 	return f.status, nil
 }
+
 func (f *fakeSpeakerAdmin) ListSpeakerProfiles(_ context.Context) ([]audioports.SpeakerProfile, error) {
 	return f.profiles, nil
 }
+
 func (f *fakeSpeakerAdmin) EnrollSpeakerProfile(_ context.Context, in audioports.EnrollSpeakerInput) (audioports.SpeakerEnrollResult, error) {
 	f.lastEnrollInput = in
 	return f.enroll, nil
 }
+
 func (f *fakeSpeakerAdmin) ClearSpeakerProfileBinding(_ context.Context) (audioports.SpeakerConfig, error) {
 	return f.cfg, nil
 }
+
 func (f *fakeSpeakerAdmin) UnbindSpeakerProfile(_ context.Context, id string) (audioports.SpeakerConfig, error) {
 	f.lastUnbindID = id
 	return f.cfg, nil
 }
+
 func (f *fakeSpeakerAdmin) DeleteSpeakerProfile(_ context.Context, id string) (audioports.SpeakerConfig, error) {
 	f.lastDeleteID = id
 	return f.cfg, nil

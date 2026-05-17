@@ -57,6 +57,7 @@ export interface SessionPlaybackController {
   summarizeLevel: SummarizationLevel;
   summarizingEventId: string | null;
   activeEventId: string | null;
+  loadingEventId: string | null;
   focusRequest: PlaybackFocusRequest | null;
   getSelectedVersion: (sessionId: string, event: ConversationEvent) => PlaybackVersion;
   getSummarizeError: (eventId: string) => string | null;

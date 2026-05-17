@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"audio-tools/internal/bootstrap"
 
@@ -25,8 +26,9 @@ func main() {
 	}
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: srv.Handler(),
-		Cleanup: func(ctx context.Context) error { return cleanup() },
+		Handler:      srv.Handler(),
+		WriteTimeout: 180 * time.Second,
+		Cleanup:      func(ctx context.Context) error { return cleanup() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

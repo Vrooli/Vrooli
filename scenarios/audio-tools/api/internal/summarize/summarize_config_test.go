@@ -53,7 +53,7 @@ func TestSummarizeConfig_ClampsUndersizedTimeout(t *testing.T) {
 	// clamps anything below the minimum up to the default.
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tts-summarize-config.json")
-	if err := os.WriteFile(path, []byte(`{"enabled":true,"charThreshold":500,"level":"moderate","model":"qwen3:1.7b","timeoutSeconds":5}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"enabled":true,"charThreshold":500,"level":"moderate","model":"llama3.2:1b","timeoutSeconds":5}`), 0o644); err != nil {
 		t.Fatalf("seed config: %v", err)
 	}
 
@@ -63,6 +63,22 @@ func TestSummarizeConfig_ClampsUndersizedTimeout(t *testing.T) {
 	}
 	if cfg.TimeoutSeconds < MinSummarizeTimeoutSeconds {
 		t.Errorf("timeoutSeconds=%d, want clamped to >= %d", cfg.TimeoutSeconds, MinSummarizeTimeoutSeconds)
+	}
+}
+
+func TestSummarizeConfig_ReplacesReasoningModelOnLoad(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tts-summarize-config.json")
+	if err := os.WriteFile(path, []byte(`{"enabled":true,"charThreshold":500,"level":"moderate","model":"qwen3:4b","timeoutSeconds":120}`), 0o644); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+
+	cfg, err := LoadSummarizeConfig(path)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if cfg.Model != DefaultSummarizeModel {
+		t.Errorf("Model = %q, want %q", cfg.Model, DefaultSummarizeModel)
 	}
 }
 
@@ -97,6 +113,16 @@ func TestSummarizeConfig_PatchSemantics(t *testing.T) {
 	}
 	if result.Level != base.Level {
 		t.Error("level should be preserved when not patched")
+	}
+}
+
+func TestSummarizeConfig_PatchAllowsExplicitReasoningModel(t *testing.T) {
+	base := DefaultSummarizeConfig()
+	model := "qwen3:4b"
+	result := (SummarizeConfigPatch{Model: &model}).Apply(base)
+
+	if result.Model != model {
+		t.Errorf("Model = %q, want explicit override %q", result.Model, model)
 	}
 }
 
@@ -147,10 +173,10 @@ func TestDefaultSummarizeConfig_TimeoutSufficientForColdStart(t *testing.T) {
 // envx.Reader seam: a fake env serves WC_TTS_SUMMARIZE_MODEL without
 // mutating process state, and the read is observable via FakeEnv.Reads().
 func TestDefaultSummarizeConfigWith_ReadsModelFromInjectedEnv(t *testing.T) {
-	env := mocks.NewFakeEnv(map[string]string{"WC_TTS_SUMMARIZE_MODEL": "qwen3:1.7b"})
+	env := mocks.NewFakeEnv(map[string]string{"WC_TTS_SUMMARIZE_MODEL": "llama3.2:3b"})
 	cfg := DefaultSummarizeConfigWith(env)
-	if cfg.Model != "qwen3:1.7b" {
-		t.Errorf("Model = %q, want %q", cfg.Model, "qwen3:1.7b")
+	if cfg.Model != "llama3.2:3b" {
+		t.Errorf("Model = %q, want %q", cfg.Model, "llama3.2:3b")
 	}
 	reads := env.Reads()
 	if len(reads) != 1 || reads[0] != "WC_TTS_SUMMARIZE_MODEL" {
@@ -161,7 +187,15 @@ func TestDefaultSummarizeConfigWith_ReadsModelFromInjectedEnv(t *testing.T) {
 func TestDefaultSummarizeConfigWith_DefaultsWhenUnset(t *testing.T) {
 	env := mocks.NewFakeEnv(nil)
 	cfg := DefaultSummarizeConfigWith(env)
-	if cfg.Model != "qwen3:4b" {
-		t.Errorf("unset env should default to qwen3:4b, got %q", cfg.Model)
+	if cfg.Model != DefaultSummarizeModel {
+		t.Errorf("unset env should default to %q, got %q", DefaultSummarizeModel, cfg.Model)
+	}
+}
+
+func TestDefaultSummarizeConfigWith_ReplacesReasoningEnvModel(t *testing.T) {
+	env := mocks.NewFakeEnv(map[string]string{"WC_TTS_SUMMARIZE_MODEL": "qwen3:4b"})
+	cfg := DefaultSummarizeConfigWith(env)
+	if cfg.Model != DefaultSummarizeModel {
+		t.Errorf("reasoning env model should default to %q, got %q", DefaultSummarizeModel, cfg.Model)
 	}
 }

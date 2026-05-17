@@ -85,6 +85,24 @@ const generateLoadId = (): string => {
   return `load-${Date.now()}-${loadIdCounter}`;
 };
 
+function summarizeFailureMessage(error: unknown): string {
+  if (error instanceof Error) {
+    const raw = error.message.trim();
+    if (!raw) return "Summarization failed";
+    if (raw.includes("[deadline_exceeded]") || raw.toLowerCase().includes("timed out")) {
+      return "Summarization timed out before audio-tools returned a result. Try again or increase the summarize timeout in voice settings.";
+    }
+    if (raw.includes("[unavailable]") || raw.includes("HTTP 502")) {
+      return "Summarization failed: audio-tools is unavailable. Check that audio-tools and its Ollama summarizer are running.";
+    }
+    if (raw.includes("[failed_precondition]") || raw.toLowerCase().includes("model is not installed")) {
+      return "Summarization failed: selected Ollama summarizer model is not installed. Choose an installed model in voice settings or run the shown ollama pull command.";
+    }
+    return raw.startsWith("Summarization failed") ? raw : `Summarization failed: ${raw}`;
+  }
+  return "Summarization failed";
+}
+
 const queueEntriesFromState = (
   state: PlaybackTransportState,
   conversationSessions: Record<string, ConversationSessionLike | undefined>,
@@ -198,14 +216,14 @@ export function useTtsPlaybackController({
             version: "active",
           };
         }
-        const message = result.error ?? "Summarization failed";
+        const message = summarizeFailureMessage(result.error ?? "Summarization failed");
         onSummarizeFailed?.(sessionId, event.id, message);
         setAux((prev) => ({
           ...prev,
           summarizeErrors: { ...prev.summarizeErrors, [event.id]: message },
         }));
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Summarization failed";
+        const message = summarizeFailureMessage(error);
         onSummarizeFailed?.(sessionId, event.id, message);
         setAux((prev) => ({
           ...prev,
@@ -412,7 +430,7 @@ export function useTtsPlaybackController({
           });
           return;
         }
-        const message = result.error ?? "Summarization failed";
+        const message = summarizeFailureMessage(result.error ?? "Summarization failed");
         onSummarizeFailed?.(sessionId, eventId, message);
         setAux((prev) => ({
           ...prev,
@@ -421,7 +439,7 @@ export function useTtsPlaybackController({
         }));
       })
       .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : "Summarization failed";
+        const message = summarizeFailureMessage(error);
         onSummarizeFailed?.(sessionId, eventId, message);
         setAux((prev) => ({
           ...prev,
@@ -597,12 +615,14 @@ export function useTtsPlaybackController({
   const activeEventId = smState.status === "playing" || smState.status === "loading"
     ? smState.eventId
     : null;
+  const loadingEventId = smState.status === "loading" ? smState.eventId : null;
   const focusRequest: PlaybackFocusRequest | null = aux.focusRequest;
 
   return {
     summarizeLevel: aux.summarizeLevel,
     summarizingEventId: aux.summarizingEventId,
     activeEventId,
+    loadingEventId,
     focusRequest,
     getSelectedVersion,
     getSummarizeError: (eventId) => aux.summarizeErrors[eventId] || null,

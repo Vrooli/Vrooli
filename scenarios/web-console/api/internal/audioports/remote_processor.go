@@ -21,8 +21,8 @@ import (
 type RemoteSpeechTextProcessor struct {
 	Client *audiotools.Client
 
-	mu        sync.Mutex
-	normCache map[string]cachedString
+	mu         sync.Mutex
+	normCache  map[string]cachedString
 	splitCache map[string]cachedSplit
 }
 

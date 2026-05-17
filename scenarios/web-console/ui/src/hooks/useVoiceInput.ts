@@ -10,7 +10,7 @@
 //   - capability probe via the web-console `/api/capabilities` surface
 //   - voice-command parsing via the local commandParser
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { getVoiceStreamConfig, useVoiceCore } from "../audio-integration";
 import type { VoiceCapabilityProbe } from "../audio-integration";
 import { fetchCapabilities, getCapabilitiesLivenessSnapshot, refreshCapabilitiesLiveness } from "../api/capabilities";
@@ -23,7 +23,7 @@ export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceI
 export { WHISPER_FAILED_SENTINEL, CAP_CHECK_FAIL_THRESHOLD, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "../audio-integration";
 export { createAudioFilterChain } from "../audio-integration";
 export type { VadState, VadRefs, VadAction, CachedNoiseFloor } from "../audio-integration";
-export { VAD_DEFAULT_SILENCE_TIMEOUT_MS, VAD_DEFAULT_SEGMENT_SILENCE_MS, VAD_FLOOR_CACHE_MAX_AGE_MS, createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, computeSlidingNoiseFloor, vadTick } from "../audio-integration";
+export { VAD_FALLBACK_SILENCE_TIMEOUT_MS, VAD_FALLBACK_SEGMENT_SILENCE_MS, VAD_FLOOR_CACHE_MAX_AGE_MS, createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, computeSlidingNoiseFloor, vadTick } from "../audio-integration";
 export { buildVoiceActivitySnapshot, VAD_AUTO_STOP_VISUAL_GRACE_MS } from "../audio-integration";
 export { getSharedAudioContext, ensureAudioContextOnGesture, closeSharedAudioContext } from "../audio-integration";
 
@@ -96,25 +96,33 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const segmentSilenceMs = useWorkspaceStore((s) => s.segmentSilenceMs);
   const lowLatencyVoice = useWorkspaceStore((s) => s.lowLatencyVoice);
 
-  // Hydrate workspace store from backend voice-stream config on mount, so the
-  // store has authoritative values even before the user opens Settings.
-  // Lives here (not in the core) because writing to the host store is a
-  // host concern — the core takes config via opts.
-  const hydratedRef = useRef(false);
+  // Hydrate workspace store from backend voice-stream config on mount AND
+  // whenever the Settings modal opens (cheap unary RPC, gives near-real-time
+  // sync without WatchStreamConfig). audio-tools' vad_silence_ms is the
+  // single source of truth for both vadSilenceTimeoutMs (auto-stop ring
+  // countdown) and segmentSilenceMs (segment boundary emission); both
+  // client-side concepts collapse to one server lever.
+  const settingsModalOpen = useWorkspaceStore((s) => s.settingsModalOpen);
   useEffect(() => {
-    if (!voiceEnabled || hydratedRef.current) return;
-    hydratedRef.current = true;
+    if (!voiceEnabled) return;
+    let cancelled = false;
     getVoiceStreamConfig()
       .then((cfg) => {
+        if (cancelled) return;
         const store = useWorkspaceStore.getState();
         if (cfg.persistentMode !== store.persistentMode) store.setPersistentMode(cfg.persistentMode);
         if (cfg.wakeWordEnabled !== store.wakeWordEnabled) store.setWakeWordEnabled(cfg.wakeWordEnabled);
-        if (cfg.segmentSilenceMs && cfg.segmentSilenceMs !== store.segmentSilenceMs) {
-          store.setSegmentSilenceMs(cfg.segmentSilenceMs);
+        // Prefer vad_silence_ms (the authoritative server VAD knob) over
+        // the legacy segment_silence_ms field. Fall back when zero.
+        const serverSilenceMs = cfg.vadSilenceMs > 0 ? cfg.vadSilenceMs : cfg.segmentSilenceMs;
+        if (serverSilenceMs > 0) {
+          if (serverSilenceMs !== store.segmentSilenceMs) store.setSegmentSilenceMs(serverSilenceMs);
+          if (serverSilenceMs !== store.vadSilenceTimeoutMs) store.setVadSilenceTimeoutMs(serverSilenceMs);
         }
       })
       .catch(() => { /* Use store defaults */ });
-  }, [voiceEnabled]);
+    return () => { cancelled = true; };
+  }, [voiceEnabled, settingsModalOpen]);
 
   // Capabilities probe is a stable, ref-driven function — recreating it on
   // every render would force the core to reinstall its capability refs.

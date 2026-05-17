@@ -4,6 +4,8 @@
 package summarize
 
 import (
+	"errors"
+
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/ai/summarizechain"
@@ -23,6 +25,23 @@ func toProtoSummarizeConfig(c intsumm.SummarizeConfig) *summv1.SummarizeConfig {
 	}
 }
 
+func toProtoSummarizeModel(m intsumm.SummarizeModelInfo) *summv1.SummarizeModel {
+	return &summv1.SummarizeModel{
+		Id:              m.ID,
+		DisplayName:     m.DisplayName,
+		Installed:       m.Installed,
+		Recommended:     m.Recommended,
+		DefaultEligible: m.DefaultEligible,
+		Reasoning:       m.Reasoning,
+		StatusLabel:     m.StatusLabel,
+		PullCommand:     m.PullCommand,
+		SizeBytes:       m.SizeBytes,
+		ParameterSize:   m.ParameterSize,
+		SourceUrl:       m.SourceURL,
+		Notes:           m.Notes,
+	}
+}
+
 func mapChainError(err error) error {
 	switch err {
 	case summarizechain.ErrInsufficientCredits:
@@ -31,6 +50,9 @@ func mapChainError(err error) error {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	case summarizechain.ErrAllProvidersFailed:
 		return connect.NewError(connect.CodeUnavailable, err)
+	}
+	if errors.Is(err, intsumm.ErrSummarizeModelNotInstalled) {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	return connect.NewError(connect.CodeInternal, err)
 }

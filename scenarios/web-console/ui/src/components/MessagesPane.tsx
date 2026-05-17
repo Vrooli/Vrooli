@@ -9,6 +9,7 @@ import {
   ChevronUp,
   ChevronsUpDown,
   Copy,
+  Loader2,
   Play,
   RotateCw,
   Search,
@@ -48,6 +49,7 @@ interface MessagesPaneProps {
   onPlayFromHere: (eventId: string) => void;
   onPlayEvent: (eventId: string) => void;
   activeSpeakingEventId: string | null;
+  loadingEventId?: string | null;
   isTtsSpeaking: boolean;
   summarizeLevel: SummarizationLevel;
   selectedVersionForEvent: (event: ConversationEvent) => PlaybackVersion;
@@ -118,6 +120,7 @@ interface MessageRowProps {
   onPlayEvent: (eventId: string) => void;
   isTtsSpeaking: boolean;
   activeSpeakingEventId: string | null;
+  loadingEventId: string | null;
   summarizeLevel: SummarizationLevel;
   selectedVersionForEvent: (event: ConversationEvent) => PlaybackVersion;
   summarizingEventId: string | null;
@@ -150,6 +153,7 @@ const MessageRow = memo(function MessageRow({
   onPlayEvent,
   isTtsSpeaking,
   activeSpeakingEventId,
+  loadingEventId = null,
   summarizeLevel,
   selectedVersionForEvent,
   summarizingEventId,
@@ -191,6 +195,7 @@ const MessageRow = memo(function MessageRow({
 
   const isUser = event.role === "user";
   const isTtsActive = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
+  const isAudioLoading = !isUser && loadingEventId === event.id;
   const hasSummary = event.summarized && event.originalSpeechParagraphs != null && event.originalSpeechParagraphs.length > 0;
   const selectedVersion = selectedVersionForEvent(event);
   const useSummarized = selectedVersion === "active" && hasSummary;
@@ -241,7 +246,11 @@ const MessageRow = memo(function MessageRow({
             <button
               data-testid={`msg-speak-from-${event.id}`}
               onClick={() => onPlayFromHere(event.id)}
-              className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
+              disabled={isAudioLoading}
+              className={cn(
+                "rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10",
+                isAudioLoading && "cursor-wait opacity-60",
+              )}
               title={t(strings.messagesPane.readFromHereTitle)}
               type="button"
             >
@@ -264,11 +273,17 @@ const MessageRow = memo(function MessageRow({
                 onPlayEvent(event.id);
                 setOpenPopoverId(isPopoverOpen ? null : event.id);
               }}
-              className="rounded p-0.5 text-wc-text-faint transition hover:text-wc-text-muted hover:bg-wc-accent/10"
+              disabled={isAudioLoading}
+              className={cn(
+                "rounded p-0.5 text-wc-text-faint transition hover:text-wc-text-muted hover:bg-wc-accent/10",
+                isAudioLoading && "cursor-wait text-wc-accent opacity-80",
+              )}
               title={t(strings.messagesPane.playAudioSettingsTitle)}
               type="button"
             >
-              <Volume2 className="h-3 w-3" />
+              {isAudioLoading
+                ? <Loader2 data-testid={`msg-audio-loading-${event.id}`} className="h-3 w-3 animate-spin" />
+                : <Volume2 className="h-3 w-3" />}
             </button>
 
             {isPopoverOpen && createPortal(
@@ -294,6 +309,12 @@ const MessageRow = memo(function MessageRow({
                       onSetMuted={onSetMuted}
                       onSetPlaybackRate={onSetPlaybackRate}
                     />
+                    {isAudioLoading && (
+                      <div data-testid={`audio-popover-loading-${event.id}`} className="mt-3 flex items-center gap-2 rounded-lg bg-wc-surface-base px-3 py-2 text-xs text-wc-text-muted">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" />
+                        <span>{t(strings.app.loading)}</span>
+                      </div>
+                    )}
                     {getSummarizeError(event.id) && (
                       <div
                         data-testid={`msg-summarize-error-${event.id}`}
@@ -332,6 +353,12 @@ const MessageRow = memo(function MessageRow({
                       onSetMuted={onSetMuted}
                       onSetPlaybackRate={onSetPlaybackRate}
                     />
+                    {isAudioLoading && (
+                      <div data-testid={`audio-popover-loading-${event.id}`} className="mt-3 flex items-center gap-2 rounded-lg bg-wc-surface-base px-3 py-2 text-xs text-wc-text-muted">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" />
+                        <span>{t(strings.app.loading)}</span>
+                      </div>
+                    )}
                     {getSummarizeError(event.id) && (
                       <div
                         data-testid={`msg-summarize-error-${event.id}`}
@@ -394,6 +421,7 @@ const MessageRow = memo(function MessageRow({
   prevProps.copiedEventId === nextProps.copiedEventId &&
   prevProps.isTtsSpeaking === nextProps.isTtsSpeaking &&
   prevProps.activeSpeakingEventId === nextProps.activeSpeakingEventId &&
+  prevProps.loadingEventId === nextProps.loadingEventId &&
   prevProps.summarizeLevel === nextProps.summarizeLevel &&
   prevProps.summarizingEventId === nextProps.summarizingEventId &&
   prevProps.playbackState === nextProps.playbackState &&
@@ -411,6 +439,7 @@ export default function MessagesPane({
   onPlayFromHere,
   onPlayEvent,
   activeSpeakingEventId,
+  loadingEventId = null,
   isTtsSpeaking,
   summarizeLevel,
   selectedVersionForEvent,
@@ -912,6 +941,7 @@ export default function MessagesPane({
                     onPlayEvent={onPlayEvent}
                     isTtsSpeaking={isTtsSpeaking}
                     activeSpeakingEventId={activeSpeakingEventId}
+                    loadingEventId={loadingEventId}
                     summarizeLevel={summarizeLevel}
                     selectedVersionForEvent={selectedVersionForEvent}
                     summarizingEventId={summarizingEventId}

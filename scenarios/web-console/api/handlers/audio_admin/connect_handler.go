@@ -42,8 +42,12 @@ func mapErr(err error) error {
 	switch {
 	case err == nil:
 		return nil
+	case errors.Is(err, audiotools.ErrTimeout):
+		return connect.NewError(connect.CodeDeadlineExceeded, err)
 	case errors.Is(err, audiotools.ErrUnavailable):
 		return connect.NewError(connect.CodeUnavailable, err)
+	case errors.Is(err, audiotools.ErrFailedPrecondition):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, audiotools.ErrInsufficientCredits):
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	case errors.Is(err, audiotools.ErrInvalidArgument):
@@ -322,4 +326,19 @@ func (h *connectHandler) UpdateSummarizeConfig(ctx context.Context, req *connect
 		return nil, mapErr(err)
 	}
 	return connect.NewResponse(&audioadminv1.UpdateSummarizeConfigResponse{Config: summarizeConfigToProto(cfg)}), nil
+}
+
+func (h *connectHandler) ListSummarizeModels(ctx context.Context, _ *connect.Request[audioadminv1.ListSummarizeModelsRequest]) (*connect.Response[audioadminv1.ListSummarizeModelsResponse], error) {
+	if h.deps.SummarizeConfig == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, audiotools.ErrUnavailable)
+	}
+	models, err := h.deps.SummarizeConfig.ListSummarizeModels(ctx)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	out := make([]*audioadminv1.SummarizeModel, 0, len(models))
+	for _, model := range models {
+		out = append(out, summarizeModelToProto(model))
+	}
+	return connect.NewResponse(&audioadminv1.ListSummarizeModelsResponse{Models: out}), nil
 }

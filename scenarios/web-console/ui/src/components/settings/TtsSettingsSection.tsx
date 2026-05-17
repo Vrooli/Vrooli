@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
@@ -7,14 +7,12 @@ import { strings } from "../../consts/strings";
 import { toErrorInfo } from "../../lib/errors";
 import {
   getTTSConfig,
-  getTTSSummarizeConfig,
   updateTTSConfig,
-  updateTTSSummarizeConfig,
-  type TTSSummarizeConfig,
 } from "../../audio-integration";
 import { getTTSHookStatus, updateTTSHookConfig } from "../../api/ttsHook";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
+import { useSummarizeSettings } from "./useSummarizeSettings";
 
 // TtsSettingsSection split-of-concerns:
 //   - voice / speed / response-format / summarization knobs → audio-integration
@@ -63,9 +61,7 @@ export default function TtsSettingsSection() {
   const [testState, setTestState] = useState<"idle" | "running" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState<string | null>(null);
 
-  // Summarization config — sourced from audio-tools via audio-integration.
-  const [summarizeConfig, setSummarizeConfig] = useState<TTSSummarizeConfig | null>(null);
-  const [summarizeError, setSummarizeError] = useState<string | null>(null);
+  const summarizeSettings = useSummarizeSettings();
 
   const ttsSettings = useMemo(() => ({
     voice: ttsVoice,
@@ -136,12 +132,6 @@ export default function TtsSettingsSection() {
       setLastPlaybackSummary(hookStatus.lastPlaybackEvent
         ? `${hookStatus.lastPlaybackEvent.stage}${hookStatus.lastPlaybackEvent.backend ? ` via ${hookStatus.lastPlaybackEvent.backend}` : ""}${hookStatus.lastPlaybackEvent.message ? `: ${hookStatus.lastPlaybackEvent.message}` : ""}`
         : null);
-      try {
-        const sumCfg = await getTTSSummarizeConfig();
-        setSummarizeConfig(sumCfg);
-      } catch (sumError) {
-        setSummarizeError(toErrorInfo(sumError).message);
-      }
     } catch (statusErrorValue) {
       setStatusError(toErrorInfo(statusErrorValue).message);
     } finally {
@@ -413,8 +403,8 @@ export default function TtsSettingsSection() {
       />
 
       <SettingsCard className="space-y-4">
-        {summarizeError && (
-          <div className="text-xs text-wc-error-detail">{t(strings.settings.voiceOutputSection.summarizationLoadFailed, { message: summarizeError })}</div>
+        {summarizeSettings.error && (
+          <div className="text-xs text-wc-error-detail">{t(strings.settings.voiceOutputSection.summarizationLoadFailed, { message: summarizeSettings.error })}</div>
         )}
 
         <SettingsRow
@@ -423,13 +413,10 @@ export default function TtsSettingsSection() {
           control={(
             <SettingsToggle
               testId="summarize-toggle"
-              checked={summarizeConfig?.enabled ?? false}
+              checked={summarizeSettings.config?.enabled ?? false}
               onClick={() => {
-                const next = !(summarizeConfig?.enabled ?? false);
-                setSummarizeConfig((prev) => prev ? { ...prev, enabled: next } : null);
-                void updateTTSSummarizeConfig({ enabled: next })
-                  .then((updated) => setSummarizeConfig(updated))
-                  .catch((err) => setSummarizeError(toErrorInfo(err).message));
+                const next = !(summarizeSettings.config?.enabled ?? false);
+                void summarizeSettings.save({ enabled: next });
               }}
             />
           )}
@@ -446,15 +433,13 @@ export default function TtsSettingsSection() {
                 min={100}
                 max={10000}
                 step={100}
-                value={summarizeConfig?.charThreshold ?? 500}
+                value={summarizeSettings.config?.charThreshold ?? 500}
                 onChange={(e) => {
                   const val = Math.max(100, parseInt(e.target.value, 10) || 500);
-                  setSummarizeConfig((prev) => prev ? { ...prev, charThreshold: val } : null);
+                  summarizeSettings.setConfig((prev) => prev ? { ...prev, charThreshold: val } : null);
                 }}
                 onBlur={() => {
-                  void updateTTSSummarizeConfig({ charThreshold: summarizeConfig?.charThreshold ?? 500 })
-                    .then((updated) => setSummarizeConfig(updated))
-                    .catch((err) => setSummarizeError(toErrorInfo(err).message));
+                  void summarizeSettings.save({ charThreshold: summarizeSettings.config?.charThreshold ?? 500 });
                 }}
                 className="w-24 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
               />
@@ -470,13 +455,10 @@ export default function TtsSettingsSection() {
             <select
               data-testid="summarize-level-select"
               className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
-              value={summarizeConfig?.level ?? "moderate"}
+              value={summarizeSettings.config?.level ?? "moderate"}
               onChange={(e) => {
                 const next = e.target.value as "light" | "moderate" | "heavy";
-                setSummarizeConfig((prev) => prev ? { ...prev, level: next } : null);
-                void updateTTSSummarizeConfig({ level: next })
-                  .then((updated) => setSummarizeConfig(updated))
-                  .catch((err) => setSummarizeError(toErrorInfo(err).message));
+                void summarizeSettings.save({ level: next });
               }}
             >
               <option value="light">{t(strings.settings.voiceOutputSection.levelLightOption)}</option>
@@ -490,20 +472,73 @@ export default function TtsSettingsSection() {
           label={t(strings.settings.voiceOutputSection.model)}
           hint={t(strings.settings.voiceOutputSection.modelHint)}
           control={(
-            <input
-              data-testid="summarize-model"
-              type="text"
-              value={summarizeConfig?.model ?? "qwen3:1.7b"}
-              onChange={(e) => {
-                setSummarizeConfig((prev) => prev ? { ...prev, model: e.target.value } : null);
-              }}
-              onBlur={() => {
-                void updateTTSSummarizeConfig({ model: summarizeConfig?.model ?? "qwen3:1.7b" })
-                  .then((updated) => setSummarizeConfig(updated))
-                  .catch((err) => setSummarizeError(toErrorInfo(err).message));
-              }}
-              className="w-36 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
-            />
+            <select
+              data-testid="summarize-model-select"
+              className="max-w-[220px] rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+              disabled={summarizeSettings.loading || summarizeSettings.saving || summarizeSettings.models.length === 0}
+              value={summarizeSettings.config?.model ?? ""}
+              onChange={(e) => void summarizeSettings.save({ model: e.target.value })}
+            >
+              {summarizeSettings.models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.displayName}{model.installed ? "" : " (not installed)"}{model.reasoning ? " (reasoning)" : ""}
+                </option>
+              ))}
+              {summarizeSettings.config?.model && !summarizeSettings.models.some((model) => model.id === summarizeSettings.config?.model) && (
+                <option value={summarizeSettings.config.model}>{summarizeSettings.config.model}</option>
+              )}
+            </select>
+          )}
+        />
+
+        {summarizeSettings.selectedModel && (
+          <div className="rounded-md border border-wc-default bg-wc-surface-base px-3 py-2 text-[11px] text-wc-text-muted">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-medium text-wc-text-secondary">{summarizeSettings.selectedModel.statusLabel}</span>
+              {summarizeSettings.selectedModel.parameterSize && (
+                <span className="text-wc-text-faint">{summarizeSettings.selectedModel.parameterSize}</span>
+              )}
+            </div>
+            {summarizeSettings.selectedModel.reasoning && (
+              <div data-testid="summarize-model-reasoning-warning" className="mt-1 flex gap-1.5 text-wc-error-detail">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>Reasoning models are slower and are not recommended for TTS summaries.</span>
+              </div>
+            )}
+            {!summarizeSettings.selectedModel.installed && summarizeSettings.selectedModel.pullCommand && (
+              <div className="mt-1 break-all font-mono text-[10px] text-wc-text-secondary" data-testid="summarize-model-pull-command">
+                {summarizeSettings.selectedModel.pullCommand}
+              </div>
+            )}
+            {summarizeSettings.selectedModel.notes && (
+              <div className="mt-1">{summarizeSettings.selectedModel.notes}</div>
+            )}
+          </div>
+        )}
+
+        <SettingsRow
+          label="Timeout"
+          hint="Maximum time to wait for local summarization."
+          control={(
+            <div className="flex items-center gap-2">
+              <input
+                data-testid="summarize-timeout"
+                type="number"
+                min={15}
+                max={300}
+                step={5}
+                value={summarizeSettings.config?.timeoutSeconds ?? 120}
+                onChange={(event) => {
+                  const next = Math.min(300, Math.max(15, parseInt(event.target.value, 10) || 120));
+                  summarizeSettings.setConfig((prev) => prev ? { ...prev, timeoutSeconds: next } : null);
+                }}
+                onBlur={() => {
+                  void summarizeSettings.save({ timeoutSeconds: summarizeSettings.config?.timeoutSeconds ?? 120 });
+                }}
+                className="w-20 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+              />
+              <span className="text-xs text-wc-text-faint">sec</span>
+            </div>
           )}
         />
       </SettingsCard>
