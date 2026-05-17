@@ -143,10 +143,6 @@ func (s *SummarizationService) run(ctx context.Context, req SummarizeRequest, cf
 	}
 	defer func() { <-s.sem }()
 
-	// Same-package call — no port indirection needed here. The port lives at
-	// the consumer (audioports) for callers that want to swap out the entire
-	// speech-text pipeline; inside this package we are the canonical
-	// implementation and call directly.
 	normalized := normalizer.NormalizeTextForSpeech(req.Text)
 	if strings.TrimSpace(normalized) == "" {
 		return SummarizeResult{Config: cfg}, errors.New("normalized text is empty")

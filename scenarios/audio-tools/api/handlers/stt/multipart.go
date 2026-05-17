@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/byok/envelope"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
@@ -40,15 +41,16 @@ func MultipartTranscribeHandler(chain *sttchain.Chain) http.Handler {
 			return
 		}
 
+		env := envelope.FromHTTP(r.Header)
 		req := sttchain.Request{
 			Audio:         audio,
 			Format:        r.FormValue("format"),
 			Language:      r.FormValue("language"),
 			InitialPrompt: r.FormValue("initial_prompt"),
-			BYOKProvider:  r.Header.Get("X-Audio-BYOK-Provider"),
-			BYOKKey:       r.Header.Get("X-Audio-BYOK-Key"),
-			LPBSToken:     r.Header.Get("X-Audio-LPBS-Token"),
-			UserIdentity:  r.Header.Get("X-Audio-User-Identity"),
+			BYOKProvider:  env.Provider,
+			BYOKKey:       env.Key,
+			LPBSToken:     env.LPBSToken,
+			UserIdentity:  env.UserIdentity,
 		}
 		res, err := chain.Execute(context.Background(), req)
 		if err != nil {

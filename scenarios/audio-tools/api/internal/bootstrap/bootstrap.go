@@ -1,0 +1,168 @@
+package bootstrap
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"io"
+	"log"
+	"sync/atomic"
+	"time"
+
+	audioH "audio-tools/handlers/audio"
+	healthH "audio-tools/handlers/health"
+	sessionH "audio-tools/handlers/session"
+	settingsH "audio-tools/handlers/settings"
+	sttH "audio-tools/handlers/stt"
+	summarizeH "audio-tools/handlers/summarize"
+	ttsH "audio-tools/handlers/tts"
+	usageH "audio-tools/handlers/usage"
+
+	"audio-tools/internal/byok"
+	"audio-tools/internal/capabilities"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/server"
+	intsession "audio-tools/internal/session"
+	sttpkg "audio-tools/internal/stt"
+	sttpipeline "audio-tools/internal/stt/pipeline"
+	intsumm "audio-tools/internal/summarize"
+	inttts "audio-tools/internal/tts"
+	"audio-tools/internal/usagereport"
+)
+
+// Deps is the bundle of everything Build constructs. main.go does not
+// read it (it only needs the *server.Server and a cleanup func); the
+// struct is exported for tests that want to introspect individual
+// singletons without re-running Build.
+type Deps struct {
+	Env     Env
+	DB      *sql.DB
+	DSN     string
+	Stores  Stores
+	Chains  Chains
+	BYOK    byok.Registries
+	Voice   *sttpipeline.Service
+	TTS     *inttts.Service
+	Summ    *intsumm.Summarizer
+	Cache   *inttts.Cache
+	Session *intsession.Registry
+	Usage   *usagereport.AsyncRecorder
+	Cleanup func() error
+}
+
+// Build wires the entire audio-tools API and returns the composed
+// *server.Server along with a cleanup closure (currently: close DB).
+func Build(ctx context.Context) (*server.Server, func() error, error) {
+	env := Load()
+
+	db, dsn, err := OpenDB(ctx, env)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open db: %w", err)
+	}
+
+	logger := log.Default()
+
+	// Capability singletons (Local providers).
+	capsRegistry := capabilities.NewRegistry(nil, nil, 30*time.Second)
+	skipVerifyCount := &atomic.Int64{}
+	voiceSvc := sttpipeline.NewService(
+		sttpipeline.Config{},
+		"", nil, "",
+		sttpipeline.SpeakerConfig{}, "",
+		nil,
+		capsRegistry,
+		skipVerifyCount,
+		env.WhisperURL,
+		nil, nil,
+	)
+
+	ttsCache := inttts.NewCache(64 * 1024 * 1024)
+	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: env.KokoroURL}
+	ttsCfg := inttts.DefaultConfig()
+	summCfg := intsumm.DefaultSummarizeConfig()
+	ttsSvc := inttts.NewService(inttts.Deps{
+		Logger:        logger,
+		GetConfig:     func() inttts.Config { return ttsCfg },
+		SetConfig:     func(c inttts.Config) { ttsCfg = c },
+		PersistConfig: func(inttts.Config) error { return nil },
+		KokoroCapability: func(ctx context.Context) (string, string) {
+			return "available", "Kokoro (Local)"
+		},
+		SynthesizeAudio: func(ctx context.Context, in inttts.SynthesizeInput) (io.ReadCloser, string, error) {
+			return kokoroSynth.Synthesize(ctx, inttts.SynthesizeRequest{
+				Input:          in.Input,
+				Voice:          in.Voice,
+				ResponseFormat: in.ResponseFormat,
+				Speed:          in.Speed,
+			})
+		},
+		GetCache: func(key inttts.CacheKey) (inttts.SynthesizeResult, bool) {
+			out, ok := ttsCache.Get(key)
+			if !ok {
+				return inttts.SynthesizeResult{}, false
+			}
+			return inttts.SynthesizeResult{Audio: out.Audio, ContentType: out.ContentType}, true
+		},
+		PutCache: func(key inttts.CacheKey, audio []byte, ct string) {
+			ttsCache.Put(key, audio, ct)
+		},
+	})
+
+	summarizer := intsumm.NewSummarizer(env.OllamaURL)
+
+	byokRegistries := byok.NewRegistries()
+	chs := BuildChains(env, voiceSvc, ttsSvc, summarizer, byokRegistries)
+
+	stores, err := BuildStores(db, env)
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, fmt.Errorf("build stores: %w", err)
+	}
+
+	sessionRegistry := intsession.NewRegistry()
+	usageRecorder := usagereport.New(stores.Usage, logger)
+
+	srv := server.New(
+		server.Deps{Clock: clock.System{}, Logger: logger},
+		healthH.Module(db, "audio-tools-api", "1.0.0"),
+		audioH.Module(logger),
+		sessionH.Module(sessionRegistry, logger),
+		settingsH.Module(settingsH.Deps{
+			Logger:         logger,
+			ProviderConfig: stores.ProviderConfig,
+			BYOK:           stores.BYOK,
+			VoiceOverrides: stores.VoiceOverrides,
+			Coordinator:    chs.Coordinator,
+		}),
+		sttH.Module(sttH.Deps{
+			Chain:        chs.STT,
+			Selector:     sttpkg.NewSelector(chs.STT),
+			Voice:        voiceSvc,
+			Logger:       logger,
+			StreamConfig: stores.STTStream,
+			Wakeword:     stores.Wakeword,
+			Speaker:      stores.Speaker,
+		}),
+		summarizeH.Module(
+			chs.Summarize,
+			func() intsumm.SummarizeConfig { return summCfg },
+			func(c intsumm.SummarizeConfig) { summCfg = c },
+			logger,
+			usageRecorder,
+		),
+		ttsH.Module(ttsH.Deps{
+			Chain:          chs.TTS,
+			SummarizeChain: chs.Summarize,
+			TTSService:     ttsSvc,
+			Logger:         logger,
+			Cache:          ttsCache,
+			ConfigStore:    stores.TTSConfig,
+			Playback:       stores.Playback,
+		}),
+		usageH.Module(usageH.Deps{Logger: logger, Store: stores.Usage}),
+	)
+
+	_ = dsn // retained for diagnostics if Deps is exposed; not used here.
+	cleanup := func() error { return db.Close() }
+	return srv, cleanup, nil
+}

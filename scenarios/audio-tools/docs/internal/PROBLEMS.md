@@ -107,7 +107,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Owner:** unassigned.
 
-**Refs:** `internal/transports/browser/ws_handler.go`, `handlers/stt/transcribe_stream.go`, [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md).
+**Refs:** `handlers/stt/stream_ws.go`, `handlers/stt/transcribe_stream.go`, [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md).
 
 ### 2026-05-16 — Browser WebM partial-decoding regression after HandleStreamWS deletion
 
@@ -121,7 +121,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Owner:** unassigned.
 
-**Refs:** `handlers/stt/stream_ws.go`, `internal/voice/stream_ws.go` (placeholder header), `internal/stt/strategy/vad_segment.go`, `scenarios/audio-tools/embed/`.
+**Refs:** `handlers/stt/stream_ws.go`, `internal/stt/strategy/webm.go`, `internal/stt/strategy/vad_segment.go`, `scenarios/audio-tools/embed/`.
 
 ### 2026-05-16 — WS endpoint tag still `ops_probe`
 

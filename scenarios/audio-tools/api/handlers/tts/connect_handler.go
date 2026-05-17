@@ -12,6 +12,7 @@ import (
 
 	intsumm "audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
+	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/store"
 	"audio-tools/internal/text/normalizer"
 	inttts "audio-tools/internal/tts"
@@ -52,17 +53,17 @@ func (h *connectHandler) SynthesizeStream(ctx context.Context, req *connect.Requ
 	if h.deps.Chain == nil {
 		return connect.NewError(connect.CodeUnavailable, fmt.Errorf("tts chain not configured"))
 	}
-	creds := extractCreds(req.Header())
+	env := envelope.FromConnectRequest(req)
 	chainReq := ttschain.Request{
 		Text:           req.Msg.Text,
 		Voice:          req.Msg.Voice,
 		VoiceOverrides: req.Msg.VoiceOverrides,
 		Speed:          req.Msg.Speed,
 		ResponseFormat: req.Msg.ResponseFormat,
-		BYOKProvider:   creds.byokProvider,
-		BYOKKey:        creds.byokKey,
-		LPBSToken:      creds.lpbsToken,
-		UserIdentity:   creds.userIdentity,
+		BYOKProvider:   env.Provider,
+		BYOKKey:        env.Key,
+		LPBSToken:      env.LPBSToken,
+		UserIdentity:   env.UserIdentity,
 		EventID:        req.Msg.EventId,
 		Version:        req.Msg.Version,
 	}
@@ -99,17 +100,17 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 	if h.deps.Chain == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("tts chain not configured"))
 	}
-	creds := extractCreds(req.Header())
+	env := envelope.FromConnectRequest(req)
 	chainReq := ttschain.Request{
 		Text:           req.Msg.Text,
 		Voice:          req.Msg.Voice,
 		VoiceOverrides: req.Msg.VoiceOverrides,
 		Speed:          req.Msg.Speed,
 		ResponseFormat: req.Msg.ResponseFormat,
-		BYOKProvider:   creds.byokProvider,
-		BYOKKey:        creds.byokKey,
-		LPBSToken:      creds.lpbsToken,
-		UserIdentity:   creds.userIdentity,
+		BYOKProvider:   env.Provider,
+		BYOKKey:        env.Key,
+		LPBSToken:      env.LPBSToken,
+		UserIdentity:   env.UserIdentity,
 		EventID:        req.Msg.EventId,
 		Version:        req.Msg.Version,
 	}
@@ -156,30 +157,6 @@ func (h *connectHandler) NormalizeForSpeech(ctx context.Context, req *connect.Re
 func (h *connectHandler) SplitParagraphs(ctx context.Context, req *connect.Request[ttsv1.SplitParagraphsRequest]) (*connect.Response[ttsv1.SplitParagraphsResponse], error) {
 	paragraphs := normalizer.SplitIntoSpeechParagraphs(req.Msg.Text)
 	return connect.NewResponse(&ttsv1.SplitParagraphsResponse{Paragraphs: paragraphs}), nil
-}
-
-// credentialSet bundles per-request audio-tools credentials extracted from
-// metadata headers.
-type credentialSet struct {
-	byokProvider string
-	byokKey      string
-	lpbsToken    string
-	userIdentity string
-}
-
-func extractCreds(h headerGetter) credentialSet {
-	return credentialSet{
-		byokProvider: h.Get("X-Audio-BYOK-Provider"),
-		byokKey:      h.Get("X-Audio-BYOK-Key"),
-		lpbsToken:    h.Get("X-Audio-LPBS-Token"),
-		userIdentity: h.Get("X-Audio-User-Identity"),
-	}
-}
-
-// headerGetter is the http.Header subset used by extractCreds; abstracted so
-// tests can fake without an http.Header instance.
-type headerGetter interface {
-	Get(string) string
 }
 
 func mapChainError(err error) error {

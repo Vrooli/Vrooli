@@ -225,10 +225,10 @@ var ErrInsufficientCredits = errors.New("audio-tools: insufficient credits for V
 // none succeeded.
 var ErrAllProvidersFailed = errors.New("audio-tools: all providers failed")
 
-// ErrUnknownBYOKProvider is returned when X-Audio-BYOK-Provider names a
-// provider not in the registry.
+// ErrUnknownBYOKProvider is returned when the BYOK provider header (see
+// envelope.HeaderProvider) names a provider not in the registry.
 var ErrUnknownBYOKProvider = errors.New("audio-tools: unknown BYOK provider")
 
-// ErrMissingBYOKProvider is returned when X-Audio-BYOK-Key is set but
-// X-Audio-BYOK-Provider is absent — silent provider selection is forbidden.
+// ErrMissingBYOKProvider is returned when the BYOK key header is set but the
+// BYOK provider header is absent — silent provider selection is forbidden.
 var ErrMissingBYOKProvider = errors.New("audio-tools: BYOK key set without BYOK provider")

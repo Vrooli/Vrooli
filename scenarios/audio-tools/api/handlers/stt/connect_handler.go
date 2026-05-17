@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
@@ -41,16 +42,17 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 	if h.deps.Chain == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("stt chain not configured"))
 	}
+	env := envelope.FromConnectRequest(req)
 	chainReq := sttchain.Request{
 		Audio:                   req.Msg.Audio,
 		Format:                  req.Msg.Format,
 		Language:                req.Msg.Language,
 		SkipSpeakerVerification: req.Msg.SkipSpeakerVerification,
 		InitialPrompt:           req.Msg.InitialPrompt,
-		BYOKProvider:            req.Header().Get("X-Audio-BYOK-Provider"),
-		BYOKKey:                 req.Header().Get("X-Audio-BYOK-Key"),
-		LPBSToken:               req.Header().Get("X-Audio-LPBS-Token"),
-		UserIdentity:            req.Header().Get("X-Audio-User-Identity"),
+		BYOKProvider:            env.Provider,
+		BYOKKey:                 env.Key,
+		LPBSToken:               env.LPBSToken,
+		UserIdentity:            env.UserIdentity,
 	}
 	res, err := h.deps.Chain.Execute(ctx, chainReq)
 	if err != nil {

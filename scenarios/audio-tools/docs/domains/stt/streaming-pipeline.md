@@ -50,8 +50,8 @@ pipelines, and the streaming chain skeleton already exists in
 ┌─────────────────────────┐         ┌──────────────────────────────┐
 │  /api/v1/voice/stream   │         │  STT.TranscribeStream        │
 │  (WebSocket — browser)  │         │  (Connect bidi — non-browser)│
-│  transports/browser/    │         │  handlers/stt/               │
-│    ws_handler.go        │         │    transcribe_stream.go      │
+│  handlers/stt/          │         │  handlers/stt/               │
+│    stream_ws.go         │         │    transcribe_stream.go      │
 └──────────┬──────────────┘         └──────────────┬───────────────┘
            │                                       │
            │ delegates to                          │ accumulates all

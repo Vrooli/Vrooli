@@ -10,12 +10,13 @@
 | `sttchain.BYOKAdapter` / `ttschain.BYOKAdapter` / `summarizechain.BYOKAdapter` | Interface | `internal/byok/*.go` | chain `BYOKProvider` registry dispatch |
 | `sttchain.VrooliClient` / `ttschain.VrooliClient` / `summarizechain.VrooliClient` | Interface | `integrations/lpbs/clients/*_client.go` | chain `VrooliProvider` |
 | `tts.VerifyCatalog` | Pure function | `internal/tts/voice_catalog.go` | `main.go` startup gate |
-| `session.Session` pub/sub | Concrete | `internal/session/session.go` | `internal/transports/browser`, `handlers/session` |
-| Browser-voice WS | Concrete | `internal/transports/browser/ws_handler.go` | `main.go` route mount |
+| `session.Session` pub/sub | Concrete | `internal/session/session.go` | `handlers/stt/stream_ws.go`, `handlers/session` |
+| Browser-voice WS | Concrete | `handlers/stt/stream_ws.go` | `main.go` route mount |
 | `audiotools.URLResolver` (consumer-side) | Interface | `scenarios/web-console/api/integrations/audiotools/discovery.go` | `audiotools.Client.refresh()` |
 | `store.{ProviderConfig,BYOK,VoiceOverride,Usage,Wakeword,Speaker,STTStreamConfig,TTSConfig,Playback}Store` | Concrete (sql) | `internal/store/*.go` | every admin handler (settings/usage/stt/tts) |
 | `byokstore.Store` / `byokstore.Encryptor` | Concrete | `internal/byokstore/{store,encryptor,fingerprint}.go` | `handlers/settings` and chain BYOK resolver |
-| `usagereport.Recorder` | Interface | `internal/usagereport/recorder.go` | `handlers/summarize` (other chain-adjacent handlers wired as they land) |
+| `usagereport.Recorder` | Interface | `internal/usagereport/recorder.go` (local SQLite write path for the UsageService dashboard) | `handlers/summarize` (other chain-adjacent handlers wired as they land) |
+| `lpbs.RemoteReporter` | Concrete | `integrations/lpbs/remote_reporter.go` (remote LPBS hop; flag-off until the gateway lands) | wired into `main.go` once the LPBS gateway ships |
 | `chains.Coordinator` | Concrete | `internal/ai/chains/chains.go` | `handlers/settings` UpdateProviderConfig — live chain Reconfigure |
 | `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Concrete | `internal/ai/{stt,tts,summarize}chain/chain.go` | `handlers/tts` GetStatus + `cli/domains/diagnose` |
 | `stt.MultipartTranscribeHandler` / `audio.multipartTranscodeHandler` | Concrete | `handlers/{stt,audio}/` | UI multipart upload paths |
@@ -468,9 +469,8 @@ an actionable diff showing exactly which entries diverged.
 - **Owner:** `api/internal/stt/segmenter/segmenter.go`
   (see [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md)).
 - **Production wires:** constructed once per streaming session by both
-  the browser WS handler (`internal/transports/browser/ws_handler.go`)
-  and the Connect bidi handler
-  (`handlers/stt/transcribe_stream.go`). Owns the session lifecycle,
+  the browser WS handler (`handlers/stt/stream_ws.go`) and the Connect
+  bidi handler (`handlers/stt/transcribe_stream.go`). Owns the session lifecycle,
   the chunk-in/event-out channel pair, observer fanout to
   `session.Registry`, and the cancellation/barge-in fan-out into TTS.
 - **Test substitutes:** in-process fakes feed a canned audio channel

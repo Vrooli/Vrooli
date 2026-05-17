@@ -15,7 +15,7 @@
   },
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --reporter dot"
   },
   "peerDependencies": {
     "react": "^18",
@@ -28,6 +28,9 @@
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "jsdom": "^25.0.1",

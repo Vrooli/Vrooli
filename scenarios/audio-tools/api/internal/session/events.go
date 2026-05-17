@@ -7,7 +7,7 @@
 // deltas, VAD signals, tool events, and barge-in cancels.
 //
 // Concrete transports plug in below the session boundary; P0 ships
-// internal/transports/browser (WebSocket).
+// handlers/stt/stream_ws.go (WebSocket).
 package session
 
 import "time"

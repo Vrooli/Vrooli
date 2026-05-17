@@ -25,17 +25,17 @@ type UsageReport struct {
 	Metadata     map[string]string
 }
 
-// Reporter queues reports and ships them to LPBS asynchronously.
-type Reporter struct {
+// RemoteReporter queues reports and ships them to LPBS asynchronously.
+type RemoteReporter struct {
 	baseURL string
 	queue   chan UsageReport
 	done    chan struct{}
 	wg      sync.WaitGroup
 }
 
-// NewReporter constructs a reporter; call Start to begin draining the queue.
-func NewReporter(baseURL string) *Reporter {
-	return &Reporter{
+// NewRemoteReporter constructs a reporter; call Start to begin draining the queue.
+func NewRemoteReporter(baseURL string) *RemoteReporter {
+	return &RemoteReporter{
 		baseURL: baseURL,
 		queue:   make(chan UsageReport, 256),
 		done:    make(chan struct{}),
@@ -45,7 +45,7 @@ func NewReporter(baseURL string) *Reporter {
 // Start drains the queue until Stop. Currently a no-op while the LPBS
 // gateway is not implemented; reports are accepted into the channel and
 // dropped on shutdown.
-func (r *Reporter) Start(ctx context.Context) {
+func (r *RemoteReporter) Start(ctx context.Context) {
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
@@ -64,7 +64,7 @@ func (r *Reporter) Start(ctx context.Context) {
 
 // Submit enqueues a report. Non-blocking; drops on full queue (rare in
 // practice given the 256-slot buffer).
-func (r *Reporter) Submit(rep UsageReport) {
+func (r *RemoteReporter) Submit(rep UsageReport) {
 	select {
 	case r.queue <- rep:
 	default:
@@ -72,7 +72,7 @@ func (r *Reporter) Submit(rep UsageReport) {
 	}
 }
 
-func (r *Reporter) Stop() {
+func (r *RemoteReporter) Stop() {
 	close(r.done)
 	r.wg.Wait()
 }
@@ -80,7 +80,7 @@ func (r *Reporter) Stop() {
 // deliver implements the 3-attempt 500ms/1s/2s exponential backoff. The
 // actual HTTP call is stubbed pending LPBS gateway implementation; the
 // retry shape is in place so wiring it later is one function-body change.
-func (r *Reporter) deliver(ctx context.Context, rep UsageReport) error {
+func (r *RemoteReporter) deliver(ctx context.Context, rep UsageReport) error {
 	backoffs := []time.Duration{500 * time.Millisecond, 1 * time.Second, 2 * time.Second}
 	var lastErr error
 	for attempt, delay := range backoffs {
@@ -101,6 +101,6 @@ func (r *Reporter) deliver(ctx context.Context, rep UsageReport) error {
 }
 
 // attemptOnce is the unit of HTTP work. Stubbed today.
-func (r *Reporter) attemptOnce(ctx context.Context, rep UsageReport) error {
+func (r *RemoteReporter) attemptOnce(ctx context.Context, rep UsageReport) error {
 	return nil // gateway not implemented
 }

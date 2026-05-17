@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"audio-tools/internal/ai/summarizechain"
+	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
@@ -46,15 +47,16 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 	if h.deps.Chain == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("summarize chain not configured"))
 	}
+	env := envelope.FromConnectRequest(req)
 	chainReq := summarizechain.Request{
 		Text:           req.Msg.Text,
 		Level:          req.Msg.Level,
 		Model:          req.Msg.Model,
 		TimeoutSeconds: int(req.Msg.TimeoutSeconds),
-		BYOKProvider:   req.Header().Get("X-Audio-BYOK-Provider"),
-		BYOKKey:        req.Header().Get("X-Audio-BYOK-Key"),
-		LPBSToken:      req.Header().Get("X-Audio-LPBS-Token"),
-		UserIdentity:   req.Header().Get("X-Audio-User-Identity"),
+		BYOKProvider:   env.Provider,
+		BYOKKey:        env.Key,
+		LPBSToken:      env.LPBSToken,
+		UserIdentity:   env.UserIdentity,
 	}
 	opID := req.Header().Get("X-Audio-Operation-ID")
 	if opID == "" {

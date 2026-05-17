@@ -37,10 +37,10 @@ Same chain shape; Local path goes through `tts.Summarizer` (Ollama backend); BYO
 
 ```
 client opens WS /api/v1/voice/stream?voice=…&language=…
-  └─ transports/browser.Handler.ServeHTTP
+  └─ handlers/stt/stream_ws.StreamWSHandler.ServeHTTP
        ├─ session.New(transport="browser-voice", voice, language, CancelHook)
        ├─ session.Registry.Add
-       ├─ voice.Service.HandleStreamWS (ported audio pipeline)
+       ├─ stt.Segmenter (transport-agnostic streaming pipeline)
        └─ on disconnect: session.Close("ws-disconnect"); registry.Remove
 ```
 

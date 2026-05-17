@@ -1,0 +1,123 @@
+package usagereport
+
+import (
+	"bytes"
+	"context"
+	"database/sql"
+	"log"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+
+	localdb "audio-tools/internal/database"
+	"audio-tools/internal/store"
+	"audio-tools/internal/testutil/db"
+)
+
+func newSchemaDB(t *testing.T) *sql.DB {
+	t.Helper()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema)))
+	return d
+}
+
+func TestAsyncRecorder_EnqueueAndDrain(t *testing.T) {
+	d := newSchemaDB(t)
+	repo := store.NewUsageStore(d)
+	var buf bytes.Buffer
+	r := New(repo, log.New(&buf, "", 0))
+	t.Cleanup(r.Close)
+
+	row := store.UsageRow{
+		OperationID: "op-async-1", EmittedAt: time.Now().UTC(),
+		Capability: "stt", Operation: "transcribe",
+		ProviderTier: "local", ProviderID: "whisper",
+	}
+	r.Enqueue(row)
+
+	// Wait for the row to be drained, then verify it landed in the
+	// store via ListRecent. 2s is generous; an empty queue and an
+	// in-memory sqlite write should complete in microseconds.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		rows, err := repo.ListRecent(context.Background(), time.Now().Add(-1*time.Hour), 10, "", "")
+		require.NoError(t, err)
+		if len(rows) == 1 && rows[0].OperationID == "op-async-1" {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("row did not appear in store within deadline")
+}
+
+func TestAsyncRecorder_RecordSync(t *testing.T) {
+	d := newSchemaDB(t)
+	repo := store.NewUsageStore(d)
+	r := New(repo, log.New(&bytes.Buffer{}, "", 0))
+	t.Cleanup(r.Close)
+
+	row := store.UsageRow{
+		OperationID: "op-sync-1", EmittedAt: time.Now().UTC(),
+		Capability: "tts", Operation: "synthesize",
+		ProviderTier: "local", ProviderID: "kokoro",
+	}
+	require.NoError(t, r.Record(context.Background(), row))
+	rows, err := repo.ListRecent(context.Background(), time.Now().Add(-1*time.Hour), 10, "", "")
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "op-sync-1", rows[0].OperationID)
+}
+
+// TestAsyncRecorder_BoundedDropNewest locks the backpressure policy:
+// when the queue is full, Enqueue is non-blocking and drops the new
+// row. To make the test deterministic, we construct an AsyncRecorder
+// without starting the drain goroutine so the channel stays full.
+func TestAsyncRecorder_BoundedDropNewest(t *testing.T) {
+	var buf bytes.Buffer
+	r := &AsyncRecorder{
+		repo:    nil, // unused — drain never runs in this test
+		logger:  log.New(&buf, "", 0),
+		queue:   make(chan store.UsageRow, QueueCapacity),
+		retries: []time.Duration{},
+	}
+
+	// Fill the queue to exactly capacity.
+	for i := 0; i < QueueCapacity; i++ {
+		r.Enqueue(store.UsageRow{OperationID: "op", Capability: "stt"})
+	}
+	preStats := r.Stats()
+	require.Equal(t, uint64(QueueCapacity), preStats.EnqueuedTotal)
+	require.Equal(t, uint64(0), preStats.DroppedTotal)
+	require.Equal(t, QueueCapacity, preStats.QueueDepth)
+	require.Equal(t, QueueCapacity, preStats.QueueCapacity)
+
+	// Next 7 enqueues must drop, not block.
+	for i := 0; i < 7; i++ {
+		r.Enqueue(store.UsageRow{OperationID: "drop", Capability: "stt"})
+	}
+	post := r.Stats()
+	require.Equal(t, uint64(7), post.DroppedTotal, "drop-newest policy: extra enqueues increment DroppedTotal")
+	require.Equal(t, uint64(QueueCapacity), post.EnqueuedTotal, "EnqueuedTotal must not advance on drop")
+	require.Contains(t, buf.String(), "queue full")
+}
+
+func TestAsyncRecorder_CloseDrainsPending(t *testing.T) {
+	d := newSchemaDB(t)
+	repo := store.NewUsageStore(d)
+	r := New(repo, log.New(&bytes.Buffer{}, "", 0))
+
+	for i := 0; i < 10; i++ {
+		r.Enqueue(store.UsageRow{
+			OperationID: time.Now().Format("op-150405.000000000-") + string(rune('a'+i)),
+			Capability:  "stt", Operation: "transcribe",
+			ProviderTier: "local", ProviderID: "whisper",
+		})
+	}
+	r.Close() // must block until drain goroutine returns
+
+	rows, err := repo.ListRecent(context.Background(), time.Now().Add(-1*time.Hour), 100, "", "")
+	require.NoError(t, err)
+	require.Len(t, rows, 10)
+}

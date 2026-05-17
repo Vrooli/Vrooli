@@ -21,11 +21,9 @@ concepts (terminal panes, conversation cursors, session IDs).
 
 ## Status
 
-P0 skeleton during Phase F. Full implementations port from
-`scenarios/web-console/ui/src/{hooks,components}/{voice,tts,...}` and
-generalize each component. See
-[`docs/internal/EXTRACTION-SOURCES.md`](../../../docs/internal/EXTRACTION-SOURCES.md)
-for the classification of every source file (reusable vs consumer-glue).
+Generally available. The component surface was extracted from
+`scenarios/web-console/ui/src/{hooks,components}/{voice,tts,...}` on
+2026-05-16; see `docs/internal/PROGRESS.md` for the lifecycle log.
 
 ## Wiring in a consumer
 

@@ -4,7 +4,8 @@
 // "deepgram", "openai-tts", "elevenlabs", "openrouter").
 //
 // The registry is intentionally per-capability. There is no generic
-// dispatcher: each chain selects its own adapter by `X-Audio-BYOK-Provider`.
+// dispatcher: each chain selects its own adapter by the BYOK provider header
+// (see envelope.HeaderProvider).
 package byok
 
 import (

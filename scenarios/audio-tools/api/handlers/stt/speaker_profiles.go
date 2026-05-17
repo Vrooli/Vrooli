@@ -1,13 +1,13 @@
-// Speaker administration handlers (config, status, profile list/enroll/
-// remove/delete) backed by the speaker store and a small in-memory
-// speaker-config cell.
+// Speaker profile management: list / enroll / clear-binding / remove
+// / delete. Profile storage lives in h.deps.Speaker; this file only
+// owns the wire-layer translation and the in-process speakerCfg
+// binding updates.
 package stt
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -17,111 +17,6 @@ import (
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
-
-// speakerCfgDoc is the JSON view of SpeakerConfig.
-type speakerCfgDoc struct {
-	Enabled                     bool     `json:"enabled"`
-	ProfileIDs                  []string `json:"profile_ids"`
-	Threshold                   float64  `json:"threshold"`
-	Mode                        string   `json:"mode"`
-	RejectBehavior              string   `json:"reject_behavior"`
-	FallbackWithoutVerification bool     `json:"fallback_without_verification"`
-	ExtractionEnabled           bool     `json:"extraction_enabled"`
-}
-
-func defaultSpeakerCfg() speakerCfgDoc {
-	return speakerCfgDoc{
-		Enabled: false, ProfileIDs: []string{}, Threshold: 0.7,
-		Mode: "off", RejectBehavior: "drop",
-	}
-}
-
-func (d speakerCfgDoc) toProto() *sttv1.SpeakerConfig {
-	return &sttv1.SpeakerConfig{
-		Enabled: d.Enabled, ProfileIds: d.ProfileIDs, Threshold: d.Threshold,
-		Mode: d.Mode, RejectBehavior: d.RejectBehavior,
-		FallbackWithoutVerification: d.FallbackWithoutVerification,
-		ExtractionEnabled:           d.ExtractionEnabled,
-	}
-}
-
-// In-process speaker config; the single audio-tools instance owns the cell.
-var (
-	speakerCfgMu sync.Mutex
-	speakerCfg   = defaultSpeakerCfg()
-)
-
-func (h *connectHandler) GetSpeakerConfig(_ context.Context, _ *connect.Request[sttv1.GetSpeakerConfigRequest]) (*connect.Response[sttv1.GetSpeakerConfigResponse], error) {
-	speakerCfgMu.Lock()
-	d := speakerCfg
-	speakerCfgMu.Unlock()
-	return connect.NewResponse(&sttv1.GetSpeakerConfigResponse{Config: d.toProto()}), nil
-}
-
-func (h *connectHandler) UpdateSpeakerConfig(_ context.Context, req *connect.Request[sttv1.UpdateSpeakerConfigRequest]) (*connect.Response[sttv1.UpdateSpeakerConfigResponse], error) {
-	m := req.Msg
-	speakerCfgMu.Lock()
-	d := speakerCfg
-	if m.GetHasEnabled() {
-		d.Enabled = m.GetEnabled()
-	}
-	if m.GetHasProfileIds() {
-		d.ProfileIDs = append([]string{}, m.GetProfileIds()...)
-	}
-	if m.GetHasThreshold() {
-		d.Threshold = m.GetThreshold()
-	}
-	if m.GetHasMode() {
-		d.Mode = m.GetMode()
-	}
-	if m.GetHasRejectBehavior() {
-		d.RejectBehavior = m.GetRejectBehavior()
-	}
-	if m.GetHasFallbackWithoutVerification() {
-		d.FallbackWithoutVerification = m.GetFallbackWithoutVerification()
-	}
-	if m.GetHasExtractionEnabled() {
-		d.ExtractionEnabled = m.GetExtractionEnabled()
-	}
-	speakerCfg = d
-	speakerCfgMu.Unlock()
-	return connect.NewResponse(&sttv1.UpdateSpeakerConfigResponse{Config: d.toProto()}), nil
-}
-
-func (h *connectHandler) GetSpeakerStatus(ctx context.Context, _ *connect.Request[sttv1.GetSpeakerStatusRequest]) (*connect.Response[sttv1.GetSpeakerStatusResponse], error) {
-	speakerCfgMu.Lock()
-	cfg := speakerCfg
-	speakerCfgMu.Unlock()
-
-	var profiles []*sttv1.SpeakerProfile
-	if h.deps.Speaker != nil {
-		rows, err := h.deps.Speaker.List(ctx)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		for _, p := range rows {
-			profiles = append(profiles, &sttv1.SpeakerProfile{
-				Id:           p.ID,
-				DisplayName:  p.Name,
-				CreatedAt:    p.CreatedAt.UTC().Format(time.RFC3339),
-				UpdatedAt:    p.CreatedAt.UTC().Format(time.RFC3339),
-				EmbeddingDim: int32(len(p.Embedding)),
-			})
-		}
-	}
-	st := &sttv1.SpeakerStatus{
-		Config:            cfg.toProto(),
-		Capability:        "available",
-		CapabilityLabel:   "Speaker store",
-		ResourceReady:     true,
-		ProfileConfigured: len(cfg.ProfileIDs) > 0,
-		ProfileExists:     len(profiles) > 0,
-		ProfileCount:      int32(len(profiles)),
-		Profiles:          profiles,
-		CheckedAt:         time.Now().UTC().Format(time.RFC3339),
-	}
-	return connect.NewResponse(&sttv1.GetSpeakerStatusResponse{Status: st}), nil
-}
 
 func (h *connectHandler) ListSpeakerProfiles(ctx context.Context, _ *connect.Request[sttv1.ListSpeakerProfilesRequest]) (*connect.Response[sttv1.ListSpeakerProfilesResponse], error) {
 	if h.deps.Speaker == nil {
@@ -228,11 +123,4 @@ func (h *connectHandler) DeleteSpeakerProfile(ctx context.Context, req *connect.
 	cfg := speakerCfg
 	speakerCfgMu.Unlock()
 	return connect.NewResponse(&sttv1.DeleteSpeakerProfileResponse{Config: cfg.toProto()}), nil
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

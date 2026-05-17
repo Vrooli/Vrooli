@@ -1,0 +1,10 @@
+/api/audio-tools-api
+/data/*.db
+/data/*.db-shm
+/data/*.db-wal
+/data/*.sqlite*
+/ui/dist/
+/ui/node_modules/
+/embed/dist/
+/embed/node_modules/
+/.build-fingerprint.json

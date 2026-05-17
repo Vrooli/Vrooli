@@ -9,10 +9,29 @@ import (
 	"context"
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"audio-tools/internal/store"
 )
+
+// Stats reports observability counters for the recorder.
+type Stats struct {
+	// DroppedTotal counts rows dropped because the bounded queue was
+	// full at the moment of Enqueue (drop-newest policy, N=1024).
+	DroppedTotal uint64
+	// EnqueuedTotal counts rows accepted into the queue.
+	EnqueuedTotal uint64
+	// QueueCapacity is the bounded buffer size (compile-time constant).
+	QueueCapacity int
+	// QueueDepth is the instantaneous depth of the queue.
+	QueueDepth int
+}
+
+// QueueCapacity is the bounded buffer size for the async queue. The
+// policy is drop-newest: when the queue is full, Enqueue returns
+// immediately and increments DroppedTotal. See Stats().
+const QueueCapacity = 1024
 
 // Recorder accepts usage rows and persists them.
 type Recorder interface {
@@ -28,11 +47,13 @@ type Recorder interface {
 
 // AsyncRecorder writes through a buffered channel.
 type AsyncRecorder struct {
-	repo    *store.UsageStore
-	logger  *log.Logger
-	queue   chan store.UsageRow
-	wg      sync.WaitGroup
-	retries []time.Duration
+	repo          *store.UsageStore
+	logger        *log.Logger
+	queue         chan store.UsageRow
+	wg            sync.WaitGroup
+	retries       []time.Duration
+	droppedTotal  atomic.Uint64
+	enqueuedTotal atomic.Uint64
 }
 
 // New returns an AsyncRecorder running a single drain goroutine.
@@ -43,7 +64,7 @@ func New(repo *store.UsageStore, logger *log.Logger) *AsyncRecorder {
 	r := &AsyncRecorder{
 		repo:    repo,
 		logger:  logger,
-		queue:   make(chan store.UsageRow, 1024),
+		queue:   make(chan store.UsageRow, QueueCapacity),
 		retries: []time.Duration{500 * time.Millisecond, time.Second, 2 * time.Second},
 	}
 	r.wg.Add(1)
@@ -54,8 +75,20 @@ func New(repo *store.UsageStore, logger *log.Logger) *AsyncRecorder {
 func (r *AsyncRecorder) Enqueue(row store.UsageRow) {
 	select {
 	case r.queue <- row:
+		r.enqueuedTotal.Add(1)
 	default:
+		r.droppedTotal.Add(1)
 		r.logger.Printf("usagereport: queue full, dropping op=%s", row.OperationID)
+	}
+}
+
+// Stats returns a snapshot of observability counters.
+func (r *AsyncRecorder) Stats() Stats {
+	return Stats{
+		DroppedTotal:  r.droppedTotal.Load(),
+		EnqueuedTotal: r.enqueuedTotal.Load(),
+		QueueCapacity: cap(r.queue),
+		QueueDepth:    len(r.queue),
 	}
 }
 

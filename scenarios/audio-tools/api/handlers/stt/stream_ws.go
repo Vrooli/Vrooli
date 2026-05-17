@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/byok/envelope"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/stt/segmenter"
 )
@@ -77,12 +78,13 @@ func StreamWSHandler(d Deps) http.Handler {
 			_ = conn.WriteJSON(m)
 		}
 
+		env := envelope.FromHTTP(r.Header)
 		start := sttchain.StreamStart{
 			Language:     r.URL.Query().Get("language"),
-			BYOKProvider: r.Header.Get("X-Audio-BYOK-Provider"),
-			BYOKKey:      r.Header.Get("X-Audio-BYOK-Key"),
-			LPBSToken:    r.Header.Get("X-Audio-LPBS-Token"),
-			UserIdentity: r.Header.Get("X-Audio-User-Identity"),
+			BYOKProvider: env.Provider,
+			BYOKKey:      env.Key,
+			LPBSToken:    env.LPBSToken,
+			UserIdentity: env.UserIdentity,
 		}
 		cfg := resolveStreamPipelineConfigFromDeps(ctx, d)
 		seg := segmenter.New(segmenter.Deps{Chain: d.Chain, Selector: d.Selector})
