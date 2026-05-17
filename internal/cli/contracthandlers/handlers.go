@@ -117,7 +117,7 @@ func bindContractCommand[C any, Req any, Resp any](
 			if rootcli.HandleHelp(deps.Stdout(ctx), err) {
 				return nil
 			}
-			return rootcli.UsageErrorf("", err.Error())
+			return rootcli.UsageErrorf("", "%s", err.Error())
 		}
 		output, err := run(ctx, req)
 		if err != nil {

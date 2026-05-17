@@ -432,20 +432,22 @@ class StreamEnd(_message.Message):
     def __init__(self) -> None: ...
 
 class TranscribeStreamEvent(_message.Message):
-    __slots__ = ("segment", "partial", "wake_word", "speaker_rejection", "error", "done")
+    __slots__ = ("segment", "partial", "wake_word", "speaker_rejection", "error", "done", "vad_state")
     SEGMENT_FIELD_NUMBER: _ClassVar[int]
     PARTIAL_FIELD_NUMBER: _ClassVar[int]
     WAKE_WORD_FIELD_NUMBER: _ClassVar[int]
     SPEAKER_REJECTION_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     DONE_FIELD_NUMBER: _ClassVar[int]
+    VAD_STATE_FIELD_NUMBER: _ClassVar[int]
     segment: StreamSegment
     partial: StreamPartial
     wake_word: StreamWakeWord
     speaker_rejection: StreamSpeakerRejection
     error: StreamError
     done: StreamDone
-    def __init__(self, segment: _Optional[_Union[StreamSegment, _Mapping]] = ..., partial: _Optional[_Union[StreamPartial, _Mapping]] = ..., wake_word: _Optional[_Union[StreamWakeWord, _Mapping]] = ..., speaker_rejection: _Optional[_Union[StreamSpeakerRejection, _Mapping]] = ..., error: _Optional[_Union[StreamError, _Mapping]] = ..., done: _Optional[_Union[StreamDone, _Mapping]] = ...) -> None: ...
+    vad_state: StreamVadState
+    def __init__(self, segment: _Optional[_Union[StreamSegment, _Mapping]] = ..., partial: _Optional[_Union[StreamPartial, _Mapping]] = ..., wake_word: _Optional[_Union[StreamWakeWord, _Mapping]] = ..., speaker_rejection: _Optional[_Union[StreamSpeakerRejection, _Mapping]] = ..., error: _Optional[_Union[StreamError, _Mapping]] = ..., done: _Optional[_Union[StreamDone, _Mapping]] = ..., vad_state: _Optional[_Union[StreamVadState, _Mapping]] = ...) -> None: ...
 
 class StreamSegment(_message.Message):
     __slots__ = ("text", "start_ms", "end_ms", "detected_language", "provider_tier", "model_id", "latency_ms")
@@ -494,6 +496,18 @@ class StreamError(_message.Message):
     code: str
     message: str
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class StreamVadState(_message.Message):
+    __slots__ = ("voiced", "silence_elapsed_ms", "silence_timeout_ms", "tick_seq")
+    VOICED_FIELD_NUMBER: _ClassVar[int]
+    SILENCE_ELAPSED_MS_FIELD_NUMBER: _ClassVar[int]
+    SILENCE_TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    TICK_SEQ_FIELD_NUMBER: _ClassVar[int]
+    voiced: bool
+    silence_elapsed_ms: int
+    silence_timeout_ms: int
+    tick_seq: int
+    def __init__(self, voiced: _Optional[bool] = ..., silence_elapsed_ms: _Optional[int] = ..., silence_timeout_ms: _Optional[int] = ..., tick_seq: _Optional[int] = ...) -> None: ...
 
 class StreamDone(_message.Message):
     __slots__ = ("final_text", "provider_tier", "provider_id", "model_id", "latency_ms", "fell_back_to_unary")

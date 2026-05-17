@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type CSSProperties, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Loader2, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TTSPlaybackCapabilities } from "../audio-integration";
 import type { ConversationEvent } from "../api/conversation";
@@ -48,6 +48,8 @@ export interface AudioPlayerBarProps {
   onToggleSummarized?: (useSummarized: boolean) => void;
   /** Called when the user picks a summarization level (may be the current one). */
   onChangeLevel?: (level: SummarizationLevel) => void;
+  /** Optional close control for manually-started playback surfaces. */
+  onDismiss?: () => void;
 }
 
 /** Format seconds as m:ss. Returns "--:--" when value is null or not finite. */
@@ -94,6 +96,7 @@ export default function AudioPlayerBar({
   onSelectMessage,
   onToggleSummarized,
   onChangeLevel,
+  onDismiss,
 }: AudioPlayerBarProps) {
   const { t } = useTranslation();
   const [showPopover, setShowPopover] = useState(false);
@@ -261,6 +264,19 @@ export default function AudioPlayerBar({
           title={isMuted ? t(strings.audioPlayerBar.unmute) : t(strings.audioPlayerBar.audioSettings)}
         >
           {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        </button>
+      )}
+
+      {onDismiss && (
+        <button
+          data-testid="tts-dismiss"
+          type="button"
+          onClick={onDismiss}
+          className="shrink-0 rounded p-1 text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
+          title={t(strings.audioPlayerBar.closePlayback)}
+          aria-label={t(strings.audioPlayerBar.closePlayback)}
+        >
+          <X className="h-4 w-4" />
         </button>
       )}
 

@@ -43,6 +43,7 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
@@ -614,7 +615,7 @@ Options:
   --help, -h                Show this help message
 
 Environment:
-  VROOLI_RUNTIME_SUPERVISOR                  Supervisor mode: off, auto, or on (default off)
+  VROOLI_RUNTIME_SUPERVISOR                  Supervisor mode: off, auto, or on (default auto)
   VROOLI_RUNTIME_SUPERVISOR_RENEW_INTERVAL   Supervisor heartbeat interval (default 10s)
   VROOLI_RUNTIME_SUPERVISOR_LEASE_TTL        Runtime lease deadline extension (default 45s)
   VROOLI_RUNTIME_SUPERVISOR_HEALTH_INTERVAL  Health refresh planning interval (default 45s)
@@ -697,6 +698,9 @@ func (app *App) statusRuntimeSupervisor(ctx *CommandContext, args []string) erro
 		return cliout.WriteJSON(ctx.Stdout, report)
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "Runtime supervisor: %s\n", report.Status)
+	if report.StatusReason != "" {
+		_, _ = fmt.Fprintf(ctx.Stdout, "Reason: %s\n", report.StatusReason)
+	}
 	if report.SupervisorID != "" {
 		_, _ = fmt.Fprintf(ctx.Stdout, "Supervisor ID: %s\n", report.SupervisorID)
 		_, _ = fmt.Fprintf(ctx.Stdout, "Host boot/session: %s / %s\n", report.HostBootID, report.HostSessionID)
@@ -709,6 +713,12 @@ func (app *App) statusRuntimeSupervisor(ctx *CommandContext, args []string) erro
 	_, _ = fmt.Fprintf(ctx.Stdout, "Health interval: %s\n", report.EffectiveHealthInterval)
 	_, _ = fmt.Fprintf(ctx.Stdout, "Max health concurrency: %d\n", report.EffectiveMaxHealthConcurrency)
 	_, _ = fmt.Fprintf(ctx.Stdout, "Batch size: %d\n", report.EffectiveBatchSize)
+	if report.Status != scenarioruntime.SupervisorStatusRunning {
+		_, _ = io.WriteString(ctx.Stdout, "Next steps:\n")
+		_, _ = io.WriteString(ctx.Stdout, "  vrooli runtime supervisor install --user\n")
+		_, _ = io.WriteString(ctx.Stdout, "  systemctl --user start vrooli-runtime-supervisor.service\n")
+		_, _ = io.WriteString(ctx.Stdout, "  vrooli runtime supervisor status\n")
+	}
 	return nil
 }
 
@@ -734,9 +744,14 @@ func (app *App) installRuntimeSupervisor(ctx *CommandContext, args []string) err
 	if err != nil {
 		return err
 	}
+	root, err := app.resolveRoot()
+	if err != nil {
+		return err
+	}
 	result, err := runtimesupervisor.InstallService(context.Background(), runtimesupervisor.ServiceInstallOptions{
 		HomeDir:    home,
 		Executable: exe,
+		SourceRoot: root,
 		User:       userService,
 	})
 	if err != nil {

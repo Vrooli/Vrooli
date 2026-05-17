@@ -187,5 +187,57 @@ func TestStreamWS_ServerContextCancel(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestWSMessage_VadStateFields asserts the wire-format contract for the
+// new vad-state message. The UI consumer pattern-matches on these exact
+// JSON keys; this is a regression guard against accidental renames.
+func TestWSMessage_VadStateFields(t *testing.T) {
+	voiced := false
+	elapsed := int64(420)
+	timeout := int64(1500)
+	seq := uint64(7)
+	m := wsMessage{
+		Type:             wsMsgVadState,
+		Voiced:           &voiced,
+		SilenceElapsedMs: &elapsed,
+		SilenceTimeoutMs: &timeout,
+		TickSeq:          &seq,
+	}
+	raw, err := json.Marshal(m)
+	require.NoError(t, err)
+	require.Equal(t, "vad-state", m.Type)
+	got := string(raw)
+	require.Contains(t, got, `"type":"vad-state"`)
+	require.Contains(t, got, `"voiced":false`)
+	require.Contains(t, got, `"silenceElapsedMs":420`)
+	require.Contains(t, got, `"silenceTimeoutMs":1500`)
+	require.Contains(t, got, `"tickSeq":7`)
+
+	// Round-trip: decoded shape preserves all fields and they're pointers
+	// so a non-VAD wsMessage doesn't accidentally include zero values.
+	var back wsMessage
+	require.NoError(t, json.Unmarshal(raw, &back))
+	require.NotNil(t, back.Voiced)
+	require.False(t, *back.Voiced)
+	require.NotNil(t, back.SilenceElapsedMs)
+	require.Equal(t, int64(420), *back.SilenceElapsedMs)
+	require.NotNil(t, back.TickSeq)
+	require.Equal(t, uint64(7), *back.TickSeq)
+}
+
+// TestWSMessage_NonVadStateOmitsVadFields asserts that an unrelated
+// message (e.g. partial) does not serialize the VAD-only fields. This
+// matters because the UI's switch on msg.type is strict — but defensive
+// clients may look at the shape too.
+func TestWSMessage_NonVadStateOmitsVadFields(t *testing.T) {
+	m := wsMessage{Type: wsMsgPartial, Text: "hello"}
+	raw, err := json.Marshal(m)
+	require.NoError(t, err)
+	got := string(raw)
+	require.NotContains(t, got, "voiced")
+	require.NotContains(t, got, "silenceElapsedMs")
+	require.NotContains(t, got, "silenceTimeoutMs")
+	require.NotContains(t, got, "tickSeq")
+}
+
 // ensure the package-internal ctx alias compiles into tests too.
 var _ context.Context = context.Background()

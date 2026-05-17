@@ -1,6 +1,7 @@
 package scenarioapp
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/control"
@@ -95,6 +96,9 @@ func TestPortRejectsSpecificPortWhenRuntimeIsNotRunning(t *testing.T) {
 	if err == nil {
 		t.Fatal("Port(API_PORT) error = nil, want non-running runtime error")
 	}
+	if !strings.Contains(err.Error(), "registry") || !strings.Contains(err.Error(), "starting") {
+		t.Fatalf("Port(API_PORT) error = %v, want stale registry context", err)
+	}
 
 	resp, err := svc.Port(PortRequest{ScenarioName: "demo", PortName: "API_PORT", JSON: true})
 	if err != nil {
@@ -102,6 +106,9 @@ func TestPortRejectsSpecificPortWhenRuntimeIsNotRunning(t *testing.T) {
 	}
 	if resp.Single == nil || resp.Single.Success {
 		t.Fatalf("response = %#v, want unsuccessful single-port response", resp)
+	}
+	if !strings.Contains(resp.Single.Error, "registry") || !strings.Contains(resp.Single.Error, "starting") {
+		t.Fatalf("response error = %q, want stale registry context", resp.Single.Error)
 	}
 }
 

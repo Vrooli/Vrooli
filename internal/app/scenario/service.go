@@ -2,6 +2,7 @@ package scenarioapp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -243,15 +244,16 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 
 	if req.PortName == "" {
 		if detail.Details.Status != "running" || len(portsMap) == 0 {
+			errMessage := noRunningRuntimePortsMessage(req.ScenarioName, detail.Details.Status, len(detail.Details.PortBindings))
 			if req.JSON {
 				return PortResponse{List: &PortListOutput{
 					Success:  false,
 					Scenario: req.ScenarioName,
 					Ports:    []ListPortOutput{},
-					Error:    "No running runtime ports found for scenario",
+					Error:    errMessage,
 				}}, nil
 			}
-			return PortResponse{}, fmt.Errorf("no running runtime ports found for scenario %q", req.ScenarioName)
+			return PortResponse{}, errors.New(errMessage)
 		}
 		list := &PortListOutput{
 			Success:  true,
@@ -265,15 +267,16 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 	}
 
 	if detail.Details.Status != "running" {
+		errMessage := noRunningRuntimePortsMessage(req.ScenarioName, detail.Details.Status, len(detail.Details.PortBindings))
 		if req.JSON {
 			return PortResponse{Single: &PortSingleOutput{
 				Success:  false,
 				Scenario: req.ScenarioName,
 				PortName: req.PortName,
-				Error:    "No running runtime ports found for scenario",
+				Error:    errMessage,
 			}}, nil
 		}
-		return PortResponse{}, fmt.Errorf("no running runtime ports found for scenario %q", req.ScenarioName)
+		return PortResponse{}, errors.New(errMessage)
 	}
 
 	resolved, ok := scenariomodel.ResolveRuntimePort(detail.Scenario.Manifest, detail.Details.PortBindings, portsMap, req.PortName)
@@ -296,6 +299,17 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 		Step:     resolved.Step,
 		Port:     resolved.Port,
 	}}, nil
+}
+
+func noRunningRuntimePortsMessage(scenarioName string, status string, bindingCount int) string {
+	trimmedStatus := strings.TrimSpace(status)
+	if trimmedStatus == "" {
+		trimmedStatus = "unknown"
+	}
+	if bindingCount > 0 && trimmedStatus != "running" {
+		return fmt.Sprintf("runtime registry for scenario %q is %s with %d port binding(s), but only running runtimes expose ports; check `vrooli runtime supervisor status` and restart the scenario if needed", scenarioName, trimmedStatus, bindingCount)
+	}
+	return fmt.Sprintf("no running runtime ports found for scenario %q", scenarioName)
 }
 
 func (s Service) hostPort(req PortRequest) (PortResponse, error) {

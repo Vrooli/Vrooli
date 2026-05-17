@@ -606,9 +606,14 @@ export function useTtsPlaybackController({
   const buildBarContextSelector = useCallback((
     paneId: string | null,
     autoEnabled: boolean,
-    _currentAudioState: SessionPlaybackAudioState,
+    currentAudioState: SessionPlaybackAudioState,
   ) => {
-    if (!shouldShowPlaybackBar({ autoTtsEnabled: autoEnabled, activePaneId: paneId, context: barContext })) return null;
+    if (!shouldShowPlaybackBar({
+      autoTtsEnabled: autoEnabled,
+      activePaneId: paneId,
+      context: barContext,
+      isSpeaking: currentAudioState.isSpeaking,
+    })) return null;
     return barContext;
   }, [barContext]);
 

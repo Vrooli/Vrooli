@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file audio-tools/v1/summarize/summarize.proto.
  */
 export const file_audio_tools_v1_summarize_summarize: GenFile = /*@__PURE__*/
-  fileDesc("CihhdWRpby10b29scy92MS9zdW1tYXJpemUvc3VtbWFyaXplLnByb3RvEh92cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplIqIBCg9TdW1tYXJpemVDb25maWcSDwoHZW5hYmxlZBgBIAEoCBIWCg5jaGFyX3RocmVzaG9sZBgCIAEoBRI+CgVsZXZlbBgDIAEoDjIvLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplTGV2ZWwSDQoFbW9kZWwYBCABKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgFIhsKGUdldFN1bW1hcml6ZUNvbmZpZ1JlcXVlc3QiXgoaR2V0U3VtbWFyaXplQ29uZmlnUmVzcG9uc2USQAoGY29uZmlnGAEgASgLMjAudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVDb25maWcikQEKHFVwZGF0ZVN1bW1hcml6ZUNvbmZpZ1JlcXVlc3QSLwoLdXBkYXRlX21hc2sYASABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEkAKBmNvbmZpZxgCIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnImEKHVVwZGF0ZVN1bW1hcml6ZUNvbmZpZ1Jlc3BvbnNlEkAKBmNvbmZpZxgBIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnIp0BChBTdW1tYXJpemVSZXF1ZXN0EhUKBHRleHQYASABKAlCB7pIBHICEAESPgoFbGV2ZWwYAiABKA4yLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplLlN1bW1hcml6ZUxldmVsEg0KBW1vZGVsGAMgASgJEiMKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBUIKukgHGgUY2AQoACLNAQoRU3VtbWFyaXplUmVzcG9uc2USDAoEdGV4dBgBIAEoCRIVCg1wcm9tcHRfdG9rZW5zGAIgASgFEhUKDW91dHB1dF90b2tlbnMYAyABKAUSQQoNcHJvdmlkZXJfdGllchgEIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uUHJvdmlkZXJUaWVyEhMKC3Byb3ZpZGVyX2lkGAUgASgJEhAKCG1vZGVsX2lkGAYgASgJEhIKCmxhdGVuY3lfbXMYByABKAEqhQEKDlN1bW1hcml6ZUxldmVsEh8KG1NVTU1BUklaRV9MRVZFTF9VTlNQRUNJRklFRBAAEhkKFVNVTU1BUklaRV9MRVZFTF9MSUdIVBABEhwKGFNVTU1BUklaRV9MRVZFTF9NT0RFUkFURRACEhkKFVNVTU1BUklaRV9MRVZFTF9IRUFWWRADMq8DChBTdW1tYXJpemVTZXJ2aWNlEnIKCVN1bW1hcml6ZRIxLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplUmVxdWVzdBoyLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplUmVzcG9uc2USjQEKEkdldFN1bW1hcml6ZUNvbmZpZxI6LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuR2V0U3VtbWFyaXplQ29uZmlnUmVxdWVzdBo7LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuR2V0U3VtbWFyaXplQ29uZmlnUmVzcG9uc2USlgEKFVVwZGF0ZVN1bW1hcml6ZUNvbmZpZxI9LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVxdWVzdBo+LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9zdW1tYXJpemU7c3VtbWFyaXplX3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_audio_tools_v1_common_common]);
+  fileDesc("CihhdWRpby10b29scy92MS9zdW1tYXJpemUvc3VtbWFyaXplLnByb3RvEh92cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplIqIBCg9TdW1tYXJpemVDb25maWcSDwoHZW5hYmxlZBgBIAEoCBIWCg5jaGFyX3RocmVzaG9sZBgCIAEoBRI+CgVsZXZlbBgDIAEoDjIvLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplTGV2ZWwSDQoFbW9kZWwYBCABKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgFIhsKGUdldFN1bW1hcml6ZUNvbmZpZ1JlcXVlc3QiXgoaR2V0U3VtbWFyaXplQ29uZmlnUmVzcG9uc2USQAoGY29uZmlnGAEgASgLMjAudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVDb25maWcikQEKHFVwZGF0ZVN1bW1hcml6ZUNvbmZpZ1JlcXVlc3QSLwoLdXBkYXRlX21hc2sYASABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEkAKBmNvbmZpZxgCIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnImEKHVVwZGF0ZVN1bW1hcml6ZUNvbmZpZ1Jlc3BvbnNlEkAKBmNvbmZpZxgBIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnIhwKGkxpc3RTdW1tYXJpemVNb2RlbHNSZXF1ZXN0IoICCg5TdW1tYXJpemVNb2RlbBIKCgJpZBgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSEQoJaW5zdGFsbGVkGAMgASgIEhMKC3JlY29tbWVuZGVkGAQgASgIEhgKEGRlZmF1bHRfZWxpZ2libGUYBSABKAgSEQoJcmVhc29uaW5nGAYgASgIEhQKDHN0YXR1c19sYWJlbBgHIAEoCRIUCgxwdWxsX2NvbW1hbmQYCCABKAkSEgoKc2l6ZV9ieXRlcxgJIAEoAxIWCg5wYXJhbWV0ZXJfc2l6ZRgKIAEoCRISCgpzb3VyY2VfdXJsGAsgASgJEg0KBW5vdGVzGAwgASgJIl4KG0xpc3RTdW1tYXJpemVNb2RlbHNSZXNwb25zZRI/CgZtb2RlbHMYASADKAsyLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplLlN1bW1hcml6ZU1vZGVsIp0BChBTdW1tYXJpemVSZXF1ZXN0EhUKBHRleHQYASABKAlCB7pIBHICEAESPgoFbGV2ZWwYAiABKA4yLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplLlN1bW1hcml6ZUxldmVsEg0KBW1vZGVsGAMgASgJEiMKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBUIKukgHGgUY2AQoACLNAQoRU3VtbWFyaXplUmVzcG9uc2USDAoEdGV4dBgBIAEoCRIVCg1wcm9tcHRfdG9rZW5zGAIgASgFEhUKDW91dHB1dF90b2tlbnMYAyABKAUSQQoNcHJvdmlkZXJfdGllchgEIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uUHJvdmlkZXJUaWVyEhMKC3Byb3ZpZGVyX2lkGAUgASgJEhAKCG1vZGVsX2lkGAYgASgJEhIKCmxhdGVuY3lfbXMYByABKAEqhQEKDlN1bW1hcml6ZUxldmVsEh8KG1NVTU1BUklaRV9MRVZFTF9VTlNQRUNJRklFRBAAEhkKFVNVTU1BUklaRV9MRVZFTF9MSUdIVBABEhwKGFNVTU1BUklaRV9MRVZFTF9NT0RFUkFURRACEhkKFVNVTU1BUklaRV9MRVZFTF9IRUFWWRADMsIEChBTdW1tYXJpemVTZXJ2aWNlEnIKCVN1bW1hcml6ZRIxLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplUmVxdWVzdBoyLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplUmVzcG9uc2USjQEKEkdldFN1bW1hcml6ZUNvbmZpZxI6LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuR2V0U3VtbWFyaXplQ29uZmlnUmVxdWVzdBo7LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuR2V0U3VtbWFyaXplQ29uZmlnUmVzcG9uc2USlgEKFVVwZGF0ZVN1bW1hcml6ZUNvbmZpZxI9LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVxdWVzdBo+LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVzcG9uc2USkAEKE0xpc3RTdW1tYXJpemVNb2RlbHMSOy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplLkxpc3RTdW1tYXJpemVNb2RlbHNSZXF1ZXN0GjwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5MaXN0U3VtbWFyaXplTW9kZWxzUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9zdW1tYXJpemU7c3VtbWFyaXplX3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_audio_tools_v1_common_common]);
 
 /**
  * @generated from message vrooli.audio_tools.v1.summarize.SummarizeConfig
@@ -129,6 +129,108 @@ export const UpdateSummarizeConfigResponseSchema: GenMessage<UpdateSummarizeConf
   messageDesc(file_audio_tools_v1_summarize_summarize, 4);
 
 /**
+ * @generated from message vrooli.audio_tools.v1.summarize.ListSummarizeModelsRequest
+ */
+export type ListSummarizeModelsRequest = Message<"vrooli.audio_tools.v1.summarize.ListSummarizeModelsRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.summarize.ListSummarizeModelsRequest.
+ * Use `create(ListSummarizeModelsRequestSchema)` to create a new message.
+ */
+export const ListSummarizeModelsRequestSchema: GenMessage<ListSummarizeModelsRequest> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_summarize_summarize, 5);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.summarize.SummarizeModel
+ */
+export type SummarizeModel = Message<"vrooli.audio_tools.v1.summarize.SummarizeModel"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string display_name = 2;
+   */
+  displayName: string;
+
+  /**
+   * @generated from field: bool installed = 3;
+   */
+  installed: boolean;
+
+  /**
+   * @generated from field: bool recommended = 4;
+   */
+  recommended: boolean;
+
+  /**
+   * @generated from field: bool default_eligible = 5;
+   */
+  defaultEligible: boolean;
+
+  /**
+   * @generated from field: bool reasoning = 6;
+   */
+  reasoning: boolean;
+
+  /**
+   * @generated from field: string status_label = 7;
+   */
+  statusLabel: string;
+
+  /**
+   * @generated from field: string pull_command = 8;
+   */
+  pullCommand: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 9;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * @generated from field: string parameter_size = 10;
+   */
+  parameterSize: string;
+
+  /**
+   * @generated from field: string source_url = 11;
+   */
+  sourceUrl: string;
+
+  /**
+   * @generated from field: string notes = 12;
+   */
+  notes: string;
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.summarize.SummarizeModel.
+ * Use `create(SummarizeModelSchema)` to create a new message.
+ */
+export const SummarizeModelSchema: GenMessage<SummarizeModel> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_summarize_summarize, 6);
+
+/**
+ * @generated from message vrooli.audio_tools.v1.summarize.ListSummarizeModelsResponse
+ */
+export type ListSummarizeModelsResponse = Message<"vrooli.audio_tools.v1.summarize.ListSummarizeModelsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.audio_tools.v1.summarize.SummarizeModel models = 1;
+   */
+  models: SummarizeModel[];
+};
+
+/**
+ * Describes the message vrooli.audio_tools.v1.summarize.ListSummarizeModelsResponse.
+ * Use `create(ListSummarizeModelsResponseSchema)` to create a new message.
+ */
+export const ListSummarizeModelsResponseSchema: GenMessage<ListSummarizeModelsResponse> = /*@__PURE__*/
+  messageDesc(file_audio_tools_v1_summarize_summarize, 7);
+
+/**
  * @generated from message vrooli.audio_tools.v1.summarize.SummarizeRequest
  */
 export type SummarizeRequest = Message<"vrooli.audio_tools.v1.summarize.SummarizeRequest"> & {
@@ -160,7 +262,7 @@ export type SummarizeRequest = Message<"vrooli.audio_tools.v1.summarize.Summariz
  * Use `create(SummarizeRequestSchema)` to create a new message.
  */
 export const SummarizeRequestSchema: GenMessage<SummarizeRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_summarize_summarize, 5);
+  messageDesc(file_audio_tools_v1_summarize_summarize, 8);
 
 /**
  * @generated from message vrooli.audio_tools.v1.summarize.SummarizeResponse
@@ -207,7 +309,7 @@ export type SummarizeResponse = Message<"vrooli.audio_tools.v1.summarize.Summari
  * Use `create(SummarizeResponseSchema)` to create a new message.
  */
 export const SummarizeResponseSchema: GenMessage<SummarizeResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_summarize_summarize, 6);
+  messageDesc(file_audio_tools_v1_summarize_summarize, 9);
 
 /**
  * SummarizeLevel selects how aggressively the summarizer rewrites the
@@ -276,6 +378,14 @@ export const SummarizeService: GenService<{
     methodKind: "unary";
     input: typeof UpdateSummarizeConfigRequestSchema;
     output: typeof UpdateSummarizeConfigResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.audio_tools.v1.summarize.SummarizeService.ListSummarizeModels
+   */
+  listSummarizeModels: {
+    methodKind: "unary";
+    input: typeof ListSummarizeModelsRequestSchema;
+    output: typeof ListSummarizeModelsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_audio_tools_v1_summarize_summarize, 0);

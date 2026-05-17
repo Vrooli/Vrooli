@@ -30,9 +30,13 @@ const (
 	ModeOff  = "off"
 	ModeOn   = "on"
 	ModeAuto = "auto"
+
+	StatusStale = "stale"
+	StatusDead  = "dead"
 )
 
 type Store interface {
+	scenarioruntime.LifecycleRepository
 	scenarioruntime.SupervisorRepository
 	scenarioruntime.QueryRepository
 	scenarioruntime.PortClaimRepository
@@ -90,6 +94,7 @@ type TickReport struct {
 type StatusReport struct {
 	SupervisorID                  string        `json:"supervisor_id"`
 	Status                        string        `json:"status"`
+	StatusReason                  string        `json:"status_reason,omitempty"`
 	HostBootID                    string        `json:"host_boot_id"`
 	HostSessionID                 string        `json:"host_session_id"`
 	PID                           *int          `json:"pid,omitempty"`
@@ -140,7 +145,7 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 	}
 	s.session = session
 
-	instances, err := s.store.ListInstances(ctx, scenarioruntime.InstanceFilter{Statuses: []string{scenarioruntime.StatusRunning}})
+	instances, err := s.store.ListInstances(ctx, scenarioruntime.InstanceFilter{Statuses: scenarioruntime.ActiveInstanceStatuses()})
 	if err != nil {
 		return TickReport{}, fmt.Errorf("list supervised runtime candidates: %w", err)
 	}
@@ -169,11 +174,11 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 		for key, evidence := range scenarioruntime.ProcessEvidenceFromRefs(refs, s.pidRunning) {
 			processes[key] = evidence
 		}
-		for port, evidence := range scenarioruntime.ListenerEvidenceFromClaims(claims, refs, s.portListener) {
+		for port, evidence := range listenerEvidenceFromActiveClaims(claims, s.portListener) {
 			listeners[port] = evidence
 		}
 		for _, claim := range claims {
-			if !scenarioruntime.IsDiscoverablePortClaimStatus(claim.Status) || claim.Port <= 0 {
+			if !scenarioruntime.IsActivePortClaimStatus(claim.Status) || claim.Port <= 0 {
 				continue
 			}
 			evidence, ok := listeners[claim.Port]
@@ -190,6 +195,29 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 		}
 		if err == nil {
 			healthByInstance[instance.InstanceID] = health
+		}
+	}
+	reconciled, err := s.reconcileStartingInstances(ctx, instances, claimsByInstance, refsByInstance, healthByInstance, listeners)
+	if err != nil {
+		return TickReport{}, err
+	}
+	if len(reconciled) > 0 {
+		for _, instance := range reconciled {
+			instancesByID[instance.InstanceID] = instance
+			for i := range instances {
+				if instances[i].InstanceID == instance.InstanceID {
+					instances[i] = instance
+					break
+				}
+			}
+			claims, err := s.store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
+				InstanceID: instance.InstanceID,
+				Statuses:   scenarioruntime.ActivePortClaimStatuses(),
+			})
+			if err != nil {
+				return TickReport{}, fmt.Errorf("reload claims for reconciled %s: %w", instance.InstanceID, err)
+			}
+			claimsByInstance[instance.InstanceID] = claims
 		}
 	}
 
@@ -243,6 +271,110 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 	return report, nil
 }
 
+func listenerEvidenceFromActiveClaims(claims []scenarioruntime.PortClaim, inspect PortListenerFunc) map[int]scenarioruntime.ListenerEvidence {
+	if inspect == nil {
+		return nil
+	}
+	out := make(map[int]scenarioruntime.ListenerEvidence)
+	for _, claim := range claims {
+		if !scenarioruntime.IsActivePortClaimStatus(claim.Status) || claim.Port <= 0 {
+			continue
+		}
+		out[claim.Port] = inspect(claim.Port)
+	}
+	return out
+}
+
+func (s *Service) reconcileStartingInstances(ctx context.Context, instances []scenarioruntime.Instance, claimsByInstance map[string][]scenarioruntime.PortClaim, refsByInstance map[string][]scenarioruntime.ProcessRef, healthByInstance map[string]scenarioruntime.HealthSnapshot, listeners map[int]scenarioruntime.ListenerEvidence) ([]scenarioruntime.Instance, error) {
+	var reconciled []scenarioruntime.Instance
+	for _, instance := range instances {
+		if instance.Status != scenarioruntime.StatusStarting {
+			continue
+		}
+		claims := claimsByInstance[instance.InstanceID]
+		if !startingInstanceHasLiveProcess(refsByInstance[instance.InstanceID], s.pidRunning) || !allActiveClaimsListening(claims, listeners) {
+			continue
+		}
+		health := healthByInstance[instance.InstanceID]
+		if health.InstanceID == "" || shouldProbeStartupHealth(health, s.now(), normalizeHealthInterval(s.cfg.HealthInterval)) {
+			health = s.probeHealth(ctx, instance, claims)
+			if _, err := s.store.UpsertHealthSnapshot(ctx, health); err != nil {
+				return nil, fmt.Errorf("upsert startup reconciliation health for %s: %w", instance.InstanceID, err)
+			}
+			healthByInstance[instance.InstanceID] = health
+		}
+		if !runtimeHealthAllowsStartupReconciliation(health) {
+			continue
+		}
+		for _, claim := range claims {
+			if claim.Status != scenarioruntime.ClaimStatusReserved {
+				continue
+			}
+			if _, err := s.store.BindPortClaim(ctx, claim.ClaimID); err != nil {
+				return nil, fmt.Errorf("bind startup reconciliation claim %s: %w", claim.ClaimID, err)
+			}
+		}
+		updated, err := s.store.UpdateInstanceStatus(ctx, instance.InstanceID, instance.Generation, scenarioruntime.StatusRunning, instance.Phase)
+		if err != nil {
+			return nil, fmt.Errorf("mark startup reconciliation running %s: %w", instance.InstanceID, err)
+		}
+		if _, err := s.store.UpdateInstanceReconciliation(ctx, updated.InstanceID, updated.Generation, string(scenarioruntime.ReconcileVerifiedRunning), "supervisor reconciled live startup runtime"); err != nil {
+			return nil, fmt.Errorf("update startup reconciliation %s: %w", updated.InstanceID, err)
+		}
+		reconciled = append(reconciled, updated)
+	}
+	return reconciled, nil
+}
+
+func startingInstanceHasLiveProcess(refs []scenarioruntime.ProcessRef, pidRunning PIDRunningFunc) bool {
+	if pidRunning == nil || len(refs) == 0 {
+		return false
+	}
+	for _, ref := range refs {
+		if ref.PID == nil || *ref.PID <= 0 {
+			continue
+		}
+		if pidRunning(*ref.PID) {
+			return true
+		}
+	}
+	return false
+}
+
+func allActiveClaimsListening(claims []scenarioruntime.PortClaim, listeners map[int]scenarioruntime.ListenerEvidence) bool {
+	active := 0
+	for _, claim := range claims {
+		if !scenarioruntime.IsActivePortClaimStatus(claim.Status) || claim.Port <= 0 {
+			continue
+		}
+		active++
+		evidence, ok := listeners[claim.Port]
+		if !ok || !evidence.Known || !evidence.Listening {
+			return false
+		}
+	}
+	return active > 0
+}
+
+func shouldProbeStartupHealth(snapshot scenarioruntime.HealthSnapshot, now time.Time, interval time.Duration) bool {
+	if interval <= 0 {
+		return false
+	}
+	if snapshot.CheckedAt == nil {
+		return true
+	}
+	return !snapshot.CheckedAt.Add(interval).After(now)
+}
+
+func runtimeHealthAllowsStartupReconciliation(health scenarioruntime.HealthSnapshot) bool {
+	switch health.Status {
+	case scenarioruntime.HealthStatusHealthy, scenarioruntime.HealthStatusDegraded, scenarioruntime.HealthStatusNotConfigured:
+		return health.Readiness == nil || *health.Readiness
+	default:
+		return false
+	}
+}
+
 func (s *Service) claimRenewalBatch(ctx context.Context, batch []scenarioruntime.SupervisionClaim, instances map[string]scenarioruntime.Instance) error {
 	for _, claim := range batch {
 		instance, ok := instances[claim.InstanceID]
@@ -281,6 +413,7 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 			LastTick:                      s.lastReport,
 		}, nil
 	}
+	status, reason := s.classifySupervisorSession(session)
 	instances, err := s.store.ListInstances(ctx, scenarioruntime.InstanceFilter{SupervisorID: session.SupervisorID, Statuses: []string{scenarioruntime.StatusRunning}})
 	if err != nil {
 		return StatusReport{}, err
@@ -293,7 +426,8 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 	}
 	return StatusReport{
 		SupervisorID:                  session.SupervisorID,
-		Status:                        session.Status,
+		Status:                        status,
+		StatusReason:                  reason,
 		HostBootID:                    session.HostBootID,
 		HostSessionID:                 session.HostSessionID,
 		PID:                           session.PID,
@@ -308,6 +442,20 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 		EffectiveBatchSize:            normalizeBatchSize(s.cfg.BatchSize),
 		LastTick:                      s.lastReport,
 	}, nil
+}
+
+func (s *Service) classifySupervisorSession(session scenarioruntime.SupervisorSession) (string, string) {
+	if session.Status != scenarioruntime.SupervisorStatusRunning {
+		return session.Status, session.StopReason
+	}
+	now := s.now()
+	if !session.HeartbeatDeadlineAt.IsZero() && !session.HeartbeatDeadlineAt.After(now) {
+		return StatusStale, fmt.Sprintf("heartbeat deadline expired at %s", session.HeartbeatDeadlineAt.Format(time.RFC3339))
+	}
+	if session.PID != nil && *session.PID > 0 && !s.pidRunning(*session.PID) {
+		return StatusDead, fmt.Sprintf("recorded PID %d is not running", *session.PID)
+	}
+	return scenarioruntime.SupervisorStatusRunning, ""
 }
 
 func (s *Service) Close() error {
@@ -564,12 +712,14 @@ func EnvConfig() Config {
 
 func ModeFromEnv() string {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(ModeEnv))) {
+	case ModeOff:
+		return ModeOff
 	case ModeOn:
 		return ModeOn
 	case ModeAuto:
 		return ModeAuto
 	default:
-		return ModeOff
+		return ModeAuto
 	}
 }
 
@@ -589,9 +739,7 @@ func EnsureRunning(ctx context.Context, cfg Config) error {
 		now = cfg.Clock.Now().UTC()
 	}
 	if report.Status == scenarioruntime.SupervisorStatusRunning && report.HeartbeatDeadlineAt.After(now) {
-		if report.PID == nil || process.IsPIDRunning(*report.PID) {
-			return nil
-		}
+		return nil
 	}
 
 	exe := strings.TrimSpace(cfg.Executable)

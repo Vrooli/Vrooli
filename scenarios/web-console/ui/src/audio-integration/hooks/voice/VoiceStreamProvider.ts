@@ -69,6 +69,18 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   onSegmentAccepted: ((segmentIndex: number, score: number, threshold: number) => void) | null = null;
   onSegmentRejected: ((segmentIndex: number, score: number, threshold: number) => void) | null = null;
   onSpeakerStatus: ((enabled: boolean, profileConfigured: boolean) => void) | null = null;
+  /**
+   * Fired on every server-emitted `vad-state` message. The host wires this
+   * to `useServerVadStateStore.set()` so the mic-button ring can render
+   * server-driven silence progress. See plan
+   * /home/matthalloran8/.vrooli/plans/server-driven-mic-ring-streamvadstate-event.md.
+   */
+  onVadState: ((snapshot: {
+    voiced: boolean;
+    silenceElapsedMs: number;
+    silenceTimeoutMs: number;
+    tickSeq: number;
+  }) => void) | null = null;
 
   getStream(): MediaStream | null {
     return this.stream;
@@ -133,6 +145,10 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           threshold?: number;
           enabled?: boolean;
           profileConfigured?: boolean;
+          voiced?: boolean;
+          silenceElapsedMs?: number;
+          silenceTimeoutMs?: number;
+          tickSeq?: number;
         };
         if (msg.type === "segment-final" && msg.text !== undefined) {
           this.onSegmentFinal?.(msg.text, msg.segmentIndex ?? 0);
@@ -140,6 +156,13 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           this.onSegmentAccepted?.(msg.segmentIndex ?? 0, msg.score ?? 0, msg.threshold ?? 0);
         } else if (msg.type === "segment-rejected") {
           this.onSegmentRejected?.(msg.segmentIndex ?? 0, msg.score ?? 0, msg.threshold ?? 0);
+        } else if (msg.type === "vad-state") {
+          this.onVadState?.({
+            voiced: Boolean(msg.voiced),
+            silenceElapsedMs: msg.silenceElapsedMs ?? 0,
+            silenceTimeoutMs: msg.silenceTimeoutMs ?? 0,
+            tickSeq: msg.tickSeq ?? 0,
+          });
         } else if (msg.type === "speaker-status") {
           this.onSpeakerStatus?.(Boolean(msg.enabled), Boolean(msg.profileConfigured));
         } else if (msg.type === "partial" && msg.text) {

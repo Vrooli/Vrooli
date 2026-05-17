@@ -169,6 +169,13 @@ const (
 	StreamEventSpeakerRejection StreamEventKind = "speaker_rejection"
 	StreamEventError            StreamEventKind = "error"
 	StreamEventDone             StreamEventKind = "done"
+	// StreamEventVadState carries periodic snapshots of the server-side
+	// VAD silence clock. Consumers (UI mic-button ring) render the
+	// silence-elapsed value with light client-side interpolation so the
+	// visible auto-stop progress lines up exactly with the moment the
+	// strategy actually cuts a segment. Throttled by the emitting
+	// strategy (~20 Hz in silence, ~2 Hz in voiced).
+	StreamEventVadState StreamEventKind = "vad_state"
 )
 
 // StreamEvent is a tagged union of streaming events. Exactly one of the
@@ -182,6 +189,7 @@ type StreamEvent struct {
 	SpeakerRejection *SpeakerRejectionEvent
 	Error            error
 	Done             *DoneEvent
+	VadState         *VadStateEvent
 }
 
 type PartialEvent struct {
@@ -209,6 +217,26 @@ type WakeWordEvent struct {
 type SpeakerRejectionEvent struct {
 	Reason       string
 	FallbackUsed bool
+}
+
+// VadStateEvent is a periodic snapshot of the server-side VAD silence
+// clock. Emitted by VADSegmenter on state transitions and at a throttled
+// cadence during sustained silence (~20 Hz) / sustained voiced (~2 Hz)
+// so the UI mic-button ring can render server-derived progress and avoid
+// the client/server silence-threshold drift documented in
+// /home/matthalloran8/.vrooli/plans/server-driven-mic-ring-streamvadstate-event.md.
+//
+// SilenceElapsedMs is server-relative (no clock-sync concern). The
+// client stamps receivedAt on arrival and interpolates from there.
+// SilenceTimeoutMs echoes the active StreamConfig.VADSilenceMs so the
+// client doesn't have to combine this with its own config store.
+// TickSeq is a per-stream monotonic counter the client uses to drop
+// out-of-order frames on transports that don't guarantee ordering.
+type VadStateEvent struct {
+	Voiced           bool
+	SilenceElapsedMs int64
+	SilenceTimeoutMs int64
+	TickSeq          uint64
 }
 
 type DoneEvent struct {

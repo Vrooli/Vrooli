@@ -42,6 +42,9 @@ const (
 	// SummarizeServiceUpdateSummarizeConfigProcedure is the fully-qualified name of the
 	// SummarizeService's UpdateSummarizeConfig RPC.
 	SummarizeServiceUpdateSummarizeConfigProcedure = "/vrooli.audio_tools.v1.summarize.SummarizeService/UpdateSummarizeConfig"
+	// SummarizeServiceListSummarizeModelsProcedure is the fully-qualified name of the
+	// SummarizeService's ListSummarizeModels RPC.
+	SummarizeServiceListSummarizeModelsProcedure = "/vrooli.audio_tools.v1.summarize.SummarizeService/ListSummarizeModels"
 )
 
 // SummarizeServiceClient is a client for the vrooli.audio_tools.v1.summarize.SummarizeService
@@ -54,6 +57,7 @@ type SummarizeServiceClient interface {
 	// so multiple consumer scenarios share one canonical configuration.
 	GetSummarizeConfig(context.Context, *connect.Request[summarize.GetSummarizeConfigRequest]) (*connect.Response[summarize.GetSummarizeConfigResponse], error)
 	UpdateSummarizeConfig(context.Context, *connect.Request[summarize.UpdateSummarizeConfigRequest]) (*connect.Response[summarize.UpdateSummarizeConfigResponse], error)
+	ListSummarizeModels(context.Context, *connect.Request[summarize.ListSummarizeModelsRequest]) (*connect.Response[summarize.ListSummarizeModelsResponse], error)
 }
 
 // NewSummarizeServiceClient constructs a client for the
@@ -86,6 +90,12 @@ func NewSummarizeServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(summarizeServiceMethods.ByName("UpdateSummarizeConfig")),
 			connect.WithClientOptions(opts...),
 		),
+		listSummarizeModels: connect.NewClient[summarize.ListSummarizeModelsRequest, summarize.ListSummarizeModelsResponse](
+			httpClient,
+			baseURL+SummarizeServiceListSummarizeModelsProcedure,
+			connect.WithSchema(summarizeServiceMethods.ByName("ListSummarizeModels")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -94,6 +104,7 @@ type summarizeServiceClient struct {
 	summarize             *connect.Client[summarize.SummarizeRequest, summarize.SummarizeResponse]
 	getSummarizeConfig    *connect.Client[summarize.GetSummarizeConfigRequest, summarize.GetSummarizeConfigResponse]
 	updateSummarizeConfig *connect.Client[summarize.UpdateSummarizeConfigRequest, summarize.UpdateSummarizeConfigResponse]
+	listSummarizeModels   *connect.Client[summarize.ListSummarizeModelsRequest, summarize.ListSummarizeModelsResponse]
 }
 
 // Summarize calls vrooli.audio_tools.v1.summarize.SummarizeService.Summarize.
@@ -112,6 +123,11 @@ func (c *summarizeServiceClient) UpdateSummarizeConfig(ctx context.Context, req 
 	return c.updateSummarizeConfig.CallUnary(ctx, req)
 }
 
+// ListSummarizeModels calls vrooli.audio_tools.v1.summarize.SummarizeService.ListSummarizeModels.
+func (c *summarizeServiceClient) ListSummarizeModels(ctx context.Context, req *connect.Request[summarize.ListSummarizeModelsRequest]) (*connect.Response[summarize.ListSummarizeModelsResponse], error) {
+	return c.listSummarizeModels.CallUnary(ctx, req)
+}
+
 // SummarizeServiceHandler is an implementation of the
 // vrooli.audio_tools.v1.summarize.SummarizeService service.
 type SummarizeServiceHandler interface {
@@ -122,6 +138,7 @@ type SummarizeServiceHandler interface {
 	// so multiple consumer scenarios share one canonical configuration.
 	GetSummarizeConfig(context.Context, *connect.Request[summarize.GetSummarizeConfigRequest]) (*connect.Response[summarize.GetSummarizeConfigResponse], error)
 	UpdateSummarizeConfig(context.Context, *connect.Request[summarize.UpdateSummarizeConfigRequest]) (*connect.Response[summarize.UpdateSummarizeConfigResponse], error)
+	ListSummarizeModels(context.Context, *connect.Request[summarize.ListSummarizeModelsRequest]) (*connect.Response[summarize.ListSummarizeModelsResponse], error)
 }
 
 // NewSummarizeServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -149,6 +166,12 @@ func NewSummarizeServiceHandler(svc SummarizeServiceHandler, opts ...connect.Han
 		connect.WithSchema(summarizeServiceMethods.ByName("UpdateSummarizeConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
+	summarizeServiceListSummarizeModelsHandler := connect.NewUnaryHandler(
+		SummarizeServiceListSummarizeModelsProcedure,
+		svc.ListSummarizeModels,
+		connect.WithSchema(summarizeServiceMethods.ByName("ListSummarizeModels")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.audio_tools.v1.summarize.SummarizeService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SummarizeServiceSummarizeProcedure:
@@ -157,6 +180,8 @@ func NewSummarizeServiceHandler(svc SummarizeServiceHandler, opts ...connect.Han
 			summarizeServiceGetSummarizeConfigHandler.ServeHTTP(w, r)
 		case SummarizeServiceUpdateSummarizeConfigProcedure:
 			summarizeServiceUpdateSummarizeConfigHandler.ServeHTTP(w, r)
+		case SummarizeServiceListSummarizeModelsProcedure:
+			summarizeServiceListSummarizeModelsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -176,4 +201,8 @@ func (UnimplementedSummarizeServiceHandler) GetSummarizeConfig(context.Context, 
 
 func (UnimplementedSummarizeServiceHandler) UpdateSummarizeConfig(context.Context, *connect.Request[summarize.UpdateSummarizeConfigRequest]) (*connect.Response[summarize.UpdateSummarizeConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.summarize.SummarizeService.UpdateSummarizeConfig is not implemented"))
+}
+
+func (UnimplementedSummarizeServiceHandler) ListSummarizeModels(context.Context, *connect.Request[summarize.ListSummarizeModelsRequest]) (*connect.Response[summarize.ListSummarizeModelsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.summarize.SummarizeService.ListSummarizeModels is not implemented"))
 }

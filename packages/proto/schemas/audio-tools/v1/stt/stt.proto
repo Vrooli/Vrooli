@@ -386,6 +386,7 @@ message TranscribeStreamEvent {
     StreamSpeakerRejection speaker_rejection = 4;
     StreamError error = 5;
     StreamDone done = 6;
+    StreamVadState vad_state = 7;
   }
 }
 
@@ -416,6 +417,19 @@ message StreamSpeakerRejection {
 message StreamError {
   string code = 1;
   string message = 2;
+}
+
+// StreamVadState is a periodic snapshot of the server-side VAD silence
+// clock. Emitted by VADSegmenter on voiced↔silence transitions and at a
+// throttled cadence during sustained state. Clients (UI mic-button
+// ring) render silence_elapsed_ms with light interpolation so the ring
+// completes at the moment the server actually cuts a segment. See
+// audio-tools/api/internal/ai/sttchain.VadStateEvent for the Go mirror.
+message StreamVadState {
+  bool voiced = 1;
+  int64 silence_elapsed_ms = 2;
+  int64 silence_timeout_ms = 3;
+  uint64 tick_seq = 4;
 }
 
 message StreamDone {

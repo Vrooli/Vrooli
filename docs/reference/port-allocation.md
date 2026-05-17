@@ -125,6 +125,11 @@ registry — not files on disk — decides which scenario owns which port:
   while the scenario is running. A claim becomes non-authoritative when its
   lease is stale, the host has rebooted, or the listener disappears — all
   surfaced by `vrooli locks --json` and `vrooli diagnose-port`.
+- Scenario lifecycle starts the runtime supervisor in `auto` mode by default
+  unless `VROOLI_RUNTIME_SUPERVISOR=off` is set. Persistent hosts should also
+  install the user service with `vrooli runtime supervisor install --user`;
+  the generated systemd unit records `VROOLI_SOURCE_ROOT` and runs from the
+  repository root so the supervisor can operate outside an interactive shell.
 
 Older releases also wrote `.port_<port>.lock` files in
 `~/.vrooli/state/scenarios/`. These files are **diagnostic artifacts only**

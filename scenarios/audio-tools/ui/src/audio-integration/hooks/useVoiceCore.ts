@@ -35,6 +35,7 @@ import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoise
 import { getSharedAudioContext, ensureAudioContextOnGesture, installAudioContextKeepalive, teardownAudioContextKeepalive } from "../index";
 import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "../index";
 import { VoiceStreamProvider } from "../index";
+import { setServerVadState } from "./useServerVadStateStore";
 import { WhisperProvider } from "../index";
 import { WebSpeechProvider } from "../index";
 import { createWakeWordEngine, PassiveListener } from "../index";
@@ -852,6 +853,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
             speakerProfileConfigured: true,
             partialTranscript: "",
           }));
+        };
+        provider.onVadState = (snapshot) => {
+          setServerVadState(snapshot);
         };
         provider.onSpeakerStatus = (enabled, profileConfigured) => {
           setState((s) => ({

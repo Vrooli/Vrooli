@@ -7,6 +7,13 @@
 export { MicReadinessIndicator } from "./MicReadinessIndicator";
 export type { MicReadinessIndicatorProps } from "./MicReadinessIndicator";
 
+export {
+  useServerVadStateStore,
+  setServerVadState,
+  _resetServerVadStateForTesting,
+} from "./hooks/useServerVadStateStore";
+export type { ServerVadStateSnapshot } from "./hooks/useServerVadStateStore";
+
 // =============================================================================
 // Voice (STT) capability surface.
 // =============================================================================

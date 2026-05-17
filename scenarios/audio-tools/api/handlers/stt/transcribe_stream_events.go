@@ -70,6 +70,20 @@ func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 				Error: &sttv1.StreamError{Code: "provider_failure", Message: msg},
 			},
 		}
+	case sttchain.StreamEventVadState:
+		if ev.VadState == nil {
+			return nil
+		}
+		return &sttv1.TranscribeStreamEvent{
+			Event: &sttv1.TranscribeStreamEvent_VadState{
+				VadState: &sttv1.StreamVadState{
+					Voiced:           ev.VadState.Voiced,
+					SilenceElapsedMs: ev.VadState.SilenceElapsedMs,
+					SilenceTimeoutMs: ev.VadState.SilenceTimeoutMs,
+					TickSeq:          ev.VadState.TickSeq,
+				},
+			},
+		}
 	case sttchain.StreamEventDone:
 		done := ev.Done
 		if done == nil {

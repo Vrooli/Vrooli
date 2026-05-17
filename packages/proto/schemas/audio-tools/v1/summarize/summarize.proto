@@ -47,6 +47,7 @@ service SummarizeService {
   // so multiple consumer scenarios share one canonical configuration.
   rpc GetSummarizeConfig(GetSummarizeConfigRequest) returns (GetSummarizeConfigResponse);
   rpc UpdateSummarizeConfig(UpdateSummarizeConfigRequest) returns (UpdateSummarizeConfigResponse);
+  rpc ListSummarizeModels(ListSummarizeModelsRequest) returns (ListSummarizeModelsResponse);
 }
 
 message SummarizeConfig {
@@ -74,6 +75,27 @@ message UpdateSummarizeConfigRequest {
 
 message UpdateSummarizeConfigResponse {
   SummarizeConfig config = 1;
+}
+
+message ListSummarizeModelsRequest {}
+
+message SummarizeModel {
+  string id = 1;
+  string display_name = 2;
+  bool installed = 3;
+  bool recommended = 4;
+  bool default_eligible = 5;
+  bool reasoning = 6;
+  string status_label = 7;
+  string pull_command = 8;
+  int64 size_bytes = 9;
+  string parameter_size = 10;
+  string source_url = 11;
+  string notes = 12;
+}
+
+message ListSummarizeModelsResponse {
+  repeated SummarizeModel models = 1;
 }
 
 message SummarizeRequest {

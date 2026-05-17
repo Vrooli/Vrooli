@@ -227,11 +227,34 @@ func (s *runtimeRegistrySession) bindPorts(ctx context.Context) error {
 	for name, claim := range s.claims {
 		bound, err := s.store.BindPortClaim(ctx, claim.ClaimID)
 		if err != nil {
+			if errors.Is(err, scenarioruntime.ErrClaimNotReservable) {
+				alreadyBound, lookupErr := s.boundClaim(ctx, claim.ClaimID)
+				if lookupErr != nil {
+					return fmt.Errorf("bind scenario runtime port claim %s=%d: %w (inspect claim: %v)", name, claim.Port, err, lookupErr)
+				}
+				if alreadyBound.Status == scenarioruntime.ClaimStatusBound {
+					s.claims[name] = alreadyBound
+					continue
+				}
+			}
 			return fmt.Errorf("bind scenario runtime port claim %s=%d: %w", name, claim.Port, err)
 		}
 		s.claims[name] = bound
 	}
 	return nil
+}
+
+func (s *runtimeRegistrySession) boundClaim(ctx context.Context, claimID string) (scenarioruntime.PortClaim, error) {
+	claims, err := s.store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: s.instance.InstanceID})
+	if err != nil {
+		return scenarioruntime.PortClaim{}, err
+	}
+	for _, claim := range claims {
+		if claim.ClaimID == claimID {
+			return claim, nil
+		}
+	}
+	return scenarioruntime.PortClaim{}, scenarioruntime.ErrNotFound
 }
 
 func (s *runtimeRegistrySession) markRunning(ctx context.Context) error {

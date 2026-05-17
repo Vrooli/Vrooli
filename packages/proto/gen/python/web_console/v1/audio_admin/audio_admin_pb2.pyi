@@ -403,3 +403,41 @@ class UpdateSummarizeConfigResponse(_message.Message):
     CONFIG_FIELD_NUMBER: _ClassVar[int]
     config: SummarizeConfig
     def __init__(self, config: _Optional[_Union[SummarizeConfig, _Mapping]] = ...) -> None: ...
+
+class ListSummarizeModelsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class SummarizeModel(_message.Message):
+    __slots__ = ("id", "display_name", "installed", "recommended", "default_eligible", "reasoning", "status_label", "pull_command", "size_bytes", "parameter_size", "source_url", "notes")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDED_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
+    REASONING_FIELD_NUMBER: _ClassVar[int]
+    STATUS_LABEL_FIELD_NUMBER: _ClassVar[int]
+    PULL_COMMAND_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    PARAMETER_SIZE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_URL_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    display_name: str
+    installed: bool
+    recommended: bool
+    default_eligible: bool
+    reasoning: bool
+    status_label: str
+    pull_command: str
+    size_bytes: int
+    parameter_size: str
+    source_url: str
+    notes: str
+    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., installed: _Optional[bool] = ..., recommended: _Optional[bool] = ..., default_eligible: _Optional[bool] = ..., reasoning: _Optional[bool] = ..., status_label: _Optional[str] = ..., pull_command: _Optional[str] = ..., size_bytes: _Optional[int] = ..., parameter_size: _Optional[str] = ..., source_url: _Optional[str] = ..., notes: _Optional[str] = ...) -> None: ...
+
+class ListSummarizeModelsResponse(_message.Message):
+    __slots__ = ("models",)
+    MODELS_FIELD_NUMBER: _ClassVar[int]
+    models: _containers.RepeatedCompositeFieldContainer[SummarizeModel]
+    def __init__(self, models: _Optional[_Iterable[_Union[SummarizeModel, _Mapping]]] = ...) -> None: ...

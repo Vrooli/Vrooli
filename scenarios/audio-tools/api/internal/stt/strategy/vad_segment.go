@@ -10,6 +10,14 @@ import (
 	"audio-tools/internal/clock"
 )
 
+// VAD state-emission cadence. See VadStateEvent doc. Throttling lives
+// here on the server (per plan §12); UI consumers must not add their
+// own throttle layer.
+const (
+	vadEmitSilenceMinIntervalMs = 50  // ≤ ~20 Hz during sustained silence
+	vadEmitVoicedMinIntervalMs  = 500 // ≤ ~2 Hz during sustained voiced
+)
+
 // VADSegmenter is the per-session VAD-bounded segment strategy. It
 // buffers raw 16-bit PCM @ 16 kHz, detects sustained silence using a
 // short-term RMS threshold, and calls Provider.Transcribe once per
@@ -76,6 +84,38 @@ func (v *VADSegmenter) Run(
 	var lastProviderID, lastModelID string
 	var totalLatencyMs float64
 
+	// VAD state-emission bookkeeping. tickSeq is per-stream monotonic so
+	// out-of-order clients can drop stale frames. lastEmittedVoiced lets
+	// us force a tick on state transitions even when throttled. zeroEmit
+	// is the sentinel for "no tick emitted yet" — we always emit on the
+	// first voiced→silence transition (no event before first speech, per
+	// plan §8 contract).
+	var (
+		tickSeq             uint64
+		lastEmitFrameIdx    int // frame index of the last emission
+		lastEmittedVoiced   bool
+		anyTickEmitted      bool
+	)
+	clk := v.Clock
+	if clk == nil {
+		clk = clock.System{}
+	}
+	emitVad := func(voiced bool, silenceElapsedMs int64, frameIdx int) {
+		tickSeq++
+		lastEmitFrameIdx = frameIdx
+		lastEmittedVoiced = voiced
+		anyTickEmitted = true
+		events <- sttchain.StreamEvent{
+			Kind: sttchain.StreamEventVadState,
+			VadState: &sttchain.VadStateEvent{
+				Voiced:           voiced,
+				SilenceElapsedMs: silenceElapsedMs,
+				SilenceTimeoutMs: int64(v.SilenceMs),
+				TickSeq:          tickSeq,
+			},
+		}
+	}
+
 	flushSegment := func(end int) {
 		if !hasVoiced || end-segStart <= 0 {
 			segStart = end
@@ -93,10 +133,6 @@ func (v *VADSegmenter) Run(
 			BYOKKey:                 start.BYOKKey,
 			LPBSToken:               start.LPBSToken,
 			UserIdentity:            start.UserIdentity,
-		}
-		clk := v.Clock
-		if clk == nil {
-			clk = clock.System{}
 		}
 		t0 := clk.Now()
 		res, err := v.Provider.Transcribe(ctx, req)
@@ -135,20 +171,58 @@ func (v *VADSegmenter) Run(
 	scan := func() {
 		for nextFrame+frameBytes <= len(buf) {
 			rms := frameRMS(buf[nextFrame : nextFrame+frameBytes])
-			if rms < v.SilenceRMS {
+			isSilent := rms < v.SilenceRMS
+			if isSilent {
 				silentFrames++
-				if hasVoiced && silentFrames >= silenceFramesNeeded {
-					// Cut the segment at the start of the silence run.
-					cut := nextFrame + frameBytes - silentFrames*frameBytes
-					if cut < segStart {
-						cut = segStart
-					}
-					flushSegment(cut)
-					silentFrames = 0
-				}
 			} else {
 				silentFrames = 0
 				hasVoiced = true
+			}
+
+			// VAD state emission. Per plan §8:
+			//  - no event before the first voiced frame in a segment
+			//  - emit on voiced↔silence transitions
+			//  - otherwise throttle by audio-time elapsed:
+			//      ≤20 Hz silence (≥50 ms / tick), ≤2 Hz voiced (≥500 ms / tick).
+			//
+			// Throttle is intentionally audio-time, not wall-clock: the
+			// chain feeds frames in real time in production but tests
+			// batch all PCM in one chunk, and the contract talks about
+			// silence-clock ticks (the user-visible mic ring), not CPU
+			// time. Audio-time throttling gives both worlds the same
+			// cadence guarantees.
+			currentFrameIdx := nextFrame / frameBytes
+			if hasVoiced {
+				voicedNow := !isSilent
+				silenceElapsedMs := int64(silentFrames) * int64(v.FrameMs)
+				shouldEmit := false
+				if !anyTickEmitted {
+					shouldEmit = true
+				} else if voicedNow != lastEmittedVoiced {
+					shouldEmit = true
+				} else {
+					minIntervalMs := vadEmitVoicedMinIntervalMs
+					if !voicedNow {
+						minIntervalMs = vadEmitSilenceMinIntervalMs
+					}
+					elapsedMs := (currentFrameIdx - lastEmitFrameIdx) * v.FrameMs
+					if elapsedMs >= minIntervalMs {
+						shouldEmit = true
+					}
+				}
+				if shouldEmit {
+					emitVad(voicedNow, silenceElapsedMs, currentFrameIdx)
+				}
+			}
+
+			if isSilent && hasVoiced && silentFrames >= silenceFramesNeeded {
+				// Cut the segment at the start of the silence run.
+				cut := nextFrame + frameBytes - silentFrames*frameBytes
+				if cut < segStart {
+					cut = segStart
+				}
+				flushSegment(cut)
+				silentFrames = 0
 			}
 			nextFrame += frameBytes
 		}

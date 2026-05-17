@@ -84,6 +84,9 @@ const (
 	// AudioAdminServiceUpdateSummarizeConfigProcedure is the fully-qualified name of the
 	// AudioAdminService's UpdateSummarizeConfig RPC.
 	AudioAdminServiceUpdateSummarizeConfigProcedure = "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateSummarizeConfig"
+	// AudioAdminServiceListSummarizeModelsProcedure is the fully-qualified name of the
+	// AudioAdminService's ListSummarizeModels RPC.
+	AudioAdminServiceListSummarizeModelsProcedure = "/vrooli.web_console.v1.audio_admin.AudioAdminService/ListSummarizeModels"
 )
 
 // AudioAdminServiceClient is a client for the vrooli.web_console.v1.audio_admin.AudioAdminService
@@ -117,6 +120,7 @@ type AudioAdminServiceClient interface {
 	// --- Summarize config (TTS pre-processing) ---
 	GetSummarizeConfig(context.Context, *connect.Request[audio_admin.GetSummarizeConfigRequest]) (*connect.Response[audio_admin.GetSummarizeConfigResponse], error)
 	UpdateSummarizeConfig(context.Context, *connect.Request[audio_admin.UpdateSummarizeConfigRequest]) (*connect.Response[audio_admin.UpdateSummarizeConfigResponse], error)
+	ListSummarizeModels(context.Context, *connect.Request[audio_admin.ListSummarizeModelsRequest]) (*connect.Response[audio_admin.ListSummarizeModelsResponse], error)
 }
 
 // NewAudioAdminServiceClient constructs a client for the
@@ -233,6 +237,12 @@ func NewAudioAdminServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(audioAdminServiceMethods.ByName("UpdateSummarizeConfig")),
 			connect.WithClientOptions(opts...),
 		),
+		listSummarizeModels: connect.NewClient[audio_admin.ListSummarizeModelsRequest, audio_admin.ListSummarizeModelsResponse](
+			httpClient,
+			baseURL+AudioAdminServiceListSummarizeModelsProcedure,
+			connect.WithSchema(audioAdminServiceMethods.ByName("ListSummarizeModels")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -255,6 +265,7 @@ type audioAdminServiceClient struct {
 	updateTTSConfig            *connect.Client[audio_admin.UpdateTTSConfigRequest, audio_admin.UpdateTTSConfigResponse]
 	getSummarizeConfig         *connect.Client[audio_admin.GetSummarizeConfigRequest, audio_admin.GetSummarizeConfigResponse]
 	updateSummarizeConfig      *connect.Client[audio_admin.UpdateSummarizeConfigRequest, audio_admin.UpdateSummarizeConfigResponse]
+	listSummarizeModels        *connect.Client[audio_admin.ListSummarizeModelsRequest, audio_admin.ListSummarizeModelsResponse]
 }
 
 // GetStreamConfig calls vrooli.web_console.v1.audio_admin.AudioAdminService.GetStreamConfig.
@@ -351,6 +362,12 @@ func (c *audioAdminServiceClient) UpdateSummarizeConfig(ctx context.Context, req
 	return c.updateSummarizeConfig.CallUnary(ctx, req)
 }
 
+// ListSummarizeModels calls
+// vrooli.web_console.v1.audio_admin.AudioAdminService.ListSummarizeModels.
+func (c *audioAdminServiceClient) ListSummarizeModels(ctx context.Context, req *connect.Request[audio_admin.ListSummarizeModelsRequest]) (*connect.Response[audio_admin.ListSummarizeModelsResponse], error) {
+	return c.listSummarizeModels.CallUnary(ctx, req)
+}
+
 // AudioAdminServiceHandler is an implementation of the
 // vrooli.web_console.v1.audio_admin.AudioAdminService service.
 type AudioAdminServiceHandler interface {
@@ -382,6 +399,7 @@ type AudioAdminServiceHandler interface {
 	// --- Summarize config (TTS pre-processing) ---
 	GetSummarizeConfig(context.Context, *connect.Request[audio_admin.GetSummarizeConfigRequest]) (*connect.Response[audio_admin.GetSummarizeConfigResponse], error)
 	UpdateSummarizeConfig(context.Context, *connect.Request[audio_admin.UpdateSummarizeConfigRequest]) (*connect.Response[audio_admin.UpdateSummarizeConfigResponse], error)
+	ListSummarizeModels(context.Context, *connect.Request[audio_admin.ListSummarizeModelsRequest]) (*connect.Response[audio_admin.ListSummarizeModelsResponse], error)
 }
 
 // NewAudioAdminServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -493,6 +511,12 @@ func NewAudioAdminServiceHandler(svc AudioAdminServiceHandler, opts ...connect.H
 		connect.WithSchema(audioAdminServiceMethods.ByName("UpdateSummarizeConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
+	audioAdminServiceListSummarizeModelsHandler := connect.NewUnaryHandler(
+		AudioAdminServiceListSummarizeModelsProcedure,
+		svc.ListSummarizeModels,
+		connect.WithSchema(audioAdminServiceMethods.ByName("ListSummarizeModels")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_console.v1.audio_admin.AudioAdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AudioAdminServiceGetStreamConfigProcedure:
@@ -529,6 +553,8 @@ func NewAudioAdminServiceHandler(svc AudioAdminServiceHandler, opts ...connect.H
 			audioAdminServiceGetSummarizeConfigHandler.ServeHTTP(w, r)
 		case AudioAdminServiceUpdateSummarizeConfigProcedure:
 			audioAdminServiceUpdateSummarizeConfigHandler.ServeHTTP(w, r)
+		case AudioAdminServiceListSummarizeModelsProcedure:
+			audioAdminServiceListSummarizeModelsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -604,4 +630,8 @@ func (UnimplementedAudioAdminServiceHandler) GetSummarizeConfig(context.Context,
 
 func (UnimplementedAudioAdminServiceHandler) UpdateSummarizeConfig(context.Context, *connect.Request[audio_admin.UpdateSummarizeConfigRequest]) (*connect.Response[audio_admin.UpdateSummarizeConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateSummarizeConfig is not implemented"))
+}
+
+func (UnimplementedAudioAdminServiceHandler) ListSummarizeModels(context.Context, *connect.Request[audio_admin.ListSummarizeModelsRequest]) (*connect.Response[audio_admin.ListSummarizeModelsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.audio_admin.AudioAdminService.ListSummarizeModels is not implemented"))
 }

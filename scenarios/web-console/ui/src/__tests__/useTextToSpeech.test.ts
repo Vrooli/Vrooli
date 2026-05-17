@@ -105,6 +105,14 @@ const defaultSettings: TTSSettings = {
   backendPreference: "auto",
 };
 
+function audioToolsCapability(status: "available" | "unavailable") {
+  return {
+    id: "audio-tools",
+    status,
+    features: ["voice-output", "tts-summarization", "tts-cache"],
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   useWorkspaceStore.setState({ startMutedOnLoad: true });
@@ -126,7 +134,7 @@ describe("useTextToSpeech", () => {
 
   it("selects kokoro backend when capability is available", async () => {
     mockFetchCaps.mockResolvedValue({
-      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      capabilities: [audioToolsCapability("available")],
       timestamp: new Date().toISOString(),
     });
     mockGetVoices.mockResolvedValue([
@@ -145,7 +153,7 @@ describe("useTextToSpeech", () => {
 
   it("falls back to browser when kokoro is unavailable", async () => {
     mockFetchCaps.mockResolvedValue({
-      capabilities: [{ id: "kokoro-tts", status: "unavailable" }],
+      capabilities: [audioToolsCapability("unavailable")],
       timestamp: new Date().toISOString(),
     });
 

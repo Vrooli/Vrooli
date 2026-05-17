@@ -83,9 +83,16 @@ describe("AudioPlayerBar", () => {
     expect(props.onResume).toHaveBeenCalledTimes(1);
   });
 
-  it("does not render a dismiss control", () => {
+  it("does not render a dismiss control by default", () => {
     render(<AudioPlayerBar {...makeProps()} />);
     expect(screen.queryByTestId("tts-dismiss")).toBeNull();
+  });
+
+  it("renders optional dismiss control and calls onDismiss", () => {
+    const onDismiss = vi.fn();
+    render(<AudioPlayerBar {...makeProps({ onDismiss })} />);
+    fireEvent.click(screen.getByTestId("tts-dismiss"));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
   it("scrub bar reflects currentTime and changing it calls onSeek", () => {

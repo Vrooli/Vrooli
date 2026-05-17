@@ -847,7 +847,7 @@ func mapResourceParseError(command string, err error) error {
 	if helpErr, ok := err.(interface{ HelpText() string }); ok {
 		return rootcli.CommandHelpOnly(helpErr.HelpText())
 	}
-	return rootcli.UsageErrorf(command, err.Error())
+	return rootcli.UsageErrorf(command, "%s", err.Error())
 }
 
 func renderResourceStatusResponse(w io.Writer, format cliout.Format, resp resourceStatusResponse) error {

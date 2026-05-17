@@ -17,6 +17,7 @@ const systemdUserUnitName = "vrooli-runtime-supervisor.service"
 type ServiceInstallOptions struct {
 	HomeDir    string
 	Executable string
+	SourceRoot string
 	User       bool
 }
 
@@ -54,7 +55,7 @@ func InstallService(ctx context.Context, opts ServiceInstallOptions) (ServiceIns
 	if err := os.MkdirAll(filepath.Dir(unitPath), 0o755); err != nil {
 		return ServiceInstallResult{}, fmt.Errorf("create systemd user unit dir: %w", err)
 	}
-	if err := os.WriteFile(unitPath, []byte(systemdUserUnitContent(exe, home)), 0o644); err != nil {
+	if err := os.WriteFile(unitPath, []byte(systemdUserUnitContent(exe, home, opts.SourceRoot)), 0o644); err != nil {
 		return ServiceInstallResult{}, fmt.Errorf("write runtime supervisor systemd unit: %w", err)
 	}
 	if err := runSystemctlUser(ctx, "daemon-reload"); err != nil {
@@ -94,7 +95,14 @@ func systemdUserUnitPath() (string, error) {
 	return filepath.Join(configDir, "systemd", "user", systemdUserUnitName), nil
 }
 
-func systemdUserUnitContent(executable string, home string) string {
+func systemdUserUnitContent(executable string, home string, sourceRoot string) string {
+	sourceRoot = strings.TrimSpace(sourceRoot)
+	sourceRootEnv := ""
+	workingDirectory := ""
+	if sourceRoot != "" {
+		sourceRootEnv = fmt.Sprintf("Environment=VROOLI_SOURCE_ROOT=%s\n", systemdValue(sourceRoot))
+		workingDirectory = fmt.Sprintf("WorkingDirectory=%s\n", sourceRoot)
+	}
 	return fmt.Sprintf(`[Unit]
 Description=Vrooli runtime supervisor
 After=default.target
@@ -103,13 +111,13 @@ After=default.target
 Type=simple
 Environment=HOME=%s
 Environment=VROOLI_RUNTIME_SUPERVISOR=on
-ExecStart=%s --no-stale-check runtime supervisor run
+%s%sExecStart=%s --no-stale-check runtime supervisor run
 Restart=on-failure
 RestartSec=5s
 
 [Install]
 WantedBy=default.target
-`, systemdValue(home), systemdValue(executable))
+`, systemdValue(home), sourceRootEnv, workingDirectory, systemdValue(executable))
 }
 
 func systemdValue(value string) string {

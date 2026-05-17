@@ -179,6 +179,7 @@ vi.mock("../components/TerminalHeader", () => ({
 vi.mock("../components/AudioPlayerBar", () => ({
   default: vi.fn(({
     onResume,
+    onDismiss,
     isSummarized,
     onToggleSummarized,
     currentLevel,
@@ -186,6 +187,7 @@ vi.mock("../components/AudioPlayerBar", () => ({
     hasQueuedNext,
   }: {
     onResume: () => void;
+    onDismiss?: () => void;
     isSummarized?: boolean;
     onToggleSummarized?: (useSummarized: boolean) => void;
     currentLevel?: "light" | "moderate" | "heavy";
@@ -203,6 +205,7 @@ vi.mock("../components/AudioPlayerBar", () => ({
       <button data-testid="tts-mode-option-active" onClick={() => onToggleSummarized?.(true)}>
         {currentLevel === "light" ? "Light" : currentLevel === "heavy" ? "Heavy" : "Moderate"}
       </button>
+      {onDismiss && <button data-testid="tts-dismiss" onClick={onDismiss}>Close</button>}
       <span data-testid="tts-current-message">{currentMessageLabel ?? ""}</span>
       <span data-testid="tts-has-next">{String(hasQueuedNext ?? false)}</span>
     </div>
@@ -333,6 +336,23 @@ describe("Workspace TTS replay bar", () => {
     });
 
     expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
+  });
+
+  it("shows a dismissible audio player bar during manual playback when auto-TTS is disabled", async () => {
+    setupPaneState();
+    mockStoreState.autoTtsEnabled = false;
+
+    await renderWorkspace();
+
+    act(() => {
+      captured.onTtsSpeakingChange?.(true);
+      captured.onSpeakingEventChange?.(testEvent.id);
+    });
+
+    expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("tts-dismiss"));
+
+    expect(mockStopActiveTts).toHaveBeenCalledWith(SESSION_ID);
   });
 
   it("keeps audio player bar visible after TTS stops when auto-TTS is enabled", async () => {
@@ -475,7 +495,7 @@ describe("Workspace TTS replay bar", () => {
     });
 
     expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
-    expect(screen.queryByTestId("replay-dismiss")).toBeNull();
+    expect(screen.queryByTestId("tts-dismiss")).toBeNull();
     expect(screen.queryByTestId("tts-compact-control")).toBeNull();
   });
 });

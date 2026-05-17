@@ -25,6 +25,9 @@ const (
 	wsMsgSegmentRejected = "segment-rejected"
 	wsMsgError           = "error"
 	wsMsgDone            = "done"
+	// wsMsgVadState mirrors sttchain.StreamEventVadState on the browser
+	// transport. See VadStateEvent doc + plan §7 step 3.
+	wsMsgVadState = "vad-state"
 )
 
 type wsMessage struct {
@@ -34,6 +37,12 @@ type wsMessage struct {
 	Score        float64 `json:"score,omitempty"`
 	Threshold    float64 `json:"threshold,omitempty"`
 	ProfileID    string  `json:"profileId,omitempty"`
+	// VAD-state fields (only populated when Type == wsMsgVadState). All
+	// are pointer-typed so omitempty drops them from non-VAD messages.
+	Voiced           *bool   `json:"voiced,omitempty"`
+	SilenceElapsedMs *int64  `json:"silenceElapsedMs,omitempty"`
+	SilenceTimeoutMs *int64  `json:"silenceTimeoutMs,omitempty"`
+	TickSeq          *uint64 `json:"tickSeq,omitempty"`
 }
 
 // StreamWSHandler is the browser-voice WebSocket transport. It opens
@@ -138,6 +147,20 @@ func StreamWSHandler(d Deps) http.Handler {
 				if ev.Segment != nil {
 					writeJSON(wsMessage{Type: wsMsgSegmentFinal, Text: ev.Segment.Text, SegmentIndex: segIdx})
 					segIdx++
+				}
+			case sttchain.StreamEventVadState:
+				if ev.VadState != nil {
+					voiced := ev.VadState.Voiced
+					elapsed := ev.VadState.SilenceElapsedMs
+					timeout := ev.VadState.SilenceTimeoutMs
+					seq := ev.VadState.TickSeq
+					writeJSON(wsMessage{
+						Type:             wsMsgVadState,
+						Voiced:           &voiced,
+						SilenceElapsedMs: &elapsed,
+						SilenceTimeoutMs: &timeout,
+						TickSeq:          &seq,
+					})
 				}
 			case sttchain.StreamEventSpeakerRejection:
 				if ev.SpeakerRejection != nil {

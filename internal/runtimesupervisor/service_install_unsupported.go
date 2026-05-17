@@ -10,6 +10,7 @@ import (
 type ServiceInstallOptions struct {
 	HomeDir    string
 	Executable string
+	SourceRoot string
 	User       bool
 }
 

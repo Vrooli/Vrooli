@@ -63,7 +63,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 				}
 				item, err := packageapp.Service{Root: deps.Root(ctx)}.Info(req.Name)
 				if err != nil {
-					return "", packagegov.Package{}, rootcli.UsageErrorf("package info", err.Error())
+					return "", packagegov.Package{}, rootcli.UsageErrorf("package info", "%s", err.Error())
 				}
 				return format, item, nil
 			},
@@ -80,7 +80,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 				}
 				item, report, err := packageapp.Service{Root: deps.Root(ctx)}.Dependents(req.Name)
 				if err != nil {
-					return "", packagecli.DependentsResponse{}, rootcli.UsageErrorf("package dependents", err.Error())
+					return "", packagecli.DependentsResponse{}, rootcli.UsageErrorf("package dependents", "%s", err.Error())
 				}
 				return format, packagecli.DependentsResponse{
 					PackageName: item.Name,

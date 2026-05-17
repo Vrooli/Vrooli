@@ -1,10 +1,12 @@
-import { memo, useRef, useLayoutEffect, useState, useCallback } from "react";
+import { memo, useRef, useLayoutEffect, useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Mic, Loader2, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
+import type { ServerVadStateSnapshot } from "../audio-integration";
+import { VAD_AUTO_STOP_VISUAL_GRACE_MS, useServerVadStateStore } from "../audio-integration";
 
 /** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
 const LONG_PRESS_MS = 300;
@@ -33,6 +35,13 @@ interface VoiceMicButtonProps {
   audioLevel?: number;
   /** VAD-derived snapshot used for the auto-stop countdown visualization. */
   voiceActivity?: VoiceActivitySnapshot;
+  /**
+   * Latest server-emitted VAD-state snapshot. When fresh (<250 ms since
+   * receivedAt) the ring renders server-derived silence progress with light
+   * interpolation between ticks; stale snapshots fall back to voiceActivity.
+   * See plan: server-driven-mic-ring-streamvadstate-event.md.
+   */
+  serverVad?: ServerVadStateSnapshot;
   /** Live partial transcript from streaming transcription. */
   partialTranscript?: string;
   /** Active voice backend, shown in tooltip for diagnostics. */
@@ -102,6 +111,7 @@ function VoiceMicButtonInner({
   error,
   audioLevel = 0,
   voiceActivity,
+  serverVad: serverVadProp,
   partialTranscript,
   backend,
   isTtsSpeaking = false,
@@ -168,16 +178,64 @@ function VoiceMicButtonInner({
     // Short press on "start" -- tap-to-toggle: keep recording
   }, [isPreparing, isPassive, isListening, onStop, onCancel, onExitPassive]);
 
+  // Subscribe to the server VAD-state store. Prop override (used by tests)
+  // wins over the live store snapshot.
+  const serverVadFromStore = useServerVadStateStore((s) => s);
+  const serverVad: ServerVadStateSnapshot | undefined = serverVadProp ?? serverVadFromStore;
+
+  // Server-snapshot interpolation tick. When a fresh server vad-state is in
+  // play (mic is recording, snapshot age <250 ms), drive a RAF loop so the
+  // ring fills smoothly between server ticks. The render derives the actual
+  // value each frame — we just trigger re-renders here.
+  const [, setRafTick] = useState(0);
+  const serverVadFresh = serverVad
+    && serverVad.receivedAt > 0
+    && isRecording
+    && (typeof performance !== "undefined" ? performance.now() : Date.now()) - serverVad.receivedAt < 250;
+  useEffect(() => {
+    if (!serverVadFresh) return;
+    let raf = 0;
+    const tick = () => {
+      setRafTick((n) => (n + 1) & 0x3fffffff);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [serverVadFresh]);
+
   if (!supported) return null;
 
   const isIdle = !isMicActive && !isPassive && !isTranscribing && !isPreparing;
   const hasError = error !== null && isIdle;
   const liveAudioLevel = voiceActivity?.audioLevel ?? audioLevel;
-  const autoStopProgress = Math.max(0, Math.min(1, voiceActivity?.autoStopProgress ?? 0));
-  const showAutoStopRing = isRecording
-    && voiceActivity?.phase === "silence"
-    && voiceActivity.autoStopVisible
-    && voiceActivity.silenceTimeoutMs > 0;
+
+  // Prefer the server-emitted silence clock when fresh; fall back to the
+  // client VAD's autoStopProgress when stale (>250 ms since last tick) or
+  // when no server tick has arrived this stream. Formula matches plan §7
+  // step 12 with the VAD_AUTO_STOP_VISUAL_GRACE_MS gate applied to the
+  // server-derived elapsed too, so a 1-frame silence blip doesn't flash.
+  const nowPerf = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const fresh = !!serverVad
+    && serverVad.receivedAt > 0
+    && (nowPerf - serverVad.receivedAt) < 250;
+  let autoStopProgress: number;
+  let showAutoStopRing: boolean;
+  if (fresh && serverVad!.silenceTimeoutMs > 0) {
+    const interpolated = Math.min(
+      serverVad!.silenceElapsedMs + (nowPerf - serverVad!.receivedAt),
+      serverVad!.silenceTimeoutMs,
+    );
+    autoStopProgress = Math.max(0, Math.min(1, interpolated / serverVad!.silenceTimeoutMs));
+    const autoStopVisible = !serverVad!.voiced
+      && interpolated >= VAD_AUTO_STOP_VISUAL_GRACE_MS;
+    showAutoStopRing = isRecording && autoStopVisible;
+  } else {
+    autoStopProgress = Math.max(0, Math.min(1, voiceActivity?.autoStopProgress ?? 0));
+    showAutoStopRing = isRecording
+      && voiceActivity?.phase === "silence"
+      && voiceActivity.autoStopVisible
+      && voiceActivity.silenceTimeoutMs > 0;
+  }
 
   return (
     <div className={cn("relative shrink-0", wrapperClassName)}>

@@ -1382,15 +1382,15 @@ export default function Workspace() {
 
       {/* Bottom bar */}
       <div className="relative z-10 shrink-0">
-        {/* TTS player bar — visible only when auto-TTS is enabled and there
-         * is active playback or a previous response available to replay.
+        {/* TTS player bar — visible for active manual playback, or when
+         * auto-TTS is enabled and there is playback/replay context.
          *
          * When actively speaking, the bar shows live playback state (polled
          * at 100 ms).  When idle with a replayable event, it shows a
          * "stopped" state where the play button triggers a replay.
          *
          * Uses isTtsSpeaking plus controller context so the bar appears
-         * the instant eligible auto-TTS audio starts. ttsPlayback is
+         * the instant eligible audio starts. ttsPlayback is
          * populated by polling; if the first poll hasn't fired yet we
          * fall back to FALLBACK_TTS_PLAYBACK (see comment above the
          * polling effect). */}
@@ -1450,6 +1450,10 @@ export default function Workspace() {
               } : undefined}
               onChangeLevel={canRequestSummarize && activeEvent && workspace.activePane ? (level) => {
                 ttsPlaybackController.changeSummarizeLevel(context.sessionId as string, activeEvent.id, level);
+              } : undefined}
+              onDismiss={!workspace.autoTtsEnabled ? () => {
+                ttsPlaybackController.stopPlayback(context.sessionId);
+                stopActiveTts(context.sessionId as string);
               } : undefined}
             />
           );

@@ -35,10 +35,9 @@ export interface TTSDiagnostics {
   sessionId?: string;
 }
 
-/** Probe `/api/capabilities` for Kokoro availability. Used by the core to
- *  decide between Kokoro and Browser backends on mount. Falls back to
- *  "available" optimism if the probe itself errors so explicit-Browser
- *  selections still resolve correctly. */
+/** Probe `/api/capabilities` for the audio-tools TTS surface. Used by the
+ *  core to decide between the audio-tools-backed Kokoro path and Browser
+ *  speech synthesis on mount. */
 async function probeKokoroAvailable(): Promise<boolean> {
   // Reset the cached capabilities so a manual `refresh()` (which is what
   // resolveBackend ultimately calls) sees fresh data on each invocation,
@@ -47,7 +46,12 @@ async function probeKokoroAvailable(): Promise<boolean> {
   try {
     const caps = await fetchCapabilitiesLivenessCached();
     return caps.capabilities.some(
-      (c) => c.id === "kokoro-tts" && c.status === "available",
+      (c) => c.status === "available" && (
+        (c.id === "audio-tools" && c.features.includes("voice-output")) ||
+        // Backward-compatible for older web-console builds/tests that still
+        // exposed the pre-audio-tools resource capability directly.
+        c.id === "kokoro-tts"
+      ),
     );
   } catch {
     return false;

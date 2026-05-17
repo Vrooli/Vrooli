@@ -104,9 +104,10 @@ export function shouldShowPlaybackBar(args: {
   autoTtsEnabled: boolean;
   activePaneId: string | null;
   context: PlaybackEventContext | null;
+  isSpeaking: boolean;
 }): boolean {
   return Boolean(
-    args.autoTtsEnabled
+    (args.autoTtsEnabled || args.isSpeaking)
     && args.context?.event
     && args.context.sessionId
     && args.activePaneId === args.context.sessionId,

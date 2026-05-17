@@ -2493,6 +2493,218 @@ func (x *UpdateSummarizeConfigResponse) GetConfig() *SummarizeConfig {
 	return nil
 }
 
+type ListSummarizeModelsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSummarizeModelsRequest) Reset() {
+	*x = ListSummarizeModelsRequest{}
+	mi := &file_web_console_v1_audio_admin_audio_admin_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSummarizeModelsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSummarizeModelsRequest) ProtoMessage() {}
+
+func (x *ListSummarizeModelsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_audio_admin_audio_admin_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSummarizeModelsRequest.ProtoReflect.Descriptor instead.
+func (*ListSummarizeModelsRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_audio_admin_audio_admin_proto_rawDescGZIP(), []int{45}
+}
+
+type SummarizeModel struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	DisplayName     string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Installed       bool                   `protobuf:"varint,3,opt,name=installed,proto3" json:"installed,omitempty"`
+	Recommended     bool                   `protobuf:"varint,4,opt,name=recommended,proto3" json:"recommended,omitempty"`
+	DefaultEligible bool                   `protobuf:"varint,5,opt,name=default_eligible,json=defaultEligible,proto3" json:"default_eligible,omitempty"`
+	Reasoning       bool                   `protobuf:"varint,6,opt,name=reasoning,proto3" json:"reasoning,omitempty"`
+	StatusLabel     string                 `protobuf:"bytes,7,opt,name=status_label,json=statusLabel,proto3" json:"status_label,omitempty"`
+	PullCommand     string                 `protobuf:"bytes,8,opt,name=pull_command,json=pullCommand,proto3" json:"pull_command,omitempty"`
+	SizeBytes       int64                  `protobuf:"varint,9,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	ParameterSize   string                 `protobuf:"bytes,10,opt,name=parameter_size,json=parameterSize,proto3" json:"parameter_size,omitempty"`
+	SourceUrl       string                 `protobuf:"bytes,11,opt,name=source_url,json=sourceUrl,proto3" json:"source_url,omitempty"`
+	Notes           string                 `protobuf:"bytes,12,opt,name=notes,proto3" json:"notes,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SummarizeModel) Reset() {
+	*x = SummarizeModel{}
+	mi := &file_web_console_v1_audio_admin_audio_admin_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SummarizeModel) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SummarizeModel) ProtoMessage() {}
+
+func (x *SummarizeModel) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_audio_admin_audio_admin_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SummarizeModel.ProtoReflect.Descriptor instead.
+func (*SummarizeModel) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_audio_admin_audio_admin_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *SummarizeModel) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SummarizeModel) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *SummarizeModel) GetInstalled() bool {
+	if x != nil {
+		return x.Installed
+	}
+	return false
+}
+
+func (x *SummarizeModel) GetRecommended() bool {
+	if x != nil {
+		return x.Recommended
+	}
+	return false
+}
+
+func (x *SummarizeModel) GetDefaultEligible() bool {
+	if x != nil {
+		return x.DefaultEligible
+	}
+	return false
+}
+
+func (x *SummarizeModel) GetReasoning() bool {
+	if x != nil {
+		return x.Reasoning
+	}
+	return false
+}
+
+func (x *SummarizeModel) GetStatusLabel() string {
+	if x != nil {
+		return x.StatusLabel
+	}
+	return ""
+}
+
+func (x *SummarizeModel) GetPullCommand() string {
+	if x != nil {
+		return x.PullCommand
+	}
+	return ""
+}
+
+func (x *SummarizeModel) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *SummarizeModel) GetParameterSize() string {
+	if x != nil {
+		return x.ParameterSize
+	}
+	return ""
+}
+
+func (x *SummarizeModel) GetSourceUrl() string {
+	if x != nil {
+		return x.SourceUrl
+	}
+	return ""
+}
+
+func (x *SummarizeModel) GetNotes() string {
+	if x != nil {
+		return x.Notes
+	}
+	return ""
+}
+
+type ListSummarizeModelsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Models        []*SummarizeModel      `protobuf:"bytes,1,rep,name=models,proto3" json:"models,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSummarizeModelsResponse) Reset() {
+	*x = ListSummarizeModelsResponse{}
+	mi := &file_web_console_v1_audio_admin_audio_admin_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSummarizeModelsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSummarizeModelsResponse) ProtoMessage() {}
+
+func (x *ListSummarizeModelsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_audio_admin_audio_admin_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSummarizeModelsResponse.ProtoReflect.Descriptor instead.
+func (*ListSummarizeModelsResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_audio_admin_audio_admin_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *ListSummarizeModelsResponse) GetModels() []*SummarizeModel {
+	if x != nil {
+		return x.Models
+	}
+	return nil
+}
+
 var File_web_console_v1_audio_admin_audio_admin_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_audio_admin_audio_admin_proto_rawDesc = "" +
@@ -2680,7 +2892,26 @@ const file_web_console_v1_audio_admin_audio_admin_proto_rawDesc = "" +
 	"updateMask\x12J\n" +
 	"\x06config\x18\x02 \x01(\v22.vrooli.web_console.v1.audio_admin.SummarizeConfigR\x06config\"k\n" +
 	"\x1dUpdateSummarizeConfigResponse\x12J\n" +
-	"\x06config\x18\x01 \x01(\v22.vrooli.web_console.v1.audio_admin.SummarizeConfigR\x06config2\x84\x14\n" +
+	"\x06config\x18\x01 \x01(\v22.vrooli.web_console.v1.audio_admin.SummarizeConfigR\x06config\"\x1c\n" +
+	"\x1aListSummarizeModelsRequest\"\x8d\x03\n" +
+	"\x0eSummarizeModel\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x1c\n" +
+	"\tinstalled\x18\x03 \x01(\bR\tinstalled\x12 \n" +
+	"\vrecommended\x18\x04 \x01(\bR\vrecommended\x12)\n" +
+	"\x10default_eligible\x18\x05 \x01(\bR\x0fdefaultEligible\x12\x1c\n" +
+	"\treasoning\x18\x06 \x01(\bR\treasoning\x12!\n" +
+	"\fstatus_label\x18\a \x01(\tR\vstatusLabel\x12!\n" +
+	"\fpull_command\x18\b \x01(\tR\vpullCommand\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\t \x01(\x03R\tsizeBytes\x12%\n" +
+	"\x0eparameter_size\x18\n" +
+	" \x01(\tR\rparameterSize\x12\x1d\n" +
+	"\n" +
+	"source_url\x18\v \x01(\tR\tsourceUrl\x12\x14\n" +
+	"\x05notes\x18\f \x01(\tR\x05notes\"h\n" +
+	"\x1bListSummarizeModelsResponse\x12I\n" +
+	"\x06models\x18\x01 \x03(\v21.vrooli.web_console.v1.audio_admin.SummarizeModelR\x06models2\x9b\x15\n" +
 	"\x11AudioAdminService\x12\x88\x01\n" +
 	"\x0fGetStreamConfig\x129.vrooli.web_console.v1.audio_admin.GetStreamConfigRequest\x1a:.vrooli.web_console.v1.audio_admin.GetStreamConfigResponse\x12\x91\x01\n" +
 	"\x12UpdateStreamConfig\x12<.vrooli.web_console.v1.audio_admin.UpdateStreamConfigRequest\x1a=.vrooli.web_console.v1.audio_admin.UpdateStreamConfigResponse\x12\x8e\x01\n" +
@@ -2698,7 +2929,8 @@ const file_web_console_v1_audio_admin_audio_admin_proto_rawDesc = "" +
 	"\fGetTTSConfig\x126.vrooli.web_console.v1.audio_admin.GetTTSConfigRequest\x1a7.vrooli.web_console.v1.audio_admin.GetTTSConfigResponse\x12\x88\x01\n" +
 	"\x0fUpdateTTSConfig\x129.vrooli.web_console.v1.audio_admin.UpdateTTSConfigRequest\x1a:.vrooli.web_console.v1.audio_admin.UpdateTTSConfigResponse\x12\x91\x01\n" +
 	"\x12GetSummarizeConfig\x12<.vrooli.web_console.v1.audio_admin.GetSummarizeConfigRequest\x1a=.vrooli.web_console.v1.audio_admin.GetSummarizeConfigResponse\x12\x9a\x01\n" +
-	"\x15UpdateSummarizeConfig\x12?.vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigRequest\x1a@.vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/audio_admin;audio_admin_v1b\x06proto3"
+	"\x15UpdateSummarizeConfig\x12?.vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigRequest\x1a@.vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigResponse\x12\x94\x01\n" +
+	"\x13ListSummarizeModels\x12=.vrooli.web_console.v1.audio_admin.ListSummarizeModelsRequest\x1a>.vrooli.web_console.v1.audio_admin.ListSummarizeModelsResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/audio_admin;audio_admin_v1b\x06proto3"
 
 var (
 	file_web_console_v1_audio_admin_audio_admin_proto_rawDescOnce sync.Once
@@ -2712,7 +2944,7 @@ func file_web_console_v1_audio_admin_audio_admin_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_audio_admin_audio_admin_proto_rawDescData
 }
 
-var file_web_console_v1_audio_admin_audio_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
+var file_web_console_v1_audio_admin_audio_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
 var file_web_console_v1_audio_admin_audio_admin_proto_goTypes = []any{
 	(*StreamConfig)(nil),                       // 0: vrooli.web_console.v1.audio_admin.StreamConfig
 	(*GetStreamConfigRequest)(nil),             // 1: vrooli.web_console.v1.audio_admin.GetStreamConfigRequest
@@ -2759,103 +2991,109 @@ var file_web_console_v1_audio_admin_audio_admin_proto_goTypes = []any{
 	(*GetSummarizeConfigResponse)(nil),         // 42: vrooli.web_console.v1.audio_admin.GetSummarizeConfigResponse
 	(*UpdateSummarizeConfigRequest)(nil),       // 43: vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigRequest
 	(*UpdateSummarizeConfigResponse)(nil),      // 44: vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigResponse
-	(audio_common.StreamingMode)(0),            // 45: vrooli.web_console.v1.audio_common.StreamingMode
-	(audio_common.StrategyPreference)(0),       // 46: vrooli.web_console.v1.audio_common.StrategyPreference
-	(*fieldmaskpb.FieldMask)(nil),              // 47: google.protobuf.FieldMask
-	(audio_common.AudioFormat)(0),              // 48: vrooli.web_console.v1.audio_common.AudioFormat
-	(*timestamppb.Timestamp)(nil),              // 49: google.protobuf.Timestamp
-	(audio_common.SpeakerMode)(0),              // 50: vrooli.web_console.v1.audio_common.SpeakerMode
-	(audio_common.RejectBehavior)(0),           // 51: vrooli.web_console.v1.audio_common.RejectBehavior
-	(audio_common.SpeakerCapability)(0),        // 52: vrooli.web_console.v1.audio_common.SpeakerCapability
-	(audio_common.ResponseFormat)(0),           // 53: vrooli.web_console.v1.audio_common.ResponseFormat
-	(audio_common.SummarizeLevel)(0),           // 54: vrooli.web_console.v1.audio_common.SummarizeLevel
+	(*ListSummarizeModelsRequest)(nil),         // 45: vrooli.web_console.v1.audio_admin.ListSummarizeModelsRequest
+	(*SummarizeModel)(nil),                     // 46: vrooli.web_console.v1.audio_admin.SummarizeModel
+	(*ListSummarizeModelsResponse)(nil),        // 47: vrooli.web_console.v1.audio_admin.ListSummarizeModelsResponse
+	(audio_common.StreamingMode)(0),            // 48: vrooli.web_console.v1.audio_common.StreamingMode
+	(audio_common.StrategyPreference)(0),       // 49: vrooli.web_console.v1.audio_common.StrategyPreference
+	(*fieldmaskpb.FieldMask)(nil),              // 50: google.protobuf.FieldMask
+	(audio_common.AudioFormat)(0),              // 51: vrooli.web_console.v1.audio_common.AudioFormat
+	(*timestamppb.Timestamp)(nil),              // 52: google.protobuf.Timestamp
+	(audio_common.SpeakerMode)(0),              // 53: vrooli.web_console.v1.audio_common.SpeakerMode
+	(audio_common.RejectBehavior)(0),           // 54: vrooli.web_console.v1.audio_common.RejectBehavior
+	(audio_common.SpeakerCapability)(0),        // 55: vrooli.web_console.v1.audio_common.SpeakerCapability
+	(audio_common.ResponseFormat)(0),           // 56: vrooli.web_console.v1.audio_common.ResponseFormat
+	(audio_common.SummarizeLevel)(0),           // 57: vrooli.web_console.v1.audio_common.SummarizeLevel
 }
 var file_web_console_v1_audio_admin_audio_admin_proto_depIdxs = []int32{
-	45, // 0: vrooli.web_console.v1.audio_admin.StreamConfig.streaming_mode:type_name -> vrooli.web_console.v1.audio_common.StreamingMode
-	46, // 1: vrooli.web_console.v1.audio_admin.StreamConfig.strategy_preference:type_name -> vrooli.web_console.v1.audio_common.StrategyPreference
+	48, // 0: vrooli.web_console.v1.audio_admin.StreamConfig.streaming_mode:type_name -> vrooli.web_console.v1.audio_common.StreamingMode
+	49, // 1: vrooli.web_console.v1.audio_admin.StreamConfig.strategy_preference:type_name -> vrooli.web_console.v1.audio_common.StrategyPreference
 	0,  // 2: vrooli.web_console.v1.audio_admin.GetStreamConfigResponse.config:type_name -> vrooli.web_console.v1.audio_admin.StreamConfig
-	47, // 3: vrooli.web_console.v1.audio_admin.UpdateStreamConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	50, // 3: vrooli.web_console.v1.audio_admin.UpdateStreamConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
 	0,  // 4: vrooli.web_console.v1.audio_admin.UpdateStreamConfigRequest.config:type_name -> vrooli.web_console.v1.audio_admin.StreamConfig
 	0,  // 5: vrooli.web_console.v1.audio_admin.UpdateStreamConfigResponse.config:type_name -> vrooli.web_console.v1.audio_admin.StreamConfig
-	48, // 6: vrooli.web_console.v1.audio_admin.WakeWordSample.format:type_name -> vrooli.web_console.v1.audio_common.AudioFormat
+	51, // 6: vrooli.web_console.v1.audio_admin.WakeWordSample.format:type_name -> vrooli.web_console.v1.audio_common.AudioFormat
 	5,  // 7: vrooli.web_console.v1.audio_admin.WakeWordTemplate.samples:type_name -> vrooli.web_console.v1.audio_admin.WakeWordSample
-	49, // 8: vrooli.web_console.v1.audio_admin.WakeWordTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	52, // 8: vrooli.web_console.v1.audio_admin.WakeWordTemplate.updated_at:type_name -> google.protobuf.Timestamp
 	6,  // 9: vrooli.web_console.v1.audio_admin.WakeWordConfig.template:type_name -> vrooli.web_console.v1.audio_admin.WakeWordTemplate
 	7,  // 10: vrooli.web_console.v1.audio_admin.GetWakeWordConfigResponse.config:type_name -> vrooli.web_console.v1.audio_admin.WakeWordConfig
 	6,  // 11: vrooli.web_console.v1.audio_admin.UpdateWakeWordTemplateRequest.template:type_name -> vrooli.web_console.v1.audio_admin.WakeWordTemplate
 	7,  // 12: vrooli.web_console.v1.audio_admin.UpdateWakeWordTemplateResponse.config:type_name -> vrooli.web_console.v1.audio_admin.WakeWordConfig
 	7,  // 13: vrooli.web_console.v1.audio_admin.DeleteWakeWordTemplateResponse.config:type_name -> vrooli.web_console.v1.audio_admin.WakeWordConfig
-	50, // 14: vrooli.web_console.v1.audio_admin.SpeakerConfig.mode:type_name -> vrooli.web_console.v1.audio_common.SpeakerMode
-	51, // 15: vrooli.web_console.v1.audio_admin.SpeakerConfig.reject_behavior:type_name -> vrooli.web_console.v1.audio_common.RejectBehavior
+	53, // 14: vrooli.web_console.v1.audio_admin.SpeakerConfig.mode:type_name -> vrooli.web_console.v1.audio_common.SpeakerMode
+	54, // 15: vrooli.web_console.v1.audio_admin.SpeakerConfig.reject_behavior:type_name -> vrooli.web_console.v1.audio_common.RejectBehavior
 	14, // 16: vrooli.web_console.v1.audio_admin.GetSpeakerConfigResponse.config:type_name -> vrooli.web_console.v1.audio_admin.SpeakerConfig
-	47, // 17: vrooli.web_console.v1.audio_admin.UpdateSpeakerConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	50, // 17: vrooli.web_console.v1.audio_admin.UpdateSpeakerConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
 	14, // 18: vrooli.web_console.v1.audio_admin.UpdateSpeakerConfigRequest.config:type_name -> vrooli.web_console.v1.audio_admin.SpeakerConfig
 	14, // 19: vrooli.web_console.v1.audio_admin.UpdateSpeakerConfigResponse.config:type_name -> vrooli.web_console.v1.audio_admin.SpeakerConfig
-	49, // 20: vrooli.web_console.v1.audio_admin.SpeakerProfile.created_at:type_name -> google.protobuf.Timestamp
-	49, // 21: vrooli.web_console.v1.audio_admin.SpeakerProfile.updated_at:type_name -> google.protobuf.Timestamp
+	52, // 20: vrooli.web_console.v1.audio_admin.SpeakerProfile.created_at:type_name -> google.protobuf.Timestamp
+	52, // 21: vrooli.web_console.v1.audio_admin.SpeakerProfile.updated_at:type_name -> google.protobuf.Timestamp
 	14, // 22: vrooli.web_console.v1.audio_admin.SpeakerStatus.config:type_name -> vrooli.web_console.v1.audio_admin.SpeakerConfig
-	52, // 23: vrooli.web_console.v1.audio_admin.SpeakerStatus.capability:type_name -> vrooli.web_console.v1.audio_common.SpeakerCapability
+	55, // 23: vrooli.web_console.v1.audio_admin.SpeakerStatus.capability:type_name -> vrooli.web_console.v1.audio_common.SpeakerCapability
 	19, // 24: vrooli.web_console.v1.audio_admin.SpeakerStatus.profiles:type_name -> vrooli.web_console.v1.audio_admin.SpeakerProfile
 	20, // 25: vrooli.web_console.v1.audio_admin.SpeakerStatus.info:type_name -> vrooli.web_console.v1.audio_admin.SpeakerResourceInfo
-	49, // 26: vrooli.web_console.v1.audio_admin.SpeakerStatus.checked_at:type_name -> google.protobuf.Timestamp
+	52, // 26: vrooli.web_console.v1.audio_admin.SpeakerStatus.checked_at:type_name -> google.protobuf.Timestamp
 	21, // 27: vrooli.web_console.v1.audio_admin.GetSpeakerStatusResponse.status:type_name -> vrooli.web_console.v1.audio_admin.SpeakerStatus
 	19, // 28: vrooli.web_console.v1.audio_admin.ListSpeakerProfilesResponse.profiles:type_name -> vrooli.web_console.v1.audio_admin.SpeakerProfile
-	49, // 29: vrooli.web_console.v1.audio_admin.SpeakerEnrollment.created_at:type_name -> google.protobuf.Timestamp
-	48, // 30: vrooli.web_console.v1.audio_admin.EnrollSpeakerProfileRequest.format:type_name -> vrooli.web_console.v1.audio_common.AudioFormat
+	52, // 29: vrooli.web_console.v1.audio_admin.SpeakerEnrollment.created_at:type_name -> google.protobuf.Timestamp
+	51, // 30: vrooli.web_console.v1.audio_admin.EnrollSpeakerProfileRequest.format:type_name -> vrooli.web_console.v1.audio_common.AudioFormat
 	26, // 31: vrooli.web_console.v1.audio_admin.EnrollSpeakerProfileResponse.enrollment:type_name -> vrooli.web_console.v1.audio_admin.SpeakerEnrollment
 	14, // 32: vrooli.web_console.v1.audio_admin.EnrollSpeakerProfileResponse.config:type_name -> vrooli.web_console.v1.audio_admin.SpeakerConfig
 	14, // 33: vrooli.web_console.v1.audio_admin.ClearSpeakerProfileBindingResponse.config:type_name -> vrooli.web_console.v1.audio_admin.SpeakerConfig
 	14, // 34: vrooli.web_console.v1.audio_admin.UnbindSpeakerProfileResponse.config:type_name -> vrooli.web_console.v1.audio_admin.SpeakerConfig
 	14, // 35: vrooli.web_console.v1.audio_admin.DeleteSpeakerProfileResponse.config:type_name -> vrooli.web_console.v1.audio_admin.SpeakerConfig
-	53, // 36: vrooli.web_console.v1.audio_admin.TTSConfig.default_response_format:type_name -> vrooli.web_console.v1.audio_common.ResponseFormat
+	56, // 36: vrooli.web_console.v1.audio_admin.TTSConfig.default_response_format:type_name -> vrooli.web_console.v1.audio_common.ResponseFormat
 	35, // 37: vrooli.web_console.v1.audio_admin.GetTTSConfigResponse.config:type_name -> vrooli.web_console.v1.audio_admin.TTSConfig
-	47, // 38: vrooli.web_console.v1.audio_admin.UpdateTTSConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	50, // 38: vrooli.web_console.v1.audio_admin.UpdateTTSConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
 	35, // 39: vrooli.web_console.v1.audio_admin.UpdateTTSConfigRequest.config:type_name -> vrooli.web_console.v1.audio_admin.TTSConfig
 	35, // 40: vrooli.web_console.v1.audio_admin.UpdateTTSConfigResponse.config:type_name -> vrooli.web_console.v1.audio_admin.TTSConfig
-	54, // 41: vrooli.web_console.v1.audio_admin.SummarizeConfig.level:type_name -> vrooli.web_console.v1.audio_common.SummarizeLevel
+	57, // 41: vrooli.web_console.v1.audio_admin.SummarizeConfig.level:type_name -> vrooli.web_console.v1.audio_common.SummarizeLevel
 	40, // 42: vrooli.web_console.v1.audio_admin.GetSummarizeConfigResponse.config:type_name -> vrooli.web_console.v1.audio_admin.SummarizeConfig
-	47, // 43: vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	50, // 43: vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
 	40, // 44: vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigRequest.config:type_name -> vrooli.web_console.v1.audio_admin.SummarizeConfig
 	40, // 45: vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigResponse.config:type_name -> vrooli.web_console.v1.audio_admin.SummarizeConfig
-	1,  // 46: vrooli.web_console.v1.audio_admin.AudioAdminService.GetStreamConfig:input_type -> vrooli.web_console.v1.audio_admin.GetStreamConfigRequest
-	3,  // 47: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateStreamConfig:input_type -> vrooli.web_console.v1.audio_admin.UpdateStreamConfigRequest
-	8,  // 48: vrooli.web_console.v1.audio_admin.AudioAdminService.GetWakeWordConfig:input_type -> vrooli.web_console.v1.audio_admin.GetWakeWordConfigRequest
-	10, // 49: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateWakeWordTemplate:input_type -> vrooli.web_console.v1.audio_admin.UpdateWakeWordTemplateRequest
-	12, // 50: vrooli.web_console.v1.audio_admin.AudioAdminService.DeleteWakeWordTemplate:input_type -> vrooli.web_console.v1.audio_admin.DeleteWakeWordTemplateRequest
-	15, // 51: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSpeakerConfig:input_type -> vrooli.web_console.v1.audio_admin.GetSpeakerConfigRequest
-	17, // 52: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateSpeakerConfig:input_type -> vrooli.web_console.v1.audio_admin.UpdateSpeakerConfigRequest
-	22, // 53: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSpeakerStatus:input_type -> vrooli.web_console.v1.audio_admin.GetSpeakerStatusRequest
-	24, // 54: vrooli.web_console.v1.audio_admin.AudioAdminService.ListSpeakerProfiles:input_type -> vrooli.web_console.v1.audio_admin.ListSpeakerProfilesRequest
-	27, // 55: vrooli.web_console.v1.audio_admin.AudioAdminService.EnrollSpeakerProfile:input_type -> vrooli.web_console.v1.audio_admin.EnrollSpeakerProfileRequest
-	29, // 56: vrooli.web_console.v1.audio_admin.AudioAdminService.ClearSpeakerProfileBinding:input_type -> vrooli.web_console.v1.audio_admin.ClearSpeakerProfileBindingRequest
-	31, // 57: vrooli.web_console.v1.audio_admin.AudioAdminService.UnbindSpeakerProfile:input_type -> vrooli.web_console.v1.audio_admin.UnbindSpeakerProfileRequest
-	33, // 58: vrooli.web_console.v1.audio_admin.AudioAdminService.DeleteSpeakerProfile:input_type -> vrooli.web_console.v1.audio_admin.DeleteSpeakerProfileRequest
-	36, // 59: vrooli.web_console.v1.audio_admin.AudioAdminService.GetTTSConfig:input_type -> vrooli.web_console.v1.audio_admin.GetTTSConfigRequest
-	38, // 60: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateTTSConfig:input_type -> vrooli.web_console.v1.audio_admin.UpdateTTSConfigRequest
-	41, // 61: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSummarizeConfig:input_type -> vrooli.web_console.v1.audio_admin.GetSummarizeConfigRequest
-	43, // 62: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateSummarizeConfig:input_type -> vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigRequest
-	2,  // 63: vrooli.web_console.v1.audio_admin.AudioAdminService.GetStreamConfig:output_type -> vrooli.web_console.v1.audio_admin.GetStreamConfigResponse
-	4,  // 64: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateStreamConfig:output_type -> vrooli.web_console.v1.audio_admin.UpdateStreamConfigResponse
-	9,  // 65: vrooli.web_console.v1.audio_admin.AudioAdminService.GetWakeWordConfig:output_type -> vrooli.web_console.v1.audio_admin.GetWakeWordConfigResponse
-	11, // 66: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateWakeWordTemplate:output_type -> vrooli.web_console.v1.audio_admin.UpdateWakeWordTemplateResponse
-	13, // 67: vrooli.web_console.v1.audio_admin.AudioAdminService.DeleteWakeWordTemplate:output_type -> vrooli.web_console.v1.audio_admin.DeleteWakeWordTemplateResponse
-	16, // 68: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSpeakerConfig:output_type -> vrooli.web_console.v1.audio_admin.GetSpeakerConfigResponse
-	18, // 69: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateSpeakerConfig:output_type -> vrooli.web_console.v1.audio_admin.UpdateSpeakerConfigResponse
-	23, // 70: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSpeakerStatus:output_type -> vrooli.web_console.v1.audio_admin.GetSpeakerStatusResponse
-	25, // 71: vrooli.web_console.v1.audio_admin.AudioAdminService.ListSpeakerProfiles:output_type -> vrooli.web_console.v1.audio_admin.ListSpeakerProfilesResponse
-	28, // 72: vrooli.web_console.v1.audio_admin.AudioAdminService.EnrollSpeakerProfile:output_type -> vrooli.web_console.v1.audio_admin.EnrollSpeakerProfileResponse
-	30, // 73: vrooli.web_console.v1.audio_admin.AudioAdminService.ClearSpeakerProfileBinding:output_type -> vrooli.web_console.v1.audio_admin.ClearSpeakerProfileBindingResponse
-	32, // 74: vrooli.web_console.v1.audio_admin.AudioAdminService.UnbindSpeakerProfile:output_type -> vrooli.web_console.v1.audio_admin.UnbindSpeakerProfileResponse
-	34, // 75: vrooli.web_console.v1.audio_admin.AudioAdminService.DeleteSpeakerProfile:output_type -> vrooli.web_console.v1.audio_admin.DeleteSpeakerProfileResponse
-	37, // 76: vrooli.web_console.v1.audio_admin.AudioAdminService.GetTTSConfig:output_type -> vrooli.web_console.v1.audio_admin.GetTTSConfigResponse
-	39, // 77: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateTTSConfig:output_type -> vrooli.web_console.v1.audio_admin.UpdateTTSConfigResponse
-	42, // 78: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSummarizeConfig:output_type -> vrooli.web_console.v1.audio_admin.GetSummarizeConfigResponse
-	44, // 79: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateSummarizeConfig:output_type -> vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigResponse
-	63, // [63:80] is the sub-list for method output_type
-	46, // [46:63] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	46, // 46: vrooli.web_console.v1.audio_admin.ListSummarizeModelsResponse.models:type_name -> vrooli.web_console.v1.audio_admin.SummarizeModel
+	1,  // 47: vrooli.web_console.v1.audio_admin.AudioAdminService.GetStreamConfig:input_type -> vrooli.web_console.v1.audio_admin.GetStreamConfigRequest
+	3,  // 48: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateStreamConfig:input_type -> vrooli.web_console.v1.audio_admin.UpdateStreamConfigRequest
+	8,  // 49: vrooli.web_console.v1.audio_admin.AudioAdminService.GetWakeWordConfig:input_type -> vrooli.web_console.v1.audio_admin.GetWakeWordConfigRequest
+	10, // 50: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateWakeWordTemplate:input_type -> vrooli.web_console.v1.audio_admin.UpdateWakeWordTemplateRequest
+	12, // 51: vrooli.web_console.v1.audio_admin.AudioAdminService.DeleteWakeWordTemplate:input_type -> vrooli.web_console.v1.audio_admin.DeleteWakeWordTemplateRequest
+	15, // 52: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSpeakerConfig:input_type -> vrooli.web_console.v1.audio_admin.GetSpeakerConfigRequest
+	17, // 53: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateSpeakerConfig:input_type -> vrooli.web_console.v1.audio_admin.UpdateSpeakerConfigRequest
+	22, // 54: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSpeakerStatus:input_type -> vrooli.web_console.v1.audio_admin.GetSpeakerStatusRequest
+	24, // 55: vrooli.web_console.v1.audio_admin.AudioAdminService.ListSpeakerProfiles:input_type -> vrooli.web_console.v1.audio_admin.ListSpeakerProfilesRequest
+	27, // 56: vrooli.web_console.v1.audio_admin.AudioAdminService.EnrollSpeakerProfile:input_type -> vrooli.web_console.v1.audio_admin.EnrollSpeakerProfileRequest
+	29, // 57: vrooli.web_console.v1.audio_admin.AudioAdminService.ClearSpeakerProfileBinding:input_type -> vrooli.web_console.v1.audio_admin.ClearSpeakerProfileBindingRequest
+	31, // 58: vrooli.web_console.v1.audio_admin.AudioAdminService.UnbindSpeakerProfile:input_type -> vrooli.web_console.v1.audio_admin.UnbindSpeakerProfileRequest
+	33, // 59: vrooli.web_console.v1.audio_admin.AudioAdminService.DeleteSpeakerProfile:input_type -> vrooli.web_console.v1.audio_admin.DeleteSpeakerProfileRequest
+	36, // 60: vrooli.web_console.v1.audio_admin.AudioAdminService.GetTTSConfig:input_type -> vrooli.web_console.v1.audio_admin.GetTTSConfigRequest
+	38, // 61: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateTTSConfig:input_type -> vrooli.web_console.v1.audio_admin.UpdateTTSConfigRequest
+	41, // 62: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSummarizeConfig:input_type -> vrooli.web_console.v1.audio_admin.GetSummarizeConfigRequest
+	43, // 63: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateSummarizeConfig:input_type -> vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigRequest
+	45, // 64: vrooli.web_console.v1.audio_admin.AudioAdminService.ListSummarizeModels:input_type -> vrooli.web_console.v1.audio_admin.ListSummarizeModelsRequest
+	2,  // 65: vrooli.web_console.v1.audio_admin.AudioAdminService.GetStreamConfig:output_type -> vrooli.web_console.v1.audio_admin.GetStreamConfigResponse
+	4,  // 66: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateStreamConfig:output_type -> vrooli.web_console.v1.audio_admin.UpdateStreamConfigResponse
+	9,  // 67: vrooli.web_console.v1.audio_admin.AudioAdminService.GetWakeWordConfig:output_type -> vrooli.web_console.v1.audio_admin.GetWakeWordConfigResponse
+	11, // 68: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateWakeWordTemplate:output_type -> vrooli.web_console.v1.audio_admin.UpdateWakeWordTemplateResponse
+	13, // 69: vrooli.web_console.v1.audio_admin.AudioAdminService.DeleteWakeWordTemplate:output_type -> vrooli.web_console.v1.audio_admin.DeleteWakeWordTemplateResponse
+	16, // 70: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSpeakerConfig:output_type -> vrooli.web_console.v1.audio_admin.GetSpeakerConfigResponse
+	18, // 71: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateSpeakerConfig:output_type -> vrooli.web_console.v1.audio_admin.UpdateSpeakerConfigResponse
+	23, // 72: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSpeakerStatus:output_type -> vrooli.web_console.v1.audio_admin.GetSpeakerStatusResponse
+	25, // 73: vrooli.web_console.v1.audio_admin.AudioAdminService.ListSpeakerProfiles:output_type -> vrooli.web_console.v1.audio_admin.ListSpeakerProfilesResponse
+	28, // 74: vrooli.web_console.v1.audio_admin.AudioAdminService.EnrollSpeakerProfile:output_type -> vrooli.web_console.v1.audio_admin.EnrollSpeakerProfileResponse
+	30, // 75: vrooli.web_console.v1.audio_admin.AudioAdminService.ClearSpeakerProfileBinding:output_type -> vrooli.web_console.v1.audio_admin.ClearSpeakerProfileBindingResponse
+	32, // 76: vrooli.web_console.v1.audio_admin.AudioAdminService.UnbindSpeakerProfile:output_type -> vrooli.web_console.v1.audio_admin.UnbindSpeakerProfileResponse
+	34, // 77: vrooli.web_console.v1.audio_admin.AudioAdminService.DeleteSpeakerProfile:output_type -> vrooli.web_console.v1.audio_admin.DeleteSpeakerProfileResponse
+	37, // 78: vrooli.web_console.v1.audio_admin.AudioAdminService.GetTTSConfig:output_type -> vrooli.web_console.v1.audio_admin.GetTTSConfigResponse
+	39, // 79: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateTTSConfig:output_type -> vrooli.web_console.v1.audio_admin.UpdateTTSConfigResponse
+	42, // 80: vrooli.web_console.v1.audio_admin.AudioAdminService.GetSummarizeConfig:output_type -> vrooli.web_console.v1.audio_admin.GetSummarizeConfigResponse
+	44, // 81: vrooli.web_console.v1.audio_admin.AudioAdminService.UpdateSummarizeConfig:output_type -> vrooli.web_console.v1.audio_admin.UpdateSummarizeConfigResponse
+	47, // 82: vrooli.web_console.v1.audio_admin.AudioAdminService.ListSummarizeModels:output_type -> vrooli.web_console.v1.audio_admin.ListSummarizeModelsResponse
+	65, // [65:83] is the sub-list for method output_type
+	47, // [47:65] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_audio_admin_audio_admin_proto_init() }
@@ -2870,7 +3108,7 @@ func file_web_console_v1_audio_admin_audio_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_audio_admin_audio_admin_proto_rawDesc), len(file_web_console_v1_audio_admin_audio_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   45,
+			NumMessages:   48,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

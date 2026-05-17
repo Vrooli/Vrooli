@@ -2633,6 +2633,7 @@ type TranscribeStreamEvent struct {
 	//	*TranscribeStreamEvent_SpeakerRejection
 	//	*TranscribeStreamEvent_Error
 	//	*TranscribeStreamEvent_Done
+	//	*TranscribeStreamEvent_VadState
 	Event         isTranscribeStreamEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2729,6 +2730,15 @@ func (x *TranscribeStreamEvent) GetDone() *StreamDone {
 	return nil
 }
 
+func (x *TranscribeStreamEvent) GetVadState() *StreamVadState {
+	if x != nil {
+		if x, ok := x.Event.(*TranscribeStreamEvent_VadState); ok {
+			return x.VadState
+		}
+	}
+	return nil
+}
+
 type isTranscribeStreamEvent_Event interface {
 	isTranscribeStreamEvent_Event()
 }
@@ -2757,6 +2767,10 @@ type TranscribeStreamEvent_Done struct {
 	Done *StreamDone `protobuf:"bytes,6,opt,name=done,proto3,oneof"`
 }
 
+type TranscribeStreamEvent_VadState struct {
+	VadState *StreamVadState `protobuf:"bytes,7,opt,name=vad_state,json=vadState,proto3,oneof"`
+}
+
 func (*TranscribeStreamEvent_Segment) isTranscribeStreamEvent_Event() {}
 
 func (*TranscribeStreamEvent_Partial) isTranscribeStreamEvent_Event() {}
@@ -2768,6 +2782,8 @@ func (*TranscribeStreamEvent_SpeakerRejection) isTranscribeStreamEvent_Event() {
 func (*TranscribeStreamEvent_Error) isTranscribeStreamEvent_Event() {}
 
 func (*TranscribeStreamEvent_Done) isTranscribeStreamEvent_Event() {}
+
+func (*TranscribeStreamEvent_VadState) isTranscribeStreamEvent_Event() {}
 
 type StreamSegment struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -3061,6 +3077,80 @@ func (x *StreamError) GetMessage() string {
 	return ""
 }
 
+// StreamVadState is a periodic snapshot of the server-side VAD silence
+// clock. Emitted by VADSegmenter on voiced↔silence transitions and at a
+// throttled cadence during sustained state. Clients (UI mic-button
+// ring) render silence_elapsed_ms with light interpolation so the ring
+// completes at the moment the server actually cuts a segment. See
+// audio-tools/api/internal/ai/sttchain.VadStateEvent for the Go mirror.
+type StreamVadState struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Voiced           bool                   `protobuf:"varint,1,opt,name=voiced,proto3" json:"voiced,omitempty"`
+	SilenceElapsedMs int64                  `protobuf:"varint,2,opt,name=silence_elapsed_ms,json=silenceElapsedMs,proto3" json:"silence_elapsed_ms,omitempty"`
+	SilenceTimeoutMs int64                  `protobuf:"varint,3,opt,name=silence_timeout_ms,json=silenceTimeoutMs,proto3" json:"silence_timeout_ms,omitempty"`
+	TickSeq          uint64                 `protobuf:"varint,4,opt,name=tick_seq,json=tickSeq,proto3" json:"tick_seq,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *StreamVadState) Reset() {
+	*x = StreamVadState{}
+	mi := &file_audio_tools_v1_stt_stt_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamVadState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamVadState) ProtoMessage() {}
+
+func (x *StreamVadState) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_stt_stt_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamVadState.ProtoReflect.Descriptor instead.
+func (*StreamVadState) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_stt_stt_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *StreamVadState) GetVoiced() bool {
+	if x != nil {
+		return x.Voiced
+	}
+	return false
+}
+
+func (x *StreamVadState) GetSilenceElapsedMs() int64 {
+	if x != nil {
+		return x.SilenceElapsedMs
+	}
+	return 0
+}
+
+func (x *StreamVadState) GetSilenceTimeoutMs() int64 {
+	if x != nil {
+		return x.SilenceTimeoutMs
+	}
+	return 0
+}
+
+func (x *StreamVadState) GetTickSeq() uint64 {
+	if x != nil {
+		return x.TickSeq
+	}
+	return 0
+}
+
 type StreamDone struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	FinalText string                 `protobuf:"bytes,1,opt,name=final_text,json=finalText,proto3" json:"final_text,omitempty"`
@@ -3079,7 +3169,7 @@ type StreamDone struct {
 
 func (x *StreamDone) Reset() {
 	*x = StreamDone{}
-	mi := &file_audio_tools_v1_stt_stt_proto_msgTypes[46]
+	mi := &file_audio_tools_v1_stt_stt_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3091,7 +3181,7 @@ func (x *StreamDone) String() string {
 func (*StreamDone) ProtoMessage() {}
 
 func (x *StreamDone) ProtoReflect() protoreflect.Message {
-	mi := &file_audio_tools_v1_stt_stt_proto_msgTypes[46]
+	mi := &file_audio_tools_v1_stt_stt_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3104,7 +3194,7 @@ func (x *StreamDone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamDone.ProtoReflect.Descriptor instead.
 func (*StreamDone) Descriptor() ([]byte, []int) {
-	return file_audio_tools_v1_stt_stt_proto_rawDescGZIP(), []int{46}
+	return file_audio_tools_v1_stt_stt_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *StreamDone) GetFinalText() string {
@@ -3334,14 +3424,15 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\blanguage\x18\x02 \x01(\tR\blanguage\x12%\n" +
 	"\x0einitial_prompt\x18\x03 \x01(\tR\rinitialPrompt\x12:\n" +
 	"\x19skip_speaker_verification\x18\x04 \x01(\bR\x17skipSpeakerVerification\"\v\n" +
-	"\tStreamEnd\"\xd5\x03\n" +
+	"\tStreamEnd\"\x9f\x04\n" +
 	"\x15TranscribeStreamEvent\x12D\n" +
 	"\asegment\x18\x01 \x01(\v2(.vrooli.audio_tools.v1.stt.StreamSegmentH\x00R\asegment\x12D\n" +
 	"\apartial\x18\x02 \x01(\v2(.vrooli.audio_tools.v1.stt.StreamPartialH\x00R\apartial\x12H\n" +
 	"\twake_word\x18\x03 \x01(\v2).vrooli.audio_tools.v1.stt.StreamWakeWordH\x00R\bwakeWord\x12`\n" +
 	"\x11speaker_rejection\x18\x04 \x01(\v21.vrooli.audio_tools.v1.stt.StreamSpeakerRejectionH\x00R\x10speakerRejection\x12>\n" +
 	"\x05error\x18\x05 \x01(\v2&.vrooli.audio_tools.v1.stt.StreamErrorH\x00R\x05error\x12;\n" +
-	"\x04done\x18\x06 \x01(\v2%.vrooli.audio_tools.v1.stt.StreamDoneH\x00R\x04doneB\a\n" +
+	"\x04done\x18\x06 \x01(\v2%.vrooli.audio_tools.v1.stt.StreamDoneH\x00R\x04done\x12H\n" +
+	"\tvad_state\x18\a \x01(\v2).vrooli.audio_tools.v1.stt.StreamVadStateH\x00R\bvadStateB\a\n" +
 	"\x05event\"\x8d\x02\n" +
 	"\rStreamSegment\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x19\n" +
@@ -3362,7 +3453,12 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\rfallback_used\x18\x02 \x01(\bR\ffallbackUsed\";\n" +
 	"\vStreamError\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x84\x02\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x9f\x01\n" +
+	"\x0eStreamVadState\x12\x16\n" +
+	"\x06voiced\x18\x01 \x01(\bR\x06voiced\x12,\n" +
+	"\x12silence_elapsed_ms\x18\x02 \x01(\x03R\x10silenceElapsedMs\x12,\n" +
+	"\x12silence_timeout_ms\x18\x03 \x01(\x03R\x10silenceTimeoutMs\x12\x19\n" +
+	"\btick_seq\x18\x04 \x01(\x04R\atickSeq\"\x84\x02\n" +
 	"\n" +
 	"StreamDone\x12\x1d\n" +
 	"\n" +
@@ -3412,7 +3508,7 @@ func file_audio_tools_v1_stt_stt_proto_rawDescGZIP() []byte {
 }
 
 var file_audio_tools_v1_stt_stt_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_audio_tools_v1_stt_stt_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
+var file_audio_tools_v1_stt_stt_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
 var file_audio_tools_v1_stt_stt_proto_goTypes = []any{
 	(SpeakerMode)(0),                           // 0: vrooli.audio_tools.v1.stt.SpeakerMode
 	(RejectBehavior)(0),                        // 1: vrooli.audio_tools.v1.stt.RejectBehavior
@@ -3464,24 +3560,25 @@ var file_audio_tools_v1_stt_stt_proto_goTypes = []any{
 	(*StreamWakeWord)(nil),                     // 47: vrooli.audio_tools.v1.stt.StreamWakeWord
 	(*StreamSpeakerRejection)(nil),             // 48: vrooli.audio_tools.v1.stt.StreamSpeakerRejection
 	(*StreamError)(nil),                        // 49: vrooli.audio_tools.v1.stt.StreamError
-	(*StreamDone)(nil),                         // 50: vrooli.audio_tools.v1.stt.StreamDone
-	(common.AudioFormat)(0),                    // 51: vrooli.audio_tools.v1.common.AudioFormat
-	(common.ProviderTier)(0),                   // 52: vrooli.audio_tools.v1.common.ProviderTier
-	(*fieldmaskpb.FieldMask)(nil),              // 53: google.protobuf.FieldMask
-	(*timestamppb.Timestamp)(nil),              // 54: google.protobuf.Timestamp
+	(*StreamVadState)(nil),                     // 50: vrooli.audio_tools.v1.stt.StreamVadState
+	(*StreamDone)(nil),                         // 51: vrooli.audio_tools.v1.stt.StreamDone
+	(common.AudioFormat)(0),                    // 52: vrooli.audio_tools.v1.common.AudioFormat
+	(common.ProviderTier)(0),                   // 53: vrooli.audio_tools.v1.common.ProviderTier
+	(*fieldmaskpb.FieldMask)(nil),              // 54: google.protobuf.FieldMask
+	(*timestamppb.Timestamp)(nil),              // 55: google.protobuf.Timestamp
 }
 var file_audio_tools_v1_stt_stt_proto_depIdxs = []int32{
-	51, // 0: vrooli.audio_tools.v1.stt.TranscribeRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
-	52, // 1: vrooli.audio_tools.v1.stt.TranscribeResponse.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	52, // 0: vrooli.audio_tools.v1.stt.TranscribeRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	53, // 1: vrooli.audio_tools.v1.stt.TranscribeResponse.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
 	2,  // 2: vrooli.audio_tools.v1.stt.StreamConfig.streaming_mode:type_name -> vrooli.audio_tools.v1.stt.StreamingMode
 	3,  // 3: vrooli.audio_tools.v1.stt.StreamConfig.strategy_preference:type_name -> vrooli.audio_tools.v1.stt.StrategyPreference
 	6,  // 4: vrooli.audio_tools.v1.stt.GetStreamConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
-	53, // 5: vrooli.audio_tools.v1.stt.UpdateStreamConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	54, // 5: vrooli.audio_tools.v1.stt.UpdateStreamConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
 	6,  // 6: vrooli.audio_tools.v1.stt.UpdateStreamConfigRequest.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
 	6,  // 7: vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
-	51, // 8: vrooli.audio_tools.v1.stt.WakeWordSample.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	52, // 8: vrooli.audio_tools.v1.stt.WakeWordSample.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
 	11, // 9: vrooli.audio_tools.v1.stt.WakeWordTemplate.samples:type_name -> vrooli.audio_tools.v1.stt.WakeWordSample
-	54, // 10: vrooli.audio_tools.v1.stt.WakeWordTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	55, // 10: vrooli.audio_tools.v1.stt.WakeWordTemplate.updated_at:type_name -> google.protobuf.Timestamp
 	12, // 11: vrooli.audio_tools.v1.stt.WakeWordConfig.template:type_name -> vrooli.audio_tools.v1.stt.WakeWordTemplate
 	13, // 12: vrooli.audio_tools.v1.stt.GetWakeWordConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.WakeWordConfig
 	12, // 13: vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateRequest.template:type_name -> vrooli.audio_tools.v1.stt.WakeWordTemplate
@@ -3490,19 +3587,19 @@ var file_audio_tools_v1_stt_stt_proto_depIdxs = []int32{
 	0,  // 16: vrooli.audio_tools.v1.stt.SpeakerConfig.mode:type_name -> vrooli.audio_tools.v1.stt.SpeakerMode
 	1,  // 17: vrooli.audio_tools.v1.stt.SpeakerConfig.reject_behavior:type_name -> vrooli.audio_tools.v1.stt.RejectBehavior
 	20, // 18: vrooli.audio_tools.v1.stt.GetSpeakerConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	53, // 19: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	54, // 19: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
 	20, // 20: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigRequest.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
 	20, // 21: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	54, // 22: vrooli.audio_tools.v1.stt.SpeakerProfile.created_at:type_name -> google.protobuf.Timestamp
-	54, // 23: vrooli.audio_tools.v1.stt.SpeakerProfile.updated_at:type_name -> google.protobuf.Timestamp
+	55, // 22: vrooli.audio_tools.v1.stt.SpeakerProfile.created_at:type_name -> google.protobuf.Timestamp
+	55, // 23: vrooli.audio_tools.v1.stt.SpeakerProfile.updated_at:type_name -> google.protobuf.Timestamp
 	20, // 24: vrooli.audio_tools.v1.stt.SpeakerStatus.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
 	25, // 25: vrooli.audio_tools.v1.stt.SpeakerStatus.profiles:type_name -> vrooli.audio_tools.v1.stt.SpeakerProfile
 	26, // 26: vrooli.audio_tools.v1.stt.SpeakerStatus.info:type_name -> vrooli.audio_tools.v1.stt.SpeakerResourceInfo
-	54, // 27: vrooli.audio_tools.v1.stt.SpeakerStatus.checked_at:type_name -> google.protobuf.Timestamp
+	55, // 27: vrooli.audio_tools.v1.stt.SpeakerStatus.checked_at:type_name -> google.protobuf.Timestamp
 	27, // 28: vrooli.audio_tools.v1.stt.GetSpeakerStatusResponse.status:type_name -> vrooli.audio_tools.v1.stt.SpeakerStatus
 	25, // 29: vrooli.audio_tools.v1.stt.ListSpeakerProfilesResponse.profiles:type_name -> vrooli.audio_tools.v1.stt.SpeakerProfile
-	54, // 30: vrooli.audio_tools.v1.stt.SpeakerEnrollment.created_at:type_name -> google.protobuf.Timestamp
-	51, // 31: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	55, // 30: vrooli.audio_tools.v1.stt.SpeakerEnrollment.created_at:type_name -> google.protobuf.Timestamp
+	52, // 31: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
 	32, // 32: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse.enrollment:type_name -> vrooli.audio_tools.v1.stt.SpeakerEnrollment
 	20, // 33: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
 	20, // 34: vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
@@ -3516,18 +3613,19 @@ var file_audio_tools_v1_stt_stt_proto_depIdxs = []int32{
 	47, // 42: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.wake_word:type_name -> vrooli.audio_tools.v1.stt.StreamWakeWord
 	48, // 43: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.speaker_rejection:type_name -> vrooli.audio_tools.v1.stt.StreamSpeakerRejection
 	49, // 44: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.error:type_name -> vrooli.audio_tools.v1.stt.StreamError
-	50, // 45: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.done:type_name -> vrooli.audio_tools.v1.stt.StreamDone
-	52, // 46: vrooli.audio_tools.v1.stt.StreamSegment.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	52, // 47: vrooli.audio_tools.v1.stt.StreamDone.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	4,  // 48: vrooli.audio_tools.v1.stt.STTService.Transcribe:input_type -> vrooli.audio_tools.v1.stt.TranscribeRequest
-	41, // 49: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:input_type -> vrooli.audio_tools.v1.stt.TranscribeStreamRequest
-	5,  // 50: vrooli.audio_tools.v1.stt.STTService.Transcribe:output_type -> vrooli.audio_tools.v1.stt.TranscribeResponse
-	44, // 51: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:output_type -> vrooli.audio_tools.v1.stt.TranscribeStreamEvent
-	50, // [50:52] is the sub-list for method output_type
-	48, // [48:50] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	51, // 45: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.done:type_name -> vrooli.audio_tools.v1.stt.StreamDone
+	50, // 46: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.vad_state:type_name -> vrooli.audio_tools.v1.stt.StreamVadState
+	53, // 47: vrooli.audio_tools.v1.stt.StreamSegment.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	53, // 48: vrooli.audio_tools.v1.stt.StreamDone.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	4,  // 49: vrooli.audio_tools.v1.stt.STTService.Transcribe:input_type -> vrooli.audio_tools.v1.stt.TranscribeRequest
+	41, // 50: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:input_type -> vrooli.audio_tools.v1.stt.TranscribeStreamRequest
+	5,  // 51: vrooli.audio_tools.v1.stt.STTService.Transcribe:output_type -> vrooli.audio_tools.v1.stt.TranscribeResponse
+	44, // 52: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:output_type -> vrooli.audio_tools.v1.stt.TranscribeStreamEvent
+	51, // [51:53] is the sub-list for method output_type
+	49, // [49:51] is the sub-list for method input_type
+	49, // [49:49] is the sub-list for extension type_name
+	49, // [49:49] is the sub-list for extension extendee
+	0,  // [0:49] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_stt_stt_proto_init() }
@@ -3548,6 +3646,7 @@ func file_audio_tools_v1_stt_stt_proto_init() {
 		(*TranscribeStreamEvent_SpeakerRejection)(nil),
 		(*TranscribeStreamEvent_Error)(nil),
 		(*TranscribeStreamEvent_Done)(nil),
+		(*TranscribeStreamEvent_VadState)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -3555,7 +3654,7 @@ func file_audio_tools_v1_stt_stt_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_stt_stt_proto_rawDesc), len(file_audio_tools_v1_stt_stt_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   47,
+			NumMessages:   48,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

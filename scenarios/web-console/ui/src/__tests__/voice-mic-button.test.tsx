@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import VoiceMicButton from "../components/VoiceMicButton";
+import {
+  _resetServerVadStateForTesting,
+  setServerVadState,
+} from "../audio-integration";
 
 describe("VoiceMicButton", () => {
   const onStart = vi.fn();
@@ -8,6 +12,7 @@ describe("VoiceMicButton", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetServerVadStateForTesting();
   });
 
   const defaults = {
@@ -352,5 +357,123 @@ describe("VoiceMicButton", () => {
     render(<VoiceMicButton {...defaults} isTranscribing />);
     const btn = screen.getByTestId("voice-mic-btn");
     expect(btn.title).toBe("voiceMicButton.transcribing");
+  });
+
+  // ── Server-driven ring (StreamVadState contract) ──
+  // See plan: server-driven-mic-ring-streamvadstate-event.md §9 item 5.
+
+  it("prefers fresh serverVad prop over client voiceActivity for the ring", () => {
+    render(
+      <VoiceMicButton
+        {...defaults}
+        isRecording
+        voiceActivity={{
+          phase: "speech",
+          audioLevel: 0.2,
+          rms: 0.1,
+          speechThreshold: 0.06,
+          silenceThreshold: 0.02,
+          silenceElapsedMs: 0,
+          silenceTimeoutMs: 1500,
+          autoStopProgress: 0,
+          autoStopVisible: false,
+        }}
+        serverVad={{
+          voiced: false,
+          silenceElapsedMs: 750,
+          silenceTimeoutMs: 1500,
+          receivedAt: performance.now(),
+          tickSeq: 3,
+        }}
+      />,
+    );
+    expect(screen.queryByTestId("voice-auto-stop-ring")).toBeTruthy();
+  });
+
+  it("falls back to client voiceActivity when serverVad is stale (>250 ms)", () => {
+    render(
+      <VoiceMicButton
+        {...defaults}
+        isRecording
+        voiceActivity={{
+          phase: "silence",
+          audioLevel: 0,
+          rms: 0,
+          speechThreshold: 0.06,
+          silenceThreshold: 0.02,
+          silenceElapsedMs: 600,
+          silenceTimeoutMs: 1200,
+          autoStopProgress: 0.5,
+          autoStopVisible: true,
+        }}
+        serverVad={{
+          voiced: false,
+          silenceElapsedMs: 1100,
+          silenceTimeoutMs: 1200,
+          receivedAt: performance.now() - 1000,
+          tickSeq: 7,
+        }}
+      />,
+    );
+    const ring = screen.getByTestId("voice-auto-stop-ring");
+    const offset = Number(ring.querySelector("circle")?.getAttribute("stroke-dashoffset"));
+    // Falls back to client autoStopProgress=0.5 → offset ≈ 56.5 of 113.097
+    expect(offset).toBeGreaterThan(50);
+    expect(offset).toBeLessThan(65);
+  });
+
+  it("hides the ring when serverVad is fresh but silenceTimeoutMs is 0", () => {
+    render(
+      <VoiceMicButton
+        {...defaults}
+        isRecording
+        voiceActivity={{
+          phase: "silence",
+          audioLevel: 0,
+          rms: 0,
+          speechThreshold: 0.06,
+          silenceThreshold: 0.02,
+          silenceElapsedMs: 500,
+          silenceTimeoutMs: 0,
+          autoStopProgress: 0,
+          autoStopVisible: true,
+        }}
+        serverVad={{
+          voiced: false,
+          silenceElapsedMs: 500,
+          silenceTimeoutMs: 0,
+          receivedAt: performance.now(),
+          tickSeq: 1,
+        }}
+      />,
+    );
+    expect(screen.queryByTestId("voice-auto-stop-ring")).toBeNull();
+  });
+
+  it("subscribes to useServerVadStateStore when no serverVad prop is provided", () => {
+    setServerVadState({
+      voiced: false,
+      silenceElapsedMs: 900,
+      silenceTimeoutMs: 1500,
+      tickSeq: 12,
+    });
+    render(
+      <VoiceMicButton
+        {...defaults}
+        isRecording
+        voiceActivity={{
+          phase: "speech",
+          audioLevel: 0.2,
+          rms: 0.1,
+          speechThreshold: 0.06,
+          silenceThreshold: 0.02,
+          silenceElapsedMs: 0,
+          silenceTimeoutMs: 1500,
+          autoStopProgress: 0,
+          autoStopVisible: false,
+        }}
+      />,
+    );
+    expect(screen.queryByTestId("voice-auto-stop-ring")).toBeTruthy();
   });
 });
