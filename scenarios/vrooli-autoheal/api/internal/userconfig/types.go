@@ -13,12 +13,15 @@ type Config struct {
 
 // GlobalConfig contains settings that apply to all checks
 type GlobalConfig struct {
-	GracePeriodSeconds     int `json:"gracePeriodSeconds,omitempty"`
-	TickIntervalSeconds    int `json:"tickIntervalSeconds,omitempty"`
-	VerifyDelaySeconds     int `json:"verifyDelaySeconds,omitempty"`
-	MaxRestartAttempts     int `json:"maxRestartAttempts,omitempty"`
-	RestartCooldownSeconds int `json:"restartCooldownSeconds,omitempty"`
-	HistoryRetentionHours  int `json:"historyRetentionHours,omitempty"`
+	GracePeriodSeconds          int `json:"gracePeriodSeconds,omitempty"`
+	TickIntervalSeconds         int `json:"tickIntervalSeconds,omitempty"`
+	VerifyDelaySeconds          int `json:"verifyDelaySeconds,omitempty"`
+	MaxRestartAttempts          int `json:"maxRestartAttempts,omitempty"`
+	RestartCooldownSeconds      int `json:"restartCooldownSeconds,omitempty"`
+	HistoryRetentionHours       int `json:"historyRetentionHours,omitempty"`
+	ActionTimeoutFastSeconds    int `json:"actionTimeoutFastSeconds,omitempty"`
+	ActionTimeoutRestartSeconds int `json:"actionTimeoutRestartSeconds,omitempty"`
+	TimeoutRetrySeconds         int `json:"timeoutRetrySeconds,omitempty"`
 }
 
 // Check contains per-check configuration

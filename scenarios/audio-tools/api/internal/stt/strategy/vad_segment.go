@@ -30,7 +30,7 @@ type VADSegmenter struct {
 	Provider sttchain.Provider
 
 	// SilenceMs is the minimum sustained silence window that closes a
-	// segment. Matches StreamConfig.VADSilenceMs (default 700).
+	// segment. Matches StreamConfig.VADSilenceMs (default 1200).
 	SilenceMs int
 
 	// SampleRate of the inbound PCM. Default 16000.
@@ -253,7 +253,7 @@ func (v *VADSegmenter) applyDefaults() {
 		v.SampleRate = 16000
 	}
 	if v.SilenceMs == 0 {
-		v.SilenceMs = 700
+		v.SilenceMs = 1200
 	}
 	if v.SilenceRMS == 0 {
 		v.SilenceRMS = 250

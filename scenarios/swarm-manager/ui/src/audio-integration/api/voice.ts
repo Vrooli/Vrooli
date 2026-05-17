@@ -16,11 +16,22 @@ import {
   rejectBehaviorLabel,
   speakerModeFromString,
   speakerModeLabel,
+  streamingModeLabel,
+  strategyPreferenceLabel,
+  streamingModeFromString,
+  strategyPreferenceFromString,
   timestampToISO,
+  type StreamingModeLabel,
+  type StrategyPreferenceLabel,
 } from "./protomap";
 
 import type { SpeakerConfig, SpeakerProfile, StreamConfig as StreamConfigMsg, WakeWordConfig as WakeWordConfigMsg, WakeWordTemplate as WakeWordTemplateMsg } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 
+// Mirrors audio-tools' StreamConfig (proto) end-to-end. The five advanced
+// fields (streamingMode, strategyPreference, vadSilenceMs, overlapWindowMs,
+// overlapCommitRuns) are the authoritative source for client-side VAD
+// timing — the mic-button ring and segment-boundary emission must derive
+// from vadSilenceMs, not from any local default.
 export interface VoiceStreamConfig {
   flushIntervalMs: number;
   minDeltaBytes: number;
@@ -29,6 +40,11 @@ export interface VoiceStreamConfig {
   wakeWordEnabled: boolean;
   wakeWordThreshold: number;
   segmentSilenceMs: number;
+  streamingMode: StreamingModeLabel;
+  strategyPreference: StrategyPreferenceLabel;
+  vadSilenceMs: number;
+  overlapWindowMs: number;
+  overlapCommitRuns: number;
 }
 
 export interface WakeWordConfig {
@@ -117,6 +133,11 @@ function decodeStreamConfig(c: StreamConfigMsg | undefined): VoiceStreamConfig {
     wakeWordEnabled: c?.wakeWordEnabled ?? false,
     wakeWordThreshold: c?.wakeWordThreshold ?? 0,
     segmentSilenceMs: c?.segmentSilenceMs ?? 0,
+    streamingMode: streamingModeLabel(c?.streamingMode),
+    strategyPreference: strategyPreferenceLabel(c?.strategyPreference),
+    vadSilenceMs: c?.vadSilenceMs ?? 0,
+    overlapWindowMs: c?.overlapWindowMs ?? 0,
+    overlapCommitRuns: c?.overlapCommitRuns ?? 0,
   };
 }
 
@@ -231,6 +252,11 @@ export function createVoiceApi(client: AudioToolsClient) {
       if (patch.wakeWordEnabled !== undefined) { cfg.wakeWordEnabled = patch.wakeWordEnabled; paths.push("wake_word_enabled"); }
       if (patch.wakeWordThreshold !== undefined) { cfg.wakeWordThreshold = patch.wakeWordThreshold; paths.push("wake_word_threshold"); }
       if (patch.segmentSilenceMs !== undefined) { cfg.segmentSilenceMs = patch.segmentSilenceMs; paths.push("segment_silence_ms"); }
+      if (patch.streamingMode !== undefined) { cfg.streamingMode = streamingModeFromString(patch.streamingMode); paths.push("streaming_mode"); }
+      if (patch.strategyPreference !== undefined) { cfg.strategyPreference = strategyPreferenceFromString(patch.strategyPreference); paths.push("strategy_preference"); }
+      if (patch.vadSilenceMs !== undefined) { cfg.vadSilenceMs = patch.vadSilenceMs; paths.push("vad_silence_ms"); }
+      if (patch.overlapWindowMs !== undefined) { cfg.overlapWindowMs = patch.overlapWindowMs; paths.push("overlap_window_ms"); }
+      if (patch.overlapCommitRuns !== undefined) { cfg.overlapCommitRuns = patch.overlapCommitRuns; paths.push("overlap_commit_runs"); }
       const resp = await client.sttAdmin.updateStreamConfig({
         updateMask: create(FieldMaskSchema, { paths }),
         config: cfg,

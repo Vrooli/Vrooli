@@ -1,15 +1,17 @@
-// MicButton — swarm-manager-themed mic toggle for the message composer.
-// Wraps useVoiceCore from audio-integration; appends transcripts via the
-// onTranscript prop so the caller appends to its own draft state.
+// MicButton — composer-side host that wires audio-tools' voice pipeline
+// (useVoiceCore) to swarm-manager's themed VoiceMicButton. VAD timing is
+// pulled from useVoiceConfigStore so the ring countdown matches audio-
+// tools' actual server-side cut (`stt_stream_config.vad_silence_ms`).
 //
 // Used in:
 //   - SessionConversation.tsx (Session Details composer)
 //   - quick-capture-input.tsx (Quick Capture dialog)
+//   - MessageComposer.tsx (generic composer)
 
 import { useCallback } from "react";
-import { Mic, MicOff } from "lucide-react";
-import { cn } from "../../lib/utils";
-import { useVoiceCore, useAudioToolsUnavailableReason } from "../../audio-integration";
+
+import { useVoiceCore, useAudioToolsUnavailableReason, useVoiceConfigStore, useServerVadStateStore } from "../../audio-integration";
+import VoiceMicButton from "./VoiceMicButton";
 
 interface MicButtonProps {
   onTranscript: (text: string) => void;
@@ -19,14 +21,19 @@ interface MicButtonProps {
 
 export function MicButton({ onTranscript, disabled, testId }: MicButtonProps) {
   const unavailableReason = useAudioToolsUnavailableReason();
+  const vadSilenceTimeoutMs = useVoiceConfigStore((s) => s.vadSilenceTimeoutMs);
+  const segmentSilenceMs = useVoiceConfigStore((s) => s.segmentSilenceMs);
+  const persistentMode = useVoiceConfigStore((s) => s.persistentMode);
+  const wakeWordEnabled = useVoiceConfigStore((s) => s.wakeWordEnabled);
+  const serverVad = useServerVadStateStore((s) => s);
 
   const voice = useVoiceCore({
-    voiceEnabled: !unavailableReason,
+    voiceEnabled: !unavailableReason && !disabled,
     voiceLanguage: "en",
-    vadSilenceTimeoutMs: 1500,
-    persistentMode: false,
-    wakeWordEnabled: false,
-    segmentSilenceMs: 800,
+    vadSilenceTimeoutMs,
+    persistentMode,
+    wakeWordEnabled,
+    segmentSilenceMs,
     lowLatencyVoice: false,
     onTranscript: (text) => {
       const trimmed = text.trim();
@@ -34,42 +41,38 @@ export function MicButton({ onTranscript, disabled, testId }: MicButtonProps) {
     },
   });
 
-  const handleClick = useCallback(() => {
-    if (voice.isActive) {
-      voice.stopRecording();
-    } else {
-      void voice.startRecording();
-    }
+  const handleStart = useCallback(() => {
+    void voice.startRecording();
   }, [voice]);
 
-  const isUnavailable = Boolean(unavailableReason);
-  const buttonDisabled = disabled || isUnavailable;
+  const handleStop = useCallback(() => {
+    voice.stopRecording();
+  }, [voice]);
 
-  const Icon = isUnavailable ? MicOff : Mic;
-  const title = isUnavailable
+  const supported = !unavailableReason;
+  const errorMessage = unavailableReason
     ? `Voice input unavailable (${unavailableReason})`
-    : voice.isActive
-      ? "Stop recording"
-      : "Start voice input";
+    : voice.error;
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={buttonDisabled}
-      className={cn(
-        "mb-0.5 shrink-0 rounded p-1 transition-colors disabled:opacity-50",
-        voice.isActive
-          ? "animate-pulse text-cyan-400 hover:bg-cyan-500/10"
-          : "text-slate-500 hover:bg-slate-700 hover:text-slate-300",
-        isUnavailable && "text-red-400",
-      )}
-      title={title}
-      aria-pressed={voice.isActive}
-      data-testid={testId}
-    >
-      <Icon className="h-4 w-4" />
-      <span className="sr-only">{title}</span>
-    </button>
+    <VoiceMicButton
+      supported={supported || Boolean(errorMessage)}
+      isPreparing={voice.isPreparing}
+      isRecording={voice.isRecording}
+      isListening={voice.isListening}
+      isPassive={voice.isPassive}
+      isTranscribing={voice.isTranscribing}
+      error={errorMessage}
+      audioLevel={voice.audioLevel}
+      voiceActivity={voice.voiceActivity}
+      serverVad={serverVad}
+      partialTranscript={voice.partialTranscript}
+      onStart={handleStart}
+      onStop={handleStop}
+      onCancel={voice.cancelTranscription}
+      onExitPassive={voice.exitPassiveMode}
+      buttonClassName="mb-0.5"
+      testId={testId}
+    />
   );
 }

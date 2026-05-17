@@ -13,6 +13,7 @@ interface UseAgentMessageTTSResult {
   stop: () => void;
   isSpeaking: boolean;
   speakingMessageId: string | null;
+  loadingMessageId: string | null;
   unavailable: boolean;
 }
 
@@ -61,6 +62,7 @@ export function useAgentMessageTTS(): UseAgentMessageTTSResult {
     stop,
     isSpeaking: tts.isSpeaking,
     speakingMessageId,
+    loadingMessageId: tts.isLoading ? speakingMessageId : null,
     unavailable,
   };
 }

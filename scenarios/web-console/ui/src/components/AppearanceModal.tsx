@@ -3,6 +3,7 @@ import { X, GripHorizontal, CopyCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
+import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { DEFAULT_THEME_ID } from "../consts/config";
 import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
@@ -20,6 +21,7 @@ export default function AppearanceModal() {
   const setPaneFontSize = useWorkspaceStore((s) => s.setPaneFontSize);
   const applyAppearanceToAll = useWorkspaceStore((s) => s.applyAppearanceToAll);
   const paneCount = useWorkspaceStore((s) => s.panes.length);
+  const { syncPaneUpdate } = useWorkspaceSync();
 
   const pane = panes.find((p) => p.sessionId === appearanceModalPane);
 
@@ -99,17 +101,26 @@ export default function AppearanceModal() {
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
           <HeaderColorPicker
             currentColor={currentColor}
-            onSelectColor={(color) => setPaneColor(sessionId, color)}
+            onSelectColor={(color) => {
+              setPaneColor(sessionId, color);
+              syncPaneUpdate(sessionId, { header_color: color });
+            }}
             testIdPrefix="appearance"
           />
           <ThemePicker
             currentThemeId={currentThemeId}
-            onSelectTheme={(themeId) => setPaneTheme(sessionId, themeId)}
+            onSelectTheme={(themeId) => {
+              setPaneTheme(sessionId, themeId);
+              syncPaneUpdate(sessionId, { theme_id: themeId });
+            }}
             testIdPrefix="appearance"
           />
           <FontSizeStepper
             currentSize={currentFontSize}
-            onChangeSize={(size) => setPaneFontSize(sessionId, size)}
+            onChangeSize={(size) => {
+              setPaneFontSize(sessionId, size);
+              syncPaneUpdate(sessionId, { font_size: size });
+            }}
             testIdPrefix="appearance"
           />
 
@@ -119,7 +130,16 @@ export default function AppearanceModal() {
                 data-testid="appearance-apply-all"
                 variant="outline"
                 className="w-full"
-                onClick={() => applyAppearanceToAll(sessionId)}
+                onClick={() => {
+                  applyAppearanceToAll(sessionId);
+                  for (const target of panes) {
+                    syncPaneUpdate(target.sessionId, {
+                      header_color: currentColor,
+                      theme_id: currentThemeId,
+                      font_size: currentFontSize,
+                    });
+                  }
+                }}
               >
                 <CopyCheck className="h-4 w-4 me-2" />
                 {t(strings.appearance.applyToAll)}

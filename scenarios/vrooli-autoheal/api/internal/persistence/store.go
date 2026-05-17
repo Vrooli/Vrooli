@@ -217,6 +217,7 @@ type ActionLog struct {
 	CheckID    string `json:"checkId"`
 	ActionID   string `json:"actionId"`
 	Success    bool   `json:"success"`
+	TimedOut   bool   `json:"timedOut,omitempty"`
 	Message    string `json:"message"`
 	Output     string `json:"output,omitempty"`
 	Error      string `json:"error,omitempty"`
@@ -231,8 +232,8 @@ type ActionLogsResponse struct {
 }
 
 // SaveActionLog persists a recovery action execution to the database.
-func (s *Store) SaveActionLog(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error {
-	return s.saveActionLogSQLite(ctx, checkID, actionID, success, message, output, errMsg, durationMs)
+func (s *Store) SaveActionLog(ctx context.Context, checkID, actionID string, success, timedOut bool, message, output, errMsg string, durationMs int64) error {
+	return s.saveActionLogSQLite(ctx, checkID, actionID, success, timedOut, message, output, errMsg, durationMs)
 }
 
 // GetActionLogs retrieves recent action logs.

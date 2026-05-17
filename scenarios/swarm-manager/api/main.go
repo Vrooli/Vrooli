@@ -167,6 +167,7 @@ func (s *Server) setupRoutes() {
 	// --- Infrastructure ---
 	s.registerHealthRoutes()
 	s.registerDiscoveryRoutes()
+	s.registerAudioToolsProxyRoutes()
 	s.registerSettingsRoutes(scenarioRoot)      // Must be before backlog/execution (they depend on settings store)
 	s.registerAgentActivityRoutes(scenarioRoot) // Must be before backlog/execution (they depend on agent activity)
 	s.registerScenarioRoutes(scenariosDir)
@@ -253,6 +254,17 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 // see docs/internal/PROBLEMS.md for the residual REST drift.
 func (s *Server) registerDiscoveryRoutes() {
 	discovery.RegisterRoutes(s.router, newAudioToolsResolverAdapter(s), nil)
+}
+
+func (s *Server) registerAudioToolsProxyRoutes() {
+	if s.audioToolsResolver == nil {
+		return
+	}
+	proxy := newAudioToolsProxy(s.audioToolsResolver)
+	for _, prefix := range audioToolsConnectPrefixes {
+		s.router.PathPrefix(prefix).Handler(proxy)
+	}
+	s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver)).Methods(http.MethodGet)
 }
 
 func (s *Server) registerHealthRoutes() {
@@ -443,7 +455,8 @@ func main() {
 	srv.startAISearchBackground()
 
 	if err := server.Run(server.Config{
-		Handler: srv.Handler(),
+		Handler:      srv.Handler(),
+		WriteTimeout: 180 * time.Second,
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

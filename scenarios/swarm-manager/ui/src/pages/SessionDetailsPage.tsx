@@ -411,8 +411,8 @@ export function SessionDetailsPage() {
           }
         />
       }
-      className="min-h-screen md:h-screen md:min-h-0 md:overflow-hidden"
-      bodyClassName="md:min-h-0 md:overflow-hidden md:px-0 md:py-0"
+      className="min-h-screen md:h-full md:min-h-0 md:overflow-hidden"
+      bodyClassName="md:flex md:min-h-0 md:flex-col md:overflow-hidden md:px-0 md:py-0"
     >
       <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-3 md:max-w-none md:gap-0">
         {(localError || error?.message) && (

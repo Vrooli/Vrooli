@@ -14,7 +14,7 @@ export const VAD_CALIBRATION_MS = 500;
  * Fallback silence timeout (ms). Used only for the initial paint before
  * the workspace store has been hydrated from audio-tools' stt_stream_config
  * (`vad_silence_ms`). At runtime, the hydrated `vadSilenceTimeoutMs`
- * always wins — see scenarios/web-console/ui/src/hooks/useVoiceInput.ts.
+ * always wins — see useHydrateVoiceConfig in the host scenario.
  */
 export const VAD_FALLBACK_SILENCE_TIMEOUT_MS = 2000;
 /**

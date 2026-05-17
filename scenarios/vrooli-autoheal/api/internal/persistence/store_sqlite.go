@@ -32,7 +32,8 @@ func (s *Store) saveResultSQLite(ctx context.Context, result checks.Result) erro
 		INSERT INTO health_results (check_id, status, message, details, duration_ms, created_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 	`
-	_, err = s.db.ExecContext(ctx, query,
+	_, err = s.db.ExecContext(
+		ctx, query,
 		result.CheckID,
 		result.Status,
 		result.Message,
@@ -222,7 +223,8 @@ func (s *Store) upsertSystemEventsSQLite(ctx context.Context, events []systemeve
 		if err != nil {
 			details = []byte("{}")
 		}
-		result, err := stmt.ExecContext(ctx,
+		result, err := stmt.ExecContext(
+			ctx,
 			event.Fingerprint,
 			event.OccurredAt.UTC().Format(time.RFC3339Nano),
 			event.IngestedAt.UTC().Format(time.RFC3339Nano),
@@ -913,7 +915,8 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 	if input.Outcome != nil {
 		outcomeValue = outcomeJSON
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.db.ExecContext(
+		ctx, `
 		INSERT INTO incidents (
 			id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
 			boot_id, previous_boot_id, source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json,
@@ -1380,15 +1383,17 @@ func nonEmptyUnique(values []string) []string {
 	return out
 }
 
-func (s *Store) saveActionLogSQLite(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error {
+func (s *Store) saveActionLogSQLite(ctx context.Context, checkID, actionID string, success, timedOut bool, message, output, errMsg string, durationMs int64) error {
 	query := `
-		INSERT INTO action_logs (check_id, action_id, success, message, output, error, duration_ms, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO action_logs (check_id, action_id, success, timed_out, message, output, error, duration_ms, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := s.db.ExecContext(ctx, query,
+	_, err := s.db.ExecContext(
+		ctx, query,
 		checkID,
 		actionID,
 		success,
+		timedOut,
 		message,
 		output,
 		errMsg,
@@ -1404,7 +1409,7 @@ func (s *Store) getActionLogsSQLite(ctx context.Context, limit int) (*ActionLogs
 	}
 
 	query := `
-		SELECT id, check_id, action_id, success, message, COALESCE(output, ''), COALESCE(error, ''), duration_ms, created_at
+		SELECT id, check_id, action_id, success, COALESCE(timed_out, 0), message, COALESCE(output, ''), COALESCE(error, ''), duration_ms, created_at
 		FROM action_logs
 		ORDER BY created_at DESC
 		LIMIT ?
@@ -1419,7 +1424,7 @@ func (s *Store) getActionLogsSQLite(ctx context.Context, limit int) (*ActionLogs
 	for rows.Next() {
 		var l ActionLog
 		var createdRaw any
-		if err := rows.Scan(&l.ID, &l.CheckID, &l.ActionID, &l.Success, &l.Message, &l.Output, &l.Error, &l.DurationMs, &createdRaw); err != nil {
+		if err := rows.Scan(&l.ID, &l.CheckID, &l.ActionID, &l.Success, &l.TimedOut, &l.Message, &l.Output, &l.Error, &l.DurationMs, &createdRaw); err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
 
@@ -1443,7 +1448,7 @@ func (s *Store) getActionLogsForCheckSQLite(ctx context.Context, checkID string,
 	}
 
 	query := `
-		SELECT id, check_id, action_id, success, message, COALESCE(output, ''), COALESCE(error, ''), duration_ms, created_at
+		SELECT id, check_id, action_id, success, COALESCE(timed_out, 0), message, COALESCE(output, ''), COALESCE(error, ''), duration_ms, created_at
 		FROM action_logs
 		WHERE check_id = ?
 		ORDER BY created_at DESC
@@ -1459,7 +1464,7 @@ func (s *Store) getActionLogsForCheckSQLite(ctx context.Context, checkID string,
 	for rows.Next() {
 		var l ActionLog
 		var createdRaw any
-		if err := rows.Scan(&l.ID, &l.CheckID, &l.ActionID, &l.Success, &l.Message, &l.Output, &l.Error, &l.DurationMs, &createdRaw); err != nil {
+		if err := rows.Scan(&l.ID, &l.CheckID, &l.ActionID, &l.Success, &l.TimedOut, &l.Message, &l.Output, &l.Error, &l.DurationMs, &createdRaw); err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
 
@@ -1491,7 +1496,8 @@ func (s *Store) saveHealTrackerSQLite(ctx context.Context, checkID string, track
 			updated_at = excluded.updated_at
 	`
 
-	_, err := s.db.ExecContext(ctx, query,
+	_, err := s.db.ExecContext(
+		ctx, query,
 		checkID,
 		nullableTimeToDBText(tracker.LastAttempt),
 		nullableTimeToDBText(tracker.LastSuccess),

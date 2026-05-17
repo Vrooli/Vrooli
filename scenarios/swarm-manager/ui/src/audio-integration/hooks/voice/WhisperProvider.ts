@@ -35,6 +35,11 @@ export class WhisperProvider implements TranscriptionProvider {
     this.lastTurn = null;
   }
 
+  // Batch mode has no tail to drop — the full turn ships in a single POST
+  // on stop(), so auto-stop arming is a no-op here. Keeps the provider
+  // interface uniform with VoiceStreamProvider.
+  dropTail(): void {}
+
   private micAcquireTime = 0;
   private recordingStartTime = 0;
 

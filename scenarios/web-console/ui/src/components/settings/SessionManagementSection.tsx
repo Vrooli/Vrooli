@@ -183,12 +183,13 @@ export default function SessionManagementSection({
 }: SessionManagementSectionProps) {
   const { t } = useTranslation();
   const panes = useWorkspaceStore((state) => state.panes);
+  const activePane = useWorkspaceStore((state) => state.activePane);
   const movePaneToIndex = useWorkspaceStore((state) => state.movePaneToIndex);
   const setActivePane = useWorkspaceStore((state) => state.setActivePane);
   const setPaneColor = useWorkspaceStore((state) => state.setPaneColor);
   const renamePaneById = useWorkspaceStore((state) => state.renamePaneById);
   const resetLayout = useWorkspaceStore((state) => state.resetLayout);
-  const { syncActivePane } = useWorkspaceSync();
+  const { syncActivePane, syncPaneOrder, syncPaneUpdate } = useWorkspaceSync();
 
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -288,7 +289,10 @@ export default function SessionManagementSection({
                             <button
                               className="h-4 w-4 rounded-full border border-wc-default"
                               style={{ backgroundColor: "rgb(var(--wc-surface-input))" }}
-                              onClick={() => setPaneColor(pane.sessionId, "transparent")}
+                              onClick={() => {
+                                setPaneColor(pane.sessionId, "transparent");
+                                syncPaneUpdate(pane.sessionId, { header_color: "transparent" });
+                              }}
                               title={t(strings.settings.sessionsSection.noColor)}
                             />
                             {HEADER_COLORS.map((color) => (
@@ -296,7 +300,10 @@ export default function SessionManagementSection({
                                 key={color}
                                 className="h-4 w-4 rounded-full border border-wc-default"
                                 style={{ backgroundColor: color }}
-                                onClick={() => setPaneColor(pane.sessionId, color)}
+                                onClick={() => {
+                                  setPaneColor(pane.sessionId, color);
+                                  syncPaneUpdate(pane.sessionId, { header_color: color });
+                                }}
                                 title={color}
                               />
                             ))}
@@ -310,12 +317,20 @@ export default function SessionManagementSection({
                             autoFocus
                             onChange={(event) => setEditValue(event.target.value)}
                             onBlur={() => {
-                              if (editValue.trim()) renamePaneById(pane.sessionId, editValue.trim());
+                              if (editValue.trim()) {
+                                const trimmed = editValue.trim();
+                                renamePaneById(pane.sessionId, trimmed);
+                                syncPaneUpdate(pane.sessionId, { name: trimmed });
+                              }
                               setEditingName(null);
                             }}
                             onKeyDown={(event) => {
                               if (event.key === "Enter") {
-                                if (editValue.trim()) renamePaneById(pane.sessionId, editValue.trim());
+                                if (editValue.trim()) {
+                                  const trimmed = editValue.trim();
+                                  renamePaneById(pane.sessionId, trimmed);
+                                  syncPaneUpdate(pane.sessionId, { name: trimmed });
+                                }
                                 setEditingName(null);
                               } else if (event.key === "Escape") {
                                 setEditingName(null);
@@ -355,7 +370,14 @@ export default function SessionManagementSection({
                         size="icon"
                         className="h-8 w-8"
                         disabled={index === 0}
-                        onClick={() => movePaneToIndex(pane.sessionId, index - 1)}
+                        onClick={() => {
+                          movePaneToIndex(pane.sessionId, index - 1);
+                          const reordered = [...panes];
+                          const removed = reordered.splice(index, 1);
+                          const moved = removed[0];
+                          if (moved) reordered.splice(index - 1, 0, moved);
+                          syncPaneOrder(reordered.map((entry) => entry.sessionId), activePane);
+                        }}
                         title={t(strings.settings.sessionsSection.moveUp)}
                       >
                         <ChevronUp className="h-3.5 w-3.5" />
@@ -366,7 +388,14 @@ export default function SessionManagementSection({
                         size="icon"
                         className="h-8 w-8"
                         disabled={index === panes.length - 1}
-                        onClick={() => movePaneToIndex(pane.sessionId, index + 1)}
+                        onClick={() => {
+                          movePaneToIndex(pane.sessionId, index + 1);
+                          const reordered = [...panes];
+                          const removed = reordered.splice(index, 1);
+                          const moved = removed[0];
+                          if (moved) reordered.splice(index + 1, 0, moved);
+                          syncPaneOrder(reordered.map((entry) => entry.sessionId), activePane);
+                        }}
                         title={t(strings.settings.sessionsSection.moveDown)}
                       >
                         <ChevronDown className="h-3.5 w-3.5" />

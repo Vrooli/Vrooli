@@ -80,7 +80,7 @@ func defaultStreamCfg() streamCfgDoc {
 		SegmentSilenceMs:   800,
 		StreamingMode:      "auto",
 		StrategyPreference: "auto",
-		VadSilenceMs:       700,
+		VadSilenceMs:       1200,
 		OverlapWindowMs:    2000,
 		OverlapCommitRuns:  2,
 	}

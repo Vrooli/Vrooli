@@ -269,6 +269,73 @@ describe("MobileToolbar — arrow hold-to-repeat", () => {
   });
 });
 
+describe("MobileToolbar — mobile command backspace repeat", () => {
+  let originalMaxTouchPoints: number;
+
+  beforeEach(() => {
+    try {
+      window.localStorage.clear();
+    } catch {
+      /* no-op */
+    }
+    originalMaxTouchPoints = navigator.maxTouchPoints;
+    Object.defineProperty(navigator, "maxTouchPoints", {
+      value: 1,
+      configurable: true,
+    });
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(navigator, "maxTouchPoints", {
+      value: originalMaxTouchPoints,
+      configurable: true,
+    });
+  });
+
+  function fireDeleteBackward(textarea: HTMLTextAreaElement) {
+    const event = new InputEvent("beforeinput", {
+      inputType: "deleteContentBackward",
+      bubbles: true,
+      cancelable: true,
+    } as InputEventInit);
+    textarea.dispatchEvent(event);
+    return event;
+  }
+
+  it("handles held backspace inside the command textarea without relying on native repeat", () => {
+    const { onInput } = renderToolbar();
+    const textarea = screen.getByTestId("mobile-command-input") as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: "abcdef" } });
+    textarea.focus();
+    textarea.setSelectionRange(6, 6);
+
+    act(() => {
+      const event = fireDeleteBackward(textarea);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    expect(textarea.value).toBe("abcde");
+    expect(textarea.selectionStart).toBe(5);
+
+    act(() => {
+      vi.advanceTimersByTime(80);
+    });
+
+    expect(textarea.value).toBe("abc");
+    expect(textarea.selectionStart).toBe(3);
+
+    act(() => {
+      fireEvent.keyUp(textarea);
+    });
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+
+    expect(onInput).toHaveBeenCalledWith("abc", "toolbar-submit");
+  });
+});
+
 describe("MobileToolbar — appendText (voice transcript insertion)", () => {
   beforeEach(() => {
     try {

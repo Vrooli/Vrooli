@@ -8,6 +8,16 @@
 
 export { MicReadinessIndicator } from "./MicReadinessIndicator";
 export type { MicReadinessIndicatorProps } from "./MicReadinessIndicator";
+export { useVoiceConfigStore } from "./hooks/useVoiceConfigStore";
+export type { VoiceConfigState } from "./hooks/useVoiceConfigStore";
+export { useHydrateVoiceConfig } from "./hooks/useHydrateVoiceConfig";
+export {
+  useServerVadStateStore,
+  setServerVadState,
+  _resetServerVadStateForTesting,
+  SERVER_VAD_STALE_MS,
+} from "./hooks/useServerVadStateStore";
+export type { ServerVadStateSnapshot } from "./hooks/useServerVadStateStore";
 
 // Connect client + React context for consumers calling audio-tools RPCs.
 export {

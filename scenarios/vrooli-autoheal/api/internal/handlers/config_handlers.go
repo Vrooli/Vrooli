@@ -9,7 +9,6 @@ import (
 	"vrooli-autoheal/internal/userconfig"
 
 	"github.com/gorilla/mux"
-
 	apierrors "vrooli-autoheal/internal/errors"
 )
 
@@ -156,7 +155,13 @@ func (h *ConfigHandlers) syncAutoHealPolicy() error {
 		return nil
 	}
 	global := h.configMgr.GetGlobal()
-	policy, err := checks.NewAutoHealPolicyFromGlobal(global.RestartCooldownSeconds, global.MaxRestartAttempts)
+	policy, err := checks.NewAutoHealPolicyFromGlobal(
+		global.RestartCooldownSeconds,
+		global.MaxRestartAttempts,
+		global.ActionTimeoutFastSeconds,
+		global.ActionTimeoutRestartSeconds,
+		global.TimeoutRetrySeconds,
+	)
 	if err != nil {
 		return err
 	}

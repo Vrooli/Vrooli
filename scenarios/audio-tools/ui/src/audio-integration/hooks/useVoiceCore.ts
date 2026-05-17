@@ -35,7 +35,8 @@ import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoise
 import { getSharedAudioContext, ensureAudioContextOnGesture, installAudioContextKeepalive, teardownAudioContextKeepalive } from "../index";
 import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "../index";
 import { VoiceStreamProvider } from "../index";
-import { setServerVadState } from "./useServerVadStateStore";
+import { setServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
+import { decideAutoStop } from "./voice/autoStopDecision";
 import { WhisperProvider } from "../index";
 import { WebSpeechProvider } from "../index";
 import { createWakeWordEngine, PassiveListener } from "../index";
@@ -203,7 +204,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   // VAD refs
   const vadRef = useRef(createVadRefs());
   const vadActiveRef = useRef(false);
-  const stopRecordingRef = useRef<(() => void) | null>(null);
+  const stopRecordingRef = useRef<((opts?: { reason?: "auto" | "user" }) => void) | null>(null);
   const vadSilenceTimeoutRef = useRef(vadSilenceTimeoutMs);
   vadSilenceTimeoutRef.current = vadSilenceTimeoutMs;
 
@@ -454,23 +455,18 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
                 silenceDuration, vadRef.current.segmentSilenceMs);
             }
           } else if (result === "stop") {
-            console.info("[voice] S%d VAD stop: silenceElapsed=%dms, timeout=%dms, rms=%.4f, speechThresh=%.4f, silenceThresh=%.4f",
+            console.info("[voice] S%d VAD client-stop: silenceElapsed=%dms, timeout=%dms, rms=%.4f, speechThresh=%.4f, silenceThresh=%.4f",
               sessionCountRef.current, vadNow - vadRef.current.silenceStart,
               vadSilenceTimeoutRef.current, rms,
               vadRef.current.speechThreshold, vadRef.current.silenceThreshold);
-            // In one-shot mode, stop recording as usual.
-            if (!persistentModeRef.current) {
-              stopRecordingRef.current?.();
-            }
-            // In persistent mode, this fires after segmentSilenceMs + remaining silence.
-            // We treat it as one final segment boundary, then reset to waitingForSpeech
-            // so "stop" doesn't fire again on every subsequent tick.
+            // Persistent mode: treat as one final segment boundary then reset.
+            // One-shot mode is handled below via decideAutoStop — keeps the
+            // server-VAD SSOT precedence centralised.
             if (persistentModeRef.current) {
               const provider = providerRef.current;
               if (provider && "sendSegmentBoundary" in provider) {
                 (provider as VoiceStreamProvider).sendSegmentBoundary();
               }
-              // Reset VAD to wait for new speech — prevents repeated "stop" cascade
               vadRef.current.state = "waitingForSpeech";
               vadRef.current.recordingStart = vadNow;
               vadRef.current.segmentBoundaryEmitted = false;
@@ -480,8 +476,35 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
               sessionCountRef.current, vadNow - vadRef.current.recordingStart, rms);
             vadActiveRef.current = false;
             vadRef.current.state = "idle";
-            stopRecordingRef.current?.();
+            stopRecordingRef.current?.({ reason: "auto" });
             setState((s) => ({ ...s, error: "No speech detected" }));
+          }
+
+          // One-shot auto-stop SSOT: server-VAD-led with client-VAD fallback.
+          // Pure helper keeps the precedence reviewable + duplicated across
+          // the three audio-integration copies; see voice/autoStopDecision.ts
+          // and plan audio-tools-stt-accuracy-auto-stop-ssot.md §7 Phase 2.
+          if (!persistentModeRef.current && vadActiveRef.current) {
+            const serverSnap = useServerVadStateStore.getState();
+            const nowPerfMs = typeof performance !== "undefined" && typeof performance.now === "function"
+              ? performance.now()
+              : Date.now();
+            const verdict = decideAutoStop({
+              serverVad: serverSnap,
+              clientVadResult: result,
+              nowPerf: nowPerfMs,
+              staleTickMs: SERVER_VAD_STALE_MS,
+            });
+            if (verdict.kind === "stop") {
+              const serverAge = serverSnap.receivedAt > 0
+                ? Math.round(nowPerfMs - serverSnap.receivedAt)
+                : -1;
+              console.info("[voice] S%d auto-stop source=%s serverAge=%dms serverSilence=%d/%dms clientResult=%s",
+                sessionCountRef.current, verdict.source, serverAge,
+                serverSnap.silenceElapsedMs, serverSnap.silenceTimeoutMs,
+                result ?? "null");
+              stopRecordingRef.current?.({ reason: "auto" });
+            }
           }
         }
 
@@ -1088,7 +1111,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     }
   }, [state.voiceState, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor, handleSegmentFinal, surfacePendingRejection]);
 
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback((opts?: { reason?: "auto" | "user" }) => {
+    const reason = opts?.reason ?? "user";
     // If start is in progress, signal it to abort after completing
     if (startingRef.current) {
       stopRequestedRef.current = true;
@@ -1149,7 +1173,17 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         partialTranscript: "",
       }));
     }
-    setTimeout(() => provider.stop(), 120);
+    // Auto-stop: server-VAD verdict has already fired; capturing more audio
+    // would leak post-verdict words into the transcript. Arm tail-drop so
+    // the encoder's in-flight chunk is discarded and `{type:"done"}` is sent
+    // synchronously to commit the segment. User-tap: preserve the 120 ms
+    // settle delay so the encoder's final ondataavailable still ships.
+    if (reason === "auto") {
+      provider.dropTail();
+      provider.stop();
+    } else {
+      setTimeout(() => provider.stop(), 120);
+    }
   }, [isActive, isListening, state.backend, stopLevelMonitor]);
 
   const cancelTranscription = useCallback(() => {

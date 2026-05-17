@@ -11,6 +11,7 @@ export {
   useServerVadStateStore,
   setServerVadState,
   _resetServerVadStateForTesting,
+  SERVER_VAD_STALE_MS,
 } from "./hooks/useServerVadStateStore";
 export type { ServerVadStateSnapshot } from "./hooks/useServerVadStateStore";
 

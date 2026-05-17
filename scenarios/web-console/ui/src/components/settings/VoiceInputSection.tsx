@@ -63,6 +63,8 @@ export default function VoiceInputSection() {
   const setStorePersistentMode = useWorkspaceStore((state) => state.setPersistentMode);
   const setStoreWakeWordEnabled = useWorkspaceStore((state) => state.setWakeWordEnabled);
   const setStoreSegmentSilenceMs = useWorkspaceStore((state) => state.setSegmentSilenceMs);
+  const lowLatencyVoice = useWorkspaceStore((state) => state.lowLatencyVoice);
+  const setLowLatencyVoice = useWorkspaceStore((state) => state.setLowLatencyVoice);
 
   const [recordingShortcut, setRecordingShortcut] = useState(false);
   const [voiceCaps, setVoiceCaps] = useState<CapabilityState[]>([]);
@@ -1087,11 +1089,8 @@ export default function VoiceInputSection() {
             control={(
               <SettingsToggle
                 testId="low-latency-voice-toggle"
-                checked={useWorkspaceStore.getState().lowLatencyVoice}
-                onClick={() => {
-                  const store = useWorkspaceStore.getState();
-                  store.setLowLatencyVoice(!store.lowLatencyVoice);
-                }}
+                checked={lowLatencyVoice}
+                onClick={() => setLowLatencyVoice(!lowLatencyVoice)}
               />
             )}
           />

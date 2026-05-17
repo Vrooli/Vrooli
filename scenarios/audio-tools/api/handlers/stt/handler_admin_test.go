@@ -115,6 +115,10 @@ func TestStreamCfgDoc_ToProtoAndDefaults(t *testing.T) {
 	p := d.toProto()
 	require.Equal(t, int32(250), p.GetFlushIntervalMs())
 	require.Equal(t, sttv1.StreamingMode_STREAMING_MODE_AUTO, p.GetStreamingMode())
+	// The server-side VAD silence default drives where Whisper sees segment
+	// boundaries; 1200ms is the SSOT for both the mic-button ring countdown
+	// (via useHydrateVoiceConfig) and the actual segment cut.
+	require.Equal(t, int32(1200), p.GetVadSilenceMs())
 }
 
 func TestMinInt(t *testing.T) {

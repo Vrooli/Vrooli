@@ -170,6 +170,14 @@ export interface TranscriptionProvider {
   getLastTurnAudio(): LastTurnAudio | null;
   /** Drop the retained turn's audio; subsequent `getLastTurnAudio()` returns null. */
   disposeLastTurn(): void;
+  /**
+   * Arm in-flight audio drop. After calling, the provider must:
+   *  - drop any subsequent encoder chunk instead of forwarding to the transport
+   *  - on `stop()`, signal end-of-utterance immediately and skip tail retention
+   * Used by the auto-stop path so words spoken after the server-VAD verdict
+   * do not leak into the transcription. Reset on the next `start()`.
+   */
+  dropTail(): void;
   onResult: ((text: string) => void) | null;
   onError: ((error: string) => void) | null;
   onPartial?: ((text: string) => void) | null;

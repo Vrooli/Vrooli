@@ -5,14 +5,13 @@ package bootstrap
 import (
 	"time"
 	"vrooli-autoheal/internal/checks"
+	hostchecks "vrooli-autoheal/internal/checks/host"
 	"vrooli-autoheal/internal/checks/infra"
 	"vrooli-autoheal/internal/checks/system"
 	"vrooli-autoheal/internal/checks/vrooli"
 	"vrooli-autoheal/internal/hostinventory"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/userconfig"
-
-	hostchecks "vrooli-autoheal/internal/checks/host"
 )
 
 // CheckFactory defines the interface for creating health checks.
@@ -166,8 +165,9 @@ func (f *DefaultCheckFactory) CreateVrooliChecks(caps *platform.Capabilities) []
 	vrooliChecks := []checks.Check{
 		vrooli.NewAPICheck(),
 		vrooli.NewWatchdogCheck(caps), // OS watchdog boot recovery check
-		vrooli.NewStaleLockCheck(),    // Stale port lock detection
-		vrooli.NewOrphanCheck(),       // Orphan process detection
+		vrooli.NewRuntimeSupervisorCheck(),
+		vrooli.NewStaleLockCheck(), // Stale port lock detection
+		vrooli.NewOrphanCheck(),    // Orphan process detection
 	}
 
 	// Resource checks

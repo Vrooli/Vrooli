@@ -51,7 +51,7 @@ export interface TTSSummarizeConfig {
   timeoutSeconds: number;
 }
 
-const TTS_SYNTHESIS_TIMEOUT_MS = 30_000;
+const TTS_SYNTHESIS_TIMEOUT_MS = 150_000;
 
 function summarizeLevelLabel(l: SummarizeLevel | undefined): TTSSummarizeConfig["level"] {
   switch (l) {

@@ -227,7 +227,7 @@ describe("SessionDetailsPage", () => {
     const messages = screen.getByTestId("agent-session-messages");
     const inspector = screen.getByTestId("session-inspector");
 
-    expect(layout).toHaveClass("md:h-screen", "md:overflow-hidden");
+    expect(layout).toHaveClass("md:h-full", "md:min-h-0", "md:overflow-hidden");
     expect(desktopLayout).toHaveClass("flex-1", "min-h-0");
     expect(conversation).toHaveClass("h-full", "border-r");
     expect(conversation).not.toHaveClass("rounded-lg");

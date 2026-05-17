@@ -26,10 +26,11 @@ if (typeof Promise.allSettled !== "function") {
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { resolveApiBase } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
-import { AudioToolsProvider, createAudioToolsClient } from "./audio-integration";
+import { AudioToolsProvider, createAudioToolsClient, useHydrateVoiceConfig } from "./audio-integration";
 import { fetchAudioToolsDiscovery } from "./api/discovery";
 import "./styles.css";
 
@@ -96,21 +97,28 @@ const ensureSEO = () => {
 
 ensureSEO();
 
-// AUDIO-TOOLS DISCOVERY: resolve audio-tools' base URL via the
-// swarm-manager backend BEFORE React mounts so AudioToolsProvider
-// wires the client against the right host. A discovery failure mounts
-// the provider with a sentinel base URL ("http://localhost:0") + a
-// stable unavailableReason so consumer hooks render typed errors and
-// the Audio settings tab can surface a banner.
+// AUDIO-TOOLS DISCOVERY: ask the swarm-manager backend whether audio-tools is
+// reachable BEFORE React mounts. When it is, the browser still talks only to
+// swarm-manager's same-origin API; the backend owns the audio-tools hop.
+// A discovery failure mounts the provider with a stable unavailableReason so
+// consumer hooks render typed errors and the Audio settings tab can surface a
+// banner.
+function sameOriginAudioBaseUrl(): string {
+  return resolveApiBase();
+}
+
 async function bootstrapAudioTools(): Promise<{ baseUrl: string; unavailableReason: string }> {
   try {
     const ep = await fetchAudioToolsDiscovery();
     if (ep.available && ep.baseUrl) {
-      return { baseUrl: ep.baseUrl, unavailableReason: "" };
+      return {
+        baseUrl: sameOriginAudioBaseUrl(),
+        unavailableReason: "",
+      };
     }
-    return { baseUrl: "", unavailableReason: ep.unavailableReason || "discovery_failed" };
+    return { baseUrl: sameOriginAudioBaseUrl(), unavailableReason: ep.unavailableReason || "discovery_failed" };
   } catch {
-    return { baseUrl: "", unavailableReason: "discovery_failed" };
+    return { baseUrl: sameOriginAudioBaseUrl(), unavailableReason: "discovery_failed" };
   }
 }
 
@@ -119,16 +127,26 @@ if (!rootElement) {
   throw new Error("Root element not found - check index.html has <div id=\"root\"></div>");
 }
 
+// Hydrate audio-tools' stream config into useVoiceConfigStore on mount.
+// Must live inside AudioToolsProvider so the hook can read the
+// unavailableReason context. The component renders no DOM itself.
+function VoiceConfigHydrator({ children }: { children: React.ReactNode }) {
+  useHydrateVoiceConfig();
+  return <>{children}</>;
+}
+
 void bootstrapAudioTools().then(({ baseUrl, unavailableReason }) => {
   const audioToolsClient = createAudioToolsClient({
-    baseUrl: baseUrl || "http://localhost:0",
+    baseUrl,
   });
 
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <AudioToolsProvider client={audioToolsClient} unavailableReason={unavailableReason || undefined}>
-          <App />
+          <VoiceConfigHydrator>
+            <App />
+          </VoiceConfigHydrator>
         </AudioToolsProvider>
       </QueryClientProvider>
     </React.StrictMode>

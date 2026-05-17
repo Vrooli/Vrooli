@@ -1,12 +1,12 @@
 import { memo, useRef, useLayoutEffect, useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Mic, Loader2, AlertCircle } from "lucide-react";
+import { Mic, Loader2, AlertCircle, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
 import type { ServerVadStateSnapshot } from "../audio-integration";
-import { VAD_AUTO_STOP_VISUAL_GRACE_MS, useServerVadStateStore } from "../audio-integration";
+import { VAD_AUTO_STOP_VISUAL_GRACE_MS, useServerVadStateStore, SERVER_VAD_STALE_MS } from "../audio-integration";
 
 /** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
 const LONG_PRESS_MS = 300;
@@ -62,7 +62,7 @@ interface VoiceMicButtonProps {
 }
 
 /** Fixed-position tooltip rendered via portal so it can't be clipped by overflow parents. */
-function ErrorTooltip({ anchor, text }: { anchor: HTMLElement; text: string }) {
+function ErrorTooltip({ anchor, text, onDismiss }: { anchor: HTMLElement; text: string; onDismiss: () => void }) {
   const [style, setStyle] = useState<React.CSSProperties>({ visibility: "hidden" });
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -92,10 +92,19 @@ function ErrorTooltip({ anchor, text }: { anchor: HTMLElement; text: string }) {
   return createPortal(
     <div
       ref={tooltipRef}
-      className="z-[9999] w-48 rounded border border-amber-500/50 bg-wc-surface-raised px-2 py-1 text-[10px] text-amber-300 shadow-lg pointer-events-none"
+      className="z-[9999] flex w-52 items-start gap-1.5 rounded border border-amber-500/50 bg-wc-surface-raised px-2 py-1 text-[10px] text-amber-300 shadow-lg"
       style={style}
+      role="status"
     >
-      {text}
+      <span className="min-w-0 flex-1 break-words">{text}</span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="-mr-1 rounded p-0.5 text-amber-200 transition hover:bg-amber-500/15 hover:text-amber-100"
+        aria-label="Dismiss voice input error"
+      >
+        <X className="h-3 w-3" />
+      </button>
     </div>,
     document.body,
   );
@@ -127,6 +136,7 @@ function VoiceMicButtonInner({
   /** True when the mic is actively capturing (either one-shot or persistent). */
   const isMicActive = isRecording || isListening;
   const [buttonEl, setButtonEl] = useState<HTMLButtonElement | null>(null);
+  const [dismissedError, setDismissedError] = useState<string | null>(null);
   const pressStartRef = useRef(0);
   /** Tracks the intent of the current pointer interaction to avoid stale-closure races. */
   const pressIntentRef = useRef<"start" | "stop" | "cancel" | "none">("none");
@@ -191,7 +201,7 @@ function VoiceMicButtonInner({
   const serverVadFresh = serverVad
     && serverVad.receivedAt > 0
     && isRecording
-    && (typeof performance !== "undefined" ? performance.now() : Date.now()) - serverVad.receivedAt < 250;
+    && (typeof performance !== "undefined" ? performance.now() : Date.now()) - serverVad.receivedAt < SERVER_VAD_STALE_MS;
   useEffect(() => {
     if (!serverVadFresh) return;
     let raf = 0;
@@ -203,11 +213,18 @@ function VoiceMicButtonInner({
     return () => cancelAnimationFrame(raf);
   }, [serverVadFresh]);
 
-  if (!supported) return null;
-
   const isIdle = !isMicActive && !isPassive && !isTranscribing && !isPreparing;
   const hasError = error !== null && isIdle;
+  const showErrorTooltip = hasError && error !== dismissedError;
   const liveAudioLevel = voiceActivity?.audioLevel ?? audioLevel;
+
+  useEffect(() => {
+    if (!hasError && dismissedError !== null) {
+      setDismissedError(null);
+    }
+  }, [dismissedError, hasError]);
+
+  if (!supported) return null;
 
   // Prefer the server-emitted silence clock when fresh; fall back to the
   // client VAD's autoStopProgress when stale (>250 ms since last tick) or
@@ -217,7 +234,7 @@ function VoiceMicButtonInner({
   const nowPerf = typeof performance !== "undefined" ? performance.now() : Date.now();
   const fresh = !!serverVad
     && serverVad.receivedAt > 0
-    && (nowPerf - serverVad.receivedAt) < 250;
+    && (nowPerf - serverVad.receivedAt) < SERVER_VAD_STALE_MS;
   let autoStopProgress: number;
   let showAutoStopRing: boolean;
   if (fresh && serverVad!.silenceTimeoutMs > 0) {
@@ -329,8 +346,8 @@ function VoiceMicButtonInner({
           <Mic className="h-3.5 w-3.5 relative" />
         )}
       </button>
-      {hasError && buttonEl && (
-        <ErrorTooltip anchor={buttonEl} text={error as string} />
+      {showErrorTooltip && buttonEl && (
+        <ErrorTooltip anchor={buttonEl} text={error as string} onDismiss={() => setDismissedError(error)} />
       )}
       {isMicActive && partialTranscript && buttonEl && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 max-w-[200px] rounded border border-wc-default bg-wc-surface-raised px-2 py-1 text-[10px] text-wc-text-secondary shadow-lg pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">

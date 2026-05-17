@@ -25,15 +25,20 @@ type Config struct {
 	SegmentSilenceMs  int     `json:"segmentSilenceMs"`
 }
 
+// DefaultConfig returns the local-tier default streaming-pipeline lever values.
+// Biased toward accuracy: longer segments and more carry-over context reduce
+// boundary-word misrecognition at the cost of a small latency increase. Operator
+// overrides via SaveStreamConfig remain in force; see ApplyProfile for curated
+// latency/accuracy alternatives.
 func DefaultConfig() Config {
 	return Config{
 		FlushIntervalMs:   500,
 		MinDeltaBytes:     4096,
-		OverlapBytes:      2048,
+		OverlapBytes:      8192,
 		PersistentMode:    false,
 		WakeWordEnabled:   false,
 		WakeWordThreshold: 0.65,
-		SegmentSilenceMs:  1500,
+		SegmentSilenceMs:  2500,
 	}
 }
 

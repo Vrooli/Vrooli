@@ -65,6 +65,15 @@ describe("VoiceMicButton", () => {
     expect(btn.className).toContain("border-amber-500");
   });
 
+  it("allows the idle error tooltip to be dismissed", () => {
+    const { rerender } = render(<VoiceMicButton {...defaults} error="Test error" />);
+    rerender(<VoiceMicButton {...defaults} error="Test error" />);
+
+    expect(screen.getByText("Test error")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Dismiss voice input error"));
+    expect(screen.queryByText("Test error")).toBeNull();
+  });
+
   it("does not show error styling when recording with error", () => {
     render(<VoiceMicButton {...defaults} isRecording error="Test error" />);
     const btn = screen.getByTestId("voice-mic-btn");

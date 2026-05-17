@@ -628,6 +628,31 @@ qualified names the test searches for.
   production).
 - `tts.VoiceLister` — voice-catalog seam.
 
+## UI: auto-stop decision boundary <a id="auto-stop-decision"></a>
+
+### `voice/autoStopDecision.decideAutoStop` (pure helper)
+
+Decides whether one-shot recording should stop on a given level-monitor tick.
+Lives in `ui/src/audio-integration/hooks/voice/autoStopDecision.ts`.
+
+- **Inputs (caller-supplied, no module-level state)**: latest
+  `ServerVadStateSnapshot`, latest `VadAction | null` from `vadTick`,
+  `nowPerf` millis, and `staleTickMs` (always `SERVER_VAD_STALE_MS = 250`).
+- **Precedence**: fresh server tick at/over its `silenceTimeoutMs` wins
+  (`source: "server"`); else a client `"stop"` triggers
+  `source: "client-fallback"`; else continue. No averaging, no min/max.
+- **Why a seam**: the previous inline stop was client-VAD-only, so the mic
+  ring (server-driven) often disagreed with the actual stop. Lifting the
+  decision out makes the SSOT explicit and testable, and keeps the three
+  audio-integration copies (audio-tools/ui, web-console/ui, swarm-manager/ui)
+  byte-identical per duplicate-before-extract.
+- **Consumed by**: `useVoiceCore.ts` only. Persistent-mode stop logic is
+  intentionally untouched.
+
+`useServerVadStateStore` is the input source for both the ring and this
+helper; do not introduce a parallel snapshot store. The 250 ms staleness
+threshold is exported once as `SERVER_VAD_STALE_MS` and consumed by both.
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).

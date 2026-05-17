@@ -16,6 +16,7 @@
 
 import { createClient, type Client, type Transport } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
+import { resolveApiBase } from "@vrooli/api-base";
 import { createContext, createElement, useContext, type ReactNode } from "react";
 
 import { STTService } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
@@ -102,18 +103,20 @@ export function useAudioToolsUnavailableReason(): string | undefined {
 
 let activeClient: AudioToolsClient | null = null;
 
+function sameOriginBaseUrl(): string {
+  return resolveApiBase();
+}
+
 function registerActiveAudioToolsClient(client: AudioToolsClient): void {
   activeClient = client;
 }
 
 export function getActiveAudioToolsClient(): AudioToolsClient {
   if (activeClient === null) {
-    // Fall back to a sentinel-URL client so module-load and pre-provider
-    // call sites (e.g. test environments that don't mount AudioToolsProvider)
-    // don't crash. HTTP requests fail naturally rather than throwing at
-    // module construction time. Production code should always have a real
-    // provider mounted at boot.
-    activeClient = createAudioToolsClient({ baseUrl: "http://localhost:0" });
+    // Fall back to a same-origin client so module-load and pre-provider call
+    // sites (e.g. tests that don't mount AudioToolsProvider) don't crash.
+    // Production code should always have a real provider mounted at boot.
+    activeClient = createAudioToolsClient({ baseUrl: sameOriginBaseUrl() });
   }
   return activeClient;
 }

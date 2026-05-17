@@ -60,6 +60,8 @@ const MAX_VISIBLE_LINES = 4;
 const LINE_HEIGHT_PX = 20;
 /** Max textarea height: MAX_VISIBLE_LINES * line-height + padding. */
 const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 12;
+const MOBILE_BACKSPACE_REPEAT_INTERVAL_MS = 40;
+const MOBILE_BACKSPACE_RELEASE_GRACE_MS = 1200;
 
 type SendStatus = "sent" | "queued" | "sending" | "failed" | "idle";
 
@@ -182,6 +184,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
   const deferredInputValue = useDeferredValue(inputValue);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inputValueRef = useRef(inputValue);
+  useEffect(() => {
+    inputValueRef.current = inputValue;
+  }, [inputValue]);
   /**
    * Last-known caret position in the textarea. Tracked on select/blur so that
    * voice transcripts can be inserted at the user's caret even when focus has
@@ -189,6 +195,87 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
    * (e.g. textarea has never been focused) — callers fall back to end-of-text.
    */
   const selectionRef = useRef<{ start: number; end: number } | null>(null);
+  const mobileBackspaceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mobileBackspaceHeartbeatRef = useRef(0);
+  const mobileBackspaceDirtyRef = useRef(false);
+
+  const commitMobileBackspaceDraft = useCallback(() => {
+    if (!mobileBackspaceDirtyRef.current) return;
+    mobileBackspaceDirtyRef.current = false;
+    setInputValue(inputValueRef.current);
+  }, [setInputValue]);
+
+  const stopMobileBackspaceRepeat = useCallback(() => {
+    if (mobileBackspaceTimerRef.current !== null) {
+      clearInterval(mobileBackspaceTimerRef.current);
+      mobileBackspaceTimerRef.current = null;
+    }
+    commitMobileBackspaceDraft();
+  }, [commitMobileBackspaceDraft]);
+
+  const deleteMobileTextareaBackward = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+
+    const value = inputValueRef.current;
+    const liveStart = document.activeElement === el ? el.selectionStart : null;
+    const liveEnd = document.activeElement === el ? el.selectionEnd : null;
+    const rawStart = liveStart ?? selectionRef.current?.start ?? value.length;
+    const rawEnd = liveEnd ?? selectionRef.current?.end ?? value.length;
+    const start = Math.max(0, Math.min(rawStart, value.length));
+    const end = Math.max(start, Math.min(rawEnd, value.length));
+
+    if (start === 0 && end === 0) {
+      stopMobileBackspaceRepeat();
+      return;
+    }
+
+    const nextCaret = start === end ? start - 1 : start;
+    const nextValue = start === end
+      ? value.slice(0, start - 1) + value.slice(end)
+      : value.slice(0, start) + value.slice(end);
+
+    inputValueRef.current = nextValue;
+    mobileBackspaceDirtyRef.current = true;
+    selectionRef.current = { start: nextCaret, end: nextCaret };
+    el.value = nextValue;
+    try {
+      el.setSelectionRange(nextCaret, nextCaret);
+    } catch {
+      // The textarea may be detached during teardown; the next render will sync.
+    }
+  }, [stopMobileBackspaceRepeat]);
+
+  const startMobileBackspaceRepeat = useCallback(() => {
+    if (mobileBackspaceTimerRef.current !== null) return;
+    deleteMobileTextareaBackward();
+    mobileBackspaceTimerRef.current = setInterval(() => {
+      if (Date.now() - mobileBackspaceHeartbeatRef.current > MOBILE_BACKSPACE_RELEASE_GRACE_MS) {
+        stopMobileBackspaceRepeat();
+        return;
+      }
+      deleteMobileTextareaBackward();
+    }, MOBILE_BACKSPACE_REPEAT_INTERVAL_MS);
+  }, [deleteMobileTextareaBackward, stopMobileBackspaceRepeat]);
+
+  const handleMobileCommandBeforeInput = useCallback((e: InputEvent) => {
+    if (e.inputType !== "deleteContentBackward") return;
+    const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    if (!isTouchDevice) return;
+
+    e.preventDefault();
+    mobileBackspaceHeartbeatRef.current = Date.now();
+    startMobileBackspaceRepeat();
+  }, [startMobileBackspaceRepeat]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.addEventListener("beforeinput", handleMobileCommandBeforeInput);
+    return () => {
+      el.removeEventListener("beforeinput", handleMobileCommandBeforeInput);
+    };
+  }, [handleMobileCommandBeforeInput]);
 
   useImperativeHandle(ref, () => ({
     appendText: (text: string) => {
@@ -230,10 +317,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       textareaRef.current?.focus();
     },
     clearInput: () => {
+      stopMobileBackspaceRepeat();
       clearDraft();
+      inputValueRef.current = "";
       selectionRef.current = null;
     },
-  }), [setInputValue, clearDraft]);
+  }), [setInputValue, clearDraft, stopMobileBackspaceRepeat]);
+
+  useEffect(() => stopMobileBackspaceRepeat, [stopMobileBackspaceRepeat]);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
   /** Draft snapshot taken at submit time; restored on ack failure. */
   const pendingSendRef = useRef<{ draft: string } | null>(null);
@@ -506,6 +597,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             data-testid="mobile-command-input"
             value={inputValue}
             onChange={(e) => {
+              stopMobileBackspaceRepeat();
+              inputValueRef.current = e.target.value;
               setInputValue(e.target.value);
               selectionRef.current = {
                 start: e.target.selectionStart ?? e.target.value.length,
@@ -525,7 +618,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 start: t.selectionStart ?? t.value.length,
                 end: t.selectionEnd ?? t.value.length,
               };
+              stopMobileBackspaceRepeat();
             }}
+            onKeyUp={stopMobileBackspaceRepeat}
             autoComplete="off"
             autoCorrect="on"
             spellCheck={false}

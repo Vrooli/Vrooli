@@ -11,6 +11,9 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	c := DefaultConfig()
 	require.NoError(t, c.Validate())
+	// Accuracy-biased defaults — see ProfilePresets[ProfileBalanced].
+	require.Equal(t, 2500, c.SegmentSilenceMs)
+	require.Equal(t, 8192, c.OverlapBytes)
 }
 
 func TestConfigValidate_Errors(t *testing.T) {

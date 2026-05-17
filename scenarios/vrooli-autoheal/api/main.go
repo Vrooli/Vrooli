@@ -25,7 +25,6 @@ import (
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
-
 	apiHandlers "vrooli-autoheal/internal/handlers"
 )
 
@@ -250,8 +249,46 @@ func initializeSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to execute schema: %w", err)
 	}
 
+	if err := migrateActionLogsAddTimedOut(db); err != nil {
+		return fmt.Errorf("failed to migrate action_logs.timed_out: %w", err)
+	}
+
 	log.Printf("database schema initialized successfully")
 	return nil
+}
+
+// migrateActionLogsAddTimedOut adds the timed_out column to action_logs for
+// databases created before the column existed. Idempotent: a duplicate-column
+// error is treated as success.
+func migrateActionLogsAddTimedOut(db *sql.DB) error {
+	rows, err := db.Query(`PRAGMA table_info(action_logs)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	hasColumn := false
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notnull, pk int
+		var dfltValue sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
+			return err
+		}
+		if name == "timed_out" {
+			hasColumn = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if hasColumn {
+		return nil
+	}
+
+	_, err = db.Exec(`ALTER TABLE action_logs ADD COLUMN timed_out INTEGER NOT NULL DEFAULT 0`)
+	return err
 }
 
 func connectPersistenceDB(ctx context.Context) (*sql.DB, error) {
@@ -312,7 +349,13 @@ func resolveSQLiteDSN() (string, error) {
 }
 
 func applyAutoHealPolicyFromConfig(registry *checks.Registry, global userconfig.GlobalConfig) error {
-	policy, err := checks.NewAutoHealPolicyFromGlobal(global.RestartCooldownSeconds, global.MaxRestartAttempts)
+	policy, err := checks.NewAutoHealPolicyFromGlobal(
+		global.RestartCooldownSeconds,
+		global.MaxRestartAttempts,
+		global.ActionTimeoutFastSeconds,
+		global.ActionTimeoutRestartSeconds,
+		global.TimeoutRetrySeconds,
+	)
 	if err != nil {
 		return err
 	}

@@ -409,6 +409,24 @@ func (m *Manager) Validate(config *Config) ValidationResult {
 			Message: "must be between 1 and 168",
 		})
 	}
+	if config.Global.ActionTimeoutFastSeconds < 5 || config.Global.ActionTimeoutFastSeconds > 120 {
+		errors = append(errors, ValidationError{
+			Path:    "global.actionTimeoutFastSeconds",
+			Message: "must be between 5 and 120",
+		})
+	}
+	if config.Global.ActionTimeoutRestartSeconds < 60 || config.Global.ActionTimeoutRestartSeconds > 1800 {
+		errors = append(errors, ValidationError{
+			Path:    "global.actionTimeoutRestartSeconds",
+			Message: "must be between 60 and 1800",
+		})
+	}
+	if config.Global.TimeoutRetrySeconds < 5 || config.Global.TimeoutRetrySeconds > 600 {
+		errors = append(errors, ValidationError{
+			Path:    "global.timeoutRetrySeconds",
+			Message: "must be between 5 and 600",
+		})
+	}
 
 	// Validate UI config
 	if config.UI.AutoRefreshSeconds < 5 || config.UI.AutoRefreshSeconds > 300 {
@@ -534,6 +552,15 @@ func (m *Manager) mergeConfig(file *Config) {
 	}
 	if file.Global.HistoryRetentionHours != 0 {
 		m.config.Global.HistoryRetentionHours = file.Global.HistoryRetentionHours
+	}
+	if file.Global.ActionTimeoutFastSeconds != 0 {
+		m.config.Global.ActionTimeoutFastSeconds = file.Global.ActionTimeoutFastSeconds
+	}
+	if file.Global.ActionTimeoutRestartSeconds != 0 {
+		m.config.Global.ActionTimeoutRestartSeconds = file.Global.ActionTimeoutRestartSeconds
+	}
+	if file.Global.TimeoutRetrySeconds != 0 {
+		m.config.Global.TimeoutRetrySeconds = file.Global.TimeoutRetrySeconds
 	}
 
 	// Checks - merge each check

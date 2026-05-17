@@ -202,7 +202,7 @@ func (m *mockStore) RecordIncidentRemediationOutcome(ctx context.Context, incide
 }
 
 // Action log mock methods [REQ:HEAL-ACTION-001].
-func (m *mockStore) SaveActionLog(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error {
+func (m *mockStore) SaveActionLog(ctx context.Context, checkID, actionID string, success, timedOut bool, message, output, errMsg string, durationMs int64) error {
 	return nil
 }
 

@@ -25,22 +25,22 @@ import (
 
 	"connectrpc.com/connect"
 
-	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
-	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
-	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
 	audioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio/audio_v1connect"
+	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
+	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
+	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
 )
 
 // Client bundles every generated audio-tools Connect client web-console
 // touches, plus the discovery + retry policy that owns URL freshness.
 type Client struct {
-	resolver  URLResolver
-	policy    Policy
-	http      *http.Client
+	resolver URLResolver
+	policy   Policy
+	http     *http.Client
 
-	mu        sync.RWMutex
-	baseURL   string
-	resolved  atomic.Bool
+	mu       sync.RWMutex
+	baseURL  string
+	resolved atomic.Bool
 
 	STT       sttconnect.STTServiceClient
 	STTAdmin  sttconnect.STTAdminServiceClient
@@ -72,7 +72,7 @@ type Policy struct {
 // httpx.Transport re-resolves on connection refused (interoperability-steer §12).
 func New(resolver URLResolver, policy Policy) (*Client, error) {
 	if policy.PerCallTimeout == 0 {
-		policy.PerCallTimeout = 30 * time.Second
+		policy.PerCallTimeout = 150 * time.Second
 	}
 	if policy.MaxRetries == 0 {
 		policy.MaxRetries = 3

@@ -5,12 +5,15 @@ const (
 	DefaultVersion = "1.0"
 
 	// Global defaults
-	DefaultGracePeriodSeconds     = 60
-	DefaultTickIntervalSeconds    = 60
-	DefaultVerifyDelaySeconds     = 30
-	DefaultMaxRestartAttempts     = 3
-	DefaultRestartCooldownSeconds = 300
-	DefaultHistoryRetentionHours  = 24
+	DefaultGracePeriodSeconds          = 60
+	DefaultTickIntervalSeconds         = 60
+	DefaultVerifyDelaySeconds          = 30
+	DefaultMaxRestartAttempts          = 3
+	DefaultRestartCooldownSeconds      = 300
+	DefaultHistoryRetentionHours       = 24
+	DefaultActionTimeoutFastSeconds    = 30
+	DefaultActionTimeoutRestartSeconds = 300
+	DefaultTimeoutRetrySeconds         = 30
 
 	// UI defaults
 	DefaultAutoRefreshSeconds = 30
@@ -24,12 +27,15 @@ const (
 // DefaultGlobal returns the default global configuration
 func DefaultGlobal() GlobalConfig {
 	return GlobalConfig{
-		GracePeriodSeconds:     DefaultGracePeriodSeconds,
-		TickIntervalSeconds:    DefaultTickIntervalSeconds,
-		VerifyDelaySeconds:     DefaultVerifyDelaySeconds,
-		MaxRestartAttempts:     DefaultMaxRestartAttempts,
-		RestartCooldownSeconds: DefaultRestartCooldownSeconds,
-		HistoryRetentionHours:  DefaultHistoryRetentionHours,
+		GracePeriodSeconds:          DefaultGracePeriodSeconds,
+		TickIntervalSeconds:         DefaultTickIntervalSeconds,
+		VerifyDelaySeconds:          DefaultVerifyDelaySeconds,
+		MaxRestartAttempts:          DefaultMaxRestartAttempts,
+		RestartCooldownSeconds:      DefaultRestartCooldownSeconds,
+		HistoryRetentionHours:       DefaultHistoryRetentionHours,
+		ActionTimeoutFastSeconds:    DefaultActionTimeoutFastSeconds,
+		ActionTimeoutRestartSeconds: DefaultActionTimeoutRestartSeconds,
+		TimeoutRetrySeconds:         DefaultTimeoutRetrySeconds,
 	}
 }
 
@@ -258,6 +264,12 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 		AutoHeal:        true,
 		AutoHealOn:      "critical",
 		IntervalSeconds: 300,
+	},
+	"vrooli-runtime-supervisor": {
+		Enabled:         true,
+		AutoHeal:        true,
+		AutoHealOn:      "critical",
+		IntervalSeconds: 60,
 	},
 
 	// Vrooli lifecycle checks

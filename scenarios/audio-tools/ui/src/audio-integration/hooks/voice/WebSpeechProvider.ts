@@ -87,6 +87,10 @@ export class WebSpeechProvider implements TranscriptionProvider {
     // intentionally empty — nothing to dispose
   }
 
+  // Web Speech streams transcripts, not audio; nothing for the host to
+  // tail-drop. No-op to satisfy the TranscriptionProvider interface.
+  dropTail(): void {}
+
   // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
   async start(preWarmedStream?: MediaStream): Promise<void> {
     const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;

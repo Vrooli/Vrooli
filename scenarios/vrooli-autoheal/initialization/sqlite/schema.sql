@@ -173,6 +173,7 @@ CREATE TABLE IF NOT EXISTS action_logs (
     check_id TEXT NOT NULL,
     action_id TEXT NOT NULL,
     success INTEGER NOT NULL DEFAULT 0,
+    timed_out INTEGER NOT NULL DEFAULT 0,
     message TEXT NOT NULL,
     output TEXT,
     error TEXT,

@@ -52,6 +52,9 @@ let mockFocusActiveTerminal: ReturnType<typeof vi.fn>;
 let mockHandleTerminalReady: ReturnType<typeof vi.fn>;
 let mockHandleExit: ReturnType<typeof vi.fn>;
 let mockRegisterTerminalRef: ReturnType<typeof vi.fn>;
+const { mockSyncPaneUpdate } = vi.hoisted(() => ({
+  mockSyncPaneUpdate: vi.fn(),
+}));
 
 // Shared mutable state to let tests control the hook's return
 const hookState = {
@@ -86,7 +89,7 @@ vi.mock("../hooks/useWorkspaceSync", () => ({
   useWorkspaceSync: () => ({
     syncActivePane: vi.fn(),
     syncPaneOrder: vi.fn(),
-    syncPaneUpdate: vi.fn(),
+    syncPaneUpdate: mockSyncPaneUpdate,
     syncCreateGroup: vi.fn(),
     syncUpdateGroup: vi.fn(),
     syncDeleteGroup: vi.fn(),
@@ -118,6 +121,9 @@ const mockStoreState = {
   aiModalOpen: false,
   groups: [],
   plusButtonBehavior: "launcher",
+  defaultHeaderColor: "transparent",
+  defaultThemeId: "default",
+  defaultFontSize: 14,
   tabContextMenu: null as null | { sessionId: string; position: { x: number; y: number } },
 };
 
@@ -243,6 +249,9 @@ describe("Workspace", () => {
     mockStoreState.settingsModalOpen = false;
     mockStoreState.groups = [];
     mockStoreState.plusButtonBehavior = "launcher";
+    mockStoreState.defaultHeaderColor = "transparent";
+    mockStoreState.defaultThemeId = "default";
+    mockStoreState.defaultFontSize = 14;
     mockStoreState.tabContextMenu = null;
     useConversationStore.setState({ sessions: {}, viewModes: {} });
     mockLaunchSession = vi.fn().mockResolvedValue(mockSession);
@@ -309,6 +318,25 @@ describe("Workspace", () => {
     render(<Workspace />);
     expect(screen.getByTestId("pane-grid")).toBeTruthy();
     expect(screen.getByTestId(`mock-terminal-${mockSession.id}`)).toBeTruthy();
+  });
+
+  it("persists selected appearance defaults when adding a new workspace pane", async () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.defaultHeaderColor = "#ff7a7a";
+    mockStoreState.defaultThemeId = "dracula";
+    mockStoreState.defaultFontSize = 18;
+
+    render(<Workspace />);
+
+    await waitFor(() => {
+      expect(mockSyncPaneUpdate).toHaveBeenCalledWith(mockSession.id, {
+        name: "bash",
+        header_color: "#ff7a7a",
+        theme_id: "dracula",
+        font_size: 18,
+        supports_messages_view: undefined,
+      });
+    });
   });
 
   it("renders floating toolbar when panes exist", () => {

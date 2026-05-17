@@ -221,6 +221,37 @@ Current policy:
   stored defaults back to `llama3.2:3b`. Explicit runtime updates are accepted
   so operators can benchmark non-default models deliberately.
 
+## STT streaming pipeline levers
+
+The local Whisper provider hands every VAD-bounded audio segment to Whisper as
+its own batch. Two knobs trade boundary-word accuracy against perceived latency:
+
+| Knob | Default | Bounds | Effect |
+|---|---|---|---|
+| `segmentSilenceMs` | `2500` | `800`–`3000` | Trailing silence before a segment closes. Longer = fewer cuts inside words. |
+| `overlapBytes` | `8192` | `0`–`16384` | PCM16 carry-over (16 kHz mono) prefixed to the next segment. Higher = more cross-cut context, slightly more Whisper work. |
+| `flushIntervalMs` | `500` | `100`–`5000` | Min interval between partial transcripts. |
+| `minDeltaBytes` | `4096` | `512`–`32768` | Min audio delta before a partial transcript fires. |
+
+### Profiles
+
+Curated presets for `segmentSilenceMs` + `overlapBytes`. Selecting a profile
+overlays only those two fields — raw knob edits afterwards stay in force.
+
+| Profile | `segmentSilenceMs` | `overlapBytes` | When to pick |
+|---|---|---|---|
+| `latency` | 1200 | 2048 | Short utterances, demo flow, low-noise mic. |
+| `balanced` | 2500 | 8192 | **Default.** Matches `DefaultConfig()`. |
+| `accuracy` | 3000 | 16384 | Long dictation, noisy room, names/jargon-heavy speech. |
+
+Higher values monotonically trade more end-of-utterance latency for fewer
+mis-transcribed boundary words. Preset definitions live in
+`api/internal/stt/pipeline/profile.go`; apply via `pipeline.ApplyProfile`.
+
+The architecturally correct fix for boundary accuracy is
+`OverlapAgreeStrategy` (built in `internal/stt/strategy/overlap_agree.go` but
+not wired into the WS transport yet — tracked separately).
+
 ## Test/CI configuration
 
 | File | Owns |

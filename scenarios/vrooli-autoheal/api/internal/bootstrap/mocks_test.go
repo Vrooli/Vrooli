@@ -22,6 +22,7 @@ type mockActionLog struct {
 	CheckID    string
 	ActionID   string
 	Success    bool
+	TimedOut   bool
 	Message    string
 	Output     string
 	Error      string
@@ -59,7 +60,7 @@ func (m *mockStore) GetLatestResultPerCheck(ctx context.Context) ([]checks.Resul
 	return m.loadResults, nil
 }
 
-func (m *mockStore) SaveActionLog(checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) {
+func (m *mockStore) SaveActionLog(checkID, actionID string, success, timedOut bool, message, output, errMsg string, durationMs int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -67,6 +68,7 @@ func (m *mockStore) SaveActionLog(checkID, actionID string, success bool, messag
 		CheckID:    checkID,
 		ActionID:   actionID,
 		Success:    success,
+		TimedOut:   timedOut,
 		Message:    message,
 		Output:     output,
 		Error:      errMsg,

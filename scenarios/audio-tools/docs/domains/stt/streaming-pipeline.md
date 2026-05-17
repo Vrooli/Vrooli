@@ -40,7 +40,17 @@ regardless of which (strategy, provider) pair is in use. Consumers
 (UI, CLIs, other scenarios) never learn about strategies; the
 abstraction terminates inside audio-tools.
 
-## Current Architecture (as of 2026-05-16)
+## Current Architecture (as of 2026-05-17)
+
+> **One-shot auto-stop is server-VAD-led.** The browser's mic-button ring and
+> the stop trigger consume the same source — `useServerVadStateStore` — via
+> the pure `decideAutoStop` helper in
+> `ui/src/audio-integration/hooks/voice/autoStopDecision.ts`. The client-side
+> RMS VAD now only fires the stop when the server tick is stale (>250 ms) or
+> absent. See [`SEAMS.md#auto-stop-decision`](../../internal/SEAMS.md#auto-stop-decision).
+> Persistent-mode behaviour is unchanged.
+
+
 
 Two transports exist; they run parallel, partially-overlapping
 pipelines, and the streaming chain skeleton already exists in

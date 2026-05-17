@@ -113,12 +113,15 @@ func TestManagerValidation(t *testing.T) {
 			config: Config{
 				Version: "1.0",
 				Global: GlobalConfig{
-					GracePeriodSeconds:     60,
-					TickIntervalSeconds:    60,
-					VerifyDelaySeconds:     30,
-					MaxRestartAttempts:     3,
-					RestartCooldownSeconds: 300,
-					HistoryRetentionHours:  24,
+					GracePeriodSeconds:          60,
+					TickIntervalSeconds:         60,
+					VerifyDelaySeconds:          30,
+					MaxRestartAttempts:          3,
+					RestartCooldownSeconds:      300,
+					HistoryRetentionHours:       24,
+					ActionTimeoutFastSeconds:    30,
+					ActionTimeoutRestartSeconds: 300,
+					TimeoutRetrySeconds:         30,
 				},
 				UI: UIConfig{
 					AutoRefreshSeconds: 30,
@@ -156,12 +159,15 @@ func TestManagerValidation(t *testing.T) {
 			config: Config{
 				Version: "1.0",
 				Global: GlobalConfig{
-					GracePeriodSeconds:     60,
-					TickIntervalSeconds:    5, // Too low
-					VerifyDelaySeconds:     30,
-					MaxRestartAttempts:     3,
-					RestartCooldownSeconds: 300,
-					HistoryRetentionHours:  24,
+					GracePeriodSeconds:          60,
+					TickIntervalSeconds:         5, // Too low
+					VerifyDelaySeconds:          30,
+					MaxRestartAttempts:          3,
+					RestartCooldownSeconds:      300,
+					HistoryRetentionHours:       24,
+					ActionTimeoutFastSeconds:    30,
+					ActionTimeoutRestartSeconds: 300,
+					TimeoutRetrySeconds:         30,
 				},
 				UI: DefaultUI(),
 			},

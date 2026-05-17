@@ -47,6 +47,14 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   private chunkCount = 0;
   /** Running total of bytes sent via WebSocket. */
   private totalBytesSent = 0;
+  /**
+   * When true, the `ondataavailable` handler drops incoming chunks instead
+   * of forwarding to the WS, and `stop()` skips `snapshotLastTurn()` and
+   * sends `{ type: "done" }` synchronously. Armed by `dropTail()` from the
+   * auto-stop path; reset on each `start()`.
+   */
+  private tailDropArmed = false;
+  private droppedChunkCount = 0;
   private static readonly MAX_RECONNECTS = 2;
   private static readonly RECONNECT_DELAYS = [1_000, 3_000];
   /** Timeout for pre-connected WebSocket — closed if start() isn't called. */
@@ -92,6 +100,19 @@ export class VoiceStreamProvider implements TranscriptionProvider {
 
   disposeLastTurn(): void {
     this.lastTurn = null;
+  }
+
+  /**
+   * Arm in-flight audio drop. Subsequent `ondataavailable` blobs are
+   * discarded instead of being sent over the WS, and `stop()` will commit
+   * the server-side segment immediately without retaining a tail blob.
+   * Called by the auto-stop path so post-verdict audio (the encoder's
+   * 250 ms chunk in progress + anything spoken during teardown) does not
+   * leak into the transcription.
+   */
+  dropTail(): void {
+    this.tailDropArmed = true;
+    console.info("[voice] tail-drop armed");
   }
 
   /**
@@ -379,6 +400,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.chunkCount = 0;
     this.totalBytesSent = 0;
     this.lastTurn = null;
+    this.tailDropArmed = false;
+    this.droppedChunkCount = 0;
 
     // Start MediaRecorder IMMEDIATELY after mic acquisition.
     // Chunks are buffered in pendingChunks until the WebSocket connects.
@@ -392,6 +415,10 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     });
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) {
+        if (this.tailDropArmed) {
+          this.droppedChunkCount++;
+          return;
+        }
         this.chunkCount++;
         this.totalBytesSent += e.data.size;
         // Keep a copy for HTTP fallback in case streaming fails entirely.
@@ -446,7 +473,30 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     console.info("[voice] Stop: recordingDuration=%dms, chunks=%d, bytes=%d",
       recordingDuration, this.chunkCount, this.totalBytesSent);
 
-    if (this.mediaRecorder?.state === "recording") {
+    // Tail-drop path: server already declared end-of-utterance, commit the
+    // already-buffered segment NOW and skip tail retention. The encoder is
+    // still allowed to finish (its final ondataavailable is dropped by the
+    // ondataavailable gate above).
+    if (this.tailDropArmed) {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: "done" }));
+      }
+      if (this.droppedChunkCount > 0) {
+        console.info("[voice] tail-drop dropped %d chunks", this.droppedChunkCount);
+      }
+      if (this.mediaRecorder?.state === "recording") {
+        this.mediaRecorder.onstop = () => {
+          if (!this.retainStream) {
+            this.stream?.getTracks().forEach((t) => t.stop());
+            this.stream = null;
+          }
+        };
+        this.mediaRecorder.stop();
+      } else if (!this.retainStream) {
+        this.stream?.getTracks().forEach((t) => t.stop());
+        this.stream = null;
+      }
+    } else if (this.mediaRecorder?.state === "recording") {
       // Defer "done" signal until after final data is flushed.
       this.mediaRecorder.onstop = () => {
         if (this.ws?.readyState === WebSocket.OPEN) {

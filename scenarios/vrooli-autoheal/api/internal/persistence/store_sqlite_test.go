@@ -76,6 +76,7 @@ func TestSQLiteStore_ActionLogRoundTrip(t *testing.T) {
 		"infra-network",
 		"restart",
 		true,
+		false,
 		"Restart executed",
 		"ok",
 		"",
@@ -438,7 +439,8 @@ func TestSQLiteStore_GetAllHealTrackers_ToleratesLegacyOrInvalidRows(t *testing.
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)
 
-	_, err := db.Exec(`
+	_, err := db.Exec(
+		`
 		INSERT INTO heal_trackers (
 			check_id, last_attempt, last_success, consecutive_failures,
 			total_attempts, total_successes, cooldown_until, updated_at

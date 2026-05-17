@@ -21,9 +21,41 @@ const (
 	// MaxParallelHealActions limits concurrent heal action execution
 	MaxParallelHealActions = 3
 
-	// DefaultAutoHealActionTimeout bounds a single auto-heal action execution.
-	// This prevents one stuck action from blocking the entire tick for too long.
-	DefaultAutoHealActionTimeout = 90 * time.Second
+	// DefaultFastActionTimeout bounds quick diagnostic / cleanup actions
+	// (logs, diagnose, cleanup-ports, kill). A short ceiling prevents a stuck
+	// helper from blocking the tick.
+	DefaultFastActionTimeout = 30 * time.Second
+
+	// DefaultRestartActionTimeout bounds scenario restart / lifecycle actions
+	// (restart, restart-clean, setup-restart, start, stop). Scenario restarts
+	// can legitimately take minutes when a dependency requires a cold build.
+	DefaultRestartActionTimeout = 5 * time.Minute
+
+	// DefaultTimeoutRetryCooldown is the short cooldown applied after a heal
+	// action times out, so the next tick can retry quickly instead of being
+	// silenced by the failure-cooldown ratchet.
+	DefaultTimeoutRetryCooldown = 30 * time.Second
+)
+
+// restartActionIDs enumerates action IDs that may run as long as a full
+// scenario restart. Unknown actions default to the fast timeout.
+var restartActionIDs = map[string]struct{}{
+	"restart":       {},
+	"restart-clean": {},
+	"setup-restart": {},
+	"start":         {},
+	"stop":          {},
+}
+
+// healOutcome is the tri-state outcome of an auto-heal attempt.
+// Distinguishing "timed out" from "failed" keeps a slow-but-recoverable
+// action from ratcheting ConsecutiveFailures into the exponential cooldown.
+type healOutcome int
+
+const (
+	outcomeSuccess healOutcome = iota
+	outcomeFailure
+	outcomeTimeout
 )
 
 // AutoHealPolicy controls cooldown and retry behavior for auto-heal actions.
@@ -33,18 +65,42 @@ type AutoHealPolicy struct {
 	BaseCooldown time.Duration
 	// MaxRestartAttempts is the failure threshold after which backoff increases exponentially.
 	MaxRestartAttempts int
+	// FastActionTimeout bounds quick diagnostic / cleanup actions.
+	FastActionTimeout time.Duration
+	// RestartActionTimeout bounds scenario restart / lifecycle actions.
+	RestartActionTimeout time.Duration
+	// TimeoutRetryCooldown is the short cooldown applied after a timeout outcome.
+	TimeoutRetryCooldown time.Duration
 }
 
 // NewAutoHealPolicyFromGlobal creates a policy from global configuration values.
-func NewAutoHealPolicyFromGlobal(restartCooldownSeconds, maxRestartAttempts int) (AutoHealPolicy, error) {
+// Action timeouts and the timeout-retry cooldown fall back to package defaults
+// when the provided seconds are zero.
+func NewAutoHealPolicyFromGlobal(restartCooldownSeconds, maxRestartAttempts, fastActionTimeoutSeconds, restartActionTimeoutSeconds, timeoutRetrySeconds int) (AutoHealPolicy, error) {
 	policy := AutoHealPolicy{
-		BaseCooldown:       time.Duration(restartCooldownSeconds) * time.Second,
-		MaxRestartAttempts: maxRestartAttempts,
+		BaseCooldown:         time.Duration(restartCooldownSeconds) * time.Second,
+		MaxRestartAttempts:   maxRestartAttempts,
+		FastActionTimeout:    time.Duration(fastActionTimeoutSeconds) * time.Second,
+		RestartActionTimeout: time.Duration(restartActionTimeoutSeconds) * time.Second,
+		TimeoutRetryCooldown: time.Duration(timeoutRetrySeconds) * time.Second,
 	}
+	policy.applyTimeoutDefaults()
 	if err := policy.Validate(); err != nil {
 		return AutoHealPolicy{}, err
 	}
 	return policy, nil
+}
+
+func (p *AutoHealPolicy) applyTimeoutDefaults() {
+	if p.FastActionTimeout <= 0 {
+		p.FastActionTimeout = DefaultFastActionTimeout
+	}
+	if p.RestartActionTimeout <= 0 {
+		p.RestartActionTimeout = DefaultRestartActionTimeout
+	}
+	if p.TimeoutRetryCooldown <= 0 {
+		p.TimeoutRetryCooldown = DefaultTimeoutRetryCooldown
+	}
 }
 
 // Validate ensures the policy is safe and usable.
@@ -54,6 +110,15 @@ func (p AutoHealPolicy) Validate() error {
 	}
 	if p.MaxRestartAttempts < 1 {
 		return fmt.Errorf("max restart attempts must be >= 1")
+	}
+	if p.FastActionTimeout <= 0 {
+		return fmt.Errorf("fast action timeout must be > 0")
+	}
+	if p.RestartActionTimeout <= 0 {
+		return fmt.Errorf("restart action timeout must be > 0")
+	}
+	if p.TimeoutRetryCooldown <= 0 {
+		return fmt.Errorf("timeout retry cooldown must be > 0")
 	}
 	return nil
 }
@@ -80,8 +145,10 @@ type HealTracker struct {
 	LastAttempt         time.Time `json:"lastAttempt"`
 	LastSuccess         time.Time `json:"lastSuccess"`
 	ConsecutiveFailures int       `json:"consecutiveFailures"`
+	ConsecutiveTimeouts int       `json:"consecutiveTimeouts,omitempty"`
 	TotalAttempts       int       `json:"totalAttempts"`
 	TotalSuccesses      int       `json:"totalSuccesses"`
+	TotalTimeouts       int       `json:"totalTimeouts,omitempty"`
 	CooldownUntil       time.Time `json:"cooldownUntil"`
 }
 
@@ -480,6 +547,7 @@ type AutoHealResult struct {
 	CheckID             string        `json:"checkId"`
 	Attempted           bool          `json:"attempted"`
 	ActionResult        ActionResult  `json:"actionResult,omitempty"`
+	TimedOut            bool          `json:"timedOut,omitempty"`          // Mirrors ActionResult.TimedOut for callers that only inspect AutoHealResult.
 	Reason              string        `json:"reason,omitempty"`            // Why it wasn't attempted
 	CooldownRemaining   time.Duration `json:"cooldownRemaining,omitempty"` // Time until next attempt allowed
 	ConsecutiveFailures int           `json:"consecutiveFailures,omitempty"`
@@ -649,7 +717,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 				Error:     "context cancelled",
 				Message:   "Heal action cancelled due to timeout",
 			}
-			r.updateHealTracker(c.result.CheckID, false)
+			r.updateHealTracker(c.result.CheckID, outcomeFailure)
 			updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:             c.result.CheckID,
@@ -670,12 +738,12 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			continue
 		}
 
-		actionCtx, cancel := context.WithTimeout(ctx, DefaultAutoHealActionTimeout)
+		actionCtx, cancel := context.WithTimeout(ctx, r.actionTimeoutFor(c.selectedAction.ID))
 		actionResult := r.executeAutoHealActionWithTimeout(actionCtx, c)
 		cancel()
 
 		// Update heal tracker based on result
-		r.updateHealTracker(c.result.CheckID, actionResult.Success)
+		r.updateHealTracker(c.result.CheckID, outcomeFromActionResult(actionResult))
 
 		// Get updated tracker for result
 		updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
@@ -684,6 +752,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			CheckID:             c.result.CheckID,
 			Attempted:           true,
 			ActionResult:        actionResult,
+			TimedOut:            actionResult.TimedOut,
 			CooldownRemaining:   updatedTracker.CooldownRemainingAt(r.now()),
 			ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
 		})
@@ -693,6 +762,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 }
 
 func (r *Registry) executeAutoHealActionWithTimeout(ctx context.Context, candidate healCandidate) ActionResult {
+	start := time.Now()
 	resultCh := make(chan ActionResult, 1)
 	go func() {
 		resultCh <- candidate.healable.ExecuteAction(ctx, candidate.selectedAction.ID)
@@ -702,19 +772,55 @@ func (r *Registry) executeAutoHealActionWithTimeout(ctx context.Context, candida
 	case result := <-resultCh:
 		return result
 	case <-ctx.Done():
+		timedOut := ctx.Err() != context.Canceled
 		reason := "action timed out"
-		if ctx.Err() == context.Canceled {
+		message := "Auto-heal action did not complete before timeout"
+		if !timedOut {
 			reason = "action cancelled"
+			message = "Auto-heal action cancelled before completing"
 		}
 		return ActionResult{
 			ActionID:  candidate.selectedAction.ID,
 			CheckID:   candidate.result.CheckID,
 			Timestamp: time.Now(),
 			Success:   false,
+			TimedOut:  timedOut,
 			Error:     reason,
-			Message:   "Auto-heal action did not complete before timeout",
-			Duration:  DefaultAutoHealActionTimeout,
+			Message:   message,
+			Duration:  time.Since(start),
 		}
+	}
+}
+
+// actionTimeoutFor resolves the deadline for an individual auto-heal action.
+// Restart-class actions (full scenario restarts) get a generous budget so a
+// dependency cold-build doesn't time them out. Everything else gets the short
+// budget — unknown actions fall back to fast so a misbehaving action becomes
+// a timeout retry rather than a silent budget hog.
+func (r *Registry) actionTimeoutFor(actionID string) time.Duration {
+	policy, ok := r.getAutoHealPolicy()
+	fast := DefaultFastActionTimeout
+	restart := DefaultRestartActionTimeout
+	if ok {
+		fast = policy.FastActionTimeout
+		restart = policy.RestartActionTimeout
+	}
+	if _, isRestart := restartActionIDs[actionID]; isRestart {
+		return restart
+	}
+	return fast
+}
+
+// outcomeFromActionResult collapses the (Success, TimedOut) pair on
+// ActionResult into the tri-state healOutcome used by the heal tracker.
+func outcomeFromActionResult(r ActionResult) healOutcome {
+	switch {
+	case r.Success:
+		return outcomeSuccess
+	case r.TimedOut:
+		return outcomeTimeout
+	default:
+		return outcomeFailure
 	}
 }
 
@@ -762,7 +868,8 @@ func (r *Registry) preHealRecheck(ctx context.Context, c healCandidate, results 
 				Attempted: false,
 				Reason: fmt.Sprintf(
 					"PID changed since detection (was %d, now %d): new process started, skipping heal",
-					c.detectedPID, currentPID),
+					c.detectedPID, currentPID,
+				),
 			})
 			return true
 		}
@@ -855,8 +962,15 @@ func (r *Registry) getHealTrackerSnapshot(checkID string) HealTracker {
 	return *tracker
 }
 
-// updateHealTracker updates the heal tracker after a heal attempt and persists to store
-func (r *Registry) updateHealTracker(checkID string, success bool) {
+// updateHealTracker updates the heal tracker after a heal attempt and persists to store.
+//
+// The outcome distinguishes between success, genuine failure, and timeout.
+// Timeouts apply a short retry cooldown and do not ratchet ConsecutiveFailures —
+// a slow-but-recoverable action should be retried on the next tick, not silenced
+// by the exponential failure backoff. After MaxRestartAttempts consecutive
+// timeouts the tracker falls through to the failure path so a permanently-stuck
+// action does eventually cool down.
+func (r *Registry) updateHealTracker(checkID string, outcome healOutcome) {
 	r.mu.Lock()
 
 	tracker, exists := r.healTrackers[checkID]
@@ -870,18 +984,38 @@ func (r *Registry) updateHealTracker(checkID string, success bool) {
 	tracker.TotalAttempts++
 
 	policy := r.autoHealPolicy
-	if success {
+	switch outcome {
+	case outcomeSuccess:
 		tracker.LastSuccess = now
 		tracker.TotalSuccesses++
 		tracker.ConsecutiveFailures = 0
+		tracker.ConsecutiveTimeouts = 0
 		// Apply base cooldown after success to prevent rapid re-triggering.
 		if policy != nil {
 			tracker.CooldownUntil = now.Add(policy.BaseCooldown)
 		} else {
 			tracker.CooldownUntil = now
 		}
-	} else {
+	case outcomeTimeout:
+		tracker.TotalTimeouts++
+		tracker.ConsecutiveTimeouts++
+		// Safety cap: after MaxRestartAttempts consecutive timeouts a stuck
+		// action falls through to the regular failure ratchet so it eventually
+		// cools down on the exponential backoff.
+		if policy != nil && tracker.ConsecutiveTimeouts > policy.MaxRestartAttempts {
+			tracker.ConsecutiveFailures++
+			cooldown := policy.CalculateFailureCooldown(tracker.ConsecutiveFailures)
+			tracker.CooldownUntil = now.Add(cooldown)
+		} else if policy != nil {
+			tracker.CooldownUntil = now.Add(policy.TimeoutRetryCooldown)
+		} else {
+			tracker.CooldownUntil = now.Add(DefaultTimeoutRetryCooldown)
+		}
+	case outcomeFailure:
+		fallthrough
+	default:
 		tracker.ConsecutiveFailures++
+		tracker.ConsecutiveTimeouts = 0
 		if policy != nil {
 			cooldown := policy.CalculateFailureCooldown(tracker.ConsecutiveFailures)
 			tracker.CooldownUntil = now.Add(cooldown)

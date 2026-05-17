@@ -3,6 +3,10 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import AppearanceModal from "../components/AppearanceModal";
 import { HEADER_COLORS } from "../consts/config";
 
+const { mockSyncPaneUpdate } = vi.hoisted(() => ({
+  mockSyncPaneUpdate: vi.fn(),
+}));
+
 // Mock workspace store
 const mockStoreState: Record<string, unknown> = {
   appearanceModalPane: null,
@@ -19,6 +23,12 @@ const mockStoreState: Record<string, unknown> = {
 vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector(mockStoreState),
+}));
+
+vi.mock("../hooks/useWorkspaceSync", () => ({
+  useWorkspaceSync: () => ({
+    syncPaneUpdate: mockSyncPaneUpdate,
+  }),
 }));
 
 // Mock draggable position hook
@@ -52,6 +62,7 @@ describe("AppearanceModal", () => {
     mockStoreState.setPaneFontSize = vi.fn();
     mockStoreState.setAppearanceModalPane = vi.fn();
     mockStoreState.applyAppearanceToAll = vi.fn();
+    mockSyncPaneUpdate.mockClear();
   });
 
   it("does not render when appearanceModalPane is null", () => {
@@ -85,6 +96,7 @@ describe("AppearanceModal", () => {
     const firstColor = HEADER_COLORS[0] ?? "transparent";
     fireEvent.click(screen.getByTestId(`appearance-header-color-${firstColor}`));
     expect(mockStoreState.setPaneColor).toHaveBeenCalledWith("sess-1", firstColor);
+    expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { header_color: firstColor });
   });
 
   it("clicking transparent swatch calls setPaneColor with transparent", () => {
@@ -92,6 +104,7 @@ describe("AppearanceModal", () => {
     render(<AppearanceModal />);
     fireEvent.click(screen.getByTestId("appearance-header-color-transparent"));
     expect(mockStoreState.setPaneColor).toHaveBeenCalledWith("sess-1", "transparent");
+    expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { header_color: "transparent" });
   });
 
   it("clicking a theme card calls setPaneTheme", () => {
@@ -99,6 +112,7 @@ describe("AppearanceModal", () => {
     render(<AppearanceModal />);
     fireEvent.click(screen.getByTestId("appearance-theme-dracula"));
     expect(mockStoreState.setPaneTheme).toHaveBeenCalledWith("sess-1", "dracula");
+    expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { theme_id: "dracula" });
   });
 
   it("selected theme card has accent styling", () => {
@@ -115,6 +129,7 @@ describe("AppearanceModal", () => {
     render(<AppearanceModal />);
     fireEvent.click(screen.getByTestId("appearance-font-increase"));
     expect(mockStoreState.setPaneFontSize).toHaveBeenCalledWith("sess-1", 15);
+    expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { font_size: 15 });
   });
 
   it("font decrease button calls setPaneFontSize", () => {
@@ -122,6 +137,7 @@ describe("AppearanceModal", () => {
     render(<AppearanceModal />);
     fireEvent.click(screen.getByTestId("appearance-font-decrease"));
     expect(mockStoreState.setPaneFontSize).toHaveBeenCalledWith("sess-1", 13);
+    expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { font_size: 13 });
   });
 
   it("font decrease disabled at FONT_SIZE_MIN", () => {
@@ -167,6 +183,16 @@ describe("AppearanceModal", () => {
     render(<AppearanceModal />);
     fireEvent.click(screen.getByTestId("appearance-apply-all"));
     expect(mockStoreState.applyAppearanceToAll).toHaveBeenCalledWith("sess-1");
+    expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", {
+      header_color: "transparent",
+      theme_id: "slate-ocean",
+      font_size: 14,
+    });
+    expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-2", {
+      header_color: "transparent",
+      theme_id: "slate-ocean",
+      font_size: 14,
+    });
   });
 
   it("displays current font size value", () => {

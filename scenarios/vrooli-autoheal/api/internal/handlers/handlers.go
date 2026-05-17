@@ -21,7 +21,6 @@ import (
 	"vrooli-autoheal/internal/watchdog"
 
 	"github.com/gorilla/mux"
-
 	apierrors "vrooli-autoheal/internal/errors"
 )
 
@@ -56,7 +55,7 @@ type StoreInterface interface {
 	RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error)
 	RecordIncidentRemediationOutcome(ctx context.Context, incidentID string, outcome incidents.Outcome) (*incidents.Incident, error)
 	// Action log operations [REQ:HEAL-ACTION-001]
-	SaveActionLog(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error
+	SaveActionLog(ctx context.Context, checkID, actionID string, success, timedOut bool, message, output, errMsg string, durationMs int64) error
 	GetActionLogs(ctx context.Context, limit int) (*persistence.ActionLogsResponse, error)
 	GetActionLogsForCheck(ctx context.Context, checkID string, limit int) (*persistence.ActionLogsResponse, error)
 }
@@ -302,6 +301,7 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 				ahr.ActionResult.CheckID,
 				ahr.ActionResult.ActionID,
 				ahr.ActionResult.Success,
+				ahr.ActionResult.TimedOut,
 				"[auto-heal] "+ahr.ActionResult.Message,
 				ahr.ActionResult.Output,
 				ahr.ActionResult.Error,
@@ -1314,6 +1314,7 @@ func (h *Handlers) ExecuteCheckAction(w http.ResponseWriter, r *http.Request) {
 		result.CheckID,
 		result.ActionID,
 		result.Success,
+		result.TimedOut,
 		result.Message,
 		result.Output,
 		result.Error,

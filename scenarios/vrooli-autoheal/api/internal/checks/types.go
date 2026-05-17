@@ -153,6 +153,7 @@ type ActionResult struct {
 	ActionID  string        `json:"actionId"`
 	CheckID   string        `json:"checkId"`
 	Success   bool          `json:"success"`
+	TimedOut  bool          `json:"timedOut,omitempty"` // True when the action exceeded its per-action timeout. Distinct from Success=false so callers can retry quickly instead of cooling down on the exponential failure backoff.
 	Message   string        `json:"message"`
 	Output    string        `json:"output,omitempty"` // Command output if any
 	Error     string        `json:"error,omitempty"`  // Error message if failed

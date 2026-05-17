@@ -29,6 +29,15 @@ interface AudioTabProps {
   testId?: string;
 }
 
+function audioToolsErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message.trim() : String(err);
+  if (!raw) return "Audio-tools request failed.";
+  if (raw.includes("[unavailable]") || raw.includes("HTTP 502")) {
+    return "Audio-tools is unavailable. Check that audio-tools and its local providers are running.";
+  }
+  return raw;
+}
+
 export function AudioTab({ testId }: AudioTabProps) {
   const unavailableReason = useAudioToolsUnavailableReason();
   const unavailable = Boolean(unavailableReason);
@@ -74,7 +83,7 @@ export function AudioTab({ testId }: AudioTabProps) {
         setSummarizeConfig(s);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setError(audioToolsErrorMessage(err));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -89,7 +98,7 @@ export function AudioTab({ testId }: AudioTabProps) {
       const updated = await updateTTSConfig(patch);
       setTtsConfig(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(audioToolsErrorMessage(err));
     }
   };
 
@@ -98,7 +107,7 @@ export function AudioTab({ testId }: AudioTabProps) {
       const updated = await updateTTSSummarizeConfig(patch);
       setSummarizeConfig(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(audioToolsErrorMessage(err));
     }
   };
 

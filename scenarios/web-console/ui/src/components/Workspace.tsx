@@ -130,6 +130,9 @@ export default function Workspace() {
     vadAutoStop: state.vadAutoStop,
     groups: state.groups,
     plusButtonBehavior: state.plusButtonBehavior,
+    defaultHeaderColor: state.defaultHeaderColor,
+    defaultThemeId: state.defaultThemeId,
+    defaultFontSize: state.defaultFontSize,
     addPane: state.addPane,
     removePane: state.removePane,
     setActivePane: state.setActivePane,
@@ -291,6 +294,9 @@ export default function Workspace() {
         // Persist new pane metadata (including supportsMessagesView) to the backend
         syncPaneUpdate(sp.session.id, {
           name: sp.session.shell?.split("/").pop() ?? "terminal",
+          header_color: workspace.defaultHeaderColor,
+          theme_id: workspace.defaultThemeId,
+          font_size: workspace.defaultFontSize,
           supports_messages_view: sp.supportsMessagesView,
         });
       }
@@ -303,7 +309,17 @@ export default function Workspace() {
         }
       }
     }
-  }, [addWorkspacePane, isHydrated, removeWorkspacePane, sessionPanes, syncPaneUpdate, workspacePanes]);
+  }, [
+    addWorkspacePane,
+    isHydrated,
+    removeWorkspacePane,
+    sessionPanes,
+    syncPaneUpdate,
+    workspace.defaultFontSize,
+    workspace.defaultHeaderColor,
+    workspace.defaultThemeId,
+    workspacePanes,
+  ]);
 
   // Auto-set active pane if none is set or the persisted value is stale
   useEffect(() => {

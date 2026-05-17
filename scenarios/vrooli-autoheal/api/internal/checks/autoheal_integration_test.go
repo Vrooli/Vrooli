@@ -28,8 +28,11 @@ func newTestConfigProvider() *testConfigProvider {
 func newConfiguredIntegrationRegistry(caps *platform.Capabilities) *Registry {
 	registry := NewRegistry(caps)
 	_ = registry.SetAutoHealPolicy(AutoHealPolicy{
-		BaseCooldown:       5 * time.Minute,
-		MaxRestartAttempts: 3,
+		BaseCooldown:         5 * time.Minute,
+		MaxRestartAttempts:   3,
+		FastActionTimeout:    DefaultFastActionTimeout,
+		RestartActionTimeout: DefaultRestartActionTimeout,
+		TimeoutRetryCooldown: DefaultTimeoutRetryCooldown,
 	})
 	return registry
 }
@@ -71,9 +74,10 @@ type mockAutoHealCheck struct {
 	runCount        int
 }
 
-func (c *mockAutoHealCheck) ID() string                 { return c.id }
-func (c *mockAutoHealCheck) Title() string              { return "Mock Auto-Heal Check" }
-func (c *mockAutoHealCheck) Description() string        { return "A mock check for integration testing" }
+func (c *mockAutoHealCheck) ID() string          { return c.id }
+func (c *mockAutoHealCheck) Title() string       { return "Mock Auto-Heal Check" }
+func (c *mockAutoHealCheck) Description() string { return "A mock check for integration testing" }
+
 func (c *mockAutoHealCheck) Importance() string         { return "Required for testing auto-heal scenarios" }
 func (c *mockAutoHealCheck) Category() Category         { return CategoryInfrastructure }
 func (c *mockAutoHealCheck) IntervalSeconds() int       { return 60 }

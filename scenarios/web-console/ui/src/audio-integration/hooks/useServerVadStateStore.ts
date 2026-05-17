@@ -17,6 +17,16 @@
 
 import { useSyncExternalStore } from "react";
 
+/**
+ * Maximum age of a server VAD tick before consumers must fall back to the
+ * client-side VAD. Shared by:
+ *   - VoiceMicButton: when the ring switches its progress source.
+ *   - decideAutoStop: when the one-shot stop decision switches from server
+ *     to client-fallback.
+ * Keep these two in sync; do not introduce a second constant.
+ */
+export const SERVER_VAD_STALE_MS = 250;
+
 export interface ServerVadStateSnapshot {
   /** True when the server last classified the frame as voiced. */
   voiced: boolean;

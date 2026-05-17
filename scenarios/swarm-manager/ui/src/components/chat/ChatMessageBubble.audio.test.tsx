@@ -10,6 +10,7 @@ function makeMessage(role: ChatMessageView["role"], content = "hello"): ChatMess
 function makeController(overrides: Partial<ChatMessageSpeakController> = {}): ChatMessageSpeakController {
   return {
     speakingMessageId: null,
+    loadingMessageId: null,
     unavailable: false,
     speak: vi.fn(),
     stop: vi.fn(),
@@ -42,6 +43,20 @@ describe("ChatMessageBubble speak button", () => {
     render(<ChatMessageBubble message={makeMessage("assistant")} speak={ctrl} />);
     fireEvent.click(screen.getByTestId("chat-bubble-speak-m-assistant"));
     expect(ctrl.stop).toHaveBeenCalled();
+    expect(ctrl.speak).not.toHaveBeenCalled();
+  });
+
+  it("shows a loading state while audio is being prepared", () => {
+    const ctrl = makeController({ speakingMessageId: "m-assistant", loadingMessageId: "m-assistant" });
+    render(<ChatMessageBubble message={makeMessage("assistant")} speak={ctrl} />);
+    const button = screen.getByTestId("chat-bubble-speak-m-assistant");
+
+    expect(button).toBeDisabled();
+    expect(button.getAttribute("data-loading")).toBe("true");
+    expect(screen.getByTestId("chat-bubble-audio-loading-m-assistant")).toBeInTheDocument();
+
+    fireEvent.click(button);
+    expect(ctrl.stop).not.toHaveBeenCalled();
     expect(ctrl.speak).not.toHaveBeenCalled();
   });
 

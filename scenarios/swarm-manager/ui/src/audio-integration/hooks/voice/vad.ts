@@ -10,10 +10,18 @@ export type VadState = "idle" | "calibrating" | "waitingForSpeech" | "speechDete
 export type VadAction = "stop" | "no-speech" | "segment-boundary";
 
 export const VAD_CALIBRATION_MS = 500;
-/** Default silence timeout (ms). Configurable via workspace store `vadSilenceTimeoutMs`. */
-export const VAD_DEFAULT_SILENCE_TIMEOUT_MS = 2000;
-/** Default silence duration (ms) that triggers a segment boundary in persistent mode. */
-export const VAD_DEFAULT_SEGMENT_SILENCE_MS = 1500;
+/**
+ * Fallback silence timeout (ms). Used only for the initial paint before
+ * the workspace store has been hydrated from audio-tools' stt_stream_config
+ * (`vad_silence_ms`). At runtime, the hydrated `vadSilenceTimeoutMs`
+ * always wins — see useHydrateVoiceConfig in the host scenario.
+ */
+export const VAD_FALLBACK_SILENCE_TIMEOUT_MS = 2000;
+/**
+ * Fallback segment-boundary silence (ms) for persistent mode. Same role
+ * as VAD_FALLBACK_SILENCE_TIMEOUT_MS — overridden by hydrated server config.
+ */
+export const VAD_FALLBACK_SEGMENT_SILENCE_MS = 1500;
 export const VAD_NO_SPEECH_TIMEOUT_MS = 15_000;
 export const VAD_MIN_SILENCE_THRESHOLD = 0.02;
 export const VAD_MIN_SPEECH_THRESHOLD = 0.06;
@@ -201,7 +209,7 @@ export function computeSlidingNoiseFloor(
  *
  * Pure function -- all inputs are explicit parameters with no external dependencies.
  */
-export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs: number = VAD_DEFAULT_SILENCE_TIMEOUT_MS): VadAction | null {
+export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs: number = VAD_FALLBACK_SILENCE_TIMEOUT_MS): VadAction | null {
   if (vad.state === "idle") return null;
 
   if (vad.state === "calibrating") {

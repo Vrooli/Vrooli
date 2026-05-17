@@ -46,7 +46,7 @@ func TestVADSegmenter_EmitsVadStateOnTransition(t *testing.T) {
 		} else {
 			silenceSeen = true
 		}
-		require.Equal(t, int64(700), ev.SilenceTimeoutMs, "tick #%d must echo SilenceMs=700 default", i)
+		require.Equal(t, int64(1200), ev.SilenceTimeoutMs, "tick #%d must echo SilenceMs=1200 default", i)
 		// Monotonic per-stream tick sequence.
 		require.Greater(t, ev.TickSeq, prevSeq, "tick #%d sequence must be strictly increasing", i)
 		prevSeq = ev.TickSeq
