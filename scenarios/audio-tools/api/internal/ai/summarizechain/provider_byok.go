@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+// seam: BYOKAdapter is the summarize BYOK-adapter seam (SEAMS.md row
+// "summarizechain.BYOKAdapter"). Production wires concrete vendor
+// adapters (openrouter); tests wire fakes.
 type BYOKAdapter interface {
 	ID() string
 	Summarize(ctx context.Context, key string, req Request) (*Result, error)

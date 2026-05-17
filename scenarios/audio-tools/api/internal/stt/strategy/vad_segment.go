@@ -5,9 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"time"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/clock"
 )
 
 // VADSegmenter is the per-session VAD-bounded segment strategy. It
@@ -34,6 +34,10 @@ type VADSegmenter struct {
 
 	// FrameMs is the frame size used for RMS evaluation. Default 20 ms.
 	FrameMs int
+
+	// Clock is the wall-clock seam used for per-segment latency
+	// measurement. Defaults to clock.System{}.
+	Clock clock.Clock
 }
 
 // Kind reports the strategy kind for selector enforcement.
@@ -90,9 +94,13 @@ func (v *VADSegmenter) Run(
 			LPBSToken:               start.LPBSToken,
 			UserIdentity:            start.UserIdentity,
 		}
-		t0 := time.Now()
+		clk := v.Clock
+		if clk == nil {
+			clk = clock.System{}
+		}
+		t0 := clk.Now()
 		res, err := v.Provider.Transcribe(ctx, req)
-		latency := time.Since(t0)
+		latency := clk.Now().Sub(t0)
 		if err != nil {
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
 			segStart = end

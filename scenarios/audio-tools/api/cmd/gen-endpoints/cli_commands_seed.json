@@ -25,6 +25,16 @@
       "name": "notes attach",
       "description": "Upload an attachment for a note (--file PATH)",
       "endpoint_id": "notes_attach"
+    },
+    {
+      "name": "diagnostics run",
+      "description": "Run the audio-tools capability suite end-to-end against bundled fixtures",
+      "endpoint_id": "diagnostics.run_suite"
+    },
+    {
+      "name": "diagnostics last",
+      "description": "Show the most recent diagnostics suite result",
+      "endpoint_id": "diagnostics.get_last_run"
     }
   ]
 }

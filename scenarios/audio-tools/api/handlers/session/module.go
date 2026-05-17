@@ -4,6 +4,7 @@ package session
 import (
 	"log"
 
+	"audio-tools/internal/clock"
 	"audio-tools/internal/modulekit"
 	intsession "audio-tools/internal/session"
 
@@ -16,13 +17,17 @@ import (
 type Deps struct {
 	Registry *intsession.Registry
 	Logger   *log.Logger
+	Clock    clock.Clock
 }
 
-func Module(registry *intsession.Registry, logger *log.Logger) modulekit.Module {
+func Module(registry *intsession.Registry, logger *log.Logger, clk clock.Clock) modulekit.Module {
 	if logger == nil {
 		logger = log.Default()
 	}
-	connectPath, h := sessconnect.NewSessionServiceHandler(NewConnectHandler(Deps{Registry: registry, Logger: logger}))
+	if clk == nil {
+		clk = clock.System{}
+	}
+	connectPath, h := sessconnect.NewSessionServiceHandler(NewConnectHandler(Deps{Registry: registry, Logger: logger, Clock: clk}))
 	return modulekit.Module{
 		Name: "session",
 		Mount: func(r *mux.Router) {

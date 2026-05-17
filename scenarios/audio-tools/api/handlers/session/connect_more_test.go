@@ -23,7 +23,7 @@ import (
 func newH2Server(t *testing.T) (sessconnect.SessionServiceClient, *intsession.Registry) {
 	t.Helper()
 	reg := intsession.NewRegistry()
-	mod := sessionH.Module(reg, nil)
+	mod := sessionH.Module(reg, nil, nil)
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewUnstartedServer(r)

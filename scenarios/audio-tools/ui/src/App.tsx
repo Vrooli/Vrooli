@@ -12,6 +12,7 @@ const ConfigurationPage = lazy(() => import("./features/configuration/Configurat
 const VoicesPage = lazy(() => import("./features/voices/VoicesPage").then((m) => ({ default: m.VoicesPage })));
 const UsagePage = lazy(() => import("./features/usage/UsagePage").then((m) => ({ default: m.UsagePage })));
 const DocsPage = lazy(() => import("./features/docs/DocsPage").then((m) => ({ default: m.DocsPage })));
+const DocViewerPage = lazy(() => import("./features/docs/DocViewerPage").then((m) => ({ default: m.DocViewerPage })));
 const NotFoundPage = lazy(() => import("./features/not-found/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 
 function getRouterBasename(): string {
@@ -35,6 +36,7 @@ export default function App() {
               <Route path="voices" element={<VoicesPage />} />
               <Route path="usage" element={<UsagePage />} />
               <Route path="docs" element={<DocsPage />} />
+              <Route path="docs/*" element={<DocViewerPage />} />
               <Route path="overview" element={<Navigate to="/" replace />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>

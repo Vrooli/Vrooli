@@ -20,8 +20,23 @@
 // 10 * time.Second}` constructed in main.go.
 package httpc
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
+// DefaultDoer constructs the canonical production Doer with a long
+// timeout suited for AI/vendor adapters. Adapter constructors call this
+// instead of literal &http.Client{...} so the seam-registry "no raw
+// http.Client outside httpc" gate can be enforced without forcing
+// every callsite to thread Doer from main.go on day one.
+func DefaultDoer() Doer {
+	return &http.Client{Timeout: 120 * time.Second}
+}
+
+// seam: Doer is the outbound-HTTP seam (SEAMS.md row "httpc.Doer").
+// Production wires *http.Client; tests wire mocks.FakeDoer.
+//
 // Doer is the canonical outbound HTTP interface. The single-method
 // surface is intentional — handlers depend on what they need (Do)
 // rather than the full *http.Client surface (Get / Post / CloseIdle…),

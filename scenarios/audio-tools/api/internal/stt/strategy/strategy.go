@@ -15,6 +15,10 @@ import (
 // per-session state through Run's arguments. Constructors may capture
 // long-lived dependencies (e.g. the BatchExecutor for BufferedFallback)
 // but must not capture session-scoped state.
+//
+// seam: Strategy is the streaming-strategy seam (SEAMS.md row
+// "stt.StreamingStrategy"). Production wires VAD / overlap-agree /
+// passthrough implementations; tests substitute fakes.
 type Strategy interface {
 	// Kind identifies which selector cell produced this strategy. The
 	// selector uses this to enforce the compatibility matrix and the

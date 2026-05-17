@@ -16,12 +16,13 @@ import (
 func TestRun_ProducesValidJSON(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "endpoints.json")
 	seed := filepath.Join(t.TempDir(), "seed.json")
+	// Seed must mirror every CLI-mapped endpoint registered by the live
+	// modulekit registry (handlers/<domain>/module.go ::Endpoints). When
+	// new CLI-mapped endpoints land, extend this seed in the same diff.
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "notes list", Description: "List notes", EndpointID: "notes_list"},
-		{Name: "notes create", Description: "Create note", EndpointID: "notes_create"},
-		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
-		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
+		{Name: "diagnostics run", Description: "Run capability suite", EndpointID: "diagnostics.run_suite"},
+		{Name: "diagnostics last", Description: "Show last run", EndpointID: "diagnostics.get_last_run"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -52,8 +53,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 5 {
-		t.Errorf("cli_commands count = %d, want 5", len(got.CLICommands))
+	if len(got.CLICommands) != 3 {
+		t.Errorf("cli_commands count = %d, want 3", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

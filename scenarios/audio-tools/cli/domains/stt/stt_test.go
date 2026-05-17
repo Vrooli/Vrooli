@@ -1,4 +1,4 @@
-package voice
+package stt
 
 import (
 	"context"
@@ -44,7 +44,7 @@ func (f *fakeSvc) GetStreamConfig(_ context.Context, _ *connect.Request[sttv1.Ge
 	return connect.NewResponse(&sttv1.GetStreamConfigResponse{Config: cfg}), nil
 }
 
-func mountVoice(t *testing.T, svc sttconnect.STTServiceHandler) *cliapp.ScenarioApp {
+func mountSTT(t *testing.T, svc sttconnect.STTServiceHandler) *cliapp.ScenarioApp {
 	t.Helper()
 	path, h := sttconnect.NewSTTServiceHandler(svc)
 	mux := http.NewServeMux()
@@ -59,7 +59,7 @@ func TestTranscribeHappyPath(t *testing.T) {
 	file := filepath.Join(dir, "in.wav")
 	require.NoError(t, os.WriteFile(file, []byte("PCMDATA"), 0o600))
 
-	app := mountVoice(t, &fakeSvc{
+	app := mountSTT(t, &fakeSvc{
 		transcribe: func(req *sttv1.TranscribeRequest) (*sttv1.TranscribeResponse, error) {
 			require.Equal(t, []byte("PCMDATA"), req.GetAudio())
 			require.Equal(t, commonv1.AudioFormat_AUDIO_FORMAT_WAV, req.GetFormat())
@@ -82,7 +82,7 @@ func TestTranscribeHappyPath(t *testing.T) {
 // Happy path: stream-config get prints the resolved levers using the
 // documented defaults when fields are zero.
 func TestStreamConfigGet(t *testing.T) {
-	app := mountVoice(t, &fakeSvc{
+	app := mountSTT(t, &fakeSvc{
 		getCfg: func() (*sttv1.StreamConfig, error) {
 			return &sttv1.StreamConfig{
 				StreamingMode:     sttv1.StreamingMode_STREAMING_MODE_AUTO,
@@ -109,7 +109,7 @@ func TestTranscribeServerError(t *testing.T) {
 	file := filepath.Join(dir, "in.wav")
 	require.NoError(t, os.WriteFile(file, []byte("X"), 0o600))
 
-	app := mountVoice(t, &fakeSvc{
+	app := mountSTT(t, &fakeSvc{
 		transcribe: func(_ *sttv1.TranscribeRequest) (*sttv1.TranscribeResponse, error) {
 			return nil, connect.NewError(connect.CodeUnavailable, errors.New("whisper down"))
 		},
@@ -127,7 +127,7 @@ func TestTranscribeServerError(t *testing.T) {
 // Error path: transcribe with a missing file path fails before any RPC,
 // so the fake panics if called (proving the path-read happens client-side).
 func TestTranscribeMissingFile(t *testing.T) {
-	app := mountVoice(t, &fakeSvc{
+	app := mountSTT(t, &fakeSvc{
 		transcribe: func(_ *sttv1.TranscribeRequest) (*sttv1.TranscribeResponse, error) {
 			t.Fatal("transcribe must not reach the server when file read fails")
 			return nil, nil

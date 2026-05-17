@@ -33,6 +33,11 @@ type Stats struct {
 // immediately and increments DroppedTotal. See Stats().
 const QueueCapacity = 1024
 
+// seam: Recorder is the usage-recording seam (SEAMS.md row
+// "usagereport.Recorder"). Production wires the SQLite-backed recorder;
+// tests wire mocks.FakeRecorder or accept the real recorder with a
+// fake clock.
+//
 // Recorder accepts usage rows and persists them.
 type Recorder interface {
 	// Enqueue is non-blocking and never returns an error; failures are

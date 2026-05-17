@@ -37,19 +37,15 @@ func TestAsyncRecorder_EnqueueAndDrain(t *testing.T) {
 	}
 	r.Enqueue(row)
 
-	// Wait for the row to be drained, then verify it landed in the
-	// store via ListRecent. 2s is generous; an empty queue and an
-	// in-memory sqlite write should complete in microseconds.
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
+	// Polling-via-Eventually is the event-driven substitute for an
+	// explicit sleep loop: testify drives the cadence and fails fast.
+	require.Eventually(t, func() bool {
 		rows, err := repo.ListRecent(context.Background(), time.Now().Add(-1*time.Hour), 10, "", "")
-		require.NoError(t, err)
-		if len(rows) == 1 && rows[0].OperationID == "op-async-1" {
-			return
+		if err != nil {
+			return false
 		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatal("row did not appear in store within deadline")
+		return len(rows) == 1 && rows[0].OperationID == "op-async-1"
+	}, 2*time.Second, 10*time.Millisecond, "row did not appear in store within deadline")
 }
 
 func TestAsyncRecorder_RecordSync(t *testing.T) {

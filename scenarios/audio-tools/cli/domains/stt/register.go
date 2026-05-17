@@ -1,4 +1,5 @@
-package voice
+// Package stt hosts the `audio-tools stt ...` subtree (speech-to-text).
+package stt
 
 import (
 	"github.com/vrooli/cli-core/cliapp"
@@ -7,7 +8,7 @@ import (
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	h := newHandlers(core)
 	return cliapp.SubcommandGroup{
-		Name:        "voice",
+		Name:        "stt",
 		Description: "Speech-to-text operations",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{

@@ -10,8 +10,9 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/protomap"
-	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
 
@@ -23,9 +24,11 @@ type Deps struct {
 	Selector     *sttpkg.Selector
 	Voice        *sttpipeline.Service
 	Logger       *log.Logger
-	StreamConfig *store.STTStreamConfigStore
-	Wakeword     *store.WakeWordStore
-	Speaker      *store.SpeakerStore
+	Clock        clock.Clock
+	Logx         logx.Logger
+	StreamConfig STTStreamConfigRepository
+	Wakeword     WakewordRepository
+	Speaker      SpeakerRepository
 }
 
 type connectHandler struct {
@@ -35,6 +38,12 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Clock == nil {
+		d.Clock = clock.System{}
+	}
+	if d.Logx == nil {
+		d.Logx = logx.Std{}
 	}
 	return &connectHandler{deps: d}
 }

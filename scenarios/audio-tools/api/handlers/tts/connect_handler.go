@@ -10,6 +10,7 @@ import (
 
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/clock"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/text/normalizer"
 
@@ -26,6 +27,9 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Clock == nil {
+		d.Clock = clock.System{}
 	}
 	return &connectHandler{deps: d}
 }

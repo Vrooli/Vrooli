@@ -10,6 +10,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"audio-tools/internal/clock"
 )
 
 type DependencyKind string
@@ -43,6 +45,9 @@ type State struct {
 	CheckedAt string `json:"checkedAt,omitempty"`
 }
 
+// seam: Checker is the capability-probe seam (SEAMS.md row
+// "capabilities.Checker"). Production wires per-capability concrete
+// checkers; tests wire a per-test fake.
 type Checker interface {
 	Check(ctx context.Context) (Status, string)
 }
@@ -127,14 +132,32 @@ type Registry struct {
 	cached   []State
 	cachedAt time.Time
 	cacheTTL time.Duration
+	clk      clock.Clock
 }
 
 func NewRegistry(defs []Def, checkers map[string]Checker, cacheTTL time.Duration) *Registry {
+	return NewRegistryWithClock(defs, checkers, cacheTTL, clock.System{})
+}
+
+// NewRegistryWithClock is the clock-injected constructor used by tests
+// that want deterministic TTL expiry without sleeping.
+func NewRegistryWithClock(defs []Def, checkers map[string]Checker, cacheTTL time.Duration, clk clock.Clock) *Registry {
+	if clk == nil {
+		clk = clock.System{}
+	}
 	return &Registry{
 		defs:     defs,
 		checkers: checkers,
 		cacheTTL: cacheTTL,
+		clk:      clk,
 	}
+}
+
+func (r *Registry) now() time.Time {
+	if r.clk == nil {
+		return clock.System{}.Now()
+	}
+	return r.clk.Now()
 }
 
 // SetLivenessCheckers registers lightweight health-only checkers used by
@@ -146,7 +169,7 @@ func (r *Registry) SetLivenessCheckers(lc map[string]Checker) {
 
 func (r *Registry) Resolve(ctx context.Context) []State {
 	r.mu.RLock()
-	if r.cached != nil && time.Since(r.cachedAt) < r.cacheTTL {
+	if r.cached != nil && r.now().Sub(r.cachedAt) < r.cacheTTL {
 		result := make([]State, len(r.cached))
 		copy(result, r.cached)
 		r.mu.RUnlock()
@@ -157,13 +180,13 @@ func (r *Registry) Resolve(ctx context.Context) []State {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.cached != nil && time.Since(r.cachedAt) < r.cacheTTL {
+	if r.cached != nil && r.now().Sub(r.cachedAt) < r.cacheTTL {
 		result := make([]State, len(r.cached))
 		copy(result, r.cached)
 		return result
 	}
 
-	now := time.Now().UTC()
+	now := r.now().UTC()
 	states := make([]State, len(r.defs))
 	for i, def := range r.defs {
 		state := State{
@@ -193,7 +216,7 @@ func (r *Registry) Resolve(ctx context.Context) []State {
 // avoid masking a broken-but-live service.
 func (r *Registry) ResolveLiveness(ctx context.Context) []State {
 	r.mu.RLock()
-	if r.cached != nil && time.Since(r.cachedAt) < r.cacheTTL {
+	if r.cached != nil && r.now().Sub(r.cachedAt) < r.cacheTTL {
 		result := make([]State, len(r.cached))
 		copy(result, r.cached)
 		r.mu.RUnlock()
@@ -206,7 +229,7 @@ func (r *Registry) ResolveLiveness(ctx context.Context) []State {
 		return r.Resolve(ctx)
 	}
 
-	now := time.Now().UTC()
+	now := r.now().UTC()
 	states := make([]State, len(r.defs))
 	for i, def := range r.defs {
 		state := State{

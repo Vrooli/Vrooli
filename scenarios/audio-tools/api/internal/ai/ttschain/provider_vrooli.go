@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+// seam: VrooliClient is the TTS Vrooli-LPBS client seam (SEAMS.md row
+// "ttschain.VrooliClient"). Production wires integrations/lpbs/clients;
+// tests wire fakes.
 type VrooliClient interface {
 	Synthesize(ctx context.Context, lpbsToken, userIdentity string, req Request) (*Result, error)
 	IsAvailable(ctx context.Context) bool

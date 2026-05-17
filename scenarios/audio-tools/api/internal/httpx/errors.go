@@ -13,14 +13,29 @@
 package httpx
 
 import (
-	"log"
 	"net/http"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"audio-tools/internal/logx"
+
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/errors"
 )
+
+// packageLogger is the package-level logx.Logger used by the
+// unreachable-fallback paths inside WriteError / WriteProto. Production
+// leaves it at logx.Std{}; tests use SetPackageLogger to capture the
+// rare line if they want to assert the recovery path.
+var packageLogger logx.Logger = logx.Std{}
+
+// SetPackageLogger overrides the package logger and returns the previous
+// value so tests can restore via t.Cleanup.
+func SetPackageLogger(l logx.Logger) logx.Logger {
+	prev := packageLogger
+	packageLogger = l
+	return prev
+}
 
 // Canonical error codes. Handlers reach for these constants rather than
 // open-coding the strings so the wire-side vocabulary stays narrow.
@@ -72,7 +87,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		// comment). If a future shape change makes this firable, the
 		// scenario MUST thread a logger through WriteError instead of
 		// keeping this global-log fallback.
-		log.Printf("httpx.WriteError: protojson marshal failed: %v", err)
+		packageLogger.Printf("httpx.WriteError: protojson marshal failed: %v", err)
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError
 	}
@@ -86,7 +101,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
 	body, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(msg)
 	if err != nil {
-		log.Printf("httpx.WriteProto: protojson marshal failed: %v", err)
+		packageLogger.Printf("httpx.WriteProto: protojson marshal failed: %v", err)
 		WriteError(w, http.StatusInternalServerError, CodeInternal, "response marshal failed")
 		return
 	}

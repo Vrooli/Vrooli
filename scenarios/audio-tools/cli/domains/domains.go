@@ -2,12 +2,12 @@ package domains
 
 import (
 	"audio-tools/cli/domains/audio"
-	"audio-tools/cli/domains/diagnose"
+	"audio-tools/cli/domains/diagnostics"
 	"audio-tools/cli/domains/settings"
+	"audio-tools/cli/domains/stt"
 	"audio-tools/cli/domains/summarize"
 	"audio-tools/cli/domains/tts"
 	"audio-tools/cli/domains/usage"
-	"audio-tools/cli/domains/voice"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -23,12 +23,12 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // under packages/proto/schemas/audio-tools/v1/.
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
-		voice.Register(core),
+		stt.Register(core),
 		tts.Register(core),
 		summarize.Register(core),
 		audio.Register(core),
 		settings.Register(core),
 		usage.Register(core),
-		diagnose.Register(core),
+		diagnostics.Register(core),
 	}
 }

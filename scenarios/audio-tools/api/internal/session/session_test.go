@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSession_MultiObserver_ReceivesSameEvent(t *testing.T) {
@@ -40,7 +42,18 @@ func TestSession_MultiObserver_ReceivesSameEvent(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		s.EmitEvent(SessionEvent{Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "hi"}})
 	}
-	time.Sleep(50 * time.Millisecond)
+	// Wait for every observer to have observed all 5 events before
+	// calling Close. require.Eventually is the event-driven substitute
+	// for a wall-clock sleep — it polls the counters and fails fast if
+	// the fan-out invariant doesn't hold.
+	require.Eventually(t, func() bool {
+		for i := 0; i < n; i++ {
+			if atomic.LoadInt32(&counts[i]) != 5 {
+				return false
+			}
+		}
+		return true
+	}, 2*time.Second, 1*time.Millisecond, "all observers must see all 5 events before Close")
 	s.Close("done")
 	wg.Wait()
 

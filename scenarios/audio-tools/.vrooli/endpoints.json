@@ -108,6 +108,43 @@
       "category": "audio"
     },
     {
+      "id": "diagnostics.run_suite",
+      "path": "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/RunSuite",
+      "method": "POST",
+      "summary": "Run the audio-tools capability suite end-to-end against bundled fixtures",
+      "description": "",
+      "category": "diagnostics",
+      "cli_mapping": {
+        "command": "audio-tools diagnostics run",
+        "args": [
+          "[--capability stt,tts,summarize,transcode]",
+          "[--json]"
+        ]
+      }
+    },
+    {
+      "id": "diagnostics.get_last_run",
+      "path": "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/GetLastRun",
+      "method": "POST",
+      "summary": "Return the most recent RunSuite result, or an empty envelope when no run has executed",
+      "description": "",
+      "category": "diagnostics",
+      "cli_mapping": {
+        "command": "audio-tools diagnostics last",
+        "args": [
+          "[--json]"
+        ]
+      }
+    },
+    {
+      "id": "diagnostics.list_fixtures",
+      "path": "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/ListFixtures",
+      "method": "POST",
+      "summary": "Describe the bundled diagnostics fixtures",
+      "description": "",
+      "category": "diagnostics"
+    },
+    {
       "id": "session.open",
       "path": "/vrooli.audio_tools.v1.session.SessionService/OpenSession",
       "method": "POST",
@@ -208,6 +245,14 @@
       "path": "/vrooli.audio_tools.v1.stt.STTService/Transcribe",
       "method": "POST",
       "summary": "Transcribe audio via STT provider chain (Connect-RPC)",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.transcribe_stream",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/TranscribeStream",
+      "method": "POST",
+      "summary": "Bidi-stream Connect mirror of /api/v1/voice/stream for non-browser consumers",
       "description": "",
       "category": "stt"
     },
@@ -348,11 +393,35 @@
       "category": "summarize"
     },
     {
+      "id": "summarize.get_config",
+      "path": "/vrooli.audio_tools.v1.summarize.SummarizeService/GetSummarizeConfig",
+      "method": "POST",
+      "summary": "Get the persisted summarizer configuration",
+      "description": "",
+      "category": "summarize"
+    },
+    {
+      "id": "summarize.update_config",
+      "path": "/vrooli.audio_tools.v1.summarize.SummarizeService/UpdateSummarizeConfig",
+      "method": "POST",
+      "summary": "Update the persisted summarizer configuration",
+      "description": "",
+      "category": "summarize"
+    },
+    {
       "id": "tts.synthesize",
       "path": "/vrooli.audio_tools.v1.tts.TTSService/Synthesize",
       "method": "POST",
       "summary": "Synthesize speech audio via the TTS provider chain",
       "description": "BYOK -> Vrooli -> Local. Audio bytes returned inline; voice_overrides and event_id cache controls supported.",
+      "category": "tts"
+    },
+    {
+      "id": "tts.synthesize_stream",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/SynthesizeStream",
+      "method": "POST",
+      "summary": "Stream synthesized audio frames via the TTS provider chain",
+      "description": "Server-streaming variant of Synthesize. Streaming-capable providers (future) emit incremental frames; non-streaming providers emit a single is_final=true frame with the full audio. Provider trace fields are populated only on the final frame.",
       "category": "tts"
     },
     {
@@ -461,6 +530,16 @@
       "name": "notes attach",
       "description": "Upload an attachment for a note (--file PATH)",
       "endpoint_id": "notes_attach"
+    },
+    {
+      "name": "diagnostics run",
+      "description": "Run the audio-tools capability suite end-to-end against bundled fixtures",
+      "endpoint_id": "diagnostics.run_suite"
+    },
+    {
+      "name": "diagnostics last",
+      "description": "Show the most recent diagnostics suite result",
+      "endpoint_id": "diagnostics.get_last_run"
     }
   ]
 }

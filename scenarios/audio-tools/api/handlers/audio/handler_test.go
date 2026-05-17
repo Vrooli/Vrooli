@@ -92,9 +92,3 @@ func TestContentTypeFor_MapsKnownFormats(t *testing.T) {
 		require.Equal(t, want, contentTypeFor(in), "format=%q", in)
 	}
 }
-
-// TODO: add a happy-path Transcode test once the audio package gains
-// a Runner-substitution seam that doesn't require shadowing
-// hasFfmpeg's sync.Once. Today the ffmpeg-missing branch isn't
-// reachable from a unit test on a workstation that has ffmpeg
-// installed.

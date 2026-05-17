@@ -13,8 +13,8 @@ func TestSTTClient_StubContract(t *testing.T) {
 	if c.BaseURL != "http://lpbs.test" {
 		t.Fatalf("BaseURL not stored")
 	}
-	if c.HTTPClient == nil {
-		t.Fatalf("HTTPClient missing default")
+	if c.Doer == nil {
+		t.Fatalf("Doer missing default")
 	}
 	if c.IsAvailable(context.Background()) {
 		t.Fatalf("expected IsAvailable=false until gateway lands")

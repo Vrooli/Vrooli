@@ -49,6 +49,9 @@ type Result struct {
 	Latency     time.Duration
 }
 
+// seam: Provider is the TTS chain-provider seam (SEAMS.md row
+// "ttschain.Provider"). Production wires Local/BYOK/Vrooli tiers; tests
+// wire fakes from internal/ai/ttschain/mocks.
 type Provider interface {
 	Type() ProviderTier
 	IsAvailable(ctx context.Context) bool

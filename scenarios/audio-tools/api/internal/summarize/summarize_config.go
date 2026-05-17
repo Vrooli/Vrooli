@@ -3,10 +3,25 @@ package summarize
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
+
+	"audio-tools/internal/envx"
+	"audio-tools/internal/logx"
 )
+
+// configLogger is the package-level logx.Logger used by the rare cleanup
+// fallback path in SaveSummarizeConfig. Production leaves it at
+// logx.Std{}; tests use SetConfigLogger to capture the line.
+var configLogger logx.Logger = logx.Std{}
+
+// SetConfigLogger overrides the package config logger and returns the
+// previous value so tests can restore via t.Cleanup.
+func SetConfigLogger(l logx.Logger) logx.Logger {
+	prev := configLogger
+	configLogger = l
+	return prev
+}
 
 const (
 	MinSummarizeTimeoutSeconds     = 15
@@ -32,9 +47,20 @@ type SummarizeConfigPatch struct {
 	TimeoutSeconds *int
 }
 
-// DefaultSummarizeConfig returns the default TTS summarization config.
+// DefaultSummarizeConfig returns the default TTS summarization config,
+// reading the model selection from the process environment via the
+// canonical envx seam. Callers that need to inject a fake environment
+// (deterministic tests, multi-tenant contexts) use
+// DefaultSummarizeConfigWith and pass their own envx.Reader.
 func DefaultSummarizeConfig() SummarizeConfig {
-	model := os.Getenv("WC_TTS_SUMMARIZE_MODEL")
+	return DefaultSummarizeConfigWith(envx.OS{})
+}
+
+// DefaultSummarizeConfigWith returns the default config but lets the
+// caller substitute the env reader. Production wires envx.OS{}; tests
+// wire mocks.FakeEnv to assert which keys the config reads.
+func DefaultSummarizeConfigWith(env envx.Reader) SummarizeConfig {
+	model := env.Get("WC_TTS_SUMMARIZE_MODEL")
 	if model == "" {
 		// qwen3:4b follows length/budget instructions much more reliably than
 		// qwen3:1.7b. Users on memory-constrained boxes can set
@@ -147,7 +173,7 @@ func SaveSummarizeConfig(path string, cfg SummarizeConfig) error {
 	}
 	if err := os.Rename(tmp, path); err != nil {
 		if rmErr := os.Remove(tmp); rmErr != nil {
-			log.Printf("tts-summarize-config: failed to clean up temp file %s: %v", tmp, rmErr)
+			configLogger.Printf("tts-summarize-config: failed to clean up temp file %s: %v", tmp, rmErr)
 		}
 		return fmt.Errorf("rename config file: %w", err)
 	}

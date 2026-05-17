@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"log"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
+	"audio-tools/internal/clock"
 	"audio-tools/internal/protomap"
 	intsession "audio-tools/internal/session"
 
@@ -22,6 +22,9 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Clock == nil {
+		d.Clock = clock.System{}
 	}
 	return &connectHandler{deps: d}
 }
@@ -80,14 +83,14 @@ func (h *connectHandler) SendText(ctx context.Context, req *connect.Request[sess
 		EventID:        uuid.NewString(),
 		SessionID:      s.ID(),
 		Type:           intsession.EventAssistantDelta,
-		EmittedAt:      time.Now(),
+		EmittedAt:      h.deps.Clock.Now(),
 		AssistantDelta: &intsession.AssistantDelta{Text: text},
 	})
 	s.EmitEvent(intsession.SessionEvent{
 		EventID:        uuid.NewString(),
 		SessionID:      s.ID(),
 		Type:           intsession.EventAssistantFinal,
-		EmittedAt:      time.Now(),
+		EmittedAt:      h.deps.Clock.Now(),
 		AssistantFinal: &intsession.AssistantFinal{Text: text, HadAudio: false},
 	})
 	return connect.NewResponse(&sessv1.SendTextResponse{}), nil

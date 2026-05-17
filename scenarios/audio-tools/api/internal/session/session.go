@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"audio-tools/internal/clock"
 )
 
 var (
@@ -36,6 +38,18 @@ type Session struct {
 	closed     atomic.Bool
 	cancelHook func(reason BargeInReason, eventID string)
 	inflightID atomic.Value // string
+	clk        clock.Clock
+}
+
+// nowOrSystem is a tiny accessor that returns the injected clock or
+// falls back to clock.System{} if a Session was constructed via raw
+// struct literal in older tests. New() always wires opts.Clock or
+// clock.System{}, so this is a defensive read.
+func (s *Session) nowOrSystem() time.Time {
+	if s.clk == nil {
+		return clock.System{}.Now()
+	}
+	return s.clk.Now()
 }
 
 // Options configures a new session.
@@ -46,19 +60,28 @@ type Options struct {
 	// CancelHook is invoked when barge-in fires; transports register this to
 	// short-circuit their TTS-out channel.
 	CancelHook func(reason BargeInReason, eventID string)
+	// Clock is the wall-clock seam used for createdAt + EmittedAt
+	// timestamps. Defaults to clock.System{}; tests inject FakeClock for
+	// deterministic timestamps.
+	Clock clock.Clock
 }
 
 // New creates a fresh Session. The session is not yet attached to a transport
 // — the transport calls Open with itself to bind.
 func New(opts Options) *Session {
+	clk := opts.Clock
+	if clk == nil {
+		clk = clock.System{}
+	}
 	s := &Session{
 		id:         uuid.NewString(),
 		transport:  opts.Transport,
 		voice:      opts.Voice,
 		language:   opts.Language,
-		createdAt:  time.Now(),
+		createdAt:  clk.Now(),
 		observers:  make(map[string]chan SessionEvent),
 		cancelHook: opts.CancelHook,
+		clk:        clk,
 	}
 	s.inflightID.Store("")
 	return s
@@ -132,7 +155,7 @@ func (s *Session) EmitEvent(evt SessionEvent) {
 		evt.SessionID = s.id
 	}
 	if evt.EmittedAt.IsZero() {
-		evt.EmittedAt = time.Now()
+		evt.EmittedAt = s.nowOrSystem()
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -182,7 +205,7 @@ func (s *Session) Close(reason string) {
 		EventID:   uuid.NewString(),
 		SessionID: s.id,
 		Type:      EventClosed,
-		EmittedAt: time.Now(),
+		EmittedAt: s.nowOrSystem(),
 		Closed:    &SessionClosed{Reason: reason},
 	}
 	s.mu.Lock()

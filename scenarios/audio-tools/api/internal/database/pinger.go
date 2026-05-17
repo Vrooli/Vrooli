@@ -20,6 +20,9 @@ import (
 	"database/sql"
 )
 
+// seam: Pinger is the database-reachability seam (SEAMS.md row "Pinger").
+// Production wires *sql.DB; tests wire mocks.FakePinger.
+//
 // Pinger is the minimum surface the health endpoint needs to verify the
 // database is reachable. *sql.DB satisfies it directly.
 type Pinger interface {

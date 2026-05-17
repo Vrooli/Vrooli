@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"audio-tools/internal/clock"
 )
 
 // CacheKey identifies a cached TTS audio entry. Pre-existing CacheKey in
@@ -43,13 +45,36 @@ type Cache struct {
 	order    []string // LRU order: oldest first
 	maxSize  int
 	currSize int
+	clk      clock.Clock
 }
 
-// NewCache creates a cache with the given maximum size in bytes.
+// NewCache creates a cache with the given maximum size in bytes using
+// the system clock.
 func NewCache(maxSizeBytes int) *Cache {
 	return &Cache{
 		entries: make(map[string]*CacheEntry),
 		maxSize: maxSizeBytes,
+		clk:     clock.System{},
+	}
+}
+
+func (c *Cache) now() time.Time {
+	if c.clk == nil {
+		return clock.System{}.Now()
+	}
+	return c.clk.Now()
+}
+
+// NewCacheWithClock is the clock-injected constructor for deterministic
+// CreatedAt stamping in tests.
+func NewCacheWithClock(maxSizeBytes int, clk clock.Clock) *Cache {
+	if clk == nil {
+		clk = clock.System{}
+	}
+	return &Cache{
+		entries: make(map[string]*CacheEntry),
+		maxSize: maxSizeBytes,
+		clk:     clk,
 	}
 }
 
@@ -90,7 +115,7 @@ func (c *Cache) Put(key CacheKey, audio []byte, contentType string) {
 	c.entries[hash] = &CacheEntry{
 		Audio:       audio,
 		ContentType: contentType,
-		CreatedAt:   time.Now(),
+		CreatedAt:   c.now(),
 		eventID:     key.EventID,
 	}
 	c.order = append(c.order, hash)

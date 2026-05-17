@@ -7,14 +7,20 @@
 | Command | Description | API method |
 |---|---|---|
 | `audio-tools status` | Health probe (provided by cli-core's StandardScenarioApp) | `GET /health` |
-| `audio-tools voice transcribe --file PATH [--language EN] [--format FMT]` | Transcribe an audio file | `STTService.Transcribe` |
-| `audio-tools voice transcribe-stream --file PATH [--language EN] [--chunk-bytes N]` | Stream-transcribe a file (one event per line) | `STTService.TranscribeStream` |
+| `audio-tools stt transcribe --file PATH [--language EN] [--format FMT]` | Transcribe an audio file | `STTService.Transcribe` |
+| `audio-tools stt transcribe-stream --file PATH [--language EN] [--chunk-bytes N]` | Stream-transcribe a file (one event per line) | `STTService.TranscribeStream` |
+| `audio-tools stt stream-config` | Show the resolved streaming STT levers | `STTService.GetStreamConfig` |
+| `audio-tools stt stream-config-set [--streaming-mode auto\|off] [--strategy-preference …] [--vad-silence-ms N] [--overlap-window-ms N] [--overlap-commit-runs N]` | Mutate streaming STT levers | `STTService.UpdateStreamConfig` |
 | `audio-tools tts synthesize --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Synthesize speech audio | `TTSService.Synthesize` |
 | `audio-tools tts synthesize-stream --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Stream-synthesize speech (writes frames to --out as they arrive) | `TTSService.SynthesizeStream` |
 | `audio-tools tts voices` | List canonical voices | `TTSService.ListVoices` |
 | `audio-tools summarize text --text TEXT [--level light\|moderate\|heavy]` | Summarize text | `SummarizeService.Summarize` |
 | `audio-tools audio transcode --input PATH --output PATH` | Transcode to WAV | `AudioProcessingService.Transcode` |
-| `audio-tools diagnose providers` | Probe enabled providers and print availability matrix (Phase G placeholder) | composite |
+| `audio-tools settings provider` | Show the current provider-routing config | `SettingsService.GetProviderConfig` |
+| `audio-tools settings providers` | Provider routing + TTS-tier availability matrix (folded from former `diagnose providers` on 2026-05-17) | composite: `SettingsService.GetProviderConfig` + `TTSService.GetStatus` |
+| `audio-tools settings byok-list` | List stored BYOK credentials (redacted) | `SettingsService.ListBYOKCredentials` |
+| `audio-tools settings byok-upsert --provider ID --capability stt\|tts\|summarize --key SECRET` | Add or replace a BYOK credential | `SettingsService.UpsertBYOKCredential` |
+| `audio-tools settings byok-delete --provider ID --capability stt\|tts\|summarize` | Delete a BYOK credential | `SettingsService.DeleteBYOKCredential` |
 
 Output defaults to human-readable rendering; pass `--json` for machine output (Connect-RPC wire shape).
 

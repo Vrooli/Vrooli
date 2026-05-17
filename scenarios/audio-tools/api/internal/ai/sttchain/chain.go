@@ -5,6 +5,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"audio-tools/internal/clock"
 )
 
 // Chain composes Local + BYOK + Vrooli providers under the fixed precedence
@@ -21,6 +23,8 @@ type Chain struct {
 	// per-tier availability cache
 	availTTLByOK   time.Duration
 	availTTLVrooli time.Duration
+
+	clk clock.Clock
 
 	mu       sync.Mutex
 	byokOK   cachedAvail
@@ -45,6 +49,11 @@ type Options struct {
 
 	AvailTTLByOK   time.Duration
 	AvailTTLVrooli time.Duration
+
+	// Clock is the wall-clock seam used for availability-cache TTL
+	// comparisons. Defaults to clock.System{}; tests pass a FakeClock to
+	// pin TTL expiry without sleeping.
+	Clock clock.Clock
 }
 
 func NewChain(opts Options) *Chain {
@@ -53,6 +62,10 @@ func NewChain(opts Options) *Chain {
 	}
 	if opts.AvailTTLVrooli == 0 {
 		opts.AvailTTLVrooli = 30 * time.Second
+	}
+	clk := opts.Clock
+	if clk == nil {
+		clk = clock.System{}
 	}
 	return &Chain{
 		local:          opts.Local,
@@ -63,6 +76,7 @@ func NewChain(opts Options) *Chain {
 		enableVrooli:   opts.EnableVrooli,
 		availTTLByOK:   opts.AvailTTLByOK,
 		availTTLVrooli: opts.AvailTTLVrooli,
+		clk:            clk,
 	}
 }
 
@@ -293,7 +307,11 @@ func (c *Chain) bufferedFallback(ctx context.Context, start StreamStart, chunks 
 func (c *Chain) availFor(ctx context.Context, tier ProviderTier) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	now := time.Now()
+	clk := c.clk
+	if clk == nil {
+		clk = clock.System{}
+	}
+	now := clk.Now()
 	switch tier {
 	case TierBYOK:
 		if now.Sub(c.byokOK.checkedAt) < c.availTTLByOK && !c.byokOK.checkedAt.IsZero() {

@@ -20,7 +20,7 @@ func NewWakeWordStore(db *sql.DB) *WakeWordStore { return &WakeWordStore{db: db}
 
 func (s *WakeWordStore) Upsert(ctx context.Context, t WakeWordTemplate) error {
 	if t.CreatedAt.IsZero() {
-		t.CreatedAt = time.Now().UTC()
+		t.CreatedAt = now()
 	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO wakeword_templates(id, phrase, embedding, created_at)

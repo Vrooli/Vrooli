@@ -118,7 +118,7 @@ func (s *ProviderConfigStore) Update(ctx context.Context, p ProviderConfigPatch)
 	if p.AvailTTLVrooliSecs != nil {
 		cur.AvailTTLVrooliSecs = *p.AvailTTLVrooliSecs
 	}
-	cur.UpdatedAt = time.Now().UTC()
+	cur.UpdatedAt = now()
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO provider_config(
 			id, byok_enabled, vrooli_enabled, local_enabled,
@@ -150,7 +150,7 @@ func (s *ProviderConfigStore) Update(ctx context.Context, p ProviderConfigPatch)
 
 func (s *ProviderConfigStore) seed(ctx context.Context) error {
 	d := s.defaults
-	d.UpdatedAt = time.Now().UTC()
+	d.UpdatedAt = now()
 	s.defaults = d
 	_, err := s.db.ExecContext(ctx, `
 		INSERT OR IGNORE INTO provider_config(

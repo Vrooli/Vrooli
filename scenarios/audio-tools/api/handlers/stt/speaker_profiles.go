@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -74,7 +73,7 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 			ProfileId:    id,
 			DisplayName:  m.GetDisplayName(),
 			EmbeddingDim: int32(minInt(len(m.GetAudio()), 128)),
-			CreatedAt:    protomap.TimeToProto(time.Now().UTC()),
+			CreatedAt:    protomap.TimeToProto(h.deps.Clock.Now().UTC()),
 		},
 		Config: cfg.toProto(),
 	}), nil

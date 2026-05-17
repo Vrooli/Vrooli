@@ -8,23 +8,26 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/gorilla/websocket"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/httpc"
 )
 
 // DeepgramSTT calls Deepgram's /v1/listen endpoint.
 type DeepgramSTT struct {
-	Endpoint   string
-	HTTPClient *http.Client
+	Endpoint string
+	Doer     httpc.Doer
+	Clock    clock.Clock
 }
 
 func NewDeepgramSTT() *DeepgramSTT {
 	return &DeepgramSTT{
-		Endpoint:   "https://api.deepgram.com/v1/listen",
-		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+		Endpoint: "https://api.deepgram.com/v1/listen",
+		Doer:     httpc.DefaultDoer(),
+		Clock:    clock.System{},
 	}
 }
 
@@ -166,8 +169,12 @@ func (a *DeepgramSTT) Transcribe(ctx context.Context, key string, req sttchain.R
 	httpReq.Header.Set("Authorization", "Token "+key)
 	httpReq.Header.Set("Content-Type", contentTypeFor(req.Format))
 
-	start := time.Now()
-	resp, err := a.HTTPClient.Do(httpReq)
+	clk := a.Clock
+	if clk == nil {
+		clk = clock.System{}
+	}
+	start := clk.Now()
+	resp, err := a.Doer.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("deepgram: %w", err)
 	}
@@ -203,7 +210,7 @@ func (a *DeepgramSTT) Transcribe(ctx context.Context, key string, req sttchain.R
 		DetectedLanguage: req.Language,
 		DurationSeconds:  out.Metadata.Duration,
 		ModelID:          "nova-2",
-		Latency:          time.Since(start),
+		Latency:          clk.Now().Sub(start),
 	}, nil
 }
 

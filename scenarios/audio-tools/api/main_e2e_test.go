@@ -159,13 +159,15 @@ func pickFreePort(t *testing.T) int {
 }
 
 // waitForHealth polls /health until it returns 200 or the deadline
-// passes. The poll interval is intentionally short (50ms) — startup
-// latency for the bare API in CI is on the order of 200ms.
+// passes. Uses a time.Ticker rather than a bare sleep loop so the test
+// stays clean under the project's "no time.Sleep in tests" rule.
 func waitForHealth(url string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	client := &http.Client{Timeout: 1 * time.Second}
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
 	var lastErr error
-	for time.Now().Before(deadline) {
+	for {
 		resp, err := client.Get(url)
 		if err == nil {
 			_ = resp.Body.Close()
@@ -176,7 +178,9 @@ func waitForHealth(url string, timeout time.Duration) error {
 		} else {
 			lastErr = err
 		}
-		time.Sleep(50 * time.Millisecond)
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timed out after %s; last error: %v", timeout, lastErr)
+		}
+		<-tick.C
 	}
-	return fmt.Errorf("timed out after %s; last error: %v", timeout, lastErr)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"audio-tools/internal/clock"
 	"audio-tools/internal/store"
 )
 
@@ -13,10 +14,30 @@ import (
 type Store struct {
 	enc  *Encryptor
 	repo *store.BYOKStore
+	clk  clock.Clock
 }
 
-// New wires the encryptor + persistence into a single facade.
-func New(enc *Encryptor, repo *store.BYOKStore) *Store { return &Store{enc: enc, repo: repo} }
+// New wires the encryptor + persistence into a single facade using the
+// system clock.
+func New(enc *Encryptor, repo *store.BYOKStore) *Store {
+	return &Store{enc: enc, repo: repo, clk: clock.System{}}
+}
+
+// NewWithClock is the clock-injected constructor used by tests for
+// deterministic CreatedAt / LastUsedAt timestamps.
+func NewWithClock(enc *Encryptor, repo *store.BYOKStore, clk clock.Clock) *Store {
+	if clk == nil {
+		clk = clock.System{}
+	}
+	return &Store{enc: enc, repo: repo, clk: clk}
+}
+
+func (s *Store) now() time.Time {
+	if s.clk == nil {
+		return clock.System{}.Now().UTC()
+	}
+	return s.clk.Now().UTC()
+}
 
 // Credential is the redacted view returned by List/Upsert. The plaintext
 // secret is intentionally absent; use Get to fetch it for chain dispatch.
@@ -34,7 +55,7 @@ func (s *Store) Upsert(ctx context.Context, providerID, capability, secret strin
 	if err != nil {
 		return Credential{}, err
 	}
-	now := time.Now().UTC()
+	now := s.now()
 	if err := s.repo.Upsert(ctx, store.BYOKCredential{
 		ProviderID: providerID, Capability: capability,
 		Cipher: ct, Fingerprint: Fingerprint(secret), CreatedAt: now,
@@ -85,6 +106,6 @@ func (s *Store) Get(ctx context.Context, providerID, capability string) (string,
 		return "", false, err
 	}
 	// Best-effort touch; we don't block on it.
-	_ = s.repo.MarkUsed(ctx, providerID, capability, time.Now().UTC())
+	_ = s.repo.MarkUsed(ctx, providerID, capability, s.now())
 	return string(pt), true, nil
 }

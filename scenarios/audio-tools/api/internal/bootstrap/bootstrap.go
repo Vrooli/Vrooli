@@ -10,6 +10,7 @@ import (
 	"time"
 
 	audioH "audio-tools/handlers/audio"
+	diagH "audio-tools/handlers/diagnostics"
 	healthH "audio-tools/handlers/health"
 	sessionH "audio-tools/handlers/session"
 	settingsH "audio-tools/handlers/settings"
@@ -18,9 +19,11 @@ import (
 	ttsH "audio-tools/handlers/tts"
 	usageH "audio-tools/handlers/usage"
 
+	intaudio "audio-tools/internal/audio"
 	"audio-tools/internal/byok"
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/clock"
+	diagcore "audio-tools/internal/diagnostics"
 	"audio-tools/internal/server"
 	intsession "audio-tools/internal/session"
 	sttpkg "audio-tools/internal/stt"
@@ -122,11 +125,18 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	sessionRegistry := intsession.NewRegistry()
 	usageRecorder := usagereport.New(stores.Usage, logger)
 
+	diagOrch := diagcore.New(diagcore.Deps{
+		STT:       chs.STT,
+		TTS:       chs.TTS,
+		Summarize: chs.Summarize,
+		Transcode: ffmpegTranscoder{},
+	})
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "audio-tools-api", "1.0.0"),
 		audioH.Module(logger),
-		sessionH.Module(sessionRegistry, logger),
+		sessionH.Module(sessionRegistry, logger, clock.System{}),
 		settingsH.Module(settingsH.Deps{
 			Logger:         logger,
 			ProviderConfig: stores.ProviderConfig,
@@ -139,6 +149,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			Selector:     sttpkg.NewSelector(chs.STT),
 			Voice:        voiceSvc,
 			Logger:       logger,
+			Clock:        clock.System{},
 			StreamConfig: stores.STTStream,
 			Wakeword:     stores.Wakeword,
 			Speaker:      stores.Speaker,
@@ -148,6 +159,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			func() intsumm.SummarizeConfig { return summCfg },
 			func(c intsumm.SummarizeConfig) { summCfg = c },
 			logger,
+			clock.System{},
 			usageRecorder,
 		),
 		ttsH.Module(ttsH.Deps{
@@ -155,14 +167,25 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			SummarizeChain: chs.Summarize,
 			TTSService:     ttsSvc,
 			Logger:         logger,
+			Clock:          clock.System{},
 			Cache:          ttsCache,
 			ConfigStore:    stores.TTSConfig,
 			Playback:       stores.Playback,
 		}),
-		usageH.Module(usageH.Deps{Logger: logger, Store: stores.Usage}),
+		usageH.Module(usageH.Deps{Logger: logger, Clock: clock.System{}, Store: stores.Usage}),
+		diagH.Module(diagOrch, logger),
 	)
 
 	_ = dsn // retained for diagnostics if Deps is exposed; not used here.
 	cleanup := func() error { return db.Close() }
 	return srv, cleanup, nil
+}
+
+// ffmpegTranscoder adapts internal/audio.TranscodeOpts to the
+// diagcore.Transcoder seam without dragging diagnostics into the audio
+// package's import graph.
+type ffmpegTranscoder struct{}
+
+func (ffmpegTranscoder) Transcode(ctx context.Context, audio []byte, outputFormat string) ([]byte, error) {
+	return intaudio.TranscodeOpts(ctx, audio, outputFormat, 0, 0, 0)
 }

@@ -3,7 +3,6 @@ package stt
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -61,7 +60,7 @@ func StreamWSHandler(d Deps) http.Handler {
 		}
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Printf("voice-ws: upgrade failed: %v", err)
+			d.Logx.Printf("voice-ws: upgrade failed: %v", err)
 			return
 		}
 		defer conn.Close()

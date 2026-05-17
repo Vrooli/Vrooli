@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"audio-tools/internal/clock"
 	"audio-tools/internal/protomap"
 
 	usagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage"
@@ -18,6 +19,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
+	if d.Clock == nil {
+		d.Clock = clock.System{}
+	}
 	return &connectHandler{deps: d}
 }
 
@@ -26,7 +30,7 @@ func (h *connectHandler) ListRecent(ctx context.Context, req *connect.Request[us
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("usage store not configured"))
 	}
 	m := req.Msg
-	since := resolveSince(m.GetSinceSeconds())
+	since := resolveSince(h.deps.Clock, m.GetSinceSeconds())
 	rows, err := h.deps.Store.ListRecent(ctx, since, int(m.GetLimit()), m.GetCapability(), protomap.ProviderTierFromProto(m.GetProviderTier()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -42,7 +46,7 @@ func (h *connectHandler) GetSummary(ctx context.Context, req *connect.Request[us
 	if h.deps.Store == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("usage store not configured"))
 	}
-	since := resolveSince(req.Msg.GetSinceSeconds())
+	since := resolveSince(h.deps.Clock, req.Msg.GetSinceSeconds())
 	sum, err := h.deps.Store.Summary(ctx, since, req.Msg.GetCapability())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)

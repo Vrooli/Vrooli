@@ -49,6 +49,10 @@ func TestDoer_ProductionPath(t *testing.T) {
 	require.Equal(t, "hello from production", got)
 }
 
+func TestDefaultDoer_NonNil(t *testing.T) {
+	require.NotNil(t, httpc.DefaultDoer())
+}
+
 // TestDoer_TestPath substitutes the fake. Same caller, different seam
 // implementation — the substitution is the load-bearing contract; the
 // test asserts both that the body round-trips and that the fake

@@ -110,6 +110,10 @@ func (t ProviderTraits) Supports(k StrategyKind) bool {
 // Each concrete provider is short-lived (constructed per-request from a
 // factory) so it can capture per-request creds without leaking them across
 // callers. Availability is cached at the chain level with a per-tier TTL.
+//
+// seam: Provider is the STT chain-provider seam (SEAMS.md row
+// "sttchain.Provider"). Production wires Local/BYOK/Vrooli tiers; tests
+// wire fakes from internal/ai/sttchain/mocks.
 type Provider interface {
 	Type() ProviderTier
 	IsAvailable(ctx context.Context) bool

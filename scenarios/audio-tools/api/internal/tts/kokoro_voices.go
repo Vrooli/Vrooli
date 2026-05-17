@@ -5,8 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
+// seam: VoiceLister is the voice-catalog seam (SEAMS.md row
+// "tts.VoiceLister"). Production wires the Kokoro HTTP voice lister;
+// tests wire fakes.
+//
 // VoiceLister is the testability seam for voice listing.
 type VoiceLister interface {
 	ListVoices(ctx context.Context) ([]Voice, error)
@@ -26,7 +31,7 @@ func (k *KokoroVoiceLister) ListVoices(ctx context.Context) ([]Voice, error) {
 
 	client := k.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: 30 * time.Second}
 	}
 	resp, err := client.Do(req)
 	if err != nil {

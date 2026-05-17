@@ -5,8 +5,8 @@ import (
 
 	intsumm "audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
+	"audio-tools/internal/clock"
 	"audio-tools/internal/modulekit"
-	"audio-tools/internal/store"
 	inttts "audio-tools/internal/tts"
 
 	"github.com/gorilla/mux"
@@ -21,13 +21,17 @@ type Deps struct {
 	SummarizeChain *intsumm.Chain
 	TTSService     *inttts.Service
 	Logger         *log.Logger
+	Clock          clock.Clock
 	Cache          *inttts.Cache
-	ConfigStore    *store.TTSConfigStore
-	Playback       *store.PlaybackStore
+	ConfigStore    TTSConfigRepository
+	Playback       PlaybackRepository
 }
 
 // Module returns the TTS domain's contribution to the API.
 func Module(d Deps) modulekit.Module {
+	if d.Clock == nil {
+		d.Clock = clock.System{}
+	}
 	connectPath, h := ttsconnect.NewTTSServiceHandler(NewConnectHandler(d))
 	return modulekit.Module{
 		Name: "tts",

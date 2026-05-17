@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	audioH "audio-tools/handlers/audio"
+	diagH "audio-tools/handlers/diagnostics"
 	healthH "audio-tools/handlers/health"
 	sessionH "audio-tools/handlers/session"
 	settingsH "audio-tools/handlers/settings"
@@ -28,6 +29,7 @@ import (
 	localdb "audio-tools/internal/database"
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
+	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	sessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session"
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -42,6 +44,7 @@ func AllEndpoints() []modulekit.EndpointDescriptor {
 	out := make([]modulekit.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, audioH.Endpoints...)
+	out = append(out, diagH.Endpoints...)
 	out = append(out, sessionH.Endpoints...)
 	out = append(out, settingsH.Endpoints...)
 	out = append(out, sttH.Endpoints...)
@@ -63,6 +66,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "audio", File: audiov1.File_audio_tools_v1_audio_audio_proto},
+		{Module: "diagnostics", File: diagv1.File_audio_tools_v1_diagnostics_diagnostics_proto},
 		{Module: "session", File: sessv1.File_audio_tools_v1_session_session_proto},
 		{Module: "settings", File: settv1.File_audio_tools_v1_settings_settings_proto},
 		{Module: "stt", File: sttv1.File_audio_tools_v1_stt_stt_proto},
@@ -79,6 +83,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(audioH.Schema),
+		apidb.SchemaProviderFunc(diagH.Schema),
 		apidb.SchemaProviderFunc(sessionH.Schema),
 		apidb.SchemaProviderFunc(settingsH.Schema),
 		apidb.SchemaProviderFunc(sttH.Schema),

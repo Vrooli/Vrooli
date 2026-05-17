@@ -15,28 +15,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	intaudio "audio-tools/internal/audio"
+	audiomocks "audio-tools/internal/audio/mocks"
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
 	audioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio/audio_v1connect"
 )
-
-// fakeRunner is a test-double Runner — duplicated from the
-// internal/audio package's private fakeRunner. Lives here because the
-// handlers/audio test binary cannot import the internal test scope.
-type fakeRunner struct {
-	stdout  []byte
-	err     error
-	respond func(name string, args []string) ([]byte, error)
-	calls   int
-}
-
-func (f *fakeRunner) Run(_ context.Context, name string, _ []byte, args ...string) ([]byte, error) {
-	f.calls++
-	if f.respond != nil {
-		return f.respond(name, args)
-	}
-	return f.stdout, f.err
-}
 
 // withRunner swaps the package-level Runner and seeds the ffmpeg/ffprobe
 // presence cache so runFfmpeg / runFfprobe paths execute the fake.
@@ -62,7 +45,7 @@ func newAudioClient(t *testing.T) audioconnect.AudioProcessingServiceClient {
 }
 
 func TestTranscode_HappyPath(t *testing.T) {
-	withRunner(t, &fakeRunner{stdout: []byte("ENCODED")})
+	withRunner(t, audiomocks.NewFakeRunner([]byte("ENCODED"), nil))
 	c := newAudioClient(t)
 	res, err := c.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{
 		Audio: []byte("RAW"), OutputFormat: "mp3", SampleRate: 16000, Channels: 1, Bitrate: 128000,
@@ -73,7 +56,7 @@ func TestTranscode_HappyPath(t *testing.T) {
 }
 
 func TestTranscode_DefaultContentType(t *testing.T) {
-	withRunner(t, &fakeRunner{stdout: []byte("OUT")})
+	withRunner(t, audiomocks.NewFakeRunner([]byte("OUT"), nil))
 	c := newAudioClient(t)
 	res, err := c.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{Audio: []byte("X")}))
 	require.NoError(t, err)
@@ -81,7 +64,7 @@ func TestTranscode_DefaultContentType(t *testing.T) {
 }
 
 func TestTranscode_RunnerErrorMapsToInternal(t *testing.T) {
-	withRunner(t, &fakeRunner{err: errors.New("boom")})
+	withRunner(t, audiomocks.NewFakeRunner(nil, errors.New("boom")))
 	c := newAudioClient(t)
 	_, err := c.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{Audio: []byte("X")}))
 	require.Error(t, err)
@@ -89,7 +72,7 @@ func TestTranscode_RunnerErrorMapsToInternal(t *testing.T) {
 }
 
 func TestTrim_HappyPath(t *testing.T) {
-	withRunner(t, &fakeRunner{stdout: []byte("TRIM")})
+	withRunner(t, audiomocks.NewFakeRunner([]byte("TRIM"), nil))
 	c := newAudioClient(t)
 	res, err := c.Trim(context.Background(), connect.NewRequest(&audiov1.TrimRequest{
 		Audio: []byte("X"), Format: "wav", StartSeconds: 1, EndSeconds: 5,
@@ -99,7 +82,7 @@ func TestTrim_HappyPath(t *testing.T) {
 }
 
 func TestFade_HappyPath(t *testing.T) {
-	withRunner(t, &fakeRunner{stdout: []byte("FADE")})
+	withRunner(t, audiomocks.NewFakeRunner([]byte("FADE"), nil))
 	c := newAudioClient(t)
 	res, err := c.Fade(context.Background(), connect.NewRequest(&audiov1.FadeRequest{
 		Audio: []byte("X"), Format: "wav", FadeInSeconds: 0.5, FadeOutSeconds: 0.5, OutputFormat: "mp3",
@@ -110,7 +93,7 @@ func TestFade_HappyPath(t *testing.T) {
 }
 
 func TestVolume_HappyPath(t *testing.T) {
-	withRunner(t, &fakeRunner{stdout: []byte("VOL")})
+	withRunner(t, audiomocks.NewFakeRunner([]byte("VOL"), nil))
 	c := newAudioClient(t)
 	res, err := c.Volume(context.Background(), connect.NewRequest(&audiov1.VolumeRequest{
 		Audio: []byte("X"), Format: "wav", GainDb: -3, OutputFormat: "flac",
@@ -121,7 +104,7 @@ func TestVolume_HappyPath(t *testing.T) {
 }
 
 func TestNormalize_HappyPath(t *testing.T) {
-	withRunner(t, &fakeRunner{stdout: []byte("NORM")})
+	withRunner(t, audiomocks.NewFakeRunner([]byte("NORM"), nil))
 	c := newAudioClient(t)
 	res, err := c.Normalize(context.Background(), connect.NewRequest(&audiov1.NormalizeRequest{
 		Audio: []byte("X"), Format: "wav", Method: "peak", TargetLufs: -14, OutputFormat: "wav",
@@ -139,7 +122,7 @@ func TestMerge_RequiresAtLeastOneSource(t *testing.T) {
 }
 
 func TestMerge_HappyPath(t *testing.T) {
-	withRunner(t, &fakeRunner{stdout: []byte("MIX")})
+	withRunner(t, audiomocks.NewFakeRunner([]byte("MIX"), nil))
 	c := newAudioClient(t)
 	res, err := c.Merge(context.Background(), connect.NewRequest(&audiov1.MergeRequest{
 		Sources: []*audiov1.MergeSource{
@@ -154,7 +137,7 @@ func TestMerge_HappyPath(t *testing.T) {
 }
 
 func TestSplit_HappyPath(t *testing.T) {
-	withRunner(t, &fakeRunner{stdout: []byte("CHUNK")})
+	withRunner(t, audiomocks.NewFakeRunner([]byte("CHUNK"), nil))
 	c := newAudioClient(t)
 	res, err := c.Split(context.Background(), connect.NewRequest(&audiov1.SplitRequest{
 		Audio: []byte("LONG"), Format: "wav", ChunkSeconds: 1.0, OutputFormat: "wav",
@@ -170,7 +153,7 @@ func TestSplit_HappyPath(t *testing.T) {
 
 func TestExtractMetadata_HappyPath(t *testing.T) {
 	probeJSON := `{"streams":[{"codec_name":"mp3","sample_rate":"48000","channels":2,"bit_rate":"192000"}],"format":{"format_name":"mp3","duration":"3.5","bit_rate":"192000","tags":{"title":"hello"}}}`
-	withRunner(t, &fakeRunner{stdout: []byte(probeJSON)})
+	withRunner(t, audiomocks.NewFakeRunner([]byte(probeJSON), nil))
 	c := newAudioClient(t)
 	res, err := c.ExtractMetadata(context.Background(), connect.NewRequest(&audiov1.ExtractMetadataRequest{Audio: []byte("X")}))
 	require.NoError(t, err)
@@ -180,7 +163,7 @@ func TestExtractMetadata_HappyPath(t *testing.T) {
 }
 
 func TestExtractMetadata_FfprobeErrorMapsInternal(t *testing.T) {
-	withRunner(t, &fakeRunner{err: errors.New("boom")})
+	withRunner(t, audiomocks.NewFakeRunner(nil, errors.New("boom")))
 	c := newAudioClient(t)
 	_, err := c.ExtractMetadata(context.Background(), connect.NewRequest(&audiov1.ExtractMetadataRequest{Audio: []byte("X")}))
 	require.Error(t, err)
@@ -215,7 +198,7 @@ func TestSchemaIsEmpty(t *testing.T) {
 }
 
 func TestMultipartTranscodeHandler_HappyPath(t *testing.T) {
-	withRunner(t, &fakeRunner{stdout: []byte("M")})
+	withRunner(t, audiomocks.NewFakeRunner([]byte("M"), nil))
 
 	body, contentType := buildMultipart(t, "audio", "in.wav", []byte("X"), map[string]string{
 		"output_format": "mp3",

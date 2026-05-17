@@ -15,6 +15,10 @@ var (
 	ErrInternal           = errors.New("internal error")
 )
 
+// seam: HandlerService is the TTS application-layer seam (SEAMS.md row
+// "tts.HandlerService"). Production wires the concrete tts.Service;
+// tests wire fakes to drive the Connect handler.
+//
 // HandlerService is the domain contract consumed by the Connect handler.
 type HandlerService interface {
 	GetConfig(ctx context.Context) (Config, error)

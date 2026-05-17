@@ -3,21 +3,20 @@ package clients
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"time"
 
 	"audio-tools/internal/ai/ttschain"
+	"audio-tools/internal/httpc"
 )
 
 type TTSClient struct {
-	BaseURL    string
-	HTTPClient *http.Client
+	BaseURL string
+	Doer    httpc.Doer
 }
 
 func NewTTSClient(baseURL string) *TTSClient {
 	return &TTSClient{
-		BaseURL:    baseURL,
-		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+		BaseURL: baseURL,
+		Doer:    httpc.DefaultDoer(),
 	}
 }
 

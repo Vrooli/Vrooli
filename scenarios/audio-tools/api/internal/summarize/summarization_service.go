@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"audio-tools/internal/clock"
 	"audio-tools/internal/text/normalizer"
 )
 
@@ -68,6 +69,7 @@ type SummarizationService struct {
 	summarizer *Summarizer
 	getConfig  func() SummarizeConfig
 	sem        chan struct{}
+	clk        clock.Clock
 
 	mu          sync.Mutex
 	inflight    map[string]*summarizeFuture
@@ -75,15 +77,32 @@ type SummarizationService struct {
 }
 
 // NewSummarizationService constructs a service backed by the given summarizer
-// and config accessor.
+// and config accessor, using the system clock for backoff bookkeeping.
 func NewSummarizationService(summarizer *Summarizer, getConfig func() SummarizeConfig) *SummarizationService {
+	return NewSummarizationServiceWith(summarizer, getConfig, clock.System{})
+}
+
+// NewSummarizationServiceWith is the clock-injected constructor. Tests
+// pass mocks.FakeClock to drive the autoBackoff TTL deterministically.
+func NewSummarizationServiceWith(summarizer *Summarizer, getConfig func() SummarizeConfig, clk clock.Clock) *SummarizationService {
+	if clk == nil {
+		clk = clock.System{}
+	}
 	return &SummarizationService{
 		summarizer:  summarizer,
 		getConfig:   getConfig,
 		sem:         make(chan struct{}, defaultSummarizeConcurrency),
+		clk:         clk,
 		inflight:    make(map[string]*summarizeFuture),
 		autoBackoff: make(map[string]time.Time),
 	}
+}
+
+func (s *SummarizationService) now() time.Time {
+	if s.clk == nil {
+		return clock.System{}.Now()
+	}
+	return s.clk.Now()
 }
 
 func (s *SummarizationService) Summarize(ctx context.Context, req SummarizeRequest) (SummarizeResult, error) {
@@ -93,7 +112,7 @@ func (s *SummarizationService) Summarize(ctx context.Context, req SummarizeReque
 
 	cfg := s.getConfig()
 	if req.Path == "auto" {
-		if blocked := s.autoBackoffUntil(req.EventID); !blocked.IsZero() && time.Now().Before(blocked) {
+		if blocked := s.autoBackoffUntil(req.EventID); !blocked.IsZero() && s.now().Before(blocked) {
 			return SummarizeResult{Config: cfg}, ErrSummarizeCoolingDown
 		}
 	}
@@ -112,7 +131,7 @@ func (s *SummarizationService) Summarize(ctx context.Context, req SummarizeReque
 	s.mu.Lock()
 	delete(s.inflight, req.EventID)
 	if err != nil && req.Path == "auto" && isDeadlineExceededError(err) {
-		s.autoBackoff[req.EventID] = time.Now().Add(autoSummarizeFailureCooldown)
+		s.autoBackoff[req.EventID] = s.now().Add(autoSummarizeFailureCooldown)
 	} else if err == nil {
 		delete(s.autoBackoff, req.EventID)
 	}
@@ -128,7 +147,7 @@ func (s *SummarizationService) autoBackoffUntil(eventID string) time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	until := s.autoBackoff[eventID]
-	if !until.IsZero() && time.Now().After(until) {
+	if !until.IsZero() && s.now().After(until) {
 		delete(s.autoBackoff, eventID)
 		return time.Time{}
 	}
@@ -155,9 +174,9 @@ func (s *SummarizationService) run(ctx context.Context, req SummarizeRequest, cf
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	started := time.Now()
+	started := s.now()
 	resp, err := s.summarizer.Summarize(runCtx, normalized, cfg.Model, cfg.Level)
-	elapsedMs := time.Since(started).Milliseconds()
+	elapsedMs := s.now().Sub(started).Milliseconds()
 	if err != nil {
 		return SummarizeResult{
 			Config:     cfg,

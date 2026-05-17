@@ -21,7 +21,7 @@ func NewSpeakerStore(db *sql.DB) *SpeakerStore { return &SpeakerStore{db: db} }
 
 func (s *SpeakerStore) Upsert(ctx context.Context, p SpeakerProfile) error {
 	if p.CreatedAt.IsZero() {
-		p.CreatedAt = time.Now().UTC()
+		p.CreatedAt = now()
 	}
 	var bound any
 	if p.BoundUserIdentity != "" {

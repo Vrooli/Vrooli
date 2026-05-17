@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"audio-tools/internal/capabilities"
+	"audio-tools/internal/logx"
 )
 
 // Service owns the STT pipeline's state and behaviour: stream config,
@@ -39,6 +40,23 @@ type Service struct {
 	whisperURL string
 	httpClient HTTPDoer
 	transcode  func(context.Context, []byte) ([]byte, error)
+	Logger     logx.Logger
+}
+
+// log returns the injected Logger or falls back to logx.Std with the
+// default *log.Logger. Tests inject mocks.FakeLogger via SetLogger.
+func (s *Service) log() logx.Logger {
+	if s.Logger == nil {
+		return logx.Std{}
+	}
+	return s.Logger
+}
+
+// SetLogger overrides the service's logger. Tests use this to swap
+// in mocks.FakeLogger after construction without changing the
+// NewService signature.
+func (s *Service) SetLogger(l logx.Logger) {
+	s.Logger = l
 }
 
 // NewService constructs a Service. transcodeFn may be nil — TranscribeBytes
@@ -58,7 +76,11 @@ func NewService(
 	transcode func(context.Context, []byte) ([]byte, error),
 ) *Service {
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		// Production callers always pass a configured *http.Client; this
+		// fallback is for accidental nil deps in tests. A dedicated
+		// httpc.Doer field would require wider seam changes across the
+		// service construction path.
+		httpClient = &http.Client{Timeout: 60 * time.Second}
 	}
 	return &Service{
 		config:          cfg,
@@ -197,7 +219,7 @@ func (s *Service) SaveStreamConfig(c Config) error {
 	}
 	s.SetConfig(c)
 	if err := SaveConfig(s.configPath, c); err != nil {
-		log.Printf("voice-config: persist failed (in-memory updated): %v", err)
+		s.log().Printf("voice-config: persist failed (in-memory updated): %v", err)
 	}
 	return nil
 }
@@ -216,9 +238,9 @@ func (s *Service) SetWakeWord(templateJSON string) (WakeWordConfig, error) {
 	}
 	s.SetWakeWordTemplate(&tmpl)
 	if err := SaveWakeWordTemplate(s.wakeWordPath, &tmpl); err != nil {
-		log.Printf("wakeword: persist failed (in-memory updated): %v", err)
+		s.log().Printf("wakeword: persist failed (in-memory updated): %v", err)
 	}
-	log.Printf("wakeword: template saved: label=%q samples=%d threshold=%.2f",
+	s.log().Printf("wakeword: template saved: label=%q samples=%d threshold=%.2f",
 		tmpl.Label, len(tmpl.Samples), tmpl.Threshold)
 	return WakeWordToTransport(&tmpl), nil
 }
@@ -234,7 +256,7 @@ func (s *Service) SaveSpeakerConfig(c SpeakerConfig) error {
 	}
 	s.SetSpeakerConfig(c)
 	if err := SaveSpeakerConfig(s.speakerPath, c); err != nil {
-		log.Printf("speaker-verification-config: persist failed (in-memory updated): %v", err)
+		s.log().Printf("speaker-verification-config: persist failed (in-memory updated): %v", err)
 	}
 	return nil
 }

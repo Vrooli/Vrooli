@@ -28,7 +28,7 @@ func NewBYOKStore(db *sql.DB) *BYOKStore { return &BYOKStore{db: db} }
 // Upsert inserts or replaces the credential for (provider, capability).
 func (s *BYOKStore) Upsert(ctx context.Context, c BYOKCredential) error {
 	if c.CreatedAt.IsZero() {
-		c.CreatedAt = time.Now().UTC()
+		c.CreatedAt = now()
 	}
 	if c.SecretKind == "" {
 		c.SecretKind = "api_key"

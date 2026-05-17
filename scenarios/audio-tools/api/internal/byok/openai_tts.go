@@ -7,21 +7,24 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"audio-tools/internal/ai/ttschain"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/httpc"
 )
 
 // OpenAITTS calls OpenAI's audio/speech endpoint. Model: tts-1.
 type OpenAITTS struct {
-	Endpoint   string
-	HTTPClient *http.Client
+	Endpoint string
+	Doer     httpc.Doer
+	Clock    clock.Clock
 }
 
 func NewOpenAITTS() *OpenAITTS {
 	return &OpenAITTS{
-		Endpoint:   "https://api.openai.com/v1/audio/speech",
-		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+		Endpoint: "https://api.openai.com/v1/audio/speech",
+		Doer:     httpc.DefaultDoer(),
+		Clock:    clock.System{},
 	}
 }
 
@@ -82,8 +85,12 @@ func (a *OpenAITTS) Synthesize(ctx context.Context, key string, req ttschain.Req
 	httpReq.Header.Set("Authorization", "Bearer "+key)
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	start := time.Now()
-	resp, err := a.HTTPClient.Do(httpReq)
+	clk := a.Clock
+	if clk == nil {
+		clk = clock.System{}
+	}
+	start := clk.Now()
+	resp, err := a.Doer.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("openai-tts: %w", err)
 	}
@@ -102,7 +109,7 @@ func (a *OpenAITTS) Synthesize(ctx context.Context, key string, req ttschain.Req
 		ContentType: ttsContentType(format),
 		ModelID:     "tts-1",
 		VoiceUsed:   voice,
-		Latency:     time.Since(start),
+		Latency:     clk.Now().Sub(start),
 	}, nil
 }
 

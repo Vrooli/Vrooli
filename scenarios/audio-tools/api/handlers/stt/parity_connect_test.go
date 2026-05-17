@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"audio-tools/internal/ai/sttchain"
+	sttmocks "audio-tools/internal/ai/sttchain/mocks"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/stt/segmenter/testaudio"
 
@@ -16,19 +17,17 @@ import (
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 )
 
-// fakeBatchExecutor mirrors the segmenter package's fakeBatchExecutor.
-// Duplicated here because handlers/stt cannot import the segmenter
-// package's test scope, and the projection helpers are tiny.
-type fakeBatchExecutor struct{ text string }
-
-func (f *fakeBatchExecutor) Execute(_ context.Context, _ sttchain.Request) (*sttchain.Result, error) {
-	return &sttchain.Result{
-		Text:       f.text,
+// newFakeBatchExecutor returns a deterministic BatchExecutor producing
+// a canned Result with the given final text. Provider metadata is fixed
+// so the parity projection stays stable across transports/strategies.
+func newFakeBatchExecutor(text string) *sttmocks.FakeBatchExecutor {
+	return &sttmocks.FakeBatchExecutor{Result: &sttchain.Result{
+		Text:       text,
 		Tier:       sttchain.TierLocal,
 		ProviderID: "fake-local",
 		ModelID:    "fake-model",
 		Latency:    1 * time.Millisecond,
-	}, nil
+	}}
 }
 
 type eventProjection struct {
@@ -64,7 +63,7 @@ func projectFromProto(events []*sttv1.TranscribeStreamEvent) []eventProjection {
 
 func runConnectBidi(t *testing.T, audio []byte) []eventProjection {
 	t.Helper()
-	exec := &fakeBatchExecutor{text: "hello world"}
+	exec := newFakeBatchExecutor("hello world")
 	chain := sttchain.NewChain(sttchain.Options{})
 	selector := sttpkg.NewSelector(exec)
 

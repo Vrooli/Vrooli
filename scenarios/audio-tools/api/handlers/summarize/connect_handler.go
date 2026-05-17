@@ -12,6 +12,7 @@ import (
 
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/clock"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
@@ -27,8 +28,13 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
+	if d.Clock == nil {
+		d.Clock = clock.System{}
+	}
 	return &connectHandler{deps: d}
 }
+
+func (h *connectHandler) now() time.Time { return h.deps.Clock.Now() }
 
 func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[summv1.SummarizeRequest]) (*connect.Response[summv1.SummarizeResponse], error) {
 	if h.deps.Chain == nil {
@@ -49,14 +55,14 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 	if opID == "" {
 		opID = uuid.NewString()
 	}
-	start := time.Now()
+	start := h.now()
 	res, err := h.deps.Chain.Execute(ctx, chainReq)
 	row := store.UsageRow{
 		OperationID:  opID,
-		EmittedAt:    time.Now().UTC(),
+		EmittedAt:    h.now().UTC(),
 		Capability:   "summarize",
 		Operation:    "summarize",
-		LatencyMs:    float64(time.Since(start).Milliseconds()),
+		LatencyMs:    float64(h.now().Sub(start).Milliseconds()),
 		UserIdentity: chainReq.UserIdentity,
 	}
 	if err != nil {

@@ -5,7 +5,15 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
 
-initIframeBridgeChild();
+// INTEROP-CRITICAL: only init the iframe bridge when actually embedded.
+// Calling it in the standalone UI sends bridge messages to window === parent
+// and pollutes the host page's message bus. The appId is required so the
+// parent can dispatch to the correct child.
+if (typeof window !== "undefined" && window.parent !== window) {
+  initIframeBridgeChild({ appId: "audio-tools" });
+}
+// INTEROP-CRITICAL: spatial-nav must init in both embedded and standalone
+// modes so gamepad navigation works in the dev UI too.
 initSpatialNav();
 
 // Audio-tools' own UI calls its own API. Setting the global before any

@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -117,7 +116,7 @@ func ExtractTargetSpeaker(ctx context.Context, cfg SpeakerConfig, client *Speake
 	for _, profileID := range cfg.ProfileIDs {
 		result, err := client.Extract(extractCtx, audio, profileID, true)
 		if err != nil {
-			log.Printf("speaker-extraction: profile %s failed: %v", profileID, err)
+			packageLogger.Printf("speaker-extraction: profile %s failed: %v", profileID, err)
 			continue
 		}
 		if result.Score > bestScore {
@@ -141,7 +140,7 @@ func ExtractTargetSpeaker(ctx context.Context, cfg SpeakerConfig, client *Speake
 	}
 
 	if bestProfileID == "" {
-		log.Printf("speaker-extraction: all profiles failed, falling back to verify-only")
+		packageLogger.Printf("speaker-extraction: all profiles failed, falling back to verify-only")
 		return audio, EvaluateSpeaker(ctx, cfg, client, audio)
 	}
 

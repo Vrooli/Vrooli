@@ -8,22 +8,25 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"time"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/httpc"
 )
 
 // OpenAIWhisperSTT calls OpenAI's audio/transcriptions endpoint.
 // Model: whisper-1. Audio bytes are uploaded as multipart form-data.
 type OpenAIWhisperSTT struct {
-	Endpoint   string
-	HTTPClient *http.Client
+	Endpoint string
+	Doer     httpc.Doer
+	Clock    clock.Clock
 }
 
 func NewOpenAIWhisperSTT() *OpenAIWhisperSTT {
 	return &OpenAIWhisperSTT{
-		Endpoint:   "https://api.openai.com/v1/audio/transcriptions",
-		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+		Endpoint: "https://api.openai.com/v1/audio/transcriptions",
+		Doer:     httpc.DefaultDoer(),
+		Clock:    clock.System{},
 	}
 }
 
@@ -76,8 +79,12 @@ func (a *OpenAIWhisperSTT) Transcribe(ctx context.Context, key string, req sttch
 	httpReq.Header.Set("Authorization", "Bearer "+key)
 	httpReq.Header.Set("Content-Type", mw.FormDataContentType())
 
-	start := time.Now()
-	resp, err := a.HTTPClient.Do(httpReq)
+	clk := a.Clock
+	if clk == nil {
+		clk = clock.System{}
+	}
+	start := clk.Now()
+	resp, err := a.Doer.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("openai-whisper: %w", err)
 	}
@@ -98,7 +105,7 @@ func (a *OpenAIWhisperSTT) Transcribe(ctx context.Context, key string, req sttch
 		Text:             out.Text,
 		DetectedLanguage: req.Language,
 		ModelID:          "whisper-1",
-		Latency:          time.Since(start),
+		Latency:          clk.Now().Sub(start),
 	}, nil
 }
 

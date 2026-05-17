@@ -16,6 +16,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	"audio-tools/internal/ai/sttchain"
+	sttmocks "audio-tools/internal/ai/sttchain/mocks"
 	localdb "audio-tools/internal/database"
 	"audio-tools/internal/store"
 	"audio-tools/internal/testutil/db"
@@ -26,18 +27,6 @@ import (
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 )
 
-// stubVrooliSTT lets the chain take the vrooli branch deterministically.
-type stubVrooliSTT struct {
-	available bool
-	res       *sttchain.Result
-	err       error
-}
-
-func (s *stubVrooliSTT) Transcribe(_ context.Context, _, _ string, _ sttchain.Request) (*sttchain.Result, error) {
-	return s.res, s.err
-}
-func (s *stubVrooliSTT) IsAvailable(context.Context) bool { return s.available }
-func (s *stubVrooliSTT) Model() string                    { return "stub-stt" }
 
 func newSTTClient(t *testing.T, d Deps) sttconnect.STTServiceClient {
 	t.Helper()
@@ -431,7 +420,7 @@ func TestMultipartTranscribe_ChainNotConfigured(t *testing.T) {
 func TestMultipartTranscribe_MissingFile(t *testing.T) {
 	chain := sttchain.NewChain(sttchain.Options{
 		EnableVrooli: true,
-		Vrooli:       sttchain.NewVrooliProvider(&stubVrooliSTT{available: true, res: &sttchain.Result{Text: "hello"}}),
+		Vrooli:       sttchain.NewVrooliProvider(&sttmocks.FakeVrooliClient{Available: true, Result: &sttchain.Result{Text: "hello"}}),
 	})
 	h := MultipartTranscribeHandler(chain)
 	var sb strings.Builder
@@ -458,9 +447,9 @@ func TestMultipartTranscribe_BadMultipart(t *testing.T) {
 func TestMultipartTranscribe_HappyPath(t *testing.T) {
 	chain := sttchain.NewChain(sttchain.Options{
 		EnableVrooli: true,
-		Vrooli: sttchain.NewVrooliProvider(&stubVrooliSTT{
-			available: true,
-			res:       &sttchain.Result{Text: "hello", DetectedLanguage: "en"},
+		Vrooli: sttchain.NewVrooliProvider(&sttmocks.FakeVrooliClient{
+			Available: true,
+			Result:    &sttchain.Result{Text: "hello", DetectedLanguage: "en"},
 		}),
 	})
 	h := MultipartTranscribeHandler(chain)
@@ -478,7 +467,7 @@ func TestMultipartTranscribe_HappyPath(t *testing.T) {
 func TestMultipartTranscribe_ChainErrorMapsHTTP(t *testing.T) {
 	chain := sttchain.NewChain(sttchain.Options{
 		EnableVrooli: true,
-		Vrooli:       sttchain.NewVrooliProvider(&stubVrooliSTT{available: true, err: sttchain.ErrInsufficientCredits}),
+		Vrooli:       sttchain.NewVrooliProvider(&sttmocks.FakeVrooliClient{Available: true, Err: sttchain.ErrInsufficientCredits}),
 	})
 	h := MultipartTranscribeHandler(chain)
 	body, ct := buildSTTMultipart(t, []byte("RAW"), nil)

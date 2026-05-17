@@ -7,21 +7,24 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"audio-tools/internal/ai/ttschain"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/httpc"
 )
 
 // ElevenLabsTTS calls ElevenLabs' text-to-speech endpoint.
 type ElevenLabsTTS struct {
-	BaseURL    string
-	HTTPClient *http.Client
+	BaseURL string
+	Doer    httpc.Doer
+	Clock   clock.Clock
 }
 
 func NewElevenLabsTTS() *ElevenLabsTTS {
 	return &ElevenLabsTTS{
-		BaseURL:    "https://api.elevenlabs.io",
-		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+		BaseURL: "https://api.elevenlabs.io",
+		Doer:    httpc.DefaultDoer(),
+		Clock:   clock.System{},
 	}
 }
 
@@ -78,8 +81,12 @@ func (a *ElevenLabsTTS) Synthesize(ctx context.Context, key string, req ttschain
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "audio/mpeg")
 
-	start := time.Now()
-	resp, err := a.HTTPClient.Do(httpReq)
+	clk := a.Clock
+	if clk == nil {
+		clk = clock.System{}
+	}
+	start := clk.Now()
+	resp, err := a.Doer.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("elevenlabs: %w", err)
 	}
@@ -98,6 +105,6 @@ func (a *ElevenLabsTTS) Synthesize(ctx context.Context, key string, req ttschain
 		ContentType: "audio/mpeg",
 		ModelID:     "eleven_multilingual_v2",
 		VoiceUsed:   voiceID,
-		Latency:     time.Since(start),
+		Latency:     clk.Now().Sub(start),
 	}, nil
 }

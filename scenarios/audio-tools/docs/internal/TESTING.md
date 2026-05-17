@@ -173,11 +173,21 @@ hand-written struct mirror to drift against. `DiscardUnknown:true` is
 wired in `MustUnmarshalProto` so the test keeps passing when the wire
 grows fields the proto hasn't caught up to.
 
-### CRUD reference — `notes` end-to-end
+### CRUD reference — domain layering
 
-The `notes` domain is the canonical CRUD reference. New scenarios add
-their first non-trivial mutation by copying its layering one file at a
-time. The pattern from wire to render:
+> **Drift note (2026-05):** The original CRUD walkthrough below references
+> a `notes` domain that no longer exists in this scenario. It is preserved
+> as a generic layering reference. For the current canonical examples,
+> see `internal/tts/` (typed application service with `tts.HandlerService`
+> seam → repository), `internal/byokstore/` (encrypted credential store
+> with a `Repository`-shaped persistence seam) and the `internal/store/*`
+> sqlite repositories. The seam index in
+> [`SEAMS.md`](SEAMS.md#interface-seam-index-drift-gated) is the
+> authoritative list of live interface seams; the seam-registry test
+> (`api/internal/testutil/seam_registry_test.go`) gates drift between
+> tagged interfaces and the index.
+
+The pattern from wire to render:
 
 | Layer | File | What it owns |
 |---|---|---|

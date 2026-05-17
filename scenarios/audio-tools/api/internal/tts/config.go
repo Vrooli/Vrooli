@@ -3,10 +3,24 @@ package tts
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
+
+	"audio-tools/internal/logx"
 )
+
+// configLogger is the package-level logx.Logger used by the rare cleanup
+// fallback paths in SaveConfig / SaveSummarizeConfig. Production leaves
+// it at logx.Std{}; tests use SetConfigLogger to capture the line.
+var configLogger logx.Logger = logx.Std{}
+
+// SetConfigLogger overrides the package config logger and returns the
+// previous value so tests can restore via t.Cleanup.
+func SetConfigLogger(l logx.Logger) logx.Logger {
+	prev := configLogger
+	configLogger = l
+	return prev
+}
 
 // DefaultConfig returns the default TTS configuration with auto-TTS disabled.
 func DefaultConfig() Config {
@@ -102,7 +116,7 @@ func SaveConfig(path string, cfg Config) error {
 	}
 	if err := os.Rename(tmp, path); err != nil {
 		if rmErr := os.Remove(tmp); rmErr != nil {
-			log.Printf("tts-config: failed to clean up temp file %s: %v", tmp, rmErr)
+			configLogger.Printf("tts-config: failed to clean up temp file %s: %v", tmp, rmErr)
 		}
 		return fmt.Errorf("rename config file: %w", err)
 	}

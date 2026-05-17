@@ -200,6 +200,47 @@ Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later
 grounded by Knowledge Observatory validation.
 
+## Testing Infrastructure
+
+The api surface tracks the unit-testing-architecture ladder defined in
+the react-vite template:
+
+| Level | Description | Status in audio-tools |
+|---|---|---|
+| L1 | Co-located tests (no `tests/` sibling tree) | ✅ |
+| L2 | Centralized testutil tree (`assertx`, `db`, `fixtures`, `httpx`, `mocks`, `modeltest`, `repokit`) | ✅ |
+| L3 | Domain code consumes seams (no ambient `time.Now()` / `os.Getenv` / `http.DefaultClient` / `log.Printf` outside `bootstrap/`) | ✅ — every domain migrated to `clock.Clock` / `envx.Reader` / `logx.Logger` / `httpc.Doer` seams (or a package-level seam variable where constructor-threading would have ballooned the diff). L3 acceptance grep returns zero. |
+| L4 | Real-substrate repository tests against sqlite, no `map[string]Repository` stubs in tests | ✅ |
+| L5 | Drift-gated seam registry (`// seam:` tags reconciled with `docs/internal/SEAMS.md`) | ✅ |
+
+The L5 evidence commands are:
+
+```
+cd scenarios/audio-tools/api
+
+# L3 — domain code consumes seams (zero ambient leaks)
+rg 'time\.Now\(\)|os\.Getenv|http\.DefaultClient|log\.Printf|slog\.Default' \
+   internal/ -g '!*_test.go' -g '!testutil/**' -g '!clock/**' \
+   -g '!httpc/**' -g '!envx/**' -g '!logx/**' -g '!bootstrap/**' \
+   | grep -v '^[^:]*://'
+
+# L4 — coverage floors per package
+bash scripts/check_coverage.sh
+
+# L5 — seam registry / docs cross-reference
+go test ./internal/testutil/ -run TestSeamRegistry -count=1
+
+# Hygiene — no inline test fakes, no time.Sleep in tests
+grep -rn '^type \(fake\|mock\|stub\)\w\+ struct' --include='*_test.go' .
+grep -rn 'time\.Sleep(' --include='*_test.go' . | grep -v testutil/mocks/clock_test.go
+```
+
+That test fails when an interface gains a `// seam:` tag without a
+matching entry in `docs/internal/SEAMS.md`, or when a tagged interface
+is renamed without updating the doc. The list of qualified seam names
+it searches for lives in the `Interface seam index` section of
+`SEAMS.md`.
+
 ## Streaming Pipelines (STT)
 
 The unary `Transcribe` path follows the standard scenario shape above:

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -113,7 +112,7 @@ func (h *connectHandler) GetStatus(ctx context.Context, _ *connect.Request[ttsv1
 	avail := []*ttsv1.ProviderAvailability{}
 	if h.deps.Chain != nil {
 		p := h.deps.Chain.Probe(ctx)
-		ts := protomap.TimeToProto(time.Now().UTC())
+		ts := protomap.TimeToProto(h.deps.Clock.Now().UTC())
 		avail = []*ttsv1.ProviderAvailability{
 			{Tier: protomap.ProviderTierToProto("local"), Available: p.Local, CheckedAt: ts, ProviderId: "kokoro"},
 			{Tier: protomap.ProviderTierToProto("byok"), Available: p.BYOK, CheckedAt: ts},

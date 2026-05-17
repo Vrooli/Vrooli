@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+// seam: BYOKAdapter is the TTS BYOK-adapter seam (SEAMS.md row
+// "ttschain.BYOKAdapter"). Production wires concrete vendor adapters
+// (openai-tts, elevenlabs, ...); tests wire fakes.
 type BYOKAdapter interface {
 	ID() string
 	Synthesize(ctx context.Context, key string, req Request) (*Result, error)

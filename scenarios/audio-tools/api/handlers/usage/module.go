@@ -4,8 +4,8 @@ package usage
 import (
 	"log"
 
+	"audio-tools/internal/clock"
 	"audio-tools/internal/modulekit"
-	"audio-tools/internal/store"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -15,12 +15,16 @@ import (
 
 type Deps struct {
 	Logger *log.Logger
-	Store  *store.UsageStore
+	Clock  clock.Clock
+	Store  Repository
 }
 
 func Module(d Deps) modulekit.Module {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Clock == nil {
+		d.Clock = clock.System{}
 	}
 	connectPath, h := usageconnect.NewUsageServiceHandler(NewConnectHandler(d))
 	return modulekit.Module{

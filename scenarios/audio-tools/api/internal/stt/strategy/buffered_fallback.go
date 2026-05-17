@@ -18,6 +18,10 @@ import (
 // strategy package free of a back-edge import on the concrete *Chain
 // (which would otherwise cycle: strategy depends on chain depends on
 // strategy).
+//
+// seam: BatchExecutor is a strategy→chain seam used to break the import
+// cycle (SEAMS.md row "stt.StreamingStrategy" — narrowed strategy
+// dependency). Production wires *sttchain.Chain; tests wire a fake.
 type BatchExecutor interface {
 	Execute(ctx context.Context, req sttchain.Request) (*sttchain.Result, error)
 }

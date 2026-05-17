@@ -5,6 +5,10 @@ import (
 	"fmt"
 )
 
+// seam: VrooliClient is the STT Vrooli-LPBS client seam (SEAMS.md row
+// "sttchain.VrooliClient"). Production wires integrations/lpbs/clients;
+// tests wire fakes.
+//
 // VrooliClient is implemented by the LPBS audio-gateway client. Kept as an
 // interface so the chain doesn't import the lpbs package directly (and so
 // tests can fake it).

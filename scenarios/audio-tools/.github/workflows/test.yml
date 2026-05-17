@@ -165,6 +165,34 @@ jobs:
             || { echo "::error::Go coverage $pct% < $threshold%"; exit 1; }
           echo "Go coverage $pct% >= $threshold%"
 
+      - name: Per-package floors (chain packages >= 85%)
+        # Chain packages (sttchain/ttschain/summarizechain) carry the
+        # provider precedence + fallback semantics for the whole product;
+        # the test-architecture-lift plan pins each at 85% to stop
+        # routing regressions silently degrading coverage. byok keeps a
+        # softer 75% floor because the vendor-WS streaming paths require
+        # external upstream fixtures (see docs/internal/PROBLEMS.md Test
+        # Gaps).
+        run: |
+          fail=0
+          for pkg in \
+            audio-tools/internal/ai/sttchain \
+            audio-tools/internal/ai/ttschain \
+            audio-tools/internal/ai/summarizechain; do
+            pct=$(go tool cover -func=coverage.out \
+              | awk -v p="$pkg/" '$1 ~ "^"p {sum+=$NF; n++} END { if (n>0) printf "%.1f", sum/n; else print "0.0" }' \
+              | sed 's/%//')
+            # Re-run per-pkg to get authoritative total (handles statement weighting).
+            cov=$(go test -count=1 -coverpkg="./${pkg#audio-tools/}/..." \
+                  -coverprofile=/tmp/pkg.out "./${pkg#audio-tools/}/..." \
+                  | awk '/coverage:/ { for (i=1;i<=NF;i++) if ($i=="coverage:") print $(i+1) }' \
+                  | head -1 | sed 's/%//')
+            awk -v p="$cov" 'BEGIN { exit (p+0 >= 85.0) ? 0 : 1 }' \
+              || { echo "::error::$pkg coverage $cov% < 85%"; fail=1; }
+            echo "$pkg coverage $cov% (floor 85%)"
+          done
+          exit $fail
+
       - name: Endpoints manifest is up to date
         # The endpoints.json is generated from each handler module's
         # Endpoints slice (see api/cmd/gen-endpoints). A drift here

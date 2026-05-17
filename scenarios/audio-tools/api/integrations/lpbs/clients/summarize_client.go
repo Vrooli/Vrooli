@@ -3,21 +3,20 @@ package clients
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"time"
 
 	"audio-tools/internal/ai/summarizechain"
+	"audio-tools/internal/httpc"
 )
 
 type SummarizeClient struct {
-	BaseURL    string
-	HTTPClient *http.Client
+	BaseURL string
+	Doer    httpc.Doer
 }
 
 func NewSummarizeClient(baseURL string) *SummarizeClient {
 	return &SummarizeClient{
-		BaseURL:    baseURL,
-		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+		BaseURL: baseURL,
+		Doer:    httpc.DefaultDoer(),
 	}
 }
 

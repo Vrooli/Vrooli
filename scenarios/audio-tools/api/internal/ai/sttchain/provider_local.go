@@ -3,21 +3,31 @@ package sttchain
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"audio-tools/internal/clock"
 	voice "audio-tools/internal/stt/pipeline"
 )
 
 // LocalProvider wraps voice.Service.Transcribe (Whisper backend).
 type LocalProvider struct {
 	svc *voice.Service
+	clk clock.Clock
 	// availability cache is owned by the chain; LocalProvider exposes a cheap
 	// readiness check via the voice service.
 }
 
-// NewLocalProvider constructs a Local STT provider.
+// NewLocalProvider constructs a Local STT provider with the system clock.
 func NewLocalProvider(svc *voice.Service) *LocalProvider {
-	return &LocalProvider{svc: svc}
+	return &LocalProvider{svc: svc, clk: clock.System{}}
+}
+
+// NewLocalProviderWith constructs a LocalProvider with a custom clock —
+// the canonical injection point for deterministic latency tests.
+func NewLocalProviderWith(svc *voice.Service, clk clock.Clock) *LocalProvider {
+	if clk == nil {
+		clk = clock.System{}
+	}
+	return &LocalProvider{svc: svc, clk: clk}
 }
 
 func (p *LocalProvider) Type() ProviderTier { return TierLocal }
@@ -33,7 +43,11 @@ func (p *LocalProvider) Transcribe(ctx context.Context, req Request) (*Result, e
 	if p == nil || p.svc == nil {
 		return nil, fmt.Errorf("audio-tools/sttchain: local provider not configured")
 	}
-	start := time.Now()
+	clk := p.clk
+	if clk == nil {
+		clk = clock.System{}
+	}
+	start := clk.Now()
 	text, err := p.svc.Transcribe(ctx, req.Audio, req.Language)
 	if err != nil {
 		return nil, err
@@ -44,7 +58,7 @@ func (p *LocalProvider) Transcribe(ctx context.Context, req Request) (*Result, e
 		Tier:             TierLocal,
 		ProviderID:       "whisper-local",
 		ModelID:          "whisper-large-v3",
-		Latency:          time.Since(start),
+		Latency:          clk.Now().Sub(start),
 	}, nil
 }
 

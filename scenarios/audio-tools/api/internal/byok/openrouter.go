@@ -7,22 +7,25 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"audio-tools/internal/ai/summarizechain"
+	"audio-tools/internal/clock"
+	"audio-tools/internal/httpc"
 )
 
 // OpenRouterSummarize calls OpenRouter's chat-completions endpoint for the
 // summarization capability. Mirrors BAS's openrouter integration.
 type OpenRouterSummarize struct {
-	Endpoint   string
-	HTTPClient *http.Client
+	Endpoint string
+	Doer     httpc.Doer
+	Clock    clock.Clock
 }
 
 func NewOpenRouterSummarize() *OpenRouterSummarize {
 	return &OpenRouterSummarize{
-		Endpoint:   "https://openrouter.ai/api/v1/chat/completions",
-		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+		Endpoint: "https://openrouter.ai/api/v1/chat/completions",
+		Doer:     httpc.DefaultDoer(),
+		Clock:    clock.System{},
 	}
 }
 
@@ -65,8 +68,12 @@ func (a *OpenRouterSummarize) Summarize(ctx context.Context, key string, req sum
 	httpReq.Header.Set("Authorization", "Bearer "+key)
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	start := time.Now()
-	resp, err := a.HTTPClient.Do(httpReq)
+	clk := a.Clock
+	if clk == nil {
+		clk = clock.System{}
+	}
+	start := clk.Now()
+	resp, err := a.Doer.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("openrouter: %w", err)
 	}
@@ -100,6 +107,6 @@ func (a *OpenRouterSummarize) Summarize(ctx context.Context, key string, req sum
 		PromptTokens: out.Usage.PromptTokens,
 		OutputTokens: out.Usage.CompletionTokens,
 		ModelID:      out.Model,
-		Latency:      time.Since(start),
+		Latency:      clk.Now().Sub(start),
 	}, nil
 }

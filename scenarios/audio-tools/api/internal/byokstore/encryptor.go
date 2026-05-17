@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"audio-tools/internal/envx"
 )
 
 // KeyEnvVar names the env var consulted before falling back to a
@@ -64,8 +66,21 @@ var ErrInvalidCiphertext = errors.New("byokstore: invalid ciphertext")
 // LoadOrCreateKey reads the key from AUDIO_TOOLS_DB_KEY (hex). If the
 // env var is empty it reads/persists a key file at keyPath, creating a
 // new random key on first boot. Returns the 32-byte key.
+//
+// Production path uses the process environment via envx.OS{}; tests
+// inject envx.Reader through LoadOrCreateKeyWith.
 func LoadOrCreateKey(keyPath string) ([]byte, error) {
-	if hexKey := os.Getenv(KeyEnvVar); hexKey != "" {
+	return LoadOrCreateKeyWith(keyPath, envx.OS{})
+}
+
+// LoadOrCreateKeyWith is the env-reader-injected variant. Tests pass a
+// mocks.FakeEnv to assert which keys were read without mutating process
+// env via t.Setenv.
+func LoadOrCreateKeyWith(keyPath string, env envx.Reader) ([]byte, error) {
+	if env == nil {
+		env = envx.OS{}
+	}
+	if hexKey := env.Get(KeyEnvVar); hexKey != "" {
 		k, err := hex.DecodeString(hexKey)
 		if err != nil {
 			return nil, fmt.Errorf("byokstore: invalid %s: %w", KeyEnvVar, err)

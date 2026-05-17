@@ -24,7 +24,7 @@ func NewPlaybackStore(db *sql.DB) *PlaybackStore { return &PlaybackStore{db: db}
 // silently no-op.
 func (s *PlaybackStore) Insert(ctx context.Context, e PlaybackEvent) error {
 	if e.EmittedAt.IsZero() {
-		e.EmittedAt = time.Now().UTC()
+		e.EmittedAt = now()
 	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT OR IGNORE INTO playback_events(event_id, emitted_at, kind, version, voice, provider_tier, provider_id)

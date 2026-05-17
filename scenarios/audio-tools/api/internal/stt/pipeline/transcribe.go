@@ -6,13 +6,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
+
+	"audio-tools/internal/envx"
+	"audio-tools/internal/logx"
 )
+
+// PackageLogger is the package-level logx.Logger used by stateless
+// helpers like TranscribeBytes. Production leaves it at logx.Std{};
+// tests swap in mocks.FakeLogger via SetPackageLogger.
+var packageLogger logx.Logger = logx.Std{}
+
+// SetPackageLogger overrides the package-level logger. Returns the
+// previous logger so tests can restore via t.Cleanup.
+func SetPackageLogger(l logx.Logger) logx.Logger {
+	prev := packageLogger
+	packageLogger = l
+	return prev
+}
 
 const (
 	MaxAudioSize                  = 10 << 20
@@ -28,10 +42,21 @@ type HTTPDoer interface {
 var _ HTTPDoer = (*http.Client)(nil)
 
 // ResolveWhisperURL returns the Whisper ASR endpoint URL from WHISPER_URL env
-// var with a sensible default for cross-platform portability.
+// var with a sensible default for cross-platform portability. Reads the env
+// via the canonical envx.OS seam in production; tests pass envx.Reader
+// directly via ResolveWhisperURLWith.
 func ResolveWhisperURL() string {
+	return ResolveWhisperURLWith(envx.OS{})
+}
+
+// ResolveWhisperURLWith is the env-reader-injected variant. Tests pass a
+// mocks.FakeEnv to assert the WHISPER_URL read without t.Setenv.
+func ResolveWhisperURLWith(env envx.Reader) string {
+	if env == nil {
+		env = envx.OS{}
+	}
 	base := "http://localhost:8090"
-	if v := os.Getenv("WHISPER_URL"); v != "" {
+	if v := env.Get("WHISPER_URL"); v != "" {
 		base = v
 	}
 	return base + "/asr?output=json"
@@ -59,7 +84,7 @@ func TranscribeBytes(
 	if doTranscode && transcode != nil {
 		out, tcErr := transcode(ctx, audio)
 		if tcErr != nil {
-			log.Printf("voice: transcode failed, sending raw: %v", tcErr)
+			packageLogger.Printf("voice: transcode failed, sending raw: %v", tcErr)
 			out = audio
 		}
 		transcoded = out

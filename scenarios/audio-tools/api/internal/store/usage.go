@@ -58,7 +58,7 @@ func NewUsageStore(db *sql.DB) *UsageStore { return &UsageStore{db: db} }
 // silently ignored so async retries cannot create duplicates.
 func (s *UsageStore) Insert(ctx context.Context, r UsageRow) error {
 	if r.EmittedAt.IsZero() {
-		r.EmittedAt = time.Now().UTC()
+		r.EmittedAt = now()
 	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT OR IGNORE INTO usage_rows(
@@ -120,7 +120,7 @@ func (s *UsageStore) ListRecent(ctx context.Context, since time.Time, limit int,
 
 // Summary aggregates rows in [since, now] for the optional capability.
 func (s *UsageStore) Summary(ctx context.Context, since time.Time, capability string) (UsageSummary, error) {
-	until := time.Now().UTC()
+	until := now()
 	out := UsageSummary{Since: since.UTC(), Until: until}
 
 	args := []any{since.UTC().Format(time.RFC3339Nano)}

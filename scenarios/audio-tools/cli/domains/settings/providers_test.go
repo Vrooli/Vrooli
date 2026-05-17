@@ -1,4 +1,4 @@
-package diagnose
+package settings
 
 import (
 	"context"
@@ -22,12 +22,12 @@ import (
 	"audio-tools/cli/internal/testutil"
 )
 
-type fakeSettings struct {
+type fakeProviderSettings struct {
 	settconnect.UnimplementedSettingsServiceHandler
 	cfg func() (*settv1.ProviderConfig, error)
 }
 
-func (f *fakeSettings) GetProviderConfig(_ context.Context, _ *connect.Request[settv1.GetProviderConfigRequest]) (*connect.Response[settv1.GetProviderConfigResponse], error) {
+func (f *fakeProviderSettings) GetProviderConfig(_ context.Context, _ *connect.Request[settv1.GetProviderConfigRequest]) (*connect.Response[settv1.GetProviderConfigResponse], error) {
 	c, err := f.cfg()
 	if err != nil {
 		return nil, err
@@ -35,12 +35,12 @@ func (f *fakeSettings) GetProviderConfig(_ context.Context, _ *connect.Request[s
 	return connect.NewResponse(&settv1.GetProviderConfigResponse{Config: c}), nil
 }
 
-type fakeTTS struct {
+type fakeProviderTTS struct {
 	ttsconnect.UnimplementedTTSServiceHandler
 	status func() (*ttsv1.Status, error)
 }
 
-func (f *fakeTTS) GetStatus(_ context.Context, _ *connect.Request[ttsv1.GetStatusRequest]) (*connect.Response[ttsv1.GetStatusResponse], error) {
+func (f *fakeProviderTTS) GetStatus(_ context.Context, _ *connect.Request[ttsv1.GetStatusRequest]) (*connect.Response[ttsv1.GetStatusResponse], error) {
 	s, err := f.status()
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (f *fakeTTS) GetStatus(_ context.Context, _ *connect.Request[ttsv1.GetStatu
 	return connect.NewResponse(&ttsv1.GetStatusResponse{Status: s}), nil
 }
 
-func mountDiagnose(t *testing.T, s settconnect.SettingsServiceHandler, tt ttsconnect.TTSServiceHandler) *cliapp.ScenarioApp {
+func mountProvidersMatrix(t *testing.T, s settconnect.SettingsServiceHandler, tt ttsconnect.TTSServiceHandler) *cliapp.ScenarioApp {
 	t.Helper()
 	mux := http.NewServeMux()
 	sp, sh := settconnect.NewSettingsServiceHandler(s)
@@ -58,14 +58,12 @@ func mountDiagnose(t *testing.T, s settconnect.SettingsServiceHandler, tt ttscon
 	return testutil.NewTestApp(t, mux)
 }
 
-// Happy path: both upstream services answer; output contains routing
-// flags and per-tier availability rows.
 func TestProvidersHappyPath(t *testing.T) {
-	app := mountDiagnose(t,
-		&fakeSettings{cfg: func() (*settv1.ProviderConfig, error) {
+	app := mountProvidersMatrix(t,
+		&fakeProviderSettings{cfg: func() (*settv1.ProviderConfig, error) {
 			return &settv1.ProviderConfig{ByokEnabled: true, VrooliEnabled: false, LocalEnabled: true}, nil
 		}},
-		&fakeTTS{status: func() (*ttsv1.Status, error) {
+		&fakeProviderTTS{status: func() (*ttsv1.Status, error) {
 			return &ttsv1.Status{Availability: []*ttsv1.ProviderAvailability{
 				{Tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "kokoro", Available: true},
 				{Tier: commonv1.ProviderTier_PROVIDER_TIER_BYOK, ProviderId: "openai-tts", Available: false},
@@ -84,14 +82,12 @@ func TestProvidersHappyPath(t *testing.T) {
 	require.Contains(t, out, "down")
 }
 
-// Error path: settings service is unavailable — handler stops before
-// querying TTS and surfaces a wrapped "get provider config" error.
 func TestProvidersSettingsError(t *testing.T) {
-	app := mountDiagnose(t,
-		&fakeSettings{cfg: func() (*settv1.ProviderConfig, error) {
+	app := mountProvidersMatrix(t,
+		&fakeProviderSettings{cfg: func() (*settv1.ProviderConfig, error) {
 			return nil, connect.NewError(connect.CodeUnavailable, errors.New("settings down"))
 		}},
-		&fakeTTS{status: func() (*ttsv1.Status, error) {
+		&fakeProviderTTS{status: func() (*ttsv1.Status, error) {
 			t.Fatal("TTS GetStatus must not be called when settings fails")
 			return nil, nil
 		}},

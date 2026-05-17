@@ -274,13 +274,21 @@ func TestSummarizer_ReturnsDiagnostics(t *testing.T) {
 }
 
 func TestSummarizer_Timeout(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		time.Sleep(200 * time.Millisecond)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"message": map[string]string{"content": "too late"},
-		})
+	// Server blocks until the test's release channel closes, so the
+	// 50ms client-side context deadline below is what fires. No bare
+	// sleep in the handler; t.Cleanup signals release after the assert
+	// so ts.Close drains immediately rather than hanging on the handler.
+	release := make(chan struct{})
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
 	}))
+	// LIFO defer order: close(release) runs FIRST so the handler exits
+	// before ts.Close() waits on it.
 	defer ts.Close()
+	defer close(release)
 
 	s := NewSummarizer(ts.URL)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"connectrpc.com/connect"
 
@@ -108,7 +107,7 @@ func (h *connectHandler) GetSpeakerStatus(ctx context.Context, _ *connect.Reques
 		ProfileExists:     len(profiles) > 0,
 		ProfileCount:      int32(len(profiles)),
 		Profiles:          profiles,
-		CheckedAt:         protomap.TimeToProto(time.Now().UTC()),
+		CheckedAt:         protomap.TimeToProto(h.deps.Clock.Now().UTC()),
 	}
 	return connect.NewResponse(&sttv1.GetSpeakerStatusResponse{Status: st}), nil
 }

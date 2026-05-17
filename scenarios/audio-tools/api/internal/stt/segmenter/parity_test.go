@@ -8,25 +8,23 @@ import (
 	"go.uber.org/goleak"
 
 	"audio-tools/internal/ai/sttchain"
+	sttmocks "audio-tools/internal/ai/sttchain/mocks"
 	"audio-tools/internal/stt"
 	"audio-tools/internal/stt/segmenter/testaudio"
 )
 
-// fakeBatchExecutor is the minimal BatchExecutor stand-in for the
-// BufferedFallback path. It always returns a deterministic result so
-// the parity projection (kind + ordering + final transcript) is stable.
-type fakeBatchExecutor struct {
-	text string
-}
-
-func (f *fakeBatchExecutor) Execute(_ context.Context, _ sttchain.Request) (*sttchain.Result, error) {
-	return &sttchain.Result{
-		Text:       f.text,
+// newFakeBatchExecutor returns a deterministic BatchExecutor that
+// produces a canned Result with the given final text. The parity
+// projection (kind + ordering + final transcript) compares across
+// transports/strategies, so identifying provider metadata is fixed.
+func newFakeBatchExecutor(text string) *sttmocks.FakeBatchExecutor {
+	return &sttmocks.FakeBatchExecutor{Result: &sttchain.Result{
+		Text:       text,
 		Tier:       sttchain.TierLocal,
 		ProviderID: "fake-local",
 		ModelID:    "fake-model",
 		Latency:    1 * time.Millisecond,
-	}, nil
+	}}
 }
 
 // EventProjection is the stable shape compared across pipeline paths
@@ -67,7 +65,7 @@ func projectEvents(seq []sttchain.StreamEvent) []EventProjection {
 // the deterministic result.
 func runDirect(t *testing.T, audio []byte, cfg stt.StreamConfig) []EventProjection {
 	t.Helper()
-	exec := &fakeBatchExecutor{text: "hello world"}
+	exec := newFakeBatchExecutor("hello world")
 	chain := sttchain.NewChain(sttchain.Options{})
 	selector := stt.NewSelector(exec)
 	seg := New(Deps{Chain: chain, Selector: selector})

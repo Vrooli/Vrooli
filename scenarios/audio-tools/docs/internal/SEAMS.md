@@ -2,6 +2,17 @@
 
 > Plan: `~/.vrooli/plans/audio-tools-greenfield-scenario-web-console-adoption.md`
 
+## Layering (2026-05-17 post-extraction audit)
+
+- `internal/ai/{stt,tts,summarize}chain` are the canonical provider
+  orchestrators. Every `handlers/*` and `bootstrap` import goes through
+  them. Primitives (`internal/{stt,tts,summarize}`) never import the
+  chain layer — the dependency is one-way.
+- `internal/text/normalizer` is shared by `handlers/tts` and
+  `internal/summarize`. See `internal/text/normalizer/doc.go` for the
+  consumer list; if a third domain appears, revisit
+  [`DECISIONS.md`](DECISIONS.md) (2026-05-17 entry).
+
 ## Quick index (audio-tools build)
 
 | Seam | Type | Producer | Consumer |
@@ -18,7 +29,7 @@
 | `usagereport.Recorder` | Interface | `internal/usagereport/recorder.go` (local SQLite write path for the UsageService dashboard) | `handlers/summarize` (other chain-adjacent handlers wired as they land) |
 | `lpbs.RemoteReporter` | Concrete | `integrations/lpbs/remote_reporter.go` (remote LPBS hop; flag-off until the gateway lands) | wired into `main.go` once the LPBS gateway ships |
 | `chains.Coordinator` | Concrete | `internal/ai/chains/chains.go` | `handlers/settings` UpdateProviderConfig — live chain Reconfigure |
-| `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Concrete | `internal/ai/{stt,tts,summarize}chain/chain.go` | `handlers/tts` GetStatus + `cli/domains/diagnose` |
+| `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Concrete | `internal/ai/{stt,tts,summarize}chain/chain.go` | `handlers/tts` GetStatus + `cli/domains/settings` (`settings providers`) |
 | `stt.MultipartTranscribeHandler` / `audio.multipartTranscodeHandler` | Concrete | `handlers/{stt,audio}/` | UI multipart upload paths |
 | `audio.Runner` + `audio.DefaultRunner` + `audio.SetFfmpegAvailableForTest` | Interface + var + test seam | `internal/audio/transcode.go` | `handlers/audio` unit tests substitute a fake Runner and seed ffmpeg presence so happy-path / error branches run without an ffmpeg binary on PATH |
 | `stt.StreamWSHandler` | Concrete | `handlers/stt/stream_ws.go` | mounts `/api/v1/voice/stream` over `voice.Service.HandleStreamWS` |
@@ -126,6 +137,26 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). |
 | **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
 
+### envx.Reader (process environment)
+
+| | |
+|---|---|
+| **Seam** | Process environment variable reads |
+| **Interface** | `internal/envx/reader.go::Reader` (`Get(key) string`) |
+| **Production wiring** | `main.go` / `internal/bootstrap` constructs `envx.OS{}` once and passes it to every domain that reads env vars (whisper URL, summarize model, BYOK key envelope key, etc.). |
+| **Test fake** | `internal/testutil/mocks::FakeEnv` (map-backed, records reads, `Set(key,val)` mutator). |
+| **Why it exists** | Domain code that calls `os.Getenv` directly forces tests to use `t.Setenv` — which mutates process-wide state and races under `t.Parallel`. The seam lets domain tests inject a per-call environment without touching the real process env. Bootstrap (the composition root) remains exempt from this rule. |
+
+### logx.Logger (structured logging)
+
+| | |
+|---|---|
+| **Seam** | Structured log emission from domain code |
+| **Interface** | `internal/logx/logger.go::Logger` (`Printf(format, args...)`) |
+| **Production wiring** | `main.go` constructs `logx.Std{L: log.Default()}` and threads it through every domain that emits log lines (httpx error envelope, stt pipeline, summarize service). |
+| **Test fake** | `internal/testutil/mocks::FakeLogger` (records every Printf call, exposes `Entries()` snapshot). |
+| **Why it exists** | Domain code calling `log.Printf` directly writes to a process-global default logger — tests can't capture or assert on those lines without redirecting stderr. The seam allows assertions like "the pipeline logged exactly one warning containing 'whisper unreachable'" without global state. |
+
 ### Pinger (database reachability)
 
 | | |
@@ -146,45 +177,75 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `api-core/databasetest::FakeExecer` is the canonical fake when a test needs to assert schema application order or injected execution failures without opening a real database. |
 | **Why it exists** | Schema application is shared-package behavior, but each scenario owns its provider list. Keep scenario-specific schema composition local; use `databasetest.FakeExecer` only for tests of code that consumes the shared `SchemaExecer` interface directly. |
 
-### notes.Repository (notes persistence)
+### sttchain.Provider (STT chain tier)
 
 | | |
 |---|---|
-| **Seam** | Notes persistence (CRUD) |
-| **Interface** | `internal/notes/repository.go::Repository` (`Create`, `Get`, `List`) |
-| **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewSQLiteRepository(db, clk)` and passes it into `notes.NewService(repo)`. `main.go` only sees the returned `module.Module`; note-specific dependencies do not appear on `server.Deps`. Wire shape lives in `packages/proto/schemas/audio-tools/v1/notes/notes.proto`. |
-| **Test fake** | `internal/notes/mocks::FakeRepository` (co-located with the domain — in-memory slice, per-method error knobs `CreateErr` / `GetErr` / `ListErr`, atomic call counters). Used by `internal/notes/service_test.go` to drive the service against a controllable persistence layer. |
-| **Why it exists** | Repository owns the persistence contract — sqlite SQL today, anything else tomorrow. The handler depends on `notes.Service`, not directly on the repository, so a backend swap doesn't ripple through transport. The repository test in `internal/notes/sqlite_test.go` substitutes the real handle to pin SQL semantics (ordering, limit, RFC3339 round-trip). |
+| **Seam** | One tier (Local / BYOK / Vrooli) of the STT provider chain |
+| **Interface** | `internal/ai/sttchain/interface.go::Provider` (`Type`, `IsAvailable`, `Transcribe`, `Model`, `Traits`, `TranscribeStreaming`) |
+| **Production wiring** | `main.go` builds the three concrete tiers (`NewLocalProvider`, `NewBYOKProvider`, `NewVrooliProvider`) and hands them to `sttchain.NewChain(Options{…})`. Per-request, `Chain.Execute` selects the first eligible tier in BYOK → Vrooli → Local order. |
+| **Test fake** | `internal/ai/sttchain/mocks::FakeProvider` (configurable `Tier`, `Traits`, `Result` / `Err`, optional `TranscribeFn` / `StreamFn`, `Calls` counter). |
+| **Why it exists** | Each tier has a different upstream (Whisper binary, vendor adapters, LPBS gateway) and a different failure mode. Putting the precedence + fallback + insufficient-credits short-circuit in `Chain` keeps that policy in one place; the per-tier struct only translates its own backend. Chain-orchestration tests in `chain_test.go` substitute `FakeProvider` to assert routing without spinning real backends. |
 
-### notes.Service (notes application layer)
-
-| | |
-|---|---|
-| **Seam** | Notes application surface (validation, defaults, cross-handler policy) |
-| **Interface** | `internal/notes/service.go::Service` (`Create(CreateInput) → Note`, `Get(id) → Note`, `List(limit) → []Note`) |
-| **Production wiring** | `handlers/notes/module.go::Module(db, clk, logger)` constructs `notes.NewSQLiteRepository(db, clk)` then `notes.NewService(repo)` then `NewConnectHandler(Deps{Service: svc, Logger: logger})` — fully internal to the notes module. `main.go` only sees the `module.Module` returned from that constructor; per-domain services don't appear on `server.Deps`. The handler imports `internal/notes` for both the interface and the typed sentinels (`ErrInvalidNote`, `ErrNoteNotFound`) it translates at the transport edge. |
-| **Test fake** | `internal/notes/mocks::FakeService` (co-located with the domain — records `CreateInputs`, returns canned `CreateOut` / `GetByID` / `ListOut`, per-method error knobs). Used by `handlers/notes/connect_handler_test.go` to drive the handler without validation/repository plumbing in scope. |
-| **Why it exists** | Validation (`title required` after whitespace trim) and default substitution (`defaultListLimit = 100` when caller passes 0) are business policy, not transport policy. Putting them in the service keeps the handler thin and makes the same rules reachable from any future surface (batch jobs, scheduled imports, additional RPCs) without copy-paste. Two-mock split (`FakeRepository` for service tests, `FakeService` for handler tests) means handler tests don't seed sqlite-shaped state to assert routing. |
-
-### notes.AttachmentsRepository (attachment metadata persistence)
+### sttchain.BYOKAdapter (per-vendor STT adapter)
 
 | | |
 |---|---|
-| **Seam** | Note attachment metadata persistence |
-| **Interface** | `internal/notes/repository.go::AttachmentsRepository` (`CreateAttachment`, `ListAttachmentKeys`) |
-| **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewSQLiteAttachmentsRepository(db, clk)` (declared in `internal/notes/sqlite.go`, methods in `attachments_sqlite.go`) and passes it into `notes.NewAttachmentsService(...)`. The opaque file bytes go to `BlobStore` (separate seam below); only the typed metadata row passes through this interface. |
-| **Test fake** | `internal/notes/mocks::FakeAttachmentsRepository` (co-located with the domain — in-memory `Attachments` slice, per-method error knobs `CreateErr` / `ListErr`, atomic call counters, UploadedAt backfill mirroring the sqlite repository). Used by `internal/notes/attachments_service_test.go` to drive the attachments service against a controllable persistence layer. |
-| **Why it exists** | Splitting attachment-metadata persistence from notes persistence keeps the per-method surface narrow (the notes repository never grows attachment-shaped methods) and lets the attachments service remain transport-agnostic. The repository test in `internal/notes/sqlite_test.go::TestSQLiteRepository_AttachmentMetadataRoundTrip` substitutes the real handle to pin SQL semantics; service tests use the fake. |
+| **Seam** | One vendor (openai-whisper, deepgram) implementing the BYOK STT contract |
+| **Interface** | `internal/ai/sttchain/provider_byok.go::BYOKAdapter` (`ID`, `Transcribe`, `IsAvailable`, `Model`, `StreamingCapability`, `TranscribeStreaming`) |
+| **Production wiring** | `internal/byok/registry.go::NewRegistries()` constructs the per-capability registry maps; `main.go` passes them into the chain's `NewBYOKProvider`. The chain dispatches per-request by `BYOKProvider` header (`envelope.HeaderProvider`). |
+| **Test fake** | `internal/ai/sttchain/mocks::FakeBYOK` (configurable ID, availability, result, error, streaming flag + `StreamFn`). |
+| **Why it exists** | Adding a vendor means adding a registry row and an adapter file — no chain-side changes. Tests on the chain don't need real vendor adapters; tests on the adapters use `httptest.NewServer` for wire format and a `FakeDoer` for payload assertions. |
 
-### notes.AttachmentsService (attachment application layer)
+### sttchain.VrooliClient (STT Vrooli/LPBS client)
 
 | | |
 |---|---|
-| **Seam** | Note attachment application surface (validation, parent-note lookup, repository delegation) |
-| **Interface** | `internal/notes/attachments_service.go::AttachmentsService` (`Create(CreateAttachmentInput) → Attachment`) |
-| **Production wiring** | `handlers/notes/module.go::Module(...)` constructs `notes.NewAttachmentsService(notesRepo, attachmentsRepo)` then passes it as `AttachmentsDeps.Service` into `NewAttachmentsHandler(...)`. The handler is the multipart REST exception (the only non-Connect transport in the notes domain); the service stays unaware of multipart and HTTP. |
-| **Test fake** | `internal/notes/mocks::FakeAttachmentsService` (records `CreateInputs`, returns canned `CreateOut` or synthesises an Attachment from the input, gated on `CreateErr`). Available for any future handler test that wants to assert routing/multipart wiring without standing up the real notes-and-attachments service tree. |
-| **Why it exists** | Attachment validation (note id + key required after trim, positive size, parent note must exist) is business policy; multipart parsing and BlobStore I/O are transport policy. Keeping them split means a future scenario that adds a non-multipart attachment surface (CLI direct upload, scheduled import, gRPC stream) reuses the same validation without copy-paste. Two-mock split (`FakeAttachmentsRepository` for service tests, `FakeAttachmentsService` for handler tests) mirrors the notes Repository/Service convention. |
+| **Seam** | LPBS audio-gateway client for the STT Vrooli tier |
+| **Interface** | `internal/ai/sttchain/provider_vrooli.go::VrooliClient` (`Transcribe`, `IsAvailable`, `Model`) |
+| **Production wiring** | `integrations/lpbs/clients/stt_client.go` implements the interface against the LPBS HTTP gateway; `main.go` injects it through `NewVrooliProvider`. |
+| **Test fake** | `internal/ai/sttchain/mocks::FakeVrooliClient` (configurable availability, result, error, optional `TranscribeFn`). |
+| **Why it exists** | The chain MUST NOT import the lpbs package directly (cross-domain coupling) and MUST be able to test the `ErrInsufficientCredits` short-circuit without spinning LPBS. The interface gives both. |
+
+### ttschain.Provider / BYOKAdapter / VrooliClient (TTS chain seams)
+
+| | |
+|---|---|
+| **Seam** | TTS-side mirrors of the STT chain seams (same shape, different payload) |
+| **Interface** | `internal/ai/ttschain/{interface,provider_byok,provider_vrooli}.go` |
+| **Production wiring** | Mirrors STT — `main.go` builds `NewBYOKProvider`/`NewVrooliProvider`/`NewLocalProvider` and hands them to `ttschain.NewChain`. |
+| **Test fake** | `internal/ai/ttschain/mocks::{FakeBYOK,FakeVrooliClient}` (plus the chain's own provider-level fakes via the interface). |
+| **Why it exists** | TTS has identical tier-precedence + insufficient-credits + buffered-fallback semantics; sharing the shape across chains keeps both code paths reasoning-equivalent. |
+
+### summarizechain.Provider / BYOKAdapter / VrooliClient (summarize chain seams)
+
+| | |
+|---|---|
+| **Seam** | Summarize-side mirrors of the STT chain seams |
+| **Interface** | `internal/ai/summarizechain/{interface,provider_byok,provider_vrooli}.go` |
+| **Production wiring** | Mirrors STT — `main.go` constructs the three tiers from OpenRouter (BYOK), LPBS chat (Vrooli), and the local Ollama-backed `summarize.Summarizer` (Local). |
+| **Test fake** | `internal/ai/summarizechain/mocks::{FakeBYOK,FakeVrooliClient}`. |
+| **Why it exists** | Same as above — uniform shape across three chains keeps the test architecture portable and lets future tiers (Phase D streaming, additional vendors) follow the same drift gates. |
+
+### audio.Runner (ffmpeg/ffprobe process boundary)
+
+| | |
+|---|---|
+| **Seam** | The single-method `Run(ctx, name, stdin, args...) ([]byte, error)` surface every call to ffmpeg / ffprobe goes through. |
+| **Interface** | `internal/audio/transcode.go::Runner` (production wired via `audio.DefaultRunner = execRunner{}`) |
+| **Production wiring** | `runFfmpeg` / `runFfprobeJSON` in `internal/audio/` delegate to `DefaultRunner.Run(...)`. Tests swap `DefaultRunner` for the duration of the test, paired with `audio.SetFfmpegAvailableForTest(true, true)` to bypass the binary-presence cache. |
+| **Test fake** | `internal/audio/mocks::FakeRunner` (records `Calls`, returns canned `Stdout` / `Err`, optional `Respond(name, args)` for argv-aware behaviour). |
+| **Why it exists** | The binaries aren't available in CI runners or unit-test envs by default. Without the seam, every ops-level test (Transcode, Trim, Volume, Normalize, Split, Merge, Probe) would require ffmpeg on PATH — flaky at best, blocked at worst. The fake lets the same suite pin argv shape and per-format branches in isolation. |
+
+### capabilities.Checker (runtime capability probe)
+
+| | |
+|---|---|
+| **Seam** | One pluggable capability checker (audio, llm, scenario, …) registered with the cached registry. |
+| **Interface** | `internal/capabilities/registry.go::Checker` (`Check(ctx) (Status, string)`) |
+| **Production wiring** | `main.go` builds per-capability checkers (ffmpeg presence, ollama reachability, etc.) and registers them with `capabilities.NewRegistry`. Health and admin handlers query the registry. |
+| **Test fake** | `internal/capabilities/mocks::FakeChecker` (configurable `Status` + `Message`, atomic call counter — proves caching short-circuits redundant probes). |
+| **Why it exists** | Real checkers shell out, dial HTTP, or load model artifacts. Fakes let registry tests assert TTL caching and fan-out without those external dependencies. |
 
 ### Connect router (proto-typed transport)
 
@@ -246,15 +307,15 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | None. The system file ships empty in the template and is verified empty by `internal/database/system_test.go::TestSystemSchema_IsEmpty` (a deliberate tripwire — adding a `CREATE TABLE` here forces a "yes, this is genuinely cross-cutting" decision). |
 | **Why it exists** | Some bits don't belong to any one domain — postgres extensions, type definitions, reporting views. Putting them in a domain package would force fictional ownership. The system home is honest: cross-cutting goes here, single-domain bits go in `internal/<dom>/schema.sql`. |
 
-### notes.Schema (per-domain schema)
+### Per-domain schema (audio-tools)
 
 | | |
 |---|---|
-| **Seam** | Notes domain SQL contribution |
-| **Interface** | `internal/notes/schema.go::Schema() string` (consumed via `handlers/notes/module.go::Schema` re-export, then `api-core/database.SchemaProvider`) |
-| **Production wiring** | `internal/modules/registry.go::AllSchemas()` includes `apidb.SchemaProviderFunc(notesH.Schema)`; applied at boot via `apidb.EnsureSchemas`. |
-| **Test fake** | `internal/notes/sqlite_test.go::newSchemaDB` uses `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` with the system + notes providers. Repository tests get a fresh table without touching the central registry. |
-| **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/notes/` deletes the table definition with it, so removed domains do not leave tables created on boot. The `handlers/notes/module.go::Schema` re-export keeps the registry's import surface narrow — it imports handler packages, not their internal peers. |
+| **Seam** | Domain-local SQL contribution to the boot-time schema fan-out |
+| **Interface** | `internal/store/*.go::Schema() string` (each store package exports a schema string consumed via `api-core/database.SchemaProvider`) |
+| **Production wiring** | `internal/modules/registry.go::AllSchemas()` lists the per-domain providers (byok, voice_overrides, usage, wakeword, speaker, stt_stream_config, tts_config, playback_events, provider_config); applied at boot via `apidb.EnsureSchemas`. |
+| **Test fake** | `internal/store/*_sqlite_test.go` (one per domain) uses `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` with just the system + domain providers in scope. |
+| **Why it exists** | Domain ownership of schema means adding a column lands in the same diff as the Go change, and removing a domain removes its tables. The registry's import surface stays narrow — it imports handler packages, not internal peers. |
 
 ### Doer (outbound HTTP)
 
@@ -525,6 +586,41 @@ an actionable diff showing exactly which entries diverged.
   AudioToolsProvider then constructs the @audio-tools/embed client.
 - **Why:** prevents client-side composition of scenario URLs (mirrors
   the `feedback_scenario_url_resolution` rule).
+
+## Interface seam index (drift-gated)
+
+The seam-registry test (`api/internal/testutil/seam_registry_test.go`)
+walks every interface declaration tagged with a `// seam:` doc comment
+and asserts it appears in this document. Each entry below is one of the
+qualified names the test searches for.
+
+- `clock.Clock` — wall-clock seam (see Clock section above).
+- `envx.Reader` — process-environment seam (see envx.Reader section).
+- `logx.Logger` — structured-logging seam (see logx.Logger section).
+- `httpc.Doer` — outbound-HTTP seam (production: `*http.Client`).
+- `database.Pinger` — database-reachability seam (production: `*sql.DB`).
+- `audio.Runner` — ffmpeg/ffprobe process seam.
+- `capabilities.Checker` — per-capability probe seam used by the
+  capability registry to compute `/health` aggregates.
+- `usagereport.Recorder` — usage-row recorder seam.
+- `pipeline.HTTPDoer` — narrowed outbound-HTTP seam scoped to the stt
+  pipeline (kept package-local to avoid a back-edge import on httpc;
+  satisfied by anything implementing `httpc.Doer`).
+- `strategy.Strategy` — streaming-strategy seam (alias of the
+  `stt.StreamingStrategy` row at the top of this document).
+- `strategy.BatchExecutor` — strategy→chain seam used to break the
+  package import cycle.
+- `sttchain.Provider` / `sttchain.BYOKAdapter` / `sttchain.VrooliClient`
+  — STT chain seams.
+- `ttschain.Provider` / `ttschain.BYOKAdapter` / `ttschain.VrooliClient`
+  — TTS chain seams.
+- `summarizechain.Provider` / `summarizechain.BYOKAdapter` /
+  `summarizechain.VrooliClient` — summarize chain seams.
+- `tts.HandlerService` — TTS application-layer seam consumed by the
+  Connect handler.
+- `tts.Synthesizer` — local-TTS engine seam (Kokoro HTTP synthesizer in
+  production).
+- `tts.VoiceLister` — voice-catalog seam.
 
 ## Cross-references
 

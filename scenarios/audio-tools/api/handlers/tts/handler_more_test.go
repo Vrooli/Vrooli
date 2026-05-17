@@ -13,6 +13,7 @@ import (
 
 	ttsH "audio-tools/handlers/tts"
 	"audio-tools/internal/ai/ttschain"
+	ttsmocks "audio-tools/internal/ai/ttschain/mocks"
 	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
@@ -130,9 +131,9 @@ func TestTTS_UpdateConfig_PersistsAndReturns(t *testing.T) {
 func TestTTS_GetStatus_AvailableWithChain(t *testing.T) {
 	chain := ttschain.NewChain(ttschain.Options{
 		EnableVrooli: true,
-		Vrooli: ttschain.NewVrooliProvider(&stubTTSVrooli{
-			available: true,
-			res:       &ttschain.Result{Audio: []byte("X"), ContentType: "audio/mpeg"},
+		Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{
+			Available: true,
+			Result:    &ttschain.Result{Audio: []byte("X"), ContentType: "audio/mpeg"},
 		}),
 	})
 	c := newServer2(t, ttsH.Deps{Chain: chain})
@@ -167,9 +168,9 @@ func TestTTS_RecordPlaybackEvent_DefaultsEventID(t *testing.T) {
 func TestTTS_Synthesize_AllProvidersFailedMapsUnavailable(t *testing.T) {
 	chain := ttschain.NewChain(ttschain.Options{
 		EnableVrooli: true,
-		Vrooli: ttschain.NewVrooliProvider(&stubTTSVrooli{
-			available: true,
-			err:       ttschain.ErrAllProvidersFailed,
+		Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{
+			Available: true,
+			Err:       ttschain.ErrAllProvidersFailed,
 		}),
 	})
 	c := newServer2(t, ttsH.Deps{Chain: chain})
@@ -185,9 +186,9 @@ func TestTTS_Synthesize_AllProvidersFailedMapsUnavailable(t *testing.T) {
 func TestTTS_Synthesize_UnknownErrorMapsInternal(t *testing.T) {
 	chain := ttschain.NewChain(ttschain.Options{
 		EnableVrooli: true,
-		Vrooli: ttschain.NewVrooliProvider(&stubTTSVrooli{
-			available: true,
-			err:       errors.New("synth boom"),
+		Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{
+			Available: true,
+			Err:       errors.New("synth boom"),
 		}),
 	})
 	c := newServer2(t, ttsH.Deps{Chain: chain})

@@ -13,6 +13,9 @@ package clock
 
 import "time"
 
+// seam: Clock is the wall-clock seam (SEAMS.md row "Clock"). Production
+// wires clock.System{}; tests wire mocks.FakeClock.
+//
 // Clock abstracts wall-clock primitives.
 type Clock interface {
 	// Now returns the current time.

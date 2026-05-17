@@ -18,6 +18,11 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				RunCtx:      h.provider,
 			},
 			{
+				Name:        "providers",
+				Description: "Print the per-tier provider-availability matrix (routing config + TTS reachability)",
+				RunCtx:      h.providers,
+			},
+			{
 				Name:        "byok-list",
 				Description: "List stored BYOK credentials (redacted)",
 				RunCtx:      h.byokList,

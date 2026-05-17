@@ -5,9 +5,7 @@ import (
 	"log"
 
 	"audio-tools/internal/ai/chains"
-	"audio-tools/internal/byokstore"
 	"audio-tools/internal/modulekit"
-	"audio-tools/internal/store"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -17,9 +15,9 @@ import (
 
 type Deps struct {
 	Logger         *log.Logger
-	ProviderConfig *store.ProviderConfigStore
-	BYOK           *byokstore.Store
-	VoiceOverrides *store.VoiceOverrideStore
+	ProviderConfig ProviderConfigRepository
+	BYOK           BYOKRepository
+	VoiceOverrides VoiceOverridesRepository
 	Coordinator    *chains.Coordinator
 }
 

@@ -15,6 +15,7 @@ import (
 
 	summH "audio-tools/handlers/summarize"
 	"audio-tools/internal/ai/summarizechain"
+	summocks "audio-tools/internal/ai/summarizechain/mocks"
 	"audio-tools/internal/byok/envelope"
 	intsumm "audio-tools/internal/summarize"
 
@@ -23,19 +24,6 @@ import (
 	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 )
-
-// stubVrooliClient is a summarizechain.VrooliClient under test control.
-type stubVrooliClient struct {
-	available bool
-	res       *summarizechain.Result
-	err       error
-}
-
-func (s *stubVrooliClient) IsAvailable(context.Context) bool { return s.available }
-func (s *stubVrooliClient) Model() string                    { return "stub" }
-func (s *stubVrooliClient) Summarize(context.Context, string, string, summarizechain.Request) (*summarizechain.Result, error) {
-	return s.res, s.err
-}
 
 func newServer(t *testing.T, chain *summarizechain.Chain) summconnect.SummarizeServiceClient {
 	t.Helper()
@@ -49,7 +37,7 @@ func newServer(t *testing.T, chain *summarizechain.Chain) summconnect.SummarizeS
 		mu.Lock()
 		defer mu.Unlock()
 		cfg = c
-	}, nil, nil)
+	}, nil, nil, nil)
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)
@@ -60,9 +48,9 @@ func newServer(t *testing.T, chain *summarizechain.Chain) summconnect.SummarizeS
 func TestSummarize_HappyPathViaVrooli(t *testing.T) {
 	chain := summarizechain.NewChain(summarizechain.Options{
 		EnableVrooli: true,
-		Vrooli: summarizechain.NewVrooliProvider(&stubVrooliClient{
-			available: true,
-			res:       &summarizechain.Result{Text: "summary", PromptTokens: 10, OutputTokens: 5},
+		Vrooli: summarizechain.NewVrooliProvider(&summocks.FakeVrooliClient{
+			Available: true,
+			Result:    &summarizechain.Result{Text: "summary", PromptTokens: 10, OutputTokens: 5},
 		}),
 	})
 	c := newServer(t, chain)
@@ -78,9 +66,9 @@ func TestSummarize_HappyPathViaVrooli(t *testing.T) {
 func TestSummarize_InsufficientCreditsMapsToResourceExhausted(t *testing.T) {
 	chain := summarizechain.NewChain(summarizechain.Options{
 		EnableVrooli: true,
-		Vrooli: summarizechain.NewVrooliProvider(&stubVrooliClient{
-			available: true,
-			err:       summarizechain.ErrInsufficientCredits,
+		Vrooli: summarizechain.NewVrooliProvider(&summocks.FakeVrooliClient{
+			Available: true,
+			Err:       summarizechain.ErrInsufficientCredits,
 		}),
 	})
 	c := newServer(t, chain)
@@ -91,21 +79,11 @@ func TestSummarize_InsufficientCreditsMapsToResourceExhausted(t *testing.T) {
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
 }
 
-// stubBYOK is a registry-resident BYOKAdapter under test control.
-type stubBYOK struct{ id string }
-
-func (s *stubBYOK) ID() string                               { return s.id }
-func (s *stubBYOK) Model() string                            { return "stub" }
-func (s *stubBYOK) IsAvailable(context.Context, string) bool { return true }
-func (s *stubBYOK) Summarize(context.Context, string, summarizechain.Request) (*summarizechain.Result, error) {
-	return &summarizechain.Result{Text: "byok"}, nil
-}
-
 func TestSummarize_MissingBYOKProviderMapsToInvalidArgument(t *testing.T) {
 	chain := summarizechain.NewChain(summarizechain.Options{
 		EnableBYOK: true,
 		BYOK: summarizechain.NewBYOKProvider(map[string]summarizechain.BYOKAdapter{
-			"openrouter": &stubBYOK{id: "openrouter"},
+			"openrouter": &summocks.FakeBYOK{IDStr: "openrouter", Available: true, Result: &summarizechain.Result{Text: "byok"}},
 		}),
 	})
 	c := newServer(t, chain)

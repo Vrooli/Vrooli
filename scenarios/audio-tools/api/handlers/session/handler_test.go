@@ -22,7 +22,7 @@ import (
 func newServer(t *testing.T) (sessconnect.SessionServiceClient, *intsession.Registry) {
 	t.Helper()
 	reg := intsession.NewRegistry()
-	mod := sessionH.Module(reg, nil)
+	mod := sessionH.Module(reg, nil, nil)
 	r := mux.NewRouter()
 	mod.Mount(r)
 	srv := httptest.NewServer(r)
@@ -111,8 +111,10 @@ func TestSession_RegistryFanOut(t *testing.T) {
 			}
 		}()
 	}
-	// Give subscribers a moment to enter their loop, then fan out.
-	time.Sleep(10 * time.Millisecond)
+	// No subscriber-readiness wait required: Subscribe returns a buffered
+	// channel (capacity 8 above), so EmitEvent's fan-out enqueues into
+	// each observer's channel even if its goroutine hasn't reached the
+	// receive yet. The observer drains lazily.
 	s.EmitEvent(intsession.SessionEvent{Type: intsession.EventAssistantDelta, AssistantDelta: &intsession.AssistantDelta{Text: "x"}})
 	s.EmitEvent(intsession.SessionEvent{Type: intsession.EventAssistantFinal, AssistantFinal: &intsession.AssistantFinal{Text: "x"}})
 	wg.Wait()

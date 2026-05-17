@@ -1,4 +1,5 @@
-import { ExternalLink } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Panel } from "../../components/ui/panel";
 import { PageHeader } from "../../components/composites/PageHeader";
 import { useTranslation } from "../../i18n";
@@ -42,16 +43,21 @@ export function DocsPage() {
         <Panel key={g} title={groupTitle[g]}>
           <ul className="grid gap-2 md:grid-cols-2">
             {DOCS.filter((d) => d.group === g).map((d) => (
-              <li
-                key={d.path}
-                className="flex items-start justify-between gap-2 rounded-control border border-app-border bg-app-surface-muted/40 p-3"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-app-foreground">{d.title}</p>
-                  <p className="text-xs text-app-muted-foreground">{d.description}</p>
-                  <p className="mt-1 font-mono text-[11px] text-app-muted-foreground">{d.path}</p>
-                </div>
-                <ExternalLink className="h-4 w-4 shrink-0 text-app-muted-foreground" aria-hidden="true" />
+              <li key={d.path}>
+                <Link
+                  to={`/docs/${d.path}`}
+                  className="group flex items-start justify-between gap-2 rounded-control border border-app-border bg-app-surface-muted/40 p-3 transition hover:border-app-primary hover:bg-app-surface-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-app-foreground">{d.title}</p>
+                    <p className="text-xs text-app-muted-foreground">{d.description}</p>
+                    <p className="mt-1 font-mono text-[11px] text-app-muted-foreground">{d.path}</p>
+                  </div>
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-app-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-app-primary"
+                    aria-hidden="true"
+                  />
+                </Link>
               </li>
             ))}
           </ul>

@@ -41,6 +41,9 @@ type Result struct {
 	Latency      time.Duration
 }
 
+// seam: Provider is the summarize chain-provider seam (SEAMS.md row
+// "summarizechain.Provider"). Production wires Local/BYOK/Vrooli tiers;
+// tests wire fakes from internal/ai/summarizechain/mocks.
 type Provider interface {
 	Type() ProviderTier
 	IsAvailable(ctx context.Context) bool

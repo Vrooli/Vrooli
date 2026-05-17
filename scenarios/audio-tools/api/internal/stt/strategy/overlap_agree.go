@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/clock"
 )
 
 // OverlapAgree is the LocalAgreement-style streaming strategy
@@ -36,6 +36,10 @@ type OverlapAgree struct {
 	SampleRate int
 	// AdvanceMs is the stride between window starts. Default WindowMs/2.
 	AdvanceMs int
+
+	// Clock is the wall-clock seam used for per-window latency
+	// measurement. Defaults to clock.System{}.
+	Clock clock.Clock
 }
 
 // Kind reports the strategy kind for selector enforcement.
@@ -93,9 +97,13 @@ func (o *OverlapAgree) Run(
 			LPBSToken:               start.LPBSToken,
 			UserIdentity:            start.UserIdentity,
 		}
-		t0 := time.Now()
+		clk := o.Clock
+		if clk == nil {
+			clk = clock.System{}
+		}
+		t0 := clk.Now()
 		res, err := o.Provider.Transcribe(ctx, req)
-		totalLatencyMs += float64(time.Since(t0).Milliseconds())
+		totalLatencyMs += float64(clk.Now().Sub(t0).Milliseconds())
 		return res, err
 	}
 

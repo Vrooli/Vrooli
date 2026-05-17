@@ -3,8 +3,8 @@ package summarizechain
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"audio-tools/internal/clock"
 	"audio-tools/internal/summarize"
 )
 
@@ -12,10 +12,19 @@ import (
 type LocalProvider struct {
 	summarizer   *summarize.Summarizer
 	defaultModel string
+	clk          clock.Clock
 }
 
 func NewLocalProvider(summarizer *summarize.Summarizer, defaultModel string) *LocalProvider {
-	return &LocalProvider{summarizer: summarizer, defaultModel: defaultModel}
+	return &LocalProvider{summarizer: summarizer, defaultModel: defaultModel, clk: clock.System{}}
+}
+
+// NewLocalProviderWith constructs a LocalProvider with a custom clock.
+func NewLocalProviderWith(summarizer *summarize.Summarizer, defaultModel string, clk clock.Clock) *LocalProvider {
+	if clk == nil {
+		clk = clock.System{}
+	}
+	return &LocalProvider{summarizer: summarizer, defaultModel: defaultModel, clk: clk}
 }
 
 func (p *LocalProvider) Type() ProviderTier { return TierLocal }
@@ -32,7 +41,11 @@ func (p *LocalProvider) Summarize(ctx context.Context, req Request) (*Result, er
 	if model == "" {
 		model = p.defaultModel
 	}
-	start := time.Now()
+	clk := p.clk
+	if clk == nil {
+		clk = clock.System{}
+	}
+	start := clk.Now()
 	resp, err := p.summarizer.Summarize(ctx, req.Text, model, req.Level)
 	if err != nil {
 		return nil, err
@@ -43,7 +56,7 @@ func (p *LocalProvider) Summarize(ctx context.Context, req Request) (*Result, er
 		Tier:         TierLocal,
 		ProviderID:   "ollama-local",
 		ModelID:      model,
-		Latency:      time.Since(start),
+		Latency:      clk.Now().Sub(start),
 	}, nil
 }
 

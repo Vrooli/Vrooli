@@ -5,6 +5,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"audio-tools/internal/clock"
 )
 
 type Chain struct {
@@ -18,6 +20,8 @@ type Chain struct {
 
 	availTTLByOK   time.Duration
 	availTTLVrooli time.Duration
+
+	clk clock.Clock
 
 	mu       sync.Mutex
 	byokOK   cachedAvail
@@ -40,6 +44,9 @@ type Options struct {
 
 	AvailTTLByOK   time.Duration
 	AvailTTLVrooli time.Duration
+
+	// Clock is the wall-clock seam used for TTL comparisons.
+	Clock clock.Clock
 }
 
 func NewChain(opts Options) *Chain {
@@ -49,10 +56,15 @@ func NewChain(opts Options) *Chain {
 	if opts.AvailTTLVrooli == 0 {
 		opts.AvailTTLVrooli = 30 * time.Second
 	}
+	clk := opts.Clock
+	if clk == nil {
+		clk = clock.System{}
+	}
 	return &Chain{
 		local: opts.Local, byok: opts.BYOK, vrooli: opts.Vrooli,
 		enableLocal: opts.EnableLocal, enableBYOK: opts.EnableBYOK, enableVrooli: opts.EnableVrooli,
 		availTTLByOK: opts.AvailTTLByOK, availTTLVrooli: opts.AvailTTLVrooli,
+		clk: clk,
 	}
 }
 
@@ -125,7 +137,11 @@ func (c *Chain) Probe(ctx context.Context) ProbeResult {
 func (c *Chain) availFor(ctx context.Context, tier ProviderTier) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	now := time.Now()
+	clk := c.clk
+	if clk == nil {
+		clk = clock.System{}
+	}
+	now := clk.Now()
 	switch tier {
 	case TierBYOK:
 		if !c.byokOK.checkedAt.IsZero() && now.Sub(c.byokOK.checkedAt) < c.availTTLByOK {

@@ -21,7 +21,7 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
-| stt | Speech-to-text (batch + streaming) with three-tier provider routing. | Streaming / chain-routed | Stream config, wakeword phrases, enrolled speaker embeddings, transcription usage rows. | API, CLI, UI, WS, Embed | OT-P0-001, OT-P0-007, OT-P0-008, OT-P1-014 | `api/internal/stt/`, `api/internal/ai/sttchain/`, `api/handlers/stt/`, `cli/domains/voice/`, `ui/src/features/diagnostics/`, `embed/`, `packages/proto/schemas/audio-tools/v1/stt/` |
+| stt | Speech-to-text (batch + streaming) with three-tier provider routing. | Streaming / chain-routed | Stream config, wakeword phrases, enrolled speaker embeddings, transcription usage rows. | API, CLI, UI, WS, Embed | OT-P0-001, OT-P0-007, OT-P0-008, OT-P1-014 | `api/internal/stt/`, `api/internal/ai/sttchain/`, `api/handlers/stt/`, `cli/domains/stt/`, `ui/src/features/diagnostics/`, `embed/`, `packages/proto/schemas/audio-tools/v1/stt/` |
 | tts | Text-to-speech synthesis (batch + streaming) with on-disk cache. | Synthesis / chain-routed | Voice catalog snapshot, TTS config, content-addressable audio cache, playback events. | API, CLI, UI, Embed | OT-P0-002, OT-P0-006 | `api/internal/tts/`, `api/internal/ai/ttschain/`, `api/handlers/tts/`, `cli/domains/tts/`, `ui/src/features/diagnostics/`, `embed/`, `packages/proto/schemas/audio-tools/v1/tts/` |
 | summarize | Text summarization with normalization preprocessing. | Inference / chain-routed | Per-call usage rows. | API, CLI, UI | OT-P0-003, OT-P0-006 | `api/internal/summarize/`, `api/internal/ai/summarizechain/`, `api/handlers/summarize/`, `cli/domains/summarize/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/summarize/` |
 | audio | Audio file processing (transcode/trim/merge/split/fade/volume/normalize/metadata). | Pipeline / shellout | None (operates on multipart payloads). | API, CLI, UI | OT-P0-004 | `api/internal/audio/`, `api/handlers/audio/`, `cli/domains/audio/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/audio/` |
@@ -40,7 +40,7 @@ belong in [`DATA.md`](DATA.md).
 - Owns: segmenter, strategy selector, streaming strategies, STT chain providers, STT admin (stream config / wakeword / speaker) handlers.
 - Does not own: BYOK credential persistence (settings), usage ledger (usage), generic audio file ops (audio).
 - API: `api/handlers/stt/` (Connect-RPC + WS `/api/v1/voice/stream`).
-- CLI: `cli/domains/voice/` (display name `voice`; STT under the hood — see Section "CLI display names" in [`../reference/cli-commands.md`](../reference/cli-commands.md)).
+- CLI: `cli/domains/stt/` (verb `audio-tools stt …`; renamed from `voice` on 2026-05-17 — see [`../internal/DECISIONS.md`](../internal/DECISIONS.md)).
 - UI: `ui/src/features/diagnostics/` (try-it row), `ui/src/features/configuration/` (admin forms).
 - Storage: `stt_stream_config`, `wakeword_phrases`, `speaker_embeddings` tables; see [`DATA.md`](DATA.md).
 - Requirements: OT-P0-001 (local), OT-P0-007 (session fan-out), OT-P0-008 (barge-in), OT-P1-014 (streaming).
@@ -128,6 +128,19 @@ belong in [`DATA.md`](DATA.md).
 - UI: `ui/src/features/overview/`.
 - Storage: none.
 - Requirements: starter scaffold health only.
+
+## Naming Pitfalls
+
+- **`ui/src/features/voices/` is part of `tts`, not `stt`.** It is the
+  TTS voice-catalog browser. The CLI verb for STT is `audio-tools stt …`
+  (renamed from `voice` on 2026-05-17 — see
+  [`../internal/DECISIONS.md`](../internal/DECISIONS.md)). The
+  `voice` flag on `audio-tools tts synthesize` and the proto field
+  `Voice` likewise refer to the TTS voice catalog.
+- **`cli/domains/stt` ≠ `internal/stt`** but they cover the same domain.
+  The CLI is generated against the proto Connect client; primitives
+  (segmenter/strategy/selector) live in `api/internal/stt/`. Provider
+  routing lives one level up in `api/internal/ai/sttchain/`.
 
 ## Shared Concepts
 

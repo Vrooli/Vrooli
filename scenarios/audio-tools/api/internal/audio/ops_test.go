@@ -1,64 +1,45 @@
-package audio
+package audio_test
 
 import (
 	"context"
 	"errors"
 	"strings"
 	"testing"
+
+	"audio-tools/internal/audio"
+	"audio-tools/internal/audio/mocks"
 )
 
-// fakeRunner captures invocations and returns canned responses.
-type fakeRunner struct {
-	calls   []fakeCall
-	stdout  []byte
-	err     error
-	respond func(name string, args []string) ([]byte, error)
-}
-
-type fakeCall struct {
-	Name  string
-	Stdin []byte
-	Args  []string
-}
-
-func (f *fakeRunner) Run(_ context.Context, name string, stdin []byte, args ...string) ([]byte, error) {
-	f.calls = append(f.calls, fakeCall{Name: name, Stdin: append([]byte(nil), stdin...), Args: append([]string(nil), args...)})
-	if f.respond != nil {
-		return f.respond(name, args)
-	}
-	return f.stdout, f.err
-}
-
-func swapRunner(t *testing.T, r Runner) {
+// swapRunner installs r as the production Runner for the duration of
+// the test. The exported SetFfmpegAvailableForTest helper seeds the
+// availability cache to true so runFfmpeg / runFfprobe call into the
+// fake even when the binaries aren't on PATH.
+func swapRunner(t *testing.T, r audio.Runner) {
 	t.Helper()
-	// Seed the lookup-path cache to "available" so the fake takes
-	// effect even when ffmpeg/ffprobe aren't installed on this host.
-	ffmpegOnce.Do(func() {})
-	ffmpegAvailable = true
-	ffprobeOnce.Do(func() {})
-	ffprobeAvailable = true
-	orig := DefaultRunner
-	DefaultRunner = r
+	restoreAvail := audio.SetFfmpegAvailableForTest(true, true)
+	orig := audio.DefaultRunner
+	audio.DefaultRunner = r
 	t.Cleanup(func() {
-		DefaultRunner = orig
+		audio.DefaultRunner = orig
+		restoreAvail()
 	})
 }
 
 func TestTranscodeArgvShape(t *testing.T) {
-	fake := &fakeRunner{stdout: []byte("WAVDATA")}
+	fake := mocks.NewFakeRunner([]byte("WAVDATA"), nil)
 	swapRunner(t, fake)
 
-	out, err := Transcode(context.Background(), []byte("INPUT"))
+	out, err := audio.Transcode(context.Background(), []byte("INPUT"))
 	if err != nil {
 		t.Fatalf("Transcode: %v", err)
 	}
 	if string(out) != "WAVDATA" {
 		t.Fatalf("expected fake stdout, got %q", out)
 	}
-	if len(fake.calls) != 1 {
-		t.Fatalf("expected 1 invocation, got %d", len(fake.calls))
+	if len(fake.Calls) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(fake.Calls))
 	}
-	call := fake.calls[0]
+	call := fake.Calls[0]
 	if call.Name != "ffmpeg" {
 		t.Fatalf("expected ffmpeg, got %s", call.Name)
 	}
@@ -71,13 +52,13 @@ func TestTranscodeArgvShape(t *testing.T) {
 }
 
 func TestTrimArgvIncludesStartAndEnd(t *testing.T) {
-	fake := &fakeRunner{stdout: []byte("OUT")}
+	fake := mocks.NewFakeRunner([]byte("OUT"), nil)
 	swapRunner(t, fake)
 
-	if _, err := Trim(context.Background(), []byte("X"), "mp3", 1.5, 4.0, ""); err != nil {
+	if _, err := audio.Trim(context.Background(), []byte("X"), "mp3", 1.5, 4.0, ""); err != nil {
 		t.Fatalf("Trim: %v", err)
 	}
-	args := fake.calls[0].Args
+	args := fake.Calls[0].Args
 	if !containsAll(args, "-ss", "1.5", "-to", "4") {
 		t.Fatalf("missing -ss/-to in argv: %v", args)
 	}
@@ -87,32 +68,32 @@ func TestTrimArgvIncludesStartAndEnd(t *testing.T) {
 }
 
 func TestTrimRejectsNegativeStart(t *testing.T) {
-	if _, err := Trim(context.Background(), nil, "wav", -1, 2, ""); err == nil {
+	if _, err := audio.Trim(context.Background(), nil, "wav", -1, 2, ""); err == nil {
 		t.Fatalf("expected negative-start rejection")
 	}
 }
 
 func TestVolumeAppliesGainFilter(t *testing.T) {
-	fake := &fakeRunner{stdout: []byte("VOL")}
+	fake := mocks.NewFakeRunner([]byte("VOL"), nil)
 	swapRunner(t, fake)
 
-	if _, err := Volume(context.Background(), []byte("Y"), "wav", -3, ""); err != nil {
+	if _, err := audio.Volume(context.Background(), []byte("Y"), "wav", -3, ""); err != nil {
 		t.Fatalf("Volume: %v", err)
 	}
-	args := fake.calls[0].Args
+	args := fake.Calls[0].Args
 	if !containsAll(args, "-af") || !containsAny(args, "volume=-3dB") {
 		t.Fatalf("expected gain filter -3dB in argv: %v", args)
 	}
 }
 
 func TestFadeOmitsFilterWhenZero(t *testing.T) {
-	fake := &fakeRunner{stdout: []byte("F")}
+	fake := mocks.NewFakeRunner([]byte("F"), nil)
 	swapRunner(t, fake)
 
-	if _, err := Fade(context.Background(), []byte("X"), "wav", 0, 0, ""); err != nil {
+	if _, err := audio.Fade(context.Background(), []byte("X"), "wav", 0, 0, ""); err != nil {
 		t.Fatalf("Fade: %v", err)
 	}
-	args := fake.calls[0].Args
+	args := fake.Calls[0].Args
 	for i, a := range args {
 		if a == "-af" {
 			t.Fatalf("expected no -af when both fades are zero, got %v (index %d)", args, i)
@@ -127,10 +108,10 @@ func TestMetadataParsesFfprobeJSON(t *testing.T) {
 	  ],
 	  "format": {"format_name": "mp3", "duration": "12.5", "bit_rate": "192000", "tags": {"title": "hello"}}
 	}`
-	fake := &fakeRunner{stdout: []byte(probeJSON)}
+	fake := mocks.NewFakeRunner([]byte(probeJSON), nil)
 	swapRunner(t, fake)
 
-	meta, err := Probe(context.Background(), []byte("xxx"))
+	meta, err := audio.Probe(context.Background(), []byte("xxx"))
 	if err != nil {
 		t.Fatalf("Metadata: %v", err)
 	}
@@ -153,10 +134,10 @@ func TestMetadataParsesFfprobeJSON(t *testing.T) {
 
 func TestRunnerErrorPropagates(t *testing.T) {
 	want := errors.New("synthetic ffmpeg fail")
-	fake := &fakeRunner{err: want}
+	fake := mocks.NewFakeRunner(nil, want)
 	swapRunner(t, fake)
 
-	_, err := Transcode(context.Background(), []byte("x"))
+	_, err := audio.Transcode(context.Background(), []byte("x"))
 	if err == nil {
 		t.Fatalf("expected propagated error")
 	}

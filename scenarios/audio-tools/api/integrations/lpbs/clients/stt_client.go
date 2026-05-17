@@ -3,24 +3,23 @@ package clients
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"time"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/httpc"
 )
 
 // STTClient routes Transcribe through the LPBS audio gateway. Implements
 // sttchain.VrooliClient. Today returns Unimplemented until the gateway
 // endpoint ships; this seam exists so main.go can wire it once enabled.
 type STTClient struct {
-	BaseURL    string
-	HTTPClient *http.Client
+	BaseURL string
+	Doer    httpc.Doer
 }
 
 func NewSTTClient(baseURL string) *STTClient {
 	return &STTClient{
-		BaseURL:    baseURL,
-		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+		BaseURL: baseURL,
+		Doer:    httpc.DefaultDoer(),
 	}
 }
 

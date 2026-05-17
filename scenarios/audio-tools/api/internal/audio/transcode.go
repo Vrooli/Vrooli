@@ -39,6 +39,9 @@ func hasFfprobe() bool {
 	return ffprobeAvailable
 }
 
+// seam: Runner is the ffmpeg-process seam (SEAMS.md row "audio.Runner").
+// Production wires audio.DefaultRunner; tests wire mocks.FakeRunner.
+//
 // Runner is the seam tests substitute for ffmpeg/ffprobe invocation.
 // Production uses os/exec; tests inject a fake to capture argv and
 // inject canned stdout/err pairs without depending on a binary.

@@ -3,18 +3,27 @@ package ttschain
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"audio-tools/internal/clock"
 	"audio-tools/internal/tts"
 )
 
 // LocalProvider wraps tts.Service.Synthesize (Kokoro backend).
 type LocalProvider struct {
 	svc *tts.Service
+	clk clock.Clock
 }
 
 func NewLocalProvider(svc *tts.Service) *LocalProvider {
-	return &LocalProvider{svc: svc}
+	return &LocalProvider{svc: svc, clk: clock.System{}}
+}
+
+// NewLocalProviderWith constructs a LocalProvider with a custom clock.
+func NewLocalProviderWith(svc *tts.Service, clk clock.Clock) *LocalProvider {
+	if clk == nil {
+		clk = clock.System{}
+	}
+	return &LocalProvider{svc: svc, clk: clk}
 }
 
 func (p *LocalProvider) Type() ProviderTier { return TierLocal }
@@ -33,7 +42,11 @@ func (p *LocalProvider) Synthesize(ctx context.Context, req Request) (*Result, e
 	if p == nil || p.svc == nil {
 		return nil, fmt.Errorf("audio-tools/ttschain: local provider not configured")
 	}
-	start := time.Now()
+	clk := p.clk
+	if clk == nil {
+		clk = clock.System{}
+	}
+	start := clk.Now()
 	in := tts.SynthesizeInput{
 		Input:          req.Text,
 		Voice:          resolveLocalVoice(req.Voice, req.VoiceOverrides),
@@ -53,7 +66,7 @@ func (p *LocalProvider) Synthesize(ctx context.Context, req Request) (*Result, e
 		ProviderID:  "kokoro-local",
 		ModelID:     "kokoro",
 		VoiceUsed:   in.Voice,
-		Latency:     time.Since(start),
+		Latency:     clk.Now().Sub(start),
 	}, nil
 }
 

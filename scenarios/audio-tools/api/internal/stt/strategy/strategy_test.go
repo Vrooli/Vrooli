@@ -1,4 +1,4 @@
-package strategy
+package strategy_test
 
 import (
 	"context"
@@ -9,37 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"audio-tools/internal/ai/sttchain"
+	sttmocks "audio-tools/internal/ai/sttchain/mocks"
 	"audio-tools/internal/stt/segmenter/testaudio"
+	"audio-tools/internal/stt/strategy"
 )
-
-// fakeProvider satisfies sttchain.Provider with test-controllable
-// Transcribe and TranscribeStreaming behaviour.
-type fakeProvider struct {
-	tier       sttchain.ProviderTier
-	calls      int
-	transcribe func(ctx context.Context, req sttchain.Request) (*sttchain.Result, error)
-	stream     func(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error)
-	traits     sttchain.ProviderTraits
-}
-
-func (f *fakeProvider) Type() sttchain.ProviderTier      { return f.tier }
-func (f *fakeProvider) IsAvailable(context.Context) bool { return true }
-func (f *fakeProvider) Model() string                    { return "fake" }
-func (f *fakeProvider) Traits() sttchain.ProviderTraits  { return f.traits }
-func (f *fakeProvider) Transcribe(ctx context.Context, req sttchain.Request) (*sttchain.Result, error) {
-	f.calls++
-	if f.transcribe != nil {
-		return f.transcribe(ctx, req)
-	}
-	return &sttchain.Result{Text: "ok", Tier: f.tier, ProviderID: "fake", ModelID: "fake-1", Latency: time.Millisecond}, nil
-}
-
-func (f *fakeProvider) TranscribeStreaming(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
-	if f.stream != nil {
-		return f.stream(ctx, start, chunks)
-	}
-	return nil, nil
-}
 
 // drainEvents reads every event from `out` until it closes; returns the
 // flat list. Caller is responsible for ensuring the strategy goroutine
@@ -55,7 +28,7 @@ func drainEvents(t *testing.T, out <-chan sttchain.StreamEvent) []sttchain.Strea
 
 // runStrategy spawns strat.Run in a goroutine, closes events when Run
 // returns, and returns all events.
-func runStrategy(t *testing.T, ctx context.Context, strat Strategy, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) []sttchain.StreamEvent {
+func runStrategy(t *testing.T, ctx context.Context, strat strategy.Strategy, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) []sttchain.StreamEvent {
 	t.Helper()
 	events := make(chan sttchain.StreamEvent, 32)
 	done := make(chan struct{})
@@ -78,18 +51,9 @@ func chunksFrom(audio []byte) <-chan sttchain.AudioChunk {
 
 // ----- BufferedFallback -----
 
-type fakeExecutor struct {
-	res *sttchain.Result
-	err error
-}
-
-func (f *fakeExecutor) Execute(context.Context, sttchain.Request) (*sttchain.Result, error) {
-	return f.res, f.err
-}
-
 func TestBufferedFallback_HappyPathEmitsSegmentThenDone(t *testing.T) {
-	strat := &BufferedFallback{Executor: &fakeExecutor{
-		res: &sttchain.Result{Text: "hello world", Tier: sttchain.TierLocal, ProviderID: "whisper", ModelID: "base", Latency: 5 * time.Millisecond},
+	strat := &strategy.BufferedFallback{Executor: &sttmocks.FakeBatchExecutor{
+		Result: &sttchain.Result{Text: "hello world", Tier: sttchain.TierLocal, ProviderID: "whisper", ModelID: "base", Latency: 5 * time.Millisecond},
 	}}
 	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom([]byte("audio")))
 
@@ -102,14 +66,14 @@ func TestBufferedFallback_HappyPathEmitsSegmentThenDone(t *testing.T) {
 }
 
 func TestBufferedFallback_NoExecutorEmitsErrorThenDone(t *testing.T) {
-	got := runStrategy(t, context.Background(), &BufferedFallback{}, sttchain.StreamStart{}, chunksFrom(nil))
+	got := runStrategy(t, context.Background(), &strategy.BufferedFallback{}, sttchain.StreamStart{}, chunksFrom(nil))
 	require.Len(t, got, 2)
 	require.Equal(t, sttchain.StreamEventError, got[0].Kind)
 	require.Equal(t, sttchain.StreamEventDone, got[1].Kind)
 }
 
 func TestBufferedFallback_ExecutorErrorPropagated(t *testing.T) {
-	strat := &BufferedFallback{Executor: &fakeExecutor{err: errors.New("boom")}}
+	strat := &strategy.BufferedFallback{Executor: &sttmocks.FakeBatchExecutor{Err: errors.New("boom")}}
 	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom([]byte("x")))
 	require.Len(t, got, 2)
 	require.Equal(t, sttchain.StreamEventError, got[0].Kind)
@@ -123,7 +87,7 @@ func TestBufferedFallback_CtxCancelEndsImmediately(t *testing.T) {
 	cancel()
 	// Open chunk channel that never closes; ctx cancel must drive exit.
 	chunks := make(chan sttchain.AudioChunk)
-	got := runStrategy(t, ctx, &BufferedFallback{Executor: &fakeExecutor{res: &sttchain.Result{}}}, sttchain.StreamStart{}, chunks)
+	got := runStrategy(t, ctx, &strategy.BufferedFallback{Executor: &sttmocks.FakeBatchExecutor{Result: &sttchain.Result{}}}, sttchain.StreamStart{}, chunks)
 	require.NotEmpty(t, got)
 	require.Equal(t, sttchain.StreamEventError, got[0].Kind)
 }
@@ -131,26 +95,23 @@ func TestBufferedFallback_CtxCancelEndsImmediately(t *testing.T) {
 // ----- Passthrough -----
 
 func TestPassthrough_NoProviderEmitsErrorThenDone(t *testing.T) {
-	got := runStrategy(t, context.Background(), &Passthrough{}, sttchain.StreamStart{}, chunksFrom(nil))
+	got := runStrategy(t, context.Background(), &strategy.Passthrough{}, sttchain.StreamStart{}, chunksFrom(nil))
 	require.Len(t, got, 2)
 	require.Equal(t, sttchain.StreamEventError, got[0].Kind)
 	require.Equal(t, sttchain.StreamEventDone, got[1].Kind)
 }
 
 func TestPassthrough_ForwardsProviderEvents(t *testing.T) {
-	prov := &fakeProvider{
-		tier:   sttchain.TierBYOK,
-		traits: sttchain.ProviderTraits{Stream: true},
-		stream: func(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
-			out := make(chan sttchain.StreamEvent, 3)
-			out <- sttchain.StreamEvent{Kind: sttchain.StreamEventPartial, Partial: &sttchain.PartialEvent{Text: "hel"}}
-			out <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{Text: "hello"}}
-			out <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FinalText: "hello"}}
-			close(out)
-			return out, nil
-		},
+	prov := sttmocks.NewFakeProvider(sttchain.TierBYOK, sttchain.ProviderTraits{Stream: true})
+	prov.StreamFn = func(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
+		out := make(chan sttchain.StreamEvent, 3)
+		out <- sttchain.StreamEvent{Kind: sttchain.StreamEventPartial, Partial: &sttchain.PartialEvent{Text: "hel"}}
+		out <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{Text: "hello"}}
+		out <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FinalText: "hello"}}
+		close(out)
+		return out, nil
 	}
-	got := runStrategy(t, context.Background(), &Passthrough{Provider: prov}, sttchain.StreamStart{}, chunksFrom(nil))
+	got := runStrategy(t, context.Background(), &strategy.Passthrough{Provider: prov}, sttchain.StreamStart{}, chunksFrom(nil))
 	require.Len(t, got, 3)
 	require.Equal(t, sttchain.StreamEventPartial, got[0].Kind)
 	require.Equal(t, sttchain.StreamEventSegment, got[1].Kind)
@@ -158,15 +119,14 @@ func TestPassthrough_ForwardsProviderEvents(t *testing.T) {
 }
 
 func TestPassthrough_SynthesisesMissingDone(t *testing.T) {
-	prov := &fakeProvider{
-		stream: func(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
-			out := make(chan sttchain.StreamEvent, 1)
-			out <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{Text: "x"}}
-			close(out)
-			return out, nil
-		},
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.StreamFn = func(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
+		out := make(chan sttchain.StreamEvent, 1)
+		out <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{Text: "x"}}
+		close(out)
+		return out, nil
 	}
-	got := runStrategy(t, context.Background(), &Passthrough{Provider: prov}, sttchain.StreamStart{}, chunksFrom(nil))
+	got := runStrategy(t, context.Background(), &strategy.Passthrough{Provider: prov}, sttchain.StreamStart{}, chunksFrom(nil))
 	require.GreaterOrEqual(t, len(got), 2)
 	require.Equal(t, sttchain.StreamEventDone, got[len(got)-1].Kind)
 }
@@ -174,8 +134,8 @@ func TestPassthrough_SynthesisesMissingDone(t *testing.T) {
 // ----- VADSegmenter -----
 
 func TestVADSegmenter_SilenceEmitsNoSegments(t *testing.T) {
-	prov := &fakeProvider{tier: sttchain.TierLocal}
-	strat := &VADSegmenter{Provider: prov}
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	strat := &strategy.VADSegmenter{Provider: prov}
 	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.Silence()))
 
 	// All-silence input never sees a voiced frame, so flushSegment skips.
@@ -191,17 +151,15 @@ func TestVADSegmenter_SilenceEmitsNoSegments(t *testing.T) {
 	}
 	require.Equal(t, 0, segments, "silence must not produce segments")
 	require.Equal(t, 1, dones)
-	require.Equal(t, 0, prov.calls)
+	require.Equal(t, 0, prov.Calls)
 }
 
 func TestVADSegmenter_SpeechLikeEmitsAtLeastOneSegment(t *testing.T) {
-	prov := &fakeProvider{
-		tier: sttchain.TierLocal,
-		transcribe: func(context.Context, sttchain.Request) (*sttchain.Result, error) {
-			return &sttchain.Result{Text: "segment", Tier: sttchain.TierLocal, ProviderID: "whisper", ModelID: "base", Latency: time.Millisecond}, nil
-		},
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		return &sttchain.Result{Text: "segment", Tier: sttchain.TierLocal, ProviderID: "whisper", ModelID: "base", Latency: time.Millisecond}, nil
 	}
-	strat := &VADSegmenter{Provider: prov}
+	strat := &strategy.VADSegmenter{Provider: prov}
 	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.SpeechLike()))
 
 	var segments, dones int
@@ -219,18 +177,18 @@ func TestVADSegmenter_SpeechLikeEmitsAtLeastOneSegment(t *testing.T) {
 }
 
 func TestVADSegmenter_NoProviderEmitsErrorThenDone(t *testing.T) {
-	got := runStrategy(t, context.Background(), &VADSegmenter{}, sttchain.StreamStart{}, chunksFrom(nil))
+	got := runStrategy(t, context.Background(), &strategy.VADSegmenter{}, sttchain.StreamStart{}, chunksFrom(nil))
 	require.Len(t, got, 2)
 	require.Equal(t, sttchain.StreamEventError, got[0].Kind)
 	require.Equal(t, sttchain.StreamEventDone, got[1].Kind)
 }
 
 func TestVADSegmenter_CtxCancelStillEmitsDone(t *testing.T) {
-	prov := &fakeProvider{tier: sttchain.TierLocal}
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	chunks := make(chan sttchain.AudioChunk)
-	got := runStrategy(t, ctx, &VADSegmenter{Provider: prov}, sttchain.StreamStart{}, chunks)
+	got := runStrategy(t, ctx, &strategy.VADSegmenter{Provider: prov}, sttchain.StreamStart{}, chunks)
 	require.NotEmpty(t, got)
 	require.Equal(t, sttchain.StreamEventDone, got[len(got)-1].Kind)
 }
@@ -238,22 +196,20 @@ func TestVADSegmenter_CtxCancelStillEmitsDone(t *testing.T) {
 // ----- OverlapAgree -----
 
 func TestOverlapAgree_NoProviderEmitsErrorThenDone(t *testing.T) {
-	got := runStrategy(t, context.Background(), &OverlapAgree{}, sttchain.StreamStart{}, chunksFrom(nil))
+	got := runStrategy(t, context.Background(), &strategy.OverlapAgree{}, sttchain.StreamStart{}, chunksFrom(nil))
 	require.Len(t, got, 2)
 	require.Equal(t, sttchain.StreamEventError, got[0].Kind)
 	require.Equal(t, sttchain.StreamEventDone, got[1].Kind)
 }
 
 func TestOverlapAgree_SilenceProducesOnlyDone(t *testing.T) {
-	prov := &fakeProvider{
-		tier: sttchain.TierLocal,
-		transcribe: func(context.Context, sttchain.Request) (*sttchain.Result, error) {
-			return &sttchain.Result{Text: "", Tier: sttchain.TierLocal}, nil
-		},
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		return &sttchain.Result{Text: "", Tier: sttchain.TierLocal}, nil
 	}
 	// Small audio (under WindowMs at default 16kHz/2s) — no windows fire,
 	// final tail transcribe sees no committed text. Done is terminal.
-	got := runStrategy(t, context.Background(), &OverlapAgree{Provider: prov}, sttchain.StreamStart{}, chunksFrom(testaudio.Silence()))
+	got := runStrategy(t, context.Background(), &strategy.OverlapAgree{Provider: prov}, sttchain.StreamStart{}, chunksFrom(testaudio.Silence()))
 	require.NotEmpty(t, got)
 	require.Equal(t, sttchain.StreamEventDone, got[len(got)-1].Kind)
 }
@@ -262,16 +218,14 @@ func TestOverlapAgree_AgreementCommitsSegment(t *testing.T) {
 	// Provider returns "hello world" on every call. With CommitRuns=2,
 	// the second window agrees on the full prefix and we should see a
 	// Segment "hello world" + final Done with FinalText.
-	prov := &fakeProvider{
-		tier: sttchain.TierLocal,
-		transcribe: func(context.Context, sttchain.Request) (*sttchain.Result, error) {
-			return &sttchain.Result{Text: "hello world", Tier: sttchain.TierLocal, ProviderID: "whisper", ModelID: "base"}, nil
-		},
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		return &sttchain.Result{Text: "hello world", Tier: sttchain.TierLocal, ProviderID: "whisper", ModelID: "base"}, nil
 	}
 	// Make enough audio for multiple windows: 4 seconds of tone at 16kHz
 	// → 128_000 bytes; window=32_000 bytes (2s), advance=16_000 bytes (1s).
 	audio := testaudio.SineSamples(440, 4000)
-	strat := &OverlapAgree{Provider: prov, WindowMs: 2000, CommitRuns: 2, AdvanceMs: 1000}
+	strat := &strategy.OverlapAgree{Provider: prov, WindowMs: 2000, CommitRuns: 2, AdvanceMs: 1000}
 	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(audio))
 
 	var sawSegment bool

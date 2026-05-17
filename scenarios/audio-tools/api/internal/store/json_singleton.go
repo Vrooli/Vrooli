@@ -55,7 +55,7 @@ func (j *jsonSingleton) set(ctx context.Context, values []string) error {
 	for _, v := range values {
 		args = append(args, v)
 	}
-	args = append(args, time.Now().UTC().Format(time.RFC3339))
+	args = append(args, now().Format(time.RFC3339))
 	_, err := j.db.ExecContext(ctx, q, args...)
 	return err
 }

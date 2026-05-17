@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"audio-tools/internal/testutil/mocks"
 )
 
 func TestSummarizeConfig_LoadSaveRoundTrip(t *testing.T) {
@@ -138,5 +140,28 @@ func TestDefaultSummarizeConfig_TimeoutSufficientForColdStart(t *testing.T) {
 	if cfg.TimeoutSeconds < 60 {
 		t.Errorf("default timeout %ds is too short for Ollama cold model loads; need >= 60s",
 			cfg.TimeoutSeconds)
+	}
+}
+
+// TestDefaultSummarizeConfigWith_ReadsModelFromInjectedEnv proves the
+// envx.Reader seam: a fake env serves WC_TTS_SUMMARIZE_MODEL without
+// mutating process state, and the read is observable via FakeEnv.Reads().
+func TestDefaultSummarizeConfigWith_ReadsModelFromInjectedEnv(t *testing.T) {
+	env := mocks.NewFakeEnv(map[string]string{"WC_TTS_SUMMARIZE_MODEL": "qwen3:1.7b"})
+	cfg := DefaultSummarizeConfigWith(env)
+	if cfg.Model != "qwen3:1.7b" {
+		t.Errorf("Model = %q, want %q", cfg.Model, "qwen3:1.7b")
+	}
+	reads := env.Reads()
+	if len(reads) != 1 || reads[0] != "WC_TTS_SUMMARIZE_MODEL" {
+		t.Errorf("Reads() = %v, want exactly [WC_TTS_SUMMARIZE_MODEL]", reads)
+	}
+}
+
+func TestDefaultSummarizeConfigWith_DefaultsWhenUnset(t *testing.T) {
+	env := mocks.NewFakeEnv(nil)
+	cfg := DefaultSummarizeConfigWith(env)
+	if cfg.Model != "qwen3:4b" {
+		t.Errorf("unset env should default to qwen3:4b, got %q", cfg.Model)
 	}
 }

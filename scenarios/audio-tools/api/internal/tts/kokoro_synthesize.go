@@ -7,8 +7,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
+// seam: Synthesizer is the local-TTS engine seam (SEAMS.md row
+// "tts.Synthesizer"). Production wires the kokoro HTTP synthesizer;
+// tests wire fakes.
+//
 // Synthesizer is the testability seam for TTS synthesis.
 type Synthesizer interface {
 	Synthesize(ctx context.Context, req SynthesizeRequest) (io.ReadCloser, string, error)
@@ -54,9 +59,13 @@ func (k *KokoroSynthesizer) Synthesize(ctx context.Context, req SynthesizeReques
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
+	// Production constructors set k.Client to a timeout-bounded
+	// *http.Client; this fallback is for accidental zero-value Kokoro
+	// structs in tests. A dedicated httpc.Doer field would require
+	// wider seam changes across the kokoro construction path.
 	client := k.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: 120 * time.Second}
 	}
 	resp, err := client.Do(httpReq)
 	if err != nil {

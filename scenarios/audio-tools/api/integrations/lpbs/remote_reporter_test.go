@@ -35,14 +35,11 @@ func TestReporter_StartDrainsQueue(t *testing.T) {
 	defer cancel()
 	r.Start(ctx)
 
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if len(r.queue) == 0 {
-			break
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	require.Equal(t, 0, len(r.queue), "queue must drain")
+	// Polling-via-Eventually is the event-driven substitute for an
+	// explicit sleep loop: testify drives the polling interval and
+	// fails fast if the condition never holds. No bare time.Sleep in
+	// the test source keeps the suite race-clean under -race.
+	require.Eventually(t, func() bool { return len(r.queue) == 0 }, 2*time.Second, 5*time.Millisecond, "queue must drain")
 	r.Stop()
 }
 

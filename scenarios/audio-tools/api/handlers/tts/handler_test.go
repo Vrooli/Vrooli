@@ -12,24 +12,13 @@ import (
 
 	ttsH "audio-tools/handlers/tts"
 	"audio-tools/internal/ai/ttschain"
+	ttsmocks "audio-tools/internal/ai/ttschain/mocks"
 	"audio-tools/internal/byok/envelope"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
 )
-
-type stubTTSVrooli struct {
-	available bool
-	res       *ttschain.Result
-	err       error
-}
-
-func (s *stubTTSVrooli) IsAvailable(context.Context) bool { return s.available }
-func (s *stubTTSVrooli) Model() string                    { return "stub" }
-func (s *stubTTSVrooli) Synthesize(context.Context, string, string, ttschain.Request) (*ttschain.Result, error) {
-	return s.res, s.err
-}
 
 func newServer(t *testing.T, deps ttsH.Deps) ttsconnect.TTSServiceClient {
 	t.Helper()
@@ -44,9 +33,9 @@ func newServer(t *testing.T, deps ttsH.Deps) ttsconnect.TTSServiceClient {
 func TestTTS_Synthesize_HappyPathViaVrooli(t *testing.T) {
 	chain := ttschain.NewChain(ttschain.Options{
 		EnableVrooli: true,
-		Vrooli: ttschain.NewVrooliProvider(&stubTTSVrooli{
-			available: true,
-			res:       &ttschain.Result{Audio: []byte("PCM"), ContentType: "audio/mpeg"},
+		Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{
+			Available: true,
+			Result:    &ttschain.Result{Audio: []byte("PCM"), ContentType: "audio/mpeg"},
 		}),
 	})
 	c := newServer(t, ttsH.Deps{Chain: chain})
@@ -68,9 +57,9 @@ func TestTTS_Synthesize_NoChainReturnsUnavailable(t *testing.T) {
 func TestTTS_Synthesize_InsufficientCreditsMapsToResourceExhausted(t *testing.T) {
 	chain := ttschain.NewChain(ttschain.Options{
 		EnableVrooli: true,
-		Vrooli: ttschain.NewVrooliProvider(&stubTTSVrooli{
-			available: true,
-			err:       ttschain.ErrInsufficientCredits,
+		Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{
+			Available: true,
+			Err:       ttschain.ErrInsufficientCredits,
 		}),
 	})
 	c := newServer(t, ttsH.Deps{Chain: chain})

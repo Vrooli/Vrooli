@@ -5,6 +5,10 @@ import (
 	"fmt"
 )
 
+// seam: BYOKAdapter is the STT BYOK-adapter seam (SEAMS.md row
+// "sttchain.BYOKAdapter"). Production wires concrete vendor adapters
+// from internal/byok; tests wire fakes.
+//
 // BYOKAdapter is implemented by every BYOK STT adapter (openai-whisper,
 // deepgram, ...). Registered in internal/byok with provider_id keys.
 type BYOKAdapter interface {
