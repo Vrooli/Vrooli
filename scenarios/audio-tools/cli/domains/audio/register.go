@@ -1,21 +1,13 @@
+// Package audio is the CLI's audio-domain command surface, mirroring
+// vrooli.audio_tools.v1.audio.AudioProcessingService.
 package audio
 
 import (
-	"context"
-	"fmt"
-	"os"
-
-	"connectrpc.com/connect"
-
 	"github.com/vrooli/cli-core/cliapp"
-
-	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
-	audioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio/audio_v1connect"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	client := audioconnect.NewAudioProcessingServiceClient(httpClient, baseURL)
+	h := newHandlers(core)
 	return cliapp.SubcommandGroup{
 		Name:        "audio",
 		Description: "Audio processing (transcode, trim, merge, ...)",
@@ -30,26 +22,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 						{Name: "output", Required: true, Description: "Output path"},
 					},
 				},
-				RunCtx: func(ctx cliapp.RunContext) error {
-					in := ctx.Flag("input")
-					data, err := os.ReadFile(in)
-					if err != nil {
-						return fmt.Errorf("read %s: %w", in, err)
-					}
-					resp, err := client.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{
-						Audio:        data,
-						OutputFormat: "wav",
-					}))
-					if err != nil {
-						return cliapp.WrapAPIError("transcode", err, nil)
-					}
-					if err := os.WriteFile(ctx.Flag("output"), resp.Msg.Audio, 0o644); err != nil {
-						return fmt.Errorf("write output: %w", err)
-					}
-					return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-						Result: []string{fmt.Sprintf("Wrote %d bytes to %s.", len(resp.Msg.Audio), ctx.Flag("output"))},
-					})
-				},
+				RunCtx: h.transcode,
 			},
 		},
 	}

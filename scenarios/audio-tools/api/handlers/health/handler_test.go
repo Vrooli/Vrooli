@@ -10,7 +10,7 @@ import (
 
 	"audio-tools/handlers/health"
 	"audio-tools/internal/clock"
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
 	"audio-tools/internal/testutil/assertx"
 	"audio-tools/internal/testutil/httpx"
@@ -79,7 +79,7 @@ func TestHealthHandler(t *testing.T) {
 				Service: "react-vite-test",
 				Version: "1.0.0",
 			})
-			mod := module.Module{
+			mod := modulekit.Module{
 				Name: "health",
 				Mount: func(r *mux.Router) {
 					r.HandleFunc("/health", h).Methods(http.MethodGet)

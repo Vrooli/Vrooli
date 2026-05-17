@@ -4,9 +4,6 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`notes` is a worked example from the template, not product scope.
-Replace it after the first real domain is green.
-
 ## Purpose Of This Document
 
 Use this document to answer:
@@ -24,74 +21,147 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
-| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/audio-tools/v1/health/` |
-| notes | Worked CRUD reference with attachment upload exception. | CRUD / entity | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/audio-tools/v1/notes/` |
+| stt | Speech-to-text (batch + streaming) with three-tier provider routing. | Streaming / chain-routed | Stream config, wakeword phrases, enrolled speaker embeddings, transcription usage rows. | API, CLI, UI, WS, Embed | OT-P0-001, OT-P0-007, OT-P0-008, OT-P1-014 | `api/internal/stt/`, `api/internal/ai/sttchain/`, `api/handlers/stt/`, `cli/domains/voice/`, `ui/src/features/diagnostics/`, `embed/`, `packages/proto/schemas/audio-tools/v1/stt/` |
+| tts | Text-to-speech synthesis (batch + streaming) with on-disk cache. | Synthesis / chain-routed | Voice catalog snapshot, TTS config, content-addressable audio cache, playback events. | API, CLI, UI, Embed | OT-P0-002, OT-P0-006 | `api/internal/tts/`, `api/internal/ai/ttschain/`, `api/handlers/tts/`, `cli/domains/tts/`, `ui/src/features/diagnostics/`, `embed/`, `packages/proto/schemas/audio-tools/v1/tts/` |
+| summarize | Text summarization with normalization preprocessing. | Inference / chain-routed | Per-call usage rows. | API, CLI, UI | OT-P0-003, OT-P0-006 | `api/internal/summarize/`, `api/internal/ai/summarizechain/`, `api/handlers/summarize/`, `cli/domains/summarize/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/summarize/` |
+| audio | Audio file processing (transcode/trim/merge/split/fade/volume/normalize/metadata). | Pipeline / shellout | None (operates on multipart payloads). | API, CLI, UI | OT-P0-004 | `api/internal/audio/`, `api/handlers/audio/`, `cli/domains/audio/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/audio/` |
+| session | Voice-session pub/sub fan-out for live STT + TTS streams. | Pub/sub / streaming | Ephemeral in-memory session state. | API, WS | OT-P0-007, OT-P0-008 | `api/internal/session/`, `api/internal/transports/browser/`, `api/handlers/session/`, `packages/proto/schemas/audio-tools/v1/session/` |
+| settings | Operator configuration: provider defaults, per-capability precedence, BYOK creds (AES-GCM at rest). | CRUD / config | Provider config, BYOK secrets, voice overrides. | API, CLI, UI | OT-P0-009 | `api/internal/store/`, `api/internal/byokstore/`, `api/handlers/settings/`, `cli/domains/settings/`, `ui/src/features/configuration/`, `packages/proto/schemas/audio-tools/v1/settings/` |
+| usage | Per-operation usage + cost ledger and rollup queries for the dashboard. | Reporting / ledger | Usage rows (provider, op, ms, credits). | API, CLI, UI | OT-P0-011 | `api/internal/store/usage.go`, `api/internal/usagereport/`, `api/handlers/usage/`, `cli/domains/usage/`, `ui/src/features/usage/`, `packages/proto/schemas/audio-tools/v1/usage/` |
+| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/overview/`, `packages/proto/schemas/audio-tools/v1/health/` |
 
 ## Domain Details
 
+### stt
+
+- Purpose: convert spoken audio to text via BYOK → Vrooli/LPBS → Local chain; support batch unary + bidi streaming with segmenter-strategy decoupling (VAD, overlap-agree, passthrough).
+- Primary archetype: streaming / chain-routed.
+- Secondary traits: WS browser transport, wakeword admin, speaker enrollment + verification.
+- Owns: segmenter, strategy selector, streaming strategies, STT chain providers, STT admin (stream config / wakeword / speaker) handlers.
+- Does not own: BYOK credential persistence (settings), usage ledger (usage), generic audio file ops (audio).
+- API: `api/handlers/stt/` (Connect-RPC + WS `/api/v1/voice/stream`).
+- CLI: `cli/domains/voice/` (display name `voice`; STT under the hood — see Section "CLI display names" in [`../reference/cli-commands.md`](../reference/cli-commands.md)).
+- UI: `ui/src/features/diagnostics/` (try-it row), `ui/src/features/configuration/` (admin forms).
+- Storage: `stt_stream_config`, `wakeword_phrases`, `speaker_embeddings` tables; see [`DATA.md`](DATA.md).
+- Requirements: OT-P0-001 (local), OT-P0-007 (session fan-out), OT-P0-008 (barge-in), OT-P1-014 (streaming).
+- Tests: chain unit, selector table-driven, segmenter parity (HTTP/2 httptest), strategy tests; per-table store tests; pipeline test coverage.
+- Related docs: [`../internal/SEAMS.md`](../internal/SEAMS.md) (Segmenter, StrategySelector, StreamingStrategy seams).
+
+### tts
+
+- Purpose: synthesize audio from text via the same three-tier chain; cache results by content hash; emit playback events for analytics.
+- Primary archetype: synthesis / chain-routed.
+- Owns: voice catalog snapshot + verification gate, TTS config doc, audio cache, normalizer (text → speech-ready text), kokoro local synth client, summarize-adjacent voice surface.
+- Does not own: text summarization (summarize), provider credentials (settings).
+- API: `api/handlers/tts/`.
+- CLI: `cli/domains/tts/`.
+- UI: `ui/src/features/diagnostics/` (synthesize try-it), `ui/src/features/voices/` (browse), `ui/src/features/configuration/`.
+- Storage: `tts_config_doc`, `tts_cache/`, `playback_events`.
+- Requirements: OT-P0-002, OT-P0-006.
+- Tests: cache, chunker, config, service, summarization-service (shared upstream), summarizer, normalizer, voice catalog — all per-file tests.
+
+### summarize
+
+- Purpose: convert long text to short text via the chain, with a normalization preprocessing step.
+- Primary archetype: inference / chain-routed.
+- Owns: summarization service, summarize config, normalizer (text→text), and the `internal/ai/summarizechain/` providers.
+- Does not own: TTS voice synthesis (tts), settings persistence (settings).
+- API: `api/handlers/summarize/`.
+- CLI: `cli/domains/summarize/`.
+- UI: `ui/src/features/diagnostics/`.
+- Storage: usage rows only.
+- Requirements: OT-P0-003, OT-P0-006.
+- Tests: summarization service, summarizer, summarize config, normalizer — see `internal/summarize/`.
+
+### audio
+
+- Purpose: best-effort ffmpeg/ffprobe-backed audio transformations exposed as a multipart endpoint.
+- Primary archetype: pipeline / shellout.
+- Owns: `Ops` shellout layer, ffprobe parser, multipart route handler.
+- Does not own: transcription (stt), synthesis (tts).
+- API: `api/handlers/audio/` (multipart route is the documented REST exception).
+- CLI: `cli/domains/audio/`.
+- UI: `ui/src/features/diagnostics/`.
+- Storage: none.
+- Requirements: OT-P0-004.
+- Tests: per-op tests with a `Runner` seam substituting `exec.Cmd`.
+
+### session
+
+- Purpose: own the per-voice-session lifecycle and fan out STT/TTS events to multiple observers (UI + diagnostics + downstream subscribers).
+- Primary archetype: pub/sub / streaming.
+- Owns: `session.Session`, browser-WS transport bridge.
+- API: `api/handlers/session/` (Connect-RPC + WS `/api/v1/voice/stream`).
+- UI: consumed by diagnostics and any embed component subscribing.
+- Storage: ephemeral in-memory only.
+- Requirements: OT-P0-007, OT-P0-008.
+
+### settings
+
+- Purpose: operator-facing configuration: provider defaults, per-capability tier order (BYOK → Vrooli → Local), BYOK credentials encrypted at rest, voice overrides.
+- Primary archetype: CRUD / config.
+- Owns: provider config doc, BYOK store + AES-GCM encryptor + fingerprint, voice overrides, settings handlers, chain `Reconfigure` plumbing.
+- API: `api/handlers/settings/`.
+- CLI: `cli/domains/settings/`.
+- UI: `ui/src/features/configuration/`.
+- Storage: `provider_config_doc`, `byok_secrets`, `voice_overrides`.
+- Requirements: OT-P0-009.
+- Tests: per-table store tests; `byokstore.Encryptor` round-trip + tamper tests; handler tests.
+
+### usage
+
+- Purpose: record every chain-routed op (provider, ms, credits) and serve rollup queries for the dashboard.
+- Primary archetype: reporting / ledger.
+- Owns: `usagereport.Recorder` interface + async recorder, `internal/store/usage.go`, usage handlers, dashboard.
+- API: `api/handlers/usage/`.
+- CLI: `cli/domains/usage/`.
+- UI: `ui/src/features/usage/`.
+- Storage: `usage` table.
+- Requirements: OT-P0-011.
+
 ### health
 
-- Purpose: expose API/database readiness and show the UI can read live
-  backend state.
+- Purpose: expose API/database readiness for boot checks and the overview card.
 - Primary archetype: reporting / query.
-- Secondary traits: operational health.
-- Owns: health response construction and dependency status mapping.
-- Does not own: product data, business rules, or scenario-specific
-  domain behavior.
 - API: `api/handlers/health/`.
-- CLI: built-in `status` command is provided through cli-core.
-- UI: `ui/src/features/health/HealthCard.tsx`.
-- Storage: none; probes configured database reachability.
+- CLI: built-in `status` command via cli-core.
+- UI: `ui/src/features/overview/`.
+- Storage: none.
 - Requirements: starter scaffold health only.
-- Tests: handler, module, UI feature, and accessibility tests.
-- Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
-
-### notes
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
 
 ## Shared Concepts
 
 | Concept | Meaning | Owner |
 |---|---|---|
 | Domain | Product capability boundary that should be easy to find, test, and delete. | `DOMAINS.md` defines the map; code owns implementation. |
-| Surface | API, UI, CLI, or contract layer exposing the same product capability. | `ARCHITECTURE.md`. |
+| Surface | API, UI, CLI, WS, or embed layer exposing the same product capability. | `ARCHITECTURE.md`. |
 | Seam | Test-substitutable boundary wired once in production. | `../internal/SEAMS.md`. |
+| Tier | One of BYOK / Vrooli (LPBS) / Local in the per-capability provider chain. | `internal/ai/chains/`. |
 | Requirement | Implementation-facing measurement tied back to the PRD. | `requirements/`. |
 
 ## Deferred Domains
 
-Add future or intentionally deferred capabilities here only when they
-are real enough to affect architecture or requirements.
-
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| None yet. | Generated scaffold. | Add after PRD-specific requirements identify future capability boundaries. |
+| adoption | Out-of-process integration health for scenarios consuming `@audio-tools/embed`. | OT-P1-013 ramp. |
+| twilio-transport | Twilio media-stream WS bridge. | OT-P2-001 / `execute/audio-tools-twilio-media-stream-transport`. |
 
 ## Non-Domains
 
 These are important but should not become product domains:
 
 - `api/internal/server/` — HTTP composition substrate.
-- `api/internal/module/` — shared module descriptor type.
-- `api/internal/modules/` — thin registry for boot/codegen.
+- `api/internal/modulekit/` — shared module descriptor type defs.
+- `api/internal/modules/` — thin static registry consumed by `main.go` and `cmd/gen-endpoints`.
 - `api/internal/database/` — cross-cutting database infrastructure.
+- `api/internal/httpx/`, `api/internal/httpc/` — HTTP request/response helpers.
+- `api/internal/clock/` — clock seam.
+- `api/internal/middleware/` — request-pipeline middleware.
 - `api/internal/testutil/` — cross-domain test harnesses.
+- `api/internal/ai/chains/` — generic per-capability chain primitives shared by stt/tts/summarize.
+- `api/internal/capabilities/` — capability-flag derivation.
+- `api/internal/audioports/` — port wiring for voice transports.
+- `api/integrations/lpbs/` — LPBS-tier client adapters + usage reporter (cross-scenario integration, not a product domain).
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
 

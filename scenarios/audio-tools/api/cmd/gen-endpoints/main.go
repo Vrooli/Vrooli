@@ -28,7 +28,7 @@ import (
 	"os"
 	"strings"
 
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 	"audio-tools/internal/modules"
 )
 
@@ -56,7 +56,7 @@ type seedFile struct {
 type manifest struct {
 	Schema      string                      `json:"$schema"`
 	Version     string                      `json:"version"`
-	Endpoints   []module.EndpointDescriptor `json:"endpoints"`
+	Endpoints   []modulekit.EndpointDescriptor `json:"endpoints"`
 	CLICommands []CLICommand                `json:"cli_commands"`
 }
 
@@ -128,7 +128,7 @@ func loadSeed(path string) (*seedFile, error) {
 // a developer adds an endpoint with a CLI mapping but forgets to seed
 // the CLI command (or vice versa). The error message names the
 // missing entry so the fix is mechanical.
-func crossCheck(endpoints []module.EndpointDescriptor, commands []CLICommand) error {
+func crossCheck(endpoints []modulekit.EndpointDescriptor, commands []CLICommand) error {
 	cmdSet := make(map[string]struct{}, len(commands))
 	for _, c := range commands {
 		cmdSet[c.Name] = struct{}{}
@@ -169,12 +169,12 @@ func crossCheck(endpoints []module.EndpointDescriptor, commands []CLICommand) er
 // If a domain genuinely needs REST (multipart, webhook, third-party
 // shape, ops probe), tag the descriptor explicitly:
 //
-//	RESTException: &module.RESTException{Reason: module.RESTReasonMultipartUpload, Note: "..."}
+//	RESTException: &modulekit.RESTException{Reason: modulekit.RESTReasonMultipartUpload, Note: "..."}
 //
-// The four allowed reasons are defined in api/internal/module/module.go.
+// The four allowed reasons are defined in api/internal/module/modulekit.go.
 // Adding a new reason is a deliberate architectural decision; do not
 // add one to silence this check.
-func validateTransport(endpoints []module.EndpointDescriptor) error {
+func validateTransport(endpoints []modulekit.EndpointDescriptor) error {
 	var violations []string
 	for _, e := range endpoints {
 		isConnect := strings.HasPrefix(e.Path, "/vrooli.")
@@ -205,12 +205,12 @@ func validateTransport(endpoints []module.EndpointDescriptor) error {
 	return nil
 }
 
-func validRESTReason(r module.RESTReason) bool {
+func validRESTReason(r modulekit.RESTReason) bool {
 	switch r {
-	case module.RESTReasonMultipartUpload,
-		module.RESTReasonWebhookReceiver,
-		module.RESTReasonThirdPartyShape,
-		module.RESTReasonOpsProbe:
+	case modulekit.RESTReasonMultipartUpload,
+		modulekit.RESTReasonWebhookReceiver,
+		modulekit.RESTReasonThirdPartyShape,
+		modulekit.RESTReasonOpsProbe:
 		return true
 	}
 	return false

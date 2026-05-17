@@ -1,12 +1,12 @@
 package tts
 
-import "audio-tools/internal/module"
+import "audio-tools/internal/modulekit"
 
 // Endpoints describes every wire path the TTS module mounts.
 // Connect procedure constants live in the generated tts_v1connect package;
 // for the audio-tools module-registration pattern we describe them here so
 // gen-endpoints can validate parity against the proto.
-var Endpoints = []module.EndpointDescriptor{
+var Endpoints = []modulekit.EndpointDescriptor{
 	{
 		ID:          "tts.synthesize",
 		Path:        "/vrooli.audio_tools.v1.tts.TTSService/Synthesize",

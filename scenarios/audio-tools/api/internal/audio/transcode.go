@@ -39,6 +39,34 @@ func hasFfprobe() bool {
 	return ffprobeAvailable
 }
 
+// Runner is the seam tests substitute for ffmpeg/ffprobe invocation.
+// Production uses os/exec; tests inject a fake to capture argv and
+// inject canned stdout/err pairs without depending on a binary.
+type Runner interface {
+	Run(ctx context.Context, name string, stdin []byte, args ...string) (stdout []byte, err error)
+}
+
+type execRunner struct{}
+
+func (execRunner) Run(ctx context.Context, name string, stdin []byte, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	if stdin != nil {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("%s: %w: %s", name, err, stderr.String())
+	}
+	return stdout.Bytes(), nil
+}
+
+// DefaultRunner is the production Runner used by every Transcode/Trim/
+// Volume/etc. call. Tests overwrite it (via t.Cleanup) to substitute a
+// fake without touching the real ffmpeg binary.
+var DefaultRunner Runner = execRunner{}
+
 // runFfmpeg runs ffmpeg with the given args; stdin is the input payload.
 // Returns stdout (the transformed audio) or an error joining the exit
 // status and stderr tail.
@@ -46,15 +74,8 @@ func runFfmpeg(ctx context.Context, input []byte, args ...string) ([]byte, error
 	if !hasFfmpeg() {
 		return nil, ErrFFmpegMissing
 	}
-	cmd := exec.CommandContext(ctx, "ffmpeg", append([]string{"-y", "-loglevel", "error"}, args...)...)
-	cmd.Stdin = bytes.NewReader(input)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("ffmpeg: %w: %s", err, stderr.String())
-	}
-	return stdout.Bytes(), nil
+	full := append([]string{"-y", "-loglevel", "error"}, args...)
+	return DefaultRunner.Run(ctx, "ffmpeg", input, full...)
 }
 
 // Transcode pipes audio through ffmpeg to produce the requested

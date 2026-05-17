@@ -23,9 +23,6 @@ type HandlerService interface {
 	GetStatus(ctx context.Context) (Status, error)
 	RecordPlaybackEvent(ctx context.Context, event PlaybackEvent) error
 
-	GetSummarizeConfig(ctx context.Context) (SummarizeConfig, error)
-	UpdateSummarizeConfig(ctx context.Context, patch SummarizeConfigPatch) (SummarizeConfig, error)
-
 	Synthesize(ctx context.Context, in SynthesizeInput) (SynthesizeResult, error)
 	GetCache(ctx context.Context, in CacheLookup) (SynthesizeResult, error)
 	ListVoices(ctx context.Context) ([]Voice, error)
@@ -47,24 +44,6 @@ type ConfigPatch struct {
 	Backend     *string
 	KokoroVoice *string
 	KokoroSpeed *float64
-}
-
-// SummarizeConfig mirrors the legacy TTSSummarizeConfig.
-type SummarizeConfig struct {
-	Enabled        bool
-	CharThreshold  int
-	Level          string
-	Model          string
-	TimeoutSeconds int
-}
-
-// SummarizeConfigPatch is the optional-update variant for SummarizeConfig.
-type SummarizeConfigPatch struct {
-	Enabled        *bool
-	CharThreshold  *int
-	Level          *string
-	Model          *string
-	TimeoutSeconds *int
 }
 
 // AppendResult mirrors the routing-result snapshot embedded in Status.

@@ -26,8 +26,9 @@ import (
 	"audio-tools/internal/modules"
 	"audio-tools/internal/server"
 	intsession "audio-tools/internal/session"
+	sttpipeline "audio-tools/internal/stt/pipeline"
+	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
-	intvoice "audio-tools/internal/voice"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
@@ -149,12 +150,12 @@ func main() {
 	// services and feed the Local* providers in the three provider chains.
 	capsRegistry := capabilities.NewRegistry(nil, nil, 30*time.Second)
 	skipVerifyCount := &atomic.Int64{}
-	voiceSvc := intvoice.NewService(
-		intvoice.Config{},
+	voiceSvc := sttpipeline.NewService(
+		sttpipeline.Config{},
 		"", // configPath — defaults
 		nil,
 		"", // wake-word path — defaults
-		intvoice.SpeakerConfig{},
+		sttpipeline.SpeakerConfig{},
 		"", // speaker path
 		nil,
 		capsRegistry,
@@ -167,15 +168,12 @@ func main() {
 	kokoroURL := envOr("AUDIO_KOKORO_URL", "http://localhost:8880")
 	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: kokoroURL}
 	ttsCfg := inttts.DefaultConfig()
-	ttsSummCfg := inttts.DefaultSummarizeConfig()
+	ttsSummCfg := intsumm.DefaultSummarizeConfig()
 	ttsSvc := inttts.NewService(inttts.Deps{
-		Logger:                 logger,
-		GetConfig:              func() inttts.Config { return ttsCfg },
-		SetConfig:              func(c inttts.Config) { ttsCfg = c },
-		PersistConfig:          func(inttts.Config) error { return nil },
-		GetSummarizeConfig:     func() inttts.SummarizeConfig { return ttsSummCfg },
-		SetSummarizeConfig:     func(c inttts.SummarizeConfig) { ttsSummCfg = c },
-		PersistSummarizeConfig: func(inttts.SummarizeConfig) error { return nil },
+		Logger:        logger,
+		GetConfig:     func() inttts.Config { return ttsCfg },
+		SetConfig:     func(c inttts.Config) { ttsCfg = c },
+		PersistConfig: func(inttts.Config) error { return nil },
 		KokoroCapability: func(ctx context.Context) (string, string) {
 			return "available", "Kokoro (Local)"
 		},
@@ -198,7 +196,7 @@ func main() {
 			ttsCache.Put(key, audio, ct)
 		},
 	})
-	ollamaSummarizer := inttts.NewSummarizer(envOr("AUDIO_OLLAMA_URL", "http://localhost:11434"))
+	ollamaSummarizer := intsumm.NewSummarizer(envOr("AUDIO_OLLAMA_URL", "http://localhost:11434"))
 
 	enableBYOK := envBool("AUDIO_AI_ENABLE_BYOK", true)
 	enableVrooli := envBool("AUDIO_AI_ENABLE_VROOLI", false)
@@ -303,8 +301,8 @@ func main() {
 		}),
 		summarizeH.Module(
 			summChain,
-			func() inttts.SummarizeConfig { return ttsSummCfg },
-			func(c inttts.SummarizeConfig) { ttsSummCfg = c },
+			func() intsumm.SummarizeConfig { return ttsSummCfg },
+			func(c intsumm.SummarizeConfig) { ttsSummCfg = c },
 			logger,
 			usageRecorder,
 		),

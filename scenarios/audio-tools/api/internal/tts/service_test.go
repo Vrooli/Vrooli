@@ -12,7 +12,6 @@ import (
 
 func testDeps() Deps {
 	cfg := Config{Backend: "auto", KokoroVoice: "af_heart", KokoroSpeed: 1}
-	sum := SummarizeConfig{Enabled: true, CharThreshold: 1200, Level: "light", Model: "test-model", TimeoutSeconds: 30}
 	cache := map[CacheKey]SynthesizeResult{}
 	return Deps{
 		GetConfig: func() Config {
@@ -20,12 +19,6 @@ func testDeps() Deps {
 		},
 		SetConfig: func(c Config) {
 			cfg = c
-		},
-		GetSummarizeConfig: func() SummarizeConfig {
-			return sum
-		},
-		SetSummarizeConfig: func(c SummarizeConfig) {
-			sum = c
 		},
 		GetHookStatus: func() (bool, string, string, string) {
 			return true, "registered", "", "/tmp/settings.json"

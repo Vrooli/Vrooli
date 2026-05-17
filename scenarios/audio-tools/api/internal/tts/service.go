@@ -42,10 +42,6 @@ type Deps struct {
 	SetConfig     func(Config)
 	PersistConfig func(Config) error
 
-	GetSummarizeConfig     func() SummarizeConfig
-	SetSummarizeConfig     func(SummarizeConfig)
-	PersistSummarizeConfig func(SummarizeConfig) error
-
 	GetHookStatus        func() (bool, string, string, string)
 	GetLastRouting       func() (*AppendResult, time.Time)
 	GetRoutingBySource   func(string) (*AppendResult, time.Time)
@@ -161,53 +157,6 @@ func (s *Service) GetStatus(ctx context.Context) (Status, error) {
 func (s *Service) RecordPlaybackEvent(_ context.Context, ev PlaybackEvent) error {
 	s.deps.RecordPlaybackEvent(ev)
 	return nil
-}
-
-func (s *Service) GetSummarizeConfig(_ context.Context) (SummarizeConfig, error) {
-	return s.deps.GetSummarizeConfig(), nil
-}
-
-func (s *Service) UpdateSummarizeConfig(_ context.Context, patch SummarizeConfigPatch) (SummarizeConfig, error) {
-	current := s.deps.GetSummarizeConfig()
-	updated := current
-	if patch.Enabled != nil {
-		updated.Enabled = *patch.Enabled
-	}
-	if patch.CharThreshold != nil {
-		updated.CharThreshold = *patch.CharThreshold
-	}
-	if patch.Level != nil {
-		updated.Level = *patch.Level
-	}
-	if patch.Model != nil {
-		updated.Model = *patch.Model
-	}
-	if patch.TimeoutSeconds != nil {
-		updated.TimeoutSeconds = *patch.TimeoutSeconds
-	}
-
-	if !validSummarizeLevels[updated.Level] {
-		return SummarizeConfig{}, fmt.Errorf("%w: level must be light, moderate, or heavy", ErrInvalidArgument)
-	}
-	if updated.CharThreshold < 0 {
-		return SummarizeConfig{}, fmt.Errorf("%w: charThreshold must be non-negative", ErrInvalidArgument)
-	}
-	if updated.TimeoutSeconds < minSummarizeTimeout || updated.TimeoutSeconds > maxSummarizeTimeout {
-		return SummarizeConfig{}, fmt.Errorf("%w: timeoutSeconds must be between %d and %d", ErrInvalidArgument, minSummarizeTimeout, maxSummarizeTimeout)
-	}
-	if updated.Model == "" {
-		return SummarizeConfig{}, fmt.Errorf("%w: model must not be empty", ErrInvalidArgument)
-	}
-
-	s.deps.SetSummarizeConfig(updated)
-	if s.deps.PersistSummarizeConfig != nil {
-		if err := s.deps.PersistSummarizeConfig(updated); err != nil {
-			s.logger().Printf("tts-summarize-config: persist failed (in-memory updated): %v", err)
-		}
-	}
-	s.logger().Printf("tts-summarize-config: updated: enabled=%v threshold=%d level=%s model=%s timeout=%ds",
-		updated.Enabled, updated.CharThreshold, updated.Level, updated.Model, updated.TimeoutSeconds)
-	return updated, nil
 }
 
 func (s *Service) Synthesize(ctx context.Context, in SynthesizeInput) (SynthesizeResult, error) {

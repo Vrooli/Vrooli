@@ -11,7 +11,7 @@ import (
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
-	intvoice "audio-tools/internal/voice"
+	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
@@ -19,7 +19,7 @@ import (
 type Deps struct {
 	Chain        *sttchain.Chain
 	Selector     *sttpkg.Selector
-	Voice        *intvoice.Service
+	Voice        *sttpipeline.Service
 	Logger       *log.Logger
 	StreamConfig *store.STTStreamConfigStore
 	Wakeword     *store.WakeWordStore

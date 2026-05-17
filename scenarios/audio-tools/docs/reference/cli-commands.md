@@ -32,6 +32,15 @@ that touches the API).
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
 
+## Domain layout convention
+
+Every CLI domain directory under `cli/domains/<name>/` has exactly two files:
+
+- `handlers.go` — `type handlers struct { core *cliapp.ScenarioApp; client <ServiceClient> }` plus a `newHandlers(core)` constructor that lazily builds the Connect client(s) once, plus one method per subcommand (`func (h *handlers) <subcommand>(ctx cliapp.RunContext) error`).
+- `register.go` — `package <name>`, a `Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup` function that calls `newHandlers(core)` once, then declares the `SubcommandGroup` with `Name`, `Description`, `NeedsAPI`, and `Subcommands` (each `RunCtx: h.<subcommand>`).
+
+This shape is the single source of truth — do not inline `RunCtx` closures inside `register.go`, do not rebuild the Connect client per command, and do not split a domain across more than two files. Any new domain (or any cleanup pass on an existing one) must match this layout.
+
 ## Global flags (provided by cli-core)
 
 Every command supports the following flags. **Do not reimplement them

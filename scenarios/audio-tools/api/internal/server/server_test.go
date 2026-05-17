@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"audio-tools/internal/clock"
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
 	"audio-tools/internal/testutil/httpx"
 
@@ -27,7 +27,7 @@ import (
 func TestServer_MountsEachModule(t *testing.T) {
 	var aMounted, bMounted bool
 
-	moduleA := module.Module{
+	moduleA := modulekit.Module{
 		Name: "a",
 		Mount: func(r *mux.Router) {
 			aMounted = true
@@ -37,7 +37,7 @@ func TestServer_MountsEachModule(t *testing.T) {
 			}).Methods(http.MethodGet)
 		},
 	}
-	moduleB := module.Module{
+	moduleB := modulekit.Module{
 		Name: "b",
 		Mount: func(r *mux.Router) {
 			bMounted = true

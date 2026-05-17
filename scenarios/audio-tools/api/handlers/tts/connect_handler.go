@@ -10,9 +10,10 @@ import (
 
 	"connectrpc.com/connect"
 
-	"audio-tools/internal/ai/ttschain"
 	intsumm "audio-tools/internal/ai/summarizechain"
+	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/store"
+	"audio-tools/internal/text/normalizer"
 	inttts "audio-tools/internal/tts"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -145,7 +146,7 @@ func (h *connectHandler) ListVoices(ctx context.Context, req *connect.Request[tt
 // NormalizeForSpeech runs the TTS-pipeline-specific text normalizer. Pure
 // function; no provider chain.
 func (h *connectHandler) NormalizeForSpeech(ctx context.Context, req *connect.Request[ttsv1.NormalizeForSpeechRequest]) (*connect.Response[ttsv1.NormalizeForSpeechResponse], error) {
-	out := inttts.NormalizeTextForSpeech(req.Msg.Text)
+	out := normalizer.NormalizeTextForSpeech(req.Msg.Text)
 	return connect.NewResponse(&ttsv1.NormalizeForSpeechResponse{Text: out}), nil
 }
 
@@ -153,7 +154,7 @@ func (h *connectHandler) NormalizeForSpeech(ctx context.Context, req *connect.Re
 // MaxChars is currently advisory (the splitter uses internal heuristics);
 // future expansion threads it through internal/tts.
 func (h *connectHandler) SplitParagraphs(ctx context.Context, req *connect.Request[ttsv1.SplitParagraphsRequest]) (*connect.Response[ttsv1.SplitParagraphsResponse], error) {
-	paragraphs := inttts.SplitIntoSpeechParagraphs(req.Msg.Text)
+	paragraphs := normalizer.SplitIntoSpeechParagraphs(req.Msg.Text)
 	return connect.NewResponse(&ttsv1.SplitParagraphsResponse{Paragraphs: paragraphs}), nil
 }
 

@@ -13,25 +13,25 @@
 
 ## Operational Targets
 
-### P0 – Must ship for viability
-- [ ] OT-P0-001 | Local STT works end-to-end | Whisper resource transcribes a 30s wav in <3s p95.
-- [ ] OT-P0-002 | Local TTS works end-to-end | Kokoro resource synthesizes 200 words in <2s p95.
-- [ ] OT-P0-003 | Local summarization works end-to-end | Ollama summarizes 2kB text in <5s p95.
-- [ ] OT-P0-004 | Audio transcoding works | mp3/wav/flac/aac/ogg → wav round-trip.
-- [ ] OT-P0-005 | BYOK tier works for 5 starter adapters | openai-whisper, deepgram, openai-tts, elevenlabs, openrouter.
-- [ ] OT-P0-006 | Per-capability provider precedence enforced | BYOK → Vrooli → Local; ErrInsufficientCredits short-circuits.
-- [ ] OT-P0-007 | Voice-session pub/sub | ≥3 concurrent observer subscribers per session, no transport interference.
-- [ ] OT-P0-008 | Barge-in | VAD-detected speech cancels in-flight TTS within 100ms p95.
-- [ ] OT-P0-009 | Configuration Console | Operator sets defaults, enters BYOK creds, sees live availability matrix.
-- [ ] OT-P0-010 | Diagnostics Workbench | Manual STT/TTS/summarize/transcode with per-call provider trace + timing.
-- [ ] OT-P0-011 | Usage Dashboard | Recent operations, charged credits, provider distribution.
-- [ ] OT-P0-012 | Adoption snippet | `<VoiceInputButton>` + `<AudioPlayerBar>` embed snippets in `docs/reference/adoption.md` copy-paste cleanly into a consumer's react-vite tree.
+### 🔴 P0 – Must ship for viability
+- [x] OT-P0-001 | Local STT works end-to-end | Whisper resource transcribes a 30s wav in <3s p95.
+- [x] OT-P0-002 | Local TTS works end-to-end | Kokoro resource synthesizes 200 words in <2s p95.
+- [x] OT-P0-003 | Local summarization works end-to-end | Ollama summarizes 2kB text in <5s p95.
+- [x] OT-P0-004 | Audio transcoding works | mp3/wav/flac/aac/ogg → wav round-trip.
+- [~] OT-P0-005 | BYOK tier works for 5 starter adapters | openai-whisper, deepgram, openai-tts, elevenlabs, openrouter. **Status (2026-05-16):** five adapters land in `internal/byok/`; unary path works; only Deepgram has streaming. See PROBLEMS.md "Streaming providers declared but not implemented".
+- [x] OT-P0-006 | Per-capability provider precedence enforced | BYOK → Vrooli → Local; ErrInsufficientCredits short-circuits.
+- [x] OT-P0-007 | Voice-session pub/sub | ≥3 concurrent observer subscribers per session, no transport interference.
+- [x] OT-P0-008 | Barge-in | VAD-detected speech cancels in-flight TTS within 100ms p95.
+- [x] OT-P0-009 | Configuration Console | Operator sets defaults, enters BYOK creds, sees live availability matrix.
+- [x] OT-P0-010 | Diagnostics Workbench | Manual STT/TTS/summarize/transcode with per-call provider trace + timing.
+- [x] OT-P0-011 | Usage Dashboard | Recent operations, charged credits, provider distribution.
+- [x] OT-P0-012 | Adoption snippet | `<VoiceInputButton>` + `<AudioPlayerBar>` embed snippets in `docs/reference/adoption.md` copy-paste cleanly into a consumer's react-vite tree.
 
-### P1 – Should have post-launch
+### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-013 | Adoption Management UI | Lists connected scenarios + integration health.
 - [~] OT-P1-014 | Streaming WS transport | Partial transcripts, segment finals, barge-in, speaker verification gating end-to-end. **Status (2026-05-16):** proto + chain streaming interface + bidi Connect handler + CLI commands shipped (Phases A/B/C/F-partial/H of audio-tools-web-console-restoration plan). Buffered fallback emits Segment + Done. Native partials (Phase D), BYOK streaming adapters (Phase E), and WS-handler chain rewire (Phase F second half) deferred — see `docs/internal/PROBLEMS.md`.
 
-### P2 – Future / expansion
+### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Twilio media-stream transport (covered by `execute/audio-tools-twilio-media-stream-transport`).
 - [ ] OT-P2-002 | LPBS audio gateway tier flipped on (depends on `execute/lpbs-audio-gateway-endpoints`).
 - [ ] OT-P2-003 | swarm-manager + agent-manager + phone-agent adoption.

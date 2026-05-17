@@ -1,8 +1,8 @@
 package stt
 
-import "audio-tools/internal/module"
+import "audio-tools/internal/modulekit"
 
-var Endpoints = []module.EndpointDescriptor{
+var Endpoints = []modulekit.EndpointDescriptor{
 	{
 		ID: "stt.transcribe", Path: "/vrooli.audio_tools.v1.stt.STTService/Transcribe",
 		Method: "POST", Summary: "Transcribe audio via STT provider chain (Connect-RPC)",
@@ -17,10 +17,10 @@ var Endpoints = []module.EndpointDescriptor{
 		ID: "stt.transcribe_multipart", Path: "/api/v1/voice/transcribe",
 		Method: "POST", Summary: "Multipart upload variant of Transcribe",
 		Category:       "stt",
-		RESTException: &module.RESTException{Reason: module.RESTReasonMultipartUpload, Note: "Audio bytes via multipart form-data; payload would not encode efficiently inline through proto JSON."},
+		RESTException: &modulekit.RESTException{Reason: modulekit.RESTReasonMultipartUpload, Note: "Audio bytes via multipart form-data; payload would not encode efficiently inline through proto JSON."},
 	},
 	{ID: "stt.stream_ws", Path: "/api/v1/voice/stream", Method: "GET", Summary: "Browser-voice WebSocket transport", Category: "stt",
-		RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "WebSocket transport — see docs/internal/SEAMS.md. Will move to TransportReason: websocket_transport when template constant lands (R-PROTO)."}},
+		RESTException: &modulekit.RESTException{Reason: modulekit.RESTReasonOpsProbe, Note: "WebSocket transport — see docs/internal/SEAMS.md. Will move to TransportReason: websocket_transport when template constant lands (R-PROTO)."}},
 	{ID: "stt.get_stream_config", Path: "/vrooli.audio_tools.v1.stt.STTService/GetStreamConfig", Method: "POST", Category: "stt"},
 	{ID: "stt.update_stream_config", Path: "/vrooli.audio_tools.v1.stt.STTService/UpdateStreamConfig", Method: "POST", Category: "stt"},
 	{ID: "stt.get_wakeword_config", Path: "/vrooli.audio_tools.v1.stt.STTService/GetWakeWordConfig", Method: "POST", Category: "stt"},

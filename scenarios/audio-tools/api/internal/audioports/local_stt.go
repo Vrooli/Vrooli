@@ -3,11 +3,11 @@ package audioports
 import (
 	"context"
 
-	intvoice "audio-tools/internal/voice"
+	sttpipeline "audio-tools/internal/stt/pipeline"
 )
 
 // LocalSpeechToText is the production SpeechToText adapter backed by the
-// in-process internal/voice.Service. The future audio-tools client will
+// in-process internal/stt/pipeline.Service. The future audio-tools client will
 // replace this with a remote-call adapter; orchestration code is unchanged
 // when that swap happens.
 //
@@ -16,7 +16,7 @@ import (
 // Connect handler; this port exposes only the raw transcribe call shape
 // orchestration callers need.
 type LocalSpeechToText struct {
-	Backend *intvoice.Service
+	Backend *sttpipeline.Service
 }
 
 // Transcribe delegates to the underlying voice service. STTOptions.Language

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"audio-tools/internal/store"
+	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -127,9 +128,9 @@ func (h *connectHandler) RecordPlaybackEvent(ctx context.Context, req *connect.R
 }
 
 // loadConfig prefers the persisted config; falls back to defaults.
-func (h *connectHandler) loadConfig(ctx context.Context) (inttts.Config, inttts.SummarizeConfig) {
+func (h *connectHandler) loadConfig(ctx context.Context) (inttts.Config, intsumm.SummarizeConfig) {
 	cfg := inttts.DefaultConfig()
-	summ := inttts.DefaultSummarizeConfig()
+	summ := intsumm.DefaultSummarizeConfig()
 	if h.deps.ConfigStore == nil {
 		return cfg, summ
 	}
@@ -142,7 +143,7 @@ func (h *connectHandler) loadConfig(ctx context.Context) (inttts.Config, inttts.
 	return cfg, summ
 }
 
-func configToProto(c inttts.Config, s inttts.SummarizeConfig) *ttsv1.Config {
+func configToProto(c inttts.Config, s intsumm.SummarizeConfig) *ttsv1.Config {
 	return &ttsv1.Config{
 		AutoEnabled:             c.AutoEnabled,
 		DefaultVoice:            c.KokoroVoice,

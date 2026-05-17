@@ -1,7 +1,7 @@
 package tts
 
 import (
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -10,9 +10,9 @@ import (
 )
 
 // Module returns the TTS domain's contribution to the API.
-func Module(d Deps) module.Module {
+func Module(d Deps) modulekit.Module {
 	connectPath, h := ttsconnect.NewTTSServiceHandler(NewConnectHandler(d))
-	return module.Module{
+	return modulekit.Module{
 		Name: "tts",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})

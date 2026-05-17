@@ -10,7 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 	intsession "audio-tools/internal/session"
 
 	"github.com/gorilla/mux"
@@ -183,7 +183,7 @@ func toProto(ev intsession.SessionEvent) *sessv1.SessionEvent {
 	return out
 }
 
-var Endpoints = []module.EndpointDescriptor{
+var Endpoints = []modulekit.EndpointDescriptor{
 	{ID: "session.open", Path: "/vrooli.audio_tools.v1.session.SessionService/OpenSession", Method: "POST", Summary: "Open a voice session", Category: "session"},
 	{ID: "session.close", Path: "/vrooli.audio_tools.v1.session.SessionService/CloseSession", Method: "POST", Category: "session"},
 	{ID: "session.send_text", Path: "/vrooli.audio_tools.v1.session.SessionService/SendText", Method: "POST", Category: "session"},
@@ -191,12 +191,12 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "session.subscribe", Path: "/vrooli.audio_tools.v1.session.SessionService/Subscribe", Method: "POST", Summary: "Server-streaming session events", Category: "session"},
 }
 
-func Module(registry *intsession.Registry, logger *log.Logger) module.Module {
+func Module(registry *intsession.Registry, logger *log.Logger) modulekit.Module {
 	if logger == nil {
 		logger = log.Default()
 	}
 	connectPath, h := sessconnect.NewSessionServiceHandler(NewConnectHandler(Deps{Registry: registry, Logger: logger}))
-	return module.Module{
+	return modulekit.Module{
 		Name: "session",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})

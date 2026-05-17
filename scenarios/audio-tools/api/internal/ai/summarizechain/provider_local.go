@@ -5,21 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"audio-tools/internal/tts"
+	"audio-tools/internal/summarize"
 )
 
-// LocalProvider wraps tts.Summarizer (Ollama backend).
-//
-// The Ollama summarization code currently lives inside internal/tts because
-// historically it was a TTS-only summarization step. summarizechain re-exposes
-// it through the chain interface; a future refactor may lift the Summarizer
-// into internal/summarize and remove the cross-package import.
+// LocalProvider wraps summarize.Summarizer (Ollama backend).
 type LocalProvider struct {
-	summarizer  *tts.Summarizer
+	summarizer   *summarize.Summarizer
 	defaultModel string
 }
 
-func NewLocalProvider(summarizer *tts.Summarizer, defaultModel string) *LocalProvider {
+func NewLocalProvider(summarizer *summarize.Summarizer, defaultModel string) *LocalProvider {
 	return &LocalProvider{summarizer: summarizer, defaultModel: defaultModel}
 }
 

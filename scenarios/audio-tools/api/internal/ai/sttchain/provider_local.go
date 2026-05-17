@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"audio-tools/internal/voice"
+	voice "audio-tools/internal/stt/pipeline"
 )
 
 // LocalProvider wraps voice.Service.Transcribe (Whisper backend).

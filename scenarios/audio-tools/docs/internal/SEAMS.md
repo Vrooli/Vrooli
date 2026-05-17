@@ -8,22 +8,22 @@
 |---|---|---|---|
 | `sttchain.Provider` / `ttschain.Provider` / `summarizechain.Provider` | Interface | `internal/ai/{stt,tts,summarize}chain/provider_*.go` | matching `handlers/{stt,tts,summarize}/` |
 | `sttchain.BYOKAdapter` / `ttschain.BYOKAdapter` / `summarizechain.BYOKAdapter` | Interface | `internal/byok/*.go` | chain `BYOKProvider` registry dispatch |
-| `sttchain.VrooliClient` / `ttschain.VrooliClient` / `summarizechain.VrooliClient` | Interface | `internal/lpbs/*_client.go` | chain `VrooliProvider` |
+| `sttchain.VrooliClient` / `ttschain.VrooliClient` / `summarizechain.VrooliClient` | Interface | `integrations/lpbs/clients/*_client.go` | chain `VrooliProvider` |
 | `tts.VerifyCatalog` | Pure function | `internal/tts/voice_catalog.go` | `main.go` startup gate |
 | `session.Session` pub/sub | Concrete | `internal/session/session.go` | `internal/transports/browser`, `handlers/session` |
 | Browser-voice WS | Concrete | `internal/transports/browser/ws_handler.go` | `main.go` route mount |
 | `audiotools.URLResolver` (consumer-side) | Interface | `scenarios/web-console/api/integrations/audiotools/discovery.go` | `audiotools.Client.refresh()` |
 | `store.{ProviderConfig,BYOK,VoiceOverride,Usage,Wakeword,Speaker,STTStreamConfig,TTSConfig,Playback}Store` | Concrete (sql) | `internal/store/*.go` | every admin handler (settings/usage/stt/tts) |
-| `byokstore.Store` / `byokstore.Encryptor` | Concrete | `internal/byokstore/{store,encryptor,fingerprint}.go` | `handlers/settings` and (planned) chain BYOK resolver |
+| `byokstore.Store` / `byokstore.Encryptor` | Concrete | `internal/byokstore/{store,encryptor,fingerprint}.go` | `handlers/settings` and chain BYOK resolver |
 | `usagereport.Recorder` | Interface | `internal/usagereport/recorder.go` | `handlers/summarize` (other chain-adjacent handlers wired as they land) |
 | `chains.Coordinator` | Concrete | `internal/ai/chains/chains.go` | `handlers/settings` UpdateProviderConfig — live chain Reconfigure |
 | `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Concrete | `internal/ai/{stt,tts,summarize}chain/chain.go` | `handlers/tts` GetStatus + `cli/domains/diagnose` |
 | `stt.MultipartTranscribeHandler` / `audio.multipartTranscodeHandler` | Concrete | `handlers/{stt,audio}/` | UI multipart upload paths |
 | `stt.StreamWSHandler` | Concrete | `handlers/stt/stream_ws.go` | mounts `/api/v1/voice/stream` over `voice.Service.HandleStreamWS` |
-| `stt.Segmenter` | Concrete (planned) | `internal/stt/segmenter/` | WS handler + Connect bidi handler (one impl, two transports) |
-| `stt.StrategySelector` | Concrete (planned) | `internal/stt/selector.go` | `stt.Segmenter` at session start |
-| `stt.StreamingStrategy` | Interface (planned) | `internal/stt/strategy/{vad_segment,overlap_agree,passthrough}.go` | `stt.StrategySelector` |
-| `sttchain.ProviderTraits` | Struct (planned, replaces `StreamingCapability() bool`) | `internal/ai/sttchain/interface.go` | `stt.StrategySelector` |
+| `stt.Segmenter` | Concrete | `internal/stt/segmenter/` | WS handler + Connect bidi handler (one impl, two transports) |
+| `stt.StrategySelector` | Concrete | `internal/stt/selector.go` | `stt.Segmenter` at session start |
+| `stt.StreamingStrategy` | Interface | `internal/stt/strategy/{vad_segment,overlap_agree,passthrough}.go` | `stt.StrategySelector` |
+| `sttchain.ProviderTraits` | Struct (replaces `StreamingCapability() bool`) | `internal/ai/sttchain/interface.go` | `stt.StrategySelector` |
 
 ## Cross-scenario boundaries
 
@@ -219,7 +219,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Domain-to-server composition; the contract every handler package returns from its `Module(...)` constructor. |
-| **Interface** | `internal/module/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
+| **Interface** | `internal/modulekit/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
 | **Production wiring** | `main.go` calls `healthH.Module(...)`, `notesH.Module(...)`, ..., and passes the slice to `server.New(deps, modules...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
 | **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files (`handlers/notes/module_test.go`, `handlers/health/module_test.go`) exercise the real constructors against in-memory fixtures. |
 | **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on `server.Deps` and per-domain wiring lines in `routes.go`. Adding a domain means creating files; deleting one means removing files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
@@ -465,8 +465,8 @@ an actionable diff showing exactly which entries diverged.
   forwards frames as they arrive.
 
 ### `stt.Segmenter` (transport-free streaming orchestrator)
-- **Owner:** `api/internal/stt/segmenter/segmenter.go` (planned —
-  see [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md)).
+- **Owner:** `api/internal/stt/segmenter/segmenter.go`
+  (see [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md)).
 - **Production wires:** constructed once per streaming session by both
   the browser WS handler (`internal/transports/browser/ws_handler.go`)
   and the Connect bidi handler
@@ -479,7 +479,7 @@ an actionable diff showing exactly which entries diverged.
   event projections.
 
 ### `stt.StrategySelector` (decision boundary)
-- **Owner:** `api/internal/stt/selector.go` (planned).
+- **Owner:** `api/internal/stt/selector.go`.
 - **Production wires:** called by the Segmenter at session start.
   Consumes the provider chain's negotiated tier, the operator's
   `StreamConfig` levers, and each provider's `ProviderTraits` to
@@ -493,7 +493,7 @@ an actionable diff showing exactly which entries diverged.
   typed error.
 
 ### `stt.StreamingStrategy` (technique-axis interface)
-- **Owner:** `api/internal/stt/strategy/` (planned). Concrete
+- **Owner:** `api/internal/stt/strategy/`. Concrete
   implementations: `vad_segment.go`, `overlap_agree.go`,
   `passthrough.go`.
 - **Production wires:** strategies are stateless orchestrators

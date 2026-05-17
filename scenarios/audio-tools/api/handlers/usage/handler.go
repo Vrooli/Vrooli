@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 	"audio-tools/internal/store"
 
 	"connectrpc.com/connect"
@@ -32,17 +32,17 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
-var Endpoints = []module.EndpointDescriptor{
+var Endpoints = []modulekit.EndpointDescriptor{
 	{ID: "usage.list_recent", Path: "/vrooli.audio_tools.v1.usage.UsageService/ListRecent", Method: "POST", Category: "usage"},
 	{ID: "usage.get_summary", Path: "/vrooli.audio_tools.v1.usage.UsageService/GetSummary", Method: "POST", Category: "usage"},
 }
 
-func Module(d Deps) module.Module {
+func Module(d Deps) modulekit.Module {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
 	connectPath, h := usageconnect.NewUsageServiceHandler(NewConnectHandler(d))
-	return module.Module{
+	return modulekit.Module{
 		Name: "usage",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})

@@ -12,7 +12,7 @@
 package modules
 
 import (
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -38,8 +38,8 @@ import (
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
 // stable order (system endpoints first, then domains alphabetically).
-func AllEndpoints() []module.EndpointDescriptor {
-	out := make([]module.EndpointDescriptor, 0)
+func AllEndpoints() []modulekit.EndpointDescriptor {
+	out := make([]modulekit.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, audioH.Endpoints...)
 	out = append(out, sessionH.Endpoints...)

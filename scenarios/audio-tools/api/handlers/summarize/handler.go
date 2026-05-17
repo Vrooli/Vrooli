@@ -11,9 +11,9 @@ import (
 	"github.com/google/uuid"
 
 	"audio-tools/internal/ai/summarizechain"
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 	"audio-tools/internal/store"
-	inttts "audio-tools/internal/tts"
+	intsumm "audio-tools/internal/summarize"
 	"audio-tools/internal/usagereport"
 
 	"github.com/gorilla/mux"
@@ -26,8 +26,8 @@ import (
 type Deps struct {
 	Chain              *summarizechain.Chain
 	Logger             *log.Logger
-	GetSummarizeConfig func() inttts.SummarizeConfig
-	SetSummarizeConfig func(inttts.SummarizeConfig)
+	GetSummarizeConfig func() intsumm.SummarizeConfig
+	SetSummarizeConfig func(intsumm.SummarizeConfig)
 	Usage              usagereport.Recorder
 }
 
@@ -108,7 +108,7 @@ func (h *connectHandler) UpdateSummarizeConfig(_ context.Context, req *connect.R
 	if h.deps.GetSummarizeConfig == nil || h.deps.SetSummarizeConfig == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("summarize config accessor not configured"))
 	}
-	patch := inttts.SummarizeConfigPatch{}
+	patch := intsumm.SummarizeConfigPatch{}
 	if req.Msg.HasEnabled {
 		v := req.Msg.Enabled
 		patch.Enabled = &v
@@ -134,7 +134,7 @@ func (h *connectHandler) UpdateSummarizeConfig(_ context.Context, req *connect.R
 	return connect.NewResponse(&summv1.UpdateSummarizeConfigResponse{Config: toProtoSummarizeConfig(updated)}), nil
 }
 
-func toProtoSummarizeConfig(c inttts.SummarizeConfig) *summv1.SummarizeConfig {
+func toProtoSummarizeConfig(c intsumm.SummarizeConfig) *summv1.SummarizeConfig {
 	return &summv1.SummarizeConfig{
 		Enabled:        c.Enabled,
 		CharThreshold:  int32(c.CharThreshold),
@@ -156,7 +156,7 @@ func mapChainError(err error) error {
 	return connect.NewError(connect.CodeInternal, err)
 }
 
-var Endpoints = []module.EndpointDescriptor{
+var Endpoints = []modulekit.EndpointDescriptor{
 	{
 		ID: "summarize.summarize", Path: "/vrooli.audio_tools.v1.summarize.SummarizeService/Summarize",
 		Method: "POST", Summary: "Summarize text via the summarization provider chain",
@@ -174,7 +174,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 }
 
-func Module(chain *summarizechain.Chain, getCfg func() inttts.SummarizeConfig, setCfg func(inttts.SummarizeConfig), logger *log.Logger, usage usagereport.Recorder) module.Module {
+func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), logger *log.Logger, usage usagereport.Recorder) modulekit.Module {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -185,7 +185,7 @@ func Module(chain *summarizechain.Chain, getCfg func() inttts.SummarizeConfig, s
 		SetSummarizeConfig: setCfg,
 		Usage:              usage,
 	}))
-	return module.Module{
+	return modulekit.Module{
 		Name: "summarize",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})

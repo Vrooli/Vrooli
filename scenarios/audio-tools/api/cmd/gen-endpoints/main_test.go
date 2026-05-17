@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 )
 
 // TestRun_ProducesValidJSON exercises the codegen end-to-end: writes
@@ -36,7 +36,7 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	var got struct {
 		Schema      string                      `json:"$schema"`
 		Version     string                      `json:"version"`
-		Endpoints   []module.EndpointDescriptor `json:"endpoints"`
+		Endpoints   []modulekit.EndpointDescriptor `json:"endpoints"`
 		CLICommands []CLICommand                `json:"cli_commands"`
 	}
 	if err := json.Unmarshal(data, &got); err != nil {
@@ -66,10 +66,10 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 // an endpoint whose cli_mapping.command isn't in cli_commands_seed
 // fails fast with a message that names the missing entry.
 func TestCrossCheck_FailsOnUnseededCommand(t *testing.T) {
-	endpoints := []module.EndpointDescriptor{
+	endpoints := []modulekit.EndpointDescriptor{
 		{
 			ID: "lonely",
-			CLIMapping: &module.CLIMapping{
+			CLIMapping: &modulekit.CLIMapping{
 				Command: "audio-tools lonely subcommand",
 			},
 		},
@@ -90,8 +90,8 @@ func TestCrossCheck_FailsOnUnseededCommand(t *testing.T) {
 
 // TestCrossCheck_PassesWhenSeeded confirms the happy path.
 func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
-	endpoints := []module.EndpointDescriptor{
-		{ID: "x", CLIMapping: &module.CLIMapping{Command: "audio-tools x"}},
+	endpoints := []modulekit.EndpointDescriptor{
+		{ID: "x", CLIMapping: &modulekit.CLIMapping{Command: "audio-tools x"}},
 		{ID: "y_no_cli"}, // no CLIMapping — must be allowed
 	}
 	commands := []CLICommand{{Name: "x", EndpointID: "x"}}

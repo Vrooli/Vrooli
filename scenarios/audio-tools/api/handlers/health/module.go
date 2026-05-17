@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"audio-tools/internal/database"
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 
 	"github.com/gorilla/mux"
 )
@@ -15,9 +15,9 @@ import (
 // probe convention infrastructure (LB, Kubernetes) reaches for;
 // /api/v1/health is what API clients use so they only have to know
 // one base path.
-func Module(pinger database.Pinger, service, version string) module.Module {
+func Module(pinger database.Pinger, service, version string) modulekit.Module {
 	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version})
-	return module.Module{
+	return modulekit.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {
 			r.HandleFunc("/health", h).Methods(http.MethodGet)

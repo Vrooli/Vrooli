@@ -1,11 +1,9 @@
 package audio
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 )
 
 // runFfprobeJSON writes audio to a temp file and runs ffprobe against
@@ -24,19 +22,12 @@ func runFfprobeJSON(ctx context.Context, audio []byte) ([]byte, error) {
 	if err := f.Close(); err != nil {
 		return nil, err
 	}
-	cmd := exec.CommandContext(ctx, "ffprobe",
+	return DefaultRunner.Run(ctx, "ffprobe", nil,
 		"-v", "error",
 		"-show_streams", "-show_format",
 		"-of", "json",
 		f.Name(),
 	)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("ffprobe: %w: %s", err, stderr.String())
-	}
-	return stdout.Bytes(), nil
 }
 
 // tempInputs holds temporary file paths the caller must clean up.

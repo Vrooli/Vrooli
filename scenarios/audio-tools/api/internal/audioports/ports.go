@@ -4,7 +4,7 @@
 // The ports are intentionally narrow — they expose only the operations
 // web-console actually uses against the audio domain today. The local
 // implementation (in package main wiring) is backed by internal/tts and
-// internal/voice; the future audio-tools implementation will be backed by an
+// internal/stt/pipeline; the future audio-tools implementation will be backed by an
 // HTTP/Connect/WebSocket client. Conversation, terminal, and hook code talk
 // to these ports, never to the underlying internal services directly, so the
 // adoption swap is a single wiring change.

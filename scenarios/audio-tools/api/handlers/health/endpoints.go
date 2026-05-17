@@ -1,6 +1,6 @@
 package health
 
-import "audio-tools/internal/module"
+import "audio-tools/internal/modulekit"
 
 // Endpoints is the machine-readable description of every route this
 // module mounts. The codegen at api/cmd/gen-endpoints reads this slice
@@ -12,7 +12,7 @@ import "audio-tools/internal/module"
 // separate descriptor — both paths return the same envelope and serve
 // the same purpose; documenting twice would just create a drift
 // surface. The description records the alias.
-var Endpoints = []module.EndpointDescriptor{
+var Endpoints = []modulekit.EndpointDescriptor{
 	{
 		ID:          "health",
 		Path:        "/health",
@@ -20,11 +20,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Service health check",
 		Description: "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
 		Category:    "system",
-		RESTException: &module.RESTException{
-			Reason: module.RESTReasonOpsProbe,
+		RESTException: &modulekit.RESTException{
+			Reason: modulekit.RESTReasonOpsProbe,
 			Note:   "Operational liveness/readiness probe; load balancers and `curl` must reach it without a Connect client.",
 		},
-		Response: &module.Schema{
+		Response: &modulekit.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"status":       "string",
@@ -32,10 +32,10 @@ var Endpoints = []module.EndpointDescriptor{
 				"dependencies": "object",
 			},
 		},
-		Examples: []module.Example{
+		Examples: []modulekit.Example{
 			{Name: "Check health", Curl: "curl http://localhost:${API_PORT}/health"},
 		},
-		CLIMapping: &module.CLIMapping{
+		CLIMapping: &modulekit.CLIMapping{
 			Command: "audio-tools status",
 		},
 	},

@@ -3,7 +3,7 @@ package stt
 import (
 	"net/http"
 
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -11,9 +11,9 @@ import (
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 )
 
-func Module(d Deps) module.Module {
+func Module(d Deps) modulekit.Module {
 	connectPath, h := sttconnect.NewSTTServiceHandler(NewConnectHandler(d))
-	return module.Module{
+	return modulekit.Module{
 		Name: "stt",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})

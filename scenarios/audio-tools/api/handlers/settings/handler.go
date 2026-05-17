@@ -10,7 +10,7 @@ import (
 
 	"audio-tools/internal/ai/chains"
 	"audio-tools/internal/byokstore"
-	"audio-tools/internal/module"
+	"audio-tools/internal/modulekit"
 	"audio-tools/internal/store"
 
 	"connectrpc.com/connect"
@@ -40,7 +40,7 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
-var Endpoints = []module.EndpointDescriptor{
+var Endpoints = []modulekit.EndpointDescriptor{
 	{ID: "settings.get_provider_config", Path: "/vrooli.audio_tools.v1.settings.SettingsService/GetProviderConfig", Method: "POST", Category: "settings"},
 	{ID: "settings.update_provider_config", Path: "/vrooli.audio_tools.v1.settings.SettingsService/UpdateProviderConfig", Method: "POST", Category: "settings"},
 	{ID: "settings.list_byok_credentials", Path: "/vrooli.audio_tools.v1.settings.SettingsService/ListBYOKCredentials", Method: "POST", Category: "settings"},
@@ -50,12 +50,12 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "settings.set_voice_override", Path: "/vrooli.audio_tools.v1.settings.SettingsService/SetVoiceOverride", Method: "POST", Category: "settings"},
 }
 
-func Module(d Deps) module.Module {
+func Module(d Deps) modulekit.Module {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
 	connectPath, h := settconnect.NewSettingsServiceHandler(NewConnectHandler(d))
-	return module.Module{
+	return modulekit.Module{
 		Name: "settings",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})
