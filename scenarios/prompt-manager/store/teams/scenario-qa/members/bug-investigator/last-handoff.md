@@ -1,26 +1,27 @@
 ### Inbox state
-`prompt-manager team knowledge-list scenario-qa --topic-prefix=bug-inbox/` returned no entries.
+`prompt-manager team knowledge-list scenario-qa --topic-prefix=bug-inbox/` now returns no entries.
 
 ### Investigation in flight
 None.
 
 ### Investigation closed this heartbeat
-None; no `bug-inbox/*` entry was available to drain, so no `bug-investigation-report/<slug>` was written.
+Closed `knw-1778990924577888480` (`bug-inbox/prompt-confusion/report-friction-writer-team-mismatch`).
 
 ### Technique applied
-None to an entry. Loaded `scientific-debugging` for readiness only.
+`scientific-debugging`.
 
 ### Action taken
-No storage changes.
+Validated `prompt-confusion`; reproduced both failures:
+- cross-team `knowledge-add meta-optimization` from `scenario-qa` fails with `attribution: team_mismatch`
+- `--by` on `knowledge-add` fails as removed/stale
+
+Wrote report `knw-1779004948062162828`, then deleted the original inbox entry.
 
 ### Backlog item / decision created
-None. Existing pending `bug-resolution-proposal` decisions observed: 2, below the heartbeat cap.
+Created `dec-1779004919079440975` in `bug-resolution-proposal` to fix the universal writer path for `report-friction` and update stale `--by` skill documentation.
 
 ### Capability-gap raised
 None.
 
 ### Surface for technique graduation
 None.
-
-### Friction note
-The heartbeat-referenced PoR paths under `docs/scenario-qa/...` and the `report-friction` taxonomy path under `docs/meta-optimization/...` were not present at the current workspace root. This did not block the empty-inbox heartbeat because the brief and loaded skill supplied enough context.

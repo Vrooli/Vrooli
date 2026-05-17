@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: web-console/v1/discovery/discovery.proto
+// source: swarm-manager/v1/discovery/discovery.proto
 
 package discovery_v1
 
@@ -29,7 +29,7 @@ type GetAudioToolsEndpointRequest struct {
 
 func (x *GetAudioToolsEndpointRequest) Reset() {
 	*x = GetAudioToolsEndpointRequest{}
-	mi := &file_web_console_v1_discovery_discovery_proto_msgTypes[0]
+	mi := &file_swarm_manager_v1_discovery_discovery_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +41,7 @@ func (x *GetAudioToolsEndpointRequest) String() string {
 func (*GetAudioToolsEndpointRequest) ProtoMessage() {}
 
 func (x *GetAudioToolsEndpointRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_discovery_discovery_proto_msgTypes[0]
+	mi := &file_swarm_manager_v1_discovery_discovery_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,24 +54,28 @@ func (x *GetAudioToolsEndpointRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAudioToolsEndpointRequest.ProtoReflect.Descriptor instead.
 func (*GetAudioToolsEndpointRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_discovery_discovery_proto_rawDescGZIP(), []int{0}
+	return file_swarm_manager_v1_discovery_discovery_proto_rawDescGZIP(), []int{0}
 }
 
+// GetAudioToolsEndpointResponse carries the resolved base URLs or a
+// stable token explaining why audio-tools is unreachable. The browser
+// uses the token to drive an "audio unavailable" banner.
 type GetAudioToolsEndpointResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether audio-tools is currently reachable from the server-side
-	// discovery resolver. When false, base_url / ws_base_url are empty
-	// and unavailable_reason holds an operator-readable explanation.
+	// True when audio-tools' base URL was resolved successfully.
 	Available bool `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
-	// HTTP(S) base URL for Connect-RPC traffic (no trailing slash).
-	// Example: "http://localhost:15000"
+	// HTTP(S) base URL with no trailing slash. Empty when available=false.
 	BaseUrl string `protobuf:"bytes,2,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
-	// ws:// or wss:// base URL for WebSocket transports (e.g. voice stream).
-	// Derived from base_url by scheme rewrite. Empty when available=false.
+	// ws://, wss:// base URL with no trailing slash. Empty when available=false.
 	WsBaseUrl string `protobuf:"bytes,3,opt,name=ws_base_url,json=wsBaseUrl,proto3" json:"ws_base_url,omitempty"`
-	// Operator-facing reason text when available=false. Mapped to the
-	// AudioUnavailableBanner in the browser. Stable token strings, e.g.
-	// "discovery_failed", "scenario_not_running", "env_misconfigured".
+	// Stable token explaining why audio-tools is unreachable. One of:
+	//
+	//	"resolver_not_configured" — server has no resolver wired
+	//	"env_misconfigured"       — AUDIO_TOOLS_URL is missing/empty
+	//	"scenario_not_running"    — lifecycle reports audio-tools is down
+	//	"discovery_failed"        — generic / unclassified resolver error
+	//
+	// Empty when available=true.
 	UnavailableReason string `protobuf:"bytes,4,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -79,7 +83,7 @@ type GetAudioToolsEndpointResponse struct {
 
 func (x *GetAudioToolsEndpointResponse) Reset() {
 	*x = GetAudioToolsEndpointResponse{}
-	mi := &file_web_console_v1_discovery_discovery_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_discovery_discovery_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -91,7 +95,7 @@ func (x *GetAudioToolsEndpointResponse) String() string {
 func (*GetAudioToolsEndpointResponse) ProtoMessage() {}
 
 func (x *GetAudioToolsEndpointResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_discovery_discovery_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_discovery_discovery_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -104,7 +108,7 @@ func (x *GetAudioToolsEndpointResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAudioToolsEndpointResponse.ProtoReflect.Descriptor instead.
 func (*GetAudioToolsEndpointResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_discovery_discovery_proto_rawDescGZIP(), []int{1}
+	return file_swarm_manager_v1_discovery_discovery_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetAudioToolsEndpointResponse) GetAvailable() bool {
@@ -135,40 +139,40 @@ func (x *GetAudioToolsEndpointResponse) GetUnavailableReason() string {
 	return ""
 }
 
-var File_web_console_v1_discovery_discovery_proto protoreflect.FileDescriptor
+var File_swarm_manager_v1_discovery_discovery_proto protoreflect.FileDescriptor
 
-const file_web_console_v1_discovery_discovery_proto_rawDesc = "" +
+const file_swarm_manager_v1_discovery_discovery_proto_rawDesc = "" +
 	"\n" +
-	"(web-console/v1/discovery/discovery.proto\x12\x1fvrooli.web_console.v1.discovery\"\x1e\n" +
+	"*swarm-manager/v1/discovery/discovery.proto\x12!vrooli.swarm_manager.v1.discovery\"\x1e\n" +
 	"\x1cGetAudioToolsEndpointRequest\"\xa7\x01\n" +
 	"\x1dGetAudioToolsEndpointResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x12\x19\n" +
 	"\bbase_url\x18\x02 \x01(\tR\abaseUrl\x12\x1e\n" +
 	"\vws_base_url\x18\x03 \x01(\tR\twsBaseUrl\x12-\n" +
-	"\x12unavailable_reason\x18\x04 \x01(\tR\x11unavailableReason2\xab\x01\n" +
-	"\x10DiscoveryService\x12\x96\x01\n" +
-	"\x15GetAudioToolsEndpoint\x12=.vrooli.web_console.v1.discovery.GetAudioToolsEndpointRequest\x1a>.vrooli.web_console.v1.discovery.GetAudioToolsEndpointResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/discovery;discovery_v1b\x06proto3"
+	"\x12unavailable_reason\x18\x04 \x01(\tR\x11unavailableReason2\xaf\x01\n" +
+	"\x10DiscoveryService\x12\x9a\x01\n" +
+	"\x15GetAudioToolsEndpoint\x12?.vrooli.swarm_manager.v1.discovery.GetAudioToolsEndpointRequest\x1a@.vrooli.swarm_manager.v1.discovery.GetAudioToolsEndpointResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/discovery;discovery_v1b\x06proto3"
 
 var (
-	file_web_console_v1_discovery_discovery_proto_rawDescOnce sync.Once
-	file_web_console_v1_discovery_discovery_proto_rawDescData []byte
+	file_swarm_manager_v1_discovery_discovery_proto_rawDescOnce sync.Once
+	file_swarm_manager_v1_discovery_discovery_proto_rawDescData []byte
 )
 
-func file_web_console_v1_discovery_discovery_proto_rawDescGZIP() []byte {
-	file_web_console_v1_discovery_discovery_proto_rawDescOnce.Do(func() {
-		file_web_console_v1_discovery_discovery_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_web_console_v1_discovery_discovery_proto_rawDesc), len(file_web_console_v1_discovery_discovery_proto_rawDesc)))
+func file_swarm_manager_v1_discovery_discovery_proto_rawDescGZIP() []byte {
+	file_swarm_manager_v1_discovery_discovery_proto_rawDescOnce.Do(func() {
+		file_swarm_manager_v1_discovery_discovery_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_discovery_discovery_proto_rawDesc), len(file_swarm_manager_v1_discovery_discovery_proto_rawDesc)))
 	})
-	return file_web_console_v1_discovery_discovery_proto_rawDescData
+	return file_swarm_manager_v1_discovery_discovery_proto_rawDescData
 }
 
-var file_web_console_v1_discovery_discovery_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_web_console_v1_discovery_discovery_proto_goTypes = []any{
-	(*GetAudioToolsEndpointRequest)(nil),  // 0: vrooli.web_console.v1.discovery.GetAudioToolsEndpointRequest
-	(*GetAudioToolsEndpointResponse)(nil), // 1: vrooli.web_console.v1.discovery.GetAudioToolsEndpointResponse
+var file_swarm_manager_v1_discovery_discovery_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_swarm_manager_v1_discovery_discovery_proto_goTypes = []any{
+	(*GetAudioToolsEndpointRequest)(nil),  // 0: vrooli.swarm_manager.v1.discovery.GetAudioToolsEndpointRequest
+	(*GetAudioToolsEndpointResponse)(nil), // 1: vrooli.swarm_manager.v1.discovery.GetAudioToolsEndpointResponse
 }
-var file_web_console_v1_discovery_discovery_proto_depIdxs = []int32{
-	0, // 0: vrooli.web_console.v1.discovery.DiscoveryService.GetAudioToolsEndpoint:input_type -> vrooli.web_console.v1.discovery.GetAudioToolsEndpointRequest
-	1, // 1: vrooli.web_console.v1.discovery.DiscoveryService.GetAudioToolsEndpoint:output_type -> vrooli.web_console.v1.discovery.GetAudioToolsEndpointResponse
+var file_swarm_manager_v1_discovery_discovery_proto_depIdxs = []int32{
+	0, // 0: vrooli.swarm_manager.v1.discovery.DiscoveryService.GetAudioToolsEndpoint:input_type -> vrooli.swarm_manager.v1.discovery.GetAudioToolsEndpointRequest
+	1, // 1: vrooli.swarm_manager.v1.discovery.DiscoveryService.GetAudioToolsEndpoint:output_type -> vrooli.swarm_manager.v1.discovery.GetAudioToolsEndpointResponse
 	1, // [1:2] is the sub-list for method output_type
 	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -176,26 +180,26 @@ var file_web_console_v1_discovery_discovery_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_web_console_v1_discovery_discovery_proto_init() }
-func file_web_console_v1_discovery_discovery_proto_init() {
-	if File_web_console_v1_discovery_discovery_proto != nil {
+func init() { file_swarm_manager_v1_discovery_discovery_proto_init() }
+func file_swarm_manager_v1_discovery_discovery_proto_init() {
+	if File_swarm_manager_v1_discovery_discovery_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_discovery_discovery_proto_rawDesc), len(file_web_console_v1_discovery_discovery_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_discovery_discovery_proto_rawDesc), len(file_swarm_manager_v1_discovery_discovery_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_web_console_v1_discovery_discovery_proto_goTypes,
-		DependencyIndexes: file_web_console_v1_discovery_discovery_proto_depIdxs,
-		MessageInfos:      file_web_console_v1_discovery_discovery_proto_msgTypes,
+		GoTypes:           file_swarm_manager_v1_discovery_discovery_proto_goTypes,
+		DependencyIndexes: file_swarm_manager_v1_discovery_discovery_proto_depIdxs,
+		MessageInfos:      file_swarm_manager_v1_discovery_discovery_proto_msgTypes,
 	}.Build()
-	File_web_console_v1_discovery_discovery_proto = out.File
-	file_web_console_v1_discovery_discovery_proto_goTypes = nil
-	file_web_console_v1_discovery_discovery_proto_depIdxs = nil
+	File_swarm_manager_v1_discovery_discovery_proto = out.File
+	file_swarm_manager_v1_discovery_discovery_proto_goTypes = nil
+	file_swarm_manager_v1_discovery_discovery_proto_depIdxs = nil
 }

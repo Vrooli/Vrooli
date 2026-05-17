@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.audio_runtime;
+
+import "buf/validate/validate.proto";
+import "web-console/v1/audio_common/audio_common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/audio_runtime;audio_runtime_v1";
+
+// =============================================================================
+// AUDIO RUNTIME DOMAIN — per-utterance audio operations exposed by
+//                        web-console to its own UI/CLI.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain audio_runtime
+// @imports web-console/v1/audio_common
+// @stability stable
+//
+// All RPCs are Connect-RPC unary. Per-utterance audio bytes (TTS output,
+// STT input) ride inline as `bytes` fields. If audio payloads ever exceed
+// proto's reasonable per-message budget, a `RESTReason{multipart_upload}`
+// exception would be added with a Note — not in scope here.
+//
+// USAGE CONTEXTS:
+//   - UI:  ui/src/audio-integration/api/voice.ts (transcribe) and api/tts.ts
+//          (synthesize / cache / voices / playback events).
+//   - API: handlers/audio_runtime/connect_handler.go delegates to
+//          internal/audioports/*.
+// =============================================================================
+
+service AudioRuntimeService {
+  // --- STT batch ---
+  rpc Transcribe(TranscribeRequest) returns (TranscribeResponse);
+
+  // --- TTS ---
+  rpc Synthesize(SynthesizeRequest) returns (SynthesizeResponse);
+  rpc ListVoices(ListVoicesRequest) returns (ListVoicesResponse);
+  rpc GetTTSCache(GetTTSCacheRequest) returns (GetTTSCacheResponse);
+  rpc RecordPlaybackEvent(RecordPlaybackEventRequest) returns (RecordPlaybackEventResponse);
+
+  // --- Summarize (rarely called from UI today; included so CLI/server
+  //     consumers go through the same web-console surface) ---
+  rpc Summarize(SummarizeRequest) returns (SummarizeResponse);
+}
+
+// -----------------------------------------------------------------------------
+// Transcribe
+// -----------------------------------------------------------------------------
+
+message TranscribeRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.web_console.v1.audio_common.AudioFormat format = 2 [
+    (buf.validate.field).enum.not_in = 0
+  ];
+  string language = 3;
+  bool skip_speaker_verification = 4;
+  string initial_prompt = 5;
+}
+
+message TranscribeResponse {
+  string text = 1;
+  string detected_language = 2;
+  double duration_seconds = 3;
+  vrooli.web_console.v1.audio_common.ProviderTier provider_tier = 4;
+  string provider_id = 5;
+  string model_id = 6;
+  double latency_ms = 7;
+}
+
+// -----------------------------------------------------------------------------
+// TTS Synthesize / Voices / Cache / Playback event
+// -----------------------------------------------------------------------------
+
+// AdapterMapping pins a canonical voice id to a concrete backend voice
+// for a specific (tier, provider_id) pair.
+message AdapterMapping {
+  vrooli.web_console.v1.audio_common.ProviderTier tier = 1;
+  string provider_id = 2;
+  string backend_voice_id = 3;
+}
+
+message SynthesizeRequest {
+  string text = 1 [(buf.validate.field).string.min_len = 1];
+  string voice = 2;
+  repeated AdapterMapping voice_overrides = 3;
+  double speed = 4 [(buf.validate.field).cel = {
+    id: "audio_runtime.synthesize.speed.range",
+    message: "speed must be 0 (default) or in [0.5, 4.0]",
+    expression: "this == 0.0 || (this >= 0.5 && this <= 4.0)"
+  }];
+  vrooli.web_console.v1.audio_common.ResponseFormat response_format = 5;
+  string event_id = 6;
+  string version = 7;
+}
+
+message SynthesizeResponse {
+  bytes audio = 1;
+  string content_type = 2;
+  string content_hash = 3;
+  vrooli.web_console.v1.audio_common.ProviderTier provider_tier = 4;
+  string provider_id = 5;
+  string model_id = 6;
+  string voice_used = 7;
+  double latency_ms = 8;
+}
+
+message Voice {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated AdapterMapping adapter_mappings = 4;
+}
+
+message ListVoicesRequest {}
+
+message ListVoicesResponse {
+  repeated Voice voices = 1;
+}
+
+message GetTTSCacheRequest {
+  string event_id = 1;
+  string voice = 2;
+  double speed = 3;
+  string version = 4;
+  string content_hash = 5;
+  vrooli.web_console.v1.audio_common.ResponseFormat response_format = 6;
+}
+
+message GetTTSCacheResponse {
+  bytes audio = 1;
+  string content_type = 2;
+  string content_hash = 3;
+  bool hit = 4;
+}
+
+message PlaybackEvent {
+  string source = 1;
+  string stage = 2;
+  string backend = 3;
+  string session_id = 4;
+  string message = 5;
+  string event_id = 6;
+}
+
+message RecordPlaybackEventRequest {
+  PlaybackEvent event = 1;
+}
+
+message RecordPlaybackEventResponse {
+  string status = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Summarize
+// -----------------------------------------------------------------------------
+
+message SummarizeRequest {
+  string text = 1 [(buf.validate.field).string.min_len = 1];
+  vrooli.web_console.v1.audio_common.SummarizeLevel level = 2;
+  string model = 3;
+  int32 timeout_seconds = 4 [(buf.validate.field).int32 = { gte: 0, lte: 600 }];
+}
+
+message SummarizeResponse {
+  string text = 1;
+  int32 prompt_tokens = 2;
+  int32 output_tokens = 3;
+  vrooli.web_console.v1.audio_common.ProviderTier provider_tier = 4;
+  string provider_id = 5;
+  string model_id = 6;
+  double latency_ms = 7;
+}

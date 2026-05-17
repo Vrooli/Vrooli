@@ -7,11 +7,12 @@
   "schedule": "0 */6 * * *",
   "lastExecution": {
     "startedAt": "2026-05-17T04:00:00Z",
-    "status": "running",
+    "endedAt": "2026-05-17T04:09:02Z",
+    "status": "completed",
     "runId": "afc03951-1b8c-4e43-9d32-b3d90acf5d49",
     "logPath": "../store/teams/scenario-qa/members/programmatic-qa-runner/logs/2026-05-17T04-00-00Z.log"
   },
-  "revision": 172,
+  "revision": 173,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-05-17T04:00:01Z"
+  "updatedAt": "2026-05-17T04:09:02Z"
 }

@@ -2,12 +2,6 @@
   "teamId": "scenario-qa",
   "queuePolicy": "bounded-parallel",
   "maxConcurrentRuns": 4,
-  "running": [
-    {
-      "AgentID": "programmatic-qa-runner",
-      "ProfileKey": "",
-      "RunID": "afc03951-1b8c-4e43-9d32-b3d90acf5d49"
-    }
-  ],
+  "running": [],
   "queue": null
 }

@@ -16,13 +16,12 @@
 - None this heartbeat.
 
 ### Triage snapshot
-- friction-triage-record/2026-05-17 updated as `knw-1778990445682124834`
+- friction-triage-record/2026-05-17 updated as `knw-1779004824291997978`
 
 ### Patterns surfaced to debt-curator
 - None this heartbeat.
 
 ### Notes
-- `friction-inbox/` was empty on final verification.
+- `friction-inbox/` was empty on final check.
 - Today’s aggregate totals remain zero.
-- `docs/meta-optimization/taxonomies/friction-report/README.md` remains absent, and `docs/` is absent at the current workspace root; no validation was needed because there were no inbox entries.
-- `prompt-manager team knowledge-add` attribution is automatic; `--by` is removed in this runtime.
+- `docs/meta-optimization/taxonomies/friction-report/README.md` remains absent in this workspace; no validation was needed because there were no inbox entries.

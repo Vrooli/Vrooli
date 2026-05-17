@@ -1,35 +1,43 @@
 ### Scenarios reviewed
-Reviewed 3 queued scenarios with fresh GCT completeness runs:
-- `audio-tools`: early_stage, score 15, calculated `2026-05-16T22:01:23Z`
-- `brand-manager`: nearly_ready, score 84, calculated `2026-05-16T22:01:32Z`
-- `app-monitor`: foundation_laid, score 33, calculated `2026-05-16T22:01:39Z`
+Reviewed 3 eligible queued scenarios with fresh GCT completeness runs:
+- `knowledge-observatory`: functional_incomplete, score 52, calculated `2026-05-17T04:01:54Z`
+- `scenario-to-cloud`: functional_incomplete, score 41, calculated `2026-05-17T04:02:02Z`
+- `browser-automation-studio`: foundation_laid, score 38, calculated `2026-05-17T04:02:10Z`
+
+Skipped `web-console` as same-day cooldown because it had a prior `reviewed-scenario/web-console` production_ready score 98 from `2026-05-16T16:02:13Z`.
 
 ### Findings converted to backlog
-Created 4 Swarm Manager fixes with `notes.md` evidence:
-- `fix/qa-audio-tools-gct-requirements-targets-automation-20260516`
-- `fix/qa-brand-manager-gct-test-depth-20260516`
-- `fix/qa-app-monitor-gct-requirement-target-decomposition-20260516`
-- `fix/qa-app-monitor-gct-validation-automation-20260516`
+Created 6 Swarm Manager fixes with `notes.md` evidence:
+- `fix/qa-knowledge-observatory-gct-requirement-target-readiness-20260517`
+- `fix/qa-knowledge-observatory-gct-test-depth-20260517`
+- `fix/qa-scenario-to-cloud-gct-requirement-target-readiness-20260517`
+- `fix/qa-scenario-to-cloud-gct-test-depth-20260517`
+- `fix/qa-browser-automation-studio-gct-requirement-target-pass-rate-20260517`
+- `fix/qa-browser-automation-studio-gct-test-decomposition-20260517`
 
 ### Dependencies wired
 Wired:
-- Audio-tools QA fix onto `execute/audio-tools-greenfield-scenario`, `execute/audio-tools-byok-adapters`, and `execute/audio-tools-twilio-media-stream-transport`.
-- Brand-manager QA fix onto `execute/brand-manager-scenario-picker` and `execute/brand-manager-discovery-import-ui`.
-- App-monitor QA fixes onto `execute/app-monitor-issue-tracker-cutover-verify` and `execute/cross-scenario-issue-tracker-cutover-sweep`.
+- KO QA fixes onto `execute/project-wiki-ko-integration`.
+- Scenario-to-cloud QA fixes onto `execute/tool-authoring-migrate-existing`.
+- BAS QA fixes onto `research/bas-screenshot-api-audit`, `research/bas-grounded-mockup-flow`, and `execute/bas-grounded-mockup-integration`.
 
 ### Skipped scenarios
-None. All three queued scenarios had visible files through `swarm-manager scenarios files`.
+- `web-console`: cooldown/duplicate churn avoidance.
+- No selected scenario was missing; all three reviewed scenarios had visible files through `swarm-manager scenarios files`.
 
 ### Bugs filed (via report-bug)
-None.
+Filed:
+- `bug-inbox/prompt-confusion/report-friction-writer-team-mismatch`: `knw-1778990924577888480`
+
+Reason: `report-friction` says cross-team friction writes to `meta-optimization` are universal, but `prompt-manager team knowledge-add meta-optimization ...` failed with `team_mismatch`, and the skill’s documented `--by` flag is removed.
 
 ### Knowledge entries written
-- `qa-run/audio-tools`: `knw-1778969112677802166`
-- `qa-run/brand-manager`: `knw-1778969112677846496`
-- `qa-run/app-monitor`: `knw-1778969112835574463`
-- `reviewed-scenario/audio-tools`: `knw-1778969132891673266`
-- `reviewed-scenario/brand-manager`: `knw-1778969132890332107`
-- `reviewed-scenario/app-monitor`: `knw-1778969133049970694`
-- `dependency-wiring/2026-05-16-gct-completeness-queued-scenarios-2`: `knw-1778969133049946054`
+- `qa-run/knowledge-observatory`: `knw-1778990811196572327`
+- `qa-run/scenario-to-cloud`: `knw-1778990811196845087`
+- `qa-run/browser-automation-studio`: `knw-1778990811346415327`
+- `reviewed-scenario/knowledge-observatory`: `knw-1778990832260086757`
+- `reviewed-scenario/scenario-to-cloud`: `knw-1778990832261087950`
+- `reviewed-scenario/browser-automation-studio`: `knw-1778990832432716235`
+- `dependency-wiring/2026-05-17-gct-completeness-queued-scenarios`: `knw-1778990832433553207`
 
-Friction noted but not separately filed: `swarm-manager scenarios files` output includes massive vendored dependency listings, making existence checks noisy; `prompt-manager team knowledge-add --help` still does not expose useful subcommand-specific options, but `knowledge-add` worked without the removed `--by` flag.
+Friction not filed due the bug above: `swarm-manager scenarios files` is still too noisy for existence checks; BAS emitted 172,888 lines / roughly 1.9M transcript tokens before truncation.
