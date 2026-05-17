@@ -4,13 +4,19 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { FieldMask } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_field_mask } from "@bufbuild/protobuf/wkt";
+import type { ProviderTier } from "../common/common_pb";
+import { file_audio_tools_v1_common_common } from "../common/common_pb";
+import type { SummarizeLevel } from "../tts/tts_pb";
+import { file_audio_tools_v1_tts_tts } from "../tts/tts_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file audio-tools/v1/summarize/summarize.proto.
  */
 export const file_audio_tools_v1_summarize_summarize: GenFile = /*@__PURE__*/
-  fileDesc("CihhdWRpby10b29scy92MS9zdW1tYXJpemUvc3VtbWFyaXplLnByb3RvEh92cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplInEKD1N1bW1hcml6ZUNvbmZpZxIPCgdlbmFibGVkGAEgASgIEhYKDmNoYXJfdGhyZXNob2xkGAIgASgFEg0KBWxldmVsGAMgASgJEg0KBW1vZGVsGAQgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoBSIbChlHZXRTdW1tYXJpemVDb25maWdSZXF1ZXN0Il4KGkdldFN1bW1hcml6ZUNvbmZpZ1Jlc3BvbnNlEkAKBmNvbmZpZxgBIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnIvIBChxVcGRhdGVTdW1tYXJpemVDb25maWdSZXF1ZXN0Eg8KB2VuYWJsZWQYASABKAgSEwoLaGFzX2VuYWJsZWQYAiABKAgSFgoOY2hhcl90aHJlc2hvbGQYAyABKAUSGgoSaGFzX2NoYXJfdGhyZXNob2xkGAQgASgIEg0KBWxldmVsGAUgASgJEhEKCWhhc19sZXZlbBgGIAEoCBINCgVtb2RlbBgHIAEoCRIRCgloYXNfbW9kZWwYCCABKAgSFwoPdGltZW91dF9zZWNvbmRzGAkgASgFEhsKE2hhc190aW1lb3V0X3NlY29uZHMYCiABKAgiYQodVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVzcG9uc2USQAoGY29uZmlnGAEgASgLMjAudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVDb25maWciVwoQU3VtbWFyaXplUmVxdWVzdBIMCgR0ZXh0GAEgASgJEg0KBWxldmVsGAIgASgJEg0KBW1vZGVsGAMgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBSKhAQoRU3VtbWFyaXplUmVzcG9uc2USDAoEdGV4dBgBIAEoCRIVCg1wcm9tcHRfdG9rZW5zGAIgASgFEhUKDW91dHB1dF90b2tlbnMYAyABKAUSFQoNcHJvdmlkZXJfdGllchgEIAEoCRITCgtwcm92aWRlcl9pZBgFIAEoCRIQCghtb2RlbF9pZBgGIAEoCRISCgpsYXRlbmN5X21zGAcgASgBMq8DChBTdW1tYXJpemVTZXJ2aWNlEnIKCVN1bW1hcml6ZRIxLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplUmVxdWVzdBoyLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplUmVzcG9uc2USjQEKEkdldFN1bW1hcml6ZUNvbmZpZxI6LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuR2V0U3VtbWFyaXplQ29uZmlnUmVxdWVzdBo7LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuR2V0U3VtbWFyaXplQ29uZmlnUmVzcG9uc2USlgEKFVVwZGF0ZVN1bW1hcml6ZUNvbmZpZxI9LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVxdWVzdBo+LnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuVXBkYXRlU3VtbWFyaXplQ29uZmlnUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9zdW1tYXJpemU7c3VtbWFyaXplX3YxYgZwcm90bzM");
+  fileDesc("CihhdWRpby10b29scy92MS9zdW1tYXJpemUvc3VtbWFyaXplLnByb3RvEh92cm9vbGkuYXVkaW9fdG9vbHMudjEuc3VtbWFyaXplIpwBCg9TdW1tYXJpemVDb25maWcSDwoHZW5hYmxlZBgBIAEoCBIWCg5jaGFyX3RocmVzaG9sZBgCIAEoBRI4CgVsZXZlbBgDIAEoDjIpLnZyb29saS5hdWRpb190b29scy52MS50dHMuU3VtbWFyaXplTGV2ZWwSDQoFbW9kZWwYBCABKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgFIhsKGUdldFN1bW1hcml6ZUNvbmZpZ1JlcXVlc3QiXgoaR2V0U3VtbWFyaXplQ29uZmlnUmVzcG9uc2USQAoGY29uZmlnGAEgASgLMjAudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVDb25maWcikQEKHFVwZGF0ZVN1bW1hcml6ZUNvbmZpZ1JlcXVlc3QSLwoLdXBkYXRlX21hc2sYASABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEkAKBmNvbmZpZxgCIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnImEKHVVwZGF0ZVN1bW1hcml6ZUNvbmZpZ1Jlc3BvbnNlEkAKBmNvbmZpZxgBIAEoCzIwLnZyb29saS5hdWRpb190b29scy52MS5zdW1tYXJpemUuU3VtbWFyaXplQ29uZmlnIoIBChBTdW1tYXJpemVSZXF1ZXN0EgwKBHRleHQYASABKAkSOAoFbGV2ZWwYAiABKA4yKS52cm9vbGkuYXVkaW9fdG9vbHMudjEudHRzLlN1bW1hcml6ZUxldmVsEg0KBW1vZGVsGAMgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBSLNAQoRU3VtbWFyaXplUmVzcG9uc2USDAoEdGV4dBgBIAEoCRIVCg1wcm9tcHRfdG9rZW5zGAIgASgFEhUKDW91dHB1dF90b2tlbnMYAyABKAUSQQoNcHJvdmlkZXJfdGllchgEIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uUHJvdmlkZXJUaWVyEhMKC3Byb3ZpZGVyX2lkGAUgASgJEhAKCG1vZGVsX2lkGAYgASgJEhIKCmxhdGVuY3lfbXMYByABKAEyrwMKEFN1bW1hcml6ZVNlcnZpY2UScgoJU3VtbWFyaXplEjEudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVSZXF1ZXN0GjIudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5TdW1tYXJpemVSZXNwb25zZRKNAQoSR2V0U3VtbWFyaXplQ29uZmlnEjoudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5HZXRTdW1tYXJpemVDb25maWdSZXF1ZXN0GjsudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5HZXRTdW1tYXJpemVDb25maWdSZXNwb25zZRKWAQoVVXBkYXRlU3VtbWFyaXplQ29uZmlnEj0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5VcGRhdGVTdW1tYXJpemVDb25maWdSZXF1ZXN0Gj4udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnN1bW1hcml6ZS5VcGRhdGVTdW1tYXJpemVDb25maWdSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL3N1bW1hcml6ZTtzdW1tYXJpemVfdjFiBnByb3RvMw", [file_google_protobuf_field_mask, file_audio_tools_v1_common_common, file_audio_tools_v1_tts_tts]);
 
 /**
  * @generated from message vrooli.audio_tools.v1.summarize.SummarizeConfig
@@ -27,11 +33,9 @@ export type SummarizeConfig = Message<"vrooli.audio_tools.v1.summarize.Summarize
   charThreshold: number;
 
   /**
-   * "light" | "moderate" | "heavy"
-   *
-   * @generated from field: string level = 3;
+   * @generated from field: vrooli.audio_tools.v1.tts.SummarizeLevel level = 3;
    */
-  level: string;
+  level: SummarizeLevel;
 
   /**
    * @generated from field: string model = 4;
@@ -82,58 +86,23 @@ export const GetSummarizeConfigResponseSchema: GenMessage<GetSummarizeConfigResp
   messageDesc(file_audio_tools_v1_summarize_summarize, 2);
 
 /**
+ * UpdateSummarizeConfigRequest carries FieldMask + a full SummarizeConfig
+ * payload. Server validates each path in `update_mask.paths`; unknown
+ * paths return CodeInvalidArgument; an empty mask returns
+ * CodeInvalidArgument ("no fields specified").
+ *
  * @generated from message vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest
  */
 export type UpdateSummarizeConfigRequest = Message<"vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest"> & {
   /**
-   * @generated from field: bool enabled = 1;
+   * @generated from field: google.protobuf.FieldMask update_mask = 1;
    */
-  enabled: boolean;
+  updateMask?: FieldMask | undefined;
 
   /**
-   * @generated from field: bool has_enabled = 2;
+   * @generated from field: vrooli.audio_tools.v1.summarize.SummarizeConfig config = 2;
    */
-  hasEnabled: boolean;
-
-  /**
-   * @generated from field: int32 char_threshold = 3;
-   */
-  charThreshold: number;
-
-  /**
-   * @generated from field: bool has_char_threshold = 4;
-   */
-  hasCharThreshold: boolean;
-
-  /**
-   * @generated from field: string level = 5;
-   */
-  level: string;
-
-  /**
-   * @generated from field: bool has_level = 6;
-   */
-  hasLevel: boolean;
-
-  /**
-   * @generated from field: string model = 7;
-   */
-  model: string;
-
-  /**
-   * @generated from field: bool has_model = 8;
-   */
-  hasModel: boolean;
-
-  /**
-   * @generated from field: int32 timeout_seconds = 9;
-   */
-  timeoutSeconds: number;
-
-  /**
-   * @generated from field: bool has_timeout_seconds = 10;
-   */
-  hasTimeoutSeconds: boolean;
+  config?: SummarizeConfig | undefined;
 };
 
 /**
@@ -170,11 +139,9 @@ export type SummarizeRequest = Message<"vrooli.audio_tools.v1.summarize.Summariz
   text: string;
 
   /**
-   * "light" | "moderate" | "heavy"
-   *
-   * @generated from field: string level = 2;
+   * @generated from field: vrooli.audio_tools.v1.tts.SummarizeLevel level = 2;
    */
-  level: string;
+  level: SummarizeLevel;
 
   /**
    * optional override
@@ -216,9 +183,9 @@ export type SummarizeResponse = Message<"vrooli.audio_tools.v1.summarize.Summari
   outputTokens: number;
 
   /**
-   * @generated from field: string provider_tier = 4;
+   * @generated from field: vrooli.audio_tools.v1.common.ProviderTier provider_tier = 4;
    */
-  providerTier: string;
+  providerTier: ProviderTier;
 
   /**
    * @generated from field: string provider_id = 5;

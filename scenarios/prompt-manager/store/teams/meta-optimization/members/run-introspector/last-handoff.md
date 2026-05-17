@@ -1,36 +1,36 @@
 ### Runs in window
-- Errored: 14
+- Errored: 0
 - Retried: 0
-- Slow: 0
+- Slow: 1
 - User-flagged: 0
-- Successful: 27 complete + 1 running at fetch time
+- Successful: 39 complete + 1 prior investigation in needs_review
 
 ### Run picked this heartbeat
-- Run ID: `b969d9cb-c1f6-4850-bf8e-154467810a19`
-- Agent: `subscription-advertiser`
-- Triage tier: errored
+- Run ID: `b41e3f3c-31fd-4e43-be7a-93d657f52367`
+- Agent: `programmatic-qa-runner`
+- Triage tier: slow
 
 ### What happened
-- The run failed before agent execution while creating the isolated workspace. Events show `SANDBOX_CREATE` connection refused to `localhost:15120`, marked `retryable=true` with `RECOVERY_ACTION_RETRY`, and no `session_id`.
-- Investigation run `5ede7875-236f-4836-9790-74a31013366e` confirmed workspace-sandbox was reachable later, so this was transient/startup dependency availability, not agent prompt behavior.
+- The run completed successfully and created 8 Swarm Manager backlog items from 3 GCT readiness reviews, but ran 11m41s against a 600s resolved timeout.
+- Investigation run `67eba1d1-b151-444e-9069-5544aa9385f6` found no task failure and flagged only timeout semantics as an anomaly.
 
 ### Implicated
-- Agent-manager workspace setup / workspace-sandbox dependency path, specifically sandbox creation before agent execution.
+- `scenario-qa/programmatic-qa-runner` heartbeat workflow: GCT readiness review to Swarm backlog creation, notes upload, dependency wiring, and knowledge writes.
 
 ### Proposed lesson
-- Add bounded preflight/retry for retryable `SANDBOX_CREATE` connection-refused failures before finalizing user runs as failed.
-- Handoff to: director-swarm via capability-gap
+- Convert the stabilized GCT-readiness-to-backlog workflow into an Action candidate so programmatic QA stops repeating a long manual CLI sequence each heartbeat.
+- Handoff to: skill-optimizer
 
 ### Action opportunity
 - new-action-candidate
-- Evidence: this heartbeat again repeated deterministic `agent-manager run list/get/events/investigate` plus `jq` grouping for run-window classification; `prompt-manager discover` found no exact run-window summary Action, only related skills and `action:team.decisions.list`.
+- Evidence: event scan found 55 tool calls, including 8 backlog creates, 8 notes uploads, dependency merge/update logic, verification, and 8 knowledge writes; `prompt-manager discover` returned broad skills only and no exact Action.
 
 ### Measurement plan
-- For the next 7 run-introspector windows, count no-session `SANDBOX_CREATE` connection-refused user-run failures. Expected: 0 if workspace-sandbox comes up within retry window, otherwise failures include explicit exhausted-retry evidence.
+- After adoption, compare the next 5 `programmatic-qa-runner` heartbeats: expected fewer than 25 tool calls for the conversion path and no run exceeding configured timeout due only to backlog-conversion command volume.
 
 ### Decisions raised this heartbeat
-- `dec-1778885362329320192` - capability-gap - add agent-manager workspace-sandbox create preflight/retry for retryable connection-refused failures.
+- `dec-1778971728228105895` - run-lesson - treat programmatic-qa-runner GCT readiness-to-Swarm-backlog conversion as a new Action candidate.
 
 ### Knowledge entries written
-- `knw-1778885334234212715` - `run-lesson-report/2026-05-15`
-- `knw-1778885334234710814` - `friction-report/run-execution/2026-05-15/sandbox-create-transient-connection-refused`
+- `knw-1778971703007132842` - `run-lesson-report/2026-05-16`
+- `knw-1778971715484925564` - `friction-report/run-execution/2026-05-16/programmatic-qa-manual-backlog-conversion`

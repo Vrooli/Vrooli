@@ -7,8 +7,10 @@
 package usage_v1
 
 import (
+	common "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -24,10 +26,10 @@ const (
 type UsageRow struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	OperationId          string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"` // UUID, idempotency key
-	EmittedAt            string                 `protobuf:"bytes,2,opt,name=emitted_at,json=emittedAt,proto3" json:"emitted_at,omitempty"`       // RFC3339
-	Capability           string                 `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"`                      // "stt" | "tts" | "summarize" | "audio"
-	Operation            string                 `protobuf:"bytes,4,opt,name=operation,proto3" json:"operation,omitempty"`                        // "transcribe" | "synthesize" | "summarize" | "transcode" | ...
-	ProviderTier         string                 `protobuf:"bytes,5,opt,name=provider_tier,json=providerTier,proto3" json:"provider_tier,omitempty"`
+	EmittedAt            *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=emitted_at,json=emittedAt,proto3" json:"emitted_at,omitempty"`
+	Capability           string                 `protobuf:"bytes,3,opt,name=capability,proto3" json:"capability,omitempty"` // "stt" | "tts" | "summarize" | "audio"
+	Operation            string                 `protobuf:"bytes,4,opt,name=operation,proto3" json:"operation,omitempty"`   // "transcribe" | "synthesize" | "summarize" | "transcode" | ...
+	ProviderTier         common.ProviderTier    `protobuf:"varint,5,opt,name=provider_tier,json=providerTier,proto3,enum=vrooli.audio_tools.v1.common.ProviderTier" json:"provider_tier,omitempty"`
 	ProviderId           string                 `protobuf:"bytes,6,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	ModelId              string                 `protobuf:"bytes,7,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
 	LatencyMs            float64                `protobuf:"fixed64,8,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
@@ -79,11 +81,11 @@ func (x *UsageRow) GetOperationId() string {
 	return ""
 }
 
-func (x *UsageRow) GetEmittedAt() string {
+func (x *UsageRow) GetEmittedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.EmittedAt
 	}
-	return ""
+	return nil
 }
 
 func (x *UsageRow) GetCapability() string {
@@ -100,11 +102,11 @@ func (x *UsageRow) GetOperation() string {
 	return ""
 }
 
-func (x *UsageRow) GetProviderTier() string {
+func (x *UsageRow) GetProviderTier() common.ProviderTier {
 	if x != nil {
 		return x.ProviderTier
 	}
-	return ""
+	return common.ProviderTier(0)
 }
 
 func (x *UsageRow) GetProviderId() string {
@@ -180,11 +182,11 @@ func (x *UsageRow) GetUserIdentity() string {
 type ListRecentRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Either since_seconds (lookback) or after_emitted_at (cursor).
-	SinceSeconds   int64  `protobuf:"varint,1,opt,name=since_seconds,json=sinceSeconds,proto3" json:"since_seconds,omitempty"`
-	AfterEmittedAt string `protobuf:"bytes,2,opt,name=after_emitted_at,json=afterEmittedAt,proto3" json:"after_emitted_at,omitempty"`
-	Limit          int32  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`          // default 100, max 1000
-	Capability     string `protobuf:"bytes,4,opt,name=capability,proto3" json:"capability,omitempty"` // optional filter
-	ProviderTier   string `protobuf:"bytes,5,opt,name=provider_tier,json=providerTier,proto3" json:"provider_tier,omitempty"`
+	SinceSeconds   int64                  `protobuf:"varint,1,opt,name=since_seconds,json=sinceSeconds,proto3" json:"since_seconds,omitempty"`
+	AfterEmittedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=after_emitted_at,json=afterEmittedAt,proto3" json:"after_emitted_at,omitempty"`
+	Limit          int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`          // default 100, max 1000
+	Capability     string                 `protobuf:"bytes,4,opt,name=capability,proto3" json:"capability,omitempty"` // optional filter
+	ProviderTier   common.ProviderTier    `protobuf:"varint,5,opt,name=provider_tier,json=providerTier,proto3,enum=vrooli.audio_tools.v1.common.ProviderTier" json:"provider_tier,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -226,11 +228,11 @@ func (x *ListRecentRequest) GetSinceSeconds() int64 {
 	return 0
 }
 
-func (x *ListRecentRequest) GetAfterEmittedAt() string {
+func (x *ListRecentRequest) GetAfterEmittedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.AfterEmittedAt
 	}
-	return ""
+	return nil
 }
 
 func (x *ListRecentRequest) GetLimit() int32 {
@@ -247,11 +249,11 @@ func (x *ListRecentRequest) GetCapability() string {
 	return ""
 }
 
-func (x *ListRecentRequest) GetProviderTier() string {
+func (x *ListRecentRequest) GetProviderTier() common.ProviderTier {
 	if x != nil {
 		return x.ProviderTier
 	}
-	return ""
+	return common.ProviderTier(0)
 }
 
 type ListRecentResponse struct {
@@ -300,7 +302,7 @@ func (x *ListRecentResponse) GetRows() []*UsageRow {
 
 type ProviderDistribution struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProviderTier  string                 `protobuf:"bytes,1,opt,name=provider_tier,json=providerTier,proto3" json:"provider_tier,omitempty"`
+	ProviderTier  common.ProviderTier    `protobuf:"varint,1,opt,name=provider_tier,json=providerTier,proto3,enum=vrooli.audio_tools.v1.common.ProviderTier" json:"provider_tier,omitempty"`
 	ProviderId    string                 `protobuf:"bytes,2,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	Count         int64                  `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
 	CreditsTotal  int64                  `protobuf:"varint,4,opt,name=credits_total,json=creditsTotal,proto3" json:"credits_total,omitempty"`
@@ -339,11 +341,11 @@ func (*ProviderDistribution) Descriptor() ([]byte, []int) {
 	return file_audio_tools_v1_usage_usage_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ProviderDistribution) GetProviderTier() string {
+func (x *ProviderDistribution) GetProviderTier() common.ProviderTier {
 	if x != nil {
 		return x.ProviderTier
 	}
-	return ""
+	return common.ProviderTier(0)
 }
 
 func (x *ProviderDistribution) GetProviderId() string {
@@ -428,8 +430,8 @@ func (x *FallbackReason) GetCount() int64 {
 
 type Summary struct {
 	state           protoimpl.MessageState  `protogen:"open.v1"`
-	Since           string                  `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"` // RFC3339
-	Until           string                  `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
+	Since           *timestamppb.Timestamp  `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
+	Until           *timestamppb.Timestamp  `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
 	OperationsTotal int64                   `protobuf:"varint,3,opt,name=operations_total,json=operationsTotal,proto3" json:"operations_total,omitempty"`
 	CreditsTotal    int64                   `protobuf:"varint,4,opt,name=credits_total,json=creditsTotal,proto3" json:"credits_total,omitempty"`
 	Distribution    []*ProviderDistribution `protobuf:"bytes,5,rep,name=distribution,proto3" json:"distribution,omitempty"`
@@ -469,18 +471,18 @@ func (*Summary) Descriptor() ([]byte, []int) {
 	return file_audio_tools_v1_usage_usage_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *Summary) GetSince() string {
+func (x *Summary) GetSince() *timestamppb.Timestamp {
 	if x != nil {
 		return x.Since
 	}
-	return ""
+	return nil
 }
 
-func (x *Summary) GetUntil() string {
+func (x *Summary) GetUntil() *timestamppb.Timestamp {
 	if x != nil {
 		return x.Until
 	}
-	return ""
+	return nil
 }
 
 func (x *Summary) GetOperationsTotal() int64 {
@@ -618,16 +620,16 @@ var File_audio_tools_v1_usage_usage_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_usage_usage_proto_rawDesc = "" +
 	"\n" +
-	" audio-tools/v1/usage/usage.proto\x12\x1bvrooli.audio_tools.v1.usage\"\x97\x04\n" +
+	" audio-tools/v1/usage/usage.proto\x12\x1bvrooli.audio_tools.v1.usage\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"audio-tools/v1/common/common.proto\"\xdf\x04\n" +
 	"\bUsageRow\x12!\n" +
-	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x1d\n" +
+	"\foperation_id\x18\x01 \x01(\tR\voperationId\x129\n" +
 	"\n" +
-	"emitted_at\x18\x02 \x01(\tR\temittedAt\x12\x1e\n" +
+	"emitted_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\temittedAt\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x03 \x01(\tR\n" +
 	"capability\x12\x1c\n" +
-	"\toperation\x18\x04 \x01(\tR\toperation\x12#\n" +
-	"\rprovider_tier\x18\x05 \x01(\tR\fproviderTier\x12\x1f\n" +
+	"\toperation\x18\x04 \x01(\tR\toperation\x12O\n" +
+	"\rprovider_tier\x18\x05 \x01(\x0e2*.vrooli.audio_tools.v1.common.ProviderTierR\fproviderTier\x12\x1f\n" +
 	"\vprovider_id\x18\x06 \x01(\tR\n" +
 	"providerId\x12\x19\n" +
 	"\bmodel_id\x18\a \x01(\tR\amodelId\x12\x1d\n" +
@@ -640,19 +642,19 @@ const file_audio_tools_v1_usage_usage_proto_rawDesc = "" +
 	"\x16audio_duration_seconds\x18\f \x01(\x01R\x14audioDurationSeconds\x12\x14\n" +
 	"\x05error\x18\r \x01(\tR\x05error\x12'\n" +
 	"\x0ffallback_reason\x18\x0e \x01(\tR\x0efallbackReason\x12#\n" +
-	"\ruser_identity\x18\x0f \x01(\tR\fuserIdentity\"\xbd\x01\n" +
+	"\ruser_identity\x18\x0f \x01(\tR\fuserIdentity\"\x85\x02\n" +
 	"\x11ListRecentRequest\x12#\n" +
-	"\rsince_seconds\x18\x01 \x01(\x03R\fsinceSeconds\x12(\n" +
-	"\x10after_emitted_at\x18\x02 \x01(\tR\x0eafterEmittedAt\x12\x14\n" +
+	"\rsince_seconds\x18\x01 \x01(\x03R\fsinceSeconds\x12D\n" +
+	"\x10after_emitted_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x0eafterEmittedAt\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x04 \x01(\tR\n" +
-	"capability\x12#\n" +
-	"\rprovider_tier\x18\x05 \x01(\tR\fproviderTier\"O\n" +
+	"capability\x12O\n" +
+	"\rprovider_tier\x18\x05 \x01(\x0e2*.vrooli.audio_tools.v1.common.ProviderTierR\fproviderTier\"O\n" +
 	"\x12ListRecentResponse\x129\n" +
-	"\x04rows\x18\x01 \x03(\v2%.vrooli.audio_tools.v1.usage.UsageRowR\x04rows\"\xbd\x01\n" +
-	"\x14ProviderDistribution\x12#\n" +
-	"\rprovider_tier\x18\x01 \x01(\tR\fproviderTier\x12\x1f\n" +
+	"\x04rows\x18\x01 \x03(\v2%.vrooli.audio_tools.v1.usage.UsageRowR\x04rows\"\xe9\x01\n" +
+	"\x14ProviderDistribution\x12O\n" +
+	"\rprovider_tier\x18\x01 \x01(\x0e2*.vrooli.audio_tools.v1.common.ProviderTierR\fproviderTier\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
 	"providerId\x12\x14\n" +
 	"\x05count\x18\x03 \x01(\x03R\x05count\x12#\n" +
@@ -660,10 +662,10 @@ const file_audio_tools_v1_usage_usage_proto_rawDesc = "" +
 	"\x0eavg_latency_ms\x18\x05 \x01(\x01R\favgLatencyMs\">\n" +
 	"\x0eFallbackReason\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x03R\x05count\"\xd5\x02\n" +
-	"\aSummary\x12\x14\n" +
-	"\x05since\x18\x01 \x01(\tR\x05since\x12\x14\n" +
-	"\x05until\x18\x02 \x01(\tR\x05until\x12)\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\"\x8d\x03\n" +
+	"\aSummary\x120\n" +
+	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
+	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12)\n" +
 	"\x10operations_total\x18\x03 \x01(\x03R\x0foperationsTotal\x12#\n" +
 	"\rcredits_total\x18\x04 \x01(\x03R\fcreditsTotal\x12U\n" +
 	"\fdistribution\x18\x05 \x03(\v21.vrooli.audio_tools.v1.usage.ProviderDistributionR\fdistribution\x12V\n" +
@@ -697,29 +699,38 @@ func file_audio_tools_v1_usage_usage_proto_rawDescGZIP() []byte {
 
 var file_audio_tools_v1_usage_usage_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_audio_tools_v1_usage_usage_proto_goTypes = []any{
-	(*UsageRow)(nil),             // 0: vrooli.audio_tools.v1.usage.UsageRow
-	(*ListRecentRequest)(nil),    // 1: vrooli.audio_tools.v1.usage.ListRecentRequest
-	(*ListRecentResponse)(nil),   // 2: vrooli.audio_tools.v1.usage.ListRecentResponse
-	(*ProviderDistribution)(nil), // 3: vrooli.audio_tools.v1.usage.ProviderDistribution
-	(*FallbackReason)(nil),       // 4: vrooli.audio_tools.v1.usage.FallbackReason
-	(*Summary)(nil),              // 5: vrooli.audio_tools.v1.usage.Summary
-	(*GetSummaryRequest)(nil),    // 6: vrooli.audio_tools.v1.usage.GetSummaryRequest
-	(*GetSummaryResponse)(nil),   // 7: vrooli.audio_tools.v1.usage.GetSummaryResponse
+	(*UsageRow)(nil),              // 0: vrooli.audio_tools.v1.usage.UsageRow
+	(*ListRecentRequest)(nil),     // 1: vrooli.audio_tools.v1.usage.ListRecentRequest
+	(*ListRecentResponse)(nil),    // 2: vrooli.audio_tools.v1.usage.ListRecentResponse
+	(*ProviderDistribution)(nil),  // 3: vrooli.audio_tools.v1.usage.ProviderDistribution
+	(*FallbackReason)(nil),        // 4: vrooli.audio_tools.v1.usage.FallbackReason
+	(*Summary)(nil),               // 5: vrooli.audio_tools.v1.usage.Summary
+	(*GetSummaryRequest)(nil),     // 6: vrooli.audio_tools.v1.usage.GetSummaryRequest
+	(*GetSummaryResponse)(nil),    // 7: vrooli.audio_tools.v1.usage.GetSummaryResponse
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
+	(common.ProviderTier)(0),      // 9: vrooli.audio_tools.v1.common.ProviderTier
 }
 var file_audio_tools_v1_usage_usage_proto_depIdxs = []int32{
-	0, // 0: vrooli.audio_tools.v1.usage.ListRecentResponse.rows:type_name -> vrooli.audio_tools.v1.usage.UsageRow
-	3, // 1: vrooli.audio_tools.v1.usage.Summary.distribution:type_name -> vrooli.audio_tools.v1.usage.ProviderDistribution
-	4, // 2: vrooli.audio_tools.v1.usage.Summary.fallback_reasons:type_name -> vrooli.audio_tools.v1.usage.FallbackReason
-	5, // 3: vrooli.audio_tools.v1.usage.GetSummaryResponse.summary:type_name -> vrooli.audio_tools.v1.usage.Summary
-	1, // 4: vrooli.audio_tools.v1.usage.UsageService.ListRecent:input_type -> vrooli.audio_tools.v1.usage.ListRecentRequest
-	6, // 5: vrooli.audio_tools.v1.usage.UsageService.GetSummary:input_type -> vrooli.audio_tools.v1.usage.GetSummaryRequest
-	2, // 6: vrooli.audio_tools.v1.usage.UsageService.ListRecent:output_type -> vrooli.audio_tools.v1.usage.ListRecentResponse
-	7, // 7: vrooli.audio_tools.v1.usage.UsageService.GetSummary:output_type -> vrooli.audio_tools.v1.usage.GetSummaryResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	8,  // 0: vrooli.audio_tools.v1.usage.UsageRow.emitted_at:type_name -> google.protobuf.Timestamp
+	9,  // 1: vrooli.audio_tools.v1.usage.UsageRow.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	8,  // 2: vrooli.audio_tools.v1.usage.ListRecentRequest.after_emitted_at:type_name -> google.protobuf.Timestamp
+	9,  // 3: vrooli.audio_tools.v1.usage.ListRecentRequest.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	0,  // 4: vrooli.audio_tools.v1.usage.ListRecentResponse.rows:type_name -> vrooli.audio_tools.v1.usage.UsageRow
+	9,  // 5: vrooli.audio_tools.v1.usage.ProviderDistribution.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	8,  // 6: vrooli.audio_tools.v1.usage.Summary.since:type_name -> google.protobuf.Timestamp
+	8,  // 7: vrooli.audio_tools.v1.usage.Summary.until:type_name -> google.protobuf.Timestamp
+	3,  // 8: vrooli.audio_tools.v1.usage.Summary.distribution:type_name -> vrooli.audio_tools.v1.usage.ProviderDistribution
+	4,  // 9: vrooli.audio_tools.v1.usage.Summary.fallback_reasons:type_name -> vrooli.audio_tools.v1.usage.FallbackReason
+	5,  // 10: vrooli.audio_tools.v1.usage.GetSummaryResponse.summary:type_name -> vrooli.audio_tools.v1.usage.Summary
+	1,  // 11: vrooli.audio_tools.v1.usage.UsageService.ListRecent:input_type -> vrooli.audio_tools.v1.usage.ListRecentRequest
+	6,  // 12: vrooli.audio_tools.v1.usage.UsageService.GetSummary:input_type -> vrooli.audio_tools.v1.usage.GetSummaryRequest
+	2,  // 13: vrooli.audio_tools.v1.usage.UsageService.ListRecent:output_type -> vrooli.audio_tools.v1.usage.ListRecentResponse
+	7,  // 14: vrooli.audio_tools.v1.usage.UsageService.GetSummary:output_type -> vrooli.audio_tools.v1.usage.GetSummaryResponse
+	13, // [13:15] is the sub-list for method output_type
+	11, // [11:13] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_usage_usage_proto_init() }

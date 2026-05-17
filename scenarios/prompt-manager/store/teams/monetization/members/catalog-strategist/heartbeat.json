@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "30 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-15T18:30:00Z",
-    "endedAt": "2026-05-15T18:30:06Z",
-    "status": "failed",
-    "runId": "62e2e5b2-b677-4531-b392-8d70609a2bc3",
-    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-05-15T18-30-00Z.log",
-    "error": "Unable to create isolated workspace. The sandbox service may be unavailable."
+    "startedAt": "2026-05-16T18:30:00Z",
+    "endedAt": "2026-05-16T18:33:01Z",
+    "status": "completed",
+    "runId": "1ba4ff21-36a6-4d42-96d7-7a106a848ae7",
+    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-05-16T18-30-00Z.log"
   },
-  "revision": 77,
+  "revision": 80,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-05-15T18:30:07Z"
+  "updatedAt": "2026-05-16T18:33:02Z"
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 
@@ -61,9 +62,9 @@ func TestTranscribeHappyPath(t *testing.T) {
 	app := mountVoice(t, &fakeSvc{
 		transcribe: func(req *sttv1.TranscribeRequest) (*sttv1.TranscribeResponse, error) {
 			require.Equal(t, []byte("PCMDATA"), req.GetAudio())
-			require.Equal(t, "wav", req.GetFormat())
+			require.Equal(t, commonv1.AudioFormat_AUDIO_FORMAT_WAV, req.GetFormat())
 			return &sttv1.TranscribeResponse{
-				Text: "hello", ProviderTier: "local", ProviderId: "whisper", LatencyMs: 99,
+				Text: "hello", ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "whisper", LatencyMs: 99,
 			}, nil
 		},
 	})
@@ -84,7 +85,7 @@ func TestStreamConfigGet(t *testing.T) {
 	app := mountVoice(t, &fakeSvc{
 		getCfg: func() (*sttv1.StreamConfig, error) {
 			return &sttv1.StreamConfig{
-				StreamingMode:     "auto",
+				StreamingMode:     sttv1.StreamingMode_STREAMING_MODE_AUTO,
 				VadSilenceMs:      0, // expect default 700
 				OverlapWindowMs:   2500,
 				OverlapCommitRuns: 3,

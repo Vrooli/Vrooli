@@ -6,10 +6,12 @@ package stt
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"connectrpc.com/connect"
 
+	"audio-tools/internal/protomap"
 	sttpkg "audio-tools/internal/stt"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -92,47 +94,69 @@ func (h *connectHandler) GetStreamConfig(ctx context.Context, _ *connect.Request
 	return connect.NewResponse(&sttv1.GetStreamConfigResponse{Config: d.toProto()}), nil
 }
 
+var streamConfigAllowedPaths = map[string]struct{}{
+	"flush_interval_ms":    {},
+	"min_delta_bytes":      {},
+	"overlap_bytes":        {},
+	"persistent_mode":      {},
+	"wake_word_enabled":    {},
+	"wake_word_threshold":  {},
+	"segment_silence_ms":   {},
+	"streaming_mode":       {},
+	"strategy_preference":  {},
+	"vad_silence_ms":       {},
+	"overlap_window_ms":    {},
+	"overlap_commit_runs":  {},
+}
+
 func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Request[sttv1.UpdateStreamConfigRequest]) (*connect.Response[sttv1.UpdateStreamConfigResponse], error) {
 	d, err := h.loadStreamCfg(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	m := req.Msg
-	if m.GetHasFlushIntervalMs() {
-		d.FlushIntervalMs = m.GetFlushIntervalMs()
+	mask := req.Msg.GetUpdateMask()
+	if mask == nil || len(mask.GetPaths()) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("update_mask required"))
 	}
-	if m.GetHasMinDeltaBytes() {
-		d.MinDeltaBytes = m.GetMinDeltaBytes()
+	if bad := protomap.MaskPathsOutsideAllowed(mask, streamConfigAllowedPaths); len(bad) > 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown update_mask paths: %v", bad))
 	}
-	if m.GetHasOverlapBytes() {
-		d.OverlapBytes = m.GetOverlapBytes()
+	cfg := req.Msg.GetConfig()
+	if protomap.MaskHas(mask, "flush_interval_ms") {
+		d.FlushIntervalMs = cfg.GetFlushIntervalMs()
 	}
-	if m.GetHasPersistentMode() {
-		d.PersistentMode = m.GetPersistentMode()
+	if protomap.MaskHas(mask, "min_delta_bytes") {
+		d.MinDeltaBytes = cfg.GetMinDeltaBytes()
 	}
-	if m.GetHasWakeWordEnabled() {
-		d.WakeWordEnabled = m.GetWakeWordEnabled()
+	if protomap.MaskHas(mask, "overlap_bytes") {
+		d.OverlapBytes = cfg.GetOverlapBytes()
 	}
-	if m.GetHasWakeWordThreshold() {
-		d.WakeWordThreshold = m.GetWakeWordThreshold()
+	if protomap.MaskHas(mask, "persistent_mode") {
+		d.PersistentMode = cfg.GetPersistentMode()
 	}
-	if m.GetHasSegmentSilenceMs() {
-		d.SegmentSilenceMs = m.GetSegmentSilenceMs()
+	if protomap.MaskHas(mask, "wake_word_enabled") {
+		d.WakeWordEnabled = cfg.GetWakeWordEnabled()
 	}
-	if m.GetHasStreamingMode() {
-		d.StreamingMode = m.GetStreamingMode()
+	if protomap.MaskHas(mask, "wake_word_threshold") {
+		d.WakeWordThreshold = cfg.GetWakeWordThreshold()
 	}
-	if m.GetHasStrategyPreference() {
-		d.StrategyPreference = m.GetStrategyPreference()
+	if protomap.MaskHas(mask, "segment_silence_ms") {
+		d.SegmentSilenceMs = cfg.GetSegmentSilenceMs()
 	}
-	if m.GetHasVadSilenceMs() {
-		d.VadSilenceMs = m.GetVadSilenceMs()
+	if protomap.MaskHas(mask, "streaming_mode") {
+		d.StreamingMode = protomap.StreamingModeFromProto(cfg.GetStreamingMode())
 	}
-	if m.GetHasOverlapWindowMs() {
-		d.OverlapWindowMs = m.GetOverlapWindowMs()
+	if protomap.MaskHas(mask, "strategy_preference") {
+		d.StrategyPreference = protomap.StrategyPreferenceFromProto(cfg.GetStrategyPreference())
 	}
-	if m.GetHasOverlapCommitRuns() {
-		d.OverlapCommitRuns = m.GetOverlapCommitRuns()
+	if protomap.MaskHas(mask, "vad_silence_ms") {
+		d.VadSilenceMs = cfg.GetVadSilenceMs()
+	}
+	if protomap.MaskHas(mask, "overlap_window_ms") {
+		d.OverlapWindowMs = cfg.GetOverlapWindowMs()
+	}
+	if protomap.MaskHas(mask, "overlap_commit_runs") {
+		d.OverlapCommitRuns = cfg.GetOverlapCommitRuns()
 	}
 	if err := validateStreamingLevers(d); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

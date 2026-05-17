@@ -1,10 +1,32 @@
 import { createClient } from "@connectrpc/connect";
+import { ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 import { UsageService } from "@vrooli/proto-types/audio-tools/v1/usage/usage_pb";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { transport } from "../api/client";
 import { tryCall, type Result } from "./result";
 import { normalizeConnectError } from "./settings";
 
 const client = createClient(UsageService, transport);
+
+function providerTierLabel(t: ProviderTier): string {
+  switch (t) {
+    case ProviderTier.LOCAL:
+      return "local";
+    case ProviderTier.BYOK:
+      return "byok";
+    case ProviderTier.VROOLI:
+      return "vrooli";
+    default:
+      return "";
+  }
+}
+
+function timestampToISO(ts: Timestamp | undefined): string {
+  if (!ts) return "";
+  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : Number(ts.seconds ?? 0);
+  const nanos = Number(ts.nanos ?? 0);
+  return new Date(seconds * 1000 + Math.floor(nanos / 1_000_000)).toISOString();
+}
 
 export interface UsageRow {
   operationId: string;
@@ -26,7 +48,6 @@ export async function listRecent(sinceSeconds = 60 * 60 * 24, limit = 50): Promi
     try {
       resp = await client.listRecent({
         sinceSeconds: BigInt(sinceSeconds),
-        afterEmittedAt: "",
         limit,
       });
     } catch (e) {
@@ -34,10 +55,10 @@ export async function listRecent(sinceSeconds = 60 * 60 * 24, limit = 50): Promi
     }
     return resp.rows.map((r) => ({
       operationId: r.operationId,
-      emittedAt: r.emittedAt,
+      emittedAt: timestampToISO(r.emittedAt),
       capability: r.capability,
       operation: r.operation,
-      providerTier: r.providerTier,
+      providerTier: providerTierLabel(r.providerTier),
       providerId: r.providerId,
       modelId: r.modelId,
       latencyMs: r.latencyMs,
@@ -82,13 +103,13 @@ export async function getSummary(sinceSeconds = 60 * 60 * 24, capability = ""): 
     }
     const s = resp.summary;
     return {
-      since: s?.since ?? "",
-      until: s?.until ?? "",
+      since: timestampToISO(s?.since),
+      until: timestampToISO(s?.until),
       operationsTotal: Number(s?.operationsTotal ?? 0n),
       creditsTotal: Number(s?.creditsTotal ?? 0n),
       errorCount: Number(s?.errorCount ?? 0n),
       distribution: (s?.distribution ?? []).map((d) => ({
-        providerTier: d.providerTier,
+        providerTier: providerTierLabel(d.providerTier),
         providerId: d.providerId,
         count: Number(d.count),
       })),

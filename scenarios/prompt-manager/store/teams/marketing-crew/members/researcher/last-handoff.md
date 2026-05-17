@@ -1,48 +1,50 @@
 ### Inputs reviewed
-- Research README and taxonomy in `/home/matthalloran8/Vrooli`.
-- `research-inbox/*`: empty.
-- Pending decisions and challenge state for `dec-1778790757599330605`.
-- Recent audience and benchmark-adjacent knowledge.
+- `docs/marketing/evidence/research/README.md`
+- `research-inbox/*`: empty
+- Pending decisions and challenge records for `dec-1778790757599330605`
+- Recent `audience-scan/*`, `workflow-scan/*`, `competitor-record/*`, and `monetization-benchmark-adjacent-record/*`
+- `audience-scans.jsonl`
 
 ### Scan summary
-- Ran a small proactive baseline scan on AI workflow/agent-builder pricing and MCP production workflow evidence.
-- Appended 1 working-state event: `as-1778877088950970253`.
+- Ran proactive baseline scan on production-agent proof surfaces: observability, evals, human review, deployment/runtime semantics, graph verification, and billing units.
+- Appended 1 working-state event: `as-1778963449878676001`.
 
 ### Routed signals
-- `audience-scan/2026-05-15`: `knw-1778877137629336193`
-- `workflow-scan/mcp-tool-layer-production-readiness-2026-05-15`: `knw-1778877137864345392`
-- `monetization-benchmark-adjacent-record/ai-workflow-platform-billing-frames-2026-05-15`: `knw-1778877137864415982`
-- Challenge response: `challenge-resolution-record/dec-1778790757599330605`: `knw-1778877137629609823`
+- `audience-scan/2026-05-16`: `knw-1778963530734686260`
+- `workflow-scan/production-agent-proof-surfaces-2026-05-16`: `knw-1778963530734894690`
+- `competitor-record/langsmith-agent-engineering-platform-2026-05-16`: `knw-1778963530734688010`
+- `monetization-benchmark-adjacent-record/agent-platform-runtime-billing-and-observability-2026-05-16`: `knw-1778963530734934680`
 
 Sources used:
-- https://n8n.io/pricing/
-- https://www.gumloop.com/pricing
-- https://www.gumloop.com/blog/gumloop-vs-n8n
-- https://dify.ai/pricing
-- https://arxiv.org/abs/2603.13417
-- https://arxiv.org/abs/2603.23802
-- https://fold.run/
+- https://www.langchain.com/langsmith-platform
+- https://www.langchain.com/pricing
+- https://docs.gumloop.com/core-concepts/credits
+- https://docs.gumloop.com/core-concepts/agents
+- https://arxiv.org/abs/2602.10133
+- https://arxiv.org/abs/2603.20356
 
 ### Convergence candidates
-- Small-team billing predictability is now a watch candidate: workflow platforms split between execution pricing, bundled AI/data credits, and message-credit workspace plans.
-- MCP/tool-layer production readiness reinforces the 2026-05-14 workflow signal: production evidence should emphasize identity scope, budgets/timeouts, structured failures, observability, replay, versioning, and auditability.
+- Production-agent readiness keeps converging around proof surfaces: traces, evals, human review/approval, replay/review artifacts, cost budgets, versioning/rollbacks, scoped tools, structured failures, and graph/topology checks.
+- Small-team-lead pain is shifting from “can I build it?” toward “can I prove what ran, what it cost, who approved it, and what changed?”
 
 ### Decisions raised
-- None. The owned pending audience decision remains open, but I responded to its challenge instead of adding unrelated decisions.
+- None. Existing researcher-owned audience decision remains pending, and the challenge thread now has `state=resolved` evidence from `knw-1778878853162851438`.
 
 ### Skill or capability gaps
-- No new gap raised.
+- No new capability gap raised.
+- Minor tool friction: generated brief still shows old `knowledge-add --by` examples, but CLI now rejects `--by` and auto-attributes runtime identity.
 
 ### Cross-team entries written
-- `monetization-benchmark-adjacent-record/ai-workflow-platform-billing-frames-2026-05-15`: pricing/billing-frame evidence for monetization review.
+- `monetization-benchmark-adjacent-record/agent-platform-runtime-billing-and-observability-2026-05-16`: benchmark-adjacent pricing/billing-unit evidence for monetization review.
 
 ### Supersessions
 - None.
+- Challenge review note: current brief listed the challenge as open, but storage shows researcher author response plus contrarian `state=resolved`.
 
 ### Knowledge entry written
-- Primary snapshot: `knw-1778877137629336193`
-- Supporting entries: `knw-1778877137864345392`, `knw-1778877137864415982`, `knw-1778877137629609823`
+- Primary snapshot: `knw-1778963530734686260`
+- Supporting entries: `knw-1778963530734894690`, `knw-1778963530734688010`, `knw-1778963530734934680`
 
 ### Pending-telemetry note
 - Engagement, reach, audience-size, install, activation, retention, and conversion metrics remain `pending-telemetry`.
-- Pricing and platform limits are source-reported and should be reverified against official pages before canonical copy.
+- Pricing, credits, runtime units, and platform limits are source-reported and should be reverified against official pages before canonical copy.

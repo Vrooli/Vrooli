@@ -14,6 +14,7 @@ import (
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/byok/envelope"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
 )
@@ -54,7 +55,7 @@ func TestTTS_Synthesize_HappyPathViaVrooli(t *testing.T) {
 	res, err := c.Synthesize(context.Background(), req)
 	require.NoError(t, err)
 	require.Equal(t, []byte("PCM"), res.Msg.GetAudio())
-	require.Equal(t, "vrooli", res.Msg.GetProviderTier())
+	require.Equal(t, commonv1.ProviderTier_PROVIDER_TIER_VROOLI, res.Msg.GetProviderTier())
 }
 
 func TestTTS_Synthesize_NoChainReturnsUnavailable(t *testing.T) {

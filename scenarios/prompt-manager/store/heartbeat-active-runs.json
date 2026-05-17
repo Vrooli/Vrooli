@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "teamId": "scenario-qa",
+    "agentId": "programmatic-qa-runner",
+    "runId": "afc03951-1b8c-4e43-9d32-b3d90acf5d49",
+    "startedAt": "2026-05-17T04:00:00.013850513Z"
+  }
+]

@@ -2,6 +2,7 @@ package summarize
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
 
@@ -35,7 +37,7 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 	env := envelope.FromConnectRequest(req)
 	chainReq := summarizechain.Request{
 		Text:           req.Msg.Text,
-		Level:          req.Msg.Level,
+		Level:          protomap.SummarizeLevelFromProto(req.Msg.GetLevel()),
 		Model:          req.Msg.Model,
 		TimeoutSeconds: int(req.Msg.TimeoutSeconds),
 		BYOKProvider:   env.Provider,
@@ -76,7 +78,7 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 		Text:         res.Text,
 		PromptTokens: int32(res.PromptTokens),
 		OutputTokens: int32(res.OutputTokens),
-		ProviderTier: string(res.Tier),
+		ProviderTier: protomap.ProviderTierToProto(string(res.Tier)),
 		ProviderId:   res.ProviderID,
 		ModelId:      res.ModelID,
 		LatencyMs:    float64(res.Latency.Milliseconds()),
@@ -91,29 +93,45 @@ func (h *connectHandler) GetSummarizeConfig(_ context.Context, _ *connect.Reques
 	return connect.NewResponse(&summv1.GetSummarizeConfigResponse{Config: toProtoSummarizeConfig(cfg)}), nil
 }
 
+var summarizeConfigAllowedPaths = map[string]struct{}{
+	"enabled":         {},
+	"char_threshold":  {},
+	"level":           {},
+	"model":           {},
+	"timeout_seconds": {},
+}
+
 func (h *connectHandler) UpdateSummarizeConfig(_ context.Context, req *connect.Request[summv1.UpdateSummarizeConfigRequest]) (*connect.Response[summv1.UpdateSummarizeConfigResponse], error) {
 	if h.deps.GetSummarizeConfig == nil || h.deps.SetSummarizeConfig == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("summarize config accessor not configured"))
 	}
+	mask := req.Msg.GetUpdateMask()
+	if mask == nil || len(mask.GetPaths()) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("update_mask required"))
+	}
+	if bad := protomap.MaskPathsOutsideAllowed(mask, summarizeConfigAllowedPaths); len(bad) > 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown update_mask paths: %v", bad))
+	}
+	cfg := req.Msg.GetConfig()
 	patch := intsumm.SummarizeConfigPatch{}
-	if req.Msg.HasEnabled {
-		v := req.Msg.Enabled
+	if protomap.MaskHas(mask, "enabled") {
+		v := cfg.GetEnabled()
 		patch.Enabled = &v
 	}
-	if req.Msg.HasCharThreshold {
-		v := int(req.Msg.CharThreshold)
+	if protomap.MaskHas(mask, "char_threshold") {
+		v := int(cfg.GetCharThreshold())
 		patch.CharThreshold = &v
 	}
-	if req.Msg.HasLevel {
-		v := req.Msg.Level
+	if protomap.MaskHas(mask, "level") {
+		v := protomap.SummarizeLevelFromProto(cfg.GetLevel())
 		patch.Level = &v
 	}
-	if req.Msg.HasModel {
-		v := req.Msg.Model
+	if protomap.MaskHas(mask, "model") {
+		v := cfg.GetModel()
 		patch.Model = &v
 	}
-	if req.Msg.HasTimeoutSeconds {
-		v := int(req.Msg.TimeoutSeconds)
+	if protomap.MaskHas(mask, "timeout_seconds") {
+		v := int(cfg.GetTimeoutSeconds())
 		patch.TimeoutSeconds = &v
 	}
 	updated := patch.Apply(h.deps.GetSummarizeConfig())

@@ -10,6 +10,7 @@ import (
 
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/protomap"
 	"audio-tools/internal/text/normalizer"
 
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -29,6 +30,24 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
+// voiceOverridesFromProto translates the typed AdapterMapping list to
+// the legacy "tier:provider-id" -> backend voice id map that the TTS
+// chain still consumes internally.
+func voiceOverridesFromProto(in []*ttsv1.AdapterMapping) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for _, m := range in {
+		tier := protomap.ProviderTierFromProto(m.GetTier())
+		if tier == "" || m.GetProviderId() == "" {
+			continue
+		}
+		out[tier+":"+m.GetProviderId()] = m.GetBackendVoiceId()
+	}
+	return out
+}
+
 // SynthesizeStream routes through the TTS provider chain's streaming
 // path. When no tier declares streaming, the chain falls back to the
 // unary Execute() and emits a single is_final=true frame — the wire
@@ -41,9 +60,9 @@ func (h *connectHandler) SynthesizeStream(ctx context.Context, req *connect.Requ
 	chainReq := ttschain.Request{
 		Text:           req.Msg.Text,
 		Voice:          req.Msg.Voice,
-		VoiceOverrides: req.Msg.VoiceOverrides,
+		VoiceOverrides: voiceOverridesFromProto(req.Msg.GetVoiceOverrides()),
 		Speed:          req.Msg.Speed,
-		ResponseFormat: req.Msg.ResponseFormat,
+		ResponseFormat: protomap.ResponseFormatFromProto(req.Msg.GetResponseFormat()),
 		BYOKProvider:   env.Provider,
 		BYOKKey:        env.Key,
 		LPBSToken:      env.LPBSToken,
@@ -65,7 +84,7 @@ func (h *connectHandler) SynthesizeStream(ctx context.Context, req *connect.Requ
 			IsFinal:     frame.IsFinal,
 		}
 		if frame.IsFinal {
-			msg.ProviderTier = string(frame.Tier)
+			msg.ProviderTier = protomap.ProviderTierToProto(string(frame.Tier))
 			msg.ProviderId = frame.ProviderID
 			msg.ModelId = frame.ModelID
 			msg.VoiceUsed = frame.VoiceUsed
@@ -88,9 +107,9 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 	chainReq := ttschain.Request{
 		Text:           req.Msg.Text,
 		Voice:          req.Msg.Voice,
-		VoiceOverrides: req.Msg.VoiceOverrides,
+		VoiceOverrides: voiceOverridesFromProto(req.Msg.GetVoiceOverrides()),
 		Speed:          req.Msg.Speed,
-		ResponseFormat: req.Msg.ResponseFormat,
+		ResponseFormat: protomap.ResponseFormatFromProto(req.Msg.GetResponseFormat()),
 		BYOKProvider:   env.Provider,
 		BYOKKey:        env.Key,
 		LPBSToken:      env.LPBSToken,
@@ -106,7 +125,7 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 		Audio:        res.Audio,
 		ContentType:  res.ContentType,
 		ContentHash:  res.ContentHash,
-		ProviderTier: string(res.Tier),
+		ProviderTier: protomap.ProviderTierToProto(string(res.Tier)),
 		ProviderId:   res.ProviderID,
 		ModelId:      res.ModelID,
 		VoiceUsed:    res.VoiceUsed,

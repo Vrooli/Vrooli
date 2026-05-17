@@ -13,7 +13,9 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	summv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
+	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
 
 	"audio-tools/cli/internal/testutil"
@@ -45,10 +47,10 @@ func mountSummarize(t *testing.T, svc summconnect.SummarizeServiceHandler) *clia
 func TestTextDefaultsLevel(t *testing.T) {
 	app := mountSummarize(t, &fakeSvc{
 		fn: func(req *summv1.SummarizeRequest) (*summv1.SummarizeResponse, error) {
-			require.Equal(t, "moderate", req.GetLevel())
+			require.Equal(t, ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE, req.GetLevel())
 			require.Equal(t, "hello world", req.GetText())
 			return &summv1.SummarizeResponse{
-				Text: "summary", ProviderTier: "local", ProviderId: "ollama", LatencyMs: 42,
+				Text: "summary", ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "ollama", LatencyMs: 42,
 			}, nil
 		},
 	})

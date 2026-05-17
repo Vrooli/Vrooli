@@ -10,6 +10,7 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
@@ -45,7 +46,7 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 	env := envelope.FromConnectRequest(req)
 	chainReq := sttchain.Request{
 		Audio:                   req.Msg.Audio,
-		Format:                  req.Msg.Format,
+		Format:                  protomap.AudioFormatFromProto(req.Msg.GetFormat()),
 		Language:                req.Msg.Language,
 		SkipSpeakerVerification: req.Msg.SkipSpeakerVerification,
 		InitialPrompt:           req.Msg.InitialPrompt,
@@ -62,7 +63,7 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 		Text:             res.Text,
 		DetectedLanguage: res.DetectedLanguage,
 		DurationSeconds:  res.DurationSeconds,
-		ProviderTier:     string(res.Tier),
+		ProviderTier:     protomap.ProviderTierToProto(string(res.Tier)),
 		ProviderId:       res.ProviderID,
 		ModelId:          res.ModelID,
 		LatencyMs:        float64(res.Latency.Milliseconds()),

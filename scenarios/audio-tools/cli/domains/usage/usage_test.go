@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -13,6 +14,9 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	usagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage"
 	usageconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage/usage_v1connect"
 
@@ -56,7 +60,7 @@ func TestListWithRows(t *testing.T) {
 			require.EqualValues(t, 86400, req.GetSinceSeconds())
 			require.EqualValues(t, 50, req.GetLimit())
 			return []*usagev1.UsageRow{
-				{EmittedAt: "2026-05-16T00:00:00Z", Capability: "stt", Operation: "transcribe", ProviderTier: "local", ProviderId: "whisper", LatencyMs: 200},
+				{EmittedAt: timestamppb.New(parseTime("2026-05-16T00:00:00Z")), Capability: "stt", Operation: "transcribe", ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "whisper", LatencyMs: 200},
 			}, nil
 		},
 	})
@@ -91,4 +95,9 @@ func TestSummaryError(t *testing.T) {
 	err := h.summary(ctx)
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "usage summary"), "want operation tag, got %q", err.Error())
+}
+
+func parseTime(s string) time.Time {
+	t, _ := time.Parse(time.RFC3339, s)
+	return t
 }

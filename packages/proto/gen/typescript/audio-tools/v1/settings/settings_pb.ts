@@ -4,13 +4,15 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { FieldMask, Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_field_mask, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file audio-tools/v1/settings/settings.proto.
  */
 export const file_audio_tools_v1_settings_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiZhdWRpby10b29scy92MS9zZXR0aW5ncy9zZXR0aW5ncy5wcm90bxIednJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzIogCCg5Qcm92aWRlckNvbmZpZxIUCgxieW9rX2VuYWJsZWQYASABKAgSFgoOdnJvb2xpX2VuYWJsZWQYAiABKAgSFQoNbG9jYWxfZW5hYmxlZBgDIAEoCBITCgt3aGlzcGVyX3VybBgKIAEoCRISCgprb2tvcm9fdXJsGAsgASgJEhIKCm9sbGFtYV91cmwYDCABKAkSFQoNbHBic19iYXNlX3VybBgNIAEoCRIbChNscGJzX2FwcF9idW5kbGVfa2V5GA4gASgJEh4KFmF2YWlsX3R0bF9ieW9rX3NlY29uZHMYFCABKAUSIAoYYXZhaWxfdHRsX3Zyb29saV9zZWNvbmRzGBUgASgFIhoKGEdldFByb3ZpZGVyQ29uZmlnUmVxdWVzdCJbChlHZXRQcm92aWRlckNvbmZpZ1Jlc3BvbnNlEj4KBmNvbmZpZxgBIAEoCzIuLnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5Qcm92aWRlckNvbmZpZyK1BAobVXBkYXRlUHJvdmlkZXJDb25maWdSZXF1ZXN0EhQKDGJ5b2tfZW5hYmxlZBgBIAEoCBIYChBoYXNfYnlva19lbmFibGVkGAIgASgIEhYKDnZyb29saV9lbmFibGVkGAMgASgIEhoKEmhhc192cm9vbGlfZW5hYmxlZBgEIAEoCBIVCg1sb2NhbF9lbmFibGVkGAUgASgIEhkKEWhhc19sb2NhbF9lbmFibGVkGAYgASgIEhMKC3doaXNwZXJfdXJsGAogASgJEhcKD2hhc193aGlzcGVyX3VybBgLIAEoCBISCgprb2tvcm9fdXJsGAwgASgJEhYKDmhhc19rb2tvcm9fdXJsGA0gASgIEhIKCm9sbGFtYV91cmwYDiABKAkSFgoOaGFzX29sbGFtYV91cmwYDyABKAgSFQoNbHBic19iYXNlX3VybBgQIAEoCRIZChFoYXNfbHBic19iYXNlX3VybBgRIAEoCBIbChNscGJzX2FwcF9idW5kbGVfa2V5GBIgASgJEh8KF2hhc19scGJzX2FwcF9idW5kbGVfa2V5GBMgASgIEh4KFmF2YWlsX3R0bF9ieW9rX3NlY29uZHMYFCABKAUSIgoaaGFzX2F2YWlsX3R0bF9ieW9rX3NlY29uZHMYFSABKAgSIAoYYXZhaWxfdHRsX3Zyb29saV9zZWNvbmRzGBYgASgFEiQKHGhhc19hdmFpbF90dGxfdnJvb2xpX3NlY29uZHMYFyABKAgiXgocVXBkYXRlUHJvdmlkZXJDb25maWdSZXNwb25zZRI+CgZjb25maWcYASABKAsyLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuUHJvdmlkZXJDb25maWcifwoVQllPS0NyZWRlbnRpYWxTdW1tYXJ5EhMKC3Byb3ZpZGVyX2lkGAEgASgJEhIKCmNhcGFiaWxpdHkYAiABKAkSEwoLZmluZ2VycHJpbnQYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRIUCgxsYXN0X3VzZWRfYXQYBSABKAkiHAoaTGlzdEJZT0tDcmVkZW50aWFsc1JlcXVlc3QiaQobTGlzdEJZT0tDcmVkZW50aWFsc1Jlc3BvbnNlEkoKC2NyZWRlbnRpYWxzGAEgAygLMjUudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLkJZT0tDcmVkZW50aWFsU3VtbWFyeSJjChtVcHNlcnRCWU9LQ3JlZGVudGlhbFJlcXVlc3QSEwoLcHJvdmlkZXJfaWQYASABKAkSEgoKY2FwYWJpbGl0eRgCIAEoCRIRCgdhcGlfa2V5GAogASgJSABCCAoGc2VjcmV0ImkKHFVwc2VydEJZT0tDcmVkZW50aWFsUmVzcG9uc2USSQoKY3JlZGVudGlhbBgBIAEoCzI1LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5CWU9LQ3JlZGVudGlhbFN1bW1hcnkiRgobRGVsZXRlQllPS0NyZWRlbnRpYWxSZXF1ZXN0EhMKC3Byb3ZpZGVyX2lkGAEgASgJEhIKCmNhcGFiaWxpdHkYAiABKAkiHgocRGVsZXRlQllPS0NyZWRlbnRpYWxSZXNwb25zZSJWCg1Wb2ljZU92ZXJyaWRlEhcKD2Nhbm9uaWNhbF92b2ljZRgBIAEoCRIVCg10aWVyX3Byb3ZpZGVyGAIgASgJEhUKDWFkYXB0ZXJfdm9pY2UYAyABKAkiGgoYR2V0Vm9pY2VPdmVycmlkZXNSZXF1ZXN0Il0KGUdldFZvaWNlT3ZlcnJpZGVzUmVzcG9uc2USQAoJb3ZlcnJpZGVzGAEgAygLMi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLlZvaWNlT3ZlcnJpZGUiWgoXU2V0Vm9pY2VPdmVycmlkZVJlcXVlc3QSPwoIb3ZlcnJpZGUYASABKAsyLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuVm9pY2VPdmVycmlkZSJcChhTZXRWb2ljZU92ZXJyaWRlUmVzcG9uc2USQAoJb3ZlcnJpZGVzGAEgAygLMi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLlZvaWNlT3ZlcnJpZGUy/AcKD1NldHRpbmdzU2VydmljZRKIAQoRR2V0UHJvdmlkZXJDb25maWcSOC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuR2V0UHJvdmlkZXJDb25maWdSZXF1ZXN0GjkudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLkdldFByb3ZpZGVyQ29uZmlnUmVzcG9uc2USkQEKFFVwZGF0ZVByb3ZpZGVyQ29uZmlnEjsudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLlVwZGF0ZVByb3ZpZGVyQ29uZmlnUmVxdWVzdBo8LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5VcGRhdGVQcm92aWRlckNvbmZpZ1Jlc3BvbnNlEo4BChNMaXN0QllPS0NyZWRlbnRpYWxzEjoudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLkxpc3RCWU9LQ3JlZGVudGlhbHNSZXF1ZXN0GjsudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLkxpc3RCWU9LQ3JlZGVudGlhbHNSZXNwb25zZRKRAQoUVXBzZXJ0QllPS0NyZWRlbnRpYWwSOy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuVXBzZXJ0QllPS0NyZWRlbnRpYWxSZXF1ZXN0GjwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLlVwc2VydEJZT0tDcmVkZW50aWFsUmVzcG9uc2USkQEKFERlbGV0ZUJZT0tDcmVkZW50aWFsEjsudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLkRlbGV0ZUJZT0tDcmVkZW50aWFsUmVxdWVzdBo8LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5EZWxldGVCWU9LQ3JlZGVudGlhbFJlc3BvbnNlEogBChFHZXRWb2ljZU92ZXJyaWRlcxI4LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5HZXRWb2ljZU92ZXJyaWRlc1JlcXVlc3QaOS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuR2V0Vm9pY2VPdmVycmlkZXNSZXNwb25zZRKFAQoQU2V0Vm9pY2VPdmVycmlkZRI3LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5TZXRWb2ljZU92ZXJyaWRlUmVxdWVzdBo4LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5TZXRWb2ljZU92ZXJyaWRlUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9zZXR0aW5ncztzZXR0aW5nc192MWIGcHJvdG8z");
+  fileDesc("CiZhdWRpby10b29scy92MS9zZXR0aW5ncy9zZXR0aW5ncy5wcm90bxIednJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzIogCCg5Qcm92aWRlckNvbmZpZxIUCgxieW9rX2VuYWJsZWQYASABKAgSFgoOdnJvb2xpX2VuYWJsZWQYAiABKAgSFQoNbG9jYWxfZW5hYmxlZBgDIAEoCBITCgt3aGlzcGVyX3VybBgKIAEoCRISCgprb2tvcm9fdXJsGAsgASgJEhIKCm9sbGFtYV91cmwYDCABKAkSFQoNbHBic19iYXNlX3VybBgNIAEoCRIbChNscGJzX2FwcF9idW5kbGVfa2V5GA4gASgJEh4KFmF2YWlsX3R0bF9ieW9rX3NlY29uZHMYFCABKAUSIAoYYXZhaWxfdHRsX3Zyb29saV9zZWNvbmRzGBUgASgFIhoKGEdldFByb3ZpZGVyQ29uZmlnUmVxdWVzdCJbChlHZXRQcm92aWRlckNvbmZpZ1Jlc3BvbnNlEj4KBmNvbmZpZxgBIAEoCzIuLnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5Qcm92aWRlckNvbmZpZyKOAQobVXBkYXRlUHJvdmlkZXJDb25maWdSZXF1ZXN0Ei8KC3VwZGF0ZV9tYXNrGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxI+CgZjb25maWcYAiABKAsyLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuUHJvdmlkZXJDb25maWciXgocVXBkYXRlUHJvdmlkZXJDb25maWdSZXNwb25zZRI+CgZjb25maWcYASABKAsyLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuUHJvdmlkZXJDb25maWcitwEKFUJZT0tDcmVkZW50aWFsU3VtbWFyeRITCgtwcm92aWRlcl9pZBgBIAEoCRISCgpjYXBhYmlsaXR5GAIgASgJEhMKC2ZpbmdlcnByaW50GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGxhc3RfdXNlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiHAoaTGlzdEJZT0tDcmVkZW50aWFsc1JlcXVlc3QiaQobTGlzdEJZT0tDcmVkZW50aWFsc1Jlc3BvbnNlEkoKC2NyZWRlbnRpYWxzGAEgAygLMjUudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLkJZT0tDcmVkZW50aWFsU3VtbWFyeSJjChtVcHNlcnRCWU9LQ3JlZGVudGlhbFJlcXVlc3QSEwoLcHJvdmlkZXJfaWQYASABKAkSEgoKY2FwYWJpbGl0eRgCIAEoCRIRCgdhcGlfa2V5GAogASgJSABCCAoGc2VjcmV0ImkKHFVwc2VydEJZT0tDcmVkZW50aWFsUmVzcG9uc2USSQoKY3JlZGVudGlhbBgBIAEoCzI1LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5CWU9LQ3JlZGVudGlhbFN1bW1hcnkiRgobRGVsZXRlQllPS0NyZWRlbnRpYWxSZXF1ZXN0EhMKC3Byb3ZpZGVyX2lkGAEgASgJEhIKCmNhcGFiaWxpdHkYAiABKAkiHgocRGVsZXRlQllPS0NyZWRlbnRpYWxSZXNwb25zZSJWCg1Wb2ljZU92ZXJyaWRlEhcKD2Nhbm9uaWNhbF92b2ljZRgBIAEoCRIVCg10aWVyX3Byb3ZpZGVyGAIgASgJEhUKDWFkYXB0ZXJfdm9pY2UYAyABKAkiGgoYR2V0Vm9pY2VPdmVycmlkZXNSZXF1ZXN0Il0KGUdldFZvaWNlT3ZlcnJpZGVzUmVzcG9uc2USQAoJb3ZlcnJpZGVzGAEgAygLMi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLlZvaWNlT3ZlcnJpZGUiWgoXU2V0Vm9pY2VPdmVycmlkZVJlcXVlc3QSPwoIb3ZlcnJpZGUYASABKAsyLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuVm9pY2VPdmVycmlkZSJcChhTZXRWb2ljZU92ZXJyaWRlUmVzcG9uc2USQAoJb3ZlcnJpZGVzGAEgAygLMi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLlZvaWNlT3ZlcnJpZGUy/AcKD1NldHRpbmdzU2VydmljZRKIAQoRR2V0UHJvdmlkZXJDb25maWcSOC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuR2V0UHJvdmlkZXJDb25maWdSZXF1ZXN0GjkudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLkdldFByb3ZpZGVyQ29uZmlnUmVzcG9uc2USkQEKFFVwZGF0ZVByb3ZpZGVyQ29uZmlnEjsudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLlVwZGF0ZVByb3ZpZGVyQ29uZmlnUmVxdWVzdBo8LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5VcGRhdGVQcm92aWRlckNvbmZpZ1Jlc3BvbnNlEo4BChNMaXN0QllPS0NyZWRlbnRpYWxzEjoudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLkxpc3RCWU9LQ3JlZGVudGlhbHNSZXF1ZXN0GjsudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLkxpc3RCWU9LQ3JlZGVudGlhbHNSZXNwb25zZRKRAQoUVXBzZXJ0QllPS0NyZWRlbnRpYWwSOy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuVXBzZXJ0QllPS0NyZWRlbnRpYWxSZXF1ZXN0GjwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLlVwc2VydEJZT0tDcmVkZW50aWFsUmVzcG9uc2USkQEKFERlbGV0ZUJZT0tDcmVkZW50aWFsEjsudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNldHRpbmdzLkRlbGV0ZUJZT0tDcmVkZW50aWFsUmVxdWVzdBo8LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5EZWxldGVCWU9LQ3JlZGVudGlhbFJlc3BvbnNlEogBChFHZXRWb2ljZU92ZXJyaWRlcxI4LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5HZXRWb2ljZU92ZXJyaWRlc1JlcXVlc3QaOS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2V0dGluZ3MuR2V0Vm9pY2VPdmVycmlkZXNSZXNwb25zZRKFAQoQU2V0Vm9pY2VPdmVycmlkZRI3LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5TZXRWb2ljZU92ZXJyaWRlUmVxdWVzdBo4LnZyb29saS5hdWRpb190b29scy52MS5zZXR0aW5ncy5TZXRWb2ljZU92ZXJyaWRlUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9zZXR0aW5ncztzZXR0aW5nc192MWIGcHJvdG8z", [file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.audio_tools.v1.settings.ProviderConfig
@@ -105,108 +107,23 @@ export const GetProviderConfigResponseSchema: GenMessage<GetProviderConfigRespon
   messageDesc(file_audio_tools_v1_settings_settings, 2);
 
 /**
+ * UpdateProviderConfigRequest carries FieldMask + a full ProviderConfig
+ * payload. Server validates each path in `update_mask.paths`; unknown
+ * paths return CodeInvalidArgument; an empty mask returns
+ * CodeInvalidArgument ("no fields specified").
+ *
  * @generated from message vrooli.audio_tools.v1.settings.UpdateProviderConfigRequest
  */
 export type UpdateProviderConfigRequest = Message<"vrooli.audio_tools.v1.settings.UpdateProviderConfigRequest"> & {
   /**
-   * @generated from field: bool byok_enabled = 1;
+   * @generated from field: google.protobuf.FieldMask update_mask = 1;
    */
-  byokEnabled: boolean;
+  updateMask?: FieldMask | undefined;
 
   /**
-   * @generated from field: bool has_byok_enabled = 2;
+   * @generated from field: vrooli.audio_tools.v1.settings.ProviderConfig config = 2;
    */
-  hasByokEnabled: boolean;
-
-  /**
-   * @generated from field: bool vrooli_enabled = 3;
-   */
-  vrooliEnabled: boolean;
-
-  /**
-   * @generated from field: bool has_vrooli_enabled = 4;
-   */
-  hasVrooliEnabled: boolean;
-
-  /**
-   * @generated from field: bool local_enabled = 5;
-   */
-  localEnabled: boolean;
-
-  /**
-   * @generated from field: bool has_local_enabled = 6;
-   */
-  hasLocalEnabled: boolean;
-
-  /**
-   * @generated from field: string whisper_url = 10;
-   */
-  whisperUrl: string;
-
-  /**
-   * @generated from field: bool has_whisper_url = 11;
-   */
-  hasWhisperUrl: boolean;
-
-  /**
-   * @generated from field: string kokoro_url = 12;
-   */
-  kokoroUrl: string;
-
-  /**
-   * @generated from field: bool has_kokoro_url = 13;
-   */
-  hasKokoroUrl: boolean;
-
-  /**
-   * @generated from field: string ollama_url = 14;
-   */
-  ollamaUrl: string;
-
-  /**
-   * @generated from field: bool has_ollama_url = 15;
-   */
-  hasOllamaUrl: boolean;
-
-  /**
-   * @generated from field: string lpbs_base_url = 16;
-   */
-  lpbsBaseUrl: string;
-
-  /**
-   * @generated from field: bool has_lpbs_base_url = 17;
-   */
-  hasLpbsBaseUrl: boolean;
-
-  /**
-   * @generated from field: string lpbs_app_bundle_key = 18;
-   */
-  lpbsAppBundleKey: string;
-
-  /**
-   * @generated from field: bool has_lpbs_app_bundle_key = 19;
-   */
-  hasLpbsAppBundleKey: boolean;
-
-  /**
-   * @generated from field: int32 avail_ttl_byok_seconds = 20;
-   */
-  availTtlByokSeconds: number;
-
-  /**
-   * @generated from field: bool has_avail_ttl_byok_seconds = 21;
-   */
-  hasAvailTtlByokSeconds: boolean;
-
-  /**
-   * @generated from field: int32 avail_ttl_vrooli_seconds = 22;
-   */
-  availTtlVrooliSeconds: number;
-
-  /**
-   * @generated from field: bool has_avail_ttl_vrooli_seconds = 23;
-   */
-  hasAvailTtlVrooliSeconds: boolean;
+  config?: ProviderConfig | undefined;
 };
 
 /**
@@ -259,14 +176,14 @@ export type BYOKCredentialSummary = Message<"vrooli.audio_tools.v1.settings.BYOK
   fingerprint: string;
 
   /**
-   * @generated from field: string created_at = 4;
+   * @generated from field: google.protobuf.Timestamp created_at = 4;
    */
-  createdAt: string;
+  createdAt?: Timestamp | undefined;
 
   /**
-   * @generated from field: string last_used_at = 5;
+   * @generated from field: google.protobuf.Timestamp last_used_at = 5;
    */
-  lastUsedAt: string;
+  lastUsedAt?: Timestamp | undefined;
 };
 
 /**

@@ -22,9 +22,11 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
+from audio_tools.v1.common import common_pb2 as audio__tools_dot_v1_dot_common_dot_common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n audio-tools/v1/usage/usage.proto\x12\x1bvrooli.audio_tools.v1.usage\"\x97\x04\n\x08UsageRow\x12!\n\x0coperation_id\x18\x01 \x01(\tR\x0boperationId\x12\x1d\n\nemitted_at\x18\x02 \x01(\tR\temittedAt\x12\x1e\n\ncapability\x18\x03 \x01(\tR\ncapability\x12\x1c\n\toperation\x18\x04 \x01(\tR\toperation\x12#\n\rprovider_tier\x18\x05 \x01(\tR\x0cproviderTier\x12\x1f\n\x0bprovider_id\x18\x06 \x01(\tR\nproviderId\x12\x19\n\x08model_id\x18\x07 \x01(\tR\x07modelId\x12\x1d\n\nlatency_ms\x18\x08 \x01(\x01R\tlatencyMs\x12\'\n\x0f\x63redits_charged\x18\t \x01(\x05R\x0e\x63reditsCharged\x12#\n\rprompt_tokens\x18\n \x01(\x05R\x0cpromptTokens\x12#\n\routput_tokens\x18\x0b \x01(\x05R\x0coutputTokens\x12\x34\n\x16\x61udio_duration_seconds\x18\x0c \x01(\x01R\x14\x61udioDurationSeconds\x12\x14\n\x05\x65rror\x18\r \x01(\tR\x05\x65rror\x12\'\n\x0f\x66\x61llback_reason\x18\x0e \x01(\tR\x0e\x66\x61llbackReason\x12#\n\ruser_identity\x18\x0f \x01(\tR\x0cuserIdentity\"\xbd\x01\n\x11ListRecentRequest\x12#\n\rsince_seconds\x18\x01 \x01(\x03R\x0csinceSeconds\x12(\n\x10\x61\x66ter_emitted_at\x18\x02 \x01(\tR\x0e\x61\x66terEmittedAt\x12\x14\n\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x1e\n\ncapability\x18\x04 \x01(\tR\ncapability\x12#\n\rprovider_tier\x18\x05 \x01(\tR\x0cproviderTier\"O\n\x12ListRecentResponse\x12\x39\n\x04rows\x18\x01 \x03(\x0b\x32%.vrooli.audio_tools.v1.usage.UsageRowR\x04rows\"\xbd\x01\n\x14ProviderDistribution\x12#\n\rprovider_tier\x18\x01 \x01(\tR\x0cproviderTier\x12\x1f\n\x0bprovider_id\x18\x02 \x01(\tR\nproviderId\x12\x14\n\x05\x63ount\x18\x03 \x01(\x03R\x05\x63ount\x12#\n\rcredits_total\x18\x04 \x01(\x03R\x0c\x63reditsTotal\x12$\n\x0e\x61vg_latency_ms\x18\x05 \x01(\x01R\x0c\x61vgLatencyMs\">\n\x0e\x46\x61llbackReason\x12\x16\n\x06reason\x18\x01 \x01(\tR\x06reason\x12\x14\n\x05\x63ount\x18\x02 \x01(\x03R\x05\x63ount\"\xd5\x02\n\x07Summary\x12\x14\n\x05since\x18\x01 \x01(\tR\x05since\x12\x14\n\x05until\x18\x02 \x01(\tR\x05until\x12)\n\x10operations_total\x18\x03 \x01(\x03R\x0foperationsTotal\x12#\n\rcredits_total\x18\x04 \x01(\x03R\x0c\x63reditsTotal\x12U\n\x0c\x64istribution\x18\x05 \x03(\x0b\x32\x31.vrooli.audio_tools.v1.usage.ProviderDistributionR\x0c\x64istribution\x12V\n\x10\x66\x61llback_reasons\x18\x06 \x03(\x0b\x32+.vrooli.audio_tools.v1.usage.FallbackReasonR\x0f\x66\x61llbackReasons\x12\x1f\n\x0b\x65rror_count\x18\x07 \x01(\x03R\nerrorCount\"X\n\x11GetSummaryRequest\x12#\n\rsince_seconds\x18\x01 \x01(\x03R\x0csinceSeconds\x12\x1e\n\ncapability\x18\x02 \x01(\tR\ncapability\"T\n\x12GetSummaryResponse\x12>\n\x07summary\x18\x01 \x01(\x0b\x32$.vrooli.audio_tools.v1.usage.SummaryR\x07summary2\xec\x01\n\x0cUsageService\x12m\n\nListRecent\x12..vrooli.audio_tools.v1.usage.ListRecentRequest\x1a/.vrooli.audio_tools.v1.usage.ListRecentResponse\x12m\n\nGetSummary\x12..vrooli.audio_tools.v1.usage.GetSummaryRequest\x1a/.vrooli.audio_tools.v1.usage.GetSummaryResponseBNZLgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage;usage_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n audio-tools/v1/usage/usage.proto\x12\x1bvrooli.audio_tools.v1.usage\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"audio-tools/v1/common/common.proto\"\xdf\x04\n\x08UsageRow\x12!\n\x0coperation_id\x18\x01 \x01(\tR\x0boperationId\x12\x39\n\nemitted_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\temittedAt\x12\x1e\n\ncapability\x18\x03 \x01(\tR\ncapability\x12\x1c\n\toperation\x18\x04 \x01(\tR\toperation\x12O\n\rprovider_tier\x18\x05 \x01(\x0e\x32*.vrooli.audio_tools.v1.common.ProviderTierR\x0cproviderTier\x12\x1f\n\x0bprovider_id\x18\x06 \x01(\tR\nproviderId\x12\x19\n\x08model_id\x18\x07 \x01(\tR\x07modelId\x12\x1d\n\nlatency_ms\x18\x08 \x01(\x01R\tlatencyMs\x12\'\n\x0f\x63redits_charged\x18\t \x01(\x05R\x0e\x63reditsCharged\x12#\n\rprompt_tokens\x18\n \x01(\x05R\x0cpromptTokens\x12#\n\routput_tokens\x18\x0b \x01(\x05R\x0coutputTokens\x12\x34\n\x16\x61udio_duration_seconds\x18\x0c \x01(\x01R\x14\x61udioDurationSeconds\x12\x14\n\x05\x65rror\x18\r \x01(\tR\x05\x65rror\x12\'\n\x0f\x66\x61llback_reason\x18\x0e \x01(\tR\x0e\x66\x61llbackReason\x12#\n\ruser_identity\x18\x0f \x01(\tR\x0cuserIdentity\"\x85\x02\n\x11ListRecentRequest\x12#\n\rsince_seconds\x18\x01 \x01(\x03R\x0csinceSeconds\x12\x44\n\x10\x61\x66ter_emitted_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0e\x61\x66terEmittedAt\x12\x14\n\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x1e\n\ncapability\x18\x04 \x01(\tR\ncapability\x12O\n\rprovider_tier\x18\x05 \x01(\x0e\x32*.vrooli.audio_tools.v1.common.ProviderTierR\x0cproviderTier\"O\n\x12ListRecentResponse\x12\x39\n\x04rows\x18\x01 \x03(\x0b\x32%.vrooli.audio_tools.v1.usage.UsageRowR\x04rows\"\xe9\x01\n\x14ProviderDistribution\x12O\n\rprovider_tier\x18\x01 \x01(\x0e\x32*.vrooli.audio_tools.v1.common.ProviderTierR\x0cproviderTier\x12\x1f\n\x0bprovider_id\x18\x02 \x01(\tR\nproviderId\x12\x14\n\x05\x63ount\x18\x03 \x01(\x03R\x05\x63ount\x12#\n\rcredits_total\x18\x04 \x01(\x03R\x0c\x63reditsTotal\x12$\n\x0e\x61vg_latency_ms\x18\x05 \x01(\x01R\x0c\x61vgLatencyMs\">\n\x0e\x46\x61llbackReason\x12\x16\n\x06reason\x18\x01 \x01(\tR\x06reason\x12\x14\n\x05\x63ount\x18\x02 \x01(\x03R\x05\x63ount\"\x8d\x03\n\x07Summary\x12\x30\n\x05since\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x05since\x12\x30\n\x05until\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x05until\x12)\n\x10operations_total\x18\x03 \x01(\x03R\x0foperationsTotal\x12#\n\rcredits_total\x18\x04 \x01(\x03R\x0c\x63reditsTotal\x12U\n\x0c\x64istribution\x18\x05 \x03(\x0b\x32\x31.vrooli.audio_tools.v1.usage.ProviderDistributionR\x0c\x64istribution\x12V\n\x10\x66\x61llback_reasons\x18\x06 \x03(\x0b\x32+.vrooli.audio_tools.v1.usage.FallbackReasonR\x0f\x66\x61llbackReasons\x12\x1f\n\x0b\x65rror_count\x18\x07 \x01(\x03R\nerrorCount\"X\n\x11GetSummaryRequest\x12#\n\rsince_seconds\x18\x01 \x01(\x03R\x0csinceSeconds\x12\x1e\n\ncapability\x18\x02 \x01(\tR\ncapability\"T\n\x12GetSummaryResponse\x12>\n\x07summary\x18\x01 \x01(\x0b\x32$.vrooli.audio_tools.v1.usage.SummaryR\x07summary2\xec\x01\n\x0cUsageService\x12m\n\nListRecent\x12..vrooli.audio_tools.v1.usage.ListRecentRequest\x1a/.vrooli.audio_tools.v1.usage.ListRecentResponse\x12m\n\nGetSummary\x12..vrooli.audio_tools.v1.usage.GetSummaryRequest\x1a/.vrooli.audio_tools.v1.usage.GetSummaryResponseBNZLgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage;usage_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,22 +34,22 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'audio_tools.v1.usage.usage_
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZLgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage;usage_v1'
-  _globals['_USAGEROW']._serialized_start=66
-  _globals['_USAGEROW']._serialized_end=601
-  _globals['_LISTRECENTREQUEST']._serialized_start=604
-  _globals['_LISTRECENTREQUEST']._serialized_end=793
-  _globals['_LISTRECENTRESPONSE']._serialized_start=795
-  _globals['_LISTRECENTRESPONSE']._serialized_end=874
-  _globals['_PROVIDERDISTRIBUTION']._serialized_start=877
-  _globals['_PROVIDERDISTRIBUTION']._serialized_end=1066
-  _globals['_FALLBACKREASON']._serialized_start=1068
-  _globals['_FALLBACKREASON']._serialized_end=1130
-  _globals['_SUMMARY']._serialized_start=1133
-  _globals['_SUMMARY']._serialized_end=1474
-  _globals['_GETSUMMARYREQUEST']._serialized_start=1476
-  _globals['_GETSUMMARYREQUEST']._serialized_end=1564
-  _globals['_GETSUMMARYRESPONSE']._serialized_start=1566
-  _globals['_GETSUMMARYRESPONSE']._serialized_end=1650
-  _globals['_USAGESERVICE']._serialized_start=1653
-  _globals['_USAGESERVICE']._serialized_end=1889
+  _globals['_USAGEROW']._serialized_start=135
+  _globals['_USAGEROW']._serialized_end=742
+  _globals['_LISTRECENTREQUEST']._serialized_start=745
+  _globals['_LISTRECENTREQUEST']._serialized_end=1006
+  _globals['_LISTRECENTRESPONSE']._serialized_start=1008
+  _globals['_LISTRECENTRESPONSE']._serialized_end=1087
+  _globals['_PROVIDERDISTRIBUTION']._serialized_start=1090
+  _globals['_PROVIDERDISTRIBUTION']._serialized_end=1323
+  _globals['_FALLBACKREASON']._serialized_start=1325
+  _globals['_FALLBACKREASON']._serialized_end=1387
+  _globals['_SUMMARY']._serialized_start=1390
+  _globals['_SUMMARY']._serialized_end=1787
+  _globals['_GETSUMMARYREQUEST']._serialized_start=1789
+  _globals['_GETSUMMARYREQUEST']._serialized_end=1877
+  _globals['_GETSUMMARYRESPONSE']._serialized_start=1879
+  _globals['_GETSUMMARYRESPONSE']._serialized_end=1963
+  _globals['_USAGESERVICE']._serialized_start=1966
+  _globals['_USAGESERVICE']._serialized_end=2202
 # @@protoc_insertion_point(module_scope)

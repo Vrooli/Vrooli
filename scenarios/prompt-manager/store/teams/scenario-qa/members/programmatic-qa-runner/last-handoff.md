@@ -1,28 +1,21 @@
 ### Scenarios reviewed
-Reviewed 3 queued scenarios with fresh GCT runs:
-- `ecosystem-manager`: yellow, job `9d36d806-b28d-48ec-a6d0-47642e8ae5cf`
-- `workspace-sandbox`: yellow, job `f2cddfb4-d920-47d1-bcc1-f493caf4b82d`
-- `notification-hub`: yellow, job `65bd8ba3-9bf2-49b7-9d5e-e4e97f49ff3b`
+Reviewed 3 queued scenarios with fresh GCT completeness runs:
+- `audio-tools`: early_stage, score 15, calculated `2026-05-16T22:01:23Z`
+- `brand-manager`: nearly_ready, score 84, calculated `2026-05-16T22:01:32Z`
+- `app-monitor`: foundation_laid, score 33, calculated `2026-05-16T22:01:39Z`
 
 ### Findings converted to backlog
-Created 7 Swarm Manager backlog items with `notes.md` evidence:
-- `fix/qa-ecosystem-manager-standards-structure-focus-20260516`
-- `fix/qa-ecosystem-manager-tests-playbooks-business-20260516`
-- `fix/qa-workspace-sandbox-standards-preflight-structure-20260516`
-- `fix/qa-workspace-sandbox-visual-baseline-20260516`
-- `fix/qa-notification-hub-standards-structure-api-base-20260516`
-- `fix/qa-notification-hub-tests-docs-smoke-playbooks-business-20260516`
-- `fix/qa-notification-hub-visual-baseline-20260516`
-
-No `ecosystem-manager` visual item: visual had `screenshotCount=1`, non-stale latest capture.
-
-No separate `workspace-sandbox` tests item: the only failing test phase was standards, covered by the standards/preflight item.
+Created 4 Swarm Manager fixes with `notes.md` evidence:
+- `fix/qa-audio-tools-gct-requirements-targets-automation-20260516`
+- `fix/qa-brand-manager-gct-test-depth-20260516`
+- `fix/qa-app-monitor-gct-requirement-target-decomposition-20260516`
+- `fix/qa-app-monitor-gct-validation-automation-20260516`
 
 ### Dependencies wired
 Wired:
-- 2 `ecosystem-manager` QA gates onto 7 active related items.
-- 2 `workspace-sandbox` QA gates onto 4 active related items.
-- 3 `notification-hub` QA gates onto 4 active related items.
+- Audio-tools QA fix onto `execute/audio-tools-greenfield-scenario`, `execute/audio-tools-byok-adapters`, and `execute/audio-tools-twilio-media-stream-transport`.
+- Brand-manager QA fix onto `execute/brand-manager-scenario-picker` and `execute/brand-manager-discovery-import-ui`.
+- App-monitor QA fixes onto `execute/app-monitor-issue-tracker-cutover-verify` and `execute/cross-scenario-issue-tracker-cutover-sweep`.
 
 ### Skipped scenarios
 None. All three queued scenarios had visible files through `swarm-manager scenarios files`.
@@ -31,10 +24,12 @@ None. All three queued scenarios had visible files through `swarm-manager scenar
 None.
 
 ### Knowledge entries written
-- `qa-run/ecosystem-manager`: `knw-1778926108888279930`
-- `qa-run/workspace-sandbox`: `knw-1778926108889142468`
-- `qa-run/notification-hub`: `knw-1778926109047263996`
-- `reviewed-scenario/ecosystem-manager`: `knw-1778926125060942705`
-- `reviewed-scenario/workspace-sandbox`: `knw-1778926125062154263`
-- `reviewed-scenario/notification-hub`: `knw-1778926125061932423`
-- `dependency-wiring/2026-05-16-gct-readiness-queued-scenarios-2`: `knw-1778926138461450293`
+- `qa-run/audio-tools`: `knw-1778969112677802166`
+- `qa-run/brand-manager`: `knw-1778969112677846496`
+- `qa-run/app-monitor`: `knw-1778969112835574463`
+- `reviewed-scenario/audio-tools`: `knw-1778969132891673266`
+- `reviewed-scenario/brand-manager`: `knw-1778969132890332107`
+- `reviewed-scenario/app-monitor`: `knw-1778969133049970694`
+- `dependency-wiring/2026-05-16-gct-completeness-queued-scenarios-2`: `knw-1778969133049946054`
+
+Friction noted but not separately filed: `swarm-manager scenarios files` output includes massive vendored dependency listings, making existence checks noisy; `prompt-manager team knowledge-add --help` still does not expose useful subcommand-specific options, but `knowledge-add` worked without the removed `--by` flag.

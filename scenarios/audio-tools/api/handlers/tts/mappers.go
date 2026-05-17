@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/ai/ttschain"
+	"audio-tools/internal/protomap"
 	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
 
@@ -18,10 +19,10 @@ func configToProto(c inttts.Config, s intsumm.SummarizeConfig) *ttsv1.Config {
 		AutoEnabled:             c.AutoEnabled,
 		DefaultVoice:            c.KokoroVoice,
 		DefaultSpeed:            c.KokoroSpeed,
-		DefaultResponseFormat:   c.Backend,
+		DefaultResponseFormat:   protomap.ResponseFormatToProto(c.Backend),
 		SummarizeEnabled:        s.Enabled,
 		SummarizeCharThreshold:  int32(s.CharThreshold),
-		SummarizeLevel:          s.Level,
+		SummarizeLevel:          protomap.SummarizeLevelToProto(s.Level),
 		SummarizeModel:          s.Model,
 		SummarizeTimeoutSeconds: int32(s.TimeoutSeconds),
 	}

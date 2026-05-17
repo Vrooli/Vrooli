@@ -1,9 +1,8 @@
 package settings
 
 import (
-	"time"
-
 	"audio-tools/internal/byokstore"
+	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
@@ -32,11 +31,9 @@ func credToProto(c byokstore.Credential) *settv1.BYOKCredentialSummary {
 		Capability:  c.Capability,
 		Fingerprint: c.Fingerprint,
 	}
-	if !c.CreatedAt.IsZero() {
-		out.CreatedAt = c.CreatedAt.UTC().Format(time.RFC3339)
-	}
-	if c.LastUsedAt != nil && !c.LastUsedAt.IsZero() {
-		out.LastUsedAt = c.LastUsedAt.UTC().Format(time.RFC3339)
+	out.CreatedAt = protomap.TimeToProto(c.CreatedAt)
+	if c.LastUsedAt != nil {
+		out.LastUsedAt = protomap.TimeToProto(*c.LastUsedAt)
 	}
 	return out
 }

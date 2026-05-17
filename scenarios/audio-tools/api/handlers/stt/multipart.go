@@ -11,6 +11,7 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/protomap"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
@@ -42,9 +43,13 @@ func MultipartTranscribeHandler(chain *sttchain.Chain) http.Handler {
 		}
 
 		env := envelope.FromHTTP(r.Header)
+		format := r.FormValue("format")
+		if format == "" {
+			format = "wav"
+		}
 		req := sttchain.Request{
 			Audio:         audio,
-			Format:        r.FormValue("format"),
+			Format:        format,
 			Language:      r.FormValue("language"),
 			InitialPrompt: r.FormValue("initial_prompt"),
 			BYOKProvider:  env.Provider,
@@ -60,7 +65,7 @@ func MultipartTranscribeHandler(chain *sttchain.Chain) http.Handler {
 		out := &sttv1.TranscribeResponse{
 			Text: res.Text, DetectedLanguage: res.DetectedLanguage,
 			DurationSeconds: res.DurationSeconds,
-			ProviderTier:    string(res.Tier),
+			ProviderTier:    protomap.ProviderTierToProto(string(res.Tier)),
 			ProviderId:      res.ProviderID, ModelId: res.ModelID,
 			LatencyMs: float64(res.Latency.Milliseconds()),
 		}

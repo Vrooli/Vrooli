@@ -7,8 +7,11 @@
 package summarize_v1
 
 import (
+	common "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
+	tts "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -25,7 +28,7 @@ type SummarizeConfig struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Enabled        bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	CharThreshold  int32                  `protobuf:"varint,2,opt,name=char_threshold,json=charThreshold,proto3" json:"char_threshold,omitempty"`
-	Level          string                 `protobuf:"bytes,3,opt,name=level,proto3" json:"level,omitempty"` // "light" | "moderate" | "heavy"
+	Level          tts.SummarizeLevel     `protobuf:"varint,3,opt,name=level,proto3,enum=vrooli.audio_tools.v1.tts.SummarizeLevel" json:"level,omitempty"`
 	Model          string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
 	TimeoutSeconds int32                  `protobuf:"varint,5,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -76,11 +79,11 @@ func (x *SummarizeConfig) GetCharThreshold() int32 {
 	return 0
 }
 
-func (x *SummarizeConfig) GetLevel() string {
+func (x *SummarizeConfig) GetLevel() tts.SummarizeLevel {
 	if x != nil {
 		return x.Level
 	}
-	return ""
+	return tts.SummarizeLevel(0)
 }
 
 func (x *SummarizeConfig) GetModel() string {
@@ -177,20 +180,16 @@ func (x *GetSummarizeConfigResponse) GetConfig() *SummarizeConfig {
 	return nil
 }
 
+// UpdateSummarizeConfigRequest carries FieldMask + a full SummarizeConfig
+// payload. Server validates each path in `update_mask.paths`; unknown
+// paths return CodeInvalidArgument; an empty mask returns
+// CodeInvalidArgument ("no fields specified").
 type UpdateSummarizeConfigRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	Enabled           bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	HasEnabled        bool                   `protobuf:"varint,2,opt,name=has_enabled,json=hasEnabled,proto3" json:"has_enabled,omitempty"`
-	CharThreshold     int32                  `protobuf:"varint,3,opt,name=char_threshold,json=charThreshold,proto3" json:"char_threshold,omitempty"`
-	HasCharThreshold  bool                   `protobuf:"varint,4,opt,name=has_char_threshold,json=hasCharThreshold,proto3" json:"has_char_threshold,omitempty"`
-	Level             string                 `protobuf:"bytes,5,opt,name=level,proto3" json:"level,omitempty"`
-	HasLevel          bool                   `protobuf:"varint,6,opt,name=has_level,json=hasLevel,proto3" json:"has_level,omitempty"`
-	Model             string                 `protobuf:"bytes,7,opt,name=model,proto3" json:"model,omitempty"`
-	HasModel          bool                   `protobuf:"varint,8,opt,name=has_model,json=hasModel,proto3" json:"has_model,omitempty"`
-	TimeoutSeconds    int32                  `protobuf:"varint,9,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
-	HasTimeoutSeconds bool                   `protobuf:"varint,10,opt,name=has_timeout_seconds,json=hasTimeoutSeconds,proto3" json:"has_timeout_seconds,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,1,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	Config        *SummarizeConfig       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateSummarizeConfigRequest) Reset() {
@@ -223,74 +222,18 @@ func (*UpdateSummarizeConfigRequest) Descriptor() ([]byte, []int) {
 	return file_audio_tools_v1_summarize_summarize_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *UpdateSummarizeConfigRequest) GetEnabled() bool {
+func (x *UpdateSummarizeConfigRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	if x != nil {
-		return x.Enabled
+		return x.UpdateMask
 	}
-	return false
+	return nil
 }
 
-func (x *UpdateSummarizeConfigRequest) GetHasEnabled() bool {
+func (x *UpdateSummarizeConfigRequest) GetConfig() *SummarizeConfig {
 	if x != nil {
-		return x.HasEnabled
+		return x.Config
 	}
-	return false
-}
-
-func (x *UpdateSummarizeConfigRequest) GetCharThreshold() int32 {
-	if x != nil {
-		return x.CharThreshold
-	}
-	return 0
-}
-
-func (x *UpdateSummarizeConfigRequest) GetHasCharThreshold() bool {
-	if x != nil {
-		return x.HasCharThreshold
-	}
-	return false
-}
-
-func (x *UpdateSummarizeConfigRequest) GetLevel() string {
-	if x != nil {
-		return x.Level
-	}
-	return ""
-}
-
-func (x *UpdateSummarizeConfigRequest) GetHasLevel() bool {
-	if x != nil {
-		return x.HasLevel
-	}
-	return false
-}
-
-func (x *UpdateSummarizeConfigRequest) GetModel() string {
-	if x != nil {
-		return x.Model
-	}
-	return ""
-}
-
-func (x *UpdateSummarizeConfigRequest) GetHasModel() bool {
-	if x != nil {
-		return x.HasModel
-	}
-	return false
-}
-
-func (x *UpdateSummarizeConfigRequest) GetTimeoutSeconds() int32 {
-	if x != nil {
-		return x.TimeoutSeconds
-	}
-	return 0
-}
-
-func (x *UpdateSummarizeConfigRequest) GetHasTimeoutSeconds() bool {
-	if x != nil {
-		return x.HasTimeoutSeconds
-	}
-	return false
+	return nil
 }
 
 type UpdateSummarizeConfigResponse struct {
@@ -340,7 +283,7 @@ func (x *UpdateSummarizeConfigResponse) GetConfig() *SummarizeConfig {
 type SummarizeRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Text           string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
-	Level          string                 `protobuf:"bytes,2,opt,name=level,proto3" json:"level,omitempty"` // "light" | "moderate" | "heavy"
+	Level          tts.SummarizeLevel     `protobuf:"varint,2,opt,name=level,proto3,enum=vrooli.audio_tools.v1.tts.SummarizeLevel" json:"level,omitempty"`
 	Model          string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"` // optional override
 	TimeoutSeconds int32                  `protobuf:"varint,4,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -384,11 +327,11 @@ func (x *SummarizeRequest) GetText() string {
 	return ""
 }
 
-func (x *SummarizeRequest) GetLevel() string {
+func (x *SummarizeRequest) GetLevel() tts.SummarizeLevel {
 	if x != nil {
 		return x.Level
 	}
-	return ""
+	return tts.SummarizeLevel(0)
 }
 
 func (x *SummarizeRequest) GetModel() string {
@@ -410,7 +353,7 @@ type SummarizeResponse struct {
 	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
 	PromptTokens  int32                  `protobuf:"varint,2,opt,name=prompt_tokens,json=promptTokens,proto3" json:"prompt_tokens,omitempty"`
 	OutputTokens  int32                  `protobuf:"varint,3,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
-	ProviderTier  string                 `protobuf:"bytes,4,opt,name=provider_tier,json=providerTier,proto3" json:"provider_tier,omitempty"`
+	ProviderTier  common.ProviderTier    `protobuf:"varint,4,opt,name=provider_tier,json=providerTier,proto3,enum=vrooli.audio_tools.v1.common.ProviderTier" json:"provider_tier,omitempty"`
 	ProviderId    string                 `protobuf:"bytes,5,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	ModelId       string                 `protobuf:"bytes,6,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
 	LatencyMs     float64                `protobuf:"fixed64,7,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
@@ -469,11 +412,11 @@ func (x *SummarizeResponse) GetOutputTokens() int32 {
 	return 0
 }
 
-func (x *SummarizeResponse) GetProviderTier() string {
+func (x *SummarizeResponse) GetProviderTier() common.ProviderTier {
 	if x != nil {
 		return x.ProviderTier
 	}
-	return ""
+	return common.ProviderTier(0)
 }
 
 func (x *SummarizeResponse) GetProviderId() string {
@@ -501,41 +444,32 @@ var File_audio_tools_v1_summarize_summarize_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_summarize_summarize_proto_rawDesc = "" +
 	"\n" +
-	"(audio-tools/v1/summarize/summarize.proto\x12\x1fvrooli.audio_tools.v1.summarize\"\xa7\x01\n" +
+	"(audio-tools/v1/summarize/summarize.proto\x12\x1fvrooli.audio_tools.v1.summarize\x1a google/protobuf/field_mask.proto\x1a\"audio-tools/v1/common/common.proto\x1a\x1caudio-tools/v1/tts/tts.proto\"\xd2\x01\n" +
 	"\x0fSummarizeConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12%\n" +
-	"\x0echar_threshold\x18\x02 \x01(\x05R\rcharThreshold\x12\x14\n" +
-	"\x05level\x18\x03 \x01(\tR\x05level\x12\x14\n" +
+	"\x0echar_threshold\x18\x02 \x01(\x05R\rcharThreshold\x12?\n" +
+	"\x05level\x18\x03 \x01(\x0e2).vrooli.audio_tools.v1.tts.SummarizeLevelR\x05level\x12\x14\n" +
 	"\x05model\x18\x04 \x01(\tR\x05model\x12'\n" +
 	"\x0ftimeout_seconds\x18\x05 \x01(\x05R\x0etimeoutSeconds\"\x1b\n" +
 	"\x19GetSummarizeConfigRequest\"f\n" +
 	"\x1aGetSummarizeConfigResponse\x12H\n" +
-	"\x06config\x18\x01 \x01(\v20.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06config\"\xed\x02\n" +
-	"\x1cUpdateSummarizeConfigRequest\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1f\n" +
-	"\vhas_enabled\x18\x02 \x01(\bR\n" +
-	"hasEnabled\x12%\n" +
-	"\x0echar_threshold\x18\x03 \x01(\x05R\rcharThreshold\x12,\n" +
-	"\x12has_char_threshold\x18\x04 \x01(\bR\x10hasCharThreshold\x12\x14\n" +
-	"\x05level\x18\x05 \x01(\tR\x05level\x12\x1b\n" +
-	"\thas_level\x18\x06 \x01(\bR\bhasLevel\x12\x14\n" +
-	"\x05model\x18\a \x01(\tR\x05model\x12\x1b\n" +
-	"\thas_model\x18\b \x01(\bR\bhasModel\x12'\n" +
-	"\x0ftimeout_seconds\x18\t \x01(\x05R\x0etimeoutSeconds\x12.\n" +
-	"\x13has_timeout_seconds\x18\n" +
-	" \x01(\bR\x11hasTimeoutSeconds\"i\n" +
+	"\x06config\x18\x01 \x01(\v20.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06config\"\xa5\x01\n" +
+	"\x1cUpdateSummarizeConfigRequest\x12;\n" +
+	"\vupdate_mask\x18\x01 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMask\x12H\n" +
+	"\x06config\x18\x02 \x01(\v20.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06config\"i\n" +
 	"\x1dUpdateSummarizeConfigResponse\x12H\n" +
-	"\x06config\x18\x01 \x01(\v20.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06config\"{\n" +
+	"\x06config\x18\x01 \x01(\v20.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06config\"\xa6\x01\n" +
 	"\x10SummarizeRequest\x12\x12\n" +
-	"\x04text\x18\x01 \x01(\tR\x04text\x12\x14\n" +
-	"\x05level\x18\x02 \x01(\tR\x05level\x12\x14\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x12?\n" +
+	"\x05level\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.tts.SummarizeLevelR\x05level\x12\x14\n" +
 	"\x05model\x18\x03 \x01(\tR\x05model\x12'\n" +
-	"\x0ftimeout_seconds\x18\x04 \x01(\x05R\x0etimeoutSeconds\"\xf1\x01\n" +
+	"\x0ftimeout_seconds\x18\x04 \x01(\x05R\x0etimeoutSeconds\"\x9d\x02\n" +
 	"\x11SummarizeResponse\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12#\n" +
 	"\rprompt_tokens\x18\x02 \x01(\x05R\fpromptTokens\x12#\n" +
-	"\routput_tokens\x18\x03 \x01(\x05R\foutputTokens\x12#\n" +
-	"\rprovider_tier\x18\x04 \x01(\tR\fproviderTier\x12\x1f\n" +
+	"\routput_tokens\x18\x03 \x01(\x05R\foutputTokens\x12O\n" +
+	"\rprovider_tier\x18\x04 \x01(\x0e2*.vrooli.audio_tools.v1.common.ProviderTierR\fproviderTier\x12\x1f\n" +
 	"\vprovider_id\x18\x05 \x01(\tR\n" +
 	"providerId\x12\x19\n" +
 	"\bmodel_id\x18\x06 \x01(\tR\amodelId\x12\x1d\n" +
@@ -567,21 +501,29 @@ var file_audio_tools_v1_summarize_summarize_proto_goTypes = []any{
 	(*UpdateSummarizeConfigResponse)(nil), // 4: vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse
 	(*SummarizeRequest)(nil),              // 5: vrooli.audio_tools.v1.summarize.SummarizeRequest
 	(*SummarizeResponse)(nil),             // 6: vrooli.audio_tools.v1.summarize.SummarizeResponse
+	(tts.SummarizeLevel)(0),               // 7: vrooli.audio_tools.v1.tts.SummarizeLevel
+	(*fieldmaskpb.FieldMask)(nil),         // 8: google.protobuf.FieldMask
+	(common.ProviderTier)(0),              // 9: vrooli.audio_tools.v1.common.ProviderTier
 }
 var file_audio_tools_v1_summarize_summarize_proto_depIdxs = []int32{
-	0, // 0: vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse.config:type_name -> vrooli.audio_tools.v1.summarize.SummarizeConfig
-	0, // 1: vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse.config:type_name -> vrooli.audio_tools.v1.summarize.SummarizeConfig
-	5, // 2: vrooli.audio_tools.v1.summarize.SummarizeService.Summarize:input_type -> vrooli.audio_tools.v1.summarize.SummarizeRequest
-	1, // 3: vrooli.audio_tools.v1.summarize.SummarizeService.GetSummarizeConfig:input_type -> vrooli.audio_tools.v1.summarize.GetSummarizeConfigRequest
-	3, // 4: vrooli.audio_tools.v1.summarize.SummarizeService.UpdateSummarizeConfig:input_type -> vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest
-	6, // 5: vrooli.audio_tools.v1.summarize.SummarizeService.Summarize:output_type -> vrooli.audio_tools.v1.summarize.SummarizeResponse
-	2, // 6: vrooli.audio_tools.v1.summarize.SummarizeService.GetSummarizeConfig:output_type -> vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse
-	4, // 7: vrooli.audio_tools.v1.summarize.SummarizeService.UpdateSummarizeConfig:output_type -> vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	7,  // 0: vrooli.audio_tools.v1.summarize.SummarizeConfig.level:type_name -> vrooli.audio_tools.v1.tts.SummarizeLevel
+	0,  // 1: vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse.config:type_name -> vrooli.audio_tools.v1.summarize.SummarizeConfig
+	8,  // 2: vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	0,  // 3: vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest.config:type_name -> vrooli.audio_tools.v1.summarize.SummarizeConfig
+	0,  // 4: vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse.config:type_name -> vrooli.audio_tools.v1.summarize.SummarizeConfig
+	7,  // 5: vrooli.audio_tools.v1.summarize.SummarizeRequest.level:type_name -> vrooli.audio_tools.v1.tts.SummarizeLevel
+	9,  // 6: vrooli.audio_tools.v1.summarize.SummarizeResponse.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	5,  // 7: vrooli.audio_tools.v1.summarize.SummarizeService.Summarize:input_type -> vrooli.audio_tools.v1.summarize.SummarizeRequest
+	1,  // 8: vrooli.audio_tools.v1.summarize.SummarizeService.GetSummarizeConfig:input_type -> vrooli.audio_tools.v1.summarize.GetSummarizeConfigRequest
+	3,  // 9: vrooli.audio_tools.v1.summarize.SummarizeService.UpdateSummarizeConfig:input_type -> vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest
+	6,  // 10: vrooli.audio_tools.v1.summarize.SummarizeService.Summarize:output_type -> vrooli.audio_tools.v1.summarize.SummarizeResponse
+	2,  // 11: vrooli.audio_tools.v1.summarize.SummarizeService.GetSummarizeConfig:output_type -> vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse
+	4,  // 12: vrooli.audio_tools.v1.summarize.SummarizeService.UpdateSummarizeConfig:output_type -> vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponse
+	10, // [10:13] is the sub-list for method output_type
+	7,  // [7:10] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_summarize_summarize_proto_init() }

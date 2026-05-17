@@ -1,3 +1,6 @@
+from google.protobuf import field_mask_pb2 as _field_mask_pb2
+from audio_tools.v1.common import common_pb2 as _common_pb2
+from audio_tools.v1.tts import tts_pb2 as _tts_pb2
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Mapping as _Mapping
@@ -14,10 +17,10 @@ class SummarizeConfig(_message.Message):
     TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
     enabled: bool
     char_threshold: int
-    level: str
+    level: _tts_pb2.SummarizeLevel
     model: str
     timeout_seconds: int
-    def __init__(self, enabled: _Optional[bool] = ..., char_threshold: _Optional[int] = ..., level: _Optional[str] = ..., model: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+    def __init__(self, enabled: _Optional[bool] = ..., char_threshold: _Optional[int] = ..., level: _Optional[_Union[_tts_pb2.SummarizeLevel, str]] = ..., model: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
 
 class GetSummarizeConfigRequest(_message.Message):
     __slots__ = ()
@@ -30,28 +33,12 @@ class GetSummarizeConfigResponse(_message.Message):
     def __init__(self, config: _Optional[_Union[SummarizeConfig, _Mapping]] = ...) -> None: ...
 
 class UpdateSummarizeConfigRequest(_message.Message):
-    __slots__ = ("enabled", "has_enabled", "char_threshold", "has_char_threshold", "level", "has_level", "model", "has_model", "timeout_seconds", "has_timeout_seconds")
-    ENABLED_FIELD_NUMBER: _ClassVar[int]
-    HAS_ENABLED_FIELD_NUMBER: _ClassVar[int]
-    CHAR_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
-    HAS_CHAR_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
-    LEVEL_FIELD_NUMBER: _ClassVar[int]
-    HAS_LEVEL_FIELD_NUMBER: _ClassVar[int]
-    MODEL_FIELD_NUMBER: _ClassVar[int]
-    HAS_MODEL_FIELD_NUMBER: _ClassVar[int]
-    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
-    HAS_TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
-    enabled: bool
-    has_enabled: bool
-    char_threshold: int
-    has_char_threshold: bool
-    level: str
-    has_level: bool
-    model: str
-    has_model: bool
-    timeout_seconds: int
-    has_timeout_seconds: bool
-    def __init__(self, enabled: _Optional[bool] = ..., has_enabled: _Optional[bool] = ..., char_threshold: _Optional[int] = ..., has_char_threshold: _Optional[bool] = ..., level: _Optional[str] = ..., has_level: _Optional[bool] = ..., model: _Optional[str] = ..., has_model: _Optional[bool] = ..., timeout_seconds: _Optional[int] = ..., has_timeout_seconds: _Optional[bool] = ...) -> None: ...
+    __slots__ = ("update_mask", "config")
+    UPDATE_MASK_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    update_mask: _field_mask_pb2.FieldMask
+    config: SummarizeConfig
+    def __init__(self, update_mask: _Optional[_Union[_field_mask_pb2.FieldMask, _Mapping]] = ..., config: _Optional[_Union[SummarizeConfig, _Mapping]] = ...) -> None: ...
 
 class UpdateSummarizeConfigResponse(_message.Message):
     __slots__ = ("config",)
@@ -66,10 +53,10 @@ class SummarizeRequest(_message.Message):
     MODEL_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
     text: str
-    level: str
+    level: _tts_pb2.SummarizeLevel
     model: str
     timeout_seconds: int
-    def __init__(self, text: _Optional[str] = ..., level: _Optional[str] = ..., model: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+    def __init__(self, text: _Optional[str] = ..., level: _Optional[_Union[_tts_pb2.SummarizeLevel, str]] = ..., model: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
 
 class SummarizeResponse(_message.Message):
     __slots__ = ("text", "prompt_tokens", "output_tokens", "provider_tier", "provider_id", "model_id", "latency_ms")
@@ -83,8 +70,8 @@ class SummarizeResponse(_message.Message):
     text: str
     prompt_tokens: int
     output_tokens: int
-    provider_tier: str
+    provider_tier: _common_pb2.ProviderTier
     provider_id: str
     model_id: str
     latency_ms: float
-    def __init__(self, text: _Optional[str] = ..., prompt_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., provider_tier: _Optional[str] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
+    def __init__(self, text: _Optional[str] = ..., prompt_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...

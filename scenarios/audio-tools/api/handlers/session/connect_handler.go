@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
+	"audio-tools/internal/protomap"
 	intsession "audio-tools/internal/session"
 
 	sessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session"
@@ -26,14 +27,14 @@ func NewConnectHandler(d Deps) *connectHandler {
 }
 
 func (h *connectHandler) OpenSession(ctx context.Context, req *connect.Request[sessv1.OpenSessionRequest]) (*connect.Response[sessv1.OpenSessionResponse], error) {
-	transport := req.Msg.Transport
-	if transport == "" {
-		transport = "fake"
+	transport := req.Msg.GetTransport()
+	if transport == sessv1.SessionTransport_SESSION_TRANSPORT_UNSPECIFIED {
+		transport = sessv1.SessionTransport_SESSION_TRANSPORT_FAKE
 	}
 	s := intsession.New(intsession.Options{
-		Transport: transport,
-		Voice:     req.Msg.Voice,
-		Language:  req.Msg.Language,
+		Transport: protomap.SessionTransportFromProto(transport),
+		Voice:     req.Msg.GetVoice(),
+		Language:  req.Msg.GetLanguage(),
 	})
 	h.deps.Registry.Add(s)
 	return connect.NewResponse(&sessv1.OpenSessionResponse{SessionId: s.ID(), Transport: transport}), nil

@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	settingsH "audio-tools/handlers/settings"
 	"audio-tools/internal/byokstore"
@@ -53,8 +54,11 @@ func TestSettings_ProviderConfigRoundTrip(t *testing.T) {
 	require.True(t, res.Msg.GetConfig().GetByokEnabled())
 
 	upd, err := c.UpdateProviderConfig(ctx, connect.NewRequest(&settv1.UpdateProviderConfigRequest{
-		ByokEnabled: false, HasByokEnabled: true,
-		WhisperUrl: "http://w2", HasWhisperUrl: true,
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"byok_enabled", "whisper_url"}},
+		Config: &settv1.ProviderConfig{
+			ByokEnabled: false,
+			WhisperUrl:  "http://w2",
+		},
 	}))
 	require.NoError(t, err)
 	require.False(t, upd.Msg.GetConfig().GetByokEnabled())

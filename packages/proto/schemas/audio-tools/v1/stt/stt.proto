@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.stt;
 
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "audio-tools/v1/common/common.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt;stt_v1";
 
 // =============================================================================
@@ -15,9 +19,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 //
 // Provider routing: BYOK -> Vrooli/LPBS -> Local (fixed precedence).
 // ErrInsufficientCredits from the Vrooli tier short-circuits and does NOT
-// fall through to Local. Per-request credentials travel in metadata headers:
-//   X-Audio-BYOK-Provider, X-Audio-BYOK-Key, X-Audio-LPBS-Token,
-//   X-Audio-User-Identity.
+// fall through to Local. Per-request credentials travel in metadata headers
+// — see audio-tools/v1/auth/auth.proto for the typed Credentials envelope
+// shared by the server-side and client-side Connect interceptors.
 //
 // REST exception:
 //   POST /api/v1/voice/transcribe (RESTReason: multipart_upload) parses
@@ -57,12 +61,54 @@ service STTService {
 }
 
 // -----------------------------------------------------------------------------
+// Typed enums (replace prior freeform string fields).
+// -----------------------------------------------------------------------------
+
+// SpeakerMode is the speaker-verification gating mode applied to the
+// transcript pipeline.
+enum SpeakerMode {
+  SPEAKER_MODE_UNSPECIFIED = 0;
+  SPEAKER_MODE_OFF = 1;
+  SPEAKER_MODE_FILTER = 2;
+  SPEAKER_MODE_ADVISORY = 3;
+}
+
+// RejectBehavior selects what the pipeline does with a transcript that
+// failed speaker verification.
+enum RejectBehavior {
+  REJECT_BEHAVIOR_UNSPECIFIED = 0;
+  REJECT_BEHAVIOR_DROP = 1;
+  REJECT_BEHAVIOR_SHOW_MUTED = 2;
+}
+
+// StreamingMode controls whether the streaming pipeline runs at all.
+// AUTO = "use streaming whenever the active provider declares
+//         StreamingCapability=true; otherwise buffer-then-unary".
+// OFF  = "always buffer-then-unary, even when a streaming adapter is
+//         available".
+enum StreamingMode {
+  STREAMING_MODE_UNSPECIFIED = 0;
+  STREAMING_MODE_AUTO = 1;
+  STREAMING_MODE_OFF = 2;
+}
+
+// StrategyPreference selects which streaming strategy the chain prefers
+// when StreamingMode != OFF.
+enum StrategyPreference {
+  STRATEGY_PREFERENCE_UNSPECIFIED = 0;
+  STRATEGY_PREFERENCE_AUTO = 1;
+  STRATEGY_PREFERENCE_VAD = 2;
+  STRATEGY_PREFERENCE_OVERLAP = 3;
+  STRATEGY_PREFERENCE_PASSTHROUGH = 4;
+}
+
+// -----------------------------------------------------------------------------
 // Transcribe
 // -----------------------------------------------------------------------------
 
 message TranscribeRequest {
   bytes audio = 1;
-  string format = 2;                   // "wav" | "mp3" | "flac" | "ogg" | "webm" | ...
+  vrooli.audio_tools.v1.common.AudioFormat format = 2;
   string language = 3;                 // empty = provider auto-detect
   bool skip_speaker_verification = 4;
   string initial_prompt = 5;           // optional Whisper-style prompt
@@ -73,9 +119,9 @@ message TranscribeResponse {
   string detected_language = 2;
   double duration_seconds = 3;
 
-  // Provider trace surface. provider_tier in {"byok","vrooli","local"};
-  // model_id is the concrete model identifier the provider used.
-  string provider_tier = 4;
+  // Provider trace surface. model_id is the concrete model identifier
+  // the provider used.
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 4;
   string provider_id = 5;
   string model_id = 6;
   double latency_ms = 7;
@@ -96,11 +142,8 @@ message StreamConfig {
 
   // Streaming-pipeline operator levers (see
   // scenarios/audio-tools/docs/reference/configuration.md#streaming-stt-control-surface).
-  // streaming_mode: "auto" | "off". Empty defaults to "auto".
-  string streaming_mode = 8;
-  // strategy_preference: "auto" | "vad" | "overlap" | "passthrough".
-  // Empty defaults to "auto".
-  string strategy_preference = 9;
+  StreamingMode streaming_mode = 8;
+  StrategyPreference strategy_preference = 9;
   // vad_silence_ms: silence window that closes a VAD-segment.
   // Range 200..3000; 0 defaults to 700.
   int32 vad_silence_ms = 10;
@@ -118,31 +161,13 @@ message GetStreamConfigResponse {
   StreamConfig config = 1;
 }
 
+// UpdateStreamConfigRequest carries a FieldMask + a full StreamConfig
+// payload. Server validates every path in `update_mask.paths` against
+// the StreamConfig schema; unknown paths -> CodeInvalidArgument. An
+// empty mask is rejected as CodeInvalidArgument ("no fields specified").
 message UpdateStreamConfigRequest {
-  int32 flush_interval_ms = 1;
-  bool has_flush_interval_ms = 2;
-  int32 min_delta_bytes = 3;
-  bool has_min_delta_bytes = 4;
-  int32 overlap_bytes = 5;
-  bool has_overlap_bytes = 6;
-  bool persistent_mode = 7;
-  bool has_persistent_mode = 8;
-  bool wake_word_enabled = 9;
-  bool has_wake_word_enabled = 10;
-  double wake_word_threshold = 11;
-  bool has_wake_word_threshold = 12;
-  int32 segment_silence_ms = 13;
-  bool has_segment_silence_ms = 14;
-  string streaming_mode = 15;
-  bool has_streaming_mode = 16;
-  string strategy_preference = 17;
-  bool has_strategy_preference = 18;
-  int32 vad_silence_ms = 19;
-  bool has_vad_silence_ms = 20;
-  int32 overlap_window_ms = 21;
-  bool has_overlap_window_ms = 22;
-  int32 overlap_commit_runs = 23;
-  bool has_overlap_commit_runs = 24;
+  google.protobuf.FieldMask update_mask = 1;
+  StreamConfig config = 2;
 }
 
 message UpdateStreamConfigResponse {
@@ -153,11 +178,27 @@ message UpdateStreamConfigResponse {
 // Wake word
 // -----------------------------------------------------------------------------
 
+// WakeWordSample is one labelled audio clip used to fit the wakeword
+// model.
+message WakeWordSample {
+  bytes audio = 1;
+  vrooli.audio_tools.v1.common.AudioFormat format = 2;
+  int32 sample_rate_hz = 3;
+}
+
+// WakeWordTemplate is the typed payload that replaces the legacy opaque
+// `template_json` field. The shape is owned by audio-tools (server) and
+// consumed by the embed/UI wakeword engine.
+message WakeWordTemplate {
+  string label = 1;
+  double threshold = 2;
+  repeated WakeWordSample samples = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
 message WakeWordConfig {
   bool configured = 1;
-  // template_json is the raw WakeWordTemplate JSON payload (samples,
-  // label, threshold, updatedAt). Shape is owned by the UI wakeword engine.
-  string template_json = 2;
+  WakeWordTemplate template = 2;
 }
 
 message GetWakeWordConfigRequest {}
@@ -167,7 +208,7 @@ message GetWakeWordConfigResponse {
 }
 
 message UpdateWakeWordTemplateRequest {
-  string template_json = 1;
+  WakeWordTemplate template = 1;
 }
 
 message UpdateWakeWordTemplateResponse {
@@ -188,8 +229,8 @@ message SpeakerConfig {
   bool enabled = 1;
   repeated string profile_ids = 2;
   double threshold = 3;
-  string mode = 4;                     // "off" | "filter" | "advisory"
-  string reject_behavior = 5;          // "drop" | "show-muted"
+  SpeakerMode mode = 4;
+  RejectBehavior reject_behavior = 5;
   bool fallback_without_verification = 6;
   bool extraction_enabled = 7;
 }
@@ -200,21 +241,11 @@ message GetSpeakerConfigResponse {
   SpeakerConfig config = 1;
 }
 
+// UpdateSpeakerConfigRequest follows the same FieldMask + payload shape
+// as UpdateStreamConfigRequest. Same validation rules apply.
 message UpdateSpeakerConfigRequest {
-  bool enabled = 1;
-  bool has_enabled = 2;
-  repeated string profile_ids = 3;
-  bool has_profile_ids = 4;
-  double threshold = 5;
-  bool has_threshold = 6;
-  string mode = 7;
-  bool has_mode = 8;
-  string reject_behavior = 9;
-  bool has_reject_behavior = 10;
-  bool fallback_without_verification = 11;
-  bool has_fallback_without_verification = 12;
-  bool extraction_enabled = 13;
-  bool has_extraction_enabled = 14;
+  google.protobuf.FieldMask update_mask = 1;
+  SpeakerConfig config = 2;
 }
 
 message UpdateSpeakerConfigResponse {
@@ -224,8 +255,8 @@ message UpdateSpeakerConfigResponse {
 message SpeakerProfile {
   string id = 1;
   string display_name = 2;
-  string created_at = 3;
-  string updated_at = 4;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
   string model_name = 5;
   int32 embedding_dim = 6;
   int32 sample_rate = 7;
@@ -252,7 +283,7 @@ message SpeakerStatus {
   int32 profile_count = 7;
   repeated SpeakerProfile profiles = 8;
   SpeakerResourceInfo info = 9;
-  string checked_at = 10;
+  google.protobuf.Timestamp checked_at = 10;
 }
 
 message GetSpeakerStatusRequest {}
@@ -275,19 +306,20 @@ message SpeakerEnrollment {
   int32 sample_rate = 4;
   double enrollment_audio_seconds = 5;
   string model_name = 6;
-  string created_at = 7;
+  google.protobuf.Timestamp created_at = 7;
 }
 
+// EnrollSpeakerProfileRequest enrolls a new speaker profile. The
+// optional tri-state flags (`add_to_active`, `enable`) use proto3
+// `optional` rather than has_X partners.
 message EnrollSpeakerProfileRequest {
   bytes audio = 1;
-  string format = 2;
+  vrooli.audio_tools.v1.common.AudioFormat format = 2;
   string profile_id = 3;
   string display_name = 4;
   string notes = 5;
-  bool add_to_active = 6;
-  bool has_add_to_active = 7;
-  bool enable = 8;
-  bool has_enable = 9;
+  optional bool add_to_active = 6;
+  optional bool enable = 7;
 }
 
 message EnrollSpeakerProfileResponse {
@@ -356,7 +388,7 @@ message StreamSegment {
   int64 start_ms = 2;
   int64 end_ms = 3;
   string detected_language = 4;
-  string provider_tier = 5;
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 5;
   string model_id = 6;
   double latency_ms = 7;
 }
@@ -386,7 +418,7 @@ message StreamDone {
   // streaming chain on completion. fell_back_to_unary is true when no
   // streaming-capable adapter accepted the stream-start and the chain
   // fell back to running the full buffer through the unary path.
-  string provider_tier = 2;
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 2;
   string provider_id = 3;
   string model_id = 4;
   double latency_ms = 5;

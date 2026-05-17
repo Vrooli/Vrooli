@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.tts;
 
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "audio-tools/v1/common/common.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts;tts_v1";
 
 // =============================================================================
@@ -15,6 +19,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 // @stability stable
 //
 // Provider routing: BYOK -> Vrooli/LPBS -> Local (fixed precedence).
+// Per-request credentials travel in metadata headers — see
+// audio-tools/v1/auth/auth.proto for the typed Credentials envelope
+// shared by the server-side and client-side Connect interceptors.
 //
 // Cache is content-addressable: key = SHA256(voice|speed|format|text-content).
 // Web-console wraps this cache with an event->content-key map maintained in
@@ -24,7 +31,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 //   voice.feminine.warm, voice.feminine.neutral,
 //   voice.masculine.warm, voice.masculine.neutral,
 //   voice.neutral.default
-// voice_overrides["tier:provider-id"] wins over the canonical mapping.
+// voice_overrides ([]AdapterMapping) wins over the canonical mapping for
+// the matching (tier, provider_id) pair.
 // =============================================================================
 
 service TTSService {
@@ -52,6 +60,33 @@ service TTSService {
 }
 
 // -----------------------------------------------------------------------------
+// Typed enums (replace prior freeform string fields).
+// -----------------------------------------------------------------------------
+
+// SummarizeLevel selects how aggressively the TTS-summarize stage
+// rewrites the input. LIGHT preserves wording; MODERATE rewrites for
+// flow; HEAVY produces a short paraphrase.
+enum SummarizeLevel {
+  SUMMARIZE_LEVEL_UNSPECIFIED = 0;
+  SUMMARIZE_LEVEL_LIGHT = 1;
+  SUMMARIZE_LEVEL_MODERATE = 2;
+  SUMMARIZE_LEVEL_HEAVY = 3;
+}
+
+// -----------------------------------------------------------------------------
+// Voice catalog typed shapes
+// -----------------------------------------------------------------------------
+
+// AdapterMapping pins a canonical voice id to a concrete backend voice
+// for a specific (tier, provider_id) pair. Replaces the legacy
+// map<string,string> with a "tier:provider-id" key shape.
+message AdapterMapping {
+  vrooli.audio_tools.v1.common.ProviderTier tier = 1;
+  string provider_id = 2;
+  string backend_voice_id = 3;
+}
+
+// -----------------------------------------------------------------------------
 // Synthesize
 // -----------------------------------------------------------------------------
 
@@ -60,11 +95,11 @@ message SynthesizeRequest {
   // Canonical voice ID (e.g., "voice.feminine.warm"). The active adapter
   // resolves this to a backend voice name via the catalog + voice_overrides.
   string voice = 2;
-  // Per-call overrides keyed by "tier:provider-id" (e.g., "byok:elevenlabs").
-  // Wins over the canonical mapping for the chosen tier.
-  map<string, string> voice_overrides = 3;
+  // Per-call overrides. Wins over the canonical mapping for the matching
+  // (tier, provider_id) pair.
+  repeated AdapterMapping voice_overrides = 3;
   double speed = 4;                   // 0.5–4.0
-  string response_format = 5;         // "mp3" | "wav" | "opus" | "flac"
+  vrooli.audio_tools.v1.common.ResponseFormat response_format = 5;
   // Optional cache control. When event_id is set, the server stores the
   // synthesized audio under a content-addressable + event index.
   string event_id = 6;
@@ -75,7 +110,7 @@ message SynthesizeResponse {
   bytes audio = 1;
   string content_type = 2;
   string content_hash = 3;            // SHA256 of the synthesis input key
-  string provider_tier = 4;
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 4;
   string provider_id = 5;
   string model_id = 6;
   string voice_used = 7;              // resolved backend voice name
@@ -91,7 +126,7 @@ message AudioFrame {
   bool is_final = 3;
 
   // Trace populated on the final frame:
-  string provider_tier = 4;
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 4;
   string provider_id = 5;
   string model_id = 6;
   string voice_used = 7;
@@ -107,8 +142,8 @@ message Voice {
   string id = 1;                      // canonical id (e.g., voice.feminine.warm)
   string name = 2;                    // human label
   string description = 3;
-  // Per-adapter mapping snapshot ("byok:openai-tts" -> "alloy").
-  map<string, string> adapter_mappings = 4;
+  // Per-adapter mapping snapshot.
+  repeated AdapterMapping adapter_mappings = 4;
 }
 
 message ListVoicesRequest {}
@@ -129,7 +164,7 @@ message GetCacheRequest {
   double speed = 3;
   string version = 4;                 // defaults to "active"
   string content_hash = 5;            // direct content-addressable lookup
-  string response_format = 6;
+  vrooli.audio_tools.v1.common.ResponseFormat response_format = 6;
 }
 
 message GetCacheResponse {
@@ -147,11 +182,11 @@ message Config {
   bool auto_enabled = 1;
   string default_voice = 2;           // canonical voice id
   double default_speed = 3;
-  string default_response_format = 4;
+  vrooli.audio_tools.v1.common.ResponseFormat default_response_format = 4;
   // Summarization thresholds for the long-text path.
   bool summarize_enabled = 5;
   int32 summarize_char_threshold = 6;
-  string summarize_level = 7;         // "light" | "moderate" | "heavy"
+  SummarizeLevel summarize_level = 7;
   string summarize_model = 8;
   int32 summarize_timeout_seconds = 9;
 }
@@ -162,25 +197,13 @@ message GetConfigResponse {
   Config config = 1;
 }
 
+// UpdateConfigRequest carries FieldMask + a full Config payload. Server
+// validates every path in `update_mask.paths`; unknown paths return
+// CodeInvalidArgument; empty mask returns CodeInvalidArgument
+// ("no fields specified").
 message UpdateConfigRequest {
-  bool auto_enabled = 1;
-  bool has_auto_enabled = 2;
-  string default_voice = 3;
-  bool has_default_voice = 4;
-  double default_speed = 5;
-  bool has_default_speed = 6;
-  string default_response_format = 7;
-  bool has_default_response_format = 8;
-  bool summarize_enabled = 9;
-  bool has_summarize_enabled = 10;
-  int32 summarize_char_threshold = 11;
-  bool has_summarize_char_threshold = 12;
-  string summarize_level = 13;
-  bool has_summarize_level = 14;
-  string summarize_model = 15;
-  bool has_summarize_model = 16;
-  int32 summarize_timeout_seconds = 17;
-  bool has_summarize_timeout_seconds = 18;
+  google.protobuf.FieldMask update_mask = 1;
+  Config config = 2;
 }
 
 message UpdateConfigResponse {
@@ -192,11 +215,11 @@ message UpdateConfigResponse {
 // -----------------------------------------------------------------------------
 
 message ProviderAvailability {
-  string tier = 1;                    // "byok" | "vrooli" | "local"
+  vrooli.audio_tools.v1.common.ProviderTier tier = 1;
   string provider_id = 2;
   bool available = 3;
   string error = 4;
-  string checked_at = 5;
+  google.protobuf.Timestamp checked_at = 5;
 }
 
 message Status {

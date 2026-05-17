@@ -1,34 +1,35 @@
 ### Domain worked this heartbeat
-- team
+- agent
 
 ### Target picked
-- `infra-health` - lowest team health at 0.53 with `Role coverage is weak`; agent default skipped because `agent-29` was visited 2026-05-14 and still has pending deprecation decision.
+- `meta-contrarian` - agent default after skipping recently visited `agent-29` with pending deprecation decision; tied among next-lowest active graph health nodes at 0.51.
 
 ### Disposition
-- no-action for infra-health structure; capability-gap for prompt-manager graph/topic validation.
+- no-action
 
 ### Evidence
-- `graph node infra-health` reports `team-role-coverage=0.00`.
-- `team show`, `roles.json`, and `team.json operatingContract.members` all define 3 roles/members with lanes, decisions, writes, safety rules, and task parameters.
-- `graph topics --team infra-health` has 0 errors, but warns that `api-core/storage` path prose is a topic leak.
+- `agent soul meta-contrarian` is concise and role-specific: skeptic, named failure mode, missing element, revision that would pass, operator decides.
+- `team show meta-optimization` assigns lane, owned contexts `decision-rejection-proposed` and `framework-update`, cap 3, and Action-review failure-mode parameters.
+- `team heartbeat-instructions meta-optimization meta-contrarian` defines a concrete loop: pending decisions, failure-mode scoring, challenge notes, resolution records, stale scan, supersession.
+- `graph topics --team meta-optimization` shows `meta-contrarian` consumes all major decision contexts and writes `challenge-report/*` plus `challenge-resolution-record/*`.
+- Recent knowledge includes concrete challenge reports and resolution records, including stale-target cleanup.
 
 ### Expected delta
-- Graph health should stop selecting infra-health as weak-role work when the team contract is complete.
-- Measure with `prompt-manager graph node infra-health` and `prompt-manager graph topics --team infra-health`.
+- None from this heartbeat. Next audit should check whether low graph health remains sparse-edge scoring only, or whether `CONTRARIAN_REVIEW`/method extraction becomes a real blocker.
 
 ### Capability architecture
-- weak
-- Primary layer gap: collection/validation tooling
-- Routing: capability-gap/backlog
+- clean
+- Primary layer gap: n/a
+- Routing: none
 
 ### Artifacts updated
-- TEAM_AUDIT.md: not edited because this run’s write surface only allowed knowledge, decisions, and handoff.
+- AGENT_AUDIT.md: not edited because this run’s write surface only allowed knowledge, decisions, and handoff.
 - DEPRECATION_QUEUE.md: unchanged.
 
 ### Decisions raised this heartbeat
-- `dec-1778884421236613535` - `capability-gap` - Make prompt-manager team graph/topic validation distinguish complete role contracts and storage-path prose from real gaps.
+- None. No proposal warranted.
 
 ### Knowledge entries written
-- `team-visited/infra-health` (`knw-1778884360443005942`)
-- `team-audit/2026-05-15` (`knw-1778884374384865969`)
-- `friction-inbox/prompt-team-agent-storage/graph-role-coverage-false-positive` (`knw-1778884389368910375`) pending curator routing to `friction-report/prompt-team-agent-storage/...`
+- `agent-visited/meta-contrarian` (`knw-1778970748390713777`)
+- `agent-audit/2026-05-16` (`knw-1778970748544475860`)
+- `friction-report/prompt-team-agent-storage/2026-05-16/topic-writer-attribution-mismatch` (`knw-1778970748544083427`)

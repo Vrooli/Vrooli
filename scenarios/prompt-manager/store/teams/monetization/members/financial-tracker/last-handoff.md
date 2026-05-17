@@ -20,9 +20,9 @@
 - Retention, churn, NRR, ARPU, LTV: `pending-telemetry`
 
 ### Material deltas since last snapshot
-- No material delta since `ledger-snapshot/2026-05-13`.
+- No material financial delta since `ledger-snapshot/2026-05-14`.
 - `operator-inputs.json::lastUpdatedAt` remains null.
-- No supported LPBS/Stripe, services activation, channel-attribution, or infra cost telemetry found.
+- Pending benchmark decision `dec-1778875348622351458` does not change current ledger math.
 
 ### Flags raised
 - `operator-inputs-unpopulated`
@@ -31,8 +31,8 @@
 
 ### Decisions raised this heartbeat
 - None.
-- Owned-context pending count remains 3: `dec-1777061056395576280`, `dec-1777406561539481259`, `dec-1777406584829985287`; new decisions skipped per cap.
-- Existing challenge responses for the COGS decision stack remain author-responded; no new response needed.
+- Current pending decision count is 1: `dec-1778875348622351458` (`benchmark-update`), outside financial-tracker owned contexts.
+- Owned-context pending count is 0.
 
 ### Assumptions checked
 - Tier 2 majority within 12 months: still no data.
@@ -49,5 +49,6 @@
 - Gateway usage and token cost attribution: TELEMETRY_ROADMAP Gap 4.
 
 ### Knowledge entry written
-- `ledger-snapshot/2026-05-14`: `knw-1778781836691445206`
-- Ledger entry appended: `ledger-1778781795594971362`
+- `ledger-snapshot/2026-05-16`: `knw-1778954570153129770`
+- Ledger entry appended: `ledger-1778954492350670741`
+- Process friction observed but not filed: generated storage/report-friction instructions still show `knowledge-add --by`, while live CLI rejects `--by`; attempted friction write to `meta-optimization` was blocked by `team_mismatch` despite universal-source friction docs.

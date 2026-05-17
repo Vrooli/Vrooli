@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
+	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -29,9 +30,10 @@ func (h *connectHandler) ListSpeakerProfiles(ctx context.Context, _ *connect.Req
 	out := make([]*sttv1.SpeakerProfile, 0, len(rows))
 	for _, p := range rows {
 		out = append(out, &sttv1.SpeakerProfile{
-			Id: p.ID, DisplayName: p.Name,
-			CreatedAt:    p.CreatedAt.UTC().Format(time.RFC3339),
-			UpdatedAt:    p.CreatedAt.UTC().Format(time.RFC3339),
+			Id:           p.ID,
+			DisplayName:  p.Name,
+			CreatedAt:    protomap.TimeToProto(p.CreatedAt),
+			UpdatedAt:    protomap.TimeToProto(p.CreatedAt),
 			EmbeddingDim: int32(len(p.Embedding)),
 		})
 	}
@@ -59,10 +61,10 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	speakerCfgMu.Lock()
-	if m.GetHasAddToActive() && m.GetAddToActive() {
+	if m.AddToActive != nil && *m.AddToActive {
 		speakerCfg.ProfileIDs = append(speakerCfg.ProfileIDs, id)
 	}
-	if m.GetHasEnable() && m.GetEnable() {
+	if m.Enable != nil && *m.Enable {
 		speakerCfg.Enabled = true
 	}
 	cfg := speakerCfg
@@ -72,7 +74,7 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 			ProfileId:    id,
 			DisplayName:  m.GetDisplayName(),
 			EmbeddingDim: int32(minInt(len(m.GetAudio()), 128)),
-			CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+			CreatedAt:    protomap.TimeToProto(time.Now().UTC()),
 		},
 		Config: cfg.toProto(),
 	}), nil

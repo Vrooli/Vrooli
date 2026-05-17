@@ -22,6 +22,9 @@ import (
 	localdb "audio-tools/internal/database"
 	apidb "github.com/vrooli/api-core/database"
 
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
 )
@@ -95,20 +98,27 @@ func TestTTS_UpdateConfig_PersistsAndReturns(t *testing.T) {
 	cfgStore := newTTSStoreDB(t)
 	c := newServer2(t, ttsH.Deps{ConfigStore: cfgStore})
 	res, err := c.UpdateConfig(context.Background(), connect.NewRequest(&ttsv1.UpdateConfigRequest{
-		HasAutoEnabled: true, AutoEnabled: true,
-		HasDefaultVoice: true, DefaultVoice: "voice.masculine.warm",
-		HasDefaultSpeed: true, DefaultSpeed: 1.25,
-		HasDefaultResponseFormat: true, DefaultResponseFormat: "mp3",
-		HasSummarizeEnabled: true, SummarizeEnabled: true,
-		HasSummarizeCharThreshold: true, SummarizeCharThreshold: 1024,
-		HasSummarizeLevel: true, SummarizeLevel: "concise",
-		HasSummarizeModel: true, SummarizeModel: "haiku",
-		HasSummarizeTimeoutSeconds: true, SummarizeTimeoutSeconds: 30,
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{
+			"auto_enabled", "default_voice", "default_speed", "default_response_format",
+			"summarize_enabled", "summarize_char_threshold", "summarize_level",
+			"summarize_model", "summarize_timeout_seconds",
+		}},
+		Config: &ttsv1.Config{
+			AutoEnabled:             true,
+			DefaultVoice:            "voice.masculine.warm",
+			DefaultSpeed:            1.25,
+			DefaultResponseFormat:   commonv1.ResponseFormat_RESPONSE_FORMAT_MP3,
+			SummarizeEnabled:        true,
+			SummarizeCharThreshold:  1024,
+			SummarizeLevel:          ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE,
+			SummarizeModel:          "haiku",
+			SummarizeTimeoutSeconds: 30,
+		},
 	}))
 	require.NoError(t, err)
 	require.True(t, res.Msg.GetConfig().GetAutoEnabled())
 	require.Equal(t, "voice.masculine.warm", res.Msg.GetConfig().GetDefaultVoice())
-	require.Equal(t, "concise", res.Msg.GetConfig().GetSummarizeLevel())
+	require.Equal(t, ttsv1.SummarizeLevel_SUMMARIZE_LEVEL_MODERATE, res.Msg.GetConfig().GetSummarizeLevel())
 
 	// Round-trip — GetConfig should return the persisted values.
 	got, err := c.GetConfig(context.Background(), connect.NewRequest(&ttsv1.GetConfigRequest{}))

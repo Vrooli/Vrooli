@@ -9,6 +9,8 @@ package settings_v1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -217,30 +219,16 @@ func (x *GetProviderConfigResponse) GetConfig() *ProviderConfig {
 	return nil
 }
 
+// UpdateProviderConfigRequest carries FieldMask + a full ProviderConfig
+// payload. Server validates each path in `update_mask.paths`; unknown
+// paths return CodeInvalidArgument; an empty mask returns
+// CodeInvalidArgument ("no fields specified").
 type UpdateProviderConfigRequest struct {
-	state                    protoimpl.MessageState `protogen:"open.v1"`
-	ByokEnabled              bool                   `protobuf:"varint,1,opt,name=byok_enabled,json=byokEnabled,proto3" json:"byok_enabled,omitempty"`
-	HasByokEnabled           bool                   `protobuf:"varint,2,opt,name=has_byok_enabled,json=hasByokEnabled,proto3" json:"has_byok_enabled,omitempty"`
-	VrooliEnabled            bool                   `protobuf:"varint,3,opt,name=vrooli_enabled,json=vrooliEnabled,proto3" json:"vrooli_enabled,omitempty"`
-	HasVrooliEnabled         bool                   `protobuf:"varint,4,opt,name=has_vrooli_enabled,json=hasVrooliEnabled,proto3" json:"has_vrooli_enabled,omitempty"`
-	LocalEnabled             bool                   `protobuf:"varint,5,opt,name=local_enabled,json=localEnabled,proto3" json:"local_enabled,omitempty"`
-	HasLocalEnabled          bool                   `protobuf:"varint,6,opt,name=has_local_enabled,json=hasLocalEnabled,proto3" json:"has_local_enabled,omitempty"`
-	WhisperUrl               string                 `protobuf:"bytes,10,opt,name=whisper_url,json=whisperUrl,proto3" json:"whisper_url,omitempty"`
-	HasWhisperUrl            bool                   `protobuf:"varint,11,opt,name=has_whisper_url,json=hasWhisperUrl,proto3" json:"has_whisper_url,omitempty"`
-	KokoroUrl                string                 `protobuf:"bytes,12,opt,name=kokoro_url,json=kokoroUrl,proto3" json:"kokoro_url,omitempty"`
-	HasKokoroUrl             bool                   `protobuf:"varint,13,opt,name=has_kokoro_url,json=hasKokoroUrl,proto3" json:"has_kokoro_url,omitempty"`
-	OllamaUrl                string                 `protobuf:"bytes,14,opt,name=ollama_url,json=ollamaUrl,proto3" json:"ollama_url,omitempty"`
-	HasOllamaUrl             bool                   `protobuf:"varint,15,opt,name=has_ollama_url,json=hasOllamaUrl,proto3" json:"has_ollama_url,omitempty"`
-	LpbsBaseUrl              string                 `protobuf:"bytes,16,opt,name=lpbs_base_url,json=lpbsBaseUrl,proto3" json:"lpbs_base_url,omitempty"`
-	HasLpbsBaseUrl           bool                   `protobuf:"varint,17,opt,name=has_lpbs_base_url,json=hasLpbsBaseUrl,proto3" json:"has_lpbs_base_url,omitempty"`
-	LpbsAppBundleKey         string                 `protobuf:"bytes,18,opt,name=lpbs_app_bundle_key,json=lpbsAppBundleKey,proto3" json:"lpbs_app_bundle_key,omitempty"`
-	HasLpbsAppBundleKey      bool                   `protobuf:"varint,19,opt,name=has_lpbs_app_bundle_key,json=hasLpbsAppBundleKey,proto3" json:"has_lpbs_app_bundle_key,omitempty"`
-	AvailTtlByokSeconds      int32                  `protobuf:"varint,20,opt,name=avail_ttl_byok_seconds,json=availTtlByokSeconds,proto3" json:"avail_ttl_byok_seconds,omitempty"`
-	HasAvailTtlByokSeconds   bool                   `protobuf:"varint,21,opt,name=has_avail_ttl_byok_seconds,json=hasAvailTtlByokSeconds,proto3" json:"has_avail_ttl_byok_seconds,omitempty"`
-	AvailTtlVrooliSeconds    int32                  `protobuf:"varint,22,opt,name=avail_ttl_vrooli_seconds,json=availTtlVrooliSeconds,proto3" json:"avail_ttl_vrooli_seconds,omitempty"`
-	HasAvailTtlVrooliSeconds bool                   `protobuf:"varint,23,opt,name=has_avail_ttl_vrooli_seconds,json=hasAvailTtlVrooliSeconds,proto3" json:"has_avail_ttl_vrooli_seconds,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,1,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	Config        *ProviderConfig        `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateProviderConfigRequest) Reset() {
@@ -273,144 +261,18 @@ func (*UpdateProviderConfigRequest) Descriptor() ([]byte, []int) {
 	return file_audio_tools_v1_settings_settings_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *UpdateProviderConfigRequest) GetByokEnabled() bool {
+func (x *UpdateProviderConfigRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	if x != nil {
-		return x.ByokEnabled
+		return x.UpdateMask
 	}
-	return false
+	return nil
 }
 
-func (x *UpdateProviderConfigRequest) GetHasByokEnabled() bool {
+func (x *UpdateProviderConfigRequest) GetConfig() *ProviderConfig {
 	if x != nil {
-		return x.HasByokEnabled
+		return x.Config
 	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetVrooliEnabled() bool {
-	if x != nil {
-		return x.VrooliEnabled
-	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetHasVrooliEnabled() bool {
-	if x != nil {
-		return x.HasVrooliEnabled
-	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetLocalEnabled() bool {
-	if x != nil {
-		return x.LocalEnabled
-	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetHasLocalEnabled() bool {
-	if x != nil {
-		return x.HasLocalEnabled
-	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetWhisperUrl() string {
-	if x != nil {
-		return x.WhisperUrl
-	}
-	return ""
-}
-
-func (x *UpdateProviderConfigRequest) GetHasWhisperUrl() bool {
-	if x != nil {
-		return x.HasWhisperUrl
-	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetKokoroUrl() string {
-	if x != nil {
-		return x.KokoroUrl
-	}
-	return ""
-}
-
-func (x *UpdateProviderConfigRequest) GetHasKokoroUrl() bool {
-	if x != nil {
-		return x.HasKokoroUrl
-	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetOllamaUrl() string {
-	if x != nil {
-		return x.OllamaUrl
-	}
-	return ""
-}
-
-func (x *UpdateProviderConfigRequest) GetHasOllamaUrl() bool {
-	if x != nil {
-		return x.HasOllamaUrl
-	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetLpbsBaseUrl() string {
-	if x != nil {
-		return x.LpbsBaseUrl
-	}
-	return ""
-}
-
-func (x *UpdateProviderConfigRequest) GetHasLpbsBaseUrl() bool {
-	if x != nil {
-		return x.HasLpbsBaseUrl
-	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetLpbsAppBundleKey() string {
-	if x != nil {
-		return x.LpbsAppBundleKey
-	}
-	return ""
-}
-
-func (x *UpdateProviderConfigRequest) GetHasLpbsAppBundleKey() bool {
-	if x != nil {
-		return x.HasLpbsAppBundleKey
-	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetAvailTtlByokSeconds() int32 {
-	if x != nil {
-		return x.AvailTtlByokSeconds
-	}
-	return 0
-}
-
-func (x *UpdateProviderConfigRequest) GetHasAvailTtlByokSeconds() bool {
-	if x != nil {
-		return x.HasAvailTtlByokSeconds
-	}
-	return false
-}
-
-func (x *UpdateProviderConfigRequest) GetAvailTtlVrooliSeconds() int32 {
-	if x != nil {
-		return x.AvailTtlVrooliSeconds
-	}
-	return 0
-}
-
-func (x *UpdateProviderConfigRequest) GetHasAvailTtlVrooliSeconds() bool {
-	if x != nil {
-		return x.HasAvailTtlVrooliSeconds
-	}
-	return false
+	return nil
 }
 
 type UpdateProviderConfigResponse struct {
@@ -462,8 +324,8 @@ type BYOKCredentialSummary struct {
 	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"` // "openai-whisper", "deepgram", ...
 	Capability    string                 `protobuf:"bytes,2,opt,name=capability,proto3" json:"capability,omitempty"`                   // "stt" | "tts" | "summarize"
 	Fingerprint   string                 `protobuf:"bytes,3,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`                 // redacted display, e.g., "sk-***abcd"
-	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	LastUsedAt    string                 `protobuf:"bytes,5,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastUsedAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -519,18 +381,18 @@ func (x *BYOKCredentialSummary) GetFingerprint() string {
 	return ""
 }
 
-func (x *BYOKCredentialSummary) GetCreatedAt() string {
+func (x *BYOKCredentialSummary) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
 	}
-	return ""
+	return nil
 }
 
-func (x *BYOKCredentialSummary) GetLastUsedAt() string {
+func (x *BYOKCredentialSummary) GetLastUsedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.LastUsedAt
 	}
-	return ""
+	return nil
 }
 
 type ListBYOKCredentialsRequest struct {
@@ -1062,7 +924,7 @@ var File_audio_tools_v1_settings_settings_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_settings_settings_proto_rawDesc = "" +
 	"\n" +
-	"&audio-tools/v1/settings/settings.proto\x12\x1evrooli.audio_tools.v1.settings\"\x9f\x03\n" +
+	"&audio-tools/v1/settings/settings.proto\x12\x1evrooli.audio_tools.v1.settings\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9f\x03\n" +
 	"\x0eProviderConfig\x12!\n" +
 	"\fbyok_enabled\x18\x01 \x01(\bR\vbyokEnabled\x12%\n" +
 	"\x0evrooli_enabled\x18\x02 \x01(\bR\rvrooliEnabled\x12#\n" +
@@ -1080,44 +942,23 @@ const file_audio_tools_v1_settings_settings_proto_rawDesc = "" +
 	"\x18avail_ttl_vrooli_seconds\x18\x15 \x01(\x05R\x15availTtlVrooliSeconds\"\x1a\n" +
 	"\x18GetProviderConfigRequest\"c\n" +
 	"\x19GetProviderConfigResponse\x12F\n" +
-	"\x06config\x18\x01 \x01(\v2..vrooli.audio_tools.v1.settings.ProviderConfigR\x06config\"\x81\a\n" +
-	"\x1bUpdateProviderConfigRequest\x12!\n" +
-	"\fbyok_enabled\x18\x01 \x01(\bR\vbyokEnabled\x12(\n" +
-	"\x10has_byok_enabled\x18\x02 \x01(\bR\x0ehasByokEnabled\x12%\n" +
-	"\x0evrooli_enabled\x18\x03 \x01(\bR\rvrooliEnabled\x12,\n" +
-	"\x12has_vrooli_enabled\x18\x04 \x01(\bR\x10hasVrooliEnabled\x12#\n" +
-	"\rlocal_enabled\x18\x05 \x01(\bR\flocalEnabled\x12*\n" +
-	"\x11has_local_enabled\x18\x06 \x01(\bR\x0fhasLocalEnabled\x12\x1f\n" +
-	"\vwhisper_url\x18\n" +
-	" \x01(\tR\n" +
-	"whisperUrl\x12&\n" +
-	"\x0fhas_whisper_url\x18\v \x01(\bR\rhasWhisperUrl\x12\x1d\n" +
-	"\n" +
-	"kokoro_url\x18\f \x01(\tR\tkokoroUrl\x12$\n" +
-	"\x0ehas_kokoro_url\x18\r \x01(\bR\fhasKokoroUrl\x12\x1d\n" +
-	"\n" +
-	"ollama_url\x18\x0e \x01(\tR\tollamaUrl\x12$\n" +
-	"\x0ehas_ollama_url\x18\x0f \x01(\bR\fhasOllamaUrl\x12\"\n" +
-	"\rlpbs_base_url\x18\x10 \x01(\tR\vlpbsBaseUrl\x12)\n" +
-	"\x11has_lpbs_base_url\x18\x11 \x01(\bR\x0ehasLpbsBaseUrl\x12-\n" +
-	"\x13lpbs_app_bundle_key\x18\x12 \x01(\tR\x10lpbsAppBundleKey\x124\n" +
-	"\x17has_lpbs_app_bundle_key\x18\x13 \x01(\bR\x13hasLpbsAppBundleKey\x123\n" +
-	"\x16avail_ttl_byok_seconds\x18\x14 \x01(\x05R\x13availTtlByokSeconds\x12:\n" +
-	"\x1ahas_avail_ttl_byok_seconds\x18\x15 \x01(\bR\x16hasAvailTtlByokSeconds\x127\n" +
-	"\x18avail_ttl_vrooli_seconds\x18\x16 \x01(\x05R\x15availTtlVrooliSeconds\x12>\n" +
-	"\x1chas_avail_ttl_vrooli_seconds\x18\x17 \x01(\bR\x18hasAvailTtlVrooliSeconds\"f\n" +
+	"\x06config\x18\x01 \x01(\v2..vrooli.audio_tools.v1.settings.ProviderConfigR\x06config\"\xa2\x01\n" +
+	"\x1bUpdateProviderConfigRequest\x12;\n" +
+	"\vupdate_mask\x18\x01 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMask\x12F\n" +
+	"\x06config\x18\x02 \x01(\v2..vrooli.audio_tools.v1.settings.ProviderConfigR\x06config\"f\n" +
 	"\x1cUpdateProviderConfigResponse\x12F\n" +
-	"\x06config\x18\x01 \x01(\v2..vrooli.audio_tools.v1.settings.ProviderConfigR\x06config\"\xbb\x01\n" +
+	"\x06config\x18\x01 \x01(\v2..vrooli.audio_tools.v1.settings.ProviderConfigR\x06config\"\xf3\x01\n" +
 	"\x15BYOKCredentialSummary\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x02 \x01(\tR\n" +
 	"capability\x12 \n" +
-	"\vfingerprint\x18\x03 \x01(\tR\vfingerprint\x12\x1d\n" +
+	"\vfingerprint\x18\x03 \x01(\tR\vfingerprint\x129\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12 \n" +
-	"\flast_used_at\x18\x05 \x01(\tR\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
+	"\flast_used_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"lastUsedAt\"\x1c\n" +
 	"\x1aListBYOKCredentialsRequest\"v\n" +
 	"\x1bListBYOKCredentialsResponse\x12W\n" +
@@ -1193,34 +1034,40 @@ var file_audio_tools_v1_settings_settings_proto_goTypes = []any{
 	(*GetVoiceOverridesResponse)(nil),    // 14: vrooli.audio_tools.v1.settings.GetVoiceOverridesResponse
 	(*SetVoiceOverrideRequest)(nil),      // 15: vrooli.audio_tools.v1.settings.SetVoiceOverrideRequest
 	(*SetVoiceOverrideResponse)(nil),     // 16: vrooli.audio_tools.v1.settings.SetVoiceOverrideResponse
+	(*fieldmaskpb.FieldMask)(nil),        // 17: google.protobuf.FieldMask
+	(*timestamppb.Timestamp)(nil),        // 18: google.protobuf.Timestamp
 }
 var file_audio_tools_v1_settings_settings_proto_depIdxs = []int32{
 	0,  // 0: vrooli.audio_tools.v1.settings.GetProviderConfigResponse.config:type_name -> vrooli.audio_tools.v1.settings.ProviderConfig
-	0,  // 1: vrooli.audio_tools.v1.settings.UpdateProviderConfigResponse.config:type_name -> vrooli.audio_tools.v1.settings.ProviderConfig
-	5,  // 2: vrooli.audio_tools.v1.settings.ListBYOKCredentialsResponse.credentials:type_name -> vrooli.audio_tools.v1.settings.BYOKCredentialSummary
-	5,  // 3: vrooli.audio_tools.v1.settings.UpsertBYOKCredentialResponse.credential:type_name -> vrooli.audio_tools.v1.settings.BYOKCredentialSummary
-	12, // 4: vrooli.audio_tools.v1.settings.GetVoiceOverridesResponse.overrides:type_name -> vrooli.audio_tools.v1.settings.VoiceOverride
-	12, // 5: vrooli.audio_tools.v1.settings.SetVoiceOverrideRequest.override:type_name -> vrooli.audio_tools.v1.settings.VoiceOverride
-	12, // 6: vrooli.audio_tools.v1.settings.SetVoiceOverrideResponse.overrides:type_name -> vrooli.audio_tools.v1.settings.VoiceOverride
-	1,  // 7: vrooli.audio_tools.v1.settings.SettingsService.GetProviderConfig:input_type -> vrooli.audio_tools.v1.settings.GetProviderConfigRequest
-	3,  // 8: vrooli.audio_tools.v1.settings.SettingsService.UpdateProviderConfig:input_type -> vrooli.audio_tools.v1.settings.UpdateProviderConfigRequest
-	6,  // 9: vrooli.audio_tools.v1.settings.SettingsService.ListBYOKCredentials:input_type -> vrooli.audio_tools.v1.settings.ListBYOKCredentialsRequest
-	8,  // 10: vrooli.audio_tools.v1.settings.SettingsService.UpsertBYOKCredential:input_type -> vrooli.audio_tools.v1.settings.UpsertBYOKCredentialRequest
-	10, // 11: vrooli.audio_tools.v1.settings.SettingsService.DeleteBYOKCredential:input_type -> vrooli.audio_tools.v1.settings.DeleteBYOKCredentialRequest
-	13, // 12: vrooli.audio_tools.v1.settings.SettingsService.GetVoiceOverrides:input_type -> vrooli.audio_tools.v1.settings.GetVoiceOverridesRequest
-	15, // 13: vrooli.audio_tools.v1.settings.SettingsService.SetVoiceOverride:input_type -> vrooli.audio_tools.v1.settings.SetVoiceOverrideRequest
-	2,  // 14: vrooli.audio_tools.v1.settings.SettingsService.GetProviderConfig:output_type -> vrooli.audio_tools.v1.settings.GetProviderConfigResponse
-	4,  // 15: vrooli.audio_tools.v1.settings.SettingsService.UpdateProviderConfig:output_type -> vrooli.audio_tools.v1.settings.UpdateProviderConfigResponse
-	7,  // 16: vrooli.audio_tools.v1.settings.SettingsService.ListBYOKCredentials:output_type -> vrooli.audio_tools.v1.settings.ListBYOKCredentialsResponse
-	9,  // 17: vrooli.audio_tools.v1.settings.SettingsService.UpsertBYOKCredential:output_type -> vrooli.audio_tools.v1.settings.UpsertBYOKCredentialResponse
-	11, // 18: vrooli.audio_tools.v1.settings.SettingsService.DeleteBYOKCredential:output_type -> vrooli.audio_tools.v1.settings.DeleteBYOKCredentialResponse
-	14, // 19: vrooli.audio_tools.v1.settings.SettingsService.GetVoiceOverrides:output_type -> vrooli.audio_tools.v1.settings.GetVoiceOverridesResponse
-	16, // 20: vrooli.audio_tools.v1.settings.SettingsService.SetVoiceOverride:output_type -> vrooli.audio_tools.v1.settings.SetVoiceOverrideResponse
-	14, // [14:21] is the sub-list for method output_type
-	7,  // [7:14] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	17, // 1: vrooli.audio_tools.v1.settings.UpdateProviderConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	0,  // 2: vrooli.audio_tools.v1.settings.UpdateProviderConfigRequest.config:type_name -> vrooli.audio_tools.v1.settings.ProviderConfig
+	0,  // 3: vrooli.audio_tools.v1.settings.UpdateProviderConfigResponse.config:type_name -> vrooli.audio_tools.v1.settings.ProviderConfig
+	18, // 4: vrooli.audio_tools.v1.settings.BYOKCredentialSummary.created_at:type_name -> google.protobuf.Timestamp
+	18, // 5: vrooli.audio_tools.v1.settings.BYOKCredentialSummary.last_used_at:type_name -> google.protobuf.Timestamp
+	5,  // 6: vrooli.audio_tools.v1.settings.ListBYOKCredentialsResponse.credentials:type_name -> vrooli.audio_tools.v1.settings.BYOKCredentialSummary
+	5,  // 7: vrooli.audio_tools.v1.settings.UpsertBYOKCredentialResponse.credential:type_name -> vrooli.audio_tools.v1.settings.BYOKCredentialSummary
+	12, // 8: vrooli.audio_tools.v1.settings.GetVoiceOverridesResponse.overrides:type_name -> vrooli.audio_tools.v1.settings.VoiceOverride
+	12, // 9: vrooli.audio_tools.v1.settings.SetVoiceOverrideRequest.override:type_name -> vrooli.audio_tools.v1.settings.VoiceOverride
+	12, // 10: vrooli.audio_tools.v1.settings.SetVoiceOverrideResponse.overrides:type_name -> vrooli.audio_tools.v1.settings.VoiceOverride
+	1,  // 11: vrooli.audio_tools.v1.settings.SettingsService.GetProviderConfig:input_type -> vrooli.audio_tools.v1.settings.GetProviderConfigRequest
+	3,  // 12: vrooli.audio_tools.v1.settings.SettingsService.UpdateProviderConfig:input_type -> vrooli.audio_tools.v1.settings.UpdateProviderConfigRequest
+	6,  // 13: vrooli.audio_tools.v1.settings.SettingsService.ListBYOKCredentials:input_type -> vrooli.audio_tools.v1.settings.ListBYOKCredentialsRequest
+	8,  // 14: vrooli.audio_tools.v1.settings.SettingsService.UpsertBYOKCredential:input_type -> vrooli.audio_tools.v1.settings.UpsertBYOKCredentialRequest
+	10, // 15: vrooli.audio_tools.v1.settings.SettingsService.DeleteBYOKCredential:input_type -> vrooli.audio_tools.v1.settings.DeleteBYOKCredentialRequest
+	13, // 16: vrooli.audio_tools.v1.settings.SettingsService.GetVoiceOverrides:input_type -> vrooli.audio_tools.v1.settings.GetVoiceOverridesRequest
+	15, // 17: vrooli.audio_tools.v1.settings.SettingsService.SetVoiceOverride:input_type -> vrooli.audio_tools.v1.settings.SetVoiceOverrideRequest
+	2,  // 18: vrooli.audio_tools.v1.settings.SettingsService.GetProviderConfig:output_type -> vrooli.audio_tools.v1.settings.GetProviderConfigResponse
+	4,  // 19: vrooli.audio_tools.v1.settings.SettingsService.UpdateProviderConfig:output_type -> vrooli.audio_tools.v1.settings.UpdateProviderConfigResponse
+	7,  // 20: vrooli.audio_tools.v1.settings.SettingsService.ListBYOKCredentials:output_type -> vrooli.audio_tools.v1.settings.ListBYOKCredentialsResponse
+	9,  // 21: vrooli.audio_tools.v1.settings.SettingsService.UpsertBYOKCredential:output_type -> vrooli.audio_tools.v1.settings.UpsertBYOKCredentialResponse
+	11, // 22: vrooli.audio_tools.v1.settings.SettingsService.DeleteBYOKCredential:output_type -> vrooli.audio_tools.v1.settings.DeleteBYOKCredentialResponse
+	14, // 23: vrooli.audio_tools.v1.settings.SettingsService.GetVoiceOverrides:output_type -> vrooli.audio_tools.v1.settings.GetVoiceOverridesResponse
+	16, // 24: vrooli.audio_tools.v1.settings.SettingsService.SetVoiceOverride:output_type -> vrooli.audio_tools.v1.settings.SetVoiceOverrideResponse
+	18, // [18:25] is the sub-list for method output_type
+	11, // [11:18] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_settings_settings_proto_init() }

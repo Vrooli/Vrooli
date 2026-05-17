@@ -4,6 +4,10 @@
     "scenarios/swarm-manager/docs/migrations/**"
   ],
   "created": "2026-04-27T20:00:01Z",
+  "depends_on": [
+    "fix/qa-app-monitor-gct-requirement-target-decomposition-20260516",
+    "fix/qa-app-monitor-gct-validation-automation-20260516"
+  ],
   "description": "Verify the in-flight migration of app-monitor from app-issue-tracker to swarm-manager is a complete hard cutover with zero legacy/compat/dead code, then finalize it.\n\n## Context\n\nA migration is currently in progress (uncommitted changes touch `scenarios/app-monitor/api/services/app_reports.go`, `api/toolregistry/issue_tools.go`, `api/services/app_diagnostics_aggregator.go`, UI `ReportIssueDialog.tsx`, `useReportExistingIssues.ts`, `useReportIssueState.ts`, `scenarioIssuesStore.ts`, `DiagnosticsTab.tsx`, `LighthouseTab.tsx`, etc.). Completeness and correctness are unverified.\n\n## Scope\n\n1. Inventory every prior app-issue-tracker integration point in app-monitor (API client, tool handlers, UI dialog flows, types, tests, service.json, docs).\n2. Confirm each one now routes to swarm-manager (capture / backlog / execution endpoints) with equivalent behavior, including the issue-report flow, the diagnostics → issue creation flow, and any agent-spawn flows.\n3. Remove ALL residual references to app-issue-tracker — imports, types, env vars, service.json depends_on entries, fallback branches, dead helpers, comments, test fixtures, docs. No feature flags. No compat shims. No 'legacy mode'.\n4. Update tests to assert against swarm-manager only; delete any app-issue-tracker test doubles.\n5. Document the resulting migration pattern (mapping table: AIT endpoint → swarm-manager endpoint, AIT type → swarm-manager type) in a short note under app-monitor or swarm-manager docs — this becomes the template for the sweep across other scenarios.\n\n## Acceptance\n- `rg -n 'app-issue-tracker|appIssueTracker|app_issue_tracker' scenarios/app-monitor` returns zero matches outside removal-history docs.\n- App-monitor service.json no longer depends on app-issue-tracker.\n- All app-monitor tests pass without app-issue-tracker running.\n- Migration mapping doc exists and is referenced by the sweep item below.",
   "effort": "M",
   "initiative": "swarm-manager-feature-parity",
@@ -13,5 +17,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Verify and Finalize App-Monitor's Hard Cutover from App-Issue-Tracker to Swarm-Manager",
-  "updated": "2026-04-27T20:14:24Z"
+  "updated": "2026-05-16T22:04:25Z"
 }

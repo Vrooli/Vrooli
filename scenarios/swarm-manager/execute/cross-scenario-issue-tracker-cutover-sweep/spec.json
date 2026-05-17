@@ -1,7 +1,9 @@
 {
   "created": "2026-04-27T20:00:01Z",
   "depends_on": [
-    "execute/app-monitor-issue-tracker-cutover-verify"
+    "execute/app-monitor-issue-tracker-cutover-verify",
+    "fix/qa-app-monitor-gct-requirement-target-decomposition-20260516",
+    "fix/qa-app-monitor-gct-validation-automation-20260516"
   ],
   "description": "Apply the app-monitor cutover pattern to every other scenario that still integrates with app-issue-tracker. Hard cutover only — no compat shims, no fallbacks, no dead code.\n\n## Identified Consumers (from `rg 'app-issue-tracker' scenarios/`)\n\n- **scenario-auditor** — substantial integration: `api/handlers_issue_tracker.go`, `api/agent_manager.go`, `api/protected_scenarios_store.go`, `api/rules/config/setup_steps.go`, `api/rules/structure/test_coverage.go`, UI `ReportIssueDialog.tsx`, `RulesManager.tsx`, `ManageProtectedScenariosDialog.tsx`.\n- **deployment-manager** — `ui/src/pages/Deployments.tsx`, `ui/src/components/GuidedFlow.tsx`, plus docs/scenarios refs.\n- **prd-control-tower** — `api/issues.go`.\n- **landing-manager** — `api/handlers/customize.go`, `api/errors/errors.go`, `ui/src/components/AgentCustomizationForm.tsx`.\n- **secrets-manager** — `ui/src/sections/TierReadiness.tsx`.\n- **agent-inbox** — `api/domain/types.go`.\n- **scenario-dependency-analyzer** — `api/internal/app/analysis_test.go` (test-only).\n- **vrooli-orchestrator** — `initialization/postgres/seed.sql`.\n- **swarm-manager itself** — `requirements/18-app-issue-tracker-integration/module.json` (rewrite or retire).\n- **prompt-manager team docs / agent SOULs** referencing AIT (oss-advertiser) — text-only updates.\n\nRe-run the inventory at start; treat the list above as a hint, not authoritative.\n\n## Per-Scenario Procedure (apply uniformly)\n1. Map each AIT call to its swarm-manager equivalent using the doc produced by `app-monitor-issue-tracker-cutover-verify`.\n2. Replace, don't wrap. Delete the AIT client/types/handlers; add swarm-manager calls in their place.\n3. Update service.json depends_on, env wiring, and any deployment manifests.\n4. Update or delete tests; do not keep AIT mocks 'just in case'.\n5. Sweep docs and CLAUDE.md / memory references in the same scenario.\n6. Confirm `rg 'app-issue-tracker'` for that scenario returns zero non-removal-history hits.\n\n## Out of Scope\n- The app-issue-tracker scenario directory itself (handled by the deprecation chore).\n- App-monitor (handled by the verify item).\n\n## Acceptance\n- Repo-wide `rg -n 'app-issue-tracker|appIssueTracker|app_issue_tracker' scenarios/ | grep -v 'scenarios/app-issue-tracker/'` returns zero non-historical matches.\n- All affected scenarios build and pass their own tests with app-issue-tracker NOT running.",
   "effort": "L",
@@ -10,7 +12,7 @@
   "name": "cross-scenario-issue-tracker-cutover-sweep",
   "priority": 4,
   "status": "backlog",
-  "tags": null,
+  "tags": [],
   "title": "Hard-Cutover All Remaining Scenarios Off App-Issue-Tracker to Swarm-Manager",
-  "updated": "2026-04-27T20:00:01Z"
+  "updated": "2026-05-16T22:04:25Z"
 }

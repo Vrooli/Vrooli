@@ -1,10 +1,58 @@
+import datetime
+
+from google.protobuf import field_mask_pb2 as _field_mask_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from audio_tools.v1.common import common_pb2 as _common_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class SpeakerMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SPEAKER_MODE_UNSPECIFIED: _ClassVar[SpeakerMode]
+    SPEAKER_MODE_OFF: _ClassVar[SpeakerMode]
+    SPEAKER_MODE_FILTER: _ClassVar[SpeakerMode]
+    SPEAKER_MODE_ADVISORY: _ClassVar[SpeakerMode]
+
+class RejectBehavior(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    REJECT_BEHAVIOR_UNSPECIFIED: _ClassVar[RejectBehavior]
+    REJECT_BEHAVIOR_DROP: _ClassVar[RejectBehavior]
+    REJECT_BEHAVIOR_SHOW_MUTED: _ClassVar[RejectBehavior]
+
+class StreamingMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STREAMING_MODE_UNSPECIFIED: _ClassVar[StreamingMode]
+    STREAMING_MODE_AUTO: _ClassVar[StreamingMode]
+    STREAMING_MODE_OFF: _ClassVar[StreamingMode]
+
+class StrategyPreference(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STRATEGY_PREFERENCE_UNSPECIFIED: _ClassVar[StrategyPreference]
+    STRATEGY_PREFERENCE_AUTO: _ClassVar[StrategyPreference]
+    STRATEGY_PREFERENCE_VAD: _ClassVar[StrategyPreference]
+    STRATEGY_PREFERENCE_OVERLAP: _ClassVar[StrategyPreference]
+    STRATEGY_PREFERENCE_PASSTHROUGH: _ClassVar[StrategyPreference]
+SPEAKER_MODE_UNSPECIFIED: SpeakerMode
+SPEAKER_MODE_OFF: SpeakerMode
+SPEAKER_MODE_FILTER: SpeakerMode
+SPEAKER_MODE_ADVISORY: SpeakerMode
+REJECT_BEHAVIOR_UNSPECIFIED: RejectBehavior
+REJECT_BEHAVIOR_DROP: RejectBehavior
+REJECT_BEHAVIOR_SHOW_MUTED: RejectBehavior
+STREAMING_MODE_UNSPECIFIED: StreamingMode
+STREAMING_MODE_AUTO: StreamingMode
+STREAMING_MODE_OFF: StreamingMode
+STRATEGY_PREFERENCE_UNSPECIFIED: StrategyPreference
+STRATEGY_PREFERENCE_AUTO: StrategyPreference
+STRATEGY_PREFERENCE_VAD: StrategyPreference
+STRATEGY_PREFERENCE_OVERLAP: StrategyPreference
+STRATEGY_PREFERENCE_PASSTHROUGH: StrategyPreference
 
 class TranscribeRequest(_message.Message):
     __slots__ = ("audio", "format", "language", "skip_speaker_verification", "initial_prompt")
@@ -14,11 +62,11 @@ class TranscribeRequest(_message.Message):
     SKIP_SPEAKER_VERIFICATION_FIELD_NUMBER: _ClassVar[int]
     INITIAL_PROMPT_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
-    format: str
+    format: _common_pb2.AudioFormat
     language: str
     skip_speaker_verification: bool
     initial_prompt: str
-    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[str] = ..., language: _Optional[str] = ..., skip_speaker_verification: _Optional[bool] = ..., initial_prompt: _Optional[str] = ...) -> None: ...
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., language: _Optional[str] = ..., skip_speaker_verification: _Optional[bool] = ..., initial_prompt: _Optional[str] = ...) -> None: ...
 
 class TranscribeResponse(_message.Message):
     __slots__ = ("text", "detected_language", "duration_seconds", "provider_tier", "provider_id", "model_id", "latency_ms")
@@ -32,11 +80,11 @@ class TranscribeResponse(_message.Message):
     text: str
     detected_language: str
     duration_seconds: float
-    provider_tier: str
+    provider_tier: _common_pb2.ProviderTier
     provider_id: str
     model_id: str
     latency_ms: float
-    def __init__(self, text: _Optional[str] = ..., detected_language: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., provider_tier: _Optional[str] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
+    def __init__(self, text: _Optional[str] = ..., detected_language: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
 
 class StreamConfig(_message.Message):
     __slots__ = ("flush_interval_ms", "min_delta_bytes", "overlap_bytes", "persistent_mode", "wake_word_enabled", "wake_word_threshold", "segment_silence_ms", "streaming_mode", "strategy_preference", "vad_silence_ms", "overlap_window_ms", "overlap_commit_runs")
@@ -59,12 +107,12 @@ class StreamConfig(_message.Message):
     wake_word_enabled: bool
     wake_word_threshold: float
     segment_silence_ms: int
-    streaming_mode: str
-    strategy_preference: str
+    streaming_mode: StreamingMode
+    strategy_preference: StrategyPreference
     vad_silence_ms: int
     overlap_window_ms: int
     overlap_commit_runs: int
-    def __init__(self, flush_interval_ms: _Optional[int] = ..., min_delta_bytes: _Optional[int] = ..., overlap_bytes: _Optional[int] = ..., persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., segment_silence_ms: _Optional[int] = ..., streaming_mode: _Optional[str] = ..., strategy_preference: _Optional[str] = ..., vad_silence_ms: _Optional[int] = ..., overlap_window_ms: _Optional[int] = ..., overlap_commit_runs: _Optional[int] = ...) -> None: ...
+    def __init__(self, flush_interval_ms: _Optional[int] = ..., min_delta_bytes: _Optional[int] = ..., overlap_bytes: _Optional[int] = ..., persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., segment_silence_ms: _Optional[int] = ..., streaming_mode: _Optional[_Union[StreamingMode, str]] = ..., strategy_preference: _Optional[_Union[StrategyPreference, str]] = ..., vad_silence_ms: _Optional[int] = ..., overlap_window_ms: _Optional[int] = ..., overlap_commit_runs: _Optional[int] = ...) -> None: ...
 
 class GetStreamConfigRequest(_message.Message):
     __slots__ = ()
@@ -77,56 +125,12 @@ class GetStreamConfigResponse(_message.Message):
     def __init__(self, config: _Optional[_Union[StreamConfig, _Mapping]] = ...) -> None: ...
 
 class UpdateStreamConfigRequest(_message.Message):
-    __slots__ = ("flush_interval_ms", "has_flush_interval_ms", "min_delta_bytes", "has_min_delta_bytes", "overlap_bytes", "has_overlap_bytes", "persistent_mode", "has_persistent_mode", "wake_word_enabled", "has_wake_word_enabled", "wake_word_threshold", "has_wake_word_threshold", "segment_silence_ms", "has_segment_silence_ms", "streaming_mode", "has_streaming_mode", "strategy_preference", "has_strategy_preference", "vad_silence_ms", "has_vad_silence_ms", "overlap_window_ms", "has_overlap_window_ms", "overlap_commit_runs", "has_overlap_commit_runs")
-    FLUSH_INTERVAL_MS_FIELD_NUMBER: _ClassVar[int]
-    HAS_FLUSH_INTERVAL_MS_FIELD_NUMBER: _ClassVar[int]
-    MIN_DELTA_BYTES_FIELD_NUMBER: _ClassVar[int]
-    HAS_MIN_DELTA_BYTES_FIELD_NUMBER: _ClassVar[int]
-    OVERLAP_BYTES_FIELD_NUMBER: _ClassVar[int]
-    HAS_OVERLAP_BYTES_FIELD_NUMBER: _ClassVar[int]
-    PERSISTENT_MODE_FIELD_NUMBER: _ClassVar[int]
-    HAS_PERSISTENT_MODE_FIELD_NUMBER: _ClassVar[int]
-    WAKE_WORD_ENABLED_FIELD_NUMBER: _ClassVar[int]
-    HAS_WAKE_WORD_ENABLED_FIELD_NUMBER: _ClassVar[int]
-    WAKE_WORD_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
-    HAS_WAKE_WORD_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
-    SEGMENT_SILENCE_MS_FIELD_NUMBER: _ClassVar[int]
-    HAS_SEGMENT_SILENCE_MS_FIELD_NUMBER: _ClassVar[int]
-    STREAMING_MODE_FIELD_NUMBER: _ClassVar[int]
-    HAS_STREAMING_MODE_FIELD_NUMBER: _ClassVar[int]
-    STRATEGY_PREFERENCE_FIELD_NUMBER: _ClassVar[int]
-    HAS_STRATEGY_PREFERENCE_FIELD_NUMBER: _ClassVar[int]
-    VAD_SILENCE_MS_FIELD_NUMBER: _ClassVar[int]
-    HAS_VAD_SILENCE_MS_FIELD_NUMBER: _ClassVar[int]
-    OVERLAP_WINDOW_MS_FIELD_NUMBER: _ClassVar[int]
-    HAS_OVERLAP_WINDOW_MS_FIELD_NUMBER: _ClassVar[int]
-    OVERLAP_COMMIT_RUNS_FIELD_NUMBER: _ClassVar[int]
-    HAS_OVERLAP_COMMIT_RUNS_FIELD_NUMBER: _ClassVar[int]
-    flush_interval_ms: int
-    has_flush_interval_ms: bool
-    min_delta_bytes: int
-    has_min_delta_bytes: bool
-    overlap_bytes: int
-    has_overlap_bytes: bool
-    persistent_mode: bool
-    has_persistent_mode: bool
-    wake_word_enabled: bool
-    has_wake_word_enabled: bool
-    wake_word_threshold: float
-    has_wake_word_threshold: bool
-    segment_silence_ms: int
-    has_segment_silence_ms: bool
-    streaming_mode: str
-    has_streaming_mode: bool
-    strategy_preference: str
-    has_strategy_preference: bool
-    vad_silence_ms: int
-    has_vad_silence_ms: bool
-    overlap_window_ms: int
-    has_overlap_window_ms: bool
-    overlap_commit_runs: int
-    has_overlap_commit_runs: bool
-    def __init__(self, flush_interval_ms: _Optional[int] = ..., has_flush_interval_ms: _Optional[bool] = ..., min_delta_bytes: _Optional[int] = ..., has_min_delta_bytes: _Optional[bool] = ..., overlap_bytes: _Optional[int] = ..., has_overlap_bytes: _Optional[bool] = ..., persistent_mode: _Optional[bool] = ..., has_persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., has_wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., has_wake_word_threshold: _Optional[bool] = ..., segment_silence_ms: _Optional[int] = ..., has_segment_silence_ms: _Optional[bool] = ..., streaming_mode: _Optional[str] = ..., has_streaming_mode: _Optional[bool] = ..., strategy_preference: _Optional[str] = ..., has_strategy_preference: _Optional[bool] = ..., vad_silence_ms: _Optional[int] = ..., has_vad_silence_ms: _Optional[bool] = ..., overlap_window_ms: _Optional[int] = ..., has_overlap_window_ms: _Optional[bool] = ..., overlap_commit_runs: _Optional[int] = ..., has_overlap_commit_runs: _Optional[bool] = ...) -> None: ...
+    __slots__ = ("update_mask", "config")
+    UPDATE_MASK_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    update_mask: _field_mask_pb2.FieldMask
+    config: StreamConfig
+    def __init__(self, update_mask: _Optional[_Union[_field_mask_pb2.FieldMask, _Mapping]] = ..., config: _Optional[_Union[StreamConfig, _Mapping]] = ...) -> None: ...
 
 class UpdateStreamConfigResponse(_message.Message):
     __slots__ = ("config",)
@@ -134,13 +138,35 @@ class UpdateStreamConfigResponse(_message.Message):
     config: StreamConfig
     def __init__(self, config: _Optional[_Union[StreamConfig, _Mapping]] = ...) -> None: ...
 
+class WakeWordSample(_message.Message):
+    __slots__ = ("audio", "format", "sample_rate_hz")
+    AUDIO_FIELD_NUMBER: _ClassVar[int]
+    FORMAT_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_RATE_HZ_FIELD_NUMBER: _ClassVar[int]
+    audio: bytes
+    format: _common_pb2.AudioFormat
+    sample_rate_hz: int
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., sample_rate_hz: _Optional[int] = ...) -> None: ...
+
+class WakeWordTemplate(_message.Message):
+    __slots__ = ("label", "threshold", "samples", "updated_at")
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    THRESHOLD_FIELD_NUMBER: _ClassVar[int]
+    SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    label: str
+    threshold: float
+    samples: _containers.RepeatedCompositeFieldContainer[WakeWordSample]
+    updated_at: _timestamp_pb2.Timestamp
+    def __init__(self, label: _Optional[str] = ..., threshold: _Optional[float] = ..., samples: _Optional[_Iterable[_Union[WakeWordSample, _Mapping]]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
 class WakeWordConfig(_message.Message):
-    __slots__ = ("configured", "template_json")
+    __slots__ = ("configured", "template")
     CONFIGURED_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATE_JSON_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_FIELD_NUMBER: _ClassVar[int]
     configured: bool
-    template_json: str
-    def __init__(self, configured: _Optional[bool] = ..., template_json: _Optional[str] = ...) -> None: ...
+    template: WakeWordTemplate
+    def __init__(self, configured: _Optional[bool] = ..., template: _Optional[_Union[WakeWordTemplate, _Mapping]] = ...) -> None: ...
 
 class GetWakeWordConfigRequest(_message.Message):
     __slots__ = ()
@@ -153,10 +179,10 @@ class GetWakeWordConfigResponse(_message.Message):
     def __init__(self, config: _Optional[_Union[WakeWordConfig, _Mapping]] = ...) -> None: ...
 
 class UpdateWakeWordTemplateRequest(_message.Message):
-    __slots__ = ("template_json",)
-    TEMPLATE_JSON_FIELD_NUMBER: _ClassVar[int]
-    template_json: str
-    def __init__(self, template_json: _Optional[str] = ...) -> None: ...
+    __slots__ = ("template",)
+    TEMPLATE_FIELD_NUMBER: _ClassVar[int]
+    template: WakeWordTemplate
+    def __init__(self, template: _Optional[_Union[WakeWordTemplate, _Mapping]] = ...) -> None: ...
 
 class UpdateWakeWordTemplateResponse(_message.Message):
     __slots__ = ("config",)
@@ -186,11 +212,11 @@ class SpeakerConfig(_message.Message):
     enabled: bool
     profile_ids: _containers.RepeatedScalarFieldContainer[str]
     threshold: float
-    mode: str
-    reject_behavior: str
+    mode: SpeakerMode
+    reject_behavior: RejectBehavior
     fallback_without_verification: bool
     extraction_enabled: bool
-    def __init__(self, enabled: _Optional[bool] = ..., profile_ids: _Optional[_Iterable[str]] = ..., threshold: _Optional[float] = ..., mode: _Optional[str] = ..., reject_behavior: _Optional[str] = ..., fallback_without_verification: _Optional[bool] = ..., extraction_enabled: _Optional[bool] = ...) -> None: ...
+    def __init__(self, enabled: _Optional[bool] = ..., profile_ids: _Optional[_Iterable[str]] = ..., threshold: _Optional[float] = ..., mode: _Optional[_Union[SpeakerMode, str]] = ..., reject_behavior: _Optional[_Union[RejectBehavior, str]] = ..., fallback_without_verification: _Optional[bool] = ..., extraction_enabled: _Optional[bool] = ...) -> None: ...
 
 class GetSpeakerConfigRequest(_message.Message):
     __slots__ = ()
@@ -203,36 +229,12 @@ class GetSpeakerConfigResponse(_message.Message):
     def __init__(self, config: _Optional[_Union[SpeakerConfig, _Mapping]] = ...) -> None: ...
 
 class UpdateSpeakerConfigRequest(_message.Message):
-    __slots__ = ("enabled", "has_enabled", "profile_ids", "has_profile_ids", "threshold", "has_threshold", "mode", "has_mode", "reject_behavior", "has_reject_behavior", "fallback_without_verification", "has_fallback_without_verification", "extraction_enabled", "has_extraction_enabled")
-    ENABLED_FIELD_NUMBER: _ClassVar[int]
-    HAS_ENABLED_FIELD_NUMBER: _ClassVar[int]
-    PROFILE_IDS_FIELD_NUMBER: _ClassVar[int]
-    HAS_PROFILE_IDS_FIELD_NUMBER: _ClassVar[int]
-    THRESHOLD_FIELD_NUMBER: _ClassVar[int]
-    HAS_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
-    MODE_FIELD_NUMBER: _ClassVar[int]
-    HAS_MODE_FIELD_NUMBER: _ClassVar[int]
-    REJECT_BEHAVIOR_FIELD_NUMBER: _ClassVar[int]
-    HAS_REJECT_BEHAVIOR_FIELD_NUMBER: _ClassVar[int]
-    FALLBACK_WITHOUT_VERIFICATION_FIELD_NUMBER: _ClassVar[int]
-    HAS_FALLBACK_WITHOUT_VERIFICATION_FIELD_NUMBER: _ClassVar[int]
-    EXTRACTION_ENABLED_FIELD_NUMBER: _ClassVar[int]
-    HAS_EXTRACTION_ENABLED_FIELD_NUMBER: _ClassVar[int]
-    enabled: bool
-    has_enabled: bool
-    profile_ids: _containers.RepeatedScalarFieldContainer[str]
-    has_profile_ids: bool
-    threshold: float
-    has_threshold: bool
-    mode: str
-    has_mode: bool
-    reject_behavior: str
-    has_reject_behavior: bool
-    fallback_without_verification: bool
-    has_fallback_without_verification: bool
-    extraction_enabled: bool
-    has_extraction_enabled: bool
-    def __init__(self, enabled: _Optional[bool] = ..., has_enabled: _Optional[bool] = ..., profile_ids: _Optional[_Iterable[str]] = ..., has_profile_ids: _Optional[bool] = ..., threshold: _Optional[float] = ..., has_threshold: _Optional[bool] = ..., mode: _Optional[str] = ..., has_mode: _Optional[bool] = ..., reject_behavior: _Optional[str] = ..., has_reject_behavior: _Optional[bool] = ..., fallback_without_verification: _Optional[bool] = ..., has_fallback_without_verification: _Optional[bool] = ..., extraction_enabled: _Optional[bool] = ..., has_extraction_enabled: _Optional[bool] = ...) -> None: ...
+    __slots__ = ("update_mask", "config")
+    UPDATE_MASK_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    update_mask: _field_mask_pb2.FieldMask
+    config: SpeakerConfig
+    def __init__(self, update_mask: _Optional[_Union[_field_mask_pb2.FieldMask, _Mapping]] = ..., config: _Optional[_Union[SpeakerConfig, _Mapping]] = ...) -> None: ...
 
 class UpdateSpeakerConfigResponse(_message.Message):
     __slots__ = ("config",)
@@ -253,14 +255,14 @@ class SpeakerProfile(_message.Message):
     NOTES_FIELD_NUMBER: _ClassVar[int]
     id: str
     display_name: str
-    created_at: str
-    updated_at: str
+    created_at: _timestamp_pb2.Timestamp
+    updated_at: _timestamp_pb2.Timestamp
     model_name: str
     embedding_dim: int
     sample_rate: int
     enrollment_audio_seconds: float
     notes: str
-    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., model_name: _Optional[str] = ..., embedding_dim: _Optional[int] = ..., sample_rate: _Optional[int] = ..., enrollment_audio_seconds: _Optional[float] = ..., notes: _Optional[str] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., model_name: _Optional[str] = ..., embedding_dim: _Optional[int] = ..., sample_rate: _Optional[int] = ..., enrollment_audio_seconds: _Optional[float] = ..., notes: _Optional[str] = ...) -> None: ...
 
 class SpeakerResourceInfo(_message.Message):
     __slots__ = ("backend", "model", "device", "sample_rate", "version", "embedding_dim")
@@ -299,8 +301,8 @@ class SpeakerStatus(_message.Message):
     profile_count: int
     profiles: _containers.RepeatedCompositeFieldContainer[SpeakerProfile]
     info: SpeakerResourceInfo
-    checked_at: str
-    def __init__(self, config: _Optional[_Union[SpeakerConfig, _Mapping]] = ..., capability: _Optional[str] = ..., capability_label: _Optional[str] = ..., resource_ready: _Optional[bool] = ..., profile_configured: _Optional[bool] = ..., profile_exists: _Optional[bool] = ..., profile_count: _Optional[int] = ..., profiles: _Optional[_Iterable[_Union[SpeakerProfile, _Mapping]]] = ..., info: _Optional[_Union[SpeakerResourceInfo, _Mapping]] = ..., checked_at: _Optional[str] = ...) -> None: ...
+    checked_at: _timestamp_pb2.Timestamp
+    def __init__(self, config: _Optional[_Union[SpeakerConfig, _Mapping]] = ..., capability: _Optional[str] = ..., capability_label: _Optional[str] = ..., resource_ready: _Optional[bool] = ..., profile_configured: _Optional[bool] = ..., profile_exists: _Optional[bool] = ..., profile_count: _Optional[int] = ..., profiles: _Optional[_Iterable[_Union[SpeakerProfile, _Mapping]]] = ..., info: _Optional[_Union[SpeakerResourceInfo, _Mapping]] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetSpeakerStatusRequest(_message.Message):
     __slots__ = ()
@@ -339,30 +341,26 @@ class SpeakerEnrollment(_message.Message):
     sample_rate: int
     enrollment_audio_seconds: float
     model_name: str
-    created_at: str
-    def __init__(self, profile_id: _Optional[str] = ..., display_name: _Optional[str] = ..., embedding_dim: _Optional[int] = ..., sample_rate: _Optional[int] = ..., enrollment_audio_seconds: _Optional[float] = ..., model_name: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+    created_at: _timestamp_pb2.Timestamp
+    def __init__(self, profile_id: _Optional[str] = ..., display_name: _Optional[str] = ..., embedding_dim: _Optional[int] = ..., sample_rate: _Optional[int] = ..., enrollment_audio_seconds: _Optional[float] = ..., model_name: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class EnrollSpeakerProfileRequest(_message.Message):
-    __slots__ = ("audio", "format", "profile_id", "display_name", "notes", "add_to_active", "has_add_to_active", "enable", "has_enable")
+    __slots__ = ("audio", "format", "profile_id", "display_name", "notes", "add_to_active", "enable")
     AUDIO_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     NOTES_FIELD_NUMBER: _ClassVar[int]
     ADD_TO_ACTIVE_FIELD_NUMBER: _ClassVar[int]
-    HAS_ADD_TO_ACTIVE_FIELD_NUMBER: _ClassVar[int]
     ENABLE_FIELD_NUMBER: _ClassVar[int]
-    HAS_ENABLE_FIELD_NUMBER: _ClassVar[int]
     audio: bytes
-    format: str
+    format: _common_pb2.AudioFormat
     profile_id: str
     display_name: str
     notes: str
     add_to_active: bool
-    has_add_to_active: bool
     enable: bool
-    has_enable: bool
-    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[str] = ..., profile_id: _Optional[str] = ..., display_name: _Optional[str] = ..., notes: _Optional[str] = ..., add_to_active: _Optional[bool] = ..., has_add_to_active: _Optional[bool] = ..., enable: _Optional[bool] = ..., has_enable: _Optional[bool] = ...) -> None: ...
+    def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., profile_id: _Optional[str] = ..., display_name: _Optional[str] = ..., notes: _Optional[str] = ..., add_to_active: _Optional[bool] = ..., enable: _Optional[bool] = ...) -> None: ...
 
 class EnrollSpeakerProfileResponse(_message.Message):
     __slots__ = ("enrollment", "config")
@@ -461,10 +459,10 @@ class StreamSegment(_message.Message):
     start_ms: int
     end_ms: int
     detected_language: str
-    provider_tier: str
+    provider_tier: _common_pb2.ProviderTier
     model_id: str
     latency_ms: float
-    def __init__(self, text: _Optional[str] = ..., start_ms: _Optional[int] = ..., end_ms: _Optional[int] = ..., detected_language: _Optional[str] = ..., provider_tier: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
+    def __init__(self, text: _Optional[str] = ..., start_ms: _Optional[int] = ..., end_ms: _Optional[int] = ..., detected_language: _Optional[str] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
 
 class StreamPartial(_message.Message):
     __slots__ = ("text",)
@@ -505,9 +503,9 @@ class StreamDone(_message.Message):
     LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
     FELL_BACK_TO_UNARY_FIELD_NUMBER: _ClassVar[int]
     final_text: str
-    provider_tier: str
+    provider_tier: _common_pb2.ProviderTier
     provider_id: str
     model_id: str
     latency_ms: float
     fell_back_to_unary: bool
-    def __init__(self, final_text: _Optional[str] = ..., provider_tier: _Optional[str] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., fell_back_to_unary: _Optional[bool] = ...) -> None: ...
+    def __init__(self, final_text: _Optional[str] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., fell_back_to_unary: _Optional[bool] = ...) -> None: ...

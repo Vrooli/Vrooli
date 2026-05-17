@@ -2,26 +2,26 @@
 // @generated from file audio-tools/v1/session/session.proto (package vrooli.audio_tools.v1.session, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file audio-tools/v1/session/session.proto.
  */
 export const file_audio_tools_v1_session_session: GenFile = /*@__PURE__*/
-  fileDesc("CiRhdWRpby10b29scy92MS9zZXNzaW9uL3Nlc3Npb24ucHJvdG8SHXZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uIkgKEk9wZW5TZXNzaW9uUmVxdWVzdBIRCgl0cmFuc3BvcnQYASABKAkSDQoFdm9pY2UYAiABKAkSEAoIbGFuZ3VhZ2UYAyABKAkiPAoTT3BlblNlc3Npb25SZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJEhEKCXRyYW5zcG9ydBgCIAEoCSI5ChNDbG9zZVNlc3Npb25SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDgoGcmVhc29uGAIgASgJIhYKFENsb3NlU2Vzc2lvblJlc3BvbnNlIkwKD1NlbmRUZXh0UmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEgwKBHRleHQYAiABKAkSFwoPY2FuY2VsX2luZmxpZ2h0GAMgASgIIiQKEFNlbmRUZXh0UmVzcG9uc2USEAoIZXZlbnRfaWQYASABKAkiNwoRU2VuZENhbmNlbFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIOCgZyZWFzb24YAiABKAkiFAoSU2VuZENhbmNlbFJlc3BvbnNlIj0KEFN1YnNjcmliZVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIVCg1mcm9tX2V2ZW50X2lkGAIgASgJIk8KEVN1YnNjcmliZVJlc3BvbnNlEjoKBWV2ZW50GAEgASgLMisudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uU2Vzc2lvbkV2ZW50IvoECgxTZXNzaW9uRXZlbnQSEAoIZXZlbnRfaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRISCgplbWl0dGVkX2F0GAMgASgJEkoKEHRyYW5zY3JpcHRfZGVsdGEYCiABKAsyLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5UcmFuc2NyaXB0RGVsdGFIABJKChB0cmFuc2NyaXB0X2ZpbmFsGAsgASgLMi4udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uVHJhbnNjcmlwdEZpbmFsSAASSAoPYXNzaXN0YW50X2RlbHRhGAwgASgLMi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uQXNzaXN0YW50RGVsdGFIABJICg9hc3Npc3RhbnRfZmluYWwYDSABKAsyLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5Bc3Npc3RhbnRGaW5hbEgAEjYKA3ZhZBgOIAEoCzInLnZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uLlZhZEV2ZW50SAASOAoEdG9vbBgPIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uLlRvb2xFdmVudEgAEkcKD2JhcmdlX2luX2NhbmNlbBgQIAEoCzIsLnZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uLkJhcmdlSW5DYW5jZWxIABI+CgZjbG9zZWQYESABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZXNzaW9uQ2xvc2VkSABCCQoHcGF5bG9hZCJJCg9UcmFuc2NyaXB0RGVsdGESDAoEdGV4dBgBIAEoCRIUCgxmcm9tX3NlY29uZHMYAiABKAESEgoKdG9fc2Vjb25kcxgDIAEoASJTCg9UcmFuc2NyaXB0RmluYWwSDAoEdGV4dBgBIAEoCRIYChBkdXJhdGlvbl9zZWNvbmRzGAIgASgBEhgKEHNwZWFrZXJfdmVyaWZpZWQYAyABKAgiHgoOQXNzaXN0YW50RGVsdGESDAoEdGV4dBgBIAEoCSIxCg5Bc3Npc3RhbnRGaW5hbBIMCgR0ZXh0GAEgASgJEhEKCWhhZF9hdWRpbxgCIAEoCCIZCghWYWRFdmVudBINCgVzdGF0ZRgBIAEoCSIvCglUb29sRXZlbnQSDAoEbmFtZRgBIAEoCRIUCgxwYXlsb2FkX2pzb24YAiABKAkiOgoNQmFyZ2VJbkNhbmNlbBIOCgZyZWFzb24YASABKAkSGQoRY2FuY2VsZWRfZXZlbnRfaWQYAiABKAkiHwoNU2Vzc2lvbkNsb3NlZBIOCgZyZWFzb24YASABKAky0QQKDlNlc3Npb25TZXJ2aWNlEnQKC09wZW5TZXNzaW9uEjEudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uT3BlblNlc3Npb25SZXF1ZXN0GjIudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uT3BlblNlc3Npb25SZXNwb25zZRJ3CgxDbG9zZVNlc3Npb24SMi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5DbG9zZVNlc3Npb25SZXF1ZXN0GjMudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uQ2xvc2VTZXNzaW9uUmVzcG9uc2USawoIU2VuZFRleHQSLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZW5kVGV4dFJlcXVlc3QaLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZW5kVGV4dFJlc3BvbnNlEnEKClNlbmRDYW5jZWwSMC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZW5kQ2FuY2VsUmVxdWVzdBoxLnZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uLlNlbmRDYW5jZWxSZXNwb25zZRJwCglTdWJzY3JpYmUSLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TdWJzY3JpYmVSZXF1ZXN0GjAudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uU3Vic2NyaWJlUmVzcG9uc2UwAUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL3Nlc3Npb247c2Vzc2lvbl92MWIGcHJvdG8z");
+  fileDesc("CiRhdWRpby10b29scy92MS9zZXNzaW9uL3Nlc3Npb24ucHJvdG8SHXZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uInkKEk9wZW5TZXNzaW9uUmVxdWVzdBJCCgl0cmFuc3BvcnQYASABKA4yLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZXNzaW9uVHJhbnNwb3J0Eg0KBXZvaWNlGAIgASgJEhAKCGxhbmd1YWdlGAMgASgJIm0KE09wZW5TZXNzaW9uUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRJCCgl0cmFuc3BvcnQYAiABKA4yLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZXNzaW9uVHJhbnNwb3J0IjkKE0Nsb3NlU2Vzc2lvblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIOCgZyZWFzb24YAiABKAkiFgoUQ2xvc2VTZXNzaW9uUmVzcG9uc2UiTAoPU2VuZFRleHRSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDAoEdGV4dBgCIAEoCRIXCg9jYW5jZWxfaW5mbGlnaHQYAyABKAgiJAoQU2VuZFRleHRSZXNwb25zZRIQCghldmVudF9pZBgBIAEoCSI3ChFTZW5kQ2FuY2VsUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEg4KBnJlYXNvbhgCIAEoCSIUChJTZW5kQ2FuY2VsUmVzcG9uc2UiPQoQU3Vic2NyaWJlUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhUKDWZyb21fZXZlbnRfaWQYAiABKAkiTwoRU3Vic2NyaWJlUmVzcG9uc2USOgoFZXZlbnQYASABKAsyKy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZXNzaW9uRXZlbnQilgUKDFNlc3Npb25FdmVudBIQCghldmVudF9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEi4KCmVtaXR0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkoKEHRyYW5zY3JpcHRfZGVsdGEYCiABKAsyLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5UcmFuc2NyaXB0RGVsdGFIABJKChB0cmFuc2NyaXB0X2ZpbmFsGAsgASgLMi4udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uVHJhbnNjcmlwdEZpbmFsSAASSAoPYXNzaXN0YW50X2RlbHRhGAwgASgLMi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uQXNzaXN0YW50RGVsdGFIABJICg9hc3Npc3RhbnRfZmluYWwYDSABKAsyLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5Bc3Npc3RhbnRGaW5hbEgAEjYKA3ZhZBgOIAEoCzInLnZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uLlZhZEV2ZW50SAASOAoEdG9vbBgPIAEoCzIoLnZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uLlRvb2xFdmVudEgAEkcKD2JhcmdlX2luX2NhbmNlbBgQIAEoCzIsLnZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uLkJhcmdlSW5DYW5jZWxIABI+CgZjbG9zZWQYESABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZXNzaW9uQ2xvc2VkSABCCQoHcGF5bG9hZCJJCg9UcmFuc2NyaXB0RGVsdGESDAoEdGV4dBgBIAEoCRIUCgxmcm9tX3NlY29uZHMYAiABKAESEgoKdG9fc2Vjb25kcxgDIAEoASJTCg9UcmFuc2NyaXB0RmluYWwSDAoEdGV4dBgBIAEoCRIYChBkdXJhdGlvbl9zZWNvbmRzGAIgASgBEhgKEHNwZWFrZXJfdmVyaWZpZWQYAyABKAgiHgoOQXNzaXN0YW50RGVsdGESDAoEdGV4dBgBIAEoCSIxCg5Bc3Npc3RhbnRGaW5hbBIMCgR0ZXh0GAEgASgJEhEKCWhhZF9hdWRpbxgCIAEoCCJCCghWYWRFdmVudBI2CgVzdGF0ZRgBIAEoDjInLnZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uLlZhZFN0YXRlIi8KCVRvb2xFdmVudBIMCgRuYW1lGAEgASgJEhQKDHBheWxvYWRfanNvbhgCIAEoCSJoCg1CYXJnZUluQ2FuY2VsEjwKBnJlYXNvbhgBIAEoDjIsLnZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uLkJhcmdlSW5SZWFzb24SGQoRY2FuY2VsZWRfZXZlbnRfaWQYAiABKAkiHwoNU2Vzc2lvbkNsb3NlZBIOCgZyZWFzb24YASABKAkqdgoQU2Vzc2lvblRyYW5zcG9ydBIhCh1TRVNTSU9OX1RSQU5TUE9SVF9VTlNQRUNJRklFRBAAEiMKH1NFU1NJT05fVFJBTlNQT1JUX0JST1dTRVJfVk9JQ0UQARIaChZTRVNTSU9OX1RSQU5TUE9SVF9GQUtFEAIqWwoIVmFkU3RhdGUSGQoVVkFEX1NUQVRFX1VOU1BFQ0lGSUVEEAASGgoWVkFEX1NUQVRFX1NQRUVDSF9TVEFSVBABEhgKFFZBRF9TVEFURV9TUEVFQ0hfRU5EEAIqZwoNQmFyZ2VJblJlYXNvbhIfChtCQVJHRV9JTl9SRUFTT05fVU5TUEVDSUZJRUQQABIXChNCQVJHRV9JTl9SRUFTT05fVkFEEAESHAoYQkFSR0VfSU5fUkVBU09OX0VYUExJQ0lUEAIy0QQKDlNlc3Npb25TZXJ2aWNlEnQKC09wZW5TZXNzaW9uEjEudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uT3BlblNlc3Npb25SZXF1ZXN0GjIudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uT3BlblNlc3Npb25SZXNwb25zZRJ3CgxDbG9zZVNlc3Npb24SMi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5DbG9zZVNlc3Npb25SZXF1ZXN0GjMudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uQ2xvc2VTZXNzaW9uUmVzcG9uc2USawoIU2VuZFRleHQSLi52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZW5kVGV4dFJlcXVlc3QaLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZW5kVGV4dFJlc3BvbnNlEnEKClNlbmRDYW5jZWwSMC52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TZW5kQ2FuY2VsUmVxdWVzdBoxLnZyb29saS5hdWRpb190b29scy52MS5zZXNzaW9uLlNlbmRDYW5jZWxSZXNwb25zZRJwCglTdWJzY3JpYmUSLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuc2Vzc2lvbi5TdWJzY3JpYmVSZXF1ZXN0GjAudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnNlc3Npb24uU3Vic2NyaWJlUmVzcG9uc2UwAUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL3Nlc3Npb247c2Vzc2lvbl92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.audio_tools.v1.session.OpenSessionRequest
  */
 export type OpenSessionRequest = Message<"vrooli.audio_tools.v1.session.OpenSessionRequest"> & {
   /**
-   * "browser-voice", "fake", ...
-   *
-   * @generated from field: string transport = 1;
+   * @generated from field: vrooli.audio_tools.v1.session.SessionTransport transport = 1;
    */
-  transport: string;
+  transport: SessionTransport;
 
   /**
    * Optional pre-configured TTS voice + STT language for the session.
@@ -53,9 +53,9 @@ export type OpenSessionResponse = Message<"vrooli.audio_tools.v1.session.OpenSes
   sessionId: string;
 
   /**
-   * @generated from field: string transport = 2;
+   * @generated from field: vrooli.audio_tools.v1.session.SessionTransport transport = 2;
    */
-  transport: string;
+  transport: SessionTransport;
 };
 
 /**
@@ -241,9 +241,9 @@ export type SessionEvent = Message<"vrooli.audio_tools.v1.session.SessionEvent">
   sessionId: string;
 
   /**
-   * @generated from field: string emitted_at = 3;
+   * @generated from field: google.protobuf.Timestamp emitted_at = 3;
    */
-  emittedAt: string;
+  emittedAt?: Timestamp | undefined;
 
   /**
    * @generated from oneof vrooli.audio_tools.v1.session.SessionEvent.payload
@@ -406,11 +406,9 @@ export const AssistantFinalSchema: GenMessage<AssistantFinal> = /*@__PURE__*/
  */
 export type VadEvent = Message<"vrooli.audio_tools.v1.session.VadEvent"> & {
   /**
-   * "speech_start" | "speech_end"
-   *
-   * @generated from field: string state = 1;
+   * @generated from field: vrooli.audio_tools.v1.session.VadState state = 1;
    */
-  state: string;
+  state: VadState;
 };
 
 /**
@@ -447,11 +445,9 @@ export const ToolEventSchema: GenMessage<ToolEvent> = /*@__PURE__*/
  */
 export type BargeInCancel = Message<"vrooli.audio_tools.v1.session.BargeInCancel"> & {
   /**
-   * "vad" | "explicit"
-   *
-   * @generated from field: string reason = 1;
+   * @generated from field: vrooli.audio_tools.v1.session.BargeInReason reason = 1;
    */
-  reason: string;
+  reason: BargeInReason;
 
   /**
    * @generated from field: string canceled_event_id = 2;
@@ -482,6 +478,94 @@ export type SessionClosed = Message<"vrooli.audio_tools.v1.session.SessionClosed
  */
 export const SessionClosedSchema: GenMessage<SessionClosed> = /*@__PURE__*/
   messageDesc(file_audio_tools_v1_session_session, 18);
+
+/**
+ * SessionTransport names the concrete transport implementation that
+ * backs a voice-session. browser-voice = the WebSocket transport at
+ * /api/v1/voice/stream; FAKE = the in-process test transport. Future
+ * adapters (twilio-voice, sip-webrtc, ...) extend this enum.
+ *
+ * @generated from enum vrooli.audio_tools.v1.session.SessionTransport
+ */
+export enum SessionTransport {
+  /**
+   * @generated from enum value: SESSION_TRANSPORT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SESSION_TRANSPORT_BROWSER_VOICE = 1;
+   */
+  BROWSER_VOICE = 1,
+
+  /**
+   * @generated from enum value: SESSION_TRANSPORT_FAKE = 2;
+   */
+  FAKE = 2,
+}
+
+/**
+ * Describes the enum vrooli.audio_tools.v1.session.SessionTransport.
+ */
+export const SessionTransportSchema: GenEnum<SessionTransport> = /*@__PURE__*/
+  enumDesc(file_audio_tools_v1_session_session, 0);
+
+/**
+ * VadState is the VAD subsystem's per-event state transition.
+ *
+ * @generated from enum vrooli.audio_tools.v1.session.VadState
+ */
+export enum VadState {
+  /**
+   * @generated from enum value: VAD_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: VAD_STATE_SPEECH_START = 1;
+   */
+  SPEECH_START = 1,
+
+  /**
+   * @generated from enum value: VAD_STATE_SPEECH_END = 2;
+   */
+  SPEECH_END = 2,
+}
+
+/**
+ * Describes the enum vrooli.audio_tools.v1.session.VadState.
+ */
+export const VadStateSchema: GenEnum<VadState> = /*@__PURE__*/
+  enumDesc(file_audio_tools_v1_session_session, 1);
+
+/**
+ * BargeInReason identifies why an in-flight TTS playback was cancelled.
+ * VAD = user started talking; EXPLICIT = SendCancel called.
+ *
+ * @generated from enum vrooli.audio_tools.v1.session.BargeInReason
+ */
+export enum BargeInReason {
+  /**
+   * @generated from enum value: BARGE_IN_REASON_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: BARGE_IN_REASON_VAD = 1;
+   */
+  VAD = 1,
+
+  /**
+   * @generated from enum value: BARGE_IN_REASON_EXPLICIT = 2;
+   */
+  EXPLICIT = 2,
+}
+
+/**
+ * Describes the enum vrooli.audio_tools.v1.session.BargeInReason.
+ */
+export const BargeInReasonSchema: GenEnum<BargeInReason> = /*@__PURE__*/
+  enumDesc(file_audio_tools_v1_session_session, 2);
 
 /**
  * @generated from service vrooli.audio_tools.v1.session.SessionService

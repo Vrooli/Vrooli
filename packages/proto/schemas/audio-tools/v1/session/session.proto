@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.session;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session;session_v1";
 
 // =============================================================================
@@ -16,10 +18,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 // events; text in -> TTS audio out. Multiple observer subscribers may attach
 // to the same session and receive transcript deltas, assistant deltas, VAD
 // signals, tool events, and barge-in cancels. Concrete transports plug in
-// below the session boundary:
-//   - browser-voice: WebSocket at /api/v1/voice/stream
-//     (TransportReason: websocket_transport)
-//   - (future) twilio-voice, sip-webrtc, etc.
+// below the session boundary; see SessionTransport for the typed set.
 //
 // Barge-in semantics: a VAD-detected user-speech event during in-flight TTS
 // cancels TTS at the transport AND emits an upstream Cancel event.
@@ -41,8 +40,33 @@ service SessionService {
   rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
 }
 
+// SessionTransport names the concrete transport implementation that
+// backs a voice-session. browser-voice = the WebSocket transport at
+// /api/v1/voice/stream; FAKE = the in-process test transport. Future
+// adapters (twilio-voice, sip-webrtc, ...) extend this enum.
+enum SessionTransport {
+  SESSION_TRANSPORT_UNSPECIFIED = 0;
+  SESSION_TRANSPORT_BROWSER_VOICE = 1;
+  SESSION_TRANSPORT_FAKE = 2;
+}
+
+// VadState is the VAD subsystem's per-event state transition.
+enum VadState {
+  VAD_STATE_UNSPECIFIED = 0;
+  VAD_STATE_SPEECH_START = 1;
+  VAD_STATE_SPEECH_END = 2;
+}
+
+// BargeInReason identifies why an in-flight TTS playback was cancelled.
+// VAD = user started talking; EXPLICIT = SendCancel called.
+enum BargeInReason {
+  BARGE_IN_REASON_UNSPECIFIED = 0;
+  BARGE_IN_REASON_VAD = 1;
+  BARGE_IN_REASON_EXPLICIT = 2;
+}
+
 message OpenSessionRequest {
-  string transport = 1;               // "browser-voice", "fake", ...
+  SessionTransport transport = 1;
   // Optional pre-configured TTS voice + STT language for the session.
   string voice = 2;
   string language = 3;
@@ -50,7 +74,7 @@ message OpenSessionRequest {
 
 message OpenSessionResponse {
   string session_id = 1;
-  string transport = 2;
+  SessionTransport transport = 2;
 }
 
 message CloseSessionRequest {
@@ -92,7 +116,7 @@ message SubscribeResponse {
 message SessionEvent {
   string event_id = 1;
   string session_id = 2;
-  string emitted_at = 3;
+  google.protobuf.Timestamp emitted_at = 3;
 
   oneof payload {
     TranscriptDelta transcript_delta = 10;
@@ -129,7 +153,7 @@ message AssistantFinal {
 }
 
 message VadEvent {
-  string state = 1;                   // "speech_start" | "speech_end"
+  VadState state = 1;
 }
 
 message ToolEvent {
@@ -138,7 +162,7 @@ message ToolEvent {
 }
 
 message BargeInCancel {
-  string reason = 1;                  // "vad" | "explicit"
+  BargeInReason reason = 1;
   string canceled_event_id = 2;
 }
 

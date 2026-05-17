@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"log"
-	"time"
 
 	"connectrpc.com/connect"
+
+	"audio-tools/internal/protomap"
 
 	usagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage"
 )
@@ -26,7 +27,7 @@ func (h *connectHandler) ListRecent(ctx context.Context, req *connect.Request[us
 	}
 	m := req.Msg
 	since := resolveSince(m.GetSinceSeconds())
-	rows, err := h.deps.Store.ListRecent(ctx, since, int(m.GetLimit()), m.GetCapability(), m.GetProviderTier())
+	rows, err := h.deps.Store.ListRecent(ctx, since, int(m.GetLimit()), m.GetCapability(), protomap.ProviderTierFromProto(m.GetProviderTier()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -47,16 +48,19 @@ func (h *connectHandler) GetSummary(ctx context.Context, req *connect.Request[us
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	out := &usagev1.Summary{
-		Since:           sum.Since.UTC().Format(time.RFC3339),
-		Until:           sum.Until.UTC().Format(time.RFC3339),
+		Since:           protomap.TimeToProto(sum.Since),
+		Until:           protomap.TimeToProto(sum.Until),
 		OperationsTotal: sum.OperationsTotal,
 		CreditsTotal:    sum.CreditsTotal,
 		ErrorCount:      sum.ErrorCount,
 	}
 	for _, d := range sum.Distribution {
 		out.Distribution = append(out.Distribution, &usagev1.ProviderDistribution{
-			ProviderTier: d.ProviderTier, ProviderId: d.ProviderID,
-			Count: d.Count, CreditsTotal: d.CreditsTotal, AvgLatencyMs: d.AvgLatencyMs,
+			ProviderTier: protomap.ProviderTierToProto(d.ProviderTier),
+			ProviderId:   d.ProviderID,
+			Count:        d.Count,
+			CreditsTotal: d.CreditsTotal,
+			AvgLatencyMs: d.AvgLatencyMs,
 		})
 	}
 	for _, f := range sum.FallbackReasons {

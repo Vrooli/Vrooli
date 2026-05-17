@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.summarize;
 
+import "google/protobuf/field_mask.proto";
+import "audio-tools/v1/common/common.proto";
+import "audio-tools/v1/tts/tts.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize;summarize_v1";
 
 // =============================================================================
@@ -16,6 +20,13 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 // Provider routing: BYOK -> Vrooli/LPBS -> Local. Local backed by Ollama;
 // BYOK starter adapter is openrouter; Vrooli routes through LPBS chat with
 // `Operation: audio.summarize` metadata.
+//
+// Per-request credentials travel in metadata headers — see
+// audio-tools/v1/auth/auth.proto for the typed Credentials envelope.
+//
+// SummarizeLevel is defined in audio-tools/v1/tts/tts.proto and re-used
+// here so the TTS-summarize pipeline and the general summarizer share a
+// single enum.
 // =============================================================================
 
 service SummarizeService {
@@ -32,7 +43,7 @@ service SummarizeService {
 message SummarizeConfig {
   bool enabled = 1;
   int32 char_threshold = 2;
-  string level = 3;             // "light" | "moderate" | "heavy"
+  vrooli.audio_tools.v1.tts.SummarizeLevel level = 3;
   string model = 4;
   int32 timeout_seconds = 5;
 }
@@ -43,17 +54,13 @@ message GetSummarizeConfigResponse {
   SummarizeConfig config = 1;
 }
 
+// UpdateSummarizeConfigRequest carries FieldMask + a full SummarizeConfig
+// payload. Server validates each path in `update_mask.paths`; unknown
+// paths return CodeInvalidArgument; an empty mask returns
+// CodeInvalidArgument ("no fields specified").
 message UpdateSummarizeConfigRequest {
-  bool enabled = 1;
-  bool has_enabled = 2;
-  int32 char_threshold = 3;
-  bool has_char_threshold = 4;
-  string level = 5;
-  bool has_level = 6;
-  string model = 7;
-  bool has_model = 8;
-  int32 timeout_seconds = 9;
-  bool has_timeout_seconds = 10;
+  google.protobuf.FieldMask update_mask = 1;
+  SummarizeConfig config = 2;
 }
 
 message UpdateSummarizeConfigResponse {
@@ -62,7 +69,7 @@ message UpdateSummarizeConfigResponse {
 
 message SummarizeRequest {
   string text = 1;
-  string level = 2;                   // "light" | "moderate" | "heavy"
+  vrooli.audio_tools.v1.tts.SummarizeLevel level = 2;
   string model = 3;                   // optional override
   int32 timeout_seconds = 4;
 }
@@ -71,7 +78,7 @@ message SummarizeResponse {
   string text = 1;
   int32 prompt_tokens = 2;
   int32 output_tokens = 3;
-  string provider_tier = 4;
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 4;
   string provider_id = 5;
   string model_id = 6;
   double latency_ms = 7;

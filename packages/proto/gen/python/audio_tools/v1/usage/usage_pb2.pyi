@@ -1,3 +1,7 @@
+import datetime
+
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from audio_tools.v1.common import common_pb2 as _common_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -24,10 +28,10 @@ class UsageRow(_message.Message):
     FALLBACK_REASON_FIELD_NUMBER: _ClassVar[int]
     USER_IDENTITY_FIELD_NUMBER: _ClassVar[int]
     operation_id: str
-    emitted_at: str
+    emitted_at: _timestamp_pb2.Timestamp
     capability: str
     operation: str
-    provider_tier: str
+    provider_tier: _common_pb2.ProviderTier
     provider_id: str
     model_id: str
     latency_ms: float
@@ -38,7 +42,7 @@ class UsageRow(_message.Message):
     error: str
     fallback_reason: str
     user_identity: str
-    def __init__(self, operation_id: _Optional[str] = ..., emitted_at: _Optional[str] = ..., capability: _Optional[str] = ..., operation: _Optional[str] = ..., provider_tier: _Optional[str] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., credits_charged: _Optional[int] = ..., prompt_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., audio_duration_seconds: _Optional[float] = ..., error: _Optional[str] = ..., fallback_reason: _Optional[str] = ..., user_identity: _Optional[str] = ...) -> None: ...
+    def __init__(self, operation_id: _Optional[str] = ..., emitted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., capability: _Optional[str] = ..., operation: _Optional[str] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., credits_charged: _Optional[int] = ..., prompt_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., audio_duration_seconds: _Optional[float] = ..., error: _Optional[str] = ..., fallback_reason: _Optional[str] = ..., user_identity: _Optional[str] = ...) -> None: ...
 
 class ListRecentRequest(_message.Message):
     __slots__ = ("since_seconds", "after_emitted_at", "limit", "capability", "provider_tier")
@@ -48,11 +52,11 @@ class ListRecentRequest(_message.Message):
     CAPABILITY_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_TIER_FIELD_NUMBER: _ClassVar[int]
     since_seconds: int
-    after_emitted_at: str
+    after_emitted_at: _timestamp_pb2.Timestamp
     limit: int
     capability: str
-    provider_tier: str
-    def __init__(self, since_seconds: _Optional[int] = ..., after_emitted_at: _Optional[str] = ..., limit: _Optional[int] = ..., capability: _Optional[str] = ..., provider_tier: _Optional[str] = ...) -> None: ...
+    provider_tier: _common_pb2.ProviderTier
+    def __init__(self, since_seconds: _Optional[int] = ..., after_emitted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., limit: _Optional[int] = ..., capability: _Optional[str] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ...) -> None: ...
 
 class ListRecentResponse(_message.Message):
     __slots__ = ("rows",)
@@ -67,12 +71,12 @@ class ProviderDistribution(_message.Message):
     COUNT_FIELD_NUMBER: _ClassVar[int]
     CREDITS_TOTAL_FIELD_NUMBER: _ClassVar[int]
     AVG_LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
-    provider_tier: str
+    provider_tier: _common_pb2.ProviderTier
     provider_id: str
     count: int
     credits_total: int
     avg_latency_ms: float
-    def __init__(self, provider_tier: _Optional[str] = ..., provider_id: _Optional[str] = ..., count: _Optional[int] = ..., credits_total: _Optional[int] = ..., avg_latency_ms: _Optional[float] = ...) -> None: ...
+    def __init__(self, provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., count: _Optional[int] = ..., credits_total: _Optional[int] = ..., avg_latency_ms: _Optional[float] = ...) -> None: ...
 
 class FallbackReason(_message.Message):
     __slots__ = ("reason", "count")
@@ -91,14 +95,14 @@ class Summary(_message.Message):
     DISTRIBUTION_FIELD_NUMBER: _ClassVar[int]
     FALLBACK_REASONS_FIELD_NUMBER: _ClassVar[int]
     ERROR_COUNT_FIELD_NUMBER: _ClassVar[int]
-    since: str
-    until: str
+    since: _timestamp_pb2.Timestamp
+    until: _timestamp_pb2.Timestamp
     operations_total: int
     credits_total: int
     distribution: _containers.RepeatedCompositeFieldContainer[ProviderDistribution]
     fallback_reasons: _containers.RepeatedCompositeFieldContainer[FallbackReason]
     error_count: int
-    def __init__(self, since: _Optional[str] = ..., until: _Optional[str] = ..., operations_total: _Optional[int] = ..., credits_total: _Optional[int] = ..., distribution: _Optional[_Iterable[_Union[ProviderDistribution, _Mapping]]] = ..., fallback_reasons: _Optional[_Iterable[_Union[FallbackReason, _Mapping]]] = ..., error_count: _Optional[int] = ...) -> None: ...
+    def __init__(self, since: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., until: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., operations_total: _Optional[int] = ..., credits_total: _Optional[int] = ..., distribution: _Optional[_Iterable[_Union[ProviderDistribution, _Mapping]]] = ..., fallback_reasons: _Optional[_Iterable[_Union[FallbackReason, _Mapping]]] = ..., error_count: _Optional[int] = ...) -> None: ...
 
 class GetSummaryRequest(_message.Message):
     __slots__ = ("since_seconds", "capability")

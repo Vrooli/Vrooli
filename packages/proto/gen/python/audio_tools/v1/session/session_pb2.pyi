@@ -1,3 +1,7 @@
+import datetime
+
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Mapping as _Mapping
@@ -5,23 +9,50 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class SessionTransport(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SESSION_TRANSPORT_UNSPECIFIED: _ClassVar[SessionTransport]
+    SESSION_TRANSPORT_BROWSER_VOICE: _ClassVar[SessionTransport]
+    SESSION_TRANSPORT_FAKE: _ClassVar[SessionTransport]
+
+class VadState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    VAD_STATE_UNSPECIFIED: _ClassVar[VadState]
+    VAD_STATE_SPEECH_START: _ClassVar[VadState]
+    VAD_STATE_SPEECH_END: _ClassVar[VadState]
+
+class BargeInReason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    BARGE_IN_REASON_UNSPECIFIED: _ClassVar[BargeInReason]
+    BARGE_IN_REASON_VAD: _ClassVar[BargeInReason]
+    BARGE_IN_REASON_EXPLICIT: _ClassVar[BargeInReason]
+SESSION_TRANSPORT_UNSPECIFIED: SessionTransport
+SESSION_TRANSPORT_BROWSER_VOICE: SessionTransport
+SESSION_TRANSPORT_FAKE: SessionTransport
+VAD_STATE_UNSPECIFIED: VadState
+VAD_STATE_SPEECH_START: VadState
+VAD_STATE_SPEECH_END: VadState
+BARGE_IN_REASON_UNSPECIFIED: BargeInReason
+BARGE_IN_REASON_VAD: BargeInReason
+BARGE_IN_REASON_EXPLICIT: BargeInReason
+
 class OpenSessionRequest(_message.Message):
     __slots__ = ("transport", "voice", "language")
     TRANSPORT_FIELD_NUMBER: _ClassVar[int]
     VOICE_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
-    transport: str
+    transport: SessionTransport
     voice: str
     language: str
-    def __init__(self, transport: _Optional[str] = ..., voice: _Optional[str] = ..., language: _Optional[str] = ...) -> None: ...
+    def __init__(self, transport: _Optional[_Union[SessionTransport, str]] = ..., voice: _Optional[str] = ..., language: _Optional[str] = ...) -> None: ...
 
 class OpenSessionResponse(_message.Message):
     __slots__ = ("session_id", "transport")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     TRANSPORT_FIELD_NUMBER: _ClassVar[int]
     session_id: str
-    transport: str
-    def __init__(self, session_id: _Optional[str] = ..., transport: _Optional[str] = ...) -> None: ...
+    transport: SessionTransport
+    def __init__(self, session_id: _Optional[str] = ..., transport: _Optional[_Union[SessionTransport, str]] = ...) -> None: ...
 
 class CloseSessionRequest(_message.Message):
     __slots__ = ("session_id", "reason")
@@ -92,7 +123,7 @@ class SessionEvent(_message.Message):
     CLOSED_FIELD_NUMBER: _ClassVar[int]
     event_id: str
     session_id: str
-    emitted_at: str
+    emitted_at: _timestamp_pb2.Timestamp
     transcript_delta: TranscriptDelta
     transcript_final: TranscriptFinal
     assistant_delta: AssistantDelta
@@ -101,7 +132,7 @@ class SessionEvent(_message.Message):
     tool: ToolEvent
     barge_in_cancel: BargeInCancel
     closed: SessionClosed
-    def __init__(self, event_id: _Optional[str] = ..., session_id: _Optional[str] = ..., emitted_at: _Optional[str] = ..., transcript_delta: _Optional[_Union[TranscriptDelta, _Mapping]] = ..., transcript_final: _Optional[_Union[TranscriptFinal, _Mapping]] = ..., assistant_delta: _Optional[_Union[AssistantDelta, _Mapping]] = ..., assistant_final: _Optional[_Union[AssistantFinal, _Mapping]] = ..., vad: _Optional[_Union[VadEvent, _Mapping]] = ..., tool: _Optional[_Union[ToolEvent, _Mapping]] = ..., barge_in_cancel: _Optional[_Union[BargeInCancel, _Mapping]] = ..., closed: _Optional[_Union[SessionClosed, _Mapping]] = ...) -> None: ...
+    def __init__(self, event_id: _Optional[str] = ..., session_id: _Optional[str] = ..., emitted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., transcript_delta: _Optional[_Union[TranscriptDelta, _Mapping]] = ..., transcript_final: _Optional[_Union[TranscriptFinal, _Mapping]] = ..., assistant_delta: _Optional[_Union[AssistantDelta, _Mapping]] = ..., assistant_final: _Optional[_Union[AssistantFinal, _Mapping]] = ..., vad: _Optional[_Union[VadEvent, _Mapping]] = ..., tool: _Optional[_Union[ToolEvent, _Mapping]] = ..., barge_in_cancel: _Optional[_Union[BargeInCancel, _Mapping]] = ..., closed: _Optional[_Union[SessionClosed, _Mapping]] = ...) -> None: ...
 
 class TranscriptDelta(_message.Message):
     __slots__ = ("text", "from_seconds", "to_seconds")
@@ -140,8 +171,8 @@ class AssistantFinal(_message.Message):
 class VadEvent(_message.Message):
     __slots__ = ("state",)
     STATE_FIELD_NUMBER: _ClassVar[int]
-    state: str
-    def __init__(self, state: _Optional[str] = ...) -> None: ...
+    state: VadState
+    def __init__(self, state: _Optional[_Union[VadState, str]] = ...) -> None: ...
 
 class ToolEvent(_message.Message):
     __slots__ = ("name", "payload_json")
@@ -155,9 +186,9 @@ class BargeInCancel(_message.Message):
     __slots__ = ("reason", "canceled_event_id")
     REASON_FIELD_NUMBER: _ClassVar[int]
     CANCELED_EVENT_ID_FIELD_NUMBER: _ClassVar[int]
-    reason: str
+    reason: BargeInReason
     canceled_event_id: str
-    def __init__(self, reason: _Optional[str] = ..., canceled_event_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, reason: _Optional[_Union[BargeInReason, str]] = ..., canceled_event_id: _Optional[str] = ...) -> None: ...
 
 class SessionClosed(_message.Message):
     __slots__ = ("reason",)

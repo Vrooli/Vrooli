@@ -5,7 +5,18 @@
 // hook ack, status snapshots tied to consumer internals) stay in the
 // consumer; this module deliberately ships only the audio surface.
 
+import { create } from "@bufbuild/protobuf";
+import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
+
 import { useAudioToolsClient, type AudioToolsClient } from "../client";
+import {
+  responseFormatFromString,
+  responseFormatLabel,
+  summarizeLevelFromString,
+} from "./protomap";
+import type { Config as TTSConfigMsg } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
+import type { SummarizeConfig as SummarizeConfigMsg } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
+import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
 
 export interface TTSVoiceInfo {
   id: string;
@@ -42,31 +53,33 @@ export interface TTSSummarizeConfig {
 
 const TTS_SYNTHESIS_TIMEOUT_MS = 30_000;
 
-function decodeTTSConfig(c:
-  | {
-      autoEnabled: boolean;
-      defaultVoice: string;
-      defaultSpeed: number;
-      defaultResponseFormat: string;
-    }
-  | undefined,
-): TTSConfig {
+function summarizeLevelLabel(l: SummarizeLevel | undefined): TTSSummarizeConfig["level"] {
+  switch (l) {
+    case SummarizeLevel.LIGHT:
+      return "light";
+    case SummarizeLevel.MODERATE:
+      return "moderate";
+    case SummarizeLevel.HEAVY:
+      return "heavy";
+    default:
+      return "moderate";
+  }
+}
+
+function decodeTTSConfig(c: TTSConfigMsg | undefined): TTSConfig {
   return {
     autoEnabled: c?.autoEnabled ?? false,
     defaultVoice: c?.defaultVoice ?? "",
     defaultSpeed: c?.defaultSpeed ?? 1,
-    defaultResponseFormat: c?.defaultResponseFormat ?? "mp3",
+    defaultResponseFormat: responseFormatLabel(c?.defaultResponseFormat) || "mp3",
   };
 }
 
-function decodeSummarizeConfig(c:
-  | { enabled: boolean; charThreshold: number; level: string; model: string; timeoutSeconds: number }
-  | undefined,
-): TTSSummarizeConfig {
+function decodeSummarizeConfig(c: SummarizeConfigMsg | undefined): TTSSummarizeConfig {
   return {
     enabled: c?.enabled ?? false,
     charThreshold: c?.charThreshold ?? 0,
-    level: ((c?.level || "moderate") as TTSSummarizeConfig["level"]),
+    level: summarizeLevelLabel(c?.level),
     model: c?.model ?? "",
     timeoutSeconds: c?.timeoutSeconds ?? 0,
   };
@@ -88,7 +101,7 @@ export function createTtsApi(client: AudioToolsClient) {
       const timeout = AbortSignal.timeout(TTS_SYNTHESIS_TIMEOUT_MS);
       const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
       const resp = await client.tts.synthesize(
-        { text: input, voice: voice ?? "", responseFormat: "mp3", speed: speed ?? 0, eventId: "", voiceOverrides: {} },
+        { text: input, voice: voice ?? "", responseFormat: responseFormatFromString("mp3"), speed: speed ?? 0, eventId: "", voiceOverrides: [] },
         { signal: combined },
       );
       return new Blob([resp.audio as Uint8Array<ArrayBuffer>], { type: resp.contentType || "audio/mpeg" });
@@ -121,12 +134,16 @@ export function createTtsApi(client: AudioToolsClient) {
     },
 
     async updateTTSConfig(patch: Partial<TTSConfig>): Promise<TTSConfig> {
-      const req: Record<string, unknown> = {};
-      if (patch.autoEnabled !== undefined) { req.autoEnabled = patch.autoEnabled; req.hasAutoEnabled = true; }
-      if (patch.defaultVoice !== undefined) { req.defaultVoice = patch.defaultVoice; req.hasDefaultVoice = true; }
-      if (patch.defaultSpeed !== undefined) { req.defaultSpeed = patch.defaultSpeed; req.hasDefaultSpeed = true; }
-      if (patch.defaultResponseFormat !== undefined) { req.defaultResponseFormat = patch.defaultResponseFormat; req.hasDefaultResponseFormat = true; }
-      const resp = await client.tts.updateConfig(req as Parameters<typeof client.tts.updateConfig>[0]);
+      const paths: string[] = [];
+      const cfg: Record<string, unknown> = {};
+      if (patch.autoEnabled !== undefined) { cfg.autoEnabled = patch.autoEnabled; paths.push("auto_enabled"); }
+      if (patch.defaultVoice !== undefined) { cfg.defaultVoice = patch.defaultVoice; paths.push("default_voice"); }
+      if (patch.defaultSpeed !== undefined) { cfg.defaultSpeed = patch.defaultSpeed; paths.push("default_speed"); }
+      if (patch.defaultResponseFormat !== undefined) { cfg.defaultResponseFormat = responseFormatFromString(patch.defaultResponseFormat); paths.push("default_response_format"); }
+      const resp = await client.tts.updateConfig({
+        updateMask: create(FieldMaskSchema, { paths }),
+        config: cfg,
+      } as Parameters<typeof client.tts.updateConfig>[0]);
       return decodeTTSConfig(resp.config);
     },
 
@@ -136,18 +153,17 @@ export function createTtsApi(client: AudioToolsClient) {
     },
 
     async updateTTSSummarizeConfig(patch: Partial<TTSSummarizeConfig>): Promise<TTSSummarizeConfig> {
+      const paths: string[] = [];
+      const cfg: Record<string, unknown> = {};
+      if (patch.enabled !== undefined) { cfg.enabled = patch.enabled; paths.push("enabled"); }
+      if (patch.charThreshold !== undefined) { cfg.charThreshold = patch.charThreshold; paths.push("char_threshold"); }
+      if (patch.level !== undefined) { cfg.level = summarizeLevelFromString(patch.level); paths.push("level"); }
+      if (patch.model !== undefined) { cfg.model = patch.model; paths.push("model"); }
+      if (patch.timeoutSeconds !== undefined) { cfg.timeoutSeconds = patch.timeoutSeconds; paths.push("timeout_seconds"); }
       const resp = await client.summarize.updateSummarizeConfig({
-        enabled: patch.enabled ?? false,
-        hasEnabled: patch.enabled !== undefined,
-        charThreshold: patch.charThreshold ?? 0,
-        hasCharThreshold: patch.charThreshold !== undefined,
-        level: patch.level ?? "",
-        hasLevel: patch.level !== undefined,
-        model: patch.model ?? "",
-        hasModel: patch.model !== undefined,
-        timeoutSeconds: patch.timeoutSeconds ?? 0,
-        hasTimeoutSeconds: patch.timeoutSeconds !== undefined,
-      });
+        updateMask: create(FieldMaskSchema, { paths }),
+        config: cfg,
+      } as Parameters<typeof client.summarize.updateSummarizeConfig>[0]);
       return decodeSummarizeConfig(resp.config);
     },
 

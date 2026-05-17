@@ -1,34 +1,33 @@
 ### Catalog deltas since last heartbeat
-- `agent-manager` amplifier: Agent Sandbox Audit Foundation moved **0/5 → 2/5** completed (`measured`, swarm-manager overview). First non-zero motion on either of the two amplifier-gating initiatives flagged as "entirely unstarted" in the prior three snapshots.
-- Protected Agent Sandboxing remains **0/3** (`measured`, unchanged).
-- All other tracked initiatives unchanged (Continuous Audio Platform 0/9, GCT Pre-Commit Security 1/5, GCT Merge 0/4, GCT GitHub Integration 0/5, GCT Release Pipeline 0/2).
-- operator-inputs.json still unpopulated; paying subs still 0 (`measured`, per financial-tracker knw-1777053653472379841).
+- `agent-sandbox-audit-foundation` moved **2/5 → 10/10 completed** (`measured`).
+- `protected-agent-sandboxing` moved **0/3 → 7/7 completed** (`measured`).
+- `git-control-tower-ai-provenance` remains **0/2**, and `run-level-undo-and-revert` remains **0/2** (`measured`).
+- `continuous-audio-platform` remains **0/9**; `web-console-readiness` remains **0/1** and gated on audio (`measured`).
+- `desktop-monetization-assurance` is **2/2 completed**, but `desktop-release-governance` remains **7/14 active** (`measured`).
+- Financial state unchanged: operator inputs still null, revenue still 0 aspirational, subscription MRR pending telemetry (`measured`).
 
 ### Triggered candidates
-No candidate triggers fired this heartbeat.
+No candidate triggers fired.
 
-- `lifestyle`, `property-services`, `elder-care`, `family-with-kids` — all gated on paying-subs ≥50 (`fixed`); subs=0. **No-fire.**
-- Tier 2 (self-hosted, candidate) — 3 prereqs unmet (`estimate`). **No-fire.**
-- Tier 3 (hosted cloud, candidate) — gated on Tier 2 (`pending-telemetry`). **No-fire.**
-- Tier 4 (hardware) — north-star, no operator initiation. **No-fire.**
+New opportunity inputs exist for MCP/agent registry channel, agent connector security add-on, and homelab/self-hosted app-store channel, but all remain blocked by shipped/packageable scenario evidence, family-bundle candidate status, prospect signals, or measurable referral/install telemetry.
 
 ### Tier readiness
-- **Tier 2 (self-hosted, candidate):** 3 prereqs unmet, unchanged (`estimate`).
-- **Tier 3 (hosted cloud, candidate):** gated on Tier 2, unchanged (`pending-telemetry` — scenario-to-cloud readiness not yet exposed).
-- **Tier 4 (hardware, north-star):** no operator initiation, unchanged.
+- **Tier 2 self-hosted:** slightly closer due to completed desktop monetization assurance, but still no-fire; subscription state, release governance, and account/license readiness are not proven complete (`estimate`).
+- **Tier 3 hosted cloud:** still gated on Tier 2; readiness remains `pending-telemetry`.
+- **Tier 4 hardware:** north-star only; no operator initiation (`fixed`).
 
-### Headliner watch (business bundle)
-- Current headliners: `web-console`, `git-control-tower` (both `in-progress`) (`fixed`, sku-map.json).
-- Nearest promotion candidate: `agent-manager` → amplifier-to-future-headliner. First-ever motion this heartbeat (Agent Sandbox Audit Foundation 2/5), but still well short of deployable. **No promotion decision** — trigger has not fired; headliners are operator-promoted.
+### Headliner watch
+Current headliners remain `web-console` and `git-control-tower` (`fixed`).  
+`agent-manager` is materially closer as an amplifier, but no promotion: completed sandbox foundations are not the same as strong standalone appeal deployable today, especially with GCT provenance and run-level undo/revert still open.
 
 ### Mapping proposals
-No mapping changes this heartbeat. Agent-manager role remains `amplifier` — 2/5 on a foundation initiative is not deployability. All 6 sku-map entries unchanged.
+No mapping decisions raised. `agent-manager` remains `amplifier`; `swarm-manager` remains future-headliner/watch, not promoted.
 
 ### Current bottleneck
-`agent-manager` stabilization remains the single most load-bearing block (amplifies GCT headliner AND clears swarm-manager future-headliner blockedBy), but its leading edge has shifted from "entirely unstarted" to "Agent Sandbox Audit Foundation 2/5 + Protected Agent Sandboxing 0/3" — worth re-checking next heartbeat for further motion.
+Load-bearing bottleneck shifted from sandbox foundation itself to **Git Control Tower AI Provenance + run-level undo/revert** as the remaining trust layer for auto-applied agent work. `continuous-audio-platform` remains the separate blocker for `web-console` paid readiness.
 
 ### Decisions raised this heartbeat
-0 decisions. Material delta exists (Agent Sandbox Audit Foundation 0/5 → 2/5) but does not cross any promotion / mapping / retirement threshold; agent-manager is not yet deployable. Team queue: 0 pending (normal mode). Own-context cap: 0/3.
+0 decisions. Pending team queue is 1, owned-context pending is 0/3.
 
 ### Knowledge entry written
-- topic: `catalog-snapshot-2026-04-27` (id `knw-1777314656888755232`, supersedes `knw-1777055450925377798`).
+- `catalog-snapshot/2026-05-16`: `knw-1778956363644009136`.

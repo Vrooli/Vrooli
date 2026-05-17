@@ -9,6 +9,7 @@ package session_v1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -21,9 +22,163 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// SessionTransport names the concrete transport implementation that
+// backs a voice-session. browser-voice = the WebSocket transport at
+// /api/v1/voice/stream; FAKE = the in-process test transport. Future
+// adapters (twilio-voice, sip-webrtc, ...) extend this enum.
+type SessionTransport int32
+
+const (
+	SessionTransport_SESSION_TRANSPORT_UNSPECIFIED   SessionTransport = 0
+	SessionTransport_SESSION_TRANSPORT_BROWSER_VOICE SessionTransport = 1
+	SessionTransport_SESSION_TRANSPORT_FAKE          SessionTransport = 2
+)
+
+// Enum value maps for SessionTransport.
+var (
+	SessionTransport_name = map[int32]string{
+		0: "SESSION_TRANSPORT_UNSPECIFIED",
+		1: "SESSION_TRANSPORT_BROWSER_VOICE",
+		2: "SESSION_TRANSPORT_FAKE",
+	}
+	SessionTransport_value = map[string]int32{
+		"SESSION_TRANSPORT_UNSPECIFIED":   0,
+		"SESSION_TRANSPORT_BROWSER_VOICE": 1,
+		"SESSION_TRANSPORT_FAKE":          2,
+	}
+)
+
+func (x SessionTransport) Enum() *SessionTransport {
+	p := new(SessionTransport)
+	*p = x
+	return p
+}
+
+func (x SessionTransport) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SessionTransport) Descriptor() protoreflect.EnumDescriptor {
+	return file_audio_tools_v1_session_session_proto_enumTypes[0].Descriptor()
+}
+
+func (SessionTransport) Type() protoreflect.EnumType {
+	return &file_audio_tools_v1_session_session_proto_enumTypes[0]
+}
+
+func (x SessionTransport) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SessionTransport.Descriptor instead.
+func (SessionTransport) EnumDescriptor() ([]byte, []int) {
+	return file_audio_tools_v1_session_session_proto_rawDescGZIP(), []int{0}
+}
+
+// VadState is the VAD subsystem's per-event state transition.
+type VadState int32
+
+const (
+	VadState_VAD_STATE_UNSPECIFIED  VadState = 0
+	VadState_VAD_STATE_SPEECH_START VadState = 1
+	VadState_VAD_STATE_SPEECH_END   VadState = 2
+)
+
+// Enum value maps for VadState.
+var (
+	VadState_name = map[int32]string{
+		0: "VAD_STATE_UNSPECIFIED",
+		1: "VAD_STATE_SPEECH_START",
+		2: "VAD_STATE_SPEECH_END",
+	}
+	VadState_value = map[string]int32{
+		"VAD_STATE_UNSPECIFIED":  0,
+		"VAD_STATE_SPEECH_START": 1,
+		"VAD_STATE_SPEECH_END":   2,
+	}
+)
+
+func (x VadState) Enum() *VadState {
+	p := new(VadState)
+	*p = x
+	return p
+}
+
+func (x VadState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (VadState) Descriptor() protoreflect.EnumDescriptor {
+	return file_audio_tools_v1_session_session_proto_enumTypes[1].Descriptor()
+}
+
+func (VadState) Type() protoreflect.EnumType {
+	return &file_audio_tools_v1_session_session_proto_enumTypes[1]
+}
+
+func (x VadState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use VadState.Descriptor instead.
+func (VadState) EnumDescriptor() ([]byte, []int) {
+	return file_audio_tools_v1_session_session_proto_rawDescGZIP(), []int{1}
+}
+
+// BargeInReason identifies why an in-flight TTS playback was cancelled.
+// VAD = user started talking; EXPLICIT = SendCancel called.
+type BargeInReason int32
+
+const (
+	BargeInReason_BARGE_IN_REASON_UNSPECIFIED BargeInReason = 0
+	BargeInReason_BARGE_IN_REASON_VAD         BargeInReason = 1
+	BargeInReason_BARGE_IN_REASON_EXPLICIT    BargeInReason = 2
+)
+
+// Enum value maps for BargeInReason.
+var (
+	BargeInReason_name = map[int32]string{
+		0: "BARGE_IN_REASON_UNSPECIFIED",
+		1: "BARGE_IN_REASON_VAD",
+		2: "BARGE_IN_REASON_EXPLICIT",
+	}
+	BargeInReason_value = map[string]int32{
+		"BARGE_IN_REASON_UNSPECIFIED": 0,
+		"BARGE_IN_REASON_VAD":         1,
+		"BARGE_IN_REASON_EXPLICIT":    2,
+	}
+)
+
+func (x BargeInReason) Enum() *BargeInReason {
+	p := new(BargeInReason)
+	*p = x
+	return p
+}
+
+func (x BargeInReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BargeInReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_audio_tools_v1_session_session_proto_enumTypes[2].Descriptor()
+}
+
+func (BargeInReason) Type() protoreflect.EnumType {
+	return &file_audio_tools_v1_session_session_proto_enumTypes[2]
+}
+
+func (x BargeInReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BargeInReason.Descriptor instead.
+func (BargeInReason) EnumDescriptor() ([]byte, []int) {
+	return file_audio_tools_v1_session_session_proto_rawDescGZIP(), []int{2}
+}
+
 type OpenSessionRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
-	Transport string                 `protobuf:"bytes,1,opt,name=transport,proto3" json:"transport,omitempty"` // "browser-voice", "fake", ...
+	Transport SessionTransport       `protobuf:"varint,1,opt,name=transport,proto3,enum=vrooli.audio_tools.v1.session.SessionTransport" json:"transport,omitempty"`
 	// Optional pre-configured TTS voice + STT language for the session.
 	Voice         string `protobuf:"bytes,2,opt,name=voice,proto3" json:"voice,omitempty"`
 	Language      string `protobuf:"bytes,3,opt,name=language,proto3" json:"language,omitempty"`
@@ -61,11 +216,11 @@ func (*OpenSessionRequest) Descriptor() ([]byte, []int) {
 	return file_audio_tools_v1_session_session_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *OpenSessionRequest) GetTransport() string {
+func (x *OpenSessionRequest) GetTransport() SessionTransport {
 	if x != nil {
 		return x.Transport
 	}
-	return ""
+	return SessionTransport_SESSION_TRANSPORT_UNSPECIFIED
 }
 
 func (x *OpenSessionRequest) GetVoice() string {
@@ -85,7 +240,7 @@ func (x *OpenSessionRequest) GetLanguage() string {
 type OpenSessionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	Transport     string                 `protobuf:"bytes,2,opt,name=transport,proto3" json:"transport,omitempty"`
+	Transport     SessionTransport       `protobuf:"varint,2,opt,name=transport,proto3,enum=vrooli.audio_tools.v1.session.SessionTransport" json:"transport,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -127,11 +282,11 @@ func (x *OpenSessionResponse) GetSessionId() string {
 	return ""
 }
 
-func (x *OpenSessionResponse) GetTransport() string {
+func (x *OpenSessionResponse) GetTransport() SessionTransport {
 	if x != nil {
 		return x.Transport
 	}
-	return ""
+	return SessionTransport_SESSION_TRANSPORT_UNSPECIFIED
 }
 
 type CloseSessionRequest struct {
@@ -517,7 +672,7 @@ type SessionEvent struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	EventId   string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	SessionId string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	EmittedAt string                 `protobuf:"bytes,3,opt,name=emitted_at,json=emittedAt,proto3" json:"emitted_at,omitempty"`
+	EmittedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=emitted_at,json=emittedAt,proto3" json:"emitted_at,omitempty"`
 	// Types that are valid to be assigned to Payload:
 	//
 	//	*SessionEvent_TranscriptDelta
@@ -577,11 +732,11 @@ func (x *SessionEvent) GetSessionId() string {
 	return ""
 }
 
-func (x *SessionEvent) GetEmittedAt() string {
+func (x *SessionEvent) GetEmittedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.EmittedAt
 	}
-	return ""
+	return nil
 }
 
 func (x *SessionEvent) GetPayload() isSessionEvent_Payload {
@@ -934,7 +1089,7 @@ func (x *AssistantFinal) GetHadAudio() bool {
 
 type VadEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"` // "speech_start" | "speech_end"
+	State         VadState               `protobuf:"varint,1,opt,name=state,proto3,enum=vrooli.audio_tools.v1.session.VadState" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -969,11 +1124,11 @@ func (*VadEvent) Descriptor() ([]byte, []int) {
 	return file_audio_tools_v1_session_session_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *VadEvent) GetState() string {
+func (x *VadEvent) GetState() VadState {
 	if x != nil {
 		return x.State
 	}
-	return ""
+	return VadState_VAD_STATE_UNSPECIFIED
 }
 
 type ToolEvent struct {
@@ -1030,7 +1185,7 @@ func (x *ToolEvent) GetPayloadJson() string {
 
 type BargeInCancel struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Reason          string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"` // "vad" | "explicit"
+	Reason          BargeInReason          `protobuf:"varint,1,opt,name=reason,proto3,enum=vrooli.audio_tools.v1.session.BargeInReason" json:"reason,omitempty"`
 	CanceledEventId string                 `protobuf:"bytes,2,opt,name=canceled_event_id,json=canceledEventId,proto3" json:"canceled_event_id,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -1066,11 +1221,11 @@ func (*BargeInCancel) Descriptor() ([]byte, []int) {
 	return file_audio_tools_v1_session_session_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *BargeInCancel) GetReason() string {
+func (x *BargeInCancel) GetReason() BargeInReason {
 	if x != nil {
 		return x.Reason
 	}
-	return ""
+	return BargeInReason_BARGE_IN_REASON_UNSPECIFIED
 }
 
 func (x *BargeInCancel) GetCanceledEventId() string {
@@ -1128,15 +1283,15 @@ var File_audio_tools_v1_session_session_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_session_session_proto_rawDesc = "" +
 	"\n" +
-	"$audio-tools/v1/session/session.proto\x12\x1dvrooli.audio_tools.v1.session\"d\n" +
-	"\x12OpenSessionRequest\x12\x1c\n" +
-	"\ttransport\x18\x01 \x01(\tR\ttransport\x12\x14\n" +
+	"$audio-tools/v1/session/session.proto\x12\x1dvrooli.audio_tools.v1.session\x1a\x1fgoogle/protobuf/timestamp.proto\"\x95\x01\n" +
+	"\x12OpenSessionRequest\x12M\n" +
+	"\ttransport\x18\x01 \x01(\x0e2/.vrooli.audio_tools.v1.session.SessionTransportR\ttransport\x12\x14\n" +
 	"\x05voice\x18\x02 \x01(\tR\x05voice\x12\x1a\n" +
-	"\blanguage\x18\x03 \x01(\tR\blanguage\"R\n" +
+	"\blanguage\x18\x03 \x01(\tR\blanguage\"\x83\x01\n" +
 	"\x13OpenSessionResponse\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1c\n" +
-	"\ttransport\x18\x02 \x01(\tR\ttransport\"L\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12M\n" +
+	"\ttransport\x18\x02 \x01(\x0e2/.vrooli.audio_tools.v1.session.SessionTransportR\ttransport\"L\n" +
 	"\x13CloseSessionRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x16\n" +
@@ -1159,13 +1314,13 @@ const file_audio_tools_v1_session_session_proto_rawDesc = "" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\"\n" +
 	"\rfrom_event_id\x18\x02 \x01(\tR\vfromEventId\"V\n" +
 	"\x11SubscribeResponse\x12A\n" +
-	"\x05event\x18\x01 \x01(\v2+.vrooli.audio_tools.v1.session.SessionEventR\x05event\"\xfd\x05\n" +
+	"\x05event\x18\x01 \x01(\v2+.vrooli.audio_tools.v1.session.SessionEventR\x05event\"\x99\x06\n" +
 	"\fSessionEvent\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x1d\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x129\n" +
 	"\n" +
-	"emitted_at\x18\x03 \x01(\tR\temittedAt\x12[\n" +
+	"emitted_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\temittedAt\x12[\n" +
 	"\x10transcript_delta\x18\n" +
 	" \x01(\v2..vrooli.audio_tools.v1.session.TranscriptDeltaH\x00R\x0ftranscriptDelta\x12[\n" +
 	"\x10transcript_final\x18\v \x01(\v2..vrooli.audio_tools.v1.session.TranscriptFinalH\x00R\x0ftranscriptFinal\x12X\n" +
@@ -1189,17 +1344,29 @@ const file_audio_tools_v1_session_session_proto_rawDesc = "" +
 	"\x04text\x18\x01 \x01(\tR\x04text\"A\n" +
 	"\x0eAssistantFinal\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x1b\n" +
-	"\thad_audio\x18\x02 \x01(\bR\bhadAudio\" \n" +
-	"\bVadEvent\x12\x14\n" +
-	"\x05state\x18\x01 \x01(\tR\x05state\"B\n" +
+	"\thad_audio\x18\x02 \x01(\bR\bhadAudio\"I\n" +
+	"\bVadEvent\x12=\n" +
+	"\x05state\x18\x01 \x01(\x0e2'.vrooli.audio_tools.v1.session.VadStateR\x05state\"B\n" +
 	"\tToolEvent\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
-	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"S\n" +
-	"\rBargeInCancel\x12\x16\n" +
-	"\x06reason\x18\x01 \x01(\tR\x06reason\x12*\n" +
+	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"\x81\x01\n" +
+	"\rBargeInCancel\x12D\n" +
+	"\x06reason\x18\x01 \x01(\x0e2,.vrooli.audio_tools.v1.session.BargeInReasonR\x06reason\x12*\n" +
 	"\x11canceled_event_id\x18\x02 \x01(\tR\x0fcanceledEventId\"'\n" +
 	"\rSessionClosed\x12\x16\n" +
-	"\x06reason\x18\x01 \x01(\tR\x06reason2\xd1\x04\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason*v\n" +
+	"\x10SessionTransport\x12!\n" +
+	"\x1dSESSION_TRANSPORT_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fSESSION_TRANSPORT_BROWSER_VOICE\x10\x01\x12\x1a\n" +
+	"\x16SESSION_TRANSPORT_FAKE\x10\x02*[\n" +
+	"\bVadState\x12\x19\n" +
+	"\x15VAD_STATE_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16VAD_STATE_SPEECH_START\x10\x01\x12\x18\n" +
+	"\x14VAD_STATE_SPEECH_END\x10\x02*g\n" +
+	"\rBargeInReason\x12\x1f\n" +
+	"\x1bBARGE_IN_REASON_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13BARGE_IN_REASON_VAD\x10\x01\x12\x1c\n" +
+	"\x18BARGE_IN_REASON_EXPLICIT\x10\x022\xd1\x04\n" +
 	"\x0eSessionService\x12t\n" +
 	"\vOpenSession\x121.vrooli.audio_tools.v1.session.OpenSessionRequest\x1a2.vrooli.audio_tools.v1.session.OpenSessionResponse\x12w\n" +
 	"\fCloseSession\x122.vrooli.audio_tools.v1.session.CloseSessionRequest\x1a3.vrooli.audio_tools.v1.session.CloseSessionResponse\x12k\n" +
@@ -1220,53 +1387,63 @@ func file_audio_tools_v1_session_session_proto_rawDescGZIP() []byte {
 	return file_audio_tools_v1_session_session_proto_rawDescData
 }
 
+var file_audio_tools_v1_session_session_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_audio_tools_v1_session_session_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_audio_tools_v1_session_session_proto_goTypes = []any{
-	(*OpenSessionRequest)(nil),   // 0: vrooli.audio_tools.v1.session.OpenSessionRequest
-	(*OpenSessionResponse)(nil),  // 1: vrooli.audio_tools.v1.session.OpenSessionResponse
-	(*CloseSessionRequest)(nil),  // 2: vrooli.audio_tools.v1.session.CloseSessionRequest
-	(*CloseSessionResponse)(nil), // 3: vrooli.audio_tools.v1.session.CloseSessionResponse
-	(*SendTextRequest)(nil),      // 4: vrooli.audio_tools.v1.session.SendTextRequest
-	(*SendTextResponse)(nil),     // 5: vrooli.audio_tools.v1.session.SendTextResponse
-	(*SendCancelRequest)(nil),    // 6: vrooli.audio_tools.v1.session.SendCancelRequest
-	(*SendCancelResponse)(nil),   // 7: vrooli.audio_tools.v1.session.SendCancelResponse
-	(*SubscribeRequest)(nil),     // 8: vrooli.audio_tools.v1.session.SubscribeRequest
-	(*SubscribeResponse)(nil),    // 9: vrooli.audio_tools.v1.session.SubscribeResponse
-	(*SessionEvent)(nil),         // 10: vrooli.audio_tools.v1.session.SessionEvent
-	(*TranscriptDelta)(nil),      // 11: vrooli.audio_tools.v1.session.TranscriptDelta
-	(*TranscriptFinal)(nil),      // 12: vrooli.audio_tools.v1.session.TranscriptFinal
-	(*AssistantDelta)(nil),       // 13: vrooli.audio_tools.v1.session.AssistantDelta
-	(*AssistantFinal)(nil),       // 14: vrooli.audio_tools.v1.session.AssistantFinal
-	(*VadEvent)(nil),             // 15: vrooli.audio_tools.v1.session.VadEvent
-	(*ToolEvent)(nil),            // 16: vrooli.audio_tools.v1.session.ToolEvent
-	(*BargeInCancel)(nil),        // 17: vrooli.audio_tools.v1.session.BargeInCancel
-	(*SessionClosed)(nil),        // 18: vrooli.audio_tools.v1.session.SessionClosed
+	(SessionTransport)(0),         // 0: vrooli.audio_tools.v1.session.SessionTransport
+	(VadState)(0),                 // 1: vrooli.audio_tools.v1.session.VadState
+	(BargeInReason)(0),            // 2: vrooli.audio_tools.v1.session.BargeInReason
+	(*OpenSessionRequest)(nil),    // 3: vrooli.audio_tools.v1.session.OpenSessionRequest
+	(*OpenSessionResponse)(nil),   // 4: vrooli.audio_tools.v1.session.OpenSessionResponse
+	(*CloseSessionRequest)(nil),   // 5: vrooli.audio_tools.v1.session.CloseSessionRequest
+	(*CloseSessionResponse)(nil),  // 6: vrooli.audio_tools.v1.session.CloseSessionResponse
+	(*SendTextRequest)(nil),       // 7: vrooli.audio_tools.v1.session.SendTextRequest
+	(*SendTextResponse)(nil),      // 8: vrooli.audio_tools.v1.session.SendTextResponse
+	(*SendCancelRequest)(nil),     // 9: vrooli.audio_tools.v1.session.SendCancelRequest
+	(*SendCancelResponse)(nil),    // 10: vrooli.audio_tools.v1.session.SendCancelResponse
+	(*SubscribeRequest)(nil),      // 11: vrooli.audio_tools.v1.session.SubscribeRequest
+	(*SubscribeResponse)(nil),     // 12: vrooli.audio_tools.v1.session.SubscribeResponse
+	(*SessionEvent)(nil),          // 13: vrooli.audio_tools.v1.session.SessionEvent
+	(*TranscriptDelta)(nil),       // 14: vrooli.audio_tools.v1.session.TranscriptDelta
+	(*TranscriptFinal)(nil),       // 15: vrooli.audio_tools.v1.session.TranscriptFinal
+	(*AssistantDelta)(nil),        // 16: vrooli.audio_tools.v1.session.AssistantDelta
+	(*AssistantFinal)(nil),        // 17: vrooli.audio_tools.v1.session.AssistantFinal
+	(*VadEvent)(nil),              // 18: vrooli.audio_tools.v1.session.VadEvent
+	(*ToolEvent)(nil),             // 19: vrooli.audio_tools.v1.session.ToolEvent
+	(*BargeInCancel)(nil),         // 20: vrooli.audio_tools.v1.session.BargeInCancel
+	(*SessionClosed)(nil),         // 21: vrooli.audio_tools.v1.session.SessionClosed
+	(*timestamppb.Timestamp)(nil), // 22: google.protobuf.Timestamp
 }
 var file_audio_tools_v1_session_session_proto_depIdxs = []int32{
-	10, // 0: vrooli.audio_tools.v1.session.SubscribeResponse.event:type_name -> vrooli.audio_tools.v1.session.SessionEvent
-	11, // 1: vrooli.audio_tools.v1.session.SessionEvent.transcript_delta:type_name -> vrooli.audio_tools.v1.session.TranscriptDelta
-	12, // 2: vrooli.audio_tools.v1.session.SessionEvent.transcript_final:type_name -> vrooli.audio_tools.v1.session.TranscriptFinal
-	13, // 3: vrooli.audio_tools.v1.session.SessionEvent.assistant_delta:type_name -> vrooli.audio_tools.v1.session.AssistantDelta
-	14, // 4: vrooli.audio_tools.v1.session.SessionEvent.assistant_final:type_name -> vrooli.audio_tools.v1.session.AssistantFinal
-	15, // 5: vrooli.audio_tools.v1.session.SessionEvent.vad:type_name -> vrooli.audio_tools.v1.session.VadEvent
-	16, // 6: vrooli.audio_tools.v1.session.SessionEvent.tool:type_name -> vrooli.audio_tools.v1.session.ToolEvent
-	17, // 7: vrooli.audio_tools.v1.session.SessionEvent.barge_in_cancel:type_name -> vrooli.audio_tools.v1.session.BargeInCancel
-	18, // 8: vrooli.audio_tools.v1.session.SessionEvent.closed:type_name -> vrooli.audio_tools.v1.session.SessionClosed
-	0,  // 9: vrooli.audio_tools.v1.session.SessionService.OpenSession:input_type -> vrooli.audio_tools.v1.session.OpenSessionRequest
-	2,  // 10: vrooli.audio_tools.v1.session.SessionService.CloseSession:input_type -> vrooli.audio_tools.v1.session.CloseSessionRequest
-	4,  // 11: vrooli.audio_tools.v1.session.SessionService.SendText:input_type -> vrooli.audio_tools.v1.session.SendTextRequest
-	6,  // 12: vrooli.audio_tools.v1.session.SessionService.SendCancel:input_type -> vrooli.audio_tools.v1.session.SendCancelRequest
-	8,  // 13: vrooli.audio_tools.v1.session.SessionService.Subscribe:input_type -> vrooli.audio_tools.v1.session.SubscribeRequest
-	1,  // 14: vrooli.audio_tools.v1.session.SessionService.OpenSession:output_type -> vrooli.audio_tools.v1.session.OpenSessionResponse
-	3,  // 15: vrooli.audio_tools.v1.session.SessionService.CloseSession:output_type -> vrooli.audio_tools.v1.session.CloseSessionResponse
-	5,  // 16: vrooli.audio_tools.v1.session.SessionService.SendText:output_type -> vrooli.audio_tools.v1.session.SendTextResponse
-	7,  // 17: vrooli.audio_tools.v1.session.SessionService.SendCancel:output_type -> vrooli.audio_tools.v1.session.SendCancelResponse
-	9,  // 18: vrooli.audio_tools.v1.session.SessionService.Subscribe:output_type -> vrooli.audio_tools.v1.session.SubscribeResponse
-	14, // [14:19] is the sub-list for method output_type
-	9,  // [9:14] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	0,  // 0: vrooli.audio_tools.v1.session.OpenSessionRequest.transport:type_name -> vrooli.audio_tools.v1.session.SessionTransport
+	0,  // 1: vrooli.audio_tools.v1.session.OpenSessionResponse.transport:type_name -> vrooli.audio_tools.v1.session.SessionTransport
+	13, // 2: vrooli.audio_tools.v1.session.SubscribeResponse.event:type_name -> vrooli.audio_tools.v1.session.SessionEvent
+	22, // 3: vrooli.audio_tools.v1.session.SessionEvent.emitted_at:type_name -> google.protobuf.Timestamp
+	14, // 4: vrooli.audio_tools.v1.session.SessionEvent.transcript_delta:type_name -> vrooli.audio_tools.v1.session.TranscriptDelta
+	15, // 5: vrooli.audio_tools.v1.session.SessionEvent.transcript_final:type_name -> vrooli.audio_tools.v1.session.TranscriptFinal
+	16, // 6: vrooli.audio_tools.v1.session.SessionEvent.assistant_delta:type_name -> vrooli.audio_tools.v1.session.AssistantDelta
+	17, // 7: vrooli.audio_tools.v1.session.SessionEvent.assistant_final:type_name -> vrooli.audio_tools.v1.session.AssistantFinal
+	18, // 8: vrooli.audio_tools.v1.session.SessionEvent.vad:type_name -> vrooli.audio_tools.v1.session.VadEvent
+	19, // 9: vrooli.audio_tools.v1.session.SessionEvent.tool:type_name -> vrooli.audio_tools.v1.session.ToolEvent
+	20, // 10: vrooli.audio_tools.v1.session.SessionEvent.barge_in_cancel:type_name -> vrooli.audio_tools.v1.session.BargeInCancel
+	21, // 11: vrooli.audio_tools.v1.session.SessionEvent.closed:type_name -> vrooli.audio_tools.v1.session.SessionClosed
+	1,  // 12: vrooli.audio_tools.v1.session.VadEvent.state:type_name -> vrooli.audio_tools.v1.session.VadState
+	2,  // 13: vrooli.audio_tools.v1.session.BargeInCancel.reason:type_name -> vrooli.audio_tools.v1.session.BargeInReason
+	3,  // 14: vrooli.audio_tools.v1.session.SessionService.OpenSession:input_type -> vrooli.audio_tools.v1.session.OpenSessionRequest
+	5,  // 15: vrooli.audio_tools.v1.session.SessionService.CloseSession:input_type -> vrooli.audio_tools.v1.session.CloseSessionRequest
+	7,  // 16: vrooli.audio_tools.v1.session.SessionService.SendText:input_type -> vrooli.audio_tools.v1.session.SendTextRequest
+	9,  // 17: vrooli.audio_tools.v1.session.SessionService.SendCancel:input_type -> vrooli.audio_tools.v1.session.SendCancelRequest
+	11, // 18: vrooli.audio_tools.v1.session.SessionService.Subscribe:input_type -> vrooli.audio_tools.v1.session.SubscribeRequest
+	4,  // 19: vrooli.audio_tools.v1.session.SessionService.OpenSession:output_type -> vrooli.audio_tools.v1.session.OpenSessionResponse
+	6,  // 20: vrooli.audio_tools.v1.session.SessionService.CloseSession:output_type -> vrooli.audio_tools.v1.session.CloseSessionResponse
+	8,  // 21: vrooli.audio_tools.v1.session.SessionService.SendText:output_type -> vrooli.audio_tools.v1.session.SendTextResponse
+	10, // 22: vrooli.audio_tools.v1.session.SessionService.SendCancel:output_type -> vrooli.audio_tools.v1.session.SendCancelResponse
+	12, // 23: vrooli.audio_tools.v1.session.SessionService.Subscribe:output_type -> vrooli.audio_tools.v1.session.SubscribeResponse
+	19, // [19:24] is the sub-list for method output_type
+	14, // [14:19] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_session_session_proto_init() }
@@ -1289,13 +1466,14 @@ func file_audio_tools_v1_session_session_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_session_session_proto_rawDesc), len(file_audio_tools_v1_session_session_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      3,
 			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_audio_tools_v1_session_session_proto_goTypes,
 		DependencyIndexes: file_audio_tools_v1_session_session_proto_depIdxs,
+		EnumInfos:         file_audio_tools_v1_session_session_proto_enumTypes,
 		MessageInfos:      file_audio_tools_v1_session_session_proto_msgTypes,
 	}.Build()
 	File_audio_tools_v1_session_session_proto = out.File

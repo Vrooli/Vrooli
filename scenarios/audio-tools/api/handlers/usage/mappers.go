@@ -5,6 +5,7 @@ package usage
 import (
 	"time"
 
+	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 
 	usagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/usage"
@@ -20,10 +21,10 @@ func resolveSince(sinceSeconds int64) time.Time {
 func rowToProto(r store.UsageRow) *usagev1.UsageRow {
 	return &usagev1.UsageRow{
 		OperationId:          r.OperationID,
-		EmittedAt:            r.EmittedAt.UTC().Format(time.RFC3339Nano),
+		EmittedAt:            protomap.TimeToProto(r.EmittedAt),
 		Capability:           r.Capability,
 		Operation:            r.Operation,
-		ProviderTier:         r.ProviderTier,
+		ProviderTier:         protomap.ProviderTierToProto(r.ProviderTier),
 		ProviderId:           r.ProviderID,
 		ModelId:              r.ModelID,
 		LatencyMs:            r.LatencyMs,

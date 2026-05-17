@@ -20,6 +20,8 @@ import (
 	"audio-tools/internal/store"
 	"audio-tools/internal/testutil/db"
 
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
+
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 )
@@ -80,15 +82,15 @@ func resetSpeakerCfg() {
 func TestSpeakerCfgDoc_ToProto_RoundTrip(t *testing.T) {
 	d := speakerCfgDoc{
 		Enabled: true, ProfileIDs: []string{"a", "b"}, Threshold: 0.8,
-		Mode: "verify", RejectBehavior: "warn",
+		Mode: "filter", RejectBehavior: "drop",
 		FallbackWithoutVerification: true, ExtractionEnabled: true,
 	}
 	p := d.toProto()
 	require.True(t, p.GetEnabled())
 	require.Equal(t, []string{"a", "b"}, p.GetProfileIds())
 	require.Equal(t, 0.8, p.GetThreshold())
-	require.Equal(t, "verify", p.GetMode())
-	require.Equal(t, "warn", p.GetRejectBehavior())
+	require.Equal(t, sttv1.SpeakerMode_SPEAKER_MODE_FILTER, p.GetMode())
+	require.Equal(t, sttv1.RejectBehavior_REJECT_BEHAVIOR_DROP, p.GetRejectBehavior())
 	require.True(t, p.GetFallbackWithoutVerification())
 	require.True(t, p.GetExtractionEnabled())
 }
@@ -99,7 +101,7 @@ func TestStreamCfgDoc_ToProtoAndDefaults(t *testing.T) {
 	require.Equal(t, "auto", d.StrategyPreference)
 	p := d.toProto()
 	require.Equal(t, int32(250), p.GetFlushIntervalMs())
-	require.Equal(t, "auto", p.GetStreamingMode())
+	require.Equal(t, sttv1.StreamingMode_STREAMING_MODE_AUTO, p.GetStreamingMode())
 }
 
 func TestMinInt(t *testing.T) {
@@ -165,18 +167,24 @@ func TestSpeakerConfig_GetUpdateRoundTrip(t *testing.T) {
 	require.False(t, get.Msg.GetConfig().GetEnabled())
 
 	upd, err := c.UpdateSpeakerConfig(context.Background(), connect.NewRequest(&sttv1.UpdateSpeakerConfigRequest{
-		HasEnabled: true, Enabled: true,
-		HasProfileIds: true, ProfileIds: []string{"sp-1"},
-		HasThreshold: true, Threshold: 0.9,
-		HasMode: true, Mode: "verify",
-		HasRejectBehavior: true, RejectBehavior: "warn",
-		HasFallbackWithoutVerification: true, FallbackWithoutVerification: true,
-		HasExtractionEnabled: true, ExtractionEnabled: true,
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{
+			"enabled", "profile_ids", "threshold", "mode", "reject_behavior",
+			"fallback_without_verification", "extraction_enabled",
+		}},
+		Config: &sttv1.SpeakerConfig{
+			Enabled:                     true,
+			ProfileIds:                  []string{"sp-1"},
+			Threshold:                   0.9,
+			Mode:                        sttv1.SpeakerMode_SPEAKER_MODE_FILTER,
+			RejectBehavior:              sttv1.RejectBehavior_REJECT_BEHAVIOR_DROP,
+			FallbackWithoutVerification: true,
+			ExtractionEnabled:           true,
+		},
 	}))
 	require.NoError(t, err)
 	require.True(t, upd.Msg.GetConfig().GetEnabled())
 	require.Equal(t, []string{"sp-1"}, upd.Msg.GetConfig().GetProfileIds())
-	require.Equal(t, "verify", upd.Msg.GetConfig().GetMode())
+	require.Equal(t, sttv1.SpeakerMode_SPEAKER_MODE_FILTER, upd.Msg.GetConfig().GetMode())
 }
 
 func TestSpeakerStatus_NoStore(t *testing.T) {
@@ -231,12 +239,14 @@ func TestEnrollSpeakerProfile_HappyPath(t *testing.T) {
 	t.Cleanup(resetSpeakerCfg)
 	sp := newSpeakerStoreT(t)
 	c := newSTTClient(t, Deps{Speaker: sp})
+	addToActive := true
+	enable := true
 	res, err := c.EnrollSpeakerProfile(context.Background(), connect.NewRequest(&sttv1.EnrollSpeakerProfileRequest{
-		ProfileId:      "sp-Z",
-		DisplayName:    "Zoe",
-		Audio:          []byte("RAW-AUDIO-BYTES"),
-		HasAddToActive: true, AddToActive: true,
-		HasEnable: true, Enable: true,
+		ProfileId:   "sp-Z",
+		DisplayName: "Zoe",
+		Audio:       []byte("RAW-AUDIO-BYTES"),
+		AddToActive: &addToActive,
+		Enable:      &enable,
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "sp-Z", res.Msg.GetEnrollment().GetProfileId())
@@ -311,7 +321,9 @@ func TestWakeword_GetUpsertDeleteRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, get.Msg.GetConfig().GetConfigured())
 
-	_, err = c.UpdateWakeWordTemplate(context.Background(), connect.NewRequest(&sttv1.UpdateWakeWordTemplateRequest{TemplateJson: "hey-vrooli"}))
+	_, err = c.UpdateWakeWordTemplate(context.Background(), connect.NewRequest(&sttv1.UpdateWakeWordTemplateRequest{
+		Template: &sttv1.WakeWordTemplate{Label: "hey-vrooli", Threshold: 0.6},
+	}))
 	require.NoError(t, err)
 
 	get, err = c.GetWakeWordConfig(context.Background(), connect.NewRequest(&sttv1.GetWakeWordConfigRequest{}))
@@ -328,7 +340,9 @@ func TestWakeword_NoStoreBehaviour(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, res.Msg.GetConfig().GetConfigured())
 
-	_, err = c.UpdateWakeWordTemplate(context.Background(), connect.NewRequest(&sttv1.UpdateWakeWordTemplateRequest{TemplateJson: "x"}))
+	_, err = c.UpdateWakeWordTemplate(context.Background(), connect.NewRequest(&sttv1.UpdateWakeWordTemplateRequest{
+		Template: &sttv1.WakeWordTemplate{Label: "x"},
+	}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 
@@ -350,32 +364,41 @@ func TestStreamConfig_UpdateRoundTrip(t *testing.T) {
 	scs := newStreamCfgStoreT(t)
 	c := newSTTClient(t, Deps{StreamConfig: scs})
 	_, err := c.UpdateStreamConfig(context.Background(), connect.NewRequest(&sttv1.UpdateStreamConfigRequest{
-		HasFlushIntervalMs: true, FlushIntervalMs: 300,
-		HasMinDeltaBytes: true, MinDeltaBytes: 2048,
-		HasOverlapBytes: true, OverlapBytes: 1024,
-		HasPersistentMode: true, PersistentMode: true,
-		HasWakeWordEnabled: true, WakeWordEnabled: true,
-		HasWakeWordThreshold: true, WakeWordThreshold: 0.7,
-		HasSegmentSilenceMs: true, SegmentSilenceMs: 900,
-		HasStreamingMode: true, StreamingMode: "auto",
-		HasStrategyPreference: true, StrategyPreference: "vad",
-		HasVadSilenceMs: true, VadSilenceMs: 700,
-		HasOverlapWindowMs: true, OverlapWindowMs: 2000,
-		HasOverlapCommitRuns: true, OverlapCommitRuns: 2,
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{
+			"flush_interval_ms", "min_delta_bytes", "overlap_bytes", "persistent_mode",
+			"wake_word_enabled", "wake_word_threshold", "segment_silence_ms",
+			"streaming_mode", "strategy_preference", "vad_silence_ms",
+			"overlap_window_ms", "overlap_commit_runs",
+		}},
+		Config: &sttv1.StreamConfig{
+			FlushIntervalMs:    300,
+			MinDeltaBytes:      2048,
+			OverlapBytes:       1024,
+			PersistentMode:     true,
+			WakeWordEnabled:    true,
+			WakeWordThreshold:  0.7,
+			SegmentSilenceMs:   900,
+			StreamingMode:      sttv1.StreamingMode_STREAMING_MODE_AUTO,
+			StrategyPreference: sttv1.StrategyPreference_STRATEGY_PREFERENCE_VAD,
+			VadSilenceMs:       700,
+			OverlapWindowMs:    2000,
+			OverlapCommitRuns:  2,
+		},
 	}))
 	require.NoError(t, err)
 
 	get, err := c.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, int32(300), get.Msg.GetConfig().GetFlushIntervalMs())
-	require.Equal(t, "vad", get.Msg.GetConfig().GetStrategyPreference())
+	require.Equal(t, sttv1.StrategyPreference_STRATEGY_PREFERENCE_VAD, get.Msg.GetConfig().GetStrategyPreference())
 }
 
-func TestStreamConfig_UpdateRejectsInvalidStreamingMode(t *testing.T) {
+func TestStreamConfig_UpdateRejectsUnknownMaskPath(t *testing.T) {
 	scs := newStreamCfgStoreT(t)
 	c := newSTTClient(t, Deps{StreamConfig: scs})
 	_, err := c.UpdateStreamConfig(context.Background(), connect.NewRequest(&sttv1.UpdateStreamConfigRequest{
-		HasStreamingMode: true, StreamingMode: "bogus",
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"not_a_real_field"}},
+		Config:     &sttv1.StreamConfig{},
 	}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))

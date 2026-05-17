@@ -22,9 +22,12 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import field_mask_pb2 as google_dot_protobuf_dot_field__mask__pb2
+from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
+from audio_tools.v1.common import common_pb2 as audio__tools_dot_v1_dot_common_dot_common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1c\x61udio-tools/v1/tts/tts.proto\x12\x19vrooli.audio_tools.v1.tts\"\xdf\x02\n\x11SynthesizeRequest\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12\x14\n\x05voice\x18\x02 \x01(\tR\x05voice\x12i\n\x0fvoice_overrides\x18\x03 \x03(\x0b\x32@.vrooli.audio_tools.v1.tts.SynthesizeRequest.VoiceOverridesEntryR\x0evoiceOverrides\x12\x14\n\x05speed\x18\x04 \x01(\x01R\x05speed\x12\'\n\x0fresponse_format\x18\x05 \x01(\tR\x0eresponseFormat\x12\x19\n\x08\x65vent_id\x18\x06 \x01(\tR\x07\x65ventId\x12\x18\n\x07version\x18\x07 \x01(\tR\x07version\x1a\x41\n\x13VoiceOverridesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\x8f\x02\n\x12SynthesizeResponse\x12\x14\n\x05\x61udio\x18\x01 \x01(\x0cR\x05\x61udio\x12!\n\x0c\x63ontent_type\x18\x02 \x01(\tR\x0b\x63ontentType\x12!\n\x0c\x63ontent_hash\x18\x03 \x01(\tR\x0b\x63ontentHash\x12#\n\rprovider_tier\x18\x04 \x01(\tR\x0cproviderTier\x12\x1f\n\x0bprovider_id\x18\x05 \x01(\tR\nproviderId\x12\x19\n\x08model_id\x18\x06 \x01(\tR\x07modelId\x12\x1d\n\nvoice_used\x18\x07 \x01(\tR\tvoiceUsed\x12\x1d\n\nlatency_ms\x18\x08 \x01(\x01R\tlatencyMs\"\xa2\x02\n\nAudioFrame\x12\x14\n\x05\x61udio\x18\x01 \x01(\x0cR\x05\x61udio\x12!\n\x0c\x63ontent_type\x18\x02 \x01(\tR\x0b\x63ontentType\x12\x19\n\x08is_final\x18\x03 \x01(\x08R\x07isFinal\x12#\n\rprovider_tier\x18\x04 \x01(\tR\x0cproviderTier\x12\x1f\n\x0bprovider_id\x18\x05 \x01(\tR\nproviderId\x12\x19\n\x08model_id\x18\x06 \x01(\tR\x07modelId\x12\x1d\n\nvoice_used\x18\x07 \x01(\tR\tvoiceUsed\x12\x1d\n\nlatency_ms\x18\x08 \x01(\x01R\tlatencyMs\x12!\n\x0c\x63ontent_hash\x18\t \x01(\tR\x0b\x63ontentHash\"\xf3\x01\n\x05Voice\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12`\n\x10\x61\x64\x61pter_mappings\x18\x04 \x03(\x0b\x32\x35.vrooli.audio_tools.v1.tts.Voice.AdapterMappingsEntryR\x0f\x61\x64\x61pterMappings\x1a\x42\n\x14\x41\x64\x61pterMappingsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\x13\n\x11ListVoicesRequest\"N\n\x12ListVoicesResponse\x12\x38\n\x06voices\x18\x01 \x03(\x0b\x32 .vrooli.audio_tools.v1.tts.VoiceR\x06voices\"\xbe\x01\n\x0fGetCacheRequest\x12\x19\n\x08\x65vent_id\x18\x01 \x01(\tR\x07\x65ventId\x12\x14\n\x05voice\x18\x02 \x01(\tR\x05voice\x12\x14\n\x05speed\x18\x03 \x01(\x01R\x05speed\x12\x18\n\x07version\x18\x04 \x01(\tR\x07version\x12!\n\x0c\x63ontent_hash\x18\x05 \x01(\tR\x0b\x63ontentHash\x12\'\n\x0fresponse_format\x18\x06 \x01(\tR\x0eresponseFormat\"\x80\x01\n\x10GetCacheResponse\x12\x14\n\x05\x61udio\x18\x01 \x01(\x0cR\x05\x61udio\x12!\n\x0c\x63ontent_type\x18\x02 \x01(\tR\x0b\x63ontentType\x12!\n\x0c\x63ontent_hash\x18\x03 \x01(\tR\x0b\x63ontentHash\x12\x10\n\x03hit\x18\x04 \x01(\x08R\x03hit\"\xa2\x03\n\x06\x43onfig\x12!\n\x0c\x61uto_enabled\x18\x01 \x01(\x08R\x0b\x61utoEnabled\x12#\n\rdefault_voice\x18\x02 \x01(\tR\x0c\x64\x65\x66\x61ultVoice\x12#\n\rdefault_speed\x18\x03 \x01(\x01R\x0c\x64\x65\x66\x61ultSpeed\x12\x36\n\x17\x64\x65\x66\x61ult_response_format\x18\x04 \x01(\tR\x15\x64\x65\x66\x61ultResponseFormat\x12+\n\x11summarize_enabled\x18\x05 \x01(\x08R\x10summarizeEnabled\x12\x38\n\x18summarize_char_threshold\x18\x06 \x01(\x05R\x16summarizeCharThreshold\x12\'\n\x0fsummarize_level\x18\x07 \x01(\tR\x0esummarizeLevel\x12\'\n\x0fsummarize_model\x18\x08 \x01(\tR\x0esummarizeModel\x12:\n\x19summarize_timeout_seconds\x18\t \x01(\x05R\x17summarizeTimeoutSeconds\"\x12\n\x10GetConfigRequest\"N\n\x11GetConfigResponse\x12\x39\n\x06\x63onfig\x18\x01 \x01(\x0b\x32!.vrooli.audio_tools.v1.tts.ConfigR\x06\x63onfig\"\x88\x07\n\x13UpdateConfigRequest\x12!\n\x0c\x61uto_enabled\x18\x01 \x01(\x08R\x0b\x61utoEnabled\x12(\n\x10has_auto_enabled\x18\x02 \x01(\x08R\x0ehasAutoEnabled\x12#\n\rdefault_voice\x18\x03 \x01(\tR\x0c\x64\x65\x66\x61ultVoice\x12*\n\x11has_default_voice\x18\x04 \x01(\x08R\x0fhasDefaultVoice\x12#\n\rdefault_speed\x18\x05 \x01(\x01R\x0c\x64\x65\x66\x61ultSpeed\x12*\n\x11has_default_speed\x18\x06 \x01(\x08R\x0fhasDefaultSpeed\x12\x36\n\x17\x64\x65\x66\x61ult_response_format\x18\x07 \x01(\tR\x15\x64\x65\x66\x61ultResponseFormat\x12=\n\x1bhas_default_response_format\x18\x08 \x01(\x08R\x18hasDefaultResponseFormat\x12+\n\x11summarize_enabled\x18\t \x01(\x08R\x10summarizeEnabled\x12\x32\n\x15has_summarize_enabled\x18\n \x01(\x08R\x13hasSummarizeEnabled\x12\x38\n\x18summarize_char_threshold\x18\x0b \x01(\x05R\x16summarizeCharThreshold\x12?\n\x1chas_summarize_char_threshold\x18\x0c \x01(\x08R\x19hasSummarizeCharThreshold\x12\'\n\x0fsummarize_level\x18\r \x01(\tR\x0esummarizeLevel\x12.\n\x13has_summarize_level\x18\x0e \x01(\x08R\x11hasSummarizeLevel\x12\'\n\x0fsummarize_model\x18\x0f \x01(\tR\x0esummarizeModel\x12.\n\x13has_summarize_model\x18\x10 \x01(\x08R\x11hasSummarizeModel\x12:\n\x19summarize_timeout_seconds\x18\x11 \x01(\x05R\x17summarizeTimeoutSeconds\x12\x41\n\x1dhas_summarize_timeout_seconds\x18\x12 \x01(\x08R\x1ahasSummarizeTimeoutSeconds\"Q\n\x14UpdateConfigResponse\x12\x39\n\x06\x63onfig\x18\x01 \x01(\x0b\x32!.vrooli.audio_tools.v1.tts.ConfigR\x06\x63onfig\"\x9e\x01\n\x14ProviderAvailability\x12\x12\n\x04tier\x18\x01 \x01(\tR\x04tier\x12\x1f\n\x0bprovider_id\x18\x02 \x01(\tR\nproviderId\x12\x1c\n\tavailable\x18\x03 \x01(\x08R\tavailable\x12\x14\n\x05\x65rror\x18\x04 \x01(\tR\x05\x65rror\x12\x1d\n\nchecked_at\x18\x05 \x01(\tR\tcheckedAt\"\xe3\x01\n\x06Status\x12\x39\n\x06\x63onfig\x18\x01 \x01(\x0b\x32!.vrooli.audio_tools.v1.tts.ConfigR\x06\x63onfig\x12S\n\x0c\x61vailability\x18\x02 \x03(\x0b\x32/.vrooli.audio_tools.v1.tts.ProviderAvailabilityR\x0c\x61vailability\x12\x1e\n\ncapability\x18\x03 \x01(\tR\ncapability\x12)\n\x10\x63\x61pability_label\x18\x04 \x01(\tR\x0f\x63\x61pabilityLabel\"\x12\n\x10GetStatusRequest\"N\n\x11GetStatusResponse\x12\x39\n\x06status\x18\x01 \x01(\x0b\x32!.vrooli.audio_tools.v1.tts.StatusR\x06status\"\xab\x01\n\rPlaybackEvent\x12\x16\n\x06source\x18\x01 \x01(\tR\x06source\x12\x14\n\x05stage\x18\x02 \x01(\tR\x05stage\x12\x18\n\x07\x62\x61\x63kend\x18\x03 \x01(\tR\x07\x62\x61\x63kend\x12\x1d\n\nsession_id\x18\x04 \x01(\tR\tsessionId\x12\x18\n\x07message\x18\x05 \x01(\tR\x07message\x12\x19\n\x08\x65vent_id\x18\x06 \x01(\tR\x07\x65ventId\"\\\n\x1aRecordPlaybackEventRequest\x12>\n\x05\x65vent\x18\x01 \x01(\x0b\x32(.vrooli.audio_tools.v1.tts.PlaybackEventR\x05\x65vent\"5\n\x1bRecordPlaybackEventResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\"E\n\x19NormalizeForSpeechRequest\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12\x14\n\x05voice\x18\x02 \x01(\tR\x05voice\"0\n\x1aNormalizeForSpeechResponse\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\"I\n\x16SplitParagraphsRequest\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12\x1b\n\tmax_chars\x18\x02 \x01(\x05R\x08maxChars\"9\n\x17SplitParagraphsResponse\x12\x1e\n\nparagraphs\x18\x01 \x03(\tR\nparagraphs2\xf8\x08\n\nTTSService\x12i\n\nSynthesize\x12,.vrooli.audio_tools.v1.tts.SynthesizeRequest\x1a-.vrooli.audio_tools.v1.tts.SynthesizeResponse\x12i\n\x10SynthesizeStream\x12,.vrooli.audio_tools.v1.tts.SynthesizeRequest\x1a%.vrooli.audio_tools.v1.tts.AudioFrame0\x01\x12i\n\nListVoices\x12,.vrooli.audio_tools.v1.tts.ListVoicesRequest\x1a-.vrooli.audio_tools.v1.tts.ListVoicesResponse\x12\x63\n\x08GetCache\x12*.vrooli.audio_tools.v1.tts.GetCacheRequest\x1a+.vrooli.audio_tools.v1.tts.GetCacheResponse\x12\x66\n\tGetConfig\x12+.vrooli.audio_tools.v1.tts.GetConfigRequest\x1a,.vrooli.audio_tools.v1.tts.GetConfigResponse\x12o\n\x0cUpdateConfig\x12..vrooli.audio_tools.v1.tts.UpdateConfigRequest\x1a/.vrooli.audio_tools.v1.tts.UpdateConfigResponse\x12\x66\n\tGetStatus\x12+.vrooli.audio_tools.v1.tts.GetStatusRequest\x1a,.vrooli.audio_tools.v1.tts.GetStatusResponse\x12\x84\x01\n\x13RecordPlaybackEvent\x12\x35.vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest\x1a\x36.vrooli.audio_tools.v1.tts.RecordPlaybackEventResponse\x12\x81\x01\n\x12NormalizeForSpeech\x12\x34.vrooli.audio_tools.v1.tts.NormalizeForSpeechRequest\x1a\x35.vrooli.audio_tools.v1.tts.NormalizeForSpeechResponse\x12x\n\x0fSplitParagraphs\x12\x31.vrooli.audio_tools.v1.tts.SplitParagraphsRequest\x1a\x32.vrooli.audio_tools.v1.tts.SplitParagraphsResponseBJZHgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts;tts_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1c\x61udio-tools/v1/tts/tts.proto\x12\x19vrooli.audio_tools.v1.tts\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"audio-tools/v1/common/common.proto\"\x9b\x01\n\x0e\x41\x64\x61pterMapping\x12>\n\x04tier\x18\x01 \x01(\x0e\x32*.vrooli.audio_tools.v1.common.ProviderTierR\x04tier\x12\x1f\n\x0bprovider_id\x18\x02 \x01(\tR\nproviderId\x12(\n\x10\x62\x61\x63kend_voice_id\x18\x03 \x01(\tR\x0e\x62\x61\x63kendVoiceId\"\xb3\x02\n\x11SynthesizeRequest\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12\x14\n\x05voice\x18\x02 \x01(\tR\x05voice\x12R\n\x0fvoice_overrides\x18\x03 \x03(\x0b\x32).vrooli.audio_tools.v1.tts.AdapterMappingR\x0evoiceOverrides\x12\x14\n\x05speed\x18\x04 \x01(\x01R\x05speed\x12U\n\x0fresponse_format\x18\x05 \x01(\x0e\x32,.vrooli.audio_tools.v1.common.ResponseFormatR\x0eresponseFormat\x12\x19\n\x08\x65vent_id\x18\x06 \x01(\tR\x07\x65ventId\x12\x18\n\x07version\x18\x07 \x01(\tR\x07version\"\xbb\x02\n\x12SynthesizeResponse\x12\x14\n\x05\x61udio\x18\x01 \x01(\x0cR\x05\x61udio\x12!\n\x0c\x63ontent_type\x18\x02 \x01(\tR\x0b\x63ontentType\x12!\n\x0c\x63ontent_hash\x18\x03 \x01(\tR\x0b\x63ontentHash\x12O\n\rprovider_tier\x18\x04 \x01(\x0e\x32*.vrooli.audio_tools.v1.common.ProviderTierR\x0cproviderTier\x12\x1f\n\x0bprovider_id\x18\x05 \x01(\tR\nproviderId\x12\x19\n\x08model_id\x18\x06 \x01(\tR\x07modelId\x12\x1d\n\nvoice_used\x18\x07 \x01(\tR\tvoiceUsed\x12\x1d\n\nlatency_ms\x18\x08 \x01(\x01R\tlatencyMs\"\xce\x02\n\nAudioFrame\x12\x14\n\x05\x61udio\x18\x01 \x01(\x0cR\x05\x61udio\x12!\n\x0c\x63ontent_type\x18\x02 \x01(\tR\x0b\x63ontentType\x12\x19\n\x08is_final\x18\x03 \x01(\x08R\x07isFinal\x12O\n\rprovider_tier\x18\x04 \x01(\x0e\x32*.vrooli.audio_tools.v1.common.ProviderTierR\x0cproviderTier\x12\x1f\n\x0bprovider_id\x18\x05 \x01(\tR\nproviderId\x12\x19\n\x08model_id\x18\x06 \x01(\tR\x07modelId\x12\x1d\n\nvoice_used\x18\x07 \x01(\tR\tvoiceUsed\x12\x1d\n\nlatency_ms\x18\x08 \x01(\x01R\tlatencyMs\x12!\n\x0c\x63ontent_hash\x18\t \x01(\tR\x0b\x63ontentHash\"\xa3\x01\n\x05Voice\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12T\n\x10\x61\x64\x61pter_mappings\x18\x04 \x03(\x0b\x32).vrooli.audio_tools.v1.tts.AdapterMappingR\x0f\x61\x64\x61pterMappings\"\x13\n\x11ListVoicesRequest\"N\n\x12ListVoicesResponse\x12\x38\n\x06voices\x18\x01 \x03(\x0b\x32 .vrooli.audio_tools.v1.tts.VoiceR\x06voices\"\xec\x01\n\x0fGetCacheRequest\x12\x19\n\x08\x65vent_id\x18\x01 \x01(\tR\x07\x65ventId\x12\x14\n\x05voice\x18\x02 \x01(\tR\x05voice\x12\x14\n\x05speed\x18\x03 \x01(\x01R\x05speed\x12\x18\n\x07version\x18\x04 \x01(\tR\x07version\x12!\n\x0c\x63ontent_hash\x18\x05 \x01(\tR\x0b\x63ontentHash\x12U\n\x0fresponse_format\x18\x06 \x01(\x0e\x32,.vrooli.audio_tools.v1.common.ResponseFormatR\x0eresponseFormat\"\x80\x01\n\x10GetCacheResponse\x12\x14\n\x05\x61udio\x18\x01 \x01(\x0cR\x05\x61udio\x12!\n\x0c\x63ontent_type\x18\x02 \x01(\tR\x0b\x63ontentType\x12!\n\x0c\x63ontent_hash\x18\x03 \x01(\tR\x0b\x63ontentHash\x12\x10\n\x03hit\x18\x04 \x01(\x08R\x03hit\"\xfb\x03\n\x06\x43onfig\x12!\n\x0c\x61uto_enabled\x18\x01 \x01(\x08R\x0b\x61utoEnabled\x12#\n\rdefault_voice\x18\x02 \x01(\tR\x0c\x64\x65\x66\x61ultVoice\x12#\n\rdefault_speed\x18\x03 \x01(\x01R\x0c\x64\x65\x66\x61ultSpeed\x12\x64\n\x17\x64\x65\x66\x61ult_response_format\x18\x04 \x01(\x0e\x32,.vrooli.audio_tools.v1.common.ResponseFormatR\x15\x64\x65\x66\x61ultResponseFormat\x12+\n\x11summarize_enabled\x18\x05 \x01(\x08R\x10summarizeEnabled\x12\x38\n\x18summarize_char_threshold\x18\x06 \x01(\x05R\x16summarizeCharThreshold\x12R\n\x0fsummarize_level\x18\x07 \x01(\x0e\x32).vrooli.audio_tools.v1.tts.SummarizeLevelR\x0esummarizeLevel\x12\'\n\x0fsummarize_model\x18\x08 \x01(\tR\x0esummarizeModel\x12:\n\x19summarize_timeout_seconds\x18\t \x01(\x05R\x17summarizeTimeoutSeconds\"\x12\n\x10GetConfigRequest\"N\n\x11GetConfigResponse\x12\x39\n\x06\x63onfig\x18\x01 \x01(\x0b\x32!.vrooli.audio_tools.v1.tts.ConfigR\x06\x63onfig\"\x8d\x01\n\x13UpdateConfigRequest\x12;\n\x0bupdate_mask\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.FieldMaskR\nupdateMask\x12\x39\n\x06\x63onfig\x18\x02 \x01(\x0b\x32!.vrooli.audio_tools.v1.tts.ConfigR\x06\x63onfig\"Q\n\x14UpdateConfigResponse\x12\x39\n\x06\x63onfig\x18\x01 \x01(\x0b\x32!.vrooli.audio_tools.v1.tts.ConfigR\x06\x63onfig\"\xe6\x01\n\x14ProviderAvailability\x12>\n\x04tier\x18\x01 \x01(\x0e\x32*.vrooli.audio_tools.v1.common.ProviderTierR\x04tier\x12\x1f\n\x0bprovider_id\x18\x02 \x01(\tR\nproviderId\x12\x1c\n\tavailable\x18\x03 \x01(\x08R\tavailable\x12\x14\n\x05\x65rror\x18\x04 \x01(\tR\x05\x65rror\x12\x39\n\nchecked_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcheckedAt\"\xe3\x01\n\x06Status\x12\x39\n\x06\x63onfig\x18\x01 \x01(\x0b\x32!.vrooli.audio_tools.v1.tts.ConfigR\x06\x63onfig\x12S\n\x0c\x61vailability\x18\x02 \x03(\x0b\x32/.vrooli.audio_tools.v1.tts.ProviderAvailabilityR\x0c\x61vailability\x12\x1e\n\ncapability\x18\x03 \x01(\tR\ncapability\x12)\n\x10\x63\x61pability_label\x18\x04 \x01(\tR\x0f\x63\x61pabilityLabel\"\x12\n\x10GetStatusRequest\"N\n\x11GetStatusResponse\x12\x39\n\x06status\x18\x01 \x01(\x0b\x32!.vrooli.audio_tools.v1.tts.StatusR\x06status\"\xab\x01\n\rPlaybackEvent\x12\x16\n\x06source\x18\x01 \x01(\tR\x06source\x12\x14\n\x05stage\x18\x02 \x01(\tR\x05stage\x12\x18\n\x07\x62\x61\x63kend\x18\x03 \x01(\tR\x07\x62\x61\x63kend\x12\x1d\n\nsession_id\x18\x04 \x01(\tR\tsessionId\x12\x18\n\x07message\x18\x05 \x01(\tR\x07message\x12\x19\n\x08\x65vent_id\x18\x06 \x01(\tR\x07\x65ventId\"\\\n\x1aRecordPlaybackEventRequest\x12>\n\x05\x65vent\x18\x01 \x01(\x0b\x32(.vrooli.audio_tools.v1.tts.PlaybackEventR\x05\x65vent\"5\n\x1bRecordPlaybackEventResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\"E\n\x19NormalizeForSpeechRequest\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12\x14\n\x05voice\x18\x02 \x01(\tR\x05voice\"0\n\x1aNormalizeForSpeechResponse\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\"I\n\x16SplitParagraphsRequest\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12\x1b\n\tmax_chars\x18\x02 \x01(\x05R\x08maxChars\"9\n\x17SplitParagraphsResponse\x12\x1e\n\nparagraphs\x18\x01 \x03(\tR\nparagraphs*\x85\x01\n\x0eSummarizeLevel\x12\x1f\n\x1bSUMMARIZE_LEVEL_UNSPECIFIED\x10\x00\x12\x19\n\x15SUMMARIZE_LEVEL_LIGHT\x10\x01\x12\x1c\n\x18SUMMARIZE_LEVEL_MODERATE\x10\x02\x12\x19\n\x15SUMMARIZE_LEVEL_HEAVY\x10\x03\x32\xf8\x08\n\nTTSService\x12i\n\nSynthesize\x12,.vrooli.audio_tools.v1.tts.SynthesizeRequest\x1a-.vrooli.audio_tools.v1.tts.SynthesizeResponse\x12i\n\x10SynthesizeStream\x12,.vrooli.audio_tools.v1.tts.SynthesizeRequest\x1a%.vrooli.audio_tools.v1.tts.AudioFrame0\x01\x12i\n\nListVoices\x12,.vrooli.audio_tools.v1.tts.ListVoicesRequest\x1a-.vrooli.audio_tools.v1.tts.ListVoicesResponse\x12\x63\n\x08GetCache\x12*.vrooli.audio_tools.v1.tts.GetCacheRequest\x1a+.vrooli.audio_tools.v1.tts.GetCacheResponse\x12\x66\n\tGetConfig\x12+.vrooli.audio_tools.v1.tts.GetConfigRequest\x1a,.vrooli.audio_tools.v1.tts.GetConfigResponse\x12o\n\x0cUpdateConfig\x12..vrooli.audio_tools.v1.tts.UpdateConfigRequest\x1a/.vrooli.audio_tools.v1.tts.UpdateConfigResponse\x12\x66\n\tGetStatus\x12+.vrooli.audio_tools.v1.tts.GetStatusRequest\x1a,.vrooli.audio_tools.v1.tts.GetStatusResponse\x12\x84\x01\n\x13RecordPlaybackEvent\x12\x35.vrooli.audio_tools.v1.tts.RecordPlaybackEventRequest\x1a\x36.vrooli.audio_tools.v1.tts.RecordPlaybackEventResponse\x12\x81\x01\n\x12NormalizeForSpeech\x12\x34.vrooli.audio_tools.v1.tts.NormalizeForSpeechRequest\x1a\x35.vrooli.audio_tools.v1.tts.NormalizeForSpeechResponse\x12x\n\x0fSplitParagraphs\x12\x31.vrooli.audio_tools.v1.tts.SplitParagraphsRequest\x1a\x32.vrooli.audio_tools.v1.tts.SplitParagraphsResponseBJZHgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts;tts_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,62 +35,58 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'audio_tools.v1.tts.tts_pb2'
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZHgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts;tts_v1'
-  _globals['_SYNTHESIZEREQUEST_VOICEOVERRIDESENTRY']._loaded_options = None
-  _globals['_SYNTHESIZEREQUEST_VOICEOVERRIDESENTRY']._serialized_options = b'8\001'
-  _globals['_VOICE_ADAPTERMAPPINGSENTRY']._loaded_options = None
-  _globals['_VOICE_ADAPTERMAPPINGSENTRY']._serialized_options = b'8\001'
-  _globals['_SYNTHESIZEREQUEST']._serialized_start=60
-  _globals['_SYNTHESIZEREQUEST']._serialized_end=411
-  _globals['_SYNTHESIZEREQUEST_VOICEOVERRIDESENTRY']._serialized_start=346
-  _globals['_SYNTHESIZEREQUEST_VOICEOVERRIDESENTRY']._serialized_end=411
-  _globals['_SYNTHESIZERESPONSE']._serialized_start=414
-  _globals['_SYNTHESIZERESPONSE']._serialized_end=685
-  _globals['_AUDIOFRAME']._serialized_start=688
-  _globals['_AUDIOFRAME']._serialized_end=978
-  _globals['_VOICE']._serialized_start=981
-  _globals['_VOICE']._serialized_end=1224
-  _globals['_VOICE_ADAPTERMAPPINGSENTRY']._serialized_start=1158
-  _globals['_VOICE_ADAPTERMAPPINGSENTRY']._serialized_end=1224
-  _globals['_LISTVOICESREQUEST']._serialized_start=1226
-  _globals['_LISTVOICESREQUEST']._serialized_end=1245
-  _globals['_LISTVOICESRESPONSE']._serialized_start=1247
-  _globals['_LISTVOICESRESPONSE']._serialized_end=1325
-  _globals['_GETCACHEREQUEST']._serialized_start=1328
-  _globals['_GETCACHEREQUEST']._serialized_end=1518
-  _globals['_GETCACHERESPONSE']._serialized_start=1521
-  _globals['_GETCACHERESPONSE']._serialized_end=1649
-  _globals['_CONFIG']._serialized_start=1652
-  _globals['_CONFIG']._serialized_end=2070
-  _globals['_GETCONFIGREQUEST']._serialized_start=2072
-  _globals['_GETCONFIGREQUEST']._serialized_end=2090
-  _globals['_GETCONFIGRESPONSE']._serialized_start=2092
-  _globals['_GETCONFIGRESPONSE']._serialized_end=2170
-  _globals['_UPDATECONFIGREQUEST']._serialized_start=2173
-  _globals['_UPDATECONFIGREQUEST']._serialized_end=3077
-  _globals['_UPDATECONFIGRESPONSE']._serialized_start=3079
-  _globals['_UPDATECONFIGRESPONSE']._serialized_end=3160
-  _globals['_PROVIDERAVAILABILITY']._serialized_start=3163
-  _globals['_PROVIDERAVAILABILITY']._serialized_end=3321
-  _globals['_STATUS']._serialized_start=3324
-  _globals['_STATUS']._serialized_end=3551
-  _globals['_GETSTATUSREQUEST']._serialized_start=3553
-  _globals['_GETSTATUSREQUEST']._serialized_end=3571
-  _globals['_GETSTATUSRESPONSE']._serialized_start=3573
-  _globals['_GETSTATUSRESPONSE']._serialized_end=3651
-  _globals['_PLAYBACKEVENT']._serialized_start=3654
-  _globals['_PLAYBACKEVENT']._serialized_end=3825
-  _globals['_RECORDPLAYBACKEVENTREQUEST']._serialized_start=3827
-  _globals['_RECORDPLAYBACKEVENTREQUEST']._serialized_end=3919
-  _globals['_RECORDPLAYBACKEVENTRESPONSE']._serialized_start=3921
-  _globals['_RECORDPLAYBACKEVENTRESPONSE']._serialized_end=3974
-  _globals['_NORMALIZEFORSPEECHREQUEST']._serialized_start=3976
-  _globals['_NORMALIZEFORSPEECHREQUEST']._serialized_end=4045
-  _globals['_NORMALIZEFORSPEECHRESPONSE']._serialized_start=4047
-  _globals['_NORMALIZEFORSPEECHRESPONSE']._serialized_end=4095
-  _globals['_SPLITPARAGRAPHSREQUEST']._serialized_start=4097
-  _globals['_SPLITPARAGRAPHSREQUEST']._serialized_end=4170
-  _globals['_SPLITPARAGRAPHSRESPONSE']._serialized_start=4172
-  _globals['_SPLITPARAGRAPHSRESPONSE']._serialized_end=4229
-  _globals['_TTSSERVICE']._serialized_start=4232
-  _globals['_TTSSERVICE']._serialized_end=5376
+  _globals['_SUMMARIZELEVEL']._serialized_start=3901
+  _globals['_SUMMARIZELEVEL']._serialized_end=4034
+  _globals['_ADAPTERMAPPING']._serialized_start=163
+  _globals['_ADAPTERMAPPING']._serialized_end=318
+  _globals['_SYNTHESIZEREQUEST']._serialized_start=321
+  _globals['_SYNTHESIZEREQUEST']._serialized_end=628
+  _globals['_SYNTHESIZERESPONSE']._serialized_start=631
+  _globals['_SYNTHESIZERESPONSE']._serialized_end=946
+  _globals['_AUDIOFRAME']._serialized_start=949
+  _globals['_AUDIOFRAME']._serialized_end=1283
+  _globals['_VOICE']._serialized_start=1286
+  _globals['_VOICE']._serialized_end=1449
+  _globals['_LISTVOICESREQUEST']._serialized_start=1451
+  _globals['_LISTVOICESREQUEST']._serialized_end=1470
+  _globals['_LISTVOICESRESPONSE']._serialized_start=1472
+  _globals['_LISTVOICESRESPONSE']._serialized_end=1550
+  _globals['_GETCACHEREQUEST']._serialized_start=1553
+  _globals['_GETCACHEREQUEST']._serialized_end=1789
+  _globals['_GETCACHERESPONSE']._serialized_start=1792
+  _globals['_GETCACHERESPONSE']._serialized_end=1920
+  _globals['_CONFIG']._serialized_start=1923
+  _globals['_CONFIG']._serialized_end=2430
+  _globals['_GETCONFIGREQUEST']._serialized_start=2432
+  _globals['_GETCONFIGREQUEST']._serialized_end=2450
+  _globals['_GETCONFIGRESPONSE']._serialized_start=2452
+  _globals['_GETCONFIGRESPONSE']._serialized_end=2530
+  _globals['_UPDATECONFIGREQUEST']._serialized_start=2533
+  _globals['_UPDATECONFIGREQUEST']._serialized_end=2674
+  _globals['_UPDATECONFIGRESPONSE']._serialized_start=2676
+  _globals['_UPDATECONFIGRESPONSE']._serialized_end=2757
+  _globals['_PROVIDERAVAILABILITY']._serialized_start=2760
+  _globals['_PROVIDERAVAILABILITY']._serialized_end=2990
+  _globals['_STATUS']._serialized_start=2993
+  _globals['_STATUS']._serialized_end=3220
+  _globals['_GETSTATUSREQUEST']._serialized_start=3222
+  _globals['_GETSTATUSREQUEST']._serialized_end=3240
+  _globals['_GETSTATUSRESPONSE']._serialized_start=3242
+  _globals['_GETSTATUSRESPONSE']._serialized_end=3320
+  _globals['_PLAYBACKEVENT']._serialized_start=3323
+  _globals['_PLAYBACKEVENT']._serialized_end=3494
+  _globals['_RECORDPLAYBACKEVENTREQUEST']._serialized_start=3496
+  _globals['_RECORDPLAYBACKEVENTREQUEST']._serialized_end=3588
+  _globals['_RECORDPLAYBACKEVENTRESPONSE']._serialized_start=3590
+  _globals['_RECORDPLAYBACKEVENTRESPONSE']._serialized_end=3643
+  _globals['_NORMALIZEFORSPEECHREQUEST']._serialized_start=3645
+  _globals['_NORMALIZEFORSPEECHREQUEST']._serialized_end=3714
+  _globals['_NORMALIZEFORSPEECHRESPONSE']._serialized_start=3716
+  _globals['_NORMALIZEFORSPEECHRESPONSE']._serialized_end=3764
+  _globals['_SPLITPARAGRAPHSREQUEST']._serialized_start=3766
+  _globals['_SPLITPARAGRAPHSREQUEST']._serialized_end=3839
+  _globals['_SPLITPARAGRAPHSRESPONSE']._serialized_start=3841
+  _globals['_SPLITPARAGRAPHSRESPONSE']._serialized_end=3898
+  _globals['_TTSSERVICE']._serialized_start=4037
+  _globals['_TTSSERVICE']._serialized_end=5181
 # @@protoc_insertion_point(module_scope)

@@ -33,7 +33,7 @@ func newServer(t *testing.T) (sessconnect.SessionServiceClient, *intsession.Regi
 func TestSession_OpenSendTextClose(t *testing.T) {
 	c, _ := newServer(t)
 	ctx := context.Background()
-	open, err := c.OpenSession(ctx, connect.NewRequest(&sessv1.OpenSessionRequest{Transport: "fake"}))
+	open, err := c.OpenSession(ctx, connect.NewRequest(&sessv1.OpenSessionRequest{Transport: sessv1.SessionTransport_SESSION_TRANSPORT_FAKE}))
 	require.NoError(t, err)
 	sid := open.Msg.GetSessionId()
 	require.NotEmpty(t, sid)

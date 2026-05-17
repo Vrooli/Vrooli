@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
 )
@@ -29,16 +30,40 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
+func responseFormatFromFlag(s string) commonv1.ResponseFormat {
+	switch s {
+	case "", "mp3":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_MP3
+	case "wav":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_WAV
+	case "opus":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_OPUS
+	case "flac":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_FLAC
+	default:
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_UNSPECIFIED
+	}
+}
+
+func providerTierLabel(t commonv1.ProviderTier) string {
+	switch t {
+	case commonv1.ProviderTier_PROVIDER_TIER_LOCAL:
+		return "local"
+	case commonv1.ProviderTier_PROVIDER_TIER_BYOK:
+		return "byok"
+	case commonv1.ProviderTier_PROVIDER_TIER_VROOLI:
+		return "vrooli"
+	default:
+		return "unknown"
+	}
+}
+
 func (h *handlers) synthesize(ctx cliapp.RunContext) error {
 	speed := 1.0
 	if s := ctx.Flag("speed"); s != "" {
 		if v, err := strconv.ParseFloat(s, 64); err == nil {
 			speed = v
 		}
-	}
-	format := ctx.Flag("format")
-	if format == "" {
-		format = "mp3"
 	}
 	voice := ctx.Flag("voice")
 	if voice == "" {
@@ -48,7 +73,7 @@ func (h *handlers) synthesize(ctx cliapp.RunContext) error {
 		Text:           ctx.Flag("text"),
 		Voice:          voice,
 		Speed:          speed,
-		ResponseFormat: format,
+		ResponseFormat: responseFormatFromFlag(ctx.Flag("format")),
 	})
 	resp, err := h.client.Synthesize(context.Background(), req)
 	if err != nil {
@@ -69,7 +94,7 @@ func (h *handlers) synthesize(ctx cliapp.RunContext) error {
 		Result: []string{
 			fmt.Sprintf("Synthesized %d bytes (%s) via %s/%s in %.0fms.",
 				len(resp.Msg.Audio), resp.Msg.ContentType,
-				resp.Msg.ProviderTier, resp.Msg.ProviderId, resp.Msg.LatencyMs),
+				providerTierLabel(resp.Msg.GetProviderTier()), resp.Msg.ProviderId, resp.Msg.LatencyMs),
 		},
 	})
 }
@@ -85,10 +110,6 @@ func (h *handlers) synthesizeStream(ctx cliapp.RunContext) error {
 			speed = v
 		}
 	}
-	format := ctx.Flag("format")
-	if format == "" {
-		format = "mp3"
-	}
 	voice := ctx.Flag("voice")
 	if voice == "" {
 		voice = "voice.neutral.default"
@@ -97,7 +118,7 @@ func (h *handlers) synthesizeStream(ctx cliapp.RunContext) error {
 		Text:           ctx.Flag("text"),
 		Voice:          voice,
 		Speed:          speed,
-		ResponseFormat: format,
+		ResponseFormat: responseFormatFromFlag(ctx.Flag("format")),
 	})
 	stream, err := h.client.SynthesizeStream(context.Background(), req)
 	if err != nil {
@@ -146,7 +167,7 @@ func (h *handlers) synthesizeStream(ctx cliapp.RunContext) error {
 			totalBytes += n
 		}
 		if frame.IsFinal {
-			finalTier = frame.ProviderTier
+			finalTier = providerTierLabel(frame.GetProviderTier())
 			finalID = frame.ProviderId
 			finalModel = frame.ModelId
 			finalMs = frame.LatencyMs

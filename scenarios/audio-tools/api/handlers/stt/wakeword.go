@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"audio-tools/internal/store"
 
@@ -23,8 +24,11 @@ func (h *connectHandler) GetWakeWordConfig(ctx context.Context, _ *connect.Reque
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	cfg := &sttv1.WakeWordConfig{Configured: ok}
-	if ok {
-		cfg.TemplateJson = t.Phrase
+	if ok && t.Phrase != "" {
+		tmpl := &sttv1.WakeWordTemplate{}
+		if err := protojson.Unmarshal([]byte(t.Phrase), tmpl); err == nil {
+			cfg.Template = tmpl
+		}
 	}
 	return connect.NewResponse(&sttv1.GetWakeWordConfigResponse{Config: cfg}), nil
 }
@@ -33,13 +37,21 @@ func (h *connectHandler) UpdateWakeWordTemplate(ctx context.Context, req *connec
 	if h.deps.Wakeword == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("wakeword store not configured"))
 	}
+	tmpl := req.Msg.GetTemplate()
+	if tmpl == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("template required"))
+	}
+	raw, err := protojson.Marshal(tmpl)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if err := h.deps.Wakeword.Upsert(ctx, store.WakeWordTemplate{
-		ID: wakeWordID, Phrase: req.Msg.GetTemplateJson(),
+		ID: wakeWordID, Phrase: string(raw),
 	}); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&sttv1.UpdateWakeWordTemplateResponse{
-		Config: &sttv1.WakeWordConfig{Configured: true, TemplateJson: req.Msg.GetTemplateJson()},
+		Config: &sttv1.WakeWordConfig{Configured: true, Template: tmpl},
 	}), nil
 }
 

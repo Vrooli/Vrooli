@@ -4,13 +4,17 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { ProviderTier } from "../common/common_pb";
+import { file_audio_tools_v1_common_common } from "../common/common_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file audio-tools/v1/usage/usage.proto.
  */
 export const file_audio_tools_v1_usage_usage: GenFile = /*@__PURE__*/
-  fileDesc("CiBhdWRpby10b29scy92MS91c2FnZS91c2FnZS5wcm90bxIbdnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnVzYWdlItMCCghVc2FnZVJvdxIUCgxvcGVyYXRpb25faWQYASABKAkSEgoKZW1pdHRlZF9hdBgCIAEoCRISCgpjYXBhYmlsaXR5GAMgASgJEhEKCW9wZXJhdGlvbhgEIAEoCRIVCg1wcm92aWRlcl90aWVyGAUgASgJEhMKC3Byb3ZpZGVyX2lkGAYgASgJEhAKCG1vZGVsX2lkGAcgASgJEhIKCmxhdGVuY3lfbXMYCCABKAESFwoPY3JlZGl0c19jaGFyZ2VkGAkgASgFEhUKDXByb21wdF90b2tlbnMYCiABKAUSFQoNb3V0cHV0X3Rva2VucxgLIAEoBRIeChZhdWRpb19kdXJhdGlvbl9zZWNvbmRzGAwgASgBEg0KBWVycm9yGA0gASgJEhcKD2ZhbGxiYWNrX3JlYXNvbhgOIAEoCRIVCg11c2VyX2lkZW50aXR5GA8gASgJIn4KEUxpc3RSZWNlbnRSZXF1ZXN0EhUKDXNpbmNlX3NlY29uZHMYASABKAMSGAoQYWZ0ZXJfZW1pdHRlZF9hdBgCIAEoCRINCgVsaW1pdBgDIAEoBRISCgpjYXBhYmlsaXR5GAQgASgJEhUKDXByb3ZpZGVyX3RpZXIYBSABKAkiSQoSTGlzdFJlY2VudFJlc3BvbnNlEjMKBHJvd3MYASADKAsyJS52cm9vbGkuYXVkaW9fdG9vbHMudjEudXNhZ2UuVXNhZ2VSb3cigAEKFFByb3ZpZGVyRGlzdHJpYnV0aW9uEhUKDXByb3ZpZGVyX3RpZXIYASABKAkSEwoLcHJvdmlkZXJfaWQYAiABKAkSDQoFY291bnQYAyABKAMSFQoNY3JlZGl0c190b3RhbBgEIAEoAxIWCg5hdmdfbGF0ZW5jeV9tcxgFIAEoASIvCg5GYWxsYmFja1JlYXNvbhIOCgZyZWFzb24YASABKAkSDQoFY291bnQYAiABKAMi/QEKB1N1bW1hcnkSDQoFc2luY2UYASABKAkSDQoFdW50aWwYAiABKAkSGAoQb3BlcmF0aW9uc190b3RhbBgDIAEoAxIVCg1jcmVkaXRzX3RvdGFsGAQgASgDEkcKDGRpc3RyaWJ1dGlvbhgFIAMoCzIxLnZyb29saS5hdWRpb190b29scy52MS51c2FnZS5Qcm92aWRlckRpc3RyaWJ1dGlvbhJFChBmYWxsYmFja19yZWFzb25zGAYgAygLMisudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnVzYWdlLkZhbGxiYWNrUmVhc29uEhMKC2Vycm9yX2NvdW50GAcgASgDIj4KEUdldFN1bW1hcnlSZXF1ZXN0EhUKDXNpbmNlX3NlY29uZHMYASABKAMSEgoKY2FwYWJpbGl0eRgCIAEoCSJLChJHZXRTdW1tYXJ5UmVzcG9uc2USNQoHc3VtbWFyeRgBIAEoCzIkLnZyb29saS5hdWRpb190b29scy52MS51c2FnZS5TdW1tYXJ5MuwBCgxVc2FnZVNlcnZpY2USbQoKTGlzdFJlY2VudBIuLnZyb29saS5hdWRpb190b29scy52MS51c2FnZS5MaXN0UmVjZW50UmVxdWVzdBovLnZyb29saS5hdWRpb190b29scy52MS51c2FnZS5MaXN0UmVjZW50UmVzcG9uc2USbQoKR2V0U3VtbWFyeRIuLnZyb29saS5hdWRpb190b29scy52MS51c2FnZS5HZXRTdW1tYXJ5UmVxdWVzdBovLnZyb29saS5hdWRpb190b29scy52MS51c2FnZS5HZXRTdW1tYXJ5UmVzcG9uc2VCTlpMZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS91c2FnZTt1c2FnZV92MWIGcHJvdG8z");
+  fileDesc("CiBhdWRpby10b29scy92MS91c2FnZS91c2FnZS5wcm90bxIbdnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnVzYWdlIpsDCghVc2FnZVJvdxIUCgxvcGVyYXRpb25faWQYASABKAkSLgoKZW1pdHRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKY2FwYWJpbGl0eRgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSQQoNcHJvdmlkZXJfdGllchgFIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uUHJvdmlkZXJUaWVyEhMKC3Byb3ZpZGVyX2lkGAYgASgJEhAKCG1vZGVsX2lkGAcgASgJEhIKCmxhdGVuY3lfbXMYCCABKAESFwoPY3JlZGl0c19jaGFyZ2VkGAkgASgFEhUKDXByb21wdF90b2tlbnMYCiABKAUSFQoNb3V0cHV0X3Rva2VucxgLIAEoBRIeChZhdWRpb19kdXJhdGlvbl9zZWNvbmRzGAwgASgBEg0KBWVycm9yGA0gASgJEhcKD2ZhbGxiYWNrX3JlYXNvbhgOIAEoCRIVCg11c2VyX2lkZW50aXR5GA8gASgJIsYBChFMaXN0UmVjZW50UmVxdWVzdBIVCg1zaW5jZV9zZWNvbmRzGAEgASgDEjQKEGFmdGVyX2VtaXR0ZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWxpbWl0GAMgASgFEhIKCmNhcGFiaWxpdHkYBCABKAkSQQoNcHJvdmlkZXJfdGllchgFIAEoDjIqLnZyb29saS5hdWRpb190b29scy52MS5jb21tb24uUHJvdmlkZXJUaWVyIkkKEkxpc3RSZWNlbnRSZXNwb25zZRIzCgRyb3dzGAEgAygLMiUudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnVzYWdlLlVzYWdlUm93IqwBChRQcm92aWRlckRpc3RyaWJ1dGlvbhJBCg1wcm92aWRlcl90aWVyGAEgASgOMioudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmNvbW1vbi5Qcm92aWRlclRpZXISEwoLcHJvdmlkZXJfaWQYAiABKAkSDQoFY291bnQYAyABKAMSFQoNY3JlZGl0c190b3RhbBgEIAEoAxIWCg5hdmdfbGF0ZW5jeV9tcxgFIAEoASIvCg5GYWxsYmFja1JlYXNvbhIOCgZyZWFzb24YASABKAkSDQoFY291bnQYAiABKAMitQIKB1N1bW1hcnkSKQoFc2luY2UYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKBXVudGlsGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBvcGVyYXRpb25zX3RvdGFsGAMgASgDEhUKDWNyZWRpdHNfdG90YWwYBCABKAMSRwoMZGlzdHJpYnV0aW9uGAUgAygLMjEudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnVzYWdlLlByb3ZpZGVyRGlzdHJpYnV0aW9uEkUKEGZhbGxiYWNrX3JlYXNvbnMYBiADKAsyKy52cm9vbGkuYXVkaW9fdG9vbHMudjEudXNhZ2UuRmFsbGJhY2tSZWFzb24SEwoLZXJyb3JfY291bnQYByABKAMiPgoRR2V0U3VtbWFyeVJlcXVlc3QSFQoNc2luY2Vfc2Vjb25kcxgBIAEoAxISCgpjYXBhYmlsaXR5GAIgASgJIksKEkdldFN1bW1hcnlSZXNwb25zZRI1CgdzdW1tYXJ5GAEgASgLMiQudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnVzYWdlLlN1bW1hcnky7AEKDFVzYWdlU2VydmljZRJtCgpMaXN0UmVjZW50Ei4udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnVzYWdlLkxpc3RSZWNlbnRSZXF1ZXN0Gi8udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnVzYWdlLkxpc3RSZWNlbnRSZXNwb25zZRJtCgpHZXRTdW1tYXJ5Ei4udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnVzYWdlLkdldFN1bW1hcnlSZXF1ZXN0Gi8udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLnVzYWdlLkdldFN1bW1hcnlSZXNwb25zZUJOWkxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL3VzYWdlO3VzYWdlX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_audio_tools_v1_common_common]);
 
 /**
  * @generated from message vrooli.audio_tools.v1.usage.UsageRow
@@ -24,11 +28,9 @@ export type UsageRow = Message<"vrooli.audio_tools.v1.usage.UsageRow"> & {
   operationId: string;
 
   /**
-   * RFC3339
-   *
-   * @generated from field: string emitted_at = 2;
+   * @generated from field: google.protobuf.Timestamp emitted_at = 2;
    */
-  emittedAt: string;
+  emittedAt?: Timestamp | undefined;
 
   /**
    * "stt" | "tts" | "summarize" | "audio"
@@ -45,9 +47,9 @@ export type UsageRow = Message<"vrooli.audio_tools.v1.usage.UsageRow"> & {
   operation: string;
 
   /**
-   * @generated from field: string provider_tier = 5;
+   * @generated from field: vrooli.audio_tools.v1.common.ProviderTier provider_tier = 5;
    */
-  providerTier: string;
+  providerTier: ProviderTier;
 
   /**
    * @generated from field: string provider_id = 6;
@@ -123,9 +125,9 @@ export type ListRecentRequest = Message<"vrooli.audio_tools.v1.usage.ListRecentR
   sinceSeconds: bigint;
 
   /**
-   * @generated from field: string after_emitted_at = 2;
+   * @generated from field: google.protobuf.Timestamp after_emitted_at = 2;
    */
-  afterEmittedAt: string;
+  afterEmittedAt?: Timestamp | undefined;
 
   /**
    * default 100, max 1000
@@ -142,9 +144,9 @@ export type ListRecentRequest = Message<"vrooli.audio_tools.v1.usage.ListRecentR
   capability: string;
 
   /**
-   * @generated from field: string provider_tier = 5;
+   * @generated from field: vrooli.audio_tools.v1.common.ProviderTier provider_tier = 5;
    */
-  providerTier: string;
+  providerTier: ProviderTier;
 };
 
 /**
@@ -176,9 +178,9 @@ export const ListRecentResponseSchema: GenMessage<ListRecentResponse> = /*@__PUR
  */
 export type ProviderDistribution = Message<"vrooli.audio_tools.v1.usage.ProviderDistribution"> & {
   /**
-   * @generated from field: string provider_tier = 1;
+   * @generated from field: vrooli.audio_tools.v1.common.ProviderTier provider_tier = 1;
    */
-  providerTier: string;
+  providerTier: ProviderTier;
 
   /**
    * @generated from field: string provider_id = 2;
@@ -235,16 +237,14 @@ export const FallbackReasonSchema: GenMessage<FallbackReason> = /*@__PURE__*/
  */
 export type Summary = Message<"vrooli.audio_tools.v1.usage.Summary"> & {
   /**
-   * RFC3339
-   *
-   * @generated from field: string since = 1;
+   * @generated from field: google.protobuf.Timestamp since = 1;
    */
-  since: string;
+  since?: Timestamp | undefined;
 
   /**
-   * @generated from field: string until = 2;
+   * @generated from field: google.protobuf.Timestamp until = 2;
    */
-  until: string;
+  until?: Timestamp | undefined;
 
   /**
    * @generated from field: int64 operations_total = 3;

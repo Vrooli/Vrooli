@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
 	settconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings/settings_v1connect"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -66,8 +67,8 @@ func TestProvidersHappyPath(t *testing.T) {
 		}},
 		&fakeTTS{status: func() (*ttsv1.Status, error) {
 			return &ttsv1.Status{Availability: []*ttsv1.ProviderAvailability{
-				{Tier: "local", ProviderId: "kokoro", Available: true},
-				{Tier: "byok", ProviderId: "openai-tts", Available: false},
+				{Tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "kokoro", Available: true},
+				{Tier: commonv1.ProviderTier_PROVIDER_TIER_BYOK, ProviderId: "openai-tts", Available: false},
 			}}, nil
 		}},
 	)

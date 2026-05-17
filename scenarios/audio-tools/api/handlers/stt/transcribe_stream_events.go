@@ -5,6 +5,7 @@ package stt
 
 import (
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/protomap"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
@@ -32,7 +33,7 @@ func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 					StartMs:          ev.Segment.StartMs,
 					EndMs:            ev.Segment.EndMs,
 					DetectedLanguage: ev.Segment.DetectedLanguage,
-					ProviderTier:     string(ev.Segment.ProviderTier),
+					ProviderTier:     protomap.ProviderTierToProto(string(ev.Segment.ProviderTier)),
 					ModelId:          ev.Segment.ModelID,
 					LatencyMs:        ev.Segment.LatencyMs,
 				},
@@ -78,7 +79,7 @@ func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 			Event: &sttv1.TranscribeStreamEvent_Done{
 				Done: &sttv1.StreamDone{
 					FinalText:       done.FinalText,
-					ProviderTier:    string(done.LockedTier),
+					ProviderTier:    protomap.ProviderTierToProto(string(done.LockedTier)),
 					ProviderId:      done.ProviderID,
 					ModelId:         done.ModelID,
 					LatencyMs:       done.LatencyMs,

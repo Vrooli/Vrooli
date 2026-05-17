@@ -1,10 +1,29 @@
 import { createClient } from "@connectrpc/connect";
+import { ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 import { SummarizeService } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
+import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
 import { transport, uploadFile } from "../api/client";
 import { tryCall, type Result } from "./result";
 import { normalizeConnectError } from "./settings";
 
 const summarizeClient = createClient(SummarizeService, transport);
+
+function providerTierLabel(t: ProviderTier): string {
+  switch (t) {
+    case ProviderTier.LOCAL: return "local";
+    case ProviderTier.BYOK: return "byok";
+    case ProviderTier.VROOLI: return "vrooli";
+    default: return "";
+  }
+}
+
+function summarizeLevelFromString(s: "light" | "moderate" | "heavy"): SummarizeLevel {
+  switch (s) {
+    case "light": return SummarizeLevel.LIGHT;
+    case "moderate": return SummarizeLevel.MODERATE;
+    case "heavy": return SummarizeLevel.HEAVY;
+  }
+}
 
 export interface ProviderTrace {
   providerTier: string;
@@ -27,7 +46,7 @@ export async function summarize(
   return tryCall(async () => {
     let resp;
     try {
-      resp = await summarizeClient.summarize({ text, level, model: "", timeoutSeconds: 30 });
+      resp = await summarizeClient.summarize({ text, level: summarizeLevelFromString(level), model: "", timeoutSeconds: 30 });
     } catch (e) {
       throw normalizeConnectError(e);
     }
@@ -36,7 +55,7 @@ export async function summarize(
       promptTokens: resp.promptTokens,
       outputTokens: resp.outputTokens,
       trace: {
-        providerTier: resp.providerTier,
+        providerTier: providerTierLabel(resp.providerTier),
         providerId: resp.providerId,
         modelId: resp.modelId,
         latencyMs: resp.latencyMs,

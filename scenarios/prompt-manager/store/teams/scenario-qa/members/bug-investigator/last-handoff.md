@@ -5,21 +5,22 @@
 None.
 
 ### Investigation closed this heartbeat
-None; no inbox entry was available to drain.
+None; no `bug-inbox/*` entry was available to drain, so no `bug-investigation-report/<slug>` was written.
 
 ### Technique applied
-None. I did not load or apply `scientific-debugging` because there was no bug report to investigate.
+None to an entry. Loaded `scientific-debugging` for readiness only.
 
 ### Action taken
 No storage changes.
 
 ### Backlog item / decision created
-None. Current pending owned bug-resolution decisions:
-- `dec-1778788973084288635`
-- `dec-1778803454094270523`
+None. Existing pending `bug-resolution-proposal` decisions observed: 2, below the heartbeat cap.
 
 ### Capability-gap raised
-None. `capability-gap` pending list returned no decisions.
+None.
 
 ### Surface for technique graduation
 None.
+
+### Friction note
+The heartbeat-referenced PoR paths under `docs/scenario-qa/...` and the `report-friction` taxonomy path under `docs/meta-optimization/...` were not present at the current workspace root. This did not block the empty-inbox heartbeat because the brief and loaded skill supplied enough context.

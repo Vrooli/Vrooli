@@ -3,11 +3,14 @@ package tts
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
+	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
@@ -46,35 +49,54 @@ func (h *connectHandler) GetConfig(ctx context.Context, _ *connect.Request[ttsv1
 	return connect.NewResponse(&ttsv1.GetConfigResponse{Config: configToProto(cfg, summ)}), nil
 }
 
+var ttsConfigAllowedPaths = map[string]struct{}{
+	"auto_enabled":              {},
+	"default_voice":             {},
+	"default_speed":             {},
+	"default_response_format":   {},
+	"summarize_enabled":         {},
+	"summarize_char_threshold":  {},
+	"summarize_level":           {},
+	"summarize_model":           {},
+	"summarize_timeout_seconds": {},
+}
+
 func (h *connectHandler) UpdateConfig(ctx context.Context, req *connect.Request[ttsv1.UpdateConfigRequest]) (*connect.Response[ttsv1.UpdateConfigResponse], error) {
 	cfg, summ := h.loadConfig(ctx)
-	m := req.Msg
-	if m.GetHasAutoEnabled() {
-		cfg.AutoEnabled = m.GetAutoEnabled()
+	mask := req.Msg.GetUpdateMask()
+	if mask == nil || len(mask.GetPaths()) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("update_mask required"))
 	}
-	if m.GetHasDefaultVoice() {
-		cfg.KokoroVoice = m.GetDefaultVoice()
+	if bad := protomap.MaskPathsOutsideAllowed(mask, ttsConfigAllowedPaths); len(bad) > 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown update_mask paths: %v", bad))
 	}
-	if m.GetHasDefaultSpeed() {
-		cfg.KokoroSpeed = m.GetDefaultSpeed()
+	p := req.Msg.GetConfig()
+	if protomap.MaskHas(mask, "auto_enabled") {
+		cfg.AutoEnabled = p.GetAutoEnabled()
 	}
-	if m.GetHasDefaultResponseFormat() {
-		cfg.Backend = m.GetDefaultResponseFormat()
+	if protomap.MaskHas(mask, "default_voice") {
+		cfg.KokoroVoice = p.GetDefaultVoice()
 	}
-	if m.GetHasSummarizeEnabled() {
-		summ.Enabled = m.GetSummarizeEnabled()
+	if protomap.MaskHas(mask, "default_speed") {
+		cfg.KokoroSpeed = p.GetDefaultSpeed()
 	}
-	if m.GetHasSummarizeCharThreshold() {
-		summ.CharThreshold = int(m.GetSummarizeCharThreshold())
+	if protomap.MaskHas(mask, "default_response_format") {
+		cfg.Backend = protomap.ResponseFormatFromProto(p.GetDefaultResponseFormat())
 	}
-	if m.GetHasSummarizeLevel() {
-		summ.Level = m.GetSummarizeLevel()
+	if protomap.MaskHas(mask, "summarize_enabled") {
+		summ.Enabled = p.GetSummarizeEnabled()
 	}
-	if m.GetHasSummarizeModel() {
-		summ.Model = m.GetSummarizeModel()
+	if protomap.MaskHas(mask, "summarize_char_threshold") {
+		summ.CharThreshold = int(p.GetSummarizeCharThreshold())
 	}
-	if m.GetHasSummarizeTimeoutSeconds() {
-		summ.TimeoutSeconds = int(m.GetSummarizeTimeoutSeconds())
+	if protomap.MaskHas(mask, "summarize_level") {
+		summ.Level = protomap.SummarizeLevelFromProto(p.GetSummarizeLevel())
+	}
+	if protomap.MaskHas(mask, "summarize_model") {
+		summ.Model = p.GetSummarizeModel()
+	}
+	if protomap.MaskHas(mask, "summarize_timeout_seconds") {
+		summ.TimeoutSeconds = int(p.GetSummarizeTimeoutSeconds())
 	}
 	if h.deps.ConfigStore != nil {
 		raw, _ := json.Marshal(cfg)
@@ -91,11 +113,11 @@ func (h *connectHandler) GetStatus(ctx context.Context, _ *connect.Request[ttsv1
 	avail := []*ttsv1.ProviderAvailability{}
 	if h.deps.Chain != nil {
 		p := h.deps.Chain.Probe(ctx)
-		ts := time.Now().UTC().Format(time.RFC3339)
+		ts := protomap.TimeToProto(time.Now().UTC())
 		avail = []*ttsv1.ProviderAvailability{
-			{Tier: "local", Available: p.Local, CheckedAt: ts, ProviderId: "kokoro"},
-			{Tier: "byok", Available: p.BYOK, CheckedAt: ts},
-			{Tier: "vrooli", Available: p.Vrooli, CheckedAt: ts},
+			{Tier: protomap.ProviderTierToProto("local"), Available: p.Local, CheckedAt: ts, ProviderId: "kokoro"},
+			{Tier: protomap.ProviderTierToProto("byok"), Available: p.BYOK, CheckedAt: ts},
+			{Tier: protomap.ProviderTierToProto("vrooli"), Available: p.Vrooli, CheckedAt: ts},
 		}
 	}
 	capLabel := "unavailable"

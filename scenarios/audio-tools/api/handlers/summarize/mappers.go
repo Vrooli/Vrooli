@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/ai/summarizechain"
+	"audio-tools/internal/protomap"
 	intsumm "audio-tools/internal/summarize"
 
 	summv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
@@ -16,7 +17,7 @@ func toProtoSummarizeConfig(c intsumm.SummarizeConfig) *summv1.SummarizeConfig {
 	return &summv1.SummarizeConfig{
 		Enabled:        c.Enabled,
 		CharThreshold:  int32(c.CharThreshold),
-		Level:          c.Level,
+		Level:          protomap.SummarizeLevelToProto(c.Level),
 		Model:          c.Model,
 		TimeoutSeconds: int32(c.TimeoutSeconds),
 	}

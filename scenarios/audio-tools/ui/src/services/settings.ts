@@ -1,7 +1,17 @@
 import { createClient } from "@connectrpc/connect";
+import { create } from "@bufbuild/protobuf";
+import { FieldMaskSchema, type Timestamp } from "@bufbuild/protobuf/wkt";
 import { SettingsService } from "@vrooli/proto-types/audio-tools/v1/settings/settings_pb";
 import { transport, ApiError, makeApiError } from "../api/client";
 import { tryCall, type Result } from "./result";
+
+function timestampToISO(ts: Timestamp | string | undefined): string {
+  if (!ts) return "";
+  if (typeof ts === "string") return ts;
+  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : Number(ts.seconds ?? 0);
+  const nanos = Number(ts.nanos ?? 0);
+  return new Date(seconds * 1000 + Math.floor(nanos / 1_000_000)).toISOString();
+}
 
 const client = createClient(SettingsService, transport);
 
@@ -53,7 +63,7 @@ export async function listByokCredentials(): Promise<Result<ByokCredentialRow[]>
       providerId: c.providerId,
       capability: c.capability,
       fingerprint: c.fingerprint,
-      createdAt: c.createdAt,
+      createdAt: timestampToISO(c.createdAt),
     }));
   });
 }
@@ -92,38 +102,21 @@ export interface UpdateProviderConfigInput {
 
 export async function updateProviderConfig(input: UpdateProviderConfigInput): Promise<Result<ProviderTierFlags>> {
   return tryCall(async () => {
-    const req: Record<string, unknown> = {};
-    if (input.byokEnabled !== undefined) {
-      req.byokEnabled = input.byokEnabled;
-      req.hasByokEnabled = true;
-    }
-    if (input.vrooliEnabled !== undefined) {
-      req.vrooliEnabled = input.vrooliEnabled;
-      req.hasVrooliEnabled = true;
-    }
-    if (input.localEnabled !== undefined) {
-      req.localEnabled = input.localEnabled;
-      req.hasLocalEnabled = true;
-    }
-    if (input.whisperUrl !== undefined) {
-      req.whisperUrl = input.whisperUrl;
-      req.hasWhisperUrl = true;
-    }
-    if (input.kokoroUrl !== undefined) {
-      req.kokoroUrl = input.kokoroUrl;
-      req.hasKokoroUrl = true;
-    }
-    if (input.ollamaUrl !== undefined) {
-      req.ollamaUrl = input.ollamaUrl;
-      req.hasOllamaUrl = true;
-    }
-    if (input.lpbsBaseUrl !== undefined) {
-      req.lpbsBaseUrl = input.lpbsBaseUrl;
-      req.hasLpbsBaseUrl = true;
-    }
+    const paths: string[] = [];
+    const cfg: Record<string, unknown> = {};
+    if (input.byokEnabled !== undefined) { cfg.byokEnabled = input.byokEnabled; paths.push("byok_enabled"); }
+    if (input.vrooliEnabled !== undefined) { cfg.vrooliEnabled = input.vrooliEnabled; paths.push("vrooli_enabled"); }
+    if (input.localEnabled !== undefined) { cfg.localEnabled = input.localEnabled; paths.push("local_enabled"); }
+    if (input.whisperUrl !== undefined) { cfg.whisperUrl = input.whisperUrl; paths.push("whisper_url"); }
+    if (input.kokoroUrl !== undefined) { cfg.kokoroUrl = input.kokoroUrl; paths.push("kokoro_url"); }
+    if (input.ollamaUrl !== undefined) { cfg.ollamaUrl = input.ollamaUrl; paths.push("ollama_url"); }
+    if (input.lpbsBaseUrl !== undefined) { cfg.lpbsBaseUrl = input.lpbsBaseUrl; paths.push("lpbs_base_url"); }
     let resp;
     try {
-      resp = await client.updateProviderConfig(req);
+      resp = await client.updateProviderConfig({
+        updateMask: create(FieldMaskSchema, { paths }),
+        config: cfg,
+      } as Parameters<typeof client.updateProviderConfig>[0]);
     } catch (e) {
       throw normalizeConnectError(e);
     }
@@ -151,7 +144,7 @@ export async function upsertByokCredential(providerId: string, capability: strin
     if (!c) {
       throw new Error("upsertBYOKCredential returned no credential");
     }
-    return { providerId: c.providerId, capability: c.capability, fingerprint: c.fingerprint, createdAt: c.createdAt };
+    return { providerId: c.providerId, capability: c.capability, fingerprint: c.fingerprint, createdAt: timestampToISO(c.createdAt) };
   });
 }
 

@@ -5,8 +5,21 @@
 // construction uses audio-tools' base URL injected via
 // window.__AUDIO_TOOLS_URL__.
 
+import { create } from "@bufbuild/protobuf";
+import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
+
 import { useAudioToolsClient, type AudioToolsClient } from "../client";
 import type { WakeWordTemplate } from "../hooks/voice/wakeword/types";
+import {
+  audioFormatFromString,
+  rejectBehaviorFromString,
+  rejectBehaviorLabel,
+  speakerModeFromString,
+  speakerModeLabel,
+  timestampToISO,
+} from "./protomap";
+
+import type { SpeakerConfig, SpeakerProfile, StreamConfig as StreamConfigMsg, WakeWordConfig as WakeWordConfigMsg, WakeWordTemplate as WakeWordTemplateMsg } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 
 export interface VoiceStreamConfig {
   flushIntervalMs: number;
@@ -95,18 +108,7 @@ function blobFormat(b: Blob): string {
   return mime.split(";")[0]?.split("/")?.[1] ?? "webm";
 }
 
-function decodeStreamConfig(c:
-  | {
-      flushIntervalMs: number;
-      minDeltaBytes: number;
-      overlapBytes: number;
-      persistentMode: boolean;
-      wakeWordEnabled: boolean;
-      wakeWordThreshold: number;
-      segmentSilenceMs: number;
-    }
-  | undefined,
-): VoiceStreamConfig {
+function decodeStreamConfig(c: StreamConfigMsg | undefined): VoiceStreamConfig {
   return {
     flushIntervalMs: c?.flushIntervalMs ?? 0,
     minDeltaBytes: c?.minDeltaBytes ?? 0,
@@ -118,59 +120,42 @@ function decodeStreamConfig(c:
   };
 }
 
-function decodeWakeWord(cfg: { configured: boolean; templateJson: string } | undefined): WakeWordConfig {
+function decodeWakeWord(cfg: WakeWordConfigMsg | undefined): WakeWordConfig {
   const configured = cfg?.configured ?? false;
-  const tj = cfg?.templateJson ?? "";
+  const tmpl = cfg?.template;
   let template: WakeWordTemplate | null = null;
-  if (configured && tj) {
-    try {
-      template = JSON.parse(tj) as WakeWordTemplate;
-    } catch {
-      template = null;
-    }
+  if (configured && tmpl) {
+    template = {
+      label: tmpl.label,
+      threshold: tmpl.threshold,
+      samples: (tmpl.samples ?? []).map((s) => ({
+        audio: s.audio,
+        format: s.format,
+        sampleRateHz: s.sampleRateHz,
+      })) as unknown as WakeWordTemplate["samples"],
+      updatedAt: timestampToISO(tmpl.updatedAt),
+    } as unknown as WakeWordTemplate;
   }
   return { configured, template };
 }
 
-function decodeSpeakerConfig(c:
-  | {
-      enabled: boolean;
-      profileIds: string[];
-      threshold: number;
-      mode: string;
-      rejectBehavior: string;
-      fallbackWithoutVerification: boolean;
-    }
-  | undefined,
-): SpeakerVerificationConfig {
-  const mode = (c?.mode ?? "filter") as SpeakerVerificationConfig["mode"];
-  const reject = (c?.rejectBehavior ?? "drop") as SpeakerVerificationConfig["rejectBehavior"];
+function decodeSpeakerConfig(c: SpeakerConfig | undefined): SpeakerVerificationConfig {
   return {
     enabled: c?.enabled ?? false,
     profileIds: c?.profileIds ?? [],
     threshold: c?.threshold ?? 0,
-    mode,
-    rejectBehavior: reject,
+    mode: speakerModeLabel(c?.mode),
+    rejectBehavior: rejectBehaviorLabel(c?.rejectBehavior),
     fallbackWithoutVerification: c?.fallbackWithoutVerification ?? false,
   };
 }
 
-function decodeSpeakerProfile(p: {
-  id: string;
-  displayName: string;
-  createdAt: string;
-  updatedAt: string;
-  modelName: string;
-  embeddingDim: number;
-  sampleRate: number;
-  enrollmentAudioSeconds: number;
-  notes: string;
-}): SpeakerVerificationProfile {
+function decodeSpeakerProfile(p: SpeakerProfile): SpeakerVerificationProfile {
   return {
     id: p.id,
     display_name: p.displayName,
-    created_at: p.createdAt,
-    updated_at: p.updatedAt,
+    created_at: timestampToISO(p.createdAt),
+    updated_at: timestampToISO(p.updatedAt),
     model_name: p.modelName,
     embedding_dim: p.embeddingDim,
     sample_rate: p.sampleRate,
@@ -197,7 +182,7 @@ export function createVoiceApi(client: AudioToolsClient) {
     async transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {
       const resp = await client.stt.transcribe({
         audio: await blobToBytes(audioBlob),
-        format: blobFormat(audioBlob),
+        format: audioFormatFromString(blobFormat(audioBlob)),
         language: language ?? "",
         skipSpeakerVerification: false,
         initialPrompt: "",
@@ -208,7 +193,7 @@ export function createVoiceApi(client: AudioToolsClient) {
     async transcribeAudioBypassFilter(audioBlob: Blob, language?: string): Promise<string> {
       const resp = await client.stt.transcribe({
         audio: await blobToBytes(audioBlob),
-        format: blobFormat(audioBlob),
+        format: audioFormatFromString(blobFormat(audioBlob)),
         language: language ?? "",
         skipSpeakerVerification: true,
         initialPrompt: "",
@@ -237,15 +222,19 @@ export function createVoiceApi(client: AudioToolsClient) {
     },
 
     async updateVoiceStreamConfig(patch: Partial<VoiceStreamConfig>): Promise<VoiceStreamConfig> {
-      const req: Record<string, unknown> = {};
-      if (patch.flushIntervalMs !== undefined) { req.flushIntervalMs = patch.flushIntervalMs; req.hasFlushIntervalMs = true; }
-      if (patch.minDeltaBytes !== undefined) { req.minDeltaBytes = patch.minDeltaBytes; req.hasMinDeltaBytes = true; }
-      if (patch.overlapBytes !== undefined) { req.overlapBytes = patch.overlapBytes; req.hasOverlapBytes = true; }
-      if (patch.persistentMode !== undefined) { req.persistentMode = patch.persistentMode; req.hasPersistentMode = true; }
-      if (patch.wakeWordEnabled !== undefined) { req.wakeWordEnabled = patch.wakeWordEnabled; req.hasWakeWordEnabled = true; }
-      if (patch.wakeWordThreshold !== undefined) { req.wakeWordThreshold = patch.wakeWordThreshold; req.hasWakeWordThreshold = true; }
-      if (patch.segmentSilenceMs !== undefined) { req.segmentSilenceMs = patch.segmentSilenceMs; req.hasSegmentSilenceMs = true; }
-      const resp = await client.stt.updateStreamConfig(req as Parameters<typeof client.stt.updateStreamConfig>[0]);
+      const paths: string[] = [];
+      const cfg: Record<string, unknown> = {};
+      if (patch.flushIntervalMs !== undefined) { cfg.flushIntervalMs = patch.flushIntervalMs; paths.push("flush_interval_ms"); }
+      if (patch.minDeltaBytes !== undefined) { cfg.minDeltaBytes = patch.minDeltaBytes; paths.push("min_delta_bytes"); }
+      if (patch.overlapBytes !== undefined) { cfg.overlapBytes = patch.overlapBytes; paths.push("overlap_bytes"); }
+      if (patch.persistentMode !== undefined) { cfg.persistentMode = patch.persistentMode; paths.push("persistent_mode"); }
+      if (patch.wakeWordEnabled !== undefined) { cfg.wakeWordEnabled = patch.wakeWordEnabled; paths.push("wake_word_enabled"); }
+      if (patch.wakeWordThreshold !== undefined) { cfg.wakeWordThreshold = patch.wakeWordThreshold; paths.push("wake_word_threshold"); }
+      if (patch.segmentSilenceMs !== undefined) { cfg.segmentSilenceMs = patch.segmentSilenceMs; paths.push("segment_silence_ms"); }
+      const resp = await client.stt.updateStreamConfig({
+        updateMask: create(FieldMaskSchema, { paths }),
+        config: cfg,
+      } as Parameters<typeof client.stt.updateStreamConfig>[0]);
       return decodeStreamConfig(resp.config);
     },
 
@@ -255,7 +244,13 @@ export function createVoiceApi(client: AudioToolsClient) {
     },
 
     async updateWakeWordConfig(template: WakeWordTemplate): Promise<WakeWordConfig> {
-      const resp = await client.stt.updateWakeWordTemplate({ templateJson: JSON.stringify(template) });
+      // The embed-side WakeWordTemplate domain shape carries an array
+      // of {audio, format, sampleRateHz} samples that are already
+      // compatible with the proto message; the proto generator
+      // accepts a plain object init.
+      const resp = await client.stt.updateWakeWordTemplate({
+        template: template as unknown as WakeWordTemplateMsg,
+      } as Parameters<typeof client.stt.updateWakeWordTemplate>[0]);
       return decodeWakeWord(resp.config);
     },
 
@@ -272,14 +267,18 @@ export function createVoiceApi(client: AudioToolsClient) {
     async updateSpeakerVerificationConfig(
       patch: Partial<SpeakerVerificationConfig>,
     ): Promise<SpeakerVerificationConfig> {
-      const req: Record<string, unknown> = {};
-      if (patch.enabled !== undefined) { req.enabled = patch.enabled; req.hasEnabled = true; }
-      if (patch.profileIds !== undefined) { req.profileIds = patch.profileIds; req.hasProfileIds = true; }
-      if (patch.threshold !== undefined) { req.threshold = patch.threshold; req.hasThreshold = true; }
-      if (patch.mode !== undefined) { req.mode = patch.mode; req.hasMode = true; }
-      if (patch.rejectBehavior !== undefined) { req.rejectBehavior = patch.rejectBehavior; req.hasRejectBehavior = true; }
-      if (patch.fallbackWithoutVerification !== undefined) { req.fallbackWithoutVerification = patch.fallbackWithoutVerification; req.hasFallbackWithoutVerification = true; }
-      const resp = await client.stt.updateSpeakerConfig(req as Parameters<typeof client.stt.updateSpeakerConfig>[0]);
+      const paths: string[] = [];
+      const cfg: Record<string, unknown> = {};
+      if (patch.enabled !== undefined) { cfg.enabled = patch.enabled; paths.push("enabled"); }
+      if (patch.profileIds !== undefined) { cfg.profileIds = patch.profileIds; paths.push("profile_ids"); }
+      if (patch.threshold !== undefined) { cfg.threshold = patch.threshold; paths.push("threshold"); }
+      if (patch.mode !== undefined) { cfg.mode = speakerModeFromString(patch.mode); paths.push("mode"); }
+      if (patch.rejectBehavior !== undefined) { cfg.rejectBehavior = rejectBehaviorFromString(patch.rejectBehavior); paths.push("reject_behavior"); }
+      if (patch.fallbackWithoutVerification !== undefined) { cfg.fallbackWithoutVerification = patch.fallbackWithoutVerification; paths.push("fallback_without_verification"); }
+      const resp = await client.stt.updateSpeakerConfig({
+        updateMask: create(FieldMaskSchema, { paths }),
+        config: cfg,
+      } as Parameters<typeof client.stt.updateSpeakerConfig>[0]);
       return decodeSpeakerConfig(resp.config);
     },
 
@@ -306,7 +305,7 @@ export function createVoiceApi(client: AudioToolsClient) {
               embedding_dim: st.info.embeddingDim,
             }
           : undefined,
-        checkedAt: st.checkedAt,
+        checkedAt: timestampToISO(st.checkedAt),
       };
     },
 
@@ -325,13 +324,13 @@ export function createVoiceApi(client: AudioToolsClient) {
     }): Promise<SpeakerVerificationEnrollResult> {
       const req: Record<string, unknown> = {
         audio: await blobToBytes(args.audioBlob),
-        format: blobFormat(args.audioBlob),
+        format: audioFormatFromString(blobFormat(args.audioBlob)),
         profileId: args.profileId ?? "",
         displayName: args.displayName ?? "",
         notes: args.notes ?? "",
       };
-      if (args.addToActive !== undefined) { req.addToActive = args.addToActive; req.hasAddToActive = true; }
-      if (args.enable !== undefined) { req.enable = args.enable; req.hasEnable = true; }
+      if (args.addToActive !== undefined) req.addToActive = args.addToActive;
+      if (args.enable !== undefined) req.enable = args.enable;
       const resp = await client.stt.enrollSpeakerProfile(
         req as Parameters<typeof client.stt.enrollSpeakerProfile>[0],
       );
@@ -344,7 +343,7 @@ export function createVoiceApi(client: AudioToolsClient) {
           sample_rate: en?.sampleRate ?? 0,
           enrollment_audio_seconds: en?.enrollmentAudioSeconds ?? 0,
           model_name: en?.modelName ?? "",
-          created_at: en?.createdAt ?? "",
+          created_at: timestampToISO(en?.createdAt),
         },
         config: decodeSpeakerConfig(resp.config),
       };

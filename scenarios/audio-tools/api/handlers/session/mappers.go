@@ -1,8 +1,7 @@
 package session
 
 import (
-	"time"
-
+	"audio-tools/internal/protomap"
 	intsession "audio-tools/internal/session"
 
 	sessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session"
@@ -12,7 +11,7 @@ func toProto(ev intsession.SessionEvent) *sessv1.SessionEvent {
 	out := &sessv1.SessionEvent{
 		EventId:   ev.EventID,
 		SessionId: ev.SessionID,
-		EmittedAt: ev.EmittedAt.UTC().Format(time.RFC3339Nano),
+		EmittedAt: protomap.TimeToProto(ev.EmittedAt),
 	}
 	switch ev.Type {
 	case intsession.EventTranscriptDelta:
@@ -37,7 +36,7 @@ func toProto(ev intsession.SessionEvent) *sessv1.SessionEvent {
 		}
 	case intsession.EventVAD:
 		if ev.VAD != nil {
-			out.Payload = &sessv1.SessionEvent_Vad{Vad: &sessv1.VadEvent{State: string(ev.VAD.State)}}
+			out.Payload = &sessv1.SessionEvent_Vad{Vad: &sessv1.VadEvent{State: protomap.VadStateToProto(string(ev.VAD.State))}}
 		}
 	case intsession.EventTool:
 		if ev.Tool != nil {
@@ -45,7 +44,7 @@ func toProto(ev intsession.SessionEvent) *sessv1.SessionEvent {
 		}
 	case intsession.EventBargeInCancel:
 		if ev.BargeInCancel != nil {
-			out.Payload = &sessv1.SessionEvent_BargeInCancel{BargeInCancel: &sessv1.BargeInCancel{Reason: string(ev.BargeInCancel.Reason), CanceledEventId: ev.BargeInCancel.CanceledEventID}}
+			out.Payload = &sessv1.SessionEvent_BargeInCancel{BargeInCancel: &sessv1.BargeInCancel{Reason: protomap.BargeInReasonToProto(string(ev.BargeInCancel.Reason)), CanceledEventId: ev.BargeInCancel.CanceledEventID}}
 		}
 	case intsession.EventClosed:
 		if ev.Closed != nil {

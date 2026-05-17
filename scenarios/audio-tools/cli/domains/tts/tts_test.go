@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
 
@@ -61,12 +62,12 @@ func TestSynthesizeWritesOutFile(t *testing.T) {
 		synth: func(req *ttsv1.SynthesizeRequest) (*ttsv1.SynthesizeResponse, error) {
 			require.Equal(t, "hello", req.GetText())
 			require.Equal(t, "voice.neutral.default", req.GetVoice())
-			require.Equal(t, "mp3", req.GetResponseFormat())
+			require.Equal(t, commonv1.ResponseFormat_RESPONSE_FORMAT_MP3, req.GetResponseFormat())
 			require.InDelta(t, 1.0, req.GetSpeed(), 0.0001)
 			return &ttsv1.SynthesizeResponse{
 				Audio:        []byte("MP3DATA"),
 				ContentType:  "audio/mpeg",
-				ProviderTier: "local", ProviderId: "kokoro", LatencyMs: 11,
+				ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "kokoro", LatencyMs: 11,
 			}, nil
 		},
 	})

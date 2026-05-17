@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package vrooli.audio_tools.v1.settings;
 
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings;settings_v1";
 
 // =============================================================================
@@ -53,29 +56,13 @@ message ProviderConfig {
 message GetProviderConfigRequest {}
 message GetProviderConfigResponse { ProviderConfig config = 1; }
 
+// UpdateProviderConfigRequest carries FieldMask + a full ProviderConfig
+// payload. Server validates each path in `update_mask.paths`; unknown
+// paths return CodeInvalidArgument; an empty mask returns
+// CodeInvalidArgument ("no fields specified").
 message UpdateProviderConfigRequest {
-  bool byok_enabled = 1;
-  bool has_byok_enabled = 2;
-  bool vrooli_enabled = 3;
-  bool has_vrooli_enabled = 4;
-  bool local_enabled = 5;
-  bool has_local_enabled = 6;
-
-  string whisper_url = 10;
-  bool has_whisper_url = 11;
-  string kokoro_url = 12;
-  bool has_kokoro_url = 13;
-  string ollama_url = 14;
-  bool has_ollama_url = 15;
-  string lpbs_base_url = 16;
-  bool has_lpbs_base_url = 17;
-  string lpbs_app_bundle_key = 18;
-  bool has_lpbs_app_bundle_key = 19;
-
-  int32 avail_ttl_byok_seconds = 20;
-  bool has_avail_ttl_byok_seconds = 21;
-  int32 avail_ttl_vrooli_seconds = 22;
-  bool has_avail_ttl_vrooli_seconds = 23;
+  google.protobuf.FieldMask update_mask = 1;
+  ProviderConfig config = 2;
 }
 
 message UpdateProviderConfigResponse { ProviderConfig config = 1; }
@@ -88,8 +75,8 @@ message BYOKCredentialSummary {
   string provider_id = 1;             // "openai-whisper", "deepgram", ...
   string capability = 2;              // "stt" | "tts" | "summarize"
   string fingerprint = 3;             // redacted display, e.g., "sk-***abcd"
-  string created_at = 4;
-  string last_used_at = 5;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp last_used_at = 5;
 }
 
 message ListBYOKCredentialsRequest {}

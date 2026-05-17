@@ -1,32 +1,23 @@
 ### Source-system health
-- Workspace checkout is still empty; `rg --files` returned no repo files.
-- Could not verify `git-control-tower`, `agent-manager`, `swarm-manager`, or `app-issue-tracker`.
-- All four `vrooli scenario status <scenario>` checks still fail with: `read runtime registry schema version: unable to open database file (14)`.
-- Existing capability-gap `dec-1778787137208717804` remains pending and still covers this blocker; no duplicate capability-gap raised.
+Workspace checkout is still empty; `rg --files` returns no repo files. All four required source probes still fail:
+`git-control-tower`, `agent-manager`, `swarm-manager`, and `app-issue-tracker` each return `read runtime registry schema version: unable to open database file (14)`.
 
 ### Artifact requests reviewed
-- No visible `artifact-request/oss/*`.
-- No visible `publish-log/*`; latest storage still says publish-log is empty.
-- Latest coverage state remains missing for `oss-platform`.
-- Latest audience scan is 2026-05-14 onboarding-bar evidence, but related researcher decision remains pending/challenged.
+No visible `artifact-request/oss/*`. No visible `publish-log/*`. Latest coverage snapshot remains `coverage-snapshot/2026-05-15`: fresh=0, stale=0, missing=2 (`business`, `oss-platform`).
 
 ### Story arcs considered
-- No new shipped-work arcs mined because repo files and source health are unavailable.
-- The old sandboxing auto-approval arc remains a possible post #2 only after a refreshed post #1 exists and evidence path is healthy.
+No fresh shipped-work or skill-publication arcs could be mined because evidence path is blocked. The prior sandboxing auto-approval post #2 arc remains held until a refreshed OSS post #1 is proposed/accepted/published.
 
 ### Drafts produced
-- 0.
-- No `campaign-drafts.jsonl` append.
+0. No `campaign-drafts.jsonl` append.
 
 ### Coverage or capability gaps
-- Raised coverage-gap `dec-1778873456617563354`: OSS platform now has no active first-publish proposal after stale rejection of `dec-1777318386116434321`.
-- Did not raise a new capability-gap because pending `dec-1778787137208717804` exactly matches the current evidence-path failure.
+No new decisions. Existing pending `dec-1778787137208717804` still exactly covers the evidence-path blocker. Existing pending `dec-1778873456617563354` still covers missing OSS-platform first-publish coverage.
 
 ### Supersessions
-- `dec-1777318386116434321` is now rejected after accepted stale-decision hygiene `dec-1778792544571542833`; no active first-publish proposal remains.
-- No supersession action taken beyond noting the rejected state.
+Responded to the contrarian report for `dec-1778873456617563354` with `knw-1778959887702704726`; kept the decision unchanged because the report found no failure mode and today’s re-check confirms the same state.
 
 ### Knowledge entry written
-- `knw-1778873456617926424` on `oss-ad-run/2026-05-15`.
+`knw-1778959902499596300` on `oss-ad-run/2026-05-16`.
 
-Next run should first check whether evidence-path access is restored and whether `dec-1778873456617563354` or `dec-1778787137208717804` resolved. If source health is restored, resubmit a refreshed OSS post #1 before drafting any post #2 sandboxing arc.
+Next run should first check whether evidence-path access is restored and whether `dec-1778787137208717804` or `dec-1778873456617563354` resolved. If restored, resubmit a refreshed OSS post #1 before drafting any post #2 sandboxing arc.

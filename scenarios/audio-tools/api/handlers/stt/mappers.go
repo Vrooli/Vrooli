@@ -4,6 +4,8 @@
 package stt
 
 import (
+	"audio-tools/internal/protomap"
+
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
 
@@ -27,8 +29,11 @@ func defaultSpeakerCfg() speakerCfgDoc {
 
 func (d speakerCfgDoc) toProto() *sttv1.SpeakerConfig {
 	return &sttv1.SpeakerConfig{
-		Enabled: d.Enabled, ProfileIds: d.ProfileIDs, Threshold: d.Threshold,
-		Mode: d.Mode, RejectBehavior: d.RejectBehavior,
+		Enabled:    d.Enabled,
+		ProfileIds: d.ProfileIDs,
+		Threshold:  d.Threshold,
+		Mode:       protomap.SpeakerModeToProto(d.Mode),
+		RejectBehavior:              protomap.RejectBehaviorToProto(d.RejectBehavior),
 		FallbackWithoutVerification: d.FallbackWithoutVerification,
 		ExtractionEnabled:           d.ExtractionEnabled,
 	}
@@ -53,12 +58,15 @@ type streamCfgDoc struct {
 
 func (d streamCfgDoc) toProto() *sttv1.StreamConfig {
 	return &sttv1.StreamConfig{
-		FlushIntervalMs: d.FlushIntervalMs, MinDeltaBytes: d.MinDeltaBytes,
-		OverlapBytes: d.OverlapBytes, PersistentMode: d.PersistentMode,
-		WakeWordEnabled: d.WakeWordEnabled, WakeWordThreshold: d.WakeWordThreshold,
+		FlushIntervalMs:    d.FlushIntervalMs,
+		MinDeltaBytes:      d.MinDeltaBytes,
+		OverlapBytes:       d.OverlapBytes,
+		PersistentMode:     d.PersistentMode,
+		WakeWordEnabled:    d.WakeWordEnabled,
+		WakeWordThreshold:  d.WakeWordThreshold,
 		SegmentSilenceMs:   d.SegmentSilenceMs,
-		StreamingMode:      d.StreamingMode,
-		StrategyPreference: d.StrategyPreference,
+		StreamingMode:      protomap.StreamingModeToProto(d.StreamingMode),
+		StrategyPreference: protomap.StrategyPreferenceToProto(d.StrategyPreference),
 		VadSilenceMs:       d.VadSilenceMs,
 		OverlapWindowMs:    d.OverlapWindowMs,
 		OverlapCommitRuns:  d.OverlapCommitRuns,

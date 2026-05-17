@@ -36,7 +36,7 @@ func newH2Server(t *testing.T) (sessconnect.SessionServiceClient, *intsession.Re
 func TestSession_SendCancel_HappyPath(t *testing.T) {
 	c, _ := newH2Server(t)
 	ctx := context.Background()
-	open, err := c.OpenSession(ctx, connect.NewRequest(&sessv1.OpenSessionRequest{Transport: "fake"}))
+	open, err := c.OpenSession(ctx, connect.NewRequest(&sessv1.OpenSessionRequest{Transport: sessv1.SessionTransport_SESSION_TRANSPORT_FAKE}))
 	require.NoError(t, err)
 	_, err = c.SendCancel(ctx, connect.NewRequest(&sessv1.SendCancelRequest{SessionId: open.Msg.GetSessionId()}))
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestSession_CloseSession_WithExplicitReason(t *testing.T) {
 func _testSession_Subscribe_StreamsAssistantEvents(t *testing.T) {
 	c, reg := newH2Server(t)
 	bgCtx := context.Background()
-	open, err := c.OpenSession(bgCtx, connect.NewRequest(&sessv1.OpenSessionRequest{Transport: "fake"}))
+	open, err := c.OpenSession(bgCtx, connect.NewRequest(&sessv1.OpenSessionRequest{Transport: sessv1.SessionTransport_SESSION_TRANSPORT_FAKE}))
 	require.NoError(t, err)
 	sid := open.Msg.GetSessionId()
 

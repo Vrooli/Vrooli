@@ -22,9 +22,11 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import field_mask_pb2 as google_dot_protobuf_dot_field__mask__pb2
+from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&audio-tools/v1/settings/settings.proto\x12\x1evrooli.audio_tools.v1.settings\"\x9f\x03\n\x0eProviderConfig\x12!\n\x0c\x62yok_enabled\x18\x01 \x01(\x08R\x0b\x62yokEnabled\x12%\n\x0evrooli_enabled\x18\x02 \x01(\x08R\rvrooliEnabled\x12#\n\rlocal_enabled\x18\x03 \x01(\x08R\x0clocalEnabled\x12\x1f\n\x0bwhisper_url\x18\n \x01(\tR\nwhisperUrl\x12\x1d\n\nkokoro_url\x18\x0b \x01(\tR\tkokoroUrl\x12\x1d\n\nollama_url\x18\x0c \x01(\tR\tollamaUrl\x12\"\n\rlpbs_base_url\x18\r \x01(\tR\x0blpbsBaseUrl\x12-\n\x13lpbs_app_bundle_key\x18\x0e \x01(\tR\x10lpbsAppBundleKey\x12\x33\n\x16\x61vail_ttl_byok_seconds\x18\x14 \x01(\x05R\x13\x61vailTtlByokSeconds\x12\x37\n\x18\x61vail_ttl_vrooli_seconds\x18\x15 \x01(\x05R\x15\x61vailTtlVrooliSeconds\"\x1a\n\x18GetProviderConfigRequest\"c\n\x19GetProviderConfigResponse\x12\x46\n\x06\x63onfig\x18\x01 \x01(\x0b\x32..vrooli.audio_tools.v1.settings.ProviderConfigR\x06\x63onfig\"\x81\x07\n\x1bUpdateProviderConfigRequest\x12!\n\x0c\x62yok_enabled\x18\x01 \x01(\x08R\x0b\x62yokEnabled\x12(\n\x10has_byok_enabled\x18\x02 \x01(\x08R\x0ehasByokEnabled\x12%\n\x0evrooli_enabled\x18\x03 \x01(\x08R\rvrooliEnabled\x12,\n\x12has_vrooli_enabled\x18\x04 \x01(\x08R\x10hasVrooliEnabled\x12#\n\rlocal_enabled\x18\x05 \x01(\x08R\x0clocalEnabled\x12*\n\x11has_local_enabled\x18\x06 \x01(\x08R\x0fhasLocalEnabled\x12\x1f\n\x0bwhisper_url\x18\n \x01(\tR\nwhisperUrl\x12&\n\x0fhas_whisper_url\x18\x0b \x01(\x08R\rhasWhisperUrl\x12\x1d\n\nkokoro_url\x18\x0c \x01(\tR\tkokoroUrl\x12$\n\x0ehas_kokoro_url\x18\r \x01(\x08R\x0chasKokoroUrl\x12\x1d\n\nollama_url\x18\x0e \x01(\tR\tollamaUrl\x12$\n\x0ehas_ollama_url\x18\x0f \x01(\x08R\x0chasOllamaUrl\x12\"\n\rlpbs_base_url\x18\x10 \x01(\tR\x0blpbsBaseUrl\x12)\n\x11has_lpbs_base_url\x18\x11 \x01(\x08R\x0ehasLpbsBaseUrl\x12-\n\x13lpbs_app_bundle_key\x18\x12 \x01(\tR\x10lpbsAppBundleKey\x12\x34\n\x17has_lpbs_app_bundle_key\x18\x13 \x01(\x08R\x13hasLpbsAppBundleKey\x12\x33\n\x16\x61vail_ttl_byok_seconds\x18\x14 \x01(\x05R\x13\x61vailTtlByokSeconds\x12:\n\x1ahas_avail_ttl_byok_seconds\x18\x15 \x01(\x08R\x16hasAvailTtlByokSeconds\x12\x37\n\x18\x61vail_ttl_vrooli_seconds\x18\x16 \x01(\x05R\x15\x61vailTtlVrooliSeconds\x12>\n\x1chas_avail_ttl_vrooli_seconds\x18\x17 \x01(\x08R\x18hasAvailTtlVrooliSeconds\"f\n\x1cUpdateProviderConfigResponse\x12\x46\n\x06\x63onfig\x18\x01 \x01(\x0b\x32..vrooli.audio_tools.v1.settings.ProviderConfigR\x06\x63onfig\"\xbb\x01\n\x15\x42YOKCredentialSummary\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x1e\n\ncapability\x18\x02 \x01(\tR\ncapability\x12 \n\x0b\x66ingerprint\x18\x03 \x01(\tR\x0b\x66ingerprint\x12\x1d\n\ncreated_at\x18\x04 \x01(\tR\tcreatedAt\x12 \n\x0clast_used_at\x18\x05 \x01(\tR\nlastUsedAt\"\x1c\n\x1aListBYOKCredentialsRequest\"v\n\x1bListBYOKCredentialsResponse\x12W\n\x0b\x63redentials\x18\x01 \x03(\x0b\x32\x35.vrooli.audio_tools.v1.settings.BYOKCredentialSummaryR\x0b\x63redentials\"\x83\x01\n\x1bUpsertBYOKCredentialRequest\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x1e\n\ncapability\x18\x02 \x01(\tR\ncapability\x12\x19\n\x07\x61pi_key\x18\n \x01(\tH\x00R\x06\x61piKeyB\x08\n\x06secret\"u\n\x1cUpsertBYOKCredentialResponse\x12U\n\ncredential\x18\x01 \x01(\x0b\x32\x35.vrooli.audio_tools.v1.settings.BYOKCredentialSummaryR\ncredential\"^\n\x1b\x44\x65leteBYOKCredentialRequest\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x1e\n\ncapability\x18\x02 \x01(\tR\ncapability\"\x1e\n\x1c\x44\x65leteBYOKCredentialResponse\"\x82\x01\n\rVoiceOverride\x12\'\n\x0f\x63\x61nonical_voice\x18\x01 \x01(\tR\x0e\x63\x61nonicalVoice\x12#\n\rtier_provider\x18\x02 \x01(\tR\x0ctierProvider\x12#\n\radapter_voice\x18\x03 \x01(\tR\x0c\x61\x64\x61pterVoice\"\x1a\n\x18GetVoiceOverridesRequest\"h\n\x19GetVoiceOverridesResponse\x12K\n\toverrides\x18\x01 \x03(\x0b\x32-.vrooli.audio_tools.v1.settings.VoiceOverrideR\toverrides\"d\n\x17SetVoiceOverrideRequest\x12I\n\x08override\x18\x01 \x01(\x0b\x32-.vrooli.audio_tools.v1.settings.VoiceOverrideR\x08override\"g\n\x18SetVoiceOverrideResponse\x12K\n\toverrides\x18\x01 \x03(\x0b\x32-.vrooli.audio_tools.v1.settings.VoiceOverrideR\toverrides2\xfc\x07\n\x0fSettingsService\x12\x88\x01\n\x11GetProviderConfig\x12\x38.vrooli.audio_tools.v1.settings.GetProviderConfigRequest\x1a\x39.vrooli.audio_tools.v1.settings.GetProviderConfigResponse\x12\x91\x01\n\x14UpdateProviderConfig\x12;.vrooli.audio_tools.v1.settings.UpdateProviderConfigRequest\x1a<.vrooli.audio_tools.v1.settings.UpdateProviderConfigResponse\x12\x8e\x01\n\x13ListBYOKCredentials\x12:.vrooli.audio_tools.v1.settings.ListBYOKCredentialsRequest\x1a;.vrooli.audio_tools.v1.settings.ListBYOKCredentialsResponse\x12\x91\x01\n\x14UpsertBYOKCredential\x12;.vrooli.audio_tools.v1.settings.UpsertBYOKCredentialRequest\x1a<.vrooli.audio_tools.v1.settings.UpsertBYOKCredentialResponse\x12\x91\x01\n\x14\x44\x65leteBYOKCredential\x12;.vrooli.audio_tools.v1.settings.DeleteBYOKCredentialRequest\x1a<.vrooli.audio_tools.v1.settings.DeleteBYOKCredentialResponse\x12\x88\x01\n\x11GetVoiceOverrides\x12\x38.vrooli.audio_tools.v1.settings.GetVoiceOverridesRequest\x1a\x39.vrooli.audio_tools.v1.settings.GetVoiceOverridesResponse\x12\x85\x01\n\x10SetVoiceOverride\x12\x37.vrooli.audio_tools.v1.settings.SetVoiceOverrideRequest\x1a\x38.vrooli.audio_tools.v1.settings.SetVoiceOverrideResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings;settings_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&audio-tools/v1/settings/settings.proto\x12\x1evrooli.audio_tools.v1.settings\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9f\x03\n\x0eProviderConfig\x12!\n\x0c\x62yok_enabled\x18\x01 \x01(\x08R\x0b\x62yokEnabled\x12%\n\x0evrooli_enabled\x18\x02 \x01(\x08R\rvrooliEnabled\x12#\n\rlocal_enabled\x18\x03 \x01(\x08R\x0clocalEnabled\x12\x1f\n\x0bwhisper_url\x18\n \x01(\tR\nwhisperUrl\x12\x1d\n\nkokoro_url\x18\x0b \x01(\tR\tkokoroUrl\x12\x1d\n\nollama_url\x18\x0c \x01(\tR\tollamaUrl\x12\"\n\rlpbs_base_url\x18\r \x01(\tR\x0blpbsBaseUrl\x12-\n\x13lpbs_app_bundle_key\x18\x0e \x01(\tR\x10lpbsAppBundleKey\x12\x33\n\x16\x61vail_ttl_byok_seconds\x18\x14 \x01(\x05R\x13\x61vailTtlByokSeconds\x12\x37\n\x18\x61vail_ttl_vrooli_seconds\x18\x15 \x01(\x05R\x15\x61vailTtlVrooliSeconds\"\x1a\n\x18GetProviderConfigRequest\"c\n\x19GetProviderConfigResponse\x12\x46\n\x06\x63onfig\x18\x01 \x01(\x0b\x32..vrooli.audio_tools.v1.settings.ProviderConfigR\x06\x63onfig\"\xa2\x01\n\x1bUpdateProviderConfigRequest\x12;\n\x0bupdate_mask\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.FieldMaskR\nupdateMask\x12\x46\n\x06\x63onfig\x18\x02 \x01(\x0b\x32..vrooli.audio_tools.v1.settings.ProviderConfigR\x06\x63onfig\"f\n\x1cUpdateProviderConfigResponse\x12\x46\n\x06\x63onfig\x18\x01 \x01(\x0b\x32..vrooli.audio_tools.v1.settings.ProviderConfigR\x06\x63onfig\"\xf3\x01\n\x15\x42YOKCredentialSummary\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x1e\n\ncapability\x18\x02 \x01(\tR\ncapability\x12 \n\x0b\x66ingerprint\x18\x03 \x01(\tR\x0b\x66ingerprint\x12\x39\n\ncreated_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n\x0clast_used_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nlastUsedAt\"\x1c\n\x1aListBYOKCredentialsRequest\"v\n\x1bListBYOKCredentialsResponse\x12W\n\x0b\x63redentials\x18\x01 \x03(\x0b\x32\x35.vrooli.audio_tools.v1.settings.BYOKCredentialSummaryR\x0b\x63redentials\"\x83\x01\n\x1bUpsertBYOKCredentialRequest\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x1e\n\ncapability\x18\x02 \x01(\tR\ncapability\x12\x19\n\x07\x61pi_key\x18\n \x01(\tH\x00R\x06\x61piKeyB\x08\n\x06secret\"u\n\x1cUpsertBYOKCredentialResponse\x12U\n\ncredential\x18\x01 \x01(\x0b\x32\x35.vrooli.audio_tools.v1.settings.BYOKCredentialSummaryR\ncredential\"^\n\x1b\x44\x65leteBYOKCredentialRequest\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x1e\n\ncapability\x18\x02 \x01(\tR\ncapability\"\x1e\n\x1c\x44\x65leteBYOKCredentialResponse\"\x82\x01\n\rVoiceOverride\x12\'\n\x0f\x63\x61nonical_voice\x18\x01 \x01(\tR\x0e\x63\x61nonicalVoice\x12#\n\rtier_provider\x18\x02 \x01(\tR\x0ctierProvider\x12#\n\radapter_voice\x18\x03 \x01(\tR\x0c\x61\x64\x61pterVoice\"\x1a\n\x18GetVoiceOverridesRequest\"h\n\x19GetVoiceOverridesResponse\x12K\n\toverrides\x18\x01 \x03(\x0b\x32-.vrooli.audio_tools.v1.settings.VoiceOverrideR\toverrides\"d\n\x17SetVoiceOverrideRequest\x12I\n\x08override\x18\x01 \x01(\x0b\x32-.vrooli.audio_tools.v1.settings.VoiceOverrideR\x08override\"g\n\x18SetVoiceOverrideResponse\x12K\n\toverrides\x18\x01 \x03(\x0b\x32-.vrooli.audio_tools.v1.settings.VoiceOverrideR\toverrides2\xfc\x07\n\x0fSettingsService\x12\x88\x01\n\x11GetProviderConfig\x12\x38.vrooli.audio_tools.v1.settings.GetProviderConfigRequest\x1a\x39.vrooli.audio_tools.v1.settings.GetProviderConfigResponse\x12\x91\x01\n\x14UpdateProviderConfig\x12;.vrooli.audio_tools.v1.settings.UpdateProviderConfigRequest\x1a<.vrooli.audio_tools.v1.settings.UpdateProviderConfigResponse\x12\x8e\x01\n\x13ListBYOKCredentials\x12:.vrooli.audio_tools.v1.settings.ListBYOKCredentialsRequest\x1a;.vrooli.audio_tools.v1.settings.ListBYOKCredentialsResponse\x12\x91\x01\n\x14UpsertBYOKCredential\x12;.vrooli.audio_tools.v1.settings.UpsertBYOKCredentialRequest\x1a<.vrooli.audio_tools.v1.settings.UpsertBYOKCredentialResponse\x12\x91\x01\n\x14\x44\x65leteBYOKCredential\x12;.vrooli.audio_tools.v1.settings.DeleteBYOKCredentialRequest\x1a<.vrooli.audio_tools.v1.settings.DeleteBYOKCredentialResponse\x12\x88\x01\n\x11GetVoiceOverrides\x12\x38.vrooli.audio_tools.v1.settings.GetVoiceOverridesRequest\x1a\x39.vrooli.audio_tools.v1.settings.GetVoiceOverridesResponse\x12\x85\x01\n\x10SetVoiceOverride\x12\x37.vrooli.audio_tools.v1.settings.SetVoiceOverrideRequest\x1a\x38.vrooli.audio_tools.v1.settings.SetVoiceOverrideResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings;settings_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,40 +34,40 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'audio_tools.v1.settings.set
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZRgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings;settings_v1'
-  _globals['_PROVIDERCONFIG']._serialized_start=75
-  _globals['_PROVIDERCONFIG']._serialized_end=490
-  _globals['_GETPROVIDERCONFIGREQUEST']._serialized_start=492
-  _globals['_GETPROVIDERCONFIGREQUEST']._serialized_end=518
-  _globals['_GETPROVIDERCONFIGRESPONSE']._serialized_start=520
-  _globals['_GETPROVIDERCONFIGRESPONSE']._serialized_end=619
-  _globals['_UPDATEPROVIDERCONFIGREQUEST']._serialized_start=622
-  _globals['_UPDATEPROVIDERCONFIGREQUEST']._serialized_end=1519
-  _globals['_UPDATEPROVIDERCONFIGRESPONSE']._serialized_start=1521
-  _globals['_UPDATEPROVIDERCONFIGRESPONSE']._serialized_end=1623
-  _globals['_BYOKCREDENTIALSUMMARY']._serialized_start=1626
-  _globals['_BYOKCREDENTIALSUMMARY']._serialized_end=1813
-  _globals['_LISTBYOKCREDENTIALSREQUEST']._serialized_start=1815
-  _globals['_LISTBYOKCREDENTIALSREQUEST']._serialized_end=1843
-  _globals['_LISTBYOKCREDENTIALSRESPONSE']._serialized_start=1845
-  _globals['_LISTBYOKCREDENTIALSRESPONSE']._serialized_end=1963
-  _globals['_UPSERTBYOKCREDENTIALREQUEST']._serialized_start=1966
-  _globals['_UPSERTBYOKCREDENTIALREQUEST']._serialized_end=2097
-  _globals['_UPSERTBYOKCREDENTIALRESPONSE']._serialized_start=2099
-  _globals['_UPSERTBYOKCREDENTIALRESPONSE']._serialized_end=2216
-  _globals['_DELETEBYOKCREDENTIALREQUEST']._serialized_start=2218
-  _globals['_DELETEBYOKCREDENTIALREQUEST']._serialized_end=2312
-  _globals['_DELETEBYOKCREDENTIALRESPONSE']._serialized_start=2314
-  _globals['_DELETEBYOKCREDENTIALRESPONSE']._serialized_end=2344
-  _globals['_VOICEOVERRIDE']._serialized_start=2347
-  _globals['_VOICEOVERRIDE']._serialized_end=2477
-  _globals['_GETVOICEOVERRIDESREQUEST']._serialized_start=2479
-  _globals['_GETVOICEOVERRIDESREQUEST']._serialized_end=2505
-  _globals['_GETVOICEOVERRIDESRESPONSE']._serialized_start=2507
-  _globals['_GETVOICEOVERRIDESRESPONSE']._serialized_end=2611
-  _globals['_SETVOICEOVERRIDEREQUEST']._serialized_start=2613
-  _globals['_SETVOICEOVERRIDEREQUEST']._serialized_end=2713
-  _globals['_SETVOICEOVERRIDERESPONSE']._serialized_start=2715
-  _globals['_SETVOICEOVERRIDERESPONSE']._serialized_end=2818
-  _globals['_SETTINGSSERVICE']._serialized_start=2821
-  _globals['_SETTINGSSERVICE']._serialized_end=3841
+  _globals['_PROVIDERCONFIG']._serialized_start=142
+  _globals['_PROVIDERCONFIG']._serialized_end=557
+  _globals['_GETPROVIDERCONFIGREQUEST']._serialized_start=559
+  _globals['_GETPROVIDERCONFIGREQUEST']._serialized_end=585
+  _globals['_GETPROVIDERCONFIGRESPONSE']._serialized_start=587
+  _globals['_GETPROVIDERCONFIGRESPONSE']._serialized_end=686
+  _globals['_UPDATEPROVIDERCONFIGREQUEST']._serialized_start=689
+  _globals['_UPDATEPROVIDERCONFIGREQUEST']._serialized_end=851
+  _globals['_UPDATEPROVIDERCONFIGRESPONSE']._serialized_start=853
+  _globals['_UPDATEPROVIDERCONFIGRESPONSE']._serialized_end=955
+  _globals['_BYOKCREDENTIALSUMMARY']._serialized_start=958
+  _globals['_BYOKCREDENTIALSUMMARY']._serialized_end=1201
+  _globals['_LISTBYOKCREDENTIALSREQUEST']._serialized_start=1203
+  _globals['_LISTBYOKCREDENTIALSREQUEST']._serialized_end=1231
+  _globals['_LISTBYOKCREDENTIALSRESPONSE']._serialized_start=1233
+  _globals['_LISTBYOKCREDENTIALSRESPONSE']._serialized_end=1351
+  _globals['_UPSERTBYOKCREDENTIALREQUEST']._serialized_start=1354
+  _globals['_UPSERTBYOKCREDENTIALREQUEST']._serialized_end=1485
+  _globals['_UPSERTBYOKCREDENTIALRESPONSE']._serialized_start=1487
+  _globals['_UPSERTBYOKCREDENTIALRESPONSE']._serialized_end=1604
+  _globals['_DELETEBYOKCREDENTIALREQUEST']._serialized_start=1606
+  _globals['_DELETEBYOKCREDENTIALREQUEST']._serialized_end=1700
+  _globals['_DELETEBYOKCREDENTIALRESPONSE']._serialized_start=1702
+  _globals['_DELETEBYOKCREDENTIALRESPONSE']._serialized_end=1732
+  _globals['_VOICEOVERRIDE']._serialized_start=1735
+  _globals['_VOICEOVERRIDE']._serialized_end=1865
+  _globals['_GETVOICEOVERRIDESREQUEST']._serialized_start=1867
+  _globals['_GETVOICEOVERRIDESREQUEST']._serialized_end=1893
+  _globals['_GETVOICEOVERRIDESRESPONSE']._serialized_start=1895
+  _globals['_GETVOICEOVERRIDESRESPONSE']._serialized_end=1999
+  _globals['_SETVOICEOVERRIDEREQUEST']._serialized_start=2001
+  _globals['_SETVOICEOVERRIDEREQUEST']._serialized_end=2101
+  _globals['_SETVOICEOVERRIDERESPONSE']._serialized_start=2103
+  _globals['_SETVOICEOVERRIDERESPONSE']._serialized_end=2206
+  _globals['_SETTINGSSERVICE']._serialized_start=2209
+  _globals['_SETTINGSSERVICE']._serialized_end=3229
 # @@protoc_insertion_point(module_scope)

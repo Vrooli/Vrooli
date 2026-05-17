@@ -22,9 +22,12 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import field_mask_pb2 as google_dot_protobuf_dot_field__mask__pb2
+from audio_tools.v1.common import common_pb2 as audio__tools_dot_v1_dot_common_dot_common__pb2
+from audio_tools.v1.tts import tts_pb2 as audio__tools_dot_v1_dot_tts_dot_tts__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(audio-tools/v1/summarize/summarize.proto\x12\x1fvrooli.audio_tools.v1.summarize\"\xa7\x01\n\x0fSummarizeConfig\x12\x18\n\x07\x65nabled\x18\x01 \x01(\x08R\x07\x65nabled\x12%\n\x0e\x63har_threshold\x18\x02 \x01(\x05R\rcharThreshold\x12\x14\n\x05level\x18\x03 \x01(\tR\x05level\x12\x14\n\x05model\x18\x04 \x01(\tR\x05model\x12\'\n\x0ftimeout_seconds\x18\x05 \x01(\x05R\x0etimeoutSeconds\"\x1b\n\x19GetSummarizeConfigRequest\"f\n\x1aGetSummarizeConfigResponse\x12H\n\x06\x63onfig\x18\x01 \x01(\x0b\x32\x30.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06\x63onfig\"\xed\x02\n\x1cUpdateSummarizeConfigRequest\x12\x18\n\x07\x65nabled\x18\x01 \x01(\x08R\x07\x65nabled\x12\x1f\n\x0bhas_enabled\x18\x02 \x01(\x08R\nhasEnabled\x12%\n\x0e\x63har_threshold\x18\x03 \x01(\x05R\rcharThreshold\x12,\n\x12has_char_threshold\x18\x04 \x01(\x08R\x10hasCharThreshold\x12\x14\n\x05level\x18\x05 \x01(\tR\x05level\x12\x1b\n\thas_level\x18\x06 \x01(\x08R\x08hasLevel\x12\x14\n\x05model\x18\x07 \x01(\tR\x05model\x12\x1b\n\thas_model\x18\x08 \x01(\x08R\x08hasModel\x12\'\n\x0ftimeout_seconds\x18\t \x01(\x05R\x0etimeoutSeconds\x12.\n\x13has_timeout_seconds\x18\n \x01(\x08R\x11hasTimeoutSeconds\"i\n\x1dUpdateSummarizeConfigResponse\x12H\n\x06\x63onfig\x18\x01 \x01(\x0b\x32\x30.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06\x63onfig\"{\n\x10SummarizeRequest\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12\x14\n\x05level\x18\x02 \x01(\tR\x05level\x12\x14\n\x05model\x18\x03 \x01(\tR\x05model\x12\'\n\x0ftimeout_seconds\x18\x04 \x01(\x05R\x0etimeoutSeconds\"\xf1\x01\n\x11SummarizeResponse\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12#\n\rprompt_tokens\x18\x02 \x01(\x05R\x0cpromptTokens\x12#\n\routput_tokens\x18\x03 \x01(\x05R\x0coutputTokens\x12#\n\rprovider_tier\x18\x04 \x01(\tR\x0cproviderTier\x12\x1f\n\x0bprovider_id\x18\x05 \x01(\tR\nproviderId\x12\x19\n\x08model_id\x18\x06 \x01(\tR\x07modelId\x12\x1d\n\nlatency_ms\x18\x07 \x01(\x01R\tlatencyMs2\xaf\x03\n\x10SummarizeService\x12r\n\tSummarize\x12\x31.vrooli.audio_tools.v1.summarize.SummarizeRequest\x1a\x32.vrooli.audio_tools.v1.summarize.SummarizeResponse\x12\x8d\x01\n\x12GetSummarizeConfig\x12:.vrooli.audio_tools.v1.summarize.GetSummarizeConfigRequest\x1a;.vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse\x12\x96\x01\n\x15UpdateSummarizeConfig\x12=.vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest\x1a>.vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize;summarize_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(audio-tools/v1/summarize/summarize.proto\x12\x1fvrooli.audio_tools.v1.summarize\x1a google/protobuf/field_mask.proto\x1a\"audio-tools/v1/common/common.proto\x1a\x1c\x61udio-tools/v1/tts/tts.proto\"\xd2\x01\n\x0fSummarizeConfig\x12\x18\n\x07\x65nabled\x18\x01 \x01(\x08R\x07\x65nabled\x12%\n\x0e\x63har_threshold\x18\x02 \x01(\x05R\rcharThreshold\x12?\n\x05level\x18\x03 \x01(\x0e\x32).vrooli.audio_tools.v1.tts.SummarizeLevelR\x05level\x12\x14\n\x05model\x18\x04 \x01(\tR\x05model\x12\'\n\x0ftimeout_seconds\x18\x05 \x01(\x05R\x0etimeoutSeconds\"\x1b\n\x19GetSummarizeConfigRequest\"f\n\x1aGetSummarizeConfigResponse\x12H\n\x06\x63onfig\x18\x01 \x01(\x0b\x32\x30.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06\x63onfig\"\xa5\x01\n\x1cUpdateSummarizeConfigRequest\x12;\n\x0bupdate_mask\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.FieldMaskR\nupdateMask\x12H\n\x06\x63onfig\x18\x02 \x01(\x0b\x32\x30.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06\x63onfig\"i\n\x1dUpdateSummarizeConfigResponse\x12H\n\x06\x63onfig\x18\x01 \x01(\x0b\x32\x30.vrooli.audio_tools.v1.summarize.SummarizeConfigR\x06\x63onfig\"\xa6\x01\n\x10SummarizeRequest\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12?\n\x05level\x18\x02 \x01(\x0e\x32).vrooli.audio_tools.v1.tts.SummarizeLevelR\x05level\x12\x14\n\x05model\x18\x03 \x01(\tR\x05model\x12\'\n\x0ftimeout_seconds\x18\x04 \x01(\x05R\x0etimeoutSeconds\"\x9d\x02\n\x11SummarizeResponse\x12\x12\n\x04text\x18\x01 \x01(\tR\x04text\x12#\n\rprompt_tokens\x18\x02 \x01(\x05R\x0cpromptTokens\x12#\n\routput_tokens\x18\x03 \x01(\x05R\x0coutputTokens\x12O\n\rprovider_tier\x18\x04 \x01(\x0e\x32*.vrooli.audio_tools.v1.common.ProviderTierR\x0cproviderTier\x12\x1f\n\x0bprovider_id\x18\x05 \x01(\tR\nproviderId\x12\x19\n\x08model_id\x18\x06 \x01(\tR\x07modelId\x12\x1d\n\nlatency_ms\x18\x07 \x01(\x01R\tlatencyMs2\xaf\x03\n\x10SummarizeService\x12r\n\tSummarize\x12\x31.vrooli.audio_tools.v1.summarize.SummarizeRequest\x1a\x32.vrooli.audio_tools.v1.summarize.SummarizeResponse\x12\x8d\x01\n\x12GetSummarizeConfig\x12:.vrooli.audio_tools.v1.summarize.GetSummarizeConfigRequest\x1a;.vrooli.audio_tools.v1.summarize.GetSummarizeConfigResponse\x12\x96\x01\n\x15UpdateSummarizeConfig\x12=.vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigRequest\x1a>.vrooli.audio_tools.v1.summarize.UpdateSummarizeConfigResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize;summarize_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,20 +35,20 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'audio_tools.v1.summarize.su
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZTgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize;summarize_v1'
-  _globals['_SUMMARIZECONFIG']._serialized_start=78
-  _globals['_SUMMARIZECONFIG']._serialized_end=245
-  _globals['_GETSUMMARIZECONFIGREQUEST']._serialized_start=247
-  _globals['_GETSUMMARIZECONFIGREQUEST']._serialized_end=274
-  _globals['_GETSUMMARIZECONFIGRESPONSE']._serialized_start=276
-  _globals['_GETSUMMARIZECONFIGRESPONSE']._serialized_end=378
-  _globals['_UPDATESUMMARIZECONFIGREQUEST']._serialized_start=381
-  _globals['_UPDATESUMMARIZECONFIGREQUEST']._serialized_end=746
-  _globals['_UPDATESUMMARIZECONFIGRESPONSE']._serialized_start=748
-  _globals['_UPDATESUMMARIZECONFIGRESPONSE']._serialized_end=853
-  _globals['_SUMMARIZEREQUEST']._serialized_start=855
-  _globals['_SUMMARIZEREQUEST']._serialized_end=978
-  _globals['_SUMMARIZERESPONSE']._serialized_start=981
-  _globals['_SUMMARIZERESPONSE']._serialized_end=1222
-  _globals['_SUMMARIZESERVICE']._serialized_start=1225
-  _globals['_SUMMARIZESERVICE']._serialized_end=1656
+  _globals['_SUMMARIZECONFIG']._serialized_start=178
+  _globals['_SUMMARIZECONFIG']._serialized_end=388
+  _globals['_GETSUMMARIZECONFIGREQUEST']._serialized_start=390
+  _globals['_GETSUMMARIZECONFIGREQUEST']._serialized_end=417
+  _globals['_GETSUMMARIZECONFIGRESPONSE']._serialized_start=419
+  _globals['_GETSUMMARIZECONFIGRESPONSE']._serialized_end=521
+  _globals['_UPDATESUMMARIZECONFIGREQUEST']._serialized_start=524
+  _globals['_UPDATESUMMARIZECONFIGREQUEST']._serialized_end=689
+  _globals['_UPDATESUMMARIZECONFIGRESPONSE']._serialized_start=691
+  _globals['_UPDATESUMMARIZECONFIGRESPONSE']._serialized_end=796
+  _globals['_SUMMARIZEREQUEST']._serialized_start=799
+  _globals['_SUMMARIZEREQUEST']._serialized_end=965
+  _globals['_SUMMARIZERESPONSE']._serialized_start=968
+  _globals['_SUMMARIZERESPONSE']._serialized_end=1253
+  _globals['_SUMMARIZESERVICE']._serialized_start=1256
+  _globals['_SUMMARIZESERVICE']._serialized_end=1687
 # @@protoc_insertion_point(module_scope)
