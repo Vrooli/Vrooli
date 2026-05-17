@@ -73,8 +73,6 @@ vi.mock("../../audio-integration/hooks/voice/sharedAudioContext", async (importO
     getSharedAudioContext: () => audioHoisted.createAudioContextStub(),
     ensureAudioContextOnGesture: vi.fn(),
     closeSharedAudioContext: vi.fn(),
-    installAudioContextKeepalive: vi.fn(),
-    teardownAudioContextKeepalive: vi.fn(),
   };
 });
 vi.mock("../../audio-integration/hooks/voice/micReadiness", async (importOriginal) => {
@@ -147,8 +145,6 @@ vi.mock("../../audio-integration", async (importOriginal) => {
     }),
     ensureAudioContextOnGesture: vi.fn(),
     closeSharedAudioContext: vi.fn(),
-    installAudioContextKeepalive: vi.fn(),
-    teardownAudioContextKeepalive: vi.fn(),
     acquireStream: vi.fn().mockResolvedValue(mockStream()),
     releaseStream: vi.fn(),
     getStream: vi.fn().mockReturnValue(null),

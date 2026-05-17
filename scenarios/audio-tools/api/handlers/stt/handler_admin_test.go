@@ -418,6 +418,35 @@ func TestStreamConfig_UpdateRoundTrip(t *testing.T) {
 	require.Equal(t, int32(2), cfg.GetOverlapCommitRuns())
 }
 
+// Regression: legacy persisted docs lacking newer fields (vad_silence_ms,
+// segment_silence_ms, etc.) used to surface zero to the client via
+// GetStreamConfig while the server-side resolveStreamPipelineConfig fell
+// back to sttpkg.Defaults() — the two paths then disagreed on VAD timing,
+// and the mic-button ring would fill to ~58% before the server cut.
+// Fix: loadStreamCfg backfills zero fields from defaultStreamCfg().
+func TestStreamConfig_LegacyDocBackfillsDefaults(t *testing.T) {
+	scs := newStreamCfgStoreT(t)
+	// Simulate a doc persisted before vad_silence_ms / segment_silence_ms
+	// / overlap_* fields existed: only flush_interval_ms is present.
+	require.NoError(t, scs.Set(context.Background(), `{"flush_interval_ms":250}`))
+
+	c := newSTTClient(t, Deps{StreamConfig: scs})
+	res, err := c.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
+	require.NoError(t, err)
+	cfg := res.Msg.GetConfig()
+
+	def := defaultStreamCfg()
+	require.Equal(t, def.VadSilenceMs, cfg.GetVadSilenceMs(),
+		"legacy doc must surface default vad_silence_ms so server VAD and client ring agree")
+	require.Equal(t, def.SegmentSilenceMs, cfg.GetSegmentSilenceMs())
+	require.Equal(t, def.OverlapWindowMs, cfg.GetOverlapWindowMs())
+	require.Equal(t, def.OverlapCommitRuns, cfg.GetOverlapCommitRuns())
+	require.Equal(t, def.OverlapBytes, cfg.GetOverlapBytes())
+	require.Equal(t, def.MinDeltaBytes, cfg.GetMinDeltaBytes())
+	require.Equal(t, sttv1.StreamingMode_STREAMING_MODE_AUTO, cfg.GetStreamingMode())
+	require.Equal(t, sttv1.StrategyPreference_STRATEGY_PREFERENCE_AUTO, cfg.GetStrategyPreference())
+}
+
 func TestStreamConfig_UpdateRejectsUnknownMaskPath(t *testing.T) {
 	scs := newStreamCfgStoreT(t)
 	c := newSTTClient(t, Deps{StreamConfig: scs})

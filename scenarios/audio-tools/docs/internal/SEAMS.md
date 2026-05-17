@@ -203,6 +203,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/ai/sttchain/mocks::FakeBYOK` (configurable ID, availability, result, error, streaming flag + `StreamFn`). |
 | **Why it exists** | Adding a vendor means adding a registry row and an adapter file — no chain-side changes. Tests on the chain don't need real vendor adapters; tests on the adapters use `httptest.NewServer` for wire format and a `FakeDoer` for payload assertions. |
 
+### whisperinfo.Client (local-Whisper model-truth seam)
+
+| | |
+|---|---|
+| **Seam** | The "what model is the local Whisper sidecar actually running?" question, answered without inventing a value. |
+| **Interface** | `internal/stt/whisperinfo/whisperinfo.go::Client` (`CurrentModel() Info`) |
+| **Production wiring** | `whisperinfo.New()` (or `whisperinfo.NewWith(envx.Reader)`) returns the env-backed `EnvClient`. `bootstrap/providers.go` is the composition root — the LocalProvider receives it via `NewLocalProvider` / `NewLocalProviderWith(svc, clk, info)`. |
+| **Test fake** | `internal/stt/whisperinfo/mocks::FakeClient` (configurable `Info`). |
+| **Why it exists** | The upstream `onerahmet/openai-whisper-asr-webservice` image only exposes `/asr` and `/detect-language` — no `/models` or `/health` endpoint to query. Before this seam, `LocalProvider` hard-coded `ModelID: "whisper-large-v3"` regardless of what the sidecar loaded. The resource passes the chosen model in via `AUDIO_WHISPER_MODEL`; the seam reads it. Returns `whisperinfo.ModelUnknown` rather than fabricating a name when the env is unset. |
+
 ### sttchain.VrooliClient (STT Vrooli/LPBS client)
 
 | | |

@@ -67,8 +67,48 @@ whisper::docker::pull_image() {
 # Arguments: $1 - model (optional), $2 - GPU enabled (optional)
 # Returns: 0 if successful, 1 otherwise
 #######################################
+#######################################
+# Resolve the model size for the sidecar:
+#   1. Explicit caller arg ($1) wins.
+#   2. Operator env WHISPER_DEFAULT_MODEL wins (operator pin).
+#   3. `whisper recommend-model --json` picks per host.
+#   4. Static "small" fallback if the CLI is missing or fails.
+# Echos the chosen model and logs the source at INFO.
+#######################################
+whisper::docker::resolve_model() {
+    local caller_model="${1:-}"
+    if [[ -n "$caller_model" ]]; then
+        log::info "Whisper model: $caller_model (caller override)"
+        echo "$caller_model"
+        return 0
+    fi
+    if [[ "${WHISPER_DEFAULT_MODEL_OPERATOR_SET:-no}" == "yes" ]]; then
+        log::info "Whisper model: $WHISPER_DEFAULT_MODEL (operator env)"
+        echo "$WHISPER_DEFAULT_MODEL"
+        return 0
+    fi
+    # Installed binary is `resource-whisper` (see cli-core install.sh).
+    # WHISPER_CLI_BIN overrides for dev or test environments.
+    local cli_bin="${WHISPER_CLI_BIN:-resource-whisper}"
+    if command -v "$cli_bin" >/dev/null 2>&1; then
+        local json
+        if json=$("$cli_bin" recommend-model --json 2>/dev/null); then
+            local picked
+            picked=$(printf '%s' "$json" | sed -n 's/.*"model"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+            if [[ -n "$picked" ]]; then
+                log::info "Whisper model: $picked (hardware-aware recommender)"
+                echo "$picked"
+                return 0
+            fi
+        fi
+    fi
+    log::warn "Whisper model: ${WHISPER_DEFAULT_MODEL:-small} (recommender unavailable, using static fallback)"
+    echo "${WHISPER_DEFAULT_MODEL:-small}"
+}
+
 whisper::docker::start_container() {
-    local model="${1:-$WHISPER_DEFAULT_MODEL}"
+    local model
+    model=$(whisper::docker::resolve_model "${1:-}")
     local gpu_enabled="${2:-$WHISPER_GPU_ENABLED}"
     local image
     

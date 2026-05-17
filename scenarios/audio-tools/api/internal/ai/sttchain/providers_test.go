@@ -9,13 +9,16 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
+	"audio-tools/internal/stt/whisperinfo"
+	whisperinfomocks "audio-tools/internal/stt/whisperinfo/mocks"
 )
 
 func TestLocalProvider_NilSvc(t *testing.T) {
-	p := sttchain.NewLocalProvider(nil)
+	infoFake := &whisperinfomocks.FakeClient{Info: whisperinfo.Info{ModelID: "whisper-medium"}}
+	p := sttchain.NewLocalProviderWith(nil, nil, infoFake)
 	require.Equal(t, sttchain.TierLocal, p.Type())
 	require.False(t, p.IsAvailable(context.Background()))
-	require.Equal(t, "whisper-large-v3", p.Model())
+	require.Equal(t, "whisper-medium", p.Model())
 	_, err := p.Transcribe(context.Background(), sttchain.Request{})
 	require.Error(t, err)
 	tr := p.Traits()
@@ -24,8 +27,11 @@ func TestLocalProvider_NilSvc(t *testing.T) {
 	ch, err := p.TranscribeStreaming(context.Background(), sttchain.StreamStart{}, nil)
 	require.Nil(t, ch)
 	require.NoError(t, err)
-	// NewLocalProviderWith with nil clock applies default.
-	p2 := sttchain.NewLocalProviderWith(nil, nil)
+	// NewLocalProvider with the default EnvClient and env unset → Unknown.
+	pDefault := sttchain.NewLocalProvider(nil)
+	require.Equal(t, whisperinfo.ModelUnknown, pDefault.Model())
+	// Nil info client safely falls back to EnvClient default.
+	p2 := sttchain.NewLocalProviderWith(nil, nil, nil)
 	require.NotNil(t, p2)
 }
 

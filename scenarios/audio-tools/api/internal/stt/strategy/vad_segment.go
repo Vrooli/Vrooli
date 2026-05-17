@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math"
+	"strings"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/clock"
+	voice "audio-tools/internal/stt/pipeline"
 )
 
 // VAD state-emission cadence. See VadStateEvent doc. Throttling lives
@@ -26,6 +29,21 @@ const (
 // Inputs are raw little-endian 16-bit PCM. Transports that send
 // container-framed audio (browser MediaRecorder → WebM/Opus) must
 // transcode to PCM before pushing AudioChunks.
+//
+// Boundary accuracy is preserved via three coupled mechanisms (see
+// docs/reference/streaming-tuning.md):
+//
+//   - PreRollMs: the next segment's start is rewound by this many ms of
+//     PCM so Whisper has the same pre-word audio context a human would
+//     hear before the first phoneme.
+//   - TrailingPadMs: the cut keeps real silence after the last voiced
+//     frame, instead of slicing flush against the silence boundary.
+//   - InitialPromptWords: the last K words of the previous segment's
+//     emitted text feed Whisper's initial_prompt for the next segment.
+//
+// Pre-roll duplicates words by design; emitted text is deduped against
+// the per-session committed string via pipeline.DeduplicateOverlap so
+// consumers never see the repeats.
 type VADSegmenter struct {
 	Provider sttchain.Provider
 
@@ -42,6 +60,18 @@ type VADSegmenter struct {
 
 	// FrameMs is the frame size used for RMS evaluation. Default 20 ms.
 	FrameMs int
+
+	// PreRollMs (default 300) carries the trailing N ms of the previous
+	// segment into the next, so Whisper has pre-word audio context.
+	PreRollMs int
+
+	// TrailingPadMs (default 200) is how much real silence to keep on
+	// the trailing edge of an emitted segment.
+	TrailingPadMs int
+
+	// InitialPromptWords (default 20) is the count of previous-segment
+	// words forwarded as the next request's initial_prompt.
+	InitialPromptWords int
 
 	// Clock is the wall-clock seam used for per-segment latency
 	// measurement. Defaults to clock.System{}.
@@ -66,6 +96,9 @@ func (v *VADSegmenter) Run(
 		return err
 	}
 	v.applyDefaults()
+	log.Printf("[stt-vad] session start: silence_ms=%d silence_rms=%.0f sample_rate=%d frame_ms=%d preroll_ms=%d trailing_pad_ms=%d",
+		v.SilenceMs, v.SilenceRMS, v.SampleRate, v.FrameMs, v.PreRollMs, v.TrailingPadMs)
+	defer log.Printf("[stt-vad] session end")
 
 	const sampleBytes = 2
 	frameBytes := v.SampleRate * v.FrameMs / 1000 * sampleBytes
@@ -73,6 +106,8 @@ func (v *VADSegmenter) Run(
 	if silenceFramesNeeded < 1 {
 		silenceFramesNeeded = 1
 	}
+	preRollBytes := v.SampleRate * v.PreRollMs / 1000 * sampleBytes
+	trailingPadBytes := v.SampleRate * v.TrailingPadMs / 1000 * sampleBytes
 
 	var buf []byte
 	segStart := 0      // offset in buf where the current segment begins
@@ -80,21 +115,22 @@ func (v *VADSegmenter) Run(
 	silentFrames := 0  // consecutive silent frames observed
 	hasVoiced := false // any voiced frame seen in the current segment
 
+	// Rolling cross-segment context. committed accumulates emitted
+	// (deduped) text for overlap detection; lastPromptText is the raw
+	// previous-segment text used to build the next request's
+	// initial_prompt.
+	committed := ""
+	lastPromptText := ""
+
 	var lastTier sttchain.ProviderTier
 	var lastProviderID, lastModelID string
 	var totalLatencyMs float64
 
-	// VAD state-emission bookkeeping. tickSeq is per-stream monotonic so
-	// out-of-order clients can drop stale frames. lastEmittedVoiced lets
-	// us force a tick on state transitions even when throttled. zeroEmit
-	// is the sentinel for "no tick emitted yet" — we always emit on the
-	// first voiced→silence transition (no event before first speech, per
-	// plan §8 contract).
 	var (
-		tickSeq             uint64
-		lastEmitFrameIdx    int // frame index of the last emission
-		lastEmittedVoiced   bool
-		anyTickEmitted      bool
+		tickSeq           uint64
+		lastEmitFrameIdx  int
+		lastEmittedVoiced bool
+		anyTickEmitted    bool
 	)
 	clk := v.Clock
 	if clk == nil {
@@ -116,6 +152,12 @@ func (v *VADSegmenter) Run(
 		}
 	}
 
+	// flushSegment cuts [segStart, end) from buf, transcribes it with
+	// rolling text context, deduplicates against `committed`, and emits
+	// only the new tail as a SegmentEvent. It then advances segStart
+	// backwards by preRollBytes so the next segment overlaps the
+	// trailing audio of the one just emitted — Whisper sees pre-word
+	// context, callers see deduped text.
 	flushSegment := func(end int) {
 		if !hasVoiced || end-segStart <= 0 {
 			segStart = end
@@ -124,10 +166,21 @@ func (v *VADSegmenter) Run(
 		}
 		seg := make([]byte, end-segStart)
 		copy(seg, buf[segStart:end])
+
+		// Build the per-call initial_prompt: operator hint + last K
+		// words of the previous segment. LastNWords is empty when
+		// InitialPromptWords <= 0 or lastPromptText is empty, so this
+		// is a no-op for the first segment of a session.
+		prompt := start.InitialPrompt
+		if v.InitialPromptWords > 0 && lastPromptText != "" {
+			tail := voice.LastNWords(lastPromptText, v.InitialPromptWords)
+			prompt = strings.TrimSpace(prompt + " " + tail)
+		}
+
 		req := sttchain.Request{
 			Audio:                   seg,
 			Language:                start.Language,
-			InitialPrompt:           start.InitialPrompt,
+			InitialPrompt:           prompt,
 			SkipSpeakerVerification: start.SkipSpeakerVerification,
 			BYOKProvider:            start.BYOKProvider,
 			BYOKKey:                 start.BYOKKey,
@@ -139,7 +192,7 @@ func (v *VADSegmenter) Run(
 		latency := clk.Now().Sub(t0)
 		if err != nil {
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
-			segStart = end
+			segStart = advanceWithPreRoll(end, preRollBytes)
 			hasVoiced = false
 			return
 		}
@@ -147,20 +200,31 @@ func (v *VADSegmenter) Run(
 		lastProviderID = res.ProviderID
 		lastModelID = res.ModelID
 		totalLatencyMs += float64(latency.Milliseconds())
-		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
-			Text:             res.Text,
-			DetectedLanguage: res.DetectedLanguage,
-			ProviderTier:     res.Tier,
-			ProviderID:       res.ProviderID,
-			ModelID:          res.ModelID,
-			LatencyMs:        float64(latency.Milliseconds()),
-		}}
-		segStart = end
+
+		// Dedup against the per-session committed string. The new tail
+		// (everything after the overlap with committed) is what we emit.
+		merged := voice.DeduplicateOverlap(committed, res.Text)
+		newTail := strings.TrimSpace(strings.TrimPrefix(merged, committed))
+		committed = merged
+		lastPromptText = res.Text
+
+		if newTail != "" {
+			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
+				Text:             newTail,
+				DetectedLanguage: res.DetectedLanguage,
+				ProviderTier:     res.Tier,
+				ProviderID:       res.ProviderID,
+				ModelID:          res.ModelID,
+				LatencyMs:        float64(latency.Milliseconds()),
+			}}
+		}
+		segStart = advanceWithPreRoll(end, preRollBytes)
 		hasVoiced = false
 	}
 
 	emitDone := func() {
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{
+			FinalText:  committed,
 			LockedTier: lastTier,
 			ProviderID: lastProviderID,
 			ModelID:    lastModelID,
@@ -179,18 +243,6 @@ func (v *VADSegmenter) Run(
 				hasVoiced = true
 			}
 
-			// VAD state emission. Per plan §8:
-			//  - no event before the first voiced frame in a segment
-			//  - emit on voiced↔silence transitions
-			//  - otherwise throttle by audio-time elapsed:
-			//      ≤20 Hz silence (≥50 ms / tick), ≤2 Hz voiced (≥500 ms / tick).
-			//
-			// Throttle is intentionally audio-time, not wall-clock: the
-			// chain feeds frames in real time in production but tests
-			// batch all PCM in one chunk, and the contract talks about
-			// silence-clock ticks (the user-visible mic ring), not CPU
-			// time. Audio-time throttling gives both worlds the same
-			// cadence guarantees.
 			currentFrameIdx := nextFrame / frameBytes
 			if hasVoiced {
 				voicedNow := !isSilent
@@ -216,11 +268,26 @@ func (v *VADSegmenter) Run(
 			}
 
 			if isSilent && hasVoiced && silentFrames >= silenceFramesNeeded {
-				// Cut the segment at the start of the silence run.
-				cut := nextFrame + frameBytes - silentFrames*frameBytes
-				if cut < segStart {
-					cut = segStart
+				// Cut math:
+				//   - "silence start" = nextFrame + frameBytes - silentFrames*frameBytes
+				//   - keep TrailingPadMs of real silence after the last voiced frame
+				silenceStart := nextFrame + frameBytes - silentFrames*frameBytes
+				cut := silenceStart + trailingPadBytes
+				if cut > nextFrame+frameBytes {
+					cut = nextFrame + frameBytes
 				}
+				if cut < segStart+frameBytes {
+					cut = segStart + frameBytes
+				}
+				// Observability: diagnosing user-reported "stops too early"
+				// requires knowing the silence window and audio extent of
+				// each cut. Cheap log — one line per cut, not per frame.
+				log.Printf("[stt-vad] segment cut: silence_ms=%d threshold_ms=%d segment_bytes=%d segment_ms=%d rms=%.0f silence_rms=%.0f",
+					silentFrames*v.FrameMs, v.SilenceMs,
+					cut-segStart,
+					(cut-segStart)/(v.SampleRate*sampleBytes/1000),
+					rms, v.SilenceRMS,
+				)
 				flushSegment(cut)
 				silentFrames = 0
 			}
@@ -248,6 +315,20 @@ func (v *VADSegmenter) Run(
 	}
 }
 
+// advanceWithPreRoll rewinds the next-segment start by preRollBytes so
+// the new segment overlaps the trailing audio of the one just emitted.
+// Clamped to 0 to avoid underflow.
+func advanceWithPreRoll(end, preRollBytes int) int {
+	if preRollBytes <= 0 {
+		return end
+	}
+	start := end - preRollBytes
+	if start < 0 {
+		start = 0
+	}
+	return start
+}
+
 func (v *VADSegmenter) applyDefaults() {
 	if v.SampleRate == 0 {
 		v.SampleRate = 16000
@@ -261,6 +342,9 @@ func (v *VADSegmenter) applyDefaults() {
 	if v.FrameMs == 0 {
 		v.FrameMs = 20
 	}
+	// PreRollMs/TrailingPadMs/InitialPromptWords are additive — zero is
+	// a valid "disable" value for each. Operator config supplies real
+	// defaults at the selector layer.
 }
 
 func frameRMS(frame []byte) float64 {

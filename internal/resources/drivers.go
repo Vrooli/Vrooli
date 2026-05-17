@@ -618,7 +618,44 @@ func composeInvocationArgs(ctx context.Context, controller *Controller, manifest
 			env = append(env, k+"="+v)
 		}
 	}
+	if extra := harvestRuntimeEnvCommand(ctx, manifest); len(extra) > 0 {
+		env = append(env, extra...)
+	}
 	return cmdArgs, env
+}
+
+// harvestRuntimeEnvCommand runs the manifest's runtime_env_command (if
+// declared) and returns KEY=VALUE pairs harvested from stdout. Failure
+// is non-fatal: the driver logs a warning equivalent and falls through
+// with the static env. Resources MUST design their commands to be
+// idempotent and fast (<5s default).
+func harvestRuntimeEnvCommand(ctx context.Context, manifest ResourceManifest) []string {
+	spec := manifest.RuntimeEnvCommand
+	if spec == nil || strings.TrimSpace(spec.Command) == "" {
+		return nil
+	}
+	timeout := time.Duration(spec.TimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	cctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	out, err := exec.CommandContext(cctx, spec.Command, spec.Args...).Output()
+	if err != nil {
+		return nil
+	}
+	var pairs []string
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if !strings.Contains(line, "=") {
+			continue
+		}
+		pairs = append(pairs, line)
+	}
+	return pairs
 }
 
 func composeOverlayPath(controller *Controller, manifest ResourceManifest, overlay string) string {

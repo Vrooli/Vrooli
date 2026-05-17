@@ -1,0 +1,182 @@
+package recommend
+
+import (
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/vrooli/cli-core/cliapp"
+
+	"resource-whisper/cli/internal/hwprobe"
+)
+
+// envBudgetVar is the operator-visible knob. Read here, not in lib code,
+// so the CLI is the single source of truth for budget resolution.
+const envBudgetVar = "WHISPER_RESOURCE_BUDGET_PCT"
+
+// Handlers owns the runtime dependencies for the recommend-model
+// subcommand. Tests inject a FakeProbe; production wires SystemProbe.
+type Handlers struct {
+	Probe  hwprobe.Probe
+	Stdout io.Writer
+	Stderr io.Writer
+	GetEnv func(string) string
+	// Now is used for the JSON timestamp; tests pin it.
+	Now func() time.Time
+}
+
+// Default returns Handlers wired to the real OS probe.
+func Default() *Handlers {
+	return &Handlers{
+		Probe:  &hwprobe.SystemProbe{},
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		GetEnv: os.Getenv,
+		Now:    time.Now,
+	}
+}
+
+// Commands returns the `recommend-model` command for registration. The
+// recommender lives at the top level (not inside a subgroup) because
+// docker.sh consumes it like any other root-level whisper subcommand.
+func Commands(h *Handlers) cliapp.Command {
+	if h == nil {
+		h = Default()
+	}
+	return cliapp.Command{
+		Name:        "recommend-model",
+		Description: "Recommend a Whisper model size for the current host",
+		Usage:       "whisper recommend-model [--budget-pct N] [--json] [--explain]",
+		Run:         h.Run,
+	}
+}
+
+// jsonResult is the frozen schema documented in the plan. Fields here
+// are the only public contract; docker.sh parses by jq.
+type jsonResult struct {
+	Model     string `json:"model"`
+	Reason    string `json:"reason"`
+	Host      host   `json:"host"`
+	BudgetPct int    `json:"budget_pct"`
+}
+
+type host struct {
+	OS       string  `json:"os"`
+	Arch     string  `json:"arch"`
+	CPUCores int     `json:"cpu_cores"`
+	RAMGB    float64 `json:"ram_gb"`
+	GPUs     []gpu   `json:"gpus"`
+}
+
+type gpu struct {
+	Name    string  `json:"name"`
+	VRAMGB  float64 `json:"vram_gb"`
+}
+
+// Run implements cliapp.Command.Run. Defaults to human output; --json
+// is opt-in and the only machine contract.
+func (h *Handlers) Run(args []string) error {
+	fs := flag.NewFlagSet("recommend-model", flag.ContinueOnError)
+	fs.SetOutput(h.Stderr)
+	jsonOut := fs.Bool("json", false, "emit JSON")
+	envOut := fs.Bool("env", false, "emit KEY=VALUE lines for shell/compose env injection")
+	explain := fs.Bool("explain", false, "include reasoning lines in human output")
+	budgetFlag := fs.Int("budget-pct", 0, "percent of detected RAM/VRAM the recommender may spend")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	budgetPct := *budgetFlag
+	if budgetPct == 0 {
+		budgetPct = resolveBudgetPct(h.GetEnv)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	caps, err := h.Probe.Detect(ctx)
+	if err != nil {
+		return fmt.Errorf("hwprobe failed: %w", err)
+	}
+
+	model, reason, err := Pick(caps, budgetPct)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOut {
+		return writeJSON(h.Stdout, model, reason, caps, budgetPct)
+	}
+	if *envOut {
+		return writeEnv(h.Stdout, model)
+	}
+	return writeHuman(h.Stdout, model, reason, caps, *explain)
+}
+
+func resolveBudgetPct(getEnv func(string) string) int {
+	if getEnv == nil {
+		return DefaultBudgetPct
+	}
+	v := getEnv(envBudgetVar)
+	if v == "" {
+		return DefaultBudgetPct
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 || n > 100 {
+		return DefaultBudgetPct
+	}
+	return n
+}
+
+func writeJSON(w io.Writer, model Model, reason string, caps hwprobe.HostCapabilities, budgetPct int) error {
+	r := jsonResult{
+		Model:     string(model),
+		Reason:    reason,
+		BudgetPct: budgetPct,
+		Host: host{
+			OS:       caps.OS,
+			Arch:     caps.Arch,
+			CPUCores: caps.CPUCores,
+			RAMGB:    float64(caps.TotalRAMBytes) / float64(1<<30),
+		},
+	}
+	for _, g := range caps.GPUs {
+		r.Host.GPUs = append(r.Host.GPUs, gpu{
+			Name:   g.Name,
+			VRAMGB: float64(g.VRAMBytes) / float64(1<<30),
+		})
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(r)
+}
+
+// writeEnv emits the KEY=VALUE lines consumed by the compose driver's
+// runtime_env_command harvest. Keeps the names aligned with
+// docker-compose.yml: WHISPER_MODEL_SIZE feeds ASR_MODEL,
+// AUDIO_WHISPER_MODEL feeds the audio-tools LocalProvider model-truth
+// seam.
+func writeEnv(w io.Writer, model Model) error {
+	_, err := fmt.Fprintf(w, "WHISPER_MODEL_SIZE=%s\nAUDIO_WHISPER_MODEL=%s\n", model, model)
+	return err
+}
+
+func writeHuman(w io.Writer, model Model, reason string, caps hwprobe.HostCapabilities, explain bool) error {
+	if _, err := fmt.Fprintf(w, "%s\n", model); err != nil {
+		return err
+	}
+	if !explain {
+		return nil
+	}
+	if _, err := fmt.Fprintf(w, "  reason: %s\n", reason); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintf(w, "  host:   os=%s arch=%s cpu_cores=%d ram=%.1f GB gpus=%d\n",
+		caps.OS, caps.Arch, caps.CPUCores,
+		float64(caps.TotalRAMBytes)/float64(1<<30), len(caps.GPUs))
+	return err
+}

@@ -63,6 +63,24 @@ type ResourceManifest struct {
 	HostTools             []hostreqspec.Declaration    `json:"hostTools,omitempty"`
 	HostSafeguards        []hostreqspec.Declaration    `json:"hostSafeguards,omitempty"`
 	GPU                   *ResourceGPU                 `json:"gpu,omitempty"`
+	// RuntimeEnvCommand, when set, runs before every compose invocation
+	// for this resource. Its stdout must be lines of `KEY=VALUE` pairs;
+	// each pair is appended to the compose process environment. Use it
+	// for dynamic env values the static fields cannot express — e.g.
+	// hardware-aware model selection for whisper.
+	RuntimeEnvCommand *ResourceRuntimeEnvCommand `json:"runtime_env_command,omitempty"`
+}
+
+// ResourceRuntimeEnvCommand declares a CLI invocation the compose
+// driver runs to harvest dynamic env variables. Stdout is parsed as
+// KEY=VALUE lines (blank lines and `#` comments ignored). Stderr is
+// surfaced on failure but does not block startup — the driver falls
+// through with whatever static env was already built.
+type ResourceRuntimeEnvCommand struct {
+	Command string   `json:"command"`
+	Args    []string `json:"args,omitempty"`
+	// TimeoutSeconds caps the harvest. Default 5s.
+	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
 }
 
 type ResourceGPU struct {

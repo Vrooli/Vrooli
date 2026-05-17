@@ -71,18 +71,33 @@ type StreamConfig struct {
 	VADSilenceMs       int
 	OverlapWindowMs    int
 	OverlapCommitRuns  int
+	// Boundary-accuracy levers for VADSegmenter. See pipeline.Config
+	// for documentation and acceptable ranges.
+	VADPreRollMs          int
+	VADTrailingPadMs      int
+	VADInitialPromptWords int
 }
 
 // Defaults returns the operator defaults documented in
 // docs/reference/configuration.md. Phase E swaps these for values
 // loaded from the settings store.
+//
+// IMPORTANT: keep these aligned with handlers/stt/mappers.go::defaultStreamCfg
+// (the persisted-doc defaults the admin handler ships to the browser via
+// GetStreamConfig). When the two diverge, server-side VAD ends up using
+// one value while the mic-button ring shows another — see the 2026-05-17
+// regression where VADSilenceMs=700 here vs VadSilenceMs=1200 there caused
+// the ring to fill to ~58% before the server cut.
 func Defaults() StreamConfig {
 	return StreamConfig{
-		Mode:               ModeAuto,
-		StrategyPreference: PreferenceAuto,
-		VADSilenceMs:       700,
-		OverlapWindowMs:    2000,
-		OverlapCommitRuns:  2,
+		Mode:                  ModeAuto,
+		StrategyPreference:    PreferenceAuto,
+		VADSilenceMs:          1200,
+		OverlapWindowMs:       2000,
+		OverlapCommitRuns:     2,
+		VADPreRollMs:          300,
+		VADTrailingPadMs:      200,
+		VADInitialPromptWords: 20,
 	}
 }
 
@@ -194,8 +209,11 @@ func (s *Selector) Select(
 				return nil, "", ErrIncompatibleStrategyProvider
 			}
 			return &strategy.VADSegmenter{
-				Provider:  chosen.Provider,
-				SilenceMs: cfg.VADSilenceMs,
+				Provider:           chosen.Provider,
+				SilenceMs:          cfg.VADSilenceMs,
+				PreRollMs:          cfg.VADPreRollMs,
+				TrailingPadMs:      cfg.VADTrailingPadMs,
+				InitialPromptWords: cfg.VADInitialPromptWords,
 			}, kind, nil
 		case sttchain.StrategyOverlapAgree:
 			if !traits.Batch {

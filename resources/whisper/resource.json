@@ -41,6 +41,11 @@
   "template": "compose-service",
   "driver": "compose-service",
   "compose_file": "docker/docker-compose.yml",
+  "runtime_env_command": {
+    "command": "resource-whisper",
+    "args": ["recommend-model", "--env", "--budget-pct", "70"],
+    "timeout_seconds": 5
+  },
   "gpu": {
     "probe": "nvidia",
     "compose_overlay": "docker/docker-compose.gpu.yml",

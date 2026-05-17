@@ -6,28 +6,37 @@ import (
 
 	"audio-tools/internal/clock"
 	voice "audio-tools/internal/stt/pipeline"
+	"audio-tools/internal/stt/whisperinfo"
 )
 
 // LocalProvider wraps voice.Service.Transcribe (Whisper backend).
+//
+// ModelID/Model() reflect what the local Whisper sidecar is actually
+// running — resolved at construction via the injected whisperinfo.Client
+// seam, not a hard-coded string. See scenarios/audio-tools/docs/internal/
+// SEAMS.md row "whisperinfo.Client".
 type LocalProvider struct {
-	svc *voice.Service
-	clk clock.Clock
-	// availability cache is owned by the chain; LocalProvider exposes a cheap
-	// readiness check via the voice service.
+	svc  *voice.Service
+	clk  clock.Clock
+	info whisperinfo.Client
 }
 
-// NewLocalProvider constructs a Local STT provider with the system clock.
+// NewLocalProvider constructs a Local STT provider with the system clock
+// and the env-backed whisperinfo.EnvClient.
 func NewLocalProvider(svc *voice.Service) *LocalProvider {
-	return &LocalProvider{svc: svc, clk: clock.System{}}
+	return &LocalProvider{svc: svc, clk: clock.System{}, info: whisperinfo.New()}
 }
 
-// NewLocalProviderWith constructs a LocalProvider with a custom clock —
-// the canonical injection point for deterministic latency tests.
-func NewLocalProviderWith(svc *voice.Service, clk clock.Clock) *LocalProvider {
+// NewLocalProviderWith constructs a LocalProvider with a custom clock
+// and (optional) custom info client. Either may be nil to use defaults.
+func NewLocalProviderWith(svc *voice.Service, clk clock.Clock, info whisperinfo.Client) *LocalProvider {
 	if clk == nil {
 		clk = clock.System{}
 	}
-	return &LocalProvider{svc: svc, clk: clk}
+	if info == nil {
+		info = whisperinfo.New()
+	}
+	return &LocalProvider{svc: svc, clk: clk, info: info}
 }
 
 func (p *LocalProvider) Type() ProviderTier { return TierLocal }
@@ -57,12 +66,22 @@ func (p *LocalProvider) Transcribe(ctx context.Context, req Request) (*Result, e
 		DetectedLanguage: req.Language,
 		Tier:             TierLocal,
 		ProviderID:       "whisper-local",
-		ModelID:          "whisper-large-v3",
+		ModelID:          p.modelID(),
 		Latency:          clk.Now().Sub(start),
 	}, nil
 }
 
-func (p *LocalProvider) Model() string { return "whisper-large-v3" }
+// Model reports the loaded sidecar model. Returns whisperinfo.ModelUnknown
+// when the resource hasn't propagated AUDIO_WHISPER_MODEL — never fabricates
+// a name.
+func (p *LocalProvider) Model() string { return p.modelID() }
+
+func (p *LocalProvider) modelID() string {
+	if p == nil || p.info == nil {
+		return whisperinfo.ModelUnknown
+	}
+	return p.info.CurrentModel().ModelID
+}
 
 // Traits reports the LocalProvider as a batch-only provider. The
 // streaming surface is provided externally by VADSegmentStrategy or

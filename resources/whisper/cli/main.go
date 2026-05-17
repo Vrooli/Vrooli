@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
+
+	"resource-whisper/cli/internal/recommend"
 )
 
 const (
@@ -45,6 +47,11 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	app.SetCommands(app.StandardLifecycleCommands())
+	groups := app.StandardLifecycleCommands()
+	groups = append(groups, cliapp.CommandGroup{
+		Title:    "Capability",
+		Commands: []cliapp.Command{recommend.Commands(nil)},
+	})
+	app.SetCommands(groups)
 	return app, nil
 }

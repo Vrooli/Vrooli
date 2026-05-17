@@ -23,6 +23,21 @@ type Config struct {
 	WakeWordEnabled   bool    `json:"wakeWordEnabled"`
 	WakeWordThreshold float64 `json:"wakeWordThreshold"`
 	SegmentSilenceMs  int     `json:"segmentSilenceMs"`
+
+	// PreRollMs is the audio carried from the trailing edge of one VAD
+	// segment into the leading edge of the next. Gives Whisper the
+	// pre-word context it needs to lock onto the first phoneme.
+	// 0 disables; range 0-800.
+	PreRollMs int `json:"preRollMs"`
+	// TrailingPadMs extends the segment cut past the last voiced frame
+	// to include real silence — Whisper handles natural decay better
+	// than a hard cut. Range 0-600.
+	TrailingPadMs int `json:"trailingPadMs"`
+	// InitialPromptWords is the count of last-words from the previous
+	// segment that are forwarded as Whisper's initial_prompt for the
+	// next segment, providing text left-context. Capped at 50 to stay
+	// well below the 224-token Whisper prompt limit. Range 0-50.
+	InitialPromptWords int `json:"initialPromptWords"`
 }
 
 // DefaultConfig returns the local-tier default streaming-pipeline lever values.
@@ -32,13 +47,16 @@ type Config struct {
 // latency/accuracy alternatives.
 func DefaultConfig() Config {
 	return Config{
-		FlushIntervalMs:   500,
-		MinDeltaBytes:     4096,
-		OverlapBytes:      8192,
-		PersistentMode:    false,
-		WakeWordEnabled:   false,
-		WakeWordThreshold: 0.65,
-		SegmentSilenceMs:  2500,
+		FlushIntervalMs:    500,
+		MinDeltaBytes:      4096,
+		OverlapBytes:       8192,
+		PersistentMode:     false,
+		WakeWordEnabled:    false,
+		WakeWordThreshold:  0.65,
+		SegmentSilenceMs:   2500,
+		PreRollMs:          300,
+		TrailingPadMs:      200,
+		InitialPromptWords: 20,
 	}
 }
 
@@ -58,17 +76,29 @@ func (c Config) Validate() error {
 	if c.WakeWordThreshold != 0 && (c.WakeWordThreshold < 0.1 || c.WakeWordThreshold > 0.95) {
 		return fmt.Errorf("wakeWordThreshold must be between 0.1 and 0.95, got %f", c.WakeWordThreshold)
 	}
+	if c.PreRollMs < 0 || c.PreRollMs > 800 {
+		return fmt.Errorf("preRollMs must be between 0 and 800, got %d", c.PreRollMs)
+	}
+	if c.TrailingPadMs < 0 || c.TrailingPadMs > 600 {
+		return fmt.Errorf("trailingPadMs must be between 0 and 600, got %d", c.TrailingPadMs)
+	}
+	if c.InitialPromptWords < 0 || c.InitialPromptWords > 50 {
+		return fmt.Errorf("initialPromptWords must be between 0 and 50, got %d", c.InitialPromptWords)
+	}
 	return nil
 }
 
 type ConfigPatch struct {
-	FlushIntervalMs   *int     `json:"flushIntervalMs,omitempty"`
-	MinDeltaBytes     *int     `json:"minDeltaBytes,omitempty"`
-	OverlapBytes      *int     `json:"overlapBytes,omitempty"`
-	PersistentMode    *bool    `json:"persistentMode,omitempty"`
-	WakeWordEnabled   *bool    `json:"wakeWordEnabled,omitempty"`
-	WakeWordThreshold *float64 `json:"wakeWordThreshold,omitempty"`
-	SegmentSilenceMs  *int     `json:"segmentSilenceMs,omitempty"`
+	FlushIntervalMs    *int     `json:"flushIntervalMs,omitempty"`
+	MinDeltaBytes      *int     `json:"minDeltaBytes,omitempty"`
+	OverlapBytes       *int     `json:"overlapBytes,omitempty"`
+	PersistentMode     *bool    `json:"persistentMode,omitempty"`
+	WakeWordEnabled    *bool    `json:"wakeWordEnabled,omitempty"`
+	WakeWordThreshold  *float64 `json:"wakeWordThreshold,omitempty"`
+	SegmentSilenceMs   *int     `json:"segmentSilenceMs,omitempty"`
+	PreRollMs          *int     `json:"preRollMs,omitempty"`
+	TrailingPadMs      *int     `json:"trailingPadMs,omitempty"`
+	InitialPromptWords *int     `json:"initialPromptWords,omitempty"`
 }
 
 func (p ConfigPatch) Apply(base Config) Config {
@@ -92,6 +122,15 @@ func (p ConfigPatch) Apply(base Config) Config {
 	}
 	if p.SegmentSilenceMs != nil {
 		base.SegmentSilenceMs = *p.SegmentSilenceMs
+	}
+	if p.PreRollMs != nil {
+		base.PreRollMs = *p.PreRollMs
+	}
+	if p.TrailingPadMs != nil {
+		base.TrailingPadMs = *p.TrailingPadMs
+	}
+	if p.InitialPromptWords != nil {
+		base.InitialPromptWords = *p.InitialPromptWords
 	}
 	return base
 }

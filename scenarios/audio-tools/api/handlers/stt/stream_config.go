@@ -83,7 +83,51 @@ func (h *connectHandler) loadStreamCfg(ctx context.Context) (streamCfgDoc, error
 	if err := json.Unmarshal([]byte(raw), &d); err != nil {
 		return defaultStreamCfg(), nil
 	}
-	return d, nil
+	return backfillStreamCfgDefaults(d), nil
+}
+
+// backfillStreamCfgDefaults replaces any zero-valued field with its
+// defaultStreamCfg() value. Critical for docs persisted before a field
+// existed: without this, an old doc returns 0 for new fields, which
+// causes server-side resolveStreamPipelineConfig to fall back to
+// sttpkg.Defaults() while toProto() ships 0 to the client — the two
+// sides then disagree on the timing the user can see (mic-button ring
+// vs server-side VAD cut). All zero-as-meaningful fields are bool, so
+// they cannot use this backfill pattern; here only numeric/string
+// timing levers are restored.
+func backfillStreamCfgDefaults(d streamCfgDoc) streamCfgDoc {
+	def := defaultStreamCfg()
+	if d.FlushIntervalMs == 0 {
+		d.FlushIntervalMs = def.FlushIntervalMs
+	}
+	if d.MinDeltaBytes == 0 {
+		d.MinDeltaBytes = def.MinDeltaBytes
+	}
+	if d.OverlapBytes == 0 {
+		d.OverlapBytes = def.OverlapBytes
+	}
+	if d.WakeWordThreshold == 0 {
+		d.WakeWordThreshold = def.WakeWordThreshold
+	}
+	if d.SegmentSilenceMs == 0 {
+		d.SegmentSilenceMs = def.SegmentSilenceMs
+	}
+	if d.StreamingMode == "" {
+		d.StreamingMode = def.StreamingMode
+	}
+	if d.StrategyPreference == "" {
+		d.StrategyPreference = def.StrategyPreference
+	}
+	if d.VadSilenceMs == 0 {
+		d.VadSilenceMs = def.VadSilenceMs
+	}
+	if d.OverlapWindowMs == 0 {
+		d.OverlapWindowMs = def.OverlapWindowMs
+	}
+	if d.OverlapCommitRuns == 0 {
+		d.OverlapCommitRuns = def.OverlapCommitRuns
+	}
+	return d
 }
 
 func (h *connectHandler) GetStreamConfig(ctx context.Context, _ *connect.Request[sttv1.GetStreamConfigRequest]) (*connect.Response[sttv1.GetStreamConfigResponse], error) {
