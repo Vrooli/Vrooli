@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P1-001",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "title": "Template Version Watcher",
+  "description": "On startup and once daily, check templates/scenarios/<template>/template.json::version against each golden's pinned version. When ahead, mark all manifests for that golden stale and surface a notification.",
+  "requirements": [
+    {
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "title": "Watcher scheduler + version reader",
+      "description": "Background loop in api/internal/templatewatcher: runs on process start and at a daily cadence, reads template versions from disk, compares to golden registry, persists stale flags. No automatic regeneration.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

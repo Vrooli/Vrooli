@@ -1,0 +1,27 @@
+{
+  "module_id": "MOD-P0-010",
+  "prd_ref": "OT-P0-010",
+  "priority": "P0",
+  "title": "UI Dashboard",
+  "description": "Per-golden view: verdict grid for skills and tools with stale badges, click-through to last-run details including diff, agent-manager run link, and metrics. Index page lists all goldens.",
+  "requirements": [
+    {
+      "id": "REQ-P0-018",
+      "prd_ref": "OT-P0-010",
+      "title": "Verdict grid view",
+      "description": "Per-golden page with two grids: (skill × verdict) and (tool × verdict). Cells show verdict icon + color + label. Stale tuples show a stale badge. Click a cell to open the detail panel.",
+      "category": "ui",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "REQ-P0-019",
+      "prd_ref": "OT-P0-010",
+      "title": "Drill-down details panel",
+      "description": "On cell click: show last validation record (verdict, timestamps, duration, tokens, cost, agent-manager run id with link if applicable), the active manifest, and the recorded diff (or tool output for tooling baselines).",
+      "category": "ui",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "title": "Skill Validation Run + Diff Evaluation",
+  "description": "Spawn a sandboxed agent-manager run executing a skill against a golden; await completion; read the sandbox diff; evaluate it against the manifest; produce a verdict.",
+  "requirements": [
+    {
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-004",
+      "title": "agent-manager run orchestration",
+      "description": "Connect-RPC client to agent-manager: spawn run with skill content + golden path + sandbox mode; poll for completion; fetch run summary (duration, tokens_used, cost_estimate, started_at, ended_at) and sandbox diff. Handle run-failure cases (timeout, error, crash) explicitly.",
+      "category": "integration",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-004",
+      "title": "Diff-vs-manifest evaluator",
+      "description": "Pure-function evaluator: given a diff (file path list + content patches) and a manifest, return verdict ∈ {pass, unexpected-mutation, run-failure} plus a per-file breakdown of allowed vs unexpected paths. No side effects; testable in isolation.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

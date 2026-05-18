@@ -2,59 +2,49 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
-import App from "./App";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
+
+initIframeBridgeChild();
+initSpatialNav();
+
+const rootEl = document.getElementById("root");
+if (!rootEl) {
+  throw new Error("Missing #root element in index.html");
+}
+const appRoot = rootEl;
 
 const queryClient = new QueryClient();
 
-// ╔══════════════════════════════════════════════════════════════╗
-// ║  INTEROP-CRITICAL: Iframe bridge initialization              ║
-// ║                                                              ║
-// ║  Must run BEFORE React mount so that:                        ║
-// ║  1. Storage shimming is in place before any component        ║
-// ║     accesses localStorage/sessionStorage                     ║
-// ║  2. The bridge message channel is ready for host commands    ║
-// ║                                                              ║
-// ║  The window.parent check ensures this is a no-op when        ║
-// ║  running outside an iframe (localhost, tunnel).              ║
-// ╚══════════════════════════════════════════════════════════════╝
+async function bootstrap() {
+  const [{ default: App }, { ErrorBoundary }, { onProfilerRender }] = await Promise.all([
+    import("./App"),
+    import("./components/ErrorBoundary"),
+    import("./lib/profiler"),
+    import("./i18n"),
+  ]);
 
-declare global {
-  interface Window {
-    __developmentToolchainValidatorBridgeInitialized?: boolean;
-  }
-}
-
-if (
-  typeof window !== "undefined" &&
-  window.parent !== window &&
-  !window.__developmentToolchainValidatorBridgeInitialized
-) {
-  let parentOrigin: string | undefined;
-  try {
-    if (document.referrer) {
-      parentOrigin = new URL(document.referrer).origin;
-    }
-  } catch {
-    // Fall back to default origin when parsing fails.
-  }
-
-  initIframeBridgeChild({ parentOrigin, appId: "development-toolchain-validator" });
-  window.__developmentToolchainValidatorBridgeInitialized = true;
-}
-
-const rootElement = document.getElementById("root");
-if (!rootElement) {
-  throw new Error("Root element not found - ensure index.html has a div with id='root'");
-}
-
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <ErrorBoundary>
+  ReactDOM.createRoot(appRoot).render(
+    <React.StrictMode>
       <QueryClientProvider client={queryClient}>
-        <App />
+        {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
+            ./i18n side-effect init above) so the localised fallback can
+            call useTranslation. A render-time crash inside QueryClient
+            itself would escape this boundary, but that failure mode is
+            covered by react-query's own tests, not application logic. */}
+        <ErrorBoundary>
+          {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
+              the profiling hook); emits user_timing entries via onProfilerRender
+              when the perf-build channel is active. See lib/profiler.ts. Add
+              inner <Profiler> boundaries around heavy subtrees as needed; do
+              not remove this one. */}
+          <React.Profiler id="App" onRender={onProfilerRender}>
+            <App />
+          </React.Profiler>
+        </ErrorBoundary>
       </QueryClientProvider>
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+    </React.StrictMode>
+  );
+}
+
+void bootstrap();

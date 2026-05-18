@@ -1,159 +1,55 @@
 {
   "_metadata": {
     "entity": "development-toolchain-validator",
-    "generated_at": "2026-03-11T13:32:16-04:00",
-    "generator": "prd-control-tower",
-    "schema_version": "1.0"
+    "generated_at": "2026-05-18T00:00:00Z",
+    "generator": "manual-rewrite",
+    "schema_version": "1.0",
+    "notes": "Rewritten 2026-05-18 to match the new vision (execute-skill-on-pristine-golden model). Replaces the 2026-03-11 declarative-expectations version."
   },
   "imports": [
-    "01-reference-scenario-registry/module.json",
-    "02-skill-connection-management/module.json",
-    "03-skill-drift-detection/module.json",
-    "04-structural-expectation-config/module.json",
-    "05-cli-tool-expectation-config/module.json",
-    "06-structural-validation-engine/module.json",
-    "07-cli-tool-validation-engine/module.json",
-    "08-skill-overlap-detection/module.json",
-    "09-validation-report-api/module.json",
-    "10-cli-interface/module.json",
-    "11-scenario-auditor-baseline/module.json",
-    "12-test-genie-baseline/module.json",
-    "13-completeness-scoring-baseline/module.json",
-    "14-conflict-detection/module.json",
-    "15-skill-maturity-score/module.json",
-    "16-coverage-map/module.json",
-    "17-dashboard-ui/module.json",
-    "18-skill-detail-view/module.json",
-    "19-reference-health-summary/module.json",
-    "20-heartbeat-mode/module.json",
-    "21-auto-config-suggestions/module.json"
+    "01-golden-registry-and-regeneration/module.json",
+    "02-skill-catalog-sync/module.json",
+    "03-expected-diff-manifest/module.json",
+    "04-skill-validation-run-and-diff-evaluation/module.json",
+    "05-tooling-baseline-validation/module.json",
+    "06-validation-record-storage/module.json",
+    "07-staleness-tracking/module.json",
+    "08-validation-report-api/module.json",
+    "09-cli-interface/module.json",
+    "10-ui-dashboard/module.json",
+    "11-template-version-watcher/module.json",
+    "12-skill-maturity-score/module.json",
+    "13-manifest-convergence-tracking/module.json",
+    "14-run-history-and-trend-detection/module.json",
+    "15-coverage-map/module.json",
+    "16-bulk-re-validation/module.json",
+    "17-cross-golden-consistency/module.json",
+    "18-per-skill-cost-budget-alerts/module.json",
+    "19-webhook-notifications/module.json",
+    "20-manifest-auto-generation/module.json",
+    "21-input-output-token-breakdown/module.json"
   ],
   "modules": [
-    {
-      "id": "MOD-P0-001",
-      "path": "01-reference-scenario-registry",
-      "priority": "P0",
-      "title": "Reference Scenario Registry"
-    },
-    {
-      "id": "MOD-P0-002",
-      "path": "02-skill-connection-management",
-      "priority": "P0",
-      "title": "Skill Connection Management"
-    },
-    {
-      "id": "MOD-P0-003",
-      "path": "03-skill-drift-detection",
-      "priority": "P0",
-      "title": "Skill Drift Detection"
-    },
-    {
-      "id": "MOD-P0-004",
-      "path": "04-structural-expectation-config",
-      "priority": "P0",
-      "title": "Structural Expectation Config"
-    },
-    {
-      "id": "MOD-P0-005",
-      "path": "05-cli-tool-expectation-config",
-      "priority": "P0",
-      "title": "CLI Tool Expectation Config"
-    },
-    {
-      "id": "MOD-P0-006",
-      "path": "06-structural-validation-engine",
-      "priority": "P0",
-      "title": "Structural Validation Engine"
-    },
-    {
-      "id": "MOD-P0-007",
-      "path": "07-cli-tool-validation-engine",
-      "priority": "P0",
-      "title": "CLI Tool Validation Engine"
-    },
-    {
-      "id": "MOD-P0-008",
-      "path": "08-skill-overlap-detection",
-      "priority": "P0",
-      "title": "Skill Overlap Detection"
-    },
-    {
-      "id": "MOD-P0-009",
-      "path": "09-validation-report-api",
-      "priority": "P0",
-      "title": "Validation Report API"
-    },
-    {
-      "id": "MOD-P0-010",
-      "path": "10-cli-interface",
-      "priority": "P0",
-      "title": "CLI Interface"
-    },
-    {
-      "id": "MOD-P1-011",
-      "path": "11-scenario-auditor-baseline",
-      "priority": "P1",
-      "title": "Scenario-Auditor Baseline"
-    },
-    {
-      "id": "MOD-P1-012",
-      "path": "12-test-genie-baseline",
-      "priority": "P1",
-      "title": "Test-Genie Baseline"
-    },
-    {
-      "id": "MOD-P1-013",
-      "path": "13-completeness-scoring-baseline",
-      "priority": "P1",
-      "title": "Completeness Scoring Baseline"
-    },
-    {
-      "id": "MOD-P1-014",
-      "path": "14-conflict-detection",
-      "priority": "P1",
-      "title": "Conflict Detection"
-    },
-    {
-      "id": "MOD-P1-015",
-      "path": "15-skill-maturity-score",
-      "priority": "P1",
-      "title": "Skill Maturity Score"
-    },
-    {
-      "id": "MOD-P1-016",
-      "path": "16-coverage-map",
-      "priority": "P1",
-      "title": "Coverage Map"
-    },
-    {
-      "id": "MOD-P1-017",
-      "path": "17-dashboard-ui",
-      "priority": "P1",
-      "title": "Dashboard UI"
-    },
-    {
-      "id": "MOD-P1-018",
-      "path": "18-skill-detail-view",
-      "priority": "P1",
-      "title": "Skill Detail View"
-    },
-    {
-      "id": "MOD-P1-019",
-      "path": "19-reference-health-summary",
-      "priority": "P1",
-      "title": "Reference Health Summary"
-    },
-    {
-      "id": "MOD-P1-020",
-      "path": "20-heartbeat-mode",
-      "priority": "P1",
-      "title": "Heartbeat Mode"
-    },
-    {
-      "id": "MOD-P2-021",
-      "path": "21-auto-config-suggestions",
-      "priority": "P2",
-      "title": "Auto-Config Suggestions"
-    }
+    { "id": "MOD-P0-001", "path": "01-golden-registry-and-regeneration", "priority": "P0", "title": "Golden Registry & Regeneration" },
+    { "id": "MOD-P0-002", "path": "02-skill-catalog-sync", "priority": "P0", "title": "Skill Catalog Sync" },
+    { "id": "MOD-P0-003", "path": "03-expected-diff-manifest", "priority": "P0", "title": "Expected-Diff Manifest" },
+    { "id": "MOD-P0-004", "path": "04-skill-validation-run-and-diff-evaluation", "priority": "P0", "title": "Skill Validation Run + Diff Evaluation" },
+    { "id": "MOD-P0-005", "path": "05-tooling-baseline-validation", "priority": "P0", "title": "Tooling Baseline Validation" },
+    { "id": "MOD-P0-006", "path": "06-validation-record-storage", "priority": "P0", "title": "Validation Record Storage" },
+    { "id": "MOD-P0-007", "path": "07-staleness-tracking", "priority": "P0", "title": "Staleness Tracking" },
+    { "id": "MOD-P0-008", "path": "08-validation-report-api", "priority": "P0", "title": "Validation Report API" },
+    { "id": "MOD-P0-009", "path": "09-cli-interface", "priority": "P0", "title": "CLI Interface" },
+    { "id": "MOD-P0-010", "path": "10-ui-dashboard", "priority": "P0", "title": "UI Dashboard" },
+    { "id": "MOD-P1-001", "path": "11-template-version-watcher", "priority": "P1", "title": "Template Version Watcher" },
+    { "id": "MOD-P1-002", "path": "12-skill-maturity-score", "priority": "P1", "title": "Skill Maturity Score" },
+    { "id": "MOD-P1-003", "path": "13-manifest-convergence-tracking", "priority": "P1", "title": "Manifest Convergence Tracking" },
+    { "id": "MOD-P1-004", "path": "14-run-history-and-trend-detection", "priority": "P1", "title": "Run History & Trend Detection" },
+    { "id": "MOD-P1-005", "path": "15-coverage-map", "priority": "P1", "title": "Coverage Map" },
+    { "id": "MOD-P1-006", "path": "16-bulk-re-validation", "priority": "P1", "title": "Bulk Re-Validation" },
+    { "id": "MOD-P2-001", "path": "17-cross-golden-consistency", "priority": "P2", "title": "Cross-Golden Consistency" },
+    { "id": "MOD-P2-002", "path": "18-per-skill-cost-budget-alerts", "priority": "P2", "title": "Per-Skill Cost Budget Alerts" },
+    { "id": "MOD-P2-003", "path": "19-webhook-notifications", "priority": "P2", "title": "Webhook Notifications" },
+    { "id": "MOD-P2-004", "path": "20-manifest-auto-generation", "priority": "P2", "title": "Manifest Auto-Generation from Observed Diffs" },
+    { "id": "MOD-P2-005", "path": "21-input-output-token-breakdown", "priority": "P2", "title": "Input/Output Token Breakdown" }
   ]
 }

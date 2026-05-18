@@ -1,258 +1,188 @@
-# API Reference
+# API Endpoints — Development Toolchain Validator
 
-Server entry point: [CODE: api/main.go]
+Human-readable reference for the API. The machine-readable
+source of truth is [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) —
+doc generators, Postman collection builders, and SDK stubs read it
+directly. The CI gate fails if the JSON drifts from the registered
+handlers or from the CLI commands it claims to mirror.
 
-## Base URL
+Wire shapes for every endpoint live in
+`packages/proto/schemas/development-toolchain-validator/v1/<domain>/<file>.proto`.
+Proto-typed calls use generated Connect-RPC handlers and clients.
+Tests, handlers, UI clients, and CLI handlers all consume generated
+types — no hand-written struct mirror exists to drift.
 
-`http://localhost:${API_PORT}/api/v1`
-
-## Health
-
-### GET /health
-Returns API health status.
-
-Implementation: [CODE: api/main.go:51] (setupRoutes)
-
-**Response**: `200 OK`
-```json
-{
-  "status": "healthy",
-  "version": "0.0.1",
-  "uptime_seconds": 3600
-}
-```
-
-## References
-
-Handler: [CODE: api/handlers/reference.go#ReferenceHandler]
-Service: [CODE: api/domain/reference/service.go#Service]
-
-### GET /references
-List all registered reference scenarios.
-
-**Response**: `200 OK`
-```json
-{
-  "references": [
-    {
-      "id": "uuid",
-      "name": "reference-react-vite",
-      "template": "react-vite",
-      "path": "/home/user/Vrooli/scenarios/reference-react-vite",
-      "created_at": "2026-03-11T00:00:00Z",
-      "connection_count": 10,
-      "configured_count": 8
-    }
-  ]
-}
-```
-
-### POST /references
-Register a new reference scenario.
-
-**Request**:
-```json
-{
-  "name": "reference-react-vite",
-  "template": "react-vite"
-}
-```
-
-**Response**: `201 Created`
-
-### GET /references/{name}
-Get details for a specific reference.
-
-### DELETE /references/{name}
-Remove a reference and all its connections.
-
-## Skill Connections
-
-### GET /connections?reference={name}
-List all skill connections for a reference.
-
-**Response**: `200 OK`
-```json
-{
-  "connections": [
-    {
-      "id": "uuid",
-      "reference_name": "reference-react-vite",
-      "skill_id": "api-steer",
-      "skill_version": 49,
-      "skill_content_hash": "sha256...",
-      "connected_at": "2026-03-11T00:00:00Z",
-      "drift_detected": false,
-      "structural_expectations_count": 5,
-      "cli_assertions_count": 3
-    }
-  ]
-}
-```
-
-### POST /connections
-Create a new skill connection. Fetches current version/hash from prompt-manager.
-
-**Request**:
-```json
-{
-  "reference_name": "reference-react-vite",
-  "skill_id": "api-steer"
-}
-```
-
-### DELETE /connections/{id}
-Remove a skill connection and all its expectations.
-
-### POST /connections/{id}/refresh
-Update the stored version/hash to current values from prompt-manager. Use after reviewing drift.
-
-## Expectations
-
-### GET /connections/{id}/expectations
-List all expectations (structural + CLI tool) for a connection.
-
-### POST /connections/{id}/expectations/structural
-Add a structural expectation.
-
-**Request**:
-```json
-{
-  "type": "folder",
-  "path": "api/handlers/projects/",
-  "required": true,
-  "description": "Projects domain module"
-}
-```
-
-For snippets:
-```json
-{
-  "type": "snippet",
-  "path": "api/main.go",
-  "snippet_content": "gracefulShutdown(",
-  "snippet_location": "function_body",
-  "required": true,
-  "description": "Server implements graceful shutdown"
-}
-```
-
-### POST /connections/{id}/expectations/cli-tool
-Add a CLI tool assertion.
-
-**Request**:
-```json
-{
-  "command": "scenario-auditor standards scan reference-react-vite --wait --json",
-  "json_path": "$.total",
-  "operator": "eq",
-  "expected_value": 0,
-  "timeout_seconds": 240,
-  "description": "No auditor violations"
-}
-```
-
-### DELETE /expectations/{id}
-Remove a specific expectation.
-
-## Validation
-
-### POST /validate/{reference}
-Run all validations for a reference scenario. Returns a comprehensive report.
-
-**Response**: `200 OK`
-```json
-{
-  "reference": "reference-react-vite",
-  "run_at": "2026-03-11T15:30:00Z",
-  "connections": [...],
-  "overlaps": [...],
-  "conflicts": [...],
-  "unconfigured_skills": [...],
-  "summary": {
-    "total_connections": 10,
-    "configured": 8,
-    "unconfigured": 2,
-    "all_passing": true,
-    "structural_pass": 40,
-    "structural_fail": 0,
-    "cli_pass": 15,
-    "cli_fail": 0,
-    "overlaps": 3,
-    "conflicts": 0,
-    "drifted": 1
-  }
-}
-```
-
-### GET /validate/{reference}/history
-Get validation run history.
-
-**Query params**: `?limit=10`
-
-## Drift
-
-### GET /drift/{reference}
-Check drift status for all connections on a reference.
-
-**Response**: `200 OK`
-```json
-{
-  "reference": "reference-react-vite",
-  "connections": [
-    {
-      "skill_id": "api-steer",
-      "drift_detected": false,
-      "stored_version": 49,
-      "current_version": 49
-    },
-    {
-      "skill_id": "cli-steer",
-      "drift_detected": true,
-      "stored_version": 12,
-      "current_version": 15,
-      "versions_behind": 3
-    }
-  ]
-}
-```
-
-## Baselines [P1]
-
-### POST /baselines/{reference}
-Run all tooling baselines for a reference.
-
-**Query params**: `?tool=auditor|test-genie|completeness` (optional, run specific tool only)
-
-### GET /baselines/{reference}/history
-Get baseline run history.
-
-### PUT /baselines/{reference}/config
-Configure baseline expectations.
-
-## Coverage Map [P1]
-
-### GET /coverage/{reference}
-Get the file/folder coverage map showing which skills have expectations for each area.
-
-## Maturity Scores [P1]
-
-### GET /maturity/{reference}
-Get maturity scores for all connected skills.
-
-## Error Format
-
-All errors follow a consistent shape:
+Connect-RPC errors use Connect's canonical error envelope and code set.
+REST exceptions, such as multipart uploads, use the template error
+envelope (`packages/proto/schemas/development-toolchain-validator/v1/errors/errors.proto`):
 
 ```json
-{
-  "error": {
-    "code": "REFERENCE_NOT_FOUND",
-    "message": "Reference scenario 'foo' is not registered",
-    "details": {
-      "reference": "foo"
-    },
-    "request_id": "uuid"
-  }
-}
+{ "code": "<canonical_code>", "message": "<human readable>", "details": [...] }
 ```
+
+Canonical REST codes used today: `invalid_request` (400),
+`not_found` (404), `internal` (500). Add to the proto enum when a new
+REST-exception failure mode appears.
+
+---
+
+## System
+
+### `GET /health`
+
+Service health check. Returns API readiness plus dependency status.
+Also mounted at `/api/v1/health` for client callers.
+This is an operational REST exception by design: lifecycle systems,
+load balancers, and curl probes must be able to read it without a Connect
+client.
+
+| | |
+|---|---|
+| **Auth** | None |
+| **Response** | `Response { status: string, readiness: bool, service: string, timestamp: string, version: string, uptime_seconds: int64, dependencies: map<string, DependencyStatus> }` |
+| **Errors** | None — always returns 200 with `status: "unhealthy"` if a dependency fails |
+| **CLI** | `development-toolchain-validator status` |
+
+```bash
+curl "http://localhost:${API_PORT}/health"
+```
+
+The proto type lives at `packages/proto/schemas/development-toolchain-validator/v1/health/health.proto`
+and mirrors `api-core/health.Response` field-for-field.
+
+---
+
+## Notes (CRUD reference)
+
+The `notes` domain is the canonical worked example. Copy its layering
+when adding the first non-trivial mutation in your scenario.
+
+### `POST /vrooli.development_toolchain_validator.v1.notes.NotesService/ListNotes`
+
+List notes through the generated Connect-RPC service, newest-first.
+
+| | |
+|---|---|
+| **Auth** | None (template default; scenarios add auth as needed) |
+| **Response** | `ListNotesResponse { notes: Note[] }` (capped at 100 by `notes.Service`) |
+| **Errors** | `500 internal` — repository read failure |
+| **CLI** | `development-toolchain-validator notes list` |
+
+```bash
+curl -X POST "http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.notes.NotesService/ListNotes" \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+```
+
+UI and CLI code should normally use the generated client instead of
+calling this path by hand.
+
+### `POST /vrooli.development_toolchain_validator.v1.notes.NotesService/CreateNote`
+
+Create a note through the generated Connect-RPC service.
+
+| | |
+|---|---|
+| **Auth** | None (template default) |
+| **Request** | `CreateNoteRequest { title: string (required), body: string (optional) }` |
+| **Response** | `CreateNoteResponse { note: Note }` |
+| **Errors** | `invalid_argument` — missing/whitespace-only title<br>`internal` — repository write failure |
+| **CLI** | `development-toolchain-validator notes create --title <title> [--body <body>]` |
+
+```bash
+curl -X POST "http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.notes.NotesService/CreateNote" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"first","body":"hello"}'
+```
+
+Title validation (non-empty after whitespace trim) lives in
+`internal/notes/service.go`, **not** the handler. The Connect handler
+only translates `notes.ErrInvalidNote` into `invalid_argument`.
+
+### `POST /vrooli.development_toolchain_validator.v1.notes.NotesService/GetNote`
+
+Fetch a note by id through the generated Connect-RPC service.
+
+| | |
+|---|---|
+| **Auth** | None (template default) |
+| **Request** | `GetNoteRequest { id: string }` |
+| **Response** | `GetNoteResponse { note: Note }` |
+| **Errors** | `not_found` — no note with that id<br>`internal` — repository read failure |
+| **CLI** | `development-toolchain-validator notes get <id>` |
+
+```bash
+curl -X POST "http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.notes.NotesService/GetNote" \
+  -H 'Content-Type: application/json' \
+  -d '{"id":"abc123"}'
+```
+
+`notes.ErrNoteNotFound` returned by the service is translated into the
+typed `not_found` Connect error at the handler edge.
+
+### `POST /api/v1/notes/{id}/attachments`
+
+Upload opaque file bytes through the documented REST multipart exception.
+The response is still proto-typed metadata.
+
+| | |
+|---|---|
+| **Auth** | None (template default) |
+| **Path params** | `id` — note identifier |
+| **Request** | `multipart/form-data` with `file` part |
+| **Response** | `UploadAttachmentResponse { attachment: Attachment }` |
+| **Errors** | `400 invalid_request` — malformed multipart or missing file<br>`404 not_found` — no note with that id<br>`500 internal` — blob or metadata persistence failure |
+| **CLI** | `development-toolchain-validator notes attach <id> --file <path>` |
+
+```bash
+curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
+  -F file=@./example.png
+```
+
+### `Note` shape
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string (UUID) | Server-generated |
+| `title` | string | Required, non-empty after trim |
+| `body` | string | Optional |
+| `created_at` | `google.protobuf.Timestamp` | Server-set on create |
+| `updated_at` | `google.protobuf.Timestamp` | Server-set on create / future update |
+| `attachment_keys` | `string[]` | Keys of uploaded note attachments |
+
+Defined in `packages/proto/schemas/development-toolchain-validator/v1/notes/notes.proto`.
+
+---
+
+## Adding a new endpoint
+
+For a new domain, copy the notes vertical slice first, then replace it
+once your real domain is green.
+
+For an endpoint inside an existing domain:
+
+1. Add or extend the `.proto` messages and service in
+   `packages/proto/schemas/development-toolchain-validator/v1/<domain>/`, then run
+   `make generate`.
+2. Implement the generated handler method in
+   `handlers/<domain>/connect_handler.go`; keep it thin.
+3. Update endpoint metadata in `handlers/<domain>/module.go`.
+4. If the endpoint has a CLI mirror, update
+   `api/cmd/gen-endpoints/cli_commands_seed.json`.
+5. Run `make endpoints`; do not edit
+   [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) by hand.
+6. Update this document and add tests for the touched layers.
+7. Add a row to [`internal/SEAMS.md`](../internal/SEAMS.md) if you
+   introduced a new interface that production wires once and tests
+   substitute.
+
+The CI gate enforces endpoint-manifest freshness and command-seed
+consistency.
+
+## Cross-references
+
+- [`cli-commands.md`](cli-commands.md) — CLI commands that mirror these endpoints
+- [`configuration.md`](configuration.md) — env vars (e.g., `API_PORT`)
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#proto-as-the-canonical-contract) — proto bridge details
+- [`../internal/SEAMS.md`](../internal/SEAMS.md) — handler/service/repository seams
+- [`../internal/TESTING.md`](../internal/TESTING.md) — endpoint test patterns

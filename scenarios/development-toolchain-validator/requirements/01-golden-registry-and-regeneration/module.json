@@ -1,0 +1,27 @@
+{
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "title": "Golden Registry & Regeneration",
+  "description": "Maintain a registry of golden scenarios (one per template). Each entry pins the template id + version and on-disk path. Regenerate operation re-runs the template generator into the registered path and bumps the pinned version.",
+  "requirements": [
+    {
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "Golden registry domain module",
+      "description": "SQLite-backed domain module under api/internal/golden/{model,sqlite,schema}.go,sql storing slug, template_id, template_version_pinned, path, created_at, last_regenerated_at.",
+      "category": "storage",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-001",
+      "title": "Regenerate operation",
+      "description": "Service method that invokes the template generator (vrooli scenario create or equivalent) into the registered path, captures the new template version from templates/scenarios/<template>/template.json::version, and updates template_version_pinned + last_regenerated_at. Surfaces a result the operator must review and commit manually.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

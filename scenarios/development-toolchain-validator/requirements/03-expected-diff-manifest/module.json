@@ -1,0 +1,27 @@
+{
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "title": "Expected-Diff Manifest",
+  "description": "Per (skill, golden) tuple: a manifest describing what mutations are allowed when the skill runs against the golden. Path-globbed with optional content rules; supports wildcard. Version-pinned to template + skill versions.",
+  "requirements": [
+    {
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-003",
+      "title": "Manifest schema",
+      "description": "SQLite schema with: skill_id, golden_id (FK), allowed_paths (JSON array of globs), content_rules (JSON), wildcard_allowed (bool), convergence_target (enum: none|empty_diff), pinned_template_version, pinned_skill_version, updated_at. Unique constraint on (skill_id, golden_id).",
+      "category": "storage",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-003",
+      "title": "Manifest CRUD service",
+      "description": "Domain service for create/update/delete/get/list manifests. Bumps pinned versions on update. Enforces uniqueness and validates path globs.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

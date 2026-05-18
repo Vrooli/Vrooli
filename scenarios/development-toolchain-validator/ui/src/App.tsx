@@ -1,39 +1,33 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Dashboard from "./pages/Dashboard";
-import ReferenceDetail from "./pages/ReferenceDetail";
+import { AppShell } from "./components/AppShell";
+import { GoldensCard } from "./features/golden/GoldensCard";
+import { HealthCard } from "./features/health/HealthCard";
+import { NotesCard } from "./features/notes/NotesCard";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// App Router
-// [REQ:P0-001] Reference Scenario Registry - Navigation structure
-// ─────────────────────────────────────────────────────────────────────────────
-//
-// Navigation Model:
-//   / (Dashboard) → List all references with connection counts
-//   /references/:slug → Reference detail view with full connection info
-//
-// The router uses BrowserRouter for clean URLs. All pages share the same
-// layout structure (header/main/footer) to maintain visual consistency.
-//
-// ╔══════════════════════════════════════════════════════════════╗
-// ║  INTEROP-CRITICAL: BrowserRouter basename                    ║
-// ║                                                              ║
-// ║  The basename prop is set to "/" for standalone operation.   ║
-// ║  When embedded in an iframe with a subpath, the host should  ║
-// ║  configure the iframe src with the appropriate path, or the  ║
-// ║  scenario's vite.config.ts base should be adjusted.          ║
-// ║                                                              ║
-// ║  This explicit "/" ensures the router works correctly when   ║
-// ║  served from the scenario's root path.                       ║
-// ╚══════════════════════════════════════════════════════════════╝
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * PLACEHOLDER — REPLACE WHEN BUILDING THE REAL UX.
+ *
+ * This `App` is a minimum-viable scaffold so the template boots green.
+ * It is not a reasonable end-state for your scenario. When you design
+ * the real product:
+ *   - Replace `AppShell` (or rewrite it heavily) with the real shell,
+ *     navigation, and layout your scenario needs.
+ *   - Replace this single-page composition with whatever surfaces
+ *     your scenario actually has (router, pages, panels, dashboards).
+ *   - Keep i18n, accessibility selectors, and design-token usage
+ *     intact inside the new layout — those are durable seams, not
+ *     placeholder choices.
+ *
+ * Pattern for adding a feature: create
+ * `features/<name>/<Name>Card.tsx`, then import + render it. Deleting
+ * a feature: delete the folder, remove the import + render. There is
+ * no central registry to mutate.
+ */
 export default function App() {
   return (
-    <BrowserRouter basename="/">
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/references/:slug" element={<ReferenceDetail />} />
-      </Routes>
-    </BrowserRouter>
+    <AppShell>
+      <HealthCard />
+      <GoldensCard />
+      <NotesCard />
+    </AppShell>
   );
 }

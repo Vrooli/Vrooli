@@ -5,166 +5,28 @@
     "parent": "vrooli",
     "name": "development-toolchain-validator",
     "displayName": "Development Toolchain Validator",
-    "description": "Validates steer skill interoperability, tooling correctness, and cross-scenario coherence against reference implementations",
+    "description": "Validates Vrooli's development toolchain by executing skills against pristine golden scenarios and evaluating sandbox diffs against expected-diff manifests.",
     "version": "0.0.1",
     "type": "business-application",
-    "category": "developer_tools",
+    "category": "ai_tools",
     "tags": [
       "react-ui",
       "go-api"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/development-toolchain-validator"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+    ]
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Go API server",
-      "range": "15000-19999"
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.0.1"
     },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "React UI",
-      "range": "20000-24999"
-    }
-  },
-  "lifecycle": {
-    "version": "2.0.0",
-    "health": {
-      "description": "Standard API/UI health checks",
-      "endpoints": {
-        "api": "/health",
-        "ui": "/health"
-      },
-      "startup_grace_period": 15000,
-      "checks": [
-        {
-          "name": "api_endpoint",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "timeout": 10000,
-          "interval": 30000,
-          "critical": true
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "timeout": 5000,
-          "interval": 30000,
-          "critical": false
-        }
-      ]
+    "generated_at": "2026-05-18T14:42:59Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
     },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/development-toolchain-validator-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "development-toolchain-validator"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o development-toolchain-validator-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm build",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./development-toolchain-validator-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/development-toolchain-validator-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute development-toolchain-validator --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'development-toolchain-validator-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
-    }
-  },
-  "dependencies": {
-    "resources": {}
+    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
+    "content_sha": "65a572a83cb605354b7482b2e2eacc02fbe131f2ea8a058878f9a5692fa84325"
   },
   "cli": {
     "enabled": true,
@@ -172,6 +34,10 @@
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
     },
     "install": [
       {
@@ -200,5 +66,150 @@
         ".vrooli/service.json"
       ]
     }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/development-toolchain-validator-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "development-toolchain-validator"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o development-toolchain-validator-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api \u0026\u0026 ./development-toolchain-validator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/development-toolchain-validator-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui \u0026\u0026 node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "build": {},
+    "deploy": {},
+    "clean": {},
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "check-temporal-models",
+          "run": "flow-verifier verify check --root .",
+          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
+        },
+        {
+          "name": "run-tests",
+          "run": "test-genie execute development-toolchain-validator --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "backup": {},
+    "restore": {},
+    "production": {},
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'development-toolchain-validator-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {},
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/development-toolchain-validator.db"
   }
 }

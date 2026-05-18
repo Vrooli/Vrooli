@@ -1,0 +1,27 @@
+{
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "title": "Staleness Tracking",
+  "description": "Derive per-manifest staleness from version drift. Template-version drift stales all manifests for that golden; skill-version drift stales only the affected skill's manifest. Stale state surfaces in UI/CLI and can be cleared without re-running.",
+  "requirements": [
+    {
+      "id": "REQ-P0-013",
+      "prd_ref": "OT-P0-007",
+      "title": "Stale derivation",
+      "description": "Pure function: given manifest pinned versions + current template/skill versions + an operator-clear-stale flag, return stale ∈ {fresh, stale-template, stale-skill, cleared}. Used by API to compute UI badges and by CLI to require --force / --yes.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "REQ-P0-014",
+      "prd_ref": "OT-P0-007",
+      "title": "Clear-stale operation",
+      "description": "Operator can set 'cleared' state on a stale manifest, asserting they have reviewed the drift and accept current pinning. Cleared state resets to active stale on the next pinned-version mismatch.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

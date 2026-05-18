@@ -1,164 +1,112 @@
-// DOC: docs/concepts/ARCHITECTURE.md#system-overview
-// DOC: docs/internal/SEAMS.md#architecture-alignment-update
-// DOC: docs/reference/configuration.md
 package main
 
 import (
 	"context"
-	"database/sql"
-	"development-toolchain-validator/domain/expectation"
-	"development-toolchain-validator/domain/reference"
-	"development-toolchain-validator/domain/report"
-	"development-toolchain-validator/domain/skill"
-	"development-toolchain-validator/infrastructure/sqlite"
-	"development-toolchain-validator/internal/config"
+	"fmt"
 	"log"
-	"net/http"
-	"time"
+	"os"
+	"path/filepath"
+	"strings"
 
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/health"
+	"development-toolchain-validator/internal/clock"
+	"development-toolchain-validator/internal/modules"
+	"development-toolchain-validator/internal/server"
+
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
 
-	apihandlers "development-toolchain-validator/handlers"
+	goldenH "development-toolchain-validator/handlers/golden"
+	healthH "development-toolchain-validator/handlers/health"
+	notesH "development-toolchain-validator/handlers/notes"
 )
 
-// Server wires the HTTP router, database, and domain services.
-type Server struct {
-	db     *sql.DB
-	router *mux.Router
-	config config.Config
-
-	// Domain services
-	referenceService   *reference.Service
-	skillService       *skill.Service
-	expectationService *expectation.Service
-	reportService      *report.Service
-}
-
-// NewServer initializes database connections, repositories, services, and routes.
-// Configuration is loaded from environment variables with sensible defaults.
-func NewServer(db *sql.DB) *Server {
-	// Load configuration from environment
-	cfg := config.LoadFromEnv()
-
-	// Initialize repositories (storage layer)
-	referenceRepo := sqlite.NewReferenceRepository(db)
-	skillRepo := sqlite.NewSkillRepository(db)
-	structuralRepo := sqlite.NewStructuralExpectationsRepository(db)
-	cliRepo := sqlite.NewCLIAssertionsRepository(db)
-
-	// Initialize services (business logic layer) with configuration
-	serviceConfig := reference.ServiceConfig{
-		Pagination: cfg.Pagination,
-		Validation: cfg.Validation,
+// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
+// with the canonical pragma string. Resolution order:
+//
+//  1. SQLITE_PATH env — the canonical override.
+//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
+//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
+//     filesystem-safe-by-default location.
+//
+// The pragmas mirror agent-inbox; tweak in lockstep with
+// internal/testutil/db.NewSQLite so production and tests open files the
+// same way.
+func sqliteDSN() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
 	}
-	referenceService := reference.NewService(referenceRepo, reference.WithConfig(serviceConfig))
-	skillService := skill.NewService(skillRepo)
-	expectationService := expectation.NewService(structuralRepo, cliRepo)
-
-	// Report service uses raw repositories to avoid pagination limits.
-	reportRepo := sqlite.NewReportRepository(db)
-	expectationAdapter := report.NewExpectationRepoAdapter(structuralRepo, cliRepo)
-	reportService := report.NewService(skillRepo, expectationAdapter, reportRepo)
-
-	srv := &Server{
-		db:                 db,
-		router:             mux.NewRouter(),
-		config:             cfg,
-		referenceService:   referenceService,
-		skillService:       skillService,
-		expectationService: expectationService,
-		reportService:      reportService,
+	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+		return sqliteFileDSN(path)
 	}
-	srv.setupRoutes()
-	return srv
-}
 
-func (s *Server) setupRoutes() {
-	s.router.Use(loggingMiddleware)
-	s.router.Use(s.corsMiddleware)
-
-	// Health endpoints (infrastructure and client paths)
-	healthHandler := health.New().
-		Version("1.0.0").
-		Check(health.DB(s.db), health.Critical).
-		Handler()
-	s.router.HandleFunc("/health", healthHandler).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
-
-	// Domain handlers
-	referenceHandler := apihandlers.NewReferenceHandler(s.referenceService)
-	referenceHandler.RegisterRoutes(s.router)
-
-	skillHandler := apihandlers.NewSkillHandler(s.skillService)
-	skillHandler.RegisterRoutes(s.router)
-
-	expectationHandler := apihandlers.NewExpectationHandler(s.expectationService)
-	expectationHandler.RegisterRoutes(s.router)
-
-	reportHandler := apihandlers.NewReportHandler(s.reportService)
-	reportHandler.RegisterRoutes(s.router)
-}
-
-// Handler returns the HTTP handler with recovery middleware.
-func (s *Server) Handler() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
-}
-
-// loggingMiddleware prints simple request logs.
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
 	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: "development-toolchain-validator"},
+		storage.ClassData,
+		"development-toolchain-validator.db",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve development-toolchain-validator db path: %w", err)
+	}
+	return sqliteFileDSN(path)
 }
 
-// corsMiddleware adds CORS headers based on configuration.
-// In production, CORS_ALLOWED_ORIGINS should be set to specific origins.
-// See docs/reference/configuration.md for configuration details.
-func (s *Server) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-
-		// Check if the origin is allowed using centralized config
-		if origin != "" && s.config.CORS.IsOriginAllowed(origin) {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-		}
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+func sqliteFileDSN(path string) (string, error) {
+	if strings.HasPrefix(path, "file:") {
+		return path, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		path,
+	), nil
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "development-toolchain-validator",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "development-toolchain-validator"}) {
+		return
 	}
 
-	// Connect to SQLite database via storage resolver
-	db, err := sqlite.NewDB()
+	dsn, err := sqliteDSN()
+	if err != nil {
+		log.Fatalf("sqlite configuration failed: %v", err)
+	}
+
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	srv := NewServer(db)
+	if err := database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
 
-	// Start server with graceful shutdown (port from API_PORT env var)
-	if err := server.Run(server.Config{
+	srv := server.New(
+		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		healthH.Module(db, "development-toolchain-validator-api", "1.0.0"),
+		goldenH.Module(db, clock.System{}, log.Default()),
+		notesH.Module(db, clock.System{}, log.Default()),
+	)
+
+	if err := apiserver.Run(apiserver.Config{
 		Handler: srv.Handler(),
 		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {

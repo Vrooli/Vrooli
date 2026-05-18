@@ -1,0 +1,27 @@
+{
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "title": "Skill Catalog Sync",
+  "description": "Mirror the steer-skill catalog from prompt-manager. Records skill id, current version, and content hash. Refresh on demand; expose drift since last sync.",
+  "requirements": [
+    {
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-002",
+      "title": "prompt-manager API client",
+      "description": "Read-only client (Connect-RPC if exposed, otherwise CLI shell-out) that lists steer skills with version + content hash. Filters out non-steer skills (workflow skills like plan-skill-discovery, idea-workshop, deployment-coordinator, skill-authoring).",
+      "category": "integration",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-002",
+      "title": "Skill catalog snapshot storage + drift surface",
+      "description": "SQLite-backed snapshot under api/internal/skillcatalog. Compare current sync against previous snapshot; expose 'changed since last sync' list for downstream staleness derivation (OT-P0-007).",
+      "category": "storage",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

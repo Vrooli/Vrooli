@@ -1,14 +1,7 @@
-// DOC: docs/internal/CLI_AUDIT.md
-// DOC: docs/internal/SEAMS.md#cli-api-parity
-//
-// Package main implements the development-toolchain-validator CLI.
 package main
 
 import (
 	"development-toolchain-validator/cli/domains"
-	"development-toolchain-validator/cli/domains/connections"
-	"development-toolchain-validator/cli/domains/references"
-	"development-toolchain-validator/cli/internal/textutil"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -30,6 +23,7 @@ type App struct {
 }
 
 func NewApp() (*App, error) {
+	app := &App{}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
@@ -40,40 +34,16 @@ func NewApp() (*App, error) {
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
+		CommandGroups:    domains.CommandGroups,
 		SubcommandGroups: domains.SubcommandGroups,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &App{core: core}, nil
+	app.core = core
+	return app, nil
 }
 
 func (a *App) Run(args []string) error {
 	return a.core.CLI.Run(args)
 }
-
-// Thin delegations keep the package-local test surface stable while the CLI
-// itself moves to domain packages and subcommand groups.
-func (a *App) cmdReference(args []string) error {
-	return references.Run(a.core, args)
-}
-
-func (a *App) cmdConnection(args []string) error {
-	return connections.Run(a.core, args)
-}
-
-func truncate(s string, maxLen int) string {
-	return textutil.Truncate(s, maxLen)
-}
-
-type (
-	referenceResponse      = references.ReferenceResponse
-	referenceCreateRequest = references.ReferenceCreateRequest
-	referenceUpdateRequest = references.ReferenceUpdateRequest
-)
-
-type (
-	connectionResponse       = connections.ConnectionResponse
-	connectionConnectRequest = connections.ConnectionConnectRequest
-	driftStatusResponse      = connections.DriftStatusResponse
-)

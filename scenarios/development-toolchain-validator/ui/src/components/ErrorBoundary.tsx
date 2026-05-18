@@ -1,85 +1,77 @@
-import { Component, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "./ui/button";
+import { selectors } from "../consts/selectors";
+import { strings } from "../consts/strings";
+import { useTranslation } from "../i18n";
 
-interface ErrorBoundaryState {
+/* eslint-disable react-refresh/only-export-components -- class error boundaries are component exports by design. */
+
+type Props = {
+  children: ReactNode;
+  fallback?: ReactNode;
+  onError?: (error: Error, info: ErrorInfo) => void;
+};
+
+type State = {
   hasError: boolean;
   error: Error | null;
-}
+};
 
-interface ErrorBoundaryProps {
-  children: ReactNode;
-  /** Optional custom fallback UI - defaults to built-in error display */
-  fallback?: ReactNode;
-  /** Optional callback when error occurs */
-  onError?: (error: Error, errorInfo: { componentStack: string }) => void;
-}
+// ErrorBoundary is the app-level catch for render-time exceptions.
+// Wrap point lives in main.tsx — see the wrap there for the canonical
+// nesting (boundary inside QueryClient + i18n providers so the
+// localised fallback can call useTranslation).
+//
+// onError is exposed for scenarios to wire telemetry (Sentry, etc.).
+// Custom fallback content can be supplied via the `fallback` prop;
+// the default is DefaultFallback below, which uses the strings +
+// selectors registries so test IDs and copy stay coherent with the
+// rest of the UI.
+export class ErrorBoundary extends Component<Props, State> {
+  state: State = { hasError: false, error: null };
 
-/**
- * Error Boundary for catching React rendering errors.
- *
- * Place this around major UI sections to isolate failures:
- * - Route-level views
- * - Feature panels (dashboards, modals)
- * - Components rendering external/dynamic data
- *
- * This prevents the entire app from crashing when a single
- * component fails, allowing users to recover gracefully.
- */
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: { componentStack: string }): void {
-    // Log to console for debugging (never expose raw stack traces in production UI)
-    console.error("[ErrorBoundary] Caught error:", error);
-    console.error("[ErrorBoundary] Component stack:", errorInfo.componentStack);
-
-    // Call optional error handler
-    this.props.onError?.(error, errorInfo);
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    this.props.onError?.(error, info);
   }
 
-  handleRetry = (): void => {
+  private handleRetry = (): void => {
     this.setState({ hasError: false, error: null });
   };
 
-  handleRefresh = (): void => {
-    window.location.reload();
-  };
-
   render(): ReactNode {
-    if (this.state.hasError) {
-      // Use custom fallback if provided
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
-      // Default fallback UI with recovery options
-      return (
-        <div className="flex flex-col items-center justify-center min-h-[200px] p-6 rounded-xl border border-red-500/20 bg-red-500/5">
-          <div className="text-red-400 text-lg font-medium mb-2">
-            Something went wrong
-          </div>
-          <p className="text-slate-400 text-sm text-center mb-4 max-w-md">
-            {this.state.error?.message ?? "An unexpected error occurred while rendering this section."}
-          </p>
-          <div className="flex gap-3">
-            <Button variant="outline" size="sm" onClick={this.handleRetry}>
-              Try Again
-            </Button>
-            <Button variant="outline" size="sm" onClick={this.handleRefresh}>
-              Refresh Page
-            </Button>
-          </div>
-        </div>
-      );
+    if (!this.state.hasError) {
+      return this.props.children;
     }
-
-    return this.props.children;
+    if (this.props.fallback !== undefined) {
+      return this.props.fallback;
+    }
+    return <DefaultFallback onRetry={this.handleRetry} />;
   }
+}
+
+function DefaultFallback({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      data-testid={selectors.errorBoundary.root}
+      role="alert"
+      className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-center p-6"
+    >
+      <div className="w-full max-w-md rounded-2xl border border-red-500/40 bg-red-950/30 p-6 text-center backdrop-blur-sm">
+        <h1 className="text-2xl font-semibold">{t(strings.errorBoundary.title)}</h1>
+        <p className="mt-3 text-slate-300">{t(strings.errorBoundary.message)}</p>
+        <Button
+          data-testid={selectors.errorBoundary.retryButton}
+          className="mt-5"
+          onClick={onRetry}
+        >
+          {t(strings.errorBoundary.retry)}
+        </Button>
+      </div>
+    </div>
+  );
 }
