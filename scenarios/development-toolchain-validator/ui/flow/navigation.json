@@ -1,0 +1,193 @@
+{
+  "$schema": "https://vrooli.dev/schemas/navigation.v1.json",
+  "schemaVersion": 1,
+  "kind": "navigation",
+  "flowId": "development-toolchain-validator.app.ui",
+  "domain": "app",
+  "description": "DTV UI navigation: Goldens (index + detail) + Settings ship in P0. Skills and Manifests surfaces are declared with placeholder pages so the spec stays the source of truth; the page modules render a TODO surface until their Connect-RPC clients land. Single-operator app — no auth contexts.",
+
+  "contexts": {
+    "viewport": {
+      "kind": "enum",
+      "values": ["mobile", "desktop"],
+      "default": "desktop"
+    }
+  },
+
+  "routes": [
+    {
+      "id": "goldens_index",
+      "path": "/",
+      "page": "ui/src/surfaces/goldens/GoldensIndex.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "golden_detail",
+      "path": "/goldens/:slug",
+      "page": "ui/src/surfaces/goldens/GoldenDetail.tsx",
+      "deep_link": "recoverable",
+      "parents": ["goldens_index"]
+    },
+    {
+      "id": "skills_index",
+      "path": "/skills",
+      "page": "ui/src/surfaces/placeholders/SkillsPlaceholder.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "manifests_index",
+      "path": "/manifests",
+      "page": "ui/src/surfaces/placeholders/ManifestsPlaceholder.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "settings",
+      "path": "/settings",
+      "page": "ui/src/surfaces/settings/Settings.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    }
+  ],
+
+  "containers": [
+    {
+      "id": "sidebar",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "show_when": "viewport=desktop",
+      "disclosure": "always_visible"
+    },
+    {
+      "id": "top_header",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "disclosure": "always_visible"
+    },
+    {
+      "id": "mobile_bottom_nav",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "show_when": "viewport=mobile",
+      "disclosure": "always_visible"
+    }
+  ],
+
+  "affordances": [
+    {
+      "id": "nav_goldens",
+      "to": "goldens_index",
+      "presentations": [
+        { "in": "sidebar", "label": "Goldens", "test_id": "nav-sidebar-goldens",
+          "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_bottom_nav", "label": "Goldens", "icon": "target",
+          "test_id": "nav-mobile-goldens", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_skills",
+      "to": "skills_index",
+      "presentations": [
+        { "in": "sidebar", "label": "Skills", "test_id": "nav-sidebar-skills",
+          "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_bottom_nav", "label": "Skills", "icon": "wrench",
+          "test_id": "nav-mobile-skills", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_manifests",
+      "to": "manifests_index",
+      "presentations": [
+        { "in": "sidebar", "label": "Manifests", "test_id": "nav-sidebar-manifests",
+          "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_bottom_nav", "label": "Manifests", "icon": "file-cog",
+          "test_id": "nav-mobile-manifests", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_settings",
+      "to": "settings",
+      "presentations": [
+        { "in": "sidebar", "label": "Settings", "test_id": "nav-sidebar-settings",
+          "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_bottom_nav", "label": "Settings", "icon": "settings",
+          "test_id": "nav-mobile-settings", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "golden_row_open",
+      "to": "golden_detail",
+      "presentations": [
+        { "in": "goldens_index", "label": "Open golden", "test_id": "goldens-row",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "golden_detail_back",
+      "to": "goldens_index",
+      "presentations": [
+        { "in": "golden_detail", "label": "Back to goldens", "test_id": "goldens-detail-back",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    }
+  ],
+
+  "return_paths": [
+    { "from": "golden_detail", "rule": "history_back", "fallback": "goldens_index" }
+  ],
+
+  "shortcuts": [
+    {
+      "binding": "g g",
+      "action": "navigate",
+      "to": "goldens_index",
+      "scope": "global"
+    },
+    {
+      "binding": "g s",
+      "action": "navigate",
+      "to": "skills_index",
+      "scope": "global"
+    },
+    {
+      "binding": "g m",
+      "action": "navigate",
+      "to": "manifests_index",
+      "scope": "global"
+    },
+    {
+      "binding": "g .",
+      "action": "navigate",
+      "to": "settings",
+      "scope": "global"
+    }
+  ],
+
+  "reachability_invariants": [
+    {
+      "id": "primary_destinations_reachable_from_home",
+      "given": "viewport=desktop",
+      "from": "goldens_index",
+      "must_reach": ["skills_index", "manifests_index", "settings"],
+      "max_clicks": { "desktop": 1, "mobile": 2 }
+    },
+    {
+      "id": "primary_destinations_reachable_from_home_mobile",
+      "given": "viewport=mobile",
+      "from": "goldens_index",
+      "must_reach": ["skills_index", "manifests_index", "settings"],
+      "max_clicks": { "desktop": 1, "mobile": 2 }
+    },
+    {
+      "id": "golden_detail_reachable_from_index",
+      "given": "viewport=desktop",
+      "from": "goldens_index",
+      "must_reach": ["golden_detail"],
+      "max_clicks": 1
+    }
+  ],
+
+  "deep_link_policy": []
+}

@@ -2,44 +2,15 @@
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Development Toolchain Validator are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "Development Toolchain Validator",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
-  },
-  "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading."
+    "eyebrow": "Toolchain Validator"
   },
   "goldens": {
     "title": "Goldens",
     "subtitle": "Template-pristine reference scenarios used by skill validation runs",
-    "loading": "Loading goldens…",
     "empty": "No goldens registered yet.",
+    "emptyDescription": "Register a golden to start tracking template-pristine scenarios for skill validation.",
     "registerHeading": "Register a golden",
+    "registerOpen": "Register new",
     "slugLabel": "Slug",
     "templateLabel": "Template",
     "versionLabel": "Template version",
@@ -47,7 +18,6 @@
     "registerSubmit": "Register",
     "registering": "Registering…",
     "rowLabel": "{{slug}} — template={{template}}@{{version}}",
-    "detailHeading": "Golden detail",
     "regenerate": "Regenerate",
     "regenerating": "Regenerating…",
     "delete": "Delete",
@@ -56,8 +26,44 @@
     "confirmDelete": "Delete golden {{slug}}?",
     "confirmRegenerate": "Regenerate golden {{slug}} from its pinned template?",
     "regenerateSuccess": "Regenerated {{slug}}.",
-    "deleteSuccess": "Deleted {{slug}}.",
-    "lastRegeneratedLabel": "Last regenerated:"
+    "lastRegeneratedLabel": "Last regenerated:",
+    "verdictSummaryPending": "No verdicts yet",
+    "verdictSummaryPlaceholder": "Verdict summary unavailable",
+    "skillsGridCaption": "Skills",
+    "toolsGridCaption": "Tools",
+    "backToIndex": "Back to goldens"
+  },
+  "nav": {
+    "skillsTodo": "Skills (coming soon)",
+    "manifestsTodo": "Manifests (coming soon)",
+    "menuToggle": "Open navigation",
+    "convergenceLabel": "Convergence",
+    "convergencePlaceholder": "—",
+    "staleLabel": "Stale flags",
+    "stalePlaceholder": "0",
+    "healthLabel": "API health",
+    "logo": "DTV",
+    "goldensLabel": "Goldens",
+    "skillsLabel": "Skills",
+    "manifestsLabel": "Manifests",
+    "settingsLabel": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Configure how the validator UI renders for you.",
+    "themeHeading": "Theme",
+    "themeDarkLabel": "Dark",
+    "themeLightLabel": "Light",
+    "localeHeading": "Language",
+    "densityHeading": "Density",
+    "densityComfortableLabel": "Comfortable",
+    "densityCompactLabel": "Compact",
+    "sidebarHeading": "Sidebar",
+    "sidebarCollapsed": "Collapse sidebar by default",
+    "catalogSyncHeading": "Skill catalog sync",
+    "catalogSyncPending": "Backend not yet wired — sync is unavailable.",
+    "watcherHeading": "Template watcher",
+    "watcherPending": "Backend not yet wired — watcher status is unavailable."
   },
   "errors": {
     "canceled": "Operation canceled.",
@@ -76,9 +82,6 @@
     "unavailable": "Service temporarily unavailable.",
     "data_loss": "Data loss detected.",
     "unauthenticated": "Please sign in to continue."
-  },
-  "locale": {
-    "switcherLabel": "Language"
   },
   "errorBoundary": {
     "title": "Something went wrong",

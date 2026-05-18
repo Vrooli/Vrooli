@@ -55,6 +55,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "flow/**/*.json"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

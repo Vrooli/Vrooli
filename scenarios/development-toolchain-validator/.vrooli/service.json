@@ -208,7 +208,28 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "description": "Spawns sandboxed skill runs; provides run summary + diff reference for skill validation."
+      },
+      "prompt-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "description": "Source of truth for skill catalog (id/version/content hash) mirrored by skill_catalog."
+      },
+      "workspace-sandbox": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Reads sandbox diff content when content-rule manifest evaluation needs raw file content; degrades to path-only verdict when unavailable."
+      }
+    }
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/development-toolchain-validator.db"
   }

@@ -1,32 +1,47 @@
 /**
- * App tests — smoke only.
- *
- * App is a 15-line composition of <AppShell> + per-feature cards.
- * Per-feature behaviour is covered in features/<name>/<Name>Card.test.tsx;
- * shell + locale switching live in components/AppShell.test.tsx. This
- * file's job is to assert the composition: a real <App /> mounts the
- * shell selectors.
- *
- * No per-feature mocks are installed here on purpose: feature cards
- * own their own mock setup in their per-feature tests. If a scenario
- * deletes a feature, this file does not need to change — the smoke is
- * shell-only.
+ * App composition smoke test.
  */
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 
-import { renderWithProviders } from "./test-utils";
-
-import App from "./App";
 import { selectors } from "./consts/selectors";
+import { makeApiMocks, renderWithProviders } from "./test-utils";
+
+vi.mock("./api/golden", async (importOriginal) => {
+  const { create } = await import("@bufbuild/protobuf");
+  const { ListGoldensResponseSchema } = await import(
+    "@vrooli/proto-types/development-toolchain-validator/v1/golden/golden_pb"
+  );
+  const actual = await importOriginal<typeof import("./api/golden")>();
+  return {
+    ...actual,
+    goldenClient: {
+      listGoldens: vi.fn().mockResolvedValue(create(ListGoldensResponseSchema, { goldens: [] })),
+      getGolden: vi.fn(),
+      registerGolden: vi.fn(),
+      regenerateGolden: vi.fn(),
+      deleteGolden: vi.fn(),
+    },
+  };
+});
+
+vi.mock("./api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/health")>();
+  return { ...actual, ...makeApiMocks() };
+});
+
+import { AppRoutes } from "./App";
 
 describe("App composition", () => {
   afterEach(() => {
     cleanup();
   });
 
-  it("renders the shell title (smoke: composition wires up)", () => {
-    renderWithProviders(<App />);
-    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+  it("renders the AppShell and resolves the default route to the goldens index", async () => {
+    renderWithProviders(<AppRoutes />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.nav.appShell)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId(selectors.goldens.indexHeading)).toBeInTheDocument();
   });
 });

@@ -20,7 +20,6 @@ import (
 
 	goldenH "development-toolchain-validator/handlers/golden"
 	healthH "development-toolchain-validator/handlers/health"
-	notesH "development-toolchain-validator/handlers/notes"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -103,7 +102,6 @@ func main() {
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "development-toolchain-validator-api", "1.0.0"),
 		goldenH.Module(db, clock.System{}, log.Default()),
-		notesH.Module(db, clock.System{}, log.Default()),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

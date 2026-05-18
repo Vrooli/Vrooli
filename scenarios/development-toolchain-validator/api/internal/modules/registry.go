@@ -24,11 +24,9 @@ import (
 
 	goldenH "development-toolchain-validator/handlers/golden"
 	healthH "development-toolchain-validator/handlers/health"
-	notesH "development-toolchain-validator/handlers/notes"
 	localdb "development-toolchain-validator/internal/database"
 
 	goldenv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/golden"
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/notes"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,24 +37,11 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, goldenH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
 	return out
 }
 
 // ProtoFileEntry pairs a domain module's name with the proto
-// FileDescriptor whose RPCs that module exposes via Connect-RPC. The
-// global parity test in registry_test.go walks every entry and asserts
-// each rpc method in the FileDescriptor has exactly one matching
-// EndpointDescriptor in AllEndpoints().
-//
-// Adding a Connect-RPC domain: append one line below. The global parity
-// test then covers it automatically — there is no per-domain parity
-// test to write.
-//
-// REST-exception-only domains (none in the template today) are simply
-// not listed here; the global test never inspects them, and the
-// gen-endpoints validateTransport pass enforces their RESTException
-// tags at codegen time.
+// FileDescriptor whose RPCs that module exposes via Connect-RPC.
 type ProtoFileEntry struct {
 	Module string
 	File   protoreflect.FileDescriptor
@@ -67,22 +52,15 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "golden", File: goldenv1.File_development_toolchain_validator_v1_golden_golden_proto},
-		{Module: "notes", File: notesv1.File_development_toolchain_validator_v1_notes_notes_proto},
 	}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
-// schema (always first; cross-cutting infrastructure runs before any
-// domain table). Consumed by main.go's database.EnsureSchemas call.
-//
-// Order matters: system → health → notes → … (domains alphabetical).
-// Postgres scenarios that put `CREATE EXTENSION ...` in system.sql rely
-// on system running before any domain that references the extension.
+// schema (always first). Order: system → health → domains alphabetical.
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(goldenH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema),
 	}
 }

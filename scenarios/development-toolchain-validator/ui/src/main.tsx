@@ -17,12 +17,16 @@ const appRoot = rootEl;
 const queryClient = new QueryClient();
 
 async function bootstrap() {
-  const [{ default: App }, { ErrorBoundary }, { onProfilerRender }] = await Promise.all([
+  const [{ default: App }, { ErrorBoundary }, { onProfilerRender }, prefs] = await Promise.all([
     import("./App"),
-    import("./components/ErrorBoundary"),
+    import("./shared/ui/composites/ErrorBoundary"),
     import("./lib/profiler"),
+    import("./shared/stores/preferencesStore"),
     import("./i18n"),
   ]);
+  // Mirror persisted preferences onto <html> immediately so design tokens
+  // resolve correctly on first paint.
+  prefs.applyPreferencesToDocument(prefs.usePreferencesStore.getState());
 
   ReactDOM.createRoot(appRoot).render(
     <React.StrictMode>

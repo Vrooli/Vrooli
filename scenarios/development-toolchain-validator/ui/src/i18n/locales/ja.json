@@ -2,40 +2,15 @@
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Development Toolchain Validator のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
     "title": "Development Toolchain Validator",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
-  },
-  "health": {
-    "title": "API ステータス",
-    "loading": "API のステータスを確認中…",
-    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
-    "refresh": "再読み込み",
-    "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
-    "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
-  },
-  "notifications": {
-    "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。"
+    "eyebrow": "ツールチェーン検証"
   },
   "goldens": {
     "title": "ゴールデン",
     "subtitle": "スキル検証で使用するテンプレート純正リファレンスシナリオ",
-    "loading": "ゴールデンを読み込み中…",
     "empty": "登録されたゴールデンはありません。",
+    "emptyDescription": "ゴールデンを登録して、スキル検証のためのテンプレート純正シナリオの追跡を開始してください。",
     "registerHeading": "ゴールデンを登録",
+    "registerOpen": "新規登録",
     "slugLabel": "スラッグ",
     "templateLabel": "テンプレート",
     "versionLabel": "テンプレートバージョン",
@@ -43,7 +18,6 @@
     "registerSubmit": "登録",
     "registering": "登録中…",
     "rowLabel": "{{slug}} — template={{template}}@{{version}}",
-    "detailHeading": "ゴールデン詳細",
     "regenerate": "再生成",
     "regenerating": "再生成中…",
     "delete": "削除",
@@ -52,8 +26,44 @@
     "confirmDelete": "ゴールデン {{slug}} を削除しますか？",
     "confirmRegenerate": "ゴールデン {{slug}} をピン留めされたテンプレートから再生成しますか？",
     "regenerateSuccess": "{{slug}} を再生成しました。",
-    "deleteSuccess": "{{slug}} を削除しました。",
-    "lastRegeneratedLabel": "最終再生成:"
+    "lastRegeneratedLabel": "最終再生成:",
+    "verdictSummaryPending": "まだ判定はありません",
+    "verdictSummaryPlaceholder": "判定の要約は利用できません",
+    "skillsGridCaption": "スキル",
+    "toolsGridCaption": "ツール",
+    "backToIndex": "ゴールデン一覧に戻る"
+  },
+  "nav": {
+    "skillsTodo": "スキル（近日公開）",
+    "manifestsTodo": "マニフェスト（近日公開）",
+    "menuToggle": "ナビゲーションを開く",
+    "convergenceLabel": "収束",
+    "convergencePlaceholder": "—",
+    "staleLabel": "陳腐化フラグ",
+    "stalePlaceholder": "0",
+    "healthLabel": "API ステータス",
+    "logo": "DTV",
+    "goldensLabel": "ゴールデン",
+    "skillsLabel": "スキル",
+    "manifestsLabel": "マニフェスト",
+    "settingsLabel": "設定"
+  },
+  "settings": {
+    "title": "設定",
+    "subtitle": "検証 UI の表示方法を設定します。",
+    "themeHeading": "テーマ",
+    "themeDarkLabel": "ダーク",
+    "themeLightLabel": "ライト",
+    "localeHeading": "言語",
+    "densityHeading": "密度",
+    "densityComfortableLabel": "標準",
+    "densityCompactLabel": "コンパクト",
+    "sidebarHeading": "サイドバー",
+    "sidebarCollapsed": "サイドバーをデフォルトで折りたたむ",
+    "catalogSyncHeading": "スキルカタログ同期",
+    "catalogSyncPending": "バックエンド未接続 — 同期は利用できません。",
+    "watcherHeading": "テンプレートウォッチャー",
+    "watcherPending": "バックエンド未接続 — ウォッチャー状態は利用できません。"
   },
   "errors": {
     "canceled": "Operation canceled.",
@@ -72,9 +82,6 @@
     "unavailable": "Service temporarily unavailable.",
     "data_loss": "Data loss detected.",
     "unauthenticated": "Please sign in to continue."
-  },
-  "locale": {
-    "switcherLabel": "言語"
   },
   "errorBoundary": {
     "title": "問題が発生しました",
