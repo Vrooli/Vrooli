@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +13,7 @@ import (
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks/config"
+	"test-genie/internal/playbooks/dbdetect"
 	"test-genie/internal/playbooks/isolation"
 	"test-genie/internal/playbooks/seeds"
 	"test-genie/internal/shared"
@@ -66,7 +66,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		return nil, fmt.Errorf("playbooks seeds disabled via .vrooli/testing.json")
 	}
 
-	needs := detectResourceNeeds(env, logWriter)
+	needs := resolveDBNeeds(ctx, env, logWriter)
 	isoManager := isolationManagerFactory(isolation.Config{
 		ScenarioName:    env.ScenarioName,
 		RequirePostgres: needs.RequirePostgres,
@@ -288,124 +288,39 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-var sqliteSignalTokens = []string{
-	"modernc.org/sqlite",
-	"github.com/mattn/go-sqlite3",
-	`sql.Open("sqlite"`,
-	`sqlx.Connect("sqlite"`,
-	"DriverSQLite",
-	"sqliteDSN(",
-	"BAS_SQLITE_PATH",
-	"SQLITE_PATH",
-}
-
-// detectResourceNeeds inspects stable scenario signals and returns which
-// isolated resources should be provisioned for Playbooks. SQLite is inferred
-// from scenario files/code instead of resource declarations because SQLite is
-// now a local runtime detail rather than a first-class Vrooli resource.
-func detectResourceNeeds(env workspace.Environment, logWriter io.Writer) resourceNeeds {
-	needs := resourceNeeds{}
-
+// resolveDBNeeds runs the dbdetect resolver against the
+// scenario, writes the evidence chain to logWriter, and projects the report
+// to the booleans the isolation manager consumes. There is no fallback: a
+// scenario with no evidence is provisioned with nothing, which is the
+// correct signal that detection should be fixed at the source.
+func resolveDBNeeds(ctx context.Context, env workspace.Environment, logWriter io.Writer) resourceNeeds {
 	manifestPath := filepath.Join(env.ScenarioDir, ".vrooli", "service.json")
-	if manifest, err := workspace.LoadServiceManifest(manifestPath); err == nil {
-		needs.SQLiteEnvVars = manifest.SQLitePathEnvVars()
-		for _, res := range manifest.Dependencies.Resources {
-			if !res.Enabled && !res.Required {
-				continue
-			}
-			switch strings.ToLower(res.Type) {
-			case "postgres":
-				needs.RequirePostgres = true
-			case "redis":
-				needs.RequireRedis = true
-			}
-		}
-	} else {
-		shared.LogWarn(logWriter, "unable to read service manifest (%v); sqlite detection will rely on scenario files", err)
-	}
-
-	sqliteSignals, err := detectSQLiteSignals(env.ScenarioDir)
+	rawManifest, err := workspace.LoadServiceManifest(manifestPath)
 	if err != nil {
-		shared.LogWarn(logWriter, "unable to inspect sqlite signals (%v)", err)
-	} else if len(sqliteSignals) > 0 {
-		needs.RequireSQLite = true
-		shared.LogInfo(logWriter, "sqlite detected via scenario signals: %s", strings.Join(sqliteSignals, ", "))
+		shared.LogWarn(logWriter, "unable to read service manifest (%v); proceeding with file-based detection only", err)
+	}
+	manifest := dbdetect.WrapManifest(rawManifest)
+
+	resolver, err := dbdetect.NewResolver(dbdetect.DefaultCollectors(), dbdetect.DefaultProfiles())
+	if err != nil {
+		shared.LogWarn(logWriter, "db-detect resolver construction failed: %v", err)
+		return resourceNeeds{SQLiteEnvVars: manifest.SQLitePathEnvVars()}
 	}
 
-	// If nothing matched, assume both legacy backing services to avoid false negatives.
-	if !needs.RequirePostgres && !needs.RequireRedis && !needs.RequireSQLite {
-		shared.LogWarn(logWriter, "scenario declares no postgres/redis resources and emitted no sqlite signals; defaulting to provision Postgres + Redis for playbooks isolation")
-		return resourceNeeds{RequirePostgres: true, RequireRedis: true}
-	}
-
-	return needs
-}
-
-func detectSQLiteSignals(scenarioDir string) ([]string, error) {
-	var signals []string
-
-	schemaPath := filepath.Join(scenarioDir, "initialization", "storage", "sqlite", "schema.sql")
-	if info, err := os.Stat(schemaPath); err == nil && !info.IsDir() {
-		signals = append(signals, "initialization/storage/sqlite/schema.sql")
-	}
-
-	err := filepath.WalkDir(scenarioDir, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if d.IsDir() {
-			switch d.Name() {
-			case ".git", "node_modules", "coverage", "dist", "data", ".next":
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		base := filepath.Base(path)
-		if base != "go.mod" && filepath.Ext(path) != ".go" {
-			return nil
-		}
-
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		content := string(data)
-		for _, token := range sqliteSignalTokens {
-			if strings.Contains(content, token) {
-				rel, relErr := filepath.Rel(scenarioDir, path)
-				if relErr != nil {
-					rel = path
-				}
-				signals = append(signals, rel)
-				break
-			}
-		}
-		return nil
+	report := resolver.Resolve(ctx, dbdetect.ScenarioInputs{
+		ScenarioDir: env.ScenarioDir,
+		Manifest:    manifest,
+		Filesystem:  dbdetect.OSFilesystem{},
 	})
-	if err != nil {
-		return nil, err
+	if logWriter != nil {
+		_, _ = logWriter.Write([]byte(report.FormatHuman()))
 	}
-
-	sort.Strings(signals)
-	return compactStrings(signals), nil
-}
-
-func compactStrings(values []string) []string {
-	if len(values) == 0 {
-		return nil
+	return resourceNeeds{
+		RequirePostgres: report.Required("postgres"),
+		RequireRedis:    report.Required("redis"),
+		RequireSQLite:   report.Required("sqlite"),
+		SQLiteEnvVars:   manifest.SQLitePathEnvVars(),
 	}
-	out := make([]string, 0, len(values))
-	var prev string
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" || value == prev {
-			continue
-		}
-		out = append(out, value)
-		prev = value
-	}
-	return out
 }
 
 func applyEnv(env map[string]string) func() {

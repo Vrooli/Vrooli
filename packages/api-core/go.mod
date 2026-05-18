@@ -8,7 +8,10 @@ require (
 	github.com/vrooli/repo-contract-go v0.0.0
 )
 
-require github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+	github.com/go-chi/chi/v5 v5.0.11 // indirect
+)
 
 replace github.com/vrooli/cli-core => ../cli-core
 

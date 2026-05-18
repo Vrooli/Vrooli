@@ -28,6 +28,12 @@ This document tracks the intentional seams that let Test Genie evolve without fo
 - Surface: `Manager.EnsureRunning()`, `RestartWithEnv()`, `Restore()`, and `Cleanup()`
 - Why it exists: smoke, integration, performance, and playbook phases need one path-aware lifecycle boundary for starting, restarting, and discovering the scenario under test. This avoids phase-local port fallbacks and keeps temporary generated scenarios isolated from Test Genie's own runtime environment.
 
+### Playbooks DB detection
+
+- Package: `api/internal/playbooks/dbdetect`
+- Surface: `Collector`, `Filesystem`, `Manifest` interfaces; `Resolver` + declarative `Profile` table; `DetectionReport`
+- Why it exists: the playbooks phase has to decide which databases a target scenario actually uses (Postgres, Redis, SQLite, or any combination) before it provisions temp resources and restarts the scenario. Putting the decision behind a resolver with explicit evidence sources keeps the rules in one declarative place: collectors emit raw observations, profiles pick which observations count for each DB, the resolver records the highest-priority decision plus corroboration and conflicts, and the result is printed as a `db-detect:` block in playbook logs so every decision is traceable.
+
 ### Playbooks registry normalization
 
 - Package: `api/internal/playbooks/registry`

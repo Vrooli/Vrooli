@@ -100,7 +100,7 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 	}
 
 	// Determine which resources are actually needed from service manifest.
-	needs := detectResourceNeeds(env, logWriter)
+	needs := resolveDBNeeds(ctx, env, logWriter)
 
 	// Provision isolated resources for the playbooks run based on the target
 	// scenario manifest (Postgres, Redis, and/or SQLite).

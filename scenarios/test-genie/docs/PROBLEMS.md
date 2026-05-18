@@ -1,4 +1,5 @@
 # Open Issues
+- Detection refactor 2026-05: playbooks DB detection moved to `internal/playbooks/dbdetect`; the silent Postgres+Redis fallback is eliminated. Scenarios with no manifest/godeps/source evidence now provision nothing for the playbooks phase — fix at the source (declare the resource or add the driver import) rather than reinstating a fallback.
 - The scenario still needs to rebuild the CLI delegation workflow that triggers suite generation remotely.
 - Requirement modules now have `[REQ:TESTGENIE-*]` tags across Go + CLI suites, but we still need to run the orchestrator through the lifecycle to refresh requirement snapshots and add UI/E2E coverage (vault dashboard, delegated flows) before OT-P0-002 is truly multi-layer.
 - Requirements sync now runs directly from the Go orchestrator, but it only fires after full-suite executions triggered via the API—`coverage/run-tests.sh` and the UI still need to delegate to that path so coverage snapshots stay fresh without manual commands.

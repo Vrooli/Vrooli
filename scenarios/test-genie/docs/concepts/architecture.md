@@ -38,6 +38,7 @@ flowchart TB
 | `internal/orchestrator` | Phase planning, execution, artifacts, presets | Central coordinator for phased runs |
 | `internal/orchestrator/phases` | Phase-specific orchestration adapters | Structure, lint, playbooks, business, performance, etc. |
 | `internal/playbooks` | BAS registry loading, execution, seeding, isolation | Owns BAS-specific contracts and artifacting |
+| `internal/playbooks/dbdetect` | Evidence-based DB detection (postgres/redis/sqlite) for playbooks isolation | Declarative profile table + collectors + resolver; no silent fallback, no `service.json` schema changes |
 | `internal/scenarios` | Scenario summaries and local test-run adapters | Bridges scenario metadata into API/CLI surfaces |
 | `internal/requirements` | Requirement parsing, reporting, sync, evidence | Independent of any single phase |
 | `internal/app/httpserver` requirements handlers | Requirement view projection | Loads cached requirement snapshots, enriches them from source modules, and attaches sync metadata |
