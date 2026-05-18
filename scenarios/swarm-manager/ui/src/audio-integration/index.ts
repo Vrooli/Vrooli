@@ -63,22 +63,19 @@ export { BrowserTTSProvider } from "./hooks/tts/BrowserTTSProvider";
 // =============================================================================
 
 export {
-  createTtsApi,
-  useTtsApi,
   synthesizeTTS,
   fetchCachedTTS,
   getTTSVoices,
   getTTSConfig,
   updateTTSConfig,
   getTTSSummarizeConfig,
+  listTTSSummarizeModels,
   updateTTSSummarizeConfig,
   reportTTSEvent,
 } from "./api/tts";
-export type { TTSConfig, TTSSummarizeConfig, TTSVoiceInfo, TTSPlaybackEvent } from "./api/tts";
+export type { TTSConfig, TTSSummarizeConfig, TTSSummarizeModel, TTSVoiceInfo, TTSPlaybackEvent } from "./api/tts";
 
 export {
-  createVoiceApi,
-  useVoiceApi,
   buildVoiceStreamWsUrl,
   transcribeAudio,
   transcribeAudioBypassFilter,
@@ -122,3 +119,6 @@ export type {
   TTSCoreState,
   TTSCorePlaybackEvent,
 } from "./hooks/useTextToSpeechCore";
+
+// Canonical capability + feature slugs for audio-tools (drift-safe via proto enum).
+export { AUDIO_TOOLS_CAPABILITY_SLUG, featureSlug, allFeatureSlugs, AudioToolsFeature } from "./features";

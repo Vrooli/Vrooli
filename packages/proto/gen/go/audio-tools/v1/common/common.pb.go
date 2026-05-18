@@ -200,6 +200,101 @@ func (ResponseFormat) EnumDescriptor() ([]byte, []int) {
 	return file_audio_tools_v1_common_common_proto_rawDescGZIP(), []int{2}
 }
 
+// AudioToolsFeature enumerates the discoverable features the audio-tools
+// scenario exposes to consumer scenarios (web-console, swarm-manager, ...).
+// Consumers register a capability under the scenario slug
+// (see AUDIO_TOOLS_CAPABILITY_SLUG in the audio-tools client libs) and
+// list the AudioToolsFeature values they care about.
+//
+// Wire convention: the values' canonical slug form (kebab-case, without
+// the AUDIO_TOOLS_FEATURE_ prefix) is what travels on the wire as
+// `repeated string features` in web-console's CapabilitiesService.
+// Slug ↔ enum mapping lives in the audio-tools Go (clients/go/audiotools)
+// and TS (ui/src/audio-integration/features.ts) clients. Adding a new
+// feature: add the enum value here, run `make generate`, then add the
+// slug entry in both client mapping tables.
+//
+// DO NOT renumber existing values; the enum number is the stable identity
+// even though the wire format is the slug string.
+type AudioToolsFeature int32
+
+const (
+	AudioToolsFeature_AUDIO_TOOLS_FEATURE_UNSPECIFIED AudioToolsFeature = 0
+	// STT — voice input via batch transcription (HTTP POST).
+	AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_INPUT AudioToolsFeature = 1
+	// STT — voice streaming (WebSocket / Connect bidi).
+	AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_STREAMING AudioToolsFeature = 2
+	// STT — per-speaker verification against an enrolled voice print.
+	AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_SPEAKER_VERIFICATION AudioToolsFeature = 3
+	// STT — voice-print enrollment for later verification.
+	AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_ENROLLMENT AudioToolsFeature = 4
+	// TTS — voice synthesis output.
+	AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_OUTPUT AudioToolsFeature = 5
+	// TTS — summarization step before synthesis for long inputs.
+	AudioToolsFeature_AUDIO_TOOLS_FEATURE_TTS_SUMMARIZATION AudioToolsFeature = 6
+	// TTS — synthesized-audio caching for repeated text.
+	AudioToolsFeature_AUDIO_TOOLS_FEATURE_TTS_CACHE AudioToolsFeature = 7
+	// TTS — paragraph-level splitting for chunked synthesis.
+	AudioToolsFeature_AUDIO_TOOLS_FEATURE_TTS_PARAGRAPH_SPLIT AudioToolsFeature = 8
+	// Routing — three-tier provider routing (BYOK → VROOLI → LOCAL).
+	AudioToolsFeature_AUDIO_TOOLS_FEATURE_AUDIO_PROVIDER_ROUTING AudioToolsFeature = 9
+)
+
+// Enum value maps for AudioToolsFeature.
+var (
+	AudioToolsFeature_name = map[int32]string{
+		0: "AUDIO_TOOLS_FEATURE_UNSPECIFIED",
+		1: "AUDIO_TOOLS_FEATURE_VOICE_INPUT",
+		2: "AUDIO_TOOLS_FEATURE_VOICE_STREAMING",
+		3: "AUDIO_TOOLS_FEATURE_VOICE_SPEAKER_VERIFICATION",
+		4: "AUDIO_TOOLS_FEATURE_VOICE_ENROLLMENT",
+		5: "AUDIO_TOOLS_FEATURE_VOICE_OUTPUT",
+		6: "AUDIO_TOOLS_FEATURE_TTS_SUMMARIZATION",
+		7: "AUDIO_TOOLS_FEATURE_TTS_CACHE",
+		8: "AUDIO_TOOLS_FEATURE_TTS_PARAGRAPH_SPLIT",
+		9: "AUDIO_TOOLS_FEATURE_AUDIO_PROVIDER_ROUTING",
+	}
+	AudioToolsFeature_value = map[string]int32{
+		"AUDIO_TOOLS_FEATURE_UNSPECIFIED":                0,
+		"AUDIO_TOOLS_FEATURE_VOICE_INPUT":                1,
+		"AUDIO_TOOLS_FEATURE_VOICE_STREAMING":            2,
+		"AUDIO_TOOLS_FEATURE_VOICE_SPEAKER_VERIFICATION": 3,
+		"AUDIO_TOOLS_FEATURE_VOICE_ENROLLMENT":           4,
+		"AUDIO_TOOLS_FEATURE_VOICE_OUTPUT":               5,
+		"AUDIO_TOOLS_FEATURE_TTS_SUMMARIZATION":          6,
+		"AUDIO_TOOLS_FEATURE_TTS_CACHE":                  7,
+		"AUDIO_TOOLS_FEATURE_TTS_PARAGRAPH_SPLIT":        8,
+		"AUDIO_TOOLS_FEATURE_AUDIO_PROVIDER_ROUTING":     9,
+	}
+)
+
+func (x AudioToolsFeature) Enum() *AudioToolsFeature {
+	p := new(AudioToolsFeature)
+	*p = x
+	return p
+}
+
+func (x AudioToolsFeature) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AudioToolsFeature) Descriptor() protoreflect.EnumDescriptor {
+	return file_audio_tools_v1_common_common_proto_enumTypes[3].Descriptor()
+}
+
+func (AudioToolsFeature) Type() protoreflect.EnumType {
+	return &file_audio_tools_v1_common_common_proto_enumTypes[3]
+}
+
+func (x AudioToolsFeature) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AudioToolsFeature.Descriptor instead.
+func (AudioToolsFeature) EnumDescriptor() ([]byte, []int) {
+	return file_audio_tools_v1_common_common_proto_rawDescGZIP(), []int{3}
+}
+
 var File_audio_tools_v1_common_common_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_common_common_proto_rawDesc = "" +
@@ -224,7 +319,18 @@ const file_audio_tools_v1_common_common_proto_rawDesc = "" +
 	"\x13RESPONSE_FORMAT_MP3\x10\x01\x12\x17\n" +
 	"\x13RESPONSE_FORMAT_WAV\x10\x02\x12\x18\n" +
 	"\x14RESPONSE_FORMAT_OPUS\x10\x03\x12\x18\n" +
-	"\x14RESPONSE_FORMAT_FLAC\x10\x04BPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common;common_v1b\x06proto3"
+	"\x14RESPONSE_FORMAT_FLAC\x10\x04*\xb5\x03\n" +
+	"\x11AudioToolsFeature\x12#\n" +
+	"\x1fAUDIO_TOOLS_FEATURE_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fAUDIO_TOOLS_FEATURE_VOICE_INPUT\x10\x01\x12'\n" +
+	"#AUDIO_TOOLS_FEATURE_VOICE_STREAMING\x10\x02\x122\n" +
+	".AUDIO_TOOLS_FEATURE_VOICE_SPEAKER_VERIFICATION\x10\x03\x12(\n" +
+	"$AUDIO_TOOLS_FEATURE_VOICE_ENROLLMENT\x10\x04\x12$\n" +
+	" AUDIO_TOOLS_FEATURE_VOICE_OUTPUT\x10\x05\x12)\n" +
+	"%AUDIO_TOOLS_FEATURE_TTS_SUMMARIZATION\x10\x06\x12!\n" +
+	"\x1dAUDIO_TOOLS_FEATURE_TTS_CACHE\x10\a\x12+\n" +
+	"'AUDIO_TOOLS_FEATURE_TTS_PARAGRAPH_SPLIT\x10\b\x12.\n" +
+	"*AUDIO_TOOLS_FEATURE_AUDIO_PROVIDER_ROUTING\x10\tBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common;common_v1b\x06proto3"
 
 var (
 	file_audio_tools_v1_common_common_proto_rawDescOnce sync.Once
@@ -238,11 +344,12 @@ func file_audio_tools_v1_common_common_proto_rawDescGZIP() []byte {
 	return file_audio_tools_v1_common_common_proto_rawDescData
 }
 
-var file_audio_tools_v1_common_common_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_audio_tools_v1_common_common_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
 var file_audio_tools_v1_common_common_proto_goTypes = []any{
-	(ProviderTier)(0),   // 0: vrooli.audio_tools.v1.common.ProviderTier
-	(AudioFormat)(0),    // 1: vrooli.audio_tools.v1.common.AudioFormat
-	(ResponseFormat)(0), // 2: vrooli.audio_tools.v1.common.ResponseFormat
+	(ProviderTier)(0),      // 0: vrooli.audio_tools.v1.common.ProviderTier
+	(AudioFormat)(0),       // 1: vrooli.audio_tools.v1.common.AudioFormat
+	(ResponseFormat)(0),    // 2: vrooli.audio_tools.v1.common.ResponseFormat
+	(AudioToolsFeature)(0), // 3: vrooli.audio_tools.v1.common.AudioToolsFeature
 }
 var file_audio_tools_v1_common_common_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -262,7 +369,7 @@ func file_audio_tools_v1_common_common_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_common_common_proto_rawDesc), len(file_audio_tools_v1_common_common_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      4,
 			NumMessages:   0,
 			NumExtensions: 0,
 			NumServices:   0,

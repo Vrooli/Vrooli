@@ -100,3 +100,6 @@ export type {
   TTSCoreState,
   TTSCorePlaybackEvent,
 } from "./hooks/useTextToSpeechCore";
+
+// Canonical capability + feature slugs for audio-tools (drift-safe via proto enum).
+export { AUDIO_TOOLS_CAPABILITY_SLUG, featureSlug, allFeatureSlugs, AudioToolsFeature } from "./features";

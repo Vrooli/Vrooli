@@ -11,7 +11,13 @@
 //   - voice-command parsing via the local commandParser
 
 import { useCallback, useEffect, useMemo } from "react";
-import { getVoiceStreamConfig, useVoiceCore } from "../audio-integration";
+import {
+  getVoiceStreamConfig,
+  useVoiceCore,
+  AUDIO_TOOLS_CAPABILITY_SLUG,
+  featureSlug,
+  AudioToolsFeature,
+} from "../audio-integration";
 import type { VoiceCapabilityProbe } from "../audio-integration";
 import { fetchCapabilities, getCapabilitiesLivenessSnapshot, refreshCapabilitiesLiveness } from "../api/capabilities";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -40,16 +46,24 @@ export interface UseVoiceInputCallbacks {
  * fall back to the full capabilities fetch on the first probe and let the
  * background refresh interval keep the snapshot warm.
  */
-async function probeWhisperHealth(): Promise<VoiceCapabilityProbe> {
+export async function probeWhisperHealth(): Promise<VoiceCapabilityProbe> {
+  // The capability is registered under audio-tools' scenario slug; the
+  // STT features it exposes are sourced from the proto-backed slug map
+  // in audio-integration/features.ts. Do NOT hard-code these strings —
+  // a "whisper-stt" literal hung around for months after the audio-tools
+  // extraction and silently degraded voice input to Web Speech.
+  const voiceInputSlug = featureSlug(AudioToolsFeature.VOICE_INPUT);
+  const voiceStreamingSlug = featureSlug(AudioToolsFeature.VOICE_STREAMING);
+
   // Liveness snapshot is populated by refreshCapabilitiesLiveness on a 25s
   // interval. When it's available, prefer it to avoid a network roundtrip.
   const snapshot = getCapabilitiesLivenessSnapshot();
   if (snapshot) {
-    const whisper = snapshot.capabilities.find((c) => c.id === "whisper-stt");
-    if (whisper?.status === "available") {
+    const audio = snapshot.capabilities.find((c) => c.id === AUDIO_TOOLS_CAPABILITY_SLUG);
+    if (audio?.status === "available" && audio.features?.includes(voiceInputSlug)) {
       return {
         whisperHealthy: true,
-        streamingAvailable: whisper.features?.includes("voice-streaming") ?? false,
+        streamingAvailable: audio.features?.includes(voiceStreamingSlug) ?? false,
       };
     }
     return { whisperHealthy: false, streamingAvailable: false };
@@ -59,11 +73,11 @@ async function probeWhisperHealth(): Promise<VoiceCapabilityProbe> {
   // refresh so subsequent probes have a snapshot to read.
   refreshCapabilitiesLiveness().catch(() => {});
   const caps = await fetchCapabilities();
-  const whisper = caps.capabilities.find((c) => c.id === "whisper-stt");
-  if (whisper?.status === "available") {
+  const audio = caps.capabilities.find((c) => c.id === AUDIO_TOOLS_CAPABILITY_SLUG);
+  if (audio?.status === "available" && audio.features?.includes(voiceInputSlug)) {
     return {
       whisperHealthy: true,
-      streamingAvailable: whisper.features?.includes("voice-streaming") ?? false,
+      streamingAvailable: audio.features?.includes(voiceStreamingSlug) ?? false,
     };
   }
   return { whisperHealthy: false, streamingAvailable: false };

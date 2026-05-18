@@ -101,8 +101,8 @@ describe("VoiceStreamProvider tail-drop", () => {
     await provider.start();
     // Drain microtask queue so the FakeWebSocket onopen fires.
     await Promise.resolve();
-    const ws = FakeWebSocket.instances.at(-1)!;
-    const rec = FakeMediaRecorder.instances.at(-1)!;
+    const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]!;
+    const rec = FakeMediaRecorder.instances[FakeMediaRecorder.instances.length - 1]!;
     return { ws, rec };
   }
 

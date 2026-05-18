@@ -35,6 +35,9 @@ import {
   type WakeWordConfig,
 } from "../../audio-integration";
 import { fetchCapabilities, type CapabilityState } from "../../api/capabilities";
+import { probeWhisperHealth } from "../../hooks/useVoiceInput";
+import { VoiceStreamProvider, WhisperProvider, WebSpeechProvider } from "../../audio-integration";
+import type { TranscriptionProvider } from "../../audio-integration";
 import { VOICE_COMMANDS } from "../../hooks/voice/commands";
 import {
   createWakeWordEngine,
@@ -1537,6 +1540,8 @@ export default function VoiceInputSection() {
         )}
       </SettingsCard>
 
+      {voiceEnabled && <TestMicrophoneCard />}
+
       {voiceEnabled && (
         <SettingsCard className="space-y-3">
           <button
@@ -1644,5 +1649,171 @@ export default function VoiceInputSection() {
         </SettingsCard>
       )}
     </div>
+  );
+}
+
+type DetectedBackend = "loading" | "whisper-stream" | "whisper-http" | "web-speech" | "none";
+
+function detectedBackendLabel(t: (key: string) => string, b: DetectedBackend): string {
+  switch (b) {
+    case "loading": return t(strings.settings.voiceInputSection.testMicDetecting);
+    case "whisper-stream": return t(strings.settings.voiceInputSection.testMicBackendWhisperStream);
+    case "whisper-http": return t(strings.settings.voiceInputSection.testMicBackendWhisperHttp);
+    case "web-speech": return t(strings.settings.voiceInputSection.testMicBackendWebSpeech);
+    case "none": return t(strings.settings.voiceInputSection.testMicBackendNone);
+  }
+}
+
+function TestMicrophoneCard() {
+  const { t: tRaw } = useTranslation();
+  const t = tRaw as unknown as (key: string, opts?: Record<string, unknown>) => string;
+  const [detected, setDetected] = useState<DetectedBackend>("loading");
+  const [recording, setRecording] = useState(false);
+  const [remaining, setRemaining] = useState(0);
+  const [transcribing, setTranscribing] = useState(false);
+  const [result, setResult] = useState<{ providerUsed: string; transcript: string; elapsedMs: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const providerRef = useRef<TranscriptionProvider | null>(null);
+
+  const detect = useCallback(async () => {
+    setDetected("loading");
+    try {
+      const probe = await probeWhisperHealth();
+      if (probe.whisperHealthy) {
+        setDetected(probe.streamingAvailable ? "whisper-stream" : "whisper-http");
+        return;
+      }
+    } catch {
+      // fall through to web-speech check
+    }
+    const Ctor = (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).SpeechRecognition
+      ?? (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
+    setDetected(Ctor ? "web-speech" : "none");
+  }, []);
+
+  useEffect(() => { void detect(); }, [detect]);
+
+  const runTest = useCallback(async () => {
+    setError(null);
+    setResult(null);
+
+    const backend = detected;
+    let provider: TranscriptionProvider;
+    let providerUsed: string;
+    if (backend === "whisper-stream") {
+      provider = new VoiceStreamProvider();
+      providerUsed = t(strings.settings.voiceInputSection.testMicBackendWhisperStream);
+    } else if (backend === "whisper-http") {
+      provider = new WhisperProvider();
+      providerUsed = t(strings.settings.voiceInputSection.testMicBackendWhisperHttp);
+    } else if (backend === "web-speech") {
+      provider = new WebSpeechProvider();
+      providerUsed = t(strings.settings.voiceInputSection.testMicBackendWebSpeech);
+    } else {
+      setError(t(strings.settings.voiceInputSection.testMicBackendNone));
+      return;
+    }
+    providerRef.current = provider;
+
+    let finalText = "";
+    provider.onResult = (text: string) => { finalText = text; };
+
+    const startedAt = performance.now();
+    try {
+      setRecording(true);
+      setRemaining(3);
+      await provider.start();
+      const tick = setInterval(() => setRemaining((r) => (r > 0 ? r - 1 : 0)), 1000);
+      await new Promise<void>((resolve) => setTimeout(resolve, 3000));
+      clearInterval(tick);
+      setRecording(false);
+      setTranscribing(true);
+      provider.stop();
+      // Wait briefly for onResult to fire (Whisper HTTP path is async).
+      await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+      const elapsedMs = Math.round(performance.now() - startedAt);
+      setResult({ providerUsed, transcript: finalText, elapsedMs });
+    } catch (err) {
+      setError(toErrorInfo(err).message);
+      try { provider.stop(); } catch { /* ignore */ }
+    } finally {
+      setRecording(false);
+      setTranscribing(false);
+      setRemaining(0);
+      providerRef.current = null;
+    }
+  }, [detected, t]);
+
+  const busy = recording || transcribing || detected === "loading";
+
+  return (
+    <SettingsCard className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-wc-text-muted">
+          {t(strings.settings.voiceInputSection.testMicHeading)}
+        </div>
+        <Button
+          data-testid="mic-test-refresh-detection"
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={() => void detect()}
+          disabled={busy}
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      <p className="text-xs text-wc-text-faint">{t(strings.settings.voiceInputSection.testMicHint)}</p>
+
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-wc-text-muted">{t(strings.settings.voiceInputSection.testMicDetected)}</span>
+        <span data-testid="mic-test-detected-backend" className="font-medium text-wc-text-primary">
+          {detectedBackendLabel(t, detected)}
+        </span>
+      </div>
+
+      <Button
+        data-testid="mic-test-record"
+        variant="outline"
+        size="sm"
+        className="h-8 px-3 text-xs"
+        onClick={() => void runTest()}
+        disabled={busy || detected === "none"}
+      >
+        <Mic className="me-1 h-3.5 w-3.5" />
+        {recording
+          ? t(strings.settings.voiceInputSection.testMicRecording, { remaining })
+          : transcribing
+          ? t(strings.settings.voiceInputSection.testMicTranscribing)
+          : t(strings.settings.voiceInputSection.testMicRecord)}
+      </Button>
+
+      {error && (
+        <div className="flex items-start gap-2 text-xs text-wc-error-detail">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{t(strings.settings.voiceInputSection.testMicError)}: {error}</span>
+        </div>
+      )}
+
+      {result && (
+        <div data-testid="mic-test-result" className="space-y-1 rounded-md border border-wc-default bg-wc-surface-base p-2 text-xs">
+          <div className="flex justify-between">
+            <span className="text-wc-text-muted">{t(strings.settings.voiceInputSection.testMicProviderUsed)}</span>
+            <span className="font-medium text-wc-text-primary">{result.providerUsed}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-wc-text-muted">{t(strings.settings.voiceInputSection.testMicElapsed)}</span>
+            <span className="text-wc-text-primary">{t(strings.settings.voiceInputSection.testMicMsSuffix, { value: result.elapsedMs })}</span>
+          </div>
+          <div className="space-y-0.5">
+            <div className="text-wc-text-muted">{t(strings.settings.voiceInputSection.testMicTranscript)}</div>
+            <div className="rounded bg-wc-surface-raised p-1.5 text-wc-text-primary">
+              {result.transcript || <span className="text-wc-text-faint">{t(strings.settings.voiceInputSection.testMicNoTranscript)}</span>}
+            </div>
+          </div>
+        </div>
+      )}
+    </SettingsCard>
   );
 }

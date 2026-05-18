@@ -22,8 +22,11 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/handlers/audio_admin"
+	"swarm-manager/handlers/audio_runtime"
 	"swarm-manager/handlers/discovery"
 	"swarm-manager/integrations/audiotools"
+	"swarm-manager/internal/audioports"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/agentsessions"
@@ -94,6 +97,21 @@ type Server struct {
 	aiSearchStopChan    chan struct{}
 	feedbackSweeperStop chan struct{}
 	audioToolsResolver  audiotools.URLResolver
+
+	// Audio ports — all backed by audio-tools. Mirrors web-console's
+	// audio integration: the UI talks same-origin to swarm-manager's own
+	// AudioAdminService + AudioRuntimeService, and these ports proxy to
+	// audio-tools server-side.
+	sttPort              audioports.SpeechToText
+	ttsPort              audioports.TextToSpeech
+	speechProcessor      audioports.SpeechTextProcessor
+	summarizer           audioports.Summarizer
+	streamConfigAdmin    audioports.StreamConfigAdmin
+	wakeWordAdmin        audioports.WakeWordAdmin
+	speakerAdmin         audioports.SpeakerAdmin
+	ttsConfigAdmin       audioports.TTSConfigAdmin
+	summarizeConfigAdmin audioports.SummarizeConfigAdmin
+	playbackRecorder     audioports.PlaybackEventRecorder
 }
 
 type executionSnapshotLister struct {
@@ -145,6 +163,34 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		promptClient:        promptClient,
 		audioToolsResolver:  resolveAudioToolsResolver(),
 	}
+
+	// Wire audioports against an audio-tools client. Mirrors web-console:
+	// UI calls our own AudioAdminService / AudioRuntimeService same-origin;
+	// these ports proxy to audio-tools server-to-server. We keep going if
+	// audio-tools is not reachable at startup — Required=false lets the
+	// ports surface a typed error per call instead of fail-fast at boot.
+	if srv.audioToolsResolver != nil {
+		atClient, err := audiotools.New(srv.audioToolsResolver, audiotools.Policy{
+			Required:       false,
+			PerCallTimeout: 150 * time.Second,
+		})
+		if err != nil {
+			log.Printf("audio-tools client: not reachable at startup: %v (ports will retry per call)", err)
+		}
+		if atClient != nil {
+			srv.sttPort = &audioports.RemoteSpeechToText{Client: atClient}
+			srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}
+			srv.speechProcessor = &audioports.RemoteSpeechTextProcessor{Client: atClient}
+			srv.summarizer = &audioports.RemoteSummarizer{Client: atClient}
+			srv.streamConfigAdmin = &audioports.RemoteStreamConfigAdmin{Client: atClient}
+			srv.wakeWordAdmin = &audioports.RemoteWakeWordAdmin{Client: atClient}
+			srv.speakerAdmin = &audioports.RemoteSpeakerAdmin{Client: atClient}
+			srv.ttsConfigAdmin = &audioports.RemoteTTSConfigAdmin{Client: atClient}
+			srv.summarizeConfigAdmin = &audioports.RemoteSummarizeConfigAdmin{Client: atClient}
+			srv.playbackRecorder = &audioports.RemotePlaybackEventRecorder{Client: atClient}
+		}
+	}
+
 	// initEventLog must run before setupRoutes so that route registration
 	// captures a non-nil s.emitter. Constructors like registerFeedbackRoutes
 	// build internal services (backlog.Service for proposal apply) that take
@@ -167,7 +213,7 @@ func (s *Server) setupRoutes() {
 	// --- Infrastructure ---
 	s.registerHealthRoutes()
 	s.registerDiscoveryRoutes()
-	s.registerAudioToolsProxyRoutes()
+	s.registerAudioRoutes()
 	s.registerSettingsRoutes(scenarioRoot)      // Must be before backlog/execution (they depend on settings store)
 	s.registerAgentActivityRoutes(scenarioRoot) // Must be before backlog/execution (they depend on agent activity)
 	s.registerScenarioRoutes(scenariosDir)
@@ -256,15 +302,27 @@ func (s *Server) registerDiscoveryRoutes() {
 	discovery.RegisterRoutes(s.router, newAudioToolsResolverAdapter(s), nil)
 }
 
-func (s *Server) registerAudioToolsProxyRoutes() {
-	if s.audioToolsResolver == nil {
-		return
+// registerAudioRoutes mounts the swarm-manager-owned AudioAdminService +
+// AudioRuntimeService Connect handlers (delegating to internal/audioports
+// which proxy to audio-tools), plus the raw WebSocket proxy for streaming
+// STT at /api/v1/voice/stream.
+func (s *Server) registerAudioRoutes() {
+	audio_admin.RegisterRoutes(s.router, audio_admin.Deps{
+		StreamConfig:    s.streamConfigAdmin,
+		WakeWord:        s.wakeWordAdmin,
+		Speaker:         s.speakerAdmin,
+		TTSConfig:       s.ttsConfigAdmin,
+		SummarizeConfig: s.summarizeConfigAdmin,
+	})
+	audio_runtime.RegisterRoutes(s.router, audio_runtime.Deps{
+		STT:      s.sttPort,
+		TTS:      s.ttsPort,
+		Playback: s.playbackRecorder,
+		Summ:     s.summarizer,
+	})
+	if s.audioToolsResolver != nil {
+		s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver)).Methods(http.MethodGet)
 	}
-	proxy := newAudioToolsProxy(s.audioToolsResolver)
-	for _, prefix := range audioToolsConnectPrefixes {
-		s.router.PathPrefix(prefix).Handler(proxy)
-	}
-	s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver)).Methods(http.MethodGet)
 }
 
 func (s *Server) registerHealthRoutes() {

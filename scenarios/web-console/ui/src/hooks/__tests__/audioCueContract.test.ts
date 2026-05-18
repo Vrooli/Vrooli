@@ -23,7 +23,7 @@ vi.mock("@vrooli/api-base", () => apiBaseMock());
 // resolved value via `globalThis.fetch` — that mock is honored too because
 // fetchCapabilities falls back to it when the synchronous snapshot is null.
 const fetchCapabilitiesMock = vi.fn().mockResolvedValue({
-  capabilities: [{ id: "whisper-stt", status: "unavailable", features: [] }],
+  capabilities: [{ id: "audio-tools", status: "unavailable", features: [] }],
   timestamp: new Date().toISOString(),
 });
 const refreshCapabilitiesLivenessMock = vi.fn().mockResolvedValue(undefined);
@@ -192,11 +192,13 @@ function mockStream(): MediaStream {
 }
 
 function mockCapabilities(whisperAvailable: boolean, streaming = false) {
-  const features = streaming ? ["voice-streaming"] : [];
+  const features = whisperAvailable
+    ? (streaming ? ["voice-input", "voice-streaming"] : ["voice-input"])
+    : [];
   const resp = {
     capabilities: [
       {
-        id: "whisper-stt",
+        id: "audio-tools",
         status: whisperAvailable ? "available" : "unavailable",
         features,
       },

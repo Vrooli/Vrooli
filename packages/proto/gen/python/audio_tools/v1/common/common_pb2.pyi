@@ -29,6 +29,19 @@ class ResponseFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RESPONSE_FORMAT_WAV: _ClassVar[ResponseFormat]
     RESPONSE_FORMAT_OPUS: _ClassVar[ResponseFormat]
     RESPONSE_FORMAT_FLAC: _ClassVar[ResponseFormat]
+
+class AudioToolsFeature(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    AUDIO_TOOLS_FEATURE_UNSPECIFIED: _ClassVar[AudioToolsFeature]
+    AUDIO_TOOLS_FEATURE_VOICE_INPUT: _ClassVar[AudioToolsFeature]
+    AUDIO_TOOLS_FEATURE_VOICE_STREAMING: _ClassVar[AudioToolsFeature]
+    AUDIO_TOOLS_FEATURE_VOICE_SPEAKER_VERIFICATION: _ClassVar[AudioToolsFeature]
+    AUDIO_TOOLS_FEATURE_VOICE_ENROLLMENT: _ClassVar[AudioToolsFeature]
+    AUDIO_TOOLS_FEATURE_VOICE_OUTPUT: _ClassVar[AudioToolsFeature]
+    AUDIO_TOOLS_FEATURE_TTS_SUMMARIZATION: _ClassVar[AudioToolsFeature]
+    AUDIO_TOOLS_FEATURE_TTS_CACHE: _ClassVar[AudioToolsFeature]
+    AUDIO_TOOLS_FEATURE_TTS_PARAGRAPH_SPLIT: _ClassVar[AudioToolsFeature]
+    AUDIO_TOOLS_FEATURE_AUDIO_PROVIDER_ROUTING: _ClassVar[AudioToolsFeature]
 PROVIDER_TIER_UNSPECIFIED: ProviderTier
 PROVIDER_TIER_LOCAL: ProviderTier
 PROVIDER_TIER_BYOK: ProviderTier
@@ -46,3 +59,13 @@ RESPONSE_FORMAT_MP3: ResponseFormat
 RESPONSE_FORMAT_WAV: ResponseFormat
 RESPONSE_FORMAT_OPUS: ResponseFormat
 RESPONSE_FORMAT_FLAC: ResponseFormat
+AUDIO_TOOLS_FEATURE_UNSPECIFIED: AudioToolsFeature
+AUDIO_TOOLS_FEATURE_VOICE_INPUT: AudioToolsFeature
+AUDIO_TOOLS_FEATURE_VOICE_STREAMING: AudioToolsFeature
+AUDIO_TOOLS_FEATURE_VOICE_SPEAKER_VERIFICATION: AudioToolsFeature
+AUDIO_TOOLS_FEATURE_VOICE_ENROLLMENT: AudioToolsFeature
+AUDIO_TOOLS_FEATURE_VOICE_OUTPUT: AudioToolsFeature
+AUDIO_TOOLS_FEATURE_TTS_SUMMARIZATION: AudioToolsFeature
+AUDIO_TOOLS_FEATURE_TTS_CACHE: AudioToolsFeature
+AUDIO_TOOLS_FEATURE_TTS_PARAGRAPH_SPLIT: AudioToolsFeature
+AUDIO_TOOLS_FEATURE_AUDIO_PROVIDER_ROUTING: AudioToolsFeature

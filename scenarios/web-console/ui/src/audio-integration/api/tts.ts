@@ -61,7 +61,11 @@ export interface TTSSummarizeModel {
   notes: string;
 }
 
-const TTS_SYNTHESIS_TIMEOUT_MS = 30_000;
+// Keep in sync with scenarios/swarm-manager/ui/src/audio-integration/api/tts.ts.
+// Unified at 150s to match the swarm-manager UI (was 30s — too short for
+// long paragraphs going through summarization). Verified by
+// `tts.timeoutConsistency.test.ts` in both scenarios.
+export const TTS_SYNTHESIS_TIMEOUT_MS = 150_000;
 
 function summarizeLevelLabel(l: SummarizeLevel | undefined): TTSSummarizeConfig["level"] {
   switch (l) {
@@ -112,26 +116,98 @@ function decodeSummarizeModel(m: SummarizeModelMsg): TTSSummarizeModel {
   };
 }
 
+// Per-synthesis timing handle. Threaded through KokoroProvider so the
+// play-start event can be correlated with its synth-start by requestId.
+export interface TTSSynthesisMetrics {
+  requestId: string;
+  synthStartMs: number; // performance.now() at synth start
+  totalChars: number;
+}
+
+function newTtsRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "rid-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function emitTtsTiming(payload: Record<string, unknown>): void {
+  // Fire-and-forget: telemetry must never throw into the synth path.
+  void reportTTSEvent({
+    source: "audio-integration",
+    stage: "timing",
+    message: JSON.stringify(payload),
+  }).catch(() => undefined);
+}
+
+/**
+ * Synthesizes TTS and emits a structured timing event tagged with a
+ * requestId. Returns both the blob and metrics so the caller (KokoroProvider)
+ * can emit a matching play-start event once audio.play() resolves.
+ */
+export async function synthesizeTTSWithMetrics(
+  input: string,
+  voice?: string,
+  speed?: number,
+  signal?: AbortSignal,
+): Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }> {
+  const requestId = newTtsRequestId();
+  const synthStartMs = performance.now();
+  const totalChars = input.length;
+  const timeout = AbortSignal.timeout(TTS_SYNTHESIS_TIMEOUT_MS);
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  try {
+    const resp = await audioRuntimeClient.synthesize(
+      {
+        text: input,
+        voice: voice ?? "",
+        responseFormat: responseFormatFromString("mp3"),
+        speed: speed ?? 0,
+        eventId: "",
+        voiceOverrides: [],
+      },
+      { signal: combined, headers: { "x-tts-request-id": requestId } },
+    );
+    const deltaMs = performance.now() - synthStartMs;
+    emitTtsTiming({
+      requestId,
+      totalChars,
+      chunkCount: 1,
+      synthStartMs: Math.round(synthStartMs),
+      firstByteMs: Math.round(deltaMs),
+      lastByteMs: Math.round(deltaMs),
+    });
+    const blob = new Blob([resp.audio as Uint8Array<ArrayBuffer>], {
+      type: resp.contentType || "audio/mpeg",
+    });
+    return { blob, metrics: { requestId, synthStartMs, totalChars } };
+  } catch (err) {
+    emitTtsTiming({
+      requestId,
+      totalChars,
+      chunkCount: 0,
+      synthStartMs: Math.round(synthStartMs),
+      errorMs: Math.round(performance.now() - synthStartMs),
+      error: err instanceof Error ? err.name : "unknown",
+    });
+    throw err;
+  }
+}
+
+export function reportTTSPlayStart(metrics: TTSSynthesisMetrics): void {
+  emitTtsTiming({
+    requestId: metrics.requestId,
+    playStartMs: Math.round(performance.now() - metrics.synthStartMs),
+  });
+}
+
 export async function synthesizeTTS(
   input: string,
   voice?: string,
   speed?: number,
   signal?: AbortSignal,
 ): Promise<Blob> {
-  const timeout = AbortSignal.timeout(TTS_SYNTHESIS_TIMEOUT_MS);
-  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
-  const resp = await audioRuntimeClient.synthesize(
-    {
-      text: input,
-      voice: voice ?? "",
-      responseFormat: responseFormatFromString("mp3"),
-      speed: speed ?? 0,
-      eventId: "",
-      voiceOverrides: [],
-    },
-    { signal: combined },
-  );
-  return new Blob([resp.audio as Uint8Array<ArrayBuffer>], { type: resp.contentType || "audio/mpeg" });
+  return (await synthesizeTTSWithMetrics(input, voice, speed, signal)).blob;
 }
 
 export async function fetchCachedTTS(

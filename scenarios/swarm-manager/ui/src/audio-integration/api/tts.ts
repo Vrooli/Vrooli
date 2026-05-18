@@ -1,33 +1,28 @@
 // TTS API client for audio-integration.
 //
-// Exposes the audio operations audio-tools' TTSService + SummarizeService
-// support. Consumer-scenario-specific concerns (conversation routing,
-// hook ack, status snapshots tied to consumer internals) stay in the
-// consumer; this module deliberately ships only the audio surface.
+// Calls web-console's own AudioAdminService + AudioRuntimeService via
+// the same-origin Connect transport. The UI never talks to audio-tools
+// directly; web-console's API owns the inter-scenario hop.
 
 import { create } from "@bufbuild/protobuf";
 import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
 
-import { getActiveAudioToolsClient, useAudioToolsClient, type AudioToolsClient } from "../client";
+import { audioAdminClient, audioRuntimeClient } from "./voice";
 import {
   responseFormatFromString,
   responseFormatLabel,
   summarizeLevelFromString,
 } from "./protomap";
-import type { Config as TTSConfigMsg } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
-import type { SummarizeConfig as SummarizeConfigMsg } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
-import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
+import type { TTSConfig as TTSConfigMsg } from "@vrooli/proto-types/swarm-manager/v1/audio_admin/audio_admin_pb";
+import type { SummarizeConfig as SummarizeConfigMsg } from "@vrooli/proto-types/swarm-manager/v1/audio_admin/audio_admin_pb";
+import type { SummarizeModel as SummarizeModelMsg } from "@vrooli/proto-types/swarm-manager/v1/audio_admin/audio_admin_pb";
+import { SummarizeLevel } from "@vrooli/proto-types/swarm-manager/v1/audio_common/audio_common_pb";
 
 export interface TTSVoiceInfo {
   id: string;
   name: string;
 }
 
-// TTSConfig matches the audio-tools TTS Config message: a single canonical
-// voice id (resolved by the active adapter) and the auto-enable flag.
-// Consumer scenarios that historically tracked a "backend" ("auto"|"kokoro"|
-// "browser") keep that selection client-side — audio-tools' provider chain
-// owns backend routing now (BYOK -> Vrooli/LPBS -> Local).
 export interface TTSConfig {
   autoEnabled: boolean;
   defaultVoice: string;
@@ -51,7 +46,26 @@ export interface TTSSummarizeConfig {
   timeoutSeconds: number;
 }
 
-const TTS_SYNTHESIS_TIMEOUT_MS = 150_000;
+export interface TTSSummarizeModel {
+  id: string;
+  displayName: string;
+  installed: boolean;
+  recommended: boolean;
+  defaultEligible: boolean;
+  reasoning: boolean;
+  statusLabel: string;
+  pullCommand: string;
+  sizeBytes: bigint;
+  parameterSize: string;
+  sourceUrl: string;
+  notes: string;
+}
+
+// Keep in sync with scenarios/swarm-manager/ui/src/audio-integration/api/tts.ts.
+// Unified at 150s to match the swarm-manager UI (was 30s — too short for
+// long paragraphs going through summarization). Verified by
+// `tts.timeoutConsistency.test.ts` in both scenarios.
+export const TTS_SYNTHESIS_TIMEOUT_MS = 150_000;
 
 function summarizeLevelLabel(l: SummarizeLevel | undefined): TTSSummarizeConfig["level"] {
   switch (l) {
@@ -85,131 +99,194 @@ function decodeSummarizeConfig(c: SummarizeConfigMsg | undefined): TTSSummarizeC
   };
 }
 
-/**
- * createTtsApi returns audio-tools TTS operations bound to a specific client.
- * Consumers can call these from inside React or pass the returned bag to
- * non-React utilities — the functions are stable for the client's lifetime.
- */
-export function createTtsApi(client: AudioToolsClient) {
+function decodeSummarizeModel(m: SummarizeModelMsg): TTSSummarizeModel {
   return {
-    async synthesizeTTS(
-      input: string,
-      voice?: string,
-      speed?: number,
-      signal?: AbortSignal,
-    ): Promise<Blob> {
-      const timeout = AbortSignal.timeout(TTS_SYNTHESIS_TIMEOUT_MS);
-      const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
-      const resp = await client.tts.synthesize(
-        { text: input, voice: voice ?? "", responseFormat: responseFormatFromString("mp3"), speed: speed ?? 0, eventId: "", voiceOverrides: [] },
-        { signal: combined },
-      );
-      return new Blob([resp.audio as Uint8Array<ArrayBuffer>], { type: resp.contentType || "audio/mpeg" });
-    },
-
-    async fetchCachedTTS(
-      eventId: string,
-      voice: string,
-      speed: number,
-      version: "active" | "original" = "active",
-      signal?: AbortSignal,
-    ): Promise<Blob | null> {
-      try {
-        const resp = await client.tts.getCache({ eventId, voice, speed, version }, { signal });
-        if (resp.audio.byteLength === 0) return null;
-        return new Blob([resp.audio as Uint8Array<ArrayBuffer>], { type: resp.contentType || "audio/mpeg" });
-      } catch {
-        return null;
-      }
-    },
-
-    async getTTSVoices(): Promise<TTSVoiceInfo[]> {
-      const resp = await client.tts.listVoices({});
-      return resp.voices.map((v) => ({ id: v.id, name: v.name }));
-    },
-
-    async getTTSConfig(): Promise<TTSConfig> {
-      const resp = await client.tts.getConfig({});
-      return decodeTTSConfig(resp.config);
-    },
-
-    async updateTTSConfig(patch: Partial<TTSConfig>): Promise<TTSConfig> {
-      const paths: string[] = [];
-      const cfg: Record<string, unknown> = {};
-      if (patch.autoEnabled !== undefined) { cfg.autoEnabled = patch.autoEnabled; paths.push("auto_enabled"); }
-      if (patch.defaultVoice !== undefined) { cfg.defaultVoice = patch.defaultVoice; paths.push("default_voice"); }
-      if (patch.defaultSpeed !== undefined) { cfg.defaultSpeed = patch.defaultSpeed; paths.push("default_speed"); }
-      if (patch.defaultResponseFormat !== undefined) { cfg.defaultResponseFormat = responseFormatFromString(patch.defaultResponseFormat); paths.push("default_response_format"); }
-      const resp = await client.tts.updateConfig({
-        updateMask: create(FieldMaskSchema, { paths }),
-        config: cfg,
-      });
-      return decodeTTSConfig(resp.config);
-    },
-
-    async getTTSSummarizeConfig(): Promise<TTSSummarizeConfig> {
-      const resp = await client.summarize.getSummarizeConfig({});
-      return decodeSummarizeConfig(resp.config);
-    },
-
-    async updateTTSSummarizeConfig(patch: Partial<TTSSummarizeConfig>): Promise<TTSSummarizeConfig> {
-      const paths: string[] = [];
-      const cfg: Record<string, unknown> = {};
-      if (patch.enabled !== undefined) { cfg.enabled = patch.enabled; paths.push("enabled"); }
-      if (patch.charThreshold !== undefined) { cfg.charThreshold = patch.charThreshold; paths.push("char_threshold"); }
-      if (patch.level !== undefined) { cfg.level = summarizeLevelFromString(patch.level); paths.push("level"); }
-      if (patch.model !== undefined) { cfg.model = patch.model; paths.push("model"); }
-      if (patch.timeoutSeconds !== undefined) { cfg.timeoutSeconds = patch.timeoutSeconds; paths.push("timeout_seconds"); }
-      const resp = await client.summarize.updateSummarizeConfig({
-        updateMask: create(FieldMaskSchema, { paths }),
-        config: cfg,
-      });
-      return decodeSummarizeConfig(resp.config);
-    },
-
-    async reportTTSEvent(event: TTSPlaybackEvent): Promise<void> {
-      await client.tts.recordPlaybackEvent({
-        event: {
-          source: event.source,
-          stage: event.stage,
-          backend: event.backend ?? "",
-          sessionId: event.sessionId ?? "",
-          message: event.message ?? "",
-        },
-      });
-    },
+    id: m.id,
+    displayName: m.displayName || m.id,
+    installed: m.installed,
+    recommended: m.recommended,
+    defaultEligible: m.defaultEligible,
+    reasoning: m.reasoning,
+    statusLabel: m.statusLabel,
+    pullCommand: m.pullCommand,
+    sizeBytes: m.sizeBytes,
+    parameterSize: m.parameterSize,
+    sourceUrl: m.sourceUrl,
+    notes: m.notes,
   };
 }
 
-/** Convenience hook: pulls the active client from context and binds TTS ops. */
-export function useTtsApi() {
-  return createTtsApi(useAudioToolsClient());
+// Per-synthesis timing handle. Threaded through KokoroProvider so the
+// play-start event can be correlated with its synth-start by requestId.
+export interface TTSSynthesisMetrics {
+  requestId: string;
+  synthStartMs: number; // performance.now() at synth start
+  totalChars: number;
 }
 
-// Module-level singleton bound to the active AudioToolsClient registered
-// by <AudioToolsProvider>. Free-function exports (`synthesizeTTS`, etc.)
-// resolve through this so consumer call sites do not need to thread a
-// client argument.
-let _lazyClient: AudioToolsClient | null = null;
-let _lazyApi: ReturnType<typeof createTtsApi> | null = null;
-function lazy() {
-  const client = getActiveAudioToolsClient();
-  if (_lazyApi === null || _lazyClient !== client) {
-    _lazyClient = client;
-    _lazyApi = createTtsApi(client);
+function newTtsRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
   }
-  return _lazyApi;
+  return "rid-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-export function reportTTSEvent(event: TTSPlaybackEvent): Promise<void> { return lazy().reportTTSEvent(event); }
-export function synthesizeTTS(input: string, voice?: string, speed?: number, signal?: AbortSignal): Promise<Blob> {
-  return lazy().synthesizeTTS(input, voice, speed, signal);
+function emitTtsTiming(payload: Record<string, unknown>): void {
+  // Fire-and-forget: telemetry must never throw into the synth path.
+  void reportTTSEvent({
+    source: "audio-integration",
+    stage: "timing",
+    message: JSON.stringify(payload),
+  }).catch(() => undefined);
 }
-export function fetchCachedTTS(eventId: string, voice: string, speed: number, version: "active" | "original" = "active", signal?: AbortSignal): Promise<Blob | null> {
-  return lazy().fetchCachedTTS(eventId, voice, speed, version, signal);
+
+/**
+ * Synthesizes TTS and emits a structured timing event tagged with a
+ * requestId. Returns both the blob and metrics so the caller (KokoroProvider)
+ * can emit a matching play-start event once audio.play() resolves.
+ */
+export async function synthesizeTTSWithMetrics(
+  input: string,
+  voice?: string,
+  speed?: number,
+  signal?: AbortSignal,
+): Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }> {
+  const requestId = newTtsRequestId();
+  const synthStartMs = performance.now();
+  const totalChars = input.length;
+  const timeout = AbortSignal.timeout(TTS_SYNTHESIS_TIMEOUT_MS);
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  try {
+    const resp = await audioRuntimeClient.synthesize(
+      {
+        text: input,
+        voice: voice ?? "",
+        responseFormat: responseFormatFromString("mp3"),
+        speed: speed ?? 0,
+        eventId: "",
+        voiceOverrides: [],
+      },
+      { signal: combined, headers: { "x-tts-request-id": requestId } },
+    );
+    const deltaMs = performance.now() - synthStartMs;
+    emitTtsTiming({
+      requestId,
+      totalChars,
+      chunkCount: 1,
+      synthStartMs: Math.round(synthStartMs),
+      firstByteMs: Math.round(deltaMs),
+      lastByteMs: Math.round(deltaMs),
+    });
+    const blob = new Blob([resp.audio as Uint8Array<ArrayBuffer>], {
+      type: resp.contentType || "audio/mpeg",
+    });
+    return { blob, metrics: { requestId, synthStartMs, totalChars } };
+  } catch (err) {
+    emitTtsTiming({
+      requestId,
+      totalChars,
+      chunkCount: 0,
+      synthStartMs: Math.round(synthStartMs),
+      errorMs: Math.round(performance.now() - synthStartMs),
+      error: err instanceof Error ? err.name : "unknown",
+    });
+    throw err;
+  }
 }
-export function getTTSVoices(): Promise<TTSVoiceInfo[]> { return lazy().getTTSVoices(); }
-export function getTTSConfig(): Promise<TTSConfig> { return lazy().getTTSConfig(); }
-export function updateTTSConfig(patch: Partial<TTSConfig>): Promise<TTSConfig> { return lazy().updateTTSConfig(patch); }
-export function getTTSSummarizeConfig(): Promise<TTSSummarizeConfig> { return lazy().getTTSSummarizeConfig(); }
-export function updateTTSSummarizeConfig(patch: Partial<TTSSummarizeConfig>): Promise<TTSSummarizeConfig> { return lazy().updateTTSSummarizeConfig(patch); }
+
+export function reportTTSPlayStart(metrics: TTSSynthesisMetrics): void {
+  emitTtsTiming({
+    requestId: metrics.requestId,
+    playStartMs: Math.round(performance.now() - metrics.synthStartMs),
+  });
+}
+
+export async function synthesizeTTS(
+  input: string,
+  voice?: string,
+  speed?: number,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  return (await synthesizeTTSWithMetrics(input, voice, speed, signal)).blob;
+}
+
+export async function fetchCachedTTS(
+  eventId: string,
+  voice: string,
+  speed: number,
+  version: "active" | "original" = "active",
+  signal?: AbortSignal,
+): Promise<Blob | null> {
+  try {
+    const resp = await audioRuntimeClient.getTTSCache(
+      { eventId, voice, speed, version },
+      { signal },
+    );
+    if (!resp.hit || resp.audio.byteLength === 0) return null;
+    return new Blob([resp.audio as Uint8Array<ArrayBuffer>], { type: resp.contentType || "audio/mpeg" });
+  } catch {
+    return null;
+  }
+}
+
+export async function getTTSVoices(): Promise<TTSVoiceInfo[]> {
+  const resp = await audioRuntimeClient.listVoices({});
+  return resp.voices.map((v) => ({ id: v.id, name: v.name }));
+}
+
+export async function getTTSConfig(): Promise<TTSConfig> {
+  const resp = await audioAdminClient.getTTSConfig({});
+  return decodeTTSConfig(resp.config);
+}
+
+export async function updateTTSConfig(patch: Partial<TTSConfig>): Promise<TTSConfig> {
+  const paths: string[] = [];
+  const cfg: Record<string, unknown> = {};
+  if (patch.autoEnabled !== undefined) { cfg.autoEnabled = patch.autoEnabled; paths.push("auto_enabled"); }
+  if (patch.defaultVoice !== undefined) { cfg.defaultVoice = patch.defaultVoice; paths.push("default_voice"); }
+  if (patch.defaultSpeed !== undefined) { cfg.defaultSpeed = patch.defaultSpeed; paths.push("default_speed"); }
+  if (patch.defaultResponseFormat !== undefined) { cfg.defaultResponseFormat = responseFormatFromString(patch.defaultResponseFormat); paths.push("default_response_format"); }
+  const resp = await audioAdminClient.updateTTSConfig({
+    updateMask: create(FieldMaskSchema, { paths }),
+    config: cfg,
+  });
+  return decodeTTSConfig(resp.config);
+}
+
+export async function getTTSSummarizeConfig(): Promise<TTSSummarizeConfig> {
+  const resp = await audioAdminClient.getSummarizeConfig({});
+  return decodeSummarizeConfig(resp.config);
+}
+
+export async function listTTSSummarizeModels(): Promise<TTSSummarizeModel[]> {
+  const resp = await audioAdminClient.listSummarizeModels({});
+  return resp.models.map(decodeSummarizeModel);
+}
+
+export async function updateTTSSummarizeConfig(patch: Partial<TTSSummarizeConfig>): Promise<TTSSummarizeConfig> {
+  const paths: string[] = [];
+  const cfg: Record<string, unknown> = {};
+  if (patch.enabled !== undefined) { cfg.enabled = patch.enabled; paths.push("enabled"); }
+  if (patch.charThreshold !== undefined) { cfg.charThreshold = patch.charThreshold; paths.push("char_threshold"); }
+  if (patch.level !== undefined) { cfg.level = summarizeLevelFromString(patch.level); paths.push("level"); }
+  if (patch.model !== undefined) { cfg.model = patch.model; paths.push("model"); }
+  if (patch.timeoutSeconds !== undefined) { cfg.timeoutSeconds = patch.timeoutSeconds; paths.push("timeout_seconds"); }
+  const resp = await audioAdminClient.updateSummarizeConfig({
+    updateMask: create(FieldMaskSchema, { paths }),
+    config: cfg,
+  });
+  return decodeSummarizeConfig(resp.config);
+}
+
+export async function reportTTSEvent(event: TTSPlaybackEvent): Promise<void> {
+  await audioRuntimeClient.recordPlaybackEvent({
+    event: {
+      source: event.source,
+      stage: event.stage,
+      backend: event.backend ?? "",
+      sessionId: event.sessionId ?? "",
+      message: event.message ?? "",
+      eventId: "",
+    },
+  });
+}

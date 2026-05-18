@@ -24,14 +24,14 @@ vi.mock("../api/capabilities", () => ({
 const mockCapabilities: CapabilitiesResponse = {
   capabilities: [
     {
-      id: "whisper-stt",
-      name: "Whisper STT",
-      description: "Speech-to-text transcription via Whisper",
-      dependencyKind: "resource",
-      dependencySlug: "whisper",
+      id: "audio-tools",
+      name: "Audio Tools",
+      description: "Shared audio capability scenario",
+      dependencyKind: "scenario",
+      dependencySlug: "audio-tools",
       features: ["voice-input", "voice-streaming"],
       status: "available",
-      message: "resource is healthy and transcription verified",
+      message: "scenario is healthy",
     },
     {
       id: "kokoro-tts",
@@ -92,7 +92,7 @@ describe("IntegrationsPanel", () => {
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("cap-card-whisper-stt")).toBeTruthy();
+      expect(screen.getByTestId("cap-card-audio-tools")).toBeTruthy();
       expect(screen.getByTestId("cap-card-kokoro-tts")).toBeTruthy();
       expect(screen.getByTestId("cap-card-ollama")).toBeTruthy();
       expect(screen.getByTestId("cap-card-openrouter")).toBeTruthy();
@@ -125,8 +125,9 @@ describe("IntegrationsPanel", () => {
     renderWithProviders(<IntegrationsPanel open={true} />);
 
     await waitFor(() => {
-      const badges = screen.getAllByText("resource");
-      expect(badges.length).toBe(4);
+      // 3 resources (kokoro-tts, ollama, openrouter) + 1 scenario (audio-tools).
+      expect(screen.getAllByText("resource").length).toBe(3);
+      expect(screen.getAllByText("scenario").length).toBe(1);
     });
   });
 

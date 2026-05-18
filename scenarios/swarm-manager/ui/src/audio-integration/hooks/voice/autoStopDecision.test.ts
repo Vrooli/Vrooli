@@ -48,7 +48,11 @@ describe("decideAutoStop", () => {
     expect(verdict.kind).toBe("stop");
   });
 
-  it("falls back to client when server tick is stale", () => {
+  it("stale tick does NOT re-enable client fallback once any tick has arrived", () => {
+    // Regression: previously a >250ms gap let the client RMS VAD fire, which
+    // produced mid-utterance false-positive stops. Now: any prior tick means
+    // server owns the decision; a stale tick simply continues until either a
+    // fresh tick arrives or the user clicks stop.
     const verdict = decideAutoStop({
       serverVad: snapshot({
         receivedAt: NOW - 1000,
@@ -60,7 +64,7 @@ describe("decideAutoStop", () => {
       nowPerf: NOW,
       staleTickMs: STALE_MS,
     });
-    expect(verdict).toEqual({ kind: "stop", source: "client-fallback" });
+    expect(verdict).toEqual({ kind: "continue" });
   });
 
   it("falls back to client when no server tick ever arrived", () => {

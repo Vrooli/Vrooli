@@ -1,37 +1,46 @@
 // Unit tests for the StreamConfig codec: decodeStreamConfig must surface
-// the five advanced fields and updateVoiceStreamConfig must build a
-// FieldMask that includes every patched advanced path.
+// the five advanced fields (streamingMode, strategyPreference, vadSilenceMs,
+// overlapWindowMs, overlapCommitRuns), and updateVoiceStreamConfig must
+// build a FieldMask that includes every patched advanced path.
 
-import { describe, expect, it, vi } from "vitest";
-
-import {
-  StreamingMode,
-  StrategyPreference,
-} from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 import {
   streamingModeLabel,
   strategyPreferenceLabel,
 } from "./protomap";
-import { createVoiceApi } from "./voice";
-import type { AudioToolsClient } from "../client";
+import {
+  StreamingMode,
+  StrategyPreference,
+} from "@vrooli/proto-types/swarm-manager/v1/audio_common/audio_common_pb";
 
-function makeFakeClient(opts: {
-  getStreamConfig?: ReturnType<typeof vi.fn>;
-  updateStreamConfig?: ReturnType<typeof vi.fn>;
-}): AudioToolsClient {
+vi.mock("../../api/client", () => ({
+  transport: {},
+  API_BASE: "http://test",
+}));
+
+const updateMock = vi.fn();
+const getMock = vi.fn();
+
+vi.mock("@connectrpc/connect", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@connectrpc/connect")>();
   return {
-    baseUrl: "http://test",
-    stt: { transcribe: vi.fn() } as never,
-    sttAdmin: {
-      getStreamConfig: opts.getStreamConfig ?? vi.fn(),
-      updateStreamConfig: opts.updateStreamConfig ?? vi.fn(),
+    ...actual,
+    createClient: () => ({
+      getStreamConfig: getMock,
+      updateStreamConfig: updateMock,
       getWakeWordConfig: vi.fn(),
-    } as never,
-    tts: {} as never,
-    summarize: {} as never,
+      updateWakeWordTemplate: vi.fn(),
+      deleteWakeWordTemplate: vi.fn(),
+      getSpeakerVerificationStatus: vi.fn(),
+      getSpeakerVerificationConfig: vi.fn(),
+      updateSpeakerVerificationConfig: vi.fn(),
+      enrollSpeakerVerification: vi.fn(),
+      deleteSpeakerVerificationProfile: vi.fn(),
+      transcribe: vi.fn(),
+    }),
   };
-}
+});
 
 describe("streamingModeLabel", () => {
   it("maps each enum value to its CLI label", () => {
@@ -54,8 +63,16 @@ describe("strategyPreferenceLabel", () => {
 });
 
 describe("getVoiceStreamConfig", () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    updateMock.mockReset();
+  });
+  afterEach(() => {
+    vi.resetModules();
+  });
+
   it("decodes the five advanced fields", async () => {
-    const getStreamConfig = vi.fn().mockResolvedValue({
+    getMock.mockResolvedValueOnce({
       config: {
         flushIntervalMs: 250,
         minDeltaBytes: 16384,
@@ -71,8 +88,8 @@ describe("getVoiceStreamConfig", () => {
         overlapCommitRuns: 3,
       },
     });
-    const api = createVoiceApi(makeFakeClient({ getStreamConfig }));
-    const cfg = await api.getVoiceStreamConfig();
+    const { getVoiceStreamConfig } = await import("./voice");
+    const cfg = await getVoiceStreamConfig();
     expect(cfg.streamingMode).toBe("auto");
     expect(cfg.strategyPreference).toBe("overlap");
     expect(cfg.vadSilenceMs).toBe(1200);
@@ -81,9 +98,9 @@ describe("getVoiceStreamConfig", () => {
   });
 
   it("defaults advanced fields when the server omits them", async () => {
-    const getStreamConfig = vi.fn().mockResolvedValue({ config: undefined });
-    const api = createVoiceApi(makeFakeClient({ getStreamConfig }));
-    const cfg = await api.getVoiceStreamConfig();
+    getMock.mockResolvedValueOnce({ config: undefined });
+    const { getVoiceStreamConfig } = await import("./voice");
+    const cfg = await getVoiceStreamConfig();
     expect(cfg.streamingMode).toBe("unspecified");
     expect(cfg.strategyPreference).toBe("unspecified");
     expect(cfg.vadSilenceMs).toBe(0);
@@ -93,8 +110,16 @@ describe("getVoiceStreamConfig", () => {
 });
 
 describe("updateVoiceStreamConfig", () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    updateMock.mockReset();
+  });
+  afterEach(() => {
+    vi.resetModules();
+  });
+
   it("builds a FieldMask that includes patched advanced paths", async () => {
-    const updateStreamConfig = vi.fn().mockResolvedValue({
+    updateMock.mockResolvedValueOnce({
       config: {
         flushIntervalMs: 0, minDeltaBytes: 0, overlapBytes: 0,
         persistentMode: false, wakeWordEnabled: false, wakeWordThreshold: 0, segmentSilenceMs: 0,
@@ -105,16 +130,16 @@ describe("updateVoiceStreamConfig", () => {
         overlapCommitRuns: 0,
       },
     });
-    const api = createVoiceApi(makeFakeClient({ updateStreamConfig }));
-    await api.updateVoiceStreamConfig({
+    const { updateVoiceStreamConfig } = await import("./voice");
+    await updateVoiceStreamConfig({
       vadSilenceMs: 1500,
       strategyPreference: "vad",
       streamingMode: "auto",
       overlapWindowMs: 2500,
       overlapCommitRuns: 2,
     });
-    expect(updateStreamConfig).toHaveBeenCalledTimes(1);
-    const callArg = updateStreamConfig.mock.calls[0]![0];
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const callArg = updateMock.mock.calls[0]![0];
     const paths: string[] = callArg.updateMask.paths;
     expect(paths).toContain("vad_silence_ms");
     expect(paths).toContain("strategy_preference");
@@ -127,24 +152,11 @@ describe("updateVoiceStreamConfig", () => {
   });
 
   it("omits paths for fields that were not patched", async () => {
-    const updateStreamConfig = vi.fn().mockResolvedValue({ config: {} });
-    const api = createVoiceApi(makeFakeClient({ updateStreamConfig }));
-    await api.updateVoiceStreamConfig({ vadSilenceMs: 900 });
-    const callArg = updateStreamConfig.mock.calls[0]![0];
+    updateMock.mockResolvedValueOnce({ config: {} });
+    const { updateVoiceStreamConfig } = await import("./voice");
+    await updateVoiceStreamConfig({ vadSilenceMs: 900 });
+    const callArg = updateMock.mock.calls[0]![0];
     const paths: string[] = callArg.updateMask.paths;
     expect(paths).toEqual(["vad_silence_ms"]);
-  });
-});
-
-describe("buildVoiceStreamWsUrl", () => {
-  it("preserves a proxied same-origin base path", () => {
-    const api = createVoiceApi({
-      ...makeFakeClient({}),
-      baseUrl: "https://example.test/apps/swarm-manager/proxy",
-    });
-
-    expect(api.buildVoiceStreamWsUrl("en")).toBe(
-      "wss://example.test/apps/swarm-manager/proxy/api/v1/voice/stream?language=en",
-    );
   });
 });

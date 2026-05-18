@@ -10,7 +10,7 @@ vi.mock("@vrooli/api-base", () => apiBaseMock());
 // Mock the API module so we can drive transcribeAudioBypassFilter.
 vi.mock("../../api/capabilities", () => ({
   fetchCapabilities: vi.fn().mockResolvedValue({
-    capabilities: [{ id: "whisper-stt", status: "available" }],
+    capabilities: [{ id: "audio-tools", status: "available", features: ["voice-input", "voice-streaming"] }],
     timestamp: new Date().toISOString(),
   }),
   getCapabilitiesLivenessSnapshot: vi.fn().mockReturnValue(null),

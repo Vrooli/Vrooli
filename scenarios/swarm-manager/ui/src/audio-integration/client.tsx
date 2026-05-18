@@ -1,17 +1,11 @@
-// audio-integration Connect client factory + React context.
+// audio-integration React context.
 //
-// This folder is the canonical copy-paste reference for adopters of
-// audio-tools. Consumers must construct a client explicitly and mount it
-// via <AudioToolsProvider client={...}>; there are no window globals and
-// no zero-config fallback.
-//
-// react-refresh/only-export-components is disabled file-wide: this module
-// intentionally co-locates the provider component with the create-client
-// factory, the context hooks, and a module-level active-client registry
-// used by sibling api/*.ts modules. Splitting them into separate files
-// would force every adopter (this is the canonical copy-paste reference)
-// to wire two imports for one capability. HMR for this file is
-// acceptable to break; consumers wrap their tree once at boot.
+// Mirrors web-console's approach: the UI talks same-origin to
+// swarm-manager's own AudioAdminService + AudioRuntimeService, and the
+// server owns the inter-scenario hop to audio-tools. Module-level
+// Connect clients live in api/voice.ts; this file carries the
+// "unavailable reason" surface so components can render a degraded
+// state when audio-tools is down behind the server.
 /* eslint-disable react-refresh/only-export-components */
 
 import { createClient, type Client, type Transport } from "@connectrpc/connect";
@@ -19,34 +13,28 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 import { resolveApiBase } from "@vrooli/api-base";
 import { createContext, createElement, useContext, type ReactNode } from "react";
 
-import { STTService } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
-import { STTAdminService } from "@vrooli/proto-types/audio-tools/v1/stt/stt_admin_pb";
-import { SummarizeService } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
-import { TTSService } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
+import { AudioAdminService } from "@vrooli/proto-types/swarm-manager/v1/audio_admin/audio_admin_pb";
+import { AudioRuntimeService } from "@vrooli/proto-types/swarm-manager/v1/audio_runtime/audio_runtime_pb";
 
 export interface AudioToolsClient {
-  stt: Client<typeof STTService>;
-  sttAdmin: Client<typeof STTAdminService>;
-  tts: Client<typeof TTSService>;
-  summarize: Client<typeof SummarizeService>;
+  audioAdmin: Client<typeof AudioAdminService>;
+  audioRuntime: Client<typeof AudioRuntimeService>;
   baseUrl: string;
 }
 
 export interface CreateAudioToolsClientOptions {
-  /** Required audio-tools base URL (e.g. http://localhost:PORT). */
-  baseUrl: string;
+  /** Base URL for swarm-manager's API. Defaults to same-origin. */
+  baseUrl?: string;
   /** Inject a custom Connect transport (tests pass a mock here). */
   transport?: Transport;
 }
 
-export function createAudioToolsClient(options: CreateAudioToolsClientOptions): AudioToolsClient {
-  const baseUrl = options.baseUrl;
+export function createAudioToolsClient(options: CreateAudioToolsClientOptions = {}): AudioToolsClient {
+  const baseUrl = options.baseUrl ?? resolveApiBase();
   const transport = options.transport ?? createConnectTransport({ baseUrl });
   return {
-    stt: createClient(STTService, transport),
-    sttAdmin: createClient(STTAdminService, transport),
-    tts: createClient(TTSService, transport),
-    summarize: createClient(SummarizeService, transport),
+    audioAdmin: createClient(AudioAdminService, transport),
+    audioRuntime: createClient(AudioRuntimeService, transport),
     baseUrl,
   };
 }
@@ -76,10 +64,7 @@ export function AudioToolsProvider(props: AudioToolsProviderProps) {
 export function useAudioToolsClient(): AudioToolsClient {
   const fromContext = useContext(AudioToolsContext);
   if (fromContext === null) {
-    throw new Error(
-      "useAudioToolsClient must be used inside <AudioToolsProvider>. " +
-        "Construct a client with createAudioToolsClient({ baseUrl }) at boot.",
-    );
+    return getActiveAudioToolsClient();
   }
   return fromContext.client;
 }
@@ -90,22 +75,11 @@ export function useAudioToolsUnavailableReason(): string | undefined {
 }
 
 // =============================================================================
-// Module-level active client registry
-//
-// The standalone helpers in api/voice.ts and api/tts.ts (e.g.
-// `synthesizeTTS`, `getVoiceStreamConfig`) bind to whichever client is
-// currently registered by <AudioToolsProvider>. This lets call sites that
-// are not React components — or that pre-date a refactor to hook-style use
-// — keep working without threading a client argument everywhere.
-//
-// Tests can call setActiveAudioToolsClientForTesting() directly.
+// Module-level active client registry — used by api/*.ts modules that
+// can't easily thread a client argument through every call site.
 // =============================================================================
 
 let activeClient: AudioToolsClient | null = null;
-
-function sameOriginBaseUrl(): string {
-  return resolveApiBase();
-}
 
 function registerActiveAudioToolsClient(client: AudioToolsClient): void {
   activeClient = client;
@@ -113,10 +87,7 @@ function registerActiveAudioToolsClient(client: AudioToolsClient): void {
 
 export function getActiveAudioToolsClient(): AudioToolsClient {
   if (activeClient === null) {
-    // Fall back to a same-origin client so module-load and pre-provider call
-    // sites (e.g. tests that don't mount AudioToolsProvider) don't crash.
-    // Production code should always have a real provider mounted at boot.
-    activeClient = createAudioToolsClient({ baseUrl: sameOriginBaseUrl() });
+    activeClient = createAudioToolsClient();
   }
   return activeClient;
 }

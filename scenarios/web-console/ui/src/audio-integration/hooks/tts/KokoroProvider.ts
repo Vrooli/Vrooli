@@ -1,5 +1,6 @@
 import type { TTSPlaybackCapabilities, TTSPlaybackProgressCallback, TTSPlaybackState, TTSProvider, TTSSpeakOptions } from "./types";
 import * as ttsApi from "../../api/tts";
+import type { TTSSynthesisMetrics } from "../../api/tts";
 
 export type KokoroSynthesizeFn = (
   input: string,
@@ -8,13 +9,29 @@ export type KokoroSynthesizeFn = (
   signal?: AbortSignal,
 ) => Promise<Blob>;
 
+export type KokoroSynthesizeWithMetricsFn = (
+  input: string,
+  voice?: string,
+  speed?: number,
+  signal?: AbortSignal,
+) => Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }>;
+
 export interface KokoroProviderOptions {
   /**
    * Override the synthesize implementation. Tests pass their own mock
    * here. Defaults to the web-console AudioRuntimeService same-origin
    * Connect client.
+   *
+   * When provided without `synthesizeWithMetrics`, calls are wrapped to
+   * skip telemetry (no requestId is tracked).
    */
   synthesize?: KokoroSynthesizeFn;
+  /**
+   * Timing-aware synthesize override. When provided, takes precedence over
+   * `synthesize` and enables play-start telemetry correlation. Production
+   * defaults to `synthesizeTTSWithMetrics`.
+   */
+  synthesizeWithMetrics?: KokoroSynthesizeWithMetricsFn;
 }
 
 /**
@@ -35,6 +52,11 @@ export interface KokoroProviderOptions {
 const SILENT_WAV_DATA_URL =
   "data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQIAAAAAAA==";
 
+// Bound on concurrent in-flight synths inside speakSequence. Allows N+1 to
+// be ready by the time N finishes playing, without overloading audio-tools.
+// Lives here (not in config) per plan section 8.
+const SPEAK_SEQUENCE_CONCURRENCY = 2;
+
 export class KokoroProvider implements TTSProvider {
   private _isSpeaking = false;
   private _isPaused = false;
@@ -53,11 +75,22 @@ export class KokoroProvider implements TTSProvider {
     canAdjustVolume: true,
   };
 
-  private readonly synthesize: KokoroSynthesizeFn;
+  private readonly synthesizeWithMetrics: KokoroSynthesizeWithMetricsFn;
 
   constructor(options: KokoroProviderOptions = {}) {
-    this.synthesize = options.synthesize ?? ((input, voice, speed, signal) =>
-      ttsApi.synthesizeTTS(input, voice, speed, signal));
+    if (options.synthesizeWithMetrics) {
+      this.synthesizeWithMetrics = options.synthesizeWithMetrics;
+    } else if (options.synthesize) {
+      const synth = options.synthesize;
+      this.synthesizeWithMetrics = async (input, voice, speed, signal) => ({
+        blob: await synth(input, voice, speed, signal),
+        // Test-injected synthesize: no requestId, telemetry sentinel only.
+        metrics: { requestId: "test-no-rid", synthStartMs: 0, totalChars: input.length },
+      });
+    } else {
+      this.synthesizeWithMetrics = (input, voice, speed, signal) =>
+        ttsApi.synthesizeTTSWithMetrics(input, voice, speed, signal);
+    }
     this.audio = new Audio();
     this.audio.addEventListener("timeupdate", this.handleTimeUpdate);
     this.audio.addEventListener("ended", this.handleEnded);
@@ -75,12 +108,6 @@ export class KokoroProvider implements TTSProvider {
       return true;
     }
     try {
-      // Set a silent source and play within the caller's gesture stack.
-      // After the silent play resolves we clean the element up (pause,
-      // clear src, reload) so the next speakFromBlob sets a fresh state
-      // without leftover format/source metadata confusing the decoder.
-      // Chrome's autoplay eligibility is stored on HTMLMediaElement and
-      // survives a load() reset — see the separate `unlocked` flag.
       this.audio.src = SILENT_WAV_DATA_URL;
       this.audio.muted = true;
       await this.audio.play();
@@ -108,7 +135,7 @@ export class KokoroProvider implements TTSProvider {
     const signal = this.abortController.signal;
 
     try {
-      const blob = await this.synthesize(text, opts?.voice, opts?.rate, signal);
+      const { blob, metrics } = await this.synthesizeWithMetrics(text, opts?.voice, opts?.rate, signal);
       this.throwIfAborted(signal);
 
       // Kokoro returns 0-byte audio for non-speakable input (e.g. "---",
@@ -117,22 +144,8 @@ export class KokoroProvider implements TTSProvider {
         this.cleanup();
         return;
       }
-
-      this.revokeBlobUrl();
-      this.blobUrl = URL.createObjectURL(blob);
-      this.audio.src = this.blobUrl;
-      this.audio.currentTime = 0;
-
-      return await new Promise<void>((resolve, reject) => {
-        this.playbackResolve = resolve;
-        this.playbackReject = reject;
-        this.audio.play().catch((err: unknown) => {
-          this.playbackResolve = null;
-          this.playbackReject = null;
-          this.cleanup();
-          reject(err instanceof Error ? err : new Error(String(err)));
-        });
-      });
+      await this.playBlobAndWait(blob, metrics);
+      this.cleanup();
     } catch (err) {
       this.cleanup();
       throw err;
@@ -140,12 +153,13 @@ export class KokoroProvider implements TTSProvider {
   }
 
   /**
-   * Synthesize all texts, concatenate the resulting MP3 blobs, and play
-   * the combined audio as a single track. This gives accurate total
-   * duration and full seek/scrub across the entire sequence.
+   * Pipelined sequence playback. Synthesizes up to SPEAK_SEQUENCE_CONCURRENCY
+   * paragraphs in parallel so paragraph N+1 is ready (or almost ready) by
+   * the time paragraph N finishes playing. Playback order is preserved.
    *
-   * MP3 frames are self-contained, so byte concatenation produces a
-   * valid stream without re-encoding.
+   * Each paragraph is played as its own track — unlike the prior version
+   * which concatenated all blobs before starting playback (which forced
+   * time-to-first-audio to scale with TOTAL synth duration).
    */
   async speakSequence(texts: string[], opts?: TTSSpeakOptions): Promise<void> {
     if (texts.length === 0) return;
@@ -157,40 +171,40 @@ export class KokoroProvider implements TTSProvider {
     this._isPaused = false;
     const signal = this.abortController.signal;
 
+    // Kick synthesis up to CONCURRENCY at a time; build an array of promises
+    // indexed by paragraph order so playback consumes them in sequence.
+    const synths: Array<Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }>> = new Array(texts.length);
+    let nextToKick = 0;
+    let inFlight = 0;
+    const kick = (): void => {
+      while (inFlight < SPEAK_SEQUENCE_CONCURRENCY && nextToKick < texts.length) {
+        const i = nextToKick++;
+        const text = texts[i] ?? "";
+        inFlight++;
+        synths[i] = this.synthesizeWithMetrics(text, opts?.voice, opts?.rate, signal)
+          .finally(() => { inFlight--; kick(); });
+        // Surface synth rejections via the consumer await below; .catch here
+        // would swallow them. The unhandled-rejection window is bounded by
+        // the await in the consumer loop (always within a tick).
+        synths[i].catch(() => undefined);
+      }
+    };
+    kick();
+
     try {
-      // Synthesize all segments sequentially (preserves order, respects abort)
-      const blobs: Blob[] = [];
-      for (const text of texts) {
-        const blob = await this.synthesize(text, opts?.voice, opts?.rate, signal);
+      for (let i = 0; i < texts.length; i++) {
+        const promise = synths[i];
+        if (!promise) continue;
+        const { blob, metrics } = await promise;
         this.throwIfAborted(signal);
-        if (blob.size > 0) blobs.push(blob);
+        if (blob.size === 0) continue;
+        await this.playBlobAndWait(blob, metrics);
+        if (signal.aborted) throw this.createAbortError();
       }
-
-      // All segments were non-speakable (e.g. "---")
-      if (blobs.length === 0) {
-        this.cleanup();
-        return;
-      }
-
-      // Concatenate MP3 blobs into a single blob
-      const combined = new Blob(blobs, { type: blobs[0]?.type ?? "audio/mpeg" });
-
-      this.revokeBlobUrl();
-      this.blobUrl = URL.createObjectURL(combined);
-      this.audio.src = this.blobUrl;
-      this.audio.currentTime = 0;
-
-      return await new Promise<void>((resolve, reject) => {
-        this.playbackResolve = resolve;
-        this.playbackReject = reject;
-        this.audio.play().catch((err: unknown) => {
-          this.playbackResolve = null;
-          this.playbackReject = null;
-          this.cleanup();
-          reject(err instanceof Error ? err : new Error(String(err)));
-        });
-      });
+      this.cleanup();
     } catch (err) {
+      // Cancel any not-yet-awaited synths so they abort upstream.
+      this.abortController?.abort();
       this.cleanup();
       throw err;
     }
@@ -209,22 +223,13 @@ export class KokoroProvider implements TTSProvider {
       this.cleanup();
       return;
     }
-
-    this.revokeBlobUrl();
-    this.blobUrl = URL.createObjectURL(blob);
-    this.audio.src = this.blobUrl;
-    this.audio.currentTime = 0;
-
-    return new Promise<void>((resolve, reject) => {
-      this.playbackResolve = resolve;
-      this.playbackReject = reject;
-      this.audio.play().catch((err: unknown) => {
-        this.playbackResolve = null;
-        this.playbackReject = null;
-        this.cleanup();
-        reject(err instanceof Error ? err : new Error(String(err)));
-      });
-    });
+    try {
+      await this.playBlobAndWait(blob, null);
+      this.cleanup();
+    } catch (err) {
+      this.cleanup();
+      throw err;
+    }
   }
 
   stop(): void {
@@ -304,6 +309,33 @@ export class KokoroProvider implements TTSProvider {
 
   // --- Private helpers ---
 
+  /**
+   * Load a blob into the reusable HTMLAudioElement, start playback, and
+   * resolve when the track ends. Emits a play-start timing event keyed to
+   * the synthesis requestId (when metrics are available).
+   */
+  private playBlobAndWait(blob: Blob, metrics: TTSSynthesisMetrics | null): Promise<void> {
+    this.revokeBlobUrl();
+    this.blobUrl = URL.createObjectURL(blob);
+    this.audio.src = this.blobUrl;
+    this.audio.currentTime = 0;
+    return new Promise<void>((resolve, reject) => {
+      this.playbackResolve = resolve;
+      this.playbackReject = reject;
+      this.audio.play().then(() => {
+        // Skip telemetry for the test-injected synthesize sentinel.
+        if (metrics && metrics.requestId !== "test-no-rid") {
+          try { ttsApi.reportTTSPlayStart(metrics); } catch { /* never block playback */ }
+        }
+      }).catch((err: unknown) => {
+        this.playbackResolve = null;
+        this.playbackReject = null;
+        this.cleanup();
+        reject(err instanceof Error ? err : new Error(String(err)));
+      });
+    });
+  }
+
   private handleTimeUpdate = (): void => {
     if (this.progressCallback && Number.isFinite(this.audio.duration)) {
       this.progressCallback(this.audio.currentTime, this.audio.duration);
@@ -311,10 +343,13 @@ export class KokoroProvider implements TTSProvider {
   };
 
   private handleEnded = (): void => {
+    // Per-track end: resolve the active promise but DO NOT cleanup() —
+    // speakSequence chains multiple plays, and flipping _isSpeaking=false
+    // between paragraphs would race external observers. The terminal
+    // caller (speak/speakSequence/speakFromBlob) runs cleanup() itself.
     const resolve = this.playbackResolve;
     this.playbackResolve = null;
     this.playbackReject = null;
-    this.cleanup();
     resolve?.();
   };
 

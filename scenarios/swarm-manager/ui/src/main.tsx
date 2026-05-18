@@ -135,10 +135,10 @@ function VoiceConfigHydrator({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-void bootstrapAudioTools().then(({ baseUrl, unavailableReason }) => {
-  const audioToolsClient = createAudioToolsClient({
-    baseUrl,
-  });
+void bootstrapAudioTools().then(({ unavailableReason }) => {
+  // Same-origin client — calls swarm-manager's own AudioAdminService +
+  // AudioRuntimeService; the server owns the audio-tools hop.
+  const audioToolsClient = createAudioToolsClient();
 
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>

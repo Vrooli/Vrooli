@@ -8,7 +8,7 @@ import { enumDesc, fileDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
  * Describes the file audio-tools/v1/common/common.proto.
  */
 export const file_audio_tools_v1_common_common = /*@__PURE__*/
-  fileDesc("CiJhdWRpby10b29scy92MS9jb21tb24vY29tbW9uLnByb3RvEhx2cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uKngKDFByb3ZpZGVyVGllchIdChlQUk9WSURFUl9USUVSX1VOU1BFQ0lGSUVEEAASFwoTUFJPVklERVJfVElFUl9MT0NBTBABEhYKElBST1ZJREVSX1RJRVJfQllPSxACEhgKFFBST1ZJREVSX1RJRVJfVlJPT0xJEAMqyAEKC0F1ZGlvRm9ybWF0EhwKGEFVRElPX0ZPUk1BVF9VTlNQRUNJRklFRBAAEhQKEEFVRElPX0ZPUk1BVF9XQVYQARIUChBBVURJT19GT1JNQVRfTVAzEAISFQoRQVVESU9fRk9STUFUX0ZMQUMQAxIUChBBVURJT19GT1JNQVRfT0dHEAQSFQoRQVVESU9fRk9STUFUX1dFQk0QBRIVChFBVURJT19GT1JNQVRfT1BVUxAGEhQKEEFVRElPX0ZPUk1BVF9BQUMQByqXAQoOUmVzcG9uc2VGb3JtYXQSHwobUkVTUE9OU0VfRk9STUFUX1VOU1BFQ0lGSUVEEAASFwoTUkVTUE9OU0VfRk9STUFUX01QMxABEhcKE1JFU1BPTlNFX0ZPUk1BVF9XQVYQAhIYChRSRVNQT05TRV9GT1JNQVRfT1BVUxADEhgKFFJFU1BPTlNFX0ZPUk1BVF9GTEFDEARCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hdWRpby10b29scy92MS9jb21tb247Y29tbW9uX3YxYgZwcm90bzM");
+  fileDesc("CiJhdWRpby10b29scy92MS9jb21tb24vY29tbW9uLnByb3RvEhx2cm9vbGkuYXVkaW9fdG9vbHMudjEuY29tbW9uKngKDFByb3ZpZGVyVGllchIdChlQUk9WSURFUl9USUVSX1VOU1BFQ0lGSUVEEAASFwoTUFJPVklERVJfVElFUl9MT0NBTBABEhYKElBST1ZJREVSX1RJRVJfQllPSxACEhgKFFBST1ZJREVSX1RJRVJfVlJPT0xJEAMqyAEKC0F1ZGlvRm9ybWF0EhwKGEFVRElPX0ZPUk1BVF9VTlNQRUNJRklFRBAAEhQKEEFVRElPX0ZPUk1BVF9XQVYQARIUChBBVURJT19GT1JNQVRfTVAzEAISFQoRQVVESU9fRk9STUFUX0ZMQUMQAxIUChBBVURJT19GT1JNQVRfT0dHEAQSFQoRQVVESU9fRk9STUFUX1dFQk0QBRIVChFBVURJT19GT1JNQVRfT1BVUxAGEhQKEEFVRElPX0ZPUk1BVF9BQUMQByqXAQoOUmVzcG9uc2VGb3JtYXQSHwobUkVTUE9OU0VfRk9STUFUX1VOU1BFQ0lGSUVEEAASFwoTUkVTUE9OU0VfRk9STUFUX01QMxABEhcKE1JFU1BPTlNFX0ZPUk1BVF9XQVYQAhIYChRSRVNQT05TRV9GT1JNQVRfT1BVUxADEhgKFFJFU1BPTlNFX0ZPUk1BVF9GTEFDEAQqtQMKEUF1ZGlvVG9vbHNGZWF0dXJlEiMKH0FVRElPX1RPT0xTX0ZFQVRVUkVfVU5TUEVDSUZJRUQQABIjCh9BVURJT19UT09MU19GRUFUVVJFX1ZPSUNFX0lOUFVUEAESJwojQVVESU9fVE9PTFNfRkVBVFVSRV9WT0lDRV9TVFJFQU1JTkcQAhIyCi5BVURJT19UT09MU19GRUFUVVJFX1ZPSUNFX1NQRUFLRVJfVkVSSUZJQ0FUSU9OEAMSKAokQVVESU9fVE9PTFNfRkVBVFVSRV9WT0lDRV9FTlJPTExNRU5UEAQSJAogQVVESU9fVE9PTFNfRkVBVFVSRV9WT0lDRV9PVVRQVVQQBRIpCiVBVURJT19UT09MU19GRUFUVVJFX1RUU19TVU1NQVJJWkFUSU9OEAYSIQodQVVESU9fVE9PTFNfRkVBVFVSRV9UVFNfQ0FDSEUQBxIrCidBVURJT19UT09MU19GRUFUVVJFX1RUU19QQVJBR1JBUEhfU1BMSVQQCBIuCipBVURJT19UT09MU19GRUFUVVJFX0FVRElPX1BST1ZJREVSX1JPVVRJTkcQCUJQWk5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL2NvbW1vbjtjb21tb25fdjFiBnByb3RvMw");
 
 /**
  * Describes the enum vrooli.audio_tools.v1.common.ProviderTier.
@@ -56,4 +56,33 @@ export const ResponseFormatSchema = /*@__PURE__*/
  */
 export const ResponseFormat = /*@__PURE__*/
   tsEnum(ResponseFormatSchema);
+
+/**
+ * Describes the enum vrooli.audio_tools.v1.common.AudioToolsFeature.
+ */
+export const AudioToolsFeatureSchema = /*@__PURE__*/
+  enumDesc(file_audio_tools_v1_common_common, 3);
+
+/**
+ * AudioToolsFeature enumerates the discoverable features the audio-tools
+ * scenario exposes to consumer scenarios (web-console, swarm-manager, ...).
+ * Consumers register a capability under the scenario slug
+ * (see AUDIO_TOOLS_CAPABILITY_SLUG in the audio-tools client libs) and
+ * list the AudioToolsFeature values they care about.
+ *
+ * Wire convention: the values' canonical slug form (kebab-case, without
+ * the AUDIO_TOOLS_FEATURE_ prefix) is what travels on the wire as
+ * `repeated string features` in web-console's CapabilitiesService.
+ * Slug ↔ enum mapping lives in the audio-tools Go (clients/go/audiotools)
+ * and TS (ui/src/audio-integration/features.ts) clients. Adding a new
+ * feature: add the enum value here, run `make generate`, then add the
+ * slug entry in both client mapping tables.
+ *
+ * DO NOT renumber existing values; the enum number is the stable identity
+ * even though the wire format is the slug string.
+ *
+ * @generated from enum vrooli.audio_tools.v1.common.AudioToolsFeature
+ */
+export const AudioToolsFeature = /*@__PURE__*/
+  tsEnum(AudioToolsFeatureSchema);
 

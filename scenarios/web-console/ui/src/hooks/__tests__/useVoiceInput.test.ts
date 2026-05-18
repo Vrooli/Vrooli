@@ -25,7 +25,11 @@ vi.mock("../../api/capabilities", () => ({
 const mockCapabilities = (whisperAvailable: boolean) => {
   const resp = {
     capabilities: [
-      { id: "whisper-stt", status: whisperAvailable ? "available" : "unavailable" },
+      {
+        id: "audio-tools",
+        status: whisperAvailable ? "available" : "unavailable",
+        features: whisperAvailable ? ["voice-input", "voice-streaming"] : [],
+      },
     ],
     timestamp: new Date().toISOString(),
   };

@@ -12,7 +12,7 @@
 //   - forwarding playback lifecycle events to `/api/v1/tts-hook/playback`
 
 import { useCallback, useMemo } from "react";
-import { useTextToSpeechCore } from "../audio-integration";
+import { useTextToSpeechCore, AUDIO_TOOLS_CAPABILITY_SLUG, featureSlug, AudioToolsFeature } from "../audio-integration";
 import type { TTSCorePlaybackEvent } from "../audio-integration";
 import { recordTTSPlaybackEvent } from "../api/ttsHook";
 import { fetchCapabilitiesLivenessCached, _resetCapabilitiesCache } from "../api/capabilities";
@@ -45,9 +45,10 @@ async function probeKokoroAvailable(): Promise<boolean> {
   _resetCapabilitiesCache();
   try {
     const caps = await fetchCapabilitiesLivenessCached();
+    const voiceOutputSlug = featureSlug(AudioToolsFeature.VOICE_OUTPUT);
     return caps.capabilities.some(
       (c) => c.status === "available" && (
-        (c.id === "audio-tools" && c.features.includes("voice-output")) ||
+        (c.id === AUDIO_TOOLS_CAPABILITY_SLUG && c.features.includes(voiceOutputSlug)) ||
         // Backward-compatible for older web-console builds/tests that still
         // exposed the pre-audio-tools resource capability directly.
         c.id === "kokoro-tts"

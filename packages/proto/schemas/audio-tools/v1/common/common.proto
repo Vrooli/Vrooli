@@ -75,3 +75,41 @@ enum ResponseFormat {
   RESPONSE_FORMAT_OPUS = 3;
   RESPONSE_FORMAT_FLAC = 4;
 }
+
+// AudioToolsFeature enumerates the discoverable features the audio-tools
+// scenario exposes to consumer scenarios (web-console, swarm-manager, ...).
+// Consumers register a capability under the scenario slug
+// (see AUDIO_TOOLS_CAPABILITY_SLUG in the audio-tools client libs) and
+// list the AudioToolsFeature values they care about.
+//
+// Wire convention: the values' canonical slug form (kebab-case, without
+// the AUDIO_TOOLS_FEATURE_ prefix) is what travels on the wire as
+// `repeated string features` in web-console's CapabilitiesService.
+// Slug ↔ enum mapping lives in the audio-tools Go (clients/go/audiotools)
+// and TS (ui/src/audio-integration/features.ts) clients. Adding a new
+// feature: add the enum value here, run `make generate`, then add the
+// slug entry in both client mapping tables.
+//
+// DO NOT renumber existing values; the enum number is the stable identity
+// even though the wire format is the slug string.
+enum AudioToolsFeature {
+  AUDIO_TOOLS_FEATURE_UNSPECIFIED = 0;
+  // STT — voice input via batch transcription (HTTP POST).
+  AUDIO_TOOLS_FEATURE_VOICE_INPUT = 1;
+  // STT — voice streaming (WebSocket / Connect bidi).
+  AUDIO_TOOLS_FEATURE_VOICE_STREAMING = 2;
+  // STT — per-speaker verification against an enrolled voice print.
+  AUDIO_TOOLS_FEATURE_VOICE_SPEAKER_VERIFICATION = 3;
+  // STT — voice-print enrollment for later verification.
+  AUDIO_TOOLS_FEATURE_VOICE_ENROLLMENT = 4;
+  // TTS — voice synthesis output.
+  AUDIO_TOOLS_FEATURE_VOICE_OUTPUT = 5;
+  // TTS — summarization step before synthesis for long inputs.
+  AUDIO_TOOLS_FEATURE_TTS_SUMMARIZATION = 6;
+  // TTS — synthesized-audio caching for repeated text.
+  AUDIO_TOOLS_FEATURE_TTS_CACHE = 7;
+  // TTS — paragraph-level splitting for chunked synthesis.
+  AUDIO_TOOLS_FEATURE_TTS_PARAGRAPH_SPLIT = 8;
+  // Routing — three-tier provider routing (BYOK → VROOLI → LOCAL).
+  AUDIO_TOOLS_FEATURE_AUDIO_PROVIDER_ROUTING = 9;
+}

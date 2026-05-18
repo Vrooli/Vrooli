@@ -9,6 +9,9 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	common_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
+	"github.com/vrooli/vrooli/scenarios/audio-tools/clients/go/audiotools"
 )
 
 type DependencyKind string
@@ -73,21 +76,25 @@ var Known = []Def{
 	// audio-tools extraction prep; they collapse to the audio-tools entry
 	// after web-console adopts audio-tools.
 	{
-		ID:             "audio-tools",
+		// ID + DependencySlug + Features come from the audio-tools client
+		// (proto enum-backed). Do NOT inline these literals — drift
+		// between this registry and UI consumers caused a silent fallback
+		// to browser-native Web Speech in 2026-05.
+		ID:             audiotools.CapabilitySlug,
 		Name:           "Audio Tools",
 		Description:    "Shared audio capability scenario: STT, TTS, summarization, provider routing, BYOK/LPBS/local tiers, adoptable UI",
 		DependencyKind: DependencyScenario,
-		DependencySlug: "audio-tools",
+		DependencySlug: audiotools.CapabilitySlug,
 		Features: []string{
-			"voice-input",
-			"voice-streaming",
-			"voice-speaker-verification",
-			"voice-enrollment",
-			"voice-output",
-			"tts-summarization",
-			"tts-cache",
-			"tts-paragraph-split",
-			"audio-provider-routing",
+			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_INPUT),
+			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_STREAMING),
+			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_SPEAKER_VERIFICATION),
+			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_ENROLLMENT),
+			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_OUTPUT),
+			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_TTS_SUMMARIZATION),
+			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_TTS_CACHE),
+			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_TTS_PARAGRAPH_SPLIT),
+			audiotools.FeatureSlug(common_v1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_AUDIO_PROVIDER_ROUTING),
 		},
 	},
 }

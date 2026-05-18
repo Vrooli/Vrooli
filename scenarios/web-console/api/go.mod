@@ -1,6 +1,6 @@
 module web-console
 
-go 1.24.0
+go 1.25.0
 
 require (
 	connectrpc.com/connect v1.19.2
@@ -10,7 +10,8 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/vrooli/api-core v0.0.0
-	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
+	github.com/vrooli/vrooli/packages/proto v0.0.0
+	github.com/vrooli/vrooli/scenarios/audio-tools/clients/go v0.0.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.37.1
 )
@@ -38,3 +39,5 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/vrooli/scenarios/audio-tools/clients/go => ../../../scenarios/audio-tools/clients/go

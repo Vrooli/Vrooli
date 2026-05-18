@@ -178,7 +178,19 @@ func StreamWSHandler(d Deps) http.Handler {
 				}
 			}
 		}
-		writeJSON(wsMessage{Type: wsMsgFinal, Text: finalText})
+		// The Done event carries `committed` — the full concatenation of
+		// every segment-final emitted this session. Re-sending it as
+		// wsMsgFinal duplicates text the client already appended (the
+		// client's onResult callback contract is "deliver only the
+		// un-segmented tail"). When at least one segment-final was emitted
+		// the final text is fully redundant; send empty so the client can
+		// transition state without re-appending. Plain non-segmenting
+		// strategies (passthrough, buffered fallback) still need finalText.
+		if segIdx > 0 {
+			writeJSON(wsMessage{Type: wsMsgFinal, Text: ""})
+		} else {
+			writeJSON(wsMessage{Type: wsMsgFinal, Text: finalText})
+		}
 		writeJSON(wsMessage{Type: wsMsgDone})
 
 		<-runErr

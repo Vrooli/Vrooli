@@ -634,7 +634,24 @@
       "kbSuffix": "{{value}}KB",
       "overlapLabel": "Audio overlap",
       "overlapHint": "Keep a small trailing overlap so word boundaries survive chunking.",
-      "resetDefaults": "Reset to defaults"
+      "resetDefaults": "Reset to defaults",
+      "testMicHeading": "Test microphone",
+      "testMicHint": "Record a short clip to confirm which speech-to-text backend is actually running. Three are possible: Whisper streaming (live, via audio-tools), Whisper batch (single POST at stop), and Web Speech (browser-native; Chrome → Google).",
+      "testMicDetected": "Detected backend",
+      "testMicDetecting": "Detecting...",
+      "testMicBackendWhisperStream": "Whisper streaming (audio-tools)",
+      "testMicBackendWhisperHttp": "Whisper batch (audio-tools)",
+      "testMicBackendWebSpeech": "Web Speech (browser-native)",
+      "testMicBackendNone": "No backend available",
+      "testMicRecord": "Record 3 seconds",
+      "testMicRecording": "Recording... {{remaining}}s",
+      "testMicTranscribing": "Transcribing...",
+      "testMicProviderUsed": "Provider used",
+      "testMicTranscript": "Transcript",
+      "testMicElapsed": "Elapsed",
+      "testMicMsSuffix": "{{value}}ms",
+      "testMicNoTranscript": "(no transcript returned)",
+      "testMicError": "Test failed"
     }
   },
   "appearance": {

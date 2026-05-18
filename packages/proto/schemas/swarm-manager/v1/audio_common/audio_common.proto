@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.audio_common;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/audio_common;audio_common_v1";
+
+// =============================================================================
+// AUDIO COMMON — shared enums + small typed values used by both
+//                AudioAdminService and AudioRuntimeService.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain audio_common
+// @imports none
+// @stability stable
+//
+// Web-console owns this surface. It mirrors the semantic shape of
+// `audio-tools/v1/common` and `audio-tools/v1/stt` enums but is
+// web-console-owned so the UI never imports proto types from a foreign
+// scenario. The server-side audioports layer maps between these enums and
+// the audio-tools equivalents.
+//
+// USAGE CONTEXTS:
+//   - AudioAdminService:   SpeakerMode/RejectBehavior on SpeakerConfig,
+//                          StreamingMode/StrategyPreference on StreamConfig,
+//                          AudioFormat on EnrollSpeakerProfile,
+//                          SummarizeLevel on SummarizeConfig.
+//   - AudioRuntimeService: AudioFormat on Transcribe input,
+//                          ResponseFormat on Synthesize output,
+//                          ProviderTier on response trace fields,
+//                          SummarizeLevel on Summarize requests.
+// =============================================================================
+
+// ProviderTier identifies which routing tier handled a request. Mirror of
+// the audio-tools ProviderTier; same fixed precedence applies.
+enum ProviderTier {
+  PROVIDER_TIER_UNSPECIFIED = 0;
+  PROVIDER_TIER_LOCAL = 1;
+  PROVIDER_TIER_BYOK = 2;
+  PROVIDER_TIER_VROOLI = 3;
+}
+
+// AudioFormat identifies a container/codec for raw audio bytes carried on
+// the wire (Transcribe inputs, EnrollSpeakerProfile inputs).
+enum AudioFormat {
+  AUDIO_FORMAT_UNSPECIFIED = 0;
+  AUDIO_FORMAT_WAV = 1;
+  AUDIO_FORMAT_MP3 = 2;
+  AUDIO_FORMAT_FLAC = 3;
+  AUDIO_FORMAT_OGG = 4;
+  AUDIO_FORMAT_WEBM = 5;
+  AUDIO_FORMAT_OPUS = 6;
+  AUDIO_FORMAT_AAC = 7;
+}
+
+// ResponseFormat constrains TTS-synthesis output formats.
+enum ResponseFormat {
+  RESPONSE_FORMAT_UNSPECIFIED = 0;
+  RESPONSE_FORMAT_MP3 = 1;
+  RESPONSE_FORMAT_WAV = 2;
+  RESPONSE_FORMAT_OPUS = 3;
+  RESPONSE_FORMAT_FLAC = 4;
+}
+
+// SpeakerMode is the speaker-verification gating mode applied to the
+// transcript pipeline.
+enum SpeakerMode {
+  SPEAKER_MODE_UNSPECIFIED = 0;
+  SPEAKER_MODE_OFF = 1;
+  SPEAKER_MODE_FILTER = 2;
+  SPEAKER_MODE_ADVISORY = 3;
+}
+
+// RejectBehavior selects what the pipeline does with a transcript that
+// failed speaker verification.
+enum RejectBehavior {
+  REJECT_BEHAVIOR_UNSPECIFIED = 0;
+  REJECT_BEHAVIOR_DROP = 1;
+  REJECT_BEHAVIOR_SHOW_MUTED = 2;
+}
+
+// StreamingMode controls whether the streaming pipeline runs at all.
+enum StreamingMode {
+  STREAMING_MODE_UNSPECIFIED = 0;
+  STREAMING_MODE_AUTO = 1;
+  STREAMING_MODE_OFF = 2;
+}
+
+// StrategyPreference selects which streaming strategy the chain prefers
+// when StreamingMode != OFF.
+enum StrategyPreference {
+  STRATEGY_PREFERENCE_UNSPECIFIED = 0;
+  STRATEGY_PREFERENCE_AUTO = 1;
+  STRATEGY_PREFERENCE_VAD = 2;
+  STRATEGY_PREFERENCE_OVERLAP = 3;
+  STRATEGY_PREFERENCE_PASSTHROUGH = 4;
+}
+
+// SummarizeLevel selects how aggressively the summarizer rewrites the
+// input.
+enum SummarizeLevel {
+  SUMMARIZE_LEVEL_UNSPECIFIED = 0;
+  SUMMARIZE_LEVEL_LIGHT = 1;
+  SUMMARIZE_LEVEL_MODERATE = 2;
+  SUMMARIZE_LEVEL_HEAVY = 3;
+}
+
+// SpeakerCapability is the web-console-owned typed enum that replaces the
+// freeform `capability` string returned by audio-tools' GetSpeakerStatus.
+// The audioports layer maps audio-tools' stringly capability values
+// ("available", "degraded", "unavailable", "uninitialized") to this enum
+// once at the boundary so UI code stays in the typed domain.
+enum SpeakerCapability {
+  SPEAKER_CAPABILITY_UNSPECIFIED = 0;
+  SPEAKER_CAPABILITY_AVAILABLE = 1;
+  SPEAKER_CAPABILITY_DEGRADED = 2;
+  SPEAKER_CAPABILITY_UNAVAILABLE = 3;
+  SPEAKER_CAPABILITY_UNINITIALIZED = 4;
+}
