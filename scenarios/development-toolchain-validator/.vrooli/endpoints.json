@@ -317,6 +317,123 @@
           "--yes"
         ]
       }
+    },
+    {
+      "id": "skill_catalog_sync",
+      "path": "/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/Sync",
+      "method": "POST",
+      "summary": "Sync skill catalog from prompt-manager",
+      "description": "Pulls the current skill set from prompt-manager and reconciles the local mirror (insert new, update changed, remove missing). Returns the post-reconcile catalog plus counts.",
+      "category": "skill_catalog",
+      "response": {
+        "type": "object",
+        "properties": {
+          "added": "int32",
+          "removed": "int32",
+          "skills": "array<Skill>",
+          "updated": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "prompt-manager dependency is not running"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Upstream fetch or repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Sync catalog",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/Sync -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator skill-catalog sync"
+      }
+    },
+    {
+      "id": "skill_catalog_list",
+      "path": "/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/ListSkills",
+      "method": "POST",
+      "summary": "List mirrored skills",
+      "description": "Returns the local mirror of the skill catalog ordered by id ascending.",
+      "category": "skill_catalog",
+      "response": {
+        "type": "object",
+        "properties": {
+          "skills": "array<Skill>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List skills",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/ListSkills -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator skill-catalog list"
+      }
+    },
+    {
+      "id": "skill_catalog_get",
+      "path": "/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/GetSkill",
+      "method": "POST",
+      "summary": "Get a mirrored skill by id",
+      "description": "Returns the skill whose id matches the request.",
+      "category": "skill_catalog",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "skill": "Skill"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No skill with that id exists in the local mirror"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get skill",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/GetSkill -H 'Content-Type: application/json' -d '{\"id\":\"plan-skill-discovery\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator skill-catalog get",
+        "args": [
+          "<id>"
+        ]
+      }
     }
   ],
   "cli_commands": [
@@ -354,6 +471,21 @@
       "name": "goldens regenerate",
       "description": "Regenerate a golden's on-disk tree from its pinned template (--yes to confirm)",
       "endpoint_id": "golden_regenerate"
+    },
+    {
+      "name": "skill-catalog sync",
+      "description": "Pull current skills from prompt-manager and reconcile the local mirror",
+      "endpoint_id": "skill_catalog_sync"
+    },
+    {
+      "name": "skill-catalog list",
+      "description": "List mirrored skills",
+      "endpoint_id": "skill_catalog_list"
+    },
+    {
+      "name": "skill-catalog get",
+      "description": "Show one mirrored skill by id",
+      "endpoint_id": "skill_catalog_get"
     }
   ]
 }

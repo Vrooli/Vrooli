@@ -20,6 +20,9 @@ import (
 
 	goldenH "development-toolchain-validator/handlers/golden"
 	healthH "development-toolchain-validator/handlers/health"
+	skillCatalogH "development-toolchain-validator/handlers/skill_catalog"
+
+	promptmanager "development-toolchain-validator/integrations/prompt_manager"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -98,10 +101,13 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	skillCatalogSource := promptmanager.NewSkillCatalogRESTAdapter(promptmanager.Options{})
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "development-toolchain-validator-api", "1.0.0"),
 		goldenH.Module(db, clock.System{}, log.Default()),
+		skillCatalogH.Module(db, clock.System{}, skillCatalogSource, log.Default()),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

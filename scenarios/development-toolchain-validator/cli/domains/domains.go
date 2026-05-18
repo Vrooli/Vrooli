@@ -2,6 +2,7 @@ package domains
 
 import (
 	"development-toolchain-validator/cli/domains/golden"
+	skillcatalog "development-toolchain-validator/cli/domains/skill_catalog"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -19,5 +20,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		golden.Register(core),
+		skillcatalog.Register(core),
 	}
 }

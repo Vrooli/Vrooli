@@ -24,9 +24,11 @@ import (
 
 	goldenH "development-toolchain-validator/handlers/golden"
 	healthH "development-toolchain-validator/handlers/health"
+	skillCatalogH "development-toolchain-validator/handlers/skill_catalog"
 	localdb "development-toolchain-validator/internal/database"
 
 	goldenv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/golden"
+	skillCatalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/skill_catalog"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -37,6 +39,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, goldenH.Endpoints...)
+	out = append(out, skillCatalogH.Endpoints...)
 	return out
 }
 
@@ -52,6 +55,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "golden", File: goldenv1.File_development_toolchain_validator_v1_golden_golden_proto},
+		{Module: "skill_catalog", File: skillCatalogv1.File_development_toolchain_validator_v1_skill_catalog_skill_catalog_proto},
 	}
 }
 
@@ -62,5 +66,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(goldenH.Schema),
+		apidb.SchemaProviderFunc(skillCatalogH.Schema),
 	}
 }

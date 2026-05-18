@@ -35,6 +35,21 @@
       "name": "goldens regenerate",
       "description": "Regenerate a golden's on-disk tree from its pinned template (--yes to confirm)",
       "endpoint_id": "golden_regenerate"
+    },
+    {
+      "name": "skill-catalog sync",
+      "description": "Pull current skills from prompt-manager and reconcile the local mirror",
+      "endpoint_id": "skill_catalog_sync"
+    },
+    {
+      "name": "skill-catalog list",
+      "description": "List mirrored skills",
+      "endpoint_id": "skill_catalog_list"
+    },
+    {
+      "name": "skill-catalog get",
+      "description": "Show one mirrored skill by id",
+      "endpoint_id": "skill_catalog_get"
     }
   ]
 }
