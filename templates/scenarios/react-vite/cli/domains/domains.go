@@ -19,11 +19,10 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.
 //
-// Each domain package owns a Register(core *cliapp.ScenarioApp) function
-// returning a SubcommandGroup; this aggregator is intentionally a one-liner
-// per domain so adding a new one is mechanical. The notes domain is the
-// canonical CRUD reference — copy its shape (cli/domains/notes/) when
-// adding a real feature.
+// Each domain package owns a Register(core, manifest) function returning a
+// SubcommandGroup built from the scenario's cli/manifest.json. The aggregator
+// passes the embedded manifest bytes through unchanged; per-domain Register
+// implementations call cliapp.LoadFromManifest with the relevant group name.
 //
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
@@ -31,15 +30,15 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // pattern when swapping the notes reference for your scenario's first
 // domain.
 //
-// For API-backed commands:
-//   - set NeedsAPI: true so stale-check + --auto-start preflight works
-//   - declare flags and positionals with cliapp.ArgSchema
-//   - implement RunCtx handlers and read values from cliapp.RunContext
-//   - use generated Connect clients for proto-typed operations
-//   - use cliapp.UploadFile only for documented multipart REST exceptions
-//   - render proto responses with cliapp.RenderProtoList or RenderProtoMutation
-func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
-	return []cliapp.SubcommandGroup{
-		notes.Register(core),
+// For API-backed commands the manifest carries the declarative surface
+// (governance, flags, positionals, RPC binding). Handlers stay in
+// handlers.go and are wired via the bindings map; refer to
+// templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
+// handlers bindings seam) for the contract.
+func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
+	notesGroup, err := notes.Register(core, manifest)
+	if err != nil {
+		return nil, err
 	}
+	return []cliapp.SubcommandGroup{notesGroup}, nil
 }

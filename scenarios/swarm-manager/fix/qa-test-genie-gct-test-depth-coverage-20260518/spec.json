@@ -1,0 +1,30 @@
+{
+  "acceptance_allow": [
+    "scenarios/test-genie/**"
+  ],
+  "created": "2026-05-18T10:03:31Z",
+  "created_by": {
+    "profile_key": "prompt-manager-heartbeat",
+    "run_id": "95e77258-2acf-4f4e-8398-f4736c9d8d35",
+    "task_id": "004c01ae-edaa-4d13-9297-0a10cfb2bfba",
+    "type": "agent"
+  },
+  "depends_on": [
+    "fix/qa-test-genie-gct-requirement-target-readiness-20260518"
+  ],
+  "description": "Fresh GCT completeness recalculation on 2026-05-18T10:02:07Z classified test-genie as functional_incomplete with final score 44 (base_score 59 minus validation_penalty 15). Target scenario: test-genie. The test evidence is green only on raw pass rate (3/3 passing for 15/15 quality points) but remains too shallow for readiness: there are only 3 tests for 3 requirements, test quantity threshold is below for 0/3 quantity points, test_coverage_ratio is 1.0 for 4/8 coverage points, depth_score avg_depth is 1.0 for 2/7 coverage points, and validation reports insufficient_test_coverage medium severity with penalty 5 because the exact 1:1 test-to-requirement ratio suggests monolithic checks instead of layered API/UI/e2e coverage. Recommendations from `vrooli scenario completeness score recommend test-genie --json` were: add tests to reach good threshold (impact 2) and add tests to reach optimal 2:1 test-to-requirement ratio (impact 3). Success target: add focused layered automated tests for the scenario requirements and targets, improve the test-to-requirement ratio toward 2:1, raise avg_depth from 1.0 toward 3.0+, then rerun `vrooli scenario completeness score calculate test-genie`, `vrooli scenario completeness score get test-genie --json`, and `vrooli scenario completeness score validation test-genie --json`; insufficient_test_coverage should clear and coverage/quantity points should improve.",
+  "effort": "M",
+  "kind": "fix",
+  "name": "qa-test-genie-gct-test-depth-coverage-20260518",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "test-genie",
+    "gct",
+    "tests",
+    "coverage"
+  ],
+  "title": "Add layered test-genie validation coverage for GCT readiness",
+  "updated": "2026-05-18T10:04:08Z"
+}

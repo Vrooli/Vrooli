@@ -1,0 +1,102 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "git-control-tower",
+  "description": "Single source of truth for the manifest-aligned portion of the git-control-tower CLI command surface. Today this covers the `worktree` group (Connect-RPC via WorktreeService); the legacy REST-backed domains (repo, branch, review, audit) and RepoService.GetRepoStatus stay hand-written in their respective domain registrars until they migrate to Connect-RPC. Schema-validated against cli-manifest/v1; cross-validated against the WorktreeService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "worktree",
+      "description": "Manage git worktrees via the WorktreeService Connect-RPC surface",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List worktrees in a repo",
+          "flags": [
+            { "name": "repo", "required": true, "description": "Repository path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorktreeService", "method": "ListWorktrees" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "get",
+          "description": "Show one worktree",
+          "flags": [
+            { "name": "repo", "required": true, "description": "Repository path" },
+            { "name": "path", "required": true, "description": "Worktree path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorktreeService", "method": "GetWorktree" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "create",
+          "description": "Create a worktree from an existing branch, new branch (with optional start point + tracking), or detached commit",
+          "flags": [
+            { "name": "repo", "required": true, "description": "Repository path" },
+            { "name": "path", "required": true, "description": "New worktree path" },
+            { "name": "branch", "description": "Existing branch to check out (mutually exclusive with --new-branch / --commit)" },
+            { "name": "new-branch", "description": "New branch name to create (mutually exclusive with --branch / --commit)" },
+            { "name": "start", "description": "Start point for --new-branch" },
+            { "name": "track", "bool": true, "description": "Set --track for the new branch's upstream" },
+            { "name": "commit", "description": "Detached HEAD commit SHA (mutually exclusive with --branch / --new-branch)" },
+            { "name": "force", "bool": true, "description": "Force-create even if the target path is dirty" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorktreeService", "method": "CreateWorktree" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "remove",
+          "description": "Remove a worktree",
+          "flags": [
+            { "name": "repo", "required": true, "description": "Repository path" },
+            { "name": "path", "required": true, "description": "Worktree path" },
+            { "name": "force", "bool": true, "description": "Force removal even if the worktree is dirty" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorktreeService", "method": "RemoveWorktree" },
+          "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "lock",
+          "description": "Lock a worktree",
+          "flags": [
+            { "name": "repo", "required": true, "description": "Repository path" },
+            { "name": "path", "required": true, "description": "Worktree path" },
+            { "name": "reason", "description": "Optional lock reason recorded by git" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorktreeService", "method": "LockWorktree" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "unlock",
+          "description": "Unlock a worktree",
+          "flags": [
+            { "name": "repo", "required": true, "description": "Repository path" },
+            { "name": "path", "required": true, "description": "Worktree path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorktreeService", "method": "UnlockWorktree" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "move",
+          "description": "Move a worktree to a new path",
+          "flags": [
+            { "name": "repo", "required": true, "description": "Repository path" },
+            { "name": "path", "required": true, "description": "Existing worktree path" },
+            { "name": "new-path", "required": true, "description": "Destination worktree path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorktreeService", "method": "MoveWorktree" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "prune",
+          "description": "Prune worktree records that no longer have a valid working tree on disk",
+          "flags": [
+            { "name": "repo", "required": true, "description": "Repository path" },
+            { "name": "reason", "description": "Optional reason recorded in the audit log" },
+            { "name": "report-only", "bool": true, "description": "Report what would be pruned without modifying state" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorktreeService", "method": "PruneWorktrees" },
+          "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal", "filesystem:write"] }
+        }
+      ]
+    }
+  ]
+}

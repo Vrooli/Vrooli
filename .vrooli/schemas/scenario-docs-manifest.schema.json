@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scenario-docs-manifest/v2",
+  "title": "Scenario Documentation Manifest",
+  "description": "Declarative contract for a scenario's documentation surface. Mirrors the rules enforced by scenarios/knowledge-observatory/api/internal/doccontract/manifest.go ValidateManifest.",
+  "type": "object",
+  "required": ["contract", "sections"],
+  "properties": {
+    "version": { "type": "string" },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "defaultDocument": { "type": "string" },
+    "contract": { "$ref": "#/$defs/Contract" },
+    "sections": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Section" }
+    },
+    "navigation": { "type": "object" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "Contract": {
+      "type": "object",
+      "required": ["kind", "schema", "maturityValues", "stages"],
+      "properties": {
+        "kind": { "type": "string", "const": "scenario-docs" },
+        "template": { "type": "string" },
+        "schema": { "type": "string", "const": "scenario-docs-manifest/v2" },
+        "maturityValues": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "extensionRule": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "Section": {
+      "type": "object",
+      "required": ["id", "title", "documents"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "icon": { "type": "string" },
+        "visibility": { "type": "string" },
+        "description": { "type": "string" },
+        "documents": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Document" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "Document": {
+      "type": "object",
+      "required": ["path", "docType", "title", "maturity", "requiredBy", "completion"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "docType": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "aliases": { "type": "array", "items": { "type": "string" } },
+        "description": { "type": "string" },
+        "audience": { "type": "array", "items": { "type": "string" } },
+        "canonicalFor": { "type": "array", "items": { "type": "string" } },
+        "maturity": { "type": "string", "minLength": 1 },
+        "requiredBy": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "completion": {
+          "type": "string",
+          "enum": ["required", "conditional", "optional"]
+        },
+        "condition": { "type": "string" },
+        "ownerSkills": { "type": "array", "items": { "type": "string" } },
+        "operations": { "$ref": "#/$defs/Operations" },
+        "validation": { "$ref": "#/$defs/Validation" }
+      },
+      "additionalProperties": true
+    },
+    "Operations": {
+      "type": "object",
+      "properties": {
+        "appendLog": { "$ref": "#/$defs/AppendLogOperation" }
+      },
+      "additionalProperties": true
+    },
+    "AppendLogOperation": {
+      "type": "object",
+      "required": ["enabled", "retention"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "targetHeading": { "type": "string" },
+        "format": { "type": "string" },
+        "emptyMarker": { "type": "string" },
+        "fields": { "type": "array", "items": { "type": "string" } },
+        "retention": { "$ref": "#/$defs/AppendLogRetention" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "enabled": { "const": true } },
+            "required": ["enabled"]
+          },
+          "then": {
+            "required": ["targetHeading", "format"],
+            "properties": {
+              "targetHeading": { "minLength": 1 },
+              "format": { "enum": ["dated-markdown-section", "markdown-table"] }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": { "format": { "const": "dated-markdown-section" } },
+                  "required": ["format"]
+                },
+                "then": {
+                  "required": ["fields"],
+                  "properties": {
+                    "fields": { "contains": { "const": "title" } },
+                    "retention": {
+                      "properties": {
+                        "dateSource": { "enum": ["", "heading"] }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": { "format": { "const": "markdown-table" } },
+                  "required": ["format"]
+                },
+                "then": {
+                  "required": ["fields"],
+                  "properties": {
+                    "fields": {
+                      "type": "array",
+                      "minItems": 1,
+                      "prefixItems": [{ "const": "date" }]
+                    },
+                    "retention": {
+                      "properties": {
+                        "dateSource": { "enum": ["", "first-column"] }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "AppendLogRetention": {
+      "type": "object",
+      "properties": {
+        "supportsReset": { "type": "boolean" },
+        "dateSource": { "type": "string" },
+        "keepMinimumEntries": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "Validation": {
+      "type": "object",
+      "properties": {
+        "requiredHeadings": { "type": "array", "items": { "type": "string" } },
+        "forbiddenPlaceholders": { "type": "array", "items": { "type": "string" } },
+        "requiredLinks": { "type": "array", "items": { "type": "string" } },
+        "allowNotApplicable": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

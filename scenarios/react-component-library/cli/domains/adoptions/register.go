@@ -1,83 +1,28 @@
 // Package adoptions is the CLI's adoption-registry surface. Mirrors
-// the API's Connect-RPC AdoptionsService (proto schema at
-// packages/proto/schemas/react-component-library/v1/adoptions).
+// the API's Connect-RPC AdoptionsService. Command surface loads from
+// cli/manifest.json via cliapp.LoadFromManifest.
 package adoptions
 
 import (
+	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// Register returns the `adoptions` subcommand group. Handlers close
-// over `core` for API request + output rendering.
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+const GroupName = "adoptions"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "adoptions",
-		Description: "Track which scenarios have adopted library components and detect drift",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "list",
-				Description: "List adoption records",
-				Args: cliapp.ArgSchema{
-					Flags: []cliapp.Flag{
-						{Name: "component-id", Description: "Only adoptions for this component id"},
-						{Name: "scenario", Description: "Only adoptions targeting this scenario"},
-						{Name: "limit", Description: "Maximum number of rows (default 200)"},
-					},
-				},
-				RunCtx: h.list,
-			},
-			{
-				Name:        "apply",
-				Description: "Copy a component version into a target scenario and record the adoption",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{
-						{Name: "component-id", Required: true, Description: "Library component id"},
-						{Name: "scenario", Required: true, Description: "Target scenario name (e.g. swarm-manager)"},
-						{Name: "adopted-path", Required: true, Description: "Path within the target scenario"},
-					},
-					Flags: []cliapp.Flag{
-						{Name: "version", Description: "Library version to apply; defaults to latest"},
-						{Name: "confirm-overwrite", Description: "Set to true to overwrite an existing target file"},
-					},
-				},
-				RunCtx: h.apply,
-			},
-			{
-				Name:        "reapply",
-				Description: "Overwrite an adoption from a library version",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{
-						{Name: "id", Required: true, Description: "Adoption record id"},
-					},
-					Flags: []cliapp.Flag{
-						{Name: "version", Description: "Library version to apply; defaults to latest"},
-						{Name: "confirm-local-overwrite", Description: "Set to true to overwrite local modifications"},
-					},
-				},
-				RunCtx: h.reapply,
-			},
-			{
-				Name:        "delete",
-				Description: "Delete an adoption record by id",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{
-						{Name: "id", Required: true, Description: "Adoption record id"},
-					},
-				},
-				RunCtx: h.delete,
-			},
-			{
-				Name:        "refresh",
-				Description: "Recompute drift status for every adoption (or one component's)",
-				Args: cliapp.ArgSchema{
-					Flags: []cliapp.Flag{
-						{Name: "component-id", Description: "Limit refresh to one component's adoptions"},
-					},
-				},
-				RunCtx: h.refresh,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"AdoptionsService.ListAdoptions":    h.list,
+		"AdoptionsService.ApplyAdoption":    h.apply,
+		"AdoptionsService.ReapplyAdoption":  h.reapply,
+		"AdoptionsService.DeleteAdoption":   h.delete,
+		"AdoptionsService.RefreshAdoptions": h.refresh,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("adoptions: load from manifest: %w", err)
+	}
+	return group, nil
 }

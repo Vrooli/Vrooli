@@ -1,32 +1,25 @@
 // Package settings is the CLI's UI/CLI-preferences command surface,
-// a thin wrapper over the Connect-RPC SettingsService.
+// a thin wrapper over the Connect-RPC SettingsService. Command surface
+// loads from cli/manifest.json via cliapp.LoadFromManifest.
 package settings
 
-import "github.com/vrooli/cli-core/cliapp"
+import (
+	"fmt"
 
-// Register returns the `settings` subcommand group.
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+const GroupName = "settings"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "settings",
-		Description: "Get or update UI/CLI preferences (theme, font scale, density, …)",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "get",
-				Description: "Print the local principal's UI/CLI preferences",
-				RunCtx:      h.get,
-			},
-			{
-				Name:        "set",
-				Description: "Update one or more preferences via <key>=<value> pairs",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{
-						{Name: "pair", Required: true, Repeated: true, Description: "<key>=<value> pair (repeatable)"},
-					},
-				},
-				RunCtx: h.set,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"SettingsService.GetSettings":    h.get,
+		"SettingsService.UpdateSettings": h.set,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("settings: load from manifest: %w", err)
+	}
+	return group, nil
 }

@@ -214,7 +214,17 @@
         "type": "scenario",
         "enabled": true,
         "required": true,
-        "description": "Spawns sandboxed skill runs; provides run summary + diff reference for skill validation."
+        "startup_policy": "must_start",
+        "description": "Spawns sandboxed skill runs; provides run summary + diff reference for skill validation.",
+        "config": {
+          "profiles": {
+            "reconcile": true,
+            "mode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-profiles/default.json"
+            ]
+          }
+        }
       },
       "prompt-manager": {
         "type": "scenario",

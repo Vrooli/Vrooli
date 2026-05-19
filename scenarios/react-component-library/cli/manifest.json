@@ -1,0 +1,267 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "react-component-library",
+  "description": "Single source of truth for the react-component-library CLI command surface. Schema-validated against cli-manifest/v1; cross-validated against each domain's Connect-RPC proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. ThemesService and DepsService are intentionally not covered (consumed by UI + adoption-validation only; no CLI surface today).",
+  "groups": [
+    {
+      "name": "adoptions",
+      "description": "Track which scenarios have adopted library components and detect drift",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List adoption records",
+          "flags": [
+            { "name": "component-id", "description": "Only adoptions for this component id" },
+            { "name": "scenario", "description": "Only adoptions targeting this scenario" },
+            { "name": "limit", "description": "Maximum number of rows (default 200)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ListAdoptions" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "apply",
+          "description": "Copy a component version into a target scenario and record the adoption",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Library component id" },
+            { "name": "scenario", "required": true, "description": "Target scenario name (e.g. swarm-manager)" },
+            { "name": "adopted-path", "required": true, "description": "Path within the target scenario" }
+          ],
+          "flags": [
+            { "name": "version", "description": "Library version to apply; defaults to latest" },
+            { "name": "confirm-overwrite", "description": "Set to true to overwrite an existing target file" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ApplyAdoption" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "reapply",
+          "description": "Overwrite an adoption from a library version",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Adoption record id" }
+          ],
+          "flags": [
+            { "name": "version", "description": "Library version to apply; defaults to latest" },
+            { "name": "confirm-local-overwrite", "description": "Set to true to overwrite local modifications" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "ReapplyAdoption" },
+          "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "delete",
+          "description": "Delete an adoption record by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Adoption record id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "DeleteAdoption" },
+          "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "refresh",
+          "description": "Recompute drift status for every adoption (or one component's)",
+          "flags": [
+            { "name": "component-id", "description": "Limit refresh to one component's adoptions" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdoptionsService", "method": "RefreshAdoptions" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        }
+      ]
+    },
+    {
+      "name": "components",
+      "description": "Browse and re-index the local React component registry",
+      "commands": [
+        {
+          "name": "index",
+          "description": "Walk the source root and refresh the registry",
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "IndexComponents" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "list",
+          "description": "List indexed components",
+          "flags": [
+            { "name": "match", "description": "Case-insensitive substring filter" },
+            { "name": "tag", "description": "Exact single-tag filter" },
+            { "name": "tags", "description": "Comma-separated multi-tag OR filter (any-of)" },
+            { "name": "category", "description": "Filter by @category header value" },
+            { "name": "limit", "description": "Maximum number of rows (default 200)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "ListComponents" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Get a component by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Component id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "GetComponent" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get-by-library-id",
+          "description": "Get a component by its @libraryId header value",
+          "positionals": [
+            { "name": "library-id", "required": true, "description": "@libraryId header value" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "GetComponentByLibraryId" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "init",
+          "description": "Initialize a new library component source folder",
+          "positionals": [
+            { "name": "slug", "required": true, "description": "Component folder slug" }
+          ],
+          "flags": [
+            { "name": "library-id", "description": "Stable library id (default react-component-library:<slug>)" },
+            { "name": "display-name", "description": "Human-readable display name" },
+            { "name": "description", "description": "Short component description" },
+            { "name": "tags", "description": "Comma-separated tags" },
+            { "name": "version", "description": "Initial released version (default 0.1.0)" },
+            { "name": "file-name", "description": "Initial TSX file name" },
+            { "name": "source-file", "description": "Initial source file, or - for stdin" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "InitializeComponent" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "version-create",
+          "description": "Create a new component version folder",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Component id" },
+            { "name": "version", "required": true, "description": "New semver-like version" }
+          ],
+          "flags": [
+            { "name": "from-version", "description": "Existing version to copy from" },
+            { "name": "draft", "description": "Treat the new version as draft/pre-release" },
+            { "name": "release", "description": "Treat the new version as latest release" },
+            { "name": "file-name", "description": "TSX file name in the new folder" },
+            { "name": "source-file", "description": "Source file, or - for stdin" },
+            { "name": "changelog", "description": "Changelog text for the version" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "CreateComponentVersion" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "manifest-update",
+          "description": "Update component manifest metadata and version pointers",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Component id" }
+          ],
+          "flags": [
+            { "name": "display-name", "description": "New display name" },
+            { "name": "description", "description": "New description" },
+            { "name": "tags", "description": "Comma-separated replacement tags" },
+            { "name": "latest-version", "description": "Latest released version pointer" },
+            { "name": "draft-version", "description": "Draft version pointer" },
+            { "name": "deprecated-versions", "description": "Comma-separated deprecated versions" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "UpdateComponentManifest" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "content-get",
+          "description": "Read a component's source file",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Component id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "GetComponentContent" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "content-set",
+          "description": "Write a component's source file (use - to read from stdin)",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Component id" },
+            { "name": "file", "required": true, "description": "Path to new file body, or - for stdin" }
+          ],
+          "flags": [
+            { "name": "expected-sha256", "description": "Optimistic-concurrency guard; must match the current on-disk digest" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "UpdateComponentContent" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"] }
+        },
+        {
+          "name": "versions",
+          "description": "List indexed versions for a component",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Component id" }
+          ],
+          "flags": [
+            { "name": "limit", "description": "Maximum number of rows" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "ListComponentVersions" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "show-version",
+          "description": "Read the source for a component version",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Component id" },
+            { "name": "version", "required": true, "description": "Version folder name" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "GetComponentVersionContent" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        }
+      ]
+    },
+    {
+      "name": "preview",
+      "description": "Bundle components for the live-preview iframe",
+      "commands": [
+        {
+          "name": "bundle",
+          "description": "Print the esbuild-transpiled ES module for a component",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Component id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PreviewService", "method": "GetPreviewBundle" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "versions",
+      "description": "List, fetch, and diff recorded versions of a component",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List recorded versions for a component",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Library component id" }
+          ],
+          "flags": [
+            { "name": "limit", "description": "Maximum number of rows (default 100)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "VersionsService", "method": "ListVersions" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "show",
+          "description": "Show a specific recorded version (with optional content)",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Library component id" },
+            { "name": "version", "required": true, "description": "Recorded @version value" }
+          ],
+          "flags": [
+            { "name": "with-content", "description": "Include the full content body in the output" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "VersionsService", "method": "GetVersion" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "diff",
+          "description": "Diff two versions (or a version and an adoption:<id>)",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Library component id" },
+            { "name": "from", "required": true, "description": "Source — @version value or adoption:<id>" },
+            { "name": "to", "required": true, "description": "Target — @version value or adoption:<id>" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "VersionsService", "method": "DiffVersions" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    }
+  ]
+}

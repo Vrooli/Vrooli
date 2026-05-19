@@ -1,42 +1,30 @@
 // Package artifacts is the CLI's codegen-lifecycle command surface,
 // a thin wrapper over the Connect-RPC ArtifactsService (per-flow) and
-// ScenariosService (scenario-wide + streaming).
+// ScenariosService (scenario-wide + streaming). Command surface loads
+// from cli/manifest.json via cliapp.LoadFromManifest. Each `artifacts`
+// command primarily binds to its per-flow RPC; the scenario-wide
+// dispatch (under --scenario) is captured in the manifest's omitted[]
+// list because cli-manifest/v1 enforces 1:1 command<->method bindings.
 package artifacts
 
-import "github.com/vrooli/cli-core/cliapp"
+import (
+	"fmt"
 
-// Register returns the `artifacts` subcommand group.
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+const GroupName = "artifacts"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	rootFlag := cliapp.Flag{Name: "root", Description: "Repository root to scan (default: cwd)", Default: "."}
-	flowFlag := cliapp.Flag{Name: "flow", Description: "Flow id to target"}
-	scenarioFlag := cliapp.Flag{Name: "scenario", Description: "Scenario id to target every flow inside"}
-	allFlag := cliapp.Flag{Name: "all", Description: "Apply to every discovered flow under --scenario", Default: "false"}
-	yesFlag := cliapp.Flag{Name: "yes", Description: "Skip the confirmation prompt for bulk clears", Default: "false"}
-
-	return cliapp.SubcommandGroup{
-		Name:        "artifacts",
-		Description: "Inspect, generate, or clear a flow's generated/ tree",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "status",
-				Description: "Inspect the on-disk generated/ tree for one flow",
-				Args:        cliapp.ArgSchema{Flags: []cliapp.Flag{rootFlag, flowFlag, scenarioFlag, allFlag}},
-				RunCtx:      h.status,
-			},
-			{
-				Name:        "generate",
-				Description: "Generate or regenerate one flow's artifacts (or every flow with --scenario)",
-				Args:        cliapp.ArgSchema{Flags: []cliapp.Flag{rootFlag, flowFlag, scenarioFlag, allFlag}},
-				RunCtx:      h.generate,
-			},
-			{
-				Name:        "clear",
-				Description: "Remove one flow's generated/ tree (--scenario requires --yes)",
-				Args:        cliapp.ArgSchema{Flags: []cliapp.Flag{rootFlag, flowFlag, scenarioFlag, allFlag, yesFlag}},
-				RunCtx:      h.clear,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"ArtifactsService.GetArtifactStatus": h.status,
+		"ArtifactsService.GenerateArtifacts": h.generate,
+		"ArtifactsService.ClearArtifacts":    h.clear,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("artifacts: load from manifest: %w", err)
+	}
+	return group, nil
 }

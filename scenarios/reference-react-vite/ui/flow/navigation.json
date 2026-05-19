@@ -1,0 +1,444 @@
+{
+  "$schema": "https://vrooli.dev/schemas/navigation.v1.json",
+  "schemaVersion": 1,
+  "kind": "navigation",
+  "flowId": "reference-react-vite.app.ui",
+  "domain": "app",
+  "description": "Reference React Vite template navigation: responsive Task Manager surface with illustrative auth, role, viewport, and feature-flag contexts. No real backend gating.",
+
+  "contexts": {
+    "auth": {
+      "kind": "enum",
+      "values": ["logged_out", "logged_in"],
+      "default": "logged_out"
+    },
+    "role": {
+      "kind": "enum",
+      "values": ["viewer", "editor", "admin"],
+      "default": "viewer",
+      "valid_when": "auth=logged_in"
+    },
+    "viewport": {
+      "kind": "enum",
+      "values": ["mobile", "tablet", "desktop"],
+      "default": "desktop"
+    },
+    "feature_beta": {
+      "kind": "bool",
+      "default": false
+    }
+  },
+
+  "routes": [
+    {
+      "id": "login",
+      "path": "/login",
+      "page": "ui/src/pages/Login.tsx",
+      "requires": "auth=logged_out",
+      "redirect_if_unmet": { "to": "dashboard" },
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "forgot_password",
+      "path": "/forgot-password",
+      "page": "ui/src/pages/ForgotPassword.tsx",
+      "requires": "auth=logged_out",
+      "redirect_if_unmet": { "to": "dashboard" },
+      "deep_link": "recoverable",
+      "parents": ["login"]
+    },
+    {
+      "id": "dashboard",
+      "path": "/",
+      "page": "ui/src/pages/Dashboard.tsx",
+      "requires": "auth=logged_in",
+      "redirect_if_unmet": { "to": "login", "preserve_target": true },
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "tasks_index",
+      "path": "/tasks",
+      "page": "ui/src/pages/Tasks.tsx",
+      "requires": "auth=logged_in",
+      "redirect_if_unmet": { "to": "login", "preserve_target": true },
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "task_detail",
+      "path": "/tasks/:id",
+      "page": "ui/src/pages/TaskDetail.tsx",
+      "requires": "auth=logged_in",
+      "redirect_if_unmet": { "to": "login", "preserve_target": true },
+      "deep_link": "recoverable",
+      "parents": ["tasks_index"]
+    },
+    {
+      "id": "projects_index",
+      "path": "/projects",
+      "page": "ui/src/pages/Projects.tsx",
+      "requires": "auth=logged_in",
+      "redirect_if_unmet": { "to": "login", "preserve_target": true },
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "project_detail",
+      "path": "/projects/:id",
+      "page": "ui/src/pages/ProjectDetail.tsx",
+      "requires": "auth=logged_in",
+      "redirect_if_unmet": { "to": "login", "preserve_target": true },
+      "deep_link": "recoverable",
+      "parents": ["projects_index"]
+    },
+    {
+      "id": "settings_index",
+      "path": "/settings",
+      "page": "ui/src/pages/Settings.tsx",
+      "requires": "auth=logged_in",
+      "redirect_if_unmet": { "to": "login", "preserve_target": true },
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "settings_display",
+      "path": "/settings/display",
+      "page": "ui/src/pages/settings/Display.tsx",
+      "requires": "auth=logged_in",
+      "redirect_if_unmet": { "to": "login", "preserve_target": true },
+      "deep_link": "recoverable",
+      "parents": ["settings_index"]
+    },
+    {
+      "id": "settings_notifications",
+      "path": "/settings/notifications",
+      "page": "ui/src/pages/settings/Notifications.tsx",
+      "requires": "auth=logged_in",
+      "redirect_if_unmet": { "to": "login", "preserve_target": true },
+      "deep_link": "recoverable",
+      "parents": ["settings_index"]
+    },
+    {
+      "id": "settings_about",
+      "path": "/settings/about",
+      "page": "ui/src/pages/settings/About.tsx",
+      "requires": "auth=logged_in",
+      "redirect_if_unmet": { "to": "login", "preserve_target": true },
+      "deep_link": "recoverable",
+      "parents": ["settings_index"]
+    },
+    {
+      "id": "admin_users",
+      "path": "/admin/users",
+      "page": "ui/src/pages/admin/Users.tsx",
+      "requires": "auth=logged_in AND role=admin",
+      "redirect_if_unmet": { "to": "dashboard" },
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "beta_dashboard",
+      "path": "/beta",
+      "page": "ui/src/pages/Beta.tsx",
+      "requires": "auth=logged_in AND feature_beta=true",
+      "redirect_if_unmet": { "to": "dashboard" },
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    }
+  ],
+
+  "containers": [
+    {
+      "id": "top_nav_bar",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "show_when": "viewport=desktop AND auth=logged_in",
+      "disclosure": "always_visible"
+    },
+    {
+      "id": "bottom_nav",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "show_when": "viewport=mobile AND auth=logged_in",
+      "disclosure": "always_visible"
+    },
+    {
+      "id": "hamburger_menu",
+      "kind": "drawer",
+      "host_routes": ["*"],
+      "show_when": "viewport IN [mobile, tablet] AND auth=logged_in",
+      "disclosure": "click_to_open",
+      "trigger": {
+        "label": "Menu",
+        "test_id": "hamburger-button",
+        "reachable_via": ["mouse", "keyboard"]
+      },
+      "scope": "modal_panel",
+      "focus_trap": true,
+      "dismiss": ["backdrop", "esc", "swipe", "navigate"]
+    },
+    {
+      "id": "user_menu",
+      "kind": "popover",
+      "host_routes": ["*"],
+      "show_when": "auth=logged_in",
+      "disclosure": "click_to_open",
+      "trigger": {
+        "label": "Account",
+        "test_id": "user-menu-trigger",
+        "reachable_via": ["mouse", "keyboard"]
+      },
+      "scope": "popover",
+      "focus_trap": true,
+      "dismiss": ["outside_click", "esc", "navigate"]
+    },
+    {
+      "id": "auth_footer",
+      "kind": "persistent",
+      "host_routes": ["login", "forgot_password"],
+      "show_when": "auth=logged_out",
+      "disclosure": "always_visible"
+    }
+  ],
+
+  "affordances": [
+    {
+      "id": "nav_dashboard",
+      "to": "dashboard",
+      "show_when": "auth=logged_in",
+      "presentations": [
+        { "in": "top_nav_bar",    "label": "Dashboard", "test_id": "top-nav-dashboard", "reachable_via": ["mouse", "keyboard"] },
+        { "in": "bottom_nav",     "label": "Dashboard", "icon": "layout-dashboard", "test_id": "bottom-nav-dashboard", "reachable_via": ["mouse"] },
+        { "in": "hamburger_menu", "label": "Dashboard", "test_id": "menu-dashboard", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_tasks",
+      "to": "tasks_index",
+      "show_when": "auth=logged_in",
+      "presentations": [
+        { "in": "top_nav_bar",    "label": "Tasks", "test_id": "top-nav-tasks", "reachable_via": ["mouse", "keyboard"] },
+        { "in": "bottom_nav",     "label": "Tasks", "icon": "list-todo", "test_id": "bottom-nav-tasks", "reachable_via": ["mouse"] },
+        { "in": "hamburger_menu", "label": "Tasks", "test_id": "menu-tasks", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_projects",
+      "to": "projects_index",
+      "show_when": "auth=logged_in",
+      "presentations": [
+        { "in": "top_nav_bar",    "label": "Projects", "test_id": "top-nav-projects", "reachable_via": ["mouse", "keyboard"] },
+        { "in": "bottom_nav",     "label": "Projects", "icon": "folder-kanban", "test_id": "bottom-nav-projects", "reachable_via": ["mouse"] },
+        { "in": "hamburger_menu", "label": "Projects", "test_id": "menu-projects", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_settings",
+      "to": "settings_index",
+      "show_when": "auth=logged_in",
+      "presentations": [
+        { "in": "top_nav_bar",    "label": "Settings", "test_id": "top-nav-settings", "reachable_via": ["mouse", "keyboard"] },
+        { "in": "bottom_nav",     "label": "Settings", "icon": "settings", "test_id": "bottom-nav-settings", "reachable_via": ["mouse"] },
+        { "in": "hamburger_menu", "label": "Settings", "test_id": "menu-settings", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_admin_users",
+      "to": "admin_users",
+      "show_when": "auth=logged_in AND role=admin",
+      "presentations": [
+        { "in": "top_nav_bar",    "label": "Admin", "test_id": "top-nav-admin", "reachable_via": ["mouse", "keyboard"] },
+        { "in": "hamburger_menu", "label": "Admin", "test_id": "menu-admin", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "nav_beta",
+      "to": "beta_dashboard",
+      "show_when": "auth=logged_in AND feature_beta=true",
+      "presentations": [
+        { "in": "hamburger_menu", "label": "Beta features", "test_id": "menu-beta", "reachable_via": ["mouse", "keyboard"] },
+        { "in": "user_menu",      "label": "Beta features", "test_id": "user-menu-beta", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "settings_card_display",
+      "to": "settings_display",
+      "presentations": [
+        { "in": "settings_index", "label": "Display", "test_id": "settings-card-display", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "settings_card_notifications",
+      "to": "settings_notifications",
+      "presentations": [
+        { "in": "settings_index", "label": "Notifications", "test_id": "settings-card-notifications", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "settings_card_about",
+      "to": "settings_about",
+      "presentations": [
+        { "in": "settings_index", "label": "About", "test_id": "settings-card-about", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "task_row_open",
+      "to": "task_detail",
+      "presentations": [
+        { "in": "tasks_index", "label": "Open task", "test_id": "task-row-open", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "project_card_open",
+      "to": "project_detail",
+      "presentations": [
+        { "in": "projects_index", "label": "Open project", "test_id": "project-card-open", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "login_submit",
+      "to": "dashboard",
+      "side_effect": "set_context auth=logged_in",
+      "presentations": [
+        { "in": "login", "label": "Sign in", "test_id": "login-submit", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "login_forgot_password_link",
+      "to": "forgot_password",
+      "presentations": [
+        { "in": "login", "label": "Forgot password?", "test_id": "forgot-password-link", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "log_out",
+      "to": "login",
+      "side_effect": "set_context auth=logged_out",
+      "show_when": "auth=logged_in",
+      "presentations": [
+        { "in": "user_menu", "label": "Log out", "test_id": "logout-item", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    }
+  ],
+
+  "overlays": [
+    {
+      "id": "confirm_logout",
+      "host_routes": ["*"],
+      "scope": "modal",
+      "focus_trap": true,
+      "dismiss": ["esc", "cancel_button", "backdrop"],
+      "show_when": "auth=logged_in",
+      "test_id": "confirm-logout-dialog"
+    }
+  ],
+
+  "return_paths": [
+    { "from": "forgot_password", "rule": "history_back", "fallback": "login" },
+    { "from": "task_detail", "rule": "history_back", "fallback": "tasks_index" },
+    { "from": "project_detail", "rule": "history_back", "fallback": "projects_index" },
+    { "from": "settings_display", "rule": "history_back", "fallback": "settings_index" },
+    { "from": "settings_notifications", "rule": "history_back", "fallback": "settings_index" },
+    { "from": "settings_about", "rule": "history_back", "fallback": "settings_index" },
+    { "from": "admin_users", "rule": "history_back", "fallback": "dashboard" },
+    { "from": "beta_dashboard", "rule": "history_back", "fallback": "dashboard" }
+  ],
+
+  "shortcuts": [
+    { "binding": "g h", "action": "navigate", "to": "dashboard", "scope": "global", "show_when": "auth=logged_in" },
+    { "binding": "g t", "action": "navigate", "to": "tasks_index", "scope": "global", "show_when": "auth=logged_in" },
+    { "binding": "g p", "action": "navigate", "to": "projects_index", "scope": "global", "show_when": "auth=logged_in" },
+    { "binding": "g s", "action": "navigate", "to": "settings_index", "scope": "global", "show_when": "auth=logged_in" }
+  ],
+
+  "reachability_invariants": [
+    {
+      "id": "forgot_password_one_click_from_login",
+      "given": "auth=logged_out",
+      "from": "login",
+      "must_reach": ["forgot_password"],
+      "max_clicks": 1
+    },
+    {
+      "id": "settings_reachable_quickly",
+      "given": "auth=logged_in",
+      "from": "dashboard",
+      "must_reach": ["settings_index"],
+      "max_clicks": { "desktop": 1, "tablet": 2, "mobile": 2 }
+    },
+    {
+      "id": "settings_subpages_reachable",
+      "given": "auth=logged_in",
+      "from": "dashboard",
+      "must_reach": ["settings_display", "settings_notifications", "settings_about"],
+      "max_clicks": { "desktop": 2, "tablet": 3, "mobile": 3 }
+    },
+    {
+      "id": "tasks_reachable_quickly",
+      "given": "auth=logged_in",
+      "from": "dashboard",
+      "must_reach": ["tasks_index"],
+      "max_clicks": { "desktop": 1, "tablet": 2, "mobile": 1 }
+    },
+    {
+      "id": "projects_reachable_quickly",
+      "given": "auth=logged_in",
+      "from": "dashboard",
+      "must_reach": ["projects_index"],
+      "max_clicks": { "desktop": 1, "tablet": 2, "mobile": 1 }
+    },
+    {
+      "id": "admin_unreachable_to_non_admins",
+      "given": "auth=logged_in AND role!=admin",
+      "from": "dashboard",
+      "must_not_reach": ["admin_users"]
+    },
+    {
+      "id": "beta_unreachable_when_flag_off",
+      "given": "auth=logged_in AND feature_beta=false",
+      "from": "dashboard",
+      "must_not_reach": ["beta_dashboard"]
+    },
+    {
+      "id": "auth_pages_unreachable_when_logged_in",
+      "given": "auth=logged_in",
+      "from": "dashboard",
+      "must_not_reach": ["login", "forgot_password"]
+    },
+    {
+      "id": "app_pages_unreachable_when_logged_out",
+      "given": "auth=logged_out",
+      "from": "login",
+      "must_not_reach": ["dashboard", "tasks_index", "projects_index", "settings_index", "admin_users", "beta_dashboard"]
+    }
+  ],
+
+  "deep_link_policy": [
+    {
+      "id": "auth_required_routes_redirect_to_login",
+      "for_routes_where": "requires CONTAINS auth=logged_in",
+      "given": "auth=logged_out",
+      "must": "redirect_to=login WITH preserved_target"
+    },
+    {
+      "id": "auth_pages_redirect_when_already_logged_in",
+      "for_routes": ["login", "forgot_password"],
+      "given": "auth=logged_in",
+      "must": "redirect_to=dashboard"
+    },
+    {
+      "id": "admin_routes_redirect_non_admins",
+      "for_routes_where": "requires CONTAINS role=admin",
+      "given": "auth=logged_in AND role!=admin",
+      "must": "redirect_to=dashboard"
+    },
+    {
+      "id": "beta_routes_redirect_when_flag_off",
+      "for_routes_where": "requires CONTAINS feature_beta=true",
+      "given": "auth=logged_in AND feature_beta=false",
+      "must": "redirect_to=dashboard"
+    }
+  ]
+}

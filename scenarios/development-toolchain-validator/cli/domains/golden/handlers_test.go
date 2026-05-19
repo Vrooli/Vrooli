@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -285,7 +287,10 @@ func TestGoldensRegenerate_HappyPath(t *testing.T) {
 
 func TestRegister_Wiring(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &fakeService{}))
-	group := Register(core)
+	manifest, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
+	require.NoError(t, err)
+	group, err := Register(core, manifest)
+	require.NoError(t, err)
 	require.Equal(t, "goldens", group.Name)
 	require.True(t, group.NeedsAPI)
 	names := make([]string, 0, len(group.Subcommands))

@@ -1,0 +1,82 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "bas.screenshot",
+  "name": "Screenshot a Page",
+  "description": "Capture a desktop-viewport screenshot of any URL or running Vrooli scenario. Use this when you need a visual snapshot of UI state — first regression check, sanity look at a deployed scenario, before/after comparison for a UI change.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "browser-automation-studio"
+  },
+  "command": {
+    "argv": [
+      "browser-automation-studio",
+      "capture",
+      "--url",
+      "{{url}}",
+      "--capture",
+      "screenshot",
+      "--out",
+      "{{out}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "url": {
+      "type": "string",
+      "required": true,
+      "description": "http(s) URL or `scenario=<slug>,path=<path>` shorthand."
+    },
+    "out": {
+      "type": "path",
+      "required": true,
+      "description": "Directory the screenshot is written into."
+    }
+  },
+  "outputs": {
+    "executionId": {
+      "type": "string",
+      "description": "BAS execution id; reuse with `browser-automation-studio execution show`."
+    },
+    "artifacts": {
+      "type": "string",
+      "description": "JSON array of artifact descriptors {type,path,size_bytes,metadata}."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Screenshot the app-monitor home page.",
+      "input": {
+        "url": "scenario=app-monitor,path=/",
+        "out": "/tmp/bas-screenshot"
+      }
+    }
+  ],
+  "tags": [
+    "screenshot",
+    "browser",
+    "ui",
+    "visual",
+    "capture",
+    "regression",
+    "snapshot"
+  ],
+  "execution": {
+    "timeoutSeconds": 120,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-05-18T00:00:00Z",
+  "updatedAt": "2026-05-18T00:00:00Z"
+}

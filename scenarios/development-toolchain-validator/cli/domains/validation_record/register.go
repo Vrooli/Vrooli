@@ -1,42 +1,25 @@
-// Package validation_record is the CLI's record command surface.
+// Package validation_record is the CLI's record command surface. Mirrors
+// the API's Connect-RPC ValidationRecordService. Command surface loads
+// from cli/manifest.json via cliapp.LoadFromManifest.
 package validation_record
 
 import (
+	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// Register returns the `record` subcommand group.
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+const GroupName = "record"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "record",
-		Description: "List and inspect terminal validation records (append-only history)",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "list",
-				Description: "List validation records (paginated)",
-				Args: cliapp.ArgSchema{
-					Flags: []cliapp.Flag{
-						{Name: "golden", Description: "Filter by golden slug"},
-						{Name: "subject", Description: "Filter by subject id (skill id or tool name)"},
-						{Name: "kind", Description: "Filter by tuple kind: skill | tool"},
-						{Name: "page-size", Default: "50", Description: "Records per page"},
-						{Name: "page-token", Description: "Opaque cursor from the previous page"},
-					},
-				},
-				RunCtx: h.list,
-			},
-			{
-				Name:        "get",
-				Description: "Show one record by id",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{
-						{Name: "id", Required: true, Description: "Record id (UUID)"},
-					},
-				},
-				RunCtx: h.get,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"ValidationRecordService.ListRecords": h.list,
+		"ValidationRecordService.GetRecord":   h.get,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("validation_record: load from manifest: %w", err)
+	}
+	return group, nil
 }

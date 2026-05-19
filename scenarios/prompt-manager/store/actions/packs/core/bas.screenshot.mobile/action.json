@@ -1,0 +1,85 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "bas.screenshot.mobile",
+  "name": "Screenshot a Page (Mobile Viewport)",
+  "description": "Capture a mobile-viewport (390x844) screenshot of any URL or running Vrooli scenario. Use this for responsive-design checks, mobile UI regression, or to verify a page works on a small screen without spinning up an actual device.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "browser-automation-studio"
+  },
+  "command": {
+    "argv": [
+      "browser-automation-studio",
+      "capture",
+      "--url",
+      "{{url}}",
+      "--capture",
+      "screenshot",
+      "--dimensions",
+      "mobile",
+      "--out",
+      "{{out}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "url": {
+      "type": "string",
+      "required": true,
+      "description": "http(s) URL or `scenario=<slug>,path=<path>` shorthand."
+    },
+    "out": {
+      "type": "path",
+      "required": true,
+      "description": "Directory the screenshot is written into."
+    }
+  },
+  "outputs": {
+    "executionId": {
+      "type": "string",
+      "description": "BAS execution id."
+    },
+    "artifacts": {
+      "type": "string",
+      "description": "JSON array of artifact descriptors."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Mobile screenshot of swarm-manager backlog.",
+      "input": {
+        "url": "scenario=swarm-manager,path=/backlog",
+        "out": "/tmp/bas-mobile"
+      }
+    }
+  ],
+  "tags": [
+    "screenshot",
+    "mobile",
+    "responsive",
+    "browser",
+    "ui",
+    "visual",
+    "small-screen",
+    "viewport"
+  ],
+  "execution": {
+    "timeoutSeconds": 120,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-05-18T00:00:00Z",
+  "updatedAt": "2026-05-18T00:00:00Z"
+}

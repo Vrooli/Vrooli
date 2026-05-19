@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package vrooli.development_toolchain_validator.v1.validation_run;
+
+import "google/protobuf/timestamp.proto";
+import "development-toolchain-validator/v1/validation_record/validation_record.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_run;validation_run_v1";
+
+// =============================================================================
+// VALIDATION RUN DOMAIN — Async (skill|tool, golden) validation (OT-P0-004/005)
+// =============================================================================
+//
+// @layer 5 (api surface)
+// @domain validation_run
+// @stability evolving
+//
+// A ValidationRun is the operational handle on one in-flight validation
+// (skill or tool against a golden). Start returns immediately; an
+// internal worker drives the run's lifecycle and persists a
+// ValidationRecord at terminal status.
+// =============================================================================
+
+service ValidationRunService {
+  rpc Start(StartRequest) returns (StartResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc ListActive(ListActiveRequest) returns (ListActiveResponse);
+}
+
+// Status enumerates the operational state of a validation run.
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_QUEUED      = 1;
+  STATUS_RUNNING     = 2;
+  STATUS_EVALUATING  = 3;
+  STATUS_TERMINAL    = 4;
+}
+
+message ValidationRun {
+  string id = 1;
+
+  vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 2;
+  string subject_id  = 3;
+  string golden_slug = 4;
+
+  Status status = 5;
+
+  // Set only when status == TERMINAL; otherwise VERDICT_UNSPECIFIED.
+  vrooli.development_toolchain_validator.v1.validation_record.Verdict terminal_verdict = 6;
+
+  string agent_manager_run_id = 7;
+
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp started_at = 9;
+  google.protobuf.Timestamp ended_at   = 10;
+
+  // Populated when terminal_verdict is RUN_FAILURE / TOOL_FAILURE /
+  // UNEXPECTED_MUTATION.
+  string error_message = 11;
+}
+
+message StartRequest {
+  vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 1;
+  string subject_id  = 2;
+  string golden_slug = 3;
+  bool   force       = 4;
+}
+
+message StartResponse {
+  ValidationRun run = 1;
+}
+
+message GetRequest {
+  string id = 1;
+}
+
+message GetResponse {
+  ValidationRun run = 1;
+}
+
+message ListActiveRequest {
+}
+
+message ListActiveResponse {
+  repeated ValidationRun runs = 1;
+}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"development-toolchain-validator/internal/clock"
 	"development-toolchain-validator/internal/modules"
@@ -116,6 +117,25 @@ func main() {
 
 	skillCatalogSource := promptmanager.NewSkillCatalogRESTAdapter(promptmanager.Options{})
 
+	// agent-manager profile reconciliation. DTV declares its sandboxed
+	// runner profile in .vrooli/agent-profiles/default.json and lists
+	// the source in service.json; this call asks agent-manager to upsert
+	// the profile keyed on "development-toolchain-validator/default".
+	// Failure here is non-fatal because the validation_run worker fails
+	// individual skill runs visibly (verdict=run_failure) when the
+	// profile is missing — preferable to refusing to boot the whole
+	// API. A 10s ceiling keeps a misconfigured/slow agent-manager from
+	// stalling startup indefinitely.
+	agentClient := agentmanager.New(agentmanager.Options{})
+	initCtx, initCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if resp, err := agentClient.Initialize(initCtx); err != nil {
+		log.Printf("agent-manager profile reconciliation failed (skill validation will fail until resolved): %v", err)
+	} else {
+		log.Printf("agent-manager profiles reconciled: scenario=%s created=%d updated=%d unchanged=%d failed=%d",
+			resp.Scenario, resp.Created, resp.Updated, resp.Unchanged, resp.Failed)
+	}
+	initCancel()
+
 	// validation_run worker. Constructed before the server module so the
 	// module's Service.Start can use the worker's Notify hook to wake
 	// the loop immediately on new queued runs.
@@ -125,7 +145,7 @@ func main() {
 	worker := vrun.NewWorker(vrun.WorkerDeps{
 		Repo:      vrunRepo,
 		Records:   vrService,
-		AgentMgr:  agentmanager.New(agentmanager.Options{}),
+		AgentMgr:  agentClient,
 		Tools:     devtools.New(devtools.Options{Clock: clock.System{}}),
 		Sandbox:   workspacesandbox.New(workspacesandbox.Options{}),
 		Goldens:   vrun.GoldenSourceFromRepo{Repo: golden.NewSQLiteRepository(db, clock.System{})},

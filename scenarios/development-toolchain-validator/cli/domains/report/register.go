@@ -1,52 +1,26 @@
-// Package report is the CLI's report command surface.
+// Package report is the CLI's report command surface. Mirrors the API's
+// Connect-RPC ReportService. Command surface loads from cli/manifest.json
+// via cliapp.LoadFromManifest.
 package report
 
 import (
+	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// Register returns the `report` subcommand group.
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+const GroupName = "report"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "report",
-		Description: "Read-only roll-ups composed from goldens, manifests, validation records, and staleness",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "golden-summary",
-				Description: "Latest verdict per skill and tool for a golden",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{
-						{Name: "slug", Required: true, Description: "Golden slug"},
-					},
-				},
-				RunCtx: h.goldenSummary,
-			},
-			{
-				Name:        "tuple-history",
-				Description: "Paginated record history for one (skill|tool, golden) tuple",
-				Args: cliapp.ArgSchema{
-					Flags: []cliapp.Flag{
-						{Name: "skill", Description: "Skill id (mutually exclusive with --tool)"},
-						{Name: "tool", Description: "Tool name (mutually exclusive with --skill)"},
-						{Name: "golden", Required: true, Description: "Golden slug"},
-						{Name: "page-size", Default: "50"},
-						{Name: "page-token"},
-					},
-				},
-				RunCtx: h.tupleHistory,
-			},
-			{
-				Name:        "coverage",
-				Description: "Per-skill coverage grid for one golden",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{
-						{Name: "slug", Required: true, Description: "Golden slug"},
-					},
-				},
-				RunCtx: h.coverage,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"ReportService.GetGoldenSummary": h.goldenSummary,
+		"ReportService.GetTupleHistory":  h.tupleHistory,
+		"ReportService.GetCoverage":      h.coverage,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("report: load from manifest: %w", err)
+	}
+	return group, nil
 }

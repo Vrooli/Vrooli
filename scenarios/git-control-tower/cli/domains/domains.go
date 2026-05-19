@@ -2,6 +2,11 @@
 // Package domains aggregates the CLI subcommand groups exposed by
 // git-control-tower. When adding or removing a group here, update
 // docs/reference/cli-commands.md in the same change.
+//
+// The `worktree` domain is sourced from cli/manifest.json via
+// cliapp.LoadFromManifest; the remaining domains (repo, branch, review,
+// audit) are still REST-backed and hand-authored. As those domains
+// migrate to Connect-RPC they should grow manifest groups too.
 package domains
 
 import (
@@ -19,12 +24,16 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	return nil
 }
 
-func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+func SubcommandGroups(core *cliapp.ScenarioApp, manifestBytes []byte) ([]cliapp.SubcommandGroup, error) {
+	wt, err := worktree.Register(core, manifestBytes)
+	if err != nil {
+		return nil, err
+	}
 	return []cliapp.SubcommandGroup{
 		repo.Register(core),
 		branch.Register(core),
-		worktree.Register(core),
+		wt,
 		review.Register(core),
 		audit.Register(core),
-	}
+	}, nil
 }

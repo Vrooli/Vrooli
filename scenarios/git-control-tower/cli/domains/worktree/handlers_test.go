@@ -1,8 +1,11 @@
 package worktree
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -93,25 +96,74 @@ func swapFactory(fake worktreeconnect.WorktreeServiceClient) func() {
 	return func() { clientFactory = prev }
 }
 
-func TestParse(t *testing.T) {
-	flags := parse([]string{"--repo=/r", "--force", "--reason=because"})
-	if flags.Get("repo") != "/r" {
-		t.Fatalf("expected /r, got %q", flags.Get("repo"))
+// buildGroup loads the worktree group from the on-disk manifest so handler
+// tests inherit the production-parsed ArgSchema. Failing to find a command
+// is a contract bug (the manifest changed but a test wasn't updated), so
+// callers t.Fatal on miss rather than skipping.
+func buildGroup(t *testing.T) cliapp.SubcommandGroup {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
 	}
-	if !flags.Flag("force") {
-		t.Fatalf("expected force=true")
+	h := &handlers{}
+	group, err := cliapp.LoadFromManifest(raw, GroupName, map[string]func(cliapp.RunContext) error{
+		"WorktreeService.ListWorktrees":  h.list,
+		"WorktreeService.GetWorktree":    h.get,
+		"WorktreeService.CreateWorktree": h.create,
+		"WorktreeService.RemoveWorktree": h.remove,
+		"WorktreeService.LockWorktree":   h.lock,
+		"WorktreeService.UnlockWorktree": h.unlock,
+		"WorktreeService.MoveWorktree":   h.move,
+		"WorktreeService.PruneWorktrees": h.prune,
+	})
+	if err != nil {
+		t.Fatalf("LoadFromManifest: %v", err)
 	}
-	if flags.Get("reason") != "because" {
-		t.Fatalf("expected reason=because, got %q", flags.Get("reason"))
+	return group
+}
+
+func commandSchema(t *testing.T, group cliapp.SubcommandGroup, name string) cliapp.ArgSchema {
+	t.Helper()
+	for _, c := range group.Subcommands {
+		if c.Name == name {
+			return c.Args
+		}
 	}
+	t.Fatalf("command %q not present in manifest group %q", name, group.Name)
+	return cliapp.ArgSchema{}
+}
+
+func dispatch(t *testing.T, name string, argv []string) error {
+	t.Helper()
+	group := buildGroup(t)
+	schema := commandSchema(t, group, name)
+	var handler func(cliapp.RunContext) error
+	for _, c := range group.Subcommands {
+		if c.Name == name {
+			handler = c.RunCtx
+			break
+		}
+	}
+	if handler == nil {
+		t.Fatalf("no RunCtx for command %q", name)
+	}
+	out := &bytes.Buffer{}
+	ctx, err := cliapp.NewTestRunContextFromArgs(schema, argv, nil, out, out)
+	if err != nil {
+		return err
+	}
+	return handler(ctx)
 }
 
 func TestListRequiresRepoFlag(t *testing.T) {
 	defer swapFactory(&fakeClient{})()
-	h := &handlers{}
-	err := h.list(nil)
-	if err == nil || !strings.Contains(err.Error(), "usage") {
-		t.Fatalf("expected usage error, got %v", err)
+	err := dispatch(t, "list", nil)
+	if err == nil {
+		t.Fatalf("expected required-flag error")
+	}
+	if !strings.Contains(err.Error(), "repo") {
+		t.Fatalf("expected error to mention --repo, got %v", err)
 	}
 }
 
@@ -123,8 +175,7 @@ func TestListCallsClient(t *testing.T) {
 		},
 	}}
 	defer swapFactory(fc)()
-	h := &handlers{}
-	if err := h.list([]string{"--repo=/repo"}); err != nil {
+	if err := dispatch(t, "list", []string{"--repo=/repo"}); err != nil {
 		t.Fatalf("list: %v", err)
 	}
 	if fc.lastList.RepoPath != "/repo" {
@@ -134,8 +185,7 @@ func TestListCallsClient(t *testing.T) {
 
 func TestCreateRequiresSource(t *testing.T) {
 	defer swapFactory(&fakeClient{})()
-	h := &handlers{}
-	err := h.create([]string{"--repo=/r", "--path=/p"})
+	err := dispatch(t, "create", []string{"--repo=/r", "--path=/p"})
 	if err == nil || !strings.Contains(err.Error(), "requires one of") {
 		t.Fatalf("expected source error, got %v", err)
 	}
@@ -143,9 +193,8 @@ func TestCreateRequiresSource(t *testing.T) {
 
 func TestCreateRequiresRepoAndPath(t *testing.T) {
 	defer swapFactory(&fakeClient{})()
-	h := &handlers{}
-	if err := h.create([]string{"--branch=main"}); err == nil {
-		t.Fatalf("expected usage error")
+	if err := dispatch(t, "create", []string{"--branch=main"}); err == nil {
+		t.Fatalf("expected required-flag error for --repo / --path")
 	}
 }
 
@@ -154,8 +203,7 @@ func TestCreateExistingBranch(t *testing.T) {
 		Worktree: &worktreev1.Worktree{Path: "/tmp/feature", Branch: "feature"},
 	}}
 	defer swapFactory(fc)()
-	h := &handlers{}
-	if err := h.create([]string{"--repo=/r", "--path=/tmp/feature", "--branch=feature"}); err != nil {
+	if err := dispatch(t, "create", []string{"--repo=/r", "--path=/tmp/feature", "--branch=feature"}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	if fc.lastCreate.NewWorktreePath != "/tmp/feature" {
@@ -172,8 +220,7 @@ func TestCreateNewBranchWithStartAndTrack(t *testing.T) {
 		Worktree: &worktreev1.Worktree{Path: "/tmp/x", Branch: "topic"},
 	}}
 	defer swapFactory(fc)()
-	h := &handlers{}
-	if err := h.create([]string{"--repo=/r", "--path=/tmp/x", "--new-branch=topic", "--start=main", "--track"}); err != nil {
+	if err := dispatch(t, "create", []string{"--repo=/r", "--path=/tmp/x", "--new-branch=topic", "--start=main", "--track"}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	src, ok := fc.lastCreate.Source.(*worktreev1.CreateWorktreeRequest_NewBranch)
@@ -193,8 +240,7 @@ func TestCreateDetachedCommit(t *testing.T) {
 		Worktree: &worktreev1.Worktree{Path: "/tmp/d", Detached: true},
 	}}
 	defer swapFactory(fc)()
-	h := &handlers{}
-	if err := h.create([]string{"--repo=/r", "--path=/tmp/d", "--commit=abcdef"}); err != nil {
+	if err := dispatch(t, "create", []string{"--repo=/r", "--path=/tmp/d", "--commit=abcdef"}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	src, ok := fc.lastCreate.Source.(*worktreev1.CreateWorktreeRequest_Commit)
@@ -206,8 +252,7 @@ func TestCreateDetachedCommit(t *testing.T) {
 func TestRemoveForwardsForce(t *testing.T) {
 	fc := &fakeClient{removeResp: &worktreev1.RemoveWorktreeResponse{}}
 	defer swapFactory(fc)()
-	h := &handlers{}
-	if err := h.remove([]string{"--repo=/r", "--path=/p", "--force"}); err != nil {
+	if err := dispatch(t, "remove", []string{"--repo=/r", "--path=/p", "--force"}); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
 	if !fc.lastRemove.Force {
@@ -218,8 +263,7 @@ func TestRemoveForwardsForce(t *testing.T) {
 func TestRemoveSurfaceConnectErrors(t *testing.T) {
 	fc := &fakeClient{removeErr: connect.NewError(connect.CodeInvalidArgument, errors.New("cannot remove main"))}
 	defer swapFactory(fc)()
-	h := &handlers{}
-	err := h.remove([]string{"--repo=/r", "--path=/p"})
+	err := dispatch(t, "remove", []string{"--repo=/r", "--path=/p"})
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -227,16 +271,14 @@ func TestRemoveSurfaceConnectErrors(t *testing.T) {
 
 func TestLockRequiresFlags(t *testing.T) {
 	defer swapFactory(&fakeClient{})()
-	h := &handlers{}
-	if err := h.lock(nil); err == nil {
-		t.Fatalf("expected usage error")
+	if err := dispatch(t, "lock", nil); err == nil {
+		t.Fatalf("expected required-flag error")
 	}
 }
 
 func TestMoveRequiresNewPath(t *testing.T) {
 	defer swapFactory(&fakeClient{})()
-	h := &handlers{}
-	if err := h.move([]string{"--repo=/r", "--path=/p"}); err == nil {
+	if err := dispatch(t, "move", []string{"--repo=/r", "--path=/p"}); err == nil {
 		t.Fatalf("expected error for missing --new-path")
 	}
 }
@@ -244,8 +286,7 @@ func TestMoveRequiresNewPath(t *testing.T) {
 func TestPrune(t *testing.T) {
 	fc := &fakeClient{pruneResp: &worktreev1.PruneWorktreesResponse{PrunedPaths: []string{"old1"}}}
 	defer swapFactory(fc)()
-	h := &handlers{}
-	if err := h.prune([]string{"--repo=/r"}); err != nil {
+	if err := dispatch(t, "prune", []string{"--repo=/r"}); err != nil {
 		t.Fatalf("prune: %v", err)
 	}
 }

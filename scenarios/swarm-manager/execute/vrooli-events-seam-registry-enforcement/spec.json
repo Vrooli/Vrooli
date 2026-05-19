@@ -1,0 +1,30 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-events/docs/**",
+    "scenarios/vrooli-events/internal/**",
+    "scenarios/vrooli-events/api/**",
+    "scenarios/vrooli-events/ui/src/test-utils/**",
+    "scenarios/vrooli-events/ui/src/lib/**"
+  ],
+  "created": "2026-05-18T07:02:59Z",
+  "created_by": {
+    "type": "agent",
+    "run_id": "0acac6d9-7184-436f-94b6-06e33c540020",
+    "task_id": "383c6a47-a03a-4461-8357-813ff0e79c5c",
+    "profile_key": "prompt-manager-heartbeat"
+  },
+  "description": "Quality audit 2026-05-18 using seam-discovery-and-enforcement found that vrooli-events has useful seams, but they are not in the current enforceable seam shape. Evidence: docs/internal/SEAMS.md is narrative under Code-Level Seams and Weak/Missing Seams; it does not contain the required Seam Registry table with declaration site, production impl, test double, and reason. Grep found zero // seam: tags and zero TestSeamRegistry references across the scenario, while real seam interfaces exist in internal/store/store.go (Store), internal/broker/iface.go (EventBroker), internal/policy/policy.go (Store), internal/subscription/subscription.go (Store), and internal/resolver/resolver.go (Resolver). Compile-time fake assertions exist only for testutil MockStore and MockBroker; Store implementations for policy/subscription and the resolver seam are not represented in SEAMS.md with fake locations/assertions. Ambient dependencies are partly unseamed: api/handlers.go uses time.Now for event timestamps, api/handlers_subscription.go uses time.Now for webhook delivered_at, internal/convert/convert.go falls back to time.Now for created_at, internal/policy/sqlite.go uses time.Now for circuit-breaker override expiry, internal/resolver/resolver.go measures latency with time.Now/time.Since, internal/config/config.go calls os.Getenv directly, internal/fallback/fallback.go calls http.Get directly, and api plus internal packages use log.Printf directly. Existing docs also still reference docs/internal/UNIT_TEST_ARCHITECTURE.md as a durable seam/testability surface even though the current seam skill says durable seam state should live in SEAMS.md plus PROBLEMS.md, with one-off audit reports retired. Verification: go test ./... -count=1 -timeout 180s passed in scenarios/vrooli-events; the finding is structural/testability enforcement drift rather than failing behavior.\n\nDraft plan: (1) convert docs/internal/SEAMS.md to include the required Seam Registry and Seam Maturity tables while preserving useful narrative as notes below the table; (2) add // seam: comments to real seam interfaces, starting with store.Store, broker.EventBroker, policy.Store, subscription.Store, resolver.Resolver, UI fetch, UI EventSource, and the existing store.SQLiteConfig.Now clock function seam if kept as function-shaped rather than interface; (3) reconcile every tagged seam to SEAMS.md with declaration, production implementation, fake/test double, and reason, explicitly marking seams that intentionally use httptest/global replacement instead of a Go fake; (4) add a registry/enforcement test that fails when // seam: tags and SEAMS.md rows drift, and add ambient-call checks or document remaining ambient L0 calls in PROBLEMS.md; (5) decide whether to migrate high-value ambient calls now or defer them: clock seam for handlers/convert/policy/resolver, env reader for config, HTTP doer for fallback health probe, logger seam for API/internal logging; (6) retire or fold UNIT_TEST_ARCHITECTURE.md seam/testability claims into SEAMS.md/PROBLEMS.md so future agents have one durable seam surface; (7) rerun go test ./... and any docs structure tests.\n\nAcceptance: SEAMS.md has a Seam Registry table and Seam Maturity table; each real seam interface has a // seam: tag or is explicitly classified as not-a-seam; a registry test fails on tag/docs drift; policy/subscription/resolver seams have documented production and fake/test-double coverage or a PROBLEMS.md deferral; remaining ambient calls are either migrated through seams or listed in PROBLEMS.md with concrete file paths; UNIT_TEST_ARCHITECTURE.md is no longer the primary seam registry; go test ./... passes. Suggested skills: seam-discovery-and-enforcement, boundary-of-responsibility-enforcement, code-cleanup.",
+  "effort": "M",
+  "kind": "execute",
+  "name": "vrooli-events-seam-registry-enforcement",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "quality-audit",
+    "vrooli-events",
+    "seams",
+    "testability"
+  ],
+  "title": "Make Vrooli Events seams taggable and registry-enforced",
+  "updated": "2026-05-18T07:02:59Z"
+}

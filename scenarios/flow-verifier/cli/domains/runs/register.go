@@ -1,36 +1,25 @@
 // Package runs is the CLI's verification-run history command surface,
-// a thin wrapper over the Connect-RPC RunsService.
+// a thin wrapper over the Connect-RPC RunsService. Command surface loads
+// from cli/manifest.json via cliapp.LoadFromManifest.
 package runs
 
-import "github.com/vrooli/cli-core/cliapp"
+import (
+	"fmt"
 
-// Register returns the `runs` subcommand group.
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+const GroupName = "runs"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "runs",
-		Description: "Browse persisted verification run history",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "list",
-				Description: "List recent verification runs",
-				Args: cliapp.ArgSchema{
-					Flags: []cliapp.Flag{
-						{Name: "flow", Description: "Restrict to a single flow id"},
-						{Name: "limit", Description: "Maximum rows to return (default 50)"},
-					},
-				},
-				RunCtx: h.list,
-			},
-			{
-				Name:        "show",
-				Description: "Show one verification run (with counterexample on failure)",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{{Name: "run-id", Required: true, Description: "Run id"}},
-				},
-				RunCtx: h.show,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"RunsService.ListRuns": h.list,
+		"RunsService.GetRun":   h.show,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("runs: load from manifest: %w", err)
+	}
+	return group, nil
 }

@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package vrooli.development_toolchain_validator.v1.validation_record;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_record;validation_record_v1";
+
+// =============================================================================
+// VALIDATION RECORD DOMAIN — Append-only completed-run history (OT-P0-006)
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain validation_record
+// @stability evolving
+//
+// Every terminal validation_run (skill or tool) lands here as a record.
+// The record captures the verdict, the agent-manager run id (for skill
+// runs), per-run metrics, and a diff reference — never the diff blob,
+// which lives in workspace-sandbox.
+//
+// Records are append-only. The validation_run domain owns the operational
+// "currently running" view; validation_record owns the canonical history.
+// =============================================================================
+
+service ValidationRecordService {
+  rpc ListRecords(ListRecordsRequest) returns (ListRecordsResponse);
+  rpc GetRecord(GetRecordRequest) returns (GetRecordResponse);
+}
+
+// TupleKind classifies what was validated: a skill against a golden, or
+// a development tool (auditor, test-genie, etc.) against a golden.
+enum TupleKind {
+  TUPLE_KIND_UNSPECIFIED = 0;
+  TUPLE_KIND_SKILL = 1;
+  TUPLE_KIND_TOOL  = 2;
+}
+
+// Verdict enumerates the terminal outcomes of a validation run.
+enum Verdict {
+  VERDICT_UNSPECIFIED = 0;
+
+  // Run completed and the produced diff matched the manifest.
+  VERDICT_PASS = 1;
+
+  // Run completed but the diff fell outside the manifest's allowed
+  // surface (or violated content rules).
+  VERDICT_UNEXPECTED_MUTATION = 2;
+
+  // The agent-manager run itself failed (timeout, sandbox error, etc.).
+  VERDICT_RUN_FAILURE = 3;
+
+  // A tool run failed to satisfy its expectation (used for TUPLE_KIND_TOOL).
+  VERDICT_TOOL_FAILURE = 4;
+}
+
+message ValidationRecord {
+  // Opaque record id (UUID).
+  string id = 1;
+
+  TupleKind tuple_kind = 2;
+  string subject_id    = 3;  // skill id (SKILL) or tool name (TOOL)
+  string golden_slug   = 4;
+
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp ended_at   = 6;
+  int64 duration_ms = 7;
+
+  // Per-run metrics. Zero is meaningful (not absent).
+  int64 tokens_used    = 8;
+  int64 cost_usd_micro = 9;
+
+  Verdict verdict = 10;
+
+  // Diff metadata. diff_hash is sha256 hex of the canonical diff text;
+  // diff_path_count is the number of files touched. Blob lives in
+  // workspace-sandbox.
+  string diff_hash       = 11;
+  int32  diff_path_count = 12;
+
+  // Agent-manager run id for traceability; empty when tuple_kind=TOOL.
+  string agent_manager_run_id = 13;
+
+  // Manifest pinning snapshot captured at run time so P1 staleness
+  // analysis can reconstruct what the manifest expected.
+  string manifest_template_version_at_run = 14;
+  string manifest_skill_version_at_run    = 15;
+
+  // For RUN_FAILURE / TOOL_FAILURE verdicts: human-readable cause.
+  string error_message = 16;
+}
+
+message ListRecordsRequest {
+  // Filters. Empty fields are treated as "any". page_token is the
+  // opaque cursor returned by the previous ListRecordsResponse.
+  string    golden_slug = 1;
+  string    subject_id  = 2;
+  TupleKind tuple_kind  = 3;
+
+  int32  page_size  = 4;
+  string page_token = 5;
+}
+
+message ListRecordsResponse {
+  repeated ValidationRecord records = 1;
+  string next_page_token = 2;
+}
+
+message GetRecordRequest {
+  string id = 1;
+}
+
+message GetRecordResponse {
+  ValidationRecord record = 1;
+}

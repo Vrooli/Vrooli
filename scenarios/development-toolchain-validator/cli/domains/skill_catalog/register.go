@@ -1,39 +1,26 @@
 // Package skill_catalog is the CLI's skill-catalog command surface.
-// Mirrors the API's Connect-RPC SkillCatalogService.
+// Mirrors the API's Connect-RPC SkillCatalogService. Command surface
+// loads from cli/manifest.json via cliapp.LoadFromManifest.
 package skill_catalog
 
 import (
+	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// Register returns the `skill-catalog` subcommand group.
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+const GroupName = "skill-catalog"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "skill-catalog",
-		Description: "Mirror prompt-manager's skill catalog locally for manifest pinning and validation",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "sync",
-				Description: "Pull the current skill set from prompt-manager and reconcile the local mirror",
-				RunCtx:      h.sync,
-			},
-			{
-				Name:        "list",
-				Description: "List mirrored skills (id, version, content_hash)",
-				RunCtx:      h.list,
-			},
-			{
-				Name:        "get",
-				Description: "Show one mirrored skill by id",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{
-						{Name: "id", Required: true, Description: "Skill id"},
-					},
-				},
-				RunCtx: h.get,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"SkillCatalogService.Sync":       h.sync,
+		"SkillCatalogService.ListSkills": h.list,
+		"SkillCatalogService.GetSkill":   h.get,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("skill-catalog: load from manifest: %w", err)
+	}
+	return group, nil
 }

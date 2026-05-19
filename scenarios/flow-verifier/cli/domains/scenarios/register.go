@@ -1,30 +1,25 @@
 // Package scenarios is the CLI's scenario-index command surface, a
-// thin wrapper over the Connect-RPC ScenariosService.
+// thin wrapper over the Connect-RPC ScenariosService. Command surface
+// loads from cli/manifest.json via cliapp.LoadFromManifest.
 package scenarios
 
-import "github.com/vrooli/cli-core/cliapp"
+import (
+	"fmt"
 
-// Register returns the `scenarios` subcommand group.
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+const GroupName = "scenarios"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "scenarios",
-		Description: "Browse the scenario index discovered under the Vrooli root",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "list",
-				Description: "List every scenario discovered under the Vrooli root",
-				RunCtx:      h.list,
-			},
-			{
-				Name:        "show",
-				Description: "Show one scenario with its discovered flows",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Scenario id"}},
-				},
-				RunCtx: h.show,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"ScenariosService.ListScenarios": h.list,
+		"ScenariosService.GetScenario":   h.show,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("scenarios: load from manifest: %w", err)
+	}
+	return group, nil
 }

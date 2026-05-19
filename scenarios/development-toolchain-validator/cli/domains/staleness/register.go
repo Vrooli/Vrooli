@@ -1,23 +1,24 @@
-// Package staleness is the CLI's staleness command surface.
+// Package staleness is the CLI's staleness command surface. Mirrors the
+// API's Connect-RPC StalenessService. Command surface loads from
+// cli/manifest.json via cliapp.LoadFromManifest.
 package staleness
 
 import (
+	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// Register returns the `staleness` subcommand group.
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+const GroupName = "staleness"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "staleness",
-		Description: "List manifests whose pinned template/skill versions drift from current",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "list",
-				Description: "List stale (skill, golden) tuples",
-				RunCtx:      h.list,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"StalenessService.ListStale": h.list,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("staleness: load from manifest: %w", err)
+	}
+	return group, nil
 }

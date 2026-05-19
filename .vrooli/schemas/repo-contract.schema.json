@@ -107,15 +107,17 @@
         },
         "well_known_paths": {
           "type": "object",
-          "required": ["service", "docs", "requirements", "api", "ui", "cli", "initialization"],
+          "required": ["service", "docs", "docs_manifest", "requirements", "api", "ui", "cli", "cli_manifest", "initialization"],
           "properties": {
             "service": { "$ref": "#/definitions/slashPath" },
             "orientation": { "$ref": "#/definitions/slashPath" },
             "docs": { "$ref": "#/definitions/slashPath" },
+            "docs_manifest": { "$ref": "#/definitions/slashPath" },
             "requirements": { "$ref": "#/definitions/slashPath" },
             "api": { "$ref": "#/definitions/slashPath" },
             "ui": { "$ref": "#/definitions/slashPath" },
             "cli": { "$ref": "#/definitions/slashPath" },
+            "cli_manifest": { "$ref": "#/definitions/slashPath" },
             "initialization": { "$ref": "#/definitions/slashPath" }
           },
           "additionalProperties": false

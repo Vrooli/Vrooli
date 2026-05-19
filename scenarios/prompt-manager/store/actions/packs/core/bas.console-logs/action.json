@@ -1,0 +1,83 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "bas.console-logs",
+  "name": "Collect Browser Console Logs",
+  "description": "Load a page and collect all browser console output — JavaScript errors, warnings, network exceptions, debug logs. Use this when investigating a 'something looks broken in the UI' report, verifying a frontend deploy didn't introduce regressions, or diagnosing why an SPA isn't rendering.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "browser-automation-studio"
+  },
+  "command": {
+    "argv": [
+      "browser-automation-studio",
+      "capture",
+      "--url",
+      "{{url}}",
+      "--capture",
+      "console-logs",
+      "--out",
+      "{{out}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "url": {
+      "type": "string",
+      "required": true,
+      "description": "http(s) URL or `scenario=<slug>,path=<path>` shorthand."
+    },
+    "out": {
+      "type": "path",
+      "required": true,
+      "description": "Directory the console log markdown is written into."
+    }
+  },
+  "outputs": {
+    "executionId": {
+      "type": "string",
+      "description": "BAS execution id."
+    },
+    "artifacts": {
+      "type": "string",
+      "description": "JSON array of artifact descriptors; console-logs artifact is a markdown file."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Capture console output from a deployed UI.",
+      "input": {
+        "url": "scenario=swarm-manager,path=/",
+        "out": "/tmp/bas-console"
+      }
+    }
+  ],
+  "tags": [
+    "console",
+    "errors",
+    "javascript",
+    "debug",
+    "browser",
+    "logs",
+    "diagnostics",
+    "regression"
+  ],
+  "execution": {
+    "timeoutSeconds": 120,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-05-18T00:00:00Z",
+  "updatedAt": "2026-05-18T00:00:00Z"
+}

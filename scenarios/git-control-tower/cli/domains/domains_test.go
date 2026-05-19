@@ -1,9 +1,20 @@
 package domains
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestSubcommandGroupsRegistersExpectedDomains(t *testing.T) {
-	groups := SubcommandGroups(nil)
+	manifest, err := os.ReadFile(filepath.Join("..", "manifest.json"))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	groups, err := SubcommandGroups(nil, manifest)
+	if err != nil {
+		t.Fatalf("SubcommandGroups: %v", err)
+	}
 	if len(groups) != 5 {
 		t.Fatalf("SubcommandGroups() returned %d groups, want 5", len(groups))
 	}

@@ -11,6 +11,37 @@ The CLI binary is built from `cli/`, installed by `make setup` to
 sources change (cli-core's stale-detection rebuilds before any command
 that touches the API).
 
+## Source of truth: `cli/manifest.json`
+
+The CLI's command surface (groups, commands, positionals, flags,
+RPC bindings, governance metadata) is declared in
+[`cli/manifest.json`](../../cli/manifest.json) and validated against
+[`.vrooli/schemas/cli-manifest.schema.json`](../../../../.vrooli/schemas/cli-manifest.schema.json)
+(schema id `cli-manifest/v1`). The manifest is loaded at startup by
+`cliapp.LoadFromManifest`, which:
+
+- builds each domain's `SubcommandGroup` from its manifest group
+- wires each command's `binding.method` (e.g. `NotesService.ListNotes`)
+  to a handler registered in the domain's `register.go` bindings map
+- fails loudly on missing handlers, dead handlers, or unknown groups
+
+Per-domain tests use `cliapp.RequireProtoServiceCoverage` to assert
+that every RPC on the bound proto service either has a manifest command
+binding or appears in the manifest's `omitted[]` list with a reason —
+adding a new RPC without exposing it as a CLI command (or explicitly
+omitting it) fails the test.
+
+The manifest's `governance` block (`effect`, `run_eligible`,
+`permissions`, `requires_confirmation`) is consumed by prompt-manager
+to derive action certainty automatically; scenarios that adopt the
+manifest don't need hand-classified action-safety lists.
+
+`binding.kind` is currently `connect-rpc` only. REST-exception
+commands (the canonical example is `notes attach`, which uses
+multipart upload) are appended to the loaded group outside the manifest
+path in the domain's `register.go` and documented in the manifest's
+`omitted[]` array.
+
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
 
@@ -133,35 +164,43 @@ once your real domain is green.
 
 For a command inside an existing domain:
 
-1. If the command needs a new API endpoint, add it first per
-   [`api-endpoints.md`](api-endpoints.md#adding-a-new-endpoint).
-2. Add the command to `cli/domains/<domain>/register.go`.
-3. Implement its handler in `cli/domains/<domain>/handlers.go` or a
-   focused sibling file.
-4. The handler should:
-   - Declare flags and positionals in `cliapp.ArgSchema`; cli-core
-     uses the schema for parsing and help output.
-   - Implement `RunCtx func(ctx cliapp.RunContext) error`, then read
-     values with `ctx.Flag(...)`, `ctx.Positional(...)`, and
-     `ctx.JSON()`.
+1. If the command needs a new API endpoint (RPC), add it first per
+   [`api-endpoints.md`](api-endpoints.md#adding-a-new-endpoint). The
+   manifest's coverage test will fail otherwise on the next CLI build.
+2. Add a command entry to the matching group in
+   [`cli/manifest.json`](../../cli/manifest.json): `name`, optional
+   `description`, `positionals` / `flags`, the `binding` (service +
+   method), and the `governance` block (`effect`, `run_eligible`,
+   `permissions`, optional `requires_confirmation`). The schema in
+   `.vrooli/schemas/cli-manifest.schema.json` is authoritative.
+3. Implement the handler in `cli/domains/<domain>/handlers.go` (or a
+   focused sibling file) with signature
+   `func(ctx cliapp.RunContext) error`. Read values with
+   `ctx.Flag(...)`, `ctx.BoolFlag(...)`, `ctx.Positional(...)`, and
+   `ctx.JSON()`.
+4. Add the handler to the bindings map in
+   `cli/domains/<domain>/register.go` keyed by `"<Service>.<Method>"`
+   so `cliapp.LoadFromManifest` can wire it. Missing handler or
+   dead handler both fail at startup.
+5. Handler implementation should:
    - Construct generated Connect clients with
      `cliapp.NewConnectHTTPClient(core)` for proto-typed operations.
    - Use `cliapp.UploadFile` only for documented multipart REST
-     exceptions.
-   - Mark the command with `NeedsAPI: true` so stale-checking,
-     token validation, and `--auto-start` preflight all stay
-     connected automatically
+     exceptions (append those outside the manifest path in
+     `register.go` and document them in the manifest's `omitted[]`).
    - Render proto-backed responses with `cliapp.RenderProtoList` or
      `cliapp.RenderProtoMutation`.
-5. Add endpoint metadata in the API handler module and add a matching
+6. Add endpoint metadata in the API handler module and add a matching
    row to `api/cmd/gen-endpoints/cli_commands_seed.json`. Then run
    `make endpoints`; do not edit [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json)
    by hand.
-6. Add a row to this document.
-7. Add a handler test in
+7. Add a row to this document.
+8. Add a handler test in
    `cli/domains/<domain>/handlers_test.go` using `clitest.NewTestApp`
    + `clitest.NewAPIServer` + `clitest.CaptureStdout` (see
-   [`../internal/TESTING.md`](../internal/TESTING.md)).
+   [`../internal/TESTING.md`](../internal/TESTING.md)). Driving the
+   handler via `cliapp.NewTestRunContextFromArgs` against the manifest's
+   schema gives the closest parity with the dispatched path.
 
 ## Command structure principles
 

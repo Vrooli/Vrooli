@@ -49,41 +49,59 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-05-18 — agent-manager integration is stubbed
+### 2026-05-18 — agent-manager diff hash is not propagated
 
-**Symptom:** `development-toolchain-validator validation start --skill ...`
-queues a run that immediately terminates with `verdict=run_failure` and
-`error_message="agent-manager unavailable: task/profile wiring not yet
-implemented; see PROBLEMS.md"`.
+**Symptom:** `ValidationRecord.diff_hash` is populated with the
+agent-manager run id rather than a content hash of the diff. Downstream
+consumers cannot use it to detect "same diff across runs".
 
-**Root cause:** `agent-manager`'s Connect surface requires a pre-created
-`Task` (via `CreateTask`) plus an `AgentProfile.id` before `CreateRun`
-can be invoked. DTV does not yet manage those primitives. The
-`integrations/agent_manager.Client` adapter is currently a stub that
-returns `vrun.ErrDependencyUnavailable` so the worker fails visibly
-rather than fabricating success. Tests exercise the worker via
-`internal/validation_run/mocks.FakeAgentManager`.
+**Root cause:** agent-manager's `RunDiff` message exposes `run_id`,
+`content` (unified diff text), and per-file metadata, but no
+content-addressable hash field. DTV's adapter currently fills the
+`DiffHash` slot with `run_id` so the column is never empty, but the
+value is not a hash. The list of changed paths *is* extracted
+correctly into `RunSummary.DiffPaths`, so manifest path-rule evaluation
+works as designed.
 
-**Workaround:** Use the CLI surface in dry-run mode for development
-(create manifests, list goldens, exercise tool-only validation runs).
-Skill-tuple runs always fail until the wiring lands.
+**Workaround:** Treat `diff_hash` as opaque for now. Use `diff_path_count`
+and the manifest verdict as the comparison surface.
 
-**Real fix:** Implement the full task+profile provisioning flow in
-`integrations/agent_manager/`:
-- resolve or create a `Task` keyed on `(skill_id, golden_slug)`
-- resolve or create an `AgentProfile` for the run (sandboxed, scoped to
-  the golden path)
-- call `CreateRun(task_id=..., agent_profile_id=..., run_mode=AUTONOMOUS, ...)`
-- poll `GetRun` for terminal status; parse `RunSummary` (diff hash,
-  diff path list, token/cost metrics) into `vrun.RunSummary`.
+**Real fix (small):** Either (a) compute `sha256(diff.Content)` in the
+adapter and store the hex digest, or (b) add a `content_hash` field to
+agent-manager's `RunDiff` and have agent-manager populate it on the
+server side. Option (b) is preferred so every consumer gets the same
+hash without re-derivation.
 
 **Owner:** unassigned.
 
 **Refs:**
-- `path:scenarios/development-toolchain-validator/api/integrations/agent_manager/client.go`
-- `path:packages/proto/schemas/agent-manager/v1/api/service.proto`
-- DTV P0 plan §11 risk register (this risk was flagged at plan
-  authoring time).
+- `path:scenarios/development-toolchain-validator/api/integrations/agent_manager/client.go` (`buildSummary`)
+- `path:packages/proto/schemas/agent-manager/v1/domain/run.proto` (`RunDiff`)
+
+### 2026-05-18 — agent-manager reconcile failure does not block boot
+
+**Symptom:** If agent-manager is unreachable at DTV startup, the API
+boots normally and only fails at the first skill-validation spawn
+(`verdict=run_failure`, error names the missing profile).
+
+**Root cause:** `main.go` logs the reconcile error and continues so DTV
+can still serve manifest/golden/report/staleness/tool-validation
+surfaces — none of which depend on agent-manager. A hard fail would
+take down 80% of the API for a degraded skill-validation path.
+
+**Workaround:** Operator must check the startup log line
+`agent-manager profile reconciliation failed: …`. If present, restart
+DTV after agent-manager is healthy, or accept that skill-tuple runs
+will fail until the next API restart picks up the reconciled profile.
+
+**Real fix:** Add a background reconcile loop (e.g., retry every 60s
+until success) so the operator does not need to restart DTV. Track the
+reconcile state via `/health` so a degraded-but-up state is visible to
+upstream monitors.
+
+**Owner:** unassigned.
+
+**Refs:** `path:scenarios/development-toolchain-validator/api/main.go` (Initialize block)
 
 ### 2026-05-18 — workspace-sandbox content fetch is stubbed
 

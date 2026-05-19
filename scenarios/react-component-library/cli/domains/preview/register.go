@@ -1,32 +1,24 @@
 // Package preview is the CLI's live-preview-bundler surface. Mirrors
-// the API's Connect-RPC PreviewService (proto schema at
-// packages/proto/schemas/react-component-library/v1/preview). The
-// `preview bundle <id>` verb prints the transpiled ES module to stdout
-// for diagnostic use; the live-preview iframe consumes the same
-// service via the HTTP harness route.
+// the API's Connect-RPC PreviewService. Command surface loads from
+// cli/manifest.json via cliapp.LoadFromManifest.
 package preview
 
 import (
+	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+const GroupName = "preview"
+
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "preview",
-		Description: "Bundle components for the live-preview iframe",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "bundle",
-				Description: "Print the esbuild-transpiled ES module for a component",
-				Args: cliapp.ArgSchema{
-					Positionals: []cliapp.Positional{
-						{Name: "id", Required: true, Description: "Component id"},
-					},
-				},
-				RunCtx: h.bundle,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"PreviewService.GetPreviewBundle": h.bundle,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("preview: load from manifest: %w", err)
+	}
+	return group, nil
 }

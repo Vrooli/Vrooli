@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package vrooli.development_toolchain_validator.v1.report;
+
+import "development-toolchain-validator/v1/validation_record/validation_record.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/report;report_v1";
+
+// =============================================================================
+// REPORT DOMAIN — Pure composition over golden / skill / manifest /
+// record / staleness (OT-P0-008)
+// =============================================================================
+//
+// @layer 5 (api surface)
+// @domain report
+// @stability evolving
+//
+// Owns NO storage. Every method composes reads from the other DTV
+// domains into the shape the UI dashboard needs.
+// =============================================================================
+
+service ReportService {
+  rpc GetGoldenSummary(GetGoldenSummaryRequest) returns (GetGoldenSummaryResponse);
+  rpc GetTupleHistory(GetTupleHistoryRequest) returns (GetTupleHistoryResponse);
+  rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
+}
+
+// TupleVerdict pairs a subject with its latest verdict against a
+// golden. Used by GoldenSummary / Coverage rows.
+message TupleVerdict {
+  vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 1;
+  string subject_id = 2;
+  vrooli.development_toolchain_validator.v1.validation_record.Verdict latest_verdict = 3;
+  string latest_record_id = 4;
+  bool stale = 5;
+}
+
+message GoldenSummary {
+  string golden_slug = 1;
+  repeated TupleVerdict skill_verdicts = 2;
+  repeated TupleVerdict tool_verdicts  = 3;
+  int32  stale_count = 4;
+}
+
+message GetGoldenSummaryRequest {
+  string golden_slug = 1;
+}
+
+message GetGoldenSummaryResponse {
+  GoldenSummary summary = 1;
+}
+
+message TupleHistory {
+  vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 1;
+  string subject_id  = 2;
+  string golden_slug = 3;
+  repeated vrooli.development_toolchain_validator.v1.validation_record.ValidationRecord records = 4;
+  string next_page_token = 5;
+}
+
+message GetTupleHistoryRequest {
+  vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 1;
+  string subject_id  = 2;
+  string golden_slug = 3;
+  int32  page_size   = 4;
+  string page_token  = 5;
+}
+
+message GetTupleHistoryResponse {
+  TupleHistory history = 1;
+}
+
+message CoverageRow {
+  vrooli.development_toolchain_validator.v1.validation_record.TupleKind tuple_kind = 1;
+  string subject_id = 2;
+  vrooli.development_toolchain_validator.v1.validation_record.Verdict verdict = 3;
+  bool stale = 4;
+  bool has_manifest = 5;
+}
+
+message Coverage {
+  string golden_slug = 1;
+  repeated CoverageRow rows = 2;
+}
+
+message GetCoverageRequest {
+  string golden_slug = 1;
+}
+
+message GetCoverageResponse {
+  Coverage coverage = 1;
+}
