@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import {
@@ -7,6 +9,10 @@ import {
   setLocale,
   useTranslation,
 } from "../../i18n";
+import { skillCatalogClient, type SyncResponse } from "../../api/skillCatalog";
+import { stalenessClient } from "../../api/staleness";
+import { errorMessage } from "../../lib/errorMessage";
+import { Button } from "../../shared/ui/primitives/Button";
 import { Card, CardHeader, CardTitle } from "../../shared/ui/primitives/Card";
 import { PanelHeader } from "../../shared/ui/composites/PanelHeader";
 import {
@@ -164,31 +170,102 @@ export function Settings() {
         </label>
       </Card>
 
-      {/* TODO: skill-catalog sync — backend Connect-RPC service not shipped. */}
-      <Card surface="muted">
-        <CardHeader>
-          <CardTitle>{t(strings.settings.catalogSyncHeading)}</CardTitle>
-        </CardHeader>
-        <p
-          data-testid={selectors.settings.catalogSyncPending}
-          className="mt-2 text-xs text-app-muted-foreground"
-        >
-          {t(strings.settings.catalogSyncPending)}
-        </p>
-      </Card>
-
-      {/* TODO: template-watcher status — backend Connect-RPC service not shipped. */}
-      <Card surface="muted">
-        <CardHeader>
-          <CardTitle>{t(strings.settings.watcherHeading)}</CardTitle>
-        </CardHeader>
-        <p
-          data-testid={selectors.settings.watcherPending}
-          className="mt-2 text-xs text-app-muted-foreground"
-        >
-          {t(strings.settings.watcherPending)}
-        </p>
-      </Card>
+      <SkillCatalogSyncCard />
+      <TemplateWatcherCard />
     </section>
+  );
+}
+
+function SkillCatalogSyncCard() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [lastSync, setLastSync] = useState<SyncResponse | null>(null);
+  const syncMutation = useMutation({
+    mutationFn: () => skillCatalogClient.sync({}),
+    onSuccess: (resp) => {
+      setLastSync(resp);
+      void queryClient.invalidateQueries({ queryKey: ["skills"] });
+    },
+  });
+  return (
+    <Card surface="raised" data-testid={selectors.settings.catalogSyncCard}>
+      <CardHeader>
+        <CardTitle>{t(strings.settings.catalogSyncHeading)}</CardTitle>
+      </CardHeader>
+      <p className="mt-2 text-xs text-app-muted-foreground">
+        {t(strings.settings.catalogSyncDescription)}
+      </p>
+      <div className="mt-3 flex items-center gap-3">
+        <Button
+          size="sm"
+          data-testid={selectors.settings.catalogSyncButton}
+          onClick={() => syncMutation.mutate()}
+          disabled={syncMutation.isPending}
+        >
+          {syncMutation.isPending
+            ? t(strings.settings.catalogSyncing)
+            : t(strings.settings.catalogSyncButton)}
+        </Button>
+      </div>
+      <p
+        data-testid={selectors.settings.catalogSyncSummary}
+        className="mt-3 text-xs text-app-muted-foreground"
+      >
+        {lastSync
+          ? t(strings.settings.catalogSyncSummary, {
+              added: lastSync.added,
+              updated: lastSync.updated,
+              removed: lastSync.removed,
+              total: lastSync.skills.length,
+            })
+          : t(strings.settings.catalogSyncNeverRun)}
+      </p>
+      {syncMutation.error ? (
+        <p
+          data-testid={selectors.settings.catalogSyncError}
+          className="mt-2 text-xs text-status-failure"
+        >
+          {errorMessage(syncMutation.error, t)}
+        </p>
+      ) : null}
+    </Card>
+  );
+}
+
+function TemplateWatcherCard() {
+  const { t } = useTranslation();
+  const staleQuery = useQuery({
+    queryKey: ["staleness", "all"],
+    queryFn: () => stalenessClient.listStale({}),
+    refetchInterval: 60_000,
+  });
+  const count = staleQuery.data?.entries.length ?? 0;
+  return (
+    <Card surface="raised" data-testid={selectors.settings.watcherCard}>
+      <CardHeader>
+        <CardTitle>{t(strings.settings.watcherHeading)}</CardTitle>
+      </CardHeader>
+      <p className="mt-2 text-xs text-app-muted-foreground">
+        {t(strings.settings.watcherDescription)}
+      </p>
+      <p
+        data-testid={selectors.settings.watcherSummary}
+        className="mt-3 text-xs text-app-muted-foreground"
+      >
+        {staleQuery.isLoading
+          ? "…"
+          : count === 0
+            ? t(strings.settings.watcherEmpty)
+            : t(strings.settings.watcherStaleSummary, { count })}
+      </p>
+      {staleQuery.error ? (
+        <p
+          data-testid={selectors.settings.watcherError}
+          className="mt-2 text-xs text-status-failure"
+        >
+          {errorMessage(staleQuery.error, t)}
+        </p>
+      ) : null}
+    </Card>
   );
 }

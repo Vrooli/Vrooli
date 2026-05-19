@@ -8,10 +8,18 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { formatDate } from "../../i18n/format";
 import { goldenClient, type Golden } from "../../api/golden";
+import { reportClient, type TupleVerdict } from "../../api/report";
+import { TupleKind } from "../../api/validationRecord";
 import { errorMessage } from "../../lib/errorMessage";
+import {
+  summarizeVerdicts,
+  summaryToVariant,
+  tupleKindToSegment,
+  verdictToKind,
+} from "../../lib/verdict";
 import { ROUTES } from "../../routes.generated";
 import { Button } from "../../shared/ui/primitives/Button";
-import { Badge } from "../../shared/ui/primitives/Badge";
+import { Badge, type BadgeProps } from "../../shared/ui/primitives/Badge";
 import {
   Dialog,
   DialogTitle,
@@ -26,6 +34,25 @@ import { VerdictGrid, type VerdictGridRow } from "../../shared/ui/composites/Ver
 import { usePreferencesStore } from "../../shared/stores/preferencesStore";
 
 const GOLDENS_QUERY_KEY = ["goldens"] as const;
+
+const KIND_TO_BADGE_VARIANT: Record<string, BadgeProps["variant"]> = {
+  pass: "verdict-pass",
+  stale: "verdict-stale",
+  unexpected: "verdict-unexpected",
+  failure: "verdict-failure",
+  neutral: "neutral",
+};
+
+function tupleVerdictsToGridRows(
+  tuples: readonly TupleVerdict[],
+): import("../../shared/ui/composites/VerdictGrid").VerdictGridRow[] {
+  return tuples.map((tv) => ({
+    id: tv.subjectId,
+    label: tv.subjectId,
+    subLabel: tv.stale ? "stale" : undefined,
+    kind: verdictToKind(tv.latestVerdict, tv.stale),
+  }));
+}
 
 /**
  * Golden detail surface.
@@ -53,6 +80,12 @@ export function GoldenDetail() {
   const listQuery = useQuery({
     queryKey: GOLDENS_QUERY_KEY,
     queryFn: () => goldenClient.listGoldens({}),
+  });
+
+  const summaryQuery = useQuery({
+    queryKey: ["goldenSummary", slug] as const,
+    queryFn: () => reportClient.getGoldenSummary({ goldenSlug: slug }),
+    enabled: slug.length > 0,
   });
 
   const regenerateMutation = useMutation({
@@ -101,11 +134,29 @@ export function GoldenDetail() {
     );
   }
 
-  // TODO: source these rows from the verdicts API once it lands. Today
-  // both grids render an empty state — the visual surface is real but the
-  // data is honest about being absent.
-  const skillsRows: readonly VerdictGridRow[] = [];
-  const toolsRows: readonly VerdictGridRow[] = [];
+  const summary = summaryQuery.data?.summary;
+  const skillTuples = summary?.skillVerdicts ?? [];
+  const toolTuples = summary?.toolVerdicts ?? [];
+  const skillsRows: readonly VerdictGridRow[] = tupleVerdictsToGridRows(skillTuples);
+  const toolsRows: readonly VerdictGridRow[] = tupleVerdictsToGridRows(toolTuples);
+
+  const allTuples = [...skillTuples, ...toolTuples];
+  const summaryCounts = summarizeVerdicts(allTuples);
+  const summaryKind = summaryToVariant(summaryCounts);
+  const summaryBadgeVariant: BadgeProps["variant"] =
+    KIND_TO_BADGE_VARIANT[summaryKind] ?? "neutral";
+  const summaryChipText =
+    summaryCounts.total === 0
+      ? t(strings.goldens.verdictSummaryPending)
+      : t(strings.goldens.verdictSummaryCounts, {
+          pass: summaryCounts.pass,
+          stale: summaryCounts.stale,
+          unexpected: summaryCounts.unexpected + summaryCounts.failure,
+        });
+
+  const handleTupleClick = (tupleKind: TupleKind, subjectId: string) => {
+    void navigate(ROUTES.tupleDetail(golden.slug, tupleKindToSegment(tupleKind), subjectId));
+  };
 
   return (
     <section
@@ -120,7 +171,14 @@ export function GoldenDetail() {
           template: golden.templateId,
           version: golden.templateVersionPinned,
         })}
-        badge={<Badge variant="neutral">{t(strings.goldens.verdictSummaryPending)}</Badge>}
+        badge={
+          <Badge
+            data-testid={selectors.goldens.rowVerdictSummary}
+            variant={summaryBadgeVariant}
+          >
+            {summaryQuery.isLoading ? "…" : summaryChipText}
+          </Badge>
+        }
         actions={
           <div className="flex gap-2">
             <Button
@@ -178,10 +236,11 @@ export function GoldenDetail() {
           testId={selectors.goldens.skillsGrid}
           caption={t(strings.goldens.skillsGridCaption)}
           rows={skillsRows}
+          onRowClick={(id) => handleTupleClick(TupleKind.SKILL, id)}
           emptyState={
             <EmptyState
-              title={t(strings.goldens.verdictSummaryPending)}
-              description={t(strings.goldens.verdictSummaryPlaceholder)}
+              title={t(strings.goldens.skillsGridCaption)}
+              description={t(strings.goldens.noSkillVerdicts)}
             />
           }
         />
@@ -189,10 +248,11 @@ export function GoldenDetail() {
           testId={selectors.goldens.toolsGrid}
           caption={t(strings.goldens.toolsGridCaption)}
           rows={toolsRows}
+          onRowClick={(id) => handleTupleClick(TupleKind.TOOL, id)}
           emptyState={
             <EmptyState
-              title={t(strings.goldens.verdictSummaryPending)}
-              description={t(strings.goldens.verdictSummaryPlaceholder)}
+              title={t(strings.goldens.toolsGridCaption)}
+              description={t(strings.goldens.noToolVerdicts)}
             />
           }
         />

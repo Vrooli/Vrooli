@@ -1,11 +1,39 @@
 /**
  * Settings surface — controls toggle preferences store, locale switcher
- * cycles supported locales, and the deferred backend sections render
- * their pending placeholders.
+ * cycles supported locales, and the skill-catalog sync + template
+ * watcher cards render real data from their Connect-RPC clients.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+vi.mock("../../../api/skillCatalog", async () => {
+  const { create } = await import("@bufbuild/protobuf");
+  const { SyncResponseSchema, ListSkillsResponseSchema } = await import(
+    "@vrooli/proto-types/development-toolchain-validator/v1/skill_catalog/skill_catalog_pb"
+  );
+  return {
+    skillCatalogClient: {
+      sync: vi.fn().mockResolvedValue(
+        create(SyncResponseSchema, { skills: [], added: 1, updated: 2, removed: 0 }),
+      ),
+      listSkills: vi.fn().mockResolvedValue(create(ListSkillsResponseSchema, { skills: [] })),
+      getSkill: vi.fn(),
+    },
+  };
+});
+
+vi.mock("../../../api/staleness", async () => {
+  const { create } = await import("@bufbuild/protobuf");
+  const { ListStaleResponseSchema } = await import(
+    "@vrooli/proto-types/development-toolchain-validator/v1/staleness/staleness_pb"
+  );
+  return {
+    stalenessClient: {
+      listStale: vi.fn().mockResolvedValue(create(ListStaleResponseSchema, { entries: [] })),
+    },
+  };
+});
 
 import { selectors } from "../../../consts/selectors";
 import { renderWithProviders } from "../../../test-utils";
@@ -60,9 +88,24 @@ describe("Settings", () => {
     });
   });
 
-  it("renders the deferred-backend placeholder sections", () => {
+  it("renders skill-catalog sync and template watcher cards", async () => {
     renderWithProviders(<Settings />);
-    expect(screen.getByTestId(selectors.settings.catalogSyncPending)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.settings.watcherPending)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.settings.catalogSyncCard)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.settings.catalogSyncButton)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.settings.watcherCard)).toBeInTheDocument();
+    // Watcher summary resolves from mock (empty entries → "All manifests..." copy).
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.settings.watcherSummary).textContent).not.toBe("…");
+    });
+  });
+
+  it("invokes skill-catalog sync on click and surfaces the summary", async () => {
+    const user = userEvent.setup();
+    const { skillCatalogClient } = await import("../../../api/skillCatalog");
+    renderWithProviders(<Settings />);
+    await user.click(screen.getByTestId(selectors.settings.catalogSyncButton));
+    await waitFor(() => {
+      expect(vi.mocked(skillCatalogClient.sync)).toHaveBeenCalled();
+    });
   });
 });

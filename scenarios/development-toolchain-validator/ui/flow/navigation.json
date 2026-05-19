@@ -30,18 +30,39 @@
       "parents": ["goldens_index"]
     },
     {
+      "id": "tuple_detail",
+      "path": "/goldens/:slug/:tupleKind/:subjectId",
+      "page": "ui/src/surfaces/goldens/TupleDetail.tsx",
+      "deep_link": "recoverable",
+      "parents": ["golden_detail"]
+    },
+    {
       "id": "skills_index",
       "path": "/skills",
-      "page": "ui/src/surfaces/placeholders/SkillsPlaceholder.tsx",
+      "page": "ui/src/surfaces/skills/SkillsIndex.tsx",
       "deep_link": "recoverable",
       "parents": []
     },
     {
+      "id": "skill_detail",
+      "path": "/skills/:id",
+      "page": "ui/src/surfaces/skills/SkillDetail.tsx",
+      "deep_link": "recoverable",
+      "parents": ["skills_index"]
+    },
+    {
       "id": "manifests_index",
       "path": "/manifests",
-      "page": "ui/src/surfaces/placeholders/ManifestsPlaceholder.tsx",
+      "page": "ui/src/surfaces/manifests/ManifestsIndex.tsx",
       "deep_link": "recoverable",
       "parents": []
+    },
+    {
+      "id": "manifest_editor",
+      "path": "/manifests/:skillId/:goldenSlug",
+      "page": "ui/src/surfaces/manifests/ManifestEditor.tsx",
+      "deep_link": "recoverable",
+      "parents": ["manifests_index"]
     },
     {
       "id": "settings",
@@ -131,11 +152,62 @@
         { "in": "golden_detail", "label": "Back to goldens", "test_id": "goldens-detail-back",
           "reachable_via": ["mouse", "keyboard"] }
       ]
+    },
+    {
+      "id": "tuple_row_open",
+      "to": "tuple_detail",
+      "presentations": [
+        { "in": "golden_detail", "label": "Open tuple detail", "test_id": "goldens-tuple-row",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "tuple_detail_back",
+      "to": "golden_detail",
+      "presentations": [
+        { "in": "tuple_detail", "label": "Back to golden", "test_id": "goldens-tuple-back",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "skill_row_open",
+      "to": "skill_detail",
+      "presentations": [
+        { "in": "skills_index", "label": "Open skill", "test_id": "skills-row",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "skill_detail_back",
+      "to": "skills_index",
+      "presentations": [
+        { "in": "skill_detail", "label": "Back to skills", "test_id": "skills-detail-back",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "manifest_row_open",
+      "to": "manifest_editor",
+      "presentations": [
+        { "in": "manifests_index", "label": "Edit manifest", "test_id": "manifests-row",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "manifest_editor_back",
+      "to": "manifests_index",
+      "presentations": [
+        { "in": "manifest_editor", "label": "Back to manifests", "test_id": "manifests-editor-back",
+          "reachable_via": ["mouse", "keyboard"] }
+      ]
     }
   ],
 
   "return_paths": [
-    { "from": "golden_detail", "rule": "history_back", "fallback": "goldens_index" }
+    { "from": "golden_detail", "rule": "history_back", "fallback": "goldens_index" },
+    { "from": "tuple_detail", "rule": "history_back", "fallback": "golden_detail" },
+    { "from": "skill_detail", "rule": "history_back", "fallback": "skills_index" },
+    { "from": "manifest_editor", "rule": "history_back", "fallback": "manifests_index" }
   ],
 
   "shortcuts": [

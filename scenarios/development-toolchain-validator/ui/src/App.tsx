@@ -5,8 +5,11 @@ import { AppShell } from "./shared/components/AppShell";
 import { ErrorBoundary } from "./shared/ui/composites/ErrorBoundary";
 import { GoldensIndex } from "./surfaces/goldens/GoldensIndex";
 import { GoldenDetail } from "./surfaces/goldens/GoldenDetail";
-import { SkillsPlaceholder } from "./surfaces/placeholders/SkillsPlaceholder";
-import { ManifestsPlaceholder } from "./surfaces/placeholders/ManifestsPlaceholder";
+import { TupleDetail } from "./surfaces/goldens/TupleDetail";
+import { SkillsIndex } from "./surfaces/skills/SkillsIndex";
+import { SkillDetail } from "./surfaces/skills/SkillDetail";
+import { ManifestsIndex } from "./surfaces/manifests/ManifestsIndex";
+import { ManifestEditor } from "./surfaces/manifests/ManifestEditor";
 import { Settings } from "./surfaces/settings/Settings";
 
 /**
@@ -34,8 +37,11 @@ export function AppRoutes(): ReactNode {
       <Route element={<AppShell />}>
         <Route path={ROUTE_PATTERNS.goldensIndex} element={<GoldensIndex />} />
         <Route path={ROUTE_PATTERNS.goldenDetail} element={<GoldenDetail />} />
-        <Route path={ROUTE_PATTERNS.skillsIndex} element={<SkillsPlaceholder />} />
-        <Route path={ROUTE_PATTERNS.manifestsIndex} element={<ManifestsPlaceholder />} />
+        <Route path={ROUTE_PATTERNS.tupleDetail} element={<TupleDetail />} />
+        <Route path={ROUTE_PATTERNS.skillsIndex} element={<SkillsIndex />} />
+        <Route path={ROUTE_PATTERNS.skillDetail} element={<SkillDetail />} />
+        <Route path={ROUTE_PATTERNS.manifestsIndex} element={<ManifestsIndex />} />
+        <Route path={ROUTE_PATTERNS.manifestEditor} element={<ManifestEditor />} />
         <Route path={ROUTE_PATTERNS.settings} element={<Settings />} />
         <Route path="*" element={<Navigate to={ROUTE_PATTERNS.goldensIndex} replace />} />
       </Route>

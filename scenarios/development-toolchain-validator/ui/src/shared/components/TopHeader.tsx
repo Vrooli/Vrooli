@@ -1,11 +1,15 @@
 import { Menu as MenuIcon, Activity } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { fetchHealth } from "../../api/health";
-import { Badge } from "../ui/primitives/Badge";
+import { goldenClient } from "../../api/golden";
+import { reportClient } from "../../api/report";
+import { stalenessClient } from "../../api/staleness";
+import { summarizeVerdicts } from "../../lib/verdict";
+import { Badge, type BadgeProps } from "../ui/primitives/Badge";
 import { cn } from "../lib/utils";
 
 interface TopHeaderProps {
@@ -17,9 +21,10 @@ interface TopHeaderProps {
  *
  * Surfaces left-to-right:
  *   - hamburger toggle (mobile only)
- *   - app title + active surface breadcrumb (todo: derive from route)
- *   - convergence chip (TODO: no backend API yet — neutral placeholder)
- *   - stale flag count chip (TODO: no backend API yet — static "0")
+ *   - app title
+ *   - convergence chip (fanout of report.getGoldenSummary; counts
+ *     goldens whose every verdict is PASS and not stale)
+ *   - stale flag count chip (staleness.listStale length)
  *   - health status dot (live via /health poll)
  */
 export function TopHeader({ onMenuToggle }: TopHeaderProps): ReactNode {
@@ -32,16 +37,62 @@ export function TopHeader({ onMenuToggle }: TopHeaderProps): ReactNode {
     retry: false,
   });
 
-  // TODO: replace with convergence summary client once the backend Connect-RPC
-  // service (verdicts.proto convergence summary RPC) lands. For now we show a
-  // muted placeholder so the surface area is reserved but doesn't claim
-  // false data.
-  const convergencePlaceholder = t(strings.nav.convergencePlaceholder);
+  const goldensQuery = useQuery({
+    queryKey: ["goldens"],
+    queryFn: () => goldenClient.listGoldens({}),
+    staleTime: 30_000,
+  });
 
-  // TODO: replace with stale-flag count from stale.proto once the API ships.
-  // Per plan §scope: render a static "0" placeholder so the chip is visible
-  // and the surface area is reserved.
-  const stalePlaceholder = t(strings.nav.stalePlaceholder);
+  const goldens = goldensQuery.data?.goldens ?? [];
+  const summaryQueries = useQueries({
+    queries: goldens.map((g) => ({
+      queryKey: ["goldenSummary", g.slug] as const,
+      queryFn: () => reportClient.getGoldenSummary({ goldenSlug: g.slug }),
+      staleTime: 30_000,
+    })),
+  });
+
+  const stalenessQuery = useQuery({
+    queryKey: ["staleness", "all"],
+    queryFn: () => stalenessClient.listStale({}),
+    refetchInterval: 60_000,
+  });
+
+  // Convergence: a golden "converges" when it has at least one verdict and
+  // every verdict is PASS (not stale, not failed, not unexpected).
+  let convergedCount = 0;
+  for (const q of summaryQueries) {
+    const sum = q.data?.summary;
+    if (!sum) continue;
+    const counts = summarizeVerdicts([
+      ...sum.skillVerdicts,
+      ...sum.toolVerdicts,
+    ]);
+    if (counts.total > 0 && counts.pass === counts.total) {
+      convergedCount += 1;
+    }
+  }
+  const totalGoldens = goldens.length;
+  const convergenceText =
+    totalGoldens === 0
+      ? t(strings.nav.convergencePlaceholder)
+      : t(strings.nav.convergenceCounts, {
+          converged: convergedCount,
+          total: totalGoldens,
+        });
+  const convergenceVariant: BadgeProps["variant"] =
+    totalGoldens > 0 && convergedCount === totalGoldens
+      ? "verdict-pass"
+      : "neutral";
+
+  const staleCount = stalenessQuery.data?.entries.length ?? 0;
+  const staleText = stalenessQuery.isLoading
+    ? "…"
+    : staleCount === 0
+      ? t(strings.nav.stalePlaceholder)
+      : String(staleCount);
+  const staleVariant: BadgeProps["variant"] =
+    staleCount > 0 ? "verdict-stale" : "neutral";
 
   const healthLabel = healthQuery.isLoading
     ? "…"
@@ -81,19 +132,19 @@ export function TopHeader({ onMenuToggle }: TopHeaderProps): ReactNode {
       <div className="flex shrink-0 items-center gap-2">
         <Badge
           data-testid={selectors.nav.topHeaderConvergence}
-          variant="neutral"
+          variant={convergenceVariant}
           className="hidden sm:inline-flex"
         >
           <span className="text-app-muted-foreground">{t(strings.nav.convergenceLabel)}:</span>
-          <span>{convergencePlaceholder}</span>
+          <span>{convergenceText}</span>
         </Badge>
         <Badge
           data-testid={selectors.nav.topHeaderStale}
-          variant="neutral"
+          variant={staleVariant}
           className="hidden sm:inline-flex"
         >
           <span className="text-app-muted-foreground">{t(strings.nav.staleLabel)}:</span>
-          <span>{stalePlaceholder}</span>
+          <span>{staleText}</span>
         </Badge>
         <span
           data-testid={selectors.nav.topHeaderHealth}
