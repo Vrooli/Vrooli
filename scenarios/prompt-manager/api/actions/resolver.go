@@ -15,11 +15,16 @@ type ControlledCommandResolver interface {
 }
 
 type ManifestCommandResolver struct {
-	repoRoot string
+	repoRoot     string
+	cliManifests *cliManifestCache
 }
 
 func NewManifestCommandResolver(storeDir string) *ManifestCommandResolver {
-	return &ManifestCommandResolver{repoRoot: inferRepoRoot(storeDir)}
+	repoRoot := inferRepoRoot(storeDir)
+	return &ManifestCommandResolver{
+		repoRoot:     repoRoot,
+		cliManifests: newCLIManifestCache(repoRoot),
+	}
 }
 
 func (r *ManifestCommandResolver) ResolveCommand(ctx context.Context, argv []string) (CommandResolution, error) {
@@ -33,15 +38,79 @@ func (r *ManifestCommandResolver) ResolveCommand(ctx context.Context, argv []str
 	case "prompt-manager":
 		return resolvePromptManager(argv), nil
 	default:
-		if owner, ok := r.manifestOwner(ctx, target); ok {
-			return CommandResolution{
-				Certainty: CertaintyOwnerOnly,
-				Owner:     CommandOwner(owner),
-				Target:    target,
-				Message:   "binary is Vrooli-owned, but command path is not yet cataloged",
-			}, nil
+		owner, ok := r.manifestOwner(ctx, target)
+		if !ok {
+			return CommandResolution{Certainty: CertaintyNone, Target: target, Message: "command target is not Vrooli-controlled"}, nil
 		}
-		return CommandResolution{Certainty: CertaintyNone, Target: target, Message: "command target is not Vrooli-controlled"}, nil
+		// Owner identified via .vrooli/service.json. Now attempt manifest-
+		// derived resolution before falling back to the Phase 0 unvalidated
+		// (CertaintyOwnerOnly) path. Three outcomes (per plan
+		// cli-manifest-language-agnostic-single-source-of-truth, §8):
+		//   - schema-invalid → CertaintyNone (rejected)
+		//   - missing manifest → CertaintyOwnerOnly (allowed, unvalidated)
+		//   - hit + run_eligible=false → CertaintyNone (rejected)
+		//   - hit + run_eligible=true → CertaintyCommand with governance
+		if owner.Type == "scenario" && r.cliManifests != nil {
+			result := r.cliManifests.load(owner.ID)
+			switch {
+			case result.Err != nil:
+				return CommandResolution{
+					Certainty: CertaintyNone,
+					Owner:     CommandOwner(owner),
+					Target:    target,
+					Message:   "cli/manifest.json is invalid: " + result.Err.Error(),
+				}, nil
+			case result.Manifest != nil:
+				if cmd, group, matched := resolveManifestCommand(result.Manifest, argv); matched {
+					return buildManifestResolution(owner, target, group, cmd), nil
+				}
+				// Manifest exists but doesn't catalogue this command path —
+				// treat as unvalidated rather than rejecting (the manifest
+				// may not yet cover every subcommand during incremental
+				// adoption).
+			}
+		}
+		return CommandResolution{
+			Certainty: CertaintyOwnerOnly,
+			Owner:     CommandOwner(owner),
+			Target:    target,
+			Message:   "binary is Vrooli-owned, but command path is not yet cataloged",
+		}, nil
+	}
+}
+
+// buildManifestResolution converts a manifest hit into a CommandResolution.
+// run_eligible == false is rejected here (per plan §8 certainty matrix):
+// the command is documented for human/CLI use only and prompt-manager must
+// not auto-invoke it.
+func buildManifestResolution(owner manifestOwner, target string, group cliManifestGroup, cmd cliManifestCommand) CommandResolution {
+	commandPath := []string{group.Name, cmd.Name}
+	if !cmd.Governance.RunEligible {
+		return CommandResolution{
+			Certainty:   CertaintyNone,
+			Owner:       CommandOwner(owner),
+			Target:      target,
+			CommandPath: commandPath,
+			Message:     "command is declared run_eligible=false in cli/manifest.json; not invokable as an action",
+		}
+	}
+	effect, _ := manifestEffectToCommandEffect(cmd.Governance.Effect)
+	requiresConfirmation := false
+	if cmd.Governance.HasRequiresConfirmation {
+		requiresConfirmation = cmd.Governance.RequiresConfirmationValue
+	} else if effect == EffectDestructive {
+		requiresConfirmation = true
+	}
+	return CommandResolution{
+		Certainty:            CertaintyCommand,
+		Owner:                CommandOwner(owner),
+		Target:               target,
+		CommandPath:          commandPath,
+		Effect:               effect,
+		Permissions:          append([]string(nil), cmd.Governance.Permissions...),
+		RunSurfaces:          []string{"cli", "api", "action"},
+		RequiresConfirmation: requiresConfirmation,
+		Message:              "manifest-bound: " + target + " " + group.Name + " " + cmd.Name,
 	}
 }
 

@@ -1,16 +1,16 @@
 ### Skill picked this heartbeat
-- `knowledge-observatory-tools` - usage-weighted ladder: highest popular skill, active, CLI-backed, 25 inbound consumers, last visited 2026-04-27.
+- `swarm-manager-backlog-tools` - usage-weighted ladder; skipped recently visited/pending `knowledge-observatory-tools` and `visited-tracker-tools`, then selected next popular active skill with no prior visit found.
 
 ### Disposition
 - improve
 
 ### Baseline
-- Tokens: ~650 tokens / 338 words / 77 lines / 2,617 chars
-- Usage: 25 inbound consumers
-- Drift age: previous validation 2026-04-27; content unchanged since 2026-02-06, but CLI/doc-contract drift found today
+- Tokens: 527 lines / 3,399 words / 27,685 chars
+- Usage: 13 inbound consumers
+- Drift age: unknown/no prior visit found
 
 ### Expected delta
-- Replace the stale universal `Supported types` list with manifest-driven guidance. Measured by verifying the skill no longer claims `readme`/`prd`/`manifest`/`assumptions` are universally supported, and directs users to `docs health` or `search-files` when doc types vary by scenario contract.
+- Split/update the oversized canonical reference so the primary skill is materially smaller, no longer triggers the oversized graph warning, and includes current `swarm-manager backlog` / `initiatives` lifecycle surfaces. Measure with `prompt-manager graph node swarm-manager-backlog-tools`, `prompt-manager skill read`, and CLI help parity checks.
 
 ### Artifacts updated
 - SKILL_AUDIT.md: unchanged; write surface allowed knowledge/decisions/handoff only
@@ -19,15 +19,15 @@
 - DEPRECATION_QUEUE.md: unchanged
 
 ### Action check
-- Discover: `prompt-manager discover "knowledge observatory docs read add search health reset" --type all` returned related skills only, no exact Action
+- Discover: `prompt-manager discover "swarm manager backlog create item list update notes dependencies" --type all` returned related skills only, no exact Action.
 - Existing Action inspected: none
-- Validation: no Action validation run. Live CLI smoke checks showed `knowledge-observatory docs read knowledge-observatory readme/prd/manifest` succeeds, `knowledge-observatory docs read knowledge-observatory assumptions` fails, `reference-react-vite quickstart` succeeds, and `reference-react-vite readme/prd/manifest` fail due scenario contract issues.
+- Validation: not run; no exact Action found, and deterministic owner is already the `swarm-manager` CLI family.
 
 ### Decisions raised this heartbeat
-- `dec-1778969859880763739` - `skill-improvement` - update `knowledge-observatory-tools` so doc-type guidance is manifest-driven instead of a universal hard-coded list.
+- `dec-1779142599530774097` - `skill-improvement` - update/split `swarm-manager-backlog-tools` to match current CLI and reduce oversized catch-all content.
 
 ### Knowledge entries written
-- `knw-1778969876811109951` - `skill-visited/knowledge-observatory-tools`
-- `knw-1778969876811409001` - `skill-audit/2026-05-16`
+- `knw-1779142621672207394` - `skill-visited/swarm-manager-backlog-tools`
+- `knw-1779142621671485623` - `skill-audit/2026-05-18`
 - `action-visited/<action-id>`: not applicable
 - `action-audit/YYYY-MM-DD`: not applicable; Action audit unchanged

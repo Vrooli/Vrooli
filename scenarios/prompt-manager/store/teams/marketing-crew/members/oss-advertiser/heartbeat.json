@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "30 15 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-16T19:30:00Z",
-    "endedAt": "2026-05-16T19:31:56Z",
+    "startedAt": "2026-05-18T19:30:00Z",
+    "endedAt": "2026-05-18T19:32:11Z",
     "status": "completed",
-    "runId": "288d8393-1640-496f-b9f6-c47b6abf095a",
-    "logPath": "../store/teams/marketing-crew/members/oss-advertiser/logs/2026-05-16T19-30-00Z.log"
+    "runId": "ac17db50-fbe0-42ae-8711-3e85b90bf73b",
+    "logPath": "../store/teams/marketing-crew/members/oss-advertiser/logs/2026-05-18T19-30-00Z.log"
   },
-  "revision": 82,
+  "revision": 88,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-16T19:31:57Z"
+  "updatedAt": "2026-05-18T19:32:11Z"
 }

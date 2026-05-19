@@ -20,9 +20,22 @@ import (
 
 	goldenH "development-toolchain-validator/handlers/golden"
 	healthH "development-toolchain-validator/handlers/health"
+	manifestH "development-toolchain-validator/handlers/manifest"
+	reportH "development-toolchain-validator/handlers/report"
 	skillCatalogH "development-toolchain-validator/handlers/skill_catalog"
+	stalenessH "development-toolchain-validator/handlers/staleness"
+	validationRecordH "development-toolchain-validator/handlers/validation_record"
+	validationRunH "development-toolchain-validator/handlers/validation_run"
 
+	agentmanager "development-toolchain-validator/integrations/agent_manager"
+	devtools "development-toolchain-validator/integrations/dev_tools"
 	promptmanager "development-toolchain-validator/integrations/prompt_manager"
+	workspacesandbox "development-toolchain-validator/integrations/workspace_sandbox"
+
+	golden "development-toolchain-validator/internal/golden"
+	manifest "development-toolchain-validator/internal/manifest"
+	vr "development-toolchain-validator/internal/validation_record"
+	vrun "development-toolchain-validator/internal/validation_run"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -103,16 +116,47 @@ func main() {
 
 	skillCatalogSource := promptmanager.NewSkillCatalogRESTAdapter(promptmanager.Options{})
 
+	// validation_run worker. Constructed before the server module so the
+	// module's Service.Start can use the worker's Notify hook to wake
+	// the loop immediately on new queued runs.
+	vrunRepo := vrun.NewSQLiteRepository(db)
+	vrRepo := vr.NewSQLiteRepository(db)
+	vrService := vr.NewService(vrRepo, clock.System{})
+	worker := vrun.NewWorker(vrun.WorkerDeps{
+		Repo:      vrunRepo,
+		Records:   vrService,
+		AgentMgr:  agentmanager.New(agentmanager.Options{}),
+		Tools:     devtools.New(devtools.Options{Clock: clock.System{}}),
+		Sandbox:   workspacesandbox.New(workspacesandbox.Options{}),
+		Goldens:   vrun.GoldenSourceFromRepo{Repo: golden.NewSQLiteRepository(db, clock.System{})},
+		Manifests: vrun.ManifestSourceFromRepo{Repo: manifest.NewSQLiteRepository(db, clock.System{})},
+		Clock:     clock.System{},
+		Logger:    log.Default(),
+	}, vrun.WorkerConfig{})
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	go worker.Run(workerCtx)
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "development-toolchain-validator-api", "1.0.0"),
 		goldenH.Module(db, clock.System{}, log.Default()),
+		manifestH.Module(db, clock.System{}, log.Default()),
+		reportH.Module(db, clock.System{}, skillCatalogSource, log.Default()),
 		skillCatalogH.Module(db, clock.System{}, skillCatalogSource, log.Default()),
+		stalenessH.Module(db, clock.System{}, log.Default()),
+		validationRecordH.Module(db, clock.System{}, log.Default()),
+		validationRunH.Module(validationRunH.ModuleDeps{
+			DB: db, Clock: clock.System{}, Logger: log.Default(),
+			Notify: worker.Notify,
+		}),
 	)
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: srv.Handler(),
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			workerCancel()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

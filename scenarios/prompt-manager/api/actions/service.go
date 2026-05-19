@@ -356,7 +356,14 @@ func (s *Service) Validate(ctx context.Context, action *store.Action) Validation
 				if action.Status == store.StatusDraft {
 					add("command_ownership", CheckWarning, "command.argv", resolution.Message)
 				} else {
-					add("command_ownership", CheckFailed, "command.argv", "active actions require cataloged command certainty; "+resolution.Message)
+					// Active + owner-only: command's owning scenario has not yet
+					// declared the command in cli/manifest.json. The action runs,
+					// but we mark it Unvalidated so consumers can surface an
+					// info-level flag. Once the scenario adopts cli/manifest.json
+					// (see plan: cli-manifest-language-agnostic-single-source-of-truth),
+					// resolution will return CertaintyCommand and this branch goes away.
+					add("command_ownership", CheckWarning, "command.argv", "unvalidated: command's scenario has not declared cli/manifest.json governance; "+resolution.Message)
+					result.Unvalidated = true
 				}
 			default:
 				add("command_ownership", CheckFailed, "command.argv", resolution.Message)
@@ -377,7 +384,15 @@ func (s *Service) Validate(ctx context.Context, action *store.Action) Validation
 			break
 		}
 	}
-	result.Runnable = result.Valid && action.Status == store.StatusActive && result.Command != nil && (result.Command.Certainty == CertaintyCommand || result.Command.Certainty == CertaintyOperation)
+	// Runnable also admits CertaintyOwnerOnly when the action is otherwise
+	// valid — these flow through as "unvalidated" until the owning scenario
+	// adopts cli/manifest.json. See plan
+	// cli-manifest-language-agnostic-single-source-of-truth, Phase 0.
+	result.Runnable = result.Valid && action.Status == store.StatusActive && result.Command != nil &&
+		(result.Command.Certainty == CertaintyCommand || result.Command.Certainty == CertaintyOperation || result.Command.Certainty == CertaintyOwnerOnly)
+	if result.Command != nil {
+		result.RequiresConfirmation = result.Command.RequiresConfirmation
+	}
 	return result
 }
 
@@ -607,7 +622,8 @@ func checkValidationHook(ctx context.Context, action *store.Action, resolver Con
 			add("validation_hook", CheckWarning, "validation.argv", "validation hook owner is known, but command path is not yet cataloged")
 			return
 		}
-		add("validation_hook", CheckFailed, "validation.argv", "active actions require cataloged validation hook command certainty")
+		// Same Phase-0 downgrade as the main command_ownership check above.
+		add("validation_hook", CheckWarning, "validation.argv", "unvalidated: validation hook's scenario has not declared cli/manifest.json governance")
 	default:
 		add("validation_hook", CheckFailed, "validation.argv", resolution.Message)
 	}

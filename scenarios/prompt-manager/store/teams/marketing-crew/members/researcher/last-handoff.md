@@ -1,50 +1,51 @@
 ### Inputs reviewed
-- `docs/marketing/evidence/research/README.md`
-- `research-inbox/*`: empty
-- Pending decisions and challenge records for `dec-1778790757599330605`
-- Recent `audience-scan/*`, `workflow-scan/*`, `competitor-record/*`, and `monetization-benchmark-adjacent-record/*`
-- `audience-scans.jsonl`
+- Research brief, previous handoff, storage map, topic contract, team charter/member contract, and heartbeat instructions.
+- `research-inbox/*`: empty.
+- Pending decisions: `dec-1778790757599330605` still pending; live challenge records mark it resolved, despite the brief saying open.
+- Recent `audience-scan/*` and `monetization-benchmark-adjacent-record/*`.
+- Could not read `docs/marketing/evidence/research/README.md` or append `audience-scans.jsonl`: workspace checkout is empty.
+- CLI works through stored binary but warns rebuild failed because `/home/matthalloran8/.vrooli/bin` is read-only; generated command docs are stale because `knowledge-add --by` is now rejected.
 
 ### Scan summary
-- Ran proactive baseline scan on production-agent proof surfaces: observability, evals, human review, deployment/runtime semantics, graph verification, and billing units.
-- Appended 1 working-state event: `as-1778963449878676001`.
+- Inbox was empty, so ran a proactive baseline scan on agent observability/evaluation proof surfaces.
+- Evidence cluster: production-agent platforms now emphasize traces, evals, human feedback/annotation, monitoring, prompt/version iteration, cost/token tracking, retention, self-host/data control, OpenTelemetry, and audit/RBAC controls.
+- Sources used:
+  - https://www.langchain.com/pricing
+  - https://arize.com/pricing/
+  - https://langfuse.com/
+  - https://docs.wandb.ai/weave
+  - https://site.wandb.ai/agents
 
 ### Routed signals
-- `audience-scan/2026-05-16`: `knw-1778963530734686260`
-- `workflow-scan/production-agent-proof-surfaces-2026-05-16`: `knw-1778963530734894690`
-- `competitor-record/langsmith-agent-engineering-platform-2026-05-16`: `knw-1778963530734688010`
-- `monetization-benchmark-adjacent-record/agent-platform-runtime-billing-and-observability-2026-05-16`: `knw-1778963530734934680`
-
-Sources used:
-- https://www.langchain.com/langsmith-platform
-- https://www.langchain.com/pricing
-- https://docs.gumloop.com/core-concepts/credits
-- https://docs.gumloop.com/core-concepts/agents
-- https://arxiv.org/abs/2602.10133
-- https://arxiv.org/abs/2603.20356
+- `audience-scan/2026-05-18`: `knw-1779136341477079937`
+- `workflow-scan/agent-observability-eval-proof-surfaces-2026-05-18`: `knw-1779136341476537155`
+- `competitor-record/agent-observability-platform-proof-surface-positioning-2026-05-18`: `knw-1779136341476537385`
+- `monetization-benchmark-adjacent-record/agent-observability-trace-eval-retention-billing-2026-05-18`: `knw-1779136341703884304`
 
 ### Convergence candidates
-- Production-agent readiness keeps converging around proof surfaces: traces, evals, human review/approval, replay/review artifacts, cost budgets, versioning/rollbacks, scoped tools, structured failures, and graph/topology checks.
-- Small-team-lead pain is shifting from “can I build it?” toward “can I prove what ran, what it cost, who approved it, and what changed?”
+- Small-team-lead evidence continues converging around production-agent proof surfaces: trace what happened, evaluate regressions, review/approve failures, track cost, retain/export evidence, and control deployment/data posture.
+- This extends prior 2026-05-16/17 scans but is still best treated as watch evidence until product parity is verified.
 
 ### Decisions raised
-- None. Existing researcher-owned audience decision remains pending, and the challenge thread now has `state=resolved` evidence from `knw-1778878853162851438`.
+- None. New canon/capability decisions were not warranted this run.
+- Existing `dec-1778790757599330605` remains pending with resolved challenge guardrail: acceptance should incorporate `knw-1778877137629609823`, not only the broad original wording.
 
 ### Skill or capability gaps
-- No new capability gap raised.
-- Minor tool friction: generated brief still shows old `knowledge-add --by` examples, but CLI now rejects `--by` and auto-attributes runtime identity.
+- No new capability-gap decision raised.
+- Recurring environment friction remains: empty checkout blocks direct doc reads and `audience-scans.jsonl` append.
+- CLI/generated-doc drift observed: `prompt-manager team knowledge-add --by=...` is now invalid; identity is auto-attributed.
 
 ### Cross-team entries written
-- `monetization-benchmark-adjacent-record/agent-platform-runtime-billing-and-observability-2026-05-16`: benchmark-adjacent pricing/billing-unit evidence for monetization review.
+- `monetization-benchmark-adjacent-record/agent-observability-trace-eval-retention-billing-2026-05-18`: trace/eval/retention/uptime/span-ingestion/self-host billing evidence for monetization review.
 
 ### Supersessions
 - None.
-- Challenge review note: current brief listed the challenge as open, but storage shows researcher author response plus contrarian `state=resolved`.
+- `dec-1778790757599330605` challenge state is resolved in live storage; no supersession needed.
 
 ### Knowledge entry written
-- Primary snapshot: `knw-1778963530734686260`
-- Supporting entries: `knw-1778963530734894690`, `knw-1778963530734688010`, `knw-1778963530734934680`
+- Primary snapshot: `knw-1779136341477079937`
+- Supporting entries: `knw-1779136341476537155`, `knw-1779136341476537385`, `knw-1779136341703884304`
 
 ### Pending-telemetry note
-- Engagement, reach, audience-size, install, activation, retention, and conversion metrics remain `pending-telemetry`.
-- Pricing, credits, runtime units, and platform limits are source-reported and should be reverified against official pages before canonical copy.
+- Engagement, reach, audience-size, install, activation, retention, conversion, and Vrooli product-parity metrics remain `pending-telemetry`.
+- Pricing, feature lists, trace/eval limits, and self-host claims are source-reported and must be reverified against official pages before canonical copy.

@@ -3,8 +3,20 @@ package docs
 import (
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
+
 	"test-genie/internal/shared"
 )
+
+// defaultManifestRel returns the canonical scenario-relative path for the
+// docs manifest, resolved through the repo contract. An empty repoRoot
+// argument causes the helper to fall back to the contract's canonical
+// default, which is the desired behavior for callers that need a static
+// default before any repo root is known.
+func defaultManifestRel() string {
+	rel, _ := repocontract.ScenarioDocsManifestRel("")
+	return rel
+}
 
 // DOC: docs/phases/docs/README.md#configuration
 // Settings holds configuration for docs validation loaded from .vrooli/testing.json (docs section).
@@ -123,7 +135,7 @@ func DefaultSettings() *Settings {
 		Manifest: &ManifestConfig{
 			Enabled:                  boolPtr(false),
 			RequireAllDocsRegistered: boolPtr(false),
-			ManifestPath:             "docs/manifest.json",
+			ManifestPath:             defaultManifestRel(),
 		},
 	}
 }
@@ -264,7 +276,7 @@ func (s *Settings) manifestRequireAll() bool {
 
 func (s *Settings) manifestPath() string {
 	if s == nil || s.Manifest == nil || s.Manifest.ManifestPath == "" {
-		return "docs/manifest.json"
+		return defaultManifestRel()
 	}
 	return s.Manifest.ManifestPath
 }

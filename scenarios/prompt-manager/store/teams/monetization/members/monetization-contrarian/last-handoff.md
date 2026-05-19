@@ -2,7 +2,7 @@
 - 1 pending decision: `dec-1778875348622351458` by market-validator, `benchmark-update`.
 
 ### Passed cleanly
-- `dec-1778875348622351458`: SaaS Capital retention/churn benchmark update. Clean against seven failure modes. Hallucinated-metrics check passes because applicability is explicitly medium with ACV/sample mismatch flags and no Vrooli target conversion. Channel guardrail not applicable.
+- `dec-1778875348622351458`: SaaS Capital retention/churn benchmark update. Clean against the seven failure modes. Channel guardrail not applicable.
 
 ### Challenge notes written
 - None.
@@ -17,5 +17,5 @@
 - None.
 
 ### Knowledge entries written
-- `knw-1778967044154924955` topic `contrarian-scan-2026-05-16`.
-- Friction noted in scan: `docs/agent-system/CONTRARIAN_REVIEW.md` was absent from local checkout; embedded task instructions were sufficient.
+- `knw-1779139868078020756` topic `contrarian-scan-2026-05-18`.
+- Friction noted: local checkout still lacks `docs/`, `docs/agent-system`, `docs/monetization`, and monetization shared storage paths. CLI auto-rebuild also fails because `/home/matthalloran8/.vrooli/bin` is read-only, but existing CLI binary still returned storage successfully.

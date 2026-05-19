@@ -184,7 +184,13 @@ func Resolve(manifest *Manifest, manifestPath string) (*ResolvedContract, []Find
 }
 
 func ValidateManifest(manifest *Manifest, manifestPath string) []Finding {
+	// Run JSON Schema validation first when the schema is locatable. Schema
+	// findings catch structural/shape errors authoritatively; the imperative
+	// Go rules below remain as defense-in-depth for cross-document checks
+	// (e.g., maturity/stage cross-references, appendLog field matrices) that
+	// are awkward to express in JSON Schema.
 	var findings []Finding
+	findings = append(findings, validateAgainstSchema(manifestPath)...)
 	if strings.TrimSpace(manifest.Contract.Kind) != KindScenarioDocs {
 		findings = append(findings, Finding{Code: "invalid_contract_kind", Severity: "error", Path: filepath.ToSlash(manifestPath), Message: "contract.kind must be scenario-docs"})
 	}

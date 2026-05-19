@@ -2,34 +2,34 @@
 - agent
 
 ### Target picked
-- `meta-contrarian` - agent default after skipping recently visited `agent-29` with pending deprecation decision; tied among next-lowest active graph health nodes at 0.51.
+- `monetization-contrarian` - agent-default ladder; skipped `agent-29` and `market-validator` because existing pending decisions cover them, then selected fresh low-health active node at 0.51.
 
 ### Disposition
-- no-action
+- improve
 
 ### Evidence
-- `agent soul meta-contrarian` is concise and role-specific: skeptic, named failure mode, missing element, revision that would pass, operator decides.
-- `team show meta-optimization` assigns lane, owned contexts `decision-rejection-proposed` and `framework-update`, cap 3, and Action-review failure-mode parameters.
-- `team heartbeat-instructions meta-optimization meta-contrarian` defines a concrete loop: pending decisions, failure-mode scoring, challenge notes, resolution records, stale scan, supersession.
-- `graph topics --team meta-optimization` shows `meta-contrarian` consumes all major decision contexts and writes `challenge-report/*` plus `challenge-resolution-record/*`.
-- Recent knowledge includes concrete challenge reports and resolution records, including stale-target cleanup.
+- `prompt-manager graph node monetization-contrarian` reports health 0.51 with only membership inbound and `cli:prompt-manager` outbound.
+- Member is active: latest scan `knw-1779139868078020756` reviewed pending benchmark decision `dec-1778875348622351458` cleanly.
+- `prompt-manager graph topics --team monetization` flags undeclared `contrarian-scan-2026-05-13` through `contrarian-scan-2026-05-18`; the member declares only `challenge-report/*` and `challenge-resolution-record/*`.
+- Older scan entries use `contrarian-scan/YYYY-MM-DD`, so the scan surface has two undeclared shapes.
 
 ### Expected delta
-- None from this heartbeat. Next audit should check whether low graph health remains sparse-edge scoring only, or whether `CONTRARIAN_REVIEW`/method extraction becomes a real blocker.
+- Declare one canonical daily scan output, preferably `contrarian-scan/*`, and normalize future writes.
+- Measure with `prompt-manager graph topics --team monetization`: no new contrarian-scan `actual_writer_undeclared` / prefix mismatch findings after the next heartbeat; graph health should improve from 0.51 through better promotion/routing visibility.
 
 ### Capability architecture
-- clean
-- Primary layer gap: n/a
-- Routing: none
+- weak
+- Primary layer gap: promotion-routing
+- Routing: team-agent-optimizer for member/topic contract; friction-curator/debt-curator if storage-command drift keeps recurring.
 
 ### Artifacts updated
-- AGENT_AUDIT.md: not edited because this run’s write surface only allowed knowledge, decisions, and handoff.
+- AGENT_AUDIT.md: not edited because this run’s write surface allows knowledge, decisions, and handoff only.
 - DEPRECATION_QUEUE.md: unchanged.
 
 ### Decisions raised this heartbeat
-- None. No proposal warranted.
+- `dec-1779143529470088721` - `agent-improvement` - declare and normalize `monetization-contrarian` daily `contrarian-scan/*` output topic.
 
 ### Knowledge entries written
-- `agent-visited/meta-contrarian` (`knw-1778970748390713777`)
-- `agent-audit/2026-05-16` (`knw-1778970748544475860`)
-- `friction-report/prompt-team-agent-storage/2026-05-16/topic-writer-attribution-mismatch` (`knw-1778970748544083427`)
+- `agent-visited/monetization-contrarian` (`knw-1779143540452211114`)
+- `agent-audit/2026-05-18` (`knw-1779143556113160443`)
+- `friction-report/prompt-team-agent-storage/2026-05-18/monetization-contrarian-undeclared-scan-topic` (`knw-1779143572580798838`)

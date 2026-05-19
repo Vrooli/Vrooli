@@ -210,8 +210,20 @@ func TestServiceValidateManifestOwnedDraftCommand(t *testing.T) {
 		action.Status = store.StatusActive
 		action.Command.Argv = []string{"custom-scenario", "inspect", "{{identifier}}"}
 	}))
-	if active.Valid {
-		t.Fatalf("active owner-only command should be invalid; checks=%#v", active.Checks)
+	// Phase 0 of the cli-manifest plan downgrades active+owner-only from
+	// CheckFailed to CheckWarning + Unvalidated. The action stays valid +
+	// runnable; the Unvalidated flag is the safety-net surface for callers.
+	if !active.Valid {
+		t.Fatalf("active owner-only command should be valid (unvalidated) after Phase 0; checks=%#v", active.Checks)
+	}
+	if !active.Unvalidated {
+		t.Fatalf("active owner-only command should be flagged Unvalidated; result=%#v", active)
+	}
+	if !active.Runnable {
+		t.Fatalf("active owner-only command should be runnable; result=%#v", active)
+	}
+	if !hasCheckWithStatus(active, "command_ownership", CheckWarning) {
+		t.Fatalf("expected command_ownership warning, got %#v", active.Checks)
 	}
 }
 
@@ -631,8 +643,12 @@ func validAction(mutate func(*store.Action)) *store.Action {
 }
 
 func hasFailedCheck(result ValidationResponse, code string) bool {
+	return hasCheckWithStatus(result, code, CheckFailed)
+}
+
+func hasCheckWithStatus(result ValidationResponse, code string, status CheckStatus) bool {
 	for _, check := range result.Checks {
-		if check.Code == code && check.Status == CheckFailed {
+		if check.Code == code && check.Status == status {
 			return true
 		}
 	}

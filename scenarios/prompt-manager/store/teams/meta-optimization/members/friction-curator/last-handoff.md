@@ -16,12 +16,13 @@
 - None this heartbeat.
 
 ### Triage snapshot
-- friction-triage-record/2026-05-17 updated as `knw-1779004824291997978`
+- friction-triage-record/2026-05-19 updated as `knw-1779148836752710170`
 
 ### Patterns surfaced to debt-curator
 - None this heartbeat.
 
 ### Notes
 - `friction-inbox/` was empty on final check.
-- Today’s aggregate totals remain zero.
-- `docs/meta-optimization/taxonomies/friction-report/README.md` remains absent in this workspace; no validation was needed because there were no inbox entries.
+- `docs/meta-optimization/taxonomies/friction-report/README.md` remains absent; no validation was required because there were no inbox entries.
+- `prompt-manager` emitted stale-binary/auto-rebuild warnings because `/home/matthalloran8/.vrooli/bin` is read-only; commands still returned usable results.
+- `knowledge-add` rejected the documented `--by` flag as removed; snapshot was written without it using runtime attribution.

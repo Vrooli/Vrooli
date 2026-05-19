@@ -24,11 +24,21 @@ import (
 
 	goldenH "development-toolchain-validator/handlers/golden"
 	healthH "development-toolchain-validator/handlers/health"
+	manifestH "development-toolchain-validator/handlers/manifest"
+	reportH "development-toolchain-validator/handlers/report"
 	skillCatalogH "development-toolchain-validator/handlers/skill_catalog"
+	stalenessH "development-toolchain-validator/handlers/staleness"
+	validationRecordH "development-toolchain-validator/handlers/validation_record"
+	validationRunH "development-toolchain-validator/handlers/validation_run"
 	localdb "development-toolchain-validator/internal/database"
 
 	goldenv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/golden"
+	manifestv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/manifest"
+	reportv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/report"
 	skillCatalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/skill_catalog"
+	stalenessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/staleness"
+	validationRecordv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_record"
+	validationRunv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_run"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +49,12 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, goldenH.Endpoints...)
+	out = append(out, manifestH.Endpoints...)
+	out = append(out, reportH.Endpoints...)
 	out = append(out, skillCatalogH.Endpoints...)
+	out = append(out, stalenessH.Endpoints...)
+	out = append(out, validationRecordH.Endpoints...)
+	out = append(out, validationRunH.Endpoints...)
 	return out
 }
 
@@ -55,7 +70,12 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "golden", File: goldenv1.File_development_toolchain_validator_v1_golden_golden_proto},
+		{Module: "manifest", File: manifestv1.File_development_toolchain_validator_v1_manifest_manifest_proto},
+		{Module: "report", File: reportv1.File_development_toolchain_validator_v1_report_report_proto},
 		{Module: "skill_catalog", File: skillCatalogv1.File_development_toolchain_validator_v1_skill_catalog_skill_catalog_proto},
+		{Module: "staleness", File: stalenessv1.File_development_toolchain_validator_v1_staleness_staleness_proto},
+		{Module: "validation_record", File: validationRecordv1.File_development_toolchain_validator_v1_validation_record_validation_record_proto},
+		{Module: "validation_run", File: validationRunv1.File_development_toolchain_validator_v1_validation_run_validation_run_proto},
 	}
 }
 
@@ -66,6 +86,11 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(goldenH.Schema),
+		apidb.SchemaProviderFunc(manifestH.Schema),
+		apidb.SchemaProviderFunc(reportH.Schema),
 		apidb.SchemaProviderFunc(skillCatalogH.Schema),
+		apidb.SchemaProviderFunc(stalenessH.Schema),
+		apidb.SchemaProviderFunc(validationRecordH.Schema),
+		apidb.SchemaProviderFunc(validationRunH.Schema),
 	}
 }

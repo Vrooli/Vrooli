@@ -97,13 +97,15 @@ type ActionValidation struct {
 }
 
 type ValidationResponse struct {
-	ActionID string             `json:"actionId"`
-	Valid    bool               `json:"valid"`
-	Runnable bool               `json:"runnable"`
-	Status   string             `json:"status"`
-	Command  *CommandResolution `json:"command,omitempty"`
-	Checks   []ValidationCheck  `json:"checks"`
-	Action   *Action            `json:"action,omitempty"`
+	ActionID             string             `json:"actionId"`
+	Valid                bool               `json:"valid"`
+	Runnable             bool               `json:"runnable"`
+	Unvalidated          bool               `json:"unvalidated,omitempty"`
+	RequiresConfirmation bool               `json:"requiresConfirmation,omitempty"`
+	Status               string             `json:"status"`
+	Command              *CommandResolution `json:"command,omitempty"`
+	Checks               []ValidationCheck  `json:"checks"`
+	Action               *Action            `json:"action,omitempty"`
 }
 
 type MutationResponse struct {
@@ -139,14 +141,15 @@ type ValidationCheck struct {
 }
 
 type CommandResolution struct {
-	Certainty   string      `json:"certainty"`
-	Owner       ActionOwner `json:"owner"`
-	Target      string      `json:"target"`
-	CommandPath []string    `json:"commandPath,omitempty"`
-	Effect      string      `json:"effect,omitempty"`
-	Permissions []string    `json:"permissions,omitempty"`
-	RunSurfaces []string    `json:"runSurfaces,omitempty"`
-	Message     string      `json:"message,omitempty"`
+	Certainty            string      `json:"certainty"`
+	Owner                ActionOwner `json:"owner"`
+	Target               string      `json:"target"`
+	CommandPath          []string    `json:"commandPath,omitempty"`
+	Effect               string      `json:"effect,omitempty"`
+	Permissions          []string    `json:"permissions,omitempty"`
+	RunSurfaces          []string    `json:"runSurfaces,omitempty"`
+	RequiresConfirmation bool        `json:"requiresConfirmation,omitempty"`
+	Message              string      `json:"message,omitempty"`
 }
 
 func Commands(ctx appctx.Context) cliapp.CommandGroup {
@@ -546,6 +549,12 @@ func printValidation(result ValidationResponse) {
 	fmt.Printf("Action: %s\n", result.ActionID)
 	fmt.Printf("Status: %s\n", status)
 	fmt.Printf("Runnable: %v\n", result.Runnable)
+	if result.Unvalidated {
+		fmt.Println("Unvalidated: owning scenario has not declared cli/manifest.json governance; action runs without cataloged safety properties")
+	}
+	if result.RequiresConfirmation {
+		fmt.Println("Requires confirmation: command governance flags this action as needing operator confirmation before invocation")
+	}
 	if result.Command != nil {
 		fmt.Printf("Command certainty: %s\n", result.Command.Certainty)
 		if result.Command.Target != "" {
@@ -576,7 +585,15 @@ func printMutationValidation(result ValidationResponse) {
 	if result.Runnable {
 		runnable = ", runnable"
 	}
-	fmt.Printf("Validation: %s%s\n", status, runnable)
+	unvalidated := ""
+	if result.Unvalidated {
+		unvalidated = ", unvalidated"
+	}
+	confirm := ""
+	if result.RequiresConfirmation {
+		confirm = ", requires-confirmation"
+	}
+	fmt.Printf("Validation: %s%s%s%s\n", status, runnable, unvalidated, confirm)
 }
 
 func printRun(result RunResponse) {

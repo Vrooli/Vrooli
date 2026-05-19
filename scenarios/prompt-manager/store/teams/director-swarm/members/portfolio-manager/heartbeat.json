@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "16 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-16T22:16:00Z",
-    "endedAt": "2026-05-16T22:18:21Z",
+    "startedAt": "2026-05-18T22:16:00Z",
+    "endedAt": "2026-05-18T22:17:26Z",
     "status": "completed",
-    "runId": "a57b6871-45cf-4ca3-84ab-1a640edd6aac",
-    "logPath": "../store/teams/director-swarm/members/portfolio-manager/logs/2026-05-16T22-16-00Z.log"
+    "runId": "24db6475-ff06-484d-b6df-e4a20cdb3478",
+    "logPath": "../store/teams/director-swarm/members/portfolio-manager/logs/2026-05-18T22-16-00Z.log"
   },
-  "revision": 96,
+  "revision": 102,
   "createdAt": "2026-04-09T19:58:09Z",
-  "updatedAt": "2026-05-16T22:18:22Z"
+  "updatedAt": "2026-05-18T22:17:26Z"
 }

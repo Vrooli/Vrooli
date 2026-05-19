@@ -771,8 +771,20 @@ function ValidationPanel({ validation }: { validation: ActionValidationResponse 
         </h3>
         <span className="ml-auto text-[11px] text-muted-foreground">
           {validation.runnable ? 'runnable' : 'not runnable'}
+          {validation.unvalidated ? ' · unvalidated' : ''}
+          {validation.requiresConfirmation ? ' · requires confirmation' : ''}
         </span>
       </div>
+      {validation.unvalidated && (
+        <div className="px-3 py-2 border-b border-border bg-amber-500/5 text-[11px] text-amber-300">
+          Unvalidated: the owning scenario has not declared <code className="font-mono">cli/manifest.json</code> governance for this command. The action will run, but its safety properties are not cataloged.
+        </div>
+      )}
+      {validation.requiresConfirmation && (
+        <div className="px-3 py-2 border-b border-border bg-orange-500/5 text-[11px] text-orange-300">
+          Requires confirmation: this command is governed as destructive (or its manifest declares <code className="font-mono">requires_confirmation: true</code>). The runner must confirm before invoking.
+        </div>
+      )}
       <div className="divide-y divide-border">
         {validation.checks.map((check) => (
           <div key={`${check.code}-${check.path}-${check.message}`} className="px-3 py-2">

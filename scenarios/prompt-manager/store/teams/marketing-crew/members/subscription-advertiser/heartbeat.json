@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "30 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-16T18:30:00Z",
-    "endedAt": "2026-05-16T18:31:11Z",
+    "startedAt": "2026-05-18T18:30:00Z",
+    "endedAt": "2026-05-18T18:31:36Z",
     "status": "completed",
-    "runId": "bcb5424d-1bd3-4e49-ab51-8ed982f6d42e",
-    "logPath": "../store/teams/marketing-crew/members/subscription-advertiser/logs/2026-05-16T18-30-00Z.log"
+    "runId": "93846a8c-6e08-44ec-8215-df419a5bc8a9",
+    "logPath": "../store/teams/marketing-crew/members/subscription-advertiser/logs/2026-05-18T18-30-00Z.log"
   },
-  "revision": 80,
+  "revision": 86,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-05-16T18:31:12Z"
+  "updatedAt": "2026-05-18T18:31:36Z"
 }

@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	repocontract "github.com/vrooli/repo-contract-go"
+
 	"knowledge-observatory/internal/doccontract"
 	"knowledge-observatory/internal/doctemplates"
 )
@@ -89,10 +91,12 @@ func ValidateScenarioWithContract(scenarioPath string, resolved *doctemplates.Re
 		result.ManifestStatus = "present"
 	} else {
 		result.ManifestStatus = "template-fallback"
+		repoRoot := filepath.Dir(filepath.Dir(scenarioPath))
+		manifestRel, _ := repocontract.ScenarioDocsManifestRel(repoRoot)
 		result.ContractFindings = append(result.ContractFindings, doccontract.Finding{
 			Code:     "scenario_manifest_missing",
 			Severity: "warning",
-			Path:     "docs/manifest.json",
+			Path:     manifestRel,
 			Message:  "scenario docs manifest is missing; using source template manifest",
 		})
 	}

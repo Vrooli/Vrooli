@@ -256,14 +256,14 @@ Each PRD operational target maps to a planned API module (one module per bounded
 
 | PRD Ref | Domain | Status (2026-05-18) |
 |---|---|---|
-| OT-P0-001 | `golden` | **In this slice.** First vertical implementation. |
-| OT-P0-002 | `skill_catalog` | Planned. |
-| OT-P0-003 | `manifest` | Planned. |
-| OT-P0-004 | `validation_run` | Planned. Depends on agent-manager Connect-RPC client. |
-| OT-P0-005 | `tooling_baseline` | Planned. |
-| OT-P0-006 | `validation_record` | Planned. May be merged into `validation_run` once the data model stabilizes. |
-| OT-P0-007 | `staleness` | Planned. May live as a query module over `manifest` + `skill_catalog`. |
-| OT-P0-008 | `report` | Planned. |
+| OT-P0-001 | `golden` | **Shipped.** Reference vertical. |
+| OT-P0-002 | `skill_catalog` | **Shipped.** Local mirror of prompt-manager's skill catalog. RPCs: Sync / ListSkills / GetSkill. Outbound seam: `SkillCatalogSource` (REST adapter to prompt-manager today). |
+| OT-P0-003 | `manifest` | **Shipped.** Per-(skill_id, golden_slug) expected-diff manifest with pure-policy `Evaluate(manifest, diff) → Verdict` decision boundary (≥15 table-driven cases). RPCs: ListManifests / GetManifest / UpsertManifest / ClearStale. |
+| OT-P0-004 + 005 | `validation_run` | **Shipped (async lifecycle).** RPCs: Start / Get / ListActive. In-process worker advances queued → running → evaluating → terminal. Outbound seams: AgentManagerClient (stub; see PROBLEMS), ToolRunner (dev-tool CLI shell-out), WorkspaceSandboxClient (stub; optional). |
+| OT-P0-006 | `validation_record` | **Shipped.** Append-only history. RPCs: ListRecords (cursor-paginated, filters) / GetRecord. |
+| OT-P0-007 | `staleness` | **Shipped.** Pure derivation over manifest pinning vs current template + skill versions, suppressed by manual ClearStale overrides. RPC: ListStale. |
+| OT-P0-008 | `report` | **Shipped.** Pure composition. RPCs: GetGoldenSummary / GetTupleHistory / GetCoverage. No storage. |
+| OT-P0-009 | CLI parity | **Shipped.** Every Connect RPC has a matching `development-toolchain-validator <domain-kebab> <verb>` command. |
 
 Every domain follows the same shape (per the template):
 - `api/internal/<domain>/{model,repository,sqlite,schema}.{go,sql}` + `module.go` + `service.go`
@@ -274,11 +274,56 @@ Every domain follows the same shape (per the template):
 
 ### External Dependencies
 
-- **prompt-manager** (Connect-RPC) — read steer skill catalog with versions + content hashes. Consumed by the `skill_catalog` module.
-- **agent-manager** (Connect-RPC) — submit sandboxed (skill, golden) runs and receive diff + `RunSummary` (`tokens_used`, `cost_estimate`, `started_at`, `ended_at`). Consumed by the `validation_run` module.
-- **`templates/scenarios/*`** — read filesystem source for golden regeneration. Consumed by the `golden` module via `vrooli scenario generate` subprocess.
+DTV declares its scenario dependencies in `.vrooli/service.json`
+(`dependencies.scenarios`):
 
-Nothing in the broader ecosystem depends on DTV; it is a verification layer.
+- **agent-manager** (Connect-RPC, **required**) — submit sandboxed
+  (skill, golden) runs and receive run summary + diff. Consumed by the
+  `validation_run` module via `integrations/agent_manager`. Current
+  wiring is a stub returning `ErrDependencyUnavailable`; see
+  PROBLEMS.md for the followup.
+- **prompt-manager** (REST today, **required**) — read steer skill
+  catalog with versions + content hashes. Consumed by the
+  `skill_catalog` module via `integrations/prompt_manager`
+  (REST adapter behind the `SkillCatalogSource` seam; migrates to
+  Connect when prompt-manager exposes proto).
+- **workspace-sandbox** (Connect-RPC, **optional**) — read per-path
+  file content when manifest content-rule evaluation requires body
+  inspection. Consumed by the `validation_run` worker via
+  `integrations/workspace_sandbox`. Optional: the worker degrades to
+  path-only verdicts when unreachable.
+- **`scenario-auditor`, `test-genie`, `scenario-completeness-scoring`**
+  — dev-tool CLIs invoked behind the `ToolRunner` seam in
+  `integrations/dev_tools`. Used by `TUPLE_KIND_TOOL` validation runs.
+- **`templates/scenarios/*`** — read filesystem source for golden
+  regeneration. Consumed by the `golden` module via
+  `vrooli scenario generate` subprocess.
+
+All outbound URLs come from `package:api-core/discovery` resolution;
+nothing in DTV hardcodes a scenario port.
+
+Nothing in the broader ecosystem depends on DTV; it is a verification
+layer.
+
+### Testing Infrastructure (L3+ architecture)
+
+Every new domain ships at L≥3 from day one (per
+`unit-testing-architecture-steer`):
+
+- No `time.Now()`, `os.Getenv`, `http.DefaultClient`, or
+  `log.Default()` in `internal/<dom>/` outside the ambient seam
+  packages (`internal/clock/`, `internal/httpc/`).
+- Repository tests use the real SQLite handle via
+  `internal/testutil/db.NewSQLite` paired with `apidb.EnsureSchemas`.
+- Service tests use fakes from `internal/<dom>/mocks/` and
+  `internal/testutil/mocks/`. Each fake carries a `var _ Iface = ...`
+  compile-time assertion.
+- Handler tests use `connectxtest.StartTestServer` against the real
+  Connect handler.
+- CLI tests use `cli-core/cliapptest.NewCapturedRunContext` against a
+  stubbed Connect mux.
+- The validation_run worker is exercised by an integration test that
+  drives the full async pipeline through fakes (`worker_test.go`).
 
 ## Cross-References
 

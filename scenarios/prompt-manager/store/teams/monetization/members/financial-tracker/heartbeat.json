@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "0 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-16T18:00:00Z",
-    "endedAt": "2026-05-16T18:03:46Z",
+    "startedAt": "2026-05-18T18:00:00Z",
+    "endedAt": "2026-05-18T18:02:11Z",
     "status": "completed",
-    "runId": "e84dd752-154c-4aa5-a958-0da3e3905fe1",
-    "logPath": "../store/teams/monetization/members/financial-tracker/logs/2026-05-16T18-00-00Z.log"
+    "runId": "cc3d7da8-ab36-4b93-b34a-ef62ab3d3d7d",
+    "logPath": "../store/teams/monetization/members/financial-tracker/logs/2026-05-18T18-00-00Z.log"
   },
-  "revision": 78,
+  "revision": 84,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-05-16T18:03:47Z"
+  "updatedAt": "2026-05-18T18:02:11Z"
 }

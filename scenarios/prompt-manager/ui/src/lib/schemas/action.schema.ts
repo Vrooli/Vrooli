@@ -180,6 +180,7 @@ export const CommandResolutionSchema = z.object({
   effect: CommandEffectSchema.nullable().optional(),
   permissions: nullableArray(z.string()),
   runSurfaces: nullableArray(z.string()),
+  requiresConfirmation: z.boolean().nullable().optional().transform((val) => val ?? false),
   message: z.string().nullable().optional().transform((val) => val ?? ''),
 })
 export type CommandResolution = z.infer<typeof CommandResolutionSchema>
@@ -196,6 +197,8 @@ export const ActionValidationResponseSchema = z.object({
   actionId: z.string().nullable().optional().transform((val) => val ?? ''),
   valid: z.boolean(),
   runnable: z.boolean().nullable().optional().transform((val) => val ?? false),
+  unvalidated: z.boolean().nullable().optional().transform((val) => val ?? false),
+  requiresConfirmation: z.boolean().nullable().optional().transform((val) => val ?? false),
   status: z.string().nullable().optional().transform((val) => val ?? ''),
   command: CommandResolutionSchema.nullable().optional(),
   checks: nullableArray(ActionValidationCheckSchema),

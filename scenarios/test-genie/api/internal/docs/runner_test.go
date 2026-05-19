@@ -15,6 +15,11 @@ import (
 	"test-genie/internal/orchestrator/workspace"
 )
 
+// docsManifestRel is the canonical scenario-relative manifest path resolved
+// through the repo contract — used in place of the literal path string to
+// satisfy the audit test in packages/repo-contract-go/audit_test.go.
+var docsManifestRel = defaultManifestRel()
+
 func TestRunner_Success(t *testing.T) {
 	dir := t.TempDir()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -689,7 +694,7 @@ func TestRunner_ManifestCoverage(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "README.md"), "# Title\n")
 	writeFile(t, filepath.Join(dir, "docs/guide.md"), "# Guide\n")
-	writeFile(t, filepath.Join(dir, "docs/manifest.json"), `["README.md", "docs/guide.md"]`)
+	writeFile(t, filepath.Join(dir, docsManifestRel), `["README.md", "docs/guide.md"]`)
 
 	settings := DefaultSettings()
 	settings.Manifest.Enabled = boolPtr(true)
@@ -737,7 +742,7 @@ func TestRunner_ManifestRequireAll(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "README.md"), "# Title\n")
 	writeFile(t, filepath.Join(dir, "untracked.md"), "# Untracked\n")
-	writeFile(t, filepath.Join(dir, "docs/manifest.json"), `["README.md"]`)
+	writeFile(t, filepath.Join(dir, docsManifestRel), `["README.md"]`)
 
 	settings := DefaultSettings()
 	settings.Manifest.Enabled = boolPtr(true)
@@ -846,7 +851,7 @@ func TestRunner_MalformedManifest(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "README.md"), "# Title\n")
 	// Invalid JSON in manifest
-	writeFile(t, filepath.Join(dir, "docs/manifest.json"), `{invalid json}`)
+	writeFile(t, filepath.Join(dir, docsManifestRel), `{invalid json}`)
 
 	settings := DefaultSettings()
 	settings.Manifest.Enabled = boolPtr(true)
@@ -1648,7 +1653,7 @@ func TestRunner_ManifestObjectFormat(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "README.md"), "# Title\n")
 	writeFile(t, filepath.Join(dir, "docs/guide.md"), "# Guide\n")
 	// Object format with "docs" field
-	writeFile(t, filepath.Join(dir, "docs/manifest.json"), `{"docs": ["README.md", "docs/guide.md"]}`)
+	writeFile(t, filepath.Join(dir, docsManifestRel), `{"docs": ["README.md", "docs/guide.md"]}`)
 
 	settings := DefaultSettings()
 	settings.Manifest.Enabled = boolPtr(true)
@@ -1672,7 +1677,7 @@ func TestRunner_ManifestEmptyDocsField(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "README.md"), "# Title\n")
 	// Object format with empty docs array
-	writeFile(t, filepath.Join(dir, "docs/manifest.json"), `{"docs": []}`)
+	writeFile(t, filepath.Join(dir, docsManifestRel), `{"docs": []}`)
 
 	settings := DefaultSettings()
 	settings.Manifest.Enabled = boolPtr(true)
@@ -1750,7 +1755,7 @@ func TestSettings_NilReceiver(t *testing.T) {
 		t.Errorf("nil Settings.referencesSkipDirs() should return nil, got %v", skipDirs)
 	}
 	path := s.manifestPath()
-	if path != "docs/manifest.json" {
+	if path != docsManifestRel {
 		t.Errorf("nil Settings.manifestPath() should return default, got %s", path)
 	}
 }
@@ -1788,7 +1793,7 @@ func TestSettings_NilSubStructs(t *testing.T) {
 	if s.manifestRequireAll() {
 		t.Error("Settings with nil Manifest should return false")
 	}
-	if s.manifestPath() != "docs/manifest.json" {
+	if s.manifestPath() != docsManifestRel {
 		t.Error("Settings with nil Manifest should return default path")
 	}
 }
@@ -2308,7 +2313,7 @@ func TestRunner_ManifestWithMissingDocs(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "README.md"), "# Title\n")
 	// Manifest references a doc that doesn't exist
-	writeFile(t, filepath.Join(dir, "docs/manifest.json"), `["README.md", "docs/missing.md"]`)
+	writeFile(t, filepath.Join(dir, docsManifestRel), `["README.md", "docs/missing.md"]`)
 
 	settings := DefaultSettings()
 	settings.Manifest.Enabled = boolPtr(true)
@@ -2609,7 +2614,7 @@ func TestRunner_ContextCancellationDuringCodeScan(t *testing.T) {
 func TestRunner_ManifestEmptyArray(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "README.md"), "# Title\n")
-	writeFile(t, filepath.Join(dir, "docs/manifest.json"), `[]`)
+	writeFile(t, filepath.Join(dir, docsManifestRel), `[]`)
 
 	settings := DefaultSettings()
 	settings.Manifest.Enabled = boolPtr(true)

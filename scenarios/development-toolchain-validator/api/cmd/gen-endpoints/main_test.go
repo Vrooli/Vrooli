@@ -24,9 +24,22 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "goldens update", Description: "Update golden", EndpointID: "golden_update"},
 		{Name: "goldens delete", Description: "Delete golden", EndpointID: "golden_delete"},
 		{Name: "goldens regenerate", Description: "Regenerate golden", EndpointID: "golden_regenerate"},
+		{Name: "manifest list", Description: "List manifests", EndpointID: "manifest_list"},
+		{Name: "manifest get", Description: "Get manifest", EndpointID: "manifest_get"},
+		{Name: "manifest upsert", Description: "Upsert manifest", EndpointID: "manifest_upsert"},
+		{Name: "manifest clear-stale", Description: "Clear stale", EndpointID: "manifest_clear_stale"},
 		{Name: "skill-catalog sync", Description: "Sync skill catalog", EndpointID: "skill_catalog_sync"},
 		{Name: "skill-catalog list", Description: "List skills", EndpointID: "skill_catalog_list"},
 		{Name: "skill-catalog get", Description: "Get skill", EndpointID: "skill_catalog_get"},
+		{Name: "staleness list", Description: "List stale", EndpointID: "staleness_list"},
+		{Name: "record list", Description: "List records", EndpointID: "validation_record_list"},
+		{Name: "record get", Description: "Get record", EndpointID: "validation_record_get"},
+		{Name: "validation start", Description: "Start validation", EndpointID: "validation_run_start"},
+		{Name: "validation get", Description: "Get validation", EndpointID: "validation_run_get"},
+		{Name: "validation list-active", Description: "List active runs", EndpointID: "validation_run_list_active"},
+		{Name: "report golden-summary", Description: "Summary", EndpointID: "report_golden_summary"},
+		{Name: "report tuple-history", Description: "History", EndpointID: "report_tuple_history"},
+		{Name: "report coverage", Description: "Coverage", EndpointID: "report_coverage"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -57,8 +70,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 10 {
-		t.Errorf("cli_commands count = %d, want 10", len(got.CLICommands))
+	if len(got.CLICommands) != 23 {
+		t.Errorf("cli_commands count = %d, want 23", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

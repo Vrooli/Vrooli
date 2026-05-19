@@ -1,25 +1,28 @@
 ### Signal scanned this heartbeat
-Opportunity inbox was empty. Read recent monetization knowledge, migrated opportunity pool, 2026-05-13 contrarian scan, 2026-05-14 financial snapshot, and director-swarm prep refresh. Local checkout was empty, so `docs/monetization/*` could not be read directly; relied on member context, team charter, prior scout-scan, and migrated pool entries.
+Opportunity inbox was empty. Read recent monetization knowledge, prior scout scan, current pool, director-swarm vision-walk notes, and 2026-05-18 financial/catalog snapshots. `docs/monetization` remained unavailable in local checkout, so relied on task context and storage.
 
-External scan covered MCP/agent registries, MCP security research, home-inspection privacy/data-resale chatter, and homelab/self-hosted app-store surfaces. Key sources included `mcpapp.net/store`, `skillful.sh`, `arxiv.org/abs/2603.23802`, `arxiv.org/abs/2603.21642`, `arxiv.org/abs/2602.19514`, `apps.umbrel.com`, `homeio.app`, `homelabarr.com`, Spectora/HomeGauge pages, and recent Reddit home-inspection/self-hosted discussions.
+External scan covered:
+- OpenAI personal finance in ChatGPT, launched May 15, 2026: https://openai.com/index/personal-finance-chatgpt/
+- ChatGPT release notes for finance boundaries: https://help.openai.com/en/articles/6825453-chatgpt-explicit-mode
+- AI meal/grocery budgeting tools: https://www.steamline.app/ and https://www.summitplate.com/best-meal-planning-app-for-budgeting
+- AI app-builder/template and production-readiness signal: https://lovable.dev/templates/apps, https://lovable.dev/guides/bolt-vs-replit-vs-lovable, https://support.bolt.new/building, plus public r/replit/r/SaaS chatter.
 
 ### Ideas captured this heartbeat
-3 entries added to `monetization/opportunity/*`:
-- **MCP / agent registry discovery channel** — channel-candidate, `skill-registries`, feeds subscription. ID: `knw-1778785393369472113`.
-- **Agent connector security add-on (business)** — addon-candidate distinct from AI quality/red-team; focuses on MCP/skill/tool vetting. ID: `knw-1778785393369651153`.
-- **Homelab / self-hosted app-store channel** — channel-candidate for family-bundle discovery through Umbrel/Homeio/HomelabARR/self-hosted communities. ID: `knw-1778785393528783428`.
+2 entries added to `monetization/opportunity/*`:
+- **Lifestyle money + meals coach add-on** — lifestyle addon-candidate. ID: `knw-1779130916538004810`.
+- **AI-built app hardening service line** — business services-line candidate. ID: `knw-1779130933080294267`.
 
 ### Ideas proposed for promotion
-No decisions raised. Full triggers did not fire. Home-inspection now has a likely second-similar-signal from public 2026 data/privacy chatter, but BAS/regulatory-intel prerequisites and operator’s base-bundle-vs-addon decision remain unmet.
+No decisions raised. No full catalog-promotion, channel-activation, or services-activation trigger fired.
 
 ### Pool snapshot
-- Total candidates in pool: 13
-- New candidates this heartbeat: 3
+- Total candidates in pool: 15
+- New candidates this heartbeat: 2
 - Candidates with full fireable triggers: 0
-- Partial trigger: home-inspection second-similar-signal likely met
 - Stale >6 months: 0
 - Opportunity inbox after scan: empty
-- Monetization pending queue observed: 8
+- Monetization pending queue observed: 1
+- Hygiene sweep threshold not triggered yet: pool is 15, not `>15`
 
 ### Knowledge entry written
-- `scout-scan/2026-05-14` written as `knw-1778785431402981013`.
+- `scout-scan/2026-05-18` written as `knw-1779130972801641232`.

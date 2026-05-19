@@ -1,31 +1,30 @@
 ### Coverage triage summary
-- Missing deployed subscription SKUs: 0.
+- Deployed subscription SKUs: 0.
 - Stale deployed subscription SKUs: 0.
 - Imminent subscription SKUs with committed launch window: 0.
-- `business` remains gated: zero deployed subscription SKUs, no committed launch window, no active subscription campaign, and no subscription artifact request.
+- Latest publisher snapshot remains `coverage-snapshot/2026-05-17`: releases=0, fresh=0, stale=0, missing=2.
+- `business` remains gated by no SKU, launch window, campaign, or artifact request.
 - `oss-platform` remains out-of-lane.
 
 ### Artifact requests reviewed
 - No visible `artifact-request/subscription/*`.
-- No visible `publish-log/*`; publisher snapshots still report empty publish log.
-- Latest useful subscription evidence: BYOK/seat and workflow-platform billing scans support future “managed gateway / predictable operating cost” framing, but do not override SKU or launch gates.
+- No visible `publish-log/*`.
+- Latest subscription-adjacent evidence from 2026-05-17 supports future “managed gateway / governed connected actions / predictable operating cost” framing, but does not open the draft gate.
 
 ### Drafts produced
-- None. No draft candidate passed gates.
-- No `campaign-drafts.jsonl` append.
+- None.
+- No `campaign-drafts.jsonl` append because no draft passed gates and the working-state file is unavailable in the empty checkout.
 
 ### Coverage-gap decisions raised
-- None. No fresher subscription coverage gap than the existing business pre-launch gate.
+- None. No fresher subscription gap than the existing business pre-launch gate.
 
 ### Capability-gap decisions raised
-- None. Empty checkout is still present, but it did not newly block an otherwise-ready subscription artifact and is already represented in prior team evidence.
+- None. Empty checkout persists, but is already covered by prior team evidence and pending `dec-1778787137208717804`.
 
 ### Supersessions
 - None.
 
 ### Knowledge entry written
-- `knw-1778956262195616384` on `subscription-ad-run/2026-05-16`.
+- `knw-1779129069420509515` on `subscription-ad-run/2026-05-18`.
 
-### Next check
-- First look for new `artifact-request/subscription/*`, `coverage-snapshot/*`, `publish-log/*`, accepted campaign/launch evidence, or a deployed business subscription SKU.
-- If a SKU or committed launch appears, verify monetization canon before drafting and keep the lane framing: subscription is convenience plus integrated gateway, not paywalling core features.
+Next run should first check for new `artifact-request/subscription/*`, `coverage-snapshot/*`, `publish-log/*`, accepted campaign/launch evidence, or a deployed business subscription SKU. If a SKU or launch window appears, verify monetization canon before drafting and keep subscription framed as convenience plus integrated gateway, never paywalling core features.

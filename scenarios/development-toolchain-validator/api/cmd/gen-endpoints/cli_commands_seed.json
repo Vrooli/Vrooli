@@ -37,6 +37,26 @@
       "endpoint_id": "golden_regenerate"
     },
     {
+      "name": "manifest list",
+      "description": "List all stored (skill_id, golden_slug) manifests",
+      "endpoint_id": "manifest_list"
+    },
+    {
+      "name": "manifest get",
+      "description": "Show one manifest by (skill_id, golden_slug)",
+      "endpoint_id": "manifest_get"
+    },
+    {
+      "name": "manifest upsert",
+      "description": "Create or replace a manifest (--skill --golden [--allow] [--wildcard-allowed] [--convergence] [--template-version] [--skill-version])",
+      "endpoint_id": "manifest_upsert"
+    },
+    {
+      "name": "manifest clear-stale",
+      "description": "Clear staleness override for a (skill, golden) manifest (--skill --golden)",
+      "endpoint_id": "manifest_clear_stale"
+    },
+    {
       "name": "skill-catalog sync",
       "description": "Pull current skills from prompt-manager and reconcile the local mirror",
       "endpoint_id": "skill_catalog_sync"
@@ -50,6 +70,51 @@
       "name": "skill-catalog get",
       "description": "Show one mirrored skill by id",
       "endpoint_id": "skill_catalog_get"
+    },
+    {
+      "name": "staleness list",
+      "description": "List manifests whose pinned versions drift from current",
+      "endpoint_id": "staleness_list"
+    },
+    {
+      "name": "record list",
+      "description": "List terminal validation records (paginated, with optional filters)",
+      "endpoint_id": "validation_record_list"
+    },
+    {
+      "name": "record get",
+      "description": "Show one validation record by id",
+      "endpoint_id": "validation_record_get"
+    },
+    {
+      "name": "validation start",
+      "description": "Queue a new (skill|tool, golden) validation run",
+      "endpoint_id": "validation_run_start"
+    },
+    {
+      "name": "validation get",
+      "description": "Show one validation run by id",
+      "endpoint_id": "validation_run_get"
+    },
+    {
+      "name": "validation list-active",
+      "description": "List runs whose status is not terminal",
+      "endpoint_id": "validation_run_list_active"
+    },
+    {
+      "name": "report golden-summary",
+      "description": "Show latest verdict per skill and tool for a golden",
+      "endpoint_id": "report_golden_summary"
+    },
+    {
+      "name": "report tuple-history",
+      "description": "Paginated record history for one tuple (--skill | --tool, --golden)",
+      "endpoint_id": "report_tuple_history"
+    },
+    {
+      "name": "report coverage",
+      "description": "Per-skill coverage grid for one golden",
+      "endpoint_id": "report_coverage"
     }
   ]
 }

@@ -76,6 +76,36 @@ For organization patterns, hierarchy rules, and requirements integration, see th
 
 ### **4. Core CLI Commands**
 
+#### Single-location capture (prefer for one-page checks)
+
+When all you need is a snapshot of one page — a screenshot, the JS console output, the network requests, or any combination — use `capture` instead of authoring a `workflow execute --step navigate --step screenshot` pipeline. `capture` is one Connect-RPC call against `CaptureService.Capture` and supports a viewport preset / explicit width-height, a wait-for condition, and a CSV of capture types in a single browser session.
+
+```bash
+# Desktop screenshot of a running scenario:
+browser-automation-studio capture --url scenario=app-monitor,path=/ --capture screenshot --out /tmp/audit
+
+# Mobile-viewport screenshot:
+browser-automation-studio capture --url https://example.com --capture screenshot --dimensions mobile --out /tmp/mobile
+
+# Full UI audit (screenshot + console + network) from one page load:
+browser-automation-studio capture --url scenario=swarm-manager,path=/backlog --capture screenshot,console-logs,network --out /tmp/audit --json
+```
+
+Available `--capture` types: `screenshot`, `console-logs`, `network`, `video`, `dom`, `performance` (CSV, default: `screenshot`). Dimensions presets: `mobile` (390x844), `tablet` (768x1024), `desktop` (1440x900). `--width`/`--height` override the preset. `--wait-for` accepts a CSS selector, the string `networkidle`, or a numeric millisecond timeout. `--dry-run` validates a request without producing artifacts. `--json` emits the proto wire shape; default human output is a Mutation Contract report.
+
+Equivalent prompt-manager actions wrap this command with fixed flags so agents discover them via `prompt-manager discover`:
+
+| Action | Wraps |
+|---|---|
+| `bas.screenshot` | desktop screenshot |
+| `bas.screenshot.mobile` | mobile screenshot |
+| `bas.console-logs` | console capture only |
+| `bas.network` | network capture only |
+| `bas.audit` | screenshot + console + network in one session |
+| `bas.status` | BAS health check |
+
+Use `workflow execute` (below) when you need multi-step interaction — login, click, type, multi-page navigation. Capture is only for the single-location case.
+
 #### Execute a Workflow
 
 There are three ways to execute workflows: by name (stored workflow), from a JSON file, or inline with `--step` flags.

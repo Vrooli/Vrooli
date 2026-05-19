@@ -1,25 +1,23 @@
 ### Peer outputs reviewed
-- Recent `qa-run/*`, `reviewed-scenario/*`, and dependency-wiring entries through 2026-05-16T22:05Z.
-- `quality-audit/agent-inbox/screaming-architecture-audit`.
-- Bug investigation reports for `gct-review-poll-loses-api-base` and `gct-test-capability-inconsistent`.
-- Pending scenario-qa bug-resolution proposals `dec-1778788973084288635` and `dec-1778803454094270523`.
-- Cross-team pending decisions involving scenario-qa output included director-swarm `dec-1778883472874563187` and meta-optimization `dec-1778971728228105895`.
+- Recent `quality-audit/*`: `agent-inbox/screaming-architecture-audit`, `web-console/boundary-of-responsibility-enforcement`, `vrooli-events/seam-discovery-and-enforcement`.
+- Recent `bug-investigation-report/*` through `writer-skills-use-removed-by-flag`, including `gct-recommendations-miss-yellow-depth-gap`.
+- Recent `qa-run/*` and backlog items from 2026-05-17/18, including test-genie GCT fixes and green web-console/vrooli-events completeness runs.
+- Pending scenario-qa `bug-resolution-proposal` decisions and cross-team decisions involving scenario-qa output.
 
 ### Failure modes hit (per output)
-- None.
-- Bug investigations still satisfy `scientific-debugging` contrarian checks: Phase 0 evidence, multiple hypotheses, root-cause evidence, similar-pattern/root-cause framing, and regression coverage in the proposed fix scope.
-- `agent-inbox` audit does not hit `screaming-architecture-audit` challenge modes: finding is not cosmetic, cites material doc/code drift, and the backlog item preserves docs-first alignment before limited structural movement.
-- Programmatic QA entries include concrete GCT scores, job/run timestamps, metrics, validation issues, backlog item names, and success targets. No registered readiness-check contrarian failure mode exists yet; readiness registry remains stub-only.
+- `bug-investigation-report/gct-recommendations-miss-yellow-depth-gap`: hit `scientific-debugging` failure mode **No similar-pattern check**. The investigation found a shared recommendation-generator root cause but did not scope other missing recommendation dimensions or other scenarios with lost points and no recommendations.
+- Other reviewed bug investigations had multiple hypotheses, reproduction, prior-art evidence, and root-cause framing.
+- Quality audits did not hit registered contrarian failure modes for their lenses.
+- Readiness outputs remain hard to challenge formally because readiness methods registry is still stub-only.
 
 ### Challenge notes written (≤3)
-- None.
+- Wrote `challenge-report/gct-recommendations-miss-yellow-depth-gap` as `knw-1779147076131467945`.
 
 ### Challenge resolution updates
-- None. No existing `challenge-report/*` or `challenge-resolution-record/*` entries found.
+- Wrote `challenge-resolution-record/gct-recommendations-miss-yellow-depth-gap` as `knw-1779147082262724369`, status `open`.
 
 ### Recurring gap surfaced (if any)
-- No recurring unsupported failure class surfaced strongly enough to justify registry-update escalation.
-- Situational friction persisted: active workspace root was empty, so PoR docs and local store were read from `/home/matthalloran8/Vrooli`. Also, exact wildcard topic filters for `quality-audit/*` and `bug-investigation-report/*` returned no entries even though full knowledge listing/local `rg` showed them.
+- No new registry-update proposal. The readiness registry remains a recurring limitation, but no new allowed decision write this heartbeat.
 
 ### Quiet heartbeat?
-- Yes. Quiet heartbeat; no manufactured challenge.
+- No. One concrete challenge was written.

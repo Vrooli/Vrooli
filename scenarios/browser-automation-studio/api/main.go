@@ -13,6 +13,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -20,6 +22,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
+	captureconnect "github.com/vrooli/browser-automation-studio/handlers/capture"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/performance"
 	"github.com/vrooli/browser-automation-studio/services/ai"
@@ -325,6 +328,20 @@ func main() {
 	// Correlation ID middleware - generates and propagates correlation IDs for request tracing
 	correlationMiddleware := middleware.NewCorrelationMiddleware(log)
 	r.Use(correlationMiddleware.InjectCorrelationID)
+
+	// === Connect-RPC services (side-by-side with chi REST routes) ===
+	// Each new Connect service appends one line to connectMounts. The
+	// chi REST routes below are unaffected; Connect routes get the full
+	// middleware stack above. Do not migrate REST endpoints here — that
+	// is a separate, per-endpoint decision.
+	connectMounts := []connectx.ServiceMount{
+		captureconnect.Module(captureconnect.Deps{
+			Executor: deps.ExecutionService,
+			Resolver: discovery.NewResolver(discovery.ResolverConfig{}),
+			Logger:   log,
+		}),
+	}
+	connectx.RegisterChi(r, connectMounts...)
 
 	// Routes
 	// Health endpoint using api-core/health for standardized response format

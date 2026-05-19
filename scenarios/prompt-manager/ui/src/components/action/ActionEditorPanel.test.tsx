@@ -64,6 +64,8 @@ const validation: ActionValidationResponse = {
   actionId: 'team.decisions.list',
   valid: true,
   runnable: false,
+  unvalidated: false,
+  requiresConfirmation: false,
   status: 'active',
   checks: [
     {

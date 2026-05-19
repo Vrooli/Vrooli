@@ -319,6 +319,318 @@
       }
     },
     {
+      "id": "manifest_list",
+      "path": "/vrooli.development_toolchain_validator.v1.manifest.ManifestService/ListManifests",
+      "method": "POST",
+      "summary": "List manifests",
+      "description": "Returns every stored (skill_id, golden_slug) manifest ordered by skill_id then golden_slug.",
+      "category": "manifest",
+      "response": {
+        "type": "object",
+        "properties": {
+          "manifests": "array<Manifest>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List manifests",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/ListManifests -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator manifest list"
+      }
+    },
+    {
+      "id": "manifest_get",
+      "path": "/vrooli.development_toolchain_validator.v1.manifest.ManifestService/GetManifest",
+      "method": "POST",
+      "summary": "Get a manifest by (skill_id, golden_slug)",
+      "description": "Returns the manifest pinned for the given tuple.",
+      "category": "manifest",
+      "request": {
+        "type": "object",
+        "properties": {
+          "golden_slug": "string (required)",
+          "skill_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "manifest": "Manifest"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing skill_id or golden_slug"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No manifest exists for that tuple"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get manifest",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/GetManifest -H 'Content-Type: application/json' -d '{\"skill_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator manifest get",
+        "args": [
+          "<skill_id>",
+          "<golden_slug>"
+        ]
+      }
+    },
+    {
+      "id": "manifest_upsert",
+      "path": "/vrooli.development_toolchain_validator.v1.manifest.ManifestService/UpsertManifest",
+      "method": "POST",
+      "summary": "Create or replace a manifest",
+      "description": "Stores the manifest for the given (skill_id, golden_slug). Replaces any existing row.",
+      "category": "manifest",
+      "request": {
+        "type": "object",
+        "properties": {
+          "manifest": "Manifest (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "manifest": "Manifest (post-write)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Validation failure (slug shape, empty paths, etc.)"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Upsert manifest",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/UpsertManifest -H 'Content-Type: application/json' -d '{\"manifest\":{\"skill_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\",\"wildcard_allowed\":true}}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator manifest upsert",
+        "args": [
+          "--skill <id>",
+          "--golden <slug>",
+          "[--allow <glob>...]",
+          "[--wildcard]"
+        ]
+      }
+    },
+    {
+      "id": "manifest_clear_stale",
+      "path": "/vrooli.development_toolchain_validator.v1.manifest.ManifestService/ClearStale",
+      "method": "POST",
+      "summary": "Clear staleness override for a manifest",
+      "description": "Records a manual-clear timestamp that suppresses staleness for the tuple until the next manifest upsert.",
+      "category": "manifest",
+      "request": {
+        "type": "object",
+        "properties": {
+          "golden_slug": "string (required)",
+          "skill_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cleared_at": "google.protobuf.Timestamp"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing skill_id or golden_slug"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Clear stale",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/ClearStale -H 'Content-Type: application/json' -d '{\"skill_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator manifest clear-stale",
+        "args": [
+          "--skill <id>",
+          "--golden <slug>"
+        ]
+      }
+    },
+    {
+      "id": "report_golden_summary",
+      "path": "/vrooli.development_toolchain_validator.v1.report.ReportService/GetGoldenSummary",
+      "method": "POST",
+      "summary": "Per-golden verdict roll-up",
+      "description": "Latest verdict per skill and per tool for a given golden, plus a stale-tuple count.",
+      "category": "report",
+      "request": {
+        "type": "object",
+        "properties": {
+          "golden_slug": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "summary": "GoldenSummary"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing golden_slug"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Composition failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Golden summary",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetGoldenSummary -H 'Content-Type: application/json' -d '{\"golden_slug\":\"reference-react-vite\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator report golden-summary",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
+      "id": "report_tuple_history",
+      "path": "/vrooli.development_toolchain_validator.v1.report.ReportService/GetTupleHistory",
+      "method": "POST",
+      "summary": "Paginated history for one (tuple_kind, subject, golden) tuple",
+      "description": "Cursor-paginated list of validation records for one tuple, ordered by ended_at descending.",
+      "category": "report",
+      "request": {
+        "type": "object",
+        "properties": {
+          "golden_slug": "string (required)",
+          "page_size": "int32",
+          "page_token": "string",
+          "subject_id": "string (required)",
+          "tuple_kind": "TupleKind (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "history": "TupleHistory"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing subject_id/golden_slug"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Composition failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Tuple history",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetTupleHistory -H 'Content-Type: application/json' -d '{\"tuple_kind\":1,\"subject_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator report tuple-history",
+        "args": [
+          "--kind skill|tool",
+          "--subject <id>",
+          "--golden <slug>"
+        ]
+      }
+    },
+    {
+      "id": "report_coverage",
+      "path": "/vrooli.development_toolchain_validator.v1.report.ReportService/GetCoverage",
+      "method": "POST",
+      "summary": "Per-golden coverage grid",
+      "description": "One row per skill in the catalog with the latest verdict, staleness flag, and manifest presence.",
+      "category": "report",
+      "request": {
+        "type": "object",
+        "properties": {
+          "golden_slug": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "coverage": "Coverage"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing golden_slug"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Composition failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Coverage",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetCoverage -H 'Content-Type: application/json' -d '{\"golden_slug\":\"reference-react-vite\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator report coverage",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
       "id": "skill_catalog_sync",
       "path": "/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/Sync",
       "method": "POST",
@@ -434,6 +746,272 @@
           "<id>"
         ]
       }
+    },
+    {
+      "id": "staleness_list",
+      "path": "/vrooli.development_toolchain_validator.v1.staleness.StalenessService/ListStale",
+      "method": "POST",
+      "summary": "List stale (skill_id, golden_slug) tuples",
+      "description": "Returns every manifest where the pinned template or skill version differs from current, with manual ClearStale overrides applied.",
+      "category": "staleness",
+      "response": {
+        "type": "object",
+        "properties": {
+          "entries": "array<StaleEntry>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List stale",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.staleness.StalenessService/ListStale -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator staleness list"
+      }
+    },
+    {
+      "id": "validation_record_list",
+      "path": "/vrooli.development_toolchain_validator.v1.validation_record.ValidationRecordService/ListRecords",
+      "method": "POST",
+      "summary": "List validation records",
+      "description": "Returns terminal validation records with cursor-paginated history, ordered by ended_at descending. Filters by golden_slug, subject_id, tuple_kind.",
+      "category": "validation_record",
+      "request": {
+        "type": "object",
+        "properties": {
+          "golden_slug": "string (optional)",
+          "page_size": "int32",
+          "page_token": "string",
+          "subject_id": "string (optional)",
+          "tuple_kind": "TupleKind (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "next_page_token": "string",
+          "records": "array<ValidationRecord>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Bad page_token"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List records",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_record.ValidationRecordService/ListRecords -H 'Content-Type: application/json' -d '{\"golden_slug\":\"reference-react-vite\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator record list",
+        "args": [
+          "[--golden <slug>]",
+          "[--subject <id>]",
+          "[--kind skill|tool]",
+          "[--page-size N]",
+          "[--page-token T]"
+        ]
+      }
+    },
+    {
+      "id": "validation_record_get",
+      "path": "/vrooli.development_toolchain_validator.v1.validation_record.ValidationRecordService/GetRecord",
+      "method": "POST",
+      "summary": "Get a validation record by id",
+      "description": "Returns the record with the given id.",
+      "category": "validation_record",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "record": "ValidationRecord"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No record with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get record",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_record.ValidationRecordService/GetRecord -H 'Content-Type: application/json' -d '{\"id\":\"<uuid>\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator record get",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "validation_run_start",
+      "path": "/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/Start",
+      "method": "POST",
+      "summary": "Start a validation run",
+      "description": "Queues a new (skill|tool, golden) validation run. Returns immediately; an in-process worker advances the lifecycle to terminal and writes a ValidationRecord.",
+      "category": "validation_run",
+      "request": {
+        "type": "object",
+        "properties": {
+          "force": "bool",
+          "golden_slug": "string (required)",
+          "subject_id": "string (required) — skill id or tool name",
+          "tuple_kind": "TupleKind (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "ValidationRun"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing tuple_kind/subject_id/golden_slug"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "A required outbound dependency is not running"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Start skill run",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/Start -H 'Content-Type: application/json' -d '{\"tuple_kind\":1,\"subject_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator validation start",
+        "args": [
+          "--skill <id> | --tool <name>",
+          "--golden <slug>",
+          "[--force]",
+          "[--wait]"
+        ]
+      }
+    },
+    {
+      "id": "validation_run_get",
+      "path": "/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/Get",
+      "method": "POST",
+      "summary": "Get a validation run by id",
+      "description": "Returns the validation run's current operational state. Poll this for terminal status.",
+      "category": "validation_run",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "ValidationRun"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No run with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get run",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/Get -H 'Content-Type: application/json' -d '{\"id\":\"<uuid>\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator validation get",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "validation_run_list_active",
+      "path": "/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/ListActive",
+      "method": "POST",
+      "summary": "List active validation runs",
+      "description": "Returns all runs whose status is not TERMINAL.",
+      "category": "validation_run",
+      "response": {
+        "type": "object",
+        "properties": {
+          "runs": "array<ValidationRun>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List active",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/ListActive -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "development-toolchain-validator validation list-active"
+      }
     }
   ],
   "cli_commands": [
@@ -473,6 +1051,26 @@
       "endpoint_id": "golden_regenerate"
     },
     {
+      "name": "manifest list",
+      "description": "List all stored (skill_id, golden_slug) manifests",
+      "endpoint_id": "manifest_list"
+    },
+    {
+      "name": "manifest get",
+      "description": "Show one manifest by (skill_id, golden_slug)",
+      "endpoint_id": "manifest_get"
+    },
+    {
+      "name": "manifest upsert",
+      "description": "Create or replace a manifest (--skill --golden [--allow] [--wildcard-allowed] [--convergence] [--template-version] [--skill-version])",
+      "endpoint_id": "manifest_upsert"
+    },
+    {
+      "name": "manifest clear-stale",
+      "description": "Clear staleness override for a (skill, golden) manifest (--skill --golden)",
+      "endpoint_id": "manifest_clear_stale"
+    },
+    {
       "name": "skill-catalog sync",
       "description": "Pull current skills from prompt-manager and reconcile the local mirror",
       "endpoint_id": "skill_catalog_sync"
@@ -486,6 +1084,51 @@
       "name": "skill-catalog get",
       "description": "Show one mirrored skill by id",
       "endpoint_id": "skill_catalog_get"
+    },
+    {
+      "name": "staleness list",
+      "description": "List manifests whose pinned versions drift from current",
+      "endpoint_id": "staleness_list"
+    },
+    {
+      "name": "record list",
+      "description": "List terminal validation records (paginated, with optional filters)",
+      "endpoint_id": "validation_record_list"
+    },
+    {
+      "name": "record get",
+      "description": "Show one validation record by id",
+      "endpoint_id": "validation_record_get"
+    },
+    {
+      "name": "validation start",
+      "description": "Queue a new (skill|tool, golden) validation run",
+      "endpoint_id": "validation_run_start"
+    },
+    {
+      "name": "validation get",
+      "description": "Show one validation run by id",
+      "endpoint_id": "validation_run_get"
+    },
+    {
+      "name": "validation list-active",
+      "description": "List runs whose status is not terminal",
+      "endpoint_id": "validation_run_list_active"
+    },
+    {
+      "name": "report golden-summary",
+      "description": "Show latest verdict per skill and tool for a golden",
+      "endpoint_id": "report_golden_summary"
+    },
+    {
+      "name": "report tuple-history",
+      "description": "Paginated record history for one tuple (--skill | --tool, --golden)",
+      "endpoint_id": "report_tuple_history"
+    },
+    {
+      "name": "report coverage",
+      "description": "Per-skill coverage grid for one golden",
+      "endpoint_id": "report_coverage"
     }
   ]
 }

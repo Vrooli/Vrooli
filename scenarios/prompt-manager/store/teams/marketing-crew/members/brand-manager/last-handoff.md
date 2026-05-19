@@ -1,23 +1,24 @@
 ### Typed observation scan
 - `marketing-craft-observation/*`: 0 unrouted entries. No drainage actions needed.
-- Evidence mode remains storage-only because workspace checkout is still empty; existing friction/gap records were not duplicated.
+- Evidence mode remains prompt-manager storage plus empty-workspace confirmation; workspace contains only `.` and `..`, and `rg --files` returns no files.
 
 ### Promotion candidates
-- Watch/near-ready: `oss-contributor` first-run cognitive-cost/onboarding-bar principle.
-- `dec-1778790757599330605` is still pending, but the prior hygiene challenge is now resolved via author response and contrarian re-check. Do not treat as canon until operator accepts it, ideally with the author-response details incorporated.
+- Strong but not canon: `oss-contributor` first-run cognitive-cost/onboarding-bar principle.
+- `dec-1778790757599330605` remains pending; challenge hygiene remains resolved. If accepted, incorporate author-response details: exact target sections, keep-open source disposition, revisit marker, and no claim that Vrooli matches CrewAI’s 20-line path without product proof.
+- Watch only: small-team-lead production proof, governed connected actions, reusable skills, and total operating cost framing. Evidence is growing, but no deployed Vrooli SKU/product proof supports canon.
 
 ### Retirement candidates
 - None.
-- Researcher tooling entries still wait on competitive-intel/scanning capability shipping.
-- `DEV_LOG_CRAFT` agent-manager outage workaround still lacks 3 consecutive healthy OSS-advertiser heartbeat days; recent runs are blocked, not healthy.
+- Researcher tooling entries still wait on competitive-intel/scanning capability.
+- `DEV_LOG_CRAFT` agent-manager outage workaround still lacks 3 consecutive healthy OSS-advertiser heartbeat days.
 
 ### Drift flags
 - None.
-- No publish-log entries visible. Post-canon draft sample remains below systematic drift threshold.
+- No publish-log entries, accepted-unreleased publish proposal, active artifact requests, or >=3 recent-draft drift sample.
 
 ### Campaign signals
-- Subscription: no deployed SKU, launch window, active campaign, or artifact request.
-- OSS: old post #1 proposal remains rejected/stale-closed. `dec-1778873456617563354` says refreshed post #1 should wait for restored evidence-path access. Do not advance post #2 sandboxing arc yet.
+- Subscription: no deployed SKU, committed launch window, active campaign, or artifact request.
+- OSS: no campaign/artifact request. Old post #1 proposal is rejected; `dec-1778873456617563354` still says refreshed post #1 waits for restored evidence-path access. Do not advance post #2.
 
 ### Artifact requests queued
 - None.
@@ -27,12 +28,11 @@
 
 ### Supersessions
 - None.
+- Keep watching `dec-1778878881483178807`; it would close obsolete `dec-1778792544572466080`.
 
 ### Knowledge entry written
-- `brand-snapshot/2026-05-16`: `knw-1778958116621499710`.
+- `brand-snapshot/2026-05-18`: `knw-1779130907903228099`.
 
-### Next first checks
-- Check whether operator accepts `dec-1778790757599330605` with author-response details.
-- Check whether `dec-1778878881483178807` closes obsolete `dec-1778792544572466080`.
-- Keep OSS artifact requests blocked until evidence access is restored and a refreshed post #1 exists.
-- Keep subscription gates closed until a shipped/deployable component or committed launch window appears.
+### Friction note
+- Generated storage commands still show `--by`, but the CLI rejects it because attribution is automatic. Retried without `--by` successfully.
+- Attempted to file friction via `meta-optimization`, but automatic attribution caused `team_mismatch`; carry this forward unless a later run has a valid cross-team friction write path.

@@ -2,6 +2,24 @@
 
 This file tracks unresolved issues, technical debt, and planned improvements for the browser-automation-studio scenario.
 
+## Capture (proto-first, partial)
+
+### CaptureService is the first Connect-RPC domain (2026-05-18)
+
+`api/handlers/capture/` mounts `CaptureService.Capture` next to the existing chi REST router. This is the **canonical example** other BAS domains should follow when migrating off REST. Capture's wire shape lives at `packages/proto/schemas/browser-automation-studio/v1/capture/capture.proto`; CLI surface at `cli/capture/`; prompt-manager actions under `scenarios/prompt-manager/store/actions/packs/core/bas.*/`.
+
+**Remaining REST domains** stay on chi and are migrated per-domain at the author's discretion. There is no big-bang migration plan; the side-by-side mount lets capture establish the pattern and others adopt it incrementally.
+
+### Capture executor fan-out is not yet wired
+
+The Connect handler builds a navigate-only adhoc workflow DAG and delegates to `executionService.ExecuteAdhocWorkflowAPIWithOptions`. Today the response artifact list is synthesized from the request (`synthesizeArtifacts`) rather than read from real executor output — paths look real (`/<out_dir>/<exec_id>/screenshot.png`) but the files are not produced. Dry-run and contract-shape callers work end-to-end. Real artifact production requires:
+
+1. Appending capture-type-specific nodes (`ACTION_TYPE_SCREENSHOT`, etc.) to the DAG built in `buildAdhocRequest`.
+2. After execution, walking `ExecuteAdhocResponse` step results to map screenshot binaries / network records / console logs back into the artifact bundle.
+3. Writing each artifact into the resolved `out_dir` and reporting real `size_bytes` + `metadata`.
+
+This is server-side only — proto, CLI, and actions don't change. Track this as the first follow-up to the capture domain.
+
 ## API Refactoring (In Progress)
 
 ### Completed

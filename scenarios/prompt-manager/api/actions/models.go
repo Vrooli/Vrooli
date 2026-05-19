@@ -24,10 +24,20 @@ type ValidationResponse struct {
 	ActionID string             `json:"actionId"`
 	Valid    bool               `json:"valid"`
 	Runnable bool               `json:"runnable"`
-	Status   string             `json:"status"`
-	Command  *CommandResolution `json:"command,omitempty"`
-	Checks   []Check            `json:"checks"`
-	Action   *store.Action      `json:"action,omitempty"`
+	// Unvalidated is true when the action references a command whose
+	// safety properties (effect, permissions, run-eligibility) are not yet
+	// declared by the owning scenario's cli/manifest.json. The action runs
+	// but consumers should surface this as an info-level "unvalidated" flag.
+	Unvalidated bool               `json:"unvalidated,omitempty"`
+	// RequiresConfirmation mirrors the resolved command's confirmation
+	// requirement so callers (CLI/UI) can decide whether to prompt before
+	// invoking. True for any manifest command with governance.effect ==
+	// destructive (default) or governance.requires_confirmation == true.
+	RequiresConfirmation bool               `json:"requiresConfirmation,omitempty"`
+	Status               string             `json:"status"`
+	Command     *CommandResolution `json:"command,omitempty"`
+	Checks      []Check            `json:"checks"`
+	Action      *store.Action      `json:"action,omitempty"`
 }
 
 type ListFilters struct {
@@ -102,12 +112,13 @@ type CommandOwner struct {
 }
 
 type CommandResolution struct {
-	Certainty   CommandCertainty `json:"certainty"`
-	Owner       CommandOwner     `json:"owner"`
-	Target      string           `json:"target"`
-	CommandPath []string         `json:"commandPath,omitempty"`
-	Effect      CommandEffect    `json:"effect,omitempty"`
-	Permissions []string         `json:"permissions,omitempty"`
-	RunSurfaces []string         `json:"runSurfaces,omitempty"`
-	Message     string           `json:"message,omitempty"`
+	Certainty            CommandCertainty `json:"certainty"`
+	Owner                CommandOwner     `json:"owner"`
+	Target               string           `json:"target"`
+	CommandPath          []string         `json:"commandPath,omitempty"`
+	Effect               CommandEffect    `json:"effect,omitempty"`
+	Permissions          []string         `json:"permissions,omitempty"`
+	RunSurfaces          []string         `json:"runSurfaces,omitempty"`
+	RequiresConfirmation bool             `json:"requiresConfirmation,omitempty"`
+	Message              string           `json:"message,omitempty"`
 }

@@ -2,6 +2,7 @@ package domains
 
 import (
 	"browser-automation-studio/cli/ai"
+	"browser-automation-studio/cli/capture"
 	"browser-automation-studio/cli/executions"
 	"browser-automation-studio/cli/internal/appctx"
 	"browser-automation-studio/cli/playbooks"
@@ -19,6 +20,7 @@ func CommandGroups(ctx *appctx.Context) []cliapp.CommandGroup {
 		status.Commands(ctx),
 		playbooks.Commands(ctx),
 		workflows.Commands(ctx),
+		capture.Commands(ctx),
 		executions.Commands(ctx),
 		recordings.Commands(ctx),
 		sessions.Commands(ctx),

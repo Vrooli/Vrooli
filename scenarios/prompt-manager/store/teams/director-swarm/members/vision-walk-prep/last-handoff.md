@@ -1,17 +1,16 @@
 ### Retrospective
 
-Current run date: **2026-05-16**. Refreshed snapshot recorded as `vision-walk-record/2026-05-16/prep-refresh` (`knw-1778922114326094489`).
+Current run date: **2026-05-18**. Refreshed snapshot recorded as `vision-walk-record/2026-05-18/prep-refresh` (`knw-1779094929295431057`).
 
-- **Throughput:** `completed_last_7_days=0`, `created_last_7_days=27`; `completed_last_30_days=37`, `created_last_30_days=78`, net +41.
-- **Portfolio size:** **419 total items**: 281 backlog, 125 completed, 6 failed, 6 in_review, 1 queued.
-- **Initiatives:** overview reports **58 active initiatives**; `swarm-manager initiatives list` reports **60 initiatives**. Treat as another rollup mismatch to verify before drawing trend conclusions.
-- **Governance lanes:** 7 active executions by lane state, queue depth 0. Lanes: investigate 3/6, execute 3/3, review 1/8, reconcile 0/2.
-- **Execution-list caveat persists:** `swarm-manager execution list` returns 95 execution runs but no visible running/queued rows; stats show 31 agent sessions, 3 active, failed session rate 29.2%.
-- **Dashboard rollup mismatch persists:** stats dashboard says backlog size 76 and completed all-time 52, while overview says backlog 281 and completed 125.
+- **Throughput:** `completed_last_7_days=0`, `created_last_7_days=54`; `completed_last_30_days=36`, `created_last_30_days=105`, net +69.
+- **Portfolio size:** **446 total items**: 308 backlog, 125 completed, 6 failed, 6 in_review, 1 queued.
+- **Governance lanes:** still 7 active by lane state, queue depth 0: investigate 3/6, execute 3/3, review 1/8, reconcile 0/2.
+- **Rollup mismatches persist:** stats dashboard says backlog 103 and completed all-time 52; overview says backlog 308 and completed 125. Initiative list reports 60 initiatives; overview reports 58 active initiatives.
+- **Execution caveat persists:** `swarm-manager execution list` still returns 95 execution runs with no visible running/queued rows; stats sessions show 34 sessions, 3 active, failed session rate 26.9%.
 
-Strategic frame sharpened: item creation has resumed, but closures have not. This is now backlog growth without 7-day conversion, not a quiet week.
+Strategic frame is stronger than prior run: backlog growth is accelerating without closures. This moved from +27 net 7-day growth on 2026-05-16 to +54 by 2026-05-18, still with zero 7-day completions.
 
-GCT remains the clearest bottleneck:
+GCT remains flat:
 
 - `git-control-tower-ai-provenance` 0/2
 - `gct-commit-initiative-linking` 0/3
@@ -20,38 +19,36 @@ GCT remains the clearest bottleneck:
 - `gct-release-pipeline` 0/2
 - `gct-pre-commit-security` 1/5
 
-Newer evidence points at shared QA/review unblockers: `fix/qa-git-control-tower-tests-playbook-schema-20260515`, failed `execute/qa-git-control-tower-code-quality-20260408`, and two scenario-qa GCT review bug proposals.
+GCT unblocker evidence still centers on `fix/qa-git-control-tower-tests-playbook-schema-20260515` and `execute/qa-git-control-tower-code-quality-20260408`, with newer adjacent QA dependencies now showing around workspace-sandbox, visual baseline, and secrets-manager GCT-path fixes.
 
 ### Portfolio Decisions
 
-**2 pending director-swarm decisions.**
+**2 active director-swarm portfolio decisions remain most relevant.**
 
 - **`dec-1778797170919215163` — Workshop-prioritize foundation initiatives with description-only scope**
   - Recommends promoting `design-language-foundation` workshop authoring first.
   - Holds `hosted-cloud-tier-foundation` and `web-console-readiness` until prerequisites mature.
-  - Walk prompt: this is about converting known description-only gaps into items without expanding all three infrastructure fronts while throughput is stalled.
+  - Walk prompt: whether to convert known description-only gaps while throughput is stalled.
 
 - **`dec-1778883472874563187` — Prioritize GCT QA unblockers before expanding dependent GCT work**
   - Recommends promoting `fix/qa-git-control-tower-tests-playbook-schema-20260515` and `execute/qa-git-control-tower-code-quality-20260408`.
-  - Walk prompt: this is the most directly tied to the flat GCT cluster; decide whether GCT feature work should wait behind shared QA unblockers.
+  - Walk prompt: whether GCT feature work should wait behind shared QA unblockers.
 
-**Deferred, not pending:** `dec-1777312920606447957` — `social-media-scheduler` initiative proposal remains deferred. It is still relevant to marketing publishing, but no longer appears in the active pending queue.
+**Queue caveat:** `dec-1777312920606447957` social-media-scheduler still appears in `decision-list` output as pending, though the prior handoff treated it as deferred. Treat it as relevant but not the primary portfolio decision unless the walker wants publishing-pipeline scope.
 
 ### Strategist Decisions
 
-Strategist is still not surfaced in the current team list. No visible strategist decision queue.
+No strategist team is visible in `prompt-manager team list`; `prompt-manager team decision-list strategist` returns no decisions.
 
 ### Monetization Decisions
 
 **1 pending monetization decision.**
 
 - **`dec-1778875348622351458` — Add SaaS Capital retention/churn benchmarks**
-  - Would populate `BENCHMARKS.md` with private B2B SaaS NRR/GRR comps.
-  - Applicability is explicitly medium: useful for retention targets, not direct dev-tool or low-ACV pricing proof.
+  - Adds private B2B SaaS NRR/GRR comps to `BENCHMARKS.md`.
+  - Applicability is medium: useful for retention target realism, not direct proof for low-ACV dev-tool pricing.
 
-Resolved since prior handoff: gateway markup / financial-model decisions are no longer pending; accepted/rejected state has reduced the earlier stacking cluster. The old Tier 1 pricing bracket decision remains deferred, not active pending.
-
-Financial tracker gap remains conceptually open: no useful operator cash/burn/product allocation inputs surfaced in this run.
+Pricing trough remains deferred, not active. Financial tracker/operator cash-flow data still has no useful fresh input in this run.
 
 ### Marketing Decisions
 
@@ -61,82 +58,73 @@ Financial tracker gap remains conceptually open: no useful operator cash/burn/pr
   - Empty checkout plus runtime registry failures block source-health checks and shipped-work mining.
 
 - **`dec-1778790757599330605` — Add OSS contributor onboarding-bar principle**
-  - Audience principle: reduce first-run cognitive cost; show shortest credible path before deep architecture.
-  - Has an obsolete contrarian challenge still in queue.
+  - Principle: reduce first-run cognitive cost; show shortest credible path before deep architecture.
 
 - **`dec-1778792544572466080` — Reject/amend onboarding-bar principle**
-  - Now likely stale because the author response supplied missing target/disposition details.
+  - Likely obsolete because author response supplied target/disposition details.
 
 - **`dec-1778873456617563354` — OSS platform has no active first-publish proposal**
-  - Prior post #1 proposal is rejected/stale.
-  - Fresh draft should wait for evidence-path access.
+  - Fresh post #1 should wait for evidence-path restoration.
 
 - **`dec-1778878881483178807` — Close obsolete rejection/amendment proposal**
   - Queue hygiene for `dec-1778792544572466080`.
 
-Important change: dev-log post #1 is no longer pending. Operator liked the prose on 2026-05-14, but chose not to publish the stale draft because GCT provenance/commit-run linkage is not rich enough yet. Marketing voice canon mostly worked; source evidence and media capability are now the blockers.
+Marketing signal remains: prose/voice was not the blocker; source evidence and media/provenance capability are.
 
 ### Meta-Optimization Decisions
 
-**4 pending meta-optimization decisions.**
+Meta queue expanded since the previous handoff. Recent visible pending set includes:
 
-- **`dec-1778796166725303185` — scenario-auditor generated-route password false positive**
-  - Security scan flags `forgotPassword: "/forgot-password"` as hardcoded credential.
+- **`dec-1778796166725303185`** — Fix scenario-auditor false positive where generated `forgotPassword` route names are treated as hardcoded credentials.
+- **`dec-1778797938232697845`** — Deprecate placeholder `agent-29`.
+- **`dec-1778884421236613535`** — Fix graph/topic validation precision for complete team contracts and storage-path prose.
+- **`dec-1778885362329320192`** — Add workspace-sandbox create preflight/retry for retryable `SANDBOX_CREATE` failures.
+- **`dec-1778969859880763739`** — Update `knowledge-observatory-tools` supported-doc guidance to be manifest-driven.
+- **`dec-1778971728228105895`** — Treat scenario-qa GCT readiness-to-backlog conversion as an Action candidate.
+- **`dec-1779056258579774059`** — Update `visited-tracker-tools` for current CLI contract and global flag placement.
+- **`dec-1779057112765291497`** — Add market-validator named method skills to `TOOLS.md`.
+- **`dec-1779058180482147600`** — Preflight or avoid Claude Code root/sudo launches with `--dangerously-skip-permissions`.
 
-- **`dec-1778797938232697845` — Deprecate placeholder agent `agent-29`**
-  - Low-health active placeholder with no real role contract.
-
-- **`dec-1778884421236613535` — Fix graph/topic validation precision**
-  - Infra-health has complete role contracts, but graph health reports weak role coverage; topic scanner also treats `api-core/storage` path prose as topic leakage.
-
-- **`dec-1778885362329320192` — Add workspace-sandbox create preflight/retry**
-  - 11 of 14 failed runs in the 2026-05-15 window failed before agent execution due to retryable `SANDBOX_CREATE` connection refused.
-
-Meta signal shifted from earlier run-introspector exclusion stacking to concrete validation and runner-behavior fixes.
+Walk framing: meta has shifted from one or two validation fixes into a broader tooling-contract cleanup cluster. If the operator wants to reduce review load, focus on runner-preflight and graph/skill-contract fixes that reduce future false signals.
 
 ### Infra-Health Decisions
 
-**3 pending infra-health decisions.**
+**6 pending infra-health decisions.**
 
-- **`dec-1778803361775636366` — Expose active heartbeat run inspection and stop controls in CLI**
-  - API exists; CLI lacks `GET /heartbeats/running` and stop coverage.
+- **`dec-1778803361775636366`** — Expose active heartbeat run inspection and stop controls in CLI.
+- **`dec-1778888027214366413`** — Make autoheal restart actions lock-aware.
+- **`dec-1778889764515433578`** — Prompt-manager Windows CLI setup parity.
+- **`dec-1778974408126433951`** — Classify scenario CLI discovery / manifest parse failures as permanent config defects in autoheal.
+- **`dec-1778976129287933384`** — Complete lifecycle Stop/Restart cleanup bookkeeping even when ports remain bound.
+- **`dec-1779060889232051080`** — Make system MCE telemetry probe capability-aware for installed `ras-mc-ctl` and host-access limits.
 
-- **`dec-1778888027214366413` — Make autoheal restart actions lock-aware**
-  - Latest 50 autoheal records: 40 failures, 32 timeouts, repeated lock/concurrent invocation symptoms.
-
-- **`dec-1778889764515433578` — Prompt-manager Windows CLI setup parity**
-  - Unix installer passes manifest/freshness inputs; prompt-manager PowerShell wrapper does not.
-
-Adjacent scenario-qa GCT bug proposals also matter for the walk:
-
-- `dec-1778788973084288635`: pin resolved API base during GCT review polling.
-- `dec-1778803454094270523`: snapshot dependency availability and preserve dependency execution errors in GCT review runs.
+Infra-health theme: recovery loops are noisy because restart/stop/probe paths do not distinguish transient lock/timeouts, permanent config defects, and host capability limits cleanly.
 
 ### Life Audit Prompts
 
-- **GCT unblocker choice:** decide whether the next execution push should explicitly prioritize GCT QA/review unblockers before more dependent GCT feature work.
-- **Backlog growth without closures:** 27 items created in 7 days, 0 completed. Is this acceptable planning expansion, or should new scope pause until conversion resumes?
-- **OSS first-publish reset:** post #1 prose worked, but evidence was stale/insufficient. Decide whether first-publish waits for GCT provenance or gets a simpler non-GCT story.
-- **Design-language foundation:** if the walk needs a non-GCT planning decision, `design-language-foundation` is the cleanest under-authored priority-7 initiative.
-- **Financial/lifestyle audit:** bring back the Caleb Hammer / financial-audit lifestyle signal from `vision-walk-record/2026-05-14/...`; it links budget coaching, meal/grocery planning, and Life OS automation.
+- **Backlog growth without conversion:** 54 created and 0 completed in 7 days. Should scope creation pause, or is this an intentional planning expansion window?
+- **GCT unblocker choice:** decide whether the next push explicitly prioritizes GCT QA/review unblockers over dependent GCT feature work.
+- **OSS first-publish reset:** decide whether first publish waits for richer GCT provenance or uses a simpler non-GCT story once evidence-path access is restored.
+- **Design-language foundation:** still the cleanest non-GCT planning decision if the walk needs a constructive under-authored priority-7 initiative.
+- **Financial/lifestyle audit:** revisit the 2026-05-14 Caleb Hammer / budgeting signal: budget coaching, meal/grocery planning, Type-B planning support, and Life OS automation.
 
 ### Big Picture Context
 
 - **Active base bundle:** business.
 - **Candidate base bundle:** lifestyle/family.
 - **Lifestyle/family state:** routines-app 0/4, inventory-app 0/3, contact-book-plus 0/2, lifestyle-demand-validation 0/1.
-- **Marketing:** OSS coverage still missing; no active first-publish proposal until evidence-path access is restored.
-- **Monetization:** pending queue is now light; main live item is retention/churn benchmarks, while pricing trough remains deferred.
-- **Infra-health:** strongest current signals are lifecycle/run recovery gaps: heartbeat stop CLI, autoheal lock-awareness, workspace-sandbox create retry, and GCT review dependency resolution.
-- **Portfolio:** active lane state plus active sessions exist, but backlog-item completion remains flat.
+- **Marketing:** OSS coverage still missing; first-publish proposal should wait on evidence-path restoration.
+- **Monetization:** live queue is light; retention/churn benchmark update is the only active pending monetization decision.
+- **Infra-health:** strongest signals are lifecycle/run recovery classification, heartbeat stop controls, autoheal lock-awareness, and runner preflight gaps.
+- **Portfolio:** active execution lane state exists, but backlog-item completion remains flat while creation accelerates.
 
 Prior durable walk memories still relevant:
 
 - 2026-04-23: lifestyle bundle, inventory as recommendation substrate, recommendation-blind revenue insertion.
 - 2026-04-26: home-inspection / regulatory-intel substrate signals.
-- 2026-04-27: bounded divergences inside one walk worked well; Phase 8 caught loose candidates.
+- 2026-04-27: bounded divergences inside one walk worked well.
 - 2026-05-14: financial-audit / budgeting lifestyle signal should be revisited.
 
 ### Preserved Walk Checkpoint
 
-No existing preserved walk checkpoint was present in the supplied context or located in the director-swarm knowledge readout.
+No preserved walk checkpoint found in supplied context or director-swarm knowledge readout.

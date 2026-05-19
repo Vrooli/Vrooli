@@ -1,0 +1,263 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "development-toolchain-validator",
+  "description": "Single source of truth for the DTV CLI command surface. Schema-validated against cli-manifest/v1; cross-validated against each domain's Connect-RPC proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. New RPCs must either land here as a command binding or be listed in `omitted[]` with a reason.",
+  "groups": [
+    {
+      "name": "goldens",
+      "description": "Manage template-pristine golden scenarios used by skill validation",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List all registered goldens",
+          "binding": { "kind": "connect-rpc", "service": "GoldenService", "method": "ListGoldens" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Show one golden by slug",
+          "positionals": [
+            { "name": "slug", "required": true, "description": "Golden slug" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "GoldenService", "method": "GetGolden" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "register",
+          "description": "Register a template-pristine golden scenario",
+          "flags": [
+            { "name": "slug", "required": true, "description": "Unique golden slug (kebab-case)" },
+            { "name": "template", "required": true, "description": "Template id (e.g. react-vite)" },
+            { "name": "version", "required": true, "description": "Template version to pin (e.g. 1.0.1)" },
+            { "name": "path", "required": true, "description": "Repo-relative path to the golden directory" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "GoldenService", "method": "RegisterGolden" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "update",
+          "description": "Patch a golden's path and/or template version",
+          "positionals": [
+            { "name": "slug", "required": true, "description": "Golden slug" }
+          ],
+          "flags": [
+            { "name": "path", "description": "New repo-relative path" },
+            { "name": "version", "description": "New template version" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "GoldenService", "method": "UpdateGolden" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a golden record (does not remove files on disk)",
+          "positionals": [
+            { "name": "slug", "required": true, "description": "Golden slug" }
+          ],
+          "flags": [
+            { "name": "yes", "bool": true, "description": "Confirm deletion" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "GoldenService", "method": "DeleteGolden" },
+          "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "regenerate",
+          "description": "Regenerate a golden's on-disk tree from its pinned template",
+          "positionals": [
+            { "name": "slug", "required": true, "description": "Golden slug" }
+          ],
+          "flags": [
+            { "name": "yes", "bool": true, "description": "Confirm regeneration" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "GoldenService", "method": "RegenerateGolden" },
+          "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal", "filesystem:write"] }
+        }
+      ]
+    },
+    {
+      "name": "manifest",
+      "description": "Manage per-(skill, golden) expected-diff manifests",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List all stored manifests",
+          "binding": { "kind": "connect-rpc", "service": "ManifestService", "method": "ListManifests" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Show one manifest by (skill_id, golden_slug)",
+          "positionals": [
+            { "name": "skill_id", "required": true, "description": "Skill id" },
+            { "name": "golden_slug", "required": true, "description": "Golden slug" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ManifestService", "method": "GetManifest" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "upsert",
+          "description": "Create or replace a manifest",
+          "flags": [
+            { "name": "skill", "required": true, "description": "Skill id" },
+            { "name": "golden", "required": true, "description": "Golden slug" },
+            { "name": "allow", "description": "Comma-separated list of allowed path globs" },
+            { "name": "wildcard-allowed", "bool": true, "description": "Allow any path (allowed_paths becomes advisory)" },
+            { "name": "convergence", "default": "none", "description": "Convergence target: none | empty-diff" },
+            { "name": "template-version", "description": "Pinned template version" },
+            { "name": "skill-version", "description": "Pinned skill version" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ManifestService", "method": "UpsertManifest" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "clear-stale",
+          "description": "Clear staleness override for a (skill, golden) manifest",
+          "flags": [
+            { "name": "skill", "required": true, "description": "Skill id" },
+            { "name": "golden", "required": true, "description": "Golden slug" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ManifestService", "method": "ClearStale" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "report",
+      "description": "Read-only roll-ups composed from goldens, manifests, validation records, and staleness",
+      "commands": [
+        {
+          "name": "golden-summary",
+          "description": "Latest verdict per skill and tool for a golden",
+          "positionals": [
+            { "name": "slug", "required": true, "description": "Golden slug" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReportService", "method": "GetGoldenSummary" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "tuple-history",
+          "description": "Paginated record history for one (skill|tool, golden) tuple",
+          "flags": [
+            { "name": "skill", "description": "Skill id (mutually exclusive with --tool)" },
+            { "name": "tool", "description": "Tool name (mutually exclusive with --skill)" },
+            { "name": "golden", "required": true, "description": "Golden slug" },
+            { "name": "page-size", "default": "50" },
+            { "name": "page-token" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReportService", "method": "GetTupleHistory" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "coverage",
+          "description": "Per-skill coverage grid for one golden",
+          "positionals": [
+            { "name": "slug", "required": true, "description": "Golden slug" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReportService", "method": "GetCoverage" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "skill-catalog",
+      "description": "Mirror prompt-manager's skill catalog locally for manifest pinning and validation",
+      "commands": [
+        {
+          "name": "sync",
+          "description": "Pull the current skill set from prompt-manager and reconcile the local mirror",
+          "binding": { "kind": "connect-rpc", "service": "SkillCatalogService", "method": "Sync" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal", "network:external"] }
+        },
+        {
+          "name": "list",
+          "description": "List mirrored skills (id, version, content_hash)",
+          "binding": { "kind": "connect-rpc", "service": "SkillCatalogService", "method": "ListSkills" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Show one mirrored skill by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Skill id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SkillCatalogService", "method": "GetSkill" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "staleness",
+      "description": "List manifests whose pinned template/skill versions drift from current",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List stale (skill, golden) tuples",
+          "binding": { "kind": "connect-rpc", "service": "StalenessService", "method": "ListStale" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "record",
+      "description": "List and inspect terminal validation records (append-only history)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List validation records (paginated)",
+          "flags": [
+            { "name": "golden", "description": "Filter by golden slug" },
+            { "name": "subject", "description": "Filter by subject id (skill id or tool name)" },
+            { "name": "kind", "description": "Filter by tuple kind: skill | tool" },
+            { "name": "page-size", "default": "50", "description": "Records per page" },
+            { "name": "page-token", "description": "Opaque cursor from the previous page" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ValidationRecordService", "method": "ListRecords" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Show one record by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Record id (UUID)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ValidationRecordService", "method": "GetRecord" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "validation",
+      "description": "Start and inspect async (skill|tool, golden) validation runs",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Queue a new validation run (returns immediately; use --wait to poll for terminal)",
+          "flags": [
+            { "name": "skill", "description": "Skill id (mutually exclusive with --tool)" },
+            { "name": "tool", "description": "Tool name (mutually exclusive with --skill)" },
+            { "name": "golden", "required": true, "description": "Golden slug" },
+            { "name": "force", "bool": true, "description": "Force a new run even if a recent one exists" },
+            { "name": "wait", "bool": true, "description": "Poll until the run reaches terminal status" },
+            { "name": "wait-timeout", "default": "300", "description": "Seconds to poll when --wait is set" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ValidationRunService", "method": "Start" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Show one validation run by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Run id (UUID)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ValidationRunService", "method": "Get" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "list-active",
+          "description": "List runs whose status is not terminal",
+          "binding": { "kind": "connect-rpc", "service": "ValidationRunService", "method": "ListActive" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    }
+  ]
+}

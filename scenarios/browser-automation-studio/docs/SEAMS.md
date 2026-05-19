@@ -1741,3 +1741,20 @@ The `handlers/ai/` package currently contains both HTTP handling AND domain logi
 **Recommended Approach:**
 - Core `SyncProjectWorkflows` algorithm tests require filesystem mocking infrastructure
 - Consider using `afero` or similar for testable filesystem operations
+
+---
+
+## CaptureService Connect-RPC Seam (New, 2026-05-18)
+
+**Location:** `api/handlers/capture/{service,module,mocks_test}.go`
+
+Capture is the **first proto-first Connect-RPC handler in BAS**. The rest of the API is REST-only on chi. Capture mounts the generated `captureconnect.CaptureServiceHandler` next to the chi router — side-by-side, not replacing — so future domains can migrate incrementally. The list of mounted Connect services lives in `main.go` under the "Connect-RPC services (side-by-side with chi REST routes)" block; adding a second service is one line.
+
+**Seam interface:**
+- `capture.Deps.Executor` — calls `ExecuteAdhocWorkflowAPIWithOptions(ctx, *basexecution.ExecuteAdhocRequest, *workflow.ExecuteOptions)`. The capture handler builds a navigate DAG from the typed request and delegates; the executor owns artifact production.
+- `capture.Deps.Resolver` — exposes `ResolveScenarioURLDefault(ctx, slug) (string, error)`. Lets capture accept the `scenario=<slug>,path=<path>` shorthand without coupling to a specific lookup implementation.
+- `capture.Deps.Now` — clock injection for `duration_ms` so tests are deterministic.
+
+**Tests:** Seven cases in `service_test.go` cover happy path, multi-capture, dimensions preset, dimensions explicit override, scenario shorthand resolution, dry-run short-circuit, and validation errors (empty URL, half-set width/height, UNSPECIFIED capture type, malformed shorthand, shorthand without resolver).
+
+**Status:** Strong (proto-first contract, deps interface, mock-friendly).
