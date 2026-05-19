@@ -16,6 +16,74 @@ func TestDefaultLevers_Valid(t *testing.T) {
 	}
 }
 
+func TestSandboxLevers_Defaults(t *testing.T) {
+	levers := config.DefaultLevers()
+	if levers.Sandbox.AvailabilityCheckTimeout != 2*time.Second {
+		t.Fatalf("unexpected availability timeout: %v", levers.Sandbox.AvailabilityCheckTimeout)
+	}
+	if levers.Sandbox.EnsureStartTimeout != time.Minute {
+		t.Fatalf("unexpected ensure timeout: %v", levers.Sandbox.EnsureStartTimeout)
+	}
+	if levers.Sandbox.OperationMaxAttempts != 4 {
+		t.Fatalf("unexpected operation attempts: %d", levers.Sandbox.OperationMaxAttempts)
+	}
+}
+
+func TestSandboxLevers_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		modify  func(*config.SandboxLevers)
+		wantErr bool
+	}{
+		{
+			name:    "valid defaults",
+			modify:  func(s *config.SandboxLevers) {},
+			wantErr: false,
+		},
+		{
+			name:    "availability timeout too short",
+			modify:  func(s *config.SandboxLevers) { s.AvailabilityCheckTimeout = 50 * time.Millisecond },
+			wantErr: true,
+		},
+		{
+			name:    "ensure timeout too short",
+			modify:  func(s *config.SandboxLevers) { s.EnsureStartTimeout = time.Second },
+			wantErr: true,
+		},
+		{
+			name:    "poll interval greater than ensure timeout",
+			modify:  func(s *config.SandboxLevers) { s.EnsurePollInterval = s.EnsureStartTimeout },
+			wantErr: true,
+		},
+		{
+			name:    "attempts too low",
+			modify:  func(s *config.SandboxLevers) { s.OperationMaxAttempts = 0 },
+			wantErr: true,
+		},
+		{
+			name:    "initial backoff too short",
+			modify:  func(s *config.SandboxLevers) { s.OperationInitialBackoff = time.Millisecond },
+			wantErr: true,
+		},
+		{
+			name:    "max backoff below initial",
+			modify:  func(s *config.SandboxLevers) { s.OperationMaxBackoff = s.OperationInitialBackoff - time.Millisecond },
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			levers := config.DefaultLevers()
+			tt.modify(&levers.Sandbox)
+			err := levers.Sandbox.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestExecutionLevers_Validate(t *testing.T) {
 	tests := []struct {
 		name    string

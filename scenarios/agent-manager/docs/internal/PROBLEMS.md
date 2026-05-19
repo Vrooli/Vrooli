@@ -2,12 +2,6 @@
 
 ## Open Issues
 
-### P-001: workspace-sandbox Availability
-**Severity**: High
-**Description**: agent-manager requires workspace-sandbox to be running for all sandbox operations. If workspace-sandbox is unavailable, all sandboxed runs fail.
-**Mitigation**: Health checks on workspace-sandbox before run creation; graceful degradation messaging.
-**Status**: Design consideration - will be addressed in implementation.
-
 ### P-002: Runner Process Stability
 **Severity**: Medium
 **Description**: Agent runners (claude-code, codex, opencode) may hang, crash, or produce unexpected output. Need robust timeout and cleanup handling.
@@ -65,6 +59,12 @@
 **Priority**: Deferred to OT-P2-007.
 
 ## Resolved Incidents
+
+### R-004: workspace-sandbox unavailable during sandboxed run setup/finalization (2026-05-19)
+**Symptom**: Default sandboxed runs could fail at `sandbox_creating` with `SANDBOX_CREATE` caused by `connect: connection refused` when workspace-sandbox had stopped or was still starting after agent-manager boot. Completed runner turns could also fail post-turn checkpoint/apply when workspace-sandbox became unavailable before finalization.
+**Root cause**: Agent-manager bootstrap correctly relies on Vrooli lifecycle to start declared dependencies, but individual run setup did not re-check or recover if workspace-sandbox later became unhealthy. Sandbox create/apply/checkpoint made one HTTP attempt and surfaced terse run summaries.
+**Fix**: Fresh sandbox setup now performs a bounded provider health check, invokes the `WorkspaceSandboxEnsurer` seam on run-time unavailability, and retries transient create failures with the same `sandbox:run:{runID}` idempotency key. Post-turn checkpoint/apply retries retryable transport failures after one ensure attempt. The production ensurer delegates startup to `vrooli --no-stale-check scenario start workspace-sandbox`, coalesces same-process ensure calls, and leaves cross-process locking to lifecycle.
+**Validation**: `internal/orchestration/phases/setup_test.go`, `internal/orchestration/phases/finalize_test.go`, `internal/orchestration/workspace_sandbox_ensurer_test.go`, and `internal/config/levers_test.go` cover recovery, retry bounds, stable idempotency, and concurrency coalescing.
 
 ### R-003: Global run-event streaming and WebSocket subscription races (2026-04-30)
 **Symptom**: The UI subscribed to all WebSocket events at app startup, which kept run lists fresh but also streamed and retained full event bodies for unrelated runs. Backend broadcast filtering also read per-client subscription fields while the socket read pump could mutate them.

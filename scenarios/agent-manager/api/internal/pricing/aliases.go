@@ -25,9 +25,9 @@ var DefaultModelAliases = map[string]struct {
 	"gpt-4-turbo":        {"openai/gpt-4-turbo", "openrouter"},
 
 	// Anthropic models (current generation)
-	"claude-opus-4-7":          {"anthropic/claude-opus-4-7", "openrouter"},
-	"claude-sonnet-4-6":        {"anthropic/claude-sonnet-4-6", "openrouter"},
-	"claude-haiku-4-5":         {"anthropic/claude-haiku-4-5", "openrouter"},
+	"claude-opus-4-7":           {"anthropic/claude-opus-4-7", "openrouter"},
+	"claude-sonnet-4-6":         {"anthropic/claude-sonnet-4-6", "openrouter"},
+	"claude-haiku-4-5":          {"anthropic/claude-haiku-4-5", "openrouter"},
 	"claude-haiku-4-5-20251001": {"anthropic/claude-haiku-4-5-20251001", "openrouter"},
 	// Anthropic models (older — retained for cost-history lookup on legacy runs)
 	"claude-opus-4-5":          {"anthropic/claude-opus-4-5", "openrouter"},

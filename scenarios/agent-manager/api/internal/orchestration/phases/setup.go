@@ -99,7 +99,12 @@ func CreateSandboxWorkspace(ctx context.Context, in SetupWorkspaceInput) (SetupW
 	metadata := map[string]string{
 		"agent_manager_run_id": in.Run.ID.String(),
 	}
-	sbx, err := in.Sandbox.Create(ctx, sandbox.CreateRequest{
+
+	if err := ensureWorkspaceSandboxAvailable(ctx, in.Deps, in.Run, in.Sandbox); err != nil {
+		return SetupWorkspaceOutput{}, err
+	}
+
+	req := sandbox.CreateRequest{
 		Name:           BuildSandboxName(in.Run, in.Task, in.Profile),
 		ScopePath:      in.Task.ScopePath,
 		NoLock:         noLockFromSandboxConfig(in.Run.SandboxConfig),
@@ -109,7 +114,8 @@ func CreateSandboxWorkspace(ctx context.Context, in SetupWorkspaceInput) (SetupW
 		IdempotencyKey: idempotencyKey,
 		Behavior:       in.Run.SandboxConfig,
 		Metadata:       metadata,
-	})
+	}
+	sbx, err := createSandboxWithRetry(ctx, in, req)
 	if err != nil {
 		if _, ok := err.(*domain.SandboxError); ok {
 			return SetupWorkspaceOutput{}, err
@@ -151,6 +157,40 @@ func CreateSandboxWorkspace(ctx context.Context, in SetupWorkspaceInput) (SetupW
 		SandboxID: &sbx.ID,
 		WorkDir:   workDir,
 	}, nil
+}
+
+func createSandboxWithRetry(ctx context.Context, in SetupWorkspaceInput, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+	maxAttempts := in.Deps.Levers.Sandbox.OperationMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		sbx, err := in.Sandbox.Create(ctx, req)
+		if err == nil {
+			if attempt > 1 {
+				EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info",
+					fmt.Sprintf("sandbox create succeeded after %d attempts", attempt))
+			}
+			return sbx, nil
+		}
+		lastErr = err
+		if !retryableSandboxError(err) || attempt == maxAttempts {
+			break
+		}
+		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
+			fmt.Sprintf("sandbox create attempt %d/%d failed; retrying: %v", attempt, maxAttempts, err))
+		if in.Deps.WorkspaceSandbox != nil {
+			if ensureErr := in.Deps.WorkspaceSandbox.EnsureAvailable(ctx); ensureErr != nil {
+				return nil, workspaceSandboxUnavailableError("create", err.Error(), ensureErr)
+			}
+		}
+		if waitErr := waitForSandboxRetry(ctx, in.Deps.Levers.Sandbox, attempt); waitErr != nil {
+			return nil, waitErr
+		}
+	}
+	return nil, lastErr
 }
 
 // UseInPlaceWorkspace returns the project root for in-place runs.

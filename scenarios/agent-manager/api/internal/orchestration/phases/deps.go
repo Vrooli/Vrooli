@@ -1,6 +1,8 @@
 package phases
 
 import (
+	"context"
+
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
@@ -38,6 +40,16 @@ type ModelHealthReporter interface {
 	MarkModelUnavailable(runnerType, modelID, message string)
 }
 
+// WorkspaceSandboxEnsurer is the run-time dependency seam for making the
+// workspace-sandbox scenario available when a sandboxed run needs it.
+//
+// It must not create sandboxes or apply diffs; sandbox.Provider owns HTTP
+// operations. Production implementations delegate process startup to Vrooli
+// lifecycle so lifecycle's cross-process scenario lock remains authoritative.
+type WorkspaceSandboxEnsurer interface {
+	EnsureAvailable(ctx context.Context) error
+}
+
 // Deps bundles the common dependencies every phase shares. Each phase's
 // input struct carries a Deps so the call site is explicit about what the
 // phase touches without each phase repeating the same handful of fields.
@@ -46,10 +58,11 @@ type ModelHealthReporter interface {
 // each phase. Phase mutations to the run/checkpoint happen via pointers
 // carried in each phase's specific input struct, not via Deps.
 type Deps struct {
-	Runs        repository.RunRepository
-	Events      event.Store
-	Broadcaster EventBroadcaster
-	Checkpoints repository.CheckpointRepository
-	Gate        *emit.Gate
-	Levers      config.Levers
+	Runs             repository.RunRepository
+	Events           event.Store
+	Broadcaster      EventBroadcaster
+	Checkpoints      repository.CheckpointRepository
+	Gate             *emit.Gate
+	Levers           config.Levers
+	WorkspaceSandbox WorkspaceSandboxEnsurer
 }

@@ -797,9 +797,27 @@ func (e *SandboxError) Retryable() bool {
 func (e *SandboxError) UserMessage() string {
 	switch e.Operation {
 	case "create":
+		if e.Cause != nil {
+			return fmt.Sprintf("Workspace sandbox unavailable during create: %v. agent-manager attempted run-time recovery; inspect workspace-sandbox status and logs if this persists.", e.Cause)
+		}
 		return "Unable to create isolated workspace. The sandbox service may be unavailable."
 	case "approve", "apply":
 		return "Unable to apply changes. Please verify the sandbox still exists and try again."
+	case "apply_at_run_end":
+		if e.Cause != nil {
+			return fmt.Sprintf("Workspace sandbox unavailable during apply-at-run-end: %v. Inspect workspace-sandbox status and logs.", e.Cause)
+		}
+		return "Unable to apply run-end sandbox changes. Please verify workspace-sandbox is healthy and try again."
+	case "turn_checkpoint":
+		if e.Cause != nil {
+			return fmt.Sprintf("Workspace sandbox unavailable during turn checkpoint: %v. Inspect workspace-sandbox status and logs.", e.Cause)
+		}
+		return "Unable to checkpoint sandbox changes. Please verify workspace-sandbox is healthy and try again."
+	case "workspace_sandbox_ensure":
+		if e.Cause != nil {
+			return fmt.Sprintf("Unable to ensure workspace-sandbox is running: %v. Inspect workspace-sandbox lifecycle logs.", e.Cause)
+		}
+		return "Unable to ensure workspace-sandbox is running. Inspect workspace-sandbox lifecycle logs."
 	case "reject":
 		return "Unable to discard changes. Please try again."
 	case "launch_failed":

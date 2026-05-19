@@ -269,6 +269,32 @@ type Provider interface {
 - Manages scope-based locking for concurrent runs
 - Prevents overlapping path scopes from conflicting
 
+### 2a. Workspace Sandbox Ensurer (`orchestration` / `phases`)
+
+**Purpose:** Ensure the `workspace-sandbox` scenario is available at the moment a sandboxed run needs it.
+
+**Interface:** `phases.WorkspaceSandboxEnsurer`
+```go
+type WorkspaceSandboxEnsurer interface {
+    EnsureAvailable(ctx context.Context) error
+}
+```
+
+**Why it's a seam:**
+- Keeps `sandbox.Provider` focused on workspace-sandbox HTTP operations.
+- Keeps run-time dependency recovery out of agent-manager process bootstrap; Vrooli lifecycle still owns declared dependency startup when agent-manager itself starts.
+- Allows setup/finalization tests to simulate stopped or unhealthy workspace-sandbox without launching real services.
+- Coalesces same-process start attempts while Vrooli lifecycle provides cross-process scenario locking.
+
+**Production implementation:**
+- `orchestration.CommandWorkspaceSandboxEnsurer` checks provider health, runs `vrooli --no-stale-check scenario start workspace-sandbox` when unavailable, then polls health until bounded by `Sandbox.EnsureStartTimeout`.
+- It must never execute workspace-sandbox binaries directly (`./api/scenario-api`, launcher scripts, `nohup`, etc.).
+
+**Call sites:**
+- Fresh sandbox creation calls this seam when the provider health check reports unavailable or transient create transport failures occur.
+- Post-turn `/turn-checkpoint` and pre-response transport failures from `/apply-at-run-end` call it once before retrying within the sandbox retry bounds.
+- Existing sandbox reuse and in-place runs do not call this seam.
+
 ---
 
 ### 3. Event System (`adapters/event`)

@@ -78,6 +78,12 @@ type Levers struct {
 	// DOC: scenarios/agent-manager/docs/internal/SEAMS.md
 	// (the spawn.Dispatcher seam) and spawn/dispatcher.go.
 	Spawn SpawnLevers `json:"spawn"`
+
+	// Sandbox controls workspace-sandbox availability checks and bounded
+	// retries around run-time sandbox operations.
+	// DOC: scenarios/agent-manager/docs/internal/SEAMS.md
+	// DOC: scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md
+	Sandbox SandboxLevers `json:"sandbox"`
 }
 
 // =============================================================================
@@ -482,6 +488,42 @@ type SpawnLevers struct {
 }
 
 // =============================================================================
+// SANDBOX LEVERS
+// =============================================================================
+
+// SandboxLevers controls run-time workspace-sandbox availability checks and
+// operation retries. These levers apply when a run needs workspace-sandbox;
+// agent-manager bootstrap dependency startup remains owned by Vrooli lifecycle.
+type SandboxLevers struct {
+	// AvailabilityCheckTimeout bounds a single workspace-sandbox health check.
+	// Range: 100ms to 10s. Default: 2s.
+	AvailabilityCheckTimeout time.Duration `json:"availabilityCheckTimeout"`
+
+	// EnsureStartTimeout bounds an on-demand lifecycle start + health-poll
+	// attempt when workspace-sandbox is unavailable during a run.
+	// Range: 5s to 2m. Default: 60s.
+	EnsureStartTimeout time.Duration `json:"ensureStartTimeout"`
+
+	// EnsurePollInterval controls health polling while waiting for
+	// workspace-sandbox to become ready after lifecycle start.
+	// Range: 50ms to 5s and less than EnsureStartTimeout. Default: 500ms.
+	EnsurePollInterval time.Duration `json:"ensurePollInterval"`
+
+	// OperationMaxAttempts bounds transient sandbox operation retries.
+	// Range: 1 to 8. Default: 4.
+	OperationMaxAttempts int `json:"operationMaxAttempts"`
+
+	// OperationInitialBackoff is the first retry delay after a transient
+	// workspace-sandbox operation failure.
+	// Range: 25ms to 5s. Default: 250ms.
+	OperationInitialBackoff time.Duration `json:"operationInitialBackoff"`
+
+	// OperationMaxBackoff caps exponential retry delay.
+	// Range: OperationInitialBackoff to 30s. Default: 2s.
+	OperationMaxBackoff time.Duration `json:"operationMaxBackoff"`
+}
+
+// =============================================================================
 // DEFAULTS
 // =============================================================================
 
@@ -577,6 +619,14 @@ func DefaultLevers() Levers {
 			MinSpacing:             0,
 			QueueCapacity:          0, // 0 means "auto-derive from MaxConcurrentRuns"
 		},
+		Sandbox: SandboxLevers{
+			AvailabilityCheckTimeout: 2 * time.Second,
+			EnsureStartTimeout:       60 * time.Second,
+			EnsurePollInterval:       500 * time.Millisecond,
+			OperationMaxAttempts:     4,
+			OperationInitialBackoff:  250 * time.Millisecond,
+			OperationMaxBackoff:      2 * time.Second,
+		},
 	}
 }
 
@@ -625,6 +675,9 @@ func (l *Levers) Validate() error {
 	}
 	if err := l.Spawn.Validate(); err != nil {
 		return wrapConfigSection("spawn", err)
+	}
+	if err := l.Sandbox.Validate(); err != nil {
+		return wrapConfigSection("sandbox", err)
 	}
 	return nil
 }
@@ -816,6 +869,31 @@ func (s *SpawnLevers) Validate() error {
 	}
 	if s.QueueCapacity > 0 && s.QueueCapacity < s.MaxStartingConcurrency {
 		return domain.NewConfigInvalidError("queueCapacity", fmt.Sprintf("must be >= maxStartingConcurrency (%d), got %d", s.MaxStartingConcurrency, s.QueueCapacity), nil)
+	}
+	return nil
+}
+
+func (s *SandboxLevers) Validate() error {
+	if s.AvailabilityCheckTimeout < 100*time.Millisecond || s.AvailabilityCheckTimeout > 10*time.Second {
+		return domain.NewConfigInvalidError("availabilityCheckTimeout", fmt.Sprintf("must be between 100ms and 10s, got %v", s.AvailabilityCheckTimeout), nil)
+	}
+	if s.EnsureStartTimeout < 5*time.Second || s.EnsureStartTimeout > 2*time.Minute {
+		return domain.NewConfigInvalidError("ensureStartTimeout", fmt.Sprintf("must be between 5s and 2m, got %v", s.EnsureStartTimeout), nil)
+	}
+	if s.EnsurePollInterval < 50*time.Millisecond || s.EnsurePollInterval > 5*time.Second {
+		return domain.NewConfigInvalidError("ensurePollInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", s.EnsurePollInterval), nil)
+	}
+	if s.EnsurePollInterval >= s.EnsureStartTimeout {
+		return domain.NewConfigInvalidError("ensurePollInterval", fmt.Sprintf("must be less than ensureStartTimeout (%v), got %v", s.EnsureStartTimeout, s.EnsurePollInterval), nil)
+	}
+	if s.OperationMaxAttempts < 1 || s.OperationMaxAttempts > 8 {
+		return domain.NewConfigInvalidError("operationMaxAttempts", fmt.Sprintf("must be between 1 and 8, got %d", s.OperationMaxAttempts), nil)
+	}
+	if s.OperationInitialBackoff < 25*time.Millisecond || s.OperationInitialBackoff > 5*time.Second {
+		return domain.NewConfigInvalidError("operationInitialBackoff", fmt.Sprintf("must be between 25ms and 5s, got %v", s.OperationInitialBackoff), nil)
+	}
+	if s.OperationMaxBackoff < s.OperationInitialBackoff || s.OperationMaxBackoff > 30*time.Second {
+		return domain.NewConfigInvalidError("operationMaxBackoff", fmt.Sprintf("must be between operationInitialBackoff (%v) and 30s, got %v", s.OperationInitialBackoff, s.OperationMaxBackoff), nil)
 	}
 	return nil
 }

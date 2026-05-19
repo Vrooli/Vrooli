@@ -498,10 +498,11 @@ type Orchestrator struct {
 	investigationSettings repository.InvestigationSettingsRepository // For investigation config
 
 	// Adapters (external integrations)
-	runners   runner.Registry
-	sandbox   sandbox.Provider
-	events    event.Store
-	artifacts artifact.Collector
+	runners          runner.Registry
+	sandbox          sandbox.Provider
+	workspaceSandbox phases.WorkspaceSandboxEnsurer
+	events           event.Store
+	artifacts        artifact.Collector
 
 	// Policy evaluation
 	policy policy.Evaluator
@@ -597,6 +598,14 @@ func WithRunners(r runner.Registry) Option {
 func WithSandbox(s sandbox.Provider) Option {
 	return func(o *Orchestrator) {
 		o.sandbox = s
+	}
+}
+
+// WithWorkspaceSandboxEnsurer wires the run-time availability seam used by
+// sandboxed run setup/finalization when workspace-sandbox is unavailable.
+func WithWorkspaceSandboxEnsurer(e phases.WorkspaceSandboxEnsurer) Option {
+	return func(o *Orchestrator) {
+		o.workspaceSandbox = e
 	}
 }
 
@@ -2509,7 +2518,7 @@ func (o *Orchestrator) checkpointContinuationTurn(ctx context.Context, run *doma
 		cost = result.Metrics.CostEstimateUSD
 	}
 	phases.ApplyAtRunEnd(ctx, phases.ApplyAtRunEndInput{
-		Deps:      phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers()},
+		Deps:      phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
 		Run:       run,
 		SandboxID: run.SandboxID,
 		Sandbox:   o.sandbox,
@@ -2572,6 +2581,9 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	// Configure executor with broadcaster for real-time WebSocket updates
 	if o.broadcaster != nil {
 		executor.WithBroadcaster(o.broadcaster)
+	}
+	if o.workspaceSandbox != nil {
+		executor.WithWorkspaceSandboxEnsurer(o.workspaceSandbox)
 	}
 	if len(attachments) > 0 {
 		executor.WithAttachments(attachments)
@@ -2723,6 +2735,9 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	// Configure executor with broadcaster for real-time WebSocket updates
 	if o.broadcaster != nil {
 		executor.WithBroadcaster(o.broadcaster)
+	}
+	if o.workspaceSandbox != nil {
+		executor.WithWorkspaceSandboxEnsurer(o.workspaceSandbox)
 	}
 	if len(o.identitySecret) > 0 {
 		executor.WithIdentitySecret(o.identitySecret)

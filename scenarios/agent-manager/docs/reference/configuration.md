@@ -2,7 +2,7 @@
 
 Every adjustable threshold in agent-manager lives in a single `config.Levers` struct (`internal/config/levers.go`). New durations, counts, or buffer sizes are added here — never as hard-coded literals scattered through source. This is the **only home for adjustable thresholds**, per the architecture's invariant 4.
 
-The struct splits into thirteen sections; jump to the one that controls the behavior you're tuning.
+The struct splits into fourteen sections; jump to the one that controls the behavior you're tuning.
 
 | Section | Purpose | Audience |
 |---|---|---|
@@ -14,6 +14,7 @@ The struct splits into thirteen sections; jump to the one that controls the beha
 | [`Server`](#server) | HTTP/WebSocket server tunables | Operator |
 | [`Storage`](#storage) | Persistence retention windows | Operator |
 | [`Spawn`](#spawn) | Runner-startup serialization + queue depth | Operator |
+| [`Sandbox`](#sandbox) | workspace-sandbox availability and retry bounds | Operator |
 | [`Observability`](#observability) | Structured-log format and verbosity | Operator |
 | [`Heartbeat`](#heartbeat) | Run-lifecycle cadence | Internal |
 | [`Recovery`](#recovery) | Transcript-tail and resume-after-restart timing | Internal |
@@ -66,6 +67,21 @@ The `Dispatcher`'s startup-window cap exists because codex's bootstrap (SQLite W
 When the queue is full, callers receive `domain.ErrCodeCapacityRuns`. UI should surface this as transient backpressure, not a hard failure; the caller can retry with backoff.
 
 Tests: `internal/orchestration/spawn/dispatcher_test.go` (unit) + `internal/orchestration/integration/spawn_serialization_test.go` (full orchestrator burst gate).
+
+## Sandbox
+
+Run-time workspace-sandbox availability and retry bounds. These levers apply when a sandboxed run is creating a new sandbox or finalizing post-turn checkpoint/apply. They do not replace Vrooli lifecycle's bootstrap dependency startup for agent-manager.
+
+| Field | Default | Range | What it controls |
+|---|---|---|---|
+| `AvailabilityCheckTimeout` | 2s | 100ms–10s | Deadline for a single provider health check before deciding workspace-sandbox is unavailable. |
+| `EnsureStartTimeout` | 60s | 5s–2m | Bound for lifecycle start plus health polling when workspace-sandbox is unavailable at run time. |
+| `EnsurePollInterval` | 500ms | 50ms–5s, less than `EnsureStartTimeout` | Poll cadence while waiting for workspace-sandbox health after lifecycle start. |
+| `OperationMaxAttempts` | 4 | 1–8 | Maximum attempts for retryable sandbox create/checkpoint/apply transport failures. |
+| `OperationInitialBackoff` | 250ms | 25ms–5s | First retry delay for transient sandbox operation failures. |
+| `OperationMaxBackoff` | 2s | initial backoff–30s | Cap on exponential retry delay. |
+
+The production `WorkspaceSandboxEnsurer` delegates startup to `vrooli --no-stale-check scenario start workspace-sandbox`, coalesces same-process ensure calls, and relies on lifecycle's scenario lock for cross-process contention.
 
 ## Observability
 

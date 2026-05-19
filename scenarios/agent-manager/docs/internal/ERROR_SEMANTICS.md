@@ -73,6 +73,24 @@ warn-level log event even on the success path
 longer need to ssh into the workspace-sandbox host to find launch
 diagnostics.
 
+## Workspace-sandbox dependency unavailability (2026-05-19)
+
+Sandbox dependency availability failures are **recoverable only before a
+mutation reaches workspace-sandbox**. Agent-manager now distinguishes
+run-time workspace-sandbox unavailability from bootstrap dependency
+startup:
+
+| Operation | Trigger | Recovery |
+|---|---|---|
+| `SANDBOX_CREATE` / `operation=create` | Provider health check fails or create transport fails before a response. | Call `WorkspaceSandboxEnsurer`, then retry `Create` with the same `sandbox:run:{runID}` idempotency key up to `Sandbox.OperationMaxAttempts`. |
+| `SANDBOX_OPERATION` / `operation=turn_checkpoint` | Post-turn checkpoint transport failure before a response. | Call `WorkspaceSandboxEnsurer` once, then retry within sandbox retry bounds. |
+| `SANDBOX_OPERATION` / `operation=apply_at_run_end` | Final apply transport failure before a response. | Retry only provider-marked retryable failures; do not assume response-level apply idempotency. |
+| `SANDBOX_OPERATION` / `operation=workspace_sandbox_ensure` | Lifecycle start command failed or workspace-sandbox did not become healthy before `Sandbox.EnsureStartTimeout`. | Surface the lifecycle/health cause in the run summary and inspect workspace-sandbox scenario logs. |
+
+The user-facing summary includes the operation and actionable cause (for
+example `connect: connection refused` or a health timeout). Long command
+output stays in logs/events, not in `Run.ErrorMsg`.
+
 ## Fallback Reason taxonomy (2026-05-07, Phase 2)
 
 Runner and model rejection signals are classified into a typed

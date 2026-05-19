@@ -379,13 +379,16 @@ type postTurnApplyResult struct {
 func applyOrCheckpointTurn(ctx context.Context, cfg *domain.SandboxConfig, in ApplyAtRunEndInput) (*postTurnApplyResult, error) {
 	turnEvent := turnLifecycleEventForOutcome(in.Outcome)
 	if HasLifecycleEvent(cfg.Lifecycle.CheckpointOn, []domain.SandboxLifecycleEvent{turnEvent}) {
-		result, err := in.Sandbox.TurnCheckpoint(ctx, sandbox.TurnCheckpointRequest{
+		req := sandbox.TurnCheckpointRequest{
 			SandboxID:      *in.SandboxID,
 			RunID:          in.Run.ID.String(),
 			ConversationID: in.Run.ConversationID,
 			Cost:           in.Cost,
 			RunOutcome:     string(in.Outcome),
 			Actor:          "applyAtRunEnd",
+		}
+		result, err := postTurnSandboxOperation(ctx, in, "turn_checkpoint", func() (*sandbox.TurnCheckpointResult, error) {
+			return in.Sandbox.TurnCheckpoint(ctx, req)
 		})
 		if err != nil {
 			return nil, err
@@ -402,13 +405,16 @@ func applyOrCheckpointTurn(ctx context.Context, cfg *domain.SandboxConfig, in Ap
 		}, nil
 	}
 
-	result, err := in.Sandbox.ApplyAtRunEnd(ctx, sandbox.ApplyAtRunEndRequest{
+	req := sandbox.ApplyAtRunEndRequest{
 		SandboxID:      *in.SandboxID,
 		RunID:          in.Run.ID.String(),
 		ConversationID: in.Run.ConversationID,
 		Cost:           in.Cost,
 		RunOutcome:     string(in.Outcome),
 		Actor:          "applyAtRunEnd",
+	}
+	result, err := postTurnSandboxOperation(ctx, in, "apply_at_run_end", func() (*sandbox.ApplyAtRunEndResult, error) {
+		return in.Sandbox.ApplyAtRunEnd(ctx, req)
 	})
 	if err != nil {
 		return nil, err
@@ -423,6 +429,42 @@ func applyOrCheckpointTurn(ctx context.Context, cfg *domain.SandboxConfig, in Ap
 		CommitHash: result.CommitHash,
 		AppliedAt:  result.AppliedAt,
 	}, nil
+}
+
+func postTurnSandboxOperation[T any](ctx context.Context, in ApplyAtRunEndInput, operation string, call func() (*T, error)) (*T, error) {
+	maxAttempts := in.Deps.Levers.Sandbox.OperationMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+
+	var lastErr error
+	ensured := false
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		result, err := call()
+		if err == nil {
+			if attempt > 1 {
+				EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info",
+					fmt.Sprintf("%s succeeded after %d attempts", operation, attempt))
+			}
+			return result, nil
+		}
+		lastErr = err
+		if !retryableSandboxError(err) || attempt == maxAttempts {
+			break
+		}
+		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
+			fmt.Sprintf("%s attempt %d/%d failed; retrying: %v", operation, attempt, maxAttempts, err))
+		if !ensured && in.Deps.WorkspaceSandbox != nil {
+			ensured = true
+			if ensureErr := in.Deps.WorkspaceSandbox.EnsureAvailable(ctx); ensureErr != nil {
+				return nil, workspaceSandboxUnavailableError(operation, err.Error(), ensureErr)
+			}
+		}
+		if waitErr := waitForSandboxRetry(ctx, in.Deps.Levers.Sandbox, attempt); waitErr != nil {
+			return nil, waitErr
+		}
+	}
+	return nil, lastErr
 }
 
 func turnLifecycleEventForOutcome(outcome domain.ContractRunOutcome) domain.SandboxLifecycleEvent {

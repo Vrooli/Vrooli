@@ -150,6 +150,45 @@ Runner turn status and sandbox finalization are separate temporal flows. A runne
 
 `CanContinueRun` gates on runner turn activity and session availability, not on finalization success. A run with `status=complete`, a session id, and `finalization_status=failed` can be continued while the UI shows the structured finalization warning.
 
+Workspace-sandbox availability during finalization is recovered only for retryable transport failures:
+
+```
+ApplyAtRunEnd / TurnCheckpoint
+   ↓
+workspace-sandbox transport failure before response
+   ↓
+WorkspaceSandboxEnsurer.EnsureAvailable(ctx)
+   ↓
+retry with Sandbox.OperationMaxAttempts + bounded backoff
+   ↓
+finalization_status=succeeded|failed
+```
+
+The finalization context remains detached from the runner execution context and bounded by `Heartbeat.TeardownTimeout`; the sandbox retry levers cannot extend finalization indefinitely.
+
+## Sandboxed setup availability
+
+Fresh sandboxed run setup performs a run-time dependency check before creating a new sandbox:
+
+```
+SetupWorkspace(new sandbox)
+   ↓
+provider.IsAvailable(ctx with Sandbox.AvailabilityCheckTimeout)
+   ├─ healthy → CreateSandboxWorkspace
+   └─ unavailable
+        ↓
+      WorkspaceSandboxEnsurer.EnsureAvailable(ctx)
+        ├─ lifecycle start: vrooli --no-stale-check scenario start workspace-sandbox
+        └─ health poll until Sandbox.EnsureStartTimeout
+   ↓
+Create(idempotencyKey=sandbox:run:{runID})
+   └─ retry retryable create failures with same idempotency key
+```
+
+Existing sandbox reuse and in-place runs skip this dependency ensure path. Agent-manager process bootstrap also skips it; startup-time dependency management remains owned by Vrooli lifecycle declarations.
+
+**Levers:** `Sandbox.AvailabilityCheckTimeout`, `Sandbox.EnsureStartTimeout`, `Sandbox.EnsurePollInterval`, `Sandbox.OperationMaxAttempts`, `Sandbox.OperationInitialBackoff`, `Sandbox.OperationMaxBackoff`.
+
 ## WebSocket reconnect and gap-fill
 
 The UI treats WebSocket as a delivery optimization over the durable run-event store. The selected run's last observed sequence is the resume cursor.

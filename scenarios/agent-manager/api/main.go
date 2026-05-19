@@ -428,6 +428,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		spawnCfg.QueueCapacity = spawnCfg.MaxStartingConcurrency
 	}
 	spawnDispatcher := spawn.New(spawnCfg)
+	workspaceSandboxEnsurer := orchestration.NewCommandWorkspaceSandboxEnsurer(sandboxProvider, levers.Sandbox)
 
 	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator
 	orch := orchestration.New(
@@ -438,6 +439,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithSandbox(sandboxProvider),
+		orchestration.WithWorkspaceSandboxEnsurer(workspaceSandboxEnsurer),
 		orchestration.WithCheckpoints(checkpointRepo),
 		orchestration.WithIdempotency(idempotencyRepo),
 		orchestration.WithBroadcaster(wsHub),

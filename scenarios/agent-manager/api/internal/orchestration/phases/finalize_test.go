@@ -30,7 +30,9 @@ package phases
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/config"
@@ -616,6 +618,55 @@ func TestApplyAtRunEnd_FailurePreservesSandbox(t *testing.T) {
 	}
 	if _, ok := fx.events.FindLogMessage("apply-at-run-end failed"); !ok {
 		t.Error("expected warn event describing the apply failure")
+	}
+}
+
+func TestApplyAtRunEnd_RetriesCheckpointAfterEnsuringWorkspaceSandbox(t *testing.T) {
+	stub := mocks.NewFakeSandboxProvider()
+	var calls int32
+	stub.TurnCheckpointFunc = func(ctx context.Context, req sandbox.TurnCheckpointRequest) (*sandbox.TurnCheckpointResult, error) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			return nil, &domain.SandboxError{
+				SandboxID:   &req.SandboxID,
+				Operation:   "turn_checkpoint",
+				Cause:       errors.New("dial tcp 127.0.0.1:15120: connect: connection refused"),
+				IsTransient: true,
+				CanRetry:    true,
+			}
+		}
+		return &sandbox.TurnCheckpointResult{
+			SandboxID: req.SandboxID,
+			Status:    sandbox.SandboxStatusCheckpointed,
+			Success:   true,
+			Applied:   1,
+			AppliedAt: time.Now(),
+		}, nil
+	}
+	cfg := fixtures.NewSandboxConfig(nil)
+	cfg.Lifecycle.CheckpointOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTurnCompleted}
+	fx := newFinalizeFixture(t, cfg, stub)
+	levers := config.DefaultLevers()
+	levers.Sandbox.OperationMaxAttempts = 2
+	levers.Sandbox.OperationInitialBackoff = time.Millisecond
+	levers.Sandbox.OperationMaxBackoff = time.Millisecond
+	ensurer := &fakeWorkspaceSandboxEnsurer{}
+	fx.deps.Levers = levers
+	fx.deps.WorkspaceSandbox = ensurer
+
+	if !ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
+		Deps:      fx.deps,
+		Run:       fx.run,
+		SandboxID: &fx.sandboxID,
+		Sandbox:   fx.sandbox,
+		Outcome:   domain.ContractRunOutcomeSuccess,
+	}) {
+		t.Fatal("expected ApplyAtRunEnd checkpoint retry to succeed")
+	}
+	if stub.TurnCheckpointCallCount() != 2 {
+		t.Fatalf("expected two checkpoint attempts, got %d", stub.TurnCheckpointCallCount())
+	}
+	if ensurer.CallCount() != 1 {
+		t.Fatalf("expected one workspace-sandbox ensure call, got %d", ensurer.CallCount())
 	}
 }
 
