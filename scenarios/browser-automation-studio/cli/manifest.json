@@ -832,6 +832,188 @@
           }
         }
       ]
+    },
+    {
+      "name": "executions",
+      "description": "Inspect workflow executions, stream timelines, list recorded artifacts, and control execution lifecycle.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List executions, optionally filtered by workflow or project.",
+          "flags": [
+            { "name": "workflow-id", "description": "Filter by workflow UUID" },
+            { "name": "project-id", "description": "Filter by project UUID" },
+            { "name": "limit", "description": "Maximum number of results (default 50, max 100)" },
+            { "name": "offset", "description": "Pagination offset" },
+            { "name": "include-exportability", "bool": true, "description": "Include per-execution exportability info" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "ListExecutions" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a single execution by ID.",
+          "flags": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecution" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "timeline",
+          "description": "Fetch the proto timeline for an execution.",
+          "flags": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionTimeline" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Stop a running execution.",
+          "flags": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "StopExecution" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Resume an interrupted execution from its last checkpoint.",
+          "flags": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" },
+            { "name": "resume-url", "description": "Optional URL to navigate to before resuming" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "ResumeExecution" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "screenshots",
+          "description": "List screenshots captured during an execution.",
+          "flags": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionScreenshots" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "recorded-videos",
+          "description": "List recorded video artifacts for an execution.",
+          "flags": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionRecordedVideos" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "recorded-traces",
+          "description": "List recorded Playwright trace artifacts for an execution.",
+          "flags": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionRecordedTraces" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "recorded-har",
+          "description": "List recorded HAR archives for an execution.",
+          "flags": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "GetExecutionRecordedHar" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "seed-cleanup",
+          "description": "Schedule deferred seed cleanup for a previously executed seed scenario.",
+          "flags": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" },
+            { "name": "cleanup-token", "required": true, "description": "Opaque cleanup token returned when the seed was applied" },
+            { "name": "seed-scenario", "description": "Seed scenario identifier (defaults to browser-automation-studio)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExecutionsService", "method": "ScheduleExecutionSeedCleanup" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "replay-config",
+      "description": "Persisted replay/export style configuration (chrome theme, cursor, background, watermark, intro/outro cards).",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Print the persisted replay configuration as JSON. Returns an empty object when nothing is saved.",
+          "binding": { "kind": "connect-rpc", "service": "ReplayConfigService", "method": "Get" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "set",
+          "description": "Replace the persisted replay configuration with a JSON payload read from --config-file or stdin.",
+          "flags": [
+            { "name": "config-file", "description": "Path to a JSON file containing the replay configuration; omit to read stdin." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReplayConfigService", "method": "Put" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "reset",
+          "description": "Delete the persisted replay configuration.",
+          "binding": { "kind": "connect-rpc", "service": "ReplayConfigService", "method": "Reset" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
     }
   ],
   "omitted": []

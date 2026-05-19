@@ -27,6 +27,7 @@ import (
 	executionsconnect "github.com/vrooli/browser-automation-studio/handlers/executions"
 	projectfilesconnect "github.com/vrooli/browser-automation-studio/handlers/project_files"
 	projectsconnect "github.com/vrooli/browser-automation-studio/handlers/projects"
+	replayconfigconnect "github.com/vrooli/browser-automation-studio/handlers/replay_config"
 	schemaconnect "github.com/vrooli/browser-automation-studio/handlers/schema"
 	scenariosconnect "github.com/vrooli/browser-automation-studio/handlers/scenarios"
 	toolsconnect "github.com/vrooli/browser-automation-studio/handlers/tools"
@@ -377,6 +378,10 @@ func main() {
 			RecordingsRoot: handler.RecordingsRoot(),
 			Logger:         log,
 		}),
+		replayconfigconnect.Module(replayconfigconnect.Deps{
+			Store:  repo,
+			Logger: log,
+		}),
 		workflowsconnect.Module(workflowsconnect.Deps{
 			Catalog:       deps.CatalogService,
 			Executor:      deps.ExecutionService,
@@ -526,9 +531,9 @@ func main() {
 		r.Post("/exports/{id}/generate-caption", handler.GenerateExportCaption)
 		r.Post("/exports/{id}/reveal", handler.RevealExport)
 		r.Post("/exports/{id}/open-folder", handler.OpenExportFolder)
-		r.Get("/replay-config", handler.GetReplayConfig)
-		r.Put("/replay-config", handler.PutReplayConfig)
-		r.Delete("/replay-config", handler.DeleteReplayConfig)
+		// Replay configuration is served via Connect-RPC (ReplayConfigService);
+		// see connectMounts above. The legacy REST surface was removed in
+		// the Phase 9 proto+Connect migration.
 
 		// Recording session profiles
 		r.Get("/recordings/sessions", handler.ListRecordingSessionProfiles)

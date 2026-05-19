@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.replay_config;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/replay_config;replay_config";
+
+// =============================================================================
+// REPLAY CONFIG DOMAIN — persisted replay/export style preferences.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain replay_config
+// @stability stable
+//
+// ReplayConfigService owns the single persisted "replay configuration" blob
+// that drives BAS's export/replay style (chrome theme, cursor, background,
+// watermark, intro/outro cards, etc.). Exactly one record exists per host;
+// there is no list/multi-record surface.
+//
+// The payload is intentionally free-form (google.protobuf.Struct). It is
+// interpreted by export-service helpers in api/handlers/replay_config.go
+// (applyReplayConfigToSpec, replayConfigToOverrides). New keys can be added
+// by the UI without proto changes, and unknown keys are tolerated by the
+// server.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/replay_config/connect_handler.go
+//   - UI:   ui/src/api/replay_config.ts (replay style editor)
+//   - CLI:  bas replay-config get | bas replay-config set | bas replay-config reset
+// =============================================================================
+
+service ReplayConfigService {
+  // Get returns the persisted replay configuration. Returns an empty Struct
+  // when no configuration has been saved.
+  rpc Get(GetReplayConfigRequest) returns (GetReplayConfigResponse);
+
+  // Put replaces the persisted replay configuration with the supplied
+  // payload. Returns the stored payload.
+  rpc Put(PutReplayConfigRequest) returns (PutReplayConfigResponse);
+
+  // Reset deletes the persisted replay configuration. Returns an empty
+  // Struct.
+  rpc Reset(ResetReplayConfigRequest) returns (ResetReplayConfigResponse);
+}
+
+message GetReplayConfigRequest {}
+
+message GetReplayConfigResponse {
+  // Free-form replay configuration payload. May be empty.
+  google.protobuf.Struct config = 1;
+}
+
+message PutReplayConfigRequest {
+  // Required. Free-form replay configuration payload. Server-side helpers
+  // pick known keys (chromeTheme, cursorTheme, browserScale, watermark,
+  // introCard, outroCard, etc.); unknown keys are tolerated.
+  google.protobuf.Struct config = 1;
+}
+
+message PutReplayConfigResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message ResetReplayConfigRequest {}
+
+message ResetReplayConfigResponse {
+  google.protobuf.Struct config = 1;
+}

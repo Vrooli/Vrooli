@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { getConfig } from '@/config';
 import { fetchProjectsList } from '@/domains/projects/services/projectApi';
 
 interface SearchResult {
@@ -77,20 +76,20 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
     setIsLoading(true);
     try {
-      const config = await getConfig();
       const searchLower = searchQuery.toLowerCase();
 
       const { fetchWorkflowList } = await import('@/domains/workflows/services/workflowApi');
+      const { fetchExecutionsList } = await import('@/domains/executions/services/executionApi');
 
       // Fetch all data in parallel
-      const [projects, workflowItems, executionsRes] = await Promise.all([
+      const [projects, workflowItems, executionsItems] = await Promise.all([
         fetchProjectsList(),
         fetchWorkflowList(50),
-        fetch(`${config.API_URL}/executions?limit=20`),
+        fetchExecutionsList(20),
       ]);
 
       const workflowsData = { workflows: workflowItems };
-      const executionsData: unknown = await executionsRes.json();
+      const executionsData: unknown = { executions: executionsItems };
 
       const projectsMap = new Map<string, string>();
       const searchResults: SearchResult[] = [];

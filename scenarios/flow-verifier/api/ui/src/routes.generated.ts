@@ -5,22 +5,28 @@
 export const ROUTES = {
   goldenDetail: (slug: string): string => `/goldens/${slug}`,
   goldensIndex: "/",
+  manifestEditor: (skillId: string, goldenSlug: string): string => `/manifests/${skillId}/${goldenSlug}`,
   manifestsIndex: "/manifests",
   settings: "/settings",
+  skillDetail: (id: string): string => `/skills/${id}`,
   skillsIndex: "/skills",
+  tupleDetail: (slug: string, tupleKind: string, subjectId: string): string => `/goldens/${slug}/${tupleKind}/${subjectId}`,
 } as const;
 
 export const ROUTE_PATTERNS = {
   goldenDetail: "/goldens/:slug",
   goldensIndex: "/",
+  manifestEditor: "/manifests/:skillId/:goldenSlug",
   manifestsIndex: "/manifests",
   settings: "/settings",
+  skillDetail: "/skills/:id",
   skillsIndex: "/skills",
+  tupleDetail: "/goldens/:slug/:tupleKind/:subjectId",
 } as const;
 
-export const PUBLIC_ROUTES: readonly (keyof typeof ROUTES)[] = ["goldenDetail", "goldensIndex", "manifestsIndex", "settings", "skillsIndex"];
+export const PUBLIC_ROUTES: readonly (keyof typeof ROUTES)[] = ["goldenDetail", "goldensIndex", "manifestEditor", "manifestsIndex", "settings", "skillDetail", "skillsIndex", "tupleDetail"];
 
 export const AUTH_REQUIRED_ROUTES: readonly (keyof typeof ROUTES)[] = [];
 
-export const ROUTE_IDS: readonly (keyof typeof ROUTES)[] = ["goldenDetail", "goldensIndex", "manifestsIndex", "settings", "skillsIndex"];
+export const ROUTE_IDS: readonly (keyof typeof ROUTES)[] = ["goldenDetail", "goldensIndex", "manifestEditor", "manifestsIndex", "settings", "skillDetail", "skillsIndex", "tupleDetail"];
 
