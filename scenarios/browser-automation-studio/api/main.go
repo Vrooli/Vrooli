@@ -24,10 +24,13 @@ import (
 	"github.com/vrooli/browser-automation-studio/handlers"
 	captureconnect "github.com/vrooli/browser-automation-studio/handlers/capture"
 	entitlementconnect "github.com/vrooli/browser-automation-studio/handlers/entitlement"
+	executionsconnect "github.com/vrooli/browser-automation-studio/handlers/executions"
 	projectfilesconnect "github.com/vrooli/browser-automation-studio/handlers/project_files"
+	projectsconnect "github.com/vrooli/browser-automation-studio/handlers/projects"
 	schemaconnect "github.com/vrooli/browser-automation-studio/handlers/schema"
 	scenariosconnect "github.com/vrooli/browser-automation-studio/handlers/scenarios"
 	toolsconnect "github.com/vrooli/browser-automation-studio/handlers/tools"
+	workflowsconnect "github.com/vrooli/browser-automation-studio/handlers/workflows"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/performance"
 	"github.com/vrooli/browser-automation-studio/services/ai"
@@ -35,6 +38,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/recovery"
 	"github.com/vrooli/browser-automation-studio/services/scheduler"
+	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxanalyzer "github.com/vrooli/browser-automation-studio/services/uxmetrics/analyzer"
 	uxrepository "github.com/vrooli/browser-automation-studio/services/uxmetrics/repository"
@@ -362,6 +366,27 @@ func main() {
 			Catalog: deps.CatalogService,
 			Logger:  log,
 		}),
+		projectsconnect.Module(projectsconnect.Deps{
+			Catalog:  deps.CatalogService,
+			Executor: deps.ExecutionService,
+			Logger:   log,
+		}),
+		executionsconnect.Module(executionsconnect.Deps{
+			Executor:       handler.ExecutionService(),
+			SeedScheduler:  handler.SeedCleanupManager(),
+			RecordingsRoot: handler.RecordingsRoot(),
+			Logger:         log,
+		}),
+		workflowsconnect.Module(workflowsconnect.Deps{
+			Catalog:       deps.CatalogService,
+			Executor:      deps.ExecutionService,
+			Validator:     workflowsconnect.NewDefaultValidator(handler.WorkflowValidator()),
+			SeedRunner:    workflowsconnect.NewDefaultSeedRunner(testgenie.NewClient(nil, nil)),
+			SeedScheduler: handler.SeedCleanupManager(),
+			CreditService: creditService,
+			UserIdentity:  entitlement.UserIdentityFromContext,
+			Logger:        log,
+		}),
 	}
 	schemaMount, err := schemaconnect.Module(schemaconnect.Deps{Logger: log})
 	if err != nil {
@@ -458,15 +483,8 @@ func main() {
 		r.Get("/health", healthHandler)
 
 
-		// Project routes
-		r.Post("/projects", handler.CreateProject)
-		r.Get("/projects", handler.ListProjects)
-		r.Get("/projects/{id}", handler.GetProject)
-		r.Put("/projects/{id}", handler.UpdateProject)
-		r.Delete("/projects/{id}", handler.DeleteProject)
-		r.Get("/projects/{id}/workflows", handler.GetProjectWorkflows)
-		r.Post("/projects/{id}/workflows/bulk-delete", handler.BulkDeleteProjectWorkflows)
-		r.Post("/projects/{id}/execute-all", handler.ExecuteAllProjectWorkflows)
+		// Project CRUD + project-scoped workflow operations are owned by
+		// ProjectsService (Connect-RPC); see handlers/projects/.
 		// RESTException: GET /projects/{id}/files/* streams arbitrary file
 		// bytes with MIME types decided by extension; consumed by the browser
 		// via <img>, <a download>, and file viewers.
@@ -480,33 +498,23 @@ func main() {
 		assetImportHandler.RegisterRoutes(r)
 		scanImportHandler.RegisterRoutes(r)
 
-		// Workflow routes
-		r.Post("/workflows/create", handler.CreateWorkflow)
-		r.Post("/workflows/validate", handler.ValidateWorkflow)
-		r.Post("/workflows/validate-resolved", handler.ValidateResolvedWorkflow)
-		r.Post("/workflows/execute-adhoc", handler.ExecuteAdhocWorkflow)
-		r.Get("/workflows", handler.ListWorkflows)
-		r.Get("/workflows/{id}", handler.GetWorkflow)
-		r.Put("/workflows/{id}", handler.UpdateWorkflow)
-		r.Get("/workflows/{id}/versions", handler.ListWorkflowVersions)
-		r.Get("/workflows/{id}/versions/{version}", handler.GetWorkflowVersion)
-		r.Post("/workflows/{id}/versions/{version}/restore", handler.RestoreWorkflowVersion)
-		r.Post("/workflows/{id}/execute", handler.ExecuteWorkflow)
-		r.Post("/workflows/{id}/modify", handler.ModifyWorkflow)
+		// Workflow routes are served by WorkflowsService via Connect-RPC; see
+		// connectMounts above. The legacy REST routes were removed during the
+		// Phase 7 Connect-RPC migration.
 
-		// Execution routes
-		r.Get("/executions", handler.ListExecutions)
-		r.Get("/executions/{id}", handler.GetExecution)
-		r.Get("/executions/{id}/timeline", handler.GetExecutionTimeline)
+		// Execution JSON queries / lifecycle controls are served by
+		// ExecutionsService via Connect-RPC; see connectMounts above. The
+		// legacy REST routes were removed during the Phase 8 migration.
+		//
+		// Two endpoints intentionally remain on chi REST:
+		//   - POST /executions/{id}/export — multipart-ish replay export.
+		//     RESTException: third_party_shape — streams binary mp4/gif/webm,
+		//     HTML zip bundles, or writes files to a caller-supplied
+		//     output_dir on the server filesystem. Not RPC-shaped.
 		r.Post("/executions/{id}/export", handler.PostExecutionExport)
-		r.Post("/executions/{id}/stop", handler.StopExecution)
-		r.Post("/executions/{id}/resume", handler.ResumeExecution)
-		r.Get("/executions/{id}/screenshots", handler.GetExecutionScreenshots)
-		r.Get("/executions/{id}/recorded-videos", handler.GetExecutionRecordedVideos)
-		r.Get("/executions/{id}/recorded-traces", handler.GetExecutionRecordedTraces)
-		r.Get("/executions/{id}/recorded-har", handler.GetExecutionRecordedHar)
-		r.Post("/executions/{executionId}/frames", handler.ReceiveExecutionFrame) // Frame streaming callback from playwright-driver
-		r.Post("/executions/{id}/seed-cleanup", handler.ScheduleExecutionSeedCleanup)
+		//   - POST /executions/{executionId}/frames — playwright-driver frame callback.
+		//     RESTException: ops_probe — fixed by the driver protocol.
+		r.Post("/executions/{executionId}/frames", handler.ReceiveExecutionFrame)
 
 		// Export library routes
 		r.Get("/exports", handler.ListExports)

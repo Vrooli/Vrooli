@@ -592,14 +592,16 @@ export function RecordModePage({
 
     const fetchWorkflowDefinition = async () => {
       try {
-        const config = await getConfig();
-        console.log('[RecordingSession] Fetching workflow:', `${config.API_URL}/workflows/${selectedWorkflowId}`);
-        const response = await fetch(`${config.API_URL}/workflows/${selectedWorkflowId}`);
-        if (!response.ok) {
-          console.error('[RecordingSession] Failed to fetch workflow definition, status:', response.status);
+        const { getWorkflowViaApi } = await import('@/domains/workflows/services/workflowApi');
+        const { toJson } = await import('@bufbuild/protobuf');
+        const { WorkflowSummarySchema } = await import('@vrooli/proto-types/browser-automation-studio/v1/api/service_pb');
+        console.log('[RecordingSession] Fetching workflow via Connect:', selectedWorkflowId);
+        const resp = await getWorkflowViaApi(selectedWorkflowId);
+        if (!resp.workflow) {
+          console.error('[RecordingSession] Failed to fetch workflow definition: workflow missing');
           return;
         }
-        const data: unknown = await response.json();
+        const data = toJson(WorkflowSummarySchema, resp.workflow, { useProtoFieldName: true });
         console.log('[RecordingSession] Raw workflow data:', JSON.stringify(data, null, 2).slice(0, 1000));
 
         const parseNodes = (value: unknown): WorkflowNode[] => {

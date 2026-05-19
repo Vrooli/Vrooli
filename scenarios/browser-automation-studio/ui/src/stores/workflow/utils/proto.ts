@@ -86,37 +86,51 @@ export const parseWorkflowSummaryMessage = (summary: WorkflowSummary | Record<st
 export const parseWorkflowFromCreateResponse = (raw: unknown): Workflow | null => {
   try {
     const proto = parseProtoStrict<CreateWorkflowResponse>(CreateWorkflowResponseSchema, raw);
-    const summaryPayload = workflowSummaryToPayload(proto.workflow);
-    if (!summaryPayload) return null;
-    if (proto.flowDefinition) {
-      summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionV2Schema, proto.flowDefinition);
-    }
-    if (!_normalizeWorkflowResponse) {
-      throw new Error('normalizeWorkflowResponse not initialized');
-    }
-    return _normalizeWorkflowResponse(summaryPayload);
+    return parseWorkflowFromCreateProto(proto);
   } catch (error) {
     logger.error('Failed to parse create workflow proto response', { component: 'WorkflowStore', action: 'parseCreateWorkflow' }, error);
     return null;
   }
 };
 
+/** parseWorkflowFromCreateProto consumes a CreateWorkflowResponse message
+ * already produced by the Connect-RPC client (no JSON round-trip needed). */
+export const parseWorkflowFromCreateProto = (proto: CreateWorkflowResponse | null | undefined): Workflow | null => {
+  if (!proto) return null;
+  const summaryPayload = workflowSummaryToPayload(proto.workflow);
+  if (!summaryPayload) return null;
+  if (proto.flowDefinition) {
+    summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionV2Schema, proto.flowDefinition);
+  }
+  if (!_normalizeWorkflowResponse) {
+    throw new Error('normalizeWorkflowResponse not initialized');
+  }
+  return _normalizeWorkflowResponse(summaryPayload);
+};
+
 export const parseWorkflowFromUpdateResponse = (raw: unknown): Workflow | null => {
   try {
     const proto = parseProtoStrict<UpdateWorkflowResponse>(UpdateWorkflowResponseSchema, raw);
-    const summaryPayload = workflowSummaryToPayload(proto.workflow);
-    if (!summaryPayload) return null;
-    if (proto.flowDefinition) {
-      summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionV2Schema, proto.flowDefinition);
-    }
-    if (!_normalizeWorkflowResponse) {
-      throw new Error('normalizeWorkflowResponse not initialized');
-    }
-    return _normalizeWorkflowResponse(summaryPayload);
+    return parseWorkflowFromUpdateProto(proto);
   } catch (error) {
     logger.error('Failed to parse update workflow proto response', { component: 'WorkflowStore', action: 'parseUpdateWorkflow' }, error);
     return null;
   }
+};
+
+/** parseWorkflowFromUpdateProto consumes an UpdateWorkflowResponse message
+ * already produced by the Connect-RPC client. */
+export const parseWorkflowFromUpdateProto = (proto: UpdateWorkflowResponse | null | undefined): Workflow | null => {
+  if (!proto) return null;
+  const summaryPayload = workflowSummaryToPayload(proto.workflow);
+  if (!summaryPayload) return null;
+  if (proto.flowDefinition) {
+    summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionV2Schema, proto.flowDefinition);
+  }
+  if (!_normalizeWorkflowResponse) {
+    throw new Error('normalizeWorkflowResponse not initialized');
+  }
+  return _normalizeWorkflowResponse(summaryPayload);
 };
 
 // ============================================================================

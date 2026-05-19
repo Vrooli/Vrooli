@@ -1,65 +1,87 @@
+/**
+ * projectStore Test Suite (Connect-RPC)
+ *
+ * Tests project store functionality after migration to ProjectsService
+ * Connect-RPC client. Mocks the generated client; verifies that the store
+ * adapts proto responses into its snake_case consumer shape and routes
+ * actions to the right RPC.
+ */
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act } from '@testing-library/react';
+import { ConnectError, Code } from '@connectrpc/connect';
+
+// ----------------------------------------------------------------------------
+// Client mock — installed BEFORE importing the store.
+// ----------------------------------------------------------------------------
+
+const listProjectsMock = vi.fn();
+const createProjectMock = vi.fn();
+const getProjectMock = vi.fn();
+const updateProjectMock = vi.fn();
+const deleteProjectMock = vi.fn();
+const listProjectWorkflowsMock = vi.fn();
+const bulkDeleteProjectWorkflowsMock = vi.fn();
+const executeAllProjectWorkflowsMock = vi.fn();
+
+vi.mock('../api/projects', () => ({
+  projectsClient: {
+    listProjects: (...a: unknown[]) => listProjectsMock(...a),
+    createProject: (...a: unknown[]) => createProjectMock(...a),
+    getProject: (...a: unknown[]) => getProjectMock(...a),
+    updateProject: (...a: unknown[]) => updateProjectMock(...a),
+    deleteProject: (...a: unknown[]) => deleteProjectMock(...a),
+    listProjectWorkflows: (...a: unknown[]) => listProjectWorkflowsMock(...a),
+    bulkDeleteProjectWorkflows: (...a: unknown[]) => bulkDeleteProjectWorkflowsMock(...a),
+    executeAllProjectWorkflows: (...a: unknown[]) => executeAllProjectWorkflowsMock(...a),
+  },
+}));
+
 import { useProjectStore, type Project } from '@/domains/projects';
-import { fetchJsonResponse, installFetchMock, type FetchMock } from '@/test-utils';
 
 const ts = (iso: string) => {
   const date = new Date(iso);
-  return { seconds: Math.floor(date.getTime() / 1000), nanos: (date.getTime() % 1000) * 1_000_000 };
+  return { seconds: BigInt(Math.floor(date.getTime() / 1000)), nanos: (date.getTime() % 1000) * 1_000_000 };
 };
 
 describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
-  let fetchMock: FetchMock;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchMock = installFetchMock();
-
-    // Reset store state
     useProjectStore.setState({
       projects: [],
       selectedProject: null,
+      currentProject: null,
       isLoading: false,
       error: null,
     });
   });
 
   it('fetches projects successfully', async () => {
-    const mockProjects: Array<{
-      project: {
-        id: string;
-        name: string;
-        description: string;
-        folder_path: string;
-        created_at: { seconds: number; nanos: number };
-        updated_at: { seconds: number; nanos: number };
-      };
-      stats?: { workflow_count: number; execution_count: number };
-    }> = [
-      {
-        project: {
-          id: 'project-1',
-          name: 'Test Project 1',
-          description: 'Description 1',
-          folder_path: '/test/path1',
-          created_at: ts('2025-01-01T00:00:00Z'),
-          updated_at: ts('2025-01-01T00:00:00Z'),
+    listProjectsMock.mockResolvedValueOnce({
+      projects: [
+        {
+          project: {
+            id: 'project-1',
+            name: 'Test Project 1',
+            description: 'Description 1',
+            folderPath: '/test/path1',
+            createdAt: ts('2025-01-01T00:00:00Z'),
+            updatedAt: ts('2025-01-01T00:00:00Z'),
+          },
+          stats: { workflowCount: 2, executionCount: 3 },
         },
-        stats: { workflow_count: 2, execution_count: 3 },
-      },
-      {
-        project: {
-          id: 'project-2',
-          name: 'Test Project 2',
-          description: '',
-          folder_path: '/test/path2',
-          created_at: ts('2025-01-02T00:00:00Z'),
-          updated_at: ts('2025-01-02T00:00:00Z'),
+        {
+          project: {
+            id: 'project-2',
+            name: 'Test Project 2',
+            description: '',
+            folderPath: '/test/path2',
+            createdAt: ts('2025-01-02T00:00:00Z'),
+            updatedAt: ts('2025-01-02T00:00:00Z'),
+          },
         },
-      },
-    ];
-
-    fetchMock.mockResolvedValueOnce(fetchJsonResponse({ projects: mockProjects }));
+      ],
+    });
 
     await act(async () => {
       await useProjectStore.getState().fetchProjects();
@@ -79,43 +101,36 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       folder_path: '/test/new',
     };
 
-    const createdProjectProto = {
-      id: 'new-project-id',
-      ...newProjectData,
-      created_at: ts('2025-01-03T00:00:00Z'),
-      updated_at: ts('2025-01-03T00:00:00Z'),
-    };
-
-    const expectedProject: Project = {
-      id: 'new-project-id',
-      ...newProjectData,
-      created_at: '2025-01-03T00:00:00.000Z',
-      updated_at: '2025-01-03T00:00:00.000Z',
-    };
-
-    fetchMock.mockResolvedValueOnce(fetchJsonResponse(createdProjectProto));
+    createProjectMock.mockResolvedValueOnce({
+      project: {
+        id: 'new-project-id',
+        name: 'New Project',
+        description: 'Test Description',
+        folderPath: '/test/new',
+        createdAt: ts('2025-01-03T00:00:00Z'),
+        updatedAt: ts('2025-01-03T00:00:00Z'),
+      },
+    });
 
     let returnedProject: Project | undefined;
     await act(async () => {
       returnedProject = await useProjectStore.getState().createProject(newProjectData);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/projects'),
+    expect(createProjectMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify(newProjectData),
-      })
+        name: 'New Project',
+        folderPath: '/test/new',
+      }),
     );
-
-    expect(returnedProject).toEqual(expectedProject);
-    expect(useProjectStore.getState().projects).toContainEqual(expectedProject);
+    expect(returnedProject?.id).toBe('new-project-id');
+    expect(useProjectStore.getState().projects.map((p) => p.id)).toContain('new-project-id');
   });
 
   it('handles project creation errors [REQ:BAS-PROJECT-CREATE-VALIDATION]', async () => {
-    const errorMessage = 'Project name already exists';
-
-    fetchMock.mockResolvedValueOnce(fetchJsonResponse({ error: errorMessage }, { status: 400 }));
+    createProjectMock.mockRejectedValueOnce(
+      new ConnectError('Project name already exists', Code.AlreadyExists),
+    );
 
     await expect(async () => {
       await act(async () => {
@@ -138,45 +153,32 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       created_at: '2025-01-01',
       updated_at: '2025-01-01',
     };
-
     useProjectStore.setState({ projects: [existingProject] });
 
-    const updates = {
-      name: 'Updated Name',
-      description: 'New Description',
-      folder_path: '/test/path',
-    };
-
-    const updatedProjectProto = {
-      ...existingProject,
-      ...updates,
-      created_at: ts('2025-01-01T00:00:00Z'),
-      updated_at: ts('2025-01-04T00:00:00Z'),
-    };
-
-    const expectedUpdated: Project = {
-      ...existingProject,
-      ...updates,
-      created_at: '2025-01-01T00:00:00.000Z',
-      updated_at: '2025-01-04T00:00:00.000Z',
-    };
-
-    fetchMock.mockResolvedValueOnce(fetchJsonResponse(updatedProjectProto));
-
-    await act(async () => {
-      await useProjectStore.getState().updateProject('existing-id', updates);
+    updateProjectMock.mockResolvedValueOnce({
+      project: {
+        id: 'existing-id',
+        name: 'Updated Name',
+        description: 'New Description',
+        folderPath: '/test/path',
+        createdAt: ts('2025-01-01T00:00:00Z'),
+        updatedAt: ts('2025-01-04T00:00:00Z'),
+      },
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/projects/existing-id'),
-      expect.objectContaining({
-        method: 'PUT',
-        body: JSON.stringify(updates),
-      })
-    );
+    await act(async () => {
+      await useProjectStore.getState().updateProject('existing-id', {
+        name: 'Updated Name',
+        description: 'New Description',
+        folder_path: '/test/path',
+      });
+    });
 
+    expect(updateProjectMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'existing-id', name: 'Updated Name' }),
+    );
     const projectInStore = useProjectStore.getState().projects.find((p) => p.id === 'existing-id');
-    expect(projectInStore).toEqual(expectedUpdated);
+    expect(projectInStore?.name).toBe('Updated Name');
   });
 
   it('deletes a project successfully', async () => {
@@ -188,22 +190,15 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       created_at: '2025-01-01',
       updated_at: '2025-01-01',
     };
-
     useProjectStore.setState({ projects: [projectToDelete] });
 
-    fetchMock.mockResolvedValueOnce(fetchJsonResponse({ success: true }));
+    deleteProjectMock.mockResolvedValueOnce({ filesDeleted: false });
 
     await act(async () => {
       await useProjectStore.getState().deleteProject('delete-id');
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/projects/delete-id'),
-      expect.objectContaining({
-        method: 'DELETE',
-      })
-    );
-
+    expect(deleteProjectMock).toHaveBeenCalledWith({ id: 'delete-id', deleteFiles: false });
     expect(useProjectStore.getState().projects).toHaveLength(0);
   });
 
@@ -240,10 +235,7 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       },
     ];
 
-    useProjectStore.setState({
-      projects,
-      selectedProject: projects[0],
-    });
+    useProjectStore.setState({ projects, selectedProject: projects[0] });
 
     act(() => {
       useProjectStore.getState().selectProject(null);

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -74,51 +73,3 @@ func (h *Handler) respondProtoList(w http.ResponseWriter, statusCode int, field 
 	_, _ = w.Write(buf.Bytes())
 }
 
-// respondExecutionsWithExportability marshals executions with an additional exportability map.
-// Response format: {"executions": [...], "exportability": {"exec_id": {...}, ...}}
-func (h *Handler) respondExecutionsWithExportability(w http.ResponseWriter, statusCode int, msgs []proto.Message, exportability map[string]ExecutionExportability) {
-	// Marshal executions
-	items := make([][]byte, 0, len(msgs))
-	for idx, msg := range msgs {
-		data, err := protoJSONMarshaler.Marshal(msg)
-		if err != nil {
-			if h.log != nil {
-				h.log.WithError(err).Error(fmt.Sprintf("Failed to marshal execution %d", idx))
-			}
-			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-				"error": fmt.Sprintf("failed to encode executions[%d]", idx),
-			}))
-			return
-		}
-		items = append(items, data)
-	}
-
-	// Marshal exportability map
-	exportabilityJSON, err := json.Marshal(exportability)
-	if err != nil {
-		if h.log != nil {
-			h.log.WithError(err).Error("Failed to marshal exportability map")
-		}
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "failed to encode exportability",
-		}))
-		return
-	}
-
-	var buf bytes.Buffer
-	buf.WriteByte('{')
-	buf.WriteString(`"executions":[`)
-	for i, data := range items {
-		if i > 0 {
-			buf.WriteByte(',')
-		}
-		buf.Write(data)
-	}
-	buf.WriteString(`],"exportability":`)
-	buf.Write(exportabilityJSON)
-	buf.WriteByte('}')
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	_, _ = w.Write(buf.Bytes())
-}

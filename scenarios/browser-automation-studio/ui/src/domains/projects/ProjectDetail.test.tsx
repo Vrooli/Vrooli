@@ -24,6 +24,14 @@ const executionStoreState = {
   executions: [],
 };
 
+// Stub the Connect-RPC project adapter used by useProjectDetailStore.
+const fetchProjectWorkflowsMock = vi.fn();
+const fetchProjectEntriesMock = vi.fn().mockResolvedValue([]);
+vi.mock("@/domains/projects/services/projectApi", () => ({
+  fetchProjectWorkflows: (...a: unknown[]) => fetchProjectWorkflowsMock(...a),
+  fetchProjectEntries: (...a: unknown[]) => fetchProjectEntriesMock(...a),
+}));
+
 vi.mock("./store", () => ({
   __esModule: true,
   useProjectStore: vi.fn(
@@ -183,18 +191,25 @@ describe("ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]",
     executionStoreState.startExecution.mockResolvedValue(undefined);
 
     fetchMock = installFetchMock();
+    fetchProjectWorkflowsMock.mockResolvedValue([
+      {
+        id: workflow.id,
+        name: workflow.name,
+        description: workflow.description,
+        project_id: workflow.project_id,
+        folder_path: workflow.folder_path ?? '/',
+        version: workflow.version ?? 1,
+        created_at: workflow.created_at,
+        updated_at: workflow.updated_at,
+      },
+    ]);
     fetchMock.mockImplementation((input: RequestInfo | URL, _init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
-      if (url === `${apiBase}/projects/${project.id}/workflows`) {
-        return Promise.resolve(fetchJsonResponse({ workflows: [workflow] }));
-      }
-
       if (url === `${apiBase}/workflows/${workflow.id}/execute`) {
         return Promise.resolve(
           fetchJsonResponse({ execution_id: "exec-123", status: "pending" }),
         );
       }
-
       return Promise.reject(new Error(`Unhandled fetch call for ${url}`));
     });
   });

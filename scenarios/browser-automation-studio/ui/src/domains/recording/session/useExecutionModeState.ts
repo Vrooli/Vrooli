@@ -12,7 +12,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { getConfig } from '@/config';
 import {
   useExecutionStore,
   useStartWorkflow,
@@ -329,32 +328,22 @@ export function useExecutionModeState({
 
     const fetchWorkflowDefinition = async () => {
       try {
-        const config = await getConfig();
-        const res = await fetch(`${config.API_URL}/workflows/${selectedWorkflowId}`);
-        if (!res.ok) {
+        const { getWorkflowViaApi } = await import('@/domains/workflows/services/workflowApi');
+        const { toJson } = await import('@bufbuild/protobuf');
+        const { WorkflowDefinitionV2Schema } = await import('@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb');
+        const resp = await getWorkflowViaApi(selectedWorkflowId);
+        const summary = resp.workflow;
+        if (!summary) {
           console.warn('Failed to fetch workflow definition');
           return;
         }
-        const payload: unknown = await res.json();
-
-        // Parse workflow definition
-        if (isRecord(payload) && payload.definition) {
-          let definition: unknown = payload.definition;
-          if (typeof payload.definition === 'string') {
-            try {
-              definition = JSON.parse(payload.definition);
-            } catch {
-              definition = null;
-            }
-          }
-          if (isRecord(definition)) {
-            setWorkflowNodes(parseWorkflowNodes(definition.nodes));
-            setWorkflowEdges(parseWorkflowEdges(definition.edges));
-          }
+        if (summary.flowDefinition) {
+          const def = toJson(WorkflowDefinitionV2Schema, summary.flowDefinition, { useProtoFieldName: true }) as Record<string, unknown>;
+          setWorkflowNodes(parseWorkflowNodes(def.nodes));
+          setWorkflowEdges(parseWorkflowEdges(def.edges));
         }
-
-        if (!selectedWorkflowName && isRecord(payload) && typeof payload.name === 'string') {
-          setSelectedWorkflowName(payload.name);
+        if (!selectedWorkflowName && summary.name) {
+          setSelectedWorkflowName(summary.name);
         }
       } catch (err) {
         console.warn('Error fetching workflow definition:', err);

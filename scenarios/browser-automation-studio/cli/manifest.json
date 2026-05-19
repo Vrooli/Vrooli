@@ -332,6 +332,361 @@
       ]
     },
     {
+      "name": "projects",
+      "description": "Project CRUD + project-scoped workflow operations (list/bulk-delete/execute-all).",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a project. Generates a folder index row; optionally seeds preset subfolders.",
+          "flags": [
+            { "name": "name", "required": true, "description": "Project name" },
+            { "name": "folder-path", "required": true, "description": "Absolute folder path on disk" },
+            { "name": "description", "description": "Optional description" },
+            { "name": "preset", "description": "Preset layout: empty | recommended | custom" },
+            { "name": "preset-paths", "description": "Comma-separated subfolders for preset=custom" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectsService", "method": "CreateProject" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List every project with computed stats.",
+          "flags": [
+            { "name": "limit", "description": "Maximum projects to return (0 = server default)" },
+            { "name": "offset", "description": "Pagination offset" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectsService", "method": "ListProjects" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Fetch a single project + stats by id.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Project UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectsService", "method": "GetProject" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Patch project name / description / folder_path. Empty fields are ignored.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Project UUID" }
+          ],
+          "flags": [
+            { "name": "name", "description": "New project name" },
+            { "name": "description", "description": "New description" },
+            { "name": "folder-path", "description": "New absolute folder path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectsService", "method": "UpdateProject" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a project. With --delete-files, also removes the on-disk folder.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Project UUID" }
+          ],
+          "flags": [
+            { "name": "delete-files", "bool": true, "description": "Also remove the project folder on disk" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectsService", "method": "DeleteProject" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "workflows",
+          "description": "List workflows belonging to a project.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "flags": [
+            { "name": "limit", "description": "Maximum workflows to return" },
+            { "name": "offset", "description": "Pagination offset" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectsService", "method": "ListProjectWorkflows" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "bulk-delete-workflows",
+          "description": "Delete multiple workflows from a project in a single call.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "flags": [
+            { "name": "workflow-ids", "required": true, "description": "Comma-separated workflow UUIDs" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectsService", "method": "BulkDeleteProjectWorkflows" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "execute-all",
+          "description": "Start an execution for every workflow in the project.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectsService", "method": "ExecuteAllProjectWorkflows" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "workflows",
+      "description": "Workflow CRUD, versioning, validation, AI modification, and execution start.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List workflows, optionally filtered by project.",
+          "flags": [
+            { "name": "project-id", "description": "Filter by project UUID" },
+            { "name": "folder-path", "description": "Filter by folder path within the project" },
+            { "name": "limit", "description": "Maximum number of results (1–100)" },
+            { "name": "offset", "description": "Pagination offset" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ListWorkflows" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a workflow by ID (optionally at a specific version).",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
+          ],
+          "flags": [
+            { "name": "version", "description": "Specific version to retrieve (default: latest)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "GetWorkflow" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a new workflow in a project.",
+          "flags": [
+            { "name": "project-id", "required": true, "description": "Project UUID" },
+            { "name": "name", "required": true, "description": "Workflow name" },
+            { "name": "folder-path", "description": "Folder path within the project" },
+            { "name": "flow-file", "description": "Path to JSON file containing the V2 flow definition" },
+            { "name": "ai-prompt", "description": "Optional AI prompt used to generate the workflow" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "CreateWorkflow" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a workflow's definition and metadata.",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
+          ],
+          "flags": [
+            { "name": "name", "description": "Updated workflow name" },
+            { "name": "description", "description": "Updated description" },
+            { "name": "folder-path", "description": "Updated folder path" },
+            { "name": "tags", "description": "Comma-separated tag list" },
+            { "name": "flow-file", "description": "Path to JSON file with updated V2 flow definition" },
+            { "name": "change-description", "description": "Description of this change" },
+            { "name": "source", "description": "Change source (manual|autosave|import|ai_generated|recording)" },
+            { "name": "expected-version", "description": "Optimistic-lock version (required to avoid conflicts)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "UpdateWorkflow" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a workflow.",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "DeleteWorkflow" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "execute",
+          "description": "Execute a persisted workflow.",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
+          ],
+          "flags": [
+            { "name": "version", "description": "Workflow version to execute (default: latest)" },
+            { "name": "wait", "bool": true, "description": "Wait for completion before responding" },
+            { "name": "parameters-file", "description": "Path to JSON file with ExecutionParameters" },
+            { "name": "requires-video", "bool": true, "description": "Record playwright video" },
+            { "name": "requires-trace", "bool": true, "description": "Record playwright trace.zip" },
+            { "name": "requires-har", "bool": true, "description": "Record HAR archive" },
+            { "name": "frame-streaming", "bool": true, "description": "Enable live frame streaming via WS" },
+            { "name": "seed-mode", "description": "Seed apply mode (needs-applying)" },
+            { "name": "seed-scenario", "description": "Seed scenario slug" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ExecuteWorkflow" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external", "filesystem:write"]
+          }
+        },
+        {
+          "name": "execute-adhoc",
+          "description": "Execute a workflow definition without persisting it.",
+          "flags": [
+            { "name": "flow-file", "required": true, "description": "Path to JSON file with the adhoc V2 flow definition" },
+            { "name": "wait", "bool": true, "description": "Wait for completion before responding" },
+            { "name": "name", "description": "Optional label for the adhoc execution" },
+            { "name": "description", "description": "Optional description for the adhoc execution" },
+            { "name": "parameters-file", "description": "Path to JSON file with ExecutionParameters" },
+            { "name": "requires-video", "bool": true, "description": "Record playwright video" },
+            { "name": "requires-trace", "bool": true, "description": "Record playwright trace.zip" },
+            { "name": "requires-har", "bool": true, "description": "Record HAR archive" },
+            { "name": "frame-streaming", "bool": true, "description": "Enable live frame streaming via WS" },
+            { "name": "seed-mode", "description": "Seed apply mode (needs-applying)" },
+            { "name": "seed-scenario", "description": "Seed scenario slug" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ExecuteAdhocWorkflow" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external", "filesystem:write"]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate a workflow definition.",
+          "flags": [
+            { "name": "flow-file", "required": true, "description": "Path to JSON file with the V2 flow definition" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ValidateWorkflow" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "validate-resolved",
+          "description": "Validate a workflow definition whose tokens have already been substituted.",
+          "flags": [
+            { "name": "flow-file", "required": true, "description": "Path to JSON file with the V2 flow definition" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ValidateResolvedWorkflow" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "modify",
+          "description": "Apply an AI-driven modification prompt to a workflow definition.",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
+          ],
+          "flags": [
+            { "name": "prompt", "required": true, "description": "Natural-language modification prompt" },
+            { "name": "flow-file", "required": true, "description": "Path to JSON file with current V2 flow definition" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ModifyWorkflow" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "network:external", "filesystem:write"]
+          }
+        },
+        {
+          "name": "versions",
+          "description": "List stored versions of a workflow (newest first).",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "ListWorkflowVersions" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "version-get",
+          "description": "Get a single stored workflow version.",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" },
+            { "name": "version", "required": true, "description": "Version number (>= 1)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "GetWorkflowVersion" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "version-restore",
+          "description": "Restore a prior workflow version as the current head.",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" },
+            { "name": "version", "required": true, "description": "Version number to restore" }
+          ],
+          "flags": [
+            { "name": "change-description", "description": "Description of why the restore is happening" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "RestoreWorkflowVersion" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        }
+      ]
+    },
+    {
       "name": "project-files",
       "description": "Project file tree, read/write workflow files, move/delete/resync, and OS reveal/open.",
       "commands": [

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getConfig } from '@/config';
-import { parseProjectList } from '@/utils/projectProto';
+import { fetchProjectsList } from '@/domains/projects/services/projectApi';
 
 interface SearchResult {
   id: string;
@@ -80,23 +80,21 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       const config = await getConfig();
       const searchLower = searchQuery.toLowerCase();
 
+      const { fetchWorkflowList } = await import('@/domains/workflows/services/workflowApi');
+
       // Fetch all data in parallel
-      const [projectsRes, workflowsRes, executionsRes] = await Promise.all([
-        fetch(`${config.API_URL}/projects`),
-        fetch(`${config.API_URL}/workflows?limit=50`),
+      const [projects, workflowItems, executionsRes] = await Promise.all([
+        fetchProjectsList(),
+        fetchWorkflowList(50),
         fetch(`${config.API_URL}/executions?limit=20`),
       ]);
 
-      const [projectsData, workflowsData, executionsData]: [unknown, unknown, unknown] = await Promise.all([
-        projectsRes.json() as Promise<unknown>,
-        workflowsRes.json() as Promise<unknown>,
-        executionsRes.json() as Promise<unknown>,
-      ]);
+      const workflowsData = { workflows: workflowItems };
+      const executionsData: unknown = await executionsRes.json();
 
       const projectsMap = new Map<string, string>();
       const searchResults: SearchResult[] = [];
 
-      const projects = parseProjectList(projectsData);
       projects.forEach((p) => {
         projectsMap.set(p.id, p.name);
         if (p.name.toLowerCase().includes(searchLower) || (p.description ?? '').toLowerCase().includes(searchLower)) {

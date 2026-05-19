@@ -470,3 +470,39 @@ func (h *Handler) AINavigateAbort(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AINavigateResume(w http.ResponseWriter, r *http.Request) {
 	h.visionNavigationHandler.HandleAINavigateResume(w, r)
 }
+
+// SeedCleanupManager exposes the deferred seed-cleanup tracker so external
+// Connect-RPC handlers can share the same in-process state.
+func (h *Handler) SeedCleanupManager() *testgenie.SeedCleanupManager {
+	if h == nil {
+		return nil
+	}
+	return h.seedCleanupManager
+}
+
+// WorkflowValidator exposes the in-process workflow validator so external
+// Connect-RPC handlers can reuse it.
+func (h *Handler) WorkflowValidator() *workflowvalidator.Validator {
+	if h == nil {
+		return nil
+	}
+	return h.workflowValidator
+}
+
+// RecordingsRoot exposes the on-disk recordings root for handlers that need
+// to perform light filesystem checks (e.g. exportability probes).
+func (h *Handler) RecordingsRoot() string {
+	if h == nil {
+		return ""
+	}
+	return h.recordingsRoot
+}
+
+// ExecutionService exposes the workflow ExecutionService seam for external
+// Connect-RPC handlers (e.g. handlers/executions).
+func (h *Handler) ExecutionService() workflow.ExecutionService {
+	if h == nil {
+		return nil
+	}
+	return h.executionService
+}
