@@ -8,12 +8,15 @@ import type { ActionType } from "../actions/action_pb";
 import { file_browser_automation_studio_v1_actions_action } from "../actions/action_pb";
 import type { ChangeSource, ExecutionStatus, ValidationSeverity } from "../base/shared_pb";
 import { file_browser_automation_studio_v1_base_shared } from "../base/shared_pb";
-import type { Execution, ExecutionParameters } from "../execution/execution_pb";
+import type { ExecuteAdhocRequestSchema, ExecuteAdhocResponseSchema, ExecuteWorkflowOptions, Execution, ExecutionParameters, GetScreenshotsResponseSchema } from "../execution/execution_pb";
 import { file_browser_automation_studio_v1_execution_execution } from "../execution/execution_pb";
+import type { ExecutionTimelineSchema } from "../timeline/container_pb";
+import { file_browser_automation_studio_v1_timeline_container } from "../timeline/container_pb";
 import type { WorkflowDefinitionV2 } from "../workflows/definition_pb";
 import { file_browser_automation_studio_v1_workflows_definition } from "../workflows/definition_pb";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import { file_google_api_annotations } from "../../../google/api/annotations_pb";
+import type { JsonObject } from "../../../common/v1/types_pb";
+import { file_common_v1_types } from "../../../common/v1/types_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -22,7 +25,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/api/service.proto.
  */
 export const file_browser_automation_studio_v1_api_service: GenFile = /*@__PURE__*/
-  fileDesc("Ci5icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FwaS9zZXJ2aWNlLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIscDCg9Xb3JrZmxvd1N1bW1hcnkSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2ZvbGRlcl9wYXRoGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEgwKBHRhZ3MYBiADKAkSDwoHdmVyc2lvbhgHIAEoBRITCgtpc190ZW1wbGF0ZRgIIAEoCBISCgpjcmVhdGVkX2J5GAkgASgJEkYKEmxhc3RfY2hhbmdlX3NvdXJjZRgKIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ2hhbmdlU291cmNlEh8KF2xhc3RfY2hhbmdlX2Rlc2NyaXB0aW9uGAsgASgJEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEksKD2Zsb3dfZGVmaW5pdGlvbhgOIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjIi5AEKD1dvcmtmbG93VmVyc2lvbhITCgt3b3JrZmxvd19pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFEksKD2Zsb3dfZGVmaW5pdGlvbhgDIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjISGgoSY2hhbmdlX2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiUAoMV29ya2Zsb3dMaXN0EkAKCXdvcmtmbG93cxgBIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5IlYKE1dvcmtmbG93VmVyc2lvbkxpc3QSPwoIdmVyc2lvbnMYASADKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmVyc2lvbiLEAQoUTGlzdFdvcmtmbG93c1JlcXVlc3QSIQoKcHJvamVjdF9pZBgBIAEoCUIIukgFcgOwAQFIAIgBARIYCgtmb2xkZXJfcGF0aBgCIAEoCUgBiAEBEh0KBWxpbWl0GAMgASgFQgm6SAYaBBhkKAFIAogBARIcCgZvZmZzZXQYBCABKAVCB7pIBBoCKABIA4gBAUINCgtfcHJvamVjdF9pZEIOCgxfZm9sZGVyX3BhdGhCCAoGX2xpbWl0QgkKB19vZmZzZXQiegoVTGlzdFdvcmtmbG93c1Jlc3BvbnNlEkAKCXdvcmtmbG93cxgBIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5Eg0KBXRvdGFsGAIgASgFEhAKCGhhc19tb3JlGAMgASgIIksKEkdldFdvcmtmbG93UmVxdWVzdBITCgt3b3JrZmxvd19pZBgBIAEoCRIUCgd2ZXJzaW9uGAIgASgFSACIAQFCCgoIX3ZlcnNpb24iVgoTR2V0V29ya2Zsb3dSZXNwb25zZRI/Cgh3b3JrZmxvdxgBIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5Iq4BChVDcmVhdGVXb3JrZmxvd1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2ZvbGRlcl9wYXRoGAMgASgJEksKD2Zsb3dfZGVmaW5pdGlvbhgEIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjISEQoJYWlfcHJvbXB0GAUgASgJIqYBChZDcmVhdGVXb3JrZmxvd1Jlc3BvbnNlEj8KCHdvcmtmbG93GAEgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1N1bW1hcnkSSwoPZmxvd19kZWZpbml0aW9uGAIgASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMiLQAgoVVXBkYXRlV29ya2Zsb3dSZXF1ZXN0EgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSEwoLZm9sZGVyX3BhdGgYAyABKAkSDAoEdGFncxgEIAMoCRJLCg9mbG93X2RlZmluaXRpb24YBSABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyEhoKEmNoYW5nZV9kZXNjcmlwdGlvbhgGIAEoCRI6CgZzb3VyY2UYByABKA4yKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNoYW5nZVNvdXJjZRIYChBleHBlY3RlZF92ZXJzaW9uGAggASgFEiIKC3dvcmtmbG93X2lkGAkgASgJQgi6SAVyA7ABAUgAiAEBQg4KDF93b3JrZmxvd19pZCKmAQoWVXBkYXRlV29ya2Zsb3dSZXNwb25zZRI/Cgh3b3JrZmxvdxgBIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5EksKD2Zsb3dfZGVmaW5pdGlvbhgCIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjIiLAoVRGVsZXRlV29ya2Zsb3dSZXF1ZXN0EhMKC3dvcmtmbG93X2lkGAEgASgJIj4KFkRlbGV0ZVdvcmtmbG93UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBITCgt3b3JrZmxvd19pZBgCIAEoCSLRAQoWRXhlY3V0ZVdvcmtmbG93UmVxdWVzdBIbChN3YWl0X2Zvcl9jb21wbGV0aW9uGAIgASgIEhMKC3dvcmtmbG93X2lkGAQgASgJEh0KEHdvcmtmbG93X3ZlcnNpb24YBSABKAVIAIgBARJFCgpwYXJhbWV0ZXJzGAYgASgLMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25QYXJhbWV0ZXJzQhMKEV93b3JrZmxvd192ZXJzaW9uSgQIARACSgQIAxAEItQBChdFeGVjdXRlV29ya2Zsb3dSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSPQoGc3RhdHVzGAIgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSNQoMY29tcGxldGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEhIKBWVycm9yGAQgASgJSAGIAQFCDwoNX2NvbXBsZXRlZF9hdEIICgZfZXJyb3Ii7AEKFUxpc3RFeGVjdXRpb25zUmVxdWVzdBIiCgt3b3JrZmxvd19pZBgBIAEoCUIIukgFcgOwAQFIAIgBARJCCgZzdGF0dXMYAiABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1c0gBiAEBEh0KBWxpbWl0GAMgASgFQgm6SAYaBBhkKAFIAogBARIcCgZvZmZzZXQYBCABKAVCB7pIBBoCKABIA4gBAUIOCgxfd29ya2Zsb3dfaWRCCQoHX3N0YXR1c0IICgZfbGltaXRCCQoHX29mZnNldCJ2ChZMaXN0RXhlY3V0aW9uc1Jlc3BvbnNlEjsKCmV4ZWN1dGlvbnMYASADKAsyJy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbhINCgV0b3RhbBgCIAEoBRIQCghoYXNfbW9yZRgDIAEoCCIrChNHZXRFeGVjdXRpb25SZXF1ZXN0EhQKDGV4ZWN1dGlvbl9pZBgBIAEoCSJSChRHZXRFeGVjdXRpb25SZXNwb25zZRI6CglleGVjdXRpb24YASABKAsyJy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbiJfChdWYWxpZGF0ZVdvcmtmbG93UmVxdWVzdBJECgh3b3JrZmxvdxgBIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjIiYgoYVmFsaWRhdGVXb3JrZmxvd1Jlc3BvbnNlEkYKBnJlc3VsdBgBIAEoCzI2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWYWxpZGF0aW9uUmVzdWx0IvgBChdXb3JrZmxvd1ZhbGlkYXRpb25Jc3N1ZRJCCghzZXZlcml0eRgBIAEoDjIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVmFsaWRhdGlvblNldmVyaXR5EgwKBGNvZGUYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIPCgdub2RlX2lkGAQgASgJEjsKCW5vZGVfdHlwZRgFIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVHlwZRINCgVmaWVsZBgGIAEoCRIPCgdwb2ludGVyGAcgASgJEgwKBGhpbnQYCCABKAkiygEKF1dvcmtmbG93VmFsaWRhdGlvblN0YXRzEhIKCm5vZGVfY291bnQYASABKAUSEgoKZWRnZV9jb3VudBgCIAEoBRIWCg5zZWxlY3Rvcl9jb3VudBgDIAEoBRIdChV1bmlxdWVfc2VsZWN0b3JfY291bnQYBCABKAUSGgoSZWxlbWVudF93YWl0X2NvdW50GAUgASgFEhQKDGhhc19tZXRhZGF0YRgGIAEoCBIeChZoYXNfZXhlY3V0aW9uX3ZpZXdwb3J0GAcgASgIItwCChhXb3JrZmxvd1ZhbGlkYXRpb25SZXN1bHQSDQoFdmFsaWQYASABKAgSRQoGZXJyb3JzGAIgAygLMjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZhbGlkYXRpb25Jc3N1ZRJHCgh3YXJuaW5ncxgDIAMoCzI1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWYWxpZGF0aW9uSXNzdWUSRAoFc3RhdHMYBCABKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmFsaWRhdGlvblN0YXRzEhYKDnNjaGVtYV92ZXJzaW9uGAUgASgJEi4KCmNoZWNrZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC2R1cmF0aW9uX21zGAcgASgDIqoBCh5SZXN0b3JlV29ya2Zsb3dWZXJzaW9uUmVzcG9uc2USPwoId29ya2Zsb3cYASABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93U3VtbWFyeRJHChByZXN0b3JlZF92ZXJzaW9uGAIgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZlcnNpb24y1gsKD1dvcmtmbG93U2VydmljZRKTAQoNTGlzdFdvcmtmbG93cxIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTGlzdFdvcmtmbG93c1JlcXVlc3QaMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxpc3RXb3JrZmxvd3NSZXNwb25zZSIZgtPkkwITEhEvYXBpL3YxL3dvcmtmbG93cxKbAQoLR2V0V29ya2Zsb3cSMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkdldFdvcmtmbG93UmVxdWVzdBoxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2V0V29ya2Zsb3dSZXNwb25zZSIngtPkkwIhEh8vYXBpL3YxL3dvcmtmbG93cy97d29ya2Zsb3dfaWR9EqABCg5DcmVhdGVXb3JrZmxvdxIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ3JlYXRlV29ya2Zsb3dSZXF1ZXN0GjQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5DcmVhdGVXb3JrZmxvd1Jlc3BvbnNlIiOC0+STAh06ASoiGC9hcGkvdjEvd29ya2Zsb3dzL2NyZWF0ZRKnAQoOVXBkYXRlV29ya2Zsb3cSMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlVwZGF0ZVdvcmtmbG93UmVxdWVzdBo0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVXBkYXRlV29ya2Zsb3dSZXNwb25zZSIqgtPkkwIkOgEqGh8vYXBpL3YxL3dvcmtmbG93cy97d29ya2Zsb3dfaWR9EqQBCg5EZWxldGVXb3JrZmxvdxIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRGVsZXRlV29ya2Zsb3dSZXF1ZXN0GjQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5EZWxldGVXb3JrZmxvd1Jlc3BvbnNlIieC0+STAiEqHy9hcGkvdjEvd29ya2Zsb3dzL3t3b3JrZmxvd19pZH0SsgEKD0V4ZWN1dGVXb3JrZmxvdxI0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0ZVdvcmtmbG93UmVxdWVzdBo1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0ZVdvcmtmbG93UmVzcG9uc2UiMoLT5JMCLDoBKiInL2FwaS92MS93b3JrZmxvd3Mve3dvcmtmbG93X2lkfS9leGVjdXRlEqgBChBWYWxpZGF0ZVdvcmtmbG93EjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5WYWxpZGF0ZVdvcmtmbG93UmVxdWVzdBo2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVmFsaWRhdGVXb3JrZmxvd1Jlc3BvbnNlIiWC0+STAh86ASoiGi9hcGkvdjEvd29ya2Zsb3dzL3ZhbGlkYXRlEpcBCg5MaXN0RXhlY3V0aW9ucxIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTGlzdEV4ZWN1dGlvbnNSZXF1ZXN0GjQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5MaXN0RXhlY3V0aW9uc1Jlc3BvbnNlIhqC0+STAhQSEi9hcGkvdjEvZXhlY3V0aW9ucxKgAQoMR2V0RXhlY3V0aW9uEjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5HZXRFeGVjdXRpb25SZXF1ZXN0GjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5HZXRFeGVjdXRpb25SZXNwb25zZSIpgtPkkwIjEiEvYXBpL3YxL2V4ZWN1dGlvbnMve2V4ZWN1dGlvbl9pZH1CVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FwaTthcGliBnByb3RvMw", [file_browser_automation_studio_v1_actions_action, file_browser_automation_studio_v1_base_shared, file_browser_automation_studio_v1_execution_execution, file_browser_automation_studio_v1_workflows_definition, file_buf_validate_validate, file_google_api_annotations, file_google_protobuf_timestamp]);
+  fileDesc("Ci5icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FwaS9zZXJ2aWNlLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIscDCg9Xb3JrZmxvd1N1bW1hcnkSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2ZvbGRlcl9wYXRoGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEgwKBHRhZ3MYBiADKAkSDwoHdmVyc2lvbhgHIAEoBRITCgtpc190ZW1wbGF0ZRgIIAEoCBISCgpjcmVhdGVkX2J5GAkgASgJEkYKEmxhc3RfY2hhbmdlX3NvdXJjZRgKIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ2hhbmdlU291cmNlEh8KF2xhc3RfY2hhbmdlX2Rlc2NyaXB0aW9uGAsgASgJEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEksKD2Zsb3dfZGVmaW5pdGlvbhgOIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjIi5AEKD1dvcmtmbG93VmVyc2lvbhITCgt3b3JrZmxvd19pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFEksKD2Zsb3dfZGVmaW5pdGlvbhgDIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjISGgoSY2hhbmdlX2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiUAoMV29ya2Zsb3dMaXN0EkAKCXdvcmtmbG93cxgBIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5IlYKE1dvcmtmbG93VmVyc2lvbkxpc3QSPwoIdmVyc2lvbnMYASADKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmVyc2lvbiLEAQoUTGlzdFdvcmtmbG93c1JlcXVlc3QSIQoKcHJvamVjdF9pZBgBIAEoCUIIukgFcgOwAQFIAIgBARIYCgtmb2xkZXJfcGF0aBgCIAEoCUgBiAEBEh0KBWxpbWl0GAMgASgFQgm6SAYaBBhkKAFIAogBARIcCgZvZmZzZXQYBCABKAVCB7pIBBoCKABIA4gBAUINCgtfcHJvamVjdF9pZEIOCgxfZm9sZGVyX3BhdGhCCAoGX2xpbWl0QgkKB19vZmZzZXQiegoVTGlzdFdvcmtmbG93c1Jlc3BvbnNlEkAKCXdvcmtmbG93cxgBIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5Eg0KBXRvdGFsGAIgASgFEhAKCGhhc19tb3JlGAMgASgIIksKEkdldFdvcmtmbG93UmVxdWVzdBITCgt3b3JrZmxvd19pZBgBIAEoCRIUCgd2ZXJzaW9uGAIgASgFSACIAQFCCgoIX3ZlcnNpb24iVgoTR2V0V29ya2Zsb3dSZXNwb25zZRI/Cgh3b3JrZmxvdxgBIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5Iq4BChVDcmVhdGVXb3JrZmxvd1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2ZvbGRlcl9wYXRoGAMgASgJEksKD2Zsb3dfZGVmaW5pdGlvbhgEIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjISEQoJYWlfcHJvbXB0GAUgASgJIqYBChZDcmVhdGVXb3JrZmxvd1Jlc3BvbnNlEj8KCHdvcmtmbG93GAEgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1N1bW1hcnkSSwoPZmxvd19kZWZpbml0aW9uGAIgASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMiLQAgoVVXBkYXRlV29ya2Zsb3dSZXF1ZXN0EgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSEwoLZm9sZGVyX3BhdGgYAyABKAkSDAoEdGFncxgEIAMoCRJLCg9mbG93X2RlZmluaXRpb24YBSABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyEhoKEmNoYW5nZV9kZXNjcmlwdGlvbhgGIAEoCRI6CgZzb3VyY2UYByABKA4yKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNoYW5nZVNvdXJjZRIYChBleHBlY3RlZF92ZXJzaW9uGAggASgFEiIKC3dvcmtmbG93X2lkGAkgASgJQgi6SAVyA7ABAUgAiAEBQg4KDF93b3JrZmxvd19pZCKmAQoWVXBkYXRlV29ya2Zsb3dSZXNwb25zZRI/Cgh3b3JrZmxvdxgBIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5EksKD2Zsb3dfZGVmaW5pdGlvbhgCIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjIiLAoVRGVsZXRlV29ya2Zsb3dSZXF1ZXN0EhMKC3dvcmtmbG93X2lkGAEgASgJIj4KFkRlbGV0ZVdvcmtmbG93UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBITCgt3b3JrZmxvd19pZBgCIAEoCSKiAgoWRXhlY3V0ZVdvcmtmbG93UmVxdWVzdBIbChN3YWl0X2Zvcl9jb21wbGV0aW9uGAIgASgIEh0KC3dvcmtmbG93X2lkGAQgASgJQgi6SAVyA7ABARIdChB3b3JrZmxvd192ZXJzaW9uGAUgASgFSACIAQESRQoKcGFyYW1ldGVycxgGIAEoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uUGFyYW1ldGVycxJFCgdvcHRpb25zGAcgASgLMjQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRlV29ya2Zsb3dPcHRpb25zQhMKEV93b3JrZmxvd192ZXJzaW9uSgQIARACSgQIAxAEItQBChdFeGVjdXRlV29ya2Zsb3dSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSPQoGc3RhdHVzGAIgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSNQoMY29tcGxldGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEhIKBWVycm9yGAQgASgJSAGIAQFCDwoNX2NvbXBsZXRlZF9hdEIICgZfZXJyb3IivQIKFUxpc3RFeGVjdXRpb25zUmVxdWVzdBIiCgt3b3JrZmxvd19pZBgBIAEoCUIIukgFcgOwAQFIAIgBARJCCgZzdGF0dXMYAiABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1c0gBiAEBEh0KBWxpbWl0GAMgASgFQgm6SAYaBBhkKAFIAogBARIcCgZvZmZzZXQYBCABKAVCB7pIBBoCKABIA4gBARIhCgpwcm9qZWN0X2lkGAUgASgJQgi6SAVyA7ABAUgEiAEBEh0KFWluY2x1ZGVfZXhwb3J0YWJpbGl0eRgGIAEoCEIOCgxfd29ya2Zsb3dfaWRCCQoHX3N0YXR1c0IICgZfbGltaXRCCQoHX29mZnNldEINCgtfcHJvamVjdF9pZCLCAgoWTGlzdEV4ZWN1dGlvbnNSZXNwb25zZRI7CgpleGVjdXRpb25zGAEgAygLMicuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb24SDQoFdG90YWwYAiABKAUSEAoIaGFzX21vcmUYAyABKAgSXgoNZXhwb3J0YWJpbGl0eRgEIAMoCzJHLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTGlzdEV4ZWN1dGlvbnNSZXNwb25zZS5FeHBvcnRhYmlsaXR5RW50cnkaagoSRXhwb3J0YWJpbGl0eUVudHJ5EgsKA2tleRgBIAEoCRJDCgV2YWx1ZRgCIAEoCzI0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uRXhwb3J0YWJpbGl0eToCOAEiegoWRXhlY3V0aW9uRXhwb3J0YWJpbGl0eRIUCgxoYXNfdGltZWxpbmUYASABKAgSFwoPaGFzX3NjcmVlbnNob3RzGAIgASgIEhoKEmhhc19yZWNvcmRlZF92aWRlbxgDIAEoCBIVCg1pc19leHBvcnRhYmxlGAQgASgIIisKE0dldEV4ZWN1dGlvblJlcXVlc3QSFAoMZXhlY3V0aW9uX2lkGAEgASgJIlIKFEdldEV4ZWN1dGlvblJlc3BvbnNlEjoKCWV4ZWN1dGlvbhgBIAEoCzInLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uIl8KF1ZhbGlkYXRlV29ya2Zsb3dSZXF1ZXN0EkQKCHdvcmtmbG93GAEgASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMiJiChhWYWxpZGF0ZVdvcmtmbG93UmVzcG9uc2USRgoGcmVzdWx0GAEgASgLMjYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZhbGlkYXRpb25SZXN1bHQi+AEKF1dvcmtmbG93VmFsaWRhdGlvbklzc3VlEkIKCHNldmVyaXR5GAEgASgOMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5WYWxpZGF0aW9uU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEg8KB25vZGVfaWQYBCABKAkSOwoJbm9kZV90eXBlGAUgASgOMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5BY3Rpb25UeXBlEg0KBWZpZWxkGAYgASgJEg8KB3BvaW50ZXIYByABKAkSDAoEaGludBgIIAEoCSLKAQoXV29ya2Zsb3dWYWxpZGF0aW9uU3RhdHMSEgoKbm9kZV9jb3VudBgBIAEoBRISCgplZGdlX2NvdW50GAIgASgFEhYKDnNlbGVjdG9yX2NvdW50GAMgASgFEh0KFXVuaXF1ZV9zZWxlY3Rvcl9jb3VudBgEIAEoBRIaChJlbGVtZW50X3dhaXRfY291bnQYBSABKAUSFAoMaGFzX21ldGFkYXRhGAYgASgIEh4KFmhhc19leGVjdXRpb25fdmlld3BvcnQYByABKAgi3AIKGFdvcmtmbG93VmFsaWRhdGlvblJlc3VsdBINCgV2YWxpZBgBIAEoCBJFCgZlcnJvcnMYAiADKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmFsaWRhdGlvbklzc3VlEkcKCHdhcm5pbmdzGAMgAygLMjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZhbGlkYXRpb25Jc3N1ZRJECgVzdGF0cxgEIAEoCzI1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWYWxpZGF0aW9uU3RhdHMSFgoOc2NoZW1hX3ZlcnNpb24YBSABKAkSLgoKY2hlY2tlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYByABKAMiqgEKHlJlc3RvcmVXb3JrZmxvd1ZlcnNpb25SZXNwb25zZRI/Cgh3b3JrZmxvdxgBIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5EkcKEHJlc3RvcmVkX3ZlcnNpb24YAiABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmVyc2lvbiI8ChtMaXN0V29ya2Zsb3dWZXJzaW9uc1JlcXVlc3QSHQoLd29ya2Zsb3dfaWQYASABKAlCCLpIBXIDsAEBIlQKGUdldFdvcmtmbG93VmVyc2lvblJlcXVlc3QSHQoLd29ya2Zsb3dfaWQYASABKAlCCLpIBXIDsAEBEhgKB3ZlcnNpb24YAiABKAVCB7pIBBoCKAEidAodUmVzdG9yZVdvcmtmbG93VmVyc2lvblJlcXVlc3QSHQoLd29ya2Zsb3dfaWQYASABKAlCCLpIBXIDsAEBEhgKB3ZlcnNpb24YAiABKAVCB7pIBBoCKAESGgoSY2hhbmdlX2Rlc2NyaXB0aW9uGAMgASgJIqYBChVNb2RpZnlXb3JrZmxvd1JlcXVlc3QSHQoLd29ya2Zsb3dfaWQYASABKAlCCLpIBXIDsAEBEiQKE21vZGlmaWNhdGlvbl9wcm9tcHQYAiABKAlCB7pIBHICEAESSAoMY3VycmVudF9mbG93GAMgASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMiI9ChtHZXRFeGVjdXRpb25UaW1lbGluZVJlcXVlc3QSHgoMZXhlY3V0aW9uX2lkGAEgASgJQgi6SAVyA7ABASI2ChRTdG9wRXhlY3V0aW9uUmVxdWVzdBIeCgxleGVjdXRpb25faWQYASABKAlCCLpIBXIDsAEBIicKFVN0b3BFeGVjdXRpb25SZXNwb25zZRIOCgZzdGF0dXMYASABKAkidwoWUmVzdW1lRXhlY3V0aW9uUmVxdWVzdBIeCgxleGVjdXRpb25faWQYASABKAlCCLpIBXIDsAEBEikKCnBhcmFtZXRlcnMYAiABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdBISCgpyZXN1bWVfdXJsGAMgASgJIlUKF1Jlc3VtZUV4ZWN1dGlvblJlc3BvbnNlEjoKCWV4ZWN1dGlvbhgBIAEoCzInLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uIkAKHkdldEV4ZWN1dGlvblNjcmVlbnNob3RzUmVxdWVzdBIeCgxleGVjdXRpb25faWQYASABKAlCCLpIBXIDsAEBIj4KHEdldEV4ZWN1dGlvbkFydGlmYWN0c1JlcXVlc3QSHgoMZXhlY3V0aW9uX2lkGAEgASgJQgi6SAVyA7ABASK2AQoVRXhlY3V0aW9uRmlsZUFydGlmYWN0EhMKC2FydGlmYWN0X2lkGAEgASgJEhMKC3N0b3JhZ2VfdXJsGAIgASgJEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRINCgVsYWJlbBgEIAEoCRIXCgpzaXplX2J5dGVzGAUgASgDSACIAQESJgoHcGF5bG9hZBgGIAEoCzIVLmNvbW1vbi52MS5Kc29uT2JqZWN0Qg0KC19zaXplX2J5dGVzIncKGkdldEV4ZWN1dGlvblZpZGVvc1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRJDCgZ2aWRlb3MYAiADKAsyMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbkZpbGVBcnRpZmFjdCJ3ChpHZXRFeGVjdXRpb25UcmFjZXNSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSQwoGdHJhY2VzGAIgAygLMjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25GaWxlQXJ0aWZhY3QidwoXR2V0RXhlY3V0aW9uSGFyUmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEkYKCWhhcl9maWxlcxgCIAMoCzIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uRmlsZUFydGlmYWN0InMKGlNjaGVkdWxlU2VlZENsZWFudXBSZXF1ZXN0Eh4KDGV4ZWN1dGlvbl9pZBgBIAEoCUIIukgFcgOwAQESHgoNY2xlYW51cF90b2tlbhgCIAEoCUIHukgEcgIQARIVCg1zZWVkX3NjZW5hcmlvGAMgASgJIi0KG1NjaGVkdWxlU2VlZENsZWFudXBSZXNwb25zZRIOCgZzdGF0dXMYASABKAkyng0KEFdvcmtmbG93c1NlcnZpY2USeAoNTGlzdFdvcmtmbG93cxIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTGlzdFdvcmtmbG93c1JlcXVlc3QaMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxpc3RXb3JrZmxvd3NSZXNwb25zZRJyCgtHZXRXb3JrZmxvdxIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2V0V29ya2Zsb3dSZXF1ZXN0GjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5HZXRXb3JrZmxvd1Jlc3BvbnNlEnsKDkNyZWF0ZVdvcmtmbG93EjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5DcmVhdGVXb3JrZmxvd1JlcXVlc3QaNC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNyZWF0ZVdvcmtmbG93UmVzcG9uc2USewoOVXBkYXRlV29ya2Zsb3cSMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlVwZGF0ZVdvcmtmbG93UmVxdWVzdBo0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVXBkYXRlV29ya2Zsb3dSZXNwb25zZRJ7Cg5EZWxldGVXb3JrZmxvdxIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRGVsZXRlV29ya2Zsb3dSZXF1ZXN0GjQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5EZWxldGVXb3JrZmxvd1Jlc3BvbnNlEn4KD0V4ZWN1dGVXb3JrZmxvdxI0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0ZVdvcmtmbG93UmVxdWVzdBo1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0ZVdvcmtmbG93UmVzcG9uc2USfQoURXhlY3V0ZUFkaG9jV29ya2Zsb3cSMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVBZGhvY1JlcXVlc3QaMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVBZGhvY1Jlc3BvbnNlEoEBChBWYWxpZGF0ZVdvcmtmbG93EjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5WYWxpZGF0ZVdvcmtmbG93UmVxdWVzdBo2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVmFsaWRhdGVXb3JrZmxvd1Jlc3BvbnNlEokBChhWYWxpZGF0ZVJlc29sdmVkV29ya2Zsb3cSNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlZhbGlkYXRlV29ya2Zsb3dSZXF1ZXN0GjYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5WYWxpZGF0ZVdvcmtmbG93UmVzcG9uc2USewoOTW9kaWZ5V29ya2Zsb3cSMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLk1vZGlmeVdvcmtmbG93UmVxdWVzdBo0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVXBkYXRlV29ya2Zsb3dSZXNwb25zZRKEAQoUTGlzdFdvcmtmbG93VmVyc2lvbnMSOS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxpc3RXb3JrZmxvd1ZlcnNpb25zUmVxdWVzdBoxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWZXJzaW9uTGlzdBJ8ChJHZXRXb3JrZmxvd1ZlcnNpb24SNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkdldFdvcmtmbG93VmVyc2lvblJlcXVlc3QaLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmVyc2lvbhKTAQoWUmVzdG9yZVdvcmtmbG93VmVyc2lvbhI7LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVzdG9yZVdvcmtmbG93VmVyc2lvblJlcXVlc3QaPC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJlc3RvcmVXb3JrZmxvd1ZlcnNpb25SZXNwb25zZTLlCgoRRXhlY3V0aW9uc1NlcnZpY2USewoOTGlzdEV4ZWN1dGlvbnMSMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxpc3RFeGVjdXRpb25zUmVxdWVzdBo0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTGlzdEV4ZWN1dGlvbnNSZXNwb25zZRJ1CgxHZXRFeGVjdXRpb24SMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkdldEV4ZWN1dGlvblJlcXVlc3QaMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkdldEV4ZWN1dGlvblJlc3BvbnNlEoIBChRHZXRFeGVjdXRpb25UaW1lbGluZRI5LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2V0RXhlY3V0aW9uVGltZWxpbmVSZXF1ZXN0Gi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25UaW1lbGluZRJ4Cg1TdG9wRXhlY3V0aW9uEjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdG9wRXhlY3V0aW9uUmVxdWVzdBozLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3RvcEV4ZWN1dGlvblJlc3BvbnNlEn4KD1Jlc3VtZUV4ZWN1dGlvbhI0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVzdW1lRXhlY3V0aW9uUmVxdWVzdBo1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVzdW1lRXhlY3V0aW9uUmVzcG9uc2USjQEKF0dldEV4ZWN1dGlvblNjcmVlbnNob3RzEjwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5HZXRFeGVjdXRpb25TY3JlZW5zaG90c1JlcXVlc3QaNC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkdldFNjcmVlbnNob3RzUmVzcG9uc2USkgEKGkdldEV4ZWN1dGlvblJlY29yZGVkVmlkZW9zEjouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5HZXRFeGVjdXRpb25BcnRpZmFjdHNSZXF1ZXN0GjguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5HZXRFeGVjdXRpb25WaWRlb3NSZXNwb25zZRKSAQoaR2V0RXhlY3V0aW9uUmVjb3JkZWRUcmFjZXMSOi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkdldEV4ZWN1dGlvbkFydGlmYWN0c1JlcXVlc3QaOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkdldEV4ZWN1dGlvblRyYWNlc1Jlc3BvbnNlEowBChdHZXRFeGVjdXRpb25SZWNvcmRlZEhhchI6LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2V0RXhlY3V0aW9uQXJ0aWZhY3RzUmVxdWVzdBo1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2V0RXhlY3V0aW9uSGFyUmVzcG9uc2USkwEKHFNjaGVkdWxlRXhlY3V0aW9uU2VlZENsZWFudXASOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNjaGVkdWxlU2VlZENsZWFudXBSZXF1ZXN0GjkuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TY2hlZHVsZVNlZWRDbGVhbnVwUmVzcG9uc2VCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FwaTthcGliBnByb3RvMw", [file_browser_automation_studio_v1_actions_action, file_browser_automation_studio_v1_base_shared, file_browser_automation_studio_v1_execution_execution, file_browser_automation_studio_v1_timeline_container, file_browser_automation_studio_v1_workflows_definition, file_buf_validate_validate, file_common_v1_types, file_google_protobuf_timestamp]);
 
 /**
  * WorkflowSummary captures the primary workflow fields without the full definition.
@@ -630,6 +633,13 @@ export type ExecuteWorkflowRequest = Message<"browser_automation_studio.v1.Execu
    * @generated from field: browser_automation_studio.v1.ExecutionParameters parameters = 6;
    */
   parameters?: ExecutionParameters | undefined;
+
+  /**
+   * Optional execution-mode toggles (artifacts, frame streaming, seed apply).
+   *
+   * @generated from field: browser_automation_studio.v1.ExecuteWorkflowOptions options = 7;
+   */
+  options?: ExecuteWorkflowOptions | undefined;
 };
 
 /**
@@ -716,6 +726,21 @@ export type ListExecutionsRequest = Message<"browser_automation_studio.v1.ListEx
    * @generated from field: optional int32 offset = 4;
    */
   offset?: number | undefined;
+
+  /**
+   * Filter by project ID.
+   * @format uuid
+   *
+   * @generated from field: optional string project_id = 5;
+   */
+  projectId?: string | undefined;
+
+  /**
+   * Include exportability information for each execution.
+   *
+   * @generated from field: bool include_exportability = 6;
+   */
+  includeExportability: boolean;
 };
 
 /**
@@ -751,6 +776,14 @@ export type ListExecutionsResponse = Message<"browser_automation_studio.v1.ListE
    * @generated from field: bool has_more = 3;
    */
   hasMore: boolean;
+
+  /**
+   * Optional exportability info keyed by execution ID. Populated only when
+   * ListExecutionsRequest.include_exportability is true.
+   *
+   * @generated from field: map<string, browser_automation_studio.v1.ExecutionExportability> exportability = 4;
+   */
+  exportability: { [key: string]: ExecutionExportability };
 };
 
 /**
@@ -759,6 +792,50 @@ export type ListExecutionsResponse = Message<"browser_automation_studio.v1.ListE
  */
 export const ListExecutionsResponseSchema: GenMessage<ListExecutionsResponse> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_api_service, 17);
+
+/**
+ * ExecutionExportability summarizes which export render-sources are available
+ * for a single execution. Returned as a sidecar map on ListExecutionsResponse
+ * when the caller requests it.
+ *
+ * @generated from message browser_automation_studio.v1.ExecutionExportability
+ */
+export type ExecutionExportability = Message<"browser_automation_studio.v1.ExecutionExportability"> & {
+  /**
+   * True when a proto timeline file is present.
+   *
+   * @generated from field: bool has_timeline = 1;
+   */
+  hasTimeline: boolean;
+
+  /**
+   * True when at least one screenshot was captured.
+   *
+   * @generated from field: bool has_screenshots = 2;
+   */
+  hasScreenshots: boolean;
+
+  /**
+   * True when a recorded video artifact is available.
+   *
+   * @generated from field: bool has_recorded_video = 3;
+   */
+  hasRecordedVideo: boolean;
+
+  /**
+   * True when this execution has enough material to render an export.
+   *
+   * @generated from field: bool is_exportable = 4;
+   */
+  isExportable: boolean;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ExecutionExportability.
+ * Use `create(ExecutionExportabilitySchema)` to create a new message.
+ */
+export const ExecutionExportabilitySchema: GenMessage<ExecutionExportability> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 18);
 
 /**
  * GetExecutionRequest identifies an execution to retrieve.
@@ -780,7 +857,7 @@ export type GetExecutionRequest = Message<"browser_automation_studio.v1.GetExecu
  * Use `create(GetExecutionRequestSchema)` to create a new message.
  */
 export const GetExecutionRequestSchema: GenMessage<GetExecutionRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_api_service, 18);
+  messageDesc(file_browser_automation_studio_v1_api_service, 19);
 
 /**
  * GetExecutionResponse returns a single execution.
@@ -801,7 +878,7 @@ export type GetExecutionResponse = Message<"browser_automation_studio.v1.GetExec
  * Use `create(GetExecutionResponseSchema)` to create a new message.
  */
 export const GetExecutionResponseSchema: GenMessage<GetExecutionResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_api_service, 19);
+  messageDesc(file_browser_automation_studio_v1_api_service, 20);
 
 /**
  * ValidateWorkflowRequest contains a workflow definition to validate.
@@ -822,7 +899,7 @@ export type ValidateWorkflowRequest = Message<"browser_automation_studio.v1.Vali
  * Use `create(ValidateWorkflowRequestSchema)` to create a new message.
  */
 export const ValidateWorkflowRequestSchema: GenMessage<ValidateWorkflowRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_api_service, 20);
+  messageDesc(file_browser_automation_studio_v1_api_service, 21);
 
 /**
  * ValidateWorkflowResponse wraps the validation result.
@@ -843,7 +920,7 @@ export type ValidateWorkflowResponse = Message<"browser_automation_studio.v1.Val
  * Use `create(ValidateWorkflowResponseSchema)` to create a new message.
  */
 export const ValidateWorkflowResponseSchema: GenMessage<ValidateWorkflowResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_api_service, 21);
+  messageDesc(file_browser_automation_studio_v1_api_service, 22);
 
 /**
  * WorkflowValidationIssue represents a validation error or warning.
@@ -914,7 +991,7 @@ export type WorkflowValidationIssue = Message<"browser_automation_studio.v1.Work
  * Use `create(WorkflowValidationIssueSchema)` to create a new message.
  */
 export const WorkflowValidationIssueSchema: GenMessage<WorkflowValidationIssue> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_api_service, 22);
+  messageDesc(file_browser_automation_studio_v1_api_service, 23);
 
 /**
  * WorkflowValidationStats summarizes the validated workflow.
@@ -977,7 +1054,7 @@ export type WorkflowValidationStats = Message<"browser_automation_studio.v1.Work
  * Use `create(WorkflowValidationStatsSchema)` to create a new message.
  */
 export const WorkflowValidationStatsSchema: GenMessage<WorkflowValidationStats> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_api_service, 23);
+  messageDesc(file_browser_automation_studio_v1_api_service, 24);
 
 /**
  * WorkflowValidationResult is returned by validation endpoints.
@@ -1040,7 +1117,7 @@ export type WorkflowValidationResult = Message<"browser_automation_studio.v1.Wor
  * Use `create(WorkflowValidationResultSchema)` to create a new message.
  */
 export const WorkflowValidationResultSchema: GenMessage<WorkflowValidationResult> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_api_service, 24);
+  messageDesc(file_browser_automation_studio_v1_api_service, 25);
 
 /**
  * RestoreWorkflowVersionResponse wraps the restored workflow and version metadata.
@@ -1068,18 +1145,515 @@ export type RestoreWorkflowVersionResponse = Message<"browser_automation_studio.
  * Use `create(RestoreWorkflowVersionResponseSchema)` to create a new message.
  */
 export const RestoreWorkflowVersionResponseSchema: GenMessage<RestoreWorkflowVersionResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_api_service, 25);
+  messageDesc(file_browser_automation_studio_v1_api_service, 26);
 
 /**
- * WorkflowService declares the core BAS workflow lifecycle operations.
+ * ListWorkflowVersionsRequest identifies the workflow whose versions to list.
  *
- * @generated from service browser_automation_studio.v1.WorkflowService
+ * @generated from message browser_automation_studio.v1.ListWorkflowVersionsRequest
  */
-export const WorkflowService: GenService<{
+export type ListWorkflowVersionsRequest = Message<"browser_automation_studio.v1.ListWorkflowVersionsRequest"> & {
+  /**
+   * Workflow ID whose version history to list.
+   * @format uuid
+   *
+   * @generated from field: string workflow_id = 1;
+   */
+  workflowId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ListWorkflowVersionsRequest.
+ * Use `create(ListWorkflowVersionsRequestSchema)` to create a new message.
+ */
+export const ListWorkflowVersionsRequestSchema: GenMessage<ListWorkflowVersionsRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 27);
+
+/**
+ * GetWorkflowVersionRequest identifies a specific stored version.
+ *
+ * @generated from message browser_automation_studio.v1.GetWorkflowVersionRequest
+ */
+export type GetWorkflowVersionRequest = Message<"browser_automation_studio.v1.GetWorkflowVersionRequest"> & {
+  /**
+   * Workflow ID.
+   * @format uuid
+   *
+   * @generated from field: string workflow_id = 1;
+   */
+  workflowId: string;
+
+  /**
+   * Version number (1-based; must be > 0).
+   *
+   * @generated from field: int32 version = 2;
+   */
+  version: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetWorkflowVersionRequest.
+ * Use `create(GetWorkflowVersionRequestSchema)` to create a new message.
+ */
+export const GetWorkflowVersionRequestSchema: GenMessage<GetWorkflowVersionRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 28);
+
+/**
+ * RestoreWorkflowVersionRequest restores a prior version as the current head.
+ *
+ * @generated from message browser_automation_studio.v1.RestoreWorkflowVersionRequest
+ */
+export type RestoreWorkflowVersionRequest = Message<"browser_automation_studio.v1.RestoreWorkflowVersionRequest"> & {
+  /**
+   * Workflow ID.
+   * @format uuid
+   *
+   * @generated from field: string workflow_id = 1;
+   */
+  workflowId: string;
+
+  /**
+   * Version number to restore.
+   *
+   * @generated from field: int32 version = 2;
+   */
+  version: number;
+
+  /**
+   * Optional human description of why the restore is happening.
+   *
+   * @generated from field: string change_description = 3;
+   */
+  changeDescription: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.RestoreWorkflowVersionRequest.
+ * Use `create(RestoreWorkflowVersionRequestSchema)` to create a new message.
+ */
+export const RestoreWorkflowVersionRequestSchema: GenMessage<RestoreWorkflowVersionRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 29);
+
+/**
+ * ModifyWorkflowRequest applies an AI-driven modification prompt to an existing
+ * workflow definition and persists the result as a new version.
+ *
+ * @generated from message browser_automation_studio.v1.ModifyWorkflowRequest
+ */
+export type ModifyWorkflowRequest = Message<"browser_automation_studio.v1.ModifyWorkflowRequest"> & {
+  /**
+   * Workflow ID to modify.
+   * @format uuid
+   *
+   * @generated from field: string workflow_id = 1;
+   */
+  workflowId: string;
+
+  /**
+   * Natural-language modification prompt.
+   *
+   * @generated from field: string modification_prompt = 2;
+   */
+  modificationPrompt: string;
+
+  /**
+   * Current workflow definition the prompt is being applied to.
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowDefinitionV2 current_flow = 3;
+   */
+  currentFlow?: WorkflowDefinitionV2 | undefined;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ModifyWorkflowRequest.
+ * Use `create(ModifyWorkflowRequestSchema)` to create a new message.
+ */
+export const ModifyWorkflowRequestSchema: GenMessage<ModifyWorkflowRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 30);
+
+/**
+ * GetExecutionTimelineRequest identifies the execution whose timeline should
+ * be returned.
+ *
+ * @generated from message browser_automation_studio.v1.GetExecutionTimelineRequest
+ */
+export type GetExecutionTimelineRequest = Message<"browser_automation_studio.v1.GetExecutionTimelineRequest"> & {
+  /**
+   * Execution ID.
+   * @format uuid
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetExecutionTimelineRequest.
+ * Use `create(GetExecutionTimelineRequestSchema)` to create a new message.
+ */
+export const GetExecutionTimelineRequestSchema: GenMessage<GetExecutionTimelineRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 31);
+
+/**
+ * StopExecutionRequest requests cancellation of a running execution.
+ *
+ * @generated from message browser_automation_studio.v1.StopExecutionRequest
+ */
+export type StopExecutionRequest = Message<"browser_automation_studio.v1.StopExecutionRequest"> & {
+  /**
+   * Execution ID to stop.
+   * @format uuid
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.StopExecutionRequest.
+ * Use `create(StopExecutionRequestSchema)` to create a new message.
+ */
+export const StopExecutionRequestSchema: GenMessage<StopExecutionRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 32);
+
+/**
+ * StopExecutionResponse acknowledges a stop request.
+ *
+ * @generated from message browser_automation_studio.v1.StopExecutionResponse
+ */
+export type StopExecutionResponse = Message<"browser_automation_studio.v1.StopExecutionResponse"> & {
+  /**
+   * Lifecycle status after the stop request was accepted ("stopped").
+   *
+   * @generated from field: string status = 1;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.StopExecutionResponse.
+ * Use `create(StopExecutionResponseSchema)` to create a new message.
+ */
+export const StopExecutionResponseSchema: GenMessage<StopExecutionResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 33);
+
+/**
+ * ResumeExecutionRequest resumes an interrupted execution.
+ *
+ * @generated from message browser_automation_studio.v1.ResumeExecutionRequest
+ */
+export type ResumeExecutionRequest = Message<"browser_automation_studio.v1.ResumeExecutionRequest"> & {
+  /**
+   * Execution ID to resume.
+   * @format uuid
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * Optional override parameters merged with the original execution params.
+   *
+   * @generated from field: common.v1.JsonObject parameters = 2;
+   */
+  parameters?: JsonObject | undefined;
+
+  /**
+   * Optional URL to navigate the browser to before resuming. Useful when the
+   * browser state needs to be re-established after session loss.
+   *
+   * @generated from field: string resume_url = 3;
+   */
+  resumeUrl: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ResumeExecutionRequest.
+ * Use `create(ResumeExecutionRequestSchema)` to create a new message.
+ */
+export const ResumeExecutionRequestSchema: GenMessage<ResumeExecutionRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 34);
+
+/**
+ * ResumeExecutionResponse returns the new execution record created by the
+ * resume operation.
+ *
+ * @generated from message browser_automation_studio.v1.ResumeExecutionResponse
+ */
+export type ResumeExecutionResponse = Message<"browser_automation_studio.v1.ResumeExecutionResponse"> & {
+  /**
+   * The resumed execution.
+   *
+   * @generated from field: browser_automation_studio.v1.Execution execution = 1;
+   */
+  execution?: Execution | undefined;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ResumeExecutionResponse.
+ * Use `create(ResumeExecutionResponseSchema)` to create a new message.
+ */
+export const ResumeExecutionResponseSchema: GenMessage<ResumeExecutionResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 35);
+
+/**
+ * GetExecutionScreenshotsRequest identifies the execution whose screenshots
+ * should be listed.
+ *
+ * @generated from message browser_automation_studio.v1.GetExecutionScreenshotsRequest
+ */
+export type GetExecutionScreenshotsRequest = Message<"browser_automation_studio.v1.GetExecutionScreenshotsRequest"> & {
+  /**
+   * Execution ID.
+   * @format uuid
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetExecutionScreenshotsRequest.
+ * Use `create(GetExecutionScreenshotsRequestSchema)` to create a new message.
+ */
+export const GetExecutionScreenshotsRequestSchema: GenMessage<GetExecutionScreenshotsRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 36);
+
+/**
+ * GetExecutionArtifactsRequest is shared by all artifact-listing RPCs.
+ *
+ * @generated from message browser_automation_studio.v1.GetExecutionArtifactsRequest
+ */
+export type GetExecutionArtifactsRequest = Message<"browser_automation_studio.v1.GetExecutionArtifactsRequest"> & {
+  /**
+   * Execution ID whose artifacts should be listed.
+   * @format uuid
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetExecutionArtifactsRequest.
+ * Use `create(GetExecutionArtifactsRequestSchema)` to create a new message.
+ */
+export const GetExecutionArtifactsRequestSchema: GenMessage<GetExecutionArtifactsRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 37);
+
+/**
+ * ExecutionFileArtifact mirrors the JSON shape returned by the legacy REST
+ * endpoints for recorded HAR, traces, and videos.
+ *
+ * @generated from message browser_automation_studio.v1.ExecutionFileArtifact
+ */
+export type ExecutionFileArtifact = Message<"browser_automation_studio.v1.ExecutionFileArtifact"> & {
+  /**
+   * Filename / identifier within the execution-artifacts folder.
+   *
+   * @generated from field: string artifact_id = 1;
+   */
+  artifactId: string;
+
+  /**
+   * Optional storage URL when the artifact is served via the asset proxy.
+   *
+   * @generated from field: string storage_url = 2;
+   */
+  storageUrl: string;
+
+  /**
+   * Resolved content type (e.g. "application/zip", "video/webm").
+   *
+   * @generated from field: string content_type = 3;
+   */
+  contentType: string;
+
+  /**
+   * Human-readable label (filename without extension).
+   *
+   * @generated from field: string label = 4;
+   */
+  label: string;
+
+  /**
+   * Size in bytes when known.
+   *
+   * @generated from field: optional int64 size_bytes = 5;
+   */
+  sizeBytes?: bigint | undefined;
+
+  /**
+   * Free-form payload metadata (path, size, etc.).
+   *
+   * @generated from field: common.v1.JsonObject payload = 6;
+   */
+  payload?: JsonObject | undefined;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ExecutionFileArtifact.
+ * Use `create(ExecutionFileArtifactSchema)` to create a new message.
+ */
+export const ExecutionFileArtifactSchema: GenMessage<ExecutionFileArtifact> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 38);
+
+/**
+ * GetExecutionVideosResponse returns recorded video artifacts.
+ *
+ * @generated from message browser_automation_studio.v1.GetExecutionVideosResponse
+ */
+export type GetExecutionVideosResponse = Message<"browser_automation_studio.v1.GetExecutionVideosResponse"> & {
+  /**
+   * Execution ID the artifacts belong to.
+   * @format uuid
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * Recorded video artifacts.
+   *
+   * @generated from field: repeated browser_automation_studio.v1.ExecutionFileArtifact videos = 2;
+   */
+  videos: ExecutionFileArtifact[];
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetExecutionVideosResponse.
+ * Use `create(GetExecutionVideosResponseSchema)` to create a new message.
+ */
+export const GetExecutionVideosResponseSchema: GenMessage<GetExecutionVideosResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 39);
+
+/**
+ * GetExecutionTracesResponse returns recorded trace.zip artifacts.
+ *
+ * @generated from message browser_automation_studio.v1.GetExecutionTracesResponse
+ */
+export type GetExecutionTracesResponse = Message<"browser_automation_studio.v1.GetExecutionTracesResponse"> & {
+  /**
+   * Execution ID the artifacts belong to.
+   * @format uuid
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * Recorded Playwright trace artifacts.
+   *
+   * @generated from field: repeated browser_automation_studio.v1.ExecutionFileArtifact traces = 2;
+   */
+  traces: ExecutionFileArtifact[];
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetExecutionTracesResponse.
+ * Use `create(GetExecutionTracesResponseSchema)` to create a new message.
+ */
+export const GetExecutionTracesResponseSchema: GenMessage<GetExecutionTracesResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 40);
+
+/**
+ * GetExecutionHarResponse returns recorded HAR archives.
+ *
+ * @generated from message browser_automation_studio.v1.GetExecutionHarResponse
+ */
+export type GetExecutionHarResponse = Message<"browser_automation_studio.v1.GetExecutionHarResponse"> & {
+  /**
+   * Execution ID the artifacts belong to.
+   * @format uuid
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * Recorded HAR artifacts.
+   *
+   * @generated from field: repeated browser_automation_studio.v1.ExecutionFileArtifact har_files = 2;
+   */
+  harFiles: ExecutionFileArtifact[];
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetExecutionHarResponse.
+ * Use `create(GetExecutionHarResponseSchema)` to create a new message.
+ */
+export const GetExecutionHarResponseSchema: GenMessage<GetExecutionHarResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 41);
+
+/**
+ * ScheduleSeedCleanupRequest schedules a deferred seed cleanup for a previous
+ * execution that ran with seed-apply.
+ *
+ * @generated from message browser_automation_studio.v1.ScheduleSeedCleanupRequest
+ */
+export type ScheduleSeedCleanupRequest = Message<"browser_automation_studio.v1.ScheduleSeedCleanupRequest"> & {
+  /**
+   * Execution ID whose seed should be cleaned up.
+   * @format uuid
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * Opaque cleanup token returned when the seed was applied.
+   *
+   * @generated from field: string cleanup_token = 2;
+   */
+  cleanupToken: string;
+
+  /**
+   * Seed scenario identifier. Defaults to "browser-automation-studio".
+   *
+   * @generated from field: string seed_scenario = 3;
+   */
+  seedScenario: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ScheduleSeedCleanupRequest.
+ * Use `create(ScheduleSeedCleanupRequestSchema)` to create a new message.
+ */
+export const ScheduleSeedCleanupRequestSchema: GenMessage<ScheduleSeedCleanupRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 42);
+
+/**
+ * ScheduleSeedCleanupResponse acknowledges that the cleanup has been
+ * scheduled with the seed-cleanup manager.
+ *
+ * @generated from message browser_automation_studio.v1.ScheduleSeedCleanupResponse
+ */
+export type ScheduleSeedCleanupResponse = Message<"browser_automation_studio.v1.ScheduleSeedCleanupResponse"> & {
+  /**
+   * Always "scheduled" on success.
+   *
+   * @generated from field: string status = 1;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ScheduleSeedCleanupResponse.
+ * Use `create(ScheduleSeedCleanupResponseSchema)` to create a new message.
+ */
+export const ScheduleSeedCleanupResponseSchema: GenMessage<ScheduleSeedCleanupResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_api_service, 43);
+
+/**
+ * WorkflowsService declares the core BAS workflow lifecycle operations.
+ *
+ * @generated from service browser_automation_studio.v1.WorkflowsService
+ */
+export const WorkflowsService: GenService<{
   /**
    * Lists workflows, optionally filtered by project.
    *
-   * @generated from rpc browser_automation_studio.v1.WorkflowService.ListWorkflows
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.ListWorkflows
    */
   listWorkflows: {
     methodKind: "unary";
@@ -1089,7 +1663,7 @@ export const WorkflowService: GenService<{
   /**
    * Gets a workflow by ID.
    *
-   * @generated from rpc browser_automation_studio.v1.WorkflowService.GetWorkflow
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.GetWorkflow
    */
   getWorkflow: {
     methodKind: "unary";
@@ -1099,7 +1673,7 @@ export const WorkflowService: GenService<{
   /**
    * Creates a new workflow in a project.
    *
-   * @generated from rpc browser_automation_studio.v1.WorkflowService.CreateWorkflow
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.CreateWorkflow
    */
   createWorkflow: {
     methodKind: "unary";
@@ -1109,7 +1683,7 @@ export const WorkflowService: GenService<{
   /**
    * Updates a workflow definition and metadata.
    *
-   * @generated from rpc browser_automation_studio.v1.WorkflowService.UpdateWorkflow
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.UpdateWorkflow
    */
   updateWorkflow: {
     methodKind: "unary";
@@ -1119,7 +1693,7 @@ export const WorkflowService: GenService<{
   /**
    * Deletes a workflow by ID.
    *
-   * @generated from rpc browser_automation_studio.v1.WorkflowService.DeleteWorkflow
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.DeleteWorkflow
    */
   deleteWorkflow: {
     methodKind: "unary";
@@ -1127,9 +1701,9 @@ export const WorkflowService: GenService<{
     output: typeof DeleteWorkflowResponseSchema;
   },
   /**
-   * Executes a workflow by ID/version with optional parameters.
+   * Executes a persisted workflow by ID/version with optional parameters.
    *
-   * @generated from rpc browser_automation_studio.v1.WorkflowService.ExecuteWorkflow
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.ExecuteWorkflow
    */
   executeWorkflow: {
     methodKind: "unary";
@@ -1137,9 +1711,19 @@ export const WorkflowService: GenService<{
     output: typeof ExecuteWorkflowResponseSchema;
   },
   /**
+   * Executes a workflow definition without persisting it.
+   *
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.ExecuteAdhocWorkflow
+   */
+  executeAdhocWorkflow: {
+    methodKind: "unary";
+    input: typeof ExecuteAdhocRequestSchema;
+    output: typeof ExecuteAdhocResponseSchema;
+  },
+  /**
    * Validates a workflow definition and returns warnings/errors.
    *
-   * @generated from rpc browser_automation_studio.v1.WorkflowService.ValidateWorkflow
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.ValidateWorkflow
    */
   validateWorkflow: {
     methodKind: "unary";
@@ -1147,9 +1731,71 @@ export const WorkflowService: GenService<{
     output: typeof ValidateWorkflowResponseSchema;
   },
   /**
-   * Lists executions, optionally filtered by workflow.
+   * Validates a workflow definition that has already had its tokens resolved.
    *
-   * @generated from rpc browser_automation_studio.v1.WorkflowService.ListExecutions
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.ValidateResolvedWorkflow
+   */
+  validateResolvedWorkflow: {
+    methodKind: "unary";
+    input: typeof ValidateWorkflowRequestSchema;
+    output: typeof ValidateWorkflowResponseSchema;
+  },
+  /**
+   * Applies an AI modification prompt to a workflow definition and persists it.
+   *
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.ModifyWorkflow
+   */
+  modifyWorkflow: {
+    methodKind: "unary";
+    input: typeof ModifyWorkflowRequestSchema;
+    output: typeof UpdateWorkflowResponseSchema;
+  },
+  /**
+   * Lists all stored versions of a workflow, ordered newest-first.
+   *
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.ListWorkflowVersions
+   */
+  listWorkflowVersions: {
+    methodKind: "unary";
+    input: typeof ListWorkflowVersionsRequestSchema;
+    output: typeof WorkflowVersionListSchema;
+  },
+  /**
+   * Gets a single stored version of a workflow.
+   *
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.GetWorkflowVersion
+   */
+  getWorkflowVersion: {
+    methodKind: "unary";
+    input: typeof GetWorkflowVersionRequestSchema;
+    output: typeof WorkflowVersionSchema;
+  },
+  /**
+   * Restores a previous version as the current head of the workflow.
+   *
+   * @generated from rpc browser_automation_studio.v1.WorkflowsService.RestoreWorkflowVersion
+   */
+  restoreWorkflowVersion: {
+    methodKind: "unary";
+    input: typeof RestoreWorkflowVersionRequestSchema;
+    output: typeof RestoreWorkflowVersionResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_browser_automation_studio_v1_api_service, 0);
+
+/**
+ * ExecutionsService declares execution-state queries and lifecycle controls.
+ * All execution-artifact metadata listings (screenshots, videos, traces, HAR)
+ * are JSON RPCs here; binary artifact downloads and replay-export streaming
+ * remain REST under explicit RESTException markers.
+ *
+ * @generated from service browser_automation_studio.v1.ExecutionsService
+ */
+export const ExecutionsService: GenService<{
+  /**
+   * Lists executions, optionally filtered by workflow or project.
+   *
+   * @generated from rpc browser_automation_studio.v1.ExecutionsService.ListExecutions
    */
   listExecutions: {
     methodKind: "unary";
@@ -1157,15 +1803,95 @@ export const WorkflowService: GenService<{
     output: typeof ListExecutionsResponseSchema;
   },
   /**
-   * Gets an execution by ID.
+   * Gets a single execution by ID, hydrated from the on-disk snapshot.
    *
-   * @generated from rpc browser_automation_studio.v1.WorkflowService.GetExecution
+   * @generated from rpc browser_automation_studio.v1.ExecutionsService.GetExecution
    */
   getExecution: {
     methodKind: "unary";
     input: typeof GetExecutionRequestSchema;
     output: typeof GetExecutionResponseSchema;
   },
+  /**
+   * Gets the proto timeline (preferred) or the legacy timeline of an execution.
+   *
+   * @generated from rpc browser_automation_studio.v1.ExecutionsService.GetExecutionTimeline
+   */
+  getExecutionTimeline: {
+    methodKind: "unary";
+    input: typeof GetExecutionTimelineRequestSchema;
+    output: typeof ExecutionTimelineSchema;
+  },
+  /**
+   * Stops a running execution.
+   *
+   * @generated from rpc browser_automation_studio.v1.ExecutionsService.StopExecution
+   */
+  stopExecution: {
+    methodKind: "unary";
+    input: typeof StopExecutionRequestSchema;
+    output: typeof StopExecutionResponseSchema;
+  },
+  /**
+   * Resumes an interrupted execution from its last checkpoint.
+   *
+   * @generated from rpc browser_automation_studio.v1.ExecutionsService.ResumeExecution
+   */
+  resumeExecution: {
+    methodKind: "unary";
+    input: typeof ResumeExecutionRequestSchema;
+    output: typeof ResumeExecutionResponseSchema;
+  },
+  /**
+   * Lists screenshots captured during an execution.
+   *
+   * @generated from rpc browser_automation_studio.v1.ExecutionsService.GetExecutionScreenshots
+   */
+  getExecutionScreenshots: {
+    methodKind: "unary";
+    input: typeof GetExecutionScreenshotsRequestSchema;
+    output: typeof GetScreenshotsResponseSchema;
+  },
+  /**
+   * Lists recorded video artifacts for an execution.
+   *
+   * @generated from rpc browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedVideos
+   */
+  getExecutionRecordedVideos: {
+    methodKind: "unary";
+    input: typeof GetExecutionArtifactsRequestSchema;
+    output: typeof GetExecutionVideosResponseSchema;
+  },
+  /**
+   * Lists recorded Playwright trace artifacts for an execution.
+   *
+   * @generated from rpc browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedTraces
+   */
+  getExecutionRecordedTraces: {
+    methodKind: "unary";
+    input: typeof GetExecutionArtifactsRequestSchema;
+    output: typeof GetExecutionTracesResponseSchema;
+  },
+  /**
+   * Lists recorded HAR artifacts for an execution.
+   *
+   * @generated from rpc browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedHar
+   */
+  getExecutionRecordedHar: {
+    methodKind: "unary";
+    input: typeof GetExecutionArtifactsRequestSchema;
+    output: typeof GetExecutionHarResponseSchema;
+  },
+  /**
+   * Schedules deferred seed cleanup for a previously executed seed scenario.
+   *
+   * @generated from rpc browser_automation_studio.v1.ExecutionsService.ScheduleExecutionSeedCleanup
+   */
+  scheduleExecutionSeedCleanup: {
+    methodKind: "unary";
+    input: typeof ScheduleSeedCleanupRequestSchema;
+    output: typeof ScheduleSeedCleanupResponseSchema;
+  },
 }> = /*@__PURE__*/
-  serviceDesc(file_browser_automation_studio_v1_api_service, 0);
+  serviceDesc(file_browser_automation_studio_v1_api_service, 1);
 

@@ -213,16 +213,38 @@ class Execution(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., trigger_type: _Optional[_Union[_shared_pb2.TriggerType, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_heartbeat_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ..., progress: _Optional[int] = ..., current_step: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ..., result: _Optional[_Union[ExecutionResult, _Mapping]] = ..., trigger_metadata: _Optional[_Union[TriggerMetadata, _Mapping]] = ..., trace_id: _Optional[str] = ..., correlation_id: _Optional[str] = ..., request_id: _Optional[str] = ..., resumed_from: _Optional[str] = ...) -> None: ...
 
 class ExecuteAdhocRequest(_message.Message):
-    __slots__ = ("flow_definition", "wait_for_completion", "metadata", "parameters")
+    __slots__ = ("flow_definition", "wait_for_completion", "metadata", "parameters", "options")
     FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     WAIT_FOR_COMPLETION_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
     flow_definition: _definition_pb2.WorkflowDefinitionV2
     wait_for_completion: bool
     metadata: ExecutionMetadata
     parameters: ExecutionParameters
-    def __init__(self, flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ..., wait_for_completion: _Optional[bool] = ..., metadata: _Optional[_Union[ExecutionMetadata, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ...) -> None: ...
+    options: ExecuteWorkflowOptions
+    def __init__(self, flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ..., wait_for_completion: _Optional[bool] = ..., metadata: _Optional[_Union[ExecutionMetadata, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ..., options: _Optional[_Union[ExecuteWorkflowOptions, _Mapping]] = ...) -> None: ...
+
+class ExecuteWorkflowOptions(_message.Message):
+    __slots__ = ("requires_video", "requires_trace", "requires_har", "frame_streaming", "frame_streaming_quality", "frame_streaming_fps", "seed_mode", "seed_scenario")
+    REQUIRES_VIDEO_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_TRACE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_HAR_FIELD_NUMBER: _ClassVar[int]
+    FRAME_STREAMING_FIELD_NUMBER: _ClassVar[int]
+    FRAME_STREAMING_QUALITY_FIELD_NUMBER: _ClassVar[int]
+    FRAME_STREAMING_FPS_FIELD_NUMBER: _ClassVar[int]
+    SEED_MODE_FIELD_NUMBER: _ClassVar[int]
+    SEED_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    requires_video: bool
+    requires_trace: bool
+    requires_har: bool
+    frame_streaming: bool
+    frame_streaming_quality: int
+    frame_streaming_fps: int
+    seed_mode: str
+    seed_scenario: str
+    def __init__(self, requires_video: _Optional[bool] = ..., requires_trace: _Optional[bool] = ..., requires_har: _Optional[bool] = ..., frame_streaming: _Optional[bool] = ..., frame_streaming_quality: _Optional[int] = ..., frame_streaming_fps: _Optional[int] = ..., seed_mode: _Optional[str] = ..., seed_scenario: _Optional[str] = ...) -> None: ...
 
 class ExecutionMetadata(_message.Message):
     __slots__ = ("name", "description")

@@ -9,6 +9,8 @@ import (
 	context "context"
 	errors "errors"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	execution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	timeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	http "net/http"
 	strings "strings"
 )
@@ -21,8 +23,10 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// WorkflowServiceName is the fully-qualified name of the WorkflowService service.
-	WorkflowServiceName = "browser_automation_studio.v1.WorkflowService"
+	// WorkflowsServiceName is the fully-qualified name of the WorkflowsService service.
+	WorkflowsServiceName = "browser_automation_studio.v1.WorkflowsService"
+	// ExecutionsServiceName is the fully-qualified name of the ExecutionsService service.
+	ExecutionsServiceName = "browser_automation_studio.v1.ExecutionsService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,37 +37,79 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// WorkflowServiceListWorkflowsProcedure is the fully-qualified name of the WorkflowService's
+	// WorkflowsServiceListWorkflowsProcedure is the fully-qualified name of the WorkflowsService's
 	// ListWorkflows RPC.
-	WorkflowServiceListWorkflowsProcedure = "/browser_automation_studio.v1.WorkflowService/ListWorkflows"
-	// WorkflowServiceGetWorkflowProcedure is the fully-qualified name of the WorkflowService's
+	WorkflowsServiceListWorkflowsProcedure = "/browser_automation_studio.v1.WorkflowsService/ListWorkflows"
+	// WorkflowsServiceGetWorkflowProcedure is the fully-qualified name of the WorkflowsService's
 	// GetWorkflow RPC.
-	WorkflowServiceGetWorkflowProcedure = "/browser_automation_studio.v1.WorkflowService/GetWorkflow"
-	// WorkflowServiceCreateWorkflowProcedure is the fully-qualified name of the WorkflowService's
+	WorkflowsServiceGetWorkflowProcedure = "/browser_automation_studio.v1.WorkflowsService/GetWorkflow"
+	// WorkflowsServiceCreateWorkflowProcedure is the fully-qualified name of the WorkflowsService's
 	// CreateWorkflow RPC.
-	WorkflowServiceCreateWorkflowProcedure = "/browser_automation_studio.v1.WorkflowService/CreateWorkflow"
-	// WorkflowServiceUpdateWorkflowProcedure is the fully-qualified name of the WorkflowService's
+	WorkflowsServiceCreateWorkflowProcedure = "/browser_automation_studio.v1.WorkflowsService/CreateWorkflow"
+	// WorkflowsServiceUpdateWorkflowProcedure is the fully-qualified name of the WorkflowsService's
 	// UpdateWorkflow RPC.
-	WorkflowServiceUpdateWorkflowProcedure = "/browser_automation_studio.v1.WorkflowService/UpdateWorkflow"
-	// WorkflowServiceDeleteWorkflowProcedure is the fully-qualified name of the WorkflowService's
+	WorkflowsServiceUpdateWorkflowProcedure = "/browser_automation_studio.v1.WorkflowsService/UpdateWorkflow"
+	// WorkflowsServiceDeleteWorkflowProcedure is the fully-qualified name of the WorkflowsService's
 	// DeleteWorkflow RPC.
-	WorkflowServiceDeleteWorkflowProcedure = "/browser_automation_studio.v1.WorkflowService/DeleteWorkflow"
-	// WorkflowServiceExecuteWorkflowProcedure is the fully-qualified name of the WorkflowService's
+	WorkflowsServiceDeleteWorkflowProcedure = "/browser_automation_studio.v1.WorkflowsService/DeleteWorkflow"
+	// WorkflowsServiceExecuteWorkflowProcedure is the fully-qualified name of the WorkflowsService's
 	// ExecuteWorkflow RPC.
-	WorkflowServiceExecuteWorkflowProcedure = "/browser_automation_studio.v1.WorkflowService/ExecuteWorkflow"
-	// WorkflowServiceValidateWorkflowProcedure is the fully-qualified name of the WorkflowService's
+	WorkflowsServiceExecuteWorkflowProcedure = "/browser_automation_studio.v1.WorkflowsService/ExecuteWorkflow"
+	// WorkflowsServiceExecuteAdhocWorkflowProcedure is the fully-qualified name of the
+	// WorkflowsService's ExecuteAdhocWorkflow RPC.
+	WorkflowsServiceExecuteAdhocWorkflowProcedure = "/browser_automation_studio.v1.WorkflowsService/ExecuteAdhocWorkflow"
+	// WorkflowsServiceValidateWorkflowProcedure is the fully-qualified name of the WorkflowsService's
 	// ValidateWorkflow RPC.
-	WorkflowServiceValidateWorkflowProcedure = "/browser_automation_studio.v1.WorkflowService/ValidateWorkflow"
-	// WorkflowServiceListExecutionsProcedure is the fully-qualified name of the WorkflowService's
+	WorkflowsServiceValidateWorkflowProcedure = "/browser_automation_studio.v1.WorkflowsService/ValidateWorkflow"
+	// WorkflowsServiceValidateResolvedWorkflowProcedure is the fully-qualified name of the
+	// WorkflowsService's ValidateResolvedWorkflow RPC.
+	WorkflowsServiceValidateResolvedWorkflowProcedure = "/browser_automation_studio.v1.WorkflowsService/ValidateResolvedWorkflow"
+	// WorkflowsServiceModifyWorkflowProcedure is the fully-qualified name of the WorkflowsService's
+	// ModifyWorkflow RPC.
+	WorkflowsServiceModifyWorkflowProcedure = "/browser_automation_studio.v1.WorkflowsService/ModifyWorkflow"
+	// WorkflowsServiceListWorkflowVersionsProcedure is the fully-qualified name of the
+	// WorkflowsService's ListWorkflowVersions RPC.
+	WorkflowsServiceListWorkflowVersionsProcedure = "/browser_automation_studio.v1.WorkflowsService/ListWorkflowVersions"
+	// WorkflowsServiceGetWorkflowVersionProcedure is the fully-qualified name of the WorkflowsService's
+	// GetWorkflowVersion RPC.
+	WorkflowsServiceGetWorkflowVersionProcedure = "/browser_automation_studio.v1.WorkflowsService/GetWorkflowVersion"
+	// WorkflowsServiceRestoreWorkflowVersionProcedure is the fully-qualified name of the
+	// WorkflowsService's RestoreWorkflowVersion RPC.
+	WorkflowsServiceRestoreWorkflowVersionProcedure = "/browser_automation_studio.v1.WorkflowsService/RestoreWorkflowVersion"
+	// ExecutionsServiceListExecutionsProcedure is the fully-qualified name of the ExecutionsService's
 	// ListExecutions RPC.
-	WorkflowServiceListExecutionsProcedure = "/browser_automation_studio.v1.WorkflowService/ListExecutions"
-	// WorkflowServiceGetExecutionProcedure is the fully-qualified name of the WorkflowService's
+	ExecutionsServiceListExecutionsProcedure = "/browser_automation_studio.v1.ExecutionsService/ListExecutions"
+	// ExecutionsServiceGetExecutionProcedure is the fully-qualified name of the ExecutionsService's
 	// GetExecution RPC.
-	WorkflowServiceGetExecutionProcedure = "/browser_automation_studio.v1.WorkflowService/GetExecution"
+	ExecutionsServiceGetExecutionProcedure = "/browser_automation_studio.v1.ExecutionsService/GetExecution"
+	// ExecutionsServiceGetExecutionTimelineProcedure is the fully-qualified name of the
+	// ExecutionsService's GetExecutionTimeline RPC.
+	ExecutionsServiceGetExecutionTimelineProcedure = "/browser_automation_studio.v1.ExecutionsService/GetExecutionTimeline"
+	// ExecutionsServiceStopExecutionProcedure is the fully-qualified name of the ExecutionsService's
+	// StopExecution RPC.
+	ExecutionsServiceStopExecutionProcedure = "/browser_automation_studio.v1.ExecutionsService/StopExecution"
+	// ExecutionsServiceResumeExecutionProcedure is the fully-qualified name of the ExecutionsService's
+	// ResumeExecution RPC.
+	ExecutionsServiceResumeExecutionProcedure = "/browser_automation_studio.v1.ExecutionsService/ResumeExecution"
+	// ExecutionsServiceGetExecutionScreenshotsProcedure is the fully-qualified name of the
+	// ExecutionsService's GetExecutionScreenshots RPC.
+	ExecutionsServiceGetExecutionScreenshotsProcedure = "/browser_automation_studio.v1.ExecutionsService/GetExecutionScreenshots"
+	// ExecutionsServiceGetExecutionRecordedVideosProcedure is the fully-qualified name of the
+	// ExecutionsService's GetExecutionRecordedVideos RPC.
+	ExecutionsServiceGetExecutionRecordedVideosProcedure = "/browser_automation_studio.v1.ExecutionsService/GetExecutionRecordedVideos"
+	// ExecutionsServiceGetExecutionRecordedTracesProcedure is the fully-qualified name of the
+	// ExecutionsService's GetExecutionRecordedTraces RPC.
+	ExecutionsServiceGetExecutionRecordedTracesProcedure = "/browser_automation_studio.v1.ExecutionsService/GetExecutionRecordedTraces"
+	// ExecutionsServiceGetExecutionRecordedHarProcedure is the fully-qualified name of the
+	// ExecutionsService's GetExecutionRecordedHar RPC.
+	ExecutionsServiceGetExecutionRecordedHarProcedure = "/browser_automation_studio.v1.ExecutionsService/GetExecutionRecordedHar"
+	// ExecutionsServiceScheduleExecutionSeedCleanupProcedure is the fully-qualified name of the
+	// ExecutionsService's ScheduleExecutionSeedCleanup RPC.
+	ExecutionsServiceScheduleExecutionSeedCleanupProcedure = "/browser_automation_studio.v1.ExecutionsService/ScheduleExecutionSeedCleanup"
 )
 
-// WorkflowServiceClient is a client for the browser_automation_studio.v1.WorkflowService service.
-type WorkflowServiceClient interface {
+// WorkflowsServiceClient is a client for the browser_automation_studio.v1.WorkflowsService service.
+type WorkflowsServiceClient interface {
 	// Lists workflows, optionally filtered by project.
 	ListWorkflows(context.Context, *connect.Request[api.ListWorkflowsRequest]) (*connect.Response[api.ListWorkflowsResponse], error)
 	// Gets a workflow by ID.
@@ -74,145 +120,204 @@ type WorkflowServiceClient interface {
 	UpdateWorkflow(context.Context, *connect.Request[api.UpdateWorkflowRequest]) (*connect.Response[api.UpdateWorkflowResponse], error)
 	// Deletes a workflow by ID.
 	DeleteWorkflow(context.Context, *connect.Request[api.DeleteWorkflowRequest]) (*connect.Response[api.DeleteWorkflowResponse], error)
-	// Executes a workflow by ID/version with optional parameters.
+	// Executes a persisted workflow by ID/version with optional parameters.
 	ExecuteWorkflow(context.Context, *connect.Request[api.ExecuteWorkflowRequest]) (*connect.Response[api.ExecuteWorkflowResponse], error)
+	// Executes a workflow definition without persisting it.
+	ExecuteAdhocWorkflow(context.Context, *connect.Request[execution.ExecuteAdhocRequest]) (*connect.Response[execution.ExecuteAdhocResponse], error)
 	// Validates a workflow definition and returns warnings/errors.
 	ValidateWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error)
-	// Lists executions, optionally filtered by workflow.
-	ListExecutions(context.Context, *connect.Request[api.ListExecutionsRequest]) (*connect.Response[api.ListExecutionsResponse], error)
-	// Gets an execution by ID.
-	GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error)
+	// Validates a workflow definition that has already had its tokens resolved.
+	ValidateResolvedWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error)
+	// Applies an AI modification prompt to a workflow definition and persists it.
+	ModifyWorkflow(context.Context, *connect.Request[api.ModifyWorkflowRequest]) (*connect.Response[api.UpdateWorkflowResponse], error)
+	// Lists all stored versions of a workflow, ordered newest-first.
+	ListWorkflowVersions(context.Context, *connect.Request[api.ListWorkflowVersionsRequest]) (*connect.Response[api.WorkflowVersionList], error)
+	// Gets a single stored version of a workflow.
+	GetWorkflowVersion(context.Context, *connect.Request[api.GetWorkflowVersionRequest]) (*connect.Response[api.WorkflowVersion], error)
+	// Restores a previous version as the current head of the workflow.
+	RestoreWorkflowVersion(context.Context, *connect.Request[api.RestoreWorkflowVersionRequest]) (*connect.Response[api.RestoreWorkflowVersionResponse], error)
 }
 
-// NewWorkflowServiceClient constructs a client for the browser_automation_studio.v1.WorkflowService
-// service. By default, it uses the Connect protocol with the binary Protobuf Codec, asks for
-// gzipped responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply
-// the connect.WithGRPC() or connect.WithGRPCWeb() options.
+// NewWorkflowsServiceClient constructs a client for the
+// browser_automation_studio.v1.WorkflowsService service. By default, it uses the Connect protocol
+// with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed requests. To
+// use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or connect.WithGRPCWeb()
+// options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewWorkflowServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) WorkflowServiceClient {
+func NewWorkflowsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) WorkflowsServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	workflowServiceMethods := api.File_browser_automation_studio_v1_api_service_proto.Services().ByName("WorkflowService").Methods()
-	return &workflowServiceClient{
+	workflowsServiceMethods := api.File_browser_automation_studio_v1_api_service_proto.Services().ByName("WorkflowsService").Methods()
+	return &workflowsServiceClient{
 		listWorkflows: connect.NewClient[api.ListWorkflowsRequest, api.ListWorkflowsResponse](
 			httpClient,
-			baseURL+WorkflowServiceListWorkflowsProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("ListWorkflows")),
+			baseURL+WorkflowsServiceListWorkflowsProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("ListWorkflows")),
 			connect.WithClientOptions(opts...),
 		),
 		getWorkflow: connect.NewClient[api.GetWorkflowRequest, api.GetWorkflowResponse](
 			httpClient,
-			baseURL+WorkflowServiceGetWorkflowProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("GetWorkflow")),
+			baseURL+WorkflowsServiceGetWorkflowProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("GetWorkflow")),
 			connect.WithClientOptions(opts...),
 		),
 		createWorkflow: connect.NewClient[api.CreateWorkflowRequest, api.CreateWorkflowResponse](
 			httpClient,
-			baseURL+WorkflowServiceCreateWorkflowProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("CreateWorkflow")),
+			baseURL+WorkflowsServiceCreateWorkflowProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("CreateWorkflow")),
 			connect.WithClientOptions(opts...),
 		),
 		updateWorkflow: connect.NewClient[api.UpdateWorkflowRequest, api.UpdateWorkflowResponse](
 			httpClient,
-			baseURL+WorkflowServiceUpdateWorkflowProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("UpdateWorkflow")),
+			baseURL+WorkflowsServiceUpdateWorkflowProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("UpdateWorkflow")),
 			connect.WithClientOptions(opts...),
 		),
 		deleteWorkflow: connect.NewClient[api.DeleteWorkflowRequest, api.DeleteWorkflowResponse](
 			httpClient,
-			baseURL+WorkflowServiceDeleteWorkflowProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("DeleteWorkflow")),
+			baseURL+WorkflowsServiceDeleteWorkflowProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("DeleteWorkflow")),
 			connect.WithClientOptions(opts...),
 		),
 		executeWorkflow: connect.NewClient[api.ExecuteWorkflowRequest, api.ExecuteWorkflowResponse](
 			httpClient,
-			baseURL+WorkflowServiceExecuteWorkflowProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("ExecuteWorkflow")),
+			baseURL+WorkflowsServiceExecuteWorkflowProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("ExecuteWorkflow")),
+			connect.WithClientOptions(opts...),
+		),
+		executeAdhocWorkflow: connect.NewClient[execution.ExecuteAdhocRequest, execution.ExecuteAdhocResponse](
+			httpClient,
+			baseURL+WorkflowsServiceExecuteAdhocWorkflowProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("ExecuteAdhocWorkflow")),
 			connect.WithClientOptions(opts...),
 		),
 		validateWorkflow: connect.NewClient[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse](
 			httpClient,
-			baseURL+WorkflowServiceValidateWorkflowProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("ValidateWorkflow")),
+			baseURL+WorkflowsServiceValidateWorkflowProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("ValidateWorkflow")),
 			connect.WithClientOptions(opts...),
 		),
-		listExecutions: connect.NewClient[api.ListExecutionsRequest, api.ListExecutionsResponse](
+		validateResolvedWorkflow: connect.NewClient[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse](
 			httpClient,
-			baseURL+WorkflowServiceListExecutionsProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("ListExecutions")),
+			baseURL+WorkflowsServiceValidateResolvedWorkflowProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("ValidateResolvedWorkflow")),
 			connect.WithClientOptions(opts...),
 		),
-		getExecution: connect.NewClient[api.GetExecutionRequest, api.GetExecutionResponse](
+		modifyWorkflow: connect.NewClient[api.ModifyWorkflowRequest, api.UpdateWorkflowResponse](
 			httpClient,
-			baseURL+WorkflowServiceGetExecutionProcedure,
-			connect.WithSchema(workflowServiceMethods.ByName("GetExecution")),
+			baseURL+WorkflowsServiceModifyWorkflowProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("ModifyWorkflow")),
+			connect.WithClientOptions(opts...),
+		),
+		listWorkflowVersions: connect.NewClient[api.ListWorkflowVersionsRequest, api.WorkflowVersionList](
+			httpClient,
+			baseURL+WorkflowsServiceListWorkflowVersionsProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("ListWorkflowVersions")),
+			connect.WithClientOptions(opts...),
+		),
+		getWorkflowVersion: connect.NewClient[api.GetWorkflowVersionRequest, api.WorkflowVersion](
+			httpClient,
+			baseURL+WorkflowsServiceGetWorkflowVersionProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("GetWorkflowVersion")),
+			connect.WithClientOptions(opts...),
+		),
+		restoreWorkflowVersion: connect.NewClient[api.RestoreWorkflowVersionRequest, api.RestoreWorkflowVersionResponse](
+			httpClient,
+			baseURL+WorkflowsServiceRestoreWorkflowVersionProcedure,
+			connect.WithSchema(workflowsServiceMethods.ByName("RestoreWorkflowVersion")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// workflowServiceClient implements WorkflowServiceClient.
-type workflowServiceClient struct {
-	listWorkflows    *connect.Client[api.ListWorkflowsRequest, api.ListWorkflowsResponse]
-	getWorkflow      *connect.Client[api.GetWorkflowRequest, api.GetWorkflowResponse]
-	createWorkflow   *connect.Client[api.CreateWorkflowRequest, api.CreateWorkflowResponse]
-	updateWorkflow   *connect.Client[api.UpdateWorkflowRequest, api.UpdateWorkflowResponse]
-	deleteWorkflow   *connect.Client[api.DeleteWorkflowRequest, api.DeleteWorkflowResponse]
-	executeWorkflow  *connect.Client[api.ExecuteWorkflowRequest, api.ExecuteWorkflowResponse]
-	validateWorkflow *connect.Client[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse]
-	listExecutions   *connect.Client[api.ListExecutionsRequest, api.ListExecutionsResponse]
-	getExecution     *connect.Client[api.GetExecutionRequest, api.GetExecutionResponse]
+// workflowsServiceClient implements WorkflowsServiceClient.
+type workflowsServiceClient struct {
+	listWorkflows            *connect.Client[api.ListWorkflowsRequest, api.ListWorkflowsResponse]
+	getWorkflow              *connect.Client[api.GetWorkflowRequest, api.GetWorkflowResponse]
+	createWorkflow           *connect.Client[api.CreateWorkflowRequest, api.CreateWorkflowResponse]
+	updateWorkflow           *connect.Client[api.UpdateWorkflowRequest, api.UpdateWorkflowResponse]
+	deleteWorkflow           *connect.Client[api.DeleteWorkflowRequest, api.DeleteWorkflowResponse]
+	executeWorkflow          *connect.Client[api.ExecuteWorkflowRequest, api.ExecuteWorkflowResponse]
+	executeAdhocWorkflow     *connect.Client[execution.ExecuteAdhocRequest, execution.ExecuteAdhocResponse]
+	validateWorkflow         *connect.Client[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse]
+	validateResolvedWorkflow *connect.Client[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse]
+	modifyWorkflow           *connect.Client[api.ModifyWorkflowRequest, api.UpdateWorkflowResponse]
+	listWorkflowVersions     *connect.Client[api.ListWorkflowVersionsRequest, api.WorkflowVersionList]
+	getWorkflowVersion       *connect.Client[api.GetWorkflowVersionRequest, api.WorkflowVersion]
+	restoreWorkflowVersion   *connect.Client[api.RestoreWorkflowVersionRequest, api.RestoreWorkflowVersionResponse]
 }
 
-// ListWorkflows calls browser_automation_studio.v1.WorkflowService.ListWorkflows.
-func (c *workflowServiceClient) ListWorkflows(ctx context.Context, req *connect.Request[api.ListWorkflowsRequest]) (*connect.Response[api.ListWorkflowsResponse], error) {
+// ListWorkflows calls browser_automation_studio.v1.WorkflowsService.ListWorkflows.
+func (c *workflowsServiceClient) ListWorkflows(ctx context.Context, req *connect.Request[api.ListWorkflowsRequest]) (*connect.Response[api.ListWorkflowsResponse], error) {
 	return c.listWorkflows.CallUnary(ctx, req)
 }
 
-// GetWorkflow calls browser_automation_studio.v1.WorkflowService.GetWorkflow.
-func (c *workflowServiceClient) GetWorkflow(ctx context.Context, req *connect.Request[api.GetWorkflowRequest]) (*connect.Response[api.GetWorkflowResponse], error) {
+// GetWorkflow calls browser_automation_studio.v1.WorkflowsService.GetWorkflow.
+func (c *workflowsServiceClient) GetWorkflow(ctx context.Context, req *connect.Request[api.GetWorkflowRequest]) (*connect.Response[api.GetWorkflowResponse], error) {
 	return c.getWorkflow.CallUnary(ctx, req)
 }
 
-// CreateWorkflow calls browser_automation_studio.v1.WorkflowService.CreateWorkflow.
-func (c *workflowServiceClient) CreateWorkflow(ctx context.Context, req *connect.Request[api.CreateWorkflowRequest]) (*connect.Response[api.CreateWorkflowResponse], error) {
+// CreateWorkflow calls browser_automation_studio.v1.WorkflowsService.CreateWorkflow.
+func (c *workflowsServiceClient) CreateWorkflow(ctx context.Context, req *connect.Request[api.CreateWorkflowRequest]) (*connect.Response[api.CreateWorkflowResponse], error) {
 	return c.createWorkflow.CallUnary(ctx, req)
 }
 
-// UpdateWorkflow calls browser_automation_studio.v1.WorkflowService.UpdateWorkflow.
-func (c *workflowServiceClient) UpdateWorkflow(ctx context.Context, req *connect.Request[api.UpdateWorkflowRequest]) (*connect.Response[api.UpdateWorkflowResponse], error) {
+// UpdateWorkflow calls browser_automation_studio.v1.WorkflowsService.UpdateWorkflow.
+func (c *workflowsServiceClient) UpdateWorkflow(ctx context.Context, req *connect.Request[api.UpdateWorkflowRequest]) (*connect.Response[api.UpdateWorkflowResponse], error) {
 	return c.updateWorkflow.CallUnary(ctx, req)
 }
 
-// DeleteWorkflow calls browser_automation_studio.v1.WorkflowService.DeleteWorkflow.
-func (c *workflowServiceClient) DeleteWorkflow(ctx context.Context, req *connect.Request[api.DeleteWorkflowRequest]) (*connect.Response[api.DeleteWorkflowResponse], error) {
+// DeleteWorkflow calls browser_automation_studio.v1.WorkflowsService.DeleteWorkflow.
+func (c *workflowsServiceClient) DeleteWorkflow(ctx context.Context, req *connect.Request[api.DeleteWorkflowRequest]) (*connect.Response[api.DeleteWorkflowResponse], error) {
 	return c.deleteWorkflow.CallUnary(ctx, req)
 }
 
-// ExecuteWorkflow calls browser_automation_studio.v1.WorkflowService.ExecuteWorkflow.
-func (c *workflowServiceClient) ExecuteWorkflow(ctx context.Context, req *connect.Request[api.ExecuteWorkflowRequest]) (*connect.Response[api.ExecuteWorkflowResponse], error) {
+// ExecuteWorkflow calls browser_automation_studio.v1.WorkflowsService.ExecuteWorkflow.
+func (c *workflowsServiceClient) ExecuteWorkflow(ctx context.Context, req *connect.Request[api.ExecuteWorkflowRequest]) (*connect.Response[api.ExecuteWorkflowResponse], error) {
 	return c.executeWorkflow.CallUnary(ctx, req)
 }
 
-// ValidateWorkflow calls browser_automation_studio.v1.WorkflowService.ValidateWorkflow.
-func (c *workflowServiceClient) ValidateWorkflow(ctx context.Context, req *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error) {
+// ExecuteAdhocWorkflow calls browser_automation_studio.v1.WorkflowsService.ExecuteAdhocWorkflow.
+func (c *workflowsServiceClient) ExecuteAdhocWorkflow(ctx context.Context, req *connect.Request[execution.ExecuteAdhocRequest]) (*connect.Response[execution.ExecuteAdhocResponse], error) {
+	return c.executeAdhocWorkflow.CallUnary(ctx, req)
+}
+
+// ValidateWorkflow calls browser_automation_studio.v1.WorkflowsService.ValidateWorkflow.
+func (c *workflowsServiceClient) ValidateWorkflow(ctx context.Context, req *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error) {
 	return c.validateWorkflow.CallUnary(ctx, req)
 }
 
-// ListExecutions calls browser_automation_studio.v1.WorkflowService.ListExecutions.
-func (c *workflowServiceClient) ListExecutions(ctx context.Context, req *connect.Request[api.ListExecutionsRequest]) (*connect.Response[api.ListExecutionsResponse], error) {
-	return c.listExecutions.CallUnary(ctx, req)
+// ValidateResolvedWorkflow calls
+// browser_automation_studio.v1.WorkflowsService.ValidateResolvedWorkflow.
+func (c *workflowsServiceClient) ValidateResolvedWorkflow(ctx context.Context, req *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error) {
+	return c.validateResolvedWorkflow.CallUnary(ctx, req)
 }
 
-// GetExecution calls browser_automation_studio.v1.WorkflowService.GetExecution.
-func (c *workflowServiceClient) GetExecution(ctx context.Context, req *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error) {
-	return c.getExecution.CallUnary(ctx, req)
+// ModifyWorkflow calls browser_automation_studio.v1.WorkflowsService.ModifyWorkflow.
+func (c *workflowsServiceClient) ModifyWorkflow(ctx context.Context, req *connect.Request[api.ModifyWorkflowRequest]) (*connect.Response[api.UpdateWorkflowResponse], error) {
+	return c.modifyWorkflow.CallUnary(ctx, req)
 }
 
-// WorkflowServiceHandler is an implementation of the browser_automation_studio.v1.WorkflowService
+// ListWorkflowVersions calls browser_automation_studio.v1.WorkflowsService.ListWorkflowVersions.
+func (c *workflowsServiceClient) ListWorkflowVersions(ctx context.Context, req *connect.Request[api.ListWorkflowVersionsRequest]) (*connect.Response[api.WorkflowVersionList], error) {
+	return c.listWorkflowVersions.CallUnary(ctx, req)
+}
+
+// GetWorkflowVersion calls browser_automation_studio.v1.WorkflowsService.GetWorkflowVersion.
+func (c *workflowsServiceClient) GetWorkflowVersion(ctx context.Context, req *connect.Request[api.GetWorkflowVersionRequest]) (*connect.Response[api.WorkflowVersion], error) {
+	return c.getWorkflowVersion.CallUnary(ctx, req)
+}
+
+// RestoreWorkflowVersion calls
+// browser_automation_studio.v1.WorkflowsService.RestoreWorkflowVersion.
+func (c *workflowsServiceClient) RestoreWorkflowVersion(ctx context.Context, req *connect.Request[api.RestoreWorkflowVersionRequest]) (*connect.Response[api.RestoreWorkflowVersionResponse], error) {
+	return c.restoreWorkflowVersion.CallUnary(ctx, req)
+}
+
+// WorkflowsServiceHandler is an implementation of the browser_automation_studio.v1.WorkflowsService
 // service.
-type WorkflowServiceHandler interface {
+type WorkflowsServiceHandler interface {
 	// Lists workflows, optionally filtered by project.
 	ListWorkflows(context.Context, *connect.Request[api.ListWorkflowsRequest]) (*connect.Response[api.ListWorkflowsResponse], error)
 	// Gets a workflow by ID.
@@ -223,138 +328,526 @@ type WorkflowServiceHandler interface {
 	UpdateWorkflow(context.Context, *connect.Request[api.UpdateWorkflowRequest]) (*connect.Response[api.UpdateWorkflowResponse], error)
 	// Deletes a workflow by ID.
 	DeleteWorkflow(context.Context, *connect.Request[api.DeleteWorkflowRequest]) (*connect.Response[api.DeleteWorkflowResponse], error)
-	// Executes a workflow by ID/version with optional parameters.
+	// Executes a persisted workflow by ID/version with optional parameters.
 	ExecuteWorkflow(context.Context, *connect.Request[api.ExecuteWorkflowRequest]) (*connect.Response[api.ExecuteWorkflowResponse], error)
+	// Executes a workflow definition without persisting it.
+	ExecuteAdhocWorkflow(context.Context, *connect.Request[execution.ExecuteAdhocRequest]) (*connect.Response[execution.ExecuteAdhocResponse], error)
 	// Validates a workflow definition and returns warnings/errors.
 	ValidateWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error)
-	// Lists executions, optionally filtered by workflow.
-	ListExecutions(context.Context, *connect.Request[api.ListExecutionsRequest]) (*connect.Response[api.ListExecutionsResponse], error)
-	// Gets an execution by ID.
-	GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error)
+	// Validates a workflow definition that has already had its tokens resolved.
+	ValidateResolvedWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error)
+	// Applies an AI modification prompt to a workflow definition and persists it.
+	ModifyWorkflow(context.Context, *connect.Request[api.ModifyWorkflowRequest]) (*connect.Response[api.UpdateWorkflowResponse], error)
+	// Lists all stored versions of a workflow, ordered newest-first.
+	ListWorkflowVersions(context.Context, *connect.Request[api.ListWorkflowVersionsRequest]) (*connect.Response[api.WorkflowVersionList], error)
+	// Gets a single stored version of a workflow.
+	GetWorkflowVersion(context.Context, *connect.Request[api.GetWorkflowVersionRequest]) (*connect.Response[api.WorkflowVersion], error)
+	// Restores a previous version as the current head of the workflow.
+	RestoreWorkflowVersion(context.Context, *connect.Request[api.RestoreWorkflowVersionRequest]) (*connect.Response[api.RestoreWorkflowVersionResponse], error)
 }
 
-// NewWorkflowServiceHandler builds an HTTP handler from the service implementation. It returns the
+// NewWorkflowsServiceHandler builds an HTTP handler from the service implementation. It returns the
 // path on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	workflowServiceMethods := api.File_browser_automation_studio_v1_api_service_proto.Services().ByName("WorkflowService").Methods()
-	workflowServiceListWorkflowsHandler := connect.NewUnaryHandler(
-		WorkflowServiceListWorkflowsProcedure,
+func NewWorkflowsServiceHandler(svc WorkflowsServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	workflowsServiceMethods := api.File_browser_automation_studio_v1_api_service_proto.Services().ByName("WorkflowsService").Methods()
+	workflowsServiceListWorkflowsHandler := connect.NewUnaryHandler(
+		WorkflowsServiceListWorkflowsProcedure,
 		svc.ListWorkflows,
-		connect.WithSchema(workflowServiceMethods.ByName("ListWorkflows")),
+		connect.WithSchema(workflowsServiceMethods.ByName("ListWorkflows")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workflowServiceGetWorkflowHandler := connect.NewUnaryHandler(
-		WorkflowServiceGetWorkflowProcedure,
+	workflowsServiceGetWorkflowHandler := connect.NewUnaryHandler(
+		WorkflowsServiceGetWorkflowProcedure,
 		svc.GetWorkflow,
-		connect.WithSchema(workflowServiceMethods.ByName("GetWorkflow")),
+		connect.WithSchema(workflowsServiceMethods.ByName("GetWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workflowServiceCreateWorkflowHandler := connect.NewUnaryHandler(
-		WorkflowServiceCreateWorkflowProcedure,
+	workflowsServiceCreateWorkflowHandler := connect.NewUnaryHandler(
+		WorkflowsServiceCreateWorkflowProcedure,
 		svc.CreateWorkflow,
-		connect.WithSchema(workflowServiceMethods.ByName("CreateWorkflow")),
+		connect.WithSchema(workflowsServiceMethods.ByName("CreateWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workflowServiceUpdateWorkflowHandler := connect.NewUnaryHandler(
-		WorkflowServiceUpdateWorkflowProcedure,
+	workflowsServiceUpdateWorkflowHandler := connect.NewUnaryHandler(
+		WorkflowsServiceUpdateWorkflowProcedure,
 		svc.UpdateWorkflow,
-		connect.WithSchema(workflowServiceMethods.ByName("UpdateWorkflow")),
+		connect.WithSchema(workflowsServiceMethods.ByName("UpdateWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workflowServiceDeleteWorkflowHandler := connect.NewUnaryHandler(
-		WorkflowServiceDeleteWorkflowProcedure,
+	workflowsServiceDeleteWorkflowHandler := connect.NewUnaryHandler(
+		WorkflowsServiceDeleteWorkflowProcedure,
 		svc.DeleteWorkflow,
-		connect.WithSchema(workflowServiceMethods.ByName("DeleteWorkflow")),
+		connect.WithSchema(workflowsServiceMethods.ByName("DeleteWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workflowServiceExecuteWorkflowHandler := connect.NewUnaryHandler(
-		WorkflowServiceExecuteWorkflowProcedure,
+	workflowsServiceExecuteWorkflowHandler := connect.NewUnaryHandler(
+		WorkflowsServiceExecuteWorkflowProcedure,
 		svc.ExecuteWorkflow,
-		connect.WithSchema(workflowServiceMethods.ByName("ExecuteWorkflow")),
+		connect.WithSchema(workflowsServiceMethods.ByName("ExecuteWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workflowServiceValidateWorkflowHandler := connect.NewUnaryHandler(
-		WorkflowServiceValidateWorkflowProcedure,
+	workflowsServiceExecuteAdhocWorkflowHandler := connect.NewUnaryHandler(
+		WorkflowsServiceExecuteAdhocWorkflowProcedure,
+		svc.ExecuteAdhocWorkflow,
+		connect.WithSchema(workflowsServiceMethods.ByName("ExecuteAdhocWorkflow")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workflowsServiceValidateWorkflowHandler := connect.NewUnaryHandler(
+		WorkflowsServiceValidateWorkflowProcedure,
 		svc.ValidateWorkflow,
-		connect.WithSchema(workflowServiceMethods.ByName("ValidateWorkflow")),
+		connect.WithSchema(workflowsServiceMethods.ByName("ValidateWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workflowServiceListExecutionsHandler := connect.NewUnaryHandler(
-		WorkflowServiceListExecutionsProcedure,
-		svc.ListExecutions,
-		connect.WithSchema(workflowServiceMethods.ByName("ListExecutions")),
+	workflowsServiceValidateResolvedWorkflowHandler := connect.NewUnaryHandler(
+		WorkflowsServiceValidateResolvedWorkflowProcedure,
+		svc.ValidateResolvedWorkflow,
+		connect.WithSchema(workflowsServiceMethods.ByName("ValidateResolvedWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
-	workflowServiceGetExecutionHandler := connect.NewUnaryHandler(
-		WorkflowServiceGetExecutionProcedure,
-		svc.GetExecution,
-		connect.WithSchema(workflowServiceMethods.ByName("GetExecution")),
+	workflowsServiceModifyWorkflowHandler := connect.NewUnaryHandler(
+		WorkflowsServiceModifyWorkflowProcedure,
+		svc.ModifyWorkflow,
+		connect.WithSchema(workflowsServiceMethods.ByName("ModifyWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/browser_automation_studio.v1.WorkflowService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	workflowsServiceListWorkflowVersionsHandler := connect.NewUnaryHandler(
+		WorkflowsServiceListWorkflowVersionsProcedure,
+		svc.ListWorkflowVersions,
+		connect.WithSchema(workflowsServiceMethods.ByName("ListWorkflowVersions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workflowsServiceGetWorkflowVersionHandler := connect.NewUnaryHandler(
+		WorkflowsServiceGetWorkflowVersionProcedure,
+		svc.GetWorkflowVersion,
+		connect.WithSchema(workflowsServiceMethods.ByName("GetWorkflowVersion")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workflowsServiceRestoreWorkflowVersionHandler := connect.NewUnaryHandler(
+		WorkflowsServiceRestoreWorkflowVersionProcedure,
+		svc.RestoreWorkflowVersion,
+		connect.WithSchema(workflowsServiceMethods.ByName("RestoreWorkflowVersion")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/browser_automation_studio.v1.WorkflowsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case WorkflowServiceListWorkflowsProcedure:
-			workflowServiceListWorkflowsHandler.ServeHTTP(w, r)
-		case WorkflowServiceGetWorkflowProcedure:
-			workflowServiceGetWorkflowHandler.ServeHTTP(w, r)
-		case WorkflowServiceCreateWorkflowProcedure:
-			workflowServiceCreateWorkflowHandler.ServeHTTP(w, r)
-		case WorkflowServiceUpdateWorkflowProcedure:
-			workflowServiceUpdateWorkflowHandler.ServeHTTP(w, r)
-		case WorkflowServiceDeleteWorkflowProcedure:
-			workflowServiceDeleteWorkflowHandler.ServeHTTP(w, r)
-		case WorkflowServiceExecuteWorkflowProcedure:
-			workflowServiceExecuteWorkflowHandler.ServeHTTP(w, r)
-		case WorkflowServiceValidateWorkflowProcedure:
-			workflowServiceValidateWorkflowHandler.ServeHTTP(w, r)
-		case WorkflowServiceListExecutionsProcedure:
-			workflowServiceListExecutionsHandler.ServeHTTP(w, r)
-		case WorkflowServiceGetExecutionProcedure:
-			workflowServiceGetExecutionHandler.ServeHTTP(w, r)
+		case WorkflowsServiceListWorkflowsProcedure:
+			workflowsServiceListWorkflowsHandler.ServeHTTP(w, r)
+		case WorkflowsServiceGetWorkflowProcedure:
+			workflowsServiceGetWorkflowHandler.ServeHTTP(w, r)
+		case WorkflowsServiceCreateWorkflowProcedure:
+			workflowsServiceCreateWorkflowHandler.ServeHTTP(w, r)
+		case WorkflowsServiceUpdateWorkflowProcedure:
+			workflowsServiceUpdateWorkflowHandler.ServeHTTP(w, r)
+		case WorkflowsServiceDeleteWorkflowProcedure:
+			workflowsServiceDeleteWorkflowHandler.ServeHTTP(w, r)
+		case WorkflowsServiceExecuteWorkflowProcedure:
+			workflowsServiceExecuteWorkflowHandler.ServeHTTP(w, r)
+		case WorkflowsServiceExecuteAdhocWorkflowProcedure:
+			workflowsServiceExecuteAdhocWorkflowHandler.ServeHTTP(w, r)
+		case WorkflowsServiceValidateWorkflowProcedure:
+			workflowsServiceValidateWorkflowHandler.ServeHTTP(w, r)
+		case WorkflowsServiceValidateResolvedWorkflowProcedure:
+			workflowsServiceValidateResolvedWorkflowHandler.ServeHTTP(w, r)
+		case WorkflowsServiceModifyWorkflowProcedure:
+			workflowsServiceModifyWorkflowHandler.ServeHTTP(w, r)
+		case WorkflowsServiceListWorkflowVersionsProcedure:
+			workflowsServiceListWorkflowVersionsHandler.ServeHTTP(w, r)
+		case WorkflowsServiceGetWorkflowVersionProcedure:
+			workflowsServiceGetWorkflowVersionHandler.ServeHTTP(w, r)
+		case WorkflowsServiceRestoreWorkflowVersionProcedure:
+			workflowsServiceRestoreWorkflowVersionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedWorkflowServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedWorkflowServiceHandler struct{}
+// UnimplementedWorkflowsServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedWorkflowsServiceHandler struct{}
 
-func (UnimplementedWorkflowServiceHandler) ListWorkflows(context.Context, *connect.Request[api.ListWorkflowsRequest]) (*connect.Response[api.ListWorkflowsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowService.ListWorkflows is not implemented"))
+func (UnimplementedWorkflowsServiceHandler) ListWorkflows(context.Context, *connect.Request[api.ListWorkflowsRequest]) (*connect.Response[api.ListWorkflowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.ListWorkflows is not implemented"))
 }
 
-func (UnimplementedWorkflowServiceHandler) GetWorkflow(context.Context, *connect.Request[api.GetWorkflowRequest]) (*connect.Response[api.GetWorkflowResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowService.GetWorkflow is not implemented"))
+func (UnimplementedWorkflowsServiceHandler) GetWorkflow(context.Context, *connect.Request[api.GetWorkflowRequest]) (*connect.Response[api.GetWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.GetWorkflow is not implemented"))
 }
 
-func (UnimplementedWorkflowServiceHandler) CreateWorkflow(context.Context, *connect.Request[api.CreateWorkflowRequest]) (*connect.Response[api.CreateWorkflowResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowService.CreateWorkflow is not implemented"))
+func (UnimplementedWorkflowsServiceHandler) CreateWorkflow(context.Context, *connect.Request[api.CreateWorkflowRequest]) (*connect.Response[api.CreateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.CreateWorkflow is not implemented"))
 }
 
-func (UnimplementedWorkflowServiceHandler) UpdateWorkflow(context.Context, *connect.Request[api.UpdateWorkflowRequest]) (*connect.Response[api.UpdateWorkflowResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowService.UpdateWorkflow is not implemented"))
+func (UnimplementedWorkflowsServiceHandler) UpdateWorkflow(context.Context, *connect.Request[api.UpdateWorkflowRequest]) (*connect.Response[api.UpdateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.UpdateWorkflow is not implemented"))
 }
 
-func (UnimplementedWorkflowServiceHandler) DeleteWorkflow(context.Context, *connect.Request[api.DeleteWorkflowRequest]) (*connect.Response[api.DeleteWorkflowResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowService.DeleteWorkflow is not implemented"))
+func (UnimplementedWorkflowsServiceHandler) DeleteWorkflow(context.Context, *connect.Request[api.DeleteWorkflowRequest]) (*connect.Response[api.DeleteWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.DeleteWorkflow is not implemented"))
 }
 
-func (UnimplementedWorkflowServiceHandler) ExecuteWorkflow(context.Context, *connect.Request[api.ExecuteWorkflowRequest]) (*connect.Response[api.ExecuteWorkflowResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowService.ExecuteWorkflow is not implemented"))
+func (UnimplementedWorkflowsServiceHandler) ExecuteWorkflow(context.Context, *connect.Request[api.ExecuteWorkflowRequest]) (*connect.Response[api.ExecuteWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.ExecuteWorkflow is not implemented"))
 }
 
-func (UnimplementedWorkflowServiceHandler) ValidateWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowService.ValidateWorkflow is not implemented"))
+func (UnimplementedWorkflowsServiceHandler) ExecuteAdhocWorkflow(context.Context, *connect.Request[execution.ExecuteAdhocRequest]) (*connect.Response[execution.ExecuteAdhocResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.ExecuteAdhocWorkflow is not implemented"))
 }
 
-func (UnimplementedWorkflowServiceHandler) ListExecutions(context.Context, *connect.Request[api.ListExecutionsRequest]) (*connect.Response[api.ListExecutionsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowService.ListExecutions is not implemented"))
+func (UnimplementedWorkflowsServiceHandler) ValidateWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.ValidateWorkflow is not implemented"))
 }
 
-func (UnimplementedWorkflowServiceHandler) GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowService.GetExecution is not implemented"))
+func (UnimplementedWorkflowsServiceHandler) ValidateResolvedWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.ValidateResolvedWorkflow is not implemented"))
+}
+
+func (UnimplementedWorkflowsServiceHandler) ModifyWorkflow(context.Context, *connect.Request[api.ModifyWorkflowRequest]) (*connect.Response[api.UpdateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.ModifyWorkflow is not implemented"))
+}
+
+func (UnimplementedWorkflowsServiceHandler) ListWorkflowVersions(context.Context, *connect.Request[api.ListWorkflowVersionsRequest]) (*connect.Response[api.WorkflowVersionList], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.ListWorkflowVersions is not implemented"))
+}
+
+func (UnimplementedWorkflowsServiceHandler) GetWorkflowVersion(context.Context, *connect.Request[api.GetWorkflowVersionRequest]) (*connect.Response[api.WorkflowVersion], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.GetWorkflowVersion is not implemented"))
+}
+
+func (UnimplementedWorkflowsServiceHandler) RestoreWorkflowVersion(context.Context, *connect.Request[api.RestoreWorkflowVersionRequest]) (*connect.Response[api.RestoreWorkflowVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.WorkflowsService.RestoreWorkflowVersion is not implemented"))
+}
+
+// ExecutionsServiceClient is a client for the browser_automation_studio.v1.ExecutionsService
+// service.
+type ExecutionsServiceClient interface {
+	// Lists executions, optionally filtered by workflow or project.
+	ListExecutions(context.Context, *connect.Request[api.ListExecutionsRequest]) (*connect.Response[api.ListExecutionsResponse], error)
+	// Gets a single execution by ID, hydrated from the on-disk snapshot.
+	GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error)
+	// Gets the proto timeline (preferred) or the legacy timeline of an execution.
+	GetExecutionTimeline(context.Context, *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error)
+	// Stops a running execution.
+	StopExecution(context.Context, *connect.Request[api.StopExecutionRequest]) (*connect.Response[api.StopExecutionResponse], error)
+	// Resumes an interrupted execution from its last checkpoint.
+	ResumeExecution(context.Context, *connect.Request[api.ResumeExecutionRequest]) (*connect.Response[api.ResumeExecutionResponse], error)
+	// Lists screenshots captured during an execution.
+	GetExecutionScreenshots(context.Context, *connect.Request[api.GetExecutionScreenshotsRequest]) (*connect.Response[execution.GetScreenshotsResponse], error)
+	// Lists recorded video artifacts for an execution.
+	GetExecutionRecordedVideos(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionVideosResponse], error)
+	// Lists recorded Playwright trace artifacts for an execution.
+	GetExecutionRecordedTraces(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionTracesResponse], error)
+	// Lists recorded HAR artifacts for an execution.
+	GetExecutionRecordedHar(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionHarResponse], error)
+	// Schedules deferred seed cleanup for a previously executed seed scenario.
+	ScheduleExecutionSeedCleanup(context.Context, *connect.Request[api.ScheduleSeedCleanupRequest]) (*connect.Response[api.ScheduleSeedCleanupResponse], error)
+}
+
+// NewExecutionsServiceClient constructs a client for the
+// browser_automation_studio.v1.ExecutionsService service. By default, it uses the Connect protocol
+// with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed requests. To
+// use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or connect.WithGRPCWeb()
+// options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewExecutionsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ExecutionsServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	executionsServiceMethods := api.File_browser_automation_studio_v1_api_service_proto.Services().ByName("ExecutionsService").Methods()
+	return &executionsServiceClient{
+		listExecutions: connect.NewClient[api.ListExecutionsRequest, api.ListExecutionsResponse](
+			httpClient,
+			baseURL+ExecutionsServiceListExecutionsProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("ListExecutions")),
+			connect.WithClientOptions(opts...),
+		),
+		getExecution: connect.NewClient[api.GetExecutionRequest, api.GetExecutionResponse](
+			httpClient,
+			baseURL+ExecutionsServiceGetExecutionProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("GetExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		getExecutionTimeline: connect.NewClient[api.GetExecutionTimelineRequest, timeline.ExecutionTimeline](
+			httpClient,
+			baseURL+ExecutionsServiceGetExecutionTimelineProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("GetExecutionTimeline")),
+			connect.WithClientOptions(opts...),
+		),
+		stopExecution: connect.NewClient[api.StopExecutionRequest, api.StopExecutionResponse](
+			httpClient,
+			baseURL+ExecutionsServiceStopExecutionProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("StopExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		resumeExecution: connect.NewClient[api.ResumeExecutionRequest, api.ResumeExecutionResponse](
+			httpClient,
+			baseURL+ExecutionsServiceResumeExecutionProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("ResumeExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		getExecutionScreenshots: connect.NewClient[api.GetExecutionScreenshotsRequest, execution.GetScreenshotsResponse](
+			httpClient,
+			baseURL+ExecutionsServiceGetExecutionScreenshotsProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("GetExecutionScreenshots")),
+			connect.WithClientOptions(opts...),
+		),
+		getExecutionRecordedVideos: connect.NewClient[api.GetExecutionArtifactsRequest, api.GetExecutionVideosResponse](
+			httpClient,
+			baseURL+ExecutionsServiceGetExecutionRecordedVideosProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("GetExecutionRecordedVideos")),
+			connect.WithClientOptions(opts...),
+		),
+		getExecutionRecordedTraces: connect.NewClient[api.GetExecutionArtifactsRequest, api.GetExecutionTracesResponse](
+			httpClient,
+			baseURL+ExecutionsServiceGetExecutionRecordedTracesProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("GetExecutionRecordedTraces")),
+			connect.WithClientOptions(opts...),
+		),
+		getExecutionRecordedHar: connect.NewClient[api.GetExecutionArtifactsRequest, api.GetExecutionHarResponse](
+			httpClient,
+			baseURL+ExecutionsServiceGetExecutionRecordedHarProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("GetExecutionRecordedHar")),
+			connect.WithClientOptions(opts...),
+		),
+		scheduleExecutionSeedCleanup: connect.NewClient[api.ScheduleSeedCleanupRequest, api.ScheduleSeedCleanupResponse](
+			httpClient,
+			baseURL+ExecutionsServiceScheduleExecutionSeedCleanupProcedure,
+			connect.WithSchema(executionsServiceMethods.ByName("ScheduleExecutionSeedCleanup")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// executionsServiceClient implements ExecutionsServiceClient.
+type executionsServiceClient struct {
+	listExecutions               *connect.Client[api.ListExecutionsRequest, api.ListExecutionsResponse]
+	getExecution                 *connect.Client[api.GetExecutionRequest, api.GetExecutionResponse]
+	getExecutionTimeline         *connect.Client[api.GetExecutionTimelineRequest, timeline.ExecutionTimeline]
+	stopExecution                *connect.Client[api.StopExecutionRequest, api.StopExecutionResponse]
+	resumeExecution              *connect.Client[api.ResumeExecutionRequest, api.ResumeExecutionResponse]
+	getExecutionScreenshots      *connect.Client[api.GetExecutionScreenshotsRequest, execution.GetScreenshotsResponse]
+	getExecutionRecordedVideos   *connect.Client[api.GetExecutionArtifactsRequest, api.GetExecutionVideosResponse]
+	getExecutionRecordedTraces   *connect.Client[api.GetExecutionArtifactsRequest, api.GetExecutionTracesResponse]
+	getExecutionRecordedHar      *connect.Client[api.GetExecutionArtifactsRequest, api.GetExecutionHarResponse]
+	scheduleExecutionSeedCleanup *connect.Client[api.ScheduleSeedCleanupRequest, api.ScheduleSeedCleanupResponse]
+}
+
+// ListExecutions calls browser_automation_studio.v1.ExecutionsService.ListExecutions.
+func (c *executionsServiceClient) ListExecutions(ctx context.Context, req *connect.Request[api.ListExecutionsRequest]) (*connect.Response[api.ListExecutionsResponse], error) {
+	return c.listExecutions.CallUnary(ctx, req)
+}
+
+// GetExecution calls browser_automation_studio.v1.ExecutionsService.GetExecution.
+func (c *executionsServiceClient) GetExecution(ctx context.Context, req *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error) {
+	return c.getExecution.CallUnary(ctx, req)
+}
+
+// GetExecutionTimeline calls browser_automation_studio.v1.ExecutionsService.GetExecutionTimeline.
+func (c *executionsServiceClient) GetExecutionTimeline(ctx context.Context, req *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error) {
+	return c.getExecutionTimeline.CallUnary(ctx, req)
+}
+
+// StopExecution calls browser_automation_studio.v1.ExecutionsService.StopExecution.
+func (c *executionsServiceClient) StopExecution(ctx context.Context, req *connect.Request[api.StopExecutionRequest]) (*connect.Response[api.StopExecutionResponse], error) {
+	return c.stopExecution.CallUnary(ctx, req)
+}
+
+// ResumeExecution calls browser_automation_studio.v1.ExecutionsService.ResumeExecution.
+func (c *executionsServiceClient) ResumeExecution(ctx context.Context, req *connect.Request[api.ResumeExecutionRequest]) (*connect.Response[api.ResumeExecutionResponse], error) {
+	return c.resumeExecution.CallUnary(ctx, req)
+}
+
+// GetExecutionScreenshots calls
+// browser_automation_studio.v1.ExecutionsService.GetExecutionScreenshots.
+func (c *executionsServiceClient) GetExecutionScreenshots(ctx context.Context, req *connect.Request[api.GetExecutionScreenshotsRequest]) (*connect.Response[execution.GetScreenshotsResponse], error) {
+	return c.getExecutionScreenshots.CallUnary(ctx, req)
+}
+
+// GetExecutionRecordedVideos calls
+// browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedVideos.
+func (c *executionsServiceClient) GetExecutionRecordedVideos(ctx context.Context, req *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionVideosResponse], error) {
+	return c.getExecutionRecordedVideos.CallUnary(ctx, req)
+}
+
+// GetExecutionRecordedTraces calls
+// browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedTraces.
+func (c *executionsServiceClient) GetExecutionRecordedTraces(ctx context.Context, req *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionTracesResponse], error) {
+	return c.getExecutionRecordedTraces.CallUnary(ctx, req)
+}
+
+// GetExecutionRecordedHar calls
+// browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedHar.
+func (c *executionsServiceClient) GetExecutionRecordedHar(ctx context.Context, req *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionHarResponse], error) {
+	return c.getExecutionRecordedHar.CallUnary(ctx, req)
+}
+
+// ScheduleExecutionSeedCleanup calls
+// browser_automation_studio.v1.ExecutionsService.ScheduleExecutionSeedCleanup.
+func (c *executionsServiceClient) ScheduleExecutionSeedCleanup(ctx context.Context, req *connect.Request[api.ScheduleSeedCleanupRequest]) (*connect.Response[api.ScheduleSeedCleanupResponse], error) {
+	return c.scheduleExecutionSeedCleanup.CallUnary(ctx, req)
+}
+
+// ExecutionsServiceHandler is an implementation of the
+// browser_automation_studio.v1.ExecutionsService service.
+type ExecutionsServiceHandler interface {
+	// Lists executions, optionally filtered by workflow or project.
+	ListExecutions(context.Context, *connect.Request[api.ListExecutionsRequest]) (*connect.Response[api.ListExecutionsResponse], error)
+	// Gets a single execution by ID, hydrated from the on-disk snapshot.
+	GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error)
+	// Gets the proto timeline (preferred) or the legacy timeline of an execution.
+	GetExecutionTimeline(context.Context, *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error)
+	// Stops a running execution.
+	StopExecution(context.Context, *connect.Request[api.StopExecutionRequest]) (*connect.Response[api.StopExecutionResponse], error)
+	// Resumes an interrupted execution from its last checkpoint.
+	ResumeExecution(context.Context, *connect.Request[api.ResumeExecutionRequest]) (*connect.Response[api.ResumeExecutionResponse], error)
+	// Lists screenshots captured during an execution.
+	GetExecutionScreenshots(context.Context, *connect.Request[api.GetExecutionScreenshotsRequest]) (*connect.Response[execution.GetScreenshotsResponse], error)
+	// Lists recorded video artifacts for an execution.
+	GetExecutionRecordedVideos(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionVideosResponse], error)
+	// Lists recorded Playwright trace artifacts for an execution.
+	GetExecutionRecordedTraces(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionTracesResponse], error)
+	// Lists recorded HAR artifacts for an execution.
+	GetExecutionRecordedHar(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionHarResponse], error)
+	// Schedules deferred seed cleanup for a previously executed seed scenario.
+	ScheduleExecutionSeedCleanup(context.Context, *connect.Request[api.ScheduleSeedCleanupRequest]) (*connect.Response[api.ScheduleSeedCleanupResponse], error)
+}
+
+// NewExecutionsServiceHandler builds an HTTP handler from the service implementation. It returns
+// the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewExecutionsServiceHandler(svc ExecutionsServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	executionsServiceMethods := api.File_browser_automation_studio_v1_api_service_proto.Services().ByName("ExecutionsService").Methods()
+	executionsServiceListExecutionsHandler := connect.NewUnaryHandler(
+		ExecutionsServiceListExecutionsProcedure,
+		svc.ListExecutions,
+		connect.WithSchema(executionsServiceMethods.ByName("ListExecutions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceGetExecutionHandler := connect.NewUnaryHandler(
+		ExecutionsServiceGetExecutionProcedure,
+		svc.GetExecution,
+		connect.WithSchema(executionsServiceMethods.ByName("GetExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceGetExecutionTimelineHandler := connect.NewUnaryHandler(
+		ExecutionsServiceGetExecutionTimelineProcedure,
+		svc.GetExecutionTimeline,
+		connect.WithSchema(executionsServiceMethods.ByName("GetExecutionTimeline")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceStopExecutionHandler := connect.NewUnaryHandler(
+		ExecutionsServiceStopExecutionProcedure,
+		svc.StopExecution,
+		connect.WithSchema(executionsServiceMethods.ByName("StopExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceResumeExecutionHandler := connect.NewUnaryHandler(
+		ExecutionsServiceResumeExecutionProcedure,
+		svc.ResumeExecution,
+		connect.WithSchema(executionsServiceMethods.ByName("ResumeExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceGetExecutionScreenshotsHandler := connect.NewUnaryHandler(
+		ExecutionsServiceGetExecutionScreenshotsProcedure,
+		svc.GetExecutionScreenshots,
+		connect.WithSchema(executionsServiceMethods.ByName("GetExecutionScreenshots")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceGetExecutionRecordedVideosHandler := connect.NewUnaryHandler(
+		ExecutionsServiceGetExecutionRecordedVideosProcedure,
+		svc.GetExecutionRecordedVideos,
+		connect.WithSchema(executionsServiceMethods.ByName("GetExecutionRecordedVideos")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceGetExecutionRecordedTracesHandler := connect.NewUnaryHandler(
+		ExecutionsServiceGetExecutionRecordedTracesProcedure,
+		svc.GetExecutionRecordedTraces,
+		connect.WithSchema(executionsServiceMethods.ByName("GetExecutionRecordedTraces")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceGetExecutionRecordedHarHandler := connect.NewUnaryHandler(
+		ExecutionsServiceGetExecutionRecordedHarProcedure,
+		svc.GetExecutionRecordedHar,
+		connect.WithSchema(executionsServiceMethods.ByName("GetExecutionRecordedHar")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionsServiceScheduleExecutionSeedCleanupHandler := connect.NewUnaryHandler(
+		ExecutionsServiceScheduleExecutionSeedCleanupProcedure,
+		svc.ScheduleExecutionSeedCleanup,
+		connect.WithSchema(executionsServiceMethods.ByName("ScheduleExecutionSeedCleanup")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/browser_automation_studio.v1.ExecutionsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case ExecutionsServiceListExecutionsProcedure:
+			executionsServiceListExecutionsHandler.ServeHTTP(w, r)
+		case ExecutionsServiceGetExecutionProcedure:
+			executionsServiceGetExecutionHandler.ServeHTTP(w, r)
+		case ExecutionsServiceGetExecutionTimelineProcedure:
+			executionsServiceGetExecutionTimelineHandler.ServeHTTP(w, r)
+		case ExecutionsServiceStopExecutionProcedure:
+			executionsServiceStopExecutionHandler.ServeHTTP(w, r)
+		case ExecutionsServiceResumeExecutionProcedure:
+			executionsServiceResumeExecutionHandler.ServeHTTP(w, r)
+		case ExecutionsServiceGetExecutionScreenshotsProcedure:
+			executionsServiceGetExecutionScreenshotsHandler.ServeHTTP(w, r)
+		case ExecutionsServiceGetExecutionRecordedVideosProcedure:
+			executionsServiceGetExecutionRecordedVideosHandler.ServeHTTP(w, r)
+		case ExecutionsServiceGetExecutionRecordedTracesProcedure:
+			executionsServiceGetExecutionRecordedTracesHandler.ServeHTTP(w, r)
+		case ExecutionsServiceGetExecutionRecordedHarProcedure:
+			executionsServiceGetExecutionRecordedHarHandler.ServeHTTP(w, r)
+		case ExecutionsServiceScheduleExecutionSeedCleanupProcedure:
+			executionsServiceScheduleExecutionSeedCleanupHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedExecutionsServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedExecutionsServiceHandler struct{}
+
+func (UnimplementedExecutionsServiceHandler) ListExecutions(context.Context, *connect.Request[api.ListExecutionsRequest]) (*connect.Response[api.ListExecutionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.ListExecutions is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) GetExecution(context.Context, *connect.Request[api.GetExecutionRequest]) (*connect.Response[api.GetExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.GetExecution is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) GetExecutionTimeline(context.Context, *connect.Request[api.GetExecutionTimelineRequest]) (*connect.Response[timeline.ExecutionTimeline], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.GetExecutionTimeline is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) StopExecution(context.Context, *connect.Request[api.StopExecutionRequest]) (*connect.Response[api.StopExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.StopExecution is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) ResumeExecution(context.Context, *connect.Request[api.ResumeExecutionRequest]) (*connect.Response[api.ResumeExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.ResumeExecution is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) GetExecutionScreenshots(context.Context, *connect.Request[api.GetExecutionScreenshotsRequest]) (*connect.Response[execution.GetScreenshotsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.GetExecutionScreenshots is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) GetExecutionRecordedVideos(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionVideosResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedVideos is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) GetExecutionRecordedTraces(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionTracesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedTraces is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) GetExecutionRecordedHar(context.Context, *connect.Request[api.GetExecutionArtifactsRequest]) (*connect.Response[api.GetExecutionHarResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.GetExecutionRecordedHar is not implemented"))
+}
+
+func (UnimplementedExecutionsServiceHandler) ScheduleExecutionSeedCleanup(context.Context, *connect.Request[api.ScheduleSeedCleanupRequest]) (*connect.Response[api.ScheduleSeedCleanupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ExecutionsService.ScheduleExecutionSeedCleanup is not implemented"))
 }

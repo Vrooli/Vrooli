@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cli-manifest/v1",
+  "title": "Scenario CLI Manifest",
+  "description": "Declarative contract for a scenario's CLI command surface. Single source of truth for command groups, commands, arg shapes, governance metadata, and the proto-method bindings each command invokes. Resolved at scenario.well_known_paths.cli_manifest in .vrooli/repo-contract.json. Consumed by packages/cli-core/cliapp/LoadFromManifest (registers commands) and by prompt-manager (derives action certainty from governance).",
+  "type": "object",
+  "required": ["name", "groups"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional pointer to this schema for editor autocomplete. Has no runtime effect."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Scenario or CLI display name (matches scenarios/<name>)."
+    },
+    "description": {
+      "type": "string"
+    },
+    "groups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Group" }
+    },
+    "omitted": {
+      "type": "array",
+      "description": "RPCs intentionally not exposed as CLI commands. Each entry documents one (service, method) pair with a reason. RequireProtoServiceCoverage treats these as covered.",
+      "items": { "$ref": "#/$defs/Omission" }
+    }
+  },
+  "$defs": {
+    "Group": {
+      "type": "object",
+      "required": ["name", "commands"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "description": { "type": "string" },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Command" }
+        }
+      }
+    },
+    "Command": {
+      "type": "object",
+      "required": ["name", "binding", "governance"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "description": { "type": "string" },
+        "positionals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Positional" }
+        },
+        "flags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Flag" }
+        },
+        "binding": { "$ref": "#/$defs/Binding" },
+        "governance": { "$ref": "#/$defs/Governance" }
+      }
+    },
+    "Positional": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$" },
+        "description": { "type": "string" },
+        "required": { "type": "boolean", "default": false },
+        "repeated": { "type": "boolean", "default": false }
+      }
+    },
+    "Flag": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$" },
+        "aliases": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$" }
+        },
+        "description": { "type": "string" },
+        "required": { "type": "boolean", "default": false },
+        "default": { "type": "string" },
+        "bool": { "type": "boolean", "default": false }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "bool": { "const": true } }, "required": ["bool"] },
+          "then": {
+            "not": { "required": ["default"], "properties": { "default": { "type": "string", "minLength": 1 } } }
+          }
+        }
+      ]
+    },
+    "Binding": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["connect-rpc"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "connect-rpc" } } },
+          "then": {
+            "required": ["service", "method"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "type": "string", "const": "connect-rpc" },
+              "service": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Proto service name, e.g. NotesService. Must match a service in the bound proto descriptor."
+              },
+              "method": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Proto method name, e.g. ListNotes. Must match a method on the named service."
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Governance": {
+      "type": "object",
+      "required": ["effect", "run_eligible"],
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "type": "string",
+          "enum": ["read", "write", "destructive"],
+          "description": "Side-effect classification. read = no observable mutation; write = mutates state non-destructively; destructive = irreversible mutation or data loss."
+        },
+        "run_eligible": {
+          "type": "boolean",
+          "description": "Whether prompt-manager actions may invoke this command. False = command exists for human/CLI use only."
+        },
+        "requires_confirmation": {
+          "type": "boolean",
+          "description": "Whether the runner must prompt for confirmation. Defaults to true when effect == destructive."
+        },
+        "permissions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal",
+              "network:external",
+              "admin"
+            ]
+          }
+        }
+      }
+    },
+    "Omission": {
+      "type": "object",
+      "required": ["service", "method", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "service": { "type": "string", "minLength": 1 },
+        "method": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

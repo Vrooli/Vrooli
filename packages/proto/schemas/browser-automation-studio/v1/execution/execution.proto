@@ -346,7 +346,7 @@ message Execution {
 // ADHOC EXECUTION
 // =============================================================================
 
-// ExecuteAdhocRequest represents POST /api/v1/workflows/execute-adhoc.
+// ExecuteAdhocRequest represents the inputs for the ExecuteAdhocWorkflow RPC.
 message ExecuteAdhocRequest {
   // Workflow definition to execute without persisting (V2 format).
   WorkflowDefinitionV2 flow_definition = 1;
@@ -359,6 +359,38 @@ message ExecuteAdhocRequest {
   ExecutionMetadata metadata = 4;
   // Typed runtime parameters for the adhoc execution.
   ExecutionParameters parameters = 6;
+  // Optional execution-mode toggles (artifacts, frame streaming, seed apply).
+  ExecuteWorkflowOptions options = 7;
+}
+
+// ExecuteWorkflowOptions captures execution-time toggles previously passed as
+// query-string parameters on the legacy REST endpoints. Shared by both the
+// persisted and adhoc execution paths.
+message ExecuteWorkflowOptions {
+  // Capture playwright video for this execution.
+  bool requires_video = 1;
+  // Capture a Playwright trace.zip for this execution.
+  bool requires_trace = 2;
+  // Capture a HAR archive of network traffic.
+  bool requires_har = 3;
+  // Enable live frame streaming via the WebSocket frame channel.
+  bool frame_streaming = 4;
+  // Optional JPEG quality (1–100) used when frame_streaming is true.
+  optional int32 frame_streaming_quality = 5 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 100
+  ];
+  // Optional frame rate (1–30) used when frame_streaming is true.
+  optional int32 frame_streaming_fps = 6 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 30
+  ];
+  // Optional seed-apply mode for cross-scenario test setup. Currently only
+  // "needs-applying" is recognized.
+  string seed_mode = 7;
+  // Optional seed-scenario identifier. Defaults to "browser-automation-studio"
+  // when seed_mode is set without an explicit scenario.
+  string seed_scenario = 8;
 }
 
 // ExecutionMetadata captures optional labels for adhoc runs.
