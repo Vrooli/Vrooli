@@ -58,7 +58,7 @@ func newClient(t *testing.T, svc vr.Service) vrconnect.ValidationRecordServiceCl
 
 func TestList_PassesFiltersAndReturnsCursor(t *testing.T) {
 	svc := &fakeService{ListOut: vr.ListResult{
-		Records: []vr.Record{{ID: "r1", TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "g", Verdict: vr.VerdictPass, EndedAt: time.Now()}},
+		Records:       []vr.Record{{ID: "r1", TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "g", Verdict: vr.VerdictPass, EndedAt: time.Now()}},
 		NextPageToken: "tok",
 	}}
 	client := newClient(t, svc)

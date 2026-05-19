@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	skillcatalog "development-toolchain-validator/internal/skill_catalog"
 	promptmanager "development-toolchain-validator/integrations/prompt_manager"
+	skillcatalog "development-toolchain-validator/internal/skill_catalog"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/discovery"

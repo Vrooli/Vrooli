@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"development-toolchain-validator/internal/testutil/mocks"
 	vr "development-toolchain-validator/internal/validation_record"
 	vrmocks "development-toolchain-validator/internal/validation_record/mocks"
-	"development-toolchain-validator/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
 )
@@ -39,8 +39,8 @@ func TestAppend_ComputesDuration(t *testing.T) {
 	start := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
 	end := start.Add(750 * time.Millisecond)
 	r, err := svc.Append(context.Background(), vr.AppendInput{
-		TupleKind:  vr.TupleKindSkill,
-		SubjectID:  "s", GoldenSlug: "g",
+		TupleKind: vr.TupleKindSkill,
+		SubjectID: "s", GoldenSlug: "g",
 		Verdict:   vr.VerdictPass,
 		StartedAt: start, EndedAt: end,
 	})

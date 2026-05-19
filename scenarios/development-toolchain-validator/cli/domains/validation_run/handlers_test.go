@@ -85,8 +85,11 @@ func TestStart_SkillFlag(t *testing.T) {
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Flags: []cliapp.Flag{
-			{Name: "skill"}, {Name: "tool"}, {Name: "golden", Required: true},
-			{Name: "force", Bool: true}, {Name: "wait", Bool: true},
+			{Name: "skill"},
+			{Name: "tool"},
+			{Name: "golden", Required: true},
+			{Name: "force", Bool: true},
+			{Name: "wait", Bool: true},
 			{Name: "wait-timeout", Default: "300"},
 		},
 	}, cliapptest.TestRunContextOptions{Flags: map[string]string{
@@ -105,8 +108,11 @@ func TestStart_RequiresExactlyOneSubject(t *testing.T) {
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Flags: []cliapp.Flag{
-			{Name: "skill"}, {Name: "tool"}, {Name: "golden", Required: true},
-			{Name: "force", Bool: true}, {Name: "wait", Bool: true},
+			{Name: "skill"},
+			{Name: "tool"},
+			{Name: "golden", Required: true},
+			{Name: "force", Bool: true},
+			{Name: "wait", Bool: true},
 			{Name: "wait-timeout", Default: "300"},
 		},
 	}, cliapptest.TestRunContextOptions{Flags: map[string]string{

@@ -21,10 +21,10 @@ type TupleVerdict struct {
 
 // GoldenSummary is the dashboard's per-golden roll-up.
 type GoldenSummary struct {
-	GoldenSlug     string
-	SkillVerdicts  []TupleVerdict
-	ToolVerdicts   []TupleVerdict
-	StaleCount     int
+	GoldenSlug    string
+	SkillVerdicts []TupleVerdict
+	ToolVerdicts  []TupleVerdict
+	StaleCount    int
 }
 
 // TupleHistory is the paginated history view for one (tuple_kind,

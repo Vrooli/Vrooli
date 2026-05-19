@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 
 import { useMediaQuery, useIsMobile } from "../useMediaQuery";
-import { useGlobalKeydown } from "../useGlobalKeydown";
+import { useGlobalKeydown } from "../../../hooks/useGlobalKeydown";
 import { useLocalStorage } from "../useLocalStorage";
 
 describe("useMediaQuery", () => {

@@ -186,14 +186,14 @@ type rowScanner interface {
 
 func scanRun(s rowScanner) (Run, error) {
 	var (
-		r              Run
-		tupleKindInt   int
-		statusInt      int
-		verdictInt     int
-		createdRaw     string
-		startedRaw     string
-		endedRaw       string
-		forceInt       int
+		r            Run
+		tupleKindInt int
+		statusInt    int
+		verdictInt   int
+		createdRaw   string
+		startedRaw   string
+		endedRaw     string
+		forceInt     int
 	)
 	if err := s.Scan(
 		&r.ID, &tupleKindInt, &r.SubjectID, &r.GoldenSlug,

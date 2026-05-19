@@ -9,9 +9,9 @@ import (
 
 	"connectrpc.com/connect"
 
+	vrv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_record"
 	vrunv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_run"
 	vrunconnect "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_run/validation_run_v1connect"
-	vrv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_record"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

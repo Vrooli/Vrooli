@@ -45,8 +45,8 @@ type Record struct {
 
 	Verdict Verdict
 
-	DiffHash       string
-	DiffPathCount  int32
+	DiffHash      string
+	DiffPathCount int32
 
 	AgentManagerRunID string
 

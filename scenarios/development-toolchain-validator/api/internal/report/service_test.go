@@ -9,9 +9,9 @@ import (
 	report "development-toolchain-validator/internal/report"
 	skillcatalog "development-toolchain-validator/internal/skill_catalog"
 	staleness "development-toolchain-validator/internal/staleness"
+	"development-toolchain-validator/internal/testutil/mocks"
 	vr "development-toolchain-validator/internal/validation_record"
 	vrmocks "development-toolchain-validator/internal/validation_record/mocks"
-	"development-toolchain-validator/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
 )

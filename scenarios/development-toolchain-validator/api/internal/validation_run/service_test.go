@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	vr "development-toolchain-validator/internal/validation_record"
-	vrun "development-toolchain-validator/internal/validation_run"
 	"development-toolchain-validator/internal/testutil/db"
 	"development-toolchain-validator/internal/testutil/mocks"
+	vr "development-toolchain-validator/internal/validation_record"
+	vrun "development-toolchain-validator/internal/validation_run"
 
 	"github.com/stretchr/testify/require"
 

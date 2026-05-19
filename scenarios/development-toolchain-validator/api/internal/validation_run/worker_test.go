@@ -9,12 +9,12 @@ import (
 	"time"
 
 	manifest "development-toolchain-validator/internal/manifest"
+	"development-toolchain-validator/internal/testutil/db"
+	"development-toolchain-validator/internal/testutil/mocks"
 	vr "development-toolchain-validator/internal/validation_record"
 	vrmocks "development-toolchain-validator/internal/validation_record/mocks"
 	vrun "development-toolchain-validator/internal/validation_run"
 	vrunmocks "development-toolchain-validator/internal/validation_run/mocks"
-	"development-toolchain-validator/internal/testutil/db"
-	"development-toolchain-validator/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
 

@@ -42,9 +42,11 @@ func connectAPI(t *testing.T, svc *fakeService) http.Handler {
 
 func TestList_RendersStaleEntries(t *testing.T) {
 	svc := &fakeService{resp: &stalenessv1.ListStaleResponse{Entries: []*stalenessv1.StaleEntry{
-		{SkillId: "plan-skill", GoldenSlug: "reference-react-vite", Kind: stalenessv1.StaleKind_STALE_KIND_TEMPLATE_DRIFT,
+		{
+			SkillId: "plan-skill", GoldenSlug: "reference-react-vite", Kind: stalenessv1.StaleKind_STALE_KIND_TEMPLATE_DRIFT,
 			ManifestTemplateVersionPinned: "1.0.0", GoldenTemplateVersionCurrent: "1.1.0",
-			ManifestSkillVersionPinned: "v1", SkillVersionCurrent: "v1"},
+			ManifestSkillVersionPinned: "v1", SkillVersionCurrent: "v1",
+		},
 	}}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { emitShortcutIntent } from "@vrooli/iframe-bridge";
 
 /**
  * Single central keyboard shortcut hook.
@@ -66,6 +67,17 @@ export function useGlobalKeydown(handler: ShortcutHandler): void {
       if (consumed) {
         e.preventDefault();
         reset();
+      } else {
+        // Local-first, relay-on-noop: when no local handler claims the chord
+        // and we're embedded in an iframe host, surface the intent so the
+        // host can offer its own shortcut (e.g. app-monitor's global
+        // switcher on ⌘K). emitShortcutIntent is a no-op outside iframes.
+        emitShortcutIntent({
+          action: "scenario.unhandled",
+          outcome: "noop",
+          chord: seq,
+          source: "keyboard",
+        });
       }
     };
 

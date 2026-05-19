@@ -85,8 +85,8 @@ func sampleProto(id string) *skillcatalogv1.Skill {
 
 func TestSync_ReportsCounts(t *testing.T) {
 	svc := &fakeService{syncResp: &skillcatalogv1.SyncResponse{
-		Skills:  []*skillcatalogv1.Skill{sampleProto("plan-skill-discovery")},
-		Added:   1, Updated: 0, Removed: 0,
+		Skills: []*skillcatalogv1.Skill{sampleProto("plan-skill-discovery")},
+		Added:  1, Updated: 0, Removed: 0,
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)

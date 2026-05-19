@@ -9,22 +9,22 @@ import (
 
 func domainToProto(r vr.Record) *vrv1.ValidationRecord {
 	return &vrv1.ValidationRecord{
-		Id:                            r.ID,
-		TupleKind:                     tupleKindDomainToProto(r.TupleKind),
-		SubjectId:                     r.SubjectID,
-		GoldenSlug:                    r.GoldenSlug,
-		StartedAt:                     timestamppb.New(r.StartedAt.UTC()),
-		EndedAt:                       timestamppb.New(r.EndedAt.UTC()),
-		DurationMs:                    r.DurationMS,
-		TokensUsed:                    r.TokensUsed,
-		CostUsdMicro:                  r.CostUSDMicro,
-		Verdict:                       verdictDomainToProto(r.Verdict),
-		DiffHash:                      r.DiffHash,
-		DiffPathCount:                 r.DiffPathCount,
-		AgentManagerRunId:             r.AgentManagerRunID,
-		ManifestTemplateVersionAtRun:  r.ManifestTemplateVersionAtRun,
-		ManifestSkillVersionAtRun:     r.ManifestSkillVersionAtRun,
-		ErrorMessage:                  r.ErrorMessage,
+		Id:                           r.ID,
+		TupleKind:                    tupleKindDomainToProto(r.TupleKind),
+		SubjectId:                    r.SubjectID,
+		GoldenSlug:                   r.GoldenSlug,
+		StartedAt:                    timestamppb.New(r.StartedAt.UTC()),
+		EndedAt:                      timestamppb.New(r.EndedAt.UTC()),
+		DurationMs:                   r.DurationMS,
+		TokensUsed:                   r.TokensUsed,
+		CostUsdMicro:                 r.CostUSDMicro,
+		Verdict:                      verdictDomainToProto(r.Verdict),
+		DiffHash:                     r.DiffHash,
+		DiffPathCount:                r.DiffPathCount,
+		AgentManagerRunId:            r.AgentManagerRunID,
+		ManifestTemplateVersionAtRun: r.ManifestTemplateVersionAtRun,
+		ManifestSkillVersionAtRun:    r.ManifestSkillVersionAtRun,
+		ErrorMessage:                 r.ErrorMessage,
 	}
 }
 

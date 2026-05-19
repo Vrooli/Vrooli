@@ -50,7 +50,7 @@ var _ vrun.WorkspaceSandboxClient = (*Client)(nil)
 // sandboxed workspace. Returns a sentinel "unavailable" error when
 // workspace-sandbox isn't running so the worker degrades to a
 // path-only manifest evaluation.
-func (c *Client) FetchPathContent(ctx context.Context, _ , path string) (string, error) {
+func (c *Client) FetchPathContent(ctx context.Context, _, path string) (string, error) {
 	if _, err := c.opts.Resolver.ResolveScenarioURLDefault(ctx, "workspace-sandbox"); err != nil {
 		if discovery.IsScenarioNotRunning(err) {
 			return "", errors.New("workspace-sandbox not running; content rule evaluation skipped")

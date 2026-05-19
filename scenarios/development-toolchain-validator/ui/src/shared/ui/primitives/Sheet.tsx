@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils";
+import { useGlobalKeydown } from "../../../hooks/useGlobalKeydown";
 
 /**
  * Sheet primitive — side-mounted modal panel.
@@ -40,12 +41,17 @@ export interface SheetProps {
 export function Sheet({ open, onOpenChange, side = "right", children, ariaLabel }: SheetProps) {
   const ref = useRef<HTMLDivElement | null>(null);
 
+  useGlobalKeydown((_seq, event) => {
+    if (!open) return false;
+    if (event.key === "Escape") {
+      onOpenChange(false);
+      return true;
+    }
+    return false;
+  });
+
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onOpenChange(false);
-    };
-    window.addEventListener("keydown", onKey);
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const t = setTimeout(() => {
       const focusables = ref.current?.querySelectorAll<HTMLElement>(
@@ -54,13 +60,12 @@ export function Sheet({ open, onOpenChange, side = "right", children, ariaLabel 
       focusables?.[0]?.focus();
     }, 0);
     return () => {
-      window.removeEventListener("keydown", onKey);
       clearTimeout(t);
       if (previouslyFocused && typeof previouslyFocused.focus === "function") {
         previouslyFocused.focus();
       }
     };
-  }, [open, onOpenChange]);
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 

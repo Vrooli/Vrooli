@@ -1,11 +1,11 @@
 package validation_run
 
 import (
-	vrun "development-toolchain-validator/internal/validation_run"
 	vr "development-toolchain-validator/internal/validation_record"
+	vrun "development-toolchain-validator/internal/validation_run"
 
-	vrunv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_run"
 	vrv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_record"
+	vrunv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_run"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

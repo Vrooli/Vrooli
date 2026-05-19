@@ -82,9 +82,9 @@ func defaultCommandRunner(ctx context.Context, name string, args ...string) ([]b
 // knownTools is the closed set of tool names this adapter recognizes.
 // Keeps a misconfigured caller from arbitrarily executing PATH lookups.
 var knownTools = map[string]struct{}{
-	"scenario-auditor":               {},
-	"test-genie":                     {},
-	"scenario-completeness-scoring":  {},
+	"scenario-auditor":              {},
+	"test-genie":                    {},
+	"scenario-completeness-scoring": {},
 }
 
 func isKnownTool(name string) bool {

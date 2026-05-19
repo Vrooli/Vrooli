@@ -67,31 +67,34 @@ func connectAPI(t *testing.T, svc *fakeService) http.Handler {
 
 func sample(id string) *vrv1.ValidationRecord {
 	return &vrv1.ValidationRecord{
-		Id:        id,
-		TupleKind: vrv1.TupleKind_TUPLE_KIND_SKILL,
-		SubjectId: "plan-skill-discovery",
+		Id:         id,
+		TupleKind:  vrv1.TupleKind_TUPLE_KIND_SKILL,
+		SubjectId:  "plan-skill-discovery",
 		GoldenSlug: "reference-react-vite",
-		EndedAt:   timestamppb.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)),
-		Verdict:   vrv1.Verdict_VERDICT_PASS,
+		EndedAt:    timestamppb.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)),
+		Verdict:    vrv1.Verdict_VERDICT_PASS,
 		DurationMs: 1234,
 	}
 }
 
 func TestList_RendersResults(t *testing.T) {
 	svc := &fakeService{listResp: &vrv1.ListRecordsResponse{
-		Records: []*vrv1.ValidationRecord{sample("r1"), sample("r2")},
+		Records:       []*vrv1.ValidationRecord{sample("r1"), sample("r2")},
 		NextPageToken: "tok",
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Flags: []cliapp.Flag{
-			{Name: "golden"}, {Name: "subject"}, {Name: "kind"},
-			{Name: "page-size", Default: "50"}, {Name: "page-token"},
+			{Name: "golden"},
+			{Name: "subject"},
+			{Name: "kind"},
+			{Name: "page-size", Default: "50"},
+			{Name: "page-token"},
 		},
 	}, cliapptest.TestRunContextOptions{Flags: map[string]string{
-		"golden": "reference-react-vite",
-		"kind":   "skill",
+		"golden":    "reference-react-vite",
+		"kind":      "skill",
 		"page-size": "5",
 	}})
 	require.NoError(t, h.list(ctx))

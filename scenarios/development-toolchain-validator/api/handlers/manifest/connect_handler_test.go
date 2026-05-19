@@ -46,7 +46,7 @@ func (f *fakeService) Upsert(_ context.Context, in manifest.UpsertInput) (manife
 	return f.UpsertOut, f.UpsertErr
 }
 
-func (f *fakeService) ClearStale(_ context.Context, _ , _ string) (time.Time, error) {
+func (f *fakeService) ClearStale(_ context.Context, _, _ string) (time.Time, error) {
 	return f.ClearOut, f.ClearErr
 }
 

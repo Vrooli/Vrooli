@@ -5,7 +5,36 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
 
-initIframeBridgeChild();
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  INTEROP-CRITICAL: Iframe bridge initialization              ║
+// ║                                                              ║
+// ║  Must run BEFORE React mount so storage shimming and the     ║
+// ║  bridge message channel are in place before components load. ║
+// ║  The window.parent guard makes this a no-op outside an       ║
+// ║  iframe (localhost / tunnel contexts).                       ║
+// ╚══════════════════════════════════════════════════════════════╝
+declare global {
+  interface Window {
+    __dtvBridgeInitialized?: boolean;
+  }
+}
+
+if (
+  typeof window !== "undefined" &&
+  window.parent !== window &&
+  !window.__dtvBridgeInitialized
+) {
+  let parentOrigin: string | undefined;
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin;
+    }
+  } catch {
+    // Fall back to default origin when parsing fails.
+  }
+  initIframeBridgeChild({ parentOrigin, appId: "development-toolchain-validator" });
+  window.__dtvBridgeInitialized = true;
+}
 initSpatialNav();
 
 const rootEl = document.getElementById("root");

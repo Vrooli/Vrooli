@@ -15,13 +15,13 @@ import (
 type FakeAgentManager struct {
 	mu sync.Mutex
 
-	StartErr        error
-	StartRunID      string
-	WaitErr         error
-	WaitResult      vrun.RunSummary
-	StartCalls      int
-	WaitCalls       int
-	LastStartSpec   vrun.SandboxedRunSpec
+	StartErr      error
+	StartRunID    string
+	WaitErr       error
+	WaitResult    vrun.RunSummary
+	StartCalls    int
+	WaitCalls     int
+	LastStartSpec vrun.SandboxedRunSpec
 }
 
 var _ vrun.AgentManagerClient = (*FakeAgentManager)(nil)

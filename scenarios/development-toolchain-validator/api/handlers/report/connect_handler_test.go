@@ -52,9 +52,9 @@ func newClient(t *testing.T, svc reportdom.Service) reportconnect.ReportServiceC
 
 func TestGoldenSummary_Passthrough(t *testing.T) {
 	client := newClient(t, &fakeService{SummaryOut: reportdom.GoldenSummary{
-		GoldenSlug:     "ref",
-		SkillVerdicts:  []reportdom.TupleVerdict{{TupleKind: vr.TupleKindSkill, SubjectID: "plan-skill", LatestVerdict: vr.VerdictPass}},
-		StaleCount:     1,
+		GoldenSlug:    "ref",
+		SkillVerdicts: []reportdom.TupleVerdict{{TupleKind: vr.TupleKindSkill, SubjectID: "plan-skill", LatestVerdict: vr.VerdictPass}},
+		StaleCount:    1,
 	}})
 	resp, err := client.GetGoldenSummary(context.Background(), connect.NewRequest(&reportv1.GetGoldenSummaryRequest{GoldenSlug: "ref"}))
 	require.NoError(t, err)

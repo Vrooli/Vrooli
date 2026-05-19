@@ -26,15 +26,15 @@ type WorkerConfig struct {
 
 // WorkerDeps wires all seams + recordkeeping the worker needs.
 type WorkerDeps struct {
-	Repo        Repository
-	Records     vr.Service
-	AgentMgr    AgentManagerClient
-	Tools       ToolRunner
-	Sandbox     WorkspaceSandboxClient // optional; nil tolerated
-	Goldens     GoldenSource
-	Manifests   ManifestSource
-	Clock       clock.Clock
-	Logger      *log.Logger
+	Repo      Repository
+	Records   vr.Service
+	AgentMgr  AgentManagerClient
+	Tools     ToolRunner
+	Sandbox   WorkspaceSandboxClient // optional; nil tolerated
+	Goldens   GoldenSource
+	Manifests ManifestSource
+	Clock     clock.Clock
+	Logger    *log.Logger
 }
 
 // Worker drives queued validation runs to terminal status. One worker

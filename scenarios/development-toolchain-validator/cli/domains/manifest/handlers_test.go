@@ -156,9 +156,13 @@ func TestUpsert_BuildsRequestFromFlags(t *testing.T) {
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Flags: []cliapp.Flag{
-			{Name: "skill"}, {Name: "golden"},
-			{Name: "allow"}, {Name: "wildcard-allowed", Bool: true},
-			{Name: "convergence"}, {Name: "template-version"}, {Name: "skill-version"},
+			{Name: "skill"},
+			{Name: "golden"},
+			{Name: "allow"},
+			{Name: "wildcard-allowed", Bool: true},
+			{Name: "convergence"},
+			{Name: "template-version"},
+			{Name: "skill-version"},
 		},
 	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{
