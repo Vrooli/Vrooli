@@ -5,9 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"test-genie/internal/playbooks/execution"
 	"testing"
 	"time"
+
+	"test-genie/internal/playbooks/execution"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )

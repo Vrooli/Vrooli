@@ -3,9 +3,10 @@ package fix
 import (
 	"context"
 	"strings"
-	"test-genie/agentmanager"
 	"testing"
 	"time"
+
+	"test-genie/agentmanager"
 )
 
 func newDisabledAgentService() *agentmanager.AgentService {

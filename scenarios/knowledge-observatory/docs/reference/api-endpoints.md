@@ -356,27 +356,54 @@ Query params: `path` (repo-relative) and optional `format` (`raw`, `highlighted`
 [CODE: api/internal/services/viewer/reset.go]
 
 ## Documentation Health
-`GET /api/v1/scenarios/{name}/docs/health`
 
-Returns documentation health for a scenario (misplaced, missing, extra docs).
+`POST /knowledge_observatory.v1.KnowledgeObservatoryService/DocHealth` (Connect-RPC)
 
-**Response**
+Single source of truth for scenario documentation health. Runs structural
+placement (misplaced/missing/extra/temporary) + content checks
+(markdown, mermaid, links, absolute paths) + bidirectional reference
+audits (`[CODE:]`, `// DOC:`, marked refs) + manifest coverage in one
+call. The legacy REST `GET /api/v1/scenarios/{name}/docs/health` was
+removed; this is the only surface.
+
+**Request (JSON unary)**
+
 ```json
 {
-  "scenario_name": "string",
-  "health_score": 0.92,
-  "total_docs": 12,
-  "misplaced_docs": [
-    {"actual_path": "docs/PROGRESS.md", "expected_path": "docs/internal/PROGRESS.md", "doc_type": "progress", "severity": "warning"}
-  ],
-  "missing_docs": ["progress"],
-  "extra_docs": ["docs/misc/NOTE.md"],
-  "warnings": [
-    {"type": "misplaced", "message": "Documentation file is in the wrong location", "expected_path": "docs/internal/PROGRESS.md", "severity": "warning"}
-  ],
-  "can_auto_fix": true
+  "scenarioName": "demo",
+  "strictExternalLinks": false,
+  "requireAllDocsRegistered": false,
+  "skipExternalLinks": false
 }
 ```
+
+**Response (excerpt)**
+
+```json
+{
+  "scenarioName": "demo",
+  "healthScore": 0.92,
+  "totalDocs": 12,
+  "misplacedDocs": [
+    {"actualPath": "docs/PROGRESS.md", "expectedPath": "docs/internal/PROGRESS.md", "docType": "progress", "severity": "DOC_HEALTH_SEVERITY_WARNING"}
+  ],
+  "missingDocs": [
+    {"docType": "progress", "path": "docs/internal/PROGRESS.md", "severity": "DOC_HEALTH_SEVERITY_WARNING"}
+  ],
+  "extraDocs": ["docs/misc/NOTE.md"],
+  "contentFindings": [],
+  "referenceFindings": [],
+  "manifestFindings": [],
+  "counts": {"filesChecked": 12, "localLinks": 4, "externalLinks": 1}
+}
+```
+
+See `packages/proto/schemas/knowledge-observatory/v1/api.proto` for the
+full schema.
+
+[CODE: api/handlers/dochealth/handler.go]
+[CODE: api/internal/services/dochealth/service.go]
+[CODE: packages/proto/schemas/knowledge-observatory/v1/api.proto]
 
 `POST /api/v1/scenarios/{name}/docs/reset`
 

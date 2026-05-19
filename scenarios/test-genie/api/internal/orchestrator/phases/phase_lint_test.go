@@ -7,9 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
+
 	"test-genie/internal/lint/execution"
 	"test-genie/internal/orchestrator/workspace"
-	"testing"
 )
 
 type stubLintRunner struct {

@@ -2,6 +2,7 @@ package structure
 
 import (
 	"fmt"
+
 	"test-genie/internal/shared"
 )
 

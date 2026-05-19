@@ -8,8 +8,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"test-genie/cli/internal/repo"
 	"time"
+
+	"test-genie/cli/internal/repo"
 )
 
 // LogTailer streams the newest log file in a directory.

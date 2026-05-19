@@ -21,9 +21,13 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 
+	knowledgeobservatoryv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect"
+
+	dochealthhandler "knowledge-observatory/handlers/dochealth"
 	"knowledge-observatory/internal/adapters/agentmanager"
 	"knowledge-observatory/internal/adapters/deepsearchstore"
 	"knowledge-observatory/internal/adapters/docaccessstore"
@@ -303,7 +307,6 @@ func (s *Server) setupRoutes() {
 	// Documentation health endpoints
 	s.router.HandleFunc("/api/v1/scenarios", s.handleListScenarios).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios/{name}/docs", s.handleDocsTree).Methods("GET")
-	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/health", s.handleDocsHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/reset", s.handleDocsReset).Methods("POST")
 	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/heal", s.handleDocsHeal).Methods("POST")
 	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/audit", s.handleDocsAudit).Methods("GET")
@@ -325,6 +328,14 @@ func (s *Server) setupRoutes() {
 	// Documentation templates
 	s.router.HandleFunc("/api/v1/docs/templates", s.handleDocsTemplateList).Methods("GET")
 	s.router.HandleFunc("/api/v1/docs/templates/{doc_type}", s.handleDocsTemplateGet).Methods("GET")
+
+	// Connect-RPC: KnowledgeObservatoryService (DocHealth + future RPCs).
+	if s.docHealthService != nil {
+		path, h := knowledgeobservatoryv1connect.NewKnowledgeObservatoryServiceHandler(
+			dochealthhandler.New(s.docHealthService),
+		)
+		connectx.RegisterServices(s.router, connectx.ServiceMount{Path: path, Handler: h})
+	}
 
 	// Canonical knowledge write path (records) - sync upsert
 	s.router.HandleFunc("/api/v1/knowledge/records/upsert", s.handleUpsertRecord).Methods("POST")

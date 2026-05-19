@@ -5,9 +5,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"test-genie/internal/structure/types"
 	"testing"
 	"time"
+
+	"test-genie/internal/structure/types"
 )
 
 // mockHTTPClient implements HTTPClient for testing.

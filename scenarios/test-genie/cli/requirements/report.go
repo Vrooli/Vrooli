@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
 	"test-genie/internal/requirements/reporting"
 
 	"github.com/vrooli/cli-core/cliutil"

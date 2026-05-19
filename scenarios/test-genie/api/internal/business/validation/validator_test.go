@@ -4,9 +4,10 @@ import (
 	"context"
 	"io"
 	"strings"
+	"testing"
+
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
-	"testing"
 )
 
 // mockValidator implements reqvalidation.Validator for testing.

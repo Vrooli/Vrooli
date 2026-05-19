@@ -10,8 +10,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"test-genie/cli/execute/report"
 	"time"
+
+	"test-genie/cli/execute/report"
 )
 
 // SSE event types (must match server)

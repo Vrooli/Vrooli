@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
+
 	"test-genie/agentmanager"
 	"test-genie/internal/execution"
 	"test-genie/internal/fix"
@@ -21,7 +23,6 @@ import (
 	"test-genie/internal/scenarios"
 	"test-genie/internal/toolexecution"
 	"test-genie/internal/toolregistry"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"

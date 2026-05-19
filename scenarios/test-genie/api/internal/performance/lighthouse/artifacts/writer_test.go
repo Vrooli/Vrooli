@@ -3,8 +3,9 @@ package artifacts
 import (
 	"encoding/json"
 	"os"
-	"test-genie/internal/performance/lighthouse"
 	"testing"
+
+	"test-genie/internal/performance/lighthouse"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )

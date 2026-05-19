@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"io/fs"
+	"time"
+
 	"test-genie/internal/requirements/enrichment"
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
-	"time"
 )
 
 // Builder builds requirement snapshots.

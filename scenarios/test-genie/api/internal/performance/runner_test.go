@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"io"
+	"testing"
+	"time"
+
 	"test-genie/internal/performance/golang"
 	"test-genie/internal/performance/lighthouse"
 	"test-genie/internal/performance/nodejs"
-	"testing"
-	"time"
 )
 
 // =============================================================================

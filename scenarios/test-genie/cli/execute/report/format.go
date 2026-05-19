@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"test-genie/cli/internal/repo"
 	"time"
+
+	"test-genie/cli/internal/repo"
 
 	execTypes "test-genie/cli/internal/execute"
 )

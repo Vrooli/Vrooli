@@ -3,8 +3,9 @@ package unit
 import (
 	"context"
 	"io"
-	"test-genie/internal/unit/types"
 	"testing"
+
+	"test-genie/internal/unit/types"
 )
 
 // mockRunner is a test double for LanguageRunner.

@@ -2,9 +2,10 @@ package execution
 
 import (
 	"context"
-	"test-genie/internal/orchestrator"
 	"testing"
 	"time"
+
+	"test-genie/internal/orchestrator"
 )
 
 type stubPlanBuilder struct {

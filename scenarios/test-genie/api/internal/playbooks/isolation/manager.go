@@ -11,8 +11,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"test-genie/internal/storage/sqlitedb"
 	"time"
+
+	"test-genie/internal/storage/sqlitedb"
 
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"

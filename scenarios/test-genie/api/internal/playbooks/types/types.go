@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"test-genie/internal/shared"
 	"time"
+
+	"test-genie/internal/shared"
 
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )

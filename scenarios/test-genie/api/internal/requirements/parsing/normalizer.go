@@ -2,6 +2,7 @@ package parsing
 
 import (
 	"strings"
+
 	"test-genie/internal/requirements/types"
 )
 

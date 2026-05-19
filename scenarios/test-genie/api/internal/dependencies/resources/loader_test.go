@@ -3,8 +3,9 @@ package resources
 import (
 	"io"
 	"strings"
-	"test-genie/internal/orchestrator/workspace"
 	"testing"
+
+	"test-genie/internal/orchestrator/workspace"
 )
 
 // mockManifestLoader implements ManifestLoader for testing.

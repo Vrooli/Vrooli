@@ -1,9 +1,10 @@
 package execution
 
 import (
+	"time"
+
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
-	"time"
 
 	"github.com/google/uuid"
 )

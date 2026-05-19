@@ -4,6 +4,7 @@ package reporting
 import (
 	"context"
 	"io"
+
 	"test-genie/internal/requirements/enrichment"
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"

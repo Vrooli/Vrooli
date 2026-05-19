@@ -9,9 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
+
 	"test-genie/cli/execute"
 	"test-genie/cli/generate"
-	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
 )

@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"testing"
 
 	"github.com/gorilla/mux"
 
@@ -9,6 +12,16 @@ import (
 	"knowledge-observatory/internal/services/graph"
 	"knowledge-observatory/internal/services/search"
 )
+
+func writeDocFile(t *testing.T, path string, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+}
 
 type stubEmbedder struct {
 	vector []float64

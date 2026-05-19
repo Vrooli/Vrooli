@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"test-genie/internal/orchestrator"
 	"time"
+
+	"test-genie/internal/orchestrator"
 )
 
 // SSE event types for streaming execution progress

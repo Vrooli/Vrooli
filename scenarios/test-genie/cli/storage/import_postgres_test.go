@@ -3,9 +3,10 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"test-genie/internal/storage/sqlitedb"
 	"testing"
 	"time"
+
+	"test-genie/internal/storage/sqlitedb"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	pq "github.com/lib/pq"

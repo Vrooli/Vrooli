@@ -2,8 +2,8 @@
 // @generated from file knowledge-observatory/v1/api.proto (package knowledge_observatory.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../buf/validate/validate_pb";
 import type { Value } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file knowledge-observatory/v1/api.proto.
  */
 export const file_knowledge_observatory_v1_api: GenFile = /*@__PURE__*/
-  fileDesc("CiJrbm93bGVkZ2Utb2JzZXJ2YXRvcnkvdjEvYXBpLnByb3RvEhhrbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEizwIKDVNlYXJjaFJlcXVlc3QSFgoFcXVlcnkYASABKAlCB7pIBHICEAESFwoKY29sbGVjdGlvbhgCIAEoCUgAiAEBEhIKCm5hbWVzcGFjZXMYAyADKAkSEgoKdmlzaWJpbGl0eRgEIAMoCRIMCgR0YWdzGAUgAygJEhsKDmluZ2VzdGVkX2FmdGVyGAYgASgJSAGIAQESHAoPaW5nZXN0ZWRfYmVmb3JlGAcgASgJSAKIAQESHQoFbGltaXQYCCABKAVCCbpIBhoEGGQoAUgDiAEBEi8KCXRocmVzaG9sZBgJIAEoAUIXukgUEhIZAAAAAAAA8D8pAAAAAAAAAABIBIgBAUINCgtfY29sbGVjdGlvbkIRCg9faW5nZXN0ZWRfYWZ0ZXJCEgoQX2luZ2VzdGVkX2JlZm9yZUIICgZfbGltaXRCDAoKX3RocmVzaG9sZCKRAQoMU2VhcmNoUmVzdWx0Eg8KAmlkGAEgASgJSACIAQESEgoFc2NvcmUYAiABKAFIAYgBARIUCgdjb250ZW50GAMgASgJSAKIAQESKQoIbWV0YWRhdGEYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0QgUKA19pZEIICgZfc2NvcmVCCgoIX2NvbnRlbnQiaQoOU2VhcmNoUmVzcG9uc2USNwoHcmVzdWx0cxgBIAMoCzImLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5TZWFyY2hSZXN1bHQSDQoFcXVlcnkYAiABKAkSDwoHdG9va19tcxgDIAEoAyKYAQoQRGVwZW5kZW5jeVN0YXR1cxIRCgljb25uZWN0ZWQYASABKAgSFwoKbGF0ZW5jeV9tcxgCIAEoAUgAiAEBEiUKBWVycm9yGAMgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEhUKCGRhdGFiYXNlGAQgASgJSAGIAQFCDQoLX2xhdGVuY3lfbXNCCwoJX2RhdGFiYXNlIrEEChxJbmZyYXN0cnVjdHVyZUhlYWx0aFJlc3BvbnNlEhcKBnN0YXR1cxgBIAEoCUIHukgEcgIQARIYCgdzZXJ2aWNlGAIgASgJQge6SARyAhABEhoKCXRpbWVzdGFtcBgDIAEoCUIHukgEcgIQARIRCglyZWFkaW5lc3MYBCABKAgSFAoHdmVyc2lvbhgFIAEoCUgAiAEBEhsKDnVwdGltZV9zZWNvbmRzGAYgASgBSAGIAQESXgoMZGVwZW5kZW5jaWVzGAcgAygLMkgua25vd2xlZGdlX29ic2VydmF0b3J5LnYxLkluZnJhc3RydWN0dXJlSGVhbHRoUmVzcG9uc2UuRGVwZW5kZW5jaWVzRW50cnkSVAoHbWV0cmljcxgIIAMoCzJDLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5JbmZyYXN0cnVjdHVyZUhlYWx0aFJlc3BvbnNlLk1ldHJpY3NFbnRyeRpfChFEZXBlbmRlbmNpZXNFbnRyeRILCgNrZXkYASABKAkSOQoFdmFsdWUYAiABKAsyKi5rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEuRGVwZW5kZW5jeVN0YXR1czoCOAEaRgoMTWV0cmljc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAFCCgoIX3ZlcnNpb25CEQoPX3VwdGltZV9zZWNvbmRzIqgBCg5RdWFsaXR5TWV0cmljcxIWCgljb2hlcmVuY2UYASABKAFIAIgBARIWCglmcmVzaG5lc3MYAiABKAFIAYgBARIXCgpyZWR1bmRhbmN5GAMgASgBSAKIAQESFQoIY292ZXJhZ2UYBCABKAFIA4gBAUIMCgpfY29oZXJlbmNlQgwKCl9mcmVzaG5lc3NCDQoLX3JlZHVuZGFuY3lCCwoJX2NvdmVyYWdlIoABChBDb2xsZWN0aW9uSGVhbHRoEhUKBG5hbWUYASABKAlCB7pIBHICEAESEQoEc2l6ZRgCIAEoBUgAiAEBEjkKB21ldHJpY3MYAyABKAsyKC5rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEuUXVhbGl0eU1ldHJpY3NCBwoFX3NpemUiiAIKF0tub3dsZWRnZUhlYWx0aFJlc3BvbnNlEhoKDXRvdGFsX2VudHJpZXMYASABKAVIAIgBARI/Cgtjb2xsZWN0aW9ucxgCIAMoCzIqLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5Db2xsZWN0aW9uSGVhbHRoEh8KDm92ZXJhbGxfaGVhbHRoGAMgASgJQge6SARyAhABEkEKD292ZXJhbGxfbWV0cmljcxgEIAEoCzIoLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5RdWFsaXR5TWV0cmljcxIaCgl0aW1lc3RhbXAYBSABKAlCB7pIBHICEAFCEAoOX3RvdGFsX2VudHJpZXNCYFpeZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkvdjE7a25vd2xlZGdlb2JzZXJ2YXRvcnl2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct]);
+  fileDesc("CiJrbm93bGVkZ2Utb2JzZXJ2YXRvcnkvdjEvYXBpLnByb3RvEhhrbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEizwIKDVNlYXJjaFJlcXVlc3QSFgoFcXVlcnkYASABKAlCB7pIBHICEAESFwoKY29sbGVjdGlvbhgCIAEoCUgAiAEBEhIKCm5hbWVzcGFjZXMYAyADKAkSEgoKdmlzaWJpbGl0eRgEIAMoCRIMCgR0YWdzGAUgAygJEhsKDmluZ2VzdGVkX2FmdGVyGAYgASgJSAGIAQESHAoPaW5nZXN0ZWRfYmVmb3JlGAcgASgJSAKIAQESHQoFbGltaXQYCCABKAVCCbpIBhoEGGQoAUgDiAEBEi8KCXRocmVzaG9sZBgJIAEoAUIXukgUEhIZAAAAAAAA8D8pAAAAAAAAAABIBIgBAUINCgtfY29sbGVjdGlvbkIRCg9faW5nZXN0ZWRfYWZ0ZXJCEgoQX2luZ2VzdGVkX2JlZm9yZUIICgZfbGltaXRCDAoKX3RocmVzaG9sZCKRAQoMU2VhcmNoUmVzdWx0Eg8KAmlkGAEgASgJSACIAQESEgoFc2NvcmUYAiABKAFIAYgBARIUCgdjb250ZW50GAMgASgJSAKIAQESKQoIbWV0YWRhdGEYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0QgUKA19pZEIICgZfc2NvcmVCCgoIX2NvbnRlbnQiaQoOU2VhcmNoUmVzcG9uc2USNwoHcmVzdWx0cxgBIAMoCzImLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5TZWFyY2hSZXN1bHQSDQoFcXVlcnkYAiABKAkSDwoHdG9va19tcxgDIAEoAyKYAQoQRGVwZW5kZW5jeVN0YXR1cxIRCgljb25uZWN0ZWQYASABKAgSFwoKbGF0ZW5jeV9tcxgCIAEoAUgAiAEBEiUKBWVycm9yGAMgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEhUKCGRhdGFiYXNlGAQgASgJSAGIAQFCDQoLX2xhdGVuY3lfbXNCCwoJX2RhdGFiYXNlIrEEChxJbmZyYXN0cnVjdHVyZUhlYWx0aFJlc3BvbnNlEhcKBnN0YXR1cxgBIAEoCUIHukgEcgIQARIYCgdzZXJ2aWNlGAIgASgJQge6SARyAhABEhoKCXRpbWVzdGFtcBgDIAEoCUIHukgEcgIQARIRCglyZWFkaW5lc3MYBCABKAgSFAoHdmVyc2lvbhgFIAEoCUgAiAEBEhsKDnVwdGltZV9zZWNvbmRzGAYgASgBSAGIAQESXgoMZGVwZW5kZW5jaWVzGAcgAygLMkgua25vd2xlZGdlX29ic2VydmF0b3J5LnYxLkluZnJhc3RydWN0dXJlSGVhbHRoUmVzcG9uc2UuRGVwZW5kZW5jaWVzRW50cnkSVAoHbWV0cmljcxgIIAMoCzJDLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5JbmZyYXN0cnVjdHVyZUhlYWx0aFJlc3BvbnNlLk1ldHJpY3NFbnRyeRpfChFEZXBlbmRlbmNpZXNFbnRyeRILCgNrZXkYASABKAkSOQoFdmFsdWUYAiABKAsyKi5rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEuRGVwZW5kZW5jeVN0YXR1czoCOAEaRgoMTWV0cmljc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAFCCgoIX3ZlcnNpb25CEQoPX3VwdGltZV9zZWNvbmRzIqgBCg5RdWFsaXR5TWV0cmljcxIWCgljb2hlcmVuY2UYASABKAFIAIgBARIWCglmcmVzaG5lc3MYAiABKAFIAYgBARIXCgpyZWR1bmRhbmN5GAMgASgBSAKIAQESFQoIY292ZXJhZ2UYBCABKAFIA4gBAUIMCgpfY29oZXJlbmNlQgwKCl9mcmVzaG5lc3NCDQoLX3JlZHVuZGFuY3lCCwoJX2NvdmVyYWdlIoABChBDb2xsZWN0aW9uSGVhbHRoEhUKBG5hbWUYASABKAlCB7pIBHICEAESEQoEc2l6ZRgCIAEoBUgAiAEBEjkKB21ldHJpY3MYAyABKAsyKC5rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEuUXVhbGl0eU1ldHJpY3NCBwoFX3NpemUiiAIKF0tub3dsZWRnZUhlYWx0aFJlc3BvbnNlEhoKDXRvdGFsX2VudHJpZXMYASABKAVIAIgBARI/Cgtjb2xsZWN0aW9ucxgCIAMoCzIqLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5Db2xsZWN0aW9uSGVhbHRoEh8KDm92ZXJhbGxfaGVhbHRoGAMgASgJQge6SARyAhABEkEKD292ZXJhbGxfbWV0cmljcxgEIAEoCzIoLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5RdWFsaXR5TWV0cmljcxIaCgl0aW1lc3RhbXAYBSABKAlCB7pIBHICEAFCEAoOX3RvdGFsX2VudHJpZXMiigIKEERvY0hlYWx0aEZpbmRpbmcSFQoEY29kZRgBIAEoCUIHukgEcgIQARJJCghzZXZlcml0eRgCIAEoDjIrLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5Eb2NIZWFsdGhTZXZlcml0eUIKukgHggEEEAEgABIYCgdtZXNzYWdlGAMgASgJQge6SARyAhABEhEKBHBhdGgYBCABKAlIAIgBARIVCghkb2NfdHlwZRgFIAEoCUgBiAEBEhEKBGxpbmUYBiABKAVIAogBARITCgZ0YXJnZXQYByABKAlIA4gBAUIHCgVfcGF0aEILCglfZG9jX3R5cGVCBwoFX2xpbmVCCQoHX3RhcmdldCLmAQoVRG9jSGVhbHRoTWlzcGxhY2VkRG9jEhwKC2FjdHVhbF9wYXRoGAEgASgJQge6SARyAhABEh4KDWV4cGVjdGVkX3BhdGgYAiABKAlCB7pIBHICEAESSQoIc2V2ZXJpdHkYAyABKA4yKy5rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEuRG9jSGVhbHRoU2V2ZXJpdHlCCrpIB4IBBBABIAASFQoIZG9jX3R5cGUYBCABKAlIAIgBARIUCgdtZXNzYWdlGAUgASgJSAGIAQFCCwoJX2RvY190eXBlQgoKCF9tZXNzYWdlIs8BChNEb2NIZWFsdGhNaXNzaW5nRG9jEhkKCGRvY190eXBlGAEgASgJQge6SARyAhABEhUKBHBhdGgYAiABKAlCB7pIBHICEAESSQoIc2V2ZXJpdHkYAyABKA4yKy5rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEuRG9jSGVhbHRoU2V2ZXJpdHlCCrpIB4IBBBABIAASFwoKY29tcGxldGlvbhgEIAEoCUgAiAEBEhMKC3JlcXVpcmVkX2J5GAUgAygJQg0KC19jb21wbGV0aW9uIuwECg9Eb2NIZWFsdGhDb3VudHMSFQoNZmlsZXNfY2hlY2tlZBgBIAEoBRIZChFtYXJrZG93bl93YXJuaW5ncxgCIAEoBRIZChFtYXJrZG93bl9mYWlsdXJlcxgDIAEoBRITCgtsb2NhbF9saW5rcxgEIAEoBRIWCg5leHRlcm5hbF9saW5rcxgFIAEoBRIUCgxicm9rZW5fbGlua3MYBiABKAUSGQoRZXh0ZXJuYWxfd2FybmluZ3MYByABKAUSGQoRZXh0ZXJuYWxfZmFpbHVyZXMYCCABKAUSGQoRbWVybWFpZF92YWxpZGF0ZWQYCSABKAUSGAoQbWVybWFpZF9mYWlsdXJlcxgKIAEoBRIaChJhYnNvbHV0ZV9wYXRoX2hpdHMYCyABKAUSGQoRYWJzb2x1dGVfZmFpbHVyZXMYDCABKAUSGgoSY29kZV9maWxlc19zY2FubmVkGA0gASgFEhcKD2NvZGVfcmVmc19mb3VuZBgOIAEoBRIYChBjb2RlX3JlZnNfYnJva2VuGA8gASgFEhYKDmRvY19yZWZzX2ZvdW5kGBAgASgFEhcKD2RvY19yZWZzX2Jyb2tlbhgRIAEoBRIZChFtYXJrZWRfcmVmc19mb3VuZBgSIAEoBRIaChJtYXJrZWRfcmVmc19icm9rZW4YEyABKAUSGwoTbWFya2VkX3JlZnNfc2tpcHBlZBgUIAEoBRIbChNtYXJrZWRfcmVmc191bmtub3duGBUgASgFEhgKEGRvY3NfaW5fbWFuaWZlc3QYFiABKAUSHAoUZG9jc19ub3RfaW5fbWFuaWZlc3QYFyABKAUilQIKEERvY0hlYWx0aFJlcXVlc3QSPwoNc2NlbmFyaW9fbmFtZRgBIAEoCUIoukglciMQARiAAjIcXltBLVphLXowLTldW0EtWmEtejAtOS5fLV0qJBIiChVzdHJpY3RfZXh0ZXJuYWxfbGlua3MYAiABKAhIAIgBARIoChtyZXF1aXJlX2FsbF9kb2NzX3JlZ2lzdGVyZWQYAyABKAhIAYgBARIgChNza2lwX2V4dGVybmFsX2xpbmtzGAQgASgISAKIAQFCGAoWX3N0cmljdF9leHRlcm5hbF9saW5rc0IeChxfcmVxdWlyZV9hbGxfZG9jc19yZWdpc3RlcmVkQhYKFF9za2lwX2V4dGVybmFsX2xpbmtzIrsGChFEb2NIZWFsdGhSZXNwb25zZRIeCg1zY2VuYXJpb19uYW1lGAEgASgJQge6SARyAhABEh8KEnNvdXJjZV90ZW1wbGF0ZV9pZBgCIAEoCUgAiAEBEhoKDW1hbmlmZXN0X3BhdGgYAyABKAlIAYgBARIcCg9tYW5pZmVzdF9zdGF0dXMYBCABKAlIAogBARItCgxoZWFsdGhfc2NvcmUYBSABKAFCF7pIFBISGQAAAAAAAPA/KQAAAAAAAAAAEhIKCnRvdGFsX2RvY3MYBiABKAUSRwoObWlzcGxhY2VkX2RvY3MYByADKAsyLy5rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEuRG9jSGVhbHRoTWlzcGxhY2VkRG9jEkMKDG1pc3NpbmdfZG9jcxgIIAMoCzItLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5Eb2NIZWFsdGhNaXNzaW5nRG9jEhIKCmV4dHJhX2RvY3MYCSADKAkSFgoOdGVtcG9yYXJ5X2RvY3MYCiADKAkSRQoRY29udHJhY3RfZmluZGluZ3MYCyADKAsyKi5rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEuRG9jSGVhbHRoRmluZGluZxJEChBjb250ZW50X2ZpbmRpbmdzGAwgAygLMioua25vd2xlZGdlX29ic2VydmF0b3J5LnYxLkRvY0hlYWx0aEZpbmRpbmcSRgoScmVmZXJlbmNlX2ZpbmRpbmdzGA0gAygLMioua25vd2xlZGdlX29ic2VydmF0b3J5LnYxLkRvY0hlYWx0aEZpbmRpbmcSRQoRbWFuaWZlc3RfZmluZGluZ3MYDiADKAsyKi5rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEuRG9jSGVhbHRoRmluZGluZxI5CgZjb3VudHMYDyABKAsyKS5rbm93bGVkZ2Vfb2JzZXJ2YXRvcnkudjEuRG9jSGVhbHRoQ291bnRzEhoKCXRpbWVzdGFtcBgQIAEoCUIHukgEcgIQAUIVChNfc291cmNlX3RlbXBsYXRlX2lkQhAKDl9tYW5pZmVzdF9wYXRoQhIKEF9tYW5pZmVzdF9zdGF0dXMqmAEKEURvY0hlYWx0aFNldmVyaXR5EiMKH0RPQ19IRUFMVEhfU0VWRVJJVFlfVU5TUEVDSUZJRUQQABIcChhET0NfSEVBTFRIX1NFVkVSSVRZX0lORk8QARIfChtET0NfSEVBTFRIX1NFVkVSSVRZX1dBUk5JTkcQAhIfChtET0NfSEVBTFRIX1NFVkVSSVRZX0ZBSUxVUkUQAzKDAQobS25vd2xlZGdlT2JzZXJ2YXRvcnlTZXJ2aWNlEmQKCURvY0hlYWx0aBIqLmtub3dsZWRnZV9vYnNlcnZhdG9yeS52MS5Eb2NIZWFsdGhSZXF1ZXN0Gisua25vd2xlZGdlX29ic2VydmF0b3J5LnYxLkRvY0hlYWx0aFJlc3BvbnNlQmBaXmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28va25vd2xlZGdlLW9ic2VydmF0b3J5L3YxO2tub3dsZWRnZW9ic2VydmF0b3J5djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct]);
 
 /**
  * SearchRequest defines the input schema for semantic search.
@@ -423,4 +423,526 @@ export type KnowledgeHealthResponse = Message<"knowledge_observatory.v1.Knowledg
  */
 export const KnowledgeHealthResponseSchema: GenMessage<KnowledgeHealthResponse> = /*@__PURE__*/
   messageDesc(file_knowledge_observatory_v1_api, 7);
+
+/**
+ * DocHealthFinding is a single observation produced by a validator.
+ *
+ * Used uniformly across structural, content, link, mermaid, path, reference,
+ * and manifest-coverage validators. Fields not relevant to a finding's family
+ * may be empty.
+ *
+ * @generated from message knowledge_observatory.v1.DocHealthFinding
+ */
+export type DocHealthFinding = Message<"knowledge_observatory.v1.DocHealthFinding"> & {
+  /**
+   * Stable machine code (e.g. "broken_local_link", "absolute_path",
+   * "missing_doc"). @constraint Must be non-empty.
+   *
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * Severity bucket.
+   *
+   * @generated from field: knowledge_observatory.v1.DocHealthSeverity severity = 2;
+   */
+  severity: DocHealthSeverity;
+
+  /**
+   * Human-readable summary of the finding.
+   *
+   * @generated from field: string message = 3;
+   */
+  message: string;
+
+  /**
+   * Repo-relative path of the offending file, if applicable.
+   *
+   * @generated from field: optional string path = 4;
+   */
+  path?: string | undefined;
+
+  /**
+   * Optional doc type identifier (when the finding maps to a known contract
+   * document — e.g. "architecture", "seams").
+   *
+   * @generated from field: optional string doc_type = 5;
+   */
+  docType?: string | undefined;
+
+  /**
+   * Optional line number within `path`.
+   *
+   * @generated from field: optional int32 line = 6;
+   */
+  line?: number | undefined;
+
+  /**
+   * Optional target referenced by the finding (e.g. broken link href,
+   * referenced code path).
+   *
+   * @generated from field: optional string target = 7;
+   */
+  target?: string | undefined;
+};
+
+/**
+ * Describes the message knowledge_observatory.v1.DocHealthFinding.
+ * Use `create(DocHealthFindingSchema)` to create a new message.
+ */
+export const DocHealthFindingSchema: GenMessage<DocHealthFinding> = /*@__PURE__*/
+  messageDesc(file_knowledge_observatory_v1_api, 8);
+
+/**
+ * DocHealthMisplacedDoc describes a documentation file located outside its
+ * contract-expected path.
+ *
+ * @generated from message knowledge_observatory.v1.DocHealthMisplacedDoc
+ */
+export type DocHealthMisplacedDoc = Message<"knowledge_observatory.v1.DocHealthMisplacedDoc"> & {
+  /**
+   * @generated from field: string actual_path = 1;
+   */
+  actualPath: string;
+
+  /**
+   * @generated from field: string expected_path = 2;
+   */
+  expectedPath: string;
+
+  /**
+   * @generated from field: knowledge_observatory.v1.DocHealthSeverity severity = 3;
+   */
+  severity: DocHealthSeverity;
+
+  /**
+   * @generated from field: optional string doc_type = 4;
+   */
+  docType?: string | undefined;
+
+  /**
+   * @generated from field: optional string message = 5;
+   */
+  message?: string | undefined;
+};
+
+/**
+ * Describes the message knowledge_observatory.v1.DocHealthMisplacedDoc.
+ * Use `create(DocHealthMisplacedDocSchema)` to create a new message.
+ */
+export const DocHealthMisplacedDocSchema: GenMessage<DocHealthMisplacedDoc> = /*@__PURE__*/
+  messageDesc(file_knowledge_observatory_v1_api, 9);
+
+/**
+ * DocHealthMissingDoc describes a contract-required document that is absent.
+ *
+ * @generated from message knowledge_observatory.v1.DocHealthMissingDoc
+ */
+export type DocHealthMissingDoc = Message<"knowledge_observatory.v1.DocHealthMissingDoc"> & {
+  /**
+   * @generated from field: string doc_type = 1;
+   */
+  docType: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: knowledge_observatory.v1.DocHealthSeverity severity = 3;
+   */
+  severity: DocHealthSeverity;
+
+  /**
+   * @generated from field: optional string completion = 4;
+   */
+  completion?: string | undefined;
+
+  /**
+   * @generated from field: repeated string required_by = 5;
+   */
+  requiredBy: string[];
+};
+
+/**
+ * Describes the message knowledge_observatory.v1.DocHealthMissingDoc.
+ * Use `create(DocHealthMissingDocSchema)` to create a new message.
+ */
+export const DocHealthMissingDocSchema: GenMessage<DocHealthMissingDoc> = /*@__PURE__*/
+  messageDesc(file_knowledge_observatory_v1_api, 10);
+
+/**
+ * DocHealthCounts aggregates raw metric counts produced by content/link/refs
+ * validators. Mirrors the legacy test-genie Summary so phase reporting keeps
+ * its existing shape after the migration.
+ *
+ * @generated from message knowledge_observatory.v1.DocHealthCounts
+ */
+export type DocHealthCounts = Message<"knowledge_observatory.v1.DocHealthCounts"> & {
+  /**
+   * Markdown / file-level totals.
+   *
+   * @generated from field: int32 files_checked = 1;
+   */
+  filesChecked: number;
+
+  /**
+   * @generated from field: int32 markdown_warnings = 2;
+   */
+  markdownWarnings: number;
+
+  /**
+   * @generated from field: int32 markdown_failures = 3;
+   */
+  markdownFailures: number;
+
+  /**
+   * Link totals.
+   *
+   * @generated from field: int32 local_links = 4;
+   */
+  localLinks: number;
+
+  /**
+   * @generated from field: int32 external_links = 5;
+   */
+  externalLinks: number;
+
+  /**
+   * @generated from field: int32 broken_links = 6;
+   */
+  brokenLinks: number;
+
+  /**
+   * @generated from field: int32 external_warnings = 7;
+   */
+  externalWarnings: number;
+
+  /**
+   * @generated from field: int32 external_failures = 8;
+   */
+  externalFailures: number;
+
+  /**
+   * Mermaid totals.
+   *
+   * @generated from field: int32 mermaid_validated = 9;
+   */
+  mermaidValidated: number;
+
+  /**
+   * @generated from field: int32 mermaid_failures = 10;
+   */
+  mermaidFailures: number;
+
+  /**
+   * Absolute-path totals.
+   *
+   * @generated from field: int32 absolute_path_hits = 11;
+   */
+  absolutePathHits: number;
+
+  /**
+   * @generated from field: int32 absolute_failures = 12;
+   */
+  absoluteFailures: number;
+
+  /**
+   * Bidirectional reference totals.
+   *
+   * @generated from field: int32 code_files_scanned = 13;
+   */
+  codeFilesScanned: number;
+
+  /**
+   * @generated from field: int32 code_refs_found = 14;
+   */
+  codeRefsFound: number;
+
+  /**
+   * @generated from field: int32 code_refs_broken = 15;
+   */
+  codeRefsBroken: number;
+
+  /**
+   * @generated from field: int32 doc_refs_found = 16;
+   */
+  docRefsFound: number;
+
+  /**
+   * @generated from field: int32 doc_refs_broken = 17;
+   */
+  docRefsBroken: number;
+
+  /**
+   * @generated from field: int32 marked_refs_found = 18;
+   */
+  markedRefsFound: number;
+
+  /**
+   * @generated from field: int32 marked_refs_broken = 19;
+   */
+  markedRefsBroken: number;
+
+  /**
+   * @generated from field: int32 marked_refs_skipped = 20;
+   */
+  markedRefsSkipped: number;
+
+  /**
+   * @generated from field: int32 marked_refs_unknown = 21;
+   */
+  markedRefsUnknown: number;
+
+  /**
+   * Manifest coverage totals.
+   *
+   * @generated from field: int32 docs_in_manifest = 22;
+   */
+  docsInManifest: number;
+
+  /**
+   * @generated from field: int32 docs_not_in_manifest = 23;
+   */
+  docsNotInManifest: number;
+};
+
+/**
+ * Describes the message knowledge_observatory.v1.DocHealthCounts.
+ * Use `create(DocHealthCountsSchema)` to create a new message.
+ */
+export const DocHealthCountsSchema: GenMessage<DocHealthCounts> = /*@__PURE__*/
+  messageDesc(file_knowledge_observatory_v1_api, 11);
+
+/**
+ * DocHealthRequest invokes a full documentation-health check for a single
+ * scenario.
+ *
+ * @usage rpc DocHealth on KnowledgeObservatoryService
+ *
+ * @generated from message knowledge_observatory.v1.DocHealthRequest
+ */
+export type DocHealthRequest = Message<"knowledge_observatory.v1.DocHealthRequest"> & {
+  /**
+   * Name of the scenario directory (under the scenarios root).
+   * @constraint Must be non-empty and contain no path separators.
+   *
+   * @generated from field: string scenario_name = 1;
+   */
+  scenarioName: string;
+
+  /**
+   * When true, external (http/https) links cause failures rather than
+   * warnings. When unset, server default applies.
+   *
+   * @generated from field: optional bool strict_external_links = 2;
+   */
+  strictExternalLinks?: boolean | undefined;
+
+  /**
+   * When true, every doc file under the scenario must be registered in
+   * docs/manifest.json (orphaned docs become failures). When unset, server
+   * default applies.
+   *
+   * @generated from field: optional bool require_all_docs_registered = 3;
+   */
+  requireAllDocsRegistered?: boolean | undefined;
+
+  /**
+   * When true, external link probing is skipped entirely (offline mode).
+   *
+   * @generated from field: optional bool skip_external_links = 4;
+   */
+  skipExternalLinks?: boolean | undefined;
+};
+
+/**
+ * Describes the message knowledge_observatory.v1.DocHealthRequest.
+ * Use `create(DocHealthRequestSchema)` to create a new message.
+ */
+export const DocHealthRequestSchema: GenMessage<DocHealthRequest> = /*@__PURE__*/
+  messageDesc(file_knowledge_observatory_v1_api, 12);
+
+/**
+ * DocHealthResponse is the combined result of every validator family.
+ *
+ * @usage rpc DocHealth on KnowledgeObservatoryService
+ *
+ * @generated from message knowledge_observatory.v1.DocHealthResponse
+ */
+export type DocHealthResponse = Message<"knowledge_observatory.v1.DocHealthResponse"> & {
+  /**
+   * Echoed scenario name.
+   *
+   * @generated from field: string scenario_name = 1;
+   */
+  scenarioName: string;
+
+  /**
+   * Source template identifier (e.g. "go-api", "react-vite"), if resolved.
+   *
+   * @generated from field: optional string source_template_id = 2;
+   */
+  sourceTemplateId?: string | undefined;
+
+  /**
+   * Repo-relative path to the docs manifest used for the run.
+   *
+   * @generated from field: optional string manifest_path = 3;
+   */
+  manifestPath?: string | undefined;
+
+  /**
+   * Manifest status: "present" | "template-fallback" | "missing".
+   *
+   * @generated from field: optional string manifest_status = 4;
+   */
+  manifestStatus?: string | undefined;
+
+  /**
+   * Aggregate health score in [0, 1]. 1 = clean, 0 = unrecoverable.
+   * @constraint 0-1
+   *
+   * @generated from field: double health_score = 5;
+   */
+  healthScore: number;
+
+  /**
+   * Total documentation files discovered under the scenario.
+   *
+   * @generated from field: int32 total_docs = 6;
+   */
+  totalDocs: number;
+
+  /**
+   * Structural findings.
+   *
+   * @generated from field: repeated knowledge_observatory.v1.DocHealthMisplacedDoc misplaced_docs = 7;
+   */
+  misplacedDocs: DocHealthMisplacedDoc[];
+
+  /**
+   * @generated from field: repeated knowledge_observatory.v1.DocHealthMissingDoc missing_docs = 8;
+   */
+  missingDocs: DocHealthMissingDoc[];
+
+  /**
+   * @generated from field: repeated string extra_docs = 9;
+   */
+  extraDocs: string[];
+
+  /**
+   * @generated from field: repeated string temporary_docs = 10;
+   */
+  temporaryDocs: string[];
+
+  /**
+   * Contract findings emitted by docs manifest resolution.
+   *
+   * @generated from field: repeated knowledge_observatory.v1.DocHealthFinding contract_findings = 11;
+   */
+  contractFindings: DocHealthFinding[];
+
+  /**
+   * Findings from content-level validators (markdown, mermaid, paths, links).
+   *
+   * @generated from field: repeated knowledge_observatory.v1.DocHealthFinding content_findings = 12;
+   */
+  contentFindings: DocHealthFinding[];
+
+  /**
+   * Findings from bidirectional reference audits ([CODE:], // DOC:, [PATH:],
+   * [DOC:]).
+   *
+   * @generated from field: repeated knowledge_observatory.v1.DocHealthFinding reference_findings = 13;
+   */
+  referenceFindings: DocHealthFinding[];
+
+  /**
+   * Findings from docs/manifest.json coverage audit (orphaned docs, missing
+   * registrations).
+   *
+   * @generated from field: repeated knowledge_observatory.v1.DocHealthFinding manifest_findings = 14;
+   */
+  manifestFindings: DocHealthFinding[];
+
+  /**
+   * Aggregate metric counts mirroring the legacy test-genie Summary.
+   *
+   * @generated from field: knowledge_observatory.v1.DocHealthCounts counts = 15;
+   */
+  counts?: DocHealthCounts | undefined;
+
+  /**
+   * Time the check was performed.
+   * @format rfc3339
+   *
+   * @generated from field: string timestamp = 16;
+   */
+  timestamp: string;
+};
+
+/**
+ * Describes the message knowledge_observatory.v1.DocHealthResponse.
+ * Use `create(DocHealthResponseSchema)` to create a new message.
+ */
+export const DocHealthResponseSchema: GenMessage<DocHealthResponse> = /*@__PURE__*/
+  messageDesc(file_knowledge_observatory_v1_api, 13);
+
+/**
+ * Severity classifies the impact of a documentation finding.
+ *
+ * @generated from enum knowledge_observatory.v1.DocHealthSeverity
+ */
+export enum DocHealthSeverity {
+  /**
+   * @generated from enum value: DOC_HEALTH_SEVERITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: DOC_HEALTH_SEVERITY_INFO = 1;
+   */
+  INFO = 1,
+
+  /**
+   * @generated from enum value: DOC_HEALTH_SEVERITY_WARNING = 2;
+   */
+  WARNING = 2,
+
+  /**
+   * @generated from enum value: DOC_HEALTH_SEVERITY_FAILURE = 3;
+   */
+  FAILURE = 3,
+}
+
+/**
+ * Describes the enum knowledge_observatory.v1.DocHealthSeverity.
+ */
+export const DocHealthSeveritySchema: GenEnum<DocHealthSeverity> = /*@__PURE__*/
+  enumDesc(file_knowledge_observatory_v1_api, 0);
+
+/**
+ * KnowledgeObservatoryService is the Connect-RPC entry point for the
+ * knowledge-observatory scenario. The service starts with documentation
+ * health; remaining REST endpoints will migrate here in follow-up plans.
+ *
+ * @generated from service knowledge_observatory.v1.KnowledgeObservatoryService
+ */
+export const KnowledgeObservatoryService: GenService<{
+  /**
+   * DocHealth runs the full documentation-health suite for a scenario and
+   * returns the combined result.
+   *
+   * @generated from rpc knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth
+   */
+  docHealth: {
+    methodKind: "unary";
+    input: typeof DocHealthRequestSchema;
+    output: typeof DocHealthResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_knowledge_observatory_v1_api, 0);
 

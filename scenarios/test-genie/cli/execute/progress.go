@@ -5,8 +5,9 @@ import (
 	"io"
 	"os"
 	"strings"
-	"test-genie/cli/internal/phases"
 	"time"
+
+	"test-genie/cli/internal/phases"
 
 	"golang.org/x/term"
 )

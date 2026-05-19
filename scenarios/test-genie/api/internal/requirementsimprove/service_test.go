@@ -3,9 +3,10 @@ package requirementsimprove
 import (
 	"context"
 	"strings"
-	"test-genie/agentmanager"
 	"testing"
 	"time"
+
+	"test-genie/agentmanager"
 )
 
 func newDisabledRequirementsAgentService() *agentmanager.AgentService {

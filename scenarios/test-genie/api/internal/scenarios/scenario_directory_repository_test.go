@@ -3,10 +3,11 @@ package scenarios
 import (
 	"context"
 	"database/sql"
-	"test-genie/internal/storage/sqliteutil"
-	"test-genie/internal/testsqlite"
 	"testing"
 	"time"
+
+	"test-genie/internal/storage/sqliteutil"
+	"test-genie/internal/testsqlite"
 
 	"github.com/google/uuid"
 )

@@ -3,9 +3,10 @@ package execution
 import (
 	"context"
 	"database/sql"
-	"test-genie/internal/orchestrator/phases"
 	"testing"
 	"time"
+
+	"test-genie/internal/orchestrator/phases"
 
 	"github.com/google/uuid"
 )

@@ -178,6 +178,17 @@
   "environment": {
     "TEST_GENIE_SQLITE_PATH": "${SCENARIO_DATA_DIR}/test-genie.db"
   },
+  "dependencies": {
+    "scenarios": {
+      "knowledge-observatory": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Single source of truth for scenario documentation health. Docs phase calls knowledge-observatory's DocHealth Connect-RPC and fails fast when unreachable.",
+        "degraded_behavior": "Docs phase fails with FailureClassMissingDependency until knowledge-observatory is available"
+      }
+    }
+  },
   "cli": {
     "enabled": true,
     "command": "test-genie",

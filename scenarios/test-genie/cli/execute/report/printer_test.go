@@ -5,9 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"test-genie/cli/internal/repo"
 	"testing"
 	"time"
+
+	"test-genie/cli/internal/repo"
 
 	execTypes "test-genie/cli/internal/execute"
 )

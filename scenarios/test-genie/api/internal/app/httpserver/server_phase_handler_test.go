@@ -6,8 +6,9 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"test-genie/internal/orchestrator"
 	"testing"
+
+	"test-genie/internal/orchestrator"
 
 	"github.com/gorilla/mux"
 )

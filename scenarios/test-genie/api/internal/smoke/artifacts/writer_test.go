@@ -5,8 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"os"
-	"test-genie/internal/smoke/orchestrator"
 	"testing"
+
+	"test-genie/internal/smoke/orchestrator"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )

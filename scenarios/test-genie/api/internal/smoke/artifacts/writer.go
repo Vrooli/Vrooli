@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"test-genie/internal/smoke/orchestrator"
 	"time"
+
+	"test-genie/internal/smoke/orchestrator"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )

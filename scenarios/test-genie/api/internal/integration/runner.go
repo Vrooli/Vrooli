@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+
 	"test-genie/internal/integration/api"
 	"test-genie/internal/integration/bats"
 	"test-genie/internal/integration/cli"

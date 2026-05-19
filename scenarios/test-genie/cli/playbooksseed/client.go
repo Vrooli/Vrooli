@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
 	"test-genie/cli/internal/apijson"
 
 	"github.com/vrooli/cli-core/cliutil"

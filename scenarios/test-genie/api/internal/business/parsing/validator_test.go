@@ -6,9 +6,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"testing"
+
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/types"
-	"testing"
 
 	reqparsing "test-genie/internal/requirements/parsing"
 )

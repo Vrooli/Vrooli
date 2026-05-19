@@ -8,9 +8,10 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
-	"test-genie/internal/orchestrator/workspace"
 	"testing"
 	"time"
+
+	"test-genie/internal/orchestrator/workspace"
 
 	"github.com/vrooli/api-core/discovery"
 )

@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
+
 	"test-genie/cli/internal/phases"
 	"test-genie/cli/internal/repo"
-	"time"
 
 	execTypes "test-genie/cli/internal/execute"
 )

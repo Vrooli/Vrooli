@@ -1,7 +1,7 @@
 # Seams & Architecture Boundaries
 
 ## Last Updated
-2026-02-08
+2026-05-19
 
 ## Integration Seams
 - **Vector store seam**: `ports.VectorStore` enables Qdrant substitution for testing. [CODE: api/internal/ports/ports.go]
@@ -9,6 +9,9 @@
 - **Metadata seam**: `ports.MetadataStore` isolates Postgres-backed metadata. [CODE: api/internal/ports/ports.go]
 - **Job store seam**: `ports.JobStore` isolates ingest job queue. [CODE: api/internal/ports/ports.go]
 - **Scenario filesystem seam**: doc health service encapsulates filesystem access to scenario docs. [CODE: api/internal/services/dochealth/service.go]
+- **External link probe seam**: `dochealth.Doer` (HTTP client interface) lets tests substitute a fake transport for external link validation; production wires `*http.Client` with timeout from staticConfig. [CODE: api/internal/services/dochealth/httpc.go] [CODE: api/internal/services/dochealth/links.go]
+- **Markdown walk root seam**: validators accept a scenario root path; no `os.Getwd` inside validator code, so tests can drive any directory layout. [CODE: api/internal/services/dochealth/walk.go]
+- **DocHealth Connect-RPC seam**: `KnowledgeObservatoryService.DocHealth` is the single source of truth for documentation health; replaced the legacy REST `GET /scenarios/{name}/docs/health`. [CODE: api/handlers/dochealth/handler.go] [CODE: packages/proto/schemas/knowledge-observatory/v1/api.proto]
 - **Documentation search seam**: docsearch service owns file/text/unified search over documentation roots. [CODE: api/internal/services/docsearch/service.go]
 - **Documentation explorer seam**: explorer service builds scenario doc trees with warnings. [CODE: api/internal/services/explorer/tree.go]
 - **Documentation viewer seam**: viewer service owns safe document loading + reset operations. [CODE: api/internal/services/viewer/service.go]
@@ -29,7 +32,7 @@
 - **Coordination/orchestration**: server wiring + service construction. [CODE: api/server.go]
 - **Domain rules**: ingest/search/graph services, metric calculations. [CODE: api/internal/services/ingest/service.go] [CODE: api/internal/services/search/service.go] [CODE: api/internal/services/graph/service.go]
 - **Documentation contract seam**: doccontract, doctemplates, docvalidation, and doclogs interpret scenario manifest contracts instead of hardcoding layout rules. [CODE: api/internal/doccontract/manifest.go] [CODE: api/internal/doctemplates/resolver.go] [CODE: api/internal/docvalidation/validation.go] [CODE: api/internal/doclogs/logs.go]
-- **Documentation health API**: handlers and service for scenario validation/reset. [CODE: api/docs_health.go] [CODE: api/internal/services/dochealth/service.go]
+- **Documentation health API**: Connect-RPC handler + service for the full doc-health suite (structural placement, markdown/mermaid/links/paths, bidirectional refs, manifest coverage). REST reset stays separate. [CODE: api/handlers/dochealth/handler.go] [CODE: api/internal/services/dochealth/service.go] [CODE: api/docs_reset.go]
 - **Documentation search API**: handlers + docsearch service for file/text/unified search. [CODE: api/docs_search.go] [CODE: api/internal/services/docsearch/service.go]
 - **Documentation explorer API**: handlers + explorer service for scenario listing and doc tree. [CODE: api/docs_explorer.go] [CODE: api/docs_search.go] [CODE: api/internal/services/explorer/tree.go]
 - **Documentation viewer API**: handlers + viewer service for content and reset. [CODE: api/docs_viewer.go] [CODE: api/internal/services/viewer/content.go]

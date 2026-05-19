@@ -7,8 +7,9 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-	"test-genie/agentmanager"
 	"time"
+
+	"test-genie/agentmanager"
 
 	"github.com/gorilla/mux"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"

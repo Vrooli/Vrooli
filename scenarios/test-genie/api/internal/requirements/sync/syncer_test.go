@@ -8,10 +8,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"test-genie/internal/requirements/parsing"
-	"test-genie/internal/requirements/types"
 	"testing"
 	"time"
+
+	"test-genie/internal/requirements/parsing"
+	"test-genie/internal/requirements/types"
 )
 
 // memReader implements Reader for testing.

@@ -3,8 +3,9 @@ package queue
 import (
 	"context"
 	"database/sql"
-	"test-genie/internal/storage/sqliteutil"
 	"time"
+
+	"test-genie/internal/storage/sqliteutil"
 
 	"github.com/google/uuid"
 )

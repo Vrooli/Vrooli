@@ -9,10 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
+
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/requirements/reporting"
 	"test-genie/internal/requirements/types"
-	"testing"
 )
 
 // testFixture holds all the test data for a single test scenario.

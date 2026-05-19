@@ -1,8 +1,9 @@
 package handshake
 
 import (
-	"test-genie/internal/smoke/orchestrator"
 	"testing"
+
+	"test-genie/internal/smoke/orchestrator"
 )
 
 func TestDetector_Evaluate_Success(t *testing.T) {

@@ -7,9 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
 	"test-genie/internal/requirements/evidence"
 	"test-genie/internal/requirements/types"
-	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 )

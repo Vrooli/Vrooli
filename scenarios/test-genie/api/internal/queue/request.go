@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"test-genie/internal/shared"
 	"time"
+
+	"test-genie/internal/shared"
 
 	"github.com/google/uuid"
 )

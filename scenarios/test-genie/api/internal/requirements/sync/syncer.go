@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
+
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
-	"time"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )

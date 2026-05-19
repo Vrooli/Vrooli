@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log"
 	"sync"
-	"test-genie/agentmanager"
 	"time"
+
+	"test-genie/agentmanager"
 
 	"github.com/google/uuid"
 	repocontract "github.com/vrooli/repo-contract-go"

@@ -1,9 +1,10 @@
 package main
 
 import (
+	"testing"
+
 	"test-genie/cli/execute"
 	"test-genie/cli/internal/phases"
-	"testing"
 )
 
 func TestNormalizePhaseSelection(t *testing.T) {

@@ -3,8 +3,9 @@ package sync
 import (
 	"context"
 	"encoding/json"
-	"test-genie/internal/requirements/types"
 	"time"
+
+	"test-genie/internal/requirements/types"
 )
 
 // FileWriter writes requirement files.

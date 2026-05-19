@@ -9,9 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"unicode/utf8"
+
 	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
-	"unicode/utf8"
 )
 
 var (

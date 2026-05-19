@@ -1,0 +1,218 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.schedules;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/schedules;schedules";
+
+// =============================================================================
+// SCHEDULES DOMAIN — cron-driven workflow runs + calendar projection.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain schedules
+// @stability stable
+//
+// SchedulesService owns workflow schedule CRUD, manual trigger, on/off toggle,
+// and the calendar-occurrences projection used by the Settings → Schedules tab
+// and the dashboard Schedules section.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/schedules/service.go
+//   - UI:   ui/src/api/schedules.ts (scheduleStore)
+//   - CLI:  bas schedules list | get | create | update | delete | toggle | trigger | occurrences
+// =============================================================================
+
+service SchedulesService {
+  // Create attaches a new schedule to a workflow. The server validates the
+  // cron expression and timezone; next_run_at is computed on create.
+  rpc Create(CreateScheduleRequest) returns (ScheduleMutationResponse);
+
+  // ListByWorkflow lists schedules attached to a single workflow.
+  rpc ListByWorkflow(ListByWorkflowRequest) returns (ListSchedulesResponse);
+
+  // List lists every schedule visible to the caller, optionally filtered by
+  // workflow_id and active_only.
+  rpc List(ListSchedulesRequest) returns (ListSchedulesResponse);
+
+  // Get returns a single schedule by id.
+  rpc Get(GetScheduleRequest) returns (ScheduleResponse);
+
+  // Update applies a partial update to a schedule. Unset fields are left
+  // unchanged. When the cron expression or timezone changes the server
+  // recomputes next_run_at.
+  rpc Update(UpdateScheduleRequest) returns (ScheduleMutationResponse);
+
+  // Delete removes a schedule.
+  rpc Delete(DeleteScheduleRequest) returns (DeleteScheduleResponse);
+
+  // Toggle flips is_active. When activating, next_run_at is recomputed.
+  rpc Toggle(ToggleScheduleRequest) returns (ToggleScheduleResponse);
+
+  // Trigger fires the schedule's workflow immediately and updates
+  // last_run_at. Returns the resulting execution id.
+  rpc Trigger(TriggerScheduleRequest) returns (TriggerScheduleResponse);
+
+  // Occurrences returns projected runs of every active schedule within a
+  // date range. High-frequency schedules are aggregated rather than
+  // enumerated; clients merge `occurrences` and `aggregates` for display.
+  rpc Occurrences(OccurrencesRequest) returns (OccurrencesResponse);
+}
+
+// WorkflowSchedule is the canonical representation of a stored schedule.
+message WorkflowSchedule {
+  string id = 1;
+  string workflow_id = 2;
+  string name = 3;
+  string description = 4;
+  string cron_expression = 5;
+  string timezone = 6;
+  bool is_active = 7;
+  // Free-form parameters passed through to the workflow at trigger time.
+  google.protobuf.Struct parameters = 8;
+  google.protobuf.Timestamp next_run_at = 9;
+  google.protobuf.Timestamp last_run_at = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  // Computed convenience fields.
+  string workflow_name = 13;
+  string next_run_human = 14;
+  string last_run_status = 15;
+}
+
+message CreateScheduleRequest {
+  // Required. Workflow this schedule attaches to.
+  string workflow_id = 1 [(buf.validate.field).string.uuid = true];
+  // Required. Display name.
+  string name = 2;
+  string description = 3;
+  // Required. Cron expression in 5-field (minute hour dom month dow) form.
+  string cron_expression = 4;
+  // IANA timezone. Defaults to "UTC" when unset.
+  string timezone = 5;
+  google.protobuf.Struct parameters = 6;
+  // Optional. Defaults to true on create.
+  optional bool is_active = 7;
+}
+
+message ListByWorkflowRequest {
+  string workflow_id = 1 [(buf.validate.field).string.uuid = true];
+  bool active_only = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message ListSchedulesRequest {
+  // Optional UUID filter; empty = all workflows.
+  string workflow_id = 1;
+  bool active_only = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message ListSchedulesResponse {
+  repeated WorkflowSchedule schedules = 1;
+  int32 total = 2;
+}
+
+message GetScheduleRequest {
+  string schedule_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ScheduleResponse {
+  WorkflowSchedule schedule = 1;
+}
+
+message UpdateScheduleRequest {
+  string schedule_id = 1 [(buf.validate.field).string.uuid = true];
+  optional string name = 2;
+  optional string description = 3;
+  optional string cron_expression = 4;
+  optional string timezone = 5;
+  // When set, replaces the persisted parameters wholesale. Unset = no change.
+  google.protobuf.Struct parameters = 6;
+  optional bool is_active = 7;
+}
+
+message DeleteScheduleRequest {
+  string schedule_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message DeleteScheduleResponse {
+  string schedule_id = 1;
+}
+
+message ToggleScheduleRequest {
+  string schedule_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ToggleScheduleResponse {
+  string schedule_id = 1;
+  bool is_active = 2;
+  WorkflowSchedule schedule = 3;
+}
+
+message TriggerScheduleRequest {
+  string schedule_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message TriggerScheduleResponse {
+  string schedule_id = 1;
+  string execution_id = 2;
+  string workflow_id = 3;
+  google.protobuf.Timestamp triggered_at = 4;
+}
+
+// ScheduleMutationResponse is returned by Create and Update so the UI can
+// patch its local cache in one round-trip.
+message ScheduleMutationResponse {
+  string schedule_id = 1;
+  // "created" or "updated".
+  string status = 2;
+  WorkflowSchedule schedule = 3;
+}
+
+// =============================================================================
+// CALENDAR OCCURRENCES
+// =============================================================================
+
+message OccurrencesRequest {
+  // Required. RFC3339 range. The server caps `end - start` at 1 year.
+  google.protobuf.Timestamp start = 1;
+  google.protobuf.Timestamp end = 2;
+  // Optional. Per-schedule cap. Server clamps to (0, 1000]; default 100.
+  int32 max_per_schedule = 3;
+  // Optional workflow filter. Empty = all workflows.
+  string workflow_id = 4;
+}
+
+message ScheduleOccurrence {
+  string schedule_id = 1;
+  string schedule_name = 2;
+  string workflow_id = 3;
+  string workflow_name = 4;
+  google.protobuf.Timestamp run_at = 5;
+  bool is_active = 6;
+  string cron_expression = 7;
+  string timezone = 8;
+}
+
+message ScheduleAggregate {
+  string schedule_id = 1;
+  string schedule_name = 2;
+  int32 total_runs = 3;
+  bool truncated = 4;
+  string cron_expression = 5;
+}
+
+message OccurrencesResponse {
+  repeated ScheduleOccurrence occurrences = 1;
+  // Keyed by schedule_id.
+  map<string, ScheduleAggregate> aggregates = 2;
+  int32 total = 3;
+  google.protobuf.Timestamp range_start = 4;
+  google.protobuf.Timestamp range_end = 5;
+}

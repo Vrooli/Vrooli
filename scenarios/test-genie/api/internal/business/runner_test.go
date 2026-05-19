@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"io"
+	"testing"
+
 	"test-genie/internal/business/discovery"
 	"test-genie/internal/business/existence"
 	"test-genie/internal/business/parsing"
 	"test-genie/internal/business/validation"
 	"test-genie/internal/requirements/types"
-	"testing"
 
 	reqparsing "test-genie/internal/requirements/parsing"
 

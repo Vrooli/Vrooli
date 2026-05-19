@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"test-genie/internal/orchestrator/workspace"
 	"testing"
+
+	"test-genie/internal/orchestrator/workspace"
 )
 
 func stubCommandLookup(t *testing.T, stub func(string) (string, error)) {

@@ -182,10 +182,20 @@ Marked inline references use the project-level syntax from `docs/reference/machi
 
 ## Implementation
 
-The docs phase is implemented in:
-- [CODE: api/internal/docs/runner.go#Run] - Main validation orchestration
-- [CODE: api/internal/docs/config.go#Settings] - Configuration model and defaults
-- [CODE: api/internal/docs/types.go#Summary] - Result metrics and types
+The docs phase is a **thin Connect-RPC client**: it calls
+`knowledge-observatory`'s `KnowledgeObservatoryService.DocHealth` and
+translates the proto response into phase observations + a `DocsSummary`
+metric rollup. There is no inline validation in test-genie — every
+markdown / mermaid / link / path / reference / manifest check lives in
+knowledge-observatory.
+
+If knowledge-observatory is unreachable, the docs phase fails fast with
+`FailureClassMissingDependency`. There is no fallback.
+
+- [CODE: api/internal/orchestrator/phases/phase_docs.go#runDocsPhase] - Resolve URL, call DocHealth RPC, translate response
+- [CODE: api/internal/orchestrator/phases/phase_docs.go#translateDocHealth] - Proto → Observations + Summary translator
+- [CODE: api/internal/orchestrator/phases/phase_docs.go#DocsSummary] - Metric rollup (mirrors proto `DocHealthCounts`)
+- See knowledge-observatory's `api/internal/services/dochealth/` for the validators themselves.
 
 ## Summary Metrics
 

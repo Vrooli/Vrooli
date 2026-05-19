@@ -1,6 +1,7 @@
 package docs
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,10 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
+
 	"knowledge-observatory/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+
+	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
+	kov1connect "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect"
 )
 
 type FileSearchRequest struct {
@@ -378,6 +384,9 @@ func health(deps support.Dependencies, args []string) error {
 	fs := flag.NewFlagSet("docs health", flag.ContinueOnError)
 	scenario := fs.String("scenario", "", "Scenario name")
 	jsonOut := fs.Bool("json", false, "Output raw JSON")
+	strictExternal := fs.Bool("strict-external-links", false, "Treat external link failures as failures (overrides server default)")
+	requireRegistered := fs.Bool("require-all-docs-registered", false, "Fail when scenario docs are missing from docs/manifest.json")
+	skipExternal := fs.Bool("skip-external-links", false, "Skip external link probing entirely (offline mode)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -386,24 +395,53 @@ func health(deps support.Dependencies, args []string) error {
 		scenarioValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
 	}
 	if scenarioValue == "" {
-		return fmt.Errorf("usage: docs health <scenario> [--scenario=name] [--json]")
+		return fmt.Errorf("usage: docs health <scenario> [--scenario=name] [--strict-external-links] [--require-all-docs-registered] [--skip-external-links] [--json]")
 	}
 
-	body, err := deps.ScenarioApp().Request("GET", fmt.Sprintf("/scenarios/%s/docs/health", scenarioValue), nil, nil)
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(deps.ScenarioApp())
+	if strings.TrimSpace(baseURL) == "" {
+		return fmt.Errorf("knowledge-observatory API base URL is empty — start the scenario or pass --api-base")
+	}
+	client := kov1connect.NewKnowledgeObservatoryServiceClient(httpClient, baseURL)
+
+	req := &kov1.DocHealthRequest{ScenarioName: scenarioValue}
+	if isFlagSet(fs, "strict-external-links") {
+		v := *strictExternal
+		req.StrictExternalLinks = &v
+	}
+	if isFlagSet(fs, "require-all-docs-registered") {
+		v := *requireRegistered
+		req.RequireAllDocsRegistered = &v
+	}
+	if isFlagSet(fs, "skip-external-links") {
+		v := *skipExternal
+		req.SkipExternalLinks = &v
+	}
+
+	resp, err := client.DocHealth(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return err
+		return fmt.Errorf("DocHealth RPC failed: %w", err)
 	}
 	if *jsonOut || jsonFromPositional {
-		cliutil.PrintJSON(body)
+		body, err := json.MarshalIndent(resp.Msg, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(body))
 		return nil
 	}
-	var result HealthResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-	fmt.Print(RenderHealthReport(result, scenarioValue))
+	fmt.Print(RenderHealthReport(protoToHealthResponse(resp.Msg), scenarioValue))
 	return nil
+}
+
+func isFlagSet(fs *flag.FlagSet, name string) bool {
+	set := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			set = true
+		}
+	})
+	return set
 }
 
 func view(deps support.Dependencies, args []string) error {

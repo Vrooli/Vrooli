@@ -2,10 +2,11 @@ package playbooks
 
 import (
 	"context"
+	"time"
+
 	"test-genie/internal/playbooks/artifacts"
 	"test-genie/internal/playbooks/execution"
 	"test-genie/internal/shared"
-	"time"
 )
 
 // collectWorkflowArtifacts fetches and writes all artifacts for a workflow execution.

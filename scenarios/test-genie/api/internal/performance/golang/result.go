@@ -1,8 +1,9 @@
 package golang
 
 import (
-	"test-genie/internal/structure/types"
 	"time"
+
+	"test-genie/internal/structure/types"
 )
 
 // Re-export shared types for convenience within this package.

@@ -35,9 +35,11 @@ type Lease struct {
 	Started bool
 }
 
-type CommandRunner func(ctx context.Context, dir string, env map[string]string, logWriter io.Writer, name string, args ...string) error
-type PortProbe func(ctx context.Context, port int) bool
-type PIDProbe func(pid int) bool
+type (
+	CommandRunner func(ctx context.Context, dir string, env map[string]string, logWriter io.Writer, name string, args ...string) error
+	PortProbe     func(ctx context.Context, port int) bool
+	PIDProbe      func(pid int) bool
+)
 
 // Manager owns lifecycle operations for the scenario under test.
 type Manager struct {

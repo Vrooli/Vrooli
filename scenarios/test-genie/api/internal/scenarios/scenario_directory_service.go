@@ -10,9 +10,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
+
 	"test-genie/internal/shared"
 	"test-genie/internal/smoke"
-	"time"
 )
 
 type scenarioSummaryStore interface {

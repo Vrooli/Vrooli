@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"strings"
-	"test-genie/internal/requirements/types"
 	"time"
+
+	"test-genie/internal/requirements/types"
 )
 
 // phaseResultFile represents the structure of a phase result JSON file.

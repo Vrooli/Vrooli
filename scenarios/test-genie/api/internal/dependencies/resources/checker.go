@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
 	"test-genie/internal/structure/types"
 )
 

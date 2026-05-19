@@ -150,6 +150,11 @@ func skipStandardsForTests(t *testing.T) {
 	t.Setenv("TEST_GENIE_SKIP_STANDARDS", "1")
 }
 
+func skipDocsForTests(t *testing.T) {
+	t.Helper()
+	t.Setenv("TEST_GENIE_SKIP_DOCS", "1")
+}
+
 func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	noOp := func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
 		return phasespkg.RunReport{}
@@ -164,6 +169,7 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs go-native phases", func(t *testing.T) {
 		skipPlaybooksForTests(t)
 		skipStandardsForTests(t)
+		skipDocsForTests(t)
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -376,6 +382,7 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] full suites trigger requirement sync", func(t *testing.T) {
 		skipPlaybooksForTests(t)
 		skipStandardsForTests(t)
+		skipDocsForTests(t)
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {

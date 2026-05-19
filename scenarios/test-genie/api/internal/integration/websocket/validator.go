@@ -6,8 +6,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"test-genie/internal/structure/types"
 	"time"
+
+	"test-genie/internal/structure/types"
 
 	"github.com/gorilla/websocket"
 )

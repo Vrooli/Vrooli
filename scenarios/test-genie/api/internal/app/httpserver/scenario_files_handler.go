@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
 	"test-genie/internal/scenarios"
 
 	"github.com/gorilla/mux"

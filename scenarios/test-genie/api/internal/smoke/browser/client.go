@@ -9,8 +9,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"test-genie/internal/smoke/orchestrator"
 	"time"
+
+	"test-genie/internal/smoke/orchestrator"
 )
 
 // Client communicates with the Browserless API.

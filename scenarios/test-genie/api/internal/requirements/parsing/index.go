@@ -2,6 +2,7 @@ package parsing
 
 import (
 	"fmt"
+
 	"test-genie/internal/requirements/types"
 )
 

@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
+
 	"test-genie/internal/requirements/evidence"
 	"test-genie/internal/requirements/snapshot"
-	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 )

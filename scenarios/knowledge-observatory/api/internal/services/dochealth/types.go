@@ -1,0 +1,104 @@
+package dochealth
+
+// Severity classifies the impact of a DocHealth finding. Values mirror the
+// proto enum in packages/proto/schemas/knowledge-observatory/v1/api.proto.
+type Severity int
+
+const (
+	SeverityUnspecified Severity = iota
+	SeverityInfo
+	SeverityWarning
+	SeverityFailure
+)
+
+// Finding is the canonical observation produced by every validator family.
+type Finding struct {
+	Code     string
+	Severity Severity
+	Message  string
+	Path     string
+	DocType  string
+	Line     int
+	Target   string
+}
+
+// MisplacedDoc mirrors docvalidation.MisplacedDoc but uses the typed severity.
+type MisplacedDoc struct {
+	ActualPath   string
+	ExpectedPath string
+	Severity     Severity
+	DocType      string
+	Message      string
+}
+
+// MissingDoc mirrors docvalidation.MissingDoc but uses the typed severity.
+type MissingDoc struct {
+	DocType    string
+	Path       string
+	Severity   Severity
+	Completion string
+	RequiredBy []string
+}
+
+// Counts mirrors DocHealthCounts in the proto.
+type Counts struct {
+	FilesChecked     int
+	MarkdownWarnings int
+	MarkdownFailures int
+
+	LocalLinks       int
+	ExternalLinks    int
+	BrokenLinks      int
+	ExternalWarnings int
+	ExternalFailures int
+
+	MermaidValidated int
+	MermaidFailures  int
+
+	AbsolutePathHits int
+	AbsoluteFailures int
+
+	CodeFilesScanned  int
+	CodeRefsFound     int
+	CodeRefsBroken    int
+	DocRefsFound      int
+	DocRefsBroken     int
+	MarkedRefsFound   int
+	MarkedRefsBroken  int
+	MarkedRefsSkipped int
+	MarkedRefsUnknown int
+
+	DocsInManifest    int
+	DocsNotInManifest int
+}
+
+// DocHealthResult is the combined output of every validator family.
+type DocHealthResult struct {
+	ScenarioName     string
+	SourceTemplateID string
+	ManifestPath     string
+	ManifestStatus   string
+	HealthScore      float64
+	TotalDocs        int
+
+	MisplacedDocs []MisplacedDoc
+	MissingDocs   []MissingDoc
+	ExtraDocs     []string
+	TemporaryDocs []string
+
+	ContractFindings  []Finding
+	ContentFindings   []Finding
+	ReferenceFindings []Finding
+	ManifestFindings  []Finding
+
+	Counts Counts
+}
+
+// DocHealthOptions controls per-call validator behavior. Fields are pointers
+// so callers (via the proto request) can leave any of them unset and inherit
+// the static server defaults.
+type DocHealthOptions struct {
+	StrictExternalLinks      *bool
+	RequireAllDocsRegistered *bool
+	SkipExternalLinks        *bool
+}

@@ -6,8 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
-	"test-genie/internal/requirements/types"
 	"time"
+
+	"test-genie/internal/requirements/types"
 )
 
 // manualValidationEntry represents a single entry in log.jsonl.

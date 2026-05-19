@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"testing"
+
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
-	"testing"
 )
 
 type fakeExecutionPlanner struct {

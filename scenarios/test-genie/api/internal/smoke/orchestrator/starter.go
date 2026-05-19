@@ -6,8 +6,9 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"test-genie/internal/orchestrator/targetruntime"
 	"time"
+
+	"test-genie/internal/orchestrator/targetruntime"
 )
 
 // DefaultScenarioStarter implements ScenarioStarter using the vrooli CLI.

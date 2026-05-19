@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
 )

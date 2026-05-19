@@ -1,8 +1,9 @@
 package performance
 
 import (
-	"test-genie/internal/shared"
 	"time"
+
+	"test-genie/internal/shared"
 )
 
 // Config holds configuration for performance validation.

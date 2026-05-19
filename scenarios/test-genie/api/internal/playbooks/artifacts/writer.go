@@ -3,8 +3,9 @@ package artifacts
 import (
 	"fmt"
 	"path/filepath"
-	"test-genie/internal/playbooks/types"
 	"time"
+
+	"test-genie/internal/playbooks/types"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )

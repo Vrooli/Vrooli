@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
 )

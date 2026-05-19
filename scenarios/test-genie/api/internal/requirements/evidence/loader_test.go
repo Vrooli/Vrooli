@@ -5,9 +5,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"test-genie/internal/requirements/types"
 	"testing"
 	"time"
+
+	"test-genie/internal/requirements/types"
 )
 
 // memReader implements Reader for testing.

@@ -5,8 +5,9 @@ import (
 	"math"
 	"sort"
 	"strings"
-	"test-genie/internal/orchestrator"
 	"time"
+
+	"test-genie/internal/orchestrator"
 )
 
 const (
