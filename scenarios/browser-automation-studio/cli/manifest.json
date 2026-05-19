@@ -977,6 +977,68 @@
       ]
     },
     {
+      "name": "uxmetrics",
+      "description": "UX friction metrics for completed executions and workflow-level aggregates (Pro tier and above).",
+      "commands": [
+        {
+          "name": "get-execution",
+          "description": "Print previously-computed UX metrics for an execution.",
+          "positionals": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "UXMetricsService", "method": "GetExecutionMetrics" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get-step",
+          "description": "Print real-time metrics for a single step within an execution.",
+          "positionals": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" },
+            { "name": "step-index", "required": true, "description": "Zero-based step index" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "UXMetricsService", "method": "GetStepMetrics" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "compute",
+          "description": "Trigger full UX-metric computation for a completed execution and persist the result.",
+          "positionals": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "UXMetricsService", "method": "ComputeExecutionMetrics" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "workflow-aggregate",
+          "description": "Print rolled-up UX-friction stats across recent executions of a workflow.",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
+          ],
+          "flags": [
+            { "name": "limit", "description": "Number of recent executions to include (default 10, max 100)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "UXMetricsService", "method": "GetWorkflowAggregate" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "replay-config",
       "description": "Persisted replay/export style configuration (chrome theme, cursor, background, watermark, intro/outro cards).",
       "commands": [
@@ -1009,6 +1071,156 @@
           "binding": { "kind": "connect-rpc", "service": "ReplayConfigService", "method": "Reset" },
           "governance": {
             "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "schedules",
+      "description": "Cron schedule CRUD, manual trigger, on/off toggle, and calendar-occurrences projection.",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Attach a new cron schedule to a workflow.",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
+          ],
+          "flags": [
+            { "name": "name", "required": true, "description": "Display name" },
+            { "name": "cron", "required": true, "description": "Cron expression (5-field: minute hour dom month dow)" },
+            { "name": "description", "description": "Optional description" },
+            { "name": "timezone", "description": "IANA timezone (default UTC)" },
+            { "name": "parameters", "description": "JSON object of workflow parameters" },
+            { "name": "inactive", "bool": true, "description": "Create the schedule in the inactive state" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchedulesService", "method": "Create" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List schedules, optionally filtered by workflow.",
+          "flags": [
+            { "name": "workflow-id", "description": "Filter by workflow UUID" },
+            { "name": "active-only", "bool": true, "description": "Return only active schedules" },
+            { "name": "limit", "description": "Maximum results" },
+            { "name": "offset", "description": "Result offset" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchedulesService", "method": "List" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "list-by-workflow",
+          "description": "List schedules attached to a single workflow.",
+          "positionals": [
+            { "name": "workflow-id", "required": true, "description": "Workflow UUID" }
+          ],
+          "flags": [
+            { "name": "active-only", "bool": true, "description": "Return only active schedules" },
+            { "name": "limit", "description": "Maximum results" },
+            { "name": "offset", "description": "Result offset" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchedulesService", "method": "ListByWorkflow" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Print a single schedule by id.",
+          "positionals": [
+            { "name": "schedule-id", "required": true, "description": "Schedule UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchedulesService", "method": "Get" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Apply a partial update to a schedule.",
+          "positionals": [
+            { "name": "schedule-id", "required": true, "description": "Schedule UUID" }
+          ],
+          "flags": [
+            { "name": "name", "description": "New display name" },
+            { "name": "description", "description": "New description" },
+            { "name": "cron", "description": "New cron expression" },
+            { "name": "timezone", "description": "New IANA timezone" },
+            { "name": "parameters", "description": "JSON object of workflow parameters (replaces persisted parameters)" },
+            { "name": "active", "description": "true|false to set the schedule active or inactive" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchedulesService", "method": "Update" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Remove a schedule.",
+          "positionals": [
+            { "name": "schedule-id", "required": true, "description": "Schedule UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchedulesService", "method": "Delete" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "toggle",
+          "description": "Flip a schedule's is_active state.",
+          "positionals": [
+            { "name": "schedule-id", "required": true, "description": "Schedule UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchedulesService", "method": "Toggle" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "trigger",
+          "description": "Fire a schedule's workflow immediately and update last_run_at.",
+          "positionals": [
+            { "name": "schedule-id", "required": true, "description": "Schedule UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchedulesService", "method": "Trigger" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "occurrences",
+          "description": "Project schedule runs within a date range.",
+          "flags": [
+            { "name": "start", "required": true, "description": "Range start (RFC3339)" },
+            { "name": "end", "required": true, "description": "Range end (RFC3339)" },
+            { "name": "max-per-schedule", "description": "Per-schedule cap (default 100, max 1000)" },
+            { "name": "workflow-id", "description": "Optional workflow filter" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchedulesService", "method": "Occurrences" },
+          "governance": {
+            "effect": "read",
             "run_eligible": true,
             "permissions": ["network:internal"]
           }

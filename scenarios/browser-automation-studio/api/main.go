@@ -28,9 +28,11 @@ import (
 	projectfilesconnect "github.com/vrooli/browser-automation-studio/handlers/project_files"
 	projectsconnect "github.com/vrooli/browser-automation-studio/handlers/projects"
 	replayconfigconnect "github.com/vrooli/browser-automation-studio/handlers/replay_config"
-	schemaconnect "github.com/vrooli/browser-automation-studio/handlers/schema"
 	scenariosconnect "github.com/vrooli/browser-automation-studio/handlers/scenarios"
+	schedulesconnect "github.com/vrooli/browser-automation-studio/handlers/schedules"
+	schemaconnect "github.com/vrooli/browser-automation-studio/handlers/schema"
 	toolsconnect "github.com/vrooli/browser-automation-studio/handlers/tools"
+	uxmetricsconnect "github.com/vrooli/browser-automation-studio/handlers/uxmetrics"
 	workflowsconnect "github.com/vrooli/browser-automation-studio/handlers/workflows"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/performance"
@@ -244,7 +246,6 @@ func main() {
 	// The collector is integrated in the workflow service via InitDefaultDepsWithUXMetrics
 	uxAnalyzer := uxanalyzer.NewAnalyzer(uxRepo, nil)
 	uxService := uxmetrics.NewService(nil, uxAnalyzer, uxRepo)
-	uxHandler := handlers.NewUXMetricsHandler(uxService, log)
 	log.Info("✅ UX metrics service initialized with event pipeline integration")
 
 	// Wire up WebSocket input forwarding for low-latency input events
@@ -382,6 +383,16 @@ func main() {
 			Store:  repo,
 			Logger: log,
 		}),
+		uxmetricsconnect.Module(uxmetricsconnect.Deps{
+			Service: uxService,
+			Logger:  log,
+		}),
+		schedulesconnect.Module(schedulesconnect.Deps{
+			Repo:     repo,
+			Catalog:  deps.CatalogService,
+			Executor: deps.ExecutionService,
+			Logger:   log,
+		}),
 		workflowsconnect.Module(workflowsconnect.Deps{
 			Catalog:       deps.CatalogService,
 			Executor:      deps.ExecutionService,
@@ -486,7 +497,6 @@ func main() {
 	r.Route("/api/v1", func(r chi.Router) {
 		// Health endpoint under /api/v1 for consistency
 		r.Get("/health", healthHandler)
-
 
 		// Project CRUD + project-scoped workflow operations are owned by
 		// ProjectsService (Connect-RPC); see handlers/projects/.
@@ -649,22 +659,11 @@ func main() {
 		// see connectMounts above. The legacy REST surface was removed in
 		// the Phase 4 proto+Connect migration.
 
-		// UX metrics routes (Pro tier and above)
-		r.Get("/executions/{id}/ux-metrics", uxHandler.GetExecutionMetrics)
-		r.Get("/executions/{id}/ux-metrics/steps/{stepIndex}", uxHandler.GetStepMetrics)
-		r.Post("/executions/{id}/ux-metrics/compute", uxHandler.ComputeMetrics)
-		r.Get("/workflows/{id}/ux-metrics/aggregate", uxHandler.GetWorkflowMetricsAggregate)
+		// UX metrics routes are served via Connect-RPC (UXMetricsService);
+		// see connectMounts above. The legacy REST surface was removed in
+		// the Phase 9 proto+Connect migration.
 
-		// Schedule management routes
-		r.Post("/workflows/{workflowID}/schedules", handler.CreateSchedule)
-		r.Get("/workflows/{workflowID}/schedules", handler.ListWorkflowSchedules)
-		r.Get("/schedules", handler.ListAllSchedules)
-		r.Get("/schedules/occurrences", handler.GetScheduleOccurrences)
-		r.Get("/schedules/{scheduleID}", handler.GetSchedule)
-		r.Patch("/schedules/{scheduleID}", handler.UpdateSchedule)
-		r.Delete("/schedules/{scheduleID}", handler.DeleteSchedule)
-		r.Post("/schedules/{scheduleID}/trigger", handler.TriggerSchedule)
-		r.Post("/schedules/{scheduleID}/toggle", handler.ToggleSchedule)
+		// Schedule routes are served by SchedulesService (Connect-RPC).
 
 		// Observability routes — REST-only.
 		// All /observability/* endpoints proxy byte-for-byte to playwright-driver

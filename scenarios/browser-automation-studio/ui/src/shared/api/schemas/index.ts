@@ -15,9 +15,6 @@ export * from './workflow.schema';
 // WebSocket message schemas and types
 export * from './websocket.schema';
 
-// Schedule schemas and types
-export * from './schedule.schema';
-
 // UX Metrics schemas and types
 export * from './uxMetrics.schema';
 
