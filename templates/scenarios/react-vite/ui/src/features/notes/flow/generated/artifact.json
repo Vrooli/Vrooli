@@ -3,7 +3,7 @@
   "flowId": "notes.attachment-upload.ui",
   "source": {
     "contractPath": "ui/src/features/notes/flow/flow.json",
-    "contractSha256": "710b2aa9aebfe0aeae7096a4ef38c1e8bc9aa1e7f5bd8faf7aba0c90de4bfc9a",
+    "contractSha256": "487545e152b8e28dbfb7da90d187aeb5a265b4b069c1f657fb3381242e8a8409",
     "generatorPath": "flow-verifier",
     "generatorSha256": "b7362f6363aea370c6932eb535d0ce1300ebe0d7c711e026dc045a0a468c6312",
     "generatorVersion": 7,

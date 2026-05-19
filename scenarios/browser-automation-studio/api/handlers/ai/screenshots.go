@@ -2,9 +2,8 @@ package ai
 
 import (
 	"context"
-	"encoding/base64"
+	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
-	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
 const (
@@ -25,18 +23,36 @@ const (
 	defaultPreviewWaitUntil           = "networkidle"
 )
 
-type previewConsoleLog struct {
-	Level     string `json:"level"`
-	Message   string `json:"message"`
-	Timestamp string `json:"timestamp"`
+// PreviewConsoleLog mirrors one browser console entry captured during a
+// preview screenshot run. Transport-agnostic; callers (Connect handlers,
+// tests) reuse this type rather than redefining it.
+type PreviewConsoleLog struct {
+	Level     string
+	Message   string
+	Timestamp time.Time
 }
 
-type previewRequest struct {
-	URL      string `json:"url"`
-	Viewport *struct {
-		Width  int `json:"width"`
-		Height int `json:"height"`
-	} `json:"viewport,omitempty"`
+// PreviewScreenshotResult is the Go-typed return shape of
+// ScreenshotHandler.RunPreviewScreenshot. The Connect adapter maps this onto
+// the proto response.
+type PreviewScreenshotResult struct {
+	ScreenshotPNG  []byte
+	ContentType    string
+	ConsoleLogs    []PreviewConsoleLog
+	URL            string
+	CapturedAt     time.Time
+	DurationMS     int64
+	ViewportWidth  int
+	ViewportHeight int
+	Events         []autocontracts.EventEnvelope
+}
+
+// PreviewScreenshotArgs is the Go-typed input to RunPreviewScreenshot.
+// ViewportWidth/Height of 0 = use defaults.
+type PreviewScreenshotArgs struct {
+	URL            string
+	ViewportWidth  int
+	ViewportHeight int
 }
 
 type ScreenshotHandler struct {
@@ -88,56 +104,45 @@ func clampPreviewViewport(value int) int {
 	return value
 }
 
-func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) {
-	var req previewRequest
-	if err := httpjson.Decode(w, r, &req); err != nil {
-		h.log.WithError(err).Error("Failed to decode preview request")
-		RespondError(w, ErrInvalidRequest)
-		return
+// RunPreviewScreenshot navigates to a URL and captures a full-page PNG.
+// It is the transport-agnostic core used by the AIService Connect handler.
+// Returns sentinel errors that callers can map onto transport codes:
+//   - ErrMissingURL                — request had empty URL
+//   - ErrAutomationRunnerNotReady — handler missing a runner
+//   - All other errors            — wrap underlying automation failures.
+func (h *ScreenshotHandler) RunPreviewScreenshot(ctx context.Context, args PreviewScreenshotArgs) (*PreviewScreenshotResult, error) {
+	if strings.TrimSpace(args.URL) == "" {
+		return nil, ErrMissingURL
 	}
-
-	if strings.TrimSpace(req.URL) == "" {
-		RespondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "url"}))
-		return
+	if h.runner == nil {
+		return nil, ErrAutomationRunnerNotReady
 	}
 
 	viewportWidth := previewDefaultViewportWidth
 	viewportHeight := previewDefaultViewportHeight
-	if req.Viewport != nil {
-		if w := clampPreviewViewport(req.Viewport.Width); w > 0 {
-			viewportWidth = w
-		}
-		if hVal := clampPreviewViewport(req.Viewport.Height); hVal > 0 {
-			viewportHeight = hVal
-		}
+	if w := clampPreviewViewport(args.ViewportWidth); w > 0 {
+		viewportWidth = w
+	}
+	if hVal := clampPreviewViewport(args.ViewportHeight); hVal > 0 {
+		viewportHeight = hVal
 	}
 
-	if h.runner == nil {
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "automation_runner"}))
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), constants.AIRequestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, constants.AIRequestTimeout)
 	defer cancel()
 
-	instructions, err := h.buildPreviewScreenshotInstructions(req.URL)
+	instructions, err := h.buildPreviewScreenshotInstructions(args.URL)
 	if err != nil {
-		h.log.WithError(err).Error("Failed to build preview instructions")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "build_instructions", "error": err.Error()}))
-		return
+		return nil, fmt.Errorf("build preview instructions: %w", err)
 	}
 
 	start := time.Now()
 	outcomes, events, err := h.runner.Run(ctx, viewportWidth, viewportHeight, instructions)
 	if err != nil {
-		h.log.WithError(err).Error("Preview automation failed")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "automation_run", "error": err.Error()}))
-		return
+		return nil, fmt.Errorf("automation run: %w", err)
 	}
 
 	if len(outcomes) < 2 {
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "automation_run", "error": "no screenshot outcome"}))
-		return
+		return nil, errors.New("automation run returned no screenshot outcome")
 	}
 
 	nav := outcomes[0]
@@ -146,8 +151,7 @@ func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http
 		if nav.Failure != nil && strings.TrimSpace(nav.Failure.Message) != "" {
 			message = strings.TrimSpace(nav.Failure.Message)
 		}
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "navigate", "error": message}))
-		return
+		return nil, fmt.Errorf("navigate: %s", message)
 	}
 
 	shot := outcomes[1]
@@ -156,47 +160,52 @@ func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http
 		if shot.Failure != nil && strings.TrimSpace(shot.Failure.Message) != "" {
 			message = strings.TrimSpace(shot.Failure.Message)
 		}
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "screenshot", "error": message}))
-		return
+		return nil, fmt.Errorf("screenshot: %s", message)
 	}
 
 	if shot.Screenshot == nil || len(shot.Screenshot.Data) == 0 {
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "screenshot", "error": "no image data"}))
-		return
+		return nil, errors.New("screenshot: no image data")
 	}
 
-	encoded := base64.StdEncoding.EncodeToString(shot.Screenshot.Data)
-	logs := make([]previewConsoleLog, 0, len(shot.ConsoleLogs))
+	logs := make([]PreviewConsoleLog, 0, len(shot.ConsoleLogs))
 	for _, entry := range shot.ConsoleLogs {
-		logs = append(logs, previewConsoleLog{
+		logs = append(logs, PreviewConsoleLog{
 			Level:     entry.Type,
 			Message:   entry.Text,
-			Timestamp: entry.Timestamp.Format(time.RFC3339Nano),
+			Timestamp: entry.Timestamp,
 		})
 	}
 
-	response := map[string]any{
-		"success":        true,
-		"screenshot":     fmt.Sprintf("data:image/png;base64,%s", encoded),
-		"consoleLogs":    logs,
-		"url":            shot.FinalURL,
-		"timestamp":      time.Now().Unix(),
-		"duration_ms":    time.Since(start).Milliseconds(),
-		"viewportWidth":  viewportWidth,
-		"viewportHeight": viewportHeight,
-		"events":         events,
+	durationMS := time.Since(start).Milliseconds()
+	if h.log != nil {
+		h.log.WithFields(logrus.Fields{
+			"url":             args.URL,
+			"viewport_width":  viewportWidth,
+			"viewport_height": viewportHeight,
+			"duration_ms":     durationMS,
+			"console_logs":    len(logs),
+		}).Info("Captured preview screenshot")
 	}
 
-	h.log.WithFields(logrus.Fields{
-		"url":             req.URL,
-		"viewport_width":  viewportWidth,
-		"viewport_height": viewportHeight,
-		"duration_ms":     response["duration_ms"],
-		"console_logs":    len(logs),
-	}).Info("Captured preview screenshot")
-
-	RespondSuccess(w, http.StatusOK, response)
+	return &PreviewScreenshotResult{
+		ScreenshotPNG:  shot.Screenshot.Data,
+		ContentType:    "image/png",
+		ConsoleLogs:    logs,
+		URL:            shot.FinalURL,
+		CapturedAt:     time.Now(),
+		DurationMS:     durationMS,
+		ViewportWidth:  viewportWidth,
+		ViewportHeight: viewportHeight,
+		Events:         events,
+	}, nil
 }
+
+// ErrMissingURL signals that a caller did not provide a non-empty URL.
+var ErrMissingURL = errors.New("url is required")
+
+// ErrAutomationRunnerNotReady signals that an AI helper handler was created
+// without a working automation runner. Treated as Internal by transports.
+var ErrAutomationRunnerNotReady = errors.New("automation runner not configured")
 
 // buildPreviewScreenshotInstructions creates the compiled instructions for taking a preview screenshot.
 // Returns an error if any action type fails to build (indicates a programming error).

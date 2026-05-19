@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package vrooli.cli_health.v1.notes;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/notes;notes_v1";
+
+// Attachment is metadata for a file uploaded through the notes multipart REST
+// sub-resource. The opaque file bytes stay outside Connect-RPC; this proto
+// describes the typed response shape and repository record.
+message Attachment {
+  string key = 1;
+  string mime_type = 2;
+  int64 size_bytes = 3;
+  string note_id = 4;
+  google.protobuf.Timestamp uploaded_at = 5;
+}
+
+message UploadAttachmentResponse {
+  Attachment attachment = 1;
+}

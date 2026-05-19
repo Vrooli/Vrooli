@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.session_profiles;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/session_profiles;session_profiles";
+
+// =============================================================================
+// SESSION PROFILES DOMAIN — recording session profile CRUD.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain session_profiles
+// @stability stable
+//
+// SessionProfilesService owns CRUD on persisted browser session profiles
+// surfaced under Settings → Recording Sessions and the Profile Picker in the
+// recording UI. Storage-state, cookies, service-workers, history, and tabs
+// sub-resources live on the (forthcoming) RecordingsService — they share the
+// same /recordings/sessions/{profileId} URL prefix but a different concern.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/session_profiles/service.go
+//   - UI:   ui/src/api/sessionProfiles.ts
+//   - CLI:  bas session-profiles list | create | update | delete
+// =============================================================================
+
+service SessionProfilesService {
+  // List returns every persisted session profile sorted by last_used_at desc.
+  rpc List(ListSessionProfilesRequest) returns (ListSessionProfilesResponse);
+
+  // Create creates an empty session profile with the given (optional) name.
+  rpc Create(CreateSessionProfileRequest) returns (SessionProfileResponse);
+
+  // Update applies a partial update to a profile. At least one of `name` or
+  // `browser_profile` must be set. Unset fields are left unchanged.
+  rpc Update(UpdateSessionProfileRequest) returns (SessionProfileResponse);
+
+  // Delete removes a profile and clears any active session associations.
+  rpc Delete(DeleteSessionProfileRequest) returns (DeleteSessionProfileResponse);
+}
+
+// SessionProfile is the canonical representation of a stored session profile.
+// `browser_profile` carries the unstructured BrowserProfile blob (anti-detection,
+// fingerprint, behavior, proxy) so the contract doesn't have to track every
+// preset/setting field; the Settings UI is the source of truth for shape.
+message SessionProfile {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+  google.protobuf.Timestamp last_used_at = 5;
+  // True when stored storage_state contains at least one cookie or origin.
+  bool has_storage_state = 6;
+  // Free-form browser profile configuration; mirrors persistence.BrowserProfile.
+  google.protobuf.Struct browser_profile = 7;
+}
+
+message ListSessionProfilesRequest {}
+
+message ListSessionProfilesResponse {
+  repeated SessionProfile profiles = 1;
+}
+
+message CreateSessionProfileRequest {
+  // Optional human-readable name. Empty falls back to the service default.
+  string name = 1 [(buf.validate.field).string.max_len = 255];
+}
+
+message UpdateSessionProfileRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // Optional new display name.
+  optional string name = 2 [(buf.validate.field).string.max_len = 255];
+  // Optional browser profile replacement. Send {} to clear.
+  google.protobuf.Struct browser_profile = 3;
+}
+
+message DeleteSessionProfileRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message DeleteSessionProfileResponse {
+  string id = 1;
+}
+
+message SessionProfileResponse {
+  SessionProfile profile = 1;
+}

@@ -1,12 +1,8 @@
 package ai
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -66,109 +62,53 @@ func TestNewAIAnalysisHandler(t *testing.T) {
 	})
 }
 
-func TestAIAnalyzeElements_RequestValidation(t *testing.T) {
+func TestRunAIAnalyze_RequestValidation(t *testing.T) {
 	log := logrus.New()
-
 	makeHandler := func(analyzer ElementAnalyzer) *AIAnalysisHandler {
 		return NewAIAnalysisHandler(log, nil, WithElementAnalyzer(analyzer), WithAIAnalysisTimeout(time.Second))
 	}
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects invalid JSON", func(t *testing.T) {
+	t.Run("rejects empty URL", func(t *testing.T) {
 		analyzer := &mockElementAnalyzer{}
 		handler := makeHandler(analyzer)
-
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/ai-analyze-elements", bytes.NewBufferString("invalid json"))
-		w := httptest.NewRecorder()
-
-		handler.AIAnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-		assert.Empty(t, analyzer.calls)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "INVALID_REQUEST", response.Code)
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects missing URL", func(t *testing.T) {
-		analyzer := &mockElementAnalyzer{}
-		handler := makeHandler(analyzer)
-
-		body, _ := json.Marshal(AIAnalyzeRequest{Intent: "search"})
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/ai-analyze-elements", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.AIAnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		_, err := handler.RunAIAnalyze(context.Background(), "", "search", "", false)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMissingURL)
 		assert.Empty(t, analyzer.calls)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects missing intent", func(t *testing.T) {
+	t.Run("rejects empty intent", func(t *testing.T) {
 		analyzer := &mockElementAnalyzer{}
 		handler := makeHandler(analyzer)
-
-		body, _ := json.Marshal(AIAnalyzeRequest{URL: "https://example.com"})
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/ai-analyze-elements", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.AIAnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		_, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "", "", false)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMissingIntent)
 		assert.Empty(t, analyzer.calls)
 	})
 }
 
-func TestAIAnalyzeElements_DelegatesToAnalyzer(t *testing.T) {
+func TestRunAIAnalyze_DelegatesToAnalyzer(t *testing.T) {
 	log := logrus.New()
-	suggestions := []ElementInfo{{
-		Text:       "Search",
-		TagName:    "BUTTON",
-		Confidence: 0.9,
-	}}
-
+	suggestions := []ElementInfo{{Text: "Search", TagName: "BUTTON", Confidence: 0.9}}
 	analyzer := &mockElementAnalyzer{suggestions: suggestions}
 	handler := NewAIAnalysisHandler(log, nil, WithElementAnalyzer(analyzer))
 
-	body, _ := json.Marshal(AIAnalyzeRequest{
-		URL:    "https://example.com",
-		Intent: "search products",
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai-analyze-elements", bytes.NewBuffer(body))
-	w := httptest.NewRecorder()
+	got, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "search products", "", false)
 
-	handler.AIAnalyzeElements(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Len(t, analyzer.calls, 1)
+	require.NoError(t, err)
+	assert.Equal(t, suggestions, got)
+	require.Len(t, analyzer.calls, 1)
 	assert.Equal(t, "https://example.com", analyzer.calls[0].url)
 	assert.Equal(t, "search products", analyzer.calls[0].intent)
-
-	var response []ElementInfo
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-	assert.Equal(t, suggestions, response)
 }
 
-func TestAIAnalyzeElements_AnalyzerError(t *testing.T) {
+func TestRunAIAnalyze_AnalyzerError(t *testing.T) {
 	log := logrus.New()
 	analyzer := &mockElementAnalyzer{err: errors.New("analysis failed")}
 	handler := NewAIAnalysisHandler(log, nil, WithElementAnalyzer(analyzer))
 
-	body, _ := json.Marshal(AIAnalyzeRequest{
-		URL:    "https://example.com",
-		Intent: "search",
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai-analyze-elements", bytes.NewBuffer(body))
-	w := httptest.NewRecorder()
-
-	handler.AIAnalyzeElements(w, req)
-
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Len(t, analyzer.calls, 1)
-
-	var response APIError
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-	assert.Equal(t, "INTERNAL_SERVER_ERROR", response.Code)
+	_, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "search", "", false)
+	require.Error(t, err)
 }
 
 func TestAIElementAnalyzer_ExtractFailure(t *testing.T) {

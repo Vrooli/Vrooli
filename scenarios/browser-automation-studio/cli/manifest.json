@@ -1226,6 +1226,154 @@
           }
         }
       ]
+    },
+    {
+      "name": "ai",
+      "description": "AI helpers: page preview screenshot, link metadata, element analysis, coordinate probe, AI element analysis, and DOM tree.",
+      "commands": [
+        {
+          "name": "preview-screenshot",
+          "description": "Navigate to a URL and capture a full-page screenshot.",
+          "flags": [
+            { "name": "url", "required": true, "description": "Target URL to capture" },
+            { "name": "width", "description": "Optional viewport width (clamped to [200, 10000])" },
+            { "name": "height", "description": "Optional viewport height (clamped to [200, 10000])" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "TakePreviewScreenshot" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external"]
+          }
+        },
+        {
+          "name": "link-preview",
+          "description": "Fetch OpenGraph metadata for a URL.",
+          "flags": [
+            { "name": "url", "required": true, "description": "URL whose metadata to fetch" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "GetLinkPreview" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external"]
+          }
+        },
+        {
+          "name": "analyze-elements",
+          "description": "Extract interactive elements and AI suggestions for a page.",
+          "flags": [
+            { "name": "url", "required": true, "description": "Target URL to analyze" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "AnalyzeElements" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external"]
+          }
+        },
+        {
+          "name": "element-at-coordinate",
+          "description": "Probe the DOM at (x, y) and return the resolved element and ancestor candidates.",
+          "flags": [
+            { "name": "url", "required": true, "description": "Target URL" },
+            { "name": "x", "required": true, "description": "Viewport-relative x in CSS pixels" },
+            { "name": "y", "required": true, "description": "Viewport-relative y in CSS pixels" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "GetElementAtCoordinate" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external"]
+          }
+        },
+        {
+          "name": "ai-analyze",
+          "description": "Ask the local Ollama model for interactive-element suggestions for a user intent.",
+          "flags": [
+            { "name": "url", "required": true, "description": "Target URL" },
+            { "name": "intent", "required": true, "description": "User intent (e.g. 'find the search button')" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "AIAnalyzeElements" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external"]
+          }
+        },
+        {
+          "name": "dom-tree",
+          "description": "Return a normalized DOM tree snapshot for a URL.",
+          "flags": [
+            { "name": "url", "required": true, "description": "Target URL" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "GetDOMTree" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "session-profiles",
+      "description": "CRUD on persisted browser session profiles (anti-detection settings + stored storage state).",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every persisted session profile sorted by last_used_at desc.",
+          "binding": { "kind": "connect-rpc", "service": "SessionProfilesService", "method": "List" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create an empty session profile with an optional display name.",
+          "flags": [
+            { "name": "name", "description": "Display name (defaults to auto-generated 'Session N')" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SessionProfilesService", "method": "Create" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Rename a profile or replace its browser profile settings. At least one of --name / --browser-profile is required.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Profile UUID" }
+          ],
+          "flags": [
+            { "name": "name", "description": "New display name" },
+            { "name": "browser-profile", "description": "Inline JSON for the BrowserProfile blob (anti-detection / fingerprint / behavior / proxy)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SessionProfilesService", "method": "Update" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Remove a session profile and clear any active session associations.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Profile UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SessionProfilesService", "method": "Delete" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        }
+      ]
     }
   ],
   "omitted": []

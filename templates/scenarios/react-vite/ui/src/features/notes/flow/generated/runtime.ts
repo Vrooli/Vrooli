@@ -101,7 +101,7 @@ export const transitionAttachmentUploadStatus = (status: AttachmentUploadStatus,
 
 export const attachmentUploadFormalExpectation = {
   contractPath: "ui/src/features/notes/flow/flow.json",
-  contractSha256: "710b2aa9aebfe0aeae7096a4ef38c1e8bc9aa1e7f5bd8faf7aba0c90de4bfc9a",
+  contractSha256: "487545e152b8e28dbfb7da90d187aeb5a265b4b069c1f657fb3381242e8a8409",
   modelPath: "ui/src/features/notes/flow/generated/model.qnt",
   modelSha256: "47a97f004212ca9f41097bf070dd8baf5f39de646aca2816d5fb16768e67a973",
   generatorPath: "flow-verifier",

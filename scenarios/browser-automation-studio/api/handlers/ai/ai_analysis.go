@@ -4,16 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
-	"github.com/vrooli/browser-automation-studio/internal/httpjson"
-	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/services/credits"
-	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
 // DOMExtractor defines the interface for extracting DOM trees.
@@ -129,80 +125,63 @@ func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AI
 	}
 }
 
-// AIAnalyzeElements handles POST /api/v1/ai-analyze-elements.
-func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var req AIAnalyzeRequest
-	if err := httpjson.Decode(w, r, &req); err != nil {
-		h.log.WithError(err).Error("Failed to decode AI analyze request")
-		RespondError(w, ErrInvalidRequest)
-		return
+// RunAIAnalyze is the transport-agnostic core of the AI element analysis
+// endpoint. Returns a CreditCheckError when the user is not entitled to run
+// the operation; other errors wrap the underlying analyzer failure.
+func (h *AIAnalysisHandler) RunAIAnalyze(ctx context.Context, url, intent, userID string, hasBYOK bool) ([]ElementInfo, error) {
+	if strings.TrimSpace(url) == "" {
+		return nil, ErrMissingURL
+	}
+	if strings.TrimSpace(intent) == "" {
+		return nil, ErrMissingIntent
 	}
 
-	if req.URL == "" || req.Intent == "" {
-		RespondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"fields": "url, intent"}))
-		return
-	}
-
-	// Check AI operation permission (tier + credits)
-	var userID string
-	hasBYOK := middleware.HasBYOKKey(ctx)
 	if h.creditService != nil {
-		userID = entitlement.UserIdentityFromContext(ctx)
 		if userID == "" {
 			userID = "anonymous"
 		}
-
 		canProceed, errCode, errMsg, remaining, err := h.creditService.CanPerformAIOperation(ctx, userID, credits.OpAIElementAnalyze, hasBYOK)
-		if err != nil {
+		if err != nil && h.log != nil {
 			h.log.WithError(err).Warn("ai_analysis: failed to check AI operation permission")
 		} else if !canProceed {
-			status := http.StatusForbidden
-			if errCode == "INSUFFICIENT_CREDITS" {
-				status = http.StatusPaymentRequired
-			}
-			RespondError(w, &APIError{
-				Status:  status,
-				Code:    errCode,
-				Message: errMsg,
-				Details: map[string]string{"remaining": fmt.Sprintf("%d", remaining)},
-			})
-			return
+			return nil, &CreditCheckError{Code: errCode, Message: errMsg, Remaining: remaining}
 		}
 	}
 
-	h.log.WithFields(logrus.Fields{
-		"url":    req.URL,
-		"intent": req.Intent,
-	}).Info("AI analyzing elements")
-
-	ctx, cancel := context.WithTimeout(ctx, h.timeout)
-	defer cancel()
-
-	suggestions, err := h.analyzeElementsWithAI(ctx, req.URL, req.Intent)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to analyze elements with AI")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "ai_analyze_elements", "error": err.Error()}))
-		return
+	if h.log != nil {
+		h.log.WithFields(logrus.Fields{"url": url, "intent": intent}).Info("AI analyzing elements")
 	}
 
-	// Charge credits after successful AI operation (BYOK users get logged with 0 cost)
+	timeout := h.timeout
+	if timeout <= 0 {
+		timeout = constants.AIAnalysisTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	suggestions, err := h.analyzeElementsWithAI(ctx, url, intent)
+	if err != nil {
+		return nil, fmt.Errorf("ai_analyze_elements: %w", err)
+	}
+
 	if h.creditService != nil && userID != "" {
 		if _, err := h.creditService.Charge(ctx, credits.ChargeRequest{
 			UserIdentity: userID,
 			Operation:    credits.OpAIElementAnalyze,
 			IsBYOK:       hasBYOK,
-		}); err != nil {
+		}); err != nil && h.log != nil {
 			h.log.WithError(err).Warn("ai_analysis: failed to charge credits")
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(suggestions); err != nil {
-		h.log.WithError(err).Warn("Failed to encode AI analysis response")
-	}
+	return suggestions, nil
 }
+
+// ErrMissingIntent signals that AIAnalyzeElements received an empty intent.
+var ErrMissingIntent = fmt.Errorf("intent is required")
+
+// Avoid unused-import warning when none of the remaining helpers use json.
+var _ = json.NewEncoder
 
 // analyzeElementsWithAI delegates to the injected analyzer.
 func (h *AIAnalysisHandler) analyzeElementsWithAI(ctx context.Context, url, intent string) ([]ElementInfo, error) {

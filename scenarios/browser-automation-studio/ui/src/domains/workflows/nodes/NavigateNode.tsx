@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom';
 import { logger } from '@utils/logger';
 import type { NodeProps } from 'reactflow';
 import { Globe, Loader, Monitor, FileText, Link2, AppWindow, RefreshCcw, ChevronDown, ChevronRight, X } from 'lucide-react';
-import { getConfig } from '@/config';
 import toast from 'react-hot-toast';
 import { useScenarioStore } from '@stores/scenarioStore';
 import { scenariosClient } from '@/api/scenarios';
+import { aiClient } from '@/api/ai';
 import { useWorkflowStore } from '@stores/workflowStore';
 import type { ExecutionViewportSettings } from '@stores/workflowStore';
 import { ResponsiveDialog } from '@shared/layout';
@@ -15,17 +15,15 @@ import { useNodeData } from '@hooks/useNodeData';
 import type { NavigateParams } from '@utils/actionBuilder';
 import BaseNode from './BaseNode';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const safeJson = async (response: Response): Promise<unknown> => {
-  const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
+// bytesToBase64 converts a Uint8Array (e.g. proto `bytes` field) into a
+// standard base64 string for use as a data URL.
+const bytesToBase64 = (bytes: Uint8Array): string => {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
   }
+  return btoa(binary);
 };
 
 interface ConsoleLog {
@@ -33,14 +31,6 @@ interface ConsoleLog {
   message: string;
   timestamp: string;
 }
-
-const parseConsoleLog = (value: unknown): ConsoleLog | null => {
-  if (!isRecord(value)) return null;
-  if (typeof value.level !== 'string') return null;
-  if (typeof value.message !== 'string') return null;
-  if (typeof value.timestamp !== 'string') return null;
-  return { level: value.level, message: value.message, timestamp: value.timestamp };
-};
 
 type DestinationType = 'url' | 'scenario';
 
@@ -281,33 +271,24 @@ const NavigateNode: FC<NodeProps> = ({ selected, id }) => {
 
       setPreviewTargetUrl(targetUrl);
 
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/preview-screenshot`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: targetUrl, viewport: activeViewport }),
+      const resp = await aiClient.takePreviewScreenshot({
+        url: targetUrl,
+        viewport: { width: activeViewport.width, height: activeViewport.height },
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Failed to take screenshot');
-      }
-
-      const payload = await safeJson(response);
       if (requestId !== requestIdRef.current) {
         return;
       }
 
-      const screenshot =
-        isRecord(payload) && typeof payload.screenshot === 'string'
-          ? payload.screenshot
-          : null;
+      const screenshot = resp.screenshotPng && resp.screenshotPng.length > 0
+        ? `data:${resp.contentType || 'image/png'};base64,${bytesToBase64(resp.screenshotPng)}`
+        : null;
       if (screenshot) {
-        const logs = isRecord(payload) && Array.isArray(payload.consoleLogs)
-          ? payload.consoleLogs.map(parseConsoleLog).filter((log): log is ConsoleLog => log !== null)
-          : [];
+        const logs: ConsoleLog[] = resp.consoleLogs.map((entry) => ({
+          level: entry.level || 'log',
+          message: entry.message || '',
+          timestamp: entry.timestamp ? new Date(Number(entry.timestamp.seconds) * 1000).toISOString() : '',
+        }));
         setPreviewImage(screenshot);
         setConsoleLogs(logs);
         setActiveTab((prev) => (prev === 'console' && logs.length === 0 ? 'screenshot' : prev));

@@ -151,7 +151,7 @@ func TestNotesList_SurfacesConnectErrors(t *testing.T) {
 
 func TestNotesCreate_RequiresTitle(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
-	createCmd := findSubcommand(t, Register(core), "create")
+	createCmd := findSubcommand(t, registerForTest(t, core), "create")
 	_, err := cliapptest.NewTestRunContextFromArgs(createCmd.Args, []string{}, core, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing required flag --title")
@@ -263,7 +263,7 @@ func TestNotesGet_RendersNote(t *testing.T) {
 
 func TestNotesGet_RequiresID(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
-	getCmd := findSubcommand(t, Register(core), "get")
+	getCmd := findSubcommand(t, registerForTest(t, core), "get")
 	_, err := cliapptest.NewTestRunContextFromArgs(getCmd.Args, []string{}, core, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing required positional <id>")
@@ -314,10 +314,18 @@ func TestNotesAttach_UploadsMultipart(t *testing.T) {
 
 func TestNotesAttach_RequiresFile(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
-	attachCmd := findSubcommand(t, Register(core), "attach")
+	attachCmd := findSubcommand(t, registerForTest(t, core), "attach")
 	_, err := cliapptest.NewTestRunContextFromArgs(attachCmd.Args, []string{"abc"}, core, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing required flag --file")
+}
+
+func registerForTest(t *testing.T, core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	t.Helper()
+	manifest := readNotesManifest(t)
+	group, err := Register(core, manifest)
+	require.NoError(t, err)
+	return group
 }
 
 func findSubcommand(t *testing.T, group cliapp.SubcommandGroup, name string) cliapp.Command {
@@ -333,7 +341,7 @@ func findSubcommand(t *testing.T, group cliapp.SubcommandGroup, name string) cli
 
 func TestRegister_Wiring(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &notesService{}))
-	group := Register(core)
+	group := registerForTest(t, core)
 
 	require.Equal(t, "notes", group.Name)
 	require.True(t, group.NeedsAPI)

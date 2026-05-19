@@ -1,0 +1,271 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.ai;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai;ai";
+
+// =============================================================================
+// AI HELPER DOMAIN — page-preview, link metadata, element analysis, DOM tree.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain ai
+// @stability stable
+//
+// AIService groups the ephemeral, single-shot AI/automation helpers that the
+// workflow editor and recording UIs call to capture page previews, fetch
+// OpenGraph metadata, extract interactive elements, probe an element at a
+// coordinate, ask an LLM for selector suggestions, and snapshot a DOM tree.
+//
+// Stateful AI navigation (multi-step plan-execute-replan with driver
+// callbacks) lives on the separate AINavigationService; do not fold it in
+// here.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/ai_service/service.go
+//   - UI:   ui/src/api/ai.ts
+//   - CLI:  bas ai preview-screenshot | link-preview | analyze-elements |
+//                 element-at-coordinate | ai-analyze | dom-tree
+// =============================================================================
+
+service AIService {
+  // TakePreviewScreenshot navigates to a URL with an ephemeral browser
+  // session, captures a full-page PNG screenshot, and returns it as raw
+  // bytes plus captured console logs and synthetic event envelopes.
+  rpc TakePreviewScreenshot(TakePreviewScreenshotRequest) returns (TakePreviewScreenshotResponse);
+
+  // GetLinkPreview returns OpenGraph metadata (title/description/image/
+  // favicon/site name) for a URL. Server caches successful responses.
+  rpc GetLinkPreview(GetLinkPreviewRequest) returns (GetLinkPreviewResponse);
+
+  // AnalyzeElements runs the page-elements-and-context extraction script
+  // against a URL and (optionally) asks the local Ollama model for
+  // automation suggestions on top of the extracted elements.
+  rpc AnalyzeElements(AnalyzeElementsRequest) returns (AnalyzeElementsResponse);
+
+  // GetElementAtCoordinate navigates to a URL and probes the DOM at the
+  // given (x, y) viewport coordinate, returning the resolved element and
+  // its ancestor hierarchy.
+  rpc GetElementAtCoordinate(GetElementAtCoordinateRequest) returns (GetElementAtCoordinateResponse);
+
+  // AIAnalyzeElements extracts the DOM tree for a URL and asks the
+  // Ollama text model to suggest interactive elements for the supplied
+  // user intent.
+  rpc AIAnalyzeElements(AIAnalyzeElementsRequest) returns (AIAnalyzeElementsResponse);
+
+  // GetDOMTree returns the (lightly normalized) DOM structure of a URL
+  // for the Browser Inspector tab. The payload is a free-form JSON tree
+  // captured by the page-side extractor.
+  rpc GetDOMTree(GetDOMTreeRequest) returns (GetDOMTreeResponse);
+}
+
+// =============================================================================
+// Shared types
+// =============================================================================
+
+// Viewport mirrors the optional browser viewport hint accepted by the
+// screenshot endpoint. Server clamps each dimension to [200, 10000].
+message Viewport {
+  int32 width = 1;
+  int32 height = 2;
+}
+
+// Rectangle is an element bounding box in CSS pixels.
+message Rectangle {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+// SelectorOption is a single selector candidate with stability metadata.
+message SelectorOption {
+  // The selector string (CSS, XPath, etc.).
+  string selector = 1;
+  // Selector family: "id", "class", "data-attr", "xpath", "css".
+  string type = 2;
+  // 0..1 stability score; higher = more robust.
+  double robustness = 3;
+  // True when this selector is a last-resort fallback.
+  bool fallback = 4;
+}
+
+// ElementInfo describes a single interactive element on a page.
+message ElementInfo {
+  string text = 1;
+  string tag_name = 2;
+  // Element role/type ("button", "input", "link", ...).
+  string type = 3;
+  repeated SelectorOption selectors = 4;
+  Rectangle bounding_box = 5;
+  double confidence = 6;
+  // High-level category ("authentication", "navigation", "data-entry", ...).
+  string category = 7;
+  // Freeform string-only attributes (placeholder, aria-label, name, etc.).
+  map<string, string> attributes = 8;
+}
+
+// PageContext describes the high-level shape of the page.
+message PageContext {
+  string title = 1;
+  string url = 2;
+  bool has_login = 3;
+  bool has_search = 4;
+  int32 form_count = 5;
+  int32 button_count = 6;
+  int32 link_count = 7;
+}
+
+// AISuggestion is one LLM-proposed automation step.
+message AISuggestion {
+  string action = 1;
+  string description = 2;
+  string element_text = 3;
+  string selector = 4;
+  double confidence = 5;
+  string category = 6;
+  string reasoning = 7;
+}
+
+// ConsoleLog mirrors a single browser console entry captured during preview.
+message ConsoleLog {
+  // Console level: "log" | "warn" | "error" | "debug" | "info".
+  string level = 1;
+  string message = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+// ElementHierarchyEntry is one ancestor option along the DOM path from a
+// probed (x, y) coordinate.
+message ElementHierarchyEntry {
+  ElementInfo element = 1;
+  string selector = 2;
+  int32 depth = 3;
+  repeated string path = 4;
+  string path_summary = 5;
+}
+
+// ElementSelectionResult is the response payload from a coordinate probe.
+message ElementSelectionResult {
+  ElementInfo element = 1;
+  repeated ElementHierarchyEntry candidates = 2;
+  int32 selected_index = 3;
+}
+
+// =============================================================================
+// TakePreviewScreenshot
+// =============================================================================
+
+message TakePreviewScreenshotRequest {
+  // Required. Absolute URL to navigate to (http or https).
+  string url = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional viewport hint; each dimension clamped to [200, 10000].
+  Viewport viewport = 2;
+}
+
+message TakePreviewScreenshotResponse {
+  // Raw PNG bytes; clients base64-encode locally if they need a data URL.
+  bytes screenshot_png = 1;
+  string content_type = 2;
+  repeated ConsoleLog console_logs = 3;
+  // Final resolved URL after navigation (may differ on redirect).
+  string url = 4;
+  google.protobuf.Timestamp captured_at = 5;
+  int64 duration_ms = 6;
+  int32 viewport_width = 7;
+  int32 viewport_height = 8;
+  // Synthetic automation events emitted during the run; opaque blob the UI
+  // surfaces in the diagnostics drawer.
+  repeated google.protobuf.Struct events = 9;
+}
+
+// =============================================================================
+// GetLinkPreview
+// =============================================================================
+
+message GetLinkPreviewRequest {
+  // Required. URL whose OpenGraph metadata to fetch.
+  string url = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetLinkPreviewResponse {
+  // True when metadata was retrieved. False = upstream returned nothing
+  // usable (mirrors the legacy 204 No Content response).
+  bool found = 1;
+  string title = 2;
+  string description = 3;
+  string image = 4;
+  string favicon = 5;
+  string site_name = 6;
+}
+
+// =============================================================================
+// AnalyzeElements
+// =============================================================================
+
+message AnalyzeElementsRequest {
+  // Required. URL to analyze. Server normalizes missing scheme to https://.
+  string url = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message AnalyzeElementsResponse {
+  bool success = 1;
+  repeated ElementInfo elements = 2;
+  repeated AISuggestion ai_suggestions = 3;
+  PageContext page_context = 4;
+  // Screenshot is base64-encoded data URL (legacy UI consumes it as <img src>).
+  string screenshot = 5;
+  google.protobuf.Timestamp captured_at = 6;
+}
+
+// =============================================================================
+// GetElementAtCoordinate
+// =============================================================================
+
+message GetElementAtCoordinateRequest {
+  string url = 1 [(buf.validate.field).string.min_len = 1];
+  // Viewport-relative coordinates in CSS pixels.
+  int32 x = 2 [(buf.validate.field).int32.gte = 0];
+  int32 y = 3 [(buf.validate.field).int32.gte = 0];
+}
+
+message GetElementAtCoordinateResponse {
+  ElementSelectionResult selection = 1;
+}
+
+// =============================================================================
+// AIAnalyzeElements
+// =============================================================================
+
+message AIAnalyzeElementsRequest {
+  string url = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Free-text user intent (e.g. "find the search button").
+  string intent = 2 [(buf.validate.field).string.min_len = 1];
+  // Optional screenshot data URL the UI already captured. Unused by the
+  // current backend (kept for future multimodal models); accepted to avoid
+  // breaking existing UI payloads during migration.
+  string screenshot = 3;
+}
+
+message AIAnalyzeElementsResponse {
+  repeated ElementInfo suggestions = 1;
+}
+
+// =============================================================================
+// GetDOMTree
+// =============================================================================
+
+message GetDOMTreeRequest {
+  string url = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetDOMTreeResponse {
+  // The DOM tree as a free-form JSON value emitted by the page-side
+  // extractor. Encoded as a Struct so clients can walk it without an
+  // extra schema; consumers (Browser Inspector tab) treat it as opaque.
+  google.protobuf.Struct tree = 1;
+}

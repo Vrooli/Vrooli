@@ -1,12 +1,9 @@
 package ai
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -383,63 +380,28 @@ func TestExtractDOMTree_Success(t *testing.T) {
 }
 
 // =============================================================================
-// GetDOMTree HTTP Handler Tests
+// GetDOMTreeJSON tests (transport-agnostic core)
 // =============================================================================
 
-func TestGetDOMTree_HTTPHandler(t *testing.T) {
+func TestGetDOMTreeJSON(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects invalid JSON", func(t *testing.T) {
+	t.Run("rejects empty URL", func(t *testing.T) {
 		handler := NewDOMHandler(log)
-
-		req := httptest.NewRequest("POST", "/api/v1/dom-tree", bytes.NewBufferString("invalid json"))
-		w := httptest.NewRecorder()
-
-		handler.GetDOMTree(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "INVALID_REQUEST", response.Code)
+		_, err := handler.GetDOMTreeJSON(context.Background(), "")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMissingURL)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects missing URL", func(t *testing.T) {
-		handler := NewDOMHandler(log)
-
-		reqBody := map[string]string{}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/dom-tree", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetDOMTree(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "MISSING_REQUIRED_FIELD", response.Code)
-
-		detailsMap, ok := response.Details.(map[string]interface{})
-		require.True(t, ok)
-		assert.Equal(t, "url", detailsMap["field"])
+	t.Run("errors when runner missing", func(t *testing.T) {
+		handler := &DOMHandler{log: log}
+		_, err := handler.GetDOMTreeJSON(context.Background(), "https://example.com")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrAutomationRunnerNotReady)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects empty URL", func(t *testing.T) {
-		handler := NewDOMHandler(log)
-
-		reqBody := map[string]string{"url": ""}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/dom-tree", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetDOMTree(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] returns DOM tree on success", func(t *testing.T) {
+	t.Run("returns DOM tree on success", func(t *testing.T) {
 		mockRunner := &mockAutomationRunner{
 			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
 				return []autocontracts.StepOutcome{
@@ -456,45 +418,21 @@ func TestGetDOMTree_HTTPHandler(t *testing.T) {
 				}, nil, nil
 			},
 		}
-
 		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
-
-		reqBody := map[string]string{"url": "https://example.com"}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/dom-tree", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetDOMTree(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-
-		var result map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&result))
-		assert.Equal(t, "BODY", result["tagName"])
+		raw, err := handler.GetDOMTreeJSON(context.Background(), "https://example.com")
+		require.NoError(t, err)
+		assert.Contains(t, raw, `"tagName":"BODY"`)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] returns error on extraction failure", func(t *testing.T) {
+	t.Run("returns error on extraction failure", func(t *testing.T) {
 		mockRunner := &mockAutomationRunner{
 			runFunc: func(ctx context.Context, width, height int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
 				return nil, nil, errors.New("driver not available")
 			},
 		}
-
 		handler := NewDOMHandler(log, WithDOMRunner(mockRunner))
-
-		reqBody := map[string]string{"url": "https://example.com"}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/dom-tree", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetDOMTree(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "INTERNAL_SERVER_ERROR", response.Code)
+		_, err := handler.GetDOMTreeJSON(context.Background(), "https://example.com")
+		require.Error(t, err)
 	})
 }
 

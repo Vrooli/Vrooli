@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
+	aiserviceconnect "github.com/vrooli/browser-automation-studio/handlers/ai_service"
 	captureconnect "github.com/vrooli/browser-automation-studio/handlers/capture"
 	entitlementconnect "github.com/vrooli/browser-automation-studio/handlers/entitlement"
 	executionsconnect "github.com/vrooli/browser-automation-studio/handlers/executions"
@@ -31,6 +32,7 @@ import (
 	scenariosconnect "github.com/vrooli/browser-automation-studio/handlers/scenarios"
 	schedulesconnect "github.com/vrooli/browser-automation-studio/handlers/schedules"
 	schemaconnect "github.com/vrooli/browser-automation-studio/handlers/schema"
+	sessionprofilesconnect "github.com/vrooli/browser-automation-studio/handlers/session_profiles"
 	toolsconnect "github.com/vrooli/browser-automation-studio/handlers/tools"
 	uxmetricsconnect "github.com/vrooli/browser-automation-studio/handlers/uxmetrics"
 	workflowsconnect "github.com/vrooli/browser-automation-studio/handlers/workflows"
@@ -393,6 +395,30 @@ func main() {
 			Executor: deps.ExecutionService,
 			Logger:   log,
 		}),
+		sessionprofilesconnect.Module(sessionprofilesconnect.Deps{
+			Repo:   deps.SessionProfileService,
+			Logger: log,
+		}),
+		aiserviceconnect.Module(aiserviceconnect.Deps{
+			Screenshot:      handler.ScreenshotHandler(),
+			DOM:             handler.DOMHandler(),
+			ElementAnalysis: handler.ElementAnalysisHandler(),
+			AIAnalysis:      handler.AIAnalysisHandler(),
+			LinkPreview: func(ctx context.Context, u string) (*aiserviceconnect.LinkPreviewData, bool, error) {
+				preview, found, err := handlers.FetchLinkPreview(ctx, u)
+				if err != nil || !found || preview == nil {
+					return nil, found, err
+				}
+				return &aiserviceconnect.LinkPreviewData{
+					Title:       preview.Title,
+					Description: preview.Description,
+					Image:       preview.Image,
+					Favicon:     preview.Favicon,
+					SiteName:    preview.SiteName,
+				}, true, nil
+			},
+			Logger: log,
+		}),
 		workflowsconnect.Module(workflowsconnect.Deps{
 			Catalog:       deps.CatalogService,
 			Executor:      deps.ExecutionService,
@@ -545,11 +571,9 @@ func main() {
 		// see connectMounts above. The legacy REST surface was removed in
 		// the Phase 9 proto+Connect migration.
 
-		// Recording session profiles
-		r.Get("/recordings/sessions", handler.ListRecordingSessionProfiles)
-		r.Post("/recordings/sessions", handler.CreateRecordingSessionProfile)
-		r.Patch("/recordings/sessions/{profileId}", handler.UpdateRecordingSessionProfile)
-		r.Delete("/recordings/sessions/{profileId}", handler.DeleteRecordingSessionProfile)
+		// Recording session profile CRUD is served via Connect-RPC
+		// (SessionProfilesService). Storage/cookies/service-workers/history/tabs
+		// sub-routes still go through chi until the recordings tree migrates.
 		r.Get("/recordings/sessions/{profileId}/storage", handler.GetStorageState)
 		r.Delete("/recordings/sessions/{profileId}/storage", handler.ClearAllStorage)
 		r.Delete("/recordings/sessions/{profileId}/storage/cookies", handler.ClearAllCookies)
@@ -584,22 +608,10 @@ func main() {
 		r.Get("/screenshots/thumbnail/*", handler.ServeThumbnail)
 		r.Get("/artifacts/*", handler.ServeArtifact)
 
-		// Preview route for taking screenshots of URLs
-		// POST /api/v1/preview-screenshot
-		r.Post("/preview-screenshot", handler.TakePreviewScreenshot)
-
-		// Link preview route for fetching OpenGraph metadata
-		// GET /api/v1/link-preview?url=<encoded-url>
-		r.Get("/link-preview", handler.GetLinkPreview)
-
-		// Element analysis route for intelligent selector detection
-		r.Post("/analyze-elements", handler.AnalyzeElements)
-
-		// Element at coordinate route for click-based selector detection
-		r.Post("/element-at-coordinate", handler.GetElementAtCoordinate)
-
-		// AI-powered element analysis route using Ollama text models with DOM
-		r.Post("/ai-analyze-elements", handler.AIAnalyzeElements)
+		// AI helper routes (preview-screenshot, link-preview, analyze-elements,
+		// element-at-coordinate, ai-analyze-elements, dom-tree) are served via
+		// Connect-RPC by AIService; see connectMounts above. The legacy REST
+		// surface was removed in the Phase 9 proto+Connect migration.
 
 		// AI Vision Navigation routes
 		r.Get("/ai-navigate/navigators", handler.AINavigateListNavigators)
@@ -652,8 +664,7 @@ func main() {
 		r.Post("/recordings/live/{sessionId}/page-event", handler.ReceivePageEvent) // Callback for driver page events
 		r.Get("/recordings/live/{sessionId}/timeline", handler.GetRecordingTimeline)
 
-		// DOM tree extraction for Browser Inspector tab
-		r.Post("/dom-tree", handler.GetDOMTree)
+		// DOM tree extraction is served by AIService.GetDOMTree (Connect-RPC).
 
 		// Entitlement routes are served via Connect-RPC (EntitlementService);
 		// see connectMounts above. The legacy REST surface was removed in

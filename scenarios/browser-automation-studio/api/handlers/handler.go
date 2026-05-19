@@ -412,32 +412,10 @@ func (h *Handler) GetPerfRegistry() *performance.CollectorRegistry {
 	return h.perfRegistry
 }
 
-// AI handler delegation methods
-
-// TakePreviewScreenshot delegates to the AI screenshot handler
-func (h *Handler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) {
-	h.screenshotHandler.TakePreviewScreenshot(w, r)
-}
-
-// GetDOMTree delegates to the AI DOM handler
-func (h *Handler) GetDOMTree(w http.ResponseWriter, r *http.Request) {
-	h.domHandler.GetDOMTree(w, r)
-}
-
-// AnalyzeElements delegates to the AI element analysis handler
-func (h *Handler) AnalyzeElements(w http.ResponseWriter, r *http.Request) {
-	h.elementAnalysisHandler.AnalyzeElements(w, r)
-}
-
-// GetElementAtCoordinate delegates to the AI element analysis handler
-func (h *Handler) GetElementAtCoordinate(w http.ResponseWriter, r *http.Request) {
-	h.elementAnalysisHandler.GetElementAtCoordinate(w, r)
-}
-
-// AIAnalyzeElements delegates to the AI analysis handler
-func (h *Handler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
-	h.aiAnalysisHandler.AIAnalyzeElements(w, r)
-}
+// AI helper endpoints (preview-screenshot, link-preview, analyze-elements,
+// element-at-coordinate, ai-analyze-elements, dom-tree) are served via
+// Connect-RPC by AIService; see handlers/ai_service/. Vision navigation
+// remains on chi REST for now.
 
 // Vision Navigation delegation methods
 
@@ -505,4 +483,37 @@ func (h *Handler) ExecutionService() workflow.ExecutionService {
 		return nil
 	}
 	return h.executionService
+}
+
+// ScreenshotHandler exposes the in-process AI screenshot sub-handler so the
+// AIService Connect handler can call its transport-agnostic methods.
+func (h *Handler) ScreenshotHandler() *aihandlers.ScreenshotHandler {
+	if h == nil {
+		return nil
+	}
+	return h.screenshotHandler
+}
+
+// DOMHandler exposes the in-process AI DOM sub-handler.
+func (h *Handler) DOMHandler() *aihandlers.DOMHandler {
+	if h == nil {
+		return nil
+	}
+	return h.domHandler
+}
+
+// ElementAnalysisHandler exposes the in-process element-analysis sub-handler.
+func (h *Handler) ElementAnalysisHandler() *aihandlers.ElementAnalysisHandler {
+	if h == nil {
+		return nil
+	}
+	return h.elementAnalysisHandler
+}
+
+// AIAnalysisHandler exposes the in-process AI text-analysis sub-handler.
+func (h *Handler) AIAnalysisHandler() *aihandlers.AIAnalysisHandler {
+	if h == nil {
+		return nil
+	}
+	return h.aiAnalysisHandler
 }

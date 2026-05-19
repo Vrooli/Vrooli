@@ -1,13 +1,9 @@
 package ai
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"testing"
@@ -31,161 +27,41 @@ func TestNewElementAnalysisHandler(t *testing.T) {
 	})
 }
 
-func TestAnalyzeElements_RequestValidation(t *testing.T) {
+func TestRunAnalyzeElements_RequestValidation(t *testing.T) {
 	log := logrus.New()
-	log.SetOutput(os.Stderr)
-	handler := NewElementAnalysisHandler(log)
+	log.SetOutput(io.Discard)
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects invalid JSON", func(t *testing.T) {
-		req := httptest.NewRequest("POST", "/api/v1/analyze-elements", bytes.NewBufferString("invalid json"))
-		w := httptest.NewRecorder()
-
-		handler.AnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "INVALID_REQUEST", response.Code)
+	t.Run("rejects empty URL", func(t *testing.T) {
+		handler := NewElementAnalysisHandler(log)
+		_, err := handler.RunAnalyzeElements(context.Background(), "", "", false)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMissingURL)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects missing URL", func(t *testing.T) {
-		reqBody := ElementAnalysisRequest{}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/analyze-elements", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.AnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "MISSING_REQUIRED_FIELD", response.Code)
-
-		// Check details contain field name
-		detailsMap, ok := response.Details.(map[string]interface{})
-		require.True(t, ok)
-		assert.Equal(t, "url", detailsMap["field"])
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects empty URL", func(t *testing.T) {
-		reqBody := ElementAnalysisRequest{URL: ""}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/analyze-elements", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.AnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] normalizes URL without protocol", func(t *testing.T) {
-		integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "element analysis URL normalization smoke")
-
-		reqBody := ElementAnalysisRequest{URL: "example.com"}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/analyze-elements", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.AnalyzeElements(w, req)
-
-		// Will fail at driver step in unit test, but should accept the request
-		// and normalize URL to https://example.com - expect either 200 (success) or 500 (driver error)
-		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
-			"Should accept request with normalized URL")
+	t.Run("errors when runner missing", func(t *testing.T) {
+		handler := &ElementAnalysisHandler{log: log}
+		_, err := handler.RunAnalyzeElements(context.Background(), "https://example.com", "", false)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrAutomationRunnerNotReady)
 	})
 }
 
-func TestGetElementAtCoordinate_RequestValidation(t *testing.T) {
+func TestRunGetElementAtCoordinate_RequestValidation(t *testing.T) {
 	log := logrus.New()
-	log.SetOutput(os.Stderr)
-	handler := NewElementAnalysisHandler(log)
+	log.SetOutput(io.Discard)
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects invalid JSON", func(t *testing.T) {
-		req := httptest.NewRequest("POST", "/api/v1/element-at-coordinate", bytes.NewBufferString("invalid json"))
-		w := httptest.NewRecorder()
-
-		handler.GetElementAtCoordinate(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "INVALID_REQUEST", response.Code)
+	t.Run("rejects empty URL", func(t *testing.T) {
+		handler := NewElementAnalysisHandler(log)
+		_, err := handler.RunGetElementAtCoordinate(context.Background(), "", 0, 0)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMissingURL)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects missing URL", func(t *testing.T) {
-		reqBody := ElementAtCoordinateRequest{X: 100, Y: 200}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/element-at-coordinate", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetElementAtCoordinate(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "MISSING_REQUIRED_FIELD", response.Code)
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] accepts zero coordinates", func(t *testing.T) {
-		integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "element coordinate smoke")
-
-		reqBody := ElementAtCoordinateRequest{
-			URL: "https://example.com",
-			X:   0,
-			Y:   0,
-		}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/element-at-coordinate", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetElementAtCoordinate(w, req)
-
-		// Will fail at driver in unit test, but should accept the request
-		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
-			"Should accept valid request")
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] accepts negative coordinates", func(t *testing.T) {
-		integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "element coordinate smoke")
-
-		// Negative coordinates might be valid in some viewport scenarios
-		reqBody := ElementAtCoordinateRequest{
-			URL: "https://example.com",
-			X:   -10,
-			Y:   -10,
-		}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/element-at-coordinate", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetElementAtCoordinate(w, req)
-
-		// Will fail at driver, but request validation should pass
-		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
-			"Should accept valid request")
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] normalizes URL without protocol", func(t *testing.T) {
-		integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "element coordinate URL normalization smoke")
-
-		reqBody := ElementAtCoordinateRequest{
-			URL: "example.com",
-			X:   100,
-			Y:   200,
-		}
-		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest("POST", "/api/v1/element-at-coordinate", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.GetElementAtCoordinate(w, req)
-
-		// Should normalize to https://example.com
-		assert.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, w.Code,
-			"Should accept request with normalized URL")
+	t.Run("errors when runner missing", func(t *testing.T) {
+		handler := &ElementAnalysisHandler{log: log}
+		_, err := handler.RunGetElementAtCoordinate(context.Background(), "https://example.com", 0, 0)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrAutomationRunnerNotReady)
 	})
 }
 

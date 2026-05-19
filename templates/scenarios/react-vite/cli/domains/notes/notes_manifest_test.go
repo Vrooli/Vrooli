@@ -19,7 +19,7 @@ import (
 // the template itself does not build because of {{SCENARIO_ID}} placeholders.
 func TestNotesManifestCoversNotesService(t *testing.T) {
 	manifest := readNotesManifest(t)
-	cliapp.RequireProtoServiceCoverage(t, manifest, notesv1.File_{{SCENARIO_ID}}_v1_notes_notes_proto, "NotesService")
+	cliapp.RequireProtoServiceCoverage(t, manifest, notesv1.File_{{SCENARIO_ID_SNAKE}}_v1_notes_notes_proto, "NotesService")
 }
 
 func readNotesManifest(t *testing.T) []byte {

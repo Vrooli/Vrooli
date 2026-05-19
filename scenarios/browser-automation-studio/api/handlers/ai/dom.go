@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
-	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
 const (
@@ -238,38 +236,23 @@ func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, er
 	return "", errors.New("no dom extraction outcome recorded")
 }
 
-// GetDOMTree handles POST /api/v1/dom-tree - returns the DOM structure for Browser Inspector
-func (h *DOMHandler) GetDOMTree(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		URL string `json:"url"`
+// GetDOMTreeJSON is the transport-agnostic core of the dom-tree endpoint.
+// It enforces the standard timeout and returns the raw JSON payload emitted
+// by the page-side extractor. Callers (Connect handlers, tests) decode the
+// JSON themselves.
+func (h *DOMHandler) GetDOMTreeJSON(ctx context.Context, url string) (string, error) {
+	if strings.TrimSpace(url) == "" {
+		return "", ErrMissingURL
 	}
-	if err := httpjson.Decode(w, r, &req); err != nil {
-		h.log.WithError(err).Error("Failed to decode DOM tree request")
-		RespondError(w, ErrInvalidRequest)
-		return
+	if h.runner == nil {
+		return "", ErrAutomationRunnerNotReady
 	}
-
-	if req.URL == "" {
-		RespondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "url"}))
-		return
+	if h.log != nil {
+		h.log.WithField("url", url).Info("Extracting DOM tree")
 	}
-
-	h.log.WithField("url", req.URL).Info("Extracting DOM tree")
-
-	ctx, cancel := context.WithTimeout(r.Context(), constants.ElementAnalysisTimeout)
+	ctx, cancel := context.WithTimeout(ctx, constants.ElementAnalysisTimeout)
 	defer cancel()
-
-	domData, err := h.ExtractDOMTree(ctx, req.URL)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to extract DOM tree")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "extract_dom", "error": err.Error()}))
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write([]byte(domData)); err != nil {
-		h.log.WithError(err).Warn("Failed to write DOM response")
-	}
+	return h.ExtractDOMTree(ctx, url)
 }
 
 // buildDOMExtractionInstructions creates the compiled instructions for DOM extraction.
