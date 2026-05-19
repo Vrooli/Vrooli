@@ -23,6 +23,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
 	captureconnect "github.com/vrooli/browser-automation-studio/handlers/capture"
+	entitlementconnect "github.com/vrooli/browser-automation-studio/handlers/entitlement"
+	projectfilesconnect "github.com/vrooli/browser-automation-studio/handlers/project_files"
 	schemaconnect "github.com/vrooli/browser-automation-studio/handlers/schema"
 	scenariosconnect "github.com/vrooli/browser-automation-studio/handlers/scenarios"
 	toolsconnect "github.com/vrooli/browser-automation-studio/handlers/tools"
@@ -171,7 +173,6 @@ func main() {
 	}
 
 	// Initialize entitlement handler (uses unified credit service)
-	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, creditService, repo)
 
 	// Initialize AI provider chain and factory
 	aiProviderChain := ai.NewAIProviderChain(ai.AIProviderChainOptions{
@@ -350,6 +351,17 @@ func main() {
 			Executor: toolExecutor,
 			Logger:   log,
 		}),
+		entitlementconnect.Module(entitlementconnect.Deps{
+			Provider: entitlementSvc,
+			Credits:  creditService,
+			Settings: repo,
+			Logger:   log,
+		}),
+		projectfilesconnect.Module(projectfilesconnect.Deps{
+			Repo:    repo,
+			Catalog: deps.CatalogService,
+			Logger:  log,
+		}),
 	}
 	schemaMount, err := schemaconnect.Module(schemaconnect.Deps{Logger: log})
 	if err != nil {
@@ -455,16 +467,12 @@ func main() {
 		r.Get("/projects/{id}/workflows", handler.GetProjectWorkflows)
 		r.Post("/projects/{id}/workflows/bulk-delete", handler.BulkDeleteProjectWorkflows)
 		r.Post("/projects/{id}/execute-all", handler.ExecuteAllProjectWorkflows)
-		r.Get("/projects/{id}/files/tree", handler.GetProjectFileTree)
-		r.Get("/projects/{id}/files/read", handler.ReadProjectFile)
-		r.Post("/projects/{id}/files/mkdir", handler.MkdirProjectPath)
-		r.Post("/projects/{id}/files/write", handler.WriteProjectWorkflowFile)
-		r.Post("/projects/{id}/files/move", handler.MoveProjectFile)
-		r.Post("/projects/{id}/files/delete", handler.DeleteProjectFile)
-		r.Post("/projects/{id}/files/resync", handler.ResyncProjectFiles)
-		r.Post("/projects/{id}/files/reveal", handler.RevealProjectPath)
-		r.Get("/projects/{id}/files/*", handler.ServeProjectFile) // Must be after specific /files/* routes
-		r.Post("/projects/{id}/open-folder", handler.OpenProjectFolder)
+		// RESTException: GET /projects/{id}/files/* streams arbitrary file
+		// bytes with MIME types decided by extension; consumed by the browser
+		// via <img>, <a download>, and file viewers.
+		// RESTReason: third_party_shape (browser-native binary streaming).
+		// Tracked in docs/internal/REST_EXCEPTIONS.md.
+		r.Get("/projects/{id}/files/*", handler.ServeProjectFile)
 
 		// Import usecase routes (project, routine/workflow, and asset import handlers)
 		projectImportHandler.RegisterRoutes(r)
@@ -624,21 +632,9 @@ func main() {
 		// DOM tree extraction for Browser Inspector tab
 		r.Post("/dom-tree", handler.GetDOMTree)
 
-		// Entitlement routes for subscription management
-		r.Get("/entitlement/status", entitlementHandler.GetEntitlementStatus)
-		r.Get("/entitlement/identity", entitlementHandler.GetUserIdentity)
-		r.Post("/entitlement/identity", entitlementHandler.SetUserIdentity)
-		r.Delete("/entitlement/identity", entitlementHandler.ClearUserIdentity)
-		r.Get("/entitlement/usage", entitlementHandler.GetUsageSummary)
-		r.Get("/entitlement/usage/history", entitlementHandler.GetUsageHistory)
-		r.Get("/entitlement/usage/operations", entitlementHandler.GetOperationLog)
-		r.Post("/entitlement/refresh", entitlementHandler.RefreshEntitlement)
-		r.Get("/entitlement/override", entitlementHandler.GetEntitlementOverride)
-		r.Post("/entitlement/override", entitlementHandler.SetEntitlementOverride)
-		r.Delete("/entitlement/override", entitlementHandler.ClearEntitlementOverride)
-		r.Get("/entitlement/api-source", entitlementHandler.GetApiSource)
-		r.Post("/entitlement/api-source", entitlementHandler.SetApiSource)
-		r.Delete("/entitlement/api-source", entitlementHandler.ClearApiSource)
+		// Entitlement routes are served via Connect-RPC (EntitlementService);
+		// see connectMounts above. The legacy REST surface was removed in
+		// the Phase 4 proto+Connect migration.
 
 		// UX metrics routes (Pro tier and above)
 		r.Get("/executions/{id}/ux-metrics", uxHandler.GetExecutionMetrics)
@@ -657,26 +653,59 @@ func main() {
 		r.Post("/schedules/{scheduleID}/trigger", handler.TriggerSchedule)
 		r.Post("/schedules/{scheduleID}/toggle", handler.ToggleSchedule)
 
-		// Observability routes (proxied to playwright-driver)
+		// Observability routes — REST-only.
+		// All /observability/* endpoints proxy byte-for-byte to playwright-driver
+		// (the downstream service owns the response schema). Wrapping them in
+		// proto would force every payload through google.protobuf.Struct with
+		// zero schema benefit, so these are deliberately classified as
+		// `third_party_shape` REST exceptions. See
+		// docs/internal/REST_EXCEPTIONS.md for the full registry.
+		// RESTException
+		// RESTReason: third_party_shape
 		r.Get("/observability", handler.GetObservability)
+		// RESTException
+		// RESTReason: third_party_shape
 		r.Post("/observability/refresh", handler.RefreshObservability)
+		// RESTException
+		// RESTReason: third_party_shape
 		r.Post("/observability/diagnostics/run", handler.RunDiagnostics)
+		// RESTException
+		// RESTReason: third_party_shape
 		r.Get("/observability/sessions", handler.GetSessionList)
+		// RESTException
+		// RESTReason: third_party_shape
 		r.Post("/observability/cleanup/run", handler.RunCleanup)
+		// RESTException
+		// RESTReason: third_party_shape
 		r.Get("/observability/metrics", handler.GetMetrics)
+		// RESTException
+		// RESTReason: third_party_shape
 		r.Post("/observability/pipeline-test", handler.RunPipelineTest)
-		// Runtime configuration management
+		// Runtime configuration management.
+		// RESTException
+		// RESTReason: third_party_shape
 		r.Get("/observability/config/runtime", handler.GetConfigRuntime)
+		// RESTException
+		// RESTReason: third_party_shape
 		r.Put("/observability/config/{envVar}", func(w http.ResponseWriter, req *http.Request) {
 			envVar := chi.URLParam(req, "envVar")
 			handler.UpdateConfig(w, req, envVar)
 		})
+		// RESTException
+		// RESTReason: third_party_shape
 		r.Delete("/observability/config/{envVar}", func(w http.ResponseWriter, req *http.Request) {
 			envVar := chi.URLParam(req, "envVar")
 			handler.ResetConfig(w, req, envVar)
 		})
-		// Debug mode management - enable verbose logging temporarily
+		// Debug mode management — enable verbose logging temporarily.
+		// The state lives in-process so the proxy classification does not
+		// strictly apply, but the payloads are still free-form JSON consumed
+		// by the diagnostics UI directly; kept REST under the ops_probe class.
+		// RESTException
+		// RESTReason: ops_probe
 		r.Get("/observability/debug-mode", handler.GetDebugMode)
+		// RESTException
+		// RESTReason: ops_probe
 		r.Post("/observability/debug-mode", handler.SetDebugMode)
 	})
 

@@ -12,9 +12,6 @@ export * from './common.schema';
 // Workflow schemas and types
 export * from './workflow.schema';
 
-// Entitlement schemas and types
-export * from './entitlement.schema';
-
 // WebSocket message schemas and types
 export * from './websocket.schema';
 

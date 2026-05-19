@@ -151,6 +151,332 @@
           }
         }
       ]
+    },
+    {
+      "name": "entitlement",
+      "description": "Subscription status, identity, usage, dev overrides, and entitlement API source.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show the current entitlement status (tier, features, usage, AI credits).",
+          "flags": [
+            { "name": "user", "description": "Override resolved user identity (default: server-side fallback chain)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "GetStatus" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "identity-get",
+          "description": "Show the persisted user identity (email).",
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "GetIdentity" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "identity-set",
+          "description": "Persist a user identity (email) and refresh status.",
+          "positionals": [
+            { "name": "email", "required": true, "description": "Email to persist (must contain @ if non-empty)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "SetIdentity" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "identity-clear",
+          "description": "Clear the persisted user identity (logout).",
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "ClearIdentity" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "refresh",
+          "description": "Invalidate cached entitlement for a user and return fresh status.",
+          "positionals": [
+            { "name": "user", "required": true, "description": "User identity (email) to refresh" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "RefreshStatus" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "usage",
+          "description": "Show the unified credit usage summary for the current billing period.",
+          "flags": [
+            { "name": "user", "description": "User identity (email)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "GetUsage" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "usage-history",
+          "description": "Show usage summaries across multiple billing periods.",
+          "flags": [
+            { "name": "user", "description": "User identity (email)" },
+            { "name": "months", "description": "Number of months to retrieve (default 6)" },
+            { "name": "offset", "description": "Months to skip from current (default 0)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "GetUsageHistory" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "operations",
+          "description": "Show the paginated operation log for a billing month.",
+          "flags": [
+            { "name": "user", "description": "User identity (email)" },
+            { "name": "month", "description": "YYYY-MM (default: current billing month)" },
+            { "name": "category", "description": "Optional category filter: ai | execution | export" },
+            { "name": "limit", "description": "Page size (default 20)" },
+            { "name": "offset", "description": "Starting offset (default 0)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "GetOperationLog" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "override-get",
+          "description": "Show the active dev override tier, or empty if unset.",
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "GetOverride" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "override-set",
+          "description": "Install a dev override tier (empty value clears it).",
+          "positionals": [
+            { "name": "tier", "required": true, "description": "Subscription tier (free|solo|pro|studio|business) or empty to clear" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "SetOverride" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "override-clear",
+          "description": "Remove any active dev override tier.",
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "ClearOverride" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "api-source-get",
+          "description": "Show the entitlement API source (production|local|disabled) and configured local port.",
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "GetApiSource" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "api-source-set",
+          "description": "Set the entitlement API source and optional local LPBS port.",
+          "positionals": [
+            { "name": "source", "required": true, "description": "production | local | disabled" }
+          ],
+          "flags": [
+            { "name": "local-port", "description": "Port the local LPBS API listens on (optional)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "SetApiSource" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "api-source-clear",
+          "description": "Reset the entitlement API source back to production.",
+          "binding": { "kind": "connect-rpc", "service": "EntitlementService", "method": "ClearApiSource" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "project-files",
+      "description": "Project file tree, read/write workflow files, move/delete/resync, and OS reveal/open.",
+      "commands": [
+        {
+          "name": "tree",
+          "description": "List the file tree (folders + workflow files + indexed assets) for a project.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectFilesService", "method": "GetProjectFileTree" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read"]
+          }
+        },
+        {
+          "name": "read",
+          "description": "Read a workflow JSON file as a WorkflowSummary message.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "flags": [
+            { "name": "path", "required": true, "description": "Project-root-relative workflow JSON path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectFilesService", "method": "ReadProjectFile" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read"]
+          }
+        },
+        {
+          "name": "mkdir",
+          "description": "Create a directory (with parents) inside the project root.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "flags": [
+            { "name": "path", "required": true, "description": "Project-root-relative directory path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectFilesService", "method": "MkdirProjectPath" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "write",
+          "description": "Persist a new workflow JSON file (refuses overwrite).",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "flags": [
+            { "name": "path", "required": true, "description": "Project-root-relative .json path" },
+            { "name": "name", "description": "Workflow display name (defaults to filename stem)" },
+            { "name": "type", "description": "Workflow type: action | flow | case" },
+            { "name": "description", "description": "Optional workflow description" },
+            { "name": "tags", "description": "Comma-separated tags" },
+            { "name": "flow-file", "description": "Path to a JSON file containing the WorkflowDefinitionV2 body" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectFilesService", "method": "WriteProjectWorkflowFile" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "move",
+          "description": "Rename or move a file/folder inside the project root.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "flags": [
+            { "name": "from-path", "required": true, "description": "Project-root-relative source path" },
+            { "name": "to-path", "required": true, "description": "Project-root-relative target path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectFilesService", "method": "MoveProjectFile" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a file or directory (recursive) inside the project root.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "flags": [
+            { "name": "path", "required": true, "description": "Project-root-relative path to remove" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectFilesService", "method": "DeleteProjectFile" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "resync",
+          "description": "Force a filesystem -> DB resync; report indexed counts.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectFilesService", "method": "ResyncProjectFiles" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read"]
+          }
+        },
+        {
+          "name": "reveal",
+          "description": "Reveal a project file (or open a folder) in the system file manager.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "flags": [
+            { "name": "path", "required": true, "description": "Project-root-relative path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectFilesService", "method": "RevealProjectPath" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["filesystem:read"]
+          }
+        },
+        {
+          "name": "open-folder",
+          "description": "Open the project root folder in the system file manager.",
+          "positionals": [
+            { "name": "project-id", "required": true, "description": "Project UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ProjectFilesService", "method": "OpenProjectFolder" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["filesystem:read"]
+          }
+        }
+      ]
     }
   ],
   "omitted": []

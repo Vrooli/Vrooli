@@ -1,797 +1,433 @@
 /**
- * EntitlementStore Test Suite
+ * EntitlementStore Test Suite (Connect-RPC)
  *
- * Tests entitlement store functionality including:
- * - API source switching (production/local/disabled)
- * - Email identity management
- * - Entitlement status fetching
- * - Override tier functionality
- *
- * Requirements validated:
- * - API source state management
- * - Email validation and persistence
- * - Status fetch and cache
- * - Error handling
+ * Tests entitlement store functionality after migration to EntitlementService
+ * Connect-RPC client. Mocks the generated client; verifies that the store
+ * adapts proto responses into its snake_case consumer shape and routes
+ * actions to the right RPC.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
-import { fetchEmptyResponse, fetchJsonResponse, installFetchMock, type FetchMock } from '@/test-utils';
+import { ConnectError, Code } from '@connectrpc/connect';
 
-// Mock dependencies using proper factory functions
-vi.mock('../../config', () => ({
-  API_BASE: 'http://localhost:8080/api/v1',
+// ----------------------------------------------------------------------------
+// Client mock — installed BEFORE importing the store.
+// ----------------------------------------------------------------------------
+
+const getStatusMock = vi.fn();
+const getIdentityMock = vi.fn();
+const setIdentityMock = vi.fn();
+const clearIdentityMock = vi.fn();
+const refreshStatusMock = vi.fn();
+const getUsageMock = vi.fn();
+const getUsageHistoryMock = vi.fn();
+const getOperationLogMock = vi.fn();
+const getOverrideMock = vi.fn();
+const setOverrideMock = vi.fn();
+const clearOverrideMock = vi.fn();
+const getApiSourceMock = vi.fn();
+const setApiSourceMock = vi.fn();
+const clearApiSourceMock = vi.fn();
+
+vi.mock('../../api/entitlement', () => ({
+  entitlementClient: {
+    getStatus: (...a: unknown[]) => getStatusMock(...a),
+    getIdentity: (...a: unknown[]) => getIdentityMock(...a),
+    setIdentity: (...a: unknown[]) => setIdentityMock(...a),
+    clearIdentity: (...a: unknown[]) => clearIdentityMock(...a),
+    refreshStatus: (...a: unknown[]) => refreshStatusMock(...a),
+    getUsage: (...a: unknown[]) => getUsageMock(...a),
+    getUsageHistory: (...a: unknown[]) => getUsageHistoryMock(...a),
+    getOperationLog: (...a: unknown[]) => getOperationLogMock(...a),
+    getOverride: (...a: unknown[]) => getOverrideMock(...a),
+    setOverride: (...a: unknown[]) => setOverrideMock(...a),
+    clearOverride: (...a: unknown[]) => clearOverrideMock(...a),
+    getApiSource: (...a: unknown[]) => getApiSourceMock(...a),
+    setApiSource: (...a: unknown[]) => setApiSourceMock(...a),
+    clearApiSource: (...a: unknown[]) => clearApiSourceMock(...a),
+  },
 }));
 
-// Import store AFTER mocks
 import { useEntitlementStore, isValidEmail, type ApiSource } from '../entitlementStore';
 
-describe('entitlementStore', () => {
-  let fetchMock: FetchMock;
+const makeProtoStatus = (overrides: Record<string, unknown> = {}) => ({
+  userIdentity: 'alice@example.com',
+  status: 'active',
+  tier: 'pro',
+  isActive: true,
+  features: ['ai', 'recording'],
+  featureAccess: [
+    { id: 'ai', label: 'AI', description: 'AI features', requiredTier: 'pro', hasAccess: true },
+  ],
+  monthlyLimit: 100,
+  monthlyUsed: 5,
+  monthlyRemaining: 95,
+  requiresWatermark: false,
+  canUseAi: true,
+  canUseRecording: true,
+  entitlementsEnabled: true,
+  overrideTier: '',
+  aiCreditsUsed: 5,
+  aiCreditsLimit: 100,
+  aiCreditsRemaining: 95,
+  aiRequestsCount: 2,
+  aiResetDate: '2026-06-01',
+  ...overrides,
+});
 
+const resetStore = () => {
+  useEntitlementStore.setState({
+    userEmail: '',
+    status: null,
+    overrideTier: null,
+    isLoading: false,
+    error: null,
+    lastFetched: null,
+    isOffline: false,
+    apiSource: 'production' as ApiSource,
+    localApiPort: 15000,
+    usageHistory: [],
+    historyLoading: false,
+    selectedPeriod: null,
+    operationLog: [],
+    operationLogLoading: false,
+    operationLogTotal: 0,
+    operationLogHasMore: false,
+  });
+};
+
+describe('entitlementStore (Connect-RPC)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchMock = installFetchMock();
-
-    // Reset store state
-    useEntitlementStore.setState({
-      userEmail: '',
-      status: null,
-      overrideTier: null,
-      isLoading: false,
-      error: null,
-      lastFetched: null,
-      isOffline: false,
-      apiSource: 'production' as ApiSource,
-      localApiPort: 15000,
-      usageHistory: [],
-      historyLoading: false,
-      selectedPeriod: null,
-      operationLog: [],
-      operationLogLoading: false,
-      operationLogTotal: 0,
-      operationLogHasMore: false,
-    });
+    for (const m of [
+      getStatusMock, getIdentityMock, setIdentityMock, clearIdentityMock, refreshStatusMock,
+      getUsageMock, getUsageHistoryMock, getOperationLogMock,
+      getOverrideMock, setOverrideMock, clearOverrideMock,
+      getApiSourceMock, setApiSourceMock, clearApiSourceMock,
+    ]) {
+      m.mockReset();
+    }
+    resetStore();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  describe('Initial State', () => {
-    it('has empty user email', () => {
-      const { userEmail } = useEntitlementStore.getState();
-      expect(userEmail).toBe('');
-    });
-
-    it('has null status', () => {
-      const { status } = useEntitlementStore.getState();
-      expect(status).toBeNull();
-    });
-
-    it('has production as default API source', () => {
-      const { apiSource } = useEntitlementStore.getState();
-      expect(apiSource).toBe('production');
-    });
-
-    it('has default local API port', () => {
-      const { localApiPort } = useEntitlementStore.getState();
-      expect(localApiPort).toBe(15000);
-    });
-
-    it('is not loading', () => {
-      const { isLoading } = useEntitlementStore.getState();
-      expect(isLoading).toBe(false);
-    });
-
-    it('has no error', () => {
-      const { error } = useEntitlementStore.getState();
-      expect(error).toBeNull();
-    });
-  });
-
   describe('isValidEmail', () => {
-    it('validates correct email addresses', () => {
-      expect(isValidEmail('user@example.com')).toBe(true);
-      expect(isValidEmail('test.user@domain.org')).toBe(true);
-      expect(isValidEmail('user+tag@example.co.uk')).toBe(true);
+    it('accepts well-formed addresses', () => {
+      expect(isValidEmail('a@example.com')).toBe(true);
+      expect(isValidEmail('  foo@bar.co  ')).toBe(true);
     });
-
-    it('rejects invalid email addresses', () => {
+    it('rejects malformed addresses', () => {
       expect(isValidEmail('')).toBe(false);
-      expect(isValidEmail('notanemail')).toBe(false);
+      expect(isValidEmail('plain')).toBe(false);
       expect(isValidEmail('@example.com')).toBe(false);
-      expect(isValidEmail('user@')).toBe(false);
-      expect(isValidEmail('user@.')).toBe(false);
-      expect(isValidEmail('user@domain')).toBe(false);
-      expect(isValidEmail('user@domain.')).toBe(false);
-    });
-
-    it('handles whitespace', () => {
-      expect(isValidEmail('  user@example.com  ')).toBe(true);
-      expect(isValidEmail('  ')).toBe(false);
-    });
-  });
-
-  describe('getApiSource', () => {
-    it('fetches API source from backend', async () => {
-      fetchMock.mockResolvedValueOnce(
-        fetchJsonResponse({
-          source: 'local',
-          local_port: 16000,
-        })
-      );
-
-      await act(async () => {
-        await useEntitlementStore.getState().getApiSource();
-      });
-
-      const { apiSource, localApiPort } = useEntitlementStore.getState();
-      expect(apiSource).toBe('local');
-      expect(localApiPort).toBe(16000);
-    });
-
-    it('handles 404 gracefully with defaults', async () => {
-      fetchMock.mockResolvedValueOnce(fetchEmptyResponse({ status: 404 }));
-
-      await act(async () => {
-        await useEntitlementStore.getState().getApiSource();
-      });
-
-      // Should keep defaults
-      const { apiSource, localApiPort } = useEntitlementStore.getState();
-      expect(apiSource).toBe('production');
-      expect(localApiPort).toBe(15000);
-    });
-
-    it('handles network error gracefully', async () => {
-      fetchMock.mockRejectedValueOnce(new Error('Network error'));
-
-      await act(async () => {
-        await useEntitlementStore.getState().getApiSource();
-      });
-
-      // Should keep defaults
-      const { apiSource, localApiPort, error } = useEntitlementStore.getState();
-      expect(apiSource).toBe('production');
-      expect(localApiPort).toBe(15000);
-      // Should not set error - silently fail
-      expect(error).toBeNull();
-    });
-  });
-
-  describe('setApiSource', () => {
-    it('sets API source to production', async () => {
-      fetchMock
-        .mockResolvedValueOnce(fetchJsonResponse({ source: 'production', local_port: 15000 }))
-        // For fetchStatus call after
-        .mockResolvedValueOnce(
-          fetchJsonResponse({
-            user_identity: '',
-            status: 'inactive',
-            tier: 'free',
-            is_active: false,
-          })
-        );
-
-      await act(async () => {
-        await useEntitlementStore.getState().setApiSource('production');
-      });
-
-      const { apiSource, isLoading } = useEntitlementStore.getState();
-      expect(apiSource).toBe('production');
-      expect(isLoading).toBe(false);
-    });
-
-    it('sets API source to local with port', async () => {
-      fetchMock
-        .mockResolvedValueOnce(fetchJsonResponse({ source: 'local', local_port: 17000 }))
-        .mockResolvedValueOnce(
-          fetchJsonResponse({
-            user_identity: '',
-            status: 'inactive',
-            tier: 'free',
-            is_active: false,
-          })
-        );
-
-      await act(async () => {
-        await useEntitlementStore.getState().setApiSource('local', 17000);
-      });
-
-      const { apiSource, localApiPort } = useEntitlementStore.getState();
-      expect(apiSource).toBe('local');
-      expect(localApiPort).toBe(17000);
-    });
-
-    it('sets API source to disabled', async () => {
-      fetchMock
-        .mockResolvedValueOnce(fetchJsonResponse({ source: 'disabled', local_port: 15000 }))
-        .mockResolvedValueOnce(
-          fetchJsonResponse({
-            user_identity: '',
-            status: 'inactive',
-            tier: 'free',
-            is_active: false,
-          })
-        );
-
-      await act(async () => {
-        await useEntitlementStore.getState().setApiSource('disabled');
-      });
-
-      const { apiSource } = useEntitlementStore.getState();
-      expect(apiSource).toBe('disabled');
-    });
-
-    it('sets loading state during request', async () => {
-      let resolvePromise: ((value: Response) => void) | null = null;
-      const fetchPromise = new Promise<Response>((resolve) => {
-        resolvePromise = resolve;
-      });
-
-      fetchMock.mockReturnValueOnce(fetchPromise);
-
-      const setPromise = useEntitlementStore.getState().setApiSource('local');
-
-      // Check loading state immediately
-      expect(useEntitlementStore.getState().isLoading).toBe(true);
-
-      // Resolve fetch
-      if (!resolvePromise) {
-        throw new Error('Expected fetch resolver to be defined');
-      }
-      resolvePromise(fetchJsonResponse({ source: 'local', local_port: 15000 }));
-
-      await act(async () => {
-        await setPromise;
-      });
-    });
-
-    it('handles error response', async () => {
-      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ error: 'Invalid source' }, { status: 400 }));
-
-      await act(async () => {
-        await useEntitlementStore.getState().setApiSource('invalid' as ApiSource);
-      });
-
-      const { error, isLoading } = useEntitlementStore.getState();
-      expect(error).toBe('Invalid source');
-      expect(isLoading).toBe(false);
-    });
-
-    it('calls fetchStatus after setting source', async () => {
-      fetchMock
-        .mockResolvedValueOnce(fetchJsonResponse({ source: 'local', local_port: 16000 }))
-        .mockResolvedValueOnce(
-          fetchJsonResponse({
-            user_identity: 'test@example.com',
-            status: 'active',
-            tier: 'pro',
-            is_active: true,
-          })
-        );
-
-      await act(async () => {
-        await useEntitlementStore.getState().setApiSource('local', 16000);
-      });
-
-      // Should have called fetch twice (setApiSource + fetchStatus)
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('setUserEmail', () => {
-    it('sets user email successfully', async () => {
-      fetchMock
-        .mockResolvedValueOnce(fetchJsonResponse({}))
-        // For fetchStatus call after
-        .mockResolvedValueOnce(
-          fetchJsonResponse({
-            user_identity: 'user@example.com',
-            status: 'active',
-            tier: 'pro',
-            is_active: true,
-          })
-        );
-
-      await act(async () => {
-        await useEntitlementStore.getState().setUserEmail('user@example.com');
-      });
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('entitlement/identity'),
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ email: 'user@example.com' }),
-        })
-      );
-    });
-
-    it('rejects empty email', async () => {
-      await act(async () => {
-        await useEntitlementStore.getState().setUserEmail('');
-      });
-
-      const { error } = useEntitlementStore.getState();
-      expect(error).toBe('Email is required');
-      expect(global.fetch).not.toHaveBeenCalled();
-    });
-
-    it('rejects invalid email format', async () => {
-      await act(async () => {
-        await useEntitlementStore.getState().setUserEmail('notanemail');
-      });
-
-      const { error } = useEntitlementStore.getState();
-      expect(error).toBe('Please enter a valid email address');
-      expect(global.fetch).not.toHaveBeenCalled();
-    });
-
-    it('normalizes email to lowercase', async () => {
-      fetchMock
-        .mockResolvedValueOnce(fetchJsonResponse({}))
-        .mockResolvedValueOnce(
-          fetchJsonResponse({
-            user_identity: 'user@example.com',
-            status: 'inactive',
-            tier: 'free',
-            is_active: false,
-          })
-        );
-
-      await act(async () => {
-        await useEntitlementStore.getState().setUserEmail('USER@EXAMPLE.COM');
-      });
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          body: JSON.stringify({ email: 'user@example.com' }),
-        })
-      );
-    });
-  });
-
-  describe('clearUserEmail', () => {
-    it('clears user email and resets state', async () => {
-      // Set initial state
-      useEntitlementStore.setState({
-        userEmail: 'test@example.com',
-        status: {
-          user_identity: 'test@example.com',
-          status: 'active',
-          tier: 'pro',
-          is_active: true,
-          features: [],
-          monthly_limit: -1,
-          monthly_used: 0,
-          monthly_remaining: -1,
-          requires_watermark: false,
-          can_use_ai: true,
-          can_use_recording: true,
-          entitlements_enabled: true,
-          ai_credits_used: 0,
-          ai_credits_limit: -1,
-          ai_credits_remaining: -1,
-          ai_requests_count: 0,
-          ai_reset_date: '',
-        },
-      });
-
-      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ status: 'cleared' }));
-
-      await act(async () => {
-        await useEntitlementStore.getState().clearUserEmail();
-      });
-
-      const { userEmail, status, isLoading } = useEntitlementStore.getState();
-      expect(userEmail).toBe('');
-      expect(status).toBeNull();
-      expect(isLoading).toBe(false);
-    });
-  });
-
-  describe('setOverrideTier', () => {
-    it('sets override tier successfully', async () => {
-      fetchMock
-        .mockResolvedValueOnce(fetchJsonResponse({ tier: 'pro' }))
-        // For fetchStatus call after
-        .mockResolvedValueOnce(
-          fetchJsonResponse({
-            user_identity: '',
-            status: 'active',
-            tier: 'pro',
-            is_active: true,
-            override_tier: 'pro',
-          })
-        );
-
-      await act(async () => {
-        await useEntitlementStore.getState().setOverrideTier('pro');
-      });
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('entitlement/override'),
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ tier: 'pro' }),
-        })
-      );
-    });
-
-    it('clears override tier with null', async () => {
-      fetchMock
-        .mockResolvedValueOnce(fetchEmptyResponse())
-        .mockResolvedValueOnce(
-          fetchJsonResponse({
-            user_identity: '',
-            status: 'inactive',
-            tier: 'free',
-            is_active: false,
-          })
-        );
-
-      await act(async () => {
-        await useEntitlementStore.getState().setOverrideTier(null);
-      });
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('entitlement/override'),
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ tier: '' }),
-        })
-      );
+      expect(isValidEmail('foo@')).toBe(false);
+      expect(isValidEmail('foo@bar')).toBe(false);
+      expect(isValidEmail('foo@bar.')).toBe(false);
     });
   });
 
   describe('fetchStatus', () => {
-    it('fetches entitlement status successfully', async () => {
-      const mockStatus = {
-        user_identity: 'test@example.com',
-        status: 'active',
-        tier: 'pro',
-        is_active: true,
-        features: ['ai', 'recording'],
-        monthly_limit: -1,
-        monthly_used: 5,
-        monthly_remaining: -1,
-        requires_watermark: false,
-        can_use_ai: true,
-        can_use_recording: true,
-        entitlements_enabled: true,
-        ai_credits_used: 100,
-        ai_credits_limit: -1,
-        ai_credits_remaining: -1,
-        ai_requests_count: 10,
-        ai_reset_date: '2025-02-01',
-      };
-
-      fetchMock.mockResolvedValueOnce(fetchJsonResponse(mockStatus));
-
+    it('adapts proto status into snake_case store shape', async () => {
+      getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus() });
       await act(async () => {
         await useEntitlementStore.getState().fetchStatus();
       });
-
-      const { status, isLoading, error, lastFetched } = useEntitlementStore.getState();
-
-      expect(status).toEqual(mockStatus);
+      const { status, userEmail, isLoading, error, isOffline } = useEntitlementStore.getState();
+      expect(status?.user_identity).toBe('alice@example.com');
+      expect(status?.tier).toBe('pro');
+      expect(status?.can_use_ai).toBe(true);
+      expect(status?.monthly_remaining).toBe(95);
+      expect(status?.ai_reset_date).toBe('2026-06-01');
+      expect(status?.feature_access?.[0]?.required_tier).toBe('pro');
+      expect(userEmail).toBe('alice@example.com');
       expect(isLoading).toBe(false);
       expect(error).toBeNull();
-      expect(lastFetched).toBeInstanceOf(Date);
+      expect(isOffline).toBe(false);
     });
 
-    it('handles HTTP error responses', async () => {
-      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ error: 'Internal server error' }, { status: 500 }));
-
+    it('marks offline on Unavailable Connect error', async () => {
+      getStatusMock.mockRejectedValueOnce(new ConnectError('upstream', Code.Unavailable));
       await act(async () => {
         await useEntitlementStore.getState().fetchStatus();
       });
-
-      const { status, error, isLoading } = useEntitlementStore.getState();
-
-      expect(status).toBeNull();
-      expect(error).toBe('Internal server error');
+      const { isOffline, error, isLoading } = useEntitlementStore.getState();
+      expect(isOffline).toBe(true);
+      expect(error).toMatch(/upstream/);
       expect(isLoading).toBe(false);
     });
 
-    it('sets loading state during fetch', async () => {
-      let resolvePromise: ((value: Response) => void) | null = null;
-      const fetchPromise = new Promise<Response>((resolve) => {
-        resolvePromise = resolve;
-      });
-
-      fetchMock.mockReturnValueOnce(fetchPromise);
-
-      const fetchCall = useEntitlementStore.getState().fetchStatus();
-
-      // Check loading state immediately
-      expect(useEntitlementStore.getState().isLoading).toBe(true);
-
-      // Resolve fetch
-      if (!resolvePromise) {
-        throw new Error('Expected fetch resolver to be defined');
-      }
-      resolvePromise(
-        fetchJsonResponse({
-          user_identity: '',
-          status: 'inactive',
-          tier: 'free',
-          is_active: false,
-        })
-      );
-
-      await act(async () => {
-        await fetchCall;
-      });
-
-      expect(useEntitlementStore.getState().isLoading).toBe(false);
-    });
-
-    it('updates userEmail from status response', async () => {
-      fetchMock.mockResolvedValueOnce(
-        fetchJsonResponse({
-          user_identity: 'fetched@example.com',
-          status: 'active',
-          tier: 'pro',
-          is_active: true,
-          features: [],
-          monthly_limit: -1,
-          monthly_used: 0,
-          monthly_remaining: -1,
-          requires_watermark: false,
-          can_use_ai: true,
-          can_use_recording: true,
-          entitlements_enabled: true,
-          ai_credits_used: 0,
-          ai_credits_limit: -1,
-          ai_credits_remaining: -1,
-          ai_requests_count: 0,
-          ai_reset_date: '2025-02-01',
-        })
-      );
-
+    it('preserves override tier from proto response', async () => {
+      getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus({ overrideTier: 'business' }) });
       await act(async () => {
         await useEntitlementStore.getState().fetchStatus();
       });
+      expect(useEntitlementStore.getState().overrideTier).toBe('business');
+    });
+  });
 
-      const { userEmail } = useEntitlementStore.getState();
-      expect(userEmail).toBe('fetched@example.com');
+  describe('setUserEmail', () => {
+    it('rejects invalid email without calling client', async () => {
+      await act(async () => {
+        await useEntitlementStore.getState().setUserEmail('not-an-email');
+      });
+      expect(setIdentityMock).not.toHaveBeenCalled();
+      expect(useEntitlementStore.getState().error).toBeTruthy();
     });
 
-    it('updates overrideTier from status response', async () => {
-      fetchMock.mockResolvedValueOnce(
-        fetchJsonResponse({
-          user_identity: '',
-          status: 'active',
-          tier: 'studio',
-          is_active: true,
-          override_tier: 'studio',
-          features: [],
-          monthly_limit: -1,
-          monthly_used: 0,
-          monthly_remaining: -1,
-          requires_watermark: false,
-          can_use_ai: true,
-          can_use_recording: true,
-          entitlements_enabled: true,
-          ai_credits_used: 0,
-          ai_credits_limit: -1,
-          ai_credits_remaining: -1,
-          ai_requests_count: 0,
-          ai_reset_date: '2025-02-01',
-        })
-      );
-
+    it('rejects empty email without calling client', async () => {
       await act(async () => {
-        await useEntitlementStore.getState().fetchStatus();
+        await useEntitlementStore.getState().setUserEmail('   ');
       });
+      expect(setIdentityMock).not.toHaveBeenCalled();
+      expect(useEntitlementStore.getState().error).toBe('Email is required');
+    });
 
-      const { overrideTier } = useEntitlementStore.getState();
-      expect(overrideTier).toBe('studio');
+    it('persists status when client succeeds', async () => {
+      setIdentityMock.mockResolvedValueOnce({ status: makeProtoStatus({ userIdentity: 'bob@example.com' }) });
+      await act(async () => {
+        await useEntitlementStore.getState().setUserEmail('Bob@Example.com');
+      });
+      expect(setIdentityMock).toHaveBeenCalledWith({ email: 'bob@example.com' });
+      expect(useEntitlementStore.getState().userEmail).toBe('bob@example.com');
+    });
+
+    it('surfaces client error', async () => {
+      setIdentityMock.mockRejectedValueOnce(new ConnectError('bad email', Code.InvalidArgument));
+      await act(async () => {
+        await useEntitlementStore.getState().setUserEmail('foo@bar.co');
+      });
+      expect(useEntitlementStore.getState().error).toMatch(/bad email/);
+    });
+  });
+
+  describe('clearUserEmail', () => {
+    it('clears state on success', async () => {
+      useEntitlementStore.setState({ userEmail: 'a@b.com' });
+      clearIdentityMock.mockResolvedValueOnce({});
+      await act(async () => {
+        await useEntitlementStore.getState().clearUserEmail();
+      });
+      expect(clearIdentityMock).toHaveBeenCalled();
+      const s = useEntitlementStore.getState();
+      expect(s.userEmail).toBe('');
+      expect(s.status).toBeNull();
     });
   });
 
   describe('refreshEntitlement', () => {
-    it('refreshes entitlement status', async () => {
-      const mockStatus = {
-        user_identity: 'refresh@example.com',
-        status: 'active',
-        tier: 'pro',
-        is_active: true,
-      };
-
-      fetchMock.mockResolvedValueOnce(fetchJsonResponse(mockStatus));
-
+    it('falls back to fetchStatus when no current user is known', async () => {
+      getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus({ userIdentity: 'anonymous' }) });
       await act(async () => {
         await useEntitlementStore.getState().refreshEntitlement();
       });
+      expect(refreshStatusMock).not.toHaveBeenCalled();
+      expect(getStatusMock).toHaveBeenCalled();
+    });
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('entitlement/refresh'),
-        expect.objectContaining({ method: 'POST' })
-      );
+    it('invokes refreshStatus with stored user', async () => {
+      useEntitlementStore.setState({ userEmail: 'alice@example.com' });
+      refreshStatusMock.mockResolvedValueOnce({ status: makeProtoStatus() });
+      await act(async () => {
+        await useEntitlementStore.getState().refreshEntitlement();
+      });
+      expect(refreshStatusMock).toHaveBeenCalledWith({ user: 'alice@example.com' });
     });
   });
 
   describe('getUserEmail', () => {
-    it('fetches stored user email', async () => {
-      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ email: 'stored@example.com' }));
-
-      let result = '';
+    it('returns stored email and updates state', async () => {
+      getIdentityMock.mockResolvedValueOnce({ email: 'cached@example.com' });
+      let result: string = '';
       await act(async () => {
         result = await useEntitlementStore.getState().getUserEmail();
       });
-
-      expect(result).toBe('stored@example.com');
-      expect(useEntitlementStore.getState().userEmail).toBe('stored@example.com');
+      expect(result).toBe('cached@example.com');
+      expect(useEntitlementStore.getState().userEmail).toBe('cached@example.com');
     });
 
     it('returns empty string on error', async () => {
-      fetchMock.mockResolvedValueOnce(fetchEmptyResponse({ status: 404 }));
-
-      let result = '';
+      getIdentityMock.mockRejectedValueOnce(new Error('nope'));
+      let result: string = 'unset';
       await act(async () => {
         result = await useEntitlementStore.getState().getUserEmail();
       });
-
       expect(result).toBe('');
     });
   });
 
-  describe('Usage History', () => {
-    it('fetches usage history', async () => {
-      const mockPeriods = [
-        {
-          billing_month: '2025-01',
-          total_credits_used: 100,
-          total_operations: 10,
-          by_operation: {},
-          operation_counts: {},
-          credits_limit: 500,
-          credits_remaining: 400,
-          period_start: '2025-01-01',
-          period_end: '2025-01-31',
-          reset_date: '2025-02-01',
-        },
-      ];
-
-      fetchMock.mockResolvedValueOnce(fetchJsonResponse({ periods: mockPeriods }));
-
+  describe('setOverrideTier', () => {
+    it('sends empty tier when null', async () => {
+      setOverrideMock.mockResolvedValueOnce({ tier: '' });
+      getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus() });
       await act(async () => {
-        await useEntitlementStore.getState().fetchUsageHistory(6, 0);
+        await useEntitlementStore.getState().setOverrideTier(null);
       });
-
-      const { usageHistory, historyLoading } = useEntitlementStore.getState();
-      expect(usageHistory).toEqual(mockPeriods);
-      expect(historyLoading).toBe(false);
+      expect(setOverrideMock).toHaveBeenCalledWith({ tier: '' });
     });
 
-    it('handles usage history error gracefully', async () => {
-      fetchMock.mockRejectedValueOnce(new Error('Network error'));
-
+    it('sends tier string and refetches status', async () => {
+      setOverrideMock.mockResolvedValueOnce({ tier: 'business' });
+      getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus({ overrideTier: 'business' }) });
       await act(async () => {
-        await useEntitlementStore.getState().fetchUsageHistory();
+        await useEntitlementStore.getState().setOverrideTier('business');
       });
-
-      const { usageHistory, historyLoading } = useEntitlementStore.getState();
-      expect(usageHistory).toEqual([]);
-      expect(historyLoading).toBe(false);
+      expect(setOverrideMock).toHaveBeenCalledWith({ tier: 'business' });
+      expect(getStatusMock).toHaveBeenCalled();
     });
   });
 
-  describe('Operation Log', () => {
-    it('fetches operation log', async () => {
-      const mockPage = {
-        user_identity: 'test@example.com',
-        billing_month: '2025-01',
-        operations: [
-          {
-            id: '1',
-            operation_type: 'ai_generation',
-            credits_charged: 10,
-            success: true,
-            created_at: '2025-01-15T10:00:00Z',
-          },
-        ],
+  describe('getApiSource / setApiSource', () => {
+    it('reads source + port from response', async () => {
+      getApiSourceMock.mockResolvedValueOnce({ source: 'local', localPort: 15123 });
+      await act(async () => {
+        await useEntitlementStore.getState().getApiSource();
+      });
+      const { apiSource, localApiPort } = useEntitlementStore.getState();
+      expect(apiSource).toBe('local');
+      expect(localApiPort).toBe(15123);
+    });
+
+    it('silently swallows errors during getApiSource', async () => {
+      getApiSourceMock.mockRejectedValueOnce(new Error('boom'));
+      await act(async () => {
+        await useEntitlementStore.getState().getApiSource();
+      });
+      const { apiSource } = useEntitlementStore.getState();
+      expect(apiSource).toBe('production'); // unchanged
+    });
+
+    it('setApiSource posts source + port and refetches', async () => {
+      setApiSourceMock.mockResolvedValueOnce({ source: 'local', localPort: 16000 });
+      getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus() });
+      await act(async () => {
+        await useEntitlementStore.getState().setApiSource('local', 16000);
+      });
+      expect(setApiSourceMock).toHaveBeenCalledWith({ source: 'local', localPort: 16000 });
+      expect(useEntitlementStore.getState().apiSource).toBe('local');
+      expect(useEntitlementStore.getState().localApiPort).toBe(16000);
+      expect(getStatusMock).toHaveBeenCalled();
+    });
+  });
+
+  describe('fetchUsageHistory', () => {
+    it('adapts proto periods to snake_case shape', async () => {
+      getUsageHistoryMock.mockResolvedValueOnce({
+        periods: [{
+          billingMonth: '2026-05',
+          totalCreditsUsed: 42,
+          totalOperations: 7,
+          byOperation: { 'ai.workflow_generate': 15 },
+          operationCounts: { 'ai.workflow_generate': 3 },
+          creditsLimit: 100,
+          creditsRemaining: 58,
+          periodStart: { seconds: 1746057600n, nanos: 0 },
+          periodEnd: undefined,
+          resetDate: undefined,
+        }],
+        hasMore: true,
+      });
+      await act(async () => {
+        await useEntitlementStore.getState().fetchUsageHistory(3, 1);
+      });
+      expect(getUsageHistoryMock).toHaveBeenCalledWith({ months: 3, offset: 1 });
+      const { usageHistory } = useEntitlementStore.getState();
+      expect(usageHistory).toHaveLength(1);
+      expect(usageHistory[0].billing_month).toBe('2026-05');
+      expect(usageHistory[0].by_operation['ai.workflow_generate']).toBe(15);
+      expect(usageHistory[0].period_start).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+  });
+
+  describe('fetchOperationLog', () => {
+    it('replaces operations when offset is 0', async () => {
+      getOperationLogMock.mockResolvedValueOnce({
+        userIdentity: 'alice@example.com',
+        billingMonth: '2026-05',
+        operations: [{
+          id: 'op-1',
+          operationType: 'ai.workflow_generate',
+          creditsCharged: 5,
+          success: true,
+          createdAt: { seconds: 1746057600n, nanos: 0 },
+          metadata: { fields: { model: { kind: { case: 'stringValue', value: 'claude' } } } },
+          errorMessage: '',
+        }],
         total: 1,
         limit: 20,
         offset: 0,
-        has_more: false,
-      };
-
-      fetchMock.mockResolvedValueOnce(fetchJsonResponse(mockPage));
-
-      await act(async () => {
-        await useEntitlementStore.getState().fetchOperationLog('2025-01');
+        hasMore: false,
       });
-
-      const { operationLog, operationLogTotal, operationLogHasMore } = useEntitlementStore.getState();
+      await act(async () => {
+        await useEntitlementStore.getState().fetchOperationLog('2026-05');
+      });
+      const { operationLog, operationLogTotal } = useEntitlementStore.getState();
       expect(operationLog).toHaveLength(1);
+      expect(operationLog[0].id).toBe('op-1');
       expect(operationLogTotal).toBe(1);
-      expect(operationLogHasMore).toBe(false);
     });
 
-    it('appends to operation log when offset > 0', async () => {
-      // Set initial state with existing operations
+    it('appends operations when offset > 0', async () => {
       useEntitlementStore.setState({
-        operationLog: [
-          {
-            id: '1',
-            operation_type: 'ai_generation',
-            credits_charged: 10,
-            success: true,
-            created_at: '2025-01-15T10:00:00Z',
-          },
-        ],
+        operationLog: [{
+          id: 'existing',
+          operation_type: 'execution.run',
+          credits_charged: 1,
+          success: true,
+          created_at: '',
+        }],
       });
-
-      const mockPage = {
-        user_identity: 'test@example.com',
-        billing_month: '2025-01',
-        operations: [
-          {
-            id: '2',
-            operation_type: 'ai_generation',
-            credits_charged: 5,
-            success: true,
-            created_at: '2025-01-14T10:00:00Z',
-          },
-        ],
+      getOperationLogMock.mockResolvedValueOnce({
+        userIdentity: 'alice@example.com',
+        billingMonth: '2026-05',
+        operations: [{
+          id: 'op-2',
+          operationType: 'execution.run',
+          creditsCharged: 1,
+          success: true,
+          createdAt: undefined,
+          metadata: undefined,
+          errorMessage: '',
+        }],
         total: 2,
         limit: 20,
         offset: 1,
-        has_more: false,
-      };
-
-      fetchMock.mockResolvedValueOnce(fetchJsonResponse(mockPage));
-
+        hasMore: false,
+      });
       await act(async () => {
-        await useEntitlementStore.getState().fetchOperationLog('2025-01', undefined, 20, 1);
+        await useEntitlementStore.getState().fetchOperationLog('2026-05', 'execution', 20, 1);
       });
-
+      expect(getOperationLogMock).toHaveBeenCalledWith({
+        month: '2026-05',
+        category: 'execution',
+        limit: 20,
+        offset: 1,
+      });
       const { operationLog } = useEntitlementStore.getState();
-      expect(operationLog).toHaveLength(2);
-    });
-
-    it('clears operation log', () => {
-      useEntitlementStore.setState({
-        operationLog: [{ id: '1', operation_type: 'test', credits_charged: 1, success: true, created_at: '' }],
-        operationLogTotal: 1,
-        operationLogHasMore: true,
-      });
-
-      act(() => {
-        useEntitlementStore.getState().clearOperationLog();
-      });
-
-      const { operationLog, operationLogTotal, operationLogHasMore } = useEntitlementStore.getState();
-      expect(operationLog).toEqual([]);
-      expect(operationLogTotal).toBe(0);
-      expect(operationLogHasMore).toBe(false);
+      expect(operationLog.map((o) => o.id)).toEqual(['existing', 'op-2']);
     });
   });
 
-  describe('setSelectedPeriod', () => {
-    it('sets selected period', () => {
-      act(() => {
-        useEntitlementStore.getState().setSelectedPeriod('2025-01');
+  describe('clearOperationLog / setSelectedPeriod', () => {
+    it('clearOperationLog resets fields', () => {
+      useEntitlementStore.setState({
+        operationLog: [{ id: 'x', operation_type: 'foo', credits_charged: 0, success: true, created_at: '' }],
+        operationLogTotal: 5,
+        operationLogHasMore: true,
       });
-
-      const { selectedPeriod } = useEntitlementStore.getState();
-      expect(selectedPeriod).toBe('2025-01');
+      useEntitlementStore.getState().clearOperationLog();
+      const s = useEntitlementStore.getState();
+      expect(s.operationLog).toEqual([]);
+      expect(s.operationLogTotal).toBe(0);
+      expect(s.operationLogHasMore).toBe(false);
     });
 
-    it('clears selected period with null', () => {
-      useEntitlementStore.setState({ selectedPeriod: '2025-01' });
-
-      act(() => {
-        useEntitlementStore.getState().setSelectedPeriod(null);
-      });
-
-      const { selectedPeriod } = useEntitlementStore.getState();
-      expect(selectedPeriod).toBeNull();
+    it('setSelectedPeriod stores month', () => {
+      useEntitlementStore.getState().setSelectedPeriod('2026-04');
+      expect(useEntitlementStore.getState().selectedPeriod).toBe('2026-04');
     });
   });
 });

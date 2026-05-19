@@ -1,46 +1,14 @@
+import { ConnectError } from '@connectrpc/connect';
 import { create } from 'zustand';
-import { API_BASE } from '../config';
-import { safeParse } from '../shared/api/safeParse';
-import {
-  EntitlementStatusResponseSchema,
-  UsageHistoryResponseSchema,
-  OperationLogPageSchema,
-  IdentityResponseSchema,
-  ApiSourceResponseSchema,
-} from '../shared/api/schemas';
+import type {
+  EntitlementStatus,
+  OperationLogEntry as ProtoOperationLogEntry,
+  OperationLogPage as ProtoOperationLogPage,
+  UsageSummary as ProtoUsageSummary,
+} from '@vrooli/proto-types/browser-automation-studio/v1/entitlement/entitlement_pb';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
 
-const joinApi = (base: string, path: string): string => {
-  const normalizedBase = base.replace(/\/+$/, '');
-  const normalizedPath = path.replace(/^\/+/, '');
-  return `${normalizedBase}/${normalizedPath}`;
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const parseJson = async (response: Response): Promise<unknown> => {
-  try {
-    const data: unknown = await response.json();
-    return data;
-  } catch {
-    return null;
-  }
-};
-
-const extractErrorMessage = (payload: unknown, fallback: string): string => {
-  if (!isRecord(payload)) {
-    return fallback;
-  }
-  const errorValue = payload.error;
-  if (typeof errorValue === 'string') {
-    return errorValue;
-  }
-  const message = payload.message;
-  if (typeof message === 'string') {
-    return message;
-  }
-  return fallback;
-};
+import { entitlementClient } from '../api/entitlement';
 
 // Subscription tier types
 export type SubscriptionTier = 'free' | 'solo' | 'pro' | 'studio' | 'business';
@@ -54,7 +22,7 @@ export interface ApiSourceConfig {
   localPort: number;
 }
 
-// API response type from backend
+// API response type (kept in snake_case for downstream consumer compatibility).
 export interface EntitlementStatusResponse {
   user_identity: string;
   status: SubscriptionStatus;
@@ -73,10 +41,10 @@ export interface EntitlementStatusResponse {
 
   // AI Credits
   ai_credits_used: number;
-  ai_credits_limit: number; // -1 for unlimited
-  ai_credits_remaining: number; // -1 for unlimited
+  ai_credits_limit: number;
+  ai_credits_remaining: number;
   ai_requests_count: number;
-  ai_reset_date: string; // ISO date
+  ai_reset_date: string;
 }
 
 export interface FeatureAccessSummary {
@@ -87,7 +55,7 @@ export interface FeatureAccessSummary {
   has_access: boolean;
 }
 
-// Usage history types
+// Usage history types (snake_case for consumer compatibility).
 export interface UsagePeriod {
   billing_month: string;
   total_credits_used: number;
@@ -122,7 +90,6 @@ export interface OperationLogPage {
 }
 
 interface EntitlementState {
-  // State
   userEmail: string;
   status: EntitlementStatusResponse | null;
   overrideTier: SubscriptionTier | null;
@@ -131,20 +98,17 @@ interface EntitlementState {
   lastFetched: Date | null;
   isOffline: boolean;
 
-  // API source state (for dev mode)
   apiSource: ApiSource;
   localApiPort: number;
 
-  // Usage history state
   usageHistory: UsagePeriod[];
   historyLoading: boolean;
-  selectedPeriod: string | null; // YYYY-MM format
+  selectedPeriod: string | null;
   operationLog: OperationLogEntry[];
   operationLogLoading: boolean;
   operationLogTotal: number;
   operationLogHasMore: boolean;
 
-  // Actions
   fetchStatus: () => Promise<void>;
   setUserEmail: (email: string) => Promise<void>;
   clearUserEmail: () => Promise<void>;
@@ -152,11 +116,9 @@ interface EntitlementState {
   getUserEmail: () => Promise<string>;
   setOverrideTier: (tier: SubscriptionTier | null) => Promise<void>;
 
-  // API source actions (for dev mode)
   getApiSource: () => Promise<void>;
   setApiSource: (source: ApiSource, localPort?: number) => Promise<void>;
 
-  // Usage history actions
   fetchUsageHistory: (months?: number, offset?: number) => Promise<void>;
   fetchOperationLog: (month: string, category?: string, limit?: number, offset?: number) => Promise<void>;
   setSelectedPeriod: (month: string | null) => void;
@@ -168,7 +130,7 @@ export const isValidEmail = (email: string): boolean => {
   const trimmed = email.trim();
   if (!trimmed) return false;
   const atIndex = trimmed.indexOf('@');
-  if (atIndex < 1) return false; // @ must not be first character
+  if (atIndex < 1) return false;
   const domain = trimmed.slice(atIndex + 1);
   return domain.length > 0 && domain.includes('.') && !domain.endsWith('.');
 };
@@ -216,6 +178,108 @@ export const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: s
   inactive: { label: 'Inactive', color: 'text-gray-400', icon: 'x' },
 };
 
+// ----------------------------------------------------------------------------
+// proto → store-shape adapters
+// ----------------------------------------------------------------------------
+
+const tsToIso = (ts?: Timestamp): string => {
+  if (!ts) return '';
+  const seconds = typeof ts.seconds === 'bigint' ? Number(ts.seconds) : Number(ts.seconds ?? 0);
+  const nanos = Number(ts.nanos ?? 0);
+  return new Date(seconds * 1000 + Math.floor(nanos / 1_000_000)).toISOString();
+};
+
+const toMaybeTier = (value: string | undefined): SubscriptionTier | undefined => {
+  if (!value) return undefined;
+  if (value === 'free' || value === 'solo' || value === 'pro' || value === 'studio' || value === 'business') {
+    return value;
+  }
+  return undefined;
+};
+
+const toStatus = (proto: EntitlementStatus | undefined): EntitlementStatusResponse | null => {
+  if (!proto) return null;
+  return {
+    user_identity: proto.userIdentity,
+    status: (proto.status || 'inactive') as SubscriptionStatus,
+    tier: (toMaybeTier(proto.tier) ?? 'free') as SubscriptionTier,
+    is_active: proto.isActive,
+    features: proto.features ?? [],
+    feature_access: (proto.featureAccess ?? []).map((fa) => ({
+      id: fa.id,
+      label: fa.label,
+      description: fa.description,
+      required_tier: toMaybeTier(fa.requiredTier),
+      has_access: fa.hasAccess,
+    })),
+    monthly_limit: proto.monthlyLimit,
+    monthly_used: proto.monthlyUsed,
+    monthly_remaining: proto.monthlyRemaining,
+    requires_watermark: proto.requiresWatermark,
+    can_use_ai: proto.canUseAi,
+    can_use_recording: proto.canUseRecording,
+    entitlements_enabled: proto.entitlementsEnabled,
+    override_tier: toMaybeTier(proto.overrideTier),
+    ai_credits_used: proto.aiCreditsUsed,
+    ai_credits_limit: proto.aiCreditsLimit,
+    ai_credits_remaining: proto.aiCreditsRemaining,
+    ai_requests_count: proto.aiRequestsCount,
+    ai_reset_date: proto.aiResetDate,
+  };
+};
+
+const toUsagePeriod = (u: ProtoUsageSummary): UsagePeriod => ({
+  billing_month: u.billingMonth,
+  total_credits_used: u.totalCreditsUsed,
+  total_operations: u.totalOperations,
+  by_operation: { ...u.byOperation },
+  operation_counts: { ...u.operationCounts },
+  credits_limit: u.creditsLimit,
+  credits_remaining: u.creditsRemaining,
+  period_start: tsToIso(u.periodStart),
+  period_end: tsToIso(u.periodEnd),
+  reset_date: tsToIso(u.resetDate),
+});
+
+const toOperationLogEntry = (e: ProtoOperationLogEntry): OperationLogEntry => ({
+  id: e.id,
+  operation_type: e.operationType,
+  credits_charged: e.creditsCharged,
+  success: e.success,
+  created_at: tsToIso(e.createdAt),
+  metadata: e.metadata ? (e.metadata.fields as unknown as Record<string, unknown>) : undefined,
+  error_message: e.errorMessage || undefined,
+});
+
+const toOperationLogPage = (p: ProtoOperationLogPage): OperationLogPage => ({
+  user_identity: p.userIdentity,
+  billing_month: p.billingMonth,
+  operations: (p.operations ?? []).map(toOperationLogEntry),
+  total: p.total,
+  limit: p.limit,
+  offset: p.offset,
+  has_more: p.hasMore,
+});
+
+const messageFromError = (err: unknown, fallback: string): string => {
+  if (err instanceof ConnectError) return err.message;
+  if (err instanceof Error) return err.message;
+  return fallback;
+};
+
+const isNetworkLikeError = (err: unknown): boolean => {
+  if (err instanceof TypeError && err.message.includes('fetch')) return true;
+  if (err instanceof ConnectError) {
+    // Connect maps unreachable / DNS / TLS failures to Unavailable.
+    return err.code === 14 /* Unavailable */;
+  }
+  return false;
+};
+
+// ----------------------------------------------------------------------------
+// store
+// ----------------------------------------------------------------------------
+
 export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   userEmail: '',
   status: null,
@@ -225,11 +289,9 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   lastFetched: null,
   isOffline: false,
 
-  // API source state (for dev mode)
   apiSource: 'production' as ApiSource,
-  localApiPort: 15000, // Default LPBS API port range start
+  localApiPort: 15000,
 
-  // Usage history state
   usageHistory: [],
   historyLoading: false,
   selectedPeriod: null,
@@ -241,26 +303,12 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   fetchStatus: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(joinApi(API_BASE, 'entitlement/status'), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractErrorMessage(errorData, `Failed to fetch entitlement status: ${response.status}`));
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(EntitlementStatusResponseSchema, rawData, 'EntitlementStatus');
-      if (!result.success) {
-        set({ error: result.error, isLoading: false });
+      const resp = await entitlementClient.getStatus({});
+      const data = toStatus(resp.status);
+      if (!data) {
+        set({ isLoading: false });
         return;
       }
-      const data = result.data;
       set({
         status: data,
         userEmail: data.user_identity || '',
@@ -270,13 +318,10 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         isOffline: false,
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch status';
-      // Check if this is a network error (offline)
-      const isNetworkError = err instanceof TypeError && err.message.includes('fetch');
       set({
-        error: errorMessage,
+        error: messageFromError(err, 'Failed to fetch status'),
         isLoading: false,
-        isOffline: isNetworkError,
+        isOffline: isNetworkLikeError(err),
       });
     }
   },
@@ -294,86 +339,12 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(joinApi(API_BASE, 'entitlement/identity'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email: trimmedEmail }),
-      });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractErrorMessage(errorData, `Failed to set email: ${response.status}`));
-      }
-
-      // After setting email, fetch the updated status
-      await get().fetchStatus();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to set email';
-      set({
-        error: errorMessage,
-        isLoading: false,
-      });
-    }
-  },
-
-  clearUserEmail: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const response = await fetch(joinApi(API_BASE, 'entitlement/identity'), {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractErrorMessage(errorData, `Failed to clear email: ${response.status}`));
-      }
-
-      set({
-        userEmail: '',
-        status: null,
-        overrideTier: null,
-        isLoading: false,
-        lastFetched: new Date(),
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to clear email';
-      set({
-        error: errorMessage,
-        isLoading: false,
-      });
-    }
-  },
-
-  refreshEntitlement: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const response = await fetch(joinApi(API_BASE, 'entitlement/refresh'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await parseJson(response);
-        throw new Error(extractErrorMessage(errorData, `Failed to refresh entitlement: ${response.status}`));
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(EntitlementStatusResponseSchema, rawData, 'EntitlementRefresh');
-      if (!result.success) {
-        set({ error: result.error, isLoading: false });
+      const resp = await entitlementClient.setIdentity({ email: trimmedEmail });
+      const data = toStatus(resp.status);
+      if (!data) {
+        set({ isLoading: false });
         return;
       }
-      const data = result.data;
       set({
         status: data,
         userEmail: data.user_identity || '',
@@ -383,36 +354,62 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         isOffline: false,
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to refresh';
-      const isNetworkError = err instanceof TypeError && err.message.includes('fetch');
+      set({ error: messageFromError(err, 'Failed to set email'), isLoading: false });
+    }
+  },
+
+  clearUserEmail: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      await entitlementClient.clearIdentity({});
       set({
-        error: errorMessage,
+        userEmail: '',
+        status: null,
+        overrideTier: null,
         isLoading: false,
-        isOffline: isNetworkError,
+        lastFetched: new Date(),
+      });
+    } catch (err) {
+      set({ error: messageFromError(err, 'Failed to clear email'), isLoading: false });
+    }
+  },
+
+  refreshEntitlement: async () => {
+    const currentUser = get().userEmail || get().status?.user_identity || '';
+    if (!currentUser) {
+      // Nothing to refresh without a user identity; just refetch status.
+      await get().fetchStatus();
+      return;
+    }
+    set({ isLoading: true, error: null });
+    try {
+      const resp = await entitlementClient.refreshStatus({ user: currentUser });
+      const data = toStatus(resp.status);
+      if (!data) {
+        set({ isLoading: false });
+        return;
+      }
+      set({
+        status: data,
+        userEmail: data.user_identity || '',
+        overrideTier: data.override_tier ?? null,
+        isLoading: false,
+        lastFetched: new Date(),
+        isOffline: false,
+      });
+    } catch (err) {
+      set({
+        error: messageFromError(err, 'Failed to refresh'),
+        isLoading: false,
+        isOffline: isNetworkLikeError(err),
       });
     }
   },
 
   getUserEmail: async (): Promise<string> => {
     try {
-      const response = await fetch(joinApi(API_BASE, 'entitlement/identity'), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        return '';
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(IdentityResponseSchema, rawData, 'Identity');
-      if (!result.success) {
-        return '';
-      }
-      const email = result.data.email || '';
+      const resp = await entitlementClient.getIdentity({});
+      const email = resp.email || '';
       set({ userEmail: email });
       return email;
     } catch {
@@ -423,190 +420,85 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   setOverrideTier: async (tier: SubscriptionTier | null) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(joinApi(API_BASE, 'entitlement/override'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ tier: tier ?? '' }),
-      });
-
-      if (!response.ok && response.status !== 204) {
-        const errorData = await parseJson(response);
-        throw new Error(extractErrorMessage(errorData, `Failed to set override tier: ${response.status}`));
-      }
-
+      await entitlementClient.setOverride({ tier: tier ?? '' });
       await get().fetchStatus();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to set override tier';
-      set({
-        error: errorMessage,
-        isLoading: false,
-      });
+      set({ error: messageFromError(err, 'Failed to set override tier'), isLoading: false });
     }
   },
 
-  // API source actions (for dev mode)
   getApiSource: async () => {
     try {
-      const response = await fetch(joinApi(API_BASE, 'entitlement/api-source'), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        // Default to production if endpoint doesn't exist or fails
-        return;
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(ApiSourceResponseSchema, rawData, 'ApiSource');
-      if (!result.success) {
-        // Default to production if validation fails
-        return;
-      }
+      const resp = await entitlementClient.getApiSource({});
       set({
-        apiSource: result.data.source,
-        localApiPort: result.data.local_port || 15000,
+        apiSource: (resp.source || 'production') as ApiSource,
+        localApiPort: resp.localPort || 15000,
       });
     } catch {
-      // Silently fail - defaults are fine
+      // Silently fall through — defaults are fine.
     }
   },
 
   setApiSource: async (source: ApiSource, localPort?: number) => {
     set({ isLoading: true, error: null });
     try {
-      const body: Record<string, unknown> = { source };
-      if (localPort !== undefined) {
-        body.local_port = localPort;
-      }
-
-      const response = await fetch(joinApi(API_BASE, 'entitlement/api-source'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(body),
+      const resp = await entitlementClient.setApiSource({
+        source,
+        localPort: localPort ?? 0,
       });
-
-      if (!response.ok && response.status !== 204) {
-        const errorData = await parseJson(response);
-        throw new Error(extractErrorMessage(errorData, `Failed to set API source: ${response.status}`));
-      }
-
       set({
-        apiSource: source,
-        localApiPort: localPort ?? get().localApiPort,
+        apiSource: (resp.source || source) as ApiSource,
+        localApiPort: resp.localPort || get().localApiPort,
         isLoading: false,
       });
-
-      // Refresh entitlement status with new API source
       await get().fetchStatus();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to set API source';
-      set({
-        error: errorMessage,
-        isLoading: false,
-      });
+      set({ error: messageFromError(err, 'Failed to set API source'), isLoading: false });
     }
   },
 
-  // Usage history actions
   fetchUsageHistory: async (months = 6, offset = 0) => {
     set({ historyLoading: true });
     try {
-      const params = new URLSearchParams();
-      params.set('months', months.toString());
-      if (offset > 0) params.set('offset', offset.toString());
-
-      const response = await fetch(joinApi(API_BASE, `entitlement/usage/history?${params.toString()}`), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch usage history: ${response.status}`);
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(UsageHistoryResponseSchema, rawData, 'UsageHistory');
-      if (!result.success) {
-        console.error('Failed to validate usage history:', result.error);
-        set({ historyLoading: false });
-        return;
-      }
+      const resp = await entitlementClient.getUsageHistory({ months, offset });
       set({
-        usageHistory: result.data.periods,
+        usageHistory: (resp.periods ?? []).map(toUsagePeriod),
         historyLoading: false,
       });
     } catch (err) {
       console.error('Failed to fetch usage history:', err);
-      set({
-        historyLoading: false,
-      });
+      set({ historyLoading: false });
     }
   },
 
   fetchOperationLog: async (month: string, category?: string, limit = 20, offset = 0) => {
     set({ operationLogLoading: true });
     try {
-      const params = new URLSearchParams();
-      params.set('month', month);
-      if (category) params.set('category', category);
-      params.set('limit', limit.toString());
-      if (offset > 0) params.set('offset', offset.toString());
-
-      const response = await fetch(joinApi(API_BASE, `entitlement/usage/operations?${params.toString()}`), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
+      const resp = await entitlementClient.getOperationLog({
+        month,
+        category: category ?? '',
+        limit,
+        offset,
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch operation log: ${response.status}`);
-      }
-
-      const rawData: unknown = await response.json();
-      const result = safeParse(OperationLogPageSchema, rawData, 'OperationLog');
-      if (!result.success) {
-        console.error('Failed to validate operation log:', result.error);
-        set({ operationLogLoading: false });
-        return;
-      }
-      const data = result.data;
-
-      // If offset > 0, append to existing operations
+      const page = toOperationLogPage(resp);
       if (offset > 0) {
         set((state) => ({
-          operationLog: [...state.operationLog, ...data.operations],
-          operationLogTotal: data.total,
-          operationLogHasMore: data.has_more,
+          operationLog: [...state.operationLog, ...page.operations],
+          operationLogTotal: page.total,
+          operationLogHasMore: page.has_more,
           operationLogLoading: false,
         }));
       } else {
         set({
-          operationLog: data.operations,
-          operationLogTotal: data.total,
-          operationLogHasMore: data.has_more,
+          operationLog: page.operations,
+          operationLogTotal: page.total,
+          operationLogHasMore: page.has_more,
           operationLogLoading: false,
         });
       }
     } catch (err) {
       console.error('Failed to fetch operation log:', err);
-      set({
-        operationLogLoading: false,
-      });
+      set({ operationLogLoading: false });
     }
   },
 
@@ -631,8 +523,8 @@ export const useIsEntitlementsEnabled = (): boolean => {
 
 export const useCanExecuteWorkflow = (): boolean => {
   const status = useEntitlementStore((state) => state.status);
-  if (!status?.entitlements_enabled) return true; // No restrictions when disabled
-  if (status.monthly_limit === -1) return true; // Unlimited
+  if (!status?.entitlements_enabled) return true;
+  if (status.monthly_limit === -1) return true;
   return status.monthly_remaining > 0;
 };
 
@@ -691,7 +583,7 @@ export const useAICredits = (): AICreditsInfo => {
   const limit = status.ai_credits_limit ?? 0;
   const remaining = status.ai_credits_remaining ?? 0;
   const isUnlimited = limit < 0;
-  const hasAccess = limit !== 0; // 0 means no access, -1 means unlimited, positive means limited
+  const hasAccess = limit !== 0;
 
   return {
     used,
