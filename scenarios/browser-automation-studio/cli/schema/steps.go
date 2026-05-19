@@ -1,15 +1,20 @@
 package schema
 
 import (
-	"browser-automation-studio/cli/internal/api"
 	"browser-automation-studio/cli/internal/appctx"
+	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
+
+	"connectrpc.com/connect"
+
+	schemav1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/schema"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
-// StepDefinition mirrors the API's step definition structure.
+// StepDefinition mirrors the proto step definition for stable CLI output.
 type StepDefinition struct {
 	Type         string         `json:"type"`
 	Description  string         `json:"description"`
@@ -39,11 +44,6 @@ type KVDef struct {
 type StepExample struct {
 	Description string `json:"description"`
 	CLI         string `json:"cli"`
-}
-
-// StepsResponse is the API response structure.
-type StepsResponse struct {
-	Steps []StepDefinition `json:"steps"`
 }
 
 func runSchemaSteps(ctx *appctx.Context, args []string) error {
@@ -78,179 +78,156 @@ func runSchemaSteps(ctx *appctx.Context, args []string) error {
 		}
 	}
 
-	// Build query parameters
-	query := url.Values{}
+	req := &schemav1.GetStepDefinitionsRequest{CliOnly: cliOnly}
 	if types != "" {
-		query.Set("types", types)
-	}
-	if cliOnly {
-		query.Set("cli_only", "true")
+		for _, tok := range strings.Split(types, ",") {
+			if t := strings.TrimSpace(tok); t != "" {
+				req.Types = append(req.Types, t)
+			}
+		}
 	}
 
-	path := "/schema/steps"
-	status, body, err := api.Do(ctx, "GET", path, query, nil, nil)
+	resp, err := newClient(ctx).GetStepDefinitions(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("schema steps", err, nil)
 	}
 
-	if status != 200 {
-		return fmt.Errorf("failed to get step definitions (status %d): %s", status, string(body))
+	steps := make([]StepDefinition, 0, len(resp.Msg.GetSteps()))
+	for _, ps := range resp.Msg.GetSteps() {
+		steps = append(steps, fromProto(ps))
 	}
 
-	var resp StepsResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return fmt.Errorf("parse response: %w", err)
-	}
-
-	// Output in requested format
 	switch format {
 	case "json":
-		// Re-marshal with indentation
-		output, err := json.MarshalIndent(resp.Steps, "", "  ")
+		out, err := json.MarshalIndent(steps, "", "  ")
 		if err != nil {
 			return fmt.Errorf("format json: %w", err)
 		}
-		fmt.Println(string(output))
+		fmt.Println(string(out))
 	case "markdown":
-		fmt.Println(formatStepsMarkdown(resp.Steps))
+		fmt.Println(formatStepsMarkdown(steps))
 	default:
-		fmt.Println(formatStepsText(resp.Steps))
+		fmt.Println(formatStepsText(steps))
 	}
-
 	return nil
+}
+
+func fromProto(p *schemav1.StepDefinition) StepDefinition {
+	out := StepDefinition{
+		Type:         p.GetType(),
+		Description:  p.GetDescription(),
+		CLISupported: p.GetCliSupported(),
+	}
+	if p.Positional != nil {
+		out.Positional = &PositionalDef{
+			Name:        p.Positional.GetName(),
+			MapsTo:      p.Positional.GetMapsTo(),
+			Description: p.Positional.GetDescription(),
+		}
+	}
+	for _, kv := range p.GetRequiredKvs() {
+		out.RequiredKVs = append(out.RequiredKVs, KVDef{Key: kv.GetKey(), Type: kv.GetType(), Description: kv.GetDescription()})
+	}
+	for _, kv := range p.GetOptionalKvs() {
+		out.OptionalKVs = append(out.OptionalKVs, KVDef{Key: kv.GetKey(), Type: kv.GetType(), Description: kv.GetDescription()})
+	}
+	for _, g := range p.GetRequireOneOf() {
+		out.RequireOneOf = append(out.RequireOneOf, g.GetKeys())
+	}
+	for _, ex := range p.GetExamples() {
+		out.Examples = append(out.Examples, StepExample{Description: ex.GetDescription(), CLI: ex.GetCli()})
+	}
+	return out
 }
 
 // formatStepsText formats step definitions as readable text.
 func formatStepsText(steps []StepDefinition) string {
 	var sb strings.Builder
-
 	for i, step := range steps {
 		if i > 0 {
 			sb.WriteString("\n")
 		}
-
-		// Type and description
 		sb.WriteString(step.Type)
-		sb.WriteString("\n")
-		sb.WriteString("  ")
+		sb.WriteString("\n  ")
 		sb.WriteString(step.Description)
 		sb.WriteString("\n")
-
-		// Positional argument
 		if step.Positional != nil {
-			sb.WriteString("\n")
-			sb.WriteString("  Positional: <")
+			sb.WriteString("\n  Positional: <")
 			sb.WriteString(step.Positional.Name)
-			sb.WriteString(">\n")
-			sb.WriteString("    ")
+			sb.WriteString(">\n    ")
 			sb.WriteString(step.Positional.Description)
 			sb.WriteString("\n")
 		}
-
-		// Required key-value pairs
 		if len(step.RequiredKVs) > 0 {
-			sb.WriteString("\n")
-			sb.WriteString("  Required:\n")
+			sb.WriteString("\n  Required:\n")
 			for _, kv := range step.RequiredKVs {
 				sb.WriteString(fmt.Sprintf("    %s (%s): %s\n", kv.Key, kv.Type, kv.Description))
 			}
 		}
-
-		// Optional key-value pairs
 		if len(step.OptionalKVs) > 0 {
-			sb.WriteString("\n")
-			sb.WriteString("  Optional:\n")
+			sb.WriteString("\n  Optional:\n")
 			for _, kv := range step.OptionalKVs {
 				sb.WriteString(fmt.Sprintf("    %s (%s): %s\n", kv.Key, kv.Type, kv.Description))
 			}
 		}
-
-		// Require one of constraints
 		if len(step.RequireOneOf) > 0 {
-			sb.WriteString("\n")
-			sb.WriteString("  Requires one of:\n")
+			sb.WriteString("\n  Requires one of:\n")
 			for _, group := range step.RequireOneOf {
 				sb.WriteString("    - ")
 				sb.WriteString(strings.Join(group, " OR "))
 				sb.WriteString("\n")
 			}
 		}
-
-		// Examples
 		if len(step.Examples) > 0 {
-			sb.WriteString("\n")
-			sb.WriteString("  Examples:\n")
+			sb.WriteString("\n  Examples:\n")
 			for _, ex := range step.Examples {
 				sb.WriteString("    # ")
 				sb.WriteString(ex.Description)
-				sb.WriteString("\n")
-				sb.WriteString("    ")
+				sb.WriteString("\n    ")
 				sb.WriteString(ex.CLI)
 				sb.WriteString("\n")
 			}
 		}
-
-		// CLI support note
 		if !step.CLISupported {
-			sb.WriteString("\n")
-			sb.WriteString("  Note: This step type requires workflow JSON (not supported via --step flag)\n")
+			sb.WriteString("\n  Note: This step type requires workflow JSON (not supported via --step flag)\n")
 		}
 	}
-
 	return sb.String()
 }
 
 // formatStepsMarkdown formats step definitions as markdown.
 func formatStepsMarkdown(steps []StepDefinition) string {
 	var sb strings.Builder
-
 	sb.WriteString("# Step Definitions\n\n")
-
 	for _, step := range steps {
-		// Type heading
 		sb.WriteString("## ")
 		sb.WriteString(step.Type)
 		if !step.CLISupported {
 			sb.WriteString(" (JSON only)")
 		}
 		sb.WriteString("\n\n")
-
-		// Description
 		sb.WriteString(step.Description)
 		sb.WriteString("\n\n")
-
-		// Positional argument
 		if step.Positional != nil {
 			sb.WriteString("### Positional Argument\n\n")
 			sb.WriteString(fmt.Sprintf("- **%s**: %s\n\n", step.Positional.Name, step.Positional.Description))
 		}
-
-		// Required key-value pairs
 		if len(step.RequiredKVs) > 0 {
-			sb.WriteString("### Required Parameters\n\n")
-			sb.WriteString("| Key | Type | Description |\n")
-			sb.WriteString("|-----|------|-------------|\n")
+			sb.WriteString("### Required Parameters\n\n| Key | Type | Description |\n|-----|------|-------------|\n")
 			for _, kv := range step.RequiredKVs {
 				sb.WriteString(fmt.Sprintf("| `%s` | %s | %s |\n", kv.Key, kv.Type, kv.Description))
 			}
 			sb.WriteString("\n")
 		}
-
-		// Optional key-value pairs
 		if len(step.OptionalKVs) > 0 {
-			sb.WriteString("### Optional Parameters\n\n")
-			sb.WriteString("| Key | Type | Description |\n")
-			sb.WriteString("|-----|------|-------------|\n")
+			sb.WriteString("### Optional Parameters\n\n| Key | Type | Description |\n|-----|------|-------------|\n")
 			for _, kv := range step.OptionalKVs {
 				sb.WriteString(fmt.Sprintf("| `%s` | %s | %s |\n", kv.Key, kv.Type, kv.Description))
 			}
 			sb.WriteString("\n")
 		}
-
-		// Require one of constraints
 		if len(step.RequireOneOf) > 0 {
-			sb.WriteString("### Constraints\n\n")
-			sb.WriteString("Requires one of:\n")
+			sb.WriteString("### Constraints\n\nRequires one of:\n")
 			for _, group := range step.RequireOneOf {
 				sb.WriteString("- ")
 				for i, key := range group {
@@ -265,21 +242,16 @@ func formatStepsMarkdown(steps []StepDefinition) string {
 			}
 			sb.WriteString("\n")
 		}
-
-		// Examples
 		if len(step.Examples) > 0 {
 			sb.WriteString("### Examples\n\n")
 			for _, ex := range step.Examples {
 				sb.WriteString(ex.Description)
-				sb.WriteString(":\n")
-				sb.WriteString("```bash\n")
+				sb.WriteString(":\n```bash\n")
 				sb.WriteString(ex.CLI)
 				sb.WriteString("\n```\n\n")
 			}
 		}
-
 		sb.WriteString("---\n\n")
 	}
-
 	return sb.String()
 }

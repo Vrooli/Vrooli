@@ -1,0 +1,157 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "browser-automation-studio",
+  "description": "Browser Automation Studio CLI surface. Single source of truth for command groups, flag shapes, governance metadata, and proto-method bindings. Cross-validated at test time against generated Connect service descriptors (see cli/capture/manifest_proto_test.go). Manifest-driven command dispatch is being adopted incrementally per the proto+Connect migration plan; hand-coded domains continue to register through cli/domains until migrated.",
+  "groups": [
+    {
+      "name": "capture",
+      "description": "Capture screenshot/console/network/video/DOM/performance artifacts from a single page load",
+      "commands": [
+        {
+          "name": "capture",
+          "description": "Capture artifacts from a single page load",
+          "flags": [
+            { "name": "url", "required": true, "description": "Target URL to load" },
+            { "name": "captures", "description": "Comma-separated artifact types: screenshot,console,network,video,dom,performance" },
+            { "name": "dimensions", "description": "Preset viewport: mobile|tablet|desktop" },
+            { "name": "width", "description": "Viewport width (overrides dimensions)" },
+            { "name": "height", "description": "Viewport height (overrides dimensions)" },
+            { "name": "device-scale-factor", "description": "Viewport device scale factor" },
+            { "name": "wait-for", "description": "Wait condition before capture (load|networkidle|selector:...)" },
+            { "name": "out-dir", "description": "Output directory for artifact files" },
+            { "name": "label", "description": "Optional label tagged onto every produced artifact" },
+            { "name": "json", "bool": true, "description": "Emit raw CaptureResponse JSON instead of report" },
+            { "name": "dry-run", "bool": true, "description": "Send X-Dry-Run header; server validates without producing artifacts" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CaptureService", "method": "Capture" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external", "filesystem:write"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "scenarios",
+      "description": "Discover sibling scenarios on the host and resolve their HTTP ports.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every scenario known to the local vrooli CLI, with status.",
+          "binding": { "kind": "connect-rpc", "service": "ScenariosService", "method": "List" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "port",
+          "description": "Get the primary HTTP port and resolved base URL for a scenario by name.",
+          "positionals": [
+            { "name": "name", "required": true, "description": "Scenario slug (e.g. notes, calendar)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ScenariosService", "method": "GetPort" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "tools",
+      "description": "Tool Discovery + Execution Protocol surface (cross-scenario agent integration).",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every tool this scenario advertises via the Tool Discovery Protocol.",
+          "binding": { "kind": "connect-rpc", "service": "ToolsService", "method": "List" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Fetch the definition of a single tool by name.",
+          "positionals": [
+            { "name": "name", "required": true, "description": "Tool slug (e.g. execute_workflow)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ToolsService", "method": "Get" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "execute",
+          "description": "Invoke a tool with JSON arguments.",
+          "positionals": [
+            { "name": "name", "required": true, "description": "Tool slug to invoke" }
+          ],
+          "flags": [
+            { "name": "args", "description": "JSON object of tool arguments (default: {})" },
+            { "name": "args-file", "description": "Path to a JSON file with tool arguments" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ToolsService", "method": "Execute" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "schema",
+      "description": "Workflow JSON-Schema and step-definition discovery.",
+      "commands": [
+        {
+          "name": "workflow",
+          "description": "Get the workflow JSON-Schema. Filter by --nodes a,b,c to keep only listed node types.",
+          "flags": [
+            { "name": "nodes", "description": "Comma-separated node-type filter" },
+            { "name": "output", "description": "Write schema to file instead of stdout" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchemaService", "method": "GetWorkflowSchema" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "node-types",
+          "description": "List every node-type slug defined by the workflow schema.",
+          "binding": { "kind": "connect-rpc", "service": "SchemaService", "method": "GetNodeTypes" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "steps",
+          "description": "List CLI step definitions. Filter by --types a,b,c or restrict to CLI-supported steps with --cli-only.",
+          "flags": [
+            { "name": "types", "description": "Comma-separated step-type filter" },
+            { "name": "cli-only", "bool": true, "description": "Only return CLI-supported step types" },
+            { "name": "format", "description": "Output format: text (default), json, markdown" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SchemaService", "method": "GetStepDefinitions" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": []
+}

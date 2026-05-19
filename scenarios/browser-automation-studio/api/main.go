@@ -23,6 +23,9 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
 	captureconnect "github.com/vrooli/browser-automation-studio/handlers/capture"
+	schemaconnect "github.com/vrooli/browser-automation-studio/handlers/schema"
+	scenariosconnect "github.com/vrooli/browser-automation-studio/handlers/scenarios"
+	toolsconnect "github.com/vrooli/browser-automation-studio/handlers/tools"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/performance"
 	"github.com/vrooli/browser-automation-studio/services/ai"
@@ -48,7 +51,6 @@ import (
 	unifiedpersistence "github.com/vrooli/browser-automation-studio/services/recording/persistence"
 
 	// Tool Discovery Protocol
-	toolhandlers "github.com/vrooli/browser-automation-studio/internal/handlers"
 	"github.com/vrooli/browser-automation-studio/internal/toolexecution"
 	"github.com/vrooli/browser-automation-studio/internal/toolregistry"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -261,7 +263,6 @@ func main() {
 		ExecutionService: deps.ExecutionService,
 		Repository:       repo,
 	})
-	toolHandler := toolexecution.NewHandler(toolExecutor)
 	log.WithField("tool_count", len(toolRegistry.ListToolNames(context.Background()))).Info("✅ Tool Discovery Protocol initialized")
 
 	// Initialize playwright-driver sidecar management
@@ -337,9 +338,24 @@ func main() {
 	connectMounts := []connectx.ServiceMount{
 		captureconnect.Module(captureconnect.Deps{
 			Executor: deps.ExecutionService,
+			Storage:  deps.Storage,
 			Resolver: discovery.NewResolver(discovery.ResolverConfig{}),
 			Logger:   log,
 		}),
+		scenariosconnect.Module(scenariosconnect.Deps{
+			Logger: log,
+		}),
+		toolsconnect.Module(toolsconnect.Deps{
+			Registry: toolRegistry,
+			Executor: toolExecutor,
+			Logger:   log,
+		}),
+	}
+	schemaMount, err := schemaconnect.Module(schemaconnect.Deps{Logger: log})
+	if err != nil {
+		log.WithError(err).Warn("⚠️  Failed to initialize schema handler; SchemaService disabled")
+	} else {
+		connectMounts = append(connectMounts, schemaMount)
 	}
 	connectx.RegisterChi(r, connectMounts...)
 
@@ -418,6 +434,9 @@ func main() {
 		Check(health.HTTP("playwright_driver", playwrightURL+"/health"), health.Optional).
 		Handler()
 	r.Get("/health", healthHandler)
+	// RESTException: WebSocket endpoints are not RPC and stay on chi.
+	// RESTReason: third_party_shape (browser WebSocket transport + binary
+	// playwright-driver frame stream). Tracked in docs/internal/REST_EXCEPTIONS.md.
 	r.Get("/ws", handler.HandleWebSocket)                                                 // WebSocket endpoint for browser clients
 	r.Get("/ws/recording/{sessionId}/frames", handler.HandleDriverFrameStream)            // WebSocket for playwright-driver binary frame streaming (recording mode)
 	r.Get("/ws/execution/{executionId}/frames", handler.HandleDriverExecutionFrameStream) // WebSocket for playwright-driver binary frame streaming (execution mode)
@@ -426,21 +445,6 @@ func main() {
 		// Health endpoint under /api/v1 for consistency
 		r.Get("/health", healthHandler)
 
-		// Tool Discovery Protocol endpoints
-		toolsHandler := toolhandlers.NewToolsHandler(toolRegistry)
-		r.Get("/tools", toolsHandler.GetTools)
-		r.Get("/tools/{name}", toolsHandler.GetTool)
-		r.Post("/tools/execute", toolHandler.Execute)
-
-		// Schema endpoints (for agents to reference workflow schema)
-		schemaHandler, err := handlers.NewSchemaHandler(log)
-		if err != nil {
-			log.WithError(err).Warn("⚠️  Failed to initialize schema handler")
-		} else {
-			r.Get("/schema/workflow", schemaHandler.GetWorkflowSchema)
-			r.Get("/schema/workflow/node-types", schemaHandler.GetAvailableNodeTypes)
-			r.Get("/schema/steps", schemaHandler.GetStepDefinitions)
-		}
 
 		// Project routes
 		r.Post("/projects", handler.CreateProject)
@@ -510,10 +514,6 @@ func main() {
 		r.Put("/replay-config", handler.PutReplayConfig)
 		r.Delete("/replay-config", handler.DeleteReplayConfig)
 
-		// Scenario routes
-		r.Get("/scenarios", handler.ListScenarios)
-		r.Get("/scenarios/{name}/port", handler.GetScenarioPort)
-
 		// Recording session profiles
 		r.Get("/recordings/sessions", handler.ListRecordingSessionProfiles)
 		r.Post("/recordings/sessions", handler.CreateRecordingSessionProfile)
@@ -581,6 +581,9 @@ func main() {
 		r.Post("/internal/ai-navigate/callback", handler.AINavigateCallback)
 
 		// Recording ingestion and asset serving
+		// RESTException: multipart upload of recording archive (zip bytes);
+		// proto JSON would force base64 round-trip. Stays REST.
+		// RESTReason: multipart_upload. Tracked in docs/internal/REST_EXCEPTIONS.md.
 		r.Post("/recordings/import", handler.ImportRecording)
 		r.Get("/recordings/assets/{executionID}/*", handler.ServeRecordingAsset)
 

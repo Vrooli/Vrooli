@@ -1,11 +1,6 @@
 import { create } from 'zustand';
-import { getConfig } from '../config';
 import { logger } from '../utils/logger';
-import { safeParse } from '../shared/api/safeParse';
-import { ListScenariosResponseSchema } from '../shared/api/schemas';
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+import { scenariosClient } from '../api/scenarios';
 
 export interface Scenario {
   name: string;
@@ -49,46 +44,16 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/scenarios`);
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Failed to load scenarios (${response.status})`);
-      }
-
-      const rawData: unknown = await response.json();
-      const rawRecord = isRecord(rawData) ? rawData : {};
-
-      const normalize = (item: Record<string, unknown>): Scenario | null => {
-        const name = typeof item.name === 'string' ? item.name : '';
-        if (!name) return null;
-        return {
-          name,
-          description: typeof item.description === 'string' ? item.description : '',
-          status: typeof item.status === 'string' ? item.status : '',
-        };
-      };
-
-      // Validate with safeParse first; on failure, fall back to permissive normalization.
-      const result = safeParse(ListScenariosResponseSchema, rawData, 'ListScenarios');
-      let mapped: Scenario[];
-
-      if (result.success) {
-        mapped = result.data.scenarios.filter((scenario) => Boolean(scenario.name));
-      } else {
-        const items = Array.isArray(rawRecord.scenarios) ? rawRecord.scenarios : [];
-        mapped = items
-          .filter(isRecord)
-          .map(normalize)
-          .filter((s): s is Scenario => s !== null);
-      }
+      const resp = await scenariosClient.list({});
+      const mapped: Scenario[] = resp.scenarios
+        .filter((s) => Boolean(s.name))
+        .map((s) => ({ name: s.name, description: s.description, status: s.status }));
 
       set({
         scenarios: mapped,
         isLoading: false,
         lastFetchTime: Date.now(),
-        error: mapped.length === 0 ? 'No scenarios found. Install or start a scenario, then refresh.' : null
+        error: mapped.length === 0 ? 'No scenarios found. Install or start a scenario, then refresh.' : null,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load scenarios';
@@ -96,7 +61,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       set({
         error: message,
         isLoading: false,
-        lastFetchTime: Date.now() // Still update time to avoid hammering on errors
+        lastFetchTime: Date.now(), // Still update time to avoid hammering on errors
       });
     }
   },

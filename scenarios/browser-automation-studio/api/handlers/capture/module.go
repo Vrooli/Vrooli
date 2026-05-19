@@ -9,12 +9,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 
 	"github.com/vrooli/browser-automation-studio/services/workflow"
+	"github.com/vrooli/browser-automation-studio/storage"
 )
 
 // Executor is the narrow seam the capture handler depends on. It is
@@ -29,6 +31,19 @@ type Executor interface {
 		req *basexecution.ExecuteAdhocRequest,
 		opts *workflow.ExecuteOptions,
 	) (*basexecution.ExecuteAdhocResponse, error)
+
+	// ExportToFolder writes every artifact produced by an execution
+	// (screenshots/, console-logs.md, network-activity.md, timeline.json,
+	// result.json, …) into outputDir. The capture handler delegates
+	// artifact production to this seam so the executor remains the single
+	// owner of artifact-write semantics — capture only assembles the
+	// CaptureArtifact response list by walking outputDir afterwards.
+	ExportToFolder(
+		ctx context.Context,
+		executionID uuid.UUID,
+		outputDir string,
+		storageClient storage.StorageInterface,
+	) error
 }
 
 // URLResolver resolves the `scenario=<slug>` shorthand to a base URL.
@@ -39,9 +54,11 @@ type URLResolver interface {
 }
 
 // Deps wires the capture handler. Executor and Logger are required;
-// Resolver and Now are optional (Now defaults to time.Now).
+// Storage is required to produce real screenshot files; Resolver and Now
+// are optional (Now defaults to time.Now).
 type Deps struct {
 	Executor Executor
+	Storage  storage.StorageInterface
 	Resolver URLResolver
 	Logger   *logrus.Logger
 	Now      func() time.Time

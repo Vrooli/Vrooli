@@ -83,7 +83,7 @@ func (r *Registry) UnregisterProvider(name string) {
 }
 
 // GetManifest generates the complete tool manifest.
-// This is the main entry point for the GET /api/v1/tools endpoint.
+// Consumed by handlers/tools.ToolsService.List (Connect-RPC).
 func (r *Registry) GetManifest(ctx context.Context) *toolspb.ToolManifest {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

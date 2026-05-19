@@ -6,6 +6,7 @@ import { Globe, Loader, Monitor, FileText, Link2, AppWindow, RefreshCcw, Chevron
 import { getConfig } from '@/config';
 import toast from 'react-hot-toast';
 import { useScenarioStore } from '@stores/scenarioStore';
+import { scenariosClient } from '@/api/scenarios';
 import { useWorkflowStore } from '@stores/workflowStore';
 import type { ExecutionViewportSettings } from '@stores/workflowStore';
 import { ResponsiveDialog } from '@shared/layout';
@@ -171,23 +172,12 @@ const NavigateNode: FC<NodeProps> = ({ selected, id }) => {
     }
 
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/scenarios/${encodeURIComponent(trimmedScenario)}/port`);
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || 'Unable to resolve app port');
-      }
-
-      const info = await safeJson(response);
-      const portValue =
-        isRecord(info) && (typeof info.port === 'number' || typeof info.port === 'string')
-          ? info.port
-          : null;
+      const info = await scenariosClient.getPort({ name: trimmedScenario });
       const baseUrl: string | undefined =
-        isRecord(info) && typeof info.url === 'string' && info.url.trim() !== ''
+        info.url.trim() !== ''
           ? info.url
-          : portValue !== null
-            ? `http://localhost:${portValue}`
+          : info.port > 0
+            ? `http://localhost:${info.port}`
             : undefined;
 
       if (!baseUrl) {

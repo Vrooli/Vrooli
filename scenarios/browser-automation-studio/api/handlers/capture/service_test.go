@@ -155,6 +155,68 @@ func TestCapture_DryRun_ShortCircuits(t *testing.T) {
 	}
 }
 
+func TestCapture_HarvestArtifacts_ReadsExporterOutput(t *testing.T) {
+	exec := &fakeExecutor{
+		ExportLayout: map[string]string{
+			"screenshots/step-01-nav.png": "fake-png-bytes",
+			"console-logs.md":             "# console\n",
+			"network-activity.md":         "# network\n",
+		},
+	}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:    "https://example.com",
+		OutDir: t.TempDir(),
+		Captures: []capturev1.CaptureType{
+			capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT,
+			capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS,
+			capturev1.CaptureType_CAPTURE_TYPE_NETWORK,
+		},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, 1, exec.ExportCalls, "export seam reached exactly once")
+	require.Len(t, resp.Msg.Artifacts, 3)
+
+	byType := map[capturev1.CaptureType]*capturev1.CaptureArtifact{}
+	for _, a := range resp.Msg.Artifacts {
+		byType[a.Type] = a
+	}
+	shot := byType[capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT]
+	require.NotNil(t, shot)
+	require.Contains(t, shot.Path, "step-01-nav.png")
+	require.EqualValues(t, len("fake-png-bytes"), shot.SizeBytes)
+	require.NotEqual(t, "true", shot.Metadata["unavailable"], "real screenshot must not be marked unavailable")
+
+	console := byType[capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS]
+	require.NotNil(t, console)
+	require.EqualValues(t, len("# console\n"), console.SizeBytes)
+
+	network := byType[capturev1.CaptureType_CAPTURE_TYPE_NETWORK]
+	require.NotNil(t, network)
+	require.EqualValues(t, len("# network\n"), network.SizeBytes)
+}
+
+func TestCapture_HarvestArtifacts_MarksUnsupportedTypesUnavailable(t *testing.T) {
+	exec := &fakeExecutor{} // no export layout — every file is missing
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:    "https://example.com",
+		OutDir: t.TempDir(),
+		Captures: []capturev1.CaptureType{
+			capturev1.CaptureType_CAPTURE_TYPE_VIDEO,
+			capturev1.CaptureType_CAPTURE_TYPE_DOM,
+			capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE,
+		},
+	}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Artifacts, 3)
+	for _, a := range resp.Msg.Artifacts {
+		require.Equal(t, "true", a.Metadata["unavailable"], "type %v must be flagged unavailable", a.Type)
+	}
+}
+
 func TestCapture_ValidationErrors_InvalidArgument(t *testing.T) {
 	type tc struct {
 		name string

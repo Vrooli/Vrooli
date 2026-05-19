@@ -10,15 +10,17 @@ This file tracks unresolved issues, technical debt, and planned improvements for
 
 **Remaining REST domains** stay on chi and are migrated per-domain at the author's discretion. There is no big-bang migration plan; the side-by-side mount lets capture establish the pattern and others adopt it incrementally.
 
-### Capture executor fan-out is not yet wired
+### Capture executor fan-out (RESOLVED 2026-05-18)
 
-The Connect handler builds a navigate-only adhoc workflow DAG and delegates to `executionService.ExecuteAdhocWorkflowAPIWithOptions`. Today the response artifact list is synthesized from the request (`synthesizeArtifacts`) rather than read from real executor output — paths look real (`/<out_dir>/<exec_id>/screenshot.png`) but the files are not produced. Dry-run and contract-shape callers work end-to-end. Real artifact production requires:
+The Connect handler now produces real artifacts end-to-end:
 
-1. Appending capture-type-specific nodes (`ACTION_TYPE_SCREENSHOT`, etc.) to the DAG built in `buildAdhocRequest`.
-2. After execution, walking `ExecuteAdhocResponse` step results to map screenshot binaries / network records / console logs back into the artifact bundle.
-3. Writing each artifact into the resolved `out_dir` and reporting real `size_bytes` + `metadata`.
+1. `ExecutionParameters.artifact_config` defaults to "full" profile, so the executor collects screenshots/console/network at every step automatically — no per-type DAG nodes needed for the single-location case.
+2. The capture handler waits for execution completion (substrate fix: `ExecuteAdhocWorkflowAPIWithOptions` now honors `WaitForCompletion` the same way `ExecuteWorkflowAPIWithOptions` already did), then delegates artifact write-out to `WorkflowService.ExportToFolder` via the `Executor` seam.
+3. `harvestArtifacts` walks the resolved output directory and reports real paths + sizes + metadata. `screenshots/step-NN-*.png`, `console-logs.md`, `network-activity.md` map to `CAPTURE_TYPE_SCREENSHOT`, `CAPTURE_TYPE_CONSOLE_LOGS`, `CAPTURE_TYPE_NETWORK`.
 
-This is server-side only — proto, CLI, and actions don't change. Track this as the first follow-up to the capture domain.
+Tests: `handlers/capture/service_test.go::TestCapture_HarvestArtifacts_ReadsExporterOutput` and `…_MarksUnsupportedTypesUnavailable`.
+
+**Remaining gap:** `CAPTURE_TYPE_VIDEO`, `CAPTURE_TYPE_DOM`, and `CAPTURE_TYPE_PERFORMANCE` are not produced by the executor's folder export today. Requests for those types receive a single artifact with `metadata.unavailable=true` and `metadata.reason="executor folder export does not produce this artifact type yet"`. Wiring video/DOM/performance into the folder export is a separate, smaller substrate fix in `services/workflow/export_folder.go` plus the corresponding playwright-driver collection paths.
 
 ## API Refactoring (In Progress)
 

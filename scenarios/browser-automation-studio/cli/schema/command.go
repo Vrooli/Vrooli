@@ -1,11 +1,23 @@
+// Package schema is the CLI surface for the BAS SchemaService Connect-RPC.
+//
+// Each subcommand dispatches through cli-core's Connect HTTP client. Output
+// preserves the historical shapes (raw JSON schema dump, JSON node-types
+// envelope, text/markdown/json step rendering) so agents wrapping this CLI
+// keep working.
 package schema
 
 import (
-	"browser-automation-studio/cli/internal/api"
 	"browser-automation-studio/cli/internal/appctx"
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
+
+	"connectrpc.com/connect"
+
+	schemav1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/schema"
+	schemaconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/schema/schemaconnect"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -25,6 +37,11 @@ func Commands(ctx *appctx.Context) cliapp.CommandGroup {
 			},
 		},
 	}
+}
+
+func newClient(ctx *appctx.Context) schemaconnect.SchemaServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(ctx.Core)
+	return schemaconnect.NewSchemaServiceClient(httpClient, baseURL)
 }
 
 func runSchema(ctx *appctx.Context, args []string) error {
@@ -71,22 +88,24 @@ func runSchemaWorkflow(ctx *appctx.Context, args []string) error {
 		}
 	}
 
-	// Build query string
-	path := "/schema/workflow"
+	req := &schemav1.GetWorkflowSchemaRequest{}
 	if nodes != "" {
-		path = path + "?nodes=" + nodes
+		for _, tok := range strings.Split(nodes, ",") {
+			if t := strings.TrimSpace(tok); t != "" {
+				req.NodeTypes = append(req.NodeTypes, t)
+			}
+		}
 	}
 
-	status, body, err := api.Do(ctx, "GET", path, nil, nil, nil)
+	resp, err := newClient(ctx).GetWorkflowSchema(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("schema workflow", err, nil)
+	}
+	body, err := json.MarshalIndent(resp.Msg.GetSchema().AsMap(), "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal schema: %w", err)
 	}
 
-	if status != 200 {
-		return fmt.Errorf("failed to get schema (status %d): %s", status, string(body))
-	}
-
-	// Output to file or stdout
 	if outputPath != "" {
 		if err := os.WriteFile(outputPath, body, 0o644); err != nil {
 			return fmt.Errorf("write to file: %w", err)
@@ -95,22 +114,22 @@ func runSchemaWorkflow(ctx *appctx.Context, args []string) error {
 	} else {
 		fmt.Println(string(body))
 	}
-
 	return nil
 }
 
 func runSchemaNodeTypes(ctx *appctx.Context, args []string) error {
-	path := "/schema/workflow/node-types"
-
-	status, body, err := api.Do(ctx, "GET", path, nil, nil, nil)
+	if len(args) > 0 {
+		return fmt.Errorf("unexpected argument: %s", args[0])
+	}
+	resp, err := newClient(ctx).GetNodeTypes(context.Background(),
+		connect.NewRequest(&schemav1.GetNodeTypesRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("schema node-types", err, nil)
 	}
-
-	if status != 200 {
-		return fmt.Errorf("failed to get node types (status %d): %s", status, string(body))
+	out, err := json.MarshalIndent(map[string]any{"node_types": resp.Msg.GetNodeTypes()}, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal node types: %w", err)
 	}
-
-	fmt.Println(string(body))
+	fmt.Println(string(out))
 	return nil
 }

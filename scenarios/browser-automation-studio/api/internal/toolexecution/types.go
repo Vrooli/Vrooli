@@ -1,16 +1,10 @@
 // Package toolexecution implements the Tool Execution Protocol for browser-automation-studio.
 //
-// This package provides the server-side implementation of the Tool Execution Protocol,
-// allowing AI agents to execute browser-automation-studio tools via a standardized HTTP API.
-//
-// Protocol Contract:
-//
-//	Request:  POST /api/v1/tools/execute
-//	          { "tool_name": "execute_workflow", "arguments": {...} }
-//
-//	Response: { "success": true, "result": {...}, "is_async": false }
-//	     or:  { "success": true, "is_async": true, "run_id": "...", "status": "pending" }
-//	     or:  { "success": false, "error": "...", "code": "..." }
+// This package provides the dispatcher and result envelope used by the
+// ToolsService Connect-RPC handler (handlers/tools) to invoke individual
+// tools. The transport surface lives in proto:
+// packages/proto/schemas/browser-automation-studio/v1/tools/tools.proto
+// (ToolsService.Execute).
 package toolexecution
 
 // ExecuteRequest is the request body for tool execution.

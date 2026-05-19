@@ -27,9 +27,6 @@ export * from './uxMetrics.schema';
 // Export schemas and types
 export * from './export.schema';
 
-// Scenario schemas and types
-export * from './scenario.schema';
-
 // Dashboard schemas and types
 export * from './dashboard.schema';
 

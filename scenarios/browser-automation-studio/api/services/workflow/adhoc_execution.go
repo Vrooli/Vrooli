@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -153,7 +154,40 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
 	s.startExecutionRunnerWithOptions(wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
-	// Adhoc runs return immediately; callers should poll the execution ID.
+	if req.WaitForCompletion {
+		// Mirror executions.go: poll the repo for completion so synchronous
+		// callers (capture handler today; any future single-shot adhoc use
+		// case) get a response only after the executor has produced its
+		// artifacts. Without this branch WaitForCompletion was silently
+		// ignored on the adhoc path.
+		ticker := time.NewTicker(250 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-ticker.C:
+				latest, err := s.repo.GetExecution(ctx, executionID)
+				if err != nil {
+					return nil, err
+				}
+				if latest.CompletedAt != nil {
+					resp := &basexecution.ExecuteAdhocResponse{
+						ExecutionId: latest.ID.String(),
+						Status:      enums.StringToExecutionStatus(latest.Status),
+						CompletedAt: autocontracts.TimePtrToTimestamp(latest.CompletedAt),
+					}
+					if strings.TrimSpace(latest.ErrorMessage) != "" {
+						msg := latest.ErrorMessage
+						resp.Error = &msg
+					}
+					return resp, nil
+				}
+			}
+		}
+	}
+
+	// Async return — caller polls the execution ID separately.
 	return &basexecution.ExecuteAdhocResponse{
 		ExecutionId: executionID.String(),
 		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING,
