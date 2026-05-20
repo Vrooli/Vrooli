@@ -55,4 +55,3 @@ func requestBaseURL(r *http.Request) string {
 	}
 	return fmt.Sprintf("%s://%s", scheme, host)
 }
-

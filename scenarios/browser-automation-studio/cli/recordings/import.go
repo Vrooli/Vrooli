@@ -113,6 +113,8 @@ func runImport(ctx *appctx.Context, args []string) error {
 		return fmt.Errorf("finalize upload: %w", err)
 	}
 
+	// RESTReason: multipart_upload — recording archive (.zip) ingestion; bytes
+	// path stays REST, see docs/internal/REST_EXCEPTIONS.md.
 	endpoint := strings.TrimRight(ctx.Core.APIRootBase(), "/") + ctx.Core.APIPath("/recordings/import")
 
 	req, err := http.NewRequest("POST", endpoint, body)

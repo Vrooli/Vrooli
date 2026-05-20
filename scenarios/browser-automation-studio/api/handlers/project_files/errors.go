@@ -12,5 +12,4 @@ var (
 	errOnlyJSONReadable = errors.New("only JSON workflow files are readable")
 	errWorkflowFileExt  = errors.New("workflow files must end with .json")
 	errEmptyFolderPath  = errors.New("project folder path is empty")
-	errPathIsDir        = errors.New("path is a directory, not a file")
 )

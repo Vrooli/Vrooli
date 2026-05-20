@@ -355,6 +355,16 @@ export default defineConfig(({ mode }): UserConfig => {
         resolve: { alias: ALIASES },
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
+          name: 'api-clients',
+          include: ['src/api/**/*.test.{ts,tsx}'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
           name: 'record-mode',
           include: ['src/domains/recording/**/*.test.{ts,tsx}'],
           pool: 'threads',

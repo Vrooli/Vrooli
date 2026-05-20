@@ -30,6 +30,7 @@ import (
 	observabilityconnect "github.com/vrooli/browser-automation-studio/handlers/observability"
 	projectfilesconnect "github.com/vrooli/browser-automation-studio/handlers/project_files"
 	projectsconnect "github.com/vrooli/browser-automation-studio/handlers/projects"
+	recordingsconnect "github.com/vrooli/browser-automation-studio/handlers/recordings"
 	replayconfigconnect "github.com/vrooli/browser-automation-studio/handlers/replay_config"
 	scenariosconnect "github.com/vrooli/browser-automation-studio/handlers/scenarios"
 	schedulesconnect "github.com/vrooli/browser-automation-studio/handlers/schedules"
@@ -37,6 +38,7 @@ import (
 	sessionprofilesconnect "github.com/vrooli/browser-automation-studio/handlers/session_profiles"
 	toolsconnect "github.com/vrooli/browser-automation-studio/handlers/tools"
 	uxmetricsconnect "github.com/vrooli/browser-automation-studio/handlers/uxmetrics"
+	visionnavconnect "github.com/vrooli/browser-automation-studio/handlers/vision_navigation"
 	workflowsconnect "github.com/vrooli/browser-automation-studio/handlers/workflows"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/performance"
@@ -401,6 +403,11 @@ func main() {
 			Repo:   deps.SessionProfileService,
 			Logger: log,
 		}),
+		recordingsconnect.Module(recordingsconnect.Deps{
+			Repo:       deps.SessionProfileService,
+			RecordMode: deps.RecordModeService,
+			Logger:     log,
+		}),
 		aiserviceconnect.Module(aiserviceconnect.Deps{
 			Screenshot:      handler.ScreenshotHandler(),
 			DOM:             handler.DOMHandler(),
@@ -441,6 +448,12 @@ func main() {
 		observabilityconnect.Module(observabilityconnect.Deps{
 			Proxy:  handler,
 			Logger: log,
+		}),
+		visionnavconnect.Module(visionnavconnect.Deps{
+			Logger:   log,
+			Registry: navigatorRegistry,
+			Credits:  creditService,
+			Tracker:  playwrightNav,
 		}),
 	}
 	schemaMount, err := schemaconnect.Module(schemaconnect.Deps{Logger: log})
@@ -566,8 +579,10 @@ func main() {
 		//     HTML zip bundles, or writes files to a caller-supplied
 		//     output_dir on the server filesystem. Not RPC-shaped.
 		r.Post("/executions/{id}/export", handler.PostExecutionExport)
-		//   - POST /executions/{executionId}/frames — playwright-driver frame callback.
-		//     RESTException: ops_probe — fixed by the driver protocol.
+		//   - POST /executions/{executionId}/frames — playwright-driver frame
+		//     callback. RESTException: webhook_receiver — same shape as the
+		//     /internal/history-callback sink; bound to the driver protocol,
+		//     not RPC-shaped. Tracked in docs/internal/REST_EXCEPTIONS.md.
 		r.Post("/executions/{executionId}/frames", handler.ReceiveExecutionFrame)
 
 		// Export library routes are served by ExportsService via Connect-RPC;
@@ -584,40 +599,33 @@ func main() {
 		// the Phase 9 proto+Connect migration.
 
 		// Recording session profile CRUD is served via Connect-RPC
-		// (SessionProfilesService). Storage/cookies/service-workers/history/tabs
-		// sub-routes still go through chi until the recordings tree migrates.
-		r.Get("/recordings/sessions/{profileId}/storage", handler.GetStorageState)
-		r.Delete("/recordings/sessions/{profileId}/storage", handler.ClearAllStorage)
-		r.Delete("/recordings/sessions/{profileId}/storage/cookies", handler.ClearAllCookies)
-		r.Delete("/recordings/sessions/{profileId}/storage/cookies/{domain}", handler.DeleteCookiesByDomain)
-		r.Delete("/recordings/sessions/{profileId}/storage/cookies/{domain}/{name}", handler.DeleteCookie)
-		r.Delete("/recordings/sessions/{profileId}/storage/origins", handler.ClearAllLocalStorage)
-		r.Delete("/recordings/sessions/{profileId}/storage/origins/{origin}", handler.DeleteLocalStorageByOrigin)
-		r.Delete("/recordings/sessions/{profileId}/storage/origins/{origin}/{name}", handler.DeleteLocalStorageItem)
+		// (SessionProfilesService); the storage/cookies/service-workers/
+		// history/tabs sub-resources are served by RecordingsService —
+		// see connectMounts above. The legacy REST routes were removed
+		// during the Phase 8 proto+Connect migration.
 
-		// Service worker management (live session)
-		r.Get("/recordings/sessions/{profileId}/service-workers", handler.GetServiceWorkers)
-		r.Delete("/recordings/sessions/{profileId}/service-workers", handler.ClearAllServiceWorkers)
-		r.Delete("/recordings/sessions/{profileId}/service-workers/{scopeURL}", handler.DeleteServiceWorker)
-
-		// Browser history management
-		r.Get("/recordings/sessions/{profileId}/history", handler.GetHistory)
-		r.Delete("/recordings/sessions/{profileId}/history", handler.ClearHistory)
-		r.Delete("/recordings/sessions/{profileId}/history/{entryId}", handler.DeleteHistoryEntry)
-		r.Patch("/recordings/sessions/{profileId}/history/settings", handler.UpdateHistorySettings)
-		r.Post("/recordings/sessions/{profileId}/history/navigate", handler.NavigateToHistoryURL)
-
-		// Tab management (saved tabs for session restoration)
-		r.Get("/recordings/sessions/{profileId}/tabs", handler.GetSessionTabs)
-		r.Delete("/recordings/sessions/{profileId}/tabs", handler.ClearSessionTabs)
-		r.Delete("/recordings/sessions/{profileId}/tabs/{order}", handler.DeleteSessionTab)
-
-		// Internal callback for history events from playwright driver
+		// Internal callback for history events from playwright driver.
+		// RESTException: webhook_receiver — fire-and-forget history-entry sink
+		// posted by the out-of-process playwright-driver; bound to the driver
+		// protocol, not RPC-shaped. Tracked in docs/internal/REST_EXCEPTIONS.md.
 		r.Post("/internal/history-callback", handler.HistoryCallback)
 
-		// Screenshot serving routes
+		// Screenshot and artifact binary-serve routes.
+		//
+		// These endpoints stream image/binary bytes from the storage backend
+		// (MinIO) directly to <img src=...> and <a download> consumers in the
+		// UI. There is no JSON metadata sibling surface: no list/get/delete
+		// metadata operations exist for these resources today (storage paths
+		// are addressed by name, not by RPC entity). If/when a metadata
+		// catalog is added it will be served via Connect-RPC; the byte-streaming
+		// sub-routes below will remain REST.
+		//
+		// RESTException: third_party_shape — binary media serve, not RPC.
+		// Tracked in docs/internal/REST_EXCEPTIONS.md.
 		r.Get("/screenshots/*", handler.ServeScreenshot)
+		// RESTException: third_party_shape — binary media serve, not RPC.
 		r.Get("/screenshots/thumbnail/*", handler.ServeThumbnail)
+		// RESTException: third_party_shape — binary media serve, not RPC.
 		r.Get("/artifacts/*", handler.ServeArtifact)
 
 		// AI helper routes (preview-screenshot, link-preview, analyze-elements,
@@ -625,14 +633,13 @@ func main() {
 		// Connect-RPC by AIService; see connectMounts above. The legacy REST
 		// surface was removed in the Phase 9 proto+Connect migration.
 
-		// AI Vision Navigation routes
-		r.Get("/ai-navigate/navigators", handler.AINavigateListNavigators)
-		r.Post("/ai-navigate", handler.AINavigate)
-		r.Get("/ai-navigate/{navigationId}/status", handler.AINavigateStatus)
-		r.Post("/ai-navigate/{navigationId}/abort", handler.AINavigateAbort)
-		r.Post("/ai-navigate/{navigationId}/resume", handler.AINavigateResume)
-
-		// Internal callback route for playwright-driver step events
+		// AI Vision Navigation is served via Connect-RPC by
+		// VisionNavigationService; see connectMounts above. The legacy REST
+		// surface (/ai-navigate/*) was removed in the proto+Connect migration.
+		//
+		// RESTException: webhook_receiver — playwright driver POSTs step and
+		// completion events to this endpoint; the driver protocol is not
+		// RPC-shaped. Tracked in docs/internal/REST_EXCEPTIONS.md.
 		r.Post("/internal/ai-navigate/callback", handler.AINavigateCallback)
 
 		// Recording ingestion and asset serving
@@ -640,6 +647,11 @@ func main() {
 		// proto JSON would force base64 round-trip. Stays REST.
 		// RESTReason: multipart_upload. Tracked in docs/internal/REST_EXCEPTIONS.md.
 		r.Post("/recordings/import", handler.ImportRecording)
+		// RESTException: streams stored recording asset bytes (frames, screenshots,
+		// video) from disk directly to <img>/<video>/<a download> consumers in the
+		// UI Replay tab and CLI renderer. Path-addressed by storage filename, not
+		// by RPC entity.
+		// RESTReason: third_party_shape. Tracked in docs/internal/REST_EXCEPTIONS.md.
 		r.Get("/recordings/assets/{executionID}/*", handler.ServeRecordingAsset)
 
 		// Live recording routes (Record Mode)

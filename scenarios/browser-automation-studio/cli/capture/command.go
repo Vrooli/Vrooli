@@ -43,20 +43,20 @@ func Commands(ctx *appctx.Context) cliapp.CommandGroup {
 }
 
 type captureFlags struct {
-	url                string
-	captures           []string
-	dimensions         string // "mobile" | "tablet" | "desktop" | ""
-	width              int
-	height             int
-	deviceScaleFactor  float64
-	hasWidth           bool
-	hasHeight          bool
-	hasDeviceScale     bool
-	waitFor            string
-	outDir             string
-	label              string
-	json               bool
-	dryRun             bool
+	url               string
+	captures          []string
+	dimensions        string // "mobile" | "tablet" | "desktop" | ""
+	width             int
+	height            int
+	deviceScaleFactor float64
+	hasWidth          bool
+	hasHeight         bool
+	hasDeviceScale    bool
+	waitFor           string
+	outDir            string
+	label             string
+	json              bool
+	dryRun            bool
 }
 
 func runCapture(ctx *appctx.Context, args []string) error {

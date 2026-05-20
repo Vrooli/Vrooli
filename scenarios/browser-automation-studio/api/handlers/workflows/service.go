@@ -578,4 +578,3 @@ func (s *service) chargeExecutionCredits(ctx context.Context, workflowID, execut
 		s.log().WithError(err).WithField("execution_id", executionID).Warn("failed to charge credits for execution")
 	}
 }
-

@@ -22,3 +22,15 @@ func TestAIManifestCoversAIService(t *testing.T) {
 	}
 	cliapp.RequireProtoServiceCoverage(t, raw, aiv1.File_browser_automation_studio_v1_ai_ai_proto, "AIService")
 }
+
+// TestVisionNavigationManifestCoversService asserts every RPC declared on
+// VisionNavigationService is bound by a CLI manifest entry. Part of the
+// per-domain parity gate for the BAS proto+Connect migration.
+func TestVisionNavigationManifestCoversService(t *testing.T) {
+	path := filepath.Join("..", "manifest.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	cliapp.RequireProtoServiceCoverage(t, raw, aiv1.File_browser_automation_studio_v1_ai_ai_proto, "VisionNavigationService")
+}

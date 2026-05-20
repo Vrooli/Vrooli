@@ -18,30 +18,39 @@ type stubProxy struct {
 func (s *stubProxy) FetchObservability(context.Context, string, bool) (map[string]any, error) {
 	return s.snapshot, s.err
 }
+
 func (s *stubProxy) FetchObservabilityRefresh(context.Context) (map[string]any, error) {
 	return s.snapshot, s.err
 }
+
 func (s *stubProxy) FetchObservabilityDiagnostics(context.Context, map[string]any) (map[string]any, error) {
 	return s.snapshot, s.err
 }
+
 func (s *stubProxy) FetchObservabilitySessions(context.Context) (map[string]any, error) {
 	return s.snapshot, s.err
 }
+
 func (s *stubProxy) FetchObservabilityCleanup(context.Context) (map[string]any, error) {
 	return s.snapshot, s.err
 }
+
 func (s *stubProxy) FetchObservabilityMetrics(context.Context) (map[string]any, error) {
 	return s.snapshot, s.err
 }
+
 func (s *stubProxy) FetchObservabilityPipelineTest(context.Context, map[string]any) (map[string]any, error) {
 	return s.snapshot, s.err
 }
+
 func (s *stubProxy) FetchObservabilityConfigRuntime(context.Context) (map[string]any, error) {
 	return s.snapshot, s.err
 }
+
 func (s *stubProxy) UpdateObservabilityConfig(context.Context, string, string) (map[string]any, error) {
 	return s.snapshot, s.err
 }
+
 func (s *stubProxy) ResetObservabilityConfig(context.Context, string) (map[string]any, error) {
 	return s.snapshot, s.err
 }

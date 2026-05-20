@@ -89,8 +89,8 @@ func (f *fakeProvider) RequiresWatermark(context.Context, string) bool { return 
 func (f *fakeProvider) CanUseAI(context.Context, string) bool          { return f.canUseAI }
 func (f *fakeProvider) CanUseRecording(context.Context, string) bool   { return f.canUseRecording }
 
-func (f *fakeProvider) MinTierForAI() entsvc.Tier          { return entsvc.TierPro }
-func (f *fakeProvider) MinTierForRecording() entsvc.Tier   { return entsvc.TierSolo }
+func (f *fakeProvider) MinTierForAI() entsvc.Tier            { return entsvc.TierPro }
+func (f *fakeProvider) MinTierForRecording() entsvc.Tier     { return entsvc.TierSolo }
 func (f *fakeProvider) MinTierWithoutWatermark() entsvc.Tier { return entsvc.TierPro }
 
 type fakeCredits struct {

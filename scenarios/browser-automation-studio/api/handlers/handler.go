@@ -358,14 +358,11 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	}
 	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler, aiAnalysisOpts...)
 
-	// Initialize vision navigation handler with navigator registry
+	// Initialize vision navigation callback handler. The user-facing
+	// vision-navigation surface is served via Connect-RPC by
+	// VisionNavigationService (see handlers/vision_navigation/); the
+	// callback below is the playwright-driver webhook receiver and stays REST.
 	visionNavOpts := []aihandlers.VisionNavigationHandlerOption{}
-	if deps.CreditService != nil {
-		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationCreditService(deps.CreditService))
-	}
-	if deps.NavigatorRegistry != nil {
-		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationRegistry(deps.NavigatorRegistry))
-	}
 	if deps.PlaywrightNavigator != nil {
 		visionNavOpts = append(visionNavOpts, aihandlers.WithPlaywrightNavigator(deps.PlaywrightNavigator))
 	}
@@ -414,39 +411,16 @@ func (h *Handler) GetPerfRegistry() *performance.CollectorRegistry {
 
 // AI helper endpoints (preview-screenshot, link-preview, analyze-elements,
 // element-at-coordinate, ai-analyze-elements, dom-tree) are served via
-// Connect-RPC by AIService; see handlers/ai_service/. Vision navigation
-// remains on chi REST for now.
+// Connect-RPC by AIService; see handlers/ai_service/. The user-facing
+// vision-navigation surface (list/start/status/abort/resume) is served via
+// Connect-RPC by VisionNavigationService; see handlers/vision_navigation/.
 
-// Vision Navigation delegation methods
-
-// AINavigateListNavigators delegates to the vision navigation handler
-func (h *Handler) AINavigateListNavigators(w http.ResponseWriter, r *http.Request) {
-	h.visionNavigationHandler.HandleListNavigators(w, r)
-}
-
-// AINavigate delegates to the vision navigation handler
-func (h *Handler) AINavigate(w http.ResponseWriter, r *http.Request) {
-	h.visionNavigationHandler.HandleAINavigate(w, r)
-}
-
-// AINavigateCallback delegates to the vision navigation handler
+// AINavigateCallback delegates to the vision navigation callback handler.
+// The corresponding chi route (/api/v1/internal/ai-navigate/callback) is a
+// RESTException (RESTReason=webhook_receiver): it is the playwright driver's
+// fire-and-forget step/completion event sink, not part of the RPC surface.
 func (h *Handler) AINavigateCallback(w http.ResponseWriter, r *http.Request) {
 	h.visionNavigationHandler.HandleAINavigateCallback(w, r)
-}
-
-// AINavigateStatus delegates to the vision navigation handler
-func (h *Handler) AINavigateStatus(w http.ResponseWriter, r *http.Request) {
-	h.visionNavigationHandler.HandleAINavigateStatus(w, r)
-}
-
-// AINavigateAbort delegates to the vision navigation handler
-func (h *Handler) AINavigateAbort(w http.ResponseWriter, r *http.Request) {
-	h.visionNavigationHandler.HandleAINavigateAbort(w, r)
-}
-
-// AINavigateResume delegates to the vision navigation handler
-func (h *Handler) AINavigateResume(w http.ResponseWriter, r *http.Request) {
-	h.visionNavigationHandler.HandleAINavigateResume(w, r)
 }
 
 // SeedCleanupManager exposes the deferred seed-cleanup tracker so external

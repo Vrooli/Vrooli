@@ -1,10 +1,6 @@
 package handlers
 
 import (
-	"context"
-	"net/http"
-
-	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,13 +27,4 @@ func createTestHandler() (*Handler, *MockCatalogService, *MockExecutionService, 
 	}
 
 	return handler, catalogSvc, execSvc, repo, hub, storageMock
-}
-
-// withURLParam attaches a chi URL parameter to the request context. Used
-// when invoking REST handlers directly in unit tests without going through
-// the chi router.
-func withURLParam(r *http.Request, key, value string) *http.Request {
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add(key, value)
-	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }

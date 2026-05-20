@@ -75,14 +75,14 @@ type UserIdentityResolver func(ctx context.Context) string
 
 // Deps wires the workflows handler.
 type Deps struct {
-	Catalog          Catalog
-	Executor         Executor
-	Validator        Validator
-	SeedRunner       SeedRunner
-	SeedScheduler    SeedScheduler
-	CreditService    CreditCharger
-	UserIdentity     UserIdentityResolver
-	Logger           *logrus.Logger
+	Catalog       Catalog
+	Executor      Executor
+	Validator     Validator
+	SeedRunner    SeedRunner
+	SeedScheduler SeedScheduler
+	CreditService CreditCharger
+	UserIdentity  UserIdentityResolver
+	Logger        *logrus.Logger
 }
 
 // Module builds the WorkflowsService Connect handler.

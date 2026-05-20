@@ -40,33 +40,43 @@ type stubExecutor struct {
 func (s *stubExecutor) ListExecutions(ctx context.Context, wf, proj *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
 	return s.listFn(ctx, wf, proj, limit, offset)
 }
+
 func (s *stubExecutor) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
 	return s.getFn(ctx, id)
 }
+
 func (s *stubExecutor) HydrateExecutionProto(ctx context.Context, e *database.ExecutionIndex) (*basexecution.Execution, error) {
 	return s.hydrateFn(ctx, e)
 }
+
 func (s *stubExecutor) StopExecution(ctx context.Context, id uuid.UUID) error {
 	return s.stopFn(ctx, id)
 }
+
 func (s *stubExecutor) ResumeExecution(ctx context.Context, id uuid.UUID, p map[string]any) (*database.ExecutionIndex, error) {
 	return s.resumeFn(ctx, id, p)
 }
+
 func (s *stubExecutor) GetExecutionTimeline(ctx context.Context, id uuid.UUID) (*workflowservice.ExecutionTimeline, error) {
 	return s.timelineFn(ctx, id)
 }
+
 func (s *stubExecutor) GetExecutionTimelineProto(ctx context.Context, id uuid.UUID) (*bastimeline.ExecutionTimeline, error) {
 	return s.timelineProtoFn(ctx, id)
 }
+
 func (s *stubExecutor) GetExecutionScreenshots(ctx context.Context, id uuid.UUID) ([]*basexecution.ExecutionScreenshot, error) {
 	return s.screenshotsFn(ctx, id)
 }
+
 func (s *stubExecutor) GetExecutionVideoArtifacts(ctx context.Context, id uuid.UUID) ([]workflowservice.ExecutionVideoArtifact, error) {
 	return s.videosFn(ctx, id)
 }
+
 func (s *stubExecutor) GetExecutionTraceArtifacts(ctx context.Context, id uuid.UUID) ([]workflowservice.ExecutionFileArtifact, error) {
 	return s.tracesFn(ctx, id)
 }
+
 func (s *stubExecutor) GetExecutionHarArtifacts(ctx context.Context, id uuid.UUID) ([]workflowservice.ExecutionFileArtifact, error) {
 	return s.harFn(ctx, id)
 }

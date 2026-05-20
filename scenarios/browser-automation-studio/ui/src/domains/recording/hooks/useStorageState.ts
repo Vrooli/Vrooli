@@ -1,5 +1,7 @@
-import { useCallback, useMemo } from 'react';
-import { createProfileResourceHook } from './useProfileResource';
+import { useCallback, useMemo, useState } from 'react';
+import { ConnectError } from '@connectrpc/connect';
+import { recordingsClient } from '@/api/recordings';
+import { logger } from '@/utils/logger';
 import type { StorageStateResponse } from '../types/types';
 
 export interface UseStorageStateResult {
@@ -9,7 +11,6 @@ export interface UseStorageStateResult {
   deleting: boolean;
   fetchStorageState: (profileId: string) => Promise<void>;
   clear: () => void;
-  // Delete operations
   clearAllStorage: (profileId: string) => Promise<boolean>;
   clearAllCookies: (profileId: string) => Promise<boolean>;
   deleteCookiesByDomain: (profileId: string, domain: string) => Promise<boolean>;
@@ -19,80 +20,138 @@ export interface UseStorageStateResult {
   deleteLocalStorageItem: (profileId: string, origin: string, name: string) => Promise<boolean>;
 }
 
-// Create base hook using factory
-const useStorageStateBase = createProfileResourceHook<StorageStateResponse>({
-  endpoint: 'storage',
-  componentName: 'useStorageState',
-  fetchErrorMessage: 'Failed to load storage state',
-  clearAllErrorMessage: 'Failed to clear storage',
-});
+function describe(err: unknown): string {
+  if (err instanceof ConnectError) return err.message;
+  if (err instanceof Error) return err.message;
+  return 'Storage operation failed';
+}
+
+const COMPONENT = 'useStorageState';
 
 export function useStorageState(): UseStorageStateResult {
-  const base = useStorageStateBase();
-  const {
-    data,
-    loading,
-    error,
-    deleting,
-    fetch,
-    clear,
-    clearAll,
-    deleteRequest,
-  } = base;
+  const [storageState, setStorageState] = useState<StorageStateResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Cookie operations
-  const clearAllCookies = useCallback(
-    async (profileId: string): Promise<boolean> => {
-      return deleteRequest(profileId, 'cookies');
+  const fetchStorageState = useCallback(async (profileId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await recordingsClient.getStorageState({ profileId });
+      const cookies = (resp.cookies ?? []).map((c) => ({
+        name: c.name,
+        value: c.value,
+        valueMasked: c.valueMasked,
+        domain: c.domain,
+        path: c.path,
+        expires: c.expires,
+        httpOnly: c.httpOnly,
+        secure: c.secure,
+        sameSite: (c.sameSite || 'None') as 'Strict' | 'Lax' | 'None',
+      }));
+      const origins = (resp.origins ?? []).map((o) => ({
+        origin: o.origin,
+        localStorage: (o.localStorage ?? []).map((i) => ({ name: i.name, value: i.value })),
+      }));
+      setStorageState({
+        cookies,
+        origins,
+        stats: {
+          cookieCount: resp.stats?.cookieCount ?? 0,
+          localStorageCount: resp.stats?.localStorageCount ?? 0,
+          originCount: resp.stats?.originCount ?? 0,
+        },
+      });
+    } catch (err) {
+      const message = describe(err);
+      setError(message);
+      logger.error(message, { component: COMPONENT, action: 'fetch' }, err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const clear = useCallback(() => {
+    setStorageState(null);
+    setError(null);
+  }, []);
+
+  const runMutation = useCallback(
+    async (
+      profileId: string,
+      op: () => Promise<unknown>,
+      action: string
+    ): Promise<boolean> => {
+      setDeleting(true);
+      setError(null);
+      try {
+        await op();
+        await fetchStorageState(profileId);
+        return true;
+      } catch (err) {
+        const message = describe(err);
+        setError(message);
+        logger.error(message, { component: COMPONENT, action }, err);
+        return false;
+      } finally {
+        setDeleting(false);
+      }
     },
-    [deleteRequest]
+    [fetchStorageState]
+  );
+
+  const clearAllStorage = useCallback(
+    (profileId: string) =>
+      runMutation(profileId, () => recordingsClient.clearAllStorage({ profileId }), 'clearAllStorage'),
+    [runMutation]
+  );
+
+  const clearAllCookies = useCallback(
+    (profileId: string) =>
+      runMutation(profileId, () => recordingsClient.clearAllCookies({ profileId }), 'clearAllCookies'),
+    [runMutation]
   );
 
   const deleteCookiesByDomain = useCallback(
-    async (profileId: string, domain: string): Promise<boolean> => {
-      return deleteRequest(profileId, `cookies/${encodeURIComponent(domain)}`);
-    },
-    [deleteRequest]
+    (profileId: string, domain: string) =>
+      runMutation(profileId, () => recordingsClient.deleteCookiesByDomain({ profileId, domain }), 'deleteCookiesByDomain'),
+    [runMutation]
   );
 
   const deleteCookie = useCallback(
-    async (profileId: string, domain: string, name: string): Promise<boolean> => {
-      return deleteRequest(profileId, `cookies/${encodeURIComponent(domain)}/${encodeURIComponent(name)}`);
-    },
-    [deleteRequest]
+    (profileId: string, domain: string, name: string) =>
+      runMutation(profileId, () => recordingsClient.deleteCookie({ profileId, domain, name }), 'deleteCookie'),
+    [runMutation]
   );
 
-  // LocalStorage operations
   const clearAllLocalStorage = useCallback(
-    async (profileId: string): Promise<boolean> => {
-      return deleteRequest(profileId, 'origins');
-    },
-    [deleteRequest]
+    (profileId: string) =>
+      runMutation(profileId, () => recordingsClient.clearAllLocalStorage({ profileId }), 'clearAllLocalStorage'),
+    [runMutation]
   );
 
   const deleteLocalStorageByOrigin = useCallback(
-    async (profileId: string, origin: string): Promise<boolean> => {
-      return deleteRequest(profileId, `origins/${encodeURIComponent(origin)}`);
-    },
-    [deleteRequest]
+    (profileId: string, origin: string) =>
+      runMutation(profileId, () => recordingsClient.deleteLocalStorageByOrigin({ profileId, origin }), 'deleteLocalStorageByOrigin'),
+    [runMutation]
   );
 
   const deleteLocalStorageItem = useCallback(
-    async (profileId: string, origin: string, name: string): Promise<boolean> => {
-      return deleteRequest(profileId, `origins/${encodeURIComponent(origin)}/${encodeURIComponent(name)}`);
-    },
-    [deleteRequest]
+    (profileId: string, origin: string, name: string) =>
+      runMutation(profileId, () => recordingsClient.deleteLocalStorageItem({ profileId, origin, name }), 'deleteLocalStorageItem'),
+    [runMutation]
   );
 
   return useMemo(
     () => ({
-      storageState: data,
+      storageState,
       loading,
       error,
       deleting,
-      fetchStorageState: fetch,
+      fetchStorageState,
       clear,
-      clearAllStorage: clearAll,
+      clearAllStorage,
       clearAllCookies,
       deleteCookiesByDomain,
       deleteCookie,
@@ -101,13 +160,13 @@ export function useStorageState(): UseStorageStateResult {
       deleteLocalStorageItem,
     }),
     [
-      data,
+      storageState,
       loading,
       error,
       deleting,
-      fetch,
+      fetchStorageState,
       clear,
-      clearAll,
+      clearAllStorage,
       clearAllCookies,
       deleteCookiesByDomain,
       deleteCookie,

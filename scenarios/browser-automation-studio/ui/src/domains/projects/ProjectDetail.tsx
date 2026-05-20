@@ -159,6 +159,8 @@ function ProjectDetail({
           formData.append("project_name", project.name);
         }
 
+        // RESTReason: multipart_upload — recording archive (.zip) ingestion;
+        // bytes path stays REST, see docs/internal/REST_EXCEPTIONS.md.
         const response = await fetch(`${config.API_URL}/recordings/import`, {
           method: "POST",
           body: formData,

@@ -25,21 +25,21 @@ import (
 // ---------------------------------------------------------------------------
 
 type fakeCatalog struct {
-	mu              sync.Mutex
-	projects        map[uuid.UUID]*database.ProjectIndex
-	projectsByName  map[string]*database.ProjectIndex
-	projectsByPath  map[string]*database.ProjectIndex
-	workflows       map[uuid.UUID][]*database.WorkflowIndex
-	stats           map[uuid.UUID]*database.ProjectStats
+	mu               sync.Mutex
+	projects         map[uuid.UUID]*database.ProjectIndex
+	projectsByName   map[string]*database.ProjectIndex
+	projectsByPath   map[string]*database.ProjectIndex
+	workflows        map[uuid.UUID][]*database.WorkflowIndex
+	stats            map[uuid.UUID]*database.ProjectStats
 	deletedWorkflows map[uuid.UUID][]uuid.UUID
-	deleted         []uuid.UUID
-	getErr          error
-	updateErr       error
-	deleteErr       error
-	createErr       error
-	listErr         error
-	bulkDeleteErr   error
-	hydrateErr      error
+	deleted          []uuid.UUID
+	getErr           error
+	updateErr        error
+	deleteErr        error
+	createErr        error
+	listErr          error
+	bulkDeleteErr    error
+	hydrateErr       error
 }
 
 func newFakeCatalog() *fakeCatalog {
@@ -224,11 +224,11 @@ func (f *fakeExecutor) ExecuteWorkflow(_ context.Context, id uuid.UUID, _ map[st
 }
 
 type fakePaths struct {
-	mu        sync.Mutex
-	prepared  []string
+	mu         sync.Mutex
+	prepared   []string
 	prepareErr error
-	madeAll   []string
-	makeErr   error
+	madeAll    []string
+	makeErr    error
 }
 
 func (f *fakePaths) Prepare(p string) (string, error) {

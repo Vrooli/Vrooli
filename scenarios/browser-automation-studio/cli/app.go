@@ -55,6 +55,10 @@ func NewApp() (*App, error) {
 			ctx.Core = app
 			return domains.CommandGroups(ctx)
 		},
+		SubcommandGroups: func(app *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+			ctx.Core = app
+			return domains.SubcommandGroups(ctx, manifestBytes)
+		},
 	})
 	if err != nil {
 		return nil, err

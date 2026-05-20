@@ -394,7 +394,6 @@ func unavailableArtifact(c capturev1.CaptureType, path string) *capturev1.Captur
 	}
 }
 
-
 func captureTypeShortName(c capturev1.CaptureType) string {
 	switch c {
 	case capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT:

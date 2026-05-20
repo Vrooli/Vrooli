@@ -113,11 +113,15 @@ func TestGetNodeTypes_HappyPath(t *testing.T) {
 func TestGetStepDefinitions_All(t *testing.T) {
 	pos := validator.PositionalDef{Name: "url", MapsTo: "url", Description: "Target URL"}
 	p := &fakeProvider{stepDefs: []validator.StepDefinition{
-		{Type: "navigate", Description: "Go", Positional: &pos, CLISupported: true,
+		{
+			Type: "navigate", Description: "Go", Positional: &pos, CLISupported: true,
 			RequiredKVs: []validator.KVDef{{Key: "k", Type: "string", Description: "d"}},
-			Examples:    []validator.StepExample{{Description: "e", CLI: "c"}}},
-		{Type: "wait", Description: "Wait", CLISupported: false,
-			RequireOneOf: [][]string{{"a", "b"}}},
+			Examples:    []validator.StepExample{{Description: "e", CLI: "c"}},
+		},
+		{
+			Type: "wait", Description: "Wait", CLISupported: false,
+			RequireOneOf: [][]string{{"a", "b"}},
+		},
 	}}
 	client := newTestClient(t, p)
 

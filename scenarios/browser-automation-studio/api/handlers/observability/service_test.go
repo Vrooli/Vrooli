@@ -39,34 +39,43 @@ func (r *recordingProxy) FetchObservability(_ context.Context, depth string, noC
 	r.gotNoCache = noCache
 	return r.snapshot, r.err
 }
+
 func (r *recordingProxy) FetchObservabilityRefresh(context.Context) (map[string]any, error) {
 	return r.snapshot, r.err
 }
+
 func (r *recordingProxy) FetchObservabilityDiagnostics(_ context.Context, opts map[string]any) (map[string]any, error) {
 	r.gotDiag = opts
 	return r.snapshot, r.err
 }
+
 func (r *recordingProxy) FetchObservabilitySessions(context.Context) (map[string]any, error) {
 	return r.snapshot, r.err
 }
+
 func (r *recordingProxy) FetchObservabilityCleanup(context.Context) (map[string]any, error) {
 	return r.snapshot, r.err
 }
+
 func (r *recordingProxy) FetchObservabilityMetrics(context.Context) (map[string]any, error) {
 	return r.snapshot, r.err
 }
+
 func (r *recordingProxy) FetchObservabilityPipelineTest(_ context.Context, opts map[string]any) (map[string]any, error) {
 	r.gotPipe = opts
 	return r.snapshot, r.err
 }
+
 func (r *recordingProxy) FetchObservabilityConfigRuntime(context.Context) (map[string]any, error) {
 	return r.snapshot, r.err
 }
+
 func (r *recordingProxy) UpdateObservabilityConfig(_ context.Context, envVar, value string) (map[string]any, error) {
 	r.gotUpdate.envVar = envVar
 	r.gotUpdate.value = value
 	return r.snapshot, r.err
 }
+
 func (r *recordingProxy) ResetObservabilityConfig(_ context.Context, envVar string) (map[string]any, error) {
 	r.gotReset = envVar
 	return r.snapshot, r.err

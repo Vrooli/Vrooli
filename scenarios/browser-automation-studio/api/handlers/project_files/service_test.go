@@ -93,8 +93,8 @@ func (f *fakeCatalog) SyncProjectWorkflows(_ context.Context, _ uuid.UUID) error
 }
 
 type fakeOS struct {
-	mu         sync.Mutex
-	openCalls  []string
+	mu          sync.Mutex
+	openCalls   []string
 	revealCalls []string
 	openErr     error
 	revealErr   error

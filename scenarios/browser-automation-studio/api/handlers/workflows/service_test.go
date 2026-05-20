@@ -63,35 +63,43 @@ type fakeCatalog struct {
 func (f *fakeCatalog) CreateWorkflow(_ context.Context, _ *basapi.CreateWorkflowRequest) (*basapi.CreateWorkflowResponse, error) {
 	return f.createResp, f.createErr
 }
+
 func (f *fakeCatalog) ListWorkflows(_ context.Context, req *basapi.ListWorkflowsRequest) (*basapi.ListWorkflowsResponse, error) {
 	f.lastListReq = req
 	return f.listResp, f.listErr
 }
+
 func (f *fakeCatalog) GetWorkflowAPI(_ context.Context, _ *basapi.GetWorkflowRequest) (*basapi.GetWorkflowResponse, error) {
 	return f.getResp, f.getErr
 }
+
 func (f *fakeCatalog) UpdateWorkflow(_ context.Context, req *basapi.UpdateWorkflowRequest) (*basapi.UpdateWorkflowResponse, error) {
 	f.lastUpdate = req
 	return f.updateResp, f.updateErr
 }
+
 func (f *fakeCatalog) DeleteWorkflow(_ context.Context, _ *basapi.DeleteWorkflowRequest) (*basapi.DeleteWorkflowResponse, error) {
 	return f.deleteResp, f.deleteErr
 }
+
 func (f *fakeCatalog) ListWorkflowVersionsAPI(_ context.Context, id uuid.UUID) (*basapi.WorkflowVersionList, error) {
 	f.lastVersionsArg = id
 	return f.versionsResp, f.versionsErr
 }
+
 func (f *fakeCatalog) GetWorkflowVersionAPI(_ context.Context, id uuid.UUID, ver int32) (*basapi.WorkflowVersion, error) {
 	f.lastVersionArg.id = id
 	f.lastVersionArg.ver = ver
 	return f.versionResp, f.versionErr
 }
+
 func (f *fakeCatalog) RestoreWorkflowVersionAPI(_ context.Context, id uuid.UUID, ver int32, msg string) (*basapi.RestoreWorkflowVersionResponse, error) {
 	f.lastRestoreArg.id = id
 	f.lastRestoreArg.ver = ver
 	f.lastRestoreArg.msg = msg
 	return f.restoreResp, f.restoreErr
 }
+
 func (f *fakeCatalog) ModifyWorkflowAPI(_ context.Context, id uuid.UUID, text string, _ *basworkflows.WorkflowDefinitionV2) (*basapi.UpdateWorkflowResponse, error) {
 	f.lastModifyID = id
 	f.lastModifyText = text
@@ -99,14 +107,14 @@ func (f *fakeCatalog) ModifyWorkflowAPI(_ context.Context, id uuid.UUID, text st
 }
 
 type fakeExecutor struct {
-	execResp       *basapi.ExecuteWorkflowResponse
-	execErr        error
-	adhocResp      *basexecution.ExecuteAdhocResponse
-	adhocErr       error
-	lastExecReq    *basapi.ExecuteWorkflowRequest
-	lastExecOpts   *workflowservice.ExecuteOptions
-	lastAdhocReq   *basexecution.ExecuteAdhocRequest
-	lastAdhocOpts  *workflowservice.ExecuteOptions
+	execResp      *basapi.ExecuteWorkflowResponse
+	execErr       error
+	adhocResp     *basexecution.ExecuteAdhocResponse
+	adhocErr      error
+	lastExecReq   *basapi.ExecuteWorkflowRequest
+	lastExecOpts  *workflowservice.ExecuteOptions
+	lastAdhocReq  *basexecution.ExecuteAdhocRequest
+	lastAdhocOpts *workflowservice.ExecuteOptions
 }
 
 func (f *fakeExecutor) ExecuteWorkflowAPIWithOptions(_ context.Context, req *basapi.ExecuteWorkflowRequest, opts *workflowservice.ExecuteOptions) (*basapi.ExecuteWorkflowResponse, error) {
@@ -114,6 +122,7 @@ func (f *fakeExecutor) ExecuteWorkflowAPIWithOptions(_ context.Context, req *bas
 	f.lastExecOpts = opts
 	return f.execResp, f.execErr
 }
+
 func (f *fakeExecutor) ExecuteAdhocWorkflowAPIWithOptions(_ context.Context, req *basexecution.ExecuteAdhocRequest, opts *workflowservice.ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error) {
 	f.lastAdhocReq = req
 	f.lastAdhocOpts = opts
@@ -141,6 +150,7 @@ type fakeSeedRunner struct {
 func (f *fakeSeedRunner) ApplySeed(_ context.Context, _ string, _ bool) (string, map[string]any, error) {
 	return f.applyToken, f.applyState, f.applyErr
 }
+
 func (f *fakeSeedRunner) CleanupSeed(_ context.Context, _ string, token string) error {
 	f.cleanups = append(f.cleanups, token)
 	return f.cleanupErr

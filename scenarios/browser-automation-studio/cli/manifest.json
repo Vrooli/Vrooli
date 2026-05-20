@@ -1317,6 +1317,82 @@
       ]
     },
     {
+      "name": "vision-navigation",
+      "description": "AI-driven multi-step browser navigation: list navigators, start/abort/resume sessions, and inspect status.",
+      "commands": [
+        {
+          "name": "list-navigators",
+          "description": "List available AI navigation backends and the registry default.",
+          "flags": [
+            { "name": "client-source", "description": "Override the client source hint (ui|cli|api, default cli)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "VisionNavigationService", "method": "ListNavigators" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start an AI-driven navigation session against an existing browser session.",
+          "flags": [
+            { "name": "session", "required": true, "description": "Existing browser session ID" },
+            { "name": "prompt", "required": true, "description": "Natural-language navigation instruction" },
+            { "name": "model", "description": "Vision model identifier (default gpt-4o)" },
+            { "name": "max-steps", "description": "Maximum navigation steps (1..100, default 20)" },
+            { "name": "navigator", "description": "Preferred navigator: playwright | claude_code (default auto-select)" },
+            { "name": "api-key", "description": "BYOK API key (bypasses credit charging subject to navigator policy)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "VisionNavigationService", "method": "StartNavigation" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external"]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Get the current state of a navigation session (status, step count, total tokens).",
+          "positionals": [
+            { "name": "navigation-id", "required": true, "description": "Navigation session UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "VisionNavigationService", "method": "GetNavigationStatus" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "abort",
+          "description": "Abort an in-flight navigation after the current step.",
+          "positionals": [
+            { "name": "navigation-id", "required": true, "description": "Navigation session UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "VisionNavigationService", "method": "AbortNavigation" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Resume a navigation that paused for human intervention.",
+          "positionals": [
+            { "name": "navigation-id", "required": true, "description": "Navigation session UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "VisionNavigationService", "method": "ResumeNavigation" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "session-profiles",
       "description": "CRUD on persisted browser session profiles (anti-detection settings + stored storage state).",
       "commands": [
