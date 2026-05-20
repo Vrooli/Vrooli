@@ -16,9 +16,13 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
 	healthH "cli-health/handlers/health"
+	reindexH "cli-health/handlers/reindex"
+	searchH "cli-health/handlers/search"
+	validationH "cli-health/handlers/validation"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -97,9 +101,17 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	logger := log.Default()
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		log.Fatalf("resolve repo root: %v", err)
+	}
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "cli-health-api", "1.0.0"),
+		validationH.Module(logger, repoRoot),
+		searchH.Module(logger),
+		reindexH.Module(logger),
 	)
 
 	if err := apiserver.Run(apiserver.Config{

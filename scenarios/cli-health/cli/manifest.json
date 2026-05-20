@@ -1,7 +1,82 @@
 {
-  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "cli-health",
-  "description": "Cross-scenario CLI manifest validation and AI command discovery. Schema-validated against cli-manifest/v1 and cross-validated against the scenario's proto descriptors. Loaded by cli/main.go via cliapp.LoadFromManifest. Command groups will be added in Phase 1 (validate, search, reindex).",
-  "groups": [],
+  "description": "Single source of truth for the cli-health CLI command surface. Schema-validated against cli-manifest/v1; cross-validated against each domain's Connect-RPC proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. New RPCs must either land here as a command binding or be listed in `omitted[]` with a reason.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Run cli-health validators against a scenario's CLI manifest, proto, and endpoints.json",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Validate a single scenario by id",
+          "positionals": [
+            { "name": "name", "required": true, "description": "Scenario id (directory name under scenarios/)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "ValidateScenario" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Search CLI commands across scenarios (AI-first with text fallback)",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Search the indexed corpus by natural-language text",
+          "positionals": [
+            { "name": "text", "required": true, "description": "Natural-language query" }
+          ],
+          "flags": [
+            { "name": "limit", "default": "10", "description": "Maximum results to return" },
+            { "name": "mode", "description": "Force a retrieval mode: ai | text (default lets the server choose)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SearchService", "method": "Search" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "status",
+          "description": "Report search backend availability (ollama, qdrant, indexed count)",
+          "binding": { "kind": "connect-rpc", "service": "SearchService", "method": "Status" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "reindex",
+      "description": "Reconcile the search corpus: rebuild Qdrant points from CLI manifests + help output",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Start a reindex job",
+          "flags": [
+            { "name": "scenario", "description": "Limit to a single scenario; empty means all" },
+            { "name": "dry-run", "bool": true, "description": "Compute planned upserts/deletes without writing" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReindexService", "method": "Reindex" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "status",
+          "description": "Poll a reindex job's progress",
+          "positionals": [
+            { "name": "job_id", "required": true, "description": "Job id returned by `reindex run`" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReindexService", "method": "ReindexStatus" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "cancel",
+          "description": "Request cooperative cancellation of an in-flight reindex job",
+          "positionals": [
+            { "name": "job_id", "required": true, "description": "Job id returned by `reindex run`" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReindexService", "method": "ReindexCancel" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    }
+  ],
   "omitted": []
 }
