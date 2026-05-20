@@ -42,6 +42,39 @@ func TestDetectPlanCandidatesClassifiesLegacyScratchPlans(t *testing.T) {
 	}
 }
 
+func TestServiceRunIncludesDriftCheckWhenNoScenarios(t *testing.T) {
+	root := t.TempDir()
+	runGit(t, root, "init")
+	writeFile(t, filepath.Join(root, ".vrooli", "repo-contract.json"), `{"version":"v0","required_dirs":[],"required_files":[],"checks":[]}`)
+	report, err := Service{Root: root, Home: root}.Run(Request{
+		FailOn:          SeverityError,
+		IncludeContract: false,
+		IncludePlans:    false,
+		IncludeDrift:    true,
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if report.SharedDrift == nil {
+		t.Fatalf("SharedDrift report missing")
+	}
+	if !report.SharedDrift.Clean {
+		t.Fatalf("expected clean drift with no scenarios, got %#v", report.SharedDrift)
+	}
+	var sawCheck bool
+	for _, c := range report.Checks {
+		if c.Name == "shared_drift" {
+			sawCheck = true
+			if !c.Passed {
+				t.Fatalf("shared_drift check failed: %s", c.Message)
+			}
+		}
+	}
+	if !sawCheck {
+		t.Fatalf("expected shared_drift check entry, got %+v", report.Checks)
+	}
+}
+
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)

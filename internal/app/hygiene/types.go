@@ -3,6 +3,7 @@ package hygiene
 import (
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
 	planapp "github.com/vrooli/vrooli/internal/app/plans"
+	shareddriftapp "github.com/vrooli/vrooli/internal/app/shareddrift"
 )
 
 type Severity string
@@ -67,6 +68,7 @@ type Report struct {
 	PlanCandidates   []PlanCandidate              `json:"plan_candidates,omitempty"`
 	FixesApplied     []PlanFix                    `json:"fixes_applied,omitempty"`
 	Contract         contractapp.ValidationOutput `json:"contract,omitempty"`
+	SharedDrift      *shareddriftapp.Report       `json:"shared_drift,omitempty"`
 	BlockingFailures int                          `json:"blocking_failures"`
 	Warnings         int                          `json:"warnings"`
 }
@@ -77,4 +79,5 @@ type Request struct {
 	FailOn          Severity
 	IncludePlans    bool
 	IncludeContract bool
+	IncludeDrift    bool
 }

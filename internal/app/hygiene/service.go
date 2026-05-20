@@ -10,6 +10,7 @@ import (
 
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
 	planapp "github.com/vrooli/vrooli/internal/app/plans"
+	shareddriftapp "github.com/vrooli/vrooli/internal/app/shareddrift"
 )
 
 type Service struct {
@@ -25,9 +26,10 @@ func (s Service) Run(req Request) (Report, error) {
 	if req.FailOn == "" {
 		req.FailOn = SeverityError
 	}
-	if !req.IncludeContract && !req.IncludePlans {
+	if !req.IncludeContract && !req.IncludePlans && !req.IncludeDrift {
 		req.IncludeContract = true
 		req.IncludePlans = true
+		req.IncludeDrift = true
 	}
 	report := Report{Root: root, Success: true}
 
@@ -126,6 +128,56 @@ func (s Service) Run(req Request) (Report, error) {
 		}
 	}
 
+	if req.IncludeDrift {
+		drift, err := shareddriftapp.Service{Root: root}.Check(shareddriftapp.CheckRequest{
+			OnlyTouched: true,
+			Fix:         false,
+		})
+		if err != nil {
+			report.addCheck("shared_drift", false, SeverityError, err.Error())
+			report.addFinding(Finding{
+				Severity:   SeverityError,
+				Code:       "shared_drift_scan",
+				Message:    err.Error(),
+				Fixability: FixabilityManual,
+				NextActions: []Action{{
+					Code:    "inspect_shared_drift_scan",
+					Message: "Inspect the shared-drift scan error and rerun hygiene after correcting it.",
+					Command: "vrooli check-shared-drift --only-touched --json",
+				}},
+			})
+		} else {
+			report.SharedDrift = &drift
+			if drift.Clean {
+				message := "no dependent scenarios stale"
+				if len(drift.Scenarios) == 0 {
+					message = "no shared-package changes staged"
+				}
+				report.addCheck("shared_drift", true, SeverityInfo, message)
+			} else {
+				stale := driftStaleScenarios(drift)
+				message := fmt.Sprintf("%d dependent scenarios are stale relative to shared packages", len(stale))
+				report.addCheck("shared_drift", false, SeverityError, message)
+				action := Action{
+					Code:       "fix_shared_drift",
+					Message:    "Tidy stale scenario go.mod/go.sum then stage the changes.",
+					Command:    "vrooli check-shared-drift --fix --only-touched",
+					Fixability: FixabilityGuided,
+				}
+				report.addFinding(Finding{
+					Severity:    SeverityError,
+					Code:        "shared_drift",
+					Message:     message,
+					Why:         "Stale scenario go.mod/go.sum entries cause scenarios to fail to start after a shared package changes.",
+					Locations:   driftLocations(stale),
+					Fixability:  FixabilityGuided,
+					NextActions: []Action{action},
+				})
+				report.Actions = append(report.Actions, action)
+			}
+		}
+	}
+
 	if req.FixSafe && req.Plans && len(report.PlanCandidates) > 0 {
 		fixes, err := s.importPlanCandidates(report.PlanCandidates)
 		if err != nil {
@@ -164,6 +216,29 @@ func (s Service) importPlanCandidates(candidates []PlanCandidate) ([]PlanFix, er
 		fixes = append(fixes, PlanFix{Source: candidate.Path, Plan: out.Plan})
 	}
 	return fixes, nil
+}
+
+func driftStaleScenarios(drift shareddriftapp.Report) []shareddriftapp.ScenarioReport {
+	var out []shareddriftapp.ScenarioReport
+	for _, sc := range drift.Scenarios {
+		if sc.Status == shareddriftapp.StatusStaleModules || sc.Status == shareddriftapp.StatusStaleBuild {
+			out = append(out, sc)
+		}
+	}
+	return out
+}
+
+func driftLocations(stale []shareddriftapp.ScenarioReport) []string {
+	const maxLocations = 5
+	locations := make([]string, 0, maxLocations+1)
+	for i, sc := range stale {
+		if i >= maxLocations {
+			locations = append(locations, fmt.Sprintf("... %d more (see shared_drift summary)", len(stale)-maxLocations))
+			break
+		}
+		locations = append(locations, sc.Path)
+	}
+	return locations
 }
 
 func contractFinding(name, message string) Finding {

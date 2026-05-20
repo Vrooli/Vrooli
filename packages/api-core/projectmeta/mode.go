@@ -22,9 +22,8 @@ const (
 )
 
 var (
-	once     sync.Once
-	cached   string
-	cachedOK bool
+	once   sync.Once
+	cached string
 
 	// startDir is the directory the mode lookup ascends from. It defaults to
 	// os.Getwd() at first use; tests override it via SetStartDirForTesting.
@@ -81,7 +80,6 @@ func loadMode() {
 		// Absent field — defaults to development; not a warning.
 	case ModeDevelopment, ModeProduction:
 		cached = doc.Mode
-		cachedOK = true
 	default:
 		slog.Warn("projectmeta: unrecognized mode value; defaulting to development",
 			"path", path, "value", doc.Mode)
@@ -132,7 +130,6 @@ func SetStartDirForTesting(dir string) {
 func resetForTesting() {
 	once = sync.Once{}
 	cached = ""
-	cachedOK = false
 }
 
 // MustString returns Mode() and is provided for symmetry with other api-core

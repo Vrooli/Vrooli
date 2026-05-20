@@ -33,12 +33,16 @@ func Handler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 		if err != nil {
 			return err
 		}
+		includeContract := !req.PlansOnly && !req.DriftOnly
+		includePlans := !req.ContractOnly && !req.DriftOnly
+		includeDrift := !req.PlansOnly && !req.ContractOnly && !req.NoDrift
 		report, err := hygieneapp.Service{Root: deps.Root(ctx), Home: home}.Run(hygieneapp.Request{
 			FixSafe:         req.FixSafe,
 			Plans:           req.Plans,
 			FailOn:          req.FailOn,
-			IncludePlans:    !req.ContractOnly,
-			IncludeContract: !req.PlansOnly,
+			IncludePlans:    includePlans,
+			IncludeContract: includeContract,
+			IncludeDrift:    includeDrift,
 		})
 		if err != nil {
 			return err

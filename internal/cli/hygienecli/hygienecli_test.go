@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	hygieneapp "github.com/vrooli/vrooli/internal/app/hygiene"
+	shareddriftapp "github.com/vrooli/vrooli/internal/app/shareddrift"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
@@ -31,6 +32,58 @@ func TestParseRequestRejectsConflictingModes(t *testing.T) {
 	}
 	if _, err := ParseRequest([]string{"--plans-only", "--contract-only"}); err == nil {
 		t.Fatalf("ParseRequest accepted conflicting scope modes")
+	}
+	if _, err := ParseRequest([]string{"--drift-only", "--plans-only"}); err == nil {
+		t.Fatalf("ParseRequest accepted conflicting drift+plans-only")
+	}
+	if _, err := ParseRequest([]string{"--drift-only", "--no-drift"}); err == nil {
+		t.Fatalf("ParseRequest accepted drift-only with no-drift")
+	}
+}
+
+func TestParseRequestSupportsDriftFlags(t *testing.T) {
+	req, err := ParseRequest([]string{"--drift-only"})
+	if err != nil {
+		t.Fatalf("ParseRequest: %v", err)
+	}
+	if !req.DriftOnly {
+		t.Fatalf("DriftOnly = false, want true")
+	}
+	req, err = ParseRequest([]string{"--no-drift"})
+	if err != nil {
+		t.Fatalf("ParseRequest: %v", err)
+	}
+	if !req.NoDrift {
+		t.Fatalf("NoDrift = false, want true")
+	}
+}
+
+func TestRenderIncludesDriftSummary(t *testing.T) {
+	report := hygieneapp.Report{
+		Root: "/repo",
+		SharedDrift: &shareddriftapp.Report{
+			Clean:           false,
+			Root:            "/repo",
+			OnlyTouchedUsed: true,
+			Scenarios: []shareddriftapp.ScenarioReport{
+				{Path: "scenarios/foo", Status: shareddriftapp.StatusStaleModules, DiffPaths: []string{"scenarios/foo/api/go.sum"}},
+				{Path: "scenarios/bar", Status: shareddriftapp.StatusClean},
+			},
+		},
+	}
+	var out bytes.Buffer
+	if err := Render(&out, cliout.FormatHuman, report, OutputModeDefault); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	text := out.String()
+	for _, want := range []string{
+		"Shared-package drift: 2 scenarios checked (only-touched)",
+		"Stale scenarios:",
+		"scenarios/foo [stale-modules]",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %q in render:\n%s", want, text)
+		}
 	}
 }
 

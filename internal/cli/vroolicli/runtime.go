@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/contracthandlers"
 	"github.com/vrooli/vrooli/internal/cli/hygienehandlers"
+	"github.com/vrooli/vrooli/internal/cli/shareddrifthandlers"
 	"github.com/vrooli/vrooli/internal/cli/metrics"
 	"github.com/vrooli/vrooli/internal/cli/packagehandlers"
 	"github.com/vrooli/vrooli/internal/cli/planshandlers"
@@ -928,6 +929,11 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Stdout:       commandStdout,
 			Root:         func(ctx *CommandContext) string { return ctx.Root },
 			Home:         func(ctx *CommandContext) (string, error) { return ctx.HomeDir() },
+			OutputFormat: projectOutputFormat,
+		}),
+		topcli.CommandSharedDrift: shareddrifthandlers.Handler(shareddrifthandlers.HandlerDeps[*CommandContext]{
+			Stdout:       commandStdout,
+			Root:         func(ctx *CommandContext) string { return ctx.Root },
 			OutputFormat: projectOutputFormat,
 		}),
 		topcli.CommandAuth: authhandlers.RootHandler(authhandlers.HandlerDeps[*CommandContext]{

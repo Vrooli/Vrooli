@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	hygieneapp "github.com/vrooli/vrooli/internal/app/hygiene"
+	shareddriftapp "github.com/vrooli/vrooli/internal/app/shareddrift"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
@@ -18,6 +19,8 @@ type Request struct {
 	OutputMode   OutputMode
 	ContractOnly bool
 	PlansOnly    bool
+	DriftOnly    bool
+	NoDrift      bool
 }
 
 type OutputMode string
@@ -44,6 +47,8 @@ func CommandSpec() commandtree.Spec[string] {
 				{Name: "--next", Description: "Show only recommended next commands and actions"},
 				{Name: "--plans-only", Description: "Run only plan lifecycle hygiene checks"},
 				{Name: "--contract-only", Description: "Run only repository contract hygiene checks"},
+				{Name: "--drift-only", Description: "Run only the shared-package drift check"},
+				{Name: "--no-drift", Description: "Skip the shared-package drift check"},
 				commandtree.JSONOption(),
 			},
 		},
@@ -81,16 +86,31 @@ func ParseRequest(args []string) (Request, error) {
 	if modeFlags > 1 {
 		return Request{}, fmt.Errorf("--summary, --details, and --next are mutually exclusive")
 	}
-	if parsed.HasFlag("--plans-only") && parsed.HasFlag("--contract-only") {
-		return Request{}, fmt.Errorf("--plans-only and --contract-only are mutually exclusive")
+	plansOnly := parsed.HasFlag("--plans-only")
+	contractOnly := parsed.HasFlag("--contract-only")
+	driftOnly := parsed.HasFlag("--drift-only")
+	noDrift := parsed.HasFlag("--no-drift")
+	onlyCount := 0
+	for _, set := range []bool{plansOnly, contractOnly, driftOnly} {
+		if set {
+			onlyCount++
+		}
+	}
+	if onlyCount > 1 {
+		return Request{}, fmt.Errorf("--plans-only, --contract-only, and --drift-only are mutually exclusive")
+	}
+	if driftOnly && noDrift {
+		return Request{}, fmt.Errorf("--drift-only and --no-drift are mutually exclusive")
 	}
 	return Request{
 		FixSafe:      parsed.HasFlag("--fix-safe"),
 		Plans:        parsed.HasFlag("--plans"),
 		FailOn:       failOn,
 		OutputMode:   mode,
-		PlansOnly:    parsed.HasFlag("--plans-only"),
-		ContractOnly: parsed.HasFlag("--contract-only"),
+		PlansOnly:    plansOnly,
+		ContractOnly: contractOnly,
+		DriftOnly:    driftOnly,
+		NoDrift:      noDrift,
 	}, nil
 }
 
@@ -111,6 +131,9 @@ func Render(w io.Writer, format cliout.Format, report hygieneapp.Report, mode Ou
 	_, _ = fmt.Fprintf(w, "Blocking issues: %d\n", report.BlockingFailures)
 	_, _ = fmt.Fprintf(w, "Warnings: %d\n", report.Warnings)
 	renderFindings(w, report)
+	if report.SharedDrift != nil {
+		renderDriftSummary(w, report.SharedDrift, mode)
+	}
 	if len(report.PlanCandidates) > 0 {
 		renderPlanSummary(w, report.PlanCandidates, mode)
 	}
@@ -188,6 +211,47 @@ func splitFindings(findings []hygieneapp.Finding) ([]hygieneapp.Finding, []hygie
 		}
 	}
 	return blockers, warnings
+}
+
+func renderDriftSummary(w io.Writer, drift *shareddriftapp.Report, mode OutputMode) {
+	var stale []shareddriftapp.ScenarioReport
+	var errored []shareddriftapp.ScenarioReport
+	for _, sc := range drift.Scenarios {
+		switch sc.Status {
+		case shareddriftapp.StatusStaleModules, shareddriftapp.StatusStaleBuild:
+			stale = append(stale, sc)
+		case shareddriftapp.StatusError:
+			errored = append(errored, sc)
+		}
+	}
+	_, _ = fmt.Fprintf(w, "\nShared-package drift: %d scenarios checked", len(drift.Scenarios))
+	if drift.OnlyTouchedUsed {
+		_, _ = fmt.Fprintf(w, " (only-touched)")
+	}
+	_, _ = fmt.Fprintln(w)
+	if len(stale) == 0 && len(errored) == 0 {
+		_, _ = fmt.Fprintln(w, "- clean")
+		return
+	}
+	if len(stale) > 0 {
+		limit := len(stale)
+		if mode != OutputModeDetails && limit > 10 {
+			limit = 10
+		}
+		_, _ = fmt.Fprintln(w, "Stale scenarios:")
+		for _, sc := range stale[:limit] {
+			_, _ = fmt.Fprintf(w, "- %s [%s]\n", sc.Path, sc.Status)
+		}
+		if limit < len(stale) {
+			_, _ = fmt.Fprintf(w, "- ... %d more; run `vrooli hygiene --details` to list all\n", len(stale)-limit)
+		}
+	}
+	if len(errored) > 0 {
+		_, _ = fmt.Fprintln(w, "Drift check errors:")
+		for _, sc := range errored {
+			_, _ = fmt.Fprintf(w, "- %s — %s\n", sc.Path, sc.Error)
+		}
+	}
 }
 
 func renderPlanSummary(w io.Writer, candidates []hygieneapp.PlanCandidate, mode OutputMode) {
