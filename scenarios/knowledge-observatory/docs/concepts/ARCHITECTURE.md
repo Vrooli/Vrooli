@@ -54,7 +54,7 @@ Knowledge Observatory is the control-plane for Vrooli's semantic memory. It inge
 | deep-search | API, UI | Orchestration | Integration/client, temporal workflow | `path:api/docs_deep_search.go`, `path:api/internal/services/deepsearch/`, `path:api/internal/adapters/agentmanager/` | Agent-backed search jobs with polling and persisted job state. |
 | graph | API, UI | Reporting / query | Integration/client | `path:api/graph.go`, `path:api/internal/services/graph/` | Materializes concept graph data from vector similarity. |
 | metrics | API, UI | Reporting / query | Scheduled/background work | `path:api/metrics.go` | Samples vector collections and persists quality metrics. |
-| documentation-health | API (Connect-RPC), CLI | Policy / rules | Configuration/settings | `path:api/handlers/dochealth/`, `path:api/internal/doccontract/`, `path:api/internal/doctemplates/`, `path:api/internal/docvalidation/`, `path:api/internal/doclogs/`, `path:api/internal/services/dochealth/`, `path:packages/proto/schemas/knowledge-observatory/v1/api.proto` | Single source of truth for scenario documentation health. The `KnowledgeObservatoryService.DocHealth` RPC runs structural placement + markdown/mermaid/links/paths + bidirectional refs + manifest coverage in one call. All callers (knowledge-observatory CLI, test-genie docs phase, CI hooks) consume this surface — no inline validators live elsewhere. Reset is a separate REST endpoint (`api/docs_reset.go`) until its own RPC migration. |
+| documentation-health | API (Connect-RPC), CLI | Policy / rules | Configuration/settings | `path:api/handlers/dochealth/`, `path:api/internal/doccontract/`, `path:api/internal/doctemplates/`, `path:api/internal/docvalidation/`, `path:api/internal/doclogs/`, `path:api/internal/services/dochealth/` | Single source of truth for scenario documentation health. The `KnowledgeObservatoryService.DocHealth` RPC runs structural placement + markdown/mermaid/links/paths + bidirectional refs + manifest coverage in one call. All callers (knowledge-observatory CLI, test-genie docs phase, CI hooks) consume this surface — no inline validators live elsewhere. Reset is a separate REST endpoint (`api/docs_reset.go`) until its own RPC migration. |
 | documentation-healing | API, UI | Orchestration | Integration/client, approvals | `path:api/docs_heal.go`, `path:api/internal/services/dochealing/`, `path:api/internal/adapters/dochealingstore/` | Coordinates agent-backed documentation fixes and approval workflow. |
 
 ## Shared Infrastructure
@@ -283,7 +283,7 @@ Scenario name
   Health response ──► UI Explorer + Dashboard
 ```
 
-[CODE: api/docs_health.go]
+[CODE: api/handlers/dochealth/handler.go]
 [CODE: api/internal/doccontract/manifest.go]
 [CODE: api/internal/docvalidation/validation.go]
 [CODE: api/internal/services/dochealth/service.go]

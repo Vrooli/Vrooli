@@ -11,7 +11,7 @@
 - **Scenario filesystem seam**: doc health service encapsulates filesystem access to scenario docs. [CODE: api/internal/services/dochealth/service.go]
 - **External link probe seam**: `dochealth.Doer` (HTTP client interface) lets tests substitute a fake transport for external link validation; production wires `*http.Client` with timeout from staticConfig. [CODE: api/internal/services/dochealth/httpc.go] [CODE: api/internal/services/dochealth/links.go]
 - **Markdown walk root seam**: validators accept a scenario root path; no `os.Getwd` inside validator code, so tests can drive any directory layout. [CODE: api/internal/services/dochealth/walk.go]
-- **DocHealth Connect-RPC seam**: `KnowledgeObservatoryService.DocHealth` is the single source of truth for documentation health; replaced the legacy REST `GET /scenarios/{name}/docs/health`. [CODE: api/handlers/dochealth/handler.go] [CODE: packages/proto/schemas/knowledge-observatory/v1/api.proto]
+- **DocHealth Connect-RPC seam**: `KnowledgeObservatoryService.DocHealth` is the single source of truth for documentation health; replaced the legacy REST `GET /scenarios/{name}/docs/health`. [CODE: api/handlers/dochealth/handler.go] (proto schema lives at repo `packages/proto/schemas/knowledge-observatory/v1/api.proto`).
 - **Documentation search seam**: docsearch service owns file/text/unified search over documentation roots. [CODE: api/internal/services/docsearch/service.go]
 - **Documentation explorer seam**: explorer service builds scenario doc trees with warnings. [CODE: api/internal/services/explorer/tree.go]
 - **Documentation viewer seam**: viewer service owns safe document loading + reset operations. [CODE: api/internal/services/viewer/service.go]

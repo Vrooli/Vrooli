@@ -403,7 +403,8 @@ full schema.
 
 [CODE: api/handlers/dochealth/handler.go]
 [CODE: api/internal/services/dochealth/service.go]
-[CODE: packages/proto/schemas/knowledge-observatory/v1/api.proto]
+
+Proto schema (outside scenario tree): `packages/proto/schemas/knowledge-observatory/v1/api.proto`.
 
 `POST /api/v1/scenarios/{name}/docs/reset`
 
@@ -430,7 +431,7 @@ full schema.
 }
 ```
 
-[CODE: api/docs_health.go]
+[CODE: api/docs_reset.go]
 [CODE: api/internal/docvalidation/validation.go]
 [CODE: api/internal/doclogs/logs.go]
 

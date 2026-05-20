@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"cli-health/internal/aisearch"
 	"cli-health/internal/clock"
 	"cli-health/internal/modules"
 	"cli-health/internal/server"
@@ -106,17 +107,46 @@ func main() {
 	if err != nil {
 		log.Fatalf("resolve repo root: %v", err)
 	}
+
+	// AI search wiring: embedder + vector store + discovery + reconciler. The
+	// service exposes both Search/Status and Reindex surfaces to handlers.
+	searchCfg := aisearch.LoadConfigFromEnv()
+	embedder := aisearch.NewEmbedder(searchCfg.EmbedModel)
+	vectorStore := aisearch.NewVectorStore(searchCfg.QdrantURL, searchCfg.QdrantAPIKey, aisearch.DefaultCollection, aisearch.DefaultVectorSize)
+	discovery := aisearch.NewFilesystemDiscoverySource(repoRoot)
+	aiService := aisearch.NewService(aisearch.Options{
+		Embedder:    embedder,
+		VectorStore: vectorStore,
+		Discovery:   discovery,
+		Parallelism: searchCfg.ReconcileParallelism,
+	})
+
+	// EnsureCollection is best-effort: if qdrant is unreachable at boot, the
+	// scenario still serves text-fallback search and a degraded status.
+	if err := aiService.EnsureCollection(context.Background()); err != nil {
+		logger.Printf("[cli-health] qdrant collection ensure failed (continuing with degraded search): %v", err)
+	}
+
+	// Sync loop drives periodic reconcile against qdrant. Cancelled by the
+	// api-core server's shutdown context.
+	syncCtx, cancelSync := context.WithCancel(context.Background())
+	syncLoop := aisearch.NewSyncLoop(aiService.Reconciler())
+	go syncLoop.Start(syncCtx)
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "cli-health-api", "1.0.0"),
 		validationH.Module(logger, repoRoot),
-		searchH.Module(logger),
-		reindexH.Module(logger),
+		searchH.Module(logger, aiService),
+		reindexH.Module(logger, reindexH.ServiceAdapter{Service: aiService}),
 	)
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: srv.Handler(),
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			cancelSync()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

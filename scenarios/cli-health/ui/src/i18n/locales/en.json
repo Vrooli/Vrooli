@@ -5,23 +5,7 @@
     "eyebrow": "Scenario Template",
     "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
   },
-  "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "errors": {
+"errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",
     "invalid_argument": "Invalid input: {{message}}",
@@ -46,5 +30,58 @@
     "title": "Something went wrong",
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again"
+  },
+  "nav": {
+    "search": "Search",
+    "validate": "Validate",
+    "status": "Status"
+  },
+  "search": {
+    "title": "Command search",
+    "description": "Find CLI commands across all scenarios. Switch to text mode if Ollama or Qdrant is unavailable.",
+    "placeholder": "Search commands…",
+    "submit": "Search",
+    "modeAi": "AI",
+    "modeText": "Text",
+    "modeLabel": "Mode",
+    "noResults": "No matches.",
+    "loading": "Searching…",
+    "error": "Search failed: {{message}}",
+    "modeUsed": "Served via {{mode}} mode.",
+    "resultScore": "Score: {{score}}",
+    "resultSource": "Source: {{source}}"
+  },
+  "validate": {
+    "title": "Manifest validation",
+    "description": "Run cli-manifest validation against a scenario. Errors fail the report; warnings inform.",
+    "placeholder": "Scenario id (e.g. development-toolchain-validator)",
+    "submit": "Validate",
+    "loading": "Validating…",
+    "error": "Validation failed: {{message}}",
+    "passed": "Passed",
+    "failed": "Failed",
+    "summary": "{{errors}} errors, {{warnings}} warnings, {{infos}} infos",
+    "noFindings": "No findings.",
+    "severityError": "ERROR",
+    "severityWarning": "WARN",
+    "severityInfo": "INFO"
+  },
+  "status": {
+    "title": "Index status",
+    "description": "Health of the AI search backend and the indexed command corpus.",
+    "loading": "Loading status…",
+    "error": "Status check failed: {{message}}",
+    "availableYes": "Available",
+    "availableNo": "Unavailable",
+    "ollamaLabel": "Ollama:",
+    "qdrantLabel": "Qdrant:",
+    "indexedLabel": "Indexed commands:",
+    "lastReconcileLabel": "Last reconcile:",
+    "yes": "yes",
+    "no": "no",
+    "never": "never",
+    "reindex": "Reindex now",
+    "reindexing": "Reindexing…",
+    "reindexed": "Reindex started: {{jobId}} ({{upserts}} upserts, {{deletes}} deletes planned)"
   }
 }

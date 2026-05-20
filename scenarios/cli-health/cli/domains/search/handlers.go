@@ -50,11 +50,29 @@ func (h *handlers) query(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no search response")
 	}
+	results := make([]string, 0, len(resp.Msg.Results))
+	for i, r := range resp.Msg.Results {
+		full := strings.TrimSpace(strings.Join([]string{r.Scenario, r.Group, r.Name}, " "))
+		desc := truncate(r.Description, 80)
+		results = append(results, fmt.Sprintf("%d. %s — %s [score=%.3f source=%s]",
+			i+1, full, desc, r.Score, r.Source))
+	}
+	if len(results) == 0 {
+		results = append(results, "(no matches)")
+	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d result(s) (mode=%s).", len(resp.Msg.Results), resp.Msg.ModeUsed)},
+		Summary:        []string{fmt.Sprintf("Found %d result(s) (mode=%s).", len(resp.Msg.Results), resp.Msg.ModeUsed.String())},
 		ResultsHeading: "Results",
-		Results:        []string{},
+		Results:        results,
 	})
+}
+
+func truncate(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if max <= 0 || len(s) <= max {
+		return s
+	}
+	return s[:max] + "…"
 }
 
 // status calls the generated Connect SearchService.Status method.

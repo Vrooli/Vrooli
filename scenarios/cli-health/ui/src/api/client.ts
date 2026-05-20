@@ -11,7 +11,7 @@ import {
 
 export const API_BASE = resolveApiBase();
 const REST_API_BASE = resolveApiBase({ appendSuffix: true });
-const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
+export const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 
 export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });
 
@@ -59,5 +59,5 @@ export async function uploadFile(path: string, formData: FormData): Promise<Resp
   });
 }
 
-export { fromJson, PROTO_READ_OPTIONS };
+export { fromJson };
 export type { ErrorEnvelope, JsonValue };

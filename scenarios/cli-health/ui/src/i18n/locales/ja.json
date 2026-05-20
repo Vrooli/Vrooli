@@ -5,20 +5,7 @@
     "eyebrow": "シナリオテンプレート",
     "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
   },
-  "health": {
-    "title": "API ステータス",
-    "loading": "API のステータスを確認中…",
-    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
-    "refresh": "再読み込み",
-    "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
-    "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
-  },
-  "notifications": {
-    "summary": "{{count}} 件の通知"
-  },
-  "errors": {
+"errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",
     "invalid_argument": "Invalid input: {{message}}",
@@ -43,5 +30,58 @@
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
+  },
+  "nav": {
+    "search": "検索",
+    "validate": "検証",
+    "status": "ステータス"
+  },
+  "search": {
+    "title": "コマンド検索",
+    "description": "すべてのシナリオで CLI コマンドを検索します。Ollama や Qdrant が利用できない場合はテキストモードに切り替えます。",
+    "placeholder": "コマンドを検索…",
+    "submit": "検索",
+    "modeAi": "AI",
+    "modeText": "テキスト",
+    "modeLabel": "モード",
+    "noResults": "一致なし。",
+    "loading": "検索中…",
+    "error": "検索に失敗しました: {{message}}",
+    "modeUsed": "{{mode}} モードで処理されました。",
+    "resultScore": "スコア: {{score}}",
+    "resultSource": "ソース: {{source}}"
+  },
+  "validate": {
+    "title": "マニフェスト検証",
+    "description": "シナリオに対して cli-manifest 検証を実行します。エラーはレポートを失敗にし、警告は通知します。",
+    "placeholder": "シナリオ ID（例: development-toolchain-validator）",
+    "submit": "検証",
+    "loading": "検証中…",
+    "error": "検証に失敗しました: {{message}}",
+    "passed": "成功",
+    "failed": "失敗",
+    "summary": "{{errors}} 件のエラー、{{warnings}} 件の警告、{{infos}} 件の情報",
+    "noFindings": "所見はありません。",
+    "severityError": "エラー",
+    "severityWarning": "警告",
+    "severityInfo": "情報"
+  },
+  "status": {
+    "title": "インデックスステータス",
+    "description": "AI 検索バックエンドとインデックス済みコマンドコーパスの健全性。",
+    "loading": "ステータスを読み込み中…",
+    "error": "ステータス確認に失敗しました: {{message}}",
+    "availableYes": "利用可能",
+    "availableNo": "利用不可",
+    "ollamaLabel": "Ollama:",
+    "qdrantLabel": "Qdrant:",
+    "indexedLabel": "インデックス済みコマンド:",
+    "lastReconcileLabel": "前回の同期:",
+    "yes": "はい",
+    "no": "いいえ",
+    "never": "なし",
+    "reindex": "今すぐ再インデックス",
+    "reindexing": "再インデックス中…",
+    "reindexed": "再インデックス開始: {{jobId}}（計画 {{upserts}} 件 upsert、{{deletes}} 件削除）"
   }
 }

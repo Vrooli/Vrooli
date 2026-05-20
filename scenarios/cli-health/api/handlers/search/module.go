@@ -17,10 +17,12 @@ import (
 var ProtoFile = searchv1.File_cli_health_v1_search_search_proto
 
 // Module returns the search domain's contribution to the API: the Connect
-// SearchService handler mounted at the generated procedure paths.
-func Module(logger *log.Logger) module.Module {
+// SearchService handler mounted at the generated procedure paths. Searcher
+// may be nil; the handler then returns Unimplemented (Phase 1 stub path).
+func Module(logger *log.Logger, searcher Searcher) module.Module {
 	connectPath, connectHandler := searchconnect.NewSearchServiceHandler(NewConnectHandler(Deps{
-		Logger: logger,
+		Logger:   logger,
+		Searcher: searcher,
 	}))
 	return module.Module{
 		Name: "search",

@@ -18,9 +18,10 @@ var ProtoFile = reindexv1.File_cli_health_v1_reindex_reindex_proto
 
 // Module returns the reindex domain's contribution to the API: the Connect
 // ReindexService handler mounted at the generated procedure paths.
-func Module(logger *log.Logger) module.Module {
+func Module(logger *log.Logger, reindexer Reindexer) module.Module {
 	connectPath, connectHandler := reindexconnect.NewReindexServiceHandler(NewConnectHandler(Deps{
-		Logger: logger,
+		Logger:    logger,
+		Reindexer: reindexer,
 	}))
 	return module.Module{
 		Name: "reindex",

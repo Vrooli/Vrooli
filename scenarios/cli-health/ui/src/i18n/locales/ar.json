@@ -5,23 +5,7 @@
     "eyebrow": "قالب السيناريو",
     "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
   },
-  "health": {
-    "title": "حالة API",
-    "loading": "جارٍ التحقق من حالة API…",
-    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
-    "refresh": "تحديث",
-    "refreshCount": "تم التحديث {{count}} مرات",
-    "refreshCount_one": "تم التحديث مرة واحدة",
-    "statusLabel": "الحالة:",
-    "serviceLabel": "الخدمة:",
-    "timestampLabel": "الطابع الزمني:"
-  },
-  "notifications": {
-    "summary": "{{count}} إشعارات",
-    "summary_zero": "لا توجد إشعارات",
-    "summary_one": "إشعار واحد"
-  },
-  "errors": {
+"errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",
     "invalid_argument": "Invalid input: {{message}}",
@@ -46,5 +30,58 @@
     "title": "حدث خطأ ما",
     "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
     "retry": "إعادة المحاولة"
+  },
+  "nav": {
+    "search": "بحث",
+    "validate": "تحقق",
+    "status": "الحالة"
+  },
+  "search": {
+    "title": "بحث الأوامر",
+    "description": "ابحث عن أوامر CLI عبر جميع السيناريوهات. انتقل إلى وضع النص إذا كان Ollama أو Qdrant غير متاح.",
+    "placeholder": "ابحث عن الأوامر…",
+    "submit": "بحث",
+    "modeAi": "AI",
+    "modeText": "نص",
+    "modeLabel": "الوضع",
+    "noResults": "لا توجد نتائج.",
+    "loading": "جارٍ البحث…",
+    "error": "فشل البحث: {{message}}",
+    "modeUsed": "تمت المعالجة في وضع {{mode}}.",
+    "resultScore": "النتيجة: {{score}}",
+    "resultSource": "المصدر: {{source}}"
+  },
+  "validate": {
+    "title": "التحقق من البيان",
+    "description": "قم بتشغيل التحقق من cli-manifest مقابل سيناريو. الأخطاء تُفشل التقرير؛ التحذيرات للإعلام فقط.",
+    "placeholder": "معرف السيناريو (مثل development-toolchain-validator)",
+    "submit": "تحقق",
+    "loading": "جارٍ التحقق…",
+    "error": "فشل التحقق: {{message}}",
+    "passed": "نجح",
+    "failed": "فشل",
+    "summary": "{{errors}} أخطاء، {{warnings}} تحذيرات، {{infos}} ملاحظات",
+    "noFindings": "لا توجد نتائج.",
+    "severityError": "خطأ",
+    "severityWarning": "تحذير",
+    "severityInfo": "معلومات"
+  },
+  "status": {
+    "title": "حالة الفهرس",
+    "description": "صحة الواجهة الخلفية للبحث بالذكاء الاصطناعي ومجموعة الأوامر المفهرسة.",
+    "loading": "جارٍ تحميل الحالة…",
+    "error": "فشل التحقق من الحالة: {{message}}",
+    "availableYes": "متاح",
+    "availableNo": "غير متاح",
+    "ollamaLabel": "Ollama:",
+    "qdrantLabel": "Qdrant:",
+    "indexedLabel": "الأوامر المفهرسة:",
+    "lastReconcileLabel": "آخر مزامنة:",
+    "yes": "نعم",
+    "no": "لا",
+    "never": "لا يوجد",
+    "reindex": "أعد الفهرسة الآن",
+    "reindexing": "جارٍ إعادة الفهرسة…",
+    "reindexed": "بدأت إعادة الفهرسة: {{jobId}} ({{upserts}} تحديث، {{deletes}} حذف مخطط)"
   }
 }
