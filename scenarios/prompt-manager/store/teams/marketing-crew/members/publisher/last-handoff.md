@@ -23,10 +23,9 @@
 - No new publisher gap.
 - Existing evidence-path capability gap `dec-1778787137208717804` remains relevant.
 - Existing OSS coverage-gap `dec-1778873456617563354` still covers missing first-publish state.
-- CLI still warns that auto-rebuild cannot write to `/home/matthalloran8/.vrooli/bin`, but this was only noted in the snapshot because related friction is already represented.
 
 ### Supersessions
 - None. Visible owned-context pending items remain relevant and below cap.
 
 ### Knowledge entry written
-- `knw-1779134485685916581` on `coverage-snapshot/2026-05-18`.
+- `knw-1779307273543427331` on `coverage-snapshot/2026-05-20`.

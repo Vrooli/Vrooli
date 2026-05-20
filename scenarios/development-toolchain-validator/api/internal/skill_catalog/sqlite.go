@@ -36,13 +36,24 @@ ORDER BY id ASC
 `
 )
 
+// SQLExecutor is the narrow database surface this package's repository
+// depends on. Both *sql.DB (used by repository unit tests via
+// testutil/db.NewSQLite) and *database.RoutedDB (production main.go)
+// satisfy it, so production wiring participates in per-request routing
+// without forcing test fixtures to wrap their handle.
+type SQLExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 type sqliteRepository struct {
-	db    *sql.DB
+	db    SQLExecutor
 	clock clock.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db *sql.DB, clk clock.Clock) Repository {
+func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

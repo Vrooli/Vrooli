@@ -5,8 +5,9 @@
 package skill_catalog
 
 import (
-	"database/sql"
 	"log"
+
+	"github.com/vrooli/api-core/database"
 
 	"development-toolchain-validator/internal/clock"
 	"development-toolchain-validator/internal/module"
@@ -22,13 +23,13 @@ import (
 // Module returns the skill_catalog domain's contribution to the API.
 // Production callers pass a real SkillCatalogSource (REST adapter for
 // prompt-manager); tests use ModuleWithSource with a fake source.
-func Module(db *sql.DB, clk clock.Clock, source internalskillcatalog.SkillCatalogSource, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk clock.Clock, source internalskillcatalog.SkillCatalogSource, logger *log.Logger) module.Module {
 	return ModuleWithSource(db, clk, source, logger)
 }
 
 // ModuleWithSource is the explicit-injection variant. Used by tests to
 // supply a deterministic SkillCatalogSource.
-func ModuleWithSource(db *sql.DB, clk clock.Clock, source internalskillcatalog.SkillCatalogSource, logger *log.Logger) module.Module {
+func ModuleWithSource(db *database.RoutedDB, clk clock.Clock, source internalskillcatalog.SkillCatalogSource, logger *log.Logger) module.Module {
 	repo := internalskillcatalog.NewSQLiteRepository(db, clk)
 	svc := internalskillcatalog.NewService(repo, source, clk)
 	connectPath, connectHandler := skillcatalogconnect.NewSkillCatalogServiceHandler(NewConnectHandler(Deps{

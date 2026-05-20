@@ -313,52 +313,6 @@ See: packages/api-core/README.md`,
 	return deduplicateBackoffViolations(violations)
 }
 
-// isExemptPath returns true for paths that are exempt from this rule.
-// These include test files, migrations, and initialization scripts.
-func isExemptPath(path string) bool {
-	lowerPath := strings.ToLower(path)
-
-	// Test files can use sql.Open() directly for mocking/test databases
-	if strings.HasSuffix(lowerPath, "_test.go") {
-		return true
-	}
-
-	// Test helper files (test_helpers.go, test_utils.go, etc.)
-	base := lowerPath
-	if idx := strings.LastIndex(lowerPath, "/"); idx >= 0 {
-		base = lowerPath[idx+1:]
-	}
-	if strings.HasPrefix(base, "test_") {
-		return true
-	}
-
-	// Check for exempt directories (handles both absolute and relative paths)
-	exemptDirs := []string{
-		"test",
-		"testutil",
-		"migrate",
-		"migration",
-		"migrations",
-		"initialization",
-		"init",
-		"scripts",
-		"tools",
-	}
-
-	for _, dir := range exemptDirs {
-		// Match /dir/ (middle of path)
-		if strings.Contains(lowerPath, "/"+dir+"/") {
-			return true
-		}
-		// Match dir/ at start of relative path
-		if strings.HasPrefix(lowerPath, dir+"/") {
-			return true
-		}
-	}
-
-	return false
-}
-
 // hasAPICoreImport checks if the file imports github.com/vrooli/api-core/database
 func hasAPICoreImport(file *ast.File) bool {
 	for _, imp := range file.Imports {

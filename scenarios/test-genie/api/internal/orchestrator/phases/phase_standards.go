@@ -1,19 +1,17 @@
 package phases
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"test-genie/internal/eligibility"
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
 
@@ -26,57 +24,36 @@ const (
 	defaultStandardsMinDisplay  = "medium"
 )
 
-type auditorSummaryResponse struct {
-	Summary *auditorViolationSummary `json:"summary"`
-}
-
-type auditorScanArtifactRef struct {
-	Path string `json:"path"`
-}
-
-type auditorRuleCount struct {
-	RuleID   string `json:"rule_id"`
-	Count    int    `json:"count"`
-	Title    string `json:"title,omitempty"`
-	Severity string `json:"severity,omitempty"`
-}
-
-type auditorViolationExcerpt struct {
-	Severity   string `json:"severity"`
-	RuleID     string `json:"rule_id,omitempty"`
-	Title      string `json:"title,omitempty"`
-	FilePath   string `json:"file_path,omitempty"`
-	LineNumber int    `json:"line_number,omitempty"`
-}
-
-type auditorViolationSummary struct {
-	Total           int                       `json:"total"`
-	BySeverity      map[string]int            `json:"by_severity"`
-	ByRule          []auditorRuleCount        `json:"by_rule"`
-	HighestSeverity string                    `json:"highest_severity"`
-	TopViolations   []auditorViolationExcerpt `json:"top_violations"`
-	Artifact        *auditorScanArtifactRef   `json:"artifact,omitempty"`
-	Recommended     []string                  `json:"recommended_steps,omitempty"`
-}
-
-type auditorStandardsStartResponse struct {
-	JobID  string                 `json:"job_id"`
-	Status auditorStandardsStatus `json:"status"`
-}
-
-type auditorStandardsStatus struct {
-	ID      string `json:"id"`
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Error   string `json:"error"`
-}
-
-var (
-	resolveScenarioAuditorBaseURL = func(ctx context.Context) (string, error) {
-		return discovery.ResolveScenarioURLDefault(ctx, "scenario-auditor")
-	}
-	auditorStandardsHTTPClient = &http.Client{Timeout: 10 * time.Second}
+// Re-export eligibility types as the package-local types this file (and its
+// tests) previously owned. This keeps the auditor wiring in a single place
+// (the eligibility package) while preserving the existing test surface.
+type (
+	auditorSummaryResponse        = eligibility.SummaryResponse
+	auditorScanArtifactRef        = eligibility.ScanArtifactRef
+	auditorRuleCount              = eligibility.RuleCount
+	auditorViolationExcerpt       = eligibility.ViolationExcerpt
+	auditorViolationSummary       = eligibility.ViolationSummary
+	auditorStandardsStartResponse = eligibility.StandardsStartResponse
+	auditorStandardsStatus        = eligibility.StandardsStatus
 )
+
+// Re-bind the eligibility package's seam variables to package-level vars so
+// tests can override them without importing eligibility.
+var (
+	resolveScenarioAuditorBaseURL = eligibility.ResolveBaseURL
+)
+
+// Test-friendly aliases for the moved auditor helpers.
+var (
+	parseAuditorStandardsSummary      = eligibility.ParseSummary
+	startAuditorStandardsScan         = eligibility.StartScan
+	fetchAuditorStandardsStatus       = eligibility.FetchStatus
+	fetchAuditorStandardsSummaryByJob = eligibility.FetchSummaryByJob
+)
+
+func fetchAuditorStandardsSummary(ctx context.Context, logWriter io.Writer, baseURL, scenarioName string, mapping workspace.Mapping, summaryLimit int) (*auditorViolationSummary, error) {
+	return eligibility.FetchSummary(ctx, logWriter, baseURL, scenarioName, mapping, summaryLimit)
+}
 
 func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	if report := CheckContext(ctx); report != nil {
@@ -192,177 +169,6 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 	return report
 }
 
-func fetchAuditorStandardsSummary(ctx context.Context, logWriter io.Writer, baseURL, scenarioName string, mapping workspace.Mapping, summaryLimit int) (*auditorViolationSummary, error) {
-	jobID, err := startAuditorStandardsScan(ctx, baseURL, scenarioName, mapping)
-	if err != nil {
-		return nil, err
-	}
-	if strings.TrimSpace(jobID) == "" {
-		return nil, fmt.Errorf("scenario-auditor returned an empty standards job id")
-	}
-
-	pollInterval := 2 * time.Second
-	for {
-		status, err := fetchAuditorStandardsStatus(ctx, baseURL, jobID)
-		if err != nil {
-			return nil, err
-		}
-		state := strings.ToLower(strings.TrimSpace(status.Status))
-		switch state {
-		case "completed", "success":
-			return fetchAuditorStandardsSummaryByJob(ctx, baseURL, jobID, summaryLimit)
-		case "failed", "error":
-			return nil, fmt.Errorf("scenario-auditor standards scan failed: %s", firstNonEmpty(status.Error, status.Message, "unknown failure"))
-		case "cancelled", "canceled":
-			return nil, fmt.Errorf("scenario-auditor standards scan cancelled: %s", firstNonEmpty(status.Message, "scan cancelled"))
-		}
-
-		if logWriter != nil && strings.TrimSpace(status.Message) != "" {
-			shared.LogStep(logWriter, "scenario-auditor status=%s (%s)", state, strings.TrimSpace(status.Message))
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(pollInterval):
-		}
-	}
-}
-
-func startAuditorStandardsScan(ctx context.Context, baseURL, scenarioName string, mapping workspace.Mapping) (string, error) {
-	payload := map[string]any{
-		"type": "full",
-	}
-	scenarioPath := mapping.PhysicalScenarioDir
-	if strings.TrimSpace(scenarioPath) != "" {
-		payload["scenario_path"] = strings.TrimSpace(scenarioPath)
-	}
-	if mapping.HasLogicalPlacement() {
-		payload["logical_repo_root"] = mapping.LogicalRepoRoot
-		payload["logical_scenario_relpath"] = mapping.LogicalScenarioRelPath
-	}
-
-	responseBody, err := auditorStandardsRequestJSON(ctx, http.MethodPost, strings.TrimRight(baseURL, "/")+"/api/v1/standards/check/"+scenarioName, payload)
-	if err != nil {
-		return "", err
-	}
-
-	var response auditorStandardsStartResponse
-	if err := json.Unmarshal(responseBody, &response); err != nil {
-		return "", fmt.Errorf("decode scenario-auditor standards start response: %w", err)
-	}
-	if strings.TrimSpace(response.JobID) != "" {
-		return strings.TrimSpace(response.JobID), nil
-	}
-	if strings.TrimSpace(response.Status.ID) != "" {
-		return strings.TrimSpace(response.Status.ID), nil
-	}
-	return "", fmt.Errorf("scenario-auditor standards start response did not include a job id")
-}
-
-func fetchAuditorStandardsStatus(ctx context.Context, baseURL, jobID string) (*auditorStandardsStatus, error) {
-	responseBody, err := auditorStandardsRequestJSON(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/api/v1/standards/check/jobs/"+jobID, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var status auditorStandardsStatus
-	if err := json.Unmarshal(responseBody, &status); err != nil {
-		return nil, fmt.Errorf("decode scenario-auditor standards status response: %w", err)
-	}
-	return &status, nil
-}
-
-func fetchAuditorStandardsSummaryByJob(ctx context.Context, baseURL, jobID string, summaryLimit int) (*auditorViolationSummary, error) {
-	url := fmt.Sprintf("%s/api/v1/standards/check/jobs/%s/summary?limit=%d&min_severity=info", strings.TrimRight(baseURL, "/"), jobID, summaryLimit)
-	responseBody, err := auditorStandardsRequestJSON(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	return parseAuditorStandardsSummary(string(responseBody))
-}
-
-func auditorStandardsRequestJSON(ctx context.Context, method, endpoint string, payload any) ([]byte, error) {
-	var body io.Reader
-	if payload != nil {
-		encoded, err := json.Marshal(payload)
-		if err != nil {
-			return nil, fmt.Errorf("encode scenario-auditor request: %w", err)
-		}
-		body = bytes.NewReader(encoded)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, endpoint, body)
-	if err != nil {
-		return nil, fmt.Errorf("create scenario-auditor request: %w", err)
-	}
-	if payload != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	resp, err := auditorStandardsHTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	responseBody, readErr := io.ReadAll(resp.Body)
-	if readErr != nil {
-		return nil, fmt.Errorf("read scenario-auditor response: %w", readErr)
-	}
-	if resp.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("scenario-auditor returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
-	}
-
-	return responseBody, nil
-}
-
-func parseAuditorStandardsSummary(raw string) (*auditorViolationSummary, error) {
-	payload := strings.TrimSpace(raw)
-	if payload == "" {
-		return nil, fmt.Errorf("scenario-auditor produced no output")
-	}
-
-	var envelope auditorSummaryResponse
-	if err := ParseJSON(payload, &envelope); err != nil {
-		return nil, fmt.Errorf("failed to parse scenario-auditor JSON: %w", err)
-	}
-	if envelope.Summary == nil {
-		return nil, fmt.Errorf("scenario-auditor JSON missing 'summary' payload")
-	}
-
-	summary := *envelope.Summary
-	if summary.BySeverity == nil {
-		summary.BySeverity = map[string]int{}
-	}
-	summary.HighestSeverity = normalizeSeverity(summary.HighestSeverity)
-	if summary.HighestSeverity == "" && summary.Total > 0 {
-		summary.HighestSeverity = "info"
-	}
-	if len(summary.BySeverity) > 0 {
-		normalized := make(map[string]int, len(summary.BySeverity))
-		for k, v := range summary.BySeverity {
-			key := normalizeSeverity(k)
-			if key == "" {
-				key = strings.ToLower(strings.TrimSpace(k))
-				if key == "" {
-					continue
-				}
-			}
-			normalized[key] += v
-		}
-		summary.BySeverity = normalized
-	}
-	for i := range summary.ByRule {
-		summary.ByRule[i].Severity = normalizeSeverity(summary.ByRule[i].Severity)
-	}
-	for i := range summary.TopViolations {
-		summary.TopViolations[i].Severity = normalizeSeverity(summary.TopViolations[i].Severity)
-	}
-
-	return &summary, nil
-}
-
 func buildStandardsObservations(summary *auditorViolationSummary, failOn, minDisplay string) []Observation {
 	obs := []Observation{
 		NewSectionObservation("📏", "Standards"),
@@ -467,15 +273,7 @@ func envInt(name string, fallback int) int {
 }
 
 func normalizeSeverity(raw string) string {
-	sev := strings.ToLower(strings.TrimSpace(raw))
-	switch sev {
-	case "critical", "high", "medium", "low", "info":
-		return sev
-	case "informational":
-		return "info"
-	default:
-		return ""
-	}
+	return eligibility.NormalizeSeverity(raw)
 }
 
 func severityWeight(sev string) int {

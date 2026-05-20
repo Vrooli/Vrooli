@@ -4,8 +4,9 @@
 package staleness
 
 import (
-	"database/sql"
 	"log"
+
+	"github.com/vrooli/api-core/database"
 
 	"development-toolchain-validator/internal/clock"
 	golden "development-toolchain-validator/internal/golden"
@@ -25,7 +26,7 @@ import (
 // The staleness service depends on three peer domains; their
 // repositories are constructed inline to read directly without
 // inverting through services.
-func Module(db *sql.DB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
 	manifestRepo := manifest.NewSQLiteRepository(db, clk)
 	manifestSvc := manifest.NewService(manifestRepo, clk)
 	goldenRepo := golden.NewSQLiteRepository(db, clk)

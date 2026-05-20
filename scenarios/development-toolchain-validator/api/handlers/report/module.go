@@ -4,8 +4,9 @@
 package report
 
 import (
-	"database/sql"
 	"log"
+
+	"github.com/vrooli/api-core/database"
 
 	"development-toolchain-validator/internal/clock"
 	manifest "development-toolchain-validator/internal/manifest"
@@ -26,9 +27,9 @@ import (
 // Module returns the report domain's contribution to the API.
 //
 // Like staleness, the service composes reads from peer domains;
-// repositories are constructed inline against the shared *sql.DB so we
+// repositories are constructed inline against the shared *database.RoutedDB so we
 // don't invert through services.
-func Module(db *sql.DB, clk clock.Clock, source skillcatalog.SkillCatalogSource, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk clock.Clock, source skillcatalog.SkillCatalogSource, logger *log.Logger) module.Module {
 	skillRepo := skillcatalog.NewSQLiteRepository(db, clk)
 	skillSvc := skillcatalog.NewService(skillRepo, source, clk)
 	manifestRepo := manifest.NewSQLiteRepository(db, clk)

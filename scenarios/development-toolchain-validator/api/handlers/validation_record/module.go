@@ -3,8 +3,9 @@
 package validation_record
 
 import (
-	"database/sql"
 	"log"
+
+	"github.com/vrooli/api-core/database"
 
 	"development-toolchain-validator/internal/clock"
 	"development-toolchain-validator/internal/module"
@@ -18,7 +19,7 @@ import (
 )
 
 // Module returns the validation_record domain's contribution to the API.
-func Module(db *sql.DB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
 	repo := vr.NewSQLiteRepository(db)
 	svc := vr.NewService(repo, clk)
 	connectPath, connectHandler := vrconnect.NewValidationRecordServiceHandler(NewConnectHandler(Deps{

@@ -4,8 +4,9 @@
 package validation_run
 
 import (
-	"database/sql"
 	"log"
+
+	"github.com/vrooli/api-core/database"
 
 	"development-toolchain-validator/internal/clock"
 	"development-toolchain-validator/internal/module"
@@ -22,7 +23,7 @@ import (
 // injection rather than build-it-here so the same Repository instance
 // the worker uses is the one the handler reads from.
 type ModuleDeps struct {
-	DB     *sql.DB
+	DB     *database.RoutedDB
 	Clock  clock.Clock
 	Logger *log.Logger
 	Notify func()

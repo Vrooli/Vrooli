@@ -1,5 +1,6 @@
 ### Inbox state
-`bug-inbox/*` is empty. Verified with `prompt-manager team knowledge-list scenario-qa --topic-prefix=bug-inbox/`.
+`bug-inbox/*` is empty. Verified with:
+`prompt-manager team knowledge-list scenario-qa --topic-prefix=bug-inbox/`
 
 ### Investigation in flight
 None.
@@ -8,7 +9,7 @@ None.
 None.
 
 ### Technique applied
-None to an inbox entry. `scientific-debugging` skill was loaded for readiness.
+None. No inbox entry required investigation.
 
 ### Action taken
 No drain action needed.
@@ -21,3 +22,5 @@ None.
 
 ### Surface for technique graduation
 None.
+
+Note for next run: the task brief’s PoR paths `docs/scenario-qa/taxonomies/bug-report/README.md` and `docs/scenario-qa/methods/investigation/README.md` were not present at the workspace root during this heartbeat; not blocking because the inbox was empty.

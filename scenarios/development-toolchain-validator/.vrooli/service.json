@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "mode": "development",
   "service": {
     "parent": "vrooli",
     "name": "development-toolchain-validator",

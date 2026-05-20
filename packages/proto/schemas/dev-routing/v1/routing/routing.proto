@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package vrooli.dev_routing.v1.routing;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing;routing_v1";
+
+// =============================================================================
+// DEV-ROUTING DOMAIN — runtime test-pool installation
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain dev-routing
+// @stability unstable
+//
+// Wire contract for RoutingService, the dev-only admin surface that lets an
+// external orchestrator (test-genie) install and clear a runtime test DB pool
+// on a running scenario without restarting it. The service is gated by
+// projectmeta.IsDevelopment() and is *not* mounted in production-mode
+// scenarios; the canonical handler lives in packages/api-core/devrouting.
+//
+// Consumed by:
+//   - API: every scenario that uses packages/api-core/database.RoutedDB
+//          embeds the reusable handler via devrouting.Register.
+//   - test-genie: drives InstallTestPool / ClearTestPool around each routed
+//          playbooks-phase run.
+// =============================================================================
+
+service RoutingService {
+  // InstallTestPool opens a new database connection pool against dsn and
+  // installs it as the active test pool on the receiving scenario. If a
+  // previous test pool was installed it is replaced (and closed).
+  rpc InstallTestPool(InstallTestPoolRequest) returns (InstallTestPoolResponse);
+
+  // ClearTestPool closes any installed test pool and reverts routing to the
+  // primary pool only. Idempotent: clearing when no pool is installed is a
+  // no-op success.
+  rpc ClearTestPool(ClearTestPoolRequest) returns (ClearTestPoolResponse);
+}
+
+message InstallTestPoolRequest {
+  // DSN is the connection string the scenario should open the test pool
+  // against. Format follows the scenario's primary driver — Postgres URL or
+  // SQLite file path. test-genie owns provisioning and migration of the
+  // underlying database; the scenario only opens a pool.
+  string dsn = 1;
+}
+
+message InstallTestPoolResponse {}
+
+message ClearTestPoolRequest {}
+
+message ClearTestPoolResponse {}
