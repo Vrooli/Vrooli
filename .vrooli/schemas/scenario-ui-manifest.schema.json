@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scenario-ui-manifest/v1",
+  "title": "Scenario UI Manifest",
+  "description": "Declarative contract for a scenario's UI layout. Owned by the template the scenario was generated from. Declares a map of named slots (e.g. layout-shell, page, ui-primitive) to directories and path patterns inside the scenario's UI source tree. Consumers (e.g. react-component-library adoptions resolver) use it to compute the canonical filesystem path for adopted components.\n\nSlots are an open set: the schema does not enum-restrict slot names, so future templates can declare new slots without a schema bump. The v1 canonical slot vocabulary (documented but not enforced) is: ui-primitive, shared-component, layout-shell, layout-nav, page, feature, feature-component, hook, api-client, lib-util, consts, i18n-strings, theme-token, test-util.\n\nPath patterns may contain the tokens {ComponentName} (PascalCase), {componentName} or {camelName} (camelCase), {kebab-name} (kebab-case), {feature} (feature folder, supplied by caller when requiresFeature is true), and {locale} (used by i18n-strings only).",
+  "type": "object",
+  "required": ["contract", "slots"],
+  "properties": {
+    "version": { "type": "string" },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "contract": { "$ref": "#/$defs/Contract" },
+    "slots": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/Slot" },
+      "description": "Map of slot name to slot definition. Slot names are an open set; see the schema description for the v1 canonical vocabulary."
+    },
+    "defaults": { "$ref": "#/$defs/Defaults" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Contract": {
+      "type": "object",
+      "required": ["kind", "schema"],
+      "properties": {
+        "kind": { "type": "string", "const": "scenario-ui" },
+        "schema": { "type": "string", "const": "scenario-ui-manifest/v1" },
+        "template": {
+          "type": "string",
+          "description": "Identifier of the template that owns this manifest (e.g. \"react-vite\"). Optional but recommended."
+        },
+        "extensionRule": {
+          "type": "string",
+          "description": "Free-text description of how scenarios may extend or override the template-owned manifest."
+        }
+      },
+      "additionalProperties": true
+    },
+    "Slot": {
+      "type": "object",
+      "required": ["dir"],
+      "properties": {
+        "dir": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Directory inside the scenario root that holds components for this slot (e.g. \"ui/src/layout\")."
+        },
+        "description": { "type": "string" },
+        "pathPattern": {
+          "type": "string",
+          "description": "Template for the resolved filesystem path. Defaults to \"{dir}/{ComponentName}.tsx\" if omitted. Supported tokens: {dir}, {ComponentName}, {componentName}, {camelName}, {kebab-name}, {feature}, {locale}."
+        },
+        "multiFile": {
+          "type": "boolean",
+          "default": false,
+          "description": "Declarative-only in v1. When true, the slot owns a folder rather than a single file. Runner support is deferred."
+        },
+        "requiresFeature": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, callers must supply a feature folder name for the resolver to substitute {feature}."
+        }
+      },
+      "additionalProperties": true
+    },
+    "Defaults": {
+      "type": "object",
+      "properties": {
+        "slot": {
+          "type": "string",
+          "description": "Slot name to use when a component declares no slot of its own."
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

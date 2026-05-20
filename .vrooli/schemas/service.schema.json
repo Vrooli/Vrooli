@@ -12,6 +12,12 @@
     "version": {
       "$ref": "common.schema.json#/definitions/semver"
     },
+    "mode": {
+      "type": "string",
+      "enum": ["development", "production"],
+      "default": "development",
+      "description": "Operational mode for this scenario. 'development' enables dev-only surfaces (test-mode HTTP middleware, RoutingService for test-DB installation). 'production' disables them. Absent or unrecognized values default to 'development'."
+    },
     "service": {
       "type": "object",
       "properties": {

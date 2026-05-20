@@ -9,10 +9,10 @@
 // interfaces or schema fragments here — they own their own package and
 // register through internal/modules.
 //
-// Production wires *sql.DB opened against modernc.org/sqlite (which
-// already satisfies Pinger via its PingContext method). Tests wire
-// testutil/mocks.FakePinger or testutil/db.NewSQLite for real-handle
-// repository tests.
+// Production wires *database.RoutedDB (from packages/api-core/database)
+// which satisfies Pinger via its PingContext method. *sql.DB also
+// satisfies it; tests wire testutil/mocks.FakePinger or
+// testutil/db.NewSQLite for real-handle repository tests.
 package database
 
 import (

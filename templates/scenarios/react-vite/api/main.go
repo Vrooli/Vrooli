@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +13,9 @@ import (
 	"{{SCENARIO_ID}}/internal/modules"
 	"{{SCENARIO_ID}}/internal/server"
 
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -84,7 +87,7 @@ func main() {
 		log.Fatalf("sqlite configuration failed: %v", err)
 	}
 
-	db, err := database.Connect(context.Background(), database.Config{
+	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          dsn,
 		MaxOpenConns: 1,
@@ -94,7 +97,7 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
@@ -104,10 +107,23 @@ func main() {
 		notesH.Module(db, clock.System{}, log.Default()),
 	)
 
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.Register(rootMux, db)
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
 	if err := apiserver.Run(apiserver.Config{
-		Handler: srv.Handler(),
+		Handler: handler,
 		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }
+

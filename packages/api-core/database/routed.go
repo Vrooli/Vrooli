@@ -1,0 +1,210 @@
+package database
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"sync"
+)
+
+// RoutedDB wraps a primary *sql.DB pool with an optional, runtime-installable
+// test pool. Per-request routing is driven by IsTestMode(ctx): when the
+// context is marked test-mode AND a test pool has been installed, the call is
+// served from the test pool. Every other case is served from the primary
+// pool.
+//
+// RoutedDB is the persistence seam scenarios depend on instead of *sql.DB. It
+// exposes the subset of the *sql.DB method surface that handlers and
+// repositories use in practice. *sql.DB is a struct rather than an interface,
+// so *RoutedDB is not a type-level drop-in; callers update their field types
+// once and the body of their handlers stays unchanged.
+//
+// seam: RoutedDB is the persistence substrate seam. Production wires it via
+// database.Open. Test-genie installs and clears a runtime test pool through
+// the dev-only RoutingService (see packages/api-core/devrouting). Tests
+// substitute the entire seam by passing a different *RoutedDB constructed
+// against in-memory drivers.
+type RoutedDB struct {
+	mu      sync.RWMutex
+	primary *sql.DB
+	test    *sql.DB
+	cfg     Config
+}
+
+// Open opens a database connection following the same DSN-resolution and
+// retry rules as Connect, and wraps the resulting *sql.DB in a RoutedDB.
+//
+// The returned RoutedDB has no test pool until InstallTestPool is called.
+// Production code paths see exactly the behavior of the underlying *sql.DB.
+func Open(ctx context.Context, cfg Config) (*RoutedDB, error) {
+	primary, err := Connect(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &RoutedDB{primary: primary, cfg: cfg}, nil
+}
+
+// MustOpen is like Open but panics on error. Useful for main().
+func MustOpen(ctx context.Context, cfg Config) *RoutedDB {
+	r, err := Open(ctx, cfg)
+	if err != nil {
+		panic(fmt.Sprintf("database.MustOpen: %v", err))
+	}
+	return r
+}
+
+// pick returns the pool that should serve a request carrying ctx.
+// It takes a read lock so installs/clears can occur concurrently with
+// in-flight requests without tearing.
+func (r *RoutedDB) pick(ctx context.Context) *sql.DB {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.test != nil && IsTestMode(ctx) {
+		return r.test
+	}
+	return r.primary
+}
+
+// Primary returns the underlying primary pool. Use sparingly — most call sites
+// should depend on the *RoutedDB surface so they participate in routing.
+func (r *RoutedDB) Primary() *sql.DB {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.primary
+}
+
+// HasTestPool reports whether a test pool is currently installed.
+func (r *RoutedDB) HasTestPool() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.test != nil
+}
+
+// InstallTestPool opens a new connection pool against dsn using the same
+// driver as the primary pool and installs it as the active test pool. If a
+// previous test pool was installed, it is closed first.
+func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn string) error {
+	if dsn == "" {
+		return errors.New("database.RoutedDB.InstallTestPool: dsn is empty")
+	}
+	testCfg := r.cfg
+	testCfg.DSN = dsn
+	pool, err := Connect(ctx, testCfg)
+	if err != nil {
+		return fmt.Errorf("install test pool: %w", err)
+	}
+
+	r.mu.Lock()
+	old := r.test
+	r.test = pool
+	r.mu.Unlock()
+
+	if old != nil {
+		_ = old.Close()
+	}
+	return nil
+}
+
+// ClearTestPool closes any installed test pool and reverts routing to the
+// primary pool only.
+func (r *RoutedDB) ClearTestPool() error {
+	r.mu.Lock()
+	old := r.test
+	r.test = nil
+	r.mu.Unlock()
+
+	if old != nil {
+		return old.Close()
+	}
+	return nil
+}
+
+// Close closes both the primary and (if present) the test pool. The first
+// error encountered is returned; both pools are always attempted.
+func (r *RoutedDB) Close() error {
+	r.mu.Lock()
+	primary := r.primary
+	test := r.test
+	r.primary = nil
+	r.test = nil
+	r.mu.Unlock()
+
+	var errPrimary, errTest error
+	if primary != nil {
+		errPrimary = primary.Close()
+	}
+	if test != nil {
+		errTest = test.Close()
+	}
+	if errPrimary != nil {
+		return errPrimary
+	}
+	return errTest
+}
+
+// QueryContext executes a query that returns rows, against the routed pool.
+func (r *RoutedDB) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return r.pick(ctx).QueryContext(ctx, query, args...)
+}
+
+// QueryRowContext executes a query that returns at most one row, against the
+// routed pool.
+func (r *RoutedDB) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	return r.pick(ctx).QueryRowContext(ctx, query, args...)
+}
+
+// ExecContext executes a query without returning rows, against the routed
+// pool.
+func (r *RoutedDB) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return r.pick(ctx).ExecContext(ctx, query, args...)
+}
+
+// BeginTx starts a transaction on the routed pool. The returned *sql.Tx is
+// bound to whichever pool was picked at this call; a transaction cannot span
+// the primary and test pools.
+func (r *RoutedDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+	return r.pick(ctx).BeginTx(ctx, opts)
+}
+
+// PrepareContext creates a prepared statement on the routed pool. The
+// statement is bound to whichever pool was picked at this call.
+func (r *RoutedDB) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
+	return r.pick(ctx).PrepareContext(ctx, query)
+}
+
+// Conn returns a single connection from the routed pool.
+func (r *RoutedDB) Conn(ctx context.Context) (*sql.Conn, error) {
+	return r.pick(ctx).Conn(ctx)
+}
+
+// PingContext verifies a connection to the primary pool. The test pool, if
+// installed, is intentionally not pinged here; callers that care about the
+// test pool's health should query it explicitly.
+func (r *RoutedDB) PingContext(ctx context.Context) error {
+	r.mu.RLock()
+	primary := r.primary
+	r.mu.RUnlock()
+	if primary == nil {
+		return errors.New("database.RoutedDB: primary pool is closed")
+	}
+	return primary.PingContext(ctx)
+}
+
+// Ping is shorthand for PingContext(context.Background()).
+func (r *RoutedDB) Ping() error {
+	return r.PingContext(context.Background())
+}
+
+// Stats returns the primary pool's stats. The test pool's stats are not
+// included; in-flight test runs are short-lived and querying them through the
+// routing surface would obscure production telemetry.
+func (r *RoutedDB) Stats() sql.DBStats {
+	r.mu.RLock()
+	primary := r.primary
+	r.mu.RUnlock()
+	if primary == nil {
+		return sql.DBStats{}
+	}
+	return primary.Stats()
+}

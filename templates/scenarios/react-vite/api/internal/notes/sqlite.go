@@ -13,23 +13,36 @@ import (
 	"github.com/google/uuid"
 )
 
+// SQLExecutor is the narrow database surface sqliteRepository depends on.
+// Declared at the consumer per seam-discovery: both *sql.DB (used by
+// repository unit tests via testutil/db.NewSQLite) and
+// *database.RoutedDB (used in production by main.go) satisfy it, so the
+// production wiring participates in per-request routing without forcing
+// the test fixture to wrap its handle.
+type SQLExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 // sqliteRepository is the production Repository impl. Unexported so
 // callers depend on the Repository interface — tests substitute the
 // fake without reaching inside the struct (seam-discovery §4).
 type sqliteRepository struct {
-	db    *sql.DB
+	db    SQLExecutor
 	clock clock.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository. db is the
-// connection pool opened in main.go; clk supplies CreatedAt/UpdatedAt
-// timestamps so tests can advance time deterministically via
-// mocks.FakeClock.
-func NewSQLiteRepository(db *sql.DB, clk clock.Clock) Repository {
+// connection pool opened in main.go (*database.RoutedDB in production,
+// *sql.DB in unit tests via testutil/db.NewSQLite); clk supplies
+// CreatedAt/UpdatedAt timestamps so tests can advance time
+// deterministically via mocks.FakeClock.
+func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
-func NewSQLiteAttachmentsRepository(db *sql.DB, clk clock.Clock) AttachmentsRepository {
+func NewSQLiteAttachmentsRepository(db SQLExecutor, clk clock.Clock) AttachmentsRepository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
