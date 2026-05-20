@@ -5,14 +5,10 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
 
-// INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
-// the parent shell can route iframe bridge events to this scenario.
 if (window.parent !== window) {
   initIframeBridgeChild({ appId: "ui-health" });
 }
 
-// INTEROP-CRITICAL: Spatial navigation is initialized at startup for embedded
-// keyboard/gamepad control flows.
 initSpatialNav();
 
 const rootEl = document.getElementById("root");
@@ -23,34 +19,44 @@ const appRoot = rootEl;
 
 const queryClient = new QueryClient();
 
+function normalizeRouterBasename(raw: string): string {
+  const trimmed = raw.replace(/^\.\//, "/").replace(/\/$/, "");
+  return trimmed === "" || trimmed === "." ? "/" : trimmed;
+}
+
 async function bootstrap() {
-  const [{ default: App }, { ErrorBoundary }, { onProfilerRender }] = await Promise.all([
+  const [
+    { default: App },
+    { ErrorBoundary },
+    { onProfilerRender },
+    { BrowserRouter },
+    { ThemeProvider },
+  ] = await Promise.all([
     import("./App"),
     import("./components/ErrorBoundary"),
     import("./lib/profiler"),
+    import("react-router-dom"),
+    import("./theme/ThemeProvider"),
     import("./i18n"),
   ]);
 
   ReactDOM.createRoot(appRoot).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
-        {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
-            ./i18n side-effect init above) so the localised fallback can
-            call useTranslation. A render-time crash inside QueryClient
-            itself would escape this boundary, but that failure mode is
-            covered by react-query's own tests, not application logic. */}
-        <ErrorBoundary>
-          {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
-              the profiling hook); emits user_timing entries via onProfilerRender
-              when the perf-build channel is active. See lib/profiler.ts. Add
-              inner <Profiler> boundaries around heavy subtrees as needed; do
-              not remove this one. */}
-          <React.Profiler id="App" onRender={onProfilerRender}>
-            <App />
-          </React.Profiler>
-        </ErrorBoundary>
+        <ThemeProvider>
+          <ErrorBoundary>
+            <BrowserRouter
+              basename={normalizeRouterBasename(import.meta.env.BASE_URL)}
+              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+            >
+              <React.Profiler id="App" onRender={onProfilerRender}>
+                <App />
+              </React.Profiler>
+            </BrowserRouter>
+          </ErrorBoundary>
+        </ThemeProvider>
       </QueryClientProvider>
-    </React.StrictMode>
+    </React.StrictMode>,
   );
 }
 

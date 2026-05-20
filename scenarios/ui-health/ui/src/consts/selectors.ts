@@ -292,35 +292,15 @@ export const createSelectorRegistry = <
 const literalSelectors = {
   app: {
     title: "app-title",
+    brand: "app-brand",
     eyebrow: "app-eyebrow",
     description: "app-description",
   },
   health: {
-    card: "health-card",
-    loading: "health-loading",
-    error: "health-error",
-    statusValue: "health-status-value",
-    serviceValue: "health-service-value",
-    timestampValue: "health-timestamp-value",
-    refreshButton: "health-refresh-button",
-    refreshCount: "health-refresh-count",
+    pill: "health-pill",
   },
   notifications: {
     summary: "notifications-summary",
-  },
-  notes: {
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
   },
   locale: {
     switcher: "locale-switcher",
@@ -328,22 +308,58 @@ const literalSelectors = {
   layout: {
     shell: "layout-shell",
     topBar: "layout-top-bar",
+    mobileHeader: "layout-mobile-header",
     sidebar: "layout-sidebar",
     bottomNav: "layout-bottom-nav",
     main: "layout-main",
+    drawerOpen: "layout-drawer-open",
+    drawer: "layout-drawer",
+    drawerClose: "layout-drawer-close",
+    drawerBackdrop: "layout-drawer-backdrop",
+    skipToContent: "layout-skip-to-content",
   },
   theme: {
     switcher: "theme-switcher",
     select: "theme-select",
+    toggle: "theme-toggle",
+  },
+  inspector: {
+    panel: "inspector-panel",
+    title: "inspector-title",
+    close: "inspector-close",
+    backdrop: "inspector-backdrop",
   },
   pages: {
     dashboard: "page-dashboard",
-    notes: "page-notes",
+    validation: "page-validation",
+    validationDetail: "page-validation-detail",
+    search: "page-search",
+    inventory: "page-inventory",
+    surfaceDetail: "page-surface-detail",
+    reindex: "page-reindex",
+    reindexJob: "page-reindex-job",
     settings: "page-settings",
+    notFound: "page-not-found",
   },
   errorBoundary: {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",
+  },
+  validation: {
+    form: "validation-form",
+    scenarioInput: "validation-scenario-input",
+    submit: "validation-submit",
+    recentList: "validation-recent-list",
+    emptyRecent: "validation-recent-empty",
+    detail: {
+      statusBadge: "validation-detail-status",
+      summary: "validation-detail-summary",
+      revalidate: "validation-detail-revalidate",
+      findings: "validation-detail-findings",
+      empty: "validation-detail-empty",
+      error: "validation-detail-error",
+      loading: "validation-detail-loading",
+    },
   },
 } satisfies LiteralSelectorTree;
 
@@ -367,12 +383,51 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+      params: {
+        key: {
+          type: "enum",
+          values: ["dashboard", "validation", "search", "inventory", "reindex", "settings"] as const,
+        },
+      },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+      params: {
+        key: {
+          type: "enum",
+          values: ["dashboard", "validation", "search", "inventory", "reindex", "settings"] as const,
+        },
+      },
+    }),
+    drawerLink: defineDynamicSelector({
+      description: "Mobile drawer navigation link by canonical nav key",
+      testIdPattern: "layout-drawer-link-${key}",
+      params: {
+        key: {
+          type: "enum",
+          values: ["dashboard", "validation", "search", "inventory", "reindex", "settings"] as const,
+        },
+      },
+    }),
+  },
+  validation: {
+    recentRow: defineDynamicSelector({
+      description: "Recent validation runs row by scenario name",
+      testIdPattern: "validation-recent-row-${scenario}",
+      params: { scenario: { type: "string" } },
+    }),
+    severityFilter: defineDynamicSelector({
+      description: "Filter chip on validation detail by severity",
+      testIdPattern: "validation-detail-filter-${severity}",
+      params: {
+        severity: { type: "enum", values: ["all", "error", "warning", "info"] as const },
+      },
+    }),
+    findingRow: defineDynamicSelector({
+      description: "Validation finding row by zero-based index",
+      testIdPattern: "validation-detail-finding-${index}",
+      params: { index: { type: "number" } },
     }),
   },
   settingsPage: {

@@ -25,6 +25,7 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive SSR / jsdom guard
   if (typeof window === "undefined" || !window.matchMedia) return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
@@ -55,6 +56,7 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive SSR / jsdom guard
     if (typeof window === "undefined" || !window.matchMedia) return undefined;
     if (choice !== "system") return undefined;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");

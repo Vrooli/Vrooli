@@ -6,16 +6,18 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm strings:gen && tsc --noEmit && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
-    "build:profile": "pnpm strings:gen && tsc --noEmit && vite build --mode profile",
+    "build": "pnpm strings:gen && pnpm routes:gen && tsc --noEmit && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build:profile": "pnpm strings:gen && pnpm routes:gen && tsc --noEmit && vite build --mode profile",
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "type-check": "pnpm strings:check && tsc --noEmit",
+    "type-check": "pnpm strings:check && pnpm routes:check && tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "strings:gen": "node scripts/gen-strings.mjs",
-    "strings:check": "node scripts/gen-strings.mjs --check"
+    "strings:check": "node scripts/gen-strings.mjs --check",
+    "routes:gen": "node scripts/gen-routes.mjs",
+    "routes:check": "node scripts/gen-routes.mjs --check"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",

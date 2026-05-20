@@ -2,65 +2,160 @@
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: UI Health のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
     "title": "UI Health",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "brand": "UI Health",
+    "brandInitials": "UH",
+    "eyebrow": "運用コンソール"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
-    "bottomNavLabel": "メインナビゲーション",
+    "bottomNavLabel": "メイン",
+    "mobileHeaderLabel": "トップバー",
+    "drawerLabel": "ナビゲーションドロワー",
+    "openDrawer": "ナビゲーションを開く",
+    "closeDrawer": "ナビゲーションを閉じる",
+    "skipToContent": "メインコンテンツへスキップ",
+    "main": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
+      "validation": "検証",
+      "search": "検索",
+      "inventory": "インベントリ",
+      "reindex": "再インデックス",
       "settings": "設定"
     }
   },
+  "route": {
+    "loading": "読み込み中…"
+  },
   "theme": {
     "switcherLabel": "テーマ",
+    "light": "ライトテーマ",
+    "dark": "ダークテーマ",
+    "system": "システムテーマ",
     "choice": {
       "light": "ライト",
       "dark": "ダーク",
       "system": "システム"
     }
   },
+  "inspector": {
+    "close": "インスペクタを閉じる"
+  },
   "pages": {
     "dashboard": {
       "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
-    },
-    "notes": {
-      "title": "ノート"
+      "description": "検証、サーフェスインデックス、再インデックスのスナップショット。",
+      "stats": {
+        "scenariosValidated": "検証済みシナリオ",
+        "surfacesIndexed": "インデックス済みサーフェス",
+        "openIssues": "未解決の問題"
+      },
+      "activity": {
+        "heading": "最近のアクティビティ",
+        "empty": "最近のアクティビティはありません。"
+      },
+      "quickActions": {
+        "heading": "クイックアクション",
+        "search": "サーフェスを検索",
+        "validate": "シナリオを検証",
+        "reindex": "今すぐ再インデックス"
+      }
     },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    },
+    "validation": {
+      "title": "Validation",
+      "description": "Manifest validation results across scenarios.",
+      "form": {
+        "heading": "Run validation",
+        "scenarioLabel": "Scenario name",
+        "scenarioPlaceholder": "e.g. ui-health",
+        "scenarioHelp": "Name of any scenario under scenarios/. Example: flow-verifier.",
+        "submit": "Validate",
+        "submitting": "Validating…"
+      },
+      "recent": {
+        "heading": "Recent runs",
+        "empty": "No runs yet. Validate a scenario to see results here.",
+        "columns": {
+          "scenario": "Scenario",
+          "status": "Status",
+          "errors": "Errors",
+          "warnings": "Warnings",
+          "ranAt": "Last run"
+        },
+        "clear": "Clear history",
+        "open": "Open results for {{scenario}}"
+      },
+      "status": {
+        "passed": "Passed",
+        "failed": "Failed"
+      },
+      "summary": {
+        "heading": "Summary",
+        "errors": "Errors",
+        "warnings": "Warnings",
+        "infos": "Infos",
+        "ranAt": "Ran at"
+      },
+      "filters": {
+        "heading": "Filter findings",
+        "all": "All",
+        "error": "Errors",
+        "warning": "Warnings",
+        "info": "Info"
+      },
+      "findings": {
+        "heading": "Findings",
+        "empty": "No findings — manifest looks clean.",
+        "noneForFilter": "No findings match this filter.",
+        "code": "Code",
+        "location": "Location",
+        "suggestion": "Suggestion"
+      },
+      "loading": "Running validation…",
+      "error": "Validation failed: {{message}}",
+      "revalidate": "Revalidate",
+      "back": "Back to validation"
+    },
+    "search": {
+      "title": "検索",
+      "description": "UI サーフェスカタログのセマンティック検索。",
+      "placeholder": "サーフェス、コンポーネント、フックを検索…",
+      "empty": "クエリを入力してカタログを検索します。"
+    },
+    "inventory": {
+      "title": "インベントリ",
+      "description": "すべてのシナリオでインデックス化された UI サーフェス。",
+      "empty": "インベントリは空です。再インデックスを実行してください。",
+      "detail": {
+        "title": "サーフェスの詳細"
+      }
+    },
+    "reindex": {
+      "title": "再インデックス",
+      "description": "再インデックスジョブを実行・監視します。",
+      "trigger": "再インデックスを実行",
+      "empty": "ジョブがまだありません。",
+      "job": {
+        "title": "ジョブの詳細"
+      }
+    },
+    "notFound": {
+      "title": "ページが見つかりません",
+      "description": "リクエストされたページは存在しません。",
+      "back": "ダッシュボードへ戻る"
     }
   },
   "health": {
-    "title": "API ステータス",
-    "loading": "API のステータスを確認中…",
-    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
-    "refresh": "再読み込み",
-    "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
-    "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
-  },
-  "notifications": {
-    "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。"
+    "pill": {
+      "ok": "API は正常です",
+      "error": "API はオフラインです",
+      "loading": "API を確認中…"
+    }
   },
   "errors": {
     "canceled": "Operation canceled.",

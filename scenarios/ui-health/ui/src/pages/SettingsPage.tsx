@@ -44,7 +44,13 @@ export function SettingsPage() {
                   : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
               }
             >
-              {t(strings.theme.choice[c])}
+              {t(
+                c === "light"
+                  ? strings.theme.choice.light
+                  : c === "dark"
+                    ? strings.theme.choice.dark
+                    : strings.theme.choice.system,
+              )}
             </button>
           ))}
         </div>

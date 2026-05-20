@@ -2,69 +2,160 @@
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like UI Health are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "UI Health",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "brand": "UI Health",
+    "brandInitials": "UH",
+    "eyebrow": "Operational Console"
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Primary navigation",
+    "bottomNavLabel": "Primary",
+    "mobileHeaderLabel": "Top bar",
+    "drawerLabel": "Navigation drawer",
+    "openDrawer": "Open navigation",
+    "closeDrawer": "Close navigation",
+    "skipToContent": "Skip to main content",
+    "main": "Main content",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
+      "validation": "Validation",
+      "search": "Search",
+      "inventory": "Inventory",
+      "reindex": "Reindex",
       "settings": "Settings"
     }
   },
+  "route": {
+    "loading": "Loading…"
+  },
   "theme": {
     "switcherLabel": "Theme",
+    "light": "Light theme",
+    "dark": "Dark theme",
+    "system": "System theme",
     "choice": {
       "light": "Light",
       "dark": "Dark",
       "system": "System"
     }
   },
+  "inspector": {
+    "close": "Close inspector"
+  },
   "pages": {
     "dashboard": {
       "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
-    },
-    "notes": {
-      "title": "Notes"
+      "description": "Snapshot of validation, surface index, and reindex activity.",
+      "stats": {
+        "scenariosValidated": "Scenarios validated",
+        "surfacesIndexed": "Surfaces indexed",
+        "openIssues": "Open issues"
+      },
+      "activity": {
+        "heading": "Recent activity",
+        "empty": "No recent activity."
+      },
+      "quickActions": {
+        "heading": "Quick actions",
+        "search": "Search surfaces",
+        "validate": "Validate a scenario",
+        "reindex": "Reindex now"
+      }
     },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    },
+    "validation": {
+      "title": "Validation",
+      "description": "Manifest validation results across scenarios.",
+      "form": {
+        "heading": "Run validation",
+        "scenarioLabel": "Scenario name",
+        "scenarioPlaceholder": "e.g. ui-health",
+        "scenarioHelp": "Name of any scenario under scenarios/. Example: flow-verifier.",
+        "submit": "Validate",
+        "submitting": "Validating…"
+      },
+      "recent": {
+        "heading": "Recent runs",
+        "empty": "No runs yet. Validate a scenario to see results here.",
+        "columns": {
+          "scenario": "Scenario",
+          "status": "Status",
+          "errors": "Errors",
+          "warnings": "Warnings",
+          "ranAt": "Last run"
+        },
+        "clear": "Clear history",
+        "open": "Open results for {{scenario}}"
+      },
+      "status": {
+        "passed": "Passed",
+        "failed": "Failed"
+      },
+      "summary": {
+        "heading": "Summary",
+        "errors": "Errors",
+        "warnings": "Warnings",
+        "infos": "Infos",
+        "ranAt": "Ran at"
+      },
+      "filters": {
+        "heading": "Filter findings",
+        "all": "All",
+        "error": "Errors",
+        "warning": "Warnings",
+        "info": "Info"
+      },
+      "findings": {
+        "heading": "Findings",
+        "empty": "No findings — manifest looks clean.",
+        "noneForFilter": "No findings match this filter.",
+        "code": "Code",
+        "location": "Location",
+        "suggestion": "Suggestion"
+      },
+      "loading": "Running validation…",
+      "error": "Validation failed: {{message}}",
+      "revalidate": "Revalidate",
+      "back": "Back to validation"
+    },
+    "search": {
+      "title": "Search",
+      "description": "Semantic search over the UI surface catalog.",
+      "placeholder": "Search surfaces, components, hooks…",
+      "empty": "Type a query to search the surface catalog."
+    },
+    "inventory": {
+      "title": "Inventory",
+      "description": "Every indexed UI surface across all scenarios.",
+      "empty": "The inventory is empty. Trigger a reindex to populate it.",
+      "detail": {
+        "title": "Surface detail"
+      }
+    },
+    "reindex": {
+      "title": "Reindex",
+      "description": "Trigger and monitor reindex jobs.",
+      "trigger": "Trigger reindex",
+      "empty": "No jobs yet.",
+      "job": {
+        "title": "Job detail"
+      }
+    },
+    "notFound": {
+      "title": "Page not found",
+      "description": "The page you requested doesn’t exist.",
+      "back": "Back to dashboard"
     }
   },
   "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading."
+    "pill": {
+      "ok": "API healthy",
+      "error": "API offline",
+      "loading": "Checking API…"
+    }
   },
   "errors": {
     "canceled": "Operation canceled.",

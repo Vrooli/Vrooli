@@ -1,0 +1,89 @@
+{
+  "$schema": "https://vrooli.dev/schemas/navigation.v1.json",
+  "schemaVersion": 1,
+  "kind": "navigation",
+  "flowId": "ui-health.app.ui",
+  "domain": "app",
+  "description": "UI Health navigation: dashboard, validation, search, inventory, reindex, settings. Operational console — local only, no auth.",
+
+  "contexts": {
+    "viewport": {
+      "kind": "enum",
+      "values": ["mobile", "tablet", "desktop"],
+      "default": "desktop"
+    }
+  },
+
+  "routes": [
+    {
+      "id": "dashboard",
+      "path": "/",
+      "page": "ui/src/pages/DashboardPage.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "validation",
+      "path": "/validation",
+      "page": "ui/src/features/validation/ValidationListPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "validation_detail",
+      "path": "/validation/:scenarioId",
+      "page": "ui/src/features/validation/ValidationDetailPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["validation"]
+    },
+    {
+      "id": "search",
+      "path": "/search",
+      "page": "ui/src/features/search/SearchPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "inventory",
+      "path": "/inventory",
+      "page": "ui/src/features/inventory/InventoryPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "surface_detail",
+      "path": "/inventory/:surfaceId",
+      "page": "ui/src/features/inventory/SurfaceDetailPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["inventory"]
+    },
+    {
+      "id": "reindex",
+      "path": "/reindex",
+      "page": "ui/src/features/reindex/ReindexPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "reindex_job",
+      "path": "/reindex/:jobId",
+      "page": "ui/src/features/reindex/JobDetailPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["reindex"]
+    },
+    {
+      "id": "settings",
+      "path": "/settings",
+      "page": "ui/src/pages/SettingsPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "not_found",
+      "path": "*",
+      "page": "ui/src/pages/NotFoundPage.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    }
+  ]
+}
