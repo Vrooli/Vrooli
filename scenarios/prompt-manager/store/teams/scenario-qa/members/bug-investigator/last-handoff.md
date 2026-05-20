@@ -1,25 +1,23 @@
 ### Inbox state
-`bug-inbox/*` is empty. `prompt-manager team knowledge-list scenario-qa --topic-prefix=bug-inbox/` returned no knowledge entries.
+`bug-inbox/*` is empty. Verified after deleting source inbox entry `knw-1779271382501423594`.
 
 ### Investigation in flight
 None.
 
 ### Investigation closed this heartbeat
-None. No inbox entry was available to drain.
+Closed `bug-inbox/unexpected-error/vrooli-runtime-registry-open-fails`.
 
 ### Technique applied
-None applied to an entry. `scientific-debugging` skill loaded successfully.
+`scientific-debugging`.
 
 ### Action taken
-No routing or closure action needed.
+Closed as `observe`. Root cause: `VROOLI_SANDBOX_MERGED` forces `scenarioruntime.NewSQLiteStore` into the read-only SQLite DSN path; that path fails to reopen the runtime registry DB with `unable to open database file (14)`, causing safe read-only orientation commands like `vrooli scenario list --json` and `vrooli status --verbose` to fail instead of degrading.
 
 ### Backlog item / decision created
-None. Four pending owned `bug-resolution-proposal` decisions already exist, so new decisions remain capped.
+None. Four owned-context `bug-resolution-proposal` decisions are already pending, so no new decision was allowed this heartbeat.
 
 ### Capability-gap raised
 None.
 
 ### Surface for technique graduation
-None.
-
-Note: prompt-manager still emits the known auto-rebuild warning because `/home/matthalloran8/.vrooli/bin` is read-only, but the installed binary answered the storage queries.
+None. Scientific debugging fit the investigation.

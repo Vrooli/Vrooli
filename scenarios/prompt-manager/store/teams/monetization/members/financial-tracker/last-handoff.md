@@ -8,7 +8,7 @@
 - `timeAllocation.ops`
 
 ### Stale operator inputs
-- None. No populated values exist, so nothing can age past the staleness policy.
+- None. `operator-inputs.json::lastUpdatedAt` remains null, so no populated values can age stale.
 
 ### Snapshot summary
 - Cash: `pending-operator`
@@ -21,10 +21,9 @@
 - Retention, churn, NRR, ARPU, LTV: `pending-telemetry`
 
 ### Material deltas since last snapshot
-- No material financial delta since `ledger-snapshot/2026-05-17`.
-- `operator-inputs.json::lastUpdatedAt` remains null.
+- No material financial delta since `ledger-snapshot/2026-05-18`.
+- Local `ledger.jsonl` still had entries only through 2026-04-27 before this append; today’s append is the first file-backed catch-up entry after prior knowledge-only snapshots.
 - Pending benchmark decision `dec-1778875348622351458` does not change current ledger math.
-- Note: local `ledger.jsonl` only had entries through 2026-04-27 before this append, despite prior handoff saying a 2026-05-17 ledger entry was appended.
 
 ### Flags raised
 - `operator-inputs-unpopulated`
@@ -52,6 +51,5 @@
 - Gateway usage and token cost attribution: TELEMETRY_ROADMAP Gap 4.
 
 ### Knowledge entry written
-- `ledger-snapshot/2026-05-18`: `knw-1779127304853839656`
-- Ledger entry appended: `ledger-1779127252070642576`
-- CLI note: `prompt-manager team knowledge-add` now auto-attributes identity; `--by` is rejected.
+- `ledger-snapshot/2026-05-19`: `knw-1779213791639586336`
+- Ledger entry appended: `ledger-1779213737892032050`

@@ -149,6 +149,8 @@ When a member encounters something it cannot do, the choice between filing a `me
 
 Phrased as: capability-gap = "we are blocked because X does not exist." Meta-self-improvement = "we work, but X would make us better." Backlog item = "we have decided to build X."
 
+**Before filing a capability-gap for a "missing CLI command," confirm it really is missing.** Run `cli-health search "<operation>"` (AI mode by default; falls back to text). The search indexes every scenario's `cli/manifest.json` plus `--help` output for un-adopted CLIs, so a hit there means the command already exists and the gap is invalid. Quote the search result (or the empty-result line) in the gap so the consuming director knows you checked.
+
 A capability-gap typically becomes a backlog item (see §7). A meta-self-improvement decision typically results in a skill/config/scenario change that may or may not require swarm-manager.
 
 ---

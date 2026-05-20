@@ -23,6 +23,8 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// AIServiceName is the fully-qualified name of the AIService service.
 	AIServiceName = "browser_automation_studio.v1.ai.AIService"
+	// VisionNavigationServiceName is the fully-qualified name of the VisionNavigationService service.
+	VisionNavigationServiceName = "browser_automation_studio.v1.ai.VisionNavigationService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -50,6 +52,21 @@ const (
 	AIServiceAIAnalyzeElementsProcedure = "/browser_automation_studio.v1.ai.AIService/AIAnalyzeElements"
 	// AIServiceGetDOMTreeProcedure is the fully-qualified name of the AIService's GetDOMTree RPC.
 	AIServiceGetDOMTreeProcedure = "/browser_automation_studio.v1.ai.AIService/GetDOMTree"
+	// VisionNavigationServiceListNavigatorsProcedure is the fully-qualified name of the
+	// VisionNavigationService's ListNavigators RPC.
+	VisionNavigationServiceListNavigatorsProcedure = "/browser_automation_studio.v1.ai.VisionNavigationService/ListNavigators"
+	// VisionNavigationServiceStartNavigationProcedure is the fully-qualified name of the
+	// VisionNavigationService's StartNavigation RPC.
+	VisionNavigationServiceStartNavigationProcedure = "/browser_automation_studio.v1.ai.VisionNavigationService/StartNavigation"
+	// VisionNavigationServiceGetNavigationStatusProcedure is the fully-qualified name of the
+	// VisionNavigationService's GetNavigationStatus RPC.
+	VisionNavigationServiceGetNavigationStatusProcedure = "/browser_automation_studio.v1.ai.VisionNavigationService/GetNavigationStatus"
+	// VisionNavigationServiceAbortNavigationProcedure is the fully-qualified name of the
+	// VisionNavigationService's AbortNavigation RPC.
+	VisionNavigationServiceAbortNavigationProcedure = "/browser_automation_studio.v1.ai.VisionNavigationService/AbortNavigation"
+	// VisionNavigationServiceResumeNavigationProcedure is the fully-qualified name of the
+	// VisionNavigationService's ResumeNavigation RPC.
+	VisionNavigationServiceResumeNavigationProcedure = "/browser_automation_studio.v1.ai.VisionNavigationService/ResumeNavigation"
 )
 
 // AIServiceClient is a client for the browser_automation_studio.v1.ai.AIService service.
@@ -284,4 +301,202 @@ func (UnimplementedAIServiceHandler) AIAnalyzeElements(context.Context, *connect
 
 func (UnimplementedAIServiceHandler) GetDOMTree(context.Context, *connect.Request[ai.GetDOMTreeRequest]) (*connect.Response[ai.GetDOMTreeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ai.AIService.GetDOMTree is not implemented"))
+}
+
+// VisionNavigationServiceClient is a client for the
+// browser_automation_studio.v1.ai.VisionNavigationService service.
+type VisionNavigationServiceClient interface {
+	// ListNavigators returns every registered vision navigator with its
+	// availability for the requesting client source.
+	ListNavigators(context.Context, *connect.Request[ai.ListNavigatorsRequest]) (*connect.Response[ai.ListNavigatorsResponse], error)
+	// StartNavigation kicks off an AI navigation session against an existing
+	// browser session and returns a navigation_id used by the other RPCs.
+	StartNavigation(context.Context, *connect.Request[ai.StartNavigationRequest]) (*connect.Response[ai.StartNavigationResponse], error)
+	// GetNavigationStatus returns the current state of a navigation session
+	// (status, step count, total tokens, navigator type, started_at).
+	GetNavigationStatus(context.Context, *connect.Request[ai.GetNavigationStatusRequest]) (*connect.Response[ai.GetNavigationStatusResponse], error)
+	// AbortNavigation signals an in-flight navigation to stop after the
+	// current step.
+	AbortNavigation(context.Context, *connect.Request[ai.AbortNavigationRequest]) (*connect.Response[ai.AbortNavigationResponse], error)
+	// ResumeNavigation resumes a navigation that paused for human
+	// intervention.
+	ResumeNavigation(context.Context, *connect.Request[ai.ResumeNavigationRequest]) (*connect.Response[ai.ResumeNavigationResponse], error)
+}
+
+// NewVisionNavigationServiceClient constructs a client for the
+// browser_automation_studio.v1.ai.VisionNavigationService service. By default, it uses the Connect
+// protocol with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed
+// requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewVisionNavigationServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) VisionNavigationServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	visionNavigationServiceMethods := ai.File_browser_automation_studio_v1_ai_ai_proto.Services().ByName("VisionNavigationService").Methods()
+	return &visionNavigationServiceClient{
+		listNavigators: connect.NewClient[ai.ListNavigatorsRequest, ai.ListNavigatorsResponse](
+			httpClient,
+			baseURL+VisionNavigationServiceListNavigatorsProcedure,
+			connect.WithSchema(visionNavigationServiceMethods.ByName("ListNavigators")),
+			connect.WithClientOptions(opts...),
+		),
+		startNavigation: connect.NewClient[ai.StartNavigationRequest, ai.StartNavigationResponse](
+			httpClient,
+			baseURL+VisionNavigationServiceStartNavigationProcedure,
+			connect.WithSchema(visionNavigationServiceMethods.ByName("StartNavigation")),
+			connect.WithClientOptions(opts...),
+		),
+		getNavigationStatus: connect.NewClient[ai.GetNavigationStatusRequest, ai.GetNavigationStatusResponse](
+			httpClient,
+			baseURL+VisionNavigationServiceGetNavigationStatusProcedure,
+			connect.WithSchema(visionNavigationServiceMethods.ByName("GetNavigationStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		abortNavigation: connect.NewClient[ai.AbortNavigationRequest, ai.AbortNavigationResponse](
+			httpClient,
+			baseURL+VisionNavigationServiceAbortNavigationProcedure,
+			connect.WithSchema(visionNavigationServiceMethods.ByName("AbortNavigation")),
+			connect.WithClientOptions(opts...),
+		),
+		resumeNavigation: connect.NewClient[ai.ResumeNavigationRequest, ai.ResumeNavigationResponse](
+			httpClient,
+			baseURL+VisionNavigationServiceResumeNavigationProcedure,
+			connect.WithSchema(visionNavigationServiceMethods.ByName("ResumeNavigation")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// visionNavigationServiceClient implements VisionNavigationServiceClient.
+type visionNavigationServiceClient struct {
+	listNavigators      *connect.Client[ai.ListNavigatorsRequest, ai.ListNavigatorsResponse]
+	startNavigation     *connect.Client[ai.StartNavigationRequest, ai.StartNavigationResponse]
+	getNavigationStatus *connect.Client[ai.GetNavigationStatusRequest, ai.GetNavigationStatusResponse]
+	abortNavigation     *connect.Client[ai.AbortNavigationRequest, ai.AbortNavigationResponse]
+	resumeNavigation    *connect.Client[ai.ResumeNavigationRequest, ai.ResumeNavigationResponse]
+}
+
+// ListNavigators calls browser_automation_studio.v1.ai.VisionNavigationService.ListNavigators.
+func (c *visionNavigationServiceClient) ListNavigators(ctx context.Context, req *connect.Request[ai.ListNavigatorsRequest]) (*connect.Response[ai.ListNavigatorsResponse], error) {
+	return c.listNavigators.CallUnary(ctx, req)
+}
+
+// StartNavigation calls browser_automation_studio.v1.ai.VisionNavigationService.StartNavigation.
+func (c *visionNavigationServiceClient) StartNavigation(ctx context.Context, req *connect.Request[ai.StartNavigationRequest]) (*connect.Response[ai.StartNavigationResponse], error) {
+	return c.startNavigation.CallUnary(ctx, req)
+}
+
+// GetNavigationStatus calls
+// browser_automation_studio.v1.ai.VisionNavigationService.GetNavigationStatus.
+func (c *visionNavigationServiceClient) GetNavigationStatus(ctx context.Context, req *connect.Request[ai.GetNavigationStatusRequest]) (*connect.Response[ai.GetNavigationStatusResponse], error) {
+	return c.getNavigationStatus.CallUnary(ctx, req)
+}
+
+// AbortNavigation calls browser_automation_studio.v1.ai.VisionNavigationService.AbortNavigation.
+func (c *visionNavigationServiceClient) AbortNavigation(ctx context.Context, req *connect.Request[ai.AbortNavigationRequest]) (*connect.Response[ai.AbortNavigationResponse], error) {
+	return c.abortNavigation.CallUnary(ctx, req)
+}
+
+// ResumeNavigation calls browser_automation_studio.v1.ai.VisionNavigationService.ResumeNavigation.
+func (c *visionNavigationServiceClient) ResumeNavigation(ctx context.Context, req *connect.Request[ai.ResumeNavigationRequest]) (*connect.Response[ai.ResumeNavigationResponse], error) {
+	return c.resumeNavigation.CallUnary(ctx, req)
+}
+
+// VisionNavigationServiceHandler is an implementation of the
+// browser_automation_studio.v1.ai.VisionNavigationService service.
+type VisionNavigationServiceHandler interface {
+	// ListNavigators returns every registered vision navigator with its
+	// availability for the requesting client source.
+	ListNavigators(context.Context, *connect.Request[ai.ListNavigatorsRequest]) (*connect.Response[ai.ListNavigatorsResponse], error)
+	// StartNavigation kicks off an AI navigation session against an existing
+	// browser session and returns a navigation_id used by the other RPCs.
+	StartNavigation(context.Context, *connect.Request[ai.StartNavigationRequest]) (*connect.Response[ai.StartNavigationResponse], error)
+	// GetNavigationStatus returns the current state of a navigation session
+	// (status, step count, total tokens, navigator type, started_at).
+	GetNavigationStatus(context.Context, *connect.Request[ai.GetNavigationStatusRequest]) (*connect.Response[ai.GetNavigationStatusResponse], error)
+	// AbortNavigation signals an in-flight navigation to stop after the
+	// current step.
+	AbortNavigation(context.Context, *connect.Request[ai.AbortNavigationRequest]) (*connect.Response[ai.AbortNavigationResponse], error)
+	// ResumeNavigation resumes a navigation that paused for human
+	// intervention.
+	ResumeNavigation(context.Context, *connect.Request[ai.ResumeNavigationRequest]) (*connect.Response[ai.ResumeNavigationResponse], error)
+}
+
+// NewVisionNavigationServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewVisionNavigationServiceHandler(svc VisionNavigationServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	visionNavigationServiceMethods := ai.File_browser_automation_studio_v1_ai_ai_proto.Services().ByName("VisionNavigationService").Methods()
+	visionNavigationServiceListNavigatorsHandler := connect.NewUnaryHandler(
+		VisionNavigationServiceListNavigatorsProcedure,
+		svc.ListNavigators,
+		connect.WithSchema(visionNavigationServiceMethods.ByName("ListNavigators")),
+		connect.WithHandlerOptions(opts...),
+	)
+	visionNavigationServiceStartNavigationHandler := connect.NewUnaryHandler(
+		VisionNavigationServiceStartNavigationProcedure,
+		svc.StartNavigation,
+		connect.WithSchema(visionNavigationServiceMethods.ByName("StartNavigation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	visionNavigationServiceGetNavigationStatusHandler := connect.NewUnaryHandler(
+		VisionNavigationServiceGetNavigationStatusProcedure,
+		svc.GetNavigationStatus,
+		connect.WithSchema(visionNavigationServiceMethods.ByName("GetNavigationStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	visionNavigationServiceAbortNavigationHandler := connect.NewUnaryHandler(
+		VisionNavigationServiceAbortNavigationProcedure,
+		svc.AbortNavigation,
+		connect.WithSchema(visionNavigationServiceMethods.ByName("AbortNavigation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	visionNavigationServiceResumeNavigationHandler := connect.NewUnaryHandler(
+		VisionNavigationServiceResumeNavigationProcedure,
+		svc.ResumeNavigation,
+		connect.WithSchema(visionNavigationServiceMethods.ByName("ResumeNavigation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/browser_automation_studio.v1.ai.VisionNavigationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case VisionNavigationServiceListNavigatorsProcedure:
+			visionNavigationServiceListNavigatorsHandler.ServeHTTP(w, r)
+		case VisionNavigationServiceStartNavigationProcedure:
+			visionNavigationServiceStartNavigationHandler.ServeHTTP(w, r)
+		case VisionNavigationServiceGetNavigationStatusProcedure:
+			visionNavigationServiceGetNavigationStatusHandler.ServeHTTP(w, r)
+		case VisionNavigationServiceAbortNavigationProcedure:
+			visionNavigationServiceAbortNavigationHandler.ServeHTTP(w, r)
+		case VisionNavigationServiceResumeNavigationProcedure:
+			visionNavigationServiceResumeNavigationHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedVisionNavigationServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedVisionNavigationServiceHandler struct{}
+
+func (UnimplementedVisionNavigationServiceHandler) ListNavigators(context.Context, *connect.Request[ai.ListNavigatorsRequest]) (*connect.Response[ai.ListNavigatorsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ai.VisionNavigationService.ListNavigators is not implemented"))
+}
+
+func (UnimplementedVisionNavigationServiceHandler) StartNavigation(context.Context, *connect.Request[ai.StartNavigationRequest]) (*connect.Response[ai.StartNavigationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ai.VisionNavigationService.StartNavigation is not implemented"))
+}
+
+func (UnimplementedVisionNavigationServiceHandler) GetNavigationStatus(context.Context, *connect.Request[ai.GetNavigationStatusRequest]) (*connect.Response[ai.GetNavigationStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ai.VisionNavigationService.GetNavigationStatus is not implemented"))
+}
+
+func (UnimplementedVisionNavigationServiceHandler) AbortNavigation(context.Context, *connect.Request[ai.AbortNavigationRequest]) (*connect.Response[ai.AbortNavigationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ai.VisionNavigationService.AbortNavigation is not implemented"))
+}
+
+func (UnimplementedVisionNavigationServiceHandler) ResumeNavigation(context.Context, *connect.Request[ai.ResumeNavigationRequest]) (*connect.Response[ai.ResumeNavigationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.ai.VisionNavigationService.ResumeNavigation is not implemented"))
 }

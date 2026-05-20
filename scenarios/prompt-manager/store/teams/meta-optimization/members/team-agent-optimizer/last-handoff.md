@@ -2,34 +2,34 @@
 - agent
 
 ### Target picked
-- `monetization-contrarian` - agent-default ladder; skipped `agent-29` and `market-validator` because existing pending decisions cover them, then selected fresh low-health active node at 0.51.
+- `run-introspector` - agent-default ladder; skipped covered/recent low-health nodes, then selected next low-health active node at 0.51 with no prior visit entry.
 
 ### Disposition
-- improve
+- improve candidate; no decision raised due owned-context cap.
 
 ### Evidence
-- `prompt-manager graph node monetization-contrarian` reports health 0.51 with only membership inbound and `cli:prompt-manager` outbound.
-- Member is active: latest scan `knw-1779139868078020756` reviewed pending benchmark decision `dec-1778875348622351458` cleanly.
-- `prompt-manager graph topics --team monetization` flags undeclared `contrarian-scan-2026-05-13` through `contrarian-scan-2026-05-18`; the member declares only `challenge-report/*` and `challenge-resolution-record/*`.
-- Older scan entries use `contrarian-scan/YYYY-MM-DD`, so the scan surface has two undeclared shapes.
+- `prompt-manager graph node run-introspector` reports health 0.51 with only membership inbound and `cli:prompt-manager` outbound.
+- Member is active and useful: latest run lesson `run-lesson-report/2026-05-18` supported capability-gap `dec-1779144543464355217`.
+- Generated required memory includes `friction-report/run-execution/*`, and recent heartbeats wrote that topic.
+- `prompt-manager graph topics --team meta-optimization` flags five `run-introspector` `friction-report/run-execution/*` writes as `actual_writer_undeclared` because outputs declare only `run-lesson-report/*`.
 
 ### Expected delta
-- Declare one canonical daily scan output, preferably `contrarian-scan/*`, and normalize future writes.
-- Measure with `prompt-manager graph topics --team monetization`: no new contrarian-scan `actual_writer_undeclared` / prefix mismatch findings after the next heartbeat; graph health should improve from 0.51 through better promotion/routing visibility.
+- When queue allows, clarify routing: either declare `friction-report/run-execution/*` as a `run-introspector` output or route these through `friction-inbox/*` / `report-friction` so `friction-curator` remains the declared writer.
+- Measure with `prompt-manager graph topics --team meta-optimization`: no new `run-introspector` `actual_writer_undeclared` errors for run-execution friction.
 
 ### Capability architecture
 - weak
 - Primary layer gap: promotion-routing
-- Routing: team-agent-optimizer for member/topic contract; friction-curator/debt-curator if storage-command drift keeps recurring.
+- Routing: team-agent-optimizer once owned-context pending count drops below 4; coordinates with existing storage/friction capability-gap `dec-1779144543464355217`.
 
 ### Artifacts updated
 - AGENT_AUDIT.md: not edited because this run’s write surface allows knowledge, decisions, and handoff only.
 - DEPRECATION_QUEUE.md: unchanged.
 
 ### Decisions raised this heartbeat
-- `dec-1779143529470088721` - `agent-improvement` - declare and normalize `monetization-contrarian` daily `contrarian-scan/*` output topic.
+- None. Owned-context pending count is already 4: `dec-1778797938232697845`, `dec-1778884421236613535`, `dec-1779057112765291497`, `dec-1779143529470088721`.
 
 ### Knowledge entries written
-- `agent-visited/monetization-contrarian` (`knw-1779143540452211114`)
-- `agent-audit/2026-05-18` (`knw-1779143556113160443`)
-- `friction-report/prompt-team-agent-storage/2026-05-18/monetization-contrarian-undeclared-scan-topic` (`knw-1779143572580798838`)
+- `agent-visited/run-introspector` (`knw-1779229899895926455`)
+- `agent-audit/2026-05-19` (`knw-1779229915880820101`)
+- `friction-report/prompt-team-agent-storage/2026-05-19/run-introspector-undeclared-run-execution-friction-output` (`knw-1779229928986456831`)

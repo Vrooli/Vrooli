@@ -95,7 +95,7 @@ If any is false, route through normal skill improvement, inbox routing, or backl
 Step-by-step, executed by `skill-optimizer` or the owning member, with a `meta-self-improvement` decision filed at the end:
 
 1. **Baseline the prose.** Count the relevant token/prose section, usage count, and current manual steps.
-2. **Identify the CLI owner.** Name the exact Vrooli-controlled command. If the command does not exist or needs branching logic, route that work to the owning CLI before creating an Action.
+2. **Identify the CLI owner.** Name the exact Vrooli-controlled command. Run `cli-health search "<operation>"` first — it indexes every scenario's `cli/manifest.json` (with a `--help` fallback) and returns ranked matches across all CLIs. Treat a hit there as the source of truth; only file a `cli-backlog` if the search finds nothing close. If the command needs branching logic, route that work to the owning CLI before creating an Action.
 3. **Inspect existing Actions.** Run `prompt-manager discover "<operation>" --type all` and `prompt-manager action show <id>` for any candidate. Improve an existing Action before proposing a new one.
 4. **Draft or update the Action.** The Action wraps exactly one CLI command, declares inputs/outputs, permissions, examples, validation, and `runEligible`.
 5. **Collapse or retire prose.** Keep judgment and safety boundaries in Skills (per the retention criteria). Replace deterministic command prose with an Action reference once the Action validates.

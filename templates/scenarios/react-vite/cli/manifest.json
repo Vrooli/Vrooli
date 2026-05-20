@@ -47,11 +47,5 @@
       ]
     }
   ],
-  "omitted": [
-    {
-      "service": "NotesService",
-      "method": "AttachFile",
-      "reason": "Multipart upload is a deliberate REST exception (api/v1/notes/{id}/attachments). The `notes attach` subcommand is wired via cliapp.UploadFile and is not modelled as Connect-RPC. The cli-manifest/v1 schema only supports binding.kind=connect-rpc; revisit if a multipart-upload binding kind is added."
-    }
-  ]
+  "omitted": []
 }

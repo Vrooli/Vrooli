@@ -1442,6 +1442,786 @@ func (x *GetDOMTreeResponse) GetTree() *structpb.Struct {
 	return nil
 }
 
+// CreditPolicyInfo mirrors the JSON-serializable credit policy used by the
+// legacy REST surface; consumers display "requires credits / X per step /
+// bypass conditions" hints. Bypass conditions are free-form strings
+// ("byok", "resource_openrouter", "local_execution") emitted by the
+// navigator policy table.
+type CreditPolicyInfo struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RequiresCredits  bool                   `protobuf:"varint,1,opt,name=requires_credits,json=requiresCredits,proto3" json:"requires_credits,omitempty"`
+	CreditsPerStep   int32                  `protobuf:"varint,2,opt,name=credits_per_step,json=creditsPerStep,proto3" json:"credits_per_step,omitempty"`
+	BypassConditions []string               `protobuf:"bytes,3,rep,name=bypass_conditions,json=bypassConditions,proto3" json:"bypass_conditions,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CreditPolicyInfo) Reset() {
+	*x = CreditPolicyInfo{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreditPolicyInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreditPolicyInfo) ProtoMessage() {}
+
+func (x *CreditPolicyInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreditPolicyInfo.ProtoReflect.Descriptor instead.
+func (*CreditPolicyInfo) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CreditPolicyInfo) GetRequiresCredits() bool {
+	if x != nil {
+		return x.RequiresCredits
+	}
+	return false
+}
+
+func (x *CreditPolicyInfo) GetCreditsPerStep() int32 {
+	if x != nil {
+		return x.CreditsPerStep
+	}
+	return 0
+}
+
+func (x *CreditPolicyInfo) GetBypassConditions() []string {
+	if x != nil {
+		return x.BypassConditions
+	}
+	return nil
+}
+
+// NavigatorInfo describes a single registered vision navigator and its
+// availability for the requesting client source.
+type NavigatorInfo struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Navigator type identifier: "playwright" | "claude_code".
+	Type         string            `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Available    bool              `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	Description  string            `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	CreditPolicy *CreditPolicyInfo `protobuf:"bytes,4,opt,name=credit_policy,json=creditPolicy,proto3" json:"credit_policy,omitempty"`
+	// Allowed client sources for this navigator ("ui", "cli", "api"). Empty
+	// means all sources are allowed.
+	AllowedSources []string `protobuf:"bytes,5,rep,name=allowed_sources,json=allowedSources,proto3" json:"allowed_sources,omitempty"`
+	// Populated when available=false; explains why (e.g. "claude CLI not
+	// installed", "not allowed for this client source").
+	UnavailableReason string `protobuf:"bytes,6,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *NavigatorInfo) Reset() {
+	*x = NavigatorInfo{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigatorInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigatorInfo) ProtoMessage() {}
+
+func (x *NavigatorInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigatorInfo.ProtoReflect.Descriptor instead.
+func (*NavigatorInfo) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *NavigatorInfo) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *NavigatorInfo) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *NavigatorInfo) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *NavigatorInfo) GetCreditPolicy() *CreditPolicyInfo {
+	if x != nil {
+		return x.CreditPolicy
+	}
+	return nil
+}
+
+func (x *NavigatorInfo) GetAllowedSources() []string {
+	if x != nil {
+		return x.AllowedSources
+	}
+	return nil
+}
+
+func (x *NavigatorInfo) GetUnavailableReason() string {
+	if x != nil {
+		return x.UnavailableReason
+	}
+	return ""
+}
+
+type ListNavigatorsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional client-source hint; defaults to "api" when empty. Matches the
+	// legacy X-Client-Source header values.
+	ClientSource  string `protobuf:"bytes,1,opt,name=client_source,json=clientSource,proto3" json:"client_source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNavigatorsRequest) Reset() {
+	*x = ListNavigatorsRequest{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNavigatorsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNavigatorsRequest) ProtoMessage() {}
+
+func (x *ListNavigatorsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNavigatorsRequest.ProtoReflect.Descriptor instead.
+func (*ListNavigatorsRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ListNavigatorsRequest) GetClientSource() string {
+	if x != nil {
+		return x.ClientSource
+	}
+	return ""
+}
+
+type ListNavigatorsResponse struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Navigators []*NavigatorInfo       `protobuf:"bytes,1,rep,name=navigators,proto3" json:"navigators,omitempty"`
+	// Default navigator type the registry would auto-select for this client.
+	Default       string `protobuf:"bytes,2,opt,name=default,proto3" json:"default,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNavigatorsResponse) Reset() {
+	*x = ListNavigatorsResponse{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNavigatorsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNavigatorsResponse) ProtoMessage() {}
+
+func (x *ListNavigatorsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNavigatorsResponse.ProtoReflect.Descriptor instead.
+func (*ListNavigatorsResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ListNavigatorsResponse) GetNavigators() []*NavigatorInfo {
+	if x != nil {
+		return x.Navigators
+	}
+	return nil
+}
+
+func (x *ListNavigatorsResponse) GetDefault() string {
+	if x != nil {
+		return x.Default
+	}
+	return ""
+}
+
+type StartNavigationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Existing browser session id to navigate.
+	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// Required. Natural-language instruction for the AI.
+	Prompt string `protobuf:"bytes,2,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	// Required. Vision model identifier (e.g. "gpt-4o", "claude-sonnet-4").
+	Model string `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
+	// Optional. Clamped to [1, 100]; defaults to 20 when 0.
+	MaxSteps int32 `protobuf:"varint,4,opt,name=max_steps,json=maxSteps,proto3" json:"max_steps,omitempty"`
+	// Optional BYOK API key for the AI provider. When set the request bypasses
+	// credit charging (subject to navigator policy).
+	ApiKey string `protobuf:"bytes,5,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
+	// Optional preferred navigator type. Empty = let the registry auto-select.
+	NavigatorType string `protobuf:"bytes,6,opt,name=navigator_type,json=navigatorType,proto3" json:"navigator_type,omitempty"`
+	// Optional client source override; defaults to "api". Mirrors the
+	// X-Client-Source header.
+	ClientSource  string `protobuf:"bytes,7,opt,name=client_source,json=clientSource,proto3" json:"client_source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartNavigationRequest) Reset() {
+	*x = StartNavigationRequest{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartNavigationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartNavigationRequest) ProtoMessage() {}
+
+func (x *StartNavigationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartNavigationRequest.ProtoReflect.Descriptor instead.
+func (*StartNavigationRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *StartNavigationRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *StartNavigationRequest) GetPrompt() string {
+	if x != nil {
+		return x.Prompt
+	}
+	return ""
+}
+
+func (x *StartNavigationRequest) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *StartNavigationRequest) GetMaxSteps() int32 {
+	if x != nil {
+		return x.MaxSteps
+	}
+	return 0
+}
+
+func (x *StartNavigationRequest) GetApiKey() string {
+	if x != nil {
+		return x.ApiKey
+	}
+	return ""
+}
+
+func (x *StartNavigationRequest) GetNavigatorType() string {
+	if x != nil {
+		return x.NavigatorType
+	}
+	return ""
+}
+
+func (x *StartNavigationRequest) GetClientSource() string {
+	if x != nil {
+		return x.ClientSource
+	}
+	return ""
+}
+
+type StartNavigationResponse struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	NavigationId string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
+	// Lifecycle marker. The legacy REST surface returned "started".
+	Status        string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Model         string `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
+	MaxSteps      int32  `protobuf:"varint,4,opt,name=max_steps,json=maxSteps,proto3" json:"max_steps,omitempty"`
+	NavigatorType string `protobuf:"bytes,5,opt,name=navigator_type,json=navigatorType,proto3" json:"navigator_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartNavigationResponse) Reset() {
+	*x = StartNavigationResponse{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartNavigationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartNavigationResponse) ProtoMessage() {}
+
+func (x *StartNavigationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartNavigationResponse.ProtoReflect.Descriptor instead.
+func (*StartNavigationResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *StartNavigationResponse) GetNavigationId() string {
+	if x != nil {
+		return x.NavigationId
+	}
+	return ""
+}
+
+func (x *StartNavigationResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *StartNavigationResponse) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *StartNavigationResponse) GetMaxSteps() int32 {
+	if x != nil {
+		return x.MaxSteps
+	}
+	return 0
+}
+
+func (x *StartNavigationResponse) GetNavigatorType() string {
+	if x != nil {
+		return x.NavigatorType
+	}
+	return ""
+}
+
+type GetNavigationStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NavigationId  string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNavigationStatusRequest) Reset() {
+	*x = GetNavigationStatusRequest{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNavigationStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNavigationStatusRequest) ProtoMessage() {}
+
+func (x *GetNavigationStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNavigationStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetNavigationStatusRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetNavigationStatusRequest) GetNavigationId() string {
+	if x != nil {
+		return x.NavigationId
+	}
+	return ""
+}
+
+type GetNavigationStatusResponse struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	NavigationId string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
+	SessionId    string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// Status mirrors vision.NavigationStatus: idle | navigating |
+	// awaiting_human | completed | failed | aborted | max_steps_reached |
+	// loop_detected.
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	StepCount     int32                  `protobuf:"varint,4,opt,name=step_count,json=stepCount,proto3" json:"step_count,omitempty"`
+	TotalTokens   int32                  `protobuf:"varint,5,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	NavigatorType string                 `protobuf:"bytes,7,opt,name=navigator_type,json=navigatorType,proto3" json:"navigator_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNavigationStatusResponse) Reset() {
+	*x = GetNavigationStatusResponse{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNavigationStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNavigationStatusResponse) ProtoMessage() {}
+
+func (x *GetNavigationStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNavigationStatusResponse.ProtoReflect.Descriptor instead.
+func (*GetNavigationStatusResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GetNavigationStatusResponse) GetNavigationId() string {
+	if x != nil {
+		return x.NavigationId
+	}
+	return ""
+}
+
+func (x *GetNavigationStatusResponse) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GetNavigationStatusResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *GetNavigationStatusResponse) GetStepCount() int32 {
+	if x != nil {
+		return x.StepCount
+	}
+	return 0
+}
+
+func (x *GetNavigationStatusResponse) GetTotalTokens() int32 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *GetNavigationStatusResponse) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *GetNavigationStatusResponse) GetNavigatorType() string {
+	if x != nil {
+		return x.NavigatorType
+	}
+	return ""
+}
+
+type AbortNavigationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NavigationId  string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AbortNavigationRequest) Reset() {
+	*x = AbortNavigationRequest{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AbortNavigationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AbortNavigationRequest) ProtoMessage() {}
+
+func (x *AbortNavigationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AbortNavigationRequest.ProtoReflect.Descriptor instead.
+func (*AbortNavigationRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *AbortNavigationRequest) GetNavigationId() string {
+	if x != nil {
+		return x.NavigationId
+	}
+	return ""
+}
+
+type AbortNavigationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NavigationId  string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AbortNavigationResponse) Reset() {
+	*x = AbortNavigationResponse{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AbortNavigationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AbortNavigationResponse) ProtoMessage() {}
+
+func (x *AbortNavigationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AbortNavigationResponse.ProtoReflect.Descriptor instead.
+func (*AbortNavigationResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *AbortNavigationResponse) GetNavigationId() string {
+	if x != nil {
+		return x.NavigationId
+	}
+	return ""
+}
+
+func (x *AbortNavigationResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AbortNavigationResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type ResumeNavigationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NavigationId  string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeNavigationRequest) Reset() {
+	*x = ResumeNavigationRequest{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeNavigationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeNavigationRequest) ProtoMessage() {}
+
+func (x *ResumeNavigationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeNavigationRequest.ProtoReflect.Descriptor instead.
+func (*ResumeNavigationRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *ResumeNavigationRequest) GetNavigationId() string {
+	if x != nil {
+		return x.NavigationId
+	}
+	return ""
+}
+
+type ResumeNavigationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NavigationId  string                 `protobuf:"bytes,1,opt,name=navigation_id,json=navigationId,proto3" json:"navigation_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeNavigationResponse) Reset() {
+	*x = ResumeNavigationResponse{}
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeNavigationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeNavigationResponse) ProtoMessage() {}
+
+func (x *ResumeNavigationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_ai_ai_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeNavigationResponse.ProtoReflect.Descriptor instead.
+func (*ResumeNavigationResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *ResumeNavigationResponse) GetNavigationId() string {
+	if x != nil {
+		return x.NavigationId
+	}
+	return ""
+}
+
+func (x *ResumeNavigationResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ResumeNavigationResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_browser_automation_studio_v1_ai_ai_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
@@ -1569,7 +2349,65 @@ const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"\x11GetDOMTreeRequest\x12\x19\n" +
 	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\"A\n" +
 	"\x12GetDOMTreeResponse\x12+\n" +
-	"\x04tree\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x04tree2\xcf\x06\n" +
+	"\x04tree\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x04tree\"\x94\x01\n" +
+	"\x10CreditPolicyInfo\x12)\n" +
+	"\x10requires_credits\x18\x01 \x01(\bR\x0frequiresCredits\x12(\n" +
+	"\x10credits_per_step\x18\x02 \x01(\x05R\x0ecreditsPerStep\x12+\n" +
+	"\x11bypass_conditions\x18\x03 \x03(\tR\x10bypassConditions\"\x93\x02\n" +
+	"\rNavigatorInfo\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1c\n" +
+	"\tavailable\x18\x02 \x01(\bR\tavailable\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12V\n" +
+	"\rcredit_policy\x18\x04 \x01(\v21.browser_automation_studio.v1.ai.CreditPolicyInfoR\fcreditPolicy\x12'\n" +
+	"\x0fallowed_sources\x18\x05 \x03(\tR\x0eallowedSources\x12-\n" +
+	"\x12unavailable_reason\x18\x06 \x01(\tR\x11unavailableReason\"<\n" +
+	"\x15ListNavigatorsRequest\x12#\n" +
+	"\rclient_source\x18\x01 \x01(\tR\fclientSource\"\x82\x01\n" +
+	"\x16ListNavigatorsResponse\x12N\n" +
+	"\n" +
+	"navigators\x18\x01 \x03(\v2..browser_automation_studio.v1.ai.NavigatorInfoR\n" +
+	"navigators\x12\x18\n" +
+	"\adefault\x18\x02 \x01(\tR\adefault\"\x82\x02\n" +
+	"\x16StartNavigationRequest\x12&\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\x12\x1f\n" +
+	"\x06prompt\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06prompt\x12\x1d\n" +
+	"\x05model\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05model\x12\x1b\n" +
+	"\tmax_steps\x18\x04 \x01(\x05R\bmaxSteps\x12\x17\n" +
+	"\aapi_key\x18\x05 \x01(\tR\x06apiKey\x12%\n" +
+	"\x0enavigator_type\x18\x06 \x01(\tR\rnavigatorType\x12#\n" +
+	"\rclient_source\x18\a \x01(\tR\fclientSource\"\xb0\x01\n" +
+	"\x17StartNavigationResponse\x12#\n" +
+	"\rnavigation_id\x18\x01 \x01(\tR\fnavigationId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
+	"\x05model\x18\x03 \x01(\tR\x05model\x12\x1b\n" +
+	"\tmax_steps\x18\x04 \x01(\x05R\bmaxSteps\x12%\n" +
+	"\x0enavigator_type\x18\x05 \x01(\tR\rnavigatorType\"J\n" +
+	"\x1aGetNavigationStatusRequest\x12,\n" +
+	"\rnavigation_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fnavigationId\"\x9d\x02\n" +
+	"\x1bGetNavigationStatusResponse\x12#\n" +
+	"\rnavigation_id\x18\x01 \x01(\tR\fnavigationId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"step_count\x18\x04 \x01(\x05R\tstepCount\x12!\n" +
+	"\ftotal_tokens\x18\x05 \x01(\x05R\vtotalTokens\x129\n" +
+	"\n" +
+	"started_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12%\n" +
+	"\x0enavigator_type\x18\a \x01(\tR\rnavigatorType\"F\n" +
+	"\x16AbortNavigationRequest\x12,\n" +
+	"\rnavigation_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fnavigationId\"p\n" +
+	"\x17AbortNavigationResponse\x12#\n" +
+	"\rnavigation_id\x18\x01 \x01(\tR\fnavigationId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"G\n" +
+	"\x17ResumeNavigationRequest\x12,\n" +
+	"\rnavigation_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fnavigationId\"q\n" +
+	"\x18ResumeNavigationResponse\x12#\n" +
+	"\rnavigation_id\x18\x01 \x01(\tR\fnavigationId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage2\xcf\x06\n" +
 	"\tAIService\x12\x96\x01\n" +
 	"\x15TakePreviewScreenshot\x12=.browser_automation_studio.v1.ai.TakePreviewScreenshotRequest\x1a>.browser_automation_studio.v1.ai.TakePreviewScreenshotResponse\x12\x81\x01\n" +
 	"\x0eGetLinkPreview\x126.browser_automation_studio.v1.ai.GetLinkPreviewRequest\x1a7.browser_automation_studio.v1.ai.GetLinkPreviewResponse\x12\x84\x01\n" +
@@ -1577,7 +2415,13 @@ const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"\x16GetElementAtCoordinate\x12>.browser_automation_studio.v1.ai.GetElementAtCoordinateRequest\x1a?.browser_automation_studio.v1.ai.GetElementAtCoordinateResponse\x12\x8a\x01\n" +
 	"\x11AIAnalyzeElements\x129.browser_automation_studio.v1.ai.AIAnalyzeElementsRequest\x1a:.browser_automation_studio.v1.ai.AIAnalyzeElementsResponse\x12u\n" +
 	"\n" +
-	"GetDOMTree\x122.browser_automation_studio.v1.ai.GetDOMTreeRequest\x1a3.browser_automation_studio.v1.ai.GetDOMTreeResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai;aib\x06proto3"
+	"GetDOMTree\x122.browser_automation_studio.v1.ai.GetDOMTreeRequest\x1a3.browser_automation_studio.v1.ai.GetDOMTreeResponse2\xc8\x05\n" +
+	"\x17VisionNavigationService\x12\x81\x01\n" +
+	"\x0eListNavigators\x126.browser_automation_studio.v1.ai.ListNavigatorsRequest\x1a7.browser_automation_studio.v1.ai.ListNavigatorsResponse\x12\x84\x01\n" +
+	"\x0fStartNavigation\x127.browser_automation_studio.v1.ai.StartNavigationRequest\x1a8.browser_automation_studio.v1.ai.StartNavigationResponse\x12\x90\x01\n" +
+	"\x13GetNavigationStatus\x12;.browser_automation_studio.v1.ai.GetNavigationStatusRequest\x1a<.browser_automation_studio.v1.ai.GetNavigationStatusResponse\x12\x84\x01\n" +
+	"\x0fAbortNavigation\x127.browser_automation_studio.v1.ai.AbortNavigationRequest\x1a8.browser_automation_studio.v1.ai.AbortNavigationResponse\x12\x87\x01\n" +
+	"\x10ResumeNavigation\x128.browser_automation_studio.v1.ai.ResumeNavigationRequest\x1a9.browser_automation_studio.v1.ai.ResumeNavigationResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai;aib\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_ai_ai_proto_rawDescOnce sync.Once
@@ -1591,7 +2435,7 @@ func file_browser_automation_studio_v1_ai_ai_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_ai_ai_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_ai_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_browser_automation_studio_v1_ai_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_browser_automation_studio_v1_ai_ai_proto_goTypes = []any{
 	(*Viewport)(nil),                       // 0: browser_automation_studio.v1.ai.Viewport
 	(*Rectangle)(nil),                      // 1: browser_automation_studio.v1.ai.Rectangle
@@ -1614,46 +2458,71 @@ var file_browser_automation_studio_v1_ai_ai_proto_goTypes = []any{
 	(*AIAnalyzeElementsResponse)(nil),      // 18: browser_automation_studio.v1.ai.AIAnalyzeElementsResponse
 	(*GetDOMTreeRequest)(nil),              // 19: browser_automation_studio.v1.ai.GetDOMTreeRequest
 	(*GetDOMTreeResponse)(nil),             // 20: browser_automation_studio.v1.ai.GetDOMTreeResponse
-	nil,                                    // 21: browser_automation_studio.v1.ai.ElementInfo.AttributesEntry
-	(*timestamppb.Timestamp)(nil),          // 22: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),                // 23: google.protobuf.Struct
+	(*CreditPolicyInfo)(nil),               // 21: browser_automation_studio.v1.ai.CreditPolicyInfo
+	(*NavigatorInfo)(nil),                  // 22: browser_automation_studio.v1.ai.NavigatorInfo
+	(*ListNavigatorsRequest)(nil),          // 23: browser_automation_studio.v1.ai.ListNavigatorsRequest
+	(*ListNavigatorsResponse)(nil),         // 24: browser_automation_studio.v1.ai.ListNavigatorsResponse
+	(*StartNavigationRequest)(nil),         // 25: browser_automation_studio.v1.ai.StartNavigationRequest
+	(*StartNavigationResponse)(nil),        // 26: browser_automation_studio.v1.ai.StartNavigationResponse
+	(*GetNavigationStatusRequest)(nil),     // 27: browser_automation_studio.v1.ai.GetNavigationStatusRequest
+	(*GetNavigationStatusResponse)(nil),    // 28: browser_automation_studio.v1.ai.GetNavigationStatusResponse
+	(*AbortNavigationRequest)(nil),         // 29: browser_automation_studio.v1.ai.AbortNavigationRequest
+	(*AbortNavigationResponse)(nil),        // 30: browser_automation_studio.v1.ai.AbortNavigationResponse
+	(*ResumeNavigationRequest)(nil),        // 31: browser_automation_studio.v1.ai.ResumeNavigationRequest
+	(*ResumeNavigationResponse)(nil),       // 32: browser_automation_studio.v1.ai.ResumeNavigationResponse
+	nil,                                    // 33: browser_automation_studio.v1.ai.ElementInfo.AttributesEntry
+	(*timestamppb.Timestamp)(nil),          // 34: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                // 35: google.protobuf.Struct
 }
 var file_browser_automation_studio_v1_ai_ai_proto_depIdxs = []int32{
 	2,  // 0: browser_automation_studio.v1.ai.ElementInfo.selectors:type_name -> browser_automation_studio.v1.ai.SelectorOption
 	1,  // 1: browser_automation_studio.v1.ai.ElementInfo.bounding_box:type_name -> browser_automation_studio.v1.ai.Rectangle
-	21, // 2: browser_automation_studio.v1.ai.ElementInfo.attributes:type_name -> browser_automation_studio.v1.ai.ElementInfo.AttributesEntry
-	22, // 3: browser_automation_studio.v1.ai.ConsoleLog.timestamp:type_name -> google.protobuf.Timestamp
+	33, // 2: browser_automation_studio.v1.ai.ElementInfo.attributes:type_name -> browser_automation_studio.v1.ai.ElementInfo.AttributesEntry
+	34, // 3: browser_automation_studio.v1.ai.ConsoleLog.timestamp:type_name -> google.protobuf.Timestamp
 	3,  // 4: browser_automation_studio.v1.ai.ElementHierarchyEntry.element:type_name -> browser_automation_studio.v1.ai.ElementInfo
 	3,  // 5: browser_automation_studio.v1.ai.ElementSelectionResult.element:type_name -> browser_automation_studio.v1.ai.ElementInfo
 	7,  // 6: browser_automation_studio.v1.ai.ElementSelectionResult.candidates:type_name -> browser_automation_studio.v1.ai.ElementHierarchyEntry
 	0,  // 7: browser_automation_studio.v1.ai.TakePreviewScreenshotRequest.viewport:type_name -> browser_automation_studio.v1.ai.Viewport
 	6,  // 8: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.console_logs:type_name -> browser_automation_studio.v1.ai.ConsoleLog
-	22, // 9: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.captured_at:type_name -> google.protobuf.Timestamp
-	23, // 10: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.events:type_name -> google.protobuf.Struct
+	34, // 9: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.captured_at:type_name -> google.protobuf.Timestamp
+	35, // 10: browser_automation_studio.v1.ai.TakePreviewScreenshotResponse.events:type_name -> google.protobuf.Struct
 	3,  // 11: browser_automation_studio.v1.ai.AnalyzeElementsResponse.elements:type_name -> browser_automation_studio.v1.ai.ElementInfo
 	5,  // 12: browser_automation_studio.v1.ai.AnalyzeElementsResponse.ai_suggestions:type_name -> browser_automation_studio.v1.ai.AISuggestion
 	4,  // 13: browser_automation_studio.v1.ai.AnalyzeElementsResponse.page_context:type_name -> browser_automation_studio.v1.ai.PageContext
-	22, // 14: browser_automation_studio.v1.ai.AnalyzeElementsResponse.captured_at:type_name -> google.protobuf.Timestamp
+	34, // 14: browser_automation_studio.v1.ai.AnalyzeElementsResponse.captured_at:type_name -> google.protobuf.Timestamp
 	8,  // 15: browser_automation_studio.v1.ai.GetElementAtCoordinateResponse.selection:type_name -> browser_automation_studio.v1.ai.ElementSelectionResult
 	3,  // 16: browser_automation_studio.v1.ai.AIAnalyzeElementsResponse.suggestions:type_name -> browser_automation_studio.v1.ai.ElementInfo
-	23, // 17: browser_automation_studio.v1.ai.GetDOMTreeResponse.tree:type_name -> google.protobuf.Struct
-	9,  // 18: browser_automation_studio.v1.ai.AIService.TakePreviewScreenshot:input_type -> browser_automation_studio.v1.ai.TakePreviewScreenshotRequest
-	11, // 19: browser_automation_studio.v1.ai.AIService.GetLinkPreview:input_type -> browser_automation_studio.v1.ai.GetLinkPreviewRequest
-	13, // 20: browser_automation_studio.v1.ai.AIService.AnalyzeElements:input_type -> browser_automation_studio.v1.ai.AnalyzeElementsRequest
-	15, // 21: browser_automation_studio.v1.ai.AIService.GetElementAtCoordinate:input_type -> browser_automation_studio.v1.ai.GetElementAtCoordinateRequest
-	17, // 22: browser_automation_studio.v1.ai.AIService.AIAnalyzeElements:input_type -> browser_automation_studio.v1.ai.AIAnalyzeElementsRequest
-	19, // 23: browser_automation_studio.v1.ai.AIService.GetDOMTree:input_type -> browser_automation_studio.v1.ai.GetDOMTreeRequest
-	10, // 24: browser_automation_studio.v1.ai.AIService.TakePreviewScreenshot:output_type -> browser_automation_studio.v1.ai.TakePreviewScreenshotResponse
-	12, // 25: browser_automation_studio.v1.ai.AIService.GetLinkPreview:output_type -> browser_automation_studio.v1.ai.GetLinkPreviewResponse
-	14, // 26: browser_automation_studio.v1.ai.AIService.AnalyzeElements:output_type -> browser_automation_studio.v1.ai.AnalyzeElementsResponse
-	16, // 27: browser_automation_studio.v1.ai.AIService.GetElementAtCoordinate:output_type -> browser_automation_studio.v1.ai.GetElementAtCoordinateResponse
-	18, // 28: browser_automation_studio.v1.ai.AIService.AIAnalyzeElements:output_type -> browser_automation_studio.v1.ai.AIAnalyzeElementsResponse
-	20, // 29: browser_automation_studio.v1.ai.AIService.GetDOMTree:output_type -> browser_automation_studio.v1.ai.GetDOMTreeResponse
-	24, // [24:30] is the sub-list for method output_type
-	18, // [18:24] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	35, // 17: browser_automation_studio.v1.ai.GetDOMTreeResponse.tree:type_name -> google.protobuf.Struct
+	21, // 18: browser_automation_studio.v1.ai.NavigatorInfo.credit_policy:type_name -> browser_automation_studio.v1.ai.CreditPolicyInfo
+	22, // 19: browser_automation_studio.v1.ai.ListNavigatorsResponse.navigators:type_name -> browser_automation_studio.v1.ai.NavigatorInfo
+	34, // 20: browser_automation_studio.v1.ai.GetNavigationStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	9,  // 21: browser_automation_studio.v1.ai.AIService.TakePreviewScreenshot:input_type -> browser_automation_studio.v1.ai.TakePreviewScreenshotRequest
+	11, // 22: browser_automation_studio.v1.ai.AIService.GetLinkPreview:input_type -> browser_automation_studio.v1.ai.GetLinkPreviewRequest
+	13, // 23: browser_automation_studio.v1.ai.AIService.AnalyzeElements:input_type -> browser_automation_studio.v1.ai.AnalyzeElementsRequest
+	15, // 24: browser_automation_studio.v1.ai.AIService.GetElementAtCoordinate:input_type -> browser_automation_studio.v1.ai.GetElementAtCoordinateRequest
+	17, // 25: browser_automation_studio.v1.ai.AIService.AIAnalyzeElements:input_type -> browser_automation_studio.v1.ai.AIAnalyzeElementsRequest
+	19, // 26: browser_automation_studio.v1.ai.AIService.GetDOMTree:input_type -> browser_automation_studio.v1.ai.GetDOMTreeRequest
+	23, // 27: browser_automation_studio.v1.ai.VisionNavigationService.ListNavigators:input_type -> browser_automation_studio.v1.ai.ListNavigatorsRequest
+	25, // 28: browser_automation_studio.v1.ai.VisionNavigationService.StartNavigation:input_type -> browser_automation_studio.v1.ai.StartNavigationRequest
+	27, // 29: browser_automation_studio.v1.ai.VisionNavigationService.GetNavigationStatus:input_type -> browser_automation_studio.v1.ai.GetNavigationStatusRequest
+	29, // 30: browser_automation_studio.v1.ai.VisionNavigationService.AbortNavigation:input_type -> browser_automation_studio.v1.ai.AbortNavigationRequest
+	31, // 31: browser_automation_studio.v1.ai.VisionNavigationService.ResumeNavigation:input_type -> browser_automation_studio.v1.ai.ResumeNavigationRequest
+	10, // 32: browser_automation_studio.v1.ai.AIService.TakePreviewScreenshot:output_type -> browser_automation_studio.v1.ai.TakePreviewScreenshotResponse
+	12, // 33: browser_automation_studio.v1.ai.AIService.GetLinkPreview:output_type -> browser_automation_studio.v1.ai.GetLinkPreviewResponse
+	14, // 34: browser_automation_studio.v1.ai.AIService.AnalyzeElements:output_type -> browser_automation_studio.v1.ai.AnalyzeElementsResponse
+	16, // 35: browser_automation_studio.v1.ai.AIService.GetElementAtCoordinate:output_type -> browser_automation_studio.v1.ai.GetElementAtCoordinateResponse
+	18, // 36: browser_automation_studio.v1.ai.AIService.AIAnalyzeElements:output_type -> browser_automation_studio.v1.ai.AIAnalyzeElementsResponse
+	20, // 37: browser_automation_studio.v1.ai.AIService.GetDOMTree:output_type -> browser_automation_studio.v1.ai.GetDOMTreeResponse
+	24, // 38: browser_automation_studio.v1.ai.VisionNavigationService.ListNavigators:output_type -> browser_automation_studio.v1.ai.ListNavigatorsResponse
+	26, // 39: browser_automation_studio.v1.ai.VisionNavigationService.StartNavigation:output_type -> browser_automation_studio.v1.ai.StartNavigationResponse
+	28, // 40: browser_automation_studio.v1.ai.VisionNavigationService.GetNavigationStatus:output_type -> browser_automation_studio.v1.ai.GetNavigationStatusResponse
+	30, // 41: browser_automation_studio.v1.ai.VisionNavigationService.AbortNavigation:output_type -> browser_automation_studio.v1.ai.AbortNavigationResponse
+	32, // 42: browser_automation_studio.v1.ai.VisionNavigationService.ResumeNavigation:output_type -> browser_automation_studio.v1.ai.ResumeNavigationResponse
+	32, // [32:43] is the sub-list for method output_type
+	21, // [21:32] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_ai_ai_proto_init() }
@@ -1667,9 +2536,9 @@ func file_browser_automation_studio_v1_ai_ai_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_ai_ai_proto_rawDesc), len(file_browser_automation_studio_v1_ai_ai_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   34,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_browser_automation_studio_v1_ai_ai_proto_goTypes,
 		DependencyIndexes: file_browser_automation_studio_v1_ai_ai_proto_depIdxs,

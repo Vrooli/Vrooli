@@ -32,7 +32,7 @@ var (
 	defaultExecutionPresets = map[string][]string{
 		"quick":         {"structure", "standards", "docs", "unit"},
 		"smoke":         {"structure", "standards", "lint", "docs", "integration"},
-		"comprehensive": {"structure", "standards", "dependencies", "lint", "docs", "performance", "smoke", "unit", "integration", "playbooks", "business"},
+		"comprehensive": {"structure", "contracts", "standards", "dependencies", "lint", "docs", "performance", "smoke", "unit", "integration", "playbooks", "business"},
 	}
 	defaultPhaseSortFallback = 1000
 )

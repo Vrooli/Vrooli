@@ -1,23 +1,24 @@
 ### Peer outputs reviewed
+- Recent `bug-investigation-report/*`, especially `writer-skills-use-removed-by-flag`.
 - Recent `quality-audit/*`: `agent-inbox/screaming-architecture-audit`, `web-console/boundary-of-responsibility-enforcement`, `vrooli-events/seam-discovery-and-enforcement`.
-- Recent `bug-investigation-report/*` through `writer-skills-use-removed-by-flag`, including `gct-recommendations-miss-yellow-depth-gap`.
-- Recent `qa-run/*` and backlog items from 2026-05-17/18, including test-genie GCT fixes and green web-console/vrooli-events completeness runs.
-- Pending scenario-qa `bug-resolution-proposal` decisions and cross-team decisions involving scenario-qa output.
+- Recent `qa-run/*` and `reviewed-scenario/*` through 2026-05-19 for `web-console` and `vrooli-events`.
+- Pending scenario-qa `bug-resolution-proposal` decisions.
 
 ### Failure modes hit (per output)
-- `bug-investigation-report/gct-recommendations-miss-yellow-depth-gap`: hit `scientific-debugging` failure mode **No similar-pattern check**. The investigation found a shared recommendation-generator root cause but did not scope other missing recommendation dimensions or other scenarios with lost points and no recommendations.
-- Other reviewed bug investigations had multiple hypotheses, reproduction, prior-art evidence, and root-cause framing.
-- Quality audits did not hit registered contrarian failure modes for their lenses.
-- Readiness outputs remain hard to challenge formally because readiness methods registry is still stub-only.
+- No new failure-mode hits found.
+- `writer-skills-use-removed-by-flag` had multiple hypotheses, reproduction evidence, prior-art check, and linked existing decision coverage.
+- Recent quality audits remain consistent with their registered contrarian failure-mode checks.
+- Recent readiness runs were green; readiness registry remains stub-only, so no formal registered failure mode applies.
 
 ### Challenge notes written (≤3)
-- Wrote `challenge-report/gct-recommendations-miss-yellow-depth-gap` as `knw-1779147076131467945`.
+- None this heartbeat.
 
 ### Challenge resolution updates
-- Wrote `challenge-resolution-record/gct-recommendations-miss-yellow-depth-gap` as `knw-1779147082262724369`, status `open`.
+- Updated `challenge-resolution-record/gct-recommendations-miss-yellow-depth-gap` as `knw-1779233550176119874`.
+- Status remains `open`; no author response or superseding investigation output was visible.
 
 ### Recurring gap surfaced (if any)
-- No new registry-update proposal. The readiness registry remains a recurring limitation, but no new allowed decision write this heartbeat.
+- Readiness challenge coverage remains limited by the stub readiness-method registry. No decision/proposal written because this member has decision writes forbidden.
 
 ### Quiet heartbeat?
-- No. One concrete challenge was written.
+- Yes for new challenges. Existing open challenge remains open.

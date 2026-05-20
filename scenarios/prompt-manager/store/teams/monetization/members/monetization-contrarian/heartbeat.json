@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "30 17 * * *",
   "lastExecution": {
-    "startedAt": "2026-05-18T21:30:00Z",
-    "endedAt": "2026-05-18T21:31:16Z",
-    "status": "completed",
-    "runId": "76181229-0f23-4f15-8369-d9cb9ce00e79",
-    "logPath": "../store/teams/monetization/members/monetization-contrarian/logs/2026-05-18T21-30-00Z.log"
+    "startedAt": "2026-05-19T21:30:00Z",
+    "endedAt": "2026-05-19T21:31:01Z",
+    "status": "failed",
+    "runId": "1cddb79b-36ad-47dd-9a7e-6fe715e3e4f7",
+    "logPath": "../store/teams/monetization/members/monetization-contrarian/logs/2026-05-19T21-30-00Z.log",
+    "error": "Workspace sandbox unavailable during create: workspace-sandbox unavailable: workspace-sandbox unreachable: Get \"http://localhost:15121/health\": dial tcp 127.0.0.1:15121: connect: connection refused; ensure failed: sandbox error during workspace_sandbox_ensure: workspace-sandbox did not become healthy: workspace-sandbox unreachable: Get \"http://localhost:15121/health\": dial tcp 127.0.0.1:15121: connect: connection refused. agent-manager attempted run-time recovery; inspect workspace-sandbox status and logs if this persists."
   },
-  "revision": 86,
+  "revision": 89,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-05-18T21:31:16Z"
+  "updatedAt": "2026-05-19T21:31:01Z"
 }

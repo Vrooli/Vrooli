@@ -1,29 +1,29 @@
 ### Window inspected
-2026-05-18 durable autoheal incidents, autoheal status, latest 50 autoheal actions, 24h trends/transitions, platform capabilities, action help, and direct `sudo -n true` probe.
+2026-05-19 durable autoheal incidents, autoheal status, latest 50 autoheal actions, 24h trends/transitions, and action timeline.
 
 ### Signal counts
-38 open incidents: 27 host_integrity, 10 unclean_boot, 1 autoheal_failure. Autoheal status: 62 checks, 48 ok, 10 warning, 4 critical. Latest 50 actions: 16 successes, 34 failures: 18 `action timed out`, 16 `exit status 1`.
+42 open incidents: 30 host_integrity, 11 unclean_boot, 1 autoheal_failure. Autoheal status: 62 checks, 50 ok, 10 warning, 2 critical. Latest 50 actions: 22 successes, 28 failures: 26 `exit status 1`, 2 `action timed out`.
 
 ### Signal picked
-Privileged infra-network / infra-dns remediation-capability failure.
+Scenario restart setup/build prerequisite failures.
 
 ### Pattern observed
-`infra-network` and `infra-dns` went `ok -> critical` around 2026-05-18T04:44Z and recovered around 04:46Z. Autoheal fired `flush-arp-cache` and `restart-resolved` at 04:45:10Z, but both failed in 4-8ms because sudo required a terminal/password. Direct `sudo -n true` also failed in this runtime.
+18 of latest 50 actions failed with `missing go.sum entry`: 8 `scenario-git-control-tower`, 5 `scenario-flow-verifier`, 4 `scenario-web-console`, 1 `scenario-tidiness-manager`. Most cited `github.com/go-chi/chi/v5` from `packages/api-core/connectx`; one cited `github.com/santhosh-tekuri/jsonschema/v5` from `packages/cli-core/cliapp`. Affected scenarios later reported healthy, so generic action failure overstates unresolved outage and hides a shared remediation blocker.
 
 ### Hypothesized root cause
-Privileged host remedies are attempted without a noninteractive privilege preflight or structured `privilege_unavailable` classification, so missing host privilege is recorded as generic remediation failure.
+Autoheal restart handling does not classify lifecycle setup/build prerequisite failures as deterministic remediation blockers keyed by package/module/source state, so retries continue as generic `exit status 1`.
 
 ### Proposed action
-No decision raised due owned-context pending threshold. When capacity opens, propose privileged autoheal actions must preflight privilege, suppress unsupported mutation attempts, classify missing privilege separately, and route an operator-runnable artifact with rollback/post-checks.
+Raised `dec-1779233619542808422`: classify missing module-sum/setup-build failures as `permanent_build_prerequisite_failure`, suppress duplicate restart attempts until source state changes, keep health separate from remediation capability, and route a scenario-quality/platform-package payload.
 
 ### Measurement plan
-Track action privilege requirement, preflight result, selected remediation mode, suppression vs execution decision, outage transition timestamps, action duration/error class, and natural recovery timing.
+Track action id, scenario, phase, step, error class, missing module/package, package path, source-state fingerprint, duplicate suppression decision, last health transition, post-action health status, and recovery path.
 
 ### Missing CLI or telemetry surfaces
-Action history has raw sudo output but no structured `requires_privilege` or `privilege_unavailable` field. No durable incident or remediation artifact path appeared for the recovered network/DNS outage. `knowledge-add --by` still fails despite generated storage guidance; retry without `--by` worked. `prompt-manager` also warns that auto-rebuild cannot write into read-only `.vrooli/bin`.
+Action history lacks structured `phase`, `step`, `package/module`, `source_fingerprint`, `duplicate_of`, and `post_action_health`.
 
 ### Decisions raised
-None.
+`dec-1779233619542808422`.
 
 ### Knowledge entries written
-`knw-1779147151915581641` on `runtime-health-audit/2026-05-18`.
+`knw-1779233607585587538` on `runtime-health-audit/2026-05-19`.

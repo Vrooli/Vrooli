@@ -5,7 +5,14 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
 
-initIframeBridgeChild();
+// INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
+// the parent shell can route iframe bridge events to this scenario.
+if (window.parent !== window) {
+  initIframeBridgeChild({ appId: "{{SCENARIO_ID}}" });
+}
+
+// INTEROP-CRITICAL: Spatial navigation is initialized at startup for embedded
+// keyboard/gamepad control flows.
 initSpatialNav();
 
 const rootEl = document.getElementById("root");

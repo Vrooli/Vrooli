@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/ai/ai.proto.
  */
 export const file_browser_automation_studio_v1_ai_ai: GenFile = /*@__PURE__*/
-  fileDesc("Cihicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FpL2FpLnByb3RvEh9icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpIikKCFZpZXdwb3J0Eg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBSJACglSZWN0YW5nbGUSCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoASJWCg5TZWxlY3Rvck9wdGlvbhIQCghzZWxlY3RvchgBIAEoCRIMCgR0eXBlGAIgASgJEhIKCnJvYnVzdG5lc3MYAyABKAESEAoIZmFsbGJhY2sYBCABKAgi7AIKC0VsZW1lbnRJbmZvEgwKBHRleHQYASABKAkSEAoIdGFnX25hbWUYAiABKAkSDAoEdHlwZRgDIAEoCRJCCglzZWxlY3RvcnMYBCADKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlNlbGVjdG9yT3B0aW9uEkAKDGJvdW5kaW5nX2JveBgFIAEoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuUmVjdGFuZ2xlEhIKCmNvbmZpZGVuY2UYBiABKAESEAoIY2F0ZWdvcnkYByABKAkSUAoKYXR0cmlidXRlcxgIIAMoCzI8LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuRWxlbWVudEluZm8uQXR0cmlidXRlc0VudHJ5GjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIo4BCgtQYWdlQ29udGV4dBINCgV0aXRsZRgBIAEoCRILCgN1cmwYAiABKAkSEQoJaGFzX2xvZ2luGAMgASgIEhIKCmhhc19zZWFyY2gYBCABKAgSEgoKZm9ybV9jb3VudBgFIAEoBRIUCgxidXR0b25fY291bnQYBiABKAUSEgoKbGlua19jb3VudBgHIAEoBSKUAQoMQUlTdWdnZXN0aW9uEg4KBmFjdGlvbhgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIUCgxlbGVtZW50X3RleHQYAyABKAkSEAoIc2VsZWN0b3IYBCABKAkSEgoKY29uZmlkZW5jZRgFIAEoARIQCghjYXRlZ29yeRgGIAEoCRIRCglyZWFzb25pbmcYByABKAkiWwoKQ29uc29sZUxvZxINCgVsZXZlbBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEi0KCXRpbWVzdGFtcBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAimwEKFUVsZW1lbnRIaWVyYXJjaHlFbnRyeRI9CgdlbGVtZW50GAEgASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SW5mbxIQCghzZWxlY3RvchgCIAEoCRINCgVkZXB0aBgDIAEoBRIMCgRwYXRoGAQgAygJEhQKDHBhdGhfc3VtbWFyeRgFIAEoCSK7AQoWRWxlbWVudFNlbGVjdGlvblJlc3VsdBI9CgdlbGVtZW50GAEgASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SW5mbxJKCgpjYW5kaWRhdGVzGAIgAygLMjYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SGllcmFyY2h5RW50cnkSFgoOc2VsZWN0ZWRfaW5kZXgYAyABKAUicQocVGFrZVByZXZpZXdTY3JlZW5zaG90UmVxdWVzdBIUCgN1cmwYASABKAlCB7pIBHICEAESOwoIdmlld3BvcnQYAiABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlZpZXdwb3J0Ir0CCh1UYWtlUHJldmlld1NjcmVlbnNob3RSZXNwb25zZRIWCg5zY3JlZW5zaG90X3BuZxgBIAEoDBIUCgxjb250ZW50X3R5cGUYAiABKAkSQQoMY29uc29sZV9sb2dzGAMgAygLMisuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5Db25zb2xlTG9nEgsKA3VybBgEIAEoCRIvCgtjYXB0dXJlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYBiABKAMSFgoOdmlld3BvcnRfd2lkdGgYByABKAUSFwoPdmlld3BvcnRfaGVpZ2h0GAggASgFEicKBmV2ZW50cxgJIAMoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiLQoVR2V0TGlua1ByZXZpZXdSZXF1ZXN0EhQKA3VybBgBIAEoCUIHukgEcgIQASJ+ChZHZXRMaW5rUHJldmlld1Jlc3BvbnNlEg0KBWZvdW5kGAEgASgIEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg0KBWltYWdlGAQgASgJEg8KB2Zhdmljb24YBSABKAkSEQoJc2l0ZV9uYW1lGAYgASgJIi4KFkFuYWx5emVFbGVtZW50c1JlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABIroCChdBbmFseXplRWxlbWVudHNSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEj4KCGVsZW1lbnRzGAIgAygLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SW5mbxJFCg5haV9zdWdnZXN0aW9ucxgDIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuQUlTdWdnZXN0aW9uEkIKDHBhZ2VfY29udGV4dBgEIAEoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuUGFnZUNvbnRleHQSEgoKc2NyZWVuc2hvdBgFIAEoCRIvCgtjYXB0dXJlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiXQodR2V0RWxlbWVudEF0Q29vcmRpbmF0ZVJlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABEhIKAXgYAiABKAVCB7pIBBoCKAASEgoBeRgDIAEoBUIHukgEGgIoACJsCh5HZXRFbGVtZW50QXRDb29yZGluYXRlUmVzcG9uc2USSgoJc2VsZWN0aW9uGAEgASgLMjcuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50U2VsZWN0aW9uUmVzdWx0Il0KGEFJQW5hbHl6ZUVsZW1lbnRzUmVxdWVzdBIUCgN1cmwYASABKAlCB7pIBHICEAESFwoGaW50ZW50GAIgASgJQge6SARyAhABEhIKCnNjcmVlbnNob3QYAyABKAkiXgoZQUlBbmFseXplRWxlbWVudHNSZXNwb25zZRJBCgtzdWdnZXN0aW9ucxgBIAMoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuRWxlbWVudEluZm8iKQoRR2V0RE9NVHJlZVJlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABIjsKEkdldERPTVRyZWVSZXNwb25zZRIlCgR0cmVlGAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdDLPBgoJQUlTZXJ2aWNlEpYBChVUYWtlUHJldmlld1NjcmVlbnNob3QSPS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlRha2VQcmV2aWV3U2NyZWVuc2hvdFJlcXVlc3QaPi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlRha2VQcmV2aWV3U2NyZWVuc2hvdFJlc3BvbnNlEoEBCg5HZXRMaW5rUHJldmlldxI2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuR2V0TGlua1ByZXZpZXdSZXF1ZXN0GjcuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRMaW5rUHJldmlld1Jlc3BvbnNlEoQBCg9BbmFseXplRWxlbWVudHMSNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFuYWx5emVFbGVtZW50c1JlcXVlc3QaOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFuYWx5emVFbGVtZW50c1Jlc3BvbnNlEpkBChZHZXRFbGVtZW50QXRDb29yZGluYXRlEj4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRFbGVtZW50QXRDb29yZGluYXRlUmVxdWVzdBo/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuR2V0RWxlbWVudEF0Q29vcmRpbmF0ZVJlc3BvbnNlEooBChFBSUFuYWx5emVFbGVtZW50cxI5LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuQUlBbmFseXplRWxlbWVudHNSZXF1ZXN0GjouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5BSUFuYWx5emVFbGVtZW50c1Jlc3BvbnNlEnUKCkdldERPTVRyZWUSMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkdldERPTVRyZWVSZXF1ZXN0GjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRET01UcmVlUmVzcG9uc2VCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FpO2FpYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Cihicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FpL2FpLnByb3RvEh9icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpIikKCFZpZXdwb3J0Eg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBSJACglSZWN0YW5nbGUSCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoASJWCg5TZWxlY3Rvck9wdGlvbhIQCghzZWxlY3RvchgBIAEoCRIMCgR0eXBlGAIgASgJEhIKCnJvYnVzdG5lc3MYAyABKAESEAoIZmFsbGJhY2sYBCABKAgi7AIKC0VsZW1lbnRJbmZvEgwKBHRleHQYASABKAkSEAoIdGFnX25hbWUYAiABKAkSDAoEdHlwZRgDIAEoCRJCCglzZWxlY3RvcnMYBCADKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlNlbGVjdG9yT3B0aW9uEkAKDGJvdW5kaW5nX2JveBgFIAEoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuUmVjdGFuZ2xlEhIKCmNvbmZpZGVuY2UYBiABKAESEAoIY2F0ZWdvcnkYByABKAkSUAoKYXR0cmlidXRlcxgIIAMoCzI8LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuRWxlbWVudEluZm8uQXR0cmlidXRlc0VudHJ5GjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIo4BCgtQYWdlQ29udGV4dBINCgV0aXRsZRgBIAEoCRILCgN1cmwYAiABKAkSEQoJaGFzX2xvZ2luGAMgASgIEhIKCmhhc19zZWFyY2gYBCABKAgSEgoKZm9ybV9jb3VudBgFIAEoBRIUCgxidXR0b25fY291bnQYBiABKAUSEgoKbGlua19jb3VudBgHIAEoBSKUAQoMQUlTdWdnZXN0aW9uEg4KBmFjdGlvbhgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIUCgxlbGVtZW50X3RleHQYAyABKAkSEAoIc2VsZWN0b3IYBCABKAkSEgoKY29uZmlkZW5jZRgFIAEoARIQCghjYXRlZ29yeRgGIAEoCRIRCglyZWFzb25pbmcYByABKAkiWwoKQ29uc29sZUxvZxINCgVsZXZlbBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEi0KCXRpbWVzdGFtcBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAimwEKFUVsZW1lbnRIaWVyYXJjaHlFbnRyeRI9CgdlbGVtZW50GAEgASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SW5mbxIQCghzZWxlY3RvchgCIAEoCRINCgVkZXB0aBgDIAEoBRIMCgRwYXRoGAQgAygJEhQKDHBhdGhfc3VtbWFyeRgFIAEoCSK7AQoWRWxlbWVudFNlbGVjdGlvblJlc3VsdBI9CgdlbGVtZW50GAEgASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SW5mbxJKCgpjYW5kaWRhdGVzGAIgAygLMjYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SGllcmFyY2h5RW50cnkSFgoOc2VsZWN0ZWRfaW5kZXgYAyABKAUicQocVGFrZVByZXZpZXdTY3JlZW5zaG90UmVxdWVzdBIUCgN1cmwYASABKAlCB7pIBHICEAESOwoIdmlld3BvcnQYAiABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlZpZXdwb3J0Ir0CCh1UYWtlUHJldmlld1NjcmVlbnNob3RSZXNwb25zZRIWCg5zY3JlZW5zaG90X3BuZxgBIAEoDBIUCgxjb250ZW50X3R5cGUYAiABKAkSQQoMY29uc29sZV9sb2dzGAMgAygLMisuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5Db25zb2xlTG9nEgsKA3VybBgEIAEoCRIvCgtjYXB0dXJlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYBiABKAMSFgoOdmlld3BvcnRfd2lkdGgYByABKAUSFwoPdmlld3BvcnRfaGVpZ2h0GAggASgFEicKBmV2ZW50cxgJIAMoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiLQoVR2V0TGlua1ByZXZpZXdSZXF1ZXN0EhQKA3VybBgBIAEoCUIHukgEcgIQASJ+ChZHZXRMaW5rUHJldmlld1Jlc3BvbnNlEg0KBWZvdW5kGAEgASgIEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg0KBWltYWdlGAQgASgJEg8KB2Zhdmljb24YBSABKAkSEQoJc2l0ZV9uYW1lGAYgASgJIi4KFkFuYWx5emVFbGVtZW50c1JlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABIroCChdBbmFseXplRWxlbWVudHNSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEj4KCGVsZW1lbnRzGAIgAygLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50SW5mbxJFCg5haV9zdWdnZXN0aW9ucxgDIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuQUlTdWdnZXN0aW9uEkIKDHBhZ2VfY29udGV4dBgEIAEoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuUGFnZUNvbnRleHQSEgoKc2NyZWVuc2hvdBgFIAEoCRIvCgtjYXB0dXJlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiXQodR2V0RWxlbWVudEF0Q29vcmRpbmF0ZVJlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABEhIKAXgYAiABKAVCB7pIBBoCKAASEgoBeRgDIAEoBUIHukgEGgIoACJsCh5HZXRFbGVtZW50QXRDb29yZGluYXRlUmVzcG9uc2USSgoJc2VsZWN0aW9uGAEgASgLMjcuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5FbGVtZW50U2VsZWN0aW9uUmVzdWx0Il0KGEFJQW5hbHl6ZUVsZW1lbnRzUmVxdWVzdBIUCgN1cmwYASABKAlCB7pIBHICEAESFwoGaW50ZW50GAIgASgJQge6SARyAhABEhIKCnNjcmVlbnNob3QYAyABKAkiXgoZQUlBbmFseXplRWxlbWVudHNSZXNwb25zZRJBCgtzdWdnZXN0aW9ucxgBIAMoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuRWxlbWVudEluZm8iKQoRR2V0RE9NVHJlZVJlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABIjsKEkdldERPTVRyZWVSZXNwb25zZRIlCgR0cmVlGAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCJhChBDcmVkaXRQb2xpY3lJbmZvEhgKEHJlcXVpcmVzX2NyZWRpdHMYASABKAgSGAoQY3JlZGl0c19wZXJfc3RlcBgCIAEoBRIZChFieXBhc3NfY29uZGl0aW9ucxgDIAMoCSLEAQoNTmF2aWdhdG9ySW5mbxIMCgR0eXBlGAEgASgJEhEKCWF2YWlsYWJsZRgCIAEoCBITCgtkZXNjcmlwdGlvbhgDIAEoCRJICg1jcmVkaXRfcG9saWN5GAQgASgLMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5DcmVkaXRQb2xpY3lJbmZvEhcKD2FsbG93ZWRfc291cmNlcxgFIAMoCRIaChJ1bmF2YWlsYWJsZV9yZWFzb24YBiABKAkiLgoVTGlzdE5hdmlnYXRvcnNSZXF1ZXN0EhUKDWNsaWVudF9zb3VyY2UYASABKAkibQoWTGlzdE5hdmlnYXRvcnNSZXNwb25zZRJCCgpuYXZpZ2F0b3JzGAEgAygLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5OYXZpZ2F0b3JJbmZvEg8KB2RlZmF1bHQYAiABKAkiuQEKFlN0YXJ0TmF2aWdhdGlvblJlcXVlc3QSGwoKc2Vzc2lvbl9pZBgBIAEoCUIHukgEcgIQARIXCgZwcm9tcHQYAiABKAlCB7pIBHICEAESFgoFbW9kZWwYAyABKAlCB7pIBHICEAESEQoJbWF4X3N0ZXBzGAQgASgFEg8KB2FwaV9rZXkYBSABKAkSFgoObmF2aWdhdG9yX3R5cGUYBiABKAkSFQoNY2xpZW50X3NvdXJjZRgHIAEoCSJ6ChdTdGFydE5hdmlnYXRpb25SZXNwb25zZRIVCg1uYXZpZ2F0aW9uX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRINCgVtb2RlbBgDIAEoCRIRCgltYXhfc3RlcHMYBCABKAUSFgoObmF2aWdhdG9yX3R5cGUYBSABKAkiPAoaR2V0TmF2aWdhdGlvblN0YXR1c1JlcXVlc3QSHgoNbmF2aWdhdGlvbl9pZBgBIAEoCUIHukgEcgIQASLKAQobR2V0TmF2aWdhdGlvblN0YXR1c1Jlc3BvbnNlEhUKDW5hdmlnYXRpb25faWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSEgoKc3RlcF9jb3VudBgEIAEoBRIUCgx0b3RhbF90b2tlbnMYBSABKAUSLgoKc3RhcnRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFgoObmF2aWdhdG9yX3R5cGUYByABKAkiOAoWQWJvcnROYXZpZ2F0aW9uUmVxdWVzdBIeCg1uYXZpZ2F0aW9uX2lkGAEgASgJQge6SARyAhABIlEKF0Fib3J0TmF2aWdhdGlvblJlc3BvbnNlEhUKDW5hdmlnYXRpb25faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB21lc3NhZ2UYAyABKAkiOQoXUmVzdW1lTmF2aWdhdGlvblJlcXVlc3QSHgoNbmF2aWdhdGlvbl9pZBgBIAEoCUIHukgEcgIQASJSChhSZXN1bWVOYXZpZ2F0aW9uUmVzcG9uc2USFQoNbmF2aWdhdGlvbl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDwoHbWVzc2FnZRgDIAEoCTLPBgoJQUlTZXJ2aWNlEpYBChVUYWtlUHJldmlld1NjcmVlbnNob3QSPS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlRha2VQcmV2aWV3U2NyZWVuc2hvdFJlcXVlc3QaPi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlRha2VQcmV2aWV3U2NyZWVuc2hvdFJlc3BvbnNlEoEBCg5HZXRMaW5rUHJldmlldxI2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuR2V0TGlua1ByZXZpZXdSZXF1ZXN0GjcuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRMaW5rUHJldmlld1Jlc3BvbnNlEoQBCg9BbmFseXplRWxlbWVudHMSNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFuYWx5emVFbGVtZW50c1JlcXVlc3QaOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFuYWx5emVFbGVtZW50c1Jlc3BvbnNlEpkBChZHZXRFbGVtZW50QXRDb29yZGluYXRlEj4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRFbGVtZW50QXRDb29yZGluYXRlUmVxdWVzdBo/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuR2V0RWxlbWVudEF0Q29vcmRpbmF0ZVJlc3BvbnNlEooBChFBSUFuYWx5emVFbGVtZW50cxI5LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuQUlBbmFseXplRWxlbWVudHNSZXF1ZXN0GjouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5BSUFuYWx5emVFbGVtZW50c1Jlc3BvbnNlEnUKCkdldERPTVRyZWUSMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkdldERPTVRyZWVSZXF1ZXN0GjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXRET01UcmVlUmVzcG9uc2UyyAUKF1Zpc2lvbk5hdmlnYXRpb25TZXJ2aWNlEoEBCg5MaXN0TmF2aWdhdG9ycxI2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuTGlzdE5hdmlnYXRvcnNSZXF1ZXN0GjcuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5MaXN0TmF2aWdhdG9yc1Jlc3BvbnNlEoQBCg9TdGFydE5hdmlnYXRpb24SNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlN0YXJ0TmF2aWdhdGlvblJlcXVlc3QaOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLlN0YXJ0TmF2aWdhdGlvblJlc3BvbnNlEpABChNHZXROYXZpZ2F0aW9uU3RhdHVzEjsuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5HZXROYXZpZ2F0aW9uU3RhdHVzUmVxdWVzdBo8LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuR2V0TmF2aWdhdGlvblN0YXR1c1Jlc3BvbnNlEoQBCg9BYm9ydE5hdmlnYXRpb24SNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFib3J0TmF2aWdhdGlvblJlcXVlc3QaOC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmFpLkFib3J0TmF2aWdhdGlvblJlc3BvbnNlEocBChBSZXN1bWVOYXZpZ2F0aW9uEjguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5haS5SZXN1bWVOYXZpZ2F0aW9uUmVxdWVzdBo5LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuYWkuUmVzdW1lTmF2aWdhdGlvblJlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MS9haTthaWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * Viewport mirrors the optional browser viewport hint accepted by the
@@ -726,6 +726,394 @@ export const GetDOMTreeResponseSchema: GenMessage<GetDOMTreeResponse> = /*@__PUR
   messageDesc(file_browser_automation_studio_v1_ai_ai, 20);
 
 /**
+ * CreditPolicyInfo mirrors the JSON-serializable credit policy used by the
+ * legacy REST surface; consumers display "requires credits / X per step /
+ * bypass conditions" hints. Bypass conditions are free-form strings
+ * ("byok", "resource_openrouter", "local_execution") emitted by the
+ * navigator policy table.
+ *
+ * @generated from message browser_automation_studio.v1.ai.CreditPolicyInfo
+ */
+export type CreditPolicyInfo = Message<"browser_automation_studio.v1.ai.CreditPolicyInfo"> & {
+  /**
+   * @generated from field: bool requires_credits = 1;
+   */
+  requiresCredits: boolean;
+
+  /**
+   * @generated from field: int32 credits_per_step = 2;
+   */
+  creditsPerStep: number;
+
+  /**
+   * @generated from field: repeated string bypass_conditions = 3;
+   */
+  bypassConditions: string[];
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.CreditPolicyInfo.
+ * Use `create(CreditPolicyInfoSchema)` to create a new message.
+ */
+export const CreditPolicyInfoSchema: GenMessage<CreditPolicyInfo> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 21);
+
+/**
+ * NavigatorInfo describes a single registered vision navigator and its
+ * availability for the requesting client source.
+ *
+ * @generated from message browser_automation_studio.v1.ai.NavigatorInfo
+ */
+export type NavigatorInfo = Message<"browser_automation_studio.v1.ai.NavigatorInfo"> & {
+  /**
+   * Navigator type identifier: "playwright" | "claude_code".
+   *
+   * @generated from field: string type = 1;
+   */
+  type: string;
+
+  /**
+   * @generated from field: bool available = 2;
+   */
+  available: boolean;
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description: string;
+
+  /**
+   * @generated from field: browser_automation_studio.v1.ai.CreditPolicyInfo credit_policy = 4;
+   */
+  creditPolicy?: CreditPolicyInfo | undefined;
+
+  /**
+   * Allowed client sources for this navigator ("ui", "cli", "api"). Empty
+   * means all sources are allowed.
+   *
+   * @generated from field: repeated string allowed_sources = 5;
+   */
+  allowedSources: string[];
+
+  /**
+   * Populated when available=false; explains why (e.g. "claude CLI not
+   * installed", "not allowed for this client source").
+   *
+   * @generated from field: string unavailable_reason = 6;
+   */
+  unavailableReason: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.NavigatorInfo.
+ * Use `create(NavigatorInfoSchema)` to create a new message.
+ */
+export const NavigatorInfoSchema: GenMessage<NavigatorInfo> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 22);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.ListNavigatorsRequest
+ */
+export type ListNavigatorsRequest = Message<"browser_automation_studio.v1.ai.ListNavigatorsRequest"> & {
+  /**
+   * Optional client-source hint; defaults to "api" when empty. Matches the
+   * legacy X-Client-Source header values.
+   *
+   * @generated from field: string client_source = 1;
+   */
+  clientSource: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.ListNavigatorsRequest.
+ * Use `create(ListNavigatorsRequestSchema)` to create a new message.
+ */
+export const ListNavigatorsRequestSchema: GenMessage<ListNavigatorsRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 23);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.ListNavigatorsResponse
+ */
+export type ListNavigatorsResponse = Message<"browser_automation_studio.v1.ai.ListNavigatorsResponse"> & {
+  /**
+   * @generated from field: repeated browser_automation_studio.v1.ai.NavigatorInfo navigators = 1;
+   */
+  navigators: NavigatorInfo[];
+
+  /**
+   * Default navigator type the registry would auto-select for this client.
+   *
+   * @generated from field: string default = 2;
+   */
+  default: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.ListNavigatorsResponse.
+ * Use `create(ListNavigatorsResponseSchema)` to create a new message.
+ */
+export const ListNavigatorsResponseSchema: GenMessage<ListNavigatorsResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 24);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.StartNavigationRequest
+ */
+export type StartNavigationRequest = Message<"browser_automation_studio.v1.ai.StartNavigationRequest"> & {
+  /**
+   * Required. Existing browser session id to navigate.
+   *
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Required. Natural-language instruction for the AI.
+   *
+   * @generated from field: string prompt = 2;
+   */
+  prompt: string;
+
+  /**
+   * Required. Vision model identifier (e.g. "gpt-4o", "claude-sonnet-4").
+   *
+   * @generated from field: string model = 3;
+   */
+  model: string;
+
+  /**
+   * Optional. Clamped to [1, 100]; defaults to 20 when 0.
+   *
+   * @generated from field: int32 max_steps = 4;
+   */
+  maxSteps: number;
+
+  /**
+   * Optional BYOK API key for the AI provider. When set the request bypasses
+   * credit charging (subject to navigator policy).
+   *
+   * @generated from field: string api_key = 5;
+   */
+  apiKey: string;
+
+  /**
+   * Optional preferred navigator type. Empty = let the registry auto-select.
+   *
+   * @generated from field: string navigator_type = 6;
+   */
+  navigatorType: string;
+
+  /**
+   * Optional client source override; defaults to "api". Mirrors the
+   * X-Client-Source header.
+   *
+   * @generated from field: string client_source = 7;
+   */
+  clientSource: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.StartNavigationRequest.
+ * Use `create(StartNavigationRequestSchema)` to create a new message.
+ */
+export const StartNavigationRequestSchema: GenMessage<StartNavigationRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 25);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.StartNavigationResponse
+ */
+export type StartNavigationResponse = Message<"browser_automation_studio.v1.ai.StartNavigationResponse"> & {
+  /**
+   * @generated from field: string navigation_id = 1;
+   */
+  navigationId: string;
+
+  /**
+   * Lifecycle marker. The legacy REST surface returned "started".
+   *
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string model = 3;
+   */
+  model: string;
+
+  /**
+   * @generated from field: int32 max_steps = 4;
+   */
+  maxSteps: number;
+
+  /**
+   * @generated from field: string navigator_type = 5;
+   */
+  navigatorType: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.StartNavigationResponse.
+ * Use `create(StartNavigationResponseSchema)` to create a new message.
+ */
+export const StartNavigationResponseSchema: GenMessage<StartNavigationResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 26);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.GetNavigationStatusRequest
+ */
+export type GetNavigationStatusRequest = Message<"browser_automation_studio.v1.ai.GetNavigationStatusRequest"> & {
+  /**
+   * @generated from field: string navigation_id = 1;
+   */
+  navigationId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.GetNavigationStatusRequest.
+ * Use `create(GetNavigationStatusRequestSchema)` to create a new message.
+ */
+export const GetNavigationStatusRequestSchema: GenMessage<GetNavigationStatusRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 27);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.GetNavigationStatusResponse
+ */
+export type GetNavigationStatusResponse = Message<"browser_automation_studio.v1.ai.GetNavigationStatusResponse"> & {
+  /**
+   * @generated from field: string navigation_id = 1;
+   */
+  navigationId: string;
+
+  /**
+   * @generated from field: string session_id = 2;
+   */
+  sessionId: string;
+
+  /**
+   * Status mirrors vision.NavigationStatus: idle | navigating |
+   * awaiting_human | completed | failed | aborted | max_steps_reached |
+   * loop_detected.
+   *
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: int32 step_count = 4;
+   */
+  stepCount: number;
+
+  /**
+   * @generated from field: int32 total_tokens = 5;
+   */
+  totalTokens: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp started_at = 6;
+   */
+  startedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string navigator_type = 7;
+   */
+  navigatorType: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.GetNavigationStatusResponse.
+ * Use `create(GetNavigationStatusResponseSchema)` to create a new message.
+ */
+export const GetNavigationStatusResponseSchema: GenMessage<GetNavigationStatusResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 28);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.AbortNavigationRequest
+ */
+export type AbortNavigationRequest = Message<"browser_automation_studio.v1.ai.AbortNavigationRequest"> & {
+  /**
+   * @generated from field: string navigation_id = 1;
+   */
+  navigationId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.AbortNavigationRequest.
+ * Use `create(AbortNavigationRequestSchema)` to create a new message.
+ */
+export const AbortNavigationRequestSchema: GenMessage<AbortNavigationRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 29);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.AbortNavigationResponse
+ */
+export type AbortNavigationResponse = Message<"browser_automation_studio.v1.ai.AbortNavigationResponse"> & {
+  /**
+   * @generated from field: string navigation_id = 1;
+   */
+  navigationId: string;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.AbortNavigationResponse.
+ * Use `create(AbortNavigationResponseSchema)` to create a new message.
+ */
+export const AbortNavigationResponseSchema: GenMessage<AbortNavigationResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 30);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.ResumeNavigationRequest
+ */
+export type ResumeNavigationRequest = Message<"browser_automation_studio.v1.ai.ResumeNavigationRequest"> & {
+  /**
+   * @generated from field: string navigation_id = 1;
+   */
+  navigationId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.ResumeNavigationRequest.
+ * Use `create(ResumeNavigationRequestSchema)` to create a new message.
+ */
+export const ResumeNavigationRequestSchema: GenMessage<ResumeNavigationRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 31);
+
+/**
+ * @generated from message browser_automation_studio.v1.ai.ResumeNavigationResponse
+ */
+export type ResumeNavigationResponse = Message<"browser_automation_studio.v1.ai.ResumeNavigationResponse"> & {
+  /**
+   * @generated from field: string navigation_id = 1;
+   */
+  navigationId: string;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ai.ResumeNavigationResponse.
+ * Use `create(ResumeNavigationResponseSchema)` to create a new message.
+ */
+export const ResumeNavigationResponseSchema: GenMessage<ResumeNavigationResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_ai_ai, 32);
+
+/**
  * @generated from service browser_automation_studio.v1.ai.AIService
  */
 export const AIService: GenService<{
@@ -802,4 +1190,66 @@ export const AIService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_browser_automation_studio_v1_ai_ai, 0);
+
+/**
+ * @generated from service browser_automation_studio.v1.ai.VisionNavigationService
+ */
+export const VisionNavigationService: GenService<{
+  /**
+   * ListNavigators returns every registered vision navigator with its
+   * availability for the requesting client source.
+   *
+   * @generated from rpc browser_automation_studio.v1.ai.VisionNavigationService.ListNavigators
+   */
+  listNavigators: {
+    methodKind: "unary";
+    input: typeof ListNavigatorsRequestSchema;
+    output: typeof ListNavigatorsResponseSchema;
+  },
+  /**
+   * StartNavigation kicks off an AI navigation session against an existing
+   * browser session and returns a navigation_id used by the other RPCs.
+   *
+   * @generated from rpc browser_automation_studio.v1.ai.VisionNavigationService.StartNavigation
+   */
+  startNavigation: {
+    methodKind: "unary";
+    input: typeof StartNavigationRequestSchema;
+    output: typeof StartNavigationResponseSchema;
+  },
+  /**
+   * GetNavigationStatus returns the current state of a navigation session
+   * (status, step count, total tokens, navigator type, started_at).
+   *
+   * @generated from rpc browser_automation_studio.v1.ai.VisionNavigationService.GetNavigationStatus
+   */
+  getNavigationStatus: {
+    methodKind: "unary";
+    input: typeof GetNavigationStatusRequestSchema;
+    output: typeof GetNavigationStatusResponseSchema;
+  },
+  /**
+   * AbortNavigation signals an in-flight navigation to stop after the
+   * current step.
+   *
+   * @generated from rpc browser_automation_studio.v1.ai.VisionNavigationService.AbortNavigation
+   */
+  abortNavigation: {
+    methodKind: "unary";
+    input: typeof AbortNavigationRequestSchema;
+    output: typeof AbortNavigationResponseSchema;
+  },
+  /**
+   * ResumeNavigation resumes a navigation that paused for human
+   * intervention.
+   *
+   * @generated from rpc browser_automation_studio.v1.ai.VisionNavigationService.ResumeNavigation
+   */
+  resumeNavigation: {
+    methodKind: "unary";
+    input: typeof ResumeNavigationRequestSchema;
+    output: typeof ResumeNavigationResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_browser_automation_studio_v1_ai_ai, 1);
 

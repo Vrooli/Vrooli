@@ -151,6 +151,27 @@ The command is intentionally argv-shaped instead of shell-shaped. The Action run
 
 The API runtime can run active Actions only after validation marks the command runnable. It applies typed input defaults, renders placeholders into argv tokens, executes without a shell, enforces timeout and process-wide concurrency limits, caps stdout/stderr, and writes bounded `runs.jsonl` audit entries. `execution.runEligible: false` keeps an Action discoverable and editable while blocking API runs.
 
+### Validated vs unvalidated Actions
+
+Every validation result carries a `certainty` flag derived from the command's owning scenario:
+
+| Owner scenario state | Certainty | Effect on the Action |
+|---|---|---|
+| Owning scenario has declared `cli/manifest.json` (and the command appears in it) | `command` or `operation` (driven by the manifest's `governance` block) | Valid + runnable. Governance fields — `effect`, `run_eligible`, `permissions`, `requires_confirmation` — flow into the action validation response. |
+| Owning scenario has no `cli/manifest.json` yet, or the command isn't in it | `owner-only` | Valid + runnable + flagged `unvalidated: true`. The action runs, but the validation response carries an info-level note that the owning scenario hasn't declared CLI governance. CLI output appends ", unvalidated"; the UI status pill shows "· unvalidated" with an amber banner. |
+| Owning scenario is unknown / command path does not resolve to any scenario | `none` | Validation fails; the action cannot run. |
+
+The `unvalidated` state is a safety net: scenarios are migrating to `cli/manifest.json` incrementally, and Actions that target a not-yet-migrated scenario continue to run. Once the owning scenario adopts a manifest (per `path:templates/scenarios/react-vite/docs/reference/cli-commands.md`), the `unvalidated` flag drops off automatically without any change to the Action itself.
+
+Governance vocabulary (from `cli-manifest/v1`):
+
+- `effect`: `read | write | destructive` — side-effect classification.
+- `run_eligible`: whether `prompt-manager action run` may invoke the command. `false` rejects runs without rejecting the Action contract.
+- `permissions`: starter vocabulary `filesystem:read | filesystem:write | network:internal | network:external | admin`.
+- `requires_confirmation`: defaults to `true` when `effect == destructive`.
+
+These fields belong to the **command** (the CLI surface of the owning scenario), not the Action; Actions reference a command and inherit its governance.
+
 The CLI exposes `prompt-manager action run` as a thin API client for trusted workflows that intentionally select an active runnable Action. The UI Action editor delegates to the same governed API route for dry-run and run requests, blocks runs while local contract edits are unsaved, and renders the run response envelope.
 
 The first shipped seed Actions are action:scenario.status.show, which wraps `vrooli scenario status {{scenario}}`, and action:team.decisions.list, which wraps `prompt-manager team decision-list {{team}} --json`. Both are read-oriented Actions with API/CLI validation and dry-run coverage.

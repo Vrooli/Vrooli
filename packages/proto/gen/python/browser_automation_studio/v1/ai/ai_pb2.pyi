@@ -257,3 +257,131 @@ class GetDOMTreeResponse(_message.Message):
     TREE_FIELD_NUMBER: _ClassVar[int]
     tree: _struct_pb2.Struct
     def __init__(self, tree: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+
+class CreditPolicyInfo(_message.Message):
+    __slots__ = ("requires_credits", "credits_per_step", "bypass_conditions")
+    REQUIRES_CREDITS_FIELD_NUMBER: _ClassVar[int]
+    CREDITS_PER_STEP_FIELD_NUMBER: _ClassVar[int]
+    BYPASS_CONDITIONS_FIELD_NUMBER: _ClassVar[int]
+    requires_credits: bool
+    credits_per_step: int
+    bypass_conditions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, requires_credits: _Optional[bool] = ..., credits_per_step: _Optional[int] = ..., bypass_conditions: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class NavigatorInfo(_message.Message):
+    __slots__ = ("type", "available", "description", "credit_policy", "allowed_sources", "unavailable_reason")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CREDIT_POLICY_FIELD_NUMBER: _ClassVar[int]
+    ALLOWED_SOURCES_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    type: str
+    available: bool
+    description: str
+    credit_policy: CreditPolicyInfo
+    allowed_sources: _containers.RepeatedScalarFieldContainer[str]
+    unavailable_reason: str
+    def __init__(self, type: _Optional[str] = ..., available: _Optional[bool] = ..., description: _Optional[str] = ..., credit_policy: _Optional[_Union[CreditPolicyInfo, _Mapping]] = ..., allowed_sources: _Optional[_Iterable[str]] = ..., unavailable_reason: _Optional[str] = ...) -> None: ...
+
+class ListNavigatorsRequest(_message.Message):
+    __slots__ = ("client_source",)
+    CLIENT_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    client_source: str
+    def __init__(self, client_source: _Optional[str] = ...) -> None: ...
+
+class ListNavigatorsResponse(_message.Message):
+    __slots__ = ("navigators", "default")
+    NAVIGATORS_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    navigators: _containers.RepeatedCompositeFieldContainer[NavigatorInfo]
+    default: str
+    def __init__(self, navigators: _Optional[_Iterable[_Union[NavigatorInfo, _Mapping]]] = ..., default: _Optional[str] = ...) -> None: ...
+
+class StartNavigationRequest(_message.Message):
+    __slots__ = ("session_id", "prompt", "model", "max_steps", "api_key", "navigator_type", "client_source")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    MAX_STEPS_FIELD_NUMBER: _ClassVar[int]
+    API_KEY_FIELD_NUMBER: _ClassVar[int]
+    NAVIGATOR_TYPE_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    prompt: str
+    model: str
+    max_steps: int
+    api_key: str
+    navigator_type: str
+    client_source: str
+    def __init__(self, session_id: _Optional[str] = ..., prompt: _Optional[str] = ..., model: _Optional[str] = ..., max_steps: _Optional[int] = ..., api_key: _Optional[str] = ..., navigator_type: _Optional[str] = ..., client_source: _Optional[str] = ...) -> None: ...
+
+class StartNavigationResponse(_message.Message):
+    __slots__ = ("navigation_id", "status", "model", "max_steps", "navigator_type")
+    NAVIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    MAX_STEPS_FIELD_NUMBER: _ClassVar[int]
+    NAVIGATOR_TYPE_FIELD_NUMBER: _ClassVar[int]
+    navigation_id: str
+    status: str
+    model: str
+    max_steps: int
+    navigator_type: str
+    def __init__(self, navigation_id: _Optional[str] = ..., status: _Optional[str] = ..., model: _Optional[str] = ..., max_steps: _Optional[int] = ..., navigator_type: _Optional[str] = ...) -> None: ...
+
+class GetNavigationStatusRequest(_message.Message):
+    __slots__ = ("navigation_id",)
+    NAVIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    navigation_id: str
+    def __init__(self, navigation_id: _Optional[str] = ...) -> None: ...
+
+class GetNavigationStatusResponse(_message.Message):
+    __slots__ = ("navigation_id", "session_id", "status", "step_count", "total_tokens", "started_at", "navigator_type")
+    NAVIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    STEP_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    NAVIGATOR_TYPE_FIELD_NUMBER: _ClassVar[int]
+    navigation_id: str
+    session_id: str
+    status: str
+    step_count: int
+    total_tokens: int
+    started_at: _timestamp_pb2.Timestamp
+    navigator_type: str
+    def __init__(self, navigation_id: _Optional[str] = ..., session_id: _Optional[str] = ..., status: _Optional[str] = ..., step_count: _Optional[int] = ..., total_tokens: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., navigator_type: _Optional[str] = ...) -> None: ...
+
+class AbortNavigationRequest(_message.Message):
+    __slots__ = ("navigation_id",)
+    NAVIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    navigation_id: str
+    def __init__(self, navigation_id: _Optional[str] = ...) -> None: ...
+
+class AbortNavigationResponse(_message.Message):
+    __slots__ = ("navigation_id", "status", "message")
+    NAVIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    navigation_id: str
+    status: str
+    message: str
+    def __init__(self, navigation_id: _Optional[str] = ..., status: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ResumeNavigationRequest(_message.Message):
+    __slots__ = ("navigation_id",)
+    NAVIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    navigation_id: str
+    def __init__(self, navigation_id: _Optional[str] = ...) -> None: ...
+
+class ResumeNavigationResponse(_message.Message):
+    __slots__ = ("navigation_id", "status", "message")
+    NAVIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    navigation_id: str
+    status: str
+    message: str
+    def __init__(self, navigation_id: _Optional[str] = ..., status: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...

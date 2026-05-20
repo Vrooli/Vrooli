@@ -34,5 +34,9 @@ var Endpoints = []module.EndpointDescriptor{
 		CLIMapping: &module.CLIMapping{
 			Command: "{{SCENARIO_ID}} status",
 		},
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonOpsProbe,
+			Note:   "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+		},
 	},
 }

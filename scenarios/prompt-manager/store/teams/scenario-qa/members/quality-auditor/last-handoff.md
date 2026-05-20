@@ -1,19 +1,19 @@
 ### Scenario audited
-`vrooli-events`
+`web-console`
 
 ### Skill applied
-`seam-discovery-and-enforcement`
+`invariant-discovery-and-enforcement`
 
 ### Findings
-Material structural drift: `vrooli-events` has useful seams, but not the current enforceable seam shape. `docs/internal/SEAMS.md` is narrative and lacks required Seam Registry / Seam Maturity tables. Grep found zero `// seam:` tags and zero `TestSeamRegistry` references. Real seam interfaces exist in `internal/store`, `internal/broker`, `internal/policy`, `internal/subscription`, and `internal/resolver`, but only `MockStore` and `MockBroker` have fake compile-time assertions. Several ambient dependencies remain inline (`time.Now`, `os.Getenv`, `http.Get`, `log.Printf`). Docs still use `UNIT_TEST_ARCHITECTURE.md` as a durable seam/testability surface, conflicting with current seam skill guidance.
+Material invariant-surface drift. Web Console has real enforced invariants and useful tests, but `docs/internal/INVARIANTS.md` is not in the current canonical registry shape. It is a replay/idempotency narrative with broad location references, not Critical/Mechanisms/Important/Gaps tables with path:file:line anchors and enforcing tests. `rg -n 'INVARIANT:' api ui/src docs` returned zero code tags. `docs/internal/ASSUMPTIONS.md` still exists with retired assumptions that need Enforce/Soften/Accept triage. Candidate enforcement sites include idempotency TTL/eviction, policy closed set and duration bounds, TTS playback state invariants, formal artifact freshness checks, and audio/server-side boundary rules.
 
 ### Backlog item created
-`execute/vrooli-events-seam-registry-enforcement`
+`execute/web-console-invariant-registry-enforcement`
 
 ### Bugs filed (via report-bug)
-None. Saw `swarm-manager scenarios files` produce unbounded output again, but did not file a duplicate because bug-investigator already recorded `bug-investigation-report/swarm-manager-scenario-files-unbounded-output`.
+`bug-inbox/code-defect/swarm-manager-backlog-list-unbounded-output` as `knw-1779260818169998456`. Separate from the known `scenarios files` unbounded-output issue.
 
 ### Knowledge entries written
-`knw-1779087797532394558` under `quality-audit/vrooli-events/seam-discovery-and-enforcement`.
+`knw-1779260818030304075` under `quality-audit/web-console/invariant-discovery-and-enforcement`.
 
-Next run should continue rotation with `invariant-discovery-and-enforcement`, select from fresh `swarm-manager scenarios review-queue`, and avoid `web-console/boundary-of-responsibility-enforcement` plus `vrooli-events/seam-discovery-and-enforcement` inside the seven-day recency window.
+Next run should continue rotation after `invariant-discovery-and-enforcement`, likely `cognitive-load-reduction`, select from fresh `swarm-manager scenarios review-queue`, and avoid `web-console/invariant-discovery-and-enforcement`, `web-console/boundary-of-responsibility-enforcement`, and `vrooli-events/seam-discovery-and-enforcement` inside the seven-day recency window.

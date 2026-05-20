@@ -159,10 +159,10 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	noOp := func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
 		return phasespkg.RunReport{}
 	}
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true, Weight: 50})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true, Weight: 60})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp, Weight: 80})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp, Weight: 90})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true, Weight: 60})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true, Weight: 70})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp, Weight: 90})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp, Weight: 100})
 }
 
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
@@ -212,10 +212,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if !result.Success {
 			t.Fatalf("expected success, got failure: %#v", result)
 		}
-		if len(result.Phases) != 11 {
-			t.Fatalf("expected eleven phases, got %d", len(result.Phases))
+		if len(result.Phases) != 12 {
+			t.Fatalf("expected twelve phases, got %d", len(result.Phases))
 		}
-		expected := []string{"structure", "standards", "dependencies", "lint", "docs", "performance", "smoke", "unit", "integration", "playbooks", "business"}
+		expected := []string{"structure", "contracts", "standards", "dependencies", "lint", "docs", "performance", "smoke", "unit", "integration", "playbooks", "business"}
 		for _, phase := range result.Phases {
 			if phase.Status != "passed" {
 				t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)
@@ -224,9 +224,13 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 				t.Fatalf("phase %s missing log path", phase.Name)
 			}
 		}
+		actualNames := make([]string, len(result.Phases))
+		for i, p := range result.Phases {
+			actualNames[i] = p.Name
+		}
 		for i, name := range expected {
 			if result.Phases[i].Name != name {
-				t.Fatalf("expected phase %d to be %s but got %s", i, name, result.Phases[i].Name)
+				t.Fatalf("expected phase %d to be %s but got %s (actual=%v)", i, name, result.Phases[i].Name, actualNames)
 			}
 		}
 	})
@@ -633,8 +637,8 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 				t.Fatalf("expected integration phase to be disabled via testing config")
 			}
 		}
-		if len(result.Phases) != 10 {
-			t.Fatalf("expected ten phases after disabling integration, got %d", len(result.Phases))
+		if len(result.Phases) != 11 {
+			t.Fatalf("expected eleven phases after disabling integration, got %d", len(result.Phases))
 		}
 	})
 }

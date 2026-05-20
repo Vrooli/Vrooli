@@ -103,6 +103,11 @@ What kind of work is this?
 - [ ] Budget status checked (under/over)
 - [ ] Skill candidates identified from discover output
 
+6. **Check existing CLI surface for the plan's operations.** If the plan will introduce or replace any deterministic operation (anything you'd otherwise wrap in an Action or document as command prose), run `cli-health search "<operation>"` once per operation. The plan's Current Technical Context section should cite the matching command(s) found there — assume the command exists and reuse it before proposing a new CLI verb. A no-hit result is a legitimate signal that a new CLI command is part of the plan's scope.
+
+**Exit criteria (CLI surface check):**
+- [ ] Every deterministic operation named in the plan was searched against `cli-health` and either reused or noted as a new CLI commitment.
+
 ---
 
 ### **Phase 3: Confirm Relevance**

@@ -269,3 +269,176 @@ message GetDOMTreeResponse {
   // extra schema; consumers (Browser Inspector tab) treat it as opaque.
   google.protobuf.Struct tree = 1;
 }
+
+// =============================================================================
+// VISION NAVIGATION DOMAIN — multi-step AI-driven browser navigation.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain ai
+// @stability stable
+//
+// VisionNavigationService is the stateful, plan-execute-replan AI navigation
+// surface. It picks a backend navigator (currently `playwright` or
+// `claude_code`), starts a navigation session, and exposes status / abort /
+// resume controls.
+//
+// The playwright-driver also POSTs step+completion callbacks back to the API
+// at /api/v1/internal/ai-navigate/callback. That callback stays REST (webhook
+// receiver from an out-of-process driver) — see docs/internal/REST_EXCEPTIONS.md.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/vision_navigation/
+//   - UI:   ui/src/api/visionNavigation.ts
+//   - CLI:  bas ai navigators | navigate
+// =============================================================================
+
+service VisionNavigationService {
+  // ListNavigators returns every registered vision navigator with its
+  // availability for the requesting client source.
+  rpc ListNavigators(ListNavigatorsRequest) returns (ListNavigatorsResponse);
+
+  // StartNavigation kicks off an AI navigation session against an existing
+  // browser session and returns a navigation_id used by the other RPCs.
+  rpc StartNavigation(StartNavigationRequest) returns (StartNavigationResponse);
+
+  // GetNavigationStatus returns the current state of a navigation session
+  // (status, step count, total tokens, navigator type, started_at).
+  rpc GetNavigationStatus(GetNavigationStatusRequest) returns (GetNavigationStatusResponse);
+
+  // AbortNavigation signals an in-flight navigation to stop after the
+  // current step.
+  rpc AbortNavigation(AbortNavigationRequest) returns (AbortNavigationResponse);
+
+  // ResumeNavigation resumes a navigation that paused for human
+  // intervention.
+  rpc ResumeNavigation(ResumeNavigationRequest) returns (ResumeNavigationResponse);
+}
+
+// =============================================================================
+// VisionNavigation shared types
+// =============================================================================
+
+// CreditPolicyInfo mirrors the JSON-serializable credit policy used by the
+// legacy REST surface; consumers display "requires credits / X per step /
+// bypass conditions" hints. Bypass conditions are free-form strings
+// ("byok", "resource_openrouter", "local_execution") emitted by the
+// navigator policy table.
+message CreditPolicyInfo {
+  bool requires_credits = 1;
+  int32 credits_per_step = 2;
+  repeated string bypass_conditions = 3;
+}
+
+// NavigatorInfo describes a single registered vision navigator and its
+// availability for the requesting client source.
+message NavigatorInfo {
+  // Navigator type identifier: "playwright" | "claude_code".
+  string type = 1;
+  bool available = 2;
+  string description = 3;
+  CreditPolicyInfo credit_policy = 4;
+  // Allowed client sources for this navigator ("ui", "cli", "api"). Empty
+  // means all sources are allowed.
+  repeated string allowed_sources = 5;
+  // Populated when available=false; explains why (e.g. "claude CLI not
+  // installed", "not allowed for this client source").
+  string unavailable_reason = 6;
+}
+
+// =============================================================================
+// ListNavigators
+// =============================================================================
+
+message ListNavigatorsRequest {
+  // Optional client-source hint; defaults to "api" when empty. Matches the
+  // legacy X-Client-Source header values.
+  string client_source = 1;
+}
+
+message ListNavigatorsResponse {
+  repeated NavigatorInfo navigators = 1;
+  // Default navigator type the registry would auto-select for this client.
+  string default = 2;
+}
+
+// =============================================================================
+// StartNavigation
+// =============================================================================
+
+message StartNavigationRequest {
+  // Required. Existing browser session id to navigate.
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Natural-language instruction for the AI.
+  string prompt = 2 [(buf.validate.field).string.min_len = 1];
+  // Required. Vision model identifier (e.g. "gpt-4o", "claude-sonnet-4").
+  string model = 3 [(buf.validate.field).string.min_len = 1];
+  // Optional. Clamped to [1, 100]; defaults to 20 when 0.
+  int32 max_steps = 4;
+  // Optional BYOK API key for the AI provider. When set the request bypasses
+  // credit charging (subject to navigator policy).
+  string api_key = 5;
+  // Optional preferred navigator type. Empty = let the registry auto-select.
+  string navigator_type = 6;
+  // Optional client source override; defaults to "api". Mirrors the
+  // X-Client-Source header.
+  string client_source = 7;
+}
+
+message StartNavigationResponse {
+  string navigation_id = 1;
+  // Lifecycle marker. The legacy REST surface returned "started".
+  string status = 2;
+  string model = 3;
+  int32 max_steps = 4;
+  string navigator_type = 5;
+}
+
+// =============================================================================
+// GetNavigationStatus
+// =============================================================================
+
+message GetNavigationStatusRequest {
+  string navigation_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetNavigationStatusResponse {
+  string navigation_id = 1;
+  string session_id = 2;
+  // Status mirrors vision.NavigationStatus: idle | navigating |
+  // awaiting_human | completed | failed | aborted | max_steps_reached |
+  // loop_detected.
+  string status = 3;
+  int32 step_count = 4;
+  int32 total_tokens = 5;
+  google.protobuf.Timestamp started_at = 6;
+  string navigator_type = 7;
+}
+
+// =============================================================================
+// AbortNavigation
+// =============================================================================
+
+message AbortNavigationRequest {
+  string navigation_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message AbortNavigationResponse {
+  string navigation_id = 1;
+  string status = 2;
+  string message = 3;
+}
+
+// =============================================================================
+// ResumeNavigation
+// =============================================================================
+
+message ResumeNavigationRequest {
+  string navigation_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ResumeNavigationResponse {
+  string navigation_id = 1;
+  string status = 2;
+  string message = 3;
+}

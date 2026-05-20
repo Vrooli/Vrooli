@@ -15,11 +15,10 @@
 - `dec-1779144543464355217`
 
 ### Challenge notes written
-- `dec-1779142599530774097`: prose sprawl / churn-without-benefit - duplicates accepted `dec-1776982635141465033` but expands into companion references without fresh consumer evidence.
+- None.
 
 ### Challenge resolution updates
-- `dec-1778971728228105895`: resolved - prior Action framing challenge remains resolved by author retarget to CLI/capability-gap, though original pending text still says Action-candidate.
-- `dec-1779142599530774097`: open - author should amend/supersede against accepted swarm-manager-backlog-tools trim decision before adding new reference surfaces.
+- `dec-1779142599530774097`: resolved - skill-optimizer accepted the challenge and narrowed the proposal to the accepted trim/pointer remedy from `dec-1776982635141465033`; companion references remain out of scope without new consumer evidence.
 
 ### Action proposal checks
 - `dec-1778796166725303185`: not Action-related
@@ -32,7 +31,7 @@
 - `dec-1779057112765291497`: not Action-related
 - `dec-1779058180482147600`: clean
 - `dec-1779141739837517904`: not Action-related
-- `dec-1779142599530774097`: Action sprawl analogue / prose sprawl
+- `dec-1779142599530774097`: not Action-related; prose-sprawl challenge now resolved by author narrowing
 - `dec-1779143529470088721`: not Action-related
 - `dec-1779144543464355217`: clean
 
@@ -40,8 +39,7 @@
 - No stale pending decisions.
 
 ### Decisions raised this heartbeat
-- None. Team pending count is already above the 12 ceiling, and no rejection/framework-update decision was warranted beyond the knowledge challenge.
+- None. Team pending count is 13, above the 12 ceiling, and no rejection/framework-update decision was warranted.
 
 ### Knowledge entries written
-- `knw-1779145271469431092` - `challenge-report/dec-1779142599530774097`
-- `knw-1779145271602133285` - `challenge-resolution-record/dec-1779142599530774097`
+- `knw-1779231664717410983` - `challenge-resolution-record/dec-1779142599530774097`

@@ -1,38 +1,39 @@
 ### Runs in window
-- Errored: 0
-- Retried: 0
-- Slow: 0
-- User-flagged: 0
-- Successful: 38 complete + 1 prior investigation in needs_review
+- Errored: 7
+- Retried: 0 observed
+- Slow: 2 over 600s, both also failed
+- User-flagged: 0 observed
+- Successful: 21 complete
 
 ### Run picked this heartbeat
-- Run ID: `156139bd-7076-47b3-9bfe-dbd2c8851003`
+- Run ID: `6c439ad4-0319-418c-9018-392f75fae29e`
 - Agent: `programmatic-qa-runner`
-- Triage tier: random-success
+- Triage tier: errored
 
 ### What happened
-- The run completed successfully: reviewed `web-console` and `vrooli-events`, both `production_ready`, created no backlog items, wired no dependencies, wrote required knowledge, and changed 0 files.
-- It still hit storage friction: generated guidance used stale `knowledge-add --by`, then cross-team friction persistence to `meta-optimization` failed with `team_mismatch`.
+- The run failed after 1m35s with `SANDBOX_NO_EXIT_INFO`, then finalization failed because `workspace-sandbox` was unavailable and recovery was blocked by a concurrent workspace-sandbox start.
+- Investigation also found a task blocker before the sandbox died: direct `vrooli scenario status/list` calls failed under `VROOLI_SANDBOX_MERGED` with `read runtime registry schema version: unable to open database file (14)`.
 
 ### Implicated
-- Generated heartbeat Storage Map
-- `report-friction` skill
-- `prompt-manager team knowledge-add` cross-team/universal-inbox authorization semantics
+- `agent-manager` / `workspace-sandbox` lifecycle and finalization
+- `internal/scenarioruntime` SQLite registry access under `VROOLI_SANDBOX_MERGED`
+- `programmatic-qa-runner` GCT readiness flow
+- Existing Action `scenario.status.show`
 
 ### Proposed lesson
-- Fix generated storage/friction-writing paths so agents can persist friction without stale `--by` retries or `team_mismatch`.
-- Handoff to: director-swarm via capability-gap
+- Route sandboxed scenario lifecycle reads through a host-safe status surface, preferably hardening/adopting `scenario.status.show`, instead of direct `vrooli scenario status ... --json` inside merged sandbox envs.
+- Handoff to: skill-optimizer for existing Action adoption/hardening signal; director-swarm via capability-gap if host-safe lifecycle status needs platform work.
 
 ### Action opportunity
-- capability-gap
-- Evidence: `prompt-manager discover "knowledge-add by flag friction inbox cross-team report-friction" --type all` returned broad skills and unrelated Actions, no exact Action; this is a command contract/authorization gap, not workflow automation.
+- existing-action-usage
+- Evidence: `prompt-manager discover "scenario status git-control-tower VROOLI_SANDBOX_MERGED runtime registry" --type all` returned `action:scenario.status.show`, and `prompt-manager action validate scenario.status.show --json` reports it valid/runnable. The failed run used direct CLI calls twice instead.
 
 ### Measurement plan
-- Over the next 7 run-introspector windows, grep successful-run transcripts for `Error: --by is removed` and `team_mismatch` during storage/friction writes; expected count is 0 when following generated instructions.
+- Over the next 7 run-introspector windows, grep errored/retried `programmatic-qa-runner` transcripts for `read runtime registry schema version: unable to open database file (14)` and direct `vrooli scenario status git-control-tower --json` under `VROOLI_SANDBOX_MERGED`; expected count is 0 after adoption/hardening.
 
 ### Decisions raised this heartbeat
-- `dec-1779144543464355217` - capability-gap - fix generated friction-writing path for stale `--by` and cross-team `team_mismatch`.
+- None. Owned run-introspector pending contexts are already at the 4-decision cap.
 
 ### Knowledge entries written
-- `knw-1779144519998784410` - `run-lesson-report/2026-05-18`
-- `knw-1779144530123367645` - `friction-report/run-execution/2026-05-18/successful-run-storage-friction-write-failure`
+- `knw-1779231043374645876` - `run-lesson-report/2026-05-19`
+- `knw-1779231043375943992` - `friction-report/run-execution/2026-05-19/sandboxed-scenario-status-registry-read-failure`

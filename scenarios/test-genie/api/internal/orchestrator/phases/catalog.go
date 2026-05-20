@@ -42,6 +42,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description: "Validates scenario layout, manifests, and JSON health before any tests run.",
 	})
 	register(Spec{
+		Name:           Contracts,
+		Runner:         runContractsPhase,
+		Optional:       false,
+		DefaultTimeout: 60 * time.Second,
+		Description:    "Validates cli/manifest.json bindings against proto descriptors via cli-health.",
+	})
+	register(Spec{
 		Name:           Standards,
 		Runner:         runStandardsPhase,
 		Optional:       false,
