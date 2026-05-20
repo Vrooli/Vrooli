@@ -12,8 +12,10 @@ import (
 	"strings"
 	"time"
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/healing/langrecover"
 	"vrooli-autoheal/internal/healing/strategies"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/reporoot"
 
 	integration "vrooli-autoheal/internal/integrations/vrooli"
 )
@@ -36,6 +38,12 @@ type ScenarioCheck struct {
 
 const (
 	rootCauseSharedPackageDrift = "shared-package-drift"
+	rootCauseGoModuleDrift      = "go-module-drift"
+	rootCausePnpmInstallDrift   = "pnpm-install-drift"
+
+	recommendedActionSetupRestart = "setup-restart"
+	recommendedActionRecoverGo    = "recover-go"
+	recommendedActionRecoverPnpm  = "recover-pnpm"
 )
 
 type scenarioRecoveryPollConfig struct {
@@ -210,9 +218,19 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	}
 	result.Details["scenarioStatus"] = scenarioStatus
 	result.Details["healthStatus"] = healthStatus
-	if hasSharedPackageDriftSignature(outputText) {
+	// Language-specific drift signatures take precedence: they map to cheaper,
+	// more targeted recovery actions (recover-go / recover-pnpm) than the
+	// catch-all setup-restart, which rebuilds bundles and re-runs full setup.
+	switch {
+	case langrecover.DetectGoSignature(outputText) != langrecover.GoSignatureNone:
+		result.Details["rootCause"] = rootCauseGoModuleDrift
+		result.Details["recommendedAction"] = recommendedActionRecoverGo
+	case langrecover.DetectPnpmSignature(outputText) != langrecover.PnpmSignatureNone:
+		result.Details["rootCause"] = rootCausePnpmInstallDrift
+		result.Details["recommendedAction"] = recommendedActionRecoverPnpm
+	case hasSharedPackageDriftSignature(outputText):
 		result.Details["rootCause"] = rootCauseSharedPackageDrift
-		result.Details["recommendedAction"] = "setup-restart"
+		result.Details["recommendedAction"] = recommendedActionSetupRestart
 	}
 
 	if !parsed.Success {
@@ -378,6 +396,20 @@ func (c *ScenarioCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 			Available:   true,
 		},
 		{
+			ID:          "recover-go",
+			Name:        "Recover Go modules",
+			Description: "Run go mod download or tidy in the scenario's api/ to repair drift, then restart",
+			Dangerous:   true,
+			Available:   c.scenarioHasGoAPI(),
+		},
+		{
+			ID:          "recover-pnpm",
+			Name:        "Recover pnpm install",
+			Description: "Reinstall ui/ pnpm dependencies (clean or relock) to repair drift, then restart",
+			Dangerous:   true,
+			Available:   c.scenarioHasPnpmUI(),
+		},
+		{
 			ID:          "cleanup-ports",
 			Name:        "Cleanup Ports",
 			Description: "Kill any processes holding scenario ports and clean stale state",
@@ -463,6 +495,12 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 
 	case "setup-restart":
 		return c.executeSetupRestart(ctx, start)
+
+	case "recover-go":
+		return c.executeLangRecover(ctx, start, langrecover.KindGo)
+
+	case "recover-pnpm":
+		return c.executeLangRecover(ctx, start, langrecover.KindPnpm)
 
 	case "cleanup-ports":
 		return c.executePortCleanup(ctx, start)
@@ -789,6 +827,167 @@ func extractPorts(output string) []int {
 	}
 
 	return ports
+}
+
+// scenarioDir returns the absolute path to this scenario's source directory
+// under the repo, or "" if the repo root cannot be resolved. The langrecover
+// strategies operate against api/ and ui/ subdirectories underneath it.
+func (c *ScenarioCheck) scenarioDir() string {
+	root := reporoot.ResolveFromOS()
+	if root == "" {
+		return ""
+	}
+	return filepath.Join(root, "scenarios", c.scenarioName)
+}
+
+func (c *ScenarioCheck) scenarioHasGoAPI() bool {
+	dir := c.scenarioDir()
+	if dir == "" {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(dir, "api", "go.mod"))
+	return err == nil
+}
+
+func (c *ScenarioCheck) scenarioHasPnpmUI() bool {
+	dir := c.scenarioDir()
+	if dir == "" {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(dir, "ui", "package.json"))
+	return err == nil
+}
+
+// executeLangRecover runs a language-specific dependency recovery against the
+// scenario, then performs a normal restart. The recovery itself is gated on
+// detecting a healable signature in the prior failure output — if no
+// signature is detected, the action returns a failure result rather than
+// silently rebuilding world. ModifiedTrackedFiles/ModifiedPaths from the
+// strategy are surfaced in Output so autoheal incident logs make the
+// dependency mutation visible.
+func (c *ScenarioCheck) executeLangRecover(ctx context.Context, start time.Time, kind langrecover.Kind) checks.ActionResult {
+	actionID := "recover-go"
+	if kind == langrecover.KindPnpm {
+		actionID = "recover-pnpm"
+	}
+	result := checks.ActionResult{
+		ActionID:  actionID,
+		CheckID:   c.id,
+		Timestamp: start,
+	}
+
+	scenarioDir := c.scenarioDir()
+	if scenarioDir == "" {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = "could not resolve repo root"
+		result.Message = "Recovery aborted: repo root unavailable"
+		return result
+	}
+
+	failureLog := c.recentFailureLog(ctx)
+	decision := langrecover.Decide(failureLog, scenarioDir)
+	if !decision.Has() || decision.Kind != kind {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = "no healable " + string(kind) + " signature detected in recent failure output"
+		result.Message = "Recovery skipped: failure output does not match a known healable pattern"
+		result.Output = capRecoveryLog(failureLog)
+		return result
+	}
+
+	var outputBuilder strings.Builder
+	outputBuilder.WriteString("=== Language recovery (" + string(kind) + ") ===\n")
+
+	// Step 1: stop scenario so the recovery does not race a live process.
+	outputBuilder.WriteString("=== Stopping scenario ===\n")
+	stopOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "stop", c.scenarioName)
+	outputBuilder.Write(stopOutput)
+	outputBuilder.WriteString("\n")
+
+	// Step 2: invoke the language strategy.
+	var (
+		strategyResult langrecover.Result
+		strategyErr    error
+	)
+	switch kind {
+	case langrecover.KindGo:
+		strategyResult, strategyErr = langrecover.RecoverGo(ctx, langrecover.DefaultRunner, scenarioDir, decision.GoSig)
+	case langrecover.KindPnpm:
+		strategyResult, strategyErr = langrecover.RecoverPnpm(ctx, langrecover.DefaultRunner, scenarioDir, decision.PnpmSig)
+	}
+	if strategyErr != nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = strategyErr.Error()
+		result.Message = "Recovery strategy setup failed for " + c.scenarioName
+		outputBuilder.WriteString("\n=== Strategy setup error ===\n")
+		outputBuilder.WriteString(strategyErr.Error())
+		result.Output = outputBuilder.String()
+		return result
+	}
+
+	outputBuilder.WriteString("=== " + strategyResult.Command + " (in " + strategyResult.WorkingDir + ") ===\n")
+	outputBuilder.WriteString(strategyResult.Output)
+	outputBuilder.WriteString("\n")
+	outputBuilder.WriteString("=== Modified tracked files: ")
+	if strategyResult.ModifiedTrackedFiles {
+		outputBuilder.WriteString("yes ===\n")
+		for _, p := range strategyResult.ModifiedPaths {
+			outputBuilder.WriteString("  - ")
+			outputBuilder.WriteString(p)
+			outputBuilder.WriteString("\n")
+		}
+	} else {
+		outputBuilder.WriteString("no ===\n")
+	}
+
+	if strategyResult.Err != nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = strategyResult.Err.Error()
+		result.Message = "Language recovery command failed for " + c.scenarioName
+		result.Output = outputBuilder.String()
+		return result
+	}
+
+	// Step 3: restart with --best-effort.
+	outputBuilder.WriteString("=== Starting scenario ===\n")
+	startOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName, "--best-effort")
+	outputBuilder.Write(startOutput)
+	result.Output = outputBuilder.String()
+	if err != nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Restart failed after " + string(kind) + " recovery for " + c.scenarioName
+		return result
+	}
+
+	return c.verifyRecovery(ctx, result, actionID, start)
+}
+
+// recentFailureLog gathers a best-effort tail of the most recent failure
+// output for signature detection. Falls back to scenario status output if the
+// log fetch fails. Bounded to keep autoheal latency predictable.
+func (c *ScenarioCheck) recentFailureLog(ctx context.Context) string {
+	logsCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if out, err := c.executor.CombinedOutput(logsCtx, "vrooli", "scenario", "logs", c.scenarioName, "--tail", "200"); err == nil {
+		return string(out)
+	}
+	statusCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	out, _ := c.executor.CombinedOutput(statusCtx, "vrooli", "scenario", "status", c.scenarioName, "--json")
+	return string(out)
+}
+
+func capRecoveryLog(value string) string {
+	const cap = 4000
+	if len(value) <= cap {
+		return value
+	}
+	return value[len(value)-cap:]
 }
 
 // Ensure ScenarioCheck implements HealableCheck

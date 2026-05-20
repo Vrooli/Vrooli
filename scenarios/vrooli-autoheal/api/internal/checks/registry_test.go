@@ -796,7 +796,8 @@ func TestRunAutoHeal_ScenarioSharedPackageDriftPrefersSetupRestart(t *testing.T)
 			CheckID: "scenario-example",
 			Status:  StatusCritical,
 			Details: map[string]interface{}{
-				"rootCause": "shared-package-drift",
+				"rootCause":         "shared-package-drift",
+				"recommendedAction": "setup-restart",
 			},
 		},
 	}
@@ -805,6 +806,87 @@ func TestRunAutoHeal_ScenarioSharedPackageDriftPrefersSetupRestart(t *testing.T)
 
 	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "setup-restart" {
 		t.Fatalf("expected setup-restart to be selected, got %v", healableCheck.executedActions)
+	}
+}
+
+// TestRunAutoHeal_ScenarioGoDriftPrefersRecoverGo verifies that when a Go
+// module drift signature is detected, the targeted recover-go action wins
+// over a plain restart.
+func TestRunAutoHeal_ScenarioGoDriftPrefersRecoverGo(t *testing.T) {
+	reg := newTestRegistry()
+	healable := &mockHealableCheck{
+		id:     "scenario-agent-manager",
+		result: Result{CheckID: "scenario-agent-manager", Status: StatusCritical},
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+			{ID: "setup-restart", Available: true, Dangerous: true},
+			{ID: "recover-go", Available: true, Dangerous: true},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(healable)
+	reg.SetConfigProvider(&mockConfigProvider{autoHealChecks: map[string]bool{"scenario-agent-manager": true}})
+	reg.RunAutoHeal(context.Background(), []Result{{
+		CheckID: "scenario-agent-manager", Status: StatusCritical,
+		Details: map[string]interface{}{
+			"rootCause":         "go-module-drift",
+			"recommendedAction": "recover-go",
+		},
+	}})
+	if len(healable.executedActions) != 1 || healable.executedActions[0] != "recover-go" {
+		t.Fatalf("expected recover-go, got %v", healable.executedActions)
+	}
+}
+
+// TestRunAutoHeal_ScenarioPnpmDriftPrefersRecoverPnpm mirrors the Go case for
+// the pnpm signature path.
+func TestRunAutoHeal_ScenarioPnpmDriftPrefersRecoverPnpm(t *testing.T) {
+	reg := newTestRegistry()
+	healable := &mockHealableCheck{
+		id:     "scenario-chart-generator",
+		result: Result{CheckID: "scenario-chart-generator", Status: StatusCritical},
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+			{ID: "recover-pnpm", Available: true, Dangerous: true},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(healable)
+	reg.SetConfigProvider(&mockConfigProvider{autoHealChecks: map[string]bool{"scenario-chart-generator": true}})
+	reg.RunAutoHeal(context.Background(), []Result{{
+		CheckID: "scenario-chart-generator", Status: StatusCritical,
+		Details: map[string]interface{}{
+			"rootCause":         "pnpm-install-drift",
+			"recommendedAction": "recover-pnpm",
+		},
+	}})
+	if len(healable.executedActions) != 1 || healable.executedActions[0] != "recover-pnpm" {
+		t.Fatalf("expected recover-pnpm, got %v", healable.executedActions)
+	}
+}
+
+// TestRunAutoHeal_RecommendedActionUnavailableFallsThroughToRestart verifies
+// that when the recommended action is not Available in the current state, the
+// selector falls through to the default scenario restart policy.
+func TestRunAutoHeal_RecommendedActionUnavailableFallsThroughToRestart(t *testing.T) {
+	reg := newTestRegistry()
+	healable := &mockHealableCheck{
+		id:     "scenario-agent-manager",
+		result: Result{CheckID: "scenario-agent-manager", Status: StatusCritical},
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+			{ID: "recover-go", Available: false, Dangerous: true},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(healable)
+	reg.SetConfigProvider(&mockConfigProvider{autoHealChecks: map[string]bool{"scenario-agent-manager": true}})
+	reg.RunAutoHeal(context.Background(), []Result{{
+		CheckID: "scenario-agent-manager", Status: StatusCritical,
+		Details: map[string]interface{}{"recommendedAction": "recover-go"},
+	}})
+	if len(healable.executedActions) != 1 || healable.executedActions[0] != "restart" {
+		t.Fatalf("expected restart fallback, got %v", healable.executedActions)
 	}
 }
 

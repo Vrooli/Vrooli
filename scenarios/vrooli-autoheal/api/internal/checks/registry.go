@@ -43,6 +43,8 @@ var restartActionIDs = map[string]struct{}{
 	"restart":       {},
 	"restart-clean": {},
 	"setup-restart": {},
+	"recover-go":    {},
+	"recover-pnpm":  {},
 	"start":         {},
 	"stop":          {},
 }
@@ -913,15 +915,16 @@ func selectAutoHealAction(result Result, actions []RecoveryAction) *RecoveryActi
 		}
 	}
 
-	// Specialized scenario policy: when shared package drift is detected,
-	// run setup before restart to avoid repeating restart-only loops.
-	if strings.HasPrefix(checkID, "scenario-") {
-		if result.Details != nil {
-			if cause, ok := result.Details["rootCause"].(string); ok && cause == "shared-package-drift" {
-				for _, action := range actions {
-					if action.Available && action.ID == "setup-restart" {
-						return &action
-					}
+	// Specialized scenario policy: when a drift signature is detected, prefer
+	// the targeted recovery action over a plain restart loop. Language-specific
+	// recoveries (recover-go / recover-pnpm) are cheaper than setup-restart
+	// and the signature gating in the scenario check ensures they only fire
+	// when their healable pattern is actually present.
+	if strings.HasPrefix(checkID, "scenario-") && result.Details != nil {
+		if recommended, ok := result.Details["recommendedAction"].(string); ok && recommended != "" {
+			for _, action := range actions {
+				if action.Available && action.ID == recommended {
+					return &action
 				}
 			}
 		}
