@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useExportStore, type Export } from './store';
-import { getConfig } from '@/config';
+import { exportsClient } from '@/api/exports';
 
 interface ExportSuccessPanelProps {
   export_: Export;
@@ -43,32 +43,18 @@ export const ExportSuccessPanel: React.FC<ExportSuccessPanelProps> = ({
   const handleGenerateCaption = useCallback(async () => {
     setIsGeneratingCaption(true);
     try {
-      const config = await getConfig();
-      // Call the AI caption generation endpoint
-      const response = await fetch(`${config.API_URL}/exports/${export_.id}/generate-caption`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!response.ok) {
-        // If endpoint doesn't exist yet, use a placeholder caption
-        const placeholderCaption = `Check out this ${export_.format.toUpperCase()} replay of "${export_.name}"! Created with Vrooli Ascension.`;
-        setAiCaption(placeholderCaption);
-        await updateExport(export_.id, { aiCaption: placeholderCaption });
-        toast.success('Caption generated');
-        return;
-      }
-
-      const data: unknown = await response.json();
-      const caption =
-        data && typeof data === 'object' ? (data as Record<string, unknown>).caption : null;
-      if (typeof caption === 'string' && caption.length > 0) {
+      const res = await exportsClient.generateExportCaption({ id: export_.id });
+      const caption = res.caption;
+      if (caption.length > 0) {
         setAiCaption(caption);
         await updateExport(export_.id, { aiCaption: caption });
         toast.success('Caption generated');
+        return;
       }
+      // Server returned empty caption — fall through to placeholder.
+      throw new Error('Empty caption');
     } catch (_error) {
-      // Fallback to placeholder
+      // Fallback to placeholder.
       const placeholderCaption = `Check out this ${export_.format.toUpperCase()} replay of "${export_.name}"! Created with Vrooli Ascension.`;
       setAiCaption(placeholderCaption);
       toast.success('Caption generated');

@@ -26,6 +26,8 @@ import (
 	captureconnect "github.com/vrooli/browser-automation-studio/handlers/capture"
 	entitlementconnect "github.com/vrooli/browser-automation-studio/handlers/entitlement"
 	executionsconnect "github.com/vrooli/browser-automation-studio/handlers/executions"
+	exportsserviceconnect "github.com/vrooli/browser-automation-studio/handlers/exports_service"
+	observabilityconnect "github.com/vrooli/browser-automation-studio/handlers/observability"
 	projectfilesconnect "github.com/vrooli/browser-automation-studio/handlers/project_files"
 	projectsconnect "github.com/vrooli/browser-automation-studio/handlers/projects"
 	replayconfigconnect "github.com/vrooli/browser-automation-studio/handlers/replay_config"
@@ -429,6 +431,17 @@ func main() {
 			UserIdentity:  entitlement.UserIdentityFromContext,
 			Logger:        log,
 		}),
+		exportsserviceconnect.Module(exportsserviceconnect.Deps{
+			Repo:            repo,
+			Executor:        deps.ExecutionService,
+			Catalog:         deps.CatalogService,
+			AIClientFactory: aiClientFactory,
+			Logger:          log,
+		}),
+		observabilityconnect.Module(observabilityconnect.Deps{
+			Proxy:  handler,
+			Logger: log,
+		}),
 	}
 	schemaMount, err := schemaconnect.Module(schemaconnect.Deps{Logger: log})
 	if err != nil {
@@ -557,16 +570,15 @@ func main() {
 		//     RESTException: ops_probe — fixed by the driver protocol.
 		r.Post("/executions/{executionId}/frames", handler.ReceiveExecutionFrame)
 
-		// Export library routes
-		r.Get("/exports", handler.ListExports)
-		r.Post("/exports", handler.CreateExport)
-		r.Get("/exports/{id}", handler.GetExport)
-		r.Patch("/exports/{id}", handler.UpdateExport)
-		r.Delete("/exports/{id}", handler.DeleteExport)
-		r.Get("/exports/{id}/status", handler.GetExportStatus)
-		r.Post("/exports/{id}/generate-caption", handler.GenerateExportCaption)
-		r.Post("/exports/{id}/reveal", handler.RevealExport)
-		r.Post("/exports/{id}/open-folder", handler.OpenExportFolder)
+		// Export library routes are served by ExportsService via Connect-RPC;
+		// see connectMounts above. The legacy REST routes were removed during
+		// the Phase 9 proto+Connect migration.
+		//
+		// One endpoint intentionally remains on chi REST:
+		//   - POST /executions/{id}/export — multipart-ish replay export.
+		//     RESTException: third_party_shape — streams binary mp4/gif/webm
+		//     or writes files to a caller-supplied output_dir on the server
+		//     filesystem. Not RPC-shaped. Already declared above.
 		// Replay configuration is served via Connect-RPC (ReplayConfigService);
 		// see connectMounts above. The legacy REST surface was removed in
 		// the Phase 9 proto+Connect migration.
@@ -676,60 +688,7 @@ func main() {
 
 		// Schedule routes are served by SchedulesService (Connect-RPC).
 
-		// Observability routes — REST-only.
-		// All /observability/* endpoints proxy byte-for-byte to playwright-driver
-		// (the downstream service owns the response schema). Wrapping them in
-		// proto would force every payload through google.protobuf.Struct with
-		// zero schema benefit, so these are deliberately classified as
-		// `third_party_shape` REST exceptions. See
-		// docs/internal/REST_EXCEPTIONS.md for the full registry.
-		// RESTException
-		// RESTReason: third_party_shape
-		r.Get("/observability", handler.GetObservability)
-		// RESTException
-		// RESTReason: third_party_shape
-		r.Post("/observability/refresh", handler.RefreshObservability)
-		// RESTException
-		// RESTReason: third_party_shape
-		r.Post("/observability/diagnostics/run", handler.RunDiagnostics)
-		// RESTException
-		// RESTReason: third_party_shape
-		r.Get("/observability/sessions", handler.GetSessionList)
-		// RESTException
-		// RESTReason: third_party_shape
-		r.Post("/observability/cleanup/run", handler.RunCleanup)
-		// RESTException
-		// RESTReason: third_party_shape
-		r.Get("/observability/metrics", handler.GetMetrics)
-		// RESTException
-		// RESTReason: third_party_shape
-		r.Post("/observability/pipeline-test", handler.RunPipelineTest)
-		// Runtime configuration management.
-		// RESTException
-		// RESTReason: third_party_shape
-		r.Get("/observability/config/runtime", handler.GetConfigRuntime)
-		// RESTException
-		// RESTReason: third_party_shape
-		r.Put("/observability/config/{envVar}", func(w http.ResponseWriter, req *http.Request) {
-			envVar := chi.URLParam(req, "envVar")
-			handler.UpdateConfig(w, req, envVar)
-		})
-		// RESTException
-		// RESTReason: third_party_shape
-		r.Delete("/observability/config/{envVar}", func(w http.ResponseWriter, req *http.Request) {
-			envVar := chi.URLParam(req, "envVar")
-			handler.ResetConfig(w, req, envVar)
-		})
-		// Debug mode management — enable verbose logging temporarily.
-		// The state lives in-process so the proxy classification does not
-		// strictly apply, but the payloads are still free-form JSON consumed
-		// by the diagnostics UI directly; kept REST under the ops_probe class.
-		// RESTException
-		// RESTReason: ops_probe
-		r.Get("/observability/debug-mode", handler.GetDebugMode)
-		// RESTException
-		// RESTReason: ops_probe
-		r.Post("/observability/debug-mode", handler.SetDebugMode)
+		// Observability routes are served by ObservabilityService (Connect-RPC).
 	})
 
 	// Initialize and start the workflow scheduler

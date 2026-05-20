@@ -23,19 +23,13 @@ backed by an entry below.
 | GET | `/ws/recording/{sessionId}/frames` | `third_party_shape` | WebSocket binary frame stream from `playwright-driver`. Not RPC. | recording |
 | GET | `/ws/execution/{executionId}/frames` | `third_party_shape` | WebSocket binary frame stream from `playwright-driver`. Not RPC. | recording |
 | POST | `/api/v1/recordings/import` | `multipart_upload` | Recording archive (.zip) ingestion. Proto JSON would force base64 round-trip on multi-megabyte uploads. Metadata side may later move to Connect with the multipart sub-route remaining REST. | recording |
-| GET | `/api/v1/observability` | `third_party_shape` | Byte-for-byte proxy to `playwright-driver` `/observability`. Downstream owns the schema; wrapping in proto would only add a `Struct` envelope. | observability |
-| POST | `/api/v1/observability/refresh` | `third_party_shape` | Proxy to `playwright-driver`. Same rationale as `/observability`. | observability |
-| POST | `/api/v1/observability/diagnostics/run` | `third_party_shape` | Proxy to `playwright-driver` diagnostics. Open-shape response. | observability |
-| GET | `/api/v1/observability/sessions` | `third_party_shape` | Proxy to `playwright-driver` session inventory. | observability |
-| POST | `/api/v1/observability/cleanup/run` | `third_party_shape` | Proxy to `playwright-driver` cleanup run. | observability |
-| GET | `/api/v1/observability/metrics` | `third_party_shape` | Proxy returning metrics in the upstream-defined shape (parsed from Prometheus text format by `playwright-driver`). | observability |
-| POST | `/api/v1/observability/pipeline-test` | `third_party_shape` | Proxy to autonomous end-to-end pipeline test. | observability |
-| GET | `/api/v1/observability/config/runtime` | `third_party_shape` | Proxy returning runtime config map; key set is owned by `playwright-driver` and changes independently of BAS releases. | observability |
-| PUT | `/api/v1/observability/config/{envVar}` | `third_party_shape` | Proxy update for downstream-owned runtime config. | observability |
-| DELETE | `/api/v1/observability/config/{envVar}` | `third_party_shape` | Proxy reset for downstream-owned runtime config. | observability |
-| GET | `/api/v1/observability/debug-mode` | `ops_probe` | In-process debug-mode toggle consumed by diagnostics UI; free-form JSON. | observability |
-| POST | `/api/v1/observability/debug-mode` | `ops_probe` | Companion writer to debug-mode toggle. | observability |
 | GET | `/api/v1/projects/{id}/files/*` | `third_party_shape` | Streams arbitrary file bytes with MIME types decided by extension; consumed by the browser via `<img>`, `<a download>`, and file viewers. The JSON metadata sub-routes (`/files/tree`, `/files/mkdir`, `/files/write`, etc.) now live on `ProjectFilesService` over Connect-RPC. | project_files |
+
+The /api/v1/observability/* routes previously listed here moved to
+`ObservabilityService` over Connect-RPC during Phase 4 of the migration.
+Free-form playwright-driver payloads are round-tripped via
+google.protobuf.Struct so contract drift between API/UI/CLI is captured
+in proto even though the upstream schema remains opaque.
 
 ## Pending evaluation
 

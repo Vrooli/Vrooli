@@ -1374,6 +1374,302 @@
           }
         }
       ]
+    },
+    {
+      "name": "observability",
+      "description": "Status, diagnostics, metrics, runtime config, and pipeline self-test for the playwright-driver, plus the in-process debug-mode toggle.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Fetch the playwright-driver observability snapshot.",
+          "flags": [
+            { "name": "depth", "description": "Detail level: quick | standard | deep (default standard)" },
+            { "name": "no-cache", "bool": true, "description": "Force a fresh fetch instead of returning a cached snapshot" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "GetObservability" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "refresh",
+          "description": "Invalidate the cached observability snapshot.",
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "RefreshObservability" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "diagnostics",
+          "description": "Trigger a manual diagnostic run. Pass --options-file with a JSON body matching playwright-driver's DiagnosticRunRequest.",
+          "flags": [
+            { "name": "options-file", "description": "Path to a JSON file with the diagnostic options body" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "RunDiagnostics" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "sessions",
+          "description": "List active playwright-driver browser sessions.",
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "GetSessionList" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "cleanup",
+          "description": "Trigger manual idle-session cleanup.",
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "RunCleanup" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "metrics",
+          "description": "Fetch the JSON-parsed Prometheus metrics snapshot.",
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "GetMetrics" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "pipeline-test",
+          "description": "Run the autonomous end-to-end recording-pipeline self-test.",
+          "flags": [
+            { "name": "options-file", "description": "Path to a JSON file with the pipeline test options" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "RunPipelineTest" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "config-get",
+          "description": "Show the current runtime config overrides.",
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "GetConfigRuntime" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "config-set",
+          "description": "Update a runtime configuration value.",
+          "positionals": [
+            { "name": "env-var", "required": true, "description": "Environment variable name to update" }
+          ],
+          "flags": [
+            { "name": "value", "required": true, "description": "New value (parsed by the driver per the env var's data type)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "UpdateConfig" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "config-reset",
+          "description": "Reset a runtime configuration value back to its environment/default value.",
+          "positionals": [
+            { "name": "env-var", "required": true, "description": "Environment variable name to reset" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "ResetConfig" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "debug-mode-get",
+          "description": "Read the in-process debug-mode toggle state.",
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "GetDebugMode" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "debug-mode-set",
+          "description": "Enable or disable in-process debug mode.",
+          "flags": [
+            { "name": "enabled", "bool": true, "description": "Enable debug mode" },
+            { "name": "components", "description": "Comma-separated component names to scope debug logging to" },
+            { "name": "duration-minutes", "description": "Auto-disable after this many minutes (default 30, max 120)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ObservabilityService", "method": "SetDebugMode" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "exports",
+      "description": "Export library: persisted records for rendered replays (mp4/gif/json/html), AI caption generation, and OS file-manager reveal.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List exports. Optionally filter by --execution-id or --workflow-id.",
+          "flags": [
+            { "name": "execution-id", "description": "Filter by execution UUID" },
+            { "name": "workflow-id", "description": "Filter by workflow UUID" },
+            { "name": "limit", "description": "Maximum number of results" },
+            { "name": "offset", "description": "Pagination offset" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExportsService", "method": "ListExports" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Fetch a single export by id.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Export UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExportsService", "method": "GetExport" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Record a new export library row for a previously produced artifact.",
+          "flags": [
+            { "name": "execution-id", "required": true, "description": "Execution UUID this export was rendered from" },
+            { "name": "workflow-id", "description": "Optional workflow UUID" },
+            { "name": "name", "required": true, "description": "Display name" },
+            { "name": "format", "required": true, "description": "One of: mp4, gif, json, html" },
+            { "name": "storage-url", "description": "Storage location of the rendered artifact" },
+            { "name": "thumbnail-url", "description": "Optional thumbnail URL" },
+            { "name": "file-size-bytes", "description": "File size in bytes" },
+            { "name": "duration-ms", "description": "Duration in milliseconds" },
+            { "name": "frame-count", "description": "Frame count for video exports" },
+            { "name": "status", "description": "Initial status (pending|processing|completed|failed)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExportsService", "method": "CreateExport" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Patch fields on an existing export row.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Export UUID" }
+          ],
+          "flags": [
+            { "name": "name", "description": "New display name" },
+            { "name": "storage-url", "description": "New storage URL" },
+            { "name": "thumbnail-url", "description": "New thumbnail URL" },
+            { "name": "file-size-bytes", "description": "New file size in bytes" },
+            { "name": "duration-ms", "description": "New duration in milliseconds" },
+            { "name": "frame-count", "description": "New frame count" },
+            { "name": "ai-caption", "description": "Set the AI-generated caption" },
+            { "name": "status", "description": "New status (pending|processing|completed|failed)" },
+            { "name": "error", "description": "Failure reason" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExportsService", "method": "UpdateExport" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete an export row. Underlying storage file cleanup is delegated.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Export UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExportsService", "method": "DeleteExport" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Get a compact status snapshot for reconnection scenarios.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Export UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExportsService", "method": "GetExportStatus" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "generate-caption",
+          "description": "Generate an AI caption for the export and persist it.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Export UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExportsService", "method": "GenerateExportCaption" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "network:external"]
+          }
+        },
+        {
+          "name": "reveal",
+          "description": "Reveal the export's storage file in the system file manager.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Export UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExportsService", "method": "RevealExport" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["filesystem:read"]
+          }
+        },
+        {
+          "name": "open-folder",
+          "description": "Open the folder containing the export's storage file in the system file manager.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Export UUID" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExportsService", "method": "OpenExportFolder" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["filesystem:read"]
+          }
+        }
+      ]
     }
   ],
   "omitted": []
