@@ -41,6 +41,13 @@
   "inspector": {
     "close": "インスペクタを閉じる"
   },
+  "common": {
+    "code": {
+      "copy": "Copy code",
+      "copied": "Copied!",
+      "copyShort": "Copy"
+    }
+  },
   "pages": {
     "dashboard": {
       "title": "ダッシュボード",
@@ -122,26 +129,176 @@
       "back": "Back to validation"
     },
     "search": {
-      "title": "検索",
-      "description": "UI サーフェスカタログのセマンティック検索。",
-      "placeholder": "サーフェス、コンポーネント、フックを検索…",
-      "empty": "クエリを入力してカタログを検索します。"
+      "title": "Search",
+      "description": "Semantic search over the UI surface catalog.",
+      "placeholder": "Search surfaces, components, hooks…",
+      "input": {
+        "label": "Search surfaces",
+        "clear": "Clear search"
+      },
+      "filters": {
+        "heading": "Filter by surface kind"
+      },
+      "kind": {
+        "all": "All",
+        "component": "Component",
+        "page": "Page",
+        "feature": "Feature",
+        "hook": "Hook",
+        "layout": "Layout",
+        "other": "Other",
+        "unspecified": "Unspecified"
+      },
+      "provenance": {
+        "custom": "Custom",
+        "adoptedUnmodified": "Adopted",
+        "adoptedModified": "Adopted · drift",
+        "unknown": "Unknown",
+        "unspecified": "Unspecified"
+      },
+      "loading": "Searching…",
+      "error": "Search failed: {{message}}",
+      "shortQuery": "Type at least 2 characters to search.",
+      "empty": {
+        "title": "Search the surface catalog",
+        "description": "Find components, pages, features, and hooks across every indexed scenario."
+      },
+      "noResults": {
+        "title": "No results for “{{query}}”",
+        "description": "Try a shorter or more general query, or pick a different filter."
+      },
+      "noResultsForFilter": "No results match this filter.",
+      "results": {
+        "summary": "{{count}} result(s) for “{{query}}”",
+        "listLabel": "Search results",
+        "score": "Score {{score}}",
+        "path": "Path",
+        "openInInventory": "Open in inventory"
+      }
     },
     "inventory": {
-      "title": "インベントリ",
-      "description": "すべてのシナリオでインデックス化された UI サーフェス。",
-      "empty": "インベントリは空です。再インデックスを実行してください。",
+      "title": "Inventory",
+      "description": "Indexed UI surfaces for a scenario.",
+      "form": {
+        "heading": "Scan a scenario",
+        "scenarioLabel": "Scenario name",
+        "scenarioPlaceholder": "e.g. ui-health",
+        "scenarioHelp": "Name of any scenario under scenarios/. Example: flow-verifier.",
+        "submit": "Scan",
+        "submitting": "Scanning…"
+      },
+      "filters": {
+        "heading": "Filter by kind"
+      },
+      "loading": "Scanning surfaces…",
+      "error": "Scan failed: {{message}}",
+      "empty": {
+        "title": "No scenario scanned yet",
+        "description": "Enter a scenario name above and press Scan to inventory its UI surfaces."
+      },
+      "noSurfaces": {
+        "title": "No surfaces found in “{{scenario}}”",
+        "description": "The scanner walked the scenario but found no UI surfaces to inventory."
+      },
+      "noResultsForFilter": "No surfaces match this filter.",
+      "summary": "{{count}} surface(s) in {{scenario}} (scanned {{scannedAt}})",
+      "columns": {
+        "displayName": "Name",
+        "kind": "Kind",
+        "slot": "Slot",
+        "filePath": "File"
+      },
       "detail": {
-        "title": "サーフェスの詳細"
+        "title": "Surface detail",
+        "back": "Back to inventory",
+        "scenario": "Scenario",
+        "slot": "Slot",
+        "kind": "Kind",
+        "filePath": "File path",
+        "description": "Description",
+        "provenance": {
+          "heading": "Provenance",
+          "empty": "No provenance entries for this scenario.",
+          "library": "Library",
+          "libraryVersion": "Library version",
+          "adoptionId": "Adoption id"
+        },
+        "widgets": {
+          "heading": "Widgets",
+          "empty": "No widget declarations.",
+          "propsSchema": "Props schema"
+        },
+        "loading": "Loading surface…",
+        "error": "Failed to load surface: {{message}}",
+        "notFound": {
+          "title": "Surface not found",
+          "description": "“{{slot}}” isn't in the {{scenario}} inventory. It may have been removed since the last scan."
+        }
       }
     },
     "reindex": {
-      "title": "再インデックス",
-      "description": "再インデックスジョブを実行・監視します。",
-      "trigger": "再インデックスを実行",
-      "empty": "ジョブがまだありません。",
+      "title": "Reindex",
+      "description": "Trigger and monitor reindex jobs for the surface catalog.",
+      "form": {
+        "heading": "Trigger reindex",
+        "scenarioLabel": "Scenario name",
+        "scenarioPlaceholder": "e.g. ui-health (leave blank for all scenarios)",
+        "scenarioHelp": "Leave empty to reindex every scenario, or enter a name to scope.",
+        "dryRunLabel": "Dry run",
+        "dryRunHelp": "Plan upserts/deletes without writing to Qdrant.",
+        "submit": "Trigger reindex",
+        "submitting": "Triggering…"
+      },
+      "error": "Trigger failed: {{message}}",
+      "confirm": {
+        "title": "Reindex all scenarios?",
+        "description": "Running reindex with an empty scenario name will scan and write surface records for every scenario. This is safe but may take a while.",
+        "accept": "Reindex everything",
+        "cancel": "Cancel",
+        "close": "Close dialog",
+        "backdrop": "Close dialog"
+      },
+      "jobs": {
+        "heading": "Jobs",
+        "emptyTitle": "No jobs yet",
+        "emptyDescription": "Trigger a reindex above to populate this list. Tracked jobs persist across reloads.",
+        "clearTerminal": "Clear completed",
+        "columns": {
+          "progress": "Progress",
+          "dryRun": "Dry run"
+        },
+        "open": "Open job {{jobId}}",
+        "allScenarios": "All scenarios"
+      },
+      "state": {
+        "queued": "Queued",
+        "running": "Running",
+        "succeeded": "Succeeded",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "unknown": "Unknown"
+      },
       "job": {
-        "title": "ジョブの詳細"
+        "title": "Job detail",
+        "back": "Back to reindex",
+        "meta": {
+          "scenario": "Scenario",
+          "state": "State",
+          "triggeredAt": "Triggered",
+          "dryRun": "Dry run",
+          "processed": "Processed",
+          "total": "Total"
+        },
+        "progress": "Indexing progress",
+        "error": "Job error: {{message}}",
+        "cancel": "Cancel job",
+        "cancelling": "Cancelling…",
+        "loading": "Loading job…",
+        "loadError": "Failed to load job: {{message}}",
+        "notFound": {
+          "title": "Job not found",
+          "description": "Job “{{jobId}}” is no longer tracked. Trigger a new reindex from the reindex page."
+        }
       }
     },
     "notFound": {
