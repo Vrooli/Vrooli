@@ -163,27 +163,23 @@ describe("SettingsModal", () => {
     });
   });
 
-  it("renders the precommit tab and saves repo-scoped settings", async () => {
+  it("renders the precommit tab; toggling Enabled auto-saves, and Save persists text-field edits", async () => {
+    let serverState = {
+      enabled: false,
+      command: "",
+      working_directory: "/work/git-control-tower",
+      timeout_seconds: 300,
+      run_before_commit: true,
+      allow_override: true,
+    };
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = requestUrl(input);
       if (url.endsWith("/repo/precommit") && init?.method === "PUT") {
-        return jsonResponse({
-          enabled: true,
-          command: "make hygiene",
-          working_directory: "/work/git-control-tower",
-          timeout_seconds: 300,
-          run_before_commit: true,
-          allow_override: true,
-        });
+        const body = JSON.parse(typeof init.body === "string" ? init.body : "{}");
+        serverState = { ...serverState, ...body };
+        return jsonResponse(serverState);
       }
-      return jsonResponse({
-        enabled: false,
-        command: "",
-        working_directory: "/work/git-control-tower",
-        timeout_seconds: 300,
-        run_before_commit: true,
-        allow_override: true,
-      });
+      return jsonResponse(serverState);
     });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -192,19 +188,20 @@ describe("SettingsModal", () => {
     );
 
     expect(await screen.findByLabelText("Command")).toBeInTheDocument();
+
     fireEvent.click(screen.getByText("Enabled"));
+    await waitFor(() => {
+      expect(serverState.enabled).toBe(true);
+    });
+
     fireEvent.change(screen.getByLabelText("Command"), { target: { value: "make hygiene" } });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+    });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "https://git-control-tower.test/api/v1/repo/precommit",
-        expect.objectContaining({
-          method: "PUT",
-          headers: expect.objectContaining({ "X-Repo-Id": "repo-1" }),
-          body: expect.stringContaining("make hygiene"),
-        }),
-      );
+      expect(serverState.command).toBe("make hygiene");
     });
   });
 

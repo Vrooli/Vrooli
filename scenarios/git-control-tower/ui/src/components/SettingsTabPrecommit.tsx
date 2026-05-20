@@ -18,6 +18,12 @@ interface SettingsTabPrecommitProps {
   isMobile?: boolean;
 }
 
+function textFieldsEqual(a: PrecommitConfig, b: PrecommitConfig): boolean {
+  return a.command === b.command
+    && a.working_directory === b.working_directory
+    && a.timeout_seconds === b.timeout_seconds;
+}
+
 export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPrecommitProps) {
   const configQuery = usePrecommitConfig(repoId);
   const saveMutation = useSavePrecommitConfig(repoId);
@@ -25,9 +31,21 @@ export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPr
   const [draft, setDraft] = useState<PrecommitConfig | null>(null);
 
   useEffect(() => {
-    if (configQuery.data) {
-      setDraft(configQuery.data);
-    }
+    const fresh = configQuery.data;
+    if (!fresh) return;
+    setDraft((prev) => {
+      if (!prev) return fresh;
+      if (textFieldsEqual(prev, fresh)) return fresh;
+      // Preserve in-flight text-field edits; sync everything else from the server.
+      return {
+        ...prev,
+        enabled: fresh.enabled,
+        run_before_commit: fresh.run_before_commit,
+        allow_override: fresh.allow_override,
+        last_result: fresh.last_result,
+        hook: fresh.hook,
+      };
+    });
   }, [configQuery.data]);
 
   if (configQuery.isLoading || !draft) {
@@ -39,6 +57,16 @@ export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPr
   const streamingResult = precommitStream.state.finished?.result;
   const lastResult = streamingResult ?? draft.last_result;
   const streamRunning = precommitStream.state.running;
+  const textDirty = configQuery.data ? !textFieldsEqual(draft, configQuery.data) : false;
+
+  const persistBoolean = (
+    key: "enabled" | "run_before_commit" | "allow_override",
+    value: boolean,
+  ) => {
+    const next = { ...draft, [key]: value };
+    setDraft(next);
+    saveMutation.mutate(next);
+  };
 
   return (
     <div className={`space-y-4 ${isMobile ? "pb-6" : ""}`}>
@@ -47,7 +75,7 @@ export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPr
         <input
           type="checkbox"
           checked={draft.enabled}
-          onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })}
+          onChange={(event) => persistBoolean("enabled", event.target.checked)}
         />
       </label>
 
@@ -91,7 +119,7 @@ export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPr
         <input
           type="checkbox"
           checked={draft.run_before_commit}
-          onChange={(event) => setDraft({ ...draft, run_before_commit: event.target.checked })}
+          onChange={(event) => persistBoolean("run_before_commit", event.target.checked)}
         />
       </label>
 
@@ -100,20 +128,28 @@ export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPr
         <input
           type="checkbox"
           checked={draft.allow_override}
-          onChange={(event) => setDraft({ ...draft, allow_override: event.target.checked })}
+          onChange={(event) => persistBoolean("allow_override", event.target.checked)}
         />
       </label>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
           onClick={() => saveMutation.mutate(draft)}
-          disabled={saveMutation.isPending}
+          disabled={saveMutation.isPending || !textDirty}
           className="h-8 gap-2"
         >
           <Save className="h-3.5 w-3.5" />
           Save
         </Button>
+        {textDirty && (
+          <span
+            className="text-[11px] font-medium text-amber-300"
+            data-testid="precommit-unsaved-indicator"
+          >
+            Unsaved changes
+          </span>
+        )}
         <Button
           size="sm"
           variant="outline"
